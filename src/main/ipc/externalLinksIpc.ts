@@ -28,6 +28,18 @@ const VERTEX_SETUP_PAGE_URLS = {
 export function registerExternalLinksIpc(context: IpcContext): void {
   trustedHandleContract(
     context,
+    externalIpcContracts.openResearchSource,
+    async (_event, rawUrl) => {
+      const url = new URL(rawUrl);
+      if (url.protocol !== "https:") {
+        throw new Error("HTTPS 조사 출처만 열 수 있습니다.");
+      }
+      await shell.openExternal(url.href);
+      return { opened: true, url: url.href };
+    },
+  );
+  trustedHandleContract(
+    context,
     externalIpcContracts.openAmdHipSdkDownload,
     async () => {
       await shell.openExternal(AMD_HIP_SDK_URL);

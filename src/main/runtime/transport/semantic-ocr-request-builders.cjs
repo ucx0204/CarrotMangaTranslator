@@ -30,13 +30,13 @@ const SEMANTIC_PAGE_CONTEXT_TOKENS = 8192;
 const SEMANTIC_TRANSLATION_MAX_RETRY_SCALE = 4;
 const SEMANTIC_TRANSLATION_INPUT_RESERVE_TOKENS = 6400;
 const WORK_CONTEXT_TRUNCATION_MESSAGE =
-  "모델 응답이 작품 컨텍스트 예산 한도에서 잘렸습니다. 설정 > 번역 엔진 > 작품 컨텍스트 예산을 늘려 주세요.";
+  "모델 응답이 작품 정보 예산 한도에서 잘렸습니다. 설정 > LLM > 작품 정보 예산을 늘려 주세요.";
 const CONTEXT_LENGTH_TRUNCATION_MESSAGE =
-  "모델 응답이 컨텍스트 길이 한도에서 잘렸습니다. 설정 > 번역 엔진 > 컨텍스트 길이를 늘려 주세요. VRAM 사용량이 늘 수 있습니다.";
+  "모델 응답이 컨텍스트 길이 한도에서 잘렸습니다. 설정 > LLM > 컨텍스트 길이를 늘려 주세요. VRAM 사용량이 늘 수 있습니다.";
 const STRUCTURED_BUDGET_TRUNCATION_MESSAGE =
   "모델 응답이 앱 내부 구조화 출력 한도에서 잘렸습니다. 사용자 설정 부족으로 단정할 수 없어 진단 가능한 일반 오류로 처리합니다.";
 const MAX_OUTPUT_TRUNCATION_MESSAGE =
-  "모델 응답이 최대 출력 토큰 한도에서 잘렸습니다. 설정 > 번역 엔진 > 최대 출력 토큰을 늘려 주세요.";
+  "모델 응답이 최대 출력 토큰 한도에서 잘렸습니다. 설정 > LLM > 최대 출력 토큰을 늘려 주세요.";
 
 /** @type {Record<string, [string, string?]>} */
 const OUTPUT_TRUNCATION_DETAILS = {

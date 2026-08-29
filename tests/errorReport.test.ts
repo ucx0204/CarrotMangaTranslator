@@ -117,6 +117,7 @@ describe("error report diagnostics", () => {
     expect(draft.systemMarkdown).toContain("openai-api");
     expect(draft.systemMarkdown).toContain("safe-model-id");
     expect(combined).not.toContain("sk-private-api-key");
+    expect(combined).not.toContain("tvly-private-key");
     expect(combined).not.toContain("Authorization: Bearer abcdefghijklmnop");
     expect(combined).not.toContain("D:\\manga");
     expect(Buffer.byteLength(combined, "utf8")).toBeLessThanOrEqual(54 * 1024);
@@ -252,6 +253,22 @@ function makeSettings(): AppSettings {
     codex: {
       model: "gpt-test",
       reasoningEffort: "low",
+    },
+    internetResearch: {
+      tavilyAnalysisProvider: "gemma",
+      gemmaPreset: "minimum12b",
+      gemmaReasoningEffort: "medium",
+      gemmaMaxOutputTokens: 32768,
+      gemmaContextTokens: 65536,
+      apiModel: "safe-model-id",
+      apiMaxOutputTokens: 32768,
+      apiContextTokens: 65536,
+      codexModel: "gpt-test",
+      codexReasoningEffort: "low",
+      codexMaxOutputTokens: 32768,
+      codexContextTokens: 65536,
+      tavilyApiKey: "tvly-private-key",
+      tavilyMaxCreditsPerRun: 10,
     },
     api: {
       baseUrl: "https://private.example.test/v1?api_key=secret",

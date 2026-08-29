@@ -1075,15 +1075,82 @@
     },
     "note": "備註",
     "analysis": {
-      "ariaLabel": "AI 術語與記憶分析",
-      "title": "AI 自動分析",
-      "description": "分析原文並填入術語、角色和劇情記憶。",
-      "scope": "分析範圍",
-      "analyzing": "分析中…",
-      "currentChapter": "目前章節",
-      "entireWork": "整個作品",
-      "success": "已套用{{scope}}的 AI 分析。{{included}}/{{total}}話，{{changed}}項變更",
-      "failed": "AI 術語／記憶分析失敗。"
+      "ariaLabel": "術語表網路調查",
+      "title": "網路調查",
+      "description": "檢查現有術語表，並補充遺漏的術語與角色。",
+      "engineLabel": "調查方式",
+      "engines": { "tavily": "Tavily", "codex": "Codex" },
+      "run": "調查術語表",
+      "analyzing": "調查中…",
+      "cancel": "取消調查"
+    },
+    "research": {
+      "setupTitle": "準備術語表調查",
+      "titleLabel": "要調查的作品名稱",
+      "start": "依此標題調查",
+      "preparing": "檢查中…",
+      "setupFailed": "無法儲存調查設定。",
+      "progress": {
+        "title": "正在調查術語表",
+        "elapsed": "經過 {{time}}",
+        "cancelling": "正在取消調查…",
+        "cancellingDescription": "正在安全停止目前的請求。",
+        "stageLabel": "調查進度",
+        "creditUsage": "Tavily 點數",
+        "creditCount": "{{used}} / {{limit}}",
+        "activityTitle": "最近的調查活動",
+        "searchCount": "已搜尋 {{count}} 次",
+        "searching": "搜尋中",
+        "sourcesFound": "找到 {{count}} 筆相關依據",
+        "waitingForActivity": "正在準備下一項調查工作。",
+        "stages": {
+          "preparing": {
+            "short": "準備資料",
+            "title": "正在準備調查資料",
+            "description": "整理已儲存的術語、角色和可用的OCR文字。"
+          },
+          "planning": {
+            "short": "搜尋計畫",
+            "title": "正在建立搜尋順序",
+            "description": "優先調查影響角色名稱和翻譯一致性的項目。"
+          },
+          "searching": {
+            "short": "收集依據",
+            "title": "正在從網路收集依據",
+            "description": "尋找與作品直接相關的來源，並排除無關結果。"
+          },
+          "synthesizing": {
+            "short": "整理項目",
+            "title": "正在整理術語和角色",
+            "description": "根據收集的依據建立新增和修正建議。"
+          },
+          "auditing": {
+            "short": "交叉核驗",
+            "title": "正在交叉核驗建議",
+            "description": "過濾誤判和重複項，並確認手動項目受到保護。"
+          },
+          "finalizing": {
+            "short": "完成",
+            "title": "正在完成待審核建議",
+            "description": "比對網路依據和本機出現資訊，整理最終建議。"
+          }
+        }
+      },
+      "reviewTitle": "審核調查建議",
+      "reviewSummary": "{{count}}項建議 · {{queries}}次搜尋 · Tavily {{credits}}點 · {{seconds}}秒",
+      "dismiss": "關閉建議",
+      "apply": "套用所選 {{count}} 項",
+      "noChanges": "找不到可套用的變更。",
+      "selectChange": "選擇 {{name}} 的變更建議",
+      "actions": { "add": "新增", "update": "更新", "disable": "停用" },
+      "confidence": { "high": "高可信度", "medium": "需要審核" },
+      "localEvidence": "本機出現 {{pages}}頁 · {{mentions}}次",
+      "previewReady": "已建立 {{count}}項未儲存建議。",
+      "failed": "網路調查失敗。",
+      "cancelled": "已取消網路調查。",
+      "cancelFailed": "無法取消網路調查。",
+      "stale": "調查後草稿已變更。請重新調查後再套用。",
+      "applied": "已將 {{count}}項建議套用到草稿。儲存後才會寫入檔案。"
     },
     "tabs": {
       "ariaLabel": "術語與記憶分頁",
@@ -1301,8 +1368,11 @@
     "title": "設定",
     "tabs": {
       "ariaLabel": "設定區域",
+      "llmAriaLabel": "LLM 設定",
       "general": "一般",
-      "engine": "翻譯引擎",
+      "engine": "LLM",
+      "translation": "翻譯",
+      "research": "網路調查",
       "hardware": "硬體",
       "format": "預設格式",
       "results": "結果自動儲存",
@@ -1356,7 +1426,8 @@
       "limits": {
         "title": "生成限制",
         "recommendedFor": "{{model}} 建議值",
-        "recommendedValues": "輸出 {{maxTokens}} · 作品前後文 {{contextTokens}}",
+        "recommendedValuesGemma": "最大輸出 {{maxTokens}} · 前後文長度 {{contextTokens}}",
+        "recommendedValuesRemote": "最大輸出 {{maxTokens}} · 作品資訊預算 {{contextTokens}}",
         "publicLimits": "公開模型上限：輸出 {{maxOutput}} · 前後文 {{contextWindow}}",
         "publicContextOnly": "公開模型前後文：{{contextWindow}} · 最大輸出未公開",
         "unknownLimits": "沒有公開的模型上限資訊，因此使用安全的通用建議值。",
@@ -1370,10 +1441,54 @@
         "gemmaDescription": "限制本機模型單次生成量。數值越高，處理時間與記憶體使用量可能越大。"
       },
       "contextTokens": {
-        "remoteLabel": "作品前後文預算",
+        "remoteLabel": "作品資訊預算",
         "remoteDescription": "用於作品記憶、術語表與角色資訊的最大權杖數。",
         "gemmaLabel": "前後文長度",
-        "gemmaDescription": "本機 Gemma 的實際前後文長度。提高後可能使用更多顯示記憶體。"
+        "gemmaDescription": "本機 Gemma 的實際前後文長度。提高後可能使用更多顯示記憶體。",
+        "modelLabel": "前後文長度",
+        "modelDescription": "用於網際網路調查輸入與輸出的總前後文長度。"
+      }
+    },
+    "research": {
+      "analyzer": {
+        "label": "Tavily 搜尋結果分析 LLM",
+        "gemma": "Gemma",
+        "api": "API"
+      },
+      "gemma": {
+        "title": "Gemma 模型",
+        "model": "調查模型",
+        "reasoning": "推理強度",
+        "maxOutput": "最大輸出權杖",
+        "context": "調查上下文"
+      },
+      "api": { "title": "API 模型" },
+      "limits": { "maxOutput": "最大輸出權杖", "context": "調查上下文" },
+      "codex": {
+        "title": "Codex",
+        "description": "使用內建網頁搜尋查找資料並建立變更建議。"
+      },
+      "tavily": {
+        "title": "Tavily",
+        "description": "收集網頁搜尋結果，並由 Gemma 或 API 分析。",
+        "connection": "搜尋 API",
+        "apiKey": "Tavily API 金鑰",
+        "apiKeyPlaceholder": "輸入 API 金鑰",
+        "openSite": "前往 Tavily 取得 API 金鑰",
+        "openSiteFailed": "無法開啟 Tavily 網站。",
+        "perRun": "每次調查最大點數",
+        "usageTitle": "每月點數",
+        "usage": "已用 {{used}} / {{limit}} · 剩餘 {{remaining}}",
+        "usageUnavailable": "請輸入金鑰並檢查連線。",
+        "plan": "方案 {{plan}}",
+        "check": "檢查連線",
+        "checking": "檢查中…",
+        "checkFailed": "無法檢查 Tavily 連線，請稍後重試。",
+        "invalidKey": "Tavily API 金鑰無效。",
+        "quotaReached": "Tavily 方案內點數已用完。",
+        "rateLimited": "Tavily 請求過多，請稍後重試。",
+        "invalidResponse": "無法讀取 Tavily 使用量回應。",
+        "networkFailed": "無法連線 Tavily，請檢查網路。"
       }
     },
     "options": {

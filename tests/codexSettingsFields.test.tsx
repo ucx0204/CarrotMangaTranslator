@@ -116,10 +116,14 @@ describe("CodexSettingsFields", () => {
     const reasoning = screen.getByRole("combobox", { name: /추론 강도/ });
 
     expect(
-      model.closest("label")?.classList.contains("codex-catalog-row"),
+      model
+        .closest(".codex-catalog-row")
+        ?.classList.contains("codex-catalog-row"),
     ).toBe(true);
     expect(
-      reasoning.closest("label")?.classList.contains("codex-catalog-row"),
+      reasoning
+        .closest(".codex-catalog-row")
+        ?.classList.contains("codex-catalog-row"),
     ).toBe(true);
   });
 

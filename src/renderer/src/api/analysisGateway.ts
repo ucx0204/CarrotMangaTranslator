@@ -1,9 +1,10 @@
 import { createMangaDomainGateway } from "./mangaGateway";
 
 export const analysisGateway = createMangaDomainGateway("Analysis", [
-  "analyzeWorkContext",
   "cancelJob",
+  "cancelWorkContextResearch",
   "onJobEvent",
+  "researchWorkContext",
   "startAnalysis",
   "translateRegion",
 ] as const);

@@ -273,7 +273,7 @@ describe("unified workspace interaction state", () => {
     rerender({ status: "failed" });
 
     expect(errorToast).toHaveBeenCalledWith(
-      "최대 출력 토큰이 부족합니다. 설정 > 번역 엔진 > 최대 출력 토큰을 늘려 주세요.",
+      "최대 출력 토큰이 부족합니다. 설정 > LLM > 최대 출력 토큰을 늘려 주세요.",
     );
     expect(errorToast.mock.calls[0]?.[1]).toBeUndefined();
     expect(openErrorReport).not.toHaveBeenCalled();

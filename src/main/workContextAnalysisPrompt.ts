@@ -10,6 +10,10 @@ import {
 } from "../shared/translationLanguages";
 import { buildPageStoryMemory } from "./pipeline/storyMemoryBuilder";
 import type { BasePageMemory } from "./workContextAiTypes";
+import {
+  selectPriorityTextItemIndexes,
+  spreadItemIndexes,
+} from "./workContextResearchTextSelection";
 
 export type WorkTextSelection = {
   text: string;
@@ -38,6 +42,8 @@ export function selectWorkTextForAnalysis({
   scope,
   maxInputChars,
   languagePair,
+  priorityTerms = [],
+  spreadAcrossWork = false,
 }: {
   workId: string;
   requestedChapterId: string;
@@ -45,6 +51,8 @@ export function selectWorkTextForAnalysis({
   scope: WorkContextAnalysisScope;
   maxInputChars: number;
   languagePair?: ResolvedLanguagePair;
+  priorityTerms?: readonly string[];
+  spreadAcrossWork?: boolean;
 }): WorkTextSelection {
   const pair = languagePair ?? resolveLanguagePair(null);
   const pages = chapters.flatMap((chapter, chapterIndex) =>
@@ -61,6 +69,8 @@ export function selectWorkTextForAnalysis({
     textPages,
     requestedChapterId,
     maxInputChars,
+    priorityTerms,
+    spreadAcrossWork,
   );
   const ordered = selected.sort(compareWorkTextPages);
   return {
@@ -198,19 +208,55 @@ function selectPagesWithinBudget(
   pages: WorkTextPage[],
   requestedChapterId: string,
   maxInputChars: number,
+  priorityTerms: readonly string[] = [],
+  spreadAcrossWork = false,
 ): WorkTextPage[] {
   if (measurePages(pages) <= maxInputChars) {
     return pages;
   }
   const selected = new Map<string, WorkTextPage>();
-  const currentBudget = Math.floor(maxInputChars * 0.35);
+  if (priorityTerms.length > 0) {
+    addPagesToSelection(
+      selected,
+      selectPagesByIndexes(
+        pages,
+        selectPriorityTextItemIndexes(
+          pages.map((page) => page.section),
+          priorityTerms,
+        ),
+      ),
+      Math.floor(maxInputChars * 0.72),
+    );
+  }
+  if (!spreadAcrossWork) {
+    const currentBudget = Math.max(
+      measurePages([...selected.values()]),
+      Math.floor(maxInputChars * 0.35),
+    );
+    addPagesToSelection(
+      selected,
+      pages.filter((page) => page.chapterId === requestedChapterId),
+      currentBudget,
+    );
+  }
   addPagesToSelection(
     selected,
-    pages.filter((page) => page.chapterId === requestedChapterId),
-    currentBudget,
+    spreadAcrossWork
+      ? selectPagesByIndexes(pages, spreadItemIndexes(pages.length))
+      : pages,
+    maxInputChars,
   );
-  addPagesToSelection(selected, pages, maxInputChars);
   return Array.from(selected.values());
+}
+
+function selectPagesByIndexes(
+  pages: readonly WorkTextPage[],
+  indexes: readonly number[],
+): WorkTextPage[] {
+  return indexes.flatMap((index) => {
+    const page = pages[index];
+    return page ? [page] : [];
+  });
 }
 
 function addPagesToSelection(

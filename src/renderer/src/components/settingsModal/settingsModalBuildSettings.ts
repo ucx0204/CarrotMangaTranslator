@@ -35,10 +35,11 @@ export function buildSettingsFromDraft({
     uiLocale: values.uiLocale,
     keybindings,
     blockFormatDefaults,
-    blockStylePresetGroups:
-      blockStylePresetGroups ?? initialSettings.blockStylePresetGroups ?? [],
-    blockStylePresets:
-      blockStylePresets ?? initialSettings.blockStylePresets ?? [],
+    ...resolveBlockStyleCollections(
+      initialSettings,
+      blockStylePresetGroups,
+      blockStylePresets,
+    ),
     modelProvider: values.modelProvider,
     sourceLanguage: values.sourceLanguage,
     targetLanguage: values.targetLanguage,
@@ -56,6 +57,7 @@ export function buildSettingsFromDraft({
     allowUnsafeUnifiedMemory: values.allowUnsafeUnifiedMemory,
     codexModel: draft.trimmedCodexModel,
     codexReasoningEffort: values.codexReasoningEffort,
+    ...buildInternetResearchFields(draft, values),
     apiBaseUrl: draft.normalizedApiBaseUrl ?? initialSettings.api.baseUrl,
     apiModel: draft.trimmedApiModel,
     apiKey: draft.trimmedApiKey,
@@ -79,4 +81,38 @@ export function buildSettingsFromDraft({
     maxTokens: draft.parsedMaxTokens,
     ctx: draft.parsedContextTokens,
   });
+}
+
+function buildInternetResearchFields(
+  draft: SettingsDraft,
+  values: SettingsFormValues,
+) {
+  return {
+    researchTavilyAnalysisProvider: values.researchTavilyAnalysisProvider,
+    researchGemmaPreset: values.researchGemmaPreset,
+    researchGemmaReasoningEffort: values.researchGemmaReasoningEffort,
+    researchGemmaMaxOutputTokens: draft.parsedResearchGemmaMaxOutputTokens,
+    researchGemmaContextTokens: draft.parsedResearchGemmaContextTokens,
+    researchApiModel: draft.trimmedResearchApiModel,
+    researchApiMaxOutputTokens: draft.parsedResearchApiMaxOutputTokens,
+    researchApiContextTokens: draft.parsedResearchApiContextTokens,
+    researchCodexModel: draft.trimmedResearchCodexModel,
+    researchCodexReasoningEffort: values.researchCodexReasoningEffort,
+    researchCodexMaxOutputTokens: draft.parsedResearchCodexMaxOutputTokens,
+    researchCodexContextTokens: draft.parsedResearchCodexContextTokens,
+    tavilyApiKey: draft.trimmedTavilyApiKey,
+    tavilyMaxCreditsPerRun: draft.parsedTavilyMaxCreditsPerRun,
+  };
+}
+
+function resolveBlockStyleCollections(
+  initialSettings: AppSettings,
+  groups: BlockStylePresetGroup[] | undefined,
+  presets: BlockStylePreset[] | undefined,
+) {
+  return {
+    blockStylePresetGroups:
+      groups ?? initialSettings.blockStylePresetGroups ?? [],
+    blockStylePresets: presets ?? initialSettings.blockStylePresets ?? [],
+  };
 }

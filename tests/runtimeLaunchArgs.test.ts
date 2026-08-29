@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- launch-argument regression cases share the same exact argv contract and fixture helpers */
 import { describe, expect, it } from "vitest";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -74,6 +75,30 @@ describe("runtime launch argument contracts", () => {
     expect(
       isModelCached({ modelSource: "local", localModelPath: modelPath }),
     ).toBe(true);
+  });
+
+  it("omits an available vision projector for a text-only endpoint", () => {
+    const localDir = createTempDir("text-only-model-");
+    const modelPath = join(localDir, "custom-vision-model.gguf");
+    const mmprojPath = join(localDir, "mmproj-BF16.gguf");
+    writeFileSync(modelPath, "model");
+    writeFileSync(mmprojPath, "mmproj");
+
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 1024,
+      ctx: 12288,
+      batch: 1024,
+      ubatch: 1024,
+      modelSource: "local",
+      localModelPath: modelPath,
+      localMmprojPath: mmprojPath,
+      textOnlyModel: true,
+    });
+
+    expect(args).toContain(modelPath);
+    expect(args).not.toContain("--mmproj");
+    expect(args).not.toContain(mmprojPath);
   });
 
   it("passes VRAM economy cache options to llama-server without clipping image tokens", () => {
@@ -453,6 +478,8 @@ describe("runtime launch argument contracts", () => {
     expect(args).toContain("--spec-dflash-cross-ctx");
     expect(args).toContain("--spec-draft-ngl");
     expect(args).toContain("all");
+    expect(args).not.toContain("--spec-draft-type-k");
+    expect(args).not.toContain("--spec-draft-type-v");
     expect(args).toContain("--spec-draft-n-max");
     expect(args).toContain("16");
     expect(args).toContain("--spec-branch-budget");
@@ -498,6 +525,24 @@ describe("runtime launch argument contracts", () => {
       args.slice(args.indexOf("--spec-type"), args.indexOf("--spec-type") + 2),
     ).toEqual(["--spec-type", "draft-mtp"]);
     expect(args).toContain("--spec-draft-ngl");
+    expect(
+      args.slice(
+        args.indexOf("--spec-draft-ngl"),
+        args.indexOf("--spec-draft-ngl") + 2,
+      ),
+    ).toEqual(["--spec-draft-ngl", "auto"]);
+    expect(
+      args.slice(
+        args.indexOf("--spec-draft-type-k"),
+        args.indexOf("--spec-draft-type-k") + 2,
+      ),
+    ).toEqual(["--spec-draft-type-k", "q4_0"]);
+    expect(
+      args.slice(
+        args.indexOf("--spec-draft-type-v"),
+        args.indexOf("--spec-draft-type-v") + 2,
+      ),
+    ).toEqual(["--spec-draft-type-v", "q4_0"]);
     expect(
       args.slice(
         args.indexOf("--spec-draft-n-max"),
@@ -614,6 +659,13 @@ describe("runtime launch argument contracts", () => {
     expect(args).not.toContain("--mmproj-url");
     expect(args).not.toContain("--spec-draft-hf");
     expect(isModelCached(options)).toBe(true);
+
+    const textOnlyTarget = inspectModelLaunch({
+      ...options,
+      textOnlyModel: true,
+    });
+    expect(textOnlyTarget.modelPath).toBe(modelPath);
+    expect(textOnlyTarget.mmprojPath).toBeNull();
   });
 
   it("keeps the reported 31B Windows cache paths below MAX_PATH", () => {

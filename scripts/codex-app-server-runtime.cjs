@@ -13,9 +13,9 @@ const CODEX_APP_SERVER_CONFIG_OVERRIDES = [
   "apps={}",
   "plugins={}",
   "marketplaces={}",
-  'web_search="disabled"',
   "check_for_update_on_startup=false",
   "feedback.enabled=false",
+  'web_search="disabled"',
 ];
 const CODEX_APP_SERVER_DISABLED_FEATURES = [
   "apps",

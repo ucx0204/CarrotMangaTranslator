@@ -49,11 +49,13 @@ export {
 } from "./library/libraryShareFacade";
 export {
   getChapterStoryMemory,
+  getWorkResearchTitle,
   getWorkStyleGuide,
   importReviewText,
   resetWorkContext,
   resolveWorkContextForChapter,
   saveChapterStoryMemory,
+  saveWorkResearchTitle,
   saveWorkStyleGuide,
 } from "./library/libraryContextFacade";
 export {

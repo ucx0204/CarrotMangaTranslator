@@ -90,6 +90,35 @@ export class CodexAppServerTransport {
     this.writeMessage({ method, ...(params === undefined ? {} : { params }) });
   }
 
+  observeWebSearches(threadId: string): {
+    count: () => number;
+    dispose: () => void;
+  } {
+    const ids = new Set<string>();
+    const listener: NotificationListener = (notification) => {
+      if (
+        notification.method !== "item/started" &&
+        notification.method !== "item/completed"
+      ) {
+        return;
+      }
+      const params = asRecord(notification.params);
+      const item = asRecord(params?.item);
+      if (
+        params?.threadId === threadId &&
+        item?.type === "webSearch" &&
+        typeof item.id === "string"
+      ) {
+        ids.add(item.id);
+      }
+    };
+    this.listeners.add(listener);
+    return {
+      count: () => ids.size,
+      dispose: () => this.listeners.delete(listener),
+    };
+  }
+
   waitForNotification(
     predicate: (notification: JsonRecord) => boolean,
     timeoutMs: number,

@@ -280,6 +280,8 @@ function buildChatRequestBodyWithModelResolver(
     return merged;
   }
 
+  const reasoningBudget = resolveGemmaReasoningBudget(options);
+  const enableThinking = reasoningBudget > 0;
   return {
     model: resolveRequestModelName(options),
     temperature: options.temperature,
@@ -288,10 +290,17 @@ function buildChatRequestBodyWithModelResolver(
     presence_penalty: 0,
     frequency_penalty: 0,
     max_tokens: maxTokens,
-    reasoning_budget: 0,
-    enable_thinking: false,
+    reasoning_budget: reasoningBudget,
+    enable_thinking: enableThinking,
+    chat_template_kwargs: { enable_thinking: enableThinking },
     messages,
   };
+}
+
+/** @param {RequestOptions} options */
+function resolveGemmaReasoningBudget(options) {
+  const configured = Number(options.gemmaReasoningBudget);
+  return Number.isSafeInteger(configured) && configured > 0 ? configured : 0;
 }
 
 /**

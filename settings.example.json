@@ -16,6 +16,21 @@
     "model": "gpt-5.6-sol",
     "reasoningEffort": "medium"
   },
+  "internetResearch": {
+    "tavilyAnalysisProvider": "gemma",
+    "gemmaPreset": "qat12b",
+    "gemmaReasoningEffort": "high",
+    "gemmaMaxOutputTokens": 32768,
+    "gemmaContextTokens": 65536,
+    "apiModel": "gpt-5.5",
+    "apiMaxOutputTokens": 32768,
+    "apiContextTokens": 65536,
+    "codexModel": "gpt-5.6-sol",
+    "codexReasoningEffort": "medium",
+    "codexMaxOutputTokens": 32768,
+    "codexContextTokens": 262144,
+    "tavilyMaxCreditsPerRun": 10
+  },
   "api": {
     "baseUrl": "https://api.openai.com/v1",
     "model": "gpt-5.5",
@@ -39,5 +54,5 @@
     "koharuBackend": "auto"
   },
   "maxTokens": 32768,
-  "ctx": 16384
+  "ctx": 65536
 }

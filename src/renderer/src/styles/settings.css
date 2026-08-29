@@ -88,6 +88,44 @@
   min-width: 0;
 }
 
+.settings-llm-panel,
+.settings-llm-tabpanel {
+  display: grid;
+  min-width: 0;
+  gap: var(--sp-6);
+}
+
+.settings-llm-tabs {
+  display: flex;
+  gap: var(--sp-2);
+  padding: 0 0 var(--sp-4);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.settings-llm-tabs button {
+  min-height: var(--ctl-h);
+  padding: var(--ctl-pad-y) var(--ctl-pad-x);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+.settings-llm-tabs button:hover:not(.active) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.settings-llm-tabs button.active {
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
+  color: var(--accent-hi);
+  font-weight: 600;
+}
+
 .settings-field-stack {
   display: grid;
   gap: 8px;
@@ -262,8 +300,7 @@
   gap: 12px;
 }
 
-/* Numeric settings rows all render ui/NumberField through SettingsNumberField,
-   so the input presentation lives in exactly one rule. */
+/* Numeric settings rows share the SettingsNumberField presentation. */
 .settings-number-input {
   width: 100%;
   min-width: 0;
@@ -733,6 +770,10 @@
   gap: 10px;
 }
 
+.settings-provider-grid[data-option-count="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .settings-provider-card {
   display: grid;
   align-content: start;
@@ -1066,6 +1107,26 @@
   margin-right: auto;
 }
 
+@media (max-width: 760px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-tabs {
+    position: static;
+    flex-direction: row;
+    padding: 0 0 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+    overflow-x: auto;
+  }
+
+  .settings-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 640px) {
   .library-panel-header {
     flex-wrap: wrap;
@@ -1116,25 +1177,6 @@
 
   .gemma-fit-target-input {
     grid-column: 1 / -1;
-  }
-
-  .settings-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .settings-tabs {
-    position: static;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    padding: 0 0 10px;
-    border-right: 0;
-    border-bottom: 1px solid var(--border-soft);
-    overflow-x: auto;
-  }
-
-  .settings-tab {
-    flex: 0 0 auto;
-    white-space: nowrap;
   }
 
   .settings-panel-header {

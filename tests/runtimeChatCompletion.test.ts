@@ -54,7 +54,7 @@ describe("chat completion terminal reasons", () => {
         Date.now(),
       ),
     ).rejects.toMatchObject({
-      message: expect.stringContaining("작품 컨텍스트 예산"),
+      message: expect.stringContaining("작품 정보 예산"),
       outputTruncated: true,
       failureGuidance: "increase-work-context-budget",
     });

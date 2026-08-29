@@ -7,15 +7,8 @@ const {
   resolveLlamaRuntimeProfile,
 } = require("./runtime-profile.cjs");
 
-// GPU offload is chosen in whole model-layer groups, so sub-layer corrections
-// can leave the exact same placement in VRAM. The 31B RTX 4090 probe confirmed
-// that +256 MiB did not move a layer and still collapsed under WDDM pressure,
-// while +512 MiB crossed the placement boundary without reducing decode speed.
-const FIT_CALIBRATION_QUANTUM_MIB = 512;
-const FIT_CALIBRATION_SAFETY_MIB = 128;
-const FIT_CALIBRATION_TOLERANCE_MIB = 64;
-const MAX_FIT_TARGET_MIB = 16_384;
 const MIN_HEALTHY_DECODE_TOKENS_PER_SECOND = 10;
+const MTP_FIT_STARTUP_TIMEOUT_MS = 60_000;
 const MTP_CALIBRATION_IMAGE_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
@@ -37,78 +30,59 @@ function shouldCalibrateMtpFit(options, platform = process.platform) {
 }
 
 /**
- * Calculate a one-run fit correction from physical VRAM observed after the
- * server has created its real MTP context. llama.cpp currently fits without
- * that extra context when Gemma4Assistant memory measurement fails.
- *
- * @param {{ requestedFitTargetMiB: number; observedFreeMiB: number; safetyMiB?: number; toleranceMiB?: number; quantumMiB?: number; maxFitTargetMiB?: number }} input
+ * MTP fitting can omit the assistant context from its estimate. Bound only
+ * that known-risk startup path; ordinary model loads retain the long timeout.
+ * @param {CalibrationOptions} options
+ * @param {number} defaultTimeoutMs
+ * @param {NodeJS.Platform} [platform]
  */
-function calculateMtpFitCorrection(input) {
-  const requestedFitTargetMiB = normalizeNonNegativeInteger(
-    input.requestedFitTargetMiB,
-  );
-  const observedFreeMiB = normalizeNonNegativeInteger(input.observedFreeMiB);
-  const safetyMiB = normalizePositiveInteger(
-    input.safetyMiB,
-    FIT_CALIBRATION_SAFETY_MIB,
-  );
-  const toleranceMiB = normalizeNonNegativeInteger(
-    input.toleranceMiB ?? FIT_CALIBRATION_TOLERANCE_MIB,
-  );
-  const quantumMiB = normalizePositiveInteger(
-    input.quantumMiB,
-    FIT_CALIBRATION_QUANTUM_MIB,
-  );
-  const maxFitTargetMiB = normalizePositiveInteger(
-    input.maxFitTargetMiB,
-    MAX_FIT_TARGET_MIB,
-  );
-  const safeObservedTargetMiB = requestedFitTargetMiB + safetyMiB;
-  const missingMiB = safeObservedTargetMiB - observedFreeMiB;
-  if (missingMiB <= toleranceMiB) {
-    return {
-      requestedFitTargetMiB,
-      observedFreeMiB,
-      effectiveFitTargetMiB: requestedFitTargetMiB,
-      correctionMiB: 0,
-      safetyMiB,
-      toleranceMiB,
-      quantumMiB,
-    };
-  }
-  const roundedCorrectionMiB =
-    Math.ceil((missingMiB - toleranceMiB) / quantumMiB) * quantumMiB;
-  const effectiveFitTargetMiB = Math.min(
-    maxFitTargetMiB,
-    requestedFitTargetMiB + roundedCorrectionMiB,
-  );
-  return {
-    requestedFitTargetMiB,
-    observedFreeMiB,
-    effectiveFitTargetMiB,
-    correctionMiB: Math.max(0, effectiveFitTargetMiB - requestedFitTargetMiB),
-    safetyMiB,
-    toleranceMiB,
-    quantumMiB,
-  };
+function resolveMtpStartupTimeoutMs(
+  options,
+  defaultTimeoutMs,
+  platform = process.platform,
+) {
+  return shouldCalibrateMtpFit(options, platform)
+    ? MTP_FIT_STARTUP_TIMEOUT_MS
+    : defaultTimeoutMs;
 }
 
-function createMtpCalibrationRequestBody() {
+/** @param {unknown} error @param {CalibrationOptions} options @param {number | null} observedFreeMiB @param {NodeJS.Platform} [platform] */
+function isLikelyMtpVramThrottle(
+  error,
+  options,
+  observedFreeMiB,
+  platform = process.platform,
+) {
+  const message = error instanceof Error ? error.message : String(error);
+  const requestedFreeMiB = Number(options.fitTargetMb ?? 0);
+  return Boolean(
+    shouldCalibrateMtpFit(options, platform) &&
+    message.includes("Timed out while waiting for llama-server") &&
+    Number.isFinite(observedFreeMiB) &&
+    Number(observedFreeMiB) < requestedFreeMiB,
+  );
+}
+
+/** @param {Record<string, any>} [options] */
+function createMtpCalibrationRequestBody(options = {}) {
+  const textPart = {
+    type: "text",
+    text: "Reply with the numbers one through thirty-two in English, separated by spaces.",
+  };
   return {
     model: "gemma",
     messages: [
       {
         role: "user",
-        content: [
-          {
-            type: "image_url",
-            image_url: { url: MTP_CALIBRATION_IMAGE_URL },
-          },
-          {
-            type: "text",
-            text: "Reply with the numbers one through thirty-two in English, separated by spaces.",
-          },
-        ],
+        content: options.textOnlyModel
+          ? [textPart]
+          : [
+              {
+                type: "image_url",
+                image_url: { url: MTP_CALIBRATION_IMAGE_URL },
+              },
+              textPart,
+            ],
       },
     ],
     max_tokens: 32,
@@ -128,6 +102,7 @@ function createMtpCalibrationRequestBody() {
  * @param {string} baseUrl
  * @param {CalibrationOptions} options
  */
+// eslint-disable-next-line complexity -- bounded fetch, abort ownership, and concurrent VRAM sampling are one startup probe lifecycle
 async function probeMtpServerPerformance(baseUrl, options) {
   const startedAt = Date.now();
   const signal = createBoundedAbortSignal(options.abortSignal, 30_000);
@@ -147,18 +122,36 @@ async function probeMtpServerPerformance(baseUrl, options) {
   await sampleFreeVram();
   const sampler = setInterval(() => void sampleFreeVram(), 100);
   let response;
+  let timedOut = false;
   try {
     response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(createMtpCalibrationRequestBody()),
+      body: JSON.stringify(createMtpCalibrationRequestBody(options)),
       signal,
     });
+  } catch (error) {
+    if (options.abortSignal?.aborted) throw error;
+    if (!signal.aborted || signal.reason?.name !== "TimeoutError") throw error;
+    timedOut = true;
   } finally {
     clearInterval(sampler);
     while (samplePending) await delay(10);
     await sampleFreeVram();
   }
+  if (timedOut) {
+    return {
+      wallMs: Date.now() - startedAt,
+      minimumFreeMiB: freeVramSamples.length
+        ? Math.min(...freeVramSamples)
+        : null,
+      predictedTokens: null,
+      predictedPerSecond: null,
+      healthy: false,
+      timedOut: true,
+    };
+  }
+  if (!response) throw new Error("MTP startup probe returned no response.");
   const raw = await response.text();
   if (!response.ok) {
     throw new Error(
@@ -181,6 +174,7 @@ async function probeMtpServerPerformance(baseUrl, options) {
       predictedTokens === null ||
       predictedTokens < 4 ||
       predictedPerSecond >= MIN_HEALTHY_DECODE_TOKENS_PER_SECOND,
+    timedOut: false,
   };
 }
 
@@ -239,26 +233,13 @@ function finiteNumberOrNull(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-/** @param {unknown} value */
-function normalizeNonNegativeInteger(value) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0;
-}
-
-/** @param {unknown} value @param {number} fallback */
-function normalizePositiveInteger(value, fallback) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : fallback;
-}
-
 module.exports = {
-  FIT_CALIBRATION_QUANTUM_MIB,
-  FIT_CALIBRATION_SAFETY_MIB,
-  FIT_CALIBRATION_TOLERANCE_MIB,
-  MAX_FIT_TARGET_MIB,
   MIN_HEALTHY_DECODE_TOKENS_PER_SECOND,
-  calculateMtpFitCorrection,
+  MTP_FIT_STARTUP_TIMEOUT_MS,
+  createMtpCalibrationRequestBody,
+  isLikelyMtpVramThrottle,
   measureNvidiaFreeVramMiB,
   probeMtpServerPerformance,
+  resolveMtpStartupTimeoutMs,
   shouldCalibrateMtpFit,
 };

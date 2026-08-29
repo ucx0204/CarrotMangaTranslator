@@ -356,6 +356,7 @@ function buildNextJobState({
     ),
     failureGuidance:
       event.failureGuidance ?? (sameJob ? current.failureGuidance : undefined),
+    research: event.research ?? (sameJob ? current.research : undefined),
     targets: event.targets ?? (sameJob ? current.targets : undefined),
   };
 }

@@ -39,6 +39,10 @@ const codexMock = {
   stop: vi.fn(async () => {}),
 };
 
+const tavilyMock = {
+  getUsage: vi.fn(),
+};
+
 vi.mock("electron", () => ({
   app: {
     isPackaged: false,
@@ -67,6 +71,7 @@ beforeEach(() => {
   codexMock.start.mockReset();
   codexMock.stop.mockReset();
   codexMock.stop.mockResolvedValue(undefined);
+  tavilyMock.getUsage.mockReset();
 });
 
 afterEach(() => {
@@ -186,6 +191,62 @@ describe("settings IPC Codex account", () => {
     });
     expect(client.logout).toHaveBeenCalledOnce();
     expect(client.readAccount).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("settings IPC Tavily usage", () => {
+  it("uses a newly entered key without persisting it", async () => {
+    const usage = {
+      configured: true,
+      key: null,
+      account: null,
+      fetchedAt: "2026-08-28T00:00:00.000Z",
+    };
+    tavilyMock.getUsage.mockResolvedValue(usage);
+    const dataRoot = mkdtempSync(join(tmpdir(), "settings-tavily-ipc-"));
+    tempDirs.push(dataRoot);
+    registerSettingsIpc(
+      createContext(dataRoot, createRuntime({ cached: true })),
+      {
+        getTavilyUsage: tavilyMock.getUsage,
+        getSettings: async () => createGemmaSettings(),
+      },
+    );
+    const handler = electronMock.handlers.get("settings:tavily-usage");
+    if (!handler) throw new Error("Tavily usage handler was not registered");
+
+    await expect(
+      handler(trustedEvent(), { apiKey: "tvly-new", force: true }),
+    ).resolves.toEqual(usage);
+    expect(tavilyMock.getUsage).toHaveBeenCalledWith("tvly-new", {
+      force: true,
+    });
+  });
+
+  it("falls back to the encrypted stored-key path for an omitted key", async () => {
+    const usage = {
+      configured: false,
+      key: null,
+      account: null,
+      fetchedAt: "2026-08-28T00:00:00.000Z",
+    };
+    tavilyMock.getUsage.mockResolvedValue(usage);
+    const dataRoot = mkdtempSync(join(tmpdir(), "settings-tavily-stored-"));
+    tempDirs.push(dataRoot);
+    registerSettingsIpc(
+      createContext(dataRoot, createRuntime({ cached: true })),
+      {
+        getTavilyUsage: tavilyMock.getUsage,
+        getSettings: async () => createGemmaSettings(),
+      },
+    );
+    const handler = electronMock.handlers.get("settings:tavily-usage");
+    if (!handler) throw new Error("Tavily usage handler was not registered");
+
+    await expect(handler(trustedEvent(), {})).resolves.toEqual(usage);
+    expect(tavilyMock.getUsage).toHaveBeenCalledWith(undefined, {
+      force: undefined,
+    });
   });
 });
 
@@ -814,6 +875,21 @@ function createGemmaSettings(): AppSettings {
     codex: {
       model: "gpt-5.5",
       reasoningEffort: "low",
+    },
+    internetResearch: {
+      tavilyAnalysisProvider: "gemma",
+      gemmaPreset: "minimum12b",
+      gemmaReasoningEffort: "medium",
+      gemmaMaxOutputTokens: 32768,
+      gemmaContextTokens: 65536,
+      apiModel: "gpt-5.5",
+      apiMaxOutputTokens: 32768,
+      apiContextTokens: 65536,
+      codexModel: "gpt-5.5",
+      codexReasoningEffort: "low",
+      codexMaxOutputTokens: 32768,
+      codexContextTokens: 65536,
+      tavilyMaxCreditsPerRun: 10,
     },
     api: {
       baseUrl: "https://api.openai.com/v1",

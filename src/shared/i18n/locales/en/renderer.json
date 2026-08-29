@@ -56,9 +56,9 @@
       "total": "{{label}} · Total {{duration}}"
     },
     "failureGuidance": {
-      "maxOutputTokens": "The maximum output token limit is too low. Increase Settings > Translation engine > Maximum output tokens.",
-      "workContextBudget": "The work context budget is too low. Increase Settings > Translation engine > Work context budget.",
-      "contextLength": "The context length is too low. Increase Settings > Translation engine > Context length. This may use more VRAM."
+      "maxOutputTokens": "The maximum output token limit is too low. Increase Settings > LLM > Maximum output tokens.",
+      "workContextBudget": "The work-information budget is too low. Increase Settings > LLM > Work-information budget.",
+      "contextLength": "The context length is too low. Increase Settings > LLM > Context length. This may use more VRAM."
     },
     "phase": {
       "booting": "Preparing model",

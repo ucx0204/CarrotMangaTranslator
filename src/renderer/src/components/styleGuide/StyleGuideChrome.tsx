@@ -4,12 +4,13 @@ import type {
   ChapterStoryMemory,
   WorkStyleGuide,
 } from "../../../../shared/workContextTypes";
-import type { WorkContextAnalysisScope } from "../../../../shared/workContextAnalysisTypes";
+import type { ResearchEngine } from "../../../../shared/internetResearchTypes";
 import type { WorkContextBudgetPlan } from "../../../../shared/workContextBudget";
 import type { WorkContextUsage } from "../../../../shared/workContextUsageTypes";
 import type { WorkContextUsageStatus } from "./useStyleGuideModalModel";
 import { Button } from "../ui/Button";
 import { Tabs } from "../ui/Tabs";
+import { SegmentedControl } from "../ui/SegmentedControl";
 import { CharactersTab } from "./CharactersTab";
 import { GlossaryTab } from "./GlossaryTab";
 import { MemoryTab } from "./MemoryTab";
@@ -139,13 +140,17 @@ export function StyleGuideBudgetSummary({
 }
 
 export function StyleGuideAnalysisActions({
-  analyzingScope,
+  analyzing,
   disabled,
+  engine,
+  onEngineChange,
   onAnalyze,
 }: {
-  analyzingScope: WorkContextAnalysisScope | null;
+  analyzing: boolean;
   disabled: boolean;
-  onAnalyze: (scope: WorkContextAnalysisScope) => void;
+  engine: ResearchEngine;
+  onEngineChange: (engine: ResearchEngine) => void;
+  onAnalyze: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -157,54 +162,43 @@ export function StyleGuideAnalysisActions({
         <h3>{t("styleGuide.analysis.title")}</h3>
         <p>{t("styleGuide.analysis.description")}</p>
       </div>
-      <div className="style-guide-analysis-actions">
-        <span className="style-guide-analysis-scope">
-          {t("styleGuide.analysis.scope")}
-        </span>
-        <AnalysisButton
-          scope="chapter"
-          analyzingScope={analyzingScope}
-          disabled={disabled}
-          onAnalyze={onAnalyze}
-        />
-        <AnalysisButton
-          scope="work"
-          analyzingScope={analyzingScope}
-          disabled={disabled}
-          onAnalyze={onAnalyze}
-        />
+      <div className="style-guide-analysis-controls">
+        <div className="style-guide-analysis-engine">
+          <span>{t("styleGuide.analysis.engineLabel")}</span>
+          <SegmentedControl
+            ariaLabel={t("styleGuide.analysis.engineLabel")}
+            singleRow
+            value={engine}
+            disabled={disabled}
+            options={[
+              {
+                id: "tavily",
+                label: t("styleGuide.analysis.engines.tavily"),
+              },
+              {
+                id: "codex-web",
+                label: t("styleGuide.analysis.engines.codex"),
+              },
+            ]}
+            onChange={onEngineChange}
+          />
+        </div>
+        <div className="style-guide-analysis-actions">
+          <Button
+            variant="primary"
+            disabled={disabled}
+            aria-busy={analyzing}
+            onClick={() => onAnalyze()}
+          >
+            {t(
+              analyzing
+                ? "styleGuide.analysis.analyzing"
+                : "styleGuide.analysis.run",
+            )}
+          </Button>
+        </div>
       </div>
     </section>
-  );
-}
-
-function AnalysisButton({
-  scope,
-  analyzingScope,
-  disabled,
-  onAnalyze,
-}: {
-  scope: WorkContextAnalysisScope;
-  analyzingScope: WorkContextAnalysisScope | null;
-  disabled: boolean;
-  onAnalyze: (scope: WorkContextAnalysisScope) => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <Button
-      variant={scope === "work" ? "primary" : undefined}
-      disabled={disabled}
-      aria-busy={analyzingScope === scope}
-      onClick={() => onAnalyze(scope)}
-    >
-      {t(
-        analyzingScope === scope
-          ? "styleGuide.analysis.analyzing"
-          : scope === "work"
-            ? "styleGuide.analysis.entireWork"
-            : "styleGuide.analysis.currentChapter",
-      )}
-    </Button>
   );
 }
 

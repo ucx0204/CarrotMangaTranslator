@@ -17,6 +17,8 @@ import type { SettingsTabId } from "../settingsModalTypes";
 import { SETTINGS_TABS } from "../settingsModalTypes";
 import { InfoIcon } from "../ui/icons";
 import { LinkedWorkspaceSettingsPanel } from "./LinkedWorkspaceSettingsPanel";
+import { InternetResearchSettingsPanel } from "./InternetResearchSettingsPanel";
+import { Tabs } from "../ui/Tabs";
 
 export type SettingsModalViewProps = {
   activeTab: SettingsTabId;
@@ -25,6 +27,9 @@ export type SettingsModalViewProps = {
   defaultsPreviewActive: boolean;
   generalPanelProps: React.ComponentProps<typeof GeneralSettingsPanel>;
   enginePanelProps: React.ComponentProps<typeof EngineSettingsPanel>;
+  researchPanelProps: React.ComponentProps<
+    typeof InternetResearchSettingsPanel
+  >;
   hardwarePanelProps: React.ComponentProps<typeof HardwareSettingsPanel>;
   library?: LibraryIndex;
   formatPanelTitle: string;
@@ -56,6 +61,7 @@ export function SettingsModalView({
   defaultsPreviewActive,
   generalPanelProps,
   enginePanelProps,
+  researchPanelProps,
   hardwarePanelProps,
   library,
   formatPanelTitle,
@@ -106,6 +112,7 @@ export function SettingsModalView({
           activeTab={activeTab}
           generalPanelProps={generalPanelProps}
           enginePanelProps={enginePanelProps}
+          researchPanelProps={researchPanelProps}
           hardwarePanelProps={hardwarePanelProps}
           library={library}
           formatPanelTitle={formatPanelTitle}
@@ -183,6 +190,7 @@ function SettingsModalTabPanel({
   activeTab,
   generalPanelProps,
   enginePanelProps,
+  researchPanelProps,
   hardwarePanelProps,
   library,
   formatPanelTitle,
@@ -195,6 +203,7 @@ function SettingsModalTabPanel({
   | "activeTab"
   | "generalPanelProps"
   | "enginePanelProps"
+  | "researchPanelProps"
   | "hardwarePanelProps"
   | "library"
   | "formatPanelTitle"
@@ -230,6 +239,7 @@ function SettingsModalTabPanel({
       <SettingsModalTabContent
         activeTab={activeTab}
         enginePanelProps={enginePanelProps}
+        researchPanelProps={researchPanelProps}
         formatPanelProps={formatPanelProps}
         generalPanelProps={generalPanelProps}
         hardwarePanelProps={hardwarePanelProps}
@@ -246,6 +256,7 @@ type SettingsModalTabContentProps = Pick<
   SettingsModalViewProps,
   | "activeTab"
   | "enginePanelProps"
+  | "researchPanelProps"
   | "formatPanelProps"
   | "generalPanelProps"
   | "hardwarePanelProps"
@@ -258,6 +269,7 @@ type SettingsModalTabContentProps = Pick<
 function SettingsModalTabContent({
   activeTab,
   enginePanelProps,
+  researchPanelProps,
   formatPanelProps,
   generalPanelProps,
   hardwarePanelProps,
@@ -280,11 +292,72 @@ function SettingsModalTabContent({
   }
   if (activeTab !== "engine") return null;
   return (
-    <>
-      <EngineSettingsPanel {...enginePanelProps} />
-      <div className="settings-validation-summary">
-        <SettingsValidationMessages {...validationProps} />
+    <LlmSettingsPanel
+      enginePanelProps={enginePanelProps}
+      researchPanelProps={researchPanelProps}
+      validationProps={validationProps}
+    />
+  );
+}
+
+type LlmSettingsTab = "translation" | "research";
+
+function LlmSettingsPanel({
+  enginePanelProps,
+  researchPanelProps,
+  validationProps,
+}: Pick<
+  SettingsModalViewProps,
+  "enginePanelProps" | "researchPanelProps" | "validationProps"
+>): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const [activeLlmTab, setActiveLlmTab] =
+    React.useState<LlmSettingsTab>("translation");
+  const items = [
+    {
+      value: "translation",
+      label: t("settings.tabs.translation"),
+      id: "settings-llm-tab-translation",
+      panelId: "settings-llm-panel-translation",
+    },
+    {
+      value: "research",
+      label: t("settings.tabs.research"),
+      id: "settings-llm-tab-research",
+      panelId: "settings-llm-panel-research",
+    },
+  ] satisfies Array<{
+    value: LlmSettingsTab;
+    label: string;
+    id: string;
+    panelId: string;
+  }>;
+  return (
+    <div className="settings-llm-panel">
+      <Tabs
+        className="settings-llm-tabs"
+        ariaLabel={t("settings.tabs.llmAriaLabel")}
+        items={items}
+        value={activeLlmTab}
+        onChange={setActiveLlmTab}
+      />
+      <div
+        className="settings-llm-tabpanel"
+        role="tabpanel"
+        id={`settings-llm-panel-${activeLlmTab}`}
+        aria-labelledby={`settings-llm-tab-${activeLlmTab}`}
+      >
+        {activeLlmTab === "translation" ? (
+          <>
+            <EngineSettingsPanel {...enginePanelProps} />
+            <div className="settings-validation-summary">
+              <SettingsValidationMessages {...validationProps} />
+            </div>
+          </>
+        ) : (
+          <InternetResearchSettingsPanel {...researchPanelProps} />
+        )}
       </div>
-    </>
+    </div>
   );
 }

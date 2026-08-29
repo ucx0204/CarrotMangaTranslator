@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const JOB_KIND_VALUES = [
   "gemma-analysis",
+  "internet-research",
   "inpainting",
   "page-export",
 ] as const;
@@ -64,3 +65,14 @@ const PROGRESS_MODE_VALUES = [
 ] as const;
 export type ProgressMode = (typeof PROGRESS_MODE_VALUES)[number];
 export const ProgressModeSchema = z.enum(PROGRESS_MODE_VALUES);
+
+const RESEARCH_JOB_STAGE_VALUES = [
+  "preparing",
+  "planning",
+  "searching",
+  "synthesizing",
+  "auditing",
+  "finalizing",
+] as const;
+export type ResearchJobStage = (typeof RESEARCH_JOB_STAGE_VALUES)[number];
+export const ResearchJobStageSchema = z.enum(RESEARCH_JOB_STAGE_VALUES);

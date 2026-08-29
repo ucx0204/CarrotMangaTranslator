@@ -8,6 +8,7 @@ import {
 } from "../src/renderer/src/components/settingsModal/settingsModalFormUtils";
 import { createSettingsFormValues } from "../src/renderer/src/components/settingsModal/settingsModalFormValues";
 import { resolveCodexReasoningEffortForModel } from "../src/renderer/src/components/settingsOptions";
+import { normalizeVertexAuthSettings } from "../src/main/settings/vertexAuthSettingsNormalize";
 
 describe("remote model settings form", () => {
   it("accepts a complete OpenAI-compatible API setup", () => {
@@ -26,6 +27,91 @@ describe("remote model settings form", () => {
     expect(resolveCodexReasoningEffortForModel("gpt-5.6-luna", "ultra")).toBe(
       "medium",
     );
+  });
+});
+
+describe("internet research settings form", () => {
+  it("round-trips independent Gemma, Codex, and Tavily settings", () => {
+    const initialSettings = resolveDefaultAppSettings();
+    const values = {
+      ...createSettingsFormValues(initialSettings),
+      researchTavilyAnalysisProvider: "api" as const,
+      researchGemmaPreset: "qat12b" as const,
+      researchGemmaReasoningEffort: "high" as const,
+      researchGemmaMaxOutputTokens: "24576",
+      researchGemmaContextTokens: "98304",
+      researchApiModel: "research-api-model",
+      researchApiMaxOutputTokens: "28672",
+      researchApiContextTokens: "73728",
+      researchCodexModel: "gpt-5.5",
+      researchCodexReasoningEffort: "high" as const,
+      researchCodexMaxOutputTokens: "30720",
+      researchCodexContextTokens: "81920",
+      tavilyApiKey: "tvly-private",
+      tavilyMaxCreditsPerRun: "7",
+    };
+    const draft = resolveSettingsDraft(values);
+    const result = buildSettingsFromDraft({
+      draft,
+      initialSettings,
+      keybindings: initialSettings.keybindings ?? {},
+      blockFormatDefaults:
+        initialSettings.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      values,
+    });
+
+    expect(isSettingsFormSubmittable(values, draft)).toBe(true);
+    expect(result.internetResearch).toEqual({
+      tavilyAnalysisProvider: "api",
+      gemmaPreset: "qat12b",
+      gemmaReasoningEffort: "high",
+      gemmaMaxOutputTokens: 24576,
+      gemmaContextTokens: 98304,
+      apiModel: "research-api-model",
+      apiMaxOutputTokens: 28672,
+      apiContextTokens: 73728,
+      codexModel: "gpt-5.5",
+      codexReasoningEffort: "high",
+      codexMaxOutputTokens: 30720,
+      codexContextTokens: 81920,
+      tavilyApiKey: "tvly-private",
+      tavilyMaxCreditsPerRun: 7,
+    });
+    expect(result.codex).toEqual(initialSettings.codex);
+    expect(result.maxTokens).toBe(initialSettings.maxTokens);
+    expect(result.ctx).toBe(initialSettings.ctx);
+  });
+
+  it("accepts a user-defined Tavily budget above the former limit", () => {
+    const values = {
+      ...createSettingsFormValues(resolveDefaultAppSettings()),
+      tavilyMaxCreditsPerRun: "11",
+    };
+    const draft = resolveSettingsDraft(values);
+
+    expect(draft.tavilyMaxCreditsPerRunValid).toBe(true);
+    expect(isSettingsFormSubmittable(values, draft)).toBe(true);
+  });
+
+  it("rejects Tavily budgets below five, fractional, or unsafe", () => {
+    for (const tavilyMaxCreditsPerRun of ["4", "5.5", "9007199254740992"]) {
+      const values = {
+        ...createSettingsFormValues(resolveDefaultAppSettings()),
+        tavilyMaxCreditsPerRun,
+      };
+      const draft = resolveSettingsDraft(values);
+      expect(draft.tavilyMaxCreditsPerRunValid).toBe(false);
+      expect(isSettingsFormSubmittable(values, draft)).toBe(false);
+    }
+  });
+
+  it("requires a Codex research model independently of the Tavily analyzer", () => {
+    const values = {
+      ...createSettingsFormValues(resolveDefaultAppSettings()),
+      researchCodexModel: "   ",
+    };
+    const draft = resolveSettingsDraft(values);
+    expect(isSettingsFormSubmittable(values, draft)).toBe(false);
   });
 });
 
@@ -67,6 +153,25 @@ describe("UI locale settings form", () => {
 });
 
 describe("Vertex service-account settings form", () => {
+  it("normalizes absent, token, and service-account settings", () => {
+    expect(normalizeVertexAuthSettings(null)).toEqual({});
+    expect(
+      normalizeVertexAuthSettings({
+        vertexAuthMode: "unexpected",
+        vertexServiceAccountPath: "   ",
+      }),
+    ).toEqual({ vertexAuthMode: "access-token" });
+    expect(
+      normalizeVertexAuthSettings({
+        vertexAuthMode: "service-account",
+        vertexServiceAccountPath: " C:\\keys\\vertex.json ",
+      }),
+    ).toEqual({
+      vertexAuthMode: "service-account",
+      vertexServiceAccountPath: "C:\\keys\\vertex.json",
+    });
+  });
+
   it("defaults new Vertex setups to service-account JSON", () => {
     const settings = resolveDefaultAppSettings({});
     settings.api.vertexAuthMode = undefined;

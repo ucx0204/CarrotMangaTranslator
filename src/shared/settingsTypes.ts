@@ -13,6 +13,7 @@ import type {
   BlockStylePreset,
   BlockStylePresetGroup,
 } from "./blockStylePresets";
+import type { InternetResearchSettings } from "./internetResearchTypes";
 
 export type {
   FluxBackend,
@@ -26,7 +27,6 @@ export type {
 export type { CodexReasoningEffort } from "./codexSettings";
 export type { LanguageCode } from "./translationLanguages";
 export type { UiLocale } from "./uiLocales";
-
 export type ModelProvider = "gemma" | "openai-codex" | "openai-api";
 export type ModelSource = "huggingface" | "local";
 export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
@@ -176,6 +176,7 @@ export type AppSettings = {
   translation?: TranslationLanguageSettings;
   gemma: GemmaSettings;
   codex: CodexSettings;
+  internetResearch: InternetResearchSettings;
   api: ApiSettings;
   ocr: OcrSettings;
   ui?: UiSettings;

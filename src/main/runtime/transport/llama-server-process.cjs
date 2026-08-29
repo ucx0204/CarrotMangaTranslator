@@ -39,6 +39,11 @@ const {
 } = require("../simple-page-runtime-common.cjs");
 const { buildLlamaServerEnv } = require("../model/server-environment.cjs");
 const {
+  isLikelyMtpVramThrottle,
+  measureNvidiaFreeVramMiB,
+  resolveMtpStartupTimeoutMs,
+} = require("../model/mtp-fit-calibration.cjs");
+const {
   assertGemmaUnifiedMemoryPolicy,
 } = require("../model/gemma-unified-memory.cjs");
 const {
@@ -47,7 +52,10 @@ const {
 } = require("../model/server-preflight.cjs");
 const { createServerLogTarget } = require("./llama-server-logging.cjs");
 const { createServerOutputTransport } = require("./llama-server-output.cjs");
-const { calibrateMtpFitServer } = require("./mtp-fit-calibration-flow.cjs");
+const {
+  VRAM_THROTTLE_MESSAGE,
+  calibrateMtpFitServer,
+} = require("./mtp-fit-calibration-flow.cjs");
 const {
   isReachable,
   waitForReadyOrExit,
@@ -88,29 +96,14 @@ async function startServer(options) {
       launchOptions,
       running,
     );
-    await calibrateMtpFitServer(
-      baseUrl,
-      launchOptions,
-      async (calibratedOptions) => {
-        await stopRunningServer(running, launchOptions);
-        launchOptions = calibratedOptions;
-        launchArgs = buildLaunchArgs(launchOptions);
-        running = spawnServer(serverPath, launchArgs, launchOptions);
-        await awaitServerReady(
-          baseUrl,
-          serverPath,
-          launchArgs,
-          launchOptions,
-          running,
-        );
-      },
-    );
+    await calibrateMtpFitServer(baseUrl, launchOptions);
     running.outputTransport.stopStartupForwarding();
     emitServerReady(options);
   } catch (error) {
+    const startupError = await normalizeVramThrottleError(error, launchOptions);
     terminateChildProcessTree(running.child);
     throw normalizeStartupError(
-      error,
+      startupError,
       baseUrl,
       serverPath,
       launchArgs,
@@ -265,9 +258,37 @@ function recordServerOutput(stream, chunk, running) {
 /** @param {string} baseUrl @param {string} serverPath @param {string[]} launchArgs @param {ServerRuntimeOptions} options @param {RunningServer} running */
 function awaitServerReady(baseUrl, serverPath, launchArgs, options, running) {
   return Promise.race([
-    waitForReadyOrExit(baseUrl, running.child, 1800000, options.abortSignal),
+    waitForReadyOrExit(
+      baseUrl,
+      running.child,
+      resolveMtpStartupTimeoutMs(options, 1800000),
+      options.abortSignal,
+    ),
     rejectOnLaunchError(baseUrl, serverPath, launchArgs, options, running),
   ]);
+}
+
+/** @param {unknown} error @param {ServerRuntimeOptions} options */
+async function normalizeVramThrottleError(error, options) {
+  if (options.abortSignal?.aborted) return error;
+  const observedFreeMiB = await measureNvidiaFreeVramMiB(options);
+  if (!isLikelyMtpVramThrottle(error, options, observedFreeMiB)) return error;
+  emitRuntimeProgress(
+    options,
+    "booting",
+    "Gemma VRAM 부족",
+    VRAM_THROTTLE_MESSAGE,
+    {
+      progressMode: "log-only",
+      installLogLine: VRAM_THROTTLE_MESSAGE,
+      notification: { variant: "error", message: VRAM_THROTTLE_MESSAGE },
+    },
+  );
+  return createDetailedError(
+    VRAM_THROTTLE_MESSAGE,
+    { observedFreeMiB, requestedFreeMiB: Number(options.fitTargetMb ?? 0) },
+    error,
+  );
 }
 
 /** @param {string} baseUrl @param {string} serverPath @param {string[]} launchArgs @param {ServerRuntimeOptions} options @param {RunningServer} running */
@@ -365,23 +386,6 @@ function emitServerReady(options) {
       installLogLine: "Gemma 서버 준비가 완료되었습니다.",
     },
   );
-}
-
-/** @param {RunningServer} running @param {ServerRuntimeOptions} options */
-async function stopRunningServer(running, options) {
-  options.abortSignal?.removeEventListener?.("abort", running.onAbort);
-  const child = running.child;
-  if (child.exitCode !== null) return;
-  let exited = false;
-  child.once("exit", () => {
-    exited = true;
-  });
-  terminateChildProcessTree(child);
-  await Promise.race([
-    new Promise((resolve) => child.once("exit", resolve)),
-    delay(5000),
-  ]);
-  if (!exited && child.exitCode === null) terminateChildProcessTree(child);
 }
 
 /** @param {StartedServer | null | undefined} server */

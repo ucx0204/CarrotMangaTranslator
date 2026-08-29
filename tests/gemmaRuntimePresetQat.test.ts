@@ -3,7 +3,6 @@ import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import {
   GEMMA_RUNTIME_PRESETS,
   resolveModelSpecificGemmaRuntimePreset,
-  SPEED_GEMMA_FULL_GPU_THRESHOLDS_MB,
 } from "../src/main/settings/gemmaRuntimePresets";
 import {
   getDefaultMmprojForGemmaModel,
@@ -13,6 +12,7 @@ import {
 import { resolveTranslationRuntimeState } from "../src/main/settings/translationGemmaOptions";
 import {
   resolveGemmaCacheOptions,
+  resolveGemmaGenerationOptions,
   resolveGemmaGpuOptions,
 } from "../src/main/settings/translationGemmaFieldOptions";
 import {
@@ -69,36 +69,79 @@ describe("QAT Gemma runtime preset routing", () => {
     ).toBe(false);
   });
 
-  it("uses 512 MiB for 12B and 1024 MiB for larger presets", () => {
+  it("uses model-sized free-VRAM targets and 1536 MiB for 31B", () => {
     expect(
       Object.values(GEMMA_RUNTIME_PRESETS).map((preset) => preset.fitTargetMb),
-    ).toEqual([512, 1024, 1024]);
+    ).toEqual([512, 1024, 1536]);
   });
 
-  it("keeps minimum-card fitting but fully offloads speed models at their nominal high-VRAM tiers", () => {
+  it.each([
+    {
+      mode: "minimum12b" as const,
+      modelRepo: GEMMA_12B_QAT_MODEL_REPO,
+      modelFile: GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+    },
+    {
+      mode: "economy26b" as const,
+      modelRepo: GEMMA_26B_QAT_MODEL_REPO,
+      modelFile: GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+    },
+    {
+      mode: "full31b" as const,
+      modelRepo: GEMMA_31B_QAT_MODEL_REPO,
+      modelFile: GEMMA_31B_QAT_MODEL_FILE_Q4_K_M,
+    },
+  ])(
+    "passes the configured context through unchanged for $mode",
+    ({ mode, modelRepo, modelFile }) => {
+      const defaults = resolveDefaultAppSettings();
+      const settings = {
+        ...defaults,
+        ctx: 77_777,
+        gemma: {
+          ...defaults.gemma,
+          modelSource: "huggingface" as const,
+          modelRepo,
+          modelFile,
+          vramMode: mode,
+          llamaRuntimeProfile: "cuda12" as const,
+        },
+      };
+      const state = resolveTranslationRuntimeState({}, settings);
+      const generation = resolveGemmaGenerationOptions(
+        {},
+        settings,
+        state.settingsCtx,
+        state.gemmaRuntimePreset,
+      );
+
+      expect(state.settingsCtx).toBe(77_777);
+      expect(generation.ctx).toBe(77_777);
+    },
+  );
+
+  it("keeps configured fit routing on every speed model regardless of detected VRAM", () => {
     const defaults = resolveDefaultAppSettings();
     const cases = [
       {
         preset: GEMMA_RUNTIME_PRESETS.minimum12b,
         repo: GEMMA_12B_QAT_MODEL_REPO,
         file: GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
-        thresholdMb: SPEED_GEMMA_FULL_GPU_THRESHOLDS_MB.qat12b,
       },
       {
         preset: GEMMA_RUNTIME_PRESETS.economy26b,
         repo: GEMMA_26B_QAT_MODEL_REPO,
         file: GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
-        thresholdMb: SPEED_GEMMA_FULL_GPU_THRESHOLDS_MB.qat26b,
       },
       {
         preset: GEMMA_RUNTIME_PRESETS.full31b,
         repo: GEMMA_31B_QAT_MODEL_REPO,
         file: GEMMA_31B_QAT_MODEL_FILE_Q4_K_M,
-        thresholdMb: SPEED_GEMMA_FULL_GPU_THRESHOLDS_MB.qat31b,
       },
     ] as const;
 
     for (const testCase of cases) {
+      const preset = { ...testCase.preset, fitTargetMb: 1536 };
       const gemma = {
         ...defaults.gemma,
         modelSource: "huggingface" as const,
@@ -106,28 +149,10 @@ describe("QAT Gemma runtime preset routing", () => {
         modelFile: testCase.file,
       };
       expect(
-        resolveModelSpecificGemmaRuntimePreset(
-          testCase.preset,
-          gemma,
-          "cuda12",
-          testCase.thresholdMb - 129,
-        ),
-      ).toMatchObject({ gpuLayers: "fit" });
+        resolveModelSpecificGemmaRuntimePreset(preset, gemma, "cuda12"),
+      ).toMatchObject({ fitTargetMb: 1536, gpuLayers: "fit" });
       expect(
-        resolveModelSpecificGemmaRuntimePreset(
-          testCase.preset,
-          gemma,
-          "cuda12",
-          testCase.thresholdMb - 128,
-        ),
-      ).toMatchObject({ gpuLayers: "all", fitEnabled: false });
-      expect(
-        resolveModelSpecificGemmaRuntimePreset(
-          testCase.preset,
-          gemma,
-          "metal",
-          64 * 1024,
-        ),
+        resolveModelSpecificGemmaRuntimePreset(preset, gemma, "metal"),
       ).not.toHaveProperty("fitEnabled", false);
     }
   });
@@ -298,11 +323,10 @@ describe("QAT Gemma runtime preset routing", () => {
       expect(
         resolveModelSpecificGemmaRuntimePreset(preset, qatGemma, profile),
       ).toMatchObject({
-        ctx: 12_288,
-        ctxCap: 12_288,
+        ctx: 65_536,
         batch: 1024,
         ubatch: 1024,
-        fitTargetMb: 1024,
+        fitTargetMb: 1536,
         gpuLayers: "fit",
         cacheTypeK: "q4_0",
         cacheTypeV: "q4_0",
@@ -344,7 +368,7 @@ describe("QAT Gemma runtime preset routing", () => {
         },
       },
     );
-    expect(state.settingsCtx).toBe(12_288);
+    expect(state.settingsCtx).toBe(65_536);
     expect(state.gemmaRuntimePreset.fitTargetMb).toBe(512);
   });
 });

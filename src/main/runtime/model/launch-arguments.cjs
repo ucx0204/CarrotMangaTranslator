@@ -81,16 +81,31 @@ function buildDraftArgs(options, target) {
     return [];
   }
   const specType = resolveDraftSpecType(options.draftSpecType);
+  const isMtp = specType === "draft-mtp";
   const args = [
     target.draftModelPath ? "--spec-draft-model" : "--spec-draft-hf",
     target.draftModelPath || resolveDraftModelRepoArg(options),
     "--spec-type",
     specType,
     "--spec-draft-ngl",
-    "all",
+    // MTP creates a full-length auxiliary context. Let --fit place its
+    // layers instead of forcing the entire helper onto a nearly full GPU.
+    isMtp ? "auto" : "all",
     "--spec-draft-n-max",
     String(resolveDraftMaxTokens(options)),
   ];
+  if (isMtp) {
+    // llama.cpp defaults draft KV to f16 even when the main cache is q4_0.
+    // At 65K context that hidden auxiliary cache can push Windows into
+    // shared-memory paging. Match the configured main-cache types so the
+    // requested context remains real without sacrificing more model layers.
+    args.push(
+      "--spec-draft-type-k",
+      String(options.cacheTypeK || "q4_0"),
+      "--spec-draft-type-v",
+      String(options.cacheTypeV || "q4_0"),
+    );
+  }
   if (specType === "dflash") {
     args.push("--spec-dflash-cross-ctx", "512", "--spec-branch-budget", "0");
   }
@@ -134,6 +149,7 @@ function buildNetworkArgs(options) {
 
 /** @param {LaunchOptions} options */
 function buildSamplingArgs(options) {
+  const reasoningBudget = resolveGemmaReasoningBudget(options);
   return [
     "--temp",
     String(
@@ -153,10 +169,16 @@ function buildSamplingArgs(options) {
     "--min-p",
     String(configuredSamplingValue(options, "MANGA_TRANSLATOR_MIN_P", "0.0")),
     "-rea",
-    "off",
+    reasoningBudget > 0 ? "on" : "off",
     "--reasoning-budget",
-    "0",
+    String(reasoningBudget),
   ];
+}
+
+/** @param {LaunchOptions} options */
+function resolveGemmaReasoningBudget(options) {
+  const configured = Number(options.gemmaReasoningBudget);
+  return Number.isSafeInteger(configured) && configured > 0 ? configured : 0;
 }
 
 /** @param {LaunchOptions} options @param {string} key @param {string} fallback */

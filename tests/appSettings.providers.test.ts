@@ -48,6 +48,7 @@ describeWindows("app settings helpers: model providers", () => {
         llamaRuntimeProfile: defaults.gemma.llamaRuntimeProfile,
       },
       codex: defaults.codex,
+      internetResearch: defaults.internetResearch,
       api: defaults.api,
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
@@ -109,6 +110,7 @@ describeWindows("app settings helpers: model providers", () => {
         model: "gpt-5.6-sol",
         reasoningEffort: "ultra",
       },
+      internetResearch: defaults.internetResearch,
       api: defaults.api,
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
@@ -143,6 +145,7 @@ describeWindows("app settings helpers: model providers", () => {
       translation: defaults.translation,
       gemma: defaults.gemma,
       codex: defaults.codex,
+      internetResearch: defaults.internetResearch,
       api: {
         baseUrl: "http://127.0.0.1:1234/v1",
         model: "local-vision-model",

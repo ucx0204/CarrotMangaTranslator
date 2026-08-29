@@ -7,6 +7,7 @@ export const settingsGateway = createMangaDomainGateway("Settings", [
   "getRuntimeCapabilities",
   "getSettings",
   "getDefaultSettings",
+  "getTavilyUsage",
   "getUiLocale",
   "loginCodexAccount",
   "logoutCodexAccount",

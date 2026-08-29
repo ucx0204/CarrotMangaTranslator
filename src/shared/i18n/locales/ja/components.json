@@ -1088,15 +1088,82 @@
     },
     "note": "メモ",
     "analysis": {
-      "ariaLabel": "AI用語・記憶分析",
-      "title": "AI自動分析",
-      "description": "原文を分析して用語・キャラクター・ストーリー記憶を作成します。",
-      "scope": "分析範囲",
-      "analyzing": "分析中…",
-      "currentChapter": "現在の話",
-      "entireWork": "作品全体",
-      "success": "{{scope}}のAI分析を反映しました。{{included}}/{{total}}話、{{changed}}件変更",
-      "failed": "AIによる用語/記憶の分析に失敗しました。"
+      "ariaLabel": "用語集のインターネット調査",
+      "title": "インターネット調査",
+      "description": "既存の用語集を検証し、不足している用語とキャラクターを補います。",
+      "engineLabel": "調査方法",
+      "engines": { "tavily": "Tavily", "codex": "Codex" },
+      "run": "用語集を調査",
+      "analyzing": "調査中…",
+      "cancel": "調査をキャンセル"
+    },
+    "research": {
+      "setupTitle": "用語集調査の準備",
+      "titleLabel": "調査する作品名",
+      "start": "このタイトルで調査",
+      "preparing": "確認中…",
+      "setupFailed": "調査設定を保存できませんでした。",
+      "progress": {
+        "title": "用語集を調査中",
+        "elapsed": "経過 {{time}}",
+        "cancelling": "調査をキャンセル中…",
+        "cancellingDescription": "進行中のリクエストを安全に停止しています。",
+        "stageLabel": "調査の進行段階",
+        "creditUsage": "Tavilyクレジット",
+        "creditCount": "{{used}} / {{limit}}",
+        "activityTitle": "最近の調査内容",
+        "searchCount": "検索{{count}}回",
+        "searching": "検索中",
+        "sourcesFound": "関連する根拠{{count}}件",
+        "waitingForActivity": "次の調査処理を準備しています。",
+        "stages": {
+          "preparing": {
+            "short": "資料準備",
+            "title": "調査資料を準備しています",
+            "description": "保存済みの用語、キャラクター、利用可能なOCRテキストを整理します。"
+          },
+          "planning": {
+            "short": "検索計画",
+            "title": "検索順を組み立てています",
+            "description": "登場人物と翻訳の一貫性に重要な項目を優先します。"
+          },
+          "searching": {
+            "short": "根拠収集",
+            "title": "ウェブから根拠を収集しています",
+            "description": "作品に直接関係する情報を探し、無関係な結果を除外します。"
+          },
+          "synthesizing": {
+            "short": "項目整理",
+            "title": "用語とキャラクターを整理しています",
+            "description": "収集した根拠から追加・修正候補を構成します。"
+          },
+          "auditing": {
+            "short": "照合確認",
+            "title": "変更案を照合しています",
+            "description": "誤検出と重複を除き、手動項目が保護されているか確認します。"
+          },
+          "finalizing": {
+            "short": "仕上げ",
+            "title": "確認用の変更案を仕上げています",
+            "description": "ウェブの根拠とローカルの登場情報を照合して最終案を整理します。"
+          }
+        }
+      },
+      "reviewTitle": "調査変更案の確認",
+      "reviewSummary": "{{count}}件・検索{{queries}}回・Tavily {{credits}}クレジット・{{seconds}}秒",
+      "dismiss": "変更案を閉じる",
+      "apply": "選択した{{count}}件を適用",
+      "noChanges": "適用できる変更案は見つかりませんでした。",
+      "selectChange": "{{name}}の変更案を選択",
+      "actions": { "add": "追加", "update": "更新", "disable": "無効化" },
+      "confidence": { "high": "高信頼度", "medium": "要確認" },
+      "localEvidence": "ローカル出現 {{pages}}ページ・{{mentions}}回",
+      "previewReady": "未保存の変更案を{{count}}件作成しました。",
+      "failed": "インターネット調査に失敗しました。",
+      "cancelled": "インターネット調査をキャンセルしました。",
+      "cancelFailed": "インターネット調査をキャンセルできませんでした。",
+      "stale": "調査後に下書きが変更されました。再調査してから適用してください。",
+      "applied": "{{count}}件を下書きに適用しました。ファイルへの反映には保存が必要です。"
     },
     "tabs": {
       "ariaLabel": "用語と記憶のタブ",
@@ -1314,8 +1381,11 @@
     "title": "設定",
     "tabs": {
       "ariaLabel": "設定項目",
+      "llmAriaLabel": "LLM 設定",
       "general": "一般",
-      "engine": "翻訳エンジン",
+      "engine": "LLM",
+      "translation": "翻訳",
+      "research": "インターネット調査",
       "hardware": "ハードウェア",
       "format": "既定の書式",
       "results": "結果の自動保存",
@@ -1369,7 +1439,8 @@
       "limits": {
         "title": "生成上限",
         "recommendedFor": "{{model}} の推奨値",
-        "recommendedValues": "出力 {{maxTokens}}・作品コンテキスト {{contextTokens}}",
+        "recommendedValuesGemma": "最大出力 {{maxTokens}}・コンテキスト長 {{contextTokens}}",
+        "recommendedValuesRemote": "最大出力 {{maxTokens}}・作品情報予算 {{contextTokens}}",
         "publicLimits": "公開モデル上限：出力 {{maxOutput}}・コンテキスト {{contextWindow}}",
         "publicContextOnly": "公開コンテキスト：{{contextWindow}}・最大出力は未公開",
         "unknownLimits": "公開されたモデル上限がないため、安全な共通推奨値を使用します。",
@@ -1383,10 +1454,57 @@
         "gemmaDescription": "ローカルモデルが一度に生成する上限です。高くすると処理時間とメモリ使用量が増える場合があります。"
       },
       "contextTokens": {
-        "remoteLabel": "作品コンテキスト予算",
+        "remoteLabel": "作品情報予算",
         "remoteDescription": "作品メモ・用語集・キャラクター情報に使用する最大トークン数です。",
         "gemmaLabel": "コンテキスト長",
-        "gemmaDescription": "ローカル Gemma の実際のコンテキスト長です。高くすると VRAM 使用量が増える場合があります。"
+        "gemmaDescription": "ローカル Gemma の実際のコンテキスト長です。高くすると VRAM 使用量が増える場合があります。",
+        "modelLabel": "コンテキスト長",
+        "modelDescription": "インターネット調査の入力と出力に使用する合計コンテキスト長です。"
+      }
+    },
+    "research": {
+      "analyzer": {
+        "label": "Tavily 検索結果の分析 LLM",
+        "gemma": "Gemma",
+        "api": "API"
+      },
+      "gemma": {
+        "title": "Gemma モデル",
+        "model": "調査モデル",
+        "reasoning": "推論レベル",
+        "maxOutput": "最大出力トークン",
+        "context": "調査コンテキスト"
+      },
+      "api": { "title": "API モデル" },
+      "limits": {
+        "maxOutput": "最大出力トークン",
+        "context": "調査コンテキスト"
+      },
+      "codex": {
+        "title": "Codex",
+        "description": "内蔵ウェブ検索で資料を探し、変更案を作成します。"
+      },
+      "tavily": {
+        "title": "Tavily",
+        "description": "ウェブ検索を収集し、Gemma または API で分析します。",
+        "connection": "検索 API",
+        "apiKey": "Tavily API キー",
+        "apiKeyPlaceholder": "API キーを入力",
+        "openSite": "Tavily で API キーを取得",
+        "openSiteFailed": "Tavily のサイトを開けませんでした。",
+        "perRun": "調査ごとの最大クレジット",
+        "usageTitle": "月間クレジット",
+        "usage": "使用 {{used}} / {{limit}}・残り {{remaining}}",
+        "usageUnavailable": "キーを入力して接続を確認してください。",
+        "plan": "プラン {{plan}}",
+        "check": "接続確認",
+        "checking": "確認中…",
+        "checkFailed": "Tavily の接続を確認できませんでした。しばらくしてから再試行してください。",
+        "invalidKey": "Tavily API キーが正しくありません。",
+        "quotaReached": "Tavily の付属クレジットを使い切りました。",
+        "rateLimited": "Tavily へのリクエストが多すぎます。しばらくしてから再試行してください。",
+        "invalidResponse": "Tavily の使用量応答を読み取れませんでした。",
+        "networkFailed": "Tavily に接続できませんでした。ネットワークを確認してください。"
       }
     },
     "options": {

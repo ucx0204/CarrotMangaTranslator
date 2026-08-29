@@ -19,6 +19,7 @@ import {
 import { MAX_MAX_TOKENS } from "../src/shared/modelPresets";
 import { MAX_ID_LIST_LENGTH } from "../src/shared/ipcSchemaPrimitives";
 import { createWarpPreset } from "../src/shared/blockTransforms";
+import { TEST_INTERNET_RESEARCH_SETTINGS } from "./fixtures/internetResearchSettings";
 
 const workId = "11111111-1111-4111-8111-111111111111";
 const chapterId = "22222222-2222-4222-8222-222222222222";
@@ -744,6 +745,7 @@ describe("IPC schemas", () => {
         model: "gpt-5.6-sol",
         reasoningEffort: "ultra",
       },
+      internetResearch: TEST_INTERNET_RESEARCH_SETTINGS,
       api: {
         baseUrl: "http://127.0.0.1:1234/v1/chat/completions/",
         model: "local-vision-model",

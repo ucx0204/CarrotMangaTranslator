@@ -1094,15 +1094,82 @@
     },
     "note": "Note",
     "analysis": {
-      "ariaLabel": "AI terminology and memory analysis",
-      "title": "Automatic AI analysis",
-      "description": "Analyze source text to fill terminology, character, and story memory.",
-      "scope": "Analysis scope",
-      "analyzing": "Analyzing…",
-      "currentChapter": "Current chapter",
-      "entireWork": "Entire work",
-      "success": "Applied AI analysis for {{scope}}. Chapter coverage: {{included}}/{{total}} · Changes: {{changed}}",
-      "failed": "AI terminology and memory analysis failed."
+      "ariaLabel": "Glossary internet research",
+      "title": "Internet research",
+      "description": "Review the existing glossary and supplement missing terms and characters.",
+      "engineLabel": "Research method",
+      "engines": { "tavily": "Tavily", "codex": "Codex" },
+      "run": "Research glossary",
+      "analyzing": "Researching…",
+      "cancel": "Cancel research"
+    },
+    "research": {
+      "setupTitle": "Prepare glossary research",
+      "titleLabel": "Work title to research",
+      "start": "Research this title",
+      "preparing": "Checking…",
+      "setupFailed": "Could not save the research setup.",
+      "progress": {
+        "title": "Researching glossary",
+        "elapsed": "Elapsed {{time}}",
+        "cancelling": "Cancelling research…",
+        "cancellingDescription": "Stopping the active request safely.",
+        "stageLabel": "Research progress",
+        "creditUsage": "Tavily credits",
+        "creditCount": "{{used}} / {{limit}}",
+        "activityTitle": "Recent research activity",
+        "searchCount": "{{count}} searches",
+        "searching": "Searching",
+        "sourcesFound": "{{count}} relevant sources",
+        "waitingForActivity": "Preparing the next research task.",
+        "stages": {
+          "preparing": {
+            "short": "Prepare",
+            "title": "Preparing research material",
+            "description": "Organizing saved terms, characters, and available OCR text."
+          },
+          "planning": {
+            "short": "Plan",
+            "title": "Building the search plan",
+            "description": "Prioritizing characters and terms that matter for translation consistency."
+          },
+          "searching": {
+            "short": "Sources",
+            "title": "Collecting evidence from the web",
+            "description": "Finding work-specific sources and excluding unrelated results."
+          },
+          "synthesizing": {
+            "short": "Organize",
+            "title": "Organizing terms and characters",
+            "description": "Turning collected evidence into proposed additions and corrections."
+          },
+          "auditing": {
+            "short": "Verify",
+            "title": "Cross-checking proposals",
+            "description": "Removing false positives and duplicates while protecting manual entries."
+          },
+          "finalizing": {
+            "short": "Finish",
+            "title": "Finalizing proposals for review",
+            "description": "Comparing web evidence with local appearances to prepare the final proposal."
+          }
+        }
+      },
+      "reviewTitle": "Review research proposals",
+      "reviewSummary": "{{count}} proposals · {{queries}} searches · {{credits}} Tavily credits · {{seconds}}s",
+      "dismiss": "Close proposals",
+      "apply": "Apply {{count}} selected",
+      "noChanges": "No applicable changes were found.",
+      "selectChange": "Select proposal for {{name}}",
+      "actions": { "add": "Add", "update": "Update", "disable": "Disable" },
+      "confidence": { "high": "High confidence", "medium": "Needs review" },
+      "localEvidence": "Local use: {{pages}} pages · {{mentions}} mentions",
+      "previewReady": "Created {{count}} unsaved proposals.",
+      "failed": "Internet research failed.",
+      "cancelled": "Internet research was cancelled.",
+      "cancelFailed": "Could not cancel internet research.",
+      "stale": "The draft changed after research. Run research again before applying proposals.",
+      "applied": "Applied {{count}} proposals to the draft. Save to write them to disk."
     },
     "tabs": {
       "ariaLabel": "Terminology and memory tabs",
@@ -1320,8 +1387,11 @@
     "title": "Settings",
     "tabs": {
       "ariaLabel": "Settings sections",
+      "llmAriaLabel": "LLM settings",
       "general": "General",
-      "engine": "Translation engine",
+      "engine": "LLM",
+      "translation": "Translation",
+      "research": "Internet research",
       "hardware": "Hardware",
       "format": "Default formatting",
       "results": "Automatic result saving",
@@ -1375,7 +1445,8 @@
       "limits": {
         "title": "Generation limits",
         "recommendedFor": "Recommended for {{model}}",
-        "recommendedValues": "Output {{maxTokens}} · work context {{contextTokens}}",
+        "recommendedValuesGemma": "Max output {{maxTokens}} · context length {{contextTokens}}",
+        "recommendedValuesRemote": "Max output {{maxTokens}} · work-information budget {{contextTokens}}",
         "publicLimits": "Published model limits: output {{maxOutput}} · context {{contextWindow}}",
         "publicContextOnly": "Published model context: {{contextWindow}} · maximum output is not published",
         "unknownLimits": "No published model limits are available, so a safe shared recommendation is used.",
@@ -1389,10 +1460,57 @@
         "gemmaDescription": "Caps what the local model can generate in one response. Higher values can increase processing time and memory use."
       },
       "contextTokens": {
-        "remoteLabel": "Work context budget",
+        "remoteLabel": "Work-information budget",
         "remoteDescription": "Maximum tokens used for work memory, glossary, and character notes.",
         "gemmaLabel": "Context length",
-        "gemmaDescription": "The actual context length for local Gemma. Higher values can use more VRAM."
+        "gemmaDescription": "The actual context length for local Gemma. Higher values can use more VRAM.",
+        "modelLabel": "Context length",
+        "modelDescription": "The total context length used for internet-research input and output."
+      }
+    },
+    "research": {
+      "analyzer": {
+        "label": "LLM for Tavily results",
+        "gemma": "Gemma",
+        "api": "API"
+      },
+      "gemma": {
+        "title": "Gemma model",
+        "model": "Research model",
+        "reasoning": "Reasoning effort",
+        "maxOutput": "Maximum output tokens",
+        "context": "Research context"
+      },
+      "api": { "title": "API model" },
+      "limits": {
+        "maxOutput": "Maximum output tokens",
+        "context": "Research context"
+      },
+      "codex": {
+        "title": "Codex",
+        "description": "Find sources with built-in web search and create proposals."
+      },
+      "tavily": {
+        "title": "Tavily",
+        "description": "Collect web results and analyze them with Gemma or API.",
+        "connection": "Search API",
+        "apiKey": "Tavily API key",
+        "apiKeyPlaceholder": "Enter API key",
+        "openSite": "Get an API key from Tavily",
+        "openSiteFailed": "Could not open the Tavily website.",
+        "perRun": "Maximum credits per research",
+        "usageTitle": "Monthly credits",
+        "usage": "Used {{used}} / {{limit}} · {{remaining}} remaining",
+        "usageUnavailable": "Enter a key and check the connection.",
+        "plan": "Plan {{plan}}",
+        "check": "Check connection",
+        "checking": "Checking…",
+        "checkFailed": "Could not check the Tavily connection. Try again shortly.",
+        "invalidKey": "The Tavily API key is invalid.",
+        "quotaReached": "The included Tavily credits have been exhausted.",
+        "rateLimited": "Tavily is receiving too many requests. Try again shortly.",
+        "invalidResponse": "Could not read the Tavily usage response.",
+        "networkFailed": "Could not connect to Tavily. Check your network connection."
       }
     },
     "options": {

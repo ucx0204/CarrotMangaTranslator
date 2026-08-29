@@ -8,7 +8,6 @@ import type {
   WorkStyleGuide,
 } from "../../../../shared/workContextTypes";
 import type { WorkContextUsage } from "../../../../shared/workContextUsageTypes";
-import type { WorkContextAnalysisScope } from "../../../../shared/workContextAnalysisTypes";
 import {
   DEFAULT_CONTEXT_TOKENS,
   DEFAULT_MAX_TOKENS,
@@ -17,29 +16,34 @@ import {
   buildWorkContextBudgetPreview,
   WORK_CONTEXT_RECENT_PAGE_COUNT,
 } from "../../../../shared/workContextBudget";
-import { analysisGateway } from "../../api/analysisGateway";
 import { libraryGateway as mangaGateway } from "../../api/libraryGateway";
 import type { NotificationPort } from "../../lib/notificationPort";
 import type { StyleGuideTab } from "./styleGuideTypes";
-import { countAnalysisChanges, normalizeGuideForSave } from "./styleGuideUtils";
+import { normalizeGuideForSave } from "./styleGuideUtils";
+import { useStyleGuideInternetResearch } from "./useStyleGuideInternetResearch";
 
 type ComponentsT = TFunction<"components">;
 export type WorkContextUsageStatus = "loading" | "ready" | "error";
 
 export function useStyleGuideModalModel(
   chapter: ChapterSnapshot,
+  workTitle: string,
   settings: AppSettings | null,
   notificationPort: NotificationPort,
 ) {
   const { i18n, t } = useTranslation("components");
   const [tab, setTab] = React.useState<StyleGuideTab>("glossary");
-  const resources = useStyleGuideResources(chapter, t, notificationPort);
-  const analysis = useStyleGuideAnalysis({
+  const resources = useStyleGuideResources(
     chapter,
+    workTitle,
+    t,
+    notificationPort,
+  );
+  const analysis = useStyleGuideInternetResearch({
+    chapter,
+    guide: resources.guide,
     t,
     setGuide: resources.setGuide,
-    setMemory: resources.setMemory,
-    refreshUsage: resources.refreshUsage,
     setTab,
     notificationPort,
   });
@@ -54,31 +58,90 @@ export function useStyleGuideModalModel(
       resources.busy ||
       resources.saving ||
       resources.resetting ||
-      analysis.analyzingScope !== null,
+      analysis.analyzing,
   };
 }
 
 function useStyleGuideResources(
   chapter: ChapterSnapshot,
+  workTitle: string,
   t: ComponentsT,
   notificationPort: NotificationPort,
 ) {
   const [guide, setGuide] = React.useState<WorkStyleGuide | null>(null);
   const [memory, setMemory] = React.useState<ChapterStoryMemory | null>(null);
+  const [researchTitle, setResearchTitle] = React.useState(workTitle);
   const [busy, setBusy] = React.useState(true);
-  const [saving, setSaving] = React.useState(false);
-  const [resetting, setResetting] = React.useState(false);
   const { usage, usageStatus, refreshUsage } = useStyleGuideUsage(
     chapter.workId,
   );
   useGuideMemoryLoader({
     chapter,
+    workTitle,
     t,
     setGuide,
     setMemory,
+    setResearchTitle,
     setBusy,
     notificationPort,
   });
+  const saveResearchTitle = React.useCallback(
+    async (nextTitle: string) => {
+      const saved = await mangaGateway.saveWorkResearchTitle({
+        workId: chapter.workId,
+        researchTitle: nextTitle,
+      });
+      setResearchTitle(saved.researchTitle);
+      return saved.researchTitle;
+    },
+    [chapter.workId],
+  );
+  const mutations = useStyleGuideResourceMutations({
+    chapter,
+    guide,
+    memory,
+    notificationPort,
+    refreshUsage,
+    setGuide,
+    setMemory,
+    t,
+  });
+  return {
+    guide,
+    setGuide,
+    memory,
+    setMemory,
+    researchTitle,
+    saveResearchTitle,
+    usage,
+    usageStatus,
+    busy,
+    ...mutations,
+    refreshUsage,
+  };
+}
+
+function useStyleGuideResourceMutations({
+  chapter,
+  guide,
+  memory,
+  notificationPort,
+  refreshUsage,
+  setGuide,
+  setMemory,
+  t,
+}: {
+  chapter: ChapterSnapshot;
+  guide: WorkStyleGuide | null;
+  memory: ChapterStoryMemory | null;
+  notificationPort: NotificationPort;
+  refreshUsage: () => Promise<void>;
+  setGuide: React.Dispatch<React.SetStateAction<WorkStyleGuide | null>>;
+  setMemory: React.Dispatch<React.SetStateAction<ChapterStoryMemory | null>>;
+  t: ComponentsT;
+}) {
+  const [saving, setSaving] = React.useState(false);
+  const [resetting, setResetting] = React.useState(false);
   const saveGuide = React.useCallback(async () => {
     if (!guide) return;
     setSaving(true);
@@ -99,7 +162,7 @@ function useStyleGuideResources(
     } finally {
       setSaving(false);
     }
-  }, [guide, memory, notificationPort, refreshUsage, t]);
+  }, [guide, memory, notificationPort, refreshUsage, setGuide, setMemory, t]);
   const resetAllWorkContext = React.useCallback(async () => {
     setResetting(true);
     try {
@@ -118,35 +181,26 @@ function useStyleGuideResources(
     } finally {
       setResetting(false);
     }
-  }, [chapter.id, notificationPort, refreshUsage, t]);
-  return {
-    guide,
-    setGuide,
-    memory,
-    setMemory,
-    usage,
-    usageStatus,
-    busy,
-    saving,
-    resetting,
-    saveGuide,
-    resetAllWorkContext,
-    refreshUsage,
-  };
+  }, [chapter.id, notificationPort, refreshUsage, setGuide, setMemory, t]);
+  return { resetAllWorkContext, resetting, saveGuide, saving };
 }
 
 function useGuideMemoryLoader({
   chapter,
+  workTitle,
   t,
   setGuide,
   setMemory,
+  setResearchTitle,
   setBusy,
   notificationPort,
 }: {
   chapter: ChapterSnapshot;
+  workTitle: string;
   t: ComponentsT;
   setGuide: React.Dispatch<React.SetStateAction<WorkStyleGuide | null>>;
   setMemory: React.Dispatch<React.SetStateAction<ChapterStoryMemory | null>>;
+  setResearchTitle: React.Dispatch<React.SetStateAction<string>>;
   setBusy: React.Dispatch<React.SetStateAction<boolean>>;
   notificationPort: NotificationPort;
 }): void {
@@ -156,11 +210,13 @@ function useGuideMemoryLoader({
     Promise.all([
       mangaGateway.getWorkStyleGuide(chapter.workId),
       mangaGateway.getChapterStoryMemory(chapter.id),
+      mangaGateway.getWorkResearchTitle(chapter.workId),
     ])
-      .then(([nextGuide, nextMemory]) => {
+      .then(([nextGuide, nextMemory, titlePreference]) => {
         if (alive) {
           setGuide(nextGuide);
           setMemory(nextMemory);
+          setResearchTitle(titlePreference?.researchTitle ?? workTitle);
         }
       })
       .catch((error) => {
@@ -180,7 +236,9 @@ function useGuideMemoryLoader({
     setBusy,
     setGuide,
     setMemory,
+    setResearchTitle,
     t,
+    workTitle,
   ]);
 }
 
@@ -236,72 +294,6 @@ function useStyleGuideUsage(workId: string): {
     };
   }, [fetchUsage]);
   return { usage, usageStatus, refreshUsage };
-}
-
-function useStyleGuideAnalysis({
-  chapter,
-  t,
-  setGuide,
-  setMemory,
-  refreshUsage,
-  setTab,
-  notificationPort,
-}: {
-  chapter: ChapterSnapshot;
-  t: TFunction<"components">;
-  setGuide: (guide: WorkStyleGuide) => void;
-  setMemory: (memory: ChapterStoryMemory) => void;
-  refreshUsage: () => Promise<void>;
-  setTab: (tab: StyleGuideTab) => void;
-  notificationPort: NotificationPort;
-}) {
-  const [analyzingScope, setAnalyzingScope] =
-    React.useState<WorkContextAnalysisScope | null>(null);
-  const analyzeWithAi = React.useCallback(
-    async (scope: WorkContextAnalysisScope) => {
-      setAnalyzingScope(scope);
-      try {
-        const result = await analysisGateway.analyzeWorkContext({
-          chapterId: chapter.id,
-          scope,
-        });
-        setGuide(result.styleGuide);
-        setMemory(result.storyMemory);
-        await refreshUsage();
-        setTab("glossary");
-        notificationPort.success(
-          t("styleGuide.analysis.success", {
-            scope: t(
-              scope === "work"
-                ? "styleGuide.analysis.entireWork"
-                : "styleGuide.analysis.currentChapter",
-            ),
-            included: result.coverage.includedChapters,
-            total: result.coverage.totalChapters,
-            changed: countAnalysisChanges(result.counts),
-          }),
-        );
-        result.warnings
-          .slice(0, 2)
-          .forEach((warning) => notificationPort.info(warning));
-      } catch (error) {
-        console.error(error);
-        notificationPort.error(t("styleGuide.analysis.failed"));
-      } finally {
-        setAnalyzingScope(null);
-      }
-    },
-    [
-      chapter.id,
-      notificationPort,
-      refreshUsage,
-      setGuide,
-      setMemory,
-      setTab,
-      t,
-    ],
-  );
-  return { analyzingScope, analyzeWithAi };
 }
 
 function useStyleGuideBudget(

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildWorkContextAnalysisPrompt,
+  selectWorkTextForAnalysis,
   type WorkTextSelection,
 } from "../src/main/workContextAnalysisPrompt";
+import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import { resolveLanguagePair } from "../src/shared/translationLanguages";
 import type { WorkStyleGuide } from "../src/shared/workContextTypes";
 
@@ -78,7 +80,82 @@ describe("AI work context analysis prompt", () => {
       "rules.defaultTone = natural_korean | literal",
     );
   });
+
+  it("keeps distant glossary evidence and bounded samples for large works", () => {
+    const chapters = Array.from({ length: 12 }, (_unused, index) =>
+      makeResearchChapter(
+        index,
+        index === 11
+          ? `最重要用語${"説明".repeat(80)}`
+          : `一般文章${index}${"本文".repeat(80)}`,
+      ),
+    );
+
+    const selection = selectWorkTextForAnalysis({
+      workId: "work-a",
+      requestedChapterId: "chapter-0",
+      chapters,
+      scope: "work",
+      maxInputChars: 1_200,
+      priorityTerms: ["最重要用語"],
+      spreadAcrossWork: true,
+    });
+
+    expect(selection.text).toContain("最重要用語");
+    expect(selection.coverage.includedPages).toBeLessThan(12);
+    expect(selection.coverage.truncated).toBe(true);
+  });
 });
+
+function makeResearchChapter(
+  index: number,
+  sourceText: string,
+): ChapterSnapshot {
+  const timestamp = "2026-01-01T00:00:00.000Z";
+  const chapterId = `chapter-${index}`;
+  const pageId = `page-${index}`;
+  return {
+    id: chapterId,
+    workId: "work-a",
+    title: `${index + 1}화`,
+    sourceKind: "images",
+    status: "completed",
+    pageOrder: [pageId],
+    pages: [
+      {
+        id: pageId,
+        name: `${index + 1}.png`,
+        imagePath: `C:/library/${index + 1}.png`,
+        dataUrl: "",
+        width: 100,
+        height: 100,
+        blocks: [
+          {
+            id: `block-${index}`,
+            type: "nonsolid",
+            bbox: { x: 0, y: 0, w: 100, h: 100 },
+            sourceText,
+            translatedText: "번역",
+            confidence: 1,
+            sourceDirection: "horizontal",
+            renderDirection: "horizontal",
+            fontSizePx: 24,
+            lineHeight: 1.2,
+            textAlign: "center",
+            textColor: "#000000",
+            backgroundColor: "transparent",
+            opacity: 1,
+          },
+        ],
+        analysisStatus: "completed",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    ],
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
 
 function makeGuide(): WorkStyleGuide {
   const now = "2026-01-01T00:00:00.000Z";

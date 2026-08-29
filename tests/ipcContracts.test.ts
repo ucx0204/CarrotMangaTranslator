@@ -449,6 +449,38 @@ it("opens only allowlisted Vertex setup pages", async () => {
   expect(shell.openExternal).toHaveBeenCalledTimes(pages.length);
 });
 
+it("opens only HTTPS internet-research sources", async () => {
+  const { registerExternalLinksIpc } =
+    await import("../src/main/ipc/externalLinksIpc");
+  const rendererUrl = "http://127.0.0.1:5173/";
+  const context = {
+    getMainWindow: () => ({
+      isDestroyed: () => false,
+      webContents: { getURL: () => rendererUrl, id: 24 },
+    }),
+  } as IpcContext;
+  registerExternalLinksIpc(context);
+  const handler = electronBoundary.handlers.get(
+    ipcInvokeContracts.openResearchSource.channel,
+  );
+  if (!handler) throw new Error("Research source handler was not registered.");
+  const event = {
+    sender: { id: 24 },
+    senderFrame: { url: rendererUrl },
+  } as IpcMainInvokeEvent;
+
+  await expect(
+    handler(event, "https://example.test/work?q=term"),
+  ).resolves.toEqual({
+    opened: true,
+    url: "https://example.test/work?q=term",
+  });
+  await expect(handler(event, "http://example.test/work")).rejects.toThrow(
+    "HTTPS 조사 출처만",
+  );
+  expect(shell.openExternal).toHaveBeenCalledOnce();
+});
+
 it("validates main handler arguments and results at the registered boundary", async () => {
   const { trustedHandleContract } = await import("../src/main/ipc/trustedIpc");
   const contract = defineIpcContract<[string], unknown>({

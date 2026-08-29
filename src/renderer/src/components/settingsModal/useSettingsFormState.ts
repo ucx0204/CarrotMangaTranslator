@@ -89,6 +89,7 @@ function useSettingsFormSetters(
         setValues,
         "codexReasoningEffort",
       ),
+      ...createResearchFormSetters(setValues),
       ...createApiFormSetters(setValues),
       setGraphicsGpuPreference: createFormFieldDispatch(
         setValues,
@@ -113,6 +114,63 @@ function useSettingsFormSetters(
     }),
     [setValues],
   );
+}
+
+function createResearchFormSetters(
+  setValues: React.Dispatch<React.SetStateAction<SettingsFormValues>>,
+) {
+  return {
+    setResearchTavilyAnalysisProvider: createFormFieldDispatch(
+      setValues,
+      "researchTavilyAnalysisProvider",
+    ),
+    setResearchGemmaPreset: createFormFieldDispatch(
+      setValues,
+      "researchGemmaPreset",
+    ),
+    setResearchGemmaReasoningEffort: createFormFieldDispatch(
+      setValues,
+      "researchGemmaReasoningEffort",
+    ),
+    setResearchGemmaMaxOutputTokens: createFormFieldDispatch(
+      setValues,
+      "researchGemmaMaxOutputTokens",
+    ),
+    setResearchGemmaContextTokens: createFormFieldDispatch(
+      setValues,
+      "researchGemmaContextTokens",
+    ),
+    setResearchApiModel: createFormFieldDispatch(setValues, "researchApiModel"),
+    setResearchApiMaxOutputTokens: createFormFieldDispatch(
+      setValues,
+      "researchApiMaxOutputTokens",
+    ),
+    setResearchApiContextTokens: createFormFieldDispatch(
+      setValues,
+      "researchApiContextTokens",
+    ),
+    setResearchCodexModel: createFormFieldDispatch(
+      setValues,
+      "researchCodexModel",
+    ),
+    setResearchCodexReasoningEffort: createFormFieldDispatch(
+      setValues,
+      "researchCodexReasoningEffort",
+    ),
+    setResearchCodexMaxOutputTokens: createFormFieldDispatch(
+      setValues,
+      "researchCodexMaxOutputTokens",
+    ),
+    setResearchCodexContextTokens: createFormFieldDispatch(
+      setValues,
+      "researchCodexContextTokens",
+    ),
+    setTavilyApiKey: createFormFieldDispatch(setValues, "tavilyApiKey"),
+    setTavilyMaxCreditsPerRun: createFormFieldDispatch(
+      setValues,
+      "tavilyMaxCreditsPerRun",
+    ),
+  };
 }
 
 function createApiFormSetters(

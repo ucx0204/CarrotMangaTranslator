@@ -71,8 +71,14 @@ function buildCacheContext(options) {
   const hubCacheDir = resolveHubCacheDir(options);
   const modelRepo = resolveConfiguredModelRepo(options);
   const modelFile = resolveConfiguredModelFile(options);
-  const mmprojPath = resolveCachedConfiguredMmprojPath(options);
-  const mmprojUrl = mmprojPath ? null : resolveConfiguredMmprojUrl(options);
+  const mmprojPath = options.textOnlyModel
+    ? null
+    : resolveCachedConfiguredMmprojPath(options);
+  const mmprojUrl = options.textOnlyModel
+    ? null
+    : mmprojPath
+      ? null
+      : resolveConfiguredMmprojUrl(options);
   const draft = resolveDraftAsset(options);
   return {
     options,
@@ -123,11 +129,12 @@ function buildCachedTarget(
   snapshotDir,
   detectSnapshotMmproj = true,
 ) {
-  const detectedMmproj =
-    context.mmprojPath ||
-    (detectSnapshotMmproj
-      ? usableFileOrNull(findPreferredMmprojFile(snapshotDir))
-      : null);
+  const detectedMmproj = context.options.textOnlyModel
+    ? null
+    : context.mmprojPath ||
+      (detectSnapshotMmproj
+        ? usableFileOrNull(findPreferredMmprojFile(snapshotDir))
+        : null);
   return {
     hubCacheDir: context.hubCacheDir,
     repoDir: context.repoDir,
@@ -152,7 +159,13 @@ function findSnapshotModelTarget(context) {
     const modelPath = path.join(snapshotDir, context.modelFile);
     if (!isUsableFile(modelPath)) continue;
     const target = buildCachedTarget(context, modelPath, snapshotDir);
-    if (target.mmprojPath || target.mmprojUrl) return target;
+    if (
+      context.options.textOnlyModel ||
+      target.mmprojPath ||
+      target.mmprojUrl
+    ) {
+      return target;
+    }
   }
   return null;
 }
@@ -195,10 +208,13 @@ function buildApiTarget(options) {
 /** @param {ModelAssetOptions} options @returns {ModelLaunchTarget} */
 function buildLocalTarget(options) {
   const modelPath = resolveConfiguredLocalModelPath(options);
-  const explicitMmproj = resolveConfiguredLocalMmprojPath(options);
-  const detectedMmproj = modelPath
-    ? usableFileOrNull(findPreferredMmprojFile(path.dirname(modelPath)))
-    : null;
+  const explicitMmproj = options.textOnlyModel
+    ? null
+    : resolveConfiguredLocalMmprojPath(options);
+  const detectedMmproj =
+    !options.textOnlyModel && modelPath
+      ? usableFileOrNull(findPreferredMmprojFile(path.dirname(modelPath)))
+      : null;
   const draft = options.useDraft
     ? {
         draftModelPath: resolveCachedConfiguredDraftModelPath(options),

@@ -19,12 +19,14 @@ import {
 
 export type SettingsSecrets = {
   apiKey?: string;
+  tavilyApiKey?: string;
   credentialHeaders?: Record<string, unknown>;
 };
 
 type LegacyEncryptedSecretVault = {
   version: 1;
   apiKey?: string;
+  tavilyApiKey?: string;
   credentialHeaders?: string;
 };
 
@@ -32,6 +34,7 @@ type EncryptedSecretVault = {
   version: 2;
   generation: string;
   apiKey?: string;
+  tavilyApiKey?: string;
   credentialHeaders?: string;
 };
 
@@ -116,6 +119,9 @@ export function commitSettingsPair(
     version: 2,
     generation,
     ...(normalized.apiKey ? { apiKey: encryptSecret(normalized.apiKey) } : {}),
+    ...(normalized.tavilyApiKey
+      ? { tavilyApiKey: encryptSecret(normalized.tavilyApiKey) }
+      : {}),
     ...(normalized.credentialHeaders
       ? {
           credentialHeaders: encryptSecret(
@@ -150,9 +156,12 @@ export function separateSettingsSecrets(settings: AppSettings): {
     api.customHeadersJson,
   );
   api.customHeadersJson = publicHeadersJson;
+  const internetResearch = { ...settings.internetResearch };
+  const tavilyApiKey = cleanSecret(internetResearch.tavilyApiKey);
+  delete internetResearch.tavilyApiKey;
   return {
-    persistentSettings: { ...settings, api },
-    secrets: normalizeSecrets({ apiKey, credentialHeaders }),
+    persistentSettings: { ...settings, api, internetResearch },
+    secrets: normalizeSecrets({ apiKey, tavilyApiKey, credentialHeaders }),
   };
 }
 
@@ -167,6 +176,10 @@ export function attachSettingsSecrets(
   };
   return {
     ...settings,
+    internetResearch: {
+      ...settings.internetResearch,
+      ...(secrets.tavilyApiKey ? { tavilyApiKey: secrets.tavilyApiKey } : {}),
+    },
     api: {
       ...settings.api,
       ...(secrets.apiKey ? { apiKey: secrets.apiKey } : {}),
@@ -184,6 +197,10 @@ export function resolveSubmittedSettingsSecrets(
     settings.api.apiKey === SETTINGS_SECRET_PRESERVE_SENTINEL
       ? existing.apiKey
       : submitted.secrets.apiKey;
+  const tavilyApiKey =
+    settings.internetResearch.tavilyApiKey === SETTINGS_SECRET_PRESERVE_SENTINEL
+      ? existing.tavilyApiKey
+      : submitted.secrets.tavilyApiKey;
   const headers = submitted.secrets.credentialHeaders ?? {};
   const existingHeaders = existing.credentialHeaders ?? {};
   for (const [name, value] of Object.entries(headers)) {
@@ -199,8 +216,24 @@ export function resolveSubmittedSettingsSecrets(
   }
   return {
     settings: submitted.persistentSettings,
-    secrets: normalizeSecrets({ apiKey, credentialHeaders: headers }),
+    secrets: normalizeSecrets({
+      apiKey,
+      tavilyApiKey,
+      credentialHeaders: headers,
+    }),
   };
+}
+
+export function hasSettingsSecretSentinels(settings: AppSettings): boolean {
+  if (settings.api.apiKey === SETTINGS_SECRET_PRESERVE_SENTINEL) return true;
+  if (
+    settings.internetResearch.tavilyApiKey === SETTINGS_SECRET_PRESERVE_SENTINEL
+  ) {
+    return true;
+  }
+  return Object.values(parseHeaderRecord(settings.api.customHeadersJson)).some(
+    (value) => value === SETTINGS_SECRET_PRESERVE_SENTINEL,
+  );
 }
 
 export function maskSettingsSecrets(settings: AppSettings): AppSettings {
@@ -212,6 +245,12 @@ export function maskSettingsSecrets(settings: AppSettings): AppSettings {
   }
   return {
     ...settings,
+    internetResearch: {
+      ...settings.internetResearch,
+      ...(settings.internetResearch.tavilyApiKey
+        ? { tavilyApiKey: SETTINGS_SECRET_PRESERVE_SENTINEL }
+        : {}),
+    },
     api: {
       ...settings.api,
       ...(settings.api.apiKey
@@ -269,14 +308,17 @@ function parseEncryptedVault(
 
 function parseEncryptedVaultFields(value: Record<string, unknown>): {
   apiKey?: string;
+  tavilyApiKey?: string;
   credentialHeaders?: string;
 } {
   const apiKey = parseOptionalEncryptedField(value.apiKey);
+  const tavilyApiKey = parseOptionalEncryptedField(value.tavilyApiKey);
   const credentialHeaders = parseOptionalEncryptedField(
     value.credentialHeaders,
   );
   return {
     ...(apiKey ? { apiKey } : {}),
+    ...(tavilyApiKey ? { tavilyApiKey } : {}),
     ...(credentialHeaders ? { credentialHeaders } : {}),
   };
 }
@@ -294,6 +336,9 @@ function decryptVault(
 ): SettingsSecrets {
   const secrets: SettingsSecrets = {};
   if (vault.apiKey) secrets.apiKey = decryptSecret(vault.apiKey);
+  if (vault.tavilyApiKey) {
+    secrets.tavilyApiKey = decryptSecret(vault.tavilyApiKey);
+  }
   if (vault.credentialHeaders) {
     const parsed = JSON.parse(
       decryptSecret(vault.credentialHeaders),
@@ -341,9 +386,11 @@ function stringifyHeaderRecord(headers: Record<string, unknown>): string {
 
 function normalizeSecrets(secrets: SettingsSecrets): SettingsSecrets {
   const apiKey = cleanSecret(secrets.apiKey);
+  const tavilyApiKey = cleanSecret(secrets.tavilyApiKey);
   const credentialHeaders = secrets.credentialHeaders;
   return {
     ...(apiKey ? { apiKey } : {}),
+    ...(tavilyApiKey ? { tavilyApiKey } : {}),
     ...(credentialHeaders && Object.keys(credentialHeaders).length > 0
       ? { credentialHeaders }
       : {}),

@@ -312,8 +312,8 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     expect(options.batch).toBe(1024);
     expect(options.ubatch).toBe(1024);
     expect(options.fitTargetMb).toBe(512);
-    expect(options.gpuLayers).toBe("all");
-    expect(options.fitEnabled).toBe(false);
+    expect(options.gpuLayers).toBe("fit");
+    expect(options.fitEnabled).toBeUndefined();
     expect(options.gpuMemoryMb).toBe(24_564);
     expect(options.cacheTypeK).toBe("q4_0");
     expect(options.cacheTypeV).toBe("q4_0");
@@ -370,7 +370,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     expect(options.draftModelRepo).toBe(GEMMA_31B_QAT_MTP_MODEL_REPO);
     expect(options.draftModelFile).toBe(GEMMA_31B_QAT_MTP_MODEL_FILE);
     expect(options.draftMaxTokens).toBe(2);
-    expect(options.ctx).toBe(12_288);
+    expect(options.ctx).toBe(DEFAULT_GEMMA_CONTEXT_TOKENS);
     expect(options.batch).toBe(1024);
     expect(options.ubatch).toBe(1024);
     expect(options.fitTargetMb).toBe(512);
@@ -424,7 +424,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     expect(options.useDraft).toBe(true);
     expect(options.draftModelRepo).toBeTruthy();
     expect(options.draftModelFile).toBeTruthy();
-    expect(options.fitTargetMb).toBe(1024);
+    expect(options.fitTargetMb).toBe(1536);
     expect(options.ocrBboxMode).toBe("ocr");
     expect(options.ocrEngine).toBe("transformers");
     expect(options.ocrEngineDtype).toBe("float32");

@@ -1,13 +1,16 @@
 import type { TFunction } from "i18next";
 import { coerceOpenAiCompatibleBaseUrl } from "../../../../shared/apiSettings";
 import { isValidLanguageCodeInput } from "../../../../shared/translationLanguages";
-import {
-  MAX_MAX_TOKENS,
-  MIN_CONTEXT_TOKENS,
-  MIN_MAX_TOKENS,
-} from "../../../../shared/modelPresets";
 import { MODEL_PRESETS } from "../settingsOptions";
 import type { SettingsFormValues } from "./settingsModalFormValues";
+import {
+  isInternetResearchDraftSubmittable,
+  resolveInternetResearchDraft,
+} from "./settingsModalResearchFormUtils";
+import {
+  isValidContextTokens,
+  isValidMaxTokens,
+} from "./settingsModalTokenValidation";
 import {
   MAX_API_KEY_MAX_ATTEMPTS,
   MAX_API_KEYS,
@@ -26,7 +29,6 @@ export function resolveSettingsDraft(values: SettingsFormValues) {
   const apiDraft = resolveApiDraft(values);
   const parsedMaxTokens = Number(values.maxTokens);
   const parsedContextTokens = Number(values.contextTokens);
-
   return {
     activePreset,
     ...resolveModelDraft(values, activePreset),
@@ -34,6 +36,7 @@ export function resolveSettingsDraft(values: SettingsFormValues) {
     trimmedLocalModelPath: values.localModelPath.trim(),
     trimmedLocalMmprojPath: values.localMmprojPath.trim(),
     trimmedCodexModel: values.codexModel.trim(),
+    ...resolveInternetResearchDraft(values),
     parsedMaxTokens,
     parsedContextTokens,
     maxTokensValid: isValidMaxTokens(parsedMaxTokens),
@@ -186,6 +189,7 @@ export function isSettingsFormSubmittable(
   if (!draft.maxTokensValid || !draft.contextTokensValid) {
     return false;
   }
+  if (!isInternetResearchDraftSubmittable(values, draft)) return false;
   // 잘못된 언어 코드는 normalize가 조용히 되돌리므로 저장 전에 막는다.
   if (!draft.sourceLanguageValid || !draft.targetLanguageValid) {
     return false;
@@ -222,18 +226,6 @@ function isGemmaSettingsReady(
   return values.modelSource === "local"
     ? Boolean(draft.trimmedLocalModelPath)
     : Boolean(draft.trimmedModelRepo && draft.trimmedModelFile);
-}
-
-function isValidMaxTokens(value: number): boolean {
-  return (
-    Number.isInteger(value) &&
-    value >= MIN_MAX_TOKENS &&
-    value <= MAX_MAX_TOKENS
-  );
-}
-
-function isValidContextTokens(value: number): boolean {
-  return Number.isInteger(value) && value >= MIN_CONTEXT_TOKENS;
 }
 
 function parseNullableNumberInput(

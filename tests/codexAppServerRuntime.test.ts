@@ -7,7 +7,7 @@ import {
   BUNDLED_CODEX_VERSION,
   resolveCodexAppServerBinary,
 } from "../src/main/codexAppServerBinary";
-import { CODEX_APP_SERVER_ARGUMENTS } from "../src/main/codexAppServerClient";
+import { CODEX_APP_SERVER_ARGUMENTS } from "../src/main/codexAppServerPolicy";
 
 type CodexRuntimePlan = {
   sourceDir: string;

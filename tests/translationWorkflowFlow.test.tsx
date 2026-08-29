@@ -378,11 +378,11 @@ describe("translation workflow modes", () => {
       expect.objectContaining({
         status: "failed",
         failureGuidance: "increase-work-context-budget",
-        progressText: expect.stringContaining("작품 컨텍스트 예산"),
+        progressText: expect.stringContaining("작품 정보 예산"),
       }),
     );
     expect(notificationMocks.error).toHaveBeenCalledWith(
-      expect.stringContaining("설정 > 번역 엔진 > 작품 컨텍스트 예산"),
+      expect.stringContaining("설정 > LLM > 작품 정보 예산"),
     );
   });
 

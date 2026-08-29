@@ -98,6 +98,19 @@ export type ResetWorkContextResult = {
   resetChapterCount: number;
 };
 
+/** A user-confirmed search title kept separately from the library work name. */
+export type WorkResearchTitlePreference = {
+  schemaVersion: 1;
+  workId: string;
+  researchTitle: string;
+  updatedAt: string;
+};
+
+export type SaveWorkResearchTitleRequest = {
+  workId: string;
+  researchTitle: string;
+};
+
 export type PromptWorkContext = {
   styleGuide: WorkStyleGuide;
   storyMemory: ChapterStoryMemory;

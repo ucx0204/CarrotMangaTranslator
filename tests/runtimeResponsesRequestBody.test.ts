@@ -75,6 +75,44 @@ describe("runtime Responses request body contracts", () => {
     expect(requestBody).not.toHaveProperty("enable_thinking");
   });
 
+  it("passes Gemma research reasoning to the local chat request", () => {
+    const messages = [
+      { role: "user", content: [{ type: "text", text: "hello" }] },
+    ];
+    const requestBody = buildChatRequestBody(
+      {
+        modelProvider: "gemma",
+        gemmaReasoningBudget: 4096,
+        temperature: 0.2,
+        topP: 0.95,
+        topK: 64,
+      },
+      messages,
+      32768,
+    );
+
+    expect(requestBody).toMatchObject({
+      max_tokens: 32768,
+      reasoning_budget: 4096,
+      enable_thinking: true,
+      chat_template_kwargs: { enable_thinking: true },
+    });
+  });
+
+  it("keeps ordinary Gemma requests non-reasoning by default", () => {
+    const requestBody = buildChatRequestBody(
+      { modelProvider: "gemma", temperature: 0.2, topP: 0.95, topK: 64 },
+      [{ role: "user", content: [] }],
+      256,
+    );
+
+    expect(requestBody).toMatchObject({
+      reasoning_budget: 0,
+      enable_thinking: false,
+      chat_template_kwargs: { enable_thinking: false },
+    });
+  });
+
   it("omits nullable API fields and merges extra request body without overriding locked fields", () => {
     const messages = [
       {

@@ -54,6 +54,7 @@ import { normalizeHardwareGpuSettings } from "./appSettingsHardwareNormalize";
 import type { OcrNormalizationPolicy } from "./ocrRuntimeOverrides";
 import { normalizeVertexAuthSettings } from "./vertexAuthSettingsNormalize";
 import { normalizeCodexSettings } from "./appSettingsCodexNormalize";
+import { normalizeInternetResearchSettings } from "./appSettingsInternetResearchNormalize";
 
 export function normalizeAppSettings(
   raw: unknown,
@@ -96,6 +97,10 @@ export function normalizeAppSettings(
     ),
     gemma: normalizeGemmaSettings(asRecord(record.gemma), defaults),
     codex,
+    internetResearch: normalizeInternetResearchSettings(
+      record.internetResearch,
+      defaults.internetResearch,
+    ),
     api,
     ocr: normalizeOcrSettings(asRecord(record.ocr), defaults, options),
     ui: normalizeUiSettings(

@@ -6,7 +6,6 @@ import type {
   GlossaryEntryCategory,
   WorkStyleGuide,
 } from "../../../../shared/workContextTypes";
-import type { WorkContextAnalysisCounts } from "../../../../shared/workContextAnalysisTypes";
 import type {
   WorkContextBudgetOmittedPart,
   WorkContextBudgetPlan,
@@ -31,12 +30,6 @@ export const SPEECH_STYLE_IDS: CharacterSpeechStyle[] = [
   "formal",
   "custom",
 ];
-
-export function countAnalysisChanges(
-  counts: WorkContextAnalysisCounts,
-): number {
-  return Object.values(counts).reduce((sum, value) => sum + value, 0);
-}
 
 export function formatTokenCount(
   tokens: number,

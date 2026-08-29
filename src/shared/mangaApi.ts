@@ -1,7 +1,7 @@
 import type {
-  AnalyzeWorkContextRequest,
-  AnalyzeWorkContextResult,
-} from "./workContextAnalysisTypes";
+  ResearchWorkContextRequest,
+  WorkContextResearchProposal,
+} from "./workContextResearchTypes";
 import type {
   ApplyInpaintingHistoryTransactionRequest,
   ApplyInpaintingHistoryTransactionResult,
@@ -71,7 +71,9 @@ import type {
   ChapterStoryMemory,
   ResetWorkContextRequest,
   ResetWorkContextResult,
+  SaveWorkResearchTitleRequest,
   WorkStyleGuide,
+  WorkResearchTitlePreference,
 } from "./workContextTypes";
 import type { WorkContextUsage } from "./workContextUsageTypes";
 import type { AppSettings, UiLocale } from "./settingsTypes";
@@ -116,6 +118,10 @@ import type {
   ViewLinkedResultsResult,
 } from "./linkedWorkspaceTypes";
 import type { CodexAccountSnapshot } from "./codexAccountTypes";
+import type {
+  TavilyUsageRequest,
+  TavilyUsageSnapshot,
+} from "./internetResearchTypes";
 
 export type MangaApi = {
   getLinkedWorkspaceStatus: (
@@ -187,6 +193,12 @@ export type MangaApi = {
   getLibrary: () => Promise<LibraryIndex>;
   openLibraryFolder: () => Promise<unknown>;
   openChapter: (chapterId: string) => Promise<ChapterSnapshot>;
+  getWorkResearchTitle: (
+    workId: string,
+  ) => Promise<WorkResearchTitlePreference | null>;
+  saveWorkResearchTitle: (
+    request: SaveWorkResearchTitleRequest,
+  ) => Promise<WorkResearchTitlePreference>;
   getWorkStyleGuide: (workId: string) => Promise<WorkStyleGuide>;
   saveWorkStyleGuide: (guide: WorkStyleGuide) => Promise<WorkStyleGuide>;
   getChapterStoryMemory: (chapterId: string) => Promise<ChapterStoryMemory>;
@@ -197,9 +209,10 @@ export type MangaApi = {
     request: ResetWorkContextRequest,
   ) => Promise<ResetWorkContextResult>;
   getWorkContextUsage: (workId: string) => Promise<WorkContextUsage>;
-  analyzeWorkContext: (
-    request: AnalyzeWorkContextRequest,
-  ) => Promise<AnalyzeWorkContextResult>;
+  researchWorkContext: (
+    request: ResearchWorkContextRequest,
+  ) => Promise<WorkContextResearchProposal>;
+  cancelWorkContextResearch: (runId: string) => Promise<{ cancelled: boolean }>;
   getPageImageDataUrl: (imagePath: string) => Promise<string>;
   savePageBlocks: (request: SavePageBlocksRequest) => Promise<ChapterSnapshot>;
   savePagesBlocks: (
@@ -240,6 +253,9 @@ export type MangaApi = {
   getCodexAccount: () => Promise<CodexAccountSnapshot>;
   loginCodexAccount: () => Promise<CodexAccountSnapshot>;
   logoutCodexAccount: () => Promise<CodexAccountSnapshot>;
+  getTavilyUsage: (
+    request?: TavilyUsageRequest,
+  ) => Promise<TavilyUsageSnapshot>;
   saveSettings: (settings: AppSettings) => Promise<AppSettings>;
   resetSettings: () => Promise<AppSettings>;
   pickLocalModelFile: () => Promise<LocalModelPickResult | null>;
@@ -253,6 +269,9 @@ export type MangaApi = {
   }>;
   getRuntimeCapabilities: () => Promise<RuntimeCapabilities>;
   openReleasesPage: () => Promise<unknown>;
+  openResearchSource: (
+    url: string,
+  ) => Promise<{ opened: boolean; url: string }>;
   testModelSettings: (
     settings: AppSettings,
     testId?: string,

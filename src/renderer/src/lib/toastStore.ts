@@ -78,6 +78,16 @@ function push(
   if (!trimmed) {
     return "";
   }
+  const duplicate = toasts.find(
+    (item) =>
+      item.variant === variant &&
+      item.message === trimmed &&
+      item.action === undefined &&
+      options?.action === undefined,
+  );
+  if (duplicate) {
+    return duplicate.id;
+  }
   const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const duration = options?.duration ?? DEFAULT_DURATION[variant];
   const next: Toast = {

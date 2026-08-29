@@ -7,6 +7,7 @@ export const appGateway = createMangaDomainGateway("App", [
   "openErrorReportIssue",
   "openLibraryFolder",
   "openLogFolder",
+  "openResearchSource",
   "prepareErrorReport",
   "restartApp",
   "writeLog",

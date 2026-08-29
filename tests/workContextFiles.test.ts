@@ -68,6 +68,28 @@ describe("work context files", () => {
     ).toBe(savedMemory.pages[0]?.summary);
   });
 
+  it("persists a user-confirmed research title without renaming the work or changing the guide", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const guideBefore = await library.saveWorkStyleGuide(
+      await library.getWorkStyleGuide("work-1"),
+    );
+
+    await expect(library.getWorkResearchTitle("work-1")).resolves.toBeNull();
+    const saved = await library.saveWorkResearchTitle({
+      workId: "work-1",
+      researchTitle: "  웹에서 찾을 정확한 작품명  ",
+    });
+
+    expect(saved.researchTitle).toBe("웹에서 찾을 정확한 작품명");
+    await expect(library.getWorkResearchTitle("work-1")).resolves.toEqual(
+      saved,
+    );
+    expect(await library.getWorkStyleGuide("work-1")).toEqual(guideBefore);
+    expect((await library.listLibrary()).works[0]?.title).toBe("원본 작품");
+  });
+
   it("rejects excessive glossary entries and mismatched story memory locations", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);

@@ -55,6 +55,7 @@ export type RuntimeOptions = {
   serverLogPath?: string | null;
   sourceLanguage?: string | null;
   targetLanguage?: string | null;
+  textOnlyModel?: boolean | null;
   toolsDir?: string | null;
   workingDir?: string | null;
 };

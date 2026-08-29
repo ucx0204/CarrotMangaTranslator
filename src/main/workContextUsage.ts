@@ -45,7 +45,53 @@ export async function buildWorkContextUsage(
     repository.listLibrary(),
     repository.getWorkStyleGuide(workId),
   ]);
+  return buildUsageFromLibrary(workId, guide, library, repository);
+}
+
+export async function buildWorkContextUsageForGuide(
+  workId: string,
+  guide: WorkStyleGuide,
+  repository: WorkContextUsageRepository = defaultRepository,
+): Promise<WorkContextUsage> {
+  return buildUsageFromLibrary(
+    workId,
+    guide,
+    await repository.listLibrary(),
+    repository,
+  );
+}
+
+async function buildUsageFromLibrary(
+  workId: string,
+  guide: WorkStyleGuide,
+  library: LibraryIndex,
+  repository: WorkContextUsageRepository,
+): Promise<WorkContextUsage> {
   const work = library.works.find((candidate) => candidate.id === workId);
+  if (!work) {
+    return buildWorkContextUsageFromLoadedChapters(workId, guide, []);
+  }
+  const chapters = await Promise.all(
+    work.chapters.map(async (chapterSummary) => {
+      const [chapter, memory] = await Promise.all([
+        repository.openChapter(chapterSummary.id),
+        repository.getChapterStoryMemory(chapterSummary.id),
+      ]);
+      return { chapter, memory };
+    }),
+  );
+  return buildWorkContextUsageFromLoadedChapters(workId, guide, chapters);
+}
+
+export function buildWorkContextUsageFromLoadedChapters(
+  workId: string,
+  guide: WorkStyleGuide,
+  chapters: ReadonlyArray<{
+    chapter: ChapterSnapshot;
+    memory: ChapterStoryMemory;
+  }>,
+  signal?: AbortSignal,
+): WorkContextUsage {
   const glossary = new Map<string, MutableMetric>(
     guide.glossary.map((entry) => [entry.id, emptyMetric(entry.id)]),
   );
@@ -61,28 +107,13 @@ export async function buildWorkContextUsage(
       ...(entry.aliases ?? []),
     ]),
   );
-  if (!work) {
-    return {
-      workId,
-      glossary: [...glossary.values()],
-      characters: [...characters.values()],
-    };
-  }
-
-  const chapters = await Promise.all(
-    work.chapters.map(async (chapterSummary) => {
-      const [chapter, memory] = await Promise.all([
-        repository.openChapter(chapterSummary.id),
-        repository.getChapterStoryMemory(chapterSummary.id),
-      ]);
-      return { chapter, memory };
-    }),
-  );
   for (const [chapterIndex, { chapter, memory }] of chapters.entries()) {
+    signal?.throwIfAborted();
     const memoriesByPageId = new Map(
       memory.pages.map((pageMemory) => [pageMemory.pageId, pageMemory]),
     );
     for (const [pageIndex, page] of chapter.pages.entries()) {
+      signal?.throwIfAborted();
       collectPageUsage({
         page,
         pageMemory: memoriesByPageId.get(page.id),
@@ -277,9 +308,17 @@ function normalizeMatchKeys(rawKeys: string[]): string[] {
 }
 
 function normalizeMatchText(value: unknown): string {
-  return String(value ?? "")
+  let normalized = String(value ?? "")
     .normalize("NFKC")
     .toLocaleLowerCase()
     .replace(/\s+/g, " ")
     .trim();
+  const hasJapaneseLayoutGap =
+    /([\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}々〆ヶ】》」』）])\s+(?=[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}々〆ヶ【《「『（])/u;
+  const japaneseLayoutGaps =
+    /([\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}々〆ヶ】》」』）])\s+(?=[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}々〆ヶ【《「『（])/gu;
+  while (hasJapaneseLayoutGap.test(normalized)) {
+    normalized = normalized.replace(japaneseLayoutGaps, "$1");
+  }
+  return normalized;
 }

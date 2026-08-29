@@ -59,6 +59,12 @@ import {
   MIN_LETTER_SPACING_EM,
   MIN_LINE_HEIGHT,
 } from "./blockFormatValues";
+import {
+  MIN_TAVILY_MAX_CREDITS_PER_RUN,
+  RESEARCH_GEMMA_REASONING_EFFORTS,
+  RESEARCH_GEMMA_PRESETS,
+  TAVILY_ANALYSIS_PROVIDERS,
+} from "./internetResearchTypes";
 
 const LanguageCodeSchema = z
   .string()
@@ -203,6 +209,39 @@ export const AppSettingsSchema = z
       .object({
         model: z.string().min(1).max(120),
         reasoningEffort: z.enum(CODEX_REASONING_EFFORTS),
+      })
+      .strict(),
+    internetResearch: z
+      .object({
+        tavilyAnalysisProvider: z.enum(TAVILY_ANALYSIS_PROVIDERS),
+        gemmaPreset: z.enum(RESEARCH_GEMMA_PRESETS),
+        gemmaReasoningEffort: z.enum(RESEARCH_GEMMA_REASONING_EFFORTS),
+        gemmaMaxOutputTokens: z
+          .number()
+          .int()
+          .min(MIN_MAX_TOKENS)
+          .max(MAX_MAX_TOKENS),
+        gemmaContextTokens: z.number().int().min(MIN_CONTEXT_TOKENS),
+        apiModel: z.string().min(1).max(200),
+        apiMaxOutputTokens: z
+          .number()
+          .int()
+          .min(MIN_MAX_TOKENS)
+          .max(MAX_MAX_TOKENS),
+        apiContextTokens: z.number().int().min(MIN_CONTEXT_TOKENS),
+        codexModel: z.string().min(1).max(120),
+        codexReasoningEffort: z.enum(CODEX_REASONING_EFFORTS),
+        codexMaxOutputTokens: z
+          .number()
+          .int()
+          .min(MIN_MAX_TOKENS)
+          .max(MAX_MAX_TOKENS),
+        codexContextTokens: z.number().int().min(MIN_CONTEXT_TOKENS),
+        tavilyApiKey: z.string().max(512).optional(),
+        tavilyMaxCreditsPerRun: z
+          .number()
+          .int()
+          .min(MIN_TAVILY_MAX_CREDITS_PER_RUN),
       })
       .strict(),
     api: z

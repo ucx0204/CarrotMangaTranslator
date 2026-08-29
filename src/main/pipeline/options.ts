@@ -90,6 +90,7 @@ export function formatGemmaVramMode(
   return tMain("translation.vram.full31b");
 }
 
+// eslint-disable-next-line max-lines-per-function -- the diagnostic snapshot intentionally lists every non-secret runtime option in one auditable record
 export function summarizeTranslationOptions(
   options: TranslationOptions,
 ): Record<string, unknown> {
@@ -111,6 +112,7 @@ export function summarizeTranslationOptions(
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
+    gemmaReasoningBudget: options.gemmaReasoningBudget,
     maxTokens: options.maxTokens,
     ctx: options.ctx,
     batch: options.batch,
@@ -126,6 +128,7 @@ export function summarizeTranslationOptions(
     ctxCheckpoints: options.ctxCheckpoints,
     kvOffload: options.kvOffload,
     mmprojOffload: options.mmprojOffload,
+    textOnlyModel: options.textOnlyModel,
     disableMmap: options.disableMmap,
     useDraft: options.useDraft,
     draftModelRepo: options.draftModelRepo,

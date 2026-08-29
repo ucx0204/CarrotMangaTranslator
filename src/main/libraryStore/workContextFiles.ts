@@ -2,12 +2,16 @@ import { join } from "node:path";
 import type { z } from "zod";
 import {
   ChapterStoryMemorySchema,
+  SaveWorkResearchTitleRequestSchema,
   WorkStyleGuideSchema,
+  WorkResearchTitlePreferenceSchema,
 } from "../../shared/ipcSchemas";
 import type {
   ChapterStoryMemory,
   ResetWorkContextResult,
+  SaveWorkResearchTitleRequest,
   WorkStyleGuide,
+  WorkResearchTitlePreference,
 } from "../../shared/workContextTypes";
 import {
   findChapterLocation,
@@ -15,6 +19,7 @@ import {
   readWorkFile,
 } from "./libraryFiles";
 import { getWorksRoot } from "./libraryPaths";
+import { assertSafeStoreId } from "./libraryStoreIds";
 import { readJsonFile, writeJsonFile } from "./storage";
 import { runLibraryTransaction } from "./libraryTransaction";
 import {
@@ -23,6 +28,8 @@ import {
 } from "./libraryTransactionFiles";
 import { reconcilePageStoryMemories } from "./storyMemoryReconcile";
 import { reorderRecords } from "./chapterRecords";
+
+const WORK_RESEARCH_PREFERENCES_FILE_NAME = "research-preferences.json";
 
 function createDefaultWorkStyleGuide(workId: string): WorkStyleGuide {
   const now = new Date().toISOString();
@@ -90,6 +97,41 @@ export async function writeWorkStyleGuide(
   );
   await writeJsonFile(styleGuidePath(checked.workId), checked);
   return checked;
+}
+
+export async function readWorkResearchTitlePreference(
+  workId: string,
+): Promise<WorkResearchTitlePreference | null> {
+  await ensureWorkExists(workId);
+  const raw = await readWorkResearchPreferenceJson(workId);
+  if (raw === null) return null;
+  const preference = parseStoredContext(
+    WorkResearchTitlePreferenceSchema,
+    raw,
+    WORK_RESEARCH_PREFERENCES_FILE_NAME,
+  );
+  if (preference.workId !== workId) {
+    throw new Error("작품 조사 제목의 보관함 위치가 올바르지 않습니다.");
+  }
+  return preference;
+}
+
+export async function writeWorkResearchTitlePreference(
+  request: SaveWorkResearchTitleRequest,
+): Promise<WorkResearchTitlePreference> {
+  const checkedRequest = SaveWorkResearchTitleRequestSchema.parse(request);
+  await ensureWorkExists(checkedRequest.workId);
+  const preference = WorkResearchTitlePreferenceSchema.parse({
+    schemaVersion: 1,
+    workId: checkedRequest.workId,
+    researchTitle: checkedRequest.researchTitle,
+    updatedAt: new Date().toISOString(),
+  });
+  await writeJsonFile(
+    workResearchPreferencesPath(preference.workId),
+    preference,
+  );
+  return preference;
 }
 
 export async function readChapterStoryMemory(
@@ -255,6 +297,11 @@ function storyMemoryPath(workId: string, chapterId: string): string {
   );
 }
 
+function workResearchPreferencesPath(workId: string): string {
+  assertSafeStoreId(workId, "작품 ID가 올바르지 않습니다.");
+  return join(getWorksRoot(), workId, WORK_RESEARCH_PREFERENCES_FILE_NAME);
+}
+
 async function ensureWorkExists(workId: string): Promise<void> {
   const work = await readWorkFile(workId);
   if (!work) {
@@ -274,6 +321,15 @@ async function readOptionalContextJson(
       cause: error,
     });
   }
+}
+
+async function readWorkResearchPreferenceJson(
+  workId: string,
+): Promise<unknown | null> {
+  return readOptionalContextJson(
+    workResearchPreferencesPath(workId),
+    WORK_RESEARCH_PREFERENCES_FILE_NAME,
+  );
 }
 
 function parseStoredContext<TSchema extends z.ZodTypeAny>(

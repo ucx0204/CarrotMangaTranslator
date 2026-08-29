@@ -13,6 +13,11 @@ import type {
   OcrQualityMode,
   UiLocale,
 } from "../../../../shared/settingsTypes";
+import type {
+  ResearchGemmaPreset,
+  ResearchGemmaReasoningEffort,
+  TavilyAnalysisProvider,
+} from "../../../../shared/internetResearchTypes";
 import type { GraphicsGpuPreference } from "../../../../shared/gpuSettings";
 import {
   DEFAULT_SOURCE_LANGUAGE,
@@ -55,6 +60,20 @@ export type SettingsFormValues = {
   allowUnsafeUnifiedMemory: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
+  researchTavilyAnalysisProvider: TavilyAnalysisProvider;
+  researchGemmaPreset: ResearchGemmaPreset;
+  researchGemmaReasoningEffort: ResearchGemmaReasoningEffort;
+  researchGemmaMaxOutputTokens: string;
+  researchGemmaContextTokens: string;
+  researchApiModel: string;
+  researchApiMaxOutputTokens: string;
+  researchApiContextTokens: string;
+  researchCodexModel: string;
+  researchCodexReasoningEffort: CodexReasoningEffort;
+  researchCodexMaxOutputTokens: string;
+  researchCodexContextTokens: string;
+  tavilyApiKey: string;
+  tavilyMaxCreditsPerRun: string;
   apiBaseUrl: string;
   apiModel: string;
   apiKey: string;
@@ -85,11 +104,50 @@ export function createSettingsFormValues(
   return {
     ...resolveGeneralFormValues(settings),
     ...resolveModelFormValues(settings),
+    ...resolveResearchFormValues(settings),
     ...resolveApiFormValues(settings),
     ...resolveGpuFormValues(settings),
     ...resolveHardwareFormValues(settings),
     maxTokens: String(settings.maxTokens),
     contextTokens: String(settings.ctx),
+  };
+}
+
+function resolveResearchFormValues(
+  settings: AppSettings,
+): Pick<
+  SettingsFormValues,
+  | "researchTavilyAnalysisProvider"
+  | "researchGemmaPreset"
+  | "researchGemmaReasoningEffort"
+  | "researchGemmaMaxOutputTokens"
+  | "researchGemmaContextTokens"
+  | "researchApiModel"
+  | "researchApiMaxOutputTokens"
+  | "researchApiContextTokens"
+  | "researchCodexModel"
+  | "researchCodexReasoningEffort"
+  | "researchCodexMaxOutputTokens"
+  | "researchCodexContextTokens"
+  | "tavilyApiKey"
+  | "tavilyMaxCreditsPerRun"
+> {
+  const research = settings.internetResearch;
+  return {
+    researchTavilyAnalysisProvider: research.tavilyAnalysisProvider,
+    researchGemmaPreset: research.gemmaPreset,
+    researchGemmaReasoningEffort: research.gemmaReasoningEffort,
+    researchGemmaMaxOutputTokens: String(research.gemmaMaxOutputTokens),
+    researchGemmaContextTokens: String(research.gemmaContextTokens),
+    researchApiModel: research.apiModel,
+    researchApiMaxOutputTokens: String(research.apiMaxOutputTokens),
+    researchApiContextTokens: String(research.apiContextTokens),
+    researchCodexModel: research.codexModel,
+    researchCodexReasoningEffort: research.codexReasoningEffort,
+    researchCodexMaxOutputTokens: String(research.codexMaxOutputTokens),
+    researchCodexContextTokens: String(research.codexContextTokens),
+    tavilyApiKey: research.tavilyApiKey ?? "",
+    tavilyMaxCreditsPerRun: String(research.tavilyMaxCreditsPerRun),
   };
 }
 

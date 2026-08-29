@@ -4,20 +4,21 @@ import type {
   CodexAccountModel,
   CodexAccountSnapshot,
 } from "../../../../shared/codexAccountTypes";
+import type { CodexReasoningEffort } from "../../../../shared/codexSettings";
 import { CODEX_REASONING_OPTIONS } from "../settingsOptions";
+import { Field } from "../ui/Field";
 import { Select } from "../ui/Select";
 import { CodexAccountField } from "./CodexAccountField";
-import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
 
-type CodexSettingsFieldsProps = Pick<
-  EngineSettingsPanelProps,
-  | "clearTestState"
-  | "codexModel"
-  | "codexReasoningEffort"
-  | "controlsBusy"
-  | "setCodexModel"
-  | "setCodexReasoningEffort"
-> & {
+export type CodexSettingsFieldsProps = {
+  clearTestState: () => void;
+  codexModel: string;
+  codexReasoningEffort: CodexReasoningEffort;
+  controlsBusy: boolean;
+  setCodexModel: React.Dispatch<React.SetStateAction<string>>;
+  setCodexReasoningEffort: React.Dispatch<
+    React.SetStateAction<CodexReasoningEffort>
+  >;
   onAccountSnapshotChange?: (snapshot: CodexAccountSnapshot | null) => void;
 };
 
@@ -68,8 +69,14 @@ function CodexModelField({
   const { t } = useTranslation("components");
   const activeModel = resolveCatalogModel(models, codexModel);
   return (
-    <label className="codex-catalog-row">
-      <span>{t("settings.codex.model")}</span>
+    <Field
+      as="div"
+      className="codex-catalog-row"
+      density="comfortable"
+      variant="row"
+      label={t("settings.codex.model")}
+      labelId="codex-model-label"
+    >
       <Select
         ariaLabel={t("settings.codex.model")}
         value={activeModel.id}
@@ -91,7 +98,7 @@ function CodexModelField({
           }
         }}
       />
-    </label>
+    </Field>
   );
 }
 
@@ -113,8 +120,14 @@ function CodexReasoningField({
     ? codexReasoningEffort
     : model.defaultReasoningEffort;
   return (
-    <label className="codex-catalog-row">
-      <span>{t("settings.codex.reasoning.label")}</span>
+    <Field
+      as="div"
+      className="codex-catalog-row"
+      density="comfortable"
+      variant="row"
+      label={t("settings.codex.reasoning.label")}
+      labelId="codex-reasoning-label"
+    >
       <Select
         ariaLabel={t("settings.codex.reasoning.ariaLabel")}
         value={activeEffort}
@@ -131,7 +144,7 @@ function CodexReasoningField({
           setCodexReasoningEffort(nextEffort);
         }}
       />
-    </label>
+    </Field>
   );
 }
 

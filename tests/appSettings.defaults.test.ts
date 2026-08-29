@@ -49,6 +49,21 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.codex.model).toBe(DEFAULT_CODEX_MODEL);
     expect(defaults.codex.model).toBe("gpt-5.6-sol");
     expect(defaults.codex.reasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
+    expect(defaults.internetResearch).toEqual({
+      tavilyAnalysisProvider: "gemma",
+      gemmaPreset: "qat12b",
+      gemmaReasoningEffort: "high",
+      gemmaMaxOutputTokens: 32768,
+      gemmaContextTokens: 65536,
+      apiModel: DEFAULT_API_MODEL,
+      apiMaxOutputTokens: 32768,
+      apiContextTokens: 65536,
+      codexModel: DEFAULT_CODEX_MODEL,
+      codexReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
+      codexMaxOutputTokens: 32768,
+      codexContextTokens: 262144,
+      tavilyMaxCreditsPerRun: 10,
+    });
     expect(defaults.api.baseUrl).toBe(DEFAULT_API_BASE_URL);
     expect(defaults.api.model).toBe(DEFAULT_API_MODEL);
     expect(defaults.api.model).toBe("gpt-5.5");
@@ -344,12 +359,12 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     );
     expect(rtx4090Defaults.modelProvider).toBe("gemma");
     expect(rtx4090Defaults.gemma.vramMode).toBe("full31b");
-    expect(rtx4090Defaults.gemma.fitTargetMb).toBe(1024);
+    expect(rtx4090Defaults.gemma.fitTargetMb).toBe(1536);
     expect(rtx4090Defaults.gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
     expect(rtx4090Defaults.maxTokens).toBe(DEFAULT_GEMMA_MAX_TOKENS);
     expect(rtx4090Defaults.ctx).toBe(DEFAULT_GEMMA_CONTEXT_TOKENS);
     expect(rtx4090Defaults.maxTokens).toBe(32768);
-    expect(rtx4090Defaults.ctx).toBe(16384);
+    expect(rtx4090Defaults.ctx).toBe(65536);
     const rtx5070Defaults = resolveDefaultAppSettings(
       {},
       {
@@ -445,6 +460,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
         llamaRuntimeProfile: defaults.gemma.llamaRuntimeProfile,
       },
       codex: defaults.codex,
+      internetResearch: defaults.internetResearch,
       api: defaults.api,
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
@@ -533,6 +549,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       translation: defaults.translation,
       gemma: defaults.gemma,
       codex: defaults.codex,
+      internetResearch: defaults.internetResearch,
       api: defaults.api,
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
@@ -553,6 +570,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       translation: defaults.translation,
       gemma: defaults.gemma,
       codex: defaults.codex,
+      internetResearch: defaults.internetResearch,
       api: defaults.api,
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
@@ -645,6 +663,21 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       codex: {
         model: DEFAULT_CODEX_MODEL,
         reasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
+      },
+      internetResearch: {
+        tavilyAnalysisProvider: "gemma",
+        gemmaPreset: "qat12b",
+        gemmaReasoningEffort: "high",
+        gemmaMaxOutputTokens: 32768,
+        gemmaContextTokens: 65536,
+        apiModel: DEFAULT_API_MODEL,
+        apiMaxOutputTokens: 32768,
+        apiContextTokens: 65536,
+        codexModel: DEFAULT_CODEX_MODEL,
+        codexReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
+        codexMaxOutputTokens: 32768,
+        codexContextTokens: 65536,
+        tavilyMaxCreditsPerRun: 10,
       },
       api: {
         baseUrl: "https://api.openai.com/v1",

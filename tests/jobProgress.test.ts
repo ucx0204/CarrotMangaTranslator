@@ -201,7 +201,7 @@ describe("job progress helpers", () => {
         failureGuidance: "increase-max-output-tokens",
       }),
     ).toBe(
-      "최대 출력 토큰이 부족합니다. 설정 > 번역 엔진 > 최대 출력 토큰을 늘려 주세요.",
+      "최대 출력 토큰이 부족합니다. 설정 > LLM > 최대 출력 토큰을 늘려 주세요.",
     );
     expect(
       formatJobLabel({
@@ -209,7 +209,7 @@ describe("job progress helpers", () => {
         phase: "failed",
         failureGuidance: "increase-work-context-budget",
       }),
-    ).toContain("작품 컨텍스트 예산");
+    ).toContain("작품 정보 예산");
     expect(
       formatJobLabel({
         status: "failed",

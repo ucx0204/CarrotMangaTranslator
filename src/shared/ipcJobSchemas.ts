@@ -4,6 +4,7 @@ import {
   JobPhaseSchema,
   JobStatusSchema,
   ProgressModeSchema,
+  ResearchJobStageSchema,
 } from "./jobContracts";
 import {
   MAX_MASK_STROKES,
@@ -70,6 +71,17 @@ export const JobEventSchema = z
         "increase-work-context-budget",
         "increase-context-length",
       ])
+      .optional(),
+    research: z
+      .object({
+        stage: ResearchJobStageSchema,
+        query: z.string().max(1000).optional(),
+        queryIndex: finiteNumber.min(1).optional(),
+        resultCount: finiteNumber.min(0).optional(),
+        creditsUsed: finiteNumber.min(0).optional(),
+        creditLimit: finiteNumber.min(0).optional(),
+      })
+      .strict()
       .optional(),
     targets: z
       .array(PageJobTargetSnapshotSchema)

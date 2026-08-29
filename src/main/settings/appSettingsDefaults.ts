@@ -62,6 +62,7 @@ import {
   normalizeComputeGpuIndex,
   normalizeGraphicsGpuPreference,
 } from "../../shared/gpuSettings";
+import { resolveDefaultInternetResearchSettings } from "./appSettingsInternetResearchNormalize";
 
 export function resolveDefaultAppSettings(
   env: NodeJS.ProcessEnv = process.env,
@@ -89,6 +90,7 @@ export function resolveDefaultAppSettings(
     translation: resolveDefaultTranslationLanguageSettings(env),
     gemma,
     codex,
+    internetResearch: resolveDefaultInternetResearchSettings(codex, api),
     api,
     ocr: resolveDefaultOcrSettings(env, hardwareDefaults),
     ui: resolveDefaultUiSettings(env),
@@ -190,6 +192,7 @@ function resolveDefaultGemmaSettings(
   };
 }
 
+// eslint-disable-next-line complexity -- GPU vendor, capacity, Metal unified memory, and model tier determine one conservative default tuple
 function resolveDefaultGemmaVramSettings({
   detectedGpu,
   llamaRuntimeProfile,
@@ -199,7 +202,8 @@ function resolveDefaultGemmaVramSettings({
   llamaRuntimeProfile: AppSettings["gemma"]["llamaRuntimeProfile"];
   vramMode: AppSettings["gemma"]["vramMode"];
 }): Pick<AppSettings["gemma"], "fitTargetMb" | "mmprojOffload"> {
-  const fitTargetMb = vramMode === "minimum12b" ? 512 : 1024;
+  const fitTargetMb =
+    vramMode === "minimum12b" ? 512 : vramMode === "full31b" ? 1536 : 1024;
   const gpuMemoryMb =
     typeof detectedGpu === "number"
       ? detectedGpu

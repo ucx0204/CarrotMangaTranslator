@@ -25,26 +25,25 @@ import type { SaveTextFileRequest, SaveTextFileResult } from "./shareTypes";
 import type { CodexAccountSnapshot } from "./codexAccountTypes";
 import { codexAccountSnapshotSchema } from "./codexAccountSchemas";
 import type {
-  AnalyzeWorkContextRequest,
-  AnalyzeWorkContextResult,
-} from "./workContextAnalysisTypes";
-import type {
   ChapterStoryMemory,
   ResetWorkContextRequest,
   ResetWorkContextResult,
+  SaveWorkResearchTitleRequest,
   WorkStyleGuide,
+  WorkResearchTitlePreference,
 } from "./workContextTypes";
 import type { WorkContextUsage } from "./workContextUsageTypes";
 import { SUPPORTED_UI_LOCALES, type UiLocale } from "./uiLocales";
 import {
-  AnalyzeWorkContextRequestSchema,
   AppSettingsSchema,
   ChapterSnapshotSchema,
   ChapterStoryMemoryRequestSchema,
   ChapterStoryMemorySchema,
   ExportReviewTextRequestSchema,
   ImportReviewTextRequestSchema,
+  SaveWorkResearchTitleRequestSchema,
   SaveTextFileRequestSchema,
+  WorkResearchTitlePreferenceSchema,
   WorkStyleGuideSchema,
 } from "./ipcSchemas";
 import {
@@ -55,39 +54,10 @@ import {
   nonNegativeInteger,
   stringArg,
 } from "./ipcContractCore";
-
-const workContextAnalysisScopeSchema = z.enum(["chapter", "work", "missing"]);
-const analyzeWorkContextResultSchema = z
-  .object({
-    styleGuide: WorkStyleGuideSchema,
-    storyMemory: ChapterStoryMemorySchema,
-    coverage: z
-      .object({
-        scope: workContextAnalysisScopeSchema,
-        workId: stringArg,
-        requestedChapterId: stringArg,
-        totalChapters: nonNegativeInteger,
-        includedChapters: nonNegativeInteger,
-        totalPages: nonNegativeInteger,
-        includedPages: nonNegativeInteger,
-        selectedChars: nonNegativeInteger,
-        maxInputChars: nonNegativeInteger,
-        truncated: z.boolean(),
-      })
-      .strict(),
-    counts: z
-      .object({
-        glossaryAdded: nonNegativeInteger,
-        glossaryUpdated: nonNegativeInteger,
-        charactersAdded: nonNegativeInteger,
-        charactersUpdated: nonNegativeInteger,
-        rulesUpdated: nonNegativeInteger,
-        pageSummariesUpserted: nonNegativeInteger,
-      })
-      .strict(),
-    warnings: z.array(diagnosticString).max(MAX_WARNINGS),
-  })
-  .strict();
+import {
+  tavilySettingsIpcContracts,
+  workContextResearchIpcContracts,
+} from "./ipcInternetResearchContracts";
 
 const workContextUsageLastSeenSchema = z
   .object({
@@ -126,6 +96,24 @@ const resetWorkContextResultSchema = z
   .strict();
 
 export const workContextIpcContracts = {
+  getWorkResearchTitle: defineIpcContract<
+    [string],
+    WorkResearchTitlePreference | null
+  >({
+    apiKey: "getWorkResearchTitle",
+    channel: "context:get-work-research-title",
+    args: z.tuple([stringArg]),
+    result: WorkResearchTitlePreferenceSchema.nullable(),
+  }),
+  saveWorkResearchTitle: defineIpcContract<
+    [SaveWorkResearchTitleRequest],
+    WorkResearchTitlePreference
+  >({
+    apiKey: "saveWorkResearchTitle",
+    channel: "context:save-work-research-title",
+    args: z.tuple([SaveWorkResearchTitleRequestSchema]),
+    result: WorkResearchTitlePreferenceSchema,
+  }),
   getWorkStyleGuide: defineIpcContract<[string], WorkStyleGuide>({
     apiKey: "getWorkStyleGuide",
     channel: "context:get-work-style-guide",
@@ -168,15 +156,7 @@ export const workContextIpcContracts = {
     args: z.tuple([stringArg]),
     result: workContextUsageSchema,
   }),
-  analyzeWorkContext: defineIpcContract<
-    [AnalyzeWorkContextRequest],
-    AnalyzeWorkContextResult
-  >({
-    apiKey: "analyzeWorkContext",
-    channel: "context:analyze-work-context",
-    args: z.tuple([AnalyzeWorkContextRequestSchema]),
-    result: analyzeWorkContextResultSchema,
-  }),
+  ...workContextResearchIpcContracts,
 } as const;
 
 const saveTextFileResultSchema = z
@@ -344,6 +324,7 @@ export const settingsIpcContracts = {
     args: z.tuple([]),
     result: codexAccountSnapshotSchema,
   }),
+  ...tavilySettingsIpcContracts,
   saveSettings: defineIpcContract<[AppSettings], AppSettings>({
     apiKey: "saveSettings",
     channel: "settings:save",

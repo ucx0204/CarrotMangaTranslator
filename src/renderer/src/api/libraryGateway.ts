@@ -15,6 +15,7 @@ export const libraryGateway = createMangaDomainGateway("Library", [
   "getLibrary",
   "getPageImageDataUrl",
   "getWorkContextUsage",
+  "getWorkResearchTitle",
   "getWorkStyleGuide",
   "importReviewText",
   "importWorkShare",
@@ -36,6 +37,7 @@ export const libraryGateway = createMangaDomainGateway("Library", [
   "savePageBlocks",
   "savePagesBlocks",
   "saveTextFile",
+  "saveWorkResearchTitle",
   "saveWorkStyleGuide",
   "scanWebImport",
 ] as const);

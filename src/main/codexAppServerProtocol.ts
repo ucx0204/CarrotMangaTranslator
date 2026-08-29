@@ -30,6 +30,7 @@ export type CodexAppServerTurnRequest = {
   input: CodexAppServerTurnInput[];
   cwd: string;
   outputSchema?: JsonRecord;
+  contextWindowTokens?: number;
   signal?: AbortSignal;
 };
 
@@ -38,6 +39,7 @@ export type CodexAppServerTurnResult = {
   threadId: string;
   turnId: string;
   itemId: string | null;
+  webSearchCount?: number;
 };
 
 export type CodexChatGptLogin = {
@@ -98,7 +100,20 @@ export function extractCompletedTurn(
     threadId,
     turnId,
     itemId: typeof selected?.id === "string" ? selected.id : null,
+    webSearchCount: readWebSearchCount(turn),
   };
+}
+
+function readWebSearchCount(turn: JsonRecord): number {
+  const items = Array.isArray(turn.items) ? turn.items : [];
+  return new Set(
+    items.flatMap((item) => {
+      const record = asRecord(item);
+      return record?.type === "webSearch" && typeof record.id === "string"
+        ? [record.id]
+        : [];
+    }),
+  ).size;
 }
 
 export function readNestedString(
@@ -110,6 +125,12 @@ export function readNestedString(
   return typeof nested?.[stringKey] === "string"
     ? String(nested[stringKey])
     : null;
+}
+
+export function readLoginFailure(params: JsonRecord | null): string {
+  return typeof params?.error === "string" && params.error.trim()
+    ? params.error
+    : "Codex 로그인이 완료되지 않았습니다.";
 }
 
 export function asRecord(value: unknown): JsonRecord | null {

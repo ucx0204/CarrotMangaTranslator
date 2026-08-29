@@ -27,10 +27,37 @@ export function TranslationEngineSelector({
   setModelProvider,
 }: TranslationEngineSelectorProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const selectProvider = (provider: ModelProvider): void => {
-    clearTestState();
-    setModelProvider(provider);
-  };
+  return (
+    <ModelProviderCards
+      ariaLabel={t("settings.engine.provider.label")}
+      controlsBusy={controlsBusy}
+      providers={MODEL_PROVIDER_OPTIONS.map((option) => option.id)}
+      selectedProvider={modelProvider}
+      onProviderChange={(provider) => {
+        clearTestState();
+        setModelProvider(provider);
+      }}
+    />
+  );
+}
+
+export function ModelProviderCards({
+  ariaLabel,
+  controlsBusy,
+  onProviderChange,
+  providers,
+  selectedProvider,
+}: {
+  ariaLabel: string;
+  controlsBusy: boolean;
+  onProviderChange: (provider: ModelProvider) => void;
+  providers: readonly ModelProvider[];
+  selectedProvider: ModelProvider;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const visibleOptions = MODEL_PROVIDER_OPTIONS.filter((option) =>
+    providers.includes(option.id),
+  );
   const moveProviderFocus = (
     event: React.KeyboardEvent<HTMLElement>,
     provider: ModelProvider,
@@ -41,16 +68,16 @@ export function TranslationEngineSelector({
       return;
     }
     event.preventDefault();
-    const currentIndex = MODEL_PROVIDER_OPTIONS.findIndex(
+    const currentIndex = visibleOptions.findIndex(
       (option) => option.id === provider,
     );
     const direction =
       event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
     const nextIndex =
-      (currentIndex + direction + MODEL_PROVIDER_OPTIONS.length) %
-      MODEL_PROVIDER_OPTIONS.length;
-    const nextProvider = MODEL_PROVIDER_OPTIONS[nextIndex].id;
-    selectProvider(nextProvider);
+      (currentIndex + direction + visibleOptions.length) %
+      visibleOptions.length;
+    const nextProvider = visibleOptions[nextIndex].id;
+    onProviderChange(nextProvider);
     event.currentTarget.parentElement
       ?.querySelector<HTMLButtonElement>(`[data-provider-id="${nextProvider}"]`)
       ?.focus();
@@ -58,10 +85,11 @@ export function TranslationEngineSelector({
   return (
     <div
       className="settings-provider-grid"
+      data-option-count={visibleOptions.length}
       role="radiogroup"
-      aria-label={t("settings.engine.provider.label")}
+      aria-label={ariaLabel}
     >
-      {MODEL_PROVIDER_OPTIONS.map((option) => (
+      {visibleOptions.map((option) => (
         <SelectionSurface
           key={option.id}
           as="button"
@@ -69,12 +97,12 @@ export function TranslationEngineSelector({
           role="radio"
           className="settings-provider-card"
           data-provider-id={option.id}
-          selected={modelProvider === option.id}
-          tabIndex={modelProvider === option.id ? 0 : -1}
-          onClick={() => selectProvider(option.id)}
+          selected={selectedProvider === option.id}
+          tabIndex={selectedProvider === option.id ? 0 : -1}
+          onClick={() => onProviderChange(option.id)}
           onKeyDown={(event) => moveProviderFocus(event, option.id)}
           disabled={controlsBusy}
-          aria-checked={modelProvider === option.id}
+          aria-checked={selectedProvider === option.id}
         >
           <span className="settings-provider-card-head">
             <strong>{t(option.labelKey)}</strong>
@@ -101,7 +129,10 @@ type GenerationLimitsFieldsProps = Pick<
   | "setContextTokens"
   | "setMaxTokens"
   | "submit"
-> & { codexModelLabel?: string };
+> & {
+  codexModelLabel?: string;
+  contextFieldMode?: "provider" | "model";
+};
 
 export function GenerationLimitsFields(
   props: GenerationLimitsFieldsProps,
@@ -127,38 +158,45 @@ export function GenerationLimitsFields(
 
   return (
     <div className="settings-limit-stack">
-      <div className="settings-limit-toolbar">
-        <div className="settings-limit-recommendation">
-          <strong>
-            {t("settings.engine.limits.recommendedFor", {
-              model: recommendation.modelLabel,
-            })}
-          </strong>
-          <span>
-            {t("settings.engine.limits.recommendedValues", {
-              contextTokens: numberFormatter.format(
-                recommendation.contextTokens,
-              ),
-              maxTokens: numberFormatter.format(recommendation.maxTokens),
-            })}
-          </span>
-          {modelLimits ? <small>{modelLimits}</small> : null}
+      {props.modelProvider === "openai-codex" ? null : (
+        <div className="settings-limit-toolbar">
+          <div className="settings-limit-recommendation">
+            <strong>
+              {t("settings.engine.limits.recommendedFor", {
+                model: recommendation.modelLabel,
+              })}
+            </strong>
+            <span>
+              {t(
+                props.modelProvider === "gemma"
+                  ? "settings.engine.limits.recommendedValuesGemma"
+                  : "settings.engine.limits.recommendedValuesRemote",
+                {
+                  contextTokens: numberFormatter.format(
+                    recommendation.contextTokens,
+                  ),
+                  maxTokens: numberFormatter.format(recommendation.maxTokens),
+                },
+              )}
+            </span>
+            {modelLimits ? <small>{modelLimits}</small> : null}
+          </div>
+          <button
+            type="button"
+            className="settings-limit-apply"
+            disabled={props.controlsBusy || alreadyRecommended}
+            onClick={() => {
+              props.clearTestState();
+              props.setMaxTokens(String(recommendation.maxTokens));
+              props.setContextTokens(String(recommendation.contextTokens));
+            }}
+          >
+            {alreadyRecommended
+              ? t("settings.engine.limits.recommendedApplied")
+              : t("settings.engine.limits.applyRecommended")}
+          </button>
         </div>
-        <button
-          type="button"
-          className="settings-limit-apply"
-          disabled={props.controlsBusy || alreadyRecommended}
-          onClick={() => {
-            props.clearTestState();
-            props.setMaxTokens(String(recommendation.maxTokens));
-            props.setContextTokens(String(recommendation.contextTokens));
-          }}
-        >
-          {alreadyRecommended
-            ? t("settings.engine.limits.recommendedApplied")
-            : t("settings.engine.limits.applyRecommended")}
-        </button>
-      </div>
+      )}
       <div className="settings-limit-grid">
         <MaxTokensField {...props} />
         <ContextTokensField {...props} />
@@ -220,25 +258,29 @@ type ContextTokensFieldProps = Pick<
   | "modelProvider"
   | "setContextTokens"
   | "submit"
->;
+> &
+  Pick<GenerationLimitsFieldsProps, "contextFieldMode">;
 
 function ContextTokensField({
   clearTestState,
   contextTokens,
+  contextFieldMode,
   controlsBusy,
   modelProvider,
   setContextTokens,
   submit,
 }: ContextTokensFieldProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const contextCopy =
+    contextFieldMode === "model"
+      ? "model"
+      : modelProvider === "gemma"
+        ? "gemma"
+        : "remote";
   return (
     <div className="settings-field-stack settings-limit-field">
       <SettingsNumberField
-        ariaLabel={t(
-          modelProvider === "gemma"
-            ? "settings.engine.contextTokens.gemmaLabel"
-            : "settings.engine.contextTokens.remoteLabel",
-        )}
+        ariaLabel={t(`settings.engine.contextTokens.${contextCopy}Label`)}
         min={MIN_CONTEXT_TOKENS}
         step={1024}
         value={contextTokens}
@@ -250,11 +292,7 @@ function ContextTokensField({
         }}
       />
       <p className="muted-line modal-note">
-        {t(
-          modelProvider === "gemma"
-            ? "settings.engine.contextTokens.gemmaDescription"
-            : "settings.engine.contextTokens.remoteDescription",
-        )}
+        {t(`settings.engine.contextTokens.${contextCopy}Description`)}
       </p>
     </div>
   );

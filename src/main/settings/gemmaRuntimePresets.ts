@@ -21,21 +21,10 @@ import {
 } from "./gemmaModelPresets";
 
 export const DEFAULT_IMAGE_TOKENS = 1024;
-export const SPEED_GEMMA_FULL_GPU_THRESHOLDS_MB = {
-  qat12b: 12 * 1024,
-  qat26b: 24 * 1024,
-  qat31b: 32 * 1024,
-} as const;
-
-type QatGemmaVariant = keyof typeof SPEED_GEMMA_FULL_GPU_THRESHOLDS_MB;
-
-// Dedicated VRAM tools commonly report a few MiB below the nominal board
-// capacity (for example, an RTX 4090 reports 24,564 MiB instead of 24,576).
-const NOMINAL_GPU_MEMORY_TOLERANCE_MB = 128;
+type QatGemmaVariant = "qat12b" | "qat26b" | "qat31b";
 
 export type GemmaRuntimePreset = {
   ctx: number;
-  ctxCap?: number;
   batch: number;
   ubatch: number;
   fitTargetMb: number;
@@ -99,7 +88,7 @@ export const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> =
       ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
       batch: 1024,
       ubatch: 1024,
-      fitTargetMb: 1024,
+      fitTargetMb: 1536,
       cacheTypeK: "q4_0",
       cacheTypeV: "q4_0",
       ctxCheckpoints: 0,
@@ -118,20 +107,14 @@ export function resolveModelSpecificGemmaRuntimePreset(
   preset: GemmaRuntimePreset,
   gemma: AppSettings["gemma"],
   llamaRuntimeProfile: LlamaRuntimeProfile = "cuda12",
-  gpuMemoryMb?: number | null,
 ): GemmaRuntimePreset {
   if (gemma.modelSource !== "huggingface") {
     return preset;
   }
   const variant = resolveQatGemmaVariant(gemma);
   if (!variant) return preset;
-  const fullGpuOverride = resolveSpeedGemmaFullGpuOverride({
-    gpuMemoryMb,
-    llamaRuntimeProfile,
-    variant,
-  });
   if (llamaRuntimeProfile !== "cuda12" && llamaRuntimeProfile !== "rtx50") {
-    return { ...preset, ...fullGpuOverride, useDraft: false };
+    return { ...preset, useDraft: false };
   }
   const mtpAsset = resolveQatGemmaMtpAsset(variant);
   return {
@@ -141,30 +124,7 @@ export function resolveModelSpecificGemmaRuntimePreset(
     draftModelFile: mtpAsset.file,
     draftSpecType: "draft-mtp",
     useDraft: true,
-    ...fullGpuOverride,
   };
-}
-
-function resolveSpeedGemmaFullGpuOverride({
-  gpuMemoryMb,
-  llamaRuntimeProfile,
-  variant,
-}: {
-  gpuMemoryMb?: number | null;
-  llamaRuntimeProfile: LlamaRuntimeProfile;
-  variant: QatGemmaVariant;
-}): Pick<GemmaRuntimePreset, "fitEnabled" | "gpuLayers"> {
-  if (llamaRuntimeProfile === "metal") return {};
-  const thresholdMb = SPEED_GEMMA_FULL_GPU_THRESHOLDS_MB[variant];
-  if (
-    typeof gpuMemoryMb !== "number" ||
-    !Number.isFinite(gpuMemoryMb) ||
-    gpuMemoryMb <= 0 ||
-    gpuMemoryMb + NOMINAL_GPU_MEMORY_TOLERANCE_MB < thresholdMb
-  ) {
-    return {};
-  }
-  return { fitEnabled: false, gpuLayers: "all" };
 }
 
 function resolveQatGemmaVariant(
@@ -217,8 +177,6 @@ function resolveQatGemmaCudaOverride(
   if (variant === "qat26b") return common;
   return {
     ...common,
-    ctx: 12_288,
-    ctxCap: 12_288,
     batch: 1024,
     ubatch: 1024,
   };

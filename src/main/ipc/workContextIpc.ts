@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import {
-  AnalyzeWorkContextRequestSchema,
   ChapterStoryMemoryRequestSchema,
   ChapterStoryMemorySchema,
+  ResearchWorkContextRequestSchema,
+  SaveWorkResearchTitleRequestSchema,
   WorkStyleGuideRequestSchema,
   WorkStyleGuideSchema,
   parseIpcPayload,
@@ -14,14 +15,25 @@ import {
   type AnalyzeWorkContextRequest,
   type AnalyzeWorkContextResult,
 } from "../../shared/workContextAnalysisTypes";
+import {
+  WORK_CONTEXT_RESEARCH_CANCELLED_ERROR,
+  type ResearchWorkContextRequest,
+  type WorkContextResearchProposal,
+} from "../../shared/workContextResearchTypes";
 import { analyzeWorkContextWithAi } from "../workContextAnalysis";
+import {
+  researchWorkContext,
+  type WorkContextResearchProgressHandler,
+} from "../workContextResearch";
 import { buildWorkContextUsage } from "../workContextUsage";
 import { emitJobEvent } from "../jobs/jobEvents";
 import {
   getChapterStoryMemory,
+  getWorkResearchTitle,
   getWorkStyleGuide,
   resetWorkContext,
   saveChapterStoryMemory,
+  saveWorkResearchTitle,
   saveWorkStyleGuide,
 } from "../library";
 import type { IpcContext } from "./context";
@@ -55,6 +67,7 @@ export class WorkContextOperationGate {
 
 export function registerWorkContextIpc(context: IpcContext): void {
   const operationGate = createWorkContextOperationGate(context);
+  registerWorkResearchTitleIpc(context);
   trustedHandleContract(
     context,
     workContextIpcContracts.getWorkStyleGuide,
@@ -116,20 +129,62 @@ export function registerWorkContextIpc(context: IpcContext): void {
       return buildWorkContextUsage(request.workId);
     },
   );
+  registerInternetResearchIpc(context, operationGate);
+}
+
+function registerWorkResearchTitleIpc(context: IpcContext): void {
   trustedHandleContract(
     context,
-    workContextIpcContracts.analyzeWorkContext,
+    workContextIpcContracts.getWorkResearchTitle,
+    async (_event, workId: unknown) => {
+      const request = parseIpcPayload(
+        WorkStyleGuideRequestSchema,
+        { workId },
+        "작품 조사 제목 열기",
+      );
+      return getWorkResearchTitle(request.workId);
+    },
+  );
+  trustedHandleContract(
+    context,
+    workContextIpcContracts.saveWorkResearchTitle,
     async (_event, raw: unknown) =>
-      operationGate.run(() =>
-        runWorkContextAnalysisJob(
-          context,
-          parseIpcPayload(
-            AnalyzeWorkContextRequestSchema,
-            raw,
-            tMain("ipc.labels.workContextAnalysis"),
-          ),
+      saveWorkResearchTitle(
+        parseIpcPayload(
+          SaveWorkResearchTitleRequestSchema,
+          raw,
+          "작품 조사 제목 저장",
         ),
       ),
+  );
+}
+
+function registerInternetResearchIpc(
+  context: IpcContext,
+  operationGate: WorkContextOperationGate,
+): void {
+  trustedHandleContract(
+    context,
+    workContextIpcContracts.researchWorkContext,
+    async (_event, raw: unknown) =>
+      operationGate.run(() =>
+        runWorkContextResearchJob(
+          context,
+          parseIpcPayload(ResearchWorkContextRequestSchema, raw, "인터넷 조사"),
+        ),
+      ),
+  );
+  trustedHandleContract(
+    context,
+    workContextIpcContracts.cancelWorkContextResearch,
+    async (_event, runId) => {
+      const job = context.jobs.current;
+      if (!job || job.id !== researchJobId(runId)) {
+        return { cancelled: false };
+      }
+      job.abortController.abort();
+      return { cancelled: true };
+    },
   );
 }
 
@@ -203,6 +258,94 @@ export async function runWorkContextAnalysisJob(
       context.jobs.clearIfCurrent(id);
     }
   }
+}
+
+type WorkContextResearcher = (
+  request: ResearchWorkContextRequest,
+  signal: AbortSignal,
+  onProgress?: WorkContextResearchProgressHandler,
+) => Promise<WorkContextResearchProposal>;
+
+export async function runWorkContextResearchJob(
+  context: WorkContextJobContext,
+  request: ResearchWorkContextRequest,
+  research: WorkContextResearcher = researchWorkContext,
+): Promise<WorkContextResearchProposal> {
+  if (context.jobs.hasActive) throw new Error(tMain("jobs.active"));
+  const id = researchJobId(request.runId);
+  const abortController = new AbortController();
+  context.jobs.start({ id, kind: "internet-research", abortController });
+  const emit = (event: JobEvent): void =>
+    emitJobEvent(context.jobs, context.getMainWindow(), event);
+  emit({
+    id,
+    kind: "internet-research",
+    status: "running",
+    progressText: "조사 준비 중",
+    phase: "booting",
+    progressMode: "indeterminate",
+    research: { stage: "preparing" },
+  });
+  try {
+    const result = await research(request, abortController.signal, (progress) =>
+      emit({
+        id,
+        kind: "internet-research",
+        status: "running",
+        progressText: progress.progressText,
+        phase: progress.phase,
+        detail: progress.detail,
+        progressMode: progress.progressMode,
+        progressPercent: progress.progressPercent,
+        progressBytes: progress.progressBytes,
+        progressTotalBytes: progress.progressTotalBytes,
+        progressBytesPerSecond: progress.progressBytesPerSecond,
+        installLogLine: progress.installLogLine,
+        notification: progress.notification,
+        research: progress.research,
+      }),
+    );
+    abortController.signal.throwIfAborted();
+    emit({
+      id,
+      kind: "internet-research",
+      status: "completed",
+      progressText: "인터넷 조사 완료",
+      phase: "done",
+      research: { stage: "finalizing" },
+    });
+    return result;
+  } catch (error) {
+    if (abortController.signal.aborted) {
+      emit({
+        id,
+        kind: "internet-research",
+        status: "cancelled",
+        progressText: tMain("jobs.cancelled"),
+        phase: "cancelled",
+      });
+      throw new Error(WORK_CONTEXT_RESEARCH_CANCELLED_ERROR, { cause: error });
+    }
+    emit({
+      id,
+      kind: "internet-research",
+      status: "failed",
+      progressText: tMain("jobs.failed"),
+      phase: "failed",
+      detail: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  } finally {
+    const job = context.jobs.current;
+    if (job?.id === id) {
+      await context.jobs.runCleanup(job, "work-context-research-finished");
+      context.jobs.clearIfCurrent(id);
+    }
+  }
+}
+
+function researchJobId(runId: string): string {
+  return `work-context-research-${runId}`;
 }
 
 function createWorkContextOperationGate(

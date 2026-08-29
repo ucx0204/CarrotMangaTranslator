@@ -1075,15 +1075,82 @@
     },
     "note": "备注",
     "analysis": {
-      "ariaLabel": "AI术语与记忆分析",
-      "title": "AI自动分析",
-      "description": "分析原文并填充术语、角色和剧情记忆。",
-      "scope": "分析范围",
-      "analyzing": "分析中…",
-      "currentChapter": "当前章节",
-      "entireWork": "整个作品",
-      "success": "已应用{{scope}}的AI分析。{{included}}/{{total}}话，{{changed}}项更改",
-      "failed": "AI术语/记忆分析失败。"
+      "ariaLabel": "术语表互联网调查",
+      "title": "互联网调查",
+      "description": "核对现有术语表，并补充遗漏的术语和角色。",
+      "engineLabel": "调查方式",
+      "engines": { "tavily": "Tavily", "codex": "Codex" },
+      "run": "调查术语表",
+      "analyzing": "调查中…",
+      "cancel": "取消调查"
+    },
+    "research": {
+      "setupTitle": "准备术语表调查",
+      "titleLabel": "要调查的作品名称",
+      "start": "按此标题调查",
+      "preparing": "检查中…",
+      "setupFailed": "无法保存调查设置。",
+      "progress": {
+        "title": "正在调查术语表",
+        "elapsed": "已用 {{time}}",
+        "cancelling": "正在取消调查…",
+        "cancellingDescription": "正在安全停止当前请求。",
+        "stageLabel": "调查进度",
+        "creditUsage": "Tavily 积分",
+        "creditCount": "{{used}} / {{limit}}",
+        "activityTitle": "最近的调查活动",
+        "searchCount": "已搜索 {{count}} 次",
+        "searching": "搜索中",
+        "sourcesFound": "找到 {{count}} 条相关依据",
+        "waitingForActivity": "正在准备下一项调查任务。",
+        "stages": {
+          "preparing": {
+            "short": "准备资料",
+            "title": "正在准备调查资料",
+            "description": "整理已保存的术语、角色和可用的OCR文本。"
+          },
+          "planning": {
+            "short": "搜索计划",
+            "title": "正在制定搜索顺序",
+            "description": "优先调查影响角色名和翻译一致性的项目。"
+          },
+          "searching": {
+            "short": "收集依据",
+            "title": "正在从网络收集依据",
+            "description": "查找与作品直接相关的来源，并排除无关结果。"
+          },
+          "synthesizing": {
+            "short": "整理项目",
+            "title": "正在整理术语和角色",
+            "description": "根据收集的依据生成新增和修正建议。"
+          },
+          "auditing": {
+            "short": "交叉核验",
+            "title": "正在交叉核验建议",
+            "description": "过滤误判和重复项，并确认手动项目受到保护。"
+          },
+          "finalizing": {
+            "short": "完成",
+            "title": "正在完成待审核建议",
+            "description": "对照网络依据和本地出现信息，整理最终建议。"
+          }
+        }
+      },
+      "reviewTitle": "审核调查建议",
+      "reviewSummary": "{{count}}项建议 · {{queries}}次搜索 · Tavily {{credits}}积分 · {{seconds}}秒",
+      "dismiss": "关闭建议",
+      "apply": "应用所选 {{count}} 项",
+      "noChanges": "未找到可应用的变更。",
+      "selectChange": "选择 {{name}} 的变更建议",
+      "actions": { "add": "添加", "update": "更新", "disable": "停用" },
+      "confidence": { "high": "高可信度", "medium": "需要审核" },
+      "localEvidence": "本地出现 {{pages}} 页 · {{mentions}} 次",
+      "previewReady": "已创建 {{count}} 项未保存建议。",
+      "failed": "互联网调查失败。",
+      "cancelled": "已取消互联网调查。",
+      "cancelFailed": "无法取消互联网调查。",
+      "stale": "调查后草稿已更改。请重新调查后再应用。",
+      "applied": "已将 {{count}} 项建议应用到草稿。保存后才会写入文件。"
     },
     "tabs": {
       "ariaLabel": "术语与记忆选项卡",
@@ -1301,8 +1368,11 @@
     "title": "设置",
     "tabs": {
       "ariaLabel": "设置区域",
+      "llmAriaLabel": "LLM 设置",
       "general": "常规",
-      "engine": "翻译引擎",
+      "engine": "LLM",
+      "translation": "翻译",
+      "research": "互联网调查",
       "hardware": "硬件",
       "format": "默认格式",
       "results": "结果自动保存",
@@ -1356,7 +1426,8 @@
       "limits": {
         "title": "生成限制",
         "recommendedFor": "{{model}} 推荐值",
-        "recommendedValues": "输出 {{maxTokens}} · 作品上下文 {{contextTokens}}",
+        "recommendedValuesGemma": "最大输出 {{maxTokens}} · 上下文长度 {{contextTokens}}",
+        "recommendedValuesRemote": "最大输出 {{maxTokens}} · 作品信息预算 {{contextTokens}}",
         "publicLimits": "公开模型上限：输出 {{maxOutput}} · 上下文 {{contextWindow}}",
         "publicContextOnly": "公开模型上下文：{{contextWindow}} · 最大输出未公开",
         "unknownLimits": "没有公开的模型上限信息，因此使用安全的通用推荐值。",
@@ -1370,10 +1441,54 @@
         "gemmaDescription": "限制本地模型单次生成量。数值越高，处理时间和内存占用可能越大。"
       },
       "contextTokens": {
-        "remoteLabel": "作品上下文预算",
+        "remoteLabel": "作品信息预算",
         "remoteDescription": "用于作品记忆、术语表和角色信息的最大令牌数。",
         "gemmaLabel": "上下文长度",
-        "gemmaDescription": "本地 Gemma 的实际上下文长度。提高后可能占用更多显存。"
+        "gemmaDescription": "本地 Gemma 的实际上下文长度。提高后可能占用更多显存。",
+        "modelLabel": "上下文长度",
+        "modelDescription": "用于互联网调查输入和输出的总上下文长度。"
+      }
+    },
+    "research": {
+      "analyzer": {
+        "label": "Tavily 搜索结果分析 LLM",
+        "gemma": "Gemma",
+        "api": "API"
+      },
+      "gemma": {
+        "title": "Gemma 模型",
+        "model": "调查模型",
+        "reasoning": "推理强度",
+        "maxOutput": "最大输出令牌",
+        "context": "调查上下文"
+      },
+      "api": { "title": "API 模型" },
+      "limits": { "maxOutput": "最大输出令牌", "context": "调查上下文" },
+      "codex": {
+        "title": "Codex",
+        "description": "使用内置网页搜索查找资料并生成变更建议。"
+      },
+      "tavily": {
+        "title": "Tavily",
+        "description": "收集网页搜索结果，并由 Gemma 或 API 分析。",
+        "connection": "搜索 API",
+        "apiKey": "Tavily API 密钥",
+        "apiKeyPlaceholder": "输入 API 密钥",
+        "openSite": "前往 Tavily 获取 API 密钥",
+        "openSiteFailed": "无法打开 Tavily 网站。",
+        "perRun": "每次调查最大积分",
+        "usageTitle": "每月积分",
+        "usage": "已用 {{used}} / {{limit}} · 剩余 {{remaining}}",
+        "usageUnavailable": "请输入密钥并检查连接。",
+        "plan": "套餐 {{plan}}",
+        "check": "检查连接",
+        "checking": "检查中…",
+        "checkFailed": "无法检查 Tavily 连接，请稍后重试。",
+        "invalidKey": "Tavily API 密钥无效。",
+        "quotaReached": "Tavily 套餐内积分已用完。",
+        "rateLimited": "Tavily 请求过多，请稍后重试。",
+        "invalidResponse": "无法读取 Tavily 使用量响应。",
+        "networkFailed": "无法连接 Tavily，请检查网络。"
       }
     },
     "options": {

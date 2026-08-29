@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RESEARCH_ENGINES } from "./internetResearchTypes";
 import {
   MAX_CHARACTER_PROFILES,
   MAX_GATHERED_TEXT_LENGTH,
@@ -42,48 +43,44 @@ const DefaultToneSchema = z.preprocess(
   z.enum(["natural_korean", "literal"]),
 );
 
+export const GlossaryEntrySchema = z
+  .object({
+    id: z.string().min(1).max(200),
+    source: z.string().min(1).max(400),
+    target: z.string().max(400),
+    category: GlossaryEntryCategorySchema,
+    aliases: z.array(z.string().max(200)).max(50).optional(),
+    note: z.string().max(2000).optional(),
+    origin: z.enum(["ai", "manual"]).optional(),
+    enabled: z.boolean(),
+    createdAt: z.string().max(80),
+    updatedAt: z.string().max(80),
+  })
+  .strict();
+
+export const CharacterProfileSchema = z
+  .object({
+    id: z.string().min(1).max(200),
+    displayName: z.string().min(1).max(200),
+    sourceNames: z.array(z.string().min(1).max(200)).max(50),
+    targetName: z.string().max(200),
+    aliases: z.array(z.string().max(200)).max(50).optional(),
+    speechStyle: CharacterSpeechStyleSchema,
+    customSpeechStyle: z.string().max(1000).optional(),
+    note: z.string().max(2000).optional(),
+    origin: z.enum(["ai", "manual"]).optional(),
+    enabled: z.boolean(),
+    createdAt: z.string().max(80),
+    updatedAt: z.string().max(80),
+  })
+  .strict();
+
 export const WorkStyleGuideSchema = z
   .object({
     schemaVersion: z.literal(1),
     workId: storeId,
-    glossary: z
-      .array(
-        z
-          .object({
-            id: z.string().min(1).max(200),
-            source: z.string().min(1).max(400),
-            target: z.string().max(400),
-            category: GlossaryEntryCategorySchema,
-            aliases: z.array(z.string().max(200)).max(50).optional(),
-            note: z.string().max(2000).optional(),
-            origin: z.enum(["ai", "manual"]).optional(),
-            enabled: z.boolean(),
-            createdAt: z.string().max(80),
-            updatedAt: z.string().max(80),
-          })
-          .strict(),
-      )
-      .max(MAX_GLOSSARY_ENTRIES),
-    characters: z
-      .array(
-        z
-          .object({
-            id: z.string().min(1).max(200),
-            displayName: z.string().min(1).max(200),
-            sourceNames: z.array(z.string().min(1).max(200)).max(50),
-            targetName: z.string().max(200),
-            aliases: z.array(z.string().max(200)).max(50).optional(),
-            speechStyle: CharacterSpeechStyleSchema,
-            customSpeechStyle: z.string().max(1000).optional(),
-            note: z.string().max(2000).optional(),
-            origin: z.enum(["ai", "manual"]).optional(),
-            enabled: z.boolean(),
-            createdAt: z.string().max(80),
-            updatedAt: z.string().max(80),
-          })
-          .strict(),
-      )
-      .max(MAX_CHARACTER_PROFILES),
+    glossary: z.array(GlossaryEntrySchema).max(MAX_GLOSSARY_ENTRIES),
+    characters: z.array(CharacterProfileSchema).max(MAX_CHARACTER_PROFILES),
     rules: z
       .object({
         honorifics: z.enum(["preserve", "adapt", "drop"]),
@@ -136,6 +133,32 @@ export const AnalyzeWorkContextRequestSchema = z
     chapterId: uuid,
     scope: z.enum(["chapter", "work", "missing"]).optional(),
     maxInputChars: z.number().int().min(4000).max(500000).optional(),
+  })
+  .strict();
+
+export const ResearchWorkContextRequestSchema = z
+  .object({
+    runId: uuid,
+    chapterId: uuid,
+    researchTitle: title.trim().min(1),
+    engine: z.enum(RESEARCH_ENGINES),
+    guideSnapshot: WorkStyleGuideSchema,
+  })
+  .strict();
+
+export const WorkResearchTitlePreferenceSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    workId: storeId,
+    researchTitle: title.trim().min(1),
+    updatedAt: z.string().max(80),
+  })
+  .strict();
+
+export const SaveWorkResearchTitleRequestSchema = z
+  .object({
+    workId: storeId,
+    researchTitle: title.trim().min(1),
   })
   .strict();
 

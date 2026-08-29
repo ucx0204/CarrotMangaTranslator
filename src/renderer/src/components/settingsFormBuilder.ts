@@ -14,6 +14,11 @@ import type {
   OcrQualityMode,
   UiLocale,
 } from "../../../shared/settingsTypes";
+import type {
+  ResearchGemmaPreset,
+  ResearchGemmaReasoningEffort,
+  TavilyAnalysisProvider,
+} from "../../../shared/internetResearchTypes";
 import type { GraphicsGpuPreference } from "../../../shared/gpuSettings";
 import type { KeybindingOverrides } from "../../../shared/shortcutSettings";
 import {
@@ -48,6 +53,20 @@ type BuildSettingsFromFormInput = {
   allowUnsafeUnifiedMemory: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
+  researchTavilyAnalysisProvider: TavilyAnalysisProvider;
+  researchGemmaPreset: ResearchGemmaPreset;
+  researchGemmaReasoningEffort: ResearchGemmaReasoningEffort;
+  researchGemmaMaxOutputTokens: number;
+  researchGemmaContextTokens: number;
+  researchApiModel: string;
+  researchApiMaxOutputTokens: number;
+  researchApiContextTokens: number;
+  researchCodexModel: string;
+  researchCodexReasoningEffort: CodexReasoningEffort;
+  researchCodexMaxOutputTokens: number;
+  researchCodexContextTokens: number;
+  tavilyApiKey: string;
+  tavilyMaxCreditsPerRun: number;
   apiBaseUrl: string;
   apiModel: string;
   apiKey: string;
@@ -98,6 +117,26 @@ export function buildSettingsFromForm(
     codex: {
       model: input.codexModel || input.initialSettings.codex.model,
       reasoningEffort: input.codexReasoningEffort,
+    },
+    internetResearch: {
+      tavilyAnalysisProvider: input.researchTavilyAnalysisProvider,
+      gemmaPreset: input.researchGemmaPreset,
+      gemmaReasoningEffort: input.researchGemmaReasoningEffort,
+      gemmaMaxOutputTokens: input.researchGemmaMaxOutputTokens,
+      gemmaContextTokens: input.researchGemmaContextTokens,
+      apiModel:
+        input.researchApiModel ||
+        input.initialSettings.internetResearch.apiModel,
+      apiMaxOutputTokens: input.researchApiMaxOutputTokens,
+      apiContextTokens: input.researchApiContextTokens,
+      codexModel:
+        input.researchCodexModel ||
+        input.initialSettings.internetResearch.codexModel,
+      codexReasoningEffort: input.researchCodexReasoningEffort,
+      codexMaxOutputTokens: input.researchCodexMaxOutputTokens,
+      codexContextTokens: input.researchCodexContextTokens,
+      ...(input.tavilyApiKey ? { tavilyApiKey: input.tavilyApiKey } : {}),
+      tavilyMaxCreditsPerRun: input.tavilyMaxCreditsPerRun,
     },
     api: buildApiSettings(input),
     ocr: buildOcrSettings(input),

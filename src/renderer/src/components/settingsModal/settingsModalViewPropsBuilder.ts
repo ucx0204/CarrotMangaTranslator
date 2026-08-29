@@ -64,21 +64,25 @@ export function buildSettingsModalViewProps({
   test,
   t,
 }: SettingsModalViewPropsInput): SettingsModalViewProps {
+  const enginePanelProps = buildEnginePanelProps({
+    controlsBusy,
+    form,
+    localActions,
+    runtime,
+    submit,
+    test,
+  });
   return {
     activeTab,
     canSubmit,
     controlsBusy,
     defaultsPreviewActive,
-    generalPanelProps: {
-      disabled: controlsBusy,
-      locale: form.values.uiLocale,
-      onLocaleChange: form.setters.setUiLocale,
-    },
-    enginePanelProps: buildEnginePanelProps({
+    generalPanelProps: buildGeneralPanelProps(controlsBusy, form),
+    enginePanelProps,
+    researchPanelProps: buildResearchPanelProps({
       controlsBusy,
+      enginePanelProps,
       form,
-      localActions,
-      runtime,
       submit,
       test,
     }),
@@ -110,6 +114,80 @@ export function buildSettingsModalViewProps({
       testState: test.testState,
     },
     validationProps: buildValidationProps(form.values, draft, t),
+  };
+}
+
+function buildGeneralPanelProps(
+  controlsBusy: boolean,
+  form: ReturnType<typeof useSettingsFormState>,
+): SettingsModalViewProps["generalPanelProps"] {
+  return {
+    disabled: controlsBusy,
+    locale: form.values.uiLocale,
+    onLocaleChange: form.setters.setUiLocale,
+  };
+}
+
+function buildResearchPanelProps({
+  controlsBusy,
+  enginePanelProps,
+  form,
+  submit,
+  test,
+}: {
+  controlsBusy: boolean;
+  enginePanelProps: SettingsModalViewProps["enginePanelProps"];
+  form: ReturnType<typeof useSettingsFormState>;
+  submit: () => void;
+  test: ReturnType<typeof useSettingsTestState>;
+}): SettingsModalViewProps["researchPanelProps"] {
+  const { values, setters } = form;
+  return {
+    ...enginePanelProps,
+    controlsBusy,
+    clearTestState: test.clearTestState,
+    submit,
+    apiBaseUrl: values.apiBaseUrl,
+    apiKey: values.apiKey,
+    apiVertexAuthMode: values.apiVertexAuthMode,
+    apiVertexServiceAccountPath: values.apiVertexServiceAccountPath,
+    apiKeyMaxAttempts: values.apiKeyMaxAttempts,
+    apiRetryDelaySeconds: values.apiRetryDelaySeconds,
+    setApiBaseUrl: setters.setApiBaseUrl,
+    setApiKey: setters.setApiKey,
+    setApiVertexAuthMode: setters.setApiVertexAuthMode,
+    setApiVertexServiceAccountPath: setters.setApiVertexServiceAccountPath,
+    setApiKeyMaxAttempts: setters.setApiKeyMaxAttempts,
+    setApiRetryDelaySeconds: setters.setApiRetryDelaySeconds,
+    researchTavilyAnalysisProvider: values.researchTavilyAnalysisProvider,
+    researchGemmaPreset: values.researchGemmaPreset,
+    researchGemmaReasoningEffort: values.researchGemmaReasoningEffort,
+    researchGemmaMaxOutputTokens: values.researchGemmaMaxOutputTokens,
+    researchGemmaContextTokens: values.researchGemmaContextTokens,
+    researchApiModel: values.researchApiModel,
+    researchApiMaxOutputTokens: values.researchApiMaxOutputTokens,
+    researchApiContextTokens: values.researchApiContextTokens,
+    researchCodexModel: values.researchCodexModel,
+    researchCodexReasoningEffort: values.researchCodexReasoningEffort,
+    researchCodexMaxOutputTokens: values.researchCodexMaxOutputTokens,
+    researchCodexContextTokens: values.researchCodexContextTokens,
+    tavilyApiKey: values.tavilyApiKey,
+    tavilyMaxCreditsPerRun: values.tavilyMaxCreditsPerRun,
+    setResearchTavilyAnalysisProvider:
+      setters.setResearchTavilyAnalysisProvider,
+    setResearchGemmaPreset: setters.setResearchGemmaPreset,
+    setResearchGemmaReasoningEffort: setters.setResearchGemmaReasoningEffort,
+    setResearchGemmaMaxOutputTokens: setters.setResearchGemmaMaxOutputTokens,
+    setResearchGemmaContextTokens: setters.setResearchGemmaContextTokens,
+    setResearchApiModel: setters.setResearchApiModel,
+    setResearchApiMaxOutputTokens: setters.setResearchApiMaxOutputTokens,
+    setResearchApiContextTokens: setters.setResearchApiContextTokens,
+    setResearchCodexModel: setters.setResearchCodexModel,
+    setResearchCodexReasoningEffort: setters.setResearchCodexReasoningEffort,
+    setResearchCodexMaxOutputTokens: setters.setResearchCodexMaxOutputTokens,
+    setResearchCodexContextTokens: setters.setResearchCodexContextTokens,
+    setTavilyApiKey: setters.setTavilyApiKey,
+    setTavilyMaxCreditsPerRun: setters.setTavilyMaxCreditsPerRun,
   };
 }
 

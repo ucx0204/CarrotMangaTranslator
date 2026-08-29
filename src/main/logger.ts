@@ -10,7 +10,7 @@ const MAX_SERIALIZED_ARRAY_ITEMS = 40;
 const MAX_SERIALIZED_OBJECT_KEYS = 60;
 const MAX_SERIALIZATION_DEPTH = 8;
 const SENSITIVE_LOG_KEY =
-  /^(?:api[-_]?key|authorization|proxy[-_]?authorization|access[-_]?token|refresh[-_]?token|token|secret|password|cookie|set[-_]?cookie|customHeadersJson|extraBodyJson|promptOverrideText(?:Preview)?|sourceText|translatedText|ocrText|outputPreview|repairedOutputPreview|story|glossary|characters|imagePath|sourcePath|outputPath|outputDir|fileName|filePath|workName|chapterName|pageName)$/i;
+  /^(?:api[-_]?key|tavilyApiKey|authorization|proxy[-_]?authorization|access[-_]?token|refresh[-_]?token|token|secret|password|cookie|set[-_]?cookie|customHeadersJson|extraBodyJson|promptOverrideText(?:Preview)?|sourceText|translatedText|ocrText|outputPreview|repairedOutputPreview|story|glossary|characters|imagePath|sourcePath|outputPath|outputDir|fileName|filePath|workName|chapterName|pageName)$/i;
 const SENSITIVE_LOG_KEY_SUFFIX =
   /(?:^|[-_])(?:api[-_]?key|access[-_]?token|refresh[-_]?token|auth[-_]?token|token|secret|password|cookie)$/i;
 

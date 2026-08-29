@@ -25,7 +25,7 @@ Source model:
 The downloader and `npm run verify:hf-assets` bind all three files to these
 exact revisions and digests.
 
-## Runtime choice and fit limitation
+## Runtime choice and memory behavior
 
 The speed route now uses official llama.cpp b10621 on CUDA, Vulkan, and Metal.
 Legacy routes remain on their existing b9553/b9547/BeeLlama binaries. Windows
@@ -39,60 +39,57 @@ Gemma4Assistant requires ctx_other to be set (this is normal during memory fitti
 [spec] failed to measure draft model memory
 ```
 
-This is operationally important. `--fit-target 1024` is the requested fit
-margin, not a guarantee that one physical GiB remains after the MTP context,
+This is operationally important. `--fit-target 1536` is the requested fit
+margin, not a guarantee that 1,536 MiB remains after the MTP context,
 image projector, and Windows allocations are created. Upstream issue
 [#24758](https://github.com/ggml-org/llama.cpp/issues/24758) documents this
 Gemma 4 MTP fitting failure mode and shows that an under-fitted server may
 continue without a usable draft path.
 
-The application therefore runs a short real multimodal MTP probe after server
-startup, sampling physical free VRAM while the 1,024 image-token path is active.
-If the measured margin misses the requested target plus 128 MiB beyond a 64 MiB
-tolerance, it restarts once with a runtime-only correction. Corrections use
-512 MiB layer-sized steps because +256 MiB did not change the 31B placement,
-while +512 MiB crossed the next fit boundary. The saved UI value is never
-rewritten. A toast reports the requested value, effective value, correction,
-and measured margin.
+The application therefore runs a short real MTP probe after server startup,
+sampling physical free VRAM while the configured text-only or 1,024
+image-token path is active. If the measured margin is too small, decode drops
+below 10 tok/s, or the 30-second probe times out, the request stops with an
+error toast asking the user to lower context length and maximum output tokens.
+The risky MTP startup path also has a 60-second startup bound. The runtime does
+not rewrite context length, maximum output tokens, or the requested free-VRAM
+target, and it no longer restarts with an automatically increased fit target.
 
 ## Production speed contract
 
-The measured 24 GB CUDA profile is:
+The CUDA/RTX50 route keeps the speed-oriented batch, cache, and MTP settings,
+but context length is always the value saved by the user. No model- or
+VRAM-specific context cap is applied. The default is 65,536 tokens.
 
-| Setting                    | Production value |
-| -------------------------- | ---------------: |
-| Context                    |    12,288 tokens |
-| Batch / micro-batch        |    1,024 / 1,024 |
-| Requested free-VRAM target |        1,024 MiB |
-| Main KV cache              |  Q4_0 K/V on GPU |
-| Multimodal projector       |              GPU |
-| GPU layers                 |  llama.cpp `fit` |
-| mmap                       |         disabled |
-| MTP draft maximum          |         2 tokens |
-| Threads / batch threads    |          10 / 12 |
-| Prompt checkpoints / cache |     disabled / 0 |
+The current runtime profile is:
 
-The 12,288-token cap is specific to this 31B QAT speed route. An environment
-override can still request a larger context for an explicit diagnostic. The
-chapter-14 production request used 4,388 prompt tokens and produced 769 output
-tokens, so the cap did not truncate this workload.
+| Setting                    |              Production value |
+| -------------------------- | ----------------------------: |
+| Context                    | User setting (default 65,536) |
+| Batch / micro-batch        |                 1,024 / 1,024 |
+| Requested free-VRAM target |                     1,536 MiB |
+| Main KV cache              |               Q4_0 K/V on GPU |
+| Multimodal projector       |                           GPU |
+| GPU layers                 |               llama.cpp `fit` |
+| mmap                       |                      disabled |
+| MTP draft maximum          |                      2 tokens |
+| Threads / batch threads    |                       10 / 12 |
+| Prompt checkpoints / cache |                  disabled / 0 |
 
-### b10621 fit-correction verification
+Larger contexts may cause llama.cpp fitting to offload more layers or may fail
+on hardware without enough memory, but the application does not silently lower
+the requested value. Translation and text-only internet research use the same
+context passthrough rule.
 
-On the RTX 4090, the final application-path smoke started from the persisted
-1,024 MiB target, exercised a real 1,024-token image probe, measured a 671 MiB
-minimum, and displayed this correction:
+### b10621 32K / 1,536 MiB verification
 
-```text
-MTP fit 보정: 1024 → 1536 MiB (+512 MiB, 실측 여유 671 MiB)
-```
-
-The restarted server completed the same probe at 51.2 tok/s with 688 MiB
-minimum free VRAM. A separate 128-token page probe at effective fit 1,536
-loaded in 9.129 s and finished in 4.405 s: prompt 940.9 tok/s, decode
-60.35 tok/s, and MTP accepted 83/88 draft tokens. Its board peak was 23,448
-MiB with a 691 MiB sampled physical minimum. This matched the earlier b10621
-fit-1,024 decode rate (59.10 tok/s) instead of trading away throughput.
+On the RTX 4090, the exact production settings `ctx 32,768`, maximum output
+`32,768`, and `fit-target 1,536 MiB` loaded in about 9–11 seconds. Repeated
+short probes decoded at roughly 44–49.7 tok/s without an automatic restart or
+context reduction. The full preview-only Tavily research run completed in
+181.498 seconds, used four search credits, and found all five fixed validation
+items: the work title, `開錠（アンロック）`, `ロッド`, `ラヴィ`, and
+`五大迷宮`. The original guide hash was unchanged.
 
 b10621 deprecates `--no-mmap`, but still accepts it. Replacing the alias with
 `--load-mode none` was explicitly rejected after the matched startup probe
@@ -100,7 +97,7 @@ dropped image prompt processing from 637.5 to 157.1 tok/s and decode from 51.2
 to 39.3 tok/s. The speed route keeps the working alias until upstream provides
 an equivalent new-mode setting; the runtime itself remains b10621.
 
-## Historical b9553 evidence for the context cap
+## Historical b9553 24 GB measurements
 
 All probes below used the same RTX 4090 24 GB, b9553, target weights, projector,
 MTP head, Q4 KV, 1,024 image tokens, and chapter-14 page 1 request.
@@ -111,7 +108,9 @@ MTP head, Q4 KV, 1,024 image tokens, and chapter-14 page 1 request.
 | 16K, fit1024, 1024/1024, relaxed guard | manually stopped during request | 23,593 MiB observed |                 546 MiB |     pressure path |
 | 12K, fit1024, 1024/1024                | completed                       |          23,596 MiB |                 543 MiB |           384 MiB |
 
-The relaxed 16K request remained at 100% GPU utilization but only about 113 W
+These measurements explain why an older production revision forced 12,288
+tokens. That hidden cap has been removed; they are retained only as historical
+performance evidence. The relaxed 16K request remained at 100% GPU utilization but only about 113 W
 and ran many times longer than the completed 12K request. This was the same
 practical whole-PC slowdown reported during the earlier 31B experiment, even
 though the NVIDIA throttle-reason bit was not set. It was therefore rejected.
@@ -178,14 +177,15 @@ for the environment-resolved 31B model and runtime settings. The QA run-config
 also records the persisted UI settings, which were intentionally overridden
 for this isolated run.
 
-## Hardware-tier runtime policy (2026-08-27)
+## Hardware-tier runtime policy (2026-08-28)
 
-`31B speed` remains tightly fit for its intended 24 GB tier: automatic fit,
-1,024 MiB target, 12K context, and 1,024/1,024 batch/micro-batch. Only nominal
-32 GB or larger cards (with a 128 MiB reporting tolerance) switch to explicit
-full GPU offload (`--fit off -ngl all`). The decision is runtime-only, so an
-existing user's stored fit target and the legacy BeeLlama preset remain
-untouched.
+`31B speed` uses automatic layer fitting, a 1,536 MiB free-VRAM target, and
+1,024/1,024 batch/micro-batch. Context and maximum output come directly from
+the saved settings; the 24 GB path does not substitute a smaller hidden value.
+The same configured fit routing is used on every detected VRAM tier; the
+runtime does not silently replace it with `--fit off -ngl all`. If a configured
+workload enters the sustained low-VRAM path, the startup/probe guard stops it
+and gives the lowering guidance instead of silently changing settings.
 
 ## Scope and rollback
 

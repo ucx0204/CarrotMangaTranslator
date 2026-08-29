@@ -3,10 +3,20 @@ import type {
   JobPhase,
   JobStatus,
   ProgressMode,
+  ResearchJobStage,
 } from "./jobContracts";
 import type { PageJobTargetSnapshot } from "./pageRevision";
 
-export type { JobPhase } from "./jobContracts";
+export type { JobPhase, ResearchJobStage } from "./jobContracts";
+
+export type ResearchJobProgress = {
+  stage: ResearchJobStage;
+  query?: string;
+  queryIndex?: number;
+  resultCount?: number;
+  creditsUsed?: number;
+  creditLimit?: number;
+};
 
 export type JobFailureGuidance =
   | "increase-max-output-tokens"
@@ -41,6 +51,7 @@ export type JobState = {
   pageElapsedMs?: number;
   jobElapsedMs?: number;
   failureGuidance?: JobFailureGuidance;
+  research?: ResearchJobProgress;
   targets?: PageJobTargetSnapshot[];
 };
 

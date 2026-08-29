@@ -7,7 +7,6 @@ const { calibrateMtpFitServer } =
     calibrateMtpFitServer: (
       baseUrl: string,
       options: Record<string, unknown>,
-      restart: (options: Record<string, unknown>) => Promise<void>,
       dependencies: CalibrationDependencies,
     ) => Promise<void>;
   };
@@ -16,42 +15,17 @@ type Probe = {
   healthy: boolean;
   minimumFreeMiB: number | null;
   predictedPerSecond: number | null;
+  timedOut?: boolean;
 };
 
 type CalibrationDependencies = {
-  calculateMtpFitCorrection: (input: {
-    requestedFitTargetMiB: number;
-    observedFreeMiB: number;
-  }) => {
-    requestedFitTargetMiB: number;
-    observedFreeMiB: number;
-    effectiveFitTargetMiB: number;
-    correctionMiB: number;
-  };
   measureNvidiaFreeVramMiB: () => Promise<number | null>;
   probeMtpServerPerformance: () => Promise<Probe>;
   shouldCalibrateMtpFit: () => boolean;
 };
 
-function correction({
-  requestedFitTargetMiB,
-  observedFreeMiB,
-}: {
-  requestedFitTargetMiB: number;
-  observedFreeMiB: number;
-}) {
-  const correctionMiB = observedFreeMiB < requestedFitTargetMiB ? 512 : 0;
-  return {
-    requestedFitTargetMiB,
-    observedFreeMiB,
-    effectiveFitTargetMiB: requestedFitTargetMiB + correctionMiB,
-    correctionMiB,
-  };
-}
-
 function dependencies(probes: Probe[]): CalibrationDependencies {
   return {
-    calculateMtpFitCorrection: correction,
     measureNvidiaFreeVramMiB: vi.fn().mockResolvedValue(900),
     probeMtpServerPerformance: vi
       .fn()
@@ -61,39 +35,24 @@ function dependencies(probes: Probe[]): CalibrationDependencies {
 }
 
 describe("MTP fit calibration server flow", () => {
-  it("restarts once with a runtime-only correction and reports it", async () => {
+  it("keeps the configured free-VRAM target when the probe is healthy", async () => {
     const progress = vi.fn();
     const savedOptions = { fitTargetMb: 1024, onProgress: progress };
     const restart = vi.fn().mockResolvedValue(undefined);
     const calibration = dependencies([
       { healthy: true, minimumFreeMiB: 646, predictedPerSecond: 48.3 },
-      { healthy: true, minimumFreeMiB: 688, predictedPerSecond: 51.2 },
     ]);
 
     await calibrateMtpFitServer(
       "http://127.0.0.1:18180/v1",
       savedOptions,
-      restart,
       calibration,
     );
 
     expect(savedOptions.fitTargetMb).toBe(1024);
-    expect(restart).toHaveBeenCalledOnce();
-    expect(restart).toHaveBeenCalledWith(
-      expect.objectContaining({ fitTargetMb: 1536 }),
-    );
+    expect(restart).not.toHaveBeenCalled();
     expect(progress).toHaveBeenCalledWith(
-      expect.objectContaining({
-        notification: expect.objectContaining({
-          message: expect.stringContaining("1024 → 1536 MiB"),
-        }),
-      }),
-    );
-    expect(progress).toHaveBeenCalledWith(
-      expect.objectContaining({
-        progressText: "MTP VRAM 보정 확인 완료",
-        detail: expect.stringContaining("51.2 tok/s"),
-      }),
+      expect.objectContaining({ progressText: "MTP VRAM 여유 측정 중" }),
     );
   });
 
@@ -105,7 +64,6 @@ describe("MTP fit calibration server flow", () => {
     await calibrateMtpFitServer(
       "http://127.0.0.1:18180/v1",
       { fitTargetMb: 1153 },
-      restart,
       calibration,
     );
 
@@ -113,25 +71,66 @@ describe("MTP fit calibration server flow", () => {
     expect(calibration.probeMtpServerPerformance).not.toHaveBeenCalled();
   });
 
-  it("fails after the one allowed restart remains unhealthy", async () => {
+  it("stops immediately with an error toast when the probe times out", async () => {
+    const progress = vi.fn();
     const restart = vi.fn().mockResolvedValue(undefined);
     const calibration = dependencies([
-      { healthy: false, minimumFreeMiB: 1200, predictedPerSecond: 2 },
-      { healthy: false, minimumFreeMiB: 1200, predictedPerSecond: 3 },
+      {
+        healthy: false,
+        minimumFreeMiB: 900,
+        predictedPerSecond: null,
+        timedOut: true,
+      },
+      { healthy: true, minimumFreeMiB: 1200, predictedPerSecond: 20 },
     ]);
 
     await expect(
       calibrateMtpFitServer(
         "http://127.0.0.1:18180/v1",
-        { fitTargetMb: 1024 },
-        restart,
+        { fitTargetMb: 1024, onProgress: progress },
         calibration,
       ),
     ).rejects.toMatchObject({
-      message: "MTP 서버가 VRAM 보정 후에도 비정상적으로 느립니다.",
-      effectiveFitTargetMiB: 1536,
-      predictedTokensPerSecond: 3,
+      message:
+        "Gemma가 VRAM 부족으로 너무 느려 작업을 중단했습니다. 설정에서 컨텍스트 길이와 최대 출력 토큰을 낮춰 주세요.",
+      probeTimedOut: true,
     });
-    expect(restart).toHaveBeenCalledOnce();
+
+    expect(restart).not.toHaveBeenCalled();
+    expect(progress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        notification: {
+          variant: "error",
+          message: expect.stringContaining(
+            "컨텍스트 길이와 최대 출력 토큰을 낮춰 주세요",
+          ),
+        },
+      }),
+    );
+  });
+
+  it("does not keep restarting when decode speed is already unhealthy", async () => {
+    const restart = vi.fn().mockResolvedValue(undefined);
+    const calibration = dependencies(
+      Array.from({ length: 7 }, (_value, index) => ({
+        healthy: false,
+        minimumFreeMiB: 1200,
+        predictedPerSecond: 2 + index,
+      })),
+    );
+
+    await expect(
+      calibrateMtpFitServer(
+        "http://127.0.0.1:18180/v1",
+        { fitTargetMb: 1024 },
+        calibration,
+      ),
+    ).rejects.toMatchObject({
+      message:
+        "Gemma가 VRAM 부족으로 너무 느려 작업을 중단했습니다. 설정에서 컨텍스트 길이와 최대 출력 토큰을 낮춰 주세요.",
+      effectiveFitTargetMiB: 1024,
+      predictedTokensPerSecond: 2,
+    });
+    expect(restart).not.toHaveBeenCalled();
   });
 });

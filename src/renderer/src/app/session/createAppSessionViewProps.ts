@@ -268,11 +268,16 @@ function createStyleGuideProps({
   settingsDialog,
   uiState,
 }: AppSessionViewModel): AppSessionViewProps["styleGuideProps"] {
+  const currentWork = core.library.works.find(
+    (work) => work.id === core.currentChapter?.workId,
+  );
   return uiState.styleGuideOpen && core.currentChapter
     ? {
         chapter: core.currentChapter,
         jobActive: derivedState.jobActive,
+        workTitle: currentWork?.title ?? "",
         onClose: () => uiState.setStyleGuideOpen(false),
+        onSaveSettings: settingsDialog.saveSettingsQuietly,
         settings: settingsDialog.settings,
       }
     : null;

@@ -208,7 +208,85 @@ describe("Codex App Server Responses compatibility endpoint", () => {
     ).rejects.toThrow("ChatGPT로 로그인");
     expect(dispose).toHaveBeenCalledOnce();
   });
+
+  it("keeps the main event loop responsive during a five-megabyte image request", async () => {
+    const root = createTemporaryRoot();
+    const paths = createAppPaths(root);
+    const turnStarted = createDeferred<void>();
+    const releaseTurn = createDeferred<void>();
+    const runEphemeralTurn = vi.fn(async () => {
+      turnStarted.resolve(undefined);
+      await releaseTurn.promise;
+      return {
+        text: '{"translated":"완료"}',
+        threadId: "thread-large",
+        turnId: "turn-large",
+        itemId: "message-large",
+      };
+    });
+    const client = {
+      version: "0.150.1",
+      process: {} as ChildProcessWithoutNullStreams,
+      readAccount: vi.fn(async () => ({
+        account: {
+          type: "chatgpt" as const,
+          email: "reader@example.com",
+          planType: "plus",
+        },
+        requiresOpenaiAuth: true,
+      })),
+      listModels: vi.fn(async () => []),
+      runEphemeralTurn,
+      dispose: vi.fn(async () => undefined),
+    } satisfies CodexAppServerEndpointClient;
+    const endpoint = await startCodexAppServerEndpoint(
+      createTranslationOptions(),
+      createEndpointRuntime(paths, client),
+    );
+
+    try {
+      const heartbeat = new Promise<void>((resolve) => setTimeout(resolve, 0));
+      const responsePromise = fetch(`${endpoint.baseUrl}/responses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gpt-test",
+          input: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_image",
+                  image_url: `data:image/png;base64,${"A".repeat(5 * 1024 * 1024)}`,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+      const modelsResponse = await fetch(`${endpoint.baseUrl}/models`);
+      await heartbeat;
+      expect(modelsResponse.status).toBe(200);
+      await turnStarted.promise;
+      releaseTurn.resolve(undefined);
+      expect((await responsePromise).status).toBe(200);
+      expect(runEphemeralTurn).toHaveBeenCalledOnce();
+    } finally {
+      releaseTurn.resolve(undefined);
+      await stopCodexAppServerEndpoint(endpoint);
+    }
+  }, 15_000);
 });
+
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
 
 function createEndpointRuntime(
   paths: AppPaths,

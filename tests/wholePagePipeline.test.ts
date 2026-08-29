@@ -13,6 +13,7 @@ import type { TranslationBlock } from "../src/shared/textTypes";
 import type { AppSettings } from "../src/shared/settingsTypes";
 import type { AutomaticFontCandidate } from "../src/shared/fontMatchingTypes";
 import type { TranslationOptions } from "../src/main/appSettings";
+import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import type { AppPaths } from "../src/main/appPaths";
 import type {
   OcrBboxResult,
@@ -1154,6 +1155,7 @@ function makeAppSettings(sourceLanguage: string): AppSettings {
       model: "gpt-5",
       reasoningEffort: "medium",
     },
+    internetResearch: resolveDefaultAppSettings().internetResearch,
     api: {
       baseUrl: "https://api.openai.com/v1",
       model: "gpt-5",

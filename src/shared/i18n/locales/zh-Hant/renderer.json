@@ -53,9 +53,9 @@
       "total": "{{label}} · 總耗時 {{duration}}"
     },
     "failureGuidance": {
-      "maxOutputTokens": "最大輸出權杖不足。請增大設定 > 翻譯引擎 > 最大輸出權杖。",
-      "workContextBudget": "作品上下文預算不足。請增大設定 > 翻譯引擎 > 作品上下文預算。",
-      "contextLength": "上下文長度不足。請增大設定 > 翻譯引擎 > 上下文長度。VRAM 用量可能會增加。"
+      "maxOutputTokens": "最大輸出權杖不足。請增大設定 > LLM > 最大輸出權杖。",
+      "workContextBudget": "作品資訊預算不足。請增大設定 > LLM > 作品資訊預算。",
+      "contextLength": "上下文長度不足。請增大設定 > LLM > 上下文長度。VRAM 用量可能會增加。"
     },
     "phase": {
       "booting": "正在準備模型",

@@ -38,6 +38,7 @@ import {
 import { getMainLocale, setMainLocale, tMain } from "./localization";
 import { discoverApiModels } from "../apiModelDiscovery";
 import { inspectVertexServiceAccountFile } from "../vertexServiceAccountAuth";
+import { getTavilyUsage } from "../tavilyClient";
 import {
   registerCodexAccountIpc,
   type CodexAccountIpcRuntime,
@@ -47,6 +48,8 @@ export type SettingsIpcDependencies = {
   modelTestEndpointRuntime?: ModelTestEndpointRuntime;
   normalizeSettingsForRuntime?: typeof normalizeAppSettingsForRuntime;
   codexAccountRuntime?: CodexAccountIpcRuntime;
+  getTavilyUsage?: typeof getTavilyUsage;
+  getSettings?: typeof getAppSettings;
 };
 
 export function registerSettingsIpc(
@@ -54,11 +57,45 @@ export function registerSettingsIpc(
   dependencies: SettingsIpcDependencies = {},
 ): void {
   registerCodexAccountIpc(context, dependencies.codexAccountRuntime);
+  registerTavilyUsageIpc(
+    context,
+    dependencies.getTavilyUsage,
+    dependencies.getSettings,
+  );
   registeredRendererHandleContract(
     context,
     settingsIpcContracts.getUiLocale,
     async () => getMainLocale(),
   );
+  registerSettingsReadWriteIpc(context);
+  registerSettingsFilePickers(context);
+  registerSettingsModelOperations(context, dependencies);
+}
+
+function registerTavilyUsageIpc(
+  context: IpcContext,
+  usageReader: typeof getTavilyUsage = getTavilyUsage,
+  settingsReader: typeof getAppSettings = getAppSettings,
+): void {
+  trustedHandleContract(
+    context,
+    settingsIpcContracts.getTavilyUsage,
+    async (_event, request = {}) => {
+      const submittedKey =
+        request.apiKey && request.apiKey !== SETTINGS_SECRET_PRESERVE_SENTINEL
+          ? request.apiKey
+          : null;
+      if (submittedKey) {
+        return usageReader(submittedKey, { force: request.force });
+      }
+      const settings = await settingsReader();
+      const apiKey = settings.internetResearch.tavilyApiKey;
+      return usageReader(apiKey, { force: request.force });
+    },
+  );
+}
+
+function registerSettingsReadWriteIpc(context: IpcContext): void {
   trustedHandleContract(context, settingsIpcContracts.getSettings, async () =>
     maskAppSettingsSecrets(await getAppSettings()),
   );
@@ -87,6 +124,9 @@ export function registerSettingsIpc(
       return maskAppSettingsSecrets(reset);
     },
   );
+}
+
+function registerSettingsFilePickers(context: IpcContext): void {
   trustedHandleContract(
     context,
     settingsIpcContracts.pickLocalModelFile,
@@ -103,6 +143,12 @@ export function registerSettingsIpc(
       ),
   );
   registerVertexServiceAccountPickerIpc(context);
+}
+
+function registerSettingsModelOperations(
+  context: IpcContext,
+  dependencies: SettingsIpcDependencies,
+): void {
   trustedHandleContract(
     context,
     settingsIpcContracts.testModelSettings,

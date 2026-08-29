@@ -9,7 +9,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import exampleSettings from "../settings.example.json";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { SettingsModal } from "../src/renderer/src/components/SettingsModal";
@@ -29,6 +29,20 @@ import { chooseCustomSelectOption } from "./testUtils/customSelect";
 
 const initialSettings = structuredClone(exampleSettings) as AppSettings;
 
+beforeEach(() => {
+  window.mangaApi = createTestMangaGatewayStub({
+    getCodexAccount: vi.fn(async () => ({
+      authenticated: false,
+      accountKind: null,
+      email: null,
+      planType: null,
+      requiresOpenaiAuth: true,
+      appServerVersion: "0.150.1",
+      models: [],
+    })),
+  });
+});
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -36,6 +50,32 @@ afterEach(() => {
 });
 
 describe("settings draft safety", () => {
+  it("nests translation and internet research inside the single LLM section", () => {
+    renderSettings();
+
+    const settingsTabs = screen.getByRole("tablist", { name: "설정 영역" });
+    expect(
+      within(settingsTabs).queryByRole("tab", { name: "인터넷 조사" }),
+    ).toBeNull();
+
+    fireEvent.click(within(settingsTabs).getByRole("tab", { name: "LLM" }));
+    const llmTabs = screen.getByRole("tablist", { name: "LLM 설정" });
+    expect(within(llmTabs).getAllByRole("tab")).toHaveLength(2);
+    expect(within(llmTabs).getByRole("tab", { name: "번역" })).toHaveProperty(
+      "ariaSelected",
+      "true",
+    );
+
+    fireEvent.click(within(llmTabs).getByRole("tab", { name: "인터넷 조사" }));
+    expect(screen.getByRole("heading", { name: "Tavily" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Codex" })).toBeTruthy();
+    expect(screen.queryByText("조사 방식")).toBeNull();
+    expect(
+      within(llmTabs).getByRole("tab", { name: "인터넷 조사" }),
+    ).toHaveProperty("ariaSelected", "true");
+    expect(screen.queryByRole("heading", { name: "번역 엔진" })).toBeNull();
+  });
+
   it("disables Save until the draft changes and protects dirty close", () => {
     const onCancel = vi.fn();
     renderSettings({ onCancel });
@@ -120,7 +160,7 @@ describe("settings draft safety", () => {
     };
     renderSettings({ onSubmit, settings: qatSettings });
 
-    fireEvent.click(screen.getByRole("tab", { name: "번역 엔진" }));
+    fireEvent.click(screen.getByRole("tab", { name: "LLM" }));
     const familyGroup = screen.getByRole("group", { name: "모델 계열" });
     const presetGroup = screen.getByRole("group", { name: "모델 프리셋" });
 
@@ -165,7 +205,7 @@ describe("settings draft safety", () => {
     };
     renderSettings({ settings });
 
-    fireEvent.click(screen.getByRole("tab", { name: "번역 엔진" }));
+    fireEvent.click(screen.getByRole("tab", { name: "LLM" }));
     const presetGroup = screen.getByRole("group", { name: "모델 프리셋" });
     fireEvent.click(
       within(presetGroup).getByRole("button", { name: "26B (16GB)" }),
@@ -188,7 +228,7 @@ describe("settings draft safety", () => {
     settings.gemma = { ...settings.gemma, fitTargetMb: 777 };
     renderSettings({ onSubmit, settings });
 
-    fireEvent.click(screen.getByRole("tab", { name: "번역 엔진" }));
+    fireEvent.click(screen.getByRole("tab", { name: "LLM" }));
     const input = screen.getByRole("spinbutton", {
       name: "여유 VRAM (MiB)",
     });
@@ -254,7 +294,7 @@ describe("settings draft safety", () => {
       ctx: 65536,
     };
     renderSettings({ settings });
-    fireEvent.click(screen.getByRole("tab", { name: "번역 엔진" }));
+    fireEvent.click(screen.getByRole("tab", { name: "LLM" }));
 
     await screen.findByText("로그인되지 않음");
     expect(screen.queryByRole("combobox", { name: "Codex 모델" })).toBeNull();

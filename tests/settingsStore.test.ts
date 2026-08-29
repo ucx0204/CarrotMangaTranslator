@@ -15,7 +15,10 @@ import {
 import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import { CURRENT_GENERATION_LIMITS_VERSION } from "../src/main/settings/appSettingsGenerationLimitMigration";
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
-import { settingsSecretVaultPath } from "../src/main/settingsSecretStore";
+import {
+  hasSettingsSecretSentinels,
+  settingsSecretVaultPath,
+} from "../src/main/settingsSecretStore";
 import {
   commitSettingsPairFiles,
   settingsCommitPath,
@@ -136,7 +139,7 @@ describe("settings store", () => {
       mmprojOffload: true,
     });
     expect(fullMemoryDefaults.gemma).toMatchObject({
-      fitTargetMb: 1024,
+      fitTargetMb: 1536,
       mmprojOffload: true,
     });
   });
@@ -397,6 +400,10 @@ describe("settings store", () => {
             "X-Trace": "public-value",
           }),
         },
+        internetResearch: {
+          ...defaults.internetResearch,
+          tavilyApiKey: "tvly-private-value",
+        },
       })}\n`,
       "utf8",
     );
@@ -404,6 +411,7 @@ describe("settings store", () => {
     const loaded = await getAppSettings(paths, {}, async () => null);
     expect(loaded.api.apiKey).toBe("sk-private-value");
     expect(loaded.api.customHeadersJson).toContain("private-header");
+    expect(loaded.internetResearch.tavilyApiKey).toBe("tvly-private-value");
 
     const persisted = await readFile(paths.settingsPath, "utf8");
     const vault = await readFile(settingsSecretVaultPath(paths), "utf8");
@@ -419,19 +427,25 @@ describe("settings store", () => {
     ) as { generation?: string };
     expect(persisted).not.toContain("sk-private-value");
     expect(persisted).not.toContain("private-header");
+    expect(persisted).not.toContain("tvly-private-value");
     expect(persisted).toContain("public-value");
     expect(vault).not.toContain("sk-private-value");
     expect(vault).not.toContain("private-header");
+    expect(vault).not.toContain("tvly-private-value");
     expect(vaultPayload.version).toBe(2);
     expect(publicPayload.secretGeneration).toBe(vaultPayload.generation);
     expect(commit.generation).toBe(vaultPayload.generation);
 
     const masked = maskAppSettingsSecrets(loaded);
     expect(masked.api.apiKey).toBe(SETTINGS_SECRET_PRESERVE_SENTINEL);
+    expect(masked.internetResearch.tavilyApiKey).toBe(
+      SETTINGS_SECRET_PRESERVE_SENTINEL,
+    );
     expect(masked.api.customHeadersJson).not.toContain("private-header");
     const saved = await saveAppSettings(masked, paths, {}, async () => null);
     expect(saved.api.apiKey).toBe("sk-private-value");
     expect(saved.api.customHeadersJson).toContain("private-header");
+    expect(saved.internetResearch.tavilyApiKey).toBe("tvly-private-value");
 
     const caseChanged = await saveAppSettings(
       {
@@ -449,6 +463,24 @@ describe("settings store", () => {
       async () => null,
     );
     expect(caseChanged.api.customHeadersJson).toContain("private-header");
+  });
+
+  it("detects every supported masked secret without flagging ordinary settings", () => {
+    const settings = resolveDefaultAppSettings();
+    expect(hasSettingsSecretSentinels(settings)).toBe(false);
+
+    settings.api.apiKey = SETTINGS_SECRET_PRESERVE_SENTINEL;
+    expect(hasSettingsSecretSentinels(settings)).toBe(true);
+    settings.api.apiKey = "";
+
+    settings.internetResearch.tavilyApiKey = SETTINGS_SECRET_PRESERVE_SENTINEL;
+    expect(hasSettingsSecretSentinels(settings)).toBe(true);
+    settings.internetResearch.tavilyApiKey = "";
+
+    settings.api.customHeadersJson = JSON.stringify({
+      Authorization: SETTINGS_SECRET_PRESERVE_SENTINEL,
+    });
+    expect(hasSettingsSecretSentinels(settings)).toBe(true);
   });
 
   it("never combines canonical mirrors from different credential generations", async () => {

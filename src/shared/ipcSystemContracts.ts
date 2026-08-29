@@ -105,6 +105,15 @@ const discoverableApiProviderSchema = z.enum([
 const vertexSetupPageSchema = z.enum(VERTEX_SETUP_PAGE_IDS);
 
 export const externalIpcContracts = {
+  openResearchSource: defineIpcContract<
+    [string],
+    { opened: boolean; url: string }
+  >({
+    apiKey: "openResearchSource",
+    channel: "external:open-research-source",
+    args: z.tuple([z.string().url().max(2_000)]),
+    result: openedUrlResultSchema,
+  }),
   openAmdHipSdkDownload: defineIpcContract<
     [],
     { opened: boolean; url: string }

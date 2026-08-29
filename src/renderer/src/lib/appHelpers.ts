@@ -114,19 +114,19 @@ export function formatJobFailureGuidance(
       return translate(
         t,
         "job.failureGuidance.maxOutputTokens",
-        "최대 출력 토큰이 부족합니다. 설정 > 번역 엔진 > 최대 출력 토큰을 늘려 주세요.",
+        "최대 출력 토큰이 부족합니다. 설정 > LLM > 최대 출력 토큰을 늘려 주세요.",
       );
     case "increase-work-context-budget":
       return translate(
         t,
         "job.failureGuidance.workContextBudget",
-        "작품 컨텍스트 예산이 부족합니다. 설정 > 번역 엔진 > 작품 컨텍스트 예산을 늘려 주세요.",
+        "작품 정보 예산이 부족합니다. 설정 > LLM > 작품 정보 예산을 늘려 주세요.",
       );
     case "increase-context-length":
       return translate(
         t,
         "job.failureGuidance.contextLength",
-        "컨텍스트 길이가 부족합니다. 설정 > 번역 엔진 > 컨텍스트 길이를 늘려 주세요. VRAM 사용량이 늘 수 있습니다.",
+        "컨텍스트 길이가 부족합니다. 설정 > LLM > 컨텍스트 길이를 늘려 주세요. VRAM 사용량이 늘 수 있습니다.",
       );
     default:
       return null;

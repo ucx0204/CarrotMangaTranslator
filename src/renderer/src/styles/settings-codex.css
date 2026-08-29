@@ -81,11 +81,6 @@
   align-items: center;
 }
 
-.codex-catalog-row > span {
-  color: var(--text-muted);
-  font-weight: 650;
-}
-
 @media (max-width: 640px) {
   .codex-account-card {
     grid-template-columns: 1fr;
@@ -98,5 +93,55 @@
   .codex-catalog-row {
     grid-template-columns: minmax(92px, 0.3fr) minmax(0, 1fr);
     gap: 10px;
+  }
+}
+
+.settings-research-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.tavily-site-link {
+  margin-top: -7px;
+}
+
+.tavily-usage-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-sunken) 72%, transparent);
+}
+
+.tavily-usage-card > div {
+  display: grid;
+  gap: 3px;
+}
+
+.tavily-usage-card strong,
+.tavily-usage-card p,
+.tavily-usage-card small {
+  margin: 0;
+}
+
+.tavily-usage-card p,
+.tavily-usage-card small {
+  color: var(--text-muted);
+}
+
+.tavily-usage-card > .codex-account-error {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .tavily-usage-card {
+    grid-template-columns: 1fr;
+  }
+
+  .tavily-usage-card > button {
+    width: 100%;
   }
 }

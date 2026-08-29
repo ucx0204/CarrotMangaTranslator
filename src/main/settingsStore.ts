@@ -21,6 +21,7 @@ import { redactDiagnosticText } from "./errorReportRedaction";
 import {
   attachSettingsSecrets,
   commitSettingsPair,
+  hasSettingsSecretSentinels,
   loadCommittedSettingsPair,
   loadSettingsSecrets,
   maskSettingsSecrets,
@@ -187,6 +188,7 @@ export async function hydrateAppSettingsSecretSentinels(
   settings: AppSettings,
   paths = getAppPaths(),
 ): Promise<AppSettings> {
+  if (!hasSettingsSecretSentinels(settings)) return settings;
   const submitted = resolveSubmittedSettingsSecrets(
     settings,
     await loadSettingsSecrets(paths),
@@ -335,6 +337,11 @@ function mergeSettingsSecrets(
     ...(plaintext.apiKey || encrypted.apiKey
       ? { apiKey: encrypted.apiKey ?? plaintext.apiKey }
       : {}),
+    ...(plaintext.tavilyApiKey || encrypted.tavilyApiKey
+      ? {
+          tavilyApiKey: encrypted.tavilyApiKey ?? plaintext.tavilyApiKey,
+        }
+      : {}),
     ...((plaintext.credentialHeaders || encrypted.credentialHeaders) && {
       credentialHeaders: {
         ...(plaintext.credentialHeaders ?? {}),
@@ -349,6 +356,7 @@ function hasSettingsSecrets(
 ): boolean {
   return Boolean(
     secrets.apiKey ||
+    secrets.tavilyApiKey ||
     (secrets.credentialHeaders &&
       Object.keys(secrets.credentialHeaders).length > 0),
   );

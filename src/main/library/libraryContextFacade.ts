@@ -1,7 +1,9 @@
 import type {
   ChapterStoryMemory,
   ResetWorkContextResult,
+  SaveWorkResearchTitleRequest,
   WorkStyleGuide,
+  WorkResearchTitlePreference,
 } from "../../shared/workContextTypes";
 import type {
   ImportReviewTextRequest,
@@ -10,10 +12,12 @@ import type {
 import { applyReviewImportUnlocked } from "../libraryStore/reviewImport";
 import {
   readChapterStoryMemory,
+  readWorkResearchTitlePreference,
   readWorkStyleGuide,
   resetWorkContextForChapter,
   resolveWorkContextForChapter as resolveWorkContextForChapterUnlocked,
   writeChapterStoryMemory,
+  writeWorkResearchTitlePreference,
   writeWorkStyleGuide,
 } from "../libraryStore/workContextFiles";
 import { withLibraryMutation, withLibraryRead } from "./lock";
@@ -55,6 +59,18 @@ export async function resetWorkContext(
   chapterId: string,
 ): Promise<ResetWorkContextResult> {
   return withLibraryMutation(() => resetWorkContextForChapter(chapterId));
+}
+
+export async function getWorkResearchTitle(
+  workId: string,
+): Promise<WorkResearchTitlePreference | null> {
+  return withLibraryRead(() => readWorkResearchTitlePreference(workId));
+}
+
+export async function saveWorkResearchTitle(
+  request: SaveWorkResearchTitleRequest,
+): Promise<WorkResearchTitlePreference> {
+  return withLibraryMutation(() => writeWorkResearchTitlePreference(request));
 }
 
 export async function importReviewText(

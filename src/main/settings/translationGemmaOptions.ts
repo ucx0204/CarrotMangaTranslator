@@ -105,7 +105,6 @@ export function resolveTranslationRuntimeState(
     },
     runtimeGemma,
     llamaRuntimeProfile,
-    settings.runtimeHardware?.gpuMemoryMb,
   );
   const configuredCtx = resolveContextTokens(
     settings.ctx,
@@ -114,10 +113,7 @@ export function resolveTranslationRuntimeState(
   return {
     gemmaVramMode,
     gemmaRuntimePreset,
-    settingsCtx:
-      gemmaRuntimePreset.ctxCap === undefined
-        ? configuredCtx
-        : Math.min(configuredCtx, gemmaRuntimePreset.ctxCap),
+    settingsCtx: configuredCtx,
     runtimeGemma,
     llamaRuntimeProfile,
     llamaRocmTarget: resolveLlamaRocmTarget(runtimeEnv, settings),

@@ -13,7 +13,7 @@ import type {
   OcrQualityMode,
 } from "../../shared/settingsTypes";
 import type { BBox } from "../../shared/textTypes";
-import type { JobPhase } from "../../shared/jobTypes";
+import type { JobPhase, ResearchJobProgress } from "../../shared/jobTypes";
 import type { PromptWorkContext } from "../../shared/workContextTypes";
 import type { WorkContextBudgetPlan } from "../../shared/workContextBudget";
 
@@ -70,6 +70,8 @@ export type TranslationOptions = {
   temperature: number;
   topP: number;
   topK: number;
+  /** Local llama.cpp thinking budget. Missing keeps translation reasoning off. */
+  gemmaReasoningBudget?: number;
   maxTokens: number;
   ctx: number;
   /** User default formatting applied to blocks created from this run. */
@@ -88,6 +90,8 @@ export type TranslationOptions = {
   ctxCheckpoints?: number;
   kvOffload?: boolean;
   mmprojOffload?: boolean;
+  /** Start a text-only local model endpoint without loading the vision projector. */
+  textOnlyModel?: boolean;
   disableMmap?: boolean;
   threads?: number;
   threadsBatch?: number;
@@ -198,6 +202,7 @@ export type TranslationOptions = {
       variant: "success" | "error" | "warn" | "info";
       message: string;
     };
+    research?: ResearchJobProgress;
   }) => void;
   hfHomeDir?: string;
   hfHubCacheDir?: string;

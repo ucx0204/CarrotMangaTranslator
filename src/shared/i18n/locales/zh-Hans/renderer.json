@@ -53,9 +53,9 @@
       "total": "{{label}} · 总用时 {{duration}}"
     },
     "failureGuidance": {
-      "maxOutputTokens": "最大输出令牌不足。请增大设置 > 翻译引擎 > 最大输出令牌。",
-      "workContextBudget": "作品上下文预算不足。请增大设置 > 翻译引擎 > 作品上下文预算。",
-      "contextLength": "上下文长度不足。请增大设置 > 翻译引擎 > 上下文长度。显存占用可能会增加。"
+      "maxOutputTokens": "最大输出令牌不足。请增大设置 > LLM > 最大输出令牌。",
+      "workContextBudget": "作品信息预算不足。请增大设置 > LLM > 作品信息预算。",
+      "contextLength": "上下文长度不足。请增大设置 > LLM > 上下文长度。显存占用可能会增加。"
     },
     "phase": {
       "booting": "正在准备模型",

@@ -6,15 +6,20 @@ export {
 } from "./ipcSchemaPrimitives";
 export {
   AnalyzeWorkContextRequestSchema,
+  CharacterProfileSchema,
   ChapterStoryMemoryRequestSchema,
   ChapterStoryMemorySchema,
   ExportReviewTextRequestSchema,
+  GlossaryEntrySchema,
   ImportReviewTextRequestSchema,
+  ResearchWorkContextRequestSchema,
+  SaveWorkResearchTitleRequestSchema,
   SaveTextFileRequestSchema,
   WorkShareExportRequestSchema,
   WorkShareImportRequestSchema,
   WorkStyleGuideRequestSchema,
   WorkStyleGuideSchema,
+  WorkResearchTitlePreferenceSchema,
 } from "./ipcWorkContextSchemas";
 export {
   ChapterSnapshotSchema,

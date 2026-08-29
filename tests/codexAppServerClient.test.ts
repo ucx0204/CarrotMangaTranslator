@@ -5,10 +5,17 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AppPaths } from "../src/main/appPaths";
 import {
-  CODEX_APP_SERVER_ARGUMENTS,
   CodexAppServerClient,
   type CodexAppServerClientStartRuntime,
 } from "../src/main/codexAppServerClient";
+import {
+  CODEX_APP_SERVER_ARGUMENTS,
+  CODEX_APP_SERVER_RESEARCH_ARGUMENTS,
+} from "../src/main/codexAppServerPolicy";
+import {
+  extractCompletedTurn,
+  readLoginFailure,
+} from "../src/main/codexAppServerProtocol";
 
 const temporaryDirectories: string[] = [];
 
@@ -19,6 +26,39 @@ afterEach(() => {
 });
 
 describe("CodexAppServerClient", () => {
+  it("counts unique completed web searches and normalizes login failures", () => {
+    expect(
+      extractCompletedTurn(
+        {
+          params: {
+            turn: {
+              status: "completed",
+              items: [
+                { type: "webSearch", id: "search-1" },
+                { type: "webSearch", id: "search-1" },
+                { type: "webSearch", id: "search-2" },
+                { type: "webSearch" },
+                {
+                  type: "agentMessage",
+                  id: "final",
+                  text: "done",
+                  phase: "final_answer",
+                },
+              ],
+            },
+          },
+        },
+        "thread-1",
+        "turn-1",
+      ),
+    ).toMatchObject({ text: "done", webSearchCount: 2 });
+    expect(readLoginFailure({ error: "login denied" })).toBe("login denied");
+    expect(readLoginFailure({ error: "   " })).toBe(
+      "Codex 로그인이 완료되지 않았습니다.",
+    );
+    expect(readLoginFailure(null)).toBe("Codex 로그인이 완료되지 않았습니다.");
+  });
+
   it("uses the official protocol for login, model discovery, and an isolated ephemeral turn", async () => {
     const root = mkdtempSync(join(tmpdir(), "mgt-codex-client-test-"));
     temporaryDirectories.push(root);
@@ -57,6 +97,8 @@ describe("CodexAppServerClient", () => {
     restoreEnvironmentValue("OPENAI_API_KEY", previousOpenAiKey);
 
     try {
+      expect(client.version).toBe("0.150.1");
+      expect(client.process.pid).toBeTypeOf("number");
       await expect(client.readAccount(false)).resolves.toEqual({
         account: {
           type: "chatgpt",
@@ -93,6 +135,7 @@ describe("CodexAppServerClient", () => {
             { type: "image", url: "data:image/png;base64,AA==" },
           ],
           cwd: workspaceDir,
+          contextWindowTokens: 65_536,
           outputSchema: {
             type: "object",
             properties: { translated: { type: "string" } },
@@ -103,7 +146,21 @@ describe("CodexAppServerClient", () => {
         threadId: "thread-1",
         turnId: "turn-1",
         itemId: "message-final",
+        webSearchCount: 0,
       });
+      await expect(
+        client.runEphemeralTurn({
+          model: "gpt-web-test",
+          effort: "high",
+          instructions: "Return JSON only.",
+          input: [{ type: "text", text: "research" }],
+          cwd: workspaceDir,
+          outputSchema: {
+            type: "object",
+            properties: { translated: { type: "string" } },
+          },
+        }),
+      ).resolves.toMatchObject({ webSearchCount: 1 });
     } finally {
       await client.dispose();
     }
@@ -141,6 +198,7 @@ describe("CodexAppServerClient", () => {
         config: {
           project_doc_max_bytes: 0,
           include_environment_context: false,
+          model_context_window: 65_536,
           features: {
             apps: false,
             plugins: false,
@@ -164,7 +222,100 @@ describe("CodexAppServerClient", () => {
       params: { threadId: "thread-1" },
     });
   });
+
+  it("enables live web search only in the research App Server arguments", () => {
+    expect(CODEX_APP_SERVER_ARGUMENTS).toContain('web_search="disabled"');
+    expect(CODEX_APP_SERVER_RESEARCH_ARGUMENTS).toContain('web_search="live"');
+    expect(hasDisabledFeature(CODEX_APP_SERVER_ARGUMENTS, "web_search")).toBe(
+      true,
+    );
+    expect(
+      hasDisabledFeature(CODEX_APP_SERVER_RESEARCH_ARGUMENTS, "web_search"),
+    ).toBe(false);
+    for (const feature of ["shell_tool", "unified_exec", "plugins", "apps"]) {
+      expect(
+        hasDisabledFeature(CODEX_APP_SERVER_RESEARCH_ARGUMENTS, feature),
+      ).toBe(true);
+    }
+  });
+
+  it("starts research turns with live search while retaining the isolated tool policy", async () => {
+    const root = mkdtempSync(join(tmpdir(), "mgt-codex-research-client-test-"));
+    temporaryDirectories.push(root);
+    const fixturePath = join(root, "fake-app-server.cjs");
+    const auditPath = join(root, "research-audit.json");
+    writeFileSync(fixturePath, fakeAppServerSource(), "utf8");
+    let capturedArgs: readonly string[] = [];
+    const runtime: CodexAppServerClientStartRuntime = {
+      resolveBinary: () => ({
+        executablePath: "fake-codex",
+        packageVersion: "0.150.1",
+        source: "packaged",
+        packageName: "@openai/codex-win32-x64",
+        triple: "x86_64-pc-windows-msvc",
+        executableName: "codex.exe",
+      }),
+      spawnAppServer: (_executablePath, args, options) => {
+        capturedArgs = args;
+        return spawn(process.execPath, [fixturePath], {
+          cwd: options.cwd,
+          env: { ...options.env, FAKE_CODEX_AUDIT_PATH: auditPath },
+          stdio: ["pipe", "pipe", "pipe"],
+          windowsHide: true,
+        });
+      },
+    };
+    const paths = createAppPaths(root);
+    const client = await CodexAppServerClient.start(
+      { paths, appVersion: "1.20.2-test", capability: "research" },
+      runtime,
+    );
+
+    try {
+      await expect(
+        client.runEphemeralTurn({
+          model: "gpt-web-test",
+          effort: "high",
+          instructions: "Return JSON only.",
+          input: [{ type: "text", text: "research" }],
+          cwd: paths.codexWorkspaceDir ?? root,
+          contextWindowTokens: 262_144,
+          outputSchema: {
+            type: "object",
+            properties: { translated: { type: "string" } },
+          },
+        }),
+      ).resolves.toMatchObject({ webSearchCount: 1 });
+    } finally {
+      await client.dispose();
+    }
+
+    expect(capturedArgs).toEqual(CODEX_APP_SERVER_RESEARCH_ARGUMENTS);
+    const messages = JSON.parse(readFileSync(auditPath, "utf8")) as Array<
+      Record<string, unknown>
+    >;
+    expect(findRequest(messages, "thread/start")).toMatchObject({
+      params: {
+        developerInstructions: expect.stringContaining("built-in web search"),
+        config: {
+          web_search: "live",
+          model_context_window: 262_144,
+          features: {
+            shell_tool: false,
+            unified_exec: false,
+            web_search: true,
+          },
+        },
+      },
+    });
+  });
 });
+
+function hasDisabledFeature(args: readonly string[], feature: string): boolean {
+  return args.some(
+    (value, index) => value === "--disable" && args[index + 1] === feature,
+  );
+}
 
 function createAppPaths(root: string): AppPaths {
   return {
@@ -279,6 +430,24 @@ lines.on("line", (line) => {
       ) {
         fail(message.id, "turn input was not translated");
         break;
+      }
+      if (params.model === "gpt-web-test") {
+        send({
+          method: "item/started",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            item: { type: "webSearch", id: "web-search-1", query: "official source" },
+          },
+        });
+        send({
+          method: "item/completed",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            item: { type: "webSearch", id: "web-search-1", query: "official source" },
+          },
+        });
       }
       send({
         method: "turn/completed",

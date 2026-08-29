@@ -11,6 +11,7 @@ import type {
 
 import {
   buildWorkContextUsage,
+  buildWorkContextUsageForGuide,
   countTextMentions,
   type WorkContextUsageRepository,
 } from "../src/main/workContextUsage";
@@ -165,9 +166,29 @@ describe("work context usage", () => {
     );
   });
 
+  it("measures an unsaved guide snapshot without reading the stored guide", async () => {
+    const repository = makeRepository();
+    const draftGuide = await repository.getWorkStyleGuide("work-1");
+    vi.mocked(repository.getWorkStyleGuide).mockClear();
+
+    const usage = await buildWorkContextUsageForGuide(
+      "work-1",
+      draftGuide,
+      repository,
+    );
+
+    expect(usage.glossary[0]).toMatchObject({ id: "hero", mentionCount: 3 });
+    expect(repository.getWorkStyleGuide).not.toHaveBeenCalled();
+  });
+
   it("normalizes text and avoids double-counting overlapping aliases", () => {
     expect(countTextMentions("ＡＢＣ abc", ["abc", "ab"])).toBe(2);
     expect(countTextMentions("勇者勇者", ["勇者"])).toBe(2);
+    expect(
+      countTextMentions("悪役令嬢の 父親に転生 妻と娘を溺愛 します", [
+        "悪役令嬢の父親に転生妻と娘を溺愛します",
+      ]),
+    ).toBe(1);
   });
 });
 
