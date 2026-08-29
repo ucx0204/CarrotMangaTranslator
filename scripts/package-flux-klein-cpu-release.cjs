@@ -34,6 +34,16 @@ const args = parseArgs(process.argv.slice(2));
 const releaseTag = args.releaseTag || defaultReleaseTag;
 const manifestFileName = `${releaseTag}-manifest.json`;
 
+/**
+ * @typedef {{
+ *   fileName: string;
+ *   bytes: number;
+ *   sha256: string;
+ *   executableBytes: number;
+ *   executableSha256: string;
+ * }} FluxCpuReleaseAsset
+ */
+
 if (!/^[a-z0-9][a-z0-9._-]+$/u.test(releaseTag)) {
   throw new Error(`Invalid release tag: ${releaseTag}`);
 }
@@ -138,6 +148,25 @@ function verifyReleaseDirectory(directory) {
   if (process.platform !== "win32" || process.arch !== "x64") {
     throw new Error("Flux CPU release verification requires Windows x64.");
   }
+  const actualFiles = assertReleaseInventory(directory);
+  const { asset, manifestPath } = readPinnedManifest(directory);
+  const archivePath = assertArchiveAsset(directory, asset);
+  assertReleaseChecksums(directory, manifestPath, asset);
+  const executable = readPinnedExecutable(archivePath, asset);
+  assertArchivedCpuRunner(executable);
+  return {
+    ok: true,
+    releaseTag,
+    files: actualFiles,
+    archiveBytes: asset.bytes,
+    archiveSha256: asset.sha256,
+    executableBytes: asset.executableBytes,
+    executableSha256: asset.executableSha256,
+  };
+}
+
+/** @param {string} directory */
+function assertReleaseInventory(directory) {
   const expectedFiles = [
     archiveFileName,
     checksumFileName,
@@ -149,9 +178,16 @@ function verifyReleaseDirectory(directory) {
       `Unexpected release inventory: ${actualFiles.join(", ") || "empty"}`,
     );
   }
+  return actualFiles;
+}
+
+/** @param {string} directory */
+function readPinnedManifest(directory) {
   const manifestPath = join(directory, manifestFileName);
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  const asset = manifest?.assets?.[0];
+  const asset = /** @type {FluxCpuReleaseAsset | undefined} */ (
+    manifest?.assets?.[0]
+  );
   if (
     manifest?.schemaVersion !== 1 ||
     manifest?.releaseTag !== releaseTag ||
@@ -166,6 +202,11 @@ function verifyReleaseDirectory(directory) {
       "Flux CPU release manifest does not match the pinned contract.",
     );
   }
+  return { asset, manifestPath };
+}
+
+/** @param {string} directory @param {FluxCpuReleaseAsset} asset */
+function assertArchiveAsset(directory, asset) {
   const archivePath = join(directory, archiveFileName);
   assertPositiveInteger(asset.bytes, "archive bytes");
   assertSha256(asset.sha256, "archive SHA-256");
@@ -177,6 +218,11 @@ function verifyReleaseDirectory(directory) {
   if (sha256File(archivePath) !== asset.sha256) {
     throw new Error("Flux CPU archive SHA-256 does not match the manifest.");
   }
+  return archivePath;
+}
+
+/** @param {string} directory @param {string} manifestPath @param {FluxCpuReleaseAsset} asset */
+function assertReleaseChecksums(directory, manifestPath, asset) {
   const expectedChecksums = [
     `${asset.sha256}  ${archiveFileName}`,
     `${sha256File(manifestPath)}  ${manifestFileName}`,
@@ -189,7 +235,10 @@ function verifyReleaseDirectory(directory) {
   if (actualChecksums !== expectedChecksums) {
     throw new Error("SHA256SUMS.txt does not bind the archive and manifest.");
   }
+}
 
+/** @param {string} archivePath @param {FluxCpuReleaseAsset} asset */
+function readPinnedExecutable(archivePath, asset) {
   const zip = new AdmZip(archivePath);
   const entries = zip.getEntries();
   if (
@@ -208,6 +257,11 @@ function verifyReleaseDirectory(directory) {
   ) {
     throw new Error("The archived executable does not match the manifest.");
   }
+  return executable;
+}
+
+/** @param {Buffer} executable */
+function assertArchivedCpuRunner(executable) {
   const probePath = join(
     tmpdir(),
     `mgt-flux-klein-cpu-release-probe-${randomUUID()}.exe`,
@@ -218,15 +272,6 @@ function verifyReleaseDirectory(directory) {
   } finally {
     rmSync(probePath, { force: true });
   }
-  return {
-    ok: true,
-    releaseTag,
-    files: actualFiles,
-    archiveBytes: asset.bytes,
-    archiveSha256: asset.sha256,
-    executableBytes: asset.executableBytes,
-    executableSha256: asset.executableSha256,
-  };
 }
 
 /** @param {string} path */

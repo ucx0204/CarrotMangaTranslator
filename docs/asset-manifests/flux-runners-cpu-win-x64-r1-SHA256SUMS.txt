@@ -1,0 +1,2 @@
+4eed6d48de73e4f7c9d3fb646cf99fa5147dcf145789ec864a6db2b25a413e87  mgt-flux-klein-cpu-win-x64.zip
+3ff3d904386386a6451ff5e87c02246c61b34d6c9c3c7109409b03c354255336  flux-runners-cpu-win-x64-r1-manifest.json

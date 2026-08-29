@@ -44,12 +44,10 @@ const imageRuntimePath = join(
   "simple-page-translate.cjs",
 );
 const ffmpegPath = join(resourcesDir, "tools", "ffmpeg", "ffmpeg.exe");
-const fluxCpuRunnerPath = join(
-  resourcesDir,
-  "tools",
-  "mgt-flux-klein-cpu",
-  "mgt-flux-klein-cpu.exe",
-);
+const forbiddenFluxCpuRunnerPaths = [
+  join(resourcesDir, "tools", "mgt-flux-klein-cpu"),
+  join(resourcesDir, "tools", "mgt-flux-klein-cpu-r1"),
+];
 const onnxRuntimeEntryPath = join(
   resourcesDir,
   "app.asar",
@@ -160,7 +158,13 @@ for (const fontRuntimeDir of forbiddenPackagedFontRuntimeDirs) {
   }
 }
 assertPackagedOnnxNodeInventory();
-assertPackagedFluxCpuRunner();
+for (const forbiddenFluxCpuRunnerPath of forbiddenFluxCpuRunnerPaths) {
+  if (existsSync(forbiddenFluxCpuRunnerPath)) {
+    throw new Error(
+      `Flux CPU-only runner must remain an external runtime asset: ${forbiddenFluxCpuRunnerPath}`,
+    );
+  }
+}
 if (!existsSync(appExecutable)) {
   throw new Error(`Packaged Electron executable is missing: ${appExecutable}`);
 }
@@ -388,54 +392,6 @@ function assertPackagedOnnxNodeInventory() {
   ) {
     throw new Error(
       `Unexpected onnxruntime-node binary inventory: ${binaryFiles.join(", ")}`,
-    );
-  }
-}
-
-function assertPackagedFluxCpuRunner() {
-  if (!existsSync(fluxCpuRunnerPath)) {
-    throw new Error(
-      `Packaged Flux CPU-only runner is missing: ${fluxCpuRunnerPath}`,
-    );
-  }
-  const result = spawnSync(fluxCpuRunnerPath, ["--capabilities"], {
-    encoding: "utf8",
-    timeout: 30_000,
-    windowsHide: true,
-  });
-  assertSmokeSucceeded(result, "Packaged Flux CPU-only runner");
-  const line = String(result.stdout || "")
-    .split(/\r?\n/)
-    .find((candidate) => candidate.trim().startsWith("{"));
-  const capabilities = line ? JSON.parse(line) : null;
-  if (
-    capabilities?.backend !== "cpu-native" ||
-    capabilities?.cpu_only !== true ||
-    capabilities?.cuda_compiled !== false ||
-    capabilities?.metal_compiled !== false
-  ) {
-    throw new Error(
-      `Packaged Flux runner is not CPU-only: ${JSON.stringify(capabilities)}`,
-    );
-  }
-  const protocolResult = spawnSync(fluxCpuRunnerPath, ["--protocol-smoke"], {
-    encoding: "utf8",
-    input: '{"type":"shutdown"}\n',
-    timeout: 30_000,
-    windowsHide: true,
-  });
-  assertSmokeSucceeded(protocolResult, "Packaged Flux CPU worker protocol");
-  const protocolLine = String(protocolResult.stdout || "")
-    .split(/\r?\n/)
-    .find((candidate) => candidate.trim().startsWith("{"));
-  const protocol = protocolLine ? JSON.parse(protocolLine) : null;
-  if (
-    protocol?.backend !== "cpu-native" ||
-    protocol?.request !== "shutdown" ||
-    protocol?.ok !== true
-  ) {
-    throw new Error(
-      `Packaged Flux CPU protocol smoke returned an invalid response: ${JSON.stringify(protocol)}`,
     );
   }
 }

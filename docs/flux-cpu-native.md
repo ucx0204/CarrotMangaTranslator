@@ -4,7 +4,10 @@
 
 Flux Klein CPU는 일반 권장 경로가 아니라 **매우 느린 호환 모드**다. 공개 설정값은
 `cpu-native`이며 Python이나 Diffusers를 설치하지 않고 CPU-only로 컴파일한
-`mgt-flux-klein-cpu.exe`와 Q4_K_M transformer, small decoder VAE를 사용한다.
+별도 불변 asset prerelease에서 받는 `mgt-flux-klein-cpu.exe`와 Q4_K_M
+transformer, small decoder VAE를 사용한다. 앱 설치 파일에는 CPU runner를 포함하지 않으며
+`cpu-native`를 처음 사용할 때 22.5 MB ZIP을 내려받아 SHA-256과 내부 EXE를 검증한 뒤
+`mgt-flux-klein-cpu-r1` 캐시에 설치한다.
 
 - 기존 저장값 `python-cpu`와 `cpu`는 로드 시 `cpu-native`로 자동 마이그레이션한다.
 - 기존 Diffusers CPU 런타임은 UI와 IPC enum에서 제거했다.
@@ -15,7 +18,9 @@ Flux Klein CPU는 일반 권장 경로가 아니라 **매우 느린 호환 모�
 
 ## 2026-08-29 기준 실측
 
-패키지에 포함된 `mgt-flux-klein-cpu.exe`로 동일한 4-step 프로토콜 요청을 실행했다.
+CPU-only로 직접 빌드한 뒤
+[`flux-runners-cpu-win-x64-r1`](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/flux-runners-cpu-win-x64-r1)
+prerelease에 게시한 `mgt-flux-klein-cpu.exe`로 동일한 4-step 프로토콜 요청을 실행했다.
 `--capabilities`는
 `backend=cpu-native`, `cpu_only=true`, `cuda_compiled=false`,
 `metal_compiled=false`를 반환했다. 테스트 PC에는 RTX 4090이 설치되어 있었지만 이
@@ -61,6 +66,7 @@ target을 ASCII 임시 경로에 둔다. 준비 스크립트가 이 규칙과 CP
 
 ```powershell
 npm run build:flux-cpu-runner
+npm run package:flux-cpu-runner -- --output-dir <new-empty-staging-dir>
 npm run bench:flux-cpu -- `
   --runner tools\mgt-flux-klein-cpu\mgt-flux-klein-cpu.exe `
   --transformer <flux-2-klein-4b-Q4_K_M.gguf> `
@@ -72,8 +78,28 @@ npm run bench:flux-cpu -- `
   --output-json <result.json>
 ```
 
+게시된 runner의 실제 원격 설치 경로는 앱을 빌드한 다음 빈 캐시에서 별도로 검증한다.
+
+```powershell
+npm run build
+npm run smoke:flux-cpu-remote
+```
+
 벤치마크 JSON은 runner capability, 모델 준비 시간, 요청 처리 시간, 첫/준비/최대 working
 set, 최대 private bytes, CPU/논리 코어 수와 총 RAM을 기록한다. 16 GB와 32 GB 행도 이
 명령의 실제 결과 파일로 채운다. CPU-only 행은 `--scenario cpu-only`, 16/32 GB 행은 각각
 `--expected-memory-gb 16` 또는 `32`를 지정하면 잘못된 PC에서 측정한 결과가 섞이는 것을
 막는다.
+
+## 배포 계약
+
+- release tag: `flux-runners-cpu-win-x64-r1`
+- archive: `mgt-flux-klein-cpu-win-x64.zip`
+- archive bytes: `22,500,917`
+- archive SHA-256: `4eed6d48de73e4f7c9d3fb646cf99fa5147dcf145789ec864a6db2b25a413e87`
+- executable bytes: `36,676,608`
+- executable SHA-256: `1ef326ed2335409844acb6c1d70f19758f57c2e666c5d91b07314557815d5818`
+
+정확한 게시 inventory와 재다운로드 검증, rollback 절차는
+[`flux-runners-cpu-win-x64-r1.md`](./asset-manifests/flux-runners-cpu-win-x64-r1.md)에
+기록한다.

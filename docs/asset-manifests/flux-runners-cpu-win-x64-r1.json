@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "releaseTag": "flux-runners-cpu-win-x64-r1",
+  "sourceCommit": "f73ea665c14d68a2cd8ffeb9fccc9aca3c22d757",
+  "target": "x86_64-pc-windows-msvc",
+  "archiveContract": {
+    "format": "zip",
+    "entries": ["mgt-flux-klein-cpu.exe"]
+  },
+  "producer": {
+    "script": "scripts/package-flux-klein-cpu-release.cjs",
+    "buildScript": "scripts/prepare-flux-klein-cpu-runner.cjs",
+    "cargoArgs": ["build", "--release", "--locked", "--no-default-features"],
+    "capabilities": {
+      "backend": "cpu-native",
+      "cpuOnly": true,
+      "cudaCompiled": false,
+      "metalCompiled": false,
+      "protocolVersion": 1
+    }
+  },
+  "assets": [
+    {
+      "fileName": "mgt-flux-klein-cpu-win-x64.zip",
+      "bytes": 22500917,
+      "sha256": "4eed6d48de73e4f7c9d3fb646cf99fa5147dcf145789ec864a6db2b25a413e87",
+      "executableFileName": "mgt-flux-klein-cpu.exe",
+      "executableBytes": 36676608,
+      "executableSha256": "1ef326ed2335409844acb6c1d70f19758f57c2e666c5d91b07314557815d5818"
+    }
+  ]
+}

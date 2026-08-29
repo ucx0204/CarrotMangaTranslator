@@ -23,8 +23,20 @@ export const FLUX_VAE_SHA256 =
 
 export const FLUX_RUNNER_DIR = "mgt-flux-klein";
 
-export const FLUX_CPU_RUNNER_DIR = "mgt-flux-klein-cpu";
+const FLUX_CPU_RUNNER_CACHE_VERSION = "r1";
+export const FLUX_CPU_RUNNER_DIR = `mgt-flux-klein-cpu-${FLUX_CPU_RUNNER_CACHE_VERSION}`;
 export const FLUX_CPU_RUNTIME_EXECUTABLE = "mgt-flux-klein-cpu.exe";
+
+export const FLUX_CPU_RUNNER_RELEASE_TAG = "flux-runners-cpu-win-x64-r1";
+export const FLUX_CPU_RUNNER_ASSET_FILE = "mgt-flux-klein-cpu-win-x64.zip";
+export const FLUX_CPU_RUNNER_BASE_URL = `https://github.com/ucx0204/CarrotMangaTranslator/releases/download/${FLUX_CPU_RUNNER_RELEASE_TAG}`;
+export const FLUX_CPU_RUNNER_ARCHIVE_SHA256 =
+  "4eed6d48de73e4f7c9d3fb646cf99fa5147dcf145789ec864a6db2b25a413e87";
+export const FLUX_CPU_RUNNER_ARCHIVE_BYTES = 22_500_917;
+export const FLUX_CPU_RUNNER_EXECUTABLE_SHA256 =
+  "1ef326ed2335409844acb6c1d70f19758f57c2e666c5d91b07314557815d5818";
+export const FLUX_CPU_RUNNER_EXECUTABLE_BYTES = 36_676_608;
+export const FLUX_CPU_RUNNER_MARKER = ".mgt-flux-cpu-runner.json";
 
 export const FLUX_NVIDIA_RUNNER_COMPUTE_CAPS = [
   "75",
