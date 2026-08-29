@@ -30,6 +30,9 @@ describe("model token recommendations", () => {
   });
 
   it("uses local-safe Gemma values and conservative unknown remote values", () => {
+    expect(DEFAULT_GEMMA_CONTEXT_TOKENS).toBe(32_768);
+    expect(DEFAULT_GEMMA_MAX_TOKENS).toBe(24_576);
+    expect(DEFAULT_GEMMA_CONTEXT_TOKENS - DEFAULT_GEMMA_MAX_TOKENS).toBe(8_192);
     expect(resolveRecommendedGenerationLimits("gemma")).toEqual({
       contextTokens: DEFAULT_GEMMA_CONTEXT_TOKENS,
       contextWindowTokens: null,

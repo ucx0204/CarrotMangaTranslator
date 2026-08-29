@@ -72,7 +72,7 @@ function createBaseEngineProps(): EngineSettingsPanelProps {
     clearTestState: noop,
     codexModel: "gpt-5.6-sol",
     codexReasoningEffort: "medium",
-    contextTokens: "65536",
+    contextTokens: "32768",
     controlsBusy: false,
     detectedGpuName: "NVIDIA GeForce RTX 3060",
     gpuMemoryMb: 12288,
@@ -87,7 +87,7 @@ function createBaseEngineProps(): EngineSettingsPanelProps {
     localMmprojPath: "",
     localModelInputRef: React.createRef<HTMLInputElement>(),
     localModelPath: "",
-    maxTokens: "32768",
+    maxTokens: "24576",
     modelProvider: "gemma",
     modelRepoInputRef: React.createRef<HTMLInputElement>(),
     modelSource: "huggingface",
@@ -182,12 +182,12 @@ describe("InternetResearchSettingsPanel", () => {
     expect(screen.getByRole("combobox", { name: "추론 강도" })).toBeTruthy();
     expect(
       (screen.getAllByLabelText("최대 출력 토큰")[0] as HTMLInputElement).value,
-    ).toBe("32768");
+    ).toBe("24576");
     expect(
       (screen.getAllByLabelText("컨텍스트 길이")[0] as HTMLInputElement).value,
-    ).toBe("65536");
+    ).toBe("32768");
     expect(
-      screen.getByText("최대 출력 32,768 · 컨텍스트 길이 65,536"),
+      screen.getByText("최대 출력 24,576 · 컨텍스트 길이 32,768"),
     ).toBeTruthy();
     expect(screen.queryByText(/작품 컨텍스트/)).toBeNull();
     expect(
@@ -304,8 +304,8 @@ function Harness({
   const [gemmaReasoning, setGemmaReasoning] = React.useState<
     "none" | "low" | "medium" | "high"
   >("medium");
-  const [gemmaMaxOutput, setGemmaMaxOutput] = React.useState("32768");
-  const [gemmaContext, setGemmaContext] = React.useState("65536");
+  const [gemmaMaxOutput, setGemmaMaxOutput] = React.useState("24576");
+  const [gemmaContext, setGemmaContext] = React.useState("32768");
   const [researchApiModel, setResearchApiModel] =
     React.useState("research-model");
   const [apiMaxOutput, setApiMaxOutput] = React.useState("32768");

@@ -53,8 +53,8 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       tavilyAnalysisProvider: "gemma",
       gemmaPreset: "qat12b",
       gemmaReasoningEffort: "high",
-      gemmaMaxOutputTokens: 32768,
-      gemmaContextTokens: 65536,
+      gemmaMaxOutputTokens: 24576,
+      gemmaContextTokens: 32768,
       apiModel: DEFAULT_API_MODEL,
       apiMaxOutputTokens: 32768,
       apiContextTokens: 65536,
@@ -364,8 +364,8 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(rtx4090Defaults.gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
     expect(rtx4090Defaults.maxTokens).toBe(DEFAULT_GEMMA_MAX_TOKENS);
     expect(rtx4090Defaults.ctx).toBe(DEFAULT_GEMMA_CONTEXT_TOKENS);
-    expect(rtx4090Defaults.maxTokens).toBe(32768);
-    expect(rtx4090Defaults.ctx).toBe(65536);
+    expect(rtx4090Defaults.maxTokens).toBe(24576);
+    expect(rtx4090Defaults.ctx).toBe(32768);
     const rtx5070Defaults = resolveDefaultAppSettings(
       {},
       {

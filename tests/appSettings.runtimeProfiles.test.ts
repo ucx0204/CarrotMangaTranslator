@@ -282,6 +282,8 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
       settings: {
         ...defaults,
         modelProvider: "gemma",
+        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
         runtimeHardware: {
           gpuVendor: "nvidia",
           gpuMemoryMb: 24_564,
@@ -343,6 +345,8 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
       settings: {
         ...defaults,
         modelProvider: "gemma",
+        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
         runtimeHardware: {
           gpuVendor: "nvidia",
           gpuMemoryMb: 24_564,
