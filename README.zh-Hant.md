@@ -18,8 +18,8 @@
 
 胡蘿蔔漫畫翻譯器是一款漫畫製作工具：它可以從圖片中找出對白與狀聲詞，透過 AI 產生翻譯區塊，再由使用者調整文字和排版，最後匯出為完整 PNG 或分層 PSD。預設翻譯方向為日文 → 韓文，也可以選擇其他原文與譯文語言。
 
-- 下載 v2.0.0 正式版（Windows EXE · Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 目前版本說明：[v2.0.0 更新說明](docs/release-notes/v2.0.0.md)
+- 下載 v2.0.1 正式版（Windows EXE · Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- 目前版本說明：[v2.0.1 更新說明](docs/release-notes/v2.0.1.md)
 - 貢獻指南：[CONTRIBUTING.md](CONTRIBUTING.md)
 - 程式碼架構與品質規範：[docs/architecture.md](docs/architecture.md)
 - 專案使用情況與公開資料：[docs/reputation.md](docs/reputation.md)
@@ -42,11 +42,11 @@
 - 網路連線：安裝、第一次下載模型以及使用 Codex/API 時需要連上網路。本機模型準備完成後即可離線使用。
 - 即使沒有 GPU，也能使用部分 CPU 處理方式，但 OCR、本機翻譯和 Flux 圖片修補可能會非常慢。
 
-Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 的 Python 環境，以及 Metal 執行環境。Gemma、OCR 和圖片修補模型權重會在第一次使用時通過檢查碼驗證後下載，之後會直接重複使用快取。如果 v2.0.0 發布流程未設定 Developer ID 與公證憑證，macOS 版本會採用 ad-hoc 簽章，因此 Gatekeeper 阻擋第一次啟動時可能需要前往 `系統設定 → 隱私權與安全性` 手動允許。macOS 資料儲存在 `~/Library/Application Support/manga-gemma-translator`。
+Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 的 Python 環境，以及 Metal 執行環境。Gemma、OCR 和圖片修補模型權重會在第一次使用時通過檢查碼驗證後下載，之後會直接重複使用快取。如果 v2.0.1 發布流程未設定 Developer ID 與公證憑證，macOS 版本會採用 ad-hoc 簽章，因此 Gatekeeper 阻擋第一次啟動時可能需要前往 `系統設定 → 隱私權與安全性` 手動允許。macOS 資料儲存在 `~/Library/Application Support/manga-gemma-translator`。
 
 ## 快速開始
 
-1. 前往 [v2.0.0 正式版](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.0.0)，Windows 使用者下載 `CarrotMangaTranslator-Setup-v2.0.0.exe`，Apple Silicon 使用者下載 arm64 DMG 或 ZIP。如果 macOS 阻擋第一次啟動，請前往 `系統設定 → 隱私權與安全性` 手動允許此應用程式。
+1. 前往 [v2.0.1 正式版](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.0.1)，Windows 使用者下載 `CarrotMangaTranslator-Setup-v2.0.1.exe`，Apple Silicon 使用者下載 arm64 DMG 或 ZIP。如果 macOS 阻擋第一次啟動，請前往 `系統設定 → 隱私權與安全性` 手動允許此應用程式。
 2. 在 `設定 → 一般` 中確認應用程式介面語言。第一次啟動時會自動選擇支援的 Windows 語言，其他語言環境則預設使用韓文。
 3. 在 `設定 → 翻譯引擎` 中選擇原文語言、譯文語言和翻譯引擎。
    - 想在自己的電腦上處理時，選擇 `Gemma 4`
