@@ -18,8 +18,8 @@
 
 キャロット漫画翻訳は、画像からセリフや効果音を検出し、AIで翻訳ブロックを作成したあと、文章や配置を人の手で整えて完成版PNGまたはレイヤーPSDとして書き出せるマンガ制作支援ツールです。標準の翻訳方向は日本語 → 韓国語ですが、ほかの原文言語・翻訳先言語も選べます。
 
-- v1.20.2正式版のダウンロード（Windows EXE・Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 現在のバージョン情報：[v1.20.2 パッチノート](docs/release-notes/v1.20.2.md)
+- v2.0.0正式版のダウンロード（Windows EXE・Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- 現在のバージョン情報：[v2.0.0 パッチノート](docs/release-notes/v2.0.0.md)
 - コントリビューションガイド：[CONTRIBUTING.md](CONTRIBUTING.md)
 - コード構成と品質規則：[docs/architecture.md](docs/architecture.md)
 - プロジェクトの利用状況と公開資料：[docs/reputation.md](docs/reputation.md)
@@ -42,11 +42,11 @@
 - インターネット接続：インストール、初回のモデルダウンロード、Codex/APIの使用に必要です。ローカルモデルは準備完了後、オフラインで作業できます。
 - GPUがなくても一部の処理はCPUで実行できますが、OCR、ローカル翻訳、Fluxインペインティングは大幅に遅くなる場合があります。
 
-Apple Silicon向け正式版には、arm64版FFmpeg、Paddle OCRをCPUで実行するためのPythonランタイム、Metal実行ランタイムが含まれます。Gemma、OCR、インペインティングのモデルの重みは初回使用時にチェックサムを検証してダウンロードし、2回目以降はキャッシュを再利用します。v1.20.2のmacOS版はDeveloper IDと公証の資格情報が設定されていない場合はad-hoc署名となるため、Gatekeeperに初回起動をブロックされた場合は`システム設定 → プライバシーとセキュリティ`で手動承認が必要になることがあります。macOSのデータは`~/Library/Application Support/manga-gemma-translator`に保存されます。
+Apple Silicon向け正式版には、arm64版FFmpeg、Paddle OCRをCPUで実行するためのPythonランタイム、Metal実行ランタイムが含まれます。Gemma、OCR、インペインティングのモデルの重みは初回使用時にチェックサムを検証してダウンロードし、2回目以降はキャッシュを再利用します。v2.0.0のmacOS版はDeveloper IDと公証の資格情報が設定されていない場合はad-hoc署名となるため、Gatekeeperに初回起動をブロックされた場合は`システム設定 → プライバシーとセキュリティ`で手動承認が必要になることがあります。macOSのデータは`~/Library/Application Support/manga-gemma-translator`に保存されます。
 
 ## クイックスタート
 
-1. [v1.20.2正式リリース](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.20.2)から、Windowsでは`CarrotMangaTranslator-Setup-v1.20.2.exe`、Apple Siliconではarm64版のDMGまたはZIPをダウンロードします。macOSで初回起動がブロックされた場合は、`システム設定 → プライバシーとセキュリティ`でアプリを手動承認します。
+1. [v2.0.0正式リリース](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.0.0)から、Windowsでは`CarrotMangaTranslator-Setup-v2.0.0.exe`、Apple Siliconではarm64版のDMGまたはZIPをダウンロードします。macOSで初回起動がブロックされた場合は、`システム設定 → プライバシーとセキュリティ`でアプリを手動承認します。
 2. `設定 → 一般`でアプリの表示言語を確認します。対応しているWindowsの言語は初回起動時に自動で選択され、それ以外の環境では韓国語が使用されます。
 3. `設定 → 翻訳エンジン`で原文言語、翻訳先言語、翻訳エンジンを選びます。
    - 自分のPC内で処理する場合は`Gemma 4`

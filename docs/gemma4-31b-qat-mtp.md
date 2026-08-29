@@ -59,13 +59,13 @@ target, and it no longer restarts with an automatically increased fit target.
 
 The CUDA/RTX50 route keeps the speed-oriented batch, cache, and MTP settings,
 but context length is always the value saved by the user. No model- or
-VRAM-specific context cap is applied. The default is 65,536 tokens.
+VRAM-specific context cap is applied. The default is 32,768 tokens.
 
 The current runtime profile is:
 
 | Setting                    |              Production value |
 | -------------------------- | ----------------------------: |
-| Context                    | User setting (default 65,536) |
+| Context                    | User setting (default 32,768) |
 | Batch / micro-batch        |                 1,024 / 1,024 |
 | Requested free-VRAM target |                     1,536 MiB |
 | Main KV cache              |               Q4_0 K/V on GPU |
@@ -83,7 +83,7 @@ context passthrough rule.
 
 ### b10621 32K / 1,536 MiB verification
 
-On the RTX 4090, the exact production settings `ctx 32,768`, maximum output
+On the RTX 4090, the exact verification settings `ctx 32,768`, maximum output
 `32,768`, and `fit-target 1,536 MiB` loaded in about 9–11 seconds. Repeated
 short probes decoded at roughly 44–49.7 tok/s without an automatic restart or
 context reduction. The full preview-only Tavily research run completed in

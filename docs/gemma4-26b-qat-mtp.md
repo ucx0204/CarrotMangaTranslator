@@ -42,7 +42,7 @@ The QAT 26B CUDA settings are:
 
 | Setting                  |                          Value |
 | ------------------------ | -----------------------------: |
-| Context                  |                  16,384 tokens |
+| Context                  |                  32,768 tokens |
 | Batch / micro-batch      |                  1,024 / 1,024 |
 | Main KV cache            |         Q4_0 K and Q4_0 V, GPU |
 | Multimodal projector     |                            GPU |

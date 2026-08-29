@@ -843,6 +843,8 @@
 }
 
 .library-search-input {
+  width: 100%;
+  min-width: 0;
   max-width: none;
   border: 0;
   background: transparent;

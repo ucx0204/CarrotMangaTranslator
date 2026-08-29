@@ -69,7 +69,7 @@ model-specific overrides for the authentic HauhauCS QAT model; the existing
 
 | Setting                    |             Production value |
 | -------------------------- | ---------------------------: |
-| Context                    |                       16,384 |
+| Context                    |                       32,768 |
 | Batch / ubatch             |                1,024 / 1,024 |
 | Dedicated-VRAM fit reserve |                      512 MiB |
 | KV cache                   | Q4_0 K / Q4_0 V, GPU offload |
