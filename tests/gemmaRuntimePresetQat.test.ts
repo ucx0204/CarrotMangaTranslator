@@ -16,6 +16,7 @@ import {
   resolveGemmaGpuOptions,
 } from "../src/main/settings/translationGemmaFieldOptions";
 import {
+  DEFAULT_GEMMA_CONTEXT_TOKENS,
   GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
   GEMMA_12B_QAT_MODEL_REPO,
   GEMMA_12B_MMPROJ_FILE,
@@ -323,7 +324,7 @@ describe("QAT Gemma runtime preset routing", () => {
       expect(
         resolveModelSpecificGemmaRuntimePreset(preset, qatGemma, profile),
       ).toMatchObject({
-        ctx: 65_536,
+        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
         batch: 1024,
         ubatch: 1024,
         fitTargetMb: 1536,

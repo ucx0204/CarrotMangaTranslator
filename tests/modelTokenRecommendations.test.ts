@@ -7,6 +7,10 @@ import {
   findCodexModelPreset,
   resolveRecommendedGenerationLimits,
 } from "../src/shared/modelPresets";
+import {
+  DEFAULT_RESEARCH_GEMMA_CONTEXT_TOKENS,
+  DEFAULT_RESEARCH_GEMMA_MAX_OUTPUT_TOKENS,
+} from "../src/shared/internetResearchTypes";
 
 describe("model token recommendations", () => {
   it("keeps public Codex ceilings separate from working defaults", () => {
@@ -33,6 +37,12 @@ describe("model token recommendations", () => {
     expect(DEFAULT_GEMMA_CONTEXT_TOKENS).toBe(32_768);
     expect(DEFAULT_GEMMA_MAX_TOKENS).toBe(24_576);
     expect(DEFAULT_GEMMA_CONTEXT_TOKENS - DEFAULT_GEMMA_MAX_TOKENS).toBe(8_192);
+    expect(DEFAULT_RESEARCH_GEMMA_CONTEXT_TOKENS).toBe(
+      DEFAULT_GEMMA_CONTEXT_TOKENS,
+    );
+    expect(DEFAULT_RESEARCH_GEMMA_MAX_OUTPUT_TOKENS).toBe(
+      DEFAULT_GEMMA_MAX_TOKENS,
+    );
     expect(resolveRecommendedGenerationLimits("gemma")).toEqual({
       contextTokens: DEFAULT_GEMMA_CONTEXT_TOKENS,
       contextWindowTokens: null,

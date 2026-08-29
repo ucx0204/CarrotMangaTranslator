@@ -1,8 +1,4 @@
 import type { CodexReasoningEffort } from "./codexSettings";
-import {
-  DEFAULT_GEMMA_CONTEXT_TOKENS,
-  DEFAULT_GEMMA_MAX_TOKENS,
-} from "./gemmaTokenDefaults";
 
 export const RESEARCH_ENGINES = ["tavily", "codex-web"] as const;
 export type ResearchEngine = (typeof RESEARCH_ENGINES)[number];
@@ -35,10 +31,8 @@ export const DEFAULT_TAVILY_ANALYSIS_PROVIDER: TavilyAnalysisProvider = "gemma";
 export const DEFAULT_RESEARCH_GEMMA_PRESET: ResearchGemmaPreset = "qat12b";
 export const DEFAULT_RESEARCH_GEMMA_REASONING_EFFORT: ResearchGemmaReasoningEffort =
   "high";
-export const DEFAULT_RESEARCH_GEMMA_MAX_OUTPUT_TOKENS =
-  DEFAULT_GEMMA_MAX_TOKENS;
-export const DEFAULT_RESEARCH_GEMMA_CONTEXT_TOKENS =
-  DEFAULT_GEMMA_CONTEXT_TOKENS;
+export const DEFAULT_RESEARCH_GEMMA_MAX_OUTPUT_TOKENS = 24_576;
+export const DEFAULT_RESEARCH_GEMMA_CONTEXT_TOKENS = 32_768;
 export const DEFAULT_RESEARCH_API_MAX_OUTPUT_TOKENS = 32_768;
 export const DEFAULT_RESEARCH_API_CONTEXT_TOKENS = 65_536;
 export const DEFAULT_RESEARCH_CODEX_MAX_OUTPUT_TOKENS = 32_768;
