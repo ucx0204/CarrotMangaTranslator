@@ -1,7 +1,11 @@
 html,
 body {
   margin: 0;
-  overflow: hidden;
+  width: max-content;
+  height: max-content;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
   background: #fff;
 }
 

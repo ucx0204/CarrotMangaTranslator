@@ -148,6 +148,10 @@ describe("LinkedWorkspaceSyncService", () => {
       }),
     ).resolves.toEqual({ status: "opened", syncedPages: 1 });
     expect(boundary.createSession).toHaveBeenCalledTimes(1);
+    expect(boundary.sessions[0]?.renderPage).toHaveBeenCalledWith(
+      expect.objectContaining({ id: PAGE_ID }),
+      { format: "png", resolutionMode: "original" },
+    );
     expect(await readFile(join(root, "result", "001.png"), "utf8")).toBe(
       "render-1",
     );

@@ -23,8 +23,8 @@ describe("page export renderer raster validation", () => {
   it("rejects an unsafe natural size", () => {
     expect(() =>
       assertDecodedPageExportImageSize(
-        { width: 5000, height: 12000 },
-        { width: 5000, height: 12000 },
+        { width: 10_001, height: 12_000 },
+        { width: 10_001, height: 12_000 },
       ),
     ).toThrow(/raster safety budget/i);
   });

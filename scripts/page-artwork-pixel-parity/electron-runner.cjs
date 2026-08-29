@@ -283,6 +283,8 @@ function buildPanelHtml(input) {
       width: input.panelSize.width,
       height: input.panelSize.height,
     },
+    resolutionMode: "safe-downscale",
+    sourceSize: { width: 836, height: 1200 },
     page: {
       blocks: input.page.blocks,
       height: input.page.height,

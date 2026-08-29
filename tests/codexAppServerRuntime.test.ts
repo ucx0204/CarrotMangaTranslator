@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -60,8 +66,10 @@ describeWindows("official Codex App Server runtime", () => {
       "win32",
       "x64",
     );
+    expect(realpathSync(resolved.executablePath)).toBe(
+      realpathSync(runtime.executablePath),
+    );
     expect(resolved).toMatchObject({
-      executablePath: runtime.executablePath,
       packageVersion: BUNDLED_CODEX_VERSION,
       source: "node_modules",
     });

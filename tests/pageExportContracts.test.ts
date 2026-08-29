@@ -33,6 +33,27 @@ describe("page export document raster contract", () => {
 
     expect(PageExportDocumentDataSchema.safeParse(document).success).toBe(true);
   });
+
+  it("allows a large source to be safely downscaled", () => {
+    const document = makeDocument({ width: 3510, height: 4779 });
+    document.sourceSize = { width: 4445, height: 6053 };
+
+    expect(PageExportDocumentDataSchema.safeParse(document).success).toBe(true);
+  });
+
+  it("allows original output up to 120 megapixels only", () => {
+    const maximum = makeDocument({ width: 10_000, height: 12_000 });
+    maximum.resolutionMode = "original";
+    maximum.sourceSize = maximum.outputSize;
+    expect(PageExportDocumentDataSchema.safeParse(maximum).success).toBe(true);
+
+    const oversized = makeDocument({ width: 10_001, height: 12_000 });
+    oversized.resolutionMode = "original";
+    oversized.sourceSize = oversized.outputSize;
+    expect(PageExportDocumentDataSchema.safeParse(oversized).success).toBe(
+      false,
+    );
+  });
 });
 
 function makeDocument(outputSize: { width: number; height: number }) {
@@ -47,6 +68,8 @@ function makeDocument(outputSize: { width: number; height: number }) {
     },
     imageSrc: "data:image/png;base64,",
     outputSize,
+    resolutionMode: "safe-downscale",
+    sourceSize: outputSize,
     page: {
       blocks: [],
       height: outputSize.height,

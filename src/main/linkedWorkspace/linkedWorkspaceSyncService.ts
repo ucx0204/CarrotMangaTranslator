@@ -659,6 +659,7 @@ export class LinkedWorkspaceSyncService {
       const session = await this.getRenderSession();
       const content = await session.renderPage(page, {
         format: result.captureFormat,
+        resolutionMode: "original",
         ...(result.captureFormat === "jpeg"
           ? { quality: record.output.jpegQuality }
           : result.captureFormat === "webp"

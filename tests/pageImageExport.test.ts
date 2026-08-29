@@ -100,7 +100,6 @@ describe("page image export behavior", () => {
       request,
       harness.dependencies.repository,
     );
-
     const page = chapter.pages[0];
     if (!page) throw new Error("test page is missing");
     chapter.pages[0] = {
@@ -271,6 +270,13 @@ describe("page image export behavior", () => {
       "page-3",
       "page-4",
     ]);
+    expect(harness.renderPage.mock.calls.map(([, capture]) => capture)).toEqual(
+      [
+        { format: "png", resolutionMode: "original" },
+        { format: "png", resolutionMode: "original" },
+        { format: "png", resolutionMode: "original" },
+      ],
+    );
     expect(harness.createSession).toHaveBeenCalledOnce();
     expect(harness.closeSession).toHaveBeenCalledOnce();
     expect(harness.openDirectory).toHaveBeenCalledWith(result.outputDir);
@@ -320,6 +326,7 @@ describe("page image export behavior", () => {
     expect(harness.renderPage.mock.calls[0]?.[1]).toEqual({
       format: "webp",
       quality: 87,
+      resolutionMode: "original",
     });
   });
 
@@ -596,7 +603,7 @@ describe("page image export behavior", () => {
       selections: [{ chapterId: chapter.id, mode: "all" as const }],
     };
     const harness = makeDependencies(makeLibrary([chapter]), [chapter], {
-      renderPage: async () => fakePng(5000, 12000),
+      renderPage: async () => fakePng(10_001, 12_000),
     });
     const events: JobEvent[] = [];
     const abortController = new AbortController();
@@ -620,7 +627,7 @@ describe("page image export behavior", () => {
           dependencies: harness.dependencies,
         }),
       ),
-    ).rejects.toThrow(/안전 해상도|raster safety/i);
+    ).rejects.toThrow(/실제 해상도 10001 × 12000|actual .*10001 × 12000/i);
 
     expect(await readdir(outputParentDir)).toEqual([]);
     expect(harness.writePng).not.toHaveBeenCalled();

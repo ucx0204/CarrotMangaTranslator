@@ -6,8 +6,10 @@ import {
 import type { FontLibrarySnapshot, MangaPage } from "./libraryTypes";
 import {
   MAX_PAGE_EXPORT_IMAGE_SOURCE_CHARS,
-  MAX_PAGE_EXPORT_SIDE_PX,
+  PAGE_EXPORT_SOURCE_RASTER_LIMITS,
+  resolvePageExportRasterLimits,
   validatePageExportRasterSize,
+  type PageExportResolutionMode,
   type PageExportRasterSize,
 } from "./pageExportLimits";
 
@@ -24,6 +26,8 @@ export type PageExportDocumentData = {
   fontLibrary: FontLibrarySnapshot;
   imageSrc: string;
   outputSize: PageExportRasterSize;
+  sourceSize: PageExportRasterSize;
+  resolutionMode: PageExportResolutionMode;
   page: PageArtworkSnapshot;
   transparentBackground?: boolean;
 };
@@ -45,18 +49,44 @@ const FontPreferencesSchema = z
   })
   .strict();
 
-const PageExportRasterSizeSchema = z
+const PageExportOutputRasterSizeSchema = z
   .object({
-    width: z.number().int().min(1).max(MAX_PAGE_EXPORT_SIDE_PX),
-    height: z.number().int().min(1).max(MAX_PAGE_EXPORT_SIDE_PX),
+    width: z
+      .number()
+      .int()
+      .min(1)
+      .max(PAGE_EXPORT_SOURCE_RASTER_LIMITS.maxSidePx),
+    height: z
+      .number()
+      .int()
+      .min(1)
+      .max(PAGE_EXPORT_SOURCE_RASTER_LIMITS.maxSidePx),
+  })
+  .strict();
+
+const PageExportSourceRasterSizeSchema = z
+  .object({
+    width: z
+      .number()
+      .int()
+      .min(1)
+      .max(PAGE_EXPORT_SOURCE_RASTER_LIMITS.maxSidePx),
+    height: z
+      .number()
+      .int()
+      .min(1)
+      .max(PAGE_EXPORT_SOURCE_RASTER_LIMITS.maxSidePx),
   })
   .strict()
   .superRefine((size, context) => {
-    const result = validatePageExportRasterSize(size);
+    const result = validatePageExportRasterSize(
+      size,
+      PAGE_EXPORT_SOURCE_RASTER_LIMITS,
+    );
     if (!result.valid) {
       context.addIssue({
         code: "custom",
-        message: "Page export raster exceeds the safety budget.",
+        message: "Page export source raster exceeds the supported budget.",
       });
     }
   });
@@ -91,8 +121,23 @@ export const PageExportDocumentDataSchema = z
           value.startsWith("data:image/webp;base64,"),
         "Unsupported page export image source.",
       ),
-    outputSize: PageExportRasterSizeSchema,
+    outputSize: PageExportOutputRasterSizeSchema,
+    sourceSize: PageExportSourceRasterSizeSchema,
+    resolutionMode: z.enum(["safe-downscale", "original"]),
     page: PageArtworkSnapshotSchema,
     transparentBackground: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((document, context) => {
+    const result = validatePageExportRasterSize(
+      document.outputSize,
+      resolvePageExportRasterLimits(document.resolutionMode),
+    );
+    if (!result.valid) {
+      context.addIssue({
+        code: "custom",
+        path: ["outputSize"],
+        message: "Page export raster exceeds the selected output budget.",
+      });
+    }
+  });

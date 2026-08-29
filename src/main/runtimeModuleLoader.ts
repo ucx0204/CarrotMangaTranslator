@@ -11,6 +11,7 @@ const APP_RUNTIME_MODULE_FILES = {
   requestBuilders: "simple-page-request-builders.cjs",
   requestSummary: "simple-page-request-summary.cjs",
   responseText: "simple-page-response-text.cjs",
+  runtimePaths: "simple-page-runtime-paths.cjs",
   simplePage: "simple-page-translate.cjs",
   zipExtractor: "simple-page-zip-utils.cjs",
 } as const;

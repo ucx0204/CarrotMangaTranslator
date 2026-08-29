@@ -63,6 +63,8 @@ function makeDocument() {
     },
     imageSrc: "data:image/png;base64,",
     outputSize: { width: 836, height: 1200 },
+    resolutionMode: "safe-downscale",
+    sourceSize: { width: 1000, height: 1400 },
     page: {
       blocks: [],
       height: 1400,

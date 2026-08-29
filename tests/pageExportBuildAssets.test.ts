@@ -57,6 +57,8 @@ describe("page export browser assets", () => {
     );
     const css = stylesheet?.type === "asset" ? String(stylesheet.source) : "";
     expect(css).toContain(".page-export-stage .page-artwork");
+    expect(css).toMatch(/html,\s*body\s*\{[^}]*overflow:\s*visible/);
+    expect(css).toMatch(/html,\s*body\s*\{[^}]*width:\s*max-content/);
     expect(css).toContain(".overlay-transform-content");
     expect(css).toMatch(/transform-style:\s*preserve-3d/);
     expect(css).not.toContain("@font-face");

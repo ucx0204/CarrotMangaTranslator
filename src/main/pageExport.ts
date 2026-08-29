@@ -6,7 +6,12 @@ import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { MangaPage } from "../shared/libraryTypes";
 import {
+  ORIGINAL_PAGE_EXPORT_RASTER_LIMITS,
+  PAGE_EXPORT_SOURCE_RASTER_LIMITS,
+  SAFE_PAGE_EXPORT_RASTER_LIMITS,
+  fitPageExportRasterSize,
   pageExportRasterSizesEqual,
+  type PageExportRasterLimits,
   type PageExportRasterSize,
 } from "../shared/pageExportLimits";
 import { createLibraryImageUrl } from "./imageProtocol";
@@ -15,6 +20,7 @@ import {
   captureExportPageImage,
   type PageExportCaptureOptions,
 } from "./pageExportCapture";
+import type { PageExportTileStitcher } from "./pageExportTileStitch";
 import {
   buildPageExportHtml,
   type PageExportHtmlSource,
@@ -38,9 +44,15 @@ import type { ImageDecodeFallback } from "./regionCrop";
 
 const MAX_EXPORT_VIEWPORT_SIDE_PX = 4096;
 const PAGE_LOAD_TIMEOUT_MS = 15_000;
+const ORIGINAL_PAGE_LOAD_TIMEOUT_MS = 60_000;
 const RENDER_READY_TIMEOUT_MS = 20_000;
+const ORIGINAL_RENDER_READY_TIMEOUT_MS = 120_000;
 const DEBUGGER_SETUP_TIMEOUT_MS = 10_000;
 const IMAGE_SOURCE_TIMEOUT_MS = 60_000;
+const STRICT_SAFE_PNG_CAPTURE_OPTIONS = {
+  format: "png",
+  resolutionMode: "strict-safe",
+} as const satisfies PageExportCaptureOptions;
 
 export type PageExportRenderSession = {
   renderPage: (
@@ -63,6 +75,7 @@ type PageExportRenderOptions = {
   htmlSource?: PageExportHtmlSource;
   resolveImageUrl?: (path: string) => string;
   probeImageSize?: PageExportImageProbe;
+  stitchTiles?: PageExportTileStitcher;
   lowPriority?: boolean;
 };
 
@@ -94,13 +107,13 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
 
   renderPage(
     page: MangaPage,
-    captureOptions: PageExportCaptureOptions = { format: "png" },
+    captureOptions: PageExportCaptureOptions = STRICT_SAFE_PNG_CAPTURE_OPTIONS,
   ): Promise<Buffer> {
     return this.render(page, false, captureOptions);
   }
 
   renderTransparentPage(page: MangaPage): Promise<Buffer> {
-    return this.render(page, true, { format: "png" });
+    return this.render(page, true, STRICT_SAFE_PNG_CAPTURE_OPTIONS);
   }
 
   cancel(): void {
@@ -251,28 +264,36 @@ async function renderPageInSession(
   renderDir: string,
   windowState: ReturnType<typeof createExportWindow>,
   transparentBackground = false,
-  captureOptions: PageExportCaptureOptions = { format: "png" },
+  captureOptions: PageExportCaptureOptions = STRICT_SAFE_PNG_CAPTURE_OPTIONS,
 ): Promise<Buffer> {
+  const resolutionMode = captureOptions.resolutionMode ?? "strict-safe";
+  const sourceLimits = resolvePageExportSourceLimits(resolutionMode);
   const image = await withAbortableTimeout(
-    (signal) => resolveExportImageSource(page, options, signal),
+    (signal) => resolveExportImageSource(page, options, signal, sourceLimits),
     IMAGE_SOURCE_TIMEOUT_MS,
     "PNG export image preflight timeout",
   );
-  assertPageExportRasterBudget(image.size, page.name);
-  const html = options.htmlSource
-    ? options.htmlSource.buildHtml(page, image.src, image.size, {
-        transparentBackground,
-      })
-    : buildPageExportHtml(page, image.src, image.size, {
-        transparentBackground,
-      });
+  const plannedOutputSize = resolvePageExportOutputSize(
+    image.size,
+    page.name,
+    resolutionMode,
+  );
+  const outputLimits = resolvePageExportOutputLimits(resolutionMode);
+  const html = buildRenderSessionHtml({
+    image,
+    options,
+    outputSize: plannedOutputSize,
+    page,
+    resolutionMode,
+    transparentBackground,
+  });
   // A session serializes renders, so its private directory needs only one
   // fixed, maximally short file name.
   const htmlPath = join(renderDir, "page.html");
   const htmlUrl = pathToFileURL(htmlPath).toString();
   const viewport = resolveExportViewportSize(
-    image.size.width,
-    image.size.height,
+    plannedOutputSize.width,
+    plannedOutputSize.height,
   );
   windowState.win.setContentSize(viewport.width, viewport.height);
   windowState.setAllowedHtmlUrl(htmlUrl);
@@ -280,16 +301,20 @@ async function renderPageInSession(
     await writeFile(htmlPath, html, "utf8");
     await withTimeout(
       windowState.win.loadFile(htmlPath),
-      PAGE_LOAD_TIMEOUT_MS,
+      resolutionMode === "original"
+        ? ORIGINAL_PAGE_LOAD_TIMEOUT_MS
+        : PAGE_LOAD_TIMEOUT_MS,
       "PNG export page load timeout",
     );
-    const outputSize = await withTimeout(
+    const renderedOutputSize = await withTimeout(
       waitForExportRenderReady(windowState.win),
-      RENDER_READY_TIMEOUT_MS,
+      resolutionMode === "original"
+        ? ORIGINAL_RENDER_READY_TIMEOUT_MS
+        : RENDER_READY_TIMEOUT_MS,
       "PNG export renderer readiness timeout",
     );
-    assertPageExportRasterBudget(outputSize, page.name);
-    if (!pageExportRasterSizesEqual(outputSize, image.size)) {
+    assertPageExportRasterBudget(renderedOutputSize, page.name, outputLimits);
+    if (!pageExportRasterSizesEqual(renderedOutputSize, plannedOutputSize)) {
       throw new Error(
         tMain("export.errors.imageDimensionsChanged", {
           name: page.name,
@@ -299,10 +324,14 @@ async function renderPageInSession(
     await ensureExportDebugger(windowState.win);
     return await captureExportPageImage(
       windowState.win,
-      image.size,
+      plannedOutputSize,
       page.name,
       captureOptions,
       transparentBackground,
+      {
+        temporaryDirectory: renderDir,
+        stitchTiles: options.stitchTiles,
+      },
     );
   } finally {
     windowState.setAllowedHtmlUrl(null);
@@ -310,10 +339,39 @@ async function renderPageInSession(
   }
 }
 
+function buildRenderSessionHtml({
+  image,
+  options,
+  outputSize,
+  page,
+  resolutionMode,
+  transparentBackground,
+}: {
+  image: ResolvedPageExportImage;
+  options: PageExportRenderOptions;
+  outputSize: PageExportRasterSize;
+  page: MangaPage;
+  resolutionMode: NonNullable<PageExportCaptureOptions["resolutionMode"]>;
+  transparentBackground: boolean;
+}): string {
+  const htmlOptions = {
+    resolutionMode:
+      resolutionMode === "original"
+        ? ("original" as const)
+        : ("safe-downscale" as const),
+    sourceSize: image.size,
+    transparentBackground,
+  };
+  return options.htmlSource
+    ? options.htmlSource.buildHtml(page, image.src, outputSize, htmlOptions)
+    : buildPageExportHtml(page, image.src, outputSize, htmlOptions);
+}
+
 async function resolveExportImageSource(
   page: MangaPage,
   options: PageExportRenderOptions,
   signal: AbortSignal,
+  sourceLimits: PageExportRasterLimits,
 ): Promise<ResolvedPageExportImage> {
   const paths = [page.inpaintedImagePath, page.imagePath].filter(
     (path, index, candidates): path is string =>
@@ -324,7 +382,12 @@ async function resolveExportImageSource(
     throwIfAborted(signal);
     let size: PageExportRasterSize;
     try {
-      size = await resolvePageExportSourceSize(imagePath, options, signal);
+      size = await resolvePageExportSourceSize(
+        imagePath,
+        options,
+        signal,
+        sourceLimits,
+      );
     } catch (error) {
       if (signal.aborted) throw error;
       failures.push(error);
@@ -346,6 +409,7 @@ async function resolveExportImageSource(
             fallback,
             size,
             basename(imagePath),
+            sourceLimits,
           ),
           size,
         };
@@ -365,15 +429,48 @@ async function resolvePageExportSourceSize(
   imagePath: string,
   options: PageExportRenderOptions,
   signal: AbortSignal,
+  sourceLimits: PageExportRasterLimits,
 ): Promise<PageExportRasterSize> {
   const probe =
     options.probeImageSize ??
     ((path: string, probeSignal: AbortSignal) =>
-      probePageExportSourceImage(path, probeSignal));
+      probePageExportSourceImage(path, probeSignal, sourceLimits));
   const size = await probe(imagePath, signal);
   throwIfAborted(signal);
-  assertPageExportRasterBudget(size, basename(imagePath));
+  assertPageExportRasterBudget(size, basename(imagePath), sourceLimits);
   return size;
+}
+
+function resolvePageExportSourceLimits(
+  mode: NonNullable<PageExportCaptureOptions["resolutionMode"]>,
+): PageExportRasterLimits {
+  if (mode === "strict-safe") return SAFE_PAGE_EXPORT_RASTER_LIMITS;
+  return mode === "original"
+    ? ORIGINAL_PAGE_EXPORT_RASTER_LIMITS
+    : PAGE_EXPORT_SOURCE_RASTER_LIMITS;
+}
+
+function resolvePageExportOutputLimits(
+  mode: NonNullable<PageExportCaptureOptions["resolutionMode"]>,
+): PageExportRasterLimits {
+  return mode === "original"
+    ? ORIGINAL_PAGE_EXPORT_RASTER_LIMITS
+    : SAFE_PAGE_EXPORT_RASTER_LIMITS;
+}
+
+function resolvePageExportOutputSize(
+  sourceSize: PageExportRasterSize,
+  label: string,
+  mode: NonNullable<PageExportCaptureOptions["resolutionMode"]>,
+): PageExportRasterSize {
+  assertPageExportRasterBudget(
+    sourceSize,
+    label,
+    resolvePageExportSourceLimits(mode),
+  );
+  return mode === "safe-downscale"
+    ? fitPageExportRasterSize(sourceSize)
+    : { ...sourceSize };
 }
 
 function resolveExportViewportSize(

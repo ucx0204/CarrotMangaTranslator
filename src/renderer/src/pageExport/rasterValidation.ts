@@ -1,4 +1,5 @@
 import {
+  PAGE_EXPORT_SOURCE_RASTER_LIMITS,
   pageExportRasterSizesEqual,
   validatePageExportRasterSize,
   type PageExportRasterSize,
@@ -8,7 +9,10 @@ export function assertDecodedPageExportImageSize(
   actual: PageExportRasterSize,
   expected: PageExportRasterSize,
 ): void {
-  const result = validatePageExportRasterSize(actual);
+  const result = validatePageExportRasterSize(
+    actual,
+    PAGE_EXPORT_SOURCE_RASTER_LIMITS,
+  );
   if (!result.valid) {
     throw new Error("Page export image exceeds the raster safety budget.");
   }

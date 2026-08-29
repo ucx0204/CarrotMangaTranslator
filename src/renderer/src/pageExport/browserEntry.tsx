@@ -44,8 +44,8 @@ async function startPageExport(): Promise<void> {
     data.fontLibrary.customFonts,
     data.fontLibrary.preferences,
   );
-  const [imageSize, fontReport] = await Promise.all([
-    decodeExportImage(data.imageSrc, data.outputSize),
+  const [, fontReport] = await Promise.all([
+    decodeExportImage(data.imageSrc, data.sourceSize),
     loadBlockFonts(document, data.page.blocks, catalog),
   ]);
   assertFontsLoaded(fontReport);
@@ -57,7 +57,7 @@ async function startPageExport(): Promise<void> {
         imageSrc={data.imageSrc}
         page={data.page}
         showImage={showImage}
-        visualSize={imageSize}
+        visualSize={data.outputSize}
       />,
     );
   });

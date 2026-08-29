@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_PAGE_EXPORT_IMAGE_SOURCE_CHARS,
+  MAX_PAGE_EXPORT_ORIGINAL_IMAGE_BYTES,
+  MAX_PAGE_EXPORT_ORIGINAL_PIXELS,
+  MAX_PAGE_EXPORT_ORIGINAL_SIDE_PX,
   MAX_PAGE_EXPORT_PIXELS,
   MAX_PAGE_EXPORT_PNG_BYTES,
   MAX_PAGE_EXPORT_SCREENSHOT_BASE64_CHARS,
   MAX_PAGE_EXPORT_SIDE_PX,
+  ORIGINAL_PAGE_EXPORT_RASTER_LIMITS,
   estimateBase64DecodedByteLength,
+  fitPageExportRasterSize,
   validatePageExportRasterSize,
 } from "../src/shared/pageExportLimits";
 
@@ -13,6 +18,9 @@ describe("page export raster limits", () => {
   it("defines the central raster and encoded budgets", () => {
     expect(MAX_PAGE_EXPORT_SIDE_PX).toBe(16_384);
     expect(MAX_PAGE_EXPORT_PIXELS).toBe(16_777_216);
+    expect(MAX_PAGE_EXPORT_ORIGINAL_SIDE_PX).toBe(100_000);
+    expect(MAX_PAGE_EXPORT_ORIGINAL_PIXELS).toBe(120_000_000);
+    expect(MAX_PAGE_EXPORT_ORIGINAL_IMAGE_BYTES).toBe(512 * 1024 * 1024);
     expect(MAX_PAGE_EXPORT_PNG_BYTES).toBe(96 * 1024 * 1024);
     expect(MAX_PAGE_EXPORT_SCREENSHOT_BASE64_CHARS).toBe(
       Math.ceil(MAX_PAGE_EXPORT_PNG_BYTES / 3) * 4,
@@ -45,6 +53,29 @@ describe("page export raster limits", () => {
     expect(
       validatePageExportRasterSize({ width: 1024, height: 16_384 }),
     ).toEqual({ valid: true, pixelCount: 16_777_216 });
+  });
+
+  it("allows the explicit original-resolution budget up to 120 megapixels", () => {
+    expect(
+      validatePageExportRasterSize(
+        { width: 10_000, height: 12_000 },
+        ORIGINAL_PAGE_EXPORT_RASTER_LIMITS,
+      ),
+    ).toEqual({ valid: true, pixelCount: 120_000_000 });
+    expect(
+      validatePageExportRasterSize(
+        { width: 5_000, height: 24_000 },
+        ORIGINAL_PAGE_EXPORT_RASTER_LIMITS,
+      ),
+    ).toEqual({ valid: true, pixelCount: 120_000_000 });
+  });
+
+  it("fits the reported 4445x6053 page into the safe budget", () => {
+    const fitted = fitPageExportRasterSize({ width: 4445, height: 6053 });
+
+    expect(fitted).toEqual({ width: 3510, height: 4779 });
+    expect(validatePageExportRasterSize(fitted).valid).toBe(true);
+    expect(fitted.width / fitted.height).toBeCloseTo(4445 / 6053, 3);
   });
 
   it.each([

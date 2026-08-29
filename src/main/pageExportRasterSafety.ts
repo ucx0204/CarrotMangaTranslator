@@ -7,13 +7,15 @@ import {
 import { tMain } from "./i18n";
 import {
   MAX_PAGE_EXPORT_IMAGE_SOURCE_CHARS,
-  MAX_PAGE_EXPORT_PIXELS,
+  MAX_PAGE_EXPORT_ORIGINAL_IMAGE_BYTES,
   MAX_PAGE_EXPORT_PNG_BYTES,
   MAX_PAGE_EXPORT_SCREENSHOT_BASE64_CHARS,
-  MAX_PAGE_EXPORT_SIDE_PX,
+  PAGE_EXPORT_SOURCE_RASTER_LIMITS,
+  SAFE_PAGE_EXPORT_RASTER_LIMITS,
   estimateBase64DecodedByteLength,
   pageExportRasterSizesEqual,
   validatePageExportRasterSize,
+  type PageExportRasterLimits,
   type PageExportRasterSize,
 } from "../shared/pageExportLimits";
 
@@ -22,30 +24,41 @@ const PNG_SIGNATURE_HEX = "89504e470d0a1a0a";
 type PageExportScreenshotDecodeLimits = {
   maxBase64Chars?: number;
   maxPngBytes?: number;
+  rasterLimits?: PageExportRasterLimits;
 };
 
 export async function probePageExportSourceImage(
   imagePath: string,
   signal?: AbortSignal,
+  limits: PageExportRasterLimits = SAFE_PAGE_EXPORT_RASTER_LIMITS,
 ): Promise<PageExportRasterSize> {
   const label = basename(imagePath);
-  const metadata = await probeImageFile(imagePath, label, undefined, signal);
-  assertPageExportRasterBudget(metadata, label);
+  const metadata = await probeImageFile(
+    imagePath,
+    label,
+    {
+      maxWidth: PAGE_EXPORT_SOURCE_RASTER_LIMITS.maxSidePx,
+      maxHeight: PAGE_EXPORT_SOURCE_RASTER_LIMITS.maxSidePx,
+      maxPixels: PAGE_EXPORT_SOURCE_RASTER_LIMITS.maxPixels,
+    },
+    signal,
+  );
+  assertPageExportRasterBudget(metadata, label, limits);
   return { width: metadata.width, height: metadata.height };
 }
 
 export function assertPageExportRasterBudget(
   size: PageExportRasterSize,
   label: string,
+  limits: PageExportRasterLimits = SAFE_PAGE_EXPORT_RASTER_LIMITS,
 ): number {
-  const result = validatePageExportRasterSize(size);
+  const result = validatePageExportRasterSize(size, limits);
   if (!result.valid) {
     throw new Error(
       tMain("export.errors.rasterTooLarge", {
         name: label,
         width: String(size.width),
         height: String(size.height),
-        maxPixels: String(MAX_PAGE_EXPORT_PIXELS),
       }),
     );
   }
@@ -56,16 +69,17 @@ export function buildBoundedPageExportDataUrl(
   bytes: Buffer,
   expected: PageExportRasterSize,
   label: string,
+  rasterLimits: PageExportRasterLimits = SAFE_PAGE_EXPORT_RASTER_LIMITS,
 ): string {
   if (bytes.byteLength > MAX_PAGE_EXPORT_PNG_BYTES) {
     throw screenshotTooLargeError(label);
   }
   const metadata = probeImageBuffer(bytes, label, {
-    maxWidth: MAX_PAGE_EXPORT_SIDE_PX,
-    maxHeight: MAX_PAGE_EXPORT_SIDE_PX,
-    maxPixels: MAX_PAGE_EXPORT_PIXELS,
+    maxWidth: rasterLimits.maxSidePx,
+    maxHeight: rasterLimits.maxSidePx,
+    maxPixels: rasterLimits.maxPixels,
   });
-  assertPageExportRasterBudget(metadata, label);
+  assertPageExportRasterBudget(metadata, label, rasterLimits);
   if (!pageExportRasterSizesEqual(metadata, expected)) {
     throw new Error(
       tMain("export.errors.imageDimensionsChanged", {
@@ -95,6 +109,7 @@ export function decodeBoundedPageExportScreenshot(
     limits.maxPngBytes ?? MAX_PAGE_EXPORT_PNG_BYTES,
     MAX_PAGE_EXPORT_PNG_BYTES,
   );
+  const rasterLimits = limits.rasterLimits ?? SAFE_PAGE_EXPORT_RASTER_LIMITS;
   if (data.length < 1 || data.length > maxBase64Chars) {
     throw screenshotTooLargeError(label);
   }
@@ -111,7 +126,7 @@ export function decodeBoundedPageExportScreenshot(
   if (png.byteLength !== estimated) {
     throw invalidScreenshotError();
   }
-  assertPageExportPngBuffer(png, expected, label, maxPngBytes);
+  assertPageExportPngBuffer(png, expected, label, maxPngBytes, rasterLimits);
   return png;
 }
 
@@ -130,6 +145,7 @@ export function decodeBoundedPageExportImage(
     limits.maxPngBytes ?? MAX_PAGE_EXPORT_PNG_BYTES,
     MAX_PAGE_EXPORT_PNG_BYTES,
   );
+  const rasterLimits = limits.rasterLimits ?? SAFE_PAGE_EXPORT_RASTER_LIMITS;
   if (data.length < 1 || data.length > maxBase64Chars) {
     throw screenshotTooLargeError(label);
   }
@@ -143,9 +159,9 @@ export function decodeBoundedPageExportImage(
   const bytes = Buffer.from(data, "base64");
   if (bytes.byteLength !== estimated) throw invalidScreenshotError();
   const metadata = probeImageBuffer(bytes, label, {
-    maxWidth: MAX_PAGE_EXPORT_SIDE_PX,
-    maxHeight: MAX_PAGE_EXPORT_SIDE_PX,
-    maxPixels: MAX_PAGE_EXPORT_PIXELS,
+    maxWidth: rasterLimits.maxSidePx,
+    maxHeight: rasterLimits.maxSidePx,
+    maxPixels: rasterLimits.maxPixels,
   });
   if (
     metadata.format !== expectedFormat ||
@@ -161,14 +177,55 @@ export function assertPageExportPngBuffer(
   expected: PageExportRasterSize | undefined,
   label: string,
   byteLimit = MAX_PAGE_EXPORT_PNG_BYTES,
+  rasterLimits: PageExportRasterLimits = SAFE_PAGE_EXPORT_RASTER_LIMITS,
 ): PageExportRasterSize {
-  const effectiveByteLimit = Math.min(byteLimit, MAX_PAGE_EXPORT_PNG_BYTES);
+  const effectiveByteLimit = Math.min(
+    byteLimit,
+    MAX_PAGE_EXPORT_ORIGINAL_IMAGE_BYTES,
+  );
   if (png.byteLength > effectiveByteLimit) {
     throw screenshotTooLargeError(label);
   }
   const actual = readPngRasterSize(png);
-  assertPageExportRasterBudget(actual, label);
+  assertPageExportRasterBudget(actual, label, rasterLimits);
   if (expected && !pageExportRasterSizesEqual(actual, expected)) {
+    throw new Error(
+      tMain("export.errors.outputDimensionsMismatch", {
+        name: label,
+        actual: `${actual.width}x${actual.height}`,
+        expected: `${expected.width}x${expected.height}`,
+      }),
+    );
+  }
+  return actual;
+}
+
+export function assertPageExportImageBuffer(
+  bytes: Buffer,
+  expected: PageExportRasterSize,
+  label: string,
+  expectedFormat: "jpeg" | "webp",
+  byteLimit = MAX_PAGE_EXPORT_PNG_BYTES,
+  rasterLimits: PageExportRasterLimits = SAFE_PAGE_EXPORT_RASTER_LIMITS,
+): PageExportRasterSize {
+  const effectiveByteLimit = Math.min(
+    byteLimit,
+    MAX_PAGE_EXPORT_ORIGINAL_IMAGE_BYTES,
+  );
+  if (bytes.byteLength > effectiveByteLimit) {
+    throw screenshotTooLargeError(label);
+  }
+  const metadata = probeImageBuffer(bytes, label, {
+    maxWidth: rasterLimits.maxSidePx,
+    maxHeight: rasterLimits.maxSidePx,
+    maxPixels: rasterLimits.maxPixels,
+  });
+  assertPageExportRasterBudget(metadata, label, rasterLimits);
+  if (metadata.format !== expectedFormat) {
+    throw invalidScreenshotError();
+  }
+  const actual = { width: metadata.width, height: metadata.height };
+  if (!pageExportRasterSizesEqual(actual, expected)) {
     throw new Error(
       tMain("export.errors.outputDimensionsMismatch", {
         name: label,

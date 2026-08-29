@@ -12,7 +12,10 @@ import {
   PAGE_EXPORT_RUNTIME_FILE,
   PAGE_EXPORT_STYLES_FILE,
 } from "../shared/pageExportContracts";
-import type { PageExportRasterSize } from "../shared/pageExportLimits";
+import type {
+  PageExportRasterSize,
+  PageExportResolutionMode,
+} from "../shared/pageExportLimits";
 import { getAppPaths } from "./appPaths";
 import {
   listCustomFonts,
@@ -25,8 +28,14 @@ export type PageExportHtmlSource = {
     page: MangaPage,
     imageSrc: string,
     outputSize: PageExportRasterSize,
-    options?: { transparentBackground?: boolean },
+    options?: PageExportHtmlOptions,
   ) => string;
+};
+
+export type PageExportHtmlOptions = {
+  resolutionMode?: PageExportResolutionMode;
+  sourceSize?: PageExportRasterSize;
+  transparentBackground?: boolean;
 };
 
 export type PageExportHtmlDependencies = {
@@ -58,7 +67,7 @@ export function buildPageExportHtml(
   page: MangaPage,
   imageSrc: string,
   outputSize: PageExportRasterSize,
-  options?: { transparentBackground?: boolean },
+  options?: PageExportHtmlOptions,
 ): string {
   return buildPageExportHtmlWith(
     createProductionPageExportHtmlDependencies(),
@@ -74,7 +83,7 @@ function buildPageExportHtmlWith(
   page: MangaPage,
   imageSrc: string,
   outputSize: PageExportRasterSize,
-  options?: { transparentBackground?: boolean },
+  options?: PageExportHtmlOptions,
 ): string {
   const assets = findPageExportAssets(dependencies.assetDirectories());
   const rendererStylesheet = dependencies.rendererStylesheet();
@@ -93,6 +102,8 @@ function buildPageExportHtmlWith(
     },
     imageSrc,
     outputSize,
+    sourceSize: options?.sourceSize ?? outputSize,
+    resolutionMode: options?.resolutionMode ?? "safe-downscale",
     page: {
       id: page.id,
       name: page.name,

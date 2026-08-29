@@ -9,6 +9,7 @@ import {
   createPageExportHtmlSource,
   type PageExportHtmlSource,
 } from "../src/main/pageExportHtml";
+import type { PageExportTileStitchRequest } from "../src/main/pageExportTileStitch";
 
 type Listener = (...args: unknown[]) => void;
 type ExportWindowOptions = {
@@ -539,7 +540,7 @@ describe("page export BrowserWindow security", () => {
         makePage(rootDir),
         createRenderOptions(rootDir),
       ),
-    ).rejects.toThrow(/안전 해상도|raster safety/i);
+    ).rejects.toThrow(/실제 해상도 5000 × 12000|actual .*5000 × 12000/i);
 
     expect(latestWindow?.loadedHtml).toBe("");
     expect(latestWindow?.webContents.executeJavaScript).not.toHaveBeenCalled();
@@ -583,6 +584,41 @@ describe("page export BrowserWindow security", () => {
     expect(decodeFallback).not.toHaveBeenCalled();
   });
 
+  it("downscales the issue #80 page proportionally in safe mode", async () => {
+    probedImageSize = { width: 4445, height: 6053 };
+    rendererImageSize = { width: 3510, height: 4779 };
+    const rootDir = await createTempRoot();
+    const options = createRenderOptions(rootDir);
+    const stitchTiles = vi.fn(async (request: PageExportTileStitchRequest) => {
+      await writeFile(
+        request.outputPath,
+        fakePng(request.expected.width, request.expected.height),
+      );
+    });
+    options.stitchTiles = stitchTiles;
+    const { createPageExportRenderSession } = await loadPageExport();
+    const session = await createPageExportRenderSession(options);
+
+    let png: Buffer;
+    try {
+      png = await session.renderPage(makePage(rootDir), {
+        format: "png",
+        resolutionMode: "safe-downscale",
+      });
+    } finally {
+      session.close();
+    }
+
+    expect(readFakePngSize(png)).toEqual(rendererImageSize);
+    expect(latestWindow?.loadedHtml).toContain(
+      '"sourceSize":{"width":4445,"height":6053}',
+    );
+    expect(latestWindow?.loadedHtml).toContain(
+      '"outputSize":{"width":3510,"height":4779}',
+    );
+    expect(stitchTiles).toHaveBeenCalledOnce();
+  });
+
   it("captures an exact-boundary 4096x4096 page at its original size", async () => {
     probedImageSize = { width: 4096, height: 4096 };
     rendererImageSize = probedImageSize;
@@ -598,32 +634,90 @@ describe("page export BrowserWindow security", () => {
     expect(latestWindow?.setContentSize).toHaveBeenCalledWith(4096, 4096);
   });
 
-  it("keeps a safe long image full-size beyond the bounded viewport", async () => {
+  it("keeps a safe long image full-size with bounded capture tiles", async () => {
     probedImageSize = { width: 2048, height: 8192 };
     rendererImageSize = probedImageSize;
     const rootDir = await createTempRoot();
-    const { renderPageWithTranslationBlocksForExport } = await loadPageExport();
+    const options = createRenderOptions(rootDir);
+    const stitchTiles = vi.fn(async (request: PageExportTileStitchRequest) => {
+      await writeFile(
+        request.outputPath,
+        fakePng(request.expected.width, request.expected.height),
+      );
+    });
+    options.stitchTiles = stitchTiles;
+    const { createPageExportRenderSession } = await loadPageExport();
+    const session = await createPageExportRenderSession(options);
 
-    const png = await renderPageWithTranslationBlocksForExport(
-      makePage(rootDir),
-      createRenderOptions(rootDir),
-    );
+    let png: Buffer;
+    try {
+      png = await session.renderPage(makePage(rootDir));
+    } finally {
+      session.close();
+    }
 
     expect(readFakePngSize(png)).toEqual(probedImageSize);
     expect(latestWindow?.setContentSize).toHaveBeenCalledWith(2048, 4096);
-    expect(latestWindow?.webContents.debugger.sendCommand).toHaveBeenCalledWith(
-      "Page.captureScreenshot",
-      expect.objectContaining({
-        captureBeyondViewport: true,
-        clip: {
-          x: 0,
-          y: 0,
-          width: 2048,
-          height: 8192,
-          scale: 1,
-        },
-      }),
-    );
+    expect(stitchTiles).toHaveBeenCalledOnce();
+    const stitchedRequest = stitchTiles.mock.calls[0]?.[0];
+    if (!stitchedRequest) throw new Error("Expected a tile stitch request.");
+    expect(stitchedRequest.tiles.length).toBeGreaterThan(1);
+    expect(
+      stitchedRequest.tiles.every(
+        (tile) => tile.captureWidth <= 4096 && tile.captureHeight <= 4096,
+      ),
+    ).toBe(true);
+  });
+
+  it("captures an original-size page as overlapping tiles and cleans them", async () => {
+    probedImageSize = { width: 5000, height: 4000 };
+    rendererImageSize = probedImageSize;
+    const rootDir = await createTempRoot();
+    const options = createRenderOptions(rootDir);
+    const stitchTiles = vi.fn(async (request: PageExportTileStitchRequest) => {
+      expect(request.tiles.every((tile) => existsSync(tile.path))).toBe(true);
+      await writeFile(
+        request.outputPath,
+        fakePng(request.expected.width, request.expected.height),
+      );
+    });
+    options.stitchTiles = stitchTiles;
+    const { createPageExportRenderSession } = await loadPageExport();
+    const session = await createPageExportRenderSession(options);
+
+    let png: Buffer;
+    try {
+      png = await session.renderPage(makePage(rootDir), {
+        format: "png",
+        resolutionMode: "original",
+      });
+    } finally {
+      session.close();
+    }
+
+    expect(readFakePngSize(png)).toEqual(probedImageSize);
+    expect(stitchTiles).toHaveBeenCalledOnce();
+    const stitchedRequest = stitchTiles.mock.calls[0]?.[0];
+    if (!stitchedRequest) throw new Error("Expected a tile stitch request.");
+    const tiles = stitchedRequest.tiles;
+    expect(tiles.length).toBeGreaterThan(1);
+    expect(
+      tiles.reduce(
+        (pixels, tile) => pixels + tile.outputWidth * tile.outputHeight,
+        0,
+      ),
+    ).toBe(probedImageSize.width * probedImageSize.height);
+    expect(tiles.some((tile) => tile.outputX > 0)).toBe(true);
+    for (const tile of tiles) {
+      expect(Number.isInteger(tile.captureX)).toBe(true);
+      expect(Number.isInteger(tile.captureY)).toBe(true);
+      expect(tile.captureWidth).toBeLessThanOrEqual(4096);
+      expect(tile.captureHeight).toBeLessThanOrEqual(4096);
+      if (tile.outputX > 0) expect(tile.captureX).toBeLessThan(tile.outputX);
+      if (tile.outputY > 0) expect(tile.captureY).toBeLessThan(tile.outputY);
+      expect(existsSync(tile.path)).toBe(false);
+    }
+    expect(existsSync(stitchedRequest.outputPath)).toBe(false);
   });
 
   it("rejects a renderer dimension mismatch before debugger attach", async () => {
@@ -656,7 +750,7 @@ describe("page export BrowserWindow security", () => {
         makePage(rootDir),
         createRenderOptions(rootDir),
       ),
-    ).rejects.toThrow(/안전 해상도|raster safety/i);
+    ).rejects.toThrow(/실제 해상도 5000 × 12000|actual .*5000 × 12000/i);
 
     expect(latestWindow?.webContents.debugger.attach).not.toHaveBeenCalled();
     expect(
@@ -840,6 +934,7 @@ function createRenderOptions(rootDir: string): {
     path: string,
     signal: AbortSignal,
   ) => Promise<{ width: number; height: number }>;
+  stitchTiles?: (request: PageExportTileStitchRequest) => Promise<void>;
 } {
   return {
     dataRoot: rootDir,

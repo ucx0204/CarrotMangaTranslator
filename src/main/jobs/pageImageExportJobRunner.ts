@@ -6,6 +6,10 @@ import type {
 } from "../../shared/pageImageExportTypes";
 import { dirname, extname, join } from "node:path";
 import type { PageImageExportFormat } from "../../shared/pageImageExportTypes";
+import {
+  MAX_PAGE_EXPORT_ORIGINAL_IMAGE_BYTES,
+  ORIGINAL_PAGE_EXPORT_RASTER_LIMITS,
+} from "../../shared/pageExportLimits";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { PageExportRenderSession } from "../pageExport";
 import {
@@ -453,14 +457,27 @@ async function writePageImageExportPage({
     capture,
   );
   throwIfAborted(abortController, completedPages, totalPages);
-  if (capture.format === "png") {
-    assertPageExportPngBuffer(content, undefined, page.name);
-  }
+  assertManualPageExportResult(content, capture.format, page.name);
   await (dependencies.runtime.writeImage ?? dependencies.runtime.writePng)(
     outputPath,
     content,
   );
   throwIfAborted(abortController, completedPages + 1, totalPages);
+}
+
+function assertManualPageExportResult(
+  content: Buffer,
+  format: "png" | "jpeg" | "webp",
+  pageName: string,
+): void {
+  if (format !== "png") return;
+  assertPageExportPngBuffer(
+    content,
+    undefined,
+    pageName,
+    MAX_PAGE_EXPORT_ORIGINAL_IMAGE_BYTES,
+    ORIGINAL_PAGE_EXPORT_RASTER_LIMITS,
+  );
 }
 
 function resolveManualPageOutputPath({
@@ -530,6 +547,7 @@ function resolveManualCaptureOptions(
       : outputFormat;
   return {
     format,
+    resolutionMode: "original",
     ...(format === "jpeg"
       ? { quality: jpegQuality }
       : format === "webp"

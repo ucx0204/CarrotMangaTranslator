@@ -123,9 +123,11 @@ editing the totals by hand.
   The official Codex App Server integration and dynamic model catalog pass
   extended it to SHA-256
   `182f6c68370827d3fc5b1713fbfa610cde1249ab26eef1b8d4daa5000f2f23a1`.
+  The two-mode 120 MP tiled page-export pass extended it to SHA-256
+  `7ce9d0dcab2d1ca9fdbe079727d1452b9e7f33006be06eef62a5240745fed769`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 546 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 195 new
+  percentage for lines/statements/functions/branches in all 550 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 196 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   seven removed source files are recorded explicitly in `deletedFiles`.
