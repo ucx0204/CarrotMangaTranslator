@@ -81,6 +81,7 @@ export function createFluxEngine(
           isolateWindowMasks: options.launch.backend === "metal-native",
           tileLargeCrops:
             options.launch.backend === "metal-native" ||
+            options.launch.backend === "cpu-native" ||
             options.sm75Fp16Enabled === true,
           mask,
           runOptions: resolvedRunOptions,

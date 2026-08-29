@@ -77,21 +77,21 @@ describe("settings alias surfaces", () => {
           ["zluda-native", "zluda", "python-rocm", "rocm", "hip", "amd"],
         ],
         ["metal-native", ["metal-native", "metal", "apple"]],
-        ["python-cpu", ["python-cpu", "cpu"]],
+        ["cpu-native", ["cpu-native", "python-cpu", "cpu"]],
       ],
       (alias) => FluxBackendSchema.parse(alias),
-      (alias) => resolveFluxBackend(alias, "python-cpu"),
+      (alias) => resolveFluxBackend(alias, "cpu-native"),
     );
   });
 
   it("keeps IPC-only Flux aliases out of stored settings", () => {
     for (const alias of ["", "auto"]) {
       expect(FluxBackendSchema.parse(alias)).toBe("cuda-native");
-      expect(resolveFluxBackend(alias, "python-cpu")).toBe("python-cpu");
+      expect(resolveFluxBackend(alias, "cpu-native")).toBe("cpu-native");
     }
     for (const alias of ["apple-metal", "mps"]) {
       expect(FluxBackendSchema.parse(alias)).toBe("metal-native");
-      expect(resolveFluxBackend(alias, "python-cpu")).toBe("python-cpu");
+      expect(resolveFluxBackend(alias, "cpu-native")).toBe("cpu-native");
     }
   });
 
@@ -228,7 +228,7 @@ describe("settings alias surfaces", () => {
         OcrQualityModeSchema,
       ].every((schema) => !schema.safeParse(invalid).success),
     ).toBe(true);
-    expect(resolveFluxBackend(invalid, "python-cpu")).toBe("python-cpu");
+    expect(resolveFluxBackend(invalid, "cpu-native")).toBe("cpu-native");
     expect(resolveInpaintingModel(invalid, "aot-inpainting")).toBe(
       "aot-inpainting",
     );

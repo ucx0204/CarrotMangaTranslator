@@ -24,7 +24,7 @@ describe("HardwareSettingsPanel", () => {
         computeGpuIndex={1}
         controlsBusy={false}
         detectedGpuName="AMD Radeon RX 7600M XT"
-        fluxBackend="python-cpu"
+        fluxBackend="cpu-native"
         gpuMemoryMb={8192}
         graphicsGpuPreference="high-performance"
         inpaintingModel="lama-manga"
@@ -88,7 +88,7 @@ describe("HardwareSettingsPanel", () => {
     });
 
     expect(unsupported).toMatchObject({
-      fluxBackend: "python-cpu",
+      fluxBackend: "cpu-native",
       inpaintingModel: "flux-klein",
       ocrDevice: "cpu",
       ocrGpuBackend: "cuda",
@@ -151,7 +151,7 @@ describe("HardwareSettingsPanel", () => {
       within(warning).getByRole("button", { name: "CPU 백엔드로 전환" }),
     );
     expect(clearTestState).toHaveBeenCalledOnce();
-    expect(setFluxBackend).toHaveBeenCalledWith("python-cpu");
+    expect(setFluxBackend).toHaveBeenCalledWith("cpu-native");
   });
 
   it("recommends full OCR when the detected GPU meets the measured memory floor", () => {

@@ -142,6 +142,26 @@ if (existsSync(join(__dirname, "tools", "ffmpeg", "ffmpeg.exe"))) {
   });
 }
 
+const fluxCpuRunnerPath = join(
+  __dirname,
+  "tools",
+  "mgt-flux-klein-cpu",
+  "mgt-flux-klein-cpu.exe",
+);
+if (!isMacBuild && existsSync(fluxCpuRunnerPath)) {
+  windowsExtraResources.push({
+    from: "tools/mgt-flux-klein-cpu/mgt-flux-klein-cpu.exe",
+    to: "tools/mgt-flux-klein-cpu/mgt-flux-klein-cpu.exe",
+  });
+} else if (
+  !isMacBuild &&
+  process.env.MGT_ALLOW_MISSING_FLUX_CPU_RUNNER !== "1"
+) {
+  throw new Error(
+    `Missing ${fluxCpuRunnerPath}. Run npm run build:flux-cpu-runner before packaging.`,
+  );
+}
+
 const fluxKleinRunnerPath = join(
   __dirname,
   "tools",

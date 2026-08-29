@@ -3,7 +3,7 @@ export type FluxBackend =
   | "cuda-sm75-experimental"
   | "zluda-native"
   | "metal-native"
-  | "python-cpu";
+  | "cpu-native";
 
 export type InpaintingModel = "flux-klein" | "lama-manga" | "aot-inpainting";
 

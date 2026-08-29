@@ -80,6 +80,7 @@ export async function ensureManagedFluxRunner(options: {
   ) {
     return managedPath;
   }
+  throwIfAborted(options.signal);
   await copyFile(source.path, managedPath);
   if (process.platform !== "win32") {
     await chmod(managedPath, 0o755);

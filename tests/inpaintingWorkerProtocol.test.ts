@@ -141,6 +141,7 @@ describe("inpainting worker JSON-lines protocol", () => {
     "cuda-native",
     "zluda-native",
     "metal-native",
+    "cpu-native",
     "python-rocm",
     "python-cpu",
   ] satisfies FluxWorkerBackend[])(

@@ -1655,8 +1655,8 @@
           "description": "AMD GPUでFluxをZLUDA経由で実行します。AMD HIP SDKが必要です。"
         },
         "cpu": {
-          "label": "CPU",
-          "description": "対応GPUランタイムがない環境向けの低速CPU互換モードです。"
+          "label": "CPUネイティブ（非常に低速）",
+          "description": "PythonやDiffusersを使わないCPU専用Flux互換モードです。1ページに数分以上かかる場合があるため、実用的なCPU修復にはLaMaまたはAOTを推奨します。"
         }
       },
       "inpaintingModels": {

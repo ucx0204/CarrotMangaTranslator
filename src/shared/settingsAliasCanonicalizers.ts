@@ -36,7 +36,7 @@ const FLUX_BACKEND_ALIASES = createAliasMap<FluxBackend>([
     ["zluda-native", "zluda", "python-rocm", "rocm", "hip", "amd"],
   ],
   ["metal-native", ["metal-native", "metal", "apple"]],
-  ["python-cpu", ["python-cpu", "cpu"]],
+  ["cpu-native", ["cpu-native", "python-cpu", "cpu"]],
 ]);
 
 const INPAINTING_MODEL_ALIASES = createAliasMap<InpaintingModel>([

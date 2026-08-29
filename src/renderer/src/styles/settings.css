@@ -1142,7 +1142,7 @@
     flex-basis: 100%;
   }
 
-  .settings-preset-group,
+  .settings-tabpanel .settings-preset-group,
   .settings-advanced-grid,
   .settings-file-row,
   .settings-model-discovery-row,

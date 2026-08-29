@@ -109,8 +109,8 @@ export function resolveStoredFluxBackend(
     inpainting?.fluxBackend,
     defaults.inpainting?.fluxBackend ?? "cuda-native",
   );
-  // Flux has no supported CPU fallback in the Apple Silicon Alpha. A setting
-  // copied from Windows must never start a CUDA/ZLUDA/Python worker on macOS.
+  // A setting copied from Windows must never start a CUDA/ZLUDA/CPU worker on
+  // the Apple Silicon build, whose supported Flux path is Metal-only.
   if (process.platform === "darwin") {
     return "metal-native";
   }
@@ -159,7 +159,7 @@ function resolveAmdStoredFluxBackend(
     return requested;
   }
   const defaultBackend = defaults.inpainting?.fluxBackend;
-  return defaultBackend === "python-cpu" ? "python-cpu" : "zluda-native";
+  return defaultBackend === "cpu-native" ? "cpu-native" : "zluda-native";
 }
 
 function resolveNvidiaStoredFluxBackend(

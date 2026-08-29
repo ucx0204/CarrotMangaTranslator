@@ -230,10 +230,16 @@ function resolveHardwareLlamaRocmTarget(
 }
 
 function resolveHardwareFluxBackend(info: DetectedGpuInfo | null): FluxBackend {
+  if (!info) {
+    return "cpu-native";
+  }
   if (info?.vendor === "apple") {
     return "metal-native";
   }
   if (info?.vendor !== "amd") {
+    if (info.vendor === "unknown" && !supportsNvidiaGpuDefaults(info)) {
+      return "cpu-native";
+    }
     return isFluxRtx20Sm75Hardware({
       computeCapability: info?.computeCapability,
       rtxGeneration: info?.rtxGeneration,
@@ -242,7 +248,7 @@ function resolveHardwareFluxBackend(info: DetectedGpuInfo | null): FluxBackend {
       : "cuda-native";
   }
   return resolveWindowsHipSdkGpuSupport(info) === false
-    ? "python-cpu"
+    ? "cpu-native"
     : "zluda-native";
 }
 

@@ -353,10 +353,12 @@ function resolveDefaultInpaintingSettings(
   env: NodeJS.ProcessEnv,
   hardwareDefaults: HardwareDefaults,
 ): NonNullable<AppSettings["inpainting"]> {
+  const defaultModel =
+    hardwareDefaults.fluxBackend === "cpu-native" ? "lama-manga" : "flux-klein";
   return {
     model: resolveInpaintingModel(
       env.MANGA_TRANSLATOR_INPAINTING_MODEL ?? env.MGT_INPAINTING_MODEL,
-      "flux-klein",
+      defaultModel,
     ),
     fluxBackend: resolveFluxBackend(
       env.MANGA_TRANSLATOR_FLUX_BACKEND ?? env.MGT_FLUX_BACKEND,

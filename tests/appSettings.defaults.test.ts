@@ -79,7 +79,8 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.ocr.device).toBe(DEFAULT_OCR_DEVICE);
     expect(defaults.ocr.qualityMode).toBe(DEFAULT_OCR_QUALITY_MODE);
     expect(defaults.ocr.gpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
-    expect(defaults.inpainting?.model).toBe("flux-klein");
+    expect(defaults.inpainting?.model).toBe("lama-manga");
+    expect(defaults.inpainting?.fluxBackend).toBe("cpu-native");
     expect(defaults.inpainting?.koharuBackend).toBe("auto");
     expect(defaults.inpainting?.bubbleLayoutAfterInpainting).toBe(false);
     expect(defaults.inpainting?.bubbleLayoutPaddingRatio).toBe(0.12);

@@ -29,6 +29,7 @@ tools/mgt-flux-klein-runner/vendor/candle-nn-metal-attention/target/
 tools/mgt-koharu-inpaint-runner/target/
 tools/runner-runtime-policy/target/
 tools/mgt-flux-klein-sm*/
+tools/mgt-flux-klein-cpu/*.exe
 tools/mgt-flux-klein/*.exe
 !tools/mgt-flux-klein/mgt-flux-klein.exe
 tools/mgt-koharu-inpaint-runner/*.exe

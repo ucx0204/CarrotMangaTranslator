@@ -346,12 +346,12 @@ export function resolveCompatibleFluxBackend(
 ): FluxBackend {
   if (usesAppleHardware) return "metal-native";
   if (usesNvidiaHardware) {
-    if (backend === "python-cpu") return backend;
+    if (backend === "cpu-native") return backend;
     return usesSm75Hardware ? "cuda-sm75-experimental" : "cuda-native";
   }
   if (!usesAmdHardware) return backend;
-  if (backend === "python-cpu" || backend === "zluda-native") return backend;
-  return initialBackend === "python-cpu" ? "python-cpu" : "zluda-native";
+  if (backend === "cpu-native" || backend === "zluda-native") return backend;
+  return initialBackend === "cpu-native" ? "cpu-native" : "zluda-native";
 }
 
 function isNvidiaCudaFluxBackend(backend: FluxBackend): boolean {

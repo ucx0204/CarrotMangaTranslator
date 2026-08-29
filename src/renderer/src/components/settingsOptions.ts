@@ -325,7 +325,7 @@ export const FLUX_BACKEND_OPTIONS: FluxBackendOption[] = [
     descriptionKey: "settings.options.fluxBackends.zluda.description",
   },
   {
-    id: "python-cpu",
+    id: "cpu-native",
     labelKey: "settings.options.fluxBackends.cpu.label",
     descriptionKey: "settings.options.fluxBackends.cpu.description",
   },

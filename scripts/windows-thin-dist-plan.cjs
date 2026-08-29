@@ -30,7 +30,13 @@ function shouldBuildFluxNvidiaRunners(argv, env) {
  * @returns {DistributionCommand[]}
  */
 function createWindowsThinDistributionPlan(options) {
-  const commands = [];
+  const commands = [
+    {
+      command: options.nodeCommand,
+      args: ["scripts/prepare-flux-klein-cpu-runner.cjs"],
+      env: {},
+    },
+  ];
   if (options.withFluxNvidia) {
     commands.push({
       command: options.nodeCommand,

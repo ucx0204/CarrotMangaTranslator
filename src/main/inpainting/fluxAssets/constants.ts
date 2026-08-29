@@ -23,6 +23,9 @@ export const FLUX_VAE_SHA256 =
 
 export const FLUX_RUNNER_DIR = "mgt-flux-klein";
 
+export const FLUX_CPU_RUNNER_DIR = "mgt-flux-klein-cpu";
+export const FLUX_CPU_RUNTIME_EXECUTABLE = "mgt-flux-klein-cpu.exe";
+
 export const FLUX_NVIDIA_RUNNER_COMPUTE_CAPS = [
   "75",
   "80",

@@ -37,6 +37,7 @@ export function buildFluxRuntimeExitError(
   return (
     buildMetalRuntimeExitError(stderr, detail, code, backend) ??
     buildZludaRuntimeExitError(stderr, detail, code, backend) ??
+    buildCpuNativeRuntimeExitError(detail, code, backend) ??
     buildPythonRuntimeExitError(stderr, detail, code, backend) ??
     buildCudaRuntimeExitError(stderr, detail, code)
   );
@@ -88,8 +89,26 @@ export function buildFluxWorkerResponseError(
       return zludaError;
     }
   }
+  if (backend === "cpu-native") {
+    return new Error(
+      `Flux CPU 호환 모드 인페인팅 실패: ${message}${detail ? ` ${detail}` : ""}`,
+    );
+  }
   return new Error(
     `Flux 인페인팅 실패: ${message}${detail ? ` ${detail}` : ""}`,
+  );
+}
+
+function buildCpuNativeRuntimeExitError(
+  detail: string,
+  code: number | null,
+  backend: FluxWorkerBackend,
+): Error | null {
+  if (backend !== "cpu-native") {
+    return null;
+  }
+  return new Error(
+    `Flux CPU-only 네이티브 인페인팅 런타임이 종료되었습니다 (${code}). 이 모드는 GPU를 사용하지 않는 매우 느린 호환 경로입니다. ${detail}`,
   );
 }
 

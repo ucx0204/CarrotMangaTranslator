@@ -988,7 +988,7 @@ describeWindows("Flux worker runtime helpers", () => {
     }
   });
 
-  it("prepares CUDA 12.9 NVIDIA Flux runners before Windows NVIDIA packaging", () => {
+  it("always prepares CPU-only Flux and conditionally prepares NVIDIA runners before Windows packaging", () => {
     const packageJson = JSON.parse(
       readFileSync(join(repoRoot, "package.json"), "utf8"),
     ) as { scripts?: Record<string, string> };
@@ -1040,6 +1040,11 @@ describeWindows("Flux worker runtime helpers", () => {
     expect(plan).toEqual([
       {
         command: "C:\\node\\node.exe",
+        args: ["scripts/prepare-flux-klein-cpu-runner.cjs"],
+        env: {},
+      },
+      {
+        command: "C:\\node\\node.exe",
         args: ["scripts/prepare-flux-klein-runner.cjs"],
         env: {
           MGT_FLUX_KLEIN_COMPUTE_CAPS: "75,80,86,89,90,120",
@@ -1058,6 +1063,21 @@ describeWindows("Flux worker runtime helpers", () => {
         env: {},
       },
     ]);
+    const thinPlan = createWindowsThinDistributionPlan({
+      nodeCommand: "C:\\node\\node.exe",
+      withFluxNvidia: false,
+      env: {},
+    });
+    expect(thinPlan[0]).toEqual({
+      command: "C:\\node\\node.exe",
+      args: ["scripts/prepare-flux-klein-cpu-runner.cjs"],
+      env: {},
+    });
+    expect(
+      thinPlan.some((command) =>
+        command.args.includes("scripts/prepare-flux-klein-runner.cjs"),
+      ),
+    ).toBe(false);
     expect(
       shouldUseDistributionShell(
         "C:\\node\\node.exe",

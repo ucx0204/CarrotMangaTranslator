@@ -167,7 +167,7 @@ function UnsupportedAmdFluxWarning({
             size="sm"
             onClick={() => {
               clearTestState();
-              setFluxBackend("python-cpu");
+              setFluxBackend("cpu-native");
             }}
             disabled={controlsBusy}
           >

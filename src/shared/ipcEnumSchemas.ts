@@ -40,7 +40,7 @@ export const FluxBackendSchema = z.preprocess(
     "cuda-sm75-experimental",
     "zluda-native",
     "metal-native",
-    "python-cpu",
+    "cpu-native",
   ]),
 );
 

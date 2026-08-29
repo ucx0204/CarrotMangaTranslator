@@ -1661,8 +1661,8 @@
           "description": "Runs Flux through ZLUDA on AMD GPUs. Requires the AMD HIP SDK."
         },
         "cpu": {
-          "label": "CPU",
-          "description": "A slow CPU compatibility mode for systems without a matching GPU runtime."
+          "label": "CPU native (very slow)",
+          "description": "CPU-only native Flux without Python or Diffusers. This compatibility mode can take many minutes per page; LaMa or AOT is recommended for practical CPU inpainting."
         }
       },
       "inpaintingModels": {

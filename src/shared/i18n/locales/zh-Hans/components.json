@@ -1621,8 +1621,8 @@
           "description": "在AMD GPU上通过ZLUDA运行Flux，需要AMD HIP SDK。"
         },
         "cpu": {
-          "label": "CPU",
-          "description": "没有匹配GPU运行时时使用的较慢CPU兼容模式。"
+          "label": "CPU 原生（非常慢）",
+          "description": "不使用 Python 或 Diffusers 的纯 CPU Flux 兼容模式。每页可能需要数分钟以上；实际 CPU 修复建议使用 LaMa 或 AOT。"
         }
       },
       "inpaintingModels": {

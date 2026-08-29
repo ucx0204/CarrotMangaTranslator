@@ -1652,8 +1652,8 @@
           "description": "AMD GPU에서 Flux 실행기를 ZLUDA로 실행합니다. AMD HIP SDK가 필요합니다."
         },
         "cpu": {
-          "label": "CPU",
-          "description": "GPU 런타임이 맞지 않을 때 쓰는 느린 CPU 호환 모드입니다."
+          "label": "CPU 네이티브 (매우 느림)",
+          "description": "Python·Diffusers 없이 실행하는 CPU-only Flux 호환 모드입니다. 페이지당 수분 이상 걸릴 수 있어 실사용 CPU 인페인팅은 LaMa 또는 AOT를 권장합니다."
         }
       },
       "inpaintingModels": {

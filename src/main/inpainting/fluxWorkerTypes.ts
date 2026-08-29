@@ -12,6 +12,7 @@ export type FluxWorkerBackend =
   | "cuda-native"
   | "zluda-native"
   | "metal-native"
+  | "cpu-native"
   | "python-rocm"
   | "python-cpu";
 

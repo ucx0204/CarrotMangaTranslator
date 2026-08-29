@@ -113,7 +113,10 @@ async fn main() -> Result<()> {
     if cli.require_zluda && cli.require_metal {
         bail!("--require-zluda and --require-metal cannot be used together");
     }
-    let runtime_probe = decide_cuda_runtime_probe(cli.require_zluda, !cli.require_metal);
+    let runtime_probe = decide_cuda_runtime_probe(
+        cli.require_zluda,
+        cfg!(feature = "cuda") && !cli.require_metal,
+    );
     if cli.require_metal {
         ensure_metal_available()?;
     } else if cli.require_zluda {
@@ -159,14 +162,16 @@ async fn main() -> Result<()> {
 }
 
 fn print_capabilities() -> Result<()> {
-    ensure_metal_available()?;
+    ensure_compiled_backend_available()?;
     println!(
         "{}",
         serde_json::json!({
             "protocol_version": 1,
             "runner": "mgt-flux-klein",
-            "backend": "metal-native",
-            "metal_device": true,
+            "backend": compiled_backend(),
+            "cpu_only": cfg!(not(any(feature = "cuda", feature = "metal"))),
+            "cuda_compiled": cfg!(feature = "cuda"),
+            "metal_compiled": cfg!(feature = "metal"),
             "models": ["flux-klein"],
         })
     );
@@ -174,7 +179,7 @@ fn print_capabilities() -> Result<()> {
 }
 
 fn run_protocol_smoke() -> Result<()> {
-    ensure_metal_available()?;
+    ensure_compiled_backend_available()?;
     let mut line = String::new();
     io::stdin()
         .read_line(&mut line)
@@ -188,7 +193,7 @@ fn run_protocol_smoke() -> Result<()> {
                 serde_json::json!({
                     "protocol_version": 1,
                     "runner": "mgt-flux-klein",
-                    "backend": "metal-native",
+                    "backend": compiled_backend(),
                     "request": "shutdown",
                     "ok": true,
                 })
@@ -198,6 +203,27 @@ fn run_protocol_smoke() -> Result<()> {
         WorkerRequest::Inpaint { .. } => {
             bail!("protocol smoke accepts only the shutdown request")
         }
+    }
+}
+
+fn ensure_compiled_backend_available() -> Result<()> {
+    #[cfg(feature = "metal")]
+    ensure_metal_available()?;
+    Ok(())
+}
+
+fn compiled_backend() -> &'static str {
+    #[cfg(feature = "metal")]
+    {
+        return "metal-native";
+    }
+    #[cfg(all(not(feature = "metal"), feature = "cuda"))]
+    {
+        return "cuda-native";
+    }
+    #[cfg(not(any(feature = "metal", feature = "cuda")))]
+    {
+        "cpu-native"
     }
 }
 

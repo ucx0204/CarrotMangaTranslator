@@ -145,7 +145,9 @@ function reportFluxEngineReady(
 }
 
 function usesManagedFluxModelAssets(backend: string): boolean {
-  return ["cuda-native", "zluda-native", "metal-native"].includes(backend);
+  return ["cuda-native", "zluda-native", "metal-native", "cpu-native"].includes(
+    backend,
+  );
 }
 
 export async function applyInpaintingRetouch(

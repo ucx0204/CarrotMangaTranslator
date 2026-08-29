@@ -53,7 +53,7 @@ export function resolveHardwareRecommendation(
     const recommendation = createGpuRecommendation(
       props,
       "rocm-transformers",
-      props.supportsFluxZluda === false ? "python-cpu" : "zluda-native",
+      props.supportsFluxZluda === false ? "cpu-native" : "zluda-native",
     );
     return props.supportsOcrRocm === true
       ? recommendation
@@ -65,7 +65,7 @@ export function resolveHardwareRecommendation(
         };
   }
   return {
-    fluxBackend: "python-cpu",
+    fluxBackend: "cpu-native",
     graphicsGpuPreference: "auto",
     inpaintingModel: "lama-manga",
     ocrDevice: "cpu",
