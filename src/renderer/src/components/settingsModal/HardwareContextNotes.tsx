@@ -5,13 +5,9 @@ import { toast } from "../../lib/toastStore";
 import { formatSettingsErrorMessage } from "../settingsModalHelpers";
 
 export function OcrHardwareContextNote({
-  supportsOcrRocm,
-  usesAmdOcrContext,
   usesAppleHardware,
   usesNvidiaOcrContext,
 }: {
-  supportsOcrRocm?: boolean;
-  usesAmdOcrContext: boolean;
   usesAppleHardware: boolean;
   usesNvidiaOcrContext: boolean;
 }): React.JSX.Element | null {
@@ -20,17 +16,6 @@ export function OcrHardwareContextNote({
     return (
       <p className="muted-line modal-note">
         {t("settings.hardware.ocrAppleNote")}
-      </p>
-    );
-  }
-  if (usesAmdOcrContext) {
-    return (
-      <p className="muted-line modal-note">
-        {t(
-          supportsOcrRocm === false
-            ? "settings.hardware.ocrAmdUnsupportedNote"
-            : "settings.hardware.ocrAmdNote",
-        )}
       </p>
     );
   }
@@ -45,33 +30,15 @@ export function OcrHardwareContextNote({
 }
 
 export function FluxHardwareContextNote({
-  usesAmdHardware,
   usesAppleHardware,
-  usesNvidiaHardware,
 }: {
-  usesAmdHardware: boolean;
   usesAppleHardware: boolean;
-  usesNvidiaHardware: boolean;
 }): React.JSX.Element | null {
   const { t } = useTranslation("components");
   if (usesAppleHardware) {
     return (
       <p className="muted-line modal-note">
         {t("settings.hardware.fluxAppleNote")}
-      </p>
-    );
-  }
-  if (usesAmdHardware) {
-    return (
-      <p className="muted-line modal-note">
-        {t("settings.hardware.fluxAmdNote")}
-      </p>
-    );
-  }
-  if (usesNvidiaHardware) {
-    return (
-      <p className="muted-line modal-note">
-        {t("settings.hardware.fluxNvidiaNote")}
       </p>
     );
   }

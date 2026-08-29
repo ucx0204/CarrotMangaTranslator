@@ -144,22 +144,14 @@ function GemmaMmprojField({
 }
 
 export function RuntimeHardwareNote({
-  usesAmdHardware,
   usesAppleHardware,
-  usesNvidiaHardware,
 }: {
-  usesAmdHardware: boolean;
   usesAppleHardware: boolean;
-  usesNvidiaHardware: boolean;
 }): React.JSX.Element | null {
   const { t } = useTranslation("components");
   const messageKey = usesAppleHardware
     ? "settings.gemma.runtime.appleNote"
-    : usesAmdHardware
-      ? "settings.gemma.runtime.amdNote"
-      : usesNvidiaHardware
-        ? "settings.gemma.runtime.nvidiaNote"
-        : null;
+    : null;
   return messageKey ? (
     <p className="muted-line modal-note">{t(messageKey)}</p>
   ) : null;

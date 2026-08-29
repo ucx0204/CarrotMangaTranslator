@@ -1706,8 +1706,6 @@
       "runtime": {
         "label": "llama.cppランタイム",
         "appleNote": "Apple SiliconではMetalランタイムのみ表示されます。",
-        "amdNote": "AMD GPUではROCmランタイムを推奨します。",
-        "nvidiaNote": "NVIDIA GPUではCUDAランタイムを推奨します。",
         "mismatchTitle": "検出されたGPUとランタイムが一致しません",
         "rtx50UsingCuda12Warning": "{{gpu}}はRTX 50シリーズです。CUDA 12ではなくRTX 50ランタイムを推奨します。",
         "nonRtx50UsingRtx50Warning": "{{gpu}}はRTX 50シリーズではありません。RTX 50ランタイムが起動しない可能性があるため、CUDA 12を推奨します。"
@@ -1887,13 +1885,9 @@
       "fluxBackend": "Fluxインペインティングのバックエンド",
       "inpaintingModel": "インペインティングモデル",
       "amdOcrExperimental": "AMD GPU OCRは実験機能です。失敗した場合はOCRだけをCPUに切り替えられます。",
-      "ocrAmdNote": "AMD環境ではNVIDIA CUDA OCRを選択できません。",
-      "ocrAmdUnsupportedNote": "検出された AMD GPU は Windows ROCm OCR の対応リストに含まれていないため、OCR は CPU のみ使用できます。",
       "ocrAppleNote": "Apple SiliconのPaddle OCRはCPUランタイムを使用します。",
       "ocrNvidiaNote": "NVIDIA環境ではAMD ROCm OCRを選択できません。",
-      "fluxAmdNote": "検出されたAMD GPUではCUDAネイティブを使用できません。ZLUDAまたはCPUを選択してください。",
       "fluxAppleNote": "Apple SiliconではMetalネイティブのみ使用します。Fluxは16GB以上のユニファイドメモリを推奨します。",
-      "fluxNvidiaNote": "検出されたNVIDIA GPUではZLUDAではなくCUDAネイティブを使用します。",
       "fluxOnlyNote": "この設定はFlux Kleinモデルにのみ適用されます。",
       "fluxLowMemoryConfirm": "ユニファイドメモリ{{available}}はFlux推奨の16GB未満です。アプリが終了したり、システムが非常に遅くなったりする可能性があります。この危険な実行を許可しますか？",
       "fluxLowMemoryOverride": "ユニファイドメモリ{{available}}で危険なFlux実行を許可",

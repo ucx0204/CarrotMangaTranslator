@@ -1712,8 +1712,6 @@
       "runtime": {
         "label": "llama.cpp runtime",
         "appleNote": "Only the Metal runtime is shown on Apple Silicon.",
-        "amdNote": "The ROCm runtime is recommended for AMD GPUs.",
-        "nvidiaNote": "The CUDA runtime is recommended for NVIDIA GPUs.",
         "mismatchTitle": "Runtime does not match the detected GPU",
         "rtx50UsingCuda12Warning": "{{gpu}} is an RTX 50-series GPU. The RTX 50 runtime is recommended instead of CUDA 12.",
         "nonRtx50UsingRtx50Warning": "{{gpu}} is not an RTX 50-series GPU. The RTX 50 runtime may not start, so CUDA 12 is recommended."
@@ -1896,13 +1894,9 @@
       "fluxBackend": "Flux inpainting backend",
       "inpaintingModel": "Inpainting model",
       "amdOcrExperimental": "AMD GPU OCR is experimental. If it fails, you can switch only OCR to the CPU.",
-      "ocrAmdNote": "NVIDIA CUDA OCR cannot be selected on AMD systems.",
-      "ocrAmdUnsupportedNote": "The detected AMD GPU is not on the Windows ROCm OCR support list, so OCR can use CPU only.",
       "ocrAppleNote": "Paddle OCR uses the CPU runtime on Apple Silicon.",
       "ocrNvidiaNote": "AMD ROCm OCR cannot be selected on NVIDIA systems.",
-      "fluxAmdNote": "CUDA native is unavailable on the detected AMD GPU; choose ZLUDA or CPU.",
       "fluxAppleNote": "Only the native Metal backend is used on Apple Silicon. Flux recommends at least 16 GB unified memory.",
-      "fluxNvidiaNote": "Use CUDA native instead of ZLUDA on the detected NVIDIA GPU.",
       "fluxOnlyNote": "This backend setting applies only to the Flux Klein model.",
       "fluxLowMemoryConfirm": "This Mac has {{available}} unified memory, below Flux's 16 GB recommendation. The app may terminate or make the system extremely slow. Allow this risky run?",
       "fluxLowMemoryOverride": "Allow risky Flux runs with {{available}} unified memory",

@@ -1672,8 +1672,6 @@
       "runtime": {
         "label": "llama.cpp运行时",
         "appleNote": "Apple Silicon仅显示Metal运行时。",
-        "amdNote": "AMD GPU建议使用ROCm运行时。",
-        "nvidiaNote": "NVIDIA GPU建议使用CUDA运行时。",
         "mismatchTitle": "运行时与检测到的GPU不匹配",
         "rtx50UsingCuda12Warning": "{{gpu}}属于RTX 50系列。建议使用RTX 50运行时而不是CUDA 12。",
         "nonRtx50UsingRtx50Warning": "{{gpu}}不属于RTX 50系列。RTX 50运行时可能无法启动，建议使用CUDA 12。"
@@ -1853,13 +1851,9 @@
       "fluxBackend": "Flux图像修复后端",
       "inpaintingModel": "图像修复模型",
       "amdOcrExperimental": "AMD GPU OCR为实验功能。如失败，可仅将OCR切换到CPU。",
-      "ocrAmdNote": "AMD环境无法选择NVIDIA CUDA OCR。",
-      "ocrAmdUnsupportedNote": "检测到的 AMD GPU 不在 Windows ROCm OCR 支持列表中，因此 OCR 只能使用 CPU。",
       "ocrAppleNote": "Apple Silicon上的Paddle OCR使用CPU运行时。",
       "ocrNvidiaNote": "NVIDIA环境无法选择AMD ROCm OCR。",
-      "fluxAmdNote": "检测到AMD GPU，无法使用CUDA原生后端；请选择ZLUDA或CPU。",
       "fluxAppleNote": "Apple Silicon仅使用原生Metal后端。Flux建议至少16GB统一内存。",
-      "fluxNvidiaNote": "检测到NVIDIA GPU，将使用CUDA原生后端而不是ZLUDA。",
       "fluxOnlyNote": "此后端设置仅适用于Flux Klein模型。",
       "fluxLowMemoryConfirm": "统一内存{{available}}低于Flux建议的16GB。应用可能退出或导致系统极其缓慢。是否允许此次风险运行？",
       "fluxLowMemoryOverride": "允许在{{available}}统一内存下风险运行Flux",

@@ -22,7 +22,6 @@ type FluxBackendSettingsProps = {
   supportsFluxZluda?: boolean;
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
-  usesNvidiaHardware: boolean;
 };
 
 export function FluxBackendSettings({
@@ -36,7 +35,6 @@ export function FluxBackendSettings({
   supportsFluxZluda,
   usesAmdHardware,
   usesAppleHardware,
-  usesNvidiaHardware,
 }: FluxBackendSettingsProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const activeFluxBackend = FLUX_BACKEND_OPTIONS.find(
@@ -94,11 +92,7 @@ export function FluxBackendSettings({
       {inpaintingModel === "flux-klein" && fluxBackend === "zluda-native" ? (
         <AmdHipSdkDownloadButton />
       ) : null}
-      <FluxHardwareContextNote
-        usesAmdHardware={usesAmdHardware}
-        usesAppleHardware={usesAppleHardware}
-        usesNvidiaHardware={usesNvidiaHardware}
-      />
+      <FluxHardwareContextNote usesAppleHardware={usesAppleHardware} />
     </div>
   );
 }

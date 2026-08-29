@@ -10,6 +10,11 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HardwareSettingsPanel } from "../src/renderer/src/components/settingsModal/HardwareSettingsPanel";
+import { RuntimeHardwareNote } from "../src/renderer/src/components/settingsModal/GemmaMemorySummary";
+import {
+  FluxHardwareContextNote,
+  OcrHardwareContextNote,
+} from "../src/renderer/src/components/settingsModal/HardwareContextNotes";
 import { resolveHardwareRecommendation } from "../src/renderer/src/components/settingsModal/hardwareRecommendation";
 import { OCR_FULL_RECOMMENDED_GPU_MEMORY_MB } from "../src/shared/ocrMemoryPolicy";
 
@@ -58,6 +63,24 @@ describe("HardwareSettingsPanel", () => {
     expect(
       screen.getByText("권장값과 다른 고급 설정이 있습니다."),
     ).toBeTruthy();
+  });
+
+  it("omits generic GPU runtime context notes outside Apple Silicon", () => {
+    const { container, rerender } = render(
+      <RuntimeHardwareNote usesAppleHardware={false} />,
+    );
+    expect(container.textContent).toBe("");
+
+    rerender(<FluxHardwareContextNote usesAppleHardware={false} />);
+    expect(container.textContent).toBe("");
+
+    rerender(
+      <OcrHardwareContextNote
+        usesAppleHardware={false}
+        usesNvidiaOcrContext={false}
+      />,
+    );
+    expect(container.textContent).toBe("");
   });
 
   it("keeps OCR on CPU for detected AMD adapters outside the ROCm allowlist", () => {
@@ -378,7 +401,6 @@ describe("HardwareSettingsPanel", () => {
       name: "AMD ROCm",
     }) as HTMLButtonElement;
     expect(rocmButton.disabled).toBe(true);
-    expect(screen.getByText(/Windows ROCm OCR 지원 목록/)).toBeTruthy();
     fireEvent.click(rocmButton);
     expect(setOcrDevice).not.toHaveBeenCalled();
     expect(setOcrGpuBackend).not.toHaveBeenCalled();

@@ -98,7 +98,6 @@ function InpaintingSettingsSection({
   unifiedMemoryMb,
   usesAmdHardware,
   usesAppleHardware,
-  usesNvidiaHardware,
   detectedGpuName,
   supportsFluxZluda,
 }: HardwareSettingsPanelProps): React.JSX.Element {
@@ -129,7 +128,6 @@ function InpaintingSettingsSection({
             supportsFluxZluda={supportsFluxZluda}
             usesAmdHardware={usesAmdHardware}
             usesAppleHardware={usesAppleHardware}
-            usesNvidiaHardware={usesNvidiaHardware}
           />
         </details>
       </div>
@@ -284,8 +282,6 @@ function OcrDeviceSettings({
       </div>
       <p className="muted-line modal-note">{ocrDescription}</p>
       <OcrHardwareContextNote
-        supportsOcrRocm={supportsOcrRocm}
-        usesAmdOcrContext={usesAmdOcrContext}
         usesAppleHardware={usesAppleHardware}
         usesNvidiaOcrContext={usesNvidiaOcrContext}
       />

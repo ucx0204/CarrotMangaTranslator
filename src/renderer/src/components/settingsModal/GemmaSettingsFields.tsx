@@ -47,7 +47,6 @@ type GemmaSettingsFieldsProps = Pick<
   | "setModelSource"
   | "setSelectedPreset"
   | "submit"
-  | "usesAmdHardware"
   | "usesAppleHardware"
   | "usesNvidiaHardware"
   | "usesRtx50Hardware"
@@ -134,7 +133,6 @@ type HuggingFaceModelFieldsProps = Pick<
   | "setAllowUnsafeUnifiedMemory"
   | "setSelectedPreset"
   | "submit"
-  | "usesAmdHardware"
   | "usesAppleHardware"
   | "usesNvidiaHardware"
   | "usesRtx50Hardware"
@@ -220,7 +218,6 @@ function LlamaRuntimeSelector({
   isLlamaRuntimeOptionDisabled,
   llamaRuntimeProfile,
   setLlamaRuntimeProfile,
-  usesAmdHardware,
   usesAppleHardware,
   usesNvidiaHardware,
   usesRtx50Hardware,
@@ -231,7 +228,6 @@ function LlamaRuntimeSelector({
   | "isLlamaRuntimeOptionDisabled"
   | "llamaRuntimeProfile"
   | "setLlamaRuntimeProfile"
-  | "usesAmdHardware"
   | "usesAppleHardware"
   | "usesNvidiaHardware"
   | "usesRtx50Hardware"
@@ -277,11 +273,7 @@ function LlamaRuntimeSelector({
         usesNvidiaHardware={usesNvidiaHardware}
         usesRtx50Hardware={usesRtx50Hardware}
       />
-      <RuntimeHardwareNote
-        usesAmdHardware={usesAmdHardware}
-        usesAppleHardware={usesAppleHardware}
-        usesNvidiaHardware={usesNvidiaHardware}
-      />
+      <RuntimeHardwareNote usesAppleHardware={usesAppleHardware} />
     </div>
   );
 }
