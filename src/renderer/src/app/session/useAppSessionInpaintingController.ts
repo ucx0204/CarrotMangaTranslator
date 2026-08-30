@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- retouch, run, navigation, pointer, and bridge adapters share one session dependency contract */
 import type { BlockFormatDefaults } from "../../../../shared/blockFormat";
 import type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
 import { useCallback } from "react";
@@ -30,6 +31,7 @@ type AppSessionInpaintingControllerArgs = {
   core: AppSessionCoreState;
   derivedState: ReturnType<typeof useAppSessionDerivedState>;
   dirty: boolean;
+  exclusiveActivityActive: boolean;
   mergeLiveChapter: ReturnType<typeof useLiveChapterSync>;
   modalOpen: boolean;
   pushStatus: ReturnType<typeof useStatusLog>["pushStatus"];
@@ -108,6 +110,7 @@ function useInpaintingRunController(
     core,
     derivedState,
     dirty,
+    exclusiveActivityActive,
     mergeLiveChapter,
     pushStatus,
     refreshLibrary,
@@ -126,6 +129,7 @@ function useInpaintingRunController(
     flowCancellationRef: uiState.jobFlowCancellationRef,
     jobActive:
       derivedState.jobActive ||
+      exclusiveActivityActive ||
       retouch.retouchBusy ||
       uiState.translationFlowActive ||
       workspaceHistory.busy,
@@ -279,6 +283,7 @@ function useInpaintingBridgeController(
     bridgeActions,
     core,
     derivedState,
+    exclusiveActivityActive,
     uiState,
     workspaceHistory,
   }: AppSessionInpaintingControllerArgs,
@@ -307,6 +312,7 @@ function useInpaintingBridgeController(
     inpaintedPageCount: derivedState.inpaintedPageCount,
     jobActive:
       derivedState.jobActive ||
+      exclusiveActivityActive ||
       inpaintingActions.actionBusy ||
       uiState.translationFlowActive ||
       workspaceHistory.busy,

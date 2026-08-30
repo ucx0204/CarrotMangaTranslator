@@ -4,12 +4,26 @@ import completionSoundUrl from "../assets/audio/completion.ogg";
 export type CompletionSoundPreferences = {
   muted: boolean;
   volume: number;
+  translationMuted?: boolean;
+  sourceErasingMuted?: boolean;
+  researchMuted?: boolean;
 };
 
-export const DEFAULT_COMPLETION_SOUND_PREFERENCES: CompletionSoundPreferences =
+export type CompletionSoundCategory =
+  | "translation"
+  | "source-erasing"
+  | "research";
+
+export type ResolvedCompletionSoundPreferences =
+  Required<CompletionSoundPreferences>;
+
+export const DEFAULT_COMPLETION_SOUND_PREFERENCES: ResolvedCompletionSoundPreferences =
   {
     muted: true,
     volume: 0.55,
+    translationMuted: false,
+    sourceErasingMuted: false,
+    researchMuted: false,
   };
 
 const COMPLETION_SOUND_STORAGE_KEY =
@@ -41,24 +55,33 @@ export function useCompletionSoundController() {
     [],
   );
 
-  const playCompletionSound = React.useCallback((): void => {
-    if (preferences.muted || preferences.volume <= 0) return;
-    try {
-      const audio = audioRef.current ?? new Audio(completionSoundUrl);
-      audioRef.current = audio;
-      audio.preload = "auto";
-      audio.volume = preferences.volume;
-      audio.currentTime = 0;
-      const playback = audio.play();
-      if (playback) {
-        void playback.catch((error) => {
-          console.warn("Could not play the completion sound.", error);
-        });
+  const playCompletionSound = React.useCallback(
+    (category: CompletionSoundCategory): void => {
+      if (
+        preferences.muted ||
+        preferences.volume <= 0 ||
+        isCategoryMuted(preferences, category)
+      ) {
+        return;
       }
-    } catch (error) {
-      console.warn("Could not prepare the completion sound.", error);
-    }
-  }, [preferences.muted, preferences.volume]);
+      try {
+        const audio = audioRef.current ?? new Audio(completionSoundUrl);
+        audioRef.current = audio;
+        audio.preload = "auto";
+        audio.volume = preferences.volume;
+        audio.currentTime = 0;
+        const playback = audio.play();
+        if (playback) {
+          void playback.catch((error) => {
+            console.warn("Could not play the completion sound.", error);
+          });
+        }
+      } catch (error) {
+        console.warn("Could not prepare the completion sound.", error);
+      }
+    },
+    [preferences],
+  );
 
   return {
     ...preferences,
@@ -69,7 +92,7 @@ export function useCompletionSoundController() {
 
 export function normalizeCompletionSoundPreferences(
   value: unknown,
-): CompletionSoundPreferences {
+): ResolvedCompletionSoundPreferences {
   if (!isRecord(value)) return { ...DEFAULT_COMPLETION_SOUND_PREFERENCES };
   const volume =
     typeof value.volume === "number" && Number.isFinite(value.volume)
@@ -81,10 +104,29 @@ export function normalizeCompletionSoundPreferences(
         ? value.muted
         : DEFAULT_COMPLETION_SOUND_PREFERENCES.muted,
     volume,
+    translationMuted:
+      typeof value.translationMuted === "boolean"
+        ? value.translationMuted
+        : false,
+    sourceErasingMuted:
+      typeof value.sourceErasingMuted === "boolean"
+        ? value.sourceErasingMuted
+        : false,
+    researchMuted:
+      typeof value.researchMuted === "boolean" ? value.researchMuted : false,
   };
 }
 
-function readCompletionSoundPreferences(): CompletionSoundPreferences {
+function isCategoryMuted(
+  preferences: ResolvedCompletionSoundPreferences,
+  category: CompletionSoundCategory,
+): boolean {
+  if (category === "translation") return preferences.translationMuted;
+  if (category === "source-erasing") return preferences.sourceErasingMuted;
+  return preferences.researchMuted;
+}
+
+function readCompletionSoundPreferences(): ResolvedCompletionSoundPreferences {
   if (typeof window === "undefined") {
     return { ...DEFAULT_COMPLETION_SOUND_PREFERENCES };
   }
@@ -100,7 +142,7 @@ function readCompletionSoundPreferences(): CompletionSoundPreferences {
 }
 
 function writeCompletionSoundPreferences(
-  preferences: CompletionSoundPreferences,
+  preferences: ResolvedCompletionSoundPreferences,
 ): void {
   if (typeof window === "undefined") return;
   try {

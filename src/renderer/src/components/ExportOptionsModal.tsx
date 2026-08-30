@@ -28,6 +28,7 @@ import {
   type ExportPreflightState,
 } from "./ExportPreflightPanel";
 import { Modal } from "./ui/Modal";
+import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 
 export type ExportOptionsModalProps = {
   chapter: ChapterSnapshot;
@@ -246,7 +247,9 @@ function useExportStart({
     setIsStarting(true);
     setFailed(false);
     try {
-      if (await onStart(exportSelection, expectedTargets, options)) onClose();
+      if (await onStart(exportSelection, expectedTargets, options)) {
+        closeModalToWorkCenter(onClose);
+      }
     } catch (error: unknown) {
       console.error(error);
       setFailed(true);
@@ -323,6 +326,11 @@ function useCloseStartedExport(
   onClose: () => void,
 ): void {
   React.useEffect(() => {
-    if (isStarting && jobActive) onClose();
+    if (isStarting && jobActive) closeModalToWorkCenter(onClose);
   }, [isStarting, jobActive, onClose]);
+}
+
+function closeModalToWorkCenter(onClose: () => void): void {
+  handoffActiveModalToWorkCenter();
+  onClose();
 }

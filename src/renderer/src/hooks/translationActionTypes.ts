@@ -30,7 +30,6 @@ export type TranslationFlowOptions = {
 export type UseTranslationActionsOptions = {
   clearPageImageCache: () => void;
   clearRetouchHistory: () => void;
-  clearStatusLines: () => void;
   currentChapter: ChapterSnapshot | null;
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
   flowCancellationRef?: MutableRefObject<boolean>;
@@ -41,7 +40,7 @@ export type UseTranslationActionsOptions = {
     options?: LiveChapterMergeOptions,
   ) => void;
   beforeTranslate?: () => Promise<void>;
-  pushStatus: (line: string) => void;
+  pushStatus: (line: string, chapterId?: string) => void;
   refreshLibrary: () => Promise<void>;
   saveNow: () => Promise<void>;
   syncSavedPageVersion: (chapter: ChapterSnapshot, pageId: string) => void;

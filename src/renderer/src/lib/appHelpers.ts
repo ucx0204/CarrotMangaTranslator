@@ -190,27 +190,42 @@ export function resolveStatusLineReplacement(
   return legacyMatcher;
 }
 
+const OCR_PROGRESS_REPLACEMENT_PHASES = new Set<JobEvent["phase"]>([
+  "ocr_preparing",
+  "ocr_downloading",
+  "ocr_running",
+]);
+
+const TRANSLATION_PROGRESS_REPLACEMENT_PHASES = new Set<JobEvent["phase"]>([
+  "model_requesting",
+  "page_running",
+  "page_retry",
+  "page_skipped",
+]);
+
+const MODEL_PREPARATION_REPLACEMENT_PHASES = new Set<JobEvent["phase"]>([
+  "booting",
+  "model_downloading",
+  "ready",
+]);
+
 export function statusLineReplacementGroup(event: JobEvent): string | null {
-  if (
-    event.phase === "ocr_running" &&
-    Number.isFinite(event.pageIndex) &&
-    Number.isFinite(event.pageTotal) &&
-    (event.pageTotal ?? 0) > 0
-  ) {
-    return "ocr-running";
+  if (event.kind === "inpainting") {
+    return "inpainting-progress";
   }
-  if (
-    event.phase === "model_requesting" ||
-    event.phase === "page_running" ||
-    event.phase === "page_retry"
-  ) {
-    return "page-running";
+  if (event.kind === "page-export") {
+    return "page-export-progress";
   }
-  if (
-    event.phase === "booting" ||
-    event.phase === "model_downloading" ||
-    event.phase === "ready"
-  ) {
+  if (OCR_PROGRESS_REPLACEMENT_PHASES.has(event.phase)) {
+    return "ocr-progress";
+  }
+  if (TRANSLATION_PROGRESS_REPLACEMENT_PHASES.has(event.phase)) {
+    return "translation-progress";
+  }
+  if (event.phase === "page_done") {
+    return "typography-progress";
+  }
+  if (MODEL_PREPARATION_REPLACEMENT_PHASES.has(event.phase)) {
     return "model-preparing";
   }
   return null;
@@ -220,16 +235,37 @@ function resolveLegacyStatusLineReplacement(
   event: JobEvent,
 ): ((line: string) => boolean) | undefined {
   const group = statusLineReplacementGroup(event);
-  if (group === "ocr-running") {
+  if (group === "ocr-progress") {
     return (line) =>
-      /^\d+ \/ \d+ 페이지 Paddle OCR 분석 중$/.test(line) ||
-      line === "페이지 Paddle OCR 분석 중";
+      line.includes("Paddle OCR") ||
+      line === "OCR 준비 중" ||
+      line === "OCR 분석 중";
   }
-  if (group === "page-running") {
+  if (group === "translation-progress") {
     return (line) =>
-      /^\d+ \/ \d+ 페이지 (AI 번역 요청 중|번역 중|재시도 \d+ \/ \d+)$/.test(
+      /^\d+ \/ \d+ 페이지 (AI 번역 요청 중|번역 중|재시도 \d+ \/ \d+|건너뜀)$/.test(
         line,
-      ) || /^페이지 (AI 번역 요청 중|번역 중|재시도 중)$/.test(line);
+      ) || /^페이지 (AI 번역 요청 중|번역 중|재시도 중|건너뜀)$/.test(line);
+  }
+  if (group === "typography-progress") {
+    return (line) =>
+      /^\d+ \/ \d+ 페이지 (?:완료|글자·폰트 맞춤 중)$/.test(line) ||
+      /^페이지 (?:완료|글자·폰트 맞춤 중)$/.test(line);
+  }
+  if (group === "inpainting-progress") {
+    return (line) =>
+      /^(?:원문|그린 영역) 지우기 (?:준비 중|완료|부분 완료)$/.test(line) ||
+      /^\d+ \/ \d+ 페이지 (?:원문|그린 영역) (?:지우는 중|완료)$/.test(line) ||
+      line === "인페인팅 작업이 취소되었습니다." ||
+      line === "인페인팅 작업 실패";
+  }
+  if (group === "page-export-progress") {
+    return (line) =>
+      line === "페이지 출력 준비 중" ||
+      line === "페이지 출력 완료" ||
+      line === "페이지 출력이 취소되었습니다." ||
+      line === "페이지 출력 실패" ||
+      /^\d+ \/ \d+ 페이지 출력(?: 중| 완료)$/.test(line);
   }
   if (group === "model-preparing") {
     return (line) =>

@@ -15,7 +15,7 @@ const { resolveMacInpaintingRunnerPaths, resolveMissingMacInpaintingRunners } =
   };
 
 describe("macOS inpainting runner bootstrap", () => {
-  it("requires both native runners on Apple Silicon", () => {
+  it("requires all native runners on Apple Silicon", () => {
     const root = join("workspace", "CarrotMangaTranslator");
     const paths = resolveMacInpaintingRunnerPaths(root);
 
@@ -37,6 +37,15 @@ describe("macOS inpainting runner bootstrap", () => {
         "aarch64-apple-darwin",
         "release",
         "mgt-flux-klein",
+      ),
+      join(
+        root,
+        "tools",
+        "mgt-import-source-runner",
+        "target",
+        "aarch64-apple-darwin",
+        "release",
+        "mgt-import-source-runner",
       ),
     ]);
     expect(

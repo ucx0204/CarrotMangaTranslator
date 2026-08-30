@@ -1,7 +1,10 @@
 import { stat } from "node:fs/promises";
 import { basename, isAbsolute, normalize } from "node:path";
 import type { DroppedImportPreviewResponse } from "../../shared/importTypes";
-import { isSupportedArchivePath } from "../libraryStore/importSources";
+import {
+  isPdfPath,
+  isSupportedArchivePath,
+} from "../libraryStore/importSources";
 import { isSupportedImagePath } from "../libraryStore/storage";
 
 type DroppedImportRejection = Extract<
@@ -24,6 +27,11 @@ export type DroppedImportSource =
       status: "accepted";
       kind: "archive";
       archivePath: string;
+    }
+  | {
+      status: "accepted";
+      kind: "pdf";
+      pdfPath: string;
     };
 
 export type DroppedImportClassification =
@@ -59,6 +67,20 @@ export async function classifyDroppedImportPaths(
   const archives = entries.filter(
     (entry) => entry.kind === "file" && isSupportedArchivePath(entry.path),
   );
+  const pdfFiles = entries.filter(
+    (entry) => entry.kind === "file" && isPdfPath(entry.path),
+  );
+  if (pdfFiles.length > 0) {
+    if (entries.length !== 1 || pdfFiles.length !== 1) {
+      return rejectWithExamples("pdf-must-be-alone", entries);
+    }
+    return {
+      status: "accepted",
+      kind: "pdf",
+      pdfPath: pdfFiles[0].path,
+    };
+  }
+
   if (archives.length > 0) {
     if (entries.length !== 1 || archives.length !== 1) {
       return rejectWithExamples("archive-must-be-alone", entries);

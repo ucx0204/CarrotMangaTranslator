@@ -28,6 +28,7 @@
     "openImages": "이미지 열기",
     "openImageFolder": "이미지 폴더 열기",
     "openArchive": "압축파일 열기",
+    "openPdf": "PDF 열기",
     "batchImport": "작품 일괄 번역",
     "saveShare": "공유 파일 저장",
     "openShare": "공유 파일 가져오기",
@@ -53,7 +54,8 @@
       "noWindow": "IPC 요청을 받을 앱 창이 없습니다.",
       "untrusted": "신뢰할 수 없는 IPC 요청입니다.",
       "invalidImportPreview": "만료되었거나 유효하지 않은 가져오기 미리보기입니다.",
-      "invalidSharePreview": "만료되었거나 유효하지 않은 공유 파일 미리보기입니다."
+      "invalidSharePreview": "만료되었거나 유효하지 않은 공유 파일 미리보기입니다.",
+      "libraryOperationBusy": "보관함 작업이 끝난 뒤 구조를 변경해 주세요."
     },
     "labels": {
       "translationJob": "번역 작업",
@@ -143,9 +145,11 @@
       "normalizedImageTooLarge": "정규화된 이미지 파일이 너무 큽니다: {{file}}",
       "imageDecodeTimedOut": "이미지 디코드 시간이 초과되었습니다: {{file}}",
       "tooManySources": "가져올 폴더 또는 이미지가 너무 많습니다.",
+      "unsupportedArchive": "지원하지 않는 압축파일입니다: {{file}}",
       "zipEntryMissing": "ZIP 항목을 찾지 못했습니다: {{entry}}",
       "noChapterToCreate": "생성할 화가 없습니다.",
-      "createdChapterOpen": "생성한 화를 열지 못했습니다."
+      "createdChapterOpen": "생성한 화를 열지 못했습니다.",
+      "noUsablePages": "가져올 수 있는 페이지를 찾지 못했습니다."
     }
   },
   "share": {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { resolveLockedJobTargetPageIds } from "../src/renderer/src/app/session/useAppSessionDerivedState";
+import { resolveLockedJobTargetPageIds } from "../src/renderer/src/app/session/jobTargetLocks";
+import { resolveSelectedPageEditLocked } from "../src/renderer/src/app/session/jobTargetLocks";
 import type { JobState } from "../src/shared/jobTypes";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import { createPageJobTargetSnapshot } from "../src/shared/pageRevision";
@@ -44,6 +45,29 @@ describe("page-scoped job locking", () => {
         chapter,
       ),
     ]).toEqual(["page-1"]);
+  });
+
+  it("does not lock an unrelated or revised page from a stale target snapshot", () => {
+    const original = makePage("page-1", "running");
+    const job = makeJob("gemma-analysis", [original]);
+    const revised = {
+      ...original,
+      width: original.width + 1,
+    };
+    const unrelated = makePage("page-2", "idle");
+    const chapter = makeChapter([revised, unrelated]);
+    const locked = resolveLockedJobTargetPageIds(job, chapter);
+
+    expect([...locked]).toEqual([]);
+    expect(
+      resolveSelectedPageEditLocked(
+        true,
+        locked,
+        unrelated,
+        "gemma-analysis",
+        job.targets?.length ?? 0,
+      ),
+    ).toBe(false);
   });
 });
 

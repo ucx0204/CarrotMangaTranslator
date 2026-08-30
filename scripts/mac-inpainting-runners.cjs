@@ -5,6 +5,7 @@ const { join } = require("node:path");
 const MAC_INPAINTING_RUNNERS = [
   "mgt-koharu-inpaint-runner",
   "mgt-flux-klein-runner",
+  "mgt-import-source-runner",
 ];
 
 /** @param {string} root */

@@ -615,13 +615,15 @@
   "translateSource": {
     "title": "Add new source",
     "prompt": "What kind of source do you want to add?",
-    "supportedFormats": "PNG, JPG, JPEG, WEBP · ZIP/CBZ",
+    "supportedFormats": "PNG, JPG, JPEG, WEBP · ZIP/CBZ · RAR/CBR · PDF",
     "openImages": "Open images",
     "imagesHint": "Select multiple image files at once.",
     "openFolder": "Open folder",
     "folderHint": "Load images in the folder in filename order.",
     "openArchive": "Open archive",
-    "archiveHint": "Load one ZIP or CBZ as a chapter.",
+    "archiveHint": "Load one ZIP, CBZ, RAR, or CBR as a chapter.",
+    "openPdf": "Open PDF",
+    "pdfHint": "Convert each PDF page to a high-quality image.",
     "openWeb": "Open link",
     "webHint": "Review and select images from a web page."
   },
@@ -642,8 +644,6 @@
     "selectAll": "Select all",
     "clearAll": "Clear all",
     "selectedSummary": "{{selected}} of {{visible}} selected",
-    "initialTitle": "Import images from a public web page",
-    "initialHint": "By default, only large images are shown in top-to-bottom page order.",
     "noMatchingImages": "No images match this size",
     "tryAnotherFilter": "Try All or Medium+ to widen the range.",
     "skippedResult": "Skipped {{skipped}} unsupported, duplicate, or broken images.",
@@ -2008,7 +2008,6 @@
       "run": "Check OCR/model",
       "running": "Checking…",
       "description": "Check Paddle OCR readiness and whether the selected translation engine starts correctly.",
-      "jobActive": "The installation/function check is unavailable during translation.",
       "logAria": "Installation/function check log",
       "detail": {
         "model": "Model: {{path}}",
@@ -2075,8 +2074,15 @@
     "close": "Close",
     "open": "Open activity center",
     "completionSoundVolume": "Completion sound volume",
-    "muteCompletionSound": "Mute completion sound",
-    "unmuteCompletionSound": "Turn on completion sound",
+    "soundSettings": {
+      "open": "Completion sound settings",
+      "all": "All completion sounds",
+      "translation": "Translation complete",
+      "sourceErasing": "Source text erased",
+      "research": "Internet research complete",
+      "mute": "Turn off {{item}}",
+      "unmute": "Turn on {{item}}"
+    },
     "latest": "Latest status: {{line}}",
     "cancelJob": "Cancel current job",
     "cancelling": "Requesting cancellation…",
@@ -2088,7 +2094,75 @@
     "recentJobs": "Recent jobs",
     "statusHistory": "Status history",
     "reviewResults": "Review results",
-    "exportResults": "Export"
+    "exportResults": "Export",
+    "research": {
+      "title": "Research progress",
+      "credits": "Credits {{used}} / {{limit}}"
+    },
+    "history": {
+      "summary": "{{kind}} · {{status}}",
+      "failureCode": "Failure code: {{code}}",
+      "kind": {
+        "gemma-analysis": "Translation",
+        "internet-research": "Internet research",
+        "inpainting": "Erase and inpaint",
+        "page-export": "Export",
+        "library-import": "Add to library",
+        "library-import-preview": "Prepare import",
+        "web-import-preview": "Web import",
+        "work-share-import": "Shared file import",
+        "work-share-export": "Shared file export",
+        "model-test": "Model check",
+        "codex-auth": "ChatGPT account"
+      },
+      "status": {
+        "idle": "Idle",
+        "starting": "Starting",
+        "running": "In progress",
+        "cancelling": "Cancelling",
+        "cancelled": "Cancelled",
+        "failed": "Failed",
+        "partial": "Partially completed",
+        "completed": "Completed"
+      }
+    },
+    "operation": {
+      "summary": "{{kind}} · {{state}}",
+      "replacePrefix": "{{kind}}",
+      "cancelFailed": "Could not request cancellation.",
+      "waitingForUser": "Waiting for your action in the browser",
+      "progressLabel": "Task progress",
+      "percent": "{{value}}%",
+      "kind": {
+        "importPreview": "Prepare {{source}} import",
+        "libraryImport": "Add to library",
+        "background": "Background task"
+      },
+      "source": {
+        "files": "file",
+        "images": "image",
+        "folder": "folder",
+        "zip": "ZIP/CBZ",
+        "rar": "RAR/CBR",
+        "pdf": "PDF",
+        "zip-folder": "batch source"
+      },
+      "phase": {
+        "import-source-reading": "Reading the source…",
+        "import-source-converting": "Converting and extracting pages…",
+        "import-source-validating": "Checking importable pages…",
+        "import-library-saving-current": "Saving current edits…",
+        "import-library-writing": "Copying into the library…",
+        "import-finalizing": "Finishing the import…"
+      },
+      "status": {
+        "running": "In progress…",
+        "cancelling": "Cancelling and cleaning up…",
+        "cancelled": "Cancelled",
+        "failed": "Failed",
+        "completed": "Completed"
+      }
+    }
   },
   "chapterSave": {
     "dirty": "Changes waiting to save",

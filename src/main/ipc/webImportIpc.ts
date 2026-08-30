@@ -5,6 +5,7 @@ import { runManagedAppOperation } from "../appOperationRegistry";
 import { ipcEventContracts } from "../../shared/ipcContracts";
 import { webImportIpcContracts } from "../../shared/ipcWebImportContracts";
 import type { WebImportProgressEvent } from "../../shared/webImportTypes";
+import { throwIfAborted } from "../abortSignal";
 import {
   isWebImportDeadlineError,
   WebImportSessionManager,
@@ -29,11 +30,32 @@ export function registerWebImportIpc(context: IpcContext): void {
             id: `web-import-preview-${request.requestId}`,
             kind: "web-import-preview",
             mutatesLibrary: false,
+            presentation: {
+              phase: "web-validating",
+              cancellable: true,
+            },
           },
-          (signal) =>
-            manager.scan(request, signal, (progress) =>
-              sendProgress(event.sender, progress),
-            ),
+          async (signal, operation) => {
+            const response = await manager.scan(request, signal, (progress) => {
+              operation.updateActivity({
+                phase: webProgressPhase(progress.stage),
+                progressCurrent: progress.completed,
+                progressTotal: Math.max(1, progress.total),
+                progressUnit: "items",
+              });
+              sendProgress(event.sender, progress);
+            });
+            throwIfAborted(signal);
+            if (response.status === "rejected") {
+              operation.finish(
+                response.reason === "cancelled" ? "cancelled" : "failed",
+                response.reason === "cancelled"
+                  ? undefined
+                  : `WEB_${response.reason.replace(/-/g, "_").toUpperCase()}`,
+              );
+            }
+            return response;
+          },
         );
       } catch (error) {
         if (isAppActivityUnavailableError(error)) {
@@ -75,11 +97,26 @@ export function registerWebImportIpc(context: IpcContext): void {
             id: `web-import-prepare-${randomUUID()}`,
             kind: "web-import-preview",
             mutatesLibrary: false,
+            presentation: {
+              phase: "web-preparing",
+              cancellable: true,
+              progressCurrent: 0,
+              progressTotal: request.selectedCandidateIds.length,
+              progressUnit: "items",
+            },
           },
-          async () => {
+          async (signal, operation) => {
             const prepared = await manager.prepareImport(
               request.sessionId,
               request.selectedCandidateIds,
+              signal,
+              (completed, total) =>
+                operation.updateActivity({
+                  phase: "web-preparing",
+                  progressCurrent: completed,
+                  progressTotal: Math.max(1, total),
+                  progressUnit: "items",
+                }),
             );
             cleanup = prepared.cleanup;
             const session = await createImportPreviewSession(
@@ -99,6 +136,17 @@ export function registerWebImportIpc(context: IpcContext): void {
       }
     },
   );
+}
+
+function webProgressPhase(
+  stage: WebImportProgressEvent["stage"],
+):
+  | "web-validating"
+  | "web-loading"
+  | "web-scrolling"
+  | "web-discovering"
+  | "web-downloading" {
+  return `web-${stage}`;
 }
 
 function sendProgress(

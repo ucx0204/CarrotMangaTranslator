@@ -188,6 +188,23 @@ if (existsSync(koharuRunnerPath)) {
   });
 }
 
+const importSourceRunnerPath = join(
+  __dirname,
+  "tools",
+  "mgt-import-source-runner",
+  "mgt-import-source-runner.exe",
+);
+if (existsSync(importSourceRunnerPath)) {
+  windowsExtraResources.push({
+    from: "tools/mgt-import-source-runner/mgt-import-source-runner.exe",
+    to: "tools/mgt-import-source-runner/mgt-import-source-runner.exe",
+  });
+} else if (!isMacBuild) {
+  throw new Error(
+    `Missing ${importSourceRunnerPath}. Run npm run build:import-source-runner before packaging.`,
+  );
+}
+
 if (isMacBuild) {
   macExtraResources.push({
     from: stagedMacTools,

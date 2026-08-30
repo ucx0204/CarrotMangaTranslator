@@ -22,11 +22,16 @@ export type AppRightQuickRailProps = Pick<
   | "compareAvailable"
   | "completionSoundMuted"
   | "completionSoundVolume"
+  | "completionSoundTranslationMuted"
+  | "completionSoundSourceErasingMuted"
+  | "completionSoundResearchMuted"
   | "currentChapter"
   | "flowActive"
   | "jobActive"
   | "jobState"
+  | "operationActivity"
   | "onCancelJob"
+  | "onCancelOperation"
   | "onOpenExport"
   | "onOpenErrorReport"
   | "onOpenStyleGuide"
@@ -48,6 +53,7 @@ export type AppRightQuickRailProps = Pick<
   | "showBlockChrome"
   | "showTextBlocks"
   | "showProgressBar"
+  | "statusEntries"
   | "statusLines"
   | "undoLabel"
 > & {
@@ -205,12 +211,22 @@ function BottomQuickRailControls(
         <StatusDockButton
           completionSoundMuted={props.completionSoundMuted}
           completionSoundVolume={props.completionSoundVolume}
+          completionSoundTranslationMuted={
+            props.completionSoundTranslationMuted
+          }
+          completionSoundSourceErasingMuted={
+            props.completionSoundSourceErasingMuted
+          }
+          completionSoundResearchMuted={props.completionSoundResearchMuted}
           jobState={props.jobState}
+          operationActivity={props.operationActivity}
           progressSnapshot={props.progressSnapshot}
           showProgressBar={props.showProgressBar}
+          statusEntries={props.statusEntries}
           statusLines={props.statusLines}
           failedPages={failedPages}
           onCancelJob={props.onCancelJob}
+          onCancelOperation={props.onCancelOperation}
           onClear={props.onClearStatusLines}
           onCompletionSoundChange={props.onCompletionSoundChange}
           onOpenExport={props.onOpenExport}

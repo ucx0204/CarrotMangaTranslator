@@ -25,6 +25,7 @@ import { ipcEventContracts } from "./ipcEventContracts";
 import { webImportIpcContracts } from "./ipcWebImportContracts";
 import { blockLibraryIpcContracts } from "./ipcBlockLibraryContracts";
 import { linkedWorkspaceIpcContracts } from "./ipcLinkedWorkspaceContracts";
+import { appOperationIpcContracts } from "./ipcAppOperationContracts";
 
 export type { IpcContract, IpcEventContract };
 export {
@@ -48,6 +49,7 @@ export {
 };
 
 export const ipcInvokeContracts = {
+  ...appOperationIpcContracts,
   ...blockLibraryIpcContracts,
   ...importShareIpcContracts,
   ...libraryIpcContracts,

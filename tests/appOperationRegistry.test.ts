@@ -10,6 +10,130 @@ import {
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 
 describe("AppOperationRegistry", () => {
+  it("publishes visible lifecycle phases without exposing hidden operations", async () => {
+    const registry = new AppOperationRegistry(new AppActivityGate());
+    const events: Array<NonNullable<typeof registry.currentActivity>> = [];
+    registry.subscribeActivity((event) => events.push(event));
+
+    await expect(
+      runManagedAppOperation(
+        registry,
+        {
+          id: "preview-visible",
+          kind: "library-import-preview",
+          mutatesLibrary: false,
+          presentation: {
+            phase: "import-source-reading",
+            sourceKind: "pdf",
+            cancellable: true,
+            progressCurrent: 0,
+            progressTotal: 4,
+            progressUnit: "items",
+          },
+        },
+        async (_signal, operation) => {
+          expect(registry.currentActivity).toMatchObject({
+            status: "running",
+            phase: "import-source-reading",
+          });
+          operation.updateActivity({
+            phase: "import-source-validating",
+            progressCurrent: 2,
+            waitingForUser: true,
+          });
+          return "ready";
+        },
+      ),
+    ).resolves.toBe("ready");
+
+    expect(events.map((event) => [event.status, event.phase])).toEqual([
+      ["running", "import-source-reading"],
+      ["running", "import-source-validating"],
+      ["completed", "import-source-validating"],
+    ]);
+    expect(events[1]).toMatchObject({
+      progressCurrent: 2,
+      progressTotal: 4,
+      progressUnit: "items",
+      waitingForUser: true,
+    });
+    expect(registry.currentActivity).toBeNull();
+
+    const hidden = registry.begin({
+      id: "hidden",
+      kind: "model-test",
+      mutatesLibrary: false,
+    });
+    hidden.finish();
+    expect(events).toHaveLength(3);
+  });
+
+  it("cancels only the matching cancellable visible operation and waits for unwind", async () => {
+    const registry = new AppOperationRegistry(new AppActivityGate());
+    const events: string[] = [];
+    registry.subscribeActivity((event) => events.push(event.status));
+    let releaseUnwind!: () => void;
+    const unwind = new Promise<void>((resolve) => {
+      releaseUnwind = resolve;
+    });
+
+    const running = runManagedAppOperation(
+      registry,
+      {
+        id: "cancel-me",
+        kind: "library-import",
+        mutatesLibrary: true,
+        presentation: {
+          phase: "import-library-writing",
+          cancellable: true,
+        },
+      },
+      async (signal) => {
+        await new Promise<void>((_resolve, reject) => {
+          signal.addEventListener(
+            "abort",
+            () =>
+              void unwind.then(() =>
+                reject(new DOMException("cancelled", "AbortError")),
+              ),
+            { once: true },
+          );
+        });
+      },
+    );
+
+    expect(registry.requestCancel("wrong-id")).toBe(false);
+    expect(registry.requestCancel("cancel-me")).toBe(true);
+    expect(registry.requestCancel("cancel-me")).toBe(false);
+    expect(registry.currentActivity?.status).toBe("cancelling");
+    expect(events).toEqual(["running", "cancelling"]);
+
+    releaseUnwind();
+    await expect(running).rejects.toMatchObject({ name: "AbortError" });
+    expect(events).toEqual(["running", "cancelling", "cancelled"]);
+  });
+
+  it("refuses cancellation after the operation enters finalizing", () => {
+    const registry = new AppOperationRegistry(new AppActivityGate());
+    const lease = registry.begin({
+      id: "committed",
+      kind: "library-import",
+      mutatesLibrary: true,
+      presentation: {
+        phase: "import-library-writing",
+        cancellable: true,
+      },
+    });
+    lease.updateActivity({
+      phase: "import-finalizing",
+      cancellable: false,
+    });
+
+    expect(registry.requestCancel("committed")).toBe(false);
+    expect(lease.signal.aborted).toBe(false);
+    lease.finish();
+  });
+
   it("begins with a live signal and finishes idempotently", () => {
     const registry = new AppOperationRegistry(new AppActivityGate());
     const lease = registry.begin({
@@ -23,6 +147,29 @@ describe("AppOperationRegistry", () => {
     lease.finish();
     lease.finish();
     expect(registry.current).toBeNull();
+  });
+
+  it("isolates activity listeners and supports unsubscribing them", () => {
+    const registry = new AppOperationRegistry(new AppActivityGate());
+    const listener = vi.fn(() => {
+      throw new Error("presentation failed");
+    });
+    const unsubscribe = registry.subscribeActivity(listener);
+
+    expect(registry.hasActive).toBe(false);
+    const lease = registry.begin({
+      id: "visible-operation",
+      kind: "library-import-preview",
+      mutatesLibrary: false,
+      presentation: { phase: "import-source-reading" },
+    });
+    expect(registry.hasActive).toBe(true);
+    expect(listener).toHaveBeenCalledOnce();
+
+    unsubscribe();
+    lease.finish("failed");
+    expect(listener).toHaveBeenCalledOnce();
+    expect(registry.hasActive).toBe(false);
   });
 
   it("aborts the current operation and waits for finish", async () => {
@@ -161,5 +308,35 @@ describe("AppOperationRegistry", () => {
     first.finish();
     expect(registry.current?.id).toBe("second");
     second.finish();
+  });
+
+  it("publishes only a normalized failure code for a failed visible task", async () => {
+    const registry = new AppOperationRegistry(new AppActivityGate());
+    const events: Array<NonNullable<typeof registry.currentActivity>> = [];
+    registry.subscribeActivity((event) => events.push(event));
+    const failure = Object.assign(new Error("C:/private/source.pdf failed"), {
+      code: "pdf decoder: invalid input/path",
+    });
+
+    await expect(
+      runManagedAppOperation(
+        registry,
+        {
+          id: "visible-failure",
+          kind: "library-import-preview",
+          mutatesLibrary: false,
+          presentation: { phase: "import-source-converting" },
+        },
+        async () => {
+          throw failure;
+        },
+      ),
+    ).rejects.toBe(failure);
+
+    expect(events.at(-1)).toMatchObject({
+      status: "failed",
+      failureCode: "PDF_DECODER_INVALID_INPUT_PATH",
+    });
+    expect(JSON.stringify(events)).not.toContain("private/source.pdf");
   });
 });

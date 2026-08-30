@@ -33,6 +33,11 @@ export type ImportPreviewResult = {
   excludedPages?: ImportPreviewExcludedPage[];
 };
 
+export type PreparedImportPreview = {
+  preview: ImportPreviewResult;
+  cleanup?: () => Promise<void>;
+};
+
 export type ImportPreviewSession = ImportPreviewResult & {
   previewId: string;
 };
@@ -41,13 +46,16 @@ export const MAX_DROPPED_IMPORT_PATHS = 2000;
 
 type DroppedImportRejectionReason =
   | "busy"
+  | "cancelled"
   | "empty"
   | "too-many-items"
   | "folder-must-be-alone"
   | "archive-must-be-alone"
+  | "pdf-must-be-alone"
   | "unsupported-files"
   | "folder-no-images"
-  | "archive-no-images";
+  | "archive-no-images"
+  | "pdf-no-pages";
 
 export type DroppedImportPreviewResponse =
   | {

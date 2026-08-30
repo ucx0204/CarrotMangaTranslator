@@ -12,6 +12,7 @@
     "dist:win:nvidia": "node scripts/dist-win-thin.cjs --with-flux-nvidia",
     "dist:win:amd": "node scripts/dist-win-thin.cjs",
     "build:flux-cpu-runner": "node scripts/prepare-flux-klein-cpu-runner.cjs",
+    "build:import-source-runner": "node scripts/prepare-import-source-runner.cjs",
     "package:flux-cpu-runner": "node scripts/package-flux-klein-cpu-release.cjs",
     "smoke:flux-cpu-remote": "node scripts/smoke-flux-cpu-remote-runner.cjs",
     "bench:flux-cpu": "node scripts/benchmark-flux-klein-cpu.cjs",

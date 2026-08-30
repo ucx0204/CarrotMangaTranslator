@@ -609,13 +609,15 @@
   "translateSource": {
     "title": "새 원본 추가",
     "prompt": "어떤 원본을 추가할까요?",
-    "supportedFormats": "PNG, JPG, JPEG, WEBP · ZIP/CBZ",
+    "supportedFormats": "PNG, JPG, JPEG, WEBP · ZIP/CBZ · RAR/CBR · PDF",
     "openImages": "이미지 열기",
     "imagesHint": "여러 이미지를 한 번에 선택합니다.",
     "openFolder": "폴더 열기",
     "folderHint": "폴더 안 이미지를 이름 순서대로 불러옵니다.",
     "openArchive": "압축파일 열기",
-    "archiveHint": "ZIP·CBZ 한 개를 하나의 화로 불러옵니다.",
+    "archiveHint": "ZIP·CBZ·RAR·CBR 한 개를 하나의 화로 불러옵니다.",
+    "openPdf": "PDF 열기",
+    "pdfHint": "PDF의 각 페이지를 고화질 이미지로 변환합니다.",
     "openWeb": "링크로 열기",
     "webHint": "웹 페이지의 이미지를 확인하고 골라서 가져옵니다."
   },
@@ -636,8 +638,6 @@
     "selectAll": "전체 선택",
     "clearAll": "전체 해제",
     "selectedSummary": "{{visible}}개 중 {{selected}}개 선택",
-    "initialTitle": "공개 웹 페이지의 이미지를 가져옵니다",
-    "initialHint": "기본으로 큰 이미지만 페이지의 위에서 아래 순서로 보여드립니다.",
     "noMatchingImages": "이 크기에 맞는 이미지가 없습니다",
     "tryAnotherFilter": "전체 또는 중간이상으로 범위를 넓혀 보세요.",
     "skippedResult": "지원하지 않거나 중복·손상된 이미지 {{skipped}}개는 제외했습니다.",
@@ -1996,7 +1996,6 @@
       "run": "OCR/모델 확인",
       "running": "확인 중…",
       "description": "Paddle OCR 준비 상태와 선택한 번역 엔진이 실제로 뜨는지 함께 확인합니다.",
-      "jobActive": "번역 작업 중에는 설치/작동 확인을 실행할 수 없습니다.",
       "logAria": "설치/작동 확인 로그",
       "detail": {
         "model": "모델: {{path}}",
@@ -2063,8 +2062,15 @@
     "close": "닫기",
     "open": "작업 센터 열기",
     "completionSoundVolume": "완료 알림음 볼륨",
-    "muteCompletionSound": "완료 알림음 음소거",
-    "unmuteCompletionSound": "완료 알림음 켜기",
+    "soundSettings": {
+      "open": "완료 알림음 설정",
+      "all": "전체 알림음",
+      "translation": "번역 완료",
+      "sourceErasing": "원문 지우기 완료",
+      "research": "인터넷 조사 완료",
+      "mute": "{{item}} 끄기",
+      "unmute": "{{item}} 켜기"
+    },
     "latest": "최근 상태: {{line}}",
     "cancelJob": "현재 작업 취소",
     "cancelling": "취소 요청 중…",
@@ -2076,7 +2082,75 @@
     "recentJobs": "최근 작업",
     "statusHistory": "상태 기록",
     "reviewResults": "결과 검토",
-    "exportResults": "내보내기"
+    "exportResults": "내보내기",
+    "research": {
+      "title": "조사 진행 상황",
+      "credits": "크레딧 {{used}} / {{limit}}"
+    },
+    "history": {
+      "summary": "{{kind}} · {{status}}",
+      "failureCode": "실패 코드: {{code}}",
+      "kind": {
+        "gemma-analysis": "번역",
+        "internet-research": "인터넷 조사",
+        "inpainting": "지우기·인페인팅",
+        "page-export": "내보내기",
+        "library-import": "보관함에 추가",
+        "library-import-preview": "가져오기 준비",
+        "web-import-preview": "웹 가져오기",
+        "work-share-import": "공유 파일 가져오기",
+        "work-share-export": "공유 파일 내보내기",
+        "model-test": "모델 확인",
+        "codex-auth": "ChatGPT 계정"
+      },
+      "status": {
+        "idle": "대기",
+        "starting": "시작 중",
+        "running": "진행 중",
+        "cancelling": "취소 중",
+        "cancelled": "취소됨",
+        "failed": "실패",
+        "partial": "일부 완료",
+        "completed": "완료"
+      }
+    },
+    "operation": {
+      "summary": "{{kind}} · {{state}}",
+      "replacePrefix": "{{kind}}",
+      "cancelFailed": "작업 취소를 요청하지 못했습니다.",
+      "waitingForUser": "브라우저에서 사용자 작업을 기다리는 중",
+      "progressLabel": "작업 진행률",
+      "percent": "{{value}}%",
+      "kind": {
+        "importPreview": "{{source}} 가져오기 준비",
+        "libraryImport": "보관함에 추가",
+        "background": "백그라운드 작업"
+      },
+      "source": {
+        "files": "파일",
+        "images": "이미지",
+        "folder": "폴더",
+        "zip": "ZIP/CBZ",
+        "rar": "RAR/CBR",
+        "pdf": "PDF",
+        "zip-folder": "일괄 원본"
+      },
+      "phase": {
+        "import-source-reading": "원본을 읽는 중…",
+        "import-source-converting": "페이지를 변환·추출하는 중…",
+        "import-source-validating": "가져올 페이지를 확인하는 중…",
+        "import-library-saving-current": "현재 편집 내용을 저장하는 중…",
+        "import-library-writing": "보관함에 복사하는 중…",
+        "import-finalizing": "가져오기를 마무리하는 중…"
+      },
+      "status": {
+        "running": "진행 중…",
+        "cancelling": "취소 후 정리하는 중…",
+        "cancelled": "취소됨",
+        "failed": "실패",
+        "completed": "완료"
+      }
+    }
   },
   "chapterSave": {
     "dirty": "저장 대기 중",

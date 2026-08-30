@@ -127,8 +127,14 @@ import type {
   TavilyUsageRequest,
   TavilyUsageSnapshot,
 } from "./internetResearchTypes";
+import type {
+  AppOperationActivityEvent,
+  AppOperationCancelResult,
+} from "./appOperationTypes";
 
 export type MangaApi = {
+  getActiveAppOperation: () => Promise<AppOperationActivityEvent | null>;
+  cancelAppOperation: (id: string) => Promise<AppOperationCancelResult>;
   getLinkedWorkspaceStatus: (
     chapterId: string,
   ) => Promise<LinkedWorkspaceStatus>;
@@ -172,6 +178,7 @@ export type MangaApi = {
   previewImagesImport: () => Promise<ImportPreviewSession | null>;
   previewFolderImport: () => Promise<ImportPreviewSession | null>;
   previewZipImport: () => Promise<ImportPreviewSession | null>;
+  previewPdfImport: () => Promise<ImportPreviewSession | null>;
   previewZipFolderImport: () => Promise<ImportPreviewSession | null>;
   previewDroppedImport: (
     filePaths: string[],
@@ -352,6 +359,9 @@ export type MangaApi = {
   publishPanelState: (state: PanelSyncState) => Promise<{ published: boolean }>;
   sendPanelCommand: (command: PanelCommand) => Promise<{ sent: boolean }>;
   onJobEvent: (callback: (event: JobEvent) => void) => () => void;
+  onAppOperationActivity: (
+    callback: (event: AppOperationActivityEvent) => void,
+  ) => () => void;
   onPageTimingUpdated: (
     callback: (event: PageTimingUpdatedEvent) => void,
   ) => () => void;

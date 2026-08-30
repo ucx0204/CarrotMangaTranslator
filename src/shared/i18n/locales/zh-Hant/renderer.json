@@ -72,6 +72,7 @@
       "modelRequesting": "正在要求 AI 翻譯",
       "pageRunning": "正在翻譯",
       "pageDone": "完成",
+      "pageTypography": "正在配對文字與字型",
       "pageSkipped": "已略過",
       "inpaintingRunning": "正在清除原文",
       "inpaintingDone": "原文清除完成",
@@ -467,6 +468,64 @@
     "defaultsLoaded": "預設值已載入草稿，儲存後才會套用。",
     "resetFailed": "無法還原預設設定。"
   },
+  "statusDock": {
+    "operation": {
+      "summary": "{{kind}} · {{state}}",
+      "replacePrefix": "{{kind}}",
+      "cancelFailed": "無法要求取消工作。",
+      "kind": {
+        "importPreview": "準備匯入{{source}}",
+        "libraryImport": "加入資料庫",
+        "webImport": "匯入網頁圖片",
+        "webScan": "尋找網頁圖片",
+        "webPrepare": "下載所選圖片",
+        "shareImport": "匯入共享檔案",
+        "shareExport": "建立共享檔案",
+        "modelTest": "檢查模型與執行環境",
+        "codexAuth": "連接 ChatGPT 帳戶",
+        "background": "背景工作"
+      },
+      "source": {
+        "files": "檔案",
+        "images": "圖片",
+        "folder": "資料夾",
+        "zip": "ZIP/CBZ",
+        "rar": "RAR/CBR",
+        "pdf": "PDF",
+        "zip-folder": "批次原稿"
+      },
+      "phase": {
+        "import-source-reading": "正在讀取原稿…",
+        "import-source-converting": "正在轉換並解壓頁面…",
+        "import-source-validating": "正在檢查可匯入頁面…",
+        "import-library-saving-current": "正在儲存目前編輯…",
+        "import-library-writing": "正在複製到資料庫…",
+        "import-finalizing": "正在完成匯入…",
+        "web-validating": "正在檢查網頁位址…",
+        "web-loading": "正在載入網頁…",
+        "web-scrolling": "正在檢查完整頁面…",
+        "web-discovering": "正在尋找圖片…",
+        "web-downloading": "正在下載圖片…",
+        "web-preparing": "正在準備所選圖片…",
+        "share-reading": "正在讀取共享檔案…",
+        "share-packaging": "正在建立共享檔案…",
+        "share-applying": "正在將共享檔案套用到資料庫…",
+        "model-test-preparing": "正在準備模型與執行環境…",
+        "model-test-downloading": "正在下載模型…",
+        "model-test-checking": "正在檢查模型回應…",
+        "codex-auth-opening-browser": "正在開啟登入頁面…",
+        "codex-auth-updating": "正在更新帳戶連接…",
+        "waiting-for-user": "正在等待瀏覽器登入…"
+      },
+      "status": {
+        "running": "進行中…",
+        "cancelling": "正在取消並清理…",
+        "cancelled": "已取消",
+        "failed": "失敗",
+        "completed": "已完成"
+      }
+    }
+  },
   "import": {
     "sourceReadFailed": "無法讀取要翻譯的來源檔案。",
     "added": "已將 {{count}} 個章節加入資料庫。",
@@ -474,16 +533,19 @@
     "added_other": "已將 {{count}} 個章節加入資料庫。",
     "applyFailed": "無法套用匯入內容。",
     "previewDiscardFailed": "無法清理匯入預覽暫存檔。",
+    "cancelled": "匯入已取消，輸入內容已保留。",
     "drop": {
       "unavailable": "目前有其他視窗或工作正在進行。請結束後再拖放。",
       "empty": "找不到可新增的檔案。",
       "tooManyItems": "一次最多可新增 {{max}} 個項目。",
       "folderMustBeAlone": "請單獨拖放一個資料夾，不要與其他檔案混合。",
-      "archiveMustBeAlone": "請單獨拖放一個 ZIP/CBZ 檔案，不要與其他檔案混合。",
+      "archiveMustBeAlone": "請單獨拖放一個 ZIP/CBZ/RAR/CBR 檔案，不要與其他檔案混合。",
+      "pdfMustBeAlone": "請單獨拖放一個 PDF 檔案，不要與其他檔案混合。",
       "unsupportedFiles": "因為混有不支援的檔案，未新增任何內容。請僅同時拖放 PNG、JPG、JPEG 或 WEBP 圖片。",
       "unsupportedFilesNamed": "因為混有 {{names}} 等不支援的檔案，未新增任何內容。請僅同時拖放 PNG、JPG、JPEG 或 WEBP 圖片。",
       "folderNoImages": "此資料夾中找不到支援的圖片。",
-      "archiveNoImages": "此 ZIP/CBZ 檔案中找不到支援的圖片。",
+      "archiveNoImages": "此 ZIP/CBZ/RAR/CBR 檔案中找不到支援的圖片。",
+      "pdfNoPages": "此 PDF 中找不到可匯入的頁面。",
       "readFailed": "無法讀取拖放的原稿。"
     }
   },

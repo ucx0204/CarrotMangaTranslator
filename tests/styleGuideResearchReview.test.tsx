@@ -4,14 +4,8 @@ import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
-import { StyleGuideResearchProgressModal } from "../src/renderer/src/components/StyleGuideModal";
 import { StyleGuideResearchReview } from "../src/renderer/src/components/styleGuide/StyleGuideResearchReview";
 import { StyleGuideAnalysisActions } from "../src/renderer/src/components/styleGuide/StyleGuideChrome";
-import {
-  mergeStyleGuideResearchProgress,
-  type StyleGuideResearchProgress,
-} from "../src/renderer/src/components/styleGuide/useStyleGuideInternetResearch";
-import type { JobEvent } from "../src/shared/jobTypes";
 import type { WorkContextResearchProposal } from "../src/shared/workContextResearchTypes";
 
 const openResearchSource = vi.fn(async (url: string) => ({
@@ -103,102 +97,7 @@ describe("StyleGuideResearchReview", () => {
     fireEvent.click(screen.getByRole("button", { name: "용어집 조사" }));
     expect(onAnalyze).toHaveBeenCalledWith();
   });
-
-  it("shows a nested research progress surface with stages and cancellation", () => {
-    const onCancel = vi.fn();
-    const { rerender } = render(
-      <StyleGuideResearchProgressModal
-        progress={makeProgress()}
-        onCancel={onCancel}
-      />,
-    );
-
-    expect(screen.getByRole("dialog", { name: "용어집 조사 중" })).toBeTruthy();
-    expect(screen.getByText("웹에서 근거를 수집하고 있습니다")).toBeTruthy();
-    expect(screen.getByText("Tavily 크레딧")).toBeTruthy();
-    expect(screen.getByText("2 / 10")).toBeTruthy();
-    expect(screen.getByText("作品名 キャラクター 公式")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "조사 취소" }));
-    expect(onCancel).toHaveBeenCalledOnce();
-
-    rerender(
-      <StyleGuideResearchProgressModal
-        progress={{ ...makeProgress(), cancelling: true }}
-        onCancel={onCancel}
-      />,
-    );
-    expect(
-      screen.getByRole("button", { name: "조사 취소 중…" }),
-    ).toHaveProperty("disabled", true);
-  });
-
-  it("keeps only five curated search activities and updates a completed query", () => {
-    let progress = makeProgress();
-    for (let index = 1; index <= 6; index += 1) {
-      progress = mergeStyleGuideResearchProgress(
-        progress,
-        makeResearchEvent(index, index === 6 ? 4 : undefined),
-      );
-    }
-    progress = mergeStyleGuideResearchProgress(
-      progress,
-      makeResearchEvent(6, 3),
-    );
-
-    expect(progress.activities).toHaveLength(5);
-    expect(progress.activities[0]?.queryIndex).toBe(2);
-    expect(progress.activities.at(-1)).toMatchObject({
-      queryIndex: 6,
-      resultCount: 3,
-    });
-  });
 });
-
-function makeProgress(): StyleGuideResearchProgress {
-  return {
-    runId: "run-1",
-    engine: "tavily",
-    researchTitle: "테스트 작품",
-    startedAt: Date.now(),
-    stage: "searching",
-    progressText: "웹 근거 수집 중",
-    metrics: {
-      stage: "searching",
-      query: "作品名 キャラクター 公式",
-      queryIndex: 2,
-      resultCount: 4,
-      creditsUsed: 2,
-      creditLimit: 10,
-    },
-    activities: [
-      {
-        id: "2:作品名 キャラクター 公式",
-        query: "作品名 キャラクター 公式",
-        queryIndex: 2,
-        resultCount: 4,
-      },
-    ],
-    cancelling: false,
-  };
-}
-
-function makeResearchEvent(index: number, resultCount?: number): JobEvent {
-  return {
-    id: "work-context-research-run-1",
-    kind: "internet-research",
-    status: "running",
-    progressText: "웹 근거 수집 중",
-    phase: "model_requesting",
-    research: {
-      stage: "searching",
-      query: `query-${index}`,
-      queryIndex: index,
-      ...(resultCount === undefined ? {} : { resultCount }),
-      creditsUsed: index,
-      creditLimit: 10,
-    },
-  };
-}
 
 function Harness() {
   const [selected, setSelected] = React.useState<Set<string>>(

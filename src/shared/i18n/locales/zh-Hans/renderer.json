@@ -72,6 +72,7 @@
       "modelRequesting": "正在请求 AI 翻译",
       "pageRunning": "正在翻译",
       "pageDone": "完成",
+      "pageTypography": "正在匹配文字与字体",
       "pageSkipped": "已跳过",
       "inpaintingRunning": "正在擦除原文",
       "inpaintingDone": "原文擦除完成",
@@ -467,6 +468,64 @@
     "defaultsLoaded": "默认值已载入草稿，保存后才会应用。",
     "resetFailed": "无法恢复默认设置。"
   },
+  "statusDock": {
+    "operation": {
+      "summary": "{{kind}} · {{state}}",
+      "replacePrefix": "{{kind}}",
+      "cancelFailed": "无法请求取消任务。",
+      "kind": {
+        "importPreview": "准备导入{{source}}",
+        "libraryImport": "添加到资料库",
+        "webImport": "导入网页图片",
+        "webScan": "查找网页图片",
+        "webPrepare": "下载所选图片",
+        "shareImport": "导入共享文件",
+        "shareExport": "创建共享文件",
+        "modelTest": "检查模型和运行时",
+        "codexAuth": "连接 ChatGPT 账户",
+        "background": "后台任务"
+      },
+      "source": {
+        "files": "文件",
+        "images": "图片",
+        "folder": "文件夹",
+        "zip": "ZIP/CBZ",
+        "rar": "RAR/CBR",
+        "pdf": "PDF",
+        "zip-folder": "批量原稿"
+      },
+      "phase": {
+        "import-source-reading": "正在读取原稿…",
+        "import-source-converting": "正在转换并提取页面…",
+        "import-source-validating": "正在检查可导入页面…",
+        "import-library-saving-current": "正在保存当前编辑…",
+        "import-library-writing": "正在复制到资料库…",
+        "import-finalizing": "正在完成导入…",
+        "web-validating": "正在检查网页地址…",
+        "web-loading": "正在加载网页…",
+        "web-scrolling": "正在检查完整页面…",
+        "web-discovering": "正在查找图片…",
+        "web-downloading": "正在下载图片…",
+        "web-preparing": "正在准备所选图片…",
+        "share-reading": "正在读取共享文件…",
+        "share-packaging": "正在创建共享文件…",
+        "share-applying": "正在将共享文件应用到资料库…",
+        "model-test-preparing": "正在准备模型和运行时…",
+        "model-test-downloading": "正在下载模型…",
+        "model-test-checking": "正在检查模型响应…",
+        "codex-auth-opening-browser": "正在打开登录页面…",
+        "codex-auth-updating": "正在更新账户连接…",
+        "waiting-for-user": "正在等待浏览器登录…"
+      },
+      "status": {
+        "running": "进行中…",
+        "cancelling": "正在取消并清理…",
+        "cancelled": "已取消",
+        "failed": "失败",
+        "completed": "已完成"
+      }
+    }
+  },
   "import": {
     "sourceReadFailed": "无法读取要翻译的源文件。",
     "added": "已将 {{count}} 个章节添加到资料库。",
@@ -474,16 +533,19 @@
     "added_other": "已将 {{count}} 个章节添加到资料库。",
     "applyFailed": "无法应用导入内容。",
     "previewDiscardFailed": "无法清理导入预览临时文件。",
+    "cancelled": "导入已取消，输入内容已保留。",
     "drop": {
       "unavailable": "当前有其他窗口或任务正在进行。请结束后再拖放。",
       "empty": "未找到可添加的文件。",
       "tooManyItems": "一次最多可添加 {{max}} 个项目。",
       "folderMustBeAlone": "请单独拖放一个文件夹，不要与其他文件混合。",
-      "archiveMustBeAlone": "请单独拖放一个 ZIP/CBZ 文件，不要与其他文件混合。",
+      "archiveMustBeAlone": "请单独拖放一个 ZIP/CBZ/RAR/CBR 文件，不要与其他文件混合。",
+      "pdfMustBeAlone": "请单独拖放一个 PDF 文件，不要与其他文件混合。",
       "unsupportedFiles": "由于混有不支持的文件，未添加任何内容。请仅同时拖放 PNG、JPG、JPEG 或 WEBP 图片。",
       "unsupportedFilesNamed": "由于混有 {{names}} 等不支持的文件，未添加任何内容。请仅同时拖放 PNG、JPG、JPEG 或 WEBP 图片。",
       "folderNoImages": "此文件夹中未找到支持的图片。",
-      "archiveNoImages": "此 ZIP/CBZ 文件中未找到支持的图片。",
+      "archiveNoImages": "此 ZIP/CBZ/RAR/CBR 文件中未找到支持的图片。",
+      "pdfNoPages": "此 PDF 中未找到可导入的页面。",
       "readFailed": "无法读取拖放的原稿。"
     }
   },

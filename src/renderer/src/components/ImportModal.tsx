@@ -24,50 +24,48 @@ import { SelectionCard, SelectionSurface } from "./ui/SelectionCard";
 import { WorkSelect } from "./WorkSelect";
 import { ImportLinkedWorkspaceSection } from "./ImportLinkedWorkspaceSection";
 import { InlineMessage } from "./ui/InlineMessage";
+import type { ImportModalFeedback } from "../lib/importFlowTypes";
 
 type ImportModalProps = {
   library: LibraryIndex;
   currentWorkId?: string | null;
   preview: ImportPreviewResult;
   busy: boolean;
+  initialDraft?: ImportModalSubmit | null;
+  feedback?: ImportModalFeedback | null;
   onCancel: () => void;
   onSubmit: (payload: ImportModalSubmit) => void;
 };
 
-// eslint-disable-next-line max-lines-per-function -- all initial import choices must be captured once from the same preview
 export function ImportModal({
   library,
   currentWorkId = null,
   preview,
   busy,
+  initialDraft = null,
+  feedback = null,
   onCancel,
   onSubmit,
 }: ImportModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const initial = resolveImportModalInitialState(library, currentWorkId);
+  const initial = resolveImportModalInitialState(
+    library,
+    currentWorkId,
+    preview,
+    initialDraft,
+  );
   const [targetMode, setTargetMode] = React.useState<"new" | "existing">(
     initial.targetMode,
   );
-  const [newWorkTitle, setNewWorkTitle] = React.useState(
-    preview.suggestedWorkTitle,
-  );
+  const [newWorkTitle, setNewWorkTitle] = React.useState(initial.newWorkTitle);
   const [existingWorkId, setExistingWorkId] = React.useState(
     initial.existingWorkId,
   );
   const [selections, setSelections] = React.useState<ImportCreateSelection[]>(
-    preview.chapters.map((chapter) => ({
-      draftId: chapter.draftId,
-      title: chapter.title,
-      enabled: true,
-    })),
+    initial.selections,
   );
   const [linkedWorkspace, setLinkedWorkspace] =
-    React.useState<LinkedWorkspaceImportOptions>({
-      enabled: true,
-      outputFormat: "source",
-      jpegQuality: 95,
-      webpQuality: 90,
-    });
+    React.useState<LinkedWorkspaceImportOptions>(initial.linkedWorkspace);
 
   const modalTitle = resolveImportModalTitle(t, preview.mode);
   const submittable = isImportSubmittable(
@@ -114,6 +112,7 @@ export function ImportModal({
         setSelections={setSelections}
         setTargetMode={setTargetMode}
         targetMode={targetMode}
+        feedback={feedback}
       />
     </Modal>
   );
@@ -134,6 +133,7 @@ function ImportModalContent({
   setSelections,
   setTargetMode,
   targetMode,
+  feedback,
 }: {
   busy: boolean;
   currentWorkId: string | null;
@@ -151,9 +151,13 @@ function ImportModalContent({
   setSelections: React.Dispatch<React.SetStateAction<ImportCreateSelection[]>>;
   setTargetMode: React.Dispatch<React.SetStateAction<"new" | "existing">>;
   targetMode: "new" | "existing";
+  feedback: ImportModalFeedback | null;
 }): React.JSX.Element {
   return (
     <>
+      {feedback ? (
+        <InlineMessage variant={feedback.variant} title={feedback.message} />
+      ) : null}
       <ImportExcludedPagesNotice preview={preview} />
       <ImportTargetSection
         busy={busy}
@@ -213,17 +217,76 @@ function ImportExcludedPagesNotice({
 function resolveImportModalInitialState(
   library: LibraryIndex,
   currentWorkId: string | null,
+  preview: ImportPreviewResult,
+  initialDraft: ImportModalSubmit | null,
 ) {
   const currentWorkAvailable = Boolean(
     currentWorkId && library.works.some((work) => work.id === currentWorkId),
   );
   return {
     currentWorkId: currentWorkAvailable ? currentWorkId : null,
-    existingWorkId: currentWorkAvailable
-      ? (currentWorkId ?? "")
-      : (library.works[0]?.id ?? ""),
-    targetMode: currentWorkAvailable ? ("existing" as const) : ("new" as const),
+    existingWorkId: resolveInitialExistingWorkId(
+      library,
+      currentWorkId,
+      currentWorkAvailable,
+      initialDraft,
+    ),
+    targetMode: resolveInitialTargetMode(currentWorkAvailable, initialDraft),
+    newWorkTitle: resolveInitialWorkTitle(preview, initialDraft),
+    selections: resolveInitialSelections(preview, initialDraft),
+    linkedWorkspace: initialDraft?.linkedWorkspace ?? {
+      enabled: true,
+      outputFormat: "source" as const,
+      jpegQuality: 95,
+      webpQuality: 90,
+    },
   };
+}
+
+function resolveInitialExistingWorkId(
+  library: LibraryIndex,
+  currentWorkId: string | null,
+  currentWorkAvailable: boolean,
+  initialDraft: ImportModalSubmit | null,
+): string {
+  if (initialDraft?.target.mode === "existing") {
+    return initialDraft.target.workId;
+  }
+  if (currentWorkAvailable) return currentWorkId ?? "";
+  return library.works[0]?.id ?? "";
+}
+
+function resolveInitialTargetMode(
+  currentWorkAvailable: boolean,
+  initialDraft: ImportModalSubmit | null,
+): ImportTargetMode {
+  if (initialDraft) return initialDraft.target.mode;
+  return currentWorkAvailable ? "existing" : "new";
+}
+
+function resolveInitialWorkTitle(
+  preview: ImportPreviewResult,
+  initialDraft: ImportModalSubmit | null,
+): string {
+  return initialDraft?.target.mode === "new"
+    ? initialDraft.target.title
+    : preview.suggestedWorkTitle;
+}
+
+function resolveInitialSelections(
+  preview: ImportPreviewResult,
+  initialDraft: ImportModalSubmit | null,
+): ImportCreateSelection[] {
+  return preview.chapters.map(
+    (chapter) =>
+      initialDraft?.selections.find(
+        (selection) => selection.draftId === chapter.draftId,
+      ) ?? {
+        draftId: chapter.draftId,
+        title: chapter.title,
+        enabled: true,
+      },
+  );
 }
 
 function resolveImportModalTitle(

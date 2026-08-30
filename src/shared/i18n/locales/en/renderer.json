@@ -75,6 +75,7 @@
       "modelRequesting": "Requesting AI translation",
       "pageRunning": "Translating",
       "pageDone": "Complete",
+      "pageTypography": "Matching text and fonts",
       "pageSkipped": "Skipped",
       "inpaintingRunning": "Erasing source text",
       "inpaintingDone": "Source text erased",
@@ -473,6 +474,64 @@
     "defaultsLoaded": "Defaults loaded into the draft. Save to apply them.",
     "resetFailed": "Could not restore default settings."
   },
+  "statusDock": {
+    "operation": {
+      "summary": "{{kind}} · {{state}}",
+      "replacePrefix": "{{kind}}",
+      "cancelFailed": "Could not request cancellation.",
+      "kind": {
+        "importPreview": "Prepare {{source}} import",
+        "libraryImport": "Add to library",
+        "webImport": "Import web images",
+        "webScan": "Find webpage images",
+        "webPrepare": "Download selected images",
+        "shareImport": "Import shared file",
+        "shareExport": "Create shared file",
+        "modelTest": "Check model and runtime",
+        "codexAuth": "Connect ChatGPT account",
+        "background": "Background task"
+      },
+      "source": {
+        "files": "file",
+        "images": "image",
+        "folder": "folder",
+        "zip": "ZIP/CBZ",
+        "rar": "RAR/CBR",
+        "pdf": "PDF",
+        "zip-folder": "batch source"
+      },
+      "phase": {
+        "import-source-reading": "Reading the source…",
+        "import-source-converting": "Converting and extracting pages…",
+        "import-source-validating": "Checking importable pages…",
+        "import-library-saving-current": "Saving current edits…",
+        "import-library-writing": "Copying into the library…",
+        "import-finalizing": "Finishing the import…",
+        "web-validating": "Checking the web address…",
+        "web-loading": "Loading the web page…",
+        "web-scrolling": "Checking the full page…",
+        "web-discovering": "Finding images…",
+        "web-downloading": "Downloading images…",
+        "web-preparing": "Preparing selected images…",
+        "share-reading": "Reading the shared file…",
+        "share-packaging": "Creating the shared file…",
+        "share-applying": "Applying the shared file to the library…",
+        "model-test-preparing": "Preparing the model and runtime…",
+        "model-test-downloading": "Downloading the model…",
+        "model-test-checking": "Checking the model response…",
+        "codex-auth-opening-browser": "Opening the sign-in page…",
+        "codex-auth-updating": "Updating the account connection…",
+        "waiting-for-user": "Waiting for browser sign-in…"
+      },
+      "status": {
+        "running": "In progress…",
+        "cancelling": "Cancelling and cleaning up…",
+        "cancelled": "Cancelled",
+        "failed": "Failed",
+        "completed": "Completed"
+      }
+    }
+  },
   "import": {
     "sourceReadFailed": "Could not read the source to translate.",
     "added": "Added {{count}} chapters to the library.",
@@ -480,16 +539,19 @@
     "added_other": "Added {{count}} chapters to the library.",
     "applyFailed": "Could not apply the import.",
     "previewDiscardFailed": "Could not clean up the import preview files.",
+    "cancelled": "The import was cancelled. Your choices have been preserved.",
     "drop": {
       "unavailable": "Another window or task is open. Finish it, then drop the files again.",
       "empty": "No files were found to add.",
       "tooManyItems": "You can add up to {{max}} items at once.",
       "folderMustBeAlone": "Drop one folder by itself, without mixing it with other files.",
-      "archiveMustBeAlone": "Drop one ZIP/CBZ file by itself, without mixing it with other files.",
+      "archiveMustBeAlone": "Drop one ZIP/CBZ/RAR/CBR file by itself, without mixing it with other files.",
+      "pdfMustBeAlone": "Drop one PDF file by itself, without mixing it with other files.",
       "unsupportedFiles": "Nothing was added because unsupported files were mixed in. Drop only PNG, JPG, JPEG, or WEBP images together.",
       "unsupportedFilesNamed": "Nothing was added because unsupported files such as {{names}} were mixed in. Drop only PNG, JPG, JPEG, or WEBP images together.",
       "folderNoImages": "No supported images were found in this folder.",
-      "archiveNoImages": "No supported images were found in this ZIP/CBZ file.",
+      "archiveNoImages": "No supported images were found in this ZIP/CBZ/RAR/CBR file.",
+      "pdfNoPages": "No importable pages were found in this PDF.",
       "readFailed": "Could not read the dropped source."
     }
   },

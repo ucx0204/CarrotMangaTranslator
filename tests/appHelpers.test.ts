@@ -105,10 +105,31 @@ describe("renderer app helpers", () => {
       pageIndex: 1,
       pageTotal: 2,
     } as JobEvent;
-    expect(statusLineReplacementGroup(ocrEvent)).toBe("ocr-running");
+    expect(statusLineReplacementGroup(ocrEvent)).toBe("ocr-progress");
+    expect(
+      statusLineReplacementGroup({ phase: "ocr_preparing" } as JobEvent),
+    ).toBe("ocr-progress");
     expect(
       statusLineReplacementGroup({ phase: "page_retry" } as JobEvent),
-    ).toBe("page-running");
+    ).toBe("translation-progress");
+    expect(statusLineReplacementGroup({ phase: "page_done" } as JobEvent)).toBe(
+      "typography-progress",
+    );
+    expect(
+      statusLineReplacementGroup({ phase: "page_skipped" } as JobEvent),
+    ).toBe("translation-progress");
+    expect(
+      statusLineReplacementGroup({
+        kind: "inpainting",
+        phase: "inpainting_running",
+      } as JobEvent),
+    ).toBe("inpainting-progress");
+    expect(
+      statusLineReplacementGroup({
+        kind: "page-export",
+        phase: "finalizing",
+      } as JobEvent),
+    ).toBe("page-export-progress");
     expect(
       statusLineReplacementGroup({ phase: "model_downloading" } as JobEvent),
     ).toBe("model-preparing");
@@ -119,7 +140,29 @@ describe("renderer app helpers", () => {
     const matcher = resolveStatusLineReplacement(ocrEvent, "직전 상태");
     expect(matcher?.("직전 상태")).toBe(true);
     expect(matcher?.("1 / 2 페이지 Paddle OCR 분석 중")).toBe(true);
+    expect(matcher?.("Paddle OCR 배치 위치 분석 중")).toBe(true);
+    expect(matcher?.("Paddle OCR 선분석 완료")).toBe(true);
     expect(matcher?.("무관한 상태")).toBe(false);
+    const typographyMatcher = resolveStatusLineReplacement({
+      phase: "page_done",
+    } as JobEvent);
+    expect(typographyMatcher?.("4 / 50 페이지 완료")).toBe(true);
+    expect(typographyMatcher?.("4 / 50 페이지 글자·폰트 맞춤 중")).toBe(true);
+    const inpaintingMatcher = resolveStatusLineReplacement({
+      kind: "inpainting",
+      phase: "inpainting_done",
+    } as JobEvent);
+    expect(inpaintingMatcher?.("12 / 38 페이지 원문 지우는 중")).toBe(true);
+    expect(inpaintingMatcher?.("12 / 38 페이지 원문 완료")).toBe(true);
+    expect(inpaintingMatcher?.("11 / 38 페이지 그린 영역 완료")).toBe(true);
+    expect(inpaintingMatcher?.("12 / 38 페이지 번역 완료")).toBe(false);
+    const exportMatcher = resolveStatusLineReplacement({
+      kind: "page-export",
+      phase: "finalizing",
+    } as JobEvent);
+    expect(exportMatcher?.("12 / 38 페이지 출력 중")).toBe(true);
+    expect(exportMatcher?.("12 / 38 페이지 출력 완료")).toBe(true);
+    expect(exportMatcher?.("12 / 38 페이지 번역 완료")).toBe(false);
     expect(
       resolveStatusLineReplacement({ phase: "done" } as JobEvent),
     ).toBeUndefined();

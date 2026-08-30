@@ -27,6 +27,9 @@ tools/mgt-flux-klein-runner/target/
 tools/mgt-flux-klein-runner/vendor/candle-nn-metal-attention/Cargo.lock
 tools/mgt-flux-klein-runner/vendor/candle-nn-metal-attention/target/
 tools/mgt-koharu-inpaint-runner/target/
+tools/mgt-import-source-runner/target/
+tools/mgt-import-source-runner/mgt-import-source-runner
+tools/mgt-import-source-runner/mgt-import-source-runner.exe
 tools/runner-runtime-policy/target/
 tools/mgt-flux-klein-sm*/
 tools/mgt-flux-klein-cpu/*.exe

@@ -1,6 +1,11 @@
 import { readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
-import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../../shared/archive";
+import {
+  PDF_EXTENSION,
+  RAR_ARCHIVE_EXTENSIONS,
+  SUPPORTED_ARCHIVE_EXTENSIONS,
+  ZIP_ARCHIVE_EXTENSIONS,
+} from "../../shared/archive";
 import { tMain } from "./localization";
 import { isSupportedImagePath, sortNaturally } from "./storage";
 import {
@@ -16,11 +21,19 @@ const MAX_NESTED_IMAGE_FOLDERS = 500;
 const MAX_NESTED_IMAGE_FOLDER_PAGES = 5000;
 
 export function isSupportedArchivePath(filePath: string): boolean {
-  return SUPPORTED_ARCHIVE_EXTENSIONS.includes(
-    extname(
-      filePath,
-    ).toLowerCase() as (typeof SUPPORTED_ARCHIVE_EXTENSIONS)[number],
-  );
+  return hasSupportedExtension(filePath, SUPPORTED_ARCHIVE_EXTENSIONS);
+}
+
+export function isZipArchivePath(filePath: string): boolean {
+  return hasSupportedExtension(filePath, ZIP_ARCHIVE_EXTENSIONS);
+}
+
+export function isRarArchivePath(filePath: string): boolean {
+  return hasSupportedExtension(filePath, RAR_ARCHIVE_EXTENSIONS);
+}
+
+export function isPdfPath(filePath: string): boolean {
+  return extname(filePath).toLowerCase() === PDF_EXTENSION;
 }
 
 export async function listImageFiles(folderPath: string): Promise<string[]> {
@@ -36,9 +49,25 @@ export async function listZipFiles(folderPath: string): Promise<string[]> {
   const entries = await readdir(folderPath, { withFileTypes: true });
   return sortNaturally(
     entries
-      .filter((entry) => entry.isFile() && isSupportedArchivePath(entry.name))
+      .filter((entry) => entry.isFile() && isZipArchivePath(entry.name))
       .map((entry) => join(folderPath, entry.name)),
   );
+}
+
+export async function listRarFiles(folderPath: string): Promise<string[]> {
+  const entries = await readdir(folderPath, { withFileTypes: true });
+  return sortNaturally(
+    entries
+      .filter((entry) => entry.isFile() && isRarArchivePath(entry.name))
+      .map((entry) => join(folderPath, entry.name)),
+  );
+}
+
+function hasSupportedExtension<const T extends readonly string[]>(
+  filePath: string,
+  extensions: T,
+): boolean {
+  return extensions.includes(extname(filePath).toLowerCase());
 }
 
 export async function listNestedImageFolders(

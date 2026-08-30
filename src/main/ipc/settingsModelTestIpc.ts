@@ -35,6 +35,7 @@ import {
 } from "./settingsModelTestProgress";
 import { tMain } from "./localization";
 import { reserveFreePort } from "./settingsModelTestPort";
+import { toModelTestActivity } from "./settingsModelTestActivity";
 
 const MAX_MODEL_TEST_ID_LENGTH = 200;
 const SAFE_MODEL_TEST_ID_PATTERN = /^(?=.*[A-Za-z0-9_-])[A-Za-z0-9._-]+$/;
@@ -88,22 +89,33 @@ export async function handleModelSettingsTest(
         id: `model-test-${testId}`,
         kind: "model-test",
         mutatesLibrary: false,
+        presentation: {
+          phase: "model-test-preparing",
+          cancellable: true,
+        },
       },
-      async (signal) => {
+      async (signal, operation) => {
+        const rendererProgress = createModelTestProgressSender(event, testId);
+        const sendProgress: SendModelTestProgress = (progress) => {
+          rendererProgress(progress);
+          operation.updateActivity(toModelTestActivity(progress));
+        };
         const options = await buildInitialModelTestOptions(
           context,
           settings,
           testId,
           signal,
         );
-        return runModelTestWithServer({
+        const result = await runModelTestWithServer({
           endpointRuntime,
           options,
           runtime: context.loadSimplePageRuntime(),
-          sendProgress: createModelTestProgressSender(event, testId),
+          sendProgress,
           settings,
           testId,
         });
+        if (!result.ok) operation.finish("failed", "MODEL_TEST_FAILED");
+        return result;
       },
     );
   } catch (error) {

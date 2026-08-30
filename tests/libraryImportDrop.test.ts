@@ -27,11 +27,13 @@ describe("dropped library import classification", () => {
     });
   });
 
-  it("accepts one folder or one ZIP/CBZ archive", async () => {
+  it("accepts one folder, archive, or PDF", async () => {
     const root = await makeTempDir();
     const folder = join(root, "pages");
     await mkdir(folder);
     const zip = await makeFile(root, "chapter.CBZ");
+    const rar = await makeFile(root, "chapter.RAR");
+    const pdf = await makeFile(root, "chapter.PDF");
 
     await expect(classifyDroppedImportPaths([folder])).resolves.toEqual({
       status: "accepted",
@@ -42,6 +44,16 @@ describe("dropped library import classification", () => {
       status: "accepted",
       kind: "archive",
       archivePath: zip,
+    });
+    await expect(classifyDroppedImportPaths([rar])).resolves.toEqual({
+      status: "accepted",
+      kind: "archive",
+      archivePath: rar,
+    });
+    await expect(classifyDroppedImportPaths([pdf])).resolves.toEqual({
+      status: "accepted",
+      kind: "pdf",
+      pdfPath: pdf,
     });
   });
 
@@ -70,6 +82,20 @@ describe("dropped library import classification", () => {
     ).resolves.toMatchObject({
       status: "rejected",
       reason: "archive-must-be-alone",
+      count: 2,
+    });
+  });
+
+  it("rejects a PDF mixed with any other item", async () => {
+    const root = await makeTempDir();
+    const pdf = await makeFile(root, "chapter.pdf");
+    const image = await makeFile(root, "001.jpg");
+
+    await expect(
+      classifyDroppedImportPaths([image, pdf]),
+    ).resolves.toMatchObject({
+      status: "rejected",
+      reason: "pdf-must-be-alone",
       count: 2,
     });
   });

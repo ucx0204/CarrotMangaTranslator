@@ -43,13 +43,13 @@ describe("completion sound", () => {
     expect(first.result.current).toMatchObject(
       DEFAULT_COMPLETION_SOUND_PREFERENCES,
     );
-    act(() => first.result.current.playCompletionSound());
+    act(() => first.result.current.playCompletionSound("translation"));
     expect(audioInstances).toHaveLength(0);
 
     act(() =>
       first.result.current.setPreferences({ muted: false, volume: 0.42 }),
     );
-    act(() => first.result.current.playCompletionSound());
+    act(() => first.result.current.playCompletionSound("translation"));
 
     expect(audioInstances).toHaveLength(1);
     expect(audioInstances[0]?.src).toContain("completion.ogg");
@@ -71,9 +71,65 @@ describe("completion sound", () => {
     );
     expect(
       normalizeCompletionSoundPreferences({ muted: false, volume: -3 }),
-    ).toEqual({ muted: false, volume: 0 });
+    ).toEqual({
+      muted: false,
+      volume: 0,
+      translationMuted: false,
+      sourceErasingMuted: false,
+      researchMuted: false,
+    });
     expect(
       normalizeCompletionSoundPreferences({ muted: "no", volume: 4 }),
-    ).toEqual({ muted: true, volume: 1 });
+    ).toEqual({
+      muted: true,
+      volume: 1,
+      translationMuted: false,
+      sourceErasingMuted: false,
+      researchMuted: false,
+    });
+    expect(
+      normalizeCompletionSoundPreferences({
+        muted: false,
+        volume: 0.7,
+        translationMuted: true,
+        sourceErasingMuted: false,
+        researchMuted: true,
+      }),
+    ).toEqual({
+      muted: false,
+      volume: 0.7,
+      translationMuted: true,
+      sourceErasingMuted: false,
+      researchMuted: true,
+    });
+  });
+
+  it("honors the master and per-completion mute preferences", () => {
+    const play = vi.fn().mockResolvedValue(undefined);
+    class AudioMock {
+      currentTime = 0;
+      preload = "none";
+      volume = 1;
+      play = play;
+      pause = vi.fn();
+    }
+    vi.stubGlobal("Audio", AudioMock);
+    const sound = renderHook(() => useCompletionSoundController());
+
+    act(() =>
+      sound.result.current.setPreferences({
+        muted: false,
+        volume: 0.5,
+        translationMuted: true,
+        sourceErasingMuted: false,
+        researchMuted: true,
+      }),
+    );
+    act(() => sound.result.current.playCompletionSound("translation"));
+    act(() => sound.result.current.playCompletionSound("research"));
+    expect(play).not.toHaveBeenCalled();
+
+    act(() => sound.result.current.playCompletionSound("source-erasing"));
+    expect(play).toHaveBeenCalledOnce();
   });
 });

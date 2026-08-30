@@ -78,7 +78,7 @@ describe("job progress helpers", () => {
         pageTotal: 20,
         pageElapsedMs: 83_400,
       }),
-    ).toBe("3 / 20 페이지 완료");
+    ).toBe("3 / 20 페이지 글자·폰트 맞춤 중");
 
     expect(
       formatJobEventLine({
@@ -105,7 +105,7 @@ describe("job progress helpers", () => {
         pageIndex: 1,
         pageTotal: 1,
       }),
-    ).toBe("1 / 1 페이지 완료");
+    ).toBe("1 / 1 페이지 글자·폰트 맞춤 중");
   });
 
   it("returns a clamped determinate progress snapshot", () => {

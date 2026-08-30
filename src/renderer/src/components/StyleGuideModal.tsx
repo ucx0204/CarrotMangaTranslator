@@ -20,11 +20,6 @@ import {
 } from "./styleGuide/StyleGuideChrome";
 import { useStyleGuideModalModel } from "./styleGuide/useStyleGuideModalModel";
 import { StyleGuideResearchReview } from "./styleGuide/StyleGuideResearchReview";
-import {
-  StyleGuideResearchElapsed,
-  StyleGuideResearchEngineBadge,
-  StyleGuideResearchProgressContent,
-} from "./styleGuide/StyleGuideResearchProgressModal";
 import { StyleGuideResearchSetupContent } from "./styleGuide/StyleGuideResearchSetupContent";
 import { useStyleGuideResearchSetup } from "./styleGuide/useStyleGuideResearchSetup";
 
@@ -35,6 +30,7 @@ type StyleGuideModalProps = {
   notificationPort?: NotificationPort;
   settings: AppSettings | null;
   onSaveSettings?: (settings: AppSettings) => Promise<AppSettings | null>;
+  onBackgroundStateChange?: (backgrounded: boolean) => void;
   onClose: () => void;
 };
 
@@ -45,6 +41,7 @@ export function StyleGuideModal({
   notificationPort = toastNotificationPort,
   settings,
   onSaveSettings,
+  onBackgroundStateChange,
   onClose,
 }: StyleGuideModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -55,6 +52,14 @@ export function StyleGuideModal({
     notificationPort,
   );
   const [researchSetupOpen, setResearchSetupOpen] = React.useState(false);
+  React.useEffect(
+    () => onBackgroundStateChange?.(model.analyzing),
+    [model.analyzing, onBackgroundStateChange],
+  );
+  React.useEffect(
+    () => () => onBackgroundStateChange?.(false),
+    [onBackgroundStateChange],
+  );
   const confirm = useConfirmDialog();
   const confirmAndReset = async (): Promise<void> => {
     const approved = await confirm.askConfirm(
@@ -68,14 +73,16 @@ export function StyleGuideModal({
   };
   return (
     <>
-      <StyleGuidePrimaryModal
-        jobActive={jobActive}
-        model={model}
-        onAnalyze={() => setResearchSetupOpen(true)}
-        onClose={onClose}
-        onReset={confirmAndReset}
-      />
-      {researchSetupOpen ? (
+      {!model.analyzing ? (
+        <StyleGuidePrimaryModal
+          jobActive={jobActive}
+          model={model}
+          onAnalyze={() => setResearchSetupOpen(true)}
+          onClose={onClose}
+          onReset={confirmAndReset}
+        />
+      ) : null}
+      {researchSetupOpen && !model.analyzing ? (
         <StyleGuideResearchSetupModal
           engine={model.researchEngine}
           initialTitle={model.researchTitle}
@@ -84,12 +91,6 @@ export function StyleGuideModal({
           onSaveSettings={onSaveSettings}
           onSaveTitle={model.saveResearchTitle}
           onStart={model.researchWithInternet}
-        />
-      ) : null}
-      {model.analyzing && model.researchProgress ? (
-        <StyleGuideResearchProgressModal
-          progress={model.researchProgress}
-          onCancel={() => void model.cancelResearch()}
         />
       ) : null}
       {model.proposal ? (
@@ -225,50 +226,6 @@ function StyleGuideResearchSetupModal({
       }
     >
       <StyleGuideResearchSetupContent controller={controller} engine={engine} />
-    </Modal>
-  );
-}
-
-export function StyleGuideResearchProgressModal({
-  progress,
-  onCancel,
-}: {
-  progress: NonNullable<
-    ReturnType<typeof useStyleGuideModalModel>["researchProgress"]
-  >;
-  onCancel: () => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <Modal
-      title={t("styleGuide.research.progress.title")}
-      width="min(760px, calc(100vw - 48px))"
-      maxHeight="780px"
-      bodyClassName="style-guide-research-progress-body"
-      elevation="blocking"
-      closeOnEsc={false}
-      headerExtra={<StyleGuideResearchEngineBadge engine={progress.engine} />}
-      footer={
-        <ModalActionBar
-          leading={<StyleGuideResearchElapsed startedAt={progress.startedAt} />}
-          actions={
-            <Button
-              variant="secondary"
-              disabled={progress.cancelling}
-              aria-busy={progress.cancelling}
-              onClick={onCancel}
-            >
-              {t(
-                progress.cancelling
-                  ? "styleGuide.research.progress.cancelling"
-                  : "styleGuide.analysis.cancel",
-              )}
-            </Button>
-          }
-        />
-      }
-    >
-      <StyleGuideResearchProgressContent progress={progress} />
     </Modal>
   );
 }

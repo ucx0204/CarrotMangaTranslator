@@ -39,7 +39,6 @@ type StartResult = Awaited<ReturnType<typeof mangaGateway.startAnalysis>>;
 type AnalysisJobContext = Pick<
   UseTranslationActionsOptions,
   | "beforeTranslate"
-  | "clearStatusLines"
   | "currentChapter"
   | "currentChapterRef"
   | "mergeLiveChapter"
@@ -219,7 +218,6 @@ function resolveFlowCheckpointPageIds(
 function useExecuteAnalysisJob(
   {
     beforeTranslate,
-    clearStatusLines,
     currentChapter,
     currentChapterRef,
     mergeLiveChapter,
@@ -235,7 +233,6 @@ function useExecuteAnalysisJob(
   const context = useMemo<AnalysisJobContext>(
     () => ({
       beforeTranslate,
-      clearStatusLines,
       currentChapter,
       currentChapterRef,
       mergeLiveChapter,
@@ -249,7 +246,6 @@ function useExecuteAnalysisJob(
     }),
     [
       beforeTranslate,
-      clearStatusLines,
       currentChapter,
       currentChapterRef,
       mergeLiveChapter,
@@ -276,12 +272,16 @@ async function executeAnalysisJob(
   const targetChapterId = job.chapterId ?? openChapterId;
   if (!targetChapterId) return "no-op";
   const isOpenChapter = targetChapterId === openChapterId;
+  const scopedContext: AnalysisJobContext = {
+    ...context,
+    pushStatus: (line) => context.pushStatus(line, targetChapterId),
+  };
   const ownsTimingSession = !job.timingSession;
   const timingSession = job.timingSession ?? createRendererPageTimingSession();
   const timedJob = { ...job, timingSession };
   let outcome: RunAnalysisOutcome = "failed";
   try {
-    await prepareAnalysisJob(timedJob, context, isOpenChapter);
+    await prepareAnalysisJob(timedJob, scopedContext, isOpenChapter);
     const result = await mangaGateway.startAnalysis(
       makeStartAnalysisRequest(targetChapterId, timedJob, context.t),
     );
@@ -289,18 +289,18 @@ async function executeAnalysisJob(
       context.mergeLiveChapter(result.chapter);
     }
     await refreshLibraryWithWarning(
-      context.refreshLibrary,
-      context.pushStatus,
-      context.t,
-      context.notificationPort,
+      scopedContext.refreshLibrary,
+      scopedContext.pushStatus,
+      scopedContext.t,
+      scopedContext.notificationPort,
     );
-    outcome = resolveAnalysisJobOutcome(result, timedJob, context);
+    outcome = resolveAnalysisJobOutcome(result, timedJob, scopedContext);
     return outcome;
   } catch (error) {
     outcome = handleAnalysisJobError(
       error,
       timedJob.deferTerminalFailure,
-      context,
+      scopedContext,
     );
     return outcome;
   } finally {
@@ -321,7 +321,6 @@ async function prepareAnalysisJob(
 ): Promise<void> {
   if (isOpenChapter) await context.saveNow();
   await context.beforeTranslate?.();
-  context.clearStatusLines();
   context.setJobState(startingJobState(context.t));
   markOpenChapterRunning({
     currentChapter: isOpenChapter ? context.currentChapter : null,

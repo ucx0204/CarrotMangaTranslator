@@ -23,16 +23,20 @@ import type { AppSessionCoreState } from "./useAppSessionCoreState";
 import type { useAppSessionDerivedState } from "./useAppSessionDerivedState";
 import type { useAppSessionUiState } from "./useAppSessionUiState";
 import type { useInpaintingGuidePreference } from "./useInpaintingGuidePreference";
+import type { useCompletionSoundController } from "../../hooks/useCompletionSound";
+
+type OperationActivityController = {
+  activity: AppSessionViewProps["rightRailProps"]["operationActivity"];
+  active: boolean;
+  libraryMutationBlocked: boolean;
+  cancel: () => Promise<void>;
+  clearTerminal: () => void;
+};
 
 export type AppSessionViewModel = {
   blockEditingActions: ReturnType<typeof useBlockEditingActions>;
   bridgeActions: ReturnType<typeof useAppSessionBridgeActions>;
-  completionSound: {
-    muted: boolean;
-    volume: number;
-    playCompletionSound: () => void;
-    setPreferences: (preferences: { muted: boolean; volume: number }) => void;
-  };
+  completionSound: ReturnType<typeof useCompletionSoundController>;
   commands: AppSessionViewProps["commandPaletteProps"]["commands"];
   confirmController: ReturnType<typeof useConfirmDialog>;
   core: AppSessionCoreState;
@@ -44,6 +48,7 @@ export type AppSessionViewModel = {
   inpaintingBridge: ReturnType<typeof useInpaintingContextBridge>;
   libraryActions: ReturnType<typeof useLibraryActions>;
   linkedWorkspace: ReturnType<typeof useLinkedWorkspaceController>;
+  operationActivity: OperationActivityController;
   libraryDrop: LibraryDropImportController;
   panelBridge: ReturnType<typeof usePanelBridgeHost>;
   persistence: ReturnType<typeof useChapterPersistence>;

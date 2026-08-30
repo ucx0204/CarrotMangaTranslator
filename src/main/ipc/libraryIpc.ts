@@ -103,6 +103,7 @@ function registerLibraryRenameIpc(context: IpcContext): void {
     context,
     libraryIpcContracts.renameWork,
     async (_event, workId: unknown, title: unknown) => {
+      assertLibraryStructureMutationAvailable(context);
       const request = parseIpcPayload(
         RenameWorkRequestSchema,
         { workId, title },
@@ -115,6 +116,7 @@ function registerLibraryRenameIpc(context: IpcContext): void {
     context,
     libraryIpcContracts.renameChapter,
     async (_event, chapterId: unknown, title: unknown) => {
+      assertLibraryStructureMutationAvailable(context);
       const request = parseIpcPayload(
         RenameChapterRequestSchema,
         { chapterId, title },
@@ -130,6 +132,7 @@ function registerLibraryDeleteIpc(context: IpcContext): void {
     context,
     libraryIpcContracts.deleteWork,
     async (_event, workId: unknown) => {
+      assertLibraryStructureMutationAvailable(context);
       const request = parseIpcPayload(
         DeleteWorkRequestSchema,
         { workId },
@@ -142,6 +145,7 @@ function registerLibraryDeleteIpc(context: IpcContext): void {
     context,
     libraryIpcContracts.deleteChapter,
     async (_event, chapterId: unknown) => {
+      assertLibraryStructureMutationAvailable(context);
       const request = parseIpcPayload(
         DeleteChapterRequestSchema,
         { chapterId },
@@ -154,6 +158,7 @@ function registerLibraryDeleteIpc(context: IpcContext): void {
     context,
     libraryIpcContracts.deletePage,
     async (_event, chapterId: unknown, pageId: unknown) => {
+      assertLibraryStructureMutationAvailable(context);
       const request = parseIpcPayload(
         DeletePageRequestSchema,
         { chapterId, pageId },
@@ -169,6 +174,7 @@ function registerLibraryReorderIpc(context: IpcContext): void {
     context,
     libraryIpcContracts.reorderChapters,
     async (_event, workId: unknown, chapterIds: unknown) => {
+      assertLibraryStructureMutationAvailable(context);
       const request = parseIpcPayload(
         ReorderChaptersRequestSchema,
         { workId, chapterIds },
@@ -181,6 +187,7 @@ function registerLibraryReorderIpc(context: IpcContext): void {
     context,
     libraryIpcContracts.reorderPages,
     async (_event, chapterId: unknown, pageIds: unknown) => {
+      assertLibraryStructureMutationAvailable(context);
       const request = parseIpcPayload(
         ReorderPagesRequestSchema,
         { chapterId, pageIds },
@@ -189,4 +196,10 @@ function registerLibraryReorderIpc(context: IpcContext): void {
       return reorderPages(request.chapterId, request.pageIds);
     },
   );
+}
+
+function assertLibraryStructureMutationAvailable(context: IpcContext): void {
+  if (context.operations.current?.mutatesLibrary) {
+    throw new Error(tMain("ipc.errors.libraryOperationBusy"));
+  }
 }

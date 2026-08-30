@@ -10,6 +10,7 @@ import {
 } from "../../shared/codexSettings";
 import { settingsIpcContracts } from "../../shared/ipcContextSettingsContracts";
 import { runManagedAppOperation } from "../appOperationRegistry";
+import type { AppOperationActivityUpdate } from "../appOperationRegistry";
 import { CodexAppServerClient } from "../codexAppServerClient";
 import type {
   CodexAppServerAccountResult,
@@ -59,12 +60,14 @@ export function registerCodexAccountIpc(
   trustedHandleContract(
     context,
     settingsIpcContracts.loginCodexAccount,
-    async () => runCodexAccountOperation(context, runtime, loginAccount),
+    async () =>
+      runCodexAccountOperation(context, runtime, "login", loginAccount),
   );
   trustedHandleContract(
     context,
     settingsIpcContracts.logoutCodexAccount,
-    async () => runCodexAccountOperation(context, runtime, logoutAccount),
+    async () =>
+      runCodexAccountOperation(context, runtime, "logout", logoutAccount),
   );
 }
 
@@ -100,10 +103,12 @@ async function runCodexAccountRead(
 async function runCodexAccountOperation(
   context: IpcContext,
   runtime: CodexAccountIpcRuntime,
+  mode: AccountOperationMode,
   operation: (
     client: CodexAccountClient,
     signal: AbortSignal,
     runtime: CodexAccountIpcRuntime,
+    updateActivity: (update: AppOperationActivityUpdate) => void,
   ) => Promise<CodexAccountSnapshot>,
 ): Promise<CodexAccountSnapshot> {
   return runManagedAppOperation(
@@ -112,13 +117,20 @@ async function runCodexAccountOperation(
       id: `codex-auth-${randomUUID()}`,
       kind: "codex-auth",
       mutatesLibrary: false,
+      presentation: {
+        phase:
+          mode === "login"
+            ? "codex-auth-opening-browser"
+            : "codex-auth-updating",
+        cancellable: true,
+      },
     },
-    async (signal) => {
+    async (signal, lease) => {
       const client = await startAccountClient(context, runtime);
       const abort = () => void client.dispose();
       signal.addEventListener("abort", abort, { once: true });
       try {
-        return await operation(client, signal, runtime);
+        return await operation(client, signal, runtime, lease.updateActivity);
       } finally {
         signal.removeEventListener("abort", abort);
         await client.dispose();
@@ -126,6 +138,8 @@ async function runCodexAccountOperation(
     },
   );
 }
+
+type AccountOperationMode = "login" | "logout";
 
 function startAccountClient(
   context: IpcContext,
@@ -147,11 +161,13 @@ async function loginAccount(
   client: CodexAccountClient,
   signal: AbortSignal,
   runtime: CodexAccountIpcRuntime,
+  updateActivity: (update: AppOperationActivityUpdate) => void,
 ): Promise<CodexAccountSnapshot> {
   const login = await client.startChatGptLogin();
   try {
     assertOfficialLoginUrl(login.authUrl);
     await runtime.openExternal(login.authUrl);
+    updateActivity({ phase: "waiting-for-user", waitingForUser: true });
     await client.waitForLogin(login.loginId, signal);
   } catch (error) {
     await client.cancelLogin(login.loginId);
@@ -162,6 +178,9 @@ async function loginAccount(
 
 async function logoutAccount(
   client: CodexAccountClient,
+  _signal: AbortSignal,
+  _runtime: CodexAccountIpcRuntime,
+  _updateActivity: (update: AppOperationActivityUpdate) => void,
 ): Promise<CodexAccountSnapshot> {
   await client.logout();
   return readAccountSnapshot(client, false);

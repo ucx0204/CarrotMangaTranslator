@@ -6,22 +6,38 @@ import type { JobState } from "../../../shared/jobTypes";
 import { isTerminalJobStatus } from "../../../shared/jobContracts";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import type { CompletionSoundPreferences } from "../hooks/useCompletionSound";
+import type { AppOperationActivityEvent } from "../../../shared/appOperationTypes";
+import {
+  formatAppOperationActivity,
+  isAppOperationActive,
+} from "../lib/appOperationPresentation";
 import { IconButton } from "./ui/IconButton";
 import { usePopupController } from "./ui/usePopupController";
+import { StatusPopover, type StatusFailedPage } from "./StatusPopover";
 import {
-  StatusPopover,
-  type StatusFailedPage,
-  type StatusJobHistoryEntry,
-} from "./StatusPopover";
+  clearStatusCenterHistory,
+  loadStatusCenterHistory,
+  saveStatusCenterHistory,
+  STATUS_CENTER_HISTORY_LIMIT,
+  type StatusCenterHistoryEntry,
+} from "../lib/statusCenterHistoryStore";
+import { OPEN_STATUS_CENTER_EVENT } from "../lib/statusCenterEvents";
+import type { StatusLogEntry } from "../hooks/useStatusLog";
 
 type StatusDockButtonProps = {
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
   showProgressBar: boolean;
+  statusEntries?: StatusLogEntry[];
   statusLines: string[];
   completionSoundMuted?: boolean;
   completionSoundVolume?: number;
+  completionSoundTranslationMuted?: boolean;
+  completionSoundSourceErasingMuted?: boolean;
+  completionSoundResearchMuted?: boolean;
   onCancelJob: () => void;
+  operationActivity?: AppOperationActivityEvent | null;
+  onCancelOperation?: () => void;
   onClear: () => void;
   onCompletionSoundChange?: (preferences: CompletionSoundPreferences) => void;
   onOpenExport?: () => void;
@@ -36,10 +52,16 @@ export function StatusDockButton({
   jobState,
   progressSnapshot,
   showProgressBar,
+  statusEntries,
   statusLines,
   completionSoundMuted = true,
   completionSoundVolume = 0.55,
+  completionSoundTranslationMuted,
+  completionSoundSourceErasingMuted,
+  completionSoundResearchMuted,
   onCancelJob,
+  operationActivity = null,
+  onCancelOperation,
   onClear,
   onCompletionSoundChange = NOOP_COMPLETION_SOUND_CHANGE,
   onOpenExport,
@@ -49,8 +71,19 @@ export function StatusDockButton({
   failedPages = [],
 }: StatusDockButtonProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const { t: rendererT } = useTranslation("renderer");
   const popoverId = React.useId();
-  const latest = statusLines[0];
+  const operationLine = resolveActiveOperationLine(
+    operationActivity,
+    rendererT,
+  );
+  const resolvedStatusEntries =
+    statusEntries ?? statusLines.map((message) => ({ message }));
+  const visibleStatusEntries = removeCurrentStatusEntry(
+    resolvedStatusEntries,
+    operationLine ?? resolveActiveJobLine(jobState),
+  );
+  const latest = resolveLatestStatusLine(operationLine, resolvedStatusEntries);
   const {
     closePopover,
     open,
@@ -60,7 +93,11 @@ export function StatusDockButton({
     triggerRef,
     unread,
   } = useStatusDockController(latest);
-  const jobHistory = useStatusJobHistory(jobState);
+  const jobHistory = useStatusJobHistory(
+    jobState,
+    operationActivity,
+    rendererT,
+  );
   const resultActions = createStatusResultActions({
     onOpenExport,
     onReviewResults,
@@ -68,12 +105,13 @@ export function StatusDockButton({
     setOpen,
   });
 
-  const indicator = resolveStatusIndicator(jobState, unread);
+  const indicator = resolveStatusIndicator(jobState, operationActivity, unread);
   const tooltip = resolveStatusTooltip(latest, t);
   return (
     <div className="status-dock" ref={rootRef}>
       <IconButton
         ref={triggerRef}
+        data-work-center-handoff-target=""
         className={`status-dock-button ${indicator}`}
         label={t("statusDock.open")}
         title={tooltip}
@@ -93,14 +131,25 @@ export function StatusDockButton({
         <StatusPopover
           completionSoundMuted={completionSoundMuted}
           completionSoundVolume={completionSoundVolume}
+          completionSoundTranslationMuted={Boolean(
+            completionSoundTranslationMuted,
+          )}
+          completionSoundSourceErasingMuted={Boolean(
+            completionSoundSourceErasingMuted,
+          )}
+          completionSoundResearchMuted={Boolean(completionSoundResearchMuted)}
           id={popoverId}
           jobState={jobState}
+          operationActivity={
+            isAppOperationActive(operationActivity) ? operationActivity : null
+          }
           progressSnapshot={progressSnapshot}
           showProgressBar={showProgressBar}
-          statusLines={statusLines}
+          statusEntries={visibleStatusEntries}
           failedPages={failedPages}
-          jobHistory={jobHistory.entries}
+          jobHistory={resolveVisibleHistory(jobHistory.entries, jobState)}
           onCancelJob={onCancelJob}
+          onCancelOperation={onCancelOperation}
           onClear={() => {
             onClear();
             jobHistory.clear();
@@ -116,6 +165,50 @@ export function StatusDockButton({
       ) : null}
     </div>
   );
+}
+
+function resolveVisibleHistory(
+  entries: StatusCenterHistoryEntry[],
+  jobState: JobState,
+): StatusCenterHistoryEntry[] {
+  return isTerminalJobStatus(jobState.status)
+    ? entries.filter((entry) => entry.id !== jobState.id)
+    : entries;
+}
+
+function resolveActiveOperationLine(
+  activity: AppOperationActivityEvent | null,
+  t: TFunction<"renderer">,
+): string | undefined {
+  return activity && isAppOperationActive(activity)
+    ? formatAppOperationActivity(activity, t)
+    : undefined;
+}
+
+function resolveLatestStatusLine(
+  operationLine: string | undefined,
+  statusEntries: readonly StatusLogEntry[],
+): string | undefined {
+  return operationLine ?? statusEntries[0]?.message;
+}
+
+function resolveActiveJobLine(jobState: JobState): string | undefined {
+  return ["starting", "running", "cancelling"].includes(jobState.status)
+    ? jobState.progressText
+    : undefined;
+}
+
+function removeCurrentStatusEntry(
+  statusEntries: readonly StatusLogEntry[],
+  currentLine: string | undefined,
+): StatusLogEntry[] {
+  const normalizedCurrent = currentLine?.trim();
+  if (!normalizedCurrent) return [...statusEntries];
+  const currentIndex = statusEntries.findIndex(
+    (entry) => entry.message.trim() === normalizedCurrent,
+  );
+  if (currentIndex < 0) return [...statusEntries];
+  return statusEntries.filter((_, index) => index !== currentIndex);
 }
 
 const NOOP_COMPLETION_SOUND_CHANGE = (
@@ -142,6 +235,7 @@ function createStatusResultActions({
   onRetryPage?: (pageId: string) => void;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }): {
+  closeAfter: (action?: () => void) => (() => void) | undefined;
   onOpenExport?: () => void;
   onReviewResults?: () => void;
   onRetryPage?: (pageId: string) => void;
@@ -154,6 +248,7 @@ function createStatusResultActions({
         }
       : undefined;
   return {
+    closeAfter,
     onOpenExport: closeAfter(onOpenExport),
     onReviewResults: closeAfter(onReviewResults),
     onRetryPage: onRetryPage
@@ -165,41 +260,81 @@ function createStatusResultActions({
   };
 }
 
-function useStatusJobHistory(jobState: JobState): {
+function useStatusJobHistory(
+  jobState: JobState,
+  operationActivity: AppOperationActivityEvent | null,
+  rendererT: TFunction<"renderer">,
+): {
   clear: () => void;
-  entries: StatusJobHistoryEntry[];
+  entries: StatusCenterHistoryEntry[];
 } {
-  const previousRef = React.useRef<JobState | null>(null);
-  const [entries, setEntries] = React.useState<StatusJobHistoryEntry[]>([]);
+  const jobTerminalRef = React.useRef<string | null>(null);
+  const operationTerminalRef = React.useRef<string | null>(null);
+  const [entries, setEntries] = React.useState<StatusCenterHistoryEntry[]>(
+    loadStatusCenterHistory,
+  );
   React.useEffect(() => {
-    const previous = previousRef.current;
-    if (
-      previous &&
-      isTerminalJobStatus(previous.status) &&
-      (previous.id !== jobState.id || !isTerminalJobStatus(jobState.status))
-    ) {
-      setEntries((current) => {
-        if (current.some((entry) => entry.id === previous.id)) return current;
-        return [toHistoryEntry(previous), ...current].slice(0, 5);
-      });
-    }
-    previousRef.current = jobState;
+    if (!isTerminalJobStatus(jobState.status)) return;
+    const terminalKey = `${jobState.id}:${jobState.status}`;
+    if (jobTerminalRef.current === terminalKey) return;
+    jobTerminalRef.current = terminalKey;
+    setEntries((current) => prependHistory(current, toHistoryEntry(jobState)));
   }, [jobState]);
+  React.useEffect(() => {
+    if (!operationActivity || isAppOperationActive(operationActivity)) return;
+    const terminalKey = `${operationActivity.id}:${operationActivity.updatedAt}`;
+    if (operationTerminalRef.current === terminalKey) return;
+    operationTerminalRef.current = terminalKey;
+    setEntries((current) => {
+      const next = current.filter((entry) => entry.id !== operationActivity.id);
+      const terminalEntry: StatusCenterHistoryEntry = {
+        id: operationActivity.id,
+        source: "operation",
+        kind: operationActivity.kind,
+        status: operationActivity.status,
+        completedAt: operationActivity.updatedAt,
+        ...(operationActivity.failureCode
+          ? { failureCode: operationActivity.failureCode }
+          : {}),
+        ...(operationActivity.phase ? { phase: operationActivity.phase } : {}),
+        ...(operationActivity.sourceKind
+          ? { sourceKind: operationActivity.sourceKind }
+          : {}),
+        progressText: formatAppOperationActivity(operationActivity, rendererT),
+      };
+      return [terminalEntry, ...next].slice(0, STATUS_CENTER_HISTORY_LIMIT);
+    });
+  }, [operationActivity, rendererT]);
+  React.useEffect(() => saveStatusCenterHistory(entries), [entries]);
   return {
-    clear: React.useCallback(() => setEntries([]), []),
+    clear: React.useCallback(() => {
+      setEntries([]);
+      clearStatusCenterHistory();
+    }, []),
     entries,
   };
 }
 
-function toHistoryEntry(jobState: JobState): StatusJobHistoryEntry {
+function toHistoryEntry(jobState: JobState): StatusCenterHistoryEntry {
   return {
     id: jobState.id,
+    source: "job",
     kind: jobState.kind,
     status: jobState.status,
+    completedAt: Date.now(),
     progressText: jobState.progressText,
-    detail: jobState.detail,
     pageTotal: jobState.pageTotal ?? jobState.progressTotal,
   };
+}
+
+function prependHistory(
+  current: StatusCenterHistoryEntry[],
+  entry: StatusCenterHistoryEntry,
+): StatusCenterHistoryEntry[] {
+  return [entry, ...current.filter((item) => item.id !== entry.id)].slice(
+    0,
+    STATUS_CENTER_HISTORY_LIMIT,
+  );
 }
 
 function useStatusDockController(latest: string | undefined) {
@@ -212,6 +347,7 @@ function useStatusDockController(latest: string | undefined) {
     triggerRef,
   } = usePopupController({
     initialFocus: false,
+    isInsidePopup: isStatusSoundPopoverTarget,
     open,
     onOpenChange: setOpen,
   });
@@ -225,6 +361,12 @@ function useStatusDockController(latest: string | undefined) {
   React.useEffect(() => {
     if (open) setUnread(false);
   }, [open]);
+  React.useEffect(() => {
+    const openStatusCenter = (): void => setOpen(true);
+    window.addEventListener(OPEN_STATUS_CENTER_EVENT, openStatusCenter);
+    return () =>
+      window.removeEventListener(OPEN_STATUS_CENTER_EVENT, openStatusCenter);
+  }, []);
   return {
     closePopover,
     open,
@@ -236,9 +378,16 @@ function useStatusDockController(latest: string | undefined) {
   };
 }
 
-function resolveStatusIndicator(jobState: JobState, unread: boolean): string {
-  if (jobState.status === "failed") return "failed";
-  if (jobState.status === "partial") return "partial";
+function isStatusSoundPopoverTarget(target: Node): boolean {
+  const element = target instanceof Element ? target : target.parentElement;
+  return Boolean(element?.closest(".status-sound-popover"));
+}
+
+function resolveStatusIndicator(
+  jobState: JobState,
+  operationActivity: AppOperationActivityEvent | null,
+  unread: boolean,
+): string {
   if (
     jobState.status === "starting" ||
     jobState.status === "running" ||
@@ -246,5 +395,9 @@ function resolveStatusIndicator(jobState: JobState, unread: boolean): string {
   ) {
     return "running";
   }
+  if (isAppOperationActive(operationActivity)) return "running";
+  if (jobState.status === "failed") return "failed";
+  if (jobState.status === "partial") return "partial";
+  if (operationActivity?.status === "failed") return "failed";
   return unread ? "unread" : "idle";
 }

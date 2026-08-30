@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ImportPreviewSession } from "../../../../shared/importTypes";
 import type {
-  WebImportProgressEvent,
   WebImportScanResult,
   WebImportSizeFilter,
 } from "../../../../shared/webImportTypes";
@@ -12,6 +11,7 @@ import {
   filterWebImportCandidates,
   setVisibleWebImportSelection,
 } from "../../lib/webImportSelection";
+import { handoffActiveModalToWorkCenter } from "../../lib/modalWorkCenterHandoff";
 
 export function useWebImportModalState({
   onCancel,
@@ -25,7 +25,6 @@ export function useWebImportModalState({
   const [filter, setFilter] = useState<WebImportSizeFilter>("large");
   const [result, setResult] = useState<WebImportScanResult | null>(null);
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
-  const [progress, setProgress] = useState<WebImportProgressEvent | null>(null);
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(false);
   const [preparing, setPreparing] = useState(false);
@@ -40,7 +39,6 @@ export function useWebImportModalState({
     [excluded, visibleCandidates],
   );
 
-  useProgressSubscription(requestRef, mountedRef, setProgress);
   useUnmountCancellation(requestRef, mountedRef);
   useSessionDisposal(result);
   const scan = useWebImportScanAction({
@@ -49,7 +47,6 @@ export function useWebImportModalState({
     setError,
     setExcluded,
     setFilter,
-    setProgress,
     setResult,
     setScanning,
     setUrl,
@@ -79,7 +76,6 @@ export function useWebImportModalState({
     filter,
     prepare,
     preparing,
-    progress,
     result,
     scan,
     scanning,
@@ -101,7 +97,6 @@ function useWebImportScanAction({
   setError,
   setExcluded,
   setFilter,
-  setProgress,
   setResult,
   setScanning,
   setUrl,
@@ -113,7 +108,6 @@ function useWebImportScanAction({
   setError: WebImportStateSetter<string>;
   setExcluded: WebImportStateSetter<Set<string>>;
   setFilter: WebImportStateSetter<WebImportSizeFilter>;
-  setProgress: WebImportStateSetter<WebImportProgressEvent | null>;
   setResult: WebImportStateSetter<WebImportScanResult | null>;
   setScanning: WebImportStateSetter<boolean>;
   setUrl: WebImportStateSetter<string>;
@@ -126,11 +120,11 @@ function useWebImportScanAction({
       setError(t("webImport.errors.invalidUrl"));
       return;
     }
+    handoffActiveModalToWorkCenter();
     startWebImportScanState({
       normalized,
       setError,
       setExcluded,
-      setProgress,
       setResult,
       setScanning,
       setUrl,
@@ -166,7 +160,6 @@ function useWebImportScanAction({
     setError,
     setExcluded,
     setFilter,
-    setProgress,
     setResult,
     setScanning,
     setUrl,
@@ -179,7 +172,6 @@ function startWebImportScanState({
   normalized,
   setError,
   setExcluded,
-  setProgress,
   setResult,
   setScanning,
   setUrl,
@@ -187,14 +179,12 @@ function startWebImportScanState({
   normalized: string;
   setError: WebImportStateSetter<string>;
   setExcluded: WebImportStateSetter<Set<string>>;
-  setProgress: WebImportStateSetter<WebImportProgressEvent | null>;
   setResult: WebImportStateSetter<WebImportScanResult | null>;
   setScanning: WebImportStateSetter<boolean>;
   setUrl: WebImportStateSetter<string>;
 }): void {
   setUrl(normalized);
   setError("");
-  setProgress(null);
   setExcluded(new Set());
   setResult(null);
   setScanning(true);
@@ -227,6 +217,7 @@ function useWebImportPrepareAction({
 }): () => Promise<void> {
   return useCallback(async () => {
     if (!result || selectedCandidateIds.length === 0) return;
+    handoffActiveModalToWorkCenter();
     setPreparing(true);
     setError("");
     try {
@@ -269,24 +260,6 @@ function useVisibleSelectionAction(
         setVisibleWebImportSelection(current, visibleCandidateIds, selected),
       ),
     [setExcluded, visibleCandidateIds],
-  );
-}
-
-function useProgressSubscription(
-  requestRef: React.RefObject<string | null>,
-  mountedRef: React.RefObject<boolean>,
-  setProgress: React.Dispatch<
-    React.SetStateAction<WebImportProgressEvent | null>
-  >,
-): void {
-  useEffect(
-    () =>
-      libraryGateway.onWebImportProgress((event) => {
-        if (event.requestId === requestRef.current && mountedRef.current) {
-          setProgress(event);
-        }
-      }),
-    [mountedRef, requestRef, setProgress],
   );
 }
 

@@ -14,6 +14,7 @@ export const recentDialogPathKeys = {
   imageImport: "imageImport",
   imageFolderImport: "imageFolderImport",
   archiveImport: "archiveImport",
+  pdfImport: "pdfImport",
   archiveFolderImport: "archiveFolderImport",
   workShareImport: "workShareImport",
   workShareExport: "workShareExport",

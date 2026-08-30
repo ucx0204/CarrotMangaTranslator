@@ -65,6 +65,9 @@ export function useLibraryDropImport({
       }
       const response = await libraryGateway.previewDroppedImport(filePaths);
       if (response.status === "rejected") {
+        if (response.reason === "cancelled") {
+          return;
+        }
         showRejection(response, t);
         return;
       }

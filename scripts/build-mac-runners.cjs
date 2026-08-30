@@ -123,7 +123,14 @@ function main() {
     throw new Error("Flux Metal build plan is missing");
   }
   patchCandleMetalQMatMul({ cwd: root, manifestPath: fluxManifest });
-  executeMetalRunnerBuildPlan(plan, createCommandRunner());
+  const run = createCommandRunner();
+  executeMetalRunnerBuildPlan(plan, run);
+  run(process.execPath, [
+    "scripts/prepare-import-source-runner.cjs",
+    "--target",
+    "aarch64-apple-darwin",
+    "--no-copy",
+  ]);
 }
 
 if (require.main === module) {

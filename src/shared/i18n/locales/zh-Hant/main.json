@@ -28,6 +28,7 @@
     "openImages": "開啟圖片",
     "openImageFolder": "開啟圖片資料夾",
     "openArchive": "開啟壓縮檔",
+    "openPdf": "開啟 PDF",
     "batchImport": "批次翻譯作品",
     "saveShare": "儲存共享檔案",
     "openShare": "匯入共享檔案",
@@ -53,7 +54,8 @@
       "noWindow": "沒有可接收 IPC 要求的應用程式視窗。",
       "untrusted": "不受信任的 IPC 要求。",
       "invalidImportPreview": "匯入預覽已過期或無效。",
-      "invalidSharePreview": "共享檔案預覽已過期或無效。"
+      "invalidSharePreview": "共享檔案預覽已過期或無效。",
+      "libraryOperationBusy": "請等待資料庫工作完成後再變更其結構。"
     },
     "labels": {
       "translationJob": "翻譯工作",
@@ -143,9 +145,11 @@
       "normalizedImageTooLarge": "正規化後的圖片檔案過大：{{file}}",
       "imageDecodeTimedOut": "圖片解碼逾時：{{file}}",
       "tooManySources": "要匯入的資料夾或圖片過多。",
+      "unsupportedArchive": "不支援的壓縮檔案：{{file}}",
       "zipEntryMissing": "找不到 ZIP 項目：{{entry}}",
       "noChapterToCreate": "沒有可建立的章節。",
-      "createdChapterOpen": "無法開啟已建立的章節。"
+      "createdChapterOpen": "無法開啟已建立的章節。",
+      "noUsablePages": "找不到可匯入的頁面。"
     }
   },
   "share": {

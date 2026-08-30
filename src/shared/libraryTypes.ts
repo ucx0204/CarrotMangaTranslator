@@ -20,7 +20,13 @@ type ChapterStatus = "idle" | "running" | "completed" | "partial" | "failed";
 
 export type RunMode = "pending" | "all" | "single-page" | "page-set";
 
-export type ImportSourceKind = "images" | "folder" | "zip" | "zip-folder";
+export type ImportSourceKind =
+  | "images"
+  | "folder"
+  | "zip"
+  | "rar"
+  | "pdf"
+  | "zip-folder";
 
 export type CustomFont = {
   id: string;

@@ -15,6 +15,8 @@ export function useInpaintingController(
     core: chapter.core,
     derivedState: chapter.derivedState,
     dirty: chapter.persistence.dirty,
+    exclusiveActivityActive:
+      chapter.operationActivity.active || chapter.importShareModal.importBusy,
     mergeLiveChapter: chapter.mergeLiveChapter,
     modalOpen: chapter.modalOpen,
     pushStatus: chapter.statusLog.pushStatus,
@@ -27,7 +29,10 @@ export function useInpaintingController(
     workspaceHistory: translation.workspaceHistory,
   });
   const commands = useAppSessionCommandController({
-    cancelJob: chapter.bridgeActions.cancelJob,
+    cancelJob: () =>
+      chapter.operationActivity.active
+        ? void chapter.operationActivity.cancel()
+        : chapter.bridgeActions.cancelJob(),
     currentChapter: chapter.core.currentChapter,
     jobActive:
       inpainting.inpaintingBridge.contextValue.jobActive ||

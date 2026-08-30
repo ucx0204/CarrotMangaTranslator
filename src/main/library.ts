@@ -34,12 +34,16 @@ export {
 export {
   createLibraryImportService,
   createImport,
+  prepareArchiveFolderImportPreview,
+  prepareArchiveImportPreview,
+  preparePdfImportPreview,
   previewFolder,
   previewImages,
   previewZip,
   previewZipFolder,
 } from "./library/libraryImportFacade";
 export type {
+  ImportSourceProgress,
   LibraryImportRuntime,
   LibraryImportService,
 } from "./library/libraryImportFacade";

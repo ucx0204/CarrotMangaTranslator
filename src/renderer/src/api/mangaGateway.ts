@@ -36,6 +36,15 @@ export function createTestMangaGatewayStub(
       if (value !== undefined) {
         return value;
       }
+      if (property === "onAppOperationActivity") {
+        return () => () => undefined;
+      }
+      if (property === "getActiveAppOperation") {
+        return async () => null;
+      }
+      if (property === "cancelAppOperation") {
+        return async () => ({ accepted: false });
+      }
       return () => Promise.reject(createMissingBridgeError(String(property)));
     },
   });

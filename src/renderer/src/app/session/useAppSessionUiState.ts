@@ -32,6 +32,7 @@ export function useAppSessionUiState() {
   const [textViewTab, setTextViewTab] = useState<GatherTextTab>("overview");
   const [blockLibraryOpen, setBlockLibraryOpen] = useState(false);
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
+  const [styleGuideBackgrounded, setStyleGuideBackgrounded] = useState(false);
   const translateModals = useTranslateModalUiState();
   const jobFlow = useJobFlowState();
   const [editorFloating, setEditorFloating] = useState(false);
@@ -54,6 +55,7 @@ export function useAppSessionUiState() {
     resetInpaintingUi();
     setBlockLibraryOpen(false);
     setStyleGuideOpen(false);
+    setStyleGuideBackgrounded(false);
     setTextViewOpen(false);
     setTextViewTab("overview");
     setRightRailMode("page-blocks");
@@ -83,6 +85,7 @@ export function useAppSessionUiState() {
     setShowTextBlocks,
     setStageToolbarHidden,
     setStyleGuideOpen,
+    setStyleGuideBackgrounded,
     setTextViewOpen,
     setTextViewTab,
     shortcutHelpOpen,
@@ -90,6 +93,7 @@ export function useAppSessionUiState() {
     showTextBlocks,
     stageToolbarHidden,
     styleGuideOpen,
+    styleGuideBackgrounded,
     textViewOpen,
     textViewTab,
   };

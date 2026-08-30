@@ -14,6 +14,8 @@ import type { BlockReadingDirection } from "../../../shared/blockReadingOrder";
 import type { ChapterSaveStatus } from "../hooks/chapterPersistenceTypes";
 import type { LinkedWorkspaceStatus } from "../../../shared/linkedWorkspaceTypes";
 import type { CompletionSoundPreferences } from "../hooks/useCompletionSound";
+import type { AppOperationActivityEvent } from "../../../shared/appOperationTypes";
+import type { StatusLogEntry } from "../hooks/useStatusLog";
 
 export type UnifiedRightRailProps = {
   brushColor: string;
@@ -23,11 +25,16 @@ export type UnifiedRightRailProps = {
   compareAvailable: boolean;
   completionSoundMuted: boolean;
   completionSoundVolume: number;
+  completionSoundTranslationMuted?: boolean;
+  completionSoundSourceErasingMuted?: boolean;
+  completionSoundResearchMuted?: boolean;
   currentChapter: ChapterSnapshot | null;
   flowActive: boolean;
   editorDisabled: boolean;
+  exclusiveActivityActive?: boolean;
   jobActive: boolean;
   jobState: JobState;
+  operationActivity?: AppOperationActivityEvent | null;
   maskStrokeCount: number;
   linkedWorkspaceStatus?: LinkedWorkspaceStatus | null;
   linkedWorkspaceViewBusy?: boolean;
@@ -47,12 +54,14 @@ export type UnifiedRightRailProps = {
   showProgressBar: boolean;
   showTextBlocks: boolean;
   stageTool: WorkspaceTool;
+  statusEntries?: StatusLogEntry[];
   statusLines: string[];
   undoLabel?: string | null;
   onBrushColorChange: (value: string) => void;
   onBrushRadiusChange: (value: number) => void;
   onAdjustPatternMask?: (deltaPx: number) => void;
   onCancelJob: () => void;
+  onCancelOperation?: () => void;
   onClearStatusLines: () => void;
   onCompletionSoundChange: (preferences: CompletionSoundPreferences) => void;
   onClearPatternMask: () => void;
@@ -97,7 +106,12 @@ export function UnifiedRightRail(
           canRunBubbleLayout={props.canRunBubbleLayout}
           hasSelectedPage={Boolean(props.selectedPage)}
           flowActive={props.flowActive}
-          jobActive={props.jobActive}
+          jobActive={
+            props.jobActive ||
+            props.operationActivity?.status === "running" ||
+            props.operationActivity?.status === "cancelling" ||
+            Boolean(props.exclusiveActivityActive)
+          }
           saveStatus={props.saveStatus}
           onOpenExport={props.onOpenExport}
           onOpenPsdExport={props.onOpenPsdExport ?? NOOP}
@@ -124,7 +138,12 @@ function ContextualRightRailPanel(
         brushColor={props.brushColor}
         brushRadius={props.brushRadius}
         hasSelectedPage={Boolean(props.selectedPage)}
-        jobActive={props.jobActive}
+        jobActive={
+          props.jobActive ||
+          props.operationActivity?.status === "running" ||
+          props.operationActivity?.status === "cancelling" ||
+          Boolean(props.exclusiveActivityActive)
+        }
         jobState={props.jobState}
         maskStrokeCount={props.maskStrokeCount}
         mode="retouch"

@@ -612,13 +612,15 @@
   "translateSource": {
     "title": "新しい原稿を追加",
     "prompt": "どの原稿を追加しますか？",
-    "supportedFormats": "PNG, JPG, JPEG, WEBP · ZIP/CBZ",
+    "supportedFormats": "PNG, JPG, JPEG, WEBP · ZIP/CBZ · RAR/CBR · PDF",
     "openImages": "画像を開く",
     "imagesHint": "複数の画像をまとめて選択します。",
     "openFolder": "フォルダーを開く",
     "folderHint": "フォルダー内の画像をファイル名順に読み込みます。",
     "openArchive": "圧縮ファイルを開く",
-    "archiveHint": "1つのZIP・CBZを1話として読み込みます。",
+    "archiveHint": "1つのZIP・CBZ・RAR・CBRを1話として読み込みます。",
+    "openPdf": "PDFを開く",
+    "pdfHint": "PDFの各ページを高画質画像に変換します。",
     "openWeb": "リンクから開く",
     "webHint": "Webページの画像を確認して選択します。"
   },
@@ -639,8 +641,6 @@
     "selectAll": "すべて選択",
     "clearAll": "すべて解除",
     "selectedSummary": "{{visible}}件中{{selected}}件を選択",
-    "initialTitle": "公開Webページから画像を読み込みます",
-    "initialHint": "初期設定では、大きな画像だけをページの上から下の順に表示します。",
     "noMatchingImages": "このサイズの画像はありません",
     "tryAnotherFilter": "すべて、または中以上に範囲を広げてください。",
     "skippedResult": "未対応・重複・破損画像を{{skipped}}件除外しました。",
@@ -1999,7 +1999,6 @@
       "run": "OCR/モデルを確認",
       "running": "確認中…",
       "description": "Paddle OCRの準備状態と選択した翻訳エンジンが起動するかを確認します。",
-      "jobActive": "翻訳中はインストール/動作確認を実行できません。",
       "logAria": "インストール/動作確認ログ",
       "detail": {
         "model": "モデル: {{path}}",
@@ -2066,8 +2065,15 @@
     "close": "閉じる",
     "open": "アクティビティセンターを開く",
     "completionSoundVolume": "完了通知音の音量",
-    "muteCompletionSound": "完了通知音をミュート",
-    "unmuteCompletionSound": "完了通知音をオン",
+    "soundSettings": {
+      "open": "完了通知音の設定",
+      "all": "すべての完了通知音",
+      "translation": "翻訳完了",
+      "sourceErasing": "原文消去完了",
+      "research": "インターネット調査完了",
+      "mute": "{{item}}をオフ",
+      "unmute": "{{item}}をオン"
+    },
     "latest": "最新の状態: {{line}}",
     "cancelJob": "現在の処理をキャンセル",
     "cancelling": "キャンセルを要求中…",
@@ -2079,7 +2085,75 @@
     "recentJobs": "最近の処理",
     "statusHistory": "状態履歴",
     "reviewResults": "結果を確認",
-    "exportResults": "書き出す"
+    "exportResults": "書き出す",
+    "research": {
+      "title": "調査の進行状況",
+      "credits": "クレジット {{used}} / {{limit}}"
+    },
+    "history": {
+      "summary": "{{kind}} · {{status}}",
+      "failureCode": "失敗コード: {{code}}",
+      "kind": {
+        "gemma-analysis": "翻訳",
+        "internet-research": "インターネット調査",
+        "inpainting": "消去・インペイント",
+        "page-export": "書き出し",
+        "library-import": "ライブラリに追加",
+        "library-import-preview": "読み込み準備",
+        "web-import-preview": "Web読み込み",
+        "work-share-import": "共有ファイル読み込み",
+        "work-share-export": "共有ファイル書き出し",
+        "model-test": "モデル確認",
+        "codex-auth": "ChatGPTアカウント"
+      },
+      "status": {
+        "idle": "待機",
+        "starting": "開始中",
+        "running": "処理中",
+        "cancelling": "キャンセル中",
+        "cancelled": "キャンセル済み",
+        "failed": "失敗",
+        "partial": "一部完了",
+        "completed": "完了"
+      }
+    },
+    "operation": {
+      "summary": "{{kind}} · {{state}}",
+      "replacePrefix": "{{kind}}",
+      "cancelFailed": "処理のキャンセルを要求できませんでした。",
+      "waitingForUser": "ブラウザーでの操作を待機中",
+      "progressLabel": "処理の進行状況",
+      "percent": "{{value}}%",
+      "kind": {
+        "importPreview": "{{source}}読み込みの準備",
+        "libraryImport": "ライブラリに追加",
+        "background": "バックグラウンド処理"
+      },
+      "source": {
+        "files": "ファイル",
+        "images": "画像",
+        "folder": "フォルダー",
+        "zip": "ZIP/CBZ",
+        "rar": "RAR/CBR",
+        "pdf": "PDF",
+        "zip-folder": "一括原稿"
+      },
+      "phase": {
+        "import-source-reading": "原稿を読み込み中…",
+        "import-source-converting": "ページを変換・展開中…",
+        "import-source-validating": "読み込めるページを確認中…",
+        "import-library-saving-current": "現在の編集を保存中…",
+        "import-library-writing": "ライブラリにコピー中…",
+        "import-finalizing": "読み込みを完了しています…"
+      },
+      "status": {
+        "running": "処理中…",
+        "cancelling": "キャンセルして整理中…",
+        "cancelled": "キャンセル済み",
+        "failed": "失敗",
+        "completed": "完了"
+      }
+    }
   },
   "chapterSave": {
     "dirty": "変更を保存待ち",

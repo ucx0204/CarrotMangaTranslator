@@ -11,6 +11,9 @@
     "src/shared/geometry.ts": {
       "maxImportedBy": 31
     },
+    "src/renderer/src/app/session/appSessionViewModel.ts": {
+      "maxImports": 26
+    },
     "src/renderer/src/components/ui/Button.tsx": {
       "maxImportedBy": 44
     },
@@ -18,10 +21,10 @@
       "maxImportedBy": 27
     },
     "src/renderer/src/components/ui/IconButton.tsx": {
-      "maxImportedBy": 27
+      "maxImportedBy": 28
     },
     "src/renderer/src/components/ui/Modal.tsx": {
-      "maxImportedBy": 29
+      "maxImportedBy": 28
     },
     "src/renderer/src/lib/errorPresentation.ts": {
       "maxImportedBy": 27

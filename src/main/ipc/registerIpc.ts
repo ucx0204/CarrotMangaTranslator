@@ -9,6 +9,7 @@ import { registerJobControlIpc } from "./jobControlIpc";
 import { registerLibraryIpc } from "./libraryIpc";
 import { registerLogsIpc } from "./logsIpc";
 import { registerPanelWindowsIpc } from "./panelWindowsIpc";
+import { registerAppOperationIpc } from "./appOperationIpc";
 import { registerPageImageExportIpc } from "./pageImageExportIpc";
 import { registerSettingsIpc } from "./settingsIpc";
 import { registerTextExportIpc } from "./textExportIpc";
@@ -67,6 +68,7 @@ export function createImportRuntimeResources({
 }
 
 export function registerIpc(context: IpcContext): void {
+  registerAppOperationIpc(context);
   registerBlockLibraryIpc(context);
   registerExternalLinksIpc(context);
   registerErrorReportIpc(context);

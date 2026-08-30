@@ -605,13 +605,15 @@
   "translateSource": {
     "title": "新增原稿",
     "prompt": "要新增哪種原稿？",
-    "supportedFormats": "PNG、JPG、JPEG、WEBP · ZIP/CBZ",
+    "supportedFormats": "PNG、JPG、JPEG、WEBP · ZIP/CBZ · RAR/CBR · PDF",
     "openImages": "開啟圖片",
     "imagesHint": "一次選取多張圖片。",
     "openFolder": "開啟資料夾",
     "folderHint": "依檔名順序讀取資料夾中的圖片。",
     "openArchive": "開啟壓縮檔案",
-    "archiveHint": "將一個 ZIP 或 CBZ 作為一話匯入。",
+    "archiveHint": "將一個 ZIP、CBZ、RAR 或 CBR 作為一話匯入。",
+    "openPdf": "開啟 PDF",
+    "pdfHint": "將 PDF 的每一頁轉換為高品質圖片。",
     "openWeb": "從連結開啟",
     "webHint": "檢視並選取網頁中的圖片。"
   },
@@ -632,8 +634,6 @@
     "selectAll": "全選",
     "clearAll": "全部取消",
     "selectedSummary": "已選取 {{selected}}/{{visible}} 張",
-    "initialTitle": "從公開網頁匯入圖片",
-    "initialHint": "預設僅依網頁由上到下的順序顯示大型圖片。",
     "noMatchingImages": "沒有符合此大小的圖片",
     "tryAnotherFilter": "請選擇全部或中等以上以擴大範圍。",
     "skippedResult": "已略過 {{skipped}} 張不支援、重複或損壞的圖片。",
@@ -1968,7 +1968,6 @@
       "run": "檢查 OCR／模型",
       "running": "檢查中…",
       "description": "檢查 Paddle OCR 準備狀態以及所選翻譯引擎能否正常啟動。",
-      "jobActive": "翻譯工作進行中時無法執行安裝／執行檢查。",
       "logAria": "安裝／執行檢查記錄",
       "detail": {
         "model": "模型：{{path}}",
@@ -2035,8 +2034,15 @@
     "close": "關閉",
     "open": "開啟工作中心",
     "completionSoundVolume": "完成提示音音量",
-    "muteCompletionSound": "將完成提示音設為靜音",
-    "unmuteCompletionSound": "開啟完成提示音",
+    "soundSettings": {
+      "open": "完成提示音設定",
+      "all": "全部完成提示音",
+      "translation": "翻譯完成",
+      "sourceErasing": "原文清除完成",
+      "research": "網際網路研究完成",
+      "mute": "關閉{{item}}",
+      "unmute": "開啟{{item}}"
+    },
     "latest": "最新狀態：{{line}}",
     "cancelJob": "取消目前工作",
     "cancelling": "正在要求取消…",
@@ -2048,7 +2054,75 @@
     "recentJobs": "最近工作",
     "statusHistory": "狀態記錄",
     "reviewResults": "檢查結果",
-    "exportResults": "匯出"
+    "exportResults": "匯出",
+    "research": {
+      "title": "研究進度",
+      "credits": "額度 {{used}} / {{limit}}"
+    },
+    "history": {
+      "summary": "{{kind}} · {{status}}",
+      "failureCode": "失敗代碼：{{code}}",
+      "kind": {
+        "gemma-analysis": "翻譯",
+        "internet-research": "網際網路研究",
+        "inpainting": "擦除與修復",
+        "page-export": "匯出",
+        "library-import": "加入資料庫",
+        "library-import-preview": "準備匯入",
+        "web-import-preview": "網頁匯入",
+        "work-share-import": "共享檔案匯入",
+        "work-share-export": "共享檔案匯出",
+        "model-test": "模型檢查",
+        "codex-auth": "ChatGPT 帳戶"
+      },
+      "status": {
+        "idle": "待命",
+        "starting": "正在啟動",
+        "running": "進行中",
+        "cancelling": "正在取消",
+        "cancelled": "已取消",
+        "failed": "失敗",
+        "partial": "部分完成",
+        "completed": "已完成"
+      }
+    },
+    "operation": {
+      "summary": "{{kind}} · {{state}}",
+      "replacePrefix": "{{kind}}",
+      "cancelFailed": "無法要求取消工作。",
+      "waitingForUser": "正在等待您於瀏覽器中操作",
+      "progressLabel": "工作進度",
+      "percent": "{{value}}%",
+      "kind": {
+        "importPreview": "準備匯入{{source}}",
+        "libraryImport": "加入資料庫",
+        "background": "背景工作"
+      },
+      "source": {
+        "files": "檔案",
+        "images": "圖片",
+        "folder": "資料夾",
+        "zip": "ZIP/CBZ",
+        "rar": "RAR/CBR",
+        "pdf": "PDF",
+        "zip-folder": "批次原稿"
+      },
+      "phase": {
+        "import-source-reading": "正在讀取原稿…",
+        "import-source-converting": "正在轉換並解壓頁面…",
+        "import-source-validating": "正在檢查可匯入頁面…",
+        "import-library-saving-current": "正在儲存目前編輯…",
+        "import-library-writing": "正在複製到資料庫…",
+        "import-finalizing": "正在完成匯入…"
+      },
+      "status": {
+        "running": "進行中…",
+        "cancelling": "正在取消並清理…",
+        "cancelled": "已取消",
+        "failed": "失敗",
+        "completed": "已完成"
+      }
+    }
   },
   "chapterSave": {
     "dirty": "變更等待儲存",

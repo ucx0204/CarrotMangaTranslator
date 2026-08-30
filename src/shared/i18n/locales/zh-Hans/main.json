@@ -28,6 +28,7 @@
     "openImages": "打开图片",
     "openImageFolder": "打开图片文件夹",
     "openArchive": "打开压缩文件",
+    "openPdf": "打开 PDF",
     "batchImport": "批量翻译作品",
     "saveShare": "保存共享文件",
     "openShare": "导入共享文件",
@@ -53,7 +54,8 @@
       "noWindow": "没有可接收 IPC 请求的应用窗口。",
       "untrusted": "不受信任的 IPC 请求。",
       "invalidImportPreview": "导入预览已过期或无效。",
-      "invalidSharePreview": "共享文件预览已过期或无效。"
+      "invalidSharePreview": "共享文件预览已过期或无效。",
+      "libraryOperationBusy": "请等待资料库任务完成后再更改其结构。"
     },
     "labels": {
       "translationJob": "翻译任务",
@@ -143,9 +145,11 @@
       "normalizedImageTooLarge": "规范化后的图片文件过大：{{file}}",
       "imageDecodeTimedOut": "图片解码超时：{{file}}",
       "tooManySources": "要导入的文件夹或图片过多。",
+      "unsupportedArchive": "不支持的压缩文件：{{file}}",
       "zipEntryMissing": "找不到 ZIP 条目：{{entry}}",
       "noChapterToCreate": "没有可创建的章节。",
-      "createdChapterOpen": "无法打开已创建的章节。"
+      "createdChapterOpen": "无法打开已创建的章节。",
+      "noUsablePages": "未找到可导入的页面。"
     }
   },
   "share": {

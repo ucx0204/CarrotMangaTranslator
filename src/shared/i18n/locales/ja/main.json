@@ -28,6 +28,7 @@
     "openImages": "画像を開く",
     "openImageFolder": "画像フォルダーを開く",
     "openArchive": "圧縮ファイルを開く",
+    "openPdf": "PDFを開く",
     "batchImport": "作品を一括翻訳",
     "saveShare": "共有ファイルを保存",
     "openShare": "共有ファイルを読み込む",
@@ -53,7 +54,8 @@
       "noWindow": "IPC要求を受信するアプリウィンドウがありません。",
       "untrusted": "信頼できないIPC要求です。",
       "invalidImportPreview": "インポートプレビューの期限切れ、または無効です。",
-      "invalidSharePreview": "共有ファイルのプレビューの期限切れ、または無効です。"
+      "invalidSharePreview": "共有ファイルのプレビューの期限切れ、または無効です。",
+      "libraryOperationBusy": "ライブラリ処理が完了してから構成を変更してください。"
     },
     "labels": {
       "translationJob": "翻訳ジョブ",
@@ -143,9 +145,11 @@
       "normalizedImageTooLarge": "正規化された画像ファイルが大きすぎます：{{file}}",
       "imageDecodeTimedOut": "画像のデコードがタイムアウトしました：{{file}}",
       "tooManySources": "インポートするフォルダーまたは画像が多すぎます。",
+      "unsupportedArchive": "未対応の圧縮ファイルです：{{file}}",
       "zipEntryMissing": "ZIP内の項目が見つかりません：{{entry}}",
       "noChapterToCreate": "作成する話がありません。",
-      "createdChapterOpen": "作成した話を開けませんでした。"
+      "createdChapterOpen": "作成した話を開けませんでした。",
+      "noUsablePages": "読み込めるページが見つかりませんでした。"
     }
   },
   "share": {

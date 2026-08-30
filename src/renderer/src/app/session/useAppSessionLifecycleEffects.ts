@@ -10,6 +10,7 @@ import type { RegionSelectionState } from "../../lib/appHelpers";
 import { toast } from "../../lib/toastStore";
 import { formatJobLabel } from "../../lib/jobProgress";
 import { useEventCallback } from "../../hooks/useEventCallback";
+import type { CompletionSoundCategory } from "../../hooks/useCompletionSound";
 
 type OpenErrorReport = (
   context: ErrorReportContext,
@@ -19,7 +20,7 @@ type OpenErrorReport = (
 type UseAppSessionLifecycleEffectsArgs = {
   currentChapter: ChapterSnapshot | null;
   jobState: JobState;
-  onJobCompleted?: () => void;
+  onAudibleCompletion?: (category: CompletionSoundCategory) => void;
   onJobStart: () => void;
   onPageChange: () => void;
   openErrorReport: OpenErrorReport;
@@ -33,7 +34,7 @@ type UseAppSessionLifecycleEffectsArgs = {
 export function useAppSessionLifecycleEffects({
   currentChapter,
   jobState,
-  onJobCompleted,
+  onAudibleCompletion,
   onJobStart,
   onPageChange,
   openErrorReport,
@@ -56,7 +57,7 @@ export function useAppSessionLifecycleEffects({
   const notifyJobStatusChange = useEventCallback(() => {
     handleJobStatusChange({
       jobState,
-      onJobCompleted,
+      onAudibleCompletion,
       onJobStart,
       openErrorReport,
       reportedJobIdRef,
@@ -122,7 +123,7 @@ function useInitialLibraryRefresh(refreshLibrary: () => void): void {
 
 type JobStatusChangeArgs = {
   jobState: JobState;
-  onJobCompleted?: () => void;
+  onAudibleCompletion?: (category: CompletionSoundCategory) => void;
   onJobStart: () => void;
   openErrorReport: OpenErrorReport;
   reportedJobIdRef: { current: string | null };
@@ -132,7 +133,7 @@ type JobStatusChangeArgs = {
 
 function handleJobStatusChange({
   jobState,
-  onJobCompleted,
+  onAudibleCompletion,
   onJobStart,
   openErrorReport,
   reportedJobIdRef,
@@ -146,10 +147,7 @@ function handleJobStatusChange({
   }
   if (translationFlowActive && isTerminalJobStatus(next)) return;
   if (next === "completed") {
-    toast.success(
-      formatJobLabel(jobState, t) || t("job.notifications.completed"),
-    );
-    onJobCompleted?.();
+    handleCompletedJob(jobState, onAudibleCompletion, t);
     return;
   }
   if (next === "partial") {
@@ -168,6 +166,34 @@ function handleJobStatusChange({
   if (next === "cancelled") {
     toast.info(t("job.notifications.cancelled"));
   }
+}
+
+function handleCompletedJob(
+  jobState: JobState,
+  onAudibleCompletion:
+    | ((category: CompletionSoundCategory) => void)
+    | undefined,
+  t: TFunction<"renderer">,
+): void {
+  toast.success(
+    formatJobLabel(jobState, t) || t("job.notifications.completed"),
+  );
+  const soundCategory = resolveCompletionSoundCategory(jobState);
+  if (soundCategory) onAudibleCompletion?.(soundCategory);
+}
+
+function resolveCompletionSoundCategory(
+  jobState: JobState,
+): CompletionSoundCategory | null {
+  if (jobState.kind === "inpainting") return "source-erasing";
+  if (jobState.kind === "internet-research") return "research";
+  if (
+    jobState.kind === "gemma-analysis" &&
+    !jobState.id.startsWith("work-context-")
+  ) {
+    return "translation";
+  }
+  return null;
 }
 
 function handleFailedJob({

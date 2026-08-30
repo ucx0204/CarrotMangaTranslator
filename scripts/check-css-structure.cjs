@@ -16,6 +16,7 @@ const expectedImports = [
   "fonts.css",
   "foundations.css",
   "shell-workspace.css",
+  "work-center.css",
   "panels.css",
   "page-timing.css",
   "page-review.css",

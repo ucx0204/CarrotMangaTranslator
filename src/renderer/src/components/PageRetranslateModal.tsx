@@ -9,6 +9,7 @@ import { CheckboxField } from "./ui/CheckboxField";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
 import { TranslationOverwriteWarning } from "./TranslationOverwriteWarning";
+import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 
 type PageRetranslateModalProps = {
   pageName: string;
@@ -67,6 +68,7 @@ export function PageRetranslateModal({
         ),
       );
     }
+    handoffActiveModalToWorkCenter();
     onStart(blockMode, naturalTextLayout, autoFontMatching, fontSizeAutoFit);
     onClose();
   };

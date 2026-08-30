@@ -81,7 +81,15 @@ const PAGE_SUFFIX_BY_PHASE: Partial<
     fallback: "AI 번역 요청 중",
   },
   page_running: { key: "job.phase.pageRunning", fallback: "번역 중" },
-  page_done: { key: "job.phase.pageDone", fallback: "완료" },
+  // The model request batch is already finished when page_done is emitted.
+  // This event advances while the prepared pages are receiving their final
+  // text typography (font matching / font-size fitting), so expose the work
+  // that is actually running instead of describing each page as generically
+  // complete.
+  page_done: {
+    key: "job.phase.pageTypography",
+    fallback: "글자·폰트 맞춤 중",
+  },
   page_skipped: { key: "job.phase.pageSkipped", fallback: "건너뜀" },
 };
 

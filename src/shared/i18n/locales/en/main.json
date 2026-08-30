@@ -28,6 +28,7 @@
     "openImages": "Open Images",
     "openImageFolder": "Open Image Folder",
     "openArchive": "Open Archive",
+    "openPdf": "Open PDF",
     "batchImport": "Batch Translate Work",
     "saveShare": "Save Shared File",
     "openShare": "Import Shared File",
@@ -53,7 +54,8 @@
       "noWindow": "No app window is available to receive the IPC request.",
       "untrusted": "Untrusted IPC request.",
       "invalidImportPreview": "This import preview is expired or invalid.",
-      "invalidSharePreview": "This shared-file preview is expired or invalid."
+      "invalidSharePreview": "This shared-file preview is expired or invalid.",
+      "libraryOperationBusy": "Wait for the library operation to finish before changing its structure."
     },
     "labels": {
       "translationJob": "Translation job",
@@ -143,9 +145,11 @@
       "normalizedImageTooLarge": "The normalized image file is too large: {{file}}",
       "imageDecodeTimedOut": "Image decoding timed out: {{file}}",
       "tooManySources": "Too many folders or images were selected for import.",
+      "unsupportedArchive": "Unsupported archive: {{file}}",
       "zipEntryMissing": "ZIP entry not found: {{entry}}",
       "noChapterToCreate": "There are no chapters to create.",
-      "createdChapterOpen": "Could not open the created chapter."
+      "createdChapterOpen": "Could not open the created chapter.",
+      "noUsablePages": "No usable pages were found to import."
     }
   },
   "share": {

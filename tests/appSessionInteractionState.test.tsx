@@ -318,7 +318,7 @@ describe("unified workspace interaction state", () => {
       status: "running" | "completed";
       translationFlowActive: boolean;
     };
-    const onJobCompleted = vi.fn();
+    const onAudibleCompletion = vi.fn();
     const successToast = vi.spyOn(toast, "success").mockReturnValue("toast-id");
     const { rerender } = renderHook(
       ({ status, translationFlowActive }: CompletionLifecycleProps) =>
@@ -330,7 +330,7 @@ describe("unified workspace interaction state", () => {
             status,
             progressText: status,
           },
-          onJobCompleted,
+          onAudibleCompletion,
           onJobStart: vi.fn(),
           onPageChange: vi.fn(),
           openErrorReport: vi.fn(),
@@ -349,16 +349,145 @@ describe("unified workspace interaction state", () => {
     );
 
     rerender({ status: "completed", translationFlowActive: true });
-    expect(onJobCompleted).not.toHaveBeenCalled();
+    expect(onAudibleCompletion).not.toHaveBeenCalled();
 
     rerender({ status: "completed", translationFlowActive: false });
-    expect(onJobCompleted).toHaveBeenCalledOnce();
+    expect(onAudibleCompletion).toHaveBeenCalledOnce();
+    expect(onAudibleCompletion).toHaveBeenCalledWith("translation");
     expect(successToast).toHaveBeenCalledOnce();
 
     rerender({ status: "completed", translationFlowActive: false });
-    expect(onJobCompleted).toHaveBeenCalledOnce();
+    expect(onAudibleCompletion).toHaveBeenCalledOnce();
     successToast.mockRestore();
   });
+
+  it("plays the completion sound once when the full source-erasing flow settles", () => {
+    type ErasingLifecycleProps = {
+      status: "running" | "completed";
+      flowActive: boolean;
+    };
+    const onAudibleCompletion = vi.fn();
+    const successToast = vi.spyOn(toast, "success").mockReturnValue("toast-id");
+    const { rerender } = renderHook(
+      ({ status, flowActive }: ErasingLifecycleProps) =>
+        useAppSessionLifecycleEffects({
+          currentChapter: null,
+          jobState: {
+            id: "inpainting-flow-completed",
+            kind: "inpainting",
+            status,
+            progressText: "원문 지우기 완료",
+          },
+          onAudibleCompletion,
+          onJobStart: vi.fn(),
+          onPageChange: vi.fn(),
+          openErrorReport: vi.fn(),
+          refreshLibrary: vi.fn(),
+          resetChapterScopedUi: vi.fn(),
+          selectedPageId: null,
+          setRegionSelection: vi.fn(),
+          translationFlowActive: flowActive,
+        }),
+      {
+        initialProps: {
+          status: "running" as const,
+          flowActive: true,
+        } as ErasingLifecycleProps,
+      },
+    );
+
+    rerender({ status: "completed", flowActive: true });
+    expect(onAudibleCompletion).not.toHaveBeenCalled();
+
+    rerender({ status: "completed", flowActive: false });
+    expect(onAudibleCompletion).toHaveBeenCalledOnce();
+    expect(onAudibleCompletion).toHaveBeenCalledWith("source-erasing");
+    expect(successToast).toHaveBeenCalledOnce();
+
+    rerender({ status: "completed", flowActive: false });
+    expect(onAudibleCompletion).toHaveBeenCalledOnce();
+    successToast.mockRestore();
+  });
+
+  it("plays the internet-research completion sound once", () => {
+    type ResearchLifecycleProps = { status: "running" | "completed" };
+    const onAudibleCompletion = vi.fn();
+    const successToast = vi.spyOn(toast, "success").mockReturnValue("toast-id");
+    const { rerender } = renderHook(
+      ({ status }: { status: "running" | "completed" }) =>
+        useAppSessionLifecycleEffects({
+          currentChapter: null,
+          jobState: {
+            id: "internet-research-completed",
+            kind: "internet-research",
+            status,
+            progressText: "인터넷 조사 완료",
+          },
+          onAudibleCompletion,
+          onJobStart: vi.fn(),
+          onPageChange: vi.fn(),
+          openErrorReport: vi.fn(),
+          refreshLibrary: vi.fn(),
+          resetChapterScopedUi: vi.fn(),
+          selectedPageId: null,
+          setRegionSelection: vi.fn(),
+          translationFlowActive: false,
+        }),
+      {
+        initialProps: {
+          status: "running" as const,
+        } as ResearchLifecycleProps,
+      },
+    );
+
+    rerender({ status: "completed" });
+    expect(onAudibleCompletion).toHaveBeenCalledOnce();
+    expect(onAudibleCompletion).toHaveBeenCalledWith("research");
+    expect(successToast).toHaveBeenCalledOnce();
+
+    rerender({ status: "completed" });
+    expect(onAudibleCompletion).toHaveBeenCalledOnce();
+    successToast.mockRestore();
+  });
+
+  it.each([
+    ["page export", "page-export", "page-export-1"],
+    ["work-context analysis", "gemma-analysis", "work-context-1"],
+  ] as const)(
+    "does not request a completion sound for %s",
+    (_label, kind, id) => {
+      const onAudibleCompletion = vi.fn();
+      const successToast = vi
+        .spyOn(toast, "success")
+        .mockReturnValue("toast-id");
+      const initialProps: { status: "running" | "completed" } = {
+        status: "running",
+      };
+      const { rerender } = renderHook(
+        ({ status }: { status: "running" | "completed" }) =>
+          useAppSessionLifecycleEffects({
+            currentChapter: null,
+            jobState: { id, kind, status, progressText: status },
+            onAudibleCompletion,
+            onJobStart: vi.fn(),
+            onPageChange: vi.fn(),
+            openErrorReport: vi.fn(),
+            refreshLibrary: vi.fn(),
+            resetChapterScopedUi: vi.fn(),
+            selectedPageId: null,
+            setRegionSelection: vi.fn(),
+            translationFlowActive: false,
+          }),
+        { initialProps },
+      );
+
+      rerender({ status: "completed" });
+
+      expect(onAudibleCompletion).not.toHaveBeenCalled();
+      expect(successToast).toHaveBeenCalledOnce();
+      successToast.mockRestore();
+    },
+  );
 
   it("does not restart unrelated lifecycle effects for job progress renders", () => {
     const onJobStart = vi.fn();

@@ -1,6 +1,7 @@
 import React from "react";
 import {
   IconFiles,
+  IconFileTypePdf,
   IconFolderOpen,
   IconLink,
   IconPhoto,
@@ -73,6 +74,13 @@ export function TranslateSourceModal({
           icon={<IconZip size={22} stroke={1.8} />}
           label={t("translateSource.openArchive")}
           onClick={() => onSelect("zip")}
+        />
+        <SourceChoice
+          description={t("translateSource.pdfHint")}
+          disabled={busy}
+          icon={<IconFileTypePdf size={22} stroke={1.8} />}
+          label={t("translateSource.openPdf")}
+          onClick={() => onSelect("pdf")}
         />
         <SourceChoice
           description={t("translateSource.webHint")}

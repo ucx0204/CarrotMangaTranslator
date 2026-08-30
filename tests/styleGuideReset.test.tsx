@@ -13,7 +13,6 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import type { NotificationPort } from "../src/renderer/src/lib/notificationPort";
-import type { JobEvent } from "../src/shared/jobTypes";
 import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import type { AppSettings } from "../src/shared/settingsTypes";
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
@@ -38,12 +37,7 @@ const gatewayMocks = {
   getWorkStyleGuide: vi.fn(),
   loginCodexAccount: vi.fn(),
   logoutCodexAccount: vi.fn(),
-  onJobEvent: vi.fn((listener: (event: JobEvent) => void) => {
-    jobEventListener = listener;
-    return () => {
-      if (jobEventListener === listener) jobEventListener = null;
-    };
-  }),
+  onJobEvent: vi.fn(() => () => undefined),
   openResearchSource: vi.fn(),
   resetWorkContext: vi.fn(),
   researchWorkContext: vi.fn(),
@@ -67,11 +61,9 @@ const WORK_ID = "11111111-1111-4111-8111-111111111111";
 const CHAPTER_ID = "22222222-2222-4222-8222-222222222222";
 const PAGE_ID = "33333333-3333-4333-8333-333333333333";
 const TS = "2026-01-01T00:00:00.000Z";
-let jobEventListener: ((event: JobEvent) => void) | null = null;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  jobEventListener = null;
   window.mangaApi = createTestMangaGatewayStub(gatewayMocks);
   gatewayMocks.getWorkStyleGuide.mockResolvedValue(makeGuide());
   gatewayMocks.getChapterStoryMemory.mockResolvedValue(makeMemory());
@@ -327,12 +319,13 @@ describe("StyleGuideModal complete reset", () => {
     ).toHaveProperty("value", "수정한 조사 작품명");
   });
 
-  it("shows live research stages in a nested modal and cancels from its footer", async () => {
+  it("moves live research out of the modal and returns only for result review", async () => {
     const guide = makeGuide();
     const pending = createDeferred<WorkContextResearchProposal>();
+    const onBackgroundStateChange = vi.fn();
     gatewayMocks.getWorkStyleGuide.mockResolvedValueOnce(guide);
     gatewayMocks.researchWorkContext.mockReturnValueOnce(pending.promise);
-    renderModal();
+    renderModal({ onBackgroundStateChange });
     await screen.findByDisplayValue("魔王");
 
     fireEvent.click(screen.getByRole("button", { name: "용어집 조사" }));
@@ -344,47 +337,12 @@ describe("StyleGuideModal complete reset", () => {
     await waitFor(() =>
       expect(gatewayMocks.researchWorkContext).toHaveBeenCalledOnce(),
     );
-    const request = gatewayMocks.researchWorkContext.mock.calls[0]?.[0] as {
-      runId: string;
-    };
-
-    act(() => {
-      emitJobEvent({
-        id: `work-context-research-${request.runId}`,
-        kind: "internet-research",
-        status: "running",
-        progressText: "웹에서 근거를 수집하고 있습니다",
-        phase: "model_requesting",
-        research: {
-          stage: "searching",
-          query: "테스트 작품 등장인물 공식",
-          queryIndex: 2,
-          resultCount: 4,
-          creditsUsed: 2,
-          creditLimit: 10,
-        },
-      });
-    });
-
-    const progressDialog = await screen.findByRole("dialog", {
-      name: "용어집 조사 중",
-    });
-    expect(within(progressDialog).getByText("2 / 10")).toBeTruthy();
-    expect(
-      within(progressDialog).getByText("테스트 작품 등장인물 공식"),
-    ).toBeTruthy();
-
-    fireEvent.click(
-      within(progressDialog).getByRole("button", { name: "조사 취소" }),
-    );
     await waitFor(() =>
-      expect(gatewayMocks.cancelWorkContextResearch).toHaveBeenCalledWith(
-        request.runId,
-      ),
+      expect(onBackgroundStateChange).toHaveBeenLastCalledWith(true),
     );
-    expect(
-      within(progressDialog).getByRole("button", { name: "조사 취소 중…" }),
-    ).toHaveProperty("disabled", true);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByText("테스트 작품 등장인물 공식")).toBeNull();
+    expect(gatewayMocks.cancelWorkContextResearch).not.toHaveBeenCalled();
 
     await act(async () => {
       pending.resolve(makeResearchProposal(guide));
@@ -606,10 +564,12 @@ describe("reset work-context IPC contract", () => {
 function renderModal({
   jobActive = false,
   onClose = vi.fn(),
+  onBackgroundStateChange,
   settings = makeSettings(),
 }: {
   jobActive?: boolean;
   onClose?: () => void;
+  onBackgroundStateChange?: (backgrounded: boolean) => void;
   settings?: AppSettings;
 } = {}): void {
   render(
@@ -619,6 +579,7 @@ function renderModal({
       jobActive={jobActive}
       notificationPort={notificationMocks}
       settings={settings}
+      onBackgroundStateChange={onBackgroundStateChange}
       onSaveSettings={gatewayMocks.saveSettings}
       onClose={onClose}
     />,
@@ -862,10 +823,4 @@ function createDeferred<T>(): {
     resolve = innerResolve;
   });
   return { promise, resolve };
-}
-
-function emitJobEvent(event: JobEvent): void {
-  const listener = jobEventListener;
-  if (!listener) throw new Error("Job event listener was not registered.");
-  listener(event);
 }

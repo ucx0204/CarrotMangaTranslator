@@ -66,9 +66,19 @@ type RightRailViewModel = {
       >;
   };
   linkedWorkspace?: AppSessionViewModel["linkedWorkspace"];
+  importShareModal?: Pick<
+    AppSessionViewModel["importShareModal"],
+    "importBusy"
+  >;
+  operationActivity?: AppSessionViewModel["operationActivity"];
   completionSound: Pick<
     AppSessionViewModel["completionSound"],
-    "muted" | "volume" | "setPreferences"
+    | "muted"
+    | "volume"
+    | "translationMuted"
+    | "sourceErasingMuted"
+    | "researchMuted"
+    | "setPreferences"
   >;
   persistence: Pick<
     AppSessionViewModel["persistence"],
@@ -78,7 +88,7 @@ type RightRailViewModel = {
   settingsDialog: Pick<AppSessionViewModel["settingsDialog"], "settings">;
   statusLog: Pick<
     AppSessionViewModel["statusLog"],
-    "clearStatusLines" | "statusLines"
+    "clearStatusLines" | "statusEntries" | "statusLines"
   >;
   uiState: Pick<
     AppSessionViewModel["uiState"],
@@ -132,11 +142,18 @@ export function createRightRailProps(
     compareAvailable: derivedState.peekAvailable,
     completionSoundMuted: model.completionSound.muted,
     completionSoundVolume: model.completionSound.volume,
+    completionSoundTranslationMuted: model.completionSound.translationMuted,
+    completionSoundSourceErasingMuted: model.completionSound.sourceErasingMuted,
+    completionSoundResearchMuted: model.completionSound.researchMuted,
     currentChapter: core.currentChapter,
     editorDisabled: isRightRailEditorDisabled(model),
+    exclusiveActivityActive:
+      Boolean(model.operationActivity?.active) ||
+      Boolean(model.importShareModal?.importBusy),
     flowActive: uiState.translationFlowActive,
     jobActive: isRightRailJobActive(model),
     jobState: core.jobState,
+    operationActivity: model.operationActivity?.activity ?? null,
     maskStrokeCount: inpainting.maskStrokeCount,
     peeking: derivedState.showingOriginalPeek,
     progressSnapshot: derivedState.progressSnapshot,
@@ -152,10 +169,15 @@ export function createRightRailProps(
     showProgressBar: derivedState.showProgressBar,
     showTextBlocks: uiState.showTextBlocks,
     stageTool: uiState.stageTool,
+    statusEntries: statusLog.statusEntries,
     statusLines: statusLog.statusLines,
     undoLabel: workspaceHistory.undoLabel,
     onCancelJob: bridgeActions.cancelJob,
-    onClearStatusLines: statusLog.clearStatusLines,
+    onClearStatusLines: () => {
+      statusLog.clearStatusLines();
+      model.operationActivity?.clearTerminal();
+    },
+    onCancelOperation: () => void model.operationActivity?.cancel(),
     onCompletionSoundChange: model.completionSound.setPreferences,
     onOpenErrorReport: openManualErrorReport,
     onViewLinkedResults: () => void model.linkedWorkspace?.viewResults(),
@@ -193,6 +215,13 @@ function isRightRailEditorDisabled(model: RightRailViewModel): boolean {
 }
 
 function isRightRailJobActive(model: RightRailViewModel): boolean {
+  if (model.operationActivity?.active || model.importShareModal?.importBusy) {
+    return (
+      model.derivedState.selectedPageEditLocked ||
+      model.uiState.translationFlowActive ||
+      model.workspaceHistory.busy
+    );
+  }
   return (
     model.inpaintingBridge.contextValue.jobActive ||
     model.uiState.translationFlowActive ||

@@ -4,26 +4,15 @@ import {
   CreateImportRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
-import { importShareIpcContracts } from "../../shared/ipcContracts";
-import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../../shared/archive";
 import { isAppActivityUnavailableError } from "../appActivityGate";
 import { runManagedAppOperation } from "../appOperationRegistry";
+import { isAbortErrorLike, throwIfAborted } from "../abortSignal";
 import type {
   DroppedImportPreviewResponse,
-  ImportPreviewResult,
   ImportPreviewSession,
+  PreparedImportPreview,
 } from "../../shared/importTypes";
-import {
-  createImport,
-  previewFolder,
-  previewImages,
-  previewZip,
-  previewZipFolder,
-} from "../library";
-import {
-  classifyDroppedImportPaths,
-  type DroppedImportSource,
-} from "../library/libraryImportDrop";
+import type { DroppedImportSource } from "../library/libraryImportDrop";
 import {
   getRecentDialogDirectory,
   recentDialogPathKeys,
@@ -42,28 +31,18 @@ import {
   removeImportPreviewSession,
   runImportPreviewCleanup,
 } from "./importPreviewSessionStore";
-
-const SUPPORTED_ARCHIVE_DIALOG_EXTENSIONS = SUPPORTED_ARCHIVE_EXTENSIONS.map(
-  (extension) => extension.slice(1),
-);
-
-export type ImportPreviewIpcService = {
-  classifyDroppedImportPaths: typeof classifyDroppedImportPaths;
-  createImport: typeof createImport;
-  previewFolder: typeof previewFolder;
-  previewImages: typeof previewImages;
-  previewZip: typeof previewZip;
-  previewZipFolder: typeof previewZipFolder;
-};
-
-const productionImportPreviewIpcService: ImportPreviewIpcService = {
-  classifyDroppedImportPaths,
-  createImport,
-  previewFolder,
-  previewImages,
-  previewZip,
-  previewZipFolder,
-};
+import {
+  createPreparedImportPreviewSession,
+  prepareArchiveWithService,
+  preparePdfWithService,
+  previewHasPages,
+  registerContainerImportPreviewIpc,
+} from "./importContainerPreviewIpc";
+import { importPreviewIpcContracts } from "./importPreviewContracts";
+import {
+  productionImportPreviewIpcService,
+  type ImportPreviewIpcService,
+} from "./importPreviewService";
 
 export function registerImportPreviewIpc(
   context: IpcContext,
@@ -71,8 +50,7 @@ export function registerImportPreviewIpc(
 ): void {
   registerImageImportPreviewIpc(context, service);
   registerFolderImportPreviewIpc(context, service);
-  registerZipImportPreviewIpc(context, service);
-  registerZipFolderImportPreviewIpc(context, service);
+  registerContainerImportPreviewIpc(context, service);
   registerDroppedImportPreviewIpc(context, service);
   registerCreateImportIpc(context, service);
   registerDiscardImportPreviewIpc(context);
@@ -84,7 +62,7 @@ function registerImageImportPreviewIpc(
 ): void {
   trustedHandleContract(
     context,
-    importShareIpcContracts.previewImagesImport,
+    importPreviewIpcContracts.previewImagesImport,
     async (): Promise<ImportPreviewSession | null> => {
       const options = {
         title: tMain("dialogs.openImages"),
@@ -107,14 +85,37 @@ function registerImageImportPreviewIpc(
       if (result.canceled || result.filePaths.length === 0) {
         return null;
       }
-      const preview = await service.previewImages(result.filePaths);
-      return preview.chapters[0]?.pages.length
-        ? await createImportPreviewSession(preview, {
-            key: recentDialogPathKeys.imageImport,
-            kind: "file",
-            path: result.filePaths[0],
-          })
-        : null;
+      try {
+        return await runManagedAppOperation(
+          context.operations,
+          {
+            id: `library-import-preview-${randomUUID()}`,
+            kind: "library-import-preview",
+            mutatesLibrary: false,
+            presentation: {
+              phase: "import-source-reading",
+              sourceKind: "images",
+              cancellable: true,
+            },
+          },
+          async (signal, operation) => {
+            const preview = await service.previewImages(result.filePaths);
+            throwIfAborted(signal);
+            operation.updateActivity({ phase: "import-source-validating" });
+            if (!previewHasPages(preview)) {
+              throw new Error(tMain("import.errors.noUsablePages"));
+            }
+            return createImportPreviewSession(preview, {
+              key: recentDialogPathKeys.imageImport,
+              kind: "file",
+              path: result.filePaths[0],
+            });
+          },
+        );
+      } catch (error) {
+        if (isAbortErrorLike(error)) return null;
+        throw error;
+      }
     },
   );
 }
@@ -125,7 +126,7 @@ function registerFolderImportPreviewIpc(
 ): void {
   trustedHandleContract(
     context,
-    importShareIpcContracts.previewFolderImport,
+    importPreviewIpcContracts.previewFolderImport,
     async (): Promise<ImportPreviewSession | null> => {
       const options = {
         title: tMain("dialogs.openImageFolder"),
@@ -142,90 +143,37 @@ function registerFolderImportPreviewIpc(
       if (result.canceled || !result.filePaths[0]) {
         return null;
       }
-      const preview = await service.previewFolder(result.filePaths[0]);
-      return preview.chapters[0]?.pages.length
-        ? await createImportPreviewSession(preview, {
-            key: recentDialogPathKeys.imageFolderImport,
-            kind: "directory",
-            path: result.filePaths[0],
-          })
-        : null;
-    },
-  );
-}
-
-function registerZipImportPreviewIpc(
-  context: IpcContext,
-  service: ImportPreviewIpcService,
-): void {
-  trustedHandleContract(
-    context,
-    importShareIpcContracts.previewZipImport,
-    async (): Promise<ImportPreviewSession | null> => {
-      const options = {
-        title: tMain("dialogs.openArchive"),
-        defaultPath: getRecentDialogDirectory(
-          context.appPaths.dataRoot,
-          recentDialogPathKeys.archiveImport,
-        ),
-        properties: ["openFile"],
-        filters: [
+      try {
+        return await runManagedAppOperation(
+          context.operations,
           {
-            name: "ZIP/CBZ Archive",
-            extensions: SUPPORTED_ARCHIVE_DIALOG_EXTENSIONS,
+            id: `library-import-preview-${randomUUID()}`,
+            kind: "library-import-preview",
+            mutatesLibrary: false,
+            presentation: {
+              phase: "import-source-reading",
+              sourceKind: "folder",
+              cancellable: true,
+            },
           },
-        ],
-      } satisfies Electron.OpenDialogOptions;
-      const window = context.getMainWindow();
-      const result = window
-        ? await dialog.showOpenDialog(window, options)
-        : await dialog.showOpenDialog(options);
-      if (result.canceled || !result.filePaths[0]) {
-        return null;
+          async (signal, operation) => {
+            const preview = await service.previewFolder(result.filePaths[0]);
+            throwIfAborted(signal);
+            operation.updateActivity({ phase: "import-source-validating" });
+            if (!previewHasPages(preview)) {
+              throw new Error(tMain("import.errors.noUsablePages"));
+            }
+            return createImportPreviewSession(preview, {
+              key: recentDialogPathKeys.imageFolderImport,
+              kind: "directory",
+              path: result.filePaths[0],
+            });
+          },
+        );
+      } catch (error) {
+        if (isAbortErrorLike(error)) return null;
+        throw error;
       }
-      const preview = await service.previewZip(result.filePaths[0]);
-      return preview.chapters[0]?.pages.length
-        ? await createImportPreviewSession(preview, {
-            key: recentDialogPathKeys.archiveImport,
-            kind: "file",
-            path: result.filePaths[0],
-          })
-        : null;
-    },
-  );
-}
-
-function registerZipFolderImportPreviewIpc(
-  context: IpcContext,
-  service: ImportPreviewIpcService,
-): void {
-  trustedHandleContract(
-    context,
-    importShareIpcContracts.previewZipFolderImport,
-    async (): Promise<ImportPreviewSession | null> => {
-      const options = {
-        title: tMain("dialogs.batchImport"),
-        defaultPath: getRecentDialogDirectory(
-          context.appPaths.dataRoot,
-          recentDialogPathKeys.archiveFolderImport,
-        ),
-        properties: ["openDirectory"],
-      } satisfies Electron.OpenDialogOptions;
-      const window = context.getMainWindow();
-      const result = window
-        ? await dialog.showOpenDialog(window, options)
-        : await dialog.showOpenDialog(options);
-      if (result.canceled || !result.filePaths[0]) {
-        return null;
-      }
-      const preview = await service.previewZipFolder(result.filePaths[0]);
-      return preview.chapters.length
-        ? await createImportPreviewSession(preview, {
-            key: recentDialogPathKeys.archiveFolderImport,
-            kind: "directory",
-            path: result.filePaths[0],
-          })
-        : null;
     },
   );
 }
@@ -236,7 +184,7 @@ function registerDroppedImportPreviewIpc(
 ): void {
   trustedHandleContract(
     context,
-    importShareIpcContracts.previewDroppedImport,
+    importPreviewIpcContracts.previewDroppedImport,
     async (_event, filePaths): Promise<DroppedImportPreviewResponse> => {
       try {
         return await runManagedAppOperation(
@@ -245,28 +193,58 @@ function registerDroppedImportPreviewIpc(
             id: `library-import-preview-${randomUUID()}`,
             kind: "library-import-preview",
             mutatesLibrary: false,
+            presentation: {
+              phase: "import-source-reading",
+              cancellable: true,
+            },
           },
-          async () => {
+          async (signal, operation) => {
             const source = await service.classifyDroppedImportPaths(filePaths);
             if (source.status === "rejected") {
               return source;
             }
-            const preview = await previewDroppedSource(source, service);
-            if (!previewHasPages(preview)) {
-              return emptyDroppedSourceRejection(source);
-            }
-            return {
-              status: "ready",
-              preview: await createImportPreviewSession(
-                preview,
+            operation.updateActivity({
+              sourceKind: droppedSourceKind(source),
+              phase:
+                source.kind === "pdf" || source.kind === "archive"
+                  ? "import-source-converting"
+                  : "import-source-reading",
+            });
+            const prepared = await previewDroppedSource(
+              source,
+              service,
+              signal,
+            );
+            let sessionCreationStarted = false;
+            try {
+              throwIfAborted(signal);
+              operation.updateActivity({ phase: "import-source-validating" });
+              sessionCreationStarted = true;
+              const session = await createPreparedImportPreviewSession(
+                prepared,
                 droppedSourceRecentLocation(source),
-              ),
-            };
+              );
+              if (!session) {
+                return emptyDroppedSourceRejection(source);
+              }
+              return {
+                status: "ready",
+                preview: session,
+              };
+            } catch (error) {
+              if (!sessionCreationStarted) {
+                await runImportPreviewCleanup(prepared.cleanup);
+              }
+              throw error;
+            }
           },
         );
       } catch (error) {
         if (isAppActivityUnavailableError(error)) {
           return { status: "rejected", reason: "busy" };
+        }
+        if (isAbortErrorLike(error)) {
+          return { status: "rejected", reason: "cancelled" };
         }
         throw error;
       }
@@ -274,21 +252,30 @@ function registerDroppedImportPreviewIpc(
   );
 }
 
+function droppedSourceKind(
+  source: Exclude<DroppedImportSource, { status: "rejected" }>,
+): PreparedImportPreview["preview"]["sourceKind"] {
+  if (source.kind === "archive") {
+    return /\.(?:rar|cbr)$/i.test(source.archivePath) ? "rar" : "zip";
+  }
+  return source.kind;
+}
+
 async function previewDroppedSource(
   source: DroppedImportSource,
   service: ImportPreviewIpcService,
-): Promise<ImportPreviewResult> {
+  signal?: AbortSignal,
+): Promise<PreparedImportPreview> {
   if (source.kind === "images") {
-    return service.previewImages(source.filePaths);
+    return { preview: await service.previewImages(source.filePaths) };
   }
   if (source.kind === "folder") {
-    return service.previewFolder(source.folderPath);
+    return { preview: await service.previewFolder(source.folderPath) };
   }
-  return service.previewZip(source.archivePath);
-}
-
-function previewHasPages(preview: ImportPreviewResult): boolean {
-  return preview.chapters.some((chapter) => chapter.pages.length > 0);
+  if (source.kind === "pdf") {
+    return preparePdfWithService(service, source.pdfPath, signal);
+  }
+  return prepareArchiveWithService(service, source.archivePath, signal);
 }
 
 function emptyDroppedSourceRejection(
@@ -299,9 +286,11 @@ function emptyDroppedSourceRejection(
     reason:
       source.kind === "archive"
         ? "archive-no-images"
-        : source.kind === "folder"
-          ? "folder-no-images"
-          : "empty",
+        : source.kind === "pdf"
+          ? "pdf-no-pages"
+          : source.kind === "folder"
+            ? "folder-no-images"
+            : "empty",
   };
 }
 
@@ -322,6 +311,13 @@ function droppedSourceRecentLocation(
       path: source.folderPath,
     };
   }
+  if (source.kind === "pdf") {
+    return {
+      key: recentDialogPathKeys.pdfImport,
+      kind: "file",
+      path: source.pdfPath,
+    };
+  }
   return {
     key: recentDialogPathKeys.archiveImport,
     kind: "file",
@@ -335,7 +331,7 @@ function registerCreateImportIpc(
 ): void {
   trustedHandleContract(
     context,
-    importShareIpcContracts.createImport,
+    importPreviewIpcContracts.createImport,
     async (_event, request: unknown) => {
       const command = parseIpcPayload(
         CreateImportRequestSchema,
@@ -343,46 +339,56 @@ function registerCreateImportIpc(
         tMain("ipc.labels.importApply"),
       );
       const session = await getImportPreviewSession(command.previewId);
-      const result = await runManagedAppOperation(
+      return runManagedAppOperation(
         context.operations,
         {
           id: `library-import-${command.previewId}`,
           kind: "library-import",
           mutatesLibrary: true,
+          presentation: {
+            phase: "import-library-writing",
+            sourceKind: session.preview.sourceKind,
+            cancellable: true,
+          },
         },
-        (signal) =>
-          service.createImport(
+        async (signal, operation) => {
+          const result = await service.createImport(
             {
               preview: session.preview,
               target: command.target,
               selections: command.selections,
             },
             signal,
-          ),
+          );
+          operation.updateActivity({
+            phase: "import-finalizing",
+            cancellable: false,
+          });
+          const linkedResult = await connectImportedChapters(
+            context,
+            command,
+            result,
+          );
+          if (session.recentLocation) {
+            rememberRecentDialogLocation(
+              context.appPaths.dataRoot,
+              session.recentLocation,
+            );
+          }
+          removeImportPreviewSession(command.previewId);
+          try {
+            await runImportPreviewCleanup(session.cleanup);
+          } catch (error) {
+            // The library transaction already committed; report cleanup separately
+            // so a temporary-file failure cannot make the user retry the import.
+            context.reportError?.(
+              "Imported preview cleanup failed after commit",
+              error,
+            );
+          }
+          return { ...result, ...linkedResult };
+        },
       );
-      const linkedResult = await connectImportedChapters(
-        context,
-        command,
-        result,
-      );
-      if (session.recentLocation) {
-        rememberRecentDialogLocation(
-          context.appPaths.dataRoot,
-          session.recentLocation,
-        );
-      }
-      removeImportPreviewSession(command.previewId);
-      try {
-        await runImportPreviewCleanup(session.cleanup);
-      } catch (error) {
-        // The library transaction already committed; report cleanup separately
-        // so a temporary-file failure cannot make the user retry the import.
-        context.reportError?.(
-          "Imported preview cleanup failed after commit",
-          error,
-        );
-      }
-      return { ...result, ...linkedResult };
     },
   );
 }

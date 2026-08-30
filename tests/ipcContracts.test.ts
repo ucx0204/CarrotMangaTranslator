@@ -226,6 +226,7 @@ it("registers and removes every preload event listener on its contract channel",
     warn: vi.fn(),
   });
   const subscriptions = [
+    ["onAppOperationActivity", ipcEventContracts.appOperationActivity],
     ["onErrorIncident", ipcEventContracts.errorIncident],
     ["onFontLibraryChanged", ipcEventContracts.fontLibraryChanged],
     ["onUiLocaleChanged", ipcEventContracts.uiLocaleChanged],

@@ -1,21 +1,17 @@
 import React from "react";
-import {
-  IconBug,
-  IconRefresh,
-  IconTrash,
-  IconVolume,
-  IconVolume2,
-  IconVolumeOff,
-  IconX,
-} from "@tabler/icons-react";
+import { IconBug, IconRefresh, IconTrash, IconX } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import type { CompletionSoundPreferences } from "../hooks/useCompletionSound";
-import { RunJobFeedback } from "./RunStatusFeedback";
-import { JobCancelButton } from "./RunStatusPanels";
 import { IconButton } from "./ui/IconButton";
 import { Button } from "./ui/Button";
+import type { AppOperationActivityEvent } from "../../../shared/appOperationTypes";
+import type { StatusCenterHistoryEntry } from "../lib/statusCenterHistoryStore";
+import { CurrentStatusContent, StatusJobHistory } from "./StatusPopoverDetails";
+import { CompletionSoundControl } from "./CompletionSoundControl";
+import type { StatusLogContext, StatusLogEntry } from "../hooks/useStatusLog";
+import { ControlTooltip } from "./ui/ControlTooltip";
 
 const STATUS_LOG_BATCH_SIZE = 16;
 const STATUS_LOG_BOTTOM_THRESHOLD_PX = 8;
@@ -26,20 +22,20 @@ export type StatusFailedPage = {
   error?: string;
 };
 
-export type StatusJobHistoryEntry = Pick<
-  JobState,
-  "id" | "kind" | "status" | "progressText" | "detail" | "pageTotal"
->;
-
 type StatusPopoverProps = {
   id: string;
   jobState: JobState;
+  operationActivity?: AppOperationActivityEvent | null;
   progressSnapshot: ProgressSnapshot | null;
   showProgressBar: boolean;
-  statusLines: string[];
+  statusEntries: StatusLogEntry[];
   completionSoundMuted: boolean;
   completionSoundVolume: number;
+  completionSoundTranslationMuted: boolean;
+  completionSoundSourceErasingMuted: boolean;
+  completionSoundResearchMuted: boolean;
   onCancelJob: () => void;
+  onCancelOperation?: () => void;
   onClear: () => void;
   onCompletionSoundChange: (preferences: CompletionSoundPreferences) => void;
   onClose: () => void;
@@ -48,18 +44,23 @@ type StatusPopoverProps = {
   onRetryPage?: (pageId: string) => void;
   onReviewResults?: () => void;
   failedPages?: StatusFailedPage[];
-  jobHistory?: StatusJobHistoryEntry[];
+  jobHistory?: StatusCenterHistoryEntry[];
 };
 
 export function StatusPopover({
   id,
   jobState,
+  operationActivity = null,
   progressSnapshot,
   showProgressBar,
-  statusLines,
+  statusEntries,
   completionSoundMuted,
   completionSoundVolume,
+  completionSoundTranslationMuted,
+  completionSoundSourceErasingMuted,
+  completionSoundResearchMuted,
   onCancelJob,
+  onCancelOperation,
   onClear,
   onCompletionSoundChange,
   onClose,
@@ -71,10 +72,13 @@ export function StatusPopover({
   jobHistory = [],
 }: StatusPopoverProps): React.JSX.Element {
   const titleId = React.useId();
-  const jobActive =
-    jobState.status === "starting" ||
-    jobState.status === "running" ||
-    jobState.status === "cancelling";
+  const soundPreferences = {
+    muted: completionSoundMuted,
+    volume: completionSoundVolume,
+    translationMuted: completionSoundTranslationMuted,
+    sourceErasingMuted: completionSoundSourceErasingMuted,
+    researchMuted: completionSoundResearchMuted,
+  };
   return (
     <section
       id={id}
@@ -84,35 +88,38 @@ export function StatusPopover({
     >
       <StatusPopoverHeader
         titleId={titleId}
-        statusCount={statusLines.length}
+        statusCount={statusEntries.length}
         historyCount={jobHistory.length}
-        completionSoundMuted={completionSoundMuted}
-        completionSoundVolume={completionSoundVolume}
+        soundPreferences={soundPreferences}
         onClear={onClear}
         onCompletionSoundChange={onCompletionSoundChange}
         onClose={onClose}
         onOpenErrorReport={onOpenErrorReport}
       />
-      <div className={`job-pill ${jobState.status}`} role="status">
-        {jobState.progressText}
-      </div>
-      <RunJobFeedback
+      <CurrentStatusContent
         jobState={jobState}
+        operationActivity={operationActivity}
         progressSnapshot={progressSnapshot}
         showProgressBar={showProgressBar}
+        onCancelJob={onCancelJob}
+        onCancelOperation={onCancelOperation}
         onOpenExport={onOpenExport}
         onReviewResults={onReviewResults}
       />
-      {jobActive ? (
-        <JobCancelButton
-          cancelling={jobState.status === "cancelling"}
-          onCancel={onCancelJob}
-        />
-      ) : null}
       <FailedPageList pages={failedPages} onRetryPage={onRetryPage} />
       <StatusJobHistory entries={jobHistory} />
-      <StatusPopoverLog lines={statusLines} />
+      <StatusPopoverLog
+        entries={isDedicatedResearchProgress(jobState) ? [] : statusEntries}
+      />
     </section>
+  );
+}
+
+function isDedicatedResearchProgress(jobState: JobState): boolean {
+  return (
+    jobState.kind === "internet-research" &&
+    Boolean(jobState.research) &&
+    ["starting", "running", "cancelling"].includes(jobState.status)
   );
 }
 
@@ -120,8 +127,7 @@ function StatusPopoverHeader({
   titleId,
   statusCount,
   historyCount,
-  completionSoundMuted,
-  completionSoundVolume,
+  soundPreferences,
   onClear,
   onCompletionSoundChange,
   onClose,
@@ -130,8 +136,7 @@ function StatusPopoverHeader({
   titleId: string;
   statusCount: number;
   historyCount: number;
-  completionSoundMuted: boolean;
-  completionSoundVolume: number;
+  soundPreferences: Required<CompletionSoundPreferences>;
   onClear: () => void;
   onCompletionSoundChange: (preferences: CompletionSoundPreferences) => void;
   onClose: () => void;
@@ -146,8 +151,7 @@ function StatusPopoverHeader({
       </div>
       <div className="status-popover-actions">
         <CompletionSoundControl
-          muted={completionSoundMuted}
-          volume={completionSoundVolume}
+          preferences={soundPreferences}
           onChange={onCompletionSoundChange}
         />
         {onOpenErrorReport ? (
@@ -179,65 +183,6 @@ function StatusPopoverHeader({
         </IconButton>
       </div>
     </header>
-  );
-}
-
-function CompletionSoundControl({
-  muted,
-  volume,
-  onChange,
-}: {
-  muted: boolean;
-  volume: number;
-  onChange: (preferences: CompletionSoundPreferences) => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const normalizedVolume = Math.min(1, Math.max(0, volume));
-  const percent = Math.round(normalizedVolume * 100);
-  const VolumeIcon = muted
-    ? IconVolumeOff
-    : percent < 50
-      ? IconVolume
-      : IconVolume2;
-  const volumeLabel = t("statusDock.completionSoundVolume");
-  const muteLabel = t(
-    muted
-      ? "statusDock.unmuteCompletionSound"
-      : "statusDock.muteCompletionSound",
-  );
-  return (
-    <div className={`status-sound-control${muted ? " muted" : ""}`}>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        step={1}
-        value={percent}
-        aria-label={volumeLabel}
-        aria-valuetext={`${percent}%`}
-        title={`${volumeLabel}: ${percent}%`}
-        style={
-          {
-            "--status-sound-progress": `${percent}%`,
-          } as React.CSSProperties
-        }
-        onChange={(event) =>
-          onChange({
-            muted,
-            volume: Number(event.currentTarget.value) / 100,
-          })
-        }
-      />
-      <IconButton
-        size="sm"
-        aria-pressed={muted}
-        label={muteLabel}
-        title={muteLabel}
-        onClick={() => onChange({ muted: !muted, volume: normalizedVolume })}
-      >
-        <VolumeIcon size={16} aria-hidden="true" />
-      </IconButton>
-    </div>
   );
 }
 
@@ -282,52 +227,22 @@ function FailedPageList({
   );
 }
 
-function StatusJobHistory({
+function StatusPopoverLog({
   entries,
 }: {
-  entries: StatusJobHistoryEntry[];
+  entries: StatusLogEntry[];
 }): React.JSX.Element | null {
-  const { t } = useTranslation("components");
-  if (!entries.length) return null;
-  return (
-    <section
-      className="status-job-history"
-      aria-label={t("statusDock.recentJobs")}
-    >
-      <h3>{t("statusDock.recentJobs")}</h3>
-      <ul>
-        {entries.map((entry) => (
-          <li key={`${entry.id}-${entry.status}`}>
-            <span
-              className={`status-history-mark ${entry.status}`}
-              aria-hidden="true"
-            />
-            <span>
-              <strong>{entry.progressText}</strong>
-              {entry.pageTotal ? (
-                <small>
-                  {t("statusDock.completedPages", { count: entry.pageTotal })}
-                </small>
-              ) : null}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function StatusPopoverLog({ lines }: { lines: string[] }): React.JSX.Element {
   const { t } = useTranslation("components");
   const [visibleCount, setVisibleCount] = React.useState(STATUS_LOG_BATCH_SIZE);
   React.useEffect(() => {
-    if (lines.length === 0) {
+    if (entries.length === 0) {
       setVisibleCount(STATUS_LOG_BATCH_SIZE);
     }
-  }, [lines.length]);
-  const visibleLines = lines.slice(0, visibleCount);
-  const hasOlderLines = visibleCount < lines.length;
-  const scrollable = visibleLines.length > 5;
+  }, [entries.length]);
+  if (entries.length === 0) return null;
+  const visibleEntries = entries.slice(0, visibleCount);
+  const hasOlderLines = visibleCount < entries.length;
+  const scrollable = visibleEntries.length > 5;
   const loadOlderLinesAtBottom = (event: React.UIEvent<HTMLDivElement>) => {
     const log = event.currentTarget;
     const distanceFromBottom =
@@ -336,7 +251,7 @@ function StatusPopoverLog({ lines }: { lines: string[] }): React.JSX.Element {
       return;
     }
     setVisibleCount((current) =>
-      Math.min(lines.length, current + STATUS_LOG_BATCH_SIZE),
+      Math.min(entries.length, current + STATUS_LOG_BATCH_SIZE),
     );
   };
   return (
@@ -352,17 +267,41 @@ function StatusPopoverLog({ lines }: { lines: string[] }): React.JSX.Element {
         role="log"
         aria-live="off"
         data-visible-limit="5"
-        data-loaded-count={visibleLines.length}
+        data-loaded-count={visibleEntries.length}
         onScroll={loadOlderLinesAtBottom}
       >
-        {visibleLines.length > 0 ? (
-          visibleLines.map((line, index) => (
-            <p key={`${line}-${index}`}>{line}</p>
-          ))
-        ) : (
-          <p className="muted-line">{t("status.empty")}</p>
-        )}
+        {visibleEntries.map((entry, index) => (
+          <p
+            key={`${entry.message}-${entry.context?.chapterId ?? "global"}-${index}`}
+          >
+            <span className="status-log-message">{entry.message}</span>
+            <StatusLogContextLabel context={entry.context} />
+          </p>
+        ))}
       </div>
     </section>
+  );
+}
+
+function StatusLogContextLabel({
+  context,
+}: {
+  context?: StatusLogContext;
+}): React.JSX.Element | null {
+  if (!context) return null;
+  const label = `· ${context.chapterTitle}`;
+  if (!context.workTitle) {
+    return <span className="status-log-context-label">{label}</span>;
+  }
+  return (
+    <ControlTooltip
+      className="status-log-context-tooltip"
+      content={context.workTitle}
+      placement="left"
+    >
+      <span className="status-log-context-label" tabIndex={0}>
+        {label}
+      </span>
+    </ControlTooltip>
   );
 }

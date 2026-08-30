@@ -46,6 +46,11 @@ function createWindowsThinDistributionPlan(options) {
     });
   }
   commands.push(
+    {
+      command: options.nodeCommand,
+      args: ["scripts/prepare-import-source-runner.cjs"],
+      env: {},
+    },
     { command: "npm", args: ["run", "build"], env: {} },
     {
       command: options.nodeCommand,

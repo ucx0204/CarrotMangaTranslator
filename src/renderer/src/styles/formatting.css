@@ -759,7 +759,8 @@
   cursor: pointer;
 }
 
-.progress-card {
+.progress-card,
+.operation-progress-card {
   display: grid;
   gap: 8px;
   padding: 10px;
@@ -768,6 +769,10 @@
   border: 1px solid #2d333b;
   min-width: 0;
   max-width: 100%;
+}
+
+.operation-progress-card {
+  background: color-mix(in srgb, var(--accent-soft) 32%, #15181d);
 }
 
 .job-completed-card {
@@ -905,6 +910,10 @@
   font-size: 12px;
 }
 
+.progress-meta.value-only {
+  justify-content: flex-end;
+}
+
 .progress-detail {
   display: block;
   max-width: 100%;
@@ -963,4 +972,8 @@
 
 .job-pill.completed {
   background: #2f6f61;
+}
+
+.job-pill.cancelled {
+  background: #454a54;
 }

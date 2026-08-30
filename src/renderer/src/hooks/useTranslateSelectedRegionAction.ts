@@ -21,7 +21,6 @@ import {
 type RegionTranslationContext = Pick<
   UseTranslationActionsOptions,
   | "beforeTranslate"
-  | "clearStatusLines"
   | "currentChapter"
   | "currentChapterRef"
   | "jobActive"
@@ -53,7 +52,6 @@ export function useTranslateSelectedRegionAction(
 function useRegionTranslationContext(
   {
     beforeTranslate,
-    clearStatusLines,
     currentChapter,
     currentChapterRef,
     jobActive,
@@ -72,7 +70,6 @@ function useRegionTranslationContext(
   return useMemo(
     () => ({
       beforeTranslate,
-      clearStatusLines,
       currentChapter,
       currentChapterRef,
       jobActive,
@@ -89,7 +86,6 @@ function useRegionTranslationContext(
     }),
     [
       beforeTranslate,
-      clearStatusLines,
       currentChapter,
       currentChapterRef,
       jobActive,
@@ -119,7 +115,6 @@ async function translateSelectedRegion(
   }
   try {
     await context.saveNow();
-    context.clearStatusLines();
     context.setJobState(regionTranslationStartingState(context.t));
     await context.beforeTranslate?.();
     const result = await analysisGateway.translateRegion({

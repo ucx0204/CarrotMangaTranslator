@@ -10,7 +10,7 @@ import {
 import type { ChapterSessionController } from "./useChapterSessionController";
 import { useAppSessionWorkspaceHistory } from "./useAppSessionWorkspaceHistory";
 import { useFonts } from "../../fonts/useFonts";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { captureWorkspaceChapterEditSnapshot } from "../../lib/workspaceHistory";
 import { resolveSourceReadingDirection } from "../../../../shared/translationLanguages";
 import { resolveReadingDirection } from "../../../../shared/blockReadingOrder";
@@ -95,11 +95,19 @@ function useImportShareController(
   chapter: ChapterSessionController,
   resetWorkspaceHistory: () => void,
 ) {
+  const getNavigationKey = useNavigationIdentity(
+    chapter.core.currentChapter?.id,
+    chapter.core.selectedPageId,
+  );
   return useImportShareActions({
     applyChapter: chapter.libraryActions.applyChapter,
     askConfirm: chapter.confirmController.askConfirm,
     dirty: chapter.persistence.dirty,
+    getNavigationKey,
     importPreview: chapter.importShareModal.importPreview,
+    setImportModalOpen: chapter.importShareModal.setImportModalOpen,
+    setImportDraft: chapter.importShareModal.setImportDraft,
+    setImportFeedback: chapter.importShareModal.setImportFeedback,
     openTranslateOptions: chapter.uiState.openTranslateOptions,
     pushStatus: chapter.statusLog.pushStatus,
     refreshLibrary: chapter.libraryActions.refreshLibrary,
@@ -107,14 +115,37 @@ function useImportShareController(
     setImportBusy: chapter.importShareModal.setImportBusy,
     setImportPreview: chapter.importShareModal.setImportPreview,
     setShareExportBusy: chapter.importShareModal.setShareExportBusy,
+    setShareExportDraft: chapter.importShareModal.setShareExportDraft,
     setShareExportOpen: chapter.importShareModal.setShareExportOpen,
     setShareImportBusy: chapter.importShareModal.setShareImportBusy,
+    setShareImportDraft: chapter.importShareModal.setShareImportDraft,
     setShareImportPreview: chapter.importShareModal.setShareImportPreview,
     setTranslationSourceOpen: chapter.importShareModal.setTranslationSourceOpen,
     setWebImportOpen: chapter.importShareModal.setWebImportOpen,
     shareImportPreview: chapter.importShareModal.shareImportPreview,
     resetWorkspaceHistory,
   });
+}
+
+function useNavigationIdentity(
+  currentChapterId: string | undefined,
+  selectedPageId: string | null,
+): () => string {
+  const revisionRef = useRef(0);
+  const currentIdentity = [currentChapterId ?? "", selectedPageId ?? ""].join(
+    ":",
+  );
+  const previousIdentityRef = useRef(currentIdentity);
+  const navigationIdentityRef = useRef(`0:${currentIdentity}`);
+  useEffect(() => {
+    if (previousIdentityRef.current === currentIdentity) {
+      return;
+    }
+    previousIdentityRef.current = currentIdentity;
+    revisionRef.current += 1;
+    navigationIdentityRef.current = `${revisionRef.current}:${currentIdentity}`;
+  }, [currentIdentity]);
+  return () => navigationIdentityRef.current;
 }
 
 function useTranslationActionController(
@@ -155,11 +186,13 @@ function useTranslationActionController(
     },
     clearPageImageCache: chapter.derivedState.clearPageImageCache,
     clearRetouchHistory,
-    clearStatusLines: chapter.statusLog.clearStatusLines,
     currentChapter: chapter.core.currentChapter,
     currentChapterRef: chapter.core.currentChapterRef,
     flowCancellationRef: chapter.uiState.jobFlowCancellationRef,
-    jobActive: chapter.derivedState.jobActive,
+    jobActive:
+      chapter.derivedState.jobActive ||
+      chapter.operationActivity.active ||
+      chapter.importShareModal.importBusy,
     library: chapter.core.library,
     mergeLiveChapter: chapter.mergeLiveChapter,
     pushStatus: chapter.statusLog.pushStatus,

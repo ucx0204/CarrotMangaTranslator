@@ -14,6 +14,7 @@ import { WorkSelect } from "./WorkSelect";
 type ShareExportModalProps = {
   library: LibraryIndex;
   currentWorkId: string | null;
+  initialRequest?: WorkShareExportRequest | null;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (request: WorkShareExportRequest) => void;
@@ -22,24 +23,24 @@ type ShareExportModalProps = {
 export function ShareExportModal({
   library,
   currentWorkId,
+  initialRequest = null,
   busy,
   onCancel,
   onSubmit,
 }: ShareExportModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const initialWorkId = resolveInitialShareWorkId(library, currentWorkId);
-  const [workId, setWorkId] = React.useState(initialWorkId);
-  const selectedWork = React.useMemo(
-    () => library.works.find((work) => work.id === workId) ?? null,
-    [library.works, workId],
+  const selection = useShareExportSelection(
+    library,
+    currentWorkId,
+    initialRequest,
   );
-  const [selectedChapterIds, setSelectedChapterIds] = React.useState<
-    Set<string>
-  >(() => new Set(selectedWork?.chapters.map((chapter) => chapter.id) ?? []));
-
-  React.useEffect(() => {
-    setSelectedChapterIds(createAllChapterSelection(selectedWork));
-  }, [selectedWork]);
+  const {
+    selectedChapterIds,
+    selectedWork,
+    setSelectedChapterIds,
+    setWorkId,
+    workId,
+  } = selection;
 
   const selectedCount = selectedChapterIds.size;
   const pageCount = countSelectedPages(selectedWork, selectedChapterIds);
@@ -92,6 +93,47 @@ export function ShareExportModal({
       </div>
     </Modal>
   );
+}
+
+function useShareExportSelection(
+  library: LibraryIndex,
+  currentWorkId: string | null,
+  initialRequest: WorkShareExportRequest | null,
+) {
+  const initialWorkId = resolveInitialShareWorkId(
+    library,
+    initialRequest?.workId ?? currentWorkId,
+  );
+  const [workId, setWorkId] = React.useState(initialWorkId);
+  const selectedWork = React.useMemo(
+    () => library.works.find((work) => work.id === workId) ?? null,
+    [library.works, workId],
+  );
+  const [selectedChapterIds, setSelectedChapterIds] = React.useState<
+    Set<string>
+  >(
+    () =>
+      new Set(
+        initialRequest?.workId === initialWorkId
+          ? initialRequest.chapterIds
+          : (selectedWork?.chapters.map((chapter) => chapter.id) ?? []),
+      ),
+  );
+  const initialSelectionRef = React.useRef(Boolean(initialRequest));
+  React.useEffect(() => {
+    if (initialSelectionRef.current) {
+      initialSelectionRef.current = false;
+      return;
+    }
+    setSelectedChapterIds(createAllChapterSelection(selectedWork));
+  }, [selectedWork]);
+  return {
+    selectedChapterIds,
+    selectedWork,
+    setSelectedChapterIds,
+    setWorkId,
+    workId,
+  };
 }
 
 function ShareExportFooter({

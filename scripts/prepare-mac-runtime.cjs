@@ -585,6 +585,16 @@ async function stageInpaintingRunners() {
     ].filter(Boolean),
     true,
   );
+  const importName = "mgt-import-source-runner";
+  await stageRunner(
+    importName,
+    [
+      String(process.env.MGT_MAC_IMPORT_SOURCE_RUNNER || ""),
+      path.join(root, "tools", importName, "target", releaseDir, importName),
+      path.join(root, "tools", "target", releaseDir, importName),
+    ].filter(Boolean),
+    true,
+  );
 }
 
 async function main() {
@@ -602,6 +612,7 @@ async function main() {
     for (const targetDir of [
       path.join(root, "tools", "mgt-koharu-inpaint-runner", "target"),
       path.join(root, "tools", "mgt-flux-klein-runner", "target"),
+      path.join(root, "tools", "mgt-import-source-runner", "target"),
       path.join(root, "tools", "target"),
     ]) {
       await rm(targetDir, { recursive: true, force: true });

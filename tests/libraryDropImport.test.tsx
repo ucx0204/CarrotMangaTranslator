@@ -124,6 +124,52 @@ describe("global library file drop", () => {
     expect(setImportPreview).not.toHaveBeenCalled();
   });
 
+  it("silently stops when background preparation was cancelled", async () => {
+    const previewDroppedImport = vi.fn(async () => ({
+      status: "rejected" as const,
+      reason: "cancelled" as const,
+    }));
+    window.mangaApi = createTestMangaGatewayStub({
+      getPathForFile: vi.fn(() => "C:\\drop\\001.pdf"),
+      previewDroppedImport,
+    });
+    const view = renderDropHook();
+
+    act(() => {
+      window.dispatchEvent(
+        makeDragEvent("drop", [new File(["pdf"], "001.pdf")]),
+      );
+    });
+
+    await waitFor(() => expect(previewDroppedImport).toHaveBeenCalledOnce());
+    await waitFor(() => expect(view.result.current.busy).toBe(false));
+    expect(getToasts()).toEqual([]);
+  });
+
+  it("reports a main-process busy rejection as informational feedback", async () => {
+    window.mangaApi = createTestMangaGatewayStub({
+      getPathForFile: vi.fn(() => "C:\\drop\\001.png"),
+      previewDroppedImport: vi.fn(async () => ({
+        status: "rejected" as const,
+        reason: "busy" as const,
+      })),
+    });
+    renderDropHook();
+
+    act(() => {
+      window.dispatchEvent(
+        makeDragEvent("drop", [new File(["image"], "001.png")]),
+      );
+    });
+
+    await waitFor(() => {
+      expect(getToasts().at(0)).toMatchObject({
+        variant: "info",
+        message: "다른 창이나 작업이 열려 있습니다. 끝낸 뒤 다시 놓아 주세요.",
+      });
+    });
+  });
+
   it("rejects an oversized drop before resolving any native paths", () => {
     const getPathForFile = vi.fn();
     const previewDroppedImport = vi.fn();

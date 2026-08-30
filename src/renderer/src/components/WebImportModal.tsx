@@ -1,18 +1,11 @@
 import React from "react";
-import {
-  IconAlertTriangle,
-  IconDownload,
-  IconLink,
-  IconLoader2,
-} from "@tabler/icons-react";
+import { IconAlertTriangle, IconDownload, IconLink } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { ImportPreviewSession } from "../../../shared/importTypes";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import {
   WebImportCandidateGrid,
-  WebImportInitialState,
-  WebImportProgress,
   WebImportResultNotice,
   WebImportToolbar,
 } from "./webImport/WebImportResults";
@@ -20,23 +13,34 @@ import { useWebImportModalState } from "./webImport/useWebImportModalState";
 
 export function WebImportModal({
   onCancel,
+  onBackgroundStateChange,
   onPrepared,
 }: {
   onCancel: () => void;
+  onBackgroundStateChange?: (backgrounded: boolean) => void;
   onPrepared: (preview: ImportPreviewSession) => void;
-}): React.JSX.Element {
+}): React.JSX.Element | null {
   const { t } = useTranslation("components");
   const state = useWebImportModalState({ onCancel, onPrepared });
+  const backgrounded = state.scanning || state.preparing;
+  React.useEffect(
+    () => onBackgroundStateChange?.(backgrounded),
+    [backgrounded, onBackgroundStateChange],
+  );
+  React.useEffect(
+    () => () => onBackgroundStateChange?.(false),
+    [onBackgroundStateChange],
+  );
+  if (backgrounded) return null;
   return (
     <Modal
       size="xl"
       title={t("webImport.title")}
       onClose={state.cancel}
-      closeDisabled={state.preparing}
       // Results stream in; a growing card would move the grid under the pointer.
-      fillHeight
+      fillHeight={Boolean(state.result)}
       maxHeight="850px"
-      bodyLayout="flex"
+      bodyLayout={state.result ? "flex" : "grid"}
       footer={
         <ModalActionBar
           leading={
@@ -54,22 +58,22 @@ export function WebImportModal({
               cancel={{
                 label: t("common.cancel"),
                 onClick: state.cancel,
-                disabled: state.preparing,
               }}
-              confirm={{
-                label: state.preparing
-                  ? t("webImport.preparing")
-                  : t("webImport.continue"),
-                onClick: () => void state.prepare(),
-                disabled: state.busy || state.selectedCount === 0,
-              }}
+              confirm={
+                state.result
+                  ? {
+                      label: t("webImport.continue"),
+                      onClick: () => void state.prepare(),
+                      disabled: state.busy || state.selectedCount === 0,
+                    }
+                  : undefined
+              }
             />
           }
         />
       }
     >
       <WebImportUrlForm state={state} />
-      {state.scanning ? <WebImportProgress progress={state.progress} /> : null}
       {state.error ? (
         <div
           className="web-import-message web-import-message--error"
@@ -79,11 +83,7 @@ export function WebImportModal({
           <span>{state.error}</span>
         </div>
       ) : null}
-      {state.result ? (
-        <WebImportLoadedContent state={state} />
-      ) : !state.scanning ? (
-        <WebImportInitialState />
-      ) : null}
+      {state.result ? <WebImportLoadedContent state={state} /> : null}
     </Modal>
   );
 }
@@ -123,18 +123,8 @@ function WebImportUrlForm({
         className="web-import-load-button primary"
         disabled={state.busy || !state.url.trim()}
       >
-        {state.scanning ? (
-          <IconLoader2
-            className="web-import-spin"
-            size={17}
-            aria-hidden="true"
-          />
-        ) : (
-          <IconDownload size={17} aria-hidden="true" />
-        )}
-        <span>
-          {state.scanning ? t("webImport.loading") : t("webImport.load")}
-        </span>
+        <IconDownload size={17} aria-hidden="true" />
+        <span>{t("webImport.load")}</span>
       </button>
     </form>
   );

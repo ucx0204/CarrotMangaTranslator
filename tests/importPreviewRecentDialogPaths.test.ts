@@ -7,10 +7,8 @@ import { AppActivityGate } from "../src/main/appActivityGate";
 import { AppOperationRegistry } from "../src/main/appOperationRegistry";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import type { IpcContext } from "../src/main/ipc/context";
-import {
-  registerImportPreviewIpc,
-  type ImportPreviewIpcService,
-} from "../src/main/ipc/importPreviewIpc";
+import { registerImportPreviewIpc } from "../src/main/ipc/importPreviewIpc";
+import type { ImportPreviewIpcService } from "../src/main/ipc/importPreviewService";
 import {
   recentDialogPathKeys,
   rememberRecentDialogDirectory,

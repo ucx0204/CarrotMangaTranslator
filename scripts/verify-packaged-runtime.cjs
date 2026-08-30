@@ -44,6 +44,12 @@ const imageRuntimePath = join(
   "simple-page-translate.cjs",
 );
 const ffmpegPath = join(resourcesDir, "tools", "ffmpeg", "ffmpeg.exe");
+const importSourceRunnerPath = join(
+  resourcesDir,
+  "tools",
+  "mgt-import-source-runner",
+  "mgt-import-source-runner.exe",
+);
 const forbiddenFluxCpuRunnerPaths = [
   join(resourcesDir, "tools", "mgt-flux-klein-cpu"),
   join(resourcesDir, "tools", "mgt-flux-klein-cpu-r1"),
@@ -132,7 +138,7 @@ const allowedElectronLocales = new Set([
 // leaves. Gemma speed routing and MTP fitting add three model leaves plus one
 // transport calibration flow. Keep the resulting payload ceiling exact so
 // unrelated growth fails closed.
-const MAX_PACKAGED_FILES = 307;
+const MAX_PACKAGED_FILES = 308;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the
@@ -167,6 +173,11 @@ for (const forbiddenFluxCpuRunnerPath of forbiddenFluxCpuRunnerPaths) {
 }
 if (!existsSync(appExecutable)) {
   throw new Error(`Packaged Electron executable is missing: ${appExecutable}`);
+}
+if (!existsSync(importSourceRunnerPath)) {
+  throw new Error(
+    `Packaged import source runner is missing: ${importSourceRunnerPath}`,
+  );
 }
 if (!existsSync(onnxWasmModulePath)) {
   throw new Error(
@@ -271,6 +282,20 @@ const imageResult = spawnSync(
   },
 );
 assertSmokeSucceeded(imageResult, "Packaged WebP runtime");
+const importRunnerResult = spawnSync(importSourceRunnerPath, ["capabilities"], {
+  encoding: "utf8",
+  timeout: 30_000,
+  windowsHide: true,
+});
+assertSmokeSucceeded(importRunnerResult, "Packaged PDF/RAR import runtime");
+const importCapabilities = JSON.parse(importRunnerResult.stdout);
+if (
+  importCapabilities.version !== 1 ||
+  JSON.stringify(importCapabilities.formats) !==
+    JSON.stringify(["pdf", "rar", "cbr"])
+) {
+  throw new Error("Packaged PDF/RAR import capabilities are invalid");
+}
 
 const packageStats = countFiles(unpackedDir);
 if (packageStats.files > MAX_PACKAGED_FILES) {
@@ -292,6 +317,7 @@ console.log(onnxResult.stdout.trim());
 console.log(onnxNodeResult.stdout.trim());
 console.log(mainRuntimeSmokeMessage);
 console.log(imageResult.stdout.trim());
+console.log(importRunnerResult.stdout.trim());
 console.log(
   `[package] ${packageStats.files} files, ${(
     packageStats.bytes /

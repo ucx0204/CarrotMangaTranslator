@@ -165,7 +165,10 @@ function createTranslationAndRetouchShortcutHandlers(
         uiState.openTextView("overview");
       }
     },
-    "cancel-job": () => chapter.bridgeActions.cancelJob(),
+    "cancel-job": () =>
+      chapter.operationActivity?.active
+        ? void chapter.operationActivity.cancel()
+        : chapter.bridgeActions.cancelJob(),
     "toggle-inpainting": () => {
       if (uiState.autoInpaintingOptionsOpen) {
         uiState.setAutoInpaintingOptionsOpen(false);

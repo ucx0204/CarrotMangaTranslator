@@ -21,6 +21,9 @@ describe("right rail block selection routing", () => {
       completionSound: {
         muted: true,
         volume: 0.55,
+        translationMuted: false,
+        sourceErasingMuted: false,
+        researchMuted: false,
         setPreferences: noop,
       },
       core: {
@@ -66,7 +69,11 @@ describe("right rail block selection routing", () => {
       persistence: { saveNow: noop, saveStatus: "idle" },
       retranslatePage: noop,
       settingsDialog: { settings: null },
-      statusLog: { clearStatusLines: noop, statusLines: [] },
+      statusLog: {
+        clearStatusLines: noop,
+        statusEntries: [],
+        statusLines: [],
+      },
       uiState: {
         openTranslateOptions: noop,
         rightRailMode: "block-editor",
@@ -97,6 +104,33 @@ describe("right rail block selection routing", () => {
     } satisfies Parameters<typeof createRightRailProps>[0];
 
     const props = createRightRailProps(model);
+
+    const cancelOperation = vi.fn(async () => undefined);
+    const operationProps = createRightRailProps({
+      ...model,
+      operationActivity: {
+        activity: {
+          id: "import-1",
+          kind: "library-import",
+          status: "running",
+          phase: "import-library-writing",
+          sourceKind: "pdf",
+          mutatesLibrary: true,
+          cancellable: true,
+          startedAt: 1,
+          updatedAt: 1,
+        },
+        active: true,
+        libraryMutationBlocked: true,
+        cancel: cancelOperation,
+        clearTerminal: noop,
+      },
+    });
+    expect(operationProps.exclusiveActivityActive).toBe(true);
+    expect(operationProps.jobActive).toBe(false);
+    expect(operationProps.editorDisabled).toBe(false);
+    operationProps.onCancelOperation?.();
+    expect(cancelOperation).toHaveBeenCalledOnce();
 
     props.onSelectBlock("block-from-translation");
     expect(selectedBlockIdRef.current).toBe("block-from-translation");

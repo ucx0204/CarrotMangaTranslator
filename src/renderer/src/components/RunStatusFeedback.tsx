@@ -3,6 +3,7 @@ import { IconCircleCheck, IconDownload, IconEye } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
+import { formatBytes } from "../lib/jobProgress";
 import { JobProgressReadout } from "./JobProgressReadout";
 import { Button } from "./ui/Button";
 import { InlineMessage } from "./ui/InlineMessage";
@@ -134,12 +135,25 @@ function ProgressCard({
   jobState: JobState;
   progressSnapshot: ProgressSnapshot;
 }): React.JSX.Element {
+  const { i18n } = useTranslation("components");
+  const bytes = formatJobByteStats(
+    jobState,
+    i18n.resolvedLanguage ?? i18n.language,
+  );
   return (
     <div className="progress-card">
       <JobProgressReadout
         jobState={jobState}
         progressSnapshot={progressSnapshot}
+        valueText={bytes ?? undefined}
       />
     </div>
   );
+}
+
+function formatJobByteStats(jobState: JobState, locale: string): string | null {
+  const current = formatBytes(jobState.progressBytes, locale);
+  const total = formatBytes(jobState.progressTotalBytes, locale);
+  if (current && total) return `${current} / ${total}`;
+  return current;
 }

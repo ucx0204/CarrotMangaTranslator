@@ -36,7 +36,7 @@ export type ExecuteAnalysisJob = (
 ) => Promise<RunAnalysisOutcome>;
 
 type FlowTerminalContext = {
-  pushStatus: (line: string) => void;
+  pushStatus: (line: string, chapterId?: string) => void;
   setJobState: Dispatch<SetStateAction<JobState>>;
   t: TFunction<"renderer">;
 };
@@ -79,7 +79,7 @@ export function setFlowTerminal(
 export async function runSelectionsSequentially(
   execute: ExecuteAnalysisJob,
   selections: ChapterRunSelection[],
-  pushStatus: (line: string) => void,
+  pushStatus: (line: string, chapterId?: string) => void,
   passLabel: string,
   blockMode?: AnalysisBlockMode,
   collectPageContext?: boolean,
@@ -97,8 +97,15 @@ export async function runSelectionsSequentially(
   let anyPartial = false;
   let anyAttempted = false;
   for (let index = 0; index < selections.length; index += 1) {
-    pushChapterProgress(pushStatus, passLabel, index, selections.length, t);
     const selection = selections[index];
+    pushChapterProgress(
+      pushStatus,
+      passLabel,
+      index,
+      selections.length,
+      selection.chapterId,
+      t,
+    );
     const outcome = await execute({
       runMode: selection.mode,
       chapterId: selection.chapterId,
@@ -132,10 +139,11 @@ export async function runSelectionsSequentially(
 }
 
 function pushChapterProgress(
-  pushStatus: (line: string) => void,
+  pushStatus: (line: string, chapterId?: string) => void,
   passLabel: string,
   index: number,
   total: number,
+  chapterId?: string,
   t?: TFunction<"renderer">,
 ): void {
   if (total <= 1) return;
@@ -147,6 +155,7 @@ function pushChapterProgress(
           total,
         })
       : `${passLabel} ${index + 1}/${total}화`,
+    chapterId,
   );
 }
 

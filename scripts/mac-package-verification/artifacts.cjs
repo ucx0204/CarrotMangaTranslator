@@ -139,6 +139,29 @@ function verifyRequiredRuntimes(appPath) {
   ) {
     throw new Error(`Flux worker protocol smoke failed: ${protocolSmoke}`);
   }
+  verifyImportSourceRunner(toolsDir);
+}
+
+/** @param {string} toolsDir */
+function verifyImportSourceRunner(toolsDir) {
+  const importRunner = join(
+    toolsDir,
+    "mgt-import-source-runner",
+    "mgt-import-source-runner",
+  );
+  if (!existsSync(importRunner)) {
+    throw new Error(`Missing bundled PDF/RAR import runner: ${importRunner}`);
+  }
+  const capabilities = JSON.parse(
+    run(importRunner, ["capabilities"], { timeout: 30_000 }).stdout,
+  );
+  if (
+    capabilities.version !== 1 ||
+    JSON.stringify(capabilities.formats) !==
+      JSON.stringify(["pdf", "rar", "cbr"])
+  ) {
+    throw new Error("Incomplete PDF/RAR import capabilities");
+  }
 }
 
 /** @param {string} capabilityText */

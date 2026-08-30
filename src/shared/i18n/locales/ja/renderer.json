@@ -72,6 +72,7 @@
       "modelRequesting": "AI翻訳をリクエスト中",
       "pageRunning": "翻訳中",
       "pageDone": "完了",
+      "pageTypography": "文字とフォントを調整中",
       "pageSkipped": "スキップ",
       "inpaintingRunning": "原文を消去中",
       "inpaintingDone": "原文の消去完了",
@@ -470,6 +471,64 @@
     "defaultsLoaded": "デフォルト値を下書きに読み込みました。適用するには保存してください。",
     "resetFailed": "デフォルト設定に戻せませんでした。"
   },
+  "statusDock": {
+    "operation": {
+      "summary": "{{kind}} · {{state}}",
+      "replacePrefix": "{{kind}}",
+      "cancelFailed": "処理のキャンセルを要求できませんでした。",
+      "kind": {
+        "importPreview": "{{source}}読み込みの準備",
+        "libraryImport": "ライブラリに追加",
+        "webImport": "Web画像を読み込む",
+        "webScan": "Webページの画像を検索",
+        "webPrepare": "選択画像をダウンロード",
+        "shareImport": "共有ファイルを読み込む",
+        "shareExport": "共有ファイルを作成",
+        "modelTest": "モデルとランタイムを確認",
+        "codexAuth": "ChatGPTアカウント接続",
+        "background": "バックグラウンド処理"
+      },
+      "source": {
+        "files": "ファイル",
+        "images": "画像",
+        "folder": "フォルダー",
+        "zip": "ZIP/CBZ",
+        "rar": "RAR/CBR",
+        "pdf": "PDF",
+        "zip-folder": "一括原稿"
+      },
+      "phase": {
+        "import-source-reading": "原稿を読み込み中…",
+        "import-source-converting": "ページを変換・展開中…",
+        "import-source-validating": "読み込めるページを確認中…",
+        "import-library-saving-current": "現在の編集を保存中…",
+        "import-library-writing": "ライブラリにコピー中…",
+        "import-finalizing": "読み込みを完了しています…",
+        "web-validating": "Webアドレスを確認中…",
+        "web-loading": "Webページを読み込み中…",
+        "web-scrolling": "ページ全体を確認中…",
+        "web-discovering": "画像を検索中…",
+        "web-downloading": "画像をダウンロード中…",
+        "web-preparing": "選択した画像を準備中…",
+        "share-reading": "共有ファイルを読み込み中…",
+        "share-packaging": "共有ファイルを作成中…",
+        "share-applying": "共有ファイルをライブラリに適用中…",
+        "model-test-preparing": "モデルとランタイムを準備中…",
+        "model-test-downloading": "モデルをダウンロード中…",
+        "model-test-checking": "モデルの応答を確認中…",
+        "codex-auth-opening-browser": "ログインページを開いています…",
+        "codex-auth-updating": "アカウント接続を更新中…",
+        "waiting-for-user": "ブラウザーでのログインを待機中…"
+      },
+      "status": {
+        "running": "処理中…",
+        "cancelling": "キャンセルして整理中…",
+        "cancelled": "キャンセル済み",
+        "failed": "失敗",
+        "completed": "完了"
+      }
+    }
+  },
   "import": {
     "sourceReadFailed": "翻訳元を読み込めませんでした。",
     "added": "{{count}}話をライブラリに追加しました。",
@@ -477,16 +536,19 @@
     "added_other": "{{count}}話をライブラリに追加しました。",
     "applyFailed": "読み込みを適用できませんでした。",
     "previewDiscardFailed": "読み込みの一時ファイルを整理できませんでした。",
+    "cancelled": "読み込みをキャンセルしました。入力内容は保持されています。",
     "drop": {
       "unavailable": "別の画面または処理が開いています。完了してから、もう一度ドロップしてください。",
       "empty": "追加するファイルが見つかりませんでした。",
       "tooManyItems": "一度に追加できるのは{{max}}件までです。",
       "folderMustBeAlone": "フォルダーは他のファイルと混ぜず、1つだけドロップしてください。",
-      "archiveMustBeAlone": "ZIP/CBZファイルは他のファイルと混ぜず、1つだけドロップしてください。",
+      "archiveMustBeAlone": "ZIP/CBZ/RAR/CBRファイルは他のファイルと混ぜず、1つだけドロップしてください。",
+      "pdfMustBeAlone": "PDFファイルは他のファイルと混ぜず、1つだけドロップしてください。",
       "unsupportedFiles": "未対応のファイルが含まれているため追加しませんでした。PNG、JPG、JPEG、WEBP画像だけをまとめてドロップしてください。",
       "unsupportedFilesNamed": "{{names}}など未対応のファイルが含まれているため追加しませんでした。PNG、JPG、JPEG、WEBP画像だけをまとめてドロップしてください。",
       "folderNoImages": "このフォルダーには対応画像が見つかりませんでした。",
-      "archiveNoImages": "このZIP/CBZファイルには対応画像が見つかりませんでした。",
+      "archiveNoImages": "このZIP/CBZ/RAR/CBRファイルには対応画像が見つかりませんでした。",
+      "pdfNoPages": "このPDFには読み込めるページが見つかりませんでした。",
       "readFailed": "ドロップした原稿を読み込めませんでした。"
     }
   },

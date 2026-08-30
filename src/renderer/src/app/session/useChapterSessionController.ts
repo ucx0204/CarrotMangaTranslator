@@ -23,12 +23,19 @@ import { useAppSessionLifecycleEffects } from "./useAppSessionLifecycleEffects";
 import { useAppSessionUiState } from "./useAppSessionUiState";
 import { useModalController } from "./useModalController";
 import { useLinkedWorkspaceController } from "../../hooks/useLinkedWorkspaceController";
+import { useAppOperationActivity } from "../../hooks/useAppOperationActivity";
 
 export function useChapterSessionController() {
   const core = useAppSessionCoreState();
-  const statusLog = useStatusLog();
+  const statusLog = useStatusLog({
+    currentChapter: core.currentChapter,
+    library: core.library,
+  });
   const uiState = useAppSessionUiState();
   const completionSound = useCompletionSoundController();
+  const operationActivity = useAppOperationActivity({
+    appendStatusLine: statusLog.appendStatusLine,
+  });
   const errorReportIncident = useErrorReportIncident();
   usePruneRemovedPageMasks(core.currentChapter, uiState);
   const modalController = useModalController({
@@ -62,6 +69,7 @@ export function useChapterSessionController() {
     ...modalController,
     ...runtime,
     completionSound,
+    operationActivity,
     core,
     derivedState,
     statusLog,
@@ -247,8 +255,9 @@ function resolveRuntimeModalState({
   return resolveSessionModalState({
     commandPaletteOpen: uiState.commandPaletteOpen,
     overlayModalValues: [
-      modalController.importShareModal.importPreview,
-      modalController.importShareModal.webImportOpen,
+      modalController.importShareModal.importModalOpen,
+      modalController.importShareModal.webImportOpen &&
+        !modalController.importShareModal.webImportBackgrounded,
       modalController.importShareModal.shareExportOpen,
       modalController.importShareModal.shareImportPreview,
       libraryActions.renameTarget,
@@ -258,7 +267,7 @@ function resolveRuntimeModalState({
       uiState.autoInpaintingOptionsOpen,
       uiState.exportOptionsOpen,
       uiState.textViewOpen,
-      uiState.styleGuideOpen,
+      uiState.styleGuideOpen && !uiState.styleGuideBackgrounded,
       uiState.translateOptionsOpen,
       uiState.retranslatePageId,
       errorReportIncident,
@@ -301,7 +310,7 @@ function useChapterRuntimeEffects({
   useAppSessionLifecycleEffects({
     currentChapter: core.currentChapter,
     jobState: core.jobState,
-    onJobCompleted: completionSound.playCompletionSound,
+    onAudibleCompletion: completionSound.playCompletionSound,
     onJobStart: handleJobStart,
     onPageChange: handlePageChange,
     openErrorReport,

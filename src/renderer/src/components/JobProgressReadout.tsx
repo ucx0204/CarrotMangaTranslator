@@ -15,6 +15,8 @@ export type JobProgressReadoutProps = {
    * more specific, e.g. an installer that only has log output to go on.
    */
   indeterminateLabel?: string;
+  /** Replaces only the displayed/accessible value while preserving numeric progress. */
+  valueText?: string;
   showDetail?: boolean;
   showEta?: boolean;
 };
@@ -31,20 +33,24 @@ export function JobProgressReadout({
   progressSnapshot,
   stats,
   indeterminateLabel,
+  valueText: valueTextOverride,
   showDetail = true,
   showEta = true,
 }: JobProgressReadoutProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const counts = resolveProgressCounts(jobState, progressSnapshot);
   const etaText = useEtaText(progressSnapshot);
-  const valueText = counts
-    ? `${counts.current} / ${counts.total}`
-    : (indeterminateLabel ?? t("common.inProgress"));
+  const headline = resolveProgressHeadline(jobState.progressText, counts);
+  const valueText =
+    valueTextOverride ??
+    (counts
+      ? `${counts.current} / ${counts.total}`
+      : (indeterminateLabel ?? t("common.inProgress")));
 
   return (
     <>
       <div className="progress-meta">
-        <span>{jobState.progressText}</span>
+        <span>{headline}</span>
         <strong>{valueText}</strong>
       </div>
       <ProgressNotes
@@ -52,7 +58,7 @@ export function JobProgressReadout({
         etaText={showEta ? etaText : null}
       />
       <ProgressBar
-        label={jobState.progressText}
+        label={headline}
         mode={counts ? "determinate" : "indeterminate"}
         value={counts?.current}
         max={counts?.total}
@@ -61,6 +67,17 @@ export function JobProgressReadout({
       {stats ? <div className="progress-stats">{stats}</div> : null}
     </>
   );
+}
+
+function resolveProgressHeadline(
+  progressText: string,
+  counts: { current: number; total: number } | null,
+): string {
+  if (!counts) return progressText;
+  const prefix = `${counts.current} / ${counts.total} `;
+  return progressText.startsWith(prefix)
+    ? progressText.slice(prefix.length)
+    : progressText;
 }
 
 function ProgressNotes({

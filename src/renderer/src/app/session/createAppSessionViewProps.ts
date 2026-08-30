@@ -20,6 +20,7 @@ import { createStylePresetSaveAction } from "./createStylePresetSaveAction";
 import { createStylePresetDeleteAction } from "./createStylePresetDeleteAction";
 import { createOriginalImageOpacityProps } from "./createOriginalImageOpacityProps";
 import { openManualErrorReport } from "../../lib/errorReportStore";
+import { createModalCloseActions } from "./createModalCloseActions";
 
 export function createAppSessionViewProps(model: AppSessionViewModel) {
   return {
@@ -114,36 +115,31 @@ function createModalsProps({
   libraryActions,
   settingsDialog,
   uiState,
+  operationActivity,
 }: AppSessionViewModel): AppSessionViewProps["modalsProps"] {
   return {
+    ...createModalCloseActions({
+      guidePreference,
+      importShareActions,
+      importShareModal,
+      libraryActions,
+      settingsDialog,
+    }),
     confirmDialog: confirmController.confirmDialog,
     currentWorkId: core.currentChapter?.workId ?? null,
     importBusy: importShareModal.importBusy || libraryDrop.busy,
-    importPreview: importShareModal.importPreview,
+    importPreview: importShareModal.importModalOpen
+      ? importShareModal.importPreview
+      : null,
+    importDraft: importShareModal.importDraft,
+    importFeedback: importShareModal.importFeedback,
     inpaintingGuideOpen: uiState.inpaintingGuideOpen,
-    jobActive: derivedState.jobActive,
+    jobActive:
+      derivedState.jobActive ||
+      operationActivity.active ||
+      importShareModal.importBusy,
     library: core.library,
-    onCancelImport: () => void importShareActions.cancelImportPreview(),
-    onCancelWebImport: () => importShareModal.setWebImportOpen(false),
-    onCancelRename: () => {
-      if (!libraryActions.renameBusy) {
-        libraryActions.setRenameTarget(null);
-      }
-    },
-    onCancelSettings: settingsDialog.closeSettings,
-    onCancelShareExport: () => {
-      if (!importShareModal.shareExportBusy) {
-        importShareModal.setShareExportOpen(false);
-      }
-    },
-    onCancelShareImport: () => {
-      if (!importShareModal.shareImportBusy) {
-        importShareModal.setShareImportPreview(null);
-      }
-    },
-    onCancelTranslationSource: () =>
-      importShareModal.setTranslationSourceOpen(false),
-    onCloseInpaintingGuide: guidePreference.closeInpaintingGuide,
+    onWebImportBackgroundStateChange: importShareModal.setWebImportBackgrounded,
     onDeleteRename: () => void libraryActions.deleteRenameTarget(),
     onOpenLogFolder: bridgeActions.openLogFolder,
     onOpenErrorReport: openManualErrorReport,
@@ -166,8 +162,10 @@ function createModalsProps({
     settingsBusy: settingsDialog.settingsBusy,
     settingsOpen: settingsDialog.settingsOpen,
     shareExportBusy: importShareModal.shareExportBusy,
+    shareExportDraft: importShareModal.shareExportDraft,
     shareExportOpen: importShareModal.shareExportOpen,
     shareImportBusy: importShareModal.shareImportBusy,
+    shareImportDraft: importShareModal.shareImportDraft,
     shareImportPreview: importShareModal.shareImportPreview,
     translationSourceOpen: importShareModal.translationSourceOpen,
     webImportOpen: importShareModal.webImportOpen,
@@ -229,14 +227,29 @@ function createSidebarProps({
   uiState,
   workspaceHistory,
   libraryDrop,
+  operationActivity,
 }: AppSessionViewModel): AppSessionViewProps["sidebarProps"] {
+  const ordinaryJobActive = [
+    derivedState.jobActive,
+    uiState.translationFlowActive,
+    workspaceHistory.busy,
+    libraryDrop.busy,
+  ].some(Boolean);
   return {
     currentChapter: core.currentChapter,
-    jobActive:
-      inpaintingBridge.contextValue.jobActive ||
-      uiState.translationFlowActive ||
-      workspaceHistory.busy ||
+    jobActive: [
+      inpaintingBridge.contextValue.jobActive,
+      uiState.translationFlowActive,
+      workspaceHistory.busy,
       libraryDrop.busy,
+      operationActivity.active,
+      importShareModal.importBusy,
+    ].some(Boolean),
+    libraryMutationBlocked: [
+      ordinaryJobActive,
+      operationActivity.libraryMutationBlocked,
+      importShareModal.importBusy,
+    ].some(Boolean),
     library: core.library,
     lockedPageIds: derivedState.jobTargetPageIds,
     onOpenBatchImport: () =>
@@ -277,6 +290,7 @@ function createStyleGuideProps({
         jobActive: derivedState.jobActive,
         workTitle: currentWork?.title ?? "",
         onClose: () => uiState.setStyleGuideOpen(false),
+        onBackgroundStateChange: uiState.setStyleGuideBackgrounded,
         onSaveSettings: settingsDialog.saveSettingsQuietly,
         settings: settingsDialog.settings,
       }

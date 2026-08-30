@@ -14,14 +14,29 @@ import {
   productionImportImageRuntime,
   type ImportImageRuntime,
 } from "../libraryStore/importImageRuntime";
+import {
+  prepareArchiveFolderImportPreview,
+  prepareArchiveImportPreview,
+  preparePdfImportPreview,
+} from "../libraryStore/importPreparedPreview";
+import type { ImportSourceProgress as ImportSourceRunnerProgress } from "../libraryStore/importSourceRunner";
 import { withLibraryMutation } from "./lock";
 
-export { previewFolder, previewImages, previewZip, previewZipFolder };
-
+export {
+  prepareArchiveFolderImportPreview,
+  prepareArchiveImportPreview,
+  preparePdfImportPreview,
+  previewFolder,
+  previewImages,
+  previewZip,
+  previewZipFolder,
+};
 export type LibraryImportRuntime = {
   image: ImportImageRuntime;
   runMutation: typeof withLibraryMutation;
 };
+
+export type ImportSourceProgress = ImportSourceRunnerProgress;
 
 export type LibraryImportService = {
   createImport: (
@@ -32,6 +47,9 @@ export type LibraryImportService = {
   previewImages: typeof previewImages;
   previewZip: typeof previewZip;
   previewZipFolder: typeof previewZipFolder;
+  prepareArchiveFolderImportPreview: typeof prepareArchiveFolderImportPreview;
+  prepareArchiveImportPreview: typeof prepareArchiveImportPreview;
+  preparePdfImportPreview: typeof preparePdfImportPreview;
 };
 
 const productionLibraryImportRuntime: LibraryImportRuntime = {
@@ -52,6 +70,9 @@ export function createLibraryImportService(
     previewImages,
     previewZip,
     previewZipFolder,
+    prepareArchiveFolderImportPreview,
+    prepareArchiveImportPreview,
+    preparePdfImportPreview,
   };
 }
 

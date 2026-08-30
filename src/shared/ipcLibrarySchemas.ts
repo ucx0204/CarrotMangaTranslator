@@ -85,6 +85,8 @@ const ImportSourceKindSchema = z.enum([
   "images",
   "folder",
   "zip",
+  "rar",
+  "pdf",
   "zip-folder",
 ]);
 

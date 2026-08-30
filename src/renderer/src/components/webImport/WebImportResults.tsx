@@ -2,49 +2,16 @@ import React from "react";
 import {
   IconAlertTriangle,
   IconCheck,
-  IconDownload,
-  IconLoader2,
   IconPhotoOff,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type {
   WebImportCandidate,
-  WebImportProgressEvent,
   WebImportScanResult,
   WebImportSizeFilter,
 } from "../../../../shared/webImportTypes";
 import { CheckboxField } from "../ui/CheckboxField";
 import { SegmentedControl } from "../ui/SegmentedControl";
-
-export function WebImportProgress({
-  progress,
-}: {
-  progress: WebImportProgressEvent | null;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const ratio =
-    progress && progress.total > 0
-      ? Math.min(100, (progress.completed / progress.total) * 100)
-      : 8;
-  return (
-    <div className="web-import-progress" role="status" aria-live="polite">
-      <div className="web-import-progress-copy">
-        <IconLoader2 className="web-import-spin" size={17} aria-hidden="true" />
-        <span>
-          {progress
-            ? t(`webImport.progress.${progress.stage}`, {
-                completed: progress.completed,
-                total: progress.total,
-              })
-            : t("webImport.progress.starting")}
-        </span>
-      </div>
-      <div className="web-import-progress-track" aria-hidden="true">
-        <span style={{ width: `${ratio}%` }} />
-      </div>
-    </div>
-  );
-}
 
 export function WebImportResultNotice({
   result,
@@ -167,17 +134,6 @@ export function WebImportCandidateGrid({
           }
         />
       ))}
-    </div>
-  );
-}
-
-export function WebImportInitialState(): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <div className="web-import-empty web-import-empty--initial">
-      <IconDownload size={32} aria-hidden="true" />
-      <strong>{t("webImport.initialTitle")}</strong>
-      <span>{t("webImport.initialHint")}</span>
     </div>
   );
 }

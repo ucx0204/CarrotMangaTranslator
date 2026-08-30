@@ -33,6 +33,19 @@ describe("sequential chapter translation flow", () => {
     ).resolves.toBe("completed");
   });
 
+  it("attributes multi-chapter progress to the chapter being processed", async () => {
+    const execute = vi.fn().mockResolvedValue("completed");
+    const pushStatus = vi.fn();
+
+    await runSelectionsSequentially(execute, selections, pushStatus, "번역");
+
+    expect(pushStatus.mock.calls).toEqual([
+      ["번역 1/3화", "chapter-1"],
+      ["번역 2/3화", "chapter-2"],
+      ["번역 3/3화", "chapter-3"],
+    ]);
+  });
+
   it.each([
     ["balanced", "balanced"],
     ["detailed", undefined],

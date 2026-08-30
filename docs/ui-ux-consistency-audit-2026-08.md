@@ -573,7 +573,7 @@ Tooltip
 
 ### 6.7 상태·진행·알림
 
-현재 `RunJobFeedback`, `StatusPopover`, `InstallProgressOverlay`, 인페인트 진행 카드, 페이지 상태, toast가 서로 다른 상태 표현을 가진다. 화면을 하나로 합칠 필요는 없지만 같은 상태 모델과 시각 primitive를 써야 한다.
+현재 `RunJobFeedback`, `StatusPopover`, 인페인트 진행 카드, 페이지 상태, toast가 서로 다른 상태 표현을 가진다. 화면을 하나로 합칠 필요는 없지만 같은 상태 모델과 시각 primitive를 써야 한다. 이전의 blocking `InstallProgressOverlay`는 BG-03에서 제거했고 다운로드·설치 상세는 `StatusPopover`가 담당한다.
 
 | Primitive/Pattern | 용도                                         |
 | ----------------- | -------------------------------------------- |
@@ -1181,9 +1181,9 @@ Modal consumer 22개 중 19개가 footer를 직접 조립한다. 대표는 Error
 
 - 일반 job: [`RunStatusFeedback.tsx`](../src/renderer/src/components/RunStatusFeedback.tsx#L57)
 - 인페인트: [`InpaintingProgressCard.tsx`](../src/renderer/src/components/inpaintingPanel/InpaintingProgressCard.tsx#L15)
-- 설치: [`InstallProgressOverlay.tsx`](../src/renderer/src/components/InstallProgressOverlay.tsx#L62)
+- 설치: [`StatusPopoverDetails.tsx`](../src/renderer/src/components/StatusPopoverDetails.tsx)
 
-앞의 두 progress track은 `aria-hidden=true`이고 설치 overlay만 의미 있는 progress primitive를 쓴다. 공통 `ProgressBar`는 determinate/indeterminate, label, value text, reduced motion을 처리해야 한다. `InstallProgressOverlay`의 설치 로그·통계 composition은 별도 기능으로 유지한다.
+공통 `ProgressBar`는 determinate/indeterminate, label, value text, reduced motion을 처리한다. 설치 로그·통계 composition은 작업 센터의 상세 section으로 유지하며 별도 blocking surface를 다시 만들지 않는다.
 
 ### 13.10 P2: overlay state와 modal registry의 이중 구조
 

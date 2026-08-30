@@ -67,7 +67,6 @@ function makeOptions(): UseTranslationActionsOptions {
   return {
     clearPageImageCache: vi.fn(),
     clearRetouchHistory: vi.fn(),
-    clearStatusLines: vi.fn(),
     currentChapter: chapter,
     currentChapterRef: { current: chapter },
     jobActive: false,

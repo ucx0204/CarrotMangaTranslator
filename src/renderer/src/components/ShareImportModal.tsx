@@ -14,6 +14,7 @@ import { useShareImportModalState } from "./shareImport/useShareImportModalState
 type ShareImportModalProps = {
   library: LibraryIndex;
   preview: WorkShareImportPreview;
+  initialDraft?: ShareImportModalSubmit | null;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (payload: ShareImportModalSubmit) => void;
@@ -22,12 +23,13 @@ type ShareImportModalProps = {
 export function ShareImportModal({
   library,
   preview,
+  initialDraft = null,
   busy,
   onCancel,
   onSubmit,
 }: ShareImportModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const state = useShareImportModalState({ library, preview });
+  const state = useShareImportModalState({ library, preview, initialDraft });
 
   return (
     <Modal

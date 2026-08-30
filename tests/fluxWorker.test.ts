@@ -1046,6 +1046,11 @@ describeWindows("Flux worker runtime helpers", () => {
           MGT_FORCE_REBUILD_FLUX_RUNNER: "1",
         },
       },
+      {
+        command: "C:\\node\\node.exe",
+        args: ["scripts/prepare-import-source-runner.cjs"],
+        env: {},
+      },
       { command: "npm", args: ["run", "build"], env: {} },
       {
         command: "C:\\node\\node.exe",
@@ -1073,6 +1078,9 @@ describeWindows("Flux worker runtime helpers", () => {
         command.args.includes("scripts/prepare-flux-klein-runner.cjs"),
       ),
     ).toBe(false);
+    expect(thinPlan.map((command) => command.args[0])).toContain(
+      "scripts/prepare-import-source-runner.cjs",
+    );
     expect(
       shouldUseDistributionShell(
         "C:\\node\\node.exe",

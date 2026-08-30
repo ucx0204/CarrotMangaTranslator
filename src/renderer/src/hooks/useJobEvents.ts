@@ -31,9 +31,10 @@ import {
   resolveAnimationFrameScheduler,
   shouldRefreshLiveChapter,
 } from "./jobEventUtils";
+import type { AppendStatusLine } from "./useStatusLog";
 
 type UseJobEventsOptions = {
-  appendStatusLine: (line: string, replace?: (line: string) => boolean) => void;
+  appendStatusLine: AppendStatusLine;
   currentChapterRef: React.MutableRefObject<ChapterSnapshot | null>;
   jobState?: JobState;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
@@ -416,10 +417,16 @@ function appendJobStatusLine(
       event,
       group ? previousLineByGroup.get(group) : undefined,
     ),
+    resolveSingleEventChapterId(event),
   );
   if (group) {
     previousLineByGroup.set(group, line);
   }
+}
+
+function resolveSingleEventChapterId(event: JobEvent): string | undefined {
+  const chapterIds = new Set(event.targets?.map((target) => target.chapterId));
+  return chapterIds.size === 1 ? chapterIds.values().next().value : undefined;
 }
 
 function refreshLiveChapterAfterJobEvent({

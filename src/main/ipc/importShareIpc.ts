@@ -110,6 +110,10 @@ function registerExportWorkShareIpc(
           id: `work-share-export-${randomUUID()}`,
           kind: "work-share-export",
           mutatesLibrary: false,
+          presentation: {
+            phase: "share-packaging",
+            cancellable: true,
+          },
         },
         (signal) =>
           service.exportWorkShareToFile(
@@ -154,7 +158,20 @@ function registerPreviewWorkShareIpc(
       if (result.canceled || !result.filePaths[0]) {
         return null;
       }
-      const preview = await service.previewWorkShareImport(result.filePaths[0]);
+      const preview = await runManagedAppOperation(
+        context.operations,
+        {
+          id: `work-share-preview-${randomUUID()}`,
+          kind: "work-share-import",
+          mutatesLibrary: false,
+          presentation: {
+            phase: "share-reading",
+            cancellable: true,
+          },
+        },
+        (signal) =>
+          service.previewWorkShareImport(result.filePaths[0], { signal }),
+      );
       return createWorkSharePreviewSession(result.filePaths[0], preview);
     },
   );
@@ -180,6 +197,10 @@ function registerImportWorkShareIpc(
           id: `work-share-import-${command.previewId}`,
           kind: "work-share-import",
           mutatesLibrary: true,
+          presentation: {
+            phase: "share-applying",
+            cancellable: true,
+          },
         },
         (signal) =>
           service.importWorkShare(

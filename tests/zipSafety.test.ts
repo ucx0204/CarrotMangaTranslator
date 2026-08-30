@@ -35,11 +35,17 @@ function zipEntry(partial: Partial<ZipEntryLike>): ZipEntryLike {
 }
 
 describe("zip safety", () => {
-  it("uses one archive extension allowlist for zip and cbz", () => {
-    expect(SUPPORTED_ARCHIVE_EXTENSIONS).toEqual([".zip", ".cbz"]);
+  it("uses one archive extension allowlist for ZIP/CBZ/RAR/CBR", () => {
+    expect(SUPPORTED_ARCHIVE_EXTENSIONS).toEqual([
+      ".zip",
+      ".cbz",
+      ".rar",
+      ".cbr",
+    ]);
     expect(isSupportedArchivePath("chapter.zip")).toBe(true);
     expect(isSupportedArchivePath("chapter.cbz")).toBe(true);
-    expect(isSupportedArchivePath("chapter.rar")).toBe(false);
+    expect(isSupportedArchivePath("chapter.rar")).toBe(true);
+    expect(isSupportedArchivePath("chapter.CBR")).toBe(true);
   });
 
   it("rejects entries without trustworthy size metadata before extraction", () => {

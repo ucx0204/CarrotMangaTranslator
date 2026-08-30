@@ -38,16 +38,7 @@ export function useAppSessionModel(): AppSessionViewProps {
   );
   const translation = useTranslationController(chapter, clearRetouchHistory);
   const inpainting = useInpaintingController(chapter, translation);
-  const libraryDrop = useLibraryDropImport({
-    blocked:
-      chapter.dropImportModalBlocked ||
-      chapter.derivedState.jobActive ||
-      chapter.uiState.translationFlowActive ||
-      translation.workspaceHistory.busy,
-    pushStatus: chapter.statusLog.pushStatus,
-    setImportPreview: chapter.importShareModal.setImportPreview,
-    setTranslationSourceOpen: chapter.importShareModal.setTranslationSourceOpen,
-  });
+  const libraryDrop = useSessionLibraryDrop(chapter, translation);
   useEffect(() => {
     clearRetouchHistoryRef.current = inpainting.clearRetouchHistory;
   }, [inpainting.clearRetouchHistory]);
@@ -92,6 +83,7 @@ export function useAppSessionModel(): AppSessionViewProps {
     inpaintingBridge: inpainting.inpaintingBridge,
     libraryActions: chapter.libraryActions,
     linkedWorkspace: chapter.linkedWorkspace,
+    operationActivity: chapter.operationActivity,
     libraryDrop,
     panelBridge,
     persistence: chapter.persistence,
@@ -104,6 +96,24 @@ export function useAppSessionModel(): AppSessionViewProps {
     uiState: chapter.uiState,
     updateCurrentChapter: translation.updateCurrentChapter,
     workspaceHistory: translation.workspaceHistory,
+  });
+}
+
+function useSessionLibraryDrop(
+  chapter: ChapterSessionController,
+  translation: TranslationController,
+) {
+  return useLibraryDropImport({
+    blocked:
+      chapter.dropImportModalBlocked ||
+      chapter.derivedState.jobActive ||
+      chapter.uiState.translationFlowActive ||
+      translation.workspaceHistory.busy ||
+      chapter.operationActivity.active ||
+      chapter.importShareModal.importBusy,
+    pushStatus: chapter.statusLog.pushStatus,
+    setImportPreview: chapter.importShareModal.setImportPreview,
+    setTranslationSourceOpen: chapter.importShareModal.setTranslationSourceOpen,
   });
 }
 

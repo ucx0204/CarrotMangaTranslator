@@ -25,6 +25,7 @@ import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
 import { ConfirmModal } from "./ConfirmModal";
 import { TranslationOverwriteWarning } from "./TranslationOverwriteWarning";
+import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 import {
   type TranslationOptionsFormProps,
   useTranslationOptionsModalState,
@@ -146,6 +147,7 @@ function useTranslationStartActions({
   const performStart = (): void => {
     if (runSelection.length === 0) return;
     if (saveAsDefault) onPersistDefaults(buildDefaultsPatch(formProps));
+    handoffActiveModalToWorkCenter();
     onStart(buildTranslationFlowOptions(formProps, runSelection));
     onClose();
   };

@@ -25,6 +25,7 @@ import { ShareImportModal } from "./ShareImportModal";
 import { TranslateSourceModal } from "./TranslateSourceModal";
 import { WebImportModal } from "./WebImportModal";
 import type { ConfirmDialogState } from "../hooks/useConfirmDialog";
+import type { ImportModalFeedback } from "../lib/importFlowTypes";
 
 type AppModalsProps = {
   library: LibraryIndex;
@@ -33,9 +34,13 @@ type AppModalsProps = {
   webImportOpen: boolean;
   importPreview: ImportPreviewResult | null;
   importBusy: boolean;
+  importDraft: ImportModalSubmit | null;
+  importFeedback: ImportModalFeedback | null;
   shareExportOpen: boolean;
+  shareExportDraft: WorkShareExportRequest | null;
   shareExportBusy: boolean;
   shareImportPreview: WorkShareImportPreview | null;
+  shareImportDraft: ShareImportModalSubmit | null;
   shareImportBusy: boolean;
   renameTarget: RenameTarget | null;
   renameBusy: boolean;
@@ -47,6 +52,7 @@ type AppModalsProps = {
   inpaintingGuideOpen: boolean;
   onCancelTranslationSource: () => void;
   onCancelWebImport: () => void;
+  onWebImportBackgroundStateChange: (backgrounded: boolean) => void;
   onPreparedWebImport: (preview: ImportPreviewSession) => void;
   onSelectTranslationSource: (mode: TranslateSourceMode) => void;
   onCancelImport: () => void;
@@ -81,11 +87,14 @@ export function AppModals(props: AppModalsProps): React.JSX.Element {
 function ImportFlowModals({
   currentWorkId,
   importBusy,
+  importDraft,
+  importFeedback,
   importPreview,
   library,
   onCancelImport,
   onCancelTranslationSource,
   onCancelWebImport,
+  onWebImportBackgroundStateChange,
   onPreparedWebImport,
   onSelectTranslationSource,
   onSubmitImport,
@@ -94,12 +103,15 @@ function ImportFlowModals({
 }: Pick<
   AppModalsProps,
   | "importBusy"
+  | "importDraft"
+  | "importFeedback"
   | "importPreview"
   | "library"
   | "currentWorkId"
   | "onCancelImport"
   | "onCancelTranslationSource"
   | "onCancelWebImport"
+  | "onWebImportBackgroundStateChange"
   | "onPreparedWebImport"
   | "onSelectTranslationSource"
   | "onSubmitImport"
@@ -118,6 +130,7 @@ function ImportFlowModals({
       {webImportOpen ? (
         <WebImportModal
           onCancel={onCancelWebImport}
+          onBackgroundStateChange={onWebImportBackgroundStateChange}
           onPrepared={onPreparedWebImport}
         />
       ) : null}
@@ -127,6 +140,8 @@ function ImportFlowModals({
           currentWorkId={currentWorkId}
           preview={importPreview}
           busy={importBusy}
+          initialDraft={importDraft}
+          feedback={importFeedback}
           onCancel={onCancelImport}
           onSubmit={onSubmitImport}
         />
@@ -144,8 +159,10 @@ function ShareFlowModals({
   onSubmitShareImport,
   shareExportBusy,
   shareExportOpen,
+  shareExportDraft,
   shareImportBusy,
   shareImportPreview,
+  shareImportDraft,
 }: Pick<
   AppModalsProps,
   | "currentWorkId"
@@ -156,8 +173,10 @@ function ShareFlowModals({
   | "onSubmitShareImport"
   | "shareExportBusy"
   | "shareExportOpen"
+  | "shareExportDraft"
   | "shareImportBusy"
   | "shareImportPreview"
+  | "shareImportDraft"
 >): React.JSX.Element {
   return (
     <>
@@ -165,6 +184,7 @@ function ShareFlowModals({
         <ShareExportModal
           library={library}
           currentWorkId={currentWorkId}
+          initialRequest={shareExportDraft}
           busy={shareExportBusy}
           onCancel={onCancelShareExport}
           onSubmit={onSubmitShareExport}
@@ -174,6 +194,7 @@ function ShareFlowModals({
         <ShareImportModal
           library={library}
           preview={shareImportPreview}
+          initialDraft={shareImportDraft}
           busy={shareImportBusy}
           onCancel={onCancelShareImport}
           onSubmit={onSubmitShareImport}

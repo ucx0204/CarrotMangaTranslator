@@ -25,6 +25,7 @@ export const libraryGateway = createMangaDomainGateway("Library", [
   "previewFolderImport",
   "previewDroppedImport",
   "previewImagesImport",
+  "previewPdfImport",
   "previewWorkShareImport",
   "previewZipFolderImport",
   "previewZipImport",

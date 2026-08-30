@@ -137,8 +137,7 @@ function useSettingsControllerState({
     clearTestState: test.clearTestState,
     setters: form.setters,
   });
-  const controlsBusy =
-    busy || localActions.localActionBusy || test.testState.status === "running";
+  const controlsBusy = busy || localActions.localActionBusy;
   const runtime = useSettingsRuntimeGuards({
     controlsBusy,
     initialSettings: draftSettings,

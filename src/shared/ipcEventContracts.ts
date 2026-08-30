@@ -18,9 +18,16 @@ import type { LinkedWorkspaceStatusChangedEvent } from "./linkedWorkspaceTypes";
 import { LinkedWorkspaceStatusSchema } from "./linkedWorkspaceSchemas";
 import type { PageTimingUpdatedEvent } from "./pageProcessingTiming";
 import { MAX_ID_LIST_LENGTH, uuid } from "./ipcSchemaPrimitives";
+import type { AppOperationActivityEvent } from "./appOperationTypes";
+import { AppOperationActivityEventSchema } from "./ipcAppOperationContracts";
 
 export const ipcEventContracts = {
   ...webImportIpcEventContracts,
+  appOperationActivity: defineIpcEventContract<AppOperationActivityEvent>({
+    eventKey: "appOperationActivity",
+    channel: "app-operation:activity",
+    payload: AppOperationActivityEventSchema,
+  }),
   linkedWorkspaceStatusChanged:
     defineIpcEventContract<LinkedWorkspaceStatusChangedEvent>({
       eventKey: "linkedWorkspaceStatusChanged",

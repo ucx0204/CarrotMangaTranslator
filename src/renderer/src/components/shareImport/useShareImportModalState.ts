@@ -13,10 +13,12 @@ import {
   toLeftPackageItem,
 } from "./shareImportHelpers";
 import type { ActiveDrag, LeftItem, NewSelection } from "./shareImportTypes";
+import { createShareImportInitialState } from "./shareImportInitialState";
 
 type ShareImportModalStateInput = {
   library: LibraryIndex;
   preview: WorkShareImportPreview;
+  initialDraft?: ShareImportModalSubmit | null;
 };
 
 type SelectedWork = LibraryIndex["works"][number] | null;
@@ -31,36 +33,44 @@ type ShareImportSubmitInput = {
   targetMode: "new" | "existing";
 };
 
+// eslint-disable-next-line max-lines-per-function -- paired package/existing lists must share one drag-and-submit state lifecycle
 export function useShareImportModalState({
   library,
   preview,
+  initialDraft = null,
 }: ShareImportModalStateInput) {
-  const [targetMode, setTargetMode] = React.useState<"new" | "existing">("new");
-  const [newWorkTitle, setNewWorkTitle] = React.useState(preview.workTitle);
+  const initial = createShareImportInitialState(library, preview, initialDraft);
+  const [targetMode, setTargetMode] = React.useState<"new" | "existing">(
+    initial.targetMode,
+  );
+  const [newWorkTitle, setNewWorkTitle] = React.useState(initial.newWorkTitle);
   const [existingWorkId, setExistingWorkId] = React.useState(
-    library.works[0]?.id ?? "",
+    initial.existingWorkId,
   );
   const selectedWork = React.useMemo(
     () => library.works.find((work) => work.id === existingWorkId) ?? null,
     [existingWorkId, library.works],
   );
-  const [newSelections, setNewSelections] = React.useState<NewSelection[]>(() =>
-    createNewSelections(preview.chapters),
+  const [newSelections, setNewSelections] = React.useState<NewSelection[]>(
+    initial.newSelections,
   );
-  const [leftItems, setLeftItems] = React.useState<LeftItem[]>(() =>
-    buildExistingItems(selectedWork),
+  const [leftItems, setLeftItems] = React.useState<LeftItem[]>(
+    initial.leftItems,
   );
-  const [candidateItems, setCandidateItems] = React.useState<LeftItem[]>(() =>
-    preview.chapters.map(toLeftPackageItem),
+  const [candidateItems, setCandidateItems] = React.useState<LeftItem[]>(
+    initial.candidateItems,
   );
   const [activeDrag, setActiveDrag] = React.useState<ActiveDrag | null>(null);
+  const initialDraftRef = React.useRef(Boolean(initialDraft));
 
-  React.useEffect(() => {
-    if (targetMode === "existing") {
-      setLeftItems(buildExistingItems(selectedWork));
-      setCandidateItems(preview.chapters.map(toLeftPackageItem));
-    }
-  }, [preview.chapters, selectedWork, targetMode]);
+  useExistingTargetReset({
+    initialDraftRef,
+    previewChapters: preview.chapters,
+    selectedWork,
+    setCandidateItems,
+    setLeftItems,
+    targetMode,
+  });
 
   const deletedExistingChapters = useDeletedExistingChapters(
     leftItems,
@@ -111,14 +121,37 @@ export function useShareImportModalState({
   };
 }
 
-function createNewSelections(
-  chapters: WorkSharePreviewChapter[],
-): NewSelection[] {
-  return chapters.map((chapter) => ({
-    packageChapterId: chapter.packageChapterId,
-    title: chapter.title,
-    enabled: true,
-  }));
+function useExistingTargetReset({
+  initialDraftRef,
+  previewChapters,
+  selectedWork,
+  setCandidateItems,
+  setLeftItems,
+  targetMode,
+}: {
+  initialDraftRef: React.MutableRefObject<boolean>;
+  previewChapters: WorkSharePreviewChapter[];
+  selectedWork: SelectedWork;
+  setCandidateItems: React.Dispatch<React.SetStateAction<LeftItem[]>>;
+  setLeftItems: React.Dispatch<React.SetStateAction<LeftItem[]>>;
+  targetMode: "new" | "existing";
+}): void {
+  React.useEffect(() => {
+    if (targetMode !== "existing") return;
+    if (initialDraftRef.current) {
+      initialDraftRef.current = false;
+      return;
+    }
+    setLeftItems(buildExistingItems(selectedWork));
+    setCandidateItems(previewChapters.map(toLeftPackageItem));
+  }, [
+    initialDraftRef,
+    previewChapters,
+    selectedWork,
+    setCandidateItems,
+    setLeftItems,
+    targetMode,
+  ]);
 }
 
 function useDeletedExistingChapters(

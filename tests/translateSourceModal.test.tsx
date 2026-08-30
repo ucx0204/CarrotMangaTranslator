@@ -21,7 +21,7 @@ describe("TranslateSourceModal", () => {
     const images = screen.getByRole("button", { name: /이미지 열기/ });
     expect(images.classList.contains("primary")).toBe(false);
     const sourceChoices = [...container.querySelectorAll(".source-choice")];
-    expect(sourceChoices).toHaveLength(4);
+    expect(sourceChoices).toHaveLength(5);
     expect(
       sourceChoices.every((choice) => choice.className === "source-choice"),
     ).toBe(true);
@@ -29,5 +29,7 @@ describe("TranslateSourceModal", () => {
     expect(screen.queryByText(/파일명의 숫자를 인식/)).toBeNull();
     fireEvent.click(images);
     expect(onSelect).toHaveBeenCalledWith("images");
+    fireEvent.click(screen.getByRole("button", { name: /PDF 열기/ }));
+    expect(onSelect).toHaveBeenCalledWith("pdf");
   });
 });

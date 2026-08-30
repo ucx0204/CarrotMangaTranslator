@@ -89,7 +89,7 @@ const importChapterDraftSchema = z
   .object({
     draftId: z.string().min(1).max(4_096),
     title: z.string().max(MAX_TITLE_LENGTH),
-    sourceKind: z.enum(["images", "folder", "zip", "zip-folder"]),
+    sourceKind: z.enum(["images", "folder", "zip", "rar", "pdf", "zip-folder"]),
     pages: z.array(importPageDraftSchema).max(MAX_PAGES_PER_REQUEST),
   })
   .strict();
@@ -97,7 +97,7 @@ const importPreviewSessionSchema = z
   .object({
     previewId: opaqueId,
     mode: z.enum(["single", "batch"]),
-    sourceKind: z.enum(["images", "folder", "zip", "zip-folder"]),
+    sourceKind: z.enum(["images", "folder", "zip", "rar", "pdf", "zip-folder"]),
     suggestedWorkTitle: z.string().max(MAX_TITLE_LENGTH),
     chapters: z.array(importChapterDraftSchema).max(MAX_ID_LIST_LENGTH),
   })

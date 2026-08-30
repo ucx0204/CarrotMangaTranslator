@@ -101,6 +101,19 @@ describe("settings draft safety", () => {
     expect(onCancel).toHaveBeenCalledOnce();
   });
 
+  it("keeps conflicting settings controls disabled while an external save is active", () => {
+    renderSettings({ busy: true });
+
+    expect(screen.getByRole("button", { name: "기본값 복원" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(screen.getByRole("button", { name: "저장" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+  });
+
   it("loads defaults into the draft without applying them until Save", async () => {
     const onSubmit = vi.fn();
     const defaultSettings = {
@@ -131,6 +144,20 @@ describe("settings draft safety", () => {
       expect.objectContaining({
         ui: expect.objectContaining({ locale: "en" }),
       }),
+    );
+  });
+
+  it("leaves the draft unchanged when loading defaults is cancelled", async () => {
+    const onReset = vi.fn(async () => null);
+    renderSettings({ onReset });
+
+    fireEvent.click(screen.getByRole("button", { name: "기본값 복원" }));
+
+    await waitFor(() => expect(onReset).toHaveBeenCalledOnce());
+    expect(screen.queryByText("기본값을 임시로 불러왔습니다")).toBeNull();
+    expect(screen.getByRole("button", { name: "저장" })).toHaveProperty(
+      "disabled",
+      true,
     );
   });
 
@@ -309,6 +336,7 @@ describe("settings draft safety", () => {
 });
 
 function renderSettings({
+  busy = false,
   onCancel = vi.fn(),
   onOpenErrorReport = vi.fn(),
   onOpenLogFolder = vi.fn(),
@@ -316,6 +344,7 @@ function renderSettings({
   onSubmit = vi.fn(),
   settings = initialSettings,
 }: {
+  busy?: boolean;
   onCancel?: () => void;
   onOpenErrorReport?: () => void;
   onOpenLogFolder?: () => void;
@@ -326,7 +355,7 @@ function renderSettings({
   render(
     <SettingsModal
       initialSettings={settings}
-      busy={false}
+      busy={busy}
       jobActive={false}
       onCancel={onCancel}
       onOpenErrorReport={onOpenErrorReport}

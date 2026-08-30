@@ -140,6 +140,59 @@ describe("ImportModal selection surfaces", () => {
     ).not.toBeNull();
     expect(screen.getByText(/1화 \/ 002\.png/)).not.toBeNull();
   });
+
+  it("restores an interrupted submission exactly and explains why it reopened", () => {
+    const onSubmit = vi.fn();
+    const initialDraft = {
+      target: { mode: "new" as const, title: "직접 수정한 작품명" },
+      selections: [
+        { draftId: "draft-1", title: "직접 수정한 1화", enabled: true },
+        { draftId: "draft-2", title: "제외할 2화", enabled: false },
+      ],
+      linkedWorkspace: {
+        enabled: false,
+        outputFormat: "webp" as const,
+        jpegQuality: 88,
+        webpQuality: 76,
+      },
+    };
+    render(
+      <ImportModal
+        library={LIBRARY}
+        preview={PREVIEW}
+        busy={false}
+        initialDraft={initialDraft}
+        feedback={{
+          message:
+            "가져오기를 취소했습니다. 입력한 내용은 그대로 보존했습니다.",
+          variant: "info",
+        }}
+        onCancel={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("직접 수정한 작품명")).not.toBeNull();
+    expect(screen.getByDisplayValue("직접 수정한 1화")).not.toBeNull();
+    expect(
+      screen.getByText(/가져오기를 취소했습니다.*그대로 보존했습니다/),
+    ).not.toBeNull();
+    expect(
+      (
+        screen.getByRole("checkbox", {
+          name: "제외할 2화 · 1페이지",
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(false);
+    expect(
+      screen
+        .getByRole("switch", { name: "결과물 폴더에 자동 저장" })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: "추가 후 번역" }));
+    expect(onSubmit).toHaveBeenCalledWith(initialDraft);
+  });
 });
 
 const LIBRARY: LibraryIndex = {

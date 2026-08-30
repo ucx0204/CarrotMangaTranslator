@@ -2,6 +2,7 @@
 
 import React from "react";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -11,9 +12,23 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StatusDockButton } from "../src/renderer/src/components/StatusDockButton";
+import {
+  ResearchJobDetails,
+  StatusJobHistory,
+} from "../src/renderer/src/components/StatusPopoverDetails";
+import type { AppOperationActivityEvent } from "../src/shared/appOperationTypes";
 import type { JobState } from "../src/shared/jobTypes";
+import { requestStatusCenterOpen } from "../src/renderer/src/lib/statusCenterEvents";
+import type { StatusCenterHistoryEntry } from "../src/renderer/src/lib/statusCenterHistoryStore";
+import {
+  normalizeCompletionSoundPreferences,
+  type ResolvedCompletionSoundPreferences,
+} from "../src/renderer/src/hooks/useCompletionSound";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  window.localStorage.clear();
+});
 
 describe("status dock", () => {
   it("shows unread state without forcing open and exposes the latest line", async () => {
@@ -36,6 +51,58 @@ describe("status dock", () => {
     expect(button.getAttribute("title")).toBe("최근 상태: 가장 최근");
   });
 
+  it("renders chapter labels with an app tooltip for the work title", () => {
+    render(
+      <StatusDockButton
+        jobState={makeJobState()}
+        progressSnapshot={null}
+        showProgressBar={false}
+        statusEntries={[
+          {
+            message: "Paddle OCR 선분석 완료",
+            context: {
+              chapterId: "chapter-2",
+              chapterTitle: "2화",
+              workTitle: "샘플 작품",
+            },
+          },
+          {
+            message: "40 / 40 페이지 번역 중",
+            context: {
+              chapterId: "chapter-1",
+              chapterTitle: "1화",
+              workTitle: "샘플 작품",
+            },
+          },
+          {
+            message: "38 / 38 페이지 원문 지우기 완료",
+            context: {
+              chapterId: "chapter-3",
+              chapterTitle: "3화",
+            },
+          },
+        ]}
+        statusLines={[
+          "Paddle OCR 선분석 완료",
+          "40 / 40 페이지 번역 중",
+          "38 / 38 페이지 원문 지우기 완료",
+        ]}
+        onCancelJob={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    const firstChapter = screen.getByText("· 1화");
+    expect(firstChapter.getAttribute("title")).toBeNull();
+    expect(firstChapter.getAttribute("aria-describedby")).toBeTruthy();
+    expect(
+      screen.getAllByRole("tooltip").map((tooltip) => tooltip.textContent),
+    ).toEqual(["샘플 작품", "샘플 작품"]);
+    const chapterWithoutWorkTitle = screen.getByText("· 3화");
+    expect(chapterWithoutWorkTitle.getAttribute("aria-describedby")).toBeNull();
+  });
+
   it("opens accessibly, clears history, and closes on Escape or outside click", () => {
     const onClear = vi.fn();
     render(
@@ -56,7 +123,11 @@ describe("status dock", () => {
     expect(button.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("region", { name: "작업 센터" })).not.toBeNull();
     expect(screen.getAllByText(/상태|최근/).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: "완료 알림음 켜기" }));
+    fireEvent.click(screen.getByRole("button", { name: "완료 알림음 설정" }));
+    expect(
+      screen.getByRole("group", { name: "완료 알림음 설정" }),
+    ).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "전체 알림음 켜기" }));
     fireEvent.click(screen.getByRole("button", { name: "상태 기록 지우기" }));
     expect(onClear).toHaveBeenCalledOnce();
 
@@ -70,30 +141,61 @@ describe("status dock", () => {
     expect(screen.queryByRole("region", { name: "작업 센터" })).toBeNull();
   });
 
-  it("starts muted and keeps the volume bar to the left of the speaker toggle", () => {
+  it("opens sound settings without toggling mute and controls each completion sound", () => {
     const onChange = vi.fn();
     render(<SoundStatusDockHarness onChange={onChange} />);
 
     fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    const soundSettings = screen.getByRole("button", {
+      name: "완료 알림음 설정",
+    });
+    fireEvent.click(soundSettings);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(soundSettings.getAttribute("aria-expanded")).toBe("true");
+
     const slider = screen.getByRole("slider", {
       name: "완료 알림음 볼륨",
     });
-    const unmute = screen.getByRole("button", { name: "완료 알림음 켜기" });
-
     expect((slider as HTMLInputElement).value).toBe("35");
-    expect(slider.compareDocumentPosition(unmute)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-    expect(unmute.getAttribute("aria-pressed")).toBe("true");
+    const allSounds = screen.getByRole("button", { name: "전체 알림음 켜기" });
+    const translation = screen.getByRole("button", { name: "번역 완료 끄기" });
+    const sourceErasing = screen.getByRole("button", {
+      name: "원문 지우기 완료 끄기",
+    });
+    const research = screen.getByRole("button", {
+      name: "인터넷 조사 완료 끄기",
+    });
+    expect(allSounds.getAttribute("aria-pressed")).toBe("true");
+    expect(translation.getAttribute("aria-pressed")).toBe("false");
+    expect(sourceErasing.getAttribute("aria-pressed")).toBe("false");
+    expect(research.getAttribute("aria-pressed")).toBe("false");
 
-    fireEvent.click(unmute);
-    expect(onChange).toHaveBeenLastCalledWith({ muted: false, volume: 0.35 });
-    expect(
-      screen.getByRole("button", { name: "완료 알림음 음소거" }),
-    ).not.toBeNull();
+    fireEvent.click(allSounds);
+    expect(onChange).toHaveBeenLastCalledWith({
+      muted: false,
+      volume: 0.35,
+      translationMuted: false,
+      sourceErasingMuted: false,
+      researchMuted: false,
+    });
+
+    fireEvent.click(research);
+    expect(onChange).toHaveBeenLastCalledWith({
+      muted: false,
+      volume: 0.35,
+      translationMuted: false,
+      sourceErasingMuted: false,
+      researchMuted: true,
+    });
 
     fireEvent.change(slider, { target: { value: "72" } });
-    expect(onChange).toHaveBeenLastCalledWith({ muted: false, volume: 0.72 });
+    expect(onChange).toHaveBeenLastCalledWith({
+      muted: false,
+      volume: 0.72,
+      translationMuted: false,
+      sourceErasingMuted: false,
+      researchMuted: true,
+    });
   });
 
   it("keeps a failed job visibly red independently of unread history", () => {
@@ -113,9 +215,8 @@ describe("status dock", () => {
         .classList.contains("failed"),
     ).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
-    expect(screen.getByRole("log").textContent).toContain(
-      "아직 표시할 상태가 없습니다.",
-    );
+    expect(screen.queryByRole("log")).toBeNull();
+    expect(screen.queryByRole("region", { name: "상태 기록" })).toBeNull();
   });
 
   it("keeps job progress and cancellation in the activity center", () => {
@@ -133,7 +234,7 @@ describe("status dock", () => {
           total: 4,
         }}
         showProgressBar
-        statusLines={["2 / 4페이지"]}
+        statusLines={["OCR 처리 중", "이전 단계"]}
         onCancelJob={onCancelJob}
         onClear={vi.fn()}
       />,
@@ -144,11 +245,183 @@ describe("status dock", () => {
     expect(dockButton.querySelector(".status-dock-indicator")).not.toBeNull();
     expect(dockButton.querySelector(".status-dock-bell")).not.toBeNull();
     fireEvent.click(dockButton);
+    const center = screen.getByRole("region", { name: "작업 센터" });
     expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
       "2",
     );
+    expect(within(center).getAllByText("OCR 처리 중")).toHaveLength(1);
+    expect(within(center).getByText("이전 단계")).not.toBeNull();
+    expect(center.querySelector(".job-pill")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "현재 작업 취소" }));
     expect(onCancelJob).toHaveBeenCalledOnce();
+  });
+
+  it("does not render a stale full progress bar before an active job settles", () => {
+    render(
+      <StatusDockButton
+        jobState={makeJobState({
+          progressText: "마무리 중",
+          status: "running",
+        })}
+        progressSnapshot={{
+          current: 4,
+          mode: "determinate",
+          ratio: 1,
+          total: 4,
+        }}
+        showProgressBar
+        statusLines={["마무리 중"]}
+        onCancelJob={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    const center = screen.getByRole("region", { name: "작업 센터" });
+    expect(center.querySelector(".job-pill")?.textContent).toBe("마무리 중");
+    expect(within(center).queryByRole("progressbar")).toBeNull();
+  });
+
+  it("shows import preparation in the activity center and cancels that operation", () => {
+    const onCancelOperation = vi.fn();
+    render(
+      <StatusDockButton
+        jobState={makeJobState()}
+        operationActivity={makeOperationActivity()}
+        progressSnapshot={null}
+        showProgressBar={false}
+        statusLines={[]}
+        onCancelJob={vi.fn()}
+        onCancelOperation={onCancelOperation}
+        onClear={vi.fn()}
+      />,
+    );
+
+    const dockButton = screen.getByRole("button", { name: "작업 센터 열기" });
+    expect(dockButton.classList.contains("running")).toBe(true);
+    expect(dockButton.getAttribute("title")).toContain("PDF 가져오기 준비");
+    expect(dockButton.getAttribute("title")).toContain("변환·추출");
+
+    fireEvent.click(dockButton);
+    expect(
+      within(screen.getByRole("region", { name: "작업 센터" })).getByText(
+        /PDF 가져오기 준비.*변환·추출/,
+      ),
+    ).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "현재 작업 취소" }));
+    expect(onCancelOperation).toHaveBeenCalledOnce();
+  });
+
+  it("opens from a global task link and exposes progress and waiting state", () => {
+    render(
+      <StatusDockButton
+        jobState={makeJobState()}
+        operationActivity={makeOperationActivity({
+          progressCurrent: 1,
+          progressTotal: 4,
+          progressUnit: "items",
+          waitingForUser: true,
+        })}
+        progressSnapshot={null}
+        showProgressBar={false}
+        statusLines={[]}
+        onCancelJob={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+
+    act(() => requestStatusCenterOpen());
+    expect(screen.getByRole("region", { name: "작업 센터" })).not.toBeNull();
+    expect(
+      screen.getByText("브라우저에서 사용자 작업을 기다리는 중"),
+    ).not.toBeNull();
+    expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
+      "1",
+    );
+    expect(screen.queryByRole("button", { name: "가져온 화 열기" })).toBeNull();
+  });
+
+  it("moves a completed import operation into recent history", async () => {
+    const commonProps = {
+      jobState: makeJobState(),
+      progressSnapshot: null,
+      showProgressBar: false,
+      statusLines: [] as string[],
+      onCancelJob: vi.fn(),
+      onClear: vi.fn(),
+    };
+    const view = render(
+      <StatusDockButton
+        {...commonProps}
+        operationActivity={makeOperationActivity()}
+      />,
+    );
+    view.rerender(
+      <StatusDockButton
+        {...commonProps}
+        operationActivity={makeOperationActivity({
+          status: "completed",
+          phase: "import-source-validating",
+          cancellable: false,
+          updatedAt: 2,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    await waitFor(() =>
+      expect(screen.getByText(/PDF 가져오기 준비.*완료/)).not.toBeNull(),
+    );
+  });
+
+  it("shows three recent jobs before scrolling the history internally", () => {
+    const entries: StatusCenterHistoryEntry[] = Array.from(
+      { length: 4 },
+      (_, index) => ({
+        id: `operation-${index}`,
+        source: "operation",
+        kind: "library-import",
+        status: "completed",
+        completedAt: index,
+      }),
+    );
+    render(<StatusJobHistory entries={entries} />);
+
+    const list = screen.getByRole("list", { name: "최근 작업" });
+    expect(list.classList.contains("scrollable")).toBe(true);
+    expect(list.dataset.visibleLimit).toBe("3");
+    expect(list.getAttribute("tabindex")).toBe("0");
+    expect(list.children).toHaveLength(4);
+  });
+
+  it("does not reserve recent-history space when there are no entries", () => {
+    const view = render(<StatusJobHistory entries={[]} />);
+
+    expect(view.container.childElementCount).toBe(0);
+  });
+
+  it("does not reserve research-detail space for another job kind", () => {
+    const view = render(<ResearchJobDetails jobState={makeJobState()} />);
+
+    expect(view.container.childElementCount).toBe(0);
+  });
+
+  it("uses a concise kind and status when a job has no saved label", () => {
+    render(
+      <StatusJobHistory
+        entries={[
+          {
+            id: "inpainting-cancelled",
+            source: "job",
+            kind: "inpainting",
+            status: "cancelled",
+            completedAt: 1,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("지우기·인페인팅 · 취소됨")).not.toBeNull();
   });
 
   it("turns a completed translation into a result card with next actions", () => {
@@ -262,7 +535,7 @@ describe("status dock", () => {
     expect(log.dataset.loadedCount).toBe("32");
 
     view.rerender(<StatusDockButton {...commonProps} statusLines={[]} />);
-    await waitFor(() => expect(log.dataset.loadedCount).toBe("0"));
+    await waitFor(() => expect(screen.queryByRole("log")).toBeNull());
     view.rerender(
       <StatusDockButton
         {...commonProps}
@@ -273,8 +546,9 @@ describe("status dock", () => {
       />,
     );
 
-    await waitFor(() => expect(log.dataset.loadedCount).toBe("16"));
-    expect(within(log).queryByText("새 기록 17")).toBeNull();
+    const newLog = await screen.findByRole("log");
+    expect(newLog.dataset.loadedCount).toBe("16");
+    expect(within(newLog).queryByText("새 기록 17")).toBeNull();
   });
 
   it("offers page-level retry and the error report for failed work", () => {
@@ -342,22 +616,48 @@ describe("status dock", () => {
       expect(screen.getByText("이전 작업 완료")).not.toBeNull(),
     );
     expect(screen.getByText("9페이지 처리 완료")).not.toBeNull();
+
+    view.rerender(
+      <StatusDockButton
+        {...commonProps}
+        jobState={makeJobState()}
+        operationActivity={makeOperationActivity({
+          status: "failed",
+          cancellable: false,
+          updatedAt: 3,
+        })}
+      />,
+    );
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("button", { name: "작업 센터 열기" })
+          .classList.contains("failed"),
+      ).toBe(true),
+    );
+    expect(screen.getByText("이전 작업 완료")).not.toBeNull();
   });
 });
 
 function SoundStatusDockHarness({
   onChange,
 }: {
-  onChange: (preferences: { muted: boolean; volume: number }) => void;
+  onChange: (preferences: ResolvedCompletionSoundPreferences) => void;
 }): React.JSX.Element {
   const [preferences, setPreferences] = React.useState({
     muted: true,
     volume: 0.35,
+    translationMuted: false,
+    sourceErasingMuted: false,
+    researchMuted: false,
   });
   return (
     <StatusDockButton
       completionSoundMuted={preferences.muted}
       completionSoundVolume={preferences.volume}
+      completionSoundTranslationMuted={preferences.translationMuted}
+      completionSoundSourceErasingMuted={preferences.sourceErasingMuted}
+      completionSoundResearchMuted={preferences.researchMuted}
       jobState={makeJobState()}
       progressSnapshot={null}
       showProgressBar={false}
@@ -365,11 +665,29 @@ function SoundStatusDockHarness({
       onCancelJob={vi.fn()}
       onClear={vi.fn()}
       onCompletionSoundChange={(next) => {
-        setPreferences(next);
-        onChange(next);
+        const resolved = normalizeCompletionSoundPreferences(next);
+        setPreferences(resolved);
+        onChange(resolved);
       }}
     />
   );
+}
+
+function makeOperationActivity(
+  overrides: Partial<AppOperationActivityEvent> = {},
+): AppOperationActivityEvent {
+  return {
+    id: "import-preview-1",
+    kind: "library-import-preview",
+    status: "running",
+    phase: "import-source-converting",
+    sourceKind: "pdf",
+    mutatesLibrary: false,
+    cancellable: true,
+    startedAt: 1,
+    updatedAt: 1,
+    ...overrides,
+  };
 }
 
 function makeJobState(overrides: Partial<JobState> = {}): JobState {

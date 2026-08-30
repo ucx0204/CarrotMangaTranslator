@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "5c82e155cf67e81761352cfa7198f841200317d92dd8de660d5ada11ef26a87c",
+    "introducedArtifactSha256": "999f9df04b6ec7edc1d4ea8746fe19e618d91026c47c6962791964f01557425f",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -1181,6 +1181,12 @@
         "pct": 35.84
       }
     },
+    "src/main/ipc/importShareIpc.ts": {
+      "lines": { "covered": 46, "total": 50, "pct": 92 },
+      "statements": { "covered": 46, "total": 50, "pct": 92 },
+      "functions": { "covered": 14, "total": 14, "pct": 100 },
+      "branches": { "covered": 10, "total": 21, "pct": 47.61 }
+    },
     "src/main/ipc/inpaintingIpc.ts": {
       "lines": {
         "covered": 20,
@@ -1208,6 +1214,12 @@
       "statements": { "covered": 8, "total": 9, "pct": 88.88 },
       "functions": { "covered": 2, "total": 2, "pct": 100 },
       "branches": { "covered": 1, "total": 2, "pct": 50 }
+    },
+    "src/main/ipc/libraryIpc.ts": {
+      "lines": { "total": 39, "covered": 17, "pct": 43.58 },
+      "statements": { "total": 40, "covered": 17, "pct": 42.5 },
+      "functions": { "total": 18, "covered": 5, "pct": 27.77 },
+      "branches": { "total": 2, "covered": 0, "pct": 0 }
     },
     "src/main/ipc/pageImageExportIpc.ts": {
       "lines": {
@@ -1340,6 +1352,12 @@
         "total": 12,
         "pct": 75
       }
+    },
+    "src/main/ipc/webImportIpc.ts": {
+      "lines": { "covered": 5, "total": 26, "pct": 19.23 },
+      "statements": { "covered": 5, "total": 26, "pct": 19.23 },
+      "functions": { "covered": 1, "total": 9, "pct": 11.11 },
+      "branches": { "covered": 2, "total": 8, "pct": 25 }
     },
     "src/main/ipc/workContextIpc.ts": {
       "lines": {
@@ -1753,6 +1771,18 @@
       "lines": { "total": 9, "covered": 8, "pct": 88.88 },
       "statements": { "total": 18, "covered": 16, "pct": 88.88 },
       "functions": { "total": 18, "covered": 16, "pct": 88.88 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "src/main/library/libraryImportDrop.ts": {
+      "lines": { "total": 51, "covered": 49, "pct": 96.07 },
+      "statements": { "total": 52, "covered": 50, "pct": 96.15 },
+      "functions": { "total": 11, "covered": 11, "pct": 100 },
+      "branches": { "total": 42, "covered": 37, "pct": 88.09 }
+    },
+    "src/main/library/libraryImportFacade.ts": {
+      "lines": { "total": 6, "covered": 6, "pct": 100 },
+      "statements": { "total": 6, "covered": 6, "pct": 100 },
+      "functions": { "total": 3, "covered": 3, "pct": 100 },
       "branches": { "total": 0, "covered": 0, "pct": 100 }
     },
     "src/main/library/libraryMutationFacade.ts": {
@@ -4869,6 +4899,12 @@
         "pct": 83.33
       }
     },
+    "src/main/webImportSessionManager.ts": {
+      "lines": { "covered": 24, "total": 222, "pct": 10.81 },
+      "statements": { "covered": 25, "total": 236, "pct": 10.59 },
+      "functions": { "covered": 7, "total": 57, "pct": 12.28 },
+      "branches": { "covered": 12, "total": 83, "pct": 14.45 }
+    },
     "src/main/wholePagePipeline.ts": {
       "lines": {
         "covered": 59,
@@ -5034,6 +5070,12 @@
       "statements": { "total": 1, "covered": 1, "pct": 100 },
       "functions": { "total": 0, "covered": 0, "pct": 100 },
       "branches": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "src/renderer/src/api/mangaGateway.ts": {
+      "lines": { "total": 29, "covered": 25, "pct": 86.2 },
+      "statements": { "total": 30, "covered": 26, "pct": 86.66 },
+      "functions": { "total": 9, "covered": 9, "pct": 100 },
+      "branches": { "total": 22, "covered": 18, "pct": 81.81 }
     },
     "src/renderer/src/api/settingsGateway.ts": {
       "lines": {
@@ -6353,28 +6395,6 @@
         "covered": 0,
         "total": 0,
         "pct": 100
-      }
-    },
-    "src/renderer/src/components/InstallProgressOverlay.tsx": {
-      "lines": {
-        "covered": 17,
-        "total": 24,
-        "pct": 70.83
-      },
-      "statements": {
-        "covered": 17,
-        "total": 24,
-        "pct": 70.83
-      },
-      "functions": {
-        "covered": 6,
-        "total": 6,
-        "pct": 100
-      },
-      "branches": {
-        "covered": 11,
-        "total": 24,
-        "pct": 45.83
       }
     },
     "src/renderer/src/components/LibrarySortMenu.tsx": {
@@ -8533,6 +8553,12 @@
         "pct": 100
       }
     },
+    "src/renderer/src/components/shareImport/useShareImportModalState.ts": {
+      "lines": { "covered": 0, "total": 74, "pct": 0 },
+      "statements": { "covered": 0, "total": 84, "pct": 0 },
+      "functions": { "covered": 0, "total": 48, "pct": 0 },
+      "branches": { "covered": 0, "total": 37, "pct": 0 }
+    },
     "src/renderer/src/components/styleGuide/CharactersTab.tsx": {
       "lines": {
         "covered": 18,
@@ -9149,6 +9175,12 @@
         "pct": 53.12
       }
     },
+    "src/renderer/src/components/webImport/useWebImportModalState.ts": {
+      "lines": { "covered": 76, "total": 96, "pct": 79.16 },
+      "statements": { "covered": 81, "total": 106, "pct": 76.41 },
+      "functions": { "covered": 26, "total": 33, "pct": 78.78 },
+      "branches": { "covered": 24, "total": 43, "pct": 55.81 }
+    },
     "src/renderer/src/fonts/FontsProvider.tsx": {
       "lines": {
         "covered": 48,
@@ -9528,6 +9560,12 @@
         "total": 42,
         "pct": 16.66
       }
+    },
+    "src/renderer/src/hooks/useImportShareModalController.ts": {
+      "lines": { "total": 9, "covered": 0, "pct": 0 },
+      "statements": { "total": 9, "covered": 0, "pct": 0 },
+      "functions": { "total": 1, "covered": 0, "pct": 0 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
     },
     "src/renderer/src/hooks/useInpaintingActions.ts": {
       "lines": {
@@ -10459,6 +10497,12 @@
         "pct": 84.37
       }
     },
+    "src/renderer/src/lib/droppedImportFeedback.ts": {
+      "lines": { "total": 16, "covered": 7, "pct": 43.75 },
+      "statements": { "total": 16, "covered": 7, "pct": 43.75 },
+      "functions": { "total": 2, "covered": 2, "pct": 100 },
+      "branches": { "total": 15, "covered": 5, "pct": 33.33 }
+    },
     "src/renderer/src/lib/errorPresentation.ts": {
       "lines": {
         "covered": 2,
@@ -11103,6 +11147,12 @@
         "pct": 91.42
       }
     },
+    "src/shared/archive.ts": {
+      "lines": { "total": 4, "covered": 4, "pct": 100 },
+      "statements": { "total": 4, "covered": 4, "pct": 100 },
+      "functions": { "total": 0, "covered": 0, "pct": 100 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
+    },
     "src/shared/bboxTranslation.ts": {
       "lines": {
         "covered": 9,
@@ -11598,6 +11648,12 @@
         "total": 0,
         "pct": 100
       }
+    },
+    "src/shared/ipcWebImportContracts.ts": {
+      "lines": { "total": 13, "covered": 13, "pct": 100 },
+      "statements": { "total": 13, "covered": 13, "pct": 100 },
+      "functions": { "total": 0, "covered": 0, "pct": 100 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
     },
     "src/shared/ipcWorkContextSchemas.ts": {
       "lines": {
@@ -12659,6 +12715,12 @@
         "pct": 76.15
       }
     },
+    "src/main/ipc/appOperationIpc.ts": {
+      "lines": { "total": 9, "covered": 3, "pct": 33.33 },
+      "statements": { "total": 9, "covered": 3, "pct": 33.33 },
+      "functions": { "total": 4, "covered": 1, "pct": 25 },
+      "branches": { "total": 4, "covered": 0, "pct": 0 }
+    },
     "src/main/ipc/blockLibraryIpc.ts": {
       "lines": {
         "total": 13,
@@ -12703,6 +12765,24 @@
         "pct": 76.66
       }
     },
+    "src/main/ipc/importContainerPreviewIpc.ts": {
+      "lines": { "total": 45, "covered": 29, "pct": 64.44 },
+      "statements": { "total": 46, "covered": 30, "pct": 65.21 },
+      "functions": { "total": 15, "covered": 13, "pct": 86.66 },
+      "branches": { "total": 22, "covered": 11, "pct": 50 }
+    },
+    "src/main/ipc/importPreviewContracts.ts": {
+      "lines": { "total": 1, "covered": 1, "pct": 100 },
+      "statements": { "total": 1, "covered": 1, "pct": 100 },
+      "functions": { "total": 0, "covered": 0, "pct": 100 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "src/main/ipc/importPreviewService.ts": {
+      "lines": { "total": 1, "covered": 1, "pct": 100 },
+      "statements": { "total": 1, "covered": 1, "pct": 100 },
+      "functions": { "total": 0, "covered": 0, "pct": 100 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
+    },
     "src/main/ipc/linkedWorkspaceImport.ts": {
       "lines": {
         "total": 12,
@@ -12746,6 +12826,12 @@
         "covered": 0,
         "pct": 0
       }
+    },
+    "src/main/ipc/settingsModelTestActivity.ts": {
+      "lines": { "total": 10, "covered": 9, "pct": 90 },
+      "statements": { "total": 11, "covered": 10, "pct": 90.9 },
+      "functions": { "total": 2, "covered": 2, "pct": 100 },
+      "branches": { "total": 17, "covered": 11, "pct": 64.7 }
     },
     "src/main/jobs/inpaintingJobEngine.ts": {
       "lines": {
@@ -12802,6 +12888,18 @@
       "statements": { "total": 93, "covered": 86, "pct": 92.47 },
       "functions": { "total": 20, "covered": 20, "pct": 100 },
       "branches": { "total": 47, "covered": 37, "pct": 78.72 }
+    },
+    "src/main/libraryStore/importPreparedPreview.ts": {
+      "lines": { "total": 31, "covered": 25, "pct": 80.64 },
+      "statements": { "total": 31, "covered": 25, "pct": 80.64 },
+      "functions": { "total": 12, "covered": 11, "pct": 91.66 },
+      "branches": { "total": 12, "covered": 7, "pct": 58.33 }
+    },
+    "src/main/libraryStore/importSourceRunner.ts": {
+      "lines": { "total": 113, "covered": 85, "pct": 75.22 },
+      "statements": { "total": 118, "covered": 87, "pct": 73.72 },
+      "functions": { "total": 20, "covered": 15, "pct": 75 },
+      "branches": { "total": 70, "covered": 43, "pct": 61.42 }
     },
     "src/main/libraryStore/libraryTimingMutations.ts": {
       "lines": { "total": 37, "covered": 29, "pct": 78.37 },
@@ -14207,6 +14305,12 @@
         "pct": 100
       }
     },
+    "src/renderer/src/app/session/createModalCloseActions.ts": {
+      "lines": { "total": 12, "covered": 12, "pct": 100 },
+      "statements": { "total": 15, "covered": 15, "pct": 100 },
+      "functions": { "total": 7, "covered": 7, "pct": 100 },
+      "branches": { "total": 6, "covered": 6, "pct": 100 }
+    },
     "src/renderer/src/app/session/createOriginalImageOpacityProps.ts": {
       "lines": {
         "total": 4,
@@ -14228,6 +14332,12 @@
         "covered": 7,
         "pct": 87.5
       }
+    },
+    "src/renderer/src/app/session/jobTargetLocks.ts": {
+      "lines": { "total": 15, "covered": 13, "pct": 86.66 },
+      "statements": { "total": 22, "covered": 17, "pct": 77.27 },
+      "functions": { "total": 4, "covered": 4, "pct": 100 },
+      "branches": { "total": 27, "covered": 21, "pct": 77.77 }
     },
     "src/renderer/src/components/BlockLibraryCard.tsx": {
       "lines": {
@@ -14271,6 +14381,28 @@
         "total": 23,
         "covered": 0,
         "pct": 0
+      }
+    },
+    "src/renderer/src/components/CompletionSoundControl.tsx": {
+      "lines": {
+        "total": 67,
+        "covered": 61,
+        "pct": 91.04
+      },
+      "statements": {
+        "total": 71,
+        "covered": 63,
+        "pct": 88.73
+      },
+      "functions": {
+        "total": 18,
+        "covered": 15,
+        "pct": 83.33
+      },
+      "branches": {
+        "total": 28,
+        "covered": 23,
+        "pct": 82.14
       }
     },
     "src/renderer/src/components/EditBlockLibraryModal.tsx": {
@@ -14404,6 +14536,18 @@
         "covered": 14,
         "pct": 70
       }
+    },
+    "src/renderer/src/components/StatusOperationActivityFeedback.tsx": {
+      "lines": { "total": 3, "covered": 2, "pct": 66.66 },
+      "statements": { "total": 3, "covered": 2, "pct": 66.66 },
+      "functions": { "total": 1, "covered": 1, "pct": 100 },
+      "branches": { "total": 6, "covered": 5, "pct": 83.33 }
+    },
+    "src/renderer/src/components/StatusPopoverDetails.tsx": {
+      "lines": { "total": 17, "covered": 17, "pct": 100 },
+      "statements": { "total": 21, "covered": 21, "pct": 100 },
+      "functions": { "total": 6, "covered": 6, "pct": 100 },
+      "branches": { "total": 22, "covered": 19, "pct": 86.36 }
     },
     "src/renderer/src/components/TranslationOverwriteWarning.tsx": {
       "lines": {
@@ -14983,6 +15127,12 @@
         "pct": 100
       }
     },
+    "src/renderer/src/components/shareImport/shareImportInitialState.ts": {
+      "lines": { "total": 24, "covered": 24, "pct": 100 },
+      "statements": { "total": 26, "covered": 26, "pct": 100 },
+      "functions": { "total": 12, "covered": 12, "pct": 100 },
+      "branches": { "total": 28, "covered": 23, "pct": 82.14 }
+    },
     "src/renderer/src/components/stageToolbarTools.ts": {
       "lines": {
         "total": 12,
@@ -15004,12 +15154,6 @@
         "covered": 1,
         "pct": 50
       }
-    },
-    "src/renderer/src/components/styleGuide/StyleGuideResearchProgressModal.tsx": {
-      "lines": { "total": 38, "covered": 37, "pct": 97.36 },
-      "statements": { "total": 42, "covered": 40, "pct": 95.23 },
-      "functions": { "total": 16, "covered": 15, "pct": 93.75 },
-      "branches": { "total": 33, "covered": 19, "pct": 57.57 }
     },
     "src/renderer/src/components/styleGuide/StyleGuideResearchReview.tsx": {
       "lines": {
@@ -15265,6 +15409,24 @@
         "pct": 68.42
       }
     },
+    "src/renderer/src/hooks/importShareActionTypes.ts": {
+      "lines": { "total": 0, "covered": 0, "pct": 100 },
+      "statements": { "total": 0, "covered": 0, "pct": 100 },
+      "functions": { "total": 0, "covered": 0, "pct": 100 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "src/renderer/src/hooks/importedChapterNavigation.ts": {
+      "lines": { "total": 16, "covered": 14, "pct": 87.5 },
+      "statements": { "total": 17, "covered": 15, "pct": 88.23 },
+      "functions": { "total": 1, "covered": 1, "pct": 100 },
+      "branches": { "total": 6, "covered": 5, "pct": 83.33 }
+    },
+    "src/renderer/src/hooks/useAppOperationActivity.ts": {
+      "lines": { "total": 57, "covered": 41, "pct": 71.92 },
+      "statements": { "total": 62, "covered": 43, "pct": 69.35 },
+      "functions": { "total": 13, "covered": 8, "pct": 61.53 },
+      "branches": { "total": 33, "covered": 22, "pct": 66.66 }
+    },
     "src/renderer/src/hooks/useCompletionSound.ts": {
       "lines": {
         "covered": 35,
@@ -15397,6 +15559,12 @@
         "pct": 91.66
       }
     },
+    "src/renderer/src/hooks/useSubmitLibraryImportAction.ts": {
+      "lines": { "total": 45, "covered": 40, "pct": 88.88 },
+      "statements": { "total": 50, "covered": 42, "pct": 84 },
+      "functions": { "total": 9, "covered": 9, "pct": 100 },
+      "branches": { "total": 27, "covered": 15, "pct": 55.55 }
+    },
     "src/renderer/src/hooks/useWorkspaceZoomController.ts": {
       "lines": {
         "total": 75,
@@ -15440,6 +15608,18 @@
         "covered": 10,
         "pct": 76.92
       }
+    },
+    "src/renderer/src/lib/appOperationPresentation.ts": {
+      "lines": { "total": 10, "covered": 9, "pct": 90 },
+      "statements": { "total": 10, "covered": 9, "pct": 90 },
+      "functions": { "total": 4, "covered": 4, "pct": 100 },
+      "branches": { "total": 12, "covered": 10, "pct": 83.33 }
+    },
+    "src/renderer/src/lib/modalWorkCenterHandoff.ts": {
+      "lines": { "total": 80, "covered": 80, "pct": 100 },
+      "statements": { "total": 86, "covered": 83, "pct": 96.51 },
+      "functions": { "total": 16, "covered": 16, "pct": 100 },
+      "branches": { "total": 28, "covered": 21, "pct": 75 }
     },
     "src/renderer/src/lib/originalImageOpacity.ts": {
       "lines": {
@@ -15556,6 +15736,18 @@
         "covered": 55,
         "pct": 68.75
       }
+    },
+    "src/renderer/src/lib/statusCenterEvents.ts": {
+      "lines": { "total": 2, "covered": 2, "pct": 100 },
+      "statements": { "total": 2, "covered": 2, "pct": 100 },
+      "functions": { "total": 1, "covered": 1, "pct": 100 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "src/renderer/src/lib/statusCenterHistoryStore.ts": {
+      "lines": { "total": 42, "covered": 40, "pct": 95.23 },
+      "statements": { "total": 51, "covered": 45, "pct": 88.23 },
+      "functions": { "total": 13, "covered": 13, "pct": 100 },
+      "branches": { "total": 57, "covered": 46, "pct": 80.7 }
     },
     "src/renderer/src/lib/textStyleRunResolution.ts": {
       "lines": {
@@ -15710,6 +15902,12 @@
         "covered": 0,
         "pct": 100
       }
+    },
+    "src/shared/appOperationTypes.ts": {
+      "lines": { "total": 3, "covered": 3, "pct": 100 },
+      "statements": { "total": 3, "covered": 3, "pct": 100 },
+      "functions": { "total": 0, "covered": 0, "pct": 100 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
     },
     "src/shared/blockFormatValueSchemas.ts": {
       "lines": {
@@ -15886,6 +16084,12 @@
         "covered": 0,
         "pct": 100
       }
+    },
+    "src/shared/ipcAppOperationContracts.ts": {
+      "lines": { "total": 4, "covered": 4, "pct": 100 },
+      "statements": { "total": 4, "covered": 4, "pct": 100 },
+      "functions": { "total": 0, "covered": 0, "pct": 100 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
     },
     "src/shared/ipcBlockLibraryContracts.ts": {
       "lines": {
@@ -16273,8 +16477,10 @@
     "src/main/openaiOauthEndpoint.ts",
     "src/renderer/src/components/AutomaticFontMatchNotice.tsx",
     "src/renderer/src/components/FontSizeNumberInput.tsx",
+    "src/renderer/src/components/InstallProgressOverlay.tsx",
     "src/renderer/src/components/SearchReplaceModal.tsx",
     "src/renderer/src/components/StageActiveToolBadge.tsx",
+    "src/renderer/src/components/usePinnedInstallLog.ts",
     "src/renderer/src/lib/automaticFontMatchProvenance.ts"
   ]
 }

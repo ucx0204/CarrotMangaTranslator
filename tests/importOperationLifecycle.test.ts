@@ -5,17 +5,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppActivityGate } from "../src/main/appActivityGate";
 import { AppOperationRegistry } from "../src/main/appOperationRegistry";
 import type { IpcContext } from "../src/main/ipc/context";
-import {
-  registerImportPreviewIpc,
-  type ImportPreviewIpcService,
-} from "../src/main/ipc/importPreviewIpc";
+import { registerImportPreviewIpc } from "../src/main/ipc/importPreviewIpc";
+import type { ImportPreviewIpcService } from "../src/main/ipc/importPreviewService";
+import { registerLibraryIpc } from "../src/main/ipc/libraryIpc";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import type { ImportImageRuntime } from "../src/main/libraryStore/importImageRuntime";
 import type {
   DroppedImportPreviewResponse,
   ImportPreviewResult,
   ImportPreviewSession,
+  PreparedImportPreview,
 } from "../src/shared/importTypes";
+import { libraryIpcContracts } from "../src/shared/ipcContracts";
 
 type IpcHandler = (
   event: {
@@ -59,6 +60,52 @@ afterEach(async () => {
 });
 
 describe("library import managed operation lifecycle", () => {
+  it("shows image-picker preparation and validation as one managed activity", async () => {
+    const dataRoot = await makeTempDir();
+    const { context } = createContext(dataRoot);
+    const service = makeService();
+    const imagePaths = [join(dataRoot, "001.png"), join(dataRoot, "002.jpg")];
+    service.previewImages.mockResolvedValue(makeImagePreview(imagePaths));
+    electronBoundary.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: imagePaths,
+    });
+    const activity: Array<{ status: string; phase?: string }> = [];
+    context.operations.subscribeActivity((event) =>
+      activity.push({ status: event.status, phase: event.phase }),
+    );
+    registerImportPreviewIpc(context, service);
+
+    const preview = (await getHandler("import:preview-images")(
+      trustedEvent(),
+    )) as ImportPreviewSession | null;
+
+    expect(preview?.sourceKind).toBe("images");
+    expect(service.previewImages).toHaveBeenCalledWith(imagePaths);
+    expect(activity).toEqual([
+      { status: "running", phase: "import-source-reading" },
+      { status: "running", phase: "import-source-validating" },
+      { status: "completed", phase: "import-source-validating" },
+    ]);
+  });
+
+  it("returns cleanly when archive-folder selection is cancelled", async () => {
+    const dataRoot = await makeTempDir();
+    const { context } = createContext(dataRoot);
+    const service = makeService();
+    electronBoundary.showOpenDialog.mockResolvedValueOnce({
+      canceled: true,
+      filePaths: [],
+    });
+    registerImportPreviewIpc(context, service);
+
+    await expect(
+      getHandler("import:preview-zip-folder")(trustedEvent()),
+    ).resolves.toBeNull();
+    expect(service.previewZipFolder).not.toHaveBeenCalled();
+    expect(context.operations.current).toBeNull();
+  });
+
   it("creates a reusable import preview from dropped image paths", async () => {
     const dataRoot = await makeTempDir();
     const { context } = createContext(dataRoot);
@@ -95,6 +142,99 @@ describe("library import managed operation lifecycle", () => {
       workId: WORK_ID,
       chapterIds: [CHAPTER_ID],
     });
+  });
+
+  it("owns staged PDF pages until the preview is discarded", async () => {
+    const dataRoot = await makeTempDir();
+    const { context } = createContext(dataRoot);
+    const cleanup = vi.fn(async () => undefined);
+    const pdfPath = join(dataRoot, "chapter.pdf");
+    const service: ImportPreviewIpcService = {
+      ...makeService(),
+      preparePdfImportPreview: vi.fn(
+        async (_path, _signal, onProgress): Promise<PreparedImportPreview> => {
+          onProgress?.({
+            version: 1,
+            type: "progress",
+            current: 1,
+            total: 3,
+            unit: "items",
+          });
+          return {
+            preview: {
+              mode: "single",
+              sourceKind: "pdf",
+              suggestedWorkTitle: "Work",
+              chapters: [
+                {
+                  draftId: DRAFT_ID,
+                  title: "Chapter",
+                  sourceKind: "pdf",
+                  pages: [
+                    {
+                      name: "chapter-001.png",
+                      sourcePath: join(dataRoot, "staged", "page-000001.png"),
+                      sourceKind: "file",
+                    },
+                  ],
+                },
+              ],
+            },
+            cleanup,
+          };
+        },
+      ),
+    };
+    electronBoundary.showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: [pdfPath],
+    });
+    registerImportPreviewIpc(context, service);
+    const activity: Array<{
+      status: string;
+      phase?: string;
+      progressCurrent?: number;
+      progressTotal?: number;
+    }> = [];
+    context.operations.subscribeActivity((event) =>
+      activity.push({
+        status: event.status,
+        phase: event.phase,
+        progressCurrent: event.progressCurrent,
+        progressTotal: event.progressTotal,
+      }),
+    );
+
+    const preview = (await getHandler("import:preview-pdf")(
+      trustedEvent(),
+    )) as ImportPreviewSession | null;
+
+    expect(preview?.sourceKind).toBe("pdf");
+    expect(activity).toEqual([
+      expect.objectContaining({
+        status: "running",
+        phase: "import-source-converting",
+      }),
+      expect.objectContaining({
+        status: "running",
+        phase: "import-source-converting",
+        progressCurrent: 1,
+        progressTotal: 3,
+      }),
+      expect.objectContaining({
+        status: "running",
+        phase: "import-source-validating",
+      }),
+      expect.objectContaining({
+        status: "completed",
+        phase: "import-source-validating",
+      }),
+    ]);
+    expect(cleanup).not.toHaveBeenCalled();
+    await expect(
+      getHandler("import:discard-preview")(trustedEvent(), preview?.previewId),
+    ).resolves.toEqual({ completed: true });
+    expect(cleanup).toHaveBeenCalledTimes(1);
   });
 
   it("returns a busy rejection before inspecting dropped paths", async () => {
@@ -182,6 +322,18 @@ describe("library import managed operation lifecycle", () => {
     const service = makeService();
     const preview = await createPreview(context, service);
     let capturedSignal: AbortSignal | undefined;
+    const activity: Array<{
+      status: string;
+      phase?: string;
+      cancellable: boolean;
+    }> = [];
+    context.operations.subscribeActivity((event) =>
+      activity.push({
+        status: event.status,
+        phase: event.phase,
+        cancellable: event.cancellable,
+      }),
+    );
     service.createImport.mockImplementation(async (_request, signal) => {
       capturedSignal = signal;
       expect(context.operations.current).toMatchObject({
@@ -202,6 +354,23 @@ describe("library import managed operation lifecycle", () => {
     expect(capturedSignal).toBeInstanceOf(AbortSignal);
     expect(capturedSignal?.aborted).toBe(false);
     expect(context.operations.current).toBeNull();
+    expect(activity).toEqual([
+      {
+        status: "running",
+        phase: "import-library-writing",
+        cancellable: true,
+      },
+      {
+        status: "running",
+        phase: "import-finalizing",
+        cancellable: false,
+      },
+      {
+        status: "completed",
+        phase: "import-finalizing",
+        cancellable: false,
+      },
+    ]);
   });
 
   it("does not call the import service while a job is active and retains the preview", async () => {
@@ -388,6 +557,15 @@ describe("library import managed operation lifecycle", () => {
     await vi.waitFor(() => {
       expect(context.operations.current?.kind).toBe("library-import");
     });
+    registerLibraryIpc(context);
+    await expect(
+      getHandler(libraryIpcContracts.renameWork.channel)(
+        trustedEvent(),
+        WORK_ID,
+        "Blocked rename",
+      ),
+    ).rejects.toThrow();
+    expect(context.operations.current?.kind).toBe("library-import");
     let quitWaitSettled = false;
     const quitWait = context.operations
       .abortCurrentAndWait("app-quit")

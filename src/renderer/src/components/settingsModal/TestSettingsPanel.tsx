@@ -44,9 +44,6 @@ export function TestSettingsPanel({
               : t("settings.test.run")}
           </button>
         </div>
-        {jobActive ? (
-          <p className="muted-line">{t("settings.test.jobActive")}</p>
-        ) : null}
         {testState.status !== "idle" ? (
           <div className={`settings-test-result ${testState.status}`}>
             <strong>{testState.message}</strong>

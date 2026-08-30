@@ -42,6 +42,8 @@ const importSourceKindSchema = z.enum([
   "images",
   "folder",
   "zip",
+  "rar",
+  "pdf",
   "zip-folder",
 ]);
 const importPageDraftSchema = z
@@ -88,13 +90,16 @@ const importPreviewSessionSchema = z
   .strict();
 const droppedImportRejectionReasonSchema = z.enum([
   "busy",
+  "cancelled",
   "empty",
   "too-many-items",
   "folder-must-be-alone",
   "archive-must-be-alone",
+  "pdf-must-be-alone",
   "unsupported-files",
   "folder-no-images",
   "archive-no-images",
+  "pdf-no-pages",
 ]);
 const droppedImportPreviewResponseSchema = z.discriminatedUnion("status", [
   z
@@ -167,6 +172,12 @@ export const importShareIpcContracts = {
   previewZipImport: defineIpcContract<[], ImportPreviewSession | null>({
     apiKey: "previewZipImport",
     channel: "import:preview-zip",
+    args: z.tuple([]),
+    result: importPreviewSessionSchema.nullable(),
+  }),
+  previewPdfImport: defineIpcContract<[], ImportPreviewSession | null>({
+    apiKey: "previewPdfImport",
+    channel: "import:preview-pdf",
     args: z.tuple([]),
     result: importPreviewSessionSchema.nullable(),
   }),

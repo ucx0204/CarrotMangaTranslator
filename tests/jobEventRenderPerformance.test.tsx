@@ -327,6 +327,43 @@ describe("job event render scheduling", () => {
     );
     act(() => frames.flush());
   });
+
+  it("attributes a status line when every target belongs to one chapter", () => {
+    const frames = installAnimationFrameController();
+    const appendStatusLine = vi.fn();
+    let emit: ((event: JobEvent) => void) | null = null;
+    render(
+      <JobHarness
+        appendStatusLine={appendStatusLine}
+        onReady={() => undefined}
+        subscribeJobEvents={(listener) => {
+          emit = listener;
+          return () => undefined;
+        }}
+      />,
+    );
+
+    act(() => {
+      emit?.({
+        ...makeStateEvent("running"),
+        targets: [
+          {
+            chapterId: "chapter-1",
+            pageId: "page-1",
+            revision: "page-v1:one",
+          },
+          {
+            chapterId: "chapter-1",
+            pageId: "page-2",
+            revision: "page-v1:two",
+          },
+        ],
+      });
+      frames.flush();
+    });
+
+    expect(appendStatusLine.mock.calls.at(-1)?.[2]).toBe("chapter-1");
+  });
 });
 
 type JobHarnessApi = {
@@ -339,11 +376,17 @@ const ignoreStatusLine = (): void => undefined;
 const ignoreChapter = (): void => undefined;
 
 function JobHarness({
+  appendStatusLine = ignoreStatusLine,
   initialJobState,
   onReady,
   suppressTerminalEvents = false,
   subscribeJobEvents,
 }: {
+  appendStatusLine?: (
+    line: string,
+    replace?: (line: string) => boolean,
+    chapterId?: string,
+  ) => void;
   initialJobState?: JobState;
   onReady: (api: JobHarnessApi) => void;
   suppressTerminalEvents?: boolean;
@@ -361,7 +404,7 @@ function JobHarness({
     },
   );
   useJobEvents({
-    appendStatusLine: ignoreStatusLine,
+    appendStatusLine,
     currentChapterRef,
     jobState,
     mergeLiveChapter: ignoreChapter,

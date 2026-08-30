@@ -95,6 +95,111 @@ describe("sidebar list panel switching", () => {
         .value,
     ).toBe("테스트");
   });
+
+  it("blocks conflicting work while keeping navigation and utility actions available", () => {
+    const onOpenChapter = vi.fn();
+    const onSelectPage = vi.fn();
+    const onOpenSettings = vi.fn();
+    const onOpenLibraryFolder = vi.fn();
+    render(
+      <AppSidebar
+        currentChapter={CHAPTER}
+        selectedPageId={null}
+        library={LIBRARY}
+        jobActive
+        libraryMutationBlocked
+        settingsBusy={false}
+        settingsOpen={false}
+        onOpenTranslationSource={vi.fn()}
+        onOpenBatchImport={vi.fn()}
+        onOpenSettings={onOpenSettings}
+        onOpenLibraryFolder={onOpenLibraryFolder}
+        onOpenShareExport={vi.fn()}
+        onOpenShareImport={vi.fn()}
+        onOpenChapter={onOpenChapter}
+        onRenameWork={vi.fn()}
+        onRenameChapter={vi.fn()}
+        onReorderChapter={vi.fn()}
+        onSelectPage={onSelectPage}
+        onRetranslatePage={vi.fn()}
+        onRemovePage={vi.fn()}
+        onReorderPage={vi.fn()}
+      />,
+    );
+
+    expect(
+      [
+        "새 원본 추가",
+        "여러 화 추가",
+        "작업 내보내기",
+        "작업 가져오기",
+        "테스트 작품 이름 변경",
+      ].every(
+        (name) =>
+          (screen.getByRole("button", { name }) as HTMLButtonElement).disabled,
+      ),
+    ).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "설정" }));
+    fireEvent.click(screen.getByRole("button", { name: "보관함 폴더" }));
+    fireEvent.click(screen.getByTitle("1화"));
+    fireEvent.click(screen.getByTitle("001.png"));
+
+    expect(onOpenSettings).toHaveBeenCalledOnce();
+    expect(onOpenLibraryFolder).toHaveBeenCalledOnce();
+    expect(onOpenChapter).toHaveBeenCalledWith("chapter-1");
+    expect(onSelectPage).toHaveBeenCalledWith("page-1");
+  });
+
+  it("allows library edits but not new long work during read-only source preparation", () => {
+    render(
+      <AppSidebar
+        currentChapter={CHAPTER}
+        selectedPageId={null}
+        library={LIBRARY}
+        jobActive
+        libraryMutationBlocked={false}
+        settingsBusy={false}
+        settingsOpen={false}
+        onOpenTranslationSource={vi.fn()}
+        onOpenBatchImport={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenLibraryFolder={vi.fn()}
+        onOpenShareExport={vi.fn()}
+        onOpenShareImport={vi.fn()}
+        onOpenChapter={vi.fn()}
+        onRenameWork={vi.fn()}
+        onRenameChapter={vi.fn()}
+        onReorderChapter={vi.fn()}
+        onSelectPage={vi.fn()}
+        onRetranslatePage={vi.fn()}
+        onRemovePage={vi.fn()}
+        onReorderPage={vi.fn()}
+      />,
+    );
+
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "새 원본 추가",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "테스트 작품 이름 변경",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "1화 순서 이동",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+  });
 });
 
 const TS = "2026-08-10T00:00:00.000Z";

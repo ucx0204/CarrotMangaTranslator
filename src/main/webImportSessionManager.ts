@@ -182,7 +182,10 @@ export class WebImportSessionManager {
   async prepareImport(
     sessionId: string,
     selectedCandidateIds: readonly string[],
+    signal?: AbortSignal,
+    onProgress?: (completed: number, total: number) => void,
   ): Promise<PreparedWebImport> {
+    throwIfAborted(signal);
     await this.pruneExpired();
     const session = this.sessions.get(sessionId);
     if (!session) {
@@ -204,12 +207,13 @@ export class WebImportSessionManager {
     ) {
       throw new Error("가져올 이미지 선택을 확인해 주세요.");
     }
-    const selectedIds = new Set(selected.map((candidate) => candidate.id));
-    for (const candidate of session.candidates) {
-      if (!selectedIds.has(candidate.id)) {
-        await rm(candidate.filePath, { force: true });
-      }
+    const total = session.candidates.length;
+    onProgress?.(0, total);
+    for (const [index] of session.candidates.entries()) {
+      throwIfAborted(signal);
+      onProgress?.(index + 1, total);
     }
+    throwIfAborted(signal);
     session.candidates = selected;
     this.sessions.delete(sessionId);
     this.clearSessionExpiry(sessionId);

@@ -16,6 +16,7 @@ import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
 import { CheckboxField } from "./ui/CheckboxField";
+import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 
 export type AutoInpaintingOptionsModalProps = {
   chapter: ChapterSnapshot;
@@ -47,6 +48,7 @@ export function AutoInpaintingOptionsModal({
   const [includeBubbleLayout, setIncludeBubbleLayout] = React.useState(true);
   const handleStart = (): void => {
     if (state.runSelection.length === 0) return;
+    handoffActiveModalToWorkCenter();
     void onStart(state.runSelection, resolvePostprocess(includeBubbleLayout));
     onClose();
   };

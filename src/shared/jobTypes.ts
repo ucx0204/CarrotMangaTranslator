@@ -7,7 +7,7 @@ import type {
 } from "./jobContracts";
 import type { PageJobTargetSnapshot } from "./pageRevision";
 
-export type { JobPhase, ResearchJobStage } from "./jobContracts";
+export type { JobPhase } from "./jobContracts";
 
 export type ResearchJobProgress = {
   stage: ResearchJobStage;
