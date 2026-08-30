@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
@@ -28,7 +35,10 @@ vi.mock("electron", () => ({
   shell: { openPath: boundary.openPath },
 }));
 
-import { LinkedWorkspaceSyncService } from "../src/main/linkedWorkspace/linkedWorkspaceSyncService";
+import {
+  LinkedWorkspaceSyncService,
+  MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY,
+} from "../src/main/linkedWorkspace/linkedWorkspaceSyncService";
 
 const WORK_ID = "11111111-1111-4111-8111-111111111111";
 const CHAPTER_ID = "22222222-2222-4222-8222-222222222222";
@@ -208,6 +218,223 @@ describe("LinkedWorkspaceSyncService", () => {
     await service.dispose();
   });
 
+  it("automatically saves at most four rendered pages concurrently", async () => {
+    vi.useRealTimers();
+    boundary.chapter = makeChapter(8);
+    boundary.library = makeLibrary();
+    const pages = requireChapter().pages;
+    const gates = new Map(
+      pages.map((page) => [page.id, deferred<void>()] as const),
+    );
+    const started: string[] = [];
+    let active = 0;
+    let maxActive = 0;
+    boundary.createSession.mockImplementation(async () => {
+      const session = makeRenderSession(async (page) => {
+        const gate = gates.get(page.id);
+        if (!gate) throw new Error(`missing render gate: ${page.id}`);
+        started.push(page.id);
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await gate.promise;
+        active -= 1;
+        return Buffer.from(`render-${page.name}`);
+      });
+      boundary.sessions.push(session);
+      return session;
+    });
+    const { root, service } = await makeConnectedService();
+
+    const viewing = service.viewResults({ chapterId: CHAPTER_ID });
+    await vi.waitFor(() => {
+      expect(started).toHaveLength(MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY);
+    });
+    expect(active).toBe(MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY);
+    expect(maxActive).toBe(MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY);
+    expect(service.getStatus(CHAPTER_ID).state).toBe("syncing");
+
+    gates.get(started[0] ?? "")?.resolve(undefined);
+    await vi.waitFor(() => {
+      expect(started).toHaveLength(MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY + 1);
+    });
+    expect(maxActive).toBe(MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY);
+
+    for (const gate of gates.values()) gate.resolve(undefined);
+    await expect(viewing).resolves.toEqual({
+      status: "opened",
+      syncedPages: pages.length,
+    });
+    expect(maxActive).toBe(MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY);
+    expect(boundary.createSession).toHaveBeenCalledTimes(
+      MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY,
+    );
+    await expect(
+      Promise.all(
+        pages.map(async (page) =>
+          readFile(join(root, "result", page.name), "utf8"),
+        ),
+      ),
+    ).resolves.toEqual(pages.map((page) => `render-${page.name}`));
+
+    const mirrorName = (await readdir(root)).find(
+      (name) => name.startsWith("manga-translator-") && name.endsWith(".json"),
+    );
+    if (!mirrorName) throw new Error("missing automatic-save mirror");
+    const mirror = JSON.parse(
+      await readFile(join(root, mirrorName), "utf8"),
+    ) as {
+      chapters: Array<{
+        pages: Array<{ id: string; result?: { path: string } }>;
+      }>;
+    };
+    expect(mirror.chapters[0]?.pages).toHaveLength(pages.length);
+    expect(
+      mirror.chapters[0]?.pages.every((page) => Boolean(page.result?.path)),
+    ).toBe(true);
+    await service.dispose();
+  });
+
+  it("keeps other automatic saves moving when one parallel render must retry", async () => {
+    boundary.chapter = makeChapter(5);
+    boundary.library = makeLibrary();
+    let firstPageAttempts = 0;
+    boundary.createSession.mockImplementation(async () => {
+      const session = makeRenderSession(async (page) => {
+        if (page.id === PAGE_ID && firstPageAttempts === 0) {
+          firstPageAttempts += 1;
+          throw new Error("temporary render failure");
+        }
+        return Buffer.from(`render-${page.name}`);
+      });
+      boundary.sessions.push(session);
+      return session;
+    });
+    const { root, service } = await makeConnectedService();
+    for (const page of requireChapter().pages) {
+      requireBlock(page).translatedText = `edited-${page.name}`;
+    }
+
+    await service.notifyPagesSaved(
+      CHAPTER_ID,
+      requireChapter().pages.map((page) => page.id),
+      { immediate: true, priority: 60 },
+    );
+    await advanceAndDrain(service, 3_000);
+    expect(service.getStatus(CHAPTER_ID)).toMatchObject({
+      state: "pending",
+      pendingCount: 1,
+    });
+    expect(
+      boundary.sessions.flatMap((session) => session.renderPage.mock.calls),
+    ).toHaveLength(5);
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(firstPageAttempts).toBe(1);
+
+    await advanceAndDrain(service, 1);
+    expect(service.getStatus(CHAPTER_ID).state).toBe("idle");
+    expect(firstPageAttempts).toBe(1);
+    expect(await readFile(join(root, "result", "001.png"), "utf8")).toBe(
+      "render-001.png",
+    );
+    await service.dispose();
+  });
+
+  it("cancels every active parallel renderer before publishing fresh output", async () => {
+    vi.useRealTimers();
+    boundary.chapter = makeChapter(MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY);
+    boundary.library = makeLibrary();
+    const staleGates = new Map(
+      requireChapter().pages.map(
+        (page) => [page.id, deferred<void>()] as const,
+      ),
+    );
+    const staleStarted: string[] = [];
+    boundary.createSession.mockImplementation(async () => {
+      const sessionNumber = boundary.createSession.mock.calls.length;
+      const session = makeRenderSession(async (page) => {
+        if (sessionNumber <= MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY) {
+          const gate = staleGates.get(page.id);
+          if (!gate) throw new Error(`missing stale gate: ${page.id}`);
+          staleStarted.push(page.id);
+          await gate.promise;
+          return Buffer.from(`stale-${page.name}`);
+        }
+        return Buffer.from(`fresh-${page.name}`);
+      });
+      boundary.sessions.push(session);
+      return session;
+    });
+    const { root, service } = await makeConnectedService();
+
+    const firstViewing = service.viewResults({ chapterId: CHAPTER_ID });
+    await vi.waitFor(() => {
+      expect(staleStarted).toHaveLength(MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY);
+    });
+    service.reportActivity({ type: "pulse" });
+    expect(
+      boundary.sessions
+        .slice(0, MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY)
+        .every((session) => session.cancel.mock.calls.length === 1),
+    ).toBe(true);
+    for (const gate of staleGates.values()) gate.resolve(undefined);
+    const interruptedDrain = Reflect.get(
+      service,
+      "activeDrainPromise",
+    ) as Promise<void> | null;
+    await interruptedDrain;
+
+    const secondViewing = service.viewResults({ chapterId: CHAPTER_ID });
+    await expect(secondViewing).resolves.toEqual({
+      status: "opened",
+      syncedPages: MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY,
+    });
+    await expect(firstViewing).resolves.toEqual({
+      status: "opened",
+      syncedPages: MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY,
+    });
+    expect(boundary.createSession).toHaveBeenCalledTimes(
+      MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY * 2,
+    );
+    await expect(
+      Promise.all(
+        requireChapter().pages.map((page) =>
+          readFile(join(root, "result", page.name), "utf8"),
+        ),
+      ),
+    ).resolves.toEqual(
+      requireChapter().pages.map((page) => `fresh-${page.name}`),
+    );
+    await service.dispose();
+  });
+
+  it("closes every parallel automatic-save renderer after the idle timeout", async () => {
+    boundary.chapter = makeChapter(MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY);
+    boundary.library = makeLibrary();
+    const { service } = await makeConnectedService();
+
+    const viewing = service.viewResults({ chapterId: CHAPTER_ID });
+    await vi.waitFor(() => {
+      expect(boundary.sessions).toHaveLength(
+        MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY,
+      );
+    });
+    await advanceAndDrain(service, 0);
+    await expect(viewing).resolves.toMatchObject({ status: "opened" });
+    expect(
+      boundary.sessions.every(
+        (session) => session.close.mock.calls.length === 0,
+      ),
+    ).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(
+      boundary.sessions.every(
+        (session) => session.close.mock.calls.length === 1,
+      ),
+    ).toBe(true);
+    await service.dispose();
+  });
+
   it("does not start rendering during pointer interaction and resumes after idle", async () => {
     const { service } = await makeConnectedService();
     await advanceAndDrain(service, 3_000);
@@ -272,9 +499,14 @@ async function makeConnectedService(
 }> {
   const dataRoot = await makeTempDir("data");
   const customRoot = await makeTempDir("output");
-  const internalImagePath = join(dataRoot, "001.png");
-  await writeFile(internalImagePath, "source");
-  requirePage().imagePath = internalImagePath;
+  for (const page of requireChapter().pages) {
+    const internalImagePath = join(dataRoot, page.name);
+    await writeFile(
+      internalImagePath,
+      page.id === PAGE_ID ? "source" : `source-${page.name}`,
+    );
+    page.imagePath = internalImagePath;
+  }
   const service = new LinkedWorkspaceSyncService({
     dataRoot,
     jobs: {
@@ -306,7 +538,7 @@ async function makeConnectedService(
   return { dataRoot, root, service };
 }
 
-function makeRenderSession(render?: () => Promise<Buffer>) {
+function makeRenderSession(render?: (page: MangaPage) => Promise<Buffer>) {
   const index = boundary.createSession.mock.calls.length;
   return {
     renderPage: vi.fn(render ?? (async () => Buffer.from(`render-${index}`))),
@@ -357,49 +589,52 @@ function requireBlock(page: MangaPage): TranslationBlock {
   return block;
 }
 
-function makeChapter(): ChapterSnapshot {
+function makeChapter(pageCount = 1): ChapterSnapshot {
   const timestamp = "2026-08-24T00:00:00.000Z";
-  const block = {
-    id: "block-1",
-    bbox: { x: 100, y: 100, w: 300, h: 200 },
-    sourceText: "原文",
-    translatedText: "번역",
-    confidence: 0.9,
-    sourceDirection: "horizontal",
-    renderDirection: "horizontal",
-    fontSizePx: 24,
-    lineHeight: 1.2,
-    textAlign: "center",
-    textColor: "#111111",
-    outlineColor: "#ffffff",
-    outlineWidthScale: 1,
-    backgroundColor: "#ffffff",
-    opacity: 1,
-  } as TranslationBlock;
+  const pages = Array.from({ length: pageCount }, (_, index) => {
+    const pageNumber = index + 1;
+    const name = `${String(pageNumber).padStart(3, "0")}.png`;
+    const block = {
+      id: `block-${pageNumber}`,
+      bbox: { x: 100, y: 100, w: 300, h: 200 },
+      sourceText: "原文",
+      translatedText: "번역",
+      confidence: 0.9,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 24,
+      lineHeight: 1.2,
+      textAlign: "center",
+      textColor: "#111111",
+      outlineColor: "#ffffff",
+      outlineWidthScale: 1,
+      backgroundColor: "#ffffff",
+      opacity: 1,
+    } as TranslationBlock;
+    return {
+      id: pageNumber === 1 ? PAGE_ID : makePageId(pageNumber),
+      name,
+      imagePath: `C:/internal/${name}`,
+      sourceFileName: name,
+      sourceRelativePath: name,
+      dataUrl: "",
+      width: 1000,
+      height: 1500,
+      blocks: [block],
+      blockOrder: [block.id],
+      analysisStatus: "completed",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    } satisfies MangaPage;
+  });
   return {
     id: CHAPTER_ID,
     workId: WORK_ID,
     title: "1화",
     sourceKind: "folder",
     status: "completed",
-    pageOrder: [PAGE_ID],
-    pages: [
-      {
-        id: PAGE_ID,
-        name: "001.png",
-        imagePath: "C:/internal/001.png",
-        sourceFileName: "001.png",
-        sourceRelativePath: "001.png",
-        dataUrl: "",
-        width: 1000,
-        height: 1500,
-        blocks: [block],
-        blockOrder: [block.id],
-        analysisStatus: "completed",
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      },
-    ],
+    pageOrder: pages.map((page) => page.id),
+    pages,
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -420,7 +655,7 @@ function makeLibrary(): LibraryIndex {
             workId: WORK_ID,
             title: chapter.title,
             status: chapter.status,
-            pageCount: 1,
+            pageCount: chapter.pages.length,
             createdAt: chapter.createdAt,
             updatedAt: chapter.updatedAt,
           },
@@ -430,6 +665,10 @@ function makeLibrary(): LibraryIndex {
       },
     ],
   };
+}
+
+function makePageId(pageNumber: number): string {
+  return `33333333-3333-4333-8333-${String(pageNumber).padStart(12, "0")}`;
 }
 
 async function makeTempDir(label: string): Promise<string> {

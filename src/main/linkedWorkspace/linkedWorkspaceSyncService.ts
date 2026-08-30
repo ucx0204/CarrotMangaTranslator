@@ -1,4 +1,4 @@
-/* eslint-disable max-lines, complexity, max-lines-per-function -- the serialized scheduler keeps cancellation, publication, retry, and recovery transitions together for auditability */
+/* eslint-disable max-lines, complexity, max-lines-per-function -- the bounded render scheduler keeps cancellation, serialized publication, retry, and recovery transitions together for auditability */
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, stat } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
@@ -56,6 +56,8 @@ const IDLE_DELAY_MS = 3_000;
 const RETRY_DELAYS_MS = [5_000, 30_000, 120_000, 600_000] as const;
 const SESSION_IDLE_CLOSE_MS = 30_000;
 
+export const MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY = 4;
+
 type ServiceOptions = {
   dataRoot: string;
   jobs: ActiveJobStore;
@@ -78,6 +80,23 @@ type DrainWaiter = {
   resolve: (result: ViewLinkedResultsResult) => void;
 };
 
+type PreparedLinkedSyncItem = {
+  item: LinkedSyncQueueItemV1;
+  page: MangaPage;
+  recordId: string;
+  rootPath: string;
+  output: null | {
+    captureFormat: "png" | "jpeg" | "webp";
+    jpegQuality: number;
+    path: string;
+    webpQuality: number;
+  };
+};
+
+type RenderedLinkedSyncItem = PreparedLinkedSyncItem & {
+  content: Buffer | null;
+};
+
 export class LinkedWorkspaceSyncService {
   private readonly store: LinkedWorkspaceStore;
   private readonly options: ServiceOptions;
@@ -93,10 +112,12 @@ export class LinkedWorkspaceSyncService {
   private scheduleTimer: ReturnType<typeof setTimeout> | null = null;
   private queuePersistTimer: ReturnType<typeof setTimeout> | null = null;
   private sessionCloseTimer: ReturnType<typeof setTimeout> | null = null;
-  private renderSession: PageExportRenderSession | null = null;
+  private renderSessions: Array<PageExportRenderSession | null> = [];
   private activeDrainPromise: Promise<void> | null = null;
   private running = false;
-  private activeConnection: string | null = null;
+  private activeQueueKeys = new Set<string>();
+  private activeConnectionCounts = new Map<string, number>();
+  private metadataCommitTail: Promise<void> = Promise.resolve();
   private disposed = false;
   private generation = 0;
   private lastActivityAt = Date.now();
@@ -140,7 +161,7 @@ export class LinkedWorkspaceSyncService {
     const lastError = this.lastErrors.get(record.id);
     const state = !record.enabled
       ? "disabled"
-      : this.running && this.activeConnection === record.id
+      : this.running && (this.activeConnectionCounts.get(record.id) ?? 0) > 0
         ? "syncing"
         : failedCount > 0 || lastError
           ? "failed"
@@ -361,17 +382,8 @@ export class LinkedWorkspaceSyncService {
     }
     this.lastActivityAt = Date.now();
     this.generation += 1;
-    if (this.renderSession && this.running) {
-      try {
-        this.renderSession.cancel?.();
-      } catch (error) {
-        this.options.reportError(
-          "Failed to cancel linked workspace render",
-          error,
-        );
-      } finally {
-        this.renderSession = null;
-      }
+    if (this.running) {
+      this.cancelRenderSessions("Failed to cancel linked workspace render");
     }
     this.schedule(IDLE_DELAY_MS);
   }
@@ -412,17 +424,7 @@ export class LinkedWorkspaceSyncService {
     this.disposed = true;
     this.clearTimers();
     this.generation += 1;
-    if (this.renderSession) {
-      try {
-        this.renderSession.cancel?.();
-      } catch (error) {
-        this.options.reportError(
-          "Failed to stop linked workspace renderer",
-          error,
-        );
-      }
-      this.renderSession = null;
-    }
+    this.cancelRenderSessions("Failed to stop linked workspace renderer");
     if (this.activeDrainPromise) {
       await waitForSettled(this.activeDrainPromise, 1_500);
     }
@@ -532,6 +534,7 @@ export class LinkedWorkspaceSyncService {
     this.scheduleTimer = setTimeout(
       () => {
         this.scheduleTimer = null;
+        if (this.activeDrainPromise) return;
         const drain = this.drain();
         this.activeDrainPromise = drain;
         void drain
@@ -557,48 +560,31 @@ export class LinkedWorkspaceSyncService {
       this.schedule(500);
       return;
     }
-    const item = this.nextReadyItem();
-    if (!item) {
+    const readyItem = this.nextReadyItem();
+    if (!readyItem) {
       this.finishDrainedConnections();
       this.scheduleNextRetry();
       return;
     }
-    const forced = this.forceConnections.has(item.connectionId);
-    const bypassIdle =
-      forced &&
-      this.lastActivityAt <=
-        (this.forceRequestedAt.get(item.connectionId) ?? 0);
-    const remainingIdle = IDLE_DELAY_MS - (Date.now() - this.lastActivityAt);
-    if (!bypassIdle && remainingIdle > 0) {
-      this.schedule(remainingIdle);
+    if (!this.nextReadyItem(true)) {
+      this.schedule(
+        Math.max(1, IDLE_DELAY_MS - (Date.now() - this.lastActivityAt)),
+      );
       return;
     }
     this.running = true;
-    this.activeConnection = item.connectionId;
     const generation = this.generation;
-    this.emitStatuses();
     try {
-      await this.processItem(item, generation);
-      if (this.isCurrentQueueItem(item)) {
-        this.queue.delete(queueKey(item.chapterId, item.pageId));
-      }
-      this.lastErrors.delete(item.connectionId);
-    } catch (error) {
-      if (this.isCurrentQueueItem(item)) {
-        if (
-          generation !== this.generation ||
-          this.options.jobs.hasActive ||
-          isAbortError(error)
-        ) {
-          item.nextRetryAt = Date.now() + IDLE_DELAY_MS;
-        } else {
-          this.registerFailure(item, error);
-        }
-        this.queue.set(queueKey(item.chapterId, item.pageId), item);
-      }
+      const workers = Array.from(
+        { length: MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY },
+        (_, renderSlot) => this.runDrainWorker(renderSlot, generation),
+      );
+      this.emitStatuses();
+      await Promise.all(workers);
     } finally {
       this.running = false;
-      this.activeConnection = null;
+      this.activeQueueKeys.clear();
+      this.activeConnectionCounts.clear();
       this.scheduleQueuePersist();
       this.emitStatuses();
       this.scheduleSessionClose();
@@ -606,7 +592,57 @@ export class LinkedWorkspaceSyncService {
     this.schedule(0);
   }
 
-  private nextReadyItem(): LinkedSyncQueueItemV1 | null {
+  private async runDrainWorker(
+    renderSlot: number,
+    generation: number,
+  ): Promise<void> {
+    while (
+      !this.disposed &&
+      generation === this.generation &&
+      !this.options.jobs.hasActive
+    ) {
+      const item = this.claimNextReadyItem();
+      if (!item) return;
+      try {
+        await this.processClaimedItem(item, generation, renderSlot);
+      } catch (error) {
+        this.options.reportError(
+          "Linked workspace worker failed to settle an item",
+          error,
+        );
+        return;
+      } finally {
+        this.releaseClaimedItem(item);
+        this.scheduleQueuePersist();
+        this.emitStatuses();
+      }
+    }
+  }
+
+  private claimNextReadyItem(): LinkedSyncQueueItemV1 | null {
+    const item = this.nextReadyItem(true);
+    if (!item) return null;
+    const key = queueKey(item.chapterId, item.pageId);
+    this.activeQueueKeys.add(key);
+    this.activeConnectionCounts.set(
+      item.connectionId,
+      (this.activeConnectionCounts.get(item.connectionId) ?? 0) + 1,
+    );
+    return item;
+  }
+
+  private releaseClaimedItem(item: LinkedSyncQueueItemV1): void {
+    this.activeQueueKeys.delete(queueKey(item.chapterId, item.pageId));
+    const remaining =
+      (this.activeConnectionCounts.get(item.connectionId) ?? 1) - 1;
+    if (remaining > 0) {
+      this.activeConnectionCounts.set(item.connectionId, remaining);
+    } else {
+      this.activeConnectionCounts.delete(item.connectionId);
+    }
+  }
+
+  private nextReadyItem(runnableOnly = false): LinkedSyncQueueItemV1 | null {
     const now = Date.now();
     return (
       [...this.queue.values()]
@@ -615,7 +651,9 @@ export class LinkedWorkspaceSyncService {
           return (
             record?.enabled === true &&
             item.attempts < RETRY_DELAYS_MS.length &&
-            item.nextRetryAt <= now
+            item.nextRetryAt <= now &&
+            !this.activeQueueKeys.has(queueKey(item.chapterId, item.pageId)) &&
+            (!runnableOnly || this.canRunDuringCurrentIdle(item))
           );
         })
         .sort(
@@ -625,13 +663,53 @@ export class LinkedWorkspaceSyncService {
     );
   }
 
-  private async processItem(
+  private canRunDuringCurrentIdle(item: LinkedSyncQueueItemV1): boolean {
+    if (Date.now() - this.lastActivityAt >= IDLE_DELAY_MS) return true;
+    return (
+      this.forceConnections.has(item.connectionId) &&
+      this.lastActivityAt <= (this.forceRequestedAt.get(item.connectionId) ?? 0)
+    );
+  }
+
+  private async processClaimedItem(
     item: LinkedSyncQueueItemV1,
     generation: number,
+    renderSlot: number,
   ): Promise<void> {
+    try {
+      const prepared = await this.runSerializedMetadata(() =>
+        this.prepareItem(item, generation),
+      );
+      if (!prepared) {
+        this.lastErrors.delete(item.connectionId);
+        return;
+      }
+      const rendered = await this.renderPreparedItem(
+        prepared,
+        generation,
+        renderSlot,
+      );
+      await this.runSerializedMetadata(() =>
+        this.commitRenderedItem(rendered, generation),
+      );
+      this.lastErrors.delete(item.connectionId);
+    } catch (error) {
+      await this.runSerializedMetadata(() => {
+        this.settleItemFailure(item, generation, error);
+      });
+    }
+  }
+
+  private async prepareItem(
+    item: LinkedSyncQueueItemV1,
+    generation: number,
+  ): Promise<PreparedLinkedSyncItem | null> {
+    if (!this.isCurrentQueueItem(item)) return null;
+    this.assertGeneration(generation);
     const record = this.records.get(item.connectionId);
     if (!record) throw new Error("연결 정보가 사라졌습니다.");
     await this.assertSourceUnchanged(record, item.pageId);
+    this.assertGeneration(generation);
     const chapter = await this.dependencies.openChapter(item.chapterId);
     const page = chapter.pages.find(
       (candidate) => candidate.id === item.pageId,
@@ -644,52 +722,109 @@ export class LinkedWorkspaceSyncService {
         immediate: true,
         priority: item.priority,
       });
-      return;
+      return null;
     }
 
     const needsRender =
       item.mirrorOnly !== true &&
       record.publishedRevisions[page.id] !== item.visualRevision;
-    if (needsRender) {
-      const result = resolveLinkedResultPath({
-        rootPath: record.rootPath,
-        sourceRelativePath: this.pageRelativePath(record, page),
-        format: record.output.format,
-      });
-      const session = await this.getRenderSession();
-      const content = await session.renderPage(page, {
-        format: result.captureFormat,
-        resolutionMode: "original",
-        ...(result.captureFormat === "jpeg"
-          ? { quality: record.output.jpegQuality }
-          : result.captureFormat === "webp"
-            ? { quality: record.output.webpQuality }
-            : {}),
-      });
-      this.assertGeneration(generation);
-      const latest = await this.dependencies.openChapter(item.chapterId);
-      const latestPage = latest.pages.find(
-        (candidate) => candidate.id === item.pageId,
+    const result = needsRender
+      ? resolveLinkedResultPath({
+          rootPath: record.rootPath,
+          sourceRelativePath: this.pageRelativePath(record, page),
+          format: record.output.format,
+        })
+      : null;
+    return {
+      item,
+      page,
+      recordId: record.id,
+      rootPath: record.rootPath,
+      output: result
+        ? {
+            ...result,
+            jpegQuality: record.output.jpegQuality,
+            webpQuality: record.output.webpQuality,
+          }
+        : null,
+    };
+  }
+
+  private async renderPreparedItem(
+    prepared: PreparedLinkedSyncItem,
+    generation: number,
+    renderSlot: number,
+  ): Promise<RenderedLinkedSyncItem> {
+    if (!prepared.output) return { ...prepared, content: null };
+    const session = await this.getRenderSession(renderSlot);
+    this.assertGeneration(generation);
+    const content = await session.renderPage(prepared.page, {
+      format: prepared.output.captureFormat,
+      resolutionMode: "original",
+      ...(prepared.output.captureFormat === "jpeg"
+        ? { quality: prepared.output.jpegQuality }
+        : prepared.output.captureFormat === "webp"
+          ? { quality: prepared.output.webpQuality }
+          : {}),
+    });
+    this.assertGeneration(generation);
+    const latest = await this.dependencies.openChapter(prepared.item.chapterId);
+    const latestPage = latest.pages.find(
+      (candidate) => candidate.id === prepared.item.pageId,
+    );
+    if (
+      !latestPage ||
+      createPageVisualRevision(latestPage) !== prepared.item.visualRevision
+    ) {
+      throw new Error("렌더링 중 페이지가 변경되었습니다.");
+    }
+    await writeBinaryFileAtomically(prepared.output.path, content, () =>
+      this.assertGeneration(generation),
+    );
+    return { ...prepared, content };
+  }
+
+  private async commitRenderedItem(
+    rendered: RenderedLinkedSyncItem,
+    generation: number,
+  ): Promise<void> {
+    const { item } = rendered;
+    if (!this.isCurrentQueueItem(item)) return;
+    this.assertGeneration(generation);
+    const record = this.records.get(rendered.recordId);
+    if (!record) throw new Error("연결 정보가 사라졌습니다.");
+    if (
+      normalizeRootKey(record.rootPath) !== normalizeRootKey(rendered.rootPath)
+    ) {
+      throw new DOMException(
+        "Automatic-save destination changed",
+        "AbortError",
       );
-      if (
-        !latestPage ||
-        createPageVisualRevision(latestPage) !== item.visualRevision
-      ) {
-        throw new Error("렌더링 중 페이지가 변경되었습니다.");
-      }
+    }
+    const latest = await this.dependencies.openChapter(item.chapterId);
+    const page = latest.pages.find((candidate) => candidate.id === item.pageId);
+    if (!page) throw new Error("동기화할 페이지를 찾지 못했습니다.");
+    assertExpectedRevision(page, item);
+    if (!this.isCurrentQueueItem(item)) return;
+
+    if (rendered.output && rendered.content) {
       const previousResult = record.artifacts[page.id]?.result;
-      await writeBinaryFileAtomically(result.path, content, () =>
-        this.assertGeneration(generation),
-      );
       record.artifacts[page.id] = {
         ...record.artifacts[page.id],
-        result: artifactFromBuffer(record.rootPath, result.path, content),
+        result: artifactFromBuffer(
+          record.rootPath,
+          rendered.output.path,
+          rendered.content,
+        ),
       };
       record.publishedRevisions[page.id] = item.visualRevision;
       if (
         previousResult &&
         normalizeLinkedRelativePath(previousResult.path).toLowerCase() !==
-          relativePathFromRoot(record.rootPath, result.path).toLowerCase()
+          relativePathFromRoot(
+            record.rootPath,
+            rendered.output.path,
+          ).toLowerCase()
       ) {
         await unlinkIfExists(
           resolvePathInside(record.rootPath, previousResult.path),
@@ -702,12 +837,55 @@ export class LinkedWorkspaceSyncService {
     record.updatedAt = new Date().toISOString();
     this.records.set(record.id, record);
     await this.store.replaceRecord(record);
-    if (!this.hasOtherPendingRootItem(record.rootPath, item)) {
-      const published = await this.writeMirrorForRoot(
-        record.rootPath,
-        generation,
-      );
-      await this.markMirrorSnapshotPublished(published);
+    if (!this.isCurrentQueueItem(item)) return;
+
+    const key = queueKey(item.chapterId, item.pageId);
+    this.queue.delete(key);
+    try {
+      if (!this.hasOtherPendingRootItem(record.rootPath, item)) {
+        const published = await this.writeMirrorForRoot(
+          record.rootPath,
+          generation,
+        );
+        await this.markMirrorSnapshotPublished(published);
+      }
+    } catch (error) {
+      if (!this.queue.has(key)) this.queue.set(key, item);
+      throw error;
+    }
+  }
+
+  private settleItemFailure(
+    item: LinkedSyncQueueItemV1,
+    generation: number,
+    error: unknown,
+  ): void {
+    if (!this.isCurrentQueueItem(item)) return;
+    if (
+      generation !== this.generation ||
+      this.options.jobs.hasActive ||
+      isAbortError(error)
+    ) {
+      item.nextRetryAt = Date.now() + IDLE_DELAY_MS;
+    } else {
+      this.registerFailure(item, error);
+    }
+    this.queue.set(queueKey(item.chapterId, item.pageId), item);
+  }
+
+  private async runSerializedMetadata<T>(
+    operation: () => Promise<T> | T,
+  ): Promise<T> {
+    const previous = this.metadataCommitTail;
+    let release!: () => void;
+    this.metadataCommitTail = new Promise<void>((resolveTail) => {
+      release = resolveTail;
+    });
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
     }
   }
 
@@ -918,34 +1096,64 @@ export class LinkedWorkspaceSyncService {
     this.emitStatuses();
   }
 
-  private async getRenderSession(): Promise<PageExportRenderSession> {
+  private async getRenderSession(
+    renderSlot: number,
+  ): Promise<PageExportRenderSession> {
     if (this.sessionCloseTimer) {
       clearTimeout(this.sessionCloseTimer);
       this.sessionCloseTimer = null;
     }
-    this.renderSession ??=
-      await this.dependencies.createPageExportRenderSession({
-        dataRoot: this.options.dataRoot,
-        decodeFallback: this.options.decodeImage,
-        lowPriority: true,
-      });
-    return this.renderSession;
+    const existing = this.renderSessions[renderSlot];
+    if (existing) return existing;
+    const session = await this.dependencies.createPageExportRenderSession({
+      dataRoot: this.options.dataRoot,
+      decodeFallback: this.options.decodeImage,
+      lowPriority: true,
+    });
+    if (this.disposed) {
+      session.close();
+      throw new DOMException("Automatic-save service disposed", "AbortError");
+    }
+    this.renderSessions[renderSlot] = session;
+    return session;
+  }
+
+  private cancelRenderSessions(message: string): void {
+    if (this.sessionCloseTimer) {
+      clearTimeout(this.sessionCloseTimer);
+      this.sessionCloseTimer = null;
+    }
+    const sessions = this.renderSessions.filter(
+      (session): session is PageExportRenderSession => Boolean(session),
+    );
+    this.renderSessions = [];
+    for (const session of sessions) {
+      try {
+        session.cancel?.();
+      } catch (error) {
+        this.options.reportError(message, error);
+      }
+    }
   }
 
   private scheduleSessionClose(): void {
-    if (!this.renderSession || this.sessionCloseTimer) return;
+    if (this.renderSessions.length === 0 || this.sessionCloseTimer) return;
     this.sessionCloseTimer = setTimeout(() => {
       this.sessionCloseTimer = null;
-      if (this.running || !this.renderSession) return;
-      try {
-        this.renderSession.close();
-      } catch (error) {
-        this.options.reportError(
-          "Failed to close linked workspace renderer",
-          error,
-        );
-      } finally {
-        this.renderSession = null;
+      if (this.running) return;
+      const sessions = this.renderSessions.filter(
+        (session): session is PageExportRenderSession => Boolean(session),
+      );
+      this.renderSessions = [];
+      for (const session of sessions) {
+        try {
+          session.close();
+        } catch (error) {
+          this.options.reportError(
+            "Failed to close linked workspace renderer",
+            error,
+          );
+        }
       }
     }, SESSION_IDLE_CLOSE_MS);
   }

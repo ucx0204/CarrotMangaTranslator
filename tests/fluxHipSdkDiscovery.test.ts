@@ -147,6 +147,24 @@ describe("Windows HIP SDK discovery", () => {
     });
   });
 
+  it("breaks numerically equivalent ROCm version ties by directory name", async () => {
+    const rocmBase = createTempDir("equivalent-versioned-rocm");
+    writeHipRuntime(join(rocmBase, "7.2"), "amdhip64_7.dll");
+    writeHipRuntime(join(rocmBase, "7.2.0"), "amdhip64_7.dll");
+
+    const probe = await discoverWindowsHipSdk({
+      env: { PATH: "" },
+      platform: "win32",
+      standardRoots: [rocmBase],
+    });
+
+    expect(probe.sdk).toMatchObject({
+      source: "standard",
+      rootDir: join(rocmBase, "7.2.0"),
+      version: "7.2.0",
+    });
+  });
+
   it("reports every checked location and incompatible runtime DLL before launch", async () => {
     const invalidRoot = createTempDir("invalid-hip");
     writeHipRuntime(invalidRoot, "amdhip64_8.dll");

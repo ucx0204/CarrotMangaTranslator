@@ -17,6 +17,7 @@ import { AppOperationRegistry } from "../src/main/appOperationRegistry";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import {
   handlePageImageExportError,
+  MAX_PAGE_IMAGE_EXPORT_CONCURRENCY,
   runPageImageExportJob,
 } from "../src/main/jobs/pageImageExportJobRunner";
 import {
@@ -265,11 +266,9 @@ describe("page image export behavior", () => {
     expect(await readdir(join(result.outputDir, "002-Second"))).toEqual([
       "a.png",
     ]);
-    expect(harness.renderPage.mock.calls.map(([page]) => page.id)).toEqual([
-      "page-1",
-      "page-3",
-      "page-4",
-    ]);
+    expect(
+      harness.renderPage.mock.calls.map(([page]) => page.id).sort(),
+    ).toEqual(["page-1", "page-3", "page-4"]);
     expect(harness.renderPage.mock.calls.map(([, capture]) => capture)).toEqual(
       [
         { format: "png", resolutionMode: "original" },
@@ -277,8 +276,8 @@ describe("page image export behavior", () => {
         { format: "png", resolutionMode: "original" },
       ],
     );
-    expect(harness.createSession).toHaveBeenCalledOnce();
-    expect(harness.closeSession).toHaveBeenCalledOnce();
+    expect(harness.createSession).toHaveBeenCalledTimes(3);
+    expect(harness.closeSession).toHaveBeenCalledTimes(3);
     expect(harness.openDirectory).toHaveBeenCalledWith(result.outputDir);
     expect(events.at(0)).toMatchObject({
       status: "starting",
@@ -290,6 +289,193 @@ describe("page image export behavior", () => {
       progressCurrent: 3,
       progressTotal: 3,
     });
+  });
+
+  it("exports at most four pages concurrently", async () => {
+    const outputParentDir = await makeTempDir();
+    const pages = Array.from({ length: 8 }, (_, index) =>
+      makePage(`page-${index + 1}`, `${index + 1}.png`),
+    );
+    const chapter = makeChapter("chapter-1", "One", pages);
+    const gates = new Map(
+      pages.map((page) => [page.id, createDeferred<void>()] as const),
+    );
+    const started: string[] = [];
+    let active = 0;
+    let maxActive = 0;
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter], {
+      renderPage: async (page) => {
+        const gate = gates.get(page.id);
+        if (!gate) throw new Error(`missing render gate: ${page.id}`);
+        started.push(page.id);
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await gate.promise;
+        active -= 1;
+        return fakePng(10, 10);
+      },
+    });
+    const exporting = runPageImageExportJob({
+      context: makeContext(outputParentDir),
+      request: {
+        workId: "work-1",
+        selections: [{ chapterId: chapter.id, mode: "all" }],
+      },
+      outputParentDir,
+      id: "parallel-export",
+      abortController: new AbortController(),
+      emit: vi.fn(),
+      dependencies: harness.dependencies,
+    });
+
+    await vi.waitFor(() => {
+      expect(started).toHaveLength(MAX_PAGE_IMAGE_EXPORT_CONCURRENCY);
+    });
+    expect(active).toBe(MAX_PAGE_IMAGE_EXPORT_CONCURRENCY);
+    expect(maxActive).toBe(MAX_PAGE_IMAGE_EXPORT_CONCURRENCY);
+
+    gates.get("page-1")?.resolve(undefined);
+    await vi.waitFor(() => {
+      expect(started).toHaveLength(MAX_PAGE_IMAGE_EXPORT_CONCURRENCY + 1);
+    });
+    expect(maxActive).toBe(MAX_PAGE_IMAGE_EXPORT_CONCURRENCY);
+
+    for (const gate of gates.values()) gate.resolve(undefined);
+    await expect(exporting).resolves.toMatchObject({
+      status: "completed",
+      pageCount: pages.length,
+    });
+    expect(maxActive).toBe(MAX_PAGE_IMAGE_EXPORT_CONCURRENCY);
+    expect(harness.createSession).toHaveBeenCalledTimes(
+      MAX_PAGE_IMAGE_EXPORT_CONCURRENCY,
+    );
+    expect(harness.closeSession).toHaveBeenCalledTimes(
+      MAX_PAGE_IMAGE_EXPORT_CONCURRENCY,
+    );
+    expect(harness.writePng).toHaveBeenCalledTimes(pages.length);
+  });
+
+  it("stops scheduling new pages after a parallel render fails", async () => {
+    const outputParentDir = await makeTempDir();
+    const pages = Array.from({ length: 6 }, (_, index) =>
+      makePage(`page-${index + 1}`, `${index + 1}.png`),
+    );
+    const chapter = makeChapter("chapter-1", "One", pages);
+    const gates = new Map(
+      pages
+        .slice(1, MAX_PAGE_IMAGE_EXPORT_CONCURRENCY)
+        .map((page) => [page.id, createDeferred<void>()] as const),
+    );
+    const started: string[] = [];
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter], {
+      renderPage: async (page) => {
+        started.push(page.id);
+        if (page.id === "page-1") throw new Error("renderer crashed");
+        const gate = gates.get(page.id);
+        if (!gate) throw new Error(`unexpected render: ${page.id}`);
+        await gate.promise;
+        return fakePng(10, 10);
+      },
+    });
+    harness.closeSession.mockImplementation(() => {
+      throw new Error("session close failed");
+    });
+
+    const exporting = runPageImageExportJob({
+      context: makeContext(outputParentDir),
+      request: {
+        workId: "work-1",
+        selections: [{ chapterId: chapter.id, mode: "all" }],
+      },
+      outputParentDir,
+      id: "failed-parallel-export",
+      abortController: new AbortController(),
+      emit: vi.fn(),
+      dependencies: harness.dependencies,
+    });
+
+    await vi.waitFor(() => {
+      expect(started).toHaveLength(MAX_PAGE_IMAGE_EXPORT_CONCURRENCY);
+    });
+    for (const gate of gates.values()) gate.resolve(undefined);
+
+    await expect(exporting).rejects.toMatchObject({
+      message: expect.stringContaining("함께 실패"),
+      errors: expect.arrayContaining([
+        expect.objectContaining({ message: "renderer crashed" }),
+        expect.objectContaining({ message: "session close failed" }),
+      ]),
+    });
+    expect(started).toHaveLength(MAX_PAGE_IMAGE_EXPORT_CONCURRENCY);
+    expect(started).not.toContain("page-5");
+    expect(started).not.toContain("page-6");
+    expect(harness.closeSession).toHaveBeenCalledTimes(
+      MAX_PAGE_IMAGE_EXPORT_CONCURRENCY,
+    );
+  });
+
+  it("closes sessions that started when another session fails to open", async () => {
+    const outputParentDir = await makeTempDir();
+    const chapter = makeChapter("chapter-1", "One", [
+      makePage("page-1", "1.png"),
+      makePage("page-2", "2.png"),
+    ]);
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter]);
+    harness.createSession.mockRejectedValueOnce(
+      new Error("session startup failed"),
+    );
+    harness.closeSession.mockImplementation(() => {
+      throw new Error("session close failed");
+    });
+
+    await expect(
+      runPageImageExportJob({
+        context: makeContext(outputParentDir),
+        request: {
+          workId: "work-1",
+          selections: [{ chapterId: chapter.id, mode: "all" }],
+        },
+        outputParentDir,
+        id: "session-startup-failure",
+        abortController: new AbortController(),
+        emit: vi.fn(),
+        dependencies: harness.dependencies,
+      }),
+    ).rejects.toThrow("세션 준비와 정리에 실패");
+
+    expect(harness.createSession).toHaveBeenCalledTimes(2);
+    expect(harness.closeSession).toHaveBeenCalledOnce();
+    expect(harness.renderPage).not.toHaveBeenCalled();
+    expect(await readdir(outputParentDir)).toEqual([]);
+  });
+
+  it("removes completed output when its only render session cannot close", async () => {
+    const outputParentDir = await makeTempDir();
+    const chapter = makeChapter("chapter-1", "One", [
+      makePage("page-1", "1.png"),
+    ]);
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter]);
+    harness.closeSession.mockImplementation(() => {
+      throw new Error("session close failed");
+    });
+
+    await expect(
+      runPageImageExportJob({
+        context: makeContext(outputParentDir),
+        request: {
+          workId: "work-1",
+          selections: [{ chapterId: chapter.id, mode: "all" }],
+        },
+        outputParentDir,
+        id: "session-close-failure",
+        abortController: new AbortController(),
+        emit: vi.fn(),
+        dependencies: harness.dependencies,
+      }),
+    ).rejects.toThrow("session close failed");
+
+    expect(harness.writePng).toHaveBeenCalledOnce();
+    expect(await readdir(outputParentDir)).toEqual([]);
   });
 
   it("preserves nested source names and passes WebP quality to the renderer", async () => {
@@ -917,6 +1103,17 @@ async function makeTempDir(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "page-image-export-"));
   tempDirs.push(dir);
   return dir;
+}
+
+function createDeferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+} {
+  let resolvePromise!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+  return { promise, resolve: resolvePromise };
 }
 
 function makeLibrary(

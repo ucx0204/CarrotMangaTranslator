@@ -45,6 +45,8 @@ import { writePagePsdExport } from "./pagePsdExportRunner";
 
 type EmitJobEvent = EmitPageImageExportEvent;
 
+export const MAX_PAGE_IMAGE_EXPORT_CONCURRENCY = 4;
+
 async function assertNoCancelCollisions({
   dependencies,
   outputDir,
@@ -128,7 +130,6 @@ export async function runPageImageExportJob({
     dependencies,
   );
   const { outputDir } = output;
-  let renderSession: PageExportRenderSession | null = null;
   try {
     throwIfAborted(abortController, 0, resolved.pageCount);
     await assertNoCancelCollisions({
@@ -139,18 +140,14 @@ export async function runPageImageExportJob({
       preserveSourceNames: writeOptions.preserveSourceNames,
       resolved,
     });
-    renderSession = await dependencies.renderer.createSession({
-      dataRoot: context.appPaths.dataRoot,
-      decodeFallback: context.decodeImage,
-    });
     throwIfAborted(abortController, 0, resolved.pageCount);
     await writePageImageExportChapters({
       abortController,
+      context,
       dependencies,
       emit,
       id,
       outputDir,
-      renderSession,
       resolved,
       ...writeOptions,
     });
@@ -160,8 +157,6 @@ export async function runPageImageExportJob({
       await removeFailedOutput(outputDir, error, dependencies);
     }
     throw error;
-  } finally {
-    renderSession?.close();
   }
   emitExportCompleted(id, emit, resolved.pageCount, resolved.chapters.length);
 
@@ -242,13 +237,29 @@ function emitCancelledExport({
   });
 }
 
+type PageImageExportWriteSettings = {
+  omitText: boolean;
+  outputFormat: PageImageExportFormat | "psd";
+  jpegQuality: number;
+  webpQuality: number;
+  preserveSourceNames: boolean;
+  collisionPolicy: "replace" | "skip" | "cancel";
+};
+
+type PageImageExportTask = {
+  chapter: ChapterSnapshot;
+  outputDir: string;
+  page: MangaPage;
+  pageIndex: number;
+};
+
 async function writePageImageExportChapters({
   abortController,
+  context,
   dependencies,
   emit,
   id,
   outputDir,
-  renderSession,
   resolved,
   omitText,
   outputFormat,
@@ -258,46 +269,84 @@ async function writePageImageExportChapters({
   collisionPolicy,
 }: {
   abortController: AbortController;
+  context: InpaintingJobContext;
   dependencies: PageImageExportDependencies;
   emit: EmitJobEvent;
   id: string;
   outputDir: string;
-  renderSession: PageExportRenderSession;
   resolved: ResolvedPageImageExport;
-  omitText: boolean;
-  outputFormat: PageImageExportFormat | "psd";
-  jpegQuality: number;
-  webpQuality: number;
+} & PageImageExportWriteSettings): Promise<void> {
+  const tasks = await preparePageImageExportTasks({
+    abortController,
+    dependencies,
+    outputDir,
+    preserveSourceNames,
+    resolved,
+  });
+  const sessions = await createPageImageExportSessions({
+    context,
+    dependencies,
+    sessionCount: Math.min(MAX_PAGE_IMAGE_EXPORT_CONCURRENCY, tasks.length),
+  });
+  let operationFailure: { error: unknown } | null = null;
+  try {
+    await runPageImageExportTasks({
+      abortController,
+      dependencies,
+      emit,
+      id,
+      sessions,
+      tasks,
+      totalPages: resolved.pageCount,
+      writeSettings: {
+        collisionPolicy,
+        jpegQuality,
+        omitText,
+        outputFormat,
+        preserveSourceNames,
+        webpQuality,
+      },
+    });
+  } catch (error) {
+    operationFailure = { error };
+  }
+  const cleanupErrors = closePageImageExportSessions(sessions);
+  throwPageImageExportPoolErrors(operationFailure, cleanupErrors);
+}
+
+async function preparePageImageExportTasks({
+  abortController,
+  dependencies,
+  outputDir,
+  preserveSourceNames,
+  resolved,
+}: {
+  abortController: AbortController;
+  dependencies: PageImageExportDependencies;
+  outputDir: string;
   preserveSourceNames: boolean;
-  collisionPolicy: "replace" | "skip" | "cancel";
-}): Promise<void> {
-  let completedPages = 0;
+  resolved: ResolvedPageImageExport;
+}): Promise<PageImageExportTask[]> {
+  const tasks: PageImageExportTask[] = [];
   for (const entry of resolved.chapters) {
+    throwIfAborted(abortController, 0, resolved.pageCount);
     const chapterDir = resolveManualChapterOutputDir(
       outputDir,
       entry,
       preserveSourceNames,
     );
     await dependencies.runtime.createDirectory(chapterDir, true);
-    completedPages = await writeChapterPages({
-      abortController,
-      chapter: entry.chapter,
-      completedPages,
-      dependencies,
-      emit,
-      id,
-      outputDir: chapterDir,
-      pages: entry.pages,
-      renderSession,
-      totalPages: resolved.pageCount,
-      omitText,
-      outputFormat,
-      jpegQuality,
-      webpQuality,
-      preserveSourceNames,
-      collisionPolicy,
-    });
+    throwIfAborted(abortController, 0, resolved.pageCount);
+    for (const pageEntry of entry.pages) {
+      tasks.push({
+        chapter: entry.chapter,
+        outputDir: chapterDir,
+        page: pageEntry.page,
+        pageIndex: pageEntry.pageIndex,
+      });
+    }
   }
+  return tasks;
 }
 
 function resolveManualChapterOutputDir(
@@ -315,87 +364,152 @@ function resolveManualChapterOutputDir(
   );
 }
 
-async function writeChapterPages({
+async function createPageImageExportSessions({
+  context,
+  dependencies,
+  sessionCount,
+}: {
+  context: InpaintingJobContext;
+  dependencies: PageImageExportDependencies;
+  sessionCount: number;
+}): Promise<PageExportRenderSession[]> {
+  const results = await Promise.allSettled(
+    Array.from({ length: sessionCount }, () =>
+      dependencies.renderer.createSession({
+        dataRoot: context.appPaths.dataRoot,
+        decodeFallback: context.decodeImage,
+      }),
+    ),
+  );
+  const sessions = results.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
+  );
+  const creationErrors = results.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : [],
+  );
+  if (creationErrors.length === 0) return sessions;
+
+  const errors = [...creationErrors, ...closePageImageExportSessions(sessions)];
+  if (errors.length === 1) throw errors[0];
+  throw new AggregateError(
+    errors,
+    "페이지 출력 렌더러 세션 준비와 정리에 실패했습니다.",
+  );
+}
+
+async function runPageImageExportTasks({
   abortController,
-  chapter,
-  completedPages: initialCompletedPages,
   dependencies,
   emit,
   id,
-  outputDir,
-  pages,
-  renderSession,
+  sessions,
+  tasks,
   totalPages,
-  omitText,
-  outputFormat,
-  jpegQuality,
-  webpQuality,
-  preserveSourceNames,
-  collisionPolicy,
+  writeSettings,
 }: {
   abortController: AbortController;
-  chapter: ChapterSnapshot;
-  completedPages: number;
   dependencies: PageImageExportDependencies;
   emit: EmitJobEvent;
   id: string;
-  outputDir: string;
-  pages: ResolvedPageImageExport["chapters"][number]["pages"];
-  renderSession: PageExportRenderSession;
+  sessions: PageExportRenderSession[];
+  tasks: PageImageExportTask[];
   totalPages: number;
-  omitText: boolean;
-  outputFormat: PageImageExportFormat | "psd";
-  jpegQuality: number;
-  webpQuality: number;
-  preserveSourceNames: boolean;
-  collisionPolicy: "replace" | "skip" | "cancel";
-}): Promise<number> {
-  let completedPages = initialCompletedPages;
-  for (const pageEntry of pages) {
-    throwIfAborted(abortController, completedPages, totalPages);
-    emitExportPageProgress({
-      id,
-      emit,
-      page: pageEntry.page,
-      chapter,
-      completedPages,
-      totalPages,
-      step: "running",
-    });
-    await writePageImageExportPage({
-      abortController,
-      completedPages,
-      dependencies,
-      outputDir,
-      page: pageEntry.page,
-      pageIndex: pageEntry.pageIndex,
-      renderSession,
-      totalPages,
-      omitText,
-      outputFormat,
-      jpegQuality,
-      webpQuality,
-      preserveSourceNames,
-      collisionPolicy,
-    });
-    completedPages += 1;
-    emitExportPageProgress({
-      id,
-      emit,
-      page: pageEntry.page,
-      chapter,
-      completedPages,
-      totalPages,
-      step: "done",
-    });
+  writeSettings: PageImageExportWriteSettings;
+}): Promise<void> {
+  let completedPages = 0;
+  let nextTaskIndex = 0;
+  const failures: unknown[] = [];
+
+  async function worker(renderSession: PageExportRenderSession): Promise<void> {
+    while (true) {
+      if (abortController.signal.aborted || failures.length > 0) return;
+      const task = tasks[nextTaskIndex];
+      if (!task) return;
+      nextTaskIndex += 1;
+      try {
+        emitExportPageProgress({
+          id,
+          emit,
+          page: task.page,
+          chapter: task.chapter,
+          completedPages,
+          totalPages,
+          step: "running",
+        });
+        await writePageImageExportPage({
+          abortController,
+          dependencies,
+          getCompletedPages: () => completedPages,
+          outputDir: task.outputDir,
+          page: task.page,
+          pageIndex: task.pageIndex,
+          renderSession,
+          totalPages,
+          ...writeSettings,
+        });
+        completedPages += 1;
+        emitExportPageProgress({
+          id,
+          emit,
+          page: task.page,
+          chapter: task.chapter,
+          completedPages,
+          totalPages,
+          step: "done",
+        });
+      } catch (error) {
+        if (failures.length === 0) failures.push(error);
+        return;
+      }
+    }
   }
-  return completedPages;
+
+  await Promise.all(sessions.map(worker));
+  if (abortController.signal.aborted) {
+    throw new PageImageExportAbortError(completedPages, totalPages);
+  }
+  if (failures.length > 0) throw failures[0];
+}
+
+function closePageImageExportSessions(
+  sessions: PageExportRenderSession[],
+): unknown[] {
+  const errors: unknown[] = [];
+  for (const session of sessions) {
+    try {
+      session.close();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  return errors;
+}
+
+function throwPageImageExportPoolErrors(
+  operationFailure: { error: unknown } | null,
+  cleanupErrors: unknown[],
+): void {
+  if (operationFailure && cleanupErrors.length > 0) {
+    throw new AggregateError(
+      [operationFailure.error, ...cleanupErrors],
+      "페이지 출력과 렌더러 세션 정리에 함께 실패했습니다.",
+      { cause: operationFailure.error },
+    );
+  }
+  if (operationFailure) throw operationFailure.error;
+  if (cleanupErrors.length === 1) throw cleanupErrors[0];
+  if (cleanupErrors.length > 1) {
+    throw new AggregateError(
+      cleanupErrors,
+      "페이지 출력 렌더러 세션 정리에 실패했습니다.",
+    );
+  }
 }
 
 async function writePageImageExportPage({
   abortController,
-  completedPages,
   dependencies,
+  getCompletedPages,
   outputDir,
   page,
   pageIndex,
@@ -409,8 +523,8 @@ async function writePageImageExportPage({
   collisionPolicy,
 }: {
   abortController: AbortController;
-  completedPages: number;
   dependencies: PageImageExportDependencies;
+  getCompletedPages: () => number;
   outputDir: string;
   page: MangaPage;
   pageIndex: number;
@@ -423,6 +537,7 @@ async function writePageImageExportPage({
   preserveSourceNames: boolean;
   collisionPolicy: "replace" | "skip" | "cancel";
 }): Promise<void> {
+  throwIfAborted(abortController, getCompletedPages(), totalPages);
   const outputPath = resolveManualPageOutputPath({
     outputDir,
     outputFormat,
@@ -432,10 +547,11 @@ async function writePageImageExportPage({
   });
   if (await shouldSkipOutput(outputPath, collisionPolicy, dependencies)) return;
   await dependencies.runtime.createDirectory(dirname(outputPath), true);
+  throwIfAborted(abortController, getCompletedPages(), totalPages);
   if (outputFormat === "psd") {
     await writePagePsdExport({
       abortController,
-      completedPages,
+      completedPages: getCompletedPages(),
       dependencies,
       omitText,
       outputPath,
@@ -456,13 +572,12 @@ async function writePageImageExportPage({
     omitText ? { ...page, blocks: [] } : page,
     capture,
   );
-  throwIfAborted(abortController, completedPages, totalPages);
+  throwIfAborted(abortController, getCompletedPages(), totalPages);
   assertManualPageExportResult(content, capture.format, page.name);
   await (dependencies.runtime.writeImage ?? dependencies.runtime.writePng)(
     outputPath,
     content,
   );
-  throwIfAborted(abortController, completedPages + 1, totalPages);
 }
 
 function assertManualPageExportResult(

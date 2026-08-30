@@ -21,6 +21,7 @@ import type {
   BlockLibraryEntryV1,
   BlockLibrarySnapshotV1,
 } from "../src/shared/blockLibrary";
+import { BlockLibraryCard } from "../src/renderer/src/components/BlockLibraryCard";
 import { EditBlockLibraryModal } from "../src/renderer/src/components/EditBlockLibraryModal";
 import type { BlockLibrarySource } from "../src/renderer/src/components/blockLibraryModel";
 import {
@@ -59,6 +60,83 @@ afterAll(() => {
 });
 
 describe("block library editor", () => {
+  it("routes card actions and reflects insert, busy, and missing-font states", () => {
+    const entry = makeEntry();
+    const onDelete = vi.fn();
+    const onEdit = vi.fn();
+    const onInsert = vi.fn();
+    const { container, rerender } = render(
+      <BlockLibraryCard
+        busy={false}
+        canInsert
+        entry={entry}
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        missingFont={false}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onInsert={onInsert}
+      />,
+    );
+
+    const insertButton = screen.getByRole("button", { name: entry.name });
+    expect((insertButton as HTMLButtonElement).disabled).toBe(false);
+    expect(container.querySelector(".page-artwork")).toBeTruthy();
+    expect(screen.queryByText("글꼴 없음 · 대체 글꼴로 미리보기")).toBeNull();
+
+    fireEvent.click(insertButton);
+    fireEvent.click(screen.getByRole("button", { name: "블록 편집" }));
+    fireEvent.click(screen.getByRole("button", { name: "삭제" }));
+    expect(onInsert).toHaveBeenCalledOnce();
+    expect(onEdit).toHaveBeenCalledOnce();
+    expect(onDelete).toHaveBeenCalledOnce();
+
+    rerender(
+      <BlockLibraryCard
+        busy={false}
+        canInsert={false}
+        entry={entry}
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        missingFont
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onInsert={onInsert}
+      />,
+    );
+    expect(
+      (
+        screen.getByRole("button", {
+          name: /쾅.*글꼴 없음 · 대체 글꼴로 미리보기/,
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(screen.getByText("글꼴 없음 · 대체 글꼴로 미리보기")).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "블록 편집" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+
+    rerender(
+      <BlockLibraryCard
+        busy
+        canInsert
+        entry={entry}
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        missingFont={false}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onInsert={onInsert}
+      />,
+    );
+    expect(
+      (screen.getByRole("button", { name: "블록 편집" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "삭제" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
+
   it("reuses the block editor with a live fitted preview and updates the template", async () => {
     const entry = makeEntry();
     const updateBlockLibraryEntry = vi.fn(async (input) => ({
