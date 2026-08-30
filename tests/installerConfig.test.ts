@@ -66,6 +66,8 @@ const electronBuilderConfig: unknown = require("../electron-builder.config.cjs")
 const bundledPythonRuntimeAvailable = existsSync(
   join(repoRoot, "tools", "python"),
 );
+const macTargetConfig =
+  process.platform === "darwin" || process.env.MGT_TARGET_PLATFORM === "darwin";
 describe("Windows installer clean uninstall option", () => {
   it("exposes the intended electron-builder behavior as configuration", () => {
     expect(electronBuilderConfig).toMatchObject({
@@ -156,10 +158,14 @@ describe("Windows installer clean uninstall option", () => {
         electronLanguages: ["en-US", "en-GB", "ko", "ja", "zh-CN", "zh-TW"],
         executableName: WINDOWS_EXECUTABLE_BASENAME,
         extraResources: expect.arrayContaining([
-          {
-            from: "tools/mgt-import-source-runner/mgt-import-source-runner.exe",
-            to: "tools/mgt-import-source-runner/mgt-import-source-runner.exe",
-          },
+          ...(!macTargetConfig
+            ? [
+                {
+                  from: "tools/mgt-import-source-runner/mgt-import-source-runner.exe",
+                  to: "tools/mgt-import-source-runner/mgt-import-source-runner.exe",
+                },
+              ]
+            : []),
           {
             from: "tools/ffmpeg",
             to: "tools/ffmpeg",
