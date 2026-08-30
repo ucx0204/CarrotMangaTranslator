@@ -94,6 +94,7 @@ describe("check direct invocation", () => {
       "deadcode",
       "deadcode-exports",
       "prepare-electron",
+      "prepare-import-source-runner",
       "test-coverage",
       "production-cleanup-coverage",
       "build",
@@ -115,6 +116,14 @@ describe("check direct invocation", () => {
     expect(
       stages.find((stage) => stage.id === "prepare-electron")?.args,
     ).toEqual([expect.stringMatching(/[\\/]electron[\\/]install\.js$/u)]);
+    expect(
+      stages.find((stage) => stage.id === "prepare-import-source-runner")?.args,
+    ).toEqual([
+      expect.stringMatching(
+        /[\\/]scripts[\\/]prepare-import-source-runner\.cjs$/u,
+      ),
+      "--no-copy",
+    ]);
     expect(
       stages.find((stage) => stage.id === "typecheck-electron")?.args,
     ).toEqual([

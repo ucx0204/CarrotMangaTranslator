@@ -104,6 +104,11 @@ function createStages() {
     ),
     nodeStage("prepare-electron", nodeBin("electron", "install.js")),
     nodeStage(
+      "prepare-import-source-runner",
+      join(__dirname, "prepare-import-source-runner.cjs"),
+      "--no-copy",
+    ),
+    nodeStage(
       "test-coverage",
       nodeBin("vitest", "vitest.mjs"),
       "run",
