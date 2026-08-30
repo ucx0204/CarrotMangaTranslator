@@ -18,15 +18,15 @@
 
 Carrot Manga Translator is a manga production tool that finds dialogue and sound effects in images, creates translation blocks with AI, and lets you refine the wording and layout before exporting a finished PNG or layered PSD. The default translation direction is Japanese → Korean, but you can choose other source and target languages.
 
-- Download the stable v2.0.1 release (Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- Current version information: [v2.0.1 release notes](docs/release-notes/v2.0.1.md)
+- Download the stable v2.1.0 release (Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- Current version information: [v2.1.0 release notes](docs/release-notes/v2.1.0.md)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Architecture and quality rules: [docs/architecture.md](docs/architecture.md)
 - Project usage and public references: [docs/reputation.md](docs/reputation.md)
 
 ## At a Glance
 
-- Organize a single image, an image folder, or a ZIP/CBZ file by title and chapter.
+- Organize a single image, an image folder, a ZIP/CBZ or RAR/CBR archive, or a PDF by title and chapter.
 - Translate by combining Paddle OCR with a local `Gemma 4` model, `OpenAI Codex`, or an OpenAI-compatible `API`.
 - Use the app interface in Korean, Japanese, English, Simplified Chinese, or Traditional Chinese.
 - Choose from 48 presets for manga source and target languages, or enter a BCP 47 language code directly.
@@ -42,18 +42,18 @@ Carrot Manga Translator is a manga production tool that finds dialogue and sound
 - Internet connection: Required for installation, the first model download, and Codex/API use. Local models can work offline after setup is complete.
 - Some CPU paths work without a GPU, but OCR, local translation, and Flux inpainting may be much slower.
 
-The stable Apple Silicon build bundles arm64 FFmpeg, a Python runtime for Paddle OCR on the CPU, and Metal executables. Only Gemma, OCR, and inpainting model weights are checksum-verified and downloaded on first use. The v2.0.1 macOS build is ad-hoc signed unless the release workflow is provided with Developer ID and notarization credentials, so Gatekeeper may require manual approval under System Settings → Privacy & Security on first launch. macOS data is stored under `~/Library/Application Support/manga-gemma-translator`.
+The stable Apple Silicon build bundles arm64 FFmpeg, a Python runtime for Paddle OCR on the CPU, and Metal executables. Only Gemma, OCR, and inpainting model weights are checksum-verified and downloaded on first use. The v2.1.0 macOS build is ad-hoc signed unless the release workflow is provided with Developer ID and notarization credentials, so Gatekeeper may require manual approval under System Settings → Privacy & Security on first launch. macOS data is stored under `~/Library/Application Support/manga-gemma-translator`.
 
 ## Quick Start
 
-1. From the [stable v2.0.1 release](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.0.1), download `CarrotMangaTranslator-Setup-v2.0.1.exe` for Windows or the arm64 DMG/ZIP for Apple Silicon. If macOS blocks the first launch, approve the app manually under System Settings → Privacy & Security.
+1. From the [stable v2.1.0 release](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.1.0), download `CarrotMangaTranslator-Setup-v2.1.0.exe` for Windows or the arm64 DMG/ZIP for Apple Silicon. If macOS blocks the first launch, approve the app manually under System Settings → Privacy & Security.
 2. Check the interface language under `Settings → General`. On first launch, the app automatically selects a supported Windows language. If the Windows language is not supported, the app uses Korean.
 3. Under `Settings → Translation Engine`, choose the source language, target language, and engine.
    - To process everything on your PC, choose `Gemma 4`.
    - To sign in with your ChatGPT account through the embedded official Codex App Server, choose `OpenAI Codex`.
    - To use an external server that accepts image input, choose `API`.
 4. Under `Settings → Hardware · OCR`, choose the OCR quality and device. Then go to `Install / Check` and run `Check OCR/Models`. The app automatically prepares the required files the first time.
-5. On the main screen, open `Translate`, select an image, folder, or ZIP/CBZ file, and enter a title and chapter name.
+5. On the main screen, open `Translate`, select images, a folder, a ZIP/CBZ or RAR/CBR archive, or a PDF, and enter a title and chapter name.
 6. Select `Translate` on the chapter card, then choose the page range. `Untranslated only + Auto-create` is a good starting point. Enable `Second pass` if you want stronger contextual consistency.
 7. Review the generated blocks. If needed, use inpainting to remove the original text and touch up the image, then export selected pages as finished PNG files or layered PSD documents.
 
@@ -72,9 +72,10 @@ The stable Apple Silicon build bundles arm64 FFmpeg, a Python runtime for Paddle
 ### Import and Library
 
 - Supported image formats: PNG, JPG, JPEG, WEBP
-- Supported archive formats: ZIP, CBZ
+- Supported archive formats: ZIP, CBZ, RAR, CBR
+- Supported document format: PDF; each page is converted to PNG in order.
 - `Open Image` imports one image. `Open Folder` and `Open Archive` naturally sort multiple images and import them as one chapter.
-- `Batch Translate Title` displays subfolders and ZIP/CBZ files within a folder as possible chapters, then adds only the selected chapters at once.
+- `Batch Translate Title` displays subfolders and ZIP/CBZ/RAR/CBR files within a folder as possible chapters, then adds only the selected chapters at once.
 - Search and sort titles and chapters, rename or delete them, reorder chapters and pages by dragging, and delete individual pages.
 - WEBP files are normalized to PNG when they are added to the library. A single input file must not exceed 256 MB, and a decoded image must not exceed 120 MP.
 

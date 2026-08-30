@@ -809,6 +809,11 @@
   gap: 12px;
 }
 
+.library-panel-header > h2 {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .library-search-shell {
   flex: 1 1 180px;
   min-width: 0;

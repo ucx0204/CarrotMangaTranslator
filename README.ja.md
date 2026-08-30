@@ -18,15 +18,15 @@
 
 キャロット漫画翻訳は、画像からセリフや効果音を検出し、AIで翻訳ブロックを作成したあと、文章や配置を人の手で整えて完成版PNGまたはレイヤーPSDとして書き出せるマンガ制作支援ツールです。標準の翻訳方向は日本語 → 韓国語ですが、ほかの原文言語・翻訳先言語も選べます。
 
-- v2.0.1正式版のダウンロード（Windows EXE・Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 現在のバージョン情報：[v2.0.1 パッチノート](docs/release-notes/v2.0.1.md)
+- v2.1.0正式版のダウンロード（Windows EXE・Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- 現在のバージョン情報：[v2.1.0 パッチノート](docs/release-notes/v2.1.0.md)
 - コントリビューションガイド：[CONTRIBUTING.md](CONTRIBUTING.md)
 - コード構成と品質規則：[docs/architecture.md](docs/architecture.md)
 - プロジェクトの利用状況と公開資料：[docs/reputation.md](docs/reputation.md)
 
 ## 概要
 
-- 1枚の画像、画像フォルダー、ZIP/CBZを作品・話単位で管理できます。
+- 1枚の画像、画像フォルダー、ZIP/CBZ・RAR/CBR、PDFを作品・話単位で管理できます。
 - Paddle OCRとローカルモデルの`Gemma 4`、`OpenAI Codex`、OpenAI互換`API`を組み合わせて翻訳できます。
 - アプリの表示言語は、韓国語、日本語、英語、中国語（簡体字）、中国語（繁体字）に対応しています。
 - マンガの原文言語・翻訳先言語は、48種類のプリセットに加えて、BCP 47言語コードの直接入力にも対応しています。
@@ -42,18 +42,18 @@
 - インターネット接続：インストール、初回のモデルダウンロード、Codex/APIの使用に必要です。ローカルモデルは準備完了後、オフラインで作業できます。
 - GPUがなくても一部の処理はCPUで実行できますが、OCR、ローカル翻訳、Fluxインペインティングは大幅に遅くなる場合があります。
 
-Apple Silicon向け正式版には、arm64版FFmpeg、Paddle OCRをCPUで実行するためのPythonランタイム、Metal実行ランタイムが含まれます。Gemma、OCR、インペインティングのモデルの重みは初回使用時にチェックサムを検証してダウンロードし、2回目以降はキャッシュを再利用します。v2.0.1のmacOS版はDeveloper IDと公証の資格情報が設定されていない場合はad-hoc署名となるため、Gatekeeperに初回起動をブロックされた場合は`システム設定 → プライバシーとセキュリティ`で手動承認が必要になることがあります。macOSのデータは`~/Library/Application Support/manga-gemma-translator`に保存されます。
+Apple Silicon向け正式版には、arm64版FFmpeg、Paddle OCRをCPUで実行するためのPythonランタイム、Metal実行ランタイムが含まれます。Gemma、OCR、インペインティングのモデルの重みは初回使用時にチェックサムを検証してダウンロードし、2回目以降はキャッシュを再利用します。v2.1.0のmacOS版はDeveloper IDと公証の資格情報が設定されていない場合はad-hoc署名となるため、Gatekeeperに初回起動をブロックされた場合は`システム設定 → プライバシーとセキュリティ`で手動承認が必要になることがあります。macOSのデータは`~/Library/Application Support/manga-gemma-translator`に保存されます。
 
 ## クイックスタート
 
-1. [v2.0.1正式リリース](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.0.1)から、Windowsでは`CarrotMangaTranslator-Setup-v2.0.1.exe`、Apple Siliconではarm64版のDMGまたはZIPをダウンロードします。macOSで初回起動がブロックされた場合は、`システム設定 → プライバシーとセキュリティ`でアプリを手動承認します。
+1. [v2.1.0正式リリース](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.1.0)から、Windowsでは`CarrotMangaTranslator-Setup-v2.1.0.exe`、Apple Siliconではarm64版のDMGまたはZIPをダウンロードします。macOSで初回起動がブロックされた場合は、`システム設定 → プライバシーとセキュリティ`でアプリを手動承認します。
 2. `設定 → 一般`でアプリの表示言語を確認します。対応しているWindowsの言語は初回起動時に自動で選択され、それ以外の環境では韓国語が使用されます。
 3. `設定 → 翻訳エンジン`で原文言語、翻訳先言語、翻訳エンジンを選びます。
    - 自分のPC内で処理する場合は`Gemma 4`
    - 内蔵された公式Codex App ServerでChatGPTアカウントを使う場合は`OpenAI Codex`
    - 画像入力に対応した外部サーバーを使う場合は`API`
 4. `設定 → ハードウェア`でOCRの品質とデバイスを選んだあと、`確認/更新`から`OCR/モデルを確認`を実行します。初回は必要なファイルが自動で準備されます。
-5. メイン画面の`翻訳`から画像、フォルダー、またはZIP/CBZを選び、作品名と話名を指定します。
+5. メイン画面の`翻訳`から画像、フォルダー、ZIP/CBZ・RAR/CBR、またはPDFを選び、作品名と話名を指定します。
 6. 話カードの`翻訳`を押してページ範囲を選びます。初めて使う場合は`未翻訳のみ + 自動生成`が扱いやすく、文脈の一貫性をさらに高めたい場合は`2回目の翻訳（品質向上）`を有効にします。
 7. 作成されたブロックを確認します。必要に応じてインペインティングで原文を消去・補正し、選択したページを完成PNGまたはレイヤーPSDとして出力します。
 
@@ -72,9 +72,10 @@ Apple Silicon向け正式版には、arm64版FFmpeg、Paddle OCRをCPUで実行�
 ### 取り込みとライブラリ
 
 - 対応画像：PNG、JPG、JPEG、WEBP
-- 対応アーカイブ：ZIP、CBZ
+- 対応アーカイブ：ZIP、CBZ、RAR、CBR
+- 対応ドキュメント：PDF（各ページを順番にPNGへ変換）
 - `画像を開く`では1枚、`フォルダーを開く`と`圧縮ファイルを開く`では複数の画像を自然順に並べ、1話として取り込みます。
-- `作品を一括翻訳`では、フォルダー内のサブフォルダーとZIP/CBZを複数の話候補として表示し、選択した話だけをまとめて追加できます。
+- `作品を一括翻訳`では、フォルダー内のサブフォルダーとZIP/CBZ・RAR/CBRを複数の話候補として表示し、選択した話だけをまとめて追加できます。
 - 作品と話の検索・並べ替え、名前の変更・削除、ドラッグによる話とページの並べ替え、個別ページの削除に対応しています。
 - WEBPはライブラリへの追加時にPNGへ正規化されます。1つの入力ファイルは256MB以下、デコード後の画像は120MP以下である必要があります。
 

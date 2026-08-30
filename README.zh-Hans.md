@@ -18,15 +18,15 @@
 
 胡萝卜漫画翻译器是一款漫画制作工具：它可以从图片中识别对白与拟声词，用 AI 生成翻译区块，再由用户调整文字和排版，最后导出为完整 PNG 或分层 PSD。默认翻译方向为日语 → 韩语，也可以选择其他原文和译文语言。
 
-- 下载 v2.0.1 正式版（Windows EXE · Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 当前版本说明：[v2.0.1 更新说明](docs/release-notes/v2.0.1.md)
+- 下载 v2.1.0 正式版（Windows EXE · Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- 当前版本说明：[v2.1.0 更新说明](docs/release-notes/v2.1.0.md)
 - 贡献指南：[CONTRIBUTING.md](CONTRIBUTING.md)
 - 代码结构与质量规范：[docs/architecture.md](docs/architecture.md)
 - 项目使用情况与公开资料：[docs/reputation.md](docs/reputation.md)
 
 ## 功能概览
 
-- 可按作品和章节管理单张图片、图片文件夹以及 ZIP/CBZ 文件。
+- 可按作品和章节管理单张图片、图片文件夹、ZIP/CBZ 或 RAR/CBR 压缩文件以及 PDF。
 - 可组合使用 Paddle OCR、`Gemma 4` 本地模型、`OpenAI Codex` 和兼容 OpenAI 的 `API` 进行翻译。
 - 应用界面支持韩语、日语、英语、简体中文和繁体中文。
 - 漫画的原文与译文语言支持 48 种预设，也可直接输入 BCP 47 语言代码。
@@ -42,18 +42,18 @@
 - 网络连接：安装、首次下载模型以及使用 Codex/API 时需要联网。本地模型准备完成后可以离线使用。
 - 即使没有 GPU，也可使用部分 CPU 处理路径，但 OCR、本地翻译和 Flux 图像修复可能会非常慢。
 
-Apple Silicon 正式版内置 arm64 FFmpeg、用于在 CPU 上运行 Paddle OCR 的 Python 环境以及 Metal 运行环境。Gemma、OCR 和图像修复模型权重会在首次使用时通过校验和检查后下载，以后会直接复用缓存。如果 v2.0.1 发布流程未配置 Developer ID 与公证凭据，macOS 版本会采用 ad-hoc 签名，因此 Gatekeeper 阻止首次启动时可能需要前往 `系统设置 → 隐私与安全性` 手动批准。macOS 数据保存在 `~/Library/Application Support/manga-gemma-translator`。
+Apple Silicon 正式版内置 arm64 FFmpeg、用于在 CPU 上运行 Paddle OCR 的 Python 环境以及 Metal 运行环境。Gemma、OCR 和图像修复模型权重会在首次使用时通过校验和检查后下载，以后会直接复用缓存。如果 v2.1.0 发布流程未配置 Developer ID 与公证凭据，macOS 版本会采用 ad-hoc 签名，因此 Gatekeeper 阻止首次启动时可能需要前往 `系统设置 → 隐私与安全性` 手动批准。macOS 数据保存在 `~/Library/Application Support/manga-gemma-translator`。
 
 ## 快速开始
 
-1. 前往 [v2.0.1 正式版](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.0.1)，Windows 用户下载 `CarrotMangaTranslator-Setup-v2.0.1.exe`，Apple Silicon 用户下载 arm64 DMG 或 ZIP。如果 macOS 阻止首次启动，请前往 `系统设置 → 隐私与安全性` 手动批准该应用。
+1. 前往 [v2.1.0 正式版](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.1.0)，Windows 用户下载 `CarrotMangaTranslator-Setup-v2.1.0.exe`，Apple Silicon 用户下载 arm64 DMG 或 ZIP。如果 macOS 阻止首次启动，请前往 `系统设置 → 隐私与安全性` 手动批准该应用。
 2. 在 `设置 → 常规` 中确认应用界面语言。首次启动时会自动选择受支持的 Windows 语言，其他语言环境则默认使用韩语。
 3. 在 `设置 → 翻译引擎` 中选择原文语言、译文语言和翻译引擎。
    - 希望在本机处理时，选择 `Gemma 4`
    - 希望通过内置的官方 Codex App Server 使用 ChatGPT 账号时，选择 `OpenAI Codex`
    - 希望连接支持图片输入的外部服务器时，选择 `API`
 4. 在 `设置 → 硬件 · OCR` 中选择 OCR 质量和设备，然后前往 `安装 / 检查` 执行 `检查 OCR/模型`。首次使用时，应用会自动准备所需文件。
-5. 在主界面的 `翻译` 中选择图片、文件夹或 ZIP/CBZ，并设置作品名和章节名。
+5. 在主界面的 `翻译` 中选择图片、文件夹、ZIP/CBZ 或 RAR/CBR 压缩文件、PDF，并设置作品名和章节名。
 6. 点击章节卡片上的 `翻译`，选择页面范围。首次使用时建议选择 `仅未翻译 + 自动生成`；如果更重视上下文一致性，可以启用 `二次翻译`。
 7. 检查生成的区块。如有需要，可在图像修复中清除原文并进行修正，然后将所选页面导出为完整 PNG 或分层 PSD。
 
@@ -72,9 +72,10 @@ Apple Silicon 正式版内置 arm64 FFmpeg、用于在 CPU 上运行 Paddle OCR 
 ### 导入与作品库
 
 - 支持的图片格式：PNG、JPG、JPEG、WEBP
-- 支持的压缩文件：ZIP、CBZ
+- 支持的压缩文件：ZIP、CBZ、RAR、CBR
+- 支持的文档：PDF（按顺序将每一页转换为 PNG）
 - `打开图片` 可导入一张图片；`打开文件夹` 和 `打开压缩文件` 会将多张图片按自然顺序排序，并作为一个章节导入。
-- `批量翻译作品` 会把文件夹内的子文件夹和 ZIP/CBZ 显示为多个候选章节，并一次性添加选中的章节。
+- `批量翻译作品` 会把文件夹内的子文件夹和 ZIP/CBZ/RAR/CBR 显示为多个候选章节，并一次性添加选中的章节。
 - 支持搜索和排序作品与章节、重命名和删除、拖放调整章节与页面顺序，以及删除单个页面。
 - WEBP 在加入作品库时会转换为 PNG。单个输入文件不得超过 256 MB，解码后的图片不得超过 120 MP。
 
