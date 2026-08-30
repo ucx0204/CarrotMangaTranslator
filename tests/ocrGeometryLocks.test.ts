@@ -77,6 +77,35 @@ describe("OCR candidate geometry locks", () => {
     expect(result[0]?.bbox).toEqual(originalBbox);
   });
 
+  it("strips model-authored source line geometry when no OCR hints exist", () => {
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 1,
+          type: "nonsolid",
+          bbox: { x: 100, y: 100, w: 100, h: 100 },
+          jp: "原文",
+          ko: "번역",
+          sourceFontLineGeometry: {
+            contractVersion: "source-font-line-geometry-v1",
+            source: "ocr-geometry-lock",
+            lines: [
+              {
+                candidateId: 99,
+                bbox: { x: 0, y: 0, w: 1000, h: 1000 },
+                sourceText: "偽造",
+              },
+            ],
+          },
+        },
+      ],
+      page,
+      [],
+    );
+
+    expect(result[0]?.sourceFontLineGeometry).toBeUndefined();
+  });
+
   it("preserves a bbox that merges same-container OCR candidates", () => {
     const mergedBbox = { x: 100, y: 100, w: 102, h: 180 };
     const result = applyOcrCandidateGeometryLocks(
@@ -460,6 +489,392 @@ describe("OCR candidate geometry locks", () => {
     expect(result[0]?.bbox.y).toBeGreaterThanOrEqual(87);
     expect(result[0]?.bbox.w).toBeLessThan(100);
     expect(result[0]?.bbox.h).toBeLessThan(60);
+  });
+
+  it("restores a real four-line vertical model envelope split across reviewed OCR groups", () => {
+    const sourcePage = { ...page, width: 844, height: 1200 };
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 1,
+          type: "nonsolid",
+          bbox: pixelsToNormalizedBbox(
+            { x: 650, y: 750, w: 112, h: 215 },
+            sourcePage,
+          ),
+          jp: "じつはね クッキーを 焼いてみたんだけど 食べてくれるかな？",
+          ko: "실은 말이야, 쿠키를 구워 봤는데 먹어 줄래?",
+          direction: "vertical",
+          fontSize: 27,
+        },
+      ],
+      sourcePage,
+      [
+        {
+          id: 1,
+          x1: 731,
+          y1: 750,
+          x2: 762,
+          y2: 830,
+          ocrText: "じつはね",
+          groupId: "G001",
+          containerType: "same_text_container",
+        },
+        {
+          id: 4,
+          x1: 697,
+          y1: 801,
+          x2: 721,
+          y2: 898,
+          ocrText: "クッキーを",
+          groupId: "G002",
+          containerType: "same_text_container",
+        },
+        {
+          id: 3,
+          x1: 673,
+          y1: 798,
+          x2: 701,
+          y2: 965,
+          ocrText: "焼いてみたんだけど",
+          groupId: "G002",
+          containerType: "same_text_container",
+        },
+        {
+          id: 2,
+          x1: 650,
+          y1: 797,
+          x2: 679,
+          y2: 965,
+          ocrText: "食べてくれるかな？",
+          groupId: "G002",
+          containerType: "same_text_container",
+        },
+      ],
+    );
+
+    const pixels = normalizedToPixelBbox(result[0]?.bbox, sourcePage);
+    expect(pixels.x).toBeCloseTo(645, 5);
+    expect(pixels.y).toBeCloseTo(745, 5);
+    expect(pixels.x + pixels.w).toBeCloseTo(767, 5);
+    expect(pixels.y + pixels.h).toBeCloseTo(970, 5);
+    expect(
+      result[0]?.sourceFontLineGeometry?.lines
+        .map((line) => line.candidateId)
+        .sort((left, right) => left - right),
+    ).toEqual([1, 2, 3, 4]);
+  });
+
+  it("restores a real detached leading glyph with its three model-envelope lines", () => {
+    const sourcePage = { ...page, width: 844, height: 1200 };
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 4,
+          type: "nonsolid",
+          bbox: pixelsToNormalizedBbox(
+            { x: 119, y: 170, w: 99, h: 140 },
+            sourcePage,
+          ),
+          jp: "皆 お兄様みたいに できない僕は ダメだって…",
+          ko: "다들 형님처럼 해내지 못하는 나는 글렀다고…",
+          direction: "vertical",
+          fontSize: 24,
+        },
+      ],
+      sourcePage,
+      [
+        { id: 4, x1: 190, y1: 170, x2: 218, y2: 202, ocrText: "皆" },
+        {
+          id: 6,
+          x1: 167,
+          y1: 171,
+          x2: 193,
+          y2: 310,
+          ocrText: "お兄様みたいに",
+          groupId: "G002",
+          containerType: "same_text_container",
+        },
+        {
+          id: 5,
+          x1: 142,
+          y1: 171,
+          x2: 171,
+          y2: 294,
+          ocrText: "できない僕は",
+          groupId: "G002",
+          containerType: "same_text_container",
+        },
+        {
+          id: 3,
+          x1: 119,
+          y1: 170,
+          x2: 146,
+          y2: 294,
+          ocrText: "ダメだって…",
+          groupId: "G002",
+          containerType: "same_text_container",
+        },
+      ],
+    );
+
+    const pixels = normalizedToPixelBbox(result[0]?.bbox, sourcePage);
+    expect(pixels.x).toBeCloseTo(114, 5);
+    expect(pixels.y).toBeCloseTo(165, 5);
+    expect(pixels.x + pixels.w).toBeCloseTo(223, 5);
+    expect(pixels.y + pixels.h).toBeCloseTo(315, 5);
+  });
+
+  it("restores a real detached prefix with the remaining vertical source lines", () => {
+    const sourcePage = { ...page, width: 844, height: 1200 };
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 13,
+          type: "nonsolid",
+          bbox: pixelsToNormalizedBbox(
+            { x: 95, y: 787, w: 94, h: 186 },
+            sourcePage,
+          ),
+          jp: "…いや 今でいい とりあえず 話は外で聞こう",
+          ko: "…아니, 지금이면 돼. 일단 이야기는 밖에서 듣자.",
+          direction: "vertical",
+          fontSize: 22,
+        },
+      ],
+      sourcePage,
+      [
+        { id: 13, x1: 165, y1: 787, x2: 189, y2: 850, ocrText: "…いや" },
+        {
+          id: 14,
+          x1: 140,
+          y1: 788,
+          x2: 168,
+          y2: 865,
+          ocrText: "今でいい",
+          groupId: "G008",
+          containerType: "same_text_container",
+        },
+        { id: 17, x1: 121, y1: 843, x2: 142, y2: 973, ocrText: "とりあえず" },
+        {
+          id: 16,
+          x1: 95,
+          y1: 842,
+          x2: 121,
+          y2: 973,
+          ocrText: "話は外で聞こう",
+        },
+      ],
+    );
+
+    const pixels = normalizedToPixelBbox(result[0]?.bbox, sourcePage);
+    expect(pixels.x).toBeCloseTo(91, 5);
+    expect(pixels.y).toBeCloseTo(783, 5);
+    expect(pixels.x + pixels.w).toBeCloseTo(193, 5);
+    expect(pixels.y + pixels.h).toBeCloseTo(977, 5);
+  });
+
+  it("keeps genuinely tiny repeated text local instead of absorbing a distant match", () => {
+    const sourcePage = { ...page, width: 844, height: 1200 };
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 14,
+          type: "nonsolid",
+          bbox: pixelsToNormalizedBbox(
+            { x: 36, y: 1101, w: 19, h: 83 },
+            sourcePage,
+          ),
+          jp: "ごめんなさい…",
+          ko: "미안해요…",
+          direction: "vertical",
+          fontSize: 14,
+        },
+      ],
+      sourcePage,
+      [
+        {
+          id: 12,
+          x1: 645,
+          y1: 1034,
+          x2: 669,
+          y2: 1151,
+          ocrText: "ごめんなさい…",
+        },
+        {
+          id: 13,
+          x1: 667,
+          y1: 1036,
+          x2: 689,
+          y2: 1150,
+          ocrText: "ごめんなさい…",
+        },
+        {
+          id: 14,
+          x1: 36,
+          y1: 1101,
+          x2: 55,
+          y2: 1184,
+          ocrText: "ごめんなさい…",
+        },
+      ],
+    );
+
+    const pixels = normalizedToPixelBbox(result[0]?.bbox, sourcePage);
+    expect(pixels).toEqual({ x: 36, y: 1101, w: 19, h: 83 });
+  });
+
+  it("does not bridge a mismatched representative id to a distant matching line", () => {
+    const sourcePage = { ...page, width: 844, height: 1200 };
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 4,
+          type: "nonsolid",
+          bbox: pixelsToNormalizedBbox(
+            { x: 736.56, y: 992.256, w: 62.64, h: 188.928 },
+            sourcePage,
+          ),
+          jp: "ぐあっ！",
+          ko: "크악!",
+          direction: "vertical",
+          fontSize: 72,
+        },
+      ],
+      sourcePage,
+      [
+        {
+          id: 4,
+          x1: 756,
+          y1: 529,
+          x2: 840,
+          y2: 912,
+          ocrText: "聖位障壁！",
+        },
+        {
+          id: 5,
+          x1: 737,
+          y1: 992,
+          x2: 799,
+          y2: 1181,
+          ocrText: "ぐあっ！",
+        },
+      ],
+    );
+
+    const pixels = normalizedToPixelBbox(result[0]?.bbox, sourcePage);
+    expect(pixels.x).toBeCloseTo(756, 5);
+    expect(pixels.y).toBeCloseTo(529, 5);
+    expect(pixels.w).toBeCloseTo(84, 5);
+    expect(pixels.h).toBeCloseTo(383, 5);
+  });
+
+  it("exposes only the base line and excludes ruby source-size voters", () => {
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 27,
+          type: "nonsolid",
+          bbox: { x: 100, y: 100, w: 220, h: 90 },
+          jp: "れん 紅蓮の迷宮 めい きゅ ぐ",
+          ko: "홍련의 미궁",
+          direction: "horizontal",
+          fontSize: 40,
+        },
+      ],
+      page,
+      [
+        {
+          id: 27,
+          x1: 100,
+          y1: 130,
+          x2: 320,
+          y2: 175,
+          ocrText: "紅蓮の迷宮",
+          groupId: "G006",
+          containerType: "same_text_container",
+        },
+        {
+          id: 23,
+          x1: 120,
+          y1: 105,
+          x2: 155,
+          y2: 122,
+          ocrText: "れん",
+          groupId: "G006",
+          containerType: "same_text_container",
+        },
+        {
+          id: 25,
+          x1: 175,
+          y1: 105,
+          x2: 210,
+          y2: 122,
+          ocrText: "めい",
+          groupId: "G006",
+          containerType: "same_text_container",
+        },
+        {
+          id: 26,
+          x1: 225,
+          y1: 105,
+          x2: 260,
+          y2: 122,
+          ocrText: "きゅ",
+          groupId: "G006",
+          containerType: "same_text_container",
+        },
+        {
+          id: 24,
+          x1: 275,
+          y1: 105,
+          x2: 295,
+          y2: 122,
+          ocrText: "ぐ",
+          groupId: "G006",
+          containerType: "same_text_container",
+        },
+      ],
+    );
+
+    expect(
+      result[0]?.sourceFontLineGeometry?.lines.map((line) => line.candidateId),
+    ).toEqual([27]);
+  });
+
+  it("keeps a local OCR line voter across one CJK recognition substitution", () => {
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 10,
+          type: "nonsolid",
+          bbox: { x: 264, y: 438, w: 81, h: 37 },
+          jp: "経験値 3815",
+          ko: "경험치 3815",
+          direction: "horizontal",
+          fontSize: 21,
+        },
+      ],
+      page,
+      [
+        {
+          id: 10,
+          x1: 264,
+          y1: 438,
+          x2: 345,
+          y2: 475,
+          ocrText: "経験值",
+        },
+      ],
+    );
+
+    expect(result[0]?.sourceFontLineGeometry?.lines).toEqual([
+      {
+        candidateId: 10,
+        bbox: { x: 264, y: 438, w: 81, h: 37 },
+        sourceText: "経験值",
+      },
+    ]);
   });
 
   it("rejects an unknown v10 candidate id", () => {

@@ -601,8 +601,23 @@ describe("whole-page Font Matching pixel inference", () => {
       ...makeItem(),
       direction: "horizontal" as const,
       sourceCandidateMembership: sourceMembership([1], "B001"),
+      sourceFontLineGeometry: {
+        contractVersion: "source-font-line-geometry-v1" as const,
+        source: "ocr-geometry-lock" as const,
+        lines: [
+          {
+            candidateId: 1,
+            bbox: { x: 10, y: 10, w: 20, h: 80 },
+            sourceText: "原文",
+          },
+        ],
+      },
     };
-    const { sourceCandidateMembership: _membership, ...workerItem } = item;
+    const {
+      sourceCandidateMembership: _membership,
+      sourceFontLineGeometry: _lineGeometry,
+      ...workerItem
+    } = item;
     const pageOptions = makeOptions(makeCandidates());
     pageOptions.ocrBboxHints = [
       { id: item.id, x1: 10, y1: 10, x2: 30, y2: 90 },

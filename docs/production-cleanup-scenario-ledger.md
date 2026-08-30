@@ -128,12 +128,17 @@ editing the totals by hand.
   The page-processing timing checkpoint pass extended the accepted Node 26
   artifact to SHA-256
   `5c82e155cf67e81761352cfa7198f841200317d92dd8de660d5ada11ef26a87c`.
+  The source-size OCR line-geometry worktree capture extended it to SHA-256
+  `be84d4bcf1d371c58664e016ecc2cd950429771c0961d883f754e6d6a22c238d`.
+  After cherry-picking that work onto the v2.1.0 main branch, the final Windows
+  integration capture extended the accepted Node 26 artifact to SHA-256
+  `65e5ea2b7fba04ef0f9bdb29a59387ecca599ef2db6fe90831f720a2630bfe2b`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 560 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 202 new
+  percentage for lines/statements/functions/branches in all 573 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 227 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
-  seven removed source files are recorded explicitly in `deletedFiles`.
+  nine removed source files are recorded explicitly in `deletedFiles`.
 - `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,
   added, deleted, and untracked source scope from Git on every run. A missing or
   stale manifest entry, unrecorded deletion, unsupported source status, missing
@@ -171,6 +176,17 @@ editing the totals by hand.
   tests passed and the two expected platform-specific tests were skipped.
   Aggregate V8 coverage was 80.98% lines, 79.72% statements, 82.30% functions,
   and 72.38% branches.
+- The source-size OCR line-geometry capture passed 579 Vitest files with one
+  file skipped: 4,522 tests passed and ten platform- or fixture-specific tests
+  were skipped. Aggregate V8 coverage was 81.02% lines, 79.77% statements,
+  82.35% functions, and 72.41% branches.
+- The final v2.1.0-main integration capture passed all 590 Vitest files: 4,617
+  tests passed and two platform-specific tests were skipped. Aggregate V8
+  coverage was 81.29% lines, 80.02% statements, 82.72% functions, and 72.75%
+  branches. The complete `npm run check` also passed the 573 existing / 227
+  introduced / 9 deleted exact-floor gate, production build, page-artwork
+  pixel parity with zero mismatched pixels and zero channel delta, long-path
+  image-protocol smoke, and both bundle guards in 349.33 seconds.
 
 ## Fail-closed obligations
 

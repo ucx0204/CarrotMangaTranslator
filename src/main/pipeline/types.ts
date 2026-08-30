@@ -149,6 +149,8 @@ export type OverlayItem = {
   candidateIds?: number[];
   /** Code-owned membership; the general model-output parser never supplies it. */
   sourceCandidateMembership?: FontMatchingOcrCandidateMembershipV2;
+  /** Code-owned OCR line crops for source-face measurement; model values are stripped. */
+  sourceFontLineGeometry?: SourceFontLineGeometryV1;
   type: string;
   textRole?: "sound" | "ordinary" | "nontext" | string;
   /** Fine-grained visual role used only by Font Matching V2. */
@@ -171,6 +173,16 @@ export type OverlayItem = {
   fontSize?: number | null;
   confidence?: number | null;
 };
+
+type SourceFontLineGeometryV1 = Readonly<{
+  contractVersion: "source-font-line-geometry-v1";
+  source: "ocr-geometry-lock";
+  lines: readonly Readonly<{
+    candidateId: number;
+    bbox: BBox;
+    sourceText: string;
+  }>[];
+}>;
 
 export type FontMatchingOcrCandidateMembershipV2 = Readonly<{
   contractVersion: "font-matching-ocr-candidate-membership-v2";

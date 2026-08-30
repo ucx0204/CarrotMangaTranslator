@@ -7,36 +7,37 @@ import {
   inferPhysicalLineCount,
   isPlausibleMergedModelExtent,
 } from "./overlayOcrGeometryMath";
+import {
+  attachSourceFontLineGeometry,
+  hintBelongsToModelEnvelope,
+  resolveModelEnvelopeTextHints,
+  sourceContainsHintText,
+  stripSourceFontLineGeometry,
+  type OcrGeometryLockHint,
+} from "./overlayOcrSourceLineGeometry";
 
 type BBox = { x: number; y: number; w: number; h: number };
 type PageSize = { width: number; height: number };
-
-type OcrGeometryLockHint = {
-  id: number;
-  bbox: BBox;
-  ocrText?: string;
-  groupId?: string;
-  containerType?: string;
-};
 
 export function applyOcrCandidateGeometryLocks(
   items: OverlayItem[],
   page: PageSize,
   hints: NonNullable<RequestSummary["ocrBboxHints"]>,
 ): OverlayItem[] {
+  const cleanItems = items.map(stripSourceFontLineGeometry);
   if (hints.length === 0) {
-    return items;
+    return cleanItems;
   }
 
   const hintMap = buildOcrGeometryLockHintMap(hints, page);
   if (hintMap.size === 0) {
-    return items;
+    return cleanItems;
   }
 
   const claimedCandidateIds = new Set(
-    items.flatMap((item) => [item.id, ...(item.candidateIds ?? [])]),
+    cleanItems.flatMap((item) => [item.id, ...(item.candidateIds ?? [])]),
   );
-  return items.map((item) => {
+  return cleanItems.map((item) => {
     const membershipLocked = lockCandidateMembershipGeometry(
       item,
       hintMap,
@@ -65,13 +66,16 @@ export function applyOcrCandidateGeometryLocks(
       sourceLineCount(item),
     );
     if (mergedHints.length > 1 || physicalLineCount > 1) {
-      return {
-        ...item,
-        bbox: buildMergedGlyphBbox(item, mergedHints, page),
-      };
+      return attachSourceFontLineGeometry(
+        {
+          ...item,
+          bbox: buildMergedGlyphBbox(item, mergedHints, page),
+        },
+        mergedHints,
+      );
     }
     return {
-      ...item,
+      ...attachSourceFontLineGeometry(item, [lockedHint]),
       bbox: lockedHint.bbox,
     };
   });
@@ -111,11 +115,17 @@ function lockCandidateMembershipGeometry(
       sourceLineCount(item),
     );
     if (physicalLineCount === 1) {
-      return { ...item, bbox: memberHint.bbox };
+      return {
+        ...attachSourceFontLineGeometry(item, [memberHint]),
+        bbox: memberHint.bbox,
+      };
     }
   }
   return {
-    ...item,
+    ...attachSourceFontLineGeometry(
+      item,
+      memberHints.map((hint) => hint as OcrGeometryLockHint),
+    ),
     bbox: buildMergedGlyphBbox(
       item,
       memberHints.map((hint) => hint as OcrGeometryLockHint),
@@ -169,6 +179,16 @@ function resolveMergedOcrHints(
   itemIds: Set<number>,
   page: PageSize,
 ): OcrGeometryLockHint[] {
+  const envelopeMembers = resolveModelEnvelopeTextHints(
+    item,
+    lockedHint,
+    hintMap,
+    itemIds,
+    page,
+  );
+  if (envelopeMembers.length > 1) {
+    return envelopeMembers;
+  }
   const grouped = resolveSameContainerOcrHints(item, lockedHint, hintMap);
   if (grouped.length > 1) {
     return grouped;
@@ -297,39 +317,6 @@ function sourceLineCount(item: OverlayItem): number {
     1,
     sourceText.split(/\r?\n/).filter((line) => line.trim().length > 0).length,
   );
-}
-
-function sourceContainsHintText(
-  item: OverlayItem,
-  hint: OcrGeometryLockHint,
-): boolean {
-  const source = normalizeGlyphText(item.sourceText ?? item.jp);
-  const candidate = normalizeGlyphText(hint.ocrText);
-  return candidate.length > 0 && source.includes(candidate);
-}
-
-function normalizeGlyphText(value: unknown): string {
-  return String(value ?? "")
-    .normalize("NFKC")
-    .replace(/[^\p{L}\p{N}]+/gu, "")
-    .toLowerCase();
-}
-
-function hintBelongsToModelEnvelope(
-  item: OverlayItem,
-  hint: OcrGeometryLockHint,
-  page: PageSize,
-): boolean {
-  const fontSizePx =
-    Number.isFinite(Number(item.fontSize)) && Number(item.fontSize) > 0
-      ? Number(item.fontSize)
-      : 12;
-  const envelope = expandNormalizedBbox(
-    item.bbox,
-    ((fontSizePx * 0.5) / Math.max(1, page.width)) * 1000,
-    ((fontSizePx * 0.5) / Math.max(1, page.height)) * 1000,
-  );
-  return bboxContainmentRatio(hint.bbox, envelope) >= 0.72;
 }
 
 function areCompatibleLineHints(

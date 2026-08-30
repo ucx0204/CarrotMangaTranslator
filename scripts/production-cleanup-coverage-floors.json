@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "999f9df04b6ec7edc1d4ea8746fe19e618d91026c47c6962791964f01557425f",
+    "introducedArtifactSha256": "65e5ea2b7fba04ef0f9bdb29a59387ecca599ef2db6fe90831f720a2630bfe2b",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -2525,23 +2525,23 @@
     },
     "src/main/pipeline/automaticFontMatchingV2PageStage.ts": {
       "lines": {
-        "covered": 30,
-        "total": 31,
-        "pct": 96.77
+        "covered": 32,
+        "total": 33,
+        "pct": 96.96
       },
       "statements": {
-        "covered": 31,
-        "total": 34,
-        "pct": 91.17
+        "covered": 33,
+        "total": 36,
+        "pct": 91.66
       },
       "functions": {
-        "covered": 6,
-        "total": 7,
-        "pct": 85.71
+        "covered": 7,
+        "total": 8,
+        "pct": 87.5
       },
       "branches": {
-        "covered": 15,
-        "total": 18,
+        "covered": 20,
+        "total": 24,
         "pct": 83.33
       }
     },
@@ -2895,6 +2895,28 @@
         "covered": 75,
         "total": 88,
         "pct": 85.22
+      }
+    },
+    "src/main/pipeline/overlayOcrGeometryLocks.ts": {
+      "lines": {
+        "covered": 123,
+        "total": 127,
+        "pct": 96.85
+      },
+      "statements": {
+        "covered": 131,
+        "total": 136,
+        "pct": 96.32
+      },
+      "functions": {
+        "covered": 31,
+        "total": 31,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 93,
+        "total": 109,
+        "pct": 85.32
       }
     },
     "src/main/pipeline/pageContextPersistence.ts": {
@@ -13397,6 +13419,28 @@
         "pct": 100
       }
     },
+    "src/main/pipeline/overlayOcrSourceLineGeometry.ts": {
+      "lines": {
+        "total": 108,
+        "covered": 106,
+        "pct": 98.14
+      },
+      "statements": {
+        "total": 133,
+        "covered": 129,
+        "pct": 96.99
+      },
+      "functions": {
+        "total": 31,
+        "covered": 31,
+        "pct": 100
+      },
+      "branches": {
+        "total": 92,
+        "covered": 78,
+        "pct": 84.78
+      }
+    },
     "src/main/pipeline/pageProcessingTiming.ts": {
       "lines": {
         "total": 40,
@@ -13465,24 +13509,24 @@
     },
     "src/main/pipeline/sourceFontSizeEstimator.ts": {
       "lines": {
-        "total": 30,
-        "covered": 20,
-        "pct": 66.66
+        "total": 69,
+        "covered": 59,
+        "pct": 85.5
       },
       "statements": {
-        "total": 36,
-        "covered": 22,
-        "pct": 61.11
+        "total": 86,
+        "covered": 69,
+        "pct": 80.23
       },
       "functions": {
-        "total": 7,
-        "covered": 5,
-        "pct": 71.42
+        "total": 20,
+        "covered": 18,
+        "pct": 90
       },
       "branches": {
-        "total": 34,
-        "covered": 21,
-        "pct": 61.76
+        "total": 80,
+        "covered": 56,
+        "pct": 70
       }
     },
     "src/main/pipeline/sourceFontSizeGeometry.ts": {

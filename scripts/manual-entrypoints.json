@@ -37,6 +37,41 @@
       "replacement": "No replacement; this is an intentionally retained source-font-size visual QA harness."
     },
     {
+      "path": "scripts/research_source_font_size_v3_geometry_audit.cjs",
+      "status": "manual-debug",
+      "purpose": "Replay stored library OCR/model records and audit geometry recovery plus source-line evidence without mutating the library.",
+      "usage": "node scripts/research_source_font_size_v3_geometry_audit.cjs --library <library-root> --output <geometry-audit.json>",
+      "replacement": "No replacement; this is an intentionally retained read-only v3 audit."
+    },
+    {
+      "path": "scripts/research_source_font_size_v3_production_smoke.cjs",
+      "status": "manual-debug",
+      "purpose": "Run the production raster estimator over the v3 geometry audit and compare persisted, merged, and per-line measurements.",
+      "usage": "electron scripts/research_source_font_size_v3_production_smoke.cjs --audit <geometry-audit.json> --output <production-smoke.json> --scope <expanded|line|all>",
+      "replacement": "No replacement; this is an intentionally retained production-estimator replay."
+    },
+    {
+      "path": "scripts/research_source_font_size_v3_render_cases.cjs",
+      "status": "manual-debug",
+      "purpose": "Build isolated baseline/candidate page snapshots for visually attributed v3 inpainted A/B rendering.",
+      "usage": "Optionally set MGT_SOURCE_SIZE_V3_AUDIT, MGT_SOURCE_SIZE_V3_SMOKE, and MGT_SOURCE_SIZE_V3_RENDER_CASES, then run node scripts/research_source_font_size_v3_render_cases.cjs.",
+      "replacement": "No replacement; this is an intentionally retained targeted v3 render-input builder."
+    },
+    {
+      "path": "scripts/research_source_font_size_v3_tachidesk_full_smoke.cjs",
+      "status": "manual-debug",
+      "purpose": "Run representative Tachidesk body pages through the full Gemma translation and source-size page pipeline.",
+      "usage": "electron scripts/research_source_font_size_v3_tachidesk_full_smoke.cjs --manifest <samples.json> --ocr-root <ocr-directory> --output <report.json> --limit <count>",
+      "replacement": "No replacement; this is an intentionally retained multi-work full-pipeline smoke."
+    },
+    {
+      "path": "scripts/research_source_font_size_v3_tachidesk_smoke.cjs",
+      "status": "manual-debug",
+      "purpose": "Run production PaddleOCR and source-face estimation on the deterministic Tachidesk body-page cohort.",
+      "usage": "electron scripts/research_source_font_size_v3_tachidesk_smoke.cjs --manifest <samples.json> --output <ocr-smoke.json> --limit <count>",
+      "replacement": "No replacement; this is an intentionally retained multi-work OCR smoke."
+    },
+    {
       "path": "scripts/run_koharu_layout_onnx_probe.cjs",
       "status": "manual-debug",
       "purpose": "Run one pinned KoharuLayout ONNX page through CPU, DirectML, or WebGPU and report runtime/output diagnostics.",

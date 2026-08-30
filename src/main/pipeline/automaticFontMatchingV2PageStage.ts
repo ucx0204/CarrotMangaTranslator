@@ -108,8 +108,11 @@ function buildPageInferenceBlocks({
         block.item,
         pageOptions.ocrBboxHints,
       );
-    const { sourceCandidateMembership: _membership, ...inferenceItem } =
-      block.item;
+    const {
+      sourceCandidateMembership: _membership,
+      sourceFontLineGeometry: _lineGeometry,
+      ...inferenceItem
+    } = block.item;
     const geometryOwnedBlock = {
       blockId: block.blockId,
       item: inferenceItem,

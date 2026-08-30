@@ -1,5 +1,9 @@
 # 폰트 자동 맞춤 프로덕션 인계서
 
+> 2026-08-31 글자 크기 자동 맞춤 v3 조사·구현 결과는
+> `docs/font-matching-v3-source-size-handoff.md`를 이어서 본다. v3는 전역 최소 px를
+> 넣지 않고 OCR 줄 geometry 손실과 per-line 측정을 교정한다.
+
 최종 갱신: 2026-08-22 KST
 현재 제품 기준: `R33 page-common + meaning-free cross-script proxy v2`
 모델 버전: `manga-font-v9-r33-e049fc74c3ba`
