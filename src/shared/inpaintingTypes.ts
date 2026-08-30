@@ -1,4 +1,5 @@
 import type { ChapterSnapshot } from "./libraryTypes";
+import type { PageTimingSessionRef } from "./pageProcessingTiming";
 
 export type AutoInpaintingChapterSelection =
   | {
@@ -58,6 +59,8 @@ type StartInpaintingTargetRequest =
 
 export type StartInpaintingRequest = StartInpaintingTargetRequest & {
   postprocess?: InpaintingPostprocessOptions;
+  /** Continue the renderer-owned translation timing session when present. */
+  timingSession?: PageTimingSessionRef;
 };
 
 export type StartInpaintingResult = {

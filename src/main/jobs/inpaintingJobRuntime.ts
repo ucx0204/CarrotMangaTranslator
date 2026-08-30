@@ -8,6 +8,11 @@ import { logError } from "../logger";
 import { getAppSettings } from "../settingsStore";
 import type { BubbleLayoutRunnerFactory } from "../inpainting/bubbleLayoutRunner";
 import { emitJobEvent } from "./jobEvents";
+import {
+  pageTimingSessionManager,
+  type OpenPageTimingSessionOptions,
+} from "./pageTimingSessionManager";
+import type { PageProcessingTimingCollector } from "../pipeline/pageProcessingTiming";
 
 export type InpaintingJobRuntime = {
   acquireEngine: typeof acquireInpaintingEngine;
@@ -16,6 +21,9 @@ export type InpaintingJobRuntime = {
   inpaintDrawnPage: typeof inpaintDrawnPatternPage;
   inpaintPatternPage: typeof inpaintPatternPage;
   logError: typeof logError;
+  openPageTimingSession: (
+    options: OpenPageTimingSessionOptions,
+  ) => Promise<PageProcessingTimingCollector>;
   openChapter: typeof openChapter;
   savePages: typeof updatePagesAfterInpainting;
   createBubbleLayoutRunner?: BubbleLayoutRunnerFactory;
@@ -31,6 +39,9 @@ export const productionInpaintingJobRuntime: InpaintingJobRuntime = {
   inpaintDrawnPage: inpaintDrawnPatternPage,
   inpaintPatternPage,
   logError,
+  openPageTimingSession: pageTimingSessionManager.open.bind(
+    pageTimingSessionManager,
+  ),
   openChapter,
   savePages: updatePagesAfterInpainting,
 };

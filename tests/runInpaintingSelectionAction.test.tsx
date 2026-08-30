@@ -122,6 +122,10 @@ describe("useRunInpaintingSelectionAction", () => {
       selections: [
         { chapterId: "chapter-1", mode: "page-set", pageIds: ["page-1"] },
       ],
+      timingSession: {
+        id: expect.any(String),
+        startedAtEpochMs: expect.any(Number),
+      },
     });
     expect(options.mergeLiveChapter).toHaveBeenCalledWith(makeChapter());
     expect(options.refreshLibrary).toHaveBeenCalledOnce();
@@ -299,6 +303,10 @@ describe("useRunInpaintingSelectionAction", () => {
       workId: "work-1",
       selections: [{ chapterId: "chapter-1", mode: "all" }],
       postprocess,
+      timingSession: {
+        id: expect.any(String),
+        startedAtEpochMs: expect.any(Number),
+      },
     });
     expect(options.setShowBlockChrome).toHaveBeenCalledWith(false);
   });

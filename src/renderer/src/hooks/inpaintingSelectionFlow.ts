@@ -5,6 +5,11 @@ import type {
   StartInpaintingResult,
 } from "../../../shared/inpaintingTypes";
 import { inpaintingGateway } from "../api/inpaintingGateway";
+import type { PageTimingSessionRef } from "../../../shared/pageProcessingTiming";
+import {
+  createRendererPageTimingSession,
+  finishRendererPageTimingSession,
+} from "../lib/pageTimingSession";
 
 type InpaintingSelectionOutcome =
   | "completed"
@@ -49,12 +54,15 @@ type InpaintingAggregate = Omit<
  * earlier chapter are preserved. A partially completed chapter is persisted
  * and the flow continues; only a hard failure or cancellation stops it.
  */
+// eslint-disable-next-line complexity -- per-chapter ownership, cancellation, and partial-result settlement are one state machine
 export async function runInpaintingSelectionsSequentially({
   onResult,
   postprocess,
   selections,
   shouldCancel,
   startInpainting = inpaintingGateway.startInpainting,
+  timingSession,
+  timingStartedAtEpochMs,
   workId,
 }: {
   onResult?: (
@@ -65,6 +73,8 @@ export async function runInpaintingSelectionsSequentially({
   selections: AutoInpaintingChapterSelection[];
   shouldCancel?: () => boolean;
   startInpainting?: StartInpainting;
+  timingSession?: PageTimingSessionRef;
+  timingStartedAtEpochMs?: number;
   workId: string;
 }): Promise<SequentialInpaintingResult> {
   if (selections.length === 0) {
@@ -79,17 +89,36 @@ export async function runInpaintingSelectionsSequentially({
   const isCancellationRequested = shouldCancel ?? NEVER_CANCEL;
   const aggregate = createInpaintingAggregate();
 
-  for (const selection of selections) {
+  if (timingSession && selections.length !== 1) {
+    throw new Error("A continued timing session requires one chapter.");
+  }
+
+  for (let index = 0; index < selections.length; index += 1) {
+    const selection = selections[index];
+    if (!selection) continue;
     if (isCancellationRequested()) {
       return createSequentialInpaintingResult("cancelled", aggregate);
     }
+    const chapterTimingSession =
+      timingSession ??
+      createRendererPageTimingSession(
+        index === 0 ? timingStartedAtEpochMs : undefined,
+      );
     const attempt = await runChapterInpainting({
       onResult,
       postprocess,
       selection,
       startInpainting,
+      timingSession: chapterTimingSession,
       workId,
     });
+    if (!timingSession) {
+      await finishRendererPageTimingSession(
+        selection.chapterId,
+        chapterTimingSession,
+        attempt.status === "completed" ? "completed" : "interrupted",
+      );
+    }
     addChapterAttempt(aggregate, attempt);
     const terminalStatus = getTerminalInpaintingStatus(
       attempt,
@@ -161,6 +190,7 @@ async function runChapterInpainting({
   postprocess,
   selection,
   startInpainting,
+  timingSession,
   workId,
 }: {
   onResult?: (
@@ -170,11 +200,17 @@ async function runChapterInpainting({
   postprocess?: InpaintingPostprocessOptions;
   selection: AutoInpaintingChapterSelection;
   startInpainting: StartInpainting;
+  timingSession: PageTimingSessionRef;
   workId: string;
 }): Promise<ChapterInpaintingAttempt> {
   try {
     const result = await startInpainting(
-      createChapterInpaintingRequest(workId, selection, postprocess),
+      createChapterInpaintingRequest(
+        workId,
+        selection,
+        postprocess,
+        timingSession,
+      ),
     );
     await onResult?.(result, selection);
     return toChapterInpaintingAttempt(result, selection, postprocess);
@@ -238,11 +274,13 @@ function createChapterInpaintingRequest(
   workId: string,
   selection: AutoInpaintingChapterSelection,
   postprocess: InpaintingPostprocessOptions | undefined,
+  timingSession: PageTimingSessionRef,
 ): StartInpaintingRequest {
   return {
     mode: "selection-pattern",
     workId,
     selections: [selection],
+    timingSession,
     ...(postprocess ? { postprocess } : {}),
   };
 }

@@ -4,12 +4,14 @@ import type { TFunction } from "i18next";
 import type { MangaPage } from "../../../../shared/libraryTypes";
 import {
   PAGE_PROCESSING_TIMING_STAGES,
+  type PageProcessingTimingState,
   type PageProcessingTimingStage,
 } from "../../../../shared/pageProcessingTiming";
 import {
   buildPageTimingReport,
   type PageTimingReport,
 } from "../../lib/pageTimingReport";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { Modal } from "../ui/Modal";
 
 export function PageTimingDialog({
@@ -76,7 +78,24 @@ function PageTimingTable({
             <th scope="col">{t("pageList.timing.page")}</th>
             {PAGE_PROCESSING_TIMING_STAGES.map((stage) => (
               <th scope="col" key={stage}>
-                {stageLabel(stage, t)}
+                <span className="page-timing-column-heading">
+                  {stageLabel(stage, t)}
+                  {stage === "preparing" ? (
+                    <ControlTooltip
+                      className="page-timing-help-tooltip"
+                      content={t("pageList.timing.preparingHelp")}
+                      placement="bottom"
+                    >
+                      <button
+                        type="button"
+                        className="page-timing-help"
+                        aria-label={t("pageList.timing.preparingHelp")}
+                      >
+                        ⓘ
+                      </button>
+                    </ControlTooltip>
+                  ) : null}
+                </span>
               </th>
             ))}
             <th scope="col">{t("pageList.timing.total")}</th>
@@ -86,7 +105,14 @@ function PageTimingTable({
           {report.rows.map((row) => (
             <tr key={row.pageId}>
               <th scope="row" title={row.pageName}>
-                {row.pageName}
+                <span className="page-timing-page-name">{row.pageName}</span>
+                {row.state !== "completed" ? (
+                  <span
+                    className={`page-timing-state page-timing-state-${row.state}`}
+                  >
+                    {stateLabel(row.state, t)}
+                  </span>
+                ) : null}
               </th>
               {PAGE_PROCESSING_TIMING_STAGES.map((stage) => (
                 <td key={stage}>
@@ -122,13 +148,20 @@ function stageLabel(
   return t(`pageList.timing.stages.${stage}`);
 }
 
+function stateLabel(
+  state: PageProcessingTimingState,
+  t: TFunction<"components">,
+): string {
+  return t(`pageList.timing.states.${state}`);
+}
+
 function formatSeconds(
   totalSeconds: number,
   t: TFunction<"components">,
 ): string {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+  const seconds = (totalSeconds - hours * 3600 - minutes * 60).toFixed(2);
   if (hours > 0) {
     return t("pageList.timing.duration.hours", { hours, minutes, seconds });
   }

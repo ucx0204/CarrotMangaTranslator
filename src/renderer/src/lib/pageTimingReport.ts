@@ -1,14 +1,16 @@
 import type { MangaPage } from "../../../shared/libraryTypes";
 import {
   PAGE_PROCESSING_TIMING_STAGES,
-  PAGE_PROCESSING_TIMING_VERSION,
+  normalizePageProcessingTiming,
   type PageProcessingTimingStage,
+  type PageProcessingTimingState,
 } from "../../../shared/pageProcessingTiming";
 
 type PageTimingReportRow = {
   pageId: string;
   pageName: string;
   secondsByStage: Record<PageProcessingTimingStage, number>;
+  state: PageProcessingTimingState;
   totalSeconds: number;
 };
 
@@ -22,29 +24,33 @@ type RawPageTiming = {
   pageId: string;
   pageName: string;
   millisecondsByStage: Record<PageProcessingTimingStage, number>;
+  state: PageProcessingTimingState;
   totalMilliseconds: number;
 };
+
+const CENTISECOND_MS = 10;
 
 export function buildPageTimingReport(
   pages: readonly MangaPage[],
 ): PageTimingReport {
   const rawRows = pages.flatMap(readRawPageTiming);
   const totalMilliseconds = sum(rawRows.map((row) => row.totalMilliseconds));
-  const totalSeconds = Math.round(totalMilliseconds / 1000);
-  const pageSeconds = apportionIntegerTotal(
+  const totalCentiseconds = Math.round(totalMilliseconds / CENTISECOND_MS);
+  const pageCentiseconds = apportionIntegerTotal(
     rawRows.map((row) => row.totalMilliseconds),
-    totalSeconds,
+    totalCentiseconds,
   );
   const rows = rawRows.map((row, index) =>
-    buildReportRow(row, pageSeconds[index] ?? 0),
+    buildReportRow(row, pageCentiseconds[index] ?? 0),
   );
   return {
     rows,
     secondsByStage: sumReportStages(rows),
-    totalSeconds,
+    totalSeconds: toSeconds(totalCentiseconds),
   };
 }
 
+/** Deterministic largest-remainder allocation with index as the final tie-breaker. */
 export function apportionIntegerTotal(
   weights: readonly number[],
   total: number,
@@ -81,47 +87,47 @@ export function apportionIntegerTotal(
 }
 
 function readRawPageTiming(page: MangaPage): RawPageTiming[] {
-  const timing = page.processingTiming;
-  if (!timing || timing.version !== PAGE_PROCESSING_TIMING_VERSION) return [];
+  if (!page.processingTiming) return [];
+  const normalized = normalizePageProcessingTiming(page.processingTiming);
   const millisecondsByStage = Object.fromEntries(
     PAGE_PROCESSING_TIMING_STAGES.map((stage) => [
       stage,
-      normalizeMilliseconds(timing.stages[stage] ?? 0),
+      normalizeMilliseconds(normalized.stages[stage] ?? 0),
     ]),
   ) as Record<PageProcessingTimingStage, number>;
-  const totalMilliseconds = sum(Object.values(millisecondsByStage));
-  if (totalMilliseconds <= 0) return [];
   return [
     {
       pageId: page.id,
       pageName: page.name,
       millisecondsByStage,
-      totalMilliseconds,
+      state: normalized.state,
+      totalMilliseconds: sum(Object.values(millisecondsByStage)),
     },
   ];
 }
 
 function buildReportRow(
   row: RawPageTiming,
-  totalSeconds: number,
+  totalCentiseconds: number,
 ): PageTimingReportRow {
   const allocation = apportionIntegerTotal(
     PAGE_PROCESSING_TIMING_STAGES.map(
       (stage) => row.millisecondsByStage[stage],
     ),
-    totalSeconds,
+    totalCentiseconds,
   );
   const secondsByStage = Object.fromEntries(
     PAGE_PROCESSING_TIMING_STAGES.map((stage, index) => [
       stage,
-      allocation[index] ?? 0,
+      toSeconds(allocation[index] ?? 0),
     ]),
   ) as Record<PageProcessingTimingStage, number>;
   return {
     pageId: row.pageId,
     pageName: row.pageName,
     secondsByStage,
-    totalSeconds,
+    state: row.state,
+    totalSeconds: toSeconds(totalCentiseconds),
   };
 }
 
@@ -131,9 +137,17 @@ function sumReportStages(
   return Object.fromEntries(
     PAGE_PROCESSING_TIMING_STAGES.map((stage) => [
       stage,
-      sum(rows.map((row) => row.secondsByStage[stage])),
+      roundCentiseconds(sum(rows.map((row) => row.secondsByStage[stage]))),
     ]),
   ) as Record<PageProcessingTimingStage, number>;
+}
+
+function toSeconds(centiseconds: number): number {
+  return Math.max(0, Math.round(centiseconds)) / 100;
+}
+
+function roundCentiseconds(seconds: number): number {
+  return Math.round(seconds * 100) / 100;
 }
 
 function normalizeMilliseconds(value: number): number {

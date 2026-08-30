@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import { AsyncReaderWriterLock } from "../src/main/libraryStore/mutex";
-import { createSavePageBlocks } from "../src/main/library/libraryMutationFacade";
+import {
+  createSavePageBlocks,
+  updatePageProcessingTimings,
+} from "../src/main/library/libraryMutationFacade";
 import { createWorkShareExport } from "../src/main/library/libraryShareFacade";
 import {
   withLibraryMutation,
@@ -182,5 +185,11 @@ describe("AsyncReaderWriterLock", () => {
     releaseMutation.resolve();
     await mutation;
     expect(events).toEqual(["write:start", "navigation:read", "write:end"]);
+  });
+
+  it("routes timing-only updates through the mutation lock", async () => {
+    await expect(updatePageProcessingTimings("chapter-a", [])).resolves.toEqual(
+      new Set(),
+    );
   });
 });

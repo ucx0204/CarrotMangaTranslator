@@ -331,10 +331,23 @@ async function prepareInpaintingPageRuntime({
   totalTargetBlocks,
   runtime,
 }: ProcessInpaintingPagesOptions) {
-  const timing = createPageProcessingTimingCollector(
-    id,
-    targets.map(({ page }) => page.id),
-  );
+  const timingChapterId = targets[0]?.chapterId;
+  if (!timingChapterId) {
+    throw new Error("Inpainting timing requires at least one target page.");
+  }
+  const timing = request.timingSession
+    ? await runtime.openPageTimingSession({
+        chapterId: timingChapterId,
+        getMainWindow: context.getMainWindow,
+        jobId: id,
+        kind: "inpainting",
+        pages: targets.map(({ page }) => page),
+        session: request.timingSession,
+      })
+    : createPageProcessingTimingCollector(
+        id,
+        targets.map(({ page }) => page.id),
+      );
   const preparedBubbleLayout = await measureSharedProcessingStage(
     timing,
     "preparing",

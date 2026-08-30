@@ -1,8 +1,10 @@
+/* eslint-disable max-lines -- job batching and live chapter subscription cleanup share one lifecycle */
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { JobEvent, JobState } from "../../../shared/jobTypes";
+import type { PageTimingUpdatedEvent } from "../../../shared/pageProcessingTiming";
 import { isTerminalJobStatus } from "../../../shared/jobContracts";
 import {
   resolveInstallLogLines,
@@ -39,6 +41,9 @@ type UseJobEventsOptions = {
   setJobState: React.Dispatch<React.SetStateAction<JobState>>;
   suppressTerminalEvents?: boolean;
   subscribeJobEvents?: (callback: (event: JobEvent) => void) => () => void;
+  subscribePageTimingUpdates?: (
+    callback: (event: PageTimingUpdatedEvent) => void,
+  ) => () => void;
 };
 
 type JobEventSubscriptionOptions = Required<
@@ -50,6 +55,7 @@ type JobEventSubscriptionOptions = Required<
     | "openChapter"
     | "setJobState"
     | "subscribeJobEvents"
+    | "subscribePageTimingUpdates"
     | "suppressTerminalEvents"
   >
 > & {
@@ -76,6 +82,10 @@ const openChapterFromLibrary = (chapterId: string): Promise<ChapterSnapshot> =>
 const subscribeToJobEvents = (
   callback: (event: JobEvent) => void,
 ): (() => void) => mangaGateway.onJobEvent(callback);
+const subscribeToPageTimingUpdates = (
+  callback: (event: PageTimingUpdatedEvent) => void,
+): (() => void) => mangaGateway.onPageTimingUpdated(callback);
+const skipPageTimingUpdates = (): (() => void) => () => undefined;
 
 export function useJobEvents({
   appendStatusLine,
@@ -85,9 +95,16 @@ export function useJobEvents({
   openChapter = openChapterFromLibrary,
   setJobState,
   suppressTerminalEvents = false,
-  subscribeJobEvents = subscribeToJobEvents,
+  subscribeJobEvents: subscribeJobEventsOverride,
+  subscribePageTimingUpdates: subscribePageTimingUpdatesOverride,
 }: UseJobEventsOptions): void {
   const { t } = useTranslation("renderer");
+  const subscribeJobEvents = subscribeJobEventsOverride ?? subscribeToJobEvents;
+  const subscribePageTimingUpdates =
+    subscribePageTimingUpdatesOverride ??
+    (subscribeJobEventsOverride
+      ? skipPageTimingUpdates
+      : subscribeToPageTimingUpdates);
   const aggregateGuardRef = React.useRef<AggregateJobEventGuard>(
     createAggregateJobEventGuard(),
   );
@@ -112,6 +129,7 @@ export function useJobEvents({
         openChapter,
         setJobState,
         subscribeJobEvents,
+        subscribePageTimingUpdates,
         suppressTerminalEvents,
         t,
       }),
@@ -122,6 +140,7 @@ export function useJobEvents({
       openChapter,
       setJobState,
       subscribeJobEvents,
+      subscribePageTimingUpdates,
       suppressTerminalEvents,
       t,
     ],
@@ -137,6 +156,7 @@ function subscribeToJobEventUpdates({
   openChapter,
   setJobState,
   subscribeJobEvents,
+  subscribePageTimingUpdates,
   suppressTerminalEvents,
   t,
 }: JobEventSubscriptionOptions): () => void {
@@ -176,9 +196,15 @@ function subscribeToJobEventUpdates({
     pendingBatch.enqueue(event);
     refreshLiveChapterAfterJobEvent({ event, liveChapterRefresh });
   });
+  const unsubscribeTiming = subscribePageTimingUpdates((event) => {
+    if (event.chapterId === currentChapterRef.current?.id) {
+      liveChapterRefresh.request();
+    }
+  });
   return () => {
     pendingBatch.dispose();
     unsubscribe();
+    unsubscribeTiming();
     liveChapterRefresh.dispose();
   };
 }

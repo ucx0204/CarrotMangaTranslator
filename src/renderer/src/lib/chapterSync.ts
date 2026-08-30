@@ -86,6 +86,7 @@ export function mergeLiveChapterPreservingDirtyPages(
             inpaintedImagePath: page.inpaintedImagePath,
             analysisStatus: page.analysisStatus,
             lastError: page.lastError,
+            processingTiming: page.processingTiming,
           };
         }
         // 비-dirty 페이지는 내용이 동일하면 로컬 객체를 재사용해 객체 식별을
@@ -109,9 +110,18 @@ function isPageContentEqual(
     localPage.analysisStatus === livePage.analysisStatus &&
     localPage.inpaintedImagePath === livePage.inpaintedImagePath &&
     localPage.lastError === livePage.lastError &&
+    pageTimingFingerprint(localPage) === pageTimingFingerprint(livePage) &&
     hashTranslationBlocks(localPage.blocks) ===
       hashTranslationBlocks(livePage.blocks)
   );
+}
+
+function pageTimingFingerprint(page: MangaPage): string {
+  const timing = page.processingTiming;
+  if (!timing) return "";
+  return timing.version === 1
+    ? `1:${timing.measuredAt}`
+    : `2:${timing.sessionId}:${timing.checkpoint}:${timing.state}:${timing.measuredAt}`;
 }
 
 function mergeAppendedLiveBlocks(

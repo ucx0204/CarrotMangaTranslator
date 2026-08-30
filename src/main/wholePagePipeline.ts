@@ -95,10 +95,12 @@ async function runWholePagePipelineWithDependencies(
     fontSizeAutoFit = true,
     canonicalPageIndexById,
   } = options;
-  const timing = createPageProcessingTimingCollector(
-    options.jobId,
-    pages.map((page) => page.id),
-  );
+  const timing =
+    options.timing ??
+    createPageProcessingTimingCollector(
+      options.jobId,
+      pages.map((page) => page.id),
+    );
   throwIfAborted(signal);
   const { ocrHintsByPageId, run } = await prepareWholePageRun(
     options,

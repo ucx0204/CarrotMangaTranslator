@@ -38,6 +38,10 @@ import {
 } from "../libraryStore/libraryInpaintingMutations";
 import { withLibraryMutation } from "./lock";
 import { notifyLinkedWorkspacePagesSaved } from "../linkedWorkspace/linkedWorkspaceNotifications";
+import {
+  updatePageProcessingTimingsUnlocked,
+  type PageProcessingTimingUpdate,
+} from "../libraryStore/libraryTimingMutations";
 
 export type SavePageBlocksRuntime = {
   runMutation: typeof withLibraryMutation;
@@ -195,6 +199,15 @@ export async function finalizeRunningPages(
 ): Promise<void> {
   return withLibraryMutation(() =>
     finalizeRunningPagesUnlocked(chapterId, pageIds, status, errorMessage),
+  );
+}
+
+export async function updatePageProcessingTimings(
+  chapterId: string,
+  updates: readonly PageProcessingTimingUpdate[],
+): Promise<ReadonlySet<string>> {
+  return withLibraryMutation(() =>
+    updatePageProcessingTimingsUnlocked(chapterId, updates),
   );
 }
 

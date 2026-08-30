@@ -16,6 +16,8 @@ import { ErrorReportContextSchema } from "./errorReportSchemas";
 import { webImportIpcEventContracts } from "./ipcWebImportContracts";
 import type { LinkedWorkspaceStatusChangedEvent } from "./linkedWorkspaceTypes";
 import { LinkedWorkspaceStatusSchema } from "./linkedWorkspaceSchemas";
+import type { PageTimingUpdatedEvent } from "./pageProcessingTiming";
+import { MAX_ID_LIST_LENGTH, uuid } from "./ipcSchemaPrimitives";
 
 export const ipcEventContracts = {
   ...webImportIpcEventContracts,
@@ -41,6 +43,16 @@ export const ipcEventContracts = {
     eventKey: "uiLocaleChanged",
     channel: "settings:ui-locale-changed",
     payload: z.enum(SUPPORTED_UI_LOCALES),
+  }),
+  pageTimingUpdated: defineIpcEventContract<PageTimingUpdatedEvent>({
+    eventKey: "pageTimingUpdated",
+    channel: "page-timing:updated",
+    payload: z
+      .object({
+        chapterId: uuid,
+        pageIds: z.array(uuid).max(MAX_ID_LIST_LENGTH),
+      })
+      .strict(),
   }),
   jobEvent: defineIpcEventContract<JobEvent>({
     eventKey: "jobEvent",

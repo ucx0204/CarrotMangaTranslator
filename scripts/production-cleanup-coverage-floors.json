@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "7ce9d0dcab2d1ca9fdbe079727d1452b9e7f33006be06eef62a5240745fed769",
+    "introducedArtifactSha256": "5c82e155cf67e81761352cfa7198f841200317d92dd8de660d5ada11ef26a87c",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -1203,6 +1203,12 @@
         "pct": 5
       }
     },
+    "src/main/ipc/jobControlIpc.ts": {
+      "lines": { "covered": 8, "total": 9, "pct": 88.88 },
+      "statements": { "covered": 8, "total": 9, "pct": 88.88 },
+      "functions": { "covered": 2, "total": 2, "pct": 100 },
+      "branches": { "covered": 1, "total": 2, "pct": 50 }
+    },
     "src/main/ipc/pageImageExportIpc.ts": {
       "lines": {
         "covered": 18,
@@ -1488,6 +1494,12 @@
         "total": 67,
         "pct": 86.56
       }
+    },
+    "src/main/jobs/jobEventDispatchQueue.ts": {
+      "lines": { "covered": 34, "total": 35, "pct": 97.14 },
+      "statements": { "covered": 34, "total": 35, "pct": 97.14 },
+      "functions": { "covered": 8, "total": 8, "pct": 100 },
+      "branches": { "covered": 26, "total": 27, "pct": 96.29 }
     },
     "src/main/jobs/jobEvents.ts": {
       "lines": {
@@ -9247,6 +9259,12 @@
         "pct": 71.42
       }
     },
+    "src/renderer/src/hooks/inpaintingSelectionFlow.ts": {
+      "lines": { "covered": 48, "total": 52, "pct": 92.3 },
+      "statements": { "covered": 52, "total": 56, "pct": 92.85 },
+      "functions": { "covered": 15, "total": 15, "pct": 100 },
+      "branches": { "covered": 55, "total": 63, "pct": 87.3 }
+    },
     "src/renderer/src/hooks/jobEventFlowGuard.ts": {
       "lines": {
         "covered": 15,
@@ -10413,6 +10431,12 @@
         "pct": 87.83
       }
     },
+    "src/renderer/src/lib/chapterSync.ts": {
+      "lines": { "covered": 38, "total": 40, "pct": 95 },
+      "statements": { "covered": 42, "total": 44, "pct": 95.45 },
+      "functions": { "covered": 17, "total": 17, "pct": 100 },
+      "branches": { "covered": 39, "total": 46, "pct": 84.78 }
+    },
     "src/renderer/src/lib/curveGlyphLayout.ts": {
       "lines": {
         "covered": 62,
@@ -11300,6 +11324,12 @@
       }
     },
     "src/shared/inpaintingSettingsTypes.ts": {
+      "lines": { "covered": 0, "total": 0, "pct": 100 },
+      "statements": { "covered": 0, "total": 0, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
+    "src/shared/inpaintingTypes.ts": {
       "lines": { "covered": 0, "total": 0, "pct": 100 },
       "statements": { "covered": 0, "total": 0, "pct": 100 },
       "functions": { "covered": 0, "total": 0, "pct": 100 },
@@ -12760,6 +12790,24 @@
         "covered": 20,
         "pct": 100
       }
+    },
+    "src/main/jobs/pageTimingEvents.ts": {
+      "lines": { "total": 4, "covered": 4, "pct": 100 },
+      "statements": { "total": 4, "covered": 4, "pct": 100 },
+      "functions": { "total": 1, "covered": 1, "pct": 100 },
+      "branches": { "total": 5, "covered": 5, "pct": 100 }
+    },
+    "src/main/jobs/pageTimingSessionManager.ts": {
+      "lines": { "total": 88, "covered": 83, "pct": 94.31 },
+      "statements": { "total": 93, "covered": 86, "pct": 92.47 },
+      "functions": { "total": 20, "covered": 20, "pct": 100 },
+      "branches": { "total": 47, "covered": 37, "pct": 78.72 }
+    },
+    "src/main/libraryStore/libraryTimingMutations.ts": {
+      "lines": { "total": 37, "covered": 29, "pct": 78.37 },
+      "statements": { "total": 44, "covered": 31, "pct": 70.45 },
+      "functions": { "total": 8, "covered": 5, "pct": 62.5 },
+      "branches": { "total": 30, "covered": 22, "pct": 73.33 }
     },
     "src/main/linkedWorkspace/linkedWorkspaceFiles.ts": {
       "lines": {
@@ -15459,6 +15507,12 @@
         "pct": 80
       }
     },
+    "src/renderer/src/lib/pageTimingSession.ts": {
+      "lines": { "total": 8, "covered": 8, "pct": 100 },
+      "statements": { "total": 9, "covered": 9, "pct": 100 },
+      "functions": { "total": 2, "covered": 2, "pct": 100 },
+      "branches": { "total": 5, "covered": 5, "pct": 100 }
+    },
     "src/renderer/src/lib/richTextEditorDom.ts": {
       "lines": {
         "total": 144,
@@ -15898,6 +15952,12 @@
         "covered": 0,
         "pct": 100
       }
+    },
+    "src/shared/ipcPageTimingSchemas.ts": {
+      "lines": { "total": 3, "covered": 3, "pct": 100 },
+      "statements": { "total": 3, "covered": 3, "pct": 100 },
+      "functions": { "total": 0, "covered": 0, "pct": 100 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
     },
     "src/shared/linkedWorkspaceSchemas.ts": {
       "lines": {

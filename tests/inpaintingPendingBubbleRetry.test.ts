@@ -4,7 +4,10 @@ import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import type { BubbleLayoutRunner } from "../src/main/inpainting/bubbleLayoutRunner";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import type { InpaintingJobContext } from "../src/main/jobs/inpaintingJobTypes";
-import type { InpaintingJobRuntime } from "../src/main/jobs/inpaintingJobRuntime";
+import {
+  productionInpaintingJobRuntime,
+  type InpaintingJobRuntime,
+} from "../src/main/jobs/inpaintingJobRuntime";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 
 const CHAPTER_ID = "11111111-1111-4111-8111-111111111111";
@@ -179,6 +182,7 @@ function makeRuntime(
     }),
     inpaintPatternPage,
     logError: vi.fn(),
+    openPageTimingSession: productionInpaintingJobRuntime.openPageTimingSession,
     openChapter: vi.fn(async () => getChapter()),
     savePages,
   };

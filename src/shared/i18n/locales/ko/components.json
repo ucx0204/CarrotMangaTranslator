@@ -771,8 +771,14 @@
       "emptyDescription": "새 번역을 완료하면 페이지별 세부 시간이 여기에 저장됩니다.",
       "page": "페이지",
       "total": "페이지 합계",
+      "preparingHelp": "실행 전 저장, 설정·출력 준비, 모델·API 엔드포인트 및 폰트·인페인팅 런타임 준비, 단계 전환과 결과 저장 등 공통 시간을 포함합니다.",
+      "states": {
+        "running": "진행 중",
+        "interrupted": "중단됨",
+        "completed": "완료"
+      },
       "stages": {
-        "preparing": "준비",
+        "preparing": "준비·모델 로드",
         "ocr": "OCR",
         "translation": "AI 번역",
         "postprocessing": "결과 정리",

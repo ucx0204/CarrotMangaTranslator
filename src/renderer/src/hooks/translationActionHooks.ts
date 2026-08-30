@@ -29,6 +29,10 @@ import { useRunAnalysisAction } from "./useRunAnalysisAction";
 import { useTranslateSelectedRegionAction } from "./useTranslateSelectedRegionAction";
 import { hashTranslationBlocks } from "../../../shared/blockFingerprint";
 import { useRunTranslationFlowAction } from "./useRunTranslationFlowAction";
+import {
+  createRendererPageTimingSession,
+  finishRendererPageTimingSession,
+} from "../lib/pageTimingSession";
 
 type AnalysisJob = Parameters<ExecuteAnalysisJob>[0];
 type StartResult = Awaited<ReturnType<typeof mangaGateway.startAnalysis>>;
@@ -272,10 +276,14 @@ async function executeAnalysisJob(
   const targetChapterId = job.chapterId ?? openChapterId;
   if (!targetChapterId) return "no-op";
   const isOpenChapter = targetChapterId === openChapterId;
+  const ownsTimingSession = !job.timingSession;
+  const timingSession = job.timingSession ?? createRendererPageTimingSession();
+  const timedJob = { ...job, timingSession };
+  let outcome: RunAnalysisOutcome = "failed";
   try {
-    await prepareAnalysisJob(job, context, isOpenChapter);
+    await prepareAnalysisJob(timedJob, context, isOpenChapter);
     const result = await mangaGateway.startAnalysis(
-      makeStartAnalysisRequest(targetChapterId, job, context.t),
+      makeStartAnalysisRequest(targetChapterId, timedJob, context.t),
     );
     if (result.chapter && result.chapter.id === openChapterId) {
       context.mergeLiveChapter(result.chapter);
@@ -286,9 +294,23 @@ async function executeAnalysisJob(
       context.t,
       context.notificationPort,
     );
-    return resolveAnalysisJobOutcome(result, job, context);
+    outcome = resolveAnalysisJobOutcome(result, timedJob, context);
+    return outcome;
   } catch (error) {
-    return handleAnalysisJobError(error, job.deferTerminalFailure, context);
+    outcome = handleAnalysisJobError(
+      error,
+      timedJob.deferTerminalFailure,
+      context,
+    );
+    return outcome;
+  } finally {
+    if (ownsTimingSession) {
+      await finishRendererPageTimingSession(
+        targetChapterId,
+        timingSession,
+        outcome === "completed" ? "completed" : "interrupted",
+      );
+    }
   }
 }
 

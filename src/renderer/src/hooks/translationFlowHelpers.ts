@@ -5,6 +5,7 @@ import type { JobFailureGuidance, JobState } from "../../../shared/jobTypes";
 import type { TFunction } from "i18next";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 import type { CumulativeContextDetail } from "../../../shared/settingsTypes";
+import type { PageTimingSessionRef } from "../../../shared/pageProcessingTiming";
 
 export type RunAnalysisOutcome =
   | "completed"
@@ -27,6 +28,7 @@ type ExecuteAnalysisArgs = {
   completionWorkflow?: TranslationCompletionWorkflow;
   deferTerminalFailure?: boolean;
   onDeferredFailureGuidance?: (guidance: JobFailureGuidance) => void;
+  timingSession?: PageTimingSessionRef;
 };
 
 export type ExecuteAnalysisJob = (
@@ -89,6 +91,7 @@ export async function runSelectionsSequentially(
   deferTerminalFailure?: boolean,
   onDeferredFailureGuidance?: (guidance: JobFailureGuidance) => void,
   cumulativeContextDetail?: CumulativeContextDetail,
+  timingSession?: PageTimingSessionRef,
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
   let anyPartial = false;
@@ -111,6 +114,7 @@ export async function runSelectionsSequentially(
       completionWorkflow,
       deferTerminalFailure,
       onDeferredFailureGuidance,
+      timingSession,
     });
     const terminalOutcome = getTerminalAnalysisOutcome(outcome);
     if (terminalOutcome) return terminalOutcome;

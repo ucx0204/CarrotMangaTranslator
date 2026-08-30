@@ -8,6 +8,7 @@ import type {
 import type { JobFailureGuidance, JobState } from "../../../shared/jobTypes";
 import type { TranslationCompletionWorkflow } from "../../../shared/libraryTypes";
 import type { CumulativeContextDetail } from "../../../shared/settingsTypes";
+import type { PageTimingSessionRef } from "../../../shared/pageProcessingTiming";
 import { analysisGateway as mangaGateway } from "../api/analysisGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import type { LiveChapterMergeOptions } from "../lib/chapterSync";
@@ -60,6 +61,7 @@ export function makeStartAnalysisRequest(
     autoFontMatching?: boolean;
     fontSizeAutoFit?: boolean;
     completionWorkflow?: TranslationCompletionWorkflow;
+    timingSession?: PageTimingSessionRef;
   },
   t?: TFunction<"renderer">,
 ): StartAnalysisRequest {
@@ -125,6 +127,7 @@ function buildSharedAnalysisRequest(
     ...(args.completionWorkflow
       ? { completionWorkflow: args.completionWorkflow }
       : {}),
+    ...(args.timingSession ? { timingSession: args.timingSession } : {}),
   };
 }
 

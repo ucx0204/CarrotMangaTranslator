@@ -1,3 +1,4 @@
+/* eslint-disable complexity, max-lines, max-lines-per-function -- combined-flow cancellation and timing settlement boundaries stay co-located */
 import type { TFunction } from "i18next";
 import type { MutableRefObject } from "react";
 import type {
@@ -19,6 +20,11 @@ import type {
   UseTranslationActionsOptions,
 } from "./translationActionTypes";
 import { resolveTranslationChapterSelections } from "./translationChapterSelections";
+import type { PageTimingSessionRef } from "../../../shared/pageProcessingTiming";
+import {
+  createRendererPageTimingSession,
+  finishRendererPageTimingSession,
+} from "../lib/pageTimingSession";
 import {
   applyTranslationInpaintingResult,
   refreshTranslationLibrary,
@@ -46,7 +52,10 @@ type TranslationFlowActionContext = Pick<
   flowActiveRef: MutableRefObject<boolean>;
   failureGuidanceRef: MutableRefObject<JobFailureGuidance | undefined>;
   notificationPort: NotificationPort;
-  runPasses: (selection: ChapterRunSelection) => Promise<RunAnalysisOutcome>;
+  runPasses: (
+    selection: ChapterRunSelection,
+    timingSession: PageTimingSessionRef,
+  ) => Promise<RunAnalysisOutcome>;
   t: TFunction<"renderer">;
 };
 
@@ -151,25 +160,92 @@ async function executeTranslationFlow(
     anyFailed: false,
     anyPartial: false,
   };
+  const firstTimingSession = createRendererPageTimingSession();
+  let pendingFinalTiming:
+    | {
+        chapterId: string;
+        result: ChapterFlowResult;
+        session: PageTimingSessionRef;
+      }
+    | undefined;
   await context.saveNow();
   if (isFlowCancellationRequested(context)) {
+    await finishRendererPageTimingSession(
+      options.selection[0]?.chapterId ?? execution.currentChapter.id,
+      firstTimingSession,
+      "interrupted",
+    );
     return finishCancelledFlow(context, completion.eraseOriginal);
   }
   for (let index = 0; index < options.selection.length; index += 1) {
     if (isFlowCancellationRequested(context)) {
+      if (index === 0) {
+        await finishRendererPageTimingSession(
+          options.selection[0]?.chapterId ?? execution.currentChapter.id,
+          firstTimingSession,
+          "interrupted",
+        );
+      }
       return finishCancelledFlow(context, completion.eraseOriginal);
     }
-    const result = await runTranslationChapter(execution, index);
+    const timingSession =
+      index === 0 ? firstTimingSession : createRendererPageTimingSession();
+    let result: ChapterFlowResult;
+    try {
+      result = await runTranslationChapter(execution, index, timingSession);
+    } catch (error) {
+      await finishRendererPageTimingSession(
+        options.selection[index]?.chapterId ?? execution.currentChapter.id,
+        timingSession,
+        "interrupted",
+      );
+      throw error;
+    }
     if (result.status === "cancelled") {
       if (result.refreshLibrary) await refreshTranslationLibrary(context);
+      await finishRendererPageTimingSession(
+        options.selection[index]?.chapterId ?? execution.currentChapter.id,
+        timingSession,
+        "interrupted",
+      );
       return finishCancelledFlow(context, result.inpainting);
     }
     mergeChapterFlowResult(aggregate, result);
+    const isLastProcessedChapter =
+      result.failed || index === options.selection.length - 1;
+    if (isLastProcessedChapter) {
+      pendingFinalTiming = {
+        chapterId:
+          options.selection[index]?.chapterId ?? execution.currentChapter.id,
+        result,
+        session: timingSession,
+      };
+    } else {
+      await finishRendererPageTimingSession(
+        options.selection[index]?.chapterId ?? execution.currentChapter.id,
+        timingSession,
+        resolveChapterTimingState(result),
+      );
+    }
     if (result.failed) break;
   }
   if (completion.eraseOriginal) await refreshTranslationLibrary(context);
   if (isFlowCancellationRequested(context)) {
+    if (pendingFinalTiming) {
+      await finishRendererPageTimingSession(
+        pendingFinalTiming.chapterId,
+        pendingFinalTiming.session,
+        "interrupted",
+      );
+    }
     return finishCancelledFlow(context, completion.eraseOriginal);
+  }
+  if (pendingFinalTiming) {
+    await finishRendererPageTimingSession(
+      pendingFinalTiming.chapterId,
+      pendingFinalTiming.session,
+      resolveChapterTimingState(pendingFinalTiming.result),
+    );
   }
   return finishTranslationFlow(
     aggregate,
@@ -182,6 +258,7 @@ async function executeTranslationFlow(
 async function runTranslationChapter(
   execution: FlowExecution,
   index: number,
+  timingSession: PageTimingSessionRef,
 ): Promise<ChapterFlowResult> {
   const { completion, context, options } = execution;
   const selection = options.selection[index];
@@ -197,7 +274,10 @@ async function runTranslationChapter(
       refreshLibrary: false,
     };
   }
-  const translationOutcome = await context.runPasses(selections.analysis);
+  const translationOutcome = await context.runPasses(
+    selections.analysis,
+    timingSession,
+  );
   if (isFlowCancellationRequested(context)) {
     return {
       status: "cancelled",
@@ -216,6 +296,7 @@ async function runTranslationChapter(
   const inpaintingResult = await runTranslationInpaintingChapter(
     selections.inpainting,
     execution,
+    timingSession,
   );
   if (
     inpaintingResult.status === "cancelled" ||
@@ -298,6 +379,7 @@ function resolveFlowMessageKey(
 async function runTranslationInpaintingChapter(
   selection: AutoInpaintingChapterSelection,
   execution: FlowExecution,
+  timingSession: PageTimingSessionRef,
 ) {
   const { completion, currentChapter, naturalTextLayout } = execution;
   const postprocess: InpaintingPostprocessOptions = {
@@ -313,6 +395,7 @@ async function runTranslationInpaintingChapter(
     workId: currentChapter.workId,
     selections: [selection],
     postprocess,
+    timingSession,
     shouldCancel: () => isFlowCancellationRequested(execution.context),
     onResult: (result) =>
       applyTranslationInpaintingResult(
@@ -322,6 +405,14 @@ async function runTranslationInpaintingChapter(
         execution.context,
       ),
   });
+}
+
+function resolveChapterTimingState(
+  result: ChapterFlowResult,
+): "completed" | "interrupted" {
+  return result.status === "continue" && !result.failed && !result.partial
+    ? "completed"
+    : "interrupted";
 }
 
 function isFlowCancellationRequested(

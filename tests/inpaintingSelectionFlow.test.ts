@@ -17,6 +17,53 @@ type StartInpainting = (
 ) => Promise<StartInpaintingResult>;
 
 describe("sequential chapter inpainting flow", () => {
+  it("returns immediately when no chapter was selected", async () => {
+    await expect(
+      runInpaintingSelectionsSequentially({
+        workId: "work-1",
+        selections: [],
+        startInpainting: vi.fn<StartInpainting>(),
+      }),
+    ).resolves.toEqual({
+      status: "no-op",
+      pagesChanged: 0,
+      blocksErased: 0,
+      pagesIncomplete: 0,
+      blocksIncomplete: 0,
+    });
+  });
+
+  it("continues one explicit timing session only within its chapter", async () => {
+    const timingSession = {
+      id: "00000000-0000-4000-8000-000000000001",
+      startedAtEpochMs: 1_000,
+    };
+    const startInpainting = vi.fn<StartInpainting>(async () =>
+      completedResult("chapter-1", "tx-1"),
+    );
+
+    await expect(
+      runInpaintingSelectionsSequentially({
+        workId: "work-1",
+        selections: [{ chapterId: "chapter-1", mode: "all" }],
+        timingSession,
+        startInpainting,
+      }),
+    ).resolves.toMatchObject({ status: "completed" });
+    expect(startInpainting).toHaveBeenCalledWith(
+      expect.objectContaining({ timingSession }),
+    );
+
+    await expect(
+      runInpaintingSelectionsSequentially({
+        workId: "work-1",
+        selections: selections.slice(0, 2),
+        timingSession,
+        startInpainting,
+      }),
+    ).rejects.toThrow("requires one chapter");
+  });
+
   it("runs one IPC per chapter and stops immediately after a failure", async () => {
     const results: StartInpaintingResult[] = [
       completedResult("chapter-1", "tx-1"),

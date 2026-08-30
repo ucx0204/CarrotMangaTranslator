@@ -49,11 +49,69 @@
 
 .page-timing-table {
   width: 100%;
-  min-width: 940px;
+  min-width: 790px;
   border-collapse: separate;
   border-spacing: 0;
   font-size: var(--font-sm);
   font-variant-numeric: tabular-nums;
+}
+
+.page-timing-column-heading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-1);
+}
+
+.page-timing-help {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: help;
+  font-size: 0.9em;
+  line-height: 1;
+  place-items: center;
+}
+
+.page-timing-help:hover,
+.page-timing-help:focus-visible {
+  color: var(--text-head);
+}
+
+.page-timing-help-tooltip > .control-tooltip-bubble {
+  min-width: 220px;
+}
+
+.page-timing-page-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-timing-state {
+  display: inline-flex;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.page-timing-state-running {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-soft));
+  color: var(--accent);
+}
+
+.page-timing-state-interrupted {
+  border-color: color-mix(in srgb, var(--warning-bd) 45%, var(--border-soft));
+  color: var(--warning-text);
 }
 
 .page-timing-table th,
@@ -70,6 +128,7 @@
   left: 0;
   z-index: 1;
   width: 180px;
+  min-width: 180px;
   max-width: 220px;
   overflow: hidden;
   background: var(--bg-modal);

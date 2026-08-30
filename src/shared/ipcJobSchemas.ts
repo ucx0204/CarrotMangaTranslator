@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- bounded job request variants stay together for schema contract review */
 import { z } from "zod";
 import {
   JobKindSchema,
@@ -19,6 +20,7 @@ import {
   uuid,
 } from "./ipcSchemaPrimitives";
 import type { PageRevision } from "./pageRevision";
+import { PageTimingSessionFields } from "./ipcPageTimingSchemas";
 
 const JobProgressFieldsSchema = {
   phase: JobPhaseSchema.optional(),
@@ -119,6 +121,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       autoFontMatching: z.boolean().optional(),
       fontSizeAutoFit: z.boolean().optional(),
       completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
+      ...PageTimingSessionFields,
     })
     .strict(),
   z
@@ -134,6 +137,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       autoFontMatching: z.boolean().optional(),
       fontSizeAutoFit: z.boolean().optional(),
       completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
+      ...PageTimingSessionFields,
     })
     .strict(),
   z
@@ -150,6 +154,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       autoFontMatching: z.boolean().optional(),
       fontSizeAutoFit: z.boolean().optional(),
       completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
+      ...PageTimingSessionFields,
     })
     .strict(),
   z
@@ -173,6 +178,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       autoFontMatching: z.boolean().optional(),
       fontSizeAutoFit: z.boolean().optional(),
       completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
+      ...PageTimingSessionFields,
     })
     .strict(),
 ]);
@@ -247,6 +253,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
       chapterId: uuid,
       mode: z.literal("chapter-pattern-pending"),
       postprocess: InpaintingPostprocessOptionsSchema.optional(),
+      ...PageTimingSessionFields,
     })
     .strict(),
   z
@@ -257,6 +264,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
       blockId: TranslationBlockObjectSchema.shape.id.optional(),
       policy: z.enum(["safe", "balanced", "maximize"]),
       postprocess: InpaintingPostprocessOptionsSchema.optional(),
+      ...PageTimingSessionFields,
     })
     .strict(),
   z
@@ -266,6 +274,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
       pageId: uuid,
       blockId: TranslationBlockObjectSchema.shape.id.optional(),
       postprocess: InpaintingPostprocessOptionsSchema.optional(),
+      ...PageTimingSessionFields,
     })
     .strict(),
   z
@@ -276,6 +285,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
       strokes: z.array(InpaintingMaskStrokeSchema).min(1).max(MAX_MASK_STROKES),
       featherPx: finiteNumber.min(0).max(128).optional(),
       postprocess: InpaintingPostprocessOptionsSchema.optional(),
+      ...PageTimingSessionFields,
     })
     .strict(),
   z
@@ -284,6 +294,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
       workId: uuid,
       selections: z.array(AutoInpaintingChapterSelectionSchema).min(1).max(1),
       postprocess: InpaintingPostprocessOptionsSchema.optional(),
+      ...PageTimingSessionFields,
     })
     .strict(),
 ]);

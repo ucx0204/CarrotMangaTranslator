@@ -23,6 +23,7 @@ import {
   runRegionTranslationJob,
 } from "./translationRegionJobRunner";
 import type { TranslationJobContext } from "./translationJobTypes";
+import { pageTimingSessionManager } from "./pageTimingSessionManager";
 
 export type { TranslationJobContext } from "./translationJobTypes";
 
@@ -141,9 +142,15 @@ export async function startAnalysisJob(
     });
   } finally {
     try {
-      context.jobs.clearIfCurrent(id);
+      if (request.timingSession) {
+        await pageTimingSessionManager.checkpoint(request.timingSession.id);
+      }
     } finally {
-      lifetime.finish();
+      try {
+        context.jobs.clearIfCurrent(id);
+      } finally {
+        lifetime.finish();
+      }
     }
   }
 }

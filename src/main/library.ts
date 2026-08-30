@@ -27,6 +27,7 @@ export {
   savePagesBlocks,
   setPageInpaintingResult,
   updatePageAfterAnalysis,
+  updatePageProcessingTimings,
   updatePagesAfterAnalysis,
   updatePagesAfterInpainting,
 } from "./library/libraryMutationFacade";

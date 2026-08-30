@@ -774,8 +774,14 @@
       "emptyDescription": "新しい翻訳が完了すると、ページ別の詳細時間がここに保存されます。",
       "page": "ページ",
       "total": "ページ合計",
+      "preparingHelp": "実行前の保存、設定・出力準備、モデル/APIエンドポイント、フォント・インペイント実行環境の準備、工程切替、結果保存などの共通時間を含みます。",
+      "states": {
+        "running": "進行中",
+        "interrupted": "中断",
+        "completed": "完了"
+      },
       "stages": {
-        "preparing": "準備",
+        "preparing": "準備・モデル読込",
         "ocr": "OCR",
         "translation": "AI翻訳",
         "postprocessing": "結果整理",

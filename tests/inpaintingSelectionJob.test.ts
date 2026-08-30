@@ -10,6 +10,7 @@ import type { InpaintingEngine } from "../src/main/inpainting/inpaintingEngine";
 import type { AppPaths } from "../src/main/appPaths";
 import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
+import { createPageProcessingTimingCollector } from "../src/main/pipeline/pageProcessingTiming";
 
 const chapterAId = "11111111-1111-4111-8111-111111111111";
 const chapterBId = "22222222-2222-4222-8222-222222222222";
@@ -23,6 +24,9 @@ type InpaintingRuntimeHarness = {
   >;
   inpaintPatternPage: ReturnType<
     typeof vi.fn<InpaintingJobRuntime["inpaintPatternPage"]>
+  >;
+  openPageTimingSession: ReturnType<
+    typeof vi.fn<InpaintingJobRuntime["openPageTimingSession"]>
   >;
   releaseEngine: ReturnType<typeof vi.fn<() => void>>;
   runEngine: ReturnType<typeof vi.fn<InpaintingEngine["inpaint"]>>;
@@ -66,6 +70,10 @@ describe("single-chapter automatic inpainting jobs", () => {
       {
         mode: "selection-pattern",
         workId: "work-a",
+        timingSession: {
+          id: "66666666-6666-4666-8666-666666666666",
+          startedAtEpochMs: 1_000,
+        },
         selections: [
           {
             chapterId: chapterAId,
@@ -82,6 +90,15 @@ describe("single-chapter automatic inpainting jobs", () => {
     expect(result.chapters?.map((chapter) => chapter.id)).toEqual([chapterAId]);
     expect(result.pagesChanged).toBe(2);
     expect(harness.acquireEngine).toHaveBeenCalledTimes(1);
+    expect(harness.openPageTimingSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chapterId: chapterAId,
+        kind: "inpainting",
+        session: expect.objectContaining({
+          id: "66666666-6666-4666-8666-666666666666",
+        }),
+      }),
+    );
     expect(harness.acquireEngine).toHaveBeenCalledWith(
       expect.objectContaining({ computeGpuIndex: 2 }),
     );
@@ -1060,6 +1077,15 @@ function createInpaintingRuntimeHarness(
       return saved;
     },
   );
+  const openPageTimingSession = vi.fn<
+    InpaintingJobRuntime["openPageTimingSession"]
+  >(async ({ jobId, pages, session }) =>
+    createPageProcessingTimingCollector(
+      jobId,
+      pages.map((page) => page.id),
+      { managed: true, sessionId: session.id },
+    ),
+  );
   const runtime: InpaintingJobRuntime = {
     acquireEngine,
     emitEvent: (jobs, mainWindow, event) => {
@@ -1075,6 +1101,7 @@ function createInpaintingRuntimeHarness(
     }),
     inpaintPatternPage,
     logError: vi.fn(),
+    openPageTimingSession,
     openChapter: vi.fn(async (chapterId) =>
       requireChapter(chapters, chapterId),
     ),
@@ -1083,6 +1110,7 @@ function createInpaintingRuntimeHarness(
   return {
     acquireEngine,
     inpaintPatternPage,
+    openPageTimingSession,
     releaseEngine,
     runEngine,
     runtime,

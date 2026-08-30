@@ -18,6 +18,7 @@ import type { PixelRect } from "../../shared/region";
 import type { ChapterRunPaths } from "../library";
 import type { FontMatchingSemanticRole } from "../../shared/fontMatchingProfileTypes";
 import type { CumulativeContextDetail } from "../../shared/settingsTypes";
+import type { PageProcessingTimingCollector } from "./pageProcessingTiming";
 
 export type PipelineOptions = {
   jobId: string;
@@ -25,6 +26,8 @@ export type PipelineOptions = {
   runPaths: ChapterRunPaths;
   emit: (event: JobEvent) => void;
   signal: AbortSignal;
+  /** Shared renderer-owned timing session; omitted for region/tests/legacy calls. */
+  timing?: PageProcessingTimingCollector;
   skipOcrPrepass?: boolean;
   blockMode?: "auto" | "keep";
   /** webp 등 nativeImage가 못 읽는 이미지의 PNG 디코더 (keep 모드 블록 크롭 OCR용). */

@@ -40,20 +40,24 @@ export async function preparePageTranslationAttempt({
   server: ModelEndpointHandle;
   timing: PageProcessingTimingCollector;
 }): Promise<PreparedPageBuildResult> {
-  const result = await measurePageProcessingStage(
+  return measurePageProcessingStage(
     timing,
     page.id,
     "translation",
-    () => requestPageTranslation({ pageOptions, runtime, server }),
-  );
-  return measurePageProcessingStage(timing, page.id, "postprocessing", () =>
-    preparePageResult({
-      jobId,
-      page,
-      pageOptions,
-      result,
-      runtime,
-    }),
+    async () => {
+      const result = await requestPageTranslation({
+        pageOptions,
+        runtime,
+        server,
+      });
+      return preparePageResult({
+        jobId,
+        page,
+        pageOptions,
+        result,
+        runtime,
+      });
+    },
   );
 }
 

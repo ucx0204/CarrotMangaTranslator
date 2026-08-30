@@ -186,7 +186,14 @@ describe("translation immediate cancellation", () => {
     await expect(
       startAnalysisJob(
         makeContext(jobs, []),
-        { chapterId: chapter.id, runMode: "all" },
+        {
+          chapterId: chapter.id,
+          runMode: "all",
+          timingSession: {
+            id: "99999999-9999-4999-8999-999999999999",
+            startedAtEpochMs: 1_000,
+          },
+        },
         runtime,
       ),
     ).resolves.toMatchObject({ status: "completed" });

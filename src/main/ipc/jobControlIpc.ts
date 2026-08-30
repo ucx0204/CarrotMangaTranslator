@@ -1,9 +1,12 @@
 import type { JobEvent } from "../../shared/jobTypes";
 import { jobControlIpcContracts } from "../../shared/ipcContracts";
+import { FinishPageTimingSessionRequestSchema } from "../../shared/ipcPageTimingSchemas";
+import { parseIpcPayload } from "../../shared/ipcSchemas";
 import { emitJobEvent } from "../jobs/jobEvents";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
+import { pageTimingSessionManager } from "../jobs/pageTimingSessionManager";
 
 type JobControlIpcContext = Pick<IpcContext, "getMainWindow" | "jobs">;
 
@@ -31,4 +34,17 @@ export function registerJobControlIpc(context: JobControlIpcContext): void {
     await context.jobs.runCleanup(job, "cancel");
     return { cancelled: true };
   });
+
+  trustedHandleContract(
+    context,
+    jobControlIpcContracts.finishPageTimingSession,
+    async (_event, rawRequest: unknown) =>
+      pageTimingSessionManager.finish(
+        parseIpcPayload(
+          FinishPageTimingSessionRequestSchema,
+          rawRequest,
+          "페이지 소요 시간 정산",
+        ),
+      ),
+  );
 }

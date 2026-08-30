@@ -7,7 +7,10 @@ import {
 } from "../src/main/inpainting/bubbleLayoutRunner";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import type { InpaintingJobContext } from "../src/main/jobs/inpaintingJobTypes";
-import type { InpaintingJobRuntime } from "../src/main/jobs/inpaintingJobRuntime";
+import {
+  productionInpaintingJobRuntime,
+  type InpaintingJobRuntime,
+} from "../src/main/jobs/inpaintingJobRuntime";
 import type { BubbleLayout } from "../src/shared/bubbleLayout";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 
@@ -129,6 +132,7 @@ function makeRuntime(
       blocksErased: 1,
     })),
     logError: vi.fn(),
+    openPageTimingSession: productionInpaintingJobRuntime.openPageTimingSession,
     openChapter: vi.fn(async (chapterId) => {
       const chapter = chapters.get(chapterId);
       if (!chapter) throw new Error("missing chapter");

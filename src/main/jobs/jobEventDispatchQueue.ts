@@ -6,7 +6,7 @@ export type JobEventWindow = {
   isDestroyed?: () => boolean;
   webContents: {
     isDestroyed?: () => boolean;
-    send: (channel: string, event: JobEvent) => void;
+    send(channel: string, event: unknown): void;
   };
 };
 

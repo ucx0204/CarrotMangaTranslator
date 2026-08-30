@@ -98,7 +98,7 @@ export async function processInpaintingPage({
     };
   }
   const result = target.layoutOnly
-    ? await measurePageProcessingStage(timing, page.id, "bubbleLayout", () =>
+    ? await measurePageProcessingStage(timing, page.id, "typography", () =>
         processLayoutOnlyInpaintingPage({
           page,
           state,
@@ -205,7 +205,7 @@ async function runInpaintingPagePipeline({
   const processed = await measurePageProcessingStage(
     timing,
     page.id,
-    "bubbleLayout",
+    "typography",
     () =>
       runBubbleLayoutPostprocess({
         config,

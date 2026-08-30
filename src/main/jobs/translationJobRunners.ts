@@ -31,6 +31,7 @@ import { isAbortError } from "./jobEvents";
 import type { JobResourceCleanup } from "./jobLifetimeCleanup";
 import type { TranslationJobContext } from "./translationJobTypes";
 import { resolvePreviousChapterStoryPages } from "../previousChapterContext";
+import { pageTimingSessionManager } from "./pageTimingSessionManager";
 
 type EmitJobEvent = (event: JobEvent) => void;
 type ResolvedRunPages = Awaited<ReturnType<typeof resolvePagesForRun>>;
@@ -60,6 +61,7 @@ const productionAnalysisJobRunnerDependencies: AnalysisJobRunnerDependencies = {
   runWholePagePipeline,
 };
 
+// eslint-disable-next-line max-lines-per-function -- preparation checkpoints and optimistic persistence share one ordered transaction
 export async function runResolvedAnalysisJob(
   {
     context,
@@ -87,6 +89,13 @@ export async function runResolvedAnalysisJob(
   state.targetSnapshots = resolved.pages.map((page) =>
     createPageJobTargetSnapshot(request.chapterId, page),
   );
+  const timing = await openAnalysisTimingSession(
+    context,
+    request,
+    id,
+    resolved,
+  );
+  throwIfAborted(abortController.signal);
   const workContext = await dependencies.resolveWorkContextForChapter(
     request.chapterId,
   );
@@ -128,6 +137,7 @@ export async function runResolvedAnalysisJob(
     autoFontMatching: request.autoFontMatching,
     fontSizeAutoFit: request.fontSizeAutoFit,
     canonicalPageIndexById: buildPageIndexById(resolved.chapter.pages),
+    timing,
   });
   throwIfAborted(abortController.signal);
   return completeAnalysisJob(
@@ -139,6 +149,23 @@ export async function runResolvedAnalysisJob(
     openChapter,
     abortController.signal,
   );
+}
+
+async function openAnalysisTimingSession(
+  context: TranslationJobContext,
+  request: StartAnalysisRequest,
+  jobId: string,
+  resolved: ResolvedRunPages,
+) {
+  if (!request.timingSession) return undefined;
+  return pageTimingSessionManager.open({
+    chapterId: request.chapterId,
+    getMainWindow: context.getMainWindow,
+    jobId,
+    kind: "translation",
+    pages: resolved.pages,
+    session: request.timingSession,
+  });
 }
 
 export async function handleAnalysisJobError({

@@ -125,9 +125,12 @@ editing the totals by hand.
   `182f6c68370827d3fc5b1713fbfa610cde1249ab26eef1b8d4daa5000f2f23a1`.
   The two-mode 120 MP tiled page-export pass extended it to SHA-256
   `7ce9d0dcab2d1ca9fdbe079727d1452b9e7f33006be06eef62a5240745fed769`.
+  The page-processing timing checkpoint pass extended the accepted Node 26
+  artifact to SHA-256
+  `5c82e155cf67e81761352cfa7198f841200317d92dd8de660d5ada11ef26a87c`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 550 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 196 new
+  percentage for lines/statements/functions/branches in all 560 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 202 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   seven removed source files are recorded explicitly in `deletedFiles`.
@@ -164,6 +167,10 @@ editing the totals by hand.
   passed 560 Vitest files: 4,227 tests passed and the two expected
   platform-specific tests were skipped. Aggregate V8 coverage was 80.45%
   lines, 79.26% statements, 81.68% functions, and 71.84% branches.
+- The page-processing timing checkpoint capture passed 580 Vitest files: 4,519
+  tests passed and the two expected platform-specific tests were skipped.
+  Aggregate V8 coverage was 80.98% lines, 79.72% statements, 82.30% functions,
+  and 72.38% branches.
 
 ## Fail-closed obligations
 

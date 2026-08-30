@@ -14,6 +14,10 @@ import {
   runInpaintingSelectionsSequentially,
   type SequentialInpaintingResult,
 } from "./inpaintingSelectionFlow";
+import {
+  createRendererPageTimingSession,
+  finishRendererPageTimingSession,
+} from "../lib/pageTimingSession";
 
 export function useRunInpaintingSelectionAction(
   options: UseInpaintingActionsOptions,
@@ -29,6 +33,7 @@ export function useRunInpaintingSelectionAction(
   );
 }
 
+// eslint-disable-next-line complexity -- action timing must settle across every early terminal path
 async function runSelectedInpainting(
   options: UseInpaintingActionsOptions,
   selections: AutoInpaintingChapterSelection[],
@@ -41,6 +46,12 @@ async function runSelectedInpainting(
   if (options.flowCancellationRef) {
     options.flowCancellationRef.current = false;
   }
+  const timingStartedAtEpochMs = Date.now();
+  const timingSession =
+    selections.length === 1
+      ? createRendererPageTimingSession(timingStartedAtEpochMs)
+      : undefined;
+  let timingState: "completed" | "interrupted" = "interrupted";
   options.setFlowActive(true);
   try {
     const ready = await prepareSelectedInpainting(options, t);
@@ -54,16 +65,19 @@ async function runSelectedInpainting(
       selections,
       postprocess,
       shouldCancel: () => options.flowCancellationRef?.current === true,
+      timingSession,
+      timingStartedAtEpochMs,
       onResult: (result, selection) =>
         applySelectionResult(result, selection.chapterId, options, t),
     });
     hideEditChromeAfterBubbleLayout(outcome.status, postprocess, options);
-    void refreshLibraryWithStatus(
+    await refreshLibraryWithStatus(
       options.refreshLibrary,
       options.pushStatus,
       t("library.refreshAfterJobFailed"),
     );
     reportSelectionResult(outcome, options, t);
+    timingState = outcome.status === "completed" ? "completed" : "interrupted";
   } catch (error) {
     reportSelectionFailure(
       formatErrorMessage(error, t("inpainting.erase.startFailed")),
@@ -71,6 +85,13 @@ async function runSelectedInpainting(
       t,
     );
   } finally {
+    if (timingSession && selections[0]) {
+      await finishRendererPageTimingSession(
+        selections[0].chapterId,
+        timingSession,
+        timingState,
+      );
+    }
     options.setFlowActive(false);
   }
 }

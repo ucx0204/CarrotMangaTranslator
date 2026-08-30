@@ -22,6 +22,10 @@ import type {
   StartInpaintingRequest,
   StartInpaintingResult,
 } from "./inpaintingTypes";
+import type {
+  FinishPageTimingSessionRequest,
+  FinishPageTimingSessionResult,
+} from "./pageProcessingTiming";
 import {
   PAGE_IMAGE_EXPORT_PREFLIGHT_ISSUE_CODES,
   type PageImageExportPreflightResult,
@@ -45,6 +49,7 @@ import {
   StartAnalysisRequestSchema,
   StartInpaintingRequestSchema,
 } from "./ipcSchemas";
+import { FinishPageTimingSessionRequestSchema } from "./ipcPageTimingSchemas";
 import {
   analysisResultStatusSchema,
   defineIpcContract,
@@ -186,6 +191,9 @@ const disposeInpaintingResultSchema = z
   .object({ disposed: z.boolean() })
   .strict();
 const cancelJobResultSchema = z.object({ cancelled: z.boolean() }).strict();
+const finishPageTimingSessionResultSchema = z
+  .object({ updated: z.boolean() })
+  .strict();
 
 export const translationJobIpcContracts = {
   startAnalysis: defineIpcContract<[StartAnalysisRequest], StartAnalysisResult>(
@@ -315,5 +323,14 @@ export const jobControlIpcContracts = {
     channel: "job:cancel",
     args: z.tuple([]),
     result: cancelJobResultSchema,
+  }),
+  finishPageTimingSession: defineIpcContract<
+    [FinishPageTimingSessionRequest],
+    FinishPageTimingSessionResult
+  >({
+    apiKey: "finishPageTimingSession",
+    channel: "page-timing:finish-session",
+    args: z.tuple([FinishPageTimingSessionRequestSchema]),
+    result: finishPageTimingSessionResultSchema,
   }),
 } as const;

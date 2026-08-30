@@ -148,6 +148,17 @@ describe("chapter sync helpers", () => {
     };
 
     const live = makeChapter();
+    live.pages[0] = {
+      ...live.pages[0],
+      processingTiming: {
+        version: 2,
+        sessionId: "00000000-0000-4000-8000-000000000001",
+        state: "running",
+        checkpoint: 3,
+        measuredAt: "2026-04-19T00:00:03.000Z",
+        stages: { preparing: 250, ocr: 500 },
+      },
+    };
     live.pages[1] = {
       ...live.pages[1],
       analysisStatus: "completed",
@@ -181,6 +192,9 @@ describe("chapter sync helpers", () => {
     );
     expect(merged.chapter.pages[1]?.analysisStatus).toBe("completed");
     expect(merged.chapter.pages[1]?.blocks[0]?.translatedText).toBe("KO2");
+    expect(merged.chapter.pages[0]?.processingTiming).toEqual(
+      live.pages[0]?.processingTiming,
+    );
   });
 
   it("appends new live blocks to a preserved dirty page when requested (영역 번역 결과)", () => {
@@ -319,6 +333,49 @@ describe("chapter sync helpers", () => {
     // updatedAt + analysisStatus + blocks differ → cannot reuse local.
     expect(merged.chapter.pages[1]).toBe(live.pages[1]);
     expect(merged.chapter.pages[1]?.analysisStatus).toBe("completed");
+  });
+
+  it("treats v1 and v2 timing checkpoints as live page content", () => {
+    const localV2 = makeChapter();
+    const liveV2 = makeChapter();
+    liveV2.pages[1] = {
+      ...liveV2.pages[1],
+      processingTiming: {
+        version: 2,
+        sessionId: "00000000-0000-4000-8000-000000000001",
+        state: "running",
+        checkpoint: 1,
+        measuredAt: "2026-04-19T00:00:01.000Z",
+        stages: { preparing: 100 },
+      },
+    };
+    expect(
+      mergeLiveChapterPreservingDirtyPages(liveV2, localV2, []).chapter
+        .pages[1],
+    ).toBe(liveV2.pages[1]);
+
+    const localV1 = makeChapter();
+    const liveV1 = makeChapter();
+    localV1.pages[1] = {
+      ...localV1.pages[1],
+      processingTiming: {
+        version: 1,
+        measuredAt: "2026-04-19T00:00:01.000Z",
+        stages: { ocr: 100 },
+      },
+    };
+    liveV1.pages[1] = {
+      ...liveV1.pages[1],
+      processingTiming: {
+        version: 1,
+        measuredAt: "2026-04-19T00:00:02.000Z",
+        stages: { ocr: 100 },
+      },
+    };
+    expect(
+      mergeLiveChapterPreservingDirtyPages(liveV1, localV1, []).chapter
+        .pages[1],
+    ).toBe(liveV1.pages[1]);
   });
 
   it("still merges page-by-page when no page is dirty (no early return)", () => {

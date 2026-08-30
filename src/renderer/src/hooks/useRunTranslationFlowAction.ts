@@ -16,6 +16,7 @@ import type {
 } from "./translationActionTypes";
 import { runTranslationFlowAction } from "./translationBubbleLayoutWorkflow";
 import { resolveTranslationCompletionOptions } from "./translationBubbleLayoutWorkflowSupport";
+import type { PageTimingSessionRef } from "../../../shared/pageProcessingTiming";
 
 type TranslationPassRunnerConfig = Pick<
   UseTranslationActionsOptions,
@@ -114,14 +115,16 @@ function createTranslationPassRunner({
   t,
 }: TranslationPassRunnerConfig): (
   selection: ChapterRunSelection,
+  timingSession: PageTimingSessionRef,
 ) => Promise<RunAnalysisOutcome> {
-  return (selection) =>
+  return (selection, timingSession) =>
     runTranslationFlowPasses({
       selection,
       executeAnalysisJob,
       options,
       pushStatus,
       t,
+      timingSession,
       isCancellationRequested: () => flowCancellationRef?.current === true,
       onFailureGuidance: (guidance) => {
         failureGuidanceRef.current = guidance;
@@ -137,6 +140,7 @@ async function runTranslationFlowPasses({
   t,
   isCancellationRequested,
   onFailureGuidance,
+  timingSession,
 }: {
   selection: ChapterRunSelection;
   executeAnalysisJob: ExecuteAnalysisJob;
@@ -145,6 +149,7 @@ async function runTranslationFlowPasses({
   t: TFunction<"renderer">;
   isCancellationRequested: () => boolean;
   onFailureGuidance: (guidance: JobFailureGuidance) => void;
+  timingSession: PageTimingSessionRef;
 }): Promise<RunAnalysisOutcome> {
   // Bubble layout is resolved only after inpainting, against a render region
   // that can be much larger than the OCR bbox. Let the Bubble renderer own
@@ -173,6 +178,7 @@ async function runTranslationFlowPasses({
     true,
     onFailureGuidance,
     options.cumulativeContextDetail,
+    timingSession,
   );
   return outcome === "completed" && isCancellationRequested()
     ? "cancelled"

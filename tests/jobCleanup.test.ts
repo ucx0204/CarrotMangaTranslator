@@ -209,6 +209,37 @@ describe("job cancellation IPC", () => {
       },
     ]);
   });
+
+  it("validates and routes page timing terminal settlement", async () => {
+    const jobs = new ActiveJobStore();
+    const rendererUrl = "http://127.0.0.1:5173/";
+    const mainWindow = {
+      isDestroyed: () => false,
+      webContents: { getURL: () => rendererUrl, id: 17 },
+    } as BrowserWindow;
+    registerJobControlIpc({ jobs, getMainWindow: () => mainWindow });
+    const handler = electronMock.handlers.get(
+      jobControlIpcContracts.finishPageTimingSession.channel,
+    );
+    if (!handler) {
+      throw new Error("Page timing finish IPC handler was not registered.");
+    }
+
+    await expect(
+      handler(
+        {
+          sender: { id: 17 },
+          senderFrame: { url: rendererUrl },
+        } as IpcMainInvokeEvent,
+        {
+          chapterId: "11111111-1111-4111-8111-111111111111",
+          sessionId: "22222222-2222-4222-8222-222222222222",
+          elapsedMs: 1_234,
+          state: "interrupted",
+        },
+      ),
+    ).resolves.toEqual({ updated: false });
+  });
 });
 
 describe("before-quit cleanup", () => {

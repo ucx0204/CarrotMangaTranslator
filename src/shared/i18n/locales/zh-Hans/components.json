@@ -767,8 +767,14 @@
       "emptyDescription": "完成新的翻译后，逐页详细耗时会保存在这里。",
       "page": "页面",
       "total": "页面合计",
+      "preparingHelp": "包含运行前保存、设置与输出准备、模型/API 端点启动、字体与图像修复运行时准备、阶段切换及结果保存等公共耗时。",
+      "states": {
+        "running": "进行中",
+        "interrupted": "已中断",
+        "completed": "已完成"
+      },
       "stages": {
-        "preparing": "准备",
+        "preparing": "准备与模型加载",
         "ocr": "OCR",
         "translation": "AI 翻译",
         "postprocessing": "结果整理",

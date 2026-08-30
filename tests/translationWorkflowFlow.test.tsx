@@ -11,6 +11,7 @@ import type { UseTranslationActionsOptions } from "../src/renderer/src/hooks/tra
 const startAnalysis = vi.fn();
 const startInpainting = vi.fn();
 const openChapter = vi.fn();
+const finishPageTimingSession = vi.fn(async () => ({ updated: true }));
 const notificationMocks: NotificationPort = {
   error: vi.fn(),
   info: vi.fn(),
@@ -20,6 +21,7 @@ const notificationMocks: NotificationPort = {
 
 beforeEach(() => {
   window.mangaApi = createTestMangaGatewayStub({
+    finishPageTimingSession,
     openChapter,
     startAnalysis,
     startInpainting,
@@ -110,6 +112,237 @@ afterEach(() => {
 });
 
 describe("translation workflow modes", () => {
+  it("settles an interrupted session when cancellation arrives after saving", async () => {
+    const options = makeOptions();
+    options.flowCancellationRef = { current: false };
+    const cancellationRef = options.flowCancellationRef;
+    options.saveNow = vi.fn(async () => {
+      cancellationRef.current = true;
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "all" }],
+        workflowMode: "cumulative",
+        blockMode: "auto",
+      });
+    });
+
+    expect(outcome).toBe("cancelled");
+    expect(startAnalysis).not.toHaveBeenCalled();
+    expect(finishPageTimingSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chapterId: "chapter-1",
+        state: "interrupted",
+      }),
+    );
+  });
+
+  it("settles timing when chapter preparation throws", async () => {
+    const options = makeOptions();
+    openChapter.mockRejectedValue(new Error("chapter open failed"));
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-2", mode: "pending" }],
+        workflowMode: "cumulative",
+        blockMode: "auto",
+        bubbleLayoutWorkflow: true,
+      });
+    });
+
+    expect(outcome).toBe("failed");
+    expect(finishPageTimingSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chapterId: "chapter-2",
+        state: "interrupted",
+      }),
+    );
+  });
+
+  it("does not create a timing session for an empty selection", async () => {
+    const options = makeOptions();
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [],
+        workflowMode: "cumulative",
+        blockMode: "auto",
+      });
+    });
+
+    expect(outcome).toBe("no-op");
+    expect(options.saveNow).not.toHaveBeenCalled();
+    expect(finishPageTimingSession).not.toHaveBeenCalled();
+  });
+
+  it("settles the first session when cancellation arrives before its chapter starts", async () => {
+    const options = makeOptions();
+    let cancellationReads = 0;
+    const cancellationRef = {} as { current: boolean };
+    Object.defineProperty(cancellationRef, "current", {
+      configurable: true,
+      get: () => {
+        cancellationReads += 1;
+        return cancellationReads >= 2;
+      },
+      set: () => undefined,
+    });
+    options.flowCancellationRef = cancellationRef;
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "all" }],
+        workflowMode: "cumulative",
+        blockMode: "auto",
+      });
+    });
+
+    expect(outcome).toBe("cancelled");
+    expect(startAnalysis).not.toHaveBeenCalled();
+    expect(finishPageTimingSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chapterId: "chapter-1",
+        state: "interrupted",
+      }),
+    );
+  });
+
+  it("stops between chapters after settling the completed chapter", async () => {
+    const options = makeOptions();
+    options.flowCancellationRef = { current: false };
+    const cancellationRef = options.flowCancellationRef;
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    finishPageTimingSession.mockImplementationOnce(async () => {
+      cancellationRef.current = true;
+      return { updated: true };
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [
+          { chapterId: "chapter-1", mode: "all" },
+          { chapterId: "chapter-2", mode: "all" },
+        ],
+        workflowMode: "cumulative",
+        blockMode: "auto",
+      });
+    });
+
+    expect(outcome).toBe("cancelled");
+    expect(startAnalysis).toHaveBeenCalledOnce();
+    expect(finishPageTimingSession).toHaveBeenCalledOnce();
+    expect(finishPageTimingSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chapterId: "chapter-1",
+        state: "completed",
+      }),
+    );
+  });
+
+  it("settles a cancelled translation result without starting inpainting", async () => {
+    const options = makeOptions();
+    startAnalysis.mockResolvedValue({ status: "cancelled" });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "all" }],
+        workflowMode: "cumulative",
+        blockMode: "auto",
+      });
+    });
+
+    expect(outcome).toBe("cancelled");
+    expect(startInpainting).not.toHaveBeenCalled();
+    expect(finishPageTimingSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chapterId: "chapter-1",
+        state: "interrupted",
+      }),
+    );
+  });
+
+  it("settles the final session when cancellation arrives during the final refresh", async () => {
+    const options = makeOptions();
+    options.flowCancellationRef = { current: false };
+    const cancellationRef = options.flowCancellationRef;
+    options.refreshLibrary = vi.fn(async () => {
+      cancellationRef.current = true;
+    });
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapters: [makeChapter()],
+      pagesChanged: 1,
+      blocksErased: 1,
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "all" }],
+        workflowMode: "cumulative",
+        blockMode: "auto",
+        bubbleLayoutWorkflow: true,
+      });
+    });
+
+    expect(outcome).toBe("cancelled");
+    expect(options.refreshLibrary).toHaveBeenCalledOnce();
+    expect(finishPageTimingSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chapterId: "chapter-1",
+        state: "interrupted",
+      }),
+    );
+  });
+
+  it("settles direct translation timing when the request rejects", async () => {
+    const options = makeOptions();
+    startAnalysis.mockRejectedValue(new Error("request failed"));
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    await act(async () => {
+      await result.current.runAnalysis("pending");
+    });
+
+    expect(finishPageTimingSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chapterId: "chapter-1",
+        state: "interrupted",
+      }),
+    );
+  });
+
   it("records one recoverable checkpoint around a page retranslation", async () => {
     const options = makeOptions();
     const originalBlock = {
@@ -220,6 +453,10 @@ describe("translation workflow modes", () => {
     expect(startInpainting).toHaveBeenCalledWith({
       mode: "selection-pattern",
       workId: "work-1",
+      timingSession: expect.objectContaining({
+        id: expect.any(String),
+        startedAtEpochMs: expect.any(Number),
+      }),
       selections: [
         {
           chapterId: "chapter-1",
@@ -281,6 +518,10 @@ describe("translation workflow modes", () => {
     expect(startInpainting).toHaveBeenCalledWith({
       mode: "selection-pattern",
       workId: "work-1",
+      timingSession: expect.objectContaining({
+        id: expect.any(String),
+        startedAtEpochMs: expect.any(Number),
+      }),
       selections: [{ chapterId: "chapter-1", mode: "all" }],
       postprocess: {
         bubbleLayout: { enabled: false, policy: "balanced" },
@@ -971,6 +1212,10 @@ describe("translation workflow modes", () => {
     expect(startAnalysis).toHaveBeenCalledWith({
       chapterId: "chapter-1",
       runMode: "pending",
+      timingSession: expect.objectContaining({
+        id: expect.any(String),
+        startedAtEpochMs: expect.any(Number),
+      }),
       blockMode: "auto",
       collectPageContext: true,
     });

@@ -3,10 +3,13 @@ import type { ChapterSnapshot } from "./libraryTypes";
 import type { TranslationCompletionWorkflow } from "./libraryTypes";
 import type { JobFailureGuidance } from "./jobTypes";
 import type { CumulativeContextDetail } from "./settingsTypes";
+import type { PageTimingSessionRef } from "./pageProcessingTiming";
 
 export type AnalysisBlockMode = "auto" | "keep";
 
 type TranslationRunOptions = {
+  /** Renderer-owned wall-clock session shared with automatic inpainting. */
+  timingSession?: PageTimingSessionRef;
   collectPageContext?: boolean;
   cumulativeContextDetail?: CumulativeContextDetail;
   /** Insert natural hard line breaks into translated text for the detected block size. */

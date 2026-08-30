@@ -15,6 +15,7 @@ import {
 } from "./inpaintingJobRunner";
 import type { InpaintingJobState } from "./inpaintingJobPageTypes";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
+import { pageTimingSessionManager } from "./pageTimingSessionManager";
 import {
   productionInpaintingJobRuntime,
   type InpaintingJobRuntime,
@@ -22,6 +23,7 @@ import {
 
 export type { InpaintingJobContext } from "./inpaintingJobTypes";
 
+// eslint-disable-next-line max-lines-per-function -- job ownership and terminal cleanup order remain auditable together
 export async function startInpaintingJob(
   context: InpaintingJobContext,
   request: StartInpaintingRequest,
@@ -99,7 +101,31 @@ export async function startInpaintingJob(
       runtime,
     });
   } finally {
-    await finishInpaintingJob(context, state, id, completion.resolve, runtime);
+    await finishTimedInpaintingJob(
+      context,
+      request,
+      state,
+      id,
+      completion.resolve,
+      runtime,
+    );
+  }
+}
+
+async function finishTimedInpaintingJob(
+  context: InpaintingJobContext,
+  request: StartInpaintingRequest,
+  state: InpaintingJobState,
+  id: string,
+  resolveCompletion: () => void,
+  runtime: InpaintingJobRuntime,
+): Promise<void> {
+  try {
+    if (request.timingSession) {
+      await pageTimingSessionManager.checkpoint(request.timingSession.id);
+    }
+  } finally {
+    await finishInpaintingJob(context, state, id, resolveCompletion, runtime);
   }
 }
 

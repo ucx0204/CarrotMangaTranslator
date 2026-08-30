@@ -119,6 +119,11 @@ import type {
 } from "./linkedWorkspaceTypes";
 import type { CodexAccountSnapshot } from "./codexAccountTypes";
 import type {
+  FinishPageTimingSessionRequest,
+  FinishPageTimingSessionResult,
+  PageTimingUpdatedEvent,
+} from "./pageProcessingTiming";
+import type {
   TavilyUsageRequest,
   TavilyUsageSnapshot,
 } from "./internetResearchTypes";
@@ -338,12 +343,18 @@ export type MangaApi = {
   ) => Promise<PageImageExportPreflightResult>;
   disposeInpaintingEngine: () => Promise<{ disposed: boolean }>;
   cancelJob: () => Promise<unknown>;
+  finishPageTimingSession: (
+    request: FinishPageTimingSessionRequest,
+  ) => Promise<FinishPageTimingSessionResult>;
   getPanelState: () => Promise<PanelSyncState | null>;
   openPanelWindow: (panelId: PanelId) => Promise<{ opened: boolean }>;
   closePanelWindow: (panelId: PanelId) => Promise<{ closed: boolean }>;
   publishPanelState: (state: PanelSyncState) => Promise<{ published: boolean }>;
   sendPanelCommand: (command: PanelCommand) => Promise<{ sent: boolean }>;
   onJobEvent: (callback: (event: JobEvent) => void) => () => void;
+  onPageTimingUpdated: (
+    callback: (event: PageTimingUpdatedEvent) => void,
+  ) => () => void;
   onModelTestEvent: (
     callback: (event: ModelTestProgressEvent) => void,
   ) => () => void;

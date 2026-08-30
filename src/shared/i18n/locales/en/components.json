@@ -777,8 +777,14 @@
       "emptyDescription": "Complete a new translation to save detailed page timings here.",
       "page": "Page",
       "total": "Page total",
+      "preparingHelp": "Includes pre-run saves, settings and output setup, model/API endpoint startup, font and inpainting runtime setup, stage transitions, and result persistence.",
+      "states": {
+        "running": "Running",
+        "interrupted": "Interrupted",
+        "completed": "Completed"
+      },
       "stages": {
-        "preparing": "Setup",
+        "preparing": "Setup & model load",
         "ocr": "OCR",
         "translation": "AI translation",
         "postprocessing": "Result processing",
