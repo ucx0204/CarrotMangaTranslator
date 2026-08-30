@@ -151,10 +151,15 @@ describe("Windows installer clean uninstall option", () => {
         include: "build/installer.nsh",
         useZip: true,
       },
+      beforePack: expect.any(Function),
       win: expect.objectContaining({
         electronLanguages: ["en-US", "en-GB", "ko", "ja", "zh-CN", "zh-TW"],
         executableName: WINDOWS_EXECUTABLE_BASENAME,
         extraResources: expect.arrayContaining([
+          {
+            from: "tools/mgt-import-source-runner/mgt-import-source-runner.exe",
+            to: "tools/mgt-import-source-runner/mgt-import-source-runner.exe",
+          },
           {
             from: "tools/ffmpeg",
             to: "tools/ffmpeg",

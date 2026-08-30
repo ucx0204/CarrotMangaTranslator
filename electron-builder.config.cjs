@@ -191,15 +191,11 @@ const importSourceRunnerPath = join(
   "mgt-import-source-runner",
   "mgt-import-source-runner.exe",
 );
-if (existsSync(importSourceRunnerPath)) {
+if (!isMacBuild) {
   windowsExtraResources.push({
     from: "tools/mgt-import-source-runner/mgt-import-source-runner.exe",
     to: "tools/mgt-import-source-runner/mgt-import-source-runner.exe",
   });
-} else if (!isMacBuild) {
-  throw new Error(
-    `Missing ${importSourceRunnerPath}. Run npm run build:import-source-runner before packaging.`,
-  );
 }
 
 if (isMacBuild) {
@@ -210,16 +206,22 @@ if (isMacBuild) {
 }
 
 /**
- * Keep the configuration importable by macOS checks that do not package the
- * app. The runtime must still exist before electron-builder starts a real
- * Apple Silicon package.
+ * Keep the configuration importable by checks running from a clean checkout.
+ * Generated native inputs must still exist before electron-builder starts a
+ * real package.
  *
  * @param {import("app-builder-lib").PackContext} context
  */
-function verifyMacRuntimeReady(context) {
-  if (context.electronPlatformName !== "darwin") {
+function verifyBuildRuntimeReady(context) {
+  if (!isMacBuild && context.electronPlatformName === "win32") {
+    if (!existsSync(importSourceRunnerPath)) {
+      throw new Error(
+        `Missing ${importSourceRunnerPath}. Run npm run build:import-source-runner before packaging.`,
+      );
+    }
     return;
   }
+  if (context.electronPlatformName !== "darwin") return;
   if (!existsSync(stagedMacTools)) {
     throw new Error(
       `Missing staged Apple Silicon runtime: ${stagedMacTools}. Run npm run prepare:mac:runtime first.`,
@@ -470,6 +472,6 @@ module.exports = {
     useZip: true,
     include: "build/installer.nsh",
   },
-  beforePack: verifyMacRuntimeReady,
+  beforePack: verifyBuildRuntimeReady,
   afterPack: verifyPlatformPayload,
 };
