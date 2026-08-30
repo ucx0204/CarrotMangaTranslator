@@ -74,11 +74,8 @@ const extraResources = [
     to: `app-runtime/onnxruntime-web/${onnxRuntimeWebVersion}/${onnxWasmModuleFile}`,
   },
   // The 13 MiB ort-wasm-simd-threaded.wasm binary must be packaged alongside
-  // the .mjs glue so font matching pixel inference (resolveFontMatchingOrtWasm
-  // Assets) can resolve it from runtimeRoot without depending on a prior
-  // bubble-detection download into the persistent data root. Without this,
-  // font matching silently no-ops (disabled("artifact_verification_failed"))
-  // on a fresh install where bubble detection has not yet downloaded the WASM.
+  // the .mjs glue. Font matching and the isolated macOS bubble detector both
+  // resolve these sealed assets from runtimeRoot on a fresh installation.
   {
     from: `node_modules/onnxruntime-web/dist/${onnxWasmBinaryFile}`,
     to: `app-runtime/onnxruntime-web/${onnxRuntimeWebVersion}/${onnxWasmBinaryFile}`,
@@ -377,9 +374,9 @@ module.exports = {
     "!vite*.config.ts",
     "!vitest.config.ts",
     "!out/app-runtime{,/**/*}",
-    // Font pixel inference still uses the ORT-Web Node/WASM entry. Bubble and
-    // text segmentation and the cross-script font proxy use the shared native
-    // onnxruntime-node loader.
+    // Font pixel inference and macOS bubble detection use the ORT-Web Node/WASM
+    // entry. Windows bubble detection, text segmentation, and the cross-script
+    // font proxy use the shared native onnxruntime-node loader.
     "!node_modules/onnxruntime-web/docs{,/**/*}",
     "!node_modules/onnxruntime-web/lib{,/**/*}",
     "!node_modules/onnxruntime-web/dist/!(ort.node.min.js)",

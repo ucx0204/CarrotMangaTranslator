@@ -4,20 +4,62 @@ import { loadPageImage } from "../inpainting/imageIO";
 import { KOHARU_LAYOUT_INPUT_SIZE } from "./constants";
 import type { ComicPageDetectionResult } from "./contracts";
 import { parseKoharuLayoutOutputs } from "./outputs";
-import { prepareComicDetectorImage } from "./preprocess";
+import {
+  prepareComicDetectorImage,
+  type PreparedComicDetectorImage,
+} from "./preprocess";
 import { getKoharuLayoutSession, withKoharuSessionLease } from "./session";
 import { onnxRuntimeNode as ort } from "../runtimeSupport/nativeOnnxRuntime";
+import {
+  resolveKoharuInferenceBackend,
+  runKoharuWasmInference,
+} from "./wasmWorkerClient";
 
-export async function detectKoharuPageLayout(options: {
-  /** Callers must pass the original page image, not an inpainted derivative. */
-  imagePath: string;
-  modelPath: string;
-  signal?: AbortSignal;
-  decodeFallback?: ImageDecodeFallback;
-}): Promise<ComicPageDetectionResult> {
+type KoharuDetectorWasmDependencies = Readonly<{
+  loadImage: (
+    imagePath: string,
+    decodeFallback?: ImageDecodeFallback,
+  ) => Promise<Electron.NativeImage>;
+  prepareImage: (
+    image: Electron.NativeImage,
+    signal?: AbortSignal,
+  ) => PreparedComicDetectorImage;
+  resolveBackend: typeof resolveKoharuInferenceBackend;
+  runWasmInference: typeof runKoharuWasmInference;
+}>;
+
+const defaultWasmDependencies: KoharuDetectorWasmDependencies = {
+  loadImage: loadPageImage,
+  prepareImage: prepareComicDetectorImage,
+  resolveBackend: resolveKoharuInferenceBackend,
+  runWasmInference: runKoharuWasmInference,
+};
+
+export async function detectKoharuPageLayout(
+  options: {
+    /** Callers must pass the original page image, not an inpainted derivative. */
+    imagePath: string;
+    modelPath: string;
+    signal?: AbortSignal;
+    decodeFallback?: ImageDecodeFallback;
+  },
+  dependencies: KoharuDetectorWasmDependencies = defaultWasmDependencies,
+): Promise<ComicPageDetectionResult> {
   throwIfAborted(options.signal);
-  const image = await loadPageImage(options.imagePath, options.decodeFallback);
-  const prepared = prepareComicDetectorImage(image, options.signal);
+  const image = await dependencies.loadImage(
+    options.imagePath,
+    options.decodeFallback,
+  );
+  const prepared = dependencies.prepareImage(image, options.signal);
+  if (dependencies.resolveBackend() === "wasm-worker") {
+    return dependencies.runWasmInference({
+      modelPath: options.modelPath,
+      imageWidth: prepared.imageWidth,
+      imageHeight: prepared.imageHeight,
+      rgbChw: prepared.rgbChw,
+      signal: options.signal,
+    });
+  }
   const { session, provider } = await getKoharuLayoutSession({
     modelPath: options.modelPath,
     signal: options.signal,

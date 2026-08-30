@@ -25,7 +25,7 @@ export type ComicPageDetectionResult = {
   imageWidth: number;
   imageHeight: number;
   detections: ComicPageDetection[];
-  executionProvider?: "dml" | "cpu";
+  executionProvider?: "dml" | "cpu" | "wasm";
 };
 
 /**

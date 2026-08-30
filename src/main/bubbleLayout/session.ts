@@ -2,6 +2,7 @@ import { availableParallelism } from "node:os";
 import { resolve } from "node:path";
 import type * as Ort from "onnxruntime-node";
 import { onnxRuntimeNode as ort } from "../runtimeSupport/nativeOnnxRuntime";
+import { disposeKoharuWasmInferenceWorker } from "./wasmWorkerClient";
 
 export type KoharuExecutionProvider = "dml" | "cpu";
 
@@ -56,6 +57,14 @@ export async function getKoharuLayoutSession(options: {
  * DirectML session.
  */
 export async function disposeCachedKoharuLayoutSessions(): Promise<boolean> {
+  const [nativeDisposed, wasmDisposed] = await Promise.all([
+    disposeCachedNativeKoharuLayoutSessions(),
+    disposeKoharuWasmInferenceWorker(),
+  ]);
+  return nativeDisposed || wasmDisposed;
+}
+
+async function disposeCachedNativeKoharuLayoutSessions(): Promise<boolean> {
   if (sessionDisposalBarrier) {
     await sessionDisposalBarrier;
   }

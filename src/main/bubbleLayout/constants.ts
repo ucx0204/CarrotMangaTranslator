@@ -25,9 +25,9 @@ export const KOHARU_LAYOUT_LABELS = [
 export const KOHARU_LAYOUT_SCORE_THRESHOLDS = [0.25, 0.2, 0.5, 0.5] as const;
 
 /**
- * The font pixel-inference runtime still consumes ORT-Web. These constants no
- * longer belong to bubble detection, but remain here until that shared runtime
- * contract is moved without breaking its already-published asset hashes.
+ * The font pixel-inference runtime and the macOS-safe bubble detector consume
+ * the same sealed ORT-Web assets. Keep the published hashes shared so both
+ * runtime paths reject a partial or substituted package.
  */
 export const ONNXRUNTIME_WEB_VERSION = "1.27.0";
 export const ONNXRUNTIME_WEB_WASM_MODULE_FILE = "ort-wasm-simd-threaded.mjs";
