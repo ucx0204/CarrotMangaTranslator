@@ -133,9 +133,11 @@ editing the totals by hand.
   After cherry-picking that work onto the v2.1.0 main branch, the final Windows
   integration capture extended the accepted Node 26 artifact to SHA-256
   `65e5ea2b7fba04ef0f9bdb29a59387ecca599ef2db6fe90831f720a2630bfe2b`.
+  The Codex web-research compatibility and fallback fix extended it to SHA-256
+  `b0bb2a1912d5bbc71aadab977cf9054a6321a691cada1ae1edb233c9267fb3c6`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 573 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 227 new
+  percentage for lines/statements/functions/branches in all 574 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 228 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   nine removed source files are recorded explicitly in `deletedFiles`.

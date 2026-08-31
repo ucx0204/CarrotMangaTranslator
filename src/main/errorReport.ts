@@ -199,6 +199,7 @@ function buildSettingsSystemLines(
   const lines = [
     `- Model provider: \`${settings.modelProvider}\``,
     `- Model: \`${safeModelIdentifier(settings)}\``,
+    `- Internet research Codex: \`${settings.internetResearch.codexModel} / ${settings.internetResearch.codexReasoningEffort}\``,
   ];
   if (settings.translation) {
     lines.push(

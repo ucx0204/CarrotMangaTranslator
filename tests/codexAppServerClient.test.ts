@@ -225,9 +225,13 @@ describe("CodexAppServerClient", () => {
 
   it("enables live web search only in the research App Server arguments", () => {
     expect(CODEX_APP_SERVER_ARGUMENTS).toContain('web_search="disabled"');
+    expect(CODEX_APP_SERVER_ARGUMENTS).toContain("tools.web_search=false");
     expect(CODEX_APP_SERVER_RESEARCH_ARGUMENTS).toContain('web_search="live"');
+    expect(CODEX_APP_SERVER_RESEARCH_ARGUMENTS).toContain(
+      "tools.web_search=true",
+    );
     expect(hasDisabledFeature(CODEX_APP_SERVER_ARGUMENTS, "web_search")).toBe(
-      true,
+      false,
     );
     expect(
       hasDisabledFeature(CODEX_APP_SERVER_RESEARCH_ARGUMENTS, "web_search"),
@@ -296,14 +300,20 @@ describe("CodexAppServerClient", () => {
     >;
     expect(findRequest(messages, "thread/start")).toMatchObject({
       params: {
-        developerInstructions: expect.stringContaining("built-in web search"),
+        developerInstructions: expect.stringContaining(
+          "hosted web_search tool directly",
+        ),
         config: {
           web_search: "live",
+          tools: {
+            web_search: {
+              context_size: "high",
+            },
+          },
           model_context_window: 262_144,
           features: {
             shell_tool: false,
             unified_exec: false,
-            web_search: true,
           },
         },
       },

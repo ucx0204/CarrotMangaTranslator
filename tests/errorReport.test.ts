@@ -116,6 +116,9 @@ describe("error report diagnostics", () => {
     expect(draft.logsMarkdown).not.toContain("ignored-info");
     expect(draft.systemMarkdown).toContain("openai-api");
     expect(draft.systemMarkdown).toContain("safe-model-id");
+    expect(draft.systemMarkdown).toContain(
+      "Internet research Codex: `gpt-research-test / low`",
+    );
     expect(combined).not.toContain("sk-private-api-key");
     expect(combined).not.toContain("tvly-private-key");
     expect(combined).not.toContain("Authorization: Bearer abcdefghijklmnop");
@@ -263,7 +266,7 @@ function makeSettings(): AppSettings {
       apiModel: "safe-model-id",
       apiMaxOutputTokens: 32768,
       apiContextTokens: 65536,
-      codexModel: "gpt-test",
+      codexModel: "gpt-research-test",
       codexReasoningEffort: "low",
       codexMaxOutputTokens: 32768,
       codexContextTokens: 65536,

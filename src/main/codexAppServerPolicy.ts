@@ -44,7 +44,6 @@ const CODEX_APP_SERVER_DISABLED_FEATURES = [
   "tool_suggest",
   "unified_exec",
   "view_image",
-  "web_search",
   "workspace_dependencies",
 ] as const;
 
@@ -53,9 +52,7 @@ export type CodexAppServerCapability = "isolated" | "research";
 export function buildCodexAppServerArguments(
   capability: CodexAppServerCapability,
 ): readonly string[] {
-  const disabledFeatures = CODEX_APP_SERVER_DISABLED_FEATURES.filter(
-    (feature) => capability !== "research" || feature !== "web_search",
-  );
+  const research = capability === "research";
   return [
     "app-server",
     ...CODEX_APP_SERVER_COMMON_CONFIG_OVERRIDES.flatMap((override) => [
@@ -63,8 +60,13 @@ export function buildCodexAppServerArguments(
       override,
     ]),
     "-c",
-    `web_search="${capability === "research" ? "live" : "disabled"}"`,
-    ...disabledFeatures.flatMap((feature) => ["--disable", feature]),
+    `web_search="${research ? "live" : "disabled"}"`,
+    "-c",
+    `tools.web_search=${research ? "true" : "false"}`,
+    ...CODEX_APP_SERVER_DISABLED_FEATURES.flatMap((feature) => [
+      "--disable",
+      feature,
+    ]),
     "--strict-config",
     "--listen",
     "stdio://",

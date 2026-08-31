@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "65e5ea2b7fba04ef0f9bdb29a59387ecca599ef2db6fe90831f720a2630bfe2b",
+    "introducedArtifactSha256": "b0bb2a1912d5bbc71aadab977cf9054a6321a691cada1ae1edb233c9267fb3c6",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -407,6 +407,28 @@
         "covered": 122,
         "total": 175,
         "pct": 69.71
+      }
+    },
+    "src/main/errorReport.ts": {
+      "lines": {
+        "covered": 104,
+        "total": 121,
+        "pct": 85.95
+      },
+      "statements": {
+        "covered": 105,
+        "total": 122,
+        "pct": 86.06
+      },
+      "functions": {
+        "covered": 21,
+        "total": 22,
+        "pct": 95.45
+      },
+      "branches": {
+        "covered": 59,
+        "total": 98,
+        "pct": 60.2
       }
     },
     "src/main/errorReportRedaction.ts": {
@@ -12355,6 +12377,28 @@
         "total": 76,
         "covered": 33,
         "pct": 43.42
+      }
+    },
+    "src/main/codexWebResearchFallback.ts": {
+      "lines": {
+        "total": 27,
+        "covered": 26,
+        "pct": 96.29
+      },
+      "statements": {
+        "total": 32,
+        "covered": 29,
+        "pct": 90.62
+      },
+      "functions": {
+        "total": 6,
+        "covered": 6,
+        "pct": 100
+      },
+      "branches": {
+        "total": 26,
+        "covered": 19,
+        "pct": 73.07
       }
     },
     "src/main/inpainting/fluxAssets/cpuRunner.ts": {

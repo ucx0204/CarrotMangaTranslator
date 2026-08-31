@@ -16,6 +16,7 @@ const CODEX_APP_SERVER_CONFIG_OVERRIDES = [
   "check_for_update_on_startup=false",
   "feedback.enabled=false",
   'web_search="disabled"',
+  "tools.web_search=false",
 ];
 const CODEX_APP_SERVER_DISABLED_FEATURES = [
   "apps",
@@ -49,7 +50,6 @@ const CODEX_APP_SERVER_DISABLED_FEATURES = [
   "tool_suggest",
   "unified_exec",
   "view_image",
-  "web_search",
   "workspace_dependencies",
 ];
 const CODEX_APP_SERVER_ARGUMENTS = [

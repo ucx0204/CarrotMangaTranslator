@@ -11,6 +11,11 @@ import type { ChapterSnapshot } from "../shared/libraryTypes";
 import { resolveLanguagePair } from "../shared/translationLanguages";
 import { getAppPaths } from "./appPaths";
 import { CodexAppServerClient } from "./codexAppServerClient";
+import type {
+  CodexAppServerModel,
+  CodexAppServerTurnResult,
+} from "./codexAppServerProtocol";
+import { runCodexWebResearchWithFallback } from "./codexWebResearchFallback";
 import { getAppSettings } from "./settingsStore";
 import { getChapterStoryMemory, listLibrary, openChapter } from "./library";
 import {
@@ -268,7 +273,7 @@ async function researchWithCodex(
     capability: "research",
   });
   try {
-    await validateCodexResearchAccess(
+    const models = await validateCodexResearchAccess(
       client,
       settings.internetResearch.codexModel,
     );
@@ -286,17 +291,34 @@ async function researchWithCodex(
       detail:
         "Codex가 필요한 출처를 검색하고 번역에 유용한 근거를 선별하고 있습니다.",
     });
-    const result = await client.runEphemeralTurn({
-      model: settings.internetResearch.codexModel,
-      effort: settings.internetResearch.codexReasoningEffort,
-      instructions: prompt.instructions,
-      input: [{ type: "text", text: prompt.userPrompt }],
-      cwd: paths.codexWorkspaceDir ?? join(paths.dataRoot, ".codex-workspace"),
-      outputSchema: prompt.outputSchema,
-      contextWindowTokens: settings.internetResearch.codexContextTokens,
+    const runResearchTurn = (
+      model: string,
+      effort: string,
+    ): Promise<CodexAppServerTurnResult> =>
+      client.runEphemeralTurn({
+        model,
+        effort,
+        instructions: prompt.instructions,
+        input: [{ type: "text", text: prompt.userPrompt }],
+        cwd:
+          paths.codexWorkspaceDir ?? join(paths.dataRoot, ".codex-workspace"),
+        outputSchema: prompt.outputSchema,
+        contextWindowTokens: settings.internetResearch.codexContextTokens,
+        signal,
+      });
+    const { result, warnings } = await runCodexWebResearchWithFallback({
+      models,
+      selectedModel: settings.internetResearch.codexModel,
+      selectedEffort: settings.internetResearch.codexReasoningEffort,
+      runTurn: runResearchTurn,
       signal,
+      onFallback: (fallback) =>
+        emitCodexResearchProgress(onProgress, {
+          stage: "searching",
+          progressText: "호환 Codex 모델로 웹 조사 재시도 중",
+          detail: `${settings.internetResearch.codexModel} 세션에 직접 웹 검색 도구가 없어 ${fallback.model}로 다시 조사하고 있습니다.`,
+        }),
     });
-    ensureCodexWebSearchWasUsed(result.webSearchCount);
     emitCodexResearchProgress(onProgress, {
       stage: "synthesizing",
       progressText: "조사 결과 정리 중",
@@ -306,7 +328,7 @@ async function researchWithCodex(
       raw: parseWorkContextModelJson(result.text),
       queryCount: result.webSearchCount ?? 0,
       tavilyCreditsUsed: 0,
-      warnings: [],
+      warnings,
     };
   } finally {
     await client.dispose();
@@ -316,7 +338,7 @@ async function researchWithCodex(
 async function validateCodexResearchAccess(
   client: CodexAppServerClient,
   selectedModel: string,
-): Promise<void> {
+): Promise<CodexAppServerModel[]> {
   const account = await client.readAccount(false);
   if (account.requiresOpenaiAuth && !account.account) {
     throw new Error(
@@ -332,14 +354,7 @@ async function validateCodexResearchAccess(
       "선택한 Codex 조사 모델을 현재 계정에서 사용할 수 없습니다.",
     );
   }
-}
-
-function ensureCodexWebSearchWasUsed(webSearchCount: number | undefined): void {
-  if ((webSearchCount ?? 0) < 1) {
-    throw new Error(
-      "선택한 Codex 모델이 이번 조사에서 내장 웹 검색을 사용하지 못했습니다. 다른 Codex 모델로 다시 시도해 주세요.",
-    );
-  }
+  return models;
 }
 
 function emitCodexResearchProgress(
