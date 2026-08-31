@@ -1,5 +1,9 @@
 import type { TranslationBlock } from "./textTypes";
 import type { PageProcessingTiming } from "./pageProcessingTiming";
+import type {
+  FontContinuityMetadata,
+  TranslationCheckpointMetadata,
+} from "./translationCheckpoint";
 
 export type PageAnalysisStatus = "idle" | "running" | "completed" | "failed";
 
@@ -71,6 +75,10 @@ export type MangaPage = {
    * stage has persisted its result and flips this receipt to completed.
    */
   translationCompletion?: TranslationCompletionReceipt;
+  /** Internal resumable model-stage artifact. Excluded from shared exports. */
+  translationCheckpoint?: TranslationCheckpointMetadata;
+  /** Verified font observations used only to restore chapter continuity. */
+  fontContinuity?: FontContinuityMetadata;
   /** Last measured full-page processing stages, stored as integer milliseconds. */
   processingTiming?: PageProcessingTiming;
   lastError?: string;

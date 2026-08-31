@@ -1829,6 +1829,28 @@
         "pct": 0
       }
     },
+    "src/main/library/libraryReadFacade.ts": {
+      "lines": {
+        "covered": 13,
+        "total": 21,
+        "pct": 61.9
+      },
+      "statements": {
+        "covered": 15,
+        "total": 24,
+        "pct": 62.5
+      },
+      "functions": {
+        "covered": 6,
+        "total": 10,
+        "pct": 60
+      },
+      "branches": {
+        "covered": 3,
+        "total": 6,
+        "pct": 50
+      }
+    },
     "src/main/libraryStore/imageHeaderProbeInternal.ts": {
       "lines": {
         "covered": 23,
@@ -1961,6 +1983,50 @@
         "pct": 53.12
       }
     },
+    "src/main/libraryStore/libraryAccess.ts": {
+      "lines": {
+        "covered": 19,
+        "total": 30,
+        "pct": 63.33
+      },
+      "statements": {
+        "covered": 19,
+        "total": 32,
+        "pct": 59.37
+      },
+      "functions": {
+        "covered": 7,
+        "total": 12,
+        "pct": 58.33
+      },
+      "branches": {
+        "covered": 4,
+        "total": 12,
+        "pct": 33.33
+      }
+    },
+    "src/main/libraryStore/libraryCleanup.ts": {
+      "lines": {
+        "covered": 44,
+        "total": 49,
+        "pct": 89.79
+      },
+      "statements": {
+        "covered": 44,
+        "total": 49,
+        "pct": 89.79
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 15,
+        "total": 20,
+        "pct": 75
+      }
+    },
     "src/main/libraryStore/libraryFiles.ts": {
       "lines": {
         "covered": 88,
@@ -2025,6 +2091,50 @@
         "covered": 33,
         "total": 75,
         "pct": 44
+      }
+    },
+    "src/main/libraryStore/shareExportWorkflow.ts": {
+      "lines": {
+        "covered": 66,
+        "total": 74,
+        "pct": 89.18
+      },
+      "statements": {
+        "covered": 66,
+        "total": 74,
+        "pct": 89.18
+      },
+      "functions": {
+        "covered": 12,
+        "total": 13,
+        "pct": 92.3
+      },
+      "branches": {
+        "covered": 12,
+        "total": 24,
+        "pct": 50
+      }
+    },
+    "src/main/libraryStore/shareImportPageRecord.ts": {
+      "lines": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/main/libraryStore/storage.ts": {
@@ -2523,6 +2633,28 @@
         "pct": 69.81
       }
     },
+    "src/main/pipeline/automaticFontMatchingV2PageCoordinator.ts": {
+      "lines": {
+        "covered": 39,
+        "total": 42,
+        "pct": 92.85
+      },
+      "statements": {
+        "covered": 40,
+        "total": 46,
+        "pct": 86.95
+      },
+      "functions": {
+        "covered": 13,
+        "total": 14,
+        "pct": 92.85
+      },
+      "branches": {
+        "covered": 42,
+        "total": 54,
+        "pct": 77.77
+      }
+    },
     "src/main/pipeline/automaticFontMatchingV2PageFamily.ts": {
       "lines": {
         "covered": 95,
@@ -2873,6 +3005,28 @@
         "covered": 52,
         "total": 71,
         "pct": 73.23
+      }
+    },
+    "src/main/pipeline/ocrHintsCache.ts": {
+      "lines": {
+        "covered": 36,
+        "total": 38,
+        "pct": 94.73
+      },
+      "statements": {
+        "covered": 36,
+        "total": 38,
+        "pct": 94.73
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 31,
+        "total": 36,
+        "pct": 86.11
       }
     },
     "src/main/pipeline/options.ts": {
@@ -5911,6 +6065,28 @@
         "covered": 17,
         "total": 18,
         "pct": 94.44
+      }
+    },
+    "src/renderer/src/components/ChapterPagePicker.tsx": {
+      "lines": {
+        "covered": 36,
+        "total": 42,
+        "pct": 85.71
+      },
+      "statements": {
+        "covered": 38,
+        "total": 45,
+        "pct": 84.44
+      },
+      "functions": {
+        "covered": 15,
+        "total": 19,
+        "pct": 78.94
+      },
+      "branches": {
+        "covered": 16,
+        "total": 22,
+        "pct": 72.72
       }
     },
     "src/renderer/src/components/ChapterPickerTiles.tsx": {
@@ -9021,6 +9197,28 @@
         "pct": 83.33
       }
     },
+    "src/renderer/src/components/ui/SelectionCard.tsx": {
+      "lines": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      }
+    },
     "src/renderer/src/components/ui/Tabs.tsx": {
       "lines": {
         "covered": 8,
@@ -9449,6 +9647,28 @@
         "covered": 67,
         "total": 80,
         "pct": 83.75
+      }
+    },
+    "src/renderer/src/hooks/translationChapterSelections.ts": {
+      "lines": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 18,
+        "total": 19,
+        "pct": 94.73
       }
     },
     "src/renderer/src/hooks/translationFlowHelpers.ts": {
@@ -12107,6 +12327,28 @@
         "pct": 92.3
       }
     },
+    "src/shared/translationLanguages.ts": {
+      "lines": {
+        "covered": 55,
+        "total": 57,
+        "pct": 96.49
+      },
+      "statements": {
+        "covered": 55,
+        "total": 57,
+        "pct": 96.49
+      },
+      "functions": {
+        "covered": 14,
+        "total": 15,
+        "pct": 93.33
+      },
+      "branches": {
+        "covered": 50,
+        "total": 54,
+        "pct": 92.59
+      }
+    },
     "src/shared/workContextTypes.ts": {
       "lines": { "total": 0, "covered": 0, "pct": 100 },
       "statements": { "total": 0, "covered": 0, "pct": 100 },
@@ -13017,6 +13259,28 @@
       "functions": { "total": 8, "covered": 5, "pct": 62.5 },
       "branches": { "total": 30, "covered": 22, "pct": 73.33 }
     },
+    "src/main/libraryStore/translationCheckpointStore.ts": {
+      "lines": {
+        "covered": 81,
+        "total": 90,
+        "pct": 90
+      },
+      "statements": {
+        "covered": 82,
+        "total": 95,
+        "pct": 86.31
+      },
+      "functions": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 59,
+        "total": 73,
+        "pct": 80.82
+      }
+    },
     "src/main/linkedWorkspace/linkedWorkspaceFiles.ts": {
       "lines": {
         "total": 25,
@@ -13154,6 +13418,28 @@
       "statements": { "covered": 61, "total": 87, "pct": 70.11 },
       "functions": { "covered": 14, "total": 18, "pct": 77.77 },
       "branches": { "covered": 33, "total": 54, "pct": 61.11 }
+    },
+    "src/main/pipeline/automaticFontMatchingV2Continuity.ts": {
+      "lines": {
+        "covered": 15,
+        "total": 17,
+        "pct": 88.23
+      },
+      "statements": {
+        "covered": 16,
+        "total": 18,
+        "pct": 88.88
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 8,
+        "pct": 75
+      }
     },
     "src/main/pipeline/automaticFontMatchingV2CrossScriptProxy.ts": {
       "lines": {
@@ -13551,6 +13837,50 @@
         "pct": 100
       }
     },
+    "src/main/pipeline/preparedTranslationCheckpoint.ts": {
+      "lines": {
+        "covered": 12,
+        "total": 18,
+        "pct": 66.66
+      },
+      "statements": {
+        "covered": 12,
+        "total": 18,
+        "pct": 66.66
+      },
+      "functions": {
+        "covered": 5,
+        "total": 6,
+        "pct": 83.33
+      },
+      "branches": {
+        "covered": 16,
+        "total": 29,
+        "pct": 55.17
+      }
+    },
+    "src/main/pipeline/preparedTranslationCheckpointContract.ts": {
+      "lines": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/main/pipeline/sourceFontSizeEstimator.ts": {
       "lines": {
         "total": 69,
@@ -13615,6 +13945,50 @@
         "total": 60,
         "covered": 43,
         "pct": 71.66
+      }
+    },
+    "src/main/pipeline/wholePageCheckpointFlow.ts": {
+      "lines": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 21,
+        "total": 21,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 15,
+        "total": 18,
+        "pct": 83.33
+      }
+    },
+    "src/main/pipeline/wholePageFontContinuity.ts": {
+      "lines": {
+        "covered": 32,
+        "total": 41,
+        "pct": 78.04
+      },
+      "statements": {
+        "covered": 36,
+        "total": 49,
+        "pct": 73.46
+      },
+      "functions": {
+        "covered": 11,
+        "total": 14,
+        "pct": 78.57
+      },
+      "branches": {
+        "covered": 24,
+        "total": 37,
+        "pct": 64.86
       }
     },
     "src/main/runtime/model/lemonade-llama-runtime-contracts.cjs": {
@@ -14601,6 +14975,28 @@
         "total": 33,
         "covered": 18,
         "pct": 54.54
+      }
+    },
+    "src/renderer/src/components/PageThumbSelectionCard.tsx": {
+      "lines": {
+        "covered": 39,
+        "total": 41,
+        "pct": 95.12
+      },
+      "statements": {
+        "covered": 40,
+        "total": 43,
+        "pct": 93.02
+      },
+      "functions": {
+        "covered": 10,
+        "total": 12,
+        "pct": 83.33
+      },
+      "branches": {
+        "covered": 29,
+        "total": 32,
+        "pct": 90.62
       }
     },
     "src/renderer/src/components/RichTranslationEditor.tsx": {
@@ -16041,6 +16437,28 @@
       "functions": { "total": 0, "covered": 0, "pct": 100 },
       "branches": { "total": 0, "covered": 0, "pct": 100 }
     },
+    "src/shared/bboxNormalization.ts": {
+      "lines": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 11,
+        "total": 12,
+        "pct": 91.66
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 5,
+        "total": 6,
+        "pct": 83.33
+      }
+    },
     "src/shared/blockFormatValueSchemas.ts": {
       "lines": {
         "total": 5,
@@ -16361,6 +16779,28 @@
         "pct": 100
       }
     },
+    "src/shared/pageRevisionTypes.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/shared/readableTextBox.ts": {
       "lines": {
         "total": 24,
@@ -16513,6 +16953,50 @@
         "total": 23,
         "covered": 20,
         "pct": 86.95
+      }
+    },
+    "src/shared/translationCheckpoint.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/translationLanguageDefaults.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/shared/warpTransformMath.ts": {

@@ -11,6 +11,11 @@ import {
 } from "../libraryStore/libraryFiles";
 import { getWorksRoot } from "../libraryStore/libraryPaths";
 import { withLibraryNavigationRead } from "./lock";
+import {
+  loadTranslationCheckpointArtifact,
+  type LoadedTranslationCheckpoint,
+} from "../libraryStore/translationCheckpointStore";
+import type { MangaPage } from "../../shared/libraryTypes";
 
 export const listLibrary = createListLibrary(() =>
   withLibraryNavigationRead(listLibraryUnlocked),
@@ -69,4 +74,13 @@ export function getRunPaths(
     const runDir = join(chapterDir, "runs", runId);
     return { chapterDir, runDir };
   });
+}
+
+export async function loadTranslationCheckpoint(
+  chapterDir: string,
+  page: MangaPage,
+): Promise<LoadedTranslationCheckpoint> {
+  return withLibraryNavigationRead(() =>
+    loadTranslationCheckpointArtifact(chapterDir, page),
+  );
 }

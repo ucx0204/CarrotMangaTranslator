@@ -315,6 +315,48 @@ describe("translation job lifecycle", () => {
     expect(runtime.runResolvedAnalysisJob).not.toHaveBeenCalled();
   });
 
+  it.each([
+    {
+      name: "duplicate restart page IDs",
+      restartPageIds: ["page-1", "page-1"],
+      error: "재번역 페이지 선택에 중복",
+    },
+    {
+      name: "a restart page outside the selected range",
+      restartPageIds: ["page-2"],
+      error: "번역 선택 범위에 포함",
+    },
+  ])(
+    "rejects $name before resolving pages",
+    async ({ restartPageIds, error }) => {
+      const chapter = makeChapter();
+      const runtime = makeSelectionValidationRuntime(chapter, chapter.pages);
+      const jobs = new ActiveJobStore();
+      const mainWindow = makeJobEventWindow(jobs, []);
+
+      const result = await startAnalysisJob(
+        {
+          jobs,
+          getMainWindow: () => mainWindow,
+          decodeImage: vi.fn(),
+        },
+        {
+          chapterId: chapter.id,
+          runMode: "page-set",
+          pageIds: ["page-1"],
+          restartPageIds,
+        },
+        runtime,
+      );
+
+      expect(result).toMatchObject({
+        status: "failed",
+        error: expect.stringContaining(error),
+      });
+      expect(runtime.resolvePagesForRun).not.toHaveBeenCalled();
+    },
+  );
+
   it("accepts the exact requested page set resolved in chapter order", async () => {
     const firstPage = makePage();
     const secondPage = { ...makePage(), id: "page-2", name: "002.png" };
@@ -341,6 +383,7 @@ describe("translation job lifecycle", () => {
         chapterId: chapter.id,
         runMode: "page-set",
         pageIds: [secondPage.id, firstPage.id],
+        restartPageIds: [secondPage.id],
       },
       runtime,
     );

@@ -439,7 +439,21 @@
     },
     "noSelectedPages": "No pages selected.",
     "approximately": "about ",
-    "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{approximate}}{{pageCount}}"
+    "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{approximate}}{{pageCount}}",
+    "resumeTooltip": {
+      "translation": "Reuse translation · Continue from font matching",
+      "typography": "Reuse translation and fonts · Continue from source cleanup",
+      "erasePartial": "Reuse completed cleanup · Continue with the remainder"
+    },
+    "resumeSummary": {
+      "contiguous": "Reuse translations for pages {{resumeStart}}–{{resumeEnd}} · Translate from page {{restartStart}}",
+      "contiguousSingle": "Reuse translation for page {{resumePage}} · Translate from page {{restartStart}}",
+      "postprocess": "Reuse translation and fonts for pages {{resumeStart}}–{{resumeEnd}} · Continue source cleanup",
+      "postprocessSingle": "Reuse translation and fonts for page {{resumePage}} · Continue source cleanup",
+      "mixed": "Reuse {{resumeCount}} pages · Translate {{restartCount}} pages",
+      "resumeOnly": "Continue {{resumeCount}} pages",
+      "restartOnly": "Translate {{restartCount}} pages"
+    }
   },
   "exportOptions": {
     "title": "Export results",
@@ -524,6 +538,7 @@
     "title": "Run translation",
     "start": "Start translation",
     "startSelection": "Translate selection",
+    "continueSelection": "Continue selected pages",
     "retranslateSelection": "Retranslate selection",
     "overwriteWarning": {
       "title": "This selection includes existing results",

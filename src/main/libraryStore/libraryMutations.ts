@@ -5,12 +5,11 @@ import { join } from "node:path";
 import type {
   ChapterSnapshot,
   LibraryIndex,
+  LibraryPageRecord,
   MangaPage,
 } from "../../shared/libraryTypes";
-import {
-  createPageRevision,
-  type PageRevision,
-} from "../../shared/pageRevision";
+import { createPageRevision } from "../../shared/pageRevision";
+import type { PageRevision } from "../../shared/pageRevisionTypes";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
   reorderIds,
@@ -45,6 +44,7 @@ import {
   readChapterStoryMemory,
   resolveReconciledStoryMemory,
 } from "./workContextFiles";
+import { resolveManagedCheckpointDirectory } from "./translationCheckpointStore";
 
 export type PageAnalysisUpdate = {
   expectedRevision?: PageRevision;
@@ -222,6 +222,14 @@ export async function deletePageUnlocked(
     locator.chapterId,
     pageId,
   );
+  if (target.translationCheckpoint) {
+    artifactDirectories.push(
+      resolveManagedCheckpointDirectory(
+        join(getWorksRoot(), locator.workId, "chapters", locator.chapterId),
+        target.translationCheckpoint,
+      ),
+    );
+  }
   const now = new Date().toISOString();
   chapter.pageOrder = chapter.pageOrder.filter((id) => id !== pageId);
   chapter.pages = chapter.pages.filter((page) => page.id !== pageId);
@@ -306,52 +314,96 @@ export async function updatePagesAfterAnalysisUnlocked(
   const updatesByPageId = new Map(
     updates.map((update) => [update.page.id, update]),
   );
+  const checkpointDirectoriesToRetire: string[] = [];
+  const chapterDir = join(
+    getWorksRoot(),
+    locator.workId,
+    "chapters",
+    locator.chapterId,
+  );
   const now = new Date().toISOString();
-  chapter.pages = chapter.pages.map((record) => {
-    const update = updatesByPageId.get(record.id);
-    if (!update) {
-      return record;
-    }
-    if (
-      (update.expectedRevision &&
-        createPageRevision(record) !== update.expectedRevision) ||
-      (!update.expectedRevision &&
-        update.expectedUpdatedAt &&
-        record.updatedAt !== update.expectedUpdatedAt)
-    ) {
-      return {
-        ...record,
-        analysisStatus: "failed",
-        lastError: ANALYSIS_UPDATE_CONFLICT_MESSAGE,
-      };
-    }
-    appliedPageIds.add(record.id);
-    if (update.status === "failed") {
-      return {
-        ...record,
-        analysisStatus: "failed",
-        lastError: update.warnings[update.warnings.length - 1],
-      };
-    }
-    return {
-      ...record,
-      blocks: update.page.blocks,
-      analysisStatus: "completed",
-      translationCompletion: update.page.translationCompletion,
-      processingTiming: update.page.processingTiming,
-      lastError: undefined,
-      updatedAt: now,
-    };
-  });
+  chapter.pages = chapter.pages.map((record) =>
+    applyPageAnalysisUpdate({
+      appliedPageIds,
+      chapterDir,
+      checkpointDirectoriesToRetire,
+      now,
+      record,
+      update: updatesByPageId.get(record.id),
+    }),
+  );
   chapter.updatedAt = now;
   chapter.status = resolveChapterStatus(chapter.pages);
   await runLibraryTransaction(
     "update-pages-after-analysis",
     async (transaction) => {
       await stageChapterAndTouchedWork(transaction, chapter, now);
+      for (const checkpointDirectory of checkpointDirectoriesToRetire) {
+        await transaction.retireDirectory(checkpointDirectory, {
+          required: false,
+        });
+      }
     },
   );
   return appliedPageIds;
+}
+
+function applyPageAnalysisUpdate({
+  appliedPageIds,
+  chapterDir,
+  checkpointDirectoriesToRetire,
+  now,
+  record,
+  update,
+}: {
+  appliedPageIds: Set<string>;
+  chapterDir: string;
+  checkpointDirectoriesToRetire: string[];
+  now: string;
+  record: LibraryPageRecord;
+  update?: PageAnalysisUpdate;
+}): LibraryPageRecord {
+  if (!update) return record;
+  const revisionConflict = update.expectedRevision
+    ? createPageRevision(record) !== update.expectedRevision
+    : Boolean(
+        update.expectedUpdatedAt &&
+        record.updatedAt !== update.expectedUpdatedAt,
+      );
+  if (revisionConflict) {
+    return {
+      ...record,
+      analysisStatus: "failed",
+      lastError: ANALYSIS_UPDATE_CONFLICT_MESSAGE,
+    };
+  }
+  appliedPageIds.add(record.id);
+  if (update.status === "failed") {
+    return {
+      ...record,
+      analysisStatus: "failed",
+      lastError: update.warnings[update.warnings.length - 1],
+    };
+  }
+  if (record.translationCheckpoint) {
+    checkpointDirectoriesToRetire.push(
+      resolveManagedCheckpointDirectory(
+        chapterDir,
+        record.translationCheckpoint,
+      ),
+    );
+  }
+  return {
+    ...record,
+    blocks: update.page.blocks,
+    analysisStatus: "completed",
+    translationCompletion: update.page.translationCompletion,
+    translationCheckpoint: undefined,
+    fontContinuity: update.page.fontContinuity,
+    processingTiming: update.page.processingTiming,
+    lastError: undefined,
+    updatedAt: now,
+  };
 }
 
 export async function updatePageAfterAnalysisUnlocked(

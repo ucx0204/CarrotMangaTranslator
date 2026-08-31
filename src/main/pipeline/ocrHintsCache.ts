@@ -3,10 +3,8 @@ import { dirname, join } from "node:path";
 import type { TranslationOptions } from "../appSettings";
 import type { ChapterRunPaths } from "../library";
 import type { MangaPage } from "../../shared/libraryTypes";
-import {
-  DEFAULT_SOURCE_LANGUAGE,
-  normalizeLanguageCode,
-} from "../../shared/translationLanguages";
+import { normalizeLanguageCode } from "../../shared/translationLanguages";
+import { DEFAULT_SOURCE_LANGUAGE } from "../../shared/translationLanguageDefaults";
 import {
   buildOcrCacheConfiguration,
   matchesOcrCacheConfiguration,

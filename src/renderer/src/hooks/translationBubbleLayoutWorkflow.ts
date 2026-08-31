@@ -274,10 +274,9 @@ async function runTranslationChapter(
       refreshLibrary: false,
     };
   }
-  const translationOutcome = await context.runPasses(
-    selections.analysis,
-    timingSession,
-  );
+  const translationOutcome = selections.analysis
+    ? await context.runPasses(selections.analysis, timingSession)
+    : "completed";
   if (isFlowCancellationRequested(context)) {
     return {
       status: "cancelled",

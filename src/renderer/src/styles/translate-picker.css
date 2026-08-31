@@ -991,6 +991,40 @@
   border-width: 2px;
 }
 
+.translate-page-thumb[data-selection-state="resume"] .translate-page-thumb-img {
+  border-color: var(--accent-bd);
+  border-width: 2px;
+}
+
+.translate-page-resume-tooltip {
+  position: fixed;
+  z-index: var(--layer-portal-tooltip);
+  width: max-content;
+  max-width: min(260px, calc(100vw - 40px));
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+  color: var(--text);
+  font-size: var(--font-xs);
+  font-weight: 500;
+  line-height: 1.4;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.translate-page-resume-tooltip.is-open {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .translate-page-thumb-skeleton {
   display: block;
   width: 100%;

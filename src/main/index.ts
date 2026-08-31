@@ -406,7 +406,8 @@ async function runStartupMaintenance(): Promise<void> {
     cleanupResult.missingWorkReferencesRemoved === 0 &&
     cleanupResult.missingChapterReferencesRemoved === 0 &&
     cleanupResult.workDirsRemoved === 0 &&
-    cleanupResult.chapterDirsRemoved === 0
+    cleanupResult.chapterDirsRemoved === 0 &&
+    cleanupResult.checkpointDirsRemoved === 0
   ) {
     return;
   }

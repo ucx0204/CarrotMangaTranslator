@@ -49,9 +49,7 @@ afterEach(async () => {
   delete process.env.MANGA_TRANSLATOR_PAGE_RETRIES;
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
-    if (dir) {
-      await rm(dir, { recursive: true, force: true });
-    }
+    if (dir) await rm(dir, { recursive: true, force: true });
   }
 });
 
@@ -1087,6 +1085,7 @@ async function loadPipeline({
       error,
       loadFontMatchingCandidates,
       loadFontMatchingProfile,
+      startEndpointSession: endpointStarter,
     },
   };
 }

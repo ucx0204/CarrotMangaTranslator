@@ -16,6 +16,7 @@ import {
   mergeAutomaticFontPageConsistencyState,
 } from "./automaticFontMatchingV2PageConsistency";
 import type { AutomaticFontPageConsistencyState } from "./automaticFontMatchingV2PageConsistencyShared";
+import type { FontContinuityObservation } from "../../shared/translationCheckpoint";
 
 const BODY_ANCHOR_ROLES = new Set<FontMatchingSemanticRole>([
   "dialogue",
@@ -38,24 +39,39 @@ export type AutomaticFontPageCoordinatorV2 = Readonly<{
     pixelInference?: VerifiedAutomaticFontPixelInferenceV2 | null,
     runtimePolicy?: FontMatchingRuntimePolicy,
   ) => void;
+  hydrateContinuity?: (
+    observations: readonly FontContinuityObservation[],
+  ) => void;
+  snapshotPageContinuity?: (
+    pageId: string,
+  ) => readonly FontContinuityObservation[];
+}>;
+
+type ChapterCoordinatorState = Readonly<{
+  accentObservations: FontContinuityObservation[];
+  bodyPrior: ReturnType<typeof createAutomaticFontChapterBodyPriorV2>;
+  usedFontIdsByRole: Map<FontMatchingPaletteRole, Set<string>>;
 }>;
 
 /** Carry high-confidence choices between block-local decisions in one chapter. */
 export function createAutomaticFontChapterCoordinatorV2(): AutomaticFontPageCoordinatorV2 {
-  const usedFontIdsByRole = new Map<FontMatchingPaletteRole, Set<string>>();
-  const bodyPrior = createAutomaticFontChapterBodyPriorV2();
+  const state: ChapterCoordinatorState = {
+    usedFontIdsByRole: new Map(),
+    bodyPrior: createAutomaticFontChapterBodyPriorV2(),
+    accentObservations: [],
+  };
 
   return {
     prepareWorkState(_item, role, pixelInference, runtimePolicy) {
       if (BODY_ANCHOR_ROLES.has(role)) {
         return pixelInference
-          ? bodyPrior.prepare(role, pixelInference, runtimePolicy)
+          ? state.bodyPrior.prepare(role, pixelInference, runtimePolicy)
           : undefined;
       }
       return prepareAccentWorkState({
         pixelInference,
         role,
-        usedFontIdsByRole,
+        usedFontIdsByRole: state.usedFontIdsByRole,
       });
     },
     recordDecision(
@@ -66,38 +82,107 @@ export function createAutomaticFontChapterCoordinatorV2(): AutomaticFontPageCoor
       pixelInference,
       runtimePolicy,
     ) {
-      const selectedFontId = result.selectedStyle?.fontId;
-      if (
-        !selectedFontId ||
-        result.decision.mode !== "apply" ||
-        result.decision.resolvedBy === "block_user_lock" ||
-        result.decision.resolvedBy === "work_role_user_lock"
-      ) {
-        return;
-      }
-      if (BODY_ANCHOR_ROLES.has(role)) {
-        bodyPrior.record(
-          role,
-          result,
-          selectedFontId,
-          pixelInference,
-          runtimePolicy,
-        );
-        return;
-      }
-      const palette = profile?.rolePalettes.find(
-        (entry) => entry.role === (role as FontMatchingPaletteRole),
-      );
-      if (!palette?.allowedFontIds.includes(selectedFontId)) return;
-
-      let usedFontIds = usedFontIdsByRole.get(palette.role);
-      if (!usedFontIds) {
-        usedFontIds = new Set<string>();
-        usedFontIdsByRole.set(palette.role, usedFontIds);
-      }
-      usedFontIds.add(selectedFontId);
+      recordChapterDecision(state, {
+        inference: pixelInference,
+        profile,
+        result,
+        role,
+        runtimePolicy,
+      });
+    },
+    hydrateContinuity(observations) {
+      hydrateChapterContinuity(state, observations);
+    },
+    snapshotPageContinuity(pageId) {
+      return [
+        ...state.bodyPrior.snapshotPage(pageId),
+        ...state.accentObservations.filter(
+          (observation) => observation.pageId === pageId,
+        ),
+      ];
     },
   };
+}
+
+function recordChapterDecision(
+  state: ChapterCoordinatorState,
+  {
+    inference,
+    profile,
+    result,
+    role,
+    runtimePolicy,
+  }: {
+    inference?: VerifiedAutomaticFontPixelInferenceV2 | null;
+    profile: WorkTypographyProfileV2 | null;
+    result: FontMatchingDecisionResultV2;
+    role: FontMatchingSemanticRole;
+    runtimePolicy?: FontMatchingRuntimePolicy;
+  },
+): void {
+  const selectedFontId = result.selectedStyle?.fontId;
+  if (!isReusableDecision(result, selectedFontId)) return;
+  if (BODY_ANCHOR_ROLES.has(role)) {
+    state.bodyPrior.record(
+      role,
+      result,
+      selectedFontId,
+      inference,
+      runtimePolicy,
+    );
+    return;
+  }
+  const palette = profile?.rolePalettes.find(
+    (entry) => entry.role === (role as FontMatchingPaletteRole),
+  );
+  if (!palette?.allowedFontIds.includes(selectedFontId)) return;
+  getRoleFontIds(state.usedFontIdsByRole, palette.role).add(selectedFontId);
+  recordAccentObservation({
+    accentObservations: state.accentObservations,
+    inference,
+    result,
+    role,
+    runtimePolicy,
+    selectedFontId,
+  });
+}
+
+function isReusableDecision(
+  result: FontMatchingDecisionResultV2,
+  selectedFontId: string | undefined,
+): selectedFontId is string {
+  return Boolean(
+    selectedFontId &&
+    result.decision.mode === "apply" &&
+    result.decision.resolvedBy !== "block_user_lock" &&
+    result.decision.resolvedBy !== "work_role_user_lock",
+  );
+}
+
+function hydrateChapterContinuity(
+  state: ChapterCoordinatorState,
+  observations: readonly FontContinuityObservation[],
+): void {
+  state.bodyPrior.hydrate(observations);
+  for (const observation of observations) {
+    if (BODY_ANCHOR_ROLES.has(observation.role)) continue;
+    getRoleFontIds(
+      state.usedFontIdsByRole,
+      observation.role as FontMatchingPaletteRole,
+    ).add(observation.selectedFontId);
+    appendUniqueContinuityObservation(state.accentObservations, observation);
+  }
+}
+
+function getRoleFontIds(
+  byRole: Map<FontMatchingPaletteRole, Set<string>>,
+  role: FontMatchingPaletteRole,
+): Set<string> {
+  const existing = byRole.get(role);
+  if (existing) return existing;
+  const created = new Set<string>();
+  byRole.set(role, created);
+  return created;
 }
 
 type AutomaticFontPageCoordinatorOptions = Readonly<{
@@ -159,7 +244,107 @@ export function createAutomaticFontPageCoordinatorV2(
         runtimePolicy,
       );
     },
+    hydrateContinuity(observations) {
+      chapterCoordinator.hydrateContinuity?.(observations);
+    },
+    snapshotPageContinuity(pageId) {
+      return chapterCoordinator.snapshotPageContinuity?.(pageId) ?? [];
+    },
   };
+}
+
+function recordAccentObservation({
+  accentObservations,
+  inference,
+  result,
+  role,
+  runtimePolicy,
+  selectedFontId,
+}: {
+  accentObservations: FontContinuityObservation[];
+  inference?: VerifiedAutomaticFontPixelInferenceV2 | null;
+  result: FontMatchingDecisionResultV2;
+  role: FontMatchingSemanticRole;
+  runtimePolicy?: FontMatchingRuntimePolicy;
+  selectedFontId: string;
+}): void {
+  const observation = createAccentObservation({
+    inference,
+    result,
+    role,
+    runtimePolicy,
+    selectedFontId,
+  });
+  if (observation) {
+    appendUniqueContinuityObservation(accentObservations, observation);
+  }
+}
+
+function createAccentObservation({
+  inference,
+  result,
+  role,
+  runtimePolicy,
+  selectedFontId,
+}: Omit<Parameters<typeof recordAccentObservation>[0], "accentObservations">):
+  | FontContinuityObservation
+  | undefined {
+  if (!inference || inference.localEvidence.noneAcceptable) return undefined;
+  const localTop = [...inference.localEvidence.rankedCandidates]
+    .filter((candidate) => candidate.renderStatus === "rendered")
+    .sort((left, right) => left.rank - right.rank)[0];
+  if (!localTop) return undefined;
+  const confidence = Math.min(
+    inference.localEvidence.calibratedConfidence,
+    localTop.confidence,
+  );
+  const { minimumConfidence, minimumRoleConfidence } =
+    resolveAccentMinimums(runtimePolicy);
+  if (
+    localTop.fontId !== selectedFontId ||
+    confidence < minimumConfidence ||
+    result.audit.roleConfidence < minimumRoleConfidence
+  ) {
+    return undefined;
+  }
+  return {
+    pageId: inference.pageId,
+    blockId: inference.blockId,
+    role,
+    selectedFontId,
+    confidence,
+    orientation: inference.treatment.orientation,
+    sourceStyle: inference.sourceStyle,
+    modelVersion: inference.modelVersion,
+    candidateOrderSha256: inference.candidateOrderSha256,
+  };
+}
+
+function resolveAccentMinimums(
+  runtimePolicy: FontMatchingRuntimePolicy | undefined,
+): { minimumConfidence: number; minimumRoleConfidence: number } {
+  return {
+    minimumConfidence:
+      runtimePolicy?.automaticMutation.minimumAutomaticConfidence ?? 0.86,
+    minimumRoleConfidence:
+      runtimePolicy?.automaticMutation.minimumRoleConfidence ?? 0.82,
+  };
+}
+
+function appendUniqueContinuityObservation(
+  observations: FontContinuityObservation[],
+  observation: FontContinuityObservation,
+): void {
+  if (
+    observations.some(
+      (entry) =>
+        entry.pageId === observation.pageId &&
+        entry.blockId === observation.blockId,
+    )
+  ) {
+    return;
+  }
+  observations.push(observation);
 }
 
 function prepareAccentWorkState({

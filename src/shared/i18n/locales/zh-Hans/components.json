@@ -429,7 +429,21 @@
     "statusSuffix": { "complete": " · 完成", "inProgress": " · 进行中" },
     "noSelectedPages": "未选择页面。",
     "approximately": "约",
-    "selectionSummary": "{{chapterCount}}话 · {{approximate}}{{pageCount}}页"
+    "selectionSummary": "{{chapterCount}}话 · {{approximate}}{{pageCount}}页",
+    "resumeTooltip": {
+      "translation": "复用翻译结果 · 从字体匹配继续",
+      "typography": "复用翻译和字体设置 · 从擦除原文继续",
+      "erasePartial": "复用已完成的擦除结果 · 从剩余部分继续"
+    },
+    "resumeSummary": {
+      "contiguous": "复用第{{resumeStart}}–{{resumeEnd}}页翻译 · 从第{{restartStart}}页重新翻译",
+      "contiguousSingle": "复用第{{resumePage}}页翻译 · 从第{{restartStart}}页重新翻译",
+      "postprocess": "复用第{{resumeStart}}–{{resumeEnd}}页翻译和字体 · 从擦除原文继续",
+      "postprocessSingle": "复用第{{resumePage}}页翻译和字体 · 从擦除原文继续",
+      "mixed": "复用{{resumeCount}}页 · 重新翻译{{restartCount}}页",
+      "resumeOnly": "继续处理{{resumeCount}}页",
+      "restartOnly": "重新翻译{{restartCount}}页"
+    }
   },
   "exportOptions": {
     "title": "导出结果",
@@ -514,6 +528,7 @@
     "title": "运行翻译",
     "start": "开始翻译",
     "startSelection": "翻译所选范围",
+    "continueSelection": "继续翻译所选范围",
     "retranslateSelection": "重新翻译所选范围",
     "overwriteWarning": {
       "title": "所选范围包含已有结果",

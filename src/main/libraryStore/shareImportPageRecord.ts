@@ -5,6 +5,7 @@ import {
   remapTranslationCompletionReferences,
 } from "../translationCompletionReferences";
 import { tMain } from "./localization";
+import { stripInternalPageArtifacts } from "./translationCheckpointStore";
 
 export function remapSharedPageBlocks(
   pageId: string,
@@ -59,9 +60,10 @@ export function buildMaterializedSharedPage({
     packagePage.translationCompletion,
     blockIdMap,
   );
+  const sharedPage = stripInternalPageArtifacts(packagePage);
 
   return {
-    ...packagePage,
+    ...sharedPage,
     id: pageId,
     imagePath,
     inpaintedImagePath,

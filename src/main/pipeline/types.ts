@@ -19,6 +19,7 @@ import type { ChapterRunPaths } from "../library";
 import type { FontMatchingSemanticRole } from "../../shared/fontMatchingProfileTypes";
 import type { CumulativeContextDetail } from "../../shared/settingsTypes";
 import type { PageProcessingTimingCollector } from "./pageProcessingTiming";
+import type { PreparedTranslationCheckpoint } from "./preparedTranslationCheckpointContract";
 
 export type PipelineOptions = {
   jobId: string;
@@ -33,6 +34,10 @@ export type PipelineOptions = {
   /** webp 등 nativeImage가 못 읽는 이미지의 PNG 디코더 (keep 모드 블록 크롭 OCR용). */
   decodeImage?: (filePath: string) => Promise<Buffer | null>;
   onCleanupReady?: (cleanup: () => Promise<void>) => void;
+  /** Persist a validated model-stage result before it may feed rolling context. */
+  onPagePrepared?: (
+    checkpoint: PreparedTranslationCheckpoint,
+  ) => Promise<boolean | void>;
   /** Return false when the translated page was rejected by optimistic concurrency checks. */
   onPageComplete?: (page: MangaPage) => Promise<boolean | void>;
   /** Return the accepted page IDs when a batch is guarded by optimistic concurrency. */
@@ -50,6 +55,10 @@ export type PipelineOptions = {
   fontSizeAutoFit?: boolean;
   /** Canonical zero-based positions in the complete chapter, independent of run selection. */
   canonicalPageIndexById?: ReadonlyMap<string, number>;
+  /** File-validated candidates; pipeline settings perform the final compatibility gate. */
+  translationCheckpoints?: ReadonlyMap<string, PreparedTranslationCheckpoint>;
+  /** Canonical chapter pages used to restore verified font continuity. */
+  fontContinuityPages?: readonly MangaPage[];
 };
 
 export type PipelineRegionContext = {

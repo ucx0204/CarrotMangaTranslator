@@ -19,6 +19,7 @@ type ExecuteAnalysisArgs = {
   chapterId?: string;
   pageId?: string;
   pageIds?: string[];
+  restartPageIds?: string[];
   blockMode?: AnalysisBlockMode;
   collectPageContext?: boolean;
   cumulativeContextDetail?: CumulativeContextDetail;
@@ -107,14 +108,11 @@ export async function runSelectionsSequentially(
       t,
     );
     const outcome = await execute({
-      runMode: selection.mode,
+      ...analysisScopeForSelection(selection),
       chapterId: selection.chapterId,
-      pageIds: selection.mode === "page-set" ? selection.pageIds : undefined,
       blockMode,
       collectPageContext,
-      ...(cumulativeContextDetail && cumulativeContextDetail !== "detailed"
-        ? { cumulativeContextDetail }
-        : {}),
+      ...nonDefaultContextDetail(cumulativeContextDetail),
       naturalTextLayout,
       autoFontMatching,
       fontSizeAutoFit,
@@ -136,6 +134,27 @@ export async function runSelectionsSequentially(
     return "completed";
   }
   return anyAttempted ? "failed" : "no-op";
+}
+
+function analysisScopeForSelection(
+  selection: ChapterRunSelection,
+): Pick<ExecuteAnalysisArgs, "runMode" | "pageIds" | "restartPageIds"> {
+  if (selection.mode !== "page-set") {
+    return { runMode: selection.mode };
+  }
+  return {
+    runMode: selection.mode,
+    pageIds: selection.pageIds,
+    restartPageIds: selection.restartPageIds,
+  };
+}
+
+function nonDefaultContextDetail(
+  detail: CumulativeContextDetail | undefined,
+): Pick<ExecuteAnalysisArgs, "cumulativeContextDetail"> {
+  return detail && detail !== "detailed"
+    ? { cumulativeContextDetail: detail }
+    : {};
 }
 
 function pushChapterProgress(

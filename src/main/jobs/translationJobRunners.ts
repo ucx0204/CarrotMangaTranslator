@@ -7,14 +7,16 @@ import type { JobEvent, JobFailureGuidance } from "../../shared/jobTypes";
 import {
   finalizeRunningPages,
   getRunPaths,
+  loadTranslationCheckpoint,
   markChapterPagesRunning,
   openChapter,
   resolvePagesForRun,
   resolveWorkContextForChapter,
+  saveTranslationCheckpoint,
   updatePageAfterAnalysis,
   updatePagesAfterAnalysis,
 } from "../library";
-import { logError } from "../logger";
+import { logError, logWarn } from "../logger";
 import { tMain } from "./localization";
 import type { PipelineOptions } from "../pipeline/types";
 import type { MangaPage } from "../../shared/libraryTypes";
@@ -22,8 +24,8 @@ import {
   createPageJobTargetSnapshot,
   createPageRevision,
   type PageJobTargetSnapshot,
-  type PageRevision,
 } from "../../shared/pageRevision";
+import type { PageRevision } from "../../shared/pageRevisionTypes";
 import { runWholePagePipeline } from "../wholePagePipeline";
 import { readJobFailureGuidance, throwIfAborted } from "../pipeline/failure";
 import { buildPageIndexById } from "../pipeline/pageFiltering";
@@ -32,6 +34,7 @@ import type { JobResourceCleanup } from "./jobLifetimeCleanup";
 import type { TranslationJobContext } from "./translationJobTypes";
 import { resolvePreviousChapterStoryPages } from "../previousChapterContext";
 import { pageTimingSessionManager } from "./pageTimingSessionManager";
+import type { PreparedTranslationCheckpoint } from "../pipeline/preparedTranslationCheckpointContract";
 
 type EmitJobEvent = (event: JobEvent) => void;
 type ResolvedRunPages = Awaited<ReturnType<typeof resolvePagesForRun>>;
@@ -50,6 +53,11 @@ export type AnalysisJobRunnerDependencies = {
   resolvePreviousChapterStoryPages: typeof resolvePreviousChapterStoryPages;
   markChapterPagesRunning: typeof markChapterPagesRunning;
   getRunPaths: typeof getRunPaths;
+  loadTranslationCheckpoint: typeof loadTranslationCheckpoint;
+  saveTranslationCheckpoint: typeof saveTranslationCheckpoint;
+  updatePageAfterAnalysis: typeof updatePageAfterAnalysis;
+  updatePagesAfterAnalysis: typeof updatePagesAfterAnalysis;
+  openChapter: typeof openChapter;
   runWholePagePipeline: typeof runWholePagePipeline;
 };
 
@@ -58,6 +66,11 @@ const productionAnalysisJobRunnerDependencies: AnalysisJobRunnerDependencies = {
   resolvePreviousChapterStoryPages,
   markChapterPagesRunning,
   getRunPaths,
+  loadTranslationCheckpoint,
+  saveTranslationCheckpoint,
+  updatePageAfterAnalysis,
+  updatePagesAfterAnalysis,
+  openChapter,
   runWholePagePipeline,
 };
 
@@ -104,13 +117,20 @@ export async function runResolvedAnalysisJob(
     ? await dependencies.resolvePreviousChapterStoryPages(resolved.chapter)
     : [];
   throwIfAborted(abortController.signal);
+  state.runPaths = await dependencies.getRunPaths(request.chapterId, id);
+  const translationCheckpoints = await loadReusableTranslationCheckpoints({
+    chapterDir: state.runPaths.chapterDir,
+    pages: resolved.pages,
+    request,
+    signal: abortController.signal,
+    loadCheckpoint: dependencies.loadTranslationCheckpoint,
+  });
+  throwIfAborted(abortController.signal);
   const expectedRevisionByPageId = await prepareRunningAnalysisPages(
     request.chapterId,
     resolved.pages,
     dependencies.markChapterPagesRunning,
   );
-  throwIfAborted(abortController.signal);
-  state.runPaths = await dependencies.getRunPaths(request.chapterId, id);
   throwIfAborted(abortController.signal);
   const result = await dependencies.runWholePagePipeline({
     jobId: id,
@@ -119,6 +139,7 @@ export async function runResolvedAnalysisJob(
       expectedRevisionByPageId,
       request,
       registerResourceCleanup,
+      dependencies,
     }),
     pages: resolved.pages,
     runPaths: state.runPaths,
@@ -137,6 +158,8 @@ export async function runResolvedAnalysisJob(
     autoFontMatching: request.autoFontMatching,
     fontSizeAutoFit: request.fontSizeAutoFit,
     canonicalPageIndexById: buildPageIndexById(resolved.chapter.pages),
+    translationCheckpoints,
+    fontContinuityPages: resolved.chapter.pages,
     timing,
   });
   throwIfAborted(abortController.signal);
@@ -146,7 +169,7 @@ export async function runResolvedAnalysisJob(
     request,
     resolved,
     result,
-    openChapter,
+    dependencies.openChapter,
     abortController.signal,
   );
 }
@@ -211,18 +234,36 @@ function buildAnalysisPipelineCallbacks({
   expectedRevisionByPageId,
   request,
   registerResourceCleanup,
+  dependencies,
 }: {
   expectedRevisionByPageId: Map<string, PageRevision>;
   request: StartAnalysisRequest;
   registerResourceCleanup: (cleanup: JobResourceCleanup) => void;
+  dependencies: Pick<
+    AnalysisJobRunnerDependencies,
+    | "saveTranslationCheckpoint"
+    | "updatePageAfterAnalysis"
+    | "updatePagesAfterAnalysis"
+  >;
 }): Pick<
   PipelineOptions,
-  "onCleanupReady" | "onPageComplete" | "onPagesComplete" | "onPageFailed"
+  | "onCleanupReady"
+  | "onPagePrepared"
+  | "onPageComplete"
+  | "onPagesComplete"
+  | "onPageFailed"
 > {
   return {
     onCleanupReady: registerResourceCleanup,
+    onPagePrepared: (checkpoint) =>
+      dependencies.saveTranslationCheckpoint(
+        request.chapterId,
+        checkpoint,
+        expectedRevisionByPageId.get(checkpoint.pageId) ??
+          checkpoint.inputRevision,
+      ),
     onPageComplete: async (page) => {
-      return updatePageAfterAnalysis(
+      return dependencies.updatePageAfterAnalysis(
         request.chapterId,
         withTranslationCompletionReceipt(page, request),
         [],
@@ -232,7 +273,7 @@ function buildAnalysisPipelineCallbacks({
       );
     },
     onPagesComplete: async (pages) => {
-      return updatePagesAfterAnalysis(
+      return dependencies.updatePagesAfterAnalysis(
         request.chapterId,
         pages.map((page) => ({
           page: withTranslationCompletionReceipt(page, request),
@@ -243,7 +284,7 @@ function buildAnalysisPipelineCallbacks({
       );
     },
     onPageFailed: async (page, errorMessage) => {
-      await updatePageAfterAnalysis(
+      await dependencies.updatePageAfterAnalysis(
         request.chapterId,
         page,
         [errorMessage],
@@ -253,6 +294,47 @@ function buildAnalysisPipelineCallbacks({
       );
     },
   };
+}
+
+async function loadReusableTranslationCheckpoints({
+  chapterDir,
+  pages,
+  request,
+  signal,
+  loadCheckpoint,
+}: {
+  chapterDir: string;
+  pages: MangaPage[];
+  request: StartAnalysisRequest;
+  signal: AbortSignal;
+  loadCheckpoint: typeof loadTranslationCheckpoint;
+}): Promise<ReadonlyMap<string, PreparedTranslationCheckpoint>> {
+  const loaded = new Map<string, PreparedTranslationCheckpoint>();
+  for (const page of pages) {
+    throwIfAborted(signal);
+    if (!shouldRequestCheckpointReuse(request, page)) continue;
+    try {
+      const checkpoint = await loadCheckpoint(chapterDir, page);
+      loaded.set(page.id, checkpoint.artifact);
+    } catch (error) {
+      logWarn("Translation checkpoint rejected before pipeline", {
+        chapterId: request.chapterId,
+        pageId: page.id,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return loaded;
+}
+
+function shouldRequestCheckpointReuse(
+  request: StartAnalysisRequest,
+  page: MangaPage,
+): boolean {
+  if (!page.translationCheckpoint) return false;
+  if (request.runMode === "pending") return true;
+  if (request.runMode !== "page-set" || !request.restartPageIds) return false;
+  return !request.restartPageIds.includes(page.id);
 }
 
 function withTranslationCompletionReceipt(

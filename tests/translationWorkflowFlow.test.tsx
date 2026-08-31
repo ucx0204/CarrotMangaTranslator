@@ -845,6 +845,7 @@ describe("translation workflow modes", () => {
         ],
       }),
     );
+    expect(startAnalysis).not.toHaveBeenCalled();
   });
 
   it("retranslates a pending page when its completed receipt is for another workflow", async () => {

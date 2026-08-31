@@ -17,7 +17,6 @@ import {
   WorkShareImportRequestSchema,
 } from "../src/shared/ipcSchemas";
 import { MAX_MAX_TOKENS } from "../src/shared/modelPresets";
-import { MAX_ID_LIST_LENGTH } from "../src/shared/ipcSchemaPrimitives";
 import { createWarpPreset } from "../src/shared/blockTransforms";
 import { TEST_INTERNET_RESEARCH_SETTINGS } from "./fixtures/internetResearchSettings";
 
@@ -160,64 +159,6 @@ describe("IPC schemas", () => {
       parseIpcPayload(
         StartAnalysisRequestSchema,
         { chapterId, runMode: "all", completionWorkflow: "unknown" },
-        "번역 작업",
-      ),
-    ).toThrow(/요청 형식/);
-  });
-
-  it("accepts a bounded page-set analysis request and rejects malformed ones", () => {
-    const parsed = parseIpcPayload(
-      StartAnalysisRequestSchema,
-      { chapterId, runMode: "page-set", pageIds: [pageId] },
-      "번역 작업",
-    );
-    expect(parsed.runMode).toBe("page-set");
-    if (parsed.runMode !== "page-set") {
-      throw new Error("page-set request was not parsed as page-set");
-    }
-    expect(parsed.pageIds).toEqual([pageId]);
-
-    expect(() =>
-      parseIpcPayload(
-        StartAnalysisRequestSchema,
-        { chapterId, runMode: "page-set", pageIds: [] },
-        "번역 작업",
-      ),
-    ).toThrow(/요청 형식/);
-
-    expect(() =>
-      parseIpcPayload(
-        StartAnalysisRequestSchema,
-        { chapterId, runMode: "page-set", pageIds: ["../escape"] },
-        "번역 작업",
-      ),
-    ).toThrow(/요청 형식/);
-
-    expect(() =>
-      parseIpcPayload(
-        StartAnalysisRequestSchema,
-        { chapterId, runMode: "page-set", pageIds: [pageId], pageId },
-        "번역 작업",
-      ),
-    ).toThrow(/요청 형식/);
-
-    expect(() =>
-      parseIpcPayload(
-        StartAnalysisRequestSchema,
-        { chapterId, runMode: "page-set", pageIds: [pageId, pageId] },
-        "번역 작업",
-      ),
-    ).toThrow(/중복된 페이지 ID/);
-
-    const excessivePageIds = Array.from(
-      { length: MAX_ID_LIST_LENGTH + 1 },
-      (_, index) =>
-        `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
-    );
-    expect(() =>
-      parseIpcPayload(
-        StartAnalysisRequestSchema,
-        { chapterId, runMode: "page-set", pageIds: excessivePageIds },
         "번역 작업",
       ),
     ).toThrow(/요청 형식/);

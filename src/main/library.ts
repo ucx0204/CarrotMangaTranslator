@@ -7,6 +7,7 @@ export type { ChapterRunPaths } from "./libraryStore/libraryFiles";
 export type { LibraryCleanupResult } from "./libraryStore/libraryCleanup";
 export {
   getRunPaths,
+  loadTranslationCheckpoint,
   listLibrary,
   openChapter,
   resolvePagesForRun,
@@ -25,6 +26,7 @@ export {
   reorderPages,
   savePageBlocks,
   savePagesBlocks,
+  saveTranslationCheckpoint,
   setPageInpaintingResult,
   updatePageAfterAnalysis,
   updatePageProcessingTimings,

@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type {
   ChapterSnapshot,
   LibraryChapterSummary,
@@ -13,6 +14,9 @@ import {
   readIndexFile,
   readWorkFile,
 } from "./libraryFiles";
+import { getWorksRoot } from "./libraryPaths";
+import { logLibraryWarning } from "./libraryLogger";
+import { loadTranslationCheckpointArtifact } from "./translationCheckpointStore";
 
 export async function listLibrary(): Promise<LibraryIndex> {
   const index = await readIndexFile();
@@ -56,7 +60,35 @@ export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {
   if (!chapter) {
     throw new Error("열려는 화를 찾지 못했습니다.");
   }
-  return hydrateChapter(chapter);
+  const snapshot = hydrateChapter(chapter);
+  const chapterDir = join(
+    getWorksRoot(),
+    locator.workId,
+    "chapters",
+    locator.chapterId,
+  );
+  const pages = await Promise.all(
+    snapshot.pages.map(async (page) => {
+      if (!page.translationCheckpoint) return page;
+      try {
+        await loadTranslationCheckpointArtifact(chapterDir, page);
+        return page;
+      } catch (error) {
+        logLibraryWarning(
+          "Translation checkpoint rejected while opening chapter",
+          {
+            chapterId,
+            pageId: page.id,
+            reason: error instanceof Error ? error.message : String(error),
+          },
+        );
+        const { translationCheckpoint: _checkpoint, ...withoutCheckpoint } =
+          page;
+        return withoutCheckpoint;
+      }
+    }),
+  );
+  return { ...snapshot, pages };
 }
 
 export async function resolvePagesForRun(

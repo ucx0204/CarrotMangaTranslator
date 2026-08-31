@@ -9,6 +9,7 @@ import {
   runRegionTranslationJob,
 } from "../src/main/jobs/translationRegionJobRunner";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
+import { createPageRevision } from "../src/shared/pageRevision";
 
 vi.mock("electron", () => ({
   app: { isPackaged: false },
@@ -87,6 +88,104 @@ describe("analysis runner cancellation checkpoints", () => {
 
     await expect(promise).rejects.toMatchObject({ name: "AbortError" });
     expect(runWholePagePipeline).not.toHaveBeenCalled();
+  });
+
+  it("loads valid pending checkpoints, rejects damaged ones, and wires atomic persistence callbacks", async () => {
+    const reusablePage = withTranslationCheckpoint(makePage());
+    const damagedPage = withTranslationCheckpoint({
+      ...makePage(),
+      id: "page-2",
+      name: "002.png",
+    });
+    const freshPage = { ...makePage(), id: "page-3", name: "003.png" };
+    const chapter = makeChapter([reusablePage, damagedPage, freshPage]);
+    const completedPages = chapter.pages.map((page) => ({
+      ...page,
+      analysisStatus: "completed" as const,
+      translationCheckpoint: undefined,
+    }));
+    const completedChapter = {
+      ...chapter,
+      pages: completedPages,
+    };
+    const completedPage = completedPages[0];
+    const firstPage = chapter.pages[0];
+    if (!completedPage || !firstPage) {
+      throw new Error("checkpoint runner fixture requires one page");
+    }
+    const artifact = {
+      pageId: reusablePage.id,
+      inputRevision: createPageRevision(reusablePage),
+    };
+    const loadTranslationCheckpoint = vi
+      .fn()
+      .mockResolvedValueOnce({
+        metadata: reusablePage.translationCheckpoint,
+        artifact,
+      })
+      .mockRejectedValueOnce(new Error("damaged checkpoint"));
+    const saveTranslationCheckpoint = vi.fn().mockResolvedValue(true);
+    const updatePageAfterAnalysis = vi.fn().mockResolvedValue(true);
+    const updatePagesAfterAnalysis = vi.fn().mockResolvedValue(true);
+    const registerResourceCleanup = vi.fn();
+    const cleanup = vi.fn();
+    const runWholePagePipeline = vi.fn(async (options) => {
+      expect([...(options.translationCheckpoints?.keys() ?? [])]).toEqual([
+        reusablePage.id,
+      ]);
+      expect(options.fontContinuityPages).toBe(chapter.pages);
+      options.onCleanupReady?.(cleanup);
+      await options.onPagePrepared?.(artifact as never);
+      await options.onPagePrepared?.({
+        ...artifact,
+        pageId: "page-not-in-run",
+      } as never);
+      await options.onPageComplete?.(completedPage);
+      await options.onPagesComplete?.(completedPages);
+      await options.onPageFailed?.(firstPage, "failed fixture");
+      return { pages: completedPages, warnings: [] };
+    });
+    const dependencies = makeAnalysisDependencies({
+      resolveWorkContextForChapter: vi.fn(async () => ({ workId: "work-1" })),
+      markChapterPagesRunning: vi.fn(async () => makeRunningChapter(chapter)),
+      getRunPaths: vi.fn(async () => ({
+        runDir: "C:/run",
+        chapterDir: "C:/chapter",
+      })),
+      loadTranslationCheckpoint,
+      saveTranslationCheckpoint,
+      updatePageAfterAnalysis,
+      updatePagesAfterAnalysis,
+      openChapter: vi.fn(async () => completedChapter),
+      runWholePagePipeline,
+    });
+    const controller = new AbortController();
+    const args = makeAnalysisArgs(controller, chapter);
+    args.request = { chapterId: chapter.id, runMode: "pending" };
+    args.registerResourceCleanup = registerResourceCleanup;
+
+    await expect(
+      runResolvedAnalysisJob(args, dependencies),
+    ).resolves.toMatchObject({
+      status: "completed",
+    });
+
+    expect(loadTranslationCheckpoint).toHaveBeenCalledTimes(2);
+    expect(registerResourceCleanup).toHaveBeenCalledWith(cleanup);
+    expect(saveTranslationCheckpoint).toHaveBeenNthCalledWith(
+      1,
+      chapter.id,
+      artifact,
+      createPageRevision(reusablePage),
+    );
+    expect(saveTranslationCheckpoint).toHaveBeenNthCalledWith(
+      2,
+      chapter.id,
+      expect.objectContaining({ pageId: "page-not-in-run" }),
+      artifact.inputRevision,
+    );
+    expect(updatePageAfterAnalysis).toHaveBeenCalledTimes(2);
+    expect(updatePagesAfterAnalysis).toHaveBeenCalledOnce();
   });
 });
 
@@ -232,6 +331,11 @@ function makeAnalysisDependencies(
     resolvePreviousChapterStoryPages: vi.fn(async () => []),
     markChapterPagesRunning: vi.fn(async () => makeRunningChapter(chapter)),
     getRunPaths: vi.fn(async () => ({ runDir: "C:/run" })),
+    loadTranslationCheckpoint: vi.fn(),
+    saveTranslationCheckpoint: vi.fn(),
+    updatePageAfterAnalysis: vi.fn(),
+    updatePagesAfterAnalysis: vi.fn(),
+    openChapter: vi.fn(async () => chapter),
     runWholePagePipeline: vi.fn(),
     ...overrides,
   };
@@ -356,8 +460,7 @@ function makePage(): MangaPage {
   };
 }
 
-function makeChapter(): ChapterSnapshot {
-  const pages = [makePage()];
+function makeChapter(pages: MangaPage[] = [makePage()]): ChapterSnapshot {
   return {
     id: "chapter-1",
     workId: "work-1",
@@ -368,5 +471,23 @@ function makeChapter(): ChapterSnapshot {
     pages,
     createdAt: TIMESTAMP,
     updatedAt: TIMESTAMP,
+  };
+}
+
+function withTranslationCheckpoint(page: MangaPage): MangaPage {
+  return {
+    ...page,
+    translationCheckpoint: {
+      schemaVersion: 1,
+      pipelineContractVersion: "whole-page-prepared-v1",
+      artifactPath: `.translation-checkpoint-${page.id}/checkpoint.json`,
+      sha256: "a".repeat(64),
+      byteSize: 100,
+      inputRevision: createPageRevision(page),
+      sourceLanguage: "ja",
+      targetLanguage: "ko",
+      blockMode: "auto",
+      savedAt: TIMESTAMP,
+    },
   };
 }

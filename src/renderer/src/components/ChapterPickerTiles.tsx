@@ -7,13 +7,18 @@ import {
   type ObservePageThumbnail,
   type PageThumbnailState,
 } from "./pageThumbnails";
-import { SelectionCard } from "./ui/SelectionCard";
 import { CheckboxField } from "./ui/CheckboxField";
+import {
+  PageThumbSelectionCard,
+  type PageThumbSelectionState,
+} from "./PageThumbSelectionCard";
 
 export function PageThumb({
   page,
   index,
   checked,
+  selectionState,
+  selectionTooltip,
   showTranslatedStatus = true,
   observeThumbnail,
   onToggle,
@@ -21,6 +26,8 @@ export function PageThumb({
   page: MangaPage;
   index: number;
   checked: boolean;
+  selectionState?: PageThumbSelectionState;
+  selectionTooltip?: string;
   showTranslatedStatus?: boolean;
   observeThumbnail: ObservePageThumbnail;
   onToggle: () => void;
@@ -29,15 +36,14 @@ export function PageThumb({
     usePageThumbnail<HTMLSpanElement>(page, observeThumbnail);
   const done = showTranslatedStatus && page.analysisStatus === "completed";
   return (
-    <SelectionCard
+    <PageThumbSelectionCard
+      checked={checked}
       className={["translate-page-thumb", done ? "done" : ""]
         .filter(Boolean)
         .join(" ")}
-      variant="thumbnail"
-      inputType="checkbox"
-      inputClassName="translate-page-thumb-check"
-      checked={checked}
-      onChange={onToggle}
+      onToggle={onToggle}
+      selectionState={selectionState}
+      selectionTooltip={selectionTooltip}
     >
       <ThumbnailImage
         frameRef={frameRef}
@@ -51,7 +57,7 @@ export function PageThumb({
         <span className="translate-page-thumb-no">{index + 1}</span>
         <span className="translate-page-thumb-name">{page.name}</span>
       </span>
-    </SelectionCard>
+    </PageThumbSelectionCard>
   );
 }
 

@@ -429,7 +429,21 @@
     "statusSuffix": { "complete": " · 完成", "inProgress": " · 進行中" },
     "noSelectedPages": "未選擇頁面。",
     "approximately": "約",
-    "selectionSummary": "{{chapterCount}}話 · {{approximate}}{{pageCount}}頁"
+    "selectionSummary": "{{chapterCount}}話 · {{approximate}}{{pageCount}}頁",
+    "resumeTooltip": {
+      "translation": "重用翻譯結果 · 從字型配對繼續",
+      "typography": "重用翻譯與字型設定 · 從清除原文繼續",
+      "erasePartial": "重用已完成的清除結果 · 從剩餘部分繼續"
+    },
+    "resumeSummary": {
+      "contiguous": "重用第{{resumeStart}}–{{resumeEnd}}頁翻譯 · 從第{{restartStart}}頁重新翻譯",
+      "contiguousSingle": "重用第{{resumePage}}頁翻譯 · 從第{{restartStart}}頁重新翻譯",
+      "postprocess": "重用第{{resumeStart}}–{{resumeEnd}}頁翻譯與字型 · 從清除原文繼續",
+      "postprocessSingle": "重用第{{resumePage}}頁翻譯與字型 · 從清除原文繼續",
+      "mixed": "重用{{resumeCount}}頁 · 重新翻譯{{restartCount}}頁",
+      "resumeOnly": "繼續處理{{resumeCount}}頁",
+      "restartOnly": "重新翻譯{{restartCount}}頁"
+    }
   },
   "exportOptions": {
     "title": "匯出結果",
@@ -514,6 +528,7 @@
     "title": "執行翻譯",
     "start": "開始翻譯",
     "startSelection": "翻譯所選範圍",
+    "continueSelection": "繼續翻譯所選範圍",
     "retranslateSelection": "重新翻譯所選範圍",
     "overwriteWarning": {
       "title": "所選範圍包含既有結果",

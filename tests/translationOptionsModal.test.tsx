@@ -19,6 +19,7 @@ import type {
 } from "../src/shared/libraryTypes";
 import type { UiSettings } from "../src/shared/settingsTypes";
 import type { TranslationOptionsInitialScope } from "../src/renderer/src/lib/translationSelection";
+import { createPageRevision } from "../src/shared/pageRevision";
 
 beforeEach(() => {
   window.mangaApi = createTestMangaGatewayStub({
@@ -66,7 +67,37 @@ function makeCurrentChapter(): ChapterSnapshot {
   };
 }
 
-function makeLibrary(): LibraryIndex {
+function makeCheckpointChapter(): ChapterSnapshot {
+  const pages = Array.from({ length: 12 }, (_value, index) => {
+    const page = makePage(`p${index + 1}`, "idle");
+    if (index >= 5) return page;
+    return {
+      ...page,
+      translationCheckpoint: {
+        schemaVersion: 1 as const,
+        pipelineContractVersion: "whole-page-prepared-v1" as const,
+        artifactPath: `.translation-checkpoint-${index}/checkpoint.json`,
+        sha256: "a".repeat(64),
+        byteSize: 100,
+        inputRevision: createPageRevision(page),
+        sourceLanguage: "ja",
+        targetLanguage: "ko",
+        blockMode: "auto" as const,
+        savedAt: TS,
+      },
+    };
+  });
+  return {
+    ...makeCurrentChapter(),
+    status: "partial",
+    pageOrder: pages.map((page) => page.id),
+    pages,
+  };
+}
+
+function makeLibrary(
+  currentChapter: ChapterSnapshot = makeCurrentChapter(),
+): LibraryIndex {
   return {
     workOrder: [WORK_ID],
     works: [
@@ -80,11 +111,11 @@ function makeLibrary(): LibraryIndex {
           {
             id: CHAPTER_ID,
             workId: WORK_ID,
-            title: "1화",
-            status: "partial",
+            title: currentChapter.title,
+            status: currentChapter.status,
             createdAt: TS,
             updatedAt: TS,
-            pageCount: 2,
+            pageCount: currentChapter.pages.length,
           },
           {
             id: "c2",
@@ -104,15 +135,16 @@ function makeLibrary(): LibraryIndex {
 async function renderModal(
   uiSettings?: UiSettings,
   initialScope?: TranslationOptionsInitialScope,
+  chapter: ChapterSnapshot = makeCurrentChapter(),
 ) {
   const onStart = vi.fn();
   const onClose = vi.fn();
   const onPersistDefaults = vi.fn();
   render(
     <TranslationOptionsModal
-      chapter={makeCurrentChapter()}
+      chapter={chapter}
       initialScope={initialScope}
-      library={makeLibrary()}
+      library={makeLibrary(chapter)}
       uiSettings={uiSettings}
       onStart={onStart}
       onPersistDefaults={onPersistDefaults}
@@ -205,7 +237,14 @@ describe("TranslationOptionsModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
 
     expect(onStart).toHaveBeenCalledWith({
-      selection: [{ chapterId: CHAPTER_ID, mode: "pending" }],
+      selection: [
+        {
+          chapterId: CHAPTER_ID,
+          mode: "page-set",
+          pageIds: ["p2"],
+          restartPageIds: ["p2"],
+        },
+      ],
       workflowMode: "cumulative",
       cumulativeContextDetail: "detailed",
       blockMode: "auto",
@@ -466,9 +505,7 @@ describe("TranslationOptionsModal", () => {
     const { onStart } = await renderModal();
 
     fireEvent.click(screen.getByRole("button", { name: "전체 선택" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "선택 범위 다시 번역" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
     const confirmDialog = screen.getAllByRole("dialog").at(-1);
     if (!confirmDialog) throw new Error("overwrite confirmation not found");
     fireEvent.click(
@@ -487,13 +524,113 @@ describe("TranslationOptionsModal", () => {
     );
   });
 
+  it("runs an external idle chapter without showing an overwrite warning", async () => {
+    const { onStart } = await renderModal();
+
+    fireEvent.click(screen.getByRole("button", { name: "전체 해제" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "2화" }));
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selection: [{ chapterId: "c2", mode: "all" }],
+      }),
+    );
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  });
+
+  it("shows resumable pages as dashes with a concise summary and exact cycle", async () => {
+    await renderModal(undefined, undefined, makeCheckpointChapter());
+
+    expect(
+      screen.getByText("1–5페이지 번역 결과 재사용 · 6페이지부터 새로 번역"),
+    ).toBeTruthy();
+    const resumeTooltips = screen.getAllByRole("tooltip", {
+      name: "번역 결과까지 재사용 · 폰트 맞춤부터 계속",
+    });
+    expect(resumeTooltips).toHaveLength(5);
+    const firstPage = screen.getByRole("checkbox", { name: /p1\.png/ });
+    expect(firstPage.getAttribute("aria-checked")).toBe("mixed");
+    expect((firstPage as HTMLInputElement).indeterminate).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "선택 범위 이어서 번역" }),
+    ).toBeTruthy();
+
+    fireEvent.focus(firstPage);
+    expect(resumeTooltips[0]?.classList.contains("is-open")).toBe(true);
+    fireEvent.blur(firstPage);
+    expect(resumeTooltips[0]?.classList.contains("is-open")).toBe(false);
+
+    fireEvent.click(firstPage);
+    expect(firstPage.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("4페이지 재사용 · 8페이지 새로 번역")).toBeTruthy();
+
+    fireEvent.click(firstPage);
+    expect(firstPage.getAttribute("aria-checked")).toBe("false");
+
+    fireEvent.click(firstPage);
+    expect(firstPage.getAttribute("aria-checked")).toBe("mixed");
+  });
+
+  it("labels postprocess-only resume without implying font matching is skipped", async () => {
+    const page: MangaPage = {
+      ...makePage("p1", "completed"),
+      translationCompletion: {
+        workflow: "bubble-layout",
+        status: "pending",
+      },
+    };
+    const chapter: ChapterSnapshot = {
+      ...makeCurrentChapter(),
+      status: "partial",
+      pageOrder: [page.id],
+      pages: [page],
+    };
+
+    await renderModal(
+      {
+        eraseOriginalWorkflowDefault: true,
+        bubbleLayoutWorkflowDefault: true,
+      },
+      undefined,
+      chapter,
+    );
+
+    expect(
+      screen.getByRole("tooltip", {
+        name: "번역·폰트 설정 재사용 · 원문 지우기부터 계속",
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("1페이지 번역·폰트 설정 재사용 · 원문 지우기부터 계속"),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "선택 범위 이어서 번역" }),
+    ).toBeTruthy();
+  });
+
+  it("disables execution when a fully completed chapter has no target", async () => {
+    const pages = [makePage("p1", "completed"), makePage("p2", "completed")];
+    const chapter: ChapterSnapshot = {
+      ...makeCurrentChapter(),
+      status: "completed",
+      pageOrder: pages.map((page) => page.id),
+      pages,
+    };
+
+    await renderModal(undefined, undefined, chapter);
+
+    expect(
+      screen.getByRole("button", { name: "선택 범위 번역" }),
+    ).toHaveProperty("disabled", true);
+    expect(screen.getByText("선택된 페이지가 없습니다.")).toBeTruthy();
+  });
+
   it("starts with the whole work selected for a batch import", async () => {
     const { onStart } = await renderModal(undefined, "work-all");
 
     expect(screen.getByRole("button", { name: "전체 해제" })).toBeTruthy();
-    fireEvent.click(
-      screen.getByRole("button", { name: "선택 범위 다시 번역" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
     const confirmDialog = screen.getAllByRole("dialog").at(-1);
     if (!confirmDialog) throw new Error("overwrite confirmation not found");
     fireEvent.click(

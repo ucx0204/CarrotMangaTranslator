@@ -28,6 +28,7 @@ import { TranslationOverwriteWarning } from "./TranslationOverwriteWarning";
 import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 import {
   type TranslationOptionsFormProps,
+  resolveTranslationResumeContext,
   useTranslationOptionsModalState,
 } from "./translationOptionsState";
 
@@ -58,6 +59,8 @@ type TranslationOptionsModalProps = {
   initialScope?: TranslationOptionsInitialScope;
   library: LibraryIndex;
   uiSettings: UiSettings | undefined;
+  sourceLanguage?: string;
+  targetLanguage?: string;
   onStart: (options: TranslationFlowOptions) => void;
   onPersistDefaults: (patch: TranslationDefaultsPatch) => void;
   onClose: () => void;
@@ -68,6 +71,8 @@ export function TranslationOptionsModal({
   initialScope = "current-pending",
   library,
   uiSettings,
+  sourceLanguage,
+  targetLanguage,
   onStart,
   onPersistDefaults,
   onClose,
@@ -78,6 +83,7 @@ export function TranslationOptionsModal({
     initialScope,
     library,
     uiSettings,
+    { sourceLanguage, targetLanguage },
   );
   const actions = useTranslationStartActions({
     formProps: state.formProps,
@@ -100,7 +106,7 @@ export function TranslationOptionsModal({
           <TranslationOptionsFooter
             onCancel={onClose}
             onStart={actions.handleStart}
-            overwriteRisk={state.overwriteRisk}
+            hasResumeSelection={state.hasResumeSelection}
             saveAsDefault={actions.saveAsDefault}
             onSaveAsDefaultChange={actions.setSaveAsDefault}
             startDisabled={state.runSelection.length === 0}
@@ -207,14 +213,14 @@ function buildTranslationFlowOptions(
 function TranslationOptionsFooter({
   onCancel,
   onStart,
-  overwriteRisk,
+  hasResumeSelection,
   saveAsDefault,
   onSaveAsDefaultChange,
   startDisabled,
 }: {
   onCancel: () => void;
   onStart: () => void;
-  overwriteRisk: boolean;
+  hasResumeSelection: boolean;
   saveAsDefault: boolean;
   onSaveAsDefaultChange: (value: boolean) => void;
   startDisabled: boolean;
@@ -235,8 +241,8 @@ function TranslationOptionsFooter({
           <Button onClick={onCancel}>{t("common.cancel")}</Button>
           <Button variant="primary" onClick={onStart} disabled={startDisabled}>
             {t(
-              overwriteRisk
-                ? "translationOptions.retranslateSelection"
+              hasResumeSelection
+                ? "translationOptions.continueSelection"
                 : "translationOptions.startSelection",
             )}
           </Button>
@@ -260,6 +266,7 @@ function TranslationOptionsForm(
             currentChapter={props.chapter}
             selection={props.selection}
             onChange={props.onSelectionChange}
+            resumeContext={resolveTranslationResumeContext(props)}
           />
         ) : (
           <p className="translate-options-hint">

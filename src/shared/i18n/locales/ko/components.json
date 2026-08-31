@@ -433,7 +433,21 @@
     "statusSuffix": { "complete": " · 완료", "inProgress": " · 진행 중" },
     "noSelectedPages": "선택된 페이지가 없습니다.",
     "approximately": "약 ",
-    "selectionSummary": "{{chapterCount}}개 화 · {{approximate}}{{pageCount}}페이지"
+    "selectionSummary": "{{chapterCount}}개 화 · {{approximate}}{{pageCount}}페이지",
+    "resumeTooltip": {
+      "translation": "번역 결과까지 재사용 · 폰트 맞춤부터 계속",
+      "typography": "번역·폰트 설정 재사용 · 원문 지우기부터 계속",
+      "erasePartial": "완료된 지우기 결과 재사용 · 남은 부분부터 계속"
+    },
+    "resumeSummary": {
+      "contiguous": "{{resumeStart}}–{{resumeEnd}}페이지 번역 결과 재사용 · {{restartStart}}페이지부터 새로 번역",
+      "contiguousSingle": "{{resumePage}}페이지 번역 결과 재사용 · {{restartStart}}페이지부터 새로 번역",
+      "postprocess": "{{resumeStart}}–{{resumeEnd}}페이지 번역·폰트 설정 재사용 · 원문 지우기부터 계속",
+      "postprocessSingle": "{{resumePage}}페이지 번역·폰트 설정 재사용 · 원문 지우기부터 계속",
+      "mixed": "{{resumeCount}}페이지 재사용 · {{restartCount}}페이지 새로 번역",
+      "resumeOnly": "{{resumeCount}}페이지 이어서 처리",
+      "restartOnly": "{{restartCount}}페이지 새로 번역"
+    }
   },
   "exportOptions": {
     "title": "결과물 출력",
@@ -518,6 +532,7 @@
     "title": "번역 실행",
     "start": "번역 시작",
     "startSelection": "선택 범위 번역",
+    "continueSelection": "선택 범위 이어서 번역",
     "retranslateSelection": "선택 범위 다시 번역",
     "overwriteWarning": {
       "title": "기존 결과가 바뀌는 페이지가 포함됨",

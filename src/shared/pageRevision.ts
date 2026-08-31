@@ -1,7 +1,7 @@
 import { hashStableValue } from "./blockFingerprint";
 import type { MangaPage } from "./libraryTypes";
+import type { PageRevision } from "./pageRevisionTypes";
 
-export type PageRevision = `page-v1:${string}`;
 export type PageVisualRevision = `page-visual-v1:${string}`;
 
 export type PageJobTargetSnapshot = {

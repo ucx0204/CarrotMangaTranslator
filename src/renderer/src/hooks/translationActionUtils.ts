@@ -54,6 +54,7 @@ export function makeStartAnalysisRequest(
     runMode: RunAnalysisMode;
     pageId?: string;
     pageIds?: string[];
+    restartPageIds?: string[];
     blockMode?: AnalysisBlockMode;
     collectPageContext?: boolean;
     cumulativeContextDetail?: CumulativeContextDetail;
@@ -65,7 +66,7 @@ export function makeStartAnalysisRequest(
   },
   t?: TFunction<"renderer">,
 ): StartAnalysisRequest {
-  const { runMode, pageId, pageIds } = args;
+  const { runMode, pageId, pageIds, restartPageIds } = args;
   const shared = buildSharedAnalysisRequest(args);
   if (runMode === "single-page") {
     if (!pageId) {
@@ -94,6 +95,7 @@ export function makeStartAnalysisRequest(
       chapterId,
       runMode,
       pageIds,
+      ...(restartPageIds === undefined ? {} : { restartPageIds }),
       ...shared,
     };
   }
@@ -106,7 +108,10 @@ export function makeStartAnalysisRequest(
 
 function buildSharedAnalysisRequest(
   args: Parameters<typeof makeStartAnalysisRequest>[1],
-): Omit<StartAnalysisRequest, "chapterId" | "runMode" | "pageId" | "pageIds"> {
+): Omit<
+  StartAnalysisRequest,
+  "chapterId" | "runMode" | "pageId" | "pageIds" | "restartPageIds"
+> {
   return {
     blockMode: args.blockMode,
     ...(args.collectPageContext === undefined

@@ -11,6 +11,18 @@ import {
   uuid,
 } from "./ipcSchemaPrimitives";
 import { LinkedWorkspaceImportOptionsSchema } from "./linkedWorkspaceSchemas";
+import {
+  FONT_CONTINUITY_RUNTIME_CONTRACT,
+  FONT_CONTINUITY_SCHEMA_VERSION,
+  TRANSLATION_CHECKPOINT_PIPELINE_CONTRACT,
+  TRANSLATION_CHECKPOINT_SCHEMA_VERSION,
+} from "./translationCheckpoint";
+import {
+  FONT_MATCHING_SEMANTIC_ROLES,
+  FONT_MATCHING_SOURCE_STYLE_AXES,
+} from "./fontMatchingProfileTypes";
+import { MAX_LANGUAGE_CODE_LENGTH } from "./translationLanguages";
+import type { PageRevision } from "./pageRevisionTypes";
 
 const PageAnalysisStatusSchema = z.enum([
   "idle",
@@ -27,6 +39,68 @@ const TranslationCompletionReceiptSchema = z
       .max(MAX_BLOCKS_PER_PAGE)
       .refine((ids) => new Set(ids).size === ids.length)
       .optional(),
+  })
+  .strict();
+const TranslationCheckpointMetadataSchema = z
+  .object({
+    schemaVersion: z.literal(TRANSLATION_CHECKPOINT_SCHEMA_VERSION),
+    pipelineContractVersion: z.literal(
+      TRANSLATION_CHECKPOINT_PIPELINE_CONTRACT,
+    ),
+    artifactPath: z.string().min(1).max(4096),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    byteSize: z
+      .number()
+      .int()
+      .min(1)
+      .max(8 * 1024 * 1024),
+    inputRevision: z
+      .string()
+      .regex(/^page-v1:[0-9a-f]+$/)
+      .transform((value) => value as PageRevision),
+    sourceLanguage: z.string().min(1).max(MAX_LANGUAGE_CODE_LENGTH),
+    targetLanguage: z.string().min(1).max(MAX_LANGUAGE_CODE_LENGTH),
+    blockMode: z.enum(["auto", "keep"]),
+    savedAt: z.string().datetime(),
+  })
+  .strict();
+const FontSourceStyleSchema = z
+  .object({
+    serifness: z.number().min(0).max(1).nullable(),
+    weight: z.number().min(0).max(1).nullable(),
+    width: z.number().min(0).max(1).nullable(),
+    roundness: z.number().min(0).max(1).nullable(),
+    strokeContrast: z.number().min(0).max(1).nullable(),
+    handwritten: z.number().min(0).max(1).nullable(),
+    angularity: z.number().min(0).max(1).nullable(),
+    irregularity: z.number().min(0).max(1).nullable(),
+    slant: z.number().min(0).max(1).nullable(),
+    energy: z.number().min(0).max(1).nullable(),
+    unknownFields: z.array(z.enum(FONT_MATCHING_SOURCE_STYLE_AXES)).max(10),
+  })
+  .strict();
+const FontContinuityMetadataSchema = z
+  .object({
+    schemaVersion: z.literal(FONT_CONTINUITY_SCHEMA_VERSION),
+    runtimeContractVersion: z.literal(FONT_CONTINUITY_RUNTIME_CONTRACT),
+    observations: z
+      .array(
+        z
+          .object({
+            pageId: z.string().min(1).max(200),
+            blockId: z.string().min(1).max(200),
+            role: z.enum(FONT_MATCHING_SEMANTIC_ROLES),
+            selectedFontId: z.string().min(1).max(200),
+            confidence: z.number().min(0).max(1),
+            orientation: z.enum(["horizontal", "vertical"]),
+            sourceStyle: FontSourceStyleSchema,
+            modelVersion: z.string().min(1).max(200),
+            candidateOrderSha256: z.string().regex(/^[0-9a-f]{64}$/),
+          })
+          .strict(),
+      )
+      .max(MAX_BLOCKS_PER_PAGE),
+    savedAt: z.string().datetime(),
   })
   .strict();
 const LegacyPageProcessingTimingStagesSchema = z
@@ -113,6 +187,8 @@ const PageRecordContentShape = {
     .optional(),
   analysisStatus: PageAnalysisStatusSchema,
   translationCompletion: TranslationCompletionReceiptSchema.optional(),
+  translationCheckpoint: TranslationCheckpointMetadataSchema.optional(),
+  fontContinuity: FontContinuityMetadataSchema.optional(),
   processingTiming: PageProcessingTimingSchema.optional(),
   lastError: z.string().max(4000).optional(),
   createdAt: z.string().max(80),

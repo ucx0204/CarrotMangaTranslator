@@ -4,7 +4,7 @@ import type {
   MangaPage,
   TranslationCompletionReceipt,
 } from "../../shared/libraryTypes";
-import type { PageRevision } from "../../shared/pageRevision";
+import type { PageRevision } from "../../shared/pageRevisionTypes";
 import type { InpaintingBlockLayoutState } from "./inpaintingLayoutState";
 import { openChapter as openChapterUnlocked } from "../libraryStore/libraryAccess";
 import { assertChapterImagePath } from "../libraryStore/libraryFiles";

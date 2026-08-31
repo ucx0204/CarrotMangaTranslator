@@ -8,8 +8,8 @@ import type {
 import {
   createPageRevision,
   type PageJobTargetSnapshot,
-  type PageRevision,
 } from "../../shared/pageRevision";
+import type { PageRevision } from "../../shared/pageRevisionTypes";
 import { hydrateChapter } from "./chapterSnapshots";
 import { resolveChapterStatus } from "./chapterRecords";
 import {

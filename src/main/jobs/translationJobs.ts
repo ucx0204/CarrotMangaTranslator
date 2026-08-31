@@ -170,6 +170,17 @@ function assertValidRequestedPageIds(request: StartAnalysisRequest): void {
   if (new Set(request.pageIds).size !== request.pageIds.length) {
     throw new Error("번역 페이지 선택에 중복된 페이지 ID가 있습니다.");
   }
+  if (request.restartPageIds) {
+    const selected = new Set(request.pageIds);
+    if (
+      new Set(request.restartPageIds).size !== request.restartPageIds.length
+    ) {
+      throw new Error("재번역 페이지 선택에 중복된 페이지 ID가 있습니다.");
+    }
+    if (request.restartPageIds.some((pageId) => !selected.has(pageId))) {
+      throw new Error("재번역 페이지는 번역 선택 범위에 포함되어야 합니다.");
+    }
+  }
 }
 
 function assertResolvedRequestedPages(

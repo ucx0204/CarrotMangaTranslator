@@ -17,6 +17,8 @@ export function createTranslationOptionsProps({
         onPersistDefaults: createPersistUiDefaults(settingsDialog),
         onStart: (flowOptions) =>
           void translationActions.runTranslationFlow(flowOptions),
+        sourceLanguage: settingsDialog.settings?.translation?.sourceLanguage,
+        targetLanguage: settingsDialog.settings?.translation?.targetLanguage,
         uiSettings: settingsDialog.settings?.ui,
       }
     : null;

@@ -19,7 +19,7 @@ import {
   hexColor,
   uuid,
 } from "./ipcSchemaPrimitives";
-import type { PageRevision } from "./pageRevision";
+import type { PageRevision } from "./pageRevisionTypes";
 import { PageTimingSessionFields } from "./ipcPageTimingSchemas";
 
 const JobProgressFieldsSchema = {
@@ -107,81 +107,103 @@ const TranslationCompletionWorkflowSchema = z.enum([
   "bubble-layout",
 ]);
 
-export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
-  z
-    .object({
-      chapterId: uuid,
-      runMode: z.literal("pending"),
-      blockMode: AnalysisBlockModeSchema.optional(),
-      collectPageContext: z.boolean().optional(),
-      cumulativeContextDetail: z
-        .enum(["detailed", "balanced", "essential"])
-        .optional(),
-      naturalTextLayout: z.boolean().optional(),
-      autoFontMatching: z.boolean().optional(),
-      fontSizeAutoFit: z.boolean().optional(),
-      completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
-      ...PageTimingSessionFields,
-    })
-    .strict(),
-  z
-    .object({
-      chapterId: uuid,
-      runMode: z.literal("all"),
-      blockMode: AnalysisBlockModeSchema.optional(),
-      collectPageContext: z.boolean().optional(),
-      cumulativeContextDetail: z
-        .enum(["detailed", "balanced", "essential"])
-        .optional(),
-      naturalTextLayout: z.boolean().optional(),
-      autoFontMatching: z.boolean().optional(),
-      fontSizeAutoFit: z.boolean().optional(),
-      completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
-      ...PageTimingSessionFields,
-    })
-    .strict(),
-  z
-    .object({
-      chapterId: uuid,
-      runMode: z.literal("single-page"),
-      pageId: uuid,
-      blockMode: AnalysisBlockModeSchema.optional(),
-      collectPageContext: z.boolean().optional(),
-      cumulativeContextDetail: z
-        .enum(["detailed", "balanced", "essential"])
-        .optional(),
-      naturalTextLayout: z.boolean().optional(),
-      autoFontMatching: z.boolean().optional(),
-      fontSizeAutoFit: z.boolean().optional(),
-      completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
-      ...PageTimingSessionFields,
-    })
-    .strict(),
-  z
-    .object({
-      chapterId: uuid,
-      runMode: z.literal("page-set"),
-      pageIds: z
-        .array(uuid)
-        .min(1)
-        .max(MAX_ID_LIST_LENGTH)
-        .refine(
-          (pageIds) => new Set(pageIds).size === pageIds.length,
-          "중복된 페이지 ID가 있습니다.",
-        ),
-      blockMode: AnalysisBlockModeSchema.optional(),
-      collectPageContext: z.boolean().optional(),
-      cumulativeContextDetail: z
-        .enum(["detailed", "balanced", "essential"])
-        .optional(),
-      naturalTextLayout: z.boolean().optional(),
-      autoFontMatching: z.boolean().optional(),
-      fontSizeAutoFit: z.boolean().optional(),
-      completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
-      ...PageTimingSessionFields,
-    })
-    .strict(),
-]);
+export const StartAnalysisRequestSchema = z
+  .discriminatedUnion("runMode", [
+    z
+      .object({
+        chapterId: uuid,
+        runMode: z.literal("pending"),
+        blockMode: AnalysisBlockModeSchema.optional(),
+        collectPageContext: z.boolean().optional(),
+        cumulativeContextDetail: z
+          .enum(["detailed", "balanced", "essential"])
+          .optional(),
+        naturalTextLayout: z.boolean().optional(),
+        autoFontMatching: z.boolean().optional(),
+        fontSizeAutoFit: z.boolean().optional(),
+        completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
+        ...PageTimingSessionFields,
+      })
+      .strict(),
+    z
+      .object({
+        chapterId: uuid,
+        runMode: z.literal("all"),
+        blockMode: AnalysisBlockModeSchema.optional(),
+        collectPageContext: z.boolean().optional(),
+        cumulativeContextDetail: z
+          .enum(["detailed", "balanced", "essential"])
+          .optional(),
+        naturalTextLayout: z.boolean().optional(),
+        autoFontMatching: z.boolean().optional(),
+        fontSizeAutoFit: z.boolean().optional(),
+        completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
+        ...PageTimingSessionFields,
+      })
+      .strict(),
+    z
+      .object({
+        chapterId: uuid,
+        runMode: z.literal("single-page"),
+        pageId: uuid,
+        blockMode: AnalysisBlockModeSchema.optional(),
+        collectPageContext: z.boolean().optional(),
+        cumulativeContextDetail: z
+          .enum(["detailed", "balanced", "essential"])
+          .optional(),
+        naturalTextLayout: z.boolean().optional(),
+        autoFontMatching: z.boolean().optional(),
+        fontSizeAutoFit: z.boolean().optional(),
+        completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
+        ...PageTimingSessionFields,
+      })
+      .strict(),
+    z
+      .object({
+        chapterId: uuid,
+        runMode: z.literal("page-set"),
+        pageIds: z
+          .array(uuid)
+          .min(1)
+          .max(MAX_ID_LIST_LENGTH)
+          .refine(
+            (pageIds) => new Set(pageIds).size === pageIds.length,
+            "중복된 페이지 ID가 있습니다.",
+          ),
+        restartPageIds: z
+          .array(uuid)
+          .max(MAX_ID_LIST_LENGTH)
+          .refine(
+            (pageIds) => new Set(pageIds).size === pageIds.length,
+            "중복된 재번역 페이지 ID가 있습니다.",
+          )
+          .optional(),
+        blockMode: AnalysisBlockModeSchema.optional(),
+        collectPageContext: z.boolean().optional(),
+        cumulativeContextDetail: z
+          .enum(["detailed", "balanced", "essential"])
+          .optional(),
+        naturalTextLayout: z.boolean().optional(),
+        autoFontMatching: z.boolean().optional(),
+        fontSizeAutoFit: z.boolean().optional(),
+        completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
+        ...PageTimingSessionFields,
+      })
+      .strict(),
+  ])
+  .superRefine((request, context) => {
+    if (request.runMode !== "page-set" || !request.restartPageIds) return;
+    const included = new Set(request.pageIds);
+    request.restartPageIds.forEach((pageId, index) => {
+      if (!included.has(pageId)) {
+        context.addIssue({
+          code: "custom",
+          message: "재번역 페이지는 선택된 페이지에 포함되어야 합니다.",
+          path: ["restartPageIds", index],
+        });
+      }
+    });
+  });
 
 const InpaintingPointSchema = z
   .object({ x: finiteNumber, y: finiteNumber })

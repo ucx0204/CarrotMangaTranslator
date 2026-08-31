@@ -15,11 +15,11 @@ import {
 import type { AppSettings } from "../../shared/settingsTypes";
 import { DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO } from "../../shared/bubbleLayoutSettings";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
+import { normalizeLanguageCode } from "../../shared/translationLanguages";
 import {
   DEFAULT_SOURCE_LANGUAGE,
   DEFAULT_TARGET_LANGUAGE,
-  normalizeLanguageCode,
-} from "../../shared/translationLanguages";
+} from "../../shared/translationLanguageDefaults";
 import type { DetectedGpuInfo } from "../gpuInfo";
 import { normalizeAmdRocmTarget } from "../gpuInfo";
 import { getDefaultGemmaPresetForVramMode } from "./gemmaModelPresets";

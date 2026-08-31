@@ -29,6 +29,7 @@ import {
 } from "./shareStreamingZip";
 import { isSupportedImagePath } from "./storage";
 import { MAX_SHARE_IMAGE_BYTES } from "./zipSafety";
+import { stripInternalPageArtifacts } from "./translationCheckpointStore";
 
 export type WorkShareExportReaderPort = {
   loadWork: typeof ensureExistingWork;
@@ -185,6 +186,7 @@ async function addPageToShare(
     page.translationCompletion,
     page.blocks,
   );
+  const sharedPage = stripInternalPageArtifacts(page);
   const imageExt = extname(page.imagePath).toLowerCase() || ".png";
   const packageImagePath = `chapters/${chapterId}/pages/${String(pageIndex + 1).padStart(3, "0")}-${page.id}${imageExt}`;
   await addImageFileToShare({
@@ -198,7 +200,7 @@ async function addPageToShare(
     signal,
   });
   return {
-    ...page,
+    ...sharedPage,
     imagePath: packageImagePath,
     inpaintedImagePath: await addInpaintedPageToShare(
       archive,

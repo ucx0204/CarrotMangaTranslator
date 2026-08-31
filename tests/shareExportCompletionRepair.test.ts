@@ -9,6 +9,7 @@ import type {
   TranslationCompletionReceipt,
 } from "../src/shared/libraryTypes";
 import { makePngImage } from "./helpers/imageFixtures";
+import { buildMaterializedSharedPage } from "../src/main/libraryStore/shareImportPageRecord";
 
 type AdmZipInstance = {
   getEntries: () => Array<{
@@ -99,6 +100,54 @@ describe("share export completion repair", () => {
       "manifest.json",
     );
     expect(manifest.version).toBe(1);
+  });
+
+  it("keeps checkpoint and font continuity internals out of share export and import", async () => {
+    const rootDir = await createLibraryWithReceipt(undefined);
+    const chapter = JSON.parse(
+      await readFile(localChapterPath(rootDir), "utf8"),
+    ) as LibraryChapter;
+    const page = chapter.pages[0];
+    if (!page) throw new Error("fixture page missing");
+    page.translationCheckpoint = {
+      schemaVersion: 1,
+      pipelineContractVersion: "whole-page-prepared-v1",
+      artifactPath: ".translation-checkpoint-test/checkpoint.json",
+      sha256: "a".repeat(64),
+      byteSize: 128,
+      inputRevision: "page-v1:abc",
+      sourceLanguage: "ja",
+      targetLanguage: "ko",
+      blockMode: "auto",
+      savedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const firstBlock = page.blocks[0];
+    if (!firstBlock) throw new Error("fixture block missing");
+    page.fontContinuity = makeFontContinuity(page.id, firstBlock.id);
+    await writeJson(localChapterPath(rootDir), chapter);
+    const sharePath = join(rootDir, "internal-state.mgtshare");
+    const library = await loadLibrary(rootDir);
+
+    await library.exportWorkShareToFile({
+      workId: "work-1",
+      chapterIds: ["chapter-a"],
+      outputPath: sharePath,
+    });
+
+    const exportedPage = readPackageChapter(sharePath).pages[0];
+    expect(exportedPage?.translationCheckpoint).toBeUndefined();
+    expect(exportedPage?.fontContinuity).toBeUndefined();
+
+    const imported = buildMaterializedSharedPage({
+      packagePage: page,
+      pageId: "imported-page",
+      imagePath: "C:/imported.png",
+      width: page.width,
+      height: page.height,
+      now: "2026-01-02T00:00:00.000Z",
+    });
+    expect(imported.translationCheckpoint).toBeUndefined();
+    expect(imported.fontContinuity).toBeUndefined();
   });
 
   it("rejects duplicate local block ids without leaving a target archive", async () => {
@@ -203,6 +252,39 @@ function makeBlock(
     textColor: "#111111",
     backgroundColor: "#ffffff",
     opacity: 1,
+  };
+}
+
+function makeFontContinuity(pageId: string, blockId: string) {
+  return {
+    schemaVersion: 1 as const,
+    runtimeContractVersion: "font-matching-continuity-v1" as const,
+    observations: [
+      {
+        pageId,
+        blockId,
+        role: "dialogue" as const,
+        selectedFontId: "font-a",
+        confidence: 0.95,
+        orientation: "horizontal" as const,
+        sourceStyle: {
+          serifness: 0.1,
+          weight: 0.5,
+          width: 0.5,
+          roundness: 0.4,
+          strokeContrast: 0.3,
+          handwritten: 0.1,
+          angularity: 0.2,
+          irregularity: 0.1,
+          slant: 0.1,
+          energy: 0.5,
+          unknownFields: [],
+        },
+        modelVersion: "test-v1",
+        candidateOrderSha256: "b".repeat(64),
+      },
+    ],
+    savedAt: "2026-01-01T00:00:00.000Z",
   };
 }
 

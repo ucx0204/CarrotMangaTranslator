@@ -436,7 +436,21 @@
     "statusSuffix": { "complete": "・完了", "inProgress": "・進行中" },
     "noSelectedPages": "ページが選択されていません。",
     "approximately": "約",
-    "selectionSummary": "{{chapterCount}}話・{{approximate}}{{pageCount}}ページ"
+    "selectionSummary": "{{chapterCount}}話・{{approximate}}{{pageCount}}ページ",
+    "resumeTooltip": {
+      "translation": "翻訳結果を再利用・フォント調整から続行",
+      "typography": "翻訳とフォント設定を再利用・原文消去から続行",
+      "erasePartial": "完了した消去結果を再利用・残りから続行"
+    },
+    "resumeSummary": {
+      "contiguous": "{{resumeStart}}–{{resumeEnd}}ページの翻訳を再利用・{{restartStart}}ページから新規翻訳",
+      "contiguousSingle": "{{resumePage}}ページの翻訳を再利用・{{restartStart}}ページから新規翻訳",
+      "postprocess": "{{resumeStart}}–{{resumeEnd}}ページの翻訳とフォントを再利用・原文消去から続行",
+      "postprocessSingle": "{{resumePage}}ページの翻訳とフォントを再利用・原文消去から続行",
+      "mixed": "{{resumeCount}}ページ再利用・{{restartCount}}ページ新規翻訳",
+      "resumeOnly": "{{resumeCount}}ページを続行",
+      "restartOnly": "{{restartCount}}ページを新規翻訳"
+    }
   },
   "exportOptions": {
     "title": "結果を出力",
@@ -521,6 +535,7 @@
     "title": "翻訳を実行",
     "start": "翻訳を開始",
     "startSelection": "選択範囲を翻訳",
+    "continueSelection": "選択範囲の翻訳を続行",
     "retranslateSelection": "選択範囲を再翻訳",
     "overwriteWarning": {
       "title": "既存の結果を変更するページが含まれます",

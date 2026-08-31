@@ -1,13 +1,15 @@
 import { existsSync } from "node:fs";
-import { readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { readdir, rm } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import {
   ensureLibraryStructure,
   readIndexFile,
+  readChapterFile,
   readWorkFile,
   removeChapterDirectory,
   removeWorkDirectory,
   writeIndexFile,
+  writeChapterFile,
   writeWorkFile,
 } from "./libraryFiles";
 import {
@@ -15,12 +17,17 @@ import {
   getWorkFilePath,
   getWorksRoot,
 } from "./libraryPaths";
+import {
+  loadTranslationCheckpointArtifact,
+  resolveManagedCheckpointDirectory,
+} from "./translationCheckpointStore";
 
 export type LibraryCleanupResult = {
   missingWorkReferencesRemoved: number;
   missingChapterReferencesRemoved: number;
   workDirsRemoved: number;
   chapterDirsRemoved: number;
+  checkpointDirsRemoved: number;
 };
 
 export async function cleanupLibraryOrphansUnlocked(): Promise<LibraryCleanupResult> {
@@ -42,6 +49,7 @@ function createLibraryCleanupResult(): LibraryCleanupResult {
     missingChapterReferencesRemoved: 0,
     workDirsRemoved: 0,
     chapterDirsRemoved: 0,
+    checkpointDirsRemoved: 0,
   };
 }
 
@@ -100,6 +108,9 @@ async function cleanupWorkChapterReferences(
     });
   }
   await removeDanglingChapterDirectories(workId, retainedChapterIds, result);
+  for (const chapterId of retainedChapterIds) {
+    await cleanupChapterCheckpoints(workId, chapterId, result);
+  }
 }
 
 async function removeMissingChapterReferences(
@@ -136,5 +147,61 @@ async function removeDanglingChapterDirectories(
     }
     await removeChapterDirectory(workId, entry.name);
     result.chapterDirsRemoved += 1;
+  }
+}
+
+async function cleanupChapterCheckpoints(
+  workId: string,
+  chapterId: string,
+  result: LibraryCleanupResult,
+): Promise<void> {
+  const chapter = await readChapterFile(workId, chapterId);
+  if (!chapter) return;
+  const chapterDir = resolve(
+    join(getWorksRoot(), workId, "chapters", chapterId),
+  );
+  const activeDirectories = new Set<string>();
+  let metadataChanged = false;
+  chapter.pages = await Promise.all(
+    chapter.pages.map(async (page) => {
+      if (!page.translationCheckpoint) return page;
+      try {
+        await loadTranslationCheckpointArtifact(chapterDir, {
+          ...page,
+          dataUrl: "",
+        });
+        activeDirectories.add(
+          resolveManagedCheckpointDirectory(
+            chapterDir,
+            page.translationCheckpoint,
+          ),
+        );
+        return page;
+      } catch (error) {
+        void error;
+        metadataChanged = true;
+        const { translationCheckpoint: _checkpoint, ...withoutCheckpoint } =
+          page;
+        return withoutCheckpoint;
+      }
+    }),
+  );
+  if (metadataChanged) {
+    chapter.updatedAt = new Date().toISOString();
+    await writeChapterFile(chapter);
+  }
+  const entries = await readdir(chapterDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (
+      !entry.isDirectory() ||
+      entry.isSymbolicLink() ||
+      !entry.name.startsWith(".translation-checkpoint-")
+    ) {
+      continue;
+    }
+    const directory = resolve(join(chapterDir, entry.name));
+    if (activeDirectories.has(directory)) continue;
+    await rm(directory, { recursive: true, force: true });
+    result.checkpointDirsRemoved += 1;
   }
 }

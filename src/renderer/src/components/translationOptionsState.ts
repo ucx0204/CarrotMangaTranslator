@@ -2,6 +2,7 @@ import React from "react";
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type {
   ChapterSnapshot,
+  LibraryChapterSummary,
   LibraryIndex,
   LibraryWorkSummary,
 } from "../../../shared/libraryTypes";
@@ -12,9 +13,16 @@ import type {
 } from "../../../shared/settingsTypes";
 import type { TranslationFlowOptions } from "../hooks/useTranslationActions";
 import {
+  DEFAULT_SOURCE_LANGUAGE,
+  DEFAULT_TARGET_LANGUAGE,
+} from "../../../shared/translationLanguageDefaults";
+import {
   buildRunSelection,
-  selectedPageIds,
+  createPendingChapterSelection,
+  pageRunIntent,
+  type ChapterSel,
   type ChapterSelectionMap,
+  type TranslationResumeContext,
   type TranslationOptionsInitialScope,
 } from "../lib/translationSelection";
 
@@ -28,6 +36,8 @@ export type TranslationOptionsFormProps = {
   cumulativeContextDetail: CumulativeContextDetail;
   onCumulativeContextDetailChange: (detail: CumulativeContextDetail) => void;
   blockMode: AnalysisBlockMode;
+  sourceLanguage: string;
+  targetLanguage: string;
   onBlockModeChange: (mode: AnalysisBlockMode) => void;
   autoFontMatching: boolean;
   onAutoFontMatchingChange: (enabled: boolean) => void;
@@ -47,19 +57,45 @@ export function useTranslationOptionsModalState(
   initialScope: TranslationOptionsInitialScope,
   library: LibraryIndex,
   uiSettings: UiSettings | undefined,
+  languagePair?: Readonly<{
+    sourceLanguage?: string;
+    targetLanguage?: string;
+  }>,
 ): {
   formProps: TranslationOptionsFormProps;
   runSelection: TranslationFlowOptions["selection"];
   overwriteRisk: boolean;
+  hasResumeSelection: boolean;
 } {
   const work = React.useMemo(
     () => library.works.find((item) => item.id === chapter.workId) ?? null,
     [chapter.workId, library.works],
   );
-  const [selection, setSelection] = React.useState<ChapterSelectionMap>(() =>
-    createInitialSelection(chapter, work, initialScope),
-  );
   const formFields = useTranslationFormFields(uiSettings);
+  const sourceLanguage =
+    languagePair?.sourceLanguage ?? DEFAULT_SOURCE_LANGUAGE;
+  const targetLanguage =
+    languagePair?.targetLanguage ?? DEFAULT_TARGET_LANGUAGE;
+  const resumeContext = React.useMemo(
+    () =>
+      resolveTranslationResumeContext({
+        blockMode: formFields.blockMode,
+        bubbleLayoutWorkflow: formFields.bubbleLayoutWorkflow,
+        eraseOriginalWorkflow: formFields.eraseOriginalWorkflow,
+        sourceLanguage,
+        targetLanguage,
+      }),
+    [
+      formFields.blockMode,
+      formFields.bubbleLayoutWorkflow,
+      formFields.eraseOriginalWorkflow,
+      sourceLanguage,
+      targetLanguage,
+    ],
+  );
+  const [selection, setSelection] = React.useState<ChapterSelectionMap>(() =>
+    createInitialSelection(chapter, work, initialScope, resumeContext),
+  );
   const chapterOrder = React.useMemo(
     () => (work ? work.chapters.map((item) => item.id) : [chapter.id]),
     [chapter.id, work],
@@ -69,8 +105,12 @@ export function useTranslationOptionsModalState(
     [chapterOrder, selection],
   );
   const overwriteRisk = React.useMemo(
-    () => selectionCanOverwriteEdits(selection, chapter, work),
-    [chapter, selection, work],
+    () => selectionCanOverwriteEdits(selection, chapter, work, resumeContext),
+    [chapter, resumeContext, selection, work],
+  );
+  const hasResumeSelection = React.useMemo(
+    () => selectionHasResume(selection, chapter, resumeContext),
+    [chapter, resumeContext, selection],
   );
   return {
     formProps: {
@@ -78,18 +118,55 @@ export function useTranslationOptionsModalState(
       chapter,
       onSelectionChange: setSelection,
       selection,
+      sourceLanguage,
+      targetLanguage,
       work,
     },
     overwriteRisk,
+    hasResumeSelection,
     runSelection,
   };
+}
+
+function selectionHasResume(
+  selection: ChapterSelectionMap,
+  currentChapter: ChapterSnapshot,
+  resumeContext: TranslationResumeContext,
+): boolean {
+  for (const [chapterId, chapterSelection] of selection) {
+    if (chapterId === currentChapter.id) {
+      if (
+        currentChapter.pages.some(
+          (page) =>
+            pageRunIntent(chapterSelection, page, resumeContext) === "resume",
+        )
+      ) {
+        return true;
+      }
+      continue;
+    }
+    if (
+      chapterSelection.kind === "pages" &&
+      chapterSelection.pageIds.size >
+        (chapterSelection.restartPageIds?.size ?? chapterSelection.pageIds.size)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function useTranslationFormFields(
   uiSettings: UiSettings | undefined,
 ): Omit<
   TranslationOptionsFormProps,
-  "chapter" | "onSelectionChange" | "overwriteRisk" | "selection" | "work"
+  | "chapter"
+  | "onSelectionChange"
+  | "overwriteRisk"
+  | "selection"
+  | "sourceLanguage"
+  | "targetLanguage"
+  | "work"
 > {
   const initial = resolveInitialTranslationFormValues(uiSettings);
   const [workflowMode, onWorkflowModeChange] = React.useState(
@@ -165,13 +242,15 @@ function createInitialSelection(
   chapter: ChapterSnapshot,
   work: LibraryWorkSummary | null,
   initialScope: TranslationOptionsInitialScope,
+  resumeContext: TranslationResumeContext,
 ): ChapterSelectionMap {
   if (initialScope === "work-all" && work) {
     return new Map(
       work.chapters.map((item) => [item.id, { kind: "all" }] as const),
     );
   }
-  return new Map([[chapter.id, { kind: "pending" }]]);
+  const pending = createPendingChapterSelection(chapter.pages, resumeContext);
+  return pending ? new Map([[chapter.id, pending]]) : new Map();
 }
 
 function resolveInitialCompletionDefaults(uiSettings: UiSettings | undefined): {
@@ -194,32 +273,74 @@ function selectionCanOverwriteEdits(
   selection: ChapterSelectionMap,
   currentChapter: ChapterSnapshot,
   work: LibraryWorkSummary | null,
+  resumeContext: TranslationResumeContext,
 ): boolean {
   for (const [chapterId, chapterSelection] of selection) {
     if (chapterSelection.kind === "pending") continue;
-    if (chapterId !== currentChapter.id) {
-      const summary = work?.chapters.find(
-        (chapter) => chapter.id === chapterId,
-      );
+    if (chapterId === currentChapter.id) {
       if (
-        chapterSelection.kind === "pages" ||
-        summary?.status === "completed" ||
-        summary?.status === "partial"
+        currentSelectionCanOverwrite(
+          chapterSelection,
+          currentChapter,
+          resumeContext,
+        )
       ) {
         return true;
       }
       continue;
     }
-    const selectedIds = selectedPageIds(chapterSelection, currentChapter.pages);
-    if (
-      currentChapter.pages.some(
-        (page) =>
-          selectedIds.has(page.id) &&
-          (page.analysisStatus === "completed" || page.blocks.length > 0),
-      )
-    ) {
+    const summary = work?.chapters.find((chapter) => chapter.id === chapterId);
+    if (externalSelectionCanOverwrite(chapterSelection, summary)) {
       return true;
     }
   }
   return false;
+}
+
+function currentSelectionCanOverwrite(
+  selection: ChapterSel,
+  chapter: ChapterSnapshot,
+  resumeContext: TranslationResumeContext,
+): boolean {
+  return chapter.pages.some(
+    (page) =>
+      pageRunIntent(selection, page, resumeContext) === "restart" &&
+      (page.analysisStatus === "completed" || page.blocks.length > 0),
+  );
+}
+
+function externalSelectionCanOverwrite(
+  selection: ChapterSel,
+  chapter: LibraryChapterSummary | undefined,
+): boolean {
+  const explicitlyRestarts =
+    selection.kind === "pages" &&
+    (selection.restartPageIds?.size ?? selection.pageIds.size) > 0;
+  return (
+    explicitlyRestarts ||
+    chapter?.status === "completed" ||
+    chapter?.status === "partial"
+  );
+}
+
+export function resolveTranslationResumeContext(
+  fields: Pick<
+    TranslationOptionsFormProps,
+    | "blockMode"
+    | "eraseOriginalWorkflow"
+    | "bubbleLayoutWorkflow"
+    | "sourceLanguage"
+    | "targetLanguage"
+  >,
+): TranslationResumeContext {
+  return {
+    blockMode: fields.blockMode,
+    sourceLanguage: fields.sourceLanguage,
+    targetLanguage: fields.targetLanguage,
+    completionWorkflow: fields.eraseOriginalWorkflow
+      ? fields.bubbleLayoutWorkflow
+        ? "bubble-layout"
+        : "erase-original"
+      : undefined,
+  };
 }

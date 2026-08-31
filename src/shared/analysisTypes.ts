@@ -44,6 +44,8 @@ export type StartAnalysisRequest = TranslationRunOptions &
         chapterId: string;
         runMode: "page-set";
         pageIds: string[];
+        /** Included pages that must restart at the translation model. */
+        restartPageIds?: string[];
         blockMode?: AnalysisBlockMode;
       }
   );

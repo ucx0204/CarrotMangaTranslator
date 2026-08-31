@@ -29,6 +29,14 @@ type WorkPagePickerProps = {
     chapter: LibraryChapterSummary,
     pages: MangaPage[],
   ) => Set<string>;
+  getPageSelectionState?: (
+    chapter: LibraryChapterSummary,
+    page: MangaPage,
+  ) => "none" | "restart" | "resume";
+  getPageSelectionTooltip?: (
+    chapter: LibraryChapterSummary,
+    page: MangaPage,
+  ) => string | undefined;
   getChapterSummary: (
     chapter: LibraryChapterSummary,
     pages: MangaPage[] | undefined,
@@ -122,6 +130,8 @@ export function WorkPagePicker({
   header,
   getChapterTriState,
   getSelectedPageIds,
+  getPageSelectionState,
+  getPageSelectionTooltip,
   getChapterSummary,
   renderSelectionSummary,
   onToggleChapter,
@@ -137,16 +147,9 @@ export function WorkPagePicker({
   );
 
   const toggleExpand = (chapterId: string): void => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(chapterId)) {
-        next.delete(chapterId);
-      } else {
-        next.add(chapterId);
-        loader.ensureLoaded(chapterId);
-      }
-      return next;
-    });
+    setExpanded((prev) =>
+      toggleExpandedChapter(prev, chapterId, loader.ensureLoaded),
+    );
   };
 
   return (
@@ -168,6 +171,8 @@ export function WorkPagePicker({
                   ? getSelectedPageIds(chapter, chapterPages)
                   : new Set()
               }
+              getPageSelectionState={getPageSelectionState}
+              getPageSelectionTooltip={getPageSelectionTooltip}
               chapterSummary={getChapterSummary(chapter, chapterPages)}
               loading={loader.isLoading(chapter.id)}
               errored={loader.isErrored(chapter.id)}
@@ -196,28 +201,27 @@ export function WorkPagePicker({
   );
 }
 
-function ChapterRow({
-  chapter,
-  isCurrent,
-  expanded,
-  triState,
-  pages,
-  selectedPageIds,
-  chapterSummary,
-  loading,
-  errored,
-  showTranslatedStatus,
-  observeThumbnail,
-  onToggleExpand,
-  onToggleChapter,
-  onTogglePage,
-}: {
+function toggleExpandedChapter(
+  expanded: ReadonlySet<string>,
+  chapterId: string,
+  ensureLoaded: (chapterId: string) => void,
+): Set<string> {
+  const next = new Set(expanded);
+  if (next.delete(chapterId)) return next;
+  next.add(chapterId);
+  ensureLoaded(chapterId);
+  return next;
+}
+
+type ChapterRowProps = {
   chapter: LibraryChapterSummary;
   isCurrent: boolean;
   expanded: boolean;
   triState: TriState;
   pages: MangaPage[] | undefined;
   selectedPageIds: Set<string>;
+  getPageSelectionState?: WorkPagePickerProps["getPageSelectionState"];
+  getPageSelectionTooltip?: WorkPagePickerProps["getPageSelectionTooltip"];
   chapterSummary: string;
   loading: boolean;
   errored: boolean;
@@ -226,7 +230,26 @@ function ChapterRow({
   onToggleExpand: () => void;
   onToggleChapter: () => void;
   onTogglePage: (pageId: string) => void;
-}): React.JSX.Element {
+};
+
+function ChapterRow({
+  chapter,
+  isCurrent,
+  expanded,
+  triState,
+  pages,
+  selectedPageIds,
+  getPageSelectionState,
+  getPageSelectionTooltip,
+  chapterSummary,
+  loading,
+  errored,
+  showTranslatedStatus,
+  observeThumbnail,
+  onToggleExpand,
+  onToggleChapter,
+  onTogglePage,
+}: ChapterRowProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
     <div className={`translate-chapter-row ${expanded ? "expanded" : ""}`}>
@@ -261,6 +284,12 @@ function ChapterRow({
             loading={loading}
             errored={errored}
             selectedPageIds={selectedPageIds}
+            getPageSelectionState={(page) =>
+              getPageSelectionState?.(chapter, page)
+            }
+            getPageSelectionTooltip={(page) =>
+              getPageSelectionTooltip?.(chapter, page)
+            }
             showTranslatedStatus={showTranslatedStatus}
             observeThumbnail={observeThumbnail}
             onTogglePage={onTogglePage}
@@ -276,6 +305,8 @@ function ChapterPages({
   loading,
   errored,
   selectedPageIds,
+  getPageSelectionState,
+  getPageSelectionTooltip,
   showTranslatedStatus,
   observeThumbnail,
   onTogglePage,
@@ -284,6 +315,10 @@ function ChapterPages({
   loading: boolean;
   errored: boolean;
   selectedPageIds: Set<string>;
+  getPageSelectionState?: (
+    page: MangaPage,
+  ) => "none" | "restart" | "resume" | undefined;
+  getPageSelectionTooltip?: (page: MangaPage) => string | undefined;
   showTranslatedStatus: boolean;
   observeThumbnail: ObservePageThumbnail;
   onTogglePage: (pageId: string) => void;
@@ -314,6 +349,8 @@ function ChapterPages({
           page={page}
           index={index}
           checked={selectedPageIds.has(page.id)}
+          selectionState={getPageSelectionState?.(page)}
+          selectionTooltip={getPageSelectionTooltip?.(page)}
           showTranslatedStatus={showTranslatedStatus}
           observeThumbnail={observeThumbnail}
           onToggle={() => onTogglePage(page.id)}

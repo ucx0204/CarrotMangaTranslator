@@ -7,6 +7,11 @@
  * adapter maps language codes to Paddle OCR models.
  */
 
+import {
+  DEFAULT_SOURCE_LANGUAGE,
+  DEFAULT_TARGET_LANGUAGE,
+} from "./translationLanguageDefaults";
+
 export type LanguageCode = string;
 
 export type TranslationLanguageSettings = {
@@ -29,8 +34,6 @@ export type ResolvedLanguagePair = {
   isDefaultJapaneseToKorean: boolean;
 };
 
-export const DEFAULT_SOURCE_LANGUAGE: LanguageCode = "ja";
-export const DEFAULT_TARGET_LANGUAGE: LanguageCode = "ko";
 export const MAX_LANGUAGE_CODE_LENGTH = 40;
 
 export const DEFAULT_TRANSLATION_LANGUAGE_SETTINGS: TranslationLanguageSettings =
@@ -114,11 +117,6 @@ export const PRIMARY_TRANSLATION_LANGUAGE_CODES: LanguageCode[] = [
   "zh-Hans",
   "zh-Hant",
 ];
-
-/** 프리셋 외 별칭 코드도 프롬프트에서 읽을 수 있게 이름만 보강하는 맵. */
-const EXTRA_LANGUAGE_NAMES: Record<string, ResolvedLanguage> = {
-  zh: { code: "zh", labelKo: "중국어", promptName: "Simplified Chinese" },
-};
 
 const LANGUAGE_CODE_ALIASES: Record<string, KnownLanguageCode> = {
   "zh-CN": "zh-Hans",
@@ -232,11 +230,6 @@ export function resolveLanguage(code: LanguageCode): ResolvedLanguage {
   });
   if (known) {
     return { ...known, code: normalized };
-  }
-  const extra =
-    EXTRA_LANGUAGE_NAMES[normalized] ?? EXTRA_LANGUAGE_NAMES[baseCode];
-  if (extra) {
-    return { ...extra, code: normalized };
   }
   return {
     code: normalized,

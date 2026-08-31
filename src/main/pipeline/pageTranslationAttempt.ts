@@ -24,6 +24,7 @@ import {
   measurePageProcessingStage,
   type PageProcessingTimingCollector,
 } from "./pageProcessingTiming";
+import { buildFontContinuityMetadata } from "./wholePageFontContinuity";
 
 export async function preparePageTranslationAttempt({
   jobId,
@@ -98,16 +99,22 @@ export async function completePreparedPageTranslationAttempt({
       }),
   );
   const timedPage = timing.applyTranslationTiming(pageResult.page);
+  const continuityObservations =
+    fontMatchingChapterCoordinator?.snapshotPageContinuity?.(page.id) ?? [];
+  const completedPage: MangaPage = {
+    ...timedPage,
+    fontContinuity: buildFontContinuityMetadata(continuityObservations),
+  };
 
   warningCollector.add(...pageResult.warnings);
-  const approved = (await onPageComplete?.(timedPage)) !== false;
+  const approved = (await onPageComplete?.(completedPage)) !== false;
   if (pageResult.kind === "no-text") {
     emitNoTextPage(context, page, pageIndex);
   } else {
     emitPageDone(context, page, pageIndex, pageResult.detail);
   }
   return {
-    page: timedPage,
+    page: completedPage,
     pageContext: pageResult.pageContext,
     approved,
   };

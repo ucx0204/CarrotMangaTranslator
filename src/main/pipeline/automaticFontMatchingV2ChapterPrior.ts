@@ -8,6 +8,13 @@ import type { FontMatchingDecisionResultV2 } from "./fontMatchingDecisionV2";
 import type { FontMatchingWorkStateV2 } from "./fontMatchingDecisionV2Types";
 import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePixelInferenceTypes";
 import type { FontMatchingRuntimePolicy } from "./fontMatchingRuntimePolicyContract";
+import type { FontContinuityObservation } from "../../shared/translationCheckpoint";
+import {
+  appendBodyObservation,
+  hydrateBodyContinuity,
+  snapshotBodyContinuity,
+  type BodyFontObservation,
+} from "./automaticFontMatchingV2Continuity";
 
 const DEFAULT_RUNTIME_POLICY: FontMatchingRuntimePolicy = {
   automaticMutation: {
@@ -26,7 +33,6 @@ const MINIMUM_PRIOR_SHARE = 0.67;
 const MINIMUM_STYLE_AXES = 6;
 const MAXIMUM_STYLE_DISTANCE = 0.16;
 const MAXIMUM_CRITICAL_AXIS_DISTANCE = 0.32;
-const MAXIMUM_OBSERVATIONS_PER_ROLE = 96;
 const MAXIMUM_CHAPTER_PRIOR_RAW_RANK = 3;
 const FAMILY_STYLE_AXES = [
   "serifness",
@@ -44,14 +50,6 @@ const CRITICAL_STYLE_AXES = new Set<FontMatchingSourceStyleAxis>([
   "handwritten",
 ]);
 
-type BodyFontObservation = Readonly<{
-  evidenceKey: string;
-  fontId: string;
-  confidence: number;
-  orientation: "horizontal" | "vertical";
-  sourceStyle: FontMatchingSourceStyleV2;
-}>;
-
 export type AutomaticFontChapterBodyPriorV2 = Readonly<{
   prepare: (
     role: FontMatchingSemanticRole,
@@ -65,6 +63,8 @@ export type AutomaticFontChapterBodyPriorV2 = Readonly<{
     inference?: VerifiedAutomaticFontPixelInferenceV2 | null,
     runtimePolicy?: FontMatchingRuntimePolicy,
   ) => void;
+  hydrate: (observations: readonly FontContinuityObservation[]) => void;
+  snapshotPage: (pageId: string) => readonly FontContinuityObservation[];
 }>;
 
 /** Chapter memory built only from independent high-confidence pixel choices. */
@@ -108,6 +108,12 @@ export function createAutomaticFontChapterBodyPriorV2(): AutomaticFontChapterBod
         inference,
         runtimePolicy,
       );
+    },
+    hydrate(observations) {
+      hydrateBodyContinuity(observationsByRole, observations);
+    },
+    snapshotPage(pageId) {
+      return snapshotBodyContinuity(observationsByRole, pageId);
     },
   };
 }
@@ -247,31 +253,17 @@ function recordBodyObservation(
   ) {
     return;
   }
-  appendUniqueObservation(observationsByRole, role, {
+  appendBodyObservation(observationsByRole, role, {
     evidenceKey: `${inference.pageId}\u0000${inference.blockId}`,
+    pageId: inference.pageId,
+    blockId: inference.blockId,
     fontId: selectedFontId,
     confidence: observationConfidence,
     orientation: inference.treatment.orientation,
     sourceStyle: inference.sourceStyle,
+    modelVersion: inference.modelVersion,
+    candidateOrderSha256: inference.candidateOrderSha256,
   });
-}
-
-function appendUniqueObservation(
-  observationsByRole: Map<FontMatchingSemanticRole, BodyFontObservation[]>,
-  role: FontMatchingSemanticRole,
-  observation: BodyFontObservation,
-): void {
-  const observations = observationsByRole.get(role) ?? [];
-  if (
-    observations.some((entry) => entry.evidenceKey === observation.evidenceKey)
-  ) {
-    return;
-  }
-  observations.push(observation);
-  if (observations.length > MAXIMUM_OBSERVATIONS_PER_ROLE) {
-    observations.splice(0, observations.length - MAXIMUM_OBSERVATIONS_PER_ROLE);
-  }
-  observationsByRole.set(role, observations);
 }
 
 function resolveIndependentLocalTop(

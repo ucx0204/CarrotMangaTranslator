@@ -19,11 +19,11 @@ import type {
   TavilyAnalysisProvider,
 } from "../../../../shared/internetResearchTypes";
 import type { GraphicsGpuPreference } from "../../../../shared/gpuSettings";
+import { normalizeLanguageCode } from "../../../../shared/translationLanguages";
 import {
   DEFAULT_SOURCE_LANGUAGE,
   DEFAULT_TARGET_LANGUAGE,
-  normalizeLanguageCode,
-} from "../../../../shared/translationLanguages";
+} from "../../../../shared/translationLanguageDefaults";
 import {
   DEFAULT_UI_LOCALE,
   normalizeUiLocale,

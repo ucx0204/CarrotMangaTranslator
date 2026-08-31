@@ -43,6 +43,7 @@ const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/shareImportCancellation.test.ts::../src/main/libraryStore/shareImportMaterialize",
   "tests/shareExportCompletionRepair.test.ts::../src/main/appPaths",
   "tests/shareExportScale.test.ts::../src/main/appPaths",
+  "tests/translationCheckpointStore.test.ts::../src/main/appPaths",
   "tests/workContextFiles.test.ts::../src/main/appPaths",
   "tests/workShare.test.ts::../src/main/appPaths",
   "tests/workTypographyProfile.test.ts::../src/main/appPaths",

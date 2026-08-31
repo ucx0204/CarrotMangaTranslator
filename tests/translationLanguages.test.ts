@@ -89,6 +89,14 @@ describe("translation language domain", () => {
     );
     expect(resolveLanguage("ja-JP").promptName).toBe("Japanese");
     expect(resolveLanguage("en-US").promptName).toBe("English");
+    expect(resolveLanguage("zh")).toEqual({
+      code: "zh",
+      labelKo: "중국어 간체",
+      promptName: "Simplified Chinese",
+    });
+    expect(resolveLanguage("zh-Latn-HK").promptName).toBe(
+      "Traditional Chinese",
+    );
     expect(resolveLanguage("xx").promptName).toBe("XX");
   });
 

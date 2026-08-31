@@ -3,7 +3,7 @@ import type {
   LibraryIndex,
   MangaPage,
 } from "../../shared/libraryTypes";
-import type { PageRevision } from "../../shared/pageRevision";
+import type { PageRevision } from "../../shared/pageRevisionTypes";
 import type {
   SavePageBlocksRequest,
   SavePagesBlocksRequest,
@@ -42,6 +42,8 @@ import {
   updatePageProcessingTimingsUnlocked,
   type PageProcessingTimingUpdate,
 } from "../libraryStore/libraryTimingMutations";
+import { saveTranslationCheckpointUnlocked } from "../libraryStore/translationCheckpointStore";
+import type { PreparedTranslationCheckpoint } from "../pipeline/preparedTranslationCheckpointContract";
 
 export type SavePageBlocksRuntime = {
   runMutation: typeof withLibraryMutation;
@@ -246,4 +248,18 @@ export async function setPageInpaintingResult(
 
 export async function cleanupLibraryOrphans(): Promise<LibraryCleanupResult> {
   return withLibraryMutation(cleanupLibraryOrphansUnlocked);
+}
+
+export async function saveTranslationCheckpoint(
+  chapterId: string,
+  checkpoint: PreparedTranslationCheckpoint,
+  expectedRevision: PageRevision,
+): Promise<boolean> {
+  return withLibraryMutation(() =>
+    saveTranslationCheckpointUnlocked({
+      chapterId,
+      checkpoint,
+      expectedRevision,
+    }),
+  );
 }
