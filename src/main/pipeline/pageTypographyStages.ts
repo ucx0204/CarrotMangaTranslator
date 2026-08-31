@@ -33,9 +33,7 @@ export async function runPageTypographyStages(
   const fontMatchingTask = measureTypographyStage(() =>
     dependencies.runFontMatching(options),
   );
-  const fontSizeEnabled =
-    options.pageOptions.fontSizeAutoFit === true &&
-    !options.pageOptions.keepBlocksMode;
+  const fontSizeEnabled = options.pageOptions.fontSizeAutoFit === true;
   // Pixel font matching already runs in its own worker thread. Source-size
   // measurement is independent, so overlap both CPU stages instead of making
   // every page pay their wall times serially.

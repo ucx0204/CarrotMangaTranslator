@@ -78,6 +78,36 @@ describe("page typography stages", () => {
     });
     expect(logInfo).not.toHaveBeenCalled();
   });
+
+  it("measures source font sizes when automatic fitting is enabled for kept blocks", async () => {
+    const estimateSourceFontSizes = vi.fn(async () => [
+      { confidence: 0.91, facePx: 28, method: "raster-core-v1" as const },
+    ]);
+
+    await runPageTypographyStages(
+      {
+        jobId: "job-keep-typography",
+        page: { id: "page-keep" },
+        pageOptions: {
+          autoFontMatching: false,
+          fontSizeAutoFit: true,
+          keepBlocksMode: true,
+        },
+        items: [{}],
+      } as never,
+      {
+        runFontMatching: vi.fn(async () => ({
+          pixelInferenceByBlockId: new Map<string, never>(),
+        })),
+        estimateSourceFontSizes,
+        logInfo: vi.fn(),
+      } as never,
+    );
+
+    expect(estimateSourceFontSizes).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true }),
+    );
+  });
 });
 
 function deferred<T>(): {

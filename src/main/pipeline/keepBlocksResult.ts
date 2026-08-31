@@ -1,16 +1,9 @@
-import { bboxToPixels, clamp } from "../../shared/geometry";
+import { bboxToPixels } from "../../shared/geometry";
 import type { TranslationBlock } from "../../shared/textTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
-import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
-import {
-  applyModelTextLayoutIntent,
-  MIN_EXTERIOR_VERTICAL_NARRATION_CONFIDENCE,
-} from "../../shared/textLayoutIntent";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
 import { tMain } from "./localization";
 import { buildPageWarnings } from "./overlayItems";
-import { resolveAutomaticFontDecisionV2 } from "./automaticFontMatchingV2";
-import { applyAutomaticFontDecisionV2 } from "./automaticFontMatchingV2Apply";
 import {
   createAutomaticFontPageCoordinatorV2,
   orderAutomaticFontMatchingPageItemIndexes,
@@ -18,7 +11,9 @@ import {
 import { resolveVerifiedPixelInferenceForBlockId } from "./automaticFontMatchingV2RuntimeGate";
 import { assignItemsToExistingBlocks } from "./keepBlocksAssignment";
 import type { KeepBlocksAutomaticFontOptions } from "./keepBlocksAutomaticFont";
+import { applyOverlayItemToExistingBlock } from "./keepBlocksOverlayApply";
 import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePixelInferenceTypes";
+import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometry";
 import type { OcrBboxResult, OverlayItem } from "./types";
 
 export type KeepBlocksMappingResult = {
@@ -85,6 +80,8 @@ export function buildKeepBlocksCompletedPage({
   soundDroppedCount,
   naturalLayout,
   automaticFont,
+  fontSizeAutoFit,
+  sourceFontSizeEstimates,
 }: {
   page: MangaPage;
   items: OverlayItem[];
@@ -92,6 +89,8 @@ export function buildKeepBlocksCompletedPage({
   soundDroppedCount: number;
   naturalLayout?: KeepBlocksNaturalLayoutOptions;
   automaticFont?: KeepBlocksAutomaticFontOptions;
+  fontSizeAutoFit?: boolean;
+  sourceFontSizeEstimates?: readonly (SourceFontSizeEstimate | undefined)[];
 }): { page: MangaPage; warnings: string[]; detail: string } {
   const mapping = applyOverlayItemsToExistingBlocks({
     page,
@@ -99,6 +98,8 @@ export function buildKeepBlocksCompletedPage({
     previousBlocks,
     naturalLayout,
     automaticFont,
+    fontSizeAutoFit,
+    sourceFontSizeEstimates,
   });
   return {
     page: {
@@ -153,12 +154,16 @@ export function applyOverlayItemsToExistingBlocks({
   previousBlocks,
   naturalLayout,
   automaticFont,
+  fontSizeAutoFit,
+  sourceFontSizeEstimates,
 }: {
   page: MangaPage;
   items: OverlayItem[];
   previousBlocks: PreviousOverlayBlockForPrompt[];
   naturalLayout?: KeepBlocksNaturalLayoutOptions;
   automaticFont?: KeepBlocksAutomaticFontOptions;
+  fontSizeAutoFit?: boolean;
+  sourceFontSizeEstimates?: readonly (SourceFontSizeEstimate | undefined)[];
 }): KeepBlocksMappingResult {
   const itemByBlockIndex = assignItemsToExistingBlocks({
     items,
@@ -189,7 +194,7 @@ export function applyOverlayItemsToExistingBlocks({
     : assignments.map((_assignment, index) => index);
   const blocks = [...page.blocks];
   for (const assignmentIndex of processingOrder) {
-    const { blockIndex, item } = assignments[assignmentIndex];
+    const { blockIndex, item, itemIndex } = assignments[assignmentIndex];
     const block = page.blocks[blockIndex];
     if (!block) continue;
     const previousTextRole = block.textRole ?? textRoleByBlockId.get(block.id);
@@ -202,6 +207,10 @@ export function applyOverlayItemsToExistingBlocks({
       item,
       naturalLayout,
       page,
+      sourceFontSize:
+        fontSizeAutoFit === true
+          ? sourceFontSizeEstimates?.[itemIndex]
+          : undefined,
       effectiveTextRole,
       skipNaturalLayout:
         Boolean(block.curveLayout) || effectiveTextRole === "sound",
@@ -283,140 +292,9 @@ function resolveKeepBlocksPageAutomaticFont({
   };
 }
 
-function applyOverlayItemToExistingBlock({
-  automaticFont,
-  block,
-  item,
-  naturalLayout,
-  page,
-  effectiveTextRole,
-  skipNaturalLayout,
-}: {
-  automaticFont?: KeepBlocksAutomaticFontOptions;
-  block: TranslationBlock;
-  item: OverlayItem;
-  naturalLayout?: KeepBlocksNaturalLayoutOptions;
-  page: MangaPage;
-  effectiveTextRole?: TranslationBlock["textRole"];
-  skipNaturalLayout: boolean;
-}): TranslationBlock {
-  const textUpdated = applyModelTextLayoutIntent(
-    {
-      ...block,
-      sourceText: item.jp.trim(),
-      translatedText: item.ko.trim(),
-      ...(effectiveTextRole ? { textRole: effectiveTextRole } : {}),
-      ...(item.fontRole
-        ? {
-            fontRole: item.fontRole,
-            fontRoleConfidence: normalizeItemConfidence(
-              item.fontRoleConfidence,
-              0,
-            ),
-          }
-        : {}),
-      ...(item.visualClusterId
-        ? { visualClusterId: item.visualClusterId }
-        : {}),
-      confidence: normalizeItemConfidence(item.confidence, block.confidence),
-    },
-    resolveCurrentItemLayoutIntent(item),
-    effectiveTextRole,
-  );
-  const itemWithPersistedIntent =
-    item.fontRole || !block.fontRole
-      ? item
-      : {
-          ...item,
-          fontRole: block.fontRole,
-          fontRoleConfidence: block.fontRoleConfidence,
-        };
-  const fontDecision = resolveKeepBlocksFontDecision({
-    automaticFont,
-    block: textUpdated,
-    item: effectiveTextRole
-      ? { ...itemWithPersistedIntent, textRole: effectiveTextRole }
-      : itemWithPersistedIntent,
-    page,
-  });
-  const updated = applyAutomaticFontDecisionV2(textUpdated, fontDecision);
-  if (!naturalLayout?.enabled || skipNaturalLayout) {
-    return updated;
-  }
-  const layout = applyNaturalTextLayout(updated, {
-    enabled: true,
-    pageSize: { width: page.width, height: page.height },
-    locale: naturalLayout.locale,
-    allowAutoVertical: false,
-    directionPreference: updated.renderDirection,
-    fontMetricWidthScale:
-      fontDecision?.result.decision.mode === "apply"
-        ? fontDecision.fontMetricWidthScale
-        : undefined,
-  });
-  return { ...updated, translatedText: layout.translatedText };
-}
-
-function resolveKeepBlocksFontDecision({
-  automaticFont,
-  block,
-  item,
-  page,
-}: {
-  automaticFont?: KeepBlocksAutomaticFontOptions;
-  block: TranslationBlock;
-  item: OverlayItem;
-  page: MangaPage;
-}) {
-  return automaticFont?.enabled
-    ? resolveAutomaticFontDecisionV2({
-        block,
-        item,
-        page,
-        options: {
-          ...automaticFont,
-          pageCoordinator: automaticFont.pageCoordinator,
-          runtimeArtifactStatus:
-            automaticFont.pageInference?.runtimeArtifactStatus,
-          pixelInference:
-            automaticFont.pageInference?.pixelInferenceByBlockId.get(block.id),
-        },
-      })
-    : undefined;
-}
-
 function normalizePersistentTextRole(
   value: unknown,
 ): TranslationBlock["textRole"] {
   if (value === "ordinary" || value === "sound") return value;
   return undefined;
-}
-
-/**
- * Keep-mode blocks can carry a persisted narration role from an older run.
- * Never let that stale value authenticate a new vertical advisory: the role
- * and confidence must both be present on the current translated item.
- */
-function resolveCurrentItemLayoutIntent(
-  item: OverlayItem,
-): OverlayItem["layoutIntent"] {
-  if (item.layoutIntent !== "vertical") return item.layoutIntent;
-  return item.fontRole === "narration" &&
-    typeof item.fontRoleConfidence === "number" &&
-    Number.isFinite(item.fontRoleConfidence) &&
-    item.fontRoleConfidence >= MIN_EXTERIOR_VERTICAL_NARRATION_CONFIDENCE
-    ? "vertical"
-    : "auto";
-}
-
-function normalizeItemConfidence(value: unknown, fallback: number): number {
-  if (value === null || value === undefined || value === "") {
-    return fallback;
-  }
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-  const normalized = parsed > 1 && parsed <= 100 ? parsed / 100 : parsed;
-  return clamp(normalized, 0, 1);
 }

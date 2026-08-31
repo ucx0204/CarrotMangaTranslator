@@ -1,9 +1,28 @@
-import { describe, expect, it } from "vitest";
-import { estimateSourceFontSizeForItem } from "../src/main/pipeline/sourceFontSizeEstimator";
+import { describe, expect, it, vi } from "vitest";
+import {
+  estimatePageSourceFontSizes,
+  estimateSourceFontSizeForItem,
+} from "../src/main/pipeline/sourceFontSizeEstimator";
 import type { FontMatchingRasterPage } from "../src/main/pipeline/fontMatchingPagePixelPreprocessing";
 import type { OverlayItem } from "../src/main/pipeline/types";
 
 describe("source font-size raster estimator", () => {
+  it("skips raster loading when source-size fitting is disabled", async () => {
+    const loadRaster = vi.fn(async () =>
+      createRaster(100, 30, () => undefined),
+    );
+
+    await expect(
+      estimatePageSourceFontSizes({
+        enabled: false,
+        items: [makeItem()],
+        page: { id: "page-disabled", width: 100, height: 30 } as never,
+        loadRaster,
+      }),
+    ).resolves.toEqual([]);
+    expect(loadRaster).not.toHaveBeenCalled();
+  });
+
   it("measures a clean ordinary source line and returns an auditable face", () => {
     const raster = createRaster(100, 30, (setBlack) => {
       for (let glyph = 0; glyph < 4; glyph += 1) {

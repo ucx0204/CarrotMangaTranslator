@@ -13727,6 +13727,28 @@
         "pct": 66.66
       }
     },
+    "src/main/pipeline/keepBlocksOverlayApply.ts": {
+      "lines": {
+        "total": 18,
+        "covered": 18,
+        "pct": 100
+      },
+      "statements": {
+        "total": 23,
+        "covered": 21,
+        "pct": 91.3
+      },
+      "functions": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "branches": {
+        "total": 41,
+        "covered": 33,
+        "pct": 80.48
+      }
+    },
     "src/main/pipeline/overlayFontSize.ts": {
       "lines": {
         "total": 4,
@@ -14975,6 +14997,28 @@
         "total": 33,
         "covered": 18,
         "pct": 54.54
+      }
+    },
+    "src/renderer/src/components/LinkedWorkspaceFolderRoles.tsx": {
+      "lines": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "statements": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "functions": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
       }
     },
     "src/renderer/src/components/PageThumbSelectionCard.tsx": {

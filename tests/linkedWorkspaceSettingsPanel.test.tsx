@@ -85,6 +85,10 @@ describe("LinkedWorkspaceSettingsPanel", () => {
   it("lists every work/chapter and toggles each chapter independently", async () => {
     render(<LinkedWorkspaceSettingsPanel library={makeLibrary()} />);
     expect(await screen.findByText("테스트 작품")).toBeTruthy();
+    expect(screen.getByText("result")).toBeTruthy();
+    expect(screen.getByText("최종 이미지")).toBeTruthy();
+    expect(screen.getByText("originals")).toBeTruthy();
+    expect(screen.getByText("복구용 원본")).toBeTruthy();
     expect(
       screen.getByRole("checkbox", { name: "1화 결과물 자동 저장" }),
     ).toBeTruthy();

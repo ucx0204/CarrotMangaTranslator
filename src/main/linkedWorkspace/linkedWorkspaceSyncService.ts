@@ -1,7 +1,7 @@
 /* eslint-disable max-lines, complexity, max-lines-per-function -- the bounded render scheduler keeps cancellation, serialized publication, retry, and recovery transitions together for auditability */
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, stat } from "node:fs/promises";
-import { basename, extname, join, resolve } from "node:path";
+import { mkdir, readFile, readdir, rename, stat } from "node:fs/promises";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { app, shell, type BrowserWindow } from "electron";
 import { removeArtifactAfterFailure } from "../artifactCleanup";
 import type { ActiveJobStore } from "../jobs/activeJob";
@@ -51,6 +51,8 @@ import {
 } from "./linkedWorkspaceFiles";
 import { LinkedWorkspaceStore } from "./linkedWorkspaceStore";
 import { deriveLegacyInpaintMask } from "../inpainting/inpaintMaskArtifact";
+import { probeImageFile } from "../libraryStore/imageHeaderProbe";
+import { isInvalidImageHeaderError } from "../libraryStore/imageHeaderProbeInternal";
 
 const IDLE_DELAY_MS = 3_000;
 const RETRY_DELAYS_MS = [5_000, 30_000, 120_000, 600_000] as const;
@@ -212,6 +214,7 @@ export class LinkedWorkspaceSyncService {
       await materializeRecoverySources({
         chapter,
         pageRelativePaths,
+        ...(sameRoot && current ? { previousRecord: current } : {}),
         rootPath,
       });
     const now = new Date().toISOString();
@@ -1295,6 +1298,34 @@ export class LinkedWorkspaceSyncService {
           recordChanged = true;
         }
       }
+      try {
+        const recoverySources = await materializeRecoverySources({
+          chapter,
+          pageRelativePaths: record.pageRelativePaths,
+          previousRecord: record,
+          rootPath: record.rootPath,
+        });
+        if (
+          JSON.stringify(record.sourceRelativePaths ?? {}) !==
+            JSON.stringify(recoverySources.sourceRelativePaths) ||
+          JSON.stringify(record.sourceFingerprints) !==
+            JSON.stringify(recoverySources.sourceFingerprints)
+        ) {
+          record.sourceRelativePaths = recoverySources.sourceRelativePaths;
+          record.sourceFingerprints = recoverySources.sourceFingerprints;
+          recordChanged = true;
+        }
+      } catch (error) {
+        this.options.reportError(
+          "Failed to normalize linked workspace recovery sources",
+          error,
+        );
+        await this.fallbackToManagedDestination(
+          record,
+          "복구용 원본 경로를 안전하게 교정할 수 없어 기본 결과물 폴더로 전환했습니다.",
+        );
+        continue recordLoop;
+      }
       const rootKey = normalizeRootKey(record.rootPath);
       let mirrorMissing = missingMirrors.get(rootKey);
       if (mirrorMissing === undefined) {
@@ -1610,10 +1641,12 @@ function resolveOutputRelativePaths(
 async function materializeRecoverySources({
   chapter,
   pageRelativePaths,
+  previousRecord,
   rootPath,
 }: {
   chapter: ChapterSnapshot;
   pageRelativePaths: Record<string, string>;
+  previousRecord?: LinkedWorkspaceRecordV1;
   rootPath: string;
 }): Promise<{
   sourceFingerprints: LinkedWorkspaceRecordV1["sourceFingerprints"];
@@ -1621,22 +1654,128 @@ async function materializeRecoverySources({
 }> {
   const sourceFingerprints: LinkedWorkspaceRecordV1["sourceFingerprints"] = {};
   const sourceRelativePaths: Record<string, string> = {};
+  const usedSourceRelativePaths = new Set<string>();
   for (const page of chapter.pages) {
     const outputRelativePath = pageRelativePaths[page.id];
     if (!outputRelativePath) continue;
-    const sourceRelativePath = normalizeLinkedRelativePath(
-      `originals/${outputRelativePath}`,
+    const sourceRelativePath = makeUniqueRelativePath(
+      `originals/${replaceRelativePathExtension(
+        outputRelativePath,
+        await resolveRecoveryImageExtension(page.imagePath),
+      )}`,
+      usedSourceRelativePaths,
     );
     const targetPath = resolvePathInside(rootPath, sourceRelativePath);
     const sourceFingerprint = await fingerprintFile(page.imagePath);
-    const currentFingerprint = await fingerprintFileIfPresent(targetPath);
-    if (currentFingerprint?.sha256 !== sourceFingerprint.sha256) {
-      await copyFileAtomically(page.imagePath, targetPath);
-    }
+    const previousRelativePath = previousRecord
+      ? (previousRecord.sourceRelativePaths?.[page.id] ??
+        previousRecord.pageRelativePaths[page.id])
+      : undefined;
+    await materializeRecoverySourceFile({
+      page,
+      previousExpectedFingerprint: previousRecord?.sourceFingerprints[page.id],
+      previousPath: previousRelativePath
+        ? resolvePathInside(rootPath, previousRelativePath)
+        : undefined,
+      sourceFingerprint,
+      targetPath,
+    });
     sourceRelativePaths[page.id] = sourceRelativePath;
     sourceFingerprints[page.id] = await fingerprintFile(targetPath);
   }
   return { sourceFingerprints, sourceRelativePaths };
+}
+
+async function materializeRecoverySourceFile({
+  page,
+  previousExpectedFingerprint,
+  previousPath,
+  sourceFingerprint,
+  targetPath,
+}: {
+  page: MangaPage;
+  previousExpectedFingerprint?: LinkedWorkspaceRecordV1["sourceFingerprints"][string];
+  previousPath?: string;
+  sourceFingerprint: LinkedWorkspaceRecordV1["sourceFingerprints"][string];
+  targetPath: string;
+}): Promise<void> {
+  const targetFingerprint = await fingerprintFileIfPresent(targetPath);
+  if (targetFingerprint?.sha256 === sourceFingerprint.sha256) return;
+
+  const previousFingerprint = previousPath
+    ? await fingerprintFileIfPresent(previousPath)
+    : null;
+  if (
+    previousFingerprint &&
+    previousExpectedFingerprint &&
+    previousFingerprint.sha256 !== previousExpectedFingerprint.sha256
+  ) {
+    throw new Error(
+      `사용자가 변경한 복구용 원본은 자동으로 덮어쓸 수 없습니다: ${page.name}`,
+    );
+  }
+
+  const targetWasRecorded = Boolean(
+    previousPath && sameFilePath(previousPath, targetPath),
+  );
+  if (targetFingerprint && !targetWasRecorded) {
+    throw new Error(
+      `교정할 복구용 원본 경로에 다른 파일이 있습니다: ${page.name}`,
+    );
+  }
+  if (
+    targetFingerprint &&
+    targetWasRecorded &&
+    previousExpectedFingerprint &&
+    targetFingerprint.sha256 !== previousExpectedFingerprint.sha256
+  ) {
+    throw new Error(
+      `사용자가 변경한 복구용 원본은 자동으로 덮어쓸 수 없습니다: ${page.name}`,
+    );
+  }
+
+  if (
+    !targetFingerprint &&
+    previousPath &&
+    !sameFilePath(previousPath, targetPath) &&
+    previousFingerprint?.sha256 === sourceFingerprint.sha256
+  ) {
+    await mkdir(dirname(targetPath), { recursive: true });
+    await rename(previousPath, targetPath);
+    return;
+  }
+  await copyFileAtomically(page.imagePath, targetPath);
+}
+
+async function resolveRecoveryImageExtension(
+  imagePath: string,
+): Promise<".jpeg" | ".jpg" | ".png" | ".webp"> {
+  try {
+    const metadata = await probeImageFile(imagePath, basename(imagePath));
+    if (metadata.format === "png") return ".png";
+    if (metadata.format === "webp") return ".webp";
+    return extname(imagePath).toLowerCase() === ".jpeg" ? ".jpeg" : ".jpg";
+  } catch (error) {
+    if (!isInvalidImageHeaderError(error)) throw error;
+    const extension = extname(imagePath).toLowerCase();
+    if (
+      extension === ".jpeg" ||
+      extension === ".jpg" ||
+      extension === ".png" ||
+      extension === ".webp"
+    ) {
+      return extension;
+    }
+    return ".png";
+  }
+}
+
+function replaceRelativePathExtension(
+  relativePath: string,
+  extension: ".jpeg" | ".jpg" | ".png" | ".webp",
+): string {
+  const currentExtension = extname(relativePath);
+  return `${relativePath.slice(0, relativePath.length - currentExtension.length)}${extension}`;
 }
 
 async function assertOrCreateDestinationDirectory(

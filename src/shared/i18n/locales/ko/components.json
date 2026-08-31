@@ -710,6 +710,13 @@
       "format": "자동 저장 형식"
     }
   },
+  "linkedWorkspaceFolders": {
+    "label": "자동 저장 폴더 역할",
+    "result": "최종 이미지",
+    "originals": "복구용 원본",
+    "inpainted": "원문 제거본",
+    "mask": "지운 영역"
+  },
   "rename": {
     "workTitle": "작품 이름 변경",
     "chapterTitle": "화 이름 변경",

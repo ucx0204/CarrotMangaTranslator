@@ -9,6 +9,7 @@ import { sortLibraryIndex, type LibrarySort } from "../../lib/librarySort";
 import { useLinkedWorkspaceSettingsOperations } from "../../hooks/useLinkedWorkspaceSettingsOperations";
 import { useLinkedWorkspaceStatuses } from "../../hooks/useLinkedWorkspaceStatuses";
 import { LinkedWorkspaceChapterRow } from "./LinkedWorkspaceChapterRow";
+import { LinkedWorkspaceFolderRoles } from "../LinkedWorkspaceFolderRoles";
 
 export function LinkedWorkspaceSettingsPanel({
   library,
@@ -43,6 +44,7 @@ export function LinkedWorkspaceSettingsPanel({
       <p className="muted-line modal-note">
         {t("settings.results.description")}
       </p>
+      <LinkedWorkspaceFolderRoles />
       <div className="linked-workspace-settings-toolbar">
         <label
           className="library-search-shell linked-workspace-settings-search"

@@ -713,6 +713,13 @@
       "format": "自動保存形式"
     }
   },
+  "linkedWorkspaceFolders": {
+    "label": "自動保存フォルダーの役割",
+    "result": "完成画像",
+    "originals": "復旧用の原本",
+    "inpainted": "原文消去済み",
+    "mask": "消去範囲"
+  },
   "rename": {
     "workTitle": "作品名を変更",
     "chapterTitle": "話の名前を変更",

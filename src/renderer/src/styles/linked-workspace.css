@@ -24,6 +24,51 @@
   gap: 12px;
 }
 
+.linked-workspace-folder-roles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+
+.linked-workspace-folder-roles > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 7px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--bg-sunken) 74%, transparent);
+}
+
+.linked-workspace-folder-roles dt,
+.linked-workspace-folder-roles dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linked-workspace-folder-roles dt {
+  color: var(--accent-hi);
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
+  font-weight: 700;
+}
+
+.linked-workspace-folder-roles dd {
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+}
+
+@media (max-width: 720px) {
+  .linked-workspace-folder-roles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .linked-workspace-settings-message,
 .linked-workspace-row-error,
 .linked-workspace-empty {

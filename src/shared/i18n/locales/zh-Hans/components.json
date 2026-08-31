@@ -706,6 +706,13 @@
       "format": "自动保存格式"
     }
   },
+  "linkedWorkspaceFolders": {
+    "label": "自动保存文件夹用途",
+    "result": "最终图像",
+    "originals": "恢复用原图",
+    "inpainted": "已去原文",
+    "mask": "擦除区域"
+  },
   "rename": {
     "workTitle": "重命名作品",
     "chapterTitle": "重命名章节",

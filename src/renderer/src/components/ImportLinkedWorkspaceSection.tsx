@@ -7,6 +7,7 @@ import type {
 import { CheckboxField } from "./ui/CheckboxField";
 import { NumberField } from "./ui/NumberField";
 import { Select } from "./ui/Select";
+import { LinkedWorkspaceFolderRoles } from "./LinkedWorkspaceFolderRoles";
 
 export function ImportLinkedWorkspaceSection({
   busy,
@@ -33,51 +34,57 @@ export function ImportLinkedWorkspaceSection({
       />
       <p>{t("import.liveResults.description")}</p>
       {options.enabled ? (
-        <div className="import-linked-workspace-fields">
-          <label>
-            <span>{t("import.liveResults.format")}</span>
-            <Select
-              ariaLabel={t("import.liveResults.format")}
-              disabled={busy}
-              value={options.outputFormat}
-              options={[
-                { value: "source", label: t("exportOptions.formats.source") },
-                { value: "png", label: t("exportOptions.formats.png") },
-                { value: "jpeg", label: t("exportOptions.formats.jpeg") },
-                { value: "webp", label: t("exportOptions.formats.webp") },
-              ]}
-              onValueChange={(value) =>
-                onChange((current) => ({
-                  ...current,
-                  outputFormat: value as RasterExportFormat,
-                }))
-              }
-            />
-          </label>
-          {options.outputFormat === "jpeg" ||
-          options.outputFormat === "webp" ? (
+        <>
+          <LinkedWorkspaceFolderRoles />
+          <div className="import-linked-workspace-fields">
             <label>
-              <span>{t("exportOptions.quality")}</span>
-              <NumberField
-                ariaLabel={t("exportOptions.quality")}
+              <span>{t("import.liveResults.format")}</span>
+              <Select
+                ariaLabel={t("import.liveResults.format")}
                 disabled={busy}
-                inputMode="numeric"
-                max={100}
-                min={1}
-                useTextInput
-                value={quality}
+                value={options.outputFormat}
+                options={[
+                  {
+                    value: "source",
+                    label: t("exportOptions.formats.source"),
+                  },
+                  { value: "png", label: t("exportOptions.formats.png") },
+                  { value: "jpeg", label: t("exportOptions.formats.jpeg") },
+                  { value: "webp", label: t("exportOptions.formats.webp") },
+                ]}
                 onValueChange={(value) =>
                   onChange((current) => ({
                     ...current,
-                    ...(current.outputFormat === "jpeg"
-                      ? { jpegQuality: value }
-                      : { webpQuality: value }),
+                    outputFormat: value as RasterExportFormat,
                   }))
                 }
               />
             </label>
-          ) : null}
-        </div>
+            {options.outputFormat === "jpeg" ||
+            options.outputFormat === "webp" ? (
+              <label>
+                <span>{t("exportOptions.quality")}</span>
+                <NumberField
+                  ariaLabel={t("exportOptions.quality")}
+                  disabled={busy}
+                  inputMode="numeric"
+                  max={100}
+                  min={1}
+                  useTextInput
+                  value={quality}
+                  onValueChange={(value) =>
+                    onChange((current) => ({
+                      ...current,
+                      ...(current.outputFormat === "jpeg"
+                        ? { jpegQuality: value }
+                        : { webpQuality: value }),
+                    }))
+                  }
+                />
+              </label>
+            ) : null}
+          </div>
+        </>
       ) : null}
     </section>
   );

@@ -180,6 +180,75 @@ describe("keep-blocks translation mode", () => {
     });
   });
 
+  it("applies source font sizes to the assigned kept blocks by item index", () => {
+    const page = makePage([
+      {
+        ...makeBlock("b-1", { x: 100, y: 100, w: 200, h: 100 }),
+        autoFitText: false,
+      },
+      {
+        ...makeBlock("b-2", { x: 500, y: 500, w: 100, h: 100 }),
+        autoFitText: false,
+      },
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const items = [
+      makeItem(2, page.blocks[1].bbox, "小さい", "작게"),
+      makeItem(1, page.blocks[0].bbox, "大きい", "크게"),
+    ];
+
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items,
+      previousBlocks,
+      fontSizeAutoFit: true,
+      sourceFontSizeEstimates: [
+        { confidence: 0.82, facePx: 18, method: "raster-core-v1" },
+        { confidence: 0.93, facePx: 42, method: "raster-core-v1" },
+      ],
+    });
+
+    expect(mapping.blocks[0]).toMatchObject({
+      autoFitText: true,
+      fontSizePx: 24,
+      sourceFontFacePx: 42,
+      sourceFontSizeConfidence: 0.93,
+      sourceFontSizeMethod: "raster-core-v1",
+    });
+    expect(mapping.blocks[1]).toMatchObject({
+      autoFitText: true,
+      fontSizePx: 24,
+      sourceFontFacePx: 18,
+      sourceFontSizeConfidence: 0.82,
+      sourceFontSizeMethod: "raster-core-v1",
+    });
+  });
+
+  it("leaves kept-block font sizing untouched when no valid estimate exists", () => {
+    const original = {
+      ...makeBlock("b-1", { x: 100, y: 100, w: 200, h: 100 }),
+      autoFitText: false,
+    };
+    const page = makePage([original]);
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [makeItem(1, original.bbox, "原文", "번역")],
+      previousBlocks: buildPreviousBlocksForPrompt(page, [], {
+        assignSequentialCandidateIds: true,
+      }),
+      fontSizeAutoFit: true,
+      sourceFontSizeEstimates: [undefined],
+    });
+
+    expect(mapping.blocks[0]).toMatchObject({
+      autoFitText: false,
+      fontSizePx: 24,
+    });
+    expect(mapping.blocks[0]).not.toHaveProperty("sourceFontFacePx");
+  });
+
   it("persists concrete v6 advisories on ordinary keep blocks and applies horizontal immediately", () => {
     const page = makePage([
       {

@@ -706,6 +706,13 @@
       "format": "自動儲存格式"
     }
   },
+  "linkedWorkspaceFolders": {
+    "label": "自動儲存資料夾用途",
+    "result": "最終影像",
+    "originals": "復原用原圖",
+    "inpainted": "已去原文",
+    "mask": "擦除區域"
+  },
   "rename": {
     "workTitle": "重新命名作品",
     "chapterTitle": "重新命名章節",

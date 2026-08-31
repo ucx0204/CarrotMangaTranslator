@@ -716,6 +716,13 @@
       "format": "Automatic save format"
     }
   },
+  "linkedWorkspaceFolders": {
+    "label": "Automatic-save folder roles",
+    "result": "Final images",
+    "originals": "Recovery originals",
+    "inpainted": "Text-erased images",
+    "mask": "Erased areas"
+  },
   "rename": {
     "workTitle": "Rename work",
     "chapterTitle": "Rename chapter",

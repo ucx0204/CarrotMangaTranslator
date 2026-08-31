@@ -407,6 +407,8 @@ export async function finalizePreparedPageResult({
         pixelInference,
         fontMatchingChapterCoordinator,
       ),
+      fontSizeAutoFit: pageOptions.fontSizeAutoFit === true,
+      sourceFontSizeEstimates,
     });
     return {
       kind: "completed",

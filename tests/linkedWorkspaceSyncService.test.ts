@@ -4,6 +4,7 @@ import {
   mkdtemp,
   readFile,
   readdir,
+  rename,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -43,6 +44,10 @@ import {
 const WORK_ID = "11111111-1111-4111-8111-111111111111";
 const CHAPTER_ID = "22222222-2222-4222-8222-222222222222";
 const PAGE_ID = "33333333-3333-4333-8333-333333333333";
+const ONE_PIXEL_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64",
+);
 const tempDirs: string[] = [];
 
 beforeEach(() => {
@@ -86,6 +91,77 @@ describe("LinkedWorkspaceSyncService", () => {
     ).resolves.toEqual({ status: "opened", syncedPages: 1 });
     expect(boundary.openPath).toHaveBeenCalledWith(join(root, "result"));
     await service.dispose();
+  });
+
+  it("names recovery originals from the encoded image format", async () => {
+    vi.useRealTimers();
+    const page = requirePage();
+    page.name = "001.webp";
+    page.sourceFileName = "001.webp";
+    page.sourceRelativePath = "001.webp";
+
+    const { dataRoot, root, service } = await makeConnectedService(
+      "custom",
+      undefined,
+      () => ONE_PIXEL_PNG,
+    );
+
+    expect(await readdir(join(root, "originals"))).toEqual(["001.png"]);
+    expect(await readFile(join(root, "originals", "001.png"))).toEqual(
+      ONE_PIXEL_PNG,
+    );
+    const registry = JSON.parse(
+      await readFile(join(dataRoot, "linked-workspaces.json"), "utf8"),
+    ) as {
+      records: Array<{ sourceRelativePaths?: Record<string, string> }>;
+    };
+    expect(registry.records[0]?.sourceRelativePaths?.[PAGE_ID]).toBe(
+      "originals/001.png",
+    );
+    await service.dispose();
+  });
+
+  it("renames a verified legacy recovery copy without deleting its bytes", async () => {
+    vi.useRealTimers();
+    const page = requirePage();
+    page.name = "001.webp";
+    page.sourceFileName = "001.webp";
+    page.sourceRelativePath = "001.webp";
+    const { dataRoot, root, service } = await makeConnectedService(
+      "custom",
+      undefined,
+      () => ONE_PIXEL_PNG,
+    );
+    await service.dispose();
+
+    const correctedPath = join(root, "originals", "001.png");
+    const legacyPath = join(root, "originals", "001.webp");
+    await rename(correctedPath, legacyPath);
+    const registryPath = join(dataRoot, "linked-workspaces.json");
+    const legacyRegistry = JSON.parse(await readFile(registryPath, "utf8")) as {
+      records: Array<{ sourceRelativePaths?: Record<string, string> }>;
+    };
+    const record = legacyRegistry.records[0];
+    if (!record?.sourceRelativePaths) {
+      throw new Error("missing linked workspace source paths");
+    }
+    record.sourceRelativePaths[PAGE_ID] = "originals/001.webp";
+    await writeFile(registryPath, JSON.stringify(legacyRegistry));
+
+    const restored = createService(dataRoot);
+    await restored.initialize();
+
+    expect(await readdir(join(root, "originals"))).toEqual(["001.png"]);
+    expect(await readFile(correctedPath)).toEqual(ONE_PIXEL_PNG);
+    const migratedRegistry = JSON.parse(
+      await readFile(registryPath, "utf8"),
+    ) as {
+      records: Array<{ sourceRelativePaths?: Record<string, string> }>;
+    };
+    expect(migratedRegistry.records[0]?.sourceRelativePaths?.[PAGE_ID]).toBe(
+      "originals/001.png",
+    );
+    await restored.dispose();
   });
 
   it("does not mix a managed chapter with an unowned existing folder", async () => {
@@ -492,6 +568,8 @@ describe("LinkedWorkspaceSyncService", () => {
 async function makeConnectedService(
   destination: "custom" | "managed" = "custom",
   prepareManagedRoot?: (rootPath: string) => Promise<void>,
+  sourceContent: (page: MangaPage) => string | Uint8Array = (page) =>
+    page.id === PAGE_ID ? "source" : `source-${page.name}`,
 ): Promise<{
   dataRoot: string;
   root: string;
@@ -501,13 +579,26 @@ async function makeConnectedService(
   const customRoot = await makeTempDir("output");
   for (const page of requireChapter().pages) {
     const internalImagePath = join(dataRoot, page.name);
-    await writeFile(
-      internalImagePath,
-      page.id === PAGE_ID ? "source" : `source-${page.name}`,
-    );
+    await writeFile(internalImagePath, sourceContent(page));
     page.imagePath = internalImagePath;
   }
-  const service = new LinkedWorkspaceSyncService({
+  const service = createService(dataRoot);
+  await service.initialize();
+  const preferredManagedRoot = join(dataRoot, "results", "테스트 작품", "1화");
+  await prepareManagedRoot?.(preferredManagedRoot);
+  await service.connect({
+    workId: WORK_ID,
+    chapterId: CHAPTER_ID,
+    ...(destination === "custom" ? { rootPath: customRoot } : {}),
+    output: { ...DEFAULT_RASTER_EXPORT_SETTINGS, destinationMode: "fixed" },
+    enqueueExistingPages: false,
+  });
+  const root = service.getStatus(CHAPTER_ID).rootPath ?? customRoot;
+  return { dataRoot, root, service };
+}
+
+function createService(dataRoot: string): LinkedWorkspaceSyncService {
+  return new LinkedWorkspaceSyncService({
     dataRoot,
     jobs: {
       get hasActive() {
@@ -524,18 +615,6 @@ async function makeConnectedService(
       createPageExportRenderSession: boundary.createSession,
     },
   });
-  await service.initialize();
-  const preferredManagedRoot = join(dataRoot, "results", "테스트 작품", "1화");
-  await prepareManagedRoot?.(preferredManagedRoot);
-  await service.connect({
-    workId: WORK_ID,
-    chapterId: CHAPTER_ID,
-    ...(destination === "custom" ? { rootPath: customRoot } : {}),
-    output: { ...DEFAULT_RASTER_EXPORT_SETTINGS, destinationMode: "fixed" },
-    enqueueExistingPages: false,
-  });
-  const root = service.getStatus(CHAPTER_ID).rootPath ?? customRoot;
-  return { dataRoot, root, service };
 }
 
 function makeRenderSession(render?: (page: MangaPage) => Promise<Buffer>) {
