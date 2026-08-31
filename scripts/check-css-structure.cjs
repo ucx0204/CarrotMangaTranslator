@@ -30,7 +30,6 @@ const expectedImports = [
   "settings-codex.css",
   "linked-workspace.css",
   "gather-selection.css",
-  "search-replace.css",
   "style-guide.css",
   "translate-picker.css",
 ];

@@ -39,6 +39,10 @@ describe("sidebar list panel switching", () => {
       />,
     );
 
+    expect(
+      screen.queryByRole("button", { name: "텍스트 일괄 편집" }),
+    ).toBeNull();
+
     const libraryPanel = container.querySelector(".library-panel");
     const pagePanel = container.querySelector(".page-list");
     expect(libraryPanel?.getAttribute("data-collapsed")).toBe("false");

@@ -46,6 +46,7 @@ export function EditorPanelContainer(): React.JSX.Element {
         onDelete={session.onDeleteBlock}
         onDuplicate={session.onDuplicateBlock}
         onSaveToLibrary={() => setSaveOpen(true)}
+        onSuggestConsistentEdit={session.onSuggestConsistentEdit}
         onEraseOriginal={session.onEraseBlockOriginal}
         onFitBubble={session.onFitBlockBubble}
         onRemoveBubbleLayout={session.onRemoveBubbleLayout}

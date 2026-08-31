@@ -28,6 +28,8 @@ describe("AppSessionView render boundaries", () => {
     const latestUpdate = vi.fn();
     const firstRemoveBubbleLayout = vi.fn();
     const latestRemoveBubbleLayout = vi.fn();
+    const firstSuggestConsistentEdit = vi.fn();
+    const latestSuggestConsistentEdit = vi.fn();
     const { rerender } = render(
       <PanelSessionHarness
         onCommit={onCommit}
@@ -35,6 +37,7 @@ describe("AppSessionView render boundaries", () => {
         rootRevision={0}
         value={makePanelSessionValue({
           onRemoveBubbleLayout: firstRemoveBubbleLayout,
+          onSuggestConsistentEdit: firstSuggestConsistentEdit,
           onUpdateBlock: firstUpdate,
         })}
       />,
@@ -51,6 +54,7 @@ describe("AppSessionView render boundaries", () => {
         value={makePanelSessionValue({
           onUpdateBlock: latestUpdate,
           onRemoveBubbleLayout: latestRemoveBubbleLayout,
+          onSuggestConsistentEdit: latestSuggestConsistentEdit,
           selectedPageSize: { width: 1200, height: 1800 },
         })}
       />,
@@ -68,6 +72,8 @@ describe("AppSessionView render boundaries", () => {
     });
     expect(firstRemoveBubbleLayout).not.toHaveBeenCalled();
     expect(latestRemoveBubbleLayout).toHaveBeenCalledOnce();
+    expect(firstSuggestConsistentEdit).not.toHaveBeenCalled();
+    expect(latestSuggestConsistentEdit).toHaveBeenCalledWith("카렌", "카랜");
   });
 
   it("publishes selected data, disabled, and page-size changes immediately", () => {
@@ -94,6 +100,7 @@ describe("AppSessionView render boundaries", () => {
     expect(screen.getByTestId("panel-consumer").textContent).toBe(
       "true:1200:none",
     );
+    fireEvent.click(screen.getByTestId("panel-consumer"));
 
     rerender(
       <PanelSessionHarness
@@ -314,6 +321,7 @@ const PanelSessionProbe = React.memo(function PanelSessionProbe({
         onClick={() => {
           session.onUpdateBlock({ translatedText: "latest callback" });
           session.onRemoveBubbleLayout();
+          session.onSuggestConsistentEdit?.("카렌", "카랜");
         }}
       >
         {`${session.editorDisabled}:${session.selectedPageSize?.width ?? 0}:${

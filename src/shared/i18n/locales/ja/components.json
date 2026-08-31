@@ -56,6 +56,110 @@
     "share": "作業を書き出す",
     "importWork": "作業を読み込む"
   },
+  "conditionalBatch": {
+    "open": "テキスト一括編集",
+    "title": "一貫編集",
+    "undo": "元に戻す",
+    "scheme": {
+      "label": "ルールを読み込む",
+      "ellipsis": "標準例 · 三点リーダーと空白を整理",
+      "ellipsisHelp": "翻訳文の ... を … に変更し、連続する空白を1つにまとめます。",
+      "unsaved": "未保存の新規ルール",
+      "new": "新規ルール",
+      "save": "YAMLに保存",
+      "delete": "保存ルールを削除",
+      "yamlHint": "保存したルールは batch-edit-schemes.yaml に保管されます。",
+      "name": "ルール名",
+      "descriptionOptional": "説明（任意）"
+    },
+    "scope": {
+      "title": "適用範囲",
+      "label": "適用範囲",
+      "page": "現在のページ",
+      "pageHelp": "{{page}} のみ検索します。",
+      "chapter": "現在の話全体",
+      "chapterHelp": "開いている話の全ページを検索します。",
+      "pageSelected": "対象ページ：{{page}}",
+      "chapterSelected": "現在の話の全ページが対象です。"
+    },
+    "when": {
+      "title": "条件",
+      "modeLabel": "条件の組み合わせ",
+      "all": "すべて一致",
+      "any": "いずれか一致",
+      "allBlocks": "すべての吹き出し",
+      "allBlocksHelp": "条件を確認せず範囲内の全ブロックを対象にします。",
+      "allBlocksWarning": "すべての吹き出しが選択されています。",
+      "allBlocksDetail": "適用前にプレビューと件数を必ず確認してください。",
+      "add": "条件を追加",
+      "conditionNumber": "条件 {{number}}",
+      "remove": "条件を削除",
+      "field": "確認するテキスト",
+      "translatedText": "翻訳文",
+      "sourceText": "原文",
+      "operator": "比較方法",
+      "contains": "次を含む",
+      "equals": "次と完全一致",
+      "empty": "空である",
+      "notEmpty": "空ではない",
+      "value": "比較する文字",
+      "valuePlaceholder": "探す文字を入力",
+      "noValueNeeded": "この比較では文字の入力は不要です。"
+    },
+    "then": {
+      "title": "置換",
+      "target": "置換するテキスト",
+      "targets": {
+        "translatedText": "翻訳文",
+        "sourceText": "原文",
+        "both": "原文と翻訳文"
+      },
+      "searchMode": "検索方法",
+      "searchModes": {
+        "literal": "通常の文字",
+        "regex": "正規表現"
+      },
+      "find": "検索する文字",
+      "replace": "置換後の文字",
+      "caseSensitive": "大文字と小文字を区別",
+      "allOccurrences": "すべて置換"
+    },
+    "validation": {
+      "title": "ルールエラー",
+      "findRequired": "検索する文字を入力してください。",
+      "invalidRegex": "正規表現が正しくありません：{{message}}"
+    },
+    "storage": { "error": "保存ルールを処理できませんでした" },
+    "notice": {
+      "conflictsOnly": "プレビュー後に変わった{{count}}件は上書きしませんでした。",
+      "applied": "{{applied}}件を適用しました。競合でスキップ：{{conflicts}}件",
+      "undone": "直前の一括編集を元に戻しました。"
+    },
+    "results": {
+      "previous": "前の変更候補",
+      "next": "次の変更候補",
+      "noneShort": "結果なし",
+      "position": "{{current}} / {{total}}",
+      "title": "変更結果",
+      "willChange": "件を変更予定",
+      "alreadySame": "件は一致するが変更なし",
+      "includeCurrent": "この結果を適用に含める",
+      "none": "変更される吹き出しはありません。",
+      "noneHelp": "範囲・条件・検索文字を確認してください。",
+      "includeNumber": "結果{{number}}を含める",
+      "listLimit": "一覧には先頭{{count}}件だけ表示します。上の前へ・次へボタンで全{{total}}件を確認できます。"
+    },
+    "preview": {
+      "title": "実ページプレビュー",
+      "modeLabel": "変更前後の表示",
+      "before": "変更前",
+      "after": "変更後"
+    },
+    "apply": {
+      "included": "適用する変更：{{count}}件",
+      "button": "{{count}}件の変更を適用"
+    }
+  },
   "workspace": {
     "readingArea": "閲覧エリア",
     "view": {
@@ -1025,11 +1129,6 @@
   },
   "gatherText": {
     "title": "テキストをまとめて表示",
-    "tabs": {
-      "ariaLabel": "テキストツール",
-      "overview": "まとめて表示",
-      "searchReplace": "検索と置換"
-    },
     "scope": "範囲",
     "entireChapter": "話全体",
     "display": "表示",
@@ -2195,23 +2294,6 @@
     "error": "保存に失敗",
     "conflict": "保存の競合 · 最新内容を確認してください",
     "retry": "再保存"
-  },
-  "searchReplace": {
-    "title": "検索と置換",
-    "find": "検索する文字列",
-    "replaceWith": "置換後の文字列",
-    "scope": "範囲",
-    "field": "テキスト欄",
-    "scopes": { "page": "現在のページ", "chapter": "話全体" },
-    "fields": { "translated": "翻訳", "source": "原文", "both": "両方" },
-    "caseSensitive": "大文字と小文字を区別",
-    "regex": "正規表現",
-    "matchCount": "{{count}}件一致",
-    "replaceAll": "すべて置換 ({{count}})",
-    "invalidRegex": "正規表現が正しくありません: {{message}}",
-    "enterQuery": "検索する文字列を入力してください。",
-    "noMatches": "一致する項目はありません。",
-    "emptyText": "空のテキスト"
   },
   "blockLibrary": {
     "title": "ブロックライブラリ",

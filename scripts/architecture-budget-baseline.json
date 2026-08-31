@@ -8,6 +8,9 @@
     "src/main/logger.ts": {
       "maxImportedBy": 29
     },
+    "src/main/libraryStore/storage.ts": {
+      "maxImportedBy": 26
+    },
     "src/shared/geometry.ts": {
       "maxImportedBy": 31
     },
@@ -15,7 +18,7 @@
       "maxImports": 26
     },
     "src/renderer/src/components/ui/Button.tsx": {
-      "maxImportedBy": 43
+      "maxImportedBy": 45
     },
     "src/renderer/src/components/ui/CheckboxField.tsx": {
       "maxImportedBy": 27
@@ -24,7 +27,10 @@
       "maxImportedBy": 28
     },
     "src/renderer/src/components/ui/Modal.tsx": {
-      "maxImportedBy": 28
+      "maxImportedBy": 29
+    },
+    "src/renderer/src/components/ui/Select.tsx": {
+      "maxImportedBy": 25
     },
     "src/renderer/src/lib/errorPresentation.ts": {
       "maxImportedBy": 27

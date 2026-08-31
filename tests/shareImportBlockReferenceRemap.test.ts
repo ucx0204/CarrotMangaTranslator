@@ -154,6 +154,26 @@ describe("shared page block reference remap", () => {
 
     expect(result).toHaveProperty("translationCompletion", undefined);
   });
+
+  it("drops local-only mask metadata retained by older share packages", () => {
+    const packagePage = makePage([makeBlock("source-a")]);
+    packagePage.inpaintMaskPath =
+      "C:\\source-library\\works\\work\\chapters\\chapter\\mask\\page.png";
+    packagePage.maskProvenance = "actual-mask";
+
+    const result = buildMaterializedSharedPage({
+      packagePage,
+      pageId: "new-page-id",
+      imagePath: "destination.png",
+      inpaintedImagePath: "destination-inpainted.png",
+      width: 100,
+      height: 200,
+      now: "2026-08-07T00:00:00.000Z",
+    });
+
+    expect(result.inpaintMaskPath).toBeUndefined();
+    expect(result.maskProvenance).toBeUndefined();
+  });
 });
 
 function makePage(blocks: TranslationBlock[]): LibraryPageRecord {

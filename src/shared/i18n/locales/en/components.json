@@ -56,6 +56,112 @@
     "share": "Export work",
     "importWork": "Import work"
   },
+  "conditionalBatch": {
+    "open": "Batch edit text",
+    "title": "Consistency editor",
+    "undo": "Undo",
+    "scheme": {
+      "label": "Load a rule",
+      "ellipsis": "Built-in example · Clean ellipses and spaces",
+      "ellipsisHelp": "Changes ... to … and collapses repeated spaces in translated text.",
+      "unsaved": "Unsaved new rule",
+      "new": "New rule",
+      "save": "Save to YAML",
+      "delete": "Delete saved rule",
+      "yamlHint": "Saved rules are kept in batch-edit-schemes.yaml.",
+      "name": "Rule name",
+      "descriptionOptional": "Description (optional)"
+    },
+    "scope": {
+      "title": "Scope",
+      "label": "Edit scope",
+      "page": "Current page",
+      "pageHelp": "Search only {{page}}.",
+      "chapter": "Entire chapter",
+      "chapterHelp": "Search every page in the open chapter.",
+      "pageSelected": "Target page: {{page}}",
+      "chapterSelected": "Every page in the current chapter is included."
+    },
+    "when": {
+      "title": "Conditions",
+      "modeLabel": "How conditions combine",
+      "all": "Match all",
+      "any": "Match any",
+      "allBlocks": "Every bubble",
+      "allBlocksHelp": "Targets every block in scope without testing conditions.",
+      "allBlocksWarning": "Every speech bubble is selected.",
+      "allBlocksDetail": "Check the preview and result count carefully before applying.",
+      "add": "Add condition",
+      "conditionNumber": "Condition {{number}}",
+      "remove": "Remove condition",
+      "field": "Text to inspect",
+      "translatedText": "Translated text",
+      "sourceText": "Source text",
+      "operator": "Comparison",
+      "contains": "Contains",
+      "equals": "Exactly equals",
+      "empty": "Is empty",
+      "notEmpty": "Is not empty",
+      "value": "Comparison text",
+      "valuePlaceholder": "Enter text to find",
+      "noValueNeeded": "This comparison does not need a text value."
+    },
+    "then": {
+      "title": "Replace",
+      "target": "Text to replace",
+      "targets": {
+        "translatedText": "Translated text",
+        "sourceText": "Source text",
+        "both": "Source and translated text"
+      },
+      "searchMode": "Search mode",
+      "searchModes": {
+        "literal": "Literal text",
+        "regex": "Regular expression"
+      },
+      "find": "Find",
+      "replace": "Replace with",
+      "caseSensitive": "Match case",
+      "allOccurrences": "Replace all"
+    },
+    "validation": {
+      "title": "Rule error",
+      "findRequired": "Enter text to find.",
+      "invalidRegex": "Invalid regular expression: {{message}}"
+    },
+    "storage": {
+      "error": "Could not process saved rules"
+    },
+    "notice": {
+      "conflictsOnly": "{{count}} items changed after preview and were not overwritten.",
+      "applied": "Applied {{applied}} changes. Skipped conflicts: {{conflicts}}",
+      "undone": "The last batch edit was undone."
+    },
+    "results": {
+      "previous": "Previous change candidate",
+      "next": "Next change candidate",
+      "noneShort": "No results",
+      "position": "{{current}} / {{total}}",
+      "title": "Results",
+      "willChange": " changes",
+      "alreadySame": " match but already stay the same",
+      "includeCurrent": "Include this result",
+      "none": "No speech bubbles would change.",
+      "noneHelp": "Check the scope, conditions, and text to find.",
+      "includeNumber": "Include result {{number}}",
+      "listLimit": "Only the first {{count}} appear in this list. Use Previous and Next above to inspect all {{total}}."
+    },
+    "preview": {
+      "title": "Real page preview",
+      "modeLabel": "Before or after preview",
+      "before": "Before",
+      "after": "After"
+    },
+    "apply": {
+      "included": "{{count}} changes included",
+      "button": "Apply {{count}} changes"
+    }
+  },
   "workspace": {
     "readingArea": "Reading area",
     "view": {
@@ -1031,11 +1137,6 @@
   },
   "gatherText": {
     "title": "Gather text",
-    "tabs": {
-      "ariaLabel": "Text tools",
-      "overview": "Overview",
-      "searchReplace": "Search and replace"
-    },
     "scope": "Scope",
     "entireChapter": "Entire chapter",
     "display": "Display",
@@ -2204,27 +2305,6 @@
     "error": "Save failed",
     "conflict": "Save conflict · review latest changes",
     "retry": "Try again"
-  },
-  "searchReplace": {
-    "title": "Search and replace",
-    "find": "Find",
-    "replaceWith": "Replace with",
-    "scope": "Scope",
-    "field": "Text field",
-    "scopes": { "page": "Current page", "chapter": "Entire chapter" },
-    "fields": {
-      "translated": "Translation",
-      "source": "Source",
-      "both": "Both"
-    },
-    "caseSensitive": "Match case",
-    "regex": "Regular expression",
-    "matchCount": "{{count}} matches",
-    "replaceAll": "Replace all ({{count}})",
-    "invalidRegex": "Invalid regular expression: {{message}}",
-    "enterQuery": "Enter text to find.",
-    "noMatches": "No matches found.",
-    "emptyText": "Empty text"
   },
   "blockLibrary": {
     "title": "Block library",

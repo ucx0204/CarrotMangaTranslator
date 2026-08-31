@@ -35,10 +35,14 @@
     "registerFont": "Register Font File (TTF/OTF)",
     "saveReview": "Save Review Sheet",
     "saveText": "Save Text",
+    "openConditionalBatchYaml": "Import Consistency Editor YAML",
+    "saveConditionalBatchYaml": "Export Consistency Editor YAML",
+    "conditionalBatchYamlTooLarge": "The consistency editor YAML file exceeds 2 MiB.",
     "exportOutputFolder": "Select Results Folder",
     "filters": {
       "images": "Image files",
       "font": "Font files",
+      "yaml": "YAML files",
       "text": "Text files"
     }
   },

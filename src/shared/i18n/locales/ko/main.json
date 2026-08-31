@@ -35,10 +35,14 @@
     "registerFont": "폰트 파일 등록 (TTF/OTF)",
     "saveReview": "검수표 저장",
     "saveText": "텍스트 저장",
+    "openConditionalBatchYaml": "일관 편집 YAML 가져오기",
+    "saveConditionalBatchYaml": "일관 편집 YAML 내보내기",
+    "conditionalBatchYamlTooLarge": "일관 편집 YAML 파일이 2MiB를 초과합니다.",
     "exportOutputFolder": "결과물 출력 폴더 선택",
     "filters": {
       "images": "이미지 파일",
       "font": "폰트 파일",
+      "yaml": "YAML 파일",
       "text": "텍스트 파일"
     }
   },

@@ -960,6 +960,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+.gather-text-batch-edit-button {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .gather-text-exchange {
   position: relative;
 }

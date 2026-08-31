@@ -66,6 +66,7 @@ export type PanelSessionValue = {
   onDuplicateBlock: () => void;
   /** Opens the block library in the owning main application window. */
   onOpenBlockLibrary: () => void;
+  onSuggestConsistentEdit?: (find: string, replace: string) => void;
   onInsertBlockLibraryEntry: (entry: BlockLibraryEntryV1) => void;
   onEraseBlockOriginal: () => void;
   onFitBlockBubble: () => void;

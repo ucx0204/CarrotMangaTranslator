@@ -209,6 +209,10 @@ async function addPageToShare(
       pageIndex,
       signal,
     ),
+    // Masks are local editing artifacts and are not part of the v1 share
+    // archive. Do not leak a source-library path into package metadata.
+    inpaintMaskPath: undefined,
+    maskProvenance: undefined,
     translationCompletion,
   };
 }

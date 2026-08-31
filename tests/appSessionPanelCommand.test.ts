@@ -22,6 +22,7 @@ function createTarget(): PanelCommandTarget {
     openBlockLibrary: vi.fn(),
     openFontManager: vi.fn(),
     openStylePresetManager: vi.fn(),
+    suggestConsistentEdit: vi.fn(),
     insertBlockLibraryEntry: vi.fn(),
     eraseBlockOriginal: vi.fn(),
     fitBlockBubble: vi.fn(),
@@ -106,6 +107,7 @@ describe("panel command dispatch", () => {
       { type: "openBlockLibrary" },
       { type: "openStylePresetManager" },
       { type: "openFontManager" },
+      { type: "suggestConsistentEdit", find: "카렌", replace: "카랜" },
       { type: "eraseBlockOriginal", blockId: "current-block" },
       { type: "fitBlockBubble", blockId: "current-block" },
       { type: "removeBubbleLayout", blockId: "current-block" },
@@ -168,6 +170,7 @@ describe("panel command dispatch", () => {
     expect(actions.openBlockLibrary).toHaveBeenCalledOnce();
     expect(actions.openStylePresetManager).toHaveBeenCalledOnce();
     expect(actions.openFontManager).toHaveBeenCalledOnce();
+    expect(actions.suggestConsistentEdit).toHaveBeenCalledWith("카렌", "카랜");
     expect(actions.eraseBlockOriginal).toHaveBeenCalledWith("current-block");
     expect(actions.fitBlockBubble).toHaveBeenCalledWith("current-block");
     expect(actions.removeSelectedBlockBubbleLayout).toHaveBeenCalledOnce();
@@ -310,5 +313,24 @@ describe("panel command dispatch", () => {
       }),
     ).toBe(true);
     expect(actions.openFontManager).toHaveBeenCalledOnce();
+  });
+
+  it("accepts a consistent-edit suggestion when the optional host handler is absent", () => {
+    const actions = createTarget();
+    delete actions.suggestConsistentEdit;
+
+    expect(
+      dispatchPanelCommand({
+        actions,
+        busy: true,
+        command: {
+          type: "suggestConsistentEdit",
+          find: "카렌",
+          replace: "카랜",
+        },
+        selectedBlockId: null,
+        selectionKey: createPanelSelectionKey([]),
+      }),
+    ).toBe(true);
   });
 });

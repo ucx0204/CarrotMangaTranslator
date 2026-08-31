@@ -156,6 +156,11 @@ function usePanelCommandHandler(
   const setBlockLibraryOpen = chapter.uiState.setBlockLibraryOpen;
   const setFontManagerOpen = chapter.uiState.setFontManagerOpen;
   const openSettings = chapter.settingsDialog.openSettings;
+  const setConditionalBatchOpen = chapter.uiState.setConditionalBatchOpen;
+  const setConditionalBatchInitialFind =
+    chapter.uiState.setConditionalBatchInitialFind;
+  const setConditionalBatchInitialReplace =
+    chapter.uiState.setConditionalBatchInitialReplace;
   const startAreaTranslate =
     inpainting.pointerHandlers.startRegionTranslationSelection;
   const runInpainting = inpainting.inpaintingActions.runInpainting;
@@ -182,6 +187,11 @@ function usePanelCommandHandler(
           renameStylePreset: (presetId, name) =>
             void renameStylePreset(presetId, name),
           openBlockLibrary: () => setBlockLibraryOpen(true),
+          suggestConsistentEdit: (find, replace) => {
+            setConditionalBatchInitialFind(find);
+            setConditionalBatchInitialReplace(replace);
+            setConditionalBatchOpen(true);
+          },
           selectWorkspaceTool,
           startAreaTranslate,
         },
@@ -206,6 +216,9 @@ function usePanelCommandHandler(
       selectWorkspaceTool,
       setBlockLibraryOpen,
       setFontManagerOpen,
+      setConditionalBatchInitialFind,
+      setConditionalBatchInitialReplace,
+      setConditionalBatchOpen,
       startAreaTranslate,
     ],
   );

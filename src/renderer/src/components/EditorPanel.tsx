@@ -64,6 +64,7 @@ type EditorPanelProps = {
   onDelete: () => void;
   onDuplicate: () => void;
   onSaveToLibrary?: () => void;
+  onSuggestConsistentEdit?: (find: string, replace: string) => void;
   onEraseOriginal?: () => void;
   onFitBubble?: () => void;
   onRemoveBubbleLayout?: () => void;
@@ -311,6 +312,7 @@ type EditorBlockGroupsProps = {
   onRenameStylePreset: NonNullable<EditorPanelProps["onRenameStylePreset"]>;
   onEraseOriginal?: EditorPanelProps["onEraseOriginal"];
   onFitBubble?: EditorPanelProps["onFitBubble"];
+  onSuggestConsistentEdit?: EditorPanelProps["onSuggestConsistentEdit"];
   onSelectTransformMode?: EditorPanelProps["onSelectTransformMode"];
   onUpdate: EditorPanelProps["onUpdate"];
   onUpdateFormat: EditorPanelProps["onUpdate"];
@@ -332,6 +334,7 @@ function EditorBlockGroups({
   disableChapterApply,
   onEraseOriginal,
   onFitBubble,
+  onSuggestConsistentEdit,
   onClearStylePreset,
   onSelectTransformMode,
   onUpdate,
@@ -349,6 +352,7 @@ function EditorBlockGroups({
           disabled={disabled}
           onEraseOriginal={onEraseOriginal}
           onFitBubble={onFitBubble}
+          onSuggestConsistentEdit={onSuggestConsistentEdit}
           onUpdate={onUpdate}
         />
       </EditorTabPanel>

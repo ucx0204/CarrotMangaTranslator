@@ -33,13 +33,25 @@ export async function writeJsonFile(
   payload: unknown,
   beforeCommit?: () => void,
 ): Promise<void> {
+  await writeTextFileAtomically(
+    path,
+    `${JSON.stringify(payload, null, 2)}\n`,
+    beforeCommit,
+  );
+}
+
+export async function writeTextFileAtomically(
+  path: string,
+  contents: string,
+  beforeCommit?: () => void,
+): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   const tmpPath = join(
     dirname(path),
     `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`,
   );
   try {
-    await writeFile(tmpPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+    await writeFile(tmpPath, contents, "utf8");
     beforeCommit?.();
     await renameWithTransientRetry(tmpPath, path);
   } catch (error) {
@@ -48,7 +60,7 @@ export async function writeJsonFile(
     } catch (cleanupError) {
       throw new AggregateError(
         [error, cleanupError],
-        `JSON 저장과 임시 파일 정리에 모두 실패했습니다: ${path}`,
+        `파일 저장과 임시 파일 정리에 모두 실패했습니다: ${path}`,
         { cause: cleanupError },
       );
     }

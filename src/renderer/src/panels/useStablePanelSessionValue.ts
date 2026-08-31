@@ -30,6 +30,7 @@ type PanelChromeCallbacks = Pick<
   | "onOpenStylePresetManager"
   | "onOverwriteStylePreset"
   | "onRenameStylePreset"
+  | "onSuggestConsistentEdit"
   | "onPopOutEditor"
   | "onSelectTransformMode"
   | "onStartAreaTranslate"
@@ -179,6 +180,9 @@ function useStablePanelChromeCallbacks(
   );
   const onOverwriteStylePreset = useEventCallback(value.onOverwriteStylePreset);
   const onRenameStylePreset = useEventCallback(value.onRenameStylePreset);
+  const onSuggestConsistentEdit = useEventCallback(
+    value.onSuggestConsistentEdit ?? NOOP_CONSISTENT_EDIT,
+  );
   const onPopOutEditor = useEventCallback(value.onPopOutEditor);
   const onSelectTransformMode = useEventCallback(value.onSelectTransformMode);
   const onStartAreaTranslate = useEventCallback(value.onStartAreaTranslate);
@@ -194,6 +198,7 @@ function useStablePanelChromeCallbacks(
       onOpenStylePresetManager,
       onOverwriteStylePreset,
       onRenameStylePreset,
+      onSuggestConsistentEdit,
       onPopOutEditor,
       onSelectTransformMode,
       onStartAreaTranslate,
@@ -208,6 +213,7 @@ function useStablePanelChromeCallbacks(
       onOpenStylePresetManager,
       onOverwriteStylePreset,
       onRenameStylePreset,
+      onSuggestConsistentEdit,
       onPopOutEditor,
       onSelectTransformMode,
       onStartAreaTranslate,
@@ -215,3 +221,5 @@ function useStablePanelChromeCallbacks(
     ],
   );
 }
+
+const NOOP_CONSISTENT_EDIT = (): void => undefined;

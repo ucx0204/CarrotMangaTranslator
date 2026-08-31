@@ -95,6 +95,12 @@ describe("share export completion repair", () => {
     expect(
       readPackageChapter(sharePath).pages[0]?.translationCompletion,
     ).toEqual(receipt("failed", ["current-b"]));
+    expect(
+      readPackageChapter(sharePath).pages[0]?.inpaintMaskPath,
+    ).toBeUndefined();
+    expect(
+      readPackageChapter(sharePath).pages[0]?.maskProvenance,
+    ).toBeUndefined();
     const manifest = readJsonEntry<{ version: number }>(
       sharePath,
       "manifest.json",
@@ -218,6 +224,8 @@ async function createLibraryWithReceipt(
         id: "page-a",
         name: "page.png",
         imagePath: join(pagesDir, "001-page-a.png"),
+        inpaintMaskPath: join(pagesDir, "..", "mask", "001-page-a-mask.png"),
+        maskProvenance: "actual-mask",
         width: 100,
         height: 120,
         blocks,

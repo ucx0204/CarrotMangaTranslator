@@ -56,6 +56,110 @@
     "share": "导出项目",
     "importWork": "导入项目"
   },
+  "conditionalBatch": {
+    "open": "批量编辑文本",
+    "title": "一致性编辑",
+    "undo": "撤销",
+    "scheme": {
+      "label": "加载规则",
+      "ellipsis": "内置示例 · 整理省略号与空格",
+      "ellipsisHelp": "把译文中的 ... 改为 …，并将连续空格合并为一个。",
+      "unsaved": "未保存的新规则",
+      "new": "新建规则",
+      "save": "保存到 YAML",
+      "delete": "删除已保存规则",
+      "yamlHint": "规则保存在 batch-edit-schemes.yaml 中。",
+      "name": "规则名称",
+      "descriptionOptional": "说明（可选）"
+    },
+    "scope": {
+      "title": "应用范围",
+      "label": "应用范围",
+      "page": "当前页面",
+      "pageHelp": "仅搜索 {{page}}。",
+      "chapter": "当前章节全部",
+      "chapterHelp": "搜索当前章节的所有页面。",
+      "pageSelected": "目标页面：{{page}}",
+      "chapterSelected": "当前章节的所有页面都会包含在内。"
+    },
+    "when": {
+      "title": "条件",
+      "modeLabel": "条件组合方式",
+      "all": "全部满足",
+      "any": "任一满足",
+      "allBlocks": "所有气泡",
+      "allBlocksHelp": "不检查条件，选择范围内的所有文本块。",
+      "allBlocksWarning": "已选择所有气泡。",
+      "allBlocksDetail": "应用前请仔细检查预览和结果数量。",
+      "add": "添加条件",
+      "conditionNumber": "条件 {{number}}",
+      "remove": "删除条件",
+      "field": "检查的文本",
+      "translatedText": "译文",
+      "sourceText": "原文",
+      "operator": "比较方式",
+      "contains": "包含",
+      "equals": "完全等于",
+      "empty": "为空",
+      "notEmpty": "不为空",
+      "value": "比较文本",
+      "valuePlaceholder": "输入要查找的文本",
+      "noValueNeeded": "此比较无需输入文本。"
+    },
+    "then": {
+      "title": "替换",
+      "target": "替换的文本",
+      "targets": {
+        "translatedText": "译文",
+        "sourceText": "原文",
+        "both": "原文和译文"
+      },
+      "searchMode": "搜索方式",
+      "searchModes": {
+        "literal": "普通文本",
+        "regex": "正则表达式"
+      },
+      "find": "查找文本",
+      "replace": "替换为",
+      "caseSensitive": "区分大小写",
+      "allOccurrences": "全部替换"
+    },
+    "validation": {
+      "title": "规则错误",
+      "findRequired": "请输入查找文本。",
+      "invalidRegex": "正则表达式无效：{{message}}"
+    },
+    "storage": { "error": "无法处理已保存规则" },
+    "notice": {
+      "conflictsOnly": "预览后发生变化的 {{count}} 项未被覆盖。",
+      "applied": "已应用 {{applied}} 项。因冲突跳过：{{conflicts}} 项",
+      "undone": "已撤销刚才的批量编辑。"
+    },
+    "results": {
+      "previous": "上一个修改候选",
+      "next": "下一个修改候选",
+      "noneShort": "无结果",
+      "position": "{{current}} / {{total}}",
+      "title": "结果",
+      "willChange": " 项将修改",
+      "alreadySame": " 项满足条件但内容不变",
+      "includeCurrent": "应用此结果",
+      "none": "没有会被修改的气泡。",
+      "noneHelp": "请检查范围、条件和查找文本。",
+      "includeNumber": "包含第 {{number}} 个结果",
+      "listLimit": "列表仅显示前 {{count}} 项。使用上方的上一个/下一个按钮可检查全部 {{total}} 项。"
+    },
+    "preview": {
+      "title": "真实页面预览",
+      "modeLabel": "修改前后预览",
+      "before": "修改前",
+      "after": "修改后"
+    },
+    "apply": {
+      "included": "包含 {{count}} 项修改",
+      "button": "应用 {{count}} 项修改"
+    }
+  },
   "workspace": {
     "readingArea": "阅读区域",
     "view": {
@@ -1012,11 +1116,6 @@
   },
   "gatherText": {
     "title": "汇总文本",
-    "tabs": {
-      "ariaLabel": "文本工具",
-      "overview": "汇总",
-      "searchReplace": "查找和替换"
-    },
     "scope": "范围",
     "entireChapter": "整章",
     "display": "显示",
@@ -2161,23 +2260,6 @@
     "error": "保存失败",
     "conflict": "保存冲突 · 请检查最新内容",
     "retry": "重新保存"
-  },
-  "searchReplace": {
-    "title": "查找和替换",
-    "find": "查找内容",
-    "replaceWith": "替换为",
-    "scope": "范围",
-    "field": "文本字段",
-    "scopes": { "page": "当前页面", "chapter": "整章" },
-    "fields": { "translated": "译文", "source": "原文", "both": "两者" },
-    "caseSensitive": "区分大小写",
-    "regex": "正则表达式",
-    "matchCount": "{{count}}处匹配",
-    "replaceAll": "全部替换（{{count}}）",
-    "invalidRegex": "正则表达式无效：{{message}}",
-    "enterQuery": "请输入查找内容。",
-    "noMatches": "没有找到匹配项。",
-    "emptyText": "空文本"
   },
   "blockLibrary": {
     "title": "文本块库",

@@ -24,7 +24,7 @@ type GatherTextFooterProps = {
   onImportTxt: () => void;
 };
 
-export function GatherTextPrimaryButton(
+function GatherTextPrimaryButton(
   props: Omit<React.ComponentProps<typeof Button>, "variant">,
 ): React.JSX.Element {
   return <Button {...props} variant="primary" />;
@@ -81,9 +81,13 @@ export function GatherTextFooter({
 }
 
 export function GatherTextSearchBar({
+  disabled,
   search,
+  onOpenBatchEdit,
 }: {
+  disabled: boolean;
   search: GatherTextSearch;
+  onOpenBatchEdit?: (initialFind?: string) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -107,6 +111,13 @@ export function GatherTextSearchBar({
           </span>
         ) : null}
       </div>
+      <Button
+        className="gather-text-batch-edit-button"
+        disabled={disabled}
+        onClick={() => onOpenBatchEdit?.(search.query)}
+      >
+        {t("conditionalBatch.open")}
+      </Button>
     </div>
   );
 }

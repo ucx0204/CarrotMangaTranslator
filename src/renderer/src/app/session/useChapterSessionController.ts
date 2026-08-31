@@ -268,6 +268,7 @@ function resolveRuntimeModalState({
       uiState.exportOptionsOpen,
       uiState.textViewOpen,
       uiState.styleGuideOpen && !uiState.styleGuideBackgrounded,
+      uiState.conditionalBatchOpen,
       uiState.translateOptionsOpen,
       uiState.retranslatePageId,
       errorReportIncident,

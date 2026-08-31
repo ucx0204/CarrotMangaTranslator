@@ -159,11 +159,8 @@ function createTranslationAndRetouchShortcutHandlers(
     "translate-pending": () => void translationActions.runAnalysis("pending"),
     "translate-all": () => void translationActions.runAnalysis("all"),
     "gather-text": () => {
-      if (uiState.textViewOpen && uiState.textViewTab === "overview") {
-        uiState.setTextViewOpen(false);
-      } else {
-        uiState.openTextView("overview");
-      }
+      if (uiState.textViewOpen) uiState.setTextViewOpen(false);
+      else uiState.openTextView();
     },
     "cancel-job": () =>
       chapter.operationActivity?.active
@@ -208,11 +205,16 @@ function createEditAndGlobalShortcutHandlers(
     "reset-block-rotation": () =>
       blockEditingActions.updateSelectedBlocks({ rotationDeg: 0 }),
     "open-search-replace": () => {
-      if (uiState.textViewOpen && uiState.textViewTab === "search-replace") {
-        uiState.setTextViewOpen(false);
-      } else {
-        uiState.openTextView("search-replace");
+      if (uiState.conditionalBatchOpen) {
+        uiState.setConditionalBatchInitialFind("");
+        uiState.setConditionalBatchInitialReplace("");
+        uiState.setConditionalBatchOpen(false);
+        return;
       }
+      uiState.setTextViewOpen(false);
+      uiState.setConditionalBatchInitialFind("");
+      uiState.setConditionalBatchInitialReplace("");
+      uiState.setConditionalBatchOpen(true);
     },
     "open-export-options": () =>
       uiState.exportOptionsOpen
@@ -332,11 +334,8 @@ export function resolveActiveModalActionId(
   const { uiState } = chapter;
   if (chapter.settingsDialog.settingsOpen) return "open-settings";
   if (uiState.translateOptionsOpen) return "open-translate-options";
-  if (uiState.textViewOpen) {
-    return uiState.textViewTab === "search-replace"
-      ? "open-search-replace"
-      : "gather-text";
-  }
+  if (uiState.conditionalBatchOpen) return "open-search-replace";
+  if (uiState.textViewOpen) return "gather-text";
   if (uiState.autoInpaintingOptionsOpen) return "toggle-inpainting";
   if (uiState.exportOptionsOpen) return "open-export-options";
   return null;

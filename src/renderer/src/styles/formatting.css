@@ -452,6 +452,30 @@
   min-width: 0;
 }
 
+.editor-consistent-edit-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: var(--sp-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.editor-consistent-edit-suggestion > span {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-consistent-edit-suggestion > button {
+  flex: 0 0 auto;
+}
+
 .editor-inline-toolbar {
   display: flex;
   align-items: center;

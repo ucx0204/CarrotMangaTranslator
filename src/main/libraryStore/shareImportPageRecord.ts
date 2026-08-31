@@ -67,6 +67,10 @@ export function buildMaterializedSharedPage({
     id: pageId,
     imagePath,
     inpaintedImagePath,
+    // Older v1 packages could retain the exporting machine's local mask path
+    // even though the mask itself was never included in the archive.
+    inpaintMaskPath: undefined,
+    maskProvenance: undefined,
     width,
     height,
     blocks,

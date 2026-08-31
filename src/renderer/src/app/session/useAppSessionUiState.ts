@@ -17,10 +17,10 @@ import {
   type WorkspaceFitMode,
 } from "../../lib/workspaceZoom";
 import { clampOriginalImageOpacity } from "../../lib/originalImageOpacity";
-import type { GatherTextTab } from "../../lib/gatherText";
 
 export type RightRailMode = "page-blocks" | "block-editor";
 
+// eslint-disable-next-line max-lines-per-function -- this top-level hook only aggregates independently scoped UI state and reset handles
 export function useAppSessionUiState() {
   const inpaintingUi = useInpaintingUiState();
   const { resetInpaintingUi } = inpaintingUi;
@@ -29,9 +29,13 @@ export function useAppSessionUiState() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [textViewOpen, setTextViewOpen] = useState(false);
-  const [textViewTab, setTextViewTab] = useState<GatherTextTab>("overview");
   const [blockLibraryOpen, setBlockLibraryOpen] = useState(false);
   const [fontManagerOpen, setFontManagerOpen] = useState(false);
+  const [conditionalBatchOpen, setConditionalBatchOpen] = useState(false);
+  const [conditionalBatchInitialFind, setConditionalBatchInitialFind] =
+    useState("");
+  const [conditionalBatchInitialReplace, setConditionalBatchInitialReplace] =
+    useState("");
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
   const [styleGuideBackgrounded, setStyleGuideBackgrounded] = useState(false);
   const translateModals = useTranslateModalUiState();
@@ -48,19 +52,18 @@ export function useAppSessionUiState() {
     () => setEditorFloating((floating) => !floating),
     [],
   );
-  const openTextView = useCallback((tab: GatherTextTab = "overview") => {
-    setTextViewTab(tab);
-    setTextViewOpen(true);
-  }, []);
+  const openTextView = useCallback(() => setTextViewOpen(true), []);
 
   const resetChapterScopedUi = useCallback(() => {
     resetInpaintingUi();
     setBlockLibraryOpen(false);
     setFontManagerOpen(false);
+    setConditionalBatchOpen(false);
+    setConditionalBatchInitialFind("");
+    setConditionalBatchInitialReplace("");
     setStyleGuideOpen(false);
     setStyleGuideBackgrounded(false);
     setTextViewOpen(false);
-    setTextViewTab("overview");
     setRightRailMode("page-blocks");
     translateModals.resetTranslateModals();
     zoom.resetWorkspaceZoom();
@@ -74,6 +77,9 @@ export function useAppSessionUiState() {
     ...jobFlow,
     blockLibraryOpen,
     fontManagerOpen,
+    conditionalBatchOpen,
+    conditionalBatchInitialFind,
+    conditionalBatchInitialReplace,
     commandPaletteOpen,
     editorFloating,
     ...editorTextTab,
@@ -83,6 +89,9 @@ export function useAppSessionUiState() {
     setCommandPaletteOpen,
     setBlockLibraryOpen,
     setFontManagerOpen,
+    setConditionalBatchOpen,
+    setConditionalBatchInitialFind,
+    setConditionalBatchInitialReplace,
     setEditorFloating,
     setRightRailMode,
     toggleEditorFloat,
@@ -93,7 +102,6 @@ export function useAppSessionUiState() {
     setStyleGuideOpen,
     setStyleGuideBackgrounded,
     setTextViewOpen,
-    setTextViewTab,
     shortcutHelpOpen,
     showBlockChrome,
     showTextBlocks,
@@ -101,7 +109,6 @@ export function useAppSessionUiState() {
     styleGuideOpen,
     styleGuideBackgrounded,
     textViewOpen,
-    textViewTab,
   };
 }
 

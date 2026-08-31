@@ -26,12 +26,18 @@ import { createOriginalImageOpacityProps } from "./createOriginalImageOpacityPro
 import { openManualErrorReport } from "../../lib/errorReportStore";
 import { createModalCloseActions } from "./createModalCloseActions";
 import { pickPanelFormatPatch } from "../../../../shared/panelBridgeTypes";
+import { createConditionalBatchEditorProps } from "./createConditionalBatchEditorProps";
 
 export function createAppSessionViewProps(model: AppSessionViewModel) {
+  const workspaceProps = createWorkspaceProps(model);
   return {
     autoInpaintingOptionsProps: createAutoInpaintingOptionsProps(model),
     blockLibraryProps: createBlockLibraryProps(model),
     commandPaletteProps: createCommandPaletteProps(model),
+    conditionalBatchEditorProps: createConditionalBatchEditorProps(
+      model,
+      workspaceProps,
+    ),
     exportOptionsProps: createExportOptionsProps(model),
     gatherTextProps: createGatherTextProps(model),
     libraryDropOverlayProps: model.libraryDrop,
@@ -43,7 +49,7 @@ export function createAppSessionViewProps(model: AppSessionViewModel) {
     sidebarProps: createSidebarProps(model),
     styleGuideProps: createStyleGuideProps(model),
     translationOptionsProps: createTranslationOptionsProps(model),
-    workspaceProps: createWorkspaceProps(model),
+    workspaceProps,
   };
 }
 
@@ -216,6 +222,11 @@ function createPanelSessionValue(
     onDeleteBlock: blockEditingActions.deleteSelectedBlock,
     onDuplicateBlock: blockEditingActions.duplicateSelectedBlock,
     onOpenBlockLibrary: () => uiState.setBlockLibraryOpen(true),
+    onSuggestConsistentEdit: (find, replace) => {
+      uiState.setConditionalBatchInitialFind(find);
+      uiState.setConditionalBatchInitialReplace(replace);
+      uiState.setConditionalBatchOpen(true);
+    },
     onInsertBlockLibraryEntry: blockEditingActions.insertBlockLibraryEntry,
     onRemoveBubbleLayout: blockEditingActions.removeSelectedBlockBubbleLayout,
     onSelectTransformMode: (mode) => {

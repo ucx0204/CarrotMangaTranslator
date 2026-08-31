@@ -56,6 +56,112 @@
     "share": "작업 내보내기",
     "importWork": "작업 가져오기"
   },
+  "conditionalBatch": {
+    "open": "텍스트 일괄 편집",
+    "title": "일관 편집",
+    "undo": "실행 취소",
+    "scheme": {
+      "label": "규칙 불러오기",
+      "ellipsis": "기본 예제 · 말줄임표와 공백 정리",
+      "ellipsisHelp": "번역문의 ...을 …으로 바꾸고 연속 공백을 하나로 줄입니다.",
+      "unsaved": "저장하지 않은 새 규칙",
+      "new": "새 규칙",
+      "save": "YAML에 저장",
+      "delete": "저장된 규칙 삭제",
+      "yamlHint": "저장한 규칙은 batch-edit-schemes.yaml에 보관됩니다.",
+      "name": "규칙 이름",
+      "descriptionOptional": "설명 (선택)"
+    },
+    "scope": {
+      "title": "적용 범위",
+      "label": "적용 범위",
+      "page": "현재 페이지",
+      "pageHelp": "{{page}} 한 장에서만 찾습니다.",
+      "chapter": "현재 화 전체",
+      "chapterHelp": "열려 있는 화의 모든 페이지에서 찾습니다.",
+      "pageSelected": "대상 페이지: {{page}}",
+      "chapterSelected": "현재 화의 모든 페이지가 대상입니다."
+    },
+    "when": {
+      "title": "조건",
+      "modeLabel": "조건 결합 방식",
+      "all": "모두 맞을 때",
+      "any": "하나라도 맞을 때",
+      "allBlocks": "모든 말풍선",
+      "allBlocksHelp": "조건 검사 없이 범위 안의 모든 블록을 대상으로 합니다.",
+      "allBlocksWarning": "모든 말풍선을 대상으로 선택했습니다.",
+      "allBlocksDetail": "오른쪽 미리보기와 결과 수를 꼭 확인한 뒤 적용하세요.",
+      "add": "조건 하나 더",
+      "conditionNumber": "조건 {{number}}",
+      "remove": "조건 삭제",
+      "field": "검사할 글",
+      "translatedText": "번역문",
+      "sourceText": "원문",
+      "operator": "비교 방법",
+      "contains": "다음을 포함",
+      "equals": "다음과 정확히 같음",
+      "empty": "비어 있음",
+      "notEmpty": "비어 있지 않음",
+      "value": "비교할 글자",
+      "valuePlaceholder": "찾을 글자를 입력하세요",
+      "noValueNeeded": "이 비교에는 글자를 입력하지 않아도 됩니다."
+    },
+    "then": {
+      "title": "치환",
+      "target": "치환할 글",
+      "targets": {
+        "translatedText": "번역문",
+        "sourceText": "원문",
+        "both": "원문과 번역문"
+      },
+      "searchMode": "검색 방식",
+      "searchModes": {
+        "literal": "일반 문자",
+        "regex": "정규식"
+      },
+      "find": "찾을 글자",
+      "replace": "바꿀 글자",
+      "caseSensitive": "대소문자 구분",
+      "allOccurrences": "모두 치환"
+    },
+    "validation": {
+      "title": "규칙 오류",
+      "findRequired": "찾을 글자를 입력하세요.",
+      "invalidRegex": "올바르지 않은 정규식: {{message}}"
+    },
+    "storage": {
+      "error": "저장된 규칙을 처리하지 못했습니다"
+    },
+    "notice": {
+      "conflictsOnly": "미리보기 뒤 내용이 달라진 {{count}}개 항목은 덮어쓰지 않았습니다.",
+      "applied": "{{applied}}개를 적용했습니다. 충돌로 건너뜀: {{conflicts}}개",
+      "undone": "방금 일관 편집을 되돌렸습니다."
+    },
+    "results": {
+      "previous": "이전 변경 후보",
+      "next": "다음 변경 후보",
+      "noneShort": "결과 없음",
+      "position": "{{current}} / {{total}}",
+      "title": "변경 결과",
+      "willChange": "개 변경 예정",
+      "alreadySame": "개는 조건에 맞지만 변화 없음",
+      "includeCurrent": "이 결과를 적용에 포함",
+      "none": "바뀔 말풍선이 없습니다.",
+      "noneHelp": "범위·조건·찾을 글자를 확인해 보세요.",
+      "includeNumber": "{{number}}번 결과 포함",
+      "listLimit": "목록에는 앞의 {{count}}개만 표시합니다. 위의 이전·다음 버튼으로 전체 {{total}}개를 확인할 수 있습니다."
+    },
+    "preview": {
+      "title": "실제 페이지 미리보기",
+      "modeLabel": "변경 전후 보기",
+      "before": "변경 전",
+      "after": "변경 후"
+    },
+    "apply": {
+      "included": "적용할 변경 {{count}}개",
+      "button": "{{count}}개 변경 적용"
+    }
+  },
   "workspace": {
     "readingArea": "읽기 영역",
     "view": {
@@ -1019,11 +1125,6 @@
   },
   "gatherText": {
     "title": "텍스트 모아보기",
-    "tabs": {
-      "ariaLabel": "텍스트 도구",
-      "overview": "모아보기",
-      "searchReplace": "검색·치환"
-    },
     "scope": "범위",
     "entireChapter": "전체 화",
     "display": "표시",
@@ -2192,23 +2293,6 @@
     "error": "저장 실패",
     "conflict": "저장 충돌 · 최신 내용 확인 필요",
     "retry": "다시 저장"
-  },
-  "searchReplace": {
-    "title": "검색 및 치환",
-    "find": "찾을 내용",
-    "replaceWith": "바꿀 내용",
-    "scope": "범위",
-    "field": "텍스트 필드",
-    "scopes": { "page": "현재 페이지", "chapter": "전체 화" },
-    "fields": { "translated": "번역문", "source": "원문", "both": "둘 다" },
-    "caseSensitive": "대소문자 구분",
-    "regex": "정규식",
-    "matchCount": "{{count}}곳 일치",
-    "replaceAll": "모두 치환 ({{count}})",
-    "invalidRegex": "올바르지 않은 정규식: {{message}}",
-    "enterQuery": "찾을 내용을 입력하세요.",
-    "noMatches": "일치하는 내용이 없습니다.",
-    "emptyText": "빈 텍스트"
   },
   "blockLibrary": {
     "title": "블록 라이브러리",

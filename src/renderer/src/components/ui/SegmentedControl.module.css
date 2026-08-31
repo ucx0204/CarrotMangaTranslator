@@ -90,6 +90,7 @@
 }
 
 .badge {
+  margin-left: 4px;
   color: inherit;
   font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;

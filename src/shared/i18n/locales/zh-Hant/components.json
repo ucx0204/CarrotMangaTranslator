@@ -56,6 +56,110 @@
     "share": "匯出專案",
     "importWork": "匯入專案"
   },
+  "conditionalBatch": {
+    "open": "批次編輯文字",
+    "title": "一致性編輯",
+    "undo": "復原",
+    "scheme": {
+      "label": "載入規則",
+      "ellipsis": "內建範例 · 整理刪節號與空格",
+      "ellipsisHelp": "把譯文中的 ... 改為 …，並將連續空格合併為一個。",
+      "unsaved": "尚未儲存的新規則",
+      "new": "新增規則",
+      "save": "儲存到 YAML",
+      "delete": "刪除已儲存規則",
+      "yamlHint": "規則會保存在 batch-edit-schemes.yaml。",
+      "name": "規則名稱",
+      "descriptionOptional": "說明（選填）"
+    },
+    "scope": {
+      "title": "套用範圍",
+      "label": "套用範圍",
+      "page": "目前頁面",
+      "pageHelp": "只搜尋 {{page}}。",
+      "chapter": "目前章節全部",
+      "chapterHelp": "搜尋目前章節的所有頁面。",
+      "pageSelected": "目標頁面：{{page}}",
+      "chapterSelected": "目前章節的所有頁面都會包含在內。"
+    },
+    "when": {
+      "title": "條件",
+      "modeLabel": "條件組合方式",
+      "all": "全部符合",
+      "any": "任一符合",
+      "allBlocks": "所有對話框",
+      "allBlocksHelp": "不檢查條件，選取範圍內的所有文字區塊。",
+      "allBlocksWarning": "已選取所有對話框。",
+      "allBlocksDetail": "套用前請仔細檢查預覽和結果數量。",
+      "add": "新增條件",
+      "conditionNumber": "條件 {{number}}",
+      "remove": "刪除條件",
+      "field": "檢查的文字",
+      "translatedText": "譯文",
+      "sourceText": "原文",
+      "operator": "比較方式",
+      "contains": "包含",
+      "equals": "完全相同",
+      "empty": "空白",
+      "notEmpty": "不是空白",
+      "value": "比較文字",
+      "valuePlaceholder": "輸入要尋找的文字",
+      "noValueNeeded": "此比較不需要輸入文字。"
+    },
+    "then": {
+      "title": "取代",
+      "target": "取代的文字",
+      "targets": {
+        "translatedText": "譯文",
+        "sourceText": "原文",
+        "both": "原文和譯文"
+      },
+      "searchMode": "搜尋方式",
+      "searchModes": {
+        "literal": "一般文字",
+        "regex": "規則運算式"
+      },
+      "find": "尋找文字",
+      "replace": "取代為",
+      "caseSensitive": "區分大小寫",
+      "allOccurrences": "全部取代"
+    },
+    "validation": {
+      "title": "規則錯誤",
+      "findRequired": "請輸入尋找文字。",
+      "invalidRegex": "規則運算式無效：{{message}}"
+    },
+    "storage": { "error": "無法處理已儲存規則" },
+    "notice": {
+      "conflictsOnly": "預覽後發生變化的 {{count}} 項未被覆寫。",
+      "applied": "已套用 {{applied}} 項。因衝突略過：{{conflicts}} 項",
+      "undone": "已復原剛才的批次編輯。"
+    },
+    "results": {
+      "previous": "上一個修改候選",
+      "next": "下一個修改候選",
+      "noneShort": "沒有結果",
+      "position": "{{current}} / {{total}}",
+      "title": "結果",
+      "willChange": " 項將修改",
+      "alreadySame": " 項符合條件但內容不變",
+      "includeCurrent": "套用此結果",
+      "none": "沒有會被修改的對話框。",
+      "noneHelp": "請檢查範圍、條件和尋找文字。",
+      "includeNumber": "包含第 {{number}} 個結果",
+      "listLimit": "清單只顯示前 {{count}} 項。使用上方的上一個／下一個按鈕可檢查全部 {{total}} 項。"
+    },
+    "preview": {
+      "title": "實際頁面預覽",
+      "modeLabel": "修改前後預覽",
+      "before": "修改前",
+      "after": "修改後"
+    },
+    "apply": {
+      "included": "包含 {{count}} 項修改",
+      "button": "套用 {{count}} 項修改"
+    }
+  },
   "workspace": {
     "readingArea": "閱讀區域",
     "view": {
@@ -1012,11 +1116,6 @@
   },
   "gatherText": {
     "title": "彙整文字",
-    "tabs": {
-      "ariaLabel": "文字工具",
-      "overview": "彙整",
-      "searchReplace": "尋找與取代"
-    },
     "scope": "範圍",
     "entireChapter": "整章",
     "display": "顯示",
@@ -2164,23 +2263,6 @@
     "error": "儲存失敗",
     "conflict": "儲存衝突 · 請檢查最新內容",
     "retry": "重新儲存"
-  },
-  "searchReplace": {
-    "title": "尋找與取代",
-    "find": "尋找內容",
-    "replaceWith": "取代為",
-    "scope": "範圍",
-    "field": "文字欄位",
-    "scopes": { "page": "目前頁面", "chapter": "整章" },
-    "fields": { "translated": "譯文", "source": "原文", "both": "兩者" },
-    "caseSensitive": "區分大小寫",
-    "regex": "規則運算式",
-    "matchCount": "{{count}}處符合",
-    "replaceAll": "全部取代（{{count}}）",
-    "invalidRegex": "規則運算式無效：{{message}}",
-    "enterQuery": "請輸入尋找內容。",
-    "noMatches": "找不到符合項目。",
-    "emptyText": "空白文字"
   },
   "blockLibrary": {
     "title": "文字區塊庫",

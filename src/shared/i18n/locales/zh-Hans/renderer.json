@@ -231,7 +231,7 @@
       "move-block-later": "阅读顺序后移",
       "sort-reading-order": "按坐标排列阅读顺序",
       "reset-block-rotation": "重置文本块旋转",
-      "open-search-replace": "查找和替换",
+      "open-search-replace": "一致性编辑",
       "open-export-options": "打开导出",
       "history-undo": "撤销",
       "history-redo": "重做",
@@ -263,7 +263,6 @@
     "duplicateBlock": "复制文本块",
     "insertLibraryBlock": "插入库中的文本块",
     "readingOrder": "更改文本块阅读顺序",
-    "searchReplace": "查找和替换",
     "createBlock": "新建文本块",
     "dragBlock": "移动或调整文本块大小",
     "importText": "导入译文",
@@ -277,9 +276,6 @@
     "retranslationCheckpoint": "重新翻译前检查点",
     "retouch": "手动修补",
     "resetOriginal": "重置为原图"
-  },
-  "searchReplace": {
-    "replaced": "已替换{{count}}处。"
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "气泡区域至少需要三个点。",

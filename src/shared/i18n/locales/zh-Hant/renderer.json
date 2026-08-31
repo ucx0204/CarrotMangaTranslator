@@ -231,7 +231,7 @@
       "move-block-later": "閱讀順序後移",
       "sort-reading-order": "依座標排列閱讀順序",
       "reset-block-rotation": "重設文字區塊旋轉",
-      "open-search-replace": "尋找與取代",
+      "open-search-replace": "一致性編輯",
       "open-export-options": "開啟匯出",
       "history-undo": "復原",
       "history-redo": "重做",
@@ -263,7 +263,6 @@
     "duplicateBlock": "複製文字區塊",
     "insertLibraryBlock": "插入庫中的文字區塊",
     "readingOrder": "變更文字區塊閱讀順序",
-    "searchReplace": "尋找與取代",
     "createBlock": "新增文字區塊",
     "dragBlock": "移動或調整文字區塊大小",
     "importText": "匯入譯文",
@@ -277,9 +276,6 @@
     "retranslationCheckpoint": "重新翻譯前檢查點",
     "retouch": "手動修補",
     "resetOriginal": "重設為原圖"
-  },
-  "searchReplace": {
-    "replaced": "已取代{{count}}處。"
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "對話框區域至少需要三個點。",

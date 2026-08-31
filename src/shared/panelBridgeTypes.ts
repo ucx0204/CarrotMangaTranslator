@@ -95,6 +95,7 @@ export type PanelCommand =
   | { type: "deleteBlock"; blockId: string }
   | { type: "duplicateBlock"; blockId: string }
   | { type: "openBlockLibrary" }
+  | { type: "suggestConsistentEdit"; find: string; replace: string }
   | { type: "insertBlockLibraryEntry"; entry: BlockLibraryEntryV1 }
   | { type: "eraseBlockOriginal"; blockId: string }
   | { type: "fitBlockBubble"; blockId: string }

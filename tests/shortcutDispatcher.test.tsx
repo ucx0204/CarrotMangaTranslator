@@ -165,15 +165,15 @@ describe("customizable page and block shortcut dispatch", () => {
     expect(targetKeyDown).not.toHaveBeenCalled();
   });
 
-  it("lets Ctrl+H close the search-and-replace modal it opened", () => {
-    const toggleSearchReplace = vi.fn();
+  it("lets Ctrl+H close the consistency editor it opened", () => {
+    const toggleConsistencyEditor = vi.fn();
     render(
       <ShortcutHarness
         contextOverrides={{
           blockingModalOpen: true,
           activeModalActionId: "open-search-replace",
         }}
-        handlers={{ "open-search-replace": toggleSearchReplace }}
+        handlers={{ "open-search-replace": toggleConsistencyEditor }}
       />,
     );
 
@@ -183,18 +183,18 @@ describe("customizable page and block shortcut dispatch", () => {
       ctrlKey: true,
     });
 
-    expect(toggleSearchReplace).toHaveBeenCalledOnce();
+    expect(toggleConsistencyEditor).toHaveBeenCalledOnce();
   });
 
-  it("lets Ctrl+H switch the open gather-text modal to search and replace", () => {
-    const openSearchReplaceTab = vi.fn();
+  it("does not open the consistency editor behind gather text", () => {
+    const openConsistencyEditor = vi.fn();
     render(
       <ShortcutHarness
         contextOverrides={{
           blockingModalOpen: true,
           activeModalActionId: "gather-text",
         }}
-        handlers={{ "open-search-replace": openSearchReplaceTab }}
+        handlers={{ "open-search-replace": openConsistencyEditor }}
       />,
     );
 
@@ -204,15 +204,15 @@ describe("customizable page and block shortcut dispatch", () => {
       ctrlKey: true,
     });
 
-    expect(openSearchReplaceTab).toHaveBeenCalledOnce();
+    expect(openConsistencyEditor).not.toHaveBeenCalled();
   });
 
-  it("does not open search-and-replace behind an unrelated blocking modal", () => {
-    const toggleSearchReplace = vi.fn();
+  it("does not open the consistency editor behind an unrelated blocking modal", () => {
+    const toggleConsistencyEditor = vi.fn();
     render(
       <ShortcutHarness
         contextOverrides={{ blockingModalOpen: true }}
-        handlers={{ "open-search-replace": toggleSearchReplace }}
+        handlers={{ "open-search-replace": toggleConsistencyEditor }}
       />,
     );
 
@@ -222,7 +222,7 @@ describe("customizable page and block shortcut dispatch", () => {
       ctrlKey: true,
     });
 
-    expect(toggleSearchReplace).not.toHaveBeenCalled();
+    expect(toggleConsistencyEditor).not.toHaveBeenCalled();
   });
 
   it("allows each shortcut-owned modal to close itself and blocks every other action", () => {

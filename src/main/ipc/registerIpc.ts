@@ -18,6 +18,7 @@ import { registerReviewTextIpc } from "./reviewTextIpc";
 import { registerWorkContextIpc } from "./workContextIpc";
 import { registerWebImportIpc } from "./webImportIpc";
 import { registerBlockLibraryIpc } from "./blockLibraryIpc";
+import { registerConditionalBatchIpc } from "./conditionalBatchIpc";
 import { registerLinkedWorkspaceIpc } from "./linkedWorkspaceIpc";
 import { WebImportSessionManager } from "../webImportSessionManager";
 import {
@@ -70,6 +71,7 @@ export function createImportRuntimeResources({
 export function registerIpc(context: IpcContext): void {
   registerAppOperationIpc(context);
   registerBlockLibraryIpc(context);
+  registerConditionalBatchIpc(context);
   registerExternalLinksIpc(context);
   registerErrorReportIpc(context);
   registerLogsIpc(context);

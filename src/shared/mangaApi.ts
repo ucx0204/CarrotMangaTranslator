@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- the preload-facing API type intentionally enumerates the complete renderer contract */
 import type {
   ResearchWorkContextRequest,
   WorkContextResearchProposal,
@@ -131,10 +132,42 @@ import type {
   AppOperationActivityEvent,
   AppOperationCancelResult,
 } from "./appOperationTypes";
+import type {
+  ConditionalBatchSequenceV2,
+  ConditionalBatchSnapshotV2,
+  SaveConditionalBatchSchemeInput,
+} from "./conditionalBatchRules";
+import type {
+  ConditionalBatchYamlFileResult,
+  ConditionalBatchYamlSaveResult,
+} from "./conditionalBatchExchangeTypes";
 
 export type MangaApi = {
   getActiveAppOperation: () => Promise<AppOperationActivityEvent | null>;
   cancelAppOperation: (id: string) => Promise<AppOperationCancelResult>;
+  listConditionalBatchSchemes: () => Promise<ConditionalBatchSnapshotV2>;
+  saveConditionalBatchScheme: (
+    input: SaveConditionalBatchSchemeInput,
+  ) => Promise<ConditionalBatchSnapshotV2>;
+  deleteConditionalBatchScheme: (
+    id: string,
+  ) => Promise<ConditionalBatchSnapshotV2>;
+  saveConditionalBatchSequence: (
+    sequence: ConditionalBatchSequenceV2,
+  ) => Promise<ConditionalBatchSnapshotV2>;
+  deleteConditionalBatchSequence: (
+    id: string,
+  ) => Promise<ConditionalBatchSnapshotV2>;
+  exportConditionalBatchYaml: (input: { ids?: string[] }) => Promise<string>;
+  importConditionalBatchYaml: (input: {
+    yaml: string;
+    conflictPolicy: "duplicate" | "overwrite";
+  }) => Promise<ConditionalBatchSnapshotV2>;
+  openConditionalBatchYamlFile: () => Promise<ConditionalBatchYamlFileResult | null>;
+  saveConditionalBatchYamlFile: (input: {
+    yaml: string;
+    defaultName: string;
+  }) => Promise<ConditionalBatchYamlSaveResult | null>;
   getLinkedWorkspaceStatus: (
     chapterId: string,
   ) => Promise<LinkedWorkspaceStatus>;

@@ -25,6 +25,7 @@ export const recentDialogPathKeys = {
   pageImageExport: "pageImageExport",
   reviewTextExport: "reviewTextExport",
   plainTextExport: "plainTextExport",
+  conditionalBatchYaml: "conditionalBatchYaml",
 } as const;
 
 export type RecentDialogPathKey =

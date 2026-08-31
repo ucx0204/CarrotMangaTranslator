@@ -30,6 +30,8 @@ describe("shared image dimension safety", () => {
     const page = chapter.pages[0];
     expect(page).toMatchObject({ width: 2, height: 3 });
     expect(page?.inpaintedImagePath).toBeTruthy();
+    expect(page?.inpaintMaskPath).toBeUndefined();
+    expect(page?.maskProvenance).toBeUndefined();
     expect(existsSync(page?.imagePath ?? "")).toBe(true);
     expect(existsSync(page?.inpaintedImagePath ?? "")).toBe(true);
     expect(harness.validate).toHaveBeenCalledTimes(2);
@@ -187,6 +189,9 @@ function makeChapter({
         name: "001.png",
         imagePath: originalPath,
         inpaintedImagePath: inpaintedPath,
+        inpaintMaskPath:
+          "C:\\source-library\\works\\work\\chapters\\chapter\\mask\\001.png",
+        maskProvenance: "actual-mask",
         width,
         height,
         blocks: [],

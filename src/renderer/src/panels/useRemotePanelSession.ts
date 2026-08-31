@@ -38,6 +38,7 @@ type RemoteBlockActions = Pick<
   | "onFitBlockBubble"
   | "onInsertBlockLibraryEntry"
   | "onOpenBlockLibrary"
+  | "onSuggestConsistentEdit"
   | "onRemoveBubbleLayout"
   | "onUpdateBlock"
   | "onUpdateFormat"
@@ -183,6 +184,8 @@ function createRemoteBlockActions(
     onInsertBlockLibraryEntry: (entry) =>
       dispatchCommand({ type: "insertBlockLibraryEntry", entry }),
     onOpenBlockLibrary: () => dispatchCommand({ type: "openBlockLibrary" }),
+    onSuggestConsistentEdit: (find, replace) =>
+      dispatchCommand({ type: "suggestConsistentEdit", find, replace }),
     onEraseBlockOriginal: () => {
       if (selectedBlockId) {
         dispatchCommand({

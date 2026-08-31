@@ -234,7 +234,7 @@
       "move-block-later": "読み順を後ろへ",
       "sort-reading-order": "座標で読み順を並べ替え",
       "reset-block-rotation": "ブロックの回転をリセット",
-      "open-search-replace": "検索と置換",
+      "open-search-replace": "一貫編集",
       "open-export-options": "書き出しを開く",
       "history-undo": "元に戻す",
       "history-redo": "やり直す",
@@ -266,7 +266,6 @@
     "duplicateBlock": "ブロックを複製",
     "insertLibraryBlock": "ライブラリブロックを挿入",
     "readingOrder": "ブロックの読み順を変更",
-    "searchReplace": "検索と置換",
     "createBlock": "ブロックを追加",
     "dragBlock": "ブロックを移動・サイズ変更",
     "importText": "翻訳文を読み込み",
@@ -280,9 +279,6 @@
     "retranslationCheckpoint": "再翻訳前のチェックポイント",
     "retouch": "手動補正",
     "resetOriginal": "原画像に戻す"
-  },
-  "searchReplace": {
-    "replaced": "{{count}}件を置換しました。"
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "吹き出し領域には3点以上必要です。",

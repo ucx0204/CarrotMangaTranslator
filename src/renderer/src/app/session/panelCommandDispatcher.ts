@@ -55,6 +55,7 @@ export type PanelCommandTarget = {
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
   openBlockLibrary: () => void;
+  suggestConsistentEdit?: (find: string, replace: string) => void;
   insertBlockLibraryEntry: (
     entry: Extract<PanelCommand, { type: "insertBlockLibraryEntry" }>["entry"],
   ) => void;
@@ -99,6 +100,10 @@ export function dispatchPanelCommand({
 }): boolean {
   if (isAlwaysAvailablePanelCommand(command)) {
     dispatchAlwaysAvailablePanelCommand(actions, command);
+    return true;
+  }
+  if (command.type === "suggestConsistentEdit") {
+    actions.suggestConsistentEdit?.(command.find, command.replace);
     return true;
   }
   if (
@@ -158,6 +163,8 @@ function applyPanelCommand(
   command: Exclude<
     PanelCommand,
     | Extract<PanelCommand, { type: "openBlockLibrary" }>
+    | Extract<PanelCommand, { type: "openStylePresetManager" }>
+    | Extract<PanelCommand, { type: "suggestConsistentEdit" }>
     | ApplyStylePresetCommand
     | DeleteStylePresetCommand
     | CreateStylePresetCommand

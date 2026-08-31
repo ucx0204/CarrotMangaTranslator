@@ -17,6 +17,7 @@ import { ShortcutHelp } from "../../components/ShortcutHelp";
 import { StyleGuideModal } from "../../components/StyleGuideModal";
 import { TranslationOptionsModal } from "../../components/TranslationOptionsModal";
 import { BlockLibraryModal } from "../../components/BlockLibraryModal";
+import { ConditionalBatchEditor } from "../../components/ConditionalBatchEditor";
 import { ToastViewport } from "../../components/ui/ToastViewport";
 import { useEventCallback } from "../../hooks/useEventCallback";
 import { isOriginalImageOpacitySupported } from "../../lib/originalImageOpacity";
@@ -38,6 +39,9 @@ export type AppSessionViewProps = {
   > | null;
   blockLibraryProps: React.ComponentProps<typeof BlockLibraryModal> | null;
   commandPaletteProps: React.ComponentProps<typeof CommandPalette>;
+  conditionalBatchEditorProps: React.ComponentProps<
+    typeof ConditionalBatchEditor
+  > | null;
   exportOptionsProps: React.ComponentProps<typeof ExportOptionsModal> | null;
   gatherTextProps: React.ComponentProps<typeof GatherTextModal> | null;
   libraryDropOverlayProps: LibraryDropOverlayProps;
@@ -60,6 +64,7 @@ export function AppSessionView({
   autoInpaintingOptionsProps,
   blockLibraryProps,
   commandPaletteProps,
+  conditionalBatchEditorProps,
   exportOptionsProps,
   gatherTextProps,
   libraryDropOverlayProps,
@@ -95,7 +100,10 @@ export function AppSessionView({
         <AppRightRail {...rightRailProps} />
         <MemoizedAppModals {...modalsProps} />
       </main>
-      <MemoizedEditorFloatingLayer />
+      {conditionalBatchEditorProps ? (
+        <ConditionalBatchEditor {...conditionalBatchEditorProps} />
+      ) : null}
+      {conditionalBatchEditorProps ? null : <MemoizedEditorFloatingLayer />}
       <MemoizedSessionFloatingOverlays
         autoInpaintingOptionsProps={autoInpaintingOptionsProps}
         blockLibraryProps={blockLibraryProps}

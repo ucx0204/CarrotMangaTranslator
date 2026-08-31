@@ -237,7 +237,7 @@
       "move-block-later": "읽기 순서 뒤로",
       "sort-reading-order": "좌표 기준 읽기 순서 정렬",
       "reset-block-rotation": "블록 회전 초기화",
-      "open-search-replace": "검색 및 치환",
+      "open-search-replace": "일관 편집",
       "open-export-options": "내보내기 열기",
       "history-undo": "실행 취소",
       "history-redo": "다시 실행",
@@ -269,7 +269,6 @@
     "duplicateBlock": "블록 복제",
     "insertLibraryBlock": "라이브러리 블록 불러오기",
     "readingOrder": "블록 읽기 순서 변경",
-    "searchReplace": "검색 및 치환",
     "createBlock": "블록 추가",
     "dragBlock": "블록 이동·크기 조절",
     "importText": "번역문 가져오기",
@@ -283,9 +282,6 @@
     "retranslationCheckpoint": "재번역 전 체크포인트",
     "retouch": "수동 보정",
     "resetOriginal": "원본으로 초기화"
-  },
-  "searchReplace": {
-    "replaced": "{{count}}곳을 치환했습니다."
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "말풍선 영역에는 점이 3개 이상 필요합니다.",

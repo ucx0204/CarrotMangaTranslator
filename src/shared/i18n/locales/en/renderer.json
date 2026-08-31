@@ -234,7 +234,7 @@
       "move-block-later": "Move later in reading order",
       "sort-reading-order": "Sort by geometric reading order",
       "reset-block-rotation": "Reset block rotation",
-      "open-search-replace": "Find and replace",
+      "open-search-replace": "Consistency editor",
       "open-export-options": "Open export",
       "history-undo": "Undo",
       "history-redo": "Redo",
@@ -266,7 +266,6 @@
     "duplicateBlock": "Duplicate block",
     "insertLibraryBlock": "Insert library block",
     "readingOrder": "Change block reading order",
-    "searchReplace": "Search and replace",
     "createBlock": "Create block",
     "dragBlock": "Move or resize block",
     "importText": "Import translated text",
@@ -280,9 +279,6 @@
     "retranslationCheckpoint": "Checkpoint before retranslation",
     "retouch": "Manual retouch",
     "resetOriginal": "Reset to original"
-  },
-  "searchReplace": {
-    "replaced": "Replaced {{count}} matches."
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "A bubble region needs at least three points.",

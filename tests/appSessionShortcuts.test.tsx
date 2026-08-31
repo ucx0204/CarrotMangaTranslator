@@ -73,10 +73,10 @@ describe("app-session shortcut handlers", () => {
     expect(result.current.uiState.workspaceFitMode).toBe("contain");
 
     run(result, "open-search-replace");
-    expect(result.current.uiState.textViewOpen).toBe(true);
-    expect(result.current.uiState.textViewTab).toBe("search-replace");
-    run(result, "open-search-replace");
+    expect(result.current.uiState.conditionalBatchOpen).toBe(true);
     expect(result.current.uiState.textViewOpen).toBe(false);
+    run(result, "open-search-replace");
+    expect(result.current.uiState.conditionalBatchOpen).toBe(false);
     expectToggle(result, "open-export-options", "exportOptionsOpen");
     expectToggle(result, "gather-text", "textViewOpen");
     expectToggle(result, "open-translate-options", "translateOptionsOpen");
@@ -170,6 +170,7 @@ describe("app-session shortcut handlers", () => {
     const cases = [
       ["settingsOpen", "open-settings"],
       ["translateOptionsOpen", "open-translate-options"],
+      ["conditionalBatchOpen", "open-search-replace"],
       ["textViewOpen", "gather-text"],
       ["autoInpaintingOptionsOpen", "toggle-inpainting"],
       ["exportOptionsOpen", "open-export-options"],
@@ -177,9 +178,9 @@ describe("app-session shortcut handlers", () => {
     for (const [stateKey, actionId] of cases) {
       const uiState = {
         autoInpaintingOptionsOpen: false,
+        conditionalBatchOpen: false,
         exportOptionsOpen: false,
         textViewOpen: false,
-        textViewTab: "overview",
         translateOptionsOpen: false,
       };
       const settingsDialog = { settingsOpen: false };
@@ -192,12 +193,6 @@ describe("app-session shortcut handlers", () => {
         resolveActiveModalActionId({ settingsDialog, uiState } as never),
       ).toBe(actionId);
     }
-    expect(
-      resolveActiveModalActionId({
-        settingsDialog: { settingsOpen: false },
-        uiState: { textViewOpen: true, textViewTab: "search-replace" },
-      } as never),
-    ).toBe("open-search-replace");
   });
 });
 
@@ -252,6 +247,7 @@ function expectToggle(
   stateKey:
     | "autoInpaintingOptionsOpen"
     | "commandPaletteOpen"
+    | "conditionalBatchOpen"
     | "exportOptionsOpen"
     | "shortcutHelpOpen"
     | "textViewOpen"

@@ -7,7 +7,6 @@ import type { TFunction } from "i18next";
 
 export type GatherScope = "page" | "chapter";
 export type GatherField = "both" | "translated" | "source";
-export type GatherTextTab = "overview" | "search-replace";
 export type ReadingDirection = BlockReadingDirection;
 
 export type GatheredBlock = {

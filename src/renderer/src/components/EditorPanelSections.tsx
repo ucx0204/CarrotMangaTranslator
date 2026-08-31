@@ -2,6 +2,10 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { useStickyTextareaHeight } from "../hooks/useStickyTextareaHeight";
+import {
+  deriveSingleTextReplacement,
+  type ConsistentEditSuggestion,
+} from "../lib/consistentEditSuggestion";
 import { Button } from "./ui/Button";
 import { RestoreIcon, TextareaHeightIcon } from "./ui/icons";
 import { RichTranslationEditor } from "./RichTranslationEditor";
@@ -17,6 +21,7 @@ type BlockSectionProps = {
 type BlockTextActionProps = {
   onEraseOriginal?: () => void;
   onFitBubble?: () => void;
+  onSuggestConsistentEdit?: (find: string, replace: string) => void;
 };
 
 export function BubbleLayoutOption({
@@ -52,6 +57,7 @@ export function TextEditorGroup({
   disabled,
   onEraseOriginal,
   onFitBubble,
+  onSuggestConsistentEdit,
   onUpdate,
 }: BlockSectionProps & BlockTextActionProps): React.JSX.Element {
   const { refCallback: translatedTextareaRef, reset: resetTranslatedHeight } =
@@ -89,6 +95,25 @@ export function TextEditorGroup({
         heightRefCallback={translatedTextareaRef}
         onChange={drafts.changeTranslated}
       />
+      {drafts.suggestion && onSuggestConsistentEdit ? (
+        <div className="editor-consistent-edit-suggestion">
+          <span>
+            “{drafts.suggestion.find}” → “{drafts.suggestion.replace}”
+          </span>
+          <Button
+            size="sm"
+            disabled={disabled}
+            onClick={() => {
+              const suggestion = drafts.suggestion;
+              if (!suggestion) return;
+              drafts.clearSuggestion();
+              onSuggestConsistentEdit(suggestion.find, suggestion.replace);
+            }}
+          >
+            비슷한 곳도 바꾸기
+          </Button>
+        </div>
+      ) : null}
       <SourceTextField
         disabled={disabled}
         refCallback={setSourceRef}
@@ -182,9 +207,14 @@ function useBlockTextDrafts(
   source: string;
   changeTranslated: (value: string) => void;
   changeSource: (value: string) => void;
+  suggestion: ConsistentEditSuggestion | null;
+  clearSuggestion: () => void;
 } {
   const [translated, setTranslated] = React.useState(block.translatedText);
   const [source, setSource] = React.useState(block.sourceText);
+  const [translatedBaseline, setTranslatedBaseline] = React.useState<
+    string | null
+  >(null);
   const blockIdRef = React.useRef(block.id);
 
   React.useEffect(() => {
@@ -195,6 +225,7 @@ function useBlockTextDrafts(
       !translatedEditorRootRef.current?.contains(document.activeElement)
     ) {
       setTranslated(block.translatedText);
+      setTranslatedBaseline(null);
     }
     if (switched || document.activeElement !== sourceRef.current) {
       setSource(block.sourceText);
@@ -208,6 +239,7 @@ function useBlockTextDrafts(
   ]);
 
   const changeTranslated = (value: string): void => {
+    setTranslatedBaseline((current) => current ?? translated);
     setTranslated(value);
     React.startTransition(() => onUpdate({ translatedText: value }));
   };
@@ -220,5 +252,10 @@ function useBlockTextDrafts(
     source,
     changeTranslated,
     changeSource,
+    suggestion:
+      translatedBaseline === null
+        ? null
+        : deriveSingleTextReplacement(translatedBaseline, translated),
+    clearSuggestion: () => setTranslatedBaseline(null),
   };
 }

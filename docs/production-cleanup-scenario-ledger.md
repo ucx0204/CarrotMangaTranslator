@@ -135,12 +135,18 @@ editing the totals by hand.
   `65e5ea2b7fba04ef0f9bdb29a59387ecca599ef2db6fe90831f720a2630bfe2b`.
   The Codex web-research compatibility and fallback fix extended it to SHA-256
   `b0bb2a1912d5bbc71aadab977cf9054a6321a691cada1ae1edb233c9267fb3c6`.
+  The beginner conditional-batch editor pass extended it to SHA-256
+  `24204b9f17b516a26fc449bbf85c578fd63cd7d5f2b2a25cfe14dbd5fd47a8de`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
   percentage for lines/statements/functions/branches in all 574 existing
   coverage-eligible `src/**` files changed since cleanup start. The 228 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   nine removed source files are recorded explicitly in `deletedFiles`.
+- The compact conditional-batch editor and visual pattern-builder capture passed
+  595 Vitest files: 4,641 tests passed and ten expected tests were skipped.
+  Aggregate V8 coverage was 80.56% lines, 79.25% statements, 81.42% functions,
+  and 71.82% branches.
 - `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,
   added, deleted, and untracked source scope from Git on every run. A missing or
   stale manifest entry, unrecorded deletion, unsupported source status, missing

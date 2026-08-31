@@ -270,7 +270,7 @@ function createRightRailActions({
     onReviewResults: () => uiState.setRightRailMode("page-blocks"),
     onRetryPage: (pageId: string) => void retranslatePage(pageId),
     onOpenStyleGuide: () => uiState.setStyleGuideOpen(true),
-    onOpenTextView: () => uiState.openTextView("overview"),
+    onOpenTextView: () => uiState.openTextView(),
     onOpenTranslateOptions: () => uiState.openTranslateOptions(),
     onPeekToggle: inpainting.onPeekToggle,
     onMoveBlockInReadingOrder: (blockId: string, direction: -1 | 1) => {

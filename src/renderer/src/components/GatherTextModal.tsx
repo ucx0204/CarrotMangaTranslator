@@ -1,9 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { SearchReplacePanel } from "./SearchReplacePanel";
 import { Modal } from "./ui/Modal";
-import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
-import { Tabs } from "./ui/Tabs";
 import {
   GatherTextControls,
   ReviewWarnings,
@@ -19,19 +16,16 @@ import { useGatherTextModalModel } from "./gatherText/useGatherTextModalModel";
 import { GatherTextFormatSelectionBar } from "./gatherText/GatherTextFormatSelectionBar";
 
 export function GatherTextModal({
-  activeTab = "overview",
   blockStylePresets,
   chapter,
   formatApplyDisabled,
-  searchReplaceDisabled,
   onApplyFormat,
-  onApplySearchReplace,
   page,
   onClose,
-  onTabChange,
   onChapterUpdated,
   onApplyTranslatedText,
   onNavigateToBlock,
+  onOpenBatchEdit,
   readingDirection = "rtl",
 }: GatherTextModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -53,7 +47,6 @@ export function GatherTextModal({
       bodyClassName="gather-text-body"
       footer={
         <GatherTextModalFooter
-          activeTab={activeTab}
           chapter={chapter}
           model={model}
           onApplyTranslatedText={onApplyTranslatedText}
@@ -61,61 +54,27 @@ export function GatherTextModal({
         />
       }
     >
-      <GatherTextTabs active={activeTab} onChange={onTabChange} />
-      {activeTab === "overview" ? (
-        <GatherTextOverview
-          model={model}
-          onNavigateToBlock={onNavigateToBlock}
-        />
-      ) : chapter ? (
-        <div
-          className="gather-text-tabpanel search-replace-tabpanel"
-          id="gather-text-panel-search-replace"
-          role="tabpanel"
-          aria-labelledby="gather-text-tab-search-replace"
-        >
-          <SearchReplacePanel
-            chapter={chapter}
-            disabled={searchReplaceDisabled}
-            page={page}
-            onApply={onApplySearchReplace ?? (() => undefined)}
-            onNavigateToBlock={onNavigateToBlock ?? (() => undefined)}
-          />
-        </div>
-      ) : null}
+      <GatherTextOverview
+        batchEditDisabled={!chapter || Boolean(formatApplyDisabled)}
+        model={model}
+        onNavigateToBlock={onNavigateToBlock}
+        onOpenBatchEdit={onOpenBatchEdit}
+      />
     </Modal>
   );
 }
 
-/**
- * Every tab keeps a footer so the explicit close action never vanishes when the
- * user switches tabs.
- */
 function GatherTextModalFooter({
-  activeTab,
   chapter,
   model,
   onApplyTranslatedText,
   onClose,
 }: {
-  activeTab: NonNullable<GatherTextModalProps["activeTab"]>;
   chapter: GatherTextModalProps["chapter"];
   model: ReturnType<typeof useGatherTextModalModel>;
   onApplyTranslatedText: GatherTextModalProps["onApplyTranslatedText"];
   onClose: () => void;
 }): React.JSX.Element {
-  const { t } = useTranslation("components");
-  if (activeTab !== "overview") {
-    return (
-      <ModalActionBar
-        actions={
-          <ModalActionButtons
-            cancel={{ label: t("common.close"), onClick: onClose }}
-          />
-        }
-      />
-    );
-  }
   return (
     <GatherTextFooter
       excludeHeaders={model.excludeHeaders}
@@ -134,59 +93,30 @@ function GatherTextModalFooter({
   );
 }
 
-function GatherTextTabs({
-  active,
-  onChange,
-}: {
-  active: NonNullable<GatherTextModalProps["activeTab"]>;
-  onChange?: GatherTextModalProps["onTabChange"];
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <Tabs
-      className="gather-text-tabs"
-      ariaLabel={t("gatherText.tabs.ariaLabel")}
-      items={[
-        {
-          value: "overview",
-          label: t("gatherText.tabs.overview"),
-          id: "gather-text-tab-overview",
-          panelId: "gather-text-panel-overview",
-        },
-        {
-          value: "search-replace",
-          label: t("gatherText.tabs.searchReplace"),
-          id: "gather-text-tab-search-replace",
-          panelId: "gather-text-panel-search-replace",
-        },
-      ]}
-      value={active}
-      onChange={onChange ?? (() => undefined)}
-    />
-  );
-}
-
 function GatherTextOverview({
+  batchEditDisabled,
   model,
   onNavigateToBlock,
+  onOpenBatchEdit,
 }: {
+  batchEditDisabled: boolean;
   model: ReturnType<typeof useGatherTextModalModel>;
   onNavigateToBlock: GatherTextModalProps["onNavigateToBlock"];
+  onOpenBatchEdit: GatherTextModalProps["onOpenBatchEdit"];
 }): React.JSX.Element {
   return (
-    <div
-      className="gather-text-tabpanel gather-text-overview"
-      id="gather-text-panel-overview"
-      role="tabpanel"
-      aria-labelledby="gather-text-tab-overview"
-    >
+    <div className="gather-text-overview">
       <GatherTextFileInputs
         reviewInputRef={model.reviewFileInputRef}
         textInputRef={model.txtFileInputRef}
         onReviewFile={model.handleImportReviewFile}
         onTextFile={model.handleImportTxtFile}
       />
-      <GatherTextSearchBar search={model.search} />
+      <GatherTextSearchBar
+        disabled={batchEditDisabled || !onOpenBatchEdit}
+        search={model.search}
+        onOpenBatchEdit={onOpenBatchEdit}
+      />
       <GatherTextControls
         scope={model.scope}
         field={model.field}

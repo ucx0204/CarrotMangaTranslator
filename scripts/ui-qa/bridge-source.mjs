@@ -91,7 +91,28 @@ const bridgeTemplate = `(() => {
     models: codexModels,
   };
   let codexAccount = signedInCodexAccount;
+  let conditionalBatchSchemes = [];
+  let conditionalBatchSequences = [];
+  const conditionalBatchSnapshot = () => ({
+    schemaVersion: 1,
+    schemes: conditionalBatchSchemes,
+    sequences: conditionalBatchSequences,
+  });
   const implementations = {
+    deleteConditionalBatchScheme: async (id) => {
+      conditionalBatchSchemes = conditionalBatchSchemes.filter(
+        (scheme) => scheme.id !== id,
+      );
+      return conditionalBatchSnapshot();
+    },
+    deleteConditionalBatchSequence: async (id) => {
+      conditionalBatchSequences = conditionalBatchSequences.filter(
+        (sequence) => sequence.id !== id,
+      );
+      return conditionalBatchSnapshot();
+    },
+    exportConditionalBatchYaml: async () =>
+      \`schemaVersion: 1\\nschemes: []\\nsequences: []\\n\`,
     getCodexAccount: async () => codexAccount,
     getFontLibrary: async () => fontSnapshot,
     getLibrary: async () => ({ workOrder: [], works: [] }),
@@ -128,6 +149,8 @@ const bridgeTemplate = `(() => {
       ocr: { cpu: true, gpu: false },
     }),
     getUiLocale: async () => "ko",
+    listConditionalBatchSchemes: async () => conditionalBatchSnapshot(),
+    openConditionalBatchYamlFile: async () => null,
     loginCodexAccount: async () => {
       codexAccount = signedInCodexAccount;
       return codexAccount;
@@ -153,6 +176,37 @@ const bridgeTemplate = `(() => {
         ...(preferences || {}),
       },
     }),
+    saveConditionalBatchScheme: async ({ id, scheme }) => {
+      const saved = {
+        id: id || crypto.randomUUID(),
+        ...scheme,
+      };
+      const existingIndex = conditionalBatchSchemes.findIndex(
+        (candidate) => candidate.id === saved.id,
+      );
+      if (existingIndex >= 0) {
+        conditionalBatchSchemes = conditionalBatchSchemes.map(
+          (candidate, index) => (index === existingIndex ? saved : candidate),
+        );
+      } else {
+        conditionalBatchSchemes = [...conditionalBatchSchemes, saved];
+      }
+      return conditionalBatchSnapshot();
+    },
+    saveConditionalBatchSequence: async (sequence) => {
+      const index = conditionalBatchSequences.findIndex(
+        (candidate) => candidate.id === sequence.id,
+      );
+      conditionalBatchSequences =
+        index >= 0
+          ? conditionalBatchSequences.map((candidate, candidateIndex) =>
+              candidateIndex === index ? sequence : candidate,
+            )
+          : [...conditionalBatchSequences, sequence];
+      return conditionalBatchSnapshot();
+    },
+    saveConditionalBatchYamlFile: async () => null,
+    importConditionalBatchYaml: async () => conditionalBatchSnapshot(),
   };
   const mangaApi = new Proxy(implementations, {
     get(target, property) {
