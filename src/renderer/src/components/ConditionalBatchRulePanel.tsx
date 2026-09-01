@@ -107,7 +107,8 @@ export function ConditionalBatchRulePanel(
 ): React.JSX.Element {
   const [conditionsExpanded, setConditionsExpanded] = React.useState(true);
   const [actionsExpanded, setActionsExpanded] = React.useState(true);
-  const [advancedExpanded, setAdvancedExpanded] = React.useState(false);
+  const [sequenceExpanded, setSequenceExpanded] = React.useState(true);
+  const [advancedExpanded, setAdvancedExpanded] = React.useState(true);
   return (
     <aside className={styles.rulePanel} aria-label="일관 편집 규칙">
       {props.activeSequence ? null : <SchemeManager {...props} />}
@@ -135,12 +136,17 @@ export function ConditionalBatchRulePanel(
               onChangeDraft={props.onChangeDraft}
               onToggle={() => setActionsExpanded((current) => !current)}
             />
-            <RuleNotices {...props} />
+            <SequenceManager
+              {...props}
+              expanded={sequenceExpanded}
+              onToggle={() => setSequenceExpanded((current) => !current)}
+            />
             <AdvancedTools
               {...props}
               expanded={advancedExpanded}
               onToggle={() => setAdvancedExpanded((current) => !current)}
             />
+            <RuleNotices {...props} />
           </>
         )}
       </div>
@@ -596,14 +602,18 @@ function AdvancedTools(
               </div>
             </div>
           ) : null}
-          <SequenceManager {...props} />
         </div>
       ) : null}
     </section>
   );
 }
 
-function SequenceManager(props: ConditionalBatchRulePanelProps) {
+function SequenceManager(
+  props: ConditionalBatchRulePanelProps & {
+    expanded: boolean;
+    onToggle: () => void;
+  },
+) {
   const [formOpen, setFormOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [name, setName] = React.useState("연속 실행");
@@ -665,201 +675,229 @@ function SequenceManager(props: ConditionalBatchRulePanelProps) {
     reset();
   };
   return (
-    <section className={styles.sequenceManager}>
+    <section className={styles.sequenceManager} data-expanded={props.expanded}>
       <header className={styles.sequenceHeader}>
-        <strong>연속 실행</strong>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={props.savedSchemes.length === 0}
-          onClick={startNew}
+        <button
+          type="button"
+          className={styles.cardToggle}
+          aria-expanded={props.expanded}
+          onClick={props.onToggle}
         >
-          새 연속 실행
-        </Button>
-      </header>
-      {props.sequences.map((sequence) => (
-        <div className={styles.sequenceRow} key={sequence.id}>
+          {props.expanded ? (
+            <IconChevronDown size={17} />
+          ) : (
+            <IconChevronRight size={17} />
+          )}
           <span>
-            <strong>{sequence.name}</strong>
-            <small>{sequence.steps.length}단계</small>
+            <strong>연속 실행</strong>
           </span>
+        </button>
+        {props.expanded ? (
           <Button
             size="sm"
-            onClick={() => props.onPreviewSequence(sequence.id)}
+            variant="ghost"
+            disabled={props.savedSchemes.length === 0}
+            onClick={startNew}
           >
-            미리보기
+            새 연속 실행
           </Button>
-          <IconButton
-            size="sm"
-            label={`${sequence.name} 편집`}
-            onClick={() => edit(sequence)}
-          >
-            <IconEdit size={14} />
-          </IconButton>
-          <IconButton
-            size="sm"
-            label={`${sequence.name} 복제`}
-            onClick={() => edit(sequence, true)}
-          >
-            <IconCopy size={14} />
-          </IconButton>
-          <IconButton
-            size="sm"
-            variant="danger"
-            label={`${sequence.name} 삭제`}
-            onClick={() => props.onDeleteSequence(sequence.id)}
-          >
-            <IconTrash size={14} />
-          </IconButton>
-        </div>
-      ))}
-      {formOpen ? (
-        <div className={styles.sequenceForm}>
-          <TextField
-            label="연속 실행 이름"
-            value={name}
-            maxLength={80}
-            onChange={(event) => setName(event.target.value)}
-          />
-          <Field label="설명">
-            <textarea
-              rows={2}
-              maxLength={500}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </Field>
-          <div className={styles.sequenceSteps}>
-            {steps.map((step, index) => (
-              <div className={styles.sequenceStepRow} key={step.id}>
-                <CheckboxField
-                  checked={step.enabled}
-                  ariaLabel={`${index + 1}번 연속 실행 단계 활성화`}
-                  onCheckedChange={(enabled) =>
-                    setSteps((current) =>
-                      current.map((entry) =>
-                        entry.id === step.id ? { ...entry, enabled } : entry,
-                      ),
-                    )
-                  }
-                />
-                <span>{index + 1}</span>
-                <Select
-                  ariaLabel={`${index + 1}번 연속 실행 규칙`}
-                  value={step.schemeId}
-                  options={props.savedSchemes.map((scheme) => ({
-                    value: scheme.id,
-                    label: scheme.name,
-                  }))}
-                  onValueChange={(schemeId) =>
-                    setSteps((current) =>
-                      current.map((entry) =>
-                        entry.id === step.id ? { ...entry, schemeId } : entry,
-                      ),
-                    )
-                  }
-                />
-                <div className={styles.sequenceStepActions}>
-                  <IconButton
-                    size="sm"
-                    label="연속 실행 단계 위로 이동"
-                    disabled={index === 0}
-                    onClick={() =>
-                      setSteps((current) => moveItem(current, index, index - 1))
-                    }
-                  >
-                    <IconArrowUp size={14} />
-                  </IconButton>
-                  <IconButton
-                    size="sm"
-                    label="연속 실행 단계 아래로 이동"
-                    disabled={index === steps.length - 1}
-                    onClick={() =>
-                      setSteps((current) => moveItem(current, index, index + 1))
-                    }
-                  >
-                    <IconArrowDown size={14} />
-                  </IconButton>
-                  <IconButton
-                    size="sm"
-                    label="연속 실행 단계 복제"
-                    disabled={steps.length >= 32}
-                    onClick={() =>
-                      setSteps((current) => {
-                        const next = [...current];
-                        next.splice(index + 1, 0, {
-                          ...step,
-                          id: createSequenceItemId("step"),
-                        });
-                        return next;
-                      })
-                    }
-                  >
-                    <IconCopy size={14} />
-                  </IconButton>
-                  <IconButton
-                    size="sm"
-                    variant="danger"
-                    label="연속 실행 단계 삭제"
-                    onClick={() =>
-                      setSteps((current) =>
-                        current.filter((entry) => entry.id !== step.id),
-                      )
-                    }
-                  >
-                    <IconTrash size={14} />
-                  </IconButton>
-                </div>
-              </div>
-            ))}
-          </div>
-          {props.savedSchemes.length ? (
-            <div className={styles.fieldPickerAll}>
-              <Select
-                ariaLabel="연속 실행에 추가할 규칙"
-                value={schemeToAdd}
-                options={props.savedSchemes.map((scheme) => ({
-                  value: scheme.id,
-                  label: scheme.name,
-                }))}
-                onValueChange={setSchemeToAdd}
-              />
+        ) : null}
+      </header>
+      {props.expanded ? (
+        <>
+          {props.sequences.map((sequence) => (
+            <div className={styles.sequenceRow} key={sequence.id}>
+              <span>
+                <strong>{sequence.name}</strong>
+                <small>{sequence.steps.length}단계</small>
+              </span>
               <Button
                 size="sm"
-                disabled={!schemeToAdd || steps.length >= 32}
-                onClick={() =>
-                  schemeToAdd &&
-                  setSteps((current) => [
-                    ...current,
-                    {
-                      id: createSequenceItemId("step"),
-                      schemeId: schemeToAdd,
-                      enabled: true,
-                    },
-                  ])
-                }
+                onClick={() => props.onPreviewSequence(sequence.id)}
               >
-                단계 추가
+                미리보기
               </Button>
+              <IconButton
+                size="sm"
+                label={`${sequence.name} 편집`}
+                onClick={() => edit(sequence)}
+              >
+                <IconEdit size={14} />
+              </IconButton>
+              <IconButton
+                size="sm"
+                label={`${sequence.name} 복제`}
+                onClick={() => edit(sequence, true)}
+              >
+                <IconCopy size={14} />
+              </IconButton>
+              <IconButton
+                size="sm"
+                variant="danger"
+                label={`${sequence.name} 삭제`}
+                onClick={() => props.onDeleteSequence(sequence.id)}
+              >
+                <IconTrash size={14} />
+              </IconButton>
+            </div>
+          ))}
+          {formOpen ? (
+            <div className={styles.sequenceForm}>
+              <TextField
+                label="연속 실행 이름"
+                value={name}
+                maxLength={80}
+                onChange={(event) => setName(event.target.value)}
+              />
+              <Field label="설명">
+                <textarea
+                  rows={2}
+                  maxLength={500}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
+              </Field>
+              <div className={styles.sequenceSteps}>
+                {steps.map((step, index) => (
+                  <div className={styles.sequenceStepRow} key={step.id}>
+                    <CheckboxField
+                      checked={step.enabled}
+                      ariaLabel={`${index + 1}번 연속 실행 단계 활성화`}
+                      onCheckedChange={(enabled) =>
+                        setSteps((current) =>
+                          current.map((entry) =>
+                            entry.id === step.id
+                              ? { ...entry, enabled }
+                              : entry,
+                          ),
+                        )
+                      }
+                    />
+                    <span>{index + 1}</span>
+                    <Select
+                      ariaLabel={`${index + 1}번 연속 실행 규칙`}
+                      value={step.schemeId}
+                      options={props.savedSchemes.map((scheme) => ({
+                        value: scheme.id,
+                        label: scheme.name,
+                      }))}
+                      onValueChange={(schemeId) =>
+                        setSteps((current) =>
+                          current.map((entry) =>
+                            entry.id === step.id
+                              ? { ...entry, schemeId }
+                              : entry,
+                          ),
+                        )
+                      }
+                    />
+                    <div className={styles.sequenceStepActions}>
+                      <IconButton
+                        size="sm"
+                        label="연속 실행 단계 위로 이동"
+                        disabled={index === 0}
+                        onClick={() =>
+                          setSteps((current) =>
+                            moveItem(current, index, index - 1),
+                          )
+                        }
+                      >
+                        <IconArrowUp size={14} />
+                      </IconButton>
+                      <IconButton
+                        size="sm"
+                        label="연속 실행 단계 아래로 이동"
+                        disabled={index === steps.length - 1}
+                        onClick={() =>
+                          setSteps((current) =>
+                            moveItem(current, index, index + 1),
+                          )
+                        }
+                      >
+                        <IconArrowDown size={14} />
+                      </IconButton>
+                      <IconButton
+                        size="sm"
+                        label="연속 실행 단계 복제"
+                        disabled={steps.length >= 32}
+                        onClick={() =>
+                          setSteps((current) => {
+                            const next = [...current];
+                            next.splice(index + 1, 0, {
+                              ...step,
+                              id: createSequenceItemId("step"),
+                            });
+                            return next;
+                          })
+                        }
+                      >
+                        <IconCopy size={14} />
+                      </IconButton>
+                      <IconButton
+                        size="sm"
+                        variant="danger"
+                        label="연속 실행 단계 삭제"
+                        onClick={() =>
+                          setSteps((current) =>
+                            current.filter((entry) => entry.id !== step.id),
+                          )
+                        }
+                      >
+                        <IconTrash size={14} />
+                      </IconButton>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {props.savedSchemes.length ? (
+                <div className={styles.fieldPickerAll}>
+                  <Select
+                    ariaLabel="연속 실행에 추가할 규칙"
+                    value={schemeToAdd}
+                    options={props.savedSchemes.map((scheme) => ({
+                      value: scheme.id,
+                      label: scheme.name,
+                    }))}
+                    onValueChange={setSchemeToAdd}
+                  />
+                  <Button
+                    size="sm"
+                    disabled={!schemeToAdd || steps.length >= 32}
+                    onClick={() =>
+                      schemeToAdd &&
+                      setSteps((current) => [
+                        ...current,
+                        {
+                          id: createSequenceItemId("step"),
+                          schemeId: schemeToAdd,
+                          enabled: true,
+                        },
+                      ])
+                    }
+                  >
+                    단계 추가
+                  </Button>
+                </div>
+              ) : null}
+              <div className={styles.sequenceFormActions}>
+                <Button size="sm" variant="ghost" onClick={reset}>
+                  취소
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={
+                    !name.trim() ||
+                    steps.length === 0 ||
+                    !steps.some((step) => step.enabled)
+                  }
+                  onClick={save}
+                >
+                  {editingId ? "업데이트" : "저장"}
+                </Button>
+              </div>
             </div>
           ) : null}
-          <div className={styles.sequenceFormActions}>
-            <Button size="sm" variant="ghost" onClick={reset}>
-              취소
-            </Button>
-            <Button
-              size="sm"
-              disabled={
-                !name.trim() ||
-                steps.length === 0 ||
-                !steps.some((step) => step.enabled)
-              }
-              onClick={save}
-            >
-              {editingId ? "업데이트" : "저장"}
-            </Button>
-          </div>
-        </div>
+        </>
       ) : null}
     </section>
   );

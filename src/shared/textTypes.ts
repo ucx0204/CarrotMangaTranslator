@@ -23,6 +23,13 @@ export type TextEffect = {
   opacity: number;
 };
 
+export type TextGlow = {
+  enabled: boolean;
+  color: string;
+  blurPx: number;
+  opacity: number;
+};
+
 export type BBox = {
   x: number;
   y: number;
@@ -129,10 +136,22 @@ export type TranslationBlock = {
   /** User-authored absolute outline thickness. Undefined preserves legacy scale behavior. */
   outlineWidthPx?: number;
   outlineWidthScale?: number;
-  /** Optional block-wide shadow/glow rendered after text and outline composition. */
+  /** A second outline painted outside the primary text outline. */
+  outerOutlineColor?: string;
+  outerOutlineWidthPx?: number;
+  /** Optional block-wide directional shadow rendered after text and outline composition. */
   textEffect?: TextEffect;
+  /** Optional glow kept separate from the directional text shadow. */
+  textGlow?: TextGlow;
   bold?: boolean;
   italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
+  /** Japanese/Korean emphasis dots; unrelated to letter spacing. */
+  emphasisMark?: boolean;
+  /** Paint the complete text box before drawing text, including exports. */
+  textBackgroundEnabled?: boolean;
+  textBackgroundColor?: string;
   backgroundColor: string;
   /** Opacity of the editor-only text-block background/chrome. */
   opacity: number;

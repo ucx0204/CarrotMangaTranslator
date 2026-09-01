@@ -16,6 +16,7 @@ import {
   OcrQualityModeSchema,
   OpenAiCompatibleBaseUrlSchema,
   TextEffectSchema,
+  TextGlowSchema,
   filePath,
   hexColor,
 } from "./ipcSchemaPrimitives";
@@ -137,6 +138,9 @@ const BlockStylePresetSchema = z
         renderDirection: z.enum(["horizontal", "vertical"]).optional(),
         bold: z.boolean().optional(),
         italic: z.boolean().optional(),
+        underline: z.boolean().optional(),
+        strikethrough: z.boolean().optional(),
+        emphasisMark: z.boolean().optional(),
         lineHeight: z
           .number()
           .min(MIN_LINE_HEIGHT)
@@ -157,7 +161,12 @@ const BlockStylePresetSchema = z
         outlineColor: hexColor.optional(),
         outlineWidthPx: z.number().min(0).max(64).optional(),
         outlineWidthScale: z.number().min(0).max(8).optional(),
+        outerOutlineColor: hexColor.optional(),
+        outerOutlineWidthPx: z.number().min(0).max(64).optional(),
+        textBackgroundEnabled: z.boolean().optional(),
+        textBackgroundColor: hexColor.optional(),
         textEffect: TextEffectSchema.optional(),
+        textGlow: TextGlowSchema.optional(),
         rotationDeg: z.number().min(-180).max(180).optional(),
       })
       .strict(),

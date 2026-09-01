@@ -14,6 +14,19 @@ import {
   MIN_FONT_SIZE_PX,
 } from "../../../shared/blockFormatValues";
 import { DEFAULT_BLOCK_FONT_ID } from "../../../shared/blockFontCatalog";
+import {
+  MAX_TEXT_GLOW_BLUR_PX,
+  MIN_TEXT_GLOW_BLUR_PX,
+  resolveTextGlow,
+} from "../../../shared/textGlow";
+import {
+  MAX_TEXT_OUTLINE_WIDTH_PX,
+  MIN_TEXT_OUTLINE_WIDTH_PX,
+  TEXT_OUTLINE_WIDTH_STEP_PX,
+  resolveEffectiveTextColor,
+  resolveEffectiveTextOutlineColor,
+  resolveEffectiveTextOutlineWidthPx,
+} from "../../../shared/textOutline";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { useFonts } from "../fonts/useFonts";
 import {
@@ -28,6 +41,7 @@ import {
   type RichTextEditorSelection,
 } from "../lib/richTextEditorDom";
 import {
+  applyInlineBooleanStyleTag,
   applyInlineMarkup,
   applyInlineStyleTag,
   type InlineMarkupResult,
@@ -35,18 +49,24 @@ import {
 import { resolveBlockFontFamily } from "../lib/fonts";
 import { IconButton } from "./ui/IconButton";
 import { NumberField } from "./ui/NumberField";
+import { CheckboxField } from "./ui/CheckboxField";
 import {
   BoldIcon,
   CodeIcon,
+  EmphasisMarkIcon,
   ItalicIcon,
   RestoreIcon,
+  StrikethroughIcon,
   TypeStyleIcon,
+  UnderlineIcon,
 } from "./ui/icons";
 import { FontSelect } from "./FontSelect";
+import { ColorField } from "./ColorField";
 
 type EditorMode = "visual" | "code";
 
 type RichTranslationEditorProps = {
+  afterEditor?: React.ReactNode;
   block: TranslationBlock;
   disabled: boolean;
   editorRootRef: React.RefObject<HTMLDivElement | null>;
@@ -56,6 +76,8 @@ type RichTranslationEditorProps = {
 };
 
 const EDITOR_MODE_STORAGE_KEY = "editor.richText.mode";
+const MIN_INLINE_WIDTH_PERCENT = 10;
+const MAX_INLINE_WIDTH_PERCENT = 500;
 type SpecialCharacterOption = {
   text: string;
   combineUpright?: boolean;
@@ -75,6 +97,7 @@ const SPECIAL_CHARACTERS: readonly SpecialCharacterOption[] = [
 ];
 
 export function RichTranslationEditor({
+  afterEditor,
   block,
   disabled,
   editorRootRef,
@@ -116,6 +139,7 @@ export function RichTranslationEditor({
 
   const renderOptions = React.useMemo<RichTextEditorRenderOptions>(
     () => ({
+      block,
       baseBold: Boolean(block.bold),
       baseItalic: Boolean(block.italic),
       baseFontSizePx: block.fontSizePx,
@@ -124,14 +148,7 @@ export function RichTranslationEditor({
       resolveFontFamily: (fontId) =>
         resolveBlockFontFamily(fontId ?? block.fontFamily, catalog),
     }),
-    [
-      block.bold,
-      block.fontFamily,
-      block.fontSizePx,
-      block.italic,
-      block.textOpacity,
-      catalog,
-    ],
+    [block, catalog],
   );
 
   const setSelection = React.useCallback(
@@ -431,6 +448,27 @@ export function RichTranslationEditor({
       );
     } else if (patch.italic !== undefined) {
       commitCodeResult(applyInlineMarkup(value, target.start, target.end, "*"));
+    } else if (patch.underline !== undefined) {
+      commitCodeResult(
+        applyInlineBooleanStyleTag(
+          value,
+          target.start,
+          target.end,
+          "underline",
+        ),
+      );
+    } else if (patch.strikethrough !== undefined) {
+      commitCodeResult(
+        applyInlineBooleanStyleTag(value, target.start, target.end, "strike"),
+      );
+    } else if (patch.emphasisMark !== undefined) {
+      commitCodeResult(
+        applyInlineBooleanStyleTag(value, target.start, target.end, "emphasis"),
+      );
+    } else if (patch.verticalCombine !== undefined) {
+      commitCodeResult(
+        applyInlineBooleanStyleTag(value, target.start, target.end, "tcy"),
+      );
     } else if (patch.sizePx !== undefined && patch.sizePx !== null) {
       commitCodeResult(
         applyInlineStyleTag(
@@ -461,18 +499,113 @@ export function RichTranslationEditor({
           formatNumber(patch.opacity * 100),
         ),
       );
+    } else if (patch.widthScale !== undefined && patch.widthScale !== null) {
+      commitCodeResult(
+        applyInlineStyleTag(
+          value,
+          target.start,
+          target.end,
+          "width",
+          formatNumber(patch.widthScale),
+        ),
+      );
+    } else if (patch.color) {
+      commitCodeResult(
+        applyInlineStyleTag(
+          value,
+          target.start,
+          target.end,
+          "color",
+          patch.color,
+        ),
+      );
+    } else if (patch.backgroundColor) {
+      commitCodeResult(
+        applyInlineStyleTag(
+          value,
+          target.start,
+          target.end,
+          "background",
+          patch.backgroundColor,
+        ),
+      );
+    } else if (patch.outlineColor) {
+      commitCodeResult(
+        applyInlineStyleTag(
+          value,
+          target.start,
+          target.end,
+          "outline-color",
+          patch.outlineColor,
+        ),
+      );
+    } else if (
+      patch.outlineWidthPx !== undefined &&
+      patch.outlineWidthPx !== null
+    ) {
+      commitCodeResult(
+        applyInlineStyleTag(
+          value,
+          target.start,
+          target.end,
+          "outline-width",
+          formatNumber(patch.outlineWidthPx),
+        ),
+      );
+    } else if (patch.outerOutlineColor) {
+      commitCodeResult(
+        applyInlineStyleTag(
+          value,
+          target.start,
+          target.end,
+          "outer-outline-color",
+          patch.outerOutlineColor,
+        ),
+      );
+    } else if (
+      patch.outerOutlineWidthPx !== undefined &&
+      patch.outerOutlineWidthPx !== null
+    ) {
+      commitCodeResult(
+        applyInlineStyleTag(
+          value,
+          target.start,
+          target.end,
+          "outer-outline-width",
+          formatNumber(patch.outerOutlineWidthPx),
+        ),
+      );
+    } else if (patch.glowColor) {
+      commitCodeResult(
+        applyInlineStyleTag(
+          value,
+          target.start,
+          target.end,
+          "glow-color",
+          patch.glowColor,
+        ),
+      );
+    } else if (patch.glowBlurPx !== undefined && patch.glowBlurPx !== null) {
+      commitCodeResult(
+        applyInlineStyleTag(
+          value,
+          target.start,
+          target.end,
+          "glow-blur",
+          formatNumber(patch.glowBlurPx),
+        ),
+      );
+    } else if (patch.glowOpacity !== undefined && patch.glowOpacity !== null) {
+      commitCodeResult(
+        applyInlineStyleTag(
+          value,
+          target.start,
+          target.end,
+          "glow-opacity",
+          formatNumber(patch.glowOpacity),
+        ),
+      );
     }
-  };
-
-  const toggleBold = (): void => {
-    applyInlineStyle({
-      bold: mode === "visual" ? !selectionValues.bold : true,
-    });
-  };
-  const toggleItalic = (): void => {
-    applyInlineStyle({
-      italic: mode === "visual" ? !selectionValues.italic : true,
-    });
   };
 
   const clearAllFormatting = (): void => {
@@ -646,25 +779,6 @@ export function RichTranslationEditor({
         </div>
       ) : null}
 
-      <InlineStylePanel
-        disabled={disabled}
-        values={selectionValues}
-        onToggleBold={toggleBold}
-        onToggleItalic={toggleItalic}
-        onFontChange={(fontFamily) =>
-          applyInlineStyle({
-            fontFamily:
-              mode === "code" && fontFamily === undefined
-                ? DEFAULT_BLOCK_FONT_ID
-                : (fontFamily ?? null),
-          })
-        }
-        onOpacityChange={(percent) =>
-          applyInlineStyle({ opacity: percent / 100 })
-        }
-        onSizeChange={(sizePx) => applyInlineStyle({ sizePx })}
-      />
-
       {mode === "visual" ? (
         <div
           ref={(element) => {
@@ -672,6 +786,7 @@ export function RichTranslationEditor({
             heightRefCallback(element);
           }}
           className="rich-editor-surface"
+          data-rich-translated-input=""
           contentEditable={!disabled}
           suppressContentEditableWarning
           role="textbox"
@@ -713,6 +828,7 @@ export function RichTranslationEditor({
             heightRefCallback(element);
           }}
           className="rich-editor-code"
+          data-rich-translated-input=""
           aria-label={t("editor.richText.codeAria", {
             defaultValue: "번역문 서식 코드",
           })}
@@ -728,6 +844,13 @@ export function RichTranslationEditor({
           }
         />
       )}
+      {afterEditor}
+      <InlineStylePanel
+        disabled={disabled}
+        mode={mode}
+        values={selectionValues}
+        onApplyStyle={applyInlineStyle}
+      />
     </div>
   );
 }
@@ -735,32 +858,56 @@ export function RichTranslationEditor({
 type SelectionValues = {
   bold: boolean;
   italic: boolean;
+  underline: boolean;
+  strikethrough: boolean;
+  emphasisMark: boolean;
+  verticalCombine: boolean;
   sizePx: number;
   sizeMixed: boolean;
   fontFamily: string | undefined;
   fontMixed: boolean;
   opacityPercent: number;
   opacityMixed: boolean;
+  widthPercent: number;
+  color: string;
+  backgroundEnabled: boolean;
+  backgroundColor: string;
+  outlineEnabled: boolean;
+  outlineColor: string;
+  outlineWidthPx: number;
+  outerOutlineEnabled: boolean;
+  outerOutlineColor: string;
+  outerOutlineWidthPx: number;
+  glowEnabled: boolean;
+  glowColor: string;
+  glowBlurPx: number;
+  glowOpacityPercent: number;
 };
 
 function InlineStylePanel({
   disabled,
+  mode,
   values,
-  onFontChange,
-  onOpacityChange,
-  onSizeChange,
-  onToggleBold,
-  onToggleItalic,
+  onApplyStyle,
 }: {
   disabled: boolean;
+  mode: EditorMode;
   values: SelectionValues;
-  onFontChange: (fontFamily: string | undefined) => void;
-  onOpacityChange: (value: number) => void;
-  onSizeChange: (value: number) => void;
-  onToggleBold: () => void;
-  onToggleItalic: () => void;
+  onApplyStyle: (patch: TextStylePatch) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
+  const toggle = (
+    key:
+      | "bold"
+      | "italic"
+      | "underline"
+      | "strikethrough"
+      | "emphasisMark"
+      | "verticalCombine",
+    current: boolean,
+  ): void => {
+    onApplyStyle({ [key]: mode === "visual" ? !current : true });
+  };
   return (
     <section
       className="rich-inline-style-panel"
@@ -769,56 +916,6 @@ function InlineStylePanel({
       })}
     >
       <div className="rich-inline-style-grid">
-        <label>
-          <span>
-            {t("editor.richText.size", { defaultValue: "글자 크기" })}
-          </span>
-          <NumberField
-            variant="framed"
-            ariaLabel={t("editor.richText.size", {
-              defaultValue: "글자 크기",
-            })}
-            value={values.sizePx}
-            min={MIN_FONT_SIZE_PX}
-            max={MAX_FONT_SIZE_PX}
-            step={FONT_SIZE_STEP_PX}
-            precision={1}
-            snapToStep
-            useTextInput
-            selectOnFocus
-            unit="px"
-            commitMode="change"
-            mixed={values.sizeMixed}
-            placeholder="—"
-            disabled={disabled}
-            onValueChange={onSizeChange}
-          />
-        </label>
-        <label>
-          <span>
-            {t("editor.richText.opacity", { defaultValue: "글자 투명도" })}
-          </span>
-          <NumberField
-            variant="framed"
-            ariaLabel={t("editor.richText.opacity", {
-              defaultValue: "글자 투명도",
-            })}
-            value={values.opacityPercent}
-            min={0}
-            max={100}
-            step={1}
-            precision={0}
-            inputMode="numeric"
-            useTextInput
-            selectOnFocus
-            unit="%"
-            commitMode="change"
-            mixed={values.opacityMixed}
-            placeholder="—"
-            disabled={disabled}
-            onValueChange={onOpacityChange}
-          />
-        </label>
         <div className="rich-inline-emphasis-tools">
           <IconButton
             size="sm"
@@ -826,7 +923,7 @@ function InlineStylePanel({
             title={t("editor.markupToolbar.boldTitle")}
             aria-pressed={values.bold}
             disabled={disabled}
-            onClick={onToggleBold}
+            onClick={() => toggle("bold", values.bold)}
           >
             <BoldIcon size={14} />
           </IconButton>
@@ -836,11 +933,94 @@ function InlineStylePanel({
             title={t("editor.markupToolbar.italicTitle")}
             aria-pressed={values.italic}
             disabled={disabled}
-            onClick={onToggleItalic}
+            onClick={() => toggle("italic", values.italic)}
           >
             <ItalicIcon size={14} />
           </IconButton>
+          <IconButton
+            size="sm"
+            label={t("format.blockUnderline")}
+            title={t("format.blockUnderline")}
+            aria-pressed={values.underline}
+            disabled={disabled}
+            onClick={() => toggle("underline", values.underline)}
+          >
+            <UnderlineIcon size={14} />
+          </IconButton>
+          <IconButton
+            size="sm"
+            label={t("format.blockStrikethrough")}
+            title={t("format.blockStrikethrough")}
+            aria-pressed={values.strikethrough}
+            disabled={disabled}
+            onClick={() => toggle("strikethrough", values.strikethrough)}
+          >
+            <StrikethroughIcon size={14} />
+          </IconButton>
+          <IconButton
+            size="sm"
+            label={t("format.blockEmphasisMark")}
+            title={t("format.blockEmphasisMark")}
+            aria-pressed={values.emphasisMark}
+            disabled={disabled}
+            onClick={() => toggle("emphasisMark", values.emphasisMark)}
+          >
+            <EmphasisMarkIcon size={14} />
+          </IconButton>
+          <IconButton
+            size="sm"
+            label={t("editor.richText.combineUpright", {
+              defaultValue: "세로 영문 묶음",
+            })}
+            title={t("editor.richText.combineUpright", {
+              defaultValue: "세로 영문 묶음",
+            })}
+            aria-pressed={values.verticalCombine}
+            disabled={disabled}
+            onClick={() => toggle("verticalCombine", values.verticalCombine)}
+          >
+            <span aria-hidden="true" className="rich-inline-tcy-icon">
+              縦
+            </span>
+          </IconButton>
         </div>
+        <InlineNumberField
+          label={t("editor.richText.size", { defaultValue: "글자 크기" })}
+          value={values.sizePx}
+          min={MIN_FONT_SIZE_PX}
+          max={MAX_FONT_SIZE_PX}
+          step={FONT_SIZE_STEP_PX}
+          precision={1}
+          unit="px"
+          mixed={values.sizeMixed}
+          disabled={disabled}
+          onChange={(sizePx) => onApplyStyle({ sizePx })}
+        />
+        <InlineNumberField
+          label={t("editor.richText.opacity", {
+            defaultValue: "글자 투명도",
+          })}
+          value={values.opacityPercent}
+          min={0}
+          max={100}
+          step={1}
+          precision={0}
+          unit="%"
+          mixed={values.opacityMixed}
+          disabled={disabled}
+          onChange={(opacity) => onApplyStyle({ opacity: opacity / 100 })}
+        />
+        <InlineNumberField
+          label={t("format.fontWidth")}
+          value={values.widthPercent}
+          min={MIN_INLINE_WIDTH_PERCENT}
+          max={MAX_INLINE_WIDTH_PERCENT}
+          step={1}
+          precision={0}
+          unit="%"
+          disabled={disabled}
+          onChange={(width) => onApplyStyle({ widthScale: width / 100 })}
+        />
         <div className="rich-inline-font-field">
           <span>
             {t("editor.richText.font", { defaultValue: "글자 폰트" })}
@@ -856,11 +1036,256 @@ function InlineStylePanel({
             })}
             value={values.fontFamily}
             disabled={disabled}
-            onChange={onFontChange}
+            onChange={(fontFamily) =>
+              onApplyStyle({
+                fontFamily:
+                  mode === "code" && fontFamily === undefined
+                    ? DEFAULT_BLOCK_FONT_ID
+                    : (fontFamily ?? null),
+              })
+            }
           />
         </div>
       </div>
+      <div className="editor-appearance-list rich-inline-appearance-list">
+        <div className="editor-appearance-row">
+          <span className="editor-appearance-label">
+            {t("format.textColor")}
+          </span>
+          <ColorField
+            className="editor-appearance-color"
+            label={t("format.textColor")}
+            labelHidden
+            value={values.color}
+            disabled={disabled}
+            onChange={(color) => onApplyStyle({ color })}
+          />
+        </div>
+        <div className="editor-appearance-row">
+          <CheckboxField
+            className="editor-appearance-toggle"
+            label={t("editor.richText.background", {
+              defaultValue: "글자 배경",
+            })}
+            checked={values.backgroundEnabled}
+            disabled={disabled}
+            onCheckedChange={(enabled) =>
+              onApplyStyle({
+                backgroundColor: enabled ? values.backgroundColor : null,
+              })
+            }
+          />
+          {values.backgroundEnabled ? (
+            <ColorField
+              className="editor-appearance-color"
+              label={t("format.textBackground.color")}
+              labelHidden
+              value={values.backgroundColor}
+              disabled={disabled}
+              onChange={(backgroundColor) => onApplyStyle({ backgroundColor })}
+            />
+          ) : null}
+        </div>
+      </div>
+      <details className="rich-inline-effects">
+        <summary>
+          {t("editor.richText.effects", {
+            defaultValue: "외곽선 · 광선",
+          })}
+        </summary>
+        <InlineOutlineControls
+          disabled={disabled}
+          enabled={values.outlineEnabled}
+          label={t("format.outline")}
+          color={values.outlineColor}
+          widthPx={values.outlineWidthPx}
+          onEnabledChange={(enabled) =>
+            onApplyStyle({
+              outlineWidthPx: enabled ? Math.max(values.outlineWidthPx, 1) : 0,
+            })
+          }
+          onColorChange={(outlineColor) => onApplyStyle({ outlineColor })}
+          onWidthChange={(outlineWidthPx) => onApplyStyle({ outlineWidthPx })}
+        />
+        <InlineOutlineControls
+          disabled={disabled}
+          enabled={values.outerOutlineEnabled}
+          label={t("format.outerOutline.enabled")}
+          color={values.outerOutlineColor}
+          widthPx={values.outerOutlineWidthPx}
+          onEnabledChange={(enabled) =>
+            onApplyStyle({
+              outerOutlineWidthPx: enabled
+                ? Math.max(values.outerOutlineWidthPx, 1)
+                : 0,
+            })
+          }
+          onColorChange={(outerOutlineColor) =>
+            onApplyStyle({ outerOutlineColor })
+          }
+          onWidthChange={(outerOutlineWidthPx) =>
+            onApplyStyle({ outerOutlineWidthPx })
+          }
+        />
+        <div className="rich-inline-effect-row rich-inline-glow-row">
+          <CheckboxField
+            className="editor-appearance-toggle"
+            label={t("format.textGlow.title")}
+            checked={values.glowEnabled}
+            disabled={disabled}
+            onCheckedChange={(enabled) =>
+              onApplyStyle({ glowOpacity: enabled ? 0.75 : 0 })
+            }
+          />
+          {values.glowEnabled ? (
+            <>
+              <ColorField
+                className="editor-appearance-color"
+                label={t("format.textGlow.color")}
+                labelHidden
+                value={values.glowColor}
+                disabled={disabled}
+                onChange={(glowColor) => onApplyStyle({ glowColor })}
+              />
+              <InlineNumberField
+                label={t("format.textGlow.blur")}
+                value={values.glowBlurPx}
+                min={MIN_TEXT_GLOW_BLUR_PX}
+                max={MAX_TEXT_GLOW_BLUR_PX}
+                step={1}
+                precision={1}
+                unit="px"
+                disabled={disabled}
+                onChange={(glowBlurPx) => onApplyStyle({ glowBlurPx })}
+              />
+              <InlineNumberField
+                label={t("format.textGlow.opacity")}
+                value={values.glowOpacityPercent}
+                min={0}
+                max={100}
+                step={1}
+                precision={0}
+                unit="%"
+                disabled={disabled}
+                onChange={(opacity) =>
+                  onApplyStyle({ glowOpacity: opacity / 100 })
+                }
+              />
+            </>
+          ) : null}
+        </div>
+      </details>
     </section>
+  );
+}
+
+function InlineOutlineControls({
+  color,
+  disabled,
+  enabled,
+  label,
+  onColorChange,
+  onEnabledChange,
+  onWidthChange,
+  widthPx,
+}: {
+  color: string;
+  disabled: boolean;
+  enabled: boolean;
+  label: string;
+  onColorChange: (value: string) => void;
+  onEnabledChange: (value: boolean) => void;
+  onWidthChange: (value: number) => void;
+  widthPx: number;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="editor-appearance-row editor-outline-property-row rich-inline-effect-row">
+      <CheckboxField
+        className="editor-appearance-toggle"
+        label={label}
+        checked={enabled}
+        disabled={disabled}
+        onCheckedChange={onEnabledChange}
+      />
+      {enabled ? (
+        <>
+          <ColorField
+            className="editor-appearance-color"
+            label={label}
+            labelHidden
+            value={color}
+            disabled={disabled}
+            onChange={onColorChange}
+          />
+          <div className="rich-inline-outline-width">
+            <InlineNumberField
+              label={t("gatherText.outlineWidth")}
+              labelHidden
+              value={widthPx}
+              min={MIN_TEXT_OUTLINE_WIDTH_PX}
+              max={MAX_TEXT_OUTLINE_WIDTH_PX}
+              step={TEXT_OUTLINE_WIDTH_STEP_PX}
+              precision={1}
+              unit="px"
+              disabled={disabled}
+              onChange={onWidthChange}
+            />
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function InlineNumberField({
+  disabled,
+  label,
+  labelHidden = false,
+  max,
+  min,
+  mixed = false,
+  onChange,
+  precision,
+  step,
+  unit,
+  value,
+}: {
+  disabled: boolean;
+  label: string;
+  labelHidden?: boolean;
+  max: number;
+  min: number;
+  mixed?: boolean;
+  onChange: (value: number) => void;
+  precision: number;
+  step: number;
+  unit: string;
+  value: number;
+}): React.JSX.Element {
+  return (
+    <label className="rich-inline-number-field">
+      <span className={labelHidden ? "visually-hidden" : undefined}>
+        {label}
+      </span>
+      <NumberField
+        variant="framed"
+        ariaLabel={label}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        precision={precision}
+        useTextInput
+        selectOnFocus
+        unit={unit}
+        commitMode="change"
+        mixed={mixed}
+        placeholder="—"
+        disabled={disabled}
+        onValueChange={onChange}
+      />
+    </label>
   );
 }
 
@@ -874,41 +1299,131 @@ function resolveSelectionValues(
   const selected = selectRuns(runs, selection.start, selection.end);
   const candidates =
     selected.length > 0 ? selected : caretRun ? [caretRun] : [];
+  const base = createBaseSelectionValues(block);
   if (candidates.length === 0) {
-    return applyTypingStyleToValues(
-      {
-        bold: Boolean(block.bold),
-        italic: Boolean(block.italic),
-        sizePx: block.fontSizePx,
-        sizeMixed: false,
-        fontFamily: block.fontFamily,
-        fontMixed: false,
-        opacityPercent: normalizeOpacity(block.textOpacity) * 100,
-        opacityMixed: false,
-      },
-      typingStyle,
-      block,
-    );
+    return applyTypingStyleToValues(base, typingStyle, block);
   }
   const sizes = candidates.map((run) => run.sizePx ?? block.fontSizePx);
   const fonts = candidates.map((run) => run.fontFamily ?? block.fontFamily);
   const opacities = candidates.map(
     (run) => (run.opacity ?? normalizeOpacity(block.textOpacity)) * 100,
   );
+  const widths = candidates.map(
+    (run) => (run.widthScale ?? block.fontWidthScale ?? 1) * 100,
+  );
+  const colors = candidates.map(
+    (run) => run.color ?? resolveEffectiveTextColor(block),
+  );
+  const backgrounds = candidates.map((run) => run.backgroundColor);
+  const outlineColors = candidates.map(
+    (run) => run.outlineColor ?? resolveEffectiveTextOutlineColor(block),
+  );
+  const outlineWidths = candidates.map(
+    (run) =>
+      run.outlineWidthPx ??
+      resolveEffectiveTextOutlineWidthPx(block, block.fontSizePx),
+  );
+  const outerOutlineColors = candidates.map(
+    (run) => run.outerOutlineColor ?? block.outerOutlineColor ?? "#111111",
+  );
+  const outerOutlineWidths = candidates.map(
+    (run) => run.outerOutlineWidthPx ?? block.outerOutlineWidthPx ?? 0,
+  );
+  const glows = candidates.map((run) => resolveSelectionGlow(block, run));
   return applyTypingStyleToValues(
     {
       bold: candidates.every((run) => Boolean(block.bold) || run.bold),
       italic: candidates.every((run) => Boolean(block.italic) || run.italic),
+      underline: candidates.every(
+        (run) => Boolean(block.underline) || run.underline,
+      ),
+      strikethrough: candidates.every(
+        (run) => Boolean(block.strikethrough) || run.strikethrough,
+      ),
+      emphasisMark: candidates.every(
+        (run) => Boolean(block.emphasisMark) || run.emphasisMark,
+      ),
+      verticalCombine: candidates.every((run) => run.verticalCombine),
       sizePx: sizes[0] ?? block.fontSizePx,
       sizeMixed: !allEqual(sizes),
       fontFamily: fonts[0],
       fontMixed: !allEqual(fonts),
       opacityPercent: opacities[0] ?? normalizeOpacity(block.textOpacity) * 100,
       opacityMixed: !allEqual(opacities),
+      widthPercent: widths[0] ?? 100,
+      color: colors[0] ?? base.color,
+      backgroundEnabled: backgrounds.every(Boolean),
+      backgroundColor: backgrounds.find(Boolean) ?? base.backgroundColor,
+      outlineEnabled: outlineWidths.every((width) => width > 0),
+      outlineColor: outlineColors[0] ?? base.outlineColor,
+      outlineWidthPx: outlineWidths[0] ?? 0,
+      outerOutlineEnabled: outerOutlineWidths.every((width) => width > 0),
+      outerOutlineColor: outerOutlineColors[0] ?? base.outerOutlineColor,
+      outerOutlineWidthPx: outerOutlineWidths[0] ?? 0,
+      glowEnabled: glows.every((glow) => glow.enabled),
+      glowColor: glows[0]?.color ?? base.glowColor,
+      glowBlurPx: glows[0]?.blurPx ?? base.glowBlurPx,
+      glowOpacityPercent:
+        (glows[0]?.opacity ?? base.glowOpacityPercent / 100) * 100,
     },
     typingStyle,
     block,
   );
+}
+
+function createBaseSelectionValues(block: TranslationBlock): SelectionValues {
+  const glow = resolveTextGlow(block.textGlow);
+  return {
+    bold: Boolean(block.bold),
+    italic: Boolean(block.italic),
+    underline: Boolean(block.underline),
+    strikethrough: Boolean(block.strikethrough),
+    emphasisMark: Boolean(block.emphasisMark),
+    verticalCombine: false,
+    sizePx: block.fontSizePx,
+    sizeMixed: false,
+    fontFamily: block.fontFamily,
+    fontMixed: false,
+    opacityPercent: normalizeOpacity(block.textOpacity) * 100,
+    opacityMixed: false,
+    widthPercent: (block.fontWidthScale ?? 1) * 100,
+    color: resolveEffectiveTextColor(block),
+    backgroundEnabled: false,
+    backgroundColor: "#ffffff",
+    outlineEnabled:
+      resolveEffectiveTextOutlineWidthPx(block, block.fontSizePx) > 0,
+    outlineColor: resolveEffectiveTextOutlineColor(block),
+    outlineWidthPx: resolveEffectiveTextOutlineWidthPx(block, block.fontSizePx),
+    outerOutlineEnabled: (block.outerOutlineWidthPx ?? 0) > 0,
+    outerOutlineColor: block.outerOutlineColor ?? "#111111",
+    outerOutlineWidthPx: block.outerOutlineWidthPx ?? 0,
+    glowEnabled: glow.enabled,
+    glowColor: glow.color,
+    glowBlurPx: glow.blurPx,
+    glowOpacityPercent: glow.opacity * 100,
+  };
+}
+
+function resolveSelectionGlow(
+  block: TranslationBlock,
+  run: TextStyleRun,
+): { enabled: boolean; color: string; blurPx: number; opacity: number } {
+  const base = resolveTextGlow(block.textGlow);
+  const hasInline =
+    run.glowColor !== undefined ||
+    run.glowBlurPx !== undefined ||
+    run.glowOpacity !== undefined;
+  const opacity = hasInline
+    ? (run.glowOpacity ?? base.opacity)
+    : base.enabled
+      ? base.opacity
+      : 0;
+  return {
+    enabled: opacity > 0,
+    color: run.glowColor ?? base.color,
+    blurPx: run.glowBlurPx ?? base.blurPx,
+    opacity,
+  };
 }
 
 function selectRuns(
@@ -933,7 +1448,8 @@ function applyTypingStyleToValues(
   block: TranslationBlock,
 ): SelectionValues {
   if (!patch) return values;
-  return {
+  const fallback = createBaseSelectionValues(block);
+  const next: SelectionValues = {
     ...values,
     ...(patch.bold === undefined
       ? {}
@@ -941,6 +1457,18 @@ function applyTypingStyleToValues(
     ...(patch.italic === undefined
       ? {}
       : { italic: patch.italic ?? Boolean(block.italic) }),
+    ...(patch.underline === undefined
+      ? {}
+      : { underline: patch.underline ?? fallback.underline }),
+    ...(patch.strikethrough === undefined
+      ? {}
+      : { strikethrough: patch.strikethrough ?? fallback.strikethrough }),
+    ...(patch.emphasisMark === undefined
+      ? {}
+      : { emphasisMark: patch.emphasisMark ?? fallback.emphasisMark }),
+    ...(patch.verticalCombine === undefined
+      ? {}
+      : { verticalCombine: patch.verticalCombine ?? false }),
     ...(patch.sizePx === undefined
       ? {}
       : { sizePx: patch.sizePx ?? block.fontSizePx, sizeMixed: false }),
@@ -957,7 +1485,59 @@ function applyTypingStyleToValues(
             (patch.opacity ?? normalizeOpacity(block.textOpacity)) * 100,
           opacityMixed: false,
         }),
+    ...(patch.widthScale === undefined
+      ? {}
+      : {
+          widthPercent: (patch.widthScale ?? block.fontWidthScale ?? 1) * 100,
+        }),
+    ...(patch.color === undefined
+      ? {}
+      : { color: patch.color ?? fallback.color }),
+    ...(patch.backgroundColor === undefined
+      ? {}
+      : {
+          backgroundEnabled: patch.backgroundColor !== null,
+          backgroundColor: patch.backgroundColor ?? fallback.backgroundColor,
+        }),
+    ...(patch.outlineColor === undefined
+      ? {}
+      : { outlineColor: patch.outlineColor ?? fallback.outlineColor }),
+    ...(patch.outlineWidthPx === undefined
+      ? {}
+      : {
+          outlineEnabled: (patch.outlineWidthPx ?? fallback.outlineWidthPx) > 0,
+          outlineWidthPx: patch.outlineWidthPx ?? fallback.outlineWidthPx,
+        }),
+    ...(patch.outerOutlineColor === undefined
+      ? {}
+      : {
+          outerOutlineColor:
+            patch.outerOutlineColor ?? fallback.outerOutlineColor,
+        }),
+    ...(patch.outerOutlineWidthPx === undefined
+      ? {}
+      : {
+          outerOutlineEnabled:
+            (patch.outerOutlineWidthPx ?? fallback.outerOutlineWidthPx) > 0,
+          outerOutlineWidthPx:
+            patch.outerOutlineWidthPx ?? fallback.outerOutlineWidthPx,
+        }),
+    ...(patch.glowColor === undefined
+      ? {}
+      : { glowColor: patch.glowColor ?? fallback.glowColor }),
+    ...(patch.glowBlurPx === undefined
+      ? {}
+      : { glowBlurPx: patch.glowBlurPx ?? fallback.glowBlurPx }),
+    ...(patch.glowOpacity === undefined
+      ? {}
+      : {
+          glowEnabled:
+            (patch.glowOpacity ?? fallback.glowOpacityPercent / 100) > 0,
+          glowOpacityPercent:
+            (patch.glowOpacity ?? fallback.glowOpacityPercent / 100) * 100,
+        }),
   };
+  return next;
 }
 
 function allEqual<T>(values: readonly T[]): boolean {

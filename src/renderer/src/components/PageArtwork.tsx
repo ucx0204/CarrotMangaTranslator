@@ -46,6 +46,7 @@ export const ArtworkBlock = React.memo(function ArtworkBlock({
     >
       <div className="overlay-transform-content" style={model.contentStyle}>
         {chrome}
+        <TextBackgroundLayer block={block} />
         <ArtworkBlockText
           block={block}
           fontCatalog={fontCatalog}
@@ -57,6 +58,21 @@ export const ArtworkBlock = React.memo(function ArtworkBlock({
     </div>
   );
 });
+
+function TextBackgroundLayer({
+  block,
+}: {
+  block: TranslationBlock;
+}): React.JSX.Element | null {
+  if (!block.textBackgroundEnabled) return null;
+  return (
+    <div
+      aria-hidden="true"
+      className="text-background-layer"
+      style={{ backgroundColor: block.textBackgroundColor ?? "#ffffff" }}
+    />
+  );
+}
 
 function ArtworkBlockText({
   block,

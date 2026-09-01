@@ -15,8 +15,9 @@ import {
   type TextStylePatch,
   type TextStyleRun,
 } from "./richTextMarkup";
-import type { TextEffect, TranslationBlock } from "./textTypes";
+import type { TextEffect, TextGlow, TranslationBlock } from "./textTypes";
 import { DEFAULT_TEXT_EFFECT, resolveTextEffect } from "./textEffect";
+import { DEFAULT_TEXT_GLOW, resolveTextGlow } from "./textGlow";
 import type { GlossaryEntry } from "./workContextTypes";
 import {
   createConditionalLiteralMatcher,
@@ -537,6 +538,9 @@ function applySetFieldChange(
   if (TEXT_EFFECT_WRITABLE_FIELDS.has(change.field)) {
     return applyTextEffectFieldChange(block, change);
   }
+  if (TEXT_GLOW_WRITABLE_FIELDS.has(change.field)) {
+    return applyTextGlowFieldChange(block, change);
+  }
   const updated = { ...block } as TranslationBlock & Record<string, unknown>;
   if (change.operation === "clear") {
     delete updated[change.field];
@@ -795,41 +799,7 @@ function fillMissingStyles(
     const from = Math.max(start, offset);
     const to = Math.min(end, runEnd);
     if (from < to) {
-      const fillPatch: TextStylePatch = {};
-      if (patch.bold !== undefined && patch.bold !== null && !run.bold) {
-        fillPatch.bold = patch.bold;
-      }
-      if (patch.italic !== undefined && patch.italic !== null && !run.italic) {
-        fillPatch.italic = patch.italic;
-      }
-      if (
-        patch.sizePx !== undefined &&
-        patch.sizePx !== null &&
-        run.sizePx === undefined
-      ) {
-        fillPatch.sizePx = patch.sizePx;
-      }
-      if (
-        patch.fontFamily !== undefined &&
-        patch.fontFamily !== null &&
-        run.fontFamily === undefined
-      ) {
-        fillPatch.fontFamily = patch.fontFamily;
-      }
-      if (
-        patch.opacity !== undefined &&
-        patch.opacity !== null &&
-        run.opacity === undefined
-      ) {
-        fillPatch.opacity = patch.opacity;
-      }
-      if (
-        patch.verticalCombine !== undefined &&
-        patch.verticalCombine !== null &&
-        run.verticalCombine === undefined
-      ) {
-        fillPatch.verticalCombine = patch.verticalCombine;
-      }
+      const fillPatch = buildMissingStylePatch(run, patch);
       if (Object.keys(fillPatch).length > 0) {
         updated = applyTextStyleToRuns(updated, from, to, fillPatch);
       }
@@ -838,6 +808,54 @@ function fillMissingStyles(
   }
   return updated;
 }
+
+function buildMissingStylePatch(
+  run: TextStyleRun,
+  patch: TextStylePatch,
+): TextStylePatch {
+  const result: TextStylePatch = {};
+  for (const key of TEXT_STYLE_PATCH_FIELDS) {
+    const value = patch[key];
+    if (value === undefined || value === null) continue;
+    const current = run[key];
+    const missing = TEXT_STYLE_BOOLEAN_FIELDS.has(key)
+      ? !current
+      : current === undefined;
+    if (missing) Object.assign(result, { [key]: value });
+  }
+  return result;
+}
+
+const TEXT_STYLE_PATCH_FIELDS = [
+  "bold",
+  "italic",
+  "underline",
+  "strikethrough",
+  "emphasisMark",
+  "sizePx",
+  "fontFamily",
+  "opacity",
+  "widthScale",
+  "color",
+  "backgroundColor",
+  "outlineColor",
+  "outlineWidthPx",
+  "outerOutlineColor",
+  "outerOutlineWidthPx",
+  "glowColor",
+  "glowBlurPx",
+  "glowOpacity",
+  "verticalCombine",
+] as const satisfies readonly (keyof TextStylePatch & keyof TextStyleRun)[];
+
+const TEXT_STYLE_BOOLEAN_FIELDS = new Set<keyof TextStylePatch>([
+  "bold",
+  "italic",
+  "underline",
+  "strikethrough",
+  "emphasisMark",
+  "verticalCombine",
+]);
 
 function evaluateConditionGroup(
   group: ConditionalBatchConditionGroupV2,
@@ -1237,6 +1255,9 @@ function resolveActionTargetFields(
     if (patch.textEffect !== undefined) {
       fields.push(...TEXT_EFFECT_WRITABLE_FIELD_LIST);
     }
+    if (patch.textGlow !== undefined) {
+      fields.push(...TEXT_GLOW_WRITABLE_FIELD_LIST);
+    }
   }
   return uniqueWritableFields(fields);
 }
@@ -1264,6 +1285,14 @@ export function readConditionalBatchWritableValue(
       return block.textEffect?.blurPx;
     case "textEffectOpacity":
       return block.textEffect?.opacity;
+    case "textGlowEnabled":
+      return Boolean(block.textGlow?.enabled);
+    case "textGlowColor":
+      return block.textGlow?.color;
+    case "textGlowBlur":
+      return block.textGlow?.blurPx;
+    case "textGlowOpacity":
+      return block.textGlow?.opacity;
     default:
       return block[field];
   }
@@ -1296,6 +1325,32 @@ function applyTextEffectFieldChange(
     ...block,
     textEffect: { ...effect, [property]: value },
   };
+}
+
+function applyTextGlowFieldChange(
+  block: TranslationBlock,
+  change: {
+    field: ConditionalBatchWritableField;
+    operation: "set" | "clear";
+    value?: string | number | boolean | string[] | null;
+  },
+): TranslationBlock {
+  if (!TEXT_GLOW_WRITABLE_FIELDS.has(change.field)) return block;
+  if (change.operation === "clear" && change.field === "textGlowEnabled") {
+    if (block.textGlow === undefined) return block;
+    const next = { ...block };
+    delete next.textGlow;
+    return next;
+  }
+  const glow = resolveTextGlow(block.textGlow);
+  const property = TEXT_GLOW_PROPERTY_BY_FIELD[change.field];
+  if (!property) return block;
+  const value =
+    change.operation === "clear"
+      ? DEFAULT_TEXT_GLOW[property]
+      : normalizeWritableValue(change.field, change.value);
+  if (value === INVALID_VALUE) return block;
+  return { ...block, textGlow: { ...glow, [property]: value } };
 }
 
 function selectScopePages(
@@ -1381,10 +1436,17 @@ const WRITABLE_FIELDS: readonly ConditionalBatchWritableField[] = [
   "textOpacity",
   "outlineWidthPx",
   "outlineWidthScale",
+  "outerOutlineWidthPx",
   "textColor",
   "outlineColor",
+  "outerOutlineColor",
+  "textBackgroundColor",
   "bold",
   "italic",
+  "underline",
+  "strikethrough",
+  "emphasisMark",
+  "textBackgroundEnabled",
   "autoFitText",
   "inpaintExcluded",
   "textEffectEnabled",
@@ -1393,6 +1455,10 @@ const WRITABLE_FIELDS: readonly ConditionalBatchWritableField[] = [
   "textEffectOffsetY",
   "textEffectBlur",
   "textEffectOpacity",
+  "textGlowEnabled",
+  "textGlowColor",
+  "textGlowBlur",
+  "textGlowOpacity",
 ];
 
 const STRING_FIELDS = new Set<ConditionalBatchWritableField>([
@@ -1409,7 +1475,10 @@ const STRING_FIELDS = new Set<ConditionalBatchWritableField>([
   "reviewStatus",
   "textColor",
   "outlineColor",
+  "outerOutlineColor",
+  "textBackgroundColor",
   "textEffectColor",
+  "textGlowColor",
 ]);
 
 const NUMBER_FIELDS = new Set<ConditionalBatchWritableField>([
@@ -1421,18 +1490,26 @@ const NUMBER_FIELDS = new Set<ConditionalBatchWritableField>([
   "textOpacity",
   "outlineWidthPx",
   "outlineWidthScale",
+  "outerOutlineWidthPx",
   "textEffectOffsetX",
   "textEffectOffsetY",
   "textEffectBlur",
   "textEffectOpacity",
+  "textGlowBlur",
+  "textGlowOpacity",
 ]);
 
 const BOOLEAN_FIELDS = new Set<ConditionalBatchWritableField>([
   "bold",
   "italic",
+  "underline",
+  "strikethrough",
+  "emphasisMark",
+  "textBackgroundEnabled",
   "autoFitText",
   "inpaintExcluded",
   "textEffectEnabled",
+  "textGlowEnabled",
 ]);
 
 const TEXT_EFFECT_WRITABLE_FIELD_LIST = [
@@ -1457,6 +1534,26 @@ const TEXT_EFFECT_PROPERTY_BY_FIELD: Partial<
   textEffectOffsetY: "offsetYpx",
   textEffectBlur: "blurPx",
   textEffectOpacity: "opacity",
+};
+
+const TEXT_GLOW_WRITABLE_FIELD_LIST = [
+  "textGlowEnabled",
+  "textGlowColor",
+  "textGlowBlur",
+  "textGlowOpacity",
+] as const satisfies readonly ConditionalBatchWritableField[];
+
+const TEXT_GLOW_WRITABLE_FIELDS = new Set<ConditionalBatchWritableField>(
+  TEXT_GLOW_WRITABLE_FIELD_LIST,
+);
+
+const TEXT_GLOW_PROPERTY_BY_FIELD: Partial<
+  Record<ConditionalBatchWritableField, keyof TextGlow>
+> = {
+  textGlowEnabled: "enabled",
+  textGlowColor: "color",
+  textGlowBlur: "blurPx",
+  textGlowOpacity: "opacity",
 };
 
 const INVALID_VALUE = Symbol("invalid-conditional-batch-value");

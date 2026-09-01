@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- schema, engine, storage, and extended text-appearance regressions share one conditional-rule fixture */
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -25,6 +26,7 @@ import {
 } from "../src/shared/conditionalBatchEngine";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import { parseRichText } from "../src/shared/richTextMarkup";
 import {
   createConditionalLiteralMatcher,
   createConditionalLiteralReplacement,
@@ -185,6 +187,19 @@ describe("conditional batch v2 matching and preview", () => {
       renderDirection: "vertical",
       textColor: "#112233",
       bold: true,
+      underline: true,
+      strikethrough: true,
+      emphasisMark: true,
+      textBackgroundEnabled: true,
+      textBackgroundColor: "#fefefe",
+      outerOutlineColor: "#220011",
+      outerOutlineWidthPx: 3,
+      textGlow: {
+        enabled: true,
+        color: "#ff8800",
+        blurPx: 8,
+        opacity: 0.65,
+      },
       reviewStatus: "needs_review",
       bbox: { x: 0, y: 0, w: 500, h: 250 },
     };
@@ -195,6 +210,17 @@ describe("conditional batch v2 matching and preview", () => {
         condition("confidence", "between", 0.6, { value2: 0.7 }),
         condition("textColor", "near", "#102234", { tolerance: 2 }),
         condition("bold", "isTrue"),
+        condition("underline", "isTrue"),
+        condition("strikethrough", "isTrue"),
+        condition("emphasisMark", "isTrue"),
+        condition("textBackgroundEnabled", "isTrue"),
+        condition("textBackgroundColor", "equals", "#fefefe"),
+        condition("outerOutlineColor", "equals", "#220011"),
+        condition("outerOutlineWidthPx", "greaterThanOrEqual", 3),
+        condition("textGlowEnabled", "isTrue"),
+        condition("textGlowColor", "equals", "#ff8800"),
+        condition("textGlowBlur", "equals", 8),
+        condition("textGlowOpacity", "equals", 0.65),
         condition("bboxAspectRatio", "equals", 2),
         condition("numberMismatch", "isTrue"),
         condition("suspiciousWhitespace", "isTrue"),
@@ -432,6 +458,96 @@ describe("conditional batch v2 actions", () => {
     ).toBe("#abcdef");
   });
 
+  it("sets and clears the complete block text appearance through field actions", () => {
+    const chapter = singleBlockChapter("텍스트");
+    const appearance: ConditionalBatchSchemeDraftV2 = {
+      name: "전체 글자 모양",
+      description: "",
+      match: allBlocksMatch(),
+      actions: [
+        {
+          id: "appearance",
+          enabled: true,
+          type: "setFields",
+          changes: [
+            { field: "underline", operation: "set", value: true },
+            { field: "strikethrough", operation: "set", value: true },
+            { field: "emphasisMark", operation: "set", value: true },
+            { field: "textBackgroundEnabled", operation: "set", value: true },
+            {
+              field: "textBackgroundColor",
+              operation: "set",
+              value: "#fefefe",
+            },
+            {
+              field: "outerOutlineColor",
+              operation: "set",
+              value: "#220011",
+            },
+            { field: "outerOutlineWidthPx", operation: "set", value: 3 },
+            { field: "textGlowEnabled", operation: "set", value: true },
+            {
+              field: "textGlowColor",
+              operation: "set",
+              value: "#ff8800",
+            },
+            { field: "textGlowBlur", operation: "set", value: 8 },
+            { field: "textGlowOpacity", operation: "set", value: 0.65 },
+          ],
+        },
+      ],
+    };
+    const after = createConditionalBatchPreview(
+      chapter,
+      { kind: "chapter" },
+      appearance,
+    ).results[0]?.afterBlock;
+    expect(after).toMatchObject({
+      underline: true,
+      strikethrough: true,
+      emphasisMark: true,
+      textBackgroundEnabled: true,
+      textBackgroundColor: "#fefefe",
+      outerOutlineColor: "#220011",
+      outerOutlineWidthPx: 3,
+      textGlow: {
+        enabled: true,
+        color: "#ff8800",
+        blurPx: 8,
+        opacity: 0.65,
+      },
+    });
+
+    const cleared: ConditionalBatchSchemeDraftV2 = {
+      ...appearance,
+      actions: [
+        {
+          id: "clear-glow",
+          enabled: true,
+          type: "setFields",
+          changes: [{ field: "textGlowEnabled", operation: "clear" }],
+        },
+      ],
+    };
+    expect(
+      createConditionalBatchPreview(
+        {
+          ...chapter,
+          pages: chapter.pages.map((page) => ({
+            ...page,
+            blocks: page.blocks.map((block) => ({ ...block, ...after })),
+          })),
+        },
+        { kind: "chapter" },
+        cleared,
+      ).results[0]?.afterBlock.textGlow,
+    ).toBeUndefined();
+    expect(
+      createConditionalBatchPreview(chapter, { kind: "chapter" }, cleared)
+        .results,
+    ).toHaveLength(0);
+  });
+
   it("applies, fills, and replaces inline styles only inside matched ranges", () => {
     const chapter = singleBlockChapter("앞 찾기 뒤");
     const overwrite = styleScheme({
@@ -512,6 +628,72 @@ describe("conditional batch v2 actions", () => {
     });
     expect(previewText(mixedStyles, anyExistingStyle)).toBe(
       "평문 ***굵게*** [size=30]*큰글자*[/size] [size=30]***둘다***[/size]",
+    );
+  });
+
+  it("applies and matches the complete inline visual style set", () => {
+    const chapter = singleBlockChapter("앞 효과 뒤");
+    const styled = styleScheme({
+      scope: "pattern",
+      find: "효과",
+      styleMode: "overwrite",
+      patch: {
+        underline: true,
+        strikethrough: true,
+        emphasisMark: true,
+        widthScale: 1.2,
+        color: "#112233",
+        backgroundColor: "#fefefe",
+        outlineColor: "#ffffff",
+        outlineWidthPx: 2,
+        outerOutlineColor: "#000000",
+        outerOutlineWidthPx: 3,
+        glowColor: "#ff8800",
+        glowBlurPx: 6,
+        glowOpacity: 0.65,
+      },
+    });
+    const styledText = previewText(chapter, styled);
+    if (styledText === undefined) throw new Error("Expected styled preview");
+    const effectRun = parseRichText(styledText).runs.find(
+      (run) => run.text === "효과",
+    );
+    expect(effectRun).toMatchObject({
+      underline: true,
+      strikethrough: true,
+      emphasisMark: true,
+      widthScale: 1.2,
+      color: "#112233",
+      backgroundColor: "#fefefe",
+      outlineWidthPx: 2,
+      outerOutlineWidthPx: 3,
+      glowBlurPx: 6,
+      glowOpacity: 0.65,
+    });
+
+    const matched = styleScheme({
+      scope: "allText",
+      matchStyle: {
+        logic: "all",
+        conditions: [
+          {
+            id: "background",
+            field: "backgroundColor",
+            operator: "equals",
+            value: "#fefefe",
+          },
+          {
+            id: "outer",
+            field: "outerOutlineWidthPx",
+            operator: "greaterThanOrEqual",
+            value: 3,
+          },
+        ],
+      },
+      patch: { italic: true },
+    });
+    expect(previewText(singleBlockChapter(styledText), matched)).toContain(
+      "*효과*",
     );
   });
 });
@@ -715,6 +897,36 @@ describe("conditional batch v2 schema and storage", () => {
         ],
       }).success,
     ).toBe(false);
+    expect(
+      ConditionalBatchSchemeDraftV2Schema.safeParse({
+        ...valid,
+        match: {
+          mode: "all",
+          conditions: [condition("underline", "contains", true)],
+          groups: [],
+        },
+      }).success,
+    ).toBe(false);
+    for (const change of [
+      { field: "underline", operation: "set", value: "yes" },
+      { field: "outerOutlineWidthPx", operation: "set", value: 100 },
+      { field: "textBackgroundColor", operation: "set", value: "white" },
+      { field: "renderDirection", operation: "set", value: "diagonal" },
+    ] as const) {
+      expect(
+        ConditionalBatchSchemeDraftV2Schema.safeParse({
+          ...valid,
+          actions: [
+            {
+              id: `invalid-${change.field}`,
+              enabled: true,
+              type: "setFields",
+              changes: [change],
+            },
+          ],
+        }).success,
+      ).toBe(false);
+    }
   });
 
   it("saves v1 YAML atomically, round-trips, updates, and deletes", async () => {

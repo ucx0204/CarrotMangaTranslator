@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { TextStyleRun } from "../src/shared/richTextMarkup";
 import {
+  clearRichTextEditorSelectionPreview,
   extractRichTextEditorRuns,
   getRichTextEditorCaretRun,
   getRichTextEditorSelection,
@@ -37,6 +38,19 @@ describe("rich text editor DOM", () => {
         sizePx: 40,
         fontFamily: "display",
         opacity: 0.45,
+        underline: true,
+        strikethrough: true,
+        emphasisMark: true,
+        widthScale: 1.2,
+        color: "#112233",
+        backgroundColor: "#fefefe",
+        outlineColor: "#ffffff",
+        outlineWidthPx: 2,
+        outerOutlineColor: "#000000",
+        outerOutlineWidthPx: 3,
+        glowColor: "#ff8800",
+        glowBlurPx: 6,
+        glowOpacity: 0.65,
         verticalCombine: true,
       },
     ];
@@ -115,6 +129,8 @@ describe("rich text editor DOM", () => {
         .join(""),
     ).toBe("나다");
     expect(extractRichTextEditorRuns(root)).toEqual(runs);
+    clearRichTextEditorSelectionPreview(root);
+    expect(root.querySelector("[data-rich-text-selection]")).toBeNull();
   });
 
   it("pastes plain text without preserving arbitrary external HTML", () => {

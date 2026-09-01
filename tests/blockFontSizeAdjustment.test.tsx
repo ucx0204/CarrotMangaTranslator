@@ -551,6 +551,178 @@ describe("selected block font-size adjustment", () => {
     );
   });
 
+  it("edits the complete visual style set on a selected character range", () => {
+    const onUpdate = vi.fn();
+    const translatedText =
+      "[underline][strike][emphasis][tcy][size=30][font=nanum-gothic][opacity=80][width=1.2][color=#112233][background=#fefefe][outline-color=#ffffff][outline-width=2][outer-outline-color=#000000][outer-outline-width=3][glow-color=#ff8800][glow-blur=6][glow-opacity=0.65]효과[/glow-opacity][/glow-blur][/glow-color][/outer-outline-width][/outer-outline-color][/outline-width][/outline-color][/background][/color][/width][/opacity][/font][/size][/tcy][/emphasis][/strike][/underline]";
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ translatedText })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+
+    const editor = screen.getByRole("textbox", { name: "번역문" });
+    const textNode = Array.from(
+      editor.querySelectorAll<HTMLElement>("[data-rich-text-run]"),
+    ).find((run) => run.textContent === "효과")?.firstChild;
+    if (!(textNode instanceof Text)) {
+      throw new Error("Expected a fully styled visual run");
+    }
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    document.getSelection()?.removeAllRanges();
+    document.getSelection()?.addRange(range);
+    act(() => document.dispatchEvent(new Event("selectionchange")));
+
+    const panel = screen.getByRole("region", { name: "글자별 서식" });
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "블록 전체 밑줄" }),
+    );
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "블록 전체 취소선" }),
+    );
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "블록 전체 강조점" }),
+    );
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "세로쓰기 영문 묶음" }),
+    );
+    fireEvent.change(within(panel).getByRole("textbox", { name: "장평" }), {
+      target: { value: "135" },
+    });
+    fireEvent.change(
+      within(panel).getByRole("textbox", { name: "글자색 HEX" }),
+      { target: { value: "#334455" } },
+    );
+    fireEvent.change(
+      within(panel).getByRole("textbox", { name: "배경색 HEX" }),
+      { target: { value: "#fff4cc" } },
+    );
+
+    fireEvent.click(within(panel).getByText("외곽선 · 광선"));
+    fireEvent.change(
+      within(panel).getByRole("textbox", { name: "외곽선 HEX" }),
+      { target: { value: "#ddeeff" } },
+    );
+    fireEvent.change(
+      within(panel).getByRole("textbox", { name: "바깥 외곽선 HEX" }),
+      { target: { value: "#101820" } },
+    );
+    const outlineWidths = within(panel).getAllByRole("textbox", {
+      name: "외곽선 굵기",
+    });
+    fireEvent.change(outlineWidths[0] as HTMLInputElement, {
+      target: { value: "2.5" },
+    });
+    fireEvent.change(outlineWidths[1] as HTMLInputElement, {
+      target: { value: "4" },
+    });
+    fireEvent.change(
+      within(panel).getByRole("textbox", { name: "광선 색상 HEX" }),
+      { target: { value: "#ff4400" } },
+    );
+    fireEvent.change(within(panel).getByRole("textbox", { name: "퍼짐" }), {
+      target: { value: "9" },
+    });
+    fireEvent.change(within(panel).getByRole("textbox", { name: "불투명도" }), {
+      target: { value: "55" },
+    });
+
+    expect(onUpdate.mock.calls.length).toBeGreaterThanOrEqual(12);
+  });
+
+  it("generates safe inline markup for every advanced control in code mode", () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({
+            translatedText: "효과",
+            outlineColor: "#ffffff",
+            outlineWidthPx: 2,
+            outerOutlineColor: "#111111",
+            outerOutlineWidthPx: 3,
+            textGlow: {
+              enabled: true,
+              color: "#ff8800",
+              blurPx: 6,
+              opacity: 0.65,
+            },
+          })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    const code = screen.getByRole("textbox", {
+      name: "번역문 서식 코드",
+    }) as HTMLTextAreaElement;
+    code.setSelectionRange(0, 2);
+    fireEvent.select(code);
+    const panel = screen.getByRole("region", { name: "글자별 서식" });
+
+    for (const name of [
+      "블록 전체 밑줄",
+      "블록 전체 취소선",
+      "블록 전체 강조점",
+      "세로쓰기 영문 묶음",
+    ]) {
+      fireEvent.click(within(panel).getByRole("button", { name }));
+    }
+    fireEvent.change(
+      within(panel).getByRole("textbox", { name: "글자 크기" }),
+      { target: { value: "36" } },
+    );
+    fireEvent.change(
+      within(panel).getByRole("textbox", { name: "글자 투명도" }),
+      { target: { value: "70" } },
+    );
+    fireEvent.change(within(panel).getByRole("textbox", { name: "장평" }), {
+      target: { value: "125" },
+    });
+    fireEvent.change(
+      within(panel).getByRole("textbox", { name: "글자색 HEX" }),
+      { target: { value: "#123456" } },
+    );
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "글자 배경" }));
+    fireEvent.click(within(panel).getByText("외곽선 · 광선"));
+    fireEvent.change(
+      within(panel).getByRole("textbox", { name: "외곽선 HEX" }),
+      { target: { value: "#abcdef" } },
+    );
+    fireEvent.change(
+      within(panel).getByRole("textbox", { name: "바깥 외곽선 HEX" }),
+      { target: { value: "#010203" } },
+    );
+    fireEvent.change(
+      within(panel).getByRole("textbox", { name: "광선 색상 HEX" }),
+      { target: { value: "#ff5500" } },
+    );
+
+    const generated = onUpdate.mock.calls
+      .map(([patch]) => (patch as Partial<TranslationBlock>).translatedText)
+      .filter((value): value is string => typeof value === "string");
+    expect(generated.some((value) => value.includes("[underline]"))).toBe(true);
+    expect(generated.some((value) => value.includes("[width=1.25]"))).toBe(
+      true,
+    );
+    expect(
+      generated.some((value) => value.includes("[glow-color=#ff5500]")),
+    ).toBe(true);
+  });
+
   it("shows the actual character formatting at the visual caret", () => {
     render(
       <FontsTestProvider>
@@ -1095,6 +1267,33 @@ describe("selected block font-size adjustment", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "블록 전체 굵게" }));
     expect(presetTrigger.textContent).toContain("프리셋 선택");
+  });
+
+  it("exposes every whole-block character decoration as a direct format action", () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock()}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+
+    selectEditorTab("서식");
+    fireEvent.click(screen.getByRole("button", { name: "블록 전체 기울임" }));
+    fireEvent.click(screen.getByRole("button", { name: "블록 전체 밑줄" }));
+    fireEvent.click(screen.getByRole("button", { name: "블록 전체 취소선" }));
+    fireEvent.click(screen.getByRole("button", { name: "블록 전체 강조점" }));
+
+    expect(onUpdate).toHaveBeenCalledWith({ italic: true });
+    expect(onUpdate).toHaveBeenCalledWith({ underline: true });
+    expect(onUpdate).toHaveBeenCalledWith({ strikethrough: true });
+    expect(onUpdate).toHaveBeenCalledWith({ emphasisMark: true });
   });
 
   it("reveals layout for a newly entered transform mode without trapping tabs", () => {

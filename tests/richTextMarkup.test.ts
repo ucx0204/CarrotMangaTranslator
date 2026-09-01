@@ -5,6 +5,7 @@ import {
   parseRichText,
   serializeRichTextRuns,
   stripRichTextMarkup,
+  type TextStyleRun,
 } from "../src/shared/richTextMarkup";
 
 describe("parseRichText", () => {
@@ -165,6 +166,40 @@ describe("parseRichText", () => {
       { text: "가", bold: false, italic: false, sizePx: 20 },
       { text: "나", bold: false, italic: false, sizePx: 40 },
       { text: "다", bold: false, italic: false, sizePx: 20 },
+    ]);
+  });
+
+  it("round-trips the complete per-character visual style set", () => {
+    const runs = [
+      {
+        text: "효과",
+        bold: true,
+        italic: false,
+        underline: true,
+        strikethrough: true,
+        emphasisMark: true,
+        sizePx: 36,
+        fontFamily: "mgt-effect",
+        opacity: 0.8,
+        widthScale: 1.25,
+        color: "#112233",
+        backgroundColor: "#fefefe",
+        outlineColor: "#ffffff",
+        outlineWidthPx: 2,
+        outerOutlineColor: "#000000",
+        outerOutlineWidthPx: 3,
+        glowColor: "#ff8800",
+        glowBlurPx: 6,
+        glowOpacity: 0.65,
+        verticalCombine: true,
+      },
+    ] satisfies TextStyleRun[];
+
+    const serialized = serializeRichTextRuns(runs);
+    expect(parseRichText(serialized).runs).toEqual(runs);
+    expect(parseRichText(serialized).plainText).toBe("효과");
+    expect(clearTextStylesFromRuns(runs)).toEqual([
+      { text: "효과", bold: false, italic: false },
     ]);
   });
 });

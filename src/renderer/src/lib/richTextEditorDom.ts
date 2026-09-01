@@ -2,12 +2,15 @@ import {
   mergeTextStyleRuns,
   type TextStyleRun,
 } from "../../../shared/richTextMarkup";
+import type { TranslationBlock } from "../../../shared/textTypes";
+import { resolveMainRunVisualStyle } from "./textRunVisualStyles";
 
 const RUN_ATTRIBUTE = "data-rich-text-run";
 const SELECTION_ATTRIBUTE = "data-rich-text-selection";
 const BLOCK_ELEMENTS = new Set(["DIV", "P", "LI"]);
 
 export type RichTextEditorRenderOptions = {
+  block?: TranslationBlock;
   baseBold: boolean;
   baseItalic: boolean;
   baseFontSizePx: number;
@@ -249,20 +252,69 @@ function findTextPosition(
 }
 
 function readRunStyle(element: HTMLElement): Omit<TextStyleRun, "text"> {
-  const sizePx = parseOptionalNumber(element.dataset.sizePx);
-  const opacity = parseOptionalNumber(element.dataset.opacity);
-  return {
+  const style: Omit<TextStyleRun, "text"> = {
     bold: element.dataset.bold === "true",
     italic: element.dataset.italic === "true",
-    ...(sizePx === undefined ? {} : { sizePx }),
-    ...(element.dataset.fontFamily
-      ? { fontFamily: element.dataset.fontFamily }
-      : {}),
-    ...(opacity === undefined ? {} : { opacity }),
-    ...(element.dataset.verticalCombine === "true"
-      ? { verticalCombine: true }
-      : {}),
   };
+  copyBooleanDatasetStyles(style, element);
+  copyStringDatasetStyles(style, element);
+  copyNumberDatasetStyles(style, element);
+  return style;
+}
+
+const BOOLEAN_RUN_STYLE_FIELDS = [
+  "underline",
+  "strikethrough",
+  "emphasisMark",
+  "verticalCombine",
+] as const satisfies readonly (keyof TextStyleRun)[];
+
+const STRING_RUN_STYLE_FIELDS = [
+  "fontFamily",
+  "color",
+  "backgroundColor",
+  "outlineColor",
+  "outerOutlineColor",
+  "glowColor",
+] as const satisfies readonly (keyof TextStyleRun)[];
+
+const NUMBER_RUN_STYLE_FIELDS = [
+  "sizePx",
+  "opacity",
+  "widthScale",
+  "outlineWidthPx",
+  "outerOutlineWidthPx",
+  "glowBlurPx",
+  "glowOpacity",
+] as const satisfies readonly (keyof TextStyleRun)[];
+
+function copyBooleanDatasetStyles(
+  style: Omit<TextStyleRun, "text">,
+  element: HTMLElement,
+): void {
+  for (const key of BOOLEAN_RUN_STYLE_FIELDS) {
+    if (element.dataset[key] === "true") Object.assign(style, { [key]: true });
+  }
+}
+
+function copyStringDatasetStyles(
+  style: Omit<TextStyleRun, "text">,
+  element: HTMLElement,
+): void {
+  for (const key of STRING_RUN_STYLE_FIELDS) {
+    const value = element.dataset[key];
+    if (value) Object.assign(style, { [key]: value });
+  }
+}
+
+function copyNumberDatasetStyles(
+  style: Omit<TextStyleRun, "text">,
+  element: HTMLElement,
+): void {
+  for (const key of NUMBER_RUN_STYLE_FIELDS) {
+    const value = parseOptionalNumber(element.dataset[key]);
+    if (value !== undefined) Object.assign(style, { [key]: value });
+  }
 }
 
 function parseOptionalNumber(value: string | undefined): number | undefined {
@@ -282,10 +334,7 @@ function createRunSpan(
   span.setAttribute(RUN_ATTRIBUTE, "");
   span.dataset.bold = run.bold ? "true" : "false";
   span.dataset.italic = run.italic ? "true" : "false";
-  if (run.sizePx !== undefined) span.dataset.sizePx = String(run.sizePx);
-  if (run.fontFamily) span.dataset.fontFamily = run.fontFamily;
-  if (run.opacity !== undefined) span.dataset.opacity = String(run.opacity);
-  span.dataset.verticalCombine = String(Boolean(run.verticalCombine));
+  copyRunDatasetStyles(span, run);
 
   const absoluteSize = run.sizePx ?? baseSize;
   span.style.fontSize = `${clampPreviewFontSize((absoluteSize / baseSize) * 16)}px`;
@@ -293,8 +342,29 @@ function createRunSpan(
   span.style.fontWeight = options.baseBold || run.bold ? "800" : "400";
   span.style.fontStyle = options.baseItalic || run.italic ? "italic" : "normal";
   span.style.opacity = String(run.opacity ?? options.baseOpacity);
+  if (options.block) {
+    Object.assign(
+      span.style,
+      resolveMainRunVisualStyle(
+        options.block,
+        run,
+        16,
+        options.block.renderDirection,
+      ),
+    );
+  }
   span.append(root.ownerDocument.createTextNode(text));
   return span;
+}
+
+function copyRunDatasetStyles(span: HTMLSpanElement, run: TextStyleRun): void {
+  for (const key of BOOLEAN_RUN_STYLE_FIELDS) {
+    span.dataset[key] = String(Boolean(run[key]));
+  }
+  for (const key of [...STRING_RUN_STYLE_FIELDS, ...NUMBER_RUN_STYLE_FIELDS]) {
+    const value = run[key];
+    if (value !== undefined) span.dataset[key] = String(value);
+  }
 }
 
 function runBoundaries(

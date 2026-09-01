@@ -6503,6 +6503,28 @@
         "pct": 83.33
       }
     },
+    "src/renderer/src/components/ColorField.tsx": {
+      "lines": {
+        "covered": 19,
+        "total": 29,
+        "pct": 65.51
+      },
+      "statements": {
+        "covered": 23,
+        "total": 36,
+        "pct": 63.88
+      },
+      "functions": {
+        "covered": 9,
+        "total": 12,
+        "pct": 75
+      },
+      "branches": {
+        "covered": 15,
+        "total": 27,
+        "pct": 55.55
+      }
+    },
     "src/renderer/src/components/CommandPalette.tsx": {
       "lines": {
         "covered": 42,
@@ -15965,6 +15987,28 @@
         "pct": 77.77
       }
     },
+    "src/renderer/src/components/BlockDisplayGroup.tsx": {
+      "lines": {
+        "total": 6,
+        "covered": 6,
+        "pct": 100
+      },
+      "statements": {
+        "total": 6,
+        "covered": 6,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 6,
+        "covered": 6,
+        "pct": 100
+      }
+    },
     "src/renderer/src/components/BlockLibraryCard.tsx": {
       "lines": {
         "total": 81,
@@ -16028,6 +16072,28 @@
       "branches": {
         "covered": 23,
         "total": 23,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/components/BlockTextOpacityField.tsx": {
+      "lines": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "statements": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "functions": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "branches": {
+        "total": 2,
+        "covered": 2,
         "pct": 100
       }
     },
@@ -16249,6 +16315,50 @@
         "total": 16,
         "covered": 10,
         "pct": 62.5
+      }
+    },
+    "src/renderer/src/components/EditorOutlineControls.tsx": {
+      "lines": {
+        "total": 38,
+        "covered": 26,
+        "pct": 68.42
+      },
+      "statements": {
+        "total": 40,
+        "covered": 27,
+        "pct": 67.5
+      },
+      "functions": {
+        "total": 12,
+        "covered": 8,
+        "pct": 66.66
+      },
+      "branches": {
+        "total": 26,
+        "covered": 15,
+        "pct": 57.69
+      }
+    },
+    "src/renderer/src/components/EditorTextEffectControls.tsx": {
+      "lines": {
+        "total": 27,
+        "covered": 25,
+        "pct": 92.59
+      },
+      "statements": {
+        "total": 27,
+        "covered": 25,
+        "pct": 92.59
+      },
+      "functions": {
+        "total": 18,
+        "covered": 16,
+        "pct": 88.88
+      },
+      "branches": {
+        "total": 11,
+        "covered": 11,
+        "pct": 100
       }
     },
     "src/renderer/src/components/ImportLinkedWorkspaceSection.tsx": {
@@ -18011,6 +18121,28 @@
         "pct": 80.7
       }
     },
+    "src/renderer/src/lib/textRunVisualStyles.ts": {
+      "lines": {
+        "total": 25,
+        "covered": 14,
+        "pct": 56
+      },
+      "statements": {
+        "total": 29,
+        "covered": 17,
+        "pct": 58.62
+      },
+      "functions": {
+        "total": 10,
+        "covered": 9,
+        "pct": 90
+      },
+      "branches": {
+        "total": 61,
+        "covered": 31,
+        "pct": 50.81
+      }
+    },
     "src/renderer/src/lib/textStyleRunResolution.ts": {
       "lines": {
         "total": 10,
@@ -18273,6 +18405,28 @@
         "total": 22,
         "covered": 15,
         "pct": 68.18
+      }
+    },
+    "src/shared/blockStylePresetFormatUtils.ts": {
+      "lines": {
+        "total": 15,
+        "covered": 13,
+        "pct": 86.66
+      },
+      "statements": {
+        "total": 16,
+        "covered": 13,
+        "pct": 81.25
+      },
+      "functions": {
+        "total": 12,
+        "covered": 10,
+        "pct": 83.33
+      },
+      "branches": {
+        "total": 31,
+        "covered": 20,
+        "pct": 64.51
       }
     },
     "src/shared/codexAccountSchemas.ts": {
@@ -18627,6 +18781,28 @@
         "pct": 100
       }
     },
+    "src/shared/ipcSchemaValidation.ts": {
+      "lines": {
+        "total": 19,
+        "covered": 16,
+        "pct": 84.21
+      },
+      "statements": {
+        "total": 20,
+        "covered": 17,
+        "pct": 85
+      },
+      "functions": {
+        "total": 6,
+        "covered": 6,
+        "pct": 100
+      },
+      "branches": {
+        "total": 14,
+        "covered": 13,
+        "pct": 92.85
+      }
+    },
     "src/shared/linkedWorkspaceSchemas.ts": {
       "lines": {
         "total": 10,
@@ -18823,6 +18999,28 @@
         "total": 26,
         "covered": 26,
         "pct": 100
+      }
+    },
+    "src/shared/textGlow.ts": {
+      "lines": {
+        "total": 20,
+        "covered": 20,
+        "pct": 100
+      },
+      "statements": {
+        "total": 21,
+        "covered": 21,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 14,
+        "covered": 13,
+        "pct": 92.85
       }
     },
     "src/shared/textLayoutIntent.ts": {

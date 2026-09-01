@@ -45,11 +45,7 @@ export type WrappedTextMeasurement = {
   maxLineWidth: number;
 };
 
-export type StyledGrapheme = {
-  text: string;
-  bold: boolean;
-  italic: boolean;
-  verticalCombine?: boolean;
+export type StyledGrapheme = TextStyleRun & {
   width: number;
   renderedFontSizePx?: number;
   renderedFontFamily?: string;
@@ -165,11 +161,12 @@ export function measureStyledGraphemes(
       run.italic,
     );
     graphemes.push({
+      ...run,
       text: segment,
-      bold: run.bold,
-      italic: run.italic,
-      ...(run.verticalCombine ? { verticalCombine: true } : {}),
-      width: segment === "\n" ? 0 : context.measureText(segment).width,
+      width:
+        segment === "\n"
+          ? 0
+          : context.measureText(segment).width * (run.widthScale ?? 1),
       ...(resolveRunStyle
         ? {
             renderedFontSizePx: style.fontSizePx,
@@ -200,10 +197,8 @@ export function measureUniformStyledGraphemes(
       opacity: 1,
     };
     return segmentText(normalizeNewlines(run.text), run).map((text) => ({
+      ...run,
       text,
-      bold: run.bold,
-      italic: run.italic,
-      ...(run.verticalCombine ? { verticalCombine: true } : {}),
       width:
         text === "\n"
           ? 0
@@ -403,9 +398,7 @@ export function toBlockTextLine(
     const lastRun = runs.at(-1);
     if (
       lastRun &&
-      lastRun.bold === grapheme.bold &&
-      lastRun.italic === grapheme.italic &&
-      lastRun.verticalCombine === grapheme.verticalCombine &&
+      haveSameRunStyle(lastRun, grapheme) &&
       lastRun.renderedFontSizePx === grapheme.renderedFontSizePx &&
       lastRun.renderedFontFamily === grapheme.renderedFontFamily &&
       lastRun.renderedOpacity === grapheme.renderedOpacity
@@ -421,21 +414,36 @@ export function toBlockTextLine(
 function createRenderedTextStyleRun(
   grapheme: StyledGrapheme,
 ): RenderedTextStyleRun {
+  const { width: _width, ...run } = grapheme;
   return {
-    text: grapheme.text,
-    bold: grapheme.bold,
-    italic: grapheme.italic,
-    ...(grapheme.verticalCombine ? { verticalCombine: true } : {}),
-    ...(grapheme.renderedFontSizePx === undefined
-      ? {}
-      : { renderedFontSizePx: grapheme.renderedFontSizePx }),
-    ...(grapheme.renderedFontFamily === undefined
-      ? {}
-      : { renderedFontFamily: grapheme.renderedFontFamily }),
-    ...(grapheme.renderedOpacity === undefined
-      ? {}
-      : { renderedOpacity: grapheme.renderedOpacity }),
+    ...run,
   };
+}
+
+const RUN_STYLE_KEYS = [
+  "bold",
+  "italic",
+  "underline",
+  "strikethrough",
+  "emphasisMark",
+  "sizePx",
+  "fontFamily",
+  "opacity",
+  "widthScale",
+  "color",
+  "backgroundColor",
+  "outlineColor",
+  "outlineWidthPx",
+  "outerOutlineColor",
+  "outerOutlineWidthPx",
+  "glowColor",
+  "glowBlurPx",
+  "glowOpacity",
+  "verticalCombine",
+] as const satisfies readonly (keyof TextStyleRun)[];
+
+function haveSameRunStyle(left: TextStyleRun, right: TextStyleRun): boolean {
+  return RUN_STYLE_KEYS.every((key) => left[key] === right[key]);
 }
 
 function lineFromRuns(

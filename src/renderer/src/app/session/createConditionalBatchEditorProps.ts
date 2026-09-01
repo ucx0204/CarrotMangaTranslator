@@ -8,7 +8,7 @@ import type {
   ConditionalBatchSequencePreview,
   ConditionalBatchSequenceV2,
   ConditionalBatchSnapshotV2,
-  ConditionalBatchSchemeDraftV1,
+  ConditionalBatchSchemeDraftV2,
 } from "../../../../shared/conditionalBatchRules";
 import type { AppWorkspaceProps } from "../../components/appWorkspaceTypes";
 import type { AppSessionViewProps } from "./AppSessionView";
@@ -119,7 +119,7 @@ function applyEditorSequenceChanges(
 
 function applyEditorChanges(
   model: AppSessionViewModel,
-  scheme: ConditionalBatchSchemeDraftV1,
+  scheme: ConditionalBatchSchemeDraftV2,
   preview: ConditionalBatchPreview,
   excludedResultKeys: ReadonlySet<string>,
   options?: ConditionalBatchEngineOptions,

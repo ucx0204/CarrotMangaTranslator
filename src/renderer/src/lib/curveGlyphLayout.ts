@@ -7,6 +7,7 @@ import type {
   Point,
   QuadraticCurvePath,
 } from "../../../shared/textTypes";
+import type { TextStyleRun } from "../../../shared/richTextMarkup";
 
 const ARC_SAMPLES = 96;
 
@@ -18,6 +19,7 @@ export type MeasuredCurveGlyph = {
   fontSizePx?: number;
   fontFamily?: string;
   opacity?: number;
+  style?: Omit<TextStyleRun, "text">;
 };
 
 export type PositionedCurveGlyph = MeasuredCurveGlyph & {
@@ -56,7 +58,9 @@ export function layoutGlyphsOnCurve({
   const path = resolvePixelPath(layout, width, height);
   const samples = buildArcSamples(path);
   const pathLength = samples.at(-1)?.distance ?? 0;
-  const widths = glyphs.map((glyph) => glyph.width * fontWidthScale);
+  const widths = glyphs.map(
+    (glyph) => glyph.width * fontWidthScale * (glyph.style?.widthScale ?? 1),
+  );
   const gap = resolveGlyphGap(
     layout.fitSpacing === true,
     pathLength,

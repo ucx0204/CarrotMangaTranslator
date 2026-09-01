@@ -27,6 +27,7 @@
 .warped-text-content {
   position: absolute;
   inset: 0;
+  z-index: 1;
   overflow: visible;
   pointer-events: none;
 }
@@ -34,6 +35,7 @@
 .text-effect-layer {
   position: absolute;
   inset: 0;
+  z-index: 1;
   overflow: visible;
   pointer-events: none;
 }
@@ -41,6 +43,7 @@
 .overlay-curve-text {
   position: absolute;
   inset: 0;
+  z-index: 1;
   display: block;
   overflow: visible;
   pointer-events: none;
@@ -67,7 +70,7 @@
 }
 
 .bubble-layout-guide polygon {
-  fill: rgba(68, 214, 193, 0.12);
+  fill: transparent;
   stroke: rgba(111, 238, 219, 0.98);
   stroke-width: 2px;
   stroke-linecap: round;
@@ -77,7 +80,7 @@
 }
 
 .bubble-layout-guide.manual polygon {
-  fill: rgba(255, 180, 71, 0.1);
+  fill: transparent;
   stroke: rgba(255, 191, 92, 0.98);
 }
 

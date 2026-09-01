@@ -4,6 +4,27 @@ export type InlineMarkupResult = {
   selectionEnd: number;
 };
 
+export type InlineStyleTagName =
+  | "size"
+  | "font"
+  | "opacity"
+  | "width"
+  | "color"
+  | "background"
+  | "outline-color"
+  | "outline-width"
+  | "outer-outline-color"
+  | "outer-outline-width"
+  | "glow-color"
+  | "glow-blur"
+  | "glow-opacity";
+
+export type InlineBooleanStyleTagName =
+  | "underline"
+  | "strike"
+  | "emphasis"
+  | "tcy";
+
 /**
  * Wrap the current textarea selection with an inline marker (e.g. `**` or `*`).
  * When nothing is selected, the markers are inserted with the caret placed
@@ -35,7 +56,7 @@ export function applyInlineStyleTag(
   value: string,
   selectionStart: number,
   selectionEnd: number,
-  name: "size" | "font" | "opacity",
+  name: InlineStyleTagName,
   tagValue: string | number,
 ): InlineMarkupResult {
   const start = clampIndex(selectionStart, value.length);
@@ -43,6 +64,26 @@ export function applyInlineStyleTag(
   const from = Math.min(start, end);
   const to = Math.max(start, end);
   const opening = `[${name}=${tagValue}]`;
+  const closing = `[/${name}]`;
+  const selected = value.slice(from, to);
+  return {
+    value: `${value.slice(0, from)}${opening}${selected}${closing}${value.slice(to)}`,
+    selectionStart: from + opening.length,
+    selectionEnd: from + opening.length + selected.length,
+  };
+}
+
+export function applyInlineBooleanStyleTag(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  name: InlineBooleanStyleTagName,
+): InlineMarkupResult {
+  const start = clampIndex(selectionStart, value.length);
+  const end = clampIndex(selectionEnd, value.length);
+  const from = Math.min(start, end);
+  const to = Math.max(start, end);
+  const opening = `[${name}]`;
   const closing = `[/${name}]`;
   const selected = value.slice(from, to);
   return {

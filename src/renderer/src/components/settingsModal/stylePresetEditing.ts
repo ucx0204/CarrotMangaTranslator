@@ -6,16 +6,26 @@ import {
 import type { BlockStylePreset } from "../../../../shared/blockStylePresets";
 import type {
   TextEffect,
+  TextGlow,
   TranslationBlock,
 } from "../../../../shared/textTypes";
 import {
   DEFAULT_TEXT_EFFECT,
   cloneTextEffect,
 } from "../../../../shared/textEffect";
+import { DEFAULT_TEXT_GLOW, cloneTextGlow } from "../../../../shared/textGlow";
 
 export type StylePresetEditorValues = BlockFormatDefaults & {
   rotationDeg: number;
   textEffect: TextEffect;
+  textGlow: TextGlow;
+  underline: boolean;
+  strikethrough: boolean;
+  emphasisMark: boolean;
+  textBackgroundEnabled: boolean;
+  textBackgroundColor: string;
+  outerOutlineColor: string;
+  outerOutlineWidthPx: number;
 };
 
 type EditorPatch = Partial<StylePresetEditorValues>;
@@ -32,18 +42,20 @@ const EDITOR_FIELDS_BY_GROUP: Record<
   align: ["textAlign"],
   wordBreak: ["wordBreak"],
   direction: ["renderDirection"],
-  emphasis: ["bold", "italic"],
+  emphasis: ["bold", "italic", "underline", "strikethrough", "emphasisMark"],
   lineSpacing: ["lineHeight"],
   letterSpacing: ["letterSpacing"],
   fontWidth: ["fontWidthScale"],
-  color: ["textColor"],
+  color: ["textColor", "textBackgroundEnabled", "textBackgroundColor"],
   outline: [
     "outlineEnabled",
     "outlineColor",
     "outlineWidthPx",
     "outlineWidthScale",
+    "outerOutlineColor",
+    "outerOutlineWidthPx",
   ],
-  effect: ["textEffect"],
+  effect: ["textEffect", "textGlow"],
   transform: ["rotationDeg", "textOpacity"],
 };
 
@@ -56,13 +68,19 @@ const PRESET_FIELDS_BY_GROUP: Record<
   align: ["textAlign"],
   wordBreak: ["wordBreak"],
   direction: ["renderDirection"],
-  emphasis: ["bold", "italic"],
+  emphasis: ["bold", "italic", "underline", "strikethrough", "emphasisMark"],
   lineSpacing: ["lineHeight"],
   letterSpacing: ["letterSpacing"],
   fontWidth: ["fontWidthScale"],
-  color: ["textColor"],
-  outline: ["outlineColor", "outlineWidthPx", "outlineWidthScale"],
-  effect: ["textEffect"],
+  color: ["textColor", "textBackgroundEnabled", "textBackgroundColor"],
+  outline: [
+    "outlineColor",
+    "outlineWidthPx",
+    "outlineWidthScale",
+    "outerOutlineColor",
+    "outerOutlineWidthPx",
+  ],
+  effect: ["textEffect", "textGlow"],
   transform: ["rotationDeg", "textOpacity"],
 };
 
@@ -74,6 +92,14 @@ export function resolveStylePresetEditorValues(
     ...defaults,
     rotationDeg: 0,
     textEffect: { ...DEFAULT_TEXT_EFFECT },
+    textGlow: { ...DEFAULT_TEXT_GLOW },
+    underline: false,
+    strikethrough: false,
+    emphasisMark: false,
+    textBackgroundEnabled: false,
+    textBackgroundColor: "#ffffff",
+    outerOutlineColor: "#111111",
+    outerOutlineWidthPx: 0,
   };
   for (const groupId of preset.groupIds) {
     Object.assign(
@@ -104,6 +130,9 @@ function buildEditorGroupValues(
     emphasis: () => ({
       bold: format.bold ?? false,
       italic: format.italic ?? false,
+      underline: format.underline ?? false,
+      strikethrough: format.strikethrough ?? false,
+      emphasisMark: format.emphasisMark ?? false,
     }),
     lineSpacing: () => ({
       lineHeight: format.lineHeight ?? defaults.lineHeight,
@@ -114,7 +143,11 @@ function buildEditorGroupValues(
     fontWidth: () => ({
       fontWidthScale: format.fontWidthScale ?? defaults.fontWidthScale,
     }),
-    color: () => ({ textColor: format.textColor ?? defaults.textColor }),
+    color: () => ({
+      textColor: format.textColor ?? defaults.textColor,
+      textBackgroundEnabled: format.textBackgroundEnabled ?? false,
+      textBackgroundColor: format.textBackgroundColor ?? "#ffffff",
+    }),
     outline: () => ({
       outlineEnabled:
         format.outlineWidthPx === undefined
@@ -123,11 +156,16 @@ function buildEditorGroupValues(
       outlineColor: format.outlineColor ?? defaults.outlineColor,
       outlineWidthPx: format.outlineWidthPx,
       outlineWidthScale: format.outlineWidthScale ?? 0,
+      outerOutlineColor: format.outerOutlineColor ?? "#111111",
+      outerOutlineWidthPx: format.outerOutlineWidthPx ?? 0,
     }),
     effect: () => ({
       textEffect: format.textEffect
         ? cloneTextEffect(format.textEffect)
         : { ...DEFAULT_TEXT_EFFECT },
+      textGlow: format.textGlow
+        ? cloneTextGlow(format.textGlow)
+        : { ...DEFAULT_TEXT_GLOW },
     }),
     transform: () => ({
       rotationDeg: format.rotationDeg ?? 0,
@@ -148,9 +186,10 @@ export function updateStylePresetFromEditor(
     ...resolveStylePresetEditorValues(defaults, preset),
     ...patch,
   };
+  const editedFields = new Set(Object.keys(patch) as EditorField[]);
   let format = { ...preset.format };
   for (const groupId of touchedGroups) {
-    format = replaceGroupFormat(format, groupId, nextValues);
+    format = replaceGroupFormat(format, groupId, nextValues, editedFields);
   }
   return {
     ...preset,
@@ -193,11 +232,37 @@ function replaceGroupFormat(
   current: PresetFormat,
   groupId: BlockFormatGroupId,
   values: StylePresetEditorValues,
+  editedFields: ReadonlySet<EditorField> = new Set(),
 ): PresetFormat {
+  const groupFormat = buildGroupFormat(groupId, values);
+  removeUntouchedOptionalFields(groupFormat, current, editedFields);
   return compactFormat({
     ...clearGroupFormat(current, groupId),
-    ...buildGroupFormat(groupId, values),
+    ...groupFormat,
   });
+}
+
+const OPTIONAL_NEW_PRESET_FIELDS = [
+  "underline",
+  "strikethrough",
+  "emphasisMark",
+  "textBackgroundEnabled",
+  "textBackgroundColor",
+  "outerOutlineColor",
+  "outerOutlineWidthPx",
+  "textGlow",
+] as const satisfies readonly (EditorField & PresetFormatField)[];
+
+function removeUntouchedOptionalFields(
+  groupFormat: PresetFormat,
+  current: PresetFormat,
+  editedFields: ReadonlySet<EditorField>,
+): void {
+  for (const field of OPTIONAL_NEW_PRESET_FIELDS) {
+    if (!(field in current) && !editedFields.has(field)) {
+      delete groupFormat[field];
+    }
+  }
 }
 
 function clearGroupFormat(
@@ -229,24 +294,45 @@ function buildGroupFormat(
           ? ("horizontal" as TranslationBlock["renderDirection"])
           : values.renderDirection,
     }),
-    emphasis: () => ({ bold: values.bold, italic: values.italic }),
+    emphasis: () => ({
+      bold: values.bold,
+      italic: values.italic,
+      underline: values.underline,
+      strikethrough: values.strikethrough,
+      emphasisMark: values.emphasisMark,
+    }),
     lineSpacing: () => ({ lineHeight: values.lineHeight }),
     letterSpacing: () => ({ letterSpacing: values.letterSpacing }),
     fontWidth: () => ({ fontWidthScale: values.fontWidthScale }),
-    color: () => ({ textColor: values.textColor }),
+    color: () => ({
+      textColor: values.textColor,
+      textBackgroundEnabled: values.textBackgroundEnabled,
+      textBackgroundColor: values.textBackgroundColor,
+    }),
     outline: () =>
       values.outlineEnabled
         ? values.outlineWidthPx === undefined
           ? {
               outlineColor: values.outlineColor,
               outlineWidthScale: values.outlineWidthScale,
+              outerOutlineColor: values.outerOutlineColor,
+              outerOutlineWidthPx: values.outerOutlineWidthPx,
             }
           : {
               outlineColor: values.outlineColor,
               outlineWidthPx: values.outlineWidthPx,
+              outerOutlineColor: values.outerOutlineColor,
+              outerOutlineWidthPx: values.outerOutlineWidthPx,
             }
-        : { outlineWidthPx: 0 },
-    effect: () => ({ textEffect: cloneTextEffect(values.textEffect) }),
+        : {
+            outlineWidthPx: 0,
+            outerOutlineColor: values.outerOutlineColor,
+            outerOutlineWidthPx: values.outerOutlineWidthPx,
+          },
+    effect: () => ({
+      textEffect: cloneTextEffect(values.textEffect),
+      textGlow: cloneTextGlow(values.textGlow),
+    }),
     transform: () => ({
       rotationDeg: values.rotationDeg,
       textOpacity: values.textOpacity,

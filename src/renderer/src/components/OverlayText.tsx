@@ -12,6 +12,11 @@ import {
   type TextRunStyleResolver,
 } from "../lib/textStyleRunResolution";
 import {
+  hasAnyOuterOutline,
+  resolveMainRunVisualStyle,
+  resolveOuterRunVisualStyle,
+} from "../lib/textRunVisualStyles";
+import {
   resolveOverlayTextContentStyle,
   resolveOverlayTextWrapStyle,
 } from "./overlayTextStyles";
@@ -43,9 +48,58 @@ export function OverlayText({
     layout.fontSizePx,
     fontCatalog,
   );
+  const hasOuterOutline = hasAnyOuterOutline(block, parsed.runs);
+  return (
+    <>
+      {hasOuterOutline ? (
+        <OverlayTextLayer
+          block={block}
+          blockOpacityAtRoot={blockOpacityAtRoot}
+          fontCatalog={fontCatalog}
+          layout={layout}
+          renderDirection={renderDirection}
+          resolveRunStyle={resolveRunStyle}
+          runs={parsed.runs}
+          layer="outer"
+        />
+      ) : null}
+      <OverlayTextLayer
+        block={block}
+        blockOpacityAtRoot={blockOpacityAtRoot}
+        fontCatalog={fontCatalog}
+        layout={layout}
+        renderDirection={renderDirection}
+        resolveRunStyle={resolveRunStyle}
+        runs={parsed.runs}
+        layer="main"
+      />
+    </>
+  );
+}
+
+function OverlayTextLayer({
+  block,
+  blockOpacityAtRoot,
+  fontCatalog,
+  layout,
+  layer,
+  renderDirection,
+  resolveRunStyle,
+  runs,
+}: {
+  block: TranslationBlock;
+  blockOpacityAtRoot: boolean;
+  fontCatalog: BlockFontCatalog;
+  layout: BlockTextLayout;
+  layer: "main" | "outer";
+  renderDirection: RenderTextDirection;
+  resolveRunStyle: TextRunStyleResolver;
+  runs: ReturnType<typeof parseRichText>["runs"];
+}): React.JSX.Element {
   return (
     <div
-      className="overlay-text"
+      aria-hidden={layer === "outer" || undefined}
+      className={`overlay-text overlay-text-${layer}`}
       style={resolveOverlayTextWrapStyle(
         block,
         layout,
@@ -64,12 +118,16 @@ export function OverlayText({
               renderDirection,
               resolveRunStyle,
               blockOpacityAtRoot,
+              layer,
             )
           : renderParsedTextRuns(
-              parsed.runs,
+              block,
+              runs,
               renderDirection,
               resolveRunStyle,
               blockOpacityAtRoot,
+              layout.fontSizePx,
+              layer,
             )}
       </span>
     </div>
@@ -77,10 +135,13 @@ export function OverlayText({
 }
 
 function renderParsedTextRuns(
+  block: TranslationBlock,
   runs: ReturnType<typeof parseRichText>["runs"],
   renderDirection: RenderTextDirection,
   resolveRunStyle: TextRunStyleResolver,
   blockOpacityAtRoot: boolean,
+  renderedBaseFontSizePx: number,
+  layer: "main" | "outer",
 ): React.ReactNode {
   return runs.map((run, index) =>
     renderTextRun(
@@ -89,6 +150,9 @@ function renderParsedTextRuns(
       renderDirection,
       resolveRunStyle,
       blockOpacityAtRoot,
+      block,
+      renderedBaseFontSizePx,
+      layer,
     ),
   );
 }
@@ -99,6 +163,7 @@ function renderFixedLines(
   renderDirection: RenderTextDirection,
   resolveRunStyle: TextRunStyleResolver,
   blockOpacityAtRoot: boolean,
+  layer: "main" | "outer",
 ): React.ReactNode {
   return layout.lines?.map((line, lineIndex) => (
     <span
@@ -121,6 +186,9 @@ function renderFixedLines(
               renderDirection,
               resolveRunStyle,
               blockOpacityAtRoot,
+              block,
+              layout.fontSizePx,
+              layer,
             ),
           )
         : "\u00a0"}
@@ -168,8 +236,21 @@ function renderTextRun(
   renderDirection: RenderTextDirection,
   resolveRunStyle: TextRunStyleResolver,
   blockOpacityAtRoot: boolean,
-): React.JSX.Element {
+  block: TranslationBlock,
+  renderedBaseFontSizePx: number,
+  layer: "main" | "outer",
+): React.JSX.Element | null {
   const fallback = resolveRunStyle(run);
+  const visualStyle =
+    layer === "outer"
+      ? resolveOuterRunVisualStyle(block, run, renderedBaseFontSizePx)
+      : resolveMainRunVisualStyle(
+          block,
+          run,
+          renderedBaseFontSizePx,
+          renderDirection,
+        );
+  if (!visualStyle) return null;
   return (
     <span
       key={key}
@@ -181,6 +262,7 @@ function renderTextRun(
         opacity: blockOpacityAtRoot
           ? 1
           : (run.renderedOpacity ?? fallback.opacity),
+        ...visualStyle,
       }}
     >
       <TextWithVerticalSpacing

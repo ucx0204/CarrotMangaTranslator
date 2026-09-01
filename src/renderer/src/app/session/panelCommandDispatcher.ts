@@ -39,6 +39,13 @@ type RenameStylePresetCommand = Extract<
   PanelCommand,
   { type: "renameStylePreset" }
 >;
+type AlwaysAvailablePanelCommand = Extract<
+  PanelCommand,
+  | { type: "openBlockLibrary" }
+  | { type: "openStylePresetManager" }
+  | { type: "openFontManager" }
+  | { type: "suggestConsistentEdit" }
+>;
 type SelectionEditCommand =
   | AdjustSelectionFontSizeCommand
   | UpdateSelectionFormatCommand;
@@ -85,6 +92,36 @@ export type PanelCommandTarget = {
   startAreaTranslate: () => void;
 };
 
+function dispatchAlwaysAvailablePanelCommand(
+  actions: PanelCommandTarget,
+  command: AlwaysAvailablePanelCommand,
+): void {
+  if (command.type === "openBlockLibrary") {
+    actions.openBlockLibrary();
+    return;
+  }
+  if (command.type === "openStylePresetManager") {
+    actions.openStylePresetManager();
+    return;
+  }
+  if (command.type === "openFontManager") {
+    actions.openFontManager();
+    return;
+  }
+  actions.suggestConsistentEdit?.(command.find, command.replace);
+}
+
+function isAlwaysAvailablePanelCommand(
+  command: PanelCommand,
+): command is AlwaysAvailablePanelCommand {
+  return (
+    command.type === "openBlockLibrary" ||
+    command.type === "openStylePresetManager" ||
+    command.type === "openFontManager" ||
+    command.type === "suggestConsistentEdit"
+  );
+}
+
 export function dispatchPanelCommand({
   actions,
   busy,
@@ -100,10 +137,6 @@ export function dispatchPanelCommand({
 }): boolean {
   if (isAlwaysAvailablePanelCommand(command)) {
     dispatchAlwaysAvailablePanelCommand(actions, command);
-    return true;
-  }
-  if (command.type === "suggestConsistentEdit") {
-    actions.suggestConsistentEdit?.(command.find, command.replace);
     return true;
   }
   if (
@@ -131,33 +164,6 @@ export function dispatchPanelCommand({
   return true;
 }
 
-type AlwaysAvailablePanelCommand = Extract<
-  PanelCommand,
-  {
-    type: "openBlockLibrary" | "openStylePresetManager" | "openFontManager";
-  }
->;
-
-function isAlwaysAvailablePanelCommand(
-  command: PanelCommand,
-): command is AlwaysAvailablePanelCommand {
-  return [
-    "openBlockLibrary",
-    "openStylePresetManager",
-    "openFontManager",
-  ].includes(command.type);
-}
-
-function dispatchAlwaysAvailablePanelCommand(
-  actions: PanelCommandTarget,
-  command: AlwaysAvailablePanelCommand,
-): void {
-  if (command.type === "openBlockLibrary") actions.openBlockLibrary();
-  else if (command.type === "openStylePresetManager") {
-    actions.openStylePresetManager();
-  } else actions.openFontManager();
-}
-
 function applyPanelCommand(
   actions: PanelCommandTarget,
   command: Exclude<
@@ -171,7 +177,6 @@ function applyPanelCommand(
     | OverwriteStylePresetCommand
     | RenameStylePresetCommand
     | Extract<PanelCommand, { type: "openFontManager" }>
-    | Extract<PanelCommand, { type: "openStylePresetManager" }>
     | Extract<PanelCommand, { type: "insertBlockLibraryEntry" }>
   >,
 ): void {

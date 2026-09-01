@@ -250,6 +250,9 @@
     "blockStyle": "整個文字區塊",
     "blockBold": "整區塊粗體",
     "blockItalic": "整區塊斜體",
+    "blockUnderline": "整區塊加底線",
+    "blockStrikethrough": "整區塊加刪除線",
+    "blockEmphasisMark": "整區塊加著重號",
     "align": { "left": "靠左對齊", "center": "置中", "right": "靠右對齊" },
     "direction": { "horizontal": "橫排", "vertical": "直排" },
     "size": "大小",
@@ -269,14 +272,30 @@
     "fontWidth": "字寬",
     "color": "顏色",
     "textColor": "文字顏色",
+    "textBackground": {
+      "enabled": "文字區域背景",
+      "color": "背景顏色"
+    },
     "outline": "描邊",
+    "outerOutline": {
+      "enabled": "外描邊",
+      "color": "外描邊顏色",
+      "width": "外描邊寬度"
+    },
     "textEffect": {
-      "title": "陰影與輝光",
-      "enabled": "使用效果",
-      "color": "效果顏色",
+      "title": "陰影",
+      "enabled": "使用陰影",
+      "color": "陰影顏色",
       "offsetX": "X偏移",
       "offsetY": "Y偏移",
       "blur": "模糊",
+      "opacity": "不透明度"
+    },
+    "textGlow": {
+      "title": "輝光",
+      "enabled": "使用輝光",
+      "color": "輝光顏色",
+      "blur": "擴散",
       "opacity": "不透明度"
     },
     "wordBreak": {
@@ -460,6 +479,9 @@
       "size": "字級",
       "font": "字元字型",
       "opacity": "文字不透明度",
+      "combineUpright": "縱中橫",
+      "background": "字元背景",
+      "effects": "描邊與輝光",
       "mixed": "混合",
       "placeholder": "輸入譯文",
       "codeAria": "譯文格式程式碼",

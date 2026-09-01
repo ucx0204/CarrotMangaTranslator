@@ -9,6 +9,7 @@ import {
   DEFAULT_TEXT_EFFECT,
   cloneTextEffect,
 } from "../../../../shared/textEffect";
+import { DEFAULT_TEXT_GLOW } from "../../../../shared/textGlow";
 import type { BlockFormatPreviewValues } from "../blockFormat/BlockFormatPreview";
 import { resolveEffectiveTextOutlineWidthPx } from "../../../../shared/textOutline";
 import { toast } from "../../lib/toastStore";
@@ -59,6 +60,14 @@ export function useFormatDefaultsEditor({
             ...defaults,
             rotationDeg: 0,
             textEffect: { ...DEFAULT_TEXT_EFFECT },
+            textGlow: { ...DEFAULT_TEXT_GLOW },
+            underline: false,
+            strikethrough: false,
+            emphasisMark: false,
+            textBackgroundEnabled: false,
+            textBackgroundColor: "#ffffff",
+            outerOutlineColor: "#111111",
+            outerOutlineWidthPx: 0,
           },
     [activePreset, defaults],
   );

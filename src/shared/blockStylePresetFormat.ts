@@ -6,6 +6,11 @@ import {
   normalizeTextEffect,
 } from "./textEffect";
 import {
+  DEFAULT_TEXT_GLOW,
+  cloneTextGlow,
+  normalizeTextGlow,
+} from "./textGlow";
+import {
   MAX_FONT_SIZE_PX,
   MAX_FONT_WIDTH_SCALE,
   MAX_LETTER_SPACING_EM,
@@ -15,6 +20,17 @@ import {
   MIN_LETTER_SPACING_EM,
   MIN_LINE_HEIGHT,
 } from "./blockFormatValues";
+import {
+  asRecord,
+  booleanValue,
+  buildFormat,
+  colorValue,
+  enumValue,
+  optionalColor,
+  optionalRangedNumber,
+  optionalString,
+  rangedNumber,
+} from "./blockStylePresetFormatUtils";
 
 export type BlockStylePresetFormat = Partial<
   Pick<
@@ -27,15 +43,23 @@ export type BlockStylePresetFormat = Partial<
     | "renderDirection"
     | "bold"
     | "italic"
+    | "underline"
+    | "strikethrough"
+    | "emphasisMark"
     | "lineHeight"
     | "letterSpacing"
     | "fontWidthScale"
     | "textColor"
+    | "textBackgroundEnabled"
+    | "textBackgroundColor"
     | "textOpacity"
     | "outlineColor"
     | "outlineWidthPx"
     | "outlineWidthScale"
+    | "outerOutlineColor"
+    | "outerOutlineWidthPx"
     | "textEffect"
+    | "textGlow"
     | "rotationDeg"
   >
 >;
@@ -62,21 +86,43 @@ const BLOCK_FORMAT_BUILDERS: Record<
   emphasis: (block) => ({
     bold: block.bold ?? false,
     italic: block.italic ?? false,
+    ...(block.underline === undefined ? {} : { underline: block.underline }),
+    ...(block.strikethrough === undefined
+      ? {}
+      : { strikethrough: block.strikethrough }),
+    ...(block.emphasisMark === undefined
+      ? {}
+      : { emphasisMark: block.emphasisMark }),
   }),
   lineSpacing: (block) => ({ lineHeight: block.lineHeight }),
   letterSpacing: (block) => ({ letterSpacing: block.letterSpacing ?? 0 }),
   fontWidth: (block) => ({ fontWidthScale: block.fontWidthScale ?? 1 }),
-  color: (block) => ({ textColor: block.textColor }),
+  color: (block) => ({
+    textColor: block.textColor,
+    ...(block.textBackgroundEnabled === undefined
+      ? {}
+      : { textBackgroundEnabled: block.textBackgroundEnabled }),
+    ...(block.textBackgroundColor === undefined
+      ? {}
+      : { textBackgroundColor: block.textBackgroundColor }),
+  }),
   outline: (block) => ({
     outlineColor: block.outlineColor,
     ...(block.outlineWidthPx === undefined
       ? { outlineWidthScale: block.outlineWidthScale ?? 0 }
       : { outlineWidthPx: block.outlineWidthPx }),
+    ...(block.outerOutlineColor === undefined
+      ? {}
+      : { outerOutlineColor: block.outerOutlineColor }),
+    ...(block.outerOutlineWidthPx === undefined
+      ? {}
+      : { outerOutlineWidthPx: block.outerOutlineWidthPx }),
   }),
   effect: (block) => ({
-    textEffect: block.textEffect
-      ? cloneTextEffect(block.textEffect)
-      : { ...DEFAULT_TEXT_EFFECT },
+    ...(block.textEffect
+      ? { textEffect: cloneTextEffect(block.textEffect) }
+      : {}),
+    ...(block.textGlow ? { textGlow: cloneTextGlow(block.textGlow) } : {}),
   }),
   transform: (block) => ({
     rotationDeg: block.rotationDeg ?? 0,
@@ -106,7 +152,9 @@ const DEFAULT_FORMAT_BUILDERS: Record<
   lineSpacing: (defaults) => ({ lineHeight: defaults.lineHeight }),
   letterSpacing: (defaults) => ({ letterSpacing: defaults.letterSpacing }),
   fontWidth: (defaults) => ({ fontWidthScale: defaults.fontWidthScale }),
-  color: (defaults) => ({ textColor: defaults.textColor }),
+  color: (defaults) => ({
+    textColor: defaults.textColor,
+  }),
   outline: (defaults) => ({
     outlineColor: defaults.outlineEnabled ? defaults.outlineColor : undefined,
     ...(defaults.outlineWidthPx === undefined
@@ -162,6 +210,15 @@ const NORMALIZED_FORMAT_BUILDERS: Record<
   emphasis: (record) => ({
     bold: booleanValue(record.bold, false),
     italic: booleanValue(record.italic, false),
+    ...(record.underline === undefined
+      ? {}
+      : { underline: booleanValue(record.underline, false) }),
+    ...(record.strikethrough === undefined
+      ? {}
+      : { strikethrough: booleanValue(record.strikethrough, false) }),
+    ...(record.emphasisMark === undefined
+      ? {}
+      : { emphasisMark: booleanValue(record.emphasisMark, false) }),
   }),
   lineSpacing: (record) => ({
     lineHeight: rangedNumber(
@@ -189,6 +246,22 @@ const NORMALIZED_FORMAT_BUILDERS: Record<
   }),
   color: (record) => ({
     textColor: colorValue(record.textColor, "#111111"),
+    ...(record.textBackgroundEnabled === undefined
+      ? {}
+      : {
+          textBackgroundEnabled: booleanValue(
+            record.textBackgroundEnabled,
+            false,
+          ),
+        }),
+    ...(record.textBackgroundColor === undefined
+      ? {}
+      : {
+          textBackgroundColor: colorValue(
+            record.textBackgroundColor,
+            "#ffffff",
+          ),
+        }),
   }),
   outline: (record) => {
     const outlineWidthPx = optionalRangedNumber(record.outlineWidthPx, 0, 64);
@@ -197,12 +270,36 @@ const NORMALIZED_FORMAT_BUILDERS: Record<
       ...(outlineWidthPx === undefined
         ? { outlineWidthScale: rangedNumber(record.outlineWidthScale, 0, 8, 0) }
         : { outlineWidthPx }),
+      ...(record.outerOutlineColor === undefined
+        ? {}
+        : { outerOutlineColor: optionalColor(record.outerOutlineColor) }),
+      ...(record.outerOutlineWidthPx === undefined
+        ? {}
+        : {
+            outerOutlineWidthPx: rangedNumber(
+              record.outerOutlineWidthPx,
+              0,
+              64,
+              0,
+            ),
+          }),
     };
   },
   effect: (record) => ({
-    textEffect: normalizeTextEffect(record.textEffect) ?? {
-      ...DEFAULT_TEXT_EFFECT,
-    },
+    ...(record.textEffect === undefined
+      ? {}
+      : {
+          textEffect: normalizeTextEffect(record.textEffect) ?? {
+            ...DEFAULT_TEXT_EFFECT,
+          },
+        }),
+    ...(record.textGlow === undefined
+      ? {}
+      : {
+          textGlow: normalizeTextGlow(record.textGlow) ?? {
+            ...DEFAULT_TEXT_GLOW,
+          },
+        }),
   }),
   transform: (record) => ({
     rotationDeg: rangedNumber(record.rotationDeg, -180, 180, 0),
@@ -227,21 +324,43 @@ const PATCH_BUILDERS: Record<
   emphasis: (format) => ({
     bold: format.bold ?? false,
     italic: format.italic ?? false,
+    ...(format.underline === undefined ? {} : { underline: format.underline }),
+    ...(format.strikethrough === undefined
+      ? {}
+      : { strikethrough: format.strikethrough }),
+    ...(format.emphasisMark === undefined
+      ? {}
+      : { emphasisMark: format.emphasisMark }),
   }),
   lineSpacing: (format) => ({ lineHeight: format.lineHeight ?? 1.18 }),
   letterSpacing: (format) => ({ letterSpacing: format.letterSpacing ?? 0 }),
   fontWidth: (format) => ({ fontWidthScale: format.fontWidthScale ?? 1 }),
-  color: (format) => ({ textColor: format.textColor ?? "#111111" }),
+  color: (format) => ({
+    textColor: format.textColor ?? "#111111",
+    ...(format.textBackgroundEnabled === undefined
+      ? {}
+      : { textBackgroundEnabled: format.textBackgroundEnabled }),
+    ...(format.textBackgroundColor === undefined
+      ? {}
+      : { textBackgroundColor: format.textBackgroundColor }),
+  }),
   outline: (format) => ({
     outlineColor: format.outlineColor,
     ...(format.outlineWidthPx === undefined
       ? { outlineWidthScale: format.outlineWidthScale ?? 0 }
       : { outlineWidthPx: format.outlineWidthPx }),
+    ...(format.outerOutlineColor === undefined
+      ? {}
+      : { outerOutlineColor: format.outerOutlineColor }),
+    ...(format.outerOutlineWidthPx === undefined
+      ? {}
+      : { outerOutlineWidthPx: format.outerOutlineWidthPx }),
   }),
   effect: (format) => ({
-    textEffect: format.textEffect
-      ? cloneTextEffect(format.textEffect)
-      : { ...DEFAULT_TEXT_EFFECT },
+    ...(format.textEffect
+      ? { textEffect: cloneTextEffect(format.textEffect) }
+      : {}),
+    ...(format.textGlow ? { textGlow: cloneTextGlow(format.textGlow) } : {}),
   }),
   transform: (format) => ({
     rotationDeg: format.rotationDeg ?? 0,
@@ -286,84 +405,4 @@ export function resolveBlockStylePresetPatchFields(
   return preset.format.outlineWidthPx === undefined
     ? { ...patch, outlineWidthPx: undefined }
     : { ...patch, outlineWidthScale: undefined };
-}
-
-function buildFormat<Source>(
-  source: Source,
-  groupIds: readonly BlockFormatGroupId[],
-  builders: Record<BlockFormatGroupId, FormatBuilder<Source>>,
-): BlockStylePresetFormat {
-  return compactFormat(
-    Object.assign({}, ...groupIds.map((groupId) => builders[groupId](source))),
-  );
-}
-
-function compactFormat(value: BlockStylePresetFormat): BlockStylePresetFormat {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, field]) => field !== undefined),
-  ) as BlockStylePresetFormat;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function booleanValue(value: unknown, fallback: boolean): boolean {
-  return typeof value === "boolean" ? value : fallback;
-}
-
-function rangedNumber(
-  value: unknown,
-  minimum: number,
-  maximum: number,
-  fallback: number,
-): number {
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.max(minimum, Math.min(maximum, value))
-    : fallback;
-}
-
-function optionalRangedNumber(
-  value: unknown,
-  minimum: number,
-  maximum: number,
-): number | undefined {
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.max(minimum, Math.min(maximum, value))
-    : undefined;
-}
-
-function optionalString(
-  value: unknown,
-  maximumLength: number,
-): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const normalized = value.trim().slice(0, maximumLength);
-  return normalized || undefined;
-}
-
-const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
-
-function colorValue(value: unknown, fallback: string): string {
-  return typeof value === "string" && HEX_COLOR_PATTERN.test(value)
-    ? value.toLowerCase()
-    : fallback;
-}
-
-function optionalColor(value: unknown): string | undefined {
-  return typeof value === "string" && HEX_COLOR_PATTERN.test(value)
-    ? value.toLowerCase()
-    : undefined;
-}
-
-function enumValue<T extends string>(
-  value: unknown,
-  choices: readonly T[],
-  fallback: T,
-): T {
-  return typeof value === "string" && choices.includes(value as T)
-    ? (value as T)
-    : fallback;
 }

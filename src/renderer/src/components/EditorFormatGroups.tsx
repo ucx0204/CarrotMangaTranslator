@@ -8,13 +8,11 @@ import type {
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
+import { BlockDisplayGroup } from "./BlockDisplayGroup";
 import { BlockStylePresetControls } from "./BlockStylePresetControls";
-import {
-  BlockDisplayGroup,
-  EditorColorGroup,
-  EditorTextEffectGroup,
-} from "./EditorColorGroup";
+import { EditorColorGroup } from "./EditorColorGroup";
 import { FormatEditorGroup } from "./EditorFormatControls";
+import { EditorTextEffectGroup } from "./EditorTextEffectControls";
 import {
   clampFontSize,
   resolveColor,

@@ -135,6 +135,20 @@ function dispatchWorkspaceWheelZoom(
   else chapter.uiState.zoomOutWorkspace();
 }
 
+function createPanelStylePresetActions(chapter: ChapterSessionController) {
+  const model = {
+    derivedState: chapter.derivedState,
+    settingsDialog: chapter.settingsDialog,
+    statusLog: chapter.statusLog,
+  };
+  return {
+    createStylePreset: createStylePresetSaveAction(model),
+    deleteStylePreset: createStylePresetDeleteAction(model),
+    overwriteStylePreset: createStylePresetOverwriteAction(model),
+    renameStylePreset: createStylePresetRenameAction(model),
+  };
+}
+
 function usePanelCommandHandler(
   chapter: ChapterSessionController,
   translation: TranslationController,
@@ -165,12 +179,7 @@ function usePanelCommandHandler(
     inpainting.pointerHandlers.startRegionTranslationSelection;
   const runInpainting = inpainting.inpaintingActions.runInpainting;
   const runBubbleLayout = inpainting.inpaintingActions.runBubbleLayout;
-  const {
-    createStylePreset,
-    deleteStylePreset,
-    overwriteStylePreset,
-    renameStylePreset,
-  } = createPanelPresetCommandActions(chapter);
+  const presetActions = createPanelStylePresetActions(chapter);
   return useCallback(
     (command: PanelCommand) => {
       dispatchPanelCommand({
@@ -178,14 +187,16 @@ function usePanelCommandHandler(
           ...actions,
           eraseBlockOriginal: (blockId) => void runInpainting("page", blockId),
           fitBlockBubble: (blockId) => void runBubbleLayout(blockId),
-          deleteStylePreset: (presetId) => void deleteStylePreset(presetId),
-          createStylePreset: (input) => void createStylePreset(input),
+          deleteStylePreset: (presetId) =>
+            void presetActions.deleteStylePreset(presetId),
+          createStylePreset: (input) =>
+            void presetActions.createStylePreset(input),
           openStylePresetManager: () => void openSettings("style-presets"),
           openFontManager: () => setFontManagerOpen(true),
           overwriteStylePreset: (presetId) =>
-            void overwriteStylePreset(presetId),
+            void presetActions.overwriteStylePreset(presetId),
           renameStylePreset: (presetId, name) =>
-            void renameStylePreset(presetId, name),
+            void presetActions.renameStylePreset(presetId, name),
           openBlockLibrary: () => setBlockLibraryOpen(true),
           suggestConsistentEdit: (find, replace) => {
             setConditionalBatchInitialFind(find);
@@ -204,10 +215,7 @@ function usePanelCommandHandler(
     [
       actions,
       busy,
-      deleteStylePreset,
-      createStylePreset,
-      overwriteStylePreset,
-      renameStylePreset,
+      presetActions,
       openSettings,
       runBubbleLayout,
       runInpainting,
@@ -222,18 +230,4 @@ function usePanelCommandHandler(
       startAreaTranslate,
     ],
   );
-}
-
-function createPanelPresetCommandActions(chapter: ChapterSessionController) {
-  const model = {
-    derivedState: chapter.derivedState,
-    settingsDialog: chapter.settingsDialog,
-    statusLog: chapter.statusLog,
-  };
-  return {
-    createStylePreset: createStylePresetSaveAction(model),
-    deleteStylePreset: createStylePresetDeleteAction(model),
-    overwriteStylePreset: createStylePresetOverwriteAction(model),
-    renameStylePreset: createStylePresetRenameAction(model),
-  };
 }

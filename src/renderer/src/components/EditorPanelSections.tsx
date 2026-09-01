@@ -94,6 +94,15 @@ export function TextEditorGroup({
         editorRootRef={translatedEditorRootRef}
         heightRefCallback={translatedTextareaRef}
         onChange={drafts.changeTranslated}
+        afterEditor={
+          <SourceTextField
+            disabled={disabled}
+            refCallback={setSourceRef}
+            onResetHeights={resetTextareaHeights}
+            value={drafts.source}
+            onChange={drafts.changeSource}
+          />
+        }
       />
       {drafts.suggestion && onSuggestConsistentEdit ? (
         <div className="editor-consistent-edit-suggestion">
@@ -114,13 +123,6 @@ export function TextEditorGroup({
           </Button>
         </div>
       ) : null}
-      <SourceTextField
-        disabled={disabled}
-        refCallback={setSourceRef}
-        onResetHeights={resetTextareaHeights}
-        value={drafts.source}
-        onChange={drafts.changeSource}
-      />
     </div>
   );
 }
@@ -222,7 +224,9 @@ function useBlockTextDrafts(
     blockIdRef.current = block.id;
     if (
       switched ||
-      !translatedEditorRootRef.current?.contains(document.activeElement)
+      !translatedEditorRootRef.current
+        ?.querySelector("[data-rich-translated-input]")
+        ?.contains(document.activeElement)
     ) {
       setTranslated(block.translatedText);
       setTranslatedBaseline(null);

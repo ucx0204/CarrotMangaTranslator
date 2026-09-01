@@ -16,12 +16,26 @@ export type TextStyleRun = {
   text: string;
   bold: boolean;
   italic: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
+  emphasisMark?: boolean;
   /** Absolute page font size. Auto-fit applies one common temporary scale. */
   sizePx?: number;
   /** Block font id, not a raw CSS family. */
   fontFamily?: string;
   /** Absolute text opacity from 0 to 1. */
   opacity?: number;
+  /** Horizontal glyph scale (장평/자폭), not letter spacing. */
+  widthScale?: number;
+  color?: string;
+  backgroundColor?: string;
+  outlineColor?: string;
+  outlineWidthPx?: number;
+  outerOutlineColor?: string;
+  outerOutlineWidthPx?: number;
+  glowColor?: string;
+  glowBlurPx?: number;
+  glowOpacity?: number;
   /** Render this run as one horizontal cell only in vertical writing. */
   verticalCombine?: boolean;
 };
@@ -34,18 +48,52 @@ export type ParsedRichText = {
 export type TextStylePatch = {
   bold?: boolean | null;
   italic?: boolean | null;
+  underline?: boolean | null;
+  strikethrough?: boolean | null;
+  emphasisMark?: boolean | null;
   sizePx?: number | null;
   fontFamily?: string | null;
   opacity?: number | null;
+  widthScale?: number | null;
+  color?: string | null;
+  backgroundColor?: string | null;
+  outlineColor?: string | null;
+  outlineWidthPx?: number | null;
+  outerOutlineColor?: string | null;
+  outerOutlineWidthPx?: number | null;
+  glowColor?: string | null;
+  glowBlurPx?: number | null;
+  glowOpacity?: number | null;
   verticalCombine?: boolean | null;
 };
 
 const MARKERS = ["***", "**", "*"] as const;
-const MAX_PARSE_DEPTH = 16;
+const MAX_PARSE_DEPTH = 32;
 const FONT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/;
+const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+const MIN_WIDTH_SCALE = 0.1;
+const MAX_WIDTH_SCALE = 5;
+const MAX_INLINE_EFFECT_PX = 64;
 
 type StyleContext = Omit<TextStyleRun, "text">;
-type StyleTagName = "size" | "font" | "opacity" | "tcy";
+type StyleTagName =
+  | "size"
+  | "font"
+  | "opacity"
+  | "width"
+  | "color"
+  | "background"
+  | "outline-color"
+  | "outline-width"
+  | "outer-outline-color"
+  | "outer-outline-width"
+  | "glow-color"
+  | "glow-blur"
+  | "glow-opacity"
+  | "underline"
+  | "strike"
+  | "emphasis"
+  | "tcy";
 
 type StyleTagMatch = {
   name: StyleTagName;
@@ -136,9 +184,22 @@ export function clearTextStylesFromRuns(
   return applyTextStyleToRuns(runs, selectionStart, selectionEnd, {
     bold: null,
     italic: null,
+    underline: null,
+    strikethrough: null,
+    emphasisMark: null,
     sizePx: null,
     fontFamily: null,
     opacity: null,
+    widthScale: null,
+    color: null,
+    backgroundColor: null,
+    outlineColor: null,
+    outlineWidthPx: null,
+    outerOutlineColor: null,
+    outerOutlineWidthPx: null,
+    glowColor: null,
+    glowBlurPx: null,
+    glowOpacity: null,
     verticalCombine: null,
   });
 }
@@ -244,7 +305,6 @@ function matchStyleSegment(
   return closeIndex < 0 ? null : { opening, closeIndex };
 }
 
-// eslint-disable-next-line complexity -- each allowlisted tag validates its own bounded value before entering the run model
 function matchStyleOpeningTag(
   input: string,
   start: number,
@@ -253,48 +313,147 @@ function matchStyleOpeningTag(
   if (end < 0 || end - start > 140) return null;
   const body = input.slice(start + 1, end);
   const nextIndex = end + 1;
-  if (body === "tcy") {
-    return {
-      name: "tcy",
-      nextIndex,
-      patch: { verticalCombine: true },
-    };
+  const booleanName = body as StyleTagName;
+  const booleanPatch = BOOLEAN_STYLE_TAG_PATCHES[booleanName];
+  if (booleanPatch) {
+    return { name: booleanName, nextIndex, patch: booleanPatch };
   }
   const equals = body.indexOf("=");
   if (equals <= 0) return null;
   const name = body.slice(0, equals) as StyleTagName;
   const rawValue = body.slice(equals + 1).trim();
-
-  if (name === "size") {
-    const value = Number(rawValue);
-    if (
-      !Number.isFinite(value) ||
-      value < MIN_FONT_SIZE_PX ||
-      value > MAX_FONT_SIZE_PX
-    ) {
-      return null;
-    }
-    return {
-      name,
-      nextIndex,
-      patch: { sizePx: clampFontSizePx(value) },
-    };
-  }
-  if (name === "font") {
-    if (!FONT_ID_PATTERN.test(rawValue)) return null;
-    return { name, nextIndex, patch: { fontFamily: rawValue } };
-  }
-  if (name === "opacity") {
-    const percent = Number(rawValue);
-    if (!Number.isFinite(percent) || percent < 0 || percent > 100) return null;
-    return {
-      name,
-      nextIndex,
-      patch: { opacity: normalizeOpacity(percent / 100) },
-    };
-  }
-  return null;
+  return matchValuedStyleOpeningTag(name, rawValue, nextIndex);
 }
+
+const BOOLEAN_STYLE_TAG_PATCHES: Partial<Record<StyleTagName, TextStylePatch>> =
+  {
+    tcy: { verticalCombine: true },
+    underline: { underline: true },
+    strike: { strikethrough: true },
+    emphasis: { emphasisMark: true },
+  };
+
+function matchValuedStyleOpeningTag(
+  name: StyleTagName,
+  rawValue: string,
+  nextIndex: number,
+): StyleTagMatch | null {
+  if (name === "size") return matchSizeTag(rawValue, nextIndex);
+  if (name === "font") return matchFontTag(rawValue, nextIndex);
+  if (name === "opacity") return matchOpacityTag(rawValue, nextIndex);
+  if (name === "width") return matchWidthTag(rawValue, nextIndex);
+  const colorPatchKey = COLOR_TAG_PATCH_KEYS[name];
+  if (colorPatchKey)
+    return matchColorTag(name, colorPatchKey, rawValue, nextIndex);
+  const numberDefinition = NUMBER_TAG_DEFINITIONS[name];
+  return numberDefinition
+    ? matchNumberTag(name, numberDefinition, rawValue, nextIndex)
+    : null;
+}
+
+function matchSizeTag(
+  rawValue: string,
+  nextIndex: number,
+): StyleTagMatch | null {
+  const value = Number(rawValue);
+  if (!isNumberInRange(value, MIN_FONT_SIZE_PX, MAX_FONT_SIZE_PX)) return null;
+  return { name: "size", nextIndex, patch: { sizePx: clampFontSizePx(value) } };
+}
+
+function matchFontTag(
+  rawValue: string,
+  nextIndex: number,
+): StyleTagMatch | null {
+  return FONT_ID_PATTERN.test(rawValue)
+    ? { name: "font", nextIndex, patch: { fontFamily: rawValue } }
+    : null;
+}
+
+function matchOpacityTag(
+  rawValue: string,
+  nextIndex: number,
+): StyleTagMatch | null {
+  const percent = Number(rawValue);
+  if (!isNumberInRange(percent, 0, 100)) return null;
+  return {
+    name: "opacity",
+    nextIndex,
+    patch: { opacity: normalizeOpacity(percent / 100) },
+  };
+}
+
+function matchWidthTag(
+  rawValue: string,
+  nextIndex: number,
+): StyleTagMatch | null {
+  const value = Number(rawValue);
+  if (!isNumberInRange(value, MIN_WIDTH_SCALE, MAX_WIDTH_SCALE)) return null;
+  return {
+    name: "width",
+    nextIndex,
+    patch: { widthScale: normalizeNumber(value) },
+  };
+}
+
+function matchColorTag(
+  name: StyleTagName,
+  key: keyof TextStylePatch,
+  rawValue: string,
+  nextIndex: number,
+): StyleTagMatch | null {
+  if (!HEX_COLOR_PATTERN.test(rawValue)) return null;
+  return {
+    name,
+    nextIndex,
+    patch: { [key]: rawValue.toLowerCase() },
+  };
+}
+
+function matchNumberTag(
+  name: StyleTagName,
+  definition: { key: keyof TextStylePatch; min: number; max: number },
+  rawValue: string,
+  nextIndex: number,
+): StyleTagMatch | null {
+  const value = Number(rawValue);
+  if (!isNumberInRange(value, definition.min, definition.max)) return null;
+  return {
+    name,
+    nextIndex,
+    patch: { [definition.key]: normalizeNumber(value) },
+  };
+}
+
+const COLOR_TAG_PATCH_KEYS: Partial<
+  Record<StyleTagName, keyof TextStylePatch>
+> = {
+  color: "color",
+  background: "backgroundColor",
+  "outline-color": "outlineColor",
+  "outer-outline-color": "outerOutlineColor",
+  "glow-color": "glowColor",
+};
+
+const NUMBER_TAG_DEFINITIONS: Partial<
+  Record<StyleTagName, { key: keyof TextStylePatch; min: number; max: number }>
+> = {
+  "outline-width": {
+    key: "outlineWidthPx",
+    min: 0,
+    max: MAX_INLINE_EFFECT_PX,
+  },
+  "outer-outline-width": {
+    key: "outerOutlineWidthPx",
+    min: 0,
+    max: MAX_INLINE_EFFECT_PX,
+  },
+  "glow-blur": {
+    key: "glowBlurPx",
+    min: 0,
+    max: MAX_INLINE_EFFECT_PX,
+  },
+  "glow-opacity": { key: "glowOpacity", min: 0, max: 1 },
+};
 
 function findClosingStyleTag(
   input: string,
@@ -387,22 +546,100 @@ function readEscapedCharacter(
 }
 
 function serializeRun(run: TextStyleRun): string {
-  let content = escapeRichText(run.text);
-  if (run.bold && run.italic) content = `***${content}***`;
-  else if (run.bold) content = `**${content}**`;
-  else if (run.italic) content = `*${content}*`;
-  if (run.verticalCombine) content = `[tcy]${content}[/tcy]`;
-  if (run.opacity !== undefined) {
-    content = `[opacity=${formatNumber(normalizeOpacity(run.opacity) * 100)}]${content}[/opacity]`;
+  let content = wrapTextEmphasis(escapeRichText(run.text), run);
+  for (const [name, enabled] of booleanStyleTags(run)) {
+    if (enabled) content = wrapStyleTag(content, name);
   }
-  if (run.sizePx !== undefined) {
-    content = `[size=${formatNumber(clampFontSizePx(run.sizePx))}]${content}[/size]`;
-  }
-  if (run.fontFamily && FONT_ID_PATTERN.test(run.fontFamily)) {
-    content = `[font=${run.fontFamily}]${content}[/font]`;
+  for (const [name, value] of valuedStyleTags(run)) {
+    content = wrapOptionalStyleTag(content, name, value);
   }
   return content;
 }
+
+function wrapTextEmphasis(content: string, run: TextStyleRun): string {
+  if (run.bold && run.italic) return `***${content}***`;
+  if (run.bold) return `**${content}**`;
+  if (run.italic) return `*${content}*`;
+  return content;
+}
+
+function booleanStyleTags(
+  run: TextStyleRun,
+): readonly [StyleTagName, boolean | undefined][] {
+  return [
+    ["underline", run.underline],
+    ["strike", run.strikethrough],
+    ["emphasis", run.emphasisMark],
+    ["tcy", run.verticalCombine],
+  ];
+}
+
+function valuedStyleTags(
+  run: TextStyleRun,
+): readonly [StyleTagName, string | number | undefined][] {
+  return [
+    ["glow-opacity", run.glowOpacity],
+    ["glow-blur", run.glowBlurPx],
+    ["glow-color", run.glowColor],
+    ["outer-outline-width", run.outerOutlineWidthPx],
+    ["outer-outline-color", run.outerOutlineColor],
+    ["outline-width", run.outlineWidthPx],
+    ["outline-color", run.outlineColor],
+    ["background", run.backgroundColor],
+    ["color", run.color],
+    [
+      "width",
+      run.widthScale === undefined
+        ? undefined
+        : clampNumber(run.widthScale, MIN_WIDTH_SCALE, MAX_WIDTH_SCALE),
+    ],
+    [
+      "opacity",
+      run.opacity === undefined
+        ? undefined
+        : normalizeOpacity(run.opacity) * 100,
+    ],
+    [
+      "size",
+      run.sizePx === undefined ? undefined : clampFontSizePx(run.sizePx),
+    ],
+    [
+      "font",
+      run.fontFamily && FONT_ID_PATTERN.test(run.fontFamily)
+        ? run.fontFamily
+        : undefined,
+    ],
+  ];
+}
+
+function wrapStyleTag(content: string, name: StyleTagName): string {
+  return `[${name}]${content}[/${name}]`;
+}
+
+function wrapOptionalStyleTag(
+  content: string,
+  name: StyleTagName,
+  value: string | number | undefined,
+): string {
+  if (typeof value === "string") {
+    const isColor = COLOR_STYLE_TAGS.has(name);
+    if (isColor && !HEX_COLOR_PATTERN.test(value)) return content;
+    const serialized = isColor ? value.toLowerCase() : value;
+    return `[${name}=${serialized}]${content}[/${name}]`;
+  }
+  if (value !== undefined && Number.isFinite(value)) {
+    return `[${name}=${formatNumber(value)}]${content}[/${name}]`;
+  }
+  return content;
+}
+
+const COLOR_STYLE_TAGS = new Set<StyleTagName>([
+  "color",
+  "background",
+  "outline-color",
+  "outer-outline-color",
+  "glow-color",
+]);
 
 function escapeRichText(value: string): string {
   return value
@@ -418,9 +655,22 @@ function applyStylePatch(
   const next = { ...run };
   applyOptionalPatch(next, "bold", patch.bold);
   applyOptionalPatch(next, "italic", patch.italic);
+  applyOptionalPatch(next, "underline", patch.underline);
+  applyOptionalPatch(next, "strikethrough", patch.strikethrough);
+  applyOptionalPatch(next, "emphasisMark", patch.emphasisMark);
   applyOptionalPatch(next, "sizePx", patch.sizePx);
   applyOptionalPatch(next, "fontFamily", patch.fontFamily);
   applyOptionalPatch(next, "opacity", patch.opacity);
+  applyOptionalPatch(next, "widthScale", patch.widthScale);
+  applyOptionalPatch(next, "color", patch.color);
+  applyOptionalPatch(next, "backgroundColor", patch.backgroundColor);
+  applyOptionalPatch(next, "outlineColor", patch.outlineColor);
+  applyOptionalPatch(next, "outlineWidthPx", patch.outlineWidthPx);
+  applyOptionalPatch(next, "outerOutlineColor", patch.outerOutlineColor);
+  applyOptionalPatch(next, "outerOutlineWidthPx", patch.outerOutlineWidthPx);
+  applyOptionalPatch(next, "glowColor", patch.glowColor);
+  applyOptionalPatch(next, "glowBlurPx", patch.glowBlurPx);
+  applyOptionalPatch(next, "glowOpacity", patch.glowOpacity);
   applyOptionalPatch(next, "verticalCombine", patch.verticalCombine);
   return normalizeRun(next);
 }
@@ -440,14 +690,33 @@ function applyOptionalPatch<
   Key extends
     | "bold"
     | "italic"
+    | "underline"
+    | "strikethrough"
+    | "emphasisMark"
     | "sizePx"
     | "fontFamily"
     | "opacity"
+    | "widthScale"
+    | "color"
+    | "backgroundColor"
+    | "outlineColor"
+    | "outlineWidthPx"
+    | "outerOutlineColor"
+    | "outerOutlineWidthPx"
+    | "glowColor"
+    | "glowBlurPx"
+    | "glowOpacity"
     | "verticalCombine",
 >(target: TextStyleRun, key: Key, value: TextStylePatch[Key]): void {
   if (value === undefined) return;
   if (value === null) {
-    if (key === "bold" || key === "italic") {
+    if (
+      key === "bold" ||
+      key === "italic" ||
+      key === "underline" ||
+      key === "strikethrough" ||
+      key === "emphasisMark"
+    ) {
       Object.assign(target, { [key]: false });
     } else {
       delete target[key];
@@ -465,30 +734,127 @@ function normalizeRun(run: TextStyleRun): TextStyleRun {
     bold: Boolean(run.bold),
     italic: Boolean(run.italic),
   };
-  if (run.sizePx !== undefined && Number.isFinite(run.sizePx)) {
-    next.sizePx = clampFontSizePx(run.sizePx);
-  }
-  if (run.fontFamily && FONT_ID_PATTERN.test(run.fontFamily)) {
-    next.fontFamily = run.fontFamily;
-  }
-  if (run.opacity !== undefined && Number.isFinite(run.opacity)) {
-    next.opacity = normalizeOpacity(run.opacity);
-  }
-  if (run.verticalCombine) {
-    next.verticalCombine = true;
-  }
+  copyEnabledStyles(run, next);
+  copyNormalizedCoreValues(run, next);
+  copyColor(run, next, "color");
+  copyColor(run, next, "backgroundColor");
+  copyColor(run, next, "outlineColor");
+  copyColor(run, next, "outerOutlineColor");
+  copyColor(run, next, "glowColor");
+  copyNumber(run, next, "outlineWidthPx", 0, MAX_INLINE_EFFECT_PX);
+  copyNumber(run, next, "outerOutlineWidthPx", 0, MAX_INLINE_EFFECT_PX);
+  copyNumber(run, next, "glowBlurPx", 0, MAX_INLINE_EFFECT_PX);
+  copyNumber(run, next, "glowOpacity", 0, 1);
   return next;
 }
 
+function copyEnabledStyles(source: TextStyleRun, target: TextStyleRun): void {
+  const keys = [
+    "underline",
+    "strikethrough",
+    "emphasisMark",
+    "verticalCombine",
+  ] as const;
+  for (const key of keys) {
+    if (source[key]) Object.assign(target, { [key]: true });
+  }
+}
+
+function copyNormalizedCoreValues(
+  source: TextStyleRun,
+  target: TextStyleRun,
+): void {
+  if (source.sizePx !== undefined && Number.isFinite(source.sizePx)) {
+    target.sizePx = clampFontSizePx(source.sizePx);
+  }
+  if (source.fontFamily && FONT_ID_PATTERN.test(source.fontFamily)) {
+    target.fontFamily = source.fontFamily;
+  }
+  if (source.opacity !== undefined && Number.isFinite(source.opacity)) {
+    target.opacity = normalizeOpacity(source.opacity);
+  }
+  if (source.widthScale !== undefined && Number.isFinite(source.widthScale)) {
+    target.widthScale = clampNumber(
+      source.widthScale,
+      MIN_WIDTH_SCALE,
+      MAX_WIDTH_SCALE,
+    );
+  }
+}
+
 function haveSameStyle(left: TextStyleRun, right: TextStyleRun): boolean {
-  return (
-    left.bold === right.bold &&
-    left.italic === right.italic &&
-    left.sizePx === right.sizePx &&
-    left.fontFamily === right.fontFamily &&
-    left.opacity === right.opacity &&
-    left.verticalCombine === right.verticalCombine
-  );
+  return STYLE_COMPARISON_FIELDS.every((key) => left[key] === right[key]);
+}
+
+const STYLE_COMPARISON_FIELDS = [
+  "bold",
+  "italic",
+  "underline",
+  "strikethrough",
+  "emphasisMark",
+  "sizePx",
+  "fontFamily",
+  "opacity",
+  "widthScale",
+  "color",
+  "backgroundColor",
+  "outlineColor",
+  "outlineWidthPx",
+  "outerOutlineColor",
+  "outerOutlineWidthPx",
+  "glowColor",
+  "glowBlurPx",
+  "glowOpacity",
+  "verticalCombine",
+] as const satisfies readonly (keyof TextStyleRun)[];
+
+function copyColor<
+  Key extends
+    | "color"
+    | "backgroundColor"
+    | "outlineColor"
+    | "outerOutlineColor"
+    | "glowColor",
+>(source: TextStyleRun, target: TextStyleRun, key: Key): void {
+  const value = source[key];
+  if (value && HEX_COLOR_PATTERN.test(value)) {
+    Object.assign(target, { [key]: value.toLowerCase() });
+  }
+}
+
+function copyNumber<
+  Key extends
+    | "outlineWidthPx"
+    | "outerOutlineWidthPx"
+    | "glowBlurPx"
+    | "glowOpacity",
+>(
+  source: TextStyleRun,
+  target: TextStyleRun,
+  key: Key,
+  minimum: number,
+  maximum: number,
+): void {
+  const value = source[key];
+  if (value !== undefined && Number.isFinite(value)) {
+    Object.assign(target, { [key]: clampNumber(value, minimum, maximum) });
+  }
+}
+
+function isNumberInRange(
+  value: number,
+  minimum: number,
+  maximum: number,
+): boolean {
+  return Number.isFinite(value) && value >= minimum && value <= maximum;
+}
+
+function normalizeNumber(value: number): number {
+  return Number(value.toFixed(3));
+}
+
+function clampNumber(value: number, minimum: number, maximum: number): number {
+  return normalizeNumber(Math.max(minimum, Math.min(maximum, value)));
 }
 
 function normalizeOpacity(value: number): number {

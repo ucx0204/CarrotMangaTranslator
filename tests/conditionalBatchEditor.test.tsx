@@ -25,7 +25,15 @@ import {
   type ConditionalBatchEditorProps,
 } from "../src/renderer/src/components/ConditionalBatchEditor";
 import { ConditionalBatchResultsCard } from "../src/renderer/src/components/ConditionalBatchResultsCard";
-import { listConditionalBatchFields } from "../src/renderer/src/components/conditionalBatchUi";
+import {
+  ConditionalBatchRulePanel,
+  type ConditionalBatchRulePanelProps,
+} from "../src/renderer/src/components/ConditionalBatchRulePanel";
+import {
+  isNewConditionalBatchConditionField,
+  isNewConditionalBatchWritableField,
+  listConditionalBatchFields,
+} from "../src/renderer/src/components/conditionalBatchUi";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import {
   FontsContext,
@@ -117,6 +125,149 @@ afterEach(() => {
 });
 
 describe("beginner conditional batch editor", () => {
+  it("keeps sequence and advanced tools independently open by default", () => {
+    const draft = createEllipsisBatchSchemeDraft();
+    const savedSchemes: ConditionalBatchSchemeV2[] = [
+      { id: "rule-1", ...draft, name: "첫 규칙" },
+      { id: "rule-2", ...draft, name: "둘째 규칙" },
+    ];
+    const sequence = {
+      id: "sequence-1",
+      name: "연속 규칙",
+      description: "순서대로 실행",
+      steps: [
+        { id: "step-1", schemeId: "rule-1", enabled: true },
+        { id: "step-2", schemeId: "rule-2", enabled: false },
+      ],
+    };
+    const callbacks = {
+      onChangeDraft: vi.fn(),
+      onChangeScope: vi.fn(),
+      onChooseRecipe: vi.fn(),
+      onCloseRecipePicker: vi.fn(),
+      onDeleteScheme: vi.fn(),
+      onDeleteSequence: vi.fn(),
+      onDuplicateScheme: vi.fn(),
+      onExportYaml: vi.fn(),
+      onImportYaml: vi.fn(),
+      onExitSequence: vi.fn(),
+      onNewScheme: vi.fn(),
+      onOpenYaml: vi.fn(),
+      onOpenYamlFile: vi.fn(),
+      onReflectYaml: vi.fn(),
+      onPreviewSequence: vi.fn(),
+      onSaveScheme: vi.fn(),
+      onSaveSequence: vi.fn(),
+      onSelectScheme: vi.fn(),
+      onSetYamlOpen: vi.fn(),
+      onSetYamlText: vi.fn(),
+    };
+    const props: ConditionalBatchRulePanelProps = {
+      activeSequence: null,
+      applyNotice: { kind: "info", message: "미리보기 갱신됨" },
+      autosaveState: "saved",
+      blockStylePresets: [],
+      canDeleteScheme: true,
+      currentResult: null,
+      draft,
+      recipePickerCanClose: true,
+      recipePickerOpen: false,
+      savedSchemes,
+      scopeKind: "page",
+      selectedBlockCount: 2,
+      selectedSchemeId: "rule-1",
+      sequences: [sequence],
+      sequencePreview: null,
+      storageBusy: false,
+      storageError: "저장소 경고",
+      temporarySchemes: [{ id: "temp-1", name: "임시 규칙", dirty: true }],
+      validationMessage: null,
+      yamlError: "YAML 구문 오류",
+      yamlOpen: true,
+      yamlText: "schemaVersion: 1",
+      ...callbacks,
+    };
+    const view = render(
+      <FontsContext.Provider value={FONTS_CONTEXT}>
+        <ConditionalBatchRulePanel {...props} />
+      </FontsContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "규칙 편집" }));
+    fireEvent.change(screen.getByLabelText("규칙 이름"), {
+      target: { value: "이름 수정" },
+    });
+    fireEvent.change(screen.getByLabelText("설명"), {
+      target: { value: "설명 수정" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "규칙 복제" }));
+    expect(callbacks.onDuplicateScheme).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "저장된 규칙 삭제" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "규칙 삭제" })).getByRole(
+        "button",
+        { name: "취소" },
+      ),
+    );
+
+    const sequenceToggle = screen.getByRole("button", { name: "연속 실행" });
+    const advancedToggle = screen.getByRole("button", { name: "고급" });
+    expect(sequenceToggle.getAttribute("aria-expanded")).toBe("true");
+    expect(advancedToggle.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.click(sequenceToggle);
+    expect(sequenceToggle.getAttribute("aria-expanded")).toBe("false");
+    expect(advancedToggle.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(sequenceToggle);
+
+    fireEvent.click(advancedToggle);
+    expect(advancedToggle.getAttribute("aria-expanded")).toBe("false");
+    expect(sequenceToggle.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(advancedToggle);
+
+    fireEvent.click(screen.getByRole("button", { name: "규칙 내보내기" }));
+    fireEvent.click(screen.getByRole("button", { name: "전체 내보내기" }));
+    fireEvent.click(screen.getByRole("button", { name: "직접 편집" }));
+    fireEvent.click(screen.getByRole("button", { name: "가져오기" }));
+    fireEvent.change(screen.getByLabelText("일관 편집 YAML"), {
+      target: { value: "schemaVersion: 1\nschemes: []" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "카드에 반영" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "새 규칙으로 가져오기" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "같은 ID 덮어쓰기" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "미리보기" }));
+    fireEvent.click(screen.getByRole("button", { name: "연속 규칙 편집" }));
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "연속 실행 단계 복제" })[0],
+    );
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "연속 실행 단계 아래로 이동" })[0],
+    );
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "연속 실행 단계 삭제" })[0],
+    );
+    fireEvent.click(screen.getByRole("button", { name: "업데이트" }));
+    expect(callbacks.onSaveSequence).toHaveBeenCalled();
+
+    view.rerender(
+      <FontsContext.Provider value={FONTS_CONTEXT}>
+        <ConditionalBatchRulePanel
+          {...props}
+          activeSequence={sequence}
+          sequencePreview={null}
+        />
+      </FontsContext.Provider>,
+    );
+    expect(screen.getByText("사용 안 함")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "규칙 편집으로 돌아가기" }),
+    );
+    expect(callbacks.onExitSequence).toHaveBeenCalledOnce();
+  });
+
   it("toggles condition and action sections independently across rule changes", async () => {
     render(
       <FontsContext.Provider value={FONTS_CONTEXT}>
@@ -301,6 +452,16 @@ describe("beginner conditional batch editor", () => {
       "위치·분량",
       "고급 텍스트 효과",
     ]);
+    expect(isNewConditionalBatchConditionField("outlineWidthScale")).toBe(
+      false,
+    );
+    expect(isNewConditionalBatchWritableField("outlineWidthScale")).toBe(false);
+    expect(isNewConditionalBatchConditionField("textEffectColor")).toBe(false);
+    expect(isNewConditionalBatchWritableField("textEffectColor")).toBe(true);
+    expect(isNewConditionalBatchConditionField("textEffectEnabled")).toBe(true);
+    expect(isNewConditionalBatchConditionField("pageIndex")).toBe(false);
+    expect(isNewConditionalBatchConditionField("blockIndex")).toBe(false);
+    expect(isNewConditionalBatchConditionField("bboxAspectRatio")).toBe(false);
 
     render(
       <FontsContext.Provider value={{ ...FONTS_CONTEXT, savePreferences }}>

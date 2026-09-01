@@ -255,6 +255,39 @@ describe("overlay transform controls", () => {
     expect(parsedRuns[1]?.style.opacity).toBe("1");
   });
 
+  it("skips only runs without an outer outline in the backing layer", () => {
+    const { container } = render(
+      <OverlayText
+        block={{ ...makeBlock(), outerOutlineWidthPx: 0 }}
+        displayText="[outer-outline-width=2]외[/outer-outline-width]곽"
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        layout={{
+          rect: { left: 0, top: 0, width: 100, height: 60 },
+          paddingPx: 0,
+          layoutWidth: 100,
+          layoutHeight: 60,
+          innerWidth: 100,
+          innerHeight: 60,
+          fitInnerWidth: 100,
+          fitInnerHeight: 60,
+          fontSizePx: 20,
+          textContentWidth: 100,
+          lines: null,
+          textScaleX: 1,
+          textScaleY: 1,
+          overflow: false,
+        }}
+        renderDirection="horizontal"
+      />,
+    );
+
+    const outer = container.querySelector(".overlay-text-outer");
+    expect(outer?.textContent).toBe("외");
+    expect(container.querySelector(".overlay-text-main")?.textContent).toBe(
+      "외곽",
+    );
+  });
+
   it("shows the selected bubble profile even when block chrome is hidden", () => {
     const block: TranslationBlock = {
       ...makeBlock(),

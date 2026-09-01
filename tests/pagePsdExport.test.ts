@@ -151,6 +151,31 @@ describe("layered PSD export", () => {
         { width: 1000, height: 1600 },
       ),
     ).toBeNull();
+    const unsupportedStyles: Partial<TranslationBlock>[] = [
+      { textBackgroundEnabled: true, textBackgroundColor: "#ffffff" },
+      { outerOutlineColor: "#111111", outerOutlineWidthPx: 2 },
+      { underline: true },
+      { strikethrough: true },
+      { emphasisMark: true },
+      {
+        textGlow: {
+          enabled: true,
+          color: "#ffffff",
+          blurPx: 6,
+          opacity: 0.8,
+        },
+      },
+      { translatedText: "[background=#ffffff]부분 배경[/background]" },
+      { translatedText: "[width=1.2]부분 장평[/width]" },
+    ];
+    for (const patch of unsupportedStyles) {
+      expect(
+        resolveEditablePsdText(
+          { ...makeBlock(), ...patch },
+          { width: 1000, height: 1600 },
+        ),
+      ).toBeNull();
+    }
   });
 
   it("rejects a broken full-canvas opaque text capture", () => {

@@ -27,6 +27,7 @@ export const CONDITIONAL_BATCH_FIELD_IDS = [
   "textOpacity",
   "outlineWidthPx",
   "outlineWidthScale",
+  "outerOutlineWidthPx",
   "pageIndex",
   "blockIndex",
   "lineCount",
@@ -37,8 +38,14 @@ export const CONDITIONAL_BATCH_FIELD_IDS = [
   "bboxAspectRatio",
   "textColor",
   "outlineColor",
+  "outerOutlineColor",
+  "textBackgroundColor",
   "bold",
   "italic",
+  "underline",
+  "strikethrough",
+  "emphasisMark",
+  "textBackgroundEnabled",
   "autoFitText",
   "inpaintExcluded",
   "hasInlineStyle",
@@ -50,6 +57,10 @@ export const CONDITIONAL_BATCH_FIELD_IDS = [
   "textEffectOffsetY",
   "textEffectBlur",
   "textEffectOpacity",
+  "textGlowEnabled",
+  "textGlowColor",
+  "textGlowBlur",
+  "textGlowOpacity",
   "sameAsSource",
   "numberMismatch",
   "unbalancedPunctuation",
@@ -203,6 +214,9 @@ export const CONDITIONAL_BATCH_FIELD_DEFINITIONS: readonly ConditionalBatchField
     field("textOpacity", "number", "typography", { writable: true }),
     field("outlineWidthPx", "number", "typography", { writable: true }),
     field("outlineWidthScale", "number", "typography", { writable: true }),
+    field("outerOutlineWidthPx", "number", "typography", {
+      writable: true,
+    }),
     field("pageIndex", "number", "derived"),
     field("blockIndex", "number", "derived"),
     field("lineCount", "number", "derived"),
@@ -213,8 +227,18 @@ export const CONDITIONAL_BATCH_FIELD_DEFINITIONS: readonly ConditionalBatchField
     field("bboxAspectRatio", "number", "derived"),
     field("textColor", "color", "typography", { writable: true }),
     field("outlineColor", "color", "typography", { writable: true }),
+    field("outerOutlineColor", "color", "typography", { writable: true }),
+    field("textBackgroundColor", "color", "typography", {
+      writable: true,
+    }),
     field("bold", "boolean", "typography", { writable: true }),
     field("italic", "boolean", "typography", { writable: true }),
+    field("underline", "boolean", "typography", { writable: true }),
+    field("strikethrough", "boolean", "typography", { writable: true }),
+    field("emphasisMark", "boolean", "typography", { writable: true }),
+    field("textBackgroundEnabled", "boolean", "typography", {
+      writable: true,
+    }),
     field("autoFitText", "boolean", "typography", { writable: true }),
     field("inpaintExcluded", "boolean", "review", { writable: true }),
     field("hasInlineStyle", "boolean", "inspection"),
@@ -226,6 +250,10 @@ export const CONDITIONAL_BATCH_FIELD_DEFINITIONS: readonly ConditionalBatchField
     field("textEffectOffsetY", "number", "typography", { writable: true }),
     field("textEffectBlur", "number", "typography", { writable: true }),
     field("textEffectOpacity", "number", "typography", { writable: true }),
+    field("textGlowEnabled", "boolean", "typography", { writable: true }),
+    field("textGlowColor", "color", "typography", { writable: true }),
+    field("textGlowBlur", "number", "typography", { writable: true }),
+    field("textGlowOpacity", "number", "typography", { writable: true }),
     field("sameAsSource", "boolean", "inspection"),
     field("numberMismatch", "boolean", "inspection"),
     field("unbalancedPunctuation", "boolean", "inspection"),
@@ -294,10 +322,17 @@ export function readConditionalBatchField(
     case "textOpacity":
     case "outlineWidthPx":
     case "outlineWidthScale":
+    case "outerOutlineWidthPx":
     case "textColor":
     case "outlineColor":
+    case "outerOutlineColor":
+    case "textBackgroundColor":
     case "bold":
     case "italic":
+    case "underline":
+    case "strikethrough":
+    case "emphasisMark":
+    case "textBackgroundEnabled":
     case "autoFitText":
     case "inpaintExcluded":
       return block[fieldId];
@@ -343,6 +378,14 @@ export function readConditionalBatchField(
       return block.textEffect?.blurPx;
     case "textEffectOpacity":
       return block.textEffect?.opacity;
+    case "textGlowEnabled":
+      return Boolean(block.textGlow?.enabled);
+    case "textGlowColor":
+      return block.textGlow?.color;
+    case "textGlowBlur":
+      return block.textGlow?.blurPx;
+    case "textGlowOpacity":
+      return block.textGlow?.opacity;
     case "sameAsSource":
       return textsAreSame(block);
     case "numberMismatch":
@@ -394,9 +437,22 @@ function hasInlineStyle(block: TranslationBlock): boolean {
     (run) =>
       run.bold !== Boolean(block.bold) ||
       run.italic !== Boolean(block.italic) ||
+      run.underline !== Boolean(block.underline) ||
+      run.strikethrough !== Boolean(block.strikethrough) ||
+      run.emphasisMark !== Boolean(block.emphasisMark) ||
       run.sizePx !== undefined ||
       run.fontFamily !== undefined ||
       run.opacity !== undefined ||
+      run.widthScale !== undefined ||
+      run.color !== undefined ||
+      run.backgroundColor !== undefined ||
+      run.outlineColor !== undefined ||
+      run.outlineWidthPx !== undefined ||
+      run.outerOutlineColor !== undefined ||
+      run.outerOutlineWidthPx !== undefined ||
+      run.glowColor !== undefined ||
+      run.glowBlurPx !== undefined ||
+      run.glowOpacity !== undefined ||
       Boolean(run.verticalCombine),
   );
 }

@@ -8,7 +8,7 @@ import {
 import { PNG } from "pngjs";
 import { resolveBlockRenderBbox } from "../../shared/geometry";
 import type { MangaPage } from "../../shared/libraryTypes";
-import { parseRichText } from "../../shared/richTextMarkup";
+import { parseRichText, type TextStyleRun } from "../../shared/richTextMarkup";
 import type { TranslationBlock } from "../../shared/textTypes";
 import { resolveTextEffectFilter } from "../../shared/textEffect";
 import { resolveEffectiveTextOutlineWidthPx } from "../../shared/textOutline";
@@ -174,24 +174,13 @@ function supportsEditablePsdText(
   block: TranslationBlock,
   displayText: string,
 ): boolean {
-  if (
-    !displayText ||
-    block.renderDirection === "vertical" ||
-    resolveTextEffectFilter(block.textEffect)
-  ) {
+  if (!displayText || hasUnsupportedBlockTextFeatures(block)) {
     return false;
   }
   const parsed = parseRichText(displayText);
   if (
     parsed.plainText !== displayText ||
-    parsed.runs.some(
-      (run) =>
-        run.bold ||
-        run.italic ||
-        run.sizePx !== undefined ||
-        run.fontFamily !== undefined ||
-        run.opacity !== undefined,
-    )
+    parsed.runs.some(hasUnsupportedRunStyle)
   ) {
     // ag-psd exposes only one text style for this editable layer contract.
     // Keep the faithfully rendered raster layer instead of leaking markup or
@@ -200,6 +189,49 @@ function supportsEditablePsdText(
   }
   return (
     !block.curveLayout && !block.perspectiveTransform && !block.warpTransform
+  );
+}
+
+function hasUnsupportedBlockTextFeatures(block: TranslationBlock): boolean {
+  return [
+    block.renderDirection === "vertical",
+    Boolean(resolveTextEffectFilter(block.textEffect)),
+    block.textGlow?.enabled,
+    block.textBackgroundEnabled,
+    block.underline,
+    block.strikethrough,
+    block.emphasisMark,
+    (block.outerOutlineWidthPx ?? 0) > 0,
+  ].some(Boolean);
+}
+
+function hasUnsupportedRunStyle(run: TextStyleRun): boolean {
+  const enabledStyles = [
+    run.bold,
+    run.italic,
+    run.underline,
+    run.strikethrough,
+    run.emphasisMark,
+    run.verticalCombine,
+  ];
+  const optionalStyles = [
+    run.sizePx,
+    run.fontFamily,
+    run.opacity,
+    run.widthScale,
+    run.color,
+    run.backgroundColor,
+    run.outlineColor,
+    run.outlineWidthPx,
+    run.outerOutlineColor,
+    run.outerOutlineWidthPx,
+    run.glowColor,
+    run.glowBlurPx,
+    run.glowOpacity,
+  ];
+  return (
+    enabledStyles.some(Boolean) ||
+    optionalStyles.some((value) => value !== undefined)
   );
 }
 

@@ -205,6 +205,48 @@ describe("block style preset model", () => {
     expect(cloned?.format.textEffect).not.toBe(preset.format.textEffect);
   });
 
+  it("captures and clones every extended text appearance field", () => {
+    const textGlow = {
+      enabled: true,
+      color: "#ff8800",
+      blurPx: 8,
+      opacity: 0.65,
+    };
+    const preset = createBlockStylePreset({
+      block: makeBlock("extended", {
+        underline: true,
+        strikethrough: true,
+        emphasisMark: true,
+        textBackgroundEnabled: true,
+        textBackgroundColor: "#fefefe",
+        outlineColor: "#ffffff",
+        outlineWidthPx: 2,
+        outerOutlineColor: "#220011",
+        outerOutlineWidthPx: 3,
+        textGlow,
+      }),
+      groupIds: ["emphasis", "color", "outline", "effect"],
+      id: "style-preset:extended",
+      name: "전체 문자 효과",
+    });
+
+    expect(preset.format).toMatchObject({
+      underline: true,
+      strikethrough: true,
+      emphasisMark: true,
+      textBackgroundEnabled: true,
+      textBackgroundColor: "#fefefe",
+      outlineColor: "#ffffff",
+      outlineWidthPx: 2,
+      outerOutlineColor: "#220011",
+      outerOutlineWidthPx: 3,
+      textGlow,
+    });
+    const [cloned] = cloneBlockStylePresets([preset]);
+    expect(cloned?.format.textGlow).toEqual(textGlow);
+    expect(cloned?.format.textGlow).not.toBe(preset.format.textGlow);
+  });
+
   it("persists optional two-level groups and safely ungroups orphaned presets", () => {
     const defaults = resolveDefaultAppSettings();
     const group = createBlockStylePresetGroup({

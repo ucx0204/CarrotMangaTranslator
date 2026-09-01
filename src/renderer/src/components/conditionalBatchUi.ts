@@ -43,6 +43,7 @@ export const CONDITIONAL_BATCH_FIELD_LABELS: Record<
   textOpacity: "불투명도",
   outlineWidthPx: "외곽선 두께",
   outlineWidthScale: "외곽선 배율",
+  outerOutlineWidthPx: "바깥 외곽선 두께",
   pageIndex: "페이지 순번",
   blockIndex: "말풍선 순번",
   lineCount: "줄 수",
@@ -53,19 +54,29 @@ export const CONDITIONAL_BATCH_FIELD_LABELS: Record<
   bboxAspectRatio: "말풍선 비율",
   textColor: "글자색",
   outlineColor: "외곽선색",
+  outerOutlineColor: "바깥 외곽선색",
+  textBackgroundColor: "글자 영역 배경색",
   bold: "굵게",
   italic: "기울임",
+  underline: "밑줄",
+  strikethrough: "취소선",
+  emphasisMark: "강조점",
+  textBackgroundEnabled: "글자 영역 배경",
   autoFitText: "자동 맞춤",
   inpaintExcluded: "인페인팅 제외",
   hasInlineStyle: "부분 서식 있음",
   hasSpeaker: "화자 있음",
   hasGlossary: "용어 연결 있음",
-  textEffectEnabled: "텍스트 효과 있음",
-  textEffectColor: "텍스트 효과 색",
-  textEffectOffsetX: "텍스트 효과 가로 위치",
-  textEffectOffsetY: "텍스트 효과 세로 위치",
-  textEffectBlur: "텍스트 효과 흐림",
-  textEffectOpacity: "텍스트 효과 불투명도",
+  textEffectEnabled: "그림자 있음",
+  textEffectColor: "그림자색",
+  textEffectOffsetX: "그림자 가로 위치",
+  textEffectOffsetY: "그림자 세로 위치",
+  textEffectBlur: "그림자 흐림",
+  textEffectOpacity: "그림자 불투명도",
+  textGlowEnabled: "광선 있음",
+  textGlowColor: "광선색",
+  textGlowBlur: "광선 퍼짐",
+  textGlowOpacity: "광선 불투명도",
   sameAsSource: "원문과 동일",
   numberMismatch: "숫자 불일치",
   unbalancedPunctuation: "괄호·따옴표 불균형",
@@ -122,7 +133,12 @@ const CONDITIONAL_BATCH_FIELD_GROUPS: ReadonlyArray<{
       "fontSizePx",
       "bold",
       "italic",
+      "underline",
+      "strikethrough",
+      "emphasisMark",
       "textColor",
+      "textBackgroundEnabled",
+      "textBackgroundColor",
       "textOpacity",
       "lineHeight",
       "letterSpacing",
@@ -130,6 +146,8 @@ const CONDITIONAL_BATCH_FIELD_GROUPS: ReadonlyArray<{
       "outlineColor",
       "outlineWidthPx",
       "outlineWidthScale",
+      "outerOutlineColor",
+      "outerOutlineWidthPx",
       "autoFitText",
       "hasInlineStyle",
     ],
@@ -186,6 +204,10 @@ const CONDITIONAL_BATCH_FIELD_GROUPS: ReadonlyArray<{
       "textEffectOffsetX",
       "textEffectOffsetY",
       "textEffectBlur",
+      "textGlowEnabled",
+      "textGlowColor",
+      "textGlowOpacity",
+      "textGlowBlur",
     ],
   },
 ];
@@ -227,6 +249,44 @@ export const QUICK_CONDITIONAL_BATCH_FIELDS: readonly ConditionalBatchField[] =
 
 export function listConditionalBatchFields() {
   return CONDITIONAL_BATCH_FIELDS_FOR_UI;
+}
+
+const HIDDEN_NEW_CONDITION_FIELDS = new Set<ConditionalBatchField>([
+  "outlineWidthScale",
+  "pageIndex",
+  "blockIndex",
+  "bboxWidth",
+  "bboxHeight",
+  "bboxAspectRatio",
+  "textEffectColor",
+  "textEffectOffsetX",
+  "textEffectOffsetY",
+  "textEffectBlur",
+  "textEffectOpacity",
+  "textGlowColor",
+  "textGlowBlur",
+  "textGlowOpacity",
+]);
+
+/**
+ * Keep low-level fields readable for imported rules, but do not offer them
+ * when creating a new condition. Exact shadow/glow components are useful as
+ * values to set, not as everyday matching criteria; their on/off fields remain
+ * available. Raw page/block indices and bounding-box geometry are brittle
+ * implementation coordinates rather than useful everyday manga-editing
+ * choices. outlineWidthScale is an internal multiplier duplicated by the
+ * user-facing pixel thickness.
+ */
+export function isNewConditionalBatchConditionField(
+  field: ConditionalBatchField,
+): boolean {
+  return !HIDDEN_NEW_CONDITION_FIELDS.has(field);
+}
+
+export function isNewConditionalBatchWritableField(
+  field: ConditionalBatchField,
+): boolean {
+  return field !== "outlineWidthScale";
 }
 
 export function createConditionForField(
@@ -490,7 +550,7 @@ export function createDefaultAction(
   throw new Error("적용할 스타일 프리셋을 먼저 선택하세요.");
 }
 
-export function summarizeTextMatcher(
+function summarizeTextMatcher(
   matcher: ConditionalTextMatcherV3 | undefined,
 ): string {
   if (!matcher) return "패턴";

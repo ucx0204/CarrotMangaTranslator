@@ -247,6 +247,9 @@
 .overlay-block-chrome {
   position: absolute;
   inset: 0;
+  /* The selection tint belongs behind the translated text. Keeping this layer
+     above the text makes normal black glyphs look washed out while editing. */
+  z-index: 0;
   border: 2px solid rgba(50, 50, 50, 0.32);
   border-radius: 4px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
@@ -661,12 +664,24 @@
 .overlay-text {
   position: absolute;
   inset: 0;
+  z-index: 1;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: visible;
   text-align: inherit;
+}
+
+.text-background-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.overlay-text-outer {
+  pointer-events: none;
 }
 
 .overlay-text-content {

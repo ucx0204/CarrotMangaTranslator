@@ -252,6 +252,9 @@
     "blockStyle": "Whole block",
     "blockBold": "Bold entire block",
     "blockItalic": "Italicize entire block",
+    "blockUnderline": "Underline entire block",
+    "blockStrikethrough": "Strike through entire block",
+    "blockEmphasisMark": "Add emphasis marks to entire block",
     "align": {
       "left": "Align left",
       "center": "Align center",
@@ -275,14 +278,30 @@
     "fontWidth": "Character width",
     "color": "Color",
     "textColor": "Text color",
+    "textBackground": {
+      "enabled": "Text area background",
+      "color": "Background color"
+    },
     "outline": "Outline",
+    "outerOutline": {
+      "enabled": "Outer outline",
+      "color": "Outer outline color",
+      "width": "Outer outline width"
+    },
     "textEffect": {
-      "title": "Shadow & glow",
-      "enabled": "Use effect",
-      "color": "Effect color",
+      "title": "Shadow",
+      "enabled": "Use shadow",
+      "color": "Shadow color",
       "offsetX": "X offset",
       "offsetY": "Y offset",
       "blur": "Blur",
+      "opacity": "Opacity"
+    },
+    "textGlow": {
+      "title": "Glow",
+      "enabled": "Use glow",
+      "color": "Glow color",
+      "blur": "Spread",
       "opacity": "Opacity"
     },
     "wordBreak": {
@@ -469,6 +488,9 @@
       "size": "Font size",
       "font": "Character font",
       "opacity": "Text opacity",
+      "combineUpright": "Combine upright",
+      "background": "Character background",
+      "effects": "Outline & glow",
       "mixed": "Mixed",
       "placeholder": "Enter translation",
       "codeAria": "Translation formatting code",

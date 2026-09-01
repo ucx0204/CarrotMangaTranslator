@@ -160,7 +160,7 @@
 .unit {
   position: absolute;
   top: 50%;
-  right: var(--sp-3);
+  right: var(--sp-1);
   color: color-mix(in srgb, var(--text-muted) 72%, transparent);
   font-size: var(--font-2xs);
   line-height: 1;

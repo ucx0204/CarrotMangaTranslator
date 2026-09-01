@@ -65,6 +65,7 @@
     "smoke:image-protocol": "npm run build && node scripts/run-image-protocol-smoke.cjs",
     "smoke:flux-pattern": "node scripts/run-flux-pattern-smoke.cjs",
     "qa:ui": "node scripts/ui-qa.mjs",
+    "qa:conditional-batch-app": "npm run build && node scripts/run-conditional-batch-app-qa.mjs",
     "qa:library-fonts": "node scripts/run-library-full-pipeline-qa.cjs",
     "qa:gemma-cleanup-audit": "node scripts/run-gemma-cleanup-audit.cjs",
     "qa:koharu-flux-feather": "npm run compile:electron && node scripts/run-koharu-flux-feather-qa.cjs",

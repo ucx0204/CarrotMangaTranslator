@@ -30,17 +30,22 @@ import {
   type ConditionalBatchTextStyleOperator,
   type ConditionalBatchWritableField,
 } from "../../../shared/conditionalBatchRules";
-import { stripRichTextMarkup } from "../../../shared/richTextMarkup";
+import {
+  stripRichTextMarkup,
+  type TextStylePatch,
+} from "../../../shared/richTextMarkup";
 import {
   CONDITIONAL_BATCH_FIELD_LABELS,
   actionStage,
   conditionalBatchEnumOptions,
   createDefaultAction,
+  isNewConditionalBatchWritableField,
   listConditionalBatchFields,
   summarizeAction,
 } from "./conditionalBatchUi";
 import { Button, CheckboxField, Select } from "./ConditionalBatchControls";
 import { FontSelect } from "./FontSelect";
+import { ColorField } from "./ColorField";
 import { Field, TextField } from "./ui/Field";
 import { IconButton } from "./ui/IconButton";
 import { SegmentedControl } from "./ui/SegmentedControl";
@@ -489,8 +494,12 @@ function SetFieldsActionEditor({
   action: ConditionalBatchSetFieldsActionV2;
   onChange: (action: ConditionalBatchActionV2) => void;
 }) {
+  const existingFields = new Set(action.changes.map((change) => change.field));
   const writableFields = listConditionalBatchFields().filter(
-    (field) => field.writable,
+    (field) =>
+      field.writable &&
+      (existingFields.has(field.id as ConditionalBatchWritableField) ||
+        isNewConditionalBatchWritableField(field.id)),
   );
   const unused = writableFields.filter(
     (field) => !action.changes.some((change) => change.field === field.id),
@@ -752,6 +761,15 @@ function StyleTextActionEditor({
   sampleText?: string;
   onChange: (action: ConditionalBatchActionV2) => void;
 }) {
+  const updateStyle = <Key extends keyof TextStylePatch>(
+    key: Key,
+    value: TextStylePatch[Key] | undefined,
+  ): void => {
+    onChange({
+      ...action,
+      patch: updatePatch(action.patch, key, value),
+    });
+  };
   return (
     <>
       <div className={styles.actionOptions}>
@@ -806,56 +824,46 @@ function StyleTextActionEditor({
         <PatchBoolean
           label="굵게"
           value={action.patch.bold}
-          onChange={(bold) =>
-            onChange({
-              ...action,
-              patch: updatePatch(action.patch, "bold", bold),
-            })
-          }
+          onChange={(bold) => updateStyle("bold", bold)}
         />
         <PatchBoolean
           label="기울임"
           value={action.patch.italic}
-          onChange={(italic) =>
-            onChange({
-              ...action,
-              patch: updatePatch(action.patch, "italic", italic),
-            })
+          onChange={(italic) => updateStyle("italic", italic)}
+        />
+        <PatchBoolean
+          label="밑줄"
+          value={action.patch.underline}
+          onChange={(underline) => updateStyle("underline", underline)}
+        />
+        <PatchBoolean
+          label="취소선"
+          value={action.patch.strikethrough}
+          onChange={(strikethrough) =>
+            updateStyle("strikethrough", strikethrough)
           }
+        />
+        <PatchBoolean
+          label="강조점"
+          value={action.patch.emphasisMark}
+          onChange={(emphasisMark) => updateStyle("emphasisMark", emphasisMark)}
         />
         <PatchBoolean
           label="세로쓰기 영문 묶음"
           value={action.patch.verticalCombine}
           onChange={(verticalCombine) =>
-            onChange({
-              ...action,
-              patch: updatePatch(
-                action.patch,
-                "verticalCombine",
-                verticalCombine,
-              ),
-            })
+            updateStyle("verticalCombine", verticalCombine)
           }
         />
         <PatchValue
           label="글자 크기"
           type="number"
           value={action.patch.sizePx}
-          onChange={(sizePx) =>
-            onChange({
-              ...action,
-              patch: updatePatch(action.patch, "sizePx", sizePx),
-            })
-          }
+          onChange={(sizePx) => updateStyle("sizePx", sizePx)}
         />
         <PatchFontValue
           value={action.patch.fontFamily}
-          onChange={(fontFamily) =>
-            onChange({
-              ...action,
-              patch: updatePatch(action.patch, "fontFamily", fontFamily),
-            })
-          }
+          onChange={(fontFamily) => updateStyle("fontFamily", fontFamily)}
         />
         <PatchValue
           label="불투명도"
@@ -864,14 +872,94 @@ function StyleTextActionEditor({
           max={1}
           step={0.05}
           value={action.patch.opacity}
-          onChange={(opacity) =>
-            onChange({
-              ...action,
-              patch: updatePatch(action.patch, "opacity", opacity),
-            })
-          }
+          onChange={(opacity) => updateStyle("opacity", opacity)}
+        />
+        <PatchValue
+          label="장평"
+          type="number"
+          min={0.1}
+          max={5}
+          step={0.05}
+          value={action.patch.widthScale}
+          onChange={(widthScale) => updateStyle("widthScale", widthScale)}
         />
       </div>
+      <details className={styles.inlineStyleAdvanced}>
+        <summary>색상 · 외곽선 · 광선</summary>
+        <div className={styles.inlineStyleGrid}>
+          <PatchColorValue
+            label="글자색"
+            value={action.patch.color}
+            onChange={(color) => updateStyle("color", color)}
+          />
+          <PatchColorValue
+            label="글자 배경색"
+            value={action.patch.backgroundColor}
+            onChange={(backgroundColor) =>
+              updateStyle("backgroundColor", backgroundColor)
+            }
+          />
+          <PatchColorValue
+            label="외곽선색"
+            value={action.patch.outlineColor}
+            onChange={(outlineColor) =>
+              updateStyle("outlineColor", outlineColor)
+            }
+          />
+          <PatchValue
+            label="외곽선 두께"
+            type="number"
+            min={0}
+            max={64}
+            step={0.5}
+            value={action.patch.outlineWidthPx}
+            onChange={(outlineWidthPx) =>
+              updateStyle("outlineWidthPx", outlineWidthPx)
+            }
+          />
+          <PatchColorValue
+            label="바깥 외곽선색"
+            value={action.patch.outerOutlineColor}
+            onChange={(outerOutlineColor) =>
+              updateStyle("outerOutlineColor", outerOutlineColor)
+            }
+          />
+          <PatchValue
+            label="바깥 외곽선 두께"
+            type="number"
+            min={0}
+            max={64}
+            step={0.5}
+            value={action.patch.outerOutlineWidthPx}
+            onChange={(outerOutlineWidthPx) =>
+              updateStyle("outerOutlineWidthPx", outerOutlineWidthPx)
+            }
+          />
+          <PatchColorValue
+            label="광선색"
+            value={action.patch.glowColor}
+            onChange={(glowColor) => updateStyle("glowColor", glowColor)}
+          />
+          <PatchValue
+            label="광선 퍼짐"
+            type="number"
+            min={0}
+            max={64}
+            step={1}
+            value={action.patch.glowBlurPx}
+            onChange={(glowBlurPx) => updateStyle("glowBlurPx", glowBlurPx)}
+          />
+          <PatchValue
+            label="광선 불투명도"
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={action.patch.glowOpacity}
+            onChange={(glowOpacity) => updateStyle("glowOpacity", glowOpacity)}
+          />
+        </div>
+      </details>
       {action.scope === "pattern" ? (
         <div className={styles.actionToggles}>
           <CheckboxField
@@ -891,9 +979,22 @@ const TEXT_STYLE_FIELD_LABELS: Record<ConditionalBatchTextStyleField, string> =
   {
     bold: "굵게",
     italic: "기울임",
+    underline: "밑줄",
+    strikethrough: "취소선",
+    emphasisMark: "강조점",
     fontFamily: "글꼴",
     sizePx: "크기",
     opacity: "불투명도",
+    widthScale: "장평",
+    color: "글자색",
+    backgroundColor: "글자 배경색",
+    outlineColor: "외곽선색",
+    outlineWidthPx: "외곽선 두께",
+    outerOutlineColor: "바깥 외곽선색",
+    outerOutlineWidthPx: "바깥 외곽선 두께",
+    glowColor: "광선색",
+    glowBlurPx: "광선 퍼짐",
+    glowOpacity: "광선 불투명도",
     verticalCombine: "세로 영문 묶음",
   };
 
@@ -1064,11 +1165,7 @@ function TextStyleMatchValueEditor({
   condition: ConditionalBatchTextStyleMatchCondition;
   onChange: (condition: ConditionalBatchTextStyleMatchCondition) => void;
 }) {
-  if (
-    condition.field === "bold" ||
-    condition.field === "italic" ||
-    condition.field === "verticalCombine"
-  ) {
+  if (isTextStyleBooleanField(condition.field)) {
     return (
       <Select
         ariaLabel="부분 서식 값"
@@ -1094,9 +1191,17 @@ function TextStyleMatchValueEditor({
       />
     );
   }
-  const minimum = condition.field === "opacity" ? 0 : 1;
-  const maximum = condition.field === "opacity" ? 1 : 512;
-  const step = condition.field === "opacity" ? 0.05 : 1;
+  if (isTextStyleColorField(condition.field)) {
+    return (
+      <ColorField
+        label="부분 서식 색상"
+        value={String(condition.value) || "#000000"}
+        disabled={false}
+        onChange={(value) => onChange({ ...condition, value })}
+      />
+    );
+  }
+  const [minimum, maximum, step] = textStyleNumberRange(condition.field);
   return (
     <div className={styles.existingStyleNumberValue}>
       <input
@@ -1137,23 +1242,36 @@ function createTextStyleMatchCondition(
   if (field === "fontFamily") {
     return { id, field, operator: "equals", value: "" };
   }
+  if (isTextStyleColorField(field)) {
+    return { id, field, operator: "equals", value: "#000000" };
+  }
   if (field === "sizePx") {
     return { id, field, operator: "greaterThanOrEqual", value: 24 };
   }
-  if (field === "opacity") {
+  if (field === "opacity" || field === "glowOpacity") {
     return { id, field, operator: "lessThanOrEqual", value: 1 };
+  }
+  if (field === "widthScale") {
+    return { id, field, operator: "greaterThanOrEqual", value: 1 };
+  }
+  if (
+    field === "outlineWidthPx" ||
+    field === "outerOutlineWidthPx" ||
+    field === "glowBlurPx"
+  ) {
+    return { id, field, operator: "greaterThanOrEqual", value: 1 };
   }
   return { id, field, operator: "equals", value: true };
 }
 
 function textStyleOperatorOptions(field: ConditionalBatchTextStyleField) {
-  if (field === "fontFamily") {
+  if (field === "fontFamily" || isTextStyleColorField(field)) {
     return [
       { value: "equals", label: "같음" },
       { value: "notEquals", label: "다름" },
     ];
   }
-  if (field === "bold" || field === "italic" || field === "verticalCombine") {
+  if (isTextStyleBooleanField(field)) {
     return [{ value: "equals", label: "상태" }];
   }
   return [
@@ -1165,6 +1283,44 @@ function textStyleOperatorOptions(field: ConditionalBatchTextStyleField) {
     { value: "lessThanOrEqual", label: "이하" },
     { value: "between", label: "범위" },
   ];
+}
+
+function isTextStyleBooleanField(
+  field: ConditionalBatchTextStyleField,
+): boolean {
+  return [
+    "bold",
+    "italic",
+    "underline",
+    "strikethrough",
+    "emphasisMark",
+    "verticalCombine",
+  ].includes(field);
+}
+
+function isTextStyleColorField(field: ConditionalBatchTextStyleField): boolean {
+  return [
+    "color",
+    "backgroundColor",
+    "outlineColor",
+    "outerOutlineColor",
+    "glowColor",
+  ].includes(field);
+}
+
+function textStyleNumberRange(
+  field: ConditionalBatchTextStyleField,
+): readonly [number, number, number] {
+  if (field === "opacity" || field === "glowOpacity") return [0, 1, 0.05];
+  if (field === "widthScale") return [0.1, 5, 0.05];
+  if (
+    field === "outlineWidthPx" ||
+    field === "outerOutlineWidthPx" ||
+    field === "glowBlurPx"
+  ) {
+    return [0, 64, 0.5];
+  }
+  return [1, 512, 1];
 }
 
 function PatchFontValue({
@@ -1194,6 +1350,42 @@ function PatchFontValue({
             checked={value === null}
             label="초기화"
             onCheckedChange={(checked) => onChange(checked ? null : "")}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PatchColorValue({
+  label,
+  onChange,
+  value,
+}: {
+  label: string;
+  onChange: (value: string | null | undefined) => void;
+  value: string | null | undefined;
+}) {
+  const enabled = value !== undefined;
+  return (
+    <div className={styles.patchField}>
+      <CheckboxField
+        checked={enabled}
+        label={label}
+        onCheckedChange={(checked) => onChange(checked ? "#000000" : undefined)}
+      />
+      {enabled ? (
+        <div className={styles.patchValue}>
+          <ColorField
+            label={label}
+            disabled={value === null}
+            value={typeof value === "string" ? value : "#000000"}
+            onChange={onChange}
+          />
+          <CheckboxField
+            checked={value === null}
+            label="초기화"
+            onCheckedChange={(checked) => onChange(checked ? null : "#000000")}
           />
         </div>
       ) : null}

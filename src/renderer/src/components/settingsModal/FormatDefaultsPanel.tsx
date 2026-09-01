@@ -16,7 +16,7 @@ import {
   FormatDefaultsColorSection,
   FormatDefaultsFineTuningSection,
 } from "./FormatDefaultsDetailSections";
-import { TextEffectControls } from "../EditorColorGroup";
+import { TextEffectControls } from "../EditorTextEffectControls";
 import { PresetGroupControl } from "./PresetGroupControl";
 import type {
   BlockStylePreset,

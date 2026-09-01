@@ -264,6 +264,9 @@ export function cloneBlockStylePresets(
       ...(preset.format.textEffect
         ? { textEffect: { ...preset.format.textEffect } }
         : {}),
+      ...(preset.format.textGlow
+        ? { textGlow: { ...preset.format.textGlow } }
+        : {}),
     },
   }));
 }

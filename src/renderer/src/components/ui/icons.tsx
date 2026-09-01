@@ -112,6 +112,31 @@ export const ItalicIcon = createIcon(
   </>,
 );
 
+export const UnderlineIcon = createIcon(
+  <>
+    <path d="M7 4v7a5 5 0 0 0 10 0V4" />
+    <path d="M5 21h14" />
+  </>,
+);
+
+export const StrikethroughIcon = createIcon(
+  <>
+    <path d="M17 5.5A6.5 6.5 0 0 0 12 3c-3 0-5 1.5-5 4 0 1.3.7 2.2 2 3" />
+    <path d="M4 12h16" />
+    <path d="M8 15c.8 3 7.8 3.2 8.8-.2" />
+  </>,
+);
+
+export const EmphasisMarkIcon = createIcon(
+  <>
+    <circle cx="8" cy="5" r="1" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="5" r="1" fill="currentColor" stroke="none" />
+    <circle cx="16" cy="5" r="1" fill="currentColor" stroke="none" />
+    <path d="M5 9h14" />
+    <path d="M12 9v10" />
+  </>,
+);
+
 export const TypeStyleIcon = createIcon(
   <>
     <path d="M5 5h10" />

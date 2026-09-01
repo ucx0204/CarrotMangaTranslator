@@ -189,8 +189,14 @@ const CONDITIONAL_BATCH_WRITABLE_FIELDS = [
   "outlineWidthScale",
   "textColor",
   "outlineColor",
+  "outerOutlineColor",
+  "textBackgroundColor",
   "bold",
   "italic",
+  "underline",
+  "strikethrough",
+  "emphasisMark",
+  "textBackgroundEnabled",
   "autoFitText",
   "inpaintExcluded",
   "textEffectEnabled",
@@ -199,6 +205,11 @@ const CONDITIONAL_BATCH_WRITABLE_FIELDS = [
   "textEffectOffsetY",
   "textEffectBlur",
   "textEffectOpacity",
+  "textGlowEnabled",
+  "textGlowColor",
+  "textGlowBlur",
+  "textGlowOpacity",
+  "outerOutlineWidthPx",
 ] as const;
 
 export type ConditionalBatchWritableField =
@@ -289,6 +300,15 @@ const TextEffectSchema = z
   })
   .strict();
 
+const TextGlowSchema = z
+  .object({
+    enabled: z.boolean(),
+    color: HexColorSchema,
+    blurPx: z.number().finite().min(0).max(512),
+    opacity: z.number().finite().min(0).max(1),
+  })
+  .strict();
+
 const BlockStylePresetFormatSchema = z
   .object({
     fontFamily: z.string().max(120).optional(),
@@ -307,6 +327,9 @@ const BlockStylePresetFormatSchema = z
     renderDirection: z.enum(["horizontal", "vertical"]).optional(),
     bold: z.boolean().optional(),
     italic: z.boolean().optional(),
+    underline: z.boolean().optional(),
+    strikethrough: z.boolean().optional(),
+    emphasisMark: z.boolean().optional(),
     lineHeight: z.number().finite().min(0.1).max(10).optional(),
     letterSpacing: z.number().finite().min(-1).max(5).optional(),
     fontWidthScale: z.number().finite().min(0.1).max(5).optional(),
@@ -315,7 +338,12 @@ const BlockStylePresetFormatSchema = z
     outlineColor: HexColorSchema.optional(),
     outlineWidthPx: z.number().finite().min(0).max(64).optional(),
     outlineWidthScale: z.number().finite().min(0).max(8).optional(),
+    outerOutlineColor: HexColorSchema.optional(),
+    outerOutlineWidthPx: z.number().finite().min(0).max(64).optional(),
+    textBackgroundEnabled: z.boolean().optional(),
+    textBackgroundColor: HexColorSchema.optional(),
     textEffect: TextEffectSchema.optional(),
+    textGlow: TextGlowSchema.optional(),
     rotationDeg: z.number().finite().min(-180).max(180).optional(),
   })
   .strict();
@@ -343,9 +371,28 @@ const TextStylePatchSchema = z
   .object({
     bold: z.boolean().nullable().optional(),
     italic: z.boolean().nullable().optional(),
+    underline: z.boolean().nullable().optional(),
+    strikethrough: z.boolean().nullable().optional(),
+    emphasisMark: z.boolean().nullable().optional(),
     sizePx: z.number().finite().min(1).max(512).nullable().optional(),
     fontFamily: z.string().max(120).nullable().optional(),
     opacity: z.number().finite().min(0).max(1).nullable().optional(),
+    widthScale: z.number().finite().min(0.1).max(5).nullable().optional(),
+    color: HexColorSchema.nullable().optional(),
+    backgroundColor: HexColorSchema.nullable().optional(),
+    outlineColor: HexColorSchema.nullable().optional(),
+    outlineWidthPx: z.number().finite().min(0).max(64).nullable().optional(),
+    outerOutlineColor: HexColorSchema.nullable().optional(),
+    outerOutlineWidthPx: z
+      .number()
+      .finite()
+      .min(0)
+      .max(64)
+      .nullable()
+      .optional(),
+    glowColor: HexColorSchema.nullable().optional(),
+    glowBlurPx: z.number().finite().min(0).max(64).nullable().optional(),
+    glowOpacity: z.number().finite().min(0).max(1).nullable().optional(),
     verticalCombine: z.boolean().nullable().optional(),
   })
   .strict()
@@ -356,13 +403,26 @@ const TextStylePatchSchema = z
 export const CONDITIONAL_BATCH_TEXT_STYLE_FIELDS = [
   "bold",
   "italic",
+  "underline",
+  "strikethrough",
+  "emphasisMark",
   "fontFamily",
   "sizePx",
   "opacity",
+  "widthScale",
+  "color",
+  "backgroundColor",
+  "outlineColor",
+  "outlineWidthPx",
+  "outerOutlineColor",
+  "outerOutlineWidthPx",
+  "glowColor",
+  "glowBlurPx",
+  "glowOpacity",
   "verticalCombine",
 ] as const;
 
-export const CONDITIONAL_BATCH_TEXT_STYLE_OPERATORS = [
+const CONDITIONAL_BATCH_TEXT_STYLE_OPERATORS = [
   "equals",
   "notEquals",
   "greaterThan",
@@ -387,10 +447,21 @@ const ConditionalBatchTextStyleMatchConditionSchema = z
   })
   .strict()
   .superRefine((condition, context) => {
-    const booleanField = ["bold", "italic", "verticalCombine"].includes(
-      condition.field,
-    );
-    const numericField = ["sizePx", "opacity"].includes(condition.field);
+    const booleanField = [
+      "bold",
+      "italic",
+      "underline",
+      "strikethrough",
+      "emphasisMark",
+      "verticalCombine",
+    ].includes(condition.field);
+    const colorField = [
+      "color",
+      "backgroundColor",
+      "outlineColor",
+      "outerOutlineColor",
+      "glowColor",
+    ].includes(condition.field);
     if (booleanField) {
       if (
         typeof condition.value !== "boolean" ||
@@ -399,6 +470,19 @@ const ConditionalBatchTextStyleMatchConditionSchema = z
         context.addIssue({
           code: "custom",
           message: "선택한 부분 서식에 맞는 값을 고르세요.",
+        });
+      }
+      return;
+    }
+    if (colorField) {
+      if (
+        typeof condition.value !== "string" ||
+        !HexColorSchema.safeParse(condition.value).success ||
+        !["equals", "notEquals"].includes(condition.operator)
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "비교할 색상을 고르세요.",
         });
       }
       return;
@@ -416,7 +500,7 @@ const ConditionalBatchTextStyleMatchConditionSchema = z
       }
       return;
     }
-    if (!numericField || typeof condition.value !== "number") {
+    if (typeof condition.value !== "number") {
       context.addIssue({
         code: "custom",
         message: "비교할 숫자를 입력하세요.",
@@ -433,20 +517,30 @@ const ConditionalBatchTextStyleMatchConditionSchema = z
     const values = [condition.value, condition.value2].filter(
       (value): value is number => value !== undefined,
     );
+    const range = TEXT_STYLE_NUMBER_RANGES[condition.field];
     const invalid =
-      condition.field === "opacity"
-        ? values.some((value) => value < 0 || value > 1)
-        : values.some((value) => value < 1 || value > 512);
+      !range || values.some((value) => value < range[0] || value > range[1]);
     if (invalid) {
       context.addIssue({
         code: "custom",
-        message:
-          condition.field === "opacity"
-            ? "불투명도는 0에서 1 사이여야 합니다."
-            : "글자 크기는 1에서 512 사이여야 합니다.",
+        message: range
+          ? `${range[0]} 이상 ${range[1]} 이하의 값을 입력하세요.`
+          : "비교할 숫자를 입력하세요.",
       });
     }
   });
+
+const TEXT_STYLE_NUMBER_RANGES: Partial<
+  Record<ConditionalBatchTextStyleField, readonly [number, number]>
+> = {
+  sizePx: [1, 512],
+  opacity: [0, 1],
+  widthScale: [0.1, 5],
+  outlineWidthPx: [0, 64],
+  outerOutlineWidthPx: [0, 64],
+  glowBlurPx: [0, 64],
+  glowOpacity: [0, 1],
+};
 
 export type ConditionalBatchTextStyleMatchCondition = z.infer<
   typeof ConditionalBatchTextStyleMatchConditionSchema
@@ -1169,10 +1263,13 @@ const WRITABLE_NUMBER_RANGES: Partial<
   textOpacity: [0, 1],
   outlineWidthPx: [0, 64],
   outlineWidthScale: [0, 8],
+  outerOutlineWidthPx: [0, 64],
   textEffectOffsetX: [-512, 512],
   textEffectOffsetY: [-512, 512],
   textEffectBlur: [0, 512],
   textEffectOpacity: [0, 1],
+  textGlowBlur: [0, 512],
+  textGlowOpacity: [0, 1],
 };
 
 const WRITABLE_ENUM_VALUES: Partial<
@@ -1283,21 +1380,3 @@ function addDuplicateIdIssues(
     seen.add(id);
   }
 }
-
-export type {
-  ConditionalPatternNodeV3,
-  ConditionalReplacementPartV3,
-  ConditionalReplacementV3,
-  ConditionalTextMatcherV3,
-} from "./conditionalTextPattern";
-
-export type ConditionalBatchConditionV1 = ConditionalBatchConditionV2;
-export type ConditionalBatchMatchNodeV1 =
-  | ConditionalBatchConditionV2
-  | ConditionalBatchConditionGroupV2;
-export type ConditionalBatchActionV1 = ConditionalBatchActionV2;
-export type ConditionalBatchSchemeDraftV1 = ConditionalBatchSchemeDraftV2;
-export type ConditionalBatchSchemeV1 = ConditionalBatchSchemeV2;
-export type ConditionalBatchSnapshotV1 = ConditionalBatchSnapshotV2;
-export type ConditionalBatchSequenceV1 = ConditionalBatchSequenceV2;
-export type ConditionalBatchPreviewV1 = ConditionalBatchPreview;

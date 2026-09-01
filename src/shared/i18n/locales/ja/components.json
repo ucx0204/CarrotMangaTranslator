@@ -250,6 +250,9 @@
     "blockStyle": "ブロック全体",
     "blockBold": "ブロック全体を太字",
     "blockItalic": "ブロック全体を斜体",
+    "blockUnderline": "ブロック全体に下線",
+    "blockStrikethrough": "ブロック全体に取り消し線",
+    "blockEmphasisMark": "ブロック全体に圏点",
     "align": { "left": "左揃え", "center": "中央揃え", "right": "右揃え" },
     "direction": { "horizontal": "横書き", "vertical": "縦書き" },
     "size": "サイズ",
@@ -269,14 +272,30 @@
     "fontWidth": "文字幅",
     "color": "色",
     "textColor": "文字色",
+    "textBackground": {
+      "enabled": "文字領域の背景",
+      "color": "背景色"
+    },
     "outline": "縁取り",
+    "outerOutline": {
+      "enabled": "外側の縁取り",
+      "color": "外側の縁取り色",
+      "width": "外側の縁取り幅"
+    },
     "textEffect": {
-      "title": "影・グロー",
-      "enabled": "効果を使用",
-      "color": "効果の色",
+      "title": "影",
+      "enabled": "影を使用",
+      "color": "影の色",
       "offsetX": "X位置",
       "offsetY": "Y位置",
       "blur": "ぼかし",
+      "opacity": "不透明度"
+    },
+    "textGlow": {
+      "title": "グロー",
+      "enabled": "グローを使用",
+      "color": "グローの色",
+      "blur": "広がり",
       "opacity": "不透明度"
     },
     "wordBreak": {
@@ -467,6 +486,9 @@
       "size": "文字サイズ",
       "font": "文字フォント",
       "opacity": "文字の不透明度",
+      "combineUpright": "縦中横",
+      "background": "文字背景",
+      "effects": "縁取り・光彩",
       "mixed": "混在",
       "placeholder": "翻訳文を入力",
       "codeAria": "翻訳文の書式コード",

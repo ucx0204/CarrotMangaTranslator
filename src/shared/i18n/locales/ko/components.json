@@ -252,6 +252,9 @@
     "blockStyle": "블록 전체",
     "blockBold": "블록 전체 굵게",
     "blockItalic": "블록 전체 기울임",
+    "blockUnderline": "블록 전체 밑줄",
+    "blockStrikethrough": "블록 전체 취소선",
+    "blockEmphasisMark": "블록 전체 강조점",
     "align": {
       "left": "왼쪽 정렬",
       "center": "가운데 정렬",
@@ -275,14 +278,30 @@
     "fontWidth": "장평",
     "color": "색상",
     "textColor": "글자색",
+    "textBackground": {
+      "enabled": "글자 영역 배경",
+      "color": "배경색"
+    },
     "outline": "외곽선",
+    "outerOutline": {
+      "enabled": "바깥 외곽선",
+      "color": "바깥 외곽선 색상",
+      "width": "바깥 외곽선 두께"
+    },
     "textEffect": {
-      "title": "그림자 · 글로우",
-      "enabled": "효과 사용",
-      "color": "효과 색상",
+      "title": "그림자",
+      "enabled": "그림자 사용",
+      "color": "그림자 색상",
       "offsetX": "X 위치",
       "offsetY": "Y 위치",
       "blur": "블러",
+      "opacity": "불투명도"
+    },
+    "textGlow": {
+      "title": "광선",
+      "enabled": "광선 사용",
+      "color": "광선 색상",
+      "blur": "퍼짐",
       "opacity": "불투명도"
     },
     "wordBreak": {
@@ -466,6 +485,9 @@
       "size": "글자 크기",
       "font": "글자 폰트",
       "opacity": "글자 투명도",
+      "combineUpright": "세로쓰기 영문 묶음",
+      "background": "글자 배경",
+      "effects": "외곽선 · 광선",
       "mixed": "혼합",
       "placeholder": "번역문을 입력하세요",
       "codeAria": "번역문 서식 코드",

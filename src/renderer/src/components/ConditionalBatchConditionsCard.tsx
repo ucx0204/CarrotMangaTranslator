@@ -28,6 +28,7 @@ import {
   conditionValueForOperator,
   conditionalBatchEnumOptions,
   createConditionForField,
+  isNewConditionalBatchConditionField,
   listConditionalBatchFields,
   summarizeCondition,
 } from "./conditionalBatchUi";
@@ -234,12 +235,14 @@ function FieldPicker({
             searchPlaceholder="조건 필드 검색"
             disabled={disabled}
             value={selected}
-            options={listConditionalBatchFields().map((field) => ({
-              value: field.id,
-              label: field.label,
-              group: field.categoryLabel,
-              searchText: `${field.label} ${field.id} ${field.categoryLabel}`,
-            }))}
+            options={listConditionalBatchFields()
+              .filter((field) => isNewConditionalBatchConditionField(field.id))
+              .map((field) => ({
+                value: field.id,
+                label: field.label,
+                group: field.categoryLabel,
+                searchText: `${field.label} ${field.id} ${field.categoryLabel}`,
+              }))}
             onValueChange={(value) =>
               setSelected(value as ConditionalBatchField)
             }
@@ -391,12 +394,18 @@ function ConditionEditor({
             ariaLabel="조건 필드"
             searchable
             value={condition.field}
-            options={listConditionalBatchFields().map((field) => ({
-              value: field.id,
-              label: field.label,
-              group: field.categoryLabel,
-              searchText: `${field.label} ${field.id} ${field.categoryLabel}`,
-            }))}
+            options={listConditionalBatchFields()
+              .filter(
+                (field) =>
+                  field.id === condition.field ||
+                  isNewConditionalBatchConditionField(field.id),
+              )
+              .map((field) => ({
+                value: field.id,
+                label: field.label,
+                group: field.categoryLabel,
+                searchText: `${field.label} ${field.id} ${field.categoryLabel}`,
+              }))}
             onValueChange={(field) =>
               onChange({
                 ...createConditionForField(field as ConditionalBatchField),

@@ -4,7 +4,11 @@ import React from "react";
 import { cleanup, render } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { OverlayBlock } from "../src/renderer/src/components/OverlayBlock";
-import { PageArtwork } from "../src/renderer/src/components/PageArtwork";
+import {
+  ArtworkBlock,
+  PageArtwork,
+} from "../src/renderer/src/components/PageArtwork";
+import { resolveOverlayBlockRenderModel } from "../src/renderer/src/components/overlayBlockModel";
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 import { createWorkspaceInteractionPreviewStore } from "../src/renderer/src/lib/workspaceInteractionPreview";
@@ -113,6 +117,66 @@ describe("page artwork renderer parity", () => {
         ".text-effect-layer .overlay-block-chrome",
       ),
     ).toBeNull();
+    expect(
+      exported.container.querySelector<HTMLElement>(".text-background-layer")
+        ?.style.backgroundColor,
+    ).toBe("rgb(250, 248, 240)");
+
+    const curve = exported.container.querySelector<SVGElement>(
+      'svg[aria-label="곡선 텍스트"]',
+    );
+    expect(curve?.querySelector("rect")?.getAttribute("fill")).toBe("#ffeeaa");
+    expect(curve?.querySelector("circle")).not.toBeNull();
+    expect(curve?.querySelectorAll("text").length).toBeGreaterThan(
+      "곡선 텍스트".length,
+    );
+  });
+
+  it("omits block text when the shared artwork model hides it", () => {
+    const block = makeBlock("hidden", {});
+    const size = { width: 1000, height: 800 };
+    const model = resolveOverlayBlockRenderModel({
+      block,
+      excluded: false,
+      fontCatalog: DEFAULT_BLOCK_FONT_CATALOG,
+      multiSelected: false,
+      pageSize: size,
+      pointerDisabled: true,
+      selected: false,
+      showChrome: false,
+      stageSize: size,
+      textLayoutStageSize: size,
+      textVisible: false,
+    });
+    const { container } = render(
+      <ArtworkBlock
+        block={block}
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        model={model}
+      />,
+    );
+
+    expect(container.querySelector(".overlay-text")).toBeNull();
+
+    const transparent = render(
+      <PageArtwork
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        imageSrc="data:image/png;base64,"
+        page={{
+          id: "transparent",
+          name: "transparent.png",
+          width: size.width,
+          height: size.height,
+          blocks: [],
+        }}
+        showImage={false}
+        visualSize={size}
+      />,
+    );
+    expect(
+      transparent.container.querySelector("[data-transparent-background]"),
+    ).not.toBeNull();
+    expect(transparent.container.querySelector("img")).toBeNull();
   });
 
   it("keeps persisted outlines identical in editor and export", () => {
@@ -241,6 +305,8 @@ function makeBlocks(): TranslationBlock[] {
       rotationDeg: 13.5,
       fontWidthScale: 0.86,
       letterSpacing: 0.08,
+      textBackgroundEnabled: true,
+      textBackgroundColor: "#faf8f0",
       textEffect: {
         enabled: true,
         color: "#123456",
@@ -308,7 +374,19 @@ function makeBlocks(): TranslationBlock[] {
         blurPx: 5,
         opacity: 0.65,
       },
-      translatedText: "곡선 텍스트",
+      translatedText:
+        "[background=#ffeeaa][glow-color=#ff6600][glow-blur=4][glow-opacity=0.5]곡[/glow-opacity][/glow-blur][/glow-color][/background]선 텍스트",
+      underline: true,
+      strikethrough: true,
+      emphasisMark: true,
+      outerOutlineColor: "#331100",
+      outerOutlineWidthPx: 2,
+      textGlow: {
+        enabled: true,
+        color: "#ff8800",
+        blurPx: 6,
+        opacity: 0.65,
+      },
     }),
     makeBlock("empty", {
       bbox: { x: 80, y: 1030, w: 240, h: 90 },

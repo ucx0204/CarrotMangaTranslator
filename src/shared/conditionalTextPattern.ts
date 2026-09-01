@@ -1,8 +1,8 @@
 /* eslint-disable complexity, max-lines -- the recursive v3 AST, validation, compiler, and replacement runtime form one compatibility boundary */
 import { z } from "zod";
 
-export const MAX_CONDITIONAL_PATTERN_NODES = 32;
-export const MAX_CONDITIONAL_PATTERN_DEPTH = 2;
+const MAX_CONDITIONAL_PATTERN_NODES = 32;
+const MAX_CONDITIONAL_PATTERN_DEPTH = 2;
 
 export type ConditionalPatternRepeatV3 = {
   min: number;
@@ -66,7 +66,7 @@ const CaptureIdSchema = z
   .string()
   .regex(/^[a-z][a-z0-9_-]{0,63}$/u, "기억 ID가 올바르지 않습니다.");
 
-export const ConditionalPatternRepeatV3Schema = z
+const ConditionalPatternRepeatV3Schema = z
   .object({
     min: z.number().int().min(0).max(999),
     max: z.number().int().min(0).max(999).nullable(),
@@ -89,7 +89,7 @@ const MatchableNodeBase = {
   captureId: CaptureIdSchema.optional(),
 };
 
-export const ConditionalPatternNodeV3Schema: z.ZodType<ConditionalPatternNodeV3> =
+const ConditionalPatternNodeV3Schema: z.ZodType<ConditionalPatternNodeV3> =
   z.lazy(() =>
     z.discriminatedUnion("kind", [
       z
@@ -158,7 +158,7 @@ export const ConditionalTextMatcherV3Schema: z.ZodType<ConditionalTextMatcherV3>
     ])
     .superRefine(validateMatcher);
 
-export const ConditionalReplacementPartV3Schema: z.ZodType<ConditionalReplacementPartV3> =
+const ConditionalReplacementPartV3Schema: z.ZodType<ConditionalReplacementPartV3> =
   z.discriminatedUnion("kind", [
     z
       .object({
@@ -303,7 +303,7 @@ export function compileConditionalTextMatcher(
   };
 }
 
-export function createConditionalTextRegExp(
+function createConditionalTextRegExp(
   matcher: ConditionalTextMatcherV3,
   options: { global?: boolean } = {},
 ): RegExp {

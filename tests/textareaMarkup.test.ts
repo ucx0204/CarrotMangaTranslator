@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyInlineBooleanStyleTag,
   applyInlineMarkup,
   applyInlineStyleTag,
 } from "../src/renderer/src/lib/textareaMarkup";
@@ -40,6 +41,19 @@ describe("textarea inline markup", () => {
     ["opacity", 75, "[opacity=75]나[/opacity]"],
   ] as const)("wraps a selection with a %s tag", (name, tagValue, expected) => {
     expect(applyInlineStyleTag("가나다", 1, 2, name, tagValue)).toEqual({
+      value: `가${expected}다`,
+      selectionStart: expected.indexOf("나") + 1,
+      selectionEnd: expected.indexOf("나") + 2,
+    });
+  });
+
+  it.each([
+    ["underline", "[underline]나[/underline]"],
+    ["strike", "[strike]나[/strike]"],
+    ["emphasis", "[emphasis]나[/emphasis]"],
+    ["tcy", "[tcy]나[/tcy]"],
+  ] as const)("wraps a selection with a %s boolean tag", (name, expected) => {
+    expect(applyInlineBooleanStyleTag("가나다", 2, 1, name)).toEqual({
       value: `가${expected}다`,
       selectionStart: expected.indexOf("나") + 1,
       selectionEnd: expected.indexOf("나") + 2,

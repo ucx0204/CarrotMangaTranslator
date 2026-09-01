@@ -29,11 +29,17 @@ import {
   resolveAutomaticTextOutlineColor,
   resolveEffectiveTextOutlineWidthPx,
 } from "./textOutline";
-import type { BBox } from "./textTypes";
 import { TextEffectSchema } from "./textEffect";
+import { TextGlowSchema } from "./textGlow";
+import {
+  clampNormalizedBbox,
+  isJsonObjectString,
+  isLegacyAutomaticFontMatch,
+  isValidCustomHeadersJson,
+} from "./ipcSchemaValidation";
 
 export { MAX_MAX_TOKENS, MIN_CONTEXT_TOKENS, MIN_MAX_TOKENS };
-export { TextEffectSchema };
+export { TextEffectSchema, TextGlowSchema };
 
 const MAX_TITLE_LENGTH = 240;
 const MAX_TEXT_LENGTH = 20000;
@@ -335,9 +341,17 @@ export const TranslationBlockObjectSchema = z
     outlineColor: hexColor.optional(),
     outlineWidthPx: finiteNumber.min(0).max(64).optional(),
     outlineWidthScale: finiteNumber.min(0).max(8).optional(),
+    outerOutlineColor: hexColor.optional(),
+    outerOutlineWidthPx: finiteNumber.min(0).max(64).optional(),
     textEffect: TextEffectSchema.optional(),
+    textGlow: TextGlowSchema.optional(),
     bold: z.boolean().optional(),
     italic: z.boolean().optional(),
+    underline: z.boolean().optional(),
+    strikethrough: z.boolean().optional(),
+    emphasisMark: z.boolean().optional(),
+    textBackgroundEnabled: z.boolean().optional(),
+    textBackgroundColor: hexColor.optional(),
     backgroundColor: hexColor,
     opacity: finiteNumber.min(0).max(1),
     autoFitText: z.boolean().optional(),
@@ -363,63 +377,3 @@ export const TranslationBlockSchema = TranslationBlockObjectSchema.transform(
     };
   },
 );
-
-function isLegacyAutomaticFontMatch(value: unknown): boolean {
-  return Boolean(
-    value &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    (value as { schemaVersion?: unknown }).schemaVersion === 1,
-  );
-}
-
-function isJsonObjectString(value: string): boolean {
-  try {
-    const parsed = JSON.parse(value);
-    return Boolean(
-      parsed && typeof parsed === "object" && !Array.isArray(parsed),
-    );
-  } catch (_error) {
-    return false;
-  }
-}
-
-function isValidCustomHeadersJson(value: string): boolean {
-  try {
-    const parsed = JSON.parse(value);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return false;
-    }
-    return Object.entries(parsed).every(([key, headerValue]) => {
-      if (isForbiddenCustomHeader(key)) {
-        return false;
-      }
-      return (
-        typeof headerValue === "string" ||
-        typeof headerValue === "number" ||
-        typeof headerValue === "boolean"
-      );
-    });
-  } catch (_error) {
-    return false;
-  }
-}
-
-function isForbiddenCustomHeader(name: string): boolean {
-  return [
-    "authorization",
-    "content-type",
-    "host",
-    "content-length",
-    "cookie",
-    "set-cookie",
-  ].includes(name.trim().toLowerCase());
-}
-
-function clampNormalizedBbox(bbox: BBox): BBox {
-  const x = Math.min(999, Math.max(0, bbox.x));
-  const y = Math.min(999, Math.max(0, bbox.y));
-  const w = Math.min(1000 - x, Math.max(1, bbox.w));
-  const h = Math.min(1000 - y, Math.max(1, bbox.h));
-  return { x, y, w, h };
-}

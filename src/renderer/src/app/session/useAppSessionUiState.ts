@@ -32,10 +32,8 @@ export function useAppSessionUiState() {
   const [blockLibraryOpen, setBlockLibraryOpen] = useState(false);
   const [fontManagerOpen, setFontManagerOpen] = useState(false);
   const [conditionalBatchOpen, setConditionalBatchOpen] = useState(false);
-  const [conditionalBatchInitialFind, setConditionalBatchInitialFind] =
-    useState("");
-  const [conditionalBatchInitialReplace, setConditionalBatchInitialReplace] =
-    useState("");
+  const [batchInitialFind, setBatchInitialFind] = useState("");
+  const [batchInitialReplace, setBatchInitialReplace] = useState("");
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
   const [styleGuideBackgrounded, setStyleGuideBackgrounded] = useState(false);
   const translateModals = useTranslateModalUiState();
@@ -59,8 +57,8 @@ export function useAppSessionUiState() {
     setBlockLibraryOpen(false);
     setFontManagerOpen(false);
     setConditionalBatchOpen(false);
-    setConditionalBatchInitialFind("");
-    setConditionalBatchInitialReplace("");
+    setBatchInitialFind("");
+    setBatchInitialReplace("");
     setStyleGuideOpen(false);
     setStyleGuideBackgrounded(false);
     setTextViewOpen(false);
@@ -78,8 +76,8 @@ export function useAppSessionUiState() {
     blockLibraryOpen,
     fontManagerOpen,
     conditionalBatchOpen,
-    conditionalBatchInitialFind,
-    conditionalBatchInitialReplace,
+    conditionalBatchInitialFind: batchInitialFind,
+    conditionalBatchInitialReplace: batchInitialReplace,
     commandPaletteOpen,
     editorFloating,
     ...editorTextTab,
@@ -90,8 +88,8 @@ export function useAppSessionUiState() {
     setBlockLibraryOpen,
     setFontManagerOpen,
     setConditionalBatchOpen,
-    setConditionalBatchInitialFind,
-    setConditionalBatchInitialReplace,
+    setConditionalBatchInitialFind: setBatchInitialFind,
+    setConditionalBatchInitialReplace: setBatchInitialReplace,
     setEditorFloating,
     setRightRailMode,
     toggleEditorFloat,

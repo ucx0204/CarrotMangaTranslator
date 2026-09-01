@@ -9,6 +9,7 @@ import {
   MIN_FONT_SIZE_PX,
 } from "../../../shared/blockFormatValues";
 import { BlockSpacingFields } from "./BlockSpacingFields";
+import { BlockTextOpacityField } from "./BlockTextOpacityField";
 import { FontSelect } from "./FontSelect";
 import { FormatBatchApplyModal } from "./FormatBatchApplyModal";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
@@ -22,7 +23,10 @@ import {
   AlignLeftIcon,
   AlignRightIcon,
   BoldIcon,
+  EmphasisMarkIcon,
   ItalicIcon,
+  StrikethroughIcon,
+  UnderlineIcon,
 } from "./ui/icons";
 import { clampFontSize, type EditorPanelModel } from "./editorPanelUtils";
 
@@ -224,6 +228,45 @@ function TextEmphasisButtons({
         >
           <ItalicIcon size={18} />
         </IconButton>
+        <IconButton
+          label={t("format.blockUnderline", {
+            defaultValue: "블록 전체 밑줄",
+          })}
+          title={t("format.blockUnderline", {
+            defaultValue: "블록 전체 밑줄",
+          })}
+          aria-pressed={Boolean(block.underline)}
+          disabled={disabled}
+          onClick={() => onUpdate({ underline: !block.underline })}
+        >
+          <UnderlineIcon size={18} />
+        </IconButton>
+        <IconButton
+          label={t("format.blockStrikethrough", {
+            defaultValue: "블록 전체 취소선",
+          })}
+          title={t("format.blockStrikethrough", {
+            defaultValue: "블록 전체 취소선",
+          })}
+          aria-pressed={Boolean(block.strikethrough)}
+          disabled={disabled}
+          onClick={() => onUpdate({ strikethrough: !block.strikethrough })}
+        >
+          <StrikethroughIcon size={18} />
+        </IconButton>
+        <IconButton
+          label={t("format.blockEmphasisMark", {
+            defaultValue: "블록 전체 강조점",
+          })}
+          title={t("format.blockEmphasisMark", {
+            defaultValue: "블록 전체 강조점",
+          })}
+          aria-pressed={Boolean(block.emphasisMark)}
+          disabled={disabled}
+          onClick={() => onUpdate({ emphasisMark: !block.emphasisMark })}
+        >
+          <EmphasisMarkIcon size={18} />
+        </IconButton>
       </div>
     </div>
   );
@@ -373,34 +416,6 @@ function FontSizeRow({
         checked={autoFitText}
         disabled={disabled}
         onCheckedChange={(checked) => onUpdate({ autoFitText: checked })}
-      />
-    </div>
-  );
-}
-
-function BlockTextOpacityField({
-  block,
-  disabled,
-  onUpdate,
-}: BlockSectionProps): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const label = t("format.textOpacity");
-  return (
-    <div className="editor-format-number-cell">
-      <span>{label}</span>
-      <NumberField
-        variant="scrubber"
-        ariaLabel={label}
-        decreaseLabel={t("format.decreaseValue", { label })}
-        increaseLabel={t("format.increaseValue", { label })}
-        min={0}
-        max={100}
-        step={1}
-        precision={0}
-        value={Math.round((block.textOpacity ?? 1) * 100)}
-        disabled={disabled}
-        unit="%"
-        onValueChange={(value) => onUpdate({ textOpacity: value / 100 })}
       />
     </div>
   );
