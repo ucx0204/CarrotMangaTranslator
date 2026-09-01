@@ -12,6 +12,7 @@ import {
 } from "../../shared/ipcSchemas";
 import { isSupportedImagePath } from "./storage";
 import {
+  MAX_SHARE_CHAPTER_JSON_BYTES,
   MAX_SHARE_IMAGE_BYTES,
   MAX_SHARE_JSON_BYTES,
   assertZipEntrySize,
@@ -151,18 +152,15 @@ async function readRequiredShareJson<TSchema extends z.ZodTypeAny>(
   path: string,
   schema: TSchema,
   signal?: AbortSignal,
+  maxBytes = MAX_SHARE_JSON_BYTES,
 ): Promise<z.output<TSchema>> {
   throwIfAborted(signal);
   const entry = entries.get(path);
   if (!entry) {
     throw new Error(tMain("share.errors.requiredInfoMissing", { path }));
   }
-  assertZipEntrySize(entry, MAX_SHARE_JSON_BYTES, path);
-  const data = await reader.readEntry(
-    entry.entryName,
-    MAX_SHARE_JSON_BYTES,
-    path,
-  );
+  assertZipEntrySize(entry, maxBytes, path);
+  const data = await reader.readEntry(entry.entryName, maxBytes, path);
   throwIfAborted(signal);
 
   let parsedJson: unknown;
@@ -228,7 +226,7 @@ function validateManifestChapters(
     if (!entry) {
       throw new Error(tMain("share.errors.requiredInfoMissing", { path }));
     }
-    assertZipEntrySize(entry, MAX_SHARE_JSON_BYTES, path);
+    assertZipEntrySize(entry, MAX_SHARE_CHAPTER_JSON_BYTES, path);
     normalizedIds.push(id);
     chapterEntryById.set(id, entry);
   }
@@ -281,6 +279,7 @@ function createSharePackageSession({
       `chapters/${safeId}/chapter.json`,
       LibraryChapterFileSchema,
       signal,
+      MAX_SHARE_CHAPTER_JSON_BYTES,
     );
     throwIfAborted(signal);
     validateShareChapter(chapter, safeId, entries);

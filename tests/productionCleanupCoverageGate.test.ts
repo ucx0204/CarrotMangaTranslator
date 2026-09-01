@@ -426,7 +426,7 @@ describe("production cleanup coverage floor gate", () => {
     expect(Object.keys(manifest.floors)).toEqual(scope.existing);
     expect(Object.keys(manifest.introducedFloors)).toEqual(scope.added);
     expect(manifest.deletedFiles).toEqual(scope.deleted);
-    expect(scope.existing).toHaveLength(597);
+    expect(scope.existing).toHaveLength(600);
     expect(scope.added).toHaveLength(277);
     expect(scope.deleted).toHaveLength(10);
   });

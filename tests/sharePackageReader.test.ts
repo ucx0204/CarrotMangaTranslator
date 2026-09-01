@@ -7,9 +7,10 @@ import {
   type SharePackageReaderRuntime,
 } from "../src/main/libraryStore/sharePackage";
 import { previewWorkShareImport } from "../src/main/libraryStore/shareWorkflow";
-import type {
-  ZipArchiveReader,
-  ZipEntryLike,
+import {
+  MAX_SHARE_CHAPTER_JSON_BYTES,
+  type ZipArchiveReader,
+  type ZipEntryLike,
 } from "../src/main/libraryStore/zipSafety";
 
 type FakePackageStats = {
@@ -98,6 +99,22 @@ describe("share package session", () => {
     expect(chapterReadNames(fake.stats)).toEqual([]);
   });
 
+  it("rejects a chapter above the dedicated bounded limit before reading it", async () => {
+    const fake = createFakePackage(["chapter-a"], {
+      chapterEntrySize: MAX_SHARE_CHAPTER_JSON_BYTES + 1,
+    });
+
+    await expect(
+      openSharePackageSession("oversized-chapter.mgtshare", {
+        runtime: fake.runtime,
+      }),
+    ).rejects.toThrow(/파일이 너무 큽니다/);
+
+    expect(fake.stats.openCount).toBe(1);
+    expect(fake.stats.closeCount).toBe(1);
+    expect(chapterReadNames(fake.stats)).toEqual([]);
+  });
+
   it("stops at the first malformed chapter and returns no partial preview", async () => {
     const ids = ["chapter-a", "chapter-b", "chapter-c", "chapter-d"];
     const fake = createFakePackage(ids, {
@@ -167,6 +184,7 @@ function createFakePackage(
   options: {
     manifestChapterIds?: string[];
     chapterBuffers?: Map<string, Buffer>;
+    chapterEntrySize?: number;
     onOpen?: () => void;
   } = {},
 ): {
@@ -198,6 +216,14 @@ function createFakePackage(
   const entries = Array.from(buffers, ([entryName, buffer]) =>
     makeEntry(entryName, buffer),
   );
+  if (options.chapterEntrySize !== undefined) {
+    for (const entry of entries) {
+      if (entry.entryName.endsWith("/chapter.json") && entry.header) {
+        entry.header.size = options.chapterEntrySize;
+        entry.header.compressedSize = options.chapterEntrySize;
+      }
+    }
+  }
   const entryMap = new Map(entries.map((entry) => [entry.entryName, entry]));
   const stats: FakePackageStats = {
     openCount: 0,

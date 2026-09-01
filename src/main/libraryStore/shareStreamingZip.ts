@@ -20,7 +20,11 @@ import {
 } from "./zipSafety";
 
 export type StreamingShareArchiveWriter = {
-  addJson: (archivePath: string, value: unknown) => Promise<void>;
+  addJson: (
+    archivePath: string,
+    value: unknown,
+    options?: { maxBytes?: number },
+  ) => Promise<void>;
   addFile: (
     archivePath: string,
     source: {
@@ -141,9 +145,14 @@ class SequentialShareZipWriter implements StreamingShareArchiveWriter {
     }
   }
 
-  async addJson(archivePath: string, value: unknown): Promise<void> {
+  async addJson(
+    archivePath: string,
+    value: unknown,
+    options: { maxBytes?: number } = {},
+  ): Promise<void> {
     const bytes = Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8");
-    if (bytes.byteLength > MAX_SHARE_JSON_BYTES) {
+    const maxBytes = options.maxBytes ?? MAX_SHARE_JSON_BYTES;
+    if (bytes.byteLength > maxBytes) {
       throw new Error(`${archivePath} 파일이 너무 큽니다.`);
     }
     await this.addLazyStream({

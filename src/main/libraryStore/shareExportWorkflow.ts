@@ -28,7 +28,10 @@ import {
   type StreamingShareArchiveWriter,
 } from "./shareStreamingZip";
 import { isSupportedImagePath } from "./storage";
-import { MAX_SHARE_IMAGE_BYTES } from "./zipSafety";
+import {
+  MAX_SHARE_CHAPTER_JSON_BYTES,
+  MAX_SHARE_IMAGE_BYTES,
+} from "./zipSafety";
 import { stripInternalPageArtifacts } from "./translationCheckpointStore";
 
 export type WorkShareExportReaderPort = {
@@ -166,7 +169,9 @@ async function addChapterToShare(
     pageOrder: orderedPages.map((page) => page.id),
     pages: packagePages,
   };
-  await archive.addJson(`chapters/${chapter.id}/chapter.json`, packageChapter);
+  await archive.addJson(`chapters/${chapter.id}/chapter.json`, packageChapter, {
+    maxBytes: MAX_SHARE_CHAPTER_JSON_BYTES,
+  });
   return packagePages.length;
 }
 

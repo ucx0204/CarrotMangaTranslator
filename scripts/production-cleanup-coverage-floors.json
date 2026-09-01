@@ -2389,6 +2389,50 @@
         "pct": 100
       }
     },
+    "src/main/libraryStore/sharePackage.ts": {
+      "lines": {
+        "covered": 99,
+        "total": 111,
+        "pct": 89.18
+      },
+      "statements": {
+        "covered": 101,
+        "total": 113,
+        "pct": 89.38
+      },
+      "functions": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 29,
+        "total": 43,
+        "pct": 67.44
+      }
+    },
+    "src/main/libraryStore/shareStreamingZip.ts": {
+      "lines": {
+        "covered": 153,
+        "total": 168,
+        "pct": 91.07
+      },
+      "statements": {
+        "covered": 153,
+        "total": 171,
+        "pct": 89.47
+      },
+      "functions": {
+        "covered": 37,
+        "total": 40,
+        "pct": 92.5
+      },
+      "branches": {
+        "covered": 44,
+        "total": 54,
+        "pct": 81.48
+      }
+    },
     "src/main/libraryStore/storage.ts": {
       "lines": {
         "covered": 45,
@@ -2431,6 +2475,28 @@
         "total": 53,
         "covered": 33,
         "pct": 62.26
+      }
+    },
+    "src/main/libraryStore/zipSafety.ts": {
+      "lines": {
+        "covered": 117,
+        "total": 143,
+        "pct": 81.81
+      },
+      "statements": {
+        "covered": 118,
+        "total": 144,
+        "pct": 81.94
+      },
+      "functions": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 60,
+        "total": 83,
+        "pct": 72.28
       }
     },
     "src/main/logger.ts": {
