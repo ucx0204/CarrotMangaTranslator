@@ -62,7 +62,7 @@ type HarnessApi = {
   applyBubbleLayoutDraft: () => boolean;
   getBounds: ReturnType<typeof vi.fn>;
   getBlockCreateRect: () => BBox | null;
-  getBlockPreview: () => TranslationBlock | null;
+  getBlockPreview: (blockId?: string) => TranslationBlock | null;
   getBubbleLayoutDraft: () => BubbleLayoutDraftPreview | null;
   getRenderCount: () => number;
   getRegionSelection: () => RegionSelectionState | null;
@@ -182,6 +182,206 @@ describe("workspace pointer interactions", () => {
     expect(moved?.bbox.x).toBe(100);
     expect(moved?.renderBbox?.x).toBe(700);
     expect(api.current.getBlockPreview()).toBeNull();
+  });
+
+  it("preserves a multi-selection and moves every selected block in one drag", () => {
+    const frames = installAnimationFrameController();
+    const second = makeBlock(false, {
+      id: "block-2",
+      bbox: { x: 500, y: 300, w: 200, h: 100 },
+      renderBbox: { x: 500, y: 300, w: 200, h: 100 },
+      renderBboxSpace: "normalized_1000",
+    });
+    const api = renderHarness({
+      additionalBlocks: [second],
+      blockPatch: {
+        renderBbox: { x: 100, y: 100, w: 200, h: 100 },
+        renderBboxSpace: "normalized_1000",
+      },
+      initialSelectedBlockId: "block-1",
+      initialSelectedBlockIds: ["block-1", "block-2"],
+    });
+    const block = screen.getByTestId("block");
+    const stage = screen.getByTestId("stage");
+
+    fireEvent.pointerDown(block, {
+      clientX: 20,
+      clientY: 20,
+      pointerId: 11,
+    });
+    fireEvent.pointerMove(stage, {
+      clientX: 60,
+      clientY: 50,
+      pointerId: 11,
+    });
+    act(() => frames.flush());
+
+    expect(api.current.getSelectedBlockIds()).toEqual(["block-1", "block-2"]);
+    expect(api.current.getBlockPreview("block-1")?.renderBbox).toMatchObject({
+      x: 500,
+      y: 400,
+    });
+    expect(api.current.getBlockPreview("block-2")?.renderBbox).toMatchObject({
+      x: 900,
+      y: 600,
+    });
+    expect(api.current.updateCurrentChapter).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(stage, {
+      clientX: 60,
+      clientY: 50,
+      pointerId: 11,
+    });
+
+    expect(api.current.updateCurrentChapter).toHaveBeenCalledOnce();
+    const updater = api.current.updateCurrentChapter.mock.calls[0]?.[1];
+    const page = makePage({
+      additionalBlocks: [second],
+      blockPatch: {
+        renderBbox: { x: 100, y: 100, w: 200, h: 100 },
+        renderBboxSpace: "normalized_1000",
+      },
+    });
+    const moved = updater?.(makeChapter(page)).pages[0]?.blocks;
+    expect(moved?.[0]?.bbox).toEqual(page.blocks[0]?.bbox);
+    expect(moved?.[1]?.bbox).toEqual(page.blocks[1]?.bbox);
+    expect(moved?.[0]?.renderBbox).toMatchObject({ x: 500, y: 400 });
+    expect(moved?.[1]?.renderBbox).toMatchObject({ x: 900, y: 600 });
+    expect(api.current.getBlockPreview("block-1")).toBeNull();
+    expect(api.current.getBlockPreview("block-2")).toBeNull();
+  });
+
+  it("uses Ctrl-click only to toggle selection without starting a drag", () => {
+    const api = renderHarness({
+      initialSelectedBlockId: "block-1",
+      initialSelectedBlockIds: ["block-1"],
+    });
+    const block = screen.getByTestId("block");
+    const stage = screen.getByTestId("stage");
+
+    fireEvent.pointerDown(block, {
+      clientX: 20,
+      clientY: 20,
+      ctrlKey: true,
+      pointerId: 12,
+    });
+    fireEvent.pointerMove(stage, {
+      clientX: 80,
+      clientY: 80,
+      pointerId: 12,
+    });
+    fireEvent.pointerUp(stage, {
+      clientX: 80,
+      clientY: 80,
+      pointerId: 12,
+    });
+
+    expect(api.current.getSelectedBlockIds()).toEqual([]);
+    expect(api.current.getBlockPreview()).toBeNull();
+    expect(api.current.updateCurrentChapter).not.toHaveBeenCalled();
+  });
+
+  it("cancels a selected block group drag without committing previews", () => {
+    const frames = installAnimationFrameController();
+    const second = makeBlock(false, {
+      id: "block-2",
+      bbox: { x: 500, y: 300, w: 200, h: 100 },
+      renderBbox: { x: 500, y: 300, w: 200, h: 100 },
+      renderBboxSpace: "normalized_1000",
+    });
+    const api = renderHarness({
+      additionalBlocks: [second],
+      blockPatch: {
+        renderBbox: { x: 100, y: 100, w: 200, h: 100 },
+        renderBboxSpace: "normalized_1000",
+      },
+      initialSelectedBlockId: "block-1",
+      initialSelectedBlockIds: ["block-1", "block-2"],
+      renderOverlay: true,
+    });
+    const block = document.querySelector<HTMLElement>(".overlay-block");
+    const stage = document.querySelector<HTMLElement>(".image-stage");
+    expect(block).not.toBeNull();
+    expect(stage).not.toBeNull();
+
+    fireEvent.pointerDown(block as HTMLElement, {
+      clientX: 20,
+      clientY: 20,
+      pointerId: 13,
+    });
+    fireEvent.pointerMove(stage as HTMLElement, {
+      clientX: 60,
+      clientY: 50,
+      pointerId: 13,
+    });
+    act(() => frames.flush());
+    expect(api.current.getBlockPreview("block-2")).not.toBeNull();
+
+    fireEvent.pointerCancel(stage as HTMLElement, {
+      clientX: 60,
+      clientY: 50,
+      pointerId: 13,
+    });
+
+    expect(api.current.getSelectedBlockIds()).toEqual(["block-1", "block-2"]);
+    expect(api.current.getBlockPreview("block-1")).toBeNull();
+    expect(api.current.getBlockPreview("block-2")).toBeNull();
+    expect(api.current.updateCurrentChapter).not.toHaveBeenCalled();
+  });
+
+  it("keeps resize handles scoped to the active block instead of the group", () => {
+    const second = makeBlock(false, {
+      id: "block-2",
+      bbox: { x: 500, y: 300, w: 200, h: 100 },
+      renderBbox: { x: 500, y: 300, w: 200, h: 100 },
+      renderBboxSpace: "normalized_1000",
+    });
+    const api = renderHarness({
+      additionalBlocks: [second],
+      blockPatch: {
+        renderBbox: { x: 100, y: 100, w: 200, h: 100 },
+        renderBboxSpace: "normalized_1000",
+      },
+      initialSelectedBlockId: "block-1",
+      initialSelectedBlockIds: ["block-1", "block-2"],
+      renderOverlay: true,
+    });
+    const handle = document.querySelector<HTMLElement>(
+      '[data-transform-handle="resize-se"]',
+    );
+    const stage = document.querySelector<HTMLElement>(".image-stage");
+    expect(handle).not.toBeNull();
+    expect(stage).not.toBeNull();
+
+    fireEvent.pointerDown(handle as HTMLElement, {
+      clientX: 30,
+      clientY: 30,
+      pointerId: 14,
+    });
+    fireEvent.pointerMove(stage as HTMLElement, {
+      clientX: 50,
+      clientY: 50,
+      pointerId: 14,
+    });
+    fireEvent.pointerUp(stage as HTMLElement, {
+      clientX: 50,
+      clientY: 50,
+      pointerId: 14,
+    });
+
+    expect(api.current.getSelectedBlockIds()).toEqual(["block-1"]);
+    expect(api.current.updateCurrentChapter).toHaveBeenCalledOnce();
+    const updater = api.current.updateCurrentChapter.mock.calls[0]?.[1];
+    const page = makePage({
+      additionalBlocks: [second],
+      blockPatch: {
+        renderBbox: { x: 100, y: 100, w: 200, h: 100 },
+        renderBboxSpace: "normalized_1000",
+      },
+    });
+    const changed = updater?.(makeChapter(page)).pages[0]?.blocks;
+    expect(changed?.[0]?.renderBbox).not.toEqual(page.blocks[0]?.renderBbox);
+    expect(changed?.[1]).toEqual(page.blocks[1]);
   });
 
   it("moves only the render box through pointer handlers", () => {
@@ -610,8 +810,10 @@ describe("workspace pointer interactions", () => {
 
 function renderHarness(
   props: {
+    additionalBlocks?: TranslationBlock[];
     blockPatch?: Partial<TranslationBlock>;
     initialSelectedBlockId?: string | null;
+    initialSelectedBlockIds?: string[];
     jobActive?: boolean;
     renderOverlay?: boolean;
     regionTranslationReady?: boolean;
@@ -629,8 +831,10 @@ function renderHarness(
       onReady={(nextApi) => {
         api.current = nextApi;
       }}
+      additionalBlocks={props.additionalBlocks ?? []}
       blockPatch={props.blockPatch}
       initialSelectedBlockId={props.initialSelectedBlockId ?? null}
+      initialSelectedBlockIds={props.initialSelectedBlockIds ?? []}
       jobActive={props.jobActive ?? false}
       renderOverlay={props.renderOverlay ?? false}
       regionTranslationReady={props.regionTranslationReady ?? true}
@@ -651,8 +855,10 @@ function renderHarness(
 }
 
 function WorkspacePointerHarness({
+  additionalBlocks,
   blockPatch,
   initialSelectedBlockId,
+  initialSelectedBlockIds,
   jobActive,
   onReady,
   renderOverlay,
@@ -662,8 +868,10 @@ function WorkspacePointerHarness({
   stageTool,
   withBubbleLayout,
 }: {
+  additionalBlocks: TranslationBlock[];
   blockPatch?: Partial<TranslationBlock>;
   initialSelectedBlockId: string | null;
+  initialSelectedBlockIds: string[];
   jobActive: boolean;
   onReady: (api: HarnessApi) => void;
   renderOverlay: boolean;
@@ -691,7 +899,9 @@ function WorkspacePointerHarness({
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(
     initialSelectedBlockId,
   );
-  const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
+  const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>(
+    initialSelectedBlockIds,
+  );
   const [, setInpaintingPaintColor] = useState("#ffffff");
   const [, setInpaintingTool] = useState<InpaintingTool>("none");
   const [patternMaskStrokesByPage, setPatternMaskStrokesByPage] = useState<
@@ -706,7 +916,7 @@ function WorkspacePointerHarness({
     [],
   );
   const getBounds = useMemo(() => vi.fn(() => makeDomRect()), []);
-  const page = makePage({ blockPatch, withBubbleLayout });
+  const page = makePage({ additionalBlocks, blockPatch, withBubbleLayout });
   const block = page.blocks[0];
   const handlers = useWorkspacePointerHandlers({
     appendRetouchPoint: () => null,
@@ -732,6 +942,7 @@ function WorkspacePointerHarness({
     regionSelection,
     selectedPage: page,
     selectedBlockId,
+    selectedBlockIds,
     selectedPageEditLocked,
     selectedPageIdRef,
     selectedPageImagePath: "page-1.png",
@@ -762,8 +973,8 @@ function WorkspacePointerHarness({
       applyBubbleLayoutDraft: handlers.applyBubbleLayoutDraft,
       getBounds,
       getBlockCreateRect: handlers.interactionPreviewStore.getBlockCreateRect,
-      getBlockPreview: () =>
-        handlers.interactionPreviewStore.getBlockPreview("block-1"),
+      getBlockPreview: (blockId = "block-1") =>
+        handlers.interactionPreviewStore.getBlockPreview(blockId),
       getBubbleLayoutDraft:
         handlers.interactionPreviewStore.getBubbleLayoutDraft,
       getRenderCount: () => renderCountRef.current,
@@ -948,9 +1159,11 @@ function makeChapter(page: MangaPage): ChapterSnapshot {
 }
 
 function makePage({
+  additionalBlocks = [],
   blockPatch,
   withBubbleLayout = false,
 }: {
+  additionalBlocks?: TranslationBlock[];
   blockPatch?: Partial<TranslationBlock>;
   withBubbleLayout?: boolean;
 } = {}): MangaPage {
@@ -961,7 +1174,7 @@ function makePage({
     dataUrl: "",
     width: 1000,
     height: 1000,
-    blocks: [makeBlock(withBubbleLayout, blockPatch)],
+    blocks: [makeBlock(withBubbleLayout, blockPatch), ...additionalBlocks],
     analysisStatus: "idle",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",

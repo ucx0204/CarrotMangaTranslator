@@ -12,6 +12,7 @@ import rotateCursorUrl from "../assets/cursors/tabler-rotate-clockwise.svg";
 import {
   applyEditableBlockBbox,
   applyMovedEditableBlockBbox,
+  resolveEditableBlockBbox,
   resolveSharedEditableBlockMoveDelta,
 } from "../lib/blockFormatGeometry";
 import {
@@ -37,6 +38,7 @@ import {
 
 export type BlockDragResolution = {
   bbox?: BBox;
+  moveDelta?: { x: number; y: number };
   patch?: Partial<TranslationBlock>;
   label: string;
   mode: DragMode;
@@ -56,15 +58,20 @@ export function resolveBlockDrag(
   event: DragPointer,
   rect: PointerRect,
   page: MangaPage,
+  moveBlocks: readonly TranslationBlock[] = [drag.startBlock],
 ): BlockDragResolution | null {
   if (drag.mode === "move" || isResizeDragMode(drag.mode)) {
     const requestedBbox = resolveDraggedBbox(drag, event, rect, page);
-    const bbox =
+    const move =
       drag.mode === "move"
-        ? constrainMovedBlockBbox(drag, requestedBbox, page)
-        : constrainEditableRenderBbox(drag.startBlock, requestedBbox);
+        ? constrainMovedBlockBbox(drag, requestedBbox, page, moveBlocks)
+        : null;
+    const bbox = move
+      ? move.bbox
+      : constrainEditableRenderBbox(drag.startBlock, requestedBbox);
     return {
       bbox,
+      ...(move ? { moveDelta: move.delta } : {}),
       label: describeDragBbox(drag.mode, bbox, page),
       mode: drag.mode,
     };
@@ -109,15 +116,19 @@ function constrainMovedBlockBbox(
   drag: DragState,
   requestedBbox: BBox,
   page: MangaPage,
-): BBox {
-  const delta = resolveSharedEditableBlockMoveDelta([drag.startBlock], page, {
+  moveBlocks: readonly TranslationBlock[],
+): { bbox: BBox; delta: { x: number; y: number } } {
+  const delta = resolveSharedEditableBlockMoveDelta(moveBlocks, page, {
     x: requestedBbox.x - drag.startBbox.x,
     y: requestedBbox.y - drag.startBbox.y,
   });
   return {
-    ...drag.startBbox,
-    x: drag.startBbox.x + delta.x,
-    y: drag.startBbox.y + delta.y,
+    bbox: {
+      ...drag.startBbox,
+      x: drag.startBbox.x + delta.x,
+      y: drag.startBbox.y + delta.y,
+    },
+    delta,
   };
 }
 
@@ -126,12 +137,23 @@ export function applyResolvedBlockDrag(
   page: MangaPage,
   drag: DragState,
   resolution: BlockDragResolution,
+  moveStartBlocks: readonly TranslationBlock[] = [drag.startBlock],
 ): ChapterSnapshot {
+  const moveStartBlockById =
+    resolution.mode === "move" && resolution.moveDelta
+      ? new Map(moveStartBlocks.map((block) => [block.id, block]))
+      : null;
   return {
     ...chapter,
     pages: chapter.pages.map((candidate) =>
       candidate.id === page.id
-        ? applyResolutionToPage(candidate, page, drag, resolution)
+        ? applyResolutionToPage(
+            candidate,
+            page,
+            drag,
+            resolution,
+            moveStartBlockById,
+          )
         : candidate,
     ),
   };
@@ -270,16 +292,41 @@ function applyResolutionToPage(
   page: MangaPage,
   drag: DragState,
   resolution: BlockDragResolution,
+  moveStartBlockById: ReadonlyMap<string, TranslationBlock> | null,
 ): MangaPage {
   return {
     ...candidate,
     updatedAt: new Date().toISOString(),
-    blocks: candidate.blocks.map((block) =>
-      block.id === drag.blockId
+    blocks: candidate.blocks.map((block) => {
+      const moveStartBlock = moveStartBlockById?.get(block.id);
+      if (moveStartBlock && resolution.moveDelta) {
+        return applyBlockMoveDelta(moveStartBlock, page, resolution.moveDelta);
+      }
+      return block.id === drag.blockId
         ? applyBlockDragResolution(block, page, resolution)
-        : block,
-    ),
+        : block;
+    }),
   };
+}
+
+export function applyBlockMoveDelta(
+  block: TranslationBlock,
+  page: MangaPage,
+  delta: { x: number; y: number },
+): TranslationBlock {
+  const pageSize = { width: page.width, height: page.height };
+  const displayText = block.translatedText || block.sourceText || "...";
+  const target = resolveEditableBlockBbox(block, pageSize, displayText).bbox;
+  return applyMovedEditableBlockBbox(
+    block,
+    {
+      ...target,
+      x: target.x + delta.x,
+      y: target.y + delta.y,
+    },
+    pageSize,
+    displayText,
+  );
 }
 
 export function applyBlockDragResolution(

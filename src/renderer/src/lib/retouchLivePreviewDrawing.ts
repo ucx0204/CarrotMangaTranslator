@@ -60,8 +60,8 @@ export function renderShapePreview(
     return;
   }
   context.save();
-  context.globalAlpha = 0.92;
-  context.fillStyle = preview.color;
+  context.globalAlpha = 0.25;
+  context.fillStyle = resolveThemeAccentColor(stage);
   if (preview.kind === "rectangle") {
     context.fillRect(left, top, width, height);
   } else {
@@ -79,6 +79,14 @@ export function renderShapePreview(
   }
   context.restore();
   preview.dirty = false;
+}
+
+function resolveThemeAccentColor(stage: HTMLElement): string {
+  const accent = window
+    .getComputedStyle(stage)
+    .getPropertyValue("--accent")
+    .trim();
+  return accent || "#a64e36";
 }
 
 function renderRestoreRectangle(

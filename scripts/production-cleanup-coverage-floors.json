@@ -11259,6 +11259,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/lib/workspaceInteractionPreview.ts": {
+      "lines": {
+        "covered": 51,
+        "total": 55,
+        "pct": 92.72
+      },
+      "statements": {
+        "covered": 55,
+        "total": 60,
+        "pct": 91.66
+      },
+      "functions": {
+        "covered": 23,
+        "total": 24,
+        "pct": 95.83
+      },
+      "branches": {
+        "covered": 29,
+        "total": 33,
+        "pct": 87.87
+      }
+    },
     "src/renderer/src/lib/workspaceInteractionTypes.ts": {
       "lines": {
         "covered": 0,
@@ -16253,6 +16275,28 @@
         "total": 34,
         "covered": 30,
         "pct": 88.23
+      }
+    },
+    "src/renderer/src/hooks/workspaceBlockDragInteraction.ts": {
+      "lines": {
+        "total": 19,
+        "covered": 18,
+        "pct": 94.73
+      },
+      "statements": {
+        "total": 20,
+        "covered": 19,
+        "pct": 95
+      },
+      "functions": {
+        "total": 8,
+        "covered": 8,
+        "pct": 100
+      },
+      "branches": {
+        "total": 30,
+        "covered": 15,
+        "pct": 50
       }
     },
     "src/renderer/src/hooks/workspaceWarpPointerGeometry.ts": {

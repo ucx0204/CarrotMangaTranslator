@@ -276,6 +276,7 @@ function useBlockDragHandlersForWorkspace(
     interactionPreviewStore,
     jobActive: options.jobActive,
     regionSelectionActive: Boolean(options.regionSelection?.active),
+    selectedBlockIds: options.selectedBlockIds ?? [],
     selectedPage: options.selectedPage,
     selectedPageEditLocked: options.selectedPageEditLocked,
     setSelectedBlockId,

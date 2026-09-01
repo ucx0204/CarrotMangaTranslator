@@ -3,6 +3,7 @@ import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import {
   applyBlockDragResolution,
+  applyBlockMoveDelta,
   applyResolvedBlockDrag,
   resolveBlockDrag,
   resolveDragCursor,
@@ -160,6 +161,68 @@ describe("workspace block drag model", () => {
     expect(preview.bbox).toEqual(startBlock.bbox);
     expect(preview.renderBbox).toEqual({ x: 180, y: 290, w: 260, h: 140 });
     expect(changed.pages[0]?.blocks[0]).toEqual(preview);
+  });
+
+  it("moves a selected block group by one shared constrained delta", () => {
+    const fixture = makeFixture("move");
+    const first: TranslationBlock = {
+      ...fixture.block,
+      bbox: { x: 100, y: 120, w: 200, h: 100 },
+      renderBbox: { x: 100, y: 120, w: 200, h: 100 },
+      renderBboxSpace: "normalized_1000",
+    };
+    const second: TranslationBlock = {
+      ...fixture.block,
+      id: "block-2",
+      bbox: { x: 850, y: 300, w: 200, h: 100 },
+      renderBbox: { x: 850, y: 300, w: 200, h: 100 },
+      renderBboxSpace: "normalized_1000",
+    };
+    const page = { ...fixture.page, blocks: [first, second] };
+    const chapter = { ...fixture.chapter, pages: [page] };
+    const drag: DragState = {
+      ...fixture.drag,
+      startBbox: first.renderBbox as NonNullable<
+        TranslationBlock["renderBbox"]
+      >,
+      startBlock: first,
+    };
+    const resolution = resolveBlockDrag(
+      drag,
+      { clientX: 50, clientY: 10 },
+      { left: 0, top: 0, width: 100, height: 100 },
+      page,
+      [first, second],
+    );
+    if (!resolution?.moveDelta) {
+      throw new Error("expected a constrained group move resolution");
+    }
+
+    const moveDelta = resolution.moveDelta;
+    expect(moveDelta).toEqual({ x: 142, y: 100 });
+    const previews = [first, second].map((block) =>
+      applyBlockMoveDelta(block, page, moveDelta),
+    );
+    const changed = applyResolvedBlockDrag(chapter, page, drag, resolution, [
+      first,
+      second,
+    ]);
+
+    expect(changed.pages[0]?.blocks).toEqual(previews);
+    expect(changed.pages[0]?.blocks[0]?.bbox).toEqual(first.bbox);
+    expect(changed.pages[0]?.blocks[1]?.bbox).toEqual(second.bbox);
+    expect(changed.pages[0]?.blocks[0]?.renderBbox).toEqual({
+      x: 242,
+      y: 220,
+      w: 200,
+      h: 100,
+    });
+    expect(changed.pages[0]?.blocks[1]?.renderBbox).toEqual({
+      x: 992,
+      y: 400,
+      w: 200,
+      h: 100,
+    });
   });
 
   it("allows a move beyond the page and keeps eight units of the box visible", () => {

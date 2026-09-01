@@ -57,6 +57,7 @@ describe("retouch live overlay", () => {
     const frames = installAnimationFrameController();
     const context = makeCanvasContext();
     const { canvas, stage } = makeStage(context);
+    stage.style.setProperty("--accent", "#b85c42");
     const geometry = {
       displayHeight: 100,
       displayWidth: 100,
@@ -80,6 +81,9 @@ describe("retouch live overlay", () => {
     expect(canvas.hidden).toBe(false);
     expect(context.fillRect).toHaveBeenCalledOnce();
     expect(context.fillRect).toHaveBeenLastCalledWith(10, 20, 70, 70);
+    expect(context.fillStyle).toBe("#b85c42");
+    expect(context.globalAlpha).toBe(0.25);
+    expect(context.stroke).not.toHaveBeenCalled();
 
     beginRetouchShape(stage, { x: 900, y: 800 }, geometry, {
       color: "#ffcc00",
@@ -99,6 +103,9 @@ describe("retouch live overlay", () => {
       0,
       Math.PI * 2,
     );
+    expect(context.fillStyle).toBe("#b85c42");
+    expect(context.globalAlpha).toBe(0.25);
+    expect(context.stroke).not.toHaveBeenCalled();
     clearRetouchLiveOverlay(stage);
   });
 

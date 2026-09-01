@@ -11,26 +11,28 @@ import {
 import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
-import { resolveEditableBlockBbox } from "../lib/blockFormatGeometry";
-import type { DragHud, DragMode } from "../lib/workspaceInteractionTypes";
+import type { DragMode } from "../lib/workspaceInteractionTypes";
 import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
 import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
+import { useEventCallback } from "./useEventCallback";
 import {
   capturePointerSafely,
   releasePointerCaptureSafely,
 } from "./workspacePointerCapture";
 import {
-  describeDragBbox,
-  type DragState,
-  type PointerRect,
-} from "./workspacePointerGeometry";
-import {
-  applyBlockDragResolution,
   applyResolvedBlockDrag,
   resolveBlockDrag,
   resolveDragCursor,
-  type BlockDragResolution,
 } from "./workspaceBlockDragModel";
+import {
+  hasPointerChanged,
+  resolveBlockDragHud,
+  resolveBlockDragPreviews,
+  resolveInitialDragHud,
+  resolveMoveStartBlocks,
+  startBlockDrag,
+  type ActiveBlockDrag,
+} from "./workspaceBlockDragInteraction";
 
 type UseWorkspaceBlockDragHandlersOptions = {
   currentChapter: ChapterSnapshot | null;
@@ -39,20 +41,13 @@ type UseWorkspaceBlockDragHandlersOptions = {
   interactionPreviewStore: WorkspaceInteractionPreviewStore;
   jobActive: boolean;
   regionSelectionActive: boolean;
+  selectedBlockIds: readonly string[];
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
   setSelectedBlockId: (blockId: string | null) => void;
   setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
   stageRef: RefObject<HTMLDivElement | null>;
   updateCurrentChapter: UpdateCurrentChapter;
-};
-
-type ActiveBlockDrag = {
-  drag: DragState;
-  latestValidResolution: BlockDragResolution | null;
-  page: MangaPage;
-  pointerRect: PointerRect;
-  pointerChanged: boolean;
 };
 
 type BlockDragRef = MutableRefObject<ActiveBlockDrag | null>;
@@ -108,7 +103,11 @@ function useClearBlockDrag(
       releasePointerCaptureSafely(stageRef.current, pointerId);
     }
     dragRef.current = null;
-    previewStore.set({ blockPreview: null, dragHud: null });
+    previewStore.set({
+      blockPreview: null,
+      blockPreviews: new Map(),
+      dragHud: null,
+    });
     if (stageRef.current) {
       stageRef.current.style.cursor = "";
     }
@@ -126,80 +125,83 @@ function useClearDragOnPageChange(
 }
 
 function useBlockPointerDown(
-  {
-    imageRef,
-    inpaintingToolActive,
-    interactionPreviewStore,
-    jobActive,
-    regionSelectionActive,
-    selectedPage,
-    selectedPageEditLocked,
-    setSelectedBlockId,
-    setSelectedBlockIds,
-    stageRef,
-  }: UseWorkspaceBlockDragHandlersOptions,
+  options: UseWorkspaceBlockDragHandlersOptions,
   dragRef: BlockDragRef,
 ): (event: PointerEvent, block: TranslationBlock, mode: DragMode) => void {
-  return useCallback(
-    (event, block, mode) => {
-      const stage = stageRef.current;
-      if (
-        !stage ||
-        !selectedPage ||
-        jobActive ||
-        selectedPageEditLocked ||
-        regionSelectionActive ||
-        inpaintingToolActive
-      ) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      if (event.ctrlKey || event.metaKey) {
-        setSelectedBlockId(block.id);
-        setSelectedBlockIds((current) =>
-          current.includes(block.id)
-            ? current.filter((id) => id !== block.id)
-            : [...current, block.id],
-        );
-        return;
-      }
-      setSelectedBlockId(block.id);
-      setSelectedBlockIds((current) =>
-        current.length === 1 && current[0] === block.id ? current : [block.id],
-      );
-      const pointerRect =
-        imageRef.current?.getBoundingClientRect() ??
-        stage.getBoundingClientRect();
-      const activeDrag = startBlockDrag({
-        block,
-        event,
-        mode,
-        page: selectedPage,
-        pointerRect,
-      });
-      dragRef.current = activeDrag;
-      interactionPreviewStore.set({
-        blockPreview: { block: activeDrag.drag.startBlock, blockId: block.id },
-        dragHud: resolveInitialDragHud(activeDrag.drag, selectedPage),
-      });
-      stage.style.cursor = resolveDragCursor(mode);
-      capturePointerSafely(stage, event.pointerId);
-    },
-    [
-      dragRef,
-      imageRef,
-      inpaintingToolActive,
-      interactionPreviewStore,
-      jobActive,
-      regionSelectionActive,
-      selectedPage,
-      selectedPageEditLocked,
-      setSelectedBlockId,
-      setSelectedBlockIds,
-      stageRef,
-    ],
+  return useEventCallback((event, block, mode) =>
+    beginBlockPointerDrag({ block, dragRef, event, mode, options }),
   );
+}
+
+function beginBlockPointerDrag({
+  block,
+  dragRef,
+  event,
+  mode,
+  options,
+}: {
+  block: TranslationBlock;
+  dragRef: BlockDragRef;
+  event: PointerEvent;
+  mode: DragMode;
+  options: UseWorkspaceBlockDragHandlersOptions;
+}): void {
+  const stage = options.stageRef.current;
+  const page = options.selectedPage;
+  if (
+    !stage ||
+    !page ||
+    options.jobActive ||
+    options.selectedPageEditLocked ||
+    options.regionSelectionActive ||
+    options.inpaintingToolActive
+  ) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  if (event.ctrlKey || event.metaKey) {
+    options.setSelectedBlockId(block.id);
+    options.setSelectedBlockIds((current) =>
+      current.includes(block.id)
+        ? current.filter((id) => id !== block.id)
+        : [...current, block.id],
+    );
+    return;
+  }
+  const moveStartBlocks = resolveMoveStartBlocks(
+    page,
+    options.selectedBlockIds,
+    block,
+    mode,
+  );
+  options.setSelectedBlockId(block.id);
+  if (moveStartBlocks.length === 1) {
+    options.setSelectedBlockIds((current) =>
+      current.length === 1 && current[0] === block.id ? current : [block.id],
+    );
+  }
+  const pointerRect =
+    options.imageRef.current?.getBoundingClientRect() ??
+    stage.getBoundingClientRect();
+  const activeDrag = startBlockDrag({
+    block,
+    event,
+    mode,
+    moveStartBlocks,
+    page,
+    pointerRect,
+  });
+  dragRef.current = activeDrag;
+  options.interactionPreviewStore.set({
+    blockPreview: null,
+    blockPreviews: new Map(
+      activeDrag.moveStartBlocks.map((candidate) => [candidate.id, candidate]),
+    ),
+    dragHud: resolveInitialDragHud(activeDrag.drag, page),
+  });
+  stage.style.cursor = resolveDragCursor(mode);
+  capturePointerSafely(stage, event.pointerId);
 }
 
 function useBlockPointerMove(
@@ -220,6 +222,7 @@ function useBlockPointerMove(
         event,
         active.pointerRect,
         active.page,
+        active.moveStartBlocks,
       );
       if (!resolution) return;
       active.pointerChanged ||= hasPointerChanged(active.drag, event);
@@ -236,14 +239,8 @@ function useBlockPointerMove(
       }
       active.latestValidResolution = resolution;
       interactionPreviewStore.queue({
-        blockPreview: {
-          block: applyBlockDragResolution(
-            active.drag.startBlock,
-            active.page,
-            resolution,
-          ),
-          blockId: active.drag.blockId,
-        },
+        blockPreview: null,
+        blockPreviews: resolveBlockDragPreviews(active, resolution),
         dragHud,
       });
     },
@@ -283,6 +280,7 @@ function useFinishBlockDrag(
           event,
           active.pointerRect,
           active.page,
+          active.moveStartBlocks,
         );
         active.pointerChanged ||= hasPointerChanged(active.drag, event);
         if (finalResolution && !finalResolution.invalid) {
@@ -298,10 +296,14 @@ function useFinishBlockDrag(
                 active.page,
                 active.drag,
                 resolution,
+                active.moveStartBlocks,
               ),
             {
               label: t("workspaceHistory.dragBlock"),
-              mergeKey: `drag:${active.drag.blockId}`,
+              mergeKey: `drag:${active.moveStartBlocks
+                .map((block) => block.id)
+                .sort()
+                .join(",")}`,
             },
           );
         }
@@ -318,87 +320,4 @@ function useFinishBlockDrag(
       updateCurrentChapter,
     ],
   );
-}
-
-function startBlockDrag({
-  block,
-  event,
-  mode,
-  page,
-  pointerRect,
-}: {
-  block: TranslationBlock;
-  event: PointerEvent;
-  mode: DragMode;
-  page: MangaPage;
-  pointerRect: PointerRect;
-}): ActiveBlockDrag {
-  const pageSize = { width: page.width, height: page.height };
-  const displayText = block.translatedText || block.sourceText || "...";
-  const target = resolveEditableBlockBbox(block, pageSize, displayText);
-  return {
-    drag: {
-      mode,
-      blockId: block.id,
-      startX: event.clientX,
-      startY: event.clientY,
-      startBbox: target.bbox,
-      startBlock: block,
-      pointerId: event.pointerId,
-    },
-    latestValidResolution: null,
-    page,
-    pointerChanged: false,
-    pointerRect,
-  };
-}
-
-function resolveInitialDragHud(drag: DragState, page: MangaPage): DragHud {
-  return {
-    mode: drag.mode,
-    label:
-      drag.mode === "rotate"
-        ? `${drag.startBlock.rotationDeg ?? 0}°`
-        : describeDragBbox(drag.mode, drag.startBbox, page),
-  };
-}
-
-function hasPointerChanged(
-  drag: DragState,
-  event: Pick<PointerEvent, "clientX" | "clientY">,
-): boolean {
-  return event.clientX !== drag.startX || event.clientY !== drag.startY;
-}
-
-function resolveBlockDragHud(
-  resolution: BlockDragResolution,
-  mode: DragMode,
-  labels: {
-    invalidCurve: string;
-    invalidPerspective: string;
-    invalidWarp: string;
-    outsidePage: string;
-    snapped: string;
-  },
-): DragHud {
-  if (resolution.invalid) {
-    return {
-      mode,
-      label:
-        resolution.invalidKind === "curve"
-          ? labels.invalidCurve
-          : resolution.invalidKind === "warp"
-            ? labels.invalidWarp
-            : resolution.invalidKind === "outside"
-              ? labels.outsidePage
-              : labels.invalidPerspective,
-      invalid: true,
-    };
-  }
-  return {
-    mode,
-    label: resolution.snapped
-      ? `${resolution.label} · ${labels.snapped}`
-      : resolution.label,
-  };
 }

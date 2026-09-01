@@ -8,6 +8,8 @@ type BlockInteractionPreview = {
   blockId: string;
 };
 
+type BlockInteractionPreviewMap = ReadonlyMap<string, TranslationBlock>;
+
 export type BubbleLayoutDraftMode = "polygon" | "add" | "subtract";
 
 export type BubbleLayoutDraftShape = {
@@ -46,6 +48,7 @@ export type BubbleLayoutDraftPreview = {
 type WorkspaceInteractionPreviewState = {
   blockCreateRect: BBox | null;
   blockPreview: BlockInteractionPreview | null;
+  blockPreviews: BlockInteractionPreviewMap;
   bubbleLayoutDraft: BubbleLayoutDraftPreview | null;
   dragHud: DragHud | null;
   regionSelectionRect: BBox | null;
@@ -71,9 +74,12 @@ export type WorkspaceInteractionPreviewStore = {
   subscribe: (listener: () => void) => () => void;
 };
 
+const EMPTY_BLOCK_PREVIEWS: BlockInteractionPreviewMap = new Map();
+
 const EMPTY_PREVIEW_STATE: WorkspaceInteractionPreviewState = {
   blockCreateRect: null,
   blockPreview: null,
+  blockPreviews: EMPTY_BLOCK_PREVIEWS,
   bubbleLayoutDraft: null,
   dragHud: null,
   regionSelectionRect: null,
@@ -126,7 +132,10 @@ export function createWorkspaceInteractionPreviewStore(): WorkspaceInteractionPr
     flush,
     getBlockCreateRect: () => state.blockCreateRect,
     getBlockPreview: (blockId) =>
-      state.blockPreview?.blockId === blockId ? state.blockPreview.block : null,
+      state.blockPreviews.get(blockId) ??
+      (state.blockPreview?.blockId === blockId
+        ? state.blockPreview.block
+        : null),
     getBubbleLayoutDraft: () => state.bubbleLayoutDraft,
     getDragHud: () => state.dragHud,
     getRegionSelectionRect: () => state.regionSelectionRect,
@@ -217,6 +226,7 @@ function mergePreviewState(
   const next = { ...current, ...patch };
   return next.blockCreateRect === current.blockCreateRect &&
     next.blockPreview === current.blockPreview &&
+    next.blockPreviews === current.blockPreviews &&
     next.bubbleLayoutDraft === current.bubbleLayoutDraft &&
     next.dragHud === current.dragHud &&
     next.regionSelectionRect === current.regionSelectionRect &&
