@@ -160,6 +160,56 @@ export function togglePage(
   );
 }
 
+/** Applies the anchor page's current run intent to an inclusive page range. */
+export function applyPageRangeFromAnchor(
+  map: ChapterSelectionMap,
+  chapterId: string,
+  anchorPageId: string,
+  targetPageId: string,
+  pages: MangaPage[],
+  context: TranslationResumeContext = DEFAULT_RESUME_CONTEXT,
+): ChapterSelectionMap {
+  const anchorPage = pages.find((page) => page.id === anchorPageId);
+  const targetIndex = pages.findIndex((page) => page.id === targetPageId);
+  if (!anchorPage || targetIndex < 0) return map;
+
+  const currentSelection = map.get(chapterId);
+  const anchorIndex = pages.indexOf(anchorPage);
+  const intent = pageRunIntent(currentSelection, anchorPage, context);
+  const pageIds = selectedPageIds(currentSelection, pages, context);
+  const restartPageIds = new Set(
+    pages
+      .filter(
+        (page) => pageRunIntent(currentSelection, page, context) === "restart",
+      )
+      .map((page) => page.id),
+  );
+  const firstIndex = Math.min(anchorIndex, targetIndex);
+  const lastIndex = Math.max(anchorIndex, targetIndex);
+
+  for (const page of pages.slice(firstIndex, lastIndex + 1)) {
+    if (intent === "none") {
+      pageIds.delete(page.id);
+      restartPageIds.delete(page.id);
+      continue;
+    }
+    pageIds.add(page.id);
+    if (intent === "restart" || !canResumePage(page, context)) {
+      restartPageIds.add(page.id);
+    } else {
+      restartPageIds.delete(page.id);
+    }
+  }
+
+  return replaceExplicitSelection(
+    map,
+    chapterId,
+    pages,
+    pageIds,
+    restartPageIds,
+  );
+}
+
 export function buildRunSelection(
   chapterOrder: string[],
   map: ChapterSelectionMap,

@@ -600,7 +600,7 @@
     "completionModeTranslate": "僅翻譯",
     "completionModeErase": "清除原文",
     "completionModeSummaries": {
-      "translate": "僅完成翻譯，保留原始圖像。",
+      "translate": "僅完成翻譯，原文保持不變。",
       "erase": "翻譯後自動清除所選頁面的原文。"
     },
     "bubbleLayoutWorkflow": "對話框適配",
@@ -609,7 +609,8 @@
     "bubbleLayoutWorkflowHint": "清除原文後，將譯文文字區塊自然地適配到對話框內。",
     "bubbleLayoutWorkflowSummaries": {
       "off": "僅清除原文，保留目前的文字區塊配置。",
-      "on": "清除原文後，將譯文適配到對話框內。"
+      "on": "清除原文後，將譯文適配到對話框內。",
+      "unavailable": "選擇「清除原文」後才能使用對話框適配。"
     },
     "keepBlocksHint": "已有文字區塊的頁面會保留區域和格式，只重新填入文字。沒有文字區塊的頁面會自動產生。"
   },

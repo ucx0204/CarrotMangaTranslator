@@ -3,11 +3,13 @@ import { createPortal } from "react-dom";
 import { SelectionCard } from "./ui/SelectionCard";
 
 export type PageThumbSelectionState = "none" | "restart" | "resume";
+export type PageThumbToggleInteraction = { range: boolean };
 
 export function PageThumbSelectionCard({
   checked,
   children,
   className,
+  current = false,
   onToggle,
   selectionState,
   selectionTooltip,
@@ -15,7 +17,8 @@ export function PageThumbSelectionCard({
   checked: boolean;
   children: React.ReactNode;
   className: string;
-  onToggle: () => void;
+  current?: boolean;
+  onToggle: (interaction: PageThumbToggleInteraction) => void;
   selectionState?: PageThumbSelectionState;
   selectionTooltip?: string;
 }): React.JSX.Element {
@@ -24,6 +27,7 @@ export function PageThumbSelectionCard({
     selectionState ?? (checked ? "restart" : "none");
   const hasResumeTooltip =
     resolvedSelectionState === "resume" && Boolean(selectionTooltip);
+  const rangeToggleRef = React.useRef(false);
   const resumeTooltip = useResumeTooltip(
     hasResumeTooltip,
     tooltipId,
@@ -39,12 +43,20 @@ export function PageThumbSelectionCard({
         inputAriaDescribedBy={hasResumeTooltip ? tooltipId : undefined}
         checked={resolvedSelectionState === "restart"}
         indeterminate={resolvedSelectionState === "resume"}
+        inputOnClick={(event) => {
+          rangeToggleRef.current = event.shiftKey;
+        }}
         surfaceRef={resumeTooltip.surfaceRef}
         onBlurCapture={resumeTooltip.onBlurCapture}
-        onChange={onToggle}
+        onChange={() => {
+          const range = rangeToggleRef.current;
+          rangeToggleRef.current = false;
+          onToggle({ range });
+        }}
         onFocusCapture={resumeTooltip.onFocusCapture}
         onMouseEnter={resumeTooltip.onMouseEnter}
         onMouseLeave={resumeTooltip.onMouseLeave}
+        ariaCurrent={current ? "page" : undefined}
       >
         {children}
       </SelectionCard>

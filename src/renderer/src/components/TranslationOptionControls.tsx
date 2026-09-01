@@ -61,19 +61,20 @@ export function TranslationCompletionOptions({
         showLabel={false}
         tooltipPlacement="top"
       />
-      {eraseOriginalWorkflow ? (
-        <div className="translate-options-nested">
-          <ToggleOptionRow
-            label={t("translationOptions.bubbleLayoutWorkflow")}
-            pressed={bubbleLayoutWorkflow}
-            onChange={onBubbleLayoutWorkflowChange}
-            description={t(
-              `translationOptions.bubbleLayoutWorkflowSummaries.${bubbleLayoutWorkflow ? "on" : "off"}`,
-            )}
-            tooltipPlacement="top"
-          />
-        </div>
-      ) : null}
+      <div className="translate-options-nested">
+        <ToggleOptionRow
+          label={t("translationOptions.bubbleLayoutWorkflow")}
+          pressed={eraseOriginalWorkflow && bubbleLayoutWorkflow}
+          onChange={onBubbleLayoutWorkflowChange}
+          disabled={!eraseOriginalWorkflow}
+          description={t(
+            eraseOriginalWorkflow
+              ? `translationOptions.bubbleLayoutWorkflowSummaries.${bubbleLayoutWorkflow ? "on" : "off"}`
+              : "translationOptions.bubbleLayoutWorkflowSummaries.unavailable",
+          )}
+          tooltipPlacement="top"
+        />
+      </div>
     </>
   );
 }

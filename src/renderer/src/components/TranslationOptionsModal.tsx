@@ -56,6 +56,7 @@ type TranslationDefaultsPatch = Pick<
 
 type TranslationOptionsModalProps = {
   chapter: ChapterSnapshot;
+  currentPageId?: string | null;
   initialScope?: TranslationOptionsInitialScope;
   library: LibraryIndex;
   uiSettings: UiSettings | undefined;
@@ -68,6 +69,7 @@ type TranslationOptionsModalProps = {
 
 export function TranslationOptionsModal({
   chapter,
+  currentPageId,
   initialScope = "current-pending",
   library,
   uiSettings,
@@ -115,6 +117,7 @@ export function TranslationOptionsModal({
       >
         <TranslationOptionsForm
           {...state.formProps}
+          currentPageId={currentPageId}
           overwriteRisk={state.overwriteRisk}
         />
       </Modal>
@@ -206,7 +209,8 @@ function buildTranslationFlowOptions(
     fontSizeAutoFit: form.fontSizeAutoFit,
     naturalTextLayout: form.naturalTextLayout,
     eraseOriginalWorkflow: form.eraseOriginalWorkflow,
-    bubbleLayoutWorkflow: form.bubbleLayoutWorkflow,
+    bubbleLayoutWorkflow:
+      form.eraseOriginalWorkflow && form.bubbleLayoutWorkflow,
   };
 }
 
@@ -253,7 +257,7 @@ function TranslationOptionsFooter({
 }
 
 function TranslationOptionsForm(
-  props: TranslationOptionsFormProps,
+  props: TranslationOptionsFormProps & { currentPageId?: string | null },
 ): React.JSX.Element {
   const { t } = useTranslation("components");
   const { t: tRenderer } = useTranslation("renderer");
@@ -264,6 +268,7 @@ function TranslationOptionsForm(
           <ChapterPagePicker
             work={props.work}
             currentChapter={props.chapter}
+            currentPageId={props.currentPageId}
             selection={props.selection}
             onChange={props.onSelectionChange}
             resumeContext={resolveTranslationResumeContext(props)}

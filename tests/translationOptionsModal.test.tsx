@@ -136,6 +136,7 @@ async function renderModal(
   uiSettings?: UiSettings,
   initialScope?: TranslationOptionsInitialScope,
   chapter: ChapterSnapshot = makeCurrentChapter(),
+  currentPageId?: string,
 ) {
   const onStart = vi.fn();
   const onClose = vi.fn();
@@ -143,6 +144,7 @@ async function renderModal(
   render(
     <TranslationOptionsModal
       chapter={chapter}
+      currentPageId={currentPageId}
       initialScope={initialScope}
       library={makeLibrary(chapter)}
       uiSettings={uiSettings}
@@ -231,7 +233,12 @@ describe("TranslationOptionsModal", () => {
         .getByRole("radio", { name: "번역만" })
         .getAttribute("aria-checked"),
     ).toBe("true");
-    expect(screen.queryByRole("switch", { name: "말풍선 맞춤" })).toBeNull();
+    const bubbleLayout = screen.getByRole("switch", { name: "말풍선 맞춤" });
+    expect(bubbleLayout).toHaveProperty("disabled", true);
+    expect(bubbleLayout.getAttribute("aria-checked")).toBe("false");
+    expect(getDescribedTooltipText(bubbleLayout)).toBe(
+      "원문 지우기를 선택해야 사용할 수 있습니다.",
+    );
     expect(screen.queryByText("자동 분석 범위")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
@@ -252,10 +259,65 @@ describe("TranslationOptionsModal", () => {
       fontSizeAutoFit: true,
       naturalTextLayout: true,
       eraseOriginalWorkflow: false,
-      bubbleLayoutWorkflow: true,
+      bubbleLayoutWorkflow: false,
     });
     expect(onPersistDefaults).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("marks and scrolls to the working page once while keeping its filename primary", async () => {
+    const originalScrollIntoView = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollIntoView",
+    );
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    try {
+      await renderModal(undefined, undefined, makeCheckpointChapter(), "p10");
+
+      const currentCheckbox = screen.getByRole("checkbox", {
+        name: /p10\.png/,
+      });
+      const currentCard = currentCheckbox.closest("label");
+      expect(currentCard?.getAttribute("aria-current")).toBe("page");
+      expect(
+        screen
+          .getByRole("checkbox", { name: /p9\.png/ })
+          .closest("label")
+          ?.hasAttribute("aria-current"),
+      ).toBe(false);
+      const caption = currentCard?.querySelector(".translate-page-thumb-cap");
+      expect(caption?.children[0]?.className).toBe("translate-page-thumb-name");
+      expect(caption?.children[0]?.textContent).toBe("p10.png");
+      expect(caption?.children[1]?.textContent).toBe("#10");
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        block: "center",
+        inline: "nearest",
+      });
+
+      fireEvent.click(currentCheckbox);
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    } finally {
+      if (originalScrollIntoView) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollIntoView",
+          originalScrollIntoView,
+        );
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+      }
+    }
+  });
+
+  it("safely skips current-page scrolling when the page is unavailable", async () => {
+    await renderModal(undefined, undefined, makeCheckpointChapter(), "missing");
+
+    expect(document.querySelector('[aria-current="page"]')).toBeNull();
   });
 
   it("does not expose the removed precision two-pass workflow", async () => {
@@ -501,6 +563,52 @@ describe("TranslationOptionsModal", () => {
     expect(bubbleOptions.getAttribute("aria-checked")).toBe("false");
   });
 
+  it("keeps bubble fitting visible and restores its preference after translate-only mode", async () => {
+    await renderModal();
+
+    expect(
+      screen.getByText("번역만 완료하고 원문은 그대로 둡니다."),
+    ).toBeTruthy();
+    const bubbleOptions = screen.getByRole("switch", {
+      name: "말풍선 맞춤",
+    });
+    expect(bubbleOptions).toHaveProperty("disabled", true);
+    expect(bubbleOptions.getAttribute("aria-checked")).toBe("false");
+
+    fireEvent.click(screen.getByRole("radio", { name: "원문 지우기" }));
+    expect(bubbleOptions).toHaveProperty("disabled", false);
+    expect(bubbleOptions.getAttribute("aria-checked")).toBe("true");
+
+    fireEvent.click(screen.getByRole("radio", { name: "번역만" }));
+    expect(bubbleOptions).toHaveProperty("disabled", true);
+    expect(bubbleOptions.getAttribute("aria-checked")).toBe("false");
+
+    fireEvent.click(screen.getByRole("radio", { name: "원문 지우기" }));
+    expect(bubbleOptions).toHaveProperty("disabled", false);
+    expect(bubbleOptions.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("preserves the bubble preference as a default while disabling it for a translate-only run", async () => {
+    const { onPersistDefaults, onStart } = await renderModal();
+
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "다음 번역의 기본값으로 저장",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+
+    expect(onPersistDefaults).toHaveBeenCalledWith(
+      expect.objectContaining({ bubbleLayoutWorkflowDefault: true }),
+    );
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eraseOriginalWorkflow: false,
+        bubbleLayoutWorkflow: false,
+      }),
+    );
+  });
+
   it("selects the whole work with 전체 선택", async () => {
     const { onStart } = await renderModal();
 
@@ -570,6 +678,78 @@ describe("TranslationOptionsModal", () => {
 
     fireEvent.click(firstPage);
     expect(firstPage.getAttribute("aria-checked")).toBe("mixed");
+  });
+
+  it("applies the clicked anchor state with Shift across the same chapter", async () => {
+    await renderModal(undefined, undefined, makeCheckpointChapter());
+
+    const firstPage = screen.getByRole("checkbox", { name: /p1\.png/ });
+    fireEvent.click(firstPage);
+    expect(firstPage.getAttribute("aria-checked")).toBe("true");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /p4\.png/ }), {
+      shiftKey: true,
+    });
+
+    for (const pageNumber of [1, 2, 3, 4]) {
+      expect(
+        screen
+          .getByRole("checkbox", { name: new RegExp(`p${pageNumber}\\.png`) })
+          .getAttribute("aria-checked"),
+      ).toBe("true");
+    }
+    expect(
+      screen
+        .getByRole("checkbox", { name: /p5\.png/ })
+        .getAttribute("aria-checked"),
+    ).toBe("mixed");
+  });
+
+  it("clears the Shift anchor after bulk selection actions", async () => {
+    await renderModal(undefined, undefined, makeCheckpointChapter());
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /p1\.png/ }));
+    fireEvent.click(screen.getByRole("button", { name: "전체 해제" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /p3\.png/ }), {
+      shiftKey: true,
+    });
+
+    expect(
+      screen
+        .getByRole("checkbox", { name: /p1\.png/ })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+    expect(
+      screen
+        .getByRole("checkbox", { name: /p2\.png/ })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+    expect(
+      screen
+        .getByRole("checkbox", { name: /p3\.png/ })
+        .getAttribute("aria-checked"),
+    ).toBe("mixed");
+  });
+
+  it("clears the Shift anchor when translation compatibility changes", async () => {
+    await renderModal(undefined, undefined, makeCheckpointChapter());
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /p1\.png/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "기존 블록 유지" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /p3\.png/ }), {
+      shiftKey: true,
+    });
+
+    expect(
+      screen
+        .getByRole("checkbox", { name: /p2\.png/ })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      screen
+        .getByRole("checkbox", { name: /p3\.png/ })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
   });
 
   it("labels postprocess-only resume without implying font matching is skipped", async () => {

@@ -954,6 +954,10 @@
   opacity: 1;
 }
 
+.translate-page-thumb.current {
+  opacity: 1;
+}
+
 /*
  * Box, size, and tick come from the global checkbox rule. The parent selector
  * intentionally outranks the global `input[type="checkbox"] { position }`
@@ -989,6 +993,11 @@
 .translate-page-thumb.selected .translate-page-thumb-img {
   border-color: var(--accent);
   border-width: 2px;
+}
+
+.translate-page-thumb.current .translate-page-thumb-img {
+  outline: 2px solid var(--accent-hi);
+  outline-offset: 2px;
 }
 
 .translate-page-thumb[data-selection-state="resume"] .translate-page-thumb-img {
@@ -1068,16 +1077,17 @@
 
 .translate-page-thumb-no {
   flex: none;
-  font-size: var(--font-xs);
-  font-weight: 600;
-  color: var(--text);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .translate-page-thumb-name {
   flex: 1;
   min-width: 0;
+  color: var(--text-head);
   font-size: var(--font-xs);
-  color: var(--text-dim);
+  font-weight: 650;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -8,6 +8,7 @@ import type {
   MangaPage,
 } from "../../../shared/libraryTypes";
 import {
+  applyPageRangeFromAnchor,
   chapterTriState,
   createPendingChapterSelection,
   pageRunIntent,
@@ -24,54 +25,31 @@ import { WorkPagePicker, type ChapterPagesLookup } from "./WorkPagePicker";
 type ChapterPagePickerProps = {
   work: LibraryWorkSummary;
   currentChapter: ChapterSnapshot;
+  currentPageId?: string | null;
   selection: ChapterSelectionMap;
   onChange: (next: ChapterSelectionMap) => void;
   resumeContext: TranslationResumeContext;
 };
 
-export function ChapterPagePicker({
-  work,
-  currentChapter,
-  selection,
-  onChange,
-  resumeContext,
-}: ChapterPagePickerProps): React.JSX.Element {
+export function ChapterPagePicker(
+  props: ChapterPagePickerProps,
+): React.JSX.Element {
+  const { work, currentChapter, currentPageId, selection, resumeContext } =
+    props;
   const { t } = useTranslation("components");
-
-  const setEveryChapter = (
-    make: (chapter: LibraryChapterSummary) => ChapterSel | undefined,
-  ): void => {
-    onChange(
-      new Map(
-        work.chapters.flatMap((chapter) => {
-          const next = make(chapter);
-          return next ? [[chapter.id, next] as const] : [];
-        }),
-      ),
-    );
-  };
+  const actions = useChapterPagePickerActions(props);
 
   return (
     <WorkPagePicker
       work={work}
       currentChapter={currentChapter}
+      currentPageId={currentPageId}
       header={
         <ChapterPickerHeader
           workTitle={work.title}
-          onSelectAll={() => setEveryChapter(() => ({ kind: "all" }))}
-          onSelectPending={() =>
-            setEveryChapter((chapter) =>
-              chapter.id === currentChapter.id
-                ? createPendingChapterSelection(
-                    currentChapter.pages,
-                    resumeContext,
-                  )
-                : chapter.status === "completed"
-                  ? undefined
-                  : { kind: "pending" },
-            )
-          }
-          onClear={() => onChange(new Map())}
+          onSelectAll={actions.selectAll}
+          onSelectPending={actions.selectPending}
+          onClear={actions.clear}
         />
       }
       getChapterTriState={(chapter, pages) =>
@@ -101,13 +79,100 @@ export function ChapterPagePicker({
       renderSelectionSummary={(getPages) =>
         summarizeSelection(work, selection, getPages, resumeContext, t)
       }
-      onToggleChapter={(chapterId) =>
-        onChange(toggleChapter(selection, chapterId))
-      }
-      onTogglePage={(chapterId, pageId, pages) =>
-        onChange(togglePage(selection, chapterId, pageId, pages, resumeContext))
-      }
+      onToggleChapter={actions.toggleChapter}
+      onTogglePage={actions.togglePage}
+      onTogglePageRange={actions.togglePageRange}
     />
+  );
+}
+
+function useChapterPagePickerActions({
+  work,
+  currentChapter,
+  selection,
+  onChange,
+  resumeContext,
+}: ChapterPagePickerProps) {
+  const rangeAnchorRef = React.useRef<{
+    chapterId: string;
+    pageId: string;
+  } | null>(null);
+  React.useEffect(() => {
+    rangeAnchorRef.current = null;
+  }, [
+    resumeContext.blockMode,
+    resumeContext.completionWorkflow,
+    resumeContext.sourceLanguage,
+    resumeContext.targetLanguage,
+  ]);
+  const resetAnchor = (): void => {
+    rangeAnchorRef.current = null;
+  };
+  const replaceEveryChapter = (
+    make: (chapter: LibraryChapterSummary) => ChapterSel | undefined,
+  ): void => {
+    resetAnchor();
+    onChange(createWorkSelection(work, make));
+  };
+  const toggleSinglePage = (
+    chapterId: string,
+    pageId: string,
+    pages: MangaPage[],
+  ): void => {
+    rangeAnchorRef.current = { chapterId, pageId };
+    onChange(togglePage(selection, chapterId, pageId, pages, resumeContext));
+  };
+  const togglePageRange = (
+    chapterId: string,
+    pageId: string,
+    pages: MangaPage[],
+  ): void => {
+    const anchor = rangeAnchorRef.current;
+    if (!anchor || anchor.chapterId !== chapterId) {
+      toggleSinglePage(chapterId, pageId, pages);
+      return;
+    }
+    onChange(
+      applyPageRangeFromAnchor(
+        selection,
+        chapterId,
+        anchor.pageId,
+        pageId,
+        pages,
+        resumeContext,
+      ),
+    );
+  };
+  return {
+    clear: () => {
+      resetAnchor();
+      onChange(new Map());
+    },
+    selectAll: () => replaceEveryChapter(() => ({ kind: "all" })),
+    selectPending: () =>
+      replaceEveryChapter((chapter) =>
+        chapter.id === currentChapter.id
+          ? createPendingChapterSelection(currentChapter.pages, resumeContext)
+          : chapter.status === "completed"
+            ? undefined
+            : { kind: "pending" },
+      ),
+    toggleChapter: (chapterId: string) =>
+      onChange(toggleChapter(selection, chapterId)),
+    togglePage: toggleSinglePage,
+    togglePageRange,
+  };
+}
+
+function createWorkSelection(
+  work: LibraryWorkSummary,
+  make: (chapter: LibraryChapterSummary) => ChapterSel | undefined,
+): ChapterSelectionMap {
+  return new Map(
+    work.chapters.flatMap((chapter) => {
+      const next = make(chapter);
+      return next ? [[chapter.id, next] as const] : [];
+    }),
   );
 }
 

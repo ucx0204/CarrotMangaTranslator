@@ -11,12 +11,14 @@ import { CheckboxField } from "./ui/CheckboxField";
 import {
   PageThumbSelectionCard,
   type PageThumbSelectionState,
+  type PageThumbToggleInteraction,
 } from "./PageThumbSelectionCard";
 
 export function PageThumb({
   page,
   index,
   checked,
+  current = false,
   selectionState,
   selectionTooltip,
   showTranslatedStatus = true,
@@ -26,11 +28,12 @@ export function PageThumb({
   page: MangaPage;
   index: number;
   checked: boolean;
+  current?: boolean;
   selectionState?: PageThumbSelectionState;
   selectionTooltip?: string;
   showTranslatedStatus?: boolean;
   observeThumbnail: ObservePageThumbnail;
-  onToggle: () => void;
+  onToggle: (interaction: PageThumbToggleInteraction) => void;
 }): React.JSX.Element {
   const { frameRef, state, markLoaded, markErrored } =
     usePageThumbnail<HTMLSpanElement>(page, observeThumbnail);
@@ -38,9 +41,14 @@ export function PageThumb({
   return (
     <PageThumbSelectionCard
       checked={checked}
-      className={["translate-page-thumb", done ? "done" : ""]
+      className={[
+        "translate-page-thumb",
+        done ? "done" : "",
+        current ? "current" : "",
+      ]
         .filter(Boolean)
         .join(" ")}
+      current={current}
       onToggle={onToggle}
       selectionState={selectionState}
       selectionTooltip={selectionTooltip}
@@ -54,8 +62,10 @@ export function PageThumb({
         onError={markErrored}
       />
       <span className="translate-page-thumb-cap" title={page.name}>
-        <span className="translate-page-thumb-no">{index + 1}</span>
         <span className="translate-page-thumb-name">{page.name}</span>
+        <span className="translate-page-thumb-no" aria-hidden="true">
+          #{index + 1}
+        </span>
       </span>
     </PageThumbSelectionCard>
   );

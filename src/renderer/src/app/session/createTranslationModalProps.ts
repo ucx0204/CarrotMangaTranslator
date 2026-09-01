@@ -11,6 +11,7 @@ export function createTranslationOptionsProps({
   return uiState.translateOptionsOpen && core.currentChapter
     ? {
         chapter: core.currentChapter,
+        currentPageId: core.selectedPageId,
         initialScope: uiState.translateOptionsInitialScope,
         library: core.library,
         onClose: uiState.closeTranslateOptions,

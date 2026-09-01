@@ -600,7 +600,7 @@
     "completionModeTranslate": "仅翻译",
     "completionModeErase": "擦除原文",
     "completionModeSummaries": {
-      "translate": "仅完成翻译，保留原始图像。",
+      "translate": "仅完成翻译，原文保持不变。",
       "erase": "翻译后自动擦除所选页面的原文。"
     },
     "bubbleLayoutWorkflow": "气泡适配",
@@ -609,7 +609,8 @@
     "bubbleLayoutWorkflowHint": "擦除原文后，将译文文本块自然地适配到气泡内。",
     "bubbleLayoutWorkflowSummaries": {
       "off": "仅擦除原文，保留当前文本块布局。",
-      "on": "擦除原文后，将译文适配到气泡内。"
+      "on": "擦除原文后，将译文适配到气泡内。",
+      "unavailable": "选择“擦除原文”后才能使用气泡适配。"
     },
     "keepBlocksHint": "已有文本块的页面会保留区域和格式，只重新填入文本。没有文本块的页面会自动生成。"
   },

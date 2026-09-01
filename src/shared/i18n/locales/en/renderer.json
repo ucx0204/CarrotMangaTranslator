@@ -223,6 +223,7 @@
       "retouch-tool-rectangle": "Rectangle retouch",
       "retouch-tool-ellipse": "Ellipse retouch",
       "retouch-tool-eraser": "Retouch eraser",
+      "retouch-tool-eraser-rectangle": "Rectangle eraser",
       "retouch-tool-picker": "Color picker",
       "retouch-apply-mask": "Apply mask",
       "retouch-cancel-mask": "Cancel mask",

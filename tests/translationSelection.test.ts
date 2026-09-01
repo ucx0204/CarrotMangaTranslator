@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MangaPage, PageAnalysisStatus } from "../src/shared/libraryTypes";
 import { createPageRevision } from "../src/shared/pageRevision";
 import {
+  applyPageRangeFromAnchor,
   buildRunSelection,
   chapterTriState,
   createPendingChapterSelection,
@@ -120,6 +121,89 @@ describe("translation selection", () => {
 
     selection = togglePage(selection, "c1", page.id, [page]);
     expect(pageRunIntent(selection.get("c1"), page)).toBe("resume");
+  });
+
+  it("applies the anchor page intent across an inclusive range in either direction", () => {
+    const initial: ChapterSelectionMap = new Map([
+      [
+        "c1",
+        {
+          kind: "pages",
+          pageIds: new Set(["p3"]),
+          restartPageIds: new Set(["p3"]),
+        },
+      ],
+    ]);
+
+    const next = applyPageRangeFromAnchor(initial, "c1", "p3", "p1", pages);
+
+    expect(next.get("c1")).toEqual({
+      kind: "pages",
+      pageIds: new Set(["p1", "p2", "p3"]),
+      restartPageIds: new Set(["p1", "p2", "p3"]),
+    });
+  });
+
+  it("leaves selection unchanged when either range endpoint is unavailable", () => {
+    const initial: ChapterSelectionMap = new Map([["c1", { kind: "all" }]]);
+
+    expect(
+      applyPageRangeFromAnchor(initial, "c1", "missing", "p2", pages),
+    ).toBe(initial);
+    expect(
+      applyPageRangeFromAnchor(initial, "c1", "p2", "missing", pages),
+    ).toBe(initial);
+  });
+
+  it("applies an excluded anchor by removing the inclusive range", () => {
+    const initial: ChapterSelectionMap = new Map([
+      [
+        "c1",
+        {
+          kind: "pages",
+          pageIds: new Set(["p2", "p3"]),
+          restartPageIds: new Set(["p2", "p3"]),
+        },
+      ],
+    ]);
+
+    const next = applyPageRangeFromAnchor(initial, "c1", "p1", "p2", pages);
+
+    expect(next.get("c1")).toEqual({
+      kind: "pages",
+      pageIds: new Set(["p3"]),
+      restartPageIds: new Set(["p3"]),
+    });
+  });
+
+  it("promotes non-resumable pages to restart inside a resume range", () => {
+    const resumableFirst = withCheckpoint(makePage("resume-1", "idle"));
+    const restartOnly = makePage("restart", "idle");
+    const resumableLast = withCheckpoint(makePage("resume-2", "idle"));
+    const rangePages = [resumableFirst, restartOnly, resumableLast];
+    const initial: ChapterSelectionMap = new Map([
+      [
+        "c1",
+        {
+          kind: "pages",
+          pageIds: new Set([resumableFirst.id]),
+          restartPageIds: new Set(),
+        },
+      ],
+    ]);
+
+    const next = applyPageRangeFromAnchor(
+      initial,
+      "c1",
+      resumableFirst.id,
+      resumableLast.id,
+      rangePages,
+      { blockMode: "auto", sourceLanguage: "ja", targetLanguage: "ko" },
+    );
+
+    expect(pageRunIntent(next.get("c1"), resumableFirst)).toBe("resume");
+    expect(pageRunIntent(next.get("c1"), restartOnly)).toBe("restart");
+    expect(pageRunIntent(next.get("c1"), resumableLast)).toBe("resume");
   });
 
   it("puts checkpoints in resume and untreated pages in restart for pending", () => {

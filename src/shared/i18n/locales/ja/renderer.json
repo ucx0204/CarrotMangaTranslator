@@ -223,6 +223,7 @@
       "retouch-tool-rectangle": "長方形補正",
       "retouch-tool-ellipse": "楕円補正",
       "retouch-tool-eraser": "補正消しゴム",
+      "retouch-tool-eraser-rectangle": "矩形消しゴム",
       "retouch-tool-picker": "色を抽出",
       "retouch-apply-mask": "マスクを適用",
       "retouch-cancel-mask": "マスクをキャンセル",

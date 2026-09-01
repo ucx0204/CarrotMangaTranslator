@@ -604,7 +604,7 @@
     "completionModeTranslate": "번역만",
     "completionModeErase": "원문 지우기",
     "completionModeSummaries": {
-      "translate": "번역만 완료하고 원본 이미지는 그대로 둡니다.",
+      "translate": "번역만 완료하고 원문은 그대로 둡니다.",
       "erase": "번역 후 선택한 페이지의 원문을 자동으로 지웁니다."
     },
     "bubbleLayoutWorkflow": "말풍선 맞춤",
@@ -613,7 +613,8 @@
     "bubbleLayoutWorkflowHint": "원문을 지운 뒤 번역 블록을 말풍선 안에 자연스럽게 맞춥니다.",
     "bubbleLayoutWorkflowSummaries": {
       "off": "원문만 지우고 현재 블록 배치는 유지합니다.",
-      "on": "원문을 지운 뒤 번역문을 말풍선 안에 맞춥니다."
+      "on": "원문을 지운 뒤 번역문을 말풍선 안에 맞춥니다.",
+      "unavailable": "원문 지우기를 선택해야 사용할 수 있습니다."
     },
     "keepBlocksHint": "블록이 있는 페이지는 영역·서식을 그대로 두고 텍스트만 다시 채웁니다. 블록이 없는 페이지는 자동 생성됩니다."
   },

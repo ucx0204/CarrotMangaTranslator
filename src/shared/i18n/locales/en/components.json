@@ -610,7 +610,7 @@
     "completionModeTranslate": "Translate only",
     "completionModeErase": "Erase source text",
     "completionModeSummaries": {
-      "translate": "Finish after translation and leave the source image unchanged.",
+      "translate": "Finish translation only and leave the source text unchanged.",
       "erase": "Automatically erase source text from selected pages after translation."
     },
     "bubbleLayoutWorkflow": "Bubble fitting",
@@ -619,7 +619,8 @@
     "bubbleLayoutWorkflowHint": "Fit translated blocks naturally inside their bubbles after erasing.",
     "bubbleLayoutWorkflowSummaries": {
       "off": "Erase source text while keeping the current block layout.",
-      "on": "Fit translated text inside bubbles after erasing."
+      "on": "Fit translated text inside bubbles after erasing.",
+      "unavailable": "Select Erase source text to use bubble fitting."
     },
     "keepBlocksHint": "Pages with blocks keep their regions and formatting while only the text is replaced. Blocks are generated automatically on pages without them."
   },

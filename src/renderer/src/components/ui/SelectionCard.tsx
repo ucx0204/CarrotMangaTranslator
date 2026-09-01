@@ -45,6 +45,7 @@ export function SelectionSurface({
 }
 
 export function SelectionCard({
+  ariaCurrent,
   checked,
   children,
   className,
@@ -52,6 +53,7 @@ export function SelectionCard({
   inputAriaLabel,
   inputAriaDescribedBy,
   inputClassName,
+  inputOnClick,
   inputType,
   indeterminate = false,
   name,
@@ -63,6 +65,7 @@ export function SelectionCard({
   onMouseEnter,
   onMouseLeave,
 }: {
+  ariaCurrent?: React.AriaAttributes["aria-current"];
   checked: boolean;
   children: React.ReactNode;
   className?: string;
@@ -70,6 +73,7 @@ export function SelectionCard({
   inputAriaLabel?: string;
   inputAriaDescribedBy?: string;
   inputClassName?: string;
+  inputOnClick?: React.MouseEventHandler<HTMLInputElement>;
   inputType: "checkbox" | "radio";
   indeterminate?: boolean;
   name?: string;
@@ -89,6 +93,7 @@ export function SelectionCard({
       elementRef={surfaceRef}
       selected={checked || indeterminate}
       variant={variant}
+      aria-current={ariaCurrent}
       onBlurCapture={onBlurCapture}
       onFocusCapture={onFocusCapture}
       onMouseEnter={onMouseEnter}
@@ -111,6 +116,7 @@ export function SelectionCard({
         checked={checked}
         disabled={disabled}
         name={name}
+        onClick={inputOnClick}
         onChange={(event) => onChange(event.target.checked)}
       />
       {children}

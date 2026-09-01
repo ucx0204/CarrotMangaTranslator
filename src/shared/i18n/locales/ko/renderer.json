@@ -226,6 +226,7 @@
       "retouch-tool-rectangle": "사각형 보정",
       "retouch-tool-ellipse": "타원 보정",
       "retouch-tool-eraser": "보정 지우개",
+      "retouch-tool-eraser-rectangle": "사각 지우개",
       "retouch-tool-picker": "색상 추출",
       "retouch-apply-mask": "마스크 적용",
       "retouch-cancel-mask": "마스크 취소",

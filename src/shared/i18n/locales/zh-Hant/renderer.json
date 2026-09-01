@@ -220,6 +220,7 @@
       "retouch-tool-rectangle": "矩形修補",
       "retouch-tool-ellipse": "橢圓修補",
       "retouch-tool-eraser": "修補橡皮擦",
+      "retouch-tool-eraser-rectangle": "矩形橡皮擦",
       "retouch-tool-picker": "色彩擷取",
       "retouch-apply-mask": "套用遮罩",
       "retouch-cancel-mask": "取消遮罩",

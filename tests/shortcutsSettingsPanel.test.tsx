@@ -19,6 +19,7 @@ describe("shortcut settings labels", () => {
 
     expect(screen.getByText("이전 페이지")).not.toBeNull();
     expect(screen.getByText("다음 페이지")).not.toBeNull();
+    expect(screen.getByText("사각 지우개")).not.toBeNull();
     expect(
       screen.queryByText("settings.shortcuts.actions.page-previous"),
     ).toBeNull();

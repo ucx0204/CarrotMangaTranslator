@@ -18,6 +18,24 @@ export type PageThumbnailState = {
 
 const DEFAULT_ROOT_MARGIN = "300px 0px";
 
+/** Scrolls a marked current-page tile into view once after its row is rendered. */
+export function useScrollToCurrentPage(
+  pickerListRef: React.RefObject<HTMLElement | null>,
+  currentPageId: string | null | undefined,
+  renderRevision: unknown,
+): void {
+  const scrolledRef = React.useRef(false);
+  React.useLayoutEffect(() => {
+    if (!currentPageId || scrolledRef.current) return;
+    const page = pickerListRef.current?.querySelector<HTMLElement>(
+      '.translate-page-thumb[aria-current="page"]',
+    );
+    if (!page || typeof page.scrollIntoView !== "function") return;
+    page.scrollIntoView({ block: "center", inline: "nearest" });
+    scrolledRef.current = true;
+  }, [currentPageId, pickerListRef, renderRevision]);
+}
+
 /**
  * One IntersectionObserver for a whole scrolling list, instead of one per row.
  * Rows register their frame and are told once when they come near the viewport.

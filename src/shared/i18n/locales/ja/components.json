@@ -607,7 +607,7 @@
     "completionModeTranslate": "翻訳のみ",
     "completionModeErase": "原文を消去",
     "completionModeSummaries": {
-      "translate": "翻訳だけを完了し、元画像はそのまま残します。",
+      "translate": "翻訳だけを完了し、原文はそのまま残します。",
       "erase": "翻訳後、選択したページの原文を自動で消去します。"
     },
     "bubbleLayoutWorkflow": "吹き出し合わせ",
@@ -616,7 +616,8 @@
     "bubbleLayoutWorkflowHint": "原文を消去した後、翻訳ブロックを吹き出し内へ自然に収めます。",
     "bubbleLayoutWorkflowSummaries": {
       "off": "原文だけを消去し、現在のブロック配置を維持します。",
-      "on": "原文を消去した後、翻訳文を吹き出し内に収めます。"
+      "on": "原文を消去した後、翻訳文を吹き出し内に収めます。",
+      "unavailable": "吹き出し合わせを使用するには「原文を消去」を選択してください。"
     },
     "keepBlocksHint": "ブロックがあるページは領域と書式を保ち、テキストだけを入れ直します。ブロックがないページは自動生成されます。"
   },
