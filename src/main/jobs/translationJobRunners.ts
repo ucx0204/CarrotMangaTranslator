@@ -156,7 +156,7 @@ export async function runResolvedAnalysisJob(
     cumulativeContextDetail: request.cumulativeContextDetail,
     naturalTextLayout: request.naturalTextLayout,
     autoFontMatching: request.autoFontMatching,
-    fontSizeAutoFit: request.fontSizeAutoFit,
+    aiFontSizeMatching: request.aiFontSizeMatching ?? request.fontSizeAutoFit,
     canonicalPageIndexById: buildPageIndexById(resolved.chapter.pages),
     translationCheckpoints,
     fontContinuityPages: resolved.chapter.pages,

@@ -15,6 +15,7 @@ const {
 } = require("../simple-page-download-utils.cjs");
 const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { isTruthy } = require("./config-values.cjs");
+const { resolveOcrEngineLabel } = require("./engine-profile.cjs");
 const {
   MAX_REMOTE_SUPPORT_ASSET_BYTES,
 } = require("../transport/download-budgets.cjs");
@@ -23,10 +24,7 @@ const DEFAULT_VCREDIST_X64_URL =
   "https://aka.ms/vs/17/release/vc_redist.x64.exe";
 
 /** @param {RuntimeOptions} options @param {string} runtimeDir @returns {Promise<void>} */
-async function ensureMicrosoftVisualCppRuntimeForPaddle(
-  options = {},
-  runtimeDir,
-) {
+async function ensureMicrosoftVisualCppRuntimeForOcr(options = {}, runtimeDir) {
   if (process.platform !== "win32") {
     return;
   }
@@ -56,8 +54,7 @@ function emitVcredistDisabled(options) {
     "자동 설치가 비활성화되어 있습니다.",
     {
       progressMode: "log-only",
-      installLogLine:
-        "Paddle 네이티브 DLL 로딩에 필요한 Microsoft Visual C++ 2015-2022 x64 런타임을 설치해야 합니다.",
+      installLogLine: `${resolveOcrEngineLabel(options)} 네이티브 DLL 로딩에 필요한 Microsoft Visual C++ 2015-2022 x64 런타임을 설치해야 합니다.`,
     },
   );
 }
@@ -111,7 +108,7 @@ function emitVcredistInstalling(options) {
     options,
     "ocr_downloading",
     "Microsoft Visual C++ 런타임 설치 중",
-    "Paddle 네이티브 DLL 로딩에 필요한 x64 런타임을 준비합니다.",
+    `${resolveOcrEngineLabel(options)} 네이티브 DLL 로딩에 필요한 x64 런타임을 준비합니다.`,
     {
       progressMode: "indeterminate",
       installLogLine:
@@ -155,7 +152,7 @@ function emitVcredistInstallResult(options, error) {
       ? "Microsoft Visual C++ 런타임 준비 완료"
       : "Microsoft Visual C++ 런타임 설치 실패",
     succeeded
-      ? "Paddle OCR import를 다시 확인합니다."
+      ? `${resolveOcrEngineLabel(options)} import를 다시 확인합니다.`
       : error instanceof Error
         ? error.message
         : String(error),
@@ -168,4 +165,6 @@ function emitVcredistInstallResult(options, error) {
   );
 }
 
-module.exports = { ensureMicrosoftVisualCppRuntimeForPaddle };
+module.exports = {
+  ensureMicrosoftVisualCppRuntimeForOcr,
+};

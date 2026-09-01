@@ -32,6 +32,7 @@ type StatusPopoverProps = {
   completionSoundMuted: boolean;
   completionSoundVolume: number;
   completionSoundTranslationMuted: boolean;
+  completionSoundSoundEffectMuted: boolean;
   completionSoundSourceErasingMuted: boolean;
   completionSoundResearchMuted: boolean;
   onCancelJob: () => void;
@@ -57,6 +58,7 @@ export function StatusPopover({
   completionSoundMuted,
   completionSoundVolume,
   completionSoundTranslationMuted,
+  completionSoundSoundEffectMuted,
   completionSoundSourceErasingMuted,
   completionSoundResearchMuted,
   onCancelJob,
@@ -76,6 +78,7 @@ export function StatusPopover({
     muted: completionSoundMuted,
     volume: completionSoundVolume,
     translationMuted: completionSoundTranslationMuted,
+    soundEffectMuted: completionSoundSoundEffectMuted,
     sourceErasingMuted: completionSoundSourceErasingMuted,
     researchMuted: completionSoundResearchMuted,
   };

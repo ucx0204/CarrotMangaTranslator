@@ -55,6 +55,7 @@ export {
   RendererLogRequestSchema,
   SetPageInpaintingResultRequestSchema,
   StartAnalysisRequestSchema,
+  StartSoundEffectTranslationRequestSchema,
   StartInpaintingRequestSchema,
 } from "./ipcJobSchemas";
 export { AppSettingsSchema } from "./ipcSettingsSchemas";

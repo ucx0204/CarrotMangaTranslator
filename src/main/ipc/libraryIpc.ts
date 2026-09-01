@@ -12,14 +12,20 @@ import {
   SavePageBlocksRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
+import {
+  DismissSoundEffectReviewRegionRequestSchema,
+  PrepareSoundEffectTranslationRequestSchema,
+} from "../../shared/ipcSoundEffectReviewSchemas";
 import { libraryIpcContracts } from "../../shared/ipcContracts";
 import {
   deleteChapter,
   deletePage,
+  dismissSoundEffectReviewRegion,
   deleteWork,
   getLibraryRoot,
   listLibrary,
   openChapter,
+  prepareSoundEffectTranslation,
   renameChapter,
   renameWork,
   reorderChapters,
@@ -37,6 +43,7 @@ export function registerLibraryIpc(context: IpcContext): void {
   registerLibraryRenameIpc(context);
   registerLibraryDeleteIpc(context);
   registerLibraryReorderIpc(context);
+  registerSoundEffectReviewIpc(context);
 }
 
 function registerLibraryReadIpc(context: IpcContext): void {
@@ -167,6 +174,23 @@ function registerLibraryDeleteIpc(context: IpcContext): void {
       return deletePage(request.chapterId, request.pageId);
     },
   );
+  trustedHandleContract(
+    context,
+    libraryIpcContracts.dismissSoundEffectReviewRegion,
+    async (_event, chapterId: unknown, pageId: unknown, regionId: unknown) => {
+      assertLibraryStructureMutationAvailable(context);
+      const request = parseIpcPayload(
+        DismissSoundEffectReviewRegionRequestSchema,
+        { chapterId, pageId, regionId },
+        "효과음 검토 대상 제외",
+      );
+      return dismissSoundEffectReviewRegion(
+        request.chapterId,
+        request.pageId,
+        request.regionId,
+      );
+    },
+  );
 }
 
 function registerLibraryReorderIpc(context: IpcContext): void {
@@ -194,6 +218,23 @@ function registerLibraryReorderIpc(context: IpcContext): void {
         tMain("ipc.labels.pageReorder"),
       );
       return reorderPages(request.chapterId, request.pageIds);
+    },
+  );
+}
+
+function registerSoundEffectReviewIpc(context: IpcContext): void {
+  trustedHandleContract(
+    context,
+    libraryIpcContracts.prepareSoundEffectTranslation,
+    async (_event, raw: unknown) => {
+      assertLibraryStructureMutationAvailable(context);
+      return prepareSoundEffectTranslation(
+        parseIpcPayload(
+          PrepareSoundEffectTranslationRequestSchema,
+          raw,
+          "효과음 번역 검토 저장",
+        ),
+      );
     },
   );
 }

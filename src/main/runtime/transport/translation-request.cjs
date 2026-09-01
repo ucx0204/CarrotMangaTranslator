@@ -35,6 +35,7 @@ const {
 const { emitRuntimeProgress, nowMs } = require("./model-runtime-services.cjs");
 const { createLinkedDeadlineController } = require("./http-deadline.cjs");
 const { MODEL_HTTP_REQUEST_DEADLINE_MS } = require("./network-budgets.cjs");
+const { resolveOcrEngineLabel } = require("../ocr/engine-profile.cjs");
 const {
   createEmptyOutputError,
   createHttpFailureError,
@@ -66,6 +67,11 @@ const {
   createPromptOptions,
   shouldSkipModelRequest,
 } = require("./translation-ocr-policy.cjs");
+const {
+  SOUND_EFFECT_TRANSLATION_CONTRACT_VERSION,
+  buildSoundEffectTranslationPrompt,
+  buildSoundEffectTranslationSystemPrompt,
+} = require("../semantic-ocr/sound-effect-translation.cjs");
 
 /**
  * @param {ModelServer} server
@@ -79,7 +85,10 @@ async function requestTranslation(server, options) {
   );
   const promptOptions = createPromptOptions(options, ocrBboxResult);
 
-  if (shouldSkipModelRequest(ocrBboxResult, promptOptions)) {
+  if (
+    !isSoundEffectTranslationRequest(promptOptions) &&
+    shouldSkipModelRequest(ocrBboxResult, promptOptions)
+  ) {
     return createNoTextResult(server, promptOptions, ocrBboxResult);
   }
 
@@ -93,7 +102,10 @@ async function requestTranslation(server, options) {
     abortSignal: deadline.signal,
   });
   try {
+    const soundEffectRequest =
+      isSoundEffectTranslationRequest(boundedPromptOptions);
     const groupReviewSelected =
+      !soundEffectRequest &&
       isGroupOnlyReviewEligible(boundedPromptOptions) &&
       hasHeuristicReviewFragments(boundedPromptOptions);
     const groupReviewOutcome = groupReviewSelected
@@ -113,7 +125,10 @@ async function requestTranslation(server, options) {
       abortSignal: deadline.signal,
     });
 
-    if (shouldUseFixedBlockTranslation(finalPromptOptions)) {
+    if (
+      !isSoundEffectTranslationRequest(finalPromptOptions) &&
+      shouldUseFixedBlockTranslation(finalPromptOptions)
+    ) {
       const translated = await requestFixedBlockTranslation(
         server,
         finalPromptOptions,
@@ -205,7 +220,7 @@ function createNoTextResult(server, options, ocrBboxResult) {
     options,
     "page_done",
     "페이지 텍스트 없음",
-    "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다.",
+    `${resolveOcrEngineLabel(options)}에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다.`,
   );
   return {
     requestBody: requestSummary,
@@ -232,9 +247,13 @@ async function prepareTranslationRequest(server, options, ocrBboxResult) {
   const imageVariants = /** @type {ImageVariant[]} */ (
     preparedVariants.imageVariants
   );
-  const promptText =
-    options.promptOverrideText || getOverlayPrompt(options, imageVariants);
-  const systemPrompt = buildSystemPrompt(options);
+  const soundEffectRequest = isSoundEffectTranslationRequest(options);
+  const promptText = soundEffectRequest
+    ? buildSoundEffectTranslationPrompt(options)
+    : options.promptOverrideText || getOverlayPrompt(options, imageVariants);
+  const systemPrompt = soundEffectRequest
+    ? buildSoundEffectTranslationSystemPrompt(options)
+    : buildSystemPrompt(options);
   const requestBody = buildProviderRequestBody(
     options,
     imageVariants,
@@ -250,6 +269,18 @@ async function prepareTranslationRequest(server, options, ocrBboxResult) {
   );
   requestSummary.promptText = promptText;
   requestSummary.systemPromptText = systemPrompt;
+  if (soundEffectRequest) {
+    const soundEffectRegions = Array.isArray(
+      options.soundEffectTranslationRegions,
+    )
+      ? options.soundEffectTranslationRegions
+      : [];
+    requestSummary.soundEffectTranslationContractVersion =
+      SOUND_EFFECT_TRANSLATION_CONTRACT_VERSION;
+    requestSummary.soundEffectTranslationRegionIds = soundEffectRegions.map(
+      (region) => region.regionId,
+    );
+  }
   requestSummary.noTextDetected = ocrBboxResult.noTextDetected;
   requestSummary.ocrTextEvidenceCount = ocrBboxResult.textEvidenceCount;
   requestSummary.ocrTranscriptEvidenceCount =
@@ -272,6 +303,15 @@ async function prepareTranslationRequest(server, options, ocrBboxResult) {
   };
 }
 
+/** @param {Record<string, unknown>} options */
+function isSoundEffectTranslationRequest(options) {
+  return (
+    options.soundEffectTranslationMode === true &&
+    Array.isArray(options.soundEffectTranslationRegions) &&
+    options.soundEffectTranslationRegions.length > 0
+  );
+}
+
 /**
  * @param {PromptRequestOptions} options
  * @param {ImageVariant[]} imageVariants
@@ -292,7 +332,10 @@ function buildProviderRequestBody(
       systemPrompt,
     );
   }
-  return buildChatRequestBody(options, buildMessages(options, imageVariants));
+  return buildChatRequestBody(
+    options,
+    buildMessages(options, imageVariants, promptText, systemPrompt),
+  );
 }
 
 /**

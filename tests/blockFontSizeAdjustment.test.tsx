@@ -1537,6 +1537,7 @@ describe("selected block font-size adjustment", () => {
     expect(onUpdate).toHaveBeenLastCalledWith({
       fontSizePx: 128.5,
       autoFitText: false,
+      fontSizeIntent: "manual",
     });
 
     const formatGroup = screen

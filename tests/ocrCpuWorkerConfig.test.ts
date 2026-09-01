@@ -8,9 +8,15 @@ const { createOcrBatchConfig } =
         platform: () => NodeJS.Platform;
       };
       runtimeOverrideEnv: () => undefined;
+      isHayaiOcrPipeline: (options?: Record<string, unknown>) => boolean;
       readPositiveInteger: (value: unknown) => number | null;
       emitRuntimeProgress: () => void;
+      resolveOcrEngineLabel: () => string;
     }) => {
+      hasOcrCpuWorkerRamHeadroom: (
+        info: { freeRatio: number } | null,
+        minFreeRatio: number,
+      ) => boolean;
       resolveOcrCpuWorkerCount: (
         options: { ocrCpuWorkers?: number },
         pageCount: number,
@@ -18,6 +24,10 @@ const { createOcrBatchConfig } =
       resolveOcrCpuWorkerMinFreeRamRatio: (options?: {
         ocrCpuWorkerMinFreeRamPercent?: number;
       }) => number;
+      waitForOcrCpuWorkerRamHeadroom: (
+        options?: Record<string, unknown>,
+        chunkIndex?: number,
+      ) => Promise<void>;
     };
   };
 
@@ -28,11 +38,13 @@ function createConfig(platform: NodeJS.Platform) {
       platform: () => platform,
     },
     runtimeOverrideEnv: () => undefined,
+    isHayaiOcrPipeline: (options) => options?.ocrPipeline === "hayai",
     readPositiveInteger: (value) => {
       const parsed = Number(value);
       return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
     },
     emitRuntimeProgress: () => undefined,
+    resolveOcrEngineLabel: () => "HayaiOCR",
   });
 }
 
@@ -55,5 +67,21 @@ describe("OCR CPU worker configuration", () => {
     const config = createConfig("win32");
     expect(config.resolveOcrCpuWorkerCount({}, 5)).toBe(4);
     expect(config.resolveOcrCpuWorkerMinFreeRamRatio()).toBe(0.2);
+  });
+
+  it("never waits for RAM before the first CPU worker", async () => {
+    const config = createConfig("win32");
+    await expect(
+      config.waitForOcrCpuWorkerRamHeadroom({}, 0),
+    ).resolves.toBeUndefined();
+    await expect(
+      config.waitForOcrCpuWorkerRamHeadroom(
+        { ocrCpuWorkerMinFreeRamPercent: 0 },
+        1,
+      ),
+    ).resolves.toBeUndefined();
+    expect(
+      config.hasOcrCpuWorkerRamHeadroom({ freeRatio: 0 }, Number.NaN),
+    ).toBe(true);
   });
 });

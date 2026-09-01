@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "b0bb2a1912d5bbc71aadab977cf9054a6321a691cada1ae1edb233c9267fb3c6",
+    "introducedArtifactSha256": "889544061ee1f2b352a480278c94aa9a0fd5725ec60005481bd1bf072474284a",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -1157,6 +1157,28 @@
         "pct": 0
       }
     },
+    "src/main/inpainting/patternBlockEligibility.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      }
+    },
     "src/main/inpainting/patternMaskMorphology.ts": {
       "lines": {
         "covered": 92,
@@ -1529,6 +1551,28 @@
         "covered": 9,
         "total": 12,
         "pct": 75
+      }
+    },
+    "src/main/ipc/translationJobIpc.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 4,
+        "pct": 50
+      },
+      "statements": {
+        "covered": 2,
+        "total": 4,
+        "pct": 50
+      },
+      "functions": {
+        "covered": 1,
+        "total": 3,
+        "pct": 33.33
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/main/ipc/webImportIpc.ts": {
@@ -2101,6 +2145,28 @@
         "covered": 3,
         "total": 6,
         "pct": 50
+      }
+    },
+    "src/main/libraryStore/chapterSnapshots.ts": {
+      "lines": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "statements": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
       }
     },
     "src/main/libraryStore/imageHeaderProbeInternal.ts": {
@@ -3335,6 +3401,28 @@
         "pct": 93.22
       }
     },
+    "src/main/pipeline/keepBlocksOcr.ts": {
+      "lines": {
+        "covered": 30,
+        "total": 85,
+        "pct": 35.29
+      },
+      "statements": {
+        "covered": 31,
+        "total": 88,
+        "pct": 35.22
+      },
+      "functions": {
+        "covered": 4,
+        "total": 14,
+        "pct": 28.57
+      },
+      "branches": {
+        "covered": 18,
+        "total": 43,
+        "pct": 41.86
+      }
+    },
     "src/main/pipeline/keepBlocksResult.ts": {
       "lines": {
         "covered": 53,
@@ -3357,6 +3445,28 @@
         "pct": 73.23
       }
     },
+    "src/main/pipeline/ocrHints.ts": {
+      "lines": {
+        "covered": 65,
+        "total": 72,
+        "pct": 90.27
+      },
+      "statements": {
+        "covered": 65,
+        "total": 72,
+        "pct": 90.27
+      },
+      "functions": {
+        "covered": 16,
+        "total": 17,
+        "pct": 94.11
+      },
+      "branches": {
+        "covered": 14,
+        "total": 38,
+        "pct": 36.84
+      }
+    },
     "src/main/pipeline/ocrHintsCache.ts": {
       "lines": {
         "covered": 36,
@@ -3377,6 +3487,28 @@
         "covered": 31,
         "total": 36,
         "pct": 86.11
+      }
+    },
+    "src/main/pipeline/ocrHintsCacheConfiguration.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      },
+      "statements": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
       }
     },
     "src/main/pipeline/options.ts": {
@@ -3489,6 +3621,28 @@
         "pct": 61.9
       }
     },
+    "src/main/pipeline/pageResponseParser.ts": {
+      "lines": {
+        "covered": 16,
+        "total": 17,
+        "pct": 94.11
+      },
+      "statements": {
+        "covered": 16,
+        "total": 17,
+        "pct": 94.11
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 16,
+        "total": 18,
+        "pct": 88.88
+      }
+    },
     "src/main/pipeline/pageResultBuilder.ts": {
       "lines": {
         "covered": 68,
@@ -3530,6 +3684,28 @@
       "branches": {
         "covered": 2,
         "total": 2,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/prepareAnalysisRun.ts": {
+      "lines": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 6,
         "pct": 100
       }
     },
@@ -3619,6 +3795,28 @@
         "covered": 22,
         "total": 28,
         "pct": 78.57
+      }
+    },
+    "src/main/pipeline/translationRuntimePort.ts": {
+      "lines": {
+        "covered": 25,
+        "total": 62,
+        "pct": 40.32
+      },
+      "statements": {
+        "covered": 25,
+        "total": 63,
+        "pct": 39.68
+      },
+      "functions": {
+        "covered": 9,
+        "total": 25,
+        "pct": 36
+      },
+      "branches": {
+        "covered": 12,
+        "total": 30,
+        "pct": 40
       }
     },
     "src/main/pipeline/types.ts": {
@@ -3729,6 +3927,28 @@
         "covered": 23,
         "total": 28,
         "pct": 82.14
+      }
+    },
+    "src/main/runtime/assets/image-variants.cjs": {
+      "lines": {
+        "covered": 20,
+        "total": 28,
+        "pct": 71.42
+      },
+      "statements": {
+        "covered": 22,
+        "total": 30,
+        "pct": 73.33
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 12,
+        "pct": 50
       }
     },
     "src/main/runtime/assets/result-artifact-settings.cjs": {
@@ -3907,6 +4127,72 @@
         "pct": 88.4
       }
     },
+    "src/main/runtime/model/paddle-model-download.cjs": {
+      "lines": {
+        "covered": 8,
+        "total": 61,
+        "pct": 13.11
+      },
+      "statements": {
+        "covered": 8,
+        "total": 65,
+        "pct": 12.3
+      },
+      "functions": {
+        "covered": 0,
+        "total": 17,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 52,
+        "pct": 0
+      }
+    },
+    "src/main/runtime/model/paddle-model-repair.cjs": {
+      "lines": {
+        "covered": 7,
+        "total": 20,
+        "pct": 35
+      },
+      "statements": {
+        "covered": 7,
+        "total": 21,
+        "pct": 33.33
+      },
+      "functions": {
+        "covered": 0,
+        "total": 5,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 14,
+        "pct": 0
+      }
+    },
+    "src/main/runtime/model/paddle-model-validation.cjs": {
+      "lines": {
+        "covered": 62,
+        "total": 95,
+        "pct": 65.26
+      },
+      "statements": {
+        "covered": 63,
+        "total": 99,
+        "pct": 63.63
+      },
+      "functions": {
+        "covered": 18,
+        "total": 26,
+        "pct": 69.23
+      },
+      "branches": {
+        "covered": 58,
+        "total": 95,
+        "pct": 61.05
+      }
+    },
     "src/main/runtime/model/runtime-files.cjs": {
       "lines": {
         "covered": 57,
@@ -3995,6 +4281,204 @@
         "pct": 49.53
       }
     },
+    "src/main/runtime/ocr/bbox-batch-config.cjs": {
+      "lines": {
+        "covered": 48,
+        "total": 77,
+        "pct": 62.33
+      },
+      "statements": {
+        "covered": 48,
+        "total": 77,
+        "pct": 62.33
+      },
+      "functions": {
+        "covered": 16,
+        "total": 22,
+        "pct": 72.72
+      },
+      "branches": {
+        "covered": 47,
+        "total": 66,
+        "pct": 71.21
+      }
+    },
+    "src/main/runtime/ocr/bbox-batch-pipeline.cjs": {
+      "lines": {
+        "covered": 64,
+        "total": 73,
+        "pct": 87.67
+      },
+      "statements": {
+        "covered": 64,
+        "total": 73,
+        "pct": 87.67
+      },
+      "functions": {
+        "covered": 16,
+        "total": 18,
+        "pct": 88.88
+      },
+      "branches": {
+        "covered": 40,
+        "total": 52,
+        "pct": 76.92
+      }
+    },
+    "src/main/runtime/ocr/bbox-batch-progress.cjs": {
+      "lines": {
+        "covered": 30,
+        "total": 34,
+        "pct": 88.23
+      },
+      "statements": {
+        "covered": 30,
+        "total": 34,
+        "pct": 88.23
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 28,
+        "pct": 78.57
+      }
+    },
+    "src/main/runtime/ocr/bbox-command-runner.cjs": {
+      "lines": {
+        "covered": 7,
+        "total": 30,
+        "pct": 23.33
+      },
+      "statements": {
+        "covered": 7,
+        "total": 30,
+        "pct": 23.33
+      },
+      "functions": {
+        "covered": 3,
+        "total": 10,
+        "pct": 30
+      },
+      "branches": {
+        "covered": 4,
+        "total": 27,
+        "pct": 14.81
+      }
+    },
+    "src/main/runtime/ocr/bbox-cpu-workers.cjs": {
+      "lines": {
+        "covered": 63,
+        "total": 68,
+        "pct": 92.64
+      },
+      "statements": {
+        "covered": 64,
+        "total": 69,
+        "pct": 92.75
+      },
+      "functions": {
+        "covered": 13,
+        "total": 17,
+        "pct": 76.47
+      },
+      "branches": {
+        "covered": 23,
+        "total": 28,
+        "pct": 82.14
+      }
+    },
+    "src/main/runtime/ocr/bbox-gpu-policy.cjs": {
+      "lines": {
+        "covered": 14,
+        "total": 16,
+        "pct": 87.5
+      },
+      "statements": {
+        "covered": 14,
+        "total": 16,
+        "pct": 87.5
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 14,
+        "total": 18,
+        "pct": 77.77
+      }
+    },
+    "src/main/runtime/ocr/bbox-single-pipeline.cjs": {
+      "lines": {
+        "covered": 27,
+        "total": 54,
+        "pct": 50
+      },
+      "statements": {
+        "covered": 27,
+        "total": 54,
+        "pct": 50
+      },
+      "functions": {
+        "covered": 8,
+        "total": 16,
+        "pct": 50
+      },
+      "branches": {
+        "covered": 13,
+        "total": 50,
+        "pct": 26
+      }
+    },
+    "src/main/runtime/ocr/hint-normalization.cjs": {
+      "lines": {
+        "covered": 158,
+        "total": 180,
+        "pct": 87.77
+      },
+      "statements": {
+        "covered": 158,
+        "total": 181,
+        "pct": 87.29
+      },
+      "functions": {
+        "covered": 27,
+        "total": 31,
+        "pct": 87.09
+      },
+      "branches": {
+        "covered": 141,
+        "total": 175,
+        "pct": 80.57
+      }
+    },
+    "src/main/runtime/ocr/install-plan.cjs": {
+      "lines": {
+        "covered": 104,
+        "total": 128,
+        "pct": 81.25
+      },
+      "statements": {
+        "covered": 105,
+        "total": 129,
+        "pct": 81.39
+      },
+      "functions": {
+        "covered": 24,
+        "total": 30,
+        "pct": 80
+      },
+      "branches": {
+        "covered": 80,
+        "total": 114,
+        "pct": 70.17
+      }
+    },
     "src/main/runtime/ocr/managed-python.cjs": {
       "lines": {
         "covered": 74,
@@ -4017,6 +4501,72 @@
         "pct": 87.5
       }
     },
+    "src/main/runtime/ocr/managed-vcredist.cjs": {
+      "lines": {
+        "covered": 11,
+        "total": 38,
+        "pct": 28.94
+      },
+      "statements": {
+        "covered": 11,
+        "total": 38,
+        "pct": 28.94
+      },
+      "functions": {
+        "covered": 0,
+        "total": 9,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 19,
+        "pct": 0
+      }
+    },
+    "src/main/runtime/ocr/requirements-integrity.cjs": {
+      "lines": {
+        "covered": 47,
+        "total": 55,
+        "pct": 85.45
+      },
+      "statements": {
+        "covered": 47,
+        "total": 56,
+        "pct": 83.92
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 30,
+        "pct": 73.33
+      }
+    },
+    "src/main/runtime/ocr/runtime-device.cjs": {
+      "lines": {
+        "covered": 57,
+        "total": 64,
+        "pct": 89.06
+      },
+      "statements": {
+        "covered": 57,
+        "total": 64,
+        "pct": 89.06
+      },
+      "functions": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 82,
+        "total": 91,
+        "pct": 90.1
+      }
+    },
     "src/main/runtime/ocr/runtime-environment.cjs": {
       "lines": {
         "covered": 63,
@@ -4037,6 +4587,182 @@
         "covered": 100,
         "total": 101,
         "pct": 99
+      }
+    },
+    "src/main/runtime/ocr/runtime-errors.cjs": {
+      "lines": {
+        "covered": 79,
+        "total": 115,
+        "pct": 68.69
+      },
+      "statements": {
+        "covered": 79,
+        "total": 115,
+        "pct": 68.69
+      },
+      "functions": {
+        "covered": 21,
+        "total": 27,
+        "pct": 77.77
+      },
+      "branches": {
+        "covered": 84,
+        "total": 129,
+        "pct": 65.11
+      }
+    },
+    "src/main/runtime/ocr/runtime-install-flow.cjs": {
+      "lines": {
+        "covered": 59,
+        "total": 69,
+        "pct": 85.5
+      },
+      "statements": {
+        "covered": 59,
+        "total": 69,
+        "pct": 85.5
+      },
+      "functions": {
+        "covered": 12,
+        "total": 13,
+        "pct": 92.3
+      },
+      "branches": {
+        "covered": 20,
+        "total": 32,
+        "pct": 62.5
+      }
+    },
+    "src/main/runtime/ocr/runtime-installer.cjs": {
+      "lines": {
+        "covered": 51,
+        "total": 84,
+        "pct": 60.71
+      },
+      "statements": {
+        "covered": 52,
+        "total": 86,
+        "pct": 60.46
+      },
+      "functions": {
+        "covered": 13,
+        "total": 23,
+        "pct": 56.52
+      },
+      "branches": {
+        "covered": 45,
+        "total": 66,
+        "pct": 68.18
+      }
+    },
+    "src/main/runtime/ocr/runtime-layout.cjs": {
+      "lines": {
+        "covered": 66,
+        "total": 82,
+        "pct": 80.48
+      },
+      "statements": {
+        "covered": 66,
+        "total": 83,
+        "pct": 79.51
+      },
+      "functions": {
+        "covered": 22,
+        "total": 27,
+        "pct": 81.48
+      },
+      "branches": {
+        "covered": 76,
+        "total": 108,
+        "pct": 70.37
+      }
+    },
+    "src/main/runtime/ocr/runtime-orchestrator.cjs": {
+      "lines": {
+        "covered": 20,
+        "total": 118,
+        "pct": 16.94
+      },
+      "statements": {
+        "covered": 20,
+        "total": 119,
+        "pct": 16.8
+      },
+      "functions": {
+        "covered": 2,
+        "total": 19,
+        "pct": 10.52
+      },
+      "branches": {
+        "covered": 8,
+        "total": 65,
+        "pct": 12.3
+      }
+    },
+    "src/main/runtime/ocr/runtime-preparation.cjs": {
+      "lines": {
+        "covered": 49,
+        "total": 96,
+        "pct": 51.04
+      },
+      "statements": {
+        "covered": 49,
+        "total": 96,
+        "pct": 51.04
+      },
+      "functions": {
+        "covered": 15,
+        "total": 26,
+        "pct": 57.69
+      },
+      "branches": {
+        "covered": 28,
+        "total": 61,
+        "pct": 45.9
+      }
+    },
+    "src/main/runtime/ocr/runtime-verification.cjs": {
+      "lines": {
+        "covered": 26,
+        "total": 37,
+        "pct": 70.27
+      },
+      "statements": {
+        "covered": 27,
+        "total": 38,
+        "pct": 71.05
+      },
+      "functions": {
+        "covered": 5,
+        "total": 9,
+        "pct": 55.55
+      },
+      "branches": {
+        "covered": 20,
+        "total": 33,
+        "pct": 60.6
+      }
+    },
+    "src/main/runtime/prompts/ocr-bbox-section.cjs": {
+      "lines": {
+        "covered": 64,
+        "total": 71,
+        "pct": 90.14
+      },
+      "statements": {
+        "covered": 64,
+        "total": 71,
+        "pct": 90.14
+      },
+      "functions": {
+        "covered": 15,
+        "total": 16,
+        "pct": 93.75
+      },
+      "branches": {
+        "covered": 43,
+        "total": 55,
+        "pct": 78.18
       }
     },
     "src/main/runtime/prompts/ocr-text.cjs": {
@@ -4213,6 +4939,28 @@
         "covered": 105,
         "total": 112,
         "pct": 93.75
+      }
+    },
+    "src/main/runtime/semantic-ocr/candidates.cjs": {
+      "lines": {
+        "covered": 47,
+        "total": 51,
+        "pct": 92.15
+      },
+      "statements": {
+        "covered": 49,
+        "total": 54,
+        "pct": 90.74
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 56,
+        "total": 64,
+        "pct": 87.5
       }
     },
     "src/main/runtime/semantic-ocr/fixed-block-response.cjs": {
@@ -4567,6 +5315,28 @@
         "pct": 100
       }
     },
+    "src/main/runtime/simple-page-defaults.cjs": {
+      "lines": {
+        "covered": 52,
+        "total": 52,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 52,
+        "total": 52,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      }
+    },
     "src/main/runtime/simple-page-file-search.cjs": {
       "lines": {
         "covered": 30,
@@ -4609,6 +5379,160 @@
         "covered": 22,
         "total": 27,
         "pct": 81.48
+      }
+    },
+    "src/main/runtime/simple-page-ocr-bbox-pipeline.cjs": {
+      "lines": {
+        "covered": 34,
+        "total": 34,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 34,
+        "total": 34,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/runtime/simple-page-ocr-commands.cjs": {
+      "lines": {
+        "covered": 81,
+        "total": 95,
+        "pct": 85.26
+      },
+      "statements": {
+        "covered": 84,
+        "total": 98,
+        "pct": 85.71
+      },
+      "functions": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 79,
+        "total": 95,
+        "pct": 83.15
+      }
+    },
+    "src/main/runtime/simple-page-ocr-model-assets.cjs": {
+      "lines": {
+        "covered": 34,
+        "total": 34,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 34,
+        "total": 34,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 24,
+        "total": 27,
+        "pct": 88.88
+      }
+    },
+    "src/main/runtime/simple-page-ocr-progress-handlers.cjs": {
+      "lines": {
+        "covered": 5,
+        "total": 55,
+        "pct": 9.09
+      },
+      "statements": {
+        "covered": 5,
+        "total": 55,
+        "pct": 9.09
+      },
+      "functions": {
+        "covered": 1,
+        "total": 9,
+        "pct": 11.11
+      },
+      "branches": {
+        "covered": 2,
+        "total": 43,
+        "pct": 4.65
+      }
+    },
+    "src/main/runtime/simple-page-ocr-runtime-config.cjs": {
+      "lines": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/runtime/simple-page-ocr-runtime-manager.cjs": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/runtime/simple-page-progress.cjs": {
+      "lines": {
+        "covered": 78,
+        "total": 93,
+        "pct": 83.87
+      },
+      "statements": {
+        "covered": 78,
+        "total": 94,
+        "pct": 82.97
+      },
+      "functions": {
+        "covered": 16,
+        "total": 17,
+        "pct": 94.11
+      },
+      "branches": {
+        "covered": 65,
+        "total": 89,
+        "pct": 73.03
       }
     },
     "src/main/runtime/simple-page-request-builders.cjs": {
@@ -4655,6 +5579,28 @@
         "pct": 85.71
       }
     },
+    "src/main/runtime/simple-page-runtime-common.cjs": {
+      "lines": {
+        "covered": 19,
+        "total": 20,
+        "pct": 95
+      },
+      "statements": {
+        "covered": 19,
+        "total": 20,
+        "pct": 95
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 18,
+        "total": 20,
+        "pct": 90
+      }
+    },
     "src/main/runtime/simple-page-tar-utils.cjs": {
       "lines": {
         "covered": 126,
@@ -4675,6 +5621,28 @@
         "covered": 84,
         "total": 110,
         "pct": 76.36
+      }
+    },
+    "src/main/runtime/simple-page-translate.cjs": {
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/main/runtime/simple-page-zip-utils.cjs": {
@@ -4851,6 +5819,50 @@
         "covered": 17,
         "total": 36,
         "pct": 47.22
+      }
+    },
+    "src/main/runtime/transport/translation-ocr-policy.cjs": {
+      "lines": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 29,
+        "pct": 75.86
+      }
+    },
+    "src/main/runtime/transport/translation-request.cjs": {
+      "lines": {
+        "covered": 80,
+        "total": 95,
+        "pct": 84.21
+      },
+      "statements": {
+        "covered": 82,
+        "total": 97,
+        "pct": 84.53
+      },
+      "functions": {
+        "covered": 9,
+        "total": 11,
+        "pct": 81.81
+      },
+      "branches": {
+        "covered": 30,
+        "total": 37,
+        "pct": 81.08
       }
     },
     "src/main/runtimeModuleLoader.ts": {
@@ -5445,6 +6457,28 @@
         "total": 18,
         "covered": 15,
         "pct": 83.33
+      }
+    },
+    "src/main/translationRuntime.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 11,
+        "pct": 18.18
+      },
+      "statements": {
+        "covered": 2,
+        "total": 11,
+        "pct": 18.18
+      },
+      "functions": {
+        "covered": 0,
+        "total": 3,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 4,
+        "pct": 0
       }
     },
     "src/main/webImportSessionManager.ts": {
@@ -10155,6 +11189,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/hooks/libraryActionTypes.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/renderer/src/hooks/translationActionHooks.ts": {
       "lines": {
         "covered": 80,
@@ -10527,6 +11583,28 @@
         "covered": 52,
         "total": 59,
         "pct": 88.13
+      }
+    },
+    "src/renderer/src/hooks/useLibraryActions.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 6,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 6,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 1,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/renderer/src/hooks/useLibraryDropImport.ts": {
@@ -14271,6 +15349,248 @@
         "pct": 78.72
       }
     },
+    "src/main/jobs/reviewedSoundEffectBlock.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/jobs/soundEffectFontMatching.ts": {
+      "lines": {
+        "covered": 14,
+        "total": 15,
+        "pct": 93.33
+      },
+      "statements": {
+        "covered": 17,
+        "total": 19,
+        "pct": 89.47
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 5,
+        "total": 7,
+        "pct": 71.42
+      }
+    },
+    "src/main/jobs/soundEffectTargetedInpainting.ts": {
+      "lines": {
+        "total": 61,
+        "covered": 48,
+        "pct": 78.68
+      },
+      "statements": {
+        "total": 67,
+        "covered": 53,
+        "pct": 79.1
+      },
+      "functions": {
+        "total": 18,
+        "covered": 16,
+        "pct": 88.88
+      },
+      "branches": {
+        "total": 25,
+        "covered": 17,
+        "pct": 68
+      }
+    },
+    "src/main/jobs/soundEffectTranslationEvents.ts": {
+      "lines": {
+        "total": 3,
+        "covered": 0,
+        "pct": 0
+      },
+      "statements": {
+        "total": 3,
+        "covered": 0,
+        "pct": 0
+      },
+      "functions": {
+        "total": 3,
+        "covered": 0,
+        "pct": 0
+      },
+      "branches": {
+        "total": 6,
+        "covered": 0,
+        "pct": 0
+      }
+    },
+    "src/main/jobs/soundEffectTranslationImages.ts": {
+      "lines": {
+        "total": 95,
+        "covered": 49,
+        "pct": 51.57
+      },
+      "statements": {
+        "total": 100,
+        "covered": 54,
+        "pct": 54
+      },
+      "functions": {
+        "total": 13,
+        "covered": 8,
+        "pct": 61.53
+      },
+      "branches": {
+        "total": 30,
+        "covered": 3,
+        "pct": 10
+      }
+    },
+    "src/main/jobs/soundEffectTranslationInpainting.ts": {
+      "lines": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      }
+    },
+    "src/main/jobs/soundEffectTranslationJobRunner.ts": {
+      "lines": {
+        "total": 81,
+        "covered": 10,
+        "pct": 12.34
+      },
+      "statements": {
+        "total": 84,
+        "covered": 10,
+        "pct": 11.9
+      },
+      "functions": {
+        "total": 12,
+        "covered": 1,
+        "pct": 8.33
+      },
+      "branches": {
+        "total": 42,
+        "covered": 10,
+        "pct": 23.8
+      }
+    },
+    "src/main/jobs/soundEffectTranslationPage.ts": {
+      "lines": {
+        "total": 19,
+        "covered": 0,
+        "pct": 0
+      },
+      "statements": {
+        "total": 19,
+        "covered": 0,
+        "pct": 0
+      },
+      "functions": {
+        "total": 4,
+        "covered": 0,
+        "pct": 0
+      },
+      "branches": {
+        "total": 4,
+        "covered": 0,
+        "pct": 0
+      }
+    },
+    "src/main/jobs/soundEffectTranslationResult.ts": {
+      "lines": {
+        "total": 131,
+        "covered": 121,
+        "pct": 92.36
+      },
+      "statements": {
+        "total": 142,
+        "covered": 128,
+        "pct": 90.14
+      },
+      "functions": {
+        "total": 35,
+        "covered": 35,
+        "pct": 100
+      },
+      "branches": {
+        "total": 149,
+        "covered": 126,
+        "pct": 84.56
+      }
+    },
+    "src/main/jobs/soundEffectTranslationTargets.ts": {
+      "lines": {
+        "total": 21,
+        "covered": 18,
+        "pct": 85.71
+      },
+      "statements": {
+        "total": 22,
+        "covered": 19,
+        "pct": 86.36
+      },
+      "functions": {
+        "total": 6,
+        "covered": 6,
+        "pct": 100
+      },
+      "branches": {
+        "total": 16,
+        "covered": 13,
+        "pct": 81.25
+      }
+    },
+    "src/main/library/librarySoundEffectFacade.ts": {
+      "lines": {
+        "total": 10,
+        "covered": 0,
+        "pct": 0
+      },
+      "statements": {
+        "total": 13,
+        "covered": 0,
+        "pct": 0
+      },
+      "functions": {
+        "total": 7,
+        "covered": 0,
+        "pct": 0
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      }
+    },
     "src/main/libraryStore/importPreparedPreview.ts": {
       "lines": {
         "total": 31,
@@ -14313,6 +15633,50 @@
         "total": 70,
         "covered": 43,
         "pct": 61.42
+      }
+    },
+    "src/main/libraryStore/librarySoundEffectMutations.ts": {
+      "lines": {
+        "total": 69,
+        "covered": 8,
+        "pct": 11.59
+      },
+      "statements": {
+        "total": 85,
+        "covered": 9,
+        "pct": 10.58
+      },
+      "functions": {
+        "total": 20,
+        "covered": 4,
+        "pct": 20
+      },
+      "branches": {
+        "total": 54,
+        "covered": 5,
+        "pct": 9.25
+      }
+    },
+    "src/main/libraryStore/librarySoundEffectReviewDraft.ts": {
+      "lines": {
+        "total": 57,
+        "covered": 46,
+        "pct": 80.7
+      },
+      "statements": {
+        "total": 58,
+        "covered": 47,
+        "pct": 81.03
+      },
+      "functions": {
+        "total": 15,
+        "covered": 12,
+        "pct": 80
+      },
+      "branches": {
+        "total": 37,
+        "covered": 27,
+        "pct": 72.97
       }
     },
     "src/main/libraryStore/libraryTimingMutations.ts": {
@@ -15173,6 +16537,94 @@
         "pct": 100
       }
     },
+    "src/main/runtime/ocr/engine-profile.cjs": {
+      "lines": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 30,
+        "total": 31,
+        "pct": 96.77
+      }
+    },
+    "src/main/runtime/ocr/runtime-import-check-script.cjs": {
+      "lines": {
+        "covered": 29,
+        "total": 29,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 29,
+        "total": 29,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      }
+    },
+    "src/main/runtime/ocr/runtime-path-environment.cjs": {
+      "lines": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 21,
+        "total": 23,
+        "pct": 91.3
+      }
+    },
+    "src/main/runtime/ocr/shell-words.cjs": {
+      "lines": {
+        "covered": 22,
+        "total": 35,
+        "pct": 62.85
+      },
+      "statements": {
+        "covered": 22,
+        "total": 35,
+        "pct": 62.85
+      },
+      "functions": {
+        "covered": 3,
+        "total": 4,
+        "pct": 75
+      },
+      "branches": {
+        "covered": 14,
+        "total": 22,
+        "pct": 63.63
+      }
+    },
     "src/main/runtime/prompts/glossary-omission.cjs": {
       "lines": {
         "total": 18,
@@ -15281,6 +16733,28 @@
         "total": 8,
         "covered": 8,
         "pct": 100
+      }
+    },
+    "src/main/runtime/semantic-ocr/sound-effect-translation.cjs": {
+      "lines": {
+        "total": 29,
+        "covered": 29,
+        "pct": 100
+      },
+      "statements": {
+        "total": 31,
+        "covered": 31,
+        "pct": 100
+      },
+      "functions": {
+        "total": 9,
+        "covered": 9,
+        "pct": 100
+      },
+      "branches": {
+        "total": 37,
+        "covered": 30,
+        "pct": 81.08
       }
     },
     "src/main/runtime/transport/download-contract.cjs": {
@@ -15459,28 +16933,6 @@
         "pct": 70
       }
     },
-    "src/main/settings/ocrRuntimeOverrides.ts": {
-      "lines": {
-        "total": 9,
-        "covered": 9,
-        "pct": 100
-      },
-      "statements": {
-        "total": 11,
-        "covered": 11,
-        "pct": 100
-      },
-      "functions": {
-        "total": 4,
-        "covered": 4,
-        "pct": 100
-      },
-      "branches": {
-        "total": 14,
-        "covered": 14,
-        "pct": 100
-      }
-    },
     "src/main/settings/vertexAuthSettingsNormalize.ts": {
       "lines": {
         "total": 3,
@@ -15567,6 +17019,72 @@
         "total": 1,
         "covered": 0,
         "pct": 0
+      }
+    },
+    "src/main/textDetection/hayaiRegionGeometry.ts": {
+      "lines": {
+        "covered": 208,
+        "total": 337,
+        "pct": 61.72
+      },
+      "statements": {
+        "covered": 240,
+        "total": 383,
+        "pct": 62.66
+      },
+      "functions": {
+        "covered": 56,
+        "total": 70,
+        "pct": 80
+      },
+      "branches": {
+        "covered": 71,
+        "total": 195,
+        "pct": 36.41
+      }
+    },
+    "src/main/textDetection/hayaiRegionPrepass.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 11,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 11,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 1,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 2,
+        "pct": 0
+      }
+    },
+    "src/main/textDetection/pageTextRegionDetector.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 2,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 2,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 1,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/main/vertexServiceAccountAuth.ts": {
@@ -16031,6 +17549,28 @@
         "pct": 87.5
       }
     },
+    "src/renderer/src/app/session/createSoundEffectReviewViewProps.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 17,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 19,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 5,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 12,
+        "pct": 0
+      }
+    },
     "src/renderer/src/app/session/jobTargetLocks.ts": {
       "lines": {
         "total": 15,
@@ -16051,6 +17591,50 @@
         "total": 27,
         "covered": 21,
         "pct": 77.77
+      }
+    },
+    "src/renderer/src/app/session/useSoundEffectReviewUiState.ts": {
+      "lines": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/app/session/workspaceActivity.ts": {
+      "lines": {
+        "total": 1,
+        "covered": 0,
+        "pct": 0
+      },
+      "statements": {
+        "total": 1,
+        "covered": 0,
+        "pct": 0
+      },
+      "functions": {
+        "total": 1,
+        "covered": 0,
+        "pct": 0
+      },
+      "branches": {
+        "total": 3,
+        "covered": 0,
+        "pct": 0
       }
     },
     "src/renderer/src/components/BlockDisplayGroup.tsx": {
@@ -16493,6 +18077,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/components/PagePickerModalShell.tsx": {
+      "lines": {
+        "total": 3,
+        "covered": 3,
+        "pct": 100
+      },
+      "statements": {
+        "total": 3,
+        "covered": 3,
+        "pct": 100
+      },
+      "functions": {
+        "total": 3,
+        "covered": 3,
+        "pct": 100
+      },
+      "branches": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      }
+    },
     "src/renderer/src/components/PageThumbSelectionCard.tsx": {
       "lines": {
         "covered": 39,
@@ -16579,6 +18185,160 @@
         "total": 9,
         "covered": 0,
         "pct": 0
+      }
+    },
+    "src/renderer/src/components/SoundEffectCandidateOverlay.tsx": {
+      "lines": {
+        "total": 9,
+        "covered": 8,
+        "pct": 88.88
+      },
+      "statements": {
+        "total": 9,
+        "covered": 8,
+        "pct": 88.88
+      },
+      "functions": {
+        "total": 5,
+        "covered": 4,
+        "pct": 80
+      },
+      "branches": {
+        "total": 10,
+        "covered": 10,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/components/SoundEffectPageList.tsx": {
+      "lines": {
+        "total": 9,
+        "covered": 9,
+        "pct": 100
+      },
+      "statements": {
+        "total": 11,
+        "covered": 11,
+        "pct": 100
+      },
+      "functions": {
+        "total": 6,
+        "covered": 6,
+        "pct": 100
+      },
+      "branches": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/components/SoundEffectPagePreview.tsx": {
+      "lines": {
+        "total": 34,
+        "covered": 30,
+        "pct": 88.23
+      },
+      "statements": {
+        "total": 37,
+        "covered": 31,
+        "pct": 83.78
+      },
+      "functions": {
+        "total": 13,
+        "covered": 12,
+        "pct": 92.3
+      },
+      "branches": {
+        "total": 18,
+        "covered": 12,
+        "pct": 66.66
+      }
+    },
+    "src/renderer/src/components/SoundEffectReviewLayer.tsx": {
+      "lines": {
+        "covered": 1,
+        "total": 19,
+        "pct": 5.26
+      },
+      "statements": {
+        "covered": 1,
+        "total": 22,
+        "pct": 4.54
+      },
+      "functions": {
+        "covered": 0,
+        "total": 12,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 21,
+        "pct": 0
+      }
+    },
+    "src/renderer/src/components/SoundEffectTranslationLauncher.tsx": {
+      "lines": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "statements": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "functions": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      },
+      "branches": {
+        "total": 6,
+        "covered": 5,
+        "pct": 83.33
+      }
+    },
+    "src/renderer/src/components/SoundEffectTranslationModal.tsx": {
+      "lines": {
+        "total": 40,
+        "covered": 35,
+        "pct": 87.5
+      },
+      "statements": {
+        "total": 44,
+        "covered": 37,
+        "pct": 84.09
+      },
+      "functions": {
+        "total": 22,
+        "covered": 20,
+        "pct": 90.9
+      },
+      "branches": {
+        "total": 14,
+        "covered": 11,
+        "pct": 78.57
+      }
+    },
+    "src/renderer/src/components/SoundEffectTranslationReviewPicker.tsx": {
+      "lines": {
+        "total": 45,
+        "covered": 39,
+        "pct": 86.66
+      },
+      "statements": {
+        "total": 51,
+        "covered": 44,
+        "pct": 86.27
+      },
+      "functions": {
+        "total": 24,
+        "covered": 21,
+        "pct": 87.5
+      },
+      "branches": {
+        "total": 28,
+        "covered": 17,
+        "pct": 60.71
       }
     },
     "src/renderer/src/components/StatusOperationActivityFeedback.tsx": {
@@ -17263,6 +19023,50 @@
         "pct": 82.14
       }
     },
+    "src/renderer/src/components/soundEffectTranslationDraft.ts": {
+      "lines": {
+        "total": 21,
+        "covered": 20,
+        "pct": 95.23
+      },
+      "statements": {
+        "total": 23,
+        "covered": 22,
+        "pct": 95.65
+      },
+      "functions": {
+        "total": 17,
+        "covered": 16,
+        "pct": 94.11
+      },
+      "branches": {
+        "total": 23,
+        "covered": 23,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/components/soundEffectTranslationDraftModel.ts": {
+      "lines": {
+        "total": 24,
+        "covered": 24,
+        "pct": 100
+      },
+      "statements": {
+        "total": 30,
+        "covered": 28,
+        "pct": 93.33
+      },
+      "functions": {
+        "total": 14,
+        "covered": 14,
+        "pct": 100
+      },
+      "branches": {
+        "total": 24,
+        "covered": 17,
+        "pct": 70.83
+      }
+    },
     "src/renderer/src/components/stageToolbarTools.ts": {
       "lines": {
         "total": 12,
@@ -17637,6 +19441,28 @@
         "pct": 39.18
       }
     },
+    "src/renderer/src/components/useContainedPageSize.ts": {
+      "lines": {
+        "total": 15,
+        "covered": 11,
+        "pct": 73.33
+      },
+      "statements": {
+        "total": 18,
+        "covered": 12,
+        "pct": 66.66
+      },
+      "functions": {
+        "total": 4,
+        "covered": 3,
+        "pct": 75
+      },
+      "branches": {
+        "total": 8,
+        "covered": 4,
+        "pct": 50
+      }
+    },
     "src/renderer/src/components/useEditorPanelTab.ts": {
       "lines": {
         "total": 15,
@@ -17679,6 +19505,72 @@
         "covered": 12,
         "total": 33,
         "pct": 36.36
+      }
+    },
+    "src/renderer/src/components/useSoundEffectPageEditor.ts": {
+      "lines": {
+        "total": 42,
+        "covered": 42,
+        "pct": 100
+      },
+      "statements": {
+        "total": 46,
+        "covered": 44,
+        "pct": 95.65
+      },
+      "functions": {
+        "total": 11,
+        "covered": 11,
+        "pct": 100
+      },
+      "branches": {
+        "total": 24,
+        "covered": 19,
+        "pct": 79.16
+      }
+    },
+    "src/renderer/src/components/useSoundEffectReviewPicker.ts": {
+      "lines": {
+        "total": 27,
+        "covered": 26,
+        "pct": 96.29
+      },
+      "statements": {
+        "total": 38,
+        "covered": 35,
+        "pct": 92.1
+      },
+      "functions": {
+        "total": 24,
+        "covered": 24,
+        "pct": 100
+      },
+      "branches": {
+        "total": 14,
+        "covered": 11,
+        "pct": 78.57
+      }
+    },
+    "src/renderer/src/components/useSoundEffectTranslationModalState.ts": {
+      "lines": {
+        "total": 32,
+        "covered": 30,
+        "pct": 93.75
+      },
+      "statements": {
+        "total": 38,
+        "covered": 34,
+        "pct": 89.47
+      },
+      "functions": {
+        "total": 11,
+        "covered": 11,
+        "pct": 100
+      },
+      "branches": {
+        "total": 12,
+        "covered": 9,
+        "pct": 75
       }
     },
     "src/renderer/src/hooks/importShareActionTypes.ts": {
@@ -17767,6 +19659,28 @@
         "covered": 23,
         "total": 27,
         "pct": 85.18
+      }
+    },
+    "src/renderer/src/hooks/useDismissSoundEffectReviewAction.ts": {
+      "lines": {
+        "total": 9,
+        "covered": 0,
+        "pct": 0
+      },
+      "statements": {
+        "total": 11,
+        "covered": 0,
+        "pct": 0
+      },
+      "functions": {
+        "total": 2,
+        "covered": 0,
+        "pct": 0
+      },
+      "branches": {
+        "total": 4,
+        "covered": 0,
+        "pct": 0
       }
     },
     "src/renderer/src/hooks/useLinkedWorkspaceActivityReporter.ts": {
@@ -17901,6 +19815,28 @@
         "pct": 55.55
       }
     },
+    "src/renderer/src/hooks/useTranslateSoundEffectsAction.ts": {
+      "lines": {
+        "total": 39,
+        "covered": 4,
+        "pct": 10.25
+      },
+      "statements": {
+        "total": 42,
+        "covered": 4,
+        "pct": 9.52
+      },
+      "functions": {
+        "total": 8,
+        "covered": 2,
+        "pct": 25
+      },
+      "branches": {
+        "total": 24,
+        "covered": 0,
+        "pct": 0
+      }
+    },
     "src/renderer/src/hooks/useWorkspaceZoomController.ts": {
       "lines": {
         "total": 75,
@@ -18009,6 +19945,28 @@
         "covered": 18,
         "total": 19,
         "pct": 94.73
+      }
+    },
+    "src/renderer/src/lib/jobProgressFormatting.ts": {
+      "lines": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 30,
+        "total": 32,
+        "pct": 93.75
       }
     },
     "src/renderer/src/lib/modalWorkCenterHandoff.ts": {
@@ -18141,6 +20099,28 @@
         "total": 120,
         "covered": 95,
         "pct": 79.16
+      }
+    },
+    "src/renderer/src/lib/soundEffectReviewRegions.ts": {
+      "lines": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 16,
+        "total": 17,
+        "pct": 94.11
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 7,
+        "total": 10,
+        "pct": 70
       }
     },
     "src/renderer/src/lib/sourceFontSizeMatching.ts": {
@@ -18913,6 +20893,28 @@
         "pct": 92.85
       }
     },
+    "src/shared/ipcSoundEffectReviewSchemas.ts": {
+      "lines": {
+        "total": 8,
+        "covered": 7,
+        "pct": 87.5
+      },
+      "statements": {
+        "total": 9,
+        "covered": 7,
+        "pct": 77.77
+      },
+      "functions": {
+        "total": 3,
+        "covered": 1,
+        "pct": 33.33
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      }
+    },
     "src/shared/linkedWorkspaceSchemas.ts": {
       "lines": {
         "total": 10,
@@ -18954,6 +20956,28 @@
       "branches": {
         "total": 0,
         "covered": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/ocrEngines.ts": {
+      "lines": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 2,
+        "total": 2,
         "pct": 100
       }
     },
@@ -19086,6 +21110,72 @@
       "branches": {
         "total": 46,
         "covered": 46,
+        "pct": 100
+      }
+    },
+    "src/shared/soundEffectBlocks.ts": {
+      "lines": {
+        "total": 16,
+        "covered": 16,
+        "pct": 100
+      },
+      "statements": {
+        "total": 17,
+        "covered": 17,
+        "pct": 100
+      },
+      "functions": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "branches": {
+        "total": 11,
+        "covered": 11,
+        "pct": 100
+      }
+    },
+    "src/shared/soundEffectMangaApi.ts": {
+      "lines": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/soundEffectReview.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
         "pct": 100
       }
     },

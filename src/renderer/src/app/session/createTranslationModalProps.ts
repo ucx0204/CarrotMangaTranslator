@@ -44,7 +44,7 @@ export function createPageRetranslateProps({
           blockMode,
           naturalTextLayout,
           autoFontMatching,
-          fontSizeAutoFit,
+          aiFontSizeMatching,
         ) =>
           void translationActions.runAnalysis(
             "single-page",
@@ -54,7 +54,7 @@ export function createPageRetranslateProps({
             undefined,
             naturalTextLayout,
             autoFontMatching,
-            fontSizeAutoFit,
+            aiFontSizeMatching,
           ),
         pageName: page.name,
         uiSettings: settingsDialog.settings?.ui,
@@ -62,7 +62,7 @@ export function createPageRetranslateProps({
     : null;
 }
 
-function createPersistUiDefaults(
+export function createPersistUiDefaults(
   settingsDialog: AppSessionViewModel["settingsDialog"],
 ): (patch: Partial<UiSettings>) => void {
   return (patch) => {

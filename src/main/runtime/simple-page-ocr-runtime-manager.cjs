@@ -11,9 +11,9 @@ module.exports = {
   buildOcrPipInstallCommand: installer.buildOcrPipInstallCommand,
   buildOcrPythonBuildToolCheckCommand:
     installer.buildOcrPythonBuildToolCheckCommand,
-  canImportPaddleOcr: verification.canImportPaddleOcr,
+  canImportOcrRuntime: verification.canImportOcrRuntime,
   createOcrRuntimeError: verification.createOcrRuntimeError,
-  ensurePaddleOcrRuntime: orchestrator.ensurePaddleOcrRuntime,
+  ensureOcrRuntime: orchestrator.ensureOcrRuntime,
   resolveOcrInstallBatchProgressRanges:
     installer.resolveOcrInstallBatchProgressRanges,
   resolveIntegrityPinnedOcrInstallBatches:

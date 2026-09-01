@@ -25,7 +25,7 @@ type ExecuteAnalysisArgs = {
   cumulativeContextDetail?: CumulativeContextDetail;
   naturalTextLayout?: boolean;
   autoFontMatching?: boolean;
-  fontSizeAutoFit?: boolean;
+  aiFontSizeMatching?: boolean;
   completionWorkflow?: TranslationCompletionWorkflow;
   deferTerminalFailure?: boolean;
   onDeferredFailureGuidance?: (guidance: JobFailureGuidance) => void;
@@ -86,7 +86,7 @@ export async function runSelectionsSequentially(
   collectPageContext?: boolean,
   naturalTextLayout?: boolean,
   autoFontMatching?: boolean,
-  fontSizeAutoFit?: boolean,
+  aiFontSizeMatching?: boolean,
   t?: TFunction<"renderer">,
   completionWorkflow?: TranslationCompletionWorkflow,
   deferTerminalFailure?: boolean,
@@ -115,7 +115,7 @@ export async function runSelectionsSequentially(
       ...nonDefaultContextDetail(cumulativeContextDetail),
       naturalTextLayout,
       autoFontMatching,
-      fontSizeAutoFit,
+      aiFontSizeMatching,
       completionWorkflow,
       deferTerminalFailure,
       onDeferredFailureGuidance,

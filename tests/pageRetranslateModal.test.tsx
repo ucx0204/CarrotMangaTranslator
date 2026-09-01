@@ -28,14 +28,14 @@ afterEach(() => {
 });
 
 describe("PageRetranslateModal", () => {
-  it("defaults natural line layout on when no UI setting exists", () => {
+  it("defaults natural line layout off when no UI setting exists", () => {
     const { onPersistDefaults, onStart } = renderModal();
 
     expect(
       screen
         .getByRole("switch", { name: "자연스러운 줄 나눔" })
         .getAttribute("aria-checked"),
-    ).toBe("true");
+    ).toBe("false");
     expect(
       screen
         .getByRole("switch", { name: "폰트 자동 맞춤" })
@@ -47,10 +47,10 @@ describe("PageRetranslateModal", () => {
 
     expect(
       screen
-        .getByRole("switch", { name: "글자 크기 자동 맞춤" })
+        .getByRole("switch", { name: "글자 크기 AI 맞춤" })
         .getAttribute("aria-checked"),
     ).toBe("true");
-    expect(onStart).toHaveBeenCalledWith("auto", true, false, true);
+    expect(onStart).toHaveBeenCalledWith("auto", false, false, true);
     expect(onPersistDefaults).not.toHaveBeenCalled();
   });
 
@@ -77,7 +77,7 @@ describe("PageRetranslateModal", () => {
     expect(onPersistDefaults).toHaveBeenCalledWith({
       autoFontMatchingDefault: false,
       blockModeDefault: "auto",
-      fontSizeAutoFitDefault: true,
+      aiFontSizeMatchingDefault: true,
       naturalTextLayoutDefault: false,
     });
   });
@@ -101,7 +101,7 @@ describe("PageRetranslateModal", () => {
       screen.getByRole("button", { name: "이 페이지 다시 번역" }),
     );
 
-    expect(onStart).toHaveBeenCalledWith("auto", true, true, true);
+    expect(onStart).toHaveBeenCalledWith("auto", false, true, true);
     expect(onPersistDefaults).toHaveBeenCalledWith(
       expect.objectContaining({ autoFontMatchingDefault: true }),
     );

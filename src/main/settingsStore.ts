@@ -10,7 +10,6 @@ import {
 import { CURRENT_GENERATION_LIMITS_VERSION } from "./settings/appSettingsGenerationLimitMigration";
 import { supportsWindowsRocmOcrGpu } from "./settings/ocrRocmSupport";
 import { resolveWindowsHipSdkGpuSupport } from "./settings/fluxZludaSupport";
-import { hasExplicitOcrGpuEnableOverride } from "./settings/ocrRuntimeOverrides";
 import {
   detectBestGpuInfo,
   resolveAmdRocmTargetFromInfo,
@@ -55,11 +54,7 @@ export async function getAppSettings(
     const rawText = committed
       ? committed.rawSettingsText
       : await readFile(paths.settingsPath, "utf8");
-    const stored = parseStoredAppSettings(
-      rawText,
-      defaults,
-      resolveOcrNormalizationPolicy(env, detectedGpu),
-    );
+    const stored = parseStoredAppSettings(rawText, defaults);
     const plaintext = separateSettingsSecrets(stored);
     const encryptedSecrets = committed
       ? committed.secrets
@@ -126,28 +121,9 @@ export async function normalizeAppSettingsForRuntime(
 ): Promise<AppSettings> {
   const detectedGpu = await detectGpu();
   return attachRuntimeHardware(
-    normalizeAppSettings(
-      settings,
-      resolveDefaultAppSettings(env, detectedGpu),
-      resolveOcrNormalizationPolicy(env, detectedGpu),
-    ),
+    normalizeAppSettings(settings, resolveDefaultAppSettings(env, detectedGpu)),
     detectedGpu,
   );
-}
-
-function resolveOcrNormalizationPolicy(
-  env: NodeJS.ProcessEnv,
-  detectedGpu: DetectedGpuInfo | null,
-) {
-  return {
-    allowUnsupportedAmdOcrGpu: hasExplicitOcrGpuEnableOverride(env),
-    detectedHardwareVendor: detectedGpu
-      ? normalizeRuntimeGpuVendor(detectedGpu.vendor)
-      : "unknown",
-    ...(detectedGpu?.vendor === "amd"
-      ? { detectedAmdOcrRocmSupport: supportsWindowsRocmOcrGpu(detectedGpu) }
-      : {}),
-  };
 }
 
 /**

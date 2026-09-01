@@ -9,40 +9,44 @@ const path = require("node:path");
 const { OCR_INSTALL_MARKER_FILE } = require("../simple-page-defaults.cjs");
 const {
   buildOcrRuntimeEnv,
-  buildPaddleOcrImportCheckScript,
+  buildOcrRuntimeImportCheckScript,
   isOcrGpuRequested,
-  isOcrTransformersRuntime,
+  isOcrTorchRuntime,
   resolveOcrGpuBackend,
   resolveOcrInstallSignature,
   resolveOcrRuntimeDir,
-  resolvePaddleOcrImportCheckTimeoutMs,
+  resolveOcrImportCheckTimeoutMs,
 } = require("../simple-page-ocr-runtime-config.cjs");
+const {
+  isHayaiOcrPipeline,
+  resolveOcrEngineLabel,
+} = require("./engine-profile.cjs");
 const { createDetailedError } = require("./host-services.cjs");
 const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { isTruthy } = require("./config-values.cjs");
 
 /** @param {string} pythonPath @param {RuntimeOptions} [options] @returns {Promise<boolean>} */
-async function canImportPaddleOcr(pythonPath, options = {}) {
-  return (await checkPaddleOcrImport(pythonPath, options)).ok;
+async function canImportOcrRuntime(pythonPath, options = {}) {
+  return (await checkOcrRuntimeImport(pythonPath, options)).ok;
 }
 
 /** @param {string} pythonPath @param {RuntimeOptions} [options] @param {OcrRuntimeLayout | null} [runtime] @returns {Promise<ImportCheckResult>} */
-async function checkPaddleOcrImport(pythonPath, options = {}, runtime = null) {
+async function checkOcrRuntimeImport(pythonPath, options = {}, runtime = null) {
   try {
     await runCommand(
       {
         executable: pythonPath,
-        args: ["-c", buildPaddleOcrImportCheckScript(options)],
+        args: ["-c", buildOcrRuntimeImportCheckScript(options)],
       },
       {
-        timeoutMs: resolvePaddleOcrImportCheckTimeoutMs(options),
+        timeoutMs: resolveOcrImportCheckTimeoutMs(options),
         env: buildOcrRuntimeEnv(options, {
           runtimeDir: runtime?.runtimeDir || resolveOcrRuntimeDir(options),
           packageDir: runtime?.packageDir,
           includePackageDir: runtime?.includePackageDir,
         }),
         signal: options.abortSignal,
-        timeoutMessage: "Paddle OCR runtime verification timed out.",
+        timeoutMessage: `${resolveOcrEngineLabel(options)} runtime verification timed out.`,
       },
     );
     return { ok: true, message: "" };
@@ -111,16 +115,20 @@ function hasExpectedOcrPackages(packageDir, options = {}) {
     return false;
   }
   const backend = resolveOcrGpuBackend(options);
-  if (isOcrTransformersRuntime(options)) {
-    return hasPackageDirectories(packageDir, [
+  if (isOcrTorchRuntime(options)) {
+    const required = [
       "torch",
       "torchvision",
       "transformers",
       "tokenizers",
-      "paddlex",
-      "paddleocr",
       "safetensors",
-    ]);
+    ];
+    if (isHayaiOcrPipeline(options)) {
+      required.push("huggingface_hub", "PIL");
+    } else {
+      required.push("paddlex", "paddleocr");
+    }
+    return hasPackageDirectories(packageDir, required);
   }
   const required = ["paddle", "paddleocr", "paddlex"];
   if (isOcrGpuRequested(options) && backend === "cuda") {
@@ -135,8 +143,8 @@ function hasPackageDirectories(packageDir, names) {
 }
 
 module.exports = {
-  canImportPaddleOcr,
-  checkPaddleOcrImport,
+  canImportOcrRuntime,
+  checkOcrRuntimeImport,
   createOcrRuntimeError,
   hasExpectedOcrPackages,
   hasOcrInstallMarker,

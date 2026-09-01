@@ -1,7 +1,7 @@
 // @ts-check
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {RuntimeOptions & { ocrBatchCompletedBefore?: unknown; ocrBatchTotal?: unknown; ocrPageTotal?: unknown }} OcrBboxOptions */
-/** @typedef {{ readPositiveInteger: (value: unknown) => number | null; emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void; parseOcrBatchProgressLine: (line: string) => { index: number; total: number; phase?: string; count?: number } | null }} Dependencies */
+/** @typedef {{ readPositiveInteger: (value: unknown) => number | null; emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void; parseOcrBatchProgressLine: (line: string) => { index: number; total: number; phase?: string; count?: number } | null; resolveOcrEngineLabel: (options?: OcrBboxOptions) => string }} Dependencies */
 
 /** @param {Dependencies} dependencies */
 function createOcrBatchProgress(dependencies) {
@@ -66,7 +66,7 @@ function emitPageProgress(dependencies, options, progress) {
   dependencies.emitRuntimeProgress(
     options,
     "ocr_running",
-    progressTitle(progress),
+    progressTitle(dependencies, options, progress),
     progressDetail(progress),
     {
       progressCurrent: progress.completed,
@@ -77,11 +77,11 @@ function emitPageProgress(dependencies, options, progress) {
   );
 }
 
-/** @param {{ label: number; pageTotal: number; phase: string }} progress */
-function progressTitle(progress) {
+/** @param {Dependencies} dependencies @param {OcrBboxOptions} options @param {{ label: number; pageTotal: number; phase: string }} progress */
+function progressTitle(dependencies, options, progress) {
   return progress.phase === "error"
     ? `${progress.label} / ${progress.pageTotal} 페이지 OCR 실패`
-    : `${progress.label} / ${progress.pageTotal} 페이지 Paddle OCR 분석 중`;
+    : `${progress.label} / ${progress.pageTotal} 페이지 ${dependencies.resolveOcrEngineLabel(options)} 분석 중`;
 }
 
 /** @param {{ count: number; phase: string }} progress */

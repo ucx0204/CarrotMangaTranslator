@@ -2,6 +2,7 @@
 
 import React from "react";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -172,6 +173,12 @@ describe("block library editor", () => {
           onUpdated={onUpdated}
         />
       </FontsContext.Provider>,
+    );
+    await act(
+      () =>
+        new Promise<void>((resolve) => {
+          window.requestAnimationFrame(() => resolve());
+        }),
     );
 
     expect(screen.getByRole("tab", { name: "텍스트" })).toBeTruthy();

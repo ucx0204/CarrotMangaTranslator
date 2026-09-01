@@ -10,6 +10,7 @@ import {
 import {
   MAX_MASK_STROKES,
   MAX_ID_LIST_LENGTH,
+  MAX_BLOCKS_PER_PAGE,
   MAX_RETAINED_INPAINTING_ARTIFACTS,
   MAX_STROKE_POINTS,
   BBoxSchema,
@@ -21,9 +22,11 @@ import {
 } from "./ipcSchemaPrimitives";
 import type { PageRevision } from "./pageRevisionTypes";
 import { PageTimingSessionFields } from "./ipcPageTimingSchemas";
+import { OCR_PIPELINES } from "./ocrEngines";
 
 const JobProgressFieldsSchema = {
   phase: JobPhaseSchema.optional(),
+  ocrPipeline: z.enum(OCR_PIPELINES).optional(),
   progressMode: ProgressModeSchema.optional(),
   progressPercent: finiteNumber.min(0).max(1).optional(),
   progressBytes: finiteNumber.min(0).optional(),
@@ -120,6 +123,7 @@ export const StartAnalysisRequestSchema = z
           .optional(),
         naturalTextLayout: z.boolean().optional(),
         autoFontMatching: z.boolean().optional(),
+        aiFontSizeMatching: z.boolean().optional(),
         fontSizeAutoFit: z.boolean().optional(),
         completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
         ...PageTimingSessionFields,
@@ -136,6 +140,7 @@ export const StartAnalysisRequestSchema = z
           .optional(),
         naturalTextLayout: z.boolean().optional(),
         autoFontMatching: z.boolean().optional(),
+        aiFontSizeMatching: z.boolean().optional(),
         fontSizeAutoFit: z.boolean().optional(),
         completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
         ...PageTimingSessionFields,
@@ -153,6 +158,7 @@ export const StartAnalysisRequestSchema = z
           .optional(),
         naturalTextLayout: z.boolean().optional(),
         autoFontMatching: z.boolean().optional(),
+        aiFontSizeMatching: z.boolean().optional(),
         fontSizeAutoFit: z.boolean().optional(),
         completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
         ...PageTimingSessionFields,
@@ -185,6 +191,7 @@ export const StartAnalysisRequestSchema = z
           .optional(),
         naturalTextLayout: z.boolean().optional(),
         autoFontMatching: z.boolean().optional(),
+        aiFontSizeMatching: z.boolean().optional(),
         fontSizeAutoFit: z.boolean().optional(),
         completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
         ...PageTimingSessionFields,
@@ -445,5 +452,35 @@ export const RegionAnalysisRequestSchema = z
     chapterId: uuid,
     pageId: uuid,
     bbox: BBoxSchema,
+  })
+  .strict();
+
+export const StartSoundEffectTranslationRequestSchema = z
+  .object({
+    chapterId: uuid,
+    targets: z
+      .array(
+        z
+          .object({
+            pageId: uuid,
+            pageRevision: z.string().regex(/^page-v1:[0-9a-f]{16}$/),
+            regionIds: z
+              .array(z.string().min(1).max(80))
+              .min(1)
+              .max(MAX_BLOCKS_PER_PAGE)
+              .refine((ids) => new Set(ids).size === ids.length)
+              .optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(MAX_ID_LIST_LENGTH)
+      .refine(
+        (targets) =>
+          new Set(targets.map((target) => target.pageId)).size ===
+          targets.length,
+      ),
+    inpaintAfterTranslation: z.boolean(),
+    autoFontMatching: z.boolean().optional(),
   })
   .strict();

@@ -21,7 +21,7 @@ type RunAnalysisDependencies = {
   cumulativeContextDetailDefault: CumulativeContextDetail;
   autoFontMatchingDefault: boolean;
   naturalTextLayoutDefault: boolean;
-  fontSizeAutoFitDefault: boolean;
+  aiFontSizeMatchingDefault: boolean;
 };
 
 type DirectAnalysisRequest = {
@@ -32,7 +32,7 @@ type DirectAnalysisRequest = {
   collectPageContext?: boolean;
   naturalTextLayout?: boolean;
   autoFontMatching?: boolean;
-  fontSizeAutoFit?: boolean;
+  aiFontSizeMatching?: boolean;
   cumulativeContextDetail?: CumulativeContextDetail;
 };
 
@@ -48,7 +48,7 @@ export function useRunAnalysisAction(
       collectPageContext,
       naturalTextLayout,
       autoFontMatching,
-      fontSizeAutoFit,
+      aiFontSizeMatching,
       cumulativeContextDetail,
     ) =>
       runDirectAnalysis(dependencies, {
@@ -59,7 +59,7 @@ export function useRunAnalysisAction(
         collectPageContext,
         naturalTextLayout,
         autoFontMatching,
-        fontSizeAutoFit,
+        aiFontSizeMatching,
         cumulativeContextDetail,
       }),
     [dependencies],
@@ -87,8 +87,8 @@ async function runDirectAnalysis(
     naturalTextLayout:
       request.naturalTextLayout ?? dependencies.naturalTextLayoutDefault,
     autoFontMatching: resolveAutoFontMatching(dependencies, request),
-    fontSizeAutoFit:
-      request.fontSizeAutoFit ?? dependencies.fontSizeAutoFitDefault,
+    aiFontSizeMatching:
+      request.aiFontSizeMatching ?? dependencies.aiFontSizeMatchingDefault,
     ...(cumulativeContextDetail !== "detailed"
       ? { cumulativeContextDetail }
       : {}),

@@ -26,6 +26,7 @@ export type UnifiedRightRailProps = {
   completionSoundMuted: boolean;
   completionSoundVolume: number;
   completionSoundTranslationMuted?: boolean;
+  completionSoundSoundEffectMuted?: boolean;
   completionSoundSourceErasingMuted?: boolean;
   completionSoundResearchMuted?: boolean;
   currentChapter: ChapterSnapshot | null;

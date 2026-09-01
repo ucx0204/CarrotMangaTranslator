@@ -4,6 +4,7 @@ import type { TranslationOptions } from "../appSettings";
 import { logInfo } from "../logger";
 import type { SimplePageRuntime } from "../simplePageRuntime";
 import { tMain } from "./localization";
+import { isHayaiOcrPipeline } from "../../shared/ocrEngines";
 
 export type SendModelTestProgress = (
   progress: Omit<ModelTestProgressEvent, "id">,
@@ -62,39 +63,39 @@ export function sendEnginePreparationProgress(
   sendGemmaPreparationProgress(runtime, options, sendProgress);
 }
 
-export async function verifyPaddleOcrRuntime(
+export async function verifyOcrRuntime(
   runtime: SimplePageRuntime,
-  options: Record<string, unknown>,
+  options: TranslationOptions,
   sendProgress: SendModelTestProgress,
 ): Promise<void> {
+  const ocrPipeline = options.ocrPipeline;
+  const hayai = isHayaiOcrPipeline(ocrPipeline);
   sendProgress({
     phase: "ocr_preparing",
-    progressText: tMain("modelTest.ocrChecking"),
+    ocrPipeline,
+    progressText: tMain(
+      hayai ? "modelTest.hayaiOcrChecking" : "modelTest.ocrChecking",
+    ),
     progressMode: "indeterminate",
-    installLogLine: tMain("modelTest.ocrCheckingLog"),
+    installLogLine: tMain(
+      hayai ? "modelTest.hayaiOcrCheckingLog" : "modelTest.ocrCheckingLog",
+    ),
   });
 
-  if (!runtime.ensurePaddleOcrRuntime) {
-    sendProgress({
-      phase: "ocr_preparing",
-      progressText: tMain("modelTest.ocrSkipped"),
-      detail: tMain("modelTest.ocrSkippedDetail"),
-      installLogLine: tMain("modelTest.ocrSkippedLog"),
-    });
-    return;
-  }
-
-  const ocrRuntime = await runtime.ensurePaddleOcrRuntime(options);
+  const ocrRuntime = await runtime.ensureOcrRuntime(options);
   const detail = [ocrRuntime.runtimeVariant, ocrRuntime.pythonPath]
     .filter(Boolean)
     .join(" · ");
   sendProgress({
     phase: "ocr_preparing",
-    progressText: tMain("modelTest.ocrDone"),
+    ocrPipeline,
+    progressText: tMain(hayai ? "modelTest.hayaiOcrDone" : "modelTest.ocrDone"),
     ...(detail ? { detail } : {}),
     progressMode: "determinate",
     progressPercent: 1,
-    installLogLine: tMain("modelTest.ocrDoneLog"),
+    installLogLine: tMain(
+      hayai ? "modelTest.hayaiOcrDoneLog" : "modelTest.ocrDoneLog",
+    ),
   });
 }
 
@@ -104,6 +105,7 @@ function summarizeModelTestProgress(
   return {
     id: progress.id,
     phase: progress.phase,
+    ocrPipeline: progress.ocrPipeline,
     progressText: progress.progressText,
     detail: progress.detail,
     progressMode: progress.progressMode,

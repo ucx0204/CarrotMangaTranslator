@@ -78,6 +78,15 @@ type NextJobStateOptions = {
   t: TFunction<"renderer">;
 };
 
+type NextProgressState = Pick<
+  JobState,
+  | "progressMode"
+  | "progressPercent"
+  | "progressBytes"
+  | "progressTotalBytes"
+  | "progressBytesPerSecond"
+>;
+
 const openChapterFromLibrary = (chapterId: string): Promise<ChapterSnapshot> =>
   libraryGateway.openChapter(chapterId);
 const subscribeToJobEvents = (
@@ -324,31 +333,12 @@ function buildNextJobState({
       : formatJobLabel(event, t),
     detail: keepOrFallback(preserveCurrentStatus, current.detail, event.detail),
     phase: keepOrFallback(preserveCurrentStatus, current.phase, event.phase),
-    progressMode: keepOrEvent(
+    ocrPipeline: keepOrFallback(
       preserveCurrentStatus,
-      current.progressMode,
-      event.progressMode,
+      current.ocrPipeline,
+      event.ocrPipeline,
     ),
-    progressPercent: keepOrEvent(
-      preserveCurrentStatus,
-      current.progressPercent,
-      event.progressPercent,
-    ),
-    progressBytes: keepOrEvent(
-      preserveCurrentStatus,
-      current.progressBytes,
-      event.progressBytes,
-    ),
-    progressTotalBytes: keepOrEvent(
-      preserveCurrentStatus,
-      current.progressTotalBytes,
-      event.progressTotalBytes,
-    ),
-    progressBytesPerSecond: keepOrEvent(
-      preserveCurrentStatus,
-      current.progressBytesPerSecond,
-      event.progressBytesPerSecond,
-    ),
+    ...resolveNextProgressState(current, event, preserveCurrentStatus),
     installLogLine: event.installLogLine,
     installLogLines: resolveInstallLogLines(current, event, sameJob),
     progressCurrent: keepOrFallback(
@@ -385,6 +375,40 @@ function buildNextJobState({
       event.failureGuidance ?? (sameJob ? current.failureGuidance : undefined),
     research: event.research ?? (sameJob ? current.research : undefined),
     targets: event.targets ?? (sameJob ? current.targets : undefined),
+  };
+}
+
+function resolveNextProgressState(
+  current: JobState,
+  event: JobEvent,
+  preserveCurrentStatus: boolean,
+): NextProgressState {
+  return {
+    progressMode: keepOrEvent(
+      preserveCurrentStatus,
+      current.progressMode,
+      event.progressMode,
+    ),
+    progressPercent: keepOrEvent(
+      preserveCurrentStatus,
+      current.progressPercent,
+      event.progressPercent,
+    ),
+    progressBytes: keepOrEvent(
+      preserveCurrentStatus,
+      current.progressBytes,
+      event.progressBytes,
+    ),
+    progressTotalBytes: keepOrEvent(
+      preserveCurrentStatus,
+      current.progressTotalBytes,
+      event.progressTotalBytes,
+    ),
+    progressBytesPerSecond: keepOrEvent(
+      preserveCurrentStatus,
+      current.progressBytesPerSecond,
+      event.progressBytesPerSecond,
+    ),
   };
 }
 

@@ -29,7 +29,7 @@ describe("overlay item conversion", () => {
       { ...DEFAULT_BLOCK_FORMAT_DEFAULTS, autoFitText: true, fontSizePx: 27 },
       undefined,
       undefined,
-      { fontSizeAutoFit: false },
+      { aiFontSizeMatching: false },
     );
     const automatic = overlayItemToBlock(
       item,
@@ -40,7 +40,7 @@ describe("overlay item conversion", () => {
       undefined,
       undefined,
       {
-        fontSizeAutoFit: true,
+        aiFontSizeMatching: true,
         sourceFontSize: {
           confidence: 0.88,
           facePx: 31.5,
@@ -50,9 +50,11 @@ describe("overlay item conversion", () => {
     );
 
     expect(manual.autoFitText).toBe(false);
-    expect(manual.fontSizePx).toBe(27);
-    expect(automatic.autoFitText).toBe(true);
+    expect(manual.fontSizePx).toBe(41);
+    expect(manual.fontSizeIntent).toBe("manual");
+    expect(automatic.autoFitText).toBe(false);
     expect(automatic.fontSizePx).toBe(41);
+    expect(automatic.fontSizeIntent).toBe("source-match");
     expect(automatic.sourceFontFacePx).toBe(31.5);
     expect(automatic.sourceFontSizeMethod).toBe("raster-core-v1");
   });

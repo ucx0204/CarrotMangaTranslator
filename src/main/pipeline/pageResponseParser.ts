@@ -1,4 +1,8 @@
 import type { MangaPage } from "../../shared/libraryTypes";
+import {
+  normalizeSoundEffectReview,
+  SOUND_EFFECT_REVIEW_CONTRACT_VERSION,
+} from "../../shared/soundEffectReview";
 import type { TranslationOptions } from "../appSettings";
 import {
   isJapaneseCumulativeNoTextRequest,
@@ -9,10 +13,98 @@ import { extractPageContextResponse } from "./pageContextResponse";
 import { tMain } from "./localization";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type {
+  OcrBboxResult,
   OverlayItem,
   PageContextPayload,
   TranslationResult,
 } from "./types";
+
+export function attachEffectReviewToPage(
+  page: MangaPage,
+  pipeline: TranslationOptions["ocrPipeline"],
+  result: OcrBboxResult | TranslationOptions["ocrBboxResult"] | undefined,
+): MangaPage {
+  if (pipeline !== "hayai") return page;
+  return {
+    ...page,
+    soundEffectReview: mergeSoundEffectReview(page, result),
+  };
+}
+
+function mergeSoundEffectReview(
+  page: MangaPage,
+  result: OcrBboxResult | TranslationOptions["ocrBboxResult"] | undefined,
+): MangaPage["soundEffectReview"] {
+  const history = resolveEffectReviewHistory(page.soundEffectReview);
+  const regions = mergeEffectReviewRegions(
+    history.regions,
+    result?.effectReviewRegions ?? [],
+  );
+  if (
+    !hasEffectReviewHistory(
+      regions,
+      history.manualRegions,
+      history.resolvedRegions,
+      history.dismissedRegionIds,
+    )
+  ) {
+    return undefined;
+  }
+  return {
+    contractVersion: SOUND_EFFECT_REVIEW_CONTRACT_VERSION,
+    producer: "hayai-regions-v1",
+    regions,
+    regionOverrides: history.regionOverrides,
+    manualRegions: history.manualRegions,
+    resolvedRegions: history.resolvedRegions,
+    ...(history.dismissedRegionIds.length > 0
+      ? { dismissedRegionIds: history.dismissedRegionIds }
+      : {}),
+  };
+}
+
+function resolveEffectReviewHistory(review: MangaPage["soundEffectReview"]) {
+  if (!review) {
+    return {
+      dismissedRegionIds: [] as string[],
+      manualRegions: [],
+      regionOverrides: [],
+      regions: [],
+      resolvedRegions: [],
+    };
+  }
+  const normalized = normalizeSoundEffectReview(review);
+  return {
+    dismissedRegionIds: [...new Set(normalized.dismissedRegionIds ?? [])],
+    manualRegions: normalized.manualRegions,
+    regionOverrides: normalized.regionOverrides,
+    regions: normalized.regions,
+    resolvedRegions: normalized.resolvedRegions,
+  };
+}
+
+function mergeEffectReviewRegions(
+  previous: NonNullable<MangaPage["soundEffectReview"]>["regions"],
+  detected: NonNullable<OcrBboxResult["effectReviewRegions"]>,
+) {
+  const byId = new Map(previous.map((region) => [region.id, region]));
+  for (const region of detected) byId.set(region.id, region);
+  return [...byId.values()];
+}
+
+function hasEffectReviewHistory(
+  regions: readonly unknown[],
+  manualRegions: readonly unknown[],
+  resolvedRegions: readonly unknown[],
+  dismissedRegionIds: readonly string[],
+): boolean {
+  return (
+    regions.length > 0 ||
+    manualRegions.length > 0 ||
+    resolvedRegions.length > 0 ||
+    dismissedRegionIds.length > 0
+  );
+}
 
 export function parsePageResponse({
   runtime,

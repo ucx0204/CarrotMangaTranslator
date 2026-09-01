@@ -1,7 +1,9 @@
 import type { MangaPage } from "../../shared/libraryTypes";
+import { resolveOcrPipeline } from "../../shared/ocrEngines";
 import { buildNoTextCompletedPage, isOcrResultNoTextDetected } from "./noText";
 import { emitNoTextPage, type ProgressContext } from "./progressEvents";
 import type { OcrBboxResult, PipelineOptions } from "./types";
+import { attachEffectReviewToPage } from "./pageResponseParser";
 
 export type FilteredPages = {
   pageIndexById: Map<string, number>;
@@ -19,7 +21,10 @@ export function buildPageIndexById(
 export function filterPagesByOcrText(
   pages: MangaPage[],
   ocrHintsByPageId: Map<string, OcrBboxResult>,
-  options: { allowNoTextSkip?: boolean } = {},
+  options: {
+    allowNoTextSkip?: boolean;
+    ocrPipeline?: import("../appSettings").TranslationOptions["ocrPipeline"];
+  } = {},
 ): FilteredPages {
   // OCR "텍스트 없음" 프리패스 스킵은 일본어 원문 전용 최적화다. 다른 원문
   // 언어에서는 OCR false negative가 페이지를 통째로 비워버리므로 항상 모델
@@ -38,7 +43,13 @@ export function filterPagesByOcrText(
     }
 
     const pageIndex = pageIndexById.get(page.id) ?? 0;
-    const noTextPage = buildNoTextCompletedPage(page);
+    const noTextPage = buildNoTextCompletedPage(
+      attachEffectReviewToPage(
+        page,
+        resolveOcrPipeline(options.ocrPipeline),
+        ocrResult,
+      ),
+    );
     completedPagesById.set(page.id, noTextPage);
     prepassNoTextPages.push({ page: noTextPage, pageIndex });
   }

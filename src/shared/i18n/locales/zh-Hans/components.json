@@ -719,8 +719,8 @@
     },
     "autoFontMatching": "自动匹配字体",
     "autoFontMatchingSummary": "为每个文本块自动应用符合原文氛围的韩文字体。",
-    "fontSizeAutoFit": "自动匹配字号",
-    "fontSizeAutoFitSummary": "先按原文可见字形大小匹配译文字号，仅在超出文本块时缩小。",
+    "fontSizeAutoFit": "AI 字号匹配",
+    "fontSizeAutoFitSummary": "AI 根据原文字形估算字号。",
     "completionMode": "完成方式",
     "completionModeTranslate": "仅翻译",
     "completionModeErase": "擦除原文",
@@ -1074,7 +1074,7 @@
     "logLabel": "安装日志",
     "checkingLogs": "正在检查日志",
     "preparingModel": "正在准备Gemma 4模型",
-    "installingOcr": "正在安装Paddle OCR"
+    "installingOcr": "正在安装OCR"
   },
   "toast": { "close": "关闭通知", "region": "通知" },
   "errorBoundary": {
@@ -1728,7 +1728,7 @@
       "ocrDevices": {
         "cuda": {
           "label": "NVIDIA CUDA",
-          "description": "在NVIDIA GPU上运行Paddle OCR。"
+          "description": "在NVIDIA GPU上运行 OCR。"
         },
         "rocm": {
           "label": "AMD ROCm",
@@ -2005,13 +2005,27 @@
       "graphicsGpuRestartNote": "更改应用图形 GPU 后需重启应用才能生效。",
       "ocrSection": "OCR",
       "inpaintingSection": "图像修复",
+      "ocrPipeline": "文本区域检测方式",
+      "ocrPipelines": {
+        "hayai": {
+          "label": "HayaiOCR",
+          "description": "文本检测器分离正文与拟声词区域，Hayai OCR只识别固定裁剪区域。拟声词不进入普通翻译，而是保存为待审核项。"
+        },
+        "paddle-legacy": {
+          "label": "PaddleOCR",
+          "description": "保留原有Paddle OCR碎片与Gemma合并行为。"
+        }
+      },
       "ocrQuality": "Paddle OCR质量",
-      "ocrDevice": "Paddle OCR设备",
+      "ocrDevice": "OCR设备",
+      "hayaiDevices": {
+        "cuda": "使用NVIDIA CUDA运行HayaiOCR。",
+        "rocm-transformers": "使用AMD ROCm运行HayaiOCR。",
+        "cpu": "使用CPU运行HayaiOCR，速度可能比GPU慢。"
+      },
       "fluxBackend": "Flux图像修复后端",
       "inpaintingModel": "图像修复模型",
       "amdOcrExperimental": "AMD GPU OCR为实验功能。如失败，可仅将OCR切换到CPU。",
-      "ocrAppleNote": "Apple Silicon上的Paddle OCR使用CPU运行时。",
-      "ocrNvidiaNote": "NVIDIA环境无法选择AMD ROCm OCR。",
       "fluxAppleNote": "Apple Silicon仅使用原生Metal后端。Flux建议至少16GB统一内存。",
       "fluxOnlyNote": "此后端设置仅适用于Flux Klein模型。",
       "fluxLowMemoryConfirm": "统一内存{{available}}低于Flux建议的16GB。应用可能退出或导致系统极其缓慢。是否允许此次风险运行？",
@@ -2117,7 +2131,7 @@
       "title": "安装/运行检查",
       "run": "检查OCR/模型",
       "running": "检查中…",
-      "description": "检查Paddle OCR准备状态以及所选翻译引擎能否正常启动。",
+      "description": "检查所选OCR和翻译引擎能否正确准备并启动。",
       "logAria": "安装/运行检查日志",
       "detail": {
         "model": "模型：{{path}}",
@@ -2126,15 +2140,15 @@
       },
       "status": {
         "running": "正在依次检查OCR、模型运行时和简单文本响应…",
-        "gemmaDetail": "显示Paddle OCR和Gemma运行时的准备日志。",
-        "codexDetail": "同时检查Paddle OCR和Codex端点。",
-        "apiDetail": "同时检查Paddle OCR和API端点响应。"
+        "gemmaDetail": "显示所选OCR和Gemma运行时的准备日志。",
+        "codexDetail": "同时检查所选OCR和Codex端点。",
+        "apiDetail": "同时检查所选OCR和API端点响应。"
       },
       "log": {
-        "start": "开始检查Paddle OCR和翻译引擎。",
-        "requestError": "请求检查Paddle OCR和翻译引擎时发生错误。",
-        "success": "Paddle OCR和翻译引擎检查完成。",
-        "failure": "Paddle OCR和翻译引擎检查失败。"
+        "start": "开始检查OCR和翻译引擎。",
+        "requestError": "请求检查OCR和翻译引擎时发生错误。",
+        "success": "OCR和翻译引擎检查完成。",
+        "failure": "OCR和翻译引擎检查失败。"
       }
     },
     "update": {
@@ -2188,6 +2202,7 @@
       "open": "完成提示音设置",
       "all": "全部完成提示音",
       "translation": "翻译完成",
+      "soundEffect": "拟声词翻译完成",
       "sourceErasing": "原文擦除完成",
       "research": "互联网研究完成",
       "mute": "关闭{{item}}",
@@ -2312,6 +2327,38 @@
     "renameFailed": "无法重命名文本块。",
     "updateFailed": "无法更新库文本块。",
     "deleteFailed": "无法删除文本块。"
+  },
+  "soundEffectReview": {
+    "launcher": "执行拟声词翻译，待处理 {{count}} 个",
+    "launcherAction": "执行拟声词翻译",
+    "layerLabel": "待复核拟声词",
+    "regionLabel": "拟声词候选 {{index}}：{{text}}",
+    "unreadable": "识别不确定",
+    "boxTag": "拟声词？",
+    "reviewTitle": "待复核拟声词",
+    "inpaintHint": "单区域翻译会保留原文。可在拟声词批量翻译窗口中启用原文擦除。",
+    "runAll": "翻译全部拟声词",
+    "translateOne": "仅翻译此区域",
+    "modalTitle": "执行拟声词翻译",
+    "modalIntro": "在左侧选择页面，再点击右侧候选框，将其加入或排除出本次翻译。",
+    "pageSummary": "{{pages}} 页 · {{count}} 个候选",
+    "selectionSummary": "{{total}} 个候选中已包含 {{selected}} 个",
+    "selectAll": "全选",
+    "clearAll": "全部取消",
+    "pageSelection": "已包含 {{selected}}/{{total}} 个",
+    "pageListLabel": "{{name}}，{{total}} 个候选中已包含 {{selected}} 个",
+    "included": "包含",
+    "excluded": "排除",
+    "candidateToggleLabel": "拟声词候选 {{index}}，{{state}}：{{text}}",
+    "inpaintAfterTranslation": "翻译后擦除原文（修复）",
+    "startSelected": "翻译选中的 {{count}} 个拟声词",
+    "allComplete": "没有待处理的拟声词候选。",
+    "allCompleteHint": "检测和翻译历史会保留；出现新候选时会显示在这里。",
+    "dismiss": "从复核中移除",
+    "showAllPages": "显示所有页面",
+    "showTranslations": "显示译文",
+    "saveAsDefault": "保存为下次翻译的默认值",
+    "reviewComplete": "完成复核"
   },
   "stylePresets": {
     "title": "格式预设",

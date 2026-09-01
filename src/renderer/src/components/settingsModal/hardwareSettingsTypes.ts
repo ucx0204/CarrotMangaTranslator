@@ -5,6 +5,7 @@ import type {
   InpaintingModel,
   OcrDevice,
   OcrGpuBackend,
+  OcrPipeline,
   OcrQualityMode,
 } from "../../../../shared/settingsTypes";
 
@@ -21,6 +22,7 @@ export type HardwareSettingsPanelProps = {
   isFluxBackendOptionDisabled: (backend: FluxBackend) => boolean;
   ocrGpuBackend: OcrGpuBackend;
   ocrDevice: OcrDevice;
+  ocrPipeline: OcrPipeline;
   ocrQualityMode: OcrQualityMode;
   setFluxBackend: React.Dispatch<React.SetStateAction<FluxBackend>>;
   setGraphicsGpuPreference: React.Dispatch<
@@ -30,6 +32,7 @@ export type HardwareSettingsPanelProps = {
   setAllowUnsafeLowMemoryFlux: React.Dispatch<React.SetStateAction<boolean>>;
   setInpaintingModel: React.Dispatch<React.SetStateAction<InpaintingModel>>;
   setOcrDevice: React.Dispatch<React.SetStateAction<OcrDevice>>;
+  setOcrPipeline: React.Dispatch<React.SetStateAction<OcrPipeline>>;
   setOcrGpuBackend: React.Dispatch<React.SetStateAction<OcrGpuBackend>>;
   setOcrQualityMode: React.Dispatch<React.SetStateAction<OcrQualityMode>>;
   /** Whether the detected adapter can run the packaged Windows ROCm OCR runtime. */

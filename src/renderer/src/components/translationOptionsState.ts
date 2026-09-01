@@ -41,8 +41,8 @@ export type TranslationOptionsFormProps = {
   onBlockModeChange: (mode: AnalysisBlockMode) => void;
   autoFontMatching: boolean;
   onAutoFontMatchingChange: (enabled: boolean) => void;
-  fontSizeAutoFit: boolean;
-  onFontSizeAutoFitChange: (enabled: boolean) => void;
+  aiFontSizeMatching: boolean;
+  onAiFontSizeMatchingChange: (enabled: boolean) => void;
   naturalTextLayout: boolean;
   onNaturalTextLayoutChange: (enabled: boolean) => void;
   eraseOriginalWorkflow: boolean;
@@ -183,8 +183,8 @@ function useTranslationFormFields(
   const [naturalTextLayout, onNaturalTextLayoutChange] = React.useState(
     initial.naturalTextLayout,
   );
-  const [fontSizeAutoFit, onFontSizeAutoFitChange] = React.useState(
-    initial.fontSizeAutoFit,
+  const [aiFontSizeMatching, onAiFontSizeMatchingChange] = React.useState(
+    initial.aiFontSizeMatching,
   );
   const [eraseOriginalWorkflow, onEraseOriginalWorkflowChange] = React.useState(
     initial.eraseOriginalWorkflow,
@@ -198,14 +198,14 @@ function useTranslationFormFields(
     bubbleLayoutWorkflow,
     cumulativeContextDetail,
     eraseOriginalWorkflow,
-    fontSizeAutoFit,
+    aiFontSizeMatching,
     naturalTextLayout,
     onAutoFontMatchingChange,
     onBlockModeChange,
     onBubbleLayoutWorkflowChange,
     onCumulativeContextDetailChange,
     onEraseOriginalWorkflowChange,
-    onFontSizeAutoFitChange,
+    onAiFontSizeMatchingChange,
     onNaturalTextLayoutChange,
     onWorkflowModeChange,
     workflowMode,
@@ -222,8 +222,9 @@ function resolveInitialTranslationFormValues(
     cumulativeContextDetail: data.cumulativeContextDetailDefault ?? "detailed",
     blockMode: data.blockModeDefault ?? "auto",
     autoFontMatching: data.autoFontMatchingDefault ?? false,
-    naturalTextLayout: data.naturalTextLayoutDefault ?? true,
-    fontSizeAutoFit: data.fontSizeAutoFitDefault ?? true,
+    naturalTextLayout: data.naturalTextLayoutDefault ?? false,
+    aiFontSizeMatching:
+      data.aiFontSizeMatchingDefault ?? data.fontSizeAutoFitDefault ?? true,
     eraseOriginalWorkflow: completion.eraseOriginal,
     bubbleLayoutWorkflow: completion.bubbleLayout,
   } satisfies {
@@ -232,7 +233,7 @@ function resolveInitialTranslationFormValues(
     blockMode: AnalysisBlockMode;
     autoFontMatching: boolean;
     naturalTextLayout: boolean;
-    fontSizeAutoFit: boolean;
+    aiFontSizeMatching: boolean;
     eraseOriginalWorkflow: boolean;
     bubbleLayoutWorkflow: boolean;
   };

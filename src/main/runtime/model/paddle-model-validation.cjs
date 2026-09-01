@@ -10,7 +10,7 @@ const path = require("node:path");
 const { PADDLE_OCR_MODEL_DOWNLOADS } = require("../simple-page-defaults.cjs");
 const { getFileSize } = require("../simple-page-download-utils.cjs");
 const { runtimeOverrideEnv } = require("../ocr/host-services.cjs");
-const { isOcrTransformersRuntime } = require("../ocr/runtime-device.cjs");
+const { isOcrTorchRuntime } = require("../ocr/runtime-device.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 
@@ -76,7 +76,7 @@ function isPaddleOcrModelAssetLoadFailure(value) {
 /** @param {unknown} [reason] @param {RuntimeOptions} [options] */
 function resolvePaddleOcrModelNamesForRepair(reason = "", options = {}) {
   const text = stringifyErrorForDetection(reason);
-  const names = isOcrTransformersRuntime(options)
+  const names = isOcrTorchRuntime(options)
     ? resolveTransformersModelCacheNames(options)
     : PADDLE_OCR_MODEL_DOWNLOADS.map((model) => model.name);
   const explicit = names.filter(

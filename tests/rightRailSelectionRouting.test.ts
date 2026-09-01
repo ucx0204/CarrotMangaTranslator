@@ -22,6 +22,7 @@ describe("right rail block selection routing", () => {
         muted: true,
         volume: 0.55,
         translationMuted: false,
+        soundEffectMuted: false,
         sourceErasingMuted: false,
         researchMuted: false,
         setPreferences: noop,

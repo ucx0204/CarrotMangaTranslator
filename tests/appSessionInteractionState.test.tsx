@@ -372,6 +372,44 @@ describe("unified workspace interaction state", () => {
     successToast.mockRestore();
   });
 
+  it("uses the dedicated completion sound for an SFX translation job", () => {
+    const onAudibleCompletion = vi.fn();
+    const successToast = vi.spyOn(toast, "success").mockReturnValue("toast-id");
+    const { rerender } = renderHook(
+      ({ status }: { status: "running" | "completed" }) =>
+        useAppSessionLifecycleEffects({
+          currentChapter: null,
+          jobState: {
+            id: "sound-effect-translation-completed",
+            kind: "sound-effect-translation",
+            status,
+            progressText: "효과음 번역 완료",
+          },
+          onAudibleCompletion,
+          onJobStart: vi.fn(),
+          onPageChange: vi.fn(),
+          openErrorReport: vi.fn(),
+          refreshLibrary: vi.fn(),
+          resetChapterScopedUi: vi.fn(),
+          selectedPageId: null,
+          setRegionSelection: vi.fn(),
+          translationFlowActive: false,
+        }),
+      {
+        initialProps: {
+          status: "running",
+        } as { status: "running" | "completed" },
+      },
+    );
+
+    rerender({ status: "completed" });
+
+    expect(onAudibleCompletion).toHaveBeenCalledOnce();
+    expect(onAudibleCompletion).toHaveBeenCalledWith("sound-effect");
+    expect(successToast).toHaveBeenCalledOnce();
+    successToast.mockRestore();
+  });
+
   it("plays the completion sound once when the full source-erasing flow settles", () => {
     type ErasingLifecycleProps = {
       status: "running" | "completed";

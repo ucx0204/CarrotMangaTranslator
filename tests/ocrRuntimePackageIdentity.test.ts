@@ -5,10 +5,10 @@ import { join } from "node:path";
 
 const runtimeConfig =
   require("../src/main/runtime/simple-page-ocr-runtime-config.cjs") as {
-    buildPaddleOcrImportCheckScript: (
+    buildOcrRuntimeImportCheckScript: (
       options?: Record<string, unknown>,
     ) => string;
-    buildPaddleOcrImportFailureMessage: (
+    buildOcrRuntimeImportFailureMessage: (
       message: string,
       options?: Record<string, unknown>,
     ) => string;
@@ -16,6 +16,10 @@ const runtimeConfig =
   };
 const integrity =
   require("../src/main/runtime/ocr/requirements-integrity.cjs") as {
+    resolveIntegrityPinnedOcrInstallBatches: (
+      installBatches: string[][],
+      options?: Record<string, unknown>,
+    ) => string[][];
     validateBuiltinOcrRequirementsLock: (
       lockPath: string,
       variant: string,
@@ -32,6 +36,10 @@ describe("OCR runtime package identity contracts", () => {
     ["gpu-cuda-transformers-cu126", "requirements-ocr-cuda-tf-cu126-win.lock"],
     ["gpu-cuda-transformers-cu130", "requirements-ocr-cuda-tf-cu130-win.lock"],
     ["gpu-rocm-transformers", "requirements-ocr-rocm-win-py312.lock"],
+    ["hayai-cpu", "requirements-hayai-cpu-win.lock"],
+    ["hayai-cuda-cu126", "requirements-hayai-cuda-cu126-win.lock"],
+    ["hayai-cuda-cu130", "requirements-hayai-cuda-cu130-win.lock"],
+    ["hayai-rocm", "requirements-hayai-rocm-win.lock"],
   ] as const;
 
   for (const [variant, fileName] of validLocks) {
@@ -44,6 +52,52 @@ describe("OCR runtime package identity contracts", () => {
       ).not.toThrow();
     });
   }
+
+  it("keeps every HayaiOCR lock free of Paddle packages", () => {
+    for (const fileName of [
+      "requirements-hayai-cpu-win.lock",
+      "requirements-hayai-cuda-cu126-win.lock",
+      "requirements-hayai-cuda-cu130-win.lock",
+      "requirements-hayai-rocm-win.lock",
+    ]) {
+      const lock = readFileSync(join(lockRoot, fileName), "utf8");
+      expect(lock).not.toMatch(/^paddle(?:ocr|paddle|x)?==/m);
+      expect(lock).toContain("transformers==5.13.1");
+      expect(lock).toContain("huggingface-hub==1.29.0");
+    }
+  });
+
+  it("requires a hash-complete lock for a custom Hayai PyTorch index", () => {
+    if (process.platform !== "win32") {
+      return;
+    }
+    const name = "MANGA_TRANSLATOR_OCR_TORCH_INDEX_URL";
+    const previous = process.env[name];
+    const previousLock = process.env.MGT_OCR_REQUIREMENTS_LOCK;
+    try {
+      process.env[name] = "https://packages.invalid/pytorch";
+      delete process.env.MGT_OCR_REQUIREMENTS_LOCK;
+      expect(() =>
+        integrity.resolveIntegrityPinnedOcrInstallBatches(
+          [["torch==2.9.1+cu126"]],
+          {
+            ocrPipeline: "hayai",
+            ocrDevice: "gpu",
+            ocrGpuBackend: "cuda",
+            ocrGpuCudaTag: "cu126",
+          },
+        ),
+      ).toThrow(/MANGA_TRANSLATOR_OCR_TORCH_INDEX_URL override requires/i);
+    } finally {
+      if (previous === undefined) delete process.env[name];
+      else process.env[name] = previous;
+      if (previousLock === undefined) {
+        delete process.env.MGT_OCR_REQUIREMENTS_LOCK;
+      } else {
+        process.env.MGT_OCR_REQUIREMENTS_LOCK = previousLock;
+      }
+    }
+  });
 
   it("pins the exact Windows CPython 3.12 NVIDIA CUDA wheels and hashes", () => {
     const cu126 = readFileSync(
@@ -92,17 +146,17 @@ describe("OCR runtime package identity contracts", () => {
   });
 
   it("checks package identity before GPU device availability", () => {
-    const cuda = runtimeConfig.buildPaddleOcrImportCheckScript({
+    const cuda = runtimeConfig.buildOcrRuntimeImportCheckScript({
       ocrDevice: "gpu",
       ocrGpuBackend: "cuda",
       ocrGpuCudaTag: "cu126",
       ocrEngine: "transformers",
     });
-    const rocm = runtimeConfig.buildPaddleOcrImportCheckScript({
+    const rocm = runtimeConfig.buildOcrRuntimeImportCheckScript({
       ocrDevice: "gpu",
       ocrGpuBackend: "rocm-transformers",
     });
-    const cpu = runtimeConfig.buildPaddleOcrImportCheckScript({
+    const cpu = runtimeConfig.buildOcrRuntimeImportCheckScript({
       ocrDevice: "cpu",
     });
 
@@ -119,7 +173,7 @@ describe("OCR runtime package identity contracts", () => {
   it("reports a backend package mismatch instead of blaming the driver", () => {
     const detail =
       "AssertionError: Unexpected NVIDIA CUDA PyTorch build: expected +cu126, got 2.9.1+cpu";
-    const message = runtimeConfig.buildPaddleOcrImportFailureMessage(detail, {
+    const message = runtimeConfig.buildOcrRuntimeImportFailureMessage(detail, {
       ocrDevice: "gpu",
       ocrGpuBackend: "cuda",
       ocrGpuCudaTag: "cu126",

@@ -40,6 +40,12 @@ export type ApiReasoningEffort =
 export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda" | "rocm-transformers";
 export type OcrQualityMode = "economy" | "full";
+/**
+ * `hayai` is the current region-locked text-detector + HayaiOCR pipeline. The Paddle
+ * path remains available for compatibility with projects that rely on the
+ * older fragment/grouping behaviour.
+ */
+export type OcrPipeline = "hayai" | "paddle-legacy";
 export type TranslationWorkflowMode = "standard" | "cumulative";
 export type CumulativeContextDetail = "detailed" | "balanced" | "essential";
 export type LlamaRuntimeProfile =
@@ -127,6 +133,8 @@ type ApiSettings = {
 };
 
 type OcrSettings = {
+  /** Missing in settings written before the Hayai/Paddle split. */
+  pipeline?: OcrPipeline;
   device: OcrDevice;
   qualityMode: OcrQualityMode;
   gpuCudaTag?: string;
@@ -147,8 +155,14 @@ export type UiSettings = {
   naturalTextLayoutDefault?: boolean;
   /** Choose locale-compatible fonts for newly detected translation blocks. */
   autoFontMatchingDefault?: boolean;
-  /** Match new block text size to source glyph pixels before box fitting. */
+  /** Match nominal text size to the source glyphs without enabling box-fit shrinking. */
+  aiFontSizeMatchingDefault?: boolean;
+  /** @deprecated Read compatibility for settings written before AI size matching. */
   fontSizeAutoFitDefault?: boolean;
+  /** Match font family/weight for newly translated SFX blocks. */
+  sfxAutoFontMatchingDefault?: boolean;
+  /** Erase source lettering after a successful SFX translation batch. */
+  sfxInpaintAfterTranslationDefault?: boolean;
   /** Erase source text with automatic inpainting after translation. */
   eraseOriginalWorkflowDefault?: boolean;
   /** Fit translated text to detected speech balloons after erasing. */

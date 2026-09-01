@@ -13,6 +13,13 @@
 const { DEFAULT_OCR_GPU_CUDA_TAG } = require("../simple-page-defaults.cjs");
 const { runtimeOverrideEnv } = require("./host-services.cjs");
 const { readPositiveInteger } = require("./config-values.cjs");
+const {
+  assertPaddleLegacyOcrPipeline,
+  isHayaiOcrPipeline,
+  isManagedOcrBboxProvider,
+  resolveOcrBboxProviderForRequest,
+  resolveOcrEngineLabel,
+} = require("./engine-profile.cjs");
 
 const CUDA_BACKEND_ALIASES = new Set(["cuda", "nvidia"]);
 const ROCM_BACKEND_ALIASES = new Set([
@@ -55,9 +62,12 @@ function resolveOcrGpuBackend(options = /** @type {OcrConfigOptions} */ ({})) {
 
 /** @param {RuntimeOptions} [options] @returns {string} */
 function resolveOcrGpuCudaTag(options = /** @type {OcrConfigOptions} */ ({})) {
+  const legacyCudaTag = isHayaiOcrPipeline(options)
+    ? undefined
+    : runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG", options);
   const raw = String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG", options) ??
-      runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG", options) ??
+      legacyCudaTag ??
       runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA", options) ??
       options.ocrGpuCudaTag ??
       DEFAULT_OCR_GPU_CUDA_TAG,
@@ -72,9 +82,10 @@ function resolveOcrGpuCudaTag(options = /** @type {OcrConfigOptions} */ ({})) {
 }
 
 /** @param {RuntimeOptions} [options] @returns {string} */
-function resolveOcrGpuPackageIndexUrl(
+function resolvePaddleOcrGpuPackageIndexUrl(
   options = /** @type {OcrConfigOptions} */ ({}),
 ) {
+  assertPaddleLegacyOcrPipeline(options, "Paddle OCR package index");
   return String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL", options) ??
       runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL", options) ??
@@ -83,9 +94,12 @@ function resolveOcrGpuPackageIndexUrl(
 }
 
 /** @param {RuntimeOptions} [options] @returns {boolean} */
-function isOcrTransformersEngine(
+function isPaddleTransformersEngine(
   options = /** @type {OcrConfigOptions} */ ({}),
 ) {
+  if (isHayaiOcrPipeline(options)) {
+    return false;
+  }
   const configuredEngine = String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", options) ??
       options.ocrEngine ??
@@ -103,16 +117,19 @@ function isOcrTransformersEngine(
 }
 
 /** @param {RuntimeOptions} [options] @returns {boolean} */
-function isOcrTransformersRuntime(options = {}) {
-  return isOcrGpuRequested(options) && isOcrTransformersEngine(options);
+function isOcrTorchRuntime(options = {}) {
+  if (isHayaiOcrPipeline(options)) {
+    return true;
+  }
+  return isOcrGpuRequested(options) && isPaddleTransformersEngine(options);
 }
 
 /** @param {RuntimeOptions} [options] @returns {boolean} */
-function isOcrCudaTransformersRuntime(options = {}) {
+function isOcrCudaTorchRuntime(options = {}) {
   return (
     isOcrGpuRequested(options) &&
     resolveOcrGpuBackend(options) === "cuda" &&
-    isOcrTransformersEngine(options)
+    (isHayaiOcrPipeline(options) || isPaddleTransformersEngine(options))
   );
 }
 
@@ -142,13 +159,24 @@ function resolveOcrTorchPackageIndexUrl(options = {}) {
 
 /** @param {RuntimeOptions} [options] @returns {string} */
 function resolveOcrRuntimeVariant(options = {}) {
+  if (isHayaiOcrPipeline(options)) {
+    if (!isOcrGpuRequested(options)) {
+      return "hayai-cpu";
+    }
+    if (resolveOcrGpuBackend(options) === "rocm-transformers") {
+      return "hayai-rocm";
+    }
+    return `hayai-cuda-${resolveOcrTorchCudaTag(options)}`
+      .replace(/[^a-z0-9._-]+/gi, "-")
+      .toLowerCase();
+  }
   if (!isOcrGpuRequested(options)) {
-    return "cpu";
+    return isOcrTorchRuntime(options) ? "cpu-transformers" : "cpu";
   }
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return "gpu-rocm-transformers";
   }
-  if (isOcrCudaTransformersRuntime(options)) {
+  if (isOcrCudaTorchRuntime(options)) {
     return `gpu-cuda-transformers-${resolveOcrTorchCudaTag(options)}`
       .replace(/[^a-z0-9._-]+/gi, "-")
       .toLowerCase();
@@ -160,17 +188,18 @@ function resolveOcrRuntimeVariant(options = {}) {
 
 /** @param {RuntimeOptions} [options] @returns {string} */
 function resolveOcrDevice(options = /** @type {OcrConfigOptions} */ ({})) {
+  const legacyDevice = isHayaiOcrPipeline(options)
+    ? undefined
+    : runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_DEVICE", options);
   const explicitDevice = String(
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_DEVICE", options) ?? "",
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DEVICE", options) ??
+      legacyDevice ??
+      "",
   ).trim();
   if (explicitDevice) {
     return explicitDevice;
   }
-  return normalizeConfiguredOcrDevice(
-    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DEVICE", options) ??
-      options.ocrDevice ??
-      "cpu",
-  );
+  return normalizeConfiguredOcrDevice(options.ocrDevice ?? "cpu");
 }
 
 /** @param {unknown} value @returns {string} */
@@ -199,18 +228,18 @@ function resolveOcrDeviceLabel(options = {}) {
 }
 
 /** @param {RuntimeOptions} [options] @returns {number} */
-function resolvePaddleOcrImportCheckTimeoutMs(options = {}) {
+function resolveOcrImportCheckTimeoutMs(options = {}) {
   const explicit = readPositiveInteger(
     process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS,
   );
   if (explicit) {
     return explicit;
   }
+  if (isOcrTorchRuntime(options)) {
+    return 300000;
+  }
   if (!isOcrGpuRequested(options)) {
     return 120000;
-  }
-  if (isOcrTransformersRuntime(options)) {
-    return 300000;
   }
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return 300000;
@@ -220,18 +249,22 @@ function resolvePaddleOcrImportCheckTimeoutMs(options = {}) {
 
 module.exports = {
   isOcrBlackwellCudaTag,
-  isOcrCudaTransformersRuntime,
+  isOcrCudaTorchRuntime,
   isOcrGpuRequested,
-  isOcrTransformersEngine,
-  isOcrTransformersRuntime,
+  isOcrTorchRuntime,
+  isPaddleTransformersEngine,
+  isHayaiOcrPipeline,
+  isManagedOcrBboxProvider,
   resolveEffectiveOcrDevice,
   resolveOcrDevice,
   resolveOcrDeviceLabel,
+  resolveOcrBboxProviderForRequest,
+  resolveOcrEngineLabel,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
-  resolveOcrGpuPackageIndexUrl,
+  resolvePaddleOcrGpuPackageIndexUrl,
   resolveOcrRuntimeVariant,
   resolveOcrTorchCudaTag,
   resolveOcrTorchPackageIndexUrl,
-  resolvePaddleOcrImportCheckTimeoutMs,
+  resolveOcrImportCheckTimeoutMs,
 };

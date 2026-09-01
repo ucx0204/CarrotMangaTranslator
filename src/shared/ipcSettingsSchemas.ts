@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OCR_PIPELINES } from "./ocrEngines";
 import {
   AmdRocmTargetSchema,
   ApiReasoningEffortSchema,
@@ -283,6 +284,7 @@ export const AppSettingsSchema = z
       .strict(),
     ocr: z
       .object({
+        pipeline: z.enum(OCR_PIPELINES).default("paddle-legacy"),
         device: z.enum(["cpu", "gpu"]),
         qualityMode: OcrQualityModeSchema,
         gpuCudaTag: z
@@ -305,7 +307,10 @@ export const AppSettingsSchema = z
         blockModeDefault: z.enum(["auto", "keep"]).optional(),
         naturalTextLayoutDefault: z.boolean().optional(),
         autoFontMatchingDefault: z.boolean().optional(),
+        aiFontSizeMatchingDefault: z.boolean().optional(),
         fontSizeAutoFitDefault: z.boolean().optional(),
+        sfxAutoFontMatchingDefault: z.boolean().optional(),
+        sfxInpaintAfterTranslationDefault: z.boolean().optional(),
         eraseOriginalWorkflowDefault: z.boolean().optional(),
         bubbleLayoutWorkflowDefault: z.boolean().optional(),
         wheelZoomSensitivityPercent: z.number().int().min(1).max(10).optional(),

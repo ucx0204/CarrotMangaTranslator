@@ -17,12 +17,14 @@ import {
   TRANSLATION_CHECKPOINT_PIPELINE_CONTRACT,
   TRANSLATION_CHECKPOINT_SCHEMA_VERSION,
 } from "./translationCheckpoint";
+import { SoundEffectReviewSchema } from "./ipcSoundEffectReviewSchemas";
 import {
   FONT_MATCHING_SEMANTIC_ROLES,
   FONT_MATCHING_SOURCE_STYLE_AXES,
 } from "./fontMatchingProfileTypes";
 import { MAX_LANGUAGE_CODE_LENGTH } from "./translationLanguages";
 import type { PageRevision } from "./pageRevisionTypes";
+import { normalizeResolvedSoundEffectBlocksOnPage } from "./soundEffectBlocks";
 
 const PageAnalysisStatusSchema = z.enum([
   "idle",
@@ -180,6 +182,7 @@ const PageRecordContentShape = {
   width: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
   height: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
   blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
+  soundEffectReview: SoundEffectReviewSchema.optional(),
   blockOrder: z
     .array(z.string().min(1).max(200))
     .max(MAX_BLOCKS_PER_PAGE)
@@ -202,7 +205,8 @@ const MangaPageSchema = z
     dataUrl: z.string().max(32 * 1024 * 1024),
     ...PageRecordContentShape,
   })
-  .strict();
+  .strict()
+  .transform(normalizeResolvedSoundEffectBlocksOnPage);
 
 const LibraryPageRecordSchema = z
   .object({
@@ -210,7 +214,8 @@ const LibraryPageRecordSchema = z
     ...PageRecordPathShape,
     ...PageRecordContentShape,
   })
-  .strict();
+  .strict()
+  .transform(normalizeResolvedSoundEffectBlocksOnPage);
 
 export const LibraryChapterFileSchema = z
   .object({

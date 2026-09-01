@@ -31,14 +31,18 @@ const commands =
   };
 const config =
   require("../src/main/runtime/simple-page-ocr-runtime-config.cjs") as {
-    buildPaddleOcrGpuFailureMessage: (
+    buildOcrGpuFailureMessage: (
       error: unknown,
       options?: Record<string, unknown>,
     ) => string;
+    buildOcrRuntimeImportCheckScript: (
+      options?: Record<string, unknown>,
+    ) => string;
+    resolveOcrRuntimeVariant: (options?: Record<string, unknown>) => string;
   };
 const manager =
   require("../src/main/runtime/simple-page-ocr-runtime-manager.cjs") as {
-    ensurePaddleOcrRuntime: (
+    ensureOcrRuntime: (
       options?: Record<string, unknown>,
     ) => Promise<Record<string, unknown>>;
     createOcrRuntimeError: (
@@ -77,10 +81,20 @@ async function writeManagedPythonFixtureZip(
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
 describeWindows("OCR runtime boundary behavior", () => {
+  it("gives HayaiOCR CPU its own PyTorch runtime instead of Paddle CPU", () => {
+    const options = { ocrPipeline: "hayai", ocrDevice: "cpu" };
+    const script = config.buildOcrRuntimeImportCheckScript(options);
+
+    expect(config.resolveOcrRuntimeVariant(options)).toBe("hayai-cpu");
+    expect(script).toContain("Unexpected CPU PyTorch build");
+    expect(script).toContain("HayaiOCR CPU package");
+    expect(script).not.toContain("from paddleocr import PaddleOCR");
+  });
+
   it("propagates a cancelled runtime check without marking Paddle OCR as broken", async () => {
     const verification =
       require("../src/main/runtime/ocr/runtime-verification.cjs") as {
-        checkPaddleOcrImport: (
+        checkOcrRuntimeImport: (
           pythonPath: string,
           options: { abortSignal: AbortSignal },
         ) => Promise<unknown>;
@@ -89,7 +103,7 @@ describeWindows("OCR runtime boundary behavior", () => {
     controller.abort();
 
     await expect(
-      verification.checkPaddleOcrImport("missing-python.exe", {
+      verification.checkOcrRuntimeImport("missing-python.exe", {
         abortSignal: controller.signal,
       }),
     ).rejects.toMatchObject({ name: "AbortError" });
@@ -113,7 +127,7 @@ describeWindows("OCR runtime boundary behavior", () => {
       });
 
       await expect(
-        manager.ensurePaddleOcrRuntime({ ocrDevice: "gpu" }),
+        manager.ensureOcrRuntime({ ocrDevice: "gpu" }),
       ).rejects.toThrow("OCR 장치를 CPU로 직접 변경");
     } finally {
       if (platformDescriptor) {
@@ -122,6 +136,24 @@ describeWindows("OCR runtime boundary behavior", () => {
       if (archDescriptor) {
         Object.defineProperty(process, "arch", archDescriptor);
       }
+    }
+  });
+
+  it("rejects an unsafe explicit Windows ROCm runtime path before installation", async () => {
+    const key = "MANGA_TRANSLATOR_OCR_RUNTIME_DIR";
+    const previous = process.env[key];
+    process.env[key] = join(tmpdir(), `ocr-rocm-${"x".repeat(260)}`);
+    try {
+      await expect(
+        manager.ensureOcrRuntime({
+          ocrPipeline: "hayai",
+          ocrDevice: "gpu",
+          ocrGpuBackend: "rocm-transformers",
+        }),
+      ).rejects.toThrow("Windows 경로 제한에 비해 너무 깁니다");
+    } finally {
+      if (previous === undefined) delete process.env[key];
+      else process.env[key] = previous;
     }
   });
 
@@ -177,14 +209,14 @@ describeWindows("OCR runtime boundary behavior", () => {
   });
 
   it("classifies nested OOM failures without masking unrelated failures", () => {
-    const oomMessage = config.buildPaddleOcrGpuFailureMessage(
+    const oomMessage = config.buildOcrGpuFailureMessage(
       {
         message: "OCR subprocess failed",
         cause: new Error("CUDA error: out of memory"),
       },
       { ocrDevice: "gpu:0" },
     );
-    const genericMessage = config.buildPaddleOcrGpuFailureMessage(
+    const genericMessage = config.buildOcrGpuFailureMessage(
       new Error("unexpected decoder failure"),
       { ocrDevice: "gpu:0" },
     );
@@ -429,7 +461,7 @@ describeWindows("OCR runtime boundary behavior", () => {
       });
       replaceCachedExports(verificationPath, {
         ...actualVerification,
-        async checkPaddleOcrImport() {
+        async checkOcrRuntimeImport() {
           return { ok: true, message: "" };
         },
         async writeOcrInstallMarker(
@@ -444,7 +476,7 @@ describeWindows("OCR runtime boundary behavior", () => {
         ensureEmbeddedPythonPackagePath(pythonPath: string) {
           embeddedPathCalls.push(pythonPath);
         },
-        async finalizePaddleOcrRuntime(
+        async finalizeOcrRuntime(
           _options: Record<string, unknown>,
           runtime: Record<string, unknown>,
         ) {
@@ -547,7 +579,7 @@ describeWindows("OCR runtime boundary behavior", () => {
       });
       replaceCachedExports(verificationPath, {
         ...actualVerification,
-        async checkPaddleOcrImport() {
+        async checkOcrRuntimeImport() {
           return {
             ok: false,
             message:

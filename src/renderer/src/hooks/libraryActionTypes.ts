@@ -64,5 +64,9 @@ export type LibraryReorderActions = {
 export type UseLibraryActionsResult = LibraryChapterSelectionActions &
   LibraryRenameActions &
   LibraryReorderActions & {
+    dismissSoundEffectReviewRegion: (
+      pageId: string,
+      regionId: string,
+    ) => Promise<void>;
     removePage: (pageId: string) => Promise<void>;
   };

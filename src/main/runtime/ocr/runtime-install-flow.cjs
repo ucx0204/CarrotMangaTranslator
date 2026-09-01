@@ -19,9 +19,10 @@
 const { existsSync } = require("node:fs");
 const { rm } = require("node:fs/promises");
 const {
-  buildPaddleOcrImportFailureMessage,
+  buildOcrRuntimeImportFailureMessage,
   isOcrBackendPackageIdentityFailureText,
-  isPaddleNativeDllLoadFailureText,
+  isOcrNativeDllLoadFailureText,
+  resolveOcrEngineLabel,
   resolveOcrInstallSignature,
   resolveOcrPipInstallBatches,
   summarizeOcrInstallBatches,
@@ -29,26 +30,26 @@ const {
 const { emitRuntimeProgress } = require("./host-services.cjs");
 const { summarizeImportCheckFailure } = require("./managed-python.cjs");
 const {
-  ensureMicrosoftVisualCppRuntimeForPaddle,
+  ensureMicrosoftVisualCppRuntimeForOcr,
 } = require("./managed-vcredist.cjs");
 const { installOcrPythonPackages } = require("./runtime-installer.cjs");
 const { buildRuntimeLayout } = require("./runtime-layout-result.cjs");
 const {
   ensureEmbeddedPythonPackagePath,
-  finalizePaddleOcrRuntime,
+  finalizeOcrRuntime,
 } = require("./runtime-preparation.cjs");
 const {
-  checkPaddleOcrImport,
+  checkOcrRuntimeImport,
   createOcrRuntimeError,
   writeOcrInstallMarker,
 } = require("./runtime-verification.cjs");
 
 /** @param {RuntimeOptions} options @param {RuntimeState} state @returns {Promise<OcrRuntimeLayout>} */
 async function installAndFinalizeRuntime(options, state) {
-  const installed = await installPackagesWithFallback(options, state);
+  const installed = await installPackagesWithTargetRetry(options, state);
   await verifyInstalledRuntime(options, state, installed);
   await persistInstalledRuntime(options, state, installed);
-  return finalizePaddleOcrRuntime(
+  return finalizeOcrRuntime(
     options,
     buildRuntimeLayout(
       state,
@@ -59,7 +60,7 @@ async function installAndFinalizeRuntime(options, state) {
 }
 
 /** @param {RuntimeOptions} options @param {RuntimeState} state @returns {Promise<InstalledRuntime>} */
-async function installPackagesWithFallback(options, state) {
+async function installPackagesWithTargetRetry(options, state) {
   const installBatches = resolveOcrPipInstallBatches(options);
   const packageSummary = summarizeOcrInstallBatches(installBatches, options);
   let installPython = existsSync(state.venvPython)
@@ -107,18 +108,17 @@ async function installPackagesWithFallback(options, state) {
 
 /** @param {RuntimeOptions} options @param {string} packageSummary @param {boolean} retry */
 function emitPackageInstallStart(options, packageSummary, retry) {
+  const engine = resolveOcrEngineLabel(options);
   emitRuntimeProgress(
     options,
     "ocr_downloading",
-    retry
-      ? "Paddle OCR 패키지 재설치 중"
-      : "Paddle OCR 패키지 다운로드/설치 중",
+    retry ? `${engine} 패키지 재설치 중` : `${engine} 패키지 다운로드/설치 중`,
     packageSummary,
     {
       progressMode: "log-only",
       installLogLine: retry
         ? "가상환경 설치에 실패해 내장 Python 경로로 다시 설치합니다."
-        : "Paddle OCR 패키지 설치를 시작합니다.",
+        : `${engine} 패키지 설치를 시작합니다.`,
     },
   );
 }
@@ -137,7 +137,7 @@ async function verifyInstalledRuntime(options, state, installed) {
   let importCheck = await checkInstalledRuntime(options, state, installed);
   if (shouldRetryAfterVcredist(importCheck)) {
     recordNativeDllFailure(state, installed.installPython, importCheck);
-    await ensureMicrosoftVisualCppRuntimeForPaddle(options, state.runtimeDir);
+    await ensureMicrosoftVisualCppRuntimeForOcr(options, state.runtimeDir);
     emitInstallVerification(options, installed.packageSummary, true);
     importCheck = await checkInstalledRuntime(options, state, installed);
   }
@@ -226,7 +226,7 @@ async function discardExistingBackendMismatchedVenv(state) {
 
 /** @param {RuntimeOptions} options @param {RuntimeState} state @param {InstalledRuntime} installed @returns {Promise<ImportCheckResult>} */
 function checkInstalledRuntime(options, state, installed) {
-  return checkPaddleOcrImport(installed.installPython, options, {
+  return checkOcrRuntimeImport(installed.installPython, options, {
     runtimeDir: state.runtimeDir,
     packageDir: state.packageDir,
     includePackageDir: Boolean(installed.targetDir),
@@ -238,14 +238,14 @@ function checkInstalledRuntime(options, state, installed) {
 function shouldRetryAfterVcredist(importCheck) {
   return (
     !importCheck.ok &&
-    isPaddleNativeDllLoadFailureText(summarizeImportCheckFailure(importCheck))
+    isOcrNativeDllLoadFailureText(summarizeImportCheckFailure(importCheck))
   );
 }
 
 /** @param {RuntimeState} state @param {string} pythonPath @param {ImportCheckResult} importCheck */
 function recordNativeDllFailure(state, pythonPath, importCheck) {
   state.diagnostics.push({
-    step: "paddle-native-dll-load-failed",
+    step: "ocr-native-dll-load-failed",
     runtimeDir: state.runtimeDir,
     runtimeVariant: state.runtimeVariant,
     packageDir: state.packageDir,
@@ -256,16 +256,17 @@ function recordNativeDllFailure(state, pythonPath, importCheck) {
 
 /** @param {RuntimeOptions} options @param {string} packageSummary @param {boolean} retry */
 function emitInstallVerification(options, packageSummary, retry) {
+  const engine = resolveOcrEngineLabel(options);
   emitRuntimeProgress(
     options,
     "ocr_downloading",
-    retry ? "Paddle OCR 설치 재검증 중" : "Paddle OCR 설치 검증 중",
+    retry ? `${engine} 설치 재검증 중` : `${engine} 설치 검증 중`,
     packageSummary,
     {
       progressMode: "indeterminate",
       installLogLine: retry
-        ? "Microsoft Visual C++ 런타임 준비 후 Paddle OCR import를 다시 확인합니다."
-        : "Paddle OCR import와 장치 상태를 확인합니다.",
+        ? `Microsoft Visual C++ 런타임 준비 후 ${engine} import를 다시 확인합니다.`
+        : `${engine} import와 장치 상태를 확인합니다.`,
     },
   );
 }
@@ -280,7 +281,7 @@ function throwPostInstallVerificationError(
 ) {
   const importError = summarizeImportCheckFailure(importCheck);
   throw createOcrRuntimeError(
-    buildPaddleOcrImportFailureMessage(importError, options),
+    buildOcrRuntimeImportFailureMessage(importError, options),
     {
       step: "post-install-verification-failed",
       runtimeDir: state.runtimeDir,
@@ -297,6 +298,7 @@ function throwPostInstallVerificationError(
 /** @param {RuntimeOptions} options @param {RuntimeState} state @param {InstalledRuntime} installed */
 async function persistInstalledRuntime(options, state, installed) {
   await writeOcrInstallMarker(state.packageDir, {
+    ocrPipeline: options.ocrPipeline,
     runtimeVariant: state.runtimeVariant,
     installBatches: installed.installBatches,
     targetDir: installed.targetDir,
@@ -307,12 +309,12 @@ async function persistInstalledRuntime(options, state, installed) {
   emitRuntimeProgress(
     options,
     "ocr_downloading",
-    "Paddle OCR 설치 완료",
+    `${resolveOcrEngineLabel(options)} 설치 완료`,
     installed.packageSummary,
     {
       progressMode: "determinate",
       progressPercent: 1,
-      installLogLine: "Paddle OCR 설치가 완료되었습니다.",
+      installLogLine: `${resolveOcrEngineLabel(options)} 설치가 완료되었습니다.`,
     },
   );
 }

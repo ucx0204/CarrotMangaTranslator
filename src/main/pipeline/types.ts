@@ -18,6 +18,7 @@ import type { PixelRect } from "../../shared/region";
 import type { ChapterRunPaths } from "../library";
 import type { FontMatchingSemanticRole } from "../../shared/fontMatchingProfileTypes";
 import type { CumulativeContextDetail } from "../../shared/settingsTypes";
+import type { SoundEffectReviewRegion } from "../../shared/soundEffectReview";
 import type { PageProcessingTimingCollector } from "./pageProcessingTiming";
 import type { PreparedTranslationCheckpoint } from "./preparedTranslationCheckpointContract";
 
@@ -51,7 +52,9 @@ export type PipelineOptions = {
   naturalTextLayout?: boolean;
   /** Match only sealed, verified built-in candidates before line and bubble layout. */
   autoFontMatching?: boolean;
-  /** Match newly created text size to source glyph pixels before box fitting. */
+  /** Match nominal size to source glyph pixels without enabling box fitting. */
+  aiFontSizeMatching?: boolean;
+  /** @deprecated Compatibility with older callers. */
   fontSizeAutoFit?: boolean;
   /** Canonical zero-based positions in the complete chapter, independent of run selection. */
   canonicalPageIndexById?: ReadonlyMap<string, number>;
@@ -138,13 +141,14 @@ export type CompletedPageBuildResult = {
 
 export type OcrBboxResult = {
   hints: unknown[];
+  effectReviewRegions?: SoundEffectReviewRegion[];
   diagnostics: unknown[];
   noTextDetected?: boolean;
   textEvidenceCount?: number;
   /**
    * Optional Anime YOLO pass state. Missing means that no detector run was
    * needed. "unavailable" is persisted so a later run retries only this
-   * inexpensive evidence pass instead of rerunning Paddle OCR.
+   * inexpensive evidence pass instead of rerunning the selected OCR engine.
    */
   groupingEvidence?: {
     contractVersion: 1;
@@ -154,7 +158,7 @@ export type OcrBboxResult = {
 
 export type OverlayItem = {
   id: number;
-  /** Raw Paddle OCR candidates assigned to this physical text container. */
+  /** Raw OCR candidates assigned to this physical text container. */
   candidateIds?: number[];
   /** Code-owned membership; the general model-output parser never supplies it. */
   sourceCandidateMembership?: FontMatchingOcrCandidateMembershipV2;
@@ -228,7 +232,9 @@ export type RequestSummary = {
     orderInGroup?: number | null;
     groupSize?: number;
     semanticGroup?: boolean;
+    geometryLocked?: boolean;
   }>;
+  ocrPipeline?: TranslationOptions["ocrPipeline"];
   fixedBlockTranslationVersion?: number;
   fixedBlockIds?: string[];
   fixedBlockCandidateIds?: number[][];
@@ -258,6 +264,8 @@ export type RuntimeModules = {
     collectOcrBboxHintsBatch?: (
       options: TranslationOptions[],
     ) => Promise<OcrBboxResult[]>;
+    /** Waits until every OCR child process has closed and released its model. */
+    waitForOcrIdle?: () => Promise<void>;
     requestTranslation: (
       server: ModelEndpointHandle,
       options: TranslationOptions,

@@ -26,4 +26,17 @@ describe("runtime cumulative no-text handling", () => {
       ),
     ).toBe(false);
   });
+
+  it("does not let failed OCR suppress a user-selected region crop", () => {
+    expect(
+      shouldSkipModelRequest(
+        { noTextDetected: true },
+        {
+          sourceLanguage: "ja",
+          collectPageContext: false,
+          regionCropMode: true,
+        },
+      ),
+    ).toBe(false);
+  });
 });

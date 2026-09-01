@@ -172,7 +172,7 @@ function resolveBlockTextMetrics(
     layoutStageSize.width / Math.max(1, pageSize.width),
     layoutStageSize.height / Math.max(1, pageSize.height),
   );
-  const preferredFontSize = Math.max(
+  const geometryFontSize = Math.max(
     MIN_FONT_SIZE_PX,
     Math.floor(block.fontSizePx * scale),
   );
@@ -183,6 +183,15 @@ function resolveBlockTextMetrics(
     pageSize,
     input.sourceFontFaceFallbackPx,
   );
+  const preferredFontSize =
+    block.fontSizeIntent === "source-match" &&
+    Number.isFinite(sourceMatchedCapPx) &&
+    Number(sourceMatchedCapPx) > 0
+      ? Math.max(
+          MIN_FONT_SIZE_PX,
+          Math.floor(Number(sourceMatchedCapPx) * scale),
+        )
+      : geometryFontSize;
   const maxFontSize = resolveAutoFitUpperBound(
     block,
     preferredFontSize,

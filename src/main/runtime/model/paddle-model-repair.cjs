@@ -17,6 +17,7 @@ const {
   resolvePaddleOcrModelNamesForRepair,
   truncateReason,
 } = require("./paddle-model-validation.cjs");
+const { assertPaddleLegacyOcrPipeline } = require("../ocr/engine-profile.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} ModelAssetOptions */
 /** @typedef {import("../runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
@@ -27,6 +28,7 @@ async function repairPaddleOcrModelAssetsCache(
   runtime = null,
   reason = "",
 ) {
+  assertPaddleLegacyOcrPipeline(options, "Paddle OCR model repair");
   const runtimeDir = resolveRuntimeDir(options, runtime);
   const names = resolvePaddleOcrModelNamesForRepair(
     String(reason ?? ""),

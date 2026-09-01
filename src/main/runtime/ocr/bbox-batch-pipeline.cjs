@@ -4,7 +4,7 @@
 /** @typedef {import("../runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 /** @typedef {RuntimeOptions & { outputDir?: string | null; imagePath?: unknown; ocrBatchCompletedBefore?: unknown; ocrBatchTotal?: unknown }} OcrBboxOptions */
 /** @typedef {{ hints: unknown[]; diagnostics: unknown[]; noTextDetected: boolean; textEvidenceCount: number }} OcrBboxResult */
-/** @typedef {{ image: unknown; output: string }} OcrBatchItem */
+/** @typedef {{ image: unknown; regions?: unknown; output: string }} OcrBatchItem */
 /** @typedef {{ batchOptions: OcrBboxOptions; firstOptions: OcrBboxOptions; items: OcrBatchItem[]; normalizedOptions: OcrBboxOptions[]; provider: string; runtime: OcrRuntimeLayout | null; batchPath: string; progressPath: string }} OcrBatchContext */
 /** @typedef {{ handleCommandOutput: (line: string) => void; emitPageProgress: (progress: { itemIndex: number; phase: string; count: number }) => void; resolveItemIndex?: (progress: { index: number; total: number }) => number | undefined; eventKeyPrefix?: string }} ProgressHandlerOptions */
 /** @typedef {Parameters<typeof createOcrBatchPipeline>[0]} Dependencies */
@@ -17,8 +17,9 @@
  *   writeFile: (path: string, data: string, encoding: "utf8") => Promise<unknown>;
  *   collectOcrBboxHints: (options: OcrBboxOptions) => Promise<OcrBboxResult>;
  *   resolveOcrBboxProvider: (options?: OcrBboxOptions) => string;
+ *   isManagedOcrBboxProvider: (provider: unknown) => boolean;
  *   withoutPageProgressOptions: (options?: OcrBboxOptions) => OcrBboxOptions;
- *   ensurePaddleOcrRuntime: (options: OcrBboxOptions) => Promise<OcrRuntimeLayout>;
+ *   ensureOcrRuntime: (options: OcrBboxOptions) => Promise<OcrRuntimeLayout>;
  *   resolveOcrCpuWorkerCount: (options?: OcrBboxOptions, pageCount?: number) => number;
  *   isExplicitCpuOcrDevice: (options?: OcrBboxOptions) => boolean;
  *   resolveOcrDevice: (options?: OcrBboxOptions) => string;
@@ -27,6 +28,8 @@
  *   formatCommandForLog: (command: CommandSpec) => string;
  *   emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void;
  *   resolveOcrDeviceLabel: (options?: OcrBboxOptions) => string;
+ *   resolveOcrEngineLabel: (options?: OcrBboxOptions) => string;
+ *   resolveOcrRuntimeVariant: (options?: OcrBboxOptions) => string;
  *   readPositiveInteger: (value: unknown) => number | null;
  *   createOcrCommandProgressHandler: (options: OcrBboxOptions, context: Record<string, unknown>) => (line: string) => void;
  *   createOcrBatchProgressEmitter: (batchOptions: OcrBboxOptions, firstOptions: OcrBboxOptions, normalizedOptions: OcrBboxOptions[]) => (progress: { itemIndex: number; phase: string; count: number }) => void;
@@ -43,7 +46,7 @@
  *   truncateText: (value: unknown, limit: number) => string;
  *   isOcrGpuRequested: (options?: OcrBboxOptions) => boolean;
  *   resolveEffectiveOcrDevice: (options?: OcrBboxOptions) => string;
- *   buildPaddleOcrGpuFailureMessage: (error: unknown, options?: OcrBboxOptions) => string;
+ *   buildOcrGpuFailureMessage: (error: unknown, options?: OcrBboxOptions) => string;
  * }} dependencies
  */
 function createOcrBatchPipeline(dependencies) {
@@ -61,11 +64,17 @@ async function collectOcrBboxHintsBatch(dependencies, pageOptionsList = []) {
   const normalizedOptions = validOptions;
   const firstOptions = normalizedOptions[0] || {};
   const provider = dependencies.resolveOcrBboxProvider(firstOptions);
-  if (provider !== "paddleocr") {
+  assertUniformBatchExecutionProfile(
+    dependencies,
+    normalizedOptions,
+    firstOptions,
+    provider,
+  );
+  if (!dependencies.isManagedOcrBboxProvider(provider)) {
     return await collectSequentially(dependencies, normalizedOptions);
   }
   const batchOptions = dependencies.withoutPageProgressOptions(firstOptions);
-  const runtime = await dependencies.ensurePaddleOcrRuntime(batchOptions);
+  const runtime = await dependencies.ensureOcrRuntime(batchOptions);
   const context = await prepareBatchContext(dependencies, {
     batchOptions,
     firstOptions,
@@ -84,6 +93,60 @@ async function collectOcrBboxHintsBatch(dependencies, pageOptionsList = []) {
     });
   }
   return await runSingleProcessBatch(dependencies, context);
+}
+
+/**
+ * A single Python process owns one engine/runtime/model configuration. Mixing
+ * profiles would otherwise make every item after the first run under the
+ * first item's backend while reporting its own settings.
+ *
+ * @param {Dependencies} dependencies
+ * @param {OcrBboxOptions[]} optionsList
+ * @param {OcrBboxOptions} firstOptions
+ * @param {string} firstProvider
+ */
+function assertUniformBatchExecutionProfile(
+  dependencies,
+  optionsList,
+  firstOptions,
+  firstProvider,
+) {
+  const expected = buildBatchExecutionProfile(
+    dependencies,
+    firstOptions,
+    firstProvider,
+  );
+  const mismatchIndex = optionsList.findIndex(
+    (options) =>
+      buildBatchExecutionProfile(
+        dependencies,
+        options,
+        dependencies.resolveOcrBboxProvider(options),
+      ) !== expected,
+  );
+  if (mismatchIndex > 0) {
+    throw new TypeError(
+      `OCR batch item ${mismatchIndex + 1} has a different execution profile.`,
+    );
+  }
+}
+
+/** @param {Dependencies} dependencies @param {OcrBboxOptions} options @param {string} provider */
+function buildBatchExecutionProfile(dependencies, options, provider) {
+  return JSON.stringify([
+    provider,
+    dependencies.resolveOcrRuntimeVariant(options),
+    options.ocrQualityMode ?? null,
+    options.ocrBboxMode ?? null,
+    options.ocrEngine ?? null,
+    options.ocrEngineDtype ?? null,
+    options.ocrVersion ?? null,
+    options.ocrTextDetectionModelName ?? null,
+    options.ocrTextRecognitionModelName ?? null,
+    options.ocrMergeMode ?? null,
+    options.ocrDetLimit ?? null,
+    options.ocrRecBatch ?? null,
+  ]);
 }
 
 /** @param {Dependencies} dependencies @param {OcrBboxOptions[]} optionsList */
@@ -140,6 +203,9 @@ function buildBatchItem(dependencies, options, firstOptions, index) {
     );
   return {
     image: options.imagePath,
+    ...(options.ocrBboxRegionsPath
+      ? { regions: options.ocrBboxRegionsPath }
+      : {}),
     output: dependencies.path.join(outputDir, "ocr-bbox-hints.json"),
   };
 }
@@ -193,14 +259,14 @@ function throwBatchGpuExecutionFailure(dependencies, context, error) {
   ) {
     throw error;
   }
-  const message = dependencies.buildPaddleOcrGpuFailureMessage(
+  const message = dependencies.buildOcrGpuFailureMessage(
     error,
     context.batchOptions,
   );
   dependencies.emitRuntimeProgress(
     context.batchOptions,
     "ocr_running",
-    "Paddle OCR GPU 실행 실패 — 작업을 중지합니다",
+    `${dependencies.resolveOcrEngineLabel(context.batchOptions)} GPU 실행 실패 — 작업을 중지합니다`,
     message,
   );
   throw dependencies.createOcrRuntimeError(
@@ -225,10 +291,11 @@ async function writeBatchControlFiles(dependencies, context) {
 
 /** @param {Dependencies} dependencies @param {OcrBatchContext} context */
 function emitBatchStarted(dependencies, context) {
+  const label = dependencies.resolveOcrEngineLabel(context.batchOptions);
   dependencies.emitRuntimeProgress(
     context.batchOptions,
     "ocr_running",
-    "Paddle OCR 배치 위치 분석 중",
+    `${label} 배치 위치 분석 중`,
     `${context.items.length}페이지, 장치: ${dependencies.resolveOcrDeviceLabel(context.batchOptions)}`,
     {
       pageIndex: null,
@@ -246,10 +313,12 @@ function emitBatchStarted(dependencies, context) {
 
 /** @param {Dependencies} dependencies @param {OcrBatchContext} context */
 function buildBatchProgressHandler(dependencies, context) {
+  const label = dependencies.resolveOcrEngineLabel(context.batchOptions);
   const handleCommandOutput = dependencies.createOcrCommandProgressHandler(
     context.batchOptions,
     {
-      progressText: "Paddle OCR 배치 위치 분석 중",
+      engineLabel: label,
+      progressText: `${label} 배치 위치 분석 중`,
       progressCurrent:
         dependencies.readPositiveInteger(
           context.firstOptions.ocrBatchCompletedBefore,

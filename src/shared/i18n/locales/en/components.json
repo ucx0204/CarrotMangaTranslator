@@ -731,8 +731,8 @@
     },
     "autoFontMatching": "Automatic font matching",
     "autoFontMatchingSummary": "Automatically applies a Korean font that matches the source text's mood to each block.",
-    "fontSizeAutoFit": "Automatic text size",
-    "fontSizeAutoFitSummary": "Matches the translated text to the visible source glyph size, then shrinks only when needed to fit the block.",
+    "fontSizeAutoFit": "AI font size matching",
+    "fontSizeAutoFitSummary": "Estimates the font size from the source glyphs.",
     "completionMode": "Completion mode",
     "completionModeTranslate": "Translate only",
     "completionModeErase": "Erase source text",
@@ -1095,7 +1095,7 @@
     "logLabel": "Installation log",
     "checkingLogs": "Checking logs",
     "preparingModel": "Preparing Gemma 4 model",
-    "installingOcr": "Installing Paddle OCR"
+    "installingOcr": "Installing OCR"
   },
   "toast": { "close": "Close notification", "region": "Notifications" },
   "errorBoundary": {
@@ -1764,7 +1764,7 @@
       "ocrDevices": {
         "cuda": {
           "label": "NVIDIA CUDA",
-          "description": "Run Paddle OCR on an NVIDIA GPU."
+          "description": "Run OCR on an NVIDIA GPU."
         },
         "rocm": {
           "label": "AMD ROCm",
@@ -2050,13 +2050,27 @@
       "graphicsGpuRestartNote": "Restart the app to apply an app graphics GPU change.",
       "ocrSection": "OCR",
       "inpaintingSection": "Inpainting",
+      "ocrPipeline": "Text region detector",
+      "ocrPipelines": {
+        "hayai": {
+          "label": "HayaiOCR",
+          "description": "The text detector separates ordinary text from sound-effect regions, then Hayai OCR reads each fixed crop. Sound effects stay out of normal translation and are saved for review."
+        },
+        "paddle-legacy": {
+          "label": "PaddleOCR",
+          "description": "Keeps the previous Paddle OCR fragments and Gemma grouping behavior."
+        }
+      },
       "ocrQuality": "Paddle OCR quality",
-      "ocrDevice": "Paddle OCR device",
+      "ocrDevice": "OCR device",
+      "hayaiDevices": {
+        "cuda": "Run HayaiOCR with NVIDIA CUDA.",
+        "rocm-transformers": "Run HayaiOCR with AMD ROCm.",
+        "cpu": "Run HayaiOCR on the CPU. This may be slower than a GPU."
+      },
       "fluxBackend": "Flux inpainting backend",
       "inpaintingModel": "Inpainting model",
       "amdOcrExperimental": "AMD GPU OCR is experimental. If it fails, you can switch only OCR to the CPU.",
-      "ocrAppleNote": "Paddle OCR uses the CPU runtime on Apple Silicon.",
-      "ocrNvidiaNote": "AMD ROCm OCR cannot be selected on NVIDIA systems.",
       "fluxAppleNote": "Only the native Metal backend is used on Apple Silicon. Flux recommends at least 16 GB unified memory.",
       "fluxOnlyNote": "This backend setting applies only to the Flux Klein model.",
       "fluxLowMemoryConfirm": "This Mac has {{available}} unified memory, below Flux's 16 GB recommendation. The app may terminate or make the system extremely slow. Allow this risky run?",
@@ -2162,7 +2176,7 @@
       "title": "Installation/function check",
       "run": "Check OCR/model",
       "running": "Checking…",
-      "description": "Check Paddle OCR readiness and whether the selected translation engine starts correctly.",
+      "description": "Check whether the selected OCR and translation engine prepare and start correctly.",
       "logAria": "Installation/function check log",
       "detail": {
         "model": "Model: {{path}}",
@@ -2171,15 +2185,15 @@
       },
       "status": {
         "running": "Checking OCR, the model runtime, and a simple text response in sequence…",
-        "gemmaDetail": "Shows readiness logs for Paddle OCR and the Gemma runtime.",
-        "codexDetail": "Checks Paddle OCR and the Codex endpoint together.",
-        "apiDetail": "Checks Paddle OCR and the API endpoint response together."
+        "gemmaDetail": "Shows readiness logs for the selected OCR and the Gemma runtime.",
+        "codexDetail": "Checks the selected OCR and the Codex endpoint together.",
+        "apiDetail": "Checks the selected OCR and the API endpoint response together."
       },
       "log": {
-        "start": "Starting the Paddle OCR and translation engine check.",
-        "requestError": "An error occurred while requesting the Paddle OCR and translation engine check.",
-        "success": "Paddle OCR and translation engine check completed.",
-        "failure": "Paddle OCR and translation engine check failed."
+        "start": "Starting the OCR and translation engine check.",
+        "requestError": "An error occurred while requesting the OCR and translation engine check.",
+        "success": "OCR and translation engine check completed.",
+        "failure": "OCR and translation engine check failed."
       }
     },
     "update": {
@@ -2233,6 +2247,7 @@
       "open": "Completion sound settings",
       "all": "All completion sounds",
       "translation": "Translation complete",
+      "soundEffect": "Sound effect translation complete",
       "sourceErasing": "Source text erased",
       "research": "Internet research complete",
       "mute": "Turn off {{item}}",
@@ -2357,6 +2372,38 @@
     "renameFailed": "Could not rename the block.",
     "updateFailed": "Could not update the library block.",
     "deleteFailed": "Could not delete the block."
+  },
+  "soundEffectReview": {
+    "launcher": "Run SFX translation, {{count}} pending",
+    "launcherAction": "Run SFX translation",
+    "layerLabel": "Sound effects to review",
+    "regionLabel": "Sound-effect candidate {{index}}: {{text}}",
+    "unreadable": "Uncertain reading",
+    "boxTag": "SFX?",
+    "reviewTitle": "Sound effect to review",
+    "inpaintHint": "Single-region translation keeps the source. Source erasure can be enabled from the full SFX translation dialog.",
+    "runAll": "Translate all SFX",
+    "translateOne": "Translate this region",
+    "modalTitle": "Run SFX translation",
+    "modalIntro": "Choose a page on the left, then click candidate boxes on the right to include or exclude them from this run.",
+    "pageSummary": "{{pages}} pages · {{count}} candidates",
+    "selectionSummary": "{{selected}} of {{total}} candidates included",
+    "selectAll": "Select all",
+    "clearAll": "Clear all",
+    "pageSelection": "{{selected}}/{{total}} included",
+    "pageListLabel": "{{name}}, {{selected}} of {{total}} candidates included",
+    "included": "Included",
+    "excluded": "Excluded",
+    "candidateToggleLabel": "SFX candidate {{index}}, {{state}}: {{text}}",
+    "inpaintAfterTranslation": "Erase source after translation (inpainting)",
+    "startSelected": "Translate {{count}} selected SFX",
+    "allComplete": "No SFX candidates are pending.",
+    "allCompleteHint": "Detection and translation history is retained. New candidates will appear here.",
+    "dismiss": "Remove from review",
+    "showAllPages": "Show all pages",
+    "showTranslations": "Show translations",
+    "saveAsDefault": "Save as defaults for next translation",
+    "reviewComplete": "Complete review"
   },
   "stylePresets": {
     "title": "Style presets",

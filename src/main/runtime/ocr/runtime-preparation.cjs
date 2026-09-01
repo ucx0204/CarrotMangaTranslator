@@ -19,6 +19,10 @@ const {
   ensurePaddleOcrModelAssetsDownloaded,
 } = require("../simple-page-model-assets.cjs");
 const { emitRuntimeProgress } = require("./host-services.cjs");
+const {
+  assertPaddleLegacyOcrPipeline,
+  isHayaiOcrPipeline,
+} = require("./engine-profile.cjs");
 
 const MANAGED_OCR_RUNTIME_FRAGMENTS = [
   "/manga-gemma-translator/ocr-runtime/",
@@ -27,13 +31,23 @@ const MANAGED_OCR_RUNTIME_FRAGMENTS = [
 ];
 
 /** @param {RuntimeOptions} options @param {OcrRuntimeLayout} runtime @returns {Promise<OcrRuntimeLayout>} */
-async function finalizePaddleOcrRuntime(options, runtime) {
-  await ensurePaddleOcrModelAssetsDownloaded(options, runtime);
+async function finalizeOcrRuntime(options, runtime) {
+  if (!isHayaiOcrPipeline(options)) {
+    await ensurePaddleOcrModelAssetsDownloaded(options, runtime);
+  }
   return runtime;
 }
 
 /** @param {RuntimeOptions} options @param {string} runtimeDir @returns {Promise<OcrRuntimeLayout>} */
+async function prepareOcrCachePaths(options, runtimeDir) {
+  return isHayaiOcrPipeline(options)
+    ? /** @type {OcrRuntimeLayout} */ ({})
+    : preparePaddlexCacheHome(options, runtimeDir);
+}
+
+/** @param {RuntimeOptions} options @param {string} runtimeDir @returns {Promise<OcrRuntimeLayout>} */
 async function preparePaddlexCacheHome(options, runtimeDir) {
+  assertPaddleLegacyOcrPipeline(options, "PaddleX cache preparation");
   const realPaddlexCacheHome = resolveRealPaddlexCacheHome(runtimeDir);
   const paddlexCacheHome = resolvePaddlexCacheHome(runtimeDir, options);
   await mkdir(realPaddlexCacheHome, { recursive: true });
@@ -272,7 +286,7 @@ function isManagedPackagePath(resolved, runtimeDir) {
     return belongsToManagedRuntime(normalized, normalizedRuntimeDir);
   }
   return (
-    base === "p" &&
+    (base === "p" || base === "h") &&
     Boolean(normalizedRuntimeDir) &&
     normalized.startsWith(normalizedRuntimeDir)
   );
@@ -295,7 +309,8 @@ function belongsToManagedRuntime(normalized, runtimeDir) {
 
 module.exports = {
   ensureEmbeddedPythonPackagePath,
-  finalizePaddleOcrRuntime,
+  finalizeOcrRuntime,
   isManagedOcrPackagePathLine,
+  prepareOcrCachePaths,
   preparePaddlexCacheHome,
 };

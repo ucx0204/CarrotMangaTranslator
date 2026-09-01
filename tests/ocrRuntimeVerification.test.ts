@@ -3,12 +3,25 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const { hasExpectedOcrPackages } =
+const { hasExpectedOcrPackages, hasOcrInstallMarker, writeOcrInstallMarker } =
   require("../src/main/runtime/ocr/runtime-verification.cjs") as {
     hasExpectedOcrPackages: (
       packageDir: string,
       options?: Record<string, unknown>,
     ) => boolean;
+    hasOcrInstallMarker: (
+      packageDir: string,
+      runtimeVariant: string,
+      options?: Record<string, unknown>,
+    ) => boolean;
+    writeOcrInstallMarker: (
+      packageDir: string,
+      payload: Record<string, unknown>,
+    ) => Promise<void>;
+  };
+const { resolveOcrInstallSignature } =
+  require("../src/main/runtime/ocr/install-plan.cjs") as {
+    resolveOcrInstallSignature: (options?: Record<string, unknown>) => string;
   };
 
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
@@ -94,5 +107,20 @@ describeWindows("OCR runtime package verification", () => {
         ocrGpuBackend: "cuda",
       }),
     ).toBe(true);
+  });
+
+  it("binds an install marker to both engine variant and package signature", async () => {
+    const packageDir = mkdtempSync(join(tmpdir(), "ocr-install-marker-"));
+    tempDirs.push(packageDir);
+    const options = { ocrPipeline: "hayai", ocrDevice: "cpu" };
+    const runtimeVariant = "hayai-cpu";
+
+    await writeOcrInstallMarker(packageDir, {
+      runtimeVariant,
+      packageSignature: resolveOcrInstallSignature(options),
+    });
+
+    expect(hasOcrInstallMarker(packageDir, runtimeVariant, options)).toBe(true);
+    expect(hasOcrInstallMarker(packageDir, "cpu", options)).toBe(false);
   });
 });

@@ -27,6 +27,12 @@ import { openManualErrorReport } from "../../lib/errorReportStore";
 import { createModalCloseActions } from "./createModalCloseActions";
 import { pickPanelFormatPatch } from "../../../../shared/panelBridgeTypes";
 import { createConditionalBatchEditorProps } from "./createConditionalBatchEditorProps";
+import {
+  createSoundEffectTranslationLauncherProps,
+  createSoundEffectTranslationModalProps,
+  createWorkspaceSoundEffectReviewProps,
+} from "./createSoundEffectReviewViewProps";
+import { isWorkspaceJobActive } from "./workspaceActivity";
 
 export function createAppSessionViewProps(model: AppSessionViewModel) {
   const workspaceProps = createWorkspaceProps(model);
@@ -47,6 +53,9 @@ export function createAppSessionViewProps(model: AppSessionViewModel) {
     rightRailProps: createRightRailProps(model),
     shortcutHelpProps: createShortcutHelpProps(model),
     sidebarProps: createSidebarProps(model),
+    soundEffectLauncherProps: createSoundEffectTranslationLauncherProps(model),
+    soundEffectTranslationModalProps:
+      createSoundEffectTranslationModalProps(model),
     styleGuideProps: createStyleGuideProps(model),
     translationOptionsProps: createTranslationOptionsProps(model),
     workspaceProps,
@@ -337,12 +346,14 @@ function createWorkspaceProps({
   blockEditingActions,
   core,
   derivedState,
-  importShareActions,
-  importShareModal,
+  importShareActions: shareActions,
+  importShareModal: shareModal,
   inpaintingBridge,
+  libraryActions,
   pointerHandlers,
   settingsDialog,
   uiState,
+  translationActions,
   workspaceHistory,
   libraryDrop,
 }: AppSessionViewModel): AppSessionViewProps["workspaceProps"] {
@@ -353,10 +364,11 @@ function createWorkspaceProps({
     interactionPreviewStore: pointerHandlers.interactionPreviewStore,
     imageRef: core.imageRef,
     brushColor: uiState.inpaintingPaintColor,
-    jobActive:
-      derivedState.selectedPageEditLocked ||
-      workspaceHistory.busy ||
-      libraryDrop.busy,
+    jobActive: isWorkspaceJobActive(
+      derivedState,
+      workspaceHistory,
+      libraryDrop,
+    ),
     jobState: core.jobState,
     maskStrokes: derivedState.patternMaskStrokes,
     lastRetouchTool: uiState.lastRetouchTool,
@@ -366,12 +378,10 @@ function createWorkspaceProps({
       blockEditingActions.updateBlock(blockId, { warpTransform: transform }),
     onApplyBubbleLayoutDraft: pointerHandlers.applyBubbleLayoutDraft,
     onCancelBubbleLayoutDraft: pointerHandlers.cancelBubbleLayoutDraft,
-    onOpenBatchImport: () =>
-      void importShareActions.openImportPreview("zip-folder"),
+    onOpenBatchImport: () => void shareActions.openImportPreview("zip-folder"),
     onOpenSettings: () => void settingsDialog.openSettings(),
-    onOpenShareImport: () => void importShareActions.openShareImportPreview(),
-    onOpenTranslationSource: () =>
-      importShareModal.setTranslationSourceOpen(true),
+    onOpenShareImport: () => void shareActions.openShareImportPreview(),
+    onOpenTranslationSource: () => shareModal.setTranslationSourceOpen(true),
     onSelectStageTool: (tool) => {
       core.setRegionSelection(null);
       uiState.selectWorkspaceTool(tool);
@@ -398,6 +408,13 @@ function createWorkspaceProps({
     selectedPageImagePageId: derivedState.workspaceImagePageId,
     showBlockChrome: uiState.showBlockChrome,
     showTextBlocks: uiState.showTextBlocks,
+    ...createWorkspaceSoundEffectReviewProps({
+      derivedState,
+      libraryActions,
+      settingsDialog,
+      uiState,
+      translationActions,
+    }),
     showingOriginalPeek: derivedState.showingOriginalPeek,
     stageRef: core.stageRef,
     stageSize: derivedState.stageSize,

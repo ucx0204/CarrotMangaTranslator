@@ -34,6 +34,7 @@ export type PromptOptions = {
   glossaryOmissionTerms?: unknown[];
   imageWidth?: unknown;
   imageHeight?: unknown;
+  ocrPipeline?: unknown;
   ocrBboxHints?: OcrHint[];
   [key: string]: unknown;
 };
@@ -102,6 +103,7 @@ export type OcrHint = {
   orderInGroup?: unknown;
   rolePrior?: unknown;
   containerType?: unknown;
+  geometryLocked?: unknown;
   [key: string]: unknown;
 };
 

@@ -3,51 +3,80 @@
 
 const { truncateText } = require("./config-values.cjs");
 const {
-  isOcrCudaTransformersRuntime,
+  isOcrCudaTorchRuntime,
   isOcrGpuRequested,
-  isOcrTransformersRuntime,
-  resolveOcrDevice,
+  isOcrTorchRuntime,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrTorchCudaTag,
 } = require("./runtime-device.cjs");
+const {
+  isHayaiOcrPipeline,
+  resolveOcrEngineLabel,
+} = require("./engine-profile.cjs");
+const {
+  buildOcrRuntimeImportCheckScript,
+} = require("./runtime-import-check-script.cjs");
 
 /** @param {unknown} importMessage @param {RuntimeOptions} [options] @returns {string} */
-function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
+function buildOcrRuntimeImportFailureMessage(importMessage, options = {}) {
+  const preflightFailure = resolveImportPreflightFailure(
+    importMessage,
+    options,
+  );
+  if (preflightFailure) {
+    return preflightFailure;
+  }
+  if (
+    isOcrTorchRuntime(options) &&
+    isOcrNativeDllLoadFailureText(importMessage)
+  ) {
+    return buildOcrNativeDllFailureMessage(importMessage, options);
+  }
+  if (isRocmGpu(options)) {
+    return buildRocmImportFailureMessage(importMessage, options);
+  }
+  if (isOcrCudaTorchRuntime(options)) {
+    return buildCudaTransformersImportFailureMessage(importMessage, options);
+  }
+  if (
+    !isHayaiOcrPipeline(options) &&
+    isPaddleSm120UnsupportedText(importMessage)
+  ) {
+    return buildPaddleOcrSm120FailureMessage(importMessage, options);
+  }
+  if (isOcrNativeDllLoadFailureText(importMessage)) {
+    return buildOcrNativeDllFailureMessage(importMessage, options);
+  }
+  if (isOcrVerificationTimeoutText(importMessage)) {
+    return `${resolveOcrEngineLabel(options)} 런타임 설치 후 검증이 시간 초과되었습니다.${resolveOcrTimeoutSuffix(options)} detail=${truncateText(importMessage, 1200)}`;
+  }
+  return buildGenericImportFailureMessage(importMessage, options);
+}
+
+/** @param {unknown} importMessage @param {RuntimeOptions} options @returns {string | null} */
+function resolveImportPreflightFailure(importMessage, options) {
   if (isOcrBackendPackageIdentityFailureText(importMessage)) {
     return buildOcrBackendPackageIdentityFailureMessage(importMessage, options);
   }
   if (
-    isOcrTransformersRuntime(options) &&
-    isPaddleNativeDllLoadFailureText(importMessage)
+    isHayaiOcrPipeline(options) &&
+    isOcrVerificationTimeoutText(importMessage)
   ) {
-    return buildPaddleOcrNativeDllFailureMessage(importMessage, options);
+    return `HayaiOCR 런타임 설치 후 검증이 시간 초과되었습니다.${resolveOcrTimeoutSuffix(options)} detail=${truncateText(importMessage, 1200)}`;
   }
-  if (isRocmGpu(options)) {
-    return buildRocmImportFailureMessage(importMessage);
-  }
-  if (isOcrCudaTransformersRuntime(options)) {
-    return buildCudaTransformersImportFailureMessage(importMessage, options);
-  }
-  if (isPaddleSm120UnsupportedText(importMessage)) {
-    return buildPaddleOcrSm120FailureMessage(importMessage, options);
-  }
-  if (isPaddleNativeDllLoadFailureText(importMessage)) {
-    return buildPaddleOcrNativeDllFailureMessage(importMessage, options);
-  }
-  if (isPaddleOcrVerificationTimeoutText(importMessage)) {
-    return `Paddle OCR 런타임 설치 후 검증이 시간 초과되었습니다.${resolvePaddleOcrTimeoutSuffix(options)} detail=${truncateText(importMessage, 1200)}`;
-  }
-  return buildGenericImportFailureMessage(importMessage, options);
+  return null;
 }
 
 /** @param {unknown} importMessage @param {RuntimeOptions} options @returns {string} */
 function buildOcrBackendPackageIdentityFailureMessage(importMessage, options) {
   const expected = !isOcrGpuRequested(options)
-    ? "CPU PaddlePaddle"
+    ? isHayaiOcrPipeline(options)
+      ? "CPU PyTorch 2.9.1"
+      : "CPU PaddlePaddle"
     : isRocmGpu(options)
       ? "PyTorch 2.9.1+rocm7.2.1"
-      : isOcrCudaTransformersRuntime(options)
+      : isOcrCudaTorchRuntime(options)
         ? `PyTorch 2.9.1+${resolveOcrTorchCudaTag(options)}`
         : `CUDA ${resolveOcrGpuCudaTag(options)} PaddlePaddle GPU`;
   return `OCR 장치와 다른 백엔드 패키지가 설치되어 실행을 중단했습니다. 필요 패키지: ${expected}. 잘못된 런타임은 재사용하지 않고 자동 재설치 대상으로 처리합니다. detail=${truncateText(importMessage, 1200)}`;
@@ -58,10 +87,13 @@ function buildCudaTransformersImportFailureMessage(importMessage, options) {
   const detail = importMessage
     ? ` detail=${truncateText(importMessage, 1200)}`
     : "";
-  if (isPaddleOcrVerificationTimeoutText(importMessage)) {
-    return `Paddle OCR 런타임 설치 후 NVIDIA CUDA/PyTorch 검증이 시간 초과되었습니다. 첫 PyTorch CUDA import는 오래 걸릴 수 있습니다.${detail}`;
+  const engine = resolveOcrEngineLabel(options);
+  if (isOcrVerificationTimeoutText(importMessage)) {
+    return `${engine} 런타임 설치 후 NVIDIA CUDA/PyTorch 검증이 시간 초과되었습니다. 첫 PyTorch CUDA import는 오래 걸릴 수 있습니다.${detail}`;
   }
-  return `NVIDIA OCR GPU 실행에 실패했습니다. 이 OCR 경로는 PyTorch CUDA + PaddleOCR Transformers engine을 사용합니다. NVIDIA 드라이버와 ${resolveOcrGpuCudaTag(options)} GPU 설정을 확인하세요.${detail}`;
+  return isHayaiOcrPipeline(options)
+    ? `HayaiOCR NVIDIA GPU 실행에 실패했습니다. PyTorch CUDA 런타임, NVIDIA 드라이버와 ${resolveOcrTorchCudaTag(options)} 설정을 확인하세요.${detail}`
+    : `NVIDIA OCR GPU 실행에 실패했습니다. 이 OCR 경로는 PyTorch CUDA + PaddleOCR Transformers engine을 사용합니다. NVIDIA 드라이버와 ${resolveOcrGpuCudaTag(options)} GPU 설정을 확인하세요.${detail}`;
 }
 
 /** @param {RuntimeOptions} options @returns {boolean} */
@@ -72,19 +104,29 @@ function isRocmGpu(options) {
   );
 }
 
-/** @param {unknown} importMessage @returns {string} */
-function buildRocmImportFailureMessage(importMessage) {
+/** @param {unknown} importMessage @param {RuntimeOptions} options @returns {string} */
+function buildRocmImportFailureMessage(importMessage, options) {
   const detail = importMessage
     ? ` detail=${truncateText(importMessage, 1200)}`
     : "";
-  if (isPaddleOcrVerificationTimeoutText(importMessage)) {
-    return `Paddle OCR 런타임 설치 후 AMD ROCm/PyTorch 검증이 시간 초과되었습니다. Windows ROCm PyTorch 첫 import가 오래 걸릴 수 있습니다.${detail}`;
+  const engine = resolveOcrEngineLabel(options);
+  if (isOcrVerificationTimeoutText(importMessage)) {
+    return `${engine} 런타임 설치 후 AMD ROCm/PyTorch 검증이 시간 초과되었습니다. Windows ROCm PyTorch 첫 import가 오래 걸릴 수 있습니다.${detail}`;
   }
-  return `AMD OCR GPU 실행에 실패했습니다. AMD 경로는 PaddlePaddle CUDA가 아니라 Windows ROCm PyTorch + PaddleOCR Transformers engine을 사용합니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 드라이버가 필요합니다. 실패가 반복되면 AMD ROCm OCR 안전 모드(dtype=float32, MIOpen 비활성화, det limit=1600)가 적용됐는지 확인하세요. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 변경하세요.${detail}`;
+  return isHayaiOcrPipeline(options)
+    ? `HayaiOCR AMD GPU 실행에 실패했습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 드라이버가 필요합니다. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 변경하세요.${detail}`
+    : `AMD OCR GPU 실행에 실패했습니다. AMD 경로는 PaddlePaddle CUDA가 아니라 Windows ROCm PyTorch + PaddleOCR Transformers engine을 사용합니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 드라이버가 필요합니다. 실패가 반복되면 AMD ROCm OCR 안전 모드(dtype=float32, MIOpen 비활성화, det limit=1600)가 적용됐는지 확인하세요. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 변경하세요.${detail}`;
 }
 
 /** @param {unknown} importMessage @param {RuntimeOptions} options @returns {string} */
 function buildGenericImportFailureMessage(importMessage, options) {
+  if (isHayaiOcrPipeline(options)) {
+    const deviceLabel = isOcrGpuRequested(options) ? "GPU" : "CPU";
+    const detail = importMessage
+      ? ` detail=${truncateText(importMessage, 1200)}`
+      : "";
+    return `HayaiOCR ${deviceLabel} 런타임을 불러오지 못했습니다. 선택한 장치와 PyTorch 런타임 설치 상태를 확인하세요.${detail}`;
+  }
   const suffix = isOcrGpuRequested(options)
     ? " GPU를 선택했지만 GPU Paddle/CUDA 검증에 실패했습니다. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 바꾸거나, GPU를 계속 쓰려면 CUDA 드라이버와 GPU Paddle wheel을 확인하세요."
     : "";
@@ -95,21 +137,21 @@ function buildGenericImportFailureMessage(importMessage, options) {
 }
 
 /** @param {RuntimeOptions} options @returns {string} */
-function resolvePaddleOcrTimeoutSuffix(options) {
+function resolveOcrTimeoutSuffix(options) {
   if (!isOcrGpuRequested(options)) {
     return " CPU 런타임 검증이 제한 시간 안에 끝나지 않았습니다.";
   }
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return " AMD ROCm/PyTorch GPU 검증이 제한 시간 안에 끝나지 않았습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1 지원 GPU와 드라이버를 확인하세요.";
   }
-  if (isOcrCudaTransformersRuntime(options)) {
+  if (isOcrCudaTorchRuntime(options)) {
     return " NVIDIA CUDA/PyTorch GPU 검증이 제한 시간 안에 끝나지 않았습니다. 첫 PyTorch CUDA import가 오래 걸릴 수 있지만, 반복되면 NVIDIA 드라이버와 OCR 런타임 설치 상태를 확인하세요.";
   }
   return " CUDA GPU 검증이 제한 시간 안에 끝나지 않았습니다. RTX 50번대는 cu129 런타임을 사용하며 첫 실행 검증이 오래 걸릴 수 있지만, 반복되면 NVIDIA 드라이버/CUDA 12.9용 Paddle 런타임 호환성을 확인해야 합니다.";
 }
 
 /** @param {unknown} error @param {RuntimeOptions} [options] @returns {string} */
-function buildPaddleOcrGpuFailureMessage(error, options = {}) {
+function buildOcrGpuFailureMessage(error, options = {}) {
   const text = summarizeOcrErrorMessage(error);
   if (isOcrBackendPackageIdentityFailureText(text)) {
     return buildOcrBackendPackageIdentityFailureMessage(text, options);
@@ -120,30 +162,30 @@ function buildPaddleOcrGpuFailureMessage(error, options = {}) {
   if (isGpuDeviceLostOrTdrText(text)) {
     return `GPU 드라이버가 재설정되어 OCR이 중단됐습니다. 디스플레이 겸용 GPU에서 오래 걸리는 연산은 Windows TDR(기본 2초)로 끊길 수 있습니다. AMD/NVIDIA 드라이버를 최신으로 유지하고, 반복되면 README의 TdrDelay 안내를 참고하거나 설정에서 OCR 장치를 CPU로 직접 바꾸세요. detail=${truncateText(text, 1200)}`;
   }
-  if (
-    isOcrTransformersRuntime(options) &&
-    isPaddleNativeDllLoadFailureText(text)
-  ) {
-    return buildPaddleOcrNativeDllFailureMessage(text, options);
+  if (isOcrTorchRuntime(options) && isOcrNativeDllLoadFailureText(text)) {
+    return buildOcrNativeDllFailureMessage(text, options);
   }
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
-    return buildRocmGpuFailureMessage(text);
+    return buildRocmGpuFailureMessage(text, options);
   }
-  if (isOcrCudaTransformersRuntime(options)) {
-    return `NVIDIA OCR GPU 실행에 실패했습니다. PyTorch CUDA + PaddleOCR Transformers 런타임과 NVIDIA 드라이버를 확인하세요. detail=${truncateText(text, 1200)}`;
+  if (isOcrCudaTorchRuntime(options)) {
+    return isHayaiOcrPipeline(options)
+      ? `HayaiOCR NVIDIA GPU 실행에 실패했습니다. PyTorch CUDA 런타임과 NVIDIA 드라이버를 확인하세요. detail=${truncateText(text, 1200)}`
+      : `NVIDIA OCR GPU 실행에 실패했습니다. PyTorch CUDA + PaddleOCR Transformers 런타임과 NVIDIA 드라이버를 확인하세요. detail=${truncateText(text, 1200)}`;
   }
-  if (isPaddleSm120UnsupportedText(text)) {
+  if (!isHayaiOcrPipeline(options) && isPaddleSm120UnsupportedText(text)) {
     return buildPaddleOcrSm120FailureMessage(text, options);
   }
   return `Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 NVIDIA GPU Paddle 런타임이 필요합니다. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 바꾸거나, GPU를 계속 쓰려면 NVIDIA 드라이버/CUDA용 Paddle 런타임을 확인하세요. detail=${truncateText(text, 1200)}`;
 }
 
-/** @param {string} text @returns {string} */
-function buildRocmGpuFailureMessage(text) {
+/** @param {string} text @param {RuntimeOptions} options @returns {string} */
+function buildRocmGpuFailureMessage(text, options) {
   if (isRocmHipAccessViolationText(text)) {
     return `Windows ROCm HIP 런타임의 알려진 간헐 크래시로 보입니다(amdhip64 access violation). AMD Adrenalin 드라이버를 최신으로 유지하고, 내장 GPU(iGPU)가 함께 있는 시스템이라면 BIOS에서 iGPU를 비활성화하면 도움이 될 수 있습니다. detail=${truncateText(text, 1200)}`;
   }
-  return `AMD OCR GPU 실행에 실패했습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 Python 3.12가 필요합니다. AMD ROCm 지원 GPU/드라이버와 OCR 안전 모드 설정을 확인하세요. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 변경하세요. detail=${truncateText(text, 1200)}`;
+  const engine = resolveOcrEngineLabel(options);
+  return `${engine} AMD GPU 실행에 실패했습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 Python 3.12가 필요합니다. AMD ROCm 지원 GPU/드라이버를 확인하세요. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 변경하세요. detail=${truncateText(text, 1200)}`;
 }
 
 /** @param {unknown} detail @param {RuntimeOptions} [options] @returns {string} */
@@ -152,14 +194,18 @@ function buildPaddleOcrSm120FailureMessage(detail, options = {}) {
 }
 
 /** @param {unknown} detail @param {RuntimeOptions} [options] @returns {string} */
-function buildPaddleOcrNativeDllFailureMessage(detail, options = {}) {
+function buildOcrNativeDllFailureMessage(detail, options = {}) {
+  const engine = resolveOcrEngineLabel(options);
   if (isRocmGpu(options)) {
-    return `AMD OCR GPU 런타임의 Windows ROCm PyTorch DLL을 불러오지 못했습니다. 자동 복구 후에도 반복되면 Microsoft Visual C++ 2015-2022 재배포 패키지, Windows ROCm PyTorch 2.9.1/ROCm 7.2.1 지원 GPU/드라이버와 OCR 런타임 설치 상태를 확인하세요. detail=${truncateText(detail, 1200)}`;
+    return `${engine} AMD GPU 런타임의 Windows ROCm PyTorch DLL을 불러오지 못했습니다. 자동 복구 후에도 반복되면 Microsoft Visual C++ 2015-2022 재배포 패키지, Windows ROCm PyTorch 2.9.1/ROCm 7.2.1 지원 GPU/드라이버와 OCR 런타임 설치 상태를 확인하세요. detail=${truncateText(detail, 1200)}`;
   }
-  if (isOcrCudaTransformersRuntime(options)) {
-    return `NVIDIA OCR GPU 런타임의 PyTorch CUDA DLL을 불러오지 못했습니다. 자동 복구 후에도 반복되면 Microsoft Visual C++ 2015-2022 재배포 패키지, NVIDIA 드라이버와 CUDA Transformers OCR 런타임 설치 상태를 확인하세요. detail=${truncateText(detail, 1200)}`;
+  if (isOcrCudaTorchRuntime(options)) {
+    return `${engine} NVIDIA GPU 런타임의 PyTorch CUDA DLL을 불러오지 못했습니다. 자동 복구 후에도 반복되면 Microsoft Visual C++ 2015-2022 재배포 패키지, NVIDIA 드라이버와 CUDA Transformers OCR 런타임 설치 상태를 확인하세요. detail=${truncateText(detail, 1200)}`;
   }
   const runtimeLabel = isOcrGpuRequested(options) ? "GPU" : "CPU";
+  if (isHayaiOcrPipeline(options)) {
+    return `HayaiOCR ${runtimeLabel} 런타임의 PyTorch 네이티브 DLL을 불러오지 못했습니다. 자동 복구 후에도 반복되면 Microsoft Visual C++ 2015-2022 재배포 패키지와 OCR 런타임 설치 상태를 확인하세요. detail=${truncateText(detail, 1200)}`;
+  }
   return `Paddle OCR ${runtimeLabel} 런타임의 네이티브 DLL을 불러오지 못했습니다. 앱이 Paddle 패키지 내부 DLL 경로를 다시 잡도록 수정했지만, 같은 오류가 반복되면 OCR 런타임을 삭제하고 재설치하거나 Microsoft Visual C++ 2015-2022 재배포 패키지가 설치되어 있는지 확인하세요. detail=${truncateText(detail, 1200)}`;
 }
 
@@ -171,7 +217,7 @@ function isPaddleSm120UnsupportedText(value) {
 }
 
 /** @param {unknown} value @returns {boolean} */
-function isPaddleNativeDllLoadFailureText(value) {
+function isOcrNativeDllLoadFailureText(value) {
   const text = String(value ?? "");
   if (
     /can not import paddle core|libpaddle\.pyd|dll load failed while importing libpaddle|the specified module could not be found/i.test(
@@ -223,8 +269,8 @@ function isRocmHipAccessViolationText(value) {
 }
 
 /** @param {unknown} value @returns {boolean} */
-function isPaddleOcrVerificationTimeoutText(value) {
-  return /Paddle OCR runtime verification timed out|OCR bbox command timed out/i.test(
+function isOcrVerificationTimeoutText(value) {
+  return /(?:Paddle OCR|HayaiOCR) runtime verification timed out|OCR bbox command timed out/i.test(
     String(value ?? ""),
   );
 }
@@ -249,120 +295,14 @@ function summarizeOcrErrorMessage(error) {
     : String(error);
 }
 
-/** @param {RuntimeOptions} [options] @returns {string} */
-function buildPaddleOcrImportCheckScript(options = {}) {
-  const device = resolveOcrDevice(options);
-  if (isOcrTransformersRuntime(options)) {
-    return resolveOcrGpuBackend(options) === "rocm-transformers"
-      ? buildRocmImportCheckScript()
-      : buildCudaTransformersImportCheckScript(options);
-  }
-  return buildPaddleImportCheckScript(device);
-}
-
-/** @returns {string} */
-function buildRocmImportCheckScript() {
-  return [
-    ...buildTransformersImportPrelude(),
-    "assert not missing, 'Missing AMD ROCm OCR package(s): ' + ', '.join(missing)",
-    "import torch",
-    "_expected_rocm_tag = '+rocm7.2.1'",
-    "_torch_version = str(torch.__version__).lower()",
-    "assert _torch_version.endswith(_expected_rocm_tag), 'Unexpected AMD ROCm PyTorch build: expected ' + _expected_rocm_tag + ', got ' + _torch_version",
-    "assert getattr(torch.version, 'hip', None), 'PyTorch is not a ROCm/HIP build'",
-    "import torchvision",
-    "_torchvision_version = str(torchvision.__version__).lower()",
-    "assert _torchvision_version.endswith(_expected_rocm_tag), 'Unexpected AMD ROCm TorchVision build: expected ' + _expected_rocm_tag + ', got ' + _torchvision_version",
-    "assert torch.cuda.is_available(), 'AMD ROCm PyTorch GPU is not available'",
-    "x = torch.ones((1,), device='cuda')",
-    "torch.cuda.synchronize()",
-    "import tokenizers",
-    "assert tokenizers.__version__.replace('-', '') == '0.23.0rc0', 'Unsupported tokenizers version: ' + tokenizers.__version__",
-    "import transformers",
-    "_auto_image_processor = transformers.AutoImageProcessor",
-    "_auto_object_detector = transformers.AutoModelForObjectDetection",
-    "print('torch', torch.__version__)",
-    "print('hip', torch.version.hip)",
-    "print('gpu', torch.cuda.get_device_name(0))",
-    "from paddleocr import PaddleOCR",
-  ].join("; ");
-}
-
-/** @param {RuntimeOptions} options @returns {string} */
-function buildCudaTransformersImportCheckScript(options) {
-  const expectedCudaTag = `+${resolveOcrTorchCudaTag(options)}`;
-  return [
-    ...buildTransformersImportPrelude(),
-    "assert not missing, 'Missing NVIDIA CUDA Transformers OCR package(s): ' + ', '.join(missing)",
-    "import torch",
-    `_expected_cuda_tag = ${JSON.stringify(expectedCudaTag)}`,
-    "_torch_version = str(torch.__version__).lower()",
-    "assert _torch_version.endswith(_expected_cuda_tag), 'Unexpected NVIDIA CUDA PyTorch build: expected ' + _expected_cuda_tag + ', got ' + _torch_version",
-    "assert getattr(torch.version, 'cuda', None), 'PyTorch is not a CUDA build'",
-    "import torchvision",
-    "_torchvision_version = str(torchvision.__version__).lower()",
-    "assert _torchvision_version.endswith(_expected_cuda_tag), 'Unexpected NVIDIA CUDA TorchVision build: expected ' + _expected_cuda_tag + ', got ' + _torchvision_version",
-    "assert torch.cuda.is_available(), 'NVIDIA CUDA PyTorch GPU is not available'",
-    "x = torch.ones((1,), device='cuda')",
-    "torch.cuda.synchronize()",
-    "import tokenizers",
-    "assert tokenizers.__version__.replace('-', '') == '0.23.0rc0', 'Unsupported tokenizers version: ' + tokenizers.__version__",
-    "import transformers",
-    "_auto_image_processor = transformers.AutoImageProcessor",
-    "_auto_object_detector = transformers.AutoModelForObjectDetection",
-    "print('torch', torch.__version__)",
-    "print('cuda', torch.version.cuda)",
-    "print('gpu', torch.cuda.get_device_name(0))",
-    "from paddleocr import PaddleOCR",
-  ].join("; ");
-}
-
-/** @returns {string[]} */
-function buildTransformersImportPrelude() {
-  return [
-    "import os",
-    "_dll_dirs = [p for p in os.environ.get('MANGA_TRANSLATOR_OCR_DLL_DIRS', '').split(os.pathsep) if p]",
-    "_dll_handles = [os.add_dll_directory(p) for p in _dll_dirs if hasattr(os, 'add_dll_directory') and os.path.isdir(p)]",
-    "import importlib.util",
-    "missing = [name for name in ('torch', 'torchvision', 'transformers', 'tokenizers', 'paddlex', 'paddleocr', 'safetensors') if importlib.util.find_spec(name) is None]",
-  ];
-}
-
-/** @param {string} device @returns {string} */
-function buildPaddleImportCheckScript(device) {
-  const lines = [
-    "import os",
-    "_dll_dirs = [p for p in os.environ.get('MANGA_TRANSLATOR_OCR_DLL_DIRS', '').split(os.pathsep) if p]",
-    "_dll_handles = [os.add_dll_directory(p) for p in _dll_dirs if hasattr(os, 'add_dll_directory') and os.path.isdir(p)]",
-    "import importlib.util",
-    "missing = [name for name in ('paddle', 'paddlex', 'paddleocr') if importlib.util.find_spec(name) is None]",
-    "assert not missing, 'Missing Paddle OCR package(s): ' + ', '.join(missing)",
-    "import paddle",
-    "from paddleocr import PaddleOCR",
-  ];
-  if (device.startsWith("gpu")) {
-    lines.push(
-      "assert paddle.device.is_compiled_with_cuda(), 'PaddlePaddle is not compiled with CUDA'",
-      "count = paddle.device.cuda.device_count()",
-      "assert count > 0, 'No CUDA device is visible to PaddlePaddle'",
-      `paddle.set_device(${JSON.stringify(device)})`,
-    );
-  } else {
-    lines.push(
-      "assert not paddle.device.is_compiled_with_cuda(), 'Unexpected CPU PaddlePaddle build: CUDA-enabled package installed'",
-    );
-  }
-  return lines.join("; ");
-}
-
 module.exports = {
-  buildPaddleOcrGpuFailureMessage,
-  buildPaddleOcrImportCheckScript,
-  buildPaddleOcrImportFailureMessage,
+  buildOcrGpuFailureMessage,
+  buildOcrRuntimeImportCheckScript,
+  buildOcrRuntimeImportFailureMessage,
   isGpuDeviceLostOrTdrText,
   isGpuOutOfMemoryText,
   isOcrBackendPackageIdentityFailureText,
-  isPaddleNativeDllLoadFailureText,
+  isOcrNativeDllLoadFailureText,
   isPaddleSm120UnsupportedText,
   isRocmHipAccessViolationText,
   summarizeOcrErrorMessage,

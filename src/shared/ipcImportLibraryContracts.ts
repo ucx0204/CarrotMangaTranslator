@@ -7,6 +7,10 @@ import type {
 } from "./importTypes";
 import type { ChapterSnapshot, LibraryIndex } from "./libraryTypes";
 import type {
+  PrepareSoundEffectTranslationRequest,
+  PrepareSoundEffectTranslationResult,
+} from "./analysisTypes";
+import type {
   SavePageBlocksRequest,
   SavePagesBlocksRequest,
   WorkShareExportRequest,
@@ -24,6 +28,11 @@ import {
   WorkShareExportRequestSchema,
   WorkShareImportRequestSchema,
 } from "./ipcSchemas";
+import {
+  DismissSoundEffectReviewRegionRequestSchema,
+  PrepareSoundEffectTranslationPageSchema,
+  PrepareSoundEffectTranslationRequestSchema,
+} from "./ipcSoundEffectReviewSchemas";
 import {
   defineIpcContract,
   diagnosticString,
@@ -153,6 +162,29 @@ const workShareImportResultSchema = z
     workId: stringArg,
     chapterIds: stringListArg,
     openedChapter: ChapterSnapshotSchema.optional(),
+  })
+  .strict();
+
+const preparedSoundEffectTargetSchema = z
+  .object({
+    pageId: PrepareSoundEffectTranslationPageSchema.shape.pageId,
+    pageRevision: PrepareSoundEffectTranslationPageSchema.shape.pageRevision,
+    regionIds: z
+      .array(z.string().min(1).max(80))
+      .min(1)
+      .max(MAX_ID_LIST_LENGTH)
+      .refine((ids) => new Set(ids).size === ids.length),
+  })
+  .strict();
+
+const prepareSoundEffectTranslationResultSchema = z
+  .object({
+    chapter: ChapterSnapshotSchema,
+    targets: z
+      .array(preparedSoundEffectTargetSchema)
+      .max(MAX_PAGES_PER_REQUEST),
+    includedRegionCount: nonNegativeInteger,
+    dismissedRegionCount: nonNegativeInteger,
   })
   .strict();
 
@@ -321,5 +353,27 @@ export const libraryIpcContracts = {
     channel: "library:delete-page",
     args: z.tuple([stringArg, stringArg]),
     result: ChapterSnapshotSchema,
+  }),
+  dismissSoundEffectReviewRegion: defineIpcContract<
+    [string, string, string],
+    ChapterSnapshot
+  >({
+    apiKey: "dismissSoundEffectReviewRegion",
+    channel: "library:dismiss-sound-effect-review-region",
+    args: z.tuple([
+      DismissSoundEffectReviewRegionRequestSchema.shape.chapterId,
+      DismissSoundEffectReviewRegionRequestSchema.shape.pageId,
+      DismissSoundEffectReviewRegionRequestSchema.shape.regionId,
+    ]),
+    result: ChapterSnapshotSchema,
+  }),
+  prepareSoundEffectTranslation: defineIpcContract<
+    [PrepareSoundEffectTranslationRequest],
+    PrepareSoundEffectTranslationResult
+  >({
+    apiKey: "prepareSoundEffectTranslation",
+    channel: "library:prepare-sound-effect-translation",
+    args: z.tuple([PrepareSoundEffectTranslationRequestSchema]),
+    result: prepareSoundEffectTranslationResultSchema,
   }),
 } as const;

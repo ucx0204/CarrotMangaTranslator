@@ -11,7 +11,7 @@ export async function configureWholePageOutputOptions({
   chapterId,
   dependencies,
   naturalTextLayout,
-  fontSizeAutoFit = true,
+  aiFontSizeMatching = true,
   run,
   workId,
 }: {
@@ -19,7 +19,7 @@ export async function configureWholePageOutputOptions({
   chapterId?: string;
   dependencies: FontMatchingOutputDependencies;
   naturalTextLayout: boolean;
-  fontSizeAutoFit?: boolean;
+  aiFontSizeMatching?: boolean;
   run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
   workId?: string;
 }): Promise<void> {
@@ -43,6 +43,6 @@ export async function configureWholePageOutputOptions({
     fontMatchingEnabled,
     { workId, chapterId, profile: profileLoad.profile },
     candidates,
-    fontSizeAutoFit,
+    aiFontSizeMatching,
   );
 }

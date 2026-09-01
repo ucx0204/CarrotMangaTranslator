@@ -64,7 +64,7 @@ describe("text wrapping settings", () => {
 
   it("requires a supported wrapping default in settings IPC", () => {
     const settings = resolveDefaultAppSettings({}, null);
-    expect(settings.blockFormatDefaults?.wordBreak).toBe("break-word");
+    expect(settings.blockFormatDefaults?.wordBreak).toBe("keep-all-overflow");
     expect(AppSettingsSchema.safeParse(settings).success).toBe(true);
 
     const blockFormatDefaults = settings.blockFormatDefaults;

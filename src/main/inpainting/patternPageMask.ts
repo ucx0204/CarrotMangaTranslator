@@ -36,6 +36,7 @@ export type PatternPageMaskMode = "glyph" | "flux-region";
 
 export function buildPatternPageMask(options: {
   blockId?: string;
+  blockIds?: readonly string[];
   page: MangaPage;
   bitmap: Buffer;
   /** Immutable decoded original used only for diagnostic source evidence. */
@@ -63,6 +64,7 @@ export function buildPatternPageMask(options: {
         block,
         options.blockId,
         options.excludedBlockIds,
+        options.blockIds,
       )
     ) {
       continue;

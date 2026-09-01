@@ -83,6 +83,7 @@ async function runWholePagePipelineWithDependencies(
   dependencies: WholePagePipelineDependencies,
   injectedDependencies: boolean,
 ): Promise<WholePagePipelineResult> {
+  const aiFontSizeMatching = resolveAiFontSizeMatching(options);
   const {
     onCleanupReady,
     onPagePrepared,
@@ -101,7 +102,6 @@ async function runWholePagePipelineWithDependencies(
     cumulativeContextDetail = "detailed",
     naturalTextLayout = false,
     autoFontMatching = false,
-    fontSizeAutoFit = true,
     canonicalPageIndexById,
     fontContinuityPages,
   } = options;
@@ -126,7 +126,7 @@ async function runWholePagePipelineWithDependencies(
       chapterId: workContext?.chapterId,
       dependencies,
       naturalTextLayout,
-      fontSizeAutoFit,
+      aiFontSizeMatching,
       run,
       workId: workContext?.workId,
     }),
@@ -137,6 +137,7 @@ async function runWholePagePipelineWithDependencies(
   const modelPages = pages.filter((page) => !reusableCheckpoints.has(page.id));
   const filtered = filterPagesByOcrText(modelPages, ocrHintsByPageId, {
     allowNoTextSkip: !collectPageContext && allowOcrNoTextSkip(run.baseOptions),
+    ocrPipeline: run.baseOptions.ocrPipeline,
   });
   filtered.pageIndexById = buildPageIndexById(pages);
   throwIfAborted(signal);
@@ -192,6 +193,10 @@ async function runWholePagePipelineWithDependencies(
     reusableCheckpoints,
     fontContinuityPages,
   });
+}
+
+function resolveAiFontSizeMatching(options: PipelineOptions): boolean {
+  return options.aiFontSizeMatching ?? options.fontSizeAutoFit ?? true;
 }
 
 async function persistPrepassPageContexts({

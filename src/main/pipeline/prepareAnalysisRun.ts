@@ -13,6 +13,7 @@ import type { ChapterRunPaths } from "../library";
 import type { PipelineOptions } from "./types";
 import type { WholePagePipelineDependencies } from "./wholePagePipelinePorts";
 import { throwIfAborted } from "./failure";
+import { resolveOcrPipeline } from "../../shared/ocrEngines";
 
 export type AnalysisRun = {
   paths: AppPaths;
@@ -70,6 +71,7 @@ export async function prepareAnalysisRun({
     emit,
     progressTotal: pages.length,
     pageTotal: pages.length,
+    ocrPipeline: resolveOcrPipeline(baseOptions.ocrPipeline),
   };
 
   dependencies.diagnostics.info("Analysis pipeline initialized", {

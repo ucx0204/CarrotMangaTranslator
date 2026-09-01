@@ -4,41 +4,18 @@
  * @typedef {{ onProgress?: ((progress: Record<string, unknown>) => void) | null; [key: string]: unknown }} RuntimeProgressOptions
  * @typedef {{ phase?: string; progressText?: string; detailPrefix?: string; startPercent?: unknown; endPercent?: unknown }} TaskProgressConfig
  * @typedef {{ setStep(text: string, startPercent: unknown, endPercent: unknown): void; completeStep(text?: string): void; log(line: unknown): void; stop(finalProgress?: FinalProgress | null): void }} TaskProgressMonitor
- * @typedef {{ progressText?: string; progressCurrent?: unknown; progressTotal?: unknown }} OcrCommandProgressConfig
+ * @typedef {{ engineLabel?: string; progressText?: string; progressCurrent?: unknown; progressTotal?: unknown }} OcrCommandProgressConfig
  */
 const {
   clampProgressRatio,
   formatBytes,
-  formatPaddleModelFetchProgress,
+  formatOcrModelFetchProgress,
   parseOcrBatchProgressLine,
-  parsePaddleModelFetchProgress,
+  parseOcrModelFetchProgress,
   parsePipRawProgress,
   sanitizeInstallLogLine,
 } = require("./simple-page-progress.cjs");
-
-/**
- * @param {RuntimeProgressOptions} options
- * @param {string} phase
- * @param {string} progressText
- * @param {unknown} detail
- * @param {Record<string, unknown>} [progress]
- */
-function emitRuntimeProgress(
-  options = {},
-  phase,
-  progressText,
-  detail,
-  progress = {},
-) {
-  if (typeof options.onProgress !== "function") {
-    return;
-  }
-  try {
-    options.onProgress({ phase, progressText, detail, ...progress });
-  } catch (_error) {
-    // error-policy-allow: observer failures must never interrupt OCR work.
-  }
-}
+const { emitRuntimeProgress } = require("./ocr/host-services.cjs");
 
 /**
  * @param {RuntimeProgressOptions} [options]
@@ -141,7 +118,7 @@ function createOcrCommandProgressHandler(options = {}, config = {}) {
       return;
     }
 
-    const fetchProgress = parsePaddleModelFetchProgress(logLine);
+    const fetchProgress = parseOcrModelFetchProgress(logLine);
     const isModelStatusLine =
       Boolean(fetchProgress) ||
       /^(Creating model:|Checking connectivity|Using official model|Fetching \d+ files:)/i.test(
@@ -152,7 +129,7 @@ function createOcrCommandProgressHandler(options = {}, config = {}) {
     }
 
     const detail = fetchProgress
-      ? formatPaddleModelFetchProgress(fetchProgress)
+      ? formatOcrModelFetchProgress(fetchProgress, config.engineLabel || "OCR")
       : logLine;
     const now = Date.now();
     if (detail === lastDetail && now - lastAt < 2000) {
@@ -164,7 +141,7 @@ function createOcrCommandProgressHandler(options = {}, config = {}) {
     emitRuntimeProgress(
       options,
       "ocr_running",
-      config.progressText || "Paddle OCR 모델 다운로드/위치 분석 중",
+      config.progressText || "OCR 모델 다운로드/위치 분석 중",
       detail,
       {
         progressMode: "log-only",

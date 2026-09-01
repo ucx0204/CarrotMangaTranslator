@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { TFunction } from "i18next";
 import { formatElapsedDuration } from "../src/renderer/src/lib/appHelpers";
 import {
-  formatBytes,
   formatJobEventLine,
   formatJobLabel,
   resolveProgressSnapshot,
-  summarizeWarnings,
 } from "../src/renderer/src/lib/jobProgress";
+import {
+  formatBytes,
+  summarizeWarnings,
+} from "../src/renderer/src/lib/jobProgressFormatting";
 
 const testTranslator = ((key: string) =>
   `translated:${key}`) as TFunction<"renderer">;
@@ -47,6 +49,41 @@ describe("job progress helpers", () => {
         pageTotal: 20,
       }),
     ).toBe("3 / 20 페이지 Paddle OCR 분석 중");
+
+    expect(
+      formatJobLabel({
+        status: "running",
+        phase: "ocr_running",
+        ocrPipeline: "hayai",
+        pageIndex: 3,
+        pageTotal: 20,
+      }),
+    ).toBe("3 / 20 페이지 HayaiOCR 분석 중");
+
+    expect(
+      formatJobLabel({
+        status: "starting",
+        phase: "ocr_preparing",
+        ocrPipeline: "hayai",
+      }),
+    ).toBe("HayaiOCR 준비 중");
+
+    expect(
+      formatJobLabel({
+        status: "starting",
+        phase: "ocr_downloading",
+        ocrPipeline: "hayai",
+      }),
+    ).toBe("HayaiOCR 다운로드/설치 중");
+
+    expect(
+      formatJobLabel({
+        status: "running",
+        phase: "ocr_running",
+        ocrPipeline: "hayai",
+        progressText: "Paddle OCR 선분석 완료",
+      }),
+    ).toBe("HayaiOCR 분석 중");
 
     expect(
       formatJobLabel({

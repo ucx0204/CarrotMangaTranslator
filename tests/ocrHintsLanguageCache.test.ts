@@ -5,6 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationOptions } from "../src/main/appSettings";
 import { prepareOcrHintsForPages } from "../src/main/pipeline/ocrHints";
+import {
+  readCachedOcrHints,
+  writeCachedOcrHints,
+} from "../src/main/pipeline/ocrHintsCache";
 import type { TranslationRuntimePort } from "../src/main/pipeline/translationRuntimePort";
 import type { OcrBboxResult } from "../src/main/pipeline/types";
 
@@ -218,7 +222,7 @@ describe("OCR hint language cache", () => {
       schemaVersion: number;
       hints: Array<{ ocrText?: string }>;
     };
-    expect(staleCache.schemaVersion).toBe(10);
+    expect(staleCache.schemaVersion).toBe(11);
     staleCache.schemaVersion = 9;
     const staleHint = staleCache.hints[0];
     if (!staleHint) throw new Error("Expected one cached OCR hint");
@@ -259,7 +263,7 @@ describe("OCR hint language cache", () => {
         animeTextModelRevision?: string;
       }>;
     };
-    expect(rewrittenCache.schemaVersion).toBe(10);
+    expect(rewrittenCache.schemaVersion).toBe(11);
     expect(rewrittenCache.groupingEvidence).toEqual({
       contractVersion: 1,
       status: "completed",
@@ -270,7 +274,7 @@ describe("OCR hint language cache", () => {
     });
   });
 
-  it("retries unavailable schema 10 grouping evidence without rerunning Paddle OCR", async () => {
+  it("retries unavailable grouping evidence into schema 11 without rerunning Paddle OCR", async () => {
     const chapterDir = await mkdtemp(join(tmpdir(), "mgt-ocr-yolo-retry-"));
     tempDirs.push(chapterDir);
     const page = makePage();
@@ -353,12 +357,102 @@ describe("OCR hint language cache", () => {
       groupingEvidence?: unknown;
     };
     expect(finalCache).toMatchObject({
-      schemaVersion: 10,
+      schemaVersion: 11,
       groupingEvidence: {
         contractVersion: 1,
         status: "completed",
       },
     });
+  });
+
+  it("round-trips only valid effect review candidates at the cache boundary", async () => {
+    const chapterDir = await mkdtemp(join(tmpdir(), "mgt-ocr-effect-cache-"));
+    tempDirs.push(chapterDir);
+    const cachePath = join(chapterDir, "result.json");
+    const page = makePage();
+    const options = {
+      sourceLanguage: "ja",
+      ocrPipeline: "hayai",
+      ocrDevice: "gpu",
+      ocrGpuBackend: "cuda",
+    } as TranslationOptions;
+
+    await writeCachedOcrHints(
+      cachePath,
+      page,
+      {
+        hints: [],
+        diagnostics: [],
+        noTextDetected: false,
+        effectReviewRegions: [
+          {
+            id: "written-before-validation",
+            bbox: { x: 1, y: 2, w: 3, h: 4 },
+            detectorConfidence: 0.5,
+          },
+        ],
+      },
+      options,
+    );
+    const raw = JSON.parse(await readFile(cachePath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    expect(raw.effectReviewRegions).toHaveLength(1);
+    raw.schemaVersion = 10;
+    raw.effectReviewRegions = [
+      null,
+      [],
+      {},
+      {
+        id: "invalid-box",
+        bbox: { x: 1, y: 2, w: 0, h: 4 },
+        detectorConfidence: 0.5,
+      },
+      {
+        id: "invalid-confidence",
+        bbox: { x: 1, y: 2, w: 3, h: 4 },
+        detectorConfidence: "unknown",
+      },
+      {
+        id: "FX-high",
+        bbox: { x: 10, y: 20, w: 30, h: 40 },
+        detectorConfidence: 2,
+        recognizedText: "ゾッ",
+        sourceDetectionIds: ["K001", "", 42, "K002"],
+      },
+      {
+        id: "FX-low",
+        bbox: { x: 50, y: 60, w: 70, h: 80 },
+        detectorConfidence: -1,
+        recognizedText: "",
+      },
+    ];
+    await writeFile(cachePath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
+
+    const cached = await readCachedOcrHints(cachePath, page, options);
+    expect(cached?.schemaVersion).toBe(10);
+    expect(cached?.result.effectReviewRegions).toEqual([
+      {
+        id: "FX-high",
+        bbox: { x: 10, y: 20, w: 30, h: 40 },
+        detectorConfidence: 1,
+        recognizedText: "ゾッ",
+        sourceDetectionIds: ["K001", "K002"],
+      },
+      {
+        id: "FX-low",
+        bbox: { x: 50, y: 60, w: 70, h: 80 },
+        detectorConfidence: 0,
+      },
+    ]);
+
+    raw.effectReviewRegions = { invalid: true };
+    await writeFile(cachePath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
+    expect(
+      (await readCachedOcrHints(cachePath, page, options))?.result
+        .effectReviewRegions,
+    ).toBeUndefined();
   });
 });
 

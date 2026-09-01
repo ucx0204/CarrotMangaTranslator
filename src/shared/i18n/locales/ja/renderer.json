@@ -64,11 +64,13 @@
       "finalizing": "結果を整理中",
       "done": "処理完了",
       "ocrDownloading": "Paddle OCRをダウンロード／インストール中",
+      "hayaiOcrDownloading": "HayaiOCRをダウンロード／インストール中",
       "ready": "モデルの準備完了",
       "cancelled": "処理をキャンセルしました",
       "failed": "処理に失敗しました",
       "partial": "処理は一部完了しました",
       "ocrPreparing": "Paddle OCRを準備中",
+      "hayaiOcrPreparing": "HayaiOCRを準備中",
       "modelRequesting": "AI翻訳をリクエスト中",
       "pageRunning": "翻訳中",
       "pageDone": "完了",
@@ -78,6 +80,8 @@
       "inpaintingDone": "原文の消去完了",
       "ocrRunning": "Paddle OCRで解析中",
       "ocrPreanalysisDone": "Paddle OCRの事前解析完了",
+      "hayaiOcrRunning": "HayaiOCRで解析中",
+      "hayaiOcrPreanalysisDone": "HayaiOCRの事前解析完了",
       "pageRetry": "ページを再試行中"
     },
     "status": {
@@ -577,6 +581,19 @@
       "blockMismatch_one": "{{page}}ページ: テキスト行の構成が{{count}}個の翻訳ブロックと一致しないためスキップしました。",
       "blockMismatch_other": "{{page}}ページ: テキスト行の構成が{{count}}個の翻訳ブロックと一致しないためスキップしました。"
     }
+  },
+  "soundEffectTranslation": {
+    "preparing": "効果音翻訳を準備中",
+    "failed": "効果音翻訳に失敗",
+    "startFailed": "効果音翻訳を開始できませんでした。",
+    "cancelled": "効果音翻訳をキャンセルしました。未処理の候補は保留のままです。",
+    "partial": "効果音翻訳が一部完了",
+    "completed": "効果音翻訳が完了",
+    "summary": "効果音{{translated}}件を翻訳 · {{remaining}}件保留"
+  },
+  "soundEffectReview": {
+    "dismissed": "効果音候補を確認対象から除外しました。",
+    "dismissFailed": "効果音候補を確認対象から除外できませんでした。"
   },
   "stylePresets": {
     "applied": "「{{name}}」を{{count}}個のブロックに適用しました。",

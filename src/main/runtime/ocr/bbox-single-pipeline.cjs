@@ -4,7 +4,7 @@
 /** @typedef {{ hints: unknown[]; diagnostics: unknown[]; noTextDetected: boolean; textEvidenceCount: number }} OcrBboxResult */
 /** @typedef {{ result: OcrBboxResult | null; diagnostics: unknown[] }} ConfiguredResult */
 /** @typedef {{ command?: unknown; outputPath?: unknown; runtimeDir?: unknown; runtimeVariant?: unknown; packageDir?: unknown; pythonPath?: unknown; runtimePrepared?: unknown; runtimeDiagnostics?: unknown; stdout?: unknown; stderr?: unknown; payload?: unknown }} CommandResult */
-/** @typedef {{ readFile: (path: string, encoding: "utf8") => Promise<string>; runtimeOverrideEnv: (name: string, options?: RuntimeOptions) => unknown; normalizeOcrBboxHintPayload: (payload: unknown, options?: OcrBboxOptions) => unknown[]; buildOcrBboxResult: (hints?: unknown[], diagnostics?: unknown[], options?: Record<string, unknown>) => OcrBboxResult; normalizeOcrBboxResultPayload: (value: unknown, options?: OcrBboxOptions) => { hints: unknown[]; diagnostics: unknown[]; noTextDetected?: boolean; textEvidenceCount?: number }; buildOcrBboxDiagnostic: (provider: string, error: unknown, extra?: Record<string, unknown>) => Record<string, unknown>; resolveOcrBboxProvider: (options?: OcrBboxOptions) => string; isOcrGpuRequested: (options?: OcrBboxOptions) => boolean; resolveEffectiveOcrDevice: (options?: OcrBboxOptions) => string; buildPaddleOcrGpuFailureMessage: (error: unknown, options?: OcrBboxOptions) => string; createOcrRuntimeError: (message: string, details: Record<string, unknown>, cause?: unknown) => Error; emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void; truncateText: (value: unknown, limit: number) => string; resolveOcrDeviceLabel: (options?: OcrBboxOptions) => string; runOcrBboxCommand: (options?: OcrBboxOptions, provider?: string) => Promise<CommandResult> }} Dependencies */
+/** @typedef {{ readFile: (path: string, encoding: "utf8") => Promise<string>; runtimeOverrideEnv: (name: string, options?: RuntimeOptions) => unknown; normalizeOcrBboxHintPayload: (payload: unknown, options?: OcrBboxOptions) => unknown[]; buildOcrBboxResult: (hints?: unknown[], diagnostics?: unknown[], options?: Record<string, unknown>) => OcrBboxResult; normalizeOcrBboxResultPayload: (value: unknown, options?: OcrBboxOptions) => { hints: unknown[]; diagnostics: unknown[]; noTextDetected?: boolean; textEvidenceCount?: number }; buildOcrBboxDiagnostic: (provider: string, error: unknown, extra?: Record<string, unknown>) => Record<string, unknown>; resolveOcrBboxProvider: (options?: OcrBboxOptions) => string; isManagedOcrBboxProvider: (provider: unknown) => boolean; isOcrGpuRequested: (options?: OcrBboxOptions) => boolean; resolveEffectiveOcrDevice: (options?: OcrBboxOptions) => string; buildOcrGpuFailureMessage: (error: unknown, options?: OcrBboxOptions) => string; createOcrRuntimeError: (message: string, details: Record<string, unknown>, cause?: unknown) => Error; emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void; truncateText: (value: unknown, limit: number) => string; resolveOcrDeviceLabel: (options?: OcrBboxOptions) => string; resolveOcrEngineLabel: (options?: OcrBboxOptions) => string; runOcrBboxCommand: (options?: OcrBboxOptions, provider?: string) => Promise<CommandResult> }} Dependencies */
 
 /** @param {Dependencies} dependencies */
 function createOcrSinglePipeline(dependencies) {
@@ -145,7 +145,7 @@ async function runProviderWithFailureHandling(
 /** @param {Dependencies} dependencies @param {string} provider @param {OcrBboxOptions} options */
 function isGpuExecutionFailure(dependencies, provider, options) {
   return (
-    provider === "paddleocr" &&
+    dependencies.isManagedOcrBboxProvider(provider) &&
     dependencies.isOcrGpuRequested(options) &&
     dependencies.resolveEffectiveOcrDevice(options) !== "cpu"
   );
@@ -153,11 +153,12 @@ function isGpuExecutionFailure(dependencies, provider, options) {
 
 /** @param {Dependencies} dependencies @param {OcrBboxOptions} options @param {unknown[]} diagnostics @param {unknown} error @returns {never} */
 function throwGpuExecutionFailure(dependencies, options, diagnostics, error) {
-  const message = dependencies.buildPaddleOcrGpuFailureMessage(error, options);
+  const message = dependencies.buildOcrGpuFailureMessage(error, options);
+  const label = dependencies.resolveOcrEngineLabel(options);
   emitGpuFailure(
     dependencies,
     options,
-    "Paddle OCR GPU 실행 실패 — 작업을 중지합니다",
+    `${label} GPU 실행 실패 — 작업을 중지합니다`,
     message,
   );
   throw dependencies.createOcrRuntimeError(message, { diagnostics }, error);
@@ -170,10 +171,11 @@ function emitGpuFailure(dependencies, options, title, detail) {
 
 /** @param {Dependencies} dependencies @param {OcrBboxOptions} options @param {string} provider */
 async function runProviderOcrBbox(dependencies, options, provider) {
+  const label = dependencies.resolveOcrEngineLabel(options);
   dependencies.emitRuntimeProgress(
     options,
     "ocr_preparing",
-    "Paddle OCR 준비 중",
+    `${label} 준비 중`,
     `장치: ${dependencies.resolveOcrDeviceLabel(options)}`,
   );
   const commandResult = await dependencies.runOcrBboxCommand(options, provider);
@@ -220,12 +222,13 @@ function buildProviderResult(dependencies, provider, commandResult, hints) {
 /** @param {Dependencies} dependencies @param {OcrBboxOptions} options @param {OcrBboxResult} result @param {number} hintCount */
 function emitProviderResult(dependencies, options, result, hintCount) {
   const device = dependencies.resolveOcrDeviceLabel(options);
+  const label = dependencies.resolveOcrEngineLabel(options);
   dependencies.emitRuntimeProgress(
     options,
     "ocr_running",
     result.noTextDetected
-      ? "Paddle OCR 텍스트 없음"
-      : `Paddle OCR 후보 ${hintCount}개 감지`,
+      ? `${label} 텍스트 없음`
+      : `${label} 일반 텍스트 영역 ${hintCount}개 감지`,
     result.noTextDetected
       ? `장치: ${device}, 텍스트 근거 없음`
       : `장치: ${device}`,

@@ -8,6 +8,7 @@ const { normalizeCommandSpec } = require("./transport/shell-text.cjs");
 const {
   resolveBootstrapPython,
   resolveEffectiveOcrDevice,
+  resolveOcrBboxProviderForRequest,
   resolveOcrDevice,
   resolveOcrGpuBackend,
 } = require("./simple-page-ocr-runtime-config.cjs");
@@ -80,7 +81,9 @@ function buildOcrBboxCommand(
     });
   }
 
-  if (provider === "paddleocr") {
+  const commandProvider = resolveOcrBboxProviderForRequest(options, provider);
+
+  if (commandProvider === "paddleocr") {
     return {
       executable: resolveOcrRuntimePythonPath(runtime, options),
       args: [
@@ -94,6 +97,27 @@ function buildOcrBboxCommand(
         resolveEffectiveOcrDevice(options),
         ...buildOcrSourceLanguageArgs(options),
         ...buildPaddleOcrBboxModeArgs(options),
+      ],
+    };
+  }
+
+  if (commandProvider === "hayai-regions") {
+    return {
+      executable: resolveOcrRuntimePythonPath(runtime, options),
+      args: [
+        "-u",
+        path.join(__dirname, "hayai-bboxes.py"),
+        "--image",
+        imagePath,
+        "--regions",
+        requireNonEmptyPath(
+          options.ocrBboxRegionsPath,
+          "HayaiOCR regions path",
+        ),
+        "--output",
+        normalizedOutputPath,
+        "--device",
+        resolveEffectiveOcrDevice(options),
       ],
     };
   }
@@ -114,9 +138,14 @@ function buildOcrBboxBatchCommand(
   runtime = null,
   progressPath = null,
 ) {
+  const provider = resolveOcrBboxProviderForRequest(
+    options,
+    options.ocrBboxProvider,
+  );
+  const scriptName = resolveManagedOcrBatchScript(provider);
   const args = [
     "-u",
-    path.join(__dirname, "paddleocr-bboxes.py"),
+    path.join(__dirname, scriptName),
     "--batch",
     requireNonEmptyPath(batchPath, "OCR batch path"),
   ];
@@ -128,17 +157,31 @@ function buildOcrBboxBatchCommand(
     );
   }
 
-  args.push(
-    "--device",
-    resolveEffectiveOcrDevice(options),
-    ...buildOcrSourceLanguageArgs(options),
-    ...buildPaddleOcrBboxModeArgs(options),
-  );
+  args.push("--device", resolveEffectiveOcrDevice(options));
+  if (provider !== "hayai-regions") {
+    args.push(
+      ...buildOcrSourceLanguageArgs(options),
+      ...buildPaddleOcrBboxModeArgs(options),
+    );
+  }
 
   return {
     executable: resolveOcrRuntimePythonPath(runtime, options),
     args,
   };
+}
+
+/** @param {string} provider @returns {"hayai-bboxes.py" | "paddleocr-bboxes.py"} */
+function resolveManagedOcrBatchScript(provider) {
+  if (provider === "hayai-regions") {
+    return "hayai-bboxes.py";
+  }
+  if (provider === "paddleocr") {
+    return "paddleocr-bboxes.py";
+  }
+  throw new TypeError(
+    `OCR batch command requires a managed provider, received: ${provider || "(empty)"}.`,
+  );
 }
 
 /**
@@ -396,7 +439,7 @@ function resolveOcrRuntimePythonPath(runtime = null, options = {}) {
   if (pythonPath) {
     return pythonPath;
   }
-  throw new Error("Paddle OCR bbox provider needs an isolated Python runtime.");
+  throw new Error("OCR bbox provider needs an isolated Python runtime.");
 }
 
 module.exports = {

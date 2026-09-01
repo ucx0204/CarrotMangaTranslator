@@ -90,3 +90,18 @@ export function createPageJobTargetSnapshot(
     revision: createPageRevision(page),
   };
 }
+
+/**
+ * SFX jobs also consume persisted detector candidates and their resolution
+ * ledger. Keep this separate from the normal translation revision so review
+ * metadata does not invalidate unrelated translation checkpoints.
+ */
+export function createSoundEffectReviewPageRevision(
+  page: Parameters<typeof createPageRevision>[0] &
+    Pick<MangaPage, "soundEffectReview">,
+): PageRevision {
+  return `page-v1:${hashStableValue({
+    base: createPageRevision(page),
+    soundEffectReview: page.soundEffectReview,
+  })}`;
+}

@@ -243,6 +243,7 @@ describe("AppSessionView render boundaries", () => {
       { gatherTextProps: {} },
       { pageRetranslateProps: {} },
       { shortcutHelpProps: { open: true } },
+      { soundEffectTranslationModalProps: {} },
       { styleGuideProps: {} },
       { translationOptionsProps: {} },
     ]) {
@@ -466,6 +467,7 @@ function closedFloatingOverlayState() {
     gatherTextProps: null,
     pageRetranslateProps: null,
     shortcutHelpProps: { open: false },
+    soundEffectTranslationModalProps: null,
     styleGuideProps: null,
     translationOptionsProps: null,
   };

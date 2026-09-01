@@ -47,6 +47,7 @@ export function isFloatingOverlaySubtreeActive(props: {
   gatherTextProps: unknown;
   pageRetranslateProps: unknown;
   shortcutHelpProps: { open: boolean };
+  soundEffectTranslationModalProps?: unknown;
   styleGuideProps: unknown;
   translationOptionsProps: unknown;
 }): boolean {
@@ -58,6 +59,7 @@ export function isFloatingOverlaySubtreeActive(props: {
     props.gatherTextProps ||
     props.pageRetranslateProps ||
     props.shortcutHelpProps.open ||
+    props.soundEffectTranslationModalProps ||
     props.styleGuideProps ||
     props.translationOptionsProps,
   );

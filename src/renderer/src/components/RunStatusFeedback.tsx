@@ -3,7 +3,7 @@ import { IconCircleCheck, IconDownload, IconEye } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
-import { formatBytes } from "../lib/jobProgress";
+import { formatBytes } from "../lib/jobProgressFormatting";
 import { JobProgressReadout } from "./JobProgressReadout";
 import { Button } from "./ui/Button";
 import { InlineMessage } from "./ui/InlineMessage";

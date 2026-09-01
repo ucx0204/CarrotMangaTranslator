@@ -3,16 +3,16 @@ import {
   buildOcrBboxCommand,
   buildOcrBboxBatchCommand,
   buildOcrRuntimeEnv,
-  buildPaddleOcrImportCheckScript,
-  buildPaddleOcrImportFailureMessage,
-  isPaddleNativeDllLoadFailureText,
+  buildOcrRuntimeImportCheckScript,
+  buildOcrRuntimeImportFailureMessage,
+  isOcrNativeDllLoadFailureText,
   resolveOcrPipInstallBatches,
   restoreEnv,
   DEFAULT_31B_REPO,
   DEFAULT_31B_FILE,
   DEFAULT_26B_REPO,
   DEFAULT_26B_FILE,
-  resolvePaddleOcrImportCheckTimeoutMs,
+  resolveOcrImportCheckTimeoutMs,
 } from "./helpers/runtimeModelContracts";
 import { join, delimiter } from "node:path";
 
@@ -45,6 +45,28 @@ describeWindows(
         "out.json",
         runtime,
       );
+      const hayaiCommand = buildOcrBboxCommand(
+        {
+          imagePath: "page.png",
+          ocrBboxRegionsPath: "hayai-regions.json",
+          ocrDevice: "gpu",
+          ocrGpuBackend: "rocm-transformers",
+        },
+        "hayai-regions",
+        "out.json",
+        runtime,
+      );
+      const hayaiCpuCommand = buildOcrBboxCommand(
+        {
+          imagePath: "page.png",
+          ocrBboxRegionsPath: "hayai-regions.json",
+          ocrDevice: "cpu",
+          ocrPipeline: "hayai",
+        },
+        "hayai-regions",
+        "out.json",
+        runtime,
+      );
 
       expect(cpuCommand.executable).toBe("python");
       expect(cudaCommand.executable).toBe("python");
@@ -65,6 +87,14 @@ describeWindows(
       expect(amdCommand.args).toContain("PP-OCRv6");
       expect(amdCommand.args).toContain("--merge-mode");
       expect(amdCommand.args).toContain("semantic");
+      expect(hayaiCommand.args[1]).toMatch(/hayai-bboxes\.py$/);
+      expect(hayaiCommand.args).toContain("--regions");
+      expect(hayaiCommand.args).toContain("hayai-regions.json");
+      expect(hayaiCommand.args).toContain("gpu:0");
+      expect(hayaiCommand.args).not.toContain("--bbox-mode");
+      expect(hayaiCpuCommand.args).toContain("--device");
+      expect(hayaiCpuCommand.args).toContain("cpu");
+      expect(hayaiCpuCommand.args).not.toContain("--bbox-mode");
     });
 
     it("keeps economy and full presets on the supported semantic OCR path", () => {
@@ -158,7 +188,7 @@ describeWindows(
       const dllParts = String(env.MANGA_TRANSLATOR_OCR_DLL_DIRS ?? "").split(
         delimiter,
       );
-      const script = buildPaddleOcrImportCheckScript({ ocrDevice: "cpu" });
+      const script = buildOcrRuntimeImportCheckScript({ ocrDevice: "cpu" });
 
       expect(pathParts).toContain(paddleBaseDir);
       expect(dllParts).toContain(paddleBaseDir);
@@ -171,7 +201,7 @@ describeWindows(
     });
 
     it("explains Paddle native DLL load failures separately from generic import errors", () => {
-      const message = buildPaddleOcrImportFailureMessage(
+      const message = buildOcrRuntimeImportFailureMessage(
         "Error: Can not import paddle core while this file exists: C:/ocr/python-packages-cpu/paddle/base/libpaddle.pyd\nImportError: DLL load failed while importing libpaddle: The specified module could not be found.",
         { ocrDevice: "cpu" },
       );
@@ -183,22 +213,22 @@ describeWindows(
 
     it("classifies PyTorch Windows DLL loader failures for VC++ auto-repair", () => {
       expect(
-        isPaddleNativeDllLoadFailureText(
+        isOcrNativeDllLoadFailureText(
           "ImportError: DLL load failed while importing _C: The specified procedure could not be found.",
         ),
       ).toBe(true);
       expect(
-        isPaddleNativeDllLoadFailureText(
+        isOcrNativeDllLoadFailureText(
           'OSError: [WinError 126] Error loading "C:\\ocr\\torch\\lib\\fbgemm.dll" or one of its dependencies.',
         ),
       ).toBe(true);
       expect(
-        isPaddleNativeDllLoadFailureText(
+        isOcrNativeDllLoadFailureText(
           'OSError: [WinError 126] Error loading "C:\\plugins\\unrelated.dll".',
         ),
       ).toBe(false);
       expect(
-        isPaddleNativeDllLoadFailureText(
+        isOcrNativeDllLoadFailureText(
           "ModuleNotFoundError: No module named 'torch'",
         ),
       ).toBe(false);
@@ -207,12 +237,12 @@ describeWindows(
     it("gives backend-specific VC++ guidance for PyTorch OCR DLL failures", () => {
       const failure =
         'OSError: [WinError 126] Error loading "C:\\ocr\\torch\\lib\\c10.dll" or one of its dependencies.';
-      const cudaMessage = buildPaddleOcrImportFailureMessage(failure, {
+      const cudaMessage = buildOcrRuntimeImportFailureMessage(failure, {
         ocrDevice: "gpu",
         ocrGpuBackend: "cuda",
         ocrEngine: "transformers",
       });
-      const rocmMessage = buildPaddleOcrImportFailureMessage(failure, {
+      const rocmMessage = buildOcrRuntimeImportFailureMessage(failure, {
         ocrDevice: "gpu",
         ocrGpuBackend: "rocm-transformers",
         ocrEngine: "transformers",
@@ -385,7 +415,7 @@ describeWindows(
       const previous = process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS;
       delete process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS;
       try {
-        const script = buildPaddleOcrImportCheckScript({
+        const script = buildOcrRuntimeImportCheckScript({
           ocrDevice: "gpu",
           ocrGpuCudaTag: "cu129",
         });
@@ -397,19 +427,19 @@ describeWindows(
         expect(script).not.toContain("torch.version");
         expect(script).toContain("paddle.set_device");
         expect(
-          resolvePaddleOcrImportCheckTimeoutMs({
+          resolveOcrImportCheckTimeoutMs({
             ocrDevice: "gpu",
             ocrGpuCudaTag: "cu129",
           }),
         ).toBeGreaterThanOrEqual(300000);
         expect(
-          resolvePaddleOcrImportCheckTimeoutMs({
+          resolveOcrImportCheckTimeoutMs({
             ocrDevice: "gpu",
             ocrGpuCudaTag: "cu126",
           }),
         ).toBeGreaterThanOrEqual(180000);
         expect(
-          resolvePaddleOcrImportCheckTimeoutMs({ ocrDevice: "cpu" }),
+          resolveOcrImportCheckTimeoutMs({ ocrDevice: "cpu" }),
         ).toBeGreaterThanOrEqual(120000);
       } finally {
         restoreEnv("MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS", previous);

@@ -18,6 +18,8 @@ import { StyleGuideModal } from "../../components/StyleGuideModal";
 import { TranslationOptionsModal } from "../../components/TranslationOptionsModal";
 import { BlockLibraryModal } from "../../components/BlockLibraryModal";
 import { ConditionalBatchEditor } from "../../components/ConditionalBatchEditor";
+import { SoundEffectTranslationLauncher } from "../../components/SoundEffectTranslationLauncher";
+import { SoundEffectTranslationModal } from "../../components/SoundEffectTranslationModal";
 import { ToastViewport } from "../../components/ui/ToastViewport";
 import { useEventCallback } from "../../hooks/useEventCallback";
 import { isOriginalImageOpacitySupported } from "../../lib/originalImageOpacity";
@@ -53,6 +55,12 @@ export type AppSessionViewProps = {
   rightRailProps: React.ComponentProps<typeof AppRightRail>;
   shortcutHelpProps: React.ComponentProps<typeof ShortcutHelp>;
   sidebarProps: React.ComponentProps<typeof AppSidebar>;
+  soundEffectLauncherProps: React.ComponentProps<
+    typeof SoundEffectTranslationLauncher
+  >;
+  soundEffectTranslationModalProps: React.ComponentProps<
+    typeof SoundEffectTranslationModal
+  > | null;
   styleGuideProps: React.ComponentProps<typeof StyleGuideModal> | null;
   translationOptionsProps: React.ComponentProps<
     typeof TranslationOptionsModal
@@ -74,6 +82,8 @@ export function AppSessionView({
   rightRailProps,
   shortcutHelpProps,
   sidebarProps,
+  soundEffectLauncherProps,
+  soundEffectTranslationModalProps,
   styleGuideProps,
   translationOptionsProps,
   workspaceProps,
@@ -84,6 +94,7 @@ export function AppSessionView({
     <PanelSessionContext.Provider value={stablePanelSessionValue}>
       <main className="app-shell">
         <AppSidebar {...sidebarProps} />
+        <SoundEffectTranslationLauncher {...soundEffectLauncherProps} />
         <div className="workspace-region">
           <AppWorkspace
             {...workspaceProps}
@@ -112,6 +123,7 @@ export function AppSessionView({
         gatherTextProps={gatherTextProps}
         pageRetranslateProps={pageRetranslateProps}
         shortcutHelpProps={shortcutHelpProps}
+        soundEffectTranslationModalProps={soundEffectTranslationModalProps}
         styleGuideProps={styleGuideProps}
         translationOptionsProps={translationOptionsProps}
       />
@@ -231,6 +243,7 @@ function SessionFloatingOverlays({
   gatherTextProps,
   pageRetranslateProps,
   shortcutHelpProps,
+  soundEffectTranslationModalProps,
   styleGuideProps,
   translationOptionsProps,
 }: Pick<
@@ -242,6 +255,7 @@ function SessionFloatingOverlays({
   | "gatherTextProps"
   | "pageRetranslateProps"
   | "shortcutHelpProps"
+  | "soundEffectTranslationModalProps"
   | "styleGuideProps"
   | "translationOptionsProps"
 >): React.JSX.Element {
@@ -255,6 +269,9 @@ function SessionFloatingOverlays({
         <CommandPalette {...commandPaletteProps} />
       ) : null}
       {shortcutHelpProps.open ? <ShortcutHelp {...shortcutHelpProps} /> : null}
+      {soundEffectTranslationModalProps ? (
+        <SoundEffectTranslationModal {...soundEffectTranslationModalProps} />
+      ) : null}
       {exportOptionsProps ? (
         <ExportOptionsModal {...exportOptionsProps} />
       ) : null}

@@ -84,10 +84,12 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.inpainting?.koharuBackend).toBe("auto");
     expect(defaults.inpainting?.bubbleLayoutAfterInpainting).toBe(false);
     expect(defaults.inpainting?.bubbleLayoutPaddingRatio).toBe(0.12);
-    expect(defaults.blockFormatDefaults?.wordBreak).toBe("break-word");
-    expect(defaults.ui?.naturalTextLayoutDefault).toBe(true);
+    expect(defaults.blockFormatDefaults?.wordBreak).toBe("keep-all-overflow");
+    expect(defaults.ui?.naturalTextLayoutDefault).toBe(false);
     expect(defaults.ui?.autoFontMatchingDefault).toBe(false);
-    expect(defaults.ui?.fontSizeAutoFitDefault).toBe(true);
+    expect(defaults.ui?.aiFontSizeMatchingDefault).toBe(true);
+    expect(defaults.ui?.sfxAutoFontMatchingDefault).toBe(false);
+    expect(defaults.ui?.sfxInpaintAfterTranslationDefault).toBe(false);
     expect(defaults.ui?.eraseOriginalWorkflowDefault).toBe(false);
     expect(defaults.ui?.bubbleLayoutWorkflowDefault).toBe(true);
     expect(defaults.ui?.wheelZoomSensitivityPercent).toBe(1);
@@ -123,13 +125,13 @@ describeWindows("app settings helpers: defaults and stored values", () => {
         JSON.stringify({ blockFormatDefaults: { wordBreak: "unsupported" } }),
         defaults,
       ).blockFormatDefaults?.wordBreak,
-    ).toBe("break-word");
+    ).toBe("keep-all-overflow");
     expect(
       parseStoredAppSettings(
         JSON.stringify({ blockFormatDefaults: {} }),
         defaults,
       ).blockFormatDefaults?.wordBreak,
-    ).toBe("break-word");
+    ).toBe("keep-all-overflow");
   });
 
   it("preserves the expanded manual typography ranges and half-pixel sizes", () => {
@@ -154,7 +156,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     });
   });
 
-  it("defaults natural layout on while preserving an explicit saved off setting", () => {
+  it("defaults natural layout off while preserving explicit saved settings", () => {
     const defaults = resolveDefaultAppSettings();
 
     expect(
@@ -166,7 +168,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(
       parseStoredAppSettings(JSON.stringify({ ui: {} }), defaults).ui
         ?.naturalTextLayoutDefault,
-    ).toBe(true);
+    ).toBe(false);
     expect(
       parseStoredAppSettings(
         JSON.stringify({ ui: { naturalTextLayoutDefault: false } }),
@@ -178,7 +180,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
         JSON.stringify({ ui: { naturalTextLayoutDefault: "yes" } }),
         defaults,
       ).ui?.naturalTextLayoutDefault,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("keeps legacy wheel zoom at 1% and accepts integer values through 10%", () => {
@@ -230,14 +232,14 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     ).toBe(false);
   });
 
-  it("moves the legacy basic-format auto-fit preference to translation defaults", () => {
+  it("moves legacy auto-fit preferences to AI font-size matching", () => {
     const defaults = resolveDefaultAppSettings();
 
     expect(
       parseStoredAppSettings(
         JSON.stringify({ blockFormatDefaults: { autoFitText: false } }),
         defaults,
-      ).ui?.fontSizeAutoFitDefault,
+      ).ui?.aiFontSizeMatchingDefault,
     ).toBe(false);
     expect(
       parseStoredAppSettings(
@@ -246,7 +248,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
           blockFormatDefaults: { autoFitText: false },
         }),
         defaults,
-      ).ui?.fontSizeAutoFitDefault,
+      ).ui?.aiFontSizeMatchingDefault,
     ).toBe(true);
   });
 

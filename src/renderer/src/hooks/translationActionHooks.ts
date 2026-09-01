@@ -27,6 +27,7 @@ import {
 } from "./translationActionUtils";
 import { useRunAnalysisAction } from "./useRunAnalysisAction";
 import { useTranslateSelectedRegionAction } from "./useTranslateSelectedRegionAction";
+import { useTranslateSoundEffectsAction } from "./useTranslateSoundEffectsAction";
 import { hashTranslationBlocks } from "../../../shared/blockFingerprint";
 import { useRunTranslationFlowAction } from "./useRunTranslationFlowAction";
 import {
@@ -75,8 +76,8 @@ export function useTranslationActionsImpl(
     cumulativeContextDetailDefault:
       options.cumulativeContextDetailDefault ?? "detailed",
     autoFontMatchingDefault: options.autoFontMatchingDefault ?? false,
-    naturalTextLayoutDefault: options.naturalTextLayoutDefault ?? true,
-    fontSizeAutoFitDefault: options.fontSizeAutoFitDefault ?? true,
+    naturalTextLayoutDefault: options.naturalTextLayoutDefault ?? false,
+    aiFontSizeMatchingDefault: options.aiFontSizeMatchingDefault ?? true,
   });
   const runAnalysis = useCheckpointedRunAnalysis(rawRunAnalysis, options);
   const runTranslationFlow = useCheckpointedTranslationFlow(
@@ -87,8 +88,17 @@ export function useTranslationActionsImpl(
     options,
     notificationPort,
   );
+  const translateSoundEffects = useTranslateSoundEffectsAction(
+    options,
+    notificationPort,
+  );
 
-  return { runAnalysis, runTranslationFlow, translateSelectedRegion };
+  return {
+    runAnalysis,
+    runTranslationFlow,
+    translateSelectedRegion,
+    translateSoundEffects,
+  };
 }
 
 function useCheckpointedRunAnalysis(

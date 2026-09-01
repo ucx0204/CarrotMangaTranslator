@@ -50,6 +50,14 @@ export function applyOcrCandidateGeometryLocks(
     if (!lockedHint || !isNearOcrHint(item.bbox, lockedHint.bbox, page)) {
       return item;
     }
+    if (lockedHint.geometryLocked) {
+      return {
+        ...attachSourceFontLineGeometry(item, [lockedHint]),
+        candidateIds: [lockedHint.id],
+        textRole: "ordinary",
+        bbox: lockedHint.bbox,
+      };
+    }
     const mergedHints = resolveMergedOcrHints(
       item,
       lockedHint,
@@ -106,6 +114,14 @@ function lockCandidateMembershipGeometry(
   }
   if (memberHints.length === 1) {
     const memberHint = memberHints[0] as OcrGeometryLockHint;
+    if (memberHint.geometryLocked) {
+      return {
+        ...attachSourceFontLineGeometry(item, [memberHint]),
+        candidateIds: [memberHint.id],
+        textRole: "ordinary",
+        bbox: memberHint.bbox,
+      };
+    }
     const physicalLineCount = inferPhysicalLineCount(
       item.bbox,
       memberHint.bbox,
@@ -167,6 +183,7 @@ function buildOcrGeometryLockHintMap(
       ocrText: String(hint.ocrText ?? ""),
       groupId: normalizeReferenceText(hint.groupId),
       containerType: normalizeReferenceText(hint.containerType),
+      geometryLocked: hint.geometryLocked === true,
     });
   }
   return hintMap;

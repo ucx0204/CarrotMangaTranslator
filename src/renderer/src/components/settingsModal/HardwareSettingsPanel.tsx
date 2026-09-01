@@ -1,13 +1,13 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { OCR_DEVICE_OPTIONS, OCR_QUALITY_OPTIONS } from "../settingsOptions";
-import { OcrHardwareContextNote } from "./HardwareContextNotes";
 import { SettingsSection } from "./SettingsSection";
 import { InpaintingModelSettings } from "./InpaintingModelSettings";
 import { GpuAssignmentSettings } from "./GpuAssignmentSettings";
 import { FluxBackendSettings } from "./FluxBackendSettings";
 import { HardwareStatusSummary } from "./HardwareStatusSummary";
 import type { HardwareSettingsPanelProps } from "./hardwareSettingsTypes";
+import { isHayaiOcrPipeline } from "../../../../shared/ocrEngines";
 
 export function HardwareSettingsPanel(
   props: HardwareSettingsPanelProps,
@@ -40,9 +40,11 @@ function OcrSettingsSection({
   controlsBusy,
   ocrDevice,
   ocrGpuBackend,
+  ocrPipeline,
   ocrQualityMode,
   setOcrDevice,
   setOcrGpuBackend,
+  setOcrPipeline,
   setOcrQualityMode,
   supportsOcrRocm,
   usesAmdOcrContext,
@@ -53,18 +55,26 @@ function OcrSettingsSection({
   return (
     <SettingsSection title={t("settings.hardware.ocrSection")}>
       <div className="settings-subsection-stack">
-        <OcrQualitySettings
+        <OcrPipelineSettings
           clearTestState={clearTestState}
           controlsBusy={controlsBusy}
-          ocrQualityMode={ocrQualityMode}
-          setOcrDevice={setOcrDevice}
-          setOcrGpuBackend={setOcrGpuBackend}
-          setOcrQualityMode={setOcrQualityMode}
-          supportsOcrRocm={supportsOcrRocm}
-          usesAmdOcrContext={usesAmdOcrContext}
-          usesAppleHardware={usesAppleHardware}
-          usesNvidiaOcrContext={usesNvidiaOcrContext}
+          ocrPipeline={ocrPipeline}
+          setOcrPipeline={setOcrPipeline}
         />
+        {ocrPipeline === "paddle-legacy" ? (
+          <OcrQualitySettings
+            clearTestState={clearTestState}
+            controlsBusy={controlsBusy}
+            ocrQualityMode={ocrQualityMode}
+            setOcrDevice={setOcrDevice}
+            setOcrGpuBackend={setOcrGpuBackend}
+            setOcrQualityMode={setOcrQualityMode}
+            supportsOcrRocm={supportsOcrRocm}
+            usesAmdOcrContext={usesAmdOcrContext}
+            usesAppleHardware={usesAppleHardware}
+            usesNvidiaOcrContext={usesNvidiaOcrContext}
+          />
+        ) : null}
         <details className="settings-advanced hardware-advanced-settings">
           <summary>{t("settings.hardware.ocrAdvanced")}</summary>
           <OcrDeviceSettings
@@ -72,6 +82,7 @@ function OcrSettingsSection({
             controlsBusy={controlsBusy}
             ocrDevice={ocrDevice}
             ocrGpuBackend={ocrGpuBackend}
+            ocrPipeline={ocrPipeline}
             setOcrDevice={setOcrDevice}
             setOcrGpuBackend={setOcrGpuBackend}
             supportsOcrRocm={supportsOcrRocm}
@@ -82,6 +93,47 @@ function OcrSettingsSection({
         </details>
       </div>
     </SettingsSection>
+  );
+}
+
+function OcrPipelineSettings({
+  clearTestState,
+  controlsBusy,
+  ocrPipeline,
+  setOcrPipeline,
+}: Pick<HardwareSettingsPanelProps, "clearTestState" | "controlsBusy"> & {
+  ocrPipeline: HardwareSettingsPanelProps["ocrPipeline"];
+  setOcrPipeline: HardwareSettingsPanelProps["setOcrPipeline"];
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="settings-field-stack">
+      <span>{t("settings.hardware.ocrPipeline")}</span>
+      <div
+        className="settings-preset-group"
+        role="group"
+        aria-label={t("settings.hardware.ocrPipeline")}
+      >
+        {(["hayai", "paddle-legacy"] as const).map((pipeline) => (
+          <button
+            key={pipeline}
+            type="button"
+            className={`settings-preset-button ${ocrPipeline === pipeline ? "active" : ""}`}
+            disabled={controlsBusy}
+            aria-pressed={ocrPipeline === pipeline}
+            onClick={() => {
+              clearTestState();
+              setOcrPipeline(pipeline);
+            }}
+          >
+            {t(`settings.hardware.ocrPipelines.${pipeline}.label`)}
+          </button>
+        ))}
+      </div>
+      <p className="muted-line modal-note">
+        {t(`settings.hardware.ocrPipelines.${ocrPipeline}.description`)}
+      </p>
+    </div>
   );
 }
 
@@ -216,6 +268,7 @@ function OcrDeviceSettings({
   controlsBusy,
   ocrDevice,
   ocrGpuBackend,
+  ocrPipeline,
   setOcrDevice,
   setOcrGpuBackend,
   supportsOcrRocm,
@@ -228,6 +281,7 @@ function OcrDeviceSettings({
   | "controlsBusy"
   | "ocrDevice"
   | "ocrGpuBackend"
+  | "ocrPipeline"
   | "setOcrDevice"
   | "setOcrGpuBackend"
   | "supportsOcrRocm"
@@ -241,12 +295,13 @@ function OcrDeviceSettings({
     ({ id }) => id === activeOcrOptionId,
   );
   const visibleOcrOptions = getVisibleOcrOptions(usesAppleHardware);
-  const ocrDescription =
-    usesAmdOcrContext && activeOcrOptionId === "rocm-transformers"
-      ? t("settings.hardware.amdOcrExperimental")
-      : activeOcrOption
-        ? t(activeOcrOption.descriptionKey)
-        : null;
+  const ocrDescription = activeOcrOption
+    ? isHayaiOcrPipeline(ocrPipeline)
+      ? t(`settings.hardware.hayaiDevices.${activeOcrOptionId}`)
+      : usesAmdOcrContext && activeOcrOptionId === "rocm-transformers"
+        ? t("settings.hardware.amdOcrExperimental")
+        : t(activeOcrOption.descriptionKey)
+    : null;
   return (
     <div className="settings-field-stack">
       <span>{t("settings.hardware.ocrDevice")}</span>
@@ -281,10 +336,6 @@ function OcrDeviceSettings({
         ))}
       </div>
       <p className="muted-line modal-note">{ocrDescription}</p>
-      <OcrHardwareContextNote
-        usesAppleHardware={usesAppleHardware}
-        usesNvidiaOcrContext={usesNvidiaOcrContext}
-      />
     </div>
   );
 }

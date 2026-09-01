@@ -5,6 +5,8 @@ import {
 import type { TranslationBlock } from "../../shared/textTypes";
 
 export type OverlayFontSizeOptions = {
+  aiFontSizeMatching?: boolean;
+  /** @deprecated Compatibility with callers from before the intent split. */
   fontSizeAutoFit?: boolean;
   sourceFontSize?: {
     confidence: number;
@@ -27,12 +29,13 @@ export function applySizeOptions(
         sourceFontSizeMethod: options.sourceFontSize.method,
       }
     : formatted;
-  if (options?.fontSizeAutoFit === undefined) return sourceAware;
-  return options.fontSizeAutoFit
-    ? { ...sourceAware, autoFitText: true, fontSizePx: block.fontSizePx }
-    : {
-        ...sourceAware,
-        autoFitText: false,
-        fontSizePx: formatDefaults?.fontSizePx ?? block.fontSizePx,
-      };
+  const aiFontSizeMatching =
+    options?.aiFontSizeMatching ?? options?.fontSizeAutoFit;
+  if (aiFontSizeMatching === undefined) return sourceAware;
+  return {
+    ...sourceAware,
+    autoFitText: false,
+    fontSizePx: block.fontSizePx,
+    fontSizeIntent: aiFontSizeMatching ? "source-match" : "manual",
+  };
 }

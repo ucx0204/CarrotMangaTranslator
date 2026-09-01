@@ -142,12 +142,14 @@ export function PageArtwork({
   imageSrc,
   page,
   showImage = true,
+  showBlockChrome = false,
   visualSize,
 }: {
   fontCatalog: BlockFontCatalog;
   imageSrc: string;
   page: PageArtworkSnapshot;
   showImage?: boolean;
+  showBlockChrome?: boolean;
   visualSize: ViewportSize;
 }): React.JSX.Element {
   const pageSize = React.useMemo(
@@ -181,6 +183,7 @@ export function PageArtwork({
           fontCatalog={fontCatalog}
           key={block.id}
           pageSize={pageSize}
+          showBlockChrome={showBlockChrome}
           sourceFontFaceFallbackPx={sourceFontFaceFallbacks.get(block.id)}
           visualSize={visualSize}
         />
@@ -193,12 +196,14 @@ function PageArtworkBlock({
   block,
   fontCatalog,
   pageSize,
+  showBlockChrome,
   sourceFontFaceFallbackPx,
   visualSize,
 }: {
   block: TranslationBlock;
   fontCatalog: BlockFontCatalog;
   pageSize: ViewportSize;
+  showBlockChrome: boolean;
   sourceFontFaceFallbackPx?: number;
   visualSize: ViewportSize;
 }): React.JSX.Element {
@@ -214,19 +219,30 @@ function PageArtworkBlock({
   const model = resolveOverlayBlockRenderModel({
     block,
     displayText,
-    excluded: Boolean(block.inpaintExcluded),
+    excluded: showBlockChrome ? false : Boolean(block.inpaintExcluded),
     fontCatalog,
     layout,
     multiSelected: false,
     pageSize,
     pointerDisabled: true,
     selected: false,
-    showChrome: false,
+    showChrome: showBlockChrome,
     stageSize: visualSize,
     textLayoutStageSize: pageSize,
     textVisible: true,
   });
-  return <ArtworkBlock block={block} fontCatalog={fontCatalog} model={model} />;
+  return (
+    <ArtworkBlock
+      block={block}
+      chrome={
+        showBlockChrome && model.showChromeLayer ? (
+          <div className="overlay-block-chrome" style={model.chromeStyle} />
+        ) : null
+      }
+      fontCatalog={fontCatalog}
+      model={model}
+    />
+  );
 }
 
 function useArtworkBlockLayout({

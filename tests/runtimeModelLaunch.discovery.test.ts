@@ -10,7 +10,8 @@ import {
   bundledServerCandidates,
   parsePipRawProgress,
   parseOcrBatchProgressLine,
-  parsePaddleModelFetchProgress,
+  formatOcrModelFetchProgress,
+  parseOcrModelFetchProgress,
   resolveOcrBboxTimeoutMs,
   collectRequiredPaddleOcrModelDownloads,
   collectRequiredHfDownloads,
@@ -105,9 +106,9 @@ describeWindows(
       expect(parseOcrBatchProgressLine("[paddleocr] warmup")).toBeNull();
     });
 
-    it("parses Paddle model fetch progress lines", () => {
+    it("parses engine-neutral OCR model fetch progress lines", () => {
       expect(
-        parsePaddleModelFetchProgress(
+        parseOcrModelFetchProgress(
           "Fetching 19 files: 11%|█ | 2/19 [00:00<00:07, 2.14it/s]",
         ),
       ).toEqual({
@@ -116,10 +117,16 @@ describeWindows(
         percent: 11,
       });
       expect(
-        parsePaddleModelFetchProgress(
+        parseOcrModelFetchProgress(
           "Creating model: ('PP-OCRv6_medium_det', None, None)",
         ),
       ).toBeNull();
+      expect(
+        formatOcrModelFetchProgress(
+          { totalFiles: 19, currentFiles: 2, percent: 11 },
+          "HayaiOCR",
+        ),
+      ).toBe("HayaiOCR 모델 파일 다운로드 중: 2 / 19개 (11%)");
     });
 
     it("allows slow first-run Paddle model downloads before timing out OCR bbox analysis", () => {

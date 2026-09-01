@@ -85,7 +85,7 @@ export async function prepareKeepBlockHints({
 }
 
 /**
- * keep 모드 페이지들의 각 블록 영역을 패딩 포함해 크롭한 뒤 PaddleOCR 배치로
+ * keep 모드 페이지들의 각 블록 영역을 패딩 포함해 크롭한 뒤 선택된 OCR 배치로
  * 읽어, 블록별 텍스트 증거를 만든다. OCR 실패는 작업을 중지한다.
  */
 async function collectKeepBlocksOcrTexts({

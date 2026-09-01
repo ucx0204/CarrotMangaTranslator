@@ -49,9 +49,14 @@ function createPromptOptions(options, result) {
 
 /** @param {OcrBboxResult} result @param {TranslationRequestOptions} options */
 function shouldSkipModelRequest(result, options) {
+  // A user-selected crop and a detector-owned SFX crop are themselves strong
+  // visual evidence. OCR may fail on stylized or tiny glyphs, so these paths
+  // must always let the vision model inspect the supplied pixels.
+  if (options.regionCropMode || options.soundEffectTranslationMode) {
+    return false;
+  }
   const textEvidenceCount = Number(result.textEvidenceCount);
   const semanticZeroEvidence =
-    !options.regionCropMode &&
     isCommonSemanticOcrMode(options) &&
     isJapaneseLanguageCode(options.sourceLanguage) &&
     Number.isFinite(textEvidenceCount) &&

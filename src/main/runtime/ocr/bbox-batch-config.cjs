@@ -1,7 +1,7 @@
 // @ts-check
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {RuntimeOptions & { ocrCpuWorkers?: unknown; ocrWorkerThreads?: unknown; ocrCpuWorkerStartDelayMs?: unknown; ocrCpuWorkerMinFreeRamPercent?: unknown; ocrCpuWorkerRamPollMs?: unknown }} OcrBboxOptions */
-/** @typedef {{ os: typeof import("node:os"); runtimeOverrideEnv: (name: string, options?: RuntimeOptions) => unknown; readPositiveInteger: (value: unknown) => number | null; emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void }} Dependencies */
+/** @typedef {{ os: typeof import("node:os"); runtimeOverrideEnv: (name: string, options?: RuntimeOptions) => unknown; readPositiveInteger: (value: unknown) => number | null; emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void; isHayaiOcrPipeline: (options?: OcrBboxOptions) => boolean; resolveOcrEngineLabel: (options?: OcrBboxOptions) => string }} Dependencies */
 
 /** @param {Dependencies} dependencies */
 function createOcrBatchConfig(dependencies) {
@@ -34,11 +34,12 @@ function createOcrBatchConfig(dependencies) {
 function resolveOcrCpuWorkerCount(dependencies, options = {}, pageCount = 1) {
   const explicit = firstPositiveInteger(dependencies, [
     dependencies.runtimeOverrideEnv(
-      "MANGA_TRANSLATOR_PADDLEOCR_CPU_WORKERS",
+      "MANGA_TRANSLATOR_OCR_CPU_WORKERS",
       options,
     ),
-    dependencies.runtimeOverrideEnv(
-      "MANGA_TRANSLATOR_OCR_CPU_WORKERS",
+    readLegacyPaddleOverride(
+      dependencies,
+      "MANGA_TRANSLATOR_PADDLEOCR_CPU_WORKERS",
       options,
     ),
     options.ocrCpuWorkers,
@@ -62,11 +63,12 @@ function resolveOcrWorkerThreadCount(dependencies, options = {}) {
   return (
     firstPositiveInteger(dependencies, [
       dependencies.runtimeOverrideEnv(
-        "MANGA_TRANSLATOR_PADDLEOCR_WORKER_THREADS",
+        "MANGA_TRANSLATOR_OCR_WORKER_THREADS",
         options,
       ),
-      dependencies.runtimeOverrideEnv(
-        "MANGA_TRANSLATOR_OCR_WORKER_THREADS",
+      readLegacyPaddleOverride(
+        dependencies,
+        "MANGA_TRANSLATOR_PADDLEOCR_WORKER_THREADS",
         options,
       ),
       options.ocrWorkerThreads,
@@ -79,11 +81,12 @@ function resolveOcrCpuWorkerStartDelayMs(dependencies, options = {}) {
   return (
     firstPositiveInteger(dependencies, [
       dependencies.runtimeOverrideEnv(
-        "MANGA_TRANSLATOR_PADDLEOCR_CPU_WORKER_START_DELAY_MS",
+        "MANGA_TRANSLATOR_OCR_CPU_WORKER_START_DELAY_MS",
         options,
       ),
-      dependencies.runtimeOverrideEnv(
-        "MANGA_TRANSLATOR_OCR_CPU_WORKER_START_DELAY_MS",
+      readLegacyPaddleOverride(
+        dependencies,
+        "MANGA_TRANSLATOR_PADDLEOCR_CPU_WORKER_START_DELAY_MS",
         options,
       ),
       options.ocrCpuWorkerStartDelayMs,
@@ -95,11 +98,12 @@ function resolveOcrCpuWorkerStartDelayMs(dependencies, options = {}) {
 function resolveOcrCpuWorkerMinFreeRamRatio(dependencies, options = {}) {
   const explicit = firstOptionalNumber([
     dependencies.runtimeOverrideEnv(
-      "MANGA_TRANSLATOR_PADDLEOCR_CPU_WORKER_MIN_FREE_RAM_PERCENT",
+      "MANGA_TRANSLATOR_OCR_CPU_WORKER_MIN_FREE_RAM_PERCENT",
       options,
     ),
-    dependencies.runtimeOverrideEnv(
-      "MANGA_TRANSLATOR_OCR_CPU_WORKER_MIN_FREE_RAM_PERCENT",
+    readLegacyPaddleOverride(
+      dependencies,
+      "MANGA_TRANSLATOR_PADDLEOCR_CPU_WORKER_MIN_FREE_RAM_PERCENT",
       options,
     ),
     options.ocrCpuWorkerMinFreeRamPercent,
@@ -113,11 +117,12 @@ function resolveOcrCpuWorkerRamPollMs(dependencies, options = {}) {
   return (
     firstPositiveInteger(dependencies, [
       dependencies.runtimeOverrideEnv(
-        "MANGA_TRANSLATOR_PADDLEOCR_CPU_WORKER_RAM_POLL_MS",
+        "MANGA_TRANSLATOR_OCR_CPU_WORKER_RAM_POLL_MS",
         options,
       ),
-      dependencies.runtimeOverrideEnv(
-        "MANGA_TRANSLATOR_OCR_CPU_WORKER_RAM_POLL_MS",
+      readLegacyPaddleOverride(
+        dependencies,
+        "MANGA_TRANSLATOR_PADDLEOCR_CPU_WORKER_RAM_POLL_MS",
         options,
       ),
       options.ocrCpuWorkerRamPollMs,
@@ -160,7 +165,7 @@ function emitRamWaitProgress(dependencies, options, minFreeRatio) {
   dependencies.emitRuntimeProgress(
     options,
     "ocr_running",
-    "Paddle OCR CPU 워커 RAM 대기 중",
+    `${dependencies.resolveOcrEngineLabel(options)} CPU 워커 RAM 대기 중`,
     `여유 RAM ${formatPercent(info.freeRatio)} / 목표 ${formatPercent(minFreeRatio)}`,
     { pageIndex: null, pageTotal: null, progressMode: "log-only" },
   );
@@ -182,11 +187,19 @@ function isExplicitCpuOcrDevice(dependencies, options = {}) {
   return [
     options.ocrDevice,
     dependencies.runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DEVICE", options),
-    dependencies.runtimeOverrideEnv(
+    readLegacyPaddleOverride(
+      dependencies,
       "MANGA_TRANSLATOR_PADDLEOCR_DEVICE",
       options,
     ),
   ].some(isCpuValue);
+}
+
+/** @param {Dependencies} dependencies @param {string} name @param {OcrBboxOptions} options */
+function readLegacyPaddleOverride(dependencies, name, options) {
+  return dependencies.isHayaiOcrPipeline(options)
+    ? undefined
+    : dependencies.runtimeOverrideEnv(name, options);
 }
 
 /** @param {RuntimeOptions} [options] */

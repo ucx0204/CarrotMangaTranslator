@@ -60,7 +60,7 @@ describe("Apple Silicon OCR compatibility", () => {
     });
   });
 
-  it("migrates legacy Metal/VL preferences onto the PP-OCRv6 CPU route", () => {
+  it("preserves an explicit legacy GPU route instead of silently selecting CPU", () => {
     const defaults = resolveDefaultAppSettings(
       {},
       {
@@ -85,20 +85,20 @@ describe("Apple Silicon OCR compatibility", () => {
     );
 
     expect(settings.ocr).toMatchObject({
-      device: "cpu",
+      device: "gpu",
       gpuBackend: "cuda",
-      qualityMode: "economy",
+      qualityMode: "full",
     });
 
     const options = buildMacTranslationOptions(settings, "mac-legacy-ocr");
 
     expect(options).toMatchObject({
-      ocrDevice: "cpu",
+      ocrDevice: "gpu",
+      ocrGpuBackend: "cuda",
+      ocrQualityMode: "full",
       ocrBboxMode: "ocr",
-      ocrEngine: "paddle_static",
+      ocrEngine: "transformers",
       ocrVersion: "PP-OCRv6",
-      ocrTextDetectionModelName: "PP-OCRv6_small_det",
-      ocrTextRecognitionModelName: "PP-OCRv6_small_rec",
       ocrMergeMode: "semantic",
     });
   });

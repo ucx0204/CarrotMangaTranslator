@@ -152,6 +152,7 @@ function makeEndpointArgs({
         emit,
         progressTotal: 1,
         pageTotal: 1,
+        ocrPipeline: "paddle-legacy",
       },
       runtime,
     },

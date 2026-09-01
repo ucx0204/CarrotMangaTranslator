@@ -204,6 +204,7 @@ function buildApiOptionSummary(options) {
 /** @param {RequestSummaryOptions} options */
 function buildOcrOptionSummary(options) {
   return {
+    ocrPipeline: options.ocrPipeline,
     ocrBboxProvider: resolveOcrBboxProvider(options),
     ocrDevice: resolveOcrDevice(options),
     ocrGpuBackend: resolveOcrGpuBackend(options),
@@ -290,6 +291,7 @@ function buildRequestSummary(
     bboxCoordinateSpace: coordinateFrame.space,
     bboxCoordinateFrame: coordinateFrame.frame,
     ocrBboxHintCount: ocrBboxHints.length,
+    ocrPipeline: options.ocrPipeline,
     ocrBboxHints: ocrBboxHints.slice(0, 80).map((hint) => ({
       id: hint.id,
       label: hint.label,
@@ -302,6 +304,7 @@ function buildRequestSummary(
       rolePrior: hint.rolePrior ?? null,
       containerType: hint.containerType ?? null,
       orderInGroup: hint.orderInGroup ?? null,
+      geometryLocked: hint.geometryLocked === true,
       ocrText: truncateText(readOcrCandidateText(hint), 160) || null,
     })),
     ocrBboxHintsPreview: ocrBboxHints.slice(0, 24).map((hint) => ({
@@ -316,6 +319,7 @@ function buildRequestSummary(
       rolePrior: hint.rolePrior ?? null,
       containerType: hint.containerType ?? null,
       orderInGroup: hint.orderInGroup ?? null,
+      geometryLocked: hint.geometryLocked === true,
       ocrText: truncateText(readOcrCandidateText(hint), 160) || null,
     })),
     options: buildOptionSummary(options),

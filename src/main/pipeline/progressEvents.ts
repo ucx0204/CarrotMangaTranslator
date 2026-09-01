@@ -2,6 +2,8 @@ import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { tMain } from "./localization";
 import type { ModelEndpointHandle, PipelineOptions } from "./types";
+import type { OcrPipeline } from "../../shared/settingsTypes";
+import { isHayaiOcrPipeline } from "../../shared/ocrEngines";
 
 type Emit = PipelineOptions["emit"];
 
@@ -10,6 +12,7 @@ export type ProgressContext = {
   emit: Emit;
   progressTotal: number;
   pageTotal: number;
+  ocrPipeline: OcrPipeline;
 };
 
 export function emitOcrPreparation(
@@ -35,12 +38,21 @@ export function emitOcrPreparation(
     id: context.jobId,
     kind: "gemma-analysis",
     status: "starting",
-    progressText: tMain("translation.progress.ocrPreparing"),
+    progressText: tMain(
+      isHayaiOcrPipeline(context.ocrPipeline)
+        ? "translation.progress.hayaiOcrPreparing"
+        : "translation.progress.ocrPreparing",
+    ),
     phase: "ocr_preparing",
+    ocrPipeline: context.ocrPipeline,
     progressCurrent: 0,
     progressTotal: context.progressTotal,
     pageTotal: context.pageTotal,
-    detail: tMain("translation.progress.ocrPreparingDetail"),
+    detail: tMain(
+      isHayaiOcrPipeline(context.ocrPipeline)
+        ? "translation.progress.hayaiOcrPreparingDetail"
+        : "translation.progress.ocrPreparingDetail",
+    ),
   });
 }
 
@@ -55,6 +67,7 @@ export function attachBaseProgress(
       status: "starting",
       progressText: progress.progressText,
       phase: progress.phase,
+      ocrPipeline: baseOptions.ocrPipeline,
       progressCurrent: 0,
       progressTotal: context.progressTotal,
       pageTotal: context.pageTotal,
@@ -84,6 +97,7 @@ export function attachPageProgress(
       status: "running",
       progressText: progress.progressText,
       phase: progress.phase,
+      ocrPipeline: pageOptions.ocrPipeline,
       progressCurrent: pageIndex + 1,
       progressTotal: context.progressTotal,
       pageIndex: pageIndex + 1,
@@ -297,11 +311,16 @@ export function emitNoTextPage(
       page: page.name,
     }),
     phase: "page_done",
+    ocrPipeline: context.ocrPipeline,
     progressCurrent: pageIndex + 1,
     progressTotal: context.progressTotal,
     pageIndex: pageIndex + 1,
     pageTotal: context.pageTotal,
-    detail: tMain("translation.progress.pageNoTextDetail"),
+    detail: tMain(
+      isHayaiOcrPipeline(context.ocrPipeline)
+        ? "translation.progress.hayaiPageNoTextDetail"
+        : "translation.progress.pageNoTextDetail",
+    ),
   });
 }
 

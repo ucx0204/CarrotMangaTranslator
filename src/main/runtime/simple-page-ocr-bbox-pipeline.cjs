@@ -20,11 +20,16 @@ const {
 const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
 const {
   buildOcrRuntimeEnv,
-  buildPaddleOcrGpuFailureMessage,
+  buildOcrGpuFailureMessage,
+  isHayaiOcrPipeline,
+  isManagedOcrBboxProvider,
   isOcrGpuRequested,
   resolveEffectiveOcrDevice,
   resolveOcrDevice,
   resolveOcrDeviceLabel,
+  resolveOcrBboxProviderForRequest,
+  resolveOcrEngineLabel,
+  resolveOcrRuntimeVariant,
   summarizeOcrErrorMessage,
 } = require("./simple-page-ocr-runtime-config.cjs");
 const {
@@ -36,7 +41,7 @@ const {
 } = require("./simple-page-ocr-commands.cjs");
 const {
   createOcrRuntimeError,
-  ensurePaddleOcrRuntime,
+  ensureOcrRuntime,
 } = require("./simple-page-ocr-runtime-manager.cjs");
 const {
   createDetailedError,
@@ -63,6 +68,7 @@ const { createOcrBboxResults } = require("./ocr/bbox-results.cjs");
 const { createOcrSinglePipeline } = require("./ocr/bbox-single-pipeline.cjs");
 
 const gpuPolicy = createOcrGpuPolicy({
+  resolveOcrBboxProviderForRequest,
   runtimeOverrideEnv,
 });
 
@@ -78,9 +84,11 @@ const commandRunner = createOcrCommandRunner({
   createDetailedError,
   createOcrCommandProgressHandler,
   emitRuntimeProgress,
-  ensurePaddleOcrRuntime,
+  ensureOcrRuntime,
   existsSync,
   extractJsonText,
+  isHayaiOcrPipeline,
+  isManagedOcrBboxProvider,
   isPaddleOcrModelAssetLoadFailure,
   mkdir,
   path,
@@ -89,6 +97,7 @@ const commandRunner = createOcrCommandRunner({
   resolveOcrBboxTimeoutMs,
   formatCommandForLog,
   resolveOcrDeviceLabel,
+  resolveOcrEngineLabel,
   runCommand,
   truncateText,
 });
@@ -97,22 +106,26 @@ const singlePipeline = createOcrSinglePipeline({
   ...bboxResults,
   ...commandRunner,
   ...gpuPolicy,
-  buildPaddleOcrGpuFailureMessage,
+  buildOcrGpuFailureMessage,
   createOcrRuntimeError,
   emitRuntimeProgress,
   isOcrGpuRequested,
+  isManagedOcrBboxProvider,
   normalizeOcrBboxHintPayload,
   readFile,
   resolveEffectiveOcrDevice,
   resolveOcrDeviceLabel,
+  resolveOcrEngineLabel,
   runtimeOverrideEnv,
   truncateText,
 });
 
 const batchConfig = createOcrBatchConfig({
   emitRuntimeProgress,
+  isHayaiOcrPipeline,
   os,
   readPositiveInteger,
+  resolveOcrEngineLabel,
   runtimeOverrideEnv,
 });
 
@@ -128,6 +141,7 @@ const batchProgress = createOcrBatchProgress({
   emitRuntimeProgress,
   parseOcrBatchProgressLine,
   readPositiveInteger,
+  resolveOcrEngineLabel,
 });
 
 const cpuWorkers = createOcrCpuWorkers({
@@ -147,6 +161,7 @@ const cpuWorkers = createOcrCpuWorkers({
   path,
   readPositiveInteger,
   resolveOcrBboxTimeoutMs,
+  resolveOcrEngineLabel,
   truncateText,
   writeFile,
 });
@@ -161,15 +176,16 @@ const batchPipeline = createOcrBatchPipeline({
   ...singlePipeline,
   ...cpuWorkers,
   buildOcrBboxBatchCommand,
-  buildPaddleOcrGpuFailureMessage,
+  buildOcrGpuFailureMessage,
   formatCommandForLog,
   createDetailedError,
   createOcrRuntimeError,
   createOcrBatchProgressFilePoller,
   createOcrCommandProgressHandler,
   emitRuntimeProgress,
-  ensurePaddleOcrRuntime,
+  ensureOcrRuntime,
   isOcrGpuRequested,
+  isManagedOcrBboxProvider,
   mkdir,
   normalizeOcrBboxHintPayload,
   path,
@@ -178,14 +194,49 @@ const batchPipeline = createOcrBatchPipeline({
   resolveOcrBboxTimeoutMs,
   resolveOcrDevice,
   resolveOcrDeviceLabel,
+  resolveOcrEngineLabel,
+  resolveOcrRuntimeVariant,
   rm,
   truncateText,
   writeFile,
 });
 
+const activeOcrOperations = new Set();
+
+/** @template T @param {() => Promise<T>} operation @returns {Promise<T>} */
+function trackOcrOperation(operation) {
+  const active = Promise.resolve().then(operation);
+  const tracked = active.finally(() => activeOcrOperations.delete(tracked));
+  activeOcrOperations.add(tracked);
+  return tracked;
+}
+
+/** @param {Record<string, unknown>} options */
+function collectOcrBboxHints(options) {
+  return trackOcrOperation(() => singlePipeline.collectOcrBboxHints(options));
+}
+
+/** @param {Record<string, unknown>[]} optionsList */
+function collectOcrBboxHintsBatch(optionsList) {
+  return trackOcrOperation(() =>
+    batchPipeline.collectOcrBboxHintsBatch(optionsList),
+  );
+}
+
+/**
+ * Translation must never start while an OCR child process is still closing.
+ * The command runner resolves on the child's `close` event, so an empty set is
+ * also the proof that its Python model/runtime has left the process tree.
+ */
+async function waitForOcrIdle() {
+  while (activeOcrOperations.size > 0) {
+    await Promise.allSettled([...activeOcrOperations]);
+  }
+}
+
 module.exports = {
-  collectOcrBboxHints: singlePipeline.collectOcrBboxHints,
-  collectOcrBboxHintsBatch: batchPipeline.collectOcrBboxHintsBatch,
+  collectOcrBboxHints,
+  collectOcrBboxHintsBatch,
   hasOcrCpuWorkerRamHeadroom: batchConfig.hasOcrCpuWorkerRamHeadroom,
   readCompletedOcrBatchOutputPayload:
     batchFiles.readCompletedOcrBatchOutputPayload,
@@ -193,4 +244,5 @@ module.exports = {
   resolveOcrCpuWorkerMinFreeRamRatio:
     batchConfig.resolveOcrCpuWorkerMinFreeRamRatio,
   resolveOcrBboxProvider: gpuPolicy.resolveOcrBboxProvider,
+  waitForOcrIdle,
 };

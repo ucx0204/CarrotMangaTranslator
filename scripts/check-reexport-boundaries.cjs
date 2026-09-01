@@ -56,6 +56,7 @@ const APPROVED_REEXPORT_BOUNDARIES = new Map([
       "./library/libraryMutationFacade",
       "./library/libraryReadFacade",
       "./library/libraryShareFacade",
+      "./library/librarySoundEffectFacade",
       "./libraryStore/libraryCleanup",
       "./libraryStore/libraryFiles",
       "./libraryStore/libraryPaths",

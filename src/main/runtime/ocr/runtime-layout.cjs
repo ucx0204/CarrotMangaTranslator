@@ -25,6 +25,7 @@ const {
   resolveOcrGpuBackend,
   resolveOcrRuntimeVariant,
 } = require("./runtime-device.cjs");
+const { isHayaiOcrPipeline } = require("./engine-profile.cjs");
 
 const WINDOWS_LEGACY_MAX_PATH = 260;
 const WINDOWS_PATH_SAFETY_MARGIN = 8;
@@ -115,7 +116,8 @@ function resolveExplicitWindowsRocmDir(options) {
 
 /** @param {OcrConfigOptions} options @returns {string[]} */
 function buildWindowsRocmDirCandidates(options) {
-  const rocmDirName = `r${OCR_ROCM_WINDOWS_VERSION.replace(/\D/g, "")}`;
+  const enginePrefix = isHayaiOcrPipeline(options) ? "h" : "r";
+  const rocmDirName = `${enginePrefix}${OCR_ROCM_WINDOWS_VERSION.replace(/\D/g, "")}`;
   const baseRuntimeDir = resolveDefaultOcrRuntimeDir(options);
   const dataRoot = options.workingDir
     ? path.resolve(String(options.workingDir))
@@ -302,7 +304,7 @@ function shouldAllowSystemPythonFallback(
 /** @param {string} runtimeDir @param {RuntimeOptions} [options] @returns {string} */
 function resolveOcrPythonPackageDir(runtimeDir, options = {}) {
   return shouldUseWindowsShortRocmOcrLayout(options)
-    ? path.join(runtimeDir, "p")
+    ? path.join(runtimeDir, isHayaiOcrPipeline(options) ? "h" : "p")
     : path.join(
         runtimeDir,
         `python-packages-${resolveOcrRuntimeVariant(options)}`,
@@ -312,7 +314,7 @@ function resolveOcrPythonPackageDir(runtimeDir, options = {}) {
 /** @param {string} runtimeDir @param {string} runtimeVariant @param {RuntimeOptions} [options] @returns {string} */
 function resolveOcrVenvDir(runtimeDir, runtimeVariant, options = {}) {
   return shouldUseWindowsShortRocmOcrLayout(options)
-    ? path.join(runtimeDir, "v")
+    ? path.join(runtimeDir, isHayaiOcrPipeline(options) ? "y" : "v")
     : path.join(runtimeDir, `.venv-${runtimeVariant}`);
 }
 

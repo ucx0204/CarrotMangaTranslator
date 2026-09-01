@@ -328,6 +328,7 @@ export const TranslationBlockObjectSchema = z
     /** Removed in v1.16; accepted only so older projects can be migrated. */
     automaticFontMatch: z.unknown().optional(),
     fontSizePx: blockFormatValueSchemas.FontSizePxSchema,
+    fontSizeIntent: z.enum(["source-match", "manual"]).optional(),
     sourceFontFacePx: blockFormatValueSchemas.FontSizePxSchema.optional(),
     sourceFontSizeConfidence: z.number().min(0).max(1).optional(),
     sourceFontSizeMethod: z.literal("raster-core-v1").optional(),

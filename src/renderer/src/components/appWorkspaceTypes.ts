@@ -28,6 +28,8 @@ export type AppWorkspaceProps = {
   selectedBlockIds: string[];
   showTextBlocks: boolean;
   showBlockChrome: boolean;
+  showSoundEffectReview?: boolean;
+  selectedSoundEffectReviewRegionId?: string | null;
   showingOriginalPeek: boolean;
   brushColor: string;
   retouchCursor: ImageStageProps["retouchCursor"];
@@ -69,6 +71,11 @@ export type AppWorkspaceProps = {
   >;
   onBlockPointerDown: ImageStageProps["onBlockPointerDown"];
   onWarpTransformCommit?: ImageStageProps["onWarpTransformCommit"];
+  onSelectSoundEffectReviewRegion?: ImageStageProps["onSelectSoundEffectReviewRegion"];
+  onDismissSoundEffectReviewRegion?: ImageStageProps["onDismissSoundEffectReviewRegion"];
+  onOpenSoundEffectTranslation?: ImageStageProps["onOpenSoundEffectTranslation"];
+  onExitSoundEffectReview?: ImageStageProps["onExitSoundEffectReview"];
+  onTranslateSoundEffectReviewRegion?: ImageStageProps["onTranslateSoundEffectReviewRegion"];
   onOpenTranslationSource: () => void;
   onOpenBatchImport: () => void;
   onOpenShareImport: () => void;

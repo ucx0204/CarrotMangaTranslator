@@ -29,7 +29,7 @@ import type { IpcContext } from "./context";
 import {
   createModelTestProgressSender,
   sendEnginePreparationProgress,
-  verifyPaddleOcrRuntime,
+  verifyOcrRuntime,
   type ModelTestProgressEventSource,
   type SendModelTestProgress,
 } from "./settingsModelTestProgress";
@@ -178,7 +178,7 @@ async function runModelTestWithServer({
     sendModelTestBootProgress(sendProgress);
     const options = withModelTestProgress(initialOptions, sendProgress);
     throwIfAborted(signal);
-    await verifyPaddleOcrRuntime(runtime, options, sendProgress);
+    await verifyOcrRuntime(runtime, options, sendProgress);
     throwIfAborted(signal);
     sendEnginePreparationProgress(runtime, options, sendProgress);
     throwIfAborted(signal);

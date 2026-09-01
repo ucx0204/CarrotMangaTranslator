@@ -35,19 +35,38 @@ export function normalizeUiSettings(
     cumulativeContextDetailDefault,
     naturalTextLayoutDefault: resolveBoolean(
       data.naturalTextLayoutDefault,
-      base.naturalTextLayoutDefault ?? true,
+      base.naturalTextLayoutDefault ?? false,
     ),
     autoFontMatchingDefault: resolveBoolean(
       data.autoFontMatchingDefault,
       base.autoFontMatchingDefault ?? false,
     ),
-    fontSizeAutoFitDefault: resolveBoolean(
-      data.fontSizeAutoFitDefault,
+    aiFontSizeMatchingDefault: resolveBoolean(
+      data.aiFontSizeMatchingDefault,
       resolveFontSizeAutoFitFallback(
-        legacyFontSizeAutoFit,
-        base.fontSizeAutoFitDefault,
+        data.fontSizeAutoFitDefault ?? legacyFontSizeAutoFit,
+        base.aiFontSizeMatchingDefault ?? base.fontSizeAutoFitDefault,
       ),
     ),
+    sfxAutoFontMatchingDefault: resolveBoolean(
+      data.sfxAutoFontMatchingDefault,
+      base.sfxAutoFontMatchingDefault ?? false,
+    ),
+    sfxInpaintAfterTranslationDefault: resolveBoolean(
+      data.sfxInpaintAfterTranslationDefault,
+      base.sfxInpaintAfterTranslationDefault ?? false,
+    ),
+    ...(typeof data.fontSizeAutoFitDefault === "boolean"
+      ? {
+          fontSizeAutoFitDefault: resolveBoolean(
+            data.fontSizeAutoFitDefault,
+            resolveFontSizeAutoFitFallback(
+              legacyFontSizeAutoFit,
+              base.fontSizeAutoFitDefault,
+            ),
+          ),
+        }
+      : {}),
     eraseOriginalWorkflowDefault: completionDefaults.eraseOriginal,
     bubbleLayoutWorkflowDefault: completionDefaults.bubbleLayout,
     wheelZoomSensitivityPercent: resolveWheelZoomSensitivityPercent(

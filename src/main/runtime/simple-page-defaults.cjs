@@ -60,6 +60,11 @@ const DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES = [
   "transformers==5.13.1",
   "safetensors>=0.6.2",
 ];
+const DEFAULT_HAYAI_OCR_PACKAGES = [
+  "transformers==5.13.1",
+  "safetensors>=0.6.2",
+  "tokenizers==0.23.0rc0",
+];
 const OCR_INSTALL_MARKER_FILE = "install-complete.json";
 const MAX_LOG_PREVIEW_LENGTH = 8000;
 const MM_PROJ_CANDIDATE_NAMES = [
@@ -201,6 +206,7 @@ module.exports = {
   CROP_RETRY_MIN_MARGIN_PX,
   CROP_RETRY_MIN_SIDE_PX,
   DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
+  DEFAULT_HAYAI_OCR_PACKAGES,
   DEFAULT_API_KEY,
   DEFAULT_API_BASE_URL,
   DEFAULT_API_CUSTOM_HEADERS_JSON,

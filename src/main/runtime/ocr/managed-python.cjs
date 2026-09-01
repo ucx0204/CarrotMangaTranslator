@@ -57,6 +57,7 @@ const {
   installedManagedPythonHashesMatch,
   managedPythonMarkerMatches,
 } = require("./managed-python-integrity.cjs");
+const { resolveOcrEngineLabel } = require("./engine-profile.cjs");
 
 const DEFAULT_MANAGED_PYTHON = RUNTIME_INTEGRITY_MANIFEST.managedPython;
 const DEFAULT_EMBED_PYTHON_VERSION = DEFAULT_MANAGED_PYTHON.version;
@@ -106,7 +107,7 @@ async function ensureManagedBootstrapPython(options = {}, runtimeDir) {
 function assertManagedPythonPlatform() {
   if (process.platform !== "win32") {
     throw new Error(
-      "Paddle OCR bbox provider needs Python. Install Python 3 or set MANGA_TRANSLATOR_OCR_PYTHON.",
+      "OCR engine needs Python. Install Python 3 or set MANGA_TRANSLATOR_OCR_PYTHON.",
     );
   }
 }
@@ -173,10 +174,11 @@ function resolveManagedPythonContext(options, runtimeDir) {
 
 /** @param {RuntimeOptions} options @param {string} version */
 function emitManagedPythonPreparation(options, version) {
+  const engine = resolveOcrEngineLabel(options);
   emitRuntimeProgress(
     options,
     "ocr_downloading",
-    "Paddle OCR Python 준비 중",
+    `${engine} Python 준비 중`,
     `Python ${version}`,
     {
       progressMode: "log-only",
@@ -193,23 +195,24 @@ async function prepareManagedPythonDownloads(context) {
 
 /** @param {RuntimeOptions} options @param {ManagedPythonContext} context @returns {Promise<ManagedPythonContext>} */
 async function downloadAndExtractManagedPython(options, context) {
+  const engine = resolveOcrEngineLabel(options);
   await downloadGenericFileWithRuntimeProgress(
     {
-      label: "Paddle OCR Python",
+      label: `${engine} Python`,
       file: context.zipName,
       url: context.pythonUrl,
       destination: context.zipPath,
       maximumBytes: MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
       expectedSha256: context.pythonSha256,
-      progressTitle: "Paddle OCR Python 다운로드 중",
-      completeTitle: "Paddle OCR Python 다운로드 완료",
+      progressTitle: `${engine} Python 다운로드 중`,
+      completeTitle: `${engine} Python 다운로드 완료`,
     },
     options,
   );
   emitRuntimeProgress(
     options,
     "ocr_downloading",
-    "Paddle OCR Python 압축 해제 중",
+    `${engine} Python 압축 해제 중`,
     context.zipName,
     {
       progressMode: "indeterminate",
@@ -246,23 +249,24 @@ async function downloadAndExtractManagedPython(options, context) {
 
 /** @param {RuntimeOptions} options @param {ManagedPythonContext} context @returns {Promise<void>} */
 async function installManagedPythonPip(options, context) {
+  const engine = resolveOcrEngineLabel(options);
   await downloadGenericFileWithRuntimeProgress(
     {
-      label: "Paddle OCR pip",
+      label: `${engine} pip`,
       file: "get-pip.py",
       url: context.getPipUrl,
       destination: context.getPipPath,
       maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
       expectedSha256: context.getPipSha256,
-      progressTitle: "Paddle OCR pip 다운로드 중",
-      completeTitle: "Paddle OCR pip 다운로드 완료",
+      progressTitle: `${engine} pip 다운로드 중`,
+      completeTitle: `${engine} pip 다운로드 완료`,
     },
     options,
   );
   emitRuntimeProgress(
     options,
     "ocr_downloading",
-    "Paddle OCR pip 설치 중",
+    `${engine} pip 설치 중`,
     `Python ${context.version}`,
     {
       progressMode: "indeterminate",
@@ -293,7 +297,7 @@ function emitPipInstallLine(options, version, line) {
   emitRuntimeProgress(
     options,
     "ocr_downloading",
-    "Paddle OCR pip 설치 중",
+    `${resolveOcrEngineLabel(options)} pip 설치 중`,
     `Python ${version}`,
     { progressMode: "indeterminate", installLogLine: line },
   );
@@ -327,7 +331,7 @@ function emitManagedPythonReady(options, version) {
   emitRuntimeProgress(
     options,
     "ocr_downloading",
-    "Paddle OCR Python 준비 완료",
+    `${resolveOcrEngineLabel(options)} Python 준비 완료`,
     `Python ${version}`,
     {
       progressMode: "determinate",

@@ -55,6 +55,95 @@ describe("OCR candidate geometry locks", () => {
     expect(result[0]?.bbox).toEqual({ x: 100, y: 100, w: 100, h: 100 });
   });
 
+  it("keeps a Hayai singleton immutable even when the model expands it", () => {
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 7,
+          type: "solid",
+          textRole: "sound",
+          bbox: { x: 80, y: 70, w: 180, h: 240 },
+          jp: "本文",
+          ko: "본문",
+        },
+      ],
+      page,
+      [
+        {
+          id: 7,
+          label: "text",
+          x1: 100,
+          y1: 100,
+          x2: 200,
+          y2: 300,
+          ocrText: "本文",
+          geometryLocked: true,
+        },
+      ],
+    );
+
+    expect(result[0]).toMatchObject({
+      candidateIds: [7],
+      textRole: "ordinary",
+      bbox: { x: 100, y: 100, w: 100, h: 200 },
+      sourceFontLineGeometry: {
+        lines: [
+          {
+            candidateId: 7,
+            bbox: { x: 100, y: 100, w: 100, h: 200 },
+            sourceText: "本文",
+          },
+        ],
+      },
+    });
+  });
+
+  it("locks explicit singleton membership without admitting adjacent hints", () => {
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 99,
+          candidateIds: [8],
+          type: "solid",
+          textRole: "sound",
+          bbox: { x: 50, y: 50, w: 400, h: 400 },
+          jp: "一列",
+          ko: "별도",
+        },
+      ],
+      page,
+      [
+        {
+          id: 8,
+          x1: 300,
+          y1: 200,
+          x2: 360,
+          y2: 500,
+          ocrText: "一列",
+          geometryLocked: true,
+        },
+        {
+          id: 9,
+          x1: 370,
+          y1: 200,
+          x2: 430,
+          y2: 500,
+          ocrText: "別列",
+          geometryLocked: true,
+        },
+      ],
+    );
+
+    expect(result[0]).toMatchObject({
+      candidateIds: [8],
+      textRole: "ordinary",
+      bbox: { x: 300, y: 200, w: 60, h: 300 },
+    });
+    expect(
+      result[0]?.sourceFontLineGeometry?.lines.map((line) => line.candidateId),
+    ).toEqual([8]);
+  });
+
   it("does not move an item to a nearby candidate with a different id", () => {
     const originalBbox = { x: 510, y: 510, w: 70, h: 70 };
     const result = applyOcrCandidateGeometryLocks(

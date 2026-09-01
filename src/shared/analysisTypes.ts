@@ -16,7 +16,9 @@ type TranslationRunOptions = {
   naturalTextLayout?: boolean;
   /** Choose locale-compatible fonts for newly detected translation blocks. */
   autoFontMatching?: boolean;
-  /** Match newly created text size to the source glyph face when reliable. */
+  /** Match nominal text size to reliable source glyphs; never enables box fitting. */
+  aiFontSizeMatching?: boolean;
+  /** @deprecated Read compatibility for older renderer requests. */
   fontSizeAutoFit?: boolean;
   /** Required downstream stage for a combined translation workflow. */
   completionWorkflow?: TranslationCompletionWorkflow;
@@ -67,4 +69,46 @@ export type RegionAnalysisRequest = {
 export type RegionAnalysisResult = StartAnalysisResult & {
   pageId?: string;
   blockIds?: string[];
+};
+
+export type StartSoundEffectTranslationRequest = {
+  chapterId: string;
+  targets: Array<{
+    pageId: string;
+    pageRevision: string;
+    /** Omitted means every still-pending region on the stored page. */
+    regionIds?: string[];
+  }>;
+  inpaintAfterTranslation: boolean;
+  /** Match each created SFX block to the visible source lettering. */
+  autoFontMatching?: boolean;
+};
+
+export type PrepareSoundEffectTranslationRequest = {
+  chapterId: string;
+  pages: Array<{
+    pageId: string;
+    pageRevision: string;
+    includedRegionIds: string[];
+    editedRegions: Array<{ regionId: string; bbox: BBox }>;
+    addedRegions: Array<{ regionId: string; bbox: BBox }>;
+    dismissedRegionIds: string[];
+  }>;
+};
+
+export type PrepareSoundEffectTranslationResult = {
+  chapter: ChapterSnapshot;
+  targets: StartSoundEffectTranslationRequest["targets"];
+  includedRegionCount: number;
+  dismissedRegionCount: number;
+};
+
+export type StartSoundEffectTranslationResult = {
+  status: "completed" | "partial" | "cancelled" | "failed";
+  chapter?: ChapterSnapshot;
+  createdBlocksByPage: Array<{ pageId: string; blockIds: string[] }>;
+  translatedRegionCount: number;
+  remainingRegionCount: number;
+  warnings?: string[];
+  error?: string;
 };

@@ -9,6 +9,7 @@ import {
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
   shouldExtractLlamaRuntimeFile,
   collectOcrBboxHints,
+  waitForOcrIdle,
   requestTranslation,
   resolveOcrInstallBatchProgressRanges,
 } from "./helpers/runtimeModelContracts";
@@ -18,6 +19,22 @@ import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
 describeWindows("runtime model support helpers: OCR pipeline execution", () => {
+  it("waits for an active OCR operation to finish before translation may continue", async () => {
+    let ocrCompleted = false;
+    const pendingOcr = collectOcrBboxHints({
+      ocrBboxHints: [],
+      ocrBboxProvider: "none",
+    }).then((result) => {
+      ocrCompleted = true;
+      return result;
+    });
+
+    await waitForOcrIdle();
+
+    expect(ocrCompleted).toBe(true);
+    await expect(pendingOcr).resolves.toMatchObject({ hints: [] });
+  });
+
   it("prefers the bundled ffmpeg from the tools directory", () => {
     const toolsDir = createTempDir("tools-");
     const binaryName = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
@@ -46,7 +63,7 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
 
     await withOcrBatchPipelineStubs(
       {
-        ensurePaddleOcrRuntime(options) {
+        ensureOcrRuntime(options) {
           runtimeSetupOptions.push({ ...options });
           return {
             pythonPath: "python",
@@ -164,7 +181,7 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
 
     await withOcrBatchPipelineStubs(
       {
-        ensurePaddleOcrRuntime() {
+        ensureOcrRuntime() {
           return {
             pythonPath: "python",
             runtimeDir: join(outputDir, "runtime"),

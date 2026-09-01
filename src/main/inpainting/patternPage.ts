@@ -33,6 +33,8 @@ import { persistActualInpaintMask } from "./inpaintMaskArtifact";
 
 type PatternPageInpaintingOptions = {
   blockId?: string;
+  /** Explicit batch selection. Selected excluded blocks become eligible. */
+  blockIds?: readonly string[];
   signal?: AbortSignal;
   decodeFallback?: ImageDecodeFallback;
   inpaintingEngine?: InpaintingEngine;
@@ -172,6 +174,7 @@ function resolvePatternBlockIds(
     page,
     options.blockId,
     options.excludedBlockIds,
+    options.blockIds,
   ).map((block) => block.id);
 }
 
@@ -183,6 +186,7 @@ function createPatternMaskContext(
 ): PatternMaskContext {
   return buildPatternPageMask({
     blockId: options.blockId,
+    blockIds: options.blockIds,
     page,
     bitmap,
     collectSourceGlyphEvidence: false,

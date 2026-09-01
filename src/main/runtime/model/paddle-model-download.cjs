@@ -24,6 +24,7 @@ const {
   normalizeExpectedSha256,
   verifyFileSha256,
 } = require("../transport/download-integrity.cjs");
+const { assertPaddleLegacyOcrPipeline } = require("../ocr/engine-profile.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} ModelAssetOptions */
 /** @typedef {import("../runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
@@ -34,6 +35,7 @@ async function ensurePaddleOcrModelAssetsDownloaded(
   options = {},
   runtime = null,
 ) {
+  assertPaddleLegacyOcrPipeline(options, "Paddle OCR model download");
   if (shouldSkipPrefetch(options)) return;
   const plan = await buildPaddleDownloadPlan(options, runtime);
   if (plan.pending.length === 0) return;

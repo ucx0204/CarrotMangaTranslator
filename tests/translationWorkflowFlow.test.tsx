@@ -10,6 +10,7 @@ import type { UseTranslationActionsOptions } from "../src/renderer/src/hooks/tra
 
 const startAnalysis = vi.fn();
 const startInpainting = vi.fn();
+const startSoundEffectTranslation = vi.fn();
 const openChapter = vi.fn();
 const finishPageTimingSession = vi.fn(async () => ({ updated: true }));
 const notificationMocks: NotificationPort = {
@@ -25,6 +26,7 @@ beforeEach(() => {
     openChapter,
     startAnalysis,
     startInpainting,
+    startSoundEffectTranslation,
   });
 });
 
@@ -111,6 +113,44 @@ afterEach(() => {
 });
 
 describe("translation workflow modes", () => {
+  it("runs sound-effect translation through the dedicated action", async () => {
+    const options = makeOptions();
+    startSoundEffectTranslation.mockResolvedValue({
+      status: "completed",
+      createdBlocksByPage: [],
+      translatedRegionCount: 1,
+      remainingRegionCount: 0,
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    await act(async () => {
+      await result.current.translateSoundEffects(
+        [
+          {
+            pageId: "page-1",
+            pageRevision: "page-v1:0000000000000000",
+            regionIds: ["FX001"],
+          },
+        ],
+        false,
+        true,
+      );
+    });
+
+    expect(startSoundEffectTranslation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chapterId: "chapter-1",
+        autoFontMatching: true,
+      }),
+    );
+    expect(options.saveNow).toHaveBeenCalledOnce();
+    expect(options.setJobState).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "completed" }),
+    );
+  });
+
   it("settles an interrupted session when cancellation arrives after saving", async () => {
     const options = makeOptions();
     options.flowCancellationRef = { current: false };
@@ -1089,7 +1129,7 @@ describe("translation workflow modes", () => {
     );
   });
 
-  it("defaults natural layout on for direct translation entry points", async () => {
+  it("defaults natural layout off for direct translation entry points", async () => {
     const options = makeOptions();
     startAnalysis.mockResolvedValue({ status: "completed" });
     const { result } = renderHook(() =>
@@ -1101,7 +1141,7 @@ describe("translation workflow modes", () => {
     });
 
     expect(startAnalysis).toHaveBeenCalledWith(
-      expect.objectContaining({ naturalTextLayout: true }),
+      expect.objectContaining({ naturalTextLayout: false }),
     );
   });
 

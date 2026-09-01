@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   createTempDir,
   resolveOcrGpuCudaTag,
-  resolveOcrGpuPackageIndexUrl,
+  resolvePaddleOcrGpuPackageIndexUrl,
   buildOcrRuntimeEnv,
   restoreEnv,
   resolveOcrPipInstallBatches,
-  buildPaddleOcrImportCheckScript,
+  buildOcrRuntimeImportCheckScript,
   resolveOcrRuntimeVariant,
   resolveOcrPythonPackageDir,
   collectRequiredPaddleOcrModelDownloads,
@@ -38,9 +38,9 @@ describeWindows(
       delete process.env.MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL;
       try {
         expect(resolveOcrGpuCudaTag({ ocrGpuCudaTag: "cu129" })).toBe("cu129");
-        expect(resolveOcrGpuPackageIndexUrl({ ocrGpuCudaTag: "cu129" })).toBe(
-          "https://www.paddlepaddle.org.cn/packages/stable/cu129/",
-        );
+        expect(
+          resolvePaddleOcrGpuPackageIndexUrl({ ocrGpuCudaTag: "cu129" }),
+        ).toBe("https://www.paddlepaddle.org.cn/packages/stable/cu129/");
         const env = buildOcrRuntimeEnv(
           { ocrDevice: "gpu", ocrGpuCudaTag: "cu129" },
           { runtimeDir, includePackageDir: false },
@@ -113,7 +113,7 @@ describeWindows(
         runtimeDir,
         includePackageDir: true,
       });
-      const script = buildPaddleOcrImportCheckScript(cuda129Options);
+      const script = buildOcrRuntimeImportCheckScript(cuda129Options);
 
       expect(cu126Batches).toHaveLength(3);
       expect(cu126Batches[0]).toEqual(
@@ -187,7 +187,7 @@ describeWindows(
         { ocrDevice: "gpu", ocrGpuBackend: "rocm" },
         { runtimeDir: "C:/ocr-runtime", includePackageDir: false },
       );
-      const script = buildPaddleOcrImportCheckScript({
+      const script = buildOcrRuntimeImportCheckScript({
         ocrDevice: "gpu",
         ocrGpuBackend: "rocm",
       });
@@ -252,8 +252,8 @@ describeWindows(
       expect(script).toContain("import tokenizers");
       expect(script).toContain("0.23.0rc0");
       expect(script).toContain("import transformers");
-      expect(script).toContain("'paddlex'");
-      expect(script).toContain("'safetensors'");
+      expect(script).toContain('"paddlex"');
+      expect(script).toContain('"safetensors"');
       expect(script).toContain("transformers.AutoImageProcessor");
       expect(script).toContain("transformers.AutoModelForObjectDetection");
       expect(script).toContain("torch.cuda.is_available()");
@@ -279,6 +279,26 @@ describeWindows(
       ).toBe("gpu-rocm-transformers");
     });
 
+    it("routes Hayai through the managed CUDA Transformers runtime", () => {
+      const options = {
+        ocrPipeline: "hayai",
+        ocrDevice: "gpu",
+        ocrGpuBackend: "cuda",
+        ocrGpuCudaTag: "cu129",
+      };
+      const batches = resolveOcrPipInstallBatches(options);
+
+      expect(resolveOcrRuntimeVariant(options)).toBe("hayai-cuda-cu130");
+      expect(batches.flat()).toEqual(
+        expect.arrayContaining([
+          "torch==2.9.1+cu130",
+          "transformers==5.13.1",
+          "safetensors>=0.6.2",
+        ]),
+      );
+      expect(batches.flat().join(" ")).not.toContain("paddlepaddle-gpu");
+    });
+
     it("keeps CPU AMD low modes on the static Paddle runtime", () => {
       const options = {
         ocrDevice: "cpu",
@@ -289,7 +309,7 @@ describeWindows(
       };
       const batches = resolveOcrPipInstallBatches(options);
       const env = buildOcrRuntimeEnv(options);
-      const script = buildPaddleOcrImportCheckScript(options);
+      const script = buildOcrRuntimeImportCheckScript(options);
 
       expect(resolveOcrRuntimeVariant(options)).toBe("cpu");
       expect(batches[0]).toEqual([

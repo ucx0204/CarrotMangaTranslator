@@ -116,6 +116,8 @@ export type TranslationBlock = {
   warpTransform?: WarpTransform;
   fontFamily?: string;
   fontSizePx: number;
+  /** Source glyph-derived nominal size; independent from editor box autofit. */
+  fontSizeIntent?: "source-match" | "manual";
   /** Visible source-glyph face measured from the immutable page raster. */
   sourceFontFacePx?: number;
   /** Confidence of sourceFontFacePx. Missing means no automatic source cap. */

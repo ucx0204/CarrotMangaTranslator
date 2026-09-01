@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- compatibility normalization remains centralized and order-sensitive */
 // @ts-check
 /**
  * @typedef {Record<string, unknown>} JsonRecord
@@ -174,6 +175,9 @@ function normalizeCandidate(
   copyPaddleGroupEvidence(hint, record);
   copyReviewPartitionMetadata(hint, record);
   copyReviewContextMetadata(hint, record);
+  if (record.geometryLocked === true) {
+    hint.geometryLocked = true;
+  }
   copyAnimeTextEvidence(
     hint,
     record,

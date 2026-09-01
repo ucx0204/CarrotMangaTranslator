@@ -70,11 +70,13 @@
       "finalizing": "결과 정리 중",
       "done": "작업 완료",
       "ocrDownloading": "Paddle OCR 다운로드/설치 중",
+      "hayaiOcrDownloading": "HayaiOCR 다운로드/설치 중",
       "ready": "모델 준비 완료",
       "cancelled": "작업이 취소됨",
       "failed": "작업 실패",
       "partial": "작업 부분 완료",
       "ocrPreparing": "Paddle OCR 준비 중",
+      "hayaiOcrPreparing": "HayaiOCR 준비 중",
       "modelRequesting": "AI 번역 요청 중",
       "pageRunning": "번역 중",
       "pageDone": "완료",
@@ -84,6 +86,8 @@
       "inpaintingDone": "원문 지우기 완료",
       "ocrRunning": "Paddle OCR 분석 중",
       "ocrPreanalysisDone": "Paddle OCR 선분석 완료",
+      "hayaiOcrRunning": "HayaiOCR 분석 중",
+      "hayaiOcrPreanalysisDone": "HayaiOCR 선분석 완료",
       "pageRetry": "페이지 재시도 중"
     },
     "status": {
@@ -583,6 +587,19 @@
       "blockMismatch_one": "{{page}}쪽: 텍스트 줄 구성과 번역 블록 {{count}}개가 맞지 않아 건너뜁니다.",
       "blockMismatch_other": "{{page}}쪽: 텍스트 줄 구성과 번역 블록 {{count}}개가 맞지 않아 건너뜁니다."
     }
+  },
+  "soundEffectTranslation": {
+    "preparing": "효과음 번역 준비 중",
+    "failed": "효과음 번역 실패",
+    "startFailed": "효과음 번역을 시작하지 못했습니다.",
+    "cancelled": "효과음 번역을 취소했습니다. 미처리 후보는 그대로 남았습니다.",
+    "partial": "효과음 번역 일부 완료",
+    "completed": "효과음 번역 완료",
+    "summary": "효과음 {{translated}}개 번역 · {{remaining}}개 대기"
+  },
+  "soundEffectReview": {
+    "dismissed": "효과음 후보를 검토 대상에서 제외했습니다.",
+    "dismissFailed": "효과음 후보를 제외하지 못했습니다."
   },
   "stylePresets": {
     "applied": "‘{{name}}’ 서식을 {{count}}개 블록에 적용했습니다.",

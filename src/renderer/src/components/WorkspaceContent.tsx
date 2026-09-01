@@ -45,6 +45,13 @@ export const WorkspaceContent = React.memo(function WorkspaceContent(
       maskStrokes={props.maskStrokes}
       onBlockPointerDown={props.onBlockPointerDown}
       onWarpTransformCommit={props.onWarpTransformCommit}
+      onDismissSoundEffectReviewRegion={props.onDismissSoundEffectReviewRegion}
+      onExitSoundEffectReview={props.onExitSoundEffectReview}
+      onOpenSoundEffectTranslation={props.onOpenSoundEffectTranslation}
+      onSelectSoundEffectReviewRegion={props.onSelectSoundEffectReviewRegion}
+      onTranslateSoundEffectReviewRegion={
+        props.onTranslateSoundEffectReviewRegion
+      }
       onStagePointerDown={props.onStagePointerDown}
       onStagePointerLeave={props.onStagePointerLeave}
       onStagePointerMove={props.onStagePointerMove}
@@ -62,7 +69,11 @@ export const WorkspaceContent = React.memo(function WorkspaceContent(
       retouchOriginalImageDataUrl={props.retouchOriginalImageDataUrl}
       selectedBlockId={props.selectedBlockId}
       selectedBlockIds={props.selectedBlockIds}
+      selectedSoundEffectReviewRegionId={
+        props.selectedSoundEffectReviewRegionId
+      }
       showBlockChrome={props.showBlockChrome && !retouchToolActive}
+      showSoundEffectReview={props.showSoundEffectReview}
       showTextBlocks={props.showTextBlocks}
       stageRef={props.stageRef}
       stageSize={props.stageSize}
@@ -88,6 +99,11 @@ const WORKSPACE_CONTENT_RENDER_KEYS = [
   "maskStrokes",
   "onBlockPointerDown",
   "onWarpTransformCommit",
+  "onDismissSoundEffectReviewRegion",
+  "onExitSoundEffectReview",
+  "onOpenSoundEffectTranslation",
+  "onSelectSoundEffectReviewRegion",
+  "onTranslateSoundEffectReviewRegion",
   "onOpenBatchImport",
   "onOpenSettings",
   "onOpenShareImport",
@@ -104,11 +120,13 @@ const WORKSPACE_CONTENT_RENDER_KEYS = [
   "retouchOriginalImageDataUrl",
   "selectedBlockId",
   "selectedBlockIds",
+  "selectedSoundEffectReviewRegionId",
   "selectedPage",
   "selectedPageImageDataUrl",
   "selectedPageImageLoading",
   "selectedPageImagePageId",
   "showBlockChrome",
+  "showSoundEffectReview",
   "showTextBlocks",
   "showingOriginalPeek",
   "stageRef",

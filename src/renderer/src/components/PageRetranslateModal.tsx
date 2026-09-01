@@ -19,13 +19,13 @@ type PageRetranslateModalProps = {
     blockMode: AnalysisBlockMode,
     naturalTextLayout: boolean,
     autoFontMatching: boolean,
-    fontSizeAutoFit: boolean,
+    aiFontSizeMatching: boolean,
   ) => void;
   onPersistDefaults: (
     patch: Pick<
       UiSettings,
       | "autoFontMatchingDefault"
-      | "fontSizeAutoFitDefault"
+      | "aiFontSizeMatchingDefault"
       | "blockModeDefault"
       | "naturalTextLayoutDefault"
     >,
@@ -47,13 +47,15 @@ export function PageRetranslateModal({
     uiSettings?.blockModeDefault ?? "auto",
   );
   const [naturalTextLayout, setNaturalTextLayout] = React.useState(
-    uiSettings?.naturalTextLayoutDefault ?? true,
+    uiSettings?.naturalTextLayoutDefault ?? false,
   );
   const [autoFontMatching, setAutoFontMatching] = React.useState(
     uiSettings?.autoFontMatchingDefault ?? false,
   );
-  const [fontSizeAutoFit, setFontSizeAutoFit] = React.useState(
-    uiSettings?.fontSizeAutoFitDefault ?? true,
+  const [aiFontSizeMatching, setAiFontSizeMatching] = React.useState(
+    uiSettings?.aiFontSizeMatchingDefault ??
+      uiSettings?.fontSizeAutoFitDefault ??
+      true,
   );
   const [saveAsDefault, setSaveAsDefault] = React.useState(false);
 
@@ -64,12 +66,12 @@ export function PageRetranslateModal({
           blockMode,
           naturalTextLayout,
           autoFontMatching,
-          fontSizeAutoFit,
+          aiFontSizeMatching,
         ),
       );
     }
     handoffActiveModalToWorkCenter();
-    onStart(blockMode, naturalTextLayout, autoFontMatching, fontSizeAutoFit);
+    onStart(blockMode, naturalTextLayout, autoFontMatching, aiFontSizeMatching);
     onClose();
   };
 
@@ -94,11 +96,11 @@ export function PageRetranslateModal({
         autoFontMatching={autoFontMatching}
         blockCount={blockCount}
         blockMode={blockMode}
-        fontSizeAutoFit={fontSizeAutoFit}
+        aiFontSizeMatching={aiFontSizeMatching}
         naturalTextLayout={naturalTextLayout}
         onAutoFontMatchingChange={setAutoFontMatching}
         onBlockModeChange={setBlockMode}
-        onFontSizeAutoFitChange={setFontSizeAutoFit}
+        onAiFontSizeMatchingChange={setAiFontSizeMatching}
         onNaturalTextLayoutChange={setNaturalTextLayout}
         pageName={pageName}
         t={t}
@@ -146,13 +148,13 @@ function buildRetranslateDefaults(
   blockMode: AnalysisBlockMode,
   naturalTextLayout: boolean,
   autoFontMatching: boolean,
-  fontSizeAutoFit: boolean,
+  aiFontSizeMatching: boolean,
 ): Parameters<PageRetranslateModalProps["onPersistDefaults"]>[0] {
   return {
     blockModeDefault: blockMode,
     naturalTextLayoutDefault: naturalTextLayout,
     autoFontMatchingDefault: autoFontMatching,
-    fontSizeAutoFitDefault: fontSizeAutoFit,
+    aiFontSizeMatchingDefault: aiFontSizeMatching,
   };
 }
 
@@ -160,11 +162,11 @@ function PageRetranslateOptions({
   autoFontMatching,
   blockCount,
   blockMode,
-  fontSizeAutoFit,
+  aiFontSizeMatching,
   naturalTextLayout,
   onAutoFontMatchingChange,
   onBlockModeChange,
-  onFontSizeAutoFitChange,
+  onAiFontSizeMatchingChange,
   onNaturalTextLayoutChange,
   pageName,
   t,
@@ -173,11 +175,11 @@ function PageRetranslateOptions({
   autoFontMatching: boolean;
   blockCount: number;
   blockMode: AnalysisBlockMode;
-  fontSizeAutoFit: boolean;
+  aiFontSizeMatching: boolean;
   naturalTextLayout: boolean;
   onAutoFontMatchingChange: (enabled: boolean) => void;
   onBlockModeChange: (mode: AnalysisBlockMode) => void;
-  onFontSizeAutoFitChange: (enabled: boolean) => void;
+  onAiFontSizeMatchingChange: (enabled: boolean) => void;
   onNaturalTextLayoutChange: (enabled: boolean) => void;
   pageName: string;
   t: ReturnType<typeof useTranslation>["t"];
@@ -214,8 +216,8 @@ function PageRetranslateOptions({
         />
         <ToggleOptionRow
           label={t("translationOptions.fontSizeAutoFit")}
-          pressed={fontSizeAutoFit}
-          onChange={onFontSizeAutoFitChange}
+          pressed={aiFontSizeMatching}
+          onChange={onAiFontSizeMatchingChange}
         />
       </div>
       <TranslationOverwriteWarning

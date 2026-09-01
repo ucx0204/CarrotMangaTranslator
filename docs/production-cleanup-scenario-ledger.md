@@ -137,12 +137,18 @@ editing the totals by hand.
   `b0bb2a1912d5bbc71aadab977cf9054a6321a691cada1ae1edb233c9267fb3c6`.
   The beginner conditional-batch editor pass extended it to SHA-256
   `24204b9f17b516a26fc449bbf85c578fd63cd7d5f2b2a25cfe14dbd5fd47a8de`.
+  The HayaiOCR engine-boundary and runtime-isolation pass extended the accepted
+  Node 26 artifact to SHA-256
+  `5ee2b4cfdcdccd99ae61befd9eb34ab6779f6b30afe1afb95c551eddb97b7550`.
+  The dedicated SFX translation, review, image-context, font-matching, and
+  lifecycle pass extended it to SHA-256
+  `889544061ee1f2b352a480278c94aa9a0fd5725ec60005481bd1bf072474284a`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 574 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 228 new
+  percentage for lines/statements/functions/branches in all 649 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 323 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
-  nine removed source files are recorded explicitly in `deletedFiles`.
+  ten removed source files are recorded explicitly in `deletedFiles`.
 - The compact conditional-batch editor and visual pattern-builder capture passed
   595 Vitest files: 4,641 tests passed and ten expected tests were skipped.
   Aggregate V8 coverage was 80.56% lines, 79.25% statements, 81.42% functions,

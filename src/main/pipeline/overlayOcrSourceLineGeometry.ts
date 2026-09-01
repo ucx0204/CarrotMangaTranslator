@@ -16,6 +16,7 @@ export type OcrGeometryLockHint = {
   ocrText?: string;
   groupId?: string;
   containerType?: string;
+  geometryLocked?: boolean;
 };
 
 export function stripSourceFontLineGeometry(item: OverlayItem): OverlayItem {

@@ -10,6 +10,7 @@ import type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
+  OcrPipeline,
   OcrQualityMode,
   UiLocale,
   WheelZoomSensitivityPercent,
@@ -91,6 +92,7 @@ export type SettingsFormValues = {
   apiExtraBodyJson: string;
   apiCustomHeadersJson: string;
   ocrDevice: OcrDevice;
+  ocrPipeline: OcrPipeline;
   ocrGpuBackend: OcrGpuBackend;
   ocrQualityMode: OcrQualityMode;
   inpaintingModel: InpaintingModel;
@@ -276,6 +278,7 @@ function resolveHardwareFormValues(
 ): Pick<
   SettingsFormValues,
   | "ocrDevice"
+  | "ocrPipeline"
   | "ocrGpuBackend"
   | "ocrQualityMode"
   | "inpaintingModel"
@@ -285,6 +288,7 @@ function resolveHardwareFormValues(
 > {
   return {
     ocrDevice: settings.ocr.device,
+    ocrPipeline: settings.ocr.pipeline ?? "paddle-legacy",
     ocrGpuBackend: settings.ocr.gpuBackend ?? "cuda",
     ocrQualityMode: settings.ocr.qualityMode ?? "economy",
     inpaintingModel: settings.inpainting?.model ?? "flux-klein",

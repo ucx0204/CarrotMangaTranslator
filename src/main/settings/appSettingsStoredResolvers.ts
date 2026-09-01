@@ -42,7 +42,6 @@ import {
   isRocmLlamaRuntimeProfile,
   resolveLlamaRuntimeProfile,
 } from "./llamaRuntimeProfile";
-import type { OcrNormalizationPolicy } from "./ocrRuntimeOverrides";
 
 type GemmaModelSettings = Pick<AppSettings["gemma"], "modelRepo" | "modelFile">;
 
@@ -198,62 +197,25 @@ export function resolveStoredOcrGpuCudaTag(
 export function resolveStoredOcrModeSettings(
   ocr: Record<string, unknown> | null,
   defaults: AppSettings,
-  options: OcrNormalizationPolicy = {},
 ): {
   device: OcrDevice;
   gpuBackend: OcrGpuBackend;
   qualityMode: OcrQualityMode;
 } {
-  const hardwareVendor =
-    options.detectedHardwareVendor ?? inferHardwareVendorFromDefaults(defaults);
   const requestedDevice = resolveOcrDevice(ocr?.device, defaults.ocr.device);
   const requestedBackend = resolveOcrGpuBackend(
     ocr?.gpuBackend,
     defaults.ocr.gpuBackend ?? "cuda",
   );
-  // Detected hardware owns the backend. Unknown hardware retains the stored
-  // value as the manual/advanced escape hatch.
-  const gpuBackend =
-    hardwareVendor === "unknown"
-      ? requestedBackend
-      : resolveOcrGpuBackend(defaults.ocr.gpuBackend, "cuda");
   const requestedQuality = resolveOcrQualityMode(
     ocr?.qualityMode,
     defaults.ocr.qualityMode,
   );
-  const unsupportedAmdOcrGpu = shouldForceUnsupportedAmdOcrCpu(
-    hardwareVendor,
-    defaults,
-    options,
-  );
   return {
-    // The packaged Apple Silicon OCR runtime is PaddlePaddle CPU-only.
-    device:
-      hardwareVendor === "apple" || unsupportedAmdOcrGpu
-        ? "cpu"
-        : requestedDevice,
-    gpuBackend: unsupportedAmdOcrGpu ? "cuda" : gpuBackend,
-    qualityMode: unsupportedAmdOcrGpu ? "economy" : requestedQuality,
+    device: requestedDevice,
+    gpuBackend: requestedBackend,
+    qualityMode: requestedQuality,
   };
-}
-
-function shouldForceUnsupportedAmdOcrCpu(
-  hardwareVendor: ReturnType<typeof inferHardwareVendorFromDefaults>,
-  defaults: AppSettings,
-  options: OcrNormalizationPolicy,
-): boolean {
-  if (options.allowUnsupportedAmdOcrGpu === true) return false;
-  if (options.detectedHardwareVendor !== undefined) {
-    return (
-      options.detectedHardwareVendor === "amd" &&
-      options.detectedAmdOcrRocmSupport === false
-    );
-  }
-  return (
-    hardwareVendor === "amd" &&
-    defaults.ocr.device === "cpu" &&
-    defaults.ocr.gpuBackend !== "rocm-transformers"
-  );
 }
 
 const LEGACY_GEMMA_MODEL_REPO = "unsloth/gemma-4-26B-A4B-it-GGUF";

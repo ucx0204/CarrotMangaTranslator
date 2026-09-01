@@ -20,7 +20,7 @@ describe("model test managed operation lifecycle", () => {
       prepared: boolean;
     }>();
     const runtime = createRuntime();
-    runtime.ensurePaddleOcrRuntime = vi.fn(() => verifyGate.promise);
+    runtime.ensureOcrRuntime = vi.fn(() => verifyGate.promise);
     const context = createContext(runtime);
 
     const first = handleModelSettingsTest(
@@ -30,7 +30,7 @@ describe("model test managed operation lifecycle", () => {
       "first-test",
     );
     await vi.waitFor(() => {
-      expect(runtime.ensurePaddleOcrRuntime).toHaveBeenCalledTimes(1);
+      expect(runtime.ensureOcrRuntime).toHaveBeenCalledTimes(1);
     });
     expect(context.operations.current?.kind).toBe("model-test");
 
@@ -41,7 +41,7 @@ describe("model test managed operation lifecycle", () => {
       "second-test",
     );
     expect(second.ok).toBe(false);
-    expect(runtime.ensurePaddleOcrRuntime).toHaveBeenCalledTimes(1);
+    expect(runtime.ensureOcrRuntime).toHaveBeenCalledTimes(1);
     expect(runtime.startServer).not.toHaveBeenCalled();
 
     verifyGate.resolve({
@@ -70,7 +70,7 @@ describe("model test managed operation lifecycle", () => {
     );
 
     expect(result.ok).toBe(false);
-    expect(runtime.ensurePaddleOcrRuntime).not.toHaveBeenCalled();
+    expect(runtime.ensureOcrRuntime).not.toHaveBeenCalled();
     expect(context.operations.current).toBeNull();
     context.jobs.clearIfCurrent("translation-active");
   });
@@ -82,7 +82,7 @@ describe("model test managed operation lifecycle", () => {
       prepared: boolean;
     }>();
     const runtime = createRuntime();
-    runtime.ensurePaddleOcrRuntime = vi.fn(() => verifyGate.promise);
+    runtime.ensureOcrRuntime = vi.fn(() => verifyGate.promise);
     const context = createContext(runtime);
 
     const testing = handleModelSettingsTest(
@@ -92,7 +92,7 @@ describe("model test managed operation lifecycle", () => {
       "model-test-active",
     );
     await vi.waitFor(() => {
-      expect(runtime.ensurePaddleOcrRuntime).toHaveBeenCalledTimes(1);
+      expect(runtime.ensureOcrRuntime).toHaveBeenCalledTimes(1);
     });
 
     expect(() =>
@@ -232,7 +232,7 @@ function createRuntime(): SimplePageRuntime {
     isModelCached: vi.fn(() => true),
     validateImageFileWithFfmpeg: vi.fn(async () => undefined),
     convertImageToPngFileWithFfmpeg: vi.fn(async () => undefined),
-    ensurePaddleOcrRuntime: vi.fn(async () => ({
+    ensureOcrRuntime: vi.fn(async () => ({
       runtimeVariant: "cpu",
       pythonPath: "C:\\python\\python.exe",
       prepared: true,

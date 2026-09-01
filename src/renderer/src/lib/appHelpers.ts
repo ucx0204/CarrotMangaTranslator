@@ -238,6 +238,7 @@ function resolveLegacyStatusLineReplacement(
   if (group === "ocr-progress") {
     return (line) =>
       line.includes("Paddle OCR") ||
+      line.includes("HayaiOCR") ||
       line === "OCR 준비 중" ||
       line === "OCR 분석 중";
   }

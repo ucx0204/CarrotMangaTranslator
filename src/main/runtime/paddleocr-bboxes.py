@@ -327,7 +327,12 @@ def configure_torch_for_transformers_ocr(args: argparse.Namespace | None) -> Non
     if not is_gpu or not is_rocm:
       return
 
-    if not is_truthy_env("MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN", True):
+    disable_miopen_env = (
+      "MANGA_TRANSLATOR_OCR_DISABLE_MIOPEN"
+      if "MANGA_TRANSLATOR_OCR_DISABLE_MIOPEN" in os.environ
+      else "MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN"
+    )
+    if not is_truthy_env(disable_miopen_env, True):
       return
 
     global TORCH_ROCM_SAFE_MODE_CONFIGURED

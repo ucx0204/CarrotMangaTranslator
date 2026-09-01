@@ -929,6 +929,29 @@ describe("IPC schemas", () => {
     ).toBe(false);
   });
 
+  it("preserves OCR engine identity in job and model-test progress", () => {
+    const job = JobEventSchema.parse({
+      id: "job-hayai",
+      kind: "gemma-analysis",
+      status: "running",
+      progressText: "HayaiOCR 분석 중",
+      phase: "ocr_running",
+      ocrPipeline: "hayai",
+    });
+    const modelTest = ModelTestProgressEventSchema.parse({
+      id: "test-hayai",
+      progressText: "HayaiOCR 확인 중",
+      phase: "ocr_preparing",
+      ocrPipeline: "hayai",
+    });
+
+    expect(job.ocrPipeline).toBe("hayai");
+    expect(modelTest.ocrPipeline).toBe("hayai");
+    expect(
+      JobEventSchema.safeParse({ ...job, ocrPipeline: "unknown" }).success,
+    ).toBe(false);
+  });
+
   it("normalizes obsolete render directions to horizontal when saving chapters", () => {
     const payload = makeChapterSnapshot();
     payload.pages[0].blocks[0].renderDirection = "hidden";

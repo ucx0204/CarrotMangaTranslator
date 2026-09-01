@@ -7,6 +7,11 @@ import type {
   MangaPage,
 } from "../../../shared/libraryTypes";
 import type { BBox } from "../../../shared/textTypes";
+import type {
+  PrepareSoundEffectTranslationRequest,
+  StartSoundEffectTranslationRequest,
+  StartSoundEffectTranslationResult,
+} from "../../../shared/analysisTypes";
 import type { TranslationWorkflowMode } from "../../../shared/settingsTypes";
 import type { CumulativeContextDetail } from "../../../shared/settingsTypes";
 import type { LiveChapterMergeOptions } from "../lib/chapterSync";
@@ -21,7 +26,7 @@ export type TranslationFlowOptions = {
   cumulativeContextDetail?: CumulativeContextDetail;
   blockMode: AnalysisBlockMode;
   autoFontMatching?: boolean;
-  fontSizeAutoFit?: boolean;
+  aiFontSizeMatching?: boolean;
   naturalTextLayout?: boolean;
   eraseOriginalWorkflow?: boolean;
   bubbleLayoutWorkflow?: boolean;
@@ -48,7 +53,7 @@ export type UseTranslationActionsOptions = {
   translationWorkflowDefault?: TranslationWorkflowMode;
   cumulativeContextDetailDefault?: CumulativeContextDetail;
   autoFontMatchingDefault?: boolean;
-  fontSizeAutoFitDefault?: boolean;
+  aiFontSizeMatchingDefault?: boolean;
   naturalTextLayoutDefault?: boolean;
   recordImageEdit: (entry: {
     label: string;
@@ -77,11 +82,17 @@ export type TranslationActions = {
     collectPageContext?: boolean,
     naturalTextLayout?: boolean,
     autoFontMatching?: boolean,
-    fontSizeAutoFit?: boolean,
+    aiFontSizeMatching?: boolean,
     cumulativeContextDetail?: CumulativeContextDetail,
   ) => Promise<RunAnalysisOutcome>;
   runTranslationFlow: (
     options: TranslationFlowOptions,
   ) => Promise<RunAnalysisOutcome>;
   translateSelectedRegion: (bbox: BBox) => Promise<void>;
+  translateSoundEffects: (
+    targets: StartSoundEffectTranslationRequest["targets"],
+    inpaintAfterTranslation?: boolean,
+    autoFontMatching?: boolean,
+    prepareRequest?: PrepareSoundEffectTranslationRequest,
+  ) => Promise<StartSoundEffectTranslationResult | null>;
 };

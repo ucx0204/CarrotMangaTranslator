@@ -53,7 +53,7 @@ describe("settings model test localization", () => {
       expect(setTestState).toHaveBeenLastCalledWith({
         status: "error",
         message:
-          "An error occurred while requesting the Paddle OCR and translation engine check.",
+          "An error occurred while requesting the OCR and translation engine check.",
         detail: null,
       });
     });

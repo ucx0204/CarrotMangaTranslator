@@ -10,7 +10,7 @@ const { readPositiveInteger } = require("./simple-page-prompts.cjs");
 /**
  * @typedef {{ current: number; total: number }} PipRawProgress
  * @typedef {{ phase: "start" | "done" | "error"; index: number; total: number; count: number }} OcrBatchProgress
- * @typedef {{ totalFiles: number; currentFiles: number | null; percent: number | null }} PaddleModelFetchProgress
+ * @typedef {{ totalFiles: number; currentFiles: number | null; percent: number | null }} OcrModelFetchProgress
  * @typedef {{ start(): void; stop(): void }} OcrBatchProgressPoller
  */
 
@@ -125,9 +125,9 @@ function normalizeOcrBatchCount(count) {
 
 /**
  * @param {unknown} line
- * @returns {PaddleModelFetchProgress | null}
+ * @returns {OcrModelFetchProgress | null}
  */
-function parsePaddleModelFetchProgress(line) {
+function parseOcrModelFetchProgress(line) {
   const text = String(line ?? "");
   const fetchMatch = text.match(/\bFetching\s+(\d+)\s+files:\s+(\d+)%/i);
   if (!fetchMatch) {
@@ -155,17 +155,18 @@ function parsePaddleModelFetchProgress(line) {
 }
 
 /**
- * @param {PaddleModelFetchProgress} progress
+ * @param {OcrModelFetchProgress} progress
+ * @param {string} [engineLabel]
  * @returns {string}
  */
-function formatPaddleModelFetchProgress(progress) {
+function formatOcrModelFetchProgress(progress, engineLabel = "OCR") {
   const countText = Number.isFinite(progress.currentFiles)
     ? `${progress.currentFiles} / ${progress.totalFiles}개`
     : `${progress.totalFiles}개`;
   const percentText = Number.isFinite(progress.percent)
     ? ` (${progress.percent}%)`
     : "";
-  return `Paddle OCR 모델 파일 다운로드 중: ${countText}${percentText}`;
+  return `${engineLabel} 모델 파일 다운로드 중: ${countText}${percentText}`;
 }
 
 /**
@@ -270,9 +271,9 @@ module.exports = {
   clampProgressRatio,
   createOcrBatchProgressFilePoller,
   formatBytes,
-  formatPaddleModelFetchProgress,
+  formatOcrModelFetchProgress,
   parseOcrBatchProgressLine,
-  parsePaddleModelFetchProgress,
+  parseOcrModelFetchProgress,
   parsePipRawProgress,
   resolveOcrBboxTimeoutMs,
   sanitizeInstallLogLine,

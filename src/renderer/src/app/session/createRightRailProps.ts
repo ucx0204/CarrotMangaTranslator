@@ -76,6 +76,7 @@ type RightRailViewModel = {
     | "muted"
     | "volume"
     | "translationMuted"
+    | "soundEffectMuted"
     | "sourceErasingMuted"
     | "researchMuted"
     | "setPreferences"
@@ -143,6 +144,7 @@ export function createRightRailProps(
     completionSoundMuted: model.completionSound.muted,
     completionSoundVolume: model.completionSound.volume,
     completionSoundTranslationMuted: model.completionSound.translationMuted,
+    completionSoundSoundEffectMuted: model.completionSound.soundEffectMuted,
     completionSoundSourceErasingMuted: model.completionSound.sourceErasingMuted,
     completionSoundResearchMuted: model.completionSound.researchMuted,
     currentChapter: core.currentChapter,

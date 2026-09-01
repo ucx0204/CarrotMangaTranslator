@@ -82,18 +82,14 @@ describe("OCR settings runtime guards", () => {
     ocrQualityMode: "full" as const,
   };
 
-  it("self-heals unsupported detected AMD settings to the CPU contract", () => {
+  it("preserves explicit OCR device and backend choices on unsupported AMD", () => {
     expect(
       resolveCompatibleOcrSettings(gpuFull, {
         supportsOcrRocm: false,
         usesAmdOcrContext: true,
         usesNvidiaOcrContext: false,
       }),
-    ).toEqual({
-      ocrDevice: "cpu",
-      ocrGpuBackend: "cuda",
-      ocrQualityMode: "economy",
-    });
+    ).toEqual(gpuFull);
     expect(
       resolveCompatibleOcrSettings(
         { ...gpuFull, ocrGpuBackend: "rocm-transformers" },
@@ -103,14 +99,10 @@ describe("OCR settings runtime guards", () => {
           usesNvidiaOcrContext: false,
         },
       ),
-    ).toEqual({
-      ocrDevice: "cpu",
-      ocrGpuBackend: "cuda",
-      ocrQualityMode: "economy",
-    });
+    ).toEqual({ ...gpuFull, ocrGpuBackend: "rocm-transformers" });
   });
 
-  it("keeps supported and manually inferred AMD OCR on ROCm", () => {
+  it("does not infer a different AMD backend from detected hardware", () => {
     for (const supportsOcrRocm of [true, undefined]) {
       expect(
         resolveCompatibleOcrSettings(gpuFull, {
@@ -118,10 +110,7 @@ describe("OCR settings runtime guards", () => {
           usesAmdOcrContext: true,
           usesNvidiaOcrContext: false,
         }),
-      ).toEqual({
-        ...gpuFull,
-        ocrGpuBackend: "rocm-transformers",
-      });
+      ).toEqual(gpuFull);
     }
   });
 
@@ -135,7 +124,7 @@ describe("OCR settings runtime guards", () => {
           usesNvidiaOcrContext: true,
         },
       ),
-    ).toEqual(gpuFull);
+    ).toEqual({ ...gpuFull, ocrGpuBackend: "rocm-transformers" });
     expect(
       resolveCompatibleOcrSettings(gpuFull, {
         supportsOcrRocm: undefined,

@@ -33,6 +33,7 @@ type StatusDockButtonProps = {
   completionSoundMuted?: boolean;
   completionSoundVolume?: number;
   completionSoundTranslationMuted?: boolean;
+  completionSoundSoundEffectMuted?: boolean;
   completionSoundSourceErasingMuted?: boolean;
   completionSoundResearchMuted?: boolean;
   onCancelJob: () => void;
@@ -57,6 +58,7 @@ export function StatusDockButton({
   completionSoundMuted = true,
   completionSoundVolume = 0.55,
   completionSoundTranslationMuted,
+  completionSoundSoundEffectMuted,
   completionSoundSourceErasingMuted,
   completionSoundResearchMuted,
   onCancelJob,
@@ -133,6 +135,9 @@ export function StatusDockButton({
           completionSoundVolume={completionSoundVolume}
           completionSoundTranslationMuted={Boolean(
             completionSoundTranslationMuted,
+          )}
+          completionSoundSoundEffectMuted={Boolean(
+            completionSoundSoundEffectMuted,
           )}
           completionSoundSourceErasingMuted={Boolean(
             completionSoundSourceErasingMuted,

@@ -10,15 +10,19 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HardwareSettingsPanel } from "../src/renderer/src/components/settingsModal/HardwareSettingsPanel";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { RuntimeHardwareNote } from "../src/renderer/src/components/settingsModal/GemmaMemorySummary";
 import {
+  AmdHipSdkDownloadButton,
   FluxHardwareContextNote,
-  OcrHardwareContextNote,
 } from "../src/renderer/src/components/settingsModal/HardwareContextNotes";
 import { resolveHardwareRecommendation } from "../src/renderer/src/components/settingsModal/hardwareRecommendation";
 import { OCR_FULL_RECOMMENDED_GPU_MEMORY_MB } from "../src/shared/ocrMemoryPolicy";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  Reflect.deleteProperty(window, "mangaApi");
+});
 
 describe("HardwareSettingsPanel", () => {
   it("separates the auto-detected GPU from a manually selected runtime device", () => {
@@ -36,6 +40,7 @@ describe("HardwareSettingsPanel", () => {
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="cpu"
         ocrGpuBackend="cuda"
+        ocrPipeline="paddle-legacy"
         ocrQualityMode="economy"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
@@ -44,6 +49,7 @@ describe("HardwareSettingsPanel", () => {
         setInpaintingModel={vi.fn()}
         setOcrDevice={vi.fn()}
         setOcrGpuBackend={vi.fn()}
+        setOcrPipeline={vi.fn()}
         setOcrQualityMode={vi.fn()}
         supportsFluxZluda={false}
         supportsOcrRocm={false}
@@ -65,7 +71,9 @@ describe("HardwareSettingsPanel", () => {
     ).toBeTruthy();
   });
 
-  it("omits generic GPU runtime context notes outside Apple Silicon", () => {
+  it("omits generic Flux runtime context notes outside Apple Silicon", () => {
+    const openAmdHipSdkDownload = vi.fn().mockResolvedValue(undefined);
+    window.mangaApi = createTestMangaGatewayStub({ openAmdHipSdkDownload });
     const { container, rerender } = render(
       <RuntimeHardwareNote usesAppleHardware={false} />,
     );
@@ -74,13 +82,12 @@ describe("HardwareSettingsPanel", () => {
     rerender(<FluxHardwareContextNote usesAppleHardware={false} />);
     expect(container.textContent).toBe("");
 
-    rerender(
-      <OcrHardwareContextNote
-        usesAppleHardware={false}
-        usesNvidiaOcrContext={false}
-      />,
-    );
-    expect(container.textContent).toBe("");
+    rerender(<FluxHardwareContextNote usesAppleHardware />);
+    expect(container.textContent).toContain("Apple Silicon");
+
+    rerender(<AmdHipSdkDownloadButton />);
+    fireEvent.click(screen.getByRole("button"));
+    expect(openAmdHipSdkDownload).toHaveBeenCalledOnce();
   });
 
   it("keeps OCR on CPU for detected AMD adapters outside the ROCm allowlist", () => {
@@ -147,6 +154,7 @@ describe("HardwareSettingsPanel", () => {
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="cpu"
         ocrGpuBackend="cuda"
+        ocrPipeline="paddle-legacy"
         ocrQualityMode="economy"
         setFluxBackend={setFluxBackend}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
@@ -155,6 +163,7 @@ describe("HardwareSettingsPanel", () => {
         setInpaintingModel={vi.fn()}
         setOcrDevice={vi.fn()}
         setOcrGpuBackend={vi.fn()}
+        setOcrPipeline={vi.fn()}
         setOcrQualityMode={vi.fn()}
         supportsFluxZluda={false}
         supportsOcrRocm={false}
@@ -245,6 +254,7 @@ describe("HardwareSettingsPanel", () => {
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="gpu"
         ocrGpuBackend="cuda"
+        ocrPipeline="paddle-legacy"
         ocrQualityMode="economy"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
@@ -253,6 +263,7 @@ describe("HardwareSettingsPanel", () => {
         setInpaintingModel={vi.fn()}
         setOcrDevice={vi.fn()}
         setOcrGpuBackend={vi.fn()}
+        setOcrPipeline={vi.fn()}
         setOcrQualityMode={vi.fn()}
         usesAmdHardware={false}
         usesAppleHardware={false}
@@ -288,6 +299,7 @@ describe("HardwareSettingsPanel", () => {
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="gpu"
         ocrGpuBackend="cuda"
+        ocrPipeline="paddle-legacy"
         ocrQualityMode="full"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
@@ -296,6 +308,7 @@ describe("HardwareSettingsPanel", () => {
         setInpaintingModel={vi.fn()}
         setOcrDevice={setOcrDevice}
         setOcrGpuBackend={vi.fn()}
+        setOcrPipeline={vi.fn()}
         setOcrQualityMode={setOcrQualityMode}
         usesAmdHardware={false}
         usesAppleHardware={false}
@@ -328,6 +341,7 @@ describe("HardwareSettingsPanel", () => {
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="gpu"
         ocrGpuBackend="cuda"
+        ocrPipeline="paddle-legacy"
         ocrQualityMode="economy"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
@@ -336,6 +350,7 @@ describe("HardwareSettingsPanel", () => {
         setInpaintingModel={vi.fn()}
         setOcrDevice={setOcrDevice}
         setOcrGpuBackend={setOcrGpuBackend}
+        setOcrPipeline={vi.fn()}
         setOcrQualityMode={setOcrQualityMode}
         usesAmdHardware={false}
         usesAppleHardware={false}
@@ -361,6 +376,123 @@ describe("HardwareSettingsPanel", () => {
     expect(setOcrQualityMode).toHaveBeenCalledWith("full");
   });
 
+  it("switches the new OCR pipeline independently from Paddle legacy controls", () => {
+    const clearTestState = vi.fn();
+    const setOcrDevice = vi.fn();
+    const setOcrGpuBackend = vi.fn();
+    const setOcrPipeline = vi.fn();
+    const props: React.ComponentProps<typeof HardwareSettingsPanel> = {
+      allowUnsafeLowMemoryFlux: false,
+      clearTestState,
+      computeGpuIndex: null,
+      controlsBusy: false,
+      fluxBackend: "cuda-native",
+      graphicsGpuPreference: "auto",
+      inpaintingModel: "flux-klein",
+      isFluxBackendOptionDisabled: () => false,
+      ocrDevice: "gpu",
+      ocrGpuBackend: "cuda",
+      ocrPipeline: "hayai",
+      ocrQualityMode: "full",
+      setAllowUnsafeLowMemoryFlux: vi.fn(),
+      setComputeGpuIndex: vi.fn(),
+      setFluxBackend: vi.fn(),
+      setGraphicsGpuPreference: vi.fn(),
+      setInpaintingModel: vi.fn(),
+      setOcrDevice,
+      setOcrGpuBackend,
+      setOcrPipeline,
+      setOcrQualityMode: vi.fn(),
+      supportsOcrRocm: false,
+      unifiedMemoryMb: null,
+      usesAmdHardware: false,
+      usesAmdOcrContext: false,
+      usesAppleHardware: false,
+      usesNvidiaHardware: true,
+      usesNvidiaOcrContext: true,
+    };
+    const { rerender } = render(<HardwareSettingsPanel {...props} />);
+    const pipelineGroup = screen.getByRole("group", {
+      name: "텍스트 영역 검출 방식",
+    });
+
+    expect(
+      within(pipelineGroup)
+        .getByRole("button", { name: "HayaiOCR" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(screen.queryByRole("group", { name: "Paddle OCR 품질" })).toBeNull();
+    fireEvent.click(
+      within(pipelineGroup).getByRole("button", {
+        name: "PaddleOCR",
+      }),
+    );
+    expect(clearTestState).toHaveBeenCalledOnce();
+    expect(setOcrPipeline).toHaveBeenCalledWith("paddle-legacy");
+    expect(setOcrDevice).not.toHaveBeenCalled();
+
+    rerender(<HardwareSettingsPanel {...props} ocrPipeline="paddle-legacy" />);
+    expect(screen.getByRole("group", { name: "Paddle OCR 품질" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "HayaiOCR" }));
+    expect(setOcrPipeline).toHaveBeenCalledWith("hayai");
+    expect(setOcrDevice).not.toHaveBeenCalled();
+    expect(setOcrGpuBackend).not.toHaveBeenCalled();
+
+    rerender(
+      <HardwareSettingsPanel {...props} ocrDevice="cpu" ocrPipeline="hayai" />,
+    );
+    fireEvent.click(screen.getByText("OCR 실행 장치 고급 설정"));
+    const deviceGroup = screen.getByRole("group", { name: "OCR 장치" });
+    const cpuButton = within(deviceGroup).getByRole("button", { name: "CPU" });
+    expect(cpuButton.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText(/CPU로 HayaiOCR를 실행합니다/)).toBeTruthy();
+    fireEvent.click(cpuButton);
+    expect(setOcrDevice).toHaveBeenCalledWith("cpu");
+    expect(setOcrGpuBackend).not.toHaveBeenCalled();
+
+    rerender(
+      <HardwareSettingsPanel
+        {...props}
+        ocrPipeline="paddle-legacy"
+        usesAppleHardware
+        usesNvidiaHardware={false}
+        usesNvidiaOcrContext={false}
+      />,
+    );
+    expect(
+      (screen.getByRole("button", { name: "HayaiOCR" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+
+    rerender(
+      <HardwareSettingsPanel
+        {...props}
+        ocrPipeline="hayai"
+        usesAppleHardware
+        usesNvidiaHardware={false}
+        usesNvidiaOcrContext={false}
+      />,
+    );
+    expect(
+      screen
+        .getByRole("button", { name: "HayaiOCR" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    rerender(
+      <HardwareSettingsPanel
+        {...props}
+        ocrPipeline="paddle-legacy"
+        usesNvidiaHardware={false}
+        usesNvidiaOcrContext={false}
+      />,
+    );
+    expect(
+      (screen.getByRole("button", { name: "HayaiOCR" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
+
   it("does not expose full quality or selectable ROCm OCR on unsupported AMD hardware", () => {
     const setOcrDevice = vi.fn();
     const setOcrGpuBackend = vi.fn();
@@ -377,6 +509,7 @@ describe("HardwareSettingsPanel", () => {
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="cpu"
         ocrGpuBackend="cuda"
+        ocrPipeline="paddle-legacy"
         ocrQualityMode="economy"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
@@ -385,6 +518,7 @@ describe("HardwareSettingsPanel", () => {
         setInpaintingModel={vi.fn()}
         setOcrDevice={setOcrDevice}
         setOcrGpuBackend={setOcrGpuBackend}
+        setOcrPipeline={vi.fn()}
         setOcrQualityMode={setOcrQualityMode}
         supportsOcrRocm={false}
         usesAmdHardware
@@ -397,6 +531,10 @@ describe("HardwareSettingsPanel", () => {
     );
 
     expect(screen.queryByRole("button", { name: "풀로드" })).toBeNull();
+    expect(
+      (screen.getByRole("button", { name: "HayaiOCR" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
     const rocmButton = screen.getByRole("button", {
       name: "AMD ROCm",
     }) as HTMLButtonElement;
@@ -420,6 +558,7 @@ describe("HardwareSettingsPanel", () => {
       isFluxBackendOptionDisabled: (backend) => backend === "cuda-native",
       ocrDevice: "gpu",
       ocrGpuBackend: "cuda",
+      ocrPipeline: "paddle-legacy",
       ocrQualityMode: "economy",
       setAllowUnsafeLowMemoryFlux: vi.fn(),
       setComputeGpuIndex: vi.fn(),
@@ -428,6 +567,7 @@ describe("HardwareSettingsPanel", () => {
       setInpaintingModel: vi.fn(),
       setOcrDevice: vi.fn(),
       setOcrGpuBackend: vi.fn(),
+      setOcrPipeline: vi.fn(),
       setOcrQualityMode: vi.fn(),
       unifiedMemoryMb: null,
       usesAmdHardware: false,

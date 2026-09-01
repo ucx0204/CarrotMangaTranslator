@@ -4,20 +4,23 @@ import type {
   GemmaVramMode,
   OcrDevice,
   OcrGpuBackend,
+  OcrPipeline,
   OcrQualityMode,
 } from "../../shared/settingsTypes";
+import { resolveOcrBboxProvider } from "../../shared/ocrEngines";
 import type { TranslationOptions } from "./appSettingsTypes";
 import {
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
+  resolveOcrPipeline,
   resolveOcrQualityMode,
   resolveOptionalString,
 } from "./appSettingsResolvers";
-import { hasExplicitOcrGpuEnableOverride } from "./ocrRuntimeOverrides";
 type OcrTranslationOptions = Pick<
   TranslationOptions,
   | "ocrDevice"
+  | "ocrPipeline"
   | "ocrGpuBackend"
   | "ocrGpuCudaTag"
   | "ocrQualityMode"
@@ -33,6 +36,7 @@ type OcrTranslationOptions = Pick<
   | "ocrRecBatch"
   | "ocrBboxCommand"
   | "ocrBboxHintsPath"
+  | "ocrBboxRegionsPath"
 >;
 
 export function resolveOcrTranslationOptions(
@@ -40,25 +44,26 @@ export function resolveOcrTranslationOptions(
   settings: AppSettings,
   gemmaVramMode: GemmaVramMode,
 ): OcrTranslationOptions {
+  const ocrPipeline = resolveOcrPipeline(
+    runtimeEnv.MANGA_TRANSLATOR_OCR_PIPELINE,
+    settings.ocr.pipeline ?? "paddle-legacy",
+  );
   const configuredOcrGpuBackend = resolveOcrGpuBackend(
     runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_BACKEND,
     settings.ocr.gpuBackend ?? "cuda",
   );
-  const configuredOcrDevice = resolveRuntimeOcrDevice(
+  const ocrDevice = resolveRuntimeOcrDevice(
     runtimeEnv,
     settings.ocr.device,
+    ocrPipeline,
   );
-  const { device: ocrDevice, gpuBackend: ocrGpuBackend } =
-    resolveSafeRuntimeOcrMode(
-      runtimeEnv,
-      settings,
-      configuredOcrDevice,
-      configuredOcrGpuBackend,
-    );
+  const ocrGpuBackend = configuredOcrGpuBackend;
   const configuredQualityMode = resolveOcrQualityMode(
     runtimeEnv.MANGA_TRANSLATOR_OCR_QUALITY_MODE ??
-      runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_QUALITY_MODE ??
-      runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_PRESET,
+      (ocrPipeline === "paddle-legacy"
+        ? (runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_QUALITY_MODE ??
+          runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_PRESET)
+        : undefined),
     settings.ocr.qualityMode ??
       resolveOcrQualityModeFromGemmaVramMode(gemmaVramMode),
   );
@@ -66,51 +71,37 @@ export function resolveOcrTranslationOptions(
     configuredQualityMode,
     ocrDevice,
   );
+  // Pipeline, provider, and device form one explicit runtime profile. The
+  // provider is derived from the selected pipeline so an inherited diagnostic
+  // environment cannot cross the Hayai/Paddle engine boundary.
   return {
+    ocrPipeline,
     ocrDevice,
     ocrGpuBackend,
     ocrGpuCudaTag: resolveOcrGpuCudaTag(
       runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG ??
-        runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG ??
+        (ocrPipeline === "paddle-legacy"
+          ? runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG
+          : undefined) ??
         runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_CUDA,
       settings.ocr.gpuCudaTag ?? DEFAULT_OCR_GPU_CUDA_TAG,
     ),
     ocrQualityMode,
-    ...resolvePaddleOcrModeOptions(
-      runtimeEnv,
-      ocrDevice,
-      ocrGpuBackend,
-      ocrQualityMode,
-    ),
-    ocrBboxProvider: resolveOptionalString(
-      runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_PROVIDER,
-    ),
+    ...(ocrPipeline === "paddle-legacy"
+      ? resolvePaddleOcrModeOptions(
+          runtimeEnv,
+          ocrDevice,
+          ocrGpuBackend,
+          ocrQualityMode,
+        )
+      : {}),
+    ocrBboxProvider: resolveOcrBboxProvider(ocrPipeline),
     ocrBboxCommand: resolveOptionalString(
       runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_CMD,
     ),
     ocrBboxHintsPath: resolveOptionalString(
       runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH,
     ),
-  };
-}
-
-function resolveSafeRuntimeOcrMode(
-  env: NodeJS.ProcessEnv,
-  settings: AppSettings,
-  configuredDevice: OcrDevice,
-  configuredGpuBackend: OcrGpuBackend,
-): { device: OcrDevice; gpuBackend: OcrGpuBackend } {
-  if (
-    configuredDevice === "gpu" &&
-    settings.runtimeHardware?.gpuVendor === "amd" &&
-    settings.runtimeHardware.supportsOcrRocm === false &&
-    !hasExplicitOcrGpuEnableOverride(env)
-  ) {
-    return { device: "cpu", gpuBackend: "cuda" };
-  }
-  return {
-    device: configuredDevice,
-    gpuBackend: configuredGpuBackend,
   };
 }
 
@@ -245,9 +236,13 @@ function resolveOcrQualityModeFromGemmaVramMode(
 function resolveRuntimeOcrDevice(
   env: NodeJS.ProcessEnv,
   configuredDevice: OcrDevice,
+  pipeline: OcrPipeline,
 ): OcrDevice {
   const explicit =
-    env.MANGA_TRANSLATOR_OCR_DEVICE ?? env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE;
+    env.MANGA_TRANSLATOR_OCR_DEVICE ??
+    (pipeline === "paddle-legacy"
+      ? env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE
+      : undefined);
   if (explicit !== undefined) {
     return resolveOcrDevice(explicit, configuredDevice);
   }

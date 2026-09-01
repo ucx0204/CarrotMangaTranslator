@@ -1,6 +1,7 @@
 import type { TranslationOptions } from "../appSettings";
 
 type OcrHintCacheConfiguration = {
+  ocrPipeline: string | null;
   ocrDevice: string | null;
   ocrGpuBackend: string | null;
   ocrGpuCudaTag: string | null;
@@ -20,6 +21,7 @@ type OcrHintCacheConfiguration = {
 };
 
 const OCR_HINT_CACHE_CONFIGURATION_KEYS = [
+  "ocrPipeline",
   "ocrDevice",
   "ocrGpuBackend",
   "ocrGpuCudaTag",
@@ -56,6 +58,7 @@ export function buildOcrCacheConfiguration(
   options: TranslationOptions,
 ): OcrHintCacheConfiguration {
   return {
+    ocrPipeline: normalizeOcrCacheOption(options.ocrPipeline),
     ocrDevice: normalizeOcrCacheOption(options.ocrDevice),
     ocrGpuBackend: normalizeOcrCacheOption(options.ocrGpuBackend),
     ocrGpuCudaTag: normalizeOcrCacheOption(options.ocrGpuCudaTag),

@@ -11,6 +11,7 @@ import {
   type WorkspaceFitMode,
 } from "../../lib/workspaceZoom";
 import { clampOriginalImageOpacity } from "../../lib/originalImageOpacity";
+import { useSoundEffectReviewUiState } from "./useSoundEffectReviewUiState";
 
 export type RightRailMode = "page-blocks" | "block-editor";
 
@@ -37,6 +38,7 @@ export function useAppSessionUiState() {
   const [rightRailMode, setRightRailMode] =
     useState<RightRailMode>("page-blocks");
   const [stageToolbarHidden, setStageToolbarHidden] = useState(false);
+  const soundEffectReview = useSoundEffectReviewUiState();
   const zoom = useWorkspaceZoomControls();
   const originalImageOpacity = useOriginalImageOpacityState();
 
@@ -57,9 +59,10 @@ export function useAppSessionUiState() {
     setStyleGuideBackgrounded(false);
     setTextViewOpen(false);
     setRightRailMode("page-blocks");
+    soundEffectReview.resetSoundEffectReviewUi();
     translateModals.resetTranslateModals();
     zoom.resetWorkspaceZoom();
-  }, [resetInpaintingUi, translateModals, zoom]);
+  }, [resetInpaintingUi, soundEffectReview, translateModals, zoom]);
 
   return {
     ...zoom,
@@ -67,6 +70,7 @@ export function useAppSessionUiState() {
     ...translateModals,
     ...inpaintingUi,
     ...jobFlow,
+    ...soundEffectReview,
     blockLibraryOpen,
     fontManagerOpen,
     conditionalBatchOpen,

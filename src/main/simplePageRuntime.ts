@@ -17,19 +17,21 @@ export type RuntimeImageConversionOptions = RuntimeImageValidationOptions & {
   maxOutputBytes: number;
 };
 
+type EnsureOcrRuntime = (options: Record<string, unknown>) => Promise<{
+  runtimeDir?: string;
+  runtimeVariant?: string;
+  packageDir?: string;
+  pythonPath?: string;
+  prepared?: boolean;
+}>;
+
 export type SimplePageRuntime = {
   startServer: (
     options: Record<string, unknown>,
   ) => Promise<{ baseUrl: string; child: unknown; startedByScript: boolean }>;
   stopServer: (server: { child: unknown } | null | undefined) => Promise<void>;
   isModelCached: (options: Record<string, unknown>) => boolean;
-  ensurePaddleOcrRuntime?: (options: Record<string, unknown>) => Promise<{
-    runtimeDir?: string;
-    runtimeVariant?: string;
-    packageDir?: string;
-    pythonPath?: string;
-    prepared?: boolean;
-  }>;
+  ensureOcrRuntime: EnsureOcrRuntime;
   convertImageToPngBufferWithFfmpeg?: (
     filePath: string,
     options?: { abortSignal?: AbortSignal | null },
@@ -83,10 +85,7 @@ function assertSimplePageRuntime(
   assertFunction(value.stopServer, `${runtimePath} stopServer`);
   assertFunction(value.isModelCached, `${runtimePath} isModelCached`);
   assertFunction(value.testModelReply, `${runtimePath} testModelReply`);
-  assertOptionalFunction(
-    value.ensurePaddleOcrRuntime,
-    `${runtimePath} ensurePaddleOcrRuntime`,
-  );
+  assertFunction(value.ensureOcrRuntime, `${runtimePath} ensureOcrRuntime`);
   assertOptionalFunction(
     value.convertImageToPngBufferWithFfmpeg,
     `${runtimePath} convertImageToPngBufferWithFfmpeg`,

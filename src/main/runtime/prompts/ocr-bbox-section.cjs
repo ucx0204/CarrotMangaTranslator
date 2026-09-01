@@ -25,6 +25,7 @@ const {
   sanitizeHintLabel,
   sanitizeOcrTextForPrompt,
 } = require("./ocr-text.cjs");
+const { isHayaiOcrPipeline } = require("../ocr/engine-profile.cjs");
 
 /**
  * @typedef {{
@@ -52,8 +53,35 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
   if (!prepared) {
     return [];
   }
+  if (isHayaiOcrPipeline(options)) {
+    return buildHayaiRegionSectionLines(prepared);
+  }
   const policy = buildOcrHintPolicy(options, prepared.maxCandidateId);
   return buildOcrBboxSectionLines(prepared, policy);
+}
+
+/**
+ * The text detector has already produced complete ordinary-text regions. Hayai supplies
+ * reading hints only; the model translates each immutable slot independently.
+ * @param {PreparedOcrHints} prepared
+ * @returns {PromptSection}
+ */
+function buildHayaiRegionSectionLines(prepared) {
+  return [
+    "Locked ordinary-text regions (HayaiOCR)",
+    "The app has already separated and finalized every ordinary dialogue, narration, caption, note, sign, and label region. Standalone sound effects are deliberately excluded from this list and handled by a separate user review layer.",
+    "Treat every candidate as one immutable output slot. Never merge candidates, split a candidate, move a candidate, enlarge a candidate, or assign one candidate's text to another candidate.",
+    "For every accepted candidate, output exactly one record with the same id and the exact x1, y1, x2, y2 values below. Never output candidateIds containing another id.",
+    "Set type to nonsolid and textRole to ordinary for every accepted candidate. Do not classify any supplied candidate as sound.",
+    "Hayai OCR text is a reading hint, not geometry authority. Re-read Image 1 to correct recognition errors, ruby/furigana noise, and punctuation, but read only the visible text inside that candidate rectangle plus a tiny visual margin.",
+    "Do not add records with new ids. Do not search outside the supplied candidates for missing text or sound effects. Decorative marks, patterns, panel lines, and standalone SFX must not be introduced as translation records.",
+    "Do not combine separate speech balloons even when their sentences continue. The region detector has intentionally preserved them as separate slots.",
+    "Translate every readable main line inside each candidate. Use furigana only as pronunciation help and translate the main term once.",
+    `Candidate ids to translate independently: ${prepared.candidateIds.join(", ")}.`,
+    "The candidate coordinates below are already converted into the exact output coordinate frame.",
+    "",
+    ...prepared.formattedHints,
+  ];
 }
 
 /**

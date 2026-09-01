@@ -3,7 +3,7 @@ import {
   isGpuOutOfMemoryText,
   isGpuDeviceLostOrTdrText,
   isRocmHipAccessViolationText,
-  buildPaddleOcrGpuFailureMessage,
+  buildOcrGpuFailureMessage,
   parseOcrBatchProgressLine,
   createTempDir,
   withOcrBatchPipelineStubs,
@@ -56,29 +56,23 @@ describeWindows(
         ocrGpuBackend: "rocm-transformers",
       };
       expect(
-        buildPaddleOcrGpuFailureMessage(
+        buildOcrGpuFailureMessage(
           new Error("hipErrorOutOfMemory"),
           rocmOptions,
         ),
       ).toContain("VRAM");
       expect(
-        buildPaddleOcrGpuFailureMessage(
+        buildOcrGpuFailureMessage(
           new Error("access violation amdhip64_7.dll"),
           rocmOptions,
         ),
       ).toContain("iGPU");
       expect(
-        buildPaddleOcrGpuFailureMessage(
-          new Error("hipErrorDeviceLost"),
-          rocmOptions,
-        ),
+        buildOcrGpuFailureMessage(new Error("hipErrorDeviceLost"), rocmOptions),
       ).toContain("TDR");
       expect(
-        buildPaddleOcrGpuFailureMessage(
-          new Error("something odd"),
-          rocmOptions,
-        ),
-      ).toContain("AMD OCR GPU 실행에 실패했습니다");
+        buildOcrGpuFailureMessage(new Error("something odd"), rocmOptions),
+      ).toContain("Paddle OCR AMD GPU 실행에 실패했습니다");
     });
 
     it("parses the error phase from OCR batch progress lines", () => {
@@ -100,7 +94,7 @@ describeWindows(
 
       await withOcrBatchPipelineStubs(
         {
-          ensurePaddleOcrRuntime() {
+          ensureOcrRuntime() {
             return {
               pythonPath: "python",
               runtimeDir: join(outputDir, "runtime"),
@@ -179,6 +173,25 @@ describeWindows(
           "--only-binary=:all:",
           "--requirement",
           expect.stringMatching(/requirements-ocr-cpu-win-py312\.lock$/),
+        ]),
+      );
+
+      const hayaiCpuOptions = {
+        ocrDevice: "cpu",
+        ocrPipeline: "hayai",
+      };
+      expect(resolveOcrRuntimeVariant(hayaiCpuOptions)).toBe("hayai-cpu");
+      const hayaiCpuBatches = resolveIntegrityPinnedOcrInstallBatches(
+        resolveOcrPipInstallBatches(hayaiCpuOptions),
+        hayaiCpuOptions,
+      );
+      expect(hayaiCpuBatches).toHaveLength(1);
+      expect(hayaiCpuBatches[0]).toEqual(
+        expect.arrayContaining([
+          "--require-hashes",
+          "--only-binary=:all:",
+          "--requirement",
+          expect.stringMatching(/requirements-hayai-cpu-win\.lock$/),
         ]),
       );
 

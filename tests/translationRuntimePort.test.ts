@@ -5,7 +5,15 @@ import type { RuntimeModules } from "../src/main/pipeline/types";
 
 type ProgressEvent = { progressText: string; phase: string };
 
-function createPortWithStubs({ disposed = true } = {}) {
+function createPortWithStubs({
+  disposed = true,
+  detectorFailureImage,
+  detectorFailure = new Error("detector failed"),
+}: {
+  disposed?: boolean;
+  detectorFailureImage?: string;
+  detectorFailure?: Error;
+} = {}) {
   const calls: string[] = [];
   const collectOptions: Array<Record<string, unknown>> = [];
   const releaseIdleResources = vi.fn(async (_reason: string) => {
@@ -13,6 +21,27 @@ function createPortWithStubs({ disposed = true } = {}) {
     return disposed;
   });
   const releaseGroupingEvidence = vi.fn(async () => false);
+  const waitForOcrIdle = vi.fn(async () => {
+    calls.push("ocr-idle");
+  });
+  const releaseDetectorResources = vi.fn(async (reason: string) => {
+    calls.push(`detector-release:${reason}`);
+    return true;
+  });
+  const prepareDetectorRegions = vi.fn(async (options: TranslationOptions) => {
+    calls.push(`detector:${options.imagePath}`);
+    if (options.imagePath === detectorFailureImage) {
+      throw detectorFailure;
+    }
+    return {
+      manifestPath: `${options.outputDir}/hayai-regions.json`,
+      finalize: async (
+        result: Awaited<
+          ReturnType<RuntimeModules["simplePage"]["collectOcrBboxHints"]>
+        >,
+      ) => result,
+    };
+  });
   const runtime: RuntimeModules = {
     animeTextRelations: {
       hasPotentialAnimeTextRelation: () => false,
@@ -48,6 +77,7 @@ function createPortWithStubs({ disposed = true } = {}) {
           textEvidenceCount: 0,
         }));
       },
+      waitForOcrIdle,
       requestTranslation: async () => ({
         outputText: "",
         rawResponse: null,
@@ -70,10 +100,17 @@ function createPortWithStubs({ disposed = true } = {}) {
         annotateBatch: async (_options, results) => results,
         releaseIdleResources: releaseGroupingEvidence,
       },
+      hayaiRegionPrepass: {
+        prepare: prepareDetectorRegions,
+        releaseDetectorResources,
+      },
       runtime,
     }),
     releaseIdleResources,
     releaseGroupingEvidence,
+    releaseDetectorResources,
+    prepareDetectorRegions,
+    waitForOcrIdle,
     calls,
     collectOptions,
   };
@@ -103,7 +140,12 @@ describe("translationRuntimePort GPU OCR preparation", () => {
     expect(releaseGroupingEvidence).toHaveBeenCalledWith(
       "translation-model-start",
     );
-    expect(calls).toEqual(["dispose", "endpoint"]);
+    expect(calls).toEqual([
+      "ocr-idle",
+      "detector-release:translation-model-start",
+      "dispose",
+      "endpoint",
+    ]);
   });
 
   it("does not evict inpainting for remote translation providers", async () => {
@@ -118,7 +160,10 @@ describe("translationRuntimePort GPU OCR preparation", () => {
     expect(releaseGroupingEvidence).toHaveBeenCalledWith(
       "translation-model-start",
     );
-    expect(calls).toEqual([]);
+    expect(calls).toEqual([
+      "ocr-idle",
+      "detector-release:translation-model-start",
+    ]);
   });
 
   it("disposes cached inpainting engines before GPU OCR to free VRAM", async () => {
@@ -167,11 +212,122 @@ describe("translationRuntimePort GPU OCR preparation", () => {
     const { port, releaseIdleResources, calls } = createPortWithStubs();
 
     await port.collectOcrHintsBatch([
-      makeOcrOptions({ ocrDevice: "cpu" }),
       makeOcrOptions(),
+      makeOcrOptions({ imagePath: "C:/pages/page-2.png" }),
     ]);
 
     expect(releaseIdleResources).toHaveBeenCalledTimes(1);
     expect(calls).toEqual(["dispose", "ocr-batch"]);
+  });
+
+  it("runs every detector page, releases it, runs HayaiOCR, then waits for OCR closure before Gemma", async () => {
+    const {
+      port,
+      releaseDetectorResources,
+      prepareDetectorRegions,
+      waitForOcrIdle,
+      calls,
+    } = createPortWithStubs();
+
+    const first = makeOcrOptions({
+      ocrPipeline: "hayai",
+      ocrBboxProvider: "hayai-regions",
+    });
+    const second = makeOcrOptions({
+      imagePath: "C:/pages/page-2.png",
+      outputDir: "C:/runs/analysis/page-2",
+      ocrPipeline: "hayai",
+      ocrBboxProvider: "hayai-regions",
+    });
+    await port.collectOcrHintsBatch([first, second]);
+    await port.startEndpointSession(
+      makeOcrOptions({ modelProvider: "gemma", ocrDevice: "cpu" }),
+    );
+
+    expect(prepareDetectorRegions).toHaveBeenCalledTimes(2);
+    expect(releaseDetectorResources).toHaveBeenNthCalledWith(
+      1,
+      "hayai-region-prepass-complete",
+    );
+    expect(waitForOcrIdle).toHaveBeenCalledOnce();
+    expect(calls).toEqual([
+      "dispose",
+      "detector:C:/pages/page-1.png",
+      "detector:C:/pages/page-2.png",
+      "detector-release:hayai-region-prepass-complete",
+      "ocr-batch",
+      "ocr-idle",
+      "detector-release:translation-model-start",
+      "dispose",
+      "endpoint",
+    ]);
+  });
+
+  it("releases the detector and never starts HayaiOCR when region detection fails", async () => {
+    const { port, releaseDetectorResources, calls } = createPortWithStubs({
+      detectorFailureImage: "C:/pages/page-2.png",
+    });
+
+    await expect(
+      port.collectOcrHintsBatch([
+        makeOcrOptions({
+          ocrPipeline: "hayai",
+          ocrBboxProvider: "hayai-regions",
+        }),
+        makeOcrOptions({
+          imagePath: "C:/pages/page-2.png",
+          ocrPipeline: "hayai",
+          ocrBboxProvider: "hayai-regions",
+        }),
+      ]),
+    ).rejects.toThrow("detector failed");
+
+    expect(releaseDetectorResources).toHaveBeenCalledWith(
+      "hayai-region-prepass-failed",
+    );
+    expect(calls).not.toContain("ocr-batch");
+  });
+
+  it("releases the detector when Hayai region detection is cancelled", async () => {
+    const { port, releaseDetectorResources, calls } = createPortWithStubs({
+      detectorFailureImage: "C:/pages/page-1.png",
+      detectorFailure: new DOMException("Aborted", "AbortError"),
+    });
+
+    await expect(
+      port.collectOcrHints(
+        makeOcrOptions({
+          ocrPipeline: "hayai",
+          ocrBboxProvider: "hayai-regions",
+        }),
+      ),
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    expect(releaseDetectorResources).toHaveBeenCalledWith(
+      "hayai-region-prepass-failed",
+    );
+    expect(calls).not.toContain("ocr");
+  });
+
+  it("rejects mixed OCR runtime profiles before releasing or launching", async () => {
+    const { port, releaseIdleResources, calls } = createPortWithStubs();
+
+    await expect(
+      port.collectOcrHintsBatch([
+        makeOcrOptions({
+          ocrPipeline: "hayai",
+          ocrBboxProvider: "hayai-regions",
+          ocrDevice: "gpu",
+        }),
+        makeOcrOptions({
+          ocrPipeline: "paddle-legacy",
+          ocrBboxProvider: "paddleocr",
+          ocrDevice: "cpu",
+        }),
+      ]),
+    ).rejects.toThrow(/different runtime profile/i);
+
+    expect(releaseIdleResources).not.toHaveBeenCalled();
+    expect(calls).toEqual([]);
   });
 });

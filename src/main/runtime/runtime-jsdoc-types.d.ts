@@ -26,6 +26,19 @@ export type RuntimeOptions = {
   ocrBboxCommand?: string | null;
   ocrBboxMode?: string | null;
   ocrBboxProvider?: string | null;
+  ocrBboxRegionsPath?: string | null;
+  soundEffectTranslationMode?: boolean;
+  soundEffectTranslationRegions?: Array<{
+    regionId: string;
+    bbox: { x: number; y: number; w: number; h: number };
+    recognizedText?: string;
+    detectorConfidence: number;
+  }>;
+  soundEffectTargetCropPath?: string | null;
+  soundEffectTargetCropWidth?: number | null;
+  soundEffectTargetCropHeight?: number | null;
+  soundEffectTargetMarker?: string | null;
+  soundEffectRetryFeedback?: string | null;
   ocrCpuWorkerMinFreeRamPercent?: number | string | null;
   ocrCpuWorkerRamPollMs?: number | string | null;
   ocrCpuWorkers?: number | string | null;
@@ -37,6 +50,8 @@ export type RuntimeOptions = {
   ocrGpuBackend?: string | null;
   ocrGpuCudaTag?: string | null;
   ocrMergeMode?: string | null;
+  ocrPipeline?: string | null;
+  ocrQualityMode?: string | null;
   ocrPageIndex?: number | null;
   ocrPageTotal?: number | null;
   ocrProgressDefaultToPage?: boolean | null;

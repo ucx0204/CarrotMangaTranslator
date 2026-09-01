@@ -73,6 +73,7 @@ export function buildSettingsFromDraft({
     apiExtraBodyJson: values.apiExtraBodyJson.trim(),
     apiCustomHeadersJson: values.apiCustomHeadersJson.trim(),
     ocrDevice: values.ocrDevice,
+    ocrPipeline: values.ocrPipeline,
     ocrGpuBackend: values.ocrGpuBackend,
     ocrQualityMode: values.ocrQualityMode,
     inpaintingModel: values.inpaintingModel,

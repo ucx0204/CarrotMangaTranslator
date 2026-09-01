@@ -55,32 +55,13 @@ export function buildTranslatedPageResult({
   fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
   sourceFontSizeEstimates?: readonly (SourceFontSizeEstimate | undefined)[];
 }): CompletedPageBuildResult {
-  const pixelInferences = collectPagePixelInferences({
-    candidates: pageOptions.fontMatchingCandidates ?? [],
-    enabled: pageOptions.autoFontMatching,
+  const blocks = buildTranslatedOverlayBlocks({
     fontMatchingPageInference,
-    itemCount: items.length,
-    jobId,
-    page,
-  });
-  const pageCoordinator = resolvePageFontCoordinator(
-    pageOptions.autoFontMatching,
     fontMatchingChapterCoordinator,
     items,
-    pixelInferences,
-  );
-  const processingOrder = pageOptions.autoFontMatching
-    ? orderAutomaticFontMatchingPageItemIndexes(items, pixelInferences)
-    : items.map((_item, index) => index);
-  const blocks = buildTranslatedBlocks({
-    fontMatchingPageInference,
-    items,
     jobId,
     page,
-    pageCoordinator,
     pageOptions,
-    pixelInferences,
-    processingOrder,
     sourceFontSizeEstimates,
   });
   return {
@@ -103,6 +84,58 @@ export function buildTranslatedPageResult({
     ),
     pageContext,
   };
+}
+
+/**
+ * Shared final block-construction boundary for ordinary translation and
+ * dedicated SFX translation. Font inference keys and persisted block IDs must
+ * be derived from the same job id or verified pixel evidence will abstain.
+ */
+export function buildTranslatedOverlayBlocks({
+  fontMatchingPageInference,
+  fontMatchingChapterCoordinator,
+  items,
+  jobId,
+  page,
+  pageOptions,
+  sourceFontSizeEstimates,
+}: {
+  fontMatchingPageInference?: FontMatchingPageInferenceResult;
+  fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
+  items: readonly OverlayItem[];
+  jobId: string;
+  page: MangaPage;
+  pageOptions: TranslationOptions;
+  sourceFontSizeEstimates?: readonly (SourceFontSizeEstimate | undefined)[];
+}): TranslationBlock[] {
+  const pixelInferences = collectPagePixelInferences({
+    candidates: pageOptions.fontMatchingCandidates ?? [],
+    enabled: pageOptions.autoFontMatching,
+    fontMatchingPageInference,
+    itemCount: items.length,
+    jobId,
+    page,
+  });
+  const pageCoordinator = resolvePageFontCoordinator(
+    pageOptions.autoFontMatching,
+    fontMatchingChapterCoordinator,
+    items,
+    pixelInferences,
+  );
+  const processingOrder = pageOptions.autoFontMatching
+    ? orderAutomaticFontMatchingPageItemIndexes(items, pixelInferences)
+    : items.map((_item, index) => index);
+  return buildTranslatedBlocks({
+    fontMatchingPageInference,
+    items,
+    jobId,
+    page,
+    pageCoordinator,
+    pageOptions,
+    pixelInferences,
+    processingOrder,
+    sourceFontSizeEstimates,
+  });
 }
 
 function buildTranslatedBlocks({
@@ -153,7 +186,8 @@ function buildTranslatedBlocks({
         ...(pageCoordinator ? { pageCoordinator } : {}),
       },
       {
-        fontSizeAutoFit: pageOptions.fontSizeAutoFit !== false,
+        aiFontSizeMatching:
+          pageOptions.aiFontSizeMatching ?? pageOptions.fontSizeAutoFit ?? true,
         sourceFontSize: sourceFontSizeEstimates?.[itemIndex],
       },
     );

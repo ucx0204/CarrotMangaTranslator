@@ -13,9 +13,10 @@ import {
 } from "../lib/autoInpaintingSelection";
 import { PageSelectionPicker } from "./ExportPagePicker";
 import { Button } from "./ui/Button";
-import { Modal } from "./ui/Modal";
-import { ModalActionBar } from "./ui/ModalActionBar";
-import { CheckboxField } from "./ui/CheckboxField";
+import {
+  PagePickerModalCheckbox,
+  PagePickerModalShell,
+} from "./PagePickerModalShell";
 import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 
 export type AutoInpaintingOptionsModalProps = {
@@ -53,11 +54,10 @@ export function AutoInpaintingOptionsModal({
     onClose();
   };
   return (
-    <Modal
+    <PagePickerModalShell
       title={t("autoInpaintingOptions.title")}
       size={initialScope === "select" ? "lg" : "md"}
       onClose={onClose}
-      fillHeight
       cardClassName={
         initialScope === "select"
           ? "auto-inpainting-options-modal page-picker-fill-modal"
@@ -68,21 +68,17 @@ export function AutoInpaintingOptionsModal({
           ? "auto-inpainting-options-modal-body page-picker-fill-modal-body"
           : undefined
       }
-      footer={
-        <ModalActionBar
-          actions={
-            <>
-              <Button onClick={onClose}>{t("common.cancel")}</Button>
-              <Button
-                variant="primary"
-                onClick={handleStart}
-                disabled={state.runSelection.length === 0}
-              >
-                {t("autoInpaintingOptions.start")}
-              </Button>
-            </>
-          }
-        />
+      footerActions={
+        <>
+          <Button onClick={onClose}>{t("common.cancel")}</Button>
+          <Button
+            variant="primary"
+            onClick={handleStart}
+            disabled={state.runSelection.length === 0}
+          >
+            {t("autoInpaintingOptions.start")}
+          </Button>
+        </>
       }
     >
       <AutoInpaintingScopeBody
@@ -96,7 +92,7 @@ export function AutoInpaintingOptionsModal({
         enabled={includeBubbleLayout}
         onToggle={() => setIncludeBubbleLayout((enabled) => !enabled)}
       />
-    </Modal>
+    </PagePickerModalShell>
   );
 }
 
@@ -198,7 +194,7 @@ function BubblePostprocessToggle({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <CheckboxField
+    <PagePickerModalCheckbox
       variant="switch"
       className="auto-inpainting-postprocess-toggle"
       checked={enabled}

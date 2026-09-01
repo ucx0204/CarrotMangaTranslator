@@ -4,6 +4,8 @@ import type {
   RegionAnalysisResult,
   StartAnalysisRequest,
   StartAnalysisResult,
+  StartSoundEffectTranslationRequest,
+  StartSoundEffectTranslationResult,
 } from "../../shared/analysisTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import { MAX_ID_LIST_LENGTH } from "../../shared/ipcSchemaPrimitives";
@@ -24,6 +26,11 @@ import {
 } from "./translationRegionJobRunner";
 import type { TranslationJobContext } from "./translationJobTypes";
 import { pageTimingSessionManager } from "./pageTimingSessionManager";
+import {
+  handleSoundEffectTranslationJobError,
+  runSoundEffectTranslationJob,
+  type SoundEffectTranslationJobState,
+} from "./soundEffectTranslationJobRunner";
 
 export type { TranslationJobContext } from "./translationJobTypes";
 
@@ -38,6 +45,11 @@ type RegionJobRuntime = {
   handleRegionJobError: typeof handleRegionJobError;
 };
 
+type SoundEffectTranslationJobRuntime = {
+  runSoundEffectTranslationJob: typeof runSoundEffectTranslationJob;
+  handleSoundEffectTranslationJobError: typeof handleSoundEffectTranslationJobError;
+};
+
 const productionAnalysisJobRuntime: AnalysisJobRuntime = {
   resolvePagesForRun,
   runResolvedAnalysisJob,
@@ -48,6 +60,12 @@ const productionRegionJobRuntime: RegionJobRuntime = {
   runRegionTranslationJob,
   handleRegionJobError,
 };
+
+const productionSoundEffectTranslationJobRuntime: SoundEffectTranslationJobRuntime =
+  {
+    runSoundEffectTranslationJob,
+    handleSoundEffectTranslationJobError,
+  };
 
 // eslint-disable-next-line max-lines-per-function -- lifetime registration and terminal/finally ordering stay co-located for auditability
 export async function startAnalysisJob(
@@ -249,6 +267,67 @@ export async function translateRegionJob(
     });
   } catch (error) {
     return await runtime.handleRegionJobError({
+      abortController,
+      emit,
+      error,
+      id,
+      request,
+      state,
+      context,
+    });
+  } finally {
+    try {
+      context.jobs.clearIfCurrent(id);
+    } finally {
+      lifetime.finish();
+    }
+  }
+}
+
+export async function startSoundEffectTranslationJob(
+  context: TranslationJobContext,
+  request: StartSoundEffectTranslationRequest,
+  runtime: SoundEffectTranslationJobRuntime = productionSoundEffectTranslationJobRuntime,
+): Promise<StartSoundEffectTranslationResult> {
+  if (context.jobs.hasActive) {
+    return {
+      status: "failed",
+      createdBlocksByPage: [],
+      translatedRegionCount: 0,
+      remainingRegionCount: 0,
+      error: tMain("jobs.active"),
+    };
+  }
+  const id = randomUUID();
+  const abortController = new AbortController();
+  const state: SoundEffectTranslationJobState = {
+    chapter: null,
+    createdBlocksByPage: [],
+    translatedRegionCount: 0,
+    warnings: [],
+  };
+  const lifetime = createJobLifetimeCleanupBoundary();
+  const addEventTiming = createAnalysisJobEventTimer();
+  context.jobs.start({
+    id,
+    kind: "sound-effect-translation",
+    abortController,
+    cleanup: lifetime.cleanup,
+  });
+  const emit = (event: JobEvent) =>
+    emitJobEvent(context.jobs, context.getMainWindow(), addEventTiming(event));
+  try {
+    return await runtime.runSoundEffectTranslationJob({
+      context,
+      request,
+      id,
+      abortController,
+      emit,
+      state,
+      registerResourceCleanup: lifetime.registerResourceCleanup,
+    });
+  } catch (error) {
+    return runtime.handleSoundEffectTranslationJobError({
       abortController,
       emit,
       error,

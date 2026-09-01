@@ -19,6 +19,7 @@ describe("source-matched font-size cap", () => {
   it("caps automatic growth at the source-matched size", () => {
     installCanvasMeasureMock();
     const block = makeBlock({
+      fontSizeIntent: "source-match",
       sourceFontFacePx: 24,
       sourceFontSizeConfidence: 0.9,
       sourceFontSizeMethod: "raster-core-v1",
@@ -34,6 +35,7 @@ describe("source-matched font-size cap", () => {
     installCanvasMeasureMock();
     const block = makeBlock({
       bbox: { x: 0, y: 0, w: 75, h: 55 },
+      fontSizeIntent: "source-match",
       translatedText: "번역문이 길어서 원문 크기로는 들어가지 않습니다",
       sourceFontFacePx: 40,
       sourceFontSizeConfidence: 0.9,
@@ -143,6 +145,7 @@ describe("source-matched font-size cap", () => {
         bubbleLayout: makeDetectedBubbleLayout(),
         sourceText: "中央に配置された長い原文文字列です",
         translatedText: "가운데 놓인 긴 원문 문자열입니다",
+        fontSizeIntent: "source-match",
         sourceFontFacePx: 12,
         sourceFontSizeConfidence: 0.9,
         sourceFontSizeMethod: "raster-core-v1",

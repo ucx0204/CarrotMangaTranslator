@@ -8,6 +8,7 @@
     );
   height: 100vh;
   overflow: hidden;
+  position: relative;
   background: #0e0f13;
   transition: grid-template-columns 240ms var(--ease-standard);
 }
@@ -38,8 +39,116 @@
 }
 
 .sidebar {
+  position: relative;
   border-right: 1px solid var(--surface-border);
   background: var(--surface-rail);
+}
+
+.control-tooltip.sound-effect-translation-launcher-tooltip {
+  position: absolute;
+  left: calc(var(--app-sidebar-width) + 10px);
+  bottom: 20px;
+  z-index: var(--layer-tooltip);
+}
+
+.sound-effect-translation-launcher {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  padding: 6px;
+  border: 1px solid rgba(255, 118, 133, 0.78);
+  border-radius: 999px;
+  background: rgba(126, 24, 39, 0.96);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.sound-effect-translation-launcher:hover:not(:disabled) {
+  border-color: #ff9ba7;
+  background: #a82339;
+  transform: translateY(-1px);
+}
+
+.sound-effect-translation-launcher:focus-visible {
+  outline: 2px solid #ff9ba6;
+  outline-offset: 3px;
+}
+
+.sound-effect-translation-launcher.is-active {
+  border-color: #ff4f65;
+  background: #c3263b;
+  box-shadow:
+    0 0 0 3px rgba(255, 79, 101, 0.18),
+    0 8px 24px rgba(0, 0, 0, 0.38);
+}
+
+.sound-effect-translation-launcher:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.3);
+  opacity: 0.58;
+}
+
+.sound-effect-translation-launcher img {
+  display: block;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  animation: sfx-logo-wiggle 5.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.sound-effect-translation-launcher small {
+  position: absolute;
+  right: -5px;
+  top: -5px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 4px;
+  border: 2px solid #171920;
+  border-radius: 999px;
+  color: white;
+  background: #ef4058;
+  font:
+    800 9px/15px system-ui,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes sfx-logo-wiggle {
+  0%,
+  72%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  76% {
+    transform: translateX(-2px) rotate(-7deg);
+  }
+
+  80% {
+    transform: translateX(2px) rotate(7deg);
+  }
+
+  84% {
+    transform: translateX(-1px) rotate(-4deg);
+  }
+
+  88% {
+    transform: translateX(1px) rotate(3deg);
+  }
+
+  92% {
+    transform: translateX(0) rotate(0deg);
+  }
 }
 
 .library-panel.collapsed,
@@ -698,6 +807,27 @@
     border: 0;
   }
 
+  .control-tooltip.sound-effect-translation-launcher-tooltip {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    left: auto;
+  }
+
+  .sound-effect-translation-launcher-tooltip > .control-tooltip-bubble {
+    top: 50%;
+    right: calc(100% + 9px);
+    left: auto;
+    transform: translate(4px, -50%) scale(0.97);
+    transform-origin: right center;
+  }
+
+  .sound-effect-translation-launcher-tooltip:hover > .control-tooltip-bubble,
+  .sound-effect-translation-launcher-tooltip:has(:focus-visible)
+    > .control-tooltip-bubble {
+    transform: translate(0, -50%) scale(1);
+  }
+
   .right-rail {
     justify-self: stretch;
     width: auto;
@@ -729,6 +859,10 @@
   .app-shell,
   .right-rail {
     transition: none;
+  }
+
+  .sound-effect-translation-launcher img {
+    animation: none;
   }
 }
 

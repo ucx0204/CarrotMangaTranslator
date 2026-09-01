@@ -75,6 +75,7 @@ describe("completion sound", () => {
       muted: false,
       volume: 0,
       translationMuted: false,
+      soundEffectMuted: false,
       sourceErasingMuted: false,
       researchMuted: false,
     });
@@ -84,6 +85,7 @@ describe("completion sound", () => {
       muted: true,
       volume: 1,
       translationMuted: false,
+      soundEffectMuted: false,
       sourceErasingMuted: false,
       researchMuted: false,
     });
@@ -92,6 +94,7 @@ describe("completion sound", () => {
         muted: false,
         volume: 0.7,
         translationMuted: true,
+        soundEffectMuted: true,
         sourceErasingMuted: false,
         researchMuted: true,
       }),
@@ -99,6 +102,7 @@ describe("completion sound", () => {
       muted: false,
       volume: 0.7,
       translationMuted: true,
+      soundEffectMuted: true,
       sourceErasingMuted: false,
       researchMuted: true,
     });
@@ -121,11 +125,13 @@ describe("completion sound", () => {
         muted: false,
         volume: 0.5,
         translationMuted: true,
+        soundEffectMuted: true,
         sourceErasingMuted: false,
         researchMuted: true,
       }),
     );
     act(() => sound.result.current.playCompletionSound("translation"));
+    act(() => sound.result.current.playCompletionSound("sound-effect"));
     act(() => sound.result.current.playCompletionSound("research"));
     expect(play).not.toHaveBeenCalled();
 

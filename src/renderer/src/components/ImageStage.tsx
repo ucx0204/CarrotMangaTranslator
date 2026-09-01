@@ -15,116 +15,37 @@ import {
 import type { ImageStageProps, RetouchStageModel } from "./imageStageTypes";
 import { clearRetouchLiveOverlay } from "../lib/retouchLiveOverlay";
 import { BubbleLayoutDraftLayer } from "./BubbleLayoutDraftLayer";
+import { SoundEffectReviewLayer } from "./SoundEffectReviewLayer";
 
 export type { ImageStageProps } from "./imageStageTypes";
 
-export function ImageStage({
-  blockPointerDisabled = false,
-  hideEditingOverlays = false,
-  imageDataUrl,
-  imageLoading = false,
-  imageRef,
-  interactionPreviewStore,
-  maskStrokes = [],
-  onBlockPointerDown,
-  onWarpTransformCommit,
-  onStagePointerDown,
-  onStagePointerLeave,
-  onStagePointerMove,
-  onStagePointerUp,
-  originalImageDataUrl = "",
-  originalImageOpacity = 0,
-  page,
-  regionSelectionActive,
-  regionSelectionRect,
-  retouchCursor = null,
-  retouchOriginalImageDataUrl = "",
-  selectedBlockId,
-  selectedBlockIds,
-  showBlockChrome,
-  showTextBlocks,
-  stageRef,
-  stageSize,
-  stageTool,
-  textLayoutStageSize,
-}: ImageStageProps): React.JSX.Element {
+export function ImageStage(props: ImageStageProps): React.JSX.Element {
   const retouchModel = React.useMemo(
-    () => resolveRetouchStageModel({ maskStrokes }),
-    [maskStrokes],
+    () => resolveRetouchStageModel({ maskStrokes: props.maskStrokes ?? [] }),
+    [props.maskStrokes],
   );
   React.useEffect(() => {
-    const stage = stageRef.current;
+    const stage = props.stageRef.current;
     return () => clearRetouchLiveOverlay(stage);
-  }, [page.id, retouchCursor?.mode, stageRef]);
+  }, [props.page.id, props.retouchCursor?.mode, props.stageRef]);
 
-  return (
-    <ImageStageFrame
-      blockPointerDisabled={blockPointerDisabled}
-      hideEditingOverlays={hideEditingOverlays}
-      imageDataUrl={imageDataUrl}
-      imageLoading={imageLoading}
-      imageRef={imageRef}
-      interactionPreviewStore={interactionPreviewStore}
-      onBlockPointerDown={onBlockPointerDown}
-      onWarpTransformCommit={onWarpTransformCommit}
-      onStagePointerDown={onStagePointerDown}
-      onStagePointerLeave={onStagePointerLeave}
-      onStagePointerMove={onStagePointerMove}
-      onStagePointerUp={onStagePointerUp}
-      originalImageDataUrl={originalImageDataUrl}
-      originalImageOpacity={originalImageOpacity}
-      page={page}
-      regionSelectionActive={regionSelectionActive}
-      regionSelectionRect={regionSelectionRect}
-      retouchCursor={retouchCursor}
-      retouchModel={retouchModel}
-      retouchOriginalImageDataUrl={retouchOriginalImageDataUrl}
-      selectedBlockId={selectedBlockId}
-      selectedBlockIds={selectedBlockIds}
-      showBlockChrome={showBlockChrome}
-      showTextBlocks={showTextBlocks}
-      stageRef={stageRef}
-      stageSize={stageSize}
-      stageTool={stageTool}
-      textLayoutStageSize={textLayoutStageSize}
-    />
-  );
+  return <ImageStageFrame {...props} retouchModel={retouchModel} />;
 }
 
 type ImageStageFrameProps = ImageStageProps & {
   retouchModel: RetouchStageModel;
 };
 
-function ImageStageFrame({
-  blockPointerDisabled = false,
-  hideEditingOverlays = false,
-  imageDataUrl,
-  imageLoading = false,
-  imageRef,
-  interactionPreviewStore,
-  onBlockPointerDown,
-  onWarpTransformCommit,
-  onStagePointerDown,
-  onStagePointerLeave,
-  onStagePointerMove,
-  onStagePointerUp,
-  originalImageDataUrl = "",
-  originalImageOpacity = 0,
-  page,
-  regionSelectionActive,
-  regionSelectionRect,
-  retouchCursor = null,
-  retouchModel,
-  retouchOriginalImageDataUrl = "",
-  selectedBlockId,
-  selectedBlockIds,
-  showBlockChrome,
-  showTextBlocks,
-  stageRef,
-  stageSize,
-  stageTool,
-  textLayoutStageSize,
-}: ImageStageFrameProps): React.JSX.Element {
+function ImageStageFrame(props: ImageStageFrameProps): React.JSX.Element {
+  const {
+    hideEditingOverlays = false,
+    onStagePointerDown,
+    onStagePointerLeave,
+    onStagePointerMove,
+    onStagePointerUp,
+    stageRef,
+    ...layerProps
+  } = props;
   const stagePointerHandlers = hideEditingOverlays
     ? {}
     : createStagePointerHandlers(
@@ -138,37 +59,19 @@ function ImageStageFrame({
       <div
         ref={stageRef}
         className={resolveStageClassName({
-          blockPointerDisabled,
-          regionSelectionActive: !hideEditingOverlays && regionSelectionActive,
-          retouchCursor: hideEditingOverlays ? null : retouchCursor,
-          stageTool: hideEditingOverlays ? undefined : stageTool,
+          blockPointerDisabled: props.blockPointerDisabled ?? false,
+          regionSelectionActive:
+            !hideEditingOverlays && props.regionSelectionActive,
+          retouchCursor: hideEditingOverlays
+            ? null
+            : (props.retouchCursor ?? null),
+          stageTool: hideEditingOverlays ? undefined : props.stageTool,
         })}
         {...stagePointerHandlers}
       >
         <ImageStageLayerSet
-          blockPointerDisabled={blockPointerDisabled}
+          {...layerProps}
           hideEditingOverlays={hideEditingOverlays}
-          imageDataUrl={imageDataUrl}
-          imageLoading={imageLoading}
-          imageRef={imageRef}
-          interactionPreviewStore={interactionPreviewStore}
-          onBlockPointerDown={onBlockPointerDown}
-          onWarpTransformCommit={onWarpTransformCommit}
-          originalImageDataUrl={originalImageDataUrl}
-          originalImageOpacity={originalImageOpacity}
-          page={page}
-          regionSelectionActive={regionSelectionActive}
-          regionSelectionRect={regionSelectionRect}
-          retouchCursor={retouchCursor}
-          retouchModel={retouchModel}
-          retouchOriginalImageDataUrl={retouchOriginalImageDataUrl}
-          selectedBlockId={selectedBlockId}
-          selectedBlockIds={selectedBlockIds}
-          showBlockChrome={showBlockChrome}
-          showTextBlocks={showTextBlocks}
-          stageTool={stageTool}
-          stageSize={stageSize}
-          textLayoutStageSize={textLayoutStageSize}
         />
       </div>
     </div>
@@ -201,6 +104,8 @@ type ImageStageLayerSetProps = Omit<
   retouchModel: RetouchStageModel;
 };
 
+// Keeping the ordered layer stack together makes its z-order reviewable.
+// eslint-disable-next-line max-lines-per-function
 function ImageStageLayerSet({
   blockPointerDisabled = false,
   hideEditingOverlays = false,
@@ -210,6 +115,11 @@ function ImageStageLayerSet({
   interactionPreviewStore,
   onBlockPointerDown,
   onWarpTransformCommit,
+  onDismissSoundEffectReviewRegion,
+  onExitSoundEffectReview,
+  onOpenSoundEffectTranslation,
+  onSelectSoundEffectReviewRegion,
+  onTranslateSoundEffectReviewRegion,
   originalImageDataUrl = "",
   originalImageOpacity = 0,
   page,
@@ -220,7 +130,9 @@ function ImageStageLayerSet({
   retouchOriginalImageDataUrl = "",
   selectedBlockId,
   selectedBlockIds,
+  selectedSoundEffectReviewRegionId,
   showBlockChrome,
+  showSoundEffectReview,
   showTextBlocks,
   stageTool,
   stageSize,
@@ -228,15 +140,13 @@ function ImageStageLayerSet({
 }: ImageStageLayerSetProps): React.JSX.Element {
   return (
     <>
-      <StageImage
+      <BaseImageLayers
         imageDataUrl={imageDataUrl}
         imageLoading={imageLoading}
         imageRef={imageRef}
+        originalImageDataUrl={originalImageDataUrl}
+        originalImageOpacity={originalImageOpacity}
         page={page}
-      />
-      <OriginalImageBlendLayer
-        imageDataUrl={originalImageDataUrl}
-        opacity={originalImageOpacity}
       />
       {hideEditingOverlays ? null : (
         <>
@@ -255,6 +165,17 @@ function ImageStageLayerSet({
             stageSize={stageSize}
             textLayoutStageSize={textLayoutStageSize}
           />
+          <SoundEffectReviewStageLayer
+            disabled={blockPointerDisabled}
+            onDismissRegion={onDismissSoundEffectReviewRegion}
+            onExit={onExitSoundEffectReview}
+            onOpenBatch={onOpenSoundEffectTranslation}
+            onSelectRegion={onSelectSoundEffectReviewRegion}
+            onTranslateRegion={onTranslateSoundEffectReviewRegion}
+            page={page}
+            selectedRegionId={selectedSoundEffectReviewRegionId ?? null}
+            visible={showSoundEffectReview === true}
+          />
           <ImageStageEditingLayers
             imageDataUrl={imageDataUrl}
             interactionPreviewStore={interactionPreviewStore}
@@ -269,6 +190,76 @@ function ImageStageLayerSet({
         </>
       )}
     </>
+  );
+}
+
+function BaseImageLayers({
+  imageDataUrl,
+  imageLoading = false,
+  imageRef,
+  originalImageDataUrl = "",
+  originalImageOpacity = 0,
+  page,
+}: Pick<
+  ImageStageLayerSetProps,
+  | "imageDataUrl"
+  | "imageLoading"
+  | "imageRef"
+  | "originalImageDataUrl"
+  | "originalImageOpacity"
+  | "page"
+>): React.JSX.Element {
+  return (
+    <>
+      <StageImage
+        imageDataUrl={imageDataUrl}
+        imageLoading={imageLoading}
+        imageRef={imageRef}
+        page={page}
+      />
+      <OriginalImageBlendLayer
+        imageDataUrl={originalImageDataUrl}
+        opacity={originalImageOpacity}
+      />
+    </>
+  );
+}
+
+type SoundEffectReviewStageLayerProps = React.ComponentProps<
+  typeof SoundEffectReviewLayer
+>;
+
+function SoundEffectReviewStageLayer({
+  visible,
+  onDismissRegion,
+  onExit,
+  onOpenBatch,
+  onSelectRegion,
+  onTranslateRegion,
+  ...props
+}: Partial<SoundEffectReviewStageLayerProps> &
+  Pick<SoundEffectReviewStageLayerProps, "page">): React.JSX.Element | null {
+  if (
+    !visible ||
+    !onDismissRegion ||
+    !onExit ||
+    !onOpenBatch ||
+    !onSelectRegion ||
+    !onTranslateRegion
+  ) {
+    return null;
+  }
+  return (
+    <SoundEffectReviewLayer
+      {...props}
+      onDismissRegion={onDismissRegion}
+      onExit={onExit}
+      onOpenBatch={onOpenBatch}
+      onSelectRegion={onSelectRegion}
+      onTranslateRegion={onTranslateRegion}
+      selectedRegionId={props.selectedRegionId ?? null}
+      visible
+    />
   );
 }
 

@@ -2,9 +2,9 @@
  * Translation language domain shared by main/renderer.
  *
  * The language pair (source -> target) is translation-domain context and must
- * stay independent from the model provider (Gemma / Codex / API). PaddleOCR
- * specific `lang` strings are intentionally NOT defined here; only the OCR
- * adapter maps language codes to Paddle OCR models.
+ * stay independent from the model provider (Gemma / Codex / API). Provider-
+ * specific language identifiers are intentionally NOT defined here; each OCR
+ * adapter maps language codes to its own recognition models.
  */
 
 import {

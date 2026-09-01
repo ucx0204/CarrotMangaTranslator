@@ -40,6 +40,7 @@ import {
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
+  resolveOcrPipeline,
   resolveOcrQualityMode,
   resolveOpenAiCompatibleBaseUrl,
   resolveOptionalString,
@@ -95,7 +96,10 @@ export function resolveDefaultAppSettings(
     ocr: resolveDefaultOcrSettings(env, hardwareDefaults),
     ui: resolveDefaultUiSettings(env),
     inpainting: resolveDefaultInpaintingSettings(env, hardwareDefaults),
-    blockFormatDefaults: { ...DEFAULT_BLOCK_FORMAT_DEFAULTS },
+    blockFormatDefaults: {
+      ...DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      wordBreak: "keep-all-overflow",
+    },
     blockStylePresets: [],
     blockStylePresetGroups: [],
     keybindings: {},
@@ -306,15 +310,23 @@ function resolveDefaultOcrSettings(
   env: NodeJS.ProcessEnv,
   hardwareDefaults: HardwareDefaults,
 ): AppSettings["ocr"] {
+  const device = resolveOcrDevice(
+    env.MANGA_TRANSLATOR_OCR_DEVICE,
+    hardwareDefaults.ocrDevice,
+  );
+  const pipeline = resolveOcrPipeline(
+    env.MANGA_TRANSLATOR_OCR_PIPELINE,
+    device === "gpu" ? "hayai" : "paddle-legacy",
+  );
   return {
-    device: resolveOcrDevice(
-      env.MANGA_TRANSLATOR_OCR_DEVICE,
-      hardwareDefaults.ocrDevice,
-    ),
+    pipeline,
+    device,
     qualityMode: resolveOcrQualityMode(
       env.MANGA_TRANSLATOR_OCR_QUALITY_MODE ??
-        env.MANGA_TRANSLATOR_PADDLEOCR_QUALITY_MODE ??
-        env.MANGA_TRANSLATOR_PADDLEOCR_PRESET,
+        (pipeline === "paddle-legacy"
+          ? (env.MANGA_TRANSLATOR_PADDLEOCR_QUALITY_MODE ??
+            env.MANGA_TRANSLATOR_PADDLEOCR_PRESET)
+          : undefined),
       hardwareDefaults.ocrQualityMode,
     ),
     gpuBackend: resolveOcrGpuBackend(
@@ -323,7 +335,9 @@ function resolveDefaultOcrSettings(
     ),
     gpuCudaTag: resolveOcrGpuCudaTag(
       env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG ??
-        env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG ??
+        (pipeline === "paddle-legacy"
+          ? env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG
+          : undefined) ??
         env.MANGA_TRANSLATOR_OCR_GPU_CUDA,
       hardwareDefaults.ocrGpuCudaTag,
     ),
@@ -341,9 +355,11 @@ function resolveDefaultUiSettings(
     inpaintingGuideHidden: false,
     translationWorkflowDefault: "cumulative",
     cumulativeContextDetailDefault: "detailed",
-    naturalTextLayoutDefault: true,
+    naturalTextLayoutDefault: false,
     autoFontMatchingDefault: false,
-    fontSizeAutoFitDefault: true,
+    aiFontSizeMatchingDefault: true,
+    sfxAutoFontMatchingDefault: false,
+    sfxInpaintAfterTranslationDefault: false,
     eraseOriginalWorkflowDefault: false,
     bubbleLayoutWorkflowDefault: true,
     wheelZoomSensitivityPercent: 1,

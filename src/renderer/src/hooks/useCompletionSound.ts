@@ -5,12 +5,14 @@ export type CompletionSoundPreferences = {
   muted: boolean;
   volume: number;
   translationMuted?: boolean;
+  soundEffectMuted?: boolean;
   sourceErasingMuted?: boolean;
   researchMuted?: boolean;
 };
 
 export type CompletionSoundCategory =
   | "translation"
+  | "sound-effect"
   | "source-erasing"
   | "research";
 
@@ -22,6 +24,7 @@ export const DEFAULT_COMPLETION_SOUND_PREFERENCES: ResolvedCompletionSoundPrefer
     muted: true,
     volume: 0.55,
     translationMuted: false,
+    soundEffectMuted: false,
     sourceErasingMuted: false,
     researchMuted: false,
   };
@@ -108,6 +111,10 @@ export function normalizeCompletionSoundPreferences(
       typeof value.translationMuted === "boolean"
         ? value.translationMuted
         : false,
+    soundEffectMuted:
+      typeof value.soundEffectMuted === "boolean"
+        ? value.soundEffectMuted
+        : false,
     sourceErasingMuted:
       typeof value.sourceErasingMuted === "boolean"
         ? value.sourceErasingMuted
@@ -122,6 +129,7 @@ function isCategoryMuted(
   category: CompletionSoundCategory,
 ): boolean {
   if (category === "translation") return preferences.translationMuted;
+  if (category === "sound-effect") return preferences.soundEffectMuted;
   if (category === "source-erasing") return preferences.sourceErasingMuted;
   return preferences.researchMuted;
 }

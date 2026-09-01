@@ -1,5 +1,6 @@
 // @ts-check
 const { MAX_LOG_PREVIEW_LENGTH } = require("./simple-page-defaults.cjs");
+const { readConfiguredOcrEngineId } = require("./ocr/engine-profile.cjs");
 
 function nowMs() {
   return typeof performance !== "undefined" &&
@@ -75,8 +76,15 @@ function emitRuntimeProgress(
   if (!onProgress) {
     return;
   }
+  const ocrPipeline = readConfiguredOcrEngineId(options) ?? undefined;
   try {
-    onProgress({ phase, progressText, detail, ...progress });
+    onProgress({
+      phase,
+      progressText,
+      detail,
+      ...progress,
+      ...(ocrPipeline ? { ocrPipeline } : {}),
+    });
   } catch (_error) {
     // error-policy-allow: observer failures must never interrupt translation.
   }

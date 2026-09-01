@@ -16,6 +16,7 @@ tmp-*.png
 tmp/
 /runtime/
 /ocr-runtime/
+/or/
 tools/.downloads/
 tools/llama-b*/
 tools/llama-b8808-cuda12/

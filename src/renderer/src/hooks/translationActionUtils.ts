@@ -13,7 +13,7 @@ import { analysisGateway as mangaGateway } from "../api/analysisGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import type { LiveChapterMergeOptions } from "../lib/chapterSync";
 import { formatJobFailureGuidance } from "../lib/appHelpers";
-import { summarizeWarnings } from "../lib/jobProgress";
+import { summarizeWarnings } from "../lib/jobProgressFormatting";
 import {
   toastNotificationPort,
   type NotificationPort,
@@ -28,6 +28,13 @@ type SetJobState = Dispatch<SetStateAction<JobState>>;
 type TranslateRegionResult = Awaited<
   ReturnType<typeof mangaGateway.translateRegion>
 >;
+
+export function formatTranslationActionError(
+  error: unknown,
+  fallback: string,
+): string {
+  return formatErrorMessage(error, fallback);
+}
 
 export function failAnalysisJob(
   setJobState: SetJobState,
@@ -60,7 +67,7 @@ export function makeStartAnalysisRequest(
     cumulativeContextDetail?: CumulativeContextDetail;
     naturalTextLayout?: boolean;
     autoFontMatching?: boolean;
-    fontSizeAutoFit?: boolean;
+    aiFontSizeMatching?: boolean;
     completionWorkflow?: TranslationCompletionWorkflow;
     timingSession?: PageTimingSessionRef;
   },
@@ -126,9 +133,9 @@ function buildSharedAnalysisRequest(
     ...(args.autoFontMatching === undefined
       ? {}
       : { autoFontMatching: args.autoFontMatching }),
-    ...(args.fontSizeAutoFit === undefined
+    ...(args.aiFontSizeMatching === undefined
       ? {}
-      : { fontSizeAutoFit: args.fontSizeAutoFit }),
+      : { aiFontSizeMatching: args.aiFontSizeMatching }),
     ...(args.completionWorkflow
       ? { completionWorkflow: args.completionWorkflow }
       : {}),

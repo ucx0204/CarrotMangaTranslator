@@ -719,8 +719,8 @@
     },
     "autoFontMatching": "自動配對字型",
     "autoFontMatchingSummary": "為每個文字區塊自動套用符合原文氛圍的韓文字型。",
-    "fontSizeAutoFit": "自動配對字級",
-    "fontSizeAutoFitSummary": "先依原文可見字形大小配對譯文字級，只有超出文字區塊時才縮小。",
+    "fontSizeAutoFit": "AI 字號配對",
+    "fontSizeAutoFitSummary": "AI 根據原文字形估算字號。",
     "completionMode": "完成方式",
     "completionModeTranslate": "僅翻譯",
     "completionModeErase": "清除原文",
@@ -1074,7 +1074,7 @@
     "logLabel": "安裝記錄",
     "checkingLogs": "正在檢查記錄",
     "preparingModel": "正在準備 Gemma 4 模型",
-    "installingOcr": "正在安裝 Paddle OCR"
+    "installingOcr": "正在安裝 OCR"
   },
   "toast": { "close": "關閉通知", "region": "通知" },
   "errorBoundary": {
@@ -1728,7 +1728,7 @@
       "ocrDevices": {
         "cuda": {
           "label": "NVIDIA CUDA",
-          "description": "在 NVIDIA GPU 上執行 Paddle OCR。"
+          "description": "在 NVIDIA GPU 上執行 OCR。"
         },
         "rocm": {
           "label": "AMD ROCm",
@@ -2008,13 +2008,27 @@
       "graphicsGpuRestartNote": "變更應用程式圖形 GPU 後需重新啟動應用程式才會生效。",
       "ocrSection": "OCR",
       "inpaintingSection": "影像修補",
-      "ocrQuality": "Paddle OCR 品質",
-      "ocrDevice": "Paddle OCR 裝置",
+      "ocrPipeline": "文字區域偵測方式",
+      "ocrPipelines": {
+        "hayai": {
+          "label": "HayaiOCR",
+          "description": "文字偵測器分離正文與擬聲詞區域，Hayai OCR只辨識固定裁切區域。擬聲詞不會進入一般翻譯，而是儲存為待審項目。"
+        },
+        "paddle-legacy": {
+          "label": "PaddleOCR",
+          "description": "保留原有Paddle OCR碎片與Gemma合併行為。"
+        }
+      },
+      "ocrQuality": "Paddle OCR品質",
+      "ocrDevice": "OCR裝置",
+      "hayaiDevices": {
+        "cuda": "使用NVIDIA CUDA執行HayaiOCR。",
+        "rocm-transformers": "使用AMD ROCm執行HayaiOCR。",
+        "cpu": "使用CPU執行HayaiOCR，速度可能比GPU慢。"
+      },
       "fluxBackend": "Flux 影像修補後端",
       "inpaintingModel": "影像修補模型",
       "amdOcrExperimental": "AMD GPU OCR 為實驗功能。如失敗，可僅將 OCR 切換到 CPU。",
-      "ocrAppleNote": "Apple Silicon 上的 Paddle OCR 使用 CPU 執行環境。",
-      "ocrNvidiaNote": "NVIDIA 環境無法選擇 AMD ROCm OCR。",
       "fluxAppleNote": "Apple Silicon 僅使用原生 Metal 後端。Flux 建議至少 16GB 統一記憶體。",
       "fluxOnlyNote": "此後端設定僅適用於 Flux Klein 模型。",
       "fluxLowMemoryConfirm": "統一記憶體 {{available}} 低於 Flux 建議的 16GB。應用程式可能結束或使系統極度緩慢。是否允許此次風險執行？",
@@ -2120,7 +2134,7 @@
       "title": "安裝／執行檢查",
       "run": "檢查 OCR／模型",
       "running": "檢查中…",
-      "description": "檢查 Paddle OCR 準備狀態以及所選翻譯引擎能否正常啟動。",
+      "description": "檢查所選 OCR 與翻譯引擎能否正確準備並啟動。",
       "logAria": "安裝／執行檢查記錄",
       "detail": {
         "model": "模型：{{path}}",
@@ -2129,15 +2143,15 @@
       },
       "status": {
         "running": "正在依序檢查 OCR、模型執行階段和簡單文字回應…",
-        "gemmaDetail": "顯示 Paddle OCR 和 Gemma 執行階段的準備記錄。",
-        "codexDetail": "同時檢查 Paddle OCR 和 Codex 端點。",
-        "apiDetail": "同時檢查 Paddle OCR 和 API 端點回應。"
+        "gemmaDetail": "顯示所選 OCR 和 Gemma 執行階段的準備記錄。",
+        "codexDetail": "同時檢查所選 OCR 和 Codex 端點。",
+        "apiDetail": "同時檢查所選 OCR 和 API 端點回應。"
       },
       "log": {
-        "start": "開始檢查 Paddle OCR 和翻譯引擎。",
-        "requestError": "要求檢查 Paddle OCR 和翻譯引擎時發生錯誤。",
-        "success": "Paddle OCR 和翻譯引擎檢查完成。",
-        "failure": "Paddle OCR 和翻譯引擎檢查失敗。"
+        "start": "開始檢查 OCR 和翻譯引擎。",
+        "requestError": "要求檢查 OCR 和翻譯引擎時發生錯誤。",
+        "success": "OCR 和翻譯引擎檢查完成。",
+        "failure": "OCR 和翻譯引擎檢查失敗。"
       }
     },
     "update": {
@@ -2191,6 +2205,7 @@
       "open": "完成提示音設定",
       "all": "全部完成提示音",
       "translation": "翻譯完成",
+      "soundEffect": "擬聲詞翻譯完成",
       "sourceErasing": "原文清除完成",
       "research": "網際網路研究完成",
       "mute": "關閉{{item}}",
@@ -2315,6 +2330,38 @@
     "renameFailed": "無法重新命名文字區塊。",
     "updateFailed": "無法更新資料庫文字區塊。",
     "deleteFailed": "無法刪除文字區塊。"
+  },
+  "soundEffectReview": {
+    "launcher": "執行擬聲詞翻譯，待處理 {{count}} 個",
+    "launcherAction": "執行擬聲詞翻譯",
+    "layerLabel": "待複核擬聲詞",
+    "regionLabel": "擬聲詞候選 {{index}}：{{text}}",
+    "unreadable": "辨識不確定",
+    "boxTag": "擬聲詞？",
+    "reviewTitle": "待複核擬聲詞",
+    "inpaintHint": "單一區域翻譯會保留原文。可在擬聲詞批次翻譯視窗中啟用原文抹除。",
+    "runAll": "翻譯全部擬聲詞",
+    "translateOne": "只翻譯此區域",
+    "modalTitle": "執行擬聲詞翻譯",
+    "modalIntro": "在左側選擇頁面，再點選右側候選框，將其納入或排除於本次翻譯。",
+    "pageSummary": "{{pages}} 頁 · {{count}} 個候選",
+    "selectionSummary": "{{total}} 個候選中已納入 {{selected}} 個",
+    "selectAll": "全選",
+    "clearAll": "全部取消",
+    "pageSelection": "已納入 {{selected}}/{{total}} 個",
+    "pageListLabel": "{{name}}，{{total}} 個候選中已納入 {{selected}} 個",
+    "included": "納入",
+    "excluded": "排除",
+    "candidateToggleLabel": "擬聲詞候選 {{index}}，{{state}}：{{text}}",
+    "inpaintAfterTranslation": "翻譯後抹除原文（修補）",
+    "startSelected": "翻譯選取的 {{count}} 個擬聲詞",
+    "allComplete": "沒有待處理的擬聲詞候選。",
+    "allCompleteHint": "偵測與翻譯歷史會保留；有新候選時會顯示在這裡。",
+    "dismiss": "從複核中移除",
+    "showAllPages": "顯示所有頁面",
+    "showTranslations": "顯示譯文",
+    "saveAsDefault": "儲存為下次翻譯的預設值",
+    "reviewComplete": "完成複核"
   },
   "stylePresets": {
     "title": "格式預設",

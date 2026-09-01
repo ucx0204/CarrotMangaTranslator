@@ -48,7 +48,7 @@ type TranslationDefaultsPatch = Pick<
   | "cumulativeContextDetailDefault"
   | "blockModeDefault"
   | "autoFontMatchingDefault"
-  | "fontSizeAutoFitDefault"
+  | "aiFontSizeMatchingDefault"
   | "naturalTextLayoutDefault"
   | "eraseOriginalWorkflowDefault"
   | "bubbleLayoutWorkflowDefault"
@@ -189,7 +189,7 @@ function buildDefaultsPatch(
     cumulativeContextDetailDefault: form.cumulativeContextDetail,
     blockModeDefault: form.blockMode,
     autoFontMatchingDefault: form.autoFontMatching,
-    fontSizeAutoFitDefault: form.fontSizeAutoFit,
+    aiFontSizeMatchingDefault: form.aiFontSizeMatching,
     naturalTextLayoutDefault: form.naturalTextLayout,
     eraseOriginalWorkflowDefault: form.eraseOriginalWorkflow,
     bubbleLayoutWorkflowDefault: form.bubbleLayoutWorkflow,
@@ -206,7 +206,7 @@ function buildTranslationFlowOptions(
     cumulativeContextDetail: form.cumulativeContextDetail,
     blockMode: form.blockMode,
     autoFontMatching: form.autoFontMatching,
-    fontSizeAutoFit: form.fontSizeAutoFit,
+    aiFontSizeMatching: form.aiFontSizeMatching,
     naturalTextLayout: form.naturalTextLayout,
     eraseOriginalWorkflow: form.eraseOriginalWorkflow,
     bubbleLayoutWorkflow:
@@ -300,7 +300,7 @@ function TranslationOptionsForm(
           />
           <div className="translate-options-toggle-grid">
             <NaturalTextLayoutOptions {...props} />
-            <FontSizeAutoFitOptions {...props} />
+            <AiFontSizeMatchingOptions {...props} />
             <AutoFontMatchingOptions {...props} />
           </div>
         </TranslationOptionSection>
@@ -320,15 +320,15 @@ function TranslationOptionsForm(
   );
 }
 
-function FontSizeAutoFitOptions(
+function AiFontSizeMatchingOptions(
   props: TranslationOptionsFormProps,
 ): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
     <ToggleOptionRow
       label={t("translationOptions.fontSizeAutoFit")}
-      pressed={props.fontSizeAutoFit}
-      onChange={props.onFontSizeAutoFitChange}
+      pressed={props.aiFontSizeMatching}
+      onChange={props.onAiFontSizeMatchingChange}
       description={t("translationOptions.fontSizeAutoFitSummary")}
     />
   );

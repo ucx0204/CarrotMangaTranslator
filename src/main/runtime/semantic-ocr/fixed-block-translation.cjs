@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- fixed semantic translation contract is intentionally audited as one module */
 // @ts-check
 
 /**
@@ -34,6 +35,7 @@ const {
   isRejectedLowConfidenceNoiseGroup,
   resolveFixedBlockConfidence,
 } = require("./fixed-block-quality.cjs");
+const { isHayaiOcrPipeline } = require("../ocr/engine-profile.cjs");
 const {
   mergeFixedBlockTranslationResults,
   parseFixedBlockTranslationDraft,
@@ -44,20 +46,32 @@ const {
 const FIXED_BLOCK_TRANSLATION_VERSION = 6;
 
 /**
- * @typedef {{id:number;bbox:[number,number,number,number];text:string;score:number|null;orientation:"horizontal"|"vertical";soundCandidate:boolean}} FixedCandidate
- * @typedef {{blockId:string;representativeId:number;candidateIds:number[];directionVoterCandidateIds:number[];jp:string;direction:"horizontal"|"vertical";bbox:{x1:number;y1:number;x2:number;y2:number};confidence:number;soundCandidate:boolean;fragments:Array<{candidateId:number;text:string;score:number|null;bbox:[number,number,number,number]}>}} FixedBlock
+ * @typedef {{id:number;bbox:[number,number,number,number];text:string;score:number|null;orientation:"horizontal"|"vertical";soundCandidate:boolean;geometryLocked:boolean}} FixedCandidate
+ * @typedef {{blockId:string;representativeId:number;candidateIds:number[];directionVoterCandidateIds:number[];jp:string;direction:"horizontal"|"vertical";bbox:{x1:number;y1:number;x2:number;y2:number};confidence:number;soundCandidate:boolean;ordinaryOnly:boolean;fragments:Array<{candidateId:number;text:string;score:number|null;bbox:[number,number,number,number]}>}} FixedBlock
  * @typedef {{version:6;blocks:FixedBlock[]}} FixedBlockPlan
  * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";layoutIntent?:"horizontal"|"vertical";fontRole?:string;fontRoleConfidence?:number;visualClusterId?:string}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
- * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;modelProvider?:unknown;regionCropMode?:unknown;keepBlocksMode?:unknown;promptOverrideText?:unknown;translationAttempt?:unknown;collectPageContext?:unknown;autoFontMatching?:unknown;ocrBboxHints?:unknown;validatedGroupOnlyReview?:unknown;[key:string]:unknown}} FixedBlockOptions
+ * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;modelProvider?:unknown;regionCropMode?:unknown;keepBlocksMode?:unknown;promptOverrideText?:unknown;translationAttempt?:unknown;collectPageContext?:unknown;autoFontMatching?:unknown;ocrPipeline?:unknown;ocrBboxHints?:unknown;validatedGroupOnlyReview?:unknown;[key:string]:unknown}} FixedBlockOptions
  * @typedef {{role:string;dataUrl?:string;width?:unknown;height?:unknown;originalWidth?:unknown;originalHeight?:unknown;[key:string]:unknown}} ImageVariant
  */
 
 /** @param {FixedBlockOptions} options */
 function shouldUseFixedBlockTranslation(options = {}) {
   return (
-    isGroupOnlyReviewEligible(options) &&
-    options.validatedGroupOnlyReview === true
+    isHayaiLockedRegionMode(options) ||
+    (isGroupOnlyReviewEligible(options) &&
+      options.validatedGroupOnlyReview === true)
+  );
+}
+
+/** @param {FixedBlockOptions} options */
+function isHayaiLockedRegionMode(options = {}) {
+  const hints = Array.isArray(options.ocrBboxHints) ? options.ocrBboxHints : [];
+  return (
+    isHayaiOcrPipeline(options) &&
+    !options.regionCropMode &&
+    hints.length > 0 &&
+    hints.every((hint) => isRecord(hint) && hint.geometryLocked === true)
   );
 }
 
@@ -80,6 +94,7 @@ function isGroupOnlyReviewEligible(options = {}) {
     !String(options.promptOverrideText ?? "").trim(),
     isJapaneseLanguageCode(options.sourceLanguage),
     hints.length > 0,
+    !isHayaiLockedRegionMode(options),
   ].every(Boolean);
 }
 
@@ -108,6 +123,7 @@ function hasHeuristicReviewFragments(options = {}) {
  * @param {ImageVariant[]} imageVariants
  * @returns {FixedBlockPlan}
  */
+// eslint-disable-next-line complexity
 function buildFixedBlockPlan(options, imageVariants = []) {
   const hints = Array.isArray(options.ocrBboxHints)
     ? /** @type {Record<string,unknown>[]} */ (options.ocrBboxHints)
@@ -124,6 +140,9 @@ function buildFixedBlockPlan(options, imageVariants = []) {
   const candidateById = new Map(
     candidates.map((candidate) => [candidate.id, candidate]),
   );
+  if (isHayaiLockedRegionMode(options)) {
+    return buildHayaiLockedBlockPlan(candidates, hintById);
+  }
   const projected = projectSemanticGroupOutputSlots(
     hints,
     /** @type {import("../prompts/prompt-types").PromptOptions} */ (options),
@@ -188,6 +207,33 @@ function buildFixedBlockPlan(options, imageVariants = []) {
 }
 
 /**
+ * The page text-region detector has already resolved every ordinary-text region.
+ * Keep the detector's one-region/one-slot contract without invoking the
+ * Paddle grouping projection.
+ * @param {FixedCandidate[]} candidates
+ * @param {Map<number,Record<string,unknown>>} hintById
+ * @returns {FixedBlockPlan}
+ */
+function buildHayaiLockedBlockPlan(candidates, hintById) {
+  return {
+    version: FIXED_BLOCK_TRANSLATION_VERSION,
+    blocks: candidates.map((candidate, index) =>
+      buildFixedBlock(
+        [candidate],
+        index,
+        new Map([
+          [
+            candidate.id,
+            readOcrCandidateText(hintById.get(candidate.id) ?? candidate),
+          ],
+        ]),
+        new Map([[candidate.id, "body"]]),
+      ),
+    ),
+  };
+}
+
+/**
  * @param {FixedCandidate[]} members
  * @param {number} index
  * @param {Map<number,string>} sourceTextById
@@ -234,6 +280,9 @@ function buildFixedBlock(members, index, sourceTextById, reviewRoleById) {
     soundCandidate:
       members.length > 0 &&
       members.every((candidate) => candidate.soundCandidate === true),
+    ordinaryOnly:
+      members.length > 0 &&
+      members.every((candidate) => candidate.geometryLocked === true),
     fragments: members.map((candidate) => ({
       candidateId: candidate.id,
       text: candidate.text,
@@ -252,6 +301,7 @@ function resolveDirection(members) {
 }
 
 /** @param {FixedBlockPlan} plan @param {FixedBlockOptions} options */
+// eslint-disable-next-line complexity
 function buildFixedBlockTranslationPrompt(plan, options = {}) {
   const profile = resolvePromptLanguageProfile(
     /** @type {import("../prompts/prompt-types").PromptOptions} */ (options),
@@ -261,19 +311,32 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
   );
   const contextText = context.length > 1 ? context.slice(1).join("\n") : "";
   const attempt = Number(options.translationAttempt);
+  const hayaiLocked = isHayaiLockedRegionMode(options);
   return [
     `Translate every supplied immutable ${profile.sourceName} manga string into natural ${profile.targetName}.`,
-    "Image 1 is visual evidence. Use each bbox and the visible lettering/container to classify the text role as well as understand speakers, tone, and the scene.",
+    hayaiLocked
+      ? "Image 1 is the authority for correcting the Hayai reading hint inside each already-finalized ordinary-text bbox."
+      : "Image 1 is visual evidence. Use each bbox and the visible lettering/container to classify the text role as well as understand speakers, tone, and the scene.",
     "Every blockId, jp, direction, bbox, block count, and block order was already fixed before translation.",
     "You may not merge, split, add, remove, reorder, or relocate blocks. Return exactly one item for every supplied blockId and no other blockId.",
-    "Never transcribe, correct, normalize, merge, split, add, remove, reorder, or replace any jp text.",
-    "Translate the exact supplied jp string even when it is short, stylized, noisy, or contains an OCR error.",
+    hayaiLocked
+      ? "Correct Hayai OCR mistakes by re-reading only the visible main text inside that block's bbox; never borrow text from a neighboring block."
+      : "Never transcribe, correct, normalize, merge, split, add, remove, reorder, or replace any jp text.",
+    hayaiLocked
+      ? "The supplied jp may be incomplete or empty. Translate every visible main line inside its immutable bbox and use furigana only as pronunciation help."
+      : "Translate the exact supplied jp string even when it is short, stylized, noisy, or contains an OCR error.",
     options.autoFontMatching
       ? "Each item requires blockId, textRole, layoutIntent, fontRole, fontRoleConfidence, and ko, and may additionally include visualClusterId. Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary."
       : 'Each item has exactly four keys: blockId, textRole, layoutIntent, and ko. textRole must be exactly "ordinary" or "sound". Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary.',
-    'Use textRole "ordinary" for speech balloons, narration, captions, interface labels, titles, signs, notes, and readable dialogue even when the string is very short.',
-    'Use textRole "sound" only for standalone printed sound effects, action noises, and stylized reaction lettering that belongs to the depicted scene rather than a speaker or label.',
-    'Judge textRole from the original page image, bbox, lettering, and scene context. Do not classify by string length alone; when genuinely ambiguous, use "ordinary".',
+    hayaiLocked
+      ? 'Every supplied block is ordinary text. Return textRole "ordinary" for every item; sound effects are excluded and reviewed separately by the user.'
+      : 'Use textRole "ordinary" for speech balloons, narration, captions, interface labels, titles, signs, notes, and readable dialogue even when the string is very short.',
+    ...(hayaiLocked
+      ? []
+      : [
+          'Use textRole "sound" only for standalone printed sound effects, action noises, and stylized reaction lettering that belongs to the depicted scene rather than a speaker or label.',
+          'Judge textRole from the original page image, bbox, lettering, and scene context. Do not classify by string length alone; when genuinely ambiguous, use "ordinary".',
+        ]),
     options.autoFontMatching
       ? 'layoutIntent must be exactly "auto", "horizontal", or "vertical" and is only a render advisory; it never changes source direction, bbox, grouping, or inpainting geometry.'
       : 'layoutIntent must be exactly "auto" or "horizontal". Never return "vertical" because this response has no current visual-role confidence evidence. It never changes source direction, bbox, grouping, or inpainting geometry.',
@@ -340,12 +403,25 @@ function buildFixedBlockTranslationSystemPrompt(options = {}) {
   const outputKeys = options.autoFontMatching
     ? "blockId, textRole, layoutIntent, fontRole, fontRoleConfidence, ko, and optional visualClusterId"
     : "blockId, textRole, layoutIntent, and ko";
-  return `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator and visual text-role classifier. Source strings, geometry, and grouping are immutable; classify each visible fixed block, write ko only in ${profile.targetName} without untranslated source script, and output only ${outputKeys} as valid JSON.`;
+  return isHayaiLockedRegionMode(options)
+    ? `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator. Every supplied block is an immutable ordinary-text slot; correct its Hayai reading from the visible bbox, never merge or move slots, return textRole ordinary, write ko only in ${profile.targetName}, and output only ${outputKeys} as valid JSON.`
+    : `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator and visual text-role classifier. Source strings, geometry, and grouping are immutable; classify each visible fixed block, write ko only in ${profile.targetName} without untranslated source script, and output only ${outputKeys} as valid JSON.`;
 }
 
 /** @param {FixedBlockOptions} options */
 function buildFixedBlockFontRoleLines(options) {
   if (!options.autoFontMatching) return [];
+  if (isHayaiLockedRegionMode(options)) {
+    return [
+      "fontRole must be exactly one of dialogue, narration, thought, whisper, aside_balloon_edge, emphasis_dialogue, shout, sign_ui_title, other, unknown_needs_review. Never return an sfx_ fontRole for these ordinary-text slots.",
+      "Classify fontRole from visible lettering and container only, never from the work title, genre stereotype, translated wording, or string length.",
+      "Use dialogue for normal balloons; narration for caption/free narration; thought for internal monologue; aside_balloon_edge for detached small balloon-adjacent lettering; emphasis_dialogue or shout only when visually clear.",
+      'layoutIntent "vertical" is valid only when this same response has fontRole exactly "narration" and finite fontRoleConfidence >= 0.82. Every other role or confidence must use layoutIntent "horizontal" or "auto", regardless of Japanese source orientation.',
+      "fontRoleConfidence is confidence in the fine-grained visual role only. Use below 0.82 when uncertain and unknown_needs_review when the role cannot be decided safely.",
+      "visualClusterId is optional. Use one short ID only when two or more separate non-body accent blocks visibly share the same repeated lettering treatment, and reuse that exact ID on those members.",
+      "Omit visualClusterId for dialogue, narration, thought, and whenever the visual grouping is uncertain.",
+    ];
+  }
   return [
     "fontRole must be exactly one of dialogue, narration, thought, whisper, aside_balloon_edge, emphasis_dialogue, shout, sfx_impact, sfx_motion, sfx_ambient, sfx_emotion, sfx_comic, sign_ui_title, other, unknown_needs_review.",
     "Classify fontRole from visible lettering and container only, never from the work title, genre stereotype, translated wording, or string length.",
@@ -393,7 +469,9 @@ function buildFixedBlockOverlayPayload(plan, translations) {
         );
       }
       const modelClassifiedSound =
-        translation.textRole === "sound" && block.confidence >= 0.58;
+        !block.ordinaryOnly &&
+        translation.textRole === "sound" &&
+        block.confidence >= 0.58;
       const soundCandidate = block.soundCandidate || modelClassifiedSound;
       const layoutIntent = normalizeFixedBlockLayoutIntent(
         translation.layoutIntent,

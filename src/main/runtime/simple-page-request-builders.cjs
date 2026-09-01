@@ -58,10 +58,19 @@ const REGION_CROP_DESCRIPTION =
 /**
  * @param {RequestOptions} options
  * @param {ImageVariant[]} imageVariants
+ * @param {string} [promptOverride]
+ * @param {string} [systemPromptOverride]
  */
-function buildMessages(options, imageVariants) {
+function buildMessages(
+  options,
+  imageVariants,
+  promptOverride,
+  systemPromptOverride,
+) {
   const promptText =
-    options.promptOverrideText || getOverlayPrompt(options, imageVariants);
+    promptOverride ||
+    options.promptOverrideText ||
+    getOverlayPrompt(options, imageVariants);
   const imageParts = imageVariants.flatMap((variant, index) => [
     {
       type: "image_url",
@@ -78,7 +87,12 @@ function buildMessages(options, imageVariants) {
   return [
     {
       role: "system",
-      content: [{ type: "text", text: buildSystemPrompt(options) }],
+      content: [
+        {
+          type: "text",
+          text: systemPromptOverride || buildSystemPrompt(options),
+        },
+      ],
     },
     {
       role: "user",
@@ -138,6 +152,12 @@ function describeImageVariant(variant, index, options = {}) {
  * @param {RequestOptions} options
  */
 function resolveImageVariantDescription(variant, index, options) {
+  if (variant.role === "sound-effect-page-context") {
+    return "a downscaled full manga page for scene context. The only target is covered by a translucent cyan tint and enclosed by a magenta outline. Use the mark to locate the target, not as source artwork; do not translate unmarked text.";
+  }
+  if (variant.role === "sound-effect-target-crop") {
+    return "an enlarged high-detail crop of the one fixed sound-effect candidate. This crop is authoritative for reading the target glyphs.";
+  }
   if (options.regionCropMode && index === 0) {
     return REGION_CROP_DESCRIPTION;
   }

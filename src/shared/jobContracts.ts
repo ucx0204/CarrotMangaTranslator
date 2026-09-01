@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const JOB_KIND_VALUES = [
   "gemma-analysis",
+  "sound-effect-translation",
   "internet-research",
   "inpainting",
   "page-export",

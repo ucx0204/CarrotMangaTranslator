@@ -14,6 +14,7 @@ import {
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { OcrBboxResult } from "./types";
 import { tMain } from "./localization";
+import { isHayaiOcrPipeline } from "../../shared/ocrEngines";
 
 type PrepareOcrHintsOptions = {
   runtime: Pick<
@@ -149,7 +150,11 @@ function buildPendingOcrPageOptions(
 }
 
 function emitCachedOcrHintProgress(
-  { emit, jobId }: Pick<OcrHintsProgressContext, "emit" | "jobId">,
+  {
+    baseOptions,
+    emit,
+    jobId,
+  }: Pick<OcrHintsProgressContext, "baseOptions" | "emit" | "jobId">,
   page: MangaPage,
   index: number,
   total: number,
@@ -161,6 +166,7 @@ function emitCachedOcrHintProgress(
     status: "running",
     progressText: tMain("ocr.cached", { page: page.name }),
     phase: "ocr_running",
+    ocrPipeline: baseOptions.ocrPipeline,
     progressCurrent: index + 1,
     progressTotal: total,
     pageIndex: index + 1,
@@ -192,6 +198,7 @@ function createOcrPageProgressHandler({
       status: "running",
       progressText: progress.progressText,
       phase: progress.phase,
+      ocrPipeline: progressContext.baseOptions.ocrPipeline,
       progressCurrent:
         progress.progressCurrent ??
         (shouldDefaultToPage ? index + 1 : progressContext.results.size),
@@ -296,15 +303,20 @@ function preparePendingOcrBatchOptions(
 }
 
 function emitOcrBatchStarted(
-  { emit, jobId, total }: OcrHintsProgressContext,
+  { baseOptions, emit, jobId, total }: OcrHintsProgressContext,
   pendingCount: number,
 ): void {
   emit({
     id: jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: tMain("ocr.batchRunning"),
+    progressText: tMain(
+      isHayaiOcrPipeline(baseOptions.ocrPipeline)
+        ? "ocr.hayaiBatchRunning"
+        : "ocr.batchRunning",
+    ),
     phase: "ocr_running",
+    ocrPipeline: baseOptions.ocrPipeline,
     progressCurrent: 0,
     progressTotal: pendingCount,
     pageTotal: total,
@@ -313,7 +325,7 @@ function emitOcrBatchStarted(
 }
 
 async function saveOcrBatchResult(
-  { emit, jobId, results, total }: OcrHintsProgressContext,
+  { baseOptions, emit, jobId, results, total }: OcrHintsProgressContext,
   pendingPages: PendingOcrPage[],
   entry: PendingOcrPage,
   batchIndex: number,
@@ -327,6 +339,7 @@ async function saveOcrBatchResult(
     status: "running",
     progressText: tMain("ocr.pageDone", { page: entry.page.name }),
     phase: "ocr_running",
+    ocrPipeline: baseOptions.ocrPipeline,
     progressCurrent: batchIndex + 1,
     progressTotal: pendingPages.length,
     pageIndex: entry.index + 1,
@@ -336,6 +349,7 @@ async function saveOcrBatchResult(
 }
 
 function emitOcrHintsCompleted({
+  baseOptions,
   emit,
   jobId,
   total,
@@ -344,8 +358,13 @@ function emitOcrHintsCompleted({
     id: jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: tMain("ocr.prepassDone"),
+    progressText: tMain(
+      isHayaiOcrPipeline(baseOptions.ocrPipeline)
+        ? "ocr.hayaiPrepassDone"
+        : "ocr.prepassDone",
+    ),
     phase: "ocr_running",
+    ocrPipeline: baseOptions.ocrPipeline,
     progressCurrent: total,
     progressTotal: total,
     pageTotal: total,

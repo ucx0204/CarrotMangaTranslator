@@ -726,8 +726,8 @@
     },
     "autoFontMatching": "フォント自動調整",
     "autoFontMatchingSummary": "原文の雰囲気に合う韓国語フォントをブロックごとに自動適用します。",
-    "fontSizeAutoFit": "文字サイズ自動調整",
-    "fontSizeAutoFitSummary": "原文の見た目の文字サイズに翻訳文を合わせ、ブロックに収まらない場合だけ縮小します。",
+    "fontSizeAutoFit": "AI文字サイズ合わせ",
+    "fontSizeAutoFitSummary": "AIが原文の字形から文字サイズを推定します。",
     "completionMode": "完了方法",
     "completionModeTranslate": "翻訳のみ",
     "completionModeErase": "原文を消去",
@@ -1087,7 +1087,7 @@
     "logLabel": "インストールログ",
     "checkingLogs": "ログを確認中",
     "preparingModel": "Gemma 4モデルを準備",
-    "installingOcr": "Paddle OCRをインストール"
+    "installingOcr": "OCRをインストール"
   },
   "toast": { "close": "通知を閉じる", "region": "通知" },
   "errorBoundary": {
@@ -1753,7 +1753,7 @@
       "ocrDevices": {
         "cuda": {
           "label": "NVIDIA CUDA",
-          "description": "NVIDIA GPUでPaddle OCRを実行します。"
+          "description": "NVIDIA GPUでOCRを実行します。"
         },
         "rocm": {
           "label": "AMD ROCm",
@@ -2039,13 +2039,27 @@
       "graphicsGpuRestartNote": "アプリ描画GPUの変更は、アプリを再起動すると適用されます。",
       "ocrSection": "OCR",
       "inpaintingSection": "インペインティング",
+      "ocrPipeline": "テキスト領域の検出方式",
+      "ocrPipelines": {
+        "hayai": {
+          "label": "HayaiOCR",
+          "description": "テキスト検出器が本文と効果音の領域を分離し、Hayai OCRが固定された各領域を読み取ります。効果音は通常翻訳から除外して確認対象として保存します。"
+        },
+        "paddle-legacy": {
+          "label": "PaddleOCR",
+          "description": "従来のPaddle OCR断片とGemmaのグループ化をそのまま使用します。"
+        }
+      },
       "ocrQuality": "Paddle OCR品質",
-      "ocrDevice": "Paddle OCRデバイス",
+      "ocrDevice": "OCRデバイス",
+      "hayaiDevices": {
+        "cuda": "NVIDIA CUDAでHayaiOCRを実行します。",
+        "rocm-transformers": "AMD ROCmでHayaiOCRを実行します。",
+        "cpu": "CPUでHayaiOCRを実行します。GPUより遅くなる場合があります。"
+      },
       "fluxBackend": "Fluxインペインティングのバックエンド",
       "inpaintingModel": "インペインティングモデル",
       "amdOcrExperimental": "AMD GPU OCRは実験機能です。失敗した場合はOCRだけをCPUに切り替えられます。",
-      "ocrAppleNote": "Apple SiliconのPaddle OCRはCPUランタイムを使用します。",
-      "ocrNvidiaNote": "NVIDIA環境ではAMD ROCm OCRを選択できません。",
       "fluxAppleNote": "Apple SiliconではMetalネイティブのみ使用します。Fluxは16GB以上のユニファイドメモリを推奨します。",
       "fluxOnlyNote": "この設定はFlux Kleinモデルにのみ適用されます。",
       "fluxLowMemoryConfirm": "ユニファイドメモリ{{available}}はFlux推奨の16GB未満です。アプリが終了したり、システムが非常に遅くなったりする可能性があります。この危険な実行を許可しますか？",
@@ -2151,7 +2165,7 @@
       "title": "インストール/動作確認",
       "run": "OCR/モデルを確認",
       "running": "確認中…",
-      "description": "Paddle OCRの準備状態と選択した翻訳エンジンが起動するかを確認します。",
+      "description": "選択したOCRと翻訳エンジンが正しく準備・起動するかを確認します。",
       "logAria": "インストール/動作確認ログ",
       "detail": {
         "model": "モデル: {{path}}",
@@ -2160,15 +2174,15 @@
       },
       "status": {
         "running": "OCR、モデルランタイム、簡単なテキスト応答を順に確認しています…",
-        "gemmaDetail": "Paddle OCRとGemmaランタイムの準備ログを表示します。",
-        "codexDetail": "Paddle OCRとCodexエンドポイントをまとめて確認します。",
-        "apiDetail": "Paddle OCRとAPIエンドポイントの応答をまとめて確認します。"
+        "gemmaDetail": "選択したOCRとGemmaランタイムの準備ログを表示します。",
+        "codexDetail": "選択したOCRとCodexエンドポイントをまとめて確認します。",
+        "apiDetail": "選択したOCRとAPIエンドポイントの応答をまとめて確認します。"
       },
       "log": {
-        "start": "Paddle OCRと翻訳エンジンの確認を開始します。",
-        "requestError": "Paddle OCRと翻訳エンジンの確認要求中にエラーが発生しました。",
-        "success": "Paddle OCRと翻訳エンジンの確認が完了しました。",
-        "failure": "Paddle OCRと翻訳エンジンの確認に失敗しました。"
+        "start": "OCRと翻訳エンジンの確認を開始します。",
+        "requestError": "OCRと翻訳エンジンの確認要求中にエラーが発生しました。",
+        "success": "OCRと翻訳エンジンの確認が完了しました。",
+        "failure": "OCRと翻訳エンジンの確認に失敗しました。"
       }
     },
     "update": {
@@ -2222,6 +2236,7 @@
       "open": "完了通知音の設定",
       "all": "すべての完了通知音",
       "translation": "翻訳完了",
+      "soundEffect": "効果音翻訳完了",
       "sourceErasing": "原文消去完了",
       "research": "インターネット調査完了",
       "mute": "{{item}}をオフ",
@@ -2346,6 +2361,38 @@
     "renameFailed": "ブロック名を変更できませんでした。",
     "updateFailed": "ライブラリブロックを更新できませんでした。",
     "deleteFailed": "ブロックを削除できませんでした。"
+  },
+  "soundEffectReview": {
+    "launcher": "効果音翻訳を実行、保留 {{count}}件",
+    "launcherAction": "効果音翻訳を実行",
+    "layerLabel": "要確認の効果音",
+    "regionLabel": "効果音候補 {{index}}：{{text}}",
+    "unreadable": "読み取り不確実",
+    "boxTag": "効果音？",
+    "reviewTitle": "要確認の効果音",
+    "inpaintHint": "単一範囲の翻訳では原文を残します。原文消去は効果音の一括翻訳画面で選択できます。",
+    "runAll": "効果音をすべて翻訳",
+    "translateOne": "この範囲だけ翻訳",
+    "modalTitle": "効果音翻訳を実行",
+    "modalIntro": "左でページを選び、右の候補枠をクリックして今回の翻訳に含めるか除外してください。",
+    "pageSummary": "{{pages}}ページ · 候補{{count}}件",
+    "selectionSummary": "候補{{total}}件中{{selected}}件を含む",
+    "selectAll": "すべて選択",
+    "clearAll": "すべて解除",
+    "pageSelection": "{{total}}件中{{selected}}件を含む",
+    "pageListLabel": "{{name}}、候補{{total}}件中{{selected}}件を含む",
+    "included": "含める",
+    "excluded": "除外",
+    "candidateToggleLabel": "効果音候補{{index}}、{{state}}：{{text}}",
+    "inpaintAfterTranslation": "翻訳後に原文を消去（インペイント）",
+    "startSelected": "選択した効果音{{count}}件を翻訳",
+    "allComplete": "保留中の効果音候補はありません。",
+    "allCompleteHint": "検出・翻訳履歴は保持され、新しい候補があればここに表示されます。",
+    "dismiss": "確認対象から除外",
+    "showAllPages": "全ページを表示",
+    "showTranslations": "翻訳文を表示",
+    "saveAsDefault": "次回翻訳の既定値として保存",
+    "reviewComplete": "確認完了"
   },
   "stylePresets": {
     "title": "書式プリセット",

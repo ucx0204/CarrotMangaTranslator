@@ -8,10 +8,59 @@ import {
 } from "../src/main/appSettings";
 import { join } from "node:path";
 import type { AppSettings } from "../src/shared/settingsTypes";
+import {
+  resolveStoredLlamaRocmTarget,
+  resolveStoredOcrGpuCudaTag,
+  resolveStoredOcrModeSettings,
+} from "../src/main/settings/appSettingsStoredResolvers";
 
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
 describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
+  it("preserves stored OCR routing without a hardware rewrite policy", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(resolveStoredOcrModeSettings(null, defaults)).toEqual({
+      device: defaults.ocr.device,
+      gpuBackend: defaults.ocr.gpuBackend,
+      qualityMode: defaults.ocr.qualityMode,
+    });
+    expect(
+      resolveStoredOcrModeSettings(
+        {
+          device: "gpu",
+          gpuBackend: "rocm-transformers",
+          qualityMode: "full",
+        },
+        defaults,
+      ),
+    ).toEqual({
+      device: "gpu",
+      gpuBackend: "rocm-transformers",
+      qualityMode: "full",
+    });
+  });
+
+  it("uses explicit safe defaults when optional runtime defaults are absent", () => {
+    const defaults = resolveDefaultAppSettings();
+    const sparseDefaults = structuredClone(defaults);
+    Reflect.deleteProperty(sparseDefaults.gemma, "llamaRocmTarget");
+    Reflect.deleteProperty(sparseDefaults.ocr, "gpuBackend");
+    Reflect.deleteProperty(sparseDefaults.ocr, "gpuCudaTag");
+
+    expect(resolveStoredOcrModeSettings(null, sparseDefaults)).toEqual({
+      device: defaults.ocr.device,
+      gpuBackend: "cuda",
+      qualityMode: defaults.ocr.qualityMode,
+    });
+    expect(resolveStoredOcrGpuCudaTag(null, sparseDefaults)).toBe(
+      DEFAULT_OCR_GPU_CUDA_TAG,
+    );
+    expect(resolveStoredLlamaRocmTarget(null, sparseDefaults, "rocm")).toBe(
+      undefined,
+    );
+  });
+
   it("defaults supported 4GB and 8GB NVIDIA GPUs to full OCR", () => {
     const fourGbDefaults = resolveDefaultAppSettings(
       {},
@@ -136,15 +185,12 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(amdDefaults.gemma.llamaRocmTarget).toBe("gfx110X");
     expect(options.llamaRuntimeProfile).toBe("rocm");
     expect(options.llamaRocmTarget).toBe("gfx110X");
+    expect(options.ocrPipeline).toBe("hayai");
     expect(options.ocrDevice).toBe("gpu");
     expect(options.ocrGpuBackend).toBe("rocm-transformers");
-    expect(options.ocrBboxMode).toBe("ocr");
-    expect(options.ocrEngine).toBe("transformers");
-    expect(options.ocrEngineDtype).toBe("float32");
-    expect(options.ocrVersion).toBe("PP-OCRv6");
-    expect(options.ocrMergeMode).toBe("semantic");
-    expect(options.ocrDetLimit).toBe("1600");
-    expect(options.ocrRecBatch).toBe("1");
+    expect(options.ocrBboxProvider).toBe("hayai-regions");
+    expect(options.ocrBboxMode).toBeUndefined();
+    expect(options.ocrEngine).toBeUndefined();
     expect(options.serverPath).toBe(
       join(
         "C:/app-data",
@@ -316,7 +362,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(rx6700Defaults.inpainting?.fluxBackend).toBe("cpu-native");
   });
 
-  it("migrates unsupported AMD GPU OCR settings to the canonical CPU route", () => {
+  it("preserves an explicitly stored OCR device and backend", () => {
     const igpuDefaults = resolveDefaultAppSettings(
       {},
       {
@@ -336,8 +382,8 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
       igpuDefaults,
     );
     expect(restored.ocr).toMatchObject({
-      gpuBackend: "cuda",
-      device: "cpu",
+      gpuBackend: "rocm-transformers",
+      device: "gpu",
       qualityMode: "economy",
     });
 
@@ -353,8 +399,8 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     );
     expect(staleCudaRestored.ocr).toMatchObject({
       gpuBackend: "cuda",
-      device: "cpu",
-      qualityMode: "economy",
+      device: "gpu",
+      qualityMode: "full",
     });
 
     const supportedDefaults = resolveDefaultAppSettings(
@@ -379,7 +425,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(supportedRestored.ocr.device).toBe("gpu");
   });
 
-  it("defensively clamps stale unsupported AMD runtime OCR unless env explicitly opts in", () => {
+  it("never rewrites an explicitly selected runtime OCR device or backend", () => {
     const unsupportedAmd = {
       ...resolveDefaultAppSettings(
         {},
@@ -419,11 +465,11 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
       settings: unsupportedAmd,
     };
 
-    const guarded = buildBaseTranslationOptions({ ...optionInput, env: {} });
-    expect(guarded).toMatchObject({
-      ocrDevice: "cpu",
-      ocrGpuBackend: "cuda",
-      ocrQualityMode: "economy",
+    const selected = buildBaseTranslationOptions({ ...optionInput, env: {} });
+    expect(selected).toMatchObject({
+      ocrDevice: "gpu",
+      ocrGpuBackend: "rocm-transformers",
+      ocrQualityMode: "full",
     });
 
     for (const env of [
@@ -453,10 +499,49 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
       },
     });
     expect(invalidOverride).toMatchObject({
-      ocrDevice: "cpu",
-      ocrGpuBackend: "cuda",
-      ocrQualityMode: "economy",
+      ocrDevice: "gpu",
+      ocrGpuBackend: "rocm-transformers",
+      ocrQualityMode: "full",
     });
+  });
+
+  it("preserves Hayai on unsupported hardware instead of silently selecting Paddle", () => {
+    const defaults = resolveDefaultAppSettings();
+    const paths = {
+      dataRoot: "C:/app-data",
+      toolsDir: "C:/tools",
+      llamaServerPath: "C:/tools/llama-server.exe",
+      hfHomeDir: "C:/hf-home",
+      hfHubCacheDir: "C:/hf-home/hub",
+    };
+
+    for (const gpuVendor of ["apple", "unknown"] as const) {
+      const settings: AppSettings = {
+        ...defaults,
+        ocr: {
+          ...defaults.ocr,
+          pipeline: "hayai",
+          device: "gpu",
+          gpuBackend: "cuda",
+          qualityMode: "full",
+        },
+        runtimeHardware: { gpuVendor },
+      };
+      const options = buildBaseTranslationOptions({
+        jobId: `job-${gpuVendor}-stale-hayai`,
+        runDir: `C:/runs/${gpuVendor}-stale-hayai`,
+        paths,
+        settings,
+        env: {},
+      });
+
+      expect(options).toMatchObject({
+        ocrPipeline: "hayai",
+        ocrDevice: "gpu",
+        ocrGpuBackend: "cuda",
+        ocrBboxProvider: "hayai-regions",
+      });
+    }
   });
 
   it("never pairs GPU-only full OCR qualities with the CPU device", () => {
@@ -529,7 +614,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(amdLegacyRestored.ocr.qualityMode).toBe("full");
   });
 
-  it("locks saved OCR modes to the detected NVIDIA and AMD hardware", () => {
+  it("keeps saved OCR modes independent from detected NVIDIA and AMD hardware", () => {
     const amdDefaults = resolveDefaultAppSettings(
       {},
       {
@@ -551,7 +636,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
       }),
       amdDefaults,
     );
-    expect(amdRestored.ocr.gpuBackend).toBe("rocm-transformers");
+    expect(amdRestored.ocr.gpuBackend).toBe("cuda");
     expect(amdRestored.ocr.qualityMode).toBe("full");
 
     const nvidiaDefaults = resolveDefaultAppSettings(
@@ -573,7 +658,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
       }),
       nvidiaDefaults,
     );
-    expect(nvidiaRestored.ocr.gpuBackend).toBe("cuda");
+    expect(nvidiaRestored.ocr.gpuBackend).toBe("rocm-transformers");
     expect(nvidiaRestored.ocr.qualityMode).toBe("full");
 
     const unsupportedAmdDefaults = resolveDefaultAppSettings(
@@ -599,8 +684,8 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
       unsupportedAmdDefaults,
     );
     expect(unsupportedAmdRestored.ocr.gpuBackend).toBe("cuda");
-    expect(unsupportedAmdRestored.ocr.device).toBe("cpu");
-    expect(unsupportedAmdRestored.ocr.qualityMode).toBe("economy");
+    expect(unsupportedAmdRestored.ocr.device).toBe("gpu");
+    expect(unsupportedAmdRestored.ocr.qualityMode).toBe("full");
   });
 
   it("runs economy OCR when the runtime resolves full quality onto the CPU", () => {
@@ -617,6 +702,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
       ...nvidiaDefaults,
       ocr: {
         ...nvidiaDefaults.ocr,
+        pipeline: "paddle-legacy",
         device: "cpu",
         qualityMode: "full",
       },

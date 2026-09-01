@@ -159,6 +159,9 @@ describe("status dock", () => {
     expect((slider as HTMLInputElement).value).toBe("35");
     const allSounds = screen.getByRole("button", { name: "전체 알림음 켜기" });
     const translation = screen.getByRole("button", { name: "번역 완료 끄기" });
+    const soundEffect = screen.getByRole("button", {
+      name: "효과음 번역 완료 끄기",
+    });
     const sourceErasing = screen.getByRole("button", {
       name: "원문 지우기 완료 끄기",
     });
@@ -167,6 +170,7 @@ describe("status dock", () => {
     });
     expect(allSounds.getAttribute("aria-pressed")).toBe("true");
     expect(translation.getAttribute("aria-pressed")).toBe("false");
+    expect(soundEffect.getAttribute("aria-pressed")).toBe("false");
     expect(sourceErasing.getAttribute("aria-pressed")).toBe("false");
     expect(research.getAttribute("aria-pressed")).toBe("false");
 
@@ -175,6 +179,17 @@ describe("status dock", () => {
       muted: false,
       volume: 0.35,
       translationMuted: false,
+      soundEffectMuted: false,
+      sourceErasingMuted: false,
+      researchMuted: false,
+    });
+
+    fireEvent.click(soundEffect);
+    expect(onChange).toHaveBeenLastCalledWith({
+      muted: false,
+      volume: 0.35,
+      translationMuted: false,
+      soundEffectMuted: true,
       sourceErasingMuted: false,
       researchMuted: false,
     });
@@ -184,6 +199,7 @@ describe("status dock", () => {
       muted: false,
       volume: 0.35,
       translationMuted: false,
+      soundEffectMuted: true,
       sourceErasingMuted: false,
       researchMuted: true,
     });
@@ -193,6 +209,7 @@ describe("status dock", () => {
       muted: false,
       volume: 0.72,
       translationMuted: false,
+      soundEffectMuted: true,
       sourceErasingMuted: false,
       researchMuted: true,
     });
@@ -648,6 +665,7 @@ function SoundStatusDockHarness({
     muted: true,
     volume: 0.35,
     translationMuted: false,
+    soundEffectMuted: false,
     sourceErasingMuted: false,
     researchMuted: false,
   });
@@ -656,6 +674,7 @@ function SoundStatusDockHarness({
       completionSoundMuted={preferences.muted}
       completionSoundVolume={preferences.volume}
       completionSoundTranslationMuted={preferences.translationMuted}
+      completionSoundSoundEffectMuted={preferences.soundEffectMuted}
       completionSoundSourceErasingMuted={preferences.sourceErasingMuted}
       completionSoundResearchMuted={preferences.researchMuted}
       jobState={makeJobState()}

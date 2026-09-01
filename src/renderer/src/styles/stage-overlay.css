@@ -366,6 +366,158 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
+.sound-effect-review-layer {
+  position: absolute;
+  inset: 0;
+  z-index: calc(var(--z-stage-region-box) + 1);
+  pointer-events: auto;
+  line-height: 1.35;
+}
+
+.sound-effect-review-box {
+  position: absolute;
+  min-width: 10px;
+  min-height: 10px;
+  padding: 0;
+  pointer-events: auto;
+  border: 3px dashed rgba(255, 52, 78, 0.96);
+  border-radius: 4px;
+  background: rgba(255, 42, 67, 0.07);
+  box-shadow:
+    0 0 0 1px rgba(39, 2, 8, 0.8),
+    0 0 12px rgba(255, 52, 78, 0.16);
+  cursor: pointer;
+}
+
+.sound-effect-review-box:hover,
+.sound-effect-review-box.is-selected {
+  border-style: solid;
+  background: rgba(255, 42, 67, 0.15);
+  box-shadow:
+    0 0 0 2px rgba(255, 235, 238, 0.94),
+    0 0 18px rgba(255, 52, 78, 0.32);
+}
+
+.sound-effect-review-box:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.98);
+  outline-offset: 3px;
+}
+
+.sound-effect-review-box > span {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  padding: 3px 6px;
+  border-radius: 3px 0 5px;
+  color: #fff;
+  background: #d92b43;
+  box-shadow: 0 2px 7px rgba(20, 0, 4, 0.42);
+  font-size: clamp(8px, 1.15vw, 12px);
+  font-weight: 850;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.sound-effect-review-actions {
+  position: absolute;
+  z-index: calc(var(--z-stage-region-box) + 2);
+  display: grid;
+  gap: 6px;
+  width: min(250px, 46%);
+  min-width: 176px;
+  padding: 10px;
+  pointer-events: auto;
+  border: 1px solid rgba(255, 104, 122, 0.8);
+  border-radius: 9px;
+  color: #f7f8fb;
+  background: rgba(23, 25, 31, 0.97);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.sound-effect-review-actions strong {
+  color: #ff9ca8;
+  font-size: 13px;
+}
+
+.sound-effect-review-actions > span:not(.sound-effect-review-reading) {
+  color: #aeb6c4;
+  font-size: 11px;
+}
+
+.sound-effect-review-reading {
+  overflow: hidden;
+  max-height: 3.9em;
+  color: #fff;
+  font-weight: 650;
+}
+
+.sound-effect-review-actions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sound-effect-review-actions > div > button {
+  flex: 1 1 auto;
+}
+
+.sound-effect-review-action-button {
+  min-height: 28px;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  color: #f7f8fb;
+  background: rgba(255, 255, 255, 0.08);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sound-effect-review-action-button.is-primary {
+  border-color: rgba(255, 84, 105, 0.95);
+  background: #d92b43;
+}
+
+.sound-effect-review-action-button.is-dismiss {
+  flex-basis: 100%;
+  border-style: dashed;
+  color: #c8ced8;
+  background: transparent;
+}
+
+.sound-effect-review-action-button:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.sound-effect-review-action-button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.sound-effect-review-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sound-effect-translation-complete {
+  display: grid;
+  place-content: center;
+  gap: var(--sp-2);
+  min-height: 240px;
+  padding: var(--sp-6);
+  border: 1px dashed var(--border-soft);
+  border-radius: var(--r-lg);
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.sound-effect-translation-complete strong {
+  color: var(--text-head);
+  font-size: var(--font-lg);
+}
+
 .bubble-layout-draft-layer {
   position: absolute;
   inset: 0;

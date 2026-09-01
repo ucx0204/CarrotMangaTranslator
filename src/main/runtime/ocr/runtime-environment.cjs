@@ -35,19 +35,17 @@ const {
   runtimeOverrideEnv,
   shouldAllowExternalRuntimeOverrides,
 } = require("./host-services.cjs");
-const { resolveToolsDir } = require("../simple-page-runtime-paths.cjs");
 const {
   readOptionString,
   readPositiveIntegerOption,
 } = require("./config-values.cjs");
 const {
-  isOcrCudaTransformersRuntime,
-  isOcrTransformersEngine,
+  isHayaiOcrPipeline,
+  isPaddleTransformersEngine,
   resolveEffectiveOcrDevice,
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
-  resolveOcrRuntimeVariant,
 } = require("./runtime-device.cjs");
 const {
   resolveOcrPipCacheDir,
@@ -55,10 +53,14 @@ const {
   resolveOcrPythonUserBaseDir,
   resolveOcrRuntimeDir,
   resolveOcrTempDir,
-  resolveOcrVenvDir,
   resolvePaddlexCacheHome,
   shouldUseWindowsShortRocmOcrLayout,
 } = require("./runtime-layout.cjs");
+const {
+  buildOcrRuntimeDllSearchDirs,
+  buildOcrRuntimePathDirs,
+  resolveOcrVenvBinDir,
+} = require("./runtime-path-environment.cjs");
 
 const EXTERNAL_ROCM_PATH_ENV_KEYS = new Set([
   "ROCM_PATH",
@@ -66,7 +68,6 @@ const EXTERNAL_ROCM_PATH_ENV_KEYS = new Set([
   "LD_LIBRARY_PATH",
   "LIBRARY_PATH",
 ]);
-const TORCH_DLL_RELATIVE_DIRS = ["Scripts", "torch", path.join("torch", "lib")];
 
 /** @param {RuntimeOptions} [options] @param {OcrRuntimeLayout | null} [runtime] @returns {NodeJS.ProcessEnv} */
 function buildOcrRuntimeEnv(
@@ -78,8 +79,8 @@ function buildOcrRuntimeEnv(
     ...buildBaseChildEnv(options, runtime, context),
     ...buildHuggingFaceEnv(options, context),
     ...buildOcrDeviceEnv(options, context),
-    ...buildPaddleOcrModeEnv(options, context.ocrDevice, context.ocrGpuBackend),
-    ...buildPaddleOcrCpuThreadEnv(options, context.ocrDevice),
+    ...buildEngineModeEnv(options, context.ocrDevice, context.ocrGpuBackend),
+    ...buildOcrCpuThreadEnv(options, context.ocrDevice),
     ...buildRocmSafetyEnv(options, context.rocmGpuRequested),
     ...buildPythonRuntimeEnv(options, runtime, context),
   };
@@ -172,20 +173,21 @@ function buildHuggingFaceEnv(options, context) {
 
 /** @param {RuntimeOptions} options @param {OcrEnvContext} context @returns {Record<string, string>} */
 function buildOcrDeviceEnv(options, context) {
-  return {
-    MANGA_TRANSLATOR_OCR_DEVICE: String(
-      options.ocrDevice ||
-        runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DEVICE", options) ||
-        "cpu",
-    ),
+  const env = {
+    MANGA_TRANSLATOR_OCR_DEVICE: resolveEffectiveOcrDevice(options),
     MANGA_TRANSLATOR_OCR_GPU_BACKEND: context.ocrGpuBackend,
     MANGA_TRANSLATOR_OCR_SOURCE_LANGUAGE:
       runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_SOURCE_LANGUAGE", options) ||
       String(options.sourceLanguage || "ja"),
     MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG: resolveOcrGpuCudaTag(options),
     MANGA_TRANSLATOR_OCR_DLL_DIRS: context.dllSearchDirs.join(path.delimiter),
-    MANGA_TRANSLATOR_PADDLEOCR_DEVICE: resolveEffectiveOcrDevice(options),
   };
+  return isHayaiOcrPipeline(options)
+    ? env
+    : {
+        ...env,
+        MANGA_TRANSLATOR_PADDLEOCR_DEVICE: resolveEffectiveOcrDevice(options),
+      };
 }
 
 /** @param {RuntimeOptions} options @param {boolean} enabled @returns {Record<string, string>} */
@@ -193,27 +195,36 @@ function buildRocmSafetyEnv(options, enabled) {
   if (!enabled) {
     return {};
   }
-  return {
-    MANGA_TRANSLATOR_PADDLEOCR_ATTN:
-      runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ATTN", options) || "eager",
-    MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN:
-      runtimeOverrideEnv(
-        "MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN",
-        options,
-      ) || "1",
+  const legacyDisableMiopen = isHayaiOcrPipeline(options)
+    ? undefined
+    : runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN", options);
+  const torchEnv = {
     PYTORCH_ALLOC_CONF:
       process.env.PYTORCH_ALLOC_CONF ||
       process.env.PYTORCH_HIP_ALLOC_CONF ||
       runtimeOverrideEnv("PYTORCH_ALLOC_CONF", options) ||
       runtimeOverrideEnv("PYTORCH_HIP_ALLOC_CONF", options) ||
       "garbage_collection_threshold:0.8,max_split_size_mb:512",
+    MANGA_TRANSLATOR_OCR_DISABLE_MIOPEN:
+      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DISABLE_MIOPEN", options) ||
+      legacyDisableMiopen ||
+      "1",
   };
+  return isHayaiOcrPipeline(options)
+    ? torchEnv
+    : {
+        ...torchEnv,
+        MANGA_TRANSLATOR_PADDLEOCR_ATTN:
+          runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ATTN", options) ||
+          "eager",
+        MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN: legacyDisableMiopen || "1",
+      };
 }
 
 /** @param {RuntimeOptions} options @param {OcrRuntimeLayout | null} runtime @param {OcrEnvContext} context @returns {Record<string, string>} */
 function buildPythonRuntimeEnv(options, runtime, context) {
   const tempDir = resolveOcrTempDir(context.runtimeDir, options);
-  return {
+  const baseEnv = {
     PYTHONPATH: context.pythonPath,
     PYTHONNOUSERSITE: "1",
     // The bundled macOS interpreter lives inside the signed .app.  Importing
@@ -223,6 +234,17 @@ function buildPythonRuntimeEnv(options, runtime, context) {
     PYTHONPYCACHEPREFIX: path.join(context.runtimeDir, "pycache"),
     PYTHONUSERBASE: resolveOcrPythonUserBaseDir(context.runtimeDir, options),
     PIP_CACHE_DIR: resolveOcrPipCacheDir(context.runtimeDir, options),
+    TMP: tempDir,
+    TEMP: tempDir,
+    TMPDIR: tempDir,
+    PYTHONUTF8: "1",
+    PYTHONUNBUFFERED: "1",
+  };
+  if (isHayaiOcrPipeline(options)) {
+    return baseEnv;
+  }
+  return {
+    ...baseEnv,
     PADDLE_PDX_MODEL_SOURCE:
       runtimeOverrideEnv("PADDLE_PDX_MODEL_SOURCE", options) || "huggingface",
     PADDLE_PDX_CACHE_HOME: resolvePaddlexCacheHome(
@@ -238,40 +260,52 @@ function buildPythonRuntimeEnv(options, runtime, context) {
       "True",
     PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT:
       runtimeOverrideEnv("PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT", options) || "0",
-    TMP: tempDir,
-    TEMP: tempDir,
-    TMPDIR: tempDir,
-    PYTHONUTF8: "1",
-    PYTHONUNBUFFERED: "1",
   };
 }
 
 /** @param {RuntimeOptions} [options] @param {string} [ocrDevice] @returns {Record<string, string>} */
-function buildPaddleOcrCpuThreadEnv(options = {}, ocrDevice = "") {
+function buildOcrCpuThreadEnv(options = {}, ocrDevice = "") {
   if (ocrDevice !== "cpu") {
     return {};
   }
-  const threads = String(resolvePaddleOcrWorkerThreadCount(options));
-  return {
-    FLAGS_cpu_math_library_num_threads: threads,
+  const threads = String(resolveOcrWorkerThreadCount(options));
+  const shared = {
     MKL_NUM_THREADS: threads,
     NUMEXPR_NUM_THREADS: threads,
     OMP_NUM_THREADS: threads,
     OPENBLAS_NUM_THREADS: threads,
-    PADDLE_NUM_THREADS: threads,
     VECLIB_MAXIMUM_THREADS: threads,
   };
+  return isHayaiOcrPipeline(options)
+    ? shared
+    : {
+        ...shared,
+        FLAGS_cpu_math_library_num_threads: threads,
+        PADDLE_NUM_THREADS: threads,
+      };
+}
+
+/** @param {RuntimeOptions} options @param {string} ocrDevice @param {string} ocrGpuBackend */
+function buildEngineModeEnv(options, ocrDevice, ocrGpuBackend) {
+  return isHayaiOcrPipeline(options)
+    ? {}
+    : buildPaddleOcrModeEnv(options, ocrDevice, ocrGpuBackend);
 }
 
 /** @param {RuntimeOptions} [options] @returns {number} */
-function resolvePaddleOcrWorkerThreadCount(options = {}) {
+function resolveOcrWorkerThreadCount(options = {}) {
   return (
-    readPositiveIntegerOption(
-      runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_WORKER_THREADS", options),
-    ) ||
     readPositiveIntegerOption(
       runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_WORKER_THREADS", options),
     ) ||
+    (!isHayaiOcrPipeline(options)
+      ? readPositiveIntegerOption(
+          runtimeOverrideEnv(
+            "MANGA_TRANSLATOR_PADDLEOCR_WORKER_THREADS",
+            options,
+          ),
+        )
+      : null) ||
     readPositiveIntegerOption(options.ocrWorkerThreads) ||
     2
   );
@@ -285,7 +319,7 @@ function buildPaddleOcrModeEnv(
 ) {
   const transformersRuntime =
     String(ocrDevice).startsWith("gpu") &&
-    isOcrTransformersEngine({ ...options, ocrGpuBackend });
+    isPaddleTransformersEngine({ ...options, ocrGpuBackend });
   const defaults = transformersRuntime
     ? {
         engine: "transformers",
@@ -364,95 +398,9 @@ function modeEntry(key, optionValue, fallback, options) {
   return [key, value];
 }
 
-/** @param {RuntimeOptions} [options] @param {OcrRuntimeLayout | null} [runtime] @param {string} [runtimeDir] @returns {Array<string | null | undefined>} */
-function buildOcrRuntimePathDirs(
-  options = {},
-  runtime = null,
-  runtimeDir = resolveOcrRuntimeDir(options),
-) {
-  const variant = resolveOcrRuntimeVariant(options);
-  const venvDir = resolveOcrVenvDir(runtimeDir, variant, options);
-  const venvBinDir = resolveOcrVenvBinDir(venvDir);
-  const toolsDir = resolveToolsDir(options);
-  return [
-    runtime?.pythonPath ? path.dirname(runtime.pythonPath) : null,
-    venvBinDir,
-    ...buildOcrRuntimeDllSearchDirs(options, runtime, runtimeDir),
-    path.join(toolsDir || "", "python"),
-    path.join(toolsDir || "", "python", "python-embed"),
-    runtimeDir,
-  ];
-}
-
-/** @param {string} venvDir @param {NodeJS.Platform} [platform] @returns {string} */
-function resolveOcrVenvBinDir(venvDir, platform = process.platform) {
-  return platform === "win32"
-    ? path.join(venvDir, "Scripts")
-    : path.join(venvDir, "bin");
-}
-
-/** @param {RuntimeOptions} [options] @param {OcrRuntimeLayout | null} [runtime] @param {string} [runtimeDir] @returns {string[]} */
-function buildOcrRuntimeDllSearchDirs(
-  options = {},
-  runtime = null,
-  runtimeDir = resolveOcrRuntimeDir(options),
-) {
-  const packageDir =
-    runtime?.packageDir || resolveOcrPythonPackageDir(runtimeDir, options);
-  const paddleDirs = buildPaddleDllSearchDirs(packageDir);
-  if (resolveOcrGpuBackend(options) === "rocm-transformers") {
-    return [...paddleDirs, ...buildRocmDllSearchDirs(packageDir)];
-  }
-  return isOcrCudaTransformersRuntime(options)
-    ? [...paddleDirs, ...buildTorchDllSearchDirs(packageDir)]
-    : paddleDirs;
-}
-
-/** @param {string} packageDir @returns {string[]} */
-function buildPaddleDllSearchDirs(packageDir) {
-  return [
-    packageDir,
-    path.join(packageDir, "paddle"),
-    path.join(packageDir, "paddle", "base"),
-    path.join(packageDir, "paddle", "base", "libs"),
-    path.join(packageDir, "paddle", "libs"),
-    path.join(packageDir, "paddle.libs"),
-    path.join(packageDir, "Paddle.libs"),
-  ];
-}
-
-/** @param {string} packageDir @returns {string[]} */
-function buildRocmDllSearchDirs(packageDir) {
-  return [
-    ...TORCH_DLL_RELATIVE_DIRS,
-    "rocm",
-    path.join("rocm", "bin"),
-    path.join("rocm", "lib"),
-    "rocm_sdk",
-    path.join("rocm_sdk", "bin"),
-    "_rocm_sdk_core",
-    path.join("_rocm_sdk_core", "bin"),
-    path.join("_rocm_sdk_core", "lib", "llvm", "bin"),
-    "_rocm_sdk_devel",
-    path.join("_rocm_sdk_devel", "bin"),
-    path.join("_rocm_sdk_devel", "lib", "llvm", "bin"),
-    "_rocm_sdk_libraries_custom",
-    path.join("_rocm_sdk_libraries_custom", "bin"),
-    path.join("_rocm_sdk_libraries_custom", "bin", "hipblaslt"),
-    path.join("_rocm_sdk_libraries_custom", "bin", "hipblaslt", "library"),
-  ].map((relativePath) => path.join(packageDir, relativePath));
-}
-
-/** @param {string} packageDir @returns {string[]} */
-function buildTorchDllSearchDirs(packageDir) {
-  return TORCH_DLL_RELATIVE_DIRS.map((relativePath) =>
-    path.join(packageDir, relativePath),
-  );
-}
-
 module.exports = {
   buildOcrRuntimeEnv,
-  buildPaddleOcrCpuThreadEnv,
+  buildOcrCpuThreadEnv,
   resolveOcrVenvBinDir,
-  resolvePaddleOcrWorkerThreadCount,
+  resolveOcrWorkerThreadCount,
 };

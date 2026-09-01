@@ -21,7 +21,7 @@ const {
 const COMMON_SEMANTIC_OCR_QUALITY_MODES = new Set(["economy", "full"]);
 
 /**
- * @typedef {{ id: number; bbox: [number, number, number, number]; text: string; score: number | null; group?: string; order?: number; orientation: "horizontal" | "vertical"; soundCandidate:boolean }} SemanticCandidate
+ * @typedef {{ id: number; bbox: [number, number, number, number]; text: string; score: number | null; group?: string; order?: number; orientation: "horizontal" | "vertical"; soundCandidate:boolean; geometryLocked:boolean }} SemanticCandidate
  * @typedef {{ sourceLanguage?: unknown; imageWidth?: unknown; imageHeight?: unknown; ocrBboxHints?: unknown; [key: string]: unknown }} SemanticOptions
  * @typedef {{ role: string; dataUrl?: string; width?: unknown; height?: unknown; originalWidth?: unknown; originalHeight?: unknown; [key: string]: unknown }} ImageVariant
  */
@@ -46,12 +46,12 @@ function buildSemanticCandidates(options, imageVariants = []) {
   const candidates = [];
   for (const [index, hint] of hints.entries()) {
     const candidate = buildSemanticCandidate(hint, index, context);
-    // The common semantic path is a grouping/translation pass over PaddleOCR
+    // The common semantic path is a grouping/translation pass over upstream OCR
     // evidence, not a second free-form OCR detector. A geometry-only box has
     // no lexical anchor and allowed no-text art to become invented dialogue.
     if (
       candidate &&
-      hasLexicalEvidence(candidate.text) &&
+      (candidate.geometryLocked || hasLexicalEvidence(candidate.text)) &&
       !isLowConfidenceJapaneseAsciiArtifact(candidate, options.sourceLanguage)
     ) {
       candidates.push(candidate);
@@ -72,6 +72,7 @@ function buildSemanticCandidates(options, imageVariants = []) {
  */
 function isLowConfidenceJapaneseAsciiArtifact(candidate, sourceLanguage) {
   return (
+    !candidate.geometryLocked &&
     isJapaneseLanguageCode(sourceLanguage) &&
     !candidate.soundCandidate &&
     candidate.score !== null &&
@@ -156,6 +157,7 @@ function buildSemanticCandidate(rawHint, index, context) {
         ? "vertical"
         : "horizontal",
     soundCandidate: isSoundCandidateHint(hint),
+    geometryLocked: hint.geometryLocked === true,
   };
 }
 

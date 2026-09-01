@@ -16,7 +16,7 @@ describe("page typography stages", () => {
         page: { id: "page-1" },
         pageOptions: {
           autoFontMatching: true,
-          fontSizeAutoFit: true,
+          aiFontSizeMatching: true,
           keepBlocksMode: false,
         },
         items: [{}],
@@ -61,7 +61,7 @@ describe("page typography stages", () => {
           page: { id: "page-2" },
           pageOptions: {
             autoFontMatching: false,
-            fontSizeAutoFit: false,
+            aiFontSizeMatching: false,
             keepBlocksMode: false,
           },
           items: [{}],
@@ -107,6 +107,32 @@ describe("page typography stages", () => {
     expect(estimateSourceFontSizes).toHaveBeenCalledWith(
       expect.objectContaining({ enabled: true }),
     );
+  });
+
+  it("reads the legacy font-size setting when the AI matching setting is absent", async () => {
+    const estimateSourceFontSizes = vi.fn(async () => [undefined] as const);
+
+    await runPageTypographyStages(
+      {
+        jobId: "job-legacy-size-setting",
+        page: { id: "page-legacy" },
+        pageOptions: {
+          autoFontMatching: false,
+          fontSizeAutoFit: true,
+          keepBlocksMode: false,
+        },
+        items: [{}],
+      } as never,
+      {
+        runFontMatching: vi.fn(async () => ({
+          pixelInferenceByBlockId: new Map<string, never>(),
+        })),
+        estimateSourceFontSizes,
+        logInfo: vi.fn(),
+      } as never,
+    );
+
+    expect(estimateSourceFontSizes).toHaveBeenCalledOnce();
   });
 });
 

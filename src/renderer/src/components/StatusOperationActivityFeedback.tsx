@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { AppOperationActivityEvent } from "../../../shared/appOperationTypes";
 import { isAppOperationActive } from "../lib/appOperationPresentation";
-import { formatBytes } from "../lib/jobProgress";
+import { formatBytes } from "../lib/jobProgressFormatting";
 import { JobCancelButton } from "./RunStatusPanels";
 import { ProgressBar } from "./ui/ProgressBar";
 

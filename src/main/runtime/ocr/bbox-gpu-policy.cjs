@@ -1,7 +1,7 @@
 // @ts-check
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {RuntimeOptions & { ocrBboxProvider?: string | null }} OcrBboxOptions */
-/** @typedef {{ runtimeOverrideEnv: (name: string, options?: RuntimeOptions) => unknown }} Dependencies */
+/** @typedef {{ runtimeOverrideEnv: (name: string, options?: RuntimeOptions) => unknown; resolveOcrBboxProviderForRequest: (options?: RuntimeOptions, requestedProvider?: unknown) => string }} Dependencies */
 /** @typedef {{ dependencies: Dependencies }} PolicyContext */
 
 /** @param {Dependencies} dependencies */
@@ -16,7 +16,10 @@ function createOcrGpuPolicy(dependencies) {
 function resolveOcrBboxProvider(context, options = {}) {
   const explicit = readExplicitProvider(context, options);
   if (explicit) {
-    return explicit;
+    return context.dependencies.resolveOcrBboxProviderForRequest(
+      options,
+      explicit,
+    );
   }
   if (
     isEnvironmentEnabled(context, "MANGA_TRANSLATOR_DISABLE_OCR_BBOX", options)
@@ -26,13 +29,17 @@ function resolveOcrBboxProvider(context, options = {}) {
   if (hasEnvironmentValue(context, "MANGA_TRANSLATOR_OCR_BBOX_CMD", options)) {
     return "external-command";
   }
-  return hasEnvironmentValue(
+  const deliveryProvider = hasEnvironmentValue(
     context,
     "MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH",
     options,
   )
     ? "json-file"
-    : "paddleocr";
+    : undefined;
+  return context.dependencies.resolveOcrBboxProviderForRequest(
+    options,
+    deliveryProvider,
+  );
 }
 
 /** @param {PolicyContext} context @param {OcrBboxOptions} options */
@@ -45,9 +52,7 @@ function readExplicitProvider(context, options) {
       ) ??
       "",
   ).trim();
-  // Compatibility-only alias: the former provider name now resolves to the
-  // supported PP-OCRv6 implementation and cannot select the removed VL path.
-  return provider === "paddleocr-vl" ? "paddleocr" : provider;
+  return provider;
 }
 
 /** @param {PolicyContext} context @param {string} name @param {OcrBboxOptions} options */

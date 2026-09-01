@@ -64,11 +64,13 @@
       "finalizing": "正在整理结果",
       "done": "任务完成",
       "ocrDownloading": "正在下载/安装 Paddle OCR",
+      "hayaiOcrDownloading": "正在下载/安装 HayaiOCR",
       "ready": "模型准备完成",
       "cancelled": "任务已取消",
       "failed": "任务失败",
       "partial": "任务部分完成",
       "ocrPreparing": "正在准备 Paddle OCR",
+      "hayaiOcrPreparing": "正在准备 HayaiOCR",
       "modelRequesting": "正在请求 AI 翻译",
       "pageRunning": "正在翻译",
       "pageDone": "完成",
@@ -78,6 +80,8 @@
       "inpaintingDone": "原文擦除完成",
       "ocrRunning": "正在使用 Paddle OCR 分析",
       "ocrPreanalysisDone": "Paddle OCR 预分析完成",
+      "hayaiOcrRunning": "正在使用 HayaiOCR 分析",
+      "hayaiOcrPreanalysisDone": "HayaiOCR 预分析完成",
       "pageRetry": "正在重试页面"
     },
     "status": {
@@ -574,6 +578,19 @@
       "blockMismatch_one": "第{{page}}页：文本行结构与 {{count}} 个翻译文本块不匹配，已跳过。",
       "blockMismatch_other": "第{{page}}页：文本行结构与 {{count}} 个翻译文本块不匹配，已跳过。"
     }
+  },
+  "soundEffectTranslation": {
+    "preparing": "正在准备拟声词翻译",
+    "failed": "拟声词翻译失败",
+    "startFailed": "无法开始拟声词翻译。",
+    "cancelled": "已取消拟声词翻译。未处理的候选仍保持待处理。",
+    "partial": "拟声词翻译部分完成",
+    "completed": "拟声词翻译完成",
+    "summary": "已翻译 {{translated}} 个拟声词 · {{remaining}} 个待处理"
+  },
+  "soundEffectReview": {
+    "dismissed": "已从复核中移除拟声词候选。",
+    "dismissFailed": "无法从复核中移除拟声词候选。"
   },
   "stylePresets": {
     "applied": "已将“{{name}}”应用到 {{count}} 个文本块。",

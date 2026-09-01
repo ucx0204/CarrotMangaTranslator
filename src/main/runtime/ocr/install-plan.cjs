@@ -5,6 +5,7 @@ const path = require("node:path");
 const {
   AMD_ROCM_721_TORCH_DEP_PACKAGES,
   AMD_ROCM_721_TORCH_PACKAGES,
+  DEFAULT_HAYAI_OCR_PACKAGES,
   DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
   DEFAULT_OCR_CPU_PIP_PACKAGES,
   DEFAULT_OCR_GPU_EXTRA_PACKAGES,
@@ -13,20 +14,27 @@ const {
   resolveAmdRocmSdkWheelPackages,
 } = require("../simple-page-defaults.cjs");
 const { runtimeOverrideEnv } = require("./host-services.cjs");
+const { splitShellLikeEnv } = require("./shell-words.cjs");
 const {
-  isOcrCudaTransformersRuntime,
+  isHayaiOcrPipeline,
+  isOcrCudaTorchRuntime,
   isOcrGpuRequested,
+  isOcrTorchRuntime,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
-  resolveOcrGpuPackageIndexUrl,
+  resolvePaddleOcrGpuPackageIndexUrl,
   resolveOcrTorchCudaTag,
   resolveOcrTorchPackageIndexUrl,
+  resolveOcrEngineLabel,
 } = require("./runtime-device.cjs");
 
 const DEFAULT_OCR_TRANSFORMERS_TOKENIZERS_PACKAGE = "tokenizers==0.23.0rc0";
 
 /** @param {RuntimeOptions} [options] @returns {string[][]} */
 function resolveOcrPipInstallBatches(options = {}) {
+  if (isHayaiOcrPipeline(options)) {
+    return resolveHayaiInstallBatches(options);
+  }
   const explicit = splitShellLikeEnv(
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", options),
   );
@@ -34,15 +42,55 @@ function resolveOcrPipInstallBatches(options = {}) {
     return wrapExplicitInstallBatch(explicit);
   }
   if (!isOcrGpuRequested(options)) {
-    return resolveCpuInstallBatches(options);
+    return isOcrTorchRuntime(options)
+      ? resolveCpuTransformersInstallBatches(options)
+      : resolveCpuInstallBatches(options);
   }
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return resolveRocmInstallBatches(options);
   }
-  if (isOcrCudaTransformersRuntime(options)) {
+  if (isOcrCudaTorchRuntime(options)) {
     return resolveCudaTransformersInstallBatches(options);
   }
   return resolveCudaInstallBatches(options);
+}
+
+/** @param {RuntimeOptions} options @returns {string[][]} */
+function resolveHayaiInstallBatches(options) {
+  const explicit = splitShellLikeEnv(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_HAYAI_OCR_PIP_PACKAGES", options),
+  );
+  if (explicit.length > 0) {
+    return wrapExplicitInstallBatch(explicit);
+  }
+  if (!isOcrGpuRequested(options)) {
+    const cpuOverride = splitShellLikeEnv(
+      runtimeOverrideEnv(
+        "MANGA_TRANSLATOR_HAYAI_OCR_CPU_PIP_PACKAGES",
+        options,
+      ),
+    );
+    return cpuOverride.length > 0
+      ? wrapExplicitInstallBatch(cpuOverride)
+      : buildCpuTorchInstallBatches(options, DEFAULT_HAYAI_OCR_PACKAGES);
+  }
+  if (resolveOcrGpuBackend(options) === "rocm-transformers") {
+    const rocmOverride = splitShellLikeEnv(
+      runtimeOverrideEnv(
+        "MANGA_TRANSLATOR_HAYAI_OCR_ROCM_PIP_PACKAGES",
+        options,
+      ),
+    );
+    return rocmOverride.length > 0
+      ? wrapExplicitInstallBatch(rocmOverride)
+      : buildRocmInstallBatches(options, DEFAULT_HAYAI_OCR_PACKAGES);
+  }
+  const cudaOverride = splitShellLikeEnv(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_HAYAI_OCR_CUDA_PIP_PACKAGES", options),
+  );
+  return cudaOverride.length > 0
+    ? wrapExplicitInstallBatch(cudaOverride)
+    : buildCudaTorchInstallBatches(options, DEFAULT_HAYAI_OCR_PACKAGES);
 }
 
 /** @param {string[]} batch @returns {string[][]} */
@@ -61,6 +109,40 @@ function resolveCpuInstallBatches(options) {
 }
 
 /** @param {RuntimeOptions} options @returns {string[][]} */
+function resolveCpuTransformersInstallBatches(options) {
+  const explicit = splitShellLikeEnv(
+    runtimeOverrideEnv(
+      "MANGA_TRANSLATOR_OCR_CPU_TRANSFORMERS_PIP_PACKAGES",
+      options,
+    ),
+  );
+  if (explicit.length > 0) {
+    return [explicit];
+  }
+  return buildCpuTorchInstallBatches(
+    options,
+    DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
+  );
+}
+
+/** @param {RuntimeOptions} options @param {string[]} applicationPackages @returns {string[][]} */
+function buildCpuTorchInstallBatches(options, applicationPackages) {
+  const cpuTag = process.platform === "win32" ? "+cpu" : "";
+  const torchPackages = [
+    `torch==${resolvePinnedTorchBaseVersion("torch")}${cpuTag}`,
+    `torchvision==${resolvePinnedTorchBaseVersion("torchvision")}${cpuTag}`,
+  ];
+  if (process.platform === "win32") {
+    torchPackages.push("--index-url", "https://download.pytorch.org/whl/cpu");
+  }
+  return [
+    AMD_ROCM_721_TORCH_DEP_PACKAGES,
+    torchPackages,
+    resolveTransformerApplicationPackages(applicationPackages),
+  ];
+}
+
+/** @param {RuntimeOptions} options @returns {string[][]} */
 function resolveRocmInstallBatches(options) {
   const explicit = splitShellLikeEnv(
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_AMD_PIP_PACKAGES", options) ??
@@ -69,15 +151,20 @@ function resolveRocmInstallBatches(options) {
   if (explicit.length > 0) {
     return [explicit];
   }
+  return buildRocmInstallBatches(
+    options,
+    DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
+  );
+}
+
+/** @param {RuntimeOptions} options @param {string[]} applicationPackages @returns {string[][]} */
+function buildRocmInstallBatches(options, applicationPackages) {
   return [
     resolveAmdRocmSdkWheelPackages(options),
     resolveAmdRocmMetaPackage(options),
     AMD_ROCM_721_TORCH_DEP_PACKAGES,
     AMD_ROCM_721_TORCH_PACKAGES,
-    [
-      ...DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
-      DEFAULT_OCR_TRANSFORMERS_TOKENIZERS_PACKAGE,
-    ],
+    resolveTransformerApplicationPackages(applicationPackages),
   ].filter((batch) => batch.length > 0);
 }
 
@@ -92,14 +179,26 @@ function resolveCudaTransformersInstallBatches(options) {
   if (explicit.length > 0) {
     return [explicit];
   }
+  return buildCudaTorchInstallBatches(
+    options,
+    DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
+  );
+}
+
+/** @param {RuntimeOptions} options @param {string[]} applicationPackages @returns {string[][]} */
+function buildCudaTorchInstallBatches(options, applicationPackages) {
   return [
     AMD_ROCM_721_TORCH_DEP_PACKAGES,
     resolveCudaTransformersTorchPackages(options),
-    [
-      ...DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
-      DEFAULT_OCR_TRANSFORMERS_TOKENIZERS_PACKAGE,
-    ],
+    resolveTransformerApplicationPackages(applicationPackages),
   ];
+}
+
+/** @param {string[]} packages @returns {string[]} */
+function resolveTransformerApplicationPackages(packages) {
+  return packages.some((item) => /^tokenizers(?:[<>=~!]|$)/i.test(item))
+    ? [...packages]
+    : [...packages, DEFAULT_OCR_TRANSFORMERS_TOKENIZERS_PACKAGE];
 }
 
 /** @param {RuntimeOptions} options @returns {string[]} */
@@ -155,92 +254,38 @@ function resolveOcrGpuPaddleInstallBatch(options) {
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_PACKAGE", options) ||
       DEFAULT_OCR_GPU_PADDLE_PACKAGE,
     "--index-url",
-    resolveOcrGpuPackageIndexUrl(options),
+    resolvePaddleOcrGpuPackageIndexUrl(options),
   ];
-}
-
-/** @typedef {{ current: string; quote: string; escaped: boolean }} ShellTokenState */
-
-/** @param {unknown} value @returns {string[]} */
-function splitShellLikeEnv(value) {
-  const raw = String(value ?? "").trim();
-  if (!raw) {
-    return [];
-  }
-  /** @type {string[]} */
-  const parts = [];
-  /** @type {ShellTokenState} */
-  const state = { current: "", quote: "", escaped: false };
-  for (const char of raw) {
-    consumeShellCharacter(state, parts, char);
-  }
-  if (state.escaped) {
-    state.current += "\\";
-  }
-  pushShellToken(state, parts);
-  return parts;
-}
-
-/** @param {ShellTokenState} state @param {string[]} parts @param {string} char */
-function consumeShellCharacter(state, parts, char) {
-  if (state.escaped) {
-    state.current += char;
-    state.escaped = false;
-    return;
-  }
-  if (char === "\\") {
-    state.escaped = true;
-    return;
-  }
-  if (state.quote) {
-    consumeQuotedCharacter(state, char);
-    return;
-  }
-  if (char === '"' || char === "'") {
-    state.quote = char;
-    return;
-  }
-  if (/\s/.test(char)) {
-    pushShellToken(state, parts);
-    return;
-  }
-  state.current += char;
-}
-
-/** @param {ShellTokenState} state @param {string} char */
-function consumeQuotedCharacter(state, char) {
-  if (char === state.quote) {
-    state.quote = "";
-  } else {
-    state.current += char;
-  }
-}
-
-/** @param {ShellTokenState} state @param {string[]} parts */
-function pushShellToken(state, parts) {
-  if (state.current) {
-    parts.push(state.current);
-    state.current = "";
-  }
 }
 
 /** @param {unknown} installBatches @param {RuntimeOptions} [options] @returns {string} */
 function summarizeOcrInstallBatches(installBatches, options = {}) {
+  if (isHayaiOcrPipeline(options)) {
+    return `HayaiOCR packages${resolveInstallSummarySuffix(options)}`;
+  }
   const packageNames = (Array.isArray(installBatches) ? installBatches : [])
     .map((batch) => resolveOcrInstallBatchLabel(batch, options))
     .filter(Boolean);
   const suffix = resolveInstallSummarySuffix(options);
-  return `${packageNames.join(", ") || "Paddle OCR packages"}${suffix}`;
+  return `${packageNames.join(", ") || `${resolveOcrEngineLabel(options)} packages`}${suffix}`;
 }
 
 /** @param {RuntimeOptions} options @returns {string} */
 function resolveInstallSummarySuffix(options) {
+  if (isHayaiOcrPipeline(options)) {
+    if (!isOcrGpuRequested(options)) {
+      return " (CPU)";
+    }
+    return resolveOcrGpuBackend(options) === "rocm-transformers"
+      ? " (ROCm)"
+      : ` (${resolveOcrTorchCudaTag(options)})`;
+  }
   if (!isOcrGpuRequested(options)) {
-    return "";
+    return isOcrTorchRuntime(options) ? " (cpu-transformers)" : "";
   }
   return resolveOcrGpuBackend(options) === "rocm-transformers"
     ? " (rocm-transformers)"
-    : isOcrCudaTransformersRuntime(options)
+    : isOcrCudaTorchRuntime(options)
       ? " (cuda-transformers)"
       : ` (${resolveOcrGpuCudaTag(options)})`;
 }
@@ -249,14 +294,21 @@ function resolveInstallSummarySuffix(options) {
 function resolveOcrInstallBatchLabel(packages, options = {}) {
   const batch = Array.isArray(packages) ? packages : [];
   const packageText = batch.join(" ").toLowerCase();
+  const cpuTransformersLabel =
+    !isOcrGpuRequested(options) && isOcrTorchRuntime(options)
+      ? resolveCpuTransformersInstallBatchLabel(packageText, options)
+      : "";
+  if (cpuTransformersLabel) {
+    return cpuTransformersLabel;
+  }
   const rocmLabel = isRocmInstall(options)
-    ? resolveRocmInstallBatchLabel(packageText)
+    ? resolveRocmInstallBatchLabel(packageText, options)
     : "";
   if (rocmLabel) {
     return rocmLabel;
   }
-  const cudaTransformersLabel = isOcrCudaTransformersRuntime(options)
-    ? resolveCudaTransformersInstallBatchLabel(packageText)
+  const cudaTransformersLabel = isOcrCudaTorchRuntime(options)
+    ? resolveCudaTransformersInstallBatchLabel(packageText, options)
     : "";
   if (cudaTransformersLabel) {
     return cudaTransformersLabel;
@@ -267,13 +319,28 @@ function resolveOcrInstallBatchLabel(packages, options = {}) {
     : resolveUrlPackageNames(batch).join(", ");
 }
 
+/** @param {string} packageText @param {RuntimeOptions} options @returns {string} */
+function resolveCpuTransformersInstallBatchLabel(packageText, options) {
+  if (/torch==/.test(packageText) && /torchvision==/.test(packageText)) {
+    return "PyTorch CPU wheels";
+  }
+  if (/transformers/.test(packageText) && /tokenizers/.test(packageText)) {
+    return isHayaiOcrPipeline(options)
+      ? "HayaiOCR packages"
+      : "PaddleOCR Transformers packages";
+  }
+  return "";
+}
+
 /** @param {string} packageText @returns {string} */
-function resolveCudaTransformersInstallBatchLabel(packageText) {
+function resolveCudaTransformersInstallBatchLabel(packageText, options = {}) {
   if (/torch==/.test(packageText) && /torchvision==/.test(packageText)) {
     return "PyTorch CUDA wheels";
   }
-  if (/paddleocr/.test(packageText) && /transformers/.test(packageText)) {
-    return "PaddleOCR Transformers packages";
+  if (/transformers/.test(packageText) && /tokenizers/.test(packageText)) {
+    return isHayaiOcrPipeline(options)
+      ? "HayaiOCR packages"
+      : "PaddleOCR Transformers packages";
   }
   return "";
 }
@@ -287,7 +354,7 @@ function isRocmInstall(options) {
 }
 
 /** @param {string} packageText @returns {string} */
-function resolveRocmInstallBatchLabel(packageText) {
+function resolveRocmInstallBatchLabel(packageText, options = {}) {
   /** @type {Array<[RegExp, string]>} */
   const classifiers = [
     [/rocm_sdk_/i, "AMD ROCm SDK wheels"],
@@ -300,7 +367,12 @@ function resolveRocmInstallBatchLabel(packageText) {
       "PyTorch Python dependencies",
     ],
     [/(?=.*torch-)(?=.*rocm)/i, "PyTorch ROCm wheels"],
-    [/(?=.*paddleocr)(?=.*transformers)/i, "PaddleOCR Transformers packages"],
+    [
+      /(?=.*transformers)(?=.*tokenizers)/i,
+      isHayaiOcrPipeline(options)
+        ? "HayaiOCR packages"
+        : "PaddleOCR Transformers packages",
+    ],
   ];
   const match = classifiers.find(([pattern]) => pattern.test(packageText));
   return match ? String(match[1]) : "";

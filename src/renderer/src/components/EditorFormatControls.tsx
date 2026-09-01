@@ -373,7 +373,11 @@ function FontSizeRow({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const updateFontSize = (value: number) =>
-    onUpdate({ fontSizePx: clampFontSize(value), autoFitText: false });
+    onUpdate({
+      fontSizePx: clampFontSize(value),
+      autoFitText: false,
+      fontSizeIntent: "manual",
+    });
   return (
     <div className="editor-font-size-row">
       <div className="editor-format-number-cell">
@@ -402,7 +406,9 @@ function FontSizeRow({
         label={t("format.auto")}
         checked={autoFitText}
         disabled={disabled}
-        onCheckedChange={(checked) => onUpdate({ autoFitText: checked })}
+        onCheckedChange={(checked) =>
+          onUpdate({ autoFitText: checked, fontSizeIntent: "manual" })
+        }
       />
     </div>
   );

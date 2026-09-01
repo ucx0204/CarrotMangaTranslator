@@ -10,7 +10,7 @@ import { IconButton } from "./ui/IconButton";
 import { usePopupController } from "./ui/usePopupController";
 
 const SOUND_POPOVER_WIDTH_PX = 216;
-const SOUND_POPOVER_HEIGHT_PX = 146;
+const SOUND_POPOVER_HEIGHT_PX = 177;
 const SOUND_POPOVER_EDGE_PX = 8;
 
 type SoundPopoverPosition = {
@@ -214,6 +214,13 @@ function SoundCategoryList({
         label={t("statusDock.soundSettings.translation")}
         onToggle={() =>
           update({ translationMuted: !preferences.translationMuted })
+        }
+      />
+      <SoundMuteRow
+        muted={preferences.soundEffectMuted}
+        label={t("statusDock.soundSettings.soundEffect")}
+        onToggle={() =>
+          update({ soundEffectMuted: !preferences.soundEffectMuted })
         }
       />
       <SoundMuteRow

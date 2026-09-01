@@ -6,6 +6,7 @@ import type {
   ResearchJobStage,
 } from "./jobContracts";
 import type { PageJobTargetSnapshot } from "./pageRevision";
+import type { OcrPipeline } from "./settingsTypes";
 
 export type { JobPhase } from "./jobContracts";
 
@@ -35,6 +36,7 @@ export type JobState = {
   progressText: string;
   detail?: string;
   phase?: JobPhase;
+  ocrPipeline?: OcrPipeline;
   progressMode?: ProgressMode;
   progressPercent?: number;
   progressBytes?: number;
@@ -82,6 +84,7 @@ export type ModelTestResult = {
 export type ModelTestProgressEvent = {
   id: string;
   phase?: JobPhase;
+  ocrPipeline?: OcrPipeline;
   progressText: string;
   detail?: string;
   progressMode?: ProgressMode;

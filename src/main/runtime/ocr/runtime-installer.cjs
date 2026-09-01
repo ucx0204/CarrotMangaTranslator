@@ -14,6 +14,7 @@ const {
   resolveOcrRuntimeDir,
   resolveOcrTempDir,
   resolveOcrGpuBackend,
+  resolveOcrEngineLabel,
   summarizeOcrInstallBatches,
 } = require("../simple-page-ocr-runtime-config.cjs");
 const {
@@ -92,7 +93,7 @@ async function createInstallContext(
     }),
     monitor: startTaskProgressMonitor(options, {
       phase: "ocr_downloading",
-      progressText: "Paddle OCR 패키지 다운로드/설치 중",
+      progressText: `${resolveOcrEngineLabel(options)} 패키지 다운로드/설치 중`,
       detailPrefix: summarizeOcrInstallBatches(installBatches, options),
       startPercent: 0.04,
       endPercent: 0.86,

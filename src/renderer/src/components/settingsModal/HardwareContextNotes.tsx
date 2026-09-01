@@ -4,31 +4,6 @@ import { settingsGateway } from "../../api/settingsGateway";
 import { toast } from "../../lib/toastStore";
 import { formatSettingsErrorMessage } from "../settingsModalHelpers";
 
-export function OcrHardwareContextNote({
-  usesAppleHardware,
-  usesNvidiaOcrContext,
-}: {
-  usesAppleHardware: boolean;
-  usesNvidiaOcrContext: boolean;
-}): React.JSX.Element | null {
-  const { t } = useTranslation("components");
-  if (usesAppleHardware) {
-    return (
-      <p className="muted-line modal-note">
-        {t("settings.hardware.ocrAppleNote")}
-      </p>
-    );
-  }
-  if (usesNvidiaOcrContext) {
-    return (
-      <p className="muted-line modal-note">
-        {t("settings.hardware.ocrNvidiaNote")}
-      </p>
-    );
-  }
-  return null;
-}
-
 export function FluxHardwareContextNote({
   usesAppleHardware,
 }: {

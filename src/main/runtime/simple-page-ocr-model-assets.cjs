@@ -11,7 +11,7 @@ const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
 const { buildHfResolveUrl } = require("./simple-page-download-utils.cjs");
 const { safeHfRelativePath } = require("./simple-page-cache-paths.cjs");
 const {
-  isOcrTransformersRuntime,
+  isOcrTorchRuntime,
   resolveOcrRuntimeDir,
 } = require("./simple-page-ocr-runtime-config.cjs");
 const {
@@ -51,7 +51,7 @@ const PADDLE_OCR_TEXTLINE_MODEL_DOWNLOADS = new Map(
  * @param {OcrRuntimeLayout | null} [runtime]
  */
 function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
-  if (isOcrTransformersRuntime(options)) {
+  if (isOcrTorchRuntime(options)) {
     return [];
   }
   const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);

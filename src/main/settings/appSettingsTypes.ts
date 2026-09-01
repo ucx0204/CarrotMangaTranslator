@@ -10,6 +10,7 @@ import type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
+  OcrPipeline,
   OcrQualityMode,
 } from "../../shared/settingsTypes";
 import type { BBox } from "../../shared/textTypes";
@@ -43,7 +44,9 @@ export type TranslationOptions = {
   naturalTextLayout?: boolean;
   /** Apply Font Matching V2 work anchors or high-confidence accent decisions. */
   autoFontMatching?: boolean;
-  /** Fit newly created text to the measured source glyph face and block. */
+  /** Match nominal size to measured source glyphs without box-fit shrinking. */
+  aiFontSizeMatching?: boolean;
+  /** @deprecated Compatibility with older jobs/settings. */
   fontSizeAutoFit?: boolean;
   /** Stable identities for the V2 work-profile and audit boundary. */
   fontMatchingWorkId?: string;
@@ -146,6 +149,8 @@ export type TranslationOptions = {
   apiExtraBodyJson?: string;
   apiCustomHeadersJson?: string;
   ocrDevice: OcrDevice;
+  /** Canonical OCR engine identity. App-created translation options always set it. */
+  ocrPipeline: OcrPipeline;
   ocrGpuBackend?: OcrGpuBackend;
   ocrGpuCudaTag?: string;
   ocrQualityMode?: OcrQualityMode;
@@ -161,13 +166,30 @@ export type TranslationOptions = {
   ocrRecBatch?: string;
   ocrBboxCommand?: string;
   ocrBboxHintsPath?: string;
+  /** App-generated, immutable dialogue/effect rectangles for HayaiOCR. */
+  ocrBboxRegionsPath?: string;
   ocrBboxHints?: unknown;
   ocrBboxResult?: {
     hints?: unknown[];
+    effectReviewRegions?: import("../../shared/soundEffectReview").SoundEffectReviewRegion[];
     diagnostics?: unknown[];
     noTextDetected?: boolean;
     textEvidenceCount?: number;
   };
+  /** Dedicated immutable-candidate SFX translation request. */
+  soundEffectTranslationMode?: boolean;
+  soundEffectTranslationRegions?: Array<{
+    regionId: string;
+    bbox: import("../../shared/textTypes").BBox;
+    recognizedText?: string;
+    detectorConfidence: number;
+  }>;
+  soundEffectTargetCropPath?: string;
+  soundEffectTargetCropWidth?: number;
+  soundEffectTargetCropHeight?: number;
+  soundEffectTargetMarker?: "cyan-fill-magenta-outline-v1";
+  /** Internal validation feedback supplied only to a candidate's one retry. */
+  soundEffectRetryFeedback?: string;
   skipOcrBboxHints?: boolean;
   regionCropMode?: boolean;
   regionContextImagePath?: string;

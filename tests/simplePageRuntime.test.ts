@@ -28,6 +28,7 @@ module.exports = {
   startServer: async () => ({ baseUrl: "http://127.0.0.1", child: null, startedByScript: false }),
   stopServer: async () => {},
   isModelCached: () => true,
+  ensureOcrRuntime: async () => ({ runtimeVariant: "cpu", pythonPath: "python" }),
   validateImageFileWithFfmpeg: async () => {},
   convertImageToPngFileWithFfmpeg: async () => {},
   testModelReply: async () => ({ outputText: ${JSON.stringify(label)}, launchTarget: { launchMode: "unknown" } })
@@ -58,7 +59,7 @@ describe("simple page runtime loader", () => {
       "collectOcrBboxHintsBatch",
       "convertImageToPngBufferWithFfmpeg",
       "convertImageToPngFileWithFfmpeg",
-      "ensurePaddleOcrRuntime",
+      "ensureOcrRuntime",
       "isModelCached",
       "requestTranslation",
       "saveArtifacts",
@@ -66,6 +67,7 @@ describe("simple page runtime loader", () => {
       "stopServer",
       "testModelReply",
       "validateImageFileWithFfmpeg",
+      "waitForOcrIdle",
     ]);
   });
 
@@ -91,7 +93,8 @@ describe("simple page runtime loader", () => {
 module.exports = {
   startServer: async () => ({ baseUrl: "http://127.0.0.1", child: null, startedByScript: false }),
   stopServer: async () => {},
-  isModelCached: () => true
+  isModelCached: () => true,
+  ensureOcrRuntime: async () => ({ runtimeVariant: "cpu", pythonPath: "python" })
 };
 `);
 
@@ -106,6 +109,7 @@ module.exports = {
   startServer: async () => ({ baseUrl: "http://127.0.0.1", child: null, startedByScript: false }),
   stopServer: async () => {},
   isModelCached: () => true,
+  ensureOcrRuntime: async () => ({ runtimeVariant: "cpu", pythonPath: "python" }),
   validateImageFileWithFfmpeg: async () => {},
   convertImageToPngFileWithFfmpeg: async () => {},
   testModelReply: async () => ({ outputText: "", launchTarget: { launchMode: "unknown" } }),
@@ -131,6 +135,7 @@ module.exports = {
   startServer: async () => ({ baseUrl: "http://127.0.0.1", child: null, startedByScript: false }),
   stopServer: async () => {},
   isModelCached: () => true,
+  ensureOcrRuntime: async () => ({ runtimeVariant: "cpu", pythonPath: "python" }),
   testModelReply: async () => ({ outputText: "", launchTarget: { launchMode: "unknown" } }),
   validateImageFileWithFfmpeg: async (filePath, options) => {
     if (filePath !== "input.png" || options.maxPixels !== 123 || options.timeoutMs !== 456 || !options.abortSignal) {

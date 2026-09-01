@@ -23,6 +23,7 @@ export type AppRightQuickRailProps = Pick<
   | "completionSoundMuted"
   | "completionSoundVolume"
   | "completionSoundTranslationMuted"
+  | "completionSoundSoundEffectMuted"
   | "completionSoundSourceErasingMuted"
   | "completionSoundResearchMuted"
   | "currentChapter"
@@ -213,6 +214,9 @@ function BottomQuickRailControls(
           completionSoundVolume={props.completionSoundVolume}
           completionSoundTranslationMuted={
             props.completionSoundTranslationMuted
+          }
+          completionSoundSoundEffectMuted={
+            props.completionSoundSoundEffectMuted
           }
           completionSoundSourceErasingMuted={
             props.completionSoundSourceErasingMuted

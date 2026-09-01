@@ -5,6 +5,8 @@ import type {
   RegionAnalysisResult,
   StartAnalysisRequest,
   StartAnalysisResult,
+  StartSoundEffectTranslationRequest,
+  StartSoundEffectTranslationResult,
 } from "./analysisTypes";
 import type {
   ApplyInpaintingHistoryTransactionRequest,
@@ -47,6 +49,7 @@ import {
   ReleaseInpaintingHistoryTransactionsRequestSchema,
   SetPageInpaintingResultRequestSchema,
   StartAnalysisRequestSchema,
+  StartSoundEffectTranslationRequestSchema,
   StartInpaintingRequestSchema,
 } from "./ipcSchemas";
 import { FinishPageTimingSessionRequestSchema } from "./ipcPageTimingSchemas";
@@ -83,6 +86,28 @@ const regionAnalysisResultSchema = startAnalysisResultSchema
       .array(z.string().min(1).max(200))
       .max(MAX_BLOCKS_PER_RESULT)
       .optional(),
+  })
+  .strict();
+const startSoundEffectTranslationResultSchema = z
+  .object({
+    status: z.enum(["completed", "partial", "cancelled", "failed"]),
+    chapter: ChapterSnapshotSchema.optional(),
+    createdBlocksByPage: z
+      .array(
+        z
+          .object({
+            pageId: stringArg,
+            blockIds: z
+              .array(z.string().min(1).max(200))
+              .max(MAX_BLOCKS_PER_RESULT),
+          })
+          .strict(),
+      )
+      .max(MAX_ID_LIST_LENGTH),
+    translatedRegionCount: nonNegativeInteger,
+    remainingRegionCount: nonNegativeInteger,
+    warnings: z.array(diagnosticString).max(MAX_WARNINGS).optional(),
+    error: diagnosticString.optional(),
   })
   .strict();
 const inpaintingResultStatusSchema = z.enum([
@@ -212,6 +237,15 @@ export const translationJobIpcContracts = {
     channel: "job:translate-region",
     args: z.tuple([RegionAnalysisRequestSchema]),
     result: regionAnalysisResultSchema,
+  }),
+  startSoundEffectTranslation: defineIpcContract<
+    [StartSoundEffectTranslationRequest],
+    StartSoundEffectTranslationResult
+  >({
+    apiKey: "startSoundEffectTranslation",
+    channel: "job:start-sound-effect-translation",
+    args: z.tuple([StartSoundEffectTranslationRequestSchema]),
+    result: startSoundEffectTranslationResultSchema,
   }),
 } as const;
 

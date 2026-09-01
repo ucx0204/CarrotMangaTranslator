@@ -67,11 +67,13 @@
       "finalizing": "Finalizing results",
       "done": "Job complete",
       "ocrDownloading": "Downloading/installing Paddle OCR",
+      "hayaiOcrDownloading": "Downloading/installing HayaiOCR",
       "ready": "Model ready",
       "cancelled": "Job cancelled",
       "failed": "Job failed",
       "partial": "Job partially complete",
       "ocrPreparing": "Preparing Paddle OCR",
+      "hayaiOcrPreparing": "Preparing HayaiOCR",
       "modelRequesting": "Requesting AI translation",
       "pageRunning": "Translating",
       "pageDone": "Complete",
@@ -81,6 +83,8 @@
       "inpaintingDone": "Source text erased",
       "ocrRunning": "Analyzing with Paddle OCR",
       "ocrPreanalysisDone": "Paddle OCR pre-analysis complete",
+      "hayaiOcrRunning": "Analyzing with HayaiOCR",
+      "hayaiOcrPreanalysisDone": "HayaiOCR pre-analysis complete",
       "pageRetry": "Retrying page"
     },
     "status": {
@@ -580,6 +584,19 @@
       "blockMismatch_one": "Page {{page}}: text lines do not match the {{count}} translation block; skipped.",
       "blockMismatch_other": "Page {{page}}: text lines do not match the {{count}} translation blocks; skipped."
     }
+  },
+  "soundEffectTranslation": {
+    "preparing": "Preparing SFX translation",
+    "failed": "SFX translation failed",
+    "startFailed": "Could not start SFX translation.",
+    "cancelled": "SFX translation was cancelled. Unprocessed candidates remain pending.",
+    "partial": "SFX translation partially completed",
+    "completed": "SFX translation completed",
+    "summary": "Translated {{translated}} SFX · {{remaining}} pending"
+  },
+  "soundEffectReview": {
+    "dismissed": "Removed the sound-effect candidate from review.",
+    "dismissFailed": "Could not remove the sound-effect candidate from review."
   },
   "stylePresets": {
     "applied": "Applied “{{name}}” to {{count}} blocks.",

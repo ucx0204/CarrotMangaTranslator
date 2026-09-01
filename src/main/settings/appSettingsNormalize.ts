@@ -14,6 +14,7 @@ import {
   resolveNullableReasoningEffort,
   resolveNonEmptyString,
   resolveNumberRange,
+  resolveOcrPipeline,
   resolveOpenAiCompatibleBaseUrl,
   resolveOptionalJsonObjectString,
 } from "./appSettingsResolvers";
@@ -51,7 +52,6 @@ import {
   normalizeBlockStylePresets,
 } from "../../shared/blockStylePresets";
 import { normalizeHardwareGpuSettings } from "./appSettingsHardwareNormalize";
-import type { OcrNormalizationPolicy } from "./ocrRuntimeOverrides";
 import { normalizeVertexAuthSettings } from "./vertexAuthSettingsNormalize";
 import { normalizeCodexSettings } from "./appSettingsCodexNormalize";
 import { normalizeInternetResearchSettings } from "./appSettingsInternetResearchNormalize";
@@ -59,7 +59,6 @@ import { normalizeInternetResearchSettings } from "./appSettingsInternetResearch
 export function normalizeAppSettings(
   raw: unknown,
   defaults = resolveDefaultAppSettings(),
-  options: OcrNormalizationPolicy = {},
 ): AppSettings {
   const record = asRecord(raw) ?? {};
   const modelProvider = resolveModelProvider(
@@ -102,7 +101,7 @@ export function normalizeAppSettings(
       defaults.internetResearch,
     ),
     api,
-    ocr: normalizeOcrSettings(asRecord(record.ocr), defaults, options),
+    ocr: normalizeOcrSettings(asRecord(record.ocr), defaults),
     ui: normalizeUiSettings(
       asRecord(record.ui),
       defaults,
@@ -279,14 +278,17 @@ function resolveApiJsonSettings(
 function normalizeOcrSettings(
   ocr: Record<string, unknown> | null,
   defaults: AppSettings,
-  options: OcrNormalizationPolicy,
 ): AppSettings["ocr"] {
   const {
     device,
     gpuBackend,
     qualityMode: normalizedQualityMode,
-  } = resolveStoredOcrModeSettings(ocr, defaults, options);
+  } = resolveStoredOcrModeSettings(ocr, defaults);
   return {
+    pipeline: resolveOcrPipeline(
+      ocr?.pipeline,
+      defaults.ocr.pipeline ?? (device === "gpu" ? "hayai" : "paddle-legacy"),
+    ),
     device,
     // GPU 전용 고품질 모드는 CPU에서 못 쓸 만큼 느리므로 절약 품질로 강제한다.
     qualityMode:
@@ -327,7 +329,6 @@ function normalizeInpaintingSettings(
 export function parseStoredAppSettings(
   rawText: string | null | undefined,
   defaults = resolveDefaultAppSettings(),
-  options: OcrNormalizationPolicy = {},
 ): AppSettings {
   if (!rawText?.trim()) {
     return defaults;
@@ -336,6 +337,6 @@ export function parseStoredAppSettings(
   const raw = JSON.parse(rawText);
   return migrateLegacyRemoteGenerationLimits(
     raw,
-    normalizeAppSettings(raw, defaults, options),
+    normalizeAppSettings(raw, defaults),
   );
 }

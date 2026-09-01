@@ -46,6 +46,7 @@ import type {
   StartAnalysisRequest,
   StartAnalysisResult,
 } from "./analysisTypes";
+import type { SoundEffectMangaApi } from "./soundEffectMangaApi";
 import type {
   SavePageBlocksRequest,
   SavePagesBlocksRequest,
@@ -142,7 +143,7 @@ import type {
   ConditionalBatchYamlSaveResult,
 } from "./conditionalBatchExchangeTypes";
 
-export type MangaApi = {
+export type MangaApi = SoundEffectMangaApi & {
   getActiveAppOperation: () => Promise<AppOperationActivityEvent | null>;
   cancelAppOperation: (id: string) => Promise<AppOperationCancelResult>;
   listConditionalBatchSchemes: () => Promise<ConditionalBatchSnapshotV2>;

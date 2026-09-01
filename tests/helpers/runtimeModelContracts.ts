@@ -122,7 +122,7 @@ const runtimeHelpers = {
     serverPath: string,
     options: { [key: string]: unknown },
   ) => Record<string, string>;
-  buildPaddleOcrImportCheckScript: (options?: {
+  buildOcrRuntimeImportCheckScript: (options?: {
     [key: string]: unknown;
   }) => string;
   buildOcrBboxCommand: (
@@ -137,17 +137,17 @@ const runtimeHelpers = {
     runtime?: { pythonPath?: string } | null,
     progressPath?: string | null,
   ) => CommandSpec;
-  buildPaddleOcrImportFailureMessage: (
+  buildOcrRuntimeImportFailureMessage: (
     message: string,
     options?: { [key: string]: unknown },
   ) => string;
-  buildPaddleOcrGpuFailureMessage: (
+  buildOcrGpuFailureMessage: (
     error: unknown,
     options?: { [key: string]: unknown },
   ) => string;
   isGpuOutOfMemoryText: (value: unknown) => boolean;
   isGpuDeviceLostOrTdrText: (value: unknown) => boolean;
-  isPaddleNativeDllLoadFailureText: (value: unknown) => boolean;
+  isOcrNativeDllLoadFailureText: (value: unknown) => boolean;
   isRocmHipAccessViolationText: (value: unknown) => boolean;
   resolveEffectiveOcrDevice: (options?: { [key: string]: unknown }) => string;
   getOverlayPrompt: (
@@ -172,6 +172,7 @@ const runtimeHelpers = {
     noTextDetected: boolean;
     textEvidenceCount: number;
   }>;
+  waitForOcrIdle: () => Promise<void>;
   hasOcrCpuWorkerRamHeadroom: (
     info: { freeBytes: number; totalBytes: number; freeRatio: number },
     minFreeRatio: number,
@@ -225,7 +226,15 @@ const runtimeHelpers = {
   parseOcrBatchProgressLine: (
     line: string,
   ) => { index: number; total: number; count: number } | null;
-  parsePaddleModelFetchProgress: (line: string) => {
+  formatOcrModelFetchProgress: (
+    progress: {
+      totalFiles: number;
+      currentFiles: number | null;
+      percent: number | null;
+    },
+    engineLabel?: string,
+  ) => string;
+  parseOcrModelFetchProgress: (line: string) => {
     totalFiles: number;
     currentFiles: number | null;
     percent: number | null;
@@ -248,7 +257,7 @@ const runtimeHelpers = {
   }>;
   resolveOcrGpuBackend: (options?: { [key: string]: unknown }) => string;
   resolveOcrGpuCudaTag: (options?: { [key: string]: unknown }) => string;
-  resolveOcrGpuPackageIndexUrl: (options?: {
+  resolvePaddleOcrGpuPackageIndexUrl: (options?: {
     [key: string]: unknown;
   }) => string;
   resolveOcrInstallBatchLabel: (
@@ -290,7 +299,7 @@ const runtimeHelpers = {
     runtimeVariant: string,
     options?: { [key: string]: unknown },
   ) => string;
-  resolvePaddleOcrImportCheckTimeoutMs: (options?: {
+  resolveOcrImportCheckTimeoutMs: (options?: {
     [key: string]: unknown;
   }) => number;
   resolveFfmpegPath: (options: { [key: string]: unknown }) => string;
@@ -357,9 +366,9 @@ export const {
   buildOcrBboxBatchCommand,
   buildOcrBboxCommand,
   buildLlamaServerEnv,
-  buildPaddleOcrImportCheckScript,
-  buildPaddleOcrImportFailureMessage,
-  buildPaddleOcrGpuFailureMessage,
+  buildOcrRuntimeImportCheckScript,
+  buildOcrRuntimeImportFailureMessage,
+  buildOcrGpuFailureMessage,
   buildResponsesRequestBody,
   collectOcrBboxHints,
   collectRequiredHfDownloads,
@@ -372,11 +381,12 @@ export const {
   inspectModelLaunch,
   isGpuDeviceLostOrTdrText,
   isGpuOutOfMemoryText,
-  isPaddleNativeDllLoadFailureText,
+  isOcrNativeDllLoadFailureText,
   isModelCached,
   isRocmHipAccessViolationText,
   parseOcrBatchProgressLine,
-  parsePaddleModelFetchProgress,
+  formatOcrModelFetchProgress,
+  parseOcrModelFetchProgress,
   parsePipRawProgress,
   resolveOcrInstallBatchProgressRanges,
   resolveManagedHfFilePath,
@@ -390,7 +400,7 @@ export const {
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrCpuWorkerMinFreeRamRatio,
-  resolveOcrGpuPackageIndexUrl,
+  resolvePaddleOcrGpuPackageIndexUrl,
   resolveOcrInstallBatchLabel,
   isWindowsRocmOcrRuntimePathShortEnough,
   resolveOcrPipInstallBatches,
@@ -403,8 +413,9 @@ export const {
   resolveOcrRuntimeVariant,
   resolveOcrTempDir,
   resolveOcrVenvDir,
-  resolvePaddleOcrImportCheckTimeoutMs,
+  resolveOcrImportCheckTimeoutMs,
   summarizeOcrInstallBatches,
+  waitForOcrIdle,
 } = runtimeHelpers;
 export const { bundledServerCandidates, resolveBundledServerPath } =
   llamaRuntimeResolver;
@@ -516,7 +527,7 @@ function setModuleExports(modulePath: string, exports: unknown): void {
 
 export async function withOcrBatchPipelineStubs<T>(
   stubs: {
-    ensurePaddleOcrRuntime: (options: Record<string, unknown>) => unknown;
+    ensureOcrRuntime: (options: Record<string, unknown>) => unknown;
     runCommand: (
       command: CommandSpec,
       options: {
@@ -559,7 +570,7 @@ export async function withOcrBatchPipelineStubs<T>(
     delete require.cache[pipelinePath];
     setModuleExports(runtimeManagerPath, {
       ...actualRuntimeManager,
-      ensurePaddleOcrRuntime: stubs.ensurePaddleOcrRuntime,
+      ensureOcrRuntime: stubs.ensureOcrRuntime,
     });
     setModuleExports(shellUtilsPath, {
       ...actualShellUtils,

@@ -194,6 +194,42 @@ it("caps dropped path lists at the shared IPC list limit", () => {
   ).toBe(false);
 });
 
+it("rejects duplicate prepared sound-effect target ids", () => {
+  const timestamp = "2026-01-01T00:00:00.000Z";
+  const result = {
+    chapter: {
+      id: "11111111-1111-4111-8111-111111111111",
+      workId: "22222222-2222-4222-8222-222222222222",
+      title: "1화",
+      sourceKind: "images",
+      status: "idle",
+      pageOrder: [],
+      pages: [],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+    targets: [
+      {
+        pageId: "33333333-3333-4333-8333-333333333333",
+        pageRevision: "page-v1:0123456789abcdef",
+        regionIds: ["FX001", "FX001"],
+      },
+    ],
+    includedRegionCount: 2,
+    dismissedRegionCount: 0,
+  };
+
+  expect(
+    libraryIpcContracts.prepareSoundEffectTranslation.result.safeParse(result)
+      .success,
+  ).toBe(false);
+  result.targets[0].regionIds = ["FX001", "FX002"];
+  expect(
+    libraryIpcContracts.prepareSoundEffectTranslation.result.safeParse(result)
+      .success,
+  ).toBe(true);
+});
+
 it("validates preload arguments before invoking the renderer boundary", async () => {
   const invoke = vi.fn(
     async (_channel: string, ..._args: unknown[]): Promise<unknown> => ({

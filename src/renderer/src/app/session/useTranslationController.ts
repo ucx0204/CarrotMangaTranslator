@@ -204,8 +204,11 @@ function useTranslationActionController(
     cumulativeContextDetailDefault:
       uiDefaults.cumulativeContextDetailDefault ?? "detailed",
     autoFontMatchingDefault: uiDefaults.autoFontMatchingDefault ?? false,
-    naturalTextLayoutDefault: uiDefaults.naturalTextLayoutDefault ?? true,
-    fontSizeAutoFitDefault: uiDefaults.fontSizeAutoFitDefault ?? true,
+    naturalTextLayoutDefault: uiDefaults.naturalTextLayoutDefault ?? false,
+    aiFontSizeMatchingDefault:
+      uiDefaults.aiFontSizeMatchingDefault ??
+      uiDefaults.fontSizeAutoFitDefault ??
+      true,
     recordImageEdit: workspaceHistory.recordImageEdit,
     recordTranslationCheckpoint,
     setCurrentChapter: chapter.core.setCurrentChapter,

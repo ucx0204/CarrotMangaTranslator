@@ -11,6 +11,7 @@ import type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
+  OcrPipeline,
   OcrQualityMode,
   UiLocale,
   WheelZoomSensitivityPercent,
@@ -83,6 +84,7 @@ type BuildSettingsFromFormInput = {
   apiExtraBodyJson: string;
   apiCustomHeadersJson: string;
   ocrDevice: OcrDevice;
+  ocrPipeline: OcrPipeline;
   ocrGpuBackend: OcrGpuBackend;
   ocrQualityMode: OcrQualityMode;
   inpaintingModel: InpaintingModel;
@@ -193,6 +195,7 @@ function buildGemmaSettings(input: BuildSettingsFromFormInput) {
 
 function buildOcrSettings(input: BuildSettingsFromFormInput) {
   return {
+    pipeline: input.ocrPipeline,
     device: input.ocrDevice,
     qualityMode: input.ocrQualityMode,
     gpuBackend: input.ocrGpuBackend,

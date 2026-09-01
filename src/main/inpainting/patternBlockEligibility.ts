@@ -7,12 +7,16 @@ export function isPatternInpaintingBlockEligible(
   block: TranslationBlock,
   blockId?: string,
   excludedBlockIds?: readonly string[],
+  blockIds?: readonly string[],
 ): boolean {
+  const explicitlySelected =
+    block.id === blockId || Boolean(blockIds?.includes(block.id));
   return (
     (!blockId || block.id === blockId) &&
+    (!blockIds || blockIds.includes(block.id)) &&
     (blockId !== undefined || !excludedBlockIds?.includes(block.id)) &&
     hasUsableBbox(block.bbox) &&
-    (!block.inpaintExcluded || block.id === blockId)
+    (!block.inpaintExcluded || explicitlySelected)
   );
 }
 
@@ -20,9 +24,15 @@ export function resolveEligiblePatternBlocks(
   page: Pick<MangaPage, "blocks">,
   blockId?: string,
   excludedBlockIds?: readonly string[],
+  blockIds?: readonly string[],
 ): TranslationBlock[] {
   return page.blocks.filter((block) =>
-    isPatternInpaintingBlockEligible(block, blockId, excludedBlockIds),
+    isPatternInpaintingBlockEligible(
+      block,
+      blockId,
+      excludedBlockIds,
+      blockIds,
+    ),
   );
 }
 
@@ -30,8 +40,10 @@ export function countEligiblePatternBlocks(
   page: Pick<MangaPage, "blocks">,
   blockId?: string,
   excludedBlockIds?: readonly string[],
+  blockIds?: readonly string[],
 ): number {
-  return resolveEligiblePatternBlocks(page, blockId, excludedBlockIds).length;
+  return resolveEligiblePatternBlocks(page, blockId, excludedBlockIds, blockIds)
+    .length;
 }
 
 export function hasInvalidRequiredPatternBlock(

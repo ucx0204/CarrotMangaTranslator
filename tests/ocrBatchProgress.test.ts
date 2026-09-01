@@ -12,6 +12,7 @@ const { createOcrBatchProgress } =
         progress?: Record<string, unknown>,
       ) => void;
       parseOcrBatchProgressLine: () => null;
+      resolveOcrEngineLabel: () => string;
     }) => {
       createOcrBatchProgressEmitter: (
         batchOptions: Record<string, unknown>,
@@ -53,6 +54,7 @@ describe("OCR batch progress", () => {
         });
       },
       parseOcrBatchProgressLine: () => null,
+      resolveOcrEngineLabel: () => "Paddle OCR",
     }).createOcrBatchProgressEmitter(
       {},
       {

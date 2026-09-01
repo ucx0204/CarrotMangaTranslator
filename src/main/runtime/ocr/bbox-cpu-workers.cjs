@@ -17,6 +17,7 @@
  *   emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void;
  *   readPositiveInteger: (value: unknown) => number | null;
  *   resolveOcrWorkerThreadCount: (options?: OcrBboxOptions) => number;
+ *   resolveOcrEngineLabel: (options?: OcrBboxOptions) => string;
  *   resolveOcrCpuWorkerStartDelayMs: (options?: OcrBboxOptions) => number;
  *   waitForOcrCpuWorkerRamHeadroom: (options?: OcrBboxOptions, chunkIndex?: number) => Promise<void>;
  *   delayForOcrWorkerStart: (delayMs: number, signal?: AbortSignal | null) => Promise<void>;
@@ -82,7 +83,7 @@ function emitCpuWorkerBatchStarted(dependencies, context, chunkCount) {
   dependencies.emitRuntimeProgress(
     context.batchOptions,
     "ocr_running",
-    "Paddle OCR CPU 병렬 배치 위치 분석 중",
+    `${dependencies.resolveOcrEngineLabel(context.batchOptions)} CPU 병렬 배치 위치 분석 중`,
     `${context.items.length}페이지, ${chunkCount}워커, 워커당 ${threads}스레드`,
     {
       pageIndex: null,
@@ -286,10 +287,12 @@ async function writeChunkControlFiles(dependencies, context) {
 
 /** @param {Parameters<typeof createOcrCpuWorkers>[0]} dependencies @param {OcrCpuWorkerContext & { chunk: OcrBatchChunk; chunkIndex: number; emitPageProgress: (progress: { itemIndex: number; phase: string; count: number }) => void }} context */
 function buildChunkProgressHandler(dependencies, context) {
+  const engine = dependencies.resolveOcrEngineLabel(context.batchOptions);
   const handleCommandOutput = dependencies.createOcrCommandProgressHandler(
     context.batchOptions,
     {
-      progressText: "Paddle OCR CPU 병렬 배치 위치 분석 중",
+      engineLabel: engine,
+      progressText: `${engine} CPU 병렬 배치 위치 분석 중`,
       progressCurrent:
         dependencies.readPositiveInteger(
           context.firstOptions.ocrBatchCompletedBefore,

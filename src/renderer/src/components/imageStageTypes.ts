@@ -9,6 +9,7 @@ import type { DragMode } from "../lib/workspaceInteractionTypes";
 import type { ViewportSize } from "../lib/overlayLayout";
 import type { StageTool } from "../lib/stageTool";
 import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
+import type { SoundEffectReviewRegion } from "../../../shared/soundEffectReview";
 
 export type ImageStageProps = {
   page: MangaPage;
@@ -23,6 +24,8 @@ export type ImageStageProps = {
   selectedBlockIds?: string[];
   showTextBlocks: boolean;
   showBlockChrome: boolean;
+  showSoundEffectReview?: boolean;
+  selectedSoundEffectReviewRegionId?: string | null;
   hideEditingOverlays?: boolean;
   blockPointerDisabled?: boolean;
   retouchCursor?: {
@@ -56,6 +59,13 @@ export type ImageStageProps = {
     mode: DragMode,
   ) => void;
   onWarpTransformCommit?: (blockId: string, transform: WarpTransform) => void;
+  onSelectSoundEffectReviewRegion?: (regionId: string | null) => void;
+  onDismissSoundEffectReviewRegion?: (regionId: string) => void;
+  onOpenSoundEffectTranslation?: () => void;
+  onExitSoundEffectReview?: () => void;
+  onTranslateSoundEffectReviewRegion?: (
+    region: SoundEffectReviewRegion,
+  ) => void;
 };
 
 export type RetouchStageModel = {

@@ -429,15 +429,10 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     expect(options.draftModelRepo).toBeTruthy();
     expect(options.draftModelFile).toBeTruthy();
     expect(options.fitTargetMb).toBe(1536);
-    expect(options.ocrBboxMode).toBe("ocr");
-    expect(options.ocrEngine).toBe("transformers");
-    expect(options.ocrEngineDtype).toBe("float32");
-    expect(options.ocrVersion).toBe("PP-OCRv6");
-    expect(options.ocrTextDetectionModelName).toBeUndefined();
-    expect(options.ocrTextRecognitionModelName).toBeUndefined();
-    expect(options.ocrMergeMode).toBe("semantic");
-    expect(options.ocrDetLimit).toBe("1600");
-    expect(options.ocrRecBatch).toBe("1");
+    expect(options.ocrPipeline).toBe("hayai");
+    expect(options.ocrBboxProvider).toBe("hayai-regions");
+    expect(options.ocrBboxMode).toBeUndefined();
+    expect(options.ocrEngine).toBeUndefined();
     expect(options.llamaRuntimeProfile).toBe("cuda12");
     expect(options.serverPath).toBe(
       join(
@@ -447,6 +442,97 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
         "llama-server.exe",
       ),
     );
+  });
+
+  it("keeps Hayai runtime identity isolated from legacy Paddle overrides", () => {
+    const defaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 4090",
+        memoryMb: 24564,
+        rtxGeneration: 40,
+        computeCapability: 8.9,
+      },
+    );
+    const options = buildBaseTranslationOptions({
+      jobId: "job-hayai-legacy-override-isolation",
+      runDir: "C:/runs/hayai-legacy-override-isolation",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub",
+      },
+      settings: {
+        ...defaults,
+        ocr: {
+          ...defaults.ocr,
+          pipeline: "hayai",
+          device: "gpu",
+          gpuBackend: "cuda",
+          gpuCudaTag: "cu126",
+          qualityMode: "full",
+        },
+      },
+      env: {
+        MANGA_TRANSLATOR_PADDLEOCR_DEVICE: "cpu",
+        MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG: "cu999",
+        MANGA_TRANSLATOR_PADDLEOCR_QUALITY_MODE: "economy",
+        MANGA_TRANSLATOR_PADDLEOCR_ENGINE: "paddle_static",
+        MANGA_TRANSLATOR_OCR_BBOX_PROVIDER: "paddleocr",
+      },
+    });
+
+    expect(options).toMatchObject({
+      ocrPipeline: "hayai",
+      ocrDevice: "gpu",
+      ocrGpuBackend: "cuda",
+      ocrGpuCudaTag: "cu126",
+      ocrQualityMode: "full",
+      ocrBboxProvider: "hayai-regions",
+    });
+    expect(options.ocrEngine).toBeUndefined();
+    expect(options.ocrBboxMode).toBeUndefined();
+  });
+
+  it("keeps legacy Paddle aliases scoped to the legacy pipeline", () => {
+    const defaults = resolveDefaultAppSettings();
+    const options = buildBaseTranslationOptions({
+      jobId: "job-paddle-legacy-aliases",
+      runDir: "C:/runs/paddle-legacy-aliases",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+      },
+      settings: {
+        ...defaults,
+        ocr: {
+          ...defaults.ocr,
+          pipeline: "paddle-legacy",
+          device: "gpu",
+          gpuBackend: "cuda",
+          gpuCudaTag: "cu126",
+          qualityMode: "full",
+        },
+      },
+      env: {
+        MANGA_TRANSLATOR_PADDLEOCR_DEVICE: "cpu",
+        MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG: "cu129",
+        MANGA_TRANSLATOR_PADDLEOCR_QUALITY_MODE: "economy",
+        MANGA_TRANSLATOR_OCR_BBOX_PROVIDER: "hayai-regions",
+      },
+    });
+
+    expect(options).toMatchObject({
+      ocrPipeline: "paddle-legacy",
+      ocrDevice: "cpu",
+      ocrGpuCudaTag: "cu129",
+      ocrQualityMode: "economy",
+      ocrBboxProvider: "paddleocr",
+      ocrEngine: "paddle_static",
+    });
   });
 
   it("applies saved VRAM tuning without changing context or ubatch and disables MTP on CPU mmproj", () => {
@@ -540,6 +626,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
       },
       settings: defaults,
       env: {
+        MANGA_TRANSLATOR_OCR_PIPELINE: "paddle-legacy",
         MANGA_TRANSLATOR_OCR_QUALITY_MODE: "cuda-legacy-full",
         MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE: "vl",
         MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE: "legacy",

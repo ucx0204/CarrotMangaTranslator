@@ -396,6 +396,7 @@ function applyPageAnalysisUpdate({
   return {
     ...record,
     blocks: update.page.blocks,
+    soundEffectReview: update.page.soundEffectReview,
     analysisStatus: "completed",
     translationCompletion: update.page.translationCompletion,
     translationCheckpoint: undefined,

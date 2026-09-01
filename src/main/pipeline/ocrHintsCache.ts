@@ -11,11 +11,10 @@ import {
 } from "./ocrHintsCacheConfiguration";
 import type { OcrBboxResult } from "./types";
 
-// Schema 10 refreshes Anime YOLO evidence after evidence selection gained the
-// conservative confirmed-fragment separation barrier. Schema 9 already has
-// the current axis-v4 OCR/grouping metadata, so it can be upgraded by rerunning
-// only the optional grouping-evidence pass instead of expensive Paddle OCR.
-const OCR_HINT_CACHE_SCHEMA_VERSION = 10;
+// Schema 11 binds cache entries to the selected OCR pipeline and persists the
+// separate effect-review candidates. Schema 9 already has current axis-v4 OCR
+// metadata, so legacy caches can still upgrade without rerunning OCR.
+const OCR_HINT_CACHE_SCHEMA_VERSION = 11;
 const GROUPING_EVIDENCE_MIGRATION_SCHEMA_VERSION = 9;
 const ANIME_TEXT_EVIDENCE_KEYS = [
   "animeTextRegionId",
@@ -43,6 +42,7 @@ type RawCachedOcrHints = {
   diagnostics?: unknown[];
   noTextDetected?: boolean;
   textEvidenceCount?: number;
+  effectReviewRegions?: unknown;
   groupingEvidence?: unknown;
 };
 
@@ -97,6 +97,7 @@ function isCompatibleCachedOcrHints(
 ): raw is RawCachedOcrHints & { schemaVersion: number; hints: unknown[] } {
   const supportedSchema = [
     GROUPING_EVIDENCE_MIGRATION_SCHEMA_VERSION,
+    10,
     OCR_HINT_CACHE_SCHEMA_VERSION,
   ].includes(Number(raw.schemaVersion));
   return (
@@ -122,6 +123,9 @@ function buildCachedOcrHints(
       groupingEvidence?.status === "unavailable",
     result: {
       hints: raw.hints,
+      effectReviewRegions: normalizeEffectReviewRegions(
+        raw.effectReviewRegions,
+      ),
       diagnostics: Array.isArray(raw.diagnostics) ? raw.diagnostics : [],
       noTextDetected: Boolean(raw.noTextDetected),
       textEvidenceCount: Number.isFinite(raw.textEvidenceCount)
@@ -176,6 +180,7 @@ export async function writeCachedOcrHints(
         configuration: buildOcrCacheConfiguration(options),
         schemaVersion: OCR_HINT_CACHE_SCHEMA_VERSION,
         hints: result.hints,
+        effectReviewRegions: result.effectReviewRegions,
         diagnostics: result.diagnostics,
         noTextDetected: Boolean(result.noTextDetected),
         textEvidenceCount: Number.isFinite(result.textEvidenceCount)
@@ -189,6 +194,62 @@ export async function writeCachedOcrHints(
     )}\n`,
     "utf8",
   );
+}
+
+function normalizeEffectReviewRegions(
+  value: unknown,
+): OcrBboxResult["effectReviewRegions"] {
+  if (!Array.isArray(value)) return undefined;
+  // The cache boundary deliberately validates every nested field before reuse.
+  // eslint-disable-next-line complexity
+  return value.flatMap((candidate) => {
+    if (
+      !candidate ||
+      typeof candidate !== "object" ||
+      Array.isArray(candidate)
+    ) {
+      return [];
+    }
+    const record = candidate as Record<string, unknown>;
+    const bbox = record.bbox as Record<string, unknown> | undefined;
+    const normalized = bbox
+      ? {
+          x: Number(bbox.x),
+          y: Number(bbox.y),
+          w: Number(bbox.w),
+          h: Number(bbox.h),
+        }
+      : null;
+    const confidence = Number(record.detectorConfidence);
+    if (
+      typeof record.id !== "string" ||
+      !normalized ||
+      !Object.values(normalized).every(Number.isFinite) ||
+      normalized.w <= 0 ||
+      normalized.h <= 0 ||
+      !Number.isFinite(confidence)
+    ) {
+      return [];
+    }
+    return [
+      {
+        id: record.id,
+        bbox: normalized,
+        detectorConfidence: Math.min(1, Math.max(0, confidence)),
+        ...(typeof record.recognizedText === "string" && record.recognizedText
+          ? { recognizedText: record.recognizedText }
+          : {}),
+        ...(Array.isArray(record.sourceDetectionIds)
+          ? {
+              sourceDetectionIds: record.sourceDetectionIds.filter(
+                (item): item is string =>
+                  typeof item === "string" && Boolean(item),
+              ),
+            }
+          : {}),
+      },
+    ];
+  });
 }
 
 function getOcrHintsOutputDir(

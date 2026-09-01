@@ -255,9 +255,10 @@ async function completeRegionTranslation({
 }): Promise<RegionAnalysisResult> {
   const analyzedCrop = result.pages[0];
   assertCompletedRegionPipelineResult(analyzedCrop, result.failureGuidance);
-  const mappedBlocks = analyzedCrop
+  const translatedBlocks = analyzedCrop
     ? mapRegionBlocksToPageBlocks(analyzedCrop.blocks, page, cropRect)
     : [];
+  const mappedBlocks = translatedBlocks;
   // 영역 번역은 새 블록을 덧붙이기만 하므로, 작업 중 사용자 편집이 저장됐어도
   // 최신 페이지 상태 위에 원자적으로 append해 충돌 없이 반영한다.
   // Commit이 시작되기 전 취소만 이기며, 성공한 commit 뒤에는 cancelled로 뒤집지 않는다.

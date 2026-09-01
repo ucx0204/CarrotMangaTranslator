@@ -185,6 +185,7 @@ function handleCompletedJob(
 function resolveCompletionSoundCategory(
   jobState: JobState,
 ): CompletionSoundCategory | null {
+  if (jobState.kind === "sound-effect-translation") return "sound-effect";
   if (jobState.kind === "inpainting") return "source-erasing";
   if (jobState.kind === "internet-research") return "research";
   if (

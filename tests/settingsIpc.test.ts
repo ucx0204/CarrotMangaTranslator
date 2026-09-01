@@ -273,7 +273,7 @@ describe("settings IPC model/runtime check", () => {
 
     expect(result).toMatchObject({
       ok: true,
-      message: "Paddle OCR과 번역 엔진 확인 완료: model test ok",
+      message: "OCR과 번역 엔진 확인 완료: model test ok",
       launchMode: "cached-hf",
     });
     expect(progressEvents.length).toBeGreaterThan(0);
@@ -286,7 +286,7 @@ describe("settings IPC model/runtime check", () => {
     expect(progressEvents.map((event) => event.installLogLine)).toContain(
       runtimeProgress.installLogLine,
     );
-    expect(runtime.ensurePaddleOcrRuntime).toHaveBeenCalledTimes(1);
+    expect(runtime.ensureOcrRuntime).toHaveBeenCalledTimes(1);
     expect(runtime.stopServer).toHaveBeenCalledTimes(1);
   });
 
@@ -306,6 +306,39 @@ describe("settings IPC model/runtime check", () => {
     expect(eventIds.size).toBe(1);
     expect([...eventIds][0]).not.toBe(providedTestId);
     expect([...eventIds][0]).toHaveLength(36);
+  });
+
+  it("preserves HayaiOCR identity through runtime verification progress", async () => {
+    const runtime = createRuntime({ cached: true });
+    const settings = createGemmaSettings();
+    settings.ocr.pipeline = "hayai";
+
+    const { progressEvents } = await invokeSettingsModelTest({
+      runtime,
+      settings,
+      testId: "hayai-runtime-check",
+    });
+
+    expect(runtime.ensureOcrRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({ ocrPipeline: "hayai" }),
+    );
+    const ocrEvents = progressEvents.filter(
+      (event) => event.phase === "ocr_preparing",
+    );
+    expect(ocrEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ocrPipeline: "hayai",
+          progressText: "HayaiOCR 설치/작동 확인 중",
+        }),
+        expect.objectContaining({
+          ocrPipeline: "hayai",
+          progressText: "HayaiOCR 확인 완료",
+          detail: expect.stringContaining("hayai-cpu"),
+        }),
+      ]),
+    );
+    expect(JSON.stringify(ocrEvents)).not.toContain("Paddle OCR");
   });
 
   it("retries Gemma model tests when the reserved port is taken before startup", async () => {
@@ -419,7 +452,7 @@ describe("settings IPC model/runtime check", () => {
     );
   });
 
-  it("tests the same hardware-normalized OCR route that Save would persist", async () => {
+  it("tests the same explicit OCR route that Save would persist", async () => {
     const runtime = createRuntime({ cached: true });
     const draft = {
       ...createGemmaSettings(),
@@ -458,11 +491,11 @@ describe("settings IPC model/runtime check", () => {
         ),
     });
 
-    expect(runtime.ensurePaddleOcrRuntime).toHaveBeenCalledWith(
+    expect(runtime.ensureOcrRuntime).toHaveBeenCalledWith(
       expect.objectContaining({
-        ocrDevice: "cpu",
-        ocrGpuBackend: "cuda",
-        ocrQualityMode: "economy",
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm-transformers",
+        ocrQualityMode: "full",
       }),
     );
   });
@@ -820,8 +853,8 @@ function createRuntime({
     isModelCached: vi.fn(() => cached),
     validateImageFileWithFfmpeg: vi.fn(async () => undefined),
     convertImageToPngFileWithFfmpeg: vi.fn(async () => undefined),
-    ensurePaddleOcrRuntime: vi.fn(async () => ({
-      runtimeVariant: "cpu",
+    ensureOcrRuntime: vi.fn(async (options) => ({
+      runtimeVariant: options.ocrPipeline === "hayai" ? "hayai-cpu" : "cpu",
       pythonPath: "C:\\python\\python.exe",
       prepared: true,
     })),

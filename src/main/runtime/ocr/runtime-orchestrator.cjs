@@ -29,6 +29,7 @@ const {
   isWindowsRocmOcrRuntimePathShortEnough,
   resolveBootstrapPython,
   resolveOcrDeviceLabel,
+  resolveOcrEngineLabel,
   resolveOcrInstallSignature,
   resolveOcrPipCacheDir,
   resolveOcrPythonPackageDir,
@@ -48,19 +49,20 @@ const {
 const { buildRuntimeLayout } = require("./runtime-layout-result.cjs");
 const {
   ensureEmbeddedPythonPackagePath,
-  finalizePaddleOcrRuntime,
-  preparePaddlexCacheHome,
+  finalizeOcrRuntime,
+  prepareOcrCachePaths,
 } = require("./runtime-preparation.cjs");
 const {
-  checkPaddleOcrImport,
+  checkOcrRuntimeImport,
   createOcrRuntimeError,
   hasExpectedOcrPackages,
   hasOcrInstallMarker,
   isTruthy,
 } = require("./runtime-verification.cjs");
+const { isHayaiOcrPipeline } = require("./engine-profile.cjs");
 
 /** @param {RuntimeOptions} [options] @returns {Promise<OcrRuntimeLayout>} */
-async function ensurePaddleOcrRuntime(options = {}) {
+async function ensureOcrRuntime(options = {}) {
   const bundledMacRuntime = await resolveBundledMacOcrRuntime(options);
   if (bundledMacRuntime) {
     return bundledMacRuntime;
@@ -92,6 +94,11 @@ async function resolveBundledMacOcrRuntime(options) {
       { step: "bundled-mac-gpu-ocr-unsupported" },
     );
   }
+  if (isHayaiOcrPipeline(options)) {
+    // HayaiOCR CPU uses its own managed PyTorch runtime. The bundled macOS
+    // Paddle runtime remains the bootstrap interpreter, not the OCR engine.
+    return null;
+  }
   const toolsDir = String(options.toolsDir || "").trim();
   const candidates = [
     path.join(toolsDir, "python", "bin", "python3"),
@@ -110,7 +117,7 @@ async function resolveBundledMacOcrRuntime(options) {
 
   const runtimeDir = resolveOcrRuntimeDir(options);
   await prepareRuntimeDirectories(options, runtimeDir);
-  const cachePaths = await preparePaddlexCacheHome(options, runtimeDir);
+  const cachePaths = await prepareOcrCachePaths(options, runtimeDir);
   const packageDir = resolveOcrPythonPackageDir(runtimeDir, {
     ...options,
     ocrDevice: "cpu",
@@ -121,7 +128,7 @@ async function resolveBundledMacOcrRuntime(options) {
     "Apple Silicon Paddle OCR 런타임 확인 중",
     "번들된 CPU 런타임을 사용합니다.",
   );
-  const importCheck = await checkPaddleOcrImport(
+  const importCheck = await checkOcrRuntimeImport(
     pythonPath,
     { ...options, ocrDevice: "cpu" },
     {
@@ -143,7 +150,7 @@ async function resolveBundledMacOcrRuntime(options) {
       importCheck.error,
     );
   }
-  return finalizePaddleOcrRuntime(options, {
+  return finalizeOcrRuntime(options, {
     runtimeDir,
     runtimeVariant: "cpu-macos-arm64-bundled",
     packageDir,
@@ -163,7 +170,7 @@ async function prepareRuntimeState(options) {
   validateRocmRuntimePath(options, runtimeDir, packageDir);
   emitRocmRuntimePath(options, runtimeDir);
   await prepareRuntimeDirectories(options, runtimeDir);
-  const cachePaths = await preparePaddlexCacheHome(options, runtimeDir);
+  const cachePaths = await prepareOcrCachePaths(options, runtimeDir);
   const venvDir = resolveOcrVenvDir(runtimeDir, runtimeVariant, options);
   const venvPython = resolveVenvPythonPath(venvDir);
   emitRuntimeCheck(options, runtimeVariant);
@@ -231,7 +238,7 @@ function emitRuntimeCheck(options, runtimeVariant) {
   emitRuntimeProgress(
     options,
     "ocr_preparing",
-    "Paddle OCR 런타임 확인 중",
+    `${resolveOcrEngineLabel(options)} 런타임 확인 중`,
     `${resolveOcrDeviceLabel(options)}, ${runtimeVariant}`,
   );
 }
@@ -241,7 +248,7 @@ async function checkExistingVenv(options, runtimeDir, venvPython, cachePaths) {
   if (!existsSync(venvPython)) {
     return { ok: false, message: "venv python is missing" };
   }
-  return checkPaddleOcrImport(venvPython, options, {
+  return checkOcrRuntimeImport(venvPython, options, {
     runtimeDir,
     includePackageDir: false,
     ...cachePaths,
@@ -254,7 +261,7 @@ async function reuseVenvRuntime(options, state) {
     return null;
   }
   if (hasOcrInstallMarker(state.packageDir, state.runtimeVariant, options)) {
-    return finalizePaddleOcrRuntime(
+    return finalizeOcrRuntime(
       options,
       buildRuntimeLayout(state, state.venvPython, false),
     );
@@ -289,7 +296,7 @@ function emitSignatureChanged(options) {
   emitRuntimeProgress(
     options,
     "ocr_downloading",
-    "Paddle OCR 런타임 재설치 중",
+    `${resolveOcrEngineLabel(options)} 런타임 재설치 중`,
     "패키지 구성이 바뀌어 기존 OCR 런타임을 다시 준비합니다.",
     {
       progressMode: "log-only",
@@ -315,7 +322,7 @@ async function resolveBootstrapPythonRuntime(options, state) {
     state.runtimeDir,
   );
   if (!existsSync(state.venvPython)) {
-    state.importCheck = await checkPaddleOcrImport(
+    state.importCheck = await checkOcrRuntimeImport(
       state.bootstrapPython,
       options,
       {
@@ -334,7 +341,7 @@ async function reuseTargetRuntime(options, state) {
     return null;
   }
   if (hasOcrInstallMarker(state.packageDir, state.runtimeVariant, options)) {
-    return finalizePaddleOcrRuntime(options, {
+    return finalizeOcrRuntime(options, {
       ...buildRuntimeLayout(state, state.bootstrapPython, true),
       diagnostics: [
         { step: "embedded-python-ready", packageDir: state.packageDir },
@@ -392,7 +399,7 @@ function assertAutomaticInstallEnabled(options) {
   );
   if (!enabled) {
     throw new Error(
-      "Paddle OCR runtime is not installed and automatic installation is disabled.",
+      `${resolveOcrEngineLabel(options)} runtime is not installed and automatic installation is disabled.`,
     );
   }
 }
@@ -437,7 +444,7 @@ function emitVenvCreation(options, runtimeDir) {
   emitRuntimeProgress(
     options,
     "ocr_downloading",
-    "Paddle OCR Python 환경 생성 중",
+    `${resolveOcrEngineLabel(options)} Python 환경 생성 중`,
     runtimeDir,
     {
       progressMode: "log-only",
@@ -446,4 +453,4 @@ function emitVenvCreation(options, runtimeDir) {
   );
 }
 
-module.exports = { ensurePaddleOcrRuntime };
+module.exports = { ensureOcrRuntime };

@@ -40,7 +40,10 @@ import { buildPromptWorkContextForPage } from "./workContextPrompt";
 import { isRequestNoTextDetected } from "./noText";
 import type { ProgressContext } from "./progressEvents";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
-import { parsePageResponse } from "./pageResponseParser";
+import {
+  attachEffectReviewToPage,
+  parsePageResponse,
+} from "./pageResponseParser";
 import { buildTranslatedPageResult } from "./translatedPageResult";
 import { runPageTypographyStages } from "./pageTypographyStages";
 import { attachFontMatchingFixedBlockCandidateMembership } from "./fontMatchingOcrGeometryDirection";
@@ -259,10 +262,15 @@ export async function preparePageResult({
   result: TranslationResult;
   runtime: TranslationRuntimePort;
 }): Promise<PreparedPageBuildResult> {
+  const pageWithEffectReview = attachEffectReviewToPage(
+    page,
+    pageOptions.ocrPipeline,
+    pageOptions.ocrBboxResult,
+  );
   const parsed = parsePageResponse({
     runtime,
     result,
-    page,
+    page: pageWithEffectReview,
     pageOptions,
   });
   const items = applyGlossaryOmissionsToOverlayItems(parsed.items, pageOptions);
@@ -271,14 +279,18 @@ export async function preparePageResult({
       kind: "ready",
       result: {
         kind: "no-text",
-        page: buildNoTextCompletedPage(page),
+        page: buildNoTextCompletedPage(pageWithEffectReview),
         warnings: parsed.warnings,
         pageContext: parsed.pageContext,
       },
     };
   }
   if (items.length === 0) {
-    const emptyResult = buildEmptyItemsResult(page, pageOptions, result);
+    const emptyResult = buildEmptyItemsResult(
+      pageWithEffectReview,
+      pageOptions,
+      result,
+    );
     return {
       kind: "ready",
       result: {
@@ -291,7 +303,7 @@ export async function preparePageResult({
 
   return prepareTranslatedPageResult({
     jobId,
-    page,
+    page: pageWithEffectReview,
     pageOptions,
     result,
     items,
@@ -460,7 +472,7 @@ export function projectPreparedPageForContext(
     pageOptions: {
       ...prepared.pageOptions,
       autoFontMatching: false,
-      fontSizeAutoFit: false,
+      aiFontSizeMatching: false,
     },
     items: prepared.items,
     soundDroppedCount: prepared.soundDroppedCount,

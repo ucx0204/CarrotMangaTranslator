@@ -217,7 +217,7 @@ describe("TranslationOptionsModal", () => {
       screen
         .getByRole("switch", { name: "자연스러운 줄 나눔" })
         .getAttribute("aria-checked"),
-    ).toBe("true");
+    ).toBe("false");
     expect(
       screen
         .getByRole("switch", { name: "폰트 자동 맞춤" })
@@ -256,8 +256,8 @@ describe("TranslationOptionsModal", () => {
       cumulativeContextDetail: "detailed",
       blockMode: "auto",
       autoFontMatching: false,
-      fontSizeAutoFit: true,
-      naturalTextLayout: true,
+      aiFontSizeMatching: true,
+      naturalTextLayout: false,
       eraseOriginalWorkflow: false,
       bubbleLayoutWorkflow: false,
     });
@@ -368,9 +368,7 @@ describe("TranslationOptionsModal", () => {
       document.querySelector(".translate-options-selected-hint"),
     ).toBeNull();
     expect(screen.getAllByRole("tooltip").length).toBeGreaterThan(3);
-    expect(
-      screen.getByText("블록 크기에 맞춰 번역문의 줄바꿈을 정돈합니다."),
-    ).toBeTruthy();
+    expect(screen.getByText("번역문 줄바꿈을 블록에 맡깁니다.")).toBeTruthy();
     expect(
       screen.getByText(
         /원문 분위기에 어울리는 한글 폰트를 블록마다 자동 적용합니다/,
@@ -443,6 +441,20 @@ describe("TranslationOptionsModal", () => {
     );
   });
 
+  it("can enable natural line layout for the current run", async () => {
+    const { onStart } = await renderModal();
+    const toggle = screen.getByRole("switch", {
+      name: "자연스러운 줄 나눔",
+    });
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({ naturalTextLayout: true }),
+    );
+  });
+
   it("can enable automatic font matching and persists the choice", async () => {
     const { onStart, onPersistDefaults } = await renderModal();
     const toggle = screen.getByRole("switch", { name: "폰트 자동 맞춤" });
@@ -468,7 +480,7 @@ describe("TranslationOptionsModal", () => {
   it("can disable source-aware font size matching and persists the choice", async () => {
     const { onStart, onPersistDefaults } = await renderModal();
     const toggle = screen.getByRole("switch", {
-      name: "글자 크기 자동 맞춤",
+      name: "글자 크기 AI 맞춤",
     });
 
     expect(toggle.getAttribute("aria-checked")).toBe("true");
@@ -481,10 +493,10 @@ describe("TranslationOptionsModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
 
     expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({ fontSizeAutoFit: false }),
+      expect.objectContaining({ aiFontSizeMatching: false }),
     );
     expect(onPersistDefaults).toHaveBeenCalledWith(
-      expect.objectContaining({ fontSizeAutoFitDefault: false }),
+      expect.objectContaining({ aiFontSizeMatchingDefault: false }),
     );
   });
 

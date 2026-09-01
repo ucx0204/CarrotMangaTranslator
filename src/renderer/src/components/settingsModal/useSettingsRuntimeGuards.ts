@@ -233,29 +233,13 @@ type OcrRuntimeSettings = {
 
 export function resolveCompatibleOcrSettings(
   values: OcrRuntimeSettings,
-  runtime: Pick<
+  _runtime: Pick<
     ReturnType<typeof resolveRuntimeContext>,
     "supportsOcrRocm" | "usesAmdOcrContext" | "usesNvidiaOcrContext"
   >,
 ): OcrRuntimeSettings {
-  if (runtime.usesAmdOcrContext && runtime.supportsOcrRocm === false) {
-    return {
-      ocrDevice: "cpu",
-      ocrGpuBackend: "cuda",
-      ocrQualityMode: "economy",
-    };
-  }
-
-  const ocrGpuBackend =
-    values.ocrDevice === "gpu" && runtime.usesAmdOcrContext
-      ? "rocm-transformers"
-      : values.ocrDevice === "gpu" && runtime.usesNvidiaOcrContext
-        ? "cuda"
-        : values.ocrGpuBackend;
-
   return {
     ...values,
-    ocrGpuBackend,
     // GPU-only full quality must never remain paired with the CPU device.
     ocrQualityMode:
       values.ocrDevice === "cpu" && values.ocrQualityMode === "full"

@@ -34,6 +34,11 @@ export {
   updatePagesAfterInpainting,
 } from "./library/libraryMutationFacade";
 export {
+  appendResolvedSoundEffectBlocks,
+  dismissSoundEffectReviewRegion,
+  prepareSoundEffectTranslation,
+} from "./library/librarySoundEffectFacade";
+export {
   createLibraryImportService,
   createImport,
   prepareArchiveFolderImportPreview,

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  formatTranslationActionError,
   handleTranslateRegionResult,
   makeStartAnalysisRequest,
   resolveStartOutcome,
@@ -24,7 +25,7 @@ describe("translation request construction", () => {
         collectPageContext: false,
         naturalTextLayout: true,
         autoFontMatching: false,
-        fontSizeAutoFit: true,
+        aiFontSizeMatching: true,
         completionWorkflow: "bubble-layout",
       }),
     ).toEqual({
@@ -35,7 +36,7 @@ describe("translation request construction", () => {
       collectPageContext: false,
       naturalTextLayout: true,
       autoFontMatching: false,
-      fontSizeAutoFit: true,
+      aiFontSizeMatching: true,
       completionWorkflow: "bubble-layout",
     });
   });
@@ -54,6 +55,14 @@ describe("translation request construction", () => {
 });
 
 describe("translation refresh failure reporting", () => {
+  it("uses the shared error boundary for dedicated translation actions", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(
+      formatTranslationActionError(new Error("효과음 요청 실패"), "fallback"),
+    ).toBe("fallback");
+    expect(formatTranslationActionError(null, "fallback")).toBe("fallback");
+  });
+
   it("keeps the main-process failure detail visible instead of replacing it", () => {
     const setJobState = vi.fn();
     const pushStatus = vi.fn();

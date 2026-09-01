@@ -11,7 +11,7 @@ const {
 } = require("./image-source-assets.cjs");
 const { buildOpenAIVisionVariant } = require("./openai-vision-variant.cjs");
 
-/** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { imagePath: string; outputDir: string; includeEnhancedVariant?: boolean | null; label?: string | null; regionContextImagePath?: string | null; regionContextImageWidth?: unknown; regionContextImageHeight?: unknown }} ImageVariantOptions */
+/** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { imagePath: string; outputDir: string; includeEnhancedVariant?: boolean | null; label?: string | null; regionContextImagePath?: string | null; regionContextImageWidth?: unknown; regionContextImageHeight?: unknown; soundEffectTargetCropPath?: string | null; soundEffectTargetCropWidth?: unknown; soundEffectTargetCropHeight?: unknown }} ImageVariantOptions */
 /** @typedef {{ role: string; path: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number; mime?: string; convertedFromMime?: string | null; dataUrl?: string }} ImageVariant */
 /** @typedef {{ name: string; message: string; imagePath?: string; format?: string | null; reason: string; cause?: unknown }} ImageVariantDiagnostic */
 
@@ -20,6 +20,7 @@ async function prepareImageVariants(options) {
   const sourceSize = resolveImageSize(options);
   const variants = await buildBaseVariants(options, sourceSize);
   appendRegionContext(variants, options);
+  appendSoundEffectTargetCrop(variants, options);
   const diagnostics = await appendEnhancedVariant(
     variants,
     options,
@@ -33,25 +34,47 @@ async function prepareImageVariants(options) {
   };
 }
 
+/** @param {ImageVariant[]} variants @param {ImageVariantOptions} options */
+function appendSoundEffectTargetCrop(variants, options) {
+  const cropPath = String(options.soundEffectTargetCropPath || "").trim();
+  if (!cropPath) return;
+  variants.push({
+    role: "sound-effect-target-crop",
+    path: cropPath,
+    width: readPositiveInteger(options.soundEffectTargetCropWidth) || undefined,
+    height:
+      readPositiveInteger(options.soundEffectTargetCropHeight) || undefined,
+  });
+}
+
 /** @param {ImageVariantOptions} options @param {{ width: number; height: number }} sourceSize @returns {Promise<ImageVariant[]>} */
 async function buildBaseVariants(options, sourceSize) {
   if (isOpenAICodexProvider(options)) {
-    return [
-      await buildOpenAIVisionVariant({
-        ...options,
-        imageWidth: sourceSize.width,
-        imageHeight: sourceSize.height,
-      }),
-    ];
+    const variant = await buildOpenAIVisionVariant({
+      ...options,
+      imageWidth: sourceSize.width,
+      imageHeight: sourceSize.height,
+    });
+    return [markSoundEffectContextRole(variant, options)];
   }
   return [
-    {
-      role: "original",
-      path: options.imagePath,
-      width: sourceSize.width,
-      height: sourceSize.height,
-    },
+    markSoundEffectContextRole(
+      {
+        role: "original",
+        path: options.imagePath,
+        width: sourceSize.width,
+        height: sourceSize.height,
+      },
+      options,
+    ),
   ];
+}
+
+/** @param {ImageVariant} variant @param {ImageVariantOptions} options */
+function markSoundEffectContextRole(variant, options) {
+  return options.soundEffectTranslationMode === true
+    ? { ...variant, role: "sound-effect-page-context" }
+    : variant;
 }
 
 /** @param {ImageVariant[]} variants @param {ImageVariantOptions} options */

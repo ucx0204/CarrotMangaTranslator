@@ -4,6 +4,7 @@ import type {
   FontContinuityMetadata,
   TranslationCheckpointMetadata,
 } from "./translationCheckpoint";
+import type { SoundEffectReview } from "./soundEffectReview";
 
 export type PageAnalysisStatus = "idle" | "running" | "completed" | "failed";
 
@@ -67,6 +68,8 @@ export type MangaPage = {
   width: number;
   height: number;
   blocks: TranslationBlock[];
+  /** Optional SFX proposals. They are hidden until the user enables review. */
+  soundEffectReview?: SoundEffectReview;
   /** Explicit reading order. Missing or stale ids are repaired at read time. */
   blockOrder?: string[];
   analysisStatus: PageAnalysisStatus;

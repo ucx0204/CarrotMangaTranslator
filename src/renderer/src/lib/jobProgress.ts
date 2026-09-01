@@ -1,6 +1,10 @@
 import type { JobEvent, JobPhase, JobState } from "../../../shared/jobTypes";
 import type { TFunction } from "i18next";
 import {
+  isHayaiOcrPipeline,
+  resolveOcrRendererKeyPrefix,
+} from "../../../shared/ocrEngines";
+import {
   fallbackJobLabelFromStatus,
   formatJobFailureGuidance,
   translate,
@@ -10,6 +14,7 @@ type JobWithProgress = Pick<
   JobState,
   | "status"
   | "phase"
+  | "ocrPipeline"
   | "progressMode"
   | "progressCurrent"
   | "progressTotal"
@@ -60,10 +65,6 @@ const PROGRESS_TEXT_FALLBACK_BY_PHASE: Partial<
 const STATIC_LABEL_BY_PHASE: Partial<
   Record<JobPhase, { key: string; fallback: string }>
 > = {
-  ocr_downloading: {
-    key: "job.phase.ocrDownloading",
-    fallback: "Paddle OCR 다운로드/설치 중",
-  },
   ready: { key: "job.phase.ready", fallback: "모델 준비 완료" },
   cancelled: { key: "job.phase.cancelled", fallback: "작업이 취소됨" },
   failed: { key: "job.phase.failed", fallback: "작업 실패" },
@@ -72,10 +73,6 @@ const STATIC_LABEL_BY_PHASE: Partial<
 const PAGE_SUFFIX_BY_PHASE: Partial<
   Record<JobPhase, { key: string; fallback: string }>
 > = {
-  ocr_preparing: {
-    key: "job.phase.ocrPreparing",
-    fallback: "Paddle OCR 준비 중",
-  },
   model_requesting: {
     key: "job.phase.modelRequesting",
     fallback: "AI 번역 요청 중",
@@ -120,6 +117,10 @@ export function formatJobLabel(
   if (!job.phase) {
     return fallbackJobLabelFromStatus(job.status, t);
   }
+  const ocrLabel = formatOcrProgressLabel(job, t, preserveUnknownProgressText);
+  if (ocrLabel) {
+    return ocrLabel;
+  }
   const directPhaseLabel = formatDirectPhaseLabel(
     job,
     t,
@@ -127,9 +128,6 @@ export function formatJobLabel(
   );
   if (directPhaseLabel) {
     return directPhaseLabel;
-  }
-  if (job.phase === "ocr_running") {
-    return formatOcrRunningLabel(job, t, preserveUnknownProgressText);
   }
   if (job.phase === "page_retry") {
     return formatRetryLabel(job, t);
@@ -159,6 +157,23 @@ export function formatJobLabel(
     );
   }
   return fallbackJobLabelFromStatus(job.status, t);
+}
+
+function formatOcrProgressLabel(
+  job: JobWithProgress,
+  t: TFunction<"renderer"> | undefined,
+  preserveUnknownProgressText: boolean,
+): string | null {
+  if (job.phase === "ocr_downloading") {
+    return formatOcrPhaseLabel(job, "Downloading", t);
+  }
+  if (job.phase === "ocr_preparing") {
+    const label = formatOcrPhaseLabel(job, "Preparing", t);
+    return hasPageIndex(job) ? formatPageLabel(job, label, t) : label;
+  }
+  return job.phase === "ocr_running"
+    ? formatOcrRunningLabel(job, t, preserveUnknownProgressText)
+    : null;
 }
 
 function resolveFailedJobGuidance(
@@ -261,78 +276,6 @@ function isIndeterminatePhase(phase: JobPhase | undefined): boolean {
   return phase === "booting" || phase === "model_downloading";
 }
 
-export function formatBytes(
-  bytes: number | null | undefined,
-  locale?: string,
-): string | null {
-  if (!Number.isFinite(bytes) || (bytes ?? 0) < 0) {
-    return null;
-  }
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes ?? 0;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-  const digits = unitIndex === 0 ? 0 : value >= 100 ? 0 : value >= 10 ? 1 : 2;
-  const formatted = locale
-    ? new Intl.NumberFormat(locale, {
-        maximumFractionDigits: digits,
-        minimumFractionDigits: digits,
-      }).format(value)
-    : value.toFixed(digits);
-  return `${formatted} ${units[unitIndex]}`;
-}
-
-export function summarizeWarnings(
-  warnings: string[],
-  t?: TFunction<"renderer">,
-): string | null {
-  if (warnings.length === 0) {
-    return null;
-  }
-
-  const skipped = warnings.filter(isSkippedPageWarning).length;
-  const uncertain = warnings.filter(isUncertainOcrWarning).length;
-  if (skipped > 0 && uncertain > 0) {
-    return translate(
-      t,
-      "job.warnings.skippedAndUncertain",
-      "일부 페이지를 건너뛰었고 OCR 확인이 필요한 블록도 있습니다.",
-    );
-  }
-  if (skipped > 0) {
-    return translate(
-      t,
-      "job.warnings.skipped",
-      "일부 페이지는 건너뛰고 다음 페이지로 진행했습니다.",
-    );
-  }
-  if (uncertain > 0) {
-    return translate(
-      t,
-      "job.warnings.uncertain",
-      "일부 블록은 OCR 확인이 더 필요합니다.",
-    );
-  }
-  return translate(
-    t,
-    "job.warnings.generic",
-    "중간 경고가 있었지만 작업은 계속 진행되었습니다.",
-  );
-}
-
-function isSkippedPageWarning(warning: string): boolean {
-  return warning.startsWith("page_skipped:") || warning.includes("건너뜁니다");
-}
-
-function isUncertainOcrWarning(warning: string): boolean {
-  return (
-    warning.startsWith("uncertain_ocr:") || warning.includes("불확실한 OCR")
-  );
-}
-
 function formatPageLabel(
   job: JobWithProgress,
   suffix: string,
@@ -355,17 +298,41 @@ function formatOcrRunningLabel(
   t?: TFunction<"renderer">,
   preserveUnknownProgressText = true,
 ): string {
+  const label = formatOcrPhaseLabel(job, "Running", t);
   if (!hasPageIndex(job)) {
-    return (
-      translatedProgressText(job, t, preserveUnknownProgressText) ??
-      translate(t, "job.phase.ocrRunning", "Paddle OCR 분석 중")
-    );
+    if (hasConflictingOcrBrand(job)) {
+      return label;
+    }
+    return translatedProgressText(job, t, preserveUnknownProgressText) ?? label;
   }
-  return formatPageLabel(
-    job,
-    translate(t, "job.phase.ocrRunning", "Paddle OCR 분석 중"),
-    t,
-  );
+  return formatPageLabel(job, label, t);
+}
+
+function hasConflictingOcrBrand(job: JobWithProgress): boolean {
+  const text = trimmedProgressText(job);
+  if (!text || !job.ocrPipeline) {
+    return false;
+  }
+  return isHayaiOcrPipeline(job.ocrPipeline)
+    ? /paddle/i.test(text)
+    : /hayai/i.test(text);
+}
+
+function formatOcrPhaseLabel(
+  job: JobWithProgress,
+  suffix: "Downloading" | "Preparing" | "Running",
+  t?: TFunction<"renderer">,
+): string {
+  const prefix = resolveOcrRendererKeyPrefix(job.ocrPipeline);
+  const key = `job.phase.${prefix}${suffix}`;
+  const action =
+    suffix === "Downloading"
+      ? "다운로드/설치 중"
+      : suffix === "Preparing"
+        ? "준비 중"
+        : "분석 중";
+  const engine = prefix === "hayaiOcr" ? "HayaiOCR" : "Paddle OCR";
+  return translate(t, key, `${engine} ${action}`);
 }
 
 function trimmedProgressText(job: JobWithProgress): string | null {
@@ -392,6 +359,7 @@ const LEGACY_PROGRESS_TEXT_KEYS: Record<string, string> = {
   "결과 정리 중": "job.phase.finalizing",
   "작업 완료": "job.phase.done",
   "Paddle OCR 선분석 완료": "job.phase.ocrPreanalysisDone",
+  "HayaiOCR 선분석 완료": "job.phase.hayaiOcrPreanalysisDone",
 };
 
 function hasPageIndex(job: JobWithProgress): boolean {

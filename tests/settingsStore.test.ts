@@ -157,9 +157,9 @@ describe("settings store", () => {
         supportsRocm: false,
       },
       expectedOcr: {
-        device: "cpu",
-        gpuBackend: "cuda",
-        qualityMode: "economy",
+        device: "gpu",
+        gpuBackend: "rocm-transformers",
+        qualityMode: "full",
       },
       expectedSupportsOcrRocm: false,
       expectedSupportsFluxZluda: false,
@@ -184,7 +184,7 @@ describe("settings store", () => {
       expectedSupportsFluxZluda: true,
     },
   ])(
-    "normalizes OCR against authoritative $gpu.name capability without persisting it",
+    "preserves explicit OCR routing while refreshing authoritative $gpu.name capability",
     async ({
       gpu,
       expectedOcr,
@@ -267,9 +267,9 @@ describe("settings store", () => {
         supportsRocm: false,
       },
       expectedOcr: {
-        device: "cpu",
-        gpuBackend: "cuda",
-        qualityMode: "economy",
+        device: "gpu",
+        gpuBackend: "rocm-transformers",
+        qualityMode: "full",
       },
       expectedSupport: false,
       expectedFluxSupport: false,
@@ -298,7 +298,7 @@ describe("settings store", () => {
       env: { MANGA_TRANSLATOR_AMD_ROCM_TARGET: "gfx103X" },
     },
   ])(
-    "loads stale OCR settings through the authoritative hardware policy ($expectedSupport)",
+    "loads explicit OCR settings without hardware-driven rerouting ($expectedSupport)",
     async ({
       detected,
       expectedOcr,
@@ -341,7 +341,7 @@ describe("settings store", () => {
     },
   );
 
-  it("preserves the explicit OCR GPU environment escape hatch on unsupported AMD", async () => {
+  it("preserves explicit OCR GPU selection on unsupported AMD", async () => {
     const rootDir = await createTempDir();
     const paths = makeAppPaths(rootDir);
     const rx6700 = {
