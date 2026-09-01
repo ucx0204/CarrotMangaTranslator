@@ -955,7 +955,9 @@ describe("beginner conditional batch editor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "실행 취소" }));
     await waitFor(() => expect(onUndo).toHaveBeenCalledOnce());
-    expect(screen.getByText("방금 일괄 편집을 되돌렸습니다.")).toBeTruthy();
+    expect(
+      await screen.findByText("방금 일괄 편집을 되돌렸습니다."),
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "닫기" }));
     expect(onClose).toHaveBeenCalledOnce();
