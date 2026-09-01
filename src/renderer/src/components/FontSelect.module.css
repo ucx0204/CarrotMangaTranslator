@@ -1,5 +1,23 @@
 /* Font-specific additions on top of ui/Select. */
 
+.control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: stretch;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.manage {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  min-width: 30px;
+  height: 100%;
+  min-height: 32px;
+  padding: 0;
+}
+
 .triggerSample {
   /*
    * A grid item, not a flex item. The cap is in `ch` on purpose: a percentage
@@ -45,35 +63,4 @@
   border-color: transparent;
   background: transparent;
   color: #f4c95d;
-}
-
-.remove {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border-color: transparent;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: var(--font-lg);
-  line-height: 1;
-}
-
-.remove:hover:not(:disabled) {
-  border-color: var(--danger-bd);
-  background: var(--danger-soft);
-  color: var(--danger-text);
-}
-
-.footer {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--sp-1);
-}
-
-@media (max-width: 420px) {
-  .footer {
-    grid-template-columns: 1fr;
-  }
 }

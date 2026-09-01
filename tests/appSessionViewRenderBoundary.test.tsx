@@ -203,6 +203,7 @@ describe("AppSessionView render boundaries", () => {
     ).toBe(true);
     for (const activeState of [
       { confirmDialog: {} },
+      { fontManagerOpen: true },
       { importPreview: {} },
       { inpaintingGuideOpen: true },
       { renameTarget: {} },
@@ -245,6 +246,34 @@ describe("AppSessionView render boundaries", () => {
         }),
       ).toBe(true);
     }
+  });
+
+  it("wakes the inactive modal subtree as soon as the font manager opens", () => {
+    const onRender = vi.fn();
+    const view = render(
+      <MemoizedAppModalActivityProbe
+        {...closedAppModalState()}
+        onRender={onRender}
+      />,
+    );
+
+    expect(onRender).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("font-manager-activity").textContent).toBe(
+      "closed",
+    );
+
+    view.rerender(
+      <MemoizedAppModalActivityProbe
+        {...closedAppModalState()}
+        fontManagerOpen
+        onRender={onRender}
+      />,
+    );
+
+    expect(onRender).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId("font-manager-activity").textContent).toBe(
+      "open",
+    );
   });
 });
 
@@ -300,6 +329,25 @@ const MemoizedActivityProbe = memoWhileInactive(
   (props) => props.active,
 );
 
+const MemoizedAppModalActivityProbe = memoWhileInactive(
+  AppModalActivityProbe,
+  isAppModalSubtreeActive,
+);
+
+function AppModalActivityProbe({
+  fontManagerOpen,
+  onRender,
+}: ReturnType<typeof closedAppModalState> & {
+  onRender: () => void;
+}): React.JSX.Element {
+  onRender();
+  return (
+    <span data-testid="font-manager-activity">
+      {fontManagerOpen ? "open" : "closed"}
+    </span>
+  );
+}
+
 function ActivityProbe({
   label,
   onCommit,
@@ -345,8 +393,10 @@ function makePanelSessionValue(
     onDuplicateBlock: vi.fn(),
     onInsertBlockLibraryEntry: vi.fn(),
     onOpenBlockLibrary: vi.fn(),
+    onOpenFontManager: vi.fn(),
     onOpenStylePresetManager: vi.fn(),
     onOverwriteStylePreset: vi.fn(async () => true),
+    onRenameStylePreset: vi.fn(async () => true),
     onEraseBlockOriginal: vi.fn(),
     onFitBlockBubble: vi.fn(),
     onPopOutEditor: vi.fn(),
@@ -387,6 +437,7 @@ function makeBlock(id: string): TranslationBlock {
 function closedAppModalState() {
   return {
     confirmDialog: null,
+    fontManagerOpen: false,
     importPreview: null,
     inpaintingGuideOpen: false,
     renameTarget: null,

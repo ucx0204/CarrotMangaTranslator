@@ -12,6 +12,7 @@ export function memoWhileInactive<Props extends object>(
 
 export function isAppModalSubtreeActive(props: {
   confirmDialog: unknown;
+  fontManagerOpen: boolean;
   importPreview: unknown;
   inpaintingGuideOpen: boolean;
   renameTarget: unknown;
@@ -21,16 +22,20 @@ export function isAppModalSubtreeActive(props: {
   translationSourceOpen: boolean;
   webImportOpen: boolean;
 }): boolean {
-  return Boolean(
-    props.translationSourceOpen ||
-    props.webImportOpen ||
-    props.importPreview ||
-    props.shareExportOpen ||
-    props.shareImportPreview ||
-    props.renameTarget ||
-    props.settingsOpen ||
-    props.confirmDialog ||
-    props.inpaintingGuideOpen,
+  // AppModals receives the complete prop object at runtime. Recognize every
+  // conventional boolean `*Open` flag automatically so a newly added modal
+  // cannot be stranded behind this inactive render boundary.
+  const hasOpenFlag = Object.entries(props).some(
+    ([key, value]) => key.endsWith("Open") && value === true,
+  );
+  return (
+    hasOpenFlag ||
+    Boolean(
+      props.importPreview ||
+      props.shareImportPreview ||
+      props.renameTarget ||
+      props.confirmDialog,
+    )
   );
 }
 

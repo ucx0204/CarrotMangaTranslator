@@ -66,8 +66,25 @@
   border-bottom: 1px solid var(--border-soft);
 }
 
+.block-style-preset-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: stretch;
+  gap: var(--sp-1);
+}
+
 .block-style-preset-picker {
   position: relative;
+  min-width: 0;
+}
+
+.block-style-preset-toolbar-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
 }
 
 .block-style-preset-trigger {
@@ -140,16 +157,16 @@
 
 .block-style-preset-menu-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 32px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
   border-radius: var(--r-sm);
 }
 
-.block-style-preset-menu-row[data-can-delete="false"] {
+.block-style-preset-menu-row[data-has-actions="false"] {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.block-style-preset-menu-row[data-can-delete="false"]
+.block-style-preset-menu-row[data-has-actions="false"]
   .block-style-preset-menu-item {
   border-radius: var(--r-sm);
 }
@@ -164,7 +181,7 @@
 
 .block-style-preset-menu-item,
 .block-style-preset-menu-create,
-.block-style-preset-menu-delete {
+.block-style-preset-menu-actions button {
   display: grid;
   min-height: 34px;
   align-items: center;
@@ -213,9 +230,35 @@
 }
 
 .block-style-preset-menu-delete:disabled,
+.block-style-preset-menu-actions button:disabled,
 .block-style-preset-menu-item:disabled {
   cursor: wait;
   opacity: 0.45;
+}
+
+.block-style-preset-menu-actions {
+  display: flex;
+  align-items: stretch;
+}
+
+.block-style-preset-menu-actions button {
+  place-items: center;
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+  border-radius: 0;
+  color: var(--text-muted);
+}
+
+.block-style-preset-menu-actions button:hover,
+.block-style-preset-menu-actions button:focus-visible {
+  background: var(--bg-raised);
+  color: var(--text-head);
+  outline: none;
+}
+
+.block-style-preset-menu-actions button:last-child {
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
 }
 
 .block-style-preset-menu-check {
@@ -249,6 +292,13 @@
 .style-preset-editor-form {
   display: grid;
   gap: var(--sp-4);
+}
+
+.style-preset-rename-field {
+  display: grid;
+  gap: var(--sp-1);
+  color: var(--text-dim);
+  font-size: var(--font-sm);
 }
 
 .style-preset-editor-form > label:first-child {

@@ -344,6 +344,25 @@ describe("built-in block font catalog", () => {
     ]);
   });
 
+  it("hides fonts only from the manual picker and keeps the designated default available", () => {
+    const hiddenCatalog = createBlockFontCatalog([], {
+      hiddenIds: ["kalam", "comic-neue"],
+      favoriteIds: [],
+      orderedIds: [],
+      defaultFontId: "kalam",
+    });
+    const ids = getBlockFontOptions(hiddenCatalog, undefined, "ko").map(
+      (option) => option.id,
+    );
+
+    expect(ids).toContain(DEFAULT_BLOCK_FONT_ID);
+    expect(ids).toContain("kalam");
+    expect(ids).not.toContain("comic-neue");
+    expect(resolveBlockFontFamily("comic-neue", hiddenCatalog)).toContain(
+      "Comic Neue",
+    );
+  });
+
   it("resolves inherited blocks and the default option through the designated font without recursion", () => {
     const kalam = BUILT_IN_BLOCK_FONTS.find((font) => font.id === "kalam");
     expect(kalam).toBeDefined();

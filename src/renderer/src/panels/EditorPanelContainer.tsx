@@ -35,6 +35,10 @@ export function EditorPanelContainer(): React.JSX.Element {
         onApplyStylePreset={session.onApplyStylePreset}
         onCreateStylePreset={session.onCreateStylePreset}
         onDeleteStylePreset={session.onDeleteStylePreset}
+        onOpenStylePresetManager={session.onOpenStylePresetManager}
+        onOpenFontManager={session.onOpenFontManager}
+        onOverwriteStylePreset={session.onOverwriteStylePreset}
+        onRenameStylePreset={session.onRenameStylePreset}
         onApplyBlockBackgroundOpacity={session.onApplyBlockBackgroundOpacity}
         onAdjustFontSize={session.onAdjustFontSize}
         onUpdate={session.onUpdateBlock}

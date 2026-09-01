@@ -11,7 +11,8 @@ type UseSettingsDialogResult = {
   settings: AppSettings | null;
   settingsOpen: boolean;
   settingsBusy: boolean;
-  openSettings: () => Promise<void>;
+  openRequest: SettingsOpenRequest;
+  openSettings: (target?: SettingsOpenTarget) => Promise<void>;
   closeSettings: () => void;
   submitSettings: (nextSettings: AppSettings) => Promise<void>;
   resetSettings: () => Promise<AppSettings | null>;
@@ -20,18 +21,29 @@ type UseSettingsDialogResult = {
   ) => Promise<AppSettings | null>;
 };
 
+type SettingsOpenTarget = "general" | "style-presets";
+export type SettingsOpenRequest = {
+  revision: number;
+  target: SettingsOpenTarget;
+};
+
 export function useSettingsDialog(
   pushStatus: (line: string) => void,
 ): UseSettingsDialogResult {
   const [settings, setSettings] = React.useState<AppSettings | null>(null);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [settingsBusy, setSettingsBusy] = React.useState(false);
+  const [openRequest, setOpenRequest] = React.useState<SettingsOpenRequest>({
+    revision: 0,
+    target: "general",
+  });
   const refreshSettings = useSettingsRefresh(setSettings);
   const openSettings = useOpenSettingsAction({
     pushStatus,
     refreshSettings,
     setSettingsBusy,
     setSettingsOpen,
+    setOpenRequest,
     settings,
   });
   const closeSettings = useCloseSettingsAction(settingsBusy, setSettingsOpen);
@@ -56,6 +68,7 @@ export function useSettingsDialog(
     settings,
     settingsOpen,
     settingsBusy,
+    openRequest,
     openSettings,
     closeSettings,
     submitSettings,
@@ -79,6 +92,7 @@ type OpenSettingsActionOptions = {
   refreshSettings: () => Promise<AppSettings>;
   setSettingsBusy: React.Dispatch<React.SetStateAction<boolean>>;
   setSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setOpenRequest: React.Dispatch<React.SetStateAction<SettingsOpenRequest>>;
   settings: AppSettings | null;
 };
 
@@ -87,33 +101,42 @@ function useOpenSettingsAction({
   refreshSettings,
   setSettingsBusy,
   setSettingsOpen,
+  setOpenRequest,
   settings,
-}: OpenSettingsActionOptions): () => Promise<void> {
+}: OpenSettingsActionOptions): (target?: SettingsOpenTarget) => Promise<void> {
   const { t } = useTranslation("renderer");
-  return React.useCallback(async () => {
-    if (settings) {
-      setSettingsOpen(true);
-      return;
-    }
+  return React.useCallback(
+    async (target = "general") => {
+      setOpenRequest((current) => ({
+        revision: current.revision + 1,
+        target,
+      }));
+      if (settings) {
+        setSettingsOpen(true);
+        return;
+      }
 
-    setSettingsBusy(true);
-    try {
-      await refreshSettings();
-      setSettingsOpen(true);
-    } catch (error) {
-      console.error(error);
-      pushStatus(t("settings.loadFailed"));
-    } finally {
-      setSettingsBusy(false);
-    }
-  }, [
-    pushStatus,
-    refreshSettings,
-    setSettingsBusy,
-    setSettingsOpen,
-    settings,
-    t,
-  ]);
+      setSettingsBusy(true);
+      try {
+        await refreshSettings();
+        setSettingsOpen(true);
+      } catch (error) {
+        console.error(error);
+        pushStatus(t("settings.loadFailed"));
+      } finally {
+        setSettingsBusy(false);
+      }
+    },
+    [
+      pushStatus,
+      refreshSettings,
+      setSettingsBusy,
+      setSettingsOpen,
+      setOpenRequest,
+      settings,
+      t,
+    ],
+  );
 }
 
 function useCloseSettingsAction(

@@ -5,12 +5,14 @@ import type { LibraryIndex } from "../../../shared/libraryTypes";
 import { ConfirmModal } from "./ConfirmModal";
 import { SettingsModalView } from "./settingsModal/SettingsModalView";
 import { useSettingsModalController } from "./settingsModal/useSettingsModalController";
+import type { SettingsOpenRequest } from "../hooks/useSettingsDialog";
 
 type SettingsModalProps = {
   initialSettings: AppSettings;
   library?: LibraryIndex;
   busy: boolean;
   jobActive: boolean;
+  openRequest?: SettingsOpenRequest;
   onCancel: () => void;
   onOpenErrorReport: () => void;
   onOpenLogFolder: () => void;
@@ -23,6 +25,7 @@ export function SettingsModal({
   library,
   busy,
   jobActive,
+  openRequest,
   onCancel,
   onOpenErrorReport,
   onOpenLogFolder,
@@ -43,6 +46,7 @@ export function SettingsModal({
     initialSettings,
     busy,
     jobActive,
+    openRequest,
     onOpenErrorReport,
     onOpenLogFolder,
     onReset,

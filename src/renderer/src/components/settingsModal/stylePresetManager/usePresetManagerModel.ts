@@ -314,7 +314,7 @@ function appendPreset(
 ): BlockStylePreset[] {
   return presets.length >= MAX_BLOCK_STYLE_PRESETS
     ? presets
-    : [...presets, preset];
+    : [preset, ...presets];
 }
 
 function focusPresetName(): void {

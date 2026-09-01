@@ -24,6 +24,7 @@ import { ShareExportModal } from "./ShareExportModal";
 import { ShareImportModal } from "./ShareImportModal";
 import { TranslateSourceModal } from "./TranslateSourceModal";
 import { WebImportModal } from "./WebImportModal";
+import { FontManagerModal } from "./FontManagerModal";
 import type { ConfirmDialogState } from "../hooks/useConfirmDialog";
 import type { ImportModalFeedback } from "../lib/importFlowTypes";
 
@@ -45,11 +46,15 @@ type AppModalsProps = {
   renameTarget: RenameTarget | null;
   renameBusy: boolean;
   settingsOpen: boolean;
+  settingsOpenRequest: React.ComponentProps<
+    typeof SettingsModal
+  >["openRequest"];
   settings: AppSettings | null;
   settingsBusy: boolean;
   jobActive: boolean;
   confirmDialog: ConfirmDialogState | null;
   inpaintingGuideOpen: boolean;
+  fontManagerOpen: boolean;
   onCancelTranslationSource: () => void;
   onCancelWebImport: () => void;
   onWebImportBackgroundStateChange: (backgrounded: boolean) => void;
@@ -71,6 +76,7 @@ type AppModalsProps = {
   onSubmitSettings: (settings: AppSettings) => void;
   onResolveConfirm: (confirmed: boolean) => void;
   onCloseInpaintingGuide: (hideNextTime: boolean) => void;
+  onCloseFontManager: () => void;
 };
 
 export function AppModals(props: AppModalsProps): React.JSX.Element {
@@ -220,6 +226,7 @@ function EditAndSettingsModals({
   settings,
   settingsBusy,
   settingsOpen,
+  settingsOpenRequest,
 }: Pick<
   AppModalsProps,
   | "jobActive"
@@ -237,6 +244,7 @@ function EditAndSettingsModals({
   | "settings"
   | "settingsBusy"
   | "settingsOpen"
+  | "settingsOpenRequest"
 >): React.JSX.Element {
   return (
     <>
@@ -253,6 +261,7 @@ function EditAndSettingsModals({
       {settingsOpen && settings ? (
         <SettingsModal
           initialSettings={settings}
+          openRequest={settingsOpenRequest}
           library={library}
           busy={settingsBusy}
           jobActive={jobActive}
@@ -269,18 +278,25 @@ function EditAndSettingsModals({
 
 function SystemModals({
   confirmDialog,
+  fontManagerOpen,
+  onCloseFontManager,
   inpaintingGuideOpen,
   onCloseInpaintingGuide,
   onResolveConfirm,
 }: Pick<
   AppModalsProps,
   | "confirmDialog"
+  | "fontManagerOpen"
+  | "onCloseFontManager"
   | "inpaintingGuideOpen"
   | "onCloseInpaintingGuide"
   | "onResolveConfirm"
 >): React.JSX.Element {
   return (
     <>
+      {fontManagerOpen ? (
+        <FontManagerModal onClose={onCloseFontManager} />
+      ) : null}
       {confirmDialog ? (
         <ConfirmModal
           title={confirmDialog.title}

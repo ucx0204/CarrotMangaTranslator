@@ -47,6 +47,7 @@ export function FormatEditorGroup({
   onApplyFormat,
   onAdjustFontSize,
   onFontFamilyDraftChange,
+  onOpenFontManager,
   onUpdate,
   selectedBlockCount,
 }: BlockSectionProps & {
@@ -56,6 +57,7 @@ export function FormatEditorGroup({
   onApplyFormat?: ApplyFormatHandler;
   onAdjustFontSize: (adjustment: -1 | 1) => void;
   onFontFamilyDraftChange: (fontFamily?: string) => void;
+  onOpenFontManager?: () => void;
   selectedBlockCount: number;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -76,19 +78,19 @@ export function FormatEditorGroup({
           </Button>
         ) : null}
       </div>
-      {applyOpen && onApplyFormat ? (
-        <FormatBatchApplyModal
-          selectedBlockCount={selectedBlockCount}
-          disableChapterApply={disableChapterApply}
-          onApply={onApplyFormat}
-          onClose={() => setApplyOpen(false)}
-        />
-      ) : null}
+      <BatchApplyDialog
+        disableChapterApply={disableChapterApply}
+        onApply={onApplyFormat}
+        onClose={() => setApplyOpen(false)}
+        open={applyOpen}
+        selectedBlockCount={selectedBlockCount}
+      />
       <StyleToolbar {...{ block, disabled, model, onUpdate }} />
       <FontField
         disabled={disabled}
         fontFamilyDraft={fontFamilyDraft}
         onFontFamilyDraftChange={onFontFamilyDraftChange}
+        onOpenFontManager={onOpenFontManager}
         onUpdate={onUpdate}
       />
       <TextWrappingField {...{ block, disabled, onUpdate }} />
@@ -114,6 +116,30 @@ export function FormatEditorGroup({
         </div>
       </div>
     </div>
+  );
+}
+
+function BatchApplyDialog({
+  disableChapterApply,
+  onApply,
+  onClose,
+  open,
+  selectedBlockCount,
+}: {
+  disableChapterApply: boolean;
+  onApply?: ApplyFormatHandler;
+  onClose: () => void;
+  open: boolean;
+  selectedBlockCount: number;
+}): React.JSX.Element | null {
+  if (!open || !onApply) return null;
+  return (
+    <FormatBatchApplyModal
+      selectedBlockCount={selectedBlockCount}
+      disableChapterApply={disableChapterApply}
+      onApply={onApply}
+      onClose={onClose}
+    />
   );
 }
 
@@ -278,11 +304,13 @@ function FontField({
   disabled,
   fontFamilyDraft,
   onFontFamilyDraftChange,
+  onOpenFontManager,
   onUpdate,
 }: {
   disabled: boolean;
   fontFamilyDraft?: string;
   onFontFamilyDraftChange: (fontFamily?: string) => void;
+  onOpenFontManager?: () => void;
   onUpdate: BlockPatchHandler;
 }): React.JSX.Element {
   return (
@@ -290,6 +318,7 @@ function FontField({
       <FontSelect
         value={fontFamilyDraft}
         disabled={disabled}
+        onOpenManager={onOpenFontManager}
         onChange={(fontFamily) => {
           onFontFamilyDraftChange(fontFamily);
           onUpdate({ fontFamily });

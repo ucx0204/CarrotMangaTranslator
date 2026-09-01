@@ -26,8 +26,10 @@ type PanelChromeCallbacks = Pick<
   | "onDockEditorWindow"
   | "onInsertBlockLibraryEntry"
   | "onOpenBlockLibrary"
+  | "onOpenFontManager"
   | "onOpenStylePresetManager"
   | "onOverwriteStylePreset"
+  | "onRenameStylePreset"
   | "onPopOutEditor"
   | "onSelectTransformMode"
   | "onStartAreaTranslate"
@@ -171,10 +173,12 @@ function useStablePanelChromeCallbacks(
     value.onInsertBlockLibraryEntry,
   );
   const onOpenBlockLibrary = useEventCallback(value.onOpenBlockLibrary);
+  const onOpenFontManager = useEventCallback(value.onOpenFontManager);
   const onOpenStylePresetManager = useEventCallback(
     value.onOpenStylePresetManager,
   );
   const onOverwriteStylePreset = useEventCallback(value.onOverwriteStylePreset);
+  const onRenameStylePreset = useEventCallback(value.onRenameStylePreset);
   const onPopOutEditor = useEventCallback(value.onPopOutEditor);
   const onSelectTransformMode = useEventCallback(value.onSelectTransformMode);
   const onStartAreaTranslate = useEventCallback(value.onStartAreaTranslate);
@@ -186,8 +190,10 @@ function useStablePanelChromeCallbacks(
       onDockEditorWindow,
       onInsertBlockLibraryEntry,
       onOpenBlockLibrary,
+      onOpenFontManager,
       onOpenStylePresetManager,
       onOverwriteStylePreset,
+      onRenameStylePreset,
       onPopOutEditor,
       onSelectTransformMode,
       onStartAreaTranslate,
@@ -198,8 +204,10 @@ function useStablePanelChromeCallbacks(
       onDockEditorWindow,
       onInsertBlockLibraryEntry,
       onOpenBlockLibrary,
+      onOpenFontManager,
       onOpenStylePresetManager,
       onOverwriteStylePreset,
+      onRenameStylePreset,
       onPopOutEditor,
       onSelectTransformMode,
       onStartAreaTranslate,

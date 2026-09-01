@@ -17,11 +17,13 @@ import { useSettingsLocalModelActions } from "./useSettingsLocalModelActions";
 import { useSettingsModelTest } from "./useSettingsModelTest";
 import { useSettingsRuntimeGuards } from "./useSettingsRuntimeGuards";
 import { useSettingsTestState } from "./useSettingsTestState";
+import type { SettingsOpenRequest } from "../../hooks/useSettingsDialog";
 
 export type SettingsModalControllerInput = {
   initialSettings: AppSettings;
   busy: boolean;
   jobActive: boolean;
+  openRequest?: SettingsOpenRequest;
   onCancel: () => void;
   onOpenErrorReport: () => void;
   onOpenLogFolder: () => void;
@@ -34,6 +36,7 @@ export function useSettingsModalController({
   initialSettings,
   busy,
   jobActive,
+  openRequest,
   onCancel,
   onOpenErrorReport,
   onOpenLogFolder,
@@ -47,6 +50,7 @@ export function useSettingsModalController({
     initialSettings,
     onDirtyChange,
     onReset,
+    openRequest,
   });
   const submission = useSettingsSubmission({
     blockFormatDefaults: state.blockFormatDefaults,
@@ -77,6 +81,8 @@ export function useSettingsModalController({
     formatPanelTitle,
     formatPanelProps: {
       activePresetId: state.activeFormatPresetId,
+      presetManagerOpenRequest:
+        openRequest?.target === "style-presets" ? openRequest.revision : 0,
       bubbleLayoutPaddingRatio: state.form.values.bubbleLayoutPaddingRatio,
       value: state.blockFormatDefaults,
       stylePresets: state.blockStylePresets,
@@ -111,11 +117,16 @@ function useSettingsControllerState({
   initialSettings,
   onDirtyChange,
   onReset,
+  openRequest,
 }: Pick<
   SettingsModalControllerInput,
-  "busy" | "initialSettings" | "onDirtyChange" | "onReset"
+  "busy" | "initialSettings" | "onDirtyChange" | "onReset" | "openRequest"
 >) {
   const [activeTab, setActiveTab] = React.useState<SettingsTabId>("general");
+  React.useEffect(() => {
+    if (openRequest?.target === "style-presets") setActiveTab("format");
+    else if (openRequest) setActiveTab("general");
+  }, [openRequest]);
   const [activeFormatPresetId, setActiveFormatPresetId] = React.useState<
     string | null
   >(null);

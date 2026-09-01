@@ -196,6 +196,7 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
     })
     .strict(),
   z.object({ type: z.literal("openStylePresetManager") }).strict(),
+  z.object({ type: z.literal("openFontManager") }).strict(),
   z
     .object({
       type: z.literal("createStylePreset"),
@@ -208,6 +209,13 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
       type: z.literal("overwriteStylePreset"),
       selectionKey: PanelSelectionKeySchema,
       presetId: z.string().min(1).max(MAX_BLOCK_STYLE_PRESET_ID_LENGTH),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("renameStylePreset"),
+      presetId: z.string().min(1).max(MAX_BLOCK_STYLE_PRESET_ID_LENGTH),
+      name: z.string().trim().min(1).max(MAX_BLOCK_STYLE_PRESET_NAME_LENGTH),
     })
     .strict(),
   z

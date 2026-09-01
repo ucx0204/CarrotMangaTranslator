@@ -329,6 +329,20 @@ describe("block style preset model", () => {
       selectionKey: JSON.stringify(["block-a"]),
       presetId: "style-preset:test",
     });
+    expect(
+      PanelCommandSchema.parse({
+        type: "renameStylePreset",
+        presetId: "style-preset:test",
+        name: "독백",
+      }),
+    ).toEqual({
+      type: "renameStylePreset",
+      presetId: "style-preset:test",
+      name: "독백",
+    });
+    expect(PanelCommandSchema.parse({ type: "openFontManager" })).toEqual({
+      type: "openFontManager",
+    });
   });
 });
 

@@ -19,6 +19,7 @@ export function BlockStylePresetManager({
   activePresetId = null,
   defaults,
   groups = [],
+  managerOpenRequest = 0,
   presets,
   onActivePresetChange = () => undefined,
   onChange,
@@ -27,6 +28,7 @@ export function BlockStylePresetManager({
   activePresetId?: string | null;
   defaults: BlockFormatDefaults;
   groups?: BlockStylePresetGroup[];
+  managerOpenRequest?: number;
   presets: BlockStylePreset[];
   onActivePresetChange?: (presetId: string | null) => void;
   onChange: React.Dispatch<React.SetStateAction<BlockStylePreset[]>>;
@@ -39,6 +41,7 @@ export function BlockStylePresetManager({
     activePresetId,
     defaults,
     groups,
+    managerOpenRequest,
     presets,
     onActivePresetChange,
     onChange,
@@ -79,20 +82,45 @@ export function BlockStylePresetManager({
         <span>{t("stylePresets.manage")}</span>
         <IconChevronRight size={16} aria-hidden="true" />
       </button>
-      {model.managerOpen ? (
-        <PresetManagerScreen
-          defaults={defaults}
-          fontDetails={model.fontDetails}
-          groups={groups}
-          initialSelectedPresetId={activePresetId}
-          presets={presets}
-          onChange={onChange}
-          onClose={() => model.setManagerOpen(false)}
-          onGroupsChange={onGroupsChange}
-          onPresetSelected={onActivePresetChange}
-        />
-      ) : null}
+      <PresetManagerLayer
+        activePresetId={activePresetId}
+        defaults={defaults}
+        groups={groups}
+        model={model}
+        presets={presets}
+        onActivePresetChange={onActivePresetChange}
+        onChange={onChange}
+        onGroupsChange={onGroupsChange}
+      />
     </section>
+  );
+}
+
+function PresetManagerLayer({
+  activePresetId,
+  defaults,
+  groups,
+  model,
+  presets,
+  onActivePresetChange,
+  onChange,
+  onGroupsChange,
+}: Parameters<typeof BlockStylePresetManager>[0] & {
+  model: ReturnType<typeof useBlockStylePresetManagerModel>;
+}): React.JSX.Element | null {
+  if (!model.managerOpen) return null;
+  return (
+    <PresetManagerScreen
+      defaults={defaults}
+      fontDetails={model.fontDetails}
+      groups={groups ?? []}
+      initialSelectedPresetId={activePresetId}
+      presets={presets}
+      onChange={onChange}
+      onClose={() => model.setManagerOpen(false)}
+      onGroupsChange={onGroupsChange ?? (() => undefined)}
+      onPresetSelected={onActivePresetChange}
+    />
   );
 }
 
@@ -100,6 +128,7 @@ function useBlockStylePresetManagerModel({
   activePresetId,
   defaults,
   groups,
+  managerOpenRequest,
   presets,
   onActivePresetChange,
   onChange,
@@ -108,6 +137,7 @@ function useBlockStylePresetManagerModel({
   | "activePresetId"
   | "defaults"
   | "groups"
+  | "managerOpenRequest"
   | "presets"
   | "onActivePresetChange"
   | "onChange"
@@ -129,6 +159,9 @@ function useBlockStylePresetManagerModel({
       ),
     [fontOptions],
   );
+  React.useEffect(() => {
+    if ((managerOpenRequest ?? 0) > 0) setManagerOpen(true);
+  }, [managerOpenRequest]);
   React.useEffect(() => {
     if (expandedGroupId && !groups?.some(({ id }) => id === expandedGroupId)) {
       setExpandedGroupId(null);
@@ -153,7 +186,7 @@ function useBlockStylePresetManagerModel({
     onChange((current) =>
       current.length >= MAX_BLOCK_STYLE_PRESETS
         ? current
-        : [...current, created],
+        : [created, ...current],
     );
     onActivePresetChange?.(created.id);
   };

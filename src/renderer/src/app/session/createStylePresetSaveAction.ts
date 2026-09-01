@@ -1,5 +1,6 @@
 import {
   createBlockStylePreset,
+  MAX_BLOCK_STYLE_PRESET_NAME_LENGTH,
   MAX_BLOCK_STYLE_PRESETS,
 } from "../../../../shared/blockStylePresets";
 import { appI18n } from "../../appI18n";
@@ -7,10 +8,14 @@ import { toast } from "../../lib/toastStore";
 import type { PanelSessionValue } from "../../panels/panelSession";
 import type { AppSessionViewModel } from "./appSessionViewModel";
 
-type StylePresetSaveModel = Pick<
-  AppSessionViewModel,
-  "derivedState" | "settingsDialog" | "statusLog"
->;
+type StylePresetSaveModel = {
+  derivedState: Pick<AppSessionViewModel["derivedState"], "selectedBlock">;
+  settingsDialog: Pick<
+    AppSessionViewModel["settingsDialog"],
+    "settings" | "saveSettingsQuietly"
+  >;
+  statusLog: Pick<AppSessionViewModel["statusLog"], "pushStatus">;
+};
 
 export function createStylePresetSaveAction({
   derivedState,
@@ -31,7 +36,7 @@ export function createStylePresetSaveAction({
     const preset = createBlockStylePreset({ block, ...input });
     const saved = await settingsDialog.saveSettingsQuietly({
       ...settings,
-      blockStylePresets: [...existing, preset],
+      blockStylePresets: [preset, ...existing],
     });
     if (!saved) {
       toast.error(appI18n.t("stylePresets.saveFailed", { ns: "renderer" }));
@@ -40,6 +45,39 @@ export function createStylePresetSaveAction({
     const message = appI18n.t("stylePresets.saved", {
       ns: "renderer",
       name: preset.name,
+    });
+    statusLog.pushStatus(message);
+    toast.success(message);
+    return true;
+  };
+}
+
+export function createStylePresetRenameAction({
+  settingsDialog,
+  statusLog,
+}: StylePresetSaveModel): PanelSessionValue["onRenameStylePreset"] {
+  return async (presetId, requestedName) => {
+    const settings = settingsDialog.settings;
+    const presets = settings?.blockStylePresets ?? [];
+    const preset = presets.find((candidate) => candidate.id === presetId);
+    const name = requestedName
+      .trim()
+      .slice(0, MAX_BLOCK_STYLE_PRESET_NAME_LENGTH);
+    if (!settings || !preset || !name) return false;
+    if (name === preset.name) return true;
+    const saved = await settingsDialog.saveSettingsQuietly({
+      ...settings,
+      blockStylePresets: presets.map((candidate) =>
+        candidate.id === presetId ? { ...candidate, name } : candidate,
+      ),
+    });
+    if (!saved) {
+      toast.error(appI18n.t("stylePresets.saveFailed", { ns: "renderer" }));
+      return false;
+    }
+    const message = appI18n.t("stylePresets.saved", {
+      ns: "renderer",
+      name,
     });
     statusLog.pushStatus(message);
     toast.success(message);

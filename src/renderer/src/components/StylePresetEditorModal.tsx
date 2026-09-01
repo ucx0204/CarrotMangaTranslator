@@ -84,6 +84,73 @@ export function StylePresetEditorModal({
   );
 }
 
+export function StylePresetRenameModal({
+  initialName,
+  onClose,
+  onSave,
+}: {
+  initialName: string;
+  onClose: () => void;
+  onSave: (name: string) => boolean | Promise<boolean>;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const [name, setName] = React.useState(initialName);
+  const [saving, setSaving] = React.useState(false);
+  const normalizedName = name.trim();
+  const save = async (): Promise<void> => {
+    if (!normalizedName || saving) return;
+    setSaving(true);
+    try {
+      if (await onSave(normalizedName)) onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <Modal
+      width="min(420px, 100%)"
+      title={t("stylePresets.renameTitle")}
+      closeDisabled={saving}
+      onClose={onClose}
+      footer={
+        <ModalActionBar
+          actions={
+            <ModalActionButtons
+              cancel={{
+                label: t("common.cancel"),
+                disabled: saving,
+                onClick: onClose,
+              }}
+              confirm={{
+                label: t("common.save"),
+                disabled: !normalizedName || saving,
+                onClick: () => void save(),
+              }}
+            />
+          }
+        />
+      }
+    >
+      <label className="style-preset-rename-field">
+        <span>{t("stylePresets.name")}</span>
+        <input
+          autoFocus
+          maxLength={MAX_BLOCK_STYLE_PRESET_NAME_LENGTH}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          onFocus={(event) => event.currentTarget.select()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              void save();
+            }
+          }}
+        />
+      </label>
+    </Modal>
+  );
+}
+
 function StylePresetEditorFooter({
   saving,
   valid,

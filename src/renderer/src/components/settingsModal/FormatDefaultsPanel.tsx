@@ -31,6 +31,7 @@ import {
 
 export type FormatDefaultsPanelProps = {
   activePresetId?: string | null;
+  presetManagerOpenRequest?: number;
   bubbleLayoutPaddingRatio: number;
   value: BlockFormatDefaults;
   stylePresets?: BlockStylePreset[];
@@ -48,6 +49,7 @@ export type FormatDefaultsPanelProps = {
 
 export function FormatDefaultsPanel({
   activePresetId = null,
+  presetManagerOpenRequest = 0,
   bubbleLayoutPaddingRatio,
   value,
   stylePresets = [],
@@ -77,6 +79,7 @@ export function FormatDefaultsPanel({
         activePresetId={editor.activePreset?.id ?? null}
         defaults={value}
         groups={stylePresetGroups}
+        managerOpenRequest={presetManagerOpenRequest}
         presets={stylePresets}
         onActivePresetChange={onActivePresetChange}
         onChange={onStylePresetsChange}

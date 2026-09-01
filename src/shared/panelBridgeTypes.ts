@@ -108,6 +108,7 @@ export type PanelCommand =
   | { type: "applyStylePreset"; selectionKey: string; presetId: string }
   | { type: "deleteStylePreset"; presetId: string }
   | { type: "openStylePresetManager" }
+  | { type: "openFontManager" }
   | {
       type: "createStylePreset";
       selectionKey: string;
@@ -117,6 +118,11 @@ export type PanelCommand =
       type: "overwriteStylePreset";
       selectionKey: string;
       presetId: string;
+    }
+  | {
+      type: "renameStylePreset";
+      presetId: string;
+      name: string;
     }
   | {
       type: "applyBlockBackgroundOpacity";

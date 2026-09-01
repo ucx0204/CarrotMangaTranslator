@@ -18,6 +18,7 @@ import { createWorkspaceViewProps } from "./createWorkspaceViewProps";
 import { createRightRailProps } from "./createRightRailProps";
 import {
   createStylePresetOverwriteAction,
+  createStylePresetRenameAction,
   createStylePresetSaveAction,
 } from "./createStylePresetSaveAction";
 import { createStylePresetDeleteAction } from "./createStylePresetDeleteAction";
@@ -138,6 +139,7 @@ function createModalsProps({
     importDraft: importShareModal.importDraft,
     importFeedback: importShareModal.importFeedback,
     inpaintingGuideOpen: uiState.inpaintingGuideOpen,
+    fontManagerOpen: uiState.fontManagerOpen,
     jobActive:
       derivedState.jobActive ||
       operationActivity.active ||
@@ -147,6 +149,7 @@ function createModalsProps({
     onDeleteRename: () => void libraryActions.deleteRenameTarget(),
     onOpenLogFolder: bridgeActions.openLogFolder,
     onOpenErrorReport: openManualErrorReport,
+    onCloseFontManager: () => uiState.setFontManagerOpen(false),
     onResetSettings: settingsDialog.resetSettings,
     onResolveConfirm: confirmController.resolveConfirmDialog,
     onSelectTranslationSource: (mode) =>
@@ -165,6 +168,7 @@ function createModalsProps({
     settings: settingsDialog.settings,
     settingsBusy: settingsDialog.settingsBusy,
     settingsOpen: settingsDialog.settingsOpen,
+    settingsOpenRequest: settingsDialog.openRequest,
     shareExportBusy: importShareModal.shareExportBusy,
     shareExportDraft: importShareModal.shareExportDraft,
     shareExportOpen: importShareModal.shareExportOpen,
@@ -198,8 +202,11 @@ function createPanelSessionValue(
     onApplyStylePreset: blockEditingActions.applyStylePreset,
     onCreateStylePreset: createStylePresetSaveAction(model),
     onDeleteStylePreset: createStylePresetDeleteAction(model),
-    onOpenStylePresetManager: () => void settingsDialog.openSettings(),
+    onOpenStylePresetManager: () =>
+      void settingsDialog.openSettings("style-presets"),
+    onOpenFontManager: () => uiState.setFontManagerOpen(true),
     onOverwriteStylePreset: createStylePresetOverwriteAction(model),
+    onRenameStylePreset: createStylePresetRenameAction(model),
     onApplyBlockBackgroundOpacity:
       blockEditingActions.applyBlockBackgroundOpacityToScope,
     onToggleEditorFloat: uiState.toggleEditorFloat,

@@ -24,7 +24,9 @@ type RemotePresetActions = Pick<
   | "onCreateStylePreset"
   | "onDeleteStylePreset"
   | "onOpenStylePresetManager"
+  | "onOpenFontManager"
   | "onOverwriteStylePreset"
+  | "onRenameStylePreset"
 >;
 
 type RemoteBlockActions = Pick<
@@ -137,6 +139,7 @@ function createRemotePresetActions(
     },
     onOpenStylePresetManager: () =>
       dispatchCommand({ type: "openStylePresetManager" }),
+    onOpenFontManager: () => dispatchCommand({ type: "openFontManager" }),
     onOverwriteStylePreset: async (presetId) => {
       if (!selectedBlockId) return false;
       dispatchCommand({
@@ -144,6 +147,10 @@ function createRemotePresetActions(
         selectionKey,
         presetId,
       });
+      return true;
+    },
+    onRenameStylePreset: async (presetId, name) => {
+      dispatchCommand({ type: "renameStylePreset", presetId, name });
       return true;
     },
   };

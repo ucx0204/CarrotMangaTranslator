@@ -1646,12 +1646,19 @@ describe("font-size panel bridge", () => {
     act(() => result.current?.onInsertBlockLibraryEntry(libraryEntry));
     act(() => result.current?.onOpenBlockLibrary());
     act(() => result.current?.onOpenStylePresetManager());
+    act(() => result.current?.onOpenFontManager());
     act(() => result.current?.onSelectTransformMode("curve"));
     act(() => result.current?.onStartAreaTranslate());
     await act(async () => {
       expect(await result.current?.onCreateStylePreset(presetInput)).toBe(true);
       expect(
         await result.current?.onOverwriteStylePreset("style-preset:dialogue"),
+      ).toBe(true);
+      expect(
+        await result.current?.onRenameStylePreset(
+          "style-preset:dialogue",
+          "말풍선",
+        ),
       ).toBe(true);
       expect(
         await result.current?.onDeleteStylePreset("style-preset:dialogue"),
@@ -1718,6 +1725,9 @@ describe("font-size panel bridge", () => {
       type: "openStylePresetManager",
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "openFontManager",
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "selectTransformMode",
       mode: "curve",
     });
@@ -1733,6 +1743,11 @@ describe("font-size panel bridge", () => {
       type: "overwriteStylePreset",
       selectionKey: state.selectionKey,
       presetId: "style-preset:dialogue",
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "renameStylePreset",
+      presetId: "style-preset:dialogue",
+      name: "말풍선",
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "deleteStylePreset",

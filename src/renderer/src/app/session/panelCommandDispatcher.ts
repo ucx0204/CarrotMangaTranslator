@@ -35,6 +35,10 @@ type OverwriteStylePresetCommand = Extract<
   PanelCommand,
   { type: "overwriteStylePreset" }
 >;
+type RenameStylePresetCommand = Extract<
+  PanelCommand,
+  { type: "renameStylePreset" }
+>;
 type SelectionEditCommand =
   | AdjustSelectionFontSizeCommand
   | UpdateSelectionFormatCommand;
@@ -64,9 +68,14 @@ export type PanelCommandTarget = {
   applyStylePreset: (presetId: ApplyStylePresetCommand["presetId"]) => void;
   deleteStylePreset: (presetId: ApplyStylePresetCommand["presetId"]) => void;
   openStylePresetManager: () => void;
+  openFontManager: () => void;
   createStylePreset: (input: CreateStylePresetCommand["input"]) => void;
   overwriteStylePreset: (
     presetId: OverwriteStylePresetCommand["presetId"],
+  ) => void;
+  renameStylePreset: (
+    presetId: RenameStylePresetCommand["presetId"],
+    name: RenameStylePresetCommand["name"],
   ) => void;
   applyBlockBackgroundOpacityToScope: (
     scope: ApplyBackgroundCommand["scope"],
@@ -88,12 +97,8 @@ export function dispatchPanelCommand({
   selectedBlockId: string | null;
   selectionKey: string;
 }): boolean {
-  if (command.type === "openBlockLibrary") {
-    actions.openBlockLibrary();
-    return true;
-  }
-  if (command.type === "openStylePresetManager") {
-    actions.openStylePresetManager();
+  if (isAlwaysAvailablePanelCommand(command)) {
+    dispatchAlwaysAvailablePanelCommand(actions, command);
     return true;
   }
   if (
@@ -113,10 +118,39 @@ export function dispatchPanelCommand({
     actions.createStylePreset(command.input);
   } else if (command.type === "overwriteStylePreset") {
     actions.overwriteStylePreset(command.presetId);
+  } else if (command.type === "renameStylePreset") {
+    actions.renameStylePreset(command.presetId, command.name);
   } else {
     applyPanelCommand(actions, command);
   }
   return true;
+}
+
+type AlwaysAvailablePanelCommand = Extract<
+  PanelCommand,
+  {
+    type: "openBlockLibrary" | "openStylePresetManager" | "openFontManager";
+  }
+>;
+
+function isAlwaysAvailablePanelCommand(
+  command: PanelCommand,
+): command is AlwaysAvailablePanelCommand {
+  return [
+    "openBlockLibrary",
+    "openStylePresetManager",
+    "openFontManager",
+  ].includes(command.type);
+}
+
+function dispatchAlwaysAvailablePanelCommand(
+  actions: PanelCommandTarget,
+  command: AlwaysAvailablePanelCommand,
+): void {
+  if (command.type === "openBlockLibrary") actions.openBlockLibrary();
+  else if (command.type === "openStylePresetManager") {
+    actions.openStylePresetManager();
+  } else actions.openFontManager();
 }
 
 function applyPanelCommand(
@@ -128,6 +162,9 @@ function applyPanelCommand(
     | DeleteStylePresetCommand
     | CreateStylePresetCommand
     | OverwriteStylePresetCommand
+    | RenameStylePresetCommand
+    | Extract<PanelCommand, { type: "openFontManager" }>
+    | Extract<PanelCommand, { type: "openStylePresetManager" }>
     | Extract<PanelCommand, { type: "insertBlockLibraryEntry" }>
   >,
 ): void {

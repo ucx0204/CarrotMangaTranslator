@@ -203,9 +203,18 @@ export function getBlockFontOptions(
   t?: TFunction<"renderer">,
   locale: UiLocale = DEFAULT_UI_LOCALE,
 ): readonly BlockFontOption[] {
-  return orderBlockFontOptions(
+  const ordered = orderBlockFontOptions(
     getBaseBlockFontOptions(catalog, t, locale),
     catalog.preferences,
+  );
+  const hiddenIds = new Set(catalog.preferences.hiddenIds);
+  return freezeBlockFontOptions(
+    ordered.filter(
+      (option) =>
+        option.id === DEFAULT_BLOCK_FONT_ID ||
+        option.id === catalog.preferences.defaultFontId ||
+        !hiddenIds.has(option.id),
+    ),
   );
 }
 

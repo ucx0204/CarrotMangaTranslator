@@ -95,4 +95,23 @@ describe("Select", () => {
     expect(screen.getAllByRole("option")).toHaveLength(1);
     expect(screen.getByRole("option", { name: "작품 12" })).toBeTruthy();
   });
+
+  it("renders optional menu header and footer content", () => {
+    const footerAction = vi.fn();
+    render(
+      <Select
+        ariaLabel="프리셋"
+        value="one"
+        options={[{ value: "one", label: "하나" }]}
+        menuHeader={<strong>프리셋 머리말</strong>}
+        menuFooter={<button onClick={footerAction}>프리셋 관리</button>}
+        onValueChange={() => undefined}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "프리셋" }));
+    expect(screen.getByText("프리셋 머리말")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "프리셋 관리" }));
+    expect(footerAction).toHaveBeenCalledOnce();
+  });
 });

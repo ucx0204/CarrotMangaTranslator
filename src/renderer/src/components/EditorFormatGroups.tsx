@@ -39,6 +39,13 @@ type EditorFormatGroupsProps = {
     input: CreateBlockStylePresetInput,
   ) => boolean | Promise<boolean>;
   onDeleteStylePreset: (presetId: string) => boolean | Promise<boolean>;
+  onOpenStylePresetManager?: () => void;
+  onOpenFontManager?: () => void;
+  onOverwriteStylePreset: (presetId: string) => boolean | Promise<boolean>;
+  onRenameStylePreset: (
+    presetId: string,
+    name: string,
+  ) => boolean | Promise<boolean>;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   selectedBlockCount: number;
   showStylePresets?: boolean;
@@ -59,6 +66,10 @@ export function EditorFormatGroups({
   onApplyStylePreset,
   onCreateStylePreset,
   onDeleteStylePreset,
+  onOpenStylePresetManager,
+  onOpenFontManager,
+  onOverwriteStylePreset,
+  onRenameStylePreset,
   onUpdate,
   selectedBlockCount,
   showStylePresets = true,
@@ -77,6 +88,9 @@ export function EditorFormatGroups({
           onApply={onApplyStylePreset}
           onCreate={onCreateStylePreset}
           onDelete={onDeleteStylePreset}
+          onManage={onOpenStylePresetManager}
+          onOverwrite={onOverwriteStylePreset}
+          onRename={onRenameStylePreset}
         />
       ) : null}
       <FormatEditorGroup
@@ -88,6 +102,7 @@ export function EditorFormatGroups({
         onApplyFormat={onApplyFormat}
         onAdjustFontSize={onAdjustFontSize}
         onFontFamilyDraftChange={setFontFamilyDraft}
+        onOpenFontManager={onOpenFontManager}
         onUpdate={onUpdate}
         selectedBlockCount={selectedBlockCount}
       />

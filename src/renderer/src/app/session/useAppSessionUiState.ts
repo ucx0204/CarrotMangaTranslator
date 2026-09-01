@@ -31,6 +31,7 @@ export function useAppSessionUiState() {
   const [textViewOpen, setTextViewOpen] = useState(false);
   const [textViewTab, setTextViewTab] = useState<GatherTextTab>("overview");
   const [blockLibraryOpen, setBlockLibraryOpen] = useState(false);
+  const [fontManagerOpen, setFontManagerOpen] = useState(false);
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
   const [styleGuideBackgrounded, setStyleGuideBackgrounded] = useState(false);
   const translateModals = useTranslateModalUiState();
@@ -55,6 +56,7 @@ export function useAppSessionUiState() {
   const resetChapterScopedUi = useCallback(() => {
     resetInpaintingUi();
     setBlockLibraryOpen(false);
+    setFontManagerOpen(false);
     setStyleGuideOpen(false);
     setStyleGuideBackgrounded(false);
     setTextViewOpen(false);
@@ -71,6 +73,7 @@ export function useAppSessionUiState() {
     ...inpaintingUi,
     ...jobFlow,
     blockLibraryOpen,
+    fontManagerOpen,
     commandPaletteOpen,
     editorFloating,
     ...editorTextTab,
@@ -79,6 +82,7 @@ export function useAppSessionUiState() {
     resetChapterScopedUi,
     setCommandPaletteOpen,
     setBlockLibraryOpen,
+    setFontManagerOpen,
     setEditorFloating,
     setRightRailMode,
     toggleEditorFloat,

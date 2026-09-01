@@ -79,7 +79,9 @@ export type PanelSessionValue = {
   onCreateStylePreset: (input: CreateBlockStylePresetInput) => Promise<boolean>;
   onDeleteStylePreset: (presetId: string) => Promise<boolean>;
   onOpenStylePresetManager: () => void;
+  onOpenFontManager: () => void;
   onOverwriteStylePreset: (presetId: string) => Promise<boolean>;
+  onRenameStylePreset: (presetId: string, name: string) => Promise<boolean>;
   onApplyBlockBackgroundOpacity: (scope: BlockBackgroundApplyScope) => void;
   onStartAreaTranslate: () => void;
 };

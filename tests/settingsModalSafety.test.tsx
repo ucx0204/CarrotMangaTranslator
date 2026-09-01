@@ -13,6 +13,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import exampleSettings from "../settings.example.json";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { SettingsModal } from "../src/renderer/src/components/SettingsModal";
+import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
+import type { SettingsOpenRequest } from "../src/renderer/src/hooks/useSettingsDialog";
+import {
+  DEFAULT_BLOCK_FONT_CATALOG,
+  getBaseBlockFontOptions,
+  getBlockFontOptions,
+} from "../src/renderer/src/lib/fonts";
 import type { CodexAccountSnapshot } from "../src/shared/codexAccountTypes";
 import {
   GEMMA_26B_MMPROJ_FILE,
@@ -50,6 +57,25 @@ afterEach(() => {
 });
 
 describe("settings draft safety", () => {
+  it("opens the requested preset manager and returns to general settings", () => {
+    renderSettings({
+      openRequest: { revision: 1, target: "style-presets" },
+    });
+
+    expect(screen.getByRole("tab", { name: "기본 서식" })).toHaveProperty(
+      "ariaSelected",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "편집 화면으로" })).toBeTruthy();
+
+    cleanup();
+    renderSettings({ openRequest: { revision: 2, target: "general" } });
+    expect(screen.getByRole("tab", { name: "일반" })).toHaveProperty(
+      "ariaSelected",
+      "true",
+    );
+  });
+
   it("nests translation and internet research inside the single LLM section", () => {
     renderSettings();
 
@@ -337,6 +363,7 @@ describe("settings draft safety", () => {
 
 function renderSettings({
   busy = false,
+  openRequest,
   onCancel = vi.fn(),
   onOpenErrorReport = vi.fn(),
   onOpenLogFolder = vi.fn(),
@@ -345,23 +372,38 @@ function renderSettings({
   settings = initialSettings,
 }: {
   busy?: boolean;
+  openRequest?: SettingsOpenRequest;
   onCancel?: () => void;
   onOpenErrorReport?: () => void;
   onOpenLogFolder?: () => void;
   onReset?: () => Promise<AppSettings | null>;
   onSubmit?: (settings: AppSettings) => void;
   settings?: AppSettings;
-} = {}): void {
-  render(
-    <SettingsModal
-      initialSettings={settings}
-      busy={busy}
-      jobActive={false}
-      onCancel={onCancel}
-      onOpenErrorReport={onOpenErrorReport}
-      onOpenLogFolder={onOpenLogFolder}
-      onReset={onReset}
-      onSubmit={onSubmit}
-    />,
+} = {}): ReturnType<typeof render> {
+  return render(
+    <FontsContext.Provider
+      value={{
+        catalog: DEFAULT_BLOCK_FONT_CATALOG,
+        baseOptions: getBaseBlockFontOptions(DEFAULT_BLOCK_FONT_CATALOG),
+        options: getBlockFontOptions(DEFAULT_BLOCK_FONT_CATALOG),
+        ready: true,
+        busy: false,
+        registerFont: () => Promise.resolve(),
+        removeFont: () => Promise.resolve(),
+        savePreferences: () => Promise.resolve(),
+      }}
+    >
+      <SettingsModal
+        initialSettings={settings}
+        busy={busy}
+        jobActive={false}
+        openRequest={openRequest}
+        onCancel={onCancel}
+        onOpenErrorReport={onOpenErrorReport}
+        onOpenLogFolder={onOpenLogFolder}
+        onReset={onReset}
+        onSubmit={onSubmit}
+      />
+    </FontsContext.Provider>,
   );
 }

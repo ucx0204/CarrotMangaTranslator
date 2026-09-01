@@ -68,7 +68,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: 28px 30px minmax(0, 1fr);
+  grid-template-columns: 28px 30px minmax(0, 1fr) 30px 30px;
   align-items: center;
   gap: 6px;
   min-height: 42px;
@@ -90,7 +90,8 @@
 }
 
 .dragHandle,
-.star {
+.star,
+.rowAction {
   display: grid;
   place-items: center;
   width: 28px;
@@ -113,6 +114,18 @@
 .star {
   font-size: 20px;
   line-height: 1;
+}
+
+.rowAction:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+  color: var(--text-head);
+}
+
+.deleteAction:hover:not(:disabled) {
+  border-color: var(--danger-bd);
+  background: var(--danger-soft);
+  color: var(--danger-text);
 }
 
 .star:hover:not(:disabled),
@@ -161,7 +174,7 @@
   }
 
   .row {
-    grid-template-columns: 28px 30px minmax(0, 1fr);
+    grid-template-columns: 28px 30px minmax(0, 1fr) 30px 30px;
   }
 
   .preview {

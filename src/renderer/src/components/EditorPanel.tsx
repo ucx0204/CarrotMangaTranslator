@@ -50,6 +50,13 @@ type EditorPanelProps = {
     input: CreateBlockStylePresetInput,
   ) => boolean | Promise<boolean>;
   onDeleteStylePreset?: (presetId: string) => boolean | Promise<boolean>;
+  onOpenStylePresetManager?: () => void;
+  onOpenFontManager?: () => void;
+  onOverwriteStylePreset?: (presetId: string) => boolean | Promise<boolean>;
+  onRenameStylePreset?: (
+    presetId: string,
+    name: string,
+  ) => boolean | Promise<boolean>;
   onApplyBlockBackgroundOpacity?: (scope: BlockBackgroundApplyScope) => void;
   onAdjustFontSize: (adjustment: -1 | 1) => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
@@ -170,6 +177,10 @@ function SelectedEditorPanelBody({
         onClearStylePreset={presetSelection.clear}
         onCreateStylePreset={props.onCreateStylePreset ?? NOOP_RESULT}
         onDeleteStylePreset={presetSelection.delete}
+        onOpenStylePresetManager={props.onOpenStylePresetManager}
+        onOpenFontManager={props.onOpenFontManager}
+        onOverwriteStylePreset={props.onOverwriteStylePreset ?? NOOP_RESULT}
+        onRenameStylePreset={props.onRenameStylePreset ?? NOOP_RESULT}
         onEraseOriginal={props.onEraseOriginal}
         onFitBubble={props.onFitBubble}
         onSelectTransformMode={props.onSelectTransformMode}
@@ -292,6 +303,12 @@ type EditorBlockGroupsProps = {
   onClearStylePreset: () => void;
   onCreateStylePreset: NonNullable<EditorPanelProps["onCreateStylePreset"]>;
   onDeleteStylePreset: NonNullable<EditorPanelProps["onDeleteStylePreset"]>;
+  onOpenStylePresetManager?: EditorPanelProps["onOpenStylePresetManager"];
+  onOpenFontManager?: EditorPanelProps["onOpenFontManager"];
+  onOverwriteStylePreset: NonNullable<
+    EditorPanelProps["onOverwriteStylePreset"]
+  >;
+  onRenameStylePreset: NonNullable<EditorPanelProps["onRenameStylePreset"]>;
   onEraseOriginal?: EditorPanelProps["onEraseOriginal"];
   onFitBubble?: EditorPanelProps["onFitBubble"];
   onSelectTransformMode?: EditorPanelProps["onSelectTransformMode"];

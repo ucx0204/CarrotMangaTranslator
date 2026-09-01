@@ -20,6 +20,7 @@ function createTarget(): PanelCommandTarget {
     deleteSelectedBlock: vi.fn(),
     duplicateSelectedBlock: vi.fn(),
     openBlockLibrary: vi.fn(),
+    openFontManager: vi.fn(),
     openStylePresetManager: vi.fn(),
     insertBlockLibraryEntry: vi.fn(),
     eraseBlockOriginal: vi.fn(),
@@ -31,6 +32,7 @@ function createTarget(): PanelCommandTarget {
     updateSelectedBlocks: vi.fn(),
     createStylePreset: vi.fn(),
     overwriteStylePreset: vi.fn(),
+    renameStylePreset: vi.fn(),
   };
 }
 
@@ -103,6 +105,7 @@ describe("panel command dispatch", () => {
       { type: "duplicateBlock", blockId: "current-block" },
       { type: "openBlockLibrary" },
       { type: "openStylePresetManager" },
+      { type: "openFontManager" },
       { type: "eraseBlockOriginal", blockId: "current-block" },
       { type: "fitBlockBubble", blockId: "current-block" },
       { type: "removeBubbleLayout", blockId: "current-block" },
@@ -137,6 +140,11 @@ describe("panel command dispatch", () => {
         selectionKey: currentSelectionKey,
         presetId: "style-preset:dialogue",
       },
+      {
+        type: "renameStylePreset",
+        presetId: "style-preset:dialogue",
+        name: "말풍선",
+      },
     ] satisfies PanelCommand[];
 
     for (const command of commands) {
@@ -159,6 +167,7 @@ describe("panel command dispatch", () => {
     expect(actions.duplicateSelectedBlock).toHaveBeenCalledOnce();
     expect(actions.openBlockLibrary).toHaveBeenCalledOnce();
     expect(actions.openStylePresetManager).toHaveBeenCalledOnce();
+    expect(actions.openFontManager).toHaveBeenCalledOnce();
     expect(actions.eraseBlockOriginal).toHaveBeenCalledWith("current-block");
     expect(actions.fitBlockBubble).toHaveBeenCalledWith("current-block");
     expect(actions.removeSelectedBlockBubbleLayout).toHaveBeenCalledOnce();
@@ -188,6 +197,10 @@ describe("panel command dispatch", () => {
     });
     expect(actions.overwriteStylePreset).toHaveBeenCalledWith(
       "style-preset:dialogue",
+    );
+    expect(actions.renameStylePreset).toHaveBeenCalledWith(
+      "style-preset:dialogue",
+      "말풍선",
     );
   });
 
@@ -282,5 +295,20 @@ describe("panel command dispatch", () => {
       }),
     ).toBe(true);
     expect(actions.openStylePresetManager).toHaveBeenCalledOnce();
+  });
+
+  it("opens the font manager even while editing actions are busy", () => {
+    const actions = createTarget();
+
+    expect(
+      dispatchPanelCommand({
+        actions,
+        busy: true,
+        command: { type: "openFontManager" },
+        selectedBlockId: null,
+        selectionKey: createPanelSelectionKey([]),
+      }),
+    ).toBe(true);
+    expect(actions.openFontManager).toHaveBeenCalledOnce();
   });
 });

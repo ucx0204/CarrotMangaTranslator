@@ -31,7 +31,7 @@ describe("block style preset controls", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("keeps creation inside the same menu when there are no presets", () => {
+  it("keeps creation available as a separate action with no presets", () => {
     render(
       <BlockStylePresetControls
         activePresetId=""
@@ -44,9 +44,15 @@ describe("block style preset controls", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "프리셋 선택" }));
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "프리셋 선택",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
     fireEvent.click(
-      screen.getByRole("menuitem", { name: "현재 서식으로 만들기" }),
+      screen.getByRole("button", { name: "현재 서식으로 만들기" }),
     );
     expect(
       screen.getByRole("dialog", { name: "새 서식 프리셋" }),

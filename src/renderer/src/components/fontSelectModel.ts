@@ -8,6 +8,7 @@ export type FontSelectProps = {
   value: string | undefined;
   ariaLabel?: string;
   disabled?: boolean;
+  onOpenManager?: () => void;
   onChange: (fontFamily: string | undefined) => void;
 };
 
@@ -16,13 +17,10 @@ export type FontOption = FontLibrary["options"][number];
 
 export type FontSelectModel = {
   busy: boolean;
-  customIds: ReadonlySet<string>;
   favoriteIds: ReadonlySet<string>;
   options: readonly FontOption[];
   selected: FontOption;
-  onAddFont: () => void;
   onCommit: (id: string) => void;
-  onRemoveFont: (id: string) => void;
   onToggleFavorite: (id: string) => void;
 };
 
@@ -35,43 +33,33 @@ export function useFontSelectModel({
   value,
   onChange,
 }: FontSelectProps): FontSelectModel {
-  const { catalog, options, registerFont, removeFont, savePreferences, busy } =
-    useFonts();
-  const { customFonts, preferences } = catalog;
-  const customIds = React.useMemo(
-    () => new Set(customFonts.map((font) => font.id)),
-    [customFonts],
-  );
+  const { baseOptions, catalog, options, savePreferences, busy } = useFonts();
+  const { preferences } = catalog;
   const favoriteIds = React.useMemo(
     () => new Set(preferences.favoriteIds),
     [preferences.favoriteIds],
   );
-  const selected = resolveBlockFontOption(value, options);
+  const selected = resolveBlockFontOption(value, baseOptions);
+  const pickerOptions = React.useMemo(
+    () =>
+      options.some((option) => option.id === selected.id)
+        ? options
+        : [selected, ...options],
+    [options, selected],
+  );
 
   const onCommit = React.useCallback(
     (id: string) => onChange(normalizeBlockFontFamily(id, catalog)),
     [catalog, onChange],
   );
-  const onAddFont = React.useCallback(() => {
-    void registerFont();
-  }, [registerFont]);
-  const onRemoveFont = React.useCallback(
-    (id: string) => {
-      void removeFont(id);
-    },
-    [removeFont],
-  );
   const onToggleFavorite = useFavoriteToggle(preferences, savePreferences);
 
   return {
     busy,
-    customIds,
     favoriteIds,
-    onAddFont,
     onCommit,
-    onRemoveFont,
     onToggleFavorite,
-    options,
+    options: pickerOptions,
     selected,
   };
 }
