@@ -152,10 +152,12 @@ describe("UI locale settings form", () => {
       ...initialSettings.ui,
       inpaintingGuideHidden: true,
       blockModeDefault: "keep",
+      wheelZoomSensitivityPercent: 3,
     };
     const values = {
       ...createSettingsFormValues(initialSettings),
       uiLocale: "en" as const,
+      wheelZoomSensitivityPercent: 10,
     };
     const result = buildSettingsFromDraft({
       draft: resolveSettingsDraft(values),
@@ -169,6 +171,7 @@ describe("UI locale settings form", () => {
       locale: "en",
       inpaintingGuideHidden: true,
       blockModeDefault: "keep",
+      wheelZoomSensitivityPercent: 10,
     });
   });
 });

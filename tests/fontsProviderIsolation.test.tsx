@@ -229,6 +229,7 @@ function FontActionsConsumer(): React.JSX.Element {
         onClick={() =>
           void savePreferences({
             defaultFontId: fontId,
+            hiddenIds: [],
             favoriteIds: [],
             orderedIds: [],
           })
@@ -280,6 +281,7 @@ function makeSnapshot(id: string, family: string): FontLibrarySnapshot {
       },
     ],
     preferences: {
+      hiddenIds: [],
       favoriteIds: [],
       orderedIds: [],
       defaultFontId: id,

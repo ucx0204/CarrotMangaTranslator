@@ -13,6 +13,7 @@ import type {
   OcrGpuBackend,
   OcrQualityMode,
   UiLocale,
+  WheelZoomSensitivityPercent,
 } from "../../../shared/settingsTypes";
 import type {
   ResearchGemmaPreset,
@@ -36,6 +37,7 @@ type BuildSettingsFromFormInput = {
   graphicsGpuPreference: GraphicsGpuPreference;
   computeGpuIndex: number | null;
   uiLocale: UiLocale;
+  wheelZoomSensitivityPercent: WheelZoomSensitivityPercent;
   modelProvider: ModelProvider;
   sourceLanguage: string;
   targetLanguage: string;
@@ -143,6 +145,7 @@ export function buildSettingsFromForm(
     ui: {
       ...input.initialSettings.ui,
       locale: input.uiLocale,
+      wheelZoomSensitivityPercent: input.wheelZoomSensitivityPercent,
     },
     inpainting: {
       ...input.initialSettings.inpainting,

@@ -214,6 +214,7 @@ const FontPreferencesSchema = z
   .object({
     favoriteIds: z.array(stringArg).max(500),
     orderedIds: z.array(stringArg).max(500),
+    hiddenIds: z.array(stringArg).max(500),
     defaultFontId: stringArg,
   })
   .strict();

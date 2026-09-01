@@ -12,7 +12,6 @@ import {
   EmptyEditorPanel,
   type EditorTabId,
 } from "./EditorPanelChrome";
-import { readStoredEditorTab, storeEditorTab } from "./editorPanelUtils";
 import { BubbleLayoutOption, TextEditorGroup } from "./EditorPanelSections";
 import { TransformEditorGroup } from "./TransformEditorGroup";
 import type {
@@ -20,6 +19,7 @@ import type {
   CreateBlockStylePresetInput,
 } from "../../../shared/blockStylePresets";
 import { EditorFormatGroups } from "./EditorFormatGroups";
+import { useEditorPanelTab } from "./useEditorPanelTab";
 
 type EditorPanelProps = {
   block: TranslationBlock | null;
@@ -33,6 +33,7 @@ type EditorPanelProps = {
   areaTranslateSelecting?: boolean;
   disableChapterApply?: boolean;
   selectedBlockCount?: number;
+  editorTextTabRequestToken?: number;
   pageSize?: { width: number; height: number } | null;
   transformMode?: TransformEditorMode;
   canCreateStylePreset?: boolean;
@@ -52,6 +53,7 @@ type EditorPanelProps = {
   onApplyBlockBackgroundOpacity?: (scope: BlockBackgroundApplyScope) => void;
   onAdjustFontSize: (adjustment: -1 | 1) => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
+  onUpdateFormat?: (patch: Partial<TranslationBlock>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
   onSaveToLibrary?: () => void;
@@ -86,7 +88,12 @@ function SelectedEditorPanel(
   props: SelectedEditorPanelProps,
 ): React.JSX.Element {
   const resolvedTransformMode = props.transformMode ?? "select";
-  const [activeTab, setActiveTab] = useEditorTab(resolvedTransformMode);
+  const [activeTab, setActiveTab] = useEditorPanelTab(
+    resolvedTransformMode,
+    props.editorTextTabRequestToken ?? 0,
+    props.block.sourceText.trim().length === 0 &&
+      props.block.translatedText.trim().length === 0,
+  );
   const panelIdBase = React.useId();
   const presetSelection = useAppliedStylePreset(props);
 
@@ -167,6 +174,7 @@ function SelectedEditorPanelBody({
         onFitBubble={props.onFitBubble}
         onSelectTransformMode={props.onSelectTransformMode}
         onUpdate={props.onUpdate}
+        onUpdateFormat={props.onUpdateFormat ?? props.onUpdate}
         pageSize={props.pageSize ?? null}
         selectedBlockCount={props.selectedBlockCount ?? 0}
         showStylePresets={props.showStylePresets ?? true}
@@ -288,6 +296,7 @@ type EditorBlockGroupsProps = {
   onFitBubble?: EditorPanelProps["onFitBubble"];
   onSelectTransformMode?: EditorPanelProps["onSelectTransformMode"];
   onUpdate: EditorPanelProps["onUpdate"];
+  onUpdateFormat: EditorPanelProps["onUpdate"];
   pageSize: NonNullable<EditorPanelProps["pageSize"]> | null;
   selectedBlockCount: number;
   showStylePresets: boolean;
@@ -309,6 +318,7 @@ function EditorBlockGroups({
   onClearStylePreset,
   onSelectTransformMode,
   onUpdate,
+  onUpdateFormat,
   pageSize,
   templateMode,
   transformMode,
@@ -348,7 +358,7 @@ function EditorBlockGroups({
           disableChapterApply={disableChapterApply}
           onUpdate={(patch) => {
             onClearStylePreset();
-            onUpdate(patch);
+            onUpdateFormat(patch);
           }}
         />
       </EditorTabPanel>
@@ -384,23 +394,4 @@ function BlockTransformEditor({
       onUpdate={onUpdate}
     />
   );
-}
-
-function useEditorTab(
-  transformMode: TransformEditorMode,
-): [EditorTabId, (tab: EditorTabId) => void] {
-  const [activeTab, setActiveTab] = React.useState<EditorTabId>(() =>
-    transformMode === "select" ? readStoredEditorTab() : "layout",
-  );
-  const previousMode = React.useRef(transformMode);
-  React.useEffect(() => {
-    const shouldRevealLayout =
-      previousMode.current === "select" && transformMode !== "select";
-    previousMode.current = transformMode;
-    if (shouldRevealLayout) setActiveTab("layout");
-  }, [transformMode]);
-  React.useEffect(() => {
-    storeEditorTab(activeTab);
-  }, [activeTab]);
-  return [activeTab, setActiveTab];
 }

@@ -436,6 +436,7 @@ describe("page export BrowserWindow security", () => {
           },
         ],
         readPreferences: () => ({
+          hiddenIds: [],
           favoriteIds: [],
           orderedIds: [],
           defaultFontId: customId,
@@ -950,6 +951,7 @@ function createRenderOptions(rootDir: string): {
       fonts: {
         list: () => [],
         readPreferences: () => ({
+          hiddenIds: [],
           favoriteIds: [],
           orderedIds: [],
           defaultFontId: "default",

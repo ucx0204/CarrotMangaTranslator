@@ -156,11 +156,13 @@ describe("custom font index validation", () => {
     const customFonts = await loadCustomFonts(rootDir);
 
     expect(customFonts.readFontPreferences()).toEqual({
+      hiddenIds: [],
       favoriteIds: ["default", customId],
       orderedIds: [customId, "kalam"],
       defaultFontId: customId,
     });
     customFonts.saveFontPreferences({
+      hiddenIds: ["kalam", "kalam", "missing"],
       favoriteIds: ["kalam", "kalam", "missing"],
       orderedIds: ["default", "kalam", "missing"],
       defaultFontId: "missing",
@@ -169,6 +171,7 @@ describe("custom font index validation", () => {
     expect(
       JSON.parse(await readFile(join(fontsDir, "preferences.json"), "utf8")),
     ).toEqual({
+      hiddenIds: ["kalam"],
       favoriteIds: ["kalam"],
       orderedIds: ["default", "kalam"],
       defaultFontId: "default",
@@ -185,6 +188,7 @@ describe("custom font index validation", () => {
     await writeFile(
       join(fontsDir, "preferences.json"),
       JSON.stringify({
+        hiddenIds: ["gugi", "kalam", "kalam"],
         favoriteIds: ["gugi", "kalam"],
         orderedIds: ["gugi", "kalam"],
         defaultFontId: "gugi",
@@ -194,12 +198,14 @@ describe("custom font index validation", () => {
     const customFonts = await loadCustomFonts(rootDir);
 
     expect(customFonts.readFontPreferences()).toEqual({
+      hiddenIds: ["kalam"],
       favoriteIds: ["kalam"],
       orderedIds: ["kalam"],
       defaultFontId: "default",
     });
 
     customFonts.saveFontPreferences({
+      hiddenIds: ["gugi", "kalam", "kalam"],
       favoriteIds: ["gugi", "kalam"],
       orderedIds: ["gugi", "kalam"],
       defaultFontId: "gugi",
@@ -207,6 +213,7 @@ describe("custom font index validation", () => {
     expect(
       JSON.parse(await readFile(join(fontsDir, "preferences.json"), "utf8")),
     ).toEqual({
+      hiddenIds: ["kalam"],
       favoriteIds: ["kalam"],
       orderedIds: ["kalam"],
       defaultFontId: "default",
@@ -234,6 +241,7 @@ describe("custom font index validation", () => {
     await writeFile(
       join(fontsDir, "preferences.json"),
       JSON.stringify({
+        hiddenIds: [customId],
         favoriteIds: [customId, "default"],
         orderedIds: [customId, "default"],
         defaultFontId: customId,
@@ -244,6 +252,7 @@ describe("custom font index validation", () => {
 
     expect(customFonts.removeCustomFont(customId)).toEqual([]);
     expect(customFonts.readFontPreferences()).toEqual({
+      hiddenIds: [],
       favoriteIds: ["default"],
       orderedIds: ["default"],
       defaultFontId: "default",

@@ -153,7 +153,13 @@ export type UiSettings = {
   eraseOriginalWorkflowDefault?: boolean;
   /** Fit translated text to detected speech balloons after erasing. */
   bubbleLayoutWorkflowDefault?: boolean;
+  /** Workspace wheel zoom applied per conventional physical wheel notch. */
+  wheelZoomSensitivityPercent?: WheelZoomSensitivityPercent;
 };
+
+export const MIN_WHEEL_ZOOM_SENSITIVITY_PERCENT = 1;
+export const MAX_WHEEL_ZOOM_SENSITIVITY_PERCENT = 10;
+export type WheelZoomSensitivityPercent = number;
 
 type InpaintingSettings = {
   model?: InpaintingModel;

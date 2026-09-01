@@ -12,6 +12,7 @@ import type {
   OcrGpuBackend,
   OcrQualityMode,
   UiLocale,
+  WheelZoomSensitivityPercent,
 } from "../../../../shared/settingsTypes";
 import type {
   ResearchGemmaPreset,
@@ -42,6 +43,7 @@ import { inferApiProviderPreset } from "../../../../shared/apiProviderPresets";
 
 export type SettingsFormValues = {
   uiLocale: UiLocale;
+  wheelZoomSensitivityPercent: WheelZoomSensitivityPercent;
   graphicsGpuPreference: GraphicsGpuPreference;
   computeGpuIndex: number | null;
   modelProvider: ModelProvider;
@@ -156,10 +158,15 @@ function resolveGeneralFormValues(
   settings: AppSettings,
 ): Pick<
   SettingsFormValues,
-  "uiLocale" | "modelProvider" | "sourceLanguage" | "targetLanguage"
+  | "uiLocale"
+  | "wheelZoomSensitivityPercent"
+  | "modelProvider"
+  | "sourceLanguage"
+  | "targetLanguage"
 > {
   return {
     uiLocale: normalizeUiLocale(settings.ui?.locale, DEFAULT_UI_LOCALE),
+    wheelZoomSensitivityPercent: settings.ui?.wheelZoomSensitivityPercent ?? 1,
     modelProvider: settings.modelProvider,
     sourceLanguage: normalizeLanguageCode(
       settings.translation?.sourceLanguage,

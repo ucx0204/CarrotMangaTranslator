@@ -1,4 +1,8 @@
-import type { PanelSyncState } from "../../../../shared/panelBridgeTypes";
+import {
+  buildPanelFormatSelection,
+  createPanelSelectionKey,
+  type PanelSyncState,
+} from "../../../../shared/panelBridgeTypes";
 import type { AppSessionViewModel } from "./appSessionViewModel";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 
@@ -22,6 +26,12 @@ export function buildPanelSyncState({
     inpaintingBridge.contextValue.jobActive ||
     uiState.translationFlowActive ||
     workspaceHistory.busy;
+  const selectedIds = resolvePanelSelectedIds(derivedState);
+  const selectedIdSet = new Set(selectedIds);
+  const selectedBlocks =
+    derivedState.selectedPage?.blocks.filter((block) =>
+      selectedIdSet.has(block.id),
+    ) ?? [];
   return {
     areaTranslateAvailable:
       isWorkspaceImageReadyForSelectedPage({
@@ -35,7 +45,10 @@ export function buildPanelSyncState({
       derivedState.selectedPageEditLocked || workspaceHistory.busy,
     blockStylePresets: blockEditingActions.stylePresetSummaries,
     selectedBlock: derivedState.selectedBlock,
-    selectedBlockCount: derivedState.selectedBlockIds.length,
+    selectedBlockCount: selectedIds.length,
+    selectionKey: createPanelSelectionKey(selectedIds),
+    formatSelection: buildPanelFormatSelection(selectedBlocks),
+    editorTextTabRequestToken: uiState.editorTextTabRequestToken,
     transformMode:
       uiState.stageTool === "perspective" ||
       uiState.stageTool === "curve" ||
@@ -49,4 +62,13 @@ export function buildPanelSyncState({
         }
       : null,
   };
+}
+
+function resolvePanelSelectedIds(
+  derivedState: AppSessionViewModel["derivedState"],
+): readonly string[] {
+  if (derivedState.selectedBlockIds.length > 0) {
+    return derivedState.selectedBlockIds;
+  }
+  return derivedState.selectedBlock ? [derivedState.selectedBlock.id] : [];
 }

@@ -42,6 +42,7 @@ export type CustomFont = {
 export type FontPreferences = {
   favoriteIds: string[];
   orderedIds: string[];
+  hiddenIds: string[];
   defaultFontId: string;
 };
 

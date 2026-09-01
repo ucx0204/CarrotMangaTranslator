@@ -329,6 +329,7 @@ function renderModal(selection: GatherTextFormatSelection) {
       value={{
         busy: false,
         catalog: createBlockFontCatalog([], {
+          hiddenIds: [],
           favoriteIds: [],
           orderedIds: [],
           defaultFontId: "nanum-gothic",

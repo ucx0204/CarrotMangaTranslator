@@ -1,5 +1,6 @@
 import type { JobState } from "../../../shared/jobTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
+import type { WheelZoomSensitivityPercent } from "../../../shared/settingsTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import type { RetouchTool, WorkspaceTool } from "../lib/stageTool";
 import type {
@@ -14,6 +15,7 @@ export type AppWorkspaceProps = {
   workspaceZoomControllerRef: React.RefObject<WorkspaceZoomController | null>;
   workspaceFitMode: WorkspaceFitMode;
   workspaceZoom: number;
+  wheelZoomSensitivityPercent: WheelZoomSensitivityPercent;
   selectedPage: MangaPage | null;
   selectedPageImageDataUrl: string;
   selectedPageImageLoading?: boolean;

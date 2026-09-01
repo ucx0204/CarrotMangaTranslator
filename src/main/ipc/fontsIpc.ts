@@ -18,7 +18,10 @@ import {
   rememberRecentDialogFile,
 } from "../recentDialogPaths";
 import type { IpcContext } from "./context";
-import { trustedHandleContract } from "./trustedIpc";
+import {
+  registeredRendererHandleContract,
+  trustedHandleContract,
+} from "./trustedIpc";
 import { tMain } from "./localization";
 
 export type FontRegistrationService = {
@@ -35,10 +38,11 @@ export function registerFontsIpc(
   context: IpcContext,
   registrationService: FontRegistrationService = productionFontRegistrationService,
 ): void {
-  trustedHandleContract(
+  registeredRendererHandleContract(
     context,
     fontIpcContracts.getFontLibrary,
-    async (): Promise<FontLibrarySnapshot> => getFontLibrarySnapshot(),
+    async (): Promise<FontLibrarySnapshot> =>
+      registrationService.getFontLibrarySnapshot(),
   );
 
   trustedHandleContract(

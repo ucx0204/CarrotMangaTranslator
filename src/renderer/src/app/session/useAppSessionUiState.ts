@@ -36,6 +36,7 @@ export function useAppSessionUiState() {
   const translateModals = useTranslateModalUiState();
   const jobFlow = useJobFlowState();
   const [editorFloating, setEditorFloating] = useState(false);
+  const editorTextTab = useEditorTextTabRequest();
   const [rightRailMode, setRightRailMode] =
     useState<RightRailMode>("page-blocks");
   const [stageToolbarHidden, setStageToolbarHidden] = useState(false);
@@ -72,6 +73,7 @@ export function useAppSessionUiState() {
     blockLibraryOpen,
     commandPaletteOpen,
     editorFloating,
+    ...editorTextTab,
     rightRailMode,
     openTextView,
     resetChapterScopedUi,
@@ -97,6 +99,14 @@ export function useAppSessionUiState() {
     textViewOpen,
     textViewTab,
   };
+}
+
+function useEditorTextTabRequest() {
+  const [editorTextTabRequestToken, setToken] = useState(0);
+  const requestEditorTextTab = useCallback(() => {
+    setToken((current) => current + 1);
+  }, []);
+  return { editorTextTabRequestToken, requestEditorTextTab };
 }
 
 function useJobFlowState() {

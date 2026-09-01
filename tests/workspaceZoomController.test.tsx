@@ -22,11 +22,16 @@ afterEach(() => {
 });
 
 describe("workspace zoom controller", () => {
-  it("maps one physical wheel notch to one real 1% zoom change", () => {
+  it("maps a physical wheel notch to the configured 1% through 10% change", () => {
     expect(resolveWheelZoomRatio(1)).toBeGreaterThan(1);
     expect(resolveWheelZoomRatio(1)).toBeLessThan(1.001);
     expect(resolveWheelZoomRatio(100)).toBeCloseTo(1.01, 6);
     expect(resolveWheelZoomRatio(200)).toBeCloseTo(1.01 ** 2, 6);
+    expect(resolveWheelZoomRatio(100, 5)).toBeCloseTo(1.05, 6);
+    expect(resolveWheelZoomRatio(100, 10)).toBeCloseTo(1.1, 6);
+    expect(resolveWheelZoomRatio(100, 0)).toBeCloseTo(1.01, 6);
+    expect(resolveWheelZoomRatio(100, 11)).toBeCloseTo(1.01, 6);
+    expect(resolveWheelZoomRatio(100, 2.5)).toBeCloseTo(1.01, 6);
     expect(resolveWheelZoomRatio(Number.NaN)).toBe(1);
   });
 

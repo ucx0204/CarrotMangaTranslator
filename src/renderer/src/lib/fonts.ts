@@ -19,6 +19,7 @@ export type BlockFontOption = Readonly<{
 type ReadonlyFontPreferences = Readonly<{
   favoriteIds: readonly string[];
   orderedIds: readonly string[];
+  hiddenIds: readonly string[];
   defaultFontId: string;
 }>;
 
@@ -43,6 +44,7 @@ const DEFAULT_BLOCK_FONT_OPTION: BlockFontOption = Object.freeze({
 const DEFAULT_FONT_PREFERENCES: ReadonlyFontPreferences = Object.freeze({
   favoriteIds: Object.freeze([]),
   orderedIds: Object.freeze([]),
+  hiddenIds: Object.freeze([]),
   defaultFontId: DEFAULT_BLOCK_FONT_ID,
 });
 
@@ -215,6 +217,7 @@ function normalizeFontPreferencesForOptions(
   return {
     favoriteIds: normalizeKnownIds(preferences.favoriteIds, knownIds),
     orderedIds: normalizeKnownIds(preferences.orderedIds, knownIds),
+    hiddenIds: normalizeKnownIds(preferences.hiddenIds, knownIds),
     defaultFontId: knownIds.has(preferences.defaultFontId)
       ? preferences.defaultFontId
       : DEFAULT_BLOCK_FONT_ID,
@@ -327,6 +330,7 @@ function freezeFontPreferences(
   return Object.freeze({
     favoriteIds: Object.freeze([...preferences.favoriteIds]),
     orderedIds: Object.freeze([...preferences.orderedIds]),
+    hiddenIds: Object.freeze([...preferences.hiddenIds]),
     defaultFontId: preferences.defaultFontId,
   });
 }

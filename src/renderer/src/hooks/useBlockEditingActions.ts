@@ -10,7 +10,10 @@ import {
   resolveFormatApplyStatus,
   type FormatApplyScope,
 } from "./blockEditingStatus";
-import { useAdjustSelectedBlockFontSizeAction } from "./useAdjustSelectedBlockFontSizeAction";
+import {
+  useAdjustSelectedBlockFontSizeAction,
+  useAdjustSelectedBlocksFontSizeAction,
+} from "./useAdjustSelectedBlockFontSizeAction";
 import { useUpdateBlockAction } from "./useUpdateSelectedBlockAction";
 import { useApplyBlockBackgroundOpacityAction } from "./useApplyBlockBackgroundOpacityAction";
 import { useNudgeSelectedBlocksAction } from "./useNudgeSelectedBlocksAction";
@@ -39,6 +42,8 @@ export function useBlockEditingActions(
 ): BlockEditingActions {
   const adjustSelectedBlockFontSize =
     useAdjustSelectedBlockFontSizeAction(options);
+  const adjustSelectedBlocksFontSize =
+    useAdjustSelectedBlocksFontSizeAction(options);
   const updateBlock = useUpdateBlockAction(options);
   const updateSelectedBlock = useCallback(
     (patch: Partial<TranslationBlock>) => {
@@ -75,6 +80,7 @@ export function useBlockEditingActions(
 
   return {
     adjustSelectedBlockFontSize,
+    adjustSelectedBlocksFontSize,
     applyBlockBackgroundOpacityToScope,
     applyFormatToScope,
     applyStylePreset,

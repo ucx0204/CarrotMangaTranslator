@@ -714,6 +714,7 @@ function makeWorkspaceProps({
     workspaceZoomControllerRef: React.createRef(),
     workspaceFitMode: "contain",
     workspaceZoom: 1,
+    wheelZoomSensitivityPercent: 1,
   };
 }
 

@@ -124,7 +124,10 @@ function buildGeneralPanelProps(
   return {
     disabled: controlsBusy,
     locale: form.values.uiLocale,
+    wheelZoomSensitivityPercent: form.values.wheelZoomSensitivityPercent,
     onLocaleChange: form.setters.setUiLocale,
+    onWheelZoomSensitivityPercentChange:
+      form.setters.setWheelZoomSensitivityPercent,
   };
 }
 

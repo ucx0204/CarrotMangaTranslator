@@ -16,11 +16,15 @@ import { createPanelBlockActions } from "./createPanelBlockActions";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 import { createWorkspaceViewProps } from "./createWorkspaceViewProps";
 import { createRightRailProps } from "./createRightRailProps";
-import { createStylePresetSaveAction } from "./createStylePresetSaveAction";
+import {
+  createStylePresetOverwriteAction,
+  createStylePresetSaveAction,
+} from "./createStylePresetSaveAction";
 import { createStylePresetDeleteAction } from "./createStylePresetDeleteAction";
 import { createOriginalImageOpacityProps } from "./createOriginalImageOpacityProps";
 import { openManualErrorReport } from "../../lib/errorReportStore";
 import { createModalCloseActions } from "./createModalCloseActions";
+import { pickPanelFormatPatch } from "../../../../shared/panelBridgeTypes";
 
 export function createAppSessionViewProps(model: AppSessionViewModel) {
   return {
@@ -189,11 +193,13 @@ function createPanelSessionValue(
     editorPoppedOut: panelBridge.openPanelIds.includes("editor"),
     canCreateStylePreset: Boolean(settingsDialog.settings),
     showDetachControls: true,
-    onAdjustFontSize: blockEditingActions.adjustSelectedBlockFontSize,
+    onAdjustFontSize: blockEditingActions.adjustSelectedBlocksFontSize,
     onApplyFormat: blockEditingActions.applyFormatToScope,
     onApplyStylePreset: blockEditingActions.applyStylePreset,
     onCreateStylePreset: createStylePresetSaveAction(model),
     onDeleteStylePreset: createStylePresetDeleteAction(model),
+    onOpenStylePresetManager: () => void settingsDialog.openSettings(),
+    onOverwriteStylePreset: createStylePresetOverwriteAction(model),
     onApplyBlockBackgroundOpacity:
       blockEditingActions.applyBlockBackgroundOpacityToScope,
     onToggleEditorFloat: uiState.toggleEditorFloat,
@@ -210,6 +216,8 @@ function createPanelSessionValue(
     },
     onStartAreaTranslate: pointerHandlers.startRegionTranslationSelection,
     onUpdateBlock: blockEditingActions.updateSelectedBlock,
+    onUpdateFormat: (patch) =>
+      blockEditingActions.updateSelectedBlocks(pickPanelFormatPatch(patch)),
   };
 }
 
@@ -322,6 +330,8 @@ function createWorkspaceProps({
 }: AppSessionViewModel): AppSessionViewProps["workspaceProps"] {
   return {
     ...createWorkspaceViewProps(uiState),
+    wheelZoomSensitivityPercent:
+      settingsDialog.settings?.ui?.wheelZoomSensitivityPercent ?? 1,
     interactionPreviewStore: pointerHandlers.interactionPreviewStore,
     imageRef: core.imageRef,
     brushColor: uiState.inpaintingPaintColor,

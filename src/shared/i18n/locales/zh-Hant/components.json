@@ -1409,7 +1409,12 @@
     },
     "general": {
       "language": "應用程式語言",
-      "languageDescription": "變更整個應用程式使用的介面語言。"
+      "languageDescription": "變更整個應用程式使用的介面語言。",
+      "wheelZoom": {
+        "title": "滾輪縮放",
+        "description": "設定滑鼠滾輪每一格的縮放幅度。數值越低，調整越精細。",
+        "label": "滾輪縮放靈敏度"
+      }
     },
     "results": {
       "description": "依作品與章節設定結果自動儲存。",

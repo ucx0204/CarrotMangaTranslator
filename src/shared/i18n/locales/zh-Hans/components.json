@@ -1409,7 +1409,12 @@
     },
     "general": {
       "language": "应用语言",
-      "languageDescription": "更改整个应用使用的界面语言。"
+      "languageDescription": "更改整个应用使用的界面语言。",
+      "wheelZoom": {
+        "title": "滚轮缩放",
+        "description": "设置鼠标滚轮每一格的缩放幅度。数值越低，调节越精细。",
+        "label": "滚轮缩放灵敏度"
+      }
     },
     "results": {
       "description": "按作品和章节设置结果自动保存。",

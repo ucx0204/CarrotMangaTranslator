@@ -141,6 +141,7 @@ function createTestHtmlSource() {
       readPreferences: () => ({
         defaultFontId: "default",
         favoriteIds: [],
+        hiddenIds: [],
         orderedIds: [],
       }),
       resolveFilePath: () => null,
@@ -275,6 +276,7 @@ function buildPanelHtml(input) {
       preferences: {
         defaultFontId: "default",
         favoriteIds: [],
+        hiddenIds: [],
         orderedIds: [],
       },
     },

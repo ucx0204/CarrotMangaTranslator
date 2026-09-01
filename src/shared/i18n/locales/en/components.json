@@ -1428,7 +1428,12 @@
     },
     "general": {
       "language": "Application language",
-      "languageDescription": "Changes the language used throughout the app."
+      "languageDescription": "Changes the language used throughout the app.",
+      "wheelZoom": {
+        "title": "Wheel zoom",
+        "description": "Sets the zoom change for one mouse-wheel notch. Lower values give finer control.",
+        "label": "Wheel zoom sensitivity"
+      }
     },
     "results": {
       "description": "Set automatic result saving by work and chapter.",

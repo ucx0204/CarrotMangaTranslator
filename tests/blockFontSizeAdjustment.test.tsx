@@ -18,6 +18,7 @@ import {
   openCustomSelect,
 } from "./testUtils/customSelect";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
+import type { BlockLibraryEntryV1 } from "../src/shared/blockLibrary";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { PanelCommandSchema } from "../src/shared/panelBridgeSchemas";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
@@ -25,7 +26,10 @@ import { EditorPanel } from "../src/renderer/src/components/EditorPanel";
 import { useBlockEditingActions } from "../src/renderer/src/hooks/useBlockEditingActions";
 import { applyBackgroundOpacity } from "../src/renderer/src/hooks/useApplyBlockBackgroundOpacityAction";
 import type { UpdateCurrentChapter } from "../src/renderer/src/hooks/useCurrentChapterUpdater";
-import { adjustBlockFontSizeInChapter } from "../src/renderer/src/lib/blockFontSizeAdjustment";
+import {
+  adjustBlockFontSizeInChapter,
+  adjustBlocksFontSizeInChapter,
+} from "../src/renderer/src/lib/blockFontSizeAdjustment";
 import { resolveBlockTextLayout } from "../src/renderer/src/lib/overlayLayout";
 import { useRemotePanelSession } from "../src/renderer/src/panels/useRemotePanelSession";
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
@@ -46,6 +50,49 @@ afterEach(() => {
 });
 
 describe("selected block font-size adjustment", () => {
+  it("keeps text edits on the active block and applies format patches to the exact selection", () => {
+    let chapter = makeChapter([
+      makeBlock({ id: "active", translatedText: "첫째", bold: false }),
+      makeBlock({ id: "also-selected", translatedText: "둘째", bold: false }),
+      makeBlock({ id: "unselected", translatedText: "셋째", bold: false }),
+    ]);
+    const page = chapter.pages[0] as MangaPage;
+    const active = page.blocks[0] as TranslationBlock;
+    const updateCurrentChapter = vi.fn<UpdateCurrentChapter>(
+      (_pageId, updater) => {
+        chapter = updater(chapter);
+      },
+    );
+    const { result } = renderHook(
+      () =>
+        useBlockEditingActions({
+          currentChapter: chapter,
+          jobActive: false,
+          pushStatus: vi.fn(),
+          selectedBlock: active,
+          selectedBlockIds: ["active", "also-selected"],
+          selectedPage: page,
+          selectedPageEditLocked: false,
+          setSelectedBlockId: vi.fn(),
+          setSelectedBlockIds: vi.fn(),
+          updateCurrentChapter,
+        }),
+      { wrapper: FontsTestProvider },
+    );
+
+    act(() => result.current.updateSelectedBlock({ translatedText: "수정" }));
+    expect(
+      chapter.pages[0]?.blocks.map((block) => block.translatedText),
+    ).toEqual(["수정", "둘째", "셋째"]);
+
+    act(() => result.current.updateSelectedBlocks({ bold: true }));
+    expect(chapter.pages[0]?.blocks.map((block) => block.bold)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+  });
+
   it("adjusts only the active manual-size block by half a pixel", () => {
     const chapter = makeChapter([
       makeBlock({ id: "active", fontSizePx: 24, autoFitText: false }),
@@ -62,6 +109,27 @@ describe("selected block font-size adjustment", () => {
 
     expect(next.pages[0]?.blocks[0]?.fontSizePx).toBe(24.5);
     expect(next.pages[0]?.blocks[1]?.fontSizePx).toBe(40);
+  });
+
+  it("adjusts every selected block in one immutable chapter update", () => {
+    const chapter = makeChapter([
+      makeBlock({ id: "first", fontSizePx: 24, autoFitText: false }),
+      makeBlock({ id: "second", fontSizePx: 40, autoFitText: false }),
+      makeBlock({ id: "unselected", fontSizePx: 60, autoFitText: false }),
+    ]);
+
+    const next = adjustBlocksFontSizeInChapter(
+      chapter,
+      "page-1",
+      ["second", "first", "first"],
+      1,
+      DEFAULT_BLOCK_FONT_CATALOG,
+    );
+
+    expect(next).not.toBe(chapter);
+    expect(next.pages[0]?.blocks.map((block) => block.fontSizePx)).toEqual([
+      24.5, 40.5, 60,
+    ]);
   });
 
   it("uses the visually resolved auto-fit size at natural page scale", () => {
@@ -322,6 +390,7 @@ describe("selected block font-size adjustment", () => {
 
   it("keeps text and OCR visible and preserves drafts across tabs", () => {
     const onUpdate = vi.fn();
+    const onUpdateFormat = vi.fn();
     const { container } = render(
       <FontsTestProvider>
         <EditorPanel
@@ -334,6 +403,7 @@ describe("selected block font-size adjustment", () => {
           onDelete={vi.fn()}
           onDuplicate={vi.fn()}
           onUpdate={onUpdate}
+          onUpdateFormat={onUpdateFormat}
         />
       </FontsTestProvider>,
     );
@@ -347,6 +417,7 @@ describe("selected block font-size adjustment", () => {
     translation.textContent = "작성 중 번역";
     fireEvent.input(translation);
     expect(onUpdate).toHaveBeenCalledWith({ translatedText: "작성 중 번역" });
+    expect(onUpdateFormat).not.toHaveBeenCalled();
 
     const source = screen.getByRole("textbox", {
       name: "OCR",
@@ -364,11 +435,18 @@ describe("selected block font-size adjustment", () => {
     ).not.toBeNull();
     fireEvent.change(source, { target: { value: "수정한 OCR" } });
     expect(onUpdate).toHaveBeenCalledWith({ sourceText: "수정한 OCR" });
+    expect(onUpdateFormat).not.toHaveBeenCalled();
+
+    selectEditorTab("배치");
+    fireEvent.change(screen.getByRole("slider", { name: "회전 슬라이더" }), {
+      target: { value: "15" },
+    });
+    expect(onUpdate).toHaveBeenLastCalledWith({ rotationDeg: 15 });
+    expect(onUpdateFormat).not.toHaveBeenCalled();
 
     selectEditorTab("서식");
-    expect(
-      screen.getByRole("button", { name: "블록 전체 굵게" }),
-    ).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "블록 전체 굵게" }));
+    expect(onUpdateFormat).toHaveBeenCalledWith({ bold: true });
     selectEditorTab("텍스트");
     expect(screen.getByRole("textbox", { name: "번역문" }).textContent).toBe(
       "작성 중 번역",
@@ -894,6 +972,64 @@ describe("selected block font-size adjustment", () => {
     ).toBe("true");
   });
 
+  it("returns to the text tab when a new-block request token changes", () => {
+    const props = {
+      block: makeBlock(),
+      disabled: false,
+      onAdjustFontSize: vi.fn(),
+      onDelete: vi.fn(),
+      onDuplicate: vi.fn(),
+      onUpdate: vi.fn(),
+    };
+    const view = render(
+      <FontsTestProvider>
+        <EditorPanel {...props} editorTextTabRequestToken={0} />
+      </FontsTestProvider>,
+    );
+    selectEditorTab("서식");
+
+    view.rerender(
+      <FontsTestProvider>
+        <EditorPanel {...props} editorTextTabRequestToken={1} />
+      </FontsTestProvider>,
+    );
+
+    expect(
+      screen.getByRole("tab", { name: "텍스트" }).getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("opens a newly mounted blank manual block on the text tab", () => {
+    const props = {
+      disabled: false,
+      onAdjustFontSize: vi.fn(),
+      onDelete: vi.fn(),
+      onDuplicate: vi.fn(),
+      onUpdate: vi.fn(),
+    };
+    const previous = render(
+      <FontsTestProvider>
+        <EditorPanel {...props} block={makeBlock()} />
+      </FontsTestProvider>,
+    );
+    selectEditorTab("서식");
+    previous.unmount();
+
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          {...props}
+          block={makeBlock({ sourceText: "", translatedText: "" })}
+          editorTextTabRequestToken={1}
+        />
+      </FontsTestProvider>,
+    );
+
+    expect(
+      screen.getByRole("tab", { name: "텍스트" }).getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
   it("keeps the editor header outside the scrolling tab body", () => {
     const view = render(
       <FontsTestProvider>
@@ -1407,9 +1543,17 @@ describe("font-size panel bridge", () => {
     { type: "eraseBlockOriginal" },
     { type: "fitBlockBubble" },
     { type: "removeBubbleLayout" },
-    { type: "applyStylePreset", presetId: "style-preset:dialogue" },
   ])("requires a block id for $type commands", (command) => {
     expect(() => PanelCommandSchema.parse(command)).toThrow();
+  });
+
+  it("requires a selection key for multi-block style preset application", () => {
+    expect(() =>
+      PanelCommandSchema.parse({
+        type: "applyStylePreset",
+        presetId: "style-preset:dialogue",
+      }),
+    ).toThrow();
   });
 
   it("accepts page/chapter background opacity commands but rejects selection", () => {
@@ -1430,6 +1574,32 @@ describe("font-size panel bridge", () => {
   it("relays the relative action from a remote editor panel", async () => {
     const sendPanelCommand = vi.fn().mockResolvedValue({ sent: true });
     const block = makeBlock({ autoFitText: false, fontSizePx: 24 });
+    const presetInput = {
+      name: "대사",
+      pinned: false,
+      groupIds: ["font" as const],
+    };
+    const libraryEntry: BlockLibraryEntryV1 = {
+      schemaVersion: 1,
+      id: "library-entry",
+      name: "효과음",
+      createdAt: "2026-08-31T00:00:00.000Z",
+      updatedAt: "2026-08-31T00:00:00.000Z",
+      lastUsedAt: "2026-08-31T00:00:00.000Z",
+      block: {
+        sourceText: "ドン",
+        translatedText: "쾅",
+        sourceDirection: "horizontal",
+        renderDirection: "horizontal",
+        fontSizePx: 48,
+        lineHeight: 1.2,
+        textAlign: "center",
+        textColor: "#111111",
+        backgroundColor: "#ffffff",
+        opacity: 1,
+        size: { w: 240, h: 180 },
+      },
+    };
     const state = {
       areaTranslateAvailable: false,
       areaTranslateSelecting: false,
@@ -1443,6 +1613,9 @@ describe("font-size panel bridge", () => {
       ],
       disableChapterApply: false,
       editorDisabled: false,
+      editorTextTabRequestToken: 0,
+      formatSelection: { common: {}, mixedFields: [] },
+      selectionKey: JSON.stringify([block.id]),
       selectedBlock: block,
       selectedBlockCount: 1,
       selectedPageSize: { width: 1200, height: 1600 },
@@ -1461,18 +1634,33 @@ describe("font-size panel bridge", () => {
     await waitFor(() => expect(result.current).not.toBeNull());
     act(() => result.current?.onAdjustFontSize(1));
     act(() => result.current?.onUpdateBlock({ translatedText: "수정" }));
+    act(() => result.current?.onUpdateFormat({ textColor: "#123456" }));
     act(() => result.current?.onDeleteBlock());
     act(() => result.current?.onDuplicateBlock());
     act(() => result.current?.onEraseBlockOriginal());
     act(() => result.current?.onFitBlockBubble());
     act(() => result.current?.onRemoveBubbleLayout());
     act(() => result.current?.onApplyStylePreset("style-preset:dialogue"));
+    act(() => result.current?.onApplyFormat("page", ["font"]));
     act(() => result.current?.onApplyBlockBackgroundOpacity("chapter"));
+    act(() => result.current?.onInsertBlockLibraryEntry(libraryEntry));
     act(() => result.current?.onOpenBlockLibrary());
+    act(() => result.current?.onOpenStylePresetManager());
+    act(() => result.current?.onSelectTransformMode("curve"));
+    act(() => result.current?.onStartAreaTranslate());
+    await act(async () => {
+      expect(await result.current?.onCreateStylePreset(presetInput)).toBe(true);
+      expect(
+        await result.current?.onOverwriteStylePreset("style-preset:dialogue"),
+      ).toBe(true);
+      expect(
+        await result.current?.onDeleteStylePreset("style-preset:dialogue"),
+      ).toBe(true);
+    });
 
     expect(sendPanelCommand).toHaveBeenCalledWith({
-      type: "adjustFontSize",
-      blockId: block.id,
+      type: "adjustSelectionFontSize",
+      selectionKey: state.selectionKey,
       adjustment: 1,
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({
@@ -1481,9 +1669,19 @@ describe("font-size panel bridge", () => {
       patch: { translatedText: "수정" },
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "updateSelectionFormat",
+      selectionKey: state.selectionKey,
+      patch: { textColor: "#123456" },
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "applyStylePreset",
-      blockId: block.id,
+      selectionKey: state.selectionKey,
       presetId: "style-preset:dialogue",
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "applyFormat",
+      scope: "page",
+      groupIds: ["font"],
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "deleteBlock",
@@ -1510,8 +1708,91 @@ describe("font-size panel bridge", () => {
       scope: "chapter",
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "insertBlockLibraryEntry",
+      entry: libraryEntry,
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "openBlockLibrary",
     });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "openStylePresetManager",
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "selectTransformMode",
+      mode: "curve",
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "startAreaTranslate",
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "createStylePreset",
+      selectionKey: state.selectionKey,
+      input: presetInput,
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "overwriteStylePreset",
+      selectionKey: state.selectionKey,
+      presetId: "style-preset:dialogue",
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "deleteStylePreset",
+      presetId: "style-preset:dialogue",
+    });
+  });
+
+  it("does not dispatch block-bound remote actions without a selection", async () => {
+    const sendPanelCommand = vi.fn().mockResolvedValue({ sent: true });
+    const state = {
+      areaTranslateAvailable: false,
+      areaTranslateSelecting: false,
+      blockStylePresets: [],
+      disableChapterApply: false,
+      editorDisabled: false,
+      editorTextTabRequestToken: 0,
+      formatSelection: { common: {}, mixedFields: [] },
+      selectionKey: "[]",
+      selectedBlock: null,
+      selectedBlockCount: 0,
+      selectedPageSize: { width: 1200, height: 1600 },
+      transformMode: "select" as const,
+    };
+    Object.defineProperty(window, "mangaApi", {
+      configurable: true,
+      value: createTestMangaGatewayStub({
+        getPanelState: async () => state,
+        onPanelState: () => vi.fn(),
+        sendPanelCommand,
+      }),
+    });
+
+    const { result } = renderHook(() => useRemotePanelSession());
+    await waitFor(() => expect(result.current).not.toBeNull());
+    expect(result.current?.canCreateStylePreset).toBe(false);
+    await act(async () => {
+      expect(
+        await result.current?.onCreateStylePreset({
+          name: "선택 없음",
+          pinned: false,
+          groupIds: ["font"],
+        }),
+      ).toBe(false);
+      expect(
+        await result.current?.onOverwriteStylePreset("style-preset:dialogue"),
+      ).toBe(false);
+    });
+    act(() => {
+      result.current?.onAdjustFontSize(1);
+      result.current?.onUpdateBlock({ translatedText: "무시" });
+      result.current?.onUpdateFormat({ bold: true });
+      result.current?.onDeleteBlock();
+      result.current?.onDuplicateBlock();
+      result.current?.onEraseBlockOriginal();
+      result.current?.onFitBlockBubble();
+      result.current?.onRemoveBubbleLayout();
+      result.current?.onApplyStylePreset("style-preset:dialogue");
+    });
+
+    expect(sendPanelCommand).not.toHaveBeenCalled();
   });
 });
 

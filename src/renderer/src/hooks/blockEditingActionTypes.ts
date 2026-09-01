@@ -31,6 +31,7 @@ export type UseBlockEditingActionsOptions = {
 export type BlockEditingActions = {
   insertBlockLibraryEntry: (entry: BlockLibraryEntryV1) => void;
   adjustSelectedBlockFontSize: (adjustment: FontSizeAdjustment) => void;
+  adjustSelectedBlocksFontSize: (adjustment: FontSizeAdjustment) => void;
   applyBlockBackgroundOpacityToScope: (
     scope: BlockBackgroundApplyScope,
   ) => void;

@@ -62,6 +62,7 @@ function makeDocument(outputSize: { width: number; height: number }) {
       customFonts: [],
       preferences: {
         defaultFontId: "default",
+        hiddenIds: [],
         favoriteIds: [],
         orderedIds: [],
       },

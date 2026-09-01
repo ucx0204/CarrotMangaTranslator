@@ -1422,7 +1422,12 @@
     },
     "general": {
       "language": "アプリの言語",
-      "languageDescription": "アプリ全体で使用する表示言語を変更します。"
+      "languageDescription": "アプリ全体で使用する表示言語を変更します。",
+      "wheelZoom": {
+        "title": "ホイールズーム",
+        "description": "マウスホイール1段あたりの拡大・縮小幅です。数値が低いほど細かく調整できます。",
+        "label": "ホイールズーム感度"
+      }
     },
     "results": {
       "description": "作品・話ごとに結果の自動保存を設定します。",

@@ -1,5 +1,6 @@
 import React from "react";
 import type { MangaPage } from "../../../shared/libraryTypes";
+import type { WheelZoomSensitivityPercent } from "../../../shared/settingsTypes";
 import {
   clampWorkspaceZoom,
   stepWorkspaceZoom,
@@ -19,8 +20,6 @@ import {
 
 /** A conventional Windows wheel notch is roughly 100 delta pixels. */
 const WHEEL_DELTA_PIXELS_PER_NOTCH = 100;
-/** Apply one real 1% zoom step per physical wheel notch. */
-const WHEEL_ZOOM_RATIO_PER_NOTCH = 1.01;
 /** Keep the anchor through scrollbar/ResizeObserver stabilization only. */
 const ZOOM_ANCHOR_SETTLE_MS = 64;
 
@@ -36,6 +35,7 @@ type UseWorkspaceZoomControllerOptions = {
   panelRef: React.RefObject<HTMLElement | null>;
   selectedBlockId: string | null;
   selectedBlockIds: readonly string[];
+  wheelZoomSensitivityPercent?: WheelZoomSensitivityPercent;
   zoom: number;
 };
 
@@ -57,6 +57,7 @@ export function useWorkspaceZoomController({
   panelRef,
   selectedBlockId,
   selectedBlockIds,
+  wheelZoomSensitivityPercent = 1,
   zoom,
 }: UseWorkspaceZoomControllerOptions): void {
   const runtime = useWorkspaceZoomRuntime(fitMode, page?.id ?? null, zoom);
@@ -84,6 +85,7 @@ export function useWorkspaceZoomController({
     requestZoom,
     resolveAnchor,
     runtime,
+    wheelZoomSensitivityPercent,
   );
   useWorkspaceZoomLifecycle({
     controller,
@@ -216,6 +218,7 @@ function useZoomControllerValue(
   requestZoom: (target: number, spec: ZoomAnchorSpec) => void,
   resolveAnchor: (mode: WorkspaceZoomAnchorMode) => ZoomAnchorSpec,
   runtime: WorkspaceZoomRuntime,
+  wheelZoomSensitivityPercent: WheelZoomSensitivityPercent,
 ): WorkspaceZoomController {
   return React.useMemo(() => {
     const step = (
@@ -229,7 +232,10 @@ function useZoomControllerValue(
     return {
       resetAtViewport: () => requestZoom(1, resolveAnchor("viewport")),
       zoomAtPointer: (gesture: WorkspaceWheelZoomGesture) => {
-        const ratio = resolveWheelZoomRatio(gesture.deltaPixels);
+        const ratio = resolveWheelZoomRatio(
+          gesture.deltaPixels,
+          wheelZoomSensitivityPercent,
+        );
         requestZoom(
           gesture.direction === "in"
             ? runtime.liveZoom.current * ratio
@@ -243,7 +249,7 @@ function useZoomControllerValue(
       zoomInAtSelection: () => step("in", "selection"),
       zoomOutAtViewport: () => step("out", "viewport"),
     };
-  }, [requestZoom, resolveAnchor, runtime]);
+  }, [requestZoom, resolveAnchor, runtime, wheelZoomSensitivityPercent]);
 }
 
 function useWorkspaceZoomLifecycle({
@@ -305,10 +311,19 @@ function clearWorkspaceZoomAnchor(runtime: WorkspaceZoomRuntime): void {
   runtime.pendingAnchor.current = null;
 }
 
-export function resolveWheelZoomRatio(deltaPixels: number): number {
+export function resolveWheelZoomRatio(
+  deltaPixels: number,
+  sensitivityPercent = 1,
+): number {
   if (!Number.isFinite(deltaPixels)) return 1;
   const notchCount = Math.abs(deltaPixels) / WHEEL_DELTA_PIXELS_PER_NOTCH;
-  return Math.exp(Math.log(WHEEL_ZOOM_RATIO_PER_NOTCH) * notchCount);
+  const normalizedPercent =
+    Number.isInteger(sensitivityPercent) &&
+    sensitivityPercent >= 1 &&
+    sensitivityPercent <= 10
+      ? sensitivityPercent
+      : 1;
+  return Math.exp(Math.log(1 + normalizedPercent / 100) * notchCount);
 }
 
 function resetWorkspaceScroll(panel: HTMLElement | null): void {

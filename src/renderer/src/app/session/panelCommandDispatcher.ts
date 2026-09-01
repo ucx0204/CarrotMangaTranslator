@@ -2,6 +2,14 @@ import type { PanelCommand } from "../../../../shared/panelBridgeTypes";
 
 type UpdateBlockCommand = Extract<PanelCommand, { type: "updateBlock" }>;
 type AdjustFontSizeCommand = Extract<PanelCommand, { type: "adjustFontSize" }>;
+type AdjustSelectionFontSizeCommand = Extract<
+  PanelCommand,
+  { type: "adjustSelectionFontSize" }
+>;
+type UpdateSelectionFormatCommand = Extract<
+  PanelCommand,
+  { type: "updateSelectionFormat" }
+>;
 type ApplyFormatCommand = Extract<PanelCommand, { type: "applyFormat" }>;
 type ApplyBackgroundCommand = Extract<
   PanelCommand,
@@ -19,12 +27,27 @@ type DeleteStylePresetCommand = Extract<
   PanelCommand,
   { type: "deleteStylePreset" }
 >;
+type CreateStylePresetCommand = Extract<
+  PanelCommand,
+  { type: "createStylePreset" }
+>;
+type OverwriteStylePresetCommand = Extract<
+  PanelCommand,
+  { type: "overwriteStylePreset" }
+>;
+type SelectionEditCommand =
+  | AdjustSelectionFontSizeCommand
+  | UpdateSelectionFormatCommand;
 
 export type PanelCommandTarget = {
   updateBlock: (blockId: string, patch: UpdateBlockCommand["patch"]) => void;
   adjustSelectedBlockFontSize: (
     adjustment: AdjustFontSizeCommand["adjustment"],
   ) => void;
+  adjustSelectedBlocksFontSize: (
+    adjustment: AdjustSelectionFontSizeCommand["adjustment"],
+  ) => void;
+  updateSelectedBlocks: (patch: UpdateSelectionFormatCommand["patch"]) => void;
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
   openBlockLibrary: () => void;
@@ -40,6 +63,11 @@ export type PanelCommandTarget = {
   ) => void;
   applyStylePreset: (presetId: ApplyStylePresetCommand["presetId"]) => void;
   deleteStylePreset: (presetId: ApplyStylePresetCommand["presetId"]) => void;
+  openStylePresetManager: () => void;
+  createStylePreset: (input: CreateStylePresetCommand["input"]) => void;
+  overwriteStylePreset: (
+    presetId: OverwriteStylePresetCommand["presetId"],
+  ) => void;
   applyBlockBackgroundOpacityToScope: (
     scope: ApplyBackgroundCommand["scope"],
   ) => void;
@@ -52,17 +80,27 @@ export function dispatchPanelCommand({
   busy,
   command,
   selectedBlockId,
+  selectionKey,
 }: {
   actions: PanelCommandTarget;
   busy: boolean;
   command: PanelCommand;
   selectedBlockId: string | null;
+  selectionKey: string;
 }): boolean {
   if (command.type === "openBlockLibrary") {
     actions.openBlockLibrary();
     return true;
   }
-  if (busy || isStaleBlockCommand(command, selectedBlockId)) {
+  if (command.type === "openStylePresetManager") {
+    actions.openStylePresetManager();
+    return true;
+  }
+  if (
+    busy ||
+    isStaleBlockCommand(command, selectedBlockId) ||
+    isStaleSelectionCommand(command, selectionKey)
+  ) {
     return false;
   }
   if (command.type === "applyStylePreset") {
@@ -71,6 +109,10 @@ export function dispatchPanelCommand({
     actions.deleteStylePreset(command.presetId);
   } else if (command.type === "insertBlockLibraryEntry") {
     actions.insertBlockLibraryEntry(command.entry);
+  } else if (command.type === "createStylePreset") {
+    actions.createStylePreset(command.input);
+  } else if (command.type === "overwriteStylePreset") {
+    actions.overwriteStylePreset(command.presetId);
   } else {
     applyPanelCommand(actions, command);
   }
@@ -84,7 +126,34 @@ function applyPanelCommand(
     | Extract<PanelCommand, { type: "openBlockLibrary" }>
     | ApplyStylePresetCommand
     | DeleteStylePresetCommand
+    | CreateStylePresetCommand
+    | OverwriteStylePresetCommand
     | Extract<PanelCommand, { type: "insertBlockLibraryEntry" }>
+  >,
+): void {
+  if (isSelectionEditCommand(command)) {
+    applySelectionEditCommand(actions, command);
+    return;
+  }
+  applyBasicPanelCommand(actions, command);
+}
+
+function applySelectionEditCommand(
+  actions: PanelCommandTarget,
+  command: SelectionEditCommand,
+): void {
+  if (command.type === "updateSelectionFormat") {
+    actions.updateSelectedBlocks(command.patch);
+  } else {
+    actions.adjustSelectedBlocksFontSize(command.adjustment);
+  }
+}
+
+function applyBasicPanelCommand(
+  actions: PanelCommandTarget,
+  command: Exclude<
+    Parameters<typeof applyPanelCommand>[1],
+    SelectionEditCommand
   >,
 ): void {
   switch (command.type) {
@@ -123,6 +192,28 @@ function applyPanelCommand(
   }
 }
 
+function isSelectionEditCommand(
+  command: Parameters<typeof applyPanelCommand>[1],
+): command is SelectionEditCommand {
+  return (
+    command.type === "updateSelectionFormat" ||
+    command.type === "adjustSelectionFontSize"
+  );
+}
+
+function isStaleSelectionCommand(
+  command: PanelCommand,
+  selectionKey: string,
+): boolean {
+  return command.type === "updateSelectionFormat" ||
+    command.type === "adjustSelectionFontSize" ||
+    command.type === "applyStylePreset" ||
+    command.type === "createStylePreset" ||
+    command.type === "overwriteStylePreset"
+    ? command.selectionKey !== selectionKey
+    : false;
+}
+
 function isStaleBlockCommand(
   command: PanelCommand,
   selectedBlockId: string | null,
@@ -133,8 +224,7 @@ function isStaleBlockCommand(
     command.type === "duplicateBlock" ||
     command.type === "eraseBlockOriginal" ||
     command.type === "fitBlockBubble" ||
-    command.type === "removeBubbleLayout" ||
-    command.type === "applyStylePreset"
+    command.type === "removeBubbleLayout"
     ? command.blockId !== selectedBlockId
     : false;
 }

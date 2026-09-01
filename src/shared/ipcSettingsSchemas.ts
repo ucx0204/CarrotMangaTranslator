@@ -299,6 +299,7 @@ export const AppSettingsSchema = z
         fontSizeAutoFitDefault: z.boolean().optional(),
         eraseOriginalWorkflowDefault: z.boolean().optional(),
         bubbleLayoutWorkflowDefault: z.boolean().optional(),
+        wheelZoomSensitivityPercent: z.number().int().min(1).max(10).optional(),
       })
       .strict()
       .optional(),

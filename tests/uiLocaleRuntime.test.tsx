@@ -162,6 +162,7 @@ describe("renderer UI locale runtime", () => {
       getFontLibrary: vi.fn().mockResolvedValue({
         customFonts: [],
         preferences: {
+          hiddenIds: [],
           favoriteIds: [],
           orderedIds: [],
           defaultFontId: "default",

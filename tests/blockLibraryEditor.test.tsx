@@ -33,6 +33,8 @@ import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 
 const originalGetContext = HTMLCanvasElement.prototype.getContext;
 const originalResizeObserver = globalThis.ResizeObserver;
+const originalRequestAnimationFrame = window.requestAnimationFrame;
+const originalCancelAnimationFrame = window.cancelAnimationFrame;
 
 beforeAll(() => {
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
@@ -47,6 +49,13 @@ beforeAll(() => {
     unobserve(): void {}
     disconnect(): void {}
   };
+  let animationFrameId = 0;
+  window.requestAnimationFrame = (callback: FrameRequestCallback): number => {
+    animationFrameId += 1;
+    callback(0);
+    return animationFrameId;
+  };
+  window.cancelAnimationFrame = () => undefined;
 });
 
 afterEach(cleanup);
@@ -57,6 +66,8 @@ afterAll(() => {
     value: originalGetContext,
   });
   globalThis.ResizeObserver = originalResizeObserver;
+  window.requestAnimationFrame = originalRequestAnimationFrame;
+  window.cancelAnimationFrame = originalCancelAnimationFrame;
 });
 
 describe("block library editor", () => {

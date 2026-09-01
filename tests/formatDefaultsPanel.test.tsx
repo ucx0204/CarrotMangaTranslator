@@ -374,6 +374,7 @@ function FormatPresetHarness({
 const FONT_CONTEXT_VALUE = {
   busy: false,
   catalog: createBlockFontCatalog([], {
+    hiddenIds: [],
     favoriteIds: [],
     orderedIds: [],
     defaultFontId: "nanum-gothic",

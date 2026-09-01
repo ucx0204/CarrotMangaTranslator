@@ -20,6 +20,7 @@ export function EditorPanelContainer(): React.JSX.Element {
         areaTranslateAvailable={session.areaTranslateAvailable}
         areaTranslateSelecting={session.areaTranslateSelecting}
         selectedBlockCount={session.selectedBlockCount}
+        editorTextTabRequestToken={session.editorTextTabRequestToken}
         pageSize={session.selectedPageSize}
         transformMode={session.transformMode}
         headerActions={
@@ -37,6 +38,7 @@ export function EditorPanelContainer(): React.JSX.Element {
         onApplyBlockBackgroundOpacity={session.onApplyBlockBackgroundOpacity}
         onAdjustFontSize={session.onAdjustFontSize}
         onUpdate={session.onUpdateBlock}
+        onUpdateFormat={session.onUpdateFormat}
         onDelete={session.onDeleteBlock}
         onDuplicate={session.onDuplicateBlock}
         onSaveToLibrary={() => setSaveOpen(true)}

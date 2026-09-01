@@ -37,7 +37,12 @@ describe("block font loading", () => {
           fileName: "custom.ttf",
         },
       ],
-      { defaultFontId: "custom-font", favoriteIds: [], orderedIds: [] },
+      {
+        defaultFontId: "custom-font",
+        favoriteIds: [],
+        hiddenIds: [],
+        orderedIds: [],
+      },
     );
     const fonts = makeFontSet(() => Promise.resolve([]));
 

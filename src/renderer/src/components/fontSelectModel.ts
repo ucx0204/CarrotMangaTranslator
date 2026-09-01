@@ -92,6 +92,7 @@ function useFavoriteToggle(
       void savePreferences({
         favoriteIds: [...favorites],
         orderedIds: [...preferences.orderedIds],
+        hiddenIds: [...preferences.hiddenIds],
         defaultFontId: preferences.defaultFontId,
       }).catch((error) => {
         console.error(error);

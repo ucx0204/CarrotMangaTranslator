@@ -365,6 +365,12 @@
         "pct": 71.42
       }
     },
+    "src/main/customFonts.ts": {
+      "lines": { "covered": 114, "total": 153, "pct": 74.5 },
+      "statements": { "covered": 116, "total": 155, "pct": 74.83 },
+      "functions": { "covered": 31, "total": 44, "pct": 70.45 },
+      "branches": { "covered": 65, "total": 85, "pct": 76.47 }
+    },
     "src/main/dataRoot.ts": {
       "lines": {
         "covered": 46,
@@ -1179,6 +1185,28 @@
         "covered": 0,
         "total": 0,
         "pct": 100
+      }
+    },
+    "src/main/ipc/fontsIpc.ts": {
+      "lines": {
+        "covered": 16,
+        "total": 31,
+        "pct": 51.61
+      },
+      "statements": {
+        "covered": 16,
+        "total": 31,
+        "pct": 51.61
+      },
+      "functions": {
+        "covered": 3,
+        "total": 7,
+        "pct": 42.85
+      },
+      "branches": {
+        "covered": 4,
+        "total": 13,
+        "pct": 30.76
       }
     },
     "src/main/ipc/importPreviewIpc.ts": {
@@ -5473,6 +5501,12 @@
         "pct": 76.92
       }
     },
+    "src/renderer/src/app/session/createStylePresetSaveAction.ts": {
+      "lines": { "covered": 0, "total": 34, "pct": 0 },
+      "statements": { "covered": 0, "total": 36, "pct": 0 },
+      "functions": { "covered": 0, "total": 6, "pct": 0 },
+      "branches": { "covered": 0, "total": 21, "pct": 0 }
+    },
     "src/renderer/src/app/session/createTranslationModalProps.ts": {
       "lines": {
         "covered": 0,
@@ -8267,6 +8301,12 @@
         "pct": 0
       }
     },
+    "src/renderer/src/components/settingsModal/GeneralSettingsPanel.tsx": {
+      "lines": { "covered": 5, "total": 5, "pct": 100 },
+      "statements": { "covered": 5, "total": 5, "pct": 100 },
+      "functions": { "covered": 4, "total": 4, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
     "src/renderer/src/components/settingsModal/HardwareContextNotes.tsx": {
       "lines": {
         "covered": 16,
@@ -9693,6 +9733,12 @@
         "pct": 84.21
       }
     },
+    "src/renderer/src/hooks/useAdjustSelectedBlockFontSizeAction.ts": {
+      "lines": { "covered": 11, "total": 16, "pct": 68.75 },
+      "statements": { "covered": 11, "total": 17, "pct": 64.7 },
+      "functions": { "covered": 4, "total": 6, "pct": 66.66 },
+      "branches": { "covered": 5, "total": 13, "pct": 38.46 }
+    },
     "src/renderer/src/hooks/useBlockEditingActions.ts": {
       "lines": {
         "covered": 37,
@@ -10337,6 +10383,28 @@
         "pct": 37.5
       }
     },
+    "src/renderer/src/hooks/useWorkspaceBlockCreateHandlers.ts": {
+      "lines": {
+        "covered": 57,
+        "total": 69,
+        "pct": 82.6
+      },
+      "statements": {
+        "covered": 58,
+        "total": 70,
+        "pct": 82.85
+      },
+      "functions": {
+        "covered": 10,
+        "total": 12,
+        "pct": 83.33
+      },
+      "branches": {
+        "covered": 21,
+        "total": 32,
+        "pct": 65.62
+      }
+    },
     "src/renderer/src/hooks/useWorkspaceBlockDragHandlers.ts": {
       "lines": {
         "covered": 72,
@@ -10832,6 +10900,12 @@
         "total": 0,
         "pct": 100
       }
+    },
+    "src/renderer/src/lib/fonts.ts": {
+      "lines": { "covered": 85, "total": 86, "pct": 98.83 },
+      "statements": { "covered": 92, "total": 93, "pct": 98.92 },
+      "functions": { "covered": 39, "total": 39, "pct": 100 },
+      "branches": { "covered": 63, "total": 68, "pct": 92.64 }
     },
     "src/renderer/src/lib/gatherText.ts": {
       "lines": {
@@ -15979,6 +16053,28 @@
         "total": 19,
         "covered": 13,
         "pct": 68.42
+      }
+    },
+    "src/renderer/src/components/useEditorPanelTab.ts": {
+      "lines": {
+        "total": 15,
+        "covered": 15,
+        "pct": 100
+      },
+      "statements": {
+        "total": 18,
+        "covered": 18,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 10,
+        "covered": 9,
+        "pct": 90
       }
     },
     "src/renderer/src/hooks/importShareActionTypes.ts": {

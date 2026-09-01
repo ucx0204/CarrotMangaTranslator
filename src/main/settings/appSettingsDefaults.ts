@@ -346,6 +346,7 @@ function resolveDefaultUiSettings(
     fontSizeAutoFitDefault: true,
     eraseOriginalWorkflowDefault: false,
     bubbleLayoutWorkflowDefault: true,
+    wheelZoomSensitivityPercent: 1,
   };
 }
 

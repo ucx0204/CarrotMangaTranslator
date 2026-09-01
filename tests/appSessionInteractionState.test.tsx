@@ -8,6 +8,17 @@ import { useAppSessionUiState } from "../src/renderer/src/app/session/useAppSess
 import { toast } from "../src/renderer/src/lib/toastStore";
 
 describe("unified workspace interaction state", () => {
+  it("increments the editor text-tab request token for each new block", () => {
+    const { result } = renderHook(() => useAppSessionUiState());
+
+    expect(result.current.editorTextTabRequestToken).toBe(0);
+    act(() => {
+      result.current.requestEditorTextTab();
+      result.current.requestEditorTextTab();
+    });
+    expect(result.current.editorTextTabRequestToken).toBe(2);
+  });
+
   it("shares one aggregate-flow flag across translation and inpainting", () => {
     const { result } = renderHook(() => useAppSessionUiState());
 

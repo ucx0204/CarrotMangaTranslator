@@ -77,6 +77,7 @@ function useFontManagerModel(onClose: () => void): FontManagerModel {
   const [draft, setDraft] = React.useState<FontPreferences>(() => ({
     favoriteIds: [...preferences.favoriteIds],
     orderedIds: [...preferences.orderedIds],
+    hiddenIds: [...preferences.hiddenIds],
     defaultFontId: preferences.defaultFontId,
   }));
   const [saving, setSaving] = React.useState(false);

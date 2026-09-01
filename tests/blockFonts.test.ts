@@ -188,6 +188,7 @@ describe("built-in block font catalog", () => {
         },
       ],
       {
+        hiddenIds: [],
         favoriteIds: [],
         orderedIds: [
           DEFAULT_BLOCK_FONT_ID,
@@ -224,6 +225,7 @@ describe("built-in block font catalog", () => {
         },
       ],
       {
+        hiddenIds: [],
         favoriteIds: [],
         orderedIds: [
           DEFAULT_BLOCK_FONT_ID,
@@ -280,12 +282,14 @@ describe("built-in block font catalog", () => {
 
   it("removes retired Gugi preferences and resolves legacy blocks through the default", () => {
     const catalog = createBlockFontCatalog([], {
+      hiddenIds: ["gugi", "kalam", "kalam", "missing"],
       favoriteIds: ["gugi", "kalam"],
       orderedIds: ["gugi", "kalam"],
       defaultFontId: "gugi",
     });
 
     expect(catalog.preferences).toEqual({
+      hiddenIds: ["kalam"],
       favoriteIds: ["kalam"],
       orderedIds: ["kalam"],
       defaultFontId: DEFAULT_BLOCK_FONT_ID,
@@ -311,6 +315,7 @@ describe("built-in block font catalog", () => {
   it("lets the system default option move and favorite like every other font", () => {
     const favoritesFirst = getBlockFontOptions(
       createBlockFontCatalog([], {
+        hiddenIds: [],
         favoriteIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
         orderedIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
         defaultFontId: DEFAULT_BLOCK_FONT_ID,
@@ -325,6 +330,7 @@ describe("built-in block font catalog", () => {
 
     const freelyOrdered = getBlockFontOptions(
       createBlockFontCatalog([], {
+        hiddenIds: [],
         favoriteIds: [],
         orderedIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
         defaultFontId: DEFAULT_BLOCK_FONT_ID,
@@ -342,6 +348,7 @@ describe("built-in block font catalog", () => {
     const kalam = BUILT_IN_BLOCK_FONTS.find((font) => font.id === "kalam");
     expect(kalam).toBeDefined();
     const catalog = createBlockFontCatalog([], {
+      hiddenIds: [],
       favoriteIds: [],
       orderedIds: [],
       defaultFontId: "kalam",
@@ -370,12 +377,14 @@ describe("built-in block font catalog", () => {
         },
       ],
       {
+        hiddenIds: [],
         favoriteIds: [customId],
         orderedIds: [customId],
         defaultFontId: customId,
       },
     );
     const otherCatalog = createBlockFontCatalog([], {
+      hiddenIds: [],
       favoriteIds: [],
       orderedIds: [],
       defaultFontId: "kalam",

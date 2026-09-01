@@ -45,6 +45,7 @@ const FontPreferencesSchema = z
   .object({
     favoriteIds: z.array(z.string().min(1).max(200)).max(1000),
     orderedIds: z.array(z.string().min(1).max(200)).max(1000),
+    hiddenIds: z.array(z.string().min(1).max(200)).max(1000),
     defaultFontId: z.string().min(1).max(200),
   })
   .strict();

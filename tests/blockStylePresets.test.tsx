@@ -309,6 +309,9 @@ describe("block style preset model", () => {
         ],
         disableChapterApply: false,
         editorDisabled: false,
+        editorTextTabRequestToken: 0,
+        formatSelection: { common: {}, mixedFields: [] },
+        selectionKey: "[]",
         selectedBlock: null,
         selectedBlockCount: 0,
         selectedPageSize: null,
@@ -318,12 +321,12 @@ describe("block style preset model", () => {
     expect(
       PanelCommandSchema.parse({
         type: "applyStylePreset",
-        blockId: "block-a",
+        selectionKey: JSON.stringify(["block-a"]),
         presetId: "style-preset:test",
       }),
     ).toEqual({
       type: "applyStylePreset",
-      blockId: "block-a",
+      selectionKey: JSON.stringify(["block-a"]),
       presetId: "style-preset:test",
     });
   });

@@ -1,4 +1,7 @@
-import type { AppSettings } from "../../shared/settingsTypes";
+import type {
+  AppSettings,
+  WheelZoomSensitivityPercent,
+} from "../../shared/settingsTypes";
 import { normalizeUiLocale } from "../../shared/uiLocales";
 import { resolveBoolean } from "./appSettingsResolvers";
 
@@ -47,8 +50,24 @@ export function normalizeUiSettings(
     ),
     eraseOriginalWorkflowDefault: completionDefaults.eraseOriginal,
     bubbleLayoutWorkflowDefault: completionDefaults.bubbleLayout,
+    wheelZoomSensitivityPercent: resolveWheelZoomSensitivityPercent(
+      data.wheelZoomSensitivityPercent,
+      base.wheelZoomSensitivityPercent,
+    ),
     ...(blockModeDefault ? { blockModeDefault } : {}),
   };
+}
+
+function resolveWheelZoomSensitivityPercent(
+  value: unknown,
+  fallback: WheelZoomSensitivityPercent | undefined,
+): WheelZoomSensitivityPercent {
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= 10
+    ? (value as WheelZoomSensitivityPercent)
+    : (fallback ?? 1);
 }
 
 function resolveTranslationWorkflowDefault(

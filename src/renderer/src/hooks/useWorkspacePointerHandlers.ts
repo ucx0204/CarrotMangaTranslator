@@ -58,6 +58,7 @@ type UseWorkspacePointerHandlersOptions = {
   onEscapeTool?: () => void;
   onBubbleLayoutApplied?: () => void;
   onBlockActivated?: (blockId: string) => void;
+  onBlockCreated?: (blockId: string) => void;
   onSelectedBlockChange?: (blockId: string) => void;
   lastInpaintingRetouchPointRef: MutableRefObject<{
     x: number;
@@ -218,6 +219,7 @@ function useWorkspaceDrawingHandlers(
     blockFormatDefaults: options.blockFormatDefaults,
     getImagePointerRect,
     interactionPreviewStore,
+    onBlockCreated: options.onBlockCreated,
     pushStatus: options.pushStatus,
     selectedPage: options.selectedPage,
     selectedPageEditLocked: options.selectedPageEditLocked,

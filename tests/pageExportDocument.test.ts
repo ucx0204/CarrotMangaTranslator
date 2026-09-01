@@ -57,6 +57,7 @@ function makeDocument() {
       customFonts: [],
       preferences: {
         defaultFontId: "default",
+        hiddenIds: [],
         favoriteIds: [],
         orderedIds: [],
       },

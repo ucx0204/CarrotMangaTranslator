@@ -58,6 +58,7 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
     panelRef: workspacePanelRef,
     selectedBlockId: props.selectedBlockId,
     selectedBlockIds: props.selectedBlockIds,
+    wheelZoomSensitivityPercent: props.wheelZoomSensitivityPercent,
     zoom: props.workspaceZoom,
   });
   const stableProps: AppWorkspaceProps = {

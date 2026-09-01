@@ -50,6 +50,7 @@ const bridgeTemplate = `(() => {
     "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   const defaultFontPreferences = {
     favoriteIds: [],
+    hiddenIds: [],
     orderedIds: [],
     defaultFontId: "default",
   };

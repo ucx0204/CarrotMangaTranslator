@@ -3,11 +3,26 @@
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { TranslationBlock } from "../src/shared/textTypes";
+import {
+  FontsContext,
+  type FontsContextValue,
+} from "../src/renderer/src/fonts/fontsContextValue";
+import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 import { EditorPanelContainer } from "../src/renderer/src/panels/EditorPanelContainer";
 import {
   PanelSessionContext,
   type PanelSessionValue,
 } from "../src/renderer/src/panels/panelSession";
+
+vi.stubGlobal(
+  "ResizeObserver",
+  class ResizeObserverMock {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  },
+);
 
 afterEach(cleanup);
 
@@ -29,7 +44,77 @@ describe("detached editor block-library ownership", () => {
     expect(onOpenBlockLibrary).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  it("keeps text and layout edits active-block-only while routing format edits to the selection", () => {
+    const onUpdateBlock = vi.fn();
+    const onUpdateFormat = vi.fn();
+    render(
+      <FontsContext.Provider value={fontsContext}>
+        <PanelSessionContext.Provider
+          value={makePanelSession({
+            onUpdateBlock,
+            onUpdateFormat,
+            selectedBlock: makeBlock(),
+            selectedBlockCount: 2,
+          })}
+        >
+          <EditorPanelContainer />
+        </PanelSessionContext.Provider>
+      </FontsContext.Provider>,
+    );
+
+    const translation = screen.getByRole("textbox", {
+      name: "번역문",
+    }) as HTMLDivElement;
+    translation.textContent = "분리 창 번역";
+    fireEvent.input(translation);
+    expect(onUpdateBlock).toHaveBeenLastCalledWith({
+      translatedText: "분리 창 번역",
+    });
+    expect(onUpdateFormat).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("tab", { name: "배치" }));
+    fireEvent.change(screen.getByRole("slider", { name: "회전 슬라이더" }), {
+      target: { value: "12" },
+    });
+    expect(onUpdateBlock).toHaveBeenLastCalledWith({ rotationDeg: 12 });
+    expect(onUpdateFormat).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("tab", { name: "서식" }));
+    fireEvent.click(screen.getByRole("button", { name: "블록 전체 굵게" }));
+    expect(onUpdateFormat).toHaveBeenLastCalledWith({ bold: true });
+  });
 });
+
+const fontsContext: FontsContextValue = {
+  baseOptions: [],
+  busy: false,
+  catalog: DEFAULT_BLOCK_FONT_CATALOG,
+  options: [],
+  registerFont: async () => undefined,
+  removeFont: async () => undefined,
+  savePreferences: async () => undefined,
+};
+
+function makeBlock(): TranslationBlock {
+  return {
+    id: "block-1",
+    type: "nonsolid",
+    bbox: { x: 100, y: 100, w: 200, h: 200 },
+    sourceText: "원문",
+    translatedText: "번역",
+    confidence: 1,
+    sourceDirection: "vertical",
+    renderDirection: "horizontal",
+    fontSizePx: 24,
+    lineHeight: 1.18,
+    textAlign: "center",
+    textColor: "#111111",
+    backgroundColor: "#ffffff",
+    opacity: 1,
+    autoFitText: false,
+  };
+}
 
 function makePanelSession(
   overrides: Partial<PanelSessionValue> = {},
@@ -43,6 +128,9 @@ function makePanelSession(
     editorDisabled: false,
     editorFloating: false,
     editorPoppedOut: false,
+    editorTextTabRequestToken: 0,
+    formatSelection: { common: {}, mixedFields: [] },
+    selectionKey: "[]",
     onAdjustFontSize: () => undefined,
     onApplyBlockBackgroundOpacity: () => undefined,
     onApplyFormat: () => undefined,
@@ -57,12 +145,15 @@ function makePanelSession(
     onFitBlockBubble: () => undefined,
     onInsertBlockLibraryEntry: () => undefined,
     onOpenBlockLibrary: () => undefined,
+    onOpenStylePresetManager: () => undefined,
+    onOverwriteStylePreset: async () => false,
     onPopOutEditor: () => undefined,
     onRemoveBubbleLayout: () => undefined,
     onSelectTransformMode: () => undefined,
     onStartAreaTranslate: () => undefined,
     onToggleEditorFloat: () => undefined,
     onUpdateBlock: () => undefined,
+    onUpdateFormat: () => undefined,
     selectedBlock: null,
     selectedBlockCount: 0,
     selectedPageSize: { width: 1200, height: 1800 },

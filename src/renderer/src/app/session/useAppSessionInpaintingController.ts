@@ -254,11 +254,16 @@ function createBlockSelectionPointerOptions(
   uiState: AppSessionInpaintingControllerArgs["uiState"],
 ): {
   onBlockActivated: () => void;
+  onBlockCreated: () => void;
   onSelectedBlockChange: () => void;
   selectedBlockId: string | null;
 } {
   return {
     onBlockActivated: () => uiState.setRightRailMode("block-editor"),
+    onBlockCreated: () => {
+      uiState.setRightRailMode("block-editor");
+      uiState.requestEditorTextTab();
+    },
     onSelectedBlockChange: () => {
       resetBlockTransformTool(uiState);
     },

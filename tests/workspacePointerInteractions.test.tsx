@@ -69,6 +69,7 @@ type HarnessApi = {
   getRegionSelectionPreview: () => BBox | null;
   getSelectedBlockId: () => string | null;
   getSelectedBlockIds: () => string[];
+  onBlockCreated: ReturnType<typeof vi.fn>;
   startRegionTranslationSelection: () => void;
   statuses: string[];
   onBubbleLayoutFinished: ReturnType<typeof vi.fn>;
@@ -320,6 +321,10 @@ describe("workspace pointer interactions", () => {
       pointerId: 4,
     });
     expect(blockApi.current.updateCurrentChapter).toHaveBeenCalledTimes(1);
+    expect(blockApi.current.onBlockCreated).toHaveBeenCalledTimes(1);
+    expect(blockApi.current.onBlockCreated).toHaveBeenCalledWith(
+      expect.stringMatching(/^page-1-manual-/),
+    );
   });
 
   it("applies a point-authored bubble region as one undoable block edit", () => {
@@ -695,6 +700,7 @@ function WorkspacePointerHarness({
   const statusesRef = useRef<string[]>([]);
   const updateCurrentChapter = useMemo(createUpdateCurrentChapterMock, []);
   const onBubbleLayoutFinished = useMemo(() => vi.fn(), []);
+  const onBlockCreated = useMemo(() => vi.fn(), []);
   const translateSelectedRegion = useMemo(
     createTranslateSelectedRegionMock,
     [],
@@ -717,6 +723,7 @@ function WorkspacePointerHarness({
     lastInpaintingRetouchPointRef,
     onPatternMaskChange: () => undefined,
     onBubbleLayoutApplied: onBubbleLayoutFinished,
+    onBlockCreated,
     patternMaskStrokesByPage,
     pushStatus: (line) => {
       statusesRef.current.push(line);
@@ -766,6 +773,7 @@ function WorkspacePointerHarness({
       getSelectedBlockId: () => selectedBlockId,
       getSelectedBlockIds: () => selectedBlockIds,
       onBubbleLayoutFinished,
+      onBlockCreated,
       startRegionTranslationSelection: handlers.startRegionTranslationSelection,
       statuses: statusesRef.current,
       translateSelectedRegion,
@@ -776,6 +784,7 @@ function WorkspacePointerHarness({
     handlers.interactionPreviewStore,
     getBounds,
     onBubbleLayoutFinished,
+    onBlockCreated,
     onReady,
     regionSelection,
     selectedBlockId,

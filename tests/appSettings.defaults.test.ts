@@ -90,6 +90,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.ui?.fontSizeAutoFitDefault).toBe(true);
     expect(defaults.ui?.eraseOriginalWorkflowDefault).toBe(false);
     expect(defaults.ui?.bubbleLayoutWorkflowDefault).toBe(true);
+    expect(defaults.ui?.wheelZoomSensitivityPercent).toBe(1);
     expect(defaults.maxTokens).toBe(DEFAULT_MAX_TOKENS);
     expect(defaults.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
     expect(defaults.maxTokens).toBe(32768);
@@ -178,6 +179,28 @@ describeWindows("app settings helpers: defaults and stored values", () => {
         defaults,
       ).ui?.naturalTextLayoutDefault,
     ).toBe(true);
+  });
+
+  it("keeps legacy wheel zoom at 1% and accepts integer values through 10%", () => {
+    const defaults = resolveDefaultAppSettings();
+    expect(
+      parseStoredAppSettings(JSON.stringify({ ui: {} }), defaults).ui
+        ?.wheelZoomSensitivityPercent,
+    ).toBe(1);
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ ui: { wheelZoomSensitivityPercent: 10 } }),
+        defaults,
+      ).ui?.wheelZoomSensitivityPercent,
+    ).toBe(10);
+    for (const invalid of [0, 11, 2.5, "8"]) {
+      expect(
+        parseStoredAppSettings(
+          JSON.stringify({ ui: { wheelZoomSensitivityPercent: invalid } }),
+          defaults,
+        ).ui?.wheelZoomSensitivityPercent,
+      ).toBe(1);
+    }
   });
 
   it("defaults automatic font matching off while preserving an explicit saved on setting", () => {

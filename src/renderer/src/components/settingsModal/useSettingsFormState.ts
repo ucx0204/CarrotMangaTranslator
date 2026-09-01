@@ -63,6 +63,10 @@ function useSettingsFormSetters(
   return React.useMemo(
     () => ({
       setUiLocale: createFormFieldDispatch(setValues, "uiLocale"),
+      setWheelZoomSensitivityPercent: createFormFieldDispatch(
+        setValues,
+        "wheelZoomSensitivityPercent",
+      ),
       setModelProvider: createFormFieldDispatch(setValues, "modelProvider"),
       setSourceLanguage: createFormFieldDispatch(setValues, "sourceLanguage"),
       setTargetLanguage: createFormFieldDispatch(setValues, "targetLanguage"),

@@ -33,6 +33,7 @@ export function buildSettingsFromDraft({
     graphicsGpuPreference: values.graphicsGpuPreference,
     computeGpuIndex: values.computeGpuIndex,
     uiLocale: values.uiLocale,
+    wheelZoomSensitivityPercent: values.wheelZoomSensitivityPercent,
     keybindings,
     blockFormatDefaults,
     ...resolveBlockStyleCollections(

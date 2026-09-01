@@ -1,7 +1,10 @@
 import { dialog } from "electron";
 import { linkedWorkspaceIpcContracts } from "../../shared/ipcContracts";
 import type { IpcContext } from "./context";
-import { trustedHandleContract } from "./trustedIpc";
+import {
+  registeredRendererHandleContract,
+  trustedHandleContract,
+} from "./trustedIpc";
 
 export function registerLinkedWorkspaceIpc(context: IpcContext): void {
   trustedHandleContract(
@@ -60,7 +63,7 @@ export function registerLinkedWorkspaceIpc(context: IpcContext): void {
     linkedWorkspaceIpcContracts.viewLinkedResults,
     async (_event, request) => requireService(context).viewResults(request),
   );
-  trustedHandleContract(
+  registeredRendererHandleContract(
     context,
     linkedWorkspaceIpcContracts.reportLinkedWorkspaceActivity,
     async (_event, request) => {

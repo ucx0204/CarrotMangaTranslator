@@ -22,14 +22,31 @@ export function adjustBlockFontSizeInChapter(
   adjustment: FontSizeAdjustment,
   fontCatalog: BlockFontCatalog,
 ): ChapterSnapshot {
+  return adjustBlocksFontSizeInChapter(
+    chapter,
+    pageId,
+    [blockId],
+    adjustment,
+    fontCatalog,
+  );
+}
+
+export function adjustBlocksFontSizeInChapter(
+  chapter: ChapterSnapshot,
+  pageId: string,
+  blockIds: readonly string[],
+  adjustment: FontSizeAdjustment,
+  fontCatalog: BlockFontCatalog,
+): ChapterSnapshot {
   const targetPage = chapter.pages.find((page) => page.id === pageId);
   if (!targetPage) {
     return chapter;
   }
 
+  const targetIds = new Set(blockIds);
   let changed = false;
   const blocks = targetPage.blocks.map((block) => {
-    if (block.id !== blockId) {
+    if (!targetIds.has(block.id)) {
       return block;
     }
     const next = adjustBlockFontSize(

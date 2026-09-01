@@ -3,7 +3,10 @@ import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
-import type { TransformEditorMode } from "../../../shared/panelBridgeTypes";
+import type {
+  PanelFormatSelection,
+  TransformEditorMode,
+} from "../../../shared/panelBridgeTypes";
 import type {
   BlockStylePresetSummary,
   CreateBlockStylePresetInput,
@@ -24,6 +27,9 @@ export type PanelSessionValue = {
   selectedBlock: TranslationBlock | null;
   /** Size of the multi-selection, for batch format apply labels. */
   selectedBlockCount: number;
+  selectionKey: string;
+  formatSelection: PanelFormatSelection;
+  editorTextTabRequestToken: number;
   /** True when block edits are disabled (locked page or busy inpainting). */
   editorDisabled: boolean;
   /** True when the block editor is detached into a floating in-app panel. */
@@ -52,9 +58,10 @@ export type PanelSessionValue = {
   selectedPageSize: { width: number; height: number } | null;
   blockStylePresets: BlockStylePresetSummary[];
   canCreateStylePreset: boolean;
-  /** Adjusts only the active block's font size by one pixel. */
+  /** Adjusts every selected block's font size by one relative step. */
   onAdjustFontSize: (adjustment: -1 | 1) => void;
   onUpdateBlock: (patch: Partial<TranslationBlock>) => void;
+  onUpdateFormat: (patch: Partial<TranslationBlock>) => void;
   onDeleteBlock: () => void;
   onDuplicateBlock: () => void;
   /** Opens the block library in the owning main application window. */
@@ -71,6 +78,8 @@ export type PanelSessionValue = {
   onApplyStylePreset: (presetId: string) => void;
   onCreateStylePreset: (input: CreateBlockStylePresetInput) => Promise<boolean>;
   onDeleteStylePreset: (presetId: string) => Promise<boolean>;
+  onOpenStylePresetManager: () => void;
+  onOverwriteStylePreset: (presetId: string) => Promise<boolean>;
   onApplyBlockBackgroundOpacity: (scope: BlockBackgroundApplyScope) => void;
   onStartAreaTranslate: () => void;
 };

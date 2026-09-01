@@ -407,6 +407,61 @@ it("focuses the main window when a detached editor opens the block library", asy
   expect(focus).toHaveBeenCalledOnce();
 });
 
+it("accepts linked-workspace activity from registered panels without widening other workspace IPC", async () => {
+  const [
+    { registerLinkedWorkspaceIpc },
+    { ActiveJobStore },
+    { InpaintingRevisionStore },
+  ] = await Promise.all([
+    import("../src/main/ipc/linkedWorkspaceIpc"),
+    import("../src/main/jobs/activeJob"),
+    import("../src/main/inpainting/inpaintingRevisionStore"),
+  ]);
+  const rendererUrl = "http://127.0.0.1:5173/";
+  const mainWindow = Object.assign(new BrowserWindow(), {
+    isDestroyed: () => false,
+    webContents: { getURL: () => rendererUrl, id: 17 },
+  });
+  const reportActivity = vi.fn();
+  const context = createIpcContext(
+    new ActiveJobStore(),
+    new InpaintingRevisionStore(),
+  );
+  context.getMainWindow = () => mainWindow;
+  context.panelWindows.isPanelSender = (webContentsId) => webContentsId === 29;
+  Reflect.set(context, "linkedWorkspaceSync", { reportActivity });
+  registerLinkedWorkspaceIpc(context);
+
+  const activityHandler = electronBoundary.handlers.get(
+    ipcInvokeContracts.reportLinkedWorkspaceActivity.channel,
+  );
+  const statusHandler = electronBoundary.handlers.get(
+    ipcInvokeContracts.getLinkedWorkspaceStatus.channel,
+  );
+  if (!activityHandler || !statusHandler) {
+    throw new Error("Linked workspace handlers are missing.");
+  }
+  const registeredPanelEvent = {
+    sender: { id: 29 },
+    senderFrame: { url: rendererUrl },
+  } as IpcMainInvokeEvent;
+  const unregisteredPanelEvent = {
+    sender: { id: 31 },
+    senderFrame: { url: rendererUrl },
+  } as IpcMainInvokeEvent;
+
+  await expect(
+    activityHandler(registeredPanelEvent, { type: "pulse" }),
+  ).resolves.toEqual({ completed: true });
+  expect(reportActivity).toHaveBeenCalledWith({ type: "pulse" });
+  await expect(
+    activityHandler(unregisteredPanelEvent, { type: "pulse" }),
+  ).rejects.toThrow();
+  await expect(
+    statusHandler(registeredPanelEvent, "11111111-1111-4111-8111-111111111111"),
+  ).rejects.toThrow();
+});
+
 it("opens only allowlisted Vertex setup pages", async () => {
   const { registerExternalLinksIpc } =
     await import("../src/main/ipc/externalLinksIpc");

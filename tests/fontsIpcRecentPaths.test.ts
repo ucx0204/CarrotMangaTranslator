@@ -62,6 +62,7 @@ const registeredFont: CustomFont = {
 const fontSnapshot: FontLibrarySnapshot = {
   customFonts: [registeredFont],
   preferences: {
+    hiddenIds: [],
     favoriteIds: [],
     orderedIds: [],
     defaultFontId: "builtin-default",
@@ -81,6 +82,45 @@ afterEach(async () => {
 });
 
 describe("font registration recent directory", () => {
+  it("allows registered panels to read the shared library without widening mutation channels", async () => {
+    const service = makeFontRegistrationService();
+    const context = makeContext("C:\\test");
+    context.panelWindows.isPanelSender = (webContentsId) =>
+      webContentsId === 29;
+    registerFontsIpc(context, service);
+    const getLibrary = electronBoundary.handlers.get("fonts:get-library");
+    const savePreferences = electronBoundary.handlers.get(
+      "fonts:save-preferences",
+    );
+    if (!getLibrary || !savePreferences) {
+      throw new Error("Font IPC handlers were not registered");
+    }
+    const registeredPanelEvent = {
+      sender: { id: 29 },
+      senderFrame: { url: rendererUrl },
+    };
+
+    await expect(getLibrary(registeredPanelEvent)).resolves.toEqual(
+      fontSnapshot,
+    );
+    expect(service.getFontLibrarySnapshot).toHaveBeenCalledOnce();
+    await expect(
+      getLibrary({
+        sender: { id: 31 },
+        senderFrame: { url: rendererUrl },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      getLibrary({
+        sender: { id: 29 },
+        senderFrame: { url: "https://attacker.example/" },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      savePreferences(registeredPanelEvent, fontSnapshot.preferences),
+    ).rejects.toThrow();
+  });
+
   it("reopens in the source folder after a font is registered successfully", async () => {
     const { dataRoot, fontDirectory, fontPath } =
       await makeFontFixture("fonts-ipc-success-");

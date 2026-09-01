@@ -33,6 +33,7 @@ type UseWorkspaceBlockCreateHandlersOptions = {
   blockFormatDefaults?: BlockFormatDefaults;
   getImagePointerRect: () => PointerRect | null;
   interactionPreviewStore: WorkspaceInteractionPreviewStore;
+  onBlockCreated?: (blockId: string) => void;
   pushStatus: (line: string) => void;
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
@@ -194,6 +195,7 @@ function draftToBbox(draft: Pick<BlockCreateDraft, "current" | "start">): BBox {
 
 function useCreateBlockFromBbox({
   blockFormatDefaults,
+  onBlockCreated,
   pushStatus,
   selectedPage,
   setSelectedBlockId,
@@ -232,10 +234,12 @@ function useCreateBlockFromBbox({
       );
       setSelectedBlockId(block.id);
       setSelectedBlockIds([block.id]);
+      onBlockCreated?.(block.id);
       pushStatus(t("blockCreate.added"));
     },
     [
       blockFormatDefaults,
+      onBlockCreated,
       pushStatus,
       selectedPage,
       setSelectedBlockId,

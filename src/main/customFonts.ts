@@ -86,6 +86,7 @@ function fontsDir(dependencies: CustomFontLibraryDependencies): string {
 const DEFAULT_FONT_PREFERENCES: FontPreferences = {
   favoriteIds: [],
   orderedIds: [],
+  hiddenIds: [],
   defaultFontId: DEFAULT_BLOCK_FONT_ID,
 };
 
@@ -174,9 +175,8 @@ function resolveExistingFontFilePath(
   }
 }
 
-export function listCustomFonts(): CustomFont[] {
-  return listCustomFontsWith(productionDependencies);
-}
+export const listCustomFonts = (): CustomFont[] =>
+  listCustomFontsWith(productionDependencies);
 
 function listCustomFontsWith(
   dependencies: CustomFontLibraryDependencies,
@@ -260,6 +260,7 @@ function normalizeFontPreferences(
   return {
     favoriteIds: normalizeKnownIds(data.favoriteIds, knownIds),
     orderedIds: normalizeKnownIds(data.orderedIds, knownIds),
+    hiddenIds: normalizeKnownIds(data.hiddenIds, knownIds),
     defaultFontId,
   };
 }
@@ -315,9 +316,8 @@ function saveFontPreferencesWith(
   return preferences;
 }
 
-export function getFontLibrarySnapshot(): FontLibrarySnapshot {
-  return getFontLibrarySnapshotWith(productionDependencies);
-}
+export const getFontLibrarySnapshot = (): FontLibrarySnapshot =>
+  getFontLibrarySnapshotWith(productionDependencies);
 
 function getFontLibrarySnapshotWith(
   dependencies: CustomFontLibraryDependencies,

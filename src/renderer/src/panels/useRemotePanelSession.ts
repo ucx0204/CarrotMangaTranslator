@@ -1,7 +1,8 @@
 import React from "react";
-import type {
-  PanelCommand,
-  PanelSyncState,
+import {
+  pickPanelFormatPatch,
+  type PanelCommand,
+  type PanelSyncState,
 } from "../../../shared/panelBridgeTypes";
 import { panelGateway as mangaGateway } from "../api/panelGateway";
 import { appI18n } from "../appI18n";
@@ -11,12 +12,34 @@ import type { PanelSessionValue } from "./panelSession";
 
 const noop = (): void => undefined;
 const REMOTE_WINDOW_ACTIONS = {
-  canCreateStylePreset: false,
   onBackToPageBlocks: noop,
   onDockEditorWindow: noop,
   onPopOutEditor: noop,
   onToggleEditorFloat: noop,
 };
+
+type RemotePresetActions = Pick<
+  PanelSessionValue,
+  | "onApplyStylePreset"
+  | "onCreateStylePreset"
+  | "onDeleteStylePreset"
+  | "onOpenStylePresetManager"
+  | "onOverwriteStylePreset"
+>;
+
+type RemoteBlockActions = Pick<
+  PanelSessionValue,
+  | "onAdjustFontSize"
+  | "onDeleteBlock"
+  | "onDuplicateBlock"
+  | "onEraseBlockOriginal"
+  | "onFitBlockBubble"
+  | "onInsertBlockLibraryEntry"
+  | "onOpenBlockLibrary"
+  | "onRemoveBubbleLayout"
+  | "onUpdateBlock"
+  | "onUpdateFormat"
+>;
 
 function dispatchCommand(command: PanelCommand): void {
   void mangaGateway.sendPanelCommand(command).catch((error) => {
@@ -76,22 +99,66 @@ function buildRemotePanelSessionValue(
     editorFloating: false,
     editorPoppedOut: false,
     showDetachControls: false,
+    canCreateStylePreset: Boolean(syncState.selectedBlock),
     ...REMOTE_WINDOW_ACTIONS,
     onApplyFormat: (scope, groupIds) =>
       dispatchCommand({ type: "applyFormat", scope, groupIds }),
-    onApplyStylePreset: createRemoteStylePresetApply(selectedBlockId),
-    onCreateStylePreset: async () => false,
+    ...createRemotePresetActions(selectedBlockId, syncState.selectionKey),
+    ...createRemoteBlockActions(selectedBlockId, syncState.selectionKey),
+    onApplyBlockBackgroundOpacity: (scope) =>
+      dispatchCommand({ type: "applyBlockBackgroundOpacity", scope }),
+    onSelectTransformMode: (mode) =>
+      dispatchCommand({ type: "selectTransformMode", mode }),
+    onStartAreaTranslate: () => dispatchCommand({ type: "startAreaTranslate" }),
+  };
+}
+
+function createRemotePresetActions(
+  selectedBlockId: string | undefined,
+  selectionKey: string,
+): RemotePresetActions {
+  return {
+    onApplyStylePreset: createRemoteStylePresetApply(
+      selectedBlockId,
+      selectionKey,
+    ),
+    onCreateStylePreset: async (input) => {
+      if (!selectedBlockId) return false;
+      dispatchCommand({
+        type: "createStylePreset",
+        selectionKey,
+        input,
+      });
+      return true;
+    },
     onDeleteStylePreset: async (presetId) => {
       dispatchCommand({ type: "deleteStylePreset", presetId });
       return true;
     },
-    onApplyBlockBackgroundOpacity: (scope) =>
-      dispatchCommand({ type: "applyBlockBackgroundOpacity", scope }),
+    onOpenStylePresetManager: () =>
+      dispatchCommand({ type: "openStylePresetManager" }),
+    onOverwriteStylePreset: async (presetId) => {
+      if (!selectedBlockId) return false;
+      dispatchCommand({
+        type: "overwriteStylePreset",
+        selectionKey,
+        presetId,
+      });
+      return true;
+    },
+  };
+}
+
+function createRemoteBlockActions(
+  selectedBlockId: string | undefined,
+  selectionKey: string,
+): RemoteBlockActions {
+  return {
     onAdjustFontSize: (adjustment) => {
       if (selectedBlockId) {
         dispatchCommand({
-          type: "adjustFontSize",
-          blockId: selectedBlockId,
+          type: "adjustSelectionFontSize",
+          selectionKey,
           adjustment,
         });
       }
@@ -130,9 +197,6 @@ function buildRemotePanelSessionValue(
         });
       }
     },
-    onSelectTransformMode: (mode) =>
-      dispatchCommand({ type: "selectTransformMode", mode }),
-    onStartAreaTranslate: () => dispatchCommand({ type: "startAreaTranslate" }),
     onUpdateBlock: (patch) => {
       if (selectedBlockId) {
         dispatchCommand({
@@ -142,17 +206,27 @@ function buildRemotePanelSessionValue(
         });
       }
     },
+    onUpdateFormat: (patch) => {
+      if (selectedBlockId) {
+        dispatchCommand({
+          type: "updateSelectionFormat",
+          selectionKey,
+          patch: pickPanelFormatPatch(patch),
+        });
+      }
+    },
   };
 }
 
 function createRemoteStylePresetApply(
   selectedBlockId: string | undefined,
+  selectionKey: string,
 ): PanelSessionValue["onApplyStylePreset"] {
   return (presetId) => {
     if (selectedBlockId) {
       dispatchCommand({
         type: "applyStylePreset",
-        blockId: selectedBlockId,
+        selectionKey,
         presetId,
       });
     }

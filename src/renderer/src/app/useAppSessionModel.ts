@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import type { PanelCommand } from "../../../shared/panelBridgeTypes";
+import {
+  createPanelSelectionKey,
+  type PanelCommand,
+} from "../../../shared/panelBridgeTypes";
 import { useWorkspaceWheelZoom } from "../hooks/useWorkspaceWheelZoom";
 import { useLibraryDropImport } from "../hooks/useLibraryDropImport";
 import { usePanelBridgeHost } from "../panels/usePanelBridgeHost";
@@ -21,6 +24,10 @@ import {
 } from "./session/useTranslationController";
 import { dispatchPanelCommand } from "./session/panelCommandDispatcher";
 import { createStylePresetDeleteAction } from "./session/createStylePresetDeleteAction";
+import {
+  createStylePresetOverwriteAction,
+  createStylePresetSaveAction,
+} from "./session/createStylePresetSaveAction";
 import type { WorkspaceWheelZoomGesture } from "../lib/workspaceZoom";
 import { useLinkedWorkspaceActivityReporter } from "../hooks/useLinkedWorkspaceActivityReporter";
 
@@ -137,13 +144,31 @@ function usePanelCommandHandler(
     chapter.derivedState.selectedPageEditLocked ||
     translation.workspaceHistory.busy;
   const selectedBlockId = chapter.derivedState.selectedBlock?.id ?? null;
+  const selectionKey = createPanelSelectionKey(
+    chapter.derivedState.selectedBlockIds.length > 0
+      ? chapter.derivedState.selectedBlockIds
+      : selectedBlockId
+        ? [selectedBlockId]
+        : [],
+  );
   const selectWorkspaceTool = chapter.uiState.selectWorkspaceTool;
   const setBlockLibraryOpen = chapter.uiState.setBlockLibraryOpen;
+  const openSettings = chapter.settingsDialog.openSettings;
   const startAreaTranslate =
     inpainting.pointerHandlers.startRegionTranslationSelection;
   const runInpainting = inpainting.inpaintingActions.runInpainting;
   const runBubbleLayout = inpainting.inpaintingActions.runBubbleLayout;
   const deleteStylePreset = createStylePresetDeleteAction({
+    settingsDialog: chapter.settingsDialog,
+    statusLog: chapter.statusLog,
+  });
+  const createStylePreset = createStylePresetSaveAction({
+    derivedState: chapter.derivedState,
+    settingsDialog: chapter.settingsDialog,
+    statusLog: chapter.statusLog,
+  });
+  const overwriteStylePreset = createStylePresetOverwriteAction({
+    derivedState: chapter.derivedState,
     settingsDialog: chapter.settingsDialog,
     statusLog: chapter.statusLog,
   });
@@ -155,6 +180,10 @@ function usePanelCommandHandler(
           eraseBlockOriginal: (blockId) => void runInpainting("page", blockId),
           fitBlockBubble: (blockId) => void runBubbleLayout(blockId),
           deleteStylePreset: (presetId) => void deleteStylePreset(presetId),
+          createStylePreset: (input) => void createStylePreset(input),
+          openStylePresetManager: () => void openSettings(),
+          overwriteStylePreset: (presetId) =>
+            void overwriteStylePreset(presetId),
           openBlockLibrary: () => setBlockLibraryOpen(true),
           selectWorkspaceTool,
           startAreaTranslate,
@@ -162,15 +191,20 @@ function usePanelCommandHandler(
         busy,
         command,
         selectedBlockId,
+        selectionKey,
       });
     },
     [
       actions,
       busy,
       deleteStylePreset,
+      createStylePreset,
+      overwriteStylePreset,
+      openSettings,
       runBubbleLayout,
       runInpainting,
       selectedBlockId,
+      selectionKey,
       selectWorkspaceTool,
       setBlockLibraryOpen,
       startAreaTranslate,

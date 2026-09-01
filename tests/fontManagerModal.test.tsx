@@ -38,6 +38,7 @@ describe("FontManagerModal", () => {
         getFontLibrary: async () => ({
           customFonts: [],
           preferences: {
+            hiddenIds: [],
             favoriteIds: [],
             orderedIds: [],
             defaultFontId: DEFAULT_BLOCK_FONT_ID,

@@ -1,30 +1,40 @@
 import React from "react";
+import type { PanelFormatSelection } from "../../../shared/panelBridgeTypes";
 import { useEventCallback } from "../hooks/useEventCallback";
 import type { PanelSessionValue } from "./panelSession";
 
-type PanelSessionCallbacks = Pick<
+type EditingCallbacks = Pick<
   PanelSessionValue,
   | "onAdjustFontSize"
   | "onApplyBlockBackgroundOpacity"
   | "onApplyFormat"
   | "onApplyStylePreset"
-  | "onBackToPageBlocks"
   | "onCreateStylePreset"
   | "onDeleteStylePreset"
   | "onDeleteBlock"
-  | "onDockEditorWindow"
   | "onDuplicateBlock"
   | "onEraseBlockOriginal"
   | "onFitBlockBubble"
+  | "onRemoveBubbleLayout"
+  | "onUpdateBlock"
+  | "onUpdateFormat"
+>;
+
+type PanelChromeCallbacks = Pick<
+  PanelSessionValue,
+  | "onBackToPageBlocks"
+  | "onDockEditorWindow"
   | "onInsertBlockLibraryEntry"
   | "onOpenBlockLibrary"
+  | "onOpenStylePresetManager"
+  | "onOverwriteStylePreset"
   | "onPopOutEditor"
-  | "onRemoveBubbleLayout"
   | "onSelectTransformMode"
   | "onStartAreaTranslate"
   | "onToggleEditorFloat"
-  | "onUpdateBlock"
 >;
+
+type PanelSessionCallbacks = EditingCallbacks & PanelChromeCallbacks;
 
 export function useStablePanelSessionValue(
   value: PanelSessionValue,
@@ -39,6 +49,7 @@ export function useStablePanelSessionValue(
         : { width: pageWidth, height: pageHeight },
     [pageHeight, pageWidth],
   );
+  const formatSelection = useStablePanelFormatSelection(value.formatSelection);
 
   return React.useMemo(
     () => ({
@@ -51,6 +62,9 @@ export function useStablePanelSessionValue(
       editorDisabled: value.editorDisabled,
       editorFloating: value.editorFloating,
       editorPoppedOut: value.editorPoppedOut,
+      editorTextTabRequestToken: value.editorTextTabRequestToken,
+      formatSelection,
+      selectionKey: value.selectionKey,
       selectedBlock: value.selectedBlock,
       selectedBlockCount: value.selectedBlockCount,
       selectedPageSize,
@@ -59,6 +73,7 @@ export function useStablePanelSessionValue(
     }),
     [
       callbacks,
+      formatSelection,
       selectedPageSize,
       value.areaTranslateAvailable,
       value.areaTranslateSelecting,
@@ -68,6 +83,8 @@ export function useStablePanelSessionValue(
       value.editorDisabled,
       value.editorFloating,
       value.editorPoppedOut,
+      value.editorTextTabRequestToken,
+      value.selectionKey,
       value.selectedBlock,
       value.selectedBlockCount,
       value.showDetachControls,
@@ -76,78 +93,117 @@ export function useStablePanelSessionValue(
   );
 }
 
+function useStablePanelFormatSelection(
+  value: PanelFormatSelection,
+): PanelFormatSelection {
+  const serialized = JSON.stringify(value);
+  return React.useMemo(
+    () => JSON.parse(serialized) as PanelFormatSelection,
+    [serialized],
+  );
+}
+
 function useStablePanelSessionCallbacks(
   value: PanelSessionValue,
 ): PanelSessionCallbacks {
+  const editing = useStableEditingCallbacks(value);
+  const chrome = useStablePanelChromeCallbacks(value);
+  return React.useMemo(() => ({ ...editing, ...chrome }), [chrome, editing]);
+}
+
+function useStableEditingCallbacks(value: PanelSessionValue): EditingCallbacks {
   const onAdjustFontSize = useEventCallback(value.onAdjustFontSize);
   const onApplyBlockBackgroundOpacity = useEventCallback(
     value.onApplyBlockBackgroundOpacity,
   );
   const onApplyFormat = useEventCallback(value.onApplyFormat);
   const onApplyStylePreset = useEventCallback(value.onApplyStylePreset);
-  const onBackToPageBlocks = useEventCallback(value.onBackToPageBlocks);
   const onCreateStylePreset = useEventCallback(value.onCreateStylePreset);
   const onDeleteStylePreset = useEventCallback(value.onDeleteStylePreset);
   const onDeleteBlock = useEventCallback(value.onDeleteBlock);
-  const onDockEditorWindow = useEventCallback(value.onDockEditorWindow);
   const onDuplicateBlock = useEventCallback(value.onDuplicateBlock);
   const onEraseBlockOriginal = useEventCallback(value.onEraseBlockOriginal);
   const onFitBlockBubble = useEventCallback(value.onFitBlockBubble);
-  const onInsertBlockLibraryEntry = useEventCallback(
-    value.onInsertBlockLibraryEntry,
-  );
-  const onOpenBlockLibrary = useEventCallback(value.onOpenBlockLibrary);
-  const onPopOutEditor = useEventCallback(value.onPopOutEditor);
   const onRemoveBubbleLayout = useEventCallback(value.onRemoveBubbleLayout);
-  const onSelectTransformMode = useEventCallback(value.onSelectTransformMode);
-  const onStartAreaTranslate = useEventCallback(value.onStartAreaTranslate);
-  const onToggleEditorFloat = useEventCallback(value.onToggleEditorFloat);
   const onUpdateBlock = useEventCallback(value.onUpdateBlock);
+  const onUpdateFormat = useEventCallback(value.onUpdateFormat);
 
-  return React.useMemo<PanelSessionCallbacks>(
+  return React.useMemo<EditingCallbacks>(
     () => ({
       onAdjustFontSize,
       onApplyBlockBackgroundOpacity,
       onApplyFormat,
       onApplyStylePreset,
-      onBackToPageBlocks,
       onCreateStylePreset,
       onDeleteStylePreset,
       onDeleteBlock,
-      onDockEditorWindow,
       onDuplicateBlock,
       onEraseBlockOriginal,
       onFitBlockBubble,
-      onInsertBlockLibraryEntry,
-      onOpenBlockLibrary,
-      onPopOutEditor,
       onRemoveBubbleLayout,
-      onSelectTransformMode,
-      onStartAreaTranslate,
-      onToggleEditorFloat,
       onUpdateBlock,
+      onUpdateFormat,
     }),
     [
       onAdjustFontSize,
       onApplyBlockBackgroundOpacity,
       onApplyFormat,
       onApplyStylePreset,
-      onBackToPageBlocks,
       onCreateStylePreset,
       onDeleteStylePreset,
       onDeleteBlock,
-      onDockEditorWindow,
       onDuplicateBlock,
       onEraseBlockOriginal,
       onFitBlockBubble,
+      onRemoveBubbleLayout,
+      onUpdateBlock,
+      onUpdateFormat,
+    ],
+  );
+}
+
+function useStablePanelChromeCallbacks(
+  value: PanelSessionValue,
+): PanelChromeCallbacks {
+  const onBackToPageBlocks = useEventCallback(value.onBackToPageBlocks);
+  const onDockEditorWindow = useEventCallback(value.onDockEditorWindow);
+  const onInsertBlockLibraryEntry = useEventCallback(
+    value.onInsertBlockLibraryEntry,
+  );
+  const onOpenBlockLibrary = useEventCallback(value.onOpenBlockLibrary);
+  const onOpenStylePresetManager = useEventCallback(
+    value.onOpenStylePresetManager,
+  );
+  const onOverwriteStylePreset = useEventCallback(value.onOverwriteStylePreset);
+  const onPopOutEditor = useEventCallback(value.onPopOutEditor);
+  const onSelectTransformMode = useEventCallback(value.onSelectTransformMode);
+  const onStartAreaTranslate = useEventCallback(value.onStartAreaTranslate);
+  const onToggleEditorFloat = useEventCallback(value.onToggleEditorFloat);
+
+  return React.useMemo<PanelChromeCallbacks>(
+    () => ({
+      onBackToPageBlocks,
+      onDockEditorWindow,
       onInsertBlockLibraryEntry,
       onOpenBlockLibrary,
+      onOpenStylePresetManager,
+      onOverwriteStylePreset,
       onPopOutEditor,
-      onRemoveBubbleLayout,
       onSelectTransformMode,
       onStartAreaTranslate,
       onToggleEditorFloat,
-      onUpdateBlock,
+    }),
+    [
+      onBackToPageBlocks,
+      onDockEditorWindow,
+      onInsertBlockLibraryEntry,
+      onOpenBlockLibrary,
+      onOpenStylePresetManager,
+      onOverwriteStylePreset,
+      onPopOutEditor,
+      onSelectTransformMode,
+      onStartAreaTranslate,
+      onToggleEditorFloat,
     ],
   );
 }
