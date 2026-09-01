@@ -12,19 +12,17 @@ type VerticalTextTokenValue = ReturnType<
 
 export function TextWithVerticalSpacing({
   bold = false,
-  combineUpright = false,
   direction,
   text,
 }: {
   bold?: boolean;
-  combineUpright?: boolean;
   direction: RenderTextDirection;
   text: string;
 }): React.JSX.Element {
   if (direction !== "vertical") return <>{text}</>;
   return (
     <>
-      {tokenizeVerticalTextSpacing(text, combineUpright).map((token, index) => (
+      {tokenizeVerticalTextSpacing(text).map((token, index) => (
         <VerticalTextToken bold={bold} key={index} token={token} />
       ))}
     </>
@@ -41,9 +39,6 @@ function VerticalTextToken({
   if (token.kind === undefined) return <>{token.text}</>;
   if (token.kind === "ascii" || token.kind === "ideographic") {
     return <VerticalSpaceToken token={token} />;
-  }
-  if (token.kind === "combine") {
-    return <CombinedVerticalToken token={token} />;
   }
   if (token.presentation) {
     return <VerticalPunctuationShape bold={bold} token={token} />;
@@ -63,26 +58,6 @@ function VerticalSpaceToken({
         display: "inline-block",
         inlineSize: `${token.advanceEm}em`,
         whiteSpace: "pre",
-      }}
-    >
-      {token.text}
-    </span>
-  );
-}
-
-function CombinedVerticalToken({
-  token,
-}: {
-  token: VerticalTextTokenValue;
-}): React.JSX.Element {
-  return (
-    <span
-      data-vertical-symbol="combine"
-      data-vertical-source={token.text}
-      style={{
-        letterSpacing: 0,
-        textCombineUpright: "all",
-        textOrientation: "upright",
       }}
     >
       {token.text}

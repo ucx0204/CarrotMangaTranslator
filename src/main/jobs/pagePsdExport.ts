@@ -212,7 +212,6 @@ function hasUnsupportedRunStyle(run: TextStyleRun): boolean {
     run.underline,
     run.strikethrough,
     run.emphasisMark,
-    run.verticalCombine,
   ];
   const optionalStyles = [
     run.sizePx,

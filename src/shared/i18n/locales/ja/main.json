@@ -35,9 +35,9 @@
     "registerFont": "フォントファイルを登録（TTF/OTF）",
     "saveReview": "校正表を保存",
     "saveText": "テキストを保存",
-    "openConditionalBatchYaml": "一貫編集 YAML を読み込む",
-    "saveConditionalBatchYaml": "一貫編集 YAML を書き出す",
-    "conditionalBatchYamlTooLarge": "一貫編集 YAML ファイルが 2 MiB を超えています。",
+    "openConditionalBatchYaml": "一括編集 YAML を読み込む",
+    "saveConditionalBatchYaml": "一括編集 YAML を書き出す",
+    "conditionalBatchYamlTooLarge": "一括編集 YAML ファイルが 2 MiB を超えています。",
     "exportOutputFolder": "結果の出力フォルダーを選択",
     "filters": {
       "images": "画像ファイル",

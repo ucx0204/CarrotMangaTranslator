@@ -302,7 +302,11 @@ export function createConditionForField(
     return { ...base, operator: "isTrue" };
   }
   if (definition.kind === "number") {
-    return { ...base, operator: "equals", value: 0 };
+    return {
+      ...base,
+      operator: "equals",
+      value: definition.number?.defaultValue ?? 0,
+    };
   }
   if (definition.kind === "color") {
     return { ...base, operator: "equals", value: "#000000" };
@@ -320,43 +324,16 @@ export function createConditionForField(
   return { ...base, operator: "contains", value: "" };
 }
 
-// eslint-disable-next-line complexity -- each bounded operator kind maps to the one value shape required by the shared field registry
+// eslint-disable-next-line complexity -- the operator registry's bounded value shapes are normalized in one exhaustive dispatch
 export function conditionValueForOperator(
   condition: ConditionalBatchConditionV2,
   operator: ConditionalBatchOperator,
 ): ConditionalBatchConditionV2 {
   const definition = getConditionalBatchFieldDefinition(condition.field);
   const base = { ...condition, operator };
-  if (
-    operator === "empty" ||
-    operator === "notEmpty" ||
-    operator === "isTrue" ||
-    operator === "isFalse"
-  ) {
-    const {
-      value: _value,
-      value2: _value2,
-      tolerance: _tolerance,
-      matcher: _matcher,
-      ...rest
-    } = base;
-    return rest;
-  }
+  if (isValuelessOperator(operator)) return removeConditionValues(base);
   if (operator === "regex" || operator === "notRegex") {
-    const {
-      value: _value,
-      value2: _value2,
-      tolerance: _tolerance,
-      ...rest
-    } = base;
-    return {
-      ...rest,
-      matcher:
-        condition.matcher ??
-        createConditionalLiteralMatcher(
-          typeof condition.value === "string" ? condition.value : "",
-        ),
-    };
+    return conditionWithMatcher(condition, base);
   }
   if (operator === "oneOf" || operator === "notOneOf") {
     return {
@@ -373,12 +350,22 @@ export function conditionValueForOperator(
     };
   }
   if (definition.kind === "number") {
+    const defaultValue = definition.number?.defaultValue ?? 0;
     return {
       ...base,
-      value: typeof condition.value === "number" ? condition.value : 0,
+      value:
+        typeof condition.value === "number" ? condition.value : defaultValue,
       ...(operator === "between"
         ? {
-            value2: typeof condition.value2 === "number" ? condition.value2 : 1,
+            value2:
+              typeof condition.value2 === "number"
+                ? condition.value2
+                : definition.number
+                  ? Math.min(
+                      definition.number.max,
+                      defaultValue + definition.number.step,
+                    )
+                  : 1,
           }
         : {}),
     };
@@ -394,6 +381,43 @@ export function conditionValueForOperator(
     ...base,
     matcher: undefined,
     value: typeof condition.value === "string" ? condition.value : "",
+  };
+}
+
+function isValuelessOperator(operator: ConditionalBatchOperator): boolean {
+  return ["empty", "notEmpty", "isTrue", "isFalse"].includes(operator);
+}
+
+function removeConditionValues(
+  condition: ConditionalBatchConditionV2,
+): ConditionalBatchConditionV2 {
+  const {
+    value: _value,
+    value2: _value2,
+    tolerance: _tolerance,
+    matcher: _matcher,
+    ...rest
+  } = condition;
+  return rest;
+}
+
+function conditionWithMatcher(
+  condition: ConditionalBatchConditionV2,
+  base: ConditionalBatchConditionV2,
+): ConditionalBatchConditionV2 {
+  const {
+    value: _value,
+    value2: _value2,
+    tolerance: _tolerance,
+    ...rest
+  } = base;
+  return {
+    ...rest,
+    matcher:
+      condition.matcher ??
+      createConditionalLiteralMatcher(
+        typeof condition.value === "string" ? condition.value : "",
+      ),
   };
 }
 

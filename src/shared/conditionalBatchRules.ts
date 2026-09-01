@@ -12,7 +12,10 @@ import {
 } from "./conditionalBatchFieldRegistry";
 import type { ChapterSnapshot } from "./libraryTypes";
 import type { TextStylePatch } from "./richTextMarkup";
+import { TextEffectSchema } from "./textEffect";
+import { TextGlowSchema } from "./textGlow";
 import type { TranslationBlock } from "./textTypes";
+import { formatConditionalBatchValidationIssue } from "./conditionalBatchErrorPresentation";
 import {
   ConditionalReplacementV3Schema,
   ConditionalTextMatcherV3Schema,
@@ -29,6 +32,10 @@ export const MAX_CONDITIONAL_BATCH_ACTIONS = 64;
 const MAX_CONDITIONAL_BATCH_SEQUENCES = 50;
 export const MAX_CONDITIONAL_BATCH_FILE_BYTES = 2 * 1024 * 1024;
 export const CONDITIONAL_BATCH_FILE_NAME = "batch-edit-schemes.yaml";
+export const CONDITIONAL_BATCH_STARTER_SCHEME_IDS = [
+  "starter-find-replace",
+  "starter-ellipsis-spacing",
+] as const;
 
 const RuleIdSchema = z.string().trim().min(1).max(200);
 const RuleNameSchema = z.string().trim().min(1).max(80);
@@ -289,26 +296,6 @@ const BlockFormatGroupIdSchema = z.enum([
   "transform",
 ]);
 
-const TextEffectSchema = z
-  .object({
-    enabled: z.boolean(),
-    color: HexColorSchema,
-    offsetXpx: z.number().finite().min(-512).max(512),
-    offsetYpx: z.number().finite().min(-512).max(512),
-    blurPx: z.number().finite().min(0).max(512),
-    opacity: z.number().finite().min(0).max(1),
-  })
-  .strict();
-
-const TextGlowSchema = z
-  .object({
-    enabled: z.boolean(),
-    color: HexColorSchema,
-    blurPx: z.number().finite().min(0).max(512),
-    opacity: z.number().finite().min(0).max(1),
-  })
-  .strict();
-
 const BlockStylePresetFormatSchema = z
   .object({
     fontFamily: z.string().max(120).optional(),
@@ -393,7 +380,6 @@ const TextStylePatchSchema = z
     glowColor: HexColorSchema.nullable().optional(),
     glowBlurPx: z.number().finite().min(0).max(64).nullable().optional(),
     glowOpacity: z.number().finite().min(0).max(1).nullable().optional(),
-    verticalCombine: z.boolean().nullable().optional(),
   })
   .strict()
   .refine((patch) => Object.keys(patch).length > 0, {
@@ -419,7 +405,6 @@ export const CONDITIONAL_BATCH_TEXT_STYLE_FIELDS = [
   "glowColor",
   "glowBlurPx",
   "glowOpacity",
-  "verticalCombine",
 ] as const;
 
 const CONDITIONAL_BATCH_TEXT_STYLE_OPERATORS = [
@@ -453,7 +438,6 @@ const ConditionalBatchTextStyleMatchConditionSchema = z
       "underline",
       "strikethrough",
       "emphasisMark",
-      "verticalCombine",
     ].includes(condition.field);
     const colorField = [
       "color",
@@ -841,6 +825,51 @@ export function createEmptyConditionalBatchSnapshot(): ConditionalBatchSnapshotV
   };
 }
 
+/**
+ * The two starter entries are real schemes, not recipe-only UI. Stable IDs let
+ * local favourites point at them without leaking presentation state into YAML.
+ */
+export function createConditionalBatchStarterSchemes(): ConditionalBatchSchemeV2[] {
+  return [
+    {
+      id: CONDITIONAL_BATCH_STARTER_SCHEME_IDS[0],
+      ...createConditionalBatchRecipeDraft("findReplace", {
+        find: "",
+        idFactory: createStarterIdFactory("find-replace"),
+      }),
+    },
+    {
+      id: CONDITIONAL_BATCH_STARTER_SCHEME_IDS[1],
+      ...createConditionalBatchRecipeDraft("ellipsis", {
+        idFactory: createStarterIdFactory("ellipsis-spacing"),
+      }),
+    },
+  ];
+}
+
+export function includeConditionalBatchStarterSchemes(
+  snapshot: ConditionalBatchSnapshotV2,
+): ConditionalBatchSnapshotV2 {
+  const existingIds = new Set(snapshot.schemes.map((scheme) => scheme.id));
+  const availableSlots = Math.max(
+    0,
+    MAX_CONDITIONAL_BATCH_SCHEMES - snapshot.schemes.length,
+  );
+  const missing = createConditionalBatchStarterSchemes()
+    .filter((scheme) => !existingIds.has(scheme.id))
+    .slice(0, availableSlots);
+  if (missing.length === 0) return snapshot;
+  return ConditionalBatchSnapshotV2Schema.parse({
+    ...snapshot,
+    schemes: [...missing, ...snapshot.schemes],
+  });
+}
+
+function createStarterIdFactory(namespace: string): (prefix: string) => string {
+  let sequence = 0;
+  return (prefix) => `starter-${namespace}-${prefix}-${++sequence}`;
+}
+
 export function createEllipsisBatchSchemeDraft(
   idFactory: (prefix: string) => string = createConditionalBatchClientId,
 ): ConditionalBatchSchemeDraftV2 {
@@ -881,7 +910,6 @@ export type ConditionalBatchRecipeId =
   | "whitespace"
   | "emptyTranslation"
   | "verticalStyle"
-  | "soundStyle"
   | "lowConfidence"
   | "sameAsSource"
   | "numberMismatch"
@@ -1015,10 +1043,7 @@ export function createConditionalBatchRecipeDraft(
       ],
     };
   }
-  if (
-    (recipeId === "verticalStyle" || recipeId === "soundStyle") &&
-    options.stylePreset
-  ) {
+  if (recipeId === "verticalStyle" && options.stylePreset) {
     const preset = options.stylePreset;
     return {
       name: recipeId === "verticalStyle" ? "세로쓰기 서식" : "효과음 서식",
@@ -1107,7 +1132,14 @@ export function createConditionalBatchClientId(prefix: string): string {
 export function parseConditionalBatchSnapshot(input: unknown): {
   snapshot: ConditionalBatchSnapshotV2;
 } {
-  return { snapshot: ConditionalBatchSnapshotV2Schema.parse(input) };
+  const parsed = ConditionalBatchSnapshotV2Schema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(
+      formatConditionalBatchValidationIssue(parsed.error.issues[0]) ??
+        "일괄 편집 규칙을 확인하세요.",
+    );
+  }
+  return { snapshot: parsed.data };
 }
 
 function validateCondition(
@@ -1230,9 +1262,13 @@ function validateWritableFieldValue(
       issue("숫자를 입력하세요.");
       return;
     }
-    const range = WRITABLE_NUMBER_RANGES[field];
-    if (range && (value < range[0] || value > range[1])) {
-      issue(`${range[0]} 이상 ${range[1]} 이하의 숫자를 입력하세요.`);
+    const range = definition.number;
+    if (!range || value < range.min || value > range.max) {
+      issue(
+        range
+          ? `${range.min} 이상 ${range.max} 이하의 숫자를 입력하세요.`
+          : "숫자 값을 입력하세요.",
+      );
     }
     return;
   }
@@ -1251,26 +1287,6 @@ function validateWritableFieldValue(
     issue("지원하는 값 중 하나를 선택하세요.");
   }
 }
-
-const WRITABLE_NUMBER_RANGES: Partial<
-  Record<ConditionalBatchWritableField, readonly [number, number]>
-> = {
-  fontSizePx: [1, 512],
-  lineHeight: [0.1, 10],
-  letterSpacing: [-1, 5],
-  fontWidthScale: [0.1, 5],
-  rotationDeg: [-180, 180],
-  textOpacity: [0, 1],
-  outlineWidthPx: [0, 64],
-  outlineWidthScale: [0, 8],
-  outerOutlineWidthPx: [0, 64],
-  textEffectOffsetX: [-512, 512],
-  textEffectOffsetY: [-512, 512],
-  textEffectBlur: [0, 512],
-  textEffectOpacity: [0, 1],
-  textGlowBlur: [0, 512],
-  textGlowOpacity: [0, 1],
-};
 
 const WRITABLE_ENUM_VALUES: Partial<
   Record<ConditionalBatchWritableField, readonly string[]>

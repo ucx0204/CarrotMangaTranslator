@@ -439,7 +439,6 @@ const RUN_STYLE_KEYS = [
   "glowColor",
   "glowBlurPx",
   "glowOpacity",
-  "verticalCombine",
 ] as const satisfies readonly (keyof TextStyleRun)[];
 
 function haveSameRunStyle(left: TextStyleRun, right: TextStyleRun): boolean {

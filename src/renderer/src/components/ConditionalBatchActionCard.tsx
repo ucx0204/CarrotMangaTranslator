@@ -103,18 +103,7 @@ export function ConditionalBatchActionCard(
       </button>
       {props.expanded ? (
         <div className={styles.cardBody}>
-          {props.draft.actions.length === 0 ? (
-            <div className={styles.inspectionState}>
-              <span>검사 규칙</span>
-              <Button
-                size="sm"
-                iconLeft={<IconPlus size={14} />}
-                onClick={actions.addReviewAction}
-              >
-                검수 필요로 표시
-              </Button>
-            </div>
-          ) : (
+          {props.draft.actions.length > 0 ? (
             <div className={styles.actionList}>
               {props.draft.actions.map((action, index) => (
                 <ActionSentenceCard
@@ -140,7 +129,7 @@ export function ConditionalBatchActionCard(
                 />
               ))}
             </div>
-          )}
+          ) : null}
           <ActionAddBar
             disabled={
               props.draft.actions.length >= MAX_CONDITIONAL_BATCH_ACTIONS
@@ -548,7 +537,15 @@ function SetFieldsActionEditor({
                 }))}
                 onValueChange={(field) => {
                   const nextField = field as ConditionalBatchWritableField;
-                  updateChange(index, createSetFieldChange(nextField));
+                  const changes = action.changes.map((entry, entryIndex) =>
+                    entryIndex === index
+                      ? createSetFieldChange(nextField)
+                      : entry,
+                  );
+                  onChange({
+                    ...action,
+                    changes: appendSetFieldDependencies(changes, nextField),
+                  });
                 }}
               />
             </Field>
@@ -618,9 +615,13 @@ function SetFieldsActionEditor({
             disabled={!unused.some((field) => field.id === fieldToAdd)}
             onClick={() => {
               if (!unused.some((field) => field.id === fieldToAdd)) return;
+              const changes = [
+                ...action.changes,
+                createSetFieldChange(fieldToAdd),
+              ];
               onChange({
                 ...action,
-                changes: [...action.changes, createSetFieldChange(fieldToAdd)],
+                changes: appendSetFieldDependencies(changes, fieldToAdd),
               });
             }}
           >
@@ -632,6 +633,7 @@ function SetFieldsActionEditor({
   );
 }
 
+// eslint-disable-next-line complexity -- the field registry's finite value kinds intentionally share one editor dispatch point
 function SetFieldValueEditor({
   change,
   onChange,
@@ -676,12 +678,19 @@ function SetFieldValueEditor({
     );
   }
   if (definition.kind === "number") {
+    const number = definition.number;
     return (
       <TextField
         type="number"
-        step="any"
+        min={number?.min}
+        max={number?.max}
+        step={number?.step ?? "any"}
         label="값"
-        value={typeof change.value === "number" ? change.value : 0}
+        value={
+          typeof change.value === "number"
+            ? change.value
+            : (number?.defaultValue ?? 0)
+        }
         onChange={(event) =>
           onChange({ ...change, value: Number(event.target.value) })
         }
@@ -690,15 +699,12 @@ function SetFieldValueEditor({
   }
   if (definition.kind === "color") {
     return (
-      <Field label="값">
-        <input
-          type="color"
-          value={String(change.value ?? "#000000")}
-          onChange={(event) =>
-            onChange({ ...change, value: event.target.value })
-          }
-        />
-      </Field>
+      <ColorField
+        label={`${CONDITIONAL_BATCH_FIELD_LABELS[change.field]} 값`}
+        value={String(change.value ?? "#000000")}
+        disabled={false}
+        onChange={(value) => onChange({ ...change, value })}
+      />
     );
   }
   return (
@@ -848,13 +854,6 @@ function StyleTextActionEditor({
           value={action.patch.emphasisMark}
           onChange={(emphasisMark) => updateStyle("emphasisMark", emphasisMark)}
         />
-        <PatchBoolean
-          label="세로쓰기 영문 묶음"
-          value={action.patch.verticalCombine}
-          onChange={(verticalCombine) =>
-            updateStyle("verticalCombine", verticalCombine)
-          }
-        />
         <PatchValue
           label="글자 크기"
           type="number"
@@ -995,7 +994,6 @@ const TEXT_STYLE_FIELD_LABELS: Record<ConditionalBatchTextStyleField, string> =
     glowColor: "광선색",
     glowBlurPx: "광선 퍼짐",
     glowOpacity: "광선 불투명도",
-    verticalCombine: "세로 영문 묶음",
   };
 
 function ExistingStyleMatchEditor({
@@ -1294,7 +1292,6 @@ function isTextStyleBooleanField(
     "underline",
     "strikethrough",
     "emphasisMark",
-    "verticalCombine",
   ].includes(field);
 }
 
@@ -1517,11 +1514,6 @@ function createActionActions(
     commit([...draft.actions, action]);
     setActiveId(action.id);
   };
-  const addReviewAction = (): void => {
-    const action = createDefaultAction("setFields");
-    commit([...draft.actions, action]);
-    setActiveId(action.id);
-  };
   const addPresetAction = (preset: BlockStylePreset): void => {
     const action = createPresetAction(preset);
     commit([...draft.actions, action]);
@@ -1584,7 +1576,6 @@ function createActionActions(
   return {
     addAction,
     addPresetAction,
-    addReviewAction,
     dropAction,
     duplicateAction,
     moveAction,
@@ -1624,10 +1615,18 @@ function createSetFieldChange(
     return { field, operation: "set", value: true };
   }
   if (definition.kind === "number") {
-    return { field, operation: "set", value: 1 };
+    return {
+      field,
+      operation: "set",
+      value: definition.number?.defaultValue ?? 0,
+    };
   }
   if (definition.kind === "color") {
-    return { field, operation: "set", value: "#000000" };
+    return {
+      field,
+      operation: "set",
+      value: DEFAULT_SET_FIELD_COLORS[field] ?? "#000000",
+    };
   }
   if (definition.kind === "enum") {
     return {
@@ -1638,6 +1637,90 @@ function createSetFieldChange(
   }
   return { field, operation: "set", value: "" };
 }
+
+/**
+ * A color or numeric component on its own can be valid persisted data while
+ * its visual effect remains disabled. Rules created through the card editor
+ * make those prerequisites explicit so a newly added property is visible in
+ * the preview immediately. Imported YAML keeps its exact semantics.
+ */
+function appendSetFieldDependencies(
+  changes: readonly ConditionalBatchSetFieldChangeV2[],
+  field: ConditionalBatchWritableField,
+): ConditionalBatchSetFieldChangeV2[] {
+  const next = [...changes];
+  const dependency = SET_FIELD_DEPENDENCIES[field];
+  if (dependency && !next.some((change) => change.field === dependency.field)) {
+    next.push(dependency);
+  }
+  return next;
+}
+
+const DEFAULT_SET_FIELD_COLORS: Partial<
+  Record<ConditionalBatchWritableField, string>
+> = {
+  textColor: "#111111",
+  outlineColor: "#ffffff",
+  outerOutlineColor: "#111111",
+  textBackgroundColor: "#ffffff",
+  textEffectColor: "#000000",
+  textGlowColor: "#ffffff",
+};
+
+const SET_FIELD_DEPENDENCIES: Partial<
+  Record<ConditionalBatchWritableField, ConditionalBatchSetFieldChangeV2>
+> = {
+  textBackgroundColor: {
+    field: "textBackgroundEnabled",
+    operation: "set",
+    value: true,
+  },
+  outerOutlineColor: {
+    field: "outerOutlineWidthPx",
+    operation: "set",
+    value: 1.5,
+  },
+  textEffectColor: {
+    field: "textEffectEnabled",
+    operation: "set",
+    value: true,
+  },
+  textEffectOffsetX: {
+    field: "textEffectEnabled",
+    operation: "set",
+    value: true,
+  },
+  textEffectOffsetY: {
+    field: "textEffectEnabled",
+    operation: "set",
+    value: true,
+  },
+  textEffectBlur: {
+    field: "textEffectEnabled",
+    operation: "set",
+    value: true,
+  },
+  textEffectOpacity: {
+    field: "textEffectEnabled",
+    operation: "set",
+    value: true,
+  },
+  textGlowColor: {
+    field: "textGlowEnabled",
+    operation: "set",
+    value: true,
+  },
+  textGlowBlur: {
+    field: "textGlowEnabled",
+    operation: "set",
+    value: true,
+  },
+  textGlowOpacity: {
+    field: "textGlowEnabled",
+    operation: "set",
+    value: true,
+  },
+};
 
 function updatePatch<T extends object, K extends keyof T>(
   patch: T,

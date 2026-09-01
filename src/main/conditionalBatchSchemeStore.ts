@@ -10,12 +10,14 @@ import {
   MAX_CONDITIONAL_BATCH_FILE_BYTES,
   MAX_CONDITIONAL_BATCH_SCHEMES,
   createEmptyConditionalBatchSnapshot,
+  includeConditionalBatchStarterSchemes,
   parseConditionalBatchSnapshot,
   type ConditionalBatchSchemeV2,
   type ConditionalBatchSequenceV2,
   type ConditionalBatchSnapshotV2,
   type SaveConditionalBatchSchemeInput,
 } from "../shared/conditionalBatchRules";
+import { formatConditionalBatchYamlSyntaxError } from "../shared/conditionalBatchErrorPresentation";
 import { writeTextFileAtomically } from "./libraryStore/storage";
 
 export type ConditionalBatchImportConflictPolicy = "duplicate" | "overwrite";
@@ -51,7 +53,7 @@ export class ConditionalBatchSchemeStore {
         snapshot.schemes.length >= MAX_CONDITIONAL_BATCH_SCHEMES
       ) {
         throw new Error(
-          "일관 편집 규칙은 최대 " +
+          "일괄 편집 규칙은 최대 " +
             MAX_CONDITIONAL_BATCH_SCHEMES +
             "개까지 저장할 수 있습니다.",
         );
@@ -84,7 +86,7 @@ export class ConditionalBatchSchemeStore {
         (scheme) => scheme.id !== id,
       );
       if (schemes.length === readResult.snapshot.schemes.length) {
-        throw new Error("저장된 일관 편집 규칙을 찾을 수 없습니다.");
+        throw new Error("저장된 일괄 편집 규칙을 찾을 수 없습니다.");
       }
       const sequences = readResult.snapshot.sequences
         .map((sequence) => ({
@@ -187,13 +189,18 @@ export class ConditionalBatchSchemeStore {
     } catch (error) {
       if (isMissingFile(error)) {
         return {
-          snapshot: createEmptyConditionalBatchSnapshot(),
+          snapshot: includeConditionalBatchStarterSchemes(
+            createEmptyConditionalBatchSnapshot(),
+          ),
         };
       }
       throw error;
     }
     assertFileSize(raw);
-    return parseSnapshotYaml(raw);
+    const parsed = parseSnapshotYaml(raw);
+    return {
+      snapshot: includeConditionalBatchStarterSchemes(parsed.snapshot),
+    };
   }
 
   private async write(snapshot: ConditionalBatchSnapshotV2): Promise<void> {
@@ -222,10 +229,7 @@ function parseSnapshotYaml(raw: string): ReadResult {
     uniqueKeys: true,
   });
   if (document.errors.length > 0) {
-    throw new Error(
-      "일관 편집 YAML을 읽을 수 없습니다: " +
-        document.errors.map((error) => error.message).join("; "),
-    );
+    throw new Error(formatConditionalBatchYamlSyntaxError(document.errors[0]));
   }
   const parsed = document.toJS({ maxAliasCount: 0 });
   return parseConditionalBatchSnapshot(parsed);
@@ -332,7 +336,7 @@ function createImportedName(baseName: string, usedNames: Set<string>): string {
 
 function assertFileSize(raw: string): void {
   if (Buffer.byteLength(raw, "utf8") > MAX_CONDITIONAL_BATCH_FILE_BYTES) {
-    throw new Error("일관 편집 YAML 파일이 2MiB를 초과합니다.");
+    throw new Error("일괄 편집 YAML 파일이 2MiB를 초과합니다.");
   }
 }
 

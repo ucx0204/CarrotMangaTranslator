@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { FontManagerModal } from "./FontManagerModal";
 import styles from "./FontSelect.module.css";
 import { Select } from "./ui/Select";
+import { FavoriteToggleButton } from "./ui/FavoriteToggleButton";
 import type { SelectOption } from "./ui/selectTypes";
 import {
   useFontSelectModel,
@@ -103,25 +104,16 @@ function FontOptionActions({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <button
-        type="button"
-        className={`${styles.favorite} ${favorite ? styles.favoriteActive : ""}`}
-        title={t(
-          favorite ? "fontSelect.unfavoriteFont" : "fontSelect.favoriteFont",
-        )}
-        aria-label={t(
-          favorite
-            ? "fontSelect.unfavoriteNamedFont"
-            : "fontSelect.favoriteNamedFont",
-          { label: option.label },
-        )}
-        aria-pressed={favorite}
-        disabled={busy}
-        onClick={() => onToggleFavorite(option.id)}
-      >
-        <span aria-hidden="true">{favorite ? "★" : "☆"}</span>
-      </button>
-    </>
+    <FavoriteToggleButton
+      favorite={favorite}
+      disabled={busy}
+      label={t(
+        favorite
+          ? "fontSelect.unfavoriteNamedFont"
+          : "fontSelect.favoriteNamedFont",
+        { label: option.label },
+      )}
+      onToggle={() => onToggleFavorite(option.id)}
+    />
   );
 }

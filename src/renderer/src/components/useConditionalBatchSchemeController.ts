@@ -4,6 +4,7 @@ import { parseDocument, stringify } from "yaml";
 import type { BlockStylePreset } from "../../../shared/blockStylePresets";
 import {
   CONDITIONAL_BATCH_SCHEMA_VERSION,
+  CONDITIONAL_BATCH_STARTER_SCHEME_IDS,
   ConditionalBatchSchemeDraftV2Schema,
   createBlankBatchSchemeDraft,
   createConditionalBatchClientId,
@@ -16,6 +17,10 @@ import {
   type ConditionalBatchSequenceV2,
   type ConditionalBatchSnapshotV2,
 } from "../../../shared/conditionalBatchRules";
+import {
+  formatConditionalBatchValidationIssue,
+  formatConditionalBatchYamlSyntaxError,
+} from "../../../shared/conditionalBatchErrorPresentation";
 import { conditionalBatchGateway } from "../api/conditionalBatchGateway";
 
 export type ConditionalBatchApplyNotice = {
@@ -50,6 +55,8 @@ type TemporaryDraftSession = {
   draft: ConditionalBatchSchemeDraftV2;
   baseline: string;
 };
+
+const FAVORITE_SCHEMES_STORAGE_KEY = "conditionalBatch.favoriteSchemeIds.v1";
 
 // Rule selection, explicit first-save, delayed autosave and YAML exchange share
 // one state owner so an IPC failure cannot partially replace the active draft.
@@ -94,6 +101,9 @@ export function useConditionalBatchSchemeController(
   const [yamlOpen, setYamlOpen] = React.useState(false);
   const [yamlText, setYamlText] = React.useState("");
   const [yamlError, setYamlError] = React.useState<string | null>(null);
+  const [favoriteSchemeIds, setFavoriteSchemeIds] = React.useState<string[]>(
+    readFavoriteSchemeIds,
+  );
   const lastSavedDraftRef = React.useRef("");
   const saveGenerationRef = React.useRef(0);
 
@@ -398,7 +408,8 @@ export function useConditionalBatchSchemeController(
     if (!parsedDraft.success) {
       setYamlText("");
       setYamlError(
-        parsedDraft.error.issues[0]?.message ?? "규칙을 확인하세요.",
+        formatConditionalBatchValidationIssue(parsedDraft.error.issues[0]) ??
+          "규칙을 확인하세요.",
       );
       return;
     }
@@ -431,7 +442,7 @@ export function useConditionalBatchSchemeController(
       });
       if (document.errors.length > 0) {
         throw new Error(
-          document.errors.map((error) => error.message).join("; "),
+          formatConditionalBatchYamlSyntaxError(document.errors[0]),
         );
       }
       const parsed = parseConditionalBatchSnapshot(
@@ -534,11 +545,23 @@ export function useConditionalBatchSchemeController(
     }
   };
 
+  const toggleSchemeFavorite = React.useCallback((id: string): void => {
+    setFavoriteSchemeIds((current) => {
+      const next = current.includes(id)
+        ? current.filter((entry) => entry !== id)
+        : [...current, id].slice(-100);
+      writeFavoriteSchemeIds(next);
+      return next;
+    });
+  }, []);
+
   return {
     applyNotice,
     autosaveState,
     blockStylePresets: options.blockStylePresets ?? [],
-    canDeleteScheme: true,
+    canDeleteScheme: !CONDITIONAL_BATCH_STARTER_SCHEME_IDS.includes(
+      selectedSchemeId as (typeof CONDITIONAL_BATCH_STARTER_SCHEME_IDS)[number],
+    ),
     changeDraft,
     chooseRecipe: resetToRecipe,
     createNewScheme,
@@ -547,6 +570,7 @@ export function useConditionalBatchSchemeController(
     draft,
     duplicateScheme,
     exportYaml: (all: boolean) => void exportYaml(all),
+    favoriteSchemeIds,
     importYaml: (policy?: "duplicate" | "overwrite") => void importYaml(policy),
     openYamlEditor: () => void openYamlEditor(),
     openYamlFile: () => void openYamlFile(),
@@ -573,16 +597,53 @@ export function useConditionalBatchSchemeController(
       name: session.draft.name,
       dirty: stableDraftString(session.draft) !== session.baseline,
     })),
+    toggleSchemeFavorite,
     hasDirtyTemporaryDrafts: temporaryDrafts.some(
       (session) => stableDraftString(session.draft) !== session.baseline,
     ),
     validationMessage: parsedDraft.success
       ? null
-      : (parsedDraft.error.issues[0]?.message ?? null),
+      : formatConditionalBatchValidationIssue(parsedDraft.error.issues[0]),
     yamlError,
     yamlOpen,
     yamlText,
   };
+}
+
+function readFavoriteSchemeIds(): string[] {
+  try {
+    const raw = window.localStorage.getItem(FAVORITE_SCHEMES_STORAGE_KEY);
+    if (raw === null) return [...CONDITIONAL_BATCH_STARTER_SCHEME_IDS];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed))
+      return [...CONDITIONAL_BATCH_STARTER_SCHEME_IDS];
+    return [
+      ...new Set(
+        parsed.filter(
+          (entry): entry is string =>
+            typeof entry === "string" &&
+            entry.length > 0 &&
+            entry.length <= 200,
+        ),
+      ),
+    ].slice(0, 100);
+  } catch (error) {
+    void error;
+    return [...CONDITIONAL_BATCH_STARTER_SCHEME_IDS];
+  }
+}
+
+function writeFavoriteSchemeIds(ids: readonly string[]): void {
+  try {
+    window.localStorage.setItem(
+      FAVORITE_SCHEMES_STORAGE_KEY,
+      JSON.stringify(ids),
+    );
+  } catch (error) {
+    void error;
+    // Hardened or ephemeral renderers may not expose storage. The current
+    // modal still keeps the user's choice in React state.
+  }
 }
 
 function serializeDraftYaml(draft: ConditionalBatchSchemeDraftV2): string {

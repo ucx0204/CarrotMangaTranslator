@@ -58,7 +58,7 @@
   },
   "conditionalBatch": {
     "open": "Batch edit text",
-    "title": "Consistency editor",
+    "title": "Batch editor",
     "undo": "Undo",
     "scheme": {
       "label": "Load a rule",
@@ -488,7 +488,6 @@
       "size": "Font size",
       "font": "Character font",
       "opacity": "Text opacity",
-      "combineUpright": "Combine upright",
       "background": "Character background",
       "effects": "Outline & glow",
       "mixed": "Mixed",

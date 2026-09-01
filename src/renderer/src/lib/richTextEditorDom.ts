@@ -3,7 +3,10 @@ import {
   type TextStyleRun,
 } from "../../../shared/richTextMarkup";
 import type { TranslationBlock } from "../../../shared/textTypes";
-import { resolveMainRunVisualStyle } from "./textRunVisualStyles";
+import {
+  resolveEditorRunVisualStyle,
+  resolveRunTextDecorationStyle,
+} from "./textRunVisualStyles";
 
 const RUN_ATTRIBUTE = "data-rich-text-run";
 const SELECTION_ATTRIBUTE = "data-rich-text-selection";
@@ -266,7 +269,6 @@ const BOOLEAN_RUN_STYLE_FIELDS = [
   "underline",
   "strikethrough",
   "emphasisMark",
-  "verticalCombine",
 ] as const satisfies readonly (keyof TextStyleRun)[];
 
 const STRING_RUN_STYLE_FIELDS = [
@@ -343,15 +345,23 @@ function createRunSpan(
   span.style.fontStyle = options.baseItalic || run.italic ? "italic" : "normal";
   span.style.opacity = String(run.opacity ?? options.baseOpacity);
   if (options.block) {
-    Object.assign(
-      span.style,
-      resolveMainRunVisualStyle(
-        options.block,
-        run,
-        16,
-        options.block.renderDirection,
-      ),
+    const visualStyle = resolveEditorRunVisualStyle(
+      options.block,
+      run,
+      16,
+      options.block.renderDirection,
     );
+    const decorationStyle = resolveRunTextDecorationStyle(options.block, run);
+    if (decorationStyle) {
+      Object.assign(span.style, decorationStyle);
+      const glyph = root.ownerDocument.createElement("span");
+      glyph.dataset.richTextGlyph = "";
+      Object.assign(glyph.style, visualStyle);
+      glyph.append(root.ownerDocument.createTextNode(text));
+      span.append(glyph);
+      return span;
+    }
+    Object.assign(span.style, visualStyle);
   }
   span.append(root.ownerDocument.createTextNode(text));
   return span;

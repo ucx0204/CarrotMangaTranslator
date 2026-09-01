@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- stateful editor, result-panel, and workspace integration scenarios share one production harness */
 /** @vitest-environment jsdom */
 
 import React from "react";
@@ -47,6 +48,7 @@ import {
 import { createWorkspaceInteractionPreviewStore } from "../src/renderer/src/lib/workspaceInteractionPreview";
 import { createConditionalBatchPreview } from "../src/shared/conditionalBatchEngine";
 import {
+  createConditionalBatchStarterSchemes,
   createEllipsisBatchSchemeDraft,
   type ConditionalBatchPreview,
   type ConditionalBatchPreviewResult,
@@ -90,23 +92,29 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  window.localStorage.clear();
+  const starterSchemes = createConditionalBatchStarterSchemes();
   gatewayMocks.listSchemes.mockReset().mockResolvedValue({
     schemaVersion: 1,
-    schemes: [],
+    schemes: starterSchemes,
     sequences: [],
   });
   gatewayMocks.saveScheme
     .mockReset()
-    .mockImplementation(async ({ scheme }) => ({
+    .mockImplementation(async ({ id, scheme }) => ({
       schemaVersion: 1,
       schemes: [
-        { id: "saved-rule", ...scheme } satisfies ConditionalBatchSchemeV2,
+        {
+          id: id ?? "saved-rule",
+          ...scheme,
+        } satisfies ConditionalBatchSchemeV2,
+        ...starterSchemes.filter((starter) => starter.id !== id),
       ],
       sequences: [],
     }));
   gatewayMocks.deleteScheme.mockReset().mockResolvedValue({
     schemaVersion: 1,
-    schemes: [],
+    schemes: starterSchemes,
     sequences: [],
   });
   Object.defineProperty(window, "mangaApi", {
@@ -161,6 +169,7 @@ describe("beginner conditional batch editor", () => {
       onSelectScheme: vi.fn(),
       onSetYamlOpen: vi.fn(),
       onSetYamlText: vi.fn(),
+      onToggleSchemeFavorite: vi.fn(),
     };
     const props: ConditionalBatchRulePanelProps = {
       activeSequence: null,
@@ -170,6 +179,7 @@ describe("beginner conditional batch editor", () => {
       canDeleteScheme: true,
       currentResult: null,
       draft,
+      favoriteSchemeIds: ["rule-1"],
       recipePickerCanClose: true,
       recipePickerOpen: false,
       savedSchemes,
@@ -229,7 +239,7 @@ describe("beginner conditional batch editor", () => {
     fireEvent.click(screen.getByRole("button", { name: "전체 내보내기" }));
     fireEvent.click(screen.getByRole("button", { name: "직접 편집" }));
     fireEvent.click(screen.getByRole("button", { name: "가져오기" }));
-    fireEvent.change(screen.getByLabelText("일관 편집 YAML"), {
+    fireEvent.change(screen.getByLabelText("일괄 편집 YAML"), {
       target: { value: "schemaVersion: 1\nschemes: []" },
     });
     fireEvent.click(screen.getByRole("button", { name: "카드에 반영" }));
@@ -301,14 +311,19 @@ describe("beginner conditional batch editor", () => {
     expect(
       recipes.getByRole("button", { name: "말줄임표·공백 정리" }),
     ).toBeTruthy();
-    expect(recipes.getByRole("button", { name: "직접 만들기" })).toBeTruthy();
+    expect(
+      recipes.getByRole("button", { name: "직접 규칙 생성" }),
+    ).toBeTruthy();
+    expect(
+      recipes.queryByRole("button", { name: "효과음 서식 적용" }),
+    ).toBeNull();
     expect(recipes.queryByRole("button", { name: "빈 번역 찾기" })).toBeNull();
     expect(
       recipes.queryByRole("button", { name: "낮은 인식 신뢰도 찾기" }),
     ).toBeNull();
     expect(recipes.queryByText("검사 레시피")).toBeNull();
     expect(screen.queryByRole("button", { name: "적용" })).toBeNull();
-    fireEvent.click(recipes.getByRole("button", { name: "직접 만들기" }));
+    fireEvent.click(recipes.getByRole("button", { name: "직접 규칙 생성" }));
     expect(screen.getByRole("button", { name: "적용" })).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "모두 맞을 때" }));
 
@@ -342,7 +357,7 @@ describe("beginner conditional batch editor", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "새 규칙" }));
-    fireEvent.click(screen.getByRole("button", { name: "말줄임표·공백 정리" }));
+    fireEvent.click(screen.getByRole("button", { name: "직접 규칙 생성" }));
     expect(
       getTopLevelSectionToggle("대상 조건").getAttribute("aria-expanded"),
     ).toBe("true");
@@ -389,6 +404,56 @@ describe("beginner conditional batch editor", () => {
     );
   });
 
+  it("uses saved-rule stars as the new-rule quick buttons", async () => {
+    render(
+      <FontsContext.Provider value={FONTS_CONTEXT}>
+        <ConditionalBatchEditor
+          chapter={CHAPTER}
+          selectedPageId="page-1"
+          workspaceProps={WORKSPACE_PROPS}
+          busy={false}
+          canUndo={false}
+          undoLabel={null}
+          onApply={() => ({
+            appliedCount: 0,
+            conflictCount: 0,
+            dirtyPageIds: [],
+          })}
+          onClose={() => undefined}
+          onSelectPage={() => undefined}
+          onUndo={async () => false}
+        />
+      </FontsContext.Provider>,
+    );
+    await waitFor(() =>
+      expect(gatewayMocks.listSchemes).toHaveBeenCalledOnce(),
+    );
+    const recipePanel = screen
+      .getByText("새 규칙", { selector: "strong" })
+      .closest("section");
+    if (!recipePanel) throw new Error("new-rule panel is missing");
+    expect(
+      within(recipePanel).getByRole("button", { name: "찾아 바꾸기" }),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("combobox", { name: "현재 규칙" }));
+    fireEvent.click(screen.getByLabelText("찾아 바꾸기 빠른 규칙에서 제거"));
+    expect(
+      within(recipePanel).queryByRole("button", { name: "찾아 바꾸기" }),
+    ).toBeNull();
+    expect(
+      JSON.parse(
+        window.localStorage.getItem("conditionalBatch.favoriteSchemeIds.v1") ??
+          "[]",
+      ),
+    ).not.toContain("starter-find-replace");
+
+    fireEvent.click(screen.getByLabelText("찾아 바꾸기 빠른 규칙에 추가"));
+    expect(
+      within(recipePanel).getByRole("button", { name: "찾아 바꾸기" }),
+    ).toBeTruthy();
+  });
+
   it("keeps conditions while switching match modes", async () => {
     render(
       <FontsContext.Provider value={FONTS_CONTEXT}>
@@ -413,7 +478,7 @@ describe("beginner conditional batch editor", () => {
     await waitFor(() =>
       expect(gatewayMocks.listSchemes).toHaveBeenCalledOnce(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "직접 만들기" }));
+    fireEvent.click(screen.getByRole("button", { name: "직접 규칙 생성" }));
     fireEvent.click(screen.getByRole("radio", { name: "모두 맞을 때" }));
     fireEvent.change(screen.getByLabelText("값"), {
       target: { value: "돌아와도 남을 조건" },
@@ -486,7 +551,7 @@ describe("beginner conditional batch editor", () => {
     await waitFor(() =>
       expect(gatewayMocks.listSchemes).toHaveBeenCalledOnce(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "직접 만들기" }));
+    fireEvent.click(screen.getByRole("button", { name: "직접 규칙 생성" }));
     fireEvent.click(screen.getByRole("radio", { name: "모두 맞을 때" }));
     fireEvent.click(screen.getByRole("combobox", { name: "조건 필드" }));
     fireEvent.click(screen.getByRole("option", { name: "글꼴" }));
@@ -551,7 +616,7 @@ describe("beginner conditional batch editor", () => {
     await waitFor(() =>
       expect(gatewayMocks.listSchemes).toHaveBeenCalledOnce(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "말줄임표·공백 정리" }));
+    fireEvent.click(screen.getByRole("button", { name: "직접 규칙 생성" }));
     fireEvent.click(screen.getByLabelText("규칙 편집"));
     fireEvent.change(screen.getByLabelText("규칙 이름"), {
       target: { value: "닫기 확인 대상" },
@@ -591,9 +656,7 @@ describe("beginner conditional batch editor", () => {
     await waitFor(() =>
       expect(gatewayMocks.listSchemes).toHaveBeenCalledOnce(),
     );
-    fireEvent.click(
-      requiredItem(screen.getAllByRole("button", { name: "찾아 바꾸기" }), 0),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "직접 규칙 생성" }));
     await waitFor(() =>
       expect(screen.getByLabelText("글자 그대로")).toBeTruthy(),
     );
@@ -603,25 +666,26 @@ describe("beginner conditional batch editor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "새 규칙" }));
     fireEvent.click(screen.getByRole("button", { name: "말줄임표·공백 정리" }));
-    expect(
-      screen.getByRole("combobox", { name: "현재 규칙" }).textContent,
-    ).toContain("말줄임표·공백 정리");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("combobox", { name: "현재 규칙" }).textContent,
+      ).toContain("말줄임표·공백 정리"),
+    );
 
     fireEvent.click(screen.getByRole("combobox", { name: "현재 규칙" }));
-    fireEvent.click(screen.getByRole("option", { name: /찾아 바꾸기/ }));
+    fireEvent.click(screen.getByRole("option", { name: "새 규칙 •" }));
     await waitFor(() =>
-      expect(screen.getByLabelText("글자 그대로")).toBeTruthy(),
+      expect(
+        (screen.getByLabelText("글자 그대로") as HTMLInputElement).value,
+      ).toBe("규칙 A 입력"),
     );
-    expect(
-      (screen.getByLabelText("글자 그대로") as HTMLInputElement).value,
-    ).toBe("규칙 A 입력");
 
     fireEvent.click(screen.getByRole("button", { name: "임시 규칙 제거" }));
     expect(screen.getByRole("dialog", { name: "임시 규칙 제거" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "제거" }));
     expect(
       screen.getByRole("combobox", { name: "현재 규칙" }).textContent,
-    ).toContain("말줄임표·공백 정리");
+    ).toContain("새 규칙");
 
     fireEvent.click(screen.getByRole("button", { name: "새 규칙" }));
     const closeButtons = screen.getAllByRole("button", { name: "닫기" });
@@ -676,6 +740,9 @@ describe("beginner conditional batch editor", () => {
     ).toBe("");
     expect(screen.getByLabelText("1번 작업 삭제")).toBeTruthy();
     expect(screen.getByLabelText("메모")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("1번 작업 삭제"));
+    expect(screen.queryByText("검수 필요로 표시")).toBeNull();
+    expect(screen.getByText("작업 추가")).toBeTruthy();
   });
 
   it("opens a prefilled compact rule without exposing regex syntax", async () => {
@@ -740,7 +807,7 @@ describe("beginner conditional batch editor", () => {
           workspaceProps={WORKSPACE_PROPS}
           busy={false}
           canUndo
-          undoLabel="일관 편집: 말줄임표·공백 정리"
+          undoLabel="일괄 편집: 말줄임표·공백 정리"
           onApply={onApply}
           onClose={onClose}
           onSelectPage={onSelectPage}
@@ -752,7 +819,7 @@ describe("beginner conditional batch editor", () => {
     await waitFor(() =>
       expect(gatewayMocks.listSchemes).toHaveBeenCalledOnce(),
     );
-    expect(screen.getByRole("dialog", { name: "일관 편집" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "일괄 편집" })).toBeTruthy();
     expect(screen.queryByText("쉬운 규칙 만들기")).toBeNull();
     expect(
       screen.queryByText("처음에는 한 페이지만 시험해 보는 편이 안전합니다."),
@@ -768,6 +835,8 @@ describe("beginner conditional batch editor", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("글자 그대로")).toBeTruthy(),
     );
+    fireEvent.click(screen.getByRole("button", { name: "규칙 편집" }));
+    fireEvent.click(screen.getByRole("button", { name: "규칙 복제" }));
     expect(screen.getByRole("combobox", { name: "치환할 글" })).toBeTruthy();
     expect(
       screen.getByRole("checkbox", { name: "대소문자 구분" }),
@@ -886,7 +955,7 @@ describe("beginner conditional batch editor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "실행 취소" }));
     await waitFor(() => expect(onUndo).toHaveBeenCalledOnce());
-    expect(screen.getByText("방금 일관 편집을 되돌렸습니다.")).toBeTruthy();
+    expect(screen.getByText("방금 일괄 편집을 되돌렸습니다.")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "닫기" }));
     expect(onClose).toHaveBeenCalledOnce();

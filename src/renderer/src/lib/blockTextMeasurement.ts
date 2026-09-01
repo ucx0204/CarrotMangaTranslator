@@ -192,8 +192,7 @@ function measureVerticalText(
       );
     },
     resolveRunStyle,
-    (text, run) =>
-      segmentVerticalTextGraphemes(text, run.verticalCombine === true),
+    (text) => segmentVerticalTextGraphemes(text),
   );
   const columnCount = Math.max(1, measured.lineCount);
   const estimatedColumnWidth = maximumFontSizePx * 1.15 * fontWidthScale;

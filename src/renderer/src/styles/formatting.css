@@ -358,6 +358,15 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
+/* The editor renderer is stroke-free so Chromium can paint this native
+ * selection without dropping the selected glyphs on dark chrome. */
+.rich-editor-surface::selection,
+.rich-editor-surface *::selection {
+  background: var(--accent);
+  color: var(--accent-text);
+  text-shadow: none;
+}
+
 .rich-editor-surface [data-rich-text-selection] {
   background: color-mix(in srgb, var(--accent) 42%, transparent);
   border-radius: 2px;
@@ -435,12 +444,6 @@
   border-color: color-mix(in srgb, var(--accent) 58%, var(--border-strong));
   background: var(--accent-soft);
   color: var(--accent-text);
-}
-
-.rich-inline-tcy-icon {
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1;
 }
 
 .rich-inline-appearance-list {

@@ -15,6 +15,7 @@ import {
   hasAnyOuterOutline,
   resolveMainRunVisualStyle,
   resolveOuterRunVisualStyle,
+  resolveRunTextDecorationStyle,
 } from "../lib/textRunVisualStyles";
 import {
   resolveOverlayTextContentStyle,
@@ -251,26 +252,38 @@ function renderTextRun(
           renderDirection,
         );
   if (!visualStyle) return null;
+  const baseStyle: React.CSSProperties = {
+    fontWeight: run.bold ? 800 : 400,
+    fontStyle: run.italic ? "italic" : "normal",
+    fontSize: `${run.renderedFontSizePx ?? fallback.fontSizePx}px`,
+    fontFamily: run.renderedFontFamily ?? fallback.fontFamily,
+    opacity: blockOpacityAtRoot ? 1 : (run.renderedOpacity ?? fallback.opacity),
+  };
+  const content = (
+    <TextWithVerticalSpacing
+      bold={run.bold}
+      direction={renderDirection}
+      text={run.text}
+    />
+  );
+  const decorationStyle =
+    layer === "main" ? resolveRunTextDecorationStyle(block, run) : null;
+  if (decorationStyle) {
+    return (
+      <span key={key} style={{ ...baseStyle, ...decorationStyle }}>
+        <span style={visualStyle}>{content}</span>
+      </span>
+    );
+  }
   return (
     <span
       key={key}
       style={{
-        fontWeight: run.bold ? 800 : 400,
-        fontStyle: run.italic ? "italic" : "normal",
-        fontSize: `${run.renderedFontSizePx ?? fallback.fontSizePx}px`,
-        fontFamily: run.renderedFontFamily ?? fallback.fontFamily,
-        opacity: blockOpacityAtRoot
-          ? 1
-          : (run.renderedOpacity ?? fallback.opacity),
+        ...baseStyle,
         ...visualStyle,
       }}
     >
-      <TextWithVerticalSpacing
-        bold={run.bold}
-        combineUpright={run.verticalCombine}
-        direction={renderDirection}
-        text={run.text}
-      />
+      {content}
     </span>
   );
 }

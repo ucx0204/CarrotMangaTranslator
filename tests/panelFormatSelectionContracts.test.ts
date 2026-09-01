@@ -10,6 +10,7 @@ import {
   pickPanelFormatPatch,
 } from "../src/shared/panelBridgeTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import { BLOCK_FORMAT_FIELD_KEYS } from "../src/shared/blockFormat";
 
 describe("panel multi-selection format contracts", () => {
   it("creates an order-independent key for the exact selected block set", () => {
@@ -83,12 +84,21 @@ describe("panel multi-selection format contracts", () => {
   });
 
   it("keeps every supported editor format field across the detached-panel boundary", () => {
+    const glow = {
+      enabled: true,
+      color: "#abcdef",
+      blurPx: 6,
+      opacity: 0.75,
+    };
     const source = makeBlock("block-a", {
       fontFamily: "default",
       fontSizePx: 32,
       autoFitText: false,
       bold: true,
       italic: true,
+      underline: true,
+      strikethrough: true,
+      emphasisMark: true,
       textAlign: "left",
       wordBreak: "keep-all",
       renderDirection: "vertical",
@@ -96,12 +106,16 @@ describe("panel multi-selection format contracts", () => {
       letterSpacing: 0.2,
       fontWidthScale: 0.9,
       textColor: "#123456",
+      textBackgroundEnabled: true,
+      textBackgroundColor: "#fff0aa",
       textOpacity: 0.8,
       backgroundColor: "#abcdef",
       opacity: 0.7,
       outlineColor: "#654321",
       outlineWidthPx: 2,
       outlineWidthScale: 1.5,
+      outerOutlineColor: "#0f0f0f",
+      outerOutlineWidthPx: 3,
       rotationDeg: 12,
       textEffect: {
         enabled: true,
@@ -111,6 +125,7 @@ describe("panel multi-selection format contracts", () => {
         blurPx: 3,
         opacity: 0.5,
       },
+      textGlow: glow,
     });
     const patch = pickPanelFormatPatch(source);
 
@@ -124,6 +139,14 @@ describe("panel multi-selection format contracts", () => {
         patch,
       }),
     ).toMatchObject({ patch });
+  });
+
+  it("relays every field owned by the block-format registry", () => {
+    expect(
+      BLOCK_FORMAT_FIELD_KEYS.filter(
+        (key) => !PANEL_FORMAT_FIELD_KEYS.includes(key),
+      ),
+    ).toEqual([]);
   });
 
   it("validates the synchronized selection summary and text-tab token", () => {

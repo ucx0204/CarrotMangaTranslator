@@ -35,9 +35,9 @@
     "registerFont": "註冊字型檔案（TTF/OTF）",
     "saveReview": "儲存校對表",
     "saveText": "儲存文字",
-    "openConditionalBatchYaml": "匯入一致性編輯 YAML",
-    "saveConditionalBatchYaml": "匯出一致性編輯 YAML",
-    "conditionalBatchYamlTooLarge": "一致性編輯 YAML 檔案超過 2 MiB。",
+    "openConditionalBatchYaml": "匯入批次編輯 YAML",
+    "saveConditionalBatchYaml": "匯出批次編輯 YAML",
+    "conditionalBatchYamlTooLarge": "批次編輯 YAML 檔案超過 2 MiB。",
     "exportOutputFolder": "選擇結果匯出資料夾",
     "filters": {
       "images": "影像檔案",

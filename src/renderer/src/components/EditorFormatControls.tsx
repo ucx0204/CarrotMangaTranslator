@@ -208,7 +208,6 @@ function TextEmphasisButtons({
       <div className="block-style-group">
         <IconButton
           label={t("format.blockBold", { defaultValue: "블록 전체 굵게" })}
-          title={t("format.blockBold", { defaultValue: "블록 전체 굵게" })}
           aria-pressed={Boolean(block.bold)}
           disabled={disabled}
           onClick={() => onUpdate({ bold: !block.bold })}
@@ -217,9 +216,6 @@ function TextEmphasisButtons({
         </IconButton>
         <IconButton
           label={t("format.blockItalic", {
-            defaultValue: "블록 전체 기울임",
-          })}
-          title={t("format.blockItalic", {
             defaultValue: "블록 전체 기울임",
           })}
           aria-pressed={Boolean(block.italic)}
@@ -232,9 +228,6 @@ function TextEmphasisButtons({
           label={t("format.blockUnderline", {
             defaultValue: "블록 전체 밑줄",
           })}
-          title={t("format.blockUnderline", {
-            defaultValue: "블록 전체 밑줄",
-          })}
           aria-pressed={Boolean(block.underline)}
           disabled={disabled}
           onClick={() => onUpdate({ underline: !block.underline })}
@@ -245,9 +238,6 @@ function TextEmphasisButtons({
           label={t("format.blockStrikethrough", {
             defaultValue: "블록 전체 취소선",
           })}
-          title={t("format.blockStrikethrough", {
-            defaultValue: "블록 전체 취소선",
-          })}
           aria-pressed={Boolean(block.strikethrough)}
           disabled={disabled}
           onClick={() => onUpdate({ strikethrough: !block.strikethrough })}
@@ -256,9 +246,6 @@ function TextEmphasisButtons({
         </IconButton>
         <IconButton
           label={t("format.blockEmphasisMark", {
-            defaultValue: "블록 전체 강조점",
-          })}
-          title={t("format.blockEmphasisMark", {
             defaultValue: "블록 전체 강조점",
           })}
           aria-pressed={Boolean(block.emphasisMark)}

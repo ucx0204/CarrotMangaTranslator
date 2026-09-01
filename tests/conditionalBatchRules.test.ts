@@ -30,6 +30,7 @@ import { parseRichText } from "../src/shared/richTextMarkup";
 import {
   createConditionalLiteralMatcher,
   createConditionalLiteralReplacement,
+  testConditionalTextMatcher,
 } from "../src/shared/conditionalTextPattern";
 
 const temporaryRoots: string[] = [];
@@ -910,6 +911,9 @@ describe("conditional batch v2 schema and storage", () => {
     for (const change of [
       { field: "underline", operation: "set", value: "yes" },
       { field: "outerOutlineWidthPx", operation: "set", value: 100 },
+      { field: "textEffectOffsetX", operation: "set", value: 65 },
+      { field: "textEffectBlur", operation: "set", value: 65 },
+      { field: "textGlowBlur", operation: "set", value: 65 },
       { field: "textBackgroundColor", operation: "set", value: "white" },
       { field: "renderDirection", operation: "set", value: "diagonal" },
     ] as const) {
@@ -927,6 +931,28 @@ describe("conditional batch v2 schema and storage", () => {
         }).success,
       ).toBe(false);
     }
+    expect(
+      ConditionalBatchSchemeDraftV2Schema.safeParse({
+        ...valid,
+        actions: [
+          {
+            id: "invalid-effect-preset",
+            enabled: true,
+            type: "applyStylePreset",
+            presetName: "잘못된 광선",
+            groupIds: ["effect"],
+            format: {
+              textGlow: {
+                enabled: true,
+                color: "#ffffff",
+                blurPx: 65,
+                opacity: 1,
+              },
+            },
+          },
+        ],
+      }).success,
+    ).toBe(false);
   });
 
   it("saves v1 YAML atomically, round-trips, updates, and deletes", async () => {
@@ -949,7 +975,9 @@ describe("conditional batch v2 schema and storage", () => {
     expect(
       (await new ConditionalBatchSchemeStore(root).list()).schemes[0]?.name,
     ).toBe("수정됨");
-    expect((await store.delete(id)).schemes).toEqual([]);
+    expect(
+      (await store.delete(id)).schemes.map((scheme) => scheme.name),
+    ).toEqual(["찾아 바꾸기", "말줄임표·공백 정리"]);
   });
 
   it("imports ID conflicts as copies by default and overwrites only explicitly", async () => {
@@ -961,11 +989,11 @@ describe("conditional batch v2 schema and storage", () => {
     const id = requiredItem(saved.schemes, 0).id;
     const yaml = await store.exportYaml([id]);
     const duplicated = await store.importYaml(yaml, "duplicate");
-    expect(duplicated.schemes).toHaveLength(2);
+    expect(duplicated.schemes).toHaveLength(4);
     expect(
       duplicated.schemes.some((scheme) => scheme.name.includes("가져옴")),
     ).toBe(true);
-    expect(new Set(duplicated.schemes.map((scheme) => scheme.id)).size).toBe(2);
+    expect(new Set(duplicated.schemes.map((scheme) => scheme.id)).size).toBe(4);
 
     const modified = parse(yaml);
     modified.schemes[0].name = "덮어쓴 이름";
@@ -976,7 +1004,32 @@ describe("conditional batch v2 schema and storage", () => {
     expect(overwritten.schemes.find((scheme) => scheme.id === id)?.name).toBe(
       "덮어쓴 이름",
     );
-    expect(overwritten.schemes).toHaveLength(2);
+    expect(overwritten.schemes).toHaveLength(4);
+  });
+
+  it("saves, updates, and deletes a stored sequence", async () => {
+    const root = await makeTemporaryRoot();
+    const store = new ConditionalBatchSchemeStore(root);
+    const saved = await store.save({
+      scheme: createEllipsisBatchSchemeDraft(),
+    });
+    const schemeId = requiredItem(saved.schemes, 0).id;
+    const sequence = {
+      id: "sequence-storage-test",
+      name: "저장 순서",
+      description: "",
+      steps: [{ id: "sequence-step-test", schemeId, enabled: true }],
+    };
+
+    expect((await store.saveSequence(sequence)).sequences).toEqual([sequence]);
+    expect(
+      (await store.saveSequence({ ...sequence, name: "수정한 순서" }))
+        .sequences[0]?.name,
+    ).toBe("수정한 순서");
+    expect((await store.deleteSequence(sequence.id)).sequences).toEqual([]);
+    await expect(store.deleteSequence(sequence.id)).rejects.toThrow(
+      "저장된 연속 실행을 찾을 수 없습니다.",
+    );
   });
 
   it("serializes concurrent saves and never replaces corrupt or future YAML", async () => {
@@ -991,7 +1044,7 @@ describe("conditional batch v2 schema and storage", () => {
     );
     expect(
       (await store.list()).schemes.map((scheme) => scheme.name).sort(),
-    ).toEqual(["둘", "셋", "하나"]);
+    ).toEqual(["둘", "말줄임표·공백 정리", "셋", "찾아 바꾸기", "하나"]);
 
     const corruptRoot = await makeTemporaryRoot();
     const corruptPath = join(corruptRoot, "batch-edit-schemes.yaml");
@@ -1024,13 +1077,21 @@ describe("conditional batch v2 schema and storage", () => {
     });
     expect(blank.actions[0]?.id).toMatch(/^action-/);
     expect(ConditionalBatchSchemeDraftV2Schema.safeParse(blank).success).toBe(
-      false,
+      true,
     );
     expect(
       ConditionalBatchSchemeDraftV2Schema.safeParse(
         createConditionalBatchRecipeDraft("findReplace"),
       ).success,
-    ).toBe(false);
+    ).toBe(true);
+    const emptyMatcher = (
+      createConditionalBatchRecipeDraft("findReplace").actions[0] as
+        | ConditionalBatchReplaceTextActionV2
+        | undefined
+    )?.matcher;
+    expect(emptyMatcher).toBeDefined();
+    if (!emptyMatcher) throw new Error("Expected an empty visual matcher");
+    expect(testConditionalTextMatcher("어떤 번역문", emptyMatcher)).toBe(false);
     expect(
       ConditionalBatchSchemeDraftV2Schema.safeParse(
         createConditionalBatchRecipeDraft("findReplace", { find: "찾기" }),

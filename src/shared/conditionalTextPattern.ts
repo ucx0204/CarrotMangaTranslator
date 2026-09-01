@@ -96,7 +96,10 @@ const ConditionalPatternNodeV3Schema: z.ZodType<ConditionalPatternNodeV3> =
         .object({
           ...MatchableNodeBase,
           kind: z.literal("literal"),
-          text: z.string().min(1).max(2_000),
+          // An empty literal is the visual editor's honest empty state. It is
+          // compiled as a never-match pattern instead of forcing placeholder
+          // copy into the user's rule or matching every text position.
+          text: z.string().max(2_000),
         })
         .strict(),
       z
@@ -294,6 +297,13 @@ export function compileConditionalTextMatcher(
     };
   }
   const captureNames = new Map<string, string>();
+  if (hasIncompleteVisualPattern(parsed.nodes)) {
+    return {
+      source: "(?!)",
+      flags: matcherFlags(parsed, options.global),
+      captureNames,
+    };
+  }
   return {
     source: parsed.nodes
       .map((node) => compilePatternNode(node, captureNames))
@@ -301,6 +311,16 @@ export function compileConditionalTextMatcher(
     flags: matcherFlags(parsed, options.global),
     captureNames,
   };
+}
+
+function hasIncompleteVisualPattern(
+  nodes: readonly ConditionalPatternNodeV3[],
+): boolean {
+  return nodes.some(
+    (node) =>
+      (node.kind === "literal" && node.text.length === 0) ||
+      (node.kind === "group" && hasIncompleteVisualPattern(node.nodes)),
+  );
 }
 
 function createConditionalTextRegExp(

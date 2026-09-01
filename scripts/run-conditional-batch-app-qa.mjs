@@ -368,7 +368,7 @@ async function selectChapterScope() {
         const button =
           buttons.find((candidate) => candidate.textContent.trim() === "닫기") ??
           buttons.find(
-            (candidate) => candidate.textContent.trim() === "직접 만들기"
+            (candidate) => candidate.textContent.trim() === "직접 규칙 생성"
           );
         if (!button || button.disabled) return false;
         button.click();

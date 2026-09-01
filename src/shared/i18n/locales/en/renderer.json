@@ -234,7 +234,7 @@
       "move-block-later": "Move later in reading order",
       "sort-reading-order": "Sort by geometric reading order",
       "reset-block-rotation": "Reset block rotation",
-      "open-search-replace": "Consistency editor",
+      "open-search-replace": "Batch editor",
       "open-export-options": "Open export",
       "history-undo": "Undo",
       "history-redo": "Redo",

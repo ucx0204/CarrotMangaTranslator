@@ -58,7 +58,7 @@
   },
   "conditionalBatch": {
     "open": "텍스트 일괄 편집",
-    "title": "일관 편집",
+    "title": "일괄 편집",
     "undo": "실행 취소",
     "scheme": {
       "label": "규칙 불러오기",
@@ -135,7 +135,7 @@
     "notice": {
       "conflictsOnly": "미리보기 뒤 내용이 달라진 {{count}}개 항목은 덮어쓰지 않았습니다.",
       "applied": "{{applied}}개를 적용했습니다. 충돌로 건너뜀: {{conflicts}}개",
-      "undone": "방금 일관 편집을 되돌렸습니다."
+      "undone": "방금 일괄 편집을 되돌렸습니다."
     },
     "results": {
       "previous": "이전 변경 후보",
@@ -485,7 +485,6 @@
       "size": "글자 크기",
       "font": "글자 폰트",
       "opacity": "글자 투명도",
-      "combineUpright": "세로쓰기 영문 묶음",
       "background": "글자 배경",
       "effects": "외곽선 · 광선",
       "mixed": "혼합",

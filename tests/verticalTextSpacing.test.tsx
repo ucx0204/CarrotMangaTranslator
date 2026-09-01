@@ -13,8 +13,6 @@ import {
   VERTICAL_WAVE_GLYPH_PATH,
   VERTICAL_WAVE_GLYPH_TRANSFORM,
 } from "../src/renderer/src/lib/verticalTextSpacing";
-import { measureUniformStyledWrappedText } from "../src/renderer/src/lib/overlayTextWrapping";
-
 describe("vertical text spacing", () => {
   it("keeps source text while assigning half and full em advances", () => {
     expect(tokenizeVerticalTextSpacing("가 나　다")).toEqual([
@@ -70,17 +68,6 @@ describe("vertical text spacing", () => {
         .filter((token) => token.kind === "rotate")
         .map((token) => token.displayText),
     ).toEqual(["︴", "︴", "︴"]);
-    expect(tokens.filter((token) => token.kind === "combine")).toEqual([]);
-    expect(
-      tokenizeVerticalTextSpacing("!! !? ?! ??", true)
-        .filter((token) => token.kind === "combine")
-        .map((token) => token.text),
-    ).toEqual(["!!", "!?", "?!", "??"]);
-    expect(segmentVerticalTextGraphemes("가!!나", true)).toEqual([
-      "가",
-      "!!",
-      "나",
-    ]);
     expect(segmentVerticalTextGraphemes("가!!나")).toEqual([
       "가",
       "!",
@@ -128,13 +115,9 @@ describe("vertical text spacing", () => {
     expect(dashStrokes[1]?.style.strokeWidth).toBe("0.085em");
   });
 
-  it("uses dedicated vertical presentation forms and explicit combination", () => {
+  it("uses dedicated vertical presentation forms", () => {
     const { container } = render(
-      <TextWithVerticalSpacing
-        combineUpright
-        direction="vertical"
-        text="…—!!♡"
-      />,
+      <TextWithVerticalSpacing direction="vertical" text="…—!!♡" />,
     );
 
     expect(container.textContent).toBe("!!♡");
@@ -150,42 +133,9 @@ describe("vertical text spacing", () => {
         ?.getAttribute("d"),
     ).toBe("M50 0V100");
     expect(
-      container.querySelector<HTMLElement>('[data-vertical-symbol="combine"]')
-        ?.style.textCombineUpright,
-    ).toBe("all");
-    expect(
       container.querySelector<HTMLElement>('[data-vertical-symbol="upright"]')
         ?.style.textOrientation,
     ).toBe("upright");
-  });
-
-  it("measures a two-mark combination as one vertical cell", () => {
-    const measured = measureUniformStyledWrappedText(
-      [
-        { text: "가", bold: false, italic: false },
-        {
-          text: "!!",
-          bold: false,
-          italic: false,
-          verticalCombine: true,
-        },
-        { text: "나", bold: false, italic: false },
-      ],
-      30,
-      10,
-      10,
-      "break-all",
-      (grapheme) => resolveVerticalGraphemeAdvancePx(grapheme, 10, 10, 0),
-      undefined,
-      (text, run) =>
-        segmentVerticalTextGraphemes(text, run.verticalCombine === true),
-    );
-
-    expect(measured.lineCount).toBe(1);
-    expect(measured.lines[0]?.runs.map((run) => run.text).join("")).toBe(
-      "가!!나",
-    );
-    expect(measured.lines[0]?.runs[1]?.verticalCombine).toBe(true);
   });
 
   it("maps wave variants to one consistent vertical presentation glyph", () => {

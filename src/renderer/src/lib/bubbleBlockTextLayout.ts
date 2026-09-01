@@ -147,7 +147,6 @@ function measureVerticalStyledTextInSlots(
       );
     },
     resolveRunStyle,
-    (text, run) =>
-      segmentVerticalTextGraphemes(text, run.verticalCombine === true),
+    (text) => segmentVerticalTextGraphemes(text),
   );
 }

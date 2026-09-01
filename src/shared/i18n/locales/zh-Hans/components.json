@@ -58,7 +58,7 @@
   },
   "conditionalBatch": {
     "open": "批量编辑文本",
-    "title": "一致性编辑",
+    "title": "批量编辑",
     "undo": "撤销",
     "scheme": {
       "label": "加载规则",
@@ -479,7 +479,6 @@
       "size": "字号",
       "font": "字符字体",
       "opacity": "文字不透明度",
-      "combineUpright": "纵中横",
       "background": "字符背景",
       "effects": "描边与辉光",
       "mixed": "混合",

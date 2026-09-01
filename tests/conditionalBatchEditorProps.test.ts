@@ -51,7 +51,7 @@ describe("conditional batch editor session binding", () => {
     expect(pageId).toBe("page-1");
     expect(options).toEqual({
       dirtyPageIds: ["page-1", "page-2"],
-      label: "일관 편집: 말줄임표·공백 정리",
+      label: "일괄 편집: 말줄임표·공백 정리",
     });
     expect(
       update(CHAPTER).pages.map(
@@ -138,7 +138,7 @@ function createModel(
       undo: vi.fn(async () => true),
       undoLabel:
         overrides.undoLabel === undefined
-          ? "일관 편집: 이전 규칙"
+          ? "일괄 편집: 이전 규칙"
           : overrides.undoLabel,
     },
   });

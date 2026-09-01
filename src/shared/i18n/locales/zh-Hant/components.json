@@ -58,7 +58,7 @@
   },
   "conditionalBatch": {
     "open": "批次編輯文字",
-    "title": "一致性編輯",
+    "title": "批次編輯",
     "undo": "復原",
     "scheme": {
       "label": "載入規則",
@@ -479,7 +479,6 @@
       "size": "字級",
       "font": "字元字型",
       "opacity": "文字不透明度",
-      "combineUpright": "縱中橫",
       "background": "字元背景",
       "effects": "描邊與輝光",
       "mixed": "混合",

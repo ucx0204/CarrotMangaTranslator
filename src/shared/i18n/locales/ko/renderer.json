@@ -237,7 +237,7 @@
       "move-block-later": "읽기 순서 뒤로",
       "sort-reading-order": "좌표 기준 읽기 순서 정렬",
       "reset-block-rotation": "블록 회전 초기화",
-      "open-search-replace": "일관 편집",
+      "open-search-replace": "일괄 편집",
       "open-export-options": "내보내기 열기",
       "history-undo": "실행 취소",
       "history-redo": "다시 실행",

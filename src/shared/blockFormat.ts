@@ -33,7 +33,41 @@ export type BlockFormatGroupId =
   | "effect"
   | "transform";
 
-type BlockFormatKey = keyof TranslationBlock;
+/**
+ * Every field edited by the block-format UI. Consumers that relay format
+ * patches (multi-selection, detached panels, presets) must use this list
+ * instead of maintaining a smaller parallel allowlist.
+ */
+export const BLOCK_FORMAT_FIELD_KEYS = [
+  "fontFamily",
+  "fontSizePx",
+  "autoFitText",
+  "textAlign",
+  "wordBreak",
+  "renderDirection",
+  "bold",
+  "italic",
+  "underline",
+  "strikethrough",
+  "emphasisMark",
+  "lineHeight",
+  "letterSpacing",
+  "fontWidthScale",
+  "textColor",
+  "textBackgroundEnabled",
+  "textBackgroundColor",
+  "outlineColor",
+  "outlineWidthPx",
+  "outlineWidthScale",
+  "outerOutlineColor",
+  "outerOutlineWidthPx",
+  "textEffect",
+  "textGlow",
+  "rotationDeg",
+  "textOpacity",
+] as const satisfies readonly (keyof TranslationBlock)[];
+
+type BlockFormatKey = (typeof BLOCK_FORMAT_FIELD_KEYS)[number];
 
 type BlockFormatGroup = {
   id: BlockFormatGroupId;

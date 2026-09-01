@@ -539,13 +539,20 @@ function ConditionValueEditor({
     );
   }
   if (definition?.kind === "number") {
+    const number = definition.number;
     return (
       <div className={styles.valuePair}>
         <Field label={condition.operator === "between" ? "최솟값" : "값"}>
           <input
             type="number"
-            step="any"
-            value={typeof condition.value === "number" ? condition.value : 0}
+            min={number?.min}
+            max={number?.max}
+            step={number?.step ?? "any"}
+            value={
+              typeof condition.value === "number"
+                ? condition.value
+                : (number?.defaultValue ?? 0)
+            }
             onChange={(event) =>
               onChange({ ...condition, value: Number(event.target.value) })
             }
@@ -555,8 +562,15 @@ function ConditionValueEditor({
           <Field label="최댓값">
             <input
               type="number"
-              step="any"
-              value={condition.value2 ?? 1}
+              min={number?.min}
+              max={number?.max}
+              step={number?.step ?? "any"}
+              value={
+                condition.value2 ??
+                (number
+                  ? Math.min(number.max, number.defaultValue + number.step)
+                  : 1)
+              }
               onChange={(event) =>
                 onChange({ ...condition, value2: Number(event.target.value) })
               }

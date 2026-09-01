@@ -35,9 +35,9 @@
     "registerFont": "注册字体文件（TTF/OTF）",
     "saveReview": "保存校对表",
     "saveText": "保存文本",
-    "openConditionalBatchYaml": "导入一致性编辑 YAML",
-    "saveConditionalBatchYaml": "导出一致性编辑 YAML",
-    "conditionalBatchYamlTooLarge": "一致性编辑 YAML 文件超过 2 MiB。",
+    "openConditionalBatchYaml": "导入批量编辑 YAML",
+    "saveConditionalBatchYaml": "导出批量编辑 YAML",
+    "conditionalBatchYamlTooLarge": "批量编辑 YAML 文件超过 2 MiB。",
     "exportOutputFolder": "选择结果导出文件夹",
     "filters": {
       "images": "图像文件",

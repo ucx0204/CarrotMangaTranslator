@@ -36,8 +36,6 @@ export type TextStyleRun = {
   glowColor?: string;
   glowBlurPx?: number;
   glowOpacity?: number;
-  /** Render this run as one horizontal cell only in vertical writing. */
-  verticalCombine?: boolean;
 };
 
 export type ParsedRichText = {
@@ -64,7 +62,6 @@ export type TextStylePatch = {
   glowColor?: string | null;
   glowBlurPx?: number | null;
   glowOpacity?: number | null;
-  verticalCombine?: boolean | null;
 };
 
 const MARKERS = ["***", "**", "*"] as const;
@@ -92,8 +89,7 @@ type StyleTagName =
   | "glow-opacity"
   | "underline"
   | "strike"
-  | "emphasis"
-  | "tcy";
+  | "emphasis";
 
 type StyleTagMatch = {
   name: StyleTagName;
@@ -200,7 +196,6 @@ export function clearTextStylesFromRuns(
     glowColor: null,
     glowBlurPx: null,
     glowOpacity: null,
-    verticalCombine: null,
   });
 }
 
@@ -327,7 +322,6 @@ function matchStyleOpeningTag(
 
 const BOOLEAN_STYLE_TAG_PATCHES: Partial<Record<StyleTagName, TextStylePatch>> =
   {
-    tcy: { verticalCombine: true },
     underline: { underline: true },
     strike: { strikethrough: true },
     emphasis: { emphasisMark: true },
@@ -570,7 +564,6 @@ function booleanStyleTags(
     ["underline", run.underline],
     ["strike", run.strikethrough],
     ["emphasis", run.emphasisMark],
-    ["tcy", run.verticalCombine],
   ];
 }
 
@@ -671,7 +664,6 @@ function applyStylePatch(
   applyOptionalPatch(next, "glowColor", patch.glowColor);
   applyOptionalPatch(next, "glowBlurPx", patch.glowBlurPx);
   applyOptionalPatch(next, "glowOpacity", patch.glowOpacity);
-  applyOptionalPatch(next, "verticalCombine", patch.verticalCombine);
   return normalizeRun(next);
 }
 
@@ -705,8 +697,7 @@ function applyOptionalPatch<
     | "outerOutlineWidthPx"
     | "glowColor"
     | "glowBlurPx"
-    | "glowOpacity"
-    | "verticalCombine",
+    | "glowOpacity",
 >(target: TextStyleRun, key: Key, value: TextStylePatch[Key]): void {
   if (value === undefined) return;
   if (value === null) {
@@ -749,12 +740,7 @@ function normalizeRun(run: TextStyleRun): TextStyleRun {
 }
 
 function copyEnabledStyles(source: TextStyleRun, target: TextStyleRun): void {
-  const keys = [
-    "underline",
-    "strikethrough",
-    "emphasisMark",
-    "verticalCombine",
-  ] as const;
+  const keys = ["underline", "strikethrough", "emphasisMark"] as const;
   for (const key of keys) {
     if (source[key]) Object.assign(target, { [key]: true });
   }
@@ -805,7 +791,6 @@ const STYLE_COMPARISON_FIELDS = [
   "glowColor",
   "glowBlurPx",
   "glowOpacity",
-  "verticalCombine",
 ] as const satisfies readonly (keyof TextStyleRun)[];
 
 function copyColor<

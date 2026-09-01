@@ -33,6 +33,7 @@ import type { ConditionalBatchTemporaryScheme } from "./useConditionalBatchSchem
 import { Field, TextField } from "./ui/Field";
 import { IconButton } from "./ui/IconButton";
 import { InlineMessage } from "./ui/InlineMessage";
+import { FavoriteToggleButton } from "./ui/FavoriteToggleButton";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import { usePopupController } from "./ui/usePopupController";
 import styles from "./ConditionalBatchEditor.module.css";
@@ -47,6 +48,7 @@ export type ConditionalBatchRulePanelProps = {
   canDeleteScheme: boolean;
   currentResult: ConditionalBatchPreviewResult | null;
   draft: ConditionalBatchSchemeDraftV2;
+  favoriteSchemeIds: readonly string[];
   recipePickerCanClose: boolean;
   recipePickerOpen: boolean;
   savedSchemes: readonly ConditionalBatchSchemeV2[];
@@ -85,6 +87,7 @@ export type ConditionalBatchRulePanelProps = {
   onSelectScheme: (id: string) => void;
   onSetYamlOpen: (open: boolean) => void;
   onSetYamlText: (text: string) => void;
+  onToggleSchemeFavorite: (id: string) => void;
 };
 
 export type ConditionalBatchFooterProps = {
@@ -110,7 +113,7 @@ export function ConditionalBatchRulePanel(
   const [sequenceExpanded, setSequenceExpanded] = React.useState(true);
   const [advancedExpanded, setAdvancedExpanded] = React.useState(true);
   return (
-    <aside className={styles.rulePanel} aria-label="일관 편집 규칙">
+    <aside className={styles.rulePanel} aria-label="일괄 편집 규칙">
       {props.activeSequence ? null : <SchemeManager {...props} />}
       <div className={styles.rulePanelScroll}>
         {props.activeSequence ? (
@@ -204,17 +207,34 @@ function SchemeManager(props: ConditionalBatchRulePanelProps) {
   const selectedStored = props.savedSchemes.some(
     (scheme) => scheme.id === props.selectedSchemeId,
   );
+  const favoriteIds = new Set(props.favoriteSchemeIds);
+  const orderedSavedSchemes = [...props.savedSchemes].sort(
+    (left, right) =>
+      Number(favoriteIds.has(right.id)) - Number(favoriteIds.has(left.id)),
+  );
   const options = [
     ...props.temporarySchemes.map((scheme) => ({
       value: scheme.id,
       label: `${scheme.name}${scheme.dirty ? " •" : ""}`,
       group: "이번 모달의 임시 규칙",
     })),
-    ...props.savedSchemes.map((scheme) => ({
+    ...orderedSavedSchemes.map((scheme) => ({
       value: scheme.id,
       label: scheme.name,
       description: scheme.description || undefined,
-      group: "저장된 규칙",
+      group: favoriteIds.has(scheme.id) ? "즐겨찾기" : "저장된 규칙",
+      actions: (
+        <FavoriteToggleButton
+          favorite={favoriteIds.has(scheme.id)}
+          disabled={props.storageBusy}
+          label={
+            favoriteIds.has(scheme.id)
+              ? `${scheme.name} 빠른 규칙에서 제거`
+              : `${scheme.name} 빠른 규칙에 추가`
+          }
+          onToggle={() => props.onToggleSchemeFavorite(scheme.id)}
+        />
+      ),
     })),
   ];
   return (
@@ -379,30 +399,15 @@ function SchemeDeleteControl({
 }
 
 function RecipePicker(props: ConditionalBatchRulePanelProps) {
-  const [presetId, setPresetId] = React.useState(
-    props.blockStylePresets[0]?.id ?? "",
+  const favoriteIds = new Set(props.favoriteSchemeIds);
+  const quickSchemes = props.savedSchemes.filter((scheme) =>
+    favoriteIds.has(scheme.id),
   );
-  const recipes: Array<{
-    id: ConditionalBatchRecipeId;
-    title: string;
-    kind?: "preset";
-  }> = [
-    { id: "findReplace", title: "찾아 바꾸기" },
-    { id: "ellipsis", title: "말줄임표·공백 정리" },
-    { id: "soundStyle", title: "효과음 서식 적용", kind: "preset" },
-  ];
   return (
     <section className={styles.recipePanel}>
       <header>
         <strong>새 규칙</strong>
         <div className={styles.recipeHeaderActions}>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => props.onChooseRecipe("blank")}
-          >
-            직접 만들기
-          </Button>
           {props.recipePickerCanClose ? (
             <Button
               size="sm"
@@ -415,44 +420,28 @@ function RecipePicker(props: ConditionalBatchRulePanelProps) {
         </div>
       </header>
       <div className={styles.recipeGrid}>
-        {recipes
-          .filter(
-            (recipe) =>
-              recipe.kind !== "preset" || props.blockStylePresets.length > 0,
-          )
-          .map((recipe) => (
-            <Button
-              key={recipe.id}
-              size="sm"
-              fullWidth
-              onClick={() =>
-                props.onChooseRecipe(
-                  recipe.id,
-                  recipe.kind === "preset"
-                    ? props.blockStylePresets.find(
-                        (preset) => preset.id === presetId,
-                      )
-                    : undefined,
-                )
-              }
-            >
-              {recipe.title}
-            </Button>
-          ))}
+        {quickSchemes.map((scheme) => (
+          <Button
+            key={scheme.id}
+            size="sm"
+            fullWidth
+            onClick={() => {
+              props.onCloseRecipePicker();
+              props.onSelectScheme(scheme.id);
+            }}
+          >
+            {scheme.name}
+          </Button>
+        ))}
+        <Button
+          className={styles.directRecipe}
+          fullWidth
+          variant="primary"
+          onClick={() => props.onChooseRecipe("blank")}
+        >
+          직접 규칙 생성
+        </Button>
       </div>
-      {props.blockStylePresets.length > 1 ? (
-        <Field as="div" label="효과음에 적용할 프리셋">
-          <Select
-            ariaLabel="서식 레시피 프리셋"
-            value={presetId}
-            options={props.blockStylePresets.map((preset) => ({
-              value: preset.id,
-              label: preset.name,
-            }))}
-            onValueChange={setPresetId}
-          />
-        </Field>
-      ) : null}
     </section>
   );
 }
@@ -562,7 +551,7 @@ function AdvancedTools(
           {props.yamlOpen ? (
             <div className={styles.yamlEditor}>
               <textarea
-                aria-label="일관 편집 YAML"
+                aria-label="일괄 편집 YAML"
                 spellCheck={false}
                 value={props.yamlText}
                 onChange={(event) => props.onSetYamlText(event.target.value)}

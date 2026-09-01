@@ -149,6 +149,16 @@ function createPanelStylePresetActions(chapter: ChapterSessionController) {
   };
 }
 
+function openConditionalBatchSuggestion(
+  chapter: ChapterSessionController,
+  find: string,
+  replace: string,
+): void {
+  chapter.uiState.setConditionalBatchInitialFind(find);
+  chapter.uiState.setConditionalBatchInitialReplace(replace);
+  chapter.uiState.setConditionalBatchOpen(true);
+}
+
 function usePanelCommandHandler(
   chapter: ChapterSessionController,
   translation: TranslationController,
@@ -170,11 +180,6 @@ function usePanelCommandHandler(
   const setBlockLibraryOpen = chapter.uiState.setBlockLibraryOpen;
   const setFontManagerOpen = chapter.uiState.setFontManagerOpen;
   const openSettings = chapter.settingsDialog.openSettings;
-  const setConditionalBatchOpen = chapter.uiState.setConditionalBatchOpen;
-  const setConditionalBatchInitialFind =
-    chapter.uiState.setConditionalBatchInitialFind;
-  const setConditionalBatchInitialReplace =
-    chapter.uiState.setConditionalBatchInitialReplace;
   const startAreaTranslate =
     inpainting.pointerHandlers.startRegionTranslationSelection;
   const runInpainting = inpainting.inpaintingActions.runInpainting;
@@ -198,11 +203,8 @@ function usePanelCommandHandler(
           renameStylePreset: (presetId, name) =>
             void presetActions.renameStylePreset(presetId, name),
           openBlockLibrary: () => setBlockLibraryOpen(true),
-          suggestConsistentEdit: (find, replace) => {
-            setConditionalBatchInitialFind(find);
-            setConditionalBatchInitialReplace(replace);
-            setConditionalBatchOpen(true);
-          },
+          suggestConsistentEdit: (find, replace) =>
+            openConditionalBatchSuggestion(chapter, find, replace),
           selectWorkspaceTool,
           startAreaTranslate,
         },
@@ -215,6 +217,7 @@ function usePanelCommandHandler(
     [
       actions,
       busy,
+      chapter,
       presetActions,
       openSettings,
       runBubbleLayout,
@@ -224,9 +227,6 @@ function usePanelCommandHandler(
       selectWorkspaceTool,
       setBlockLibraryOpen,
       setFontManagerOpen,
-      setConditionalBatchInitialFind,
-      setConditionalBatchInitialReplace,
-      setConditionalBatchOpen,
       startAreaTranslate,
     ],
   );

@@ -38,11 +38,69 @@ export function resolveMainRunVisualStyle(
         : "transparent",
     WebkitTextStrokeWidth: `${outlineWidth * 2}px`,
     paintOrder: "stroke fill",
-    ...resolveTextDecorationStyle(block, run),
     ...resolveTextEmphasisStyle(block, run, renderDirection),
     textShadow: resolveRunGlow(block, run, scale),
     ...resolveWidthScaleStyle(run.widthScale),
   } as React.CSSProperties;
+}
+
+/**
+ * Contenteditable selections in Chromium can drop `-webkit-text-stroke`
+ * while retaining spellcheck decorations, making dark glyphs look deleted.
+ * The editor uses an equivalent shadow outline so selection and IME painting
+ * never own the only visible copy of a glyph. Artwork/export paths keep the
+ * exact stroke renderer above.
+ */
+export function resolveEditorRunVisualStyle(
+  block: TranslationBlock,
+  run: TextStyleRun,
+  renderedBaseFontSizePx: number,
+  renderDirection: RenderTextDirection,
+): React.CSSProperties {
+  const main = resolveMainRunVisualStyle(
+    block,
+    run,
+    renderedBaseFontSizePx,
+    renderDirection,
+  );
+  const scale = resolveInlineScale(block, renderedBaseFontSizePx);
+  const outlineWidth = resolveRunOutlineWidth(
+    block,
+    run,
+    renderedBaseFontSizePx,
+    scale,
+  );
+  const outlineColor =
+    run.outlineColor ?? resolveEffectiveTextOutlineColor(block);
+  const outlineShadow = createEditorOutlineShadow(outlineWidth, outlineColor);
+  const glow = typeof main.textShadow === "string" ? main.textShadow : "";
+  return {
+    ...main,
+    WebkitTextStrokeColor: "transparent",
+    WebkitTextStrokeWidth: "0px",
+    textShadow: [outlineShadow, glow].filter(Boolean).join(", ") || undefined,
+  };
+}
+
+function createEditorOutlineShadow(width: number, color: string): string {
+  const radius = Math.min(6, Math.max(0, width));
+  if (radius === 0) return "";
+  const shadows: string[] = [];
+  const ringCount = Math.max(1, Math.ceil(radius));
+  for (let ring = 1; ring <= ringCount; ring += 1) {
+    const distance = (radius * ring) / ringCount;
+    for (let step = 0; step < 8; step += 1) {
+      const angle = (Math.PI * step) / 4;
+      const x = roundShadowOffset(Math.cos(angle) * distance);
+      const y = roundShadowOffset(Math.sin(angle) * distance);
+      shadows.push(`${x}px ${y}px 0 ${color}`);
+    }
+  }
+  return shadows.join(", ");
+}
+
+function roundShadowOffset(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 function resolveRunOutlineWidth(
@@ -56,22 +114,26 @@ function resolveRunOutlineWidth(
     : run.outlineWidthPx * scale;
 }
 
-function resolveTextDecorationStyle(
+export function resolveRunTextDecorationStyle(
   block: TranslationBlock,
   run: TextStyleRun,
-): React.CSSProperties {
+): React.CSSProperties | null {
   const lines = [
     block.underline || run.underline ? "underline" : "",
     block.strikethrough || run.strikethrough ? "line-through" : "",
   ]
     .filter(Boolean)
     .join(" ");
-  if (!lines) return {};
+  if (!lines) return null;
   return {
     textDecorationLine: lines,
-    textDecorationColor: "currentColor",
+    textDecorationColor: run.color ?? resolveEffectiveTextColor(block),
     textDecorationThickness: "0.08em",
     textUnderlineOffset: "0.12em",
+    // Chromium applies -webkit-text-stroke to decoration lines as well as
+    // glyphs. Reset it on the decoration owner; a nested glyph span restores
+    // the intended outline without turning the decoration into outline color.
+    WebkitTextStrokeWidth: "0px",
   };
 }
 

@@ -161,11 +161,23 @@ function CurveGlyph({
         strokeWidth={appearance.innerWidth * 2}
         style={{
           filter: appearance.glowFilter,
-          textDecorationLine: appearance.decoration || undefined,
-          textDecorationColor: appearance.mainColor,
         }}
         widthScale={appearance.widthScale}
       />
+      {appearance.decoration ? (
+        <CurveGlyphText
+          color={appearance.mainColor}
+          fill={appearance.mainColor}
+          glyph={glyph}
+          stroke="none"
+          strokeWidth={0}
+          style={{
+            textDecorationLine: appearance.decoration,
+            textDecorationColor: appearance.mainColor,
+          }}
+          widthScale={appearance.widthScale}
+        />
+      ) : null}
       {appearance.emphasis ? (
         <CurveGlyphEmphasis
           color={appearance.mainColor}

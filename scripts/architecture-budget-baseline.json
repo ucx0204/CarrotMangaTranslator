@@ -18,7 +18,7 @@
       "maxImports": 26
     },
     "src/renderer/src/components/ui/Button.tsx": {
-      "maxImportedBy": 45
+      "maxImportedBy": 44
     },
     "src/renderer/src/components/ui/CheckboxField.tsx": {
       "maxImportedBy": 30

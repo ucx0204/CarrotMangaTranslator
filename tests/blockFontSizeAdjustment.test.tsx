@@ -551,10 +551,63 @@ describe("selected block font-size adjustment", () => {
     );
   });
 
+  it("keeps the active text range intact while the selected block is dragged", () => {
+    const block = makeBlock({
+      translatedText: "[underline]사도라니 사도님 말씀이야[/underline]",
+      textColor: "#111111",
+      outlineColor: "#a94343",
+      outlineWidthPx: 2,
+    });
+    const props = {
+      disabled: false,
+      onAdjustFontSize: vi.fn(),
+      onDelete: vi.fn(),
+      onDuplicate: vi.fn(),
+      onUpdate: vi.fn(),
+    };
+    const view = render(
+      <FontsTestProvider>
+        <EditorPanel block={block} {...props} />
+      </FontsTestProvider>,
+    );
+    const editor = screen.getByRole("textbox", {
+      name: "번역문",
+    }) as HTMLDivElement;
+    const textNode = editor.querySelector<HTMLElement>(
+      "[data-rich-text-glyph]",
+    )?.firstChild;
+    if (!(textNode instanceof Text)) {
+      throw new Error("Expected an outlined visual editor text node");
+    }
+    act(() => editor.focus());
+    const range = document.createRange();
+    range.setStart(textNode, 2);
+    range.setEnd(textNode, 8);
+    document.getSelection()?.removeAllRanges();
+    document.getSelection()?.addRange(range);
+    act(() => document.dispatchEvent(new Event("selectionchange")));
+
+    view.rerender(
+      <FontsTestProvider>
+        <EditorPanel
+          block={{
+            ...block,
+            bbox: { ...block.bbox, x: block.bbox.x + 30, y: block.bbox.y + 20 },
+          }}
+          {...props}
+        />
+      </FontsTestProvider>,
+    );
+
+    expect(editor.textContent).toBe("사도라니 사도님 말씀이야");
+    expect(document.getSelection()?.toString()).toBe("라니 사도님");
+    expect(document.activeElement).toBe(editor);
+  });
+
   it("edits the complete visual style set on a selected character range", () => {
     const onUpdate = vi.fn();
     const translatedText =
-      "[underline][strike][emphasis][tcy][size=30][font=nanum-gothic][opacity=80][width=1.2][color=#112233][background=#fefefe][outline-color=#ffffff][outline-width=2][outer-outline-color=#000000][outer-outline-width=3][glow-color=#ff8800][glow-blur=6][glow-opacity=0.65]효과[/glow-opacity][/glow-blur][/glow-color][/outer-outline-width][/outer-outline-color][/outline-width][/outline-color][/background][/color][/width][/opacity][/font][/size][/tcy][/emphasis][/strike][/underline]";
+      "[underline][strike][emphasis][size=30][font=nanum-gothic][opacity=80][width=1.2][color=#112233][background=#fefefe][outline-color=#ffffff][outline-width=2][outer-outline-color=#000000][outer-outline-width=3][glow-color=#ff8800][glow-blur=6][glow-opacity=0.65]효과[/glow-opacity][/glow-blur][/glow-color][/outer-outline-width][/outer-outline-color][/outline-width][/outline-color][/background][/color][/width][/opacity][/font][/size][/emphasis][/strike][/underline]";
     render(
       <FontsTestProvider>
         <EditorPanel
@@ -569,9 +622,12 @@ describe("selected block font-size adjustment", () => {
     );
 
     const editor = screen.getByRole("textbox", { name: "번역문" });
-    const textNode = Array.from(
+    const styledRun = Array.from(
       editor.querySelectorAll<HTMLElement>("[data-rich-text-run]"),
-    ).find((run) => run.textContent === "효과")?.firstChild;
+    ).find((run) => run.textContent === "효과");
+    const textNode =
+      styledRun?.querySelector<HTMLElement>("[data-rich-text-glyph]")
+        ?.firstChild ?? styledRun?.firstChild;
     if (!(textNode instanceof Text)) {
       throw new Error("Expected a fully styled visual run");
     }
@@ -590,9 +646,6 @@ describe("selected block font-size adjustment", () => {
     );
     fireEvent.click(
       within(panel).getByRole("button", { name: "블록 전체 강조점" }),
-    );
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "세로쓰기 영문 묶음" }),
     );
     fireEvent.change(within(panel).getByRole("textbox", { name: "장평" }), {
       target: { value: "135" },
@@ -677,7 +730,6 @@ describe("selected block font-size adjustment", () => {
       "블록 전체 밑줄",
       "블록 전체 취소선",
       "블록 전체 강조점",
-      "세로쓰기 영문 묶음",
     ]) {
       fireEvent.click(within(panel).getByRole("button", { name }));
     }
@@ -721,6 +773,36 @@ describe("selected block font-size adjustment", () => {
     expect(
       generated.some((value) => value.includes("[glow-color=#ff5500]")),
     ).toBe(true);
+  });
+
+  it("removes a selected inline background in code mode", () => {
+    const onUpdate = vi.fn();
+    const value = "[background=#ffeeaa]효과[/background]";
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ translatedText: value })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    const code = screen.getByRole("textbox", {
+      name: "번역문 서식 코드",
+    }) as HTMLTextAreaElement;
+    const start = value.indexOf("효과");
+    code.setSelectionRange(start, start + 2);
+    fireEvent.select(code);
+
+    const panel = screen.getByRole("region", { name: "글자별 서식" });
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "글자 배경" }));
+
+    expect(onUpdate).toHaveBeenLastCalledWith({ translatedText: "효과" });
   });
 
   it("shows the actual character formatting at the visual caret", () => {
@@ -934,6 +1016,78 @@ describe("selected block font-size adjustment", () => {
     );
   });
 
+  it("normalizes unstyled IME DOM fragments after composition ends", async () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({
+            translatedText: "가나",
+            textColor: "#111111",
+            outlineColor: "#ffffff",
+            outlineWidthPx: 2,
+            underline: true,
+          })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+    const editor = screen.getByRole("textbox", {
+      name: "번역문",
+    }) as HTMLDivElement;
+    const run = editor.querySelector<HTMLElement>("[data-rich-text-run]");
+    const glyphText = run?.querySelector("[data-rich-text-glyph]")?.firstChild;
+    if (!run || !(glyphText instanceof Text)) {
+      throw new Error("Expected an outlined decorated text run");
+    }
+    const placeCaret = (node: Node, offset: number): void => {
+      const range = document.createRange();
+      range.setStart(node, offset);
+      range.collapse(true);
+      document.getSelection()?.removeAllRanges();
+      document.getSelection()?.addRange(range);
+    };
+    act(() => {
+      editor.focus();
+      placeCaret(glyphText, glyphText.length);
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+    fireEvent.compositionStart(editor);
+    const rawCompositionNode = document.createTextNode("한");
+    act(() => {
+      run.append(rawCompositionNode);
+      placeCaret(rawCompositionNode, 1);
+      fireEvent.input(editor, {
+        data: "한",
+        inputType: "insertCompositionText",
+        isComposing: true,
+      });
+    });
+    expect(run.lastChild).toBe(rawCompositionNode);
+
+    fireEvent.compositionEnd(editor, { data: "한" });
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenLastCalledWith({ translatedText: "가나한" }),
+    );
+    const normalizedRun = editor.querySelector<HTMLElement>(
+      "[data-rich-text-run]",
+    );
+    expect(normalizedRun?.textContent).toBe("가나한");
+    expect(
+      normalizedRun?.querySelector<HTMLElement>("[data-rich-text-glyph]")
+        ?.textContent,
+    ).toBe("가나한");
+    expect(
+      Array.from(normalizedRun?.childNodes ?? []).some(
+        (node) => node.nodeType === Node.TEXT_NODE,
+      ),
+    ).toBe(false);
+  });
+
   it("closes the character-font menu immediately after choosing a font", () => {
     const onUpdate = vi.fn();
     render(
@@ -1004,44 +1158,11 @@ describe("selected block font-size adjustment", () => {
 
     await waitFor(() =>
       expect(onUpdate).toHaveBeenLastCalledWith({
-        translatedText: "가[tcy]!?[/tcy]나",
+        translatedText: "가!?나",
       }),
     );
     expect(screen.queryByRole("group", { name: "기호" })).toBeNull();
     expect(document.activeElement).toBe(editor);
-
-    const combinedTextNode = editor.querySelector<HTMLElement>(
-      '[data-vertical-combine="true"]',
-    )?.firstChild;
-    if (!(combinedTextNode instanceof Text)) {
-      throw new Error("Expected a combined punctuation text node");
-    }
-    act(() => {
-      const afterCombined = document.createRange();
-      afterCombined.setStart(combinedTextNode, combinedTextNode.length);
-      afterCombined.collapse(true);
-      document.getSelection()?.removeAllRanges();
-      document.getSelection()?.addRange(afterCombined);
-      editor.dispatchEvent(
-        new InputEvent("beforeinput", {
-          bubbles: true,
-          cancelable: true,
-          data: "새",
-          inputType: "insertText",
-        }),
-      );
-      combinedTextNode.data = `${combinedTextNode.data}새`;
-      afterCombined.setStart(combinedTextNode, combinedTextNode.length);
-      document.getSelection()?.removeAllRanges();
-      document.getSelection()?.addRange(afterCombined);
-      fireEvent.input(editor, { data: "새", inputType: "insertText" });
-    });
-
-    await waitFor(() =>
-      expect(onUpdate).toHaveBeenLastCalledWith({
-        translatedText: "가[tcy]!?[/tcy]새나",
-      }),
-    );
   });
 
   it("inserts a special character at the saved code selection", async () => {
@@ -1076,7 +1197,7 @@ describe("selected block font-size adjustment", () => {
     expect(code.selectionEnd).toBe(2);
   });
 
-  it("marks a combined punctuation option only when inserted from the palette", async () => {
+  it("inserts punctuation from the palette without hidden formatting", async () => {
     const onUpdate = vi.fn();
     render(
       <FontsTestProvider>
@@ -1103,7 +1224,7 @@ describe("selected block font-size adjustment", () => {
 
     await waitFor(() =>
       expect(onUpdate).toHaveBeenLastCalledWith({
-        translatedText: "가[tcy]!?[/tcy]나",
+        translatedText: "가!?나",
       }),
     );
   });

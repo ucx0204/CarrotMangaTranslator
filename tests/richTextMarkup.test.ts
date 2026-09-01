@@ -97,25 +97,6 @@ describe("parseRichText", () => {
     );
   });
 
-  it("round-trips an explicit vertical-combine run without changing plain text", () => {
-    const parsed = parseRichText("보통!? [tcy]!?[/tcy]");
-
-    expect(parsed.plainText).toBe("보통!? !?");
-    expect(parsed.runs).toEqual([
-      { text: "보통!? ", bold: false, italic: false },
-      {
-        text: "!?",
-        bold: false,
-        italic: false,
-        verticalCombine: true,
-      },
-    ]);
-    expect(serializeRichTextRuns(parsed.runs)).toBe("보통!? [tcy]!?[/tcy]");
-    expect(parseRichText("[tcy]닫히지 않음").plainText).toBe(
-      "[tcy]닫히지 않음",
-    );
-  });
-
   it("serializes safe style runs deterministically and round-trips them", () => {
     const runs = [
       { text: "보통 * [", bold: false, italic: false },
@@ -191,7 +172,6 @@ describe("parseRichText", () => {
         glowColor: "#ff8800",
         glowBlurPx: 6,
         glowOpacity: 0.65,
-        verticalCombine: true,
       },
     ] satisfies TextStyleRun[];
 

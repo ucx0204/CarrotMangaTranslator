@@ -1,6 +1,37 @@
 /* eslint-disable complexity, max-lines, max-lines-per-function -- field metadata and exhaustive typed readers stay co-located as the single registry contract */
+import {
+  FONT_SIZE_STEP_PX,
+  FONT_WIDTH_SCALE_STEP,
+  LETTER_SPACING_STEP_EM,
+  LINE_HEIGHT_STEP,
+  MAX_FONT_SIZE_PX,
+  MAX_FONT_WIDTH_SCALE,
+  MAX_LETTER_SPACING_EM,
+  MAX_LINE_HEIGHT,
+  MIN_FONT_SIZE_PX,
+  MIN_FONT_WIDTH_SCALE,
+  MIN_LETTER_SPACING_EM,
+  MIN_LINE_HEIGHT,
+} from "./blockFormatValues";
 import { parseRichText, stripRichTextMarkup } from "./richTextMarkup";
 import type { MangaPage } from "./libraryTypes";
+import {
+  MAX_TEXT_EFFECT_BLUR_PX,
+  MAX_TEXT_EFFECT_OFFSET_PX,
+  MIN_TEXT_EFFECT_BLUR_PX,
+  MIN_TEXT_EFFECT_OFFSET_PX,
+  TEXT_EFFECT_LENGTH_STEP_PX,
+} from "./textEffect";
+import {
+  MAX_TEXT_GLOW_BLUR_PX,
+  MIN_TEXT_GLOW_BLUR_PX,
+  TEXT_GLOW_BLUR_STEP_PX,
+} from "./textGlow";
+import {
+  MAX_TEXT_OUTLINE_WIDTH_PX,
+  MIN_TEXT_OUTLINE_WIDTH_PX,
+  TEXT_OUTLINE_WIDTH_STEP_PX,
+} from "./textOutline";
 import type { TranslationBlock } from "./textTypes";
 import type { GlossaryEntry } from "./workContextTypes";
 
@@ -160,13 +191,26 @@ export type ConditionalBatchFieldDefinition = {
   operators: readonly ConditionalBatchOperator[];
   writable: boolean;
   quick: boolean;
+  number?: ConditionalBatchNumberDefinition;
 };
+
+type ConditionalBatchNumberDefinition = Readonly<{
+  min: number;
+  max: number;
+  step: number;
+  defaultValue: number;
+  unit?: string;
+}>;
 
 function field(
   id: ConditionalBatchField,
   kind: ConditionalBatchFieldKind,
   category: ConditionalBatchFieldCategory,
-  options: { writable?: boolean; quick?: boolean } = {},
+  options: {
+    writable?: boolean;
+    quick?: boolean;
+    number?: ConditionalBatchNumberDefinition;
+  } = {},
 ): ConditionalBatchFieldDefinition {
   return {
     id,
@@ -184,8 +228,76 @@ function field(
               : BOOLEAN_OPERATORS,
     writable: options.writable ?? false,
     quick: options.quick ?? false,
+    number: options.number,
   };
 }
+
+const CONFIDENCE_NUMBER = {
+  min: 0,
+  max: 1,
+  step: 0.01,
+  defaultValue: 1,
+} as const;
+const FONT_SIZE_NUMBER = {
+  min: MIN_FONT_SIZE_PX,
+  max: MAX_FONT_SIZE_PX,
+  step: FONT_SIZE_STEP_PX,
+  defaultValue: 24,
+  unit: "px",
+} as const;
+const LINE_HEIGHT_NUMBER = {
+  min: MIN_LINE_HEIGHT,
+  max: MAX_LINE_HEIGHT,
+  step: LINE_HEIGHT_STEP,
+  defaultValue: 1.18,
+} as const;
+const LETTER_SPACING_NUMBER = {
+  min: MIN_LETTER_SPACING_EM,
+  max: MAX_LETTER_SPACING_EM,
+  step: LETTER_SPACING_STEP_EM,
+  defaultValue: 0,
+  unit: "em",
+} as const;
+const FONT_WIDTH_NUMBER = {
+  min: MIN_FONT_WIDTH_SCALE,
+  max: MAX_FONT_WIDTH_SCALE,
+  step: FONT_WIDTH_SCALE_STEP,
+  defaultValue: 1,
+} as const;
+const OPACITY_NUMBER = {
+  min: 0,
+  max: 1,
+  step: 0.05,
+  defaultValue: 1,
+} as const;
+const OUTLINE_NUMBER = {
+  min: MIN_TEXT_OUTLINE_WIDTH_PX,
+  max: MAX_TEXT_OUTLINE_WIDTH_PX,
+  step: TEXT_OUTLINE_WIDTH_STEP_PX,
+  defaultValue: 1.5,
+  unit: "px",
+} as const;
+const EFFECT_OFFSET_NUMBER = {
+  min: MIN_TEXT_EFFECT_OFFSET_PX,
+  max: MAX_TEXT_EFFECT_OFFSET_PX,
+  step: TEXT_EFFECT_LENGTH_STEP_PX,
+  defaultValue: 2,
+  unit: "px",
+} as const;
+const EFFECT_BLUR_NUMBER = {
+  min: MIN_TEXT_EFFECT_BLUR_PX,
+  max: MAX_TEXT_EFFECT_BLUR_PX,
+  step: TEXT_EFFECT_LENGTH_STEP_PX,
+  defaultValue: 4,
+  unit: "px",
+} as const;
+const GLOW_BLUR_NUMBER = {
+  min: MIN_TEXT_GLOW_BLUR_PX,
+  max: MAX_TEXT_GLOW_BLUR_PX,
+  step: TEXT_GLOW_BLUR_STEP_PX,
+  defaultValue: 4,
+  unit: "px",
+} as const;
 
 export const CONDITIONAL_BATCH_FIELD_DEFINITIONS: readonly ConditionalBatchFieldDefinition[] =
   [
@@ -204,18 +316,45 @@ export const CONDITIONAL_BATCH_FIELD_DEFINITIONS: readonly ConditionalBatchField
     field("textAlign", "enum", "layout", { writable: true }),
     field("wordBreak", "enum", "layout", { writable: true }),
     field("reviewStatus", "enum", "review", { writable: true, quick: true }),
-    field("confidence", "number", "review"),
-    field("fontRoleConfidence", "number", "review"),
-    field("fontSizePx", "number", "typography", { writable: true }),
-    field("lineHeight", "number", "typography", { writable: true }),
-    field("letterSpacing", "number", "typography", { writable: true }),
-    field("fontWidthScale", "number", "typography", { writable: true }),
-    field("rotationDeg", "number", "layout", { writable: true }),
-    field("textOpacity", "number", "typography", { writable: true }),
-    field("outlineWidthPx", "number", "typography", { writable: true }),
-    field("outlineWidthScale", "number", "typography", { writable: true }),
+    field("confidence", "number", "review", { number: CONFIDENCE_NUMBER }),
+    field("fontRoleConfidence", "number", "review", {
+      number: CONFIDENCE_NUMBER,
+    }),
+    field("fontSizePx", "number", "typography", {
+      writable: true,
+      number: FONT_SIZE_NUMBER,
+    }),
+    field("lineHeight", "number", "typography", {
+      writable: true,
+      number: LINE_HEIGHT_NUMBER,
+    }),
+    field("letterSpacing", "number", "typography", {
+      writable: true,
+      number: LETTER_SPACING_NUMBER,
+    }),
+    field("fontWidthScale", "number", "typography", {
+      writable: true,
+      number: FONT_WIDTH_NUMBER,
+    }),
+    field("rotationDeg", "number", "layout", {
+      writable: true,
+      number: { min: -180, max: 180, step: 1, defaultValue: 0, unit: "°" },
+    }),
+    field("textOpacity", "number", "typography", {
+      writable: true,
+      number: OPACITY_NUMBER,
+    }),
+    field("outlineWidthPx", "number", "typography", {
+      writable: true,
+      number: OUTLINE_NUMBER,
+    }),
+    field("outlineWidthScale", "number", "typography", {
+      writable: true,
+      number: { min: 0, max: 8, step: 0.1, defaultValue: 1 },
+    }),
     field("outerOutlineWidthPx", "number", "typography", {
       writable: true,
+      number: OUTLINE_NUMBER,
     }),
     field("pageIndex", "number", "derived"),
     field("blockIndex", "number", "derived"),
@@ -246,14 +385,32 @@ export const CONDITIONAL_BATCH_FIELD_DEFINITIONS: readonly ConditionalBatchField
     field("hasGlossary", "boolean", "inspection"),
     field("textEffectEnabled", "boolean", "typography", { writable: true }),
     field("textEffectColor", "color", "typography", { writable: true }),
-    field("textEffectOffsetX", "number", "typography", { writable: true }),
-    field("textEffectOffsetY", "number", "typography", { writable: true }),
-    field("textEffectBlur", "number", "typography", { writable: true }),
-    field("textEffectOpacity", "number", "typography", { writable: true }),
+    field("textEffectOffsetX", "number", "typography", {
+      writable: true,
+      number: EFFECT_OFFSET_NUMBER,
+    }),
+    field("textEffectOffsetY", "number", "typography", {
+      writable: true,
+      number: EFFECT_OFFSET_NUMBER,
+    }),
+    field("textEffectBlur", "number", "typography", {
+      writable: true,
+      number: EFFECT_BLUR_NUMBER,
+    }),
+    field("textEffectOpacity", "number", "typography", {
+      writable: true,
+      number: OPACITY_NUMBER,
+    }),
     field("textGlowEnabled", "boolean", "typography", { writable: true }),
     field("textGlowColor", "color", "typography", { writable: true }),
-    field("textGlowBlur", "number", "typography", { writable: true }),
-    field("textGlowOpacity", "number", "typography", { writable: true }),
+    field("textGlowBlur", "number", "typography", {
+      writable: true,
+      number: GLOW_BLUR_NUMBER,
+    }),
+    field("textGlowOpacity", "number", "typography", {
+      writable: true,
+      number: OPACITY_NUMBER,
+    }),
     field("sameAsSource", "boolean", "inspection"),
     field("numberMismatch", "boolean", "inspection"),
     field("unbalancedPunctuation", "boolean", "inspection"),
@@ -279,7 +436,7 @@ export function getConditionalBatchFieldDefinition(
   fieldId: ConditionalBatchField,
 ): ConditionalBatchFieldDefinition {
   const definition = FIELD_DEFINITION_BY_ID.get(fieldId);
-  if (!definition) throw new Error(`알 수 없는 일관 편집 필드: ${fieldId}`);
+  if (!definition) throw new Error(`알 수 없는 일괄 편집 필드: ${fieldId}`);
   return definition;
 }
 
@@ -452,8 +609,7 @@ function hasInlineStyle(block: TranslationBlock): boolean {
       run.outerOutlineWidthPx !== undefined ||
       run.glowColor !== undefined ||
       run.glowBlurPx !== undefined ||
-      run.glowOpacity !== undefined ||
-      Boolean(run.verticalCombine),
+      run.glowOpacity !== undefined,
   );
 }
 

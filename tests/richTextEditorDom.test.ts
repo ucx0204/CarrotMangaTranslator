@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import type { TextStyleRun } from "../src/shared/richTextMarkup";
+import type { TranslationBlock } from "../src/shared/textTypes";
 import {
   clearRichTextEditorSelectionPreview,
   extractRichTextEditorRuns,
@@ -21,6 +22,26 @@ const options = {
   resolveFontFamily: (id: string | undefined) =>
     id === "display" ? "Display Font" : "sans-serif",
 };
+
+const decoratedBlock = {
+  id: "decorated",
+  type: "nonsolid",
+  bbox: { x: 0, y: 0, w: 200, h: 100 },
+  sourceText: "",
+  translatedText: "",
+  confidence: 1,
+  sourceDirection: "horizontal",
+  renderDirection: "horizontal",
+  fontSizePx: 20,
+  lineHeight: 1.2,
+  textAlign: "center",
+  textColor: "#111111",
+  outlineColor: "#ffffff",
+  outlineWidthPx: 2,
+  backgroundColor: "#ffffff",
+  opacity: 1,
+  autoFitText: false,
+} satisfies TranslationBlock;
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -51,17 +72,23 @@ describe("rich text editor DOM", () => {
         glowColor: "#ff8800",
         glowBlurPx: 6,
         glowOpacity: 0.65,
-        verticalCombine: true,
       },
     ];
 
-    renderRichTextEditorRuns(root, runs, options);
+    renderRichTextEditorRuns(root, runs, { ...options, block: decoratedBlock });
     const styled = root.querySelectorAll(
       "[data-rich-text-run]",
     )[1] as HTMLElement;
     expect(styled.style.fontSize).toBe("32px");
     expect(styled.style.fontFamily).toContain("Display Font");
     expect(styled.style.opacity).toBe("0.45");
+    expect(styled.style.textDecorationColor).toBe("rgb(17, 34, 51)");
+    expect(styled.style.webkitTextStrokeWidth).toBe("0px");
+    const glyph = styled.querySelector<HTMLElement>("[data-rich-text-glyph]");
+    expect(glyph?.style.webkitTextStrokeColor).toBe("transparent");
+    expect(glyph?.style.webkitTextStrokeWidth).toBe("0px");
+    expect(glyph?.style.textShadow).toContain("#ffffff");
+    expect(glyph?.style.textShadow).toContain("rgba(255, 136, 0, 0.65)");
     expect(extractRichTextEditorRuns(root)).toEqual(runs);
   });
 

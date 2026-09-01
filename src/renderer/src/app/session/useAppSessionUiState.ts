@@ -1,11 +1,5 @@
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
 import type { InpaintingTool } from "../../inpainting/inpaintingTypes";
 import type { StageTool } from "../../lib/stageTool";

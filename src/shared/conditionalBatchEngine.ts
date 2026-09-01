@@ -678,7 +678,6 @@ function readTextStyleValue(
 ): boolean | string | number | undefined {
   if (field === "bold") return run.bold;
   if (field === "italic") return run.italic;
-  if (field === "verticalCombine") return Boolean(run.verticalCombine);
   return run[field];
 }
 
@@ -845,7 +844,6 @@ const TEXT_STYLE_PATCH_FIELDS = [
   "glowColor",
   "glowBlurPx",
   "glowOpacity",
-  "verticalCombine",
 ] as const satisfies readonly (keyof TextStylePatch & keyof TextStyleRun)[];
 
 const TEXT_STYLE_BOOLEAN_FIELDS = new Set<keyof TextStylePatch>([
@@ -854,7 +852,6 @@ const TEXT_STYLE_BOOLEAN_FIELDS = new Set<keyof TextStylePatch>([
   "underline",
   "strikethrough",
   "emphasisMark",
-  "verticalCombine",
 ]);
 
 function evaluateConditionGroup(
@@ -1195,7 +1192,7 @@ function parseConditionalBatchResultKey(key: string): [string, string] {
     typeof value[0] !== "string" ||
     typeof value[1] !== "string"
   ) {
-    throw new Error("일관 편집 결과 키가 올바르지 않습니다.");
+    throw new Error("일괄 편집 결과 키가 올바르지 않습니다.");
   }
   return [value[0], value[1]];
 }

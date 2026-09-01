@@ -107,7 +107,7 @@ function EditorTabs({
   return (
     <div className={styles.mobileTabs}>
       <SegmentedControl
-        ariaLabel="일관 편집 화면"
+        ariaLabel="일괄 편집 화면"
         singleRow
         value={activeTab}
         options={[

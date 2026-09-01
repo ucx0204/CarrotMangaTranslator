@@ -231,7 +231,7 @@
       "move-block-later": "阅读顺序后移",
       "sort-reading-order": "按坐标排列阅读顺序",
       "reset-block-rotation": "重置文本块旋转",
-      "open-search-replace": "一致性编辑",
+      "open-search-replace": "批量编辑",
       "open-export-options": "打开导出",
       "history-undo": "撤销",
       "history-redo": "重做",

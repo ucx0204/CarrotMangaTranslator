@@ -1,5 +1,8 @@
 import type { TranslationBlock } from "./textTypes";
-import type { BlockFormatGroupId } from "./blockFormat";
+import {
+  BLOCK_FORMAT_FIELD_KEYS,
+  type BlockFormatGroupId,
+} from "./blockFormat";
 import type {
   BlockStylePresetSummary,
   CreateBlockStylePresetInput,
@@ -20,26 +23,9 @@ export type TransformEditorMode = "select" | "perspective" | "curve" | "warp";
 type PanelFormatScope = "selection" | "page" | "chapter";
 
 export const PANEL_FORMAT_FIELD_KEYS = [
-  "fontFamily",
-  "fontSizePx",
-  "autoFitText",
-  "bold",
-  "italic",
-  "textAlign",
-  "wordBreak",
-  "renderDirection",
-  "lineHeight",
-  "letterSpacing",
-  "fontWidthScale",
-  "textColor",
-  "textOpacity",
+  ...BLOCK_FORMAT_FIELD_KEYS,
   "backgroundColor",
   "opacity",
-  "outlineColor",
-  "outlineWidthPx",
-  "outlineWidthScale",
-  "rotationDeg",
-  "textEffect",
 ] as const satisfies readonly (keyof TranslationBlock)[];
 
 type PanelFormatFieldKey = (typeof PANEL_FORMAT_FIELD_KEYS)[number];

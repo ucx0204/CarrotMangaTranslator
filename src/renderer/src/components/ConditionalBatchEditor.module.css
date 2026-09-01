@@ -206,6 +206,11 @@
   gap: var(--sp-2);
 }
 
+.directRecipe {
+  grid-column: 1 / -1;
+  min-height: 44px;
+}
+
 .scopeCard > strong {
   color: var(--text-head);
   font-size: var(--font-sm);
@@ -717,20 +722,12 @@
   grid-column: 1 / -1;
 }
 
-.inspectionState,
 .snapshotMeta {
   padding: var(--sp-3);
   border: 1px solid var(--border-soft);
   border-radius: var(--r-md);
   color: var(--text-muted);
   font-size: var(--font-xs);
-}
-
-.inspectionState {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
 }
 
 .actionToggles {

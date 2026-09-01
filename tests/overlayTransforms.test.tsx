@@ -259,7 +259,7 @@ describe("overlay transform controls", () => {
     const { container } = render(
       <OverlayText
         block={{ ...makeBlock(), outerOutlineWidthPx: 0 }}
-        displayText="[outer-outline-width=2]외[/outer-outline-width]곽"
+        displayText="[underline][outer-outline-width=2]외[/outer-outline-width][/underline]곽"
         fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
         layout={{
           rect: { left: 0, top: 0, width: 100, height: 60 },
@@ -286,6 +286,11 @@ describe("overlay transform controls", () => {
     expect(container.querySelector(".overlay-text-main")?.textContent).toBe(
       "외곽",
     );
+    const decorated = Array.from(
+      container.querySelectorAll<HTMLElement>(".overlay-text-main span"),
+    ).find((element) => element.style.textDecorationLine === "underline");
+    expect(decorated).toBeDefined();
+    expect(decorated?.querySelector(":scope > span")).not.toBeNull();
   });
 
   it("shows the selected bubble profile even when block chrome is hidden", () => {

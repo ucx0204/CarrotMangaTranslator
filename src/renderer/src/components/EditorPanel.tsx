@@ -357,17 +357,15 @@ function EditorBlockGroups({
         />
       </EditorTabPanel>
       <EditorTabPanel activeTab={activeTab} baseId={baseId} tab="layout">
-        <BlockTransformEditor
+        <TransformEditorGroup
           key={block.id}
-          {...{
-            block,
-            disabled,
-            onSelectTransformMode,
-            onUpdate,
-            pageSize,
-            templateMode,
-            transformMode,
-          }}
+          block={block}
+          disabled={disabled}
+          mode={transformMode}
+          pageSize={pageSize}
+          templateMode={templateMode}
+          onSelectMode={onSelectTransformMode ?? NOOP_ACTION}
+          onUpdate={onUpdate}
         />
       </EditorTabPanel>
       <EditorTabPanel activeTab={activeTab} baseId={baseId} tab="format">
@@ -384,35 +382,5 @@ function EditorBlockGroups({
         />
       </EditorTabPanel>
     </>
-  );
-}
-
-function BlockTransformEditor({
-  block,
-  disabled,
-  onSelectTransformMode,
-  onUpdate,
-  pageSize,
-  templateMode,
-  transformMode,
-}: {
-  block: TranslationBlock;
-  disabled: boolean;
-  onSelectTransformMode?: (mode: TransformEditorMode) => void;
-  onUpdate: EditorPanelProps["onUpdate"];
-  pageSize: NonNullable<EditorPanelProps["pageSize"]> | null;
-  templateMode: boolean;
-  transformMode: TransformEditorMode;
-}): React.JSX.Element {
-  return (
-    <TransformEditorGroup
-      block={block}
-      disabled={disabled}
-      mode={transformMode}
-      pageSize={pageSize}
-      templateMode={templateMode}
-      onSelectMode={onSelectTransformMode ?? (() => undefined)}
-      onUpdate={onUpdate}
-    />
   );
 }

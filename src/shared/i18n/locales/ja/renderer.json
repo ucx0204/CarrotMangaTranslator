@@ -234,7 +234,7 @@
       "move-block-later": "読み順を後ろへ",
       "sort-reading-order": "座標で読み順を並べ替え",
       "reset-block-rotation": "ブロックの回転をリセット",
-      "open-search-replace": "一貫編集",
+      "open-search-replace": "一括編集",
       "open-export-options": "書き出しを開く",
       "history-undo": "元に戻す",
       "history-redo": "やり直す",

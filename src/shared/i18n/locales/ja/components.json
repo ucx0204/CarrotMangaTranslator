@@ -58,7 +58,7 @@
   },
   "conditionalBatch": {
     "open": "テキスト一括編集",
-    "title": "一貫編集",
+    "title": "一括編集",
     "undo": "元に戻す",
     "scheme": {
       "label": "ルールを読み込む",
@@ -486,7 +486,6 @@
       "size": "文字サイズ",
       "font": "文字フォント",
       "opacity": "文字の不透明度",
-      "combineUpright": "縦中横",
       "background": "文字背景",
       "effects": "縁取り・光彩",
       "mixed": "混在",

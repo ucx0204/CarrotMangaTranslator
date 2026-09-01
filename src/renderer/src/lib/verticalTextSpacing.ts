@@ -2,7 +2,6 @@ import { segmentNaturalTextGraphemes } from "../../../shared/naturalTextLayoutSe
 
 const VERTICAL_ASCII_SPACE_EM = 0.5;
 const VERTICAL_IDEOGRAPHIC_SPACE_EM = 1;
-const VERTICAL_COMBINED_PUNCTUATION = new Set(["!!", "!?", "?!", "??"]);
 const VERTICAL_DASH_SYMBOLS = new Set(["—", "―"]);
 const VERTICAL_WAVE_SYMBOLS = new Set(["〜", "～", "∼"]);
 const VERTICAL_UPRIGHT_SYMBOLS = new Set(["♡", "♥", "♪", "♬"]);
@@ -46,19 +45,11 @@ export type VerticalTextSpacingToken = {
   displayText?: string;
   advanceEm?: number;
   presentation?: "dash" | "ellipsis" | "wave";
-  kind?:
-    | "ascii"
-    | "ideographic"
-    | "dash"
-    | "ellipsis"
-    | "rotate"
-    | "combine"
-    | "upright";
+  kind?: "ascii" | "ideographic" | "dash" | "ellipsis" | "rotate" | "upright";
 };
 
 export function tokenizeVerticalTextSpacing(
   text: string,
-  combineUpright = false,
 ): VerticalTextSpacingToken[] {
   const tokens: VerticalTextSpacingToken[] = [];
   let plain = "";
@@ -80,18 +71,6 @@ export function tokenizeVerticalTextSpacing(
         presentation: "dash",
       });
       index = dashRun.endIndex;
-      continue;
-    }
-    const combined = `${character}${graphemes[index + 1] ?? ""}`;
-    if (combineUpright && VERTICAL_COMBINED_PUNCTUATION.has(combined)) {
-      flushPlain();
-      tokens.push({
-        text: combined,
-        displayText: combined,
-        advanceEm: 1,
-        kind: "combine",
-      });
-      index += 1;
       continue;
     }
     const presentation = createVerticalPresentationToken(character);
@@ -172,15 +151,10 @@ function createSymbolToken(
 }
 
 /**
- * Segments one vertical style run into layout units. Combined punctuation is
- * deliberately one unit so measurement, wrapping, and rendering all consume
- * exactly one vertical cell.
+ * Segments one vertical style run into layout units.
  */
-export function segmentVerticalTextGraphemes(
-  text: string,
-  combineUpright = false,
-): string[] {
-  return tokenizeVerticalTextSpacing(text, combineUpright).flatMap((token) =>
+export function segmentVerticalTextGraphemes(text: string): string[] {
+  return tokenizeVerticalTextSpacing(text).flatMap((token) =>
     token.kind === undefined || token.kind === "dash"
       ? segmentNaturalTextGraphemes(token.text)
       : [token.text],
@@ -209,9 +183,6 @@ export function resolveVerticalGraphemeAdvancePx(
       1,
       fontSizePx * VERTICAL_IDEOGRAPHIC_SPACE_EM + letterSpacingPx,
     );
-  }
-  if (VERTICAL_COMBINED_PUNCTUATION.has(grapheme)) {
-    return defaultAdvancePx;
   }
   return defaultAdvancePx;
 }

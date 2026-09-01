@@ -147,6 +147,7 @@ export function useConditionalBatchEditorModel(
       canDeleteScheme: scheme.canDeleteScheme,
       currentResult: preview.currentResult,
       draft: scheme.draft,
+      favoriteSchemeIds: scheme.favoriteSchemeIds,
       recipePickerCanClose: scheme.recipePickerCanClose,
       recipePickerOpen: scheme.recipePickerOpen,
       savedSchemes: scheme.savedSchemes,
@@ -184,6 +185,7 @@ export function useConditionalBatchEditorModel(
       onSelectScheme: scheme.selectScheme,
       onSetYamlOpen: scheme.setYamlOpen,
       onSetYamlText: scheme.setYamlText,
+      onToggleSchemeFavorite: scheme.toggleSchemeFavorite,
     },
     footerProps: {
       applyNotice: scheme.applyNotice,

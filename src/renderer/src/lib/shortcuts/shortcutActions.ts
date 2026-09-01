@@ -309,7 +309,7 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
   },
   {
     id: "open-search-replace",
-    label: "일관 편집",
+    label: "일괄 편집",
     category: "edit",
     defaultCombo: "ctrl+h",
     allowInEditable: true,

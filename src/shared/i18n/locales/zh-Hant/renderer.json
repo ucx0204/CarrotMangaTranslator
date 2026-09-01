@@ -231,7 +231,7 @@
       "move-block-later": "閱讀順序後移",
       "sort-reading-order": "依座標排列閱讀順序",
       "reset-block-rotation": "重設文字區塊旋轉",
-      "open-search-replace": "一致性編輯",
+      "open-search-replace": "批次編輯",
       "open-export-options": "開啟匯出",
       "history-undo": "復原",
       "history-redo": "重做",

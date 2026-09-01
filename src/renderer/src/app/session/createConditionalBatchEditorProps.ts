@@ -14,7 +14,7 @@ import type { AppWorkspaceProps } from "../../components/appWorkspaceTypes";
 import type { AppSessionViewProps } from "./AppSessionView";
 import type { AppSessionViewModel } from "./appSessionViewModel";
 
-const HISTORY_LABEL_PREFIX = "일관 편집: ";
+const HISTORY_LABEL_PREFIX = "일괄 편집: ";
 
 // eslint-disable-next-line complexity -- the modal binding deliberately gates every nullable session owner before exposing mutation callbacks
 export function createConditionalBatchEditorProps(

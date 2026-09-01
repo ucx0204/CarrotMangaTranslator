@@ -44,6 +44,8 @@ import {
   applyInlineBooleanStyleTag,
   applyInlineMarkup,
   applyInlineStyleTag,
+  removeInlineBooleanStyleTag,
+  removeInlineStyleTag,
   type InlineMarkupResult,
 } from "../lib/textareaMarkup";
 import { resolveBlockFontFamily } from "../lib/fonts";
@@ -80,16 +82,15 @@ const MIN_INLINE_WIDTH_PERCENT = 10;
 const MAX_INLINE_WIDTH_PERCENT = 500;
 type SpecialCharacterOption = {
   text: string;
-  combineUpright?: boolean;
 };
 const SPECIAL_CHARACTERS: readonly SpecialCharacterOption[] = [
   { text: "…" },
   { text: "—" },
   { text: "〜" },
-  { text: "!!", combineUpright: true },
-  { text: "!?", combineUpright: true },
-  { text: "?!", combineUpright: true },
-  { text: "??", combineUpright: true },
+  { text: "!!" },
+  { text: "!?" },
+  { text: "?!" },
+  { text: "??" },
   { text: "♡" },
   { text: "♥" },
   { text: "♪" },
@@ -205,6 +206,10 @@ export function RichTranslationEditor({
       return;
     }
     const activeElement = root.ownerDocument.activeElement;
+    const activeSelection =
+      !switchedBlock && root.contains(activeElement)
+        ? getRichTextEditorSelection(root)
+        : null;
     const editor = root.closest(".rich-translation-editor");
     const showSavedSelection = Boolean(
       editor?.contains(activeElement) &&
@@ -217,6 +222,9 @@ export function RichTranslationEditor({
       renderOptions,
       showSavedSelection ? selectionRef.current : null,
     );
+    if (activeSelection) {
+      restoreRichTextEditorSelection(root, activeSelection);
+    }
     lastDomValueRef.current = value;
     lastRenderOptionsRef.current = renderOptions;
     lastRenderedRootRef.current = root;
@@ -325,7 +333,7 @@ export function RichTranslationEditor({
     setSelection(current);
   };
 
-  const commitVisualInput = (): void => {
+  const commitVisualInput = (normalizeDom = false): void => {
     const root = visualRef.current;
     if (!root) return;
     const nextSelection =
@@ -366,6 +374,10 @@ export function RichTranslationEditor({
         );
         return;
       }
+    }
+    if (normalizeDom) {
+      commitVisualRuns(nextRuns, nextSelection);
+      return;
     }
     const nextValue = serializeRichTextRuns(nextRuns);
     lastDomValueRef.current = nextValue;
@@ -414,17 +426,28 @@ export function RichTranslationEditor({
     setSelection(nextSelection);
   };
 
-  const selectionValues = React.useMemo(
-    () =>
-      resolveSelectionValues(
-        parsed.runs,
-        mode === "visual" ? selection : { start: 0, end: 0 },
-        block,
-        mode === "visual" ? caretRun : null,
-        mode === "visual" ? typingStyle : null,
-      ),
-    [block, caretRun, mode, parsed.runs, selection, typingStyle],
-  );
+  const selectionValues = React.useMemo(() => {
+    const resolvedSelection =
+      mode === "visual"
+        ? selection
+        : resolveCodeSelection(value, selection, parsed.plainText.length);
+    return resolveSelectionValues(
+      parsed.runs,
+      resolvedSelection,
+      block,
+      mode === "visual" ? caretRun : null,
+      mode === "visual" ? typingStyle : null,
+    );
+  }, [
+    block,
+    caretRun,
+    mode,
+    parsed.plainText.length,
+    parsed.runs,
+    selection,
+    typingStyle,
+    value,
+  ]);
 
   const applyInlineStyle = (patch: TextStylePatch): void => {
     const target = selectionRef.current;
@@ -450,160 +473,232 @@ export function RichTranslationEditor({
       commitCodeResult(applyInlineMarkup(value, target.start, target.end, "*"));
     } else if (patch.underline !== undefined) {
       commitCodeResult(
-        applyInlineBooleanStyleTag(
-          value,
-          target.start,
-          target.end,
-          "underline",
-        ),
+        patch.underline
+          ? applyInlineBooleanStyleTag(
+              value,
+              target.start,
+              target.end,
+              "underline",
+            )
+          : removeInlineBooleanStyleTag(
+              value,
+              target.start,
+              target.end,
+              "underline",
+            ),
       );
     } else if (patch.strikethrough !== undefined) {
       commitCodeResult(
-        applyInlineBooleanStyleTag(value, target.start, target.end, "strike"),
+        patch.strikethrough
+          ? applyInlineBooleanStyleTag(
+              value,
+              target.start,
+              target.end,
+              "strike",
+            )
+          : removeInlineBooleanStyleTag(
+              value,
+              target.start,
+              target.end,
+              "strike",
+            ),
       );
     } else if (patch.emphasisMark !== undefined) {
       commitCodeResult(
-        applyInlineBooleanStyleTag(value, target.start, target.end, "emphasis"),
+        patch.emphasisMark
+          ? applyInlineBooleanStyleTag(
+              value,
+              target.start,
+              target.end,
+              "emphasis",
+            )
+          : removeInlineBooleanStyleTag(
+              value,
+              target.start,
+              target.end,
+              "emphasis",
+            ),
       );
-    } else if (patch.verticalCombine !== undefined) {
+    } else if (patch.sizePx !== undefined) {
       commitCodeResult(
-        applyInlineBooleanStyleTag(value, target.start, target.end, "tcy"),
+        patch.sizePx === null
+          ? removeInlineStyleTag(value, target.start, target.end, "size")
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "size",
+              patch.sizePx,
+            ),
       );
-    } else if (patch.sizePx !== undefined && patch.sizePx !== null) {
+    } else if (patch.fontFamily !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "size",
-          patch.sizePx,
-        ),
+        patch.fontFamily === null
+          ? removeInlineStyleTag(value, target.start, target.end, "font")
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "font",
+              patch.fontFamily,
+            ),
       );
-    } else if (patch.fontFamily !== undefined && patch.fontFamily !== null) {
+    } else if (patch.opacity !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "font",
-          patch.fontFamily,
-        ),
+        patch.opacity === null
+          ? removeInlineStyleTag(value, target.start, target.end, "opacity")
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "opacity",
+              formatNumber(patch.opacity * 100),
+            ),
       );
-    } else if (patch.opacity !== undefined && patch.opacity !== null) {
+    } else if (patch.widthScale !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "opacity",
-          formatNumber(patch.opacity * 100),
-        ),
+        patch.widthScale === null
+          ? removeInlineStyleTag(value, target.start, target.end, "width")
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "width",
+              formatNumber(patch.widthScale),
+            ),
       );
-    } else if (patch.widthScale !== undefined && patch.widthScale !== null) {
+    } else if (patch.color !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "width",
-          formatNumber(patch.widthScale),
-        ),
+        patch.color === null
+          ? removeInlineStyleTag(value, target.start, target.end, "color")
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "color",
+              patch.color,
+            ),
       );
-    } else if (patch.color) {
+    } else if (patch.backgroundColor !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "color",
-          patch.color,
-        ),
+        patch.backgroundColor === null
+          ? removeInlineStyleTag(value, target.start, target.end, "background")
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "background",
+              patch.backgroundColor,
+            ),
       );
-    } else if (patch.backgroundColor) {
+    } else if (patch.outlineColor !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "background",
-          patch.backgroundColor,
-        ),
+        patch.outlineColor === null
+          ? removeInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "outline-color",
+            )
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "outline-color",
+              patch.outlineColor,
+            ),
       );
-    } else if (patch.outlineColor) {
+    } else if (patch.outlineWidthPx !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "outline-color",
-          patch.outlineColor,
-        ),
+        patch.outlineWidthPx === null
+          ? removeInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "outline-width",
+            )
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "outline-width",
+              formatNumber(patch.outlineWidthPx),
+            ),
       );
-    } else if (
-      patch.outlineWidthPx !== undefined &&
-      patch.outlineWidthPx !== null
-    ) {
+    } else if (patch.outerOutlineColor !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "outline-width",
-          formatNumber(patch.outlineWidthPx),
-        ),
+        patch.outerOutlineColor === null
+          ? removeInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "outer-outline-color",
+            )
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "outer-outline-color",
+              patch.outerOutlineColor,
+            ),
       );
-    } else if (patch.outerOutlineColor) {
+    } else if (patch.outerOutlineWidthPx !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "outer-outline-color",
-          patch.outerOutlineColor,
-        ),
+        patch.outerOutlineWidthPx === null
+          ? removeInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "outer-outline-width",
+            )
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "outer-outline-width",
+              formatNumber(patch.outerOutlineWidthPx),
+            ),
       );
-    } else if (
-      patch.outerOutlineWidthPx !== undefined &&
-      patch.outerOutlineWidthPx !== null
-    ) {
+    } else if (patch.glowColor !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "outer-outline-width",
-          formatNumber(patch.outerOutlineWidthPx),
-        ),
+        patch.glowColor === null
+          ? removeInlineStyleTag(value, target.start, target.end, "glow-color")
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "glow-color",
+              patch.glowColor,
+            ),
       );
-    } else if (patch.glowColor) {
+    } else if (patch.glowBlurPx !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "glow-color",
-          patch.glowColor,
-        ),
+        patch.glowBlurPx === null
+          ? removeInlineStyleTag(value, target.start, target.end, "glow-blur")
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "glow-blur",
+              formatNumber(patch.glowBlurPx),
+            ),
       );
-    } else if (patch.glowBlurPx !== undefined && patch.glowBlurPx !== null) {
+    } else if (patch.glowOpacity !== undefined) {
       commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "glow-blur",
-          formatNumber(patch.glowBlurPx),
-        ),
-      );
-    } else if (patch.glowOpacity !== undefined && patch.glowOpacity !== null) {
-      commitCodeResult(
-        applyInlineStyleTag(
-          value,
-          target.start,
-          target.end,
-          "glow-opacity",
-          formatNumber(patch.glowOpacity),
-        ),
+        patch.glowOpacity === null
+          ? removeInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "glow-opacity",
+            )
+          : applyInlineStyleTag(
+              value,
+              target.start,
+              target.end,
+              "glow-opacity",
+              formatNumber(patch.glowOpacity),
+            ),
       );
     }
   };
@@ -638,38 +733,7 @@ export function RichTranslationEditor({
         style: typingStyleRef.current,
       };
       if (!insertPlainTextAtEditorSelection(root, character)) return;
-      if (!option.combineUpright) {
-        commitVisualInput();
-        return;
-      }
-      beforeInputRef.current = null;
-      const nextSelection =
-        getRichTextEditorSelection(root) ??
-        ({
-          start: current.start + character.length,
-          end: current.start + character.length,
-        } satisfies RichTextEditorSelection);
-      const previousTypingStyle = typingStyleRef.current;
-      const patch: TextStylePatch = {
-        ...(previousTypingStyle ?? {}),
-        verticalCombine: true,
-      };
-      commitVisualRuns(
-        applyTextStyleToRuns(
-          extractRichTextEditorRuns(root),
-          current.start,
-          current.start + character.length,
-          patch,
-        ),
-        nextSelection,
-      );
-      const resumedTypingStyle: TextStylePatch = {
-        ...(previousTypingStyle ?? {}),
-        verticalCombine: null,
-      };
-      typingStyleRef.current = resumedTypingStyle;
-      typingOffsetRef.current = nextSelection.start;
-      setTypingStyleState(resumedTypingStyle);
+      commitVisualInput();
       return;
     }
     const code = codeRef.current;
@@ -679,12 +743,9 @@ export function RichTranslationEditor({
     const end = code
       ? Math.max(code.selectionStart, code.selectionEnd)
       : selectionRef.current.end;
-    const inserted = option.combineUpright
-      ? `[tcy]${character}[/tcy]`
-      : character;
-    const caret = start + inserted.length;
+    const caret = start + character.length;
     commitCodeResult({
-      value: `${value.slice(0, start)}${inserted}${value.slice(end)}`,
+      value: `${value.slice(0, start)}${character}${value.slice(end)}`,
       selectionStart: caret,
       selectionEnd: caret,
     });
@@ -797,7 +858,7 @@ export function RichTranslationEditor({
           data-placeholder={t("editor.richText.placeholder", {
             defaultValue: "번역문을 입력하세요",
           })}
-          onInput={commitVisualInput}
+          onInput={() => commitVisualInput()}
           onBeforeInput={captureVisualBeforeInput}
           onCompositionStart={() => {
             composingRef.current = true;
@@ -805,7 +866,7 @@ export function RichTranslationEditor({
           }}
           onCompositionEnd={() => {
             composingRef.current = false;
-            commitVisualInput();
+            commitVisualInput(true);
           }}
           onKeyUp={updateVisualSelection}
           onPointerUp={updateVisualSelection}
@@ -861,7 +922,6 @@ type SelectionValues = {
   underline: boolean;
   strikethrough: boolean;
   emphasisMark: boolean;
-  verticalCombine: boolean;
   sizePx: number;
   sizeMixed: boolean;
   fontFamily: string | undefined;
@@ -897,13 +957,7 @@ function InlineStylePanel({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const toggle = (
-    key:
-      | "bold"
-      | "italic"
-      | "underline"
-      | "strikethrough"
-      | "emphasisMark"
-      | "verticalCombine",
+    key: "bold" | "italic" | "underline" | "strikethrough" | "emphasisMark",
     current: boolean,
   ): void => {
     onApplyStyle({ [key]: mode === "visual" ? !current : true });
@@ -966,22 +1020,6 @@ function InlineStylePanel({
             onClick={() => toggle("emphasisMark", values.emphasisMark)}
           >
             <EmphasisMarkIcon size={14} />
-          </IconButton>
-          <IconButton
-            size="sm"
-            label={t("editor.richText.combineUpright", {
-              defaultValue: "세로 영문 묶음",
-            })}
-            title={t("editor.richText.combineUpright", {
-              defaultValue: "세로 영문 묶음",
-            })}
-            aria-pressed={values.verticalCombine}
-            disabled={disabled}
-            onClick={() => toggle("verticalCombine", values.verticalCombine)}
-          >
-            <span aria-hidden="true" className="rich-inline-tcy-icon">
-              縦
-            </span>
           </IconButton>
         </div>
         <InlineNumberField
@@ -1343,7 +1381,6 @@ function resolveSelectionValues(
       emphasisMark: candidates.every(
         (run) => Boolean(block.emphasisMark) || run.emphasisMark,
       ),
-      verticalCombine: candidates.every((run) => run.verticalCombine),
       sizePx: sizes[0] ?? block.fontSizePx,
       sizeMixed: !allEqual(sizes),
       fontFamily: fonts[0],
@@ -1379,7 +1416,6 @@ function createBaseSelectionValues(block: TranslationBlock): SelectionValues {
     underline: Boolean(block.underline),
     strikethrough: Boolean(block.strikethrough),
     emphasisMark: Boolean(block.emphasisMark),
-    verticalCombine: false,
     sizePx: block.fontSizePx,
     sizeMixed: false,
     fontFamily: block.fontFamily,
@@ -1466,9 +1502,6 @@ function applyTypingStyleToValues(
     ...(patch.emphasisMark === undefined
       ? {}
       : { emphasisMark: patch.emphasisMark ?? fallback.emphasisMark }),
-    ...(patch.verticalCombine === undefined
-      ? {}
-      : { verticalCombine: patch.verticalCombine ?? false }),
     ...(patch.sizePx === undefined
       ? {}
       : { sizePx: patch.sizePx ?? block.fontSizePx, sizeMixed: false }),
@@ -1561,6 +1594,45 @@ function nextSelectionToResult(selection: RichTextEditorSelection): {
     selectionStart: selection.start,
     selectionEnd: selection.end,
   };
+}
+
+function resolveCodeSelection(
+  value: string,
+  selection: RichTextEditorSelection,
+  plainTextLength: number,
+): RichTextEditorSelection {
+  const from = Math.max(
+    0,
+    Math.min(value.length, Math.min(selection.start, selection.end)),
+  );
+  const to = Math.max(
+    0,
+    Math.min(value.length, Math.max(selection.start, selection.end)),
+  );
+  const startMarker = findUnusedSelectionMarker(value, "\ue000");
+  const endMarker = findUnusedSelectionMarker(value + startMarker, "\ue001");
+  const marked =
+    value.slice(0, from) +
+    startMarker +
+    value.slice(from, to) +
+    endMarker +
+    value.slice(to);
+  const plain = parseRichText(marked).plainText;
+  const start = plain.indexOf(startMarker);
+  const end = plain.indexOf(endMarker);
+  if (start < 0 || end < start) return { start: 0, end: 0 };
+  if (to > from) return { start, end: end - startMarker.length };
+  if (plainTextLength === 0) return { start: 0, end: 0 };
+  const caret = Math.min(start, plainTextLength);
+  return caret < plainTextLength
+    ? { start: caret, end: caret + 1 }
+    : { start: Math.max(0, caret - 1), end: caret };
+}
+
+function findUnusedSelectionMarker(value: string, initial: string): string {
+  let marker = initial;
+  while (value.includes(marker)) marker += initial;
+  return marker;
 }
 
 function readStoredMode(): EditorMode {

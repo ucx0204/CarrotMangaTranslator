@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 const FIXTURE_TIME = "2026-09-01T00:00:00.000Z";
 const WORK_ID = "10000000-0000-4000-8000-000000000001";
 const CHAPTER_ID = "20000000-0000-4000-8000-000000000001";
-const WORK_TITLE = "일관 편집 앱 QA";
+const WORK_TITLE = "일괄 편집 앱 QA";
 const CHAPTER_TITLE = "100개 조합 자동 검증";
 const CASE_COUNT = 100;
 
@@ -1224,7 +1224,6 @@ function fullInlineStyleAction(caseNumber) {
         glowColor: "#ff8800",
         glowBlurPx: 6,
         glowOpacity: 0.65,
-        verticalCombine: true,
       },
     },
   ];
