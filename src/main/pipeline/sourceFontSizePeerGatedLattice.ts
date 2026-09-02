@@ -21,7 +21,10 @@ import type {
   SourceFontSizeHypothesisCandidate,
   SourceFontSizeHypothesisTrial,
 } from "./sourceFontSizePeerGatedTypes";
-import { selectUpwardFaceMode } from "./sourceFontSizePeerGatedUpward";
+import {
+  refineNarrowVerticalLineCountRecoveries,
+  selectUpwardFaceMode,
+} from "./sourceFontSizePeerGatedUpward";
 import { measureMajorAxisPitch } from "./sourceFontSizeMajorPitch";
 import type { SourceFontCoreMask } from "./sourceFontSizeRaster";
 
@@ -68,6 +71,8 @@ export function createSourceFontSizeHypothesisCandidate(input: {
   return {
     baseline,
     bboxCross,
+    bboxMajor,
+    direction,
     formulaLineCount,
     glyphCount,
     trialAt: (lineCount) => {
@@ -99,9 +104,10 @@ export function refinePageSourceFontSizeHypotheses(
     candidates,
     isStableUpwardPeerCandidate,
   );
-  return candidates.map((candidate) =>
+  const refined = candidates.map((candidate) =>
     resolvePeerGatedCandidate(candidate, peerCenter, upwardPeerCenter),
   );
+  return refineNarrowVerticalLineCountRecoveries(candidates, refined);
 }
 
 function measureHypothesisTrial(

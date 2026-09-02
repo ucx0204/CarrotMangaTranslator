@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { refinePageSourceFontSizeHypotheses } from "../src/main/pipeline/sourceFontSizePeerGatedLattice";
+import { refineNarrowVerticalLineCountRecoveries } from "../src/main/pipeline/sourceFontSizePeerGatedUpward";
 import type {
   SourceFontSizeHypothesisCandidate,
   SourceFontSizeHypothesisTrial,
@@ -76,6 +77,98 @@ describe("page peer-gated source font-size lattice", () => {
     ]);
 
     expect(refined[3]?.facePx).toBe(14);
+  });
+
+  it("recovers a narrow vertical one-column face from projection plus writing-axis pitch", () => {
+    const peers = [stableCandidate(21.9496), stableCandidate(29.18)];
+    const target = narrowVerticalCandidate();
+
+    const refined = refinePageSourceFontSizeHypotheses([...peers, target]);
+
+    expect(refined.slice(0, 2).map((item) => item.facePx)).toEqual([
+      21.9496, 29.18,
+    ]);
+    expect(refined[2]?.facePx).toBeCloseTo(23.3858, 4);
+    expect(refined[2]?.confidence).toBeCloseTo(0.6889, 4);
+  });
+
+  it("requires two nearby page peers without copying either peer value", () => {
+    const target = narrowVerticalCandidate();
+    const refined = refineNarrowVerticalLineCountRecoveries(
+      [target, stableCandidate(22)],
+      [target.baseline, estimate(22, 0.82)],
+    );
+
+    expect(refined[0]?.facePx).toBe(15.402);
+  });
+
+  it("preserves legitimate narrow-small and narrow-large hierarchy", () => {
+    const peers = [stableCandidate(22), stableCandidate(24)];
+    const genuineSmall = narrowVerticalCandidate({
+      baselineConfidence: 0.82,
+      baselineFace: 17.8,
+    });
+    const genuineLarge = narrowVerticalCandidate({
+      baselineConfidence: 0.7,
+      baselineFace: 112,
+      bboxCross: 159,
+      bboxMajor: 1216,
+      formulaLineCount: 1,
+    });
+    const refined = refineNarrowVerticalLineCountRecoveries(
+      [genuineSmall, genuineLarge, ...peers],
+      [
+        genuineSmall.baseline,
+        genuineLarge.baseline,
+        estimate(22, 0.82),
+        estimate(24, 0.82),
+      ],
+    );
+
+    expect(refined[0]?.facePx).toBe(17.8);
+    expect(refined[1]?.facePx).toBe(112);
+  });
+
+  it.each([
+    ["horizontal source", { direction: "horizontal" as const }],
+    ["short glyph inventory", { glyphCount: 7 }],
+    ["oversized glyph inventory", { glyphCount: 49 }],
+    ["wide region", { bboxMajor: 120 }],
+    ["too many formula columns", { formulaLineCount: 5 }],
+    ["weak projection", { projectionConfidence: 0.79 }],
+    ["missing projection", { projectionFace: null }],
+    ["weak major pitch", { majorConfidence: 0.68 }],
+    ["missing major pitch", { majorFace: null }],
+    ["weak connected mass", { componentMassShare: 0.89 }],
+    ["missing connected span", { componentFace: null }],
+    ["projection/major disagreement", { majorFace: 17 }],
+    ["connected span too short", { componentFace: 28 }],
+    ["connected span too long", { componentFace: 60 }],
+    ["uplift too small", { baselineFace: 19 }],
+    ["uplift too large", { baselineFace: 12 }],
+  ])("rejects %s", (_label, overrides) => {
+    const target = narrowVerticalCandidate(overrides);
+    const peers = [stableCandidate(22), stableCandidate(29)];
+    const refined = refineNarrowVerticalLineCountRecoveries(
+      [target, ...peers],
+      [target.baseline, estimate(22, 0.82), estimate(29, 0.82)],
+    );
+
+    expect(refined[0]?.facePx).toBe(target.baseline.facePx);
+  });
+
+  it.each([
+    ["above the peer tier", 18, 19],
+    ["below the peer tier", 31.4, 31.5],
+  ])("rejects a candidate-owned face %s", (_label, left, right) => {
+    const target = narrowVerticalCandidate();
+    const peers = [stableCandidate(left), stableCandidate(right)];
+    const refined = refineNarrowVerticalLineCountRecoveries(
+      [target, ...peers],
+      [target.baseline, estimate(left, 0.82), estimate(right, 0.82)],
+    );
+
+    expect(refined[0]?.facePx).toBe(15.402);
   });
 });
 
@@ -185,9 +278,79 @@ function candidate(
   return {
     baseline: estimate(facePx, 0.82),
     bboxCross: facePx * formulaLineCount * 1.8,
+    bboxMajor: facePx * 5,
+    direction: "vertical",
     formulaLineCount,
     glyphCount: 12,
     trialAt: (lineCount) => trials.get(lineCount) ?? null,
+  };
+}
+
+// eslint-disable-next-line complexity -- one fixture exposes every independent fail-closed gate
+function narrowVerticalCandidate(
+  overrides: {
+    baselineConfidence?: number;
+    baselineFace?: number;
+    bboxCross?: number;
+    bboxMajor?: number;
+    componentFace?: number | null;
+    componentMassShare?: number;
+    direction?: "horizontal" | "vertical";
+    formulaLineCount?: number;
+    glyphCount?: number;
+    majorConfidence?: number;
+    majorFace?: number | null;
+    projectionConfidence?: number;
+    projectionFace?: number | null;
+  } = {},
+): SourceFontSizeHypothesisCandidate {
+  const baselineFace = overrides.baselineFace ?? 15.402;
+  const formulaLineCount = overrides.formulaLineCount ?? 2;
+  const alternativeLineCount = formulaLineCount - 1;
+  const componentFace = Object.hasOwn(overrides, "componentFace")
+    ? (overrides.componentFace ?? null)
+    : 44.88;
+  const majorFace = Object.hasOwn(overrides, "majorFace")
+    ? (overrides.majorFace ?? null)
+    : 22.746;
+  const projectionFace = Object.hasOwn(overrides, "projectionFace")
+    ? (overrides.projectionFace ?? null)
+    : 24.0435;
+  const alternative: SourceFontSizeHypothesisTrial = {
+    component:
+      componentFace === null
+        ? null
+        : {
+            componentCount: 9,
+            confidence: 0.77,
+            lineCount: alternativeLineCount,
+            primaryFace: componentFace / 1.02,
+            primaryMassShare: overrides.componentMassShare ?? 1,
+          },
+    lineCount: alternativeLineCount,
+    majorPitch:
+      majorFace === null
+        ? null
+        : {
+            bandFaces: [majorFace / 1.02],
+            confidence: overrides.majorConfidence ?? 0.6956,
+            face: majorFace / 1.02,
+            lineCount: alternativeLineCount,
+          },
+    projection:
+      projectionFace === null
+        ? null
+        : estimate(projectionFace, overrides.projectionConfidence ?? 0.8096),
+  };
+  return {
+    baseline: estimate(baselineFace, overrides.baselineConfidence ?? 0.6982),
+    bboxCross: overrides.bboxCross ?? 57,
+    bboxMajor: overrides.bboxMajor ?? 193,
+    direction: overrides.direction ?? "vertical",
+    formulaLineCount,
+    glyphCount: overrides.glyphCount ?? 9,
+    trialAt: (lineCount) =>
+      lineCount === alternativeLineCount ? alternative : null,
   };
 }
 

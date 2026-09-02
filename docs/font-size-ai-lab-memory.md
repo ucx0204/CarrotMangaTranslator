@@ -3,9 +3,9 @@
 최종 정리: 2026-09-02 KST
 작업 브랜치: `codex/font-size-ai-lab-20260902-r1`
 작업 워크트리: `C:\Users\sam40\Downloads\망가번역기-font-size-ai-lab-20260902-r1`
-현재 내부 실험 버전: `fsai-lab-v0.4.0` (v0.2.3의 효과음 누적 인페인팅·자동 맞춤
-기본값과 v0.3.0의 peer-gated 하향 교정 위에, 후보 자체의 반복 component/major-axis
-증거로만 낮은 오추정을 복구하는 peer-gated 상향 교정을 반영)
+현재 내부 실험 버전: `fsai-lab-v0.5.0` (v0.4.0의 후보 소유 증거 기반 상향 복구 위에,
+낮은 신뢰도의 좁은 세로문장이 formula에서 딱 한 줄 과분할됐을 때 후보 자신의 projection과
+major-axis pitch가 합의하고 연결 잉크·페이지 peer가 허용하는 경우만 복구)
 
 이 파일은 성공·실패·애매한 결과를 계속 증류하는 단일 판단 노트다. 상세 원시 수치와
 이미지는 화별 HTML 보고서에 두고, 여기에는 다음 실험에서 같은 실수를 막는 데 필요한
@@ -137,40 +137,42 @@
 
 ## 반복 금지 조합
 
-| 조합                                                         | 반복하지 않는 이유                                                                                                                                         |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 전역 `min 16px`·`min 14px`                                   | 실제 후리가나·속삭임·측면 광고의 정답인 작은 글씨를 망친다.                                                                                                |
-| merged bbox의 짧은 축/면적을 바로 글자 크기로 사용           | 행간·말풍선 여백·여러 열 때문에 양방향 큰 오차가 이미 확인됐다.                                                                                            |
-| Koharu 채움 마스크 두께를 font-size로 사용                   | 마스크는 glyph 획이 아니라 문장/열 영역을 채우는 사례가 있다.                                                                                              |
-| Hayai confidence 하나로 bbox trim/삭제                       | 실제 글자도 0.28까지 낮고 그림 오검출은 0.94까지 높았다.                                                                                                   |
-| Sauvola/Niblack만 교체                                       | 배경 후보에는 도움되지만 geometry 붕괴 자체를 해결하지 못했다.                                                                                             |
-| 일반 VLM에 px 직접 회귀                                      | 절대 좌표 손실·비결정성·typography 인식 약점에 비해 현재 문제와 맞지 않는다.                                                                               |
-| raw bbox/글자 수 fallback을 무조건 적용                      | 과거 합성 P90 오차가 59%를 넘었다. abstain보다 위험하다.                                                                                                   |
-| page-wide 대화 median을 모든 누락 블록에 복사                | 강조·속삭임 계층을 지운다. 방향→역할→굵기 peer가 있는 source-match 누락만 허용한다.                                                                        |
-| repulsive valley로 duplicate graph union을 차단              | 상위 복합 mask는 남고 내부 조각도 별도 출력돼 같은 문구를 중첩 번역하는 과분할이 생겼다.                                                                   |
-| 미검증 formula 열 수로 component graph를 먼저 분할           | 실제 열 수가 다르면 인접 열을 합쳐 face가 약 1.44~1.57배가 되고 정상 projection까지 포기한다.                                                              |
-| component/major 두 값이 대략 비슷하다는 이유만으로 상향 보정 | 캠페인 001 P009/D004·P032/D007에서 정상 projection을 1.35~1.43배 키웠다. 상향은 두 독립값 비율 1.12 이하와 projection line-fill 0.55 미만을 함께 요구한다. |
-| 후보 자체 증거 없이 page peer만 복사하는 하향 clamp          | 작은 속삭임·큰 강조 계층을 평준화한다. peer는 안정성 gate로만 쓰고 후보 자체의 반복된 낮은 mode가 있어야 한다.                                             |
-| gate 없는 cross-hypothesis lattice                           | 캠페인 003에서 정상 본문까지 21개를 줄여 같은 글꼴 불일치를 0.0919→0.0962로 악화시켰다. 안정 peer와 독립적인 자기 증거 없이 재시도하지 않는다.             |
-| near-square bbox를 전부 세로 원문으로 뒤집기                 | 캠페인 004 P005/D003은 `23.7636→24.50px`뿐이었고 P004/D002는 `30.387→23.34px`로 오히려 작아질 위험이 있었다. 방향 반전은 해결책이 아니다.                  |
-| 후보 자체 mode 없이 page peer를 복사하는 상향 clamp          | 실제 작은 글씨와 강조 계층을 평준화할 수 있다. 상향도 후보 자신의 component와 여러 line-count의 major-axis mode가 반복될 때만 peer를 수락 gate로 쓴다.     |
+| 조합                                                         | 반복하지 않는 이유                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 전역 `min 16px`·`min 14px`                                   | 실제 후리가나·속삭임·측면 광고의 정답인 작은 글씨를 망친다.                                                                                                                                                                                                                        |
+| merged bbox의 짧은 축/면적을 바로 글자 크기로 사용           | 행간·말풍선 여백·여러 열 때문에 양방향 큰 오차가 이미 확인됐다.                                                                                                                                                                                                                    |
+| Koharu 채움 마스크 두께를 font-size로 사용                   | 마스크는 glyph 획이 아니라 문장/열 영역을 채우는 사례가 있다.                                                                                                                                                                                                                      |
+| Hayai confidence 하나로 bbox trim/삭제                       | 실제 글자도 0.28까지 낮고 그림 오검출은 0.94까지 높았다.                                                                                                                                                                                                                           |
+| Sauvola/Niblack만 교체                                       | 배경 후보에는 도움되지만 geometry 붕괴 자체를 해결하지 못했다.                                                                                                                                                                                                                     |
+| 일반 VLM에 px 직접 회귀                                      | 절대 좌표 손실·비결정성·typography 인식 약점에 비해 현재 문제와 맞지 않는다.                                                                                                                                                                                                       |
+| raw bbox/글자 수 fallback을 무조건 적용                      | 과거 합성 P90 오차가 59%를 넘었다. abstain보다 위험하다.                                                                                                                                                                                                                           |
+| page-wide 대화 median을 모든 누락 블록에 복사                | 강조·속삭임 계층을 지운다. 방향→역할→굵기 peer가 있는 source-match 누락만 허용한다.                                                                                                                                                                                                |
+| repulsive valley로 duplicate graph union을 차단              | 상위 복합 mask는 남고 내부 조각도 별도 출력돼 같은 문구를 중첩 번역하는 과분할이 생겼다.                                                                                                                                                                                           |
+| 미검증 formula 열 수로 component graph를 먼저 분할           | 실제 열 수가 다르면 인접 열을 합쳐 face가 약 1.44~1.57배가 되고 정상 projection까지 포기한다.                                                                                                                                                                                      |
+| component/major 두 값이 대략 비슷하다는 이유만으로 상향 보정 | 캠페인 001 P009/D004·P032/D007에서 정상 projection을 1.35~1.43배 키웠다. 상향은 두 독립값 비율 1.12 이하와 projection line-fill 0.55 미만을 함께 요구한다.                                                                                                                         |
+| 후보 자체 증거 없이 page peer만 복사하는 하향 clamp          | 작은 속삭임·큰 강조 계층을 평준화한다. peer는 안정성 gate로만 쓰고 후보 자체의 반복된 낮은 mode가 있어야 한다.                                                                                                                                                                     |
+| gate 없는 cross-hypothesis lattice                           | 캠페인 003에서 정상 본문까지 21개를 줄여 같은 글꼴 불일치를 0.0919→0.0962로 악화시켰다. 안정 peer와 독립적인 자기 증거 없이 재시도하지 않는다.                                                                                                                                     |
+| near-square bbox를 전부 세로 원문으로 뒤집기                 | 캠페인 004 P005/D003은 `23.7636→24.50px`뿐이었고 P004/D002는 `30.387→23.34px`로 오히려 작아질 위험이 있었다. 방향 반전은 해결책이 아니다.                                                                                                                                          |
+| 후보 자체 mode 없이 page peer를 복사하는 상향 clamp          | 실제 작은 글씨와 강조 계층을 평준화할 수 있다. 상향도 후보 자신의 component와 여러 line-count의 major-axis mode가 반복될 때만 peer를 수락 gate로 쓴다.                                                                                                                             |
+| 모든 좁은 세로 후보의 formula line-count를 줄이기            | 캠페인 005의 정상 `112.09px` 초대형 사례와 `15~20px` 소형 사례를 망친다. 낮은 신뢰도, 정확히 1줄 감소, candidate-owned projection/pitch 비율 `1.10` 이하, 단일 연결 열 mass·span, 2개 이상 안정 peer gate를 모두 요구한다. component span과 peer 값은 절대 결과로 복사하지 않는다. |
 
 ## 다음 가설 우선순위
 
-1. 다음 미사용 랜덤 화에서 v0.4.0을 기준선으로 전 페이지·전 일반 대사 crop 감사한다.
-   하향·상향 peer gate의 변경 수가 적더라도 정상 hierarchy와 과거 706개 exact expectation을
-   먼저 보존한다.
-2. 캠페인 004 `P009/D008`처럼 반복된 낮은 projection은 있지만 손글씨·긴 다열 구조 때문에
-   상향/하향 어느 쪽도 안전하지 않은 사례는 text-island/line ownership으로 접근한다. page
-   peer 값을 강제로 복사하지 않는다.
-3. 캠페인 004 `P004/D001-D002`, `P010/D001-D002`, 캠페인 003 `P003/D009`,
-   `P005/D005`의 병합·겹침·분할은 owner-aware 상호 배타적 cluster partition으로 검토한다.
-   단순 valley veto로 parent와 child가 동시에 남았던 과거 중복 실패를 먼저 회귀로 막는다.
-4. 캠페인 003 `P013/D011`과 캠페인 004의 잘린/split bbox는 crop 경계 stroke 접촉과 소량
-   확장 후 containment를 별도 평가한다. 폰트 크기 보정으로 bbox 결함을 숨기지 않는다.
+1. 다음 미사용 랜덤 화에서 v0.5.0을 기준선으로 전 페이지·전 일반 텍스트 crop 감사한다.
+   정상 hierarchy와 누적 972개 제품 예상값을 먼저 보존한다.
+2. 캠페인 005 `P002/D003`, `P008/D002`, `P009/D010`, `P020/D005`처럼 near-square 또는
+   방향 추정에 민감한 높은 오차는 반대 축의 candidate-owned 증거가 현재 축보다 명백히
+   우세할 때만 하향 교정한다. near-square→vertical 전역 반전은 다시 시도하지 않는다.
+3. 캠페인 005 `P003/D001`, `P004/D009`, `P009/D009-D012`, `P013/D007`, `P021/D001`의
+   clear-text abstention은 수치 교정과 분리해 coverage 전용 계약으로 평가한다. page peer
+   직접 복사는 금지한다.
+4. 캠페인 004 `P009/D008` 같은 손글씨·긴 다열 구조는 text-island/line ownership으로,
+   캠페인 004/005의 겹침·ruby 분리·stroke 오염·clipped fragment는 detector/association과
+   containment 작업으로 다룬다. 폰트 크기 clamp로 기하 결함을 숨기지 않는다.
 
 초기 H1~H4의 채택·실패 조건은 아래 캠페인 001/002 절에 역사로 보존한다. 현재 우선순위는
-캠페인 004에서도 남은 불규칙·손글씨 다열 원문, 병합/겹침, 경계 절단 세 축이다.
+캠페인 005 뒤의 우선순위는 방향 민감 고오차, clear-text abstention, detector/containment의
+세 축이다.
 
 ## 캠페인 001 · 실험 1 기준선에서 증류한 사실
 
@@ -435,6 +437,42 @@
   `evaluation.json`과 `verdict.json`이다. 모든 페이지와 일반 대사 crop이 내장된 보고서는
   `artifacts/font-size-ai-lab/campaign-004/chapter-report.html`이다.
 
+## 캠페인 005 · 좁은 세로문장 1줄 과분할 복구 승격
+
+봉인 화: `Rawkuma (JA)/Daisougen no Chiisana Ryoushu/Chapter 4`
+
+- seed `3c1999a50f555d0df268037f641e46ed331434bc024e3ee36658dfcd6a523097`로
+  1,164개 inventory 중 과거 185개를 제외한 979개 후보에서 검사 전에 봉인했다. 24페이지
+  전체 오버레이 24/24와 일반 텍스트 crop 196/196을 각각 원본 해상도로 확대 확인했다.
+  효과음 36개는 사용자 별도 선택 흐름이므로 판정·점수·수정에서 제외했다.
+- 실험 1의 v0.4.0 기준선은 196개 중 183개를 측정하고 13개는 abstain했다. 같은 시각 글꼴
+  score는 `0.2384`, hierarchy penalty는 `0`이었다. `P022/D002 15.402px`와
+  `P023/D001 17.2381px`는 육안상 mid-20px인데 formula가 한 세로 열을 2~3줄로 과분할한
+  반복 실패였다.
+- 반례를 먼저 잠갔다. `P006/D001`은 매우 좁고 긴 모양인데 실제로 `112.0888px`가 맞고,
+  `P002/D010`, `P010/D002`, `P016/D007`, `P017/D007`, `P021/D004`는 `15~20px`의 정상
+  소형 계층이다. 따라서 narrow-tall 일괄 상향, page median clamp, formula line-count 일괄
+  감소를 모두 기각했다.
+- 실험 2는 vertical·aspect `>=2.5`·낮은 기준 신뢰도에서만 formula line-count를 정확히
+  하나 줄여 재측정한다. 후보 자신의 projection confidence `>=0.8`과 major-axis confidence
+  `>=0.69`가 비율 `1.10` 안에서 합의하고, 단일 연결 열 mass `>=0.9`, 연결 span/proposal
+  비율 `1.35~2.05`, 2개 이상 안정 page peer gate를 모두 통과해야 한다. 연결 component와
+  peer는 허용 gate일 뿐 그 값을 교정값으로 복사하지 않는다.
+- 실제 CUDA/cu126 HayaiOCR 재실행에서 `P022/D002 15.402→23.3857px`,
+  `P023/D001 17.2381→26.2189px` 두 건만 바뀌었다. coverage는 `183/196`으로 유지됐고
+  score는 `0.2384→0.1966`, hierarchy penalty는 `0`이다. 사전 봉인 예측 mismatch와
+  source evidence mismatch는 모두 `0`이었다.
+- 캠페인 001~004의 776개 후보를 현재 제품으로 재생한 결과 새 narrow recovery가 추가로
+  건드린 항목은 `0`, 누적 제품 예상 mismatch도 `0`이었다. 정상 초대형/소형 센티널도
+  전부 보존됐다.
+- 2/5회 안에 두 독립 사례의 명확한 개선과 과거 회귀 통과가 나왔으므로 수백 건 상세 조사
+  전환 조건은 발생하지 않았다. 제품 경로에 반영하고 내부 minor 버전을
+  `fsai-lab-v0.5.0`으로 올렸다.
+- 권위 결과는
+  `artifacts/font-size-ai-lab/campaign-005/exp-02-narrow-vertical-line-recovery-hayai/`의
+  `evaluation.json`과 `verdict.json`이다. 실제 이미지 220개가 내장된 보고서는
+  `artifacts/font-size-ai-lab/campaign-005/chapter-report.html`이다.
+
 ## 내부 버전 승격 규칙
 
 - `v0.0.0`: 현재 제품 기준선.
@@ -455,6 +493,7 @@
 | `TENSEI…/Chapter 2`        |     2/5 | R1 폐기; 세 방향 geometry 합의가 일반 대사에서 개선·회귀 통과 | `v0.2.0`  | `artifacts/font-size-ai-lab/campaign-002/chapter-report.html` |
 | `Isekai…/Chapter 4`        |     4/5 | raw lattice 폐기; peer-gated 교정 6개·과거 555개 회귀 통과    | `v0.3.0`  | `artifacts/font-size-ai-lab/campaign-003/chapter-report.html` |
 | `Saijaku…/Chapter 13.2`    |     2/5 | 낮은 mode 1개 복구·과거 706개 실제 제품 기대값 일치           | `v0.4.0`  | `artifacts/font-size-ai-lab/campaign-004/chapter-report.html` |
+| `Daisougen…/Chapter 4`     |     2/5 | 좁은 세로 1줄 과분할 2개 복구·과거 776개 추가 변경 없음       | `v0.5.0`  | `artifacts/font-size-ai-lab/campaign-005/chapter-report.html` |
 
 ## 워크트리 링크 주의
 
