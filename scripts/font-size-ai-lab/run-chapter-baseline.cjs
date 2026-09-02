@@ -63,15 +63,27 @@ function loadBuilt(relativePath) {
   return require(path.resolve(relativePath));
 }
 
-function loadRaster(imagePath) {
-  const image = nativeImage.createFromPath(imagePath);
-  if (image.isEmpty()) throw new Error(`Could not decode image: ${imagePath}`);
+async function loadRaster(imagePath, decodeFallback, fallbackPath) {
+  let detectorPath = imagePath;
+  let image = nativeImage.createFromPath(imagePath);
+  if (image.isEmpty()) {
+    const fallbackBuffer = await decodeFallback(imagePath);
+    image = fallbackBuffer?.length
+      ? nativeImage.createFromBuffer(fallbackBuffer)
+      : nativeImage.createEmpty();
+    if (image.isEmpty()) {
+      throw new Error(`Could not decode image: ${imagePath}`);
+    }
+    await fsp.mkdir(path.dirname(fallbackPath), { recursive: true });
+    await fsp.writeFile(fallbackPath, fallbackBuffer);
+    detectorPath = fallbackPath;
+  }
   const { width, height } = image.getSize();
   const bgra = Uint8Array.from(image.toBitmap());
   if (bgra.length !== width * height * 4) {
     throw new Error(`Unexpected raster byte length for ${imagePath}.`);
   }
-  return { bgra, height, width };
+  return { bgra, detectorPath, height, width };
 }
 
 function hintBox(hint) {
@@ -252,6 +264,9 @@ async function run(args) {
   const { getAppPaths } = loadBuilt("out/main/appPaths.js");
   const { loadTranslationRuntimePort, disposeTranslationRuntimeResources } =
     loadBuilt("out/main/translationRuntime.js");
+  const { decodeImageThroughRuntime } = loadBuilt(
+    "out/main/simplePageRuntime.js",
+  );
   const { estimatePageSourceFontSizes, estimateSourceFontSizeForItem } =
     loadBuilt("out/main/pipeline/sourceFontSizeEstimator.js");
   const settings = normalizeAppSettings(readJson(args.settings));
@@ -283,16 +298,23 @@ async function run(args) {
     throw new Error("Baseline is not configured for Text Detector + HayaiOCR.");
   }
 
-  const pages = selectedPages.map((page, index) => {
-    const raster = loadRaster(page.path);
+  const decodeImage = (filePath, signal) =>
+    decodeImageThroughRuntime(paths.runtimeDir, filePath, signal);
+  const pages = [];
+  for (const [index, page] of selectedPages.entries()) {
     const pageId = `P${String(index + 1).padStart(3, "0")}`;
-    return { ...page, ...raster, pageId };
-  });
+    const raster = await loadRaster(
+      page.path,
+      decodeImage,
+      path.join(args.output, "decoded-pages", `${pageId}.png`),
+    );
+    pages.push({ ...page, ...raster, pageId });
+  }
   const runtime = loadTranslationRuntimePort();
   const options = pages.map((page, index) => ({
     ...baseOptions,
     imageHeight: page.height,
-    imagePath: page.path,
+    imagePath: page.detectorPath,
     imageWidth: page.width,
     label: `font-size-ai-lab-baseline-${page.pageId}`,
     ocrProgressDefaultToPage: false,
@@ -448,6 +470,14 @@ async function run(args) {
         .length,
       height: page.height,
       imagePath: page.path,
+      ...(page.detectorPath !== page.path
+        ? {
+            decoderFallback: "simple-page-runtime-ffmpeg-png",
+            ocrImagePath: path
+              .relative(args.output, page.detectorPath)
+              .replaceAll("\\", "/"),
+          }
+        : {}),
       name: page.name,
       noTextDetected: Boolean(result.noTextDetected),
       overlayPath: path
