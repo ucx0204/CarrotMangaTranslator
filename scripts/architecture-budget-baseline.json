@@ -21,8 +21,7 @@
     "src/main/workContextResearch.ts": 14,
     "src/renderer/src/app/session/useChapterSessionController.ts": 17,
     "src/renderer/src/app/useAppSessionModel.ts": 14,
-    "src/renderer/src/components/ConditionalBatchActionCard.tsx": 13,
-    "src/renderer/src/components/RichTranslationEditor.tsx": 15
+    "src/renderer/src/components/ConditionalBatchActionCard.tsx": 13
   },
   "allow": {
     "src/main/index.ts": {
@@ -102,6 +101,10 @@
     "src/renderer/src/components/ui/Tabs.tsx": {
       "publicPrimitive": true,
       "reason": "Shared tabs primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/icons.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared icon primitive vocabulary; broad reuse is intentional"
     },
     "src/renderer/src/components/ui/usePopupController.ts": {
       "publicPrimitive": true,

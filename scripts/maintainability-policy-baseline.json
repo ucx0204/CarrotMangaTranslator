@@ -61,7 +61,6 @@
     "src/renderer/src/components/conditionalBatchUi.ts": "and typed editor defaults form one UI registry, max-lines -- labels, summaries",
     "src/renderer/src/components/ConditionalPatternBuilder.tsx": "max-lines, max-lines-per-function -- the recursive visual matcher and replacement lanes intentionally share one compact editor",
     "src/renderer/src/components/ImportModal.tsx": "and linked-folder confirmation compose one modal, chapter selection, max-lines -- import target",
-    "src/renderer/src/components/RichTranslationEditor.tsx": "IME composition, and caret-only typing style form one focus-sensitive editor transaction, complexity -- visual/code mode selection, max-lines, max-lines-per-function",
     "src/renderer/src/components/useConditionalBatchEditorModel.ts": "and apply adapters intentionally meet at the editor model boundary, max-lines -- preview, scope, sequence",
     "src/renderer/src/components/useConditionalBatchSchemeController.ts": "and delayed autosave share one transactional state owner, max-lines -- persistence, migration-safe YAML exchange",
     "src/renderer/src/hooks/translationBubbleLayoutWorkflow.ts": "complexity, max-lines, max-lines-per-function -- combined-flow cancellation and timing settlement boundaries stay co-located",
@@ -303,12 +302,6 @@
       "input": 0,
       "select": 0,
       "textarea": 0
-    },
-    "src/renderer/src/components/RichTranslationEditor.tsx": {
-      "button": 4,
-      "input": 0,
-      "select": 0,
-      "textarea": 1
     },
     "src/renderer/src/components/settingsModal/ApiProviderConnectionFields.tsx": {
       "button": 1,
