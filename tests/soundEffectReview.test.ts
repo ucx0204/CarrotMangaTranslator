@@ -275,6 +275,60 @@ describe("sound-effect review boundary", () => {
     expect(manifest.diagnostics.rejectedDialogueCount).toBe(1);
   });
 
+  it("rejects a narrow vertical proposal spanning stacked panels even with strong container support", () => {
+    const panel: Array<[number, number]> = [];
+    const bubble: Array<[number, number]> = [];
+    const text: Array<[number, number]> = [];
+    for (let y = 1; y < 20; y += 1) {
+      for (let x = 14; x < 19; x += 1) panel.push([x, y]);
+    }
+    for (let y = 13; y < 20; y += 1) {
+      for (let x = 14; x < 19; x += 1) bubble.push([x, y]);
+    }
+    for (let y = 1; y < 20; y += 3) text.push([16, y]);
+    const manifest = buildHayaiRegionManifest({
+      imageWidth: 100,
+      imageHeight: 100,
+      detections: [
+        maskedDetection("panel", 0.99, 20, 20, panel),
+        maskedDetection("bubble", 0.99, 20, 20, bubble),
+        maskedDetection("text", 0.95, 20, 20, text),
+      ],
+    });
+
+    expect(manifest.dialogueRegions).toHaveLength(0);
+    expect(manifest.diagnostics.rejectedDialogueCount).toBe(1);
+  });
+
+  it("keeps a locally tall narrow vertical dialogue proposal", () => {
+    const text: Array<[number, number]> = [];
+    for (let y = 8; y < 15; y += 1) text.push([10, y]);
+    const manifest = buildHayaiRegionManifest({
+      imageWidth: 100,
+      imageHeight: 100,
+      detections: [maskedDetection("text", 0.95, 20, 20, text)],
+    });
+
+    expect(manifest.dialogueRegions).toHaveLength(1);
+    expect(manifest.diagnostics.rejectedDialogueCount).toBe(0);
+  });
+
+  it("trims a tiny distant tail from a page-spanning vertical strip and preserves its local glyph core", () => {
+    const core: Array<[number, number]> = [];
+    for (let y = 15; y < 20; y += 1) {
+      for (let x = 9; x < 12; x += 1) core.push([x, y]);
+    }
+    const manifest = buildHayaiRegionManifest({
+      imageWidth: 40,
+      imageHeight: 100,
+      detections: [maskedDetection("text", 0.95, 20, 20, [[10, 1], ...core])],
+    });
+
+    expect(manifest.dialogueRegions).toHaveLength(1);
+    expect(manifest.dialogueRegions[0]?.bbox).toEqual([13, 70, 29, 100]);
+    expect(manifest.diagnostics.rejectedDialogueCount).toBe(0);
+  });
+
   it("deduplicates near-identical masks even when sparse edge pixels weaken box overlap", () => {
     const core: Array<[number, number]> = [];
     for (let y = 10; y < 20; y += 1) {

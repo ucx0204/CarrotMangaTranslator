@@ -1167,6 +1167,19 @@
       "seed": "d1458f8304d9ef2db89b2ad1bfc4f9c6c692508a3b938cd755c3c8ec8aacf23f",
       "series": "Tada no Murabito no Boku ga, Sanbyakunen Mae no Boukun Ouji ni Tensei shite shimaimashita – Zense no Chishiki de Ansatsu Flag wo Kaihi shite, Odayaka ni Ikinokorimasu!",
       "status": "completed-promoted-fsai-lab-v0.6.0"
+    },
+    {
+      "chapter": "Chapter 4",
+      "experimentsUsed": 4,
+      "key": "Rawkuma (JA)/Danshi Koukousei, Otome Game no Akuyaku Reijou ni Tensei Suru/Chapter 4",
+      "normalizedKey": "rawkuma (ja)/danshi koukousei, otome game no akuyaku reijou ni tensei suru/chapter 4",
+      "pageCount": 20,
+      "provider": "Rawkuma (JA)",
+      "report": "artifacts/font-size-ai-lab/campaign-007/chapter-report.html",
+      "sealedAt": "2026-09-02T14:00:37.916Z",
+      "seed": "4304be94aebbb91bfb32945d31b60826dbb84483da0ade9dd66d183f08f66c6d",
+      "series": "Danshi Koukousei, Otome Game no Akuyaku Reijou ni Tensei Suru",
+      "status": "completed-promoted-fsai-lab-v0.7.0"
     }
   ]
 }

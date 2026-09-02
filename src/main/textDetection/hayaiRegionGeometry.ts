@@ -68,6 +68,10 @@ const TEXT_MASK_OUTLIER_MIN_AREA_GAIN = 1.25;
 const TEXT_BROAD_SPARSE_MIN_PAGE_AREA = 0.055;
 const TEXT_BROAD_SPARSE_MAX_DENSITY = 0.04;
 const TEXT_BROAD_SPARSE_MAX_CONTAINER_MASK_SUPPORT = 0.25;
+const TEXT_VERTICAL_STRIP_MIN_PAGE_HEIGHT = 0.4;
+const TEXT_VERTICAL_STRIP_MIN_ASPECT_RATIO = 12;
+const TEXT_VERTICAL_STRIP_TAIL_MIN_GAP_RATIO = 0.04;
+const TEXT_VERTICAL_STRIP_TAIL_MAX_AREA_RATIO = 0.08;
 const TEXT_FRAGMENT_MIN_SCORE = 0.9;
 const TEXT_FRAGMENT_MIN_MASK_AREA_RATIO = 0.35;
 const TEXT_FRAGMENT_MAX_MASK_OVERLAP = 0.2;
@@ -167,10 +171,20 @@ function prepareDetections(result: ComicPageDetectionResult): MaskDetection[] {
     }
     const rawGridBox = findMaskBox(mask, source.width, source.height);
     if (!rawGridBox || area === 0) return [];
-    const refined =
+    const quantileRefined =
       detection.label === "text"
         ? trimTextMaskOutliers(mask, source.width, source.height, rawGridBox)
         : { area, box: rawGridBox, mask };
+    const refined =
+      detection.label === "text"
+        ? trimPageSpanningVerticalTextTail(
+            quantileRefined,
+            source.width,
+            source.height,
+            result.imageWidth,
+            result.imageHeight,
+          )
+        : quantileRefined;
     const gridBox = refined.box;
     area = refined.area;
     const prefix =
@@ -208,6 +222,90 @@ function prepareDetections(result: ComicPageDetectionResult): MaskDetection[] {
       },
     ];
   });
+}
+
+function trimPageSpanningVerticalTextTail(
+  refined: { area: number; box: PixelBox; mask: Uint8Array },
+  width: number,
+  height: number,
+  pageWidth: number,
+  pageHeight: number,
+): { area: number; box: PixelBox; mask: Uint8Array } {
+  const pageBox = gridBoxToPageBox(
+    refined.box,
+    width,
+    height,
+    pageWidth,
+    pageHeight,
+  );
+  if (!isPageSpanningVerticalStrip(pageBox, pageHeight)) return refined;
+  const mask = new Uint8Array(refined.mask);
+  const minimumGap = Math.max(
+    2,
+    Math.ceil(height * TEXT_VERTICAL_STRIP_TAIL_MIN_GAP_RATIO),
+  );
+  let changed = false;
+  while (true) {
+    const rowAreas = Array.from({ length: height }, (_, y) => {
+      let area = 0;
+      for (let x = 0; x < width; x += 1) area += mask[y * width + x] ?? 0;
+      return area;
+    });
+    const occupiedRows = rowAreas.flatMap((rowArea, y) =>
+      rowArea > 0 ? [y] : [],
+    );
+    let split: { after: number; before: number; gap: number } | null = null;
+    for (let index = 1; index < occupiedRows.length; index += 1) {
+      const previous = occupiedRows[index - 1] ?? 0;
+      const next = occupiedRows[index] ?? previous;
+      const gap = next - previous - 1;
+      if (!split || gap > split.gap) {
+        split = { after: next, before: previous, gap };
+      }
+    }
+    if (!split || split.gap < minimumGap) break;
+    const beforeArea = rowAreas
+      .slice(0, split.before + 1)
+      .reduce((sum, value) => sum + value, 0);
+    const afterArea = rowAreas
+      .slice(split.after)
+      .reduce((sum, value) => sum + value, 0);
+    const totalArea = beforeArea + afterArea;
+    const weakArea = Math.min(beforeArea, afterArea);
+    const weakLimit = Math.max(
+      1,
+      Math.floor(totalArea * TEXT_VERTICAL_STRIP_TAIL_MAX_AREA_RATIO),
+    );
+    if (
+      weakArea > weakLimit ||
+      weakArea / Math.max(1, totalArea) >
+        TEXT_VERTICAL_STRIP_TAIL_MAX_AREA_RATIO
+    ) {
+      break;
+    }
+    const removeBefore = beforeArea <= afterArea;
+    const from = removeBefore ? 0 : split.after;
+    const to = removeBefore ? split.before + 1 : height;
+    for (let y = from; y < to; y += 1) {
+      mask.fill(0, y * width, (y + 1) * width);
+    }
+    changed = true;
+  }
+  if (!changed) return refined;
+  const box = findMaskBox(mask, width, height);
+  return box ? { area: countMaskPixels(mask), box, mask } : refined;
+}
+
+function isPageSpanningVerticalStrip(
+  box: PixelBox,
+  pageHeight: number,
+): boolean {
+  const width = Math.max(1, box[2] - box[0]);
+  const height = Math.max(1, box[3] - box[1]);
+  return (
+    height / Math.max(1, pageHeight) >= TEXT_VERTICAL_STRIP_MIN_PAGE_HEIGHT &&
+    height / width >= TEXT_VERTICAL_STRIP_MIN_ASPECT_RATIO
+  );
 }
 
 function trimTextMaskOutliers(
@@ -302,11 +400,22 @@ function rejectBroadSparseText(
       0,
       ...containers.map((container) => maskContainment(item, container)),
     );
-    if (
+    const broadSparseProposal =
       areaFraction >= TEXT_BROAD_SPARSE_MIN_PAGE_AREA &&
       density <= TEXT_BROAD_SPARSE_MAX_DENSITY &&
-      containerSupport < TEXT_BROAD_SPARSE_MAX_CONTAINER_MASK_SUPPORT
-    ) {
+      containerSupport < TEXT_BROAD_SPARSE_MAX_CONTAINER_MASK_SUPPORT;
+    // Koharu can occasionally bind unrelated glyphs from several stacked
+    // panels (or a publisher's full-height recommendation rail) into one
+    // very narrow text mask. Mask support is not a safe exception here: one
+    // dense fragment may sit inside a valid bubble while a few distant glyphs
+    // stretch the proposal across half the page. Normal vertical dialogue,
+    // including narrow tall balloons, stays well below this joint span/aspect
+    // boundary in the sealed manga audit set.
+    const pageSpanningVerticalStrip = isPageSpanningVerticalStrip(
+      item.maskBox,
+      item.pageHeight,
+    );
+    if (broadSparseProposal || pageSpanningVerticalStrip) {
       rejected += 1;
       continue;
     }

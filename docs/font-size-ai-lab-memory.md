@@ -3,9 +3,9 @@
 최종 정리: 2026-09-02 KST
 작업 브랜치: `codex/font-size-ai-lab-20260902-r1`
 작업 워크트리: `C:\Users\sam40\Downloads\망가번역기-font-size-ai-lab-20260902-r1`
-현재 내부 실험 버전: `fsai-lab-v0.5.0` (v0.4.0의 후보 소유 증거 기반 상향 복구 위에,
-낮은 신뢰도의 좁은 세로문장이 formula에서 딱 한 줄 과분할됐을 때 후보 자신의 projection과
-major-axis pitch가 합의하고 연결 잉크·페이지 peer가 허용하는 경우만 복구)
+현재 내부 실험 버전: `fsai-lab-v0.7.0` (기존 크기 추정 gate와 v0.6.0 segmented
+recognition 위에, 페이지 횡단 세로 mask에서 큰 빈 행 간격 너머 면적 8% 이하의 약한
+꼬리만 제거하고 실제 글자 core를 보존)
 
 이 파일은 성공·실패·애매한 결과를 계속 증류하는 단일 판단 노트다. 상세 원시 수치와
 이미지는 화별 HTML 보고서에 두고, 여기에는 다음 실험에서 같은 실수를 막는 데 필요한
@@ -506,6 +506,47 @@ major-axis pitch가 합의하고 연결 잉크·페이지 peer가 허용하는 �
   `evaluation.json`과 `verdict.json`이다. 전체 페이지와 최종 bbox, 변경 전 조각을 포함한
   자체 포함 보고서는 `artifacts/font-size-ai-lab/campaign-006/chapter-report.html`이다.
 
+## 캠페인 007 · 페이지 횡단 세로 mask 꼬리 수리 승격
+
+봉인 화:
+`Rawkuma (JA)/Danshi Koukousei, Otome Game no Akuyaku Reijou ni Tensei Suru/Chapter 4`
+
+- seed `4304be94aebbb91bfb32945d31b60826dbb84483da0ade9dd66d183f08f66c6d`로
+  검사 전에 봉인했다. HayaiOCR CUDA/cu126로 20페이지를 실행하고 전체 오버레이 20/20과
+  일반 텍스트 crop 122/122를 각각 원본 해상도로 확대 확인했다. 효과음 27개는 사용자
+  선택 흐름이므로 모든 판정·수정에서 제외했다.
+- 기준선의 `P009/T032`는 `55×982px`, `P017/T036`은 `45×854px`로 여러 패널을
+  가로질렀다. Koharu의 예측 box 자체는 로컬 글자에 맞았지만 segmentation mask에 먼
+  1~8픽셀짜리 약한 꼬리가 붙어 mask bbox만 길어졌다.
+- 실험 2는 페이지 높이 40% 이상·종횡비 12 이상인 세로 strip을 즉시 거부했다. P009는
+  제거됐지만 P017의 실제 `まて!`도 함께 사라졌다. **극단 세로 bbox를 순수 삭제하는
+  조합은 실패로 봉인하며 threshold만 바꿔 반복하지 않는다.**
+- 실험 3은 위 극단 조건을 진단 gate로만 쓴다. mask grid 높이의 4% 이상인 최대 빈 행
+  간격을 찾고, 한쪽 mask 면적이 전체의 8% 이하일 때만 약한 쪽을 반복 제거한다. 수리 뒤에도
+  극단 strip이면 보수적으로 거부한다. 이 방식은 조밀한 로컬 글자 core를 남기고 먼 잡점
+  꼬리만 제거했다.
+- 실험 4의 실제 제품 경로 재실행은 `122→122`를 유지했다. `P009/T032` OCR은
+  `何か自信号に一代の壁(捕洋)`에서 `俺が壁(捕手)`로, 추정 크기는
+  `47.7648→25.5848px`로 정리됐다. `P017/T036`은 `いからまて!`/abstain에서
+  `まて!`/`18.4383px`로 복구됐다. 나머지 120개는 bbox·OCR·추정 크기가 모두 exact다.
+  P009 이웃 segmented recognition 경계 1개가 overlap 변화로 1.5px 달라졌지만 OCR과
+  추정 크기는 동일했다.
+- 캠페인 006의 18페이지 geometry 회귀는 `161→161`, 변경 3, 거부 0이다. 과거 P011의
+  `64×1026px` 횡단 박스도 로컬 대사로 수리됐고 이웃 2개는 잘못된 overlap cut이 사라져
+  정상 폭을 회복했다. 캠페인 001의 32페이지는 `258→256`, 변경 21, 거부 18이었으며 변경
+  화면을 전부 확인한 결과 컷 바깥 연재·추천 세로 띠만 제거·축소되고 컷 안 일반 대사는
+  보존됐다. 현재 화를 합쳐 70페이지를 회귀 확인했다.
+- 남은 문제는 P009의 인접 손글씨 `やるわ`가 원 detector box와 dense mask core 밖이라
+  포함되지 않은 부분 검출 누락이다. P016 D001의 인접 두 캡션 병합은 읽기 순서는 맞지만
+  별도 캡션일 가능성도 있어 애매 사례로 기록하고 이번 승격 근거에서 제외했다.
+- 4/5회 안에 실제 HayaiOCR과 과거 회귀에서 명확한 개선이 나왔으므로 수백 건 상세 조사
+  전환 조건은 발생하지 않았다. 제품 경로에 반영하고 내부 minor 버전을
+  `fsai-lab-v0.7.0`으로 올렸다.
+- 권위 결과는 `artifacts/font-size-ai-lab/campaign-007/actual-chapter-parity.json`,
+  `regression-campaign-006/geometry-evaluation.json`,
+  `regression-campaign-001/geometry-evaluation.json`이다. 실제 이미지가 내장된 보고서는
+  `artifacts/font-size-ai-lab/campaign-007/chapter-report.html`이다.
+
 ## 내부 버전 승격 규칙
 
 - `v0.0.0`: 현재 제품 기준선.
@@ -528,6 +569,7 @@ major-axis pitch가 합의하고 연결 잉크·페이지 peer가 허용하는 �
 | `Saijaku…/Chapter 13.2`    |     2/5 | 낮은 mode 1개 복구·과거 706개 실제 제품 기대값 일치           | `v0.4.0`  | `artifacts/font-size-ai-lab/campaign-004/chapter-report.html` |
 | `Daisougen…/Chapter 4`     |     2/5 | 좁은 세로 1줄 과분할 2개 복구·과거 776개 추가 변경 없음       | `v0.5.0`  | `artifacts/font-size-ai-lab/campaign-005/chapter-report.html` |
 | `Tada no Murabito…/10.1`   |     3/5 | 동일 말풍선 분할 3개 복원·나머지 158개 exact parity           | `v0.6.0`  | `artifacts/font-size-ai-lab/campaign-006/chapter-report.html` |
+| `Danshi Koukousei…/4`      |     4/5 | 횡단 mask 꼬리 2개 수리·나머지 120개 exact·70페이지 회귀      | `v0.7.0`  | `artifacts/font-size-ai-lab/campaign-007/chapter-report.html` |
 
 ## 워크트리 링크 주의
 
