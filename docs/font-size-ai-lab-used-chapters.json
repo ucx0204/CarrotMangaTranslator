@@ -1218,7 +1218,7 @@
       "sealedAt": "2026-09-02T18:21:29.528Z",
       "seed": "15711c751ca5afb62b8b1c5dc1d832b6241e2dbdd9c17c27ab49d8cf48e012dd",
       "series": "俺だけレベルが上がる世界で悪徳領主になっていた",
-      "status": "paused-after-baseline-for-all-failure-page-regression"
+      "status": "paused-by-user-after-fixed-regression-promotion-fsai-lab-v0.10.0"
     }
   ]
 }

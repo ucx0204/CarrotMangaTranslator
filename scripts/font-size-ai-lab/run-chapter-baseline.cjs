@@ -20,6 +20,7 @@ function parseArgs(argv) {
     dataRoot: null,
     limit: 0,
     output: null,
+    ordinaryOnlyOverlay: false,
     pageEstimator: false,
     selection: null,
     settings: null,
@@ -33,12 +34,14 @@ function parseArgs(argv) {
     else if (value === "--data-root")
       args.dataRoot = path.resolve(argv[++index]);
     else if (value === "--limit") args.limit = Number(argv[++index]);
+    else if (value === "--ordinary-only-overlay")
+      args.ordinaryOnlyOverlay = true;
     else if (value === "--page-estimator") args.pageEstimator = true;
     else if (value === "--help") {
       console.log(
         "Usage: electron scripts/font-size-ai-lab/run-chapter-baseline.cjs " +
           "--selection PATH --output DIR --settings PATH --data-root PATH " +
-          "[--limit N] [--page-estimator]",
+          "[--limit N] [--page-estimator] [--ordinary-only-overlay]",
       );
       process.exit(0);
     } else throw new Error(`Unknown argument: ${value}`);
@@ -354,13 +357,15 @@ async function run(args) {
       const box = hintBox(hint);
       if (box) drawRectangle(overlay, box, [229, 57, 53], 3);
     }
-    for (const effect of manifest.effectRegions ?? []) {
-      drawRectangle(
-        overlay,
-        pixelEffectBox(effect, manifest),
-        [30, 136, 229],
-        3,
-      );
+    if (!args.ordinaryOnlyOverlay) {
+      for (const effect of manifest.effectRegions ?? []) {
+        drawRectangle(
+          overlay,
+          pixelEffectBox(effect, manifest),
+          [30, 136, 229],
+          3,
+        );
+      }
     }
     const overlayPath = path.join(pageDir, "bbox-overlay.png");
     await writePng(overlayPath, overlay);
@@ -510,6 +515,7 @@ async function run(args) {
     schemaVersion: 1,
     experimentId: path.basename(args.output),
     estimatorMode: args.pageEstimator ? "production-page" : "single-item",
+    overlayMode: args.ordinaryOnlyOverlay ? "ordinary-only" : "all-regions",
     createdAt: new Date().toISOString(),
     selection: args.selection,
     sourceKey: selection.key,

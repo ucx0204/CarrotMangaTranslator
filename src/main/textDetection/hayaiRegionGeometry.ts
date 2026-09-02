@@ -62,9 +62,35 @@ type TextFragmentPair = readonly [string, string];
 
 const MIN_TEXT_CONTAINMENT = 0.55;
 const MIN_DUPLICATE_TEXT_MASK_OVERLAP = 0.75;
+// Experiment 4: a composite detector proposal can cover two child proposals
+// while landing just below the old 0.90 protruding-child cutoff for one of
+// them.  This remains mask-duplication evidence, not a proximity merge.
+const PROTRUDING_CHILD_MIN_MASK_OVERLAP = 0.85;
 const MAX_NESTED_DUPLICATE_TEXT_AREA_RATIO = 0.01;
 const TEXT_MASK_OUTLIER_TAIL_RATIO = 0.005;
 const TEXT_MASK_OUTLIER_MIN_AREA_GAIN = 1.25;
+const TEXT_UNSUPPORTED_TAIL_MIN_GAP_RATIO = 0.02;
+const TEXT_UNSUPPORTED_TAIL_MAX_AREA_RATIO = 0.01;
+const TEXT_UNSUPPORTED_TAIL_MIN_AREA_GAIN = 1.15;
+const TEXT_UNSUPPORTED_TAIL_MIN_BODY_BOX_SUPPORT = 0.85;
+const TEXT_UNSUPPORTED_TAIL_MAX_TAIL_BOX_SUPPORT = 0.1;
+const TEXT_BORROWED_TAIL_MIN_GAP_RATIO = 0.02;
+const TEXT_BORROWED_TAIL_MAX_AREA_RATIO = 0.08;
+const TEXT_BORROWED_TAIL_MIN_OWNER_SCORE = 0.75;
+const TEXT_BORROWED_TAIL_MIN_SUBJECT_SCORE = 0.85;
+const TEXT_BORROWED_TAIL_MIN_OWNERSHIP = 0.9;
+const TEXT_BORROWED_TAIL_MAX_BODY_OVERLAP = 0.1;
+const TEXT_DETECTOR_OWNED_TAIL_MIN_SUBJECT_SCORE = 0.8;
+const TEXT_DETECTOR_OWNED_TAIL_MAX_AREA_RATIO = 0.2;
+const TEXT_DETECTOR_OWNED_TAIL_MIN_BODY_SUPPORT = 0.85;
+const TEXT_DETECTOR_OWNED_TAIL_MIN_PEER_SUPPORT = 0.9;
+const TEXT_DETECTOR_OWNED_TAIL_MAX_SUBJECT_SUPPORT = 0.1;
+const TEXT_DETECTOR_OWNED_TAIL_MIN_BOX_GAP_GRID = 2;
+const TEXT_COMPOSITE_CHILD_MIN_SUBJECT_COVERAGE = 0.9;
+const TEXT_COMPOSITE_CHILD_MIN_CHILD_COVERAGE = 0.4;
+const TEXT_COMPOSITE_CHILD_MIN_CONTRIBUTION = 0.15;
+const TEXT_COMPOSITE_CHILD_MAX_PEER_OVERLAP = 0.05;
+const TEXT_COMPOSITE_CHILD_MIN_GAP_GRID = 3;
 const TEXT_BROAD_SPARSE_MIN_PAGE_AREA = 0.055;
 const TEXT_BROAD_SPARSE_MAX_DENSITY = 0.04;
 const TEXT_BROAD_SPARSE_MAX_CONTAINER_MASK_SUPPORT = 0.25;
@@ -77,6 +103,10 @@ const TEXT_FRAGMENT_MIN_MASK_AREA_RATIO = 0.15;
 const TEXT_FRAGMENT_MAX_MASK_OVERLAP = 0.25;
 const TEXT_FRAGMENT_MIN_CROSS_AXIS_OVERLAP = 0.95;
 const TEXT_FRAGMENT_MIN_PRIMARY_AXIS_SEPARATION = 0.35;
+// Experiment 2: every formerly accepted fragment rejoin that the user
+// directly reviewed was either rejected or neutral. Keep the detector pieces
+// independent while the sole positive merge anchor is modeled separately.
+const TEXT_FRAGMENT_REJOIN_ENABLED = false;
 const FX_MAX_GROUP_GAP = 42;
 const FX_MIN_GROUP_GAP = 8;
 const FX_GAP_SCALE = 0.55;
@@ -97,7 +127,9 @@ export function buildHayaiRegionManifest(
   result: ComicPageDetectionResult,
 ): HayaiRegionManifest {
   const detections = prepareDetections(result);
-  const rawText = detections.filter((item) => item.detection.label === "text");
+  const rawText = trimBorrowedTextMaskTails(
+    detections.filter((item) => item.detection.label === "text"),
+  );
   const bubbles = detections.filter(
     (item) => item.detection.label === "bubble",
   );
@@ -108,16 +140,22 @@ export function buildHayaiRegionManifest(
   const textResult = rejectBroadSparseText(rawText, bubbles, panels);
   const text = textResult.kept;
   const assignments = assignTextToBubbles(text, bubbles);
+  const dialogueText = isolateDisjointChildCompositeMasks(text, assignments);
+  const dialogueAssignments = new Map<MaskDetection, MaskDetection>();
+  dialogueText.forEach((item, index) => {
+    const bubble = assignments.get(text[index]);
+    if (bubble) dialogueAssignments.set(item, bubble);
+  });
   const dialogueResult = buildDialogueRegions(
-    text,
-    assignments,
+    dialogueText,
+    dialogueAssignments,
     result.imageWidth,
     result.imageHeight,
   );
   const dialogue = dialogueResult.regions;
   const effectResult = buildEffectRegions(
     effects,
-    text,
+    dialogueText,
     panels,
     result.imageWidth,
     result.imageHeight,
@@ -130,7 +168,7 @@ export function buildHayaiRegionManifest(
   );
   const dialogueFragmentMerges = mergeDialogueFragments(
     dialogue,
-    dialogueResult.fragmentPairs,
+    TEXT_FRAGMENT_REJOIN_ENABLED ? dialogueResult.fragmentPairs : [],
   );
   const effectRectification = rectifyOverlaps(
     effectResult.regions,
@@ -157,6 +195,162 @@ export function buildHayaiRegionManifest(
   };
 }
 
+function isolateDisjointChildCompositeMasks(
+  text: MaskDetection[],
+  assignments: Map<MaskDetection, MaskDetection>,
+): MaskDetection[] {
+  const duplicateGroups = new DisjointSet(text.length);
+  for (let left = 0; left < text.length; left += 1) {
+    for (let right = left + 1; right < text.length; right += 1) {
+      const sameBubble =
+        assignments.has(text[left]) &&
+        assignments.get(text[left]) === assignments.get(text[right]);
+      const bothUncontained =
+        !assignments.has(text[left]) && !assignments.has(text[right]);
+      if (
+        (sameBubble || bothUncontained) &&
+        isDuplicateText(text[left], text[right], bothUncontained)
+      ) {
+        duplicateGroups.union(left, right);
+      }
+    }
+  }
+  return text.map((subject, subjectIndex) => {
+    const subjectRoot = duplicateGroups.find(subjectIndex);
+    const subjectGridBox = findMaskBox(
+      subject.mask,
+      subject.maskWidth,
+      subject.maskHeight,
+    );
+    if (!subjectGridBox) return subject;
+    let best: {
+      axis: 0 | 1;
+      before: number;
+      after: number;
+      keepLow: boolean;
+      coverage: number;
+    } | null = null;
+    for (let left = 0; left < text.length; left += 1) {
+      const first = text[left];
+      if (first === subject || first.maskArea >= subject.maskArea) continue;
+      for (let right = left + 1; right < text.length; right += 1) {
+        const second = text[right];
+        if (second === subject || second.maskArea >= subject.maskArea) continue;
+        const firstRoot = duplicateGroups.find(left);
+        const secondRoot = duplicateGroups.find(right);
+        if (firstRoot === secondRoot) continue;
+        const subjectWithFirst = subjectRoot === firstRoot;
+        const subjectWithSecond = subjectRoot === secondRoot;
+        if (subjectWithFirst === subjectWithSecond) continue;
+        const firstGridBox = findMaskBox(
+          first.mask,
+          first.maskWidth,
+          first.maskHeight,
+        );
+        const secondGridBox = findMaskBox(
+          second.mask,
+          second.maskWidth,
+          second.maskHeight,
+        );
+        if (!firstGridBox || !secondGridBox) continue;
+        const xGap = axisGap(
+          firstGridBox[0],
+          firstGridBox[2],
+          secondGridBox[0],
+          secondGridBox[2],
+        );
+        const yGap = axisGap(
+          firstGridBox[1],
+          firstGridBox[3],
+          secondGridBox[1],
+          secondGridBox[3],
+        );
+        const axis: 0 | 1 = xGap >= yGap ? 0 : 1;
+        if (Math.max(xGap, yGap) < TEXT_COMPOSITE_CHILD_MIN_GAP_GRID) {
+          continue;
+        }
+        const peerIntersection = maskIntersection(first, second);
+        if (
+          peerIntersection /
+            Math.max(1, Math.min(first.maskArea, second.maskArea)) >
+          TEXT_COMPOSITE_CHILD_MAX_PEER_OVERLAP
+        ) {
+          continue;
+        }
+        let firstIntersection = 0;
+        let secondIntersection = 0;
+        let subjectCovered = 0;
+        for (let index = 0; index < subject.mask.length; index += 1) {
+          if (!subject.mask[index]) continue;
+          const inFirst = Boolean(first.mask[index]);
+          const inSecond = Boolean(second.mask[index]);
+          if (inFirst) firstIntersection += 1;
+          if (inSecond) secondIntersection += 1;
+          if (inFirst || inSecond) subjectCovered += 1;
+        }
+        const subjectCoverage = subjectCovered / Math.max(1, subject.maskArea);
+        if (
+          subjectCoverage < TEXT_COMPOSITE_CHILD_MIN_SUBJECT_COVERAGE ||
+          firstIntersection / Math.max(1, first.maskArea) <
+            TEXT_COMPOSITE_CHILD_MIN_CHILD_COVERAGE ||
+          secondIntersection / Math.max(1, second.maskArea) <
+            TEXT_COMPOSITE_CHILD_MIN_CHILD_COVERAGE ||
+          firstIntersection / Math.max(1, subject.maskArea) <
+            TEXT_COMPOSITE_CHILD_MIN_CONTRIBUTION ||
+          secondIntersection / Math.max(1, subject.maskArea) <
+            TEXT_COMPOSITE_CHILD_MIN_CONTRIBUTION
+        ) {
+          continue;
+        }
+        const firstIsLow = firstGridBox[axis] < secondGridBox[axis];
+        const lowBox = firstIsLow ? firstGridBox : secondGridBox;
+        const highBox = firstIsLow ? secondGridBox : firstGridBox;
+        const keepFirst = subjectWithFirst;
+        const keepLow = keepFirst ? firstIsLow : !firstIsLow;
+        const candidate = {
+          axis,
+          before: lowBox[axis + 2] - 1,
+          after: highBox[axis],
+          keepLow,
+          coverage: subjectCoverage,
+        };
+        if (!best || candidate.coverage > best.coverage) best = candidate;
+      }
+    }
+    if (!best) return subject;
+    const mask = keepMaskAxisSide(
+      subject.mask,
+      subject.maskWidth,
+      subject.maskHeight,
+      best.axis,
+      best.before,
+      best.after,
+      best.keepLow,
+    );
+    const gridBox = findMaskBox(mask, subject.maskWidth, subject.maskHeight);
+    if (!gridBox) return subject;
+    return {
+      ...subject,
+      mask,
+      maskArea: countMaskPixels(mask),
+      maskBox: gridBoxToPageBox(
+        gridBox,
+        subject.maskWidth,
+        subject.maskHeight,
+        subject.pageWidth,
+        subject.pageHeight,
+      ),
+      centroid: maskCentroid(
+        mask,
+        subject.maskWidth,
+        subject.maskHeight,
+        subject.pageWidth,
+        subject.pageHeight,
+      ),
+    };
+  });
+}
+
 function prepareDetections(result: ComicPageDetectionResult): MaskDetection[] {
   return result.detections.flatMap((detection, index) => {
     const source = detection.mask;
@@ -175,16 +369,27 @@ function prepareDetections(result: ComicPageDetectionResult): MaskDetection[] {
       detection.label === "text"
         ? trimTextMaskOutliers(mask, source.width, source.height, rawGridBox)
         : { area, box: rawGridBox, mask };
-    const refined =
+    const detectorRefined =
       detection.label === "text"
-        ? trimPageSpanningVerticalTextTail(
+        ? trimDetectorUnsupportedTextMaskTail(
             quantileRefined,
+            detection.box,
             source.width,
             source.height,
             result.imageWidth,
             result.imageHeight,
           )
         : quantileRefined;
+    const refined =
+      detection.label === "text"
+        ? trimPageSpanningVerticalTextTail(
+            detectorRefined,
+            source.width,
+            source.height,
+            result.imageWidth,
+            result.imageHeight,
+          )
+        : detectorRefined;
     const gridBox = refined.box;
     area = refined.area;
     const prefix =
@@ -222,6 +427,369 @@ function prepareDetections(result: ComicPageDetectionResult): MaskDetection[] {
       },
     ];
   });
+}
+
+function trimDetectorUnsupportedTextMaskTail(
+  refined: { area: number; box: PixelBox; mask: Uint8Array },
+  detectorBox: PixelBox,
+  width: number,
+  height: number,
+  pageWidth: number,
+  pageHeight: number,
+): { area: number; box: PixelBox; mask: Uint8Array } {
+  let mask = refined.mask;
+  let changed = false;
+  for (const axis of [0, 1] as const) {
+    const candidates = findMaskTailCandidates(
+      mask,
+      width,
+      height,
+      axis,
+      TEXT_UNSUPPORTED_TAIL_MIN_GAP_RATIO,
+      TEXT_UNSUPPORTED_TAIL_MAX_AREA_RATIO,
+    );
+    for (const candidate of candidates) {
+      const bodyMask = keepMaskAxisSide(
+        mask,
+        width,
+        height,
+        axis,
+        candidate.before,
+        candidate.after,
+        !candidate.weakLow,
+      );
+      const bodyBox = findMaskBox(bodyMask, width, height);
+      const fullBox = findMaskBox(mask, width, height);
+      if (
+        !bodyBox ||
+        !fullBox ||
+        boxArea(fullBox) / Math.max(1, boxArea(bodyBox)) <
+          TEXT_UNSUPPORTED_TAIL_MIN_AREA_GAIN
+      ) {
+        continue;
+      }
+      let bodyArea = 0;
+      let bodyInDetector = 0;
+      let tailInDetector = 0;
+      for (let index = 0; index < mask.length; index += 1) {
+        if (!mask[index]) continue;
+        const coordinate =
+          axis === 0 ? index % width : Math.floor(index / width);
+        const inTail = candidate.weakLow
+          ? coordinate <= candidate.before
+          : coordinate >= candidate.after;
+        const x = ((index % width) + 0.5) * (pageWidth / width);
+        const y = (Math.floor(index / width) + 0.5) * (pageHeight / height);
+        const inDetector = pointInBox(x, y, detectorBox);
+        if (inTail) {
+          if (inDetector) tailInDetector += 1;
+        } else {
+          bodyArea += 1;
+          if (inDetector) bodyInDetector += 1;
+        }
+      }
+      if (
+        bodyInDetector / Math.max(1, bodyArea) <
+          TEXT_UNSUPPORTED_TAIL_MIN_BODY_BOX_SUPPORT ||
+        tailInDetector / Math.max(1, candidate.weakArea) >
+          TEXT_UNSUPPORTED_TAIL_MAX_TAIL_BOX_SUPPORT
+      ) {
+        continue;
+      }
+      mask = bodyMask;
+      changed = true;
+      break;
+    }
+  }
+  if (!changed) return refined;
+  const box = findMaskBox(mask, width, height);
+  return box ? { area: countMaskPixels(mask), box, mask } : refined;
+}
+
+function trimBorrowedTextMaskTails(text: MaskDetection[]): MaskDetection[] {
+  const original = [...text];
+  return text.map((item) => {
+    if (item.detection.score < TEXT_DETECTOR_OWNED_TAIL_MIN_SUBJECT_SCORE) {
+      return item;
+    }
+    let current = item;
+    for (const axis of [0, 1] as const) {
+      const split = findBorrowedTextMaskTail(current, original, axis);
+      if (!split) continue;
+      const mask = keepMaskAxisSide(
+        current.mask,
+        current.maskWidth,
+        current.maskHeight,
+        axis,
+        split.before,
+        split.after,
+        !split.weakLow,
+      );
+      const gridBox = findMaskBox(mask, current.maskWidth, current.maskHeight);
+      if (!gridBox) continue;
+      current = {
+        ...current,
+        mask,
+        maskArea: countMaskPixels(mask),
+        maskBox: gridBoxToPageBox(
+          gridBox,
+          current.maskWidth,
+          current.maskHeight,
+          current.pageWidth,
+          current.pageHeight,
+        ),
+        centroid: maskCentroid(
+          mask,
+          current.maskWidth,
+          current.maskHeight,
+          current.pageWidth,
+          current.pageHeight,
+        ),
+      };
+    }
+    return current;
+  });
+}
+
+function findBorrowedTextMaskTail(
+  subject: MaskDetection,
+  text: MaskDetection[],
+  axis: 0 | 1,
+): { before: number; after: number; weakLow: boolean } | null {
+  const candidates = findMaskTailCandidates(
+    subject.mask,
+    subject.maskWidth,
+    subject.maskHeight,
+    axis,
+    TEXT_BORROWED_TAIL_MIN_GAP_RATIO,
+    Math.max(
+      TEXT_BORROWED_TAIL_MAX_AREA_RATIO,
+      TEXT_DETECTOR_OWNED_TAIL_MAX_AREA_RATIO,
+    ),
+  );
+  for (const candidate of candidates) {
+    const bodyMask = keepMaskAxisSide(
+      subject.mask,
+      subject.maskWidth,
+      subject.maskHeight,
+      axis,
+      candidate.before,
+      candidate.after,
+      !candidate.weakLow,
+    );
+    const bodyBox = findMaskBox(
+      bodyMask,
+      subject.maskWidth,
+      subject.maskHeight,
+    );
+    const fullBox = findMaskBox(
+      subject.mask,
+      subject.maskWidth,
+      subject.maskHeight,
+    );
+    if (
+      !bodyBox ||
+      !fullBox ||
+      boxArea(fullBox) / Math.max(1, boxArea(bodyBox)) <
+        TEXT_MASK_OUTLIER_MIN_AREA_GAIN
+    ) {
+      continue;
+    }
+    const weakAreaRatio = candidate.weakArea / Math.max(1, subject.maskArea);
+    let weakInsideSubjectDetector = 0;
+    let bodyInsideSubjectDetector = 0;
+    for (let index = 0; index < subject.mask.length; index += 1) {
+      if (!subject.mask[index]) continue;
+      const coordinate =
+        axis === 0
+          ? index % subject.maskWidth
+          : Math.floor(index / subject.maskWidth);
+      const inWeakSide = candidate.weakLow
+        ? coordinate <= candidate.before
+        : coordinate >= candidate.after;
+      const x =
+        ((index % subject.maskWidth) + 0.5) *
+        (subject.pageWidth / subject.maskWidth);
+      const y =
+        (Math.floor(index / subject.maskWidth) + 0.5) *
+        (subject.pageHeight / subject.maskHeight);
+      if (!pointInBox(x, y, subject.detection.box)) continue;
+      if (inWeakSide) weakInsideSubjectDetector += 1;
+      else bodyInsideSubjectDetector += 1;
+    }
+    for (const peer of text) {
+      if (
+        peer === subject ||
+        peer.detection.score < TEXT_BORROWED_TAIL_MIN_OWNER_SCORE ||
+        isDuplicateText(subject, peer, false)
+      ) {
+        continue;
+      }
+      let weakIntersection = 0;
+      let bodyIntersection = 0;
+      let weakInsidePeerDetector = 0;
+      for (let index = 0; index < subject.mask.length; index += 1) {
+        if (!subject.mask[index]) continue;
+        const coordinate =
+          axis === 0
+            ? index % subject.maskWidth
+            : Math.floor(index / subject.maskWidth);
+        const inWeakSide = candidate.weakLow
+          ? coordinate <= candidate.before
+          : coordinate >= candidate.after;
+        if (peer.mask[index]) {
+          if (inWeakSide) weakIntersection += 1;
+          else bodyIntersection += 1;
+        }
+        if (inWeakSide) {
+          const x =
+            ((index % subject.maskWidth) + 0.5) *
+            (subject.pageWidth / subject.maskWidth);
+          const y =
+            (Math.floor(index / subject.maskWidth) + 0.5) *
+            (subject.pageHeight / subject.maskHeight);
+          if (pointInBox(x, y, peer.detection.box)) {
+            weakInsidePeerDetector += 1;
+          }
+        }
+      }
+      const weakOwnership = weakIntersection / Math.max(1, candidate.weakArea);
+      const bodyOverlap =
+        bodyIntersection /
+        Math.max(
+          1,
+          Math.min(subject.maskArea - candidate.weakArea, peer.maskArea),
+        );
+      const detectorGapGrid =
+        axis === 0
+          ? axisGap(
+              subject.detection.box[0],
+              subject.detection.box[2],
+              peer.detection.box[0],
+              peer.detection.box[2],
+            ) *
+            (subject.maskWidth / subject.pageWidth)
+          : axisGap(
+              subject.detection.box[1],
+              subject.detection.box[3],
+              peer.detection.box[1],
+              peer.detection.box[3],
+            ) *
+            (subject.maskHeight / subject.pageHeight);
+      const borrowedTail =
+        subject.detection.score >= TEXT_BORROWED_TAIL_MIN_SUBJECT_SCORE &&
+        weakAreaRatio <= TEXT_BORROWED_TAIL_MAX_AREA_RATIO &&
+        weakOwnership >= TEXT_BORROWED_TAIL_MIN_OWNERSHIP &&
+        bodyOverlap <= TEXT_BORROWED_TAIL_MAX_BODY_OVERLAP &&
+        peer.maskArea >= candidate.weakArea * 2;
+      const detectorOwnedTail =
+        subject.detection.score >= TEXT_DETECTOR_OWNED_TAIL_MIN_SUBJECT_SCORE &&
+        weakOwnership >= TEXT_BORROWED_TAIL_MIN_OWNERSHIP &&
+        weakInsidePeerDetector / Math.max(1, candidate.weakArea) >=
+          TEXT_DETECTOR_OWNED_TAIL_MIN_PEER_SUPPORT &&
+        weakInsideSubjectDetector / Math.max(1, candidate.weakArea) <=
+          TEXT_DETECTOR_OWNED_TAIL_MAX_SUBJECT_SUPPORT &&
+        bodyInsideSubjectDetector /
+          Math.max(1, subject.maskArea - candidate.weakArea) >=
+          TEXT_DETECTOR_OWNED_TAIL_MIN_BODY_SUPPORT &&
+        detectorGapGrid >= TEXT_DETECTOR_OWNED_TAIL_MIN_BOX_GAP_GRID &&
+        peer.maskArea >= candidate.weakArea * 2;
+      if (borrowedTail || detectorOwnedTail) {
+        return candidate;
+      }
+    }
+  }
+  return null;
+}
+
+function findMaskTailCandidates(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  axis: 0 | 1,
+  minimumGapRatio: number,
+  maximumAreaRatio: number,
+): Array<{
+  before: number;
+  after: number;
+  gap: number;
+  weakArea: number;
+  weakLow: boolean;
+}> {
+  const areas = maskAxisAreas(mask, width, height, axis);
+  const occupied = areas.flatMap((area, coordinate) =>
+    area > 0 ? [coordinate] : [],
+  );
+  const minimumGap = Math.max(
+    2,
+    Math.ceil((axis === 0 ? width : height) * minimumGapRatio),
+  );
+  const candidates: Array<{
+    before: number;
+    after: number;
+    gap: number;
+    weakArea: number;
+    weakLow: boolean;
+  }> = [];
+  for (let index = 1; index < occupied.length; index += 1) {
+    const before = occupied[index - 1] ?? 0;
+    const after = occupied[index] ?? before;
+    const gap = after - before - 1;
+    if (gap < minimumGap) continue;
+    const lowArea = areas
+      .slice(0, before + 1)
+      .reduce((sum, value) => sum + value, 0);
+    const highArea = areas.slice(after).reduce((sum, value) => sum + value, 0);
+    const weakArea = Math.min(lowArea, highArea);
+    if (weakArea / Math.max(1, lowArea + highArea) > maximumAreaRatio) {
+      continue;
+    }
+    candidates.push({
+      before,
+      after,
+      gap,
+      weakArea,
+      weakLow: lowArea <= highArea,
+    });
+  }
+  return candidates.sort(
+    (left, right) => right.gap - left.gap || left.weakArea - right.weakArea,
+  );
+}
+
+function maskAxisAreas(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  axis: 0 | 1,
+): number[] {
+  const areas = Array.from({ length: axis === 0 ? width : height }, () => 0);
+  for (let index = 0; index < mask.length; index += 1) {
+    if (!mask[index]) continue;
+    const coordinate = axis === 0 ? index % width : Math.floor(index / width);
+    areas[coordinate] = (areas[coordinate] ?? 0) + 1;
+  }
+  return areas;
+}
+
+function keepMaskAxisSide(
+  mask: Uint8Array,
+  width: number,
+  _height: number,
+  axis: 0 | 1,
+  before: number,
+  after: number,
+  keepLow: boolean,
+): Uint8Array {
+  const output = new Uint8Array(mask.length);
+  for (let index = 0; index < mask.length; index += 1) {
+    if (!mask[index]) continue;
+    const coordinate = axis === 0 ? index % width : Math.floor(index / width);
+    if (keepLow ? coordinate <= before : coordinate >= after) {
+      output[index] = 1;
+    }
+  }
+  return output;
 }
 
 function trimPageSpanningVerticalTextTail(
@@ -646,7 +1214,10 @@ function isDuplicateText(
   // IoU and strict containment even though almost every child mask pixel is
   // already represented by the composite.  Treat that strong mask evidence
   // as a duplicate without reviving bbox-only nested suppression.
-  if (boxContainment >= 0.8 && maskOverlap >= 0.9) {
+  if (
+    boxContainment >= 0.8 &&
+    maskOverlap >= PROTRUDING_CHILD_MIN_MASK_OVERLAP
+  ) {
     return true;
   }
   if (
@@ -972,7 +1543,7 @@ function rectifyOverlaps(
           regions[right].bbox = cut.second;
           cuts += 1;
         } else if (
-          hasConflictingDialogueOwnership(regions[left], regions[right])
+          shouldPreserveDistinctDialogueRegions(regions[left], regions[right])
         ) {
           ownershipSkips.add(
             [
@@ -997,17 +1568,15 @@ function rectifyOverlaps(
   return { cuts, merges, ownershipSkips: ownershipSkips.size };
 }
 
-function hasConflictingDialogueOwnership(
+function shouldPreserveDistinctDialogueRegions(
   first: MutableRegion,
   second: MutableRegion,
 ): boolean {
-  return (
-    first.kind === "dialogue" &&
-    second.kind === "dialogue" &&
-    first.ownershipKeys.length > 0 &&
-    second.ownershipKeys.length > 0 &&
-    !first.ownershipKeys.some((key) => second.ownershipKeys.includes(key))
-  );
+  // Overlap and shared bubble ownership are not evidence that two utterances
+  // are one block. If a lossless boundary is unavailable, retain both
+  // dialogue regions for a later local boundary repair instead of unioning
+  // them. Effect regions keep their historical grouping behavior.
+  return first.kind === "dialogue" && second.kind === "dialogue";
 }
 
 function findLosslessCut(

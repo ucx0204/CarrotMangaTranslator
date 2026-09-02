@@ -210,7 +210,7 @@ describe("sound-effect review boundary", () => {
     expect(manifest.effectRegions[0]?.kind).toBe("effect");
   });
 
-  it("rejoins high-confidence aligned text fragments from one balloon", () => {
+  it("keeps high-confidence aligned text fragments separate inside one balloon", () => {
     const bubble: Array<[number, number]> = [];
     const upper: Array<[number, number]> = [];
     const lower: Array<[number, number]> = [];
@@ -232,19 +232,19 @@ describe("sound-effect review boundary", () => {
         maskedDetection("text", 0.95, 20, 20, lower),
       ],
     });
-    expect(manifest.dialogueRegions).toHaveLength(1);
-    expect(manifest.dialogueRegions[0]?.sourceDetectionIds).toEqual([
-      "T002",
-      "T003",
-    ]);
-    expect(manifest.dialogueRegions[0]?.recognitionBboxes).toEqual([
-      [35, 10, 65, 63],
-      [35, 65, 65, 95],
-    ]);
-    expect(manifest.diagnostics.dialogueFragmentMerges).toBe(1);
+    expect(manifest.dialogueRegions).toHaveLength(2);
+    expect(
+      manifest.dialogueRegions.map(
+        ({ sourceDetectionIds }) => sourceDetectionIds,
+      ),
+    ).toEqual([["T002"], ["T003"]]);
+    expect(
+      manifest.dialogueRegions.every((region) => !region.recognitionBboxes),
+    ).toBe(true);
+    expect(manifest.diagnostics.dialogueFragmentMerges).toBe(0);
   });
 
-  it("rejoins the smaller 0.85-confidence tail of one vertical balloon sentence", () => {
+  it("does not infer a merge from an aligned 0.85-confidence tail", () => {
     const bubble: Array<[number, number]> = [];
     const body: Array<[number, number]> = [];
     const tail: Array<[number, number]> = [];
@@ -268,18 +268,111 @@ describe("sound-effect review boundary", () => {
       ],
     });
 
+    expect(manifest.dialogueRegions).toHaveLength(2);
+    expect(
+      manifest.dialogueRegions.map(
+        ({ sourceDetectionIds }) => sourceDetectionIds,
+      ),
+    ).toEqual([["T002"], ["T003"]]);
+    expect(manifest.diagnostics.dialogueFragmentMerges).toBe(0);
+  });
+
+  it("uses a strongly overlapping composite mask as positive merge evidence", () => {
+    const right: Array<[number, number]> = [];
+    const left: Array<[number, number]> = [];
+    for (let y = 3; y < 16; y += 1) {
+      for (let x = 9; x < 13; x += 1) right.push([x, y]);
+      for (let x = 6; x < 10; x += 1) left.push([x, y]);
+    }
+    const manifest = buildHayaiRegionManifest({
+      imageWidth: 100,
+      imageHeight: 100,
+      detections: [
+        maskedDetection("text", 0.62, 20, 20, right),
+        maskedDetection("text", 0.56, 20, 20, left),
+        maskedDetection("text", 0.44, 20, 20, [...right, ...left]),
+      ],
+    });
+
     expect(manifest.dialogueRegions).toHaveLength(1);
     expect(manifest.dialogueRegions[0]?.sourceDetectionIds).toEqual([
+      "T001",
       "T002",
       "T003",
     ]);
-    expect(manifest.dialogueRegions[0]?.recognitionBboxes).toHaveLength(2);
-    expect(
-      manifest.dialogueRegions[0]?.recognitionBboxes?.[0]?.[1],
-    ).toBeLessThan(
-      manifest.dialogueRegions[0]?.recognitionBboxes?.[1]?.[1] ?? 0,
-    );
-    expect(manifest.diagnostics.dialogueFragmentMerges).toBe(1);
+    expect(manifest.diagnostics.dialogueFragmentMerges).toBe(0);
+  });
+
+  it("isolates a composite mask when it borrows two disjoint child blocks", () => {
+    const upper: Array<[number, number]> = [];
+    const lower: Array<[number, number]> = [];
+    for (let y = 3; y < 11; y += 1) {
+      for (let x = 15; x < 20; x += 1) upper.push([x, y]);
+    }
+    for (let y = 17; y < 23; y += 1) {
+      for (let x = 5; x < 15; x += 1) lower.push([x, y]);
+    }
+    const borrowedLower = lower.filter((_, index) => index % 2 === 0);
+    const manifest = buildHayaiRegionManifest({
+      imageWidth: 300,
+      imageHeight: 300,
+      detections: [
+        maskedDetection("text", 0.38, 30, 30, [...upper, ...borrowedLower]),
+        maskedDetection("text", 0.5, 30, 30, upper),
+        maskedDetection("text", 0.82, 30, 30, lower),
+      ],
+    });
+
+    expect(manifest.dialogueRegions).toHaveLength(2);
+    expect(manifest.dialogueRegions[0]).toMatchObject({
+      bbox: [145, 25, 205, 115],
+      sourceDetectionIds: ["T001", "T002"],
+    });
+    expect(manifest.dialogueRegions[1]).toMatchObject({
+      bbox: [45, 165, 155, 235],
+      sourceDetectionIds: ["T003"],
+    });
+    expect(manifest.diagnostics.dialogueOverlapCuts).toBe(0);
+  });
+
+  it("trims mutually borrowed tails when the detector boxes prove ownership", () => {
+    const right: Array<[number, number]> = [];
+    const left: Array<[number, number]> = [];
+    for (let y = 3; y < 15; y += 1) {
+      for (let x = 10; x < 13; x += 1) right.push([x, y]);
+    }
+    for (let y = 4; y < 15; y += 1) {
+      for (let x = 3; x < 6; x += 1) left.push([x, y]);
+    }
+    const rightBorrow = right.slice(0, 5);
+    const leftBorrow = left.slice(0, 3);
+    const rightDetection = maskedDetection("text", 0.95, 20, 20, [
+      ...right,
+      ...leftBorrow,
+    ]);
+    rightDetection.box = [50, 15, 65, 75];
+    const leftDetection = maskedDetection("text", 0.83, 20, 20, [
+      ...left,
+      ...rightBorrow,
+    ]);
+    leftDetection.box = [15, 20, 30, 75];
+    const manifest = buildHayaiRegionManifest({
+      imageWidth: 100,
+      imageHeight: 100,
+      detections: [rightDetection, leftDetection],
+    });
+
+    expect(manifest.dialogueRegions).toHaveLength(2);
+    expect(manifest.dialogueRegions).toEqual([
+      expect.objectContaining({
+        bbox: [45, 10, 70, 80],
+        sourceDetectionIds: ["T001"],
+      }),
+      expect.objectContaining({
+        bbox: [10, 15, 35, 80],
+        sourceDetectionIds: ["T002"],
+      }),
+    ]);
   });
 
   it("trims a sub-percent extreme text-mask tail without clipping the dense glyph core", () => {
