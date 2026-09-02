@@ -3,20 +3,13 @@ import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import { resolveBlockTextWordBreak } from "../../../shared/textWrapping";
-import {
-  FONT_SIZE_STEP_PX,
-  MAX_FONT_SIZE_PX,
-  MIN_FONT_SIZE_PX,
-} from "../../../shared/blockFormatValues";
 import { BlockSpacingFields } from "./BlockSpacingFields";
 import { BlockTextOpacityField } from "./BlockTextOpacityField";
 import { FontSelect } from "./FontSelect";
 import { FormatBatchApplyModal } from "./FormatBatchApplyModal";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import { Button } from "./ui/Button";
-import { CheckboxField } from "./ui/CheckboxField";
 import { IconButton } from "./ui/IconButton";
-import { NumberField } from "./ui/NumberField";
 import { TextWrappingSelect } from "./TextWrappingSelect";
 import {
   AlignCenterIcon,
@@ -28,7 +21,8 @@ import {
   StrikethroughIcon,
   UnderlineIcon,
 } from "./ui/icons";
-import { clampFontSize, type EditorPanelModel } from "./editorPanelUtils";
+import type { EditorPanelModel } from "./editorPanelUtils";
+import { EditorFontSizeRow } from "./EditorFontSizeRow";
 
 type BlockPatchHandler = (patch: Partial<TranslationBlock>) => void;
 type ApplyFormatHandler = (
@@ -99,7 +93,7 @@ export function FormatEditorGroup({
       />
       <TextWrappingField {...{ block, disabled, onUpdate }} />
       <div className="editor-format-fields">
-        <FontSizeRow
+        <EditorFontSizeRow
           autoFitText={model.autoFitText}
           disabled={disabled}
           fontSizePx={model.fontSizePx}
@@ -353,62 +347,6 @@ function FontField({
           onFontFamilyDraftChange(fontFamily);
           onUpdate({ fontFamily });
         }}
-      />
-    </div>
-  );
-}
-
-function FontSizeRow({
-  autoFitText,
-  disabled,
-  fontSizePx,
-  onAdjust,
-  onUpdate,
-}: {
-  autoFitText: boolean;
-  disabled: boolean;
-  fontSizePx: number;
-  onAdjust: (adjustment: -1 | 1) => void;
-  onUpdate: BlockPatchHandler;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const updateFontSize = (value: number) =>
-    onUpdate({
-      fontSizePx: clampFontSize(value),
-      autoFitText: false,
-      fontSizeIntent: "manual",
-    });
-  return (
-    <div className="editor-font-size-row">
-      <div className="editor-format-number-cell">
-        <span>{t("format.size")}</span>
-        <NumberField
-          variant="scrubber"
-          ariaLabel={t("format.fontSizeValue")}
-          decreaseLabel={t("format.fontSizeDecrease")}
-          increaseLabel={t("format.fontSizeIncrease")}
-          min={MIN_FONT_SIZE_PX}
-          max={MAX_FONT_SIZE_PX}
-          step={FONT_SIZE_STEP_PX}
-          precision={1}
-          value={fontSizePx}
-          disabled={disabled}
-          inputDisabled={autoFitText}
-          scrubDisabled={autoFitText}
-          unit="px"
-          onStep={onAdjust}
-          onValueChange={updateFontSize}
-        />
-      </div>
-      <CheckboxField
-        className="inline-toggle editor-font-size-auto"
-        title={t("format.autoFitTitle")}
-        label={t("format.auto")}
-        checked={autoFitText}
-        disabled={disabled}
-        onCheckedChange={(checked) =>
-          onUpdate({ autoFitText: checked, fontSizeIntent: "manual" })
-        }
       />
     </div>
   );

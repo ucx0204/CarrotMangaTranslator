@@ -211,15 +211,17 @@ describe("keep-blocks translation mode", () => {
     });
 
     expect(mapping.blocks[0]).toMatchObject({
-      autoFitText: true,
+      autoFitText: false,
       fontSizePx: 24,
+      fontSizeIntent: "source-match",
       sourceFontFacePx: 42,
       sourceFontSizeConfidence: 0.93,
       sourceFontSizeMethod: "raster-core-v1",
     });
     expect(mapping.blocks[1]).toMatchObject({
-      autoFitText: true,
+      autoFitText: false,
       fontSizePx: 24,
+      fontSizeIntent: "source-match",
       sourceFontFacePx: 18,
       sourceFontSizeConfidence: 0.82,
       sourceFontSizeMethod: "raster-core-v1",

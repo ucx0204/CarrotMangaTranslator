@@ -5,13 +5,9 @@ import type { InpaintingTool } from "../../inpainting/inpaintingTypes";
 import type { StageTool } from "../../lib/stageTool";
 import type { AutoInpaintingEntryScope } from "../../lib/autoInpaintingSelection";
 import type { TranslationOptionsInitialScope } from "../../lib/translationSelection";
-import {
-  clampWorkspaceZoom,
-  stepWorkspaceZoom,
-  type WorkspaceFitMode,
-} from "../../lib/workspaceZoom";
 import { clampOriginalImageOpacity } from "../../lib/originalImageOpacity";
 import { useSoundEffectReviewUiState } from "./useSoundEffectReviewUiState";
+import { useWorkspaceZoomControls } from "./useWorkspaceZoomControls";
 
 export type RightRailMode = "page-blocks" | "block-editor";
 
@@ -370,49 +366,6 @@ function useTranslateModalUiState() {
       retranslatePageId,
       translateOptionsInitialScope,
       translateOptionsOpen,
-    ],
-  );
-}
-
-function useWorkspaceZoomControls() {
-  const [workspaceZoom, setWorkspaceZoom] = useState(1);
-  const [workspaceFitMode, setWorkspaceFitModeState] =
-    useState<WorkspaceFitMode>("contain");
-  const zoomInWorkspace = useCallback(
-    () => setWorkspaceZoom((zoom) => stepWorkspaceZoom(zoom, "in")),
-    [],
-  );
-  const zoomOutWorkspace = useCallback(
-    () => setWorkspaceZoom((zoom) => stepWorkspaceZoom(zoom, "out")),
-    [],
-  );
-  const changeWorkspaceZoom = useCallback(
-    (zoom: number) => setWorkspaceZoom(clampWorkspaceZoom(zoom)),
-    [],
-  );
-  const resetWorkspaceZoom = useCallback(() => setWorkspaceZoom(1), []);
-  const setWorkspaceFitMode = useCallback((fitMode: WorkspaceFitMode) => {
-    setWorkspaceFitModeState(fitMode);
-    setWorkspaceZoom(1);
-  }, []);
-  return useMemo(
-    () => ({
-      workspaceFitMode,
-      workspaceZoom,
-      changeWorkspaceZoom,
-      zoomInWorkspace,
-      zoomOutWorkspace,
-      resetWorkspaceZoom,
-      setWorkspaceFitMode,
-    }),
-    [
-      workspaceFitMode,
-      workspaceZoom,
-      changeWorkspaceZoom,
-      zoomInWorkspace,
-      zoomOutWorkspace,
-      resetWorkspaceZoom,
-      setWorkspaceFitMode,
     ],
   );
 }

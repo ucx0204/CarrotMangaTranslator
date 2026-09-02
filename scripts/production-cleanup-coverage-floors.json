@@ -17571,6 +17571,28 @@
         "pct": 0
       }
     },
+    "src/renderer/src/app/session/createWorkspaceProps.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 10,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 11,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 10,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 2,
+        "pct": 0
+      }
+    },
     "src/renderer/src/app/session/jobTargetLocks.ts": {
       "lines": {
         "total": 15,
@@ -17608,6 +17630,28 @@
         "covered": 3,
         "total": 3,
         "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/app/session/useWorkspaceZoomControls.ts": {
+      "lines": {
+        "covered": 12,
+        "total": 14,
+        "pct": 85.71
+      },
+      "statements": {
+        "covered": 14,
+        "total": 17,
+        "pct": 82.35
+      },
+      "functions": {
+        "covered": 6,
+        "total": 9,
+        "pct": 66.66
       },
       "branches": {
         "covered": 0,
@@ -17965,6 +18009,28 @@
         "total": 16,
         "covered": 10,
         "pct": 62.5
+      }
+    },
+    "src/renderer/src/components/EditorFontSizeRow.tsx": {
+      "lines": {
+        "covered": 4,
+        "total": 5,
+        "pct": 80
+      },
+      "statements": {
+        "covered": 4,
+        "total": 5,
+        "pct": 80
+      },
+      "functions": {
+        "covered": 2,
+        "total": 3,
+        "pct": 66.66
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/renderer/src/components/EditorOutlineControls.tsx": {
@@ -20849,6 +20915,28 @@
         "pct": 100
       }
     },
+    "src/shared/ipcOcrSettingsSchema.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/shared/ipcPageTimingSchemas.ts": {
       "lines": {
         "total": 3,
@@ -21132,28 +21220,6 @@
       "branches": {
         "total": 11,
         "covered": 11,
-        "pct": 100
-      }
-    },
-    "src/shared/soundEffectMangaApi.ts": {
-      "lines": {
-        "total": 0,
-        "covered": 0,
-        "pct": 100
-      },
-      "statements": {
-        "total": 0,
-        "covered": 0,
-        "pct": 100
-      },
-      "functions": {
-        "total": 0,
-        "covered": 0,
-        "pct": 100
-      },
-      "branches": {
-        "total": 0,
-        "covered": 0,
         "pct": 100
       }
     },

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { OCR_PIPELINES } from "./ocrEngines";
 import {
   AmdRocmTargetSchema,
   ApiReasoningEffortSchema,
@@ -13,8 +12,6 @@ import {
   MAX_MAX_TOKENS,
   MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
-  OcrGpuBackendSchema,
-  OcrQualityModeSchema,
   OpenAiCompatibleBaseUrlSchema,
   TextEffectSchema,
   TextGlowSchema,
@@ -68,6 +65,7 @@ import {
   RESEARCH_GEMMA_PRESETS,
   TAVILY_ANALYSIS_PROVIDERS,
 } from "./internetResearchTypes";
+import { OcrSettingsSchema } from "./ipcOcrSettingsSchema";
 
 const LanguageCodeSchema = z
   .string()
@@ -282,18 +280,7 @@ export const AppSettingsSchema = z
         customHeadersJson: CustomHeadersJsonObjectStringSchema.optional(),
       })
       .strict(),
-    ocr: z
-      .object({
-        pipeline: z.enum(OCR_PIPELINES).default("paddle-legacy"),
-        device: z.enum(["cpu", "gpu"]),
-        qualityMode: OcrQualityModeSchema,
-        gpuCudaTag: z
-          .string()
-          .regex(/^cu\d+$/i)
-          .optional(),
-        gpuBackend: OcrGpuBackendSchema.optional(),
-      })
-      .strict(),
+    ocr: OcrSettingsSchema,
     ui: z
       .object({
         locale: z.enum(SUPPORTED_UI_LOCALES).optional(),

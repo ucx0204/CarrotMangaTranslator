@@ -13,8 +13,6 @@ import {
   createShortcutHelpProps,
 } from "./createAppOverlayProps";
 import { createPanelBlockActions } from "./createPanelBlockActions";
-import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
-import { createWorkspaceViewProps } from "./createWorkspaceViewProps";
 import { createRightRailProps } from "./createRightRailProps";
 import {
   createStylePresetOverwriteAction,
@@ -22,7 +20,6 @@ import {
   createStylePresetSaveAction,
 } from "./createStylePresetSaveAction";
 import { createStylePresetDeleteAction } from "./createStylePresetDeleteAction";
-import { createOriginalImageOpacityProps } from "./createOriginalImageOpacityProps";
 import { openManualErrorReport } from "../../lib/errorReportStore";
 import { createModalCloseActions } from "./createModalCloseActions";
 import { pickPanelFormatPatch } from "../../../../shared/panelBridgeTypes";
@@ -30,9 +27,8 @@ import { createConditionalBatchEditorProps } from "./createConditionalBatchEdito
 import {
   createSoundEffectTranslationLauncherProps,
   createSoundEffectTranslationModalProps,
-  createWorkspaceSoundEffectReviewProps,
 } from "./createSoundEffectReviewViewProps";
-import { isWorkspaceJobActive } from "./workspaceActivity";
+import { createWorkspaceProps } from "./createWorkspaceProps";
 
 export function createAppSessionViewProps(model: AppSessionViewModel) {
   const workspaceProps = createWorkspaceProps(model);
@@ -330,97 +326,4 @@ function createStyleGuideProps({
         settings: settingsDialog.settings,
       }
     : null;
-}
-
-function isRegionTranslationAvailable(
-  derivedState: AppSessionViewModel["derivedState"],
-): boolean {
-  return isWorkspaceImageReadyForSelectedPage({
-    selectedPage: derivedState.selectedPage,
-    workspaceImageDataUrl: derivedState.workspaceImageDataUrl,
-    workspaceImagePageId: derivedState.workspaceImagePageId,
-  });
-}
-
-function createWorkspaceProps({
-  blockEditingActions,
-  core,
-  derivedState,
-  importShareActions: shareActions,
-  importShareModal: shareModal,
-  inpaintingBridge,
-  libraryActions,
-  pointerHandlers,
-  settingsDialog,
-  uiState,
-  translationActions,
-  workspaceHistory,
-  libraryDrop,
-}: AppSessionViewModel): AppSessionViewProps["workspaceProps"] {
-  return {
-    ...createWorkspaceViewProps(uiState),
-    wheelZoomSensitivityPercent:
-      settingsDialog.settings?.ui?.wheelZoomSensitivityPercent ?? 1,
-    interactionPreviewStore: pointerHandlers.interactionPreviewStore,
-    imageRef: core.imageRef,
-    brushColor: uiState.inpaintingPaintColor,
-    jobActive: isWorkspaceJobActive(
-      derivedState,
-      workspaceHistory,
-      libraryDrop,
-    ),
-    jobState: core.jobState,
-    maskStrokes: derivedState.patternMaskStrokes,
-    lastRetouchTool: uiState.lastRetouchTool,
-    ...createOriginalImageOpacityProps({ derivedState, uiState }),
-    onBlockPointerDown: pointerHandlers.onBlockPointerDown,
-    onWarpTransformCommit: (blockId, transform) =>
-      blockEditingActions.updateBlock(blockId, { warpTransform: transform }),
-    onApplyBubbleLayoutDraft: pointerHandlers.applyBubbleLayoutDraft,
-    onCancelBubbleLayoutDraft: pointerHandlers.cancelBubbleLayoutDraft,
-    onOpenBatchImport: () => void shareActions.openImportPreview("zip-folder"),
-    onOpenSettings: () => void settingsDialog.openSettings(),
-    onOpenShareImport: () => void shareActions.openShareImportPreview(),
-    onOpenTranslationSource: () => shareModal.setTranslationSourceOpen(true),
-    onSelectStageTool: (tool) => {
-      core.setRegionSelection(null);
-      uiState.selectWorkspaceTool(tool);
-    },
-    onToggleRegionTranslation: pointerHandlers.startRegionTranslationSelection,
-    onStagePointerDown: pointerHandlers.onStagePointerDown,
-    onStagePointerLeave: pointerHandlers.onStagePointerLeave,
-    onStagePointerMove: pointerHandlers.onStagePointerMove,
-    onStagePointerUp: pointerHandlers.onStagePointerUp,
-    onUndoBubbleLayoutPoint: pointerHandlers.undoBubbleLayoutPoint,
-    onToggleStageToolbarHidden: () =>
-      uiState.setStageToolbarHidden((hidden) => !hidden),
-    progressSnapshot: derivedState.progressSnapshot,
-    regionSelectionActive: Boolean(core.regionSelection?.active),
-    regionTranslationAvailable: isRegionTranslationAvailable(derivedState),
-    regionSelectionRect: derivedState.regionSelectionRect,
-    retouchCursor: inpaintingBridge.retouchCursor,
-    retouchOriginalImageDataUrl: derivedState.selectedPageOriginalImageDataUrl,
-    selectedBlockId: core.selectedBlockId,
-    selectedBlockIds: derivedState.selectedBlockIds,
-    selectedPage: derivedState.selectedPage,
-    selectedPageImageDataUrl: derivedState.workspaceImageDataUrl,
-    selectedPageImageLoading: derivedState.workspaceImageLoading,
-    selectedPageImagePageId: derivedState.workspaceImagePageId,
-    showBlockChrome: uiState.showBlockChrome,
-    showTextBlocks: uiState.showTextBlocks,
-    ...createWorkspaceSoundEffectReviewProps({
-      derivedState,
-      libraryActions,
-      settingsDialog,
-      uiState,
-      translationActions,
-    }),
-    showingOriginalPeek: derivedState.showingOriginalPeek,
-    stageRef: core.stageRef,
-    stageSize: derivedState.stageSize,
-    stageTool: uiState.stageTool,
-    stageToolbarHidden: uiState.stageToolbarHidden,
-    workspacePanelRef: core.workspacePanelRef,
-    workspaceZoomControllerRef: core.workspaceZoomControllerRef,
-  };
 }

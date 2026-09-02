@@ -145,7 +145,7 @@ editing the totals by hand.
   `889544061ee1f2b352a480278c94aa9a0fd5725ec60005481bd1bf072474284a`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
   percentage for lines/statements/functions/branches in all 649 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 323 new
+  coverage-eligible `src/**` files changed since cleanup start. The 326 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   ten removed source files are recorded explicitly in `deletedFiles`.

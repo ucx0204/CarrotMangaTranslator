@@ -41,12 +41,15 @@ import type {
 } from "./libraryTypes";
 import type { PanelCommand, PanelId, PanelSyncState } from "./panelBridgeTypes";
 import type {
+  PrepareSoundEffectTranslationRequest,
+  PrepareSoundEffectTranslationResult,
   RegionAnalysisRequest,
   RegionAnalysisResult,
   StartAnalysisRequest,
   StartAnalysisResult,
+  StartSoundEffectTranslationRequest,
+  StartSoundEffectTranslationResult,
 } from "./analysisTypes";
-import type { SoundEffectMangaApi } from "./soundEffectMangaApi";
 import type {
   SavePageBlocksRequest,
   SavePagesBlocksRequest,
@@ -143,7 +146,18 @@ import type {
   ConditionalBatchYamlSaveResult,
 } from "./conditionalBatchExchangeTypes";
 
-export type MangaApi = SoundEffectMangaApi & {
+export type MangaApi = {
+  dismissSoundEffectReviewRegion: (
+    chapterId: string,
+    pageId: string,
+    regionId: string,
+  ) => Promise<ChapterSnapshot>;
+  prepareSoundEffectTranslation: (
+    request: PrepareSoundEffectTranslationRequest,
+  ) => Promise<PrepareSoundEffectTranslationResult>;
+  startSoundEffectTranslation: (
+    request: StartSoundEffectTranslationRequest,
+  ) => Promise<StartSoundEffectTranslationResult>;
   getActiveAppOperation: () => Promise<AppOperationActivityEvent | null>;
   cancelAppOperation: (id: string) => Promise<AppOperationCancelResult>;
   listConditionalBatchSchemes: () => Promise<ConditionalBatchSnapshotV2>;
