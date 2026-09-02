@@ -152,13 +152,48 @@ function buildSemanticCandidate(rawHint, index, context) {
     score: Number.isFinite(score) ? Math.round(score * 10000) / 10000 : null,
     ...(group ? { group } : {}),
     ...(order ? { order } : {}),
-    orientation:
-      rawBox.y2 - rawBox.y1 > (rawBox.x2 - rawBox.x1) * 1.25
-        ? "vertical"
-        : "horizontal",
+    orientation: resolveCandidateOrientation(hint, rawBox),
     soundCandidate: isSoundCandidateHint(hint),
     geometryLocked: hint.geometryLocked === true,
   };
+}
+
+/**
+ * A logical Hayai region can be nearly square after vertically stacked OCR
+ * fragments are rejoined.  Resolve source direction from the code-owned
+ * recognition segments when present instead of flipping the whole block to
+ * horizontal because of its union bbox.
+ * @param {Record<string, unknown>} hint
+ * @param {{x1:number;y1:number;x2:number;y2:number}} fallbackBox
+ * @returns {"horizontal"|"vertical"}
+ */
+function resolveCandidateOrientation(hint, fallbackBox) {
+  const segmentBoxes = Array.isArray(hint.recognitionSegments)
+    ? hint.recognitionSegments.flatMap((segment) => {
+        if (!segment || typeof segment !== "object" || Array.isArray(segment)) {
+          return [];
+        }
+        const box = readHintBox(
+          /** @type {Record<string, unknown>} */ (segment),
+        );
+        return box ? [box] : [];
+      })
+    : [];
+  if (segmentBoxes.length < 2) {
+    return boxOrientation(fallbackBox);
+  }
+  const verticalCount = segmentBoxes.filter(
+    (box) => box.y2 - box.y1 > (box.x2 - box.x1) * 1.25,
+  ).length;
+  if (verticalCount * 2 === segmentBoxes.length) {
+    return boxOrientation(fallbackBox);
+  }
+  return verticalCount * 2 > segmentBoxes.length ? "vertical" : "horizontal";
+}
+
+/** @param {{x1:number;y1:number;x2:number;y2:number}} box */
+function boxOrientation(box) {
+  return box.y2 - box.y1 > (box.x2 - box.x1) * 1.25 ? "vertical" : "horizontal";
 }
 
 /** @param {Record<string, unknown>} hint */

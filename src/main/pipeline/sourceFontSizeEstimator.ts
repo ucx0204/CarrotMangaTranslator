@@ -149,10 +149,10 @@ function collectOcrLineMeasurements(
   voterSet: ReadonlySet<number> | null,
   signal?: AbortSignal,
 ): SourceFontSizeItemMeasurement[] {
-  const seenCandidateIds = new Set<number>();
+  const seenLineKeys = new Set<string>();
   const measurements: SourceFontSizeItemMeasurement[] = [];
   for (const line of lines) {
-    if (!claimSourceFontLine(line, voterSet, seenCandidateIds)) continue;
+    if (!claimSourceFontLine(line, voterSet, seenLineKeys)) continue;
     const measurement = measureSourceFontLine(raster, line, direction, signal);
     if (measurement) measurements.push(measurement);
   }
@@ -162,18 +162,19 @@ function collectOcrLineMeasurements(
 function claimSourceFontLine(
   line: SourceFontLine,
   voterSet: ReadonlySet<number> | null,
-  seenCandidateIds: Set<number>,
+  seenLineKeys: Set<string>,
 ): boolean {
+  const lineKey = `${line.candidateId}:${line.bbox.x}:${line.bbox.y}:${line.bbox.w}:${line.bbox.h}`;
   if (
     !Number.isInteger(line.candidateId) ||
     line.candidateId <= 0 ||
-    seenCandidateIds.has(line.candidateId) ||
+    seenLineKeys.has(lineKey) ||
     (voterSet !== null && !voterSet.has(line.candidateId)) ||
     !isFiniteBbox(line.bbox)
   ) {
     return false;
   }
-  seenCandidateIds.add(line.candidateId);
+  seenLineKeys.add(lineKey);
   return true;
 }
 

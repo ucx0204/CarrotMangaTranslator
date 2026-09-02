@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isOcrResultNoTextDetected } from "../src/main/pipeline/noText";
 import { applyOcrCandidateGeometryLocks } from "../src/main/pipeline/overlayOcrGeometryLocks";
+import { buildRecognitionSourceLines } from "../src/main/pipeline/overlayOcrSourceLineGeometry";
 import type { MangaPage } from "../src/shared/libraryTypes";
 
 const page: MangaPage = {
@@ -96,6 +97,68 @@ describe("OCR candidate geometry locks", () => {
         ],
       },
     });
+  });
+
+  it("measures one rejoined Hayai block from its original recognition segments", () => {
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 7,
+          type: "nonsolid",
+          bbox: { x: 390, y: 90, w: 220, h: 720 },
+          jp: "前半後半",
+          ko: "앞뒤",
+          direction: "vertical",
+        },
+      ],
+      page,
+      [
+        {
+          id: 7,
+          x1: 400,
+          y1: 100,
+          x2: 600,
+          y2: 800,
+          ocrText: "前半後半",
+          geometryLocked: true,
+          recognitionSegments: [
+            { x1: 500, y1: 100, x2: 560, y2: 300, ocrText: "前半" },
+            { x1: 420, y1: 320, x2: 600, y2: 800, ocrText: "後半" },
+          ],
+        },
+      ],
+    );
+
+    expect(result[0]?.sourceFontLineGeometry?.lines).toEqual([
+      {
+        candidateId: 7,
+        bbox: { x: 500, y: 100, w: 60, h: 200 },
+        sourceText: "前半",
+      },
+      {
+        candidateId: 7,
+        bbox: { x: 420, y: 320, w: 180, h: 480 },
+        sourceText: "後半",
+      },
+    ]);
+  });
+
+  it("drops incomplete or escaping recognition segment geometry as a unit", () => {
+    const parent = { x1: 100, y1: 100, x2: 300, y2: 600 };
+
+    expect(buildRecognitionSourceLines({}, parent, page)).toBeUndefined();
+    expect(
+      buildRecognitionSourceLines(
+        {
+          recognitionSegments: [
+            { x1: 120, y1: 120, x2: 180, y2: 300, ocrText: "前半" },
+            { x1: 190, y1: 320, x2: 320, y2: 580, ocrText: "後半" },
+          ],
+        },
+        parent,
+        page,
+      ),
+    ).toBeUndefined();
   });
 
   it("locks explicit singleton membership without admitting adjacent hints", () => {

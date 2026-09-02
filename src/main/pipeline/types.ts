@@ -233,6 +233,13 @@ export type RequestSummary = {
     groupSize?: number;
     semanticGroup?: boolean;
     geometryLocked?: boolean;
+    recognitionSegments?: Array<{
+      x1?: number;
+      y1?: number;
+      x2?: number;
+      y2?: number;
+      ocrText?: string | null;
+    }>;
   }>;
   ocrPipeline?: TranslationOptions["ocrPipeline"];
   fixedBlockTranslationVersion?: number;

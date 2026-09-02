@@ -150,6 +150,53 @@ describe("source font-size raster estimator", () => {
     expect(estimate?.facePx).toBeLessThan(24);
   });
 
+  it("measures same-candidate recognition segments as distinct source lines", () => {
+    const raster = createRaster(200, 100, (setBlack) => {
+      for (let glyph = 0; glyph < 4; glyph += 1) {
+        fillRect(setBlack, 5 + glyph * 23, 5, 12, 20);
+        fillRect(setBlack, 105 + glyph * 23, 80, 12, 12);
+      }
+      for (let index = 0; index < 80; index += 1) {
+        fillRect(
+          setBlack,
+          2 + (index % 20) * 10,
+          36 + Math.floor(index / 20) * 8,
+          2,
+          2,
+        );
+      }
+    });
+    const merged = makeItem({
+      sourceText: "原文文字原文文字",
+      jp: "原文文字原文文字",
+      bbox: { x: 0, y: 0, w: 1000, h: 1000 },
+    });
+    const estimate = estimateSourceFontSizeForItem(raster, {
+      ...merged,
+      sourceFontLineGeometry: {
+        contractVersion: "source-font-line-geometry-v1",
+        source: "ocr-geometry-lock",
+        lines: [
+          {
+            candidateId: 1,
+            bbox: { x: 0, y: 0, w: 500, h: 300 },
+            sourceText: "原文文字",
+          },
+          {
+            candidateId: 1,
+            bbox: { x: 500, y: 700, w: 500, h: 300 },
+            sourceText: "原文文字",
+          },
+        ],
+      },
+    });
+
+    expect(estimate?.method).toBe("raster-core-v1");
+    expect(estimate?.confidence).toBeGreaterThanOrEqual(0.5);
+    expect(estimate?.facePx).toBeGreaterThan(14);
+    expect(estimate?.facePx).toBeLessThan(19);
+  });
+
   it("uses one exact OCR line when the merged source glyph count is contradictory", () => {
     const raster = createRaster(100, 30, (setBlack) => {
       for (let glyph = 0; glyph < 4; glyph += 1) {

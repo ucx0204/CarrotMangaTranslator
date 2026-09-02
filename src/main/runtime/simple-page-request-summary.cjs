@@ -4,7 +4,7 @@ const path = require("node:path");
 /**
  * @typedef {{ totalTokens?: unknown; outputHeadroomTokens?: unknown; outputHeadroomPercent?: unknown }} TokenBudgetDetail
  * @typedef {{ original?: TokenBudgetDetail; effective?: TokenBudgetDetail; omittedParts?: unknown[] }} WorkContextBudget
- * @typedef {{ id?: unknown; label?: unknown; x1?: unknown; y1?: unknown; x2?: unknown; y2?: unknown; score?: unknown; groupId?: unknown; rolePrior?: unknown; orderInGroup?: unknown; [key: string]: unknown }} OcrBboxHint
+ * @typedef {{ id?: unknown; label?: unknown; x1?: unknown; y1?: unknown; x2?: unknown; y2?: unknown; ocrText?: unknown; score?: unknown; groupId?: unknown; rolePrior?: unknown; orderInGroup?: unknown; recognitionSegments?: unknown; [key: string]: unknown }} OcrBboxHint
  * @typedef {{ role?: string; path: string; mime?: string; convertedFromMime?: unknown; width?: unknown; height?: unknown; originalWidth?: unknown; originalHeight?: unknown; [key: string]: unknown }} ImageVariantSummaryInput
  * @typedef {import("./simple-page-prompts.cjs").PromptOptions} PromptOptions
  * @typedef {{ baseUrl: string }} RequestServer
@@ -292,38 +292,78 @@ function buildRequestSummary(
     bboxCoordinateFrame: coordinateFrame.frame,
     ocrBboxHintCount: ocrBboxHints.length,
     ocrPipeline: options.ocrPipeline,
-    ocrBboxHints: ocrBboxHints.slice(0, 80).map((hint) => ({
-      id: hint.id,
-      label: hint.label,
-      x1: hint.x1,
-      y1: hint.y1,
-      x2: hint.x2,
-      y2: hint.y2,
-      score: hint.score ?? null,
-      groupId: hint.groupId ?? null,
-      rolePrior: hint.rolePrior ?? null,
-      containerType: hint.containerType ?? null,
-      orderInGroup: hint.orderInGroup ?? null,
-      geometryLocked: hint.geometryLocked === true,
-      ocrText: truncateText(readOcrCandidateText(hint), 160) || null,
-    })),
-    ocrBboxHintsPreview: ocrBboxHints.slice(0, 24).map((hint) => ({
-      id: hint.id,
-      label: hint.label,
-      x1: hint.x1,
-      y1: hint.y1,
-      x2: hint.x2,
-      y2: hint.y2,
-      score: hint.score ?? null,
-      groupId: hint.groupId ?? null,
-      rolePrior: hint.rolePrior ?? null,
-      containerType: hint.containerType ?? null,
-      orderInGroup: hint.orderInGroup ?? null,
-      geometryLocked: hint.geometryLocked === true,
-      ocrText: truncateText(readOcrCandidateText(hint), 160) || null,
-    })),
+    ocrBboxHints: ocrBboxHints
+      .slice(0, 80)
+      .map((hint) => summarizeOcrBboxHint(hint, true)),
+    ocrBboxHintsPreview: ocrBboxHints
+      .slice(0, 24)
+      .map((hint) => summarizeOcrBboxHint(hint)),
     options: buildOptionSummary(options),
   };
+}
+
+/**
+ * @param {OcrBboxHint} hint
+ * @param {boolean} [includeRecognitionSegments]
+ */
+function summarizeOcrBboxHint(hint, includeRecognitionSegments = false) {
+  return {
+    id: hint.id,
+    label: hint.label,
+    x1: hint.x1,
+    y1: hint.y1,
+    x2: hint.x2,
+    y2: hint.y2,
+    score: hint.score ?? null,
+    groupId: hint.groupId ?? null,
+    rolePrior: hint.rolePrior ?? null,
+    containerType: hint.containerType ?? null,
+    orderInGroup: hint.orderInGroup ?? null,
+    geometryLocked: hint.geometryLocked === true,
+    ocrText: truncateText(readOcrCandidateText(hint), 160) || null,
+    ...(includeRecognitionSegments
+      ? {
+          recognitionSegments: summarizeRecognitionSegments(
+            hint.recognitionSegments,
+          ),
+        }
+      : {}),
+  };
+}
+
+/**
+ * Keep the code-owned Hayai sub-crops in the internal request summary so font
+ * measurement can use their original line geometry. Invalid metadata is
+ * dropped as a unit and never becomes an extra prompt candidate.
+ * @param {unknown} value
+ */
+function summarizeRecognitionSegments(value) {
+  if (!Array.isArray(value) || value.length < 2 || value.length > 8) {
+    return undefined;
+  }
+  const segments = value.flatMap((segment) => {
+    if (!segment || typeof segment !== "object" || Array.isArray(segment)) {
+      return [];
+    }
+    const record = /** @type {Record<string, unknown>} */ (segment);
+    const x1 = Number(record.x1);
+    const y1 = Number(record.y1);
+    const x2 = Number(record.x2);
+    const y2 = Number(record.y2);
+    if (![x1, y1, x2, y2].every(Number.isFinite) || x2 <= x1 || y2 <= y1) {
+      return [];
+    }
+    return [
+      {
+        x1,
+        y1,
+        x2,
+        y2,
+        ocrText: truncateText(readOcrCandidateText(record), 160) || null,
+      },
+    ];
+  });
+  return segments.length === value.length ? segments : undefined;
 }
 
 /**

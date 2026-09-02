@@ -171,6 +171,14 @@ function normalizeCandidate(
   if (ocrText) {
     hint.ocrText = ocrText;
   }
+  copyRecognitionSegments(
+    hint,
+    record,
+    payload,
+    options,
+    imageWidth,
+    imageHeight,
+  );
   copyPreassignedGroupMetadata(hint, record);
   copyPaddleGroupEvidence(hint, record);
   copyReviewPartitionMetadata(hint, record);
@@ -184,6 +192,62 @@ function normalizeCandidate(
     `OCR candidate ${String(record.id ?? "?")}`,
   );
   return hint;
+}
+
+/**
+ * Preserve code-owned Hayai recognition segments only after every segment has
+ * been normalized into the same pixel frame and proven to stay inside the
+ * logical dialogue bbox.  These are measurement/orientation hints; they never
+ * create extra translation blocks.
+ * @param {OcrHint} hint
+ * @param {JsonRecord} record
+ * @param {unknown} payload
+ * @param {OcrHintOptions} options
+ * @param {number | null} imageWidth
+ * @param {number | null} imageHeight
+ */
+function copyRecognitionSegments(
+  hint,
+  record,
+  payload,
+  options,
+  imageWidth,
+  imageHeight,
+) {
+  if (
+    !Array.isArray(record.recognitionSegments) ||
+    record.recognitionSegments.length < 2 ||
+    record.recognitionSegments.length > 8
+  ) {
+    return;
+  }
+  const segments = record.recognitionSegments.flatMap((value) => {
+    const box = normalizeOcrBboxCandidate(
+      value,
+      imageWidth,
+      imageHeight,
+      payload,
+    );
+    if (!box || !boxContains(hint, box)) return [];
+    const ocrText = sanitizeOcrTextForPrompt(
+      readOcrCandidateText(value),
+      options,
+    );
+    return [{ ...box, ocrText }];
+  });
+  if (segments.length === record.recognitionSegments.length) {
+    hint.recognitionSegments = segments;
+  }
+}
+
+/** @param {OcrBox} parent @param {OcrBox} child */
+function boxContains(parent, child) {
+  return (
+    child.x1 >= parent.x1 - 1 &&
+    child.y1 >= parent.y1 - 1 &&
+    child.x2 <= parent.x2 + 1 &&
+    child.y2 <= parent.y2 + 1
+  );
 }
 
 /** @param {OcrHint} hint @param {JsonRecord} record */

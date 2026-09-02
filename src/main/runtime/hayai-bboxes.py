@@ -355,7 +355,14 @@ def process_page(
         ))
         for region_id, parts in recognized_parts.items()
     }
-    hints = [dialogue_hint(region, recognized.get(str(region["regionId"]), "")) for region in dialogue]
+    hints = [
+        dialogue_hint(
+            region,
+            recognized.get(str(region["regionId"]), ""),
+            recognized_parts.get(str(region["regionId"]), []),
+        )
+        for region in dialogue
+    ]
     effect_review = [effect_item(region, recognized.get(str(region["regionId"]), "")) for region in effects]
     payload = {
         "schemaVersion": OUTPUT_SCHEMA,
@@ -539,10 +546,14 @@ def recognize_batch(
     return [str(value) for value in texts]
 
 
-def dialogue_hint(region: Mapping[str, Any], text: str) -> dict[str, Any]:
+def dialogue_hint(
+    region: Mapping[str, Any],
+    text: str,
+    recognized_segments: list[tuple[int, str]],
+) -> dict[str, Any]:
     box = region["bbox"]
     numeric_id = int(region["id"])
-    return {
+    hint = {
         "id": numeric_id,
         "label": "text",
         "x1": box[0], "y1": box[1], "x2": box[2], "y2": box[3],
@@ -554,6 +565,20 @@ def dialogue_hint(region: Mapping[str, Any], text: str) -> dict[str, Any]:
         "geometryLocked": True,
         "sourceDetectionIds": list(region.get("sourceDetectionIds") or []),
     }
+    recognition_boxes = list(region.get("recognitionBboxes") or [])
+    if len(recognition_boxes) >= 2:
+        text_by_index = dict(recognized_segments)
+        hint["recognitionSegments"] = [
+            {
+                "x1": segment[0],
+                "y1": segment[1],
+                "x2": segment[2],
+                "y2": segment[3],
+                "ocrText": text_by_index.get(index, ""),
+            }
+            for index, segment in enumerate(recognition_boxes)
+        ]
+    return hint
 
 
 def effect_item(region: Mapping[str, Any], text: str) -> dict[str, Any]:

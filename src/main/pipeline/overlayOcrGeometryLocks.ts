@@ -9,6 +9,7 @@ import {
 } from "./overlayOcrGeometryMath";
 import {
   attachSourceFontLineGeometry,
+  buildRecognitionSourceLines,
   hintBelongsToModelEnvelope,
   resolveModelEnvelopeTextHints,
   sourceContainsHintText,
@@ -170,23 +171,24 @@ function buildOcrGeometryLockHintMap(
     }
     hintMap.set(id, {
       id,
-      bbox: pixelsToBbox(
-        {
-          x: Math.min(x1, x2),
-          y: Math.min(y1, y2),
-          w: Math.abs(x2 - x1),
-          h: Math.abs(y2 - y1),
-        },
-        page.width,
-        page.height,
-      ),
+      bbox: pixelsToBbox(pixelBox(x1, y1, x2, y2), page.width, page.height),
       ocrText: String(hint.ocrText ?? ""),
+      sourceLines: buildRecognitionSourceLines(hint, { x1, y1, x2, y2 }, page),
       groupId: normalizeReferenceText(hint.groupId),
       containerType: normalizeReferenceText(hint.containerType),
       geometryLocked: hint.geometryLocked === true,
     });
   }
   return hintMap;
+}
+
+function pixelBox(x1: number, y1: number, x2: number, y2: number): BBox {
+  return {
+    x: Math.min(x1, x2),
+    y: Math.min(y1, y2),
+    w: Math.abs(x2 - x1),
+    h: Math.abs(y2 - y1),
+  };
 }
 
 function resolveMergedOcrHints(

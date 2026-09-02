@@ -35,7 +35,11 @@ const requestSummaryRuntime =
       bboxCoordinateSpace: string;
       bboxCoordinateFrame: { width: number; height: number };
       ocrBboxHintCount: number;
-      ocrBboxHints: Array<{ id: number; ocrText: string | null }>;
+      ocrBboxHints: Array<{
+        id: number;
+        ocrText: string | null;
+        recognitionSegments?: Array<Record<string, unknown>>;
+      }>;
       imageVariants?: ImageVariant[];
       options?: Record<string, unknown>;
     };
@@ -258,6 +262,11 @@ describe("prompt contracts", () => {
 
   it("summarizes bbox coordinate space from the same prompt contract inputs", () => {
     const options = createPromptContractOptions();
+    const hints = options.ocrBboxHints as Array<Record<string, unknown>>;
+    hints[0].recognitionSegments = [
+      { x1: 67, y1: 589, x2: 167, y2: 670, ocrText: "いえ…" },
+      { x1: 167, y1: 670, x2: 267, y2: 760, ocrText: "資金はこちらも" },
+    ];
     const imageVariants = createPromptContractVariants();
     const prompt = getOverlayPrompt(options, imageVariants);
     const systemPrompt = buildSystemPrompt(options);
@@ -275,6 +284,41 @@ describe("prompt contracts", () => {
     expect(summary.ocrBboxHintCount).toBe(2);
     expect(summary.ocrBboxHints.map((hint) => hint.id)).toEqual([1, 2]);
     expect(summary.ocrBboxHints[0]?.ocrText).toBe("いえ…資金はこちらも");
+    expect(summary.ocrBboxHints[0]?.recognitionSegments).toEqual([
+      { x1: 67, y1: 589, x2: 167, y2: 670, ocrText: "いえ…" },
+      {
+        x1: 167,
+        y1: 670,
+        x2: 267,
+        y2: 760,
+        ocrText: "資金はこちらも",
+      },
+    ]);
+  });
+
+  it("drops malformed recognition segments from request summaries as a unit", () => {
+    const options = createPromptContractOptions();
+    const hints = options.ocrBboxHints as Array<Record<string, unknown>>;
+    hints[0].recognitionSegments = [
+      null,
+      { x1: 167, y1: 670, x2: 267, y2: 760, ocrText: "後半" },
+    ];
+    hints[1].recognitionSegments = [
+      { x1: 83, y1: 767, x2: 83, y2: 900, ocrText: "壊れた座標" },
+      { x1: 90, y1: 900, x2: 239, y2: 1029, ocrText: "後半" },
+    ];
+    const imageVariants = createPromptContractVariants();
+    const summary = buildRequestSummary(
+      { baseUrl: "https://codex.example.test" },
+      options,
+      imageVariants,
+      getOverlayPrompt(options, imageVariants),
+      buildSystemPrompt(options),
+    );
+
+    expect(summary.ocrBboxHints).toHaveLength(2);
+    expect(summary.ocrBboxHints[0]?.recognitionSegments).toBeUndefined();
+    expect(summary.ocrBboxHints[1]?.recognitionSegments).toBeUndefined();
   });
 
   it("keeps selected-region context images out of the coordinate frame", () => {

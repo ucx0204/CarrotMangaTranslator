@@ -3,9 +3,9 @@
 최종 정리: 2026-09-02 KST
 작업 브랜치: `codex/font-size-ai-lab-20260902-r1`
 작업 워크트리: `C:\Users\sam40\Downloads\망가번역기-font-size-ai-lab-20260902-r1`
-현재 내부 실험 버전: `fsai-lab-v0.7.0` (기존 크기 추정 gate와 v0.6.0 segmented
-recognition 위에, 페이지 횡단 세로 mask에서 큰 빈 행 간격 너머 면적 8% 이하의 약한
-꼬리만 제거하고 실제 글자 core를 보존)
+현재 내부 실험 버전: `fsai-lab-v0.8.0` (v0.7.0의 횡단 mask 꼬리 수리 위에, 같은
+말풍선·교차 bbox·축 겹침 0.95·축 분리 0.35를 만족하는 score 0.85 이상의 작은 text
+fragment를 segmented recognition으로 재결합하고 원 세그먼트의 방향·크기 근거를 보존)
 
 이 파일은 성공·실패·애매한 결과를 계속 증류하는 단일 판단 노트다. 상세 원시 수치와
 이미지는 화별 HTML 보고서에 두고, 여기에는 다음 실험에서 같은 실수를 막는 데 필요한
@@ -155,14 +155,16 @@ recognition 위에, 페이지 횡단 세로 mask에서 큰 빈 행 간격 너머
 | near-square bbox를 전부 세로 원문으로 뒤집기                 | 캠페인 004 P005/D003은 `23.7636→24.50px`뿐이었고 P004/D002는 `30.387→23.34px`로 오히려 작아질 위험이 있었다. 방향 반전은 해결책이 아니다.                                                                                                                                          |
 | 후보 자체 mode 없이 page peer를 복사하는 상향 clamp          | 실제 작은 글씨와 강조 계층을 평준화할 수 있다. 상향도 후보 자신의 component와 여러 line-count의 major-axis mode가 반복될 때만 peer를 수락 gate로 쓴다.                                                                                                                             |
 | 모든 좁은 세로 후보의 formula line-count를 줄이기            | 캠페인 005의 정상 `112.09px` 초대형 사례와 `15~20px` 소형 사례를 망친다. 낮은 신뢰도, 정확히 1줄 감소, candidate-owned projection/pitch 비율 `1.10` 이하, 단일 연결 열 mass·span, 2개 이상 안정 peer gate를 모두 요구한다. component span과 peer 값은 절대 결과로 복사하지 않는다. |
+| fragment 면적 `0.15` 또는 mask 겹침 `0.25`만 완화            | 캠페인 008 실험 2/3에서 각각 `141→141`, 변경 0이었다. score `0.90` 문턱을 그대로 둔 채 같은 두 조합을 다시 실행하지 않는다.                                                                                                                                                        |
+| 재결합한 union bbox만으로 방향·크기를 다시 추정              | 거의 정사각형인 세로문장이 가로로 뒤집히고 큰 빈 공간이 글자 크기에 섞인다. code-owned recognition segment가 있으면 다수 방향과 각 세그먼트 raster를 사용한다.                                                                                                                     |
 
 ## 다음 가설 우선순위
 
-1. 다음 미사용 랜덤 화에서 v0.5.0을 기준선으로 전 페이지·전 일반 텍스트 crop 감사한다.
-   정상 hierarchy와 누적 972개 제품 예상값을 먼저 보존한다.
-2. 캠페인 005 `P002/D003`, `P008/D002`, `P009/D010`, `P020/D005`처럼 near-square 또는
-   방향 추정에 민감한 높은 오차는 반대 축의 candidate-owned 증거가 현재 축보다 명백히
-   우세할 때만 하향 교정한다. near-square→vertical 전역 반전은 다시 시도하지 않는다.
+1. 다음 미사용 랜덤 화에서 v0.8.0을 기준선으로 전 페이지·전 일반 텍스트 crop 감사한다.
+   새 fragment 재결합과 기존 정상 hierarchy를 함께 보존한다.
+2. 캠페인 008 회귀 P009/D010처럼 recognition segment가 없는 near-square 일본어 블록의
+   방향은 반대 축의 candidate-owned raster/문자 배열 증거가 현재 축보다 명백히 우세할
+   때만 교정한다. near-square→vertical 전역 반전은 다시 시도하지 않는다.
 3. 캠페인 005 `P003/D001`, `P004/D009`, `P009/D009-D012`, `P013/D007`, `P021/D001`의
    clear-text abstention은 수치 교정과 분리해 coverage 전용 계약으로 평가한다. page peer
    직접 복사는 금지한다.
@@ -171,8 +173,7 @@ recognition 위에, 페이지 횡단 세로 mask에서 큰 빈 행 간격 너머
    containment 작업으로 다룬다. 폰트 크기 clamp로 기하 결함을 숨기지 않는다.
 
 초기 H1~H4의 채택·실패 조건은 아래 캠페인 001/002 절에 역사로 보존한다. 현재 우선순위는
-캠페인 005 뒤의 우선순위는 방향 민감 고오차, clear-text abstention, detector/containment의
-세 축이다.
+세그먼트 없는 방향 민감 고오차, clear-text abstention, detector/containment의 세 축이다.
 
 ## 캠페인 001 · 실험 1 기준선에서 증류한 사실
 
@@ -547,6 +548,48 @@ recognition 위에, 페이지 횡단 세로 mask에서 큰 빈 행 간격 너머
   `regression-campaign-001/geometry-evaluation.json`이다. 실제 이미지가 내장된 보고서는
   `artifacts/font-size-ai-lab/campaign-007/chapter-report.html`이다.
 
+## 캠페인 008 · 낮은 score의 동일 말풍선 fragment 재결합 승격
+
+봉인 화:
+`Rawkuma (JA)/Tada no Murabito no Boku ga, Sanbyakunen Mae no Boukun Ouji ni Tensei shite shimaimashita – Zense no Chishiki de Ansatsu Flag wo Kaihi shite, Odayaka ni Ikinokorimasu!/Chapter 10.2`
+
+- seed `254c2db1d745e4ac42b56e5d7c431cf812a5123f5ba1b02a29038760933acc41`로
+  검사 전에 봉인했다. HayaiOCR CUDA/cu126로 18페이지를 실행하고 전체 오버레이 18/18과
+  최종 일반 텍스트 crop 140/140을 확대 확인했다. 효과음 34개는 사용자 선택 흐름이므로
+  모든 실험·회귀·승격 판정에서 제외했다.
+- v0.7.0 기준선은 141개였다. P015 같은 말풍선에서 `殿下`(`T018`, score `0.857552`)와
+  `ご自分に価値がないなんて思わないでください`(`T016`, score `0.936726`)를 별도
+  문장으로 냈다. raw composite/child mask는 같은 bubble `B007`, bbox 교차, cross-axis
+  overlap `1.0`, mask area ratio 약 `0.16`, mask overlap 약 `0.203`이었다.
+- 실험 2의 mask area ratio `0.35→0.15` 단독 완화와 실험 3의 overlap
+  `0.20→0.25` 추가 완화는 모두 `141→141`, 변경 0이었다. score 문턱 `0.90`에 막힌
+  같은 조합이므로 실패로 봉인하고 다시 실행하지 않는다.
+- 실험 4는 같은 bubble, bbox 교차, cross-axis overlap `>=0.95`, primary-axis separation
+  `>=0.35`를 유지한 채 score를 `0.85`로 내렸다. geometry는 `141→140`, P015 한 건만
+  바뀌고 나머지 17페이지는 exact였다.
+- 실험 5 실제 HayaiOCR은 P015를
+  `殿下ご自分に価値がないなんて思わないでください` 한 블록으로 읽었다. logical bbox는
+  하나지만 원 `recognitionBboxes`와 각 OCR 문자열을 code-owned metadata로 보존한다.
+  이 세그먼트 다수 방향으로 세로를 유지하고 각 raster를 따로 측정해 union 빈 공간 기준
+  `27.557px` 대신 `33.572px`가 됐다. 나머지 matched 139개 bbox/OCR은 exact다.
+- 직전 캠페인 007 실제 회귀에서도 P006 `あっ+あいつ生徒会の...っ`, P017
+  `ひどい...+一体誰がこんな事を!?` 두 건만 올바르게 재결합됐다. 나머지 118개 bbox/OCR은
+  exact다. 특히 P017의 거의 정사각형 union bbox를 가로로 오판한 `42.1442px` 대신 원
+  세로 세그먼트 기준 `28.4233px`가 됐다. 캠페인 006/001 geometry는 v0.7.0에서 승인한
+  변화와 정확히 같아 새 추가 회귀가 없다.
+- 세그먼트 보존은 후보를 새 번역 블록으로 늘리지 않는다. Python producer → 정규화 → 내부
+  request summary → semantic 방향 → geometry lock → source-size estimator 전 경계에서
+  2~8개·부모 bbox 내부·유한 좌표를 모두 검증하고, 하나라도 잘못되면 metadata 전체를
+  버린다. 같은 candidate id의 서로 다른 segment bbox는 각각 한 번만 측정한다.
+- 5/5회 안에 실제 HayaiOCR과 88페이지 현재/과거 회귀에서 명확한 개선이 나왔으므로 수백
+  건 상세 조사 전환 조건은 발생하지 않았다. 제품 경로에 반영하고 내부 minor 버전을
+  `fsai-lab-v0.8.0`으로 올렸다.
+- 권위 결과는 `artifacts/font-size-ai-lab/campaign-008/actual-chapter-parity-r2.json`,
+  `regression-campaign-007-actual-parity-r2.json`,
+  `regression-campaign-006/geometry-evaluation.json`,
+  `regression-campaign-001/geometry-evaluation.json`이다. 실제 이미지 175개가 포함된 보고서는
+  `artifacts/font-size-ai-lab/campaign-008/chapter-report.html`이다.
+
 ## 내부 버전 승격 규칙
 
 - `v0.0.0`: 현재 제품 기준선.
@@ -570,6 +613,7 @@ recognition 위에, 페이지 횡단 세로 mask에서 큰 빈 행 간격 너머
 | `Daisougen…/Chapter 4`     |     2/5 | 좁은 세로 1줄 과분할 2개 복구·과거 776개 추가 변경 없음       | `v0.5.0`  | `artifacts/font-size-ai-lab/campaign-005/chapter-report.html` |
 | `Tada no Murabito…/10.1`   |     3/5 | 동일 말풍선 분할 3개 복원·나머지 158개 exact parity           | `v0.6.0`  | `artifacts/font-size-ai-lab/campaign-006/chapter-report.html` |
 | `Danshi Koukousei…/4`      |     4/5 | 횡단 mask 꼬리 2개 수리·나머지 120개 exact·70페이지 회귀      | `v0.7.0`  | `artifacts/font-size-ai-lab/campaign-007/chapter-report.html` |
+| `Tada no Murabito…/10.2`   |     5/5 | 낮은 score의 동일 말풍선 fragment 1개 복원·직전 화 2개 회귀   | `v0.8.0`  | `artifacts/font-size-ai-lab/campaign-008/chapter-report.html` |
 
 ## 워크트리 링크 주의
 

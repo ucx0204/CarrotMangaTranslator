@@ -63,6 +63,61 @@ describe("OCR bbox pipeline boundaries", () => {
     ]);
   });
 
+  it("preserves only fully contained Hayai recognition segments", () => {
+    const valid = hintsRuntime.normalizeOcrBboxHintPayload(
+      {
+        coordinateSpace: "pixels",
+        width: 1000,
+        height: 1200,
+        items: [
+          {
+            id: 7,
+            label: "text",
+            x1: 400,
+            y1: 100,
+            x2: 600,
+            y2: 800,
+            ocrText: "前半後半",
+            recognitionSegments: [
+              { x1: 500, y1: 100, x2: 560, y2: 300, ocrText: "前半" },
+              { x1: 420, y1: 320, x2: 600, y2: 800, ocrText: "後半" },
+            ],
+          },
+        ],
+      },
+      { imageWidth: 1000, imageHeight: 1200, sourceLanguage: "ja" },
+    );
+    expect(valid[0]?.recognitionSegments).toEqual([
+      { x1: 500, y1: 100, x2: 560, y2: 300, ocrText: "前半" },
+      { x1: 420, y1: 320, x2: 600, y2: 800, ocrText: "後半" },
+    ]);
+
+    const escaped = hintsRuntime.normalizeOcrBboxHintPayload(
+      {
+        coordinateSpace: "pixels",
+        width: 1000,
+        height: 1200,
+        items: [
+          {
+            id: 8,
+            label: "text",
+            x1: 400,
+            y1: 100,
+            x2: 600,
+            y2: 800,
+            ocrText: "前半後半",
+            recognitionSegments: [
+              { x1: 500, y1: 100, x2: 560, y2: 300, ocrText: "前半" },
+              { x1: 420, y1: 320, x2: 602.1, y2: 800, ocrText: "後半" },
+            ],
+          },
+        ],
+      },
+      { imageWidth: 1000, imageHeight: 1200, sourceLanguage: "ja" },
+    );
+    expect(escaped[0]).not.toHaveProperty("recognitionSegments");
+  });
+
   it("caps normalized candidates at the public 80-hint boundary", () => {
     const items = Array.from({ length: 85 }, (_, index) => ({
       x: index * 4,

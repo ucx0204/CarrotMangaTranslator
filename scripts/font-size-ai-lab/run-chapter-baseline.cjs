@@ -98,6 +98,39 @@ function inferDirection(box) {
   return box.y2 - box.y1 > (box.x2 - box.x1) * 1.25 ? "vertical" : "horizontal";
 }
 
+function recognitionSegments(hint, parent) {
+  if (
+    !Array.isArray(hint?.recognitionSegments) ||
+    hint.recognitionSegments.length < 2 ||
+    hint.recognitionSegments.length > 8
+  ) {
+    return [];
+  }
+  const segments = hint.recognitionSegments.flatMap((segment) => {
+    const box = hintBox(segment);
+    if (
+      !box ||
+      box.x1 < parent.x1 - 1 ||
+      box.y1 < parent.y1 - 1 ||
+      box.x2 > parent.x2 + 1 ||
+      box.y2 > parent.y2 + 1
+    ) {
+      return [];
+    }
+    return [{ box, sourceText: String(segment.ocrText ?? "").trim() }];
+  });
+  return segments.length === hint.recognitionSegments.length ? segments : [];
+}
+
+function inferHintDirection(box, segments) {
+  if (segments.length < 2) return inferDirection(box);
+  const vertical = segments.filter(
+    (segment) => inferDirection(segment.box) === "vertical",
+  ).length;
+  if (vertical * 2 === segments.length) return inferDirection(box);
+  return vertical * 2 > segments.length ? "vertical" : "horizontal";
+}
+
 function round(value, digits = 4) {
   if (!Number.isFinite(value)) return null;
   const scale = 10 ** digits;
@@ -313,20 +346,35 @@ async function run(args) {
     const preparedCandidates = hints.flatMap((hint, hintIndex) => {
       const box = hintBox(hint);
       if (!box) return [];
-      const direction = inferDirection(box);
+      const segments = recognitionSegments(hint, box);
+      const direction = inferHintDirection(box, segments);
       const sourceText = String(hint.ocrText ?? hint.text ?? "").trim();
+      const hintId = Number(hint.id) || hintIndex + 1;
       const item = {
         angle: 0,
         bbox: normalizedBbox(box, page),
         confidence: Number(hint.score) || 0,
         direction,
-        id: Number(hint.id) || hintIndex + 1,
+        id: hintId,
         jp: sourceText,
         ko: "검증",
         sourceText,
         textRole: "ordinary",
         translatedText: "검증",
         type: "nonsolid",
+        ...(segments.length
+          ? {
+              sourceFontLineGeometry: {
+                contractVersion: "source-font-line-geometry-v1",
+                source: "ocr-geometry-lock",
+                lines: segments.map((segment) => ({
+                  candidateId: hintId,
+                  bbox: normalizedBbox(segment.box, page),
+                  sourceText: segment.sourceText,
+                })),
+              },
+            }
+          : {}),
       };
       return [{ box, direction, hint, hintIndex, item, sourceText }];
     });

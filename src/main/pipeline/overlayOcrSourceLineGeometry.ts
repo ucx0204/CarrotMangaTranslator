@@ -14,14 +14,72 @@ export type OcrGeometryLockHint = {
   id: number;
   bbox: BBox;
   ocrText?: string;
+  sourceLines?: readonly {
+    bbox: BBox;
+    sourceText: string;
+  }[];
   groupId?: string;
   containerType?: string;
   geometryLocked?: boolean;
 };
 
+type RecognitionSegmentHint = {
+  recognitionSegments?: Array<{
+    x1?: number;
+    y1?: number;
+    x2?: number;
+    y2?: number;
+    ocrText?: string | null;
+  }>;
+};
+
 export function stripSourceFontLineGeometry(item: OverlayItem): OverlayItem {
   const { sourceFontLineGeometry: _untrusted, ...clean } = item;
   return clean;
+}
+
+export function buildRecognitionSourceLines(
+  hint: RecognitionSegmentHint,
+  parent: { x1: number; y1: number; x2: number; y2: number },
+  page: PageSize,
+): OcrGeometryLockHint["sourceLines"] {
+  const values = hint.recognitionSegments;
+  if (!Array.isArray(values) || values.length < 2 || values.length > 8) {
+    return undefined;
+  }
+  const left = Math.min(parent.x1, parent.x2) - 1;
+  const top = Math.min(parent.y1, parent.y2) - 1;
+  const right = Math.max(parent.x1, parent.x2) + 1;
+  const bottom = Math.max(parent.y1, parent.y2) + 1;
+  const lines = values.flatMap((segment) => {
+    const x1 = Number(segment.x1);
+    const y1 = Number(segment.y1);
+    const x2 = Number(segment.x2);
+    const y2 = Number(segment.y2);
+    if (
+      ![x1, y1, x2, y2].every(Number.isFinite) ||
+      x2 <= x1 ||
+      y2 <= y1 ||
+      x1 < left ||
+      y1 < top ||
+      x2 > right ||
+      y2 > bottom
+    ) {
+      return [];
+    }
+    return [
+      {
+        bbox: {
+          x: (x1 / page.width) * 1000,
+          y: (y1 / page.height) * 1000,
+          w: ((x2 - x1) / page.width) * 1000,
+          h: ((y2 - y1) / page.height) * 1000,
+        },
+        sourceText: String(segment.ocrText ?? ""),
+      },
+    ];
+  });
+  return lines.length === values.length ? lines : undefined;
 }
 
 export function attachSourceFontLineGeometry(
@@ -37,11 +95,21 @@ export function attachSourceFontLineGeometry(
     sourceFontLineGeometry: {
       contractVersion: "source-font-line-geometry-v1",
       source: "ocr-geometry-lock",
-      lines: sourceHints.map((hint) => ({
-        candidateId: hint.id,
-        bbox: hint.bbox,
-        sourceText: String(hint.ocrText ?? ""),
-      })),
+      lines: sourceHints.flatMap((hint) =>
+        hint.sourceLines?.length
+          ? hint.sourceLines.map((line) => ({
+              candidateId: hint.id,
+              bbox: line.bbox,
+              sourceText: line.sourceText,
+            }))
+          : [
+              {
+                candidateId: hint.id,
+                bbox: hint.bbox,
+                sourceText: String(hint.ocrText ?? ""),
+              },
+            ],
+      ),
     },
   };
 }

@@ -243,6 +243,44 @@ describe("sound-effect review boundary", () => {
     expect(manifest.diagnostics.dialogueFragmentMerges).toBe(1);
   });
 
+  it("rejoins the smaller 0.85-confidence tail of one vertical balloon sentence", () => {
+    const bubble: Array<[number, number]> = [];
+    const body: Array<[number, number]> = [];
+    const tail: Array<[number, number]> = [];
+    for (let y = 1; y < 19; y += 1) {
+      for (let x = 2; x < 18; x += 1) bubble.push([x, y]);
+    }
+    for (let y = 3; y < 14; y += 1) {
+      for (let x = 8; x < 12; x += 1) body.push([x, y]);
+    }
+    for (let y = 13; y < 18; y += 1) {
+      for (let x = 8; x < 12; x += 1) tail.push([x, y]);
+    }
+
+    const manifest = buildHayaiRegionManifest({
+      imageWidth: 100,
+      imageHeight: 100,
+      detections: [
+        maskedDetection("bubble", 0.99, 20, 20, bubble),
+        maskedDetection("text", 0.9367, 20, 20, body),
+        maskedDetection("text", 0.8576, 20, 20, tail),
+      ],
+    });
+
+    expect(manifest.dialogueRegions).toHaveLength(1);
+    expect(manifest.dialogueRegions[0]?.sourceDetectionIds).toEqual([
+      "T002",
+      "T003",
+    ]);
+    expect(manifest.dialogueRegions[0]?.recognitionBboxes).toHaveLength(2);
+    expect(
+      manifest.dialogueRegions[0]?.recognitionBboxes?.[0]?.[1],
+    ).toBeLessThan(
+      manifest.dialogueRegions[0]?.recognitionBboxes?.[1]?.[1] ?? 0,
+    );
+    expect(manifest.diagnostics.dialogueFragmentMerges).toBe(1);
+  });
+
   it("trims a sub-percent extreme text-mask tail without clipping the dense glyph core", () => {
     const points: Array<[number, number]> = [];
     for (let y = 2; y < 11; y += 1) {

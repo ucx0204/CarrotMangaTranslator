@@ -67,5 +67,7 @@ describe("HayaiOCR managed runner contract", () => {
     expect(runner).toContain(
       '"HayaiOCR dialogue recognition segment escapes its logical bbox."',
     );
+    expect(runner).toContain('hint["recognitionSegments"]');
+    expect(runner).toContain('"ocrText": text_by_index.get(index, "")');
   });
 });
