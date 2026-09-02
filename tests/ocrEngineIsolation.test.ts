@@ -1,3 +1,4 @@
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   resolveOcrBboxProvider as resolveSharedOcrBboxProvider,
@@ -451,26 +452,29 @@ describe("OCR engine runtime isolation", () => {
   });
 
   it("recognizes both short ROCm package roots as managed runtime paths", () => {
-    const pythonDir = "C:/tools/python";
+    const managedRoot = resolve("MGTOCR");
+    const pythonDir = join(managedRoot, "tools", "python");
+    const hayaiRoot = join(managedRoot, "h721");
+    const paddleRoot = join(managedRoot, "r721");
     expect(
       runtimePreparation.isManagedOcrPackagePathLine(
-        "C:/MGTOCR/h721/h",
+        join(hayaiRoot, "h"),
         pythonDir,
-        "C:/MGTOCR/h721",
+        hayaiRoot,
       ),
     ).toBe(true);
     expect(
       runtimePreparation.isManagedOcrPackagePathLine(
-        "C:/MGTOCR/r721/p",
+        join(paddleRoot, "p"),
         pythonDir,
-        "C:/MGTOCR/r721",
+        paddleRoot,
       ),
     ).toBe(true);
     expect(
       runtimePreparation.isManagedOcrPackagePathLine(
-        "C:/unrelated/h",
+        join(resolve("unrelated"), "h"),
         pythonDir,
-        "C:/MGTOCR/h721",
+        hayaiRoot,
       ),
     ).toBe(false);
   });
