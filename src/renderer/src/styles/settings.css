@@ -699,7 +699,6 @@
 .settings-section-header {
   display: grid;
   gap: 4px;
-  margin-bottom: 12px;
 }
 
 .settings-section-header h3 {

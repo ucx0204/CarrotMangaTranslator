@@ -4,6 +4,16 @@
 
 `library`·보관함·원본·출력물은 정리 대상이 아니다. 워크트리 제거 전 외부 정션/심볼릭 링크는 링크 자체만 먼저 분리하고 원본 보존을 확인한 뒤 워크트리를 제거한다. 링크가 연결된 상태로 재귀·강제 제거하지 않는다.
 
+## 지속 가능한 코드와 UI
+
+- 새 helper·component를 작성하기 전에 이름과 의도의 동의어를 `rg`로 검색하고 기존 gateway·domain contract·UI primitive를 우선 사용한다.
+- feature는 다른 feature의 내부 파일을 import하지 않고 barrel export를 만들지 않는다. 의존 방향은 `docs/architecture.md`를 따른다.
+- generic Card, 같은 계층의 nested surface, 새 전역 feature selector를 만들지 않는다. 표면·primitive·접근성 기준은 `docs/ui-design-rules.md`를 따른다.
+- feature 코드의 raw HTML control, UI chrome 색상·z-index 리터럴, 파일 단위 lint disable은 금지한다. 네이티브 입력·캔버스·보호된 main 예외는 명시적 허용 목록, 사유, 테스트가 필요하다.
+- 같은 명령의 여러 진입점은 `AppCommandId`와 command map의 이름·실행 함수를 공유한다.
+- UI 변경은 실제 production component로 넓은/좁은 QA 캡처를 만들고 외부 스크롤·잘림·겹침을 직접 확인한다.
+- 보호 영역의 알고리즘·artifact·데이터 권위는 characterization/parity test 없이 이동·공용화하지 않는다.
+
 ## UI 변경 시 실제 화면 검증
 
 렌더러 UI를 바꾼 뒤 사용자에게 로컬 검증 실행 허락을 묻지 말고 저장소의 자체 QA 도구를 사용한다.

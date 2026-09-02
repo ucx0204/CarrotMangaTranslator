@@ -7,6 +7,7 @@ import {
   fallbackJobLabelFromStatus,
   formatElapsedDuration,
   isEditableTarget,
+  isInteractiveControlTarget,
   regionSelectionToBbox,
   reorderByTarget,
   reorderRecordsByIdOrder,
@@ -51,6 +52,21 @@ describe("renderer app helpers", () => {
     expect(isEditableTarget(input)).toBe(true);
     expect(isEditableTarget(plain)).toBe(false);
     expect(isEditableTarget(editable)).toBe(true);
+  });
+
+  it("distinguishes interactive controls from a focusable workspace surface", () => {
+    const workspace = document.createElement("div");
+    workspace.tabIndex = 0;
+    const tab = document.createElement("button");
+    tab.setAttribute("role", "tab");
+    const customRadio = document.createElement("div");
+    customRadio.setAttribute("role", "radio");
+    workspace.append(tab, customRadio);
+
+    expect(isInteractiveControlTarget(null)).toBe(false);
+    expect(isInteractiveControlTarget(workspace)).toBe(false);
+    expect(isInteractiveControlTarget(tab)).toBe(true);
+    expect(isInteractiveControlTarget(customRadio)).toBe(true);
   });
 
   it("formats every localized elapsed-duration scale", () => {

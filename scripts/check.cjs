@@ -78,6 +78,11 @@ function createStages() {
       join(__dirname, "check-test-mock-boundaries.cjs"),
     ),
     nodeStage("architecture", join(__dirname, "check-architecture.cjs")),
+    nodeStage(
+      "maintainability-policy",
+      join(__dirname, "check-maintainability-policy.cjs"),
+    ),
+    nodeStage("duplicates", join(__dirname, "check-duplicates.cjs")),
     nodeStage("reexports", join(__dirname, "check-reexport-boundaries.cjs")),
     nodeStage("generated", join(__dirname, "check-generated-clean.cjs")),
     nodeStage("css-structure", join(__dirname, "check-css-structure.cjs")),

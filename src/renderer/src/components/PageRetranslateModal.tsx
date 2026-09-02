@@ -4,12 +4,10 @@ import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type { UiSettings } from "../../../shared/settingsTypes";
 import { getBlockModeOptions } from "../lib/blockModeOptions";
 import { OptionRow, ToggleOptionRow } from "./TranslationOptionControls";
-import { Button } from "./ui/Button";
-import { CheckboxField } from "./ui/CheckboxField";
 import { Modal } from "./ui/Modal";
-import { ModalActionBar } from "./ui/ModalActionBar";
 import { TranslationOverwriteWarning } from "./TranslationOverwriteWarning";
 import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
+import { TranslationOptionsActionBar } from "./TranslationOptionsActionBar";
 
 type PageRetranslateModalProps = {
   pageName: string;
@@ -84,11 +82,12 @@ export function PageRetranslateModal({
       maxHeight="900px"
       cardClassName="translation-options-modal"
       footer={
-        <PageRetranslateFooter
+        <TranslationOptionsActionBar
           saveAsDefault={saveAsDefault}
           onCancel={onClose}
           onSaveAsDefaultChange={setSaveAsDefault}
           onStart={handleStart}
+          startLabel={t("retranslate.start")}
         />
       }
     >
@@ -107,40 +106,6 @@ export function PageRetranslateModal({
         tRenderer={tRenderer}
       />
     </Modal>
-  );
-}
-
-function PageRetranslateFooter({
-  saveAsDefault,
-  onCancel,
-  onSaveAsDefaultChange,
-  onStart,
-}: {
-  saveAsDefault: boolean;
-  onCancel: () => void;
-  onSaveAsDefaultChange: (value: boolean) => void;
-  onStart: () => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <ModalActionBar
-      leading={
-        <CheckboxField
-          className="translation-save-defaults"
-          label={t("translationOptions.saveAsDefault")}
-          checked={saveAsDefault}
-          onCheckedChange={onSaveAsDefaultChange}
-        />
-      }
-      actions={
-        <>
-          <Button onClick={onCancel}>{t("common.cancel")}</Button>
-          <Button variant="primary" onClick={onStart}>
-            {t("retranslate.start")}
-          </Button>
-        </>
-      }
-    />
   );
 }
 

@@ -1,7 +1,13 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { EditorColorGroup } from "../src/renderer/src/components/EditorColorGroup";
@@ -57,6 +63,45 @@ describe("color field updates", () => {
     });
     expect(onChange).toHaveBeenCalledOnce();
     expect(onChange).toHaveBeenCalledWith("#abcdef");
+  });
+
+  it("stays finite during sustained native color picker input", () => {
+    const onChange = vi.fn();
+    function ControlledColor(): React.JSX.Element {
+      const [value, setValue] = React.useState("#112233");
+      return (
+        <ColorField
+          label="연속 색상"
+          value={value}
+          disabled={false}
+          onChange={(next) => {
+            onChange(next);
+            setValue(next);
+          }}
+        />
+      );
+    }
+    render(<ControlledColor />);
+
+    const picker = screen.getByLabelText("연속 색상") as HTMLInputElement;
+    const setNativeValue = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    expect(setNativeValue).toBeTypeOf("function");
+
+    expect(() => {
+      act(() => {
+        for (let index = 0; index < 80; index += 1) {
+          setNativeValue?.call(
+            picker,
+            `#${(index + 1).toString(16).padStart(6, "0")}`,
+          );
+          picker.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+    }).not.toThrow();
+    expect(onChange).toHaveBeenCalledTimes(80);
   });
 });
 

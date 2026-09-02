@@ -32,6 +32,14 @@ module.exports = {
       to: { path: "^src/main/libraryStore/" },
     },
     {
+      name: "main-application-does-not-own-adapters-or-entrypoints",
+      severity: "error",
+      from: { path: "^src/main/application/" },
+      to: {
+        path: "^(electron$|src/main/(ipc|jobs|libraryStore|runtime)/)",
+      },
+    },
+    {
       name: "main-ipc-uses-facades-not-runtime-or-pipeline",
       severity: "error",
       from: { path: "^src/main/ipc/" },

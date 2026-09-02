@@ -20,11 +20,11 @@ export function createBlockLibraryProps({
 }
 
 export function createCommandPaletteProps({
-  commands,
+  commandRegistry,
   uiState,
 }: AppSessionViewModel): AppSessionViewProps["commandPaletteProps"] {
   return {
-    commands,
+    commands: commandRegistry.paletteCommands,
     onClose: () => uiState.setCommandPaletteOpen(false),
     open: uiState.commandPaletteOpen,
   };

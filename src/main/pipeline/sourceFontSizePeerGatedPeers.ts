@@ -3,7 +3,7 @@ import {
   median,
   SOURCE_FONT_FACE_SCALE,
   valuePairRatio,
-} from "./sourceFontSizePeerGatedMath";
+} from "./sourceFontSizeMath";
 import type { SourceFontSizeHypothesisCandidate } from "./sourceFontSizePeerGatedTypes";
 
 const MODE_RADIUS_RATIO = 1.18;

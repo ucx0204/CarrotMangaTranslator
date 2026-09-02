@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { CheckboxField } from "./ui/CheckboxField";
 import { SegmentedControl } from "./ui/SegmentedControl";
+import { Section } from "./ui/Section";
 
 export function TranslationOptionSection({
   className,
@@ -12,19 +13,18 @@ export function TranslationOptionSection({
   title: string;
   children: React.ReactNode;
 }): React.JSX.Element {
-  const titleId = React.useId();
   return (
-    <section
+    <Section
+      bodyClassName="translate-options-section-body"
       className={["translate-options-section", className ?? ""]
         .filter(Boolean)
         .join(" ")}
-      aria-labelledby={titleId}
+      density="compact"
+      title={title}
+      titleClassName="translate-options-section-title"
     >
-      <h3 id={titleId} className="translate-options-section-title">
-        {title}
-      </h3>
-      <div className="translate-options-section-body">{children}</div>
-    </section>
+      {children}
+    </Section>
   );
 }
 

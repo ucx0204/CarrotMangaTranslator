@@ -1,12 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmModal } from "./ConfirmModal";
+import { ConditionalBatchFooter } from "./ConditionalBatchFooter";
 import { ConditionalBatchPreviewPane } from "./ConditionalBatchPreviewPane";
 import { ConditionalBatchResultsCard } from "./ConditionalBatchResultsCard";
-import {
-  ConditionalBatchFooter,
-  ConditionalBatchRulePanel,
-} from "./ConditionalBatchRulePanel";
+import { ConditionalBatchRulePanel } from "./ConditionalBatchRulePanel";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import { Modal } from "./ui/Modal";
 import {

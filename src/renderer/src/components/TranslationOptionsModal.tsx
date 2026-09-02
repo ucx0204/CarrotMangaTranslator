@@ -19,13 +19,11 @@ import {
   TranslationCompletionOptions,
   TranslationOptionSection,
 } from "./TranslationOptionControls";
-import { Button } from "./ui/Button";
-import { CheckboxField } from "./ui/CheckboxField";
 import { Modal } from "./ui/Modal";
-import { ModalActionBar } from "./ui/ModalActionBar";
 import { ConfirmModal } from "./ConfirmModal";
 import { TranslationOverwriteWarning } from "./TranslationOverwriteWarning";
 import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
+import { TranslationOptionsActionBar } from "./TranslationOptionsActionBar";
 import {
   type TranslationOptionsFormProps,
   resolveTranslationResumeContext,
@@ -105,13 +103,17 @@ export function TranslationOptionsModal({
         cardClassName="translation-options-modal page-picker-fill-modal"
         bodyClassName="translation-options-modal-body page-picker-fill-modal-body"
         footer={
-          <TranslationOptionsFooter
+          <TranslationOptionsActionBar
             onCancel={onClose}
             onStart={actions.handleStart}
-            hasResumeSelection={state.hasResumeSelection}
             saveAsDefault={actions.saveAsDefault}
             onSaveAsDefaultChange={actions.setSaveAsDefault}
             startDisabled={state.runSelection.length === 0}
+            startLabel={t(
+              state.hasResumeSelection
+                ? "translationOptions.continueSelection"
+                : "translationOptions.startSelection",
+            )}
           />
         }
       >
@@ -212,48 +214,6 @@ function buildTranslationFlowOptions(
     bubbleLayoutWorkflow:
       form.eraseOriginalWorkflow && form.bubbleLayoutWorkflow,
   };
-}
-
-function TranslationOptionsFooter({
-  onCancel,
-  onStart,
-  hasResumeSelection,
-  saveAsDefault,
-  onSaveAsDefaultChange,
-  startDisabled,
-}: {
-  onCancel: () => void;
-  onStart: () => void;
-  hasResumeSelection: boolean;
-  saveAsDefault: boolean;
-  onSaveAsDefaultChange: (value: boolean) => void;
-  startDisabled: boolean;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <ModalActionBar
-      leading={
-        <CheckboxField
-          className="translation-save-defaults"
-          label={t("translationOptions.saveAsDefault")}
-          checked={saveAsDefault}
-          onCheckedChange={onSaveAsDefaultChange}
-        />
-      }
-      actions={
-        <>
-          <Button onClick={onCancel}>{t("common.cancel")}</Button>
-          <Button variant="primary" onClick={onStart} disabled={startDisabled}>
-            {t(
-              hasResumeSelection
-                ? "translationOptions.continueSelection"
-                : "translationOptions.startSelection",
-            )}
-          </Button>
-        </>
-      }
-    />
-  );
 }
 
 function TranslationOptionsForm(

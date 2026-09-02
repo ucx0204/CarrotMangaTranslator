@@ -260,6 +260,7 @@
       "center": "가운데 정렬",
       "right": "오른쪽 정렬"
     },
+    "directionLabel": "쓰기 방향",
     "direction": { "horizontal": "가로", "vertical": "세로" },
     "size": "크기",
     "fontSize": "글자 크기",

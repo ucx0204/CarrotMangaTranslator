@@ -941,11 +941,7 @@ describe("page image export IPC boundary", () => {
       outputDir: "D:\\exports\\result",
       pageCount: 1,
     });
-    expect(service.exportImages).toHaveBeenCalledWith(
-      context,
-      request,
-      "D:\\exports",
-    );
+    expect(service.exportImages).toHaveBeenCalledWith(request, "D:\\exports");
   });
 
   it("returns an explicit cancellation result from an active export", async () => {
@@ -1251,7 +1247,9 @@ function makeContext(dataRoot: string): IpcContext {
 function makeService() {
   return {
     assertIdle: vi.fn<PageImageExportService["assertIdle"]>(),
+    preflight: vi.fn<PageImageExportService["preflight"]>(),
     exportImages: vi.fn<PageImageExportService["exportImages"]>(),
+    exportPsd: vi.fn<PageImageExportService["exportPsd"]>(),
   };
 }
 

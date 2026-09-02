@@ -145,9 +145,12 @@ editing the totals by hand.
   `7a75b9bd95702b3a375c698b981e343dbea0fca572480878a944b5db334249c1`.
   The source-font geometry consensus refactor extended it to SHA-256
   `1ded580fa63aba7eac00079016878b8b4ec5d825f8c6e75c8077690337d9549f`.
+  The clean-architecture and UI-consistency merge, source-font pure-math
+  deduplication, and interactive-control shortcut guard extended it to SHA-256
+  `f36bd2c799eca48f505d4fcc90799a605be4858fa61c8601695bbc0fdf34d37b`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 649 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 332 new
+  percentage for lines/statements/functions/branches in all 654 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 370 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   ten removed source files are recorded explicitly in `deletedFiles`.
@@ -159,6 +162,22 @@ editing the totals by hand.
   Vitest files: 4,942 tests passed and ten expected tests were skipped.
   Aggregate V8 coverage was 81.28% lines, 79.97% statements, 82.48% functions,
   and 72.40% branches.
+- The final clean-architecture/UI integration capture passed all 630 Vitest
+  files: 5,025 tests passed and two platform-specific tests were skipped.
+  Aggregate V8 coverage was 81.42% lines, 80.10% statements, 82.72% functions,
+  and 72.56% branches.
+- Isolated production Electron QA exercised 100 conditional-batch combinations
+  across 61 condition fields and four apply/undo persistence sequences. Editor
+  stress covered multi/range selection, 64 formatting mutations, 75 rapid tab
+  changes, 72 native color events, focus trapping/restoration, IME, empty,
+  emoji, RTL, multiline and 2,400-character text, rapid viewport changes, and
+  200% reflow. Korean, English, Japanese, and empty-library production surfaces
+  were captured at 1600x980 and 1240x760 for the editor, Settings, Gather,
+  Conditional Batch, inpainting, and Work Center. The runs produced no renderer
+  exception, main-process fatal error, or horizontal overflow. They also exposed
+  and sealed a capture-phase shortcut bug where unmodified arrow keys on focused
+  ARIA controls could navigate pages or nudge selected blocks instead of moving
+  within the control.
 - `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,
   added, deleted, and untracked source scope from Git on every run. A missing or
   stale manifest entry, unrecorded deletion, unsupported source status, missing

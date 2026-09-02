@@ -1,6 +1,6 @@
 import { type Dispatch, type SetStateAction } from "react";
 import type { ChapterSnapshot } from "../../../../shared/libraryTypes";
-import type { Command } from "../../lib/appCommandTypes";
+import type { AppCommandRegistry } from "../../lib/appCommandTypes";
 import { useAppCommands } from "../../hooks/useAppCommands";
 
 type UseAppSessionCommandControllerArgs = {
@@ -43,7 +43,7 @@ export function useAppSessionCommandController({
   setShowTextBlocks,
   openTranslateOptions,
   setTranslationSourceOpen,
-}: UseAppSessionCommandControllerArgs): Command[] {
+}: UseAppSessionCommandControllerArgs): AppCommandRegistry {
   return useAppCommands({
     cancelJob,
     currentChapter,

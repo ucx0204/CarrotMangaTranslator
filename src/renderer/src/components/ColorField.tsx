@@ -19,33 +19,24 @@ export function ColorField({
 }: ColorFieldProps): React.JSX.Element {
   const normalizedValue = normalizeHexColor(value) ?? "#000000";
   const canonicalDraft = normalizedValue.toUpperCase();
-  const [draft, setDraft] = React.useState(canonicalDraft);
-  React.useEffect(() => {
-    setDraft((current) =>
-      current === canonicalDraft ? current : canonicalDraft,
-    );
-  }, [canonicalDraft]);
+  const [draft, setDraft] = React.useState<string | null>(null);
+  const displayedDraft = draft ?? canonicalDraft;
 
   const publishValidDraft = (nextDraft: string): boolean => {
     const next = normalizeHexColor(nextDraft);
     if (!next) return false;
-    const nextCanonicalDraft = next.toUpperCase();
-    setDraft((current) =>
-      current === nextCanonicalDraft ? current : nextCanonicalDraft,
-    );
     if (next !== normalizedValue) onChange(next);
     return true;
   };
 
   const changeDraft = (nextDraft: string): void => {
     const upperDraft = nextDraft.toUpperCase();
-    setDraft((current) => (current === upperDraft ? current : upperDraft));
-    const next = normalizeHexColor(nextDraft);
-    if (next && next !== normalizedValue) onChange(next);
+    setDraft(upperDraft);
+    publishValidDraft(upperDraft);
   };
 
   return (
-    <label className={["color-field", className].filter(Boolean).join(" ")}>
+    <div className={["color-field", className].filter(Boolean).join(" ")}>
       <span className={labelHidden ? "visually-hidden" : "color-field-label"}>
         {label}
       </span>
@@ -71,22 +62,22 @@ export function ColorField({
           inputMode="text"
           maxLength={7}
           spellCheck={false}
-          value={draft}
+          value={displayedDraft}
           disabled={disabled}
           aria-label={`${label} HEX`}
           onChange={(event) => changeDraft(event.target.value)}
           onBlur={() => {
-            if (!publishValidDraft(draft)) setDraft(canonicalDraft);
+            publishValidDraft(displayedDraft);
+            if (draft !== null) setDraft(null);
           }}
           onKeyDown={(event) => {
             if (event.key !== "Enter") return;
             event.preventDefault();
-            if (!publishValidDraft(draft)) setDraft(canonicalDraft);
             event.currentTarget.blur();
           }}
         />
       </span>
-    </label>
+    </div>
   );
 }
 

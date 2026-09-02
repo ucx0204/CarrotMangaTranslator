@@ -1,9 +1,36 @@
 {
-  "defaultMaxImports": 25,
+  "defaultMaxRuntimeImports": 12,
   "defaultMaxImportedBy": 25,
+  "legacyMaxRuntimeImports": {
+    "src/shared/ipcSettingsSchemas.ts": 13,
+    "src/main/inpainting.ts": 16,
+    "src/main/ipc/importPreviewIpc.ts": 13,
+    "src/main/ipc/settingsModelTestIpc.ts": 13,
+    "src/main/jobs/soundEffectTranslationJobRunner.ts": 14,
+    "src/main/libraryStore/importWorkflow.ts": 13,
+    "src/main/libraryStore/shareImportMaterialize.ts": 13,
+    "src/main/libraryStore/shareWorkflow.ts": 13,
+    "src/main/pipeline/fontMatchingPagePixelInference.ts": 18,
+    "src/main/pipeline/pageResultBuilder.ts": 18,
+    "src/main/runtime/ocr/managed-python.cjs": 13,
+    "src/main/runtime/transport/llama-server-process.cjs": 18,
+    "src/main/settings/appSettingsDefaults.ts": 14,
+    "src/main/settings/appSettingsNormalize.ts": 17,
+    "src/main/wholePagePipeline.ts": 22,
+    "src/main/workContextAnalysis.ts": 16,
+    "src/main/workContextResearch.ts": 14,
+    "src/renderer/src/app/session/useChapterSessionController.ts": 17,
+    "src/renderer/src/app/useAppSessionModel.ts": 14,
+    "src/renderer/src/components/ConditionalBatchActionCard.tsx": 13
+  },
   "allow": {
     "src/main/index.ts": {
-      "maxImports": 31
+      "maxRuntimeImports": 30,
+      "reason": "Electron main composition root"
+    },
+    "src/main/ipc/registerIpc.ts": {
+      "maxRuntimeImports": 23,
+      "reason": "IPC composition root"
     },
     "src/main/logger.ts": {
       "maxImportedBy": 29
@@ -11,29 +38,87 @@
     "src/main/libraryStore/storage.ts": {
       "maxImportedBy": 26
     },
-    "src/shared/geometry.ts": {
-      "maxImportedBy": 31
+    "src/main/runtime/simple-page-ocr-bbox-pipeline.cjs": {
+      "maxRuntimeImports": 20,
+      "reason": "Isolated OCR runtime composition root"
     },
-    "src/renderer/src/app/session/appSessionViewModel.ts": {
-      "maxImports": 26
+    "src/main/runtime/transport/translation-request.cjs": {
+      "maxRuntimeImports": 21,
+      "reason": "Isolated translation runtime composition root"
+    },
+    "src/renderer/src/app/session/AppSessionView.tsx": {
+      "maxRuntimeImports": 25,
+      "reason": "Renderer session composition view"
+    },
+    "src/renderer/src/app/session/createAppSessionViewProps.ts": {
+      "maxRuntimeImports": 14,
+      "reason": "Renderer session composition mapper"
+    },
+    "src/renderer/src/components/settingsModal/SettingsModalView.tsx": {
+      "maxRuntimeImports": 16,
+      "reason": "Settings feature composition view"
     },
     "src/renderer/src/components/ui/Button.tsx": {
-      "maxImportedBy": 44
+      "publicPrimitive": true,
+      "reason": "Shared button primitive; broad reuse is intentional"
     },
     "src/renderer/src/components/ui/CheckboxField.tsx": {
-      "maxImportedBy": 30
+      "publicPrimitive": true,
+      "reason": "Shared checkbox primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/Field.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared field primitive; broad reuse is intentional"
     },
     "src/renderer/src/components/ui/IconButton.tsx": {
-      "maxImportedBy": 32
+      "publicPrimitive": true,
+      "reason": "Shared icon button primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/MenuSurface.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared accessible menu surface; broad reuse is intentional"
     },
     "src/renderer/src/components/ui/Modal.tsx": {
-      "maxImportedBy": 29
+      "publicPrimitive": true,
+      "reason": "Shared modal primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/NumberField.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared numeric field primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/Section.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared flat section primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/SegmentedControl.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared segmented control primitive; broad reuse is intentional"
     },
     "src/renderer/src/components/ui/Select.tsx": {
-      "maxImportedBy": 25
+      "publicPrimitive": true,
+      "reason": "Shared select primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/Tabs.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared tabs primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/icons.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared icon primitive vocabulary; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/usePopupController.ts": {
+      "publicPrimitive": true,
+      "reason": "Shared popup behavior authority; broad reuse is intentional"
     },
     "src/renderer/src/lib/errorPresentation.ts": {
       "maxImportedBy": 27
+    },
+    "src/shared/geometry.ts": {
+      "maxImportedBy": 31
+    },
+    "src/shared/ipcSchemaPrimitives.ts": {
+      "maxRuntimeImports": 15,
+      "reason": "Shared IPC schema primitive authority"
     }
   }
 }

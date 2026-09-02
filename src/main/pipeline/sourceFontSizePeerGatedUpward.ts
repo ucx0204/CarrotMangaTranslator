@@ -1,14 +1,13 @@
-import type {
-  SourceFontSizeHypothesisCandidate,
-  SourceFontSizeHypothesisTrial,
-} from "./sourceFontSizePeerGatedTypes";
+import type { SourceFontSizeHypothesisCandidate } from "./sourceFontSizePeerGatedTypes";
+import { createMajorBandHypothesisPoints } from "./sourceFontSizeHypothesisPoints";
 import {
   clamp,
   maximumLineCount,
   mean,
   SOURCE_FONT_FACE_SCALE,
   valuePairRatio,
-} from "./sourceFontSizePeerGatedMath";
+  weightedMedianFace,
+} from "./sourceFontSizeMath";
 
 const UPWARD_MODE_RADIUS_RATIO = 1.14;
 const UPWARD_MINIMUM_COMPONENT_MASS_SHARE = 0.5;
@@ -91,7 +90,7 @@ function collectUpwardHypothesisPoints(
         weight: trial.component.confidence * massWeight,
       });
     }
-    points.push(...majorBandPoints(trial));
+    points.push(...createMajorBandHypothesisPoints(trial));
   }
   return points.filter(
     (point) =>
@@ -125,7 +124,7 @@ function describeUpwardFaceMode(
   ) {
     return null;
   }
-  const facePx = weightedMedian(members);
+  const facePx = weightedMedianFace(members);
   if (facePx === null) return null;
   const upwardRatio = facePx / candidate.baseline.facePx;
   const modeToPeer = facePx / peerCenter;
@@ -157,35 +156,6 @@ function describeUpwardFaceMode(
       logDispersion,
     totalWeight,
   };
-}
-
-function majorBandPoints(
-  trial: SourceFontSizeHypothesisTrial,
-): UpwardHypothesisPoint[] {
-  const measurement = trial.majorPitch;
-  if (!measurement?.bandFaces.length) return [];
-  const weight =
-    measurement.confidence / Math.sqrt(measurement.bandFaces.length);
-  return measurement.bandFaces.map((face) => ({
-    confidence: measurement.confidence,
-    face: face * SOURCE_FONT_FACE_SCALE,
-    lineCount: trial.lineCount,
-    source: "major-band",
-    weight,
-  }));
-}
-
-function weightedMedian(
-  points: readonly UpwardHypothesisPoint[],
-): number | null {
-  const sorted = [...points].sort((left, right) => left.face - right.face);
-  const totalWeight = sorted.reduce((sum, point) => sum + point.weight, 0);
-  let running = 0;
-  for (const point of sorted) {
-    running += point.weight;
-    if (running >= totalWeight / 2) return point.face;
-  }
-  return sorted.at(-1)?.face ?? null;
 }
 
 function compareUpwardFaceModes(

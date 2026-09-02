@@ -8,6 +8,13 @@ import type {
   SourceFontSizeEstimate,
   SourceFontSizeGeometryOptions,
 } from "./sourceFontSizeGeometryTypes";
+import {
+  clamp,
+  estimateLineCount,
+  median,
+  relativeDispersion,
+  SOURCE_FONT_FACE_SCALE,
+} from "./sourceFontSizeMath";
 import type { SourceFontCoreMask } from "./sourceFontSizeRaster";
 import { measureLineFaces } from "./sourceFontSizeProjection";
 
@@ -17,7 +24,6 @@ const CORRECTION_COEFFICIENTS = [
   0.010149604, -0.003390012, -0.01587488, 0.014583797,
 ] as const;
 const LEARNED_CORRECTION_BLEND = 0.35;
-const SOURCE_FACE_SCALE = 1.02;
 const COMPONENT_STRONG_DISAGREEMENT_CONFIDENCE = 0.62;
 const COMPONENT_STRONG_DISAGREEMENT_MIN = 0.68;
 const COMPONENT_STRONG_DISAGREEMENT_MAX = 1.47;
@@ -240,7 +246,7 @@ function resolveCorrectedProjectionFace(
   let facePx = clamp(
     rawFace *
       Math.exp(correction * LEARNED_CORRECTION_BLEND) *
-      SOURCE_FACE_SCALE,
+      SOURCE_FONT_FACE_SCALE,
     1,
     512,
   );
@@ -256,7 +262,7 @@ function resolveCorrectedProjectionFace(
 }
 
 function blendComponentFace(facePx: number, componentFacePx: number): number {
-  const componentFace = componentFacePx * SOURCE_FACE_SCALE;
+  const componentFace = componentFacePx * SOURCE_FONT_FACE_SCALE;
   return clamp(
     Math.exp(
       Math.log(Math.max(1, facePx)) * (1 - COMPONENT_FACE_BLEND) +
@@ -302,26 +308,6 @@ function isReliableMeasurement(input: {
   );
 }
 
-function estimateLineCount(
-  glyphCount: number,
-  cross: number,
-  major: number,
-): number {
-  if (glyphCount <= 1 || cross <= 0 || major <= 0) return 1;
-  const estimate = Math.sqrt((glyphCount * cross) / major);
-  const maximum = Math.max(1, Math.min(12, Math.ceil(glyphCount / 2)));
-  return clamp(Math.round(estimate), 1, maximum);
-}
-
-function relativeDispersion(values: readonly number[]): number {
-  if (values.length < 2) return 0;
-  const center = median(values);
-  return (
-    median(values.map((value) => Math.abs(value - center))) /
-    Math.max(1, center)
-  );
-}
-
 function resolveConfidence(input: {
   agreement: number;
   dispersion: number;
@@ -338,16 +324,4 @@ function resolveConfidence(input: {
     0.5,
     0.94,
   );
-}
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2
-    ? (sorted[middle] ?? 0)
-    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
 }

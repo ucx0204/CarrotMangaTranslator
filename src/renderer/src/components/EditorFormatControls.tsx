@@ -10,6 +10,7 @@ import { FormatBatchApplyModal } from "./FormatBatchApplyModal";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import { Button } from "./ui/Button";
 import { IconButton } from "./ui/IconButton";
+import { SegmentedControl } from "./ui/SegmentedControl";
 import { TextWrappingSelect } from "./TextWrappingSelect";
 import {
   AlignCenterIcon,
@@ -195,12 +196,14 @@ function TextEmphasisButtons({
 }: BlockSectionProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className="format-emphasis-control">
-      <span className="format-toolbar-label">
-        {t("format.blockStyle", { defaultValue: "블록 전체" })}
-      </span>
+    <div
+      className="format-emphasis-control"
+      role="group"
+      aria-label={t("format.blockStyle", { defaultValue: "블록 전체" })}
+    >
       <div className="block-style-group">
         <IconButton
+          size="sm"
           label={t("format.blockBold", { defaultValue: "블록 전체 굵게" })}
           aria-pressed={Boolean(block.bold)}
           disabled={disabled}
@@ -209,6 +212,7 @@ function TextEmphasisButtons({
           <BoldIcon size={18} />
         </IconButton>
         <IconButton
+          size="sm"
           label={t("format.blockItalic", {
             defaultValue: "블록 전체 기울임",
           })}
@@ -219,6 +223,7 @@ function TextEmphasisButtons({
           <ItalicIcon size={18} />
         </IconButton>
         <IconButton
+          size="sm"
           label={t("format.blockUnderline", {
             defaultValue: "블록 전체 밑줄",
           })}
@@ -229,6 +234,7 @@ function TextEmphasisButtons({
           <UnderlineIcon size={18} />
         </IconButton>
         <IconButton
+          size="sm"
           label={t("format.blockStrikethrough", {
             defaultValue: "블록 전체 취소선",
           })}
@@ -239,6 +245,7 @@ function TextEmphasisButtons({
           <StrikethroughIcon size={18} />
         </IconButton>
         <IconButton
+          size="sm"
           label={t("format.blockEmphasisMark", {
             defaultValue: "블록 전체 강조점",
           })}
@@ -262,6 +269,7 @@ function TextAlignButtons({
   return (
     <div className="block-style-group">
       <IconButton
+        size="sm"
         label={t("format.align.left")}
         title={t("format.align.left")}
         aria-pressed={block.textAlign === "left"}
@@ -271,6 +279,7 @@ function TextAlignButtons({
         <AlignLeftIcon size={18} />
       </IconButton>
       <IconButton
+        size="sm"
         label={t("format.align.center")}
         title={t("format.align.center")}
         aria-pressed={block.textAlign === "center"}
@@ -280,6 +289,7 @@ function TextAlignButtons({
         <AlignCenterIcon size={18} />
       </IconButton>
       <IconButton
+        size="sm"
         label={t("format.align.right")}
         title={t("format.align.right")}
         aria-pressed={block.textAlign === "right"}
@@ -303,24 +313,18 @@ function DirectionToggle({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className="dir-toggle">
-      <button
-        type="button"
-        aria-pressed={renderDirection === "horizontal"}
-        disabled={disabled}
-        onClick={() => onUpdate({ renderDirection: "horizontal" })}
-      >
-        {t("format.direction.horizontal")}
-      </button>
-      <button
-        type="button"
-        aria-pressed={renderDirection === "vertical"}
-        disabled={disabled}
-        onClick={() => onUpdate({ renderDirection: "vertical" })}
-      >
-        {t("format.direction.vertical")}
-      </button>
-    </div>
+    <SegmentedControl
+      ariaLabel={t("format.directionLabel")}
+      className="editor-direction-toggle"
+      disabled={disabled}
+      singleRow
+      options={[
+        { id: "horizontal", label: t("format.direction.horizontal") },
+        { id: "vertical", label: t("format.direction.vertical") },
+      ]}
+      value={renderDirection}
+      onChange={(nextDirection) => onUpdate({ renderDirection: nextDirection })}
+    />
   );
 }
 
