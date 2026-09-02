@@ -6,6 +6,7 @@ import {
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import { Button } from "./ui/Button";
 import { IconButton } from "./ui/IconButton";
 import { CopyIcon, TrashIcon } from "./ui/icons";
 import { MenuSurface } from "./ui/MenuSurface";
@@ -223,17 +224,18 @@ export function EmptyEditorPanel({
   return (
     <section className="editor-panel muted">
       <EditorPanelHeader actions={headerActions} excluded={false} />
-      <button
+      <Button
         className={`area-translate-button ${areaTranslateSelecting ? "active" : ""}`}
         disabled={disabled || !areaTranslateAvailable}
         onClick={onStartAreaTranslate}
+        variant="primary"
       >
         {t(
           areaTranslateSelecting
             ? "areaTranslation.cancelSelection"
             : "areaTranslation.title",
         )}
-      </button>
+      </Button>
     </section>
   );
 }

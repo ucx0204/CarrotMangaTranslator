@@ -113,6 +113,7 @@ function evaluateModuleBudget(moduleInfo, runtimeDependentCounts) {
     legacyMaxRuntimeImports ??
     baseline.defaultMaxRuntimeImports;
   const maxImportedBy = allow.maxImportedBy ?? baseline.defaultMaxImportedBy;
+  const publicPrimitive = allow.publicPrimitive === true;
   const runtimeImports = (moduleInfo.dependencies ?? []).filter(
     isRuntimeDependency,
   ).length;
@@ -125,7 +126,7 @@ function evaluateModuleBudget(moduleInfo, runtimeDependentCounts) {
       `${source}: runtimeImports ${runtimeImports} exceeds budget ${maxRuntimeImports}`,
     );
   }
-  if (runtimeImportedBy > maxImportedBy) {
+  if (!publicPrimitive && runtimeImportedBy > maxImportedBy) {
     violations.push(
       `${source}: runtimeImportedBy ${runtimeImportedBy} exceeds budget ${maxImportedBy}`,
     );
@@ -147,6 +148,7 @@ function evaluateModuleBudget(moduleInfo, runtimeDependentCounts) {
     );
   }
   if (
+    !publicPrimitive &&
     allow.maxImportedBy !== undefined &&
     runtimeImportedBy < allow.maxImportedBy
   ) {

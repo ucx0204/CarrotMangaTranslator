@@ -186,7 +186,7 @@
       "textarea": 0
     },
     "src/renderer/src/components/EditorPanelChrome.tsx": {
-      "button": 5,
+      "button": 4,
       "input": 0,
       "select": 0,
       "textarea": 0
@@ -282,12 +282,6 @@
       "textarea": 0
     },
     "src/renderer/src/components/OverlayTransformControls.tsx": {
-      "button": 1,
-      "input": 0,
-      "select": 0,
-      "textarea": 0
-    },
-    "src/renderer/src/components/PageBlockListPanel.tsx": {
       "button": 1,
       "input": 0,
       "select": 0,
@@ -648,7 +642,7 @@
       "numericZIndexes": 0
     },
     "src/renderer/src/components/ConditionalBatchEditor.module.css": {
-      "literalColors": 2,
+      "literalColors": 0,
       "numericZIndexes": 3
     },
     "src/renderer/src/components/ErrorReportDialog.module.css": {
@@ -712,11 +706,11 @@
       "numericZIndexes": 0
     },
     "src/renderer/src/styles/shell-workspace.css": {
-      "literalColors": 45,
+      "literalColors": 42,
       "numericZIndexes": 0
     },
     "src/renderer/src/styles/stage-overlay.css": {
-      "literalColors": 107,
+      "literalColors": 105,
       "numericZIndexes": 3
     },
     "src/renderer/src/styles/style-guide.css": {

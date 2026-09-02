@@ -8285,6 +8285,28 @@
         "pct": 85.71
       }
     },
+    "src/renderer/src/components/PageBlockListPanel.tsx": {
+      "lines": {
+        "covered": 31,
+        "total": 43,
+        "pct": 72.09
+      },
+      "statements": {
+        "covered": 35,
+        "total": 51,
+        "pct": 68.62
+      },
+      "functions": {
+        "covered": 12,
+        "total": 18,
+        "pct": 66.66
+      },
+      "branches": {
+        "covered": 20,
+        "total": 38,
+        "pct": 52.63
+      }
+    },
     "src/renderer/src/components/PageList.tsx": {
       "lines": {
         "covered": 18,

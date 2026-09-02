@@ -103,6 +103,28 @@ describe("workspace chrome CSS", () => {
     expect(rightToolbar).toContain("right: 10px");
     expect(rightToolbar).toContain("position: absolute");
   });
+
+  it("keeps docked rail groups flat on their owning rail surface", () => {
+    const dockedGroups = rule(shellCss, ".sidebar > .library-panel,");
+    expect(dockedGroups).toContain("border: 0");
+    expect(dockedGroups).toContain("background: transparent");
+    expect(dockedGroups).toContain("box-shadow: none");
+
+    const dividedGroups = rule(
+      shellCss,
+      ".right-rail > .page-block-list-panel,",
+    );
+    expect(dividedGroups).toContain(
+      "border-top: 1px solid var(--surface-border)",
+    );
+    expect(shellCss).not.toContain("background: #0c0d10");
+    expect(rule(shellCss, ".app-shell")).toContain(
+      "background: var(--surface-app-shell)",
+    );
+    expect(rule(shellCss, ".workspace {")).toContain(
+      "background: var(--surface-workspace)",
+    );
+  });
 });
 
 function rule(css: string, selector: string): string {

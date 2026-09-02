@@ -60,16 +60,52 @@
       "reason": "Settings feature composition view"
     },
     "src/renderer/src/components/ui/Button.tsx": {
-      "maxImportedBy": 44
+      "publicPrimitive": true,
+      "reason": "Shared button primitive; broad reuse is intentional"
     },
     "src/renderer/src/components/ui/CheckboxField.tsx": {
-      "maxImportedBy": 30
+      "publicPrimitive": true,
+      "reason": "Shared checkbox primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/Field.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared field primitive; broad reuse is intentional"
     },
     "src/renderer/src/components/ui/IconButton.tsx": {
-      "maxImportedBy": 32
+      "publicPrimitive": true,
+      "reason": "Shared icon button primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/MenuSurface.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared accessible menu surface; broad reuse is intentional"
     },
     "src/renderer/src/components/ui/Modal.tsx": {
-      "maxImportedBy": 29
+      "publicPrimitive": true,
+      "reason": "Shared modal primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/NumberField.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared numeric field primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/Section.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared flat section primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/SegmentedControl.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared segmented control primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/Select.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared select primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/Tabs.tsx": {
+      "publicPrimitive": true,
+      "reason": "Shared tabs primitive; broad reuse is intentional"
+    },
+    "src/renderer/src/components/ui/usePopupController.ts": {
+      "publicPrimitive": true,
+      "reason": "Shared popup behavior authority; broad reuse is intentional"
     },
     "src/renderer/src/lib/errorPresentation.ts": {
       "maxImportedBy": 27
