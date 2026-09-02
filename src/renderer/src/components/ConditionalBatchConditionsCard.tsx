@@ -2,8 +2,6 @@
 import {
   IconArrowDown,
   IconArrowUp,
-  IconChevronDown,
-  IconChevronRight,
   IconCopy,
   IconPlus,
   IconTrash,
@@ -32,7 +30,12 @@ import {
   listConditionalBatchFields,
   summarizeCondition,
 } from "./conditionalBatchUi";
-import { Button, CheckboxField, Select } from "./ConditionalBatchControls";
+import {
+  Button,
+  CheckboxField,
+  ConditionalBatchCollapsibleCard,
+  Select,
+} from "./ConditionalBatchControls";
 import { FontSelect } from "./FontSelect";
 import { useFonts } from "../fonts/useFonts";
 import { Field, TextField } from "./ui/Field";
@@ -97,100 +100,77 @@ export function ConditionalBatchConditionsCard(
     );
   };
   return (
-    <section className={styles.ruleCard} data-expanded={props.expanded}>
-      <button
-        type="button"
-        className={styles.cardToggle}
-        aria-expanded={props.expanded}
-        onClick={props.onToggle}
-      >
-        {props.expanded ? (
-          <IconChevronDown size={17} />
-        ) : (
-          <IconChevronRight size={17} />
-        )}
-        <span>
-          <strong>대상 조건</strong>
-          {!props.expanded ? (
-            <small>
-              {props.draft.match.mode === "allBlocks"
-                ? "모든 말풍선"
-                : `${props.draft.match.mode === "all" ? "모두" : "하나라도"} · ${conditionCount}개`}
-            </small>
-          ) : null}
-        </span>
-      </button>
-      {props.expanded ? (
-        <div className={styles.cardBody}>
-          <SegmentedControl
-            ariaLabel="조건 결합 방식"
-            options={[
-              { id: "all", label: "모두 맞을 때" },
-              { id: "any", label: "하나라도 맞을 때" },
-              { id: "allBlocks", label: "모든 말풍선" },
-            ]}
-            value={props.draft.match.mode}
-            onChange={actions.changeMode}
-          />
-          {props.draft.match.mode === "allBlocks" ? null : (
-            <>
-              <div className={styles.conditionList}>
-                {props.draft.match.conditions.map((condition, index) => (
-                  <ConditionCard
-                    key={condition.id}
-                    condition={condition}
-                    currentResult={props.currentResult}
-                    expanded={activeId === condition.id}
-                    index={index}
-                    total={props.draft.match.conditions.length}
-                    canDuplicate={
-                      conditionCount < MAX_CONDITIONAL_BATCH_CONDITIONS
-                    }
-                    canRemove={conditionCount > 1}
-                    onChange={(next) =>
-                      actions.updateCondition(condition.id, next)
-                    }
-                    onDuplicate={() => actions.duplicateCondition(condition.id)}
-                    onExpand={() => setActiveId(condition.id)}
-                    onMove={(offset) =>
-                      actions.moveCondition(condition.id, offset)
-                    }
-                    onRemove={() => actions.removeCondition(condition.id)}
-                  />
-                ))}
-                {props.draft.match.groups.map((group) => (
-                  <ConditionGroupCard
-                    key={group.id}
-                    currentResult={props.currentResult}
-                    group={group}
-                    activeId={activeId}
-                    canAdd={conditionCount < MAX_CONDITIONAL_BATCH_CONDITIONS}
-                    onActiveIdChange={setActiveId}
-                    onAddCondition={(field) => addField(field, group.id)}
-                    onChange={(next) => actions.updateGroup(group.id, next)}
-                    onRemove={() => actions.removeGroup(group.id)}
-                  />
-                ))}
-              </div>
-              <FieldPicker
-                disabled={conditionCount >= MAX_CONDITIONAL_BATCH_CONDITIONS}
-                recentFields={recentFields}
-                onAdd={addField}
+    <ConditionalBatchCollapsibleCard
+      expanded={props.expanded}
+      onToggle={props.onToggle}
+      title="대상 조건"
+      summary={
+        props.draft.match.mode === "allBlocks"
+          ? "모든 말풍선"
+          : `${props.draft.match.mode === "all" ? "모두" : "하나라도"} · ${conditionCount}개`
+      }
+    >
+      <SegmentedControl
+        ariaLabel="조건 결합 방식"
+        options={[
+          { id: "all", label: "모두 맞을 때" },
+          { id: "any", label: "하나라도 맞을 때" },
+          { id: "allBlocks", label: "모든 말풍선" },
+        ]}
+        value={props.draft.match.mode}
+        onChange={actions.changeMode}
+      />
+      {props.draft.match.mode === "allBlocks" ? null : (
+        <>
+          <div className={styles.conditionList}>
+            {props.draft.match.conditions.map((condition, index) => (
+              <ConditionCard
+                key={condition.id}
+                condition={condition}
+                currentResult={props.currentResult}
+                expanded={activeId === condition.id}
+                index={index}
+                total={props.draft.match.conditions.length}
+                canDuplicate={conditionCount < MAX_CONDITIONAL_BATCH_CONDITIONS}
+                canRemove={conditionCount > 1}
+                onChange={(next) => actions.updateCondition(condition.id, next)}
+                onDuplicate={() => actions.duplicateCondition(condition.id)}
+                onExpand={() => setActiveId(condition.id)}
+                onMove={(offset) => actions.moveCondition(condition.id, offset)}
+                onRemove={() => actions.removeCondition(condition.id)}
               />
-              <Button
-                size="sm"
-                variant="ghost"
-                iconLeft={<IconPlus size={15} />}
-                disabled={conditionCount >= MAX_CONDITIONAL_BATCH_CONDITIONS}
-                onClick={actions.addGroup}
-              >
-                조건 그룹 추가
-              </Button>
-            </>
-          )}
-        </div>
-      ) : null}
-    </section>
+            ))}
+            {props.draft.match.groups.map((group) => (
+              <ConditionGroupCard
+                key={group.id}
+                currentResult={props.currentResult}
+                group={group}
+                activeId={activeId}
+                canAdd={conditionCount < MAX_CONDITIONAL_BATCH_CONDITIONS}
+                onActiveIdChange={setActiveId}
+                onAddCondition={(field) => addField(field, group.id)}
+                onChange={(next) => actions.updateGroup(group.id, next)}
+                onRemove={() => actions.removeGroup(group.id)}
+              />
+            ))}
+          </div>
+          <FieldPicker
+            disabled={conditionCount >= MAX_CONDITIONAL_BATCH_CONDITIONS}
+            recentFields={recentFields}
+            onAdd={addField}
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            iconLeft={<IconPlus size={15} />}
+            disabled={conditionCount >= MAX_CONDITIONAL_BATCH_CONDITIONS}
+            onClick={actions.addGroup}
+          >
+            조건 그룹 추가
+          </Button>
+        </>
+      )}
+    </ConditionalBatchCollapsibleCard>
   );
 }
 

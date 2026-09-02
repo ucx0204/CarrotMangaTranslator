@@ -329,10 +329,17 @@
 }
 
 .panel-window {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
   height: 100vh;
-  overflow-y: auto;
+  overflow: hidden;
   padding: var(--sp-5);
   background: var(--surface-rail);
+}
+
+.panel-window > .editor-panel {
+  height: 100%;
+  max-height: none;
 }
 
 .panel-window-loading {

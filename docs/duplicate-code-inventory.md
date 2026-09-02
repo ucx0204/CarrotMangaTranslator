@@ -1,6 +1,6 @@
 # 중복 코드 인벤토리
 
-`jscpd 5.1.1`, weak mode, 최소 12줄/80토큰, JavaScript–TypeScript 교차 비교로 잡힌 기존 40개 exact clone의 판단 기록이다. `scripts/jscpd-baseline.json`은 이 목록을 임시 허용하는 면허가 아니라 새 중복과 재도입을 막는 감소 전용 기준선이다.
+`jscpd 5.1.1`, weak mode, 최소 12줄/80토큰, JavaScript–TypeScript 교차 비교로 처음 잡힌 40개 exact clone의 판단 기록이다. 2026-09-02의 첫 정리에서 29~31번을 제거해 현재 기준선은 37개다. `scripts/jscpd-baseline.json`은 이 목록을 임시 허용하는 면허가 아니라 새 중복과 재도입을 막는 감소 전용 기준선이다.
 
 판단 원칙은 다음과 같다.
 
@@ -41,9 +41,9 @@
 |  26 | request summary 내부 인접 projection                             | 같은 로컬 계약                          | keyed projection helper로 통합                             |
 |  27 | `tavilyClient` ↔ `tavilyUsage`                                   | 같은 usage response 정규화              | Tavily response policy helper 공유                         |
 |  28 | work-context evidence ↔ normalize                                | 보호 영역의 같은 proposal normalization | research characterization 이후 pure normalizer 공유        |
-|  29 | Conditional Batch action ↔ conditions card                       | 같은 collapsible chrome                 | `CollapsibleSection` 공유, 도메인 editor는 분리            |
-|  30 | page retranslate ↔ translation options modal                     | 같은 translation option fields          | feature-owned option field group 공유                      |
-|  31 | Style Guide Characters ↔ Glossary tab                            | 같은 keyed-list editor 계약             | generic card가 아닌 typed list-editor primitive 공유       |
+|  29 | Conditional Batch action ↔ conditions card                       | 같은 collapsible chrome                 | 완료: feature-owned disclosure를 공유하고 editor는 분리    |
+|  30 | page retranslate ↔ translation options modal footer              | 같은 기본값 저장·취소·실행 계약         | 완료: `TranslationOptionsActionBar` 공유                   |
+|  31 | Style Guide Characters ↔ Glossary tab                            | 같은 keyed-list editor 계약             | 완료: typed `ContextEntryTable` primitive 공유             |
 |  32 | `useBlockReadingOrderActions` 내부 두 mutation                   | 같은 command transaction                | mutation command helper로 통합                             |
 |  33 | reading-order action ↔ selected-block update                     | 같은 selected-block commit 골격         | selection/commit primitive 공유, 의미별 command 유지       |
 |  34 | bubble disjoint geometry ↔ padding                               | 경계 clamp만 같음                       | bbox clamp primitive만 공유                                |

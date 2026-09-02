@@ -2,8 +2,6 @@
 import {
   IconArrowDown,
   IconArrowUp,
-  IconChevronDown,
-  IconChevronRight,
   IconCopy,
   IconGripVertical,
   IconPlus,
@@ -43,7 +41,12 @@ import {
   listConditionalBatchFields,
   summarizeAction,
 } from "./conditionalBatchUi";
-import { Button, CheckboxField, Select } from "./ConditionalBatchControls";
+import {
+  Button,
+  CheckboxField,
+  ConditionalBatchCollapsibleCard,
+  Select,
+} from "./ConditionalBatchControls";
 import { FontSelect } from "./FontSelect";
 import { ColorField } from "./ColorField";
 import { Field, TextField } from "./ui/Field";
@@ -78,69 +81,50 @@ export function ConditionalBatchActionCard(
   }, [activeId, props.draft.actions]);
   const actions = createActionActions(props, setActiveId);
   return (
-    <section className={styles.ruleCard} data-expanded={props.expanded}>
-      <button
-        type="button"
-        className={styles.cardToggle}
-        aria-expanded={props.expanded}
-        onClick={props.onToggle}
-      >
-        {props.expanded ? (
-          <IconChevronDown size={17} />
-        ) : (
-          <IconChevronRight size={17} />
-        )}
-        <span>
-          <strong>작업</strong>
-          {!props.expanded ? (
-            <small>
-              {props.draft.actions.length === 0
-                ? "검사만 수행"
-                : `${props.draft.actions.length}개 작업`}
-            </small>
-          ) : null}
-        </span>
-      </button>
-      {props.expanded ? (
-        <div className={styles.cardBody}>
-          {props.draft.actions.length > 0 ? (
-            <div className={styles.actionList}>
-              {props.draft.actions.map((action, index) => (
-                <ActionSentenceCard
-                  key={action.id}
-                  action={action}
-                  blockStylePresets={props.blockStylePresets}
-                  currentResult={props.currentResult}
-                  expanded={activeId === action.id}
-                  index={index}
-                  actions={props.draft.actions}
-                  dragged={draggedId === action.id}
-                  onChange={(next) => actions.updateAction(action.id, next)}
-                  onDragEnd={() => setDraggedId(null)}
-                  onDragStart={() => setDraggedId(action.id)}
-                  onDrop={() => {
-                    if (draggedId) actions.dropAction(draggedId, action.id);
-                    setDraggedId(null);
-                  }}
-                  onDuplicate={() => actions.duplicateAction(action.id)}
-                  onExpand={() => setActiveId(action.id)}
-                  onMove={(offset) => actions.moveAction(action.id, offset)}
-                  onRemove={() => actions.removeAction(action.id)}
-                />
-              ))}
-            </div>
-          ) : null}
-          <ActionAddBar
-            disabled={
-              props.draft.actions.length >= MAX_CONDITIONAL_BATCH_ACTIONS
-            }
-            presets={props.blockStylePresets}
-            onAdd={actions.addAction}
-            onAddPreset={actions.addPresetAction}
-          />
+    <ConditionalBatchCollapsibleCard
+      expanded={props.expanded}
+      onToggle={props.onToggle}
+      title="작업"
+      summary={
+        props.draft.actions.length === 0
+          ? "검사만 수행"
+          : `${props.draft.actions.length}개 작업`
+      }
+    >
+      {props.draft.actions.length > 0 ? (
+        <div className={styles.actionList}>
+          {props.draft.actions.map((action, index) => (
+            <ActionSentenceCard
+              key={action.id}
+              action={action}
+              blockStylePresets={props.blockStylePresets}
+              currentResult={props.currentResult}
+              expanded={activeId === action.id}
+              index={index}
+              actions={props.draft.actions}
+              dragged={draggedId === action.id}
+              onChange={(next) => actions.updateAction(action.id, next)}
+              onDragEnd={() => setDraggedId(null)}
+              onDragStart={() => setDraggedId(action.id)}
+              onDrop={() => {
+                if (draggedId) actions.dropAction(draggedId, action.id);
+                setDraggedId(null);
+              }}
+              onDuplicate={() => actions.duplicateAction(action.id)}
+              onExpand={() => setActiveId(action.id)}
+              onMove={(offset) => actions.moveAction(action.id, offset)}
+              onRemove={() => actions.removeAction(action.id)}
+            />
+          ))}
         </div>
       ) : null}
-    </section>
+      <ActionAddBar
+        disabled={props.draft.actions.length >= MAX_CONDITIONAL_BATCH_ACTIONS}
+        presets={props.blockStylePresets}
+        onAdd={actions.addAction}
+        onAddPreset={actions.addPresetAction}
+      />
+    </ConditionalBatchCollapsibleCard>
   );
 }
 

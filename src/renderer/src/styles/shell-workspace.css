@@ -838,7 +838,7 @@
 }
 
 @media (max-width: 1180px) {
-  body {
+  body:has(.app-shell) {
     overflow: auto;
   }
 

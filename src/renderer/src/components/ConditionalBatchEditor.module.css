@@ -509,6 +509,8 @@
 }
 
 .cardToggle:hover {
+  border-color: transparent;
+  background: transparent;
   color: var(--text-head);
 }
 

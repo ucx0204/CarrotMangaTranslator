@@ -126,14 +126,6 @@
   flex-wrap: wrap;
 }
 
-.format-toolbar-label {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 650;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
 .editor-overflow {
   position: relative;
   flex: 0 0 auto;
@@ -589,47 +581,47 @@
 
 @container editor-panel (max-width: 360px) {
   .format-toolbar {
+    display: grid;
+    grid-template-columns: max-content max-content;
     align-items: end;
+    justify-content: start;
     gap: var(--sp-2);
   }
 
   .format-toolbar > * + * {
-    padding-left: var(--sp-2);
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .format-emphasis-control {
+    grid-column: 1 / -1;
   }
 }
 
-/* Korean text segmented toggle for writing direction */
-.dir-toggle {
-  display: inline-flex;
-  gap: var(--sp-1);
+/* Writing direction is one mode picker, not two unrelated action buttons. */
+.editor-direction-toggle {
+  width: fit-content;
+  padding: 2px;
+  gap: 2px;
 }
 
-.dir-toggle button {
-  min-height: var(--ctl-h);
-  padding: 0 var(--sp-3);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-sm);
-  background: var(--bg-sunken);
-  color: var(--text-dim);
-  font-size: var(--font-sm);
-  font-weight: 600;
-  cursor: pointer;
+.editor-direction-toggle > span {
+  flex: 0 0 auto;
 }
 
-.dir-toggle button:hover:not(:disabled) {
-  border-color: var(--border-hover);
-  color: var(--text);
+.editor-direction-toggle button {
+  min-height: var(--ctl-h-sm);
+  padding: 2px var(--sp-2);
 }
 
-.dir-toggle button[aria-pressed="true"] {
-  border-color: transparent;
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
+@container editor-panel (max-width: 260px) {
+  .format-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-.dir-toggle button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  .format-emphasis-control {
+    grid-column: auto;
+  }
 }
 
 /* The font picker is ui/Select; only the field width is owned here. */

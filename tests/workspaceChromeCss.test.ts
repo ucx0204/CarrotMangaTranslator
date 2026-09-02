@@ -17,6 +17,10 @@ describe("workspace chrome CSS", () => {
     path.join(ROOT, "src/renderer/src/styles/foundations.css"),
     "utf8",
   );
+  const panelsCss = fs.readFileSync(
+    path.join(ROOT, "src/renderer/src/styles/panels.css"),
+    "utf8",
+  );
 
   it("locks fitted pages instead of creating an invisible scroll area", () => {
     expect(rule(shellCss, ".workspace.is-fit-scroll-locked")).toContain(
@@ -123,6 +127,19 @@ describe("workspace chrome CSS", () => {
     );
     expect(rule(shellCss, ".workspace {")).toContain(
       "background: var(--surface-workspace)",
+    );
+  });
+
+  it("gives detached editor windows one internal scroll owner", () => {
+    const panelWindow = rule(panelsCss, ".panel-window {");
+    expect(panelWindow).toContain("grid-template-rows: minmax(0, 1fr)");
+    expect(panelWindow).toContain("overflow: hidden");
+    expect(rule(panelsCss, ".panel-window > .editor-panel")).toContain(
+      "height: 100%",
+    );
+    expect(shellCss).toContain("body:has(.app-shell)");
+    expect(shellCss).not.toMatch(
+      /@media \(max-width: 1180px\)\s*\{\s*body\s*\{/u,
     );
   });
 });

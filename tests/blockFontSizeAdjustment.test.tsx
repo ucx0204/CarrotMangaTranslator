@@ -1417,6 +1417,36 @@ describe("selected block font-size adjustment", () => {
     expect(onUpdate).toHaveBeenCalledWith({ emphasisMark: true });
   });
 
+  it("treats writing direction as one keyboard-operated mode group", () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ renderDirection: "horizontal" })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+
+    selectEditorTab("서식");
+    expect(screen.queryByText("블록 전체")).toBeNull();
+    const directionGroup = screen.getByRole("radiogroup", {
+      name: "쓰기 방향",
+    });
+    const horizontal = within(directionGroup).getByRole("radio", {
+      name: "가로",
+    });
+    expect(horizontal.getAttribute("aria-checked")).toBe("true");
+
+    horizontal.focus();
+    fireEvent.keyDown(horizontal, { key: "ArrowRight" });
+    expect(onUpdate).toHaveBeenCalledWith({ renderDirection: "vertical" });
+  });
+
   it("reveals layout for a newly entered transform mode without trapping tabs", () => {
     const props = {
       block: makeBlock(),
