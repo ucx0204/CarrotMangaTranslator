@@ -1,0 +1,739 @@
+{
+  "version": 1,
+  "crossPrimitiveStyleImports": {
+    "src/renderer/src/components/settingsModal/TavilyAccessFields.tsx": [
+      "src/renderer/src/components/ui/Button.module.css"
+    ],
+    "src/renderer/src/components/styleGuide/StyleGuideResearchReview.tsx": [
+      "src/renderer/src/components/ui/Button.module.css",
+      "src/renderer/src/components/ui/CheckboxField.module.css"
+    ]
+  },
+  "fileWideLintDisables": {
+    "src/main/appQuitCleanup.ts": "max-lines-per-function -- quit cleanup stage ordering and release gates stay co-located for auditability",
+    "src/main/dataRootInstanceLock.ts": "and token-checked release stay co-located for security auditability, complexity, max-depth, max-lines, max-lines-per-function -- acquisition, stale reclaim, strict parsing",
+    "src/main/index.ts": "IPC publication, and quit ordering stay co-located for auditability, max-lines -- startup recovery, window creation",
+    "src/main/inpainting/inpaintingRevisionStore.ts": "and artifact retention share one serialized state owner, max-lines -- transaction history, rollback",
+    "src/main/inpainting/sourceGlyphEvidenceReceipt.ts": "max-lines -- immutable evidence receipt production and verification stay in one auditable contract.",
+    "src/main/inpainting/unassignedOcrResidualProvenance.ts": "max-lines -- the sealed OCR/font/source provenance verifier is kept as one auditable contract.",
+    "src/main/ipc/webImportIpc.ts": "max-lines-per-function -- trusted handlers share one manager and registration boundary",
+    "src/main/jobs/pageImageExportJobRunner.ts": "and cancellation form one export transaction, collision checks, max-lines -- progress, raster/PSD writing",
+    "src/main/jobs/translationJobRunners.ts": "max-lines -- analysis checkpoints and terminal recovery stay co-located for cancellation auditability",
+    "src/main/libraryStore/importWorkflow.ts": "max-lines -- import staging and publication sequencing stay co-located for transaction auditability",
+    "src/main/libraryStore/legacyShareTrashRecovery.ts": "complexity, max-depth, max-lines-per-function -- legacy share-trash authority and conflict recovery stay co-located for auditability",
+    "src/main/libraryStore/libraryInpaintingMutations.ts": "and cleanup updates are one atomic library mutation boundary, layout, mask, max-lines -- inpainting image",
+    "src/main/libraryStore/libraryMutations.ts": "max-lines -- multi-file library mutation ordering stays co-located for transaction auditability",
+    "src/main/libraryStore/libraryTransaction.ts": "and recovery step semantics stay co-located for auditability, max-lines -- durable transaction commit, rollback",
+    "src/main/libraryStore/libraryTransactionPaths.ts": "complexity -- fail-closed transaction path validation is intentionally exhaustive for security auditability",
+    "src/main/libraryStore/libraryTransactionRecovery.ts": "max-depth, max-lines-per-function -- startup transaction phase recovery and fail-closed cleanup ordering stay co-located for auditability",
+    "src/main/libraryStore/libraryTransactionStorage.ts": "complexity -- path ancestry and filesystem state checks are intentionally exhaustive for transaction safety",
+    "src/main/libraryStore/shareImportMaterialize.ts": "and validation stay co-located for transaction auditability, final-path metadata, max-lines, max-lines-per-function -- shared image staging",
+    "src/main/libraryStore/shareStreamingZip.ts": "abort cleanup, and atomic commit stay co-located for auditability, max-lines -- ZIP stream lifecycle",
+    "src/main/libraryStore/shareWorkflow.ts": "max-lines-per-function -- whole-work share staging and publication stay in one auditable transaction assembly",
+    "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts": "and recovery transitions together for auditability, complexity, max-lines, max-lines-per-function -- the bounded render scheduler keeps cancellation, retry, serialized publication",
+    "src/main/pageExport.ts": "max-lines -- the hidden production renderer lifecycle and capture protocol are intentionally colocated",
+    "src/main/pipeline/automaticFontMatchingV2PageConsistencyPlan.ts": "max-lines -- page-consistency policy passes remain colocated for deterministic ordering",
+    "src/main/pipeline/fontMatchingCrossScriptProxyRuntime.ts": "and scoring stay co-located for auditability, clustering, complexity, max-depth, max-lines, max-lines-per-function -- sealed numerical model loading",
+    "src/main/pipeline/fontMatchingCrossScriptProxySupport.ts": "complexity, max-depth, max-lines -- deterministic pixel traversal and glyph extraction stay auditable in one unit",
+    "src/main/pipeline/fontMatchingPagePixelInference.ts": "max-lines -- sealed ONNX loading and inference stay co-located for auditability",
+    "src/main/pipeline/fontMatchingPagePixelPreprocessing.ts": "max-lines -- the three-view pixel recipe is kept in one auditable unit",
+    "src/main/pipeline/fontMatchingPageRelativeRoleQa.ts": "max-lines -- the isolated QA policy keeps its full pixel-only contract auditable in one module",
+    "src/main/pipeline/fontMatchingSelectionCalibration.ts": "max-lines, max-lines-per-function -- supervised reorder and rank-preserving audit codes form one atomic policy",
+    "src/main/pipeline/fontMatchingSelectionCalibrationContract.ts": "complexity, max-lines, max-lines-per-function -- sealed artifact validation stays in one auditable unit",
+    "src/main/pipeline/fontMatchingSelectionCalibrationFeatures.ts": "complexity, max-lines, max-lines-per-function -- fixed feature parity is intentionally kept together",
+    "src/main/pipeline/pageProcessingTiming.ts": "max-lines-per-function -- collector state and checkpoint snapshots must share one closure",
+    "src/main/pipeline/pageResultBuilder.ts": "max-lines -- page assembly and its fail-closed inference provenance remain auditable together",
+    "src/main/runtime/ocr/hint-normalization.cjs": "max-lines -- compatibility normalization remains centralized and order-sensitive",
+    "src/main/runtime/semantic-ocr/fixed-block-translation.cjs": "max-lines -- fixed semantic translation contract is intentionally audited as one module",
+    "src/main/runtimeSupport/jsonLinesWorkerClient.ts": "and stderr tail stay co-located for auditability, lifecycle state, max-lines -- worker protocol, spawn diagnostics",
+    "src/main/textDetection/hayaiRegionGeometry.ts": "complexity, max-depth, max-lines, max-lines-per-function -- sealed v11 geometry policy stays auditable in one module",
+    "src/main/webImportDownload.ts": "URL policy and staged-file cleanup intentionally remain one auditable security boundary, cancellation, complexity -- streamed download budget, max-lines, max-lines-per-function",
+    "src/main/webImportPageDiscovery.ts": "complexity, max-depth -- this source is serialized into an isolated untrusted page, max-lines-per-function, so its bounded traversal stays self-contained",
+    "src/main/webImportSessionManager.ts": "max-lines, max-lines-per-function -- scan resource ownership and teardown stay co-located for lifecycle auditability",
+    "src/main/wholePagePipeline.ts": "max-lines -- pipeline cancellation boundaries and endpoint ownership stay co-located for auditability",
+    "src/main/workContextResearchEvidence.ts": "complexity, max-depth, max-lines, max-lines-per-function -- evidence enrichment is a fail-closed trust boundary whose independent rejection signals remain explicit and auditable",
+    "src/main/workContextResearchGemma.ts": "and bounded repair ordering auditable, complexity, credit accounting, evidence collection, max-depth, max-lines, max-lines-per-function -- one Tavily research transaction keeps endpoint lifetime",
+    "src/main/workContextResearchNormalize.ts": "max-lines -- glossary and character proposal normalization share one duplicate/manual-protection contract",
+    "src/main/workContextResearchPrompt.ts": "and the strict output schema in one auditable contract, compact dossier selection, complexity, max-lines, max-lines-per-function -- research prompts keep evidence ranking",
+    "src/renderer/src/app/session/useAppSessionInpaintingController.ts": "and bridge adapters share one session dependency contract, max-lines -- retouch, navigation, pointer, run",
+    "src/renderer/src/components/ConditionalBatchActionCard.tsx": "max-lines, max-lines-per-function -- the action card keeps all stage-aware editors on one discriminated action contract",
+    "src/renderer/src/components/ConditionalBatchConditionsCard.tsx": "and bounded editor mutations on one registry contract, complexity, groups, max-lines, max-lines-per-function -- the condition card keeps typed values",
+    "src/renderer/src/components/ConditionalBatchRulePanel.tsx": "YAML, and sequence composition share one progressive-disclosure panel, max-lines, max-lines-per-function -- rule CRUD, recipes",
+    "src/renderer/src/components/conditionalBatchUi.ts": "and typed editor defaults form one UI registry, max-lines -- labels, summaries",
+    "src/renderer/src/components/ConditionalPatternBuilder.tsx": "max-lines, max-lines-per-function -- the recursive visual matcher and replacement lanes intentionally share one compact editor",
+    "src/renderer/src/components/ImportModal.tsx": "and linked-folder confirmation compose one modal, chapter selection, max-lines -- import target",
+    "src/renderer/src/components/RichTranslationEditor.tsx": "IME composition, and caret-only typing style form one focus-sensitive editor transaction, complexity -- visual/code mode selection, max-lines, max-lines-per-function",
+    "src/renderer/src/components/useConditionalBatchEditorModel.ts": "and apply adapters intentionally meet at the editor model boundary, max-lines -- preview, scope, sequence",
+    "src/renderer/src/components/useConditionalBatchSchemeController.ts": "and delayed autosave share one transactional state owner, max-lines -- persistence, migration-safe YAML exchange",
+    "src/renderer/src/hooks/translationBubbleLayoutWorkflow.ts": "complexity, max-lines, max-lines-per-function -- combined-flow cancellation and timing settlement boundaries stay co-located",
+    "src/renderer/src/hooks/useJobEvents.ts": "max-lines -- job batching and live chapter subscription cleanup share one lifecycle",
+    "src/renderer/src/lib/overlayTextWrapping.ts": "max-lines -- one wrapping module owns the shared styled-grapheme measurement and line-break contract",
+    "src/shared/conditionalBatchEngine.ts": "complexity, max-lines, max-lines-per-function -- the exhaustive typed rule evaluator keeps preview and apply on one deterministic pipeline",
+    "src/shared/conditionalBatchFieldRegistry.ts": "complexity, max-lines, max-lines-per-function -- field metadata and exhaustive typed readers stay co-located as the single registry contract",
+    "src/shared/conditionalBatchRules.ts": "and validation form one compatibility boundary, complexity, max-lines, max-lines-per-function -- versioned schemas, migration, recipe constructors",
+    "src/shared/conditionalTextPattern.ts": "and replacement runtime form one compatibility boundary, compiler, complexity, max-lines -- the recursive v3 AST, validation",
+    "src/shared/ipcJobSchemas.ts": "max-lines -- bounded job request variants stay together for schema contract review",
+    "src/shared/mangaApi.ts": "max-lines -- the preload-facing API type intentionally enumerates the complete renderer contract",
+    "src/shared/richTextMarkup.ts": "and serialization share one safe markup grammar contract, max-lines -- parsing, normalization, range editing"
+  },
+  "rawFeatureControls": {
+    "src/renderer/src/components/blockFormat/BlockFormatPreview.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/blockFormat/BlockTypographyPrimitives.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/BlockLibraryCard.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/BlockLibraryModal.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/BlockStylePresetToolbar.tsx": {
+      "button": 4,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/BubbleLayoutContextBar.tsx": {
+      "button": 4,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/ChapterTaskHeader.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/ColorField.tsx": {
+      "button": 0,
+      "input": 2,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/CommandPalette.tsx": {
+      "button": 1,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/CompletionSoundControl.tsx": {
+      "button": 1,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/ConditionalBatchActionCard.tsx": {
+      "button": 2,
+      "input": 3,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/ConditionalBatchConditionsCard.tsx": {
+      "button": 2,
+      "input": 5,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/ConditionalBatchResultsCard.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/ConditionalBatchRulePanel.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 3
+    },
+    "src/renderer/src/components/ConditionalPatternBuilder.tsx": {
+      "button": 8,
+      "input": 10,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/CurveEditorFeedback.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/CurveEditorOptions.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/EditorFormatControls.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/EditorPanelChrome.tsx": {
+      "button": 5,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/EditorPanelSections.tsx": {
+      "button": 0,
+      "input": 0,
+      "select": 0,
+      "textarea": 1
+    },
+    "src/renderer/src/components/ErrorReportDialog.tsx": {
+      "button": 0,
+      "input": 0,
+      "select": 0,
+      "textarea": 2
+    },
+    "src/renderer/src/components/FontManagerList.tsx": {
+      "button": 4,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/FontManagerModal.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/FontSelect.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/FormatBatchApplyModal.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/gatherText/GatheredPageList.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/gatherText/GatherTextDirectDetailControls.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/gatherText/GatherTextFileInputs.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/gatherText/GatherTextFooter.tsx": {
+      "button": 1,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/ImportModal.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/inpaintingPanel/RetouchInpaintingStep.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/LibrarySortMenu.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/LibraryTree.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/libraryTreeItems.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/OverlayTransformControls.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/PageBlockListPanel.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/PageBlockListRow.tsx": {
+      "button": 0,
+      "input": 0,
+      "select": 0,
+      "textarea": 1
+    },
+    "src/renderer/src/components/PageList.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/pageList/PageListRowChrome.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/pageList/PageTimingDialog.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/PresetRowActions.tsx": {
+      "button": 3,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/RichTranslationEditor.tsx": {
+      "button": 4,
+      "input": 0,
+      "select": 0,
+      "textarea": 1
+    },
+    "src/renderer/src/components/settingsModal/ApiProviderConnectionFields.tsx": {
+      "button": 1,
+      "input": 3,
+      "select": 0,
+      "textarea": 1
+    },
+    "src/renderer/src/components/settingsModal/ApiProviderModelFields.tsx": {
+      "button": 1,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/ApiSettingsFields.tsx": {
+      "button": 0,
+      "input": 0,
+      "select": 0,
+      "textarea": 2
+    },
+    "src/renderer/src/components/settingsModal/BlockStylePresetManager.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/BlockStylePresetTabs.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/CodexAccountField.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/EngineCommonFields.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/FluxBackendSettings.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/FormatDefaultsDetailSections.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/FormatDefaultsPanel.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/GemmaLocalModelFields.tsx": {
+      "button": 2,
+      "input": 2,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/GemmaMemorySummary.tsx": {
+      "button": 3,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/GemmaModelPresetSelector.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/GemmaSettingsFields.tsx": {
+      "button": 2,
+      "input": 2,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/HardwareContextNotes.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/HardwareSettingsPanel.tsx": {
+      "button": 3,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/InpaintingModelSettings.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/LinkedWorkspaceChapterRow.tsx": {
+      "button": 3,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/LinkedWorkspaceSettingsPanel.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/SettingsNumberField.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/ShortcutsSettingsPanel.tsx": {
+      "button": 3,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/stylePresetManager/PresetDefinitionPanel.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/stylePresetManager/PresetLibrary.tsx": {
+      "button": 2,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/stylePresetManager/PresetManagerScreen.tsx": {
+      "button": 4,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/TavilyAccessFields.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/TestSettingsPanel.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/TranslationLanguageFields.tsx": {
+      "button": 1,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/settingsModal/VertexCredentialFields.tsx": {
+      "button": 4,
+      "input": 0,
+      "select": 0,
+      "textarea": 1
+    },
+    "src/renderer/src/components/settingsModal/VertexServiceAccountGuideModal.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/shareImport/ShareImportMergeCards.tsx": {
+      "button": 4,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/shareImport/ShareImportMergeViews.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/shareImport/ShareImportNewWorkSection.tsx": {
+      "button": 0,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/SoundEffectCandidateOverlay.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/SoundEffectPageList.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/SoundEffectReviewLayer.tsx": {
+      "button": 4,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/SoundEffectTranslationLauncher.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/SoundEffectTranslationReviewPicker.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/styleGuide/CharactersTab.tsx": {
+      "button": 0,
+      "input": 4,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/styleGuide/ContextEntryList.tsx": {
+      "button": 0,
+      "input": 2,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/styleGuide/GlossaryTab.tsx": {
+      "button": 0,
+      "input": 3,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/styleGuide/MemoryTab.tsx": {
+      "button": 0,
+      "input": 0,
+      "select": 0,
+      "textarea": 1
+    },
+    "src/renderer/src/components/styleGuide/StyleGuideResearchReview.tsx": {
+      "button": 3,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/StylePresetEditorModal.tsx": {
+      "button": 0,
+      "input": 2,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/TransformEditorGroup.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/TranslateSourceModal.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/WarpEditorControls.tsx": {
+      "button": 5,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/WarpOverlayControls.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/webImport/WebImportResults.tsx": {
+      "button": 2,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/WebImportModal.tsx": {
+      "button": 1,
+      "input": 1,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/WorkPagePicker.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/WorkSelect.tsx": {
+      "button": 1,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    },
+    "src/renderer/src/components/WorkspaceViewControls.tsx": {
+      "button": 3,
+      "input": 0,
+      "select": 0,
+      "textarea": 0
+    }
+  },
+  "rendererCssLiterals": {
+    "src/renderer/src/components/BlockLibraryModals.module.css": {
+      "literalColors": 5,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/components/ConditionalBatchEditor.module.css": {
+      "literalColors": 2,
+      "numericZIndexes": 3
+    },
+    "src/renderer/src/components/ErrorReportDialog.module.css": {
+      "literalColors": 5,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/components/FontManagerModal.module.css": {
+      "literalColors": 1,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/components/InpaintingGuideModal.module.css": {
+      "literalColors": 1,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/components/overlayTransforms.css": {
+      "literalColors": 26,
+      "numericZIndexes": 3
+    },
+    "src/renderer/src/components/settingsModal/VertexServiceAccountGuideModal.module.css": {
+      "literalColors": 1,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/components/SoundEffectTranslationModal.module.css": {
+      "literalColors": 0,
+      "numericZIndexes": 4
+    },
+    "src/renderer/src/styles/formatting.css": {
+      "literalColors": 36,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/gather-selection.css": {
+      "literalColors": 31,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/library-inpainting.css": {
+      "literalColors": 51,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/linked-workspace.css": {
+      "literalColors": 7,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/modals-share.css": {
+      "literalColors": 27,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/page-review.css": {
+      "literalColors": 15,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/page-timing.css": {
+      "literalColors": 0,
+      "numericZIndexes": 5
+    },
+    "src/renderer/src/styles/panels.css": {
+      "literalColors": 27,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/settings.css": {
+      "literalColors": 5,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/shell-workspace.css": {
+      "literalColors": 45,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/stage-overlay.css": {
+      "literalColors": 107,
+      "numericZIndexes": 3
+    },
+    "src/renderer/src/styles/style-guide.css": {
+      "literalColors": 2,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/translate-picker.css": {
+      "literalColors": 5,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/web-import.css": {
+      "literalColors": 5,
+      "numericZIndexes": 0
+    },
+    "src/renderer/src/styles/work-center.css": {
+      "literalColors": 29,
+      "numericZIndexes": 0
+    }
+  }
+}

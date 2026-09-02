@@ -56,12 +56,22 @@ function readDepcruiseReport() {
 function evaluateArchitectureBudget(report) {
   const violations = [];
   const notices = [];
-  const runtimeDependentCounts = countRuntimeDependents(report.modules ?? []);
+  const modules = report.modules ?? [];
+  const runtimeDependentCounts = countRuntimeDependents(modules);
+  const moduleSources = new Set(modules.map((moduleInfo) => moduleInfo.source));
 
-  for (const moduleInfo of report.modules ?? []) {
+  for (const moduleInfo of modules) {
     const result = evaluateModuleBudget(moduleInfo, runtimeDependentCounts);
     violations.push(...result.violations);
     notices.push(...result.notices);
+  }
+
+  for (const source of Object.keys(baseline.legacyMaxRuntimeImports ?? {})) {
+    if (!moduleSources.has(source)) {
+      violations.push(
+        `${source}: stale legacy runtime import ceiling; remove it from the baseline`,
+      );
+    }
   }
 
   return { violations, notices };
@@ -97,18 +107,22 @@ function countRuntimeDependents(modules) {
 function evaluateModuleBudget(moduleInfo, runtimeDependentCounts) {
   const source = moduleInfo.source;
   const allow = baseline.allow?.[source] ?? {};
-  const maxImports = allow.maxImports ?? baseline.defaultMaxImports;
+  const legacyMaxRuntimeImports = baseline.legacyMaxRuntimeImports?.[source];
+  const maxRuntimeImports =
+    allow.maxRuntimeImports ??
+    legacyMaxRuntimeImports ??
+    baseline.defaultMaxRuntimeImports;
   const maxImportedBy = allow.maxImportedBy ?? baseline.defaultMaxImportedBy;
-  const imports = (moduleInfo.dependencies ?? []).filter(
-    (dependency) => !dependency.coreModule && !dependency.couldNotResolve,
+  const runtimeImports = (moduleInfo.dependencies ?? []).filter(
+    isRuntimeDependency,
   ).length;
   const runtimeImportedBy = runtimeDependentCounts[source] ?? 0;
   const violations = [];
   const notices = [];
 
-  if (imports > maxImports) {
+  if (runtimeImports > maxRuntimeImports) {
     violations.push(
-      `${source}: imports ${imports} exceeds budget ${maxImports}`,
+      `${source}: runtimeImports ${runtimeImports} exceeds budget ${maxRuntimeImports}`,
     );
   }
   if (runtimeImportedBy > maxImportedBy) {
@@ -116,9 +130,20 @@ function evaluateModuleBudget(moduleInfo, runtimeDependentCounts) {
       `${source}: runtimeImportedBy ${runtimeImportedBy} exceeds budget ${maxImportedBy}`,
     );
   }
-  if (allow.maxImports !== undefined && imports < allow.maxImports) {
+  if (
+    legacyMaxRuntimeImports !== undefined &&
+    runtimeImports < legacyMaxRuntimeImports
+  ) {
+    violations.push(
+      `${source}: runtimeImports ${runtimeImports} is below legacy ceiling ${legacyMaxRuntimeImports}; lower or remove the baseline ceiling in the same change`,
+    );
+  }
+  if (
+    allow.maxRuntimeImports !== undefined &&
+    runtimeImports < allow.maxRuntimeImports
+  ) {
     notices.push(
-      `${source}: imports ${imports} is below explicit budget ${allow.maxImports}; lower the baseline.`,
+      `${source}: runtimeImports ${runtimeImports} is below intentional exception ${allow.maxRuntimeImports}; consider lowering the ceiling.`,
     );
   }
   if (

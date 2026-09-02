@@ -87,6 +87,8 @@ describe("check direct invocation", () => {
       "error-handling",
       "test-mock-boundaries",
       "architecture",
+      "maintainability-policy",
+      "duplicates",
       "reexports",
       "generated",
       "css-structure",
