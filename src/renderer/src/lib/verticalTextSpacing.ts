@@ -5,6 +5,7 @@ const VERTICAL_IDEOGRAPHIC_SPACE_EM = 1;
 const VERTICAL_DASH_SYMBOLS = new Set(["—", "―"]);
 const VERTICAL_WAVE_SYMBOLS = new Set(["〜", "～", "∼"]);
 const VERTICAL_UPRIGHT_SYMBOLS = new Set(["♡", "♥", "♪", "♬"]);
+const VERTICAL_COMBINED_PUNCTUATION = new Set(["!!", "!?", "?!", "??"]);
 const VERTICAL_ELLIPSIS_PRESENTATION = "︙";
 const VERTICAL_WAVE_PRESENTATION = "︴";
 
@@ -45,7 +46,14 @@ export type VerticalTextSpacingToken = {
   displayText?: string;
   advanceEm?: number;
   presentation?: "dash" | "ellipsis" | "wave";
-  kind?: "ascii" | "ideographic" | "dash" | "ellipsis" | "rotate" | "upright";
+  kind?:
+    | "ascii"
+    | "ideographic"
+    | "combine"
+    | "dash"
+    | "ellipsis"
+    | "rotate"
+    | "upright";
 };
 
 export function tokenizeVerticalTextSpacing(
@@ -62,6 +70,15 @@ export function tokenizeVerticalTextSpacing(
   const graphemes = segmentNaturalTextGraphemes(text);
   for (let index = 0; index < graphemes.length; index += 1) {
     const character = graphemes[index];
+    const combinedPunctuation = `${character}${graphemes[index + 1] ?? ""}`;
+    if (VERTICAL_COMBINED_PUNCTUATION.has(combinedPunctuation)) {
+      flushPlain();
+      tokens.push(
+        createSymbolToken(combinedPunctuation, combinedPunctuation, "combine"),
+      );
+      index += 1;
+      continue;
+    }
     if (VERTICAL_DASH_SYMBOLS.has(character)) {
       flushPlain();
       const dashRun = readVerticalDashRun(graphemes, index);
@@ -138,7 +155,7 @@ function createVerticalPresentationToken(
 function createSymbolToken(
   text: string,
   displayText: string,
-  kind: "ellipsis" | "rotate" | "upright",
+  kind: "combine" | "ellipsis" | "rotate" | "upright",
   presentation?: VerticalTextSpacingToken["presentation"],
 ): VerticalTextSpacingToken {
   return {

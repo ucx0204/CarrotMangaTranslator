@@ -68,12 +68,43 @@ describe("vertical text spacing", () => {
         .filter((token) => token.kind === "rotate")
         .map((token) => token.displayText),
     ).toEqual(["︴", "︴", "︴"]);
-    expect(segmentVerticalTextGraphemes("가!!나")).toEqual([
-      "가",
-      "!",
-      "!",
-      "나",
+    expect(
+      tokens
+        .filter((token) => token.kind === "combine")
+        .map((token) => token.text),
+    ).toEqual(["!!", "!?", "?!", "??"]);
+    expect(segmentVerticalTextGraphemes("가!!나")).toEqual(["가", "!!", "나"]);
+  });
+
+  it("renders paired punctuation as one upright vertical unit", () => {
+    const source = "가!!나!?다?!라??마";
+    const { container, rerender } = render(
+      <TextWithVerticalSpacing direction="vertical" text={source} />,
+    );
+    const combined = Array.from(
+      container.querySelectorAll<HTMLElement>(
+        '[data-vertical-symbol="combine"]',
+      ),
+    );
+
+    expect(container.textContent).toBe(source);
+    expect(combined.map((symbol) => symbol.textContent)).toEqual([
+      "!!",
+      "!?",
+      "?!",
+      "??",
     ]);
+    for (const symbol of combined) {
+      expect(symbol.style.textCombineUpright).toBe("all");
+      expect(symbol.style.textOrientation).toBe("upright");
+      expect(symbol.dataset.verticalSource).toBe(symbol.textContent);
+    }
+
+    rerender(<TextWithVerticalSpacing direction="horizontal" text={source} />);
+    expect(container.textContent).toBe(source);
+    expect(
+      container.querySelector('[data-vertical-symbol="combine"]'),
+    ).toBeNull();
   });
 
   it("keeps consecutive dashes in one centered vertical run", () => {
@@ -136,6 +167,10 @@ describe("vertical text spacing", () => {
       container.querySelector<HTMLElement>('[data-vertical-symbol="upright"]')
         ?.style.textOrientation,
     ).toBe("upright");
+    expect(
+      container.querySelector<HTMLElement>('[data-vertical-symbol="combine"]')
+        ?.style.textCombineUpright,
+    ).toBe("all");
   });
 
   it("maps wave variants to one consistent vertical presentation glyph", () => {

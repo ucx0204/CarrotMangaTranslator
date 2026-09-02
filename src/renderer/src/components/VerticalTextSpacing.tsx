@@ -75,6 +75,7 @@ function VerticalPresentationSymbol({
       data-vertical-symbol={token.kind}
       data-vertical-source={token.text}
       style={{
+        textCombineUpright: token.kind === "combine" ? "all" : undefined,
         textOrientation: "upright",
       }}
     >
