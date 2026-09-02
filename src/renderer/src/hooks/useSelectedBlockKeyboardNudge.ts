@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from "react";
-import { isEditableTarget } from "../lib/appHelpers";
+import { isInteractiveControlTarget } from "../lib/appHelpers";
 import {
   resolveBlockNudgeDirection,
   resolveBlockNudgeDistancePx,
@@ -186,7 +186,7 @@ function isNudgeKeyDownAllowed(
     !event.ctrlKey &&
     !event.metaKey &&
     !event.altKey &&
-    !isEditableTarget(event.target) &&
+    !isInteractiveControlTarget(event.target) &&
     workspaceHasFocus(workspacePanelRef.current),
   );
 }
@@ -202,7 +202,7 @@ function canEmitKeyboardNudge({
     enabled &&
     !blocked &&
     workspaceHasFocus(workspacePanelRef.current) &&
-    !isEditableTarget(activeElement)
+    !isInteractiveControlTarget(activeElement)
   );
 }
 

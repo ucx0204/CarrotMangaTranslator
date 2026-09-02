@@ -9,7 +9,7 @@
   height: 100vh;
   overflow: hidden;
   position: relative;
-  background: #0e0f13;
+  background: var(--surface-app-shell);
   transition: grid-template-columns 240ms var(--ease-standard);
 }
 
@@ -224,12 +224,82 @@
   min-width: var(--app-right-rail-width);
   border-left: 1px solid var(--surface-border);
   background: var(--surface-rail);
-  overflow-y: auto;
+  overflow: hidden;
   opacity: 1;
   transform: translateX(0);
   transition:
     opacity var(--motion-normal) var(--ease-standard),
     transform 240ms var(--ease-standard);
+}
+
+/* A rail is already a surface. Docked groups use spacing and dividers instead
+   of drawing a second card-shaped surface inside it. */
+.sidebar > .library-panel,
+.sidebar > .page-list,
+.right-rail > .run-panel,
+.right-rail > .editor-panel,
+.right-rail > .inpainting-panel,
+.right-rail > .inpainting-area-translate-panel,
+.right-rail > .inpainting-exit-panel,
+.right-rail > .page-block-list-panel {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sidebar > .library-panel,
+.sidebar > .page-list {
+  padding-inline: 0;
+}
+
+/* The rail is a fixed viewport, not a second scroll owner. Context panels
+   receive the remaining height and keep scrolling inside their own body. */
+.right-rail > .run-panel {
+  flex: 0 0 auto;
+}
+
+.right-rail > .editor-panel,
+.right-rail > .page-block-list-panel {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+}
+
+.right-rail > .inpainting-panel,
+.right-rail > .inpainting-area-translate-panel,
+.right-rail > .inpainting-exit-panel {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.right-rail > .page-block-list-panel,
+.sidebar > .page-list,
+.right-rail > .editor-panel,
+.right-rail > .inpainting-panel,
+.right-rail > .inpainting-area-translate-panel,
+.right-rail > .inpainting-exit-panel {
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--surface-border);
+}
+
+.right-rail > .run-panel,
+.right-rail > .editor-panel,
+.right-rail > .inpainting-panel,
+.right-rail > .inpainting-area-translate-panel,
+.right-rail > .inpainting-exit-panel {
+  padding-inline: 0;
+}
+
+.right-rail > .page-block-list-panel > .page-block-list-panel-header {
+  padding: 0 0 var(--sp-4);
+  background: transparent;
+}
+
+.right-rail > .page-block-list-panel > .page-block-list-scroll {
+  padding: var(--sp-3) 0 0;
 }
 
 .right-rail.is-hidden {
@@ -463,7 +533,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: #0c0d10;
+  background: var(--surface-workspace);
 }
 
 .workspace {
@@ -476,7 +546,7 @@
   height: 100%;
   overflow: auto;
   padding: var(--workspace-overscroll-y) var(--workspace-overscroll-x);
-  background: #0c0d10;
+  background: var(--surface-workspace);
   outline: none;
 }
 
@@ -790,7 +860,7 @@
 }
 
 @media (max-width: 1180px) {
-  body {
+  body:has(.app-shell) {
     overflow: auto;
   }
 
@@ -832,6 +902,7 @@
     justify-self: stretch;
     width: auto;
     min-width: 0;
+    overflow: visible;
     opacity: 1;
     transform: none;
     transition: none;

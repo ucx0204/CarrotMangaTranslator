@@ -7,6 +7,9 @@
   --bg-raised: #171b21;
   --bg-elevated: #20242c;
   --bg-modal: #20242c;
+  /* app composition surfaces */
+  --surface-app-shell: #0e0f13;
+  --surface-workspace: #0c0d10;
   /* text */
   --text: #ece7dc;
   --text-dim: #b8b1a6;

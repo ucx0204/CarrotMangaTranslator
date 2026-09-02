@@ -2,6 +2,7 @@ import type { SourceTextDirection } from "../../shared/textTypes";
 import { measureComponentAffinity } from "./sourceFontSizeComponentAffinity";
 import { estimateSourceFontFace } from "./sourceFontSizeGeometry";
 import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometryTypes";
+import { createMajorBandHypothesisPoints } from "./sourceFontSizeHypothesisPoints";
 import {
   clamp,
   estimateLineCount,
@@ -11,7 +12,8 @@ import {
   mean,
   SOURCE_FONT_FACE_SCALE,
   valuePairRatio,
-} from "./sourceFontSizePeerGatedMath";
+  weightedMedianFace,
+} from "./sourceFontSizeMath";
 import {
   isStablePeerCandidate,
   isStableUpwardPeerCandidate,
@@ -226,24 +228,8 @@ function hypothesisPointsFromTrial(
       weight: trial.component.confidence * massWeight,
     });
   }
-  points.push(...majorBandPoints(trial));
+  points.push(...createMajorBandHypothesisPoints(trial));
   return points;
-}
-
-function majorBandPoints(
-  trial: SourceFontSizeHypothesisTrial,
-): HypothesisPoint[] {
-  const measurement = trial.majorPitch;
-  if (!measurement?.bandFaces.length) return [];
-  const weight =
-    measurement.confidence / Math.sqrt(measurement.bandFaces.length);
-  return measurement.bandFaces.map((face) => ({
-    confidence: measurement.confidence,
-    face: face * SOURCE_FONT_FACE_SCALE,
-    lineCount: trial.lineCount,
-    source: "major-band",
-    weight,
-  }));
 }
 
 function describeRepeatedFaceMode(
@@ -261,7 +247,7 @@ function describeRepeatedFaceMode(
   if (!sources.has("projection") || sources.size < 2 || trialSources.size < 3) {
     return [];
   }
-  const facePx = weightedMedian(members);
+  const facePx = weightedMedianFace(members);
   const totalWeight = members.reduce((sum, point) => sum + point.weight, 0);
   if (
     facePx === null ||
@@ -347,15 +333,4 @@ function formulaSuspicion(candidate: SourceFontSizeHypothesisCandidate): {
     bandRatio: maximumValueRatio(trial.majorPitch?.bandFaces ?? []),
     geometryRatio: maximumValueRatio(values),
   };
-}
-
-function weightedMedian(points: readonly HypothesisPoint[]): number | null {
-  const sorted = [...points].sort((left, right) => left.face - right.face);
-  const totalWeight = sorted.reduce((sum, point) => sum + point.weight, 0);
-  let running = 0;
-  for (const point of sorted) {
-    running += point.weight;
-    if (running >= totalWeight / 2) return point.face;
-  }
-  return sorted.at(-1)?.face ?? null;
 }

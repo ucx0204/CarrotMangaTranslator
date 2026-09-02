@@ -1,11 +1,11 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type { Command } from "../lib/appCommandTypes";
+import type { AppCommand } from "../lib/appCommandTypes";
 import { Modal } from "./ui/Modal";
 
 type CommandPaletteProps = {
   open: boolean;
-  commands: Command[];
+  commands: readonly AppCommand[];
   onClose: () => void;
 };
 
@@ -122,7 +122,10 @@ const CommandPaletteInput = React.forwardRef<
   );
 });
 
-function filterCommands(commands: Command[], query: string): Command[] {
+function filterCommands(
+  commands: readonly AppCommand[],
+  query: string,
+): readonly AppCommand[] {
   const q = query.trim().toLowerCase();
   if (!q) {
     return commands;
@@ -167,7 +170,7 @@ function CommandPaletteList({
   setActiveIndex,
 }: {
   activeIndex: number;
-  commands: Command[];
+  commands: readonly AppCommand[];
   listRef: React.RefObject<HTMLDivElement | null>;
   runIndex: (index: number) => void;
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
@@ -206,7 +209,7 @@ function CommandPaletteItem({
   setActiveIndex,
 }: {
   active: boolean;
-  command: Command;
+  command: AppCommand;
   index: number;
   runIndex: (index: number) => void;
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;

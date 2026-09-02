@@ -6,16 +6,15 @@ import {
   PagePsdExportRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
-import type {
-  PageImageExportPreflightResult,
-  PageImageExportResult,
-} from "../../shared/pageImageExportTypes";
+import {
+  PageImageExportApplicationService,
+  type PageImageExportExecutionPort,
+} from "../application/pageImageExportService";
 import {
   assertNoActivePageImageExportJob,
   exportPageImages,
   exportPagePsd,
 } from "../jobs/pageImageExportJobs";
-import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
 import {
   getRecentDialogDirectory,
   recentDialogPathKeys,
@@ -27,46 +26,29 @@ import { trustedHandleContract } from "./trustedIpc";
 import { preflightPageImageExport } from "../jobs/pageImageExportSelection";
 import { productionPageImageExportDependencies } from "../jobs/pageImageExportPorts";
 
-export type PageImageExportService = {
-  assertIdle: (context: Pick<InpaintingJobContext, "jobs">) => void;
-  exportImages: (
-    context: InpaintingJobContext,
-    request: Parameters<typeof exportPageImages>[1],
-    outputParentDir: string,
-  ) => Promise<PageImageExportResult>;
-  exportPsd?: (
-    context: InpaintingJobContext,
-    request: Parameters<typeof exportPagePsd>[1],
-    outputParentDir: string,
-  ) => Promise<PageImageExportResult>;
-  preflightImages?: (
-    request: Parameters<typeof preflightPageImageExport>[0],
-  ) => Promise<PageImageExportPreflightResult>;
-};
-
-const productionPageImageExportService: PageImageExportService = {
-  assertIdle: assertNoActivePageImageExportJob,
-  exportImages: exportPageImages,
-  exportPsd: exportPagePsd,
-  preflightImages: (request) =>
-    preflightPageImageExport(
-      request,
-      productionPageImageExportDependencies.repository,
-    ),
-};
+export type PageImageExportService = PageImageExportExecutionPort;
 
 export function registerPageImageExportIpc(
   context: IpcContext,
-  service: PageImageExportService = productionPageImageExportService,
+  service: PageImageExportService = createProductionExecution(context),
 ): void {
-  registerExportPreflight(context, service);
-  registerRasterExport(context, service);
-  registerPsdExport(context, service);
+  const application = new PageImageExportApplicationService(service, {
+    pick: () => pickExportDirectory(context),
+    remember: (directory) =>
+      rememberRecentDialogDirectory(
+        context.appPaths.dataRoot,
+        recentDialogPathKeys.pageImageExport,
+        directory,
+      ),
+  });
+  registerExportPreflight(context, application);
+  registerRasterExport(context, application);
+  registerPsdExport(context, application);
 }
 
 function registerExportPreflight(
   context: IpcContext,
-  service: PageImageExportService,
+  application: PageImageExportApplicationService,
 ): void {
   trustedHandleContract(
     context,
@@ -77,89 +59,62 @@ function registerExportPreflight(
         rawRequest,
         tMain("ipc.labels.resultExport"),
       );
-      const preflightImages =
-        service.preflightImages ??
-        productionPageImageExportService.preflightImages;
-      if (!preflightImages) {
-        throw new Error("Page image export preflight is unavailable.");
-      }
-      return preflightImages({ ...request, expectedTargets: undefined });
+      return application.preflight(request);
     },
   );
 }
 
 function registerRasterExport(
   context: IpcContext,
-  service: PageImageExportService,
+  application: PageImageExportApplicationService,
 ): void {
   trustedHandleContract(
     context,
     pageImageExportIpcContracts.exportPageImages,
-    async (
-      _event,
-      rawRequest: unknown,
-    ): Promise<PageImageExportResult | null> => {
+    async (_event, rawRequest: unknown) => {
       const request = parseIpcPayload(
         PageImageExportRequestSchema,
         rawRequest,
         tMain("ipc.labels.resultExport"),
       );
-      service.assertIdle(context);
-
-      const outputParentDir = await pickExportDirectory(context);
-      if (!outputParentDir) return null;
-
-      const exported = await service.exportImages(
-        context,
-        request,
-        outputParentDir,
-      );
-      if (exported.status === "completed") {
-        rememberRecentDialogDirectory(
-          context.appPaths.dataRoot,
-          recentDialogPathKeys.pageImageExport,
-          outputParentDir,
-        );
-      }
-      return exported;
+      return application.exportImages(request);
     },
   );
 }
 
 function registerPsdExport(
   context: IpcContext,
-  service: PageImageExportService,
+  application: PageImageExportApplicationService,
 ): void {
   trustedHandleContract(
     context,
     pageImageExportIpcContracts.exportPagePsd,
-    async (
-      _event,
-      rawRequest: unknown,
-    ): Promise<PageImageExportResult | null> => {
+    async (_event, rawRequest: unknown) => {
       const request = parseIpcPayload(
         PagePsdExportRequestSchema,
         rawRequest,
         tMain("ipc.labels.resultExport"),
       );
-      service.assertIdle(context);
-      const outputParentDir = await pickExportDirectory(context);
-      if (!outputParentDir) return null;
-      const exported = await (service.exportPsd ?? exportPagePsd)(
-        context,
-        request,
-        outputParentDir,
-      );
-      if (exported.status === "completed") {
-        rememberRecentDialogDirectory(
-          context.appPaths.dataRoot,
-          recentDialogPathKeys.pageImageExport,
-          outputParentDir,
-        );
-      }
-      return exported;
+      return application.exportPsd(request);
     },
   );
+}
+
+function createProductionExecution(
+  context: IpcContext,
+): PageImageExportExecutionPort {
+  return {
+    assertIdle: () => assertNoActivePageImageExportJob(context),
+    exportImages: (request, outputParentDir) =>
+      exportPageImages(context, request, outputParentDir),
+    exportPsd: (request, outputParentDir) =>
+      exportPagePsd(context, request, outputParentDir),
+    preflight: (request) =>
+      preflightPageImageExport(
+        request,
+        productionPageImageExportDependencies.repository,
+      ),
+  };
 }
 
 async function pickExportDirectory(

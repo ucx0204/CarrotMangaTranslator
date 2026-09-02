@@ -28,7 +28,7 @@ export function useInpaintingController(
     updateCurrentChapter: translation.updateCurrentChapter,
     workspaceHistory: translation.workspaceHistory,
   });
-  const commands = useAppSessionCommandController({
+  const commandRegistry = useAppSessionCommandController({
     cancelJob: () =>
       chapter.operationActivity.active
         ? void chapter.operationActivity.cancel()
@@ -65,7 +65,7 @@ export function useInpaintingController(
   });
 
   return {
-    commands,
+    commandRegistry,
     ...inpainting,
   };
 }

@@ -1,4 +1,13 @@
 import type { SourceTextDirection } from "../../shared/textTypes";
+import {
+  buildCrossProfile,
+  clamp,
+  closeSmallGaps,
+  findActiveRuns,
+  median,
+  quantile,
+  relativeDispersion,
+} from "./sourceFontSizeMath";
 import type { SourceFontCoreMask } from "./sourceFontSizeRaster";
 import { selectLineBands } from "./sourceFontSizeProjectionBands";
 
@@ -76,7 +85,7 @@ function measureGlyphRunFace(
   const high = Math.ceil(Math.max(...positions));
   const profile = Array.from({ length: high - low + 1 }, () => false);
   for (const position of positions) profile[Math.round(position) - low] = true;
-  const runs = closeSmallGaps(findRuns(profile), 2).filter(
+  const runs = closeSmallGaps(findActiveRuns(profile), 2).filter(
     ([start, end]) => end - start >= 2,
   );
   while (runs.length > expectedGlyphs) {
@@ -100,36 +109,6 @@ function measureGlyphRunFace(
     ),
     0.7,
   );
-}
-
-function findRuns(active: readonly boolean[]): Array<[number, number]> {
-  const runs: Array<[number, number]> = [];
-  let start = -1;
-  for (let index = 0; index <= active.length; index += 1) {
-    if (active[index] && start < 0) start = index;
-    if ((!active[index] || index === active.length) && start >= 0) {
-      runs.push([start, index]);
-      start = -1;
-    }
-  }
-  return runs;
-}
-
-function closeSmallGaps(
-  source: Array<[number, number]>,
-  maximumGap: number,
-): Array<[number, number]> {
-  if (source.length < 2) return source;
-  const merged: Array<[number, number]> = [[...source[0]]];
-  for (const run of source.slice(1)) {
-    const previous = merged[merged.length - 1];
-    if (previous && run[0] - previous[1] <= maximumGap) {
-      previous[1] = run[1];
-    } else {
-      merged.push([...run]);
-    }
-  }
-  return merged;
 }
 
 function smallestGapIndex(
@@ -163,56 +142,7 @@ function collectMajorPositions(
   return positions;
 }
 
-function buildCrossProfile(
-  core: SourceFontCoreMask,
-  direction: SourceTextDirection,
-): number[] {
-  const length = direction === "vertical" ? core.width : core.height;
-  const profile = Array.from({ length }, () => 0);
-  for (let y = 0; y < core.height; y += 1) {
-    for (let x = 0; x < core.width; x += 1) {
-      if (!core.mask[y * core.width + x]) continue;
-      const cross = direction === "vertical" ? x : y;
-      profile[cross] = (profile[cross] ?? 0) + 1;
-    }
-  }
-  return profile;
-}
-
-function relativeDispersion(values: readonly number[]): number {
-  if (values.length < 2) return 0;
-  const center = median(values);
-  return (
-    median(values.map((value) => Math.abs(value - center))) /
-    Math.max(1, center)
-  );
-}
-
 function upperMedian(values: readonly number[]): number {
   const sorted = [...values].sort((left, right) => left - right);
   return sorted[Math.floor(sorted.length / 2)] ?? 0;
-}
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2
-    ? (sorted[middle] ?? 0)
-    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
-}
-
-function quantile(sorted: readonly number[], ratio: number): number {
-  if (sorted.length === 0) return 0;
-  const position = clamp(ratio, 0, 1) * (sorted.length - 1);
-  const lower = Math.floor(position);
-  const upper = Math.ceil(position);
-  if (lower === upper) return sorted[lower] ?? 0;
-  const fraction = position - lower;
-  return (
-    (sorted[lower] ?? 0) * (1 - fraction) + (sorted[upper] ?? 0) * fraction
-  );
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
 }

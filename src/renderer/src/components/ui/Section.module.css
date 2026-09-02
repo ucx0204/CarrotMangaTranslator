@@ -1,0 +1,100 @@
+.section {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+.section.compact {
+  gap: var(--sp-3);
+}
+
+.section.divided {
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--border-soft);
+}
+
+.header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.headerCopy {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-head);
+  font-size: var(--font-lg);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.compact .title {
+  font-size: var(--font-md);
+}
+
+.description {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  line-height: 1.48;
+}
+
+.actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.body {
+  min-width: 0;
+}
+
+.collapseButton {
+  display: grid;
+  grid-template-columns: var(--sp-8) minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+  min-height: var(--sp-8);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.collapseButton:focus-visible {
+  border-radius: var(--r-sm);
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.chevron {
+  display: grid;
+  width: var(--sp-8);
+  height: var(--sp-8);
+  place-items: center;
+  color: var(--text-dim);
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
+}
+
+.chevron[data-expanded] {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

@@ -77,6 +77,46 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
+/**
+ * Identifies controls whose own keyboard model must win over canvas gestures
+ * and unmodified global navigation shortcuts. The workspace itself is
+ * intentionally not matched merely because it has a tabIndex: focusing that
+ * surface is how arrow-key block nudging is enabled.
+ */
+export function isInteractiveControlTarget(
+  target: EventTarget | null,
+): boolean {
+  if (typeof Element === "undefined" || !(target instanceof Element)) {
+    return false;
+  }
+  if (isEditableTarget(target)) return true;
+  return Boolean(
+    target.closest(
+      [
+        "a[href]",
+        "button",
+        "summary",
+        "[role='button']",
+        "[role='checkbox']",
+        "[role='combobox']",
+        "[role='gridcell']",
+        "[role='link']",
+        "[role='listbox']",
+        "[role='menuitem']",
+        "[role='menuitemcheckbox']",
+        "[role='menuitemradio']",
+        "[role='option']",
+        "[role='radio']",
+        "[role='slider']",
+        "[role='spinbutton']",
+        "[role='switch']",
+        "[role='tab']",
+        "[role='treeitem']",
+      ].join(", "),
+    ),
+  );
+}
+
 export function formatElapsedDuration(
   elapsedMs: number | undefined,
   t?: TFunction<"renderer">,

@@ -17,6 +17,10 @@ describe("workspace chrome CSS", () => {
     path.join(ROOT, "src/renderer/src/styles/foundations.css"),
     "utf8",
   );
+  const panelsCss = fs.readFileSync(
+    path.join(ROOT, "src/renderer/src/styles/panels.css"),
+    "utf8",
+  );
 
   it("locks fitted pages instead of creating an invisible scroll area", () => {
     expect(rule(shellCss, ".workspace.is-fit-scroll-locked")).toContain(
@@ -102,6 +106,59 @@ describe("workspace chrome CSS", () => {
     const rightToolbar = rule(shellCss, ".right-quick-rail");
     expect(rightToolbar).toContain("right: 10px");
     expect(rightToolbar).toContain("position: absolute");
+  });
+
+  it("keeps docked rail groups flat on their owning rail surface", () => {
+    const dockedGroups = rule(shellCss, ".sidebar > .library-panel,");
+    expect(dockedGroups).toContain("border: 0");
+    expect(dockedGroups).toContain("background: transparent");
+    expect(dockedGroups).toContain("box-shadow: none");
+
+    const dividedGroups = rule(
+      shellCss,
+      ".right-rail > .page-block-list-panel,",
+    );
+    expect(dividedGroups).toContain(
+      "border-top: 1px solid var(--surface-border)",
+    );
+    expect(shellCss).not.toContain("background: #0c0d10");
+    expect(rule(shellCss, ".app-shell")).toContain(
+      "background: var(--surface-app-shell)",
+    );
+    expect(rule(shellCss, ".workspace {")).toContain(
+      "background: var(--surface-workspace)",
+    );
+  });
+
+  it("gives detached editor windows one internal scroll owner", () => {
+    const panelWindow = rule(panelsCss, ".panel-window {");
+    expect(panelWindow).toContain("grid-template-rows: minmax(0, 1fr)");
+    expect(panelWindow).toContain("overflow: hidden");
+    expect(rule(panelsCss, ".panel-window > .editor-panel")).toContain(
+      "height: 100%",
+    );
+    expect(shellCss).toContain("body:has(.app-shell)");
+    expect(shellCss).not.toMatch(
+      /@media \(max-width: 1180px\)\s*\{\s*body\s*\{/u,
+    );
+  });
+
+  it("keeps the docked editor body as the only right-rail scroll owner", () => {
+    const dockedRail = rule(shellCss, ".right-rail {\n  box-sizing");
+    expect(dockedRail).toContain("overflow: hidden");
+    expect(dockedRail).not.toContain("overflow-y: auto");
+
+    const dockedEditor = rule(
+      shellCss,
+      ".right-rail > .editor-panel,\n.right-rail > .page-block-list-panel {",
+    );
+    expect(dockedEditor).toContain("flex: 1 1 0");
+    expect(dockedEditor).toContain("min-height: 0");
+    expect(dockedEditor).toContain("max-height: none");
+
+    const editorBody = rule(panelsCss, ".editor-panel-body");
+    expect(editorBody).toContain("overflow-x: hidden");
+    expect(editorBody).toContain("overflow-y: auto");
   });
 });
 

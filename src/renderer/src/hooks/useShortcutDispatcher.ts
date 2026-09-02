@@ -3,7 +3,10 @@ import type {
   KeybindingOverrides,
   ShortcutActionId,
 } from "../../../shared/shortcutSettings";
-import { isEditableTarget } from "../lib/appHelpers";
+import {
+  isEditableTarget,
+  isInteractiveControlTarget,
+} from "../lib/appHelpers";
 import { comboFromEvent } from "../lib/shortcuts/comboFromEvent";
 import {
   getShortcutAction,
@@ -49,13 +52,43 @@ function isActionAllowed(
   action: ShortcutActionDef,
   actionId: ShortcutActionId,
   context: ShortcutContext,
-  target: EventTarget | null,
+  event: KeyboardEvent,
 ): boolean {
   if (isBlockedByShortcutOverlay(actionId, context)) return false;
-  if (!action.allowInEditable && isEditableTarget(target)) {
+  if (!action.allowInEditable && isEditableTarget(event.target)) {
+    return false;
+  }
+  if (
+    isUnmodifiedControlNavigation(event) &&
+    isInteractiveControlTarget(event.target)
+  ) {
     return false;
   }
   return !action.enabled || action.enabled(context);
+}
+
+const CONTROL_NAVIGATION_KEYS = new Set([
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "End",
+  "Enter",
+  "Home",
+  "PageDown",
+  "PageUp",
+  " ",
+  "Spacebar",
+]);
+
+function isUnmodifiedControlNavigation(event: KeyboardEvent): boolean {
+  return (
+    !event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.shiftKey &&
+    CONTROL_NAVIGATION_KEYS.has(event.key)
+  );
 }
 
 function isBlockedByShortcutOverlay(
@@ -182,7 +215,7 @@ function resolveAllowedShortcut(
   if (!actionId) return null;
   const action = getShortcutAction(actionId);
   return action &&
-    isActionAllowed(action, actionId, refs.context.current, event.target)
+    isActionAllowed(action, actionId, refs.context.current, event)
     ? { actionId, combo }
     : null;
 }

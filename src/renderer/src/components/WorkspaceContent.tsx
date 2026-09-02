@@ -5,6 +5,8 @@ import { formatCombo } from "../lib/shortcuts/comboFromEvent";
 import type { AppWorkspaceProps } from "./appWorkspaceTypes";
 import { ImageStage, type ImageStageProps } from "./ImageStage";
 import { Button } from "./ui/Button";
+import { Section } from "./ui/Section";
+import { resolveAppCommandLabel } from "../lib/appCommandTypes";
 
 export const WorkspaceContent = React.memo(function WorkspaceContent(
   props: AppWorkspaceProps,
@@ -22,6 +24,7 @@ export const WorkspaceContent = React.memo(function WorkspaceContent(
   if (!props.selectedPage) {
     return (
       <EmptyWorkspace
+        commandLabels={props.commandLabels}
         onOpenBatchImport={props.onOpenBatchImport}
         onOpenSettings={props.onOpenSettings}
         onOpenShareImport={props.onOpenShareImport}
@@ -94,6 +97,7 @@ function areWorkspaceContentPropsEqual(
 
 const WORKSPACE_CONTENT_RENDER_KEYS = [
   "imageRef",
+  "commandLabels",
   "interactionPreviewStore",
   "jobActive",
   "maskStrokes",
@@ -143,12 +147,14 @@ function WorkspacePane(stageProps: ImageStageProps): React.JSX.Element {
 }
 
 function EmptyWorkspace({
+  commandLabels,
   onOpenBatchImport,
   onOpenSettings,
   onOpenShareImport,
   onOpenTranslationSource,
 }: Pick<
   AppWorkspaceProps,
+  | "commandLabels"
   | "onOpenBatchImport"
   | "onOpenSettings"
   | "onOpenShareImport"
@@ -156,48 +162,65 @@ function EmptyWorkspace({
 >): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className="empty-state">
-      <div className="empty-card">
-        <h2>{t("workspace.empty.title")}</h2>
-        <p>{t("workspace.empty.description")}</p>
-        <EmptyWorkspaceSteps
-          onOpenSettings={onOpenSettings}
-          onOpenTranslationSource={onOpenTranslationSource}
-        />
-        <div className="empty-actions">
-          <Button variant="primary" onClick={onOpenTranslationSource}>
-            {t("workspace.empty.startTranslation")}
-          </Button>
-          <Button onClick={onOpenBatchImport}>
-            {t("sidebar.batchTranslate")}
-          </Button>
-          <Button onClick={onOpenShareImport}>
-            {t("workspace.empty.importSharedCopy")}
-          </Button>
-        </div>
-        <p className="empty-hints">
-          <kbd>←</kbd> <kbd>→</kbd> {t("workspace.empty.hints.pageNavigation")}{" "}
-          ·{" "}
-          {formatCombo("ctrl+k").map((key, index) => (
-            <React.Fragment key={`${key}-${index}`}>
-              {index > 0 ? "+" : null}
-              <kbd>{key}</kbd>
-            </React.Fragment>
-          ))}{" "}
-          {t("workspace.empty.hints.commandPalette")} · <kbd>?</kbd>{" "}
-          {t("workspace.empty.hints.shortcuts")}
-        </p>
+    <Section
+      bodyClassName="empty-content"
+      className="empty-state"
+      description={t("workspace.empty.description")}
+      descriptionClassName="empty-description"
+      headingLevel={2}
+      title={t("workspace.empty.title")}
+      titleClassName="empty-title"
+    >
+      <EmptyWorkspaceSteps
+        commandLabels={commandLabels}
+        onOpenSettings={onOpenSettings}
+        onOpenTranslationSource={onOpenTranslationSource}
+      />
+      <div className="empty-actions">
+        <Button variant="primary" onClick={onOpenTranslationSource}>
+          {resolveAppCommandLabel(
+            commandLabels,
+            "open-translate-source",
+            t("workspace.empty.startTranslation"),
+          )}
+        </Button>
+        <Button onClick={onOpenBatchImport}>
+          {resolveAppCommandLabel(
+            commandLabels,
+            "open-batch",
+            t("sidebar.batchTranslate"),
+          )}
+        </Button>
+        <Button onClick={onOpenShareImport}>
+          {resolveAppCommandLabel(
+            commandLabels,
+            "open-share-import",
+            t("workspace.empty.importSharedCopy"),
+          )}
+        </Button>
       </div>
-    </div>
+      <p className="empty-hints">
+        <kbd>←</kbd> <kbd>→</kbd> {t("workspace.empty.hints.pageNavigation")} ·{" "}
+        {formatCombo("ctrl+k").map((key, index) => (
+          <React.Fragment key={`${key}-${index}`}>
+            {index > 0 ? "+" : null}
+            <kbd>{key}</kbd>
+          </React.Fragment>
+        ))}{" "}
+        {t("workspace.empty.hints.commandPalette")} · <kbd>?</kbd>{" "}
+        {t("workspace.empty.hints.shortcuts")}
+      </p>
+    </Section>
   );
 }
 
 function EmptyWorkspaceSteps({
+  commandLabels,
   onOpenSettings,
   onOpenTranslationSource,
 }: Pick<
   AppWorkspaceProps,
-  "onOpenSettings" | "onOpenTranslationSource"
+  "commandLabels" | "onOpenSettings" | "onOpenTranslationSource"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -209,7 +232,11 @@ function EmptyWorkspaceSteps({
           <span>{t("workspace.empty.steps.engine.description")}</span>
         </div>
         <Button size="sm" onClick={onOpenSettings}>
-          {t("workspace.empty.openSettings")}
+          {resolveAppCommandLabel(
+            commandLabels,
+            "open-settings",
+            t("workspace.empty.openSettings"),
+          )}
         </Button>
       </li>
       <li>
@@ -219,7 +246,11 @@ function EmptyWorkspaceSteps({
           <span>{t("workspace.empty.steps.import.description")}</span>
         </div>
         <Button size="sm" onClick={onOpenTranslationSource}>
-          {t("sidebar.translate")}
+          {resolveAppCommandLabel(
+            commandLabels,
+            "open-translate-source",
+            t("sidebar.translate"),
+          )}
         </Button>
       </li>
       <li>

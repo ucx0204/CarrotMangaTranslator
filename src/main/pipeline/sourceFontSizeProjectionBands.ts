@@ -1,4 +1,12 @@
-type Band = [number, number];
+import {
+  clamp,
+  closeSmallGaps,
+  findActiveRuns,
+  median,
+  type SourceFontBand,
+} from "./sourceFontSizeMath";
+
+type Band = SourceFontBand;
 
 export function selectLineBands(
   profile: readonly number[],
@@ -7,7 +15,7 @@ export function selectLineBands(
   const gap = Math.max(1, Math.round(profile.length * 0.012));
   const minimum = Math.max(2, Math.round(profile.length * 0.025));
   const initialRuns = closeSmallGaps(
-    findRuns(profile.map((value) => value > 0)),
+    findActiveRuns(profile.map((value) => value > 0)),
     gap,
   ).filter(([start, end]) => end - start >= minimum);
   if (initialRuns.length === 0) return [[0, profile.length]];
@@ -271,40 +279,4 @@ function findLastPositiveIndex(profile: readonly number[]): number {
     if ((profile[index] ?? 0) > 0) return index;
   }
   return -1;
-}
-
-function findRuns(active: readonly boolean[]): Band[] {
-  const runs: Band[] = [];
-  let start = -1;
-  for (let index = 0; index <= active.length; index += 1) {
-    if (active[index] && start < 0) start = index;
-    if ((!active[index] || index === active.length) && start >= 0) {
-      runs.push([start, index]);
-      start = -1;
-    }
-  }
-  return runs;
-}
-
-function closeSmallGaps(runs: Band[], maximumGap: number): Band[] {
-  if (runs.length < 2) return runs;
-  const merged: Band[] = [runs[0] as Band];
-  for (const run of runs.slice(1)) {
-    const previous = merged[merged.length - 1] as Band;
-    if (run[0] - previous[1] <= maximumGap) previous[1] = run[1];
-    else merged.push([...run]);
-  }
-  return merged;
-}
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2
-    ? (sorted[middle] ?? 0)
-    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
 }

@@ -363,6 +363,26 @@ describe("customizable page and block shortcut dispatch", () => {
     expect(pagePrevious).toHaveBeenCalledOnce();
   });
 
+  it("leaves unmodified navigation keys to focused ARIA controls", () => {
+    const pagePrevious = vi.fn();
+    const pageNext = vi.fn();
+    render(
+      <ShortcutHarness
+        handlers={{
+          "page-previous": pagePrevious,
+          "page-next": pageNext,
+        }}
+      />,
+    );
+    const tab = screen.getByRole("tab");
+
+    fireEvent.keyDown(tab, { key: "ArrowLeft", code: "ArrowLeft" });
+    fireEvent.keyDown(tab, { key: "ArrowRight", code: "ArrowRight" });
+
+    expect(pagePrevious).not.toHaveBeenCalled();
+    expect(pageNext).not.toHaveBeenCalled();
+  });
+
   it("uses a custom page binding without retaining its built-in aliases", () => {
     const pageNext = vi.fn();
     render(
@@ -477,7 +497,12 @@ function ShortcutHarness({
     holdHandlers,
     overrides,
   });
-  return <textarea aria-label="번역" />;
+  return (
+    <>
+      <textarea aria-label="번역" />
+      <button role="tab">서식</button>
+    </>
+  );
 }
 
 function keyboardEventForCombo(combo: string): KeyboardEvent {

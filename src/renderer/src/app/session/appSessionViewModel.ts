@@ -24,6 +24,7 @@ import type { useAppSessionDerivedState } from "./useAppSessionDerivedState";
 import type { useAppSessionUiState } from "./useAppSessionUiState";
 import type { useInpaintingGuidePreference } from "./useInpaintingGuidePreference";
 import type { useCompletionSoundController } from "../../hooks/useCompletionSound";
+import type { AppCommandRegistry } from "../../lib/appCommandTypes";
 
 type OperationActivityController = {
   activity: AppSessionViewProps["rightRailProps"]["operationActivity"];
@@ -37,7 +38,7 @@ export type AppSessionViewModel = {
   blockEditingActions: ReturnType<typeof useBlockEditingActions>;
   bridgeActions: ReturnType<typeof useAppSessionBridgeActions>;
   completionSound: ReturnType<typeof useCompletionSoundController>;
-  commands: AppSessionViewProps["commandPaletteProps"]["commands"];
+  commandRegistry: AppCommandRegistry;
   confirmController: ReturnType<typeof useConfirmDialog>;
   core: AppSessionCoreState;
   derivedState: ReturnType<typeof useAppSessionDerivedState>;

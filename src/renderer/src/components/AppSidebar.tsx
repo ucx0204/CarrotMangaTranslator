@@ -9,8 +9,14 @@ import { LibraryTree } from "./LibraryTree";
 import { PageList } from "./PageList";
 import { Button } from "./ui/Button";
 import { MacAlphaBadge } from "./MacAlphaBadge";
+import {
+  resolveAppCommandLabel,
+  type AppCommandId,
+  type AppCommandLabels,
+} from "../lib/appCommandTypes";
 
 type AppSidebarProps = {
+  commandLabels?: AppCommandLabels;
   currentChapter: ChapterSnapshot | null;
   selectedPageId: string | null;
   library: LibraryIndex;
@@ -55,6 +61,7 @@ function LibrarySidebarContent(props: AppSidebarProps): React.JSX.Element {
   return (
     <>
       <SidebarToolbar
+        commandLabels={props.commandLabels}
         jobActive={props.jobActive}
         library={props.library}
         onOpenBatchImport={props.onOpenBatchImport}
@@ -138,6 +145,7 @@ function useStableSidebarActions(props: AppSidebarProps) {
 const EMPTY_PAGE_IDS: ReadonlySet<string> = new Set();
 
 function SidebarToolbar({
+  commandLabels,
   jobActive,
   library,
   onOpenBatchImport,
@@ -151,6 +159,7 @@ function SidebarToolbar({
 }: Pick<
   AppSidebarProps,
   | "jobActive"
+  | "commandLabels"
   | "library"
   | "onOpenBatchImport"
   | "onOpenLibraryFolder"
@@ -162,6 +171,8 @@ function SidebarToolbar({
   | "settingsOpen"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
+  const label = (id: AppCommandId, fallback: string): string =>
+    resolveAppCommandLabel(commandLabels, id, fallback);
   return (
     <section className="toolbar">
       <Button
@@ -170,30 +181,30 @@ function SidebarToolbar({
         onClick={onOpenTranslationSource}
         disabled={jobActive}
       >
-        {t("sidebar.translate")}
+        {label("open-translate-source", t("sidebar.translate"))}
       </Button>
       <Button fullWidth onClick={onOpenBatchImport} disabled={jobActive}>
-        {t("sidebar.batchTranslate")}
+        {label("open-batch", t("sidebar.batchTranslate"))}
       </Button>
       <Button
         fullWidth
         onClick={onOpenSettings}
         disabled={settingsBusy && !settingsOpen}
       >
-        {t("common.settings")}
+        {label("open-settings", t("common.settings"))}
       </Button>
       <Button fullWidth onClick={onOpenLibraryFolder}>
-        {t("sidebar.libraryFolder")}
+        {label("open-library-folder", t("sidebar.libraryFolder"))}
       </Button>
       <Button
         fullWidth
         onClick={onOpenShareExport}
         disabled={jobActive || library.works.length === 0}
       >
-        {t("sidebar.share")}
+        {label("open-share-export", t("sidebar.share"))}
       </Button>
       <Button fullWidth onClick={onOpenShareImport} disabled={jobActive}>
-        {t("sidebar.importWork")}
+        {label("open-share-import", t("sidebar.importWork"))}
       </Button>
     </section>
   );

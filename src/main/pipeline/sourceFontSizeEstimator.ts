@@ -3,6 +3,7 @@ import { stripRichTextMarkup } from "../../shared/richTextMarkup";
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
 import { estimateSourceFontFace } from "./sourceFontSizeGeometry";
 import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometryTypes";
+import { clamp, median } from "./sourceFontSizeMath";
 import type { FontMatchingRasterPage } from "./fontMatchingPagePixelPreprocessing";
 import { buildSourceFontCoreMask } from "./sourceFontSizeRaster";
 import {
@@ -254,18 +255,6 @@ function isFiniteBbox(value: {
     value.w > 0 &&
     value.h > 0
   );
-}
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2
-    ? (sorted[middle] ?? 0)
-    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
 }
 
 function isEligibleSourceSizeItem(

@@ -260,6 +260,7 @@
       "center": "Align center",
       "right": "Align right"
     },
+    "directionLabel": "Writing direction",
     "direction": { "horizontal": "Horizontal", "vertical": "Vertical" },
     "size": "Size",
     "fontSize": "Font size",

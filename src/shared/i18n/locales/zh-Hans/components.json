@@ -254,6 +254,7 @@
     "blockStrikethrough": "整块添加删除线",
     "blockEmphasisMark": "整块添加着重号",
     "align": { "left": "左对齐", "center": "居中", "right": "右对齐" },
+    "directionLabel": "文字方向",
     "direction": { "horizontal": "横排", "vertical": "竖排" },
     "size": "大小",
     "fontSize": "字号",

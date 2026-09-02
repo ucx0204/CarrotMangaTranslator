@@ -24,12 +24,10 @@ import { libraryGateway } from "../api/libraryGateway";
 import { createWorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
 import type { WorkspaceZoomController } from "../lib/workspaceZoom";
 import type { AppWorkspaceProps } from "./appWorkspaceTypes";
+import type { ConditionalBatchFooterProps } from "./ConditionalBatchFooter";
 import type { ConditionalBatchPreviewPaneProps } from "./ConditionalBatchPreviewPane";
 import type { ConditionalBatchResultsCardProps } from "./ConditionalBatchResultsCard";
-import type {
-  ConditionalBatchFooterProps,
-  ConditionalBatchRulePanelProps,
-} from "./ConditionalBatchRulePanel";
+import type { ConditionalBatchRulePanelProps } from "./conditionalBatchRulePanelTypes";
 import {
   useConditionalBatchSchemeController,
   type ConditionalBatchApplyNotice,

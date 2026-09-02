@@ -1,0 +1,9 @@
+{
+  "minLines": 12,
+  "minTokens": 80,
+  "mode": "weak",
+  "format": ["javascript", "typescript", "tsx", "jsx"],
+  "crossFormats": "js-ts",
+  "reporters": ["json"],
+  "output": ".tmp/check-jscpd"
+}

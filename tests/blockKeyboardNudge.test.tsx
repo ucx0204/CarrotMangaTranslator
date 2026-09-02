@@ -274,6 +274,11 @@ describe("selected block keyboard nudge", () => {
     input.focus();
     fireEvent.keyDown(input, { key: "ArrowLeft" });
     expect(onNudge).not.toHaveBeenCalled();
+
+    const tab = screen.getByRole("tab");
+    tab.focus();
+    fireEvent.keyDown(tab, { key: "ArrowLeft" });
+    expect(onNudge).not.toHaveBeenCalled();
   });
 
   it("owns workspace arrow keys before page-navigation aliases dispatch", () => {
@@ -313,6 +318,7 @@ function NudgeHarness({
   return (
     <div ref={workspacePanelRef} data-testid="workspace" tabIndex={0}>
       <input aria-label="editor" />
+      <button role="tab">Format</button>
     </div>
   );
 }

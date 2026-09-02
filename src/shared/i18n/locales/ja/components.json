@@ -254,6 +254,7 @@
     "blockStrikethrough": "ブロック全体に取り消し線",
     "blockEmphasisMark": "ブロック全体に圏点",
     "align": { "left": "左揃え", "center": "中央揃え", "right": "右揃え" },
+    "directionLabel": "文字方向",
     "direction": { "horizontal": "横書き", "vertical": "縦書き" },
     "size": "サイズ",
     "fontSize": "文字サイズ",

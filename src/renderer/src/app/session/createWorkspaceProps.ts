@@ -8,10 +8,9 @@ import { isWorkspaceJobActive } from "./workspaceActivity";
 
 export function createWorkspaceProps({
   blockEditingActions,
+  commandRegistry,
   core,
   derivedState,
-  importShareActions: shareActions,
-  importShareModal: shareModal,
   inpaintingBridge,
   libraryActions,
   pointerHandlers,
@@ -23,6 +22,7 @@ export function createWorkspaceProps({
 }: AppSessionViewModel): AppSessionViewProps["workspaceProps"] {
   return {
     ...createWorkspaceViewProps(uiState),
+    commandLabels: commandRegistry.labels,
     wheelZoomSensitivityPercent:
       settingsDialog.settings?.ui?.wheelZoomSensitivityPercent ?? 1,
     interactionPreviewStore: pointerHandlers.interactionPreviewStore,
@@ -43,10 +43,10 @@ export function createWorkspaceProps({
       pointerHandlers,
       uiState,
     }),
-    onOpenBatchImport: () => void shareActions.openImportPreview("zip-folder"),
-    onOpenSettings: () => void settingsDialog.openSettings(),
-    onOpenShareImport: () => void shareActions.openShareImportPreview(),
-    onOpenTranslationSource: () => shareModal.setTranslationSourceOpen(true),
+    onOpenBatchImport: commandRegistry.byId["open-batch"].run,
+    onOpenSettings: commandRegistry.byId["open-settings"].run,
+    onOpenShareImport: commandRegistry.byId["open-share-import"].run,
+    onOpenTranslationSource: commandRegistry.byId["open-translate-source"].run,
     progressSnapshot: derivedState.progressSnapshot,
     regionSelectionActive: Boolean(core.regionSelection?.active),
     regionTranslationAvailable: isWorkspaceImageReadyForSelectedPage({

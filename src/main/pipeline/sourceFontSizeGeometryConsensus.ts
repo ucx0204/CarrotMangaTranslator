@@ -5,12 +5,17 @@ import {
 } from "./sourceFontSizeComponentAffinity";
 import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometryTypes";
 import {
+  clamp,
+  estimateLineCount,
+  median,
+  SOURCE_FONT_FACE_SCALE,
+} from "./sourceFontSizeMath";
+import {
   measureMajorAxisPitch,
   type MajorPitchMeasurement,
 } from "./sourceFontSizeMajorPitch";
 import type { SourceFontCoreMask } from "./sourceFontSizeRaster";
 
-const SOURCE_FACE_SCALE = 1.02;
 const CONSENSUS_MAX_INDEPENDENT_RATIO = 1.3;
 const CONSENSUS_MAX_UPWARD_INDEPENDENT_RATIO = 1.12;
 const CONSENSUS_MAX_MAJOR_BAND_RATIO = 2;
@@ -83,7 +88,7 @@ function refineProjectionWithGeometryConsensus(input: {
     return input.projection;
   }
   const consensusFace =
-    Math.sqrt(componentFace * majorFace) * SOURCE_FACE_SCALE;
+    Math.sqrt(componentFace * majorFace) * SOURCE_FONT_FACE_SCALE;
   if (
     maximumRatio(input.projection.facePx, consensusFace) <=
     CONSENSUS_MAX_INDEPENDENT_RATIO
@@ -182,8 +187,8 @@ function measureConsensusRecovery(
   if (!lineProjection || !geometry) return null;
   const values = [
     lineProjection.facePx,
-    geometry.component.primaryFace * SOURCE_FACE_SCALE,
-    geometry.major.face * SOURCE_FACE_SCALE,
+    geometry.component.primaryFace * SOURCE_FONT_FACE_SCALE,
+    geometry.major.face * SOURCE_FONT_FACE_SCALE,
   ];
   const ratio = Math.max(...values) / Math.max(1, Math.min(...values));
   if (ratio > CONSENSUS_MAX_INDEPENDENT_RATIO) return null;
@@ -199,17 +204,6 @@ function measureConsensusRecovery(
   };
 }
 
-function estimateLineCount(
-  glyphCount: number,
-  cross: number,
-  major: number,
-): number {
-  if (glyphCount <= 1 || cross <= 0 || major <= 0) return 1;
-  const estimate = Math.sqrt((glyphCount * cross) / major);
-  const maximum = Math.max(1, Math.min(12, Math.ceil(glyphCount / 2)));
-  return clamp(Math.round(estimate), 1, maximum);
-}
-
 function maximumRatio(first: number, second: number): number {
   return Math.max(first / Math.max(1, second), second / Math.max(1, first));
 }
@@ -218,16 +212,4 @@ function valueRatio(values: readonly number[]): number {
   return values.length > 0
     ? Math.max(...values) / Math.max(1, Math.min(...values))
     : Number.POSITIVE_INFINITY;
-}
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2
-    ? (sorted[middle] ?? 0)
-    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
 }

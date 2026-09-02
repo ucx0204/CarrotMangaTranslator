@@ -509,6 +509,8 @@
 }
 
 .cardToggle:hover {
+  border-color: transparent;
+  background: transparent;
   color: var(--text-head);
 }
 
@@ -883,6 +885,11 @@
   border-top: 1px solid var(--border-soft);
 }
 
+.sequenceBody {
+  display: grid;
+  gap: var(--sp-3);
+}
+
 .sequenceHeader,
 .sequenceFormActions {
   display: flex;
@@ -1044,7 +1051,7 @@
   grid-template-columns: minmax(0, 1fr) clamp(340px, 26vw, 440px);
   grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
-  background: #0c0d10;
+  background: var(--surface-workspace);
 }
 
 .previewRegion {
@@ -1052,7 +1059,7 @@
   grid-row: 1;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  background: #0c0d10;
+  background: var(--surface-workspace);
 }
 
 .previewHeader {

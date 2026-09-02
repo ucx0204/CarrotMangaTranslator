@@ -254,6 +254,7 @@
     "blockStrikethrough": "整區塊加刪除線",
     "blockEmphasisMark": "整區塊加著重號",
     "align": { "left": "靠左對齊", "center": "置中", "right": "靠右對齊" },
+    "directionLabel": "文字方向",
     "direction": { "horizontal": "橫排", "vertical": "直排" },
     "size": "大小",
     "fontSize": "字級",

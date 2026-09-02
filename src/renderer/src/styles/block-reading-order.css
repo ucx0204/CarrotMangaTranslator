@@ -8,24 +8,8 @@
 }
 
 .page-block-order-sort {
-  min-height: 30px;
-  padding: 5px 9px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
-  background: var(--bg-raised);
-  color: var(--text-dim);
+  width: auto;
   font-size: var(--font-xs);
-  cursor: pointer;
-}
-
-.page-block-order-sort:hover:not(:disabled) {
-  border-color: var(--accent-bd);
-  color: var(--text-head);
-}
-
-.page-block-order-sort:disabled {
-  cursor: default;
-  opacity: 0.45;
 }
 
 .page-block-list-row-header {

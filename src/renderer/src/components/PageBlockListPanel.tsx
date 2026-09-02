@@ -7,6 +7,7 @@ import {
   type BlockReadingDirection,
 } from "../../../shared/blockReadingOrder";
 import { PageBlockListRow } from "./PageBlockListRow";
+import { Button } from "./ui/Button";
 
 type PageBlockListPanelProps = {
   disabled: boolean;
@@ -203,14 +204,14 @@ function PageBlockListHeader({
           <span>{t("pageBlocks.selectedCount", { count: selectedCount })}</span>
         ) : null}
       </div>
-      <button
-        type="button"
+      <Button
         className="page-block-order-sort"
         disabled={disabled || blockCount < 2}
         onClick={onSortReadingOrder}
+        size="sm"
       >
         {t("pageBlocks.sortReadingOrder")}
-      </button>
+      </Button>
     </header>
   );
 }
