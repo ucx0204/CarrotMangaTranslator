@@ -1424,23 +1424,23 @@
     "src/main/ipc/pageImageExportIpc.ts": {
       "lines": {
         "covered": 18,
-        "total": 33,
-        "pct": 54.54
+        "total": 24,
+        "pct": 75
       },
       "statements": {
-        "covered": 19,
-        "total": 35,
-        "pct": 54.28
+        "covered": 18,
+        "total": 24,
+        "pct": 75
       },
       "functions": {
-        "covered": 6,
-        "total": 9,
+        "covered": 10,
+        "total": 15,
         "pct": 66.66
       },
       "branches": {
-        "covered": 9,
-        "total": 21,
-        "pct": 42.85
+        "covered": 5,
+        "total": 7,
+        "pct": 71.42
       }
     },
     "src/main/ipc/panelWindowsIpc.ts": {
@@ -14381,6 +14381,12 @@
     }
   },
   "introducedFloors": {
+    "src/main/application/pageImageExportService.ts": {
+      "lines": { "total": 14, "covered": 14, "pct": 100 },
+      "statements": { "total": 15, "covered": 15, "pct": 100 },
+      "functions": { "total": 7, "covered": 7, "pct": 100 },
+      "branches": { "total": 4, "covered": 4, "pct": 100 }
+    },
     "src/main/application/webImportService.ts": {
       "lines": { "total": 28, "covered": 28, "pct": 100 },
       "statements": { "total": 29, "covered": 29, "pct": 100 },
