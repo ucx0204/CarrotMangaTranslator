@@ -5,6 +5,11 @@ describe("KoharuLayout detector backend", () => {
   it("routes the prepared page through the isolated WASM worker", async () => {
     const loadImage = vi.fn(async () => ({}) as never);
     const prepareImage = vi.fn(() => ({
+      geometryRaster: {
+        luminance: new Uint8Array([255]),
+        width: 1,
+        height: 1,
+      },
       imageWidth: 1200,
       imageHeight: 1800,
       rgbChw: new Float32Array(3),
@@ -40,5 +45,6 @@ describe("KoharuLayout detector backend", () => {
       signal,
     });
     expect(result.executionProvider).toBe("wasm");
+    expect(result.geometryRaster?.luminance).toEqual(new Uint8Array([255]));
   });
 });

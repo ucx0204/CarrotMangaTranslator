@@ -52,13 +52,14 @@ export async function detectKoharuPageLayout(
   );
   const prepared = dependencies.prepareImage(image, options.signal);
   if (dependencies.resolveBackend() === "wasm-worker") {
-    return dependencies.runWasmInference({
+    const result = await dependencies.runWasmInference({
       modelPath: options.modelPath,
       imageWidth: prepared.imageWidth,
       imageHeight: prepared.imageHeight,
       rgbChw: prepared.rgbChw,
       signal: options.signal,
     });
+    return { ...result, geometryRaster: prepared.geometryRaster };
   }
   const { session, provider } = await getKoharuLayoutSession({
     modelPath: options.modelPath,
@@ -74,6 +75,7 @@ export async function detectKoharuPageLayout(
     const outputs = await runKoharuSession(session, input, options.signal);
     try {
       return {
+        geometryRaster: prepared.geometryRaster,
         imageWidth: prepared.imageWidth,
         imageHeight: prepared.imageHeight,
         detections: parseKoharuLayoutOutputs(outputs, {

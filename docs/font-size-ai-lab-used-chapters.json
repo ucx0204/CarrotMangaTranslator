@@ -1193,6 +1193,19 @@
       "seed": "254c2db1d745e4ac42b56e5d7c431cf812a5123f5ba1b02a29038760933acc41",
       "series": "Tada no Murabito no Boku ga, Sanbyakunen Mae no Boukun Ouji ni Tensei shite shimaimashita – Zense no Chishiki de Ansatsu Flag wo Kaihi shite, Odayaka ni Ikinokorimasu!",
       "status": "completed-promoted-fsai-lab-v0.8.0"
+    },
+    {
+      "chapter": "Chapter 34",
+      "experimentsUsed": 5,
+      "key": "RawINU (JA)/BUCHI KIRE REIJO HA HOFUKU WO CHIKAIMASHITA. MA SHIRUBE SHO NO CHIKARA/Chapter 34",
+      "normalizedKey": "rawinu (ja)/buchi kire reijo ha hofuku wo chikaimashita. ma shirube sho no chikara/chapter 34",
+      "pageCount": 32,
+      "provider": "RawINU (JA)",
+      "report": "artifacts/font-size-ai-lab/campaign-009/chapter-report.html",
+      "sealedAt": "2026-09-02T16:46:06.925Z",
+      "seed": "bfd117eef7efdc7dad534920ba980eea396ede705afc07429080f9a54a3639df",
+      "series": "BUCHI KIRE REIJO HA HOFUKU WO CHIKAIMASHITA. MA SHIRUBE SHO NO CHIKARA",
+      "status": "completed-promoted-fsai-lab-v0.9.0"
     }
   ]
 }
