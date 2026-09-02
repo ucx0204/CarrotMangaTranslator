@@ -142,6 +142,24 @@ describe("workspace chrome CSS", () => {
       /@media \(max-width: 1180px\)\s*\{\s*body\s*\{/u,
     );
   });
+
+  it("keeps the docked editor body as the only right-rail scroll owner", () => {
+    const dockedRail = rule(shellCss, ".right-rail {\n  box-sizing");
+    expect(dockedRail).toContain("overflow: hidden");
+    expect(dockedRail).not.toContain("overflow-y: auto");
+
+    const dockedEditor = rule(
+      shellCss,
+      ".right-rail > .editor-panel,\n.right-rail > .page-block-list-panel {",
+    );
+    expect(dockedEditor).toContain("flex: 1 1 0");
+    expect(dockedEditor).toContain("min-height: 0");
+    expect(dockedEditor).toContain("max-height: none");
+
+    const editorBody = rule(panelsCss, ".editor-panel-body");
+    expect(editorBody).toContain("overflow-x: hidden");
+    expect(editorBody).toContain("overflow-y: auto");
+  });
 });
 
 function rule(css: string, selector: string): string {

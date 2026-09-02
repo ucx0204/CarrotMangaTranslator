@@ -224,7 +224,7 @@
   min-width: var(--app-right-rail-width);
   border-left: 1px solid var(--surface-border);
   background: var(--surface-rail);
-  overflow-y: auto;
+  overflow: hidden;
   opacity: 1;
   transform: translateX(0);
   transition:
@@ -251,6 +251,28 @@
 .sidebar > .library-panel,
 .sidebar > .page-list {
   padding-inline: 0;
+}
+
+/* The rail is a fixed viewport, not a second scroll owner. Context panels
+   receive the remaining height and keep scrolling inside their own body. */
+.right-rail > .run-panel {
+  flex: 0 0 auto;
+}
+
+.right-rail > .editor-panel,
+.right-rail > .page-block-list-panel {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+}
+
+.right-rail > .inpainting-panel,
+.right-rail > .inpainting-area-translate-panel,
+.right-rail > .inpainting-exit-panel {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .right-rail > .page-block-list-panel,
@@ -880,6 +902,7 @@
     justify-self: stretch;
     width: auto;
     min-width: 0;
+    overflow: visible;
     opacity: 1;
     transform: none;
     transition: none;
