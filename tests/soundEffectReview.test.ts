@@ -187,88 +187,27 @@ describe("sound-effect review boundary", () => {
     expect(reviewed).not.toHaveProperty("reviewStatus");
   });
 
-  it("rejoins nearby vertical text columns from one balloon", () => {
+  it("keeps separated vertical columns distinct even when Koharu assigns one bubble", () => {
     const manifest = buildHayaiRegionManifest({
-      geometryRaster: {
-        luminance: new Uint8Array(100).fill(255),
-        width: 10,
-        height: 10,
-      },
-      imageWidth: 100,
-      imageHeight: 100,
-      detections: [
-        roundedBubbleDetection(0.99, [2, 0, 9, 7]),
-        detection("text", 0.95, [6, 1, 8, 6]),
-        detection("text", 0.94, [3, 1, 5, 6]),
-        detection("onomatopoeia", 0.9, [1, 8, 3, 10]),
-      ],
-    });
-
-    expect(manifest.dialogueRegions).toHaveLength(1);
-    expect(manifest.dialogueRegions[0]?.sourceDetectionIds).toEqual([
-      "T002",
-      "T003",
-    ]);
-    expect(manifest.dialogueRegions[0]?.recognitionBboxes).toEqual([
-      [55, 5, 85, 65],
-      [25, 5, 55, 65],
-    ]);
-    expect(manifest.diagnostics.dialogueFragmentMerges).toBe(1);
-    expect(manifest.effectRegions).toHaveLength(1);
-    expect(manifest.effectRegions[0]?.kind).toBe("effect");
-  });
-
-  it("keeps nearby columns separate across a dark balloon outline", () => {
-    const luminance = new Uint8Array(100).fill(255);
-    for (let y = 0; y < 10; y += 1) luminance[y * 10 + 5] = 0;
-    const manifest = buildHayaiRegionManifest({
-      geometryRaster: { luminance, width: 10, height: 10 },
-      imageWidth: 100,
-      imageHeight: 100,
-      detections: [
-        roundedBubbleDetection(0.99, [2, 0, 9, 7]),
-        detection("text", 0.95, [6, 1, 8, 6]),
-        detection("text", 0.94, [3, 1, 5, 6]),
-      ],
-    });
-
-    expect(manifest.dialogueRegions).toHaveLength(2);
-    expect(manifest.diagnostics.dialogueFragmentMerges).toBe(0);
-  });
-
-  it("keeps nearby columns in a rectangular narration caption separate", () => {
-    const manifest = buildHayaiRegionManifest({
-      geometryRaster: {
-        luminance: new Uint8Array(100).fill(255),
-        width: 10,
-        height: 10,
-      },
       imageWidth: 100,
       imageHeight: 100,
       detections: [
         detection("bubble", 0.99, [2, 0, 9, 7]),
         detection("text", 0.95, [6, 1, 8, 6]),
         detection("text", 0.94, [3, 1, 5, 6]),
+        detection("onomatopoeia", 0.9, [1, 8, 3, 10]),
       ],
     });
 
     expect(manifest.dialogueRegions).toHaveLength(2);
+    expect(
+      manifest.dialogueRegions.map(
+        ({ sourceDetectionIds }) => sourceDetectionIds,
+      ),
+    ).toEqual([["T002"], ["T003"]]);
     expect(manifest.diagnostics.dialogueFragmentMerges).toBe(0);
-  });
-
-  it("keeps distant vertical text masks separate despite a broad shared balloon", () => {
-    const manifest = buildHayaiRegionManifest({
-      imageWidth: 100,
-      imageHeight: 100,
-      detections: [
-        detection("bubble", 0.99, [0, 0, 10, 7]),
-        detection("text", 0.95, [8, 1, 9, 4]),
-        detection("text", 0.94, [1, 1, 2, 4]),
-      ],
-    });
-
-    expect(manifest.dialogueRegions).toHaveLength(2);
-    expect(manifest.diagnostics.dialogueFragmentMerges).toBe(0);
+    expect(manifest.effectRegions).toHaveLength(1);
+    expect(manifest.effectRegions[0]?.kind).toBe("effect");
   });
 
   it("rejoins high-confidence aligned text fragments from one balloon", () => {
@@ -787,24 +726,4 @@ function maskedDetection(
     ],
     mask: { logits, width, height },
   };
-}
-
-function roundedBubbleDetection(
-  score: number,
-  gridBox: [number, number, number, number],
-): ComicPageDetection {
-  const [left, top, right, bottom] = gridBox;
-  const centerX = (left + right) / 2;
-  const centerY = (top + bottom) / 2;
-  const radiusX = (right - left) / 2;
-  const radiusY = (bottom - top) / 2;
-  const points: Array<[number, number]> = [];
-  for (let y = top; y < bottom; y += 1) {
-    for (let x = left; x < right; x += 1) {
-      const normalizedX = (x + 0.5 - centerX) / radiusX;
-      const normalizedY = (y + 0.5 - centerY) / radiusY;
-      if (normalizedX ** 2 + normalizedY ** 2 <= 1) points.push([x, y]);
-    }
-  }
-  return maskedDetection("bubble", score, 10, 10, points);
 }

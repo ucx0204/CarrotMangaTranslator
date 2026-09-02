@@ -590,52 +590,32 @@ fragment를 segmented recognition으로 재결합하고 원 세그먼트의 방�
   `regression-campaign-001/geometry-evaluation.json`이다. 실제 이미지 175개가 포함된 보고서는
   `artifacts/font-size-ai-lab/campaign-008/chapter-report.html`이다.
 
-## 캠페인 009 · 떨어진 동일 말풍선 세로 열 재결합 승격
+## 캠페인 009 · 접촉 말풍선 오결합 실패 및 v0.8.0 롤백
 
 봉인 화:
 `RawINU (JA)/BUCHI KIRE REIJO HA HOFUKU WO CHIKAIMASHITA. MA SHIRUBE SHO NO CHIKARA/Chapter 34`
 
 - seed `bfd117eef7efdc7dad534920ba980eea396ede705afc07429080f9a54a3639df`로
-  검사 전에 봉인했다. HayaiOCR CUDA/cu126로 32페이지를 실행하고 기준선 전체 오버레이
-  32/32와 일반 텍스트 crop 108/108을 원본 해상도로 확대 확인했다. 최종 102개 중 변경
-  6개를 다시 확대했고 나머지 96개는 bbox·OCR·추정 크기 exact parity다. 효과음 35개는
-  사용자 선택 흐름이므로 모든 실험·회귀·승격 판정에서 제외했다.
-- v0.8.0 기준선은 같은 말풍선 안의 떨어진 세로 열을 P004/P006/P014/P019/P021/P031에서
-  각각 두 블록으로 냈다. 사용자 제보처럼 큰 세로 말풍선의 위·아래 또는 좌·우 문장이
-  끊겨 번역 블록과 자동 크기 맞춤이 서로 다른 단위로 동작하는 문제다.
-- 실험 2의 **같은 bubble 소유권 + 거리만 사용한 결합**은 `108→96`이었지만 목표 6건과
-  별개 말풍선 6쌍을 함께 합쳤다. 이 조합은 실패로 봉인하며 거리 문턱만 바꿔 반복하지 않는다.
-- 실험 3은 원본 288×288 luminance에서 어두운 외곽선을 팽창시키고 두 text mask가 같은 밝은
-  내부 component에 닿는지 확인했다. 밝기 문턱 180은 오검출 5건을 없앴지만 P028 별개
-  말풍선을 계속 합쳐 `108→101`이었다. **180 calibration은 재사용하지 않는다.**
-- 실험 4의 문턱 200은 현재 화 12개 수동 양성/음성 쌍을 전부 맞혀 `108→102`가 됐다.
-  그러나 과거 88페이지 회귀에서 서로 맞닿은 직사각형 내레이션 상자 2쌍도 합쳤으므로 이
-  상태만으로는 승격하지 않았다. 전역 밝은 component만 확인하고 캡션 형태를 무시하는
-  조합도 실패 사례로 남긴다.
-- 실험 5는 bubble mask 네 변의 최빈 경계가 각각 점유 행·열의 50% 이상인 직사각형 캡션을
-  nearby-column 결합에서 제외했다. 실제 HayaiOCR은 목표 6건만 `108→102`로 재결합했고
-  OCR 문자열은 각각 `...ちょっとまずいわね神器`,
-  `詠唱の時間稼ぎをお願い最上級魔法で一気に倒すわ`,
-  `大丈夫よ一度に多くの魔力を使い過ぎただけ`,
-  `息はしてますね...眠ってるだけのようです`,
-  `まぁ利き腕落としてやったんでこれ以上追ってくる可能性は低いッスよ`,
-  `...ごめん先に戻ってて`로 올바른 세로 읽기 순서를 유지했다.
-- 6개 모두 원 `recognitionBboxes` 2개를 보존해 union 빈 공간을 글자 크기로 세지 않는다.
-  최종 source face 추정은 P004/P006/P014/P019/P021/P031 순서로
-  `21.3933/23.8796/20.2430/19.9874/20.2951/20.1663px`다. 현재 화의 나머지 96개는
-  bbox·OCR·추정 크기가 모두 exact이고 abstain 4개도 기준선과 동일하다.
-- 과거 회귀는 캠페인 008 `140→136`(4), 007 `120→118`(2), 006 `161→156`(5),
-  001 `256→254`(2)였다. 변경 crop 13개와 전체 오버레이를 확대 확인해 모두 한 연결
-  말풍선의 연속 문장이었고, 문제의 직사각형 캡션 2쌍은 각각 별도 region으로 유지됐다.
-  현재 화를 합쳐 120페이지를 확인했다.
-- 아직 해결하지 않은 것은 P006의 낮은 score 복합/자식 조각, P029와 P031의 낮은 score
-  구두점 조각이다. 이번 고신뢰 규칙을 억지로 완화하지 않고 다음 미사용 화 후보로 이월한다.
-- 5/5회 안에 실제 HayaiOCR과 과거 회귀에서 명확한 개선이 나왔으므로 수백 건 상세 검색
-  전환 조건은 발생하지 않았다. 내부 minor 버전을 `fsai-lab-v0.9.0`으로 올렸다.
-- 권위 결과는 `artifacts/font-size-ai-lab/campaign-009/actual-chapter-parity.json`,
-  `exp-05-caption-gated-outline200-geometry/geometry-evaluation.json`과 네
-  `regression-campaign-*-v0.9-exp05/geometry-evaluation.json`이다. 실제 이미지가 내장된
-  보고서는 `artifacts/font-size-ai-lab/campaign-009/chapter-report.html`이다.
+  검사 전에 봉인했다. HayaiOCR CUDA/cu126 기준선은 32페이지·일반 텍스트 108개였고,
+  효과음 35개는 모든 판정에서 제외했다.
+- 실험 2의 **같은 Koharu bubble 소유권 + 거리**는 `108→96`으로 별개 말풍선 6쌍까지
+  합쳤다. 거리 문턱만 바꾸는 조합은 영구 금지한다.
+- 실험 3의 **밝은 내부 component·문턱 180**은 P028 별개 말풍선을 계속 합쳤다. 실험 4의
+  **문턱 200**은 과거 화의 접촉 직사각형 캡션까지 합쳤다. 밝은 영역 연결성은 발화 소유권
+  증거가 아니므로 두 조합 모두 영구 금지한다.
+- 실험 5는 직사각형 캡션 gate를 더해 P004/P006/P014/P019/P021/P031 여섯 쌍을 합쳤고
+  당시 이를 개선으로 잘못 판정해 `fsai-lab-v0.9.0`으로 승격했다. 이후 사용자의 실제 화면
+  감사에서 P004 `...ちょっとまずいわね`와 `神器`는 **서로 닿은 두 말풍선의 별도 발화**임이
+  확인됐다. 큰 union bbox는 v0.8.0의 분리 결과보다 명백히 나쁘다. 이 한 건으로 실험 5의
+  핵심 가설과 승격 근거가 무효가 됐으며, 나머지 자동 결합도 양성으로 간주하지 않는다.
+- 영구 불변식: **말풍선 두 개가 닿아 있어도 무조건 분리한다.** Koharu가 하나의 bubble로
+  묶었거나 흰 내부가 이어졌다는 이유만으로 떨어진 text mask를 결합하지 않는다. 양의 간격이
+  있는 세로 열 결합은 금지하고, v0.8.0의 서로 겹치는 고신뢰 fragment 복원만 유지한다.
+- v0.9.0은 출시 직후 철회했고 제품 동작을 정확히 `fsai-lab-v0.8.0`으로 롤백했다.
+  `campaign-009/chapter-report.html`과 관련 parity 파일은 승인 근거가 아니라 **실패 증거**다.
+- 다음 무작위 화로 진행하기 전에 사용자가 지시한 별도 고정 회귀 단계를 수행한다. 과거
+  실패·애매 말풍선이 있는 페이지를 일부 표본이 아닌 전부 모으고, 최소 10회·최대 30회
+  실험한다. 접촉 말풍선 분리는 모든 후보의 hard veto다.
 
 ## 내부 버전 승격 규칙
 
@@ -661,7 +641,7 @@ fragment를 segmented recognition으로 재결합하고 원 세그먼트의 방�
 | `Tada no Murabito…/10.1`   |     3/5 | 동일 말풍선 분할 3개 복원·나머지 158개 exact parity           | `v0.6.0`  | `artifacts/font-size-ai-lab/campaign-006/chapter-report.html` |
 | `Danshi Koukousei…/4`      |     4/5 | 횡단 mask 꼬리 2개 수리·나머지 120개 exact·70페이지 회귀      | `v0.7.0`  | `artifacts/font-size-ai-lab/campaign-007/chapter-report.html` |
 | `Tada no Murabito…/10.2`   |     5/5 | 낮은 score의 동일 말풍선 fragment 1개 복원·직전 화 2개 회귀   | `v0.8.0`  | `artifacts/font-size-ai-lab/campaign-008/chapter-report.html` |
-| `BUCHI KIRE…/Chapter 34`   |     5/5 | 떨어진 동일 말풍선 6개 복원·캡션 반례 차단·120페이지 회귀     | `v0.9.0`  | `artifacts/font-size-ai-lab/campaign-009/chapter-report.html` |
+| `BUCHI KIRE…/Chapter 34`   |     5/5 | 접촉 말풍선 오결합 확인, v0.9.0 철회·제품 동작 롤백           | `v0.8.0`  | `artifacts/font-size-ai-lab/campaign-009/chapter-report.html` |
 
 ## 워크트리 링크 주의
 

@@ -47,17 +47,6 @@ function restoreDetection(record) {
       score: detection.score,
       mask: unpackMask(detection.mask),
     })),
-    ...(record.geometryRaster
-      ? {
-          geometryRaster: {
-            height: record.geometryRaster.height,
-            luminance: Uint8Array.from(
-              Buffer.from(record.geometryRaster.luminanceBase64, "base64"),
-            ),
-            width: record.geometryRaster.width,
-          },
-        }
-      : {}),
   };
 }
 
@@ -191,9 +180,6 @@ async function run() {
   const { buildHayaiRegionManifest } = require(
     path.resolve("out/main/textDetection/hayaiRegionGeometry.js"),
   );
-  const { prepareComicDetectorImage } = require(
-    path.resolve("out/main/bubbleLayout/preprocess.js"),
-  );
   await fsp.mkdir(args.output, { recursive: true });
   const pages = [];
   for (const page of report.pages) {
@@ -220,16 +206,7 @@ async function run() {
       ? nestedBaselinePath
       : directBaselinePath;
     const oldManifest = JSON.parse(await fsp.readFile(baselinePath, "utf8"));
-    const detection = restoreDetection(captured);
-    if (!detection.geometryRaster) {
-      const sourceImage = nativeImage.createFromPath(page.imagePath);
-      if (sourceImage.isEmpty()) {
-        throw new Error(`Could not decode image: ${page.imagePath}`);
-      }
-      detection.geometryRaster =
-        prepareComicDetectorImage(sourceImage).geometryRaster;
-    }
-    const manifest = buildHayaiRegionManifest(detection);
+    const manifest = buildHayaiRegionManifest(restoreDetection(captured));
     const pageDir = path.join(args.output, "pages", page.pageId);
     await fsp.mkdir(pageDir, { recursive: true });
     await fsp.writeFile(

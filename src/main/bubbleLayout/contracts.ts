@@ -26,16 +26,6 @@ export type ComicPageDetectionResult = {
   imageHeight: number;
   detections: ComicPageDetection[];
   executionProvider?: "dml" | "cpu" | "wasm";
-  /**
-   * Source-page luminance resized to the Koharu mask grid. Geometry-only
-   * post-processing uses it to distinguish one balloon interior from two
-   * touching balloon outlines; it is never persisted in chapter data.
-   */
-  geometryRaster?: {
-    luminance: Uint8Array;
-    width: number;
-    height: number;
-  };
 };
 
 /**

@@ -77,21 +77,12 @@ async function run() {
         modelPath: args.model,
       });
       const record = {
-        schemaVersion: 2,
+        schemaVersion: 1,
         pageId: page.pageId,
         imagePath: page.imagePath,
         imageWidth: result.imageWidth,
         imageHeight: result.imageHeight,
         executionProvider: result.executionProvider ?? null,
-        geometryRaster: result.geometryRaster
-          ? {
-              height: result.geometryRaster.height,
-              luminanceBase64: Buffer.from(
-                result.geometryRaster.luminance,
-              ).toString("base64"),
-              width: result.geometryRaster.width,
-            }
-          : null,
         detections: result.detections.map((detection) => ({
           box: detection.box,
           label: detection.label,

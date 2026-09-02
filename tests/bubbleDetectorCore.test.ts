@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { KOHARU_LAYOUT_ONNX_URL } from "../src/main/bubbleLayout/assets";
 import { associateComicDetections } from "../src/main/bubbleLayout/association";
 import {
@@ -12,10 +12,7 @@ import {
 } from "../src/main/bubbleLayout/constants";
 import type { ComicPageDetection } from "../src/main/bubbleLayout/contracts";
 import { parseKoharuLayoutOutputs } from "../src/main/bubbleLayout/outputs";
-import {
-  convertBgraBitmapToRgbChw,
-  prepareComicDetectorImage,
-} from "../src/main/bubbleLayout/preprocess";
+import { convertBgraBitmapToRgbChw } from "../src/main/bubbleLayout/preprocess";
 
 describe("KoharuLayout detector core", () => {
   it("pins the validated KoharuLayout ONNX asset", () => {
@@ -55,55 +52,6 @@ describe("KoharuLayout detector core", () => {
     expect(() =>
       convertBgraBitmapToRgbChw(new Uint8Array(4), 1, 1, controller.signal),
     ).toThrowError(expect.objectContaining({ name: "AbortError" }));
-  });
-
-  it("prepares the detector tensor and a matching 288px luminance raster", () => {
-    const detectorBitmap = new Uint8Array(
-      KOHARU_LAYOUT_INPUT_SIZE * KOHARU_LAYOUT_INPUT_SIZE * 4,
-    );
-    const geometryBitmap = new Uint8Array(
-      KOHARU_LAYOUT_MASK_SIZE * KOHARU_LAYOUT_MASK_SIZE * 4,
-    );
-    geometryBitmap.set([10, 20, 30, 255]);
-    const detectorImage = fakeNativeImage(
-      KOHARU_LAYOUT_INPUT_SIZE,
-      KOHARU_LAYOUT_INPUT_SIZE,
-      detectorBitmap,
-    );
-    const geometryImage = fakeNativeImage(
-      KOHARU_LAYOUT_MASK_SIZE,
-      KOHARU_LAYOUT_MASK_SIZE,
-      geometryBitmap,
-    );
-    const resize = vi.fn(({ width }: Electron.ResizeOptions) =>
-      width === KOHARU_LAYOUT_INPUT_SIZE ? detectorImage : geometryImage,
-    );
-    const image = fakeNativeImage(720, 1280, new Uint8Array());
-    image.resize = resize;
-
-    const prepared = prepareComicDetectorImage(image);
-
-    expect(prepared.imageWidth).toBe(720);
-    expect(prepared.imageHeight).toBe(1280);
-    expect(prepared.rgbChw).toHaveLength(KOHARU_LAYOUT_INPUT_SIZE ** 2 * 3);
-    expect(prepared.geometryRaster).toMatchObject({
-      width: KOHARU_LAYOUT_MASK_SIZE,
-      height: KOHARU_LAYOUT_MASK_SIZE,
-    });
-    expect(prepared.geometryRaster.luminance).toHaveLength(
-      KOHARU_LAYOUT_MASK_SIZE ** 2,
-    );
-    expect(prepared.geometryRaster.luminance[0]).toBe(22);
-    expect(resize).toHaveBeenCalledWith({
-      width: KOHARU_LAYOUT_INPUT_SIZE,
-      height: KOHARU_LAYOUT_INPUT_SIZE,
-      quality: "best",
-    });
-    expect(resize).toHaveBeenCalledWith({
-      width: KOHARU_LAYOUT_MASK_SIZE,
-      height: KOHARU_LAYOUT_MASK_SIZE,
-      quality: "best",
-    });
   });
 
   it("sigmoids class logits, applies class thresholds, converts boxes, and copies masks", () => {
@@ -228,30 +176,4 @@ function detection(
   score: number,
 ): ComicPageDetection {
   return { label, labelId, box, score };
-}
-
-function fakeNativeImage(
-  width: number,
-  height: number,
-  bitmap: Uint8Array,
-): Electron.NativeImage {
-  const image: Electron.NativeImage = {
-    addRepresentation: () => undefined,
-    crop: () => image,
-    getAspectRatio: () => width / height,
-    getBitmap: () => undefined,
-    getNativeHandle: () => Buffer.alloc(0),
-    getScaleFactors: () => [1],
-    getSize: () => ({ width, height }),
-    isEmpty: () => false,
-    isMacTemplateImage: false,
-    isTemplateImage: () => false,
-    resize: () => image,
-    setTemplateImage: () => undefined,
-    toBitmap: () => Buffer.from(bitmap),
-    toDataURL: () => "",
-    toJPEG: () => Buffer.alloc(0),
-    toPNG: () => Buffer.alloc(0),
-  };
-  return image;
 }

@@ -77,12 +77,6 @@ const TEXT_FRAGMENT_MIN_MASK_AREA_RATIO = 0.15;
 const TEXT_FRAGMENT_MAX_MASK_OVERLAP = 0.25;
 const TEXT_FRAGMENT_MIN_CROSS_AXIS_OVERLAP = 0.95;
 const TEXT_FRAGMENT_MIN_PRIMARY_AXIS_SEPARATION = 0.35;
-const TEXT_FRAGMENT_MAX_HORIZONTAL_GAP_HEIGHT_RATIO = 0.9;
-const TEXT_FRAGMENT_MAX_VERTICAL_GAP_WIDTH_RATIO = 0.75;
-const TEXT_FRAGMENT_INTERIOR_LIGHT_MIN = 200;
-const TEXT_FRAGMENT_INTERIOR_DARK_DILATION = 3;
-const TEXT_FRAGMENT_INTERIOR_SUPPORT_DILATION = 3;
-const TEXT_FRAGMENT_CAPTION_STRAIGHT_EDGE_FRACTION = 0.5;
 const FX_MAX_GROUP_GAP = 42;
 const FX_MIN_GROUP_GAP = 8;
 const FX_GAP_SCALE = 0.55;
@@ -119,7 +113,6 @@ export function buildHayaiRegionManifest(
     assignments,
     result.imageWidth,
     result.imageHeight,
-    result.geometryRaster,
   );
   const dialogue = dialogueResult.regions;
   const effectResult = buildEffectRegions(
@@ -472,7 +465,6 @@ function buildDialogueRegions(
   assignments: Map<MaskDetection, MaskDetection>,
   width: number,
   height: number,
-  geometryRaster: ComicPageDetectionResult["geometryRaster"],
 ): { regions: MutableRegion[]; fragmentPairs: TextFragmentPair[] } {
   const ownershipByText = new Map(
     text.map((item) => [
@@ -482,15 +474,11 @@ function buildDialogueRegions(
   );
   const groups = new DisjointSet(text.length);
   const fragmentPairs: TextFragmentPair[] = [];
-  const interiorLabels = new Map<MaskDetection, Int32Array | null>();
-  const rectangularCaptionBubbles = new Set(
-    [...new Set(assignments.values())].filter(isLikelyRectangularCaptionBubble),
-  );
   for (let left = 0; left < text.length; left += 1) {
     for (let right = left + 1; right < text.length; right += 1) {
-      const sharedBubble = assignments.get(text[left]);
       const sameBubble =
-        Boolean(sharedBubble) && sharedBubble === assignments.get(text[right]);
+        assignments.has(text[left]) &&
+        assignments.get(text[left]) === assignments.get(text[right]);
       const bothUncontained =
         !assignments.has(text[left]) && !assignments.has(text[right]);
       if (!sameBubble && !bothUncontained) continue;
@@ -498,14 +486,7 @@ function buildDialogueRegions(
         groups.union(left, right);
       } else if (
         sameBubble &&
-        isSameBubbleTextFragment(
-          text[left],
-          text[right],
-          sharedBubble,
-          geometryRaster,
-          interiorLabels,
-          rectangularCaptionBubbles,
-        )
+        isSameBubbleTextFragment(text[left], text[right])
       ) {
         fragmentPairs.push([text[left].detectionId, text[right].detectionId]);
       }
@@ -537,10 +518,6 @@ function buildDialogueRegions(
 function isSameBubbleTextFragment(
   first: MaskDetection,
   second: MaskDetection,
-  bubble: MaskDetection | undefined,
-  geometryRaster: ComicPageDetectionResult["geometryRaster"],
-  interiorLabels: Map<MaskDetection, Int32Array | null>,
-  rectangularCaptionBubbles: ReadonlySet<MaskDetection>,
 ): boolean {
   if (
     Math.min(first.detection.score, second.detection.score) <
@@ -554,7 +531,8 @@ function isSameBubbleTextFragment(
   const maskOverlap = maskIntersection(first, second) / smallerMask;
   if (
     maskAreaRatio < TEXT_FRAGMENT_MIN_MASK_AREA_RATIO ||
-    maskOverlap > TEXT_FRAGMENT_MAX_MASK_OVERLAP
+    maskOverlap > TEXT_FRAGMENT_MAX_MASK_OVERLAP ||
+    boxIntersection(first.maskBox, second.maskBox) <= 0
   ) {
     return false;
   }
@@ -574,18 +552,6 @@ function isSameBubbleTextFragment(
     second.maskBox[1],
     second.maskBox[3],
   );
-  const horizontalGap = axisGap(
-    first.maskBox[0],
-    first.maskBox[2],
-    second.maskBox[0],
-    second.maskBox[2],
-  );
-  const verticalGap = axisGap(
-    first.maskBox[1],
-    first.maskBox[3],
-    second.maskBox[1],
-    second.maskBox[3],
-  );
   const horizontalSeparation =
     Math.abs(
       (first.maskBox[0] + first.maskBox[2]) / 2 -
@@ -596,216 +562,12 @@ function isSameBubbleTextFragment(
       (first.maskBox[1] + first.maskBox[3]) / 2 -
         (second.maskBox[1] + second.maskBox[3]) / 2,
     ) / Math.min(firstHeight, secondHeight);
-  const alignedFragment =
+  return (
     (horizontalOverlap >= TEXT_FRAGMENT_MIN_CROSS_AXIS_OVERLAP &&
       verticalSeparation >= TEXT_FRAGMENT_MIN_PRIMARY_AXIS_SEPARATION) ||
     (verticalOverlap >= TEXT_FRAGMENT_MIN_CROSS_AXIS_OVERLAP &&
-      horizontalSeparation >= TEXT_FRAGMENT_MIN_PRIMARY_AXIS_SEPARATION);
-  const nearbyVerticalColumns =
-    firstHeight >= firstWidth &&
-    secondHeight >= secondWidth &&
-    horizontalGap <=
-      TEXT_FRAGMENT_MAX_HORIZONTAL_GAP_HEIGHT_RATIO *
-        Math.min(firstHeight, secondHeight) &&
-    verticalGap <=
-      TEXT_FRAGMENT_MAX_VERTICAL_GAP_WIDTH_RATIO *
-        Math.min(firstWidth, secondWidth) &&
-    Math.max(horizontalSeparation, verticalSeparation) >=
-      TEXT_FRAGMENT_MIN_PRIMARY_AXIS_SEPARATION &&
-    Boolean(
-      bubble &&
-      !rectangularCaptionBubbles.has(bubble) &&
-      shareLightBalloonInterior(
-        first,
-        second,
-        bubble,
-        geometryRaster,
-        interiorLabels,
-      ),
-    );
-  return (
-    (boxIntersection(first.maskBox, second.maskBox) > 0 && alignedFragment) ||
-    nearbyVerticalColumns
+      horizontalSeparation >= TEXT_FRAGMENT_MIN_PRIMARY_AXIS_SEPARATION)
   );
-}
-
-function isLikelyRectangularCaptionBubble(bubble: MaskDetection): boolean {
-  const leftCounts = new Int32Array(bubble.maskWidth);
-  const rightCounts = new Int32Array(bubble.maskWidth);
-  const topCounts = new Int32Array(bubble.maskHeight);
-  const bottomCounts = new Int32Array(bubble.maskHeight);
-  let occupiedRows = 0;
-  let occupiedColumns = 0;
-  for (let y = 0; y < bubble.maskHeight; y += 1) {
-    let left = -1;
-    let right = -1;
-    for (let x = 0; x < bubble.maskWidth; x += 1) {
-      if (!bubble.mask[y * bubble.maskWidth + x]) continue;
-      if (left < 0) left = x;
-      right = x;
-    }
-    if (left < 0) continue;
-    occupiedRows += 1;
-    leftCounts[left] += 1;
-    rightCounts[right] += 1;
-  }
-  for (let x = 0; x < bubble.maskWidth; x += 1) {
-    let top = -1;
-    let bottom = -1;
-    for (let y = 0; y < bubble.maskHeight; y += 1) {
-      if (!bubble.mask[y * bubble.maskWidth + x]) continue;
-      if (top < 0) top = y;
-      bottom = y;
-    }
-    if (top < 0) continue;
-    occupiedColumns += 1;
-    topCounts[top] += 1;
-    bottomCounts[bottom] += 1;
-  }
-  if (occupiedRows === 0 || occupiedColumns === 0) return false;
-  return (
-    maximumCount(leftCounts) / occupiedRows >=
-      TEXT_FRAGMENT_CAPTION_STRAIGHT_EDGE_FRACTION &&
-    maximumCount(rightCounts) / occupiedRows >=
-      TEXT_FRAGMENT_CAPTION_STRAIGHT_EDGE_FRACTION &&
-    maximumCount(topCounts) / occupiedColumns >=
-      TEXT_FRAGMENT_CAPTION_STRAIGHT_EDGE_FRACTION &&
-    maximumCount(bottomCounts) / occupiedColumns >=
-      TEXT_FRAGMENT_CAPTION_STRAIGHT_EDGE_FRACTION
-  );
-}
-
-function maximumCount(counts: Int32Array): number {
-  let maximum = 0;
-  for (const count of counts) maximum = Math.max(maximum, count);
-  return maximum;
-}
-
-function shareLightBalloonInterior(
-  first: MaskDetection,
-  second: MaskDetection,
-  bubble: MaskDetection,
-  geometryRaster: ComicPageDetectionResult["geometryRaster"],
-  cache: Map<MaskDetection, Int32Array | null>,
-): boolean {
-  if (
-    !geometryRaster ||
-    geometryRaster.width !== bubble.maskWidth ||
-    geometryRaster.height !== bubble.maskHeight ||
-    geometryRaster.luminance.length !== bubble.mask.length
-  ) {
-    return false;
-  }
-  if (!cache.has(bubble)) {
-    cache.set(
-      bubble,
-      buildLightBalloonInteriorLabels(bubble, geometryRaster.luminance),
-    );
-  }
-  const labels = cache.get(bubble);
-  if (!labels) return false;
-  const firstLabel = dominantInteriorLabel(
-    labels,
-    dilateMask(
-      first.mask,
-      first.maskWidth,
-      first.maskHeight,
-      TEXT_FRAGMENT_INTERIOR_SUPPORT_DILATION,
-    ),
-  );
-  const secondLabel = dominantInteriorLabel(
-    labels,
-    dilateMask(
-      second.mask,
-      second.maskWidth,
-      second.maskHeight,
-      TEXT_FRAGMENT_INTERIOR_SUPPORT_DILATION,
-    ),
-  );
-  return firstLabel > 0 && firstLabel === secondLabel;
-}
-
-function buildLightBalloonInteriorLabels(
-  bubble: MaskDetection,
-  luminance: Uint8Array,
-): Int32Array | null {
-  const dark = new Uint8Array(bubble.mask.length);
-  for (let index = 0; index < dark.length; index += 1) {
-    if (
-      bubble.mask[index] &&
-      (luminance[index] ?? 0) < TEXT_FRAGMENT_INTERIOR_LIGHT_MIN
-    ) {
-      dark[index] = 1;
-    }
-  }
-  const protectedDark = dilateMask(
-    dark,
-    bubble.maskWidth,
-    bubble.maskHeight,
-    TEXT_FRAGMENT_INTERIOR_DARK_DILATION,
-  );
-  const lightInterior = new Uint8Array(bubble.mask.length);
-  for (let index = 0; index < lightInterior.length; index += 1) {
-    if (bubble.mask[index] && !protectedDark[index]) lightInterior[index] = 1;
-  }
-  return labelMaskComponents(
-    lightInterior,
-    bubble.maskWidth,
-    bubble.maskHeight,
-  );
-}
-
-function labelMaskComponents(
-  mask: Uint8Array,
-  width: number,
-  height: number,
-): Int32Array | null {
-  const labels = new Int32Array(mask.length);
-  const queue = new Int32Array(mask.length);
-  let label = 0;
-  for (let seed = 0; seed < mask.length; seed += 1) {
-    if (!mask[seed] || labels[seed]) continue;
-    label += 1;
-    let head = 0;
-    let tail = 0;
-    queue[tail++] = seed;
-    labels[seed] = label;
-    while (head < tail) {
-      const pixel = queue[head++] ?? 0;
-      const x = pixel % width;
-      const y = Math.floor(pixel / width);
-      for (let dy = -1; dy <= 1; dy += 1) {
-        for (let dx = -1; dx <= 1; dx += 1) {
-          if (dx === 0 && dy === 0) continue;
-          const nextX = x + dx;
-          const nextY = y + dy;
-          if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) {
-            continue;
-          }
-          const next = nextY * width + nextX;
-          if (!mask[next] || labels[next]) continue;
-          labels[next] = label;
-          queue[tail++] = next;
-        }
-      }
-    }
-  }
-  return label > 0 ? labels : null;
-}
-
-function dominantInteriorLabel(
-  labels: Int32Array,
-  support: Uint8Array,
-): number {
-  const counts = new Int32Array(labels.length + 1);
-  let bestLabel = 0;
-  for (let index = 0; index < labels.length; index += 1) {
-    const label = labels[index] ?? 0;
-    if (!support[index] || label <= 0) continue;
-    counts[label] += 1;
-    if (counts[label] > (counts[bestLabel] ?? 0)) bestLabel = label;
-  }
-  return bestLabel;
 }
 
 function mergeDialogueFragments(

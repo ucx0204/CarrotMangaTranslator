@@ -1205,7 +1205,7 @@
       "sealedAt": "2026-09-02T16:46:06.925Z",
       "seed": "bfd117eef7efdc7dad534920ba980eea396ede705afc07429080f9a54a3639df",
       "series": "BUCHI KIRE REIJO HA HOFUKU WO CHIKAIMASHITA. MA SHIRUBE SHO NO CHIKARA",
-      "status": "completed-promoted-fsai-lab-v0.9.0"
+      "status": "completed-rejected-rolled-back-to-fsai-lab-v0.8.0"
     }
   ]
 }

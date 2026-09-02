@@ -1,11 +1,6 @@
-import { KOHARU_LAYOUT_INPUT_SIZE, KOHARU_LAYOUT_MASK_SIZE } from "./constants";
+import { KOHARU_LAYOUT_INPUT_SIZE } from "./constants";
 
 export type PreparedComicDetectorImage = {
-  geometryRaster: {
-    luminance: Uint8Array;
-    width: number;
-    height: number;
-  };
   imageWidth: number;
   imageHeight: number;
   rgbChw: Float32Array;
@@ -39,7 +34,6 @@ export function prepareComicDetectorImage(
     throw new Error("KoharuLayout 입력 이미지 크기가 1152x1152가 아닙니다.");
   }
   return {
-    geometryRaster: prepareComicDetectorGeometryRaster(image, signal),
     imageWidth,
     imageHeight,
     rgbChw: convertBgraBitmapToRgbChw(
@@ -49,38 +43,6 @@ export function prepareComicDetectorImage(
       signal,
     ),
   };
-}
-
-function prepareComicDetectorGeometryRaster(
-  image: Electron.NativeImage,
-  signal?: AbortSignal,
-): PreparedComicDetectorImage["geometryRaster"] {
-  throwIfAborted(signal);
-  const resized = image.resize({
-    width: KOHARU_LAYOUT_MASK_SIZE,
-    height: KOHARU_LAYOUT_MASK_SIZE,
-    quality: "best",
-  });
-  if (resized.isEmpty()) {
-    throw new Error("KoharuLayout 기하 래스터 크기 조절에 실패했습니다.");
-  }
-  const { width, height } = resized.getSize();
-  if (width !== KOHARU_LAYOUT_MASK_SIZE || height !== KOHARU_LAYOUT_MASK_SIZE) {
-    throw new Error("KoharuLayout 기하 래스터가 288x288이 아닙니다.");
-  }
-  const bitmap = resized.toBitmap();
-  assertBitmapDimensions(bitmap, width, height);
-  const luminance = new Uint8Array(width * height);
-  for (let pixel = 0; pixel < luminance.length; pixel += 1) {
-    if ((pixel & 0x3fff) === 0) throwIfAborted(signal);
-    const source = pixel * 4;
-    luminance[pixel] = Math.round(
-      (bitmap[source + 2] ?? 0) * 0.299 +
-        (bitmap[source + 1] ?? 0) * 0.587 +
-        (bitmap[source] ?? 0) * 0.114,
-    );
-  }
-  return { luminance, width, height };
 }
 
 /** Electron BGRA -> ImageNet-normalized planar RGB CHW. */
