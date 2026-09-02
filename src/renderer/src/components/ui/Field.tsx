@@ -95,6 +95,31 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
   },
 );
 
+export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
+
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  function Textarea(props, ref) {
+    return <textarea ref={ref} {...props} />;
+  },
+);
+
+export type TextareaFieldProps = TextareaProps & {
+  label?: React.ReactNode;
+  hint?: React.ReactNode;
+  density?: FieldDensity;
+};
+
+export const TextareaField = React.forwardRef<
+  HTMLTextAreaElement,
+  TextareaFieldProps
+>(function TextareaField({ label, hint, className, density, ...rest }, ref) {
+  return (
+    <Field label={label} hint={hint} className={className} density={density}>
+      <Textarea ref={ref} {...rest} />
+    </Field>
+  );
+});
+
 export type RangeInputProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   "type"

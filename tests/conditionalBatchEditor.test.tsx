@@ -25,11 +25,9 @@ import {
   ConditionalBatchEditor,
   type ConditionalBatchEditorProps,
 } from "../src/renderer/src/components/ConditionalBatchEditor";
+import type { ConditionalBatchRulePanelProps } from "../src/renderer/src/components/conditionalBatchRulePanelTypes";
 import { ConditionalBatchResultsCard } from "../src/renderer/src/components/ConditionalBatchResultsCard";
-import {
-  ConditionalBatchRulePanel,
-  type ConditionalBatchRulePanelProps,
-} from "../src/renderer/src/components/ConditionalBatchRulePanel";
+import { ConditionalBatchRulePanel } from "../src/renderer/src/components/ConditionalBatchRulePanel";
 import {
   isNewConditionalBatchConditionField,
   isNewConditionalBatchWritableField,

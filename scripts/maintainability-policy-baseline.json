@@ -58,7 +58,6 @@
     "src/renderer/src/app/session/useAppSessionInpaintingController.ts": "and bridge adapters share one session dependency contract, max-lines -- retouch, navigation, pointer, run",
     "src/renderer/src/components/ConditionalBatchActionCard.tsx": "max-lines, max-lines-per-function -- the action card keeps all stage-aware editors on one discriminated action contract",
     "src/renderer/src/components/ConditionalBatchConditionsCard.tsx": "and bounded editor mutations on one registry contract, complexity, groups, max-lines, max-lines-per-function -- the condition card keeps typed values",
-    "src/renderer/src/components/ConditionalBatchRulePanel.tsx": "YAML, and sequence composition share one progressive-disclosure panel, max-lines, max-lines-per-function -- rule CRUD, recipes",
     "src/renderer/src/components/conditionalBatchUi.ts": "and typed editor defaults form one UI registry, max-lines -- labels, summaries",
     "src/renderer/src/components/ConditionalPatternBuilder.tsx": "max-lines, max-lines-per-function -- the recursive visual matcher and replacement lanes intentionally share one compact editor",
     "src/renderer/src/components/ImportModal.tsx": "and linked-folder confirmation compose one modal, chapter selection, max-lines -- import target",
@@ -154,12 +153,6 @@
       "input": 0,
       "select": 0,
       "textarea": 0
-    },
-    "src/renderer/src/components/ConditionalBatchRulePanel.tsx": {
-      "button": 2,
-      "input": 0,
-      "select": 0,
-      "textarea": 3
     },
     "src/renderer/src/components/ConditionalPatternBuilder.tsx": {
       "button": 8,

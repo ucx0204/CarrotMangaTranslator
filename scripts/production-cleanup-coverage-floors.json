@@ -10641,24 +10641,24 @@
     },
     "src/renderer/src/components/ui/Field.tsx": {
       "lines": {
-        "covered": 11,
-        "total": 11,
+        "covered": 15,
+        "total": 15,
         "pct": 100
       },
       "statements": {
-        "covered": 11,
-        "total": 11,
+        "covered": 15,
+        "total": 15,
         "pct": 100
       },
       "functions": {
-        "covered": 3,
-        "total": 3,
+        "covered": 5,
+        "total": 5,
         "pct": 100
       },
       "branches": {
-        "covered": 20,
+        "covered": 21,
         "total": 26,
-        "pct": 76.92
+        "pct": 80.76
       }
     },
     "src/renderer/src/components/ui/FieldSlider.tsx": {
@@ -17923,6 +17923,12 @@
         "pct": 37.78
       }
     },
+    "src/renderer/src/components/ConditionalBatchAdvancedTools.tsx": {
+      "lines": { "total": 10, "covered": 9, "pct": 90 },
+      "statements": { "total": 10, "covered": 9, "pct": 90 },
+      "functions": { "total": 9, "covered": 8, "pct": 88.88 },
+      "branches": { "total": 6, "covered": 5, "pct": 83.33 }
+    },
     "src/renderer/src/components/ConditionalBatchConditionsCard.tsx": {
       "lines": {
         "covered": 81,
@@ -17947,47 +17953,53 @@
     },
     "src/renderer/src/components/ConditionalBatchControls.tsx": {
       "lines": {
-        "covered": 5,
-        "total": 5,
+        "covered": 6,
+        "total": 6,
         "pct": 100
       },
       "statements": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "functions": {
         "covered": 5,
         "total": 5,
         "pct": 100
       },
-      "functions": {
-        "covered": 4,
-        "total": 4,
-        "pct": 100
-      },
       "branches": {
-        "covered": 6,
-        "total": 6,
+        "covered": 8,
+        "total": 8,
         "pct": 100
       }
     },
     "src/renderer/src/components/ConditionalBatchEditor.tsx": {
       "lines": {
-        "covered": 6,
-        "total": 32,
-        "pct": 18.75
+        "covered": 19,
+        "total": 45,
+        "pct": 42.22
       },
       "statements": {
-        "covered": 6,
-        "total": 34,
-        "pct": 17.64
+        "covered": 20,
+        "total": 48,
+        "pct": 41.66
       },
       "functions": {
-        "covered": 2,
-        "total": 5,
-        "pct": 40
+        "covered": 8,
+        "total": 11,
+        "pct": 72.72
       },
       "branches": {
-        "covered": 4,
-        "total": 43,
-        "pct": 9.3
+        "covered": 6,
+        "total": 45,
+        "pct": 13.33
       }
+    },
+    "src/renderer/src/components/ConditionalBatchFooter.tsx": {
+      "lines": { "total": 1, "covered": 1, "pct": 100 },
+      "statements": { "total": 1, "covered": 1, "pct": 100 },
+      "functions": { "total": 1, "covered": 1, "pct": 100 },
+      "branches": { "total": 11, "covered": 9, "pct": 81.81 }
     },
     "src/renderer/src/components/ConditionalBatchPreviewPane.tsx": {
       "lines": {
@@ -18010,6 +18022,12 @@
         "total": 2,
         "pct": 50
       }
+    },
+    "src/renderer/src/components/ConditionalBatchRecipePicker.tsx": {
+      "lines": { "total": 8, "covered": 8, "pct": 100 },
+      "statements": { "total": 8, "covered": 8, "pct": 100 },
+      "functions": { "total": 5, "covered": 5, "pct": 100 },
+      "branches": { "total": 2, "covered": 2, "pct": 100 }
     },
     "src/renderer/src/components/ConditionalBatchResultsCard.tsx": {
       "lines": {
@@ -18035,25 +18053,43 @@
     },
     "src/renderer/src/components/ConditionalBatchRulePanel.tsx": {
       "lines": {
-        "covered": 39,
-        "total": 112,
-        "pct": 34.82
+        "covered": 11,
+        "total": 11,
+        "pct": 100
       },
       "statements": {
-        "covered": 41,
-        "total": 123,
-        "pct": 33.33
+        "covered": 15,
+        "total": 15,
+        "pct": 100
       },
       "functions": {
-        "covered": 19,
-        "total": 72,
-        "pct": 26.38
+        "covered": 11,
+        "total": 11,
+        "pct": 100
       },
       "branches": {
-        "covered": 72,
-        "total": 134,
-        "pct": 53.73
+        "covered": 14,
+        "total": 14,
+        "pct": 100
       }
+    },
+    "src/renderer/src/components/ConditionalBatchSchemeManager.tsx": {
+      "lines": { "total": 30, "covered": 28, "pct": 93.33 },
+      "statements": { "total": 34, "covered": 30, "pct": 88.23 },
+      "functions": { "total": 16, "covered": 16, "pct": 100 },
+      "branches": { "total": 36, "covered": 32, "pct": 88.88 }
+    },
+    "src/renderer/src/components/ConditionalBatchSequenceForm.tsx": {
+      "lines": { "total": 27, "covered": 16, "pct": 59.25 },
+      "statements": { "total": 34, "covered": 20, "pct": 58.82 },
+      "functions": { "total": 27, "covered": 15, "pct": 55.55 },
+      "branches": { "total": 13, "covered": 7, "pct": 53.84 }
+    },
+    "src/renderer/src/components/ConditionalBatchSequenceManager.tsx": {
+      "lines": { "total": 18, "covered": 15, "pct": 83.33 },
+      "statements": { "total": 19, "covered": 15, "pct": 78.94 },
+      "functions": { "total": 11, "covered": 8, "pct": 72.72 },
+      "branches": { "total": 14, "covered": 12, "pct": 85.71 }
     },
     "src/renderer/src/components/ConditionalPatternBuilder.tsx": {
       "lines": {
@@ -18736,6 +18772,18 @@
         "covered": 4,
         "pct": 18.18
       }
+    },
+    "src/renderer/src/components/conditionalBatchRulePanelTypes.ts": {
+      "lines": { "total": 0, "covered": 0, "pct": 100 },
+      "statements": { "total": 0, "covered": 0, "pct": 100 },
+      "functions": { "total": 0, "covered": 0, "pct": 100 },
+      "branches": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "src/renderer/src/components/conditionalBatchSequenceModel.ts": {
+      "lines": { "total": 7, "covered": 7, "pct": 100 },
+      "statements": { "total": 8, "covered": 8, "pct": 100 },
+      "functions": { "total": 2, "covered": 2, "pct": 100 },
+      "branches": { "total": 8, "covered": 7, "pct": 87.5 }
     },
     "src/renderer/src/components/conditionalBatchUi.ts": {
       "lines": {
@@ -19707,24 +19755,24 @@
     },
     "src/renderer/src/components/useConditionalBatchEditorModel.ts": {
       "lines": {
-        "covered": 99,
-        "total": 113,
-        "pct": 87.61
+        "covered": 109,
+        "total": 118,
+        "pct": 92.37
       },
       "statements": {
-        "covered": 104,
-        "total": 130,
-        "pct": 80
+        "covered": 115,
+        "total": 136,
+        "pct": 84.55
       },
       "functions": {
-        "covered": 34,
-        "total": 43,
-        "pct": 79.06
+        "covered": 38,
+        "total": 45,
+        "pct": 84.44
       },
       "branches": {
-        "covered": 61,
-        "total": 105,
-        "pct": 58.09
+        "covered": 70,
+        "total": 113,
+        "pct": 61.94
       }
     },
     "src/renderer/src/components/useConditionalBatchSchemeController.ts": {
@@ -19748,6 +19796,12 @@
         "total": 74,
         "pct": 39.18
       }
+    },
+    "src/renderer/src/components/useConditionalBatchSequenceEditor.ts": {
+      "lines": { "total": 36, "covered": 30, "pct": 83.33 },
+      "statements": { "total": 37, "covered": 31, "pct": 83.78 },
+      "functions": { "total": 10, "covered": 9, "pct": 90 },
+      "branches": { "total": 20, "covered": 15, "pct": 75 }
     },
     "src/renderer/src/components/useContainedPageSize.ts": {
       "lines": {

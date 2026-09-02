@@ -885,6 +885,11 @@
   border-top: 1px solid var(--border-soft);
 }
 
+.sequenceBody {
+  display: grid;
+  gap: var(--sp-3);
+}
+
 .sequenceHeader,
 .sequenceFormActions {
   display: flex;
