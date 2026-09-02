@@ -80,7 +80,7 @@ export function useAppSessionModel(): AppSessionViewProps {
     blockEditingActions: translation.blockEditingActions,
     bridgeActions: chapter.bridgeActions,
     completionSound: chapter.completionSound,
-    commands: inpainting.commands,
+    commandRegistry: inpainting.commandRegistry,
     confirmController: chapter.confirmController,
     core: chapter.core,
     derivedState: chapter.derivedState,

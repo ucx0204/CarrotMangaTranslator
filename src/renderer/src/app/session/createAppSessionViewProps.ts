@@ -245,10 +245,9 @@ function createPanelSessionValue(
 }
 
 function createSidebarProps({
-  bridgeActions,
+  commandRegistry,
   core,
   derivedState,
-  importShareActions,
   importShareModal,
   inpaintingBridge,
   libraryActions,
@@ -267,6 +266,7 @@ function createSidebarProps({
     libraryDrop.busy,
   ].some(Boolean);
   return {
+    commandLabels: commandRegistry.labels,
     currentChapter: core.currentChapter,
     jobActive: [
       inpaintingBridge.contextValue.jobActive,
@@ -283,15 +283,13 @@ function createSidebarProps({
     ].some(Boolean),
     library: core.library,
     lockedPageIds: derivedState.jobTargetPageIds,
-    onOpenBatchImport: () =>
-      void importShareActions.openImportPreview("zip-folder"),
+    onOpenBatchImport: commandRegistry.byId["open-batch"].run,
     onOpenChapter: (chapterId) => void libraryActions.openChapter(chapterId),
-    onOpenLibraryFolder: bridgeActions.openLibraryFolder,
-    onOpenSettings: () => void settingsDialog.openSettings(),
-    onOpenShareExport: () => importShareModal.setShareExportOpen(true),
-    onOpenShareImport: () => void importShareActions.openShareImportPreview(),
-    onOpenTranslationSource: () =>
-      importShareModal.setTranslationSourceOpen(true),
+    onOpenLibraryFolder: commandRegistry.byId["open-library-folder"].run,
+    onOpenSettings: commandRegistry.byId["open-settings"].run,
+    onOpenShareExport: commandRegistry.byId["open-share-export"].run,
+    onOpenShareImport: commandRegistry.byId["open-share-import"].run,
+    onOpenTranslationSource: commandRegistry.byId["open-translate-source"].run,
     onRemovePage: (pageId) => void libraryActions.removePage(pageId),
     onRenameChapter: (chapterId) =>
       void libraryActions.renameChapter(chapterId),

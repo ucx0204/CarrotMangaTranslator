@@ -9,8 +9,10 @@ import type {
 } from "../lib/workspaceZoom";
 import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
 import type { ImageStageProps } from "./ImageStage";
+import type { AppCommandLabels } from "../lib/appCommandTypes";
 
 export type AppWorkspaceProps = {
+  commandLabels?: AppCommandLabels;
   workspacePanelRef: React.RefObject<HTMLElement | null>;
   workspaceZoomControllerRef: React.RefObject<WorkspaceZoomController | null>;
   workspaceFitMode: WorkspaceFitMode;
