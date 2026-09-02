@@ -16,7 +16,6 @@
     "src/main/inpainting/inpaintingRevisionStore.ts": "and artifact retention share one serialized state owner, max-lines -- transaction history, rollback",
     "src/main/inpainting/sourceGlyphEvidenceReceipt.ts": "max-lines -- immutable evidence receipt production and verification stay in one auditable contract.",
     "src/main/inpainting/unassignedOcrResidualProvenance.ts": "max-lines -- the sealed OCR/font/source provenance verifier is kept as one auditable contract.",
-    "src/main/ipc/webImportIpc.ts": "max-lines-per-function -- trusted handlers share one manager and registration boundary",
     "src/main/jobs/pageImageExportJobRunner.ts": "and cancellation form one export transaction, collision checks, max-lines -- progress, raster/PSD writing",
     "src/main/jobs/translationJobRunners.ts": "max-lines -- analysis checkpoints and terminal recovery stay co-located for cancellation auditability",
     "src/main/libraryStore/importWorkflow.ts": "max-lines -- import staging and publication sequencing stay co-located for transaction auditability",
