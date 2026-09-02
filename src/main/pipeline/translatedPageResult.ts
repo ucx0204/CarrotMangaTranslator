@@ -22,7 +22,7 @@ import type {
   OverlayItem,
   PageContextPayload,
 } from "./types";
-import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometry";
+import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometryTypes";
 
 export function buildTranslatedPageResult({
   jobId,

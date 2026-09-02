@@ -94,6 +94,7 @@ describe("panel multi-selection format contracts", () => {
       fontFamily: "default",
       fontSizePx: 32,
       autoFitText: false,
+      fontSizeIntent: "manual",
       bold: true,
       italic: true,
       underline: true,
@@ -165,11 +166,16 @@ describe("panel multi-selection format contracts", () => {
         },
         selectedBlock: makeBlock("block-a"),
         selectedBlockCount: 2,
+        selectedBlockSourceFontFaceFallbackPx: 31.5,
         selectedPageSize: { width: 1200, height: 1600 },
         selectionKey,
         transformMode: "select",
       }),
-    ).toMatchObject({ editorTextTabRequestToken: 3, selectionKey });
+    ).toMatchObject({
+      editorTextTabRequestToken: 3,
+      selectedBlockSourceFontFaceFallbackPx: 31.5,
+      selectionKey,
+    });
   });
 });
 

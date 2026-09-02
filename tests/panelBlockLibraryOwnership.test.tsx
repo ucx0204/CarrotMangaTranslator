@@ -2,7 +2,15 @@
 
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import {
   FontsContext,
@@ -24,17 +32,47 @@ vi.stubGlobal(
   },
 );
 
+const originalGetContext = HTMLCanvasElement.prototype.getContext;
+
+beforeAll(() => {
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    value: () => ({
+      font: "",
+      measureText(this: { font: string }, text: string) {
+        const fontSize = Number(/([\d.]+)px/.exec(this.font)?.[1] ?? 16);
+        return {
+          width: Array.from(text).length * fontSize,
+          actualBoundingBoxAscent: fontSize * 0.8,
+          actualBoundingBoxDescent: fontSize * 0.2,
+          actualBoundingBoxLeft: fontSize * 0.5,
+          actualBoundingBoxRight: fontSize * 0.5,
+        };
+      },
+    }),
+  });
+});
+
+afterAll(() => {
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    value: originalGetContext,
+  });
+});
+
 afterEach(cleanup);
 
 describe("detached editor block-library ownership", () => {
   it("delegates opening to the main session without mounting a local modal", () => {
     const onOpenBlockLibrary = vi.fn();
     render(
-      <PanelSessionContext.Provider
-        value={makePanelSession({ onOpenBlockLibrary })}
-      >
-        <EditorPanelContainer />
-      </PanelSessionContext.Provider>,
+      <FontsContext.Provider value={fontsContext}>
+        <PanelSessionContext.Provider
+          value={makePanelSession({ onOpenBlockLibrary })}
+        >
+          <EditorPanelContainer />
+        </PanelSessionContext.Provider>
+      </FontsContext.Provider>,
     );
 
     fireEvent.click(

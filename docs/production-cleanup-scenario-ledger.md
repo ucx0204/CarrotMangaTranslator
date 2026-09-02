@@ -142,10 +142,12 @@ editing the totals by hand.
   `5ee2b4cfdcdccd99ae61befd9eb34ab6779f6b30afe1afb95c551eddb97b7550`.
   The dedicated SFX translation, review, image-context, font-matching, and
   lifecycle pass extended it to SHA-256
-  `889544061ee1f2b352a480278c94aa9a0fd5725ec60005481bd1bf072474284a`.
+  `7a75b9bd95702b3a375c698b981e343dbea0fca572480878a944b5db334249c1`.
+  The source-font geometry consensus refactor extended it to SHA-256
+  `1ded580fa63aba7eac00079016878b8b4ec5d825f8c6e75c8077690337d9549f`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
   percentage for lines/statements/functions/branches in all 649 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 326 new
+  coverage-eligible `src/**` files changed since cleanup start. The 332 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   ten removed source files are recorded explicitly in `deletedFiles`.
@@ -153,6 +155,10 @@ editing the totals by hand.
   595 Vitest files: 4,641 tests passed and ten expected tests were skipped.
   Aggregate V8 coverage was 80.56% lines, 79.25% statements, 81.42% functions,
   and 71.82% branches.
+- The source-font geometry consensus and manual font-size capture passed 621
+  Vitest files: 4,942 tests passed and ten expected tests were skipped.
+  Aggregate V8 coverage was 81.28% lines, 79.97% statements, 82.48% functions,
+  and 72.40% branches.
 - `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,
   added, deleted, and untracked source scope from Git on every run. A missing or
   stale manifest entry, unrecorded deletion, unsupported source status, missing

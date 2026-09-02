@@ -109,6 +109,8 @@ function applyFormatPatch(
 ): TranslationBlock {
   const hasRenderDirectionPatch = Object.hasOwn(patch, "renderDirection");
   const hasExplicitRenderDirection = patch.renderDirection !== undefined;
+  const claimsManualFontSizing =
+    Object.hasOwn(patch, "fontSizePx") || Object.hasOwn(patch, "autoFitText");
   const claimsLayoutDirection =
     hasExplicitRenderDirection &&
     (block.layoutIntent !== undefined || block.layoutIntentSuppressed !== true);
@@ -128,6 +130,7 @@ function applyFormatPatch(
   };
   if (
     !claimsLayoutDirection &&
+    !(claimsManualFontSizing && block.fontSizeIntent === "source-match") &&
     Object.entries(normalizedPatch).every(([key, value]) =>
       Object.is(block[key as keyof TranslationBlock], value),
     )
@@ -135,6 +138,9 @@ function applyFormatPatch(
     return block;
   }
   const next = { ...block, ...normalizedPatch };
+  if (claimsManualFontSizing) {
+    next.fontSizeIntent = "manual";
+  }
   if (hasExplicitRenderDirection) {
     delete next.layoutIntent;
     next.layoutIntentSuppressed = true;

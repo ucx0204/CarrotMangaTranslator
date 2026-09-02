@@ -46,6 +46,8 @@ type PatternPageInpaintingOptions = {
   typographySegmentation?: KoharuTypographySegmentation;
   /** Production stays disabled; sealed QA/offline evidence opts in. */
   sourceEvidenceMode?: "disabled" | "required";
+  /** Add this pass to the currently stored cleaned page instead of restarting. */
+  preserveExistingInpainting?: boolean;
 };
 
 export async function inpaintPatternPage(
@@ -58,6 +60,7 @@ export async function inpaintPatternPage(
     page,
     options.decodeFallback,
     options.sourceEvidenceMode === "required",
+    options.preserveExistingInpainting === true,
   );
   const size = { width: working.width, height: working.height };
   const bitmap = Buffer.from(working.bitmap);
@@ -217,10 +220,12 @@ async function loadPatternWorkingBitmap(
   page: MangaPage,
   decodeFallback: ImageDecodeFallback | undefined,
   strictEvidence: boolean,
+  preserveExistingInpainting: boolean,
 ): Promise<PatternWorkingBitmap> {
-  const beforePath = shouldUseOriginalPatternImage(page)
-    ? page.imagePath
-    : (page.inpaintedImagePath ?? page.imagePath);
+  const beforePath =
+    !preserveExistingInpainting && shouldUseOriginalPatternImage(page)
+      ? page.imagePath
+      : (page.inpaintedImagePath ?? page.imagePath);
   if (strictEvidence) {
     const strictBaseline = await loadPatternBitmapBaseline(
       page,

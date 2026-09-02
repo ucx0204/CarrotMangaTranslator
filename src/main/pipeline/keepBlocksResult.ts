@@ -13,7 +13,7 @@ import { assignItemsToExistingBlocks } from "./keepBlocksAssignment";
 import type { KeepBlocksAutomaticFontOptions } from "./keepBlocksAutomaticFont";
 import { applyOverlayItemToExistingBlock } from "./keepBlocksOverlayApply";
 import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePixelInferenceTypes";
-import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometry";
+import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometryTypes";
 import type { OcrBboxResult, OverlayItem } from "./types";
 
 export type KeepBlocksMappingResult = {

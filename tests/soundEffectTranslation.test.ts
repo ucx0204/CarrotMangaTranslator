@@ -414,7 +414,7 @@ describe("dedicated sound-effect translation contract", () => {
       sourceText: "ドン",
       translatedText: "쿵",
       textRole: "sound",
-      autoFitText: false,
+      autoFitText: true,
     });
     expect(block).not.toHaveProperty("reviewStatus");
     expect(block).not.toHaveProperty("inpaintExcluded");
@@ -667,10 +667,16 @@ describe("dedicated sound-effect translation contract", () => {
     const page = makePage();
     page.blocks = [
       makeBlock("dialogue", false),
-      makeBlock("sfx-new-1", true),
-      makeBlock("sfx-new-2", true),
+      makeBlock("sfx-new-1", false),
+      makeBlock("sfx-new-2", false),
       makeBlock("sfx-old", true),
     ];
+    page.inpaintedImagePath = "C:/manga/dialogue-clean.png";
+    page.translationCompletion = {
+      workflow: "bubble-layout",
+      status: "pending",
+      erasedBlockIds: ["dialogue"],
+    };
     expect(
       resolveEligiblePatternBlocks(page, undefined, undefined, [
         "sfx-new-1",
@@ -708,14 +714,42 @@ describe("dedicated sound-effect translation contract", () => {
     ]);
   });
 
+  it("keeps prior erased ids while a new SFX waits for additive inpainting", () => {
+    const page = makePage();
+    page.blocks = [makeBlock("dialogue", false)];
+    page.translationCompletion = {
+      workflow: "bubble-layout",
+      status: "completed",
+      erasedBlockIds: ["dialogue"],
+    };
+
+    const updated = applyResolvedSoundEffectEntries(
+      page,
+      [{ regionId: "FX001", block: makeBlock("sfx-new", false) }],
+      TS,
+    );
+
+    expect(updated.translationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "pending",
+      erasedBlockIds: ["dialogue"],
+    });
+  });
+
   it("runs one integrated inpainting call per page using only new SFX blocks", async () => {
     const page = makePage();
     page.blocks = [
       makeBlock("dialogue", false),
-      makeBlock("sfx-new-1", true),
-      makeBlock("sfx-new-2", true),
+      makeBlock("sfx-new-1", false),
+      makeBlock("sfx-new-2", false),
       makeBlock("sfx-old", true),
     ];
+    page.inpaintedImagePath = "C:/manga/dialogue-clean.png";
+    page.translationCompletion = {
+      workflow: "bubble-layout",
+      status: "pending",
+      erasedBlockIds: ["dialogue"],
+    };
     const chapter = { ...makeChapter(), pages: [page] };
     const release = vi.fn();
     const updatePages = vi.fn(async () => chapter);
@@ -748,13 +782,108 @@ describe("dedicated sound-effect translation contract", () => {
     expect(inpaintPage).toHaveBeenCalledOnce();
     expect(inpaintPage).toHaveBeenCalledWith(
       page,
-      expect.objectContaining({ blockIds: ["sfx-new-1", "sfx-new-2"] }),
+      expect.objectContaining({
+        blockIds: ["sfx-new-1", "sfx-new-2"],
+        preserveExistingInpainting: true,
+      }),
     );
     expect(updatePages).toHaveBeenCalledWith(chapter.id, [
-      expect.objectContaining({ inpaintedImagePath: "C:/manga/inpainted.png" }),
+      expect.objectContaining({
+        inpaintedImagePath: "C:/manga/inpainted.png",
+        translationCompletion: {
+          workflow: "bubble-layout",
+          status: "completed",
+          erasedBlockIds: ["dialogue", "sfx-new-1", "sfx-new-2"],
+        },
+      }),
     ]);
     expect(result).toEqual({ changedPageIds: [page.id], warnings: [] });
     expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a page without a prior completion receipt receipt-free", async () => {
+    const page = makePage();
+    page.blocks = [makeBlock("sfx-new", false)];
+    const chapter = { ...makeChapter(), pages: [page] };
+    let persisted: MangaPage | undefined;
+    const updatePages = vi.fn(
+      async (_chapterId: string, pages: MangaPage[]) => {
+        persisted = pages[0];
+        return chapter;
+      },
+    );
+
+    await inpaintCreatedSoundEffectBlocks(
+      chapter.id,
+      [{ pageId: page.id, blockIds: ["sfx-new"] }],
+      vi.fn() as never,
+      new AbortController().signal,
+      {
+        getAppPaths: () => ({}) as never,
+        getAppSettings: async () => ({ inpainting: {} }) as never,
+        acquireEngine: async () =>
+          ({ engine: { model: "flux-klein" }, release: vi.fn() }) as never,
+        openChapter: async () => chapter,
+        inpaintPage: async (inputPage: MangaPage) => ({
+          page: {
+            ...inputPage,
+            inpaintedImagePath: "C:/manga/sfx-clean.png",
+          },
+          blocksErased: 1,
+          erasedBlockIds: ["sfx-new"],
+        }),
+        updatePages,
+      } as SoundEffectInpaintingDependencies,
+    );
+
+    expect(persisted?.inpaintedImagePath).toBe("C:/manga/sfx-clean.png");
+    expect(persisted).not.toHaveProperty("translationCompletion");
+  });
+
+  it("keeps completion pending while an eligible dialogue block remains", async () => {
+    const page = makePage();
+    page.blocks = [
+      makeBlock("dialogue-not-erased", false),
+      makeBlock("sfx-new", false),
+    ];
+    page.translationCompletion = {
+      workflow: "bubble-layout",
+      status: "pending",
+    };
+    const chapter = { ...makeChapter(), pages: [page] };
+    let persisted: MangaPage | undefined;
+    const updatePages = vi.fn(
+      async (_chapterId: string, pages: MangaPage[]) => {
+        persisted = pages[0];
+        return chapter;
+      },
+    );
+
+    await inpaintCreatedSoundEffectBlocks(
+      chapter.id,
+      [{ pageId: page.id, blockIds: ["sfx-new"] }],
+      vi.fn() as never,
+      new AbortController().signal,
+      {
+        getAppPaths: () => ({}) as never,
+        getAppSettings: async () => ({ inpainting: {} }) as never,
+        acquireEngine: async () =>
+          ({ engine: { model: "flux-klein" }, release: vi.fn() }) as never,
+        openChapter: async () => chapter,
+        inpaintPage: async (inputPage: MangaPage) => ({
+          page: inputPage,
+          blocksErased: 1,
+          erasedBlockIds: ["sfx-new"],
+        }),
+        updatePages,
+      } as SoundEffectInpaintingDependencies,
+    );
+
+    expect(persisted?.translationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "pending",
+      erasedBlockIds: ["sfx-new"],
+    });
   });
 
   it("keeps translated blocks when targeted inpainting fails", async () => {

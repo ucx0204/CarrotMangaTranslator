@@ -56,6 +56,8 @@ export type PanelSessionValue = {
   transformMode: TransformEditorMode;
   /** Source-page dimensions used for human-readable pixel values. */
   selectedPageSize: { width: number; height: number } | null;
+  /** Optional page-peer OCR face fallback used by source-size matching. */
+  selectedBlockSourceFontFaceFallbackPx?: number | null;
   blockStylePresets: BlockStylePresetSummary[];
   canCreateStylePreset: boolean;
   /** Adjusts every selected block's font size by one relative step. */

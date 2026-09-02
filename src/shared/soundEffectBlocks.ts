@@ -16,9 +16,10 @@ export function toPlainSoundEffectBlock(
   return {
     ...plain,
     textRole: "sound",
-    // SFX typography may choose a face/weight, but it must never opt back into
-    // the editor's box-fitting shrink pass.
-    autoFitText: false,
+    // Reviewed SFX starts by using the whole user-approved region. This avoids
+    // keeping the conservative seed size on large display lettering; a later
+    // manual size edit still turns fitting off through the editor contract.
+    autoFitText: true,
   };
 }
 

@@ -1,0 +1,1146 @@
+{
+  "schemaVersion": 1,
+  "policy": "never-reuse-even-after-failure-or-interruption",
+  "historicalExclusions": [
+    {
+      "key": "Manga Mura (JA)/死神騎士は運命の婚約者を離さない/第1.2話_ 第1.2話",
+      "normalizedKey": "manga mura (ja)/死神騎士は運命の婚約者を離さない/第1.2話_ 第1.2話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/死神騎士は運命の婚約者を離さない/第1.4話_ 第1.4話",
+      "normalizedKey": "manga mura (ja)/死神騎士は運命の婚約者を離さない/第1.4話_ 第1.4話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/死神騎士は運命の婚約者を離さない/第1.5話_ 第1.5話",
+      "normalizedKey": "manga mura (ja)/死神騎士は運命の婚約者を離さない/第1.5話_ 第1.5話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/死神騎士は運命の婚約者を離さない/第2.1話_ 第2.1話",
+      "normalizedKey": "manga mura (ja)/死神騎士は運命の婚約者を離さない/第2.1話_ 第2.1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/最強魔王は無双してたのに ～女体化解除のカギは人助けの旅でした～/第1話-JP_ 第1話",
+      "normalizedKey": "manga mura (ja)/最強魔王は無双してたのに ~女体化解除のカギは人助けの旅でした~/第1話-jp_ 第1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/最強魔王は無双してたのに ～女体化解除のカギは人助けの旅でした～/第2話-JP_ 第2話-v2",
+      "normalizedKey": "manga mura (ja)/最強魔王は無双してたのに ~女体化解除のカギは人助けの旅でした~/第2話-jp_ 第2話-v2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/最強魔王は無双してたのに ～女体化解除のカギは人助けの旅でした～/第3話-JP_ 第3話-v3",
+      "normalizedKey": "manga mura (ja)/最強魔王は無双してたのに ~女体化解除のカギは人助けの旅でした~/第3話-jp_ 第3話-v3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/最強魔王は無双してたのに ～女体化解除のカギは人助けの旅でした～/第4話-JP_ 第4話-v4",
+      "normalizedKey": "manga mura (ja)/最強魔王は無双してたのに ~女体化解除のカギは人助けの旅でした~/第4話-jp_ 第4話-v4",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/最強魔王は無双してたのに ～女体化解除のカギは人助けの旅でした～/第6話-JP_ 第6話-v6",
+      "normalizedKey": "manga mura (ja)/最強魔王は無双してたのに ~女体化解除のカギは人助けの旅でした~/第6話-jp_ 第6話-v6",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第11話_ 第11話-v11",
+      "normalizedKey": "manga mura (ja)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第11話_ 第11話-v11",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第12話_ 第12話-v12",
+      "normalizedKey": "manga mura (ja)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第12話_ 第12話-v12",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第13話_ 第13話-v13",
+      "normalizedKey": "manga mura (ja)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第13話_ 第13話-v13",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第1話_ 第1話",
+      "normalizedKey": "manga mura (ja)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第1話_ 第1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第3話_ 第3話-v3",
+      "normalizedKey": "manga mura (ja)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第3話_ 第3話-v3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第4話_ 第4話-v4",
+      "normalizedKey": "manga mura (ja)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第4話_ 第4話-v4",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第5話_ 第5話-v5",
+      "normalizedKey": "manga mura (ja)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第5話_ 第5話-v5",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第9話_ 第9話-v10",
+      "normalizedKey": "manga mura (ja)/捕虜英雄~捨て胸にされた剣奴は敵国で成り上がる~/第9話_ 第9話-v10",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/悪の皇女はもう誰も殺さない/第7話-JP_ 第7話",
+      "normalizedKey": "manga mura (ja)/悪の皇女はもう誰も殺さない/第7話-jp_ 第7話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～/第10.1話_ 第10.1話-v12",
+      "normalizedKey": "manga mura (ja)/転生しました、サラナ・キンジェです。ごきげんよう。 ~優雅なスローライフで大忙し~ 転生しました、サラナ・キンジェです。ごきげんよう。 ~婚約破棄されたので田舎で気ままに暮らしたいと思います~/第10.1話_ 第10.1話-v12",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～/第13.2話_ 第13.2話-v19",
+      "normalizedKey": "manga mura (ja)/転生しました、サラナ・キンジェです。ごきげんよう。 ~優雅なスローライフで大忙し~ 転生しました、サラナ・キンジェです。ごきげんよう。 ~婚約破棄されたので田舎で気ままに暮らしたいと思います~/第13.2話_ 第13.2話-v19",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～/第14.1話_ 第14.1話-v20",
+      "normalizedKey": "manga mura (ja)/転生しました、サラナ・キンジェです。ごきげんよう。 ~優雅なスローライフで大忙し~ 転生しました、サラナ・キンジェです。ごきげんよう。 ~婚約破棄されたので田舎で気ままに暮らしたいと思います~/第14.1話_ 第14.1話-v20",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～/第14.2話_ 第14.2話-v21",
+      "normalizedKey": "manga mura (ja)/転生しました、サラナ・キンジェです。ごきげんよう。 ~優雅なスローライフで大忙し~ 転生しました、サラナ・キンジェです。ごきげんよう。 ~婚約破棄されたので田舎で気ままに暮らしたいと思います~/第14.2話_ 第14.2話-v21",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～/第15.1話_ 第15.1話-v22",
+      "normalizedKey": "manga mura (ja)/転生しました、サラナ・キンジェです。ごきげんよう。 ~優雅なスローライフで大忙し~ 転生しました、サラナ・キンジェです。ごきげんよう。 ~婚約破棄されたので田舎で気ままに暮らしたいと思います~/第15.1話_ 第15.1話-v22",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～/第2話_ 第2話",
+      "normalizedKey": "manga mura (ja)/転生しました、サラナ・キンジェです。ごきげんよう。 ~優雅なスローライフで大忙し~ 転生しました、サラナ・キンジェです。ごきげんよう。 ~婚約破棄されたので田舎で気ままに暮らしたいと思います~/第2話_ 第2話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Manga Mura (JA)/転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～/第9.1話_ 第9.1話-v10",
+      "normalizedKey": "manga mura (ja)/転生しました、サラナ・キンジェです。ごきげんよう。 ~優雅なスローライフで大忙し~ 転生しました、サラナ・キンジェです。ごきげんよう。 ~婚約破棄されたので田舎で気ままに暮らしたいと思います~/第9.1話_ 第9.1話-v10",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/魔導細工師ノーミィの異世界クラフト生活 ～前世知識とチートなアイテムで、魔王城をどんどん快適にします!～/第1話_ 第1話",
+      "normalizedKey": "raw otaku (ja)/魔導細工師ノーミィの異世界クラフト生活 ~前世知識とチートなアイテムで、魔王城をどんどん快適にします!~/第1話_ 第1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/魔導細工師ノーミィの異世界クラフト生活 ～前世知識とチートなアイテムで、魔王城をどんどん快適にします!～/第2.1話_ 第2.1話-v2",
+      "normalizedKey": "raw otaku (ja)/魔導細工師ノーミィの異世界クラフト生活 ~前世知識とチートなアイテムで、魔王城をどんどん快適にします!~/第2.1話_ 第2.1話-v2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/魔導細工師ノーミィの異世界クラフト生活 ～前世知識とチートなアイテムで、魔王城をどんどん快適にします!～/第2.2話_ 第2.2話-v3",
+      "normalizedKey": "raw otaku (ja)/魔導細工師ノーミィの異世界クラフト生活 ~前世知識とチートなアイテムで、魔王城をどんどん快適にします!~/第2.2話_ 第2.2話-v3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/魔導細工師ノーミィの異世界クラフト生活 ～前世知識とチートなアイテムで、魔王城をどんどん快適にします!～/第4.2話_ 第4.2話-v7",
+      "normalizedKey": "raw otaku (ja)/魔導細工師ノーミィの異世界クラフト生活 ~前世知識とチートなアイテムで、魔王城をどんどん快適にします!~/第4.2話_ 第4.2話-v7",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第1話_ 第1話",
+      "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第1話_ 第1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第2話_ 第2話-v2",
+      "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第2話_ 第2話-v2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第3話_ 第3話-v3",
+      "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第3話_ 第3話-v3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第4話_ 第4話-v4",
+      "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第4話_ 第4話-v4",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第5話_ 第5話-v5",
+      "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第5話_ 第5話-v5",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第6.1話_ 第6.1話-v6",
+      "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第6.1話_ 第6.1話-v6",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第6.2話_ 第6.2話-v7",
+      "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第6.2話_ 第6.2話-v7",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第6.3話_ 第6.3話-v8",
+      "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第6.3話_ 第6.3話-v8",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第7話_ 第7話-v9",
+      "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第7話_ 第7話-v9",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/俺だけレベルが上がる世界で悪徳領主になっていた/第11話_ 第11話",
+      "normalizedKey": "raw otaku (ja)/俺だけレベルが上がる世界で悪徳領主になっていた/第11話_ 第11話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/俺だけレベルが上がる世界で悪徳領主になっていた/第12話_ 第12話",
+      "normalizedKey": "raw otaku (ja)/俺だけレベルが上がる世界で悪徳領主になっていた/第12話_ 第12話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/俺だけレベルが上がる世界で悪徳領主になっていた/第14話_ 第14話",
+      "normalizedKey": "raw otaku (ja)/俺だけレベルが上がる世界で悪徳領主になっていた/第14話_ 第14話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/俺だけレベルが上がる世界で悪徳領主になっていた/第15話_ 第15話",
+      "normalizedKey": "raw otaku (ja)/俺だけレベルが上がる世界で悪徳領主になっていた/第15話_ 第15話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/俺だけレベルが上がる世界で悪徳領主になっていた/第17話_ 第17話",
+      "normalizedKey": "raw otaku (ja)/俺だけレベルが上がる世界で悪徳領主になっていた/第17話_ 第17話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/俺だけレベルが上がる世界で悪徳領主になっていた/第18話_ 第18話",
+      "normalizedKey": "raw otaku (ja)/俺だけレベルが上がる世界で悪徳領主になっていた/第18話_ 第18話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/俺だけレベルが上がる世界で悪徳領主になっていた/第24話_ 第24話",
+      "normalizedKey": "raw otaku (ja)/俺だけレベルが上がる世界で悪徳領主になっていた/第24話_ 第24話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/俺だけレベルが上がる世界で悪徳領主になっていた/第26話_ 第26話",
+      "normalizedKey": "raw otaku (ja)/俺だけレベルが上がる世界で悪徳領主になっていた/第26話_ 第26話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/俺だけレベルが上がる世界で悪徳領主になっていた/第28話_ 第28話",
+      "normalizedKey": "raw otaku (ja)/俺だけレベルが上がる世界で悪徳領主になっていた/第28話_ 第28話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/俺だけレベルが上がる世界で悪徳領主になっていた/第29話_ 第29話",
+      "normalizedKey": "raw otaku (ja)/俺だけレベルが上がる世界で悪徳領主になっていた/第29話_ 第29話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/転生悪女の黒歴史/第14話_ 転生悪女の黒歴史 (Raw – Free) 【第14話】",
+      "normalizedKey": "raw otaku (ja)/転生悪女の黒歴史/第14話_ 転生悪女の黒歴史 (raw – free) 【第14話】",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/転生悪女の黒歴史/第18話_ 転生悪女の黒歴史 (Raw – Free) 【第18話】",
+      "normalizedKey": "raw otaku (ja)/転生悪女の黒歴史/第18話_ 転生悪女の黒歴史 (raw – free) 【第18話】",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/転生悪女の黒歴史/第19話_ 転生悪女の黒歴史 (Raw – Free) 【第19話】",
+      "normalizedKey": "raw otaku (ja)/転生悪女の黒歴史/第19話_ 転生悪女の黒歴史 (raw – free) 【第19話】",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/転生悪女の黒歴史/第25話_ 転生悪女の黒歴史 (Raw – Free) 【第25話】",
+      "normalizedKey": "raw otaku (ja)/転生悪女の黒歴史/第25話_ 転生悪女の黒歴史 (raw – free) 【第25話】",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/転生悪女の黒歴史/第27話_ 転生悪女の黒歴史 (Raw – Free) 【第27話】",
+      "normalizedKey": "raw otaku (ja)/転生悪女の黒歴史/第27話_ 転生悪女の黒歴史 (raw – free) 【第27話】",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/転生悪女の黒歴史/第34話_ 転生悪女の黒歴史 (Raw – Free) 【第34話】",
+      "normalizedKey": "raw otaku (ja)/転生悪女の黒歴史/第34話_ 転生悪女の黒歴史 (raw – free) 【第34話】",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/転生悪女の黒歴史/第39話_ 転生悪女の黒歴史 (Raw – Free) 【第39話】",
+      "normalizedKey": "raw otaku (ja)/転生悪女の黒歴史/第39話_ 転生悪女の黒歴史 (raw – free) 【第39話】",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/転生悪女の黒歴史/第42話_ 転生悪女の黒歴史 (Raw – Free) 【第42話】",
+      "normalizedKey": "raw otaku (ja)/転生悪女の黒歴史/第42話_ 転生悪女の黒歴史 (raw – free) 【第42話】",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/転生悪女の黒歴史/第54話_ 転生悪女の黒歴史 (Raw – Free) 【第54話】",
+      "normalizedKey": "raw otaku (ja)/転生悪女の黒歴史/第54話_ 転生悪女の黒歴史 (raw – free) 【第54話】",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/転生悪女の黒歴史/第56話_ 転生悪女の黒歴史 (Raw – Free) 【第56話】",
+      "normalizedKey": "raw otaku (ja)/転生悪女の黒歴史/第56話_ 転生悪女の黒歴史 (raw – free) 【第56話】",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw Otaku (JA)/転生悪女の黒歴史/第62話_ 第62話",
+      "normalizedKey": "raw otaku (ja)/転生悪女の黒歴史/第62話_ 第62話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第10話",
+      "normalizedKey": "raw1001 (ja)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第10話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第11話",
+      "normalizedKey": "raw1001 (ja)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第11話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第13話",
+      "normalizedKey": "raw1001 (ja)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第13話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第14話",
+      "normalizedKey": "raw1001 (ja)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第14話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第15話",
+      "normalizedKey": "raw1001 (ja)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第15話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第16話",
+      "normalizedKey": "raw1001 (ja)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第16話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第2話",
+      "normalizedKey": "raw1001 (ja)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第2話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第3話",
+      "normalizedKey": "raw1001 (ja)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第3話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第4話",
+      "normalizedKey": "raw1001 (ja)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第4話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第6話",
+      "normalizedKey": "raw1001 (ja)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第6話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第9話",
+      "normalizedKey": "raw1001 (ja)/1×∞ 経験値1でレベルアップする俺は、最速で異世界最強になりました!/第9話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/大草原の小さな領主 ～元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記～/第1話",
+      "normalizedKey": "raw1001 (ja)/大草原の小さな領主 ~元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記~/第1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/大草原の小さな領主 ～元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記～/第2話",
+      "normalizedKey": "raw1001 (ja)/大草原の小さな領主 ~元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記~/第2話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/大草原の小さな領主 ～元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記～/第3話",
+      "normalizedKey": "raw1001 (ja)/大草原の小さな領主 ~元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記~/第3話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/大草原の小さな領主 ～元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記～/第4話",
+      "normalizedKey": "raw1001 (ja)/大草原の小さな領主 ~元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記~/第4話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/大草原の小さな領主 ～元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記～/第5話",
+      "normalizedKey": "raw1001 (ja)/大草原の小さな領主 ~元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記~/第5話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/大草原の小さな領主 ～元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記～/第6話",
+      "normalizedKey": "raw1001 (ja)/大草原の小さな領主 ~元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記~/第6話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/大草原の小さな領主 ～元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記～/第7.1話",
+      "normalizedKey": "raw1001 (ja)/大草原の小さな領主 ~元廃ゲーマーな転生幼女の楽しいハードモード辺境開拓記~/第7.1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第10.2話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第10.2話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第11.1話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第11.1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第12.1話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第12.1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第13.1話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第13.1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第13.2話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第13.2話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第13.3話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第13.3話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第2.2話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第2.2話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第3.2話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第3.2話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第5.2話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第5.2話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第6.1話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第6.1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第8.2話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第8.2話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第8.3話",
+      "normalizedKey": "raw1001 (ja)/英雄ブランの人生計画 第二の人生は憧れの雑用係でお願いします/第8.3話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/灰の世界は神の眼で彩づく ～俺だけ見えるステータスで、最弱から最強へ駆け上がる～/第11話",
+      "normalizedKey": "raw1001 (ja)/灰の世界は神の眼で彩づく ~俺だけ見えるステータスで、最弱から最強へ駆け上がる~/第11話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/灰の世界は神の眼で彩づく ～俺だけ見えるステータスで、最弱から最強へ駆け上がる～/第13話",
+      "normalizedKey": "raw1001 (ja)/灰の世界は神の眼で彩づく ~俺だけ見えるステータスで、最弱から最強へ駆け上がる~/第13話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/灰の世界は神の眼で彩づく ～俺だけ見えるステータスで、最弱から最強へ駆け上がる～/第15.1話",
+      "normalizedKey": "raw1001 (ja)/灰の世界は神の眼で彩づく ~俺だけ見えるステータスで、最弱から最強へ駆け上がる~/第15.1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/灰の世界は神の眼で彩づく ～俺だけ見えるステータスで、最弱から最強へ駆け上がる～/第1話",
+      "normalizedKey": "raw1001 (ja)/灰の世界は神の眼で彩づく ~俺だけ見えるステータスで、最弱から最強へ駆け上がる~/第1話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/灰の世界は神の眼で彩づく ～俺だけ見えるステータスで、最弱から最強へ駆け上がる～/第2話",
+      "normalizedKey": "raw1001 (ja)/灰の世界は神の眼で彩づく ~俺だけ見えるステータスで、最弱から最強へ駆け上がる~/第2話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/灰の世界は神の眼で彩づく ～俺だけ見えるステータスで、最弱から最強へ駆け上がる～/第3話",
+      "normalizedKey": "raw1001 (ja)/灰の世界は神の眼で彩づく ~俺だけ見えるステータスで、最弱から最強へ駆け上がる~/第3話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/灰の世界は神の眼で彩づく ～俺だけ見えるステータスで、最弱から最強へ駆け上がる～/第4話",
+      "normalizedKey": "raw1001 (ja)/灰の世界は神の眼で彩づく ~俺だけ見えるステータスで、最弱から最強へ駆け上がる~/第4話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/灰の世界は神の眼で彩づく ～俺だけ見えるステータスで、最弱から最強へ駆け上がる～/第5話",
+      "normalizedKey": "raw1001 (ja)/灰の世界は神の眼で彩づく ~俺だけ見えるステータスで、最弱から最強へ駆け上がる~/第5話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/灰の世界は神の眼で彩づく ～俺だけ見えるステータスで、最弱から最強へ駆け上がる～/第6話",
+      "normalizedKey": "raw1001 (ja)/灰の世界は神の眼で彩づく ~俺だけ見えるステータスで、最弱から最強へ駆け上がる~/第6話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/灰の世界は神の眼で彩づく ～俺だけ見えるステータスで、最弱から最強へ駆け上がる～/第7話",
+      "normalizedKey": "raw1001 (ja)/灰の世界は神の眼で彩づく ~俺だけ見えるステータスで、最弱から最強へ駆け上がる~/第7話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Raw1001 (JA)/灰の世界は神の眼で彩づく ～俺だけ見えるステータスで、最弱から最強へ駆け上がる～/第8話",
+      "normalizedKey": "raw1001 (ja)/灰の世界は神の眼で彩づく ~俺だけ見えるステータスで、最弱から最強へ駆け上がる~/第8話",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/_TEIKOKU-UCHUUGUN_ SHOZOKU NO ORE DESUGA, MIKAI NO WAKUSEI NI SOUNAN SHIMASHITA. - RAW/Chapter 1.2",
+      "normalizedKey": "rawinu (ja)/_teikoku-uchuugun_ shozoku no ore desuga, mikai no wakusei ni sounan shimashita. - raw/chapter 1.2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/_TEIKOKU-UCHUUGUN_ SHOZOKU NO ORE DESUGA, MIKAI NO WAKUSEI NI SOUNAN SHIMASHITA. - RAW/Chapter 3",
+      "normalizedKey": "rawinu (ja)/_teikoku-uchuugun_ shozoku no ore desuga, mikai no wakusei ni sounan shimashita. - raw/chapter 3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/_TEIKOKU-UCHUUGUN_ SHOZOKU NO ORE DESUGA, MIKAI NO WAKUSEI NI SOUNAN SHIMASHITA. - RAW/Chapter 6",
+      "normalizedKey": "rawinu (ja)/_teikoku-uchuugun_ shozoku no ore desuga, mikai no wakusei ni sounan shimashita. - raw/chapter 6",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/BUCHI KIRE REIJO HA HOFUKU WO CHIKAIMASHITA. MA SHIRUBE SHO NO CHIKARA/Chapter 31",
+      "normalizedKey": "rawinu (ja)/buchi kire reijo ha hofuku wo chikaimashita. ma shirube sho no chikara/chapter 31",
+      "reason": "explicit-prior-use-exclusion",
+      "sourceManifest": null
+    },
+    {
+      "key": "RawINU (JA)/BUG SKILL _KAIJOU_ DE SAIKYOU SAISOKU DANJON KOURYAKU/Chapter 1",
+      "normalizedKey": "rawinu (ja)/bug skill _kaijou_ de saikyou saisoku danjon kouryaku/chapter 1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/BUG SKILL _KAIJOU_ DE SAIKYOU SAISOKU DANJON KOURYAKU/Chapter 2",
+      "normalizedKey": "rawinu (ja)/bug skill _kaijou_ de saikyou saisoku danjon kouryaku/chapter 2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/BUG SKILL _KAIJOU_ DE SAIKYOU SAISOKU DANJON KOURYAKU/Chapter 4",
+      "normalizedKey": "rawinu (ja)/bug skill _kaijou_ de saikyou saisoku danjon kouryaku/chapter 4",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/KOUSHAKU REIJOU NO ROURAKU MISSION ~MAOU TO NO SEIRYAKU KEKKON GA, JINRUI SAIGO NO KIRIFUDA DESU! … TTE, MAOU GA ONNA NO KO NO BAAI WA DOU SUREBA II NO DESU KA!_/Chapter 1",
+      "normalizedKey": "rawinu (ja)/koushaku reijou no rouraku mission ~maou to no seiryaku kekkon ga, jinrui saigo no kirifuda desu! ... tte, maou ga onna no ko no baai wa dou sureba ii no desu ka!_/chapter 1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/KOUSHAKU REIJOU NO ROURAKU MISSION ~MAOU TO NO SEIRYAKU KEKKON GA, JINRUI SAIGO NO KIRIFUDA DESU! … TTE, MAOU GA ONNA NO KO NO BAAI WA DOU SUREBA II NO DESU KA!_/Chapter 3",
+      "normalizedKey": "rawinu (ja)/koushaku reijou no rouraku mission ~maou to no seiryaku kekkon ga, jinrui saigo no kirifuda desu! ... tte, maou ga onna no ko no baai wa dou sureba ii no desu ka!_/chapter 3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/KOUSHAKU REIJOU NO ROURAKU MISSION ~MAOU TO NO SEIRYAKU KEKKON GA, JINRUI SAIGO NO KIRIFUDA DESU! … TTE, MAOU GA ONNA NO KO NO BAAI WA DOU SUREBA II NO DESU KA!_/Chapter 4",
+      "normalizedKey": "rawinu (ja)/koushaku reijou no rouraku mission ~maou to no seiryaku kekkon ga, jinrui saigo no kirifuda desu! ... tte, maou ga onna no ko no baai wa dou sureba ii no desu ka!_/chapter 4",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/KOUSHAKU REIJOU NO ROURAKU MISSION ~MAOU TO NO SEIRYAKU KEKKON GA, JINRUI SAIGO NO KIRIFUDA DESU! … TTE, MAOU GA ONNA NO KO NO BAAI WA DOU SUREBA II NO DESU KA!_/Chapter 5",
+      "normalizedKey": "rawinu (ja)/koushaku reijou no rouraku mission ~maou to no seiryaku kekkon ga, jinrui saigo no kirifuda desu! ... tte, maou ga onna no ko no baai wa dou sureba ii no desu ka!_/chapter 5",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/KUZU-OUJI YARINAOSU! ~ZAMAA SARETE SHINDA KEDO, KONDA WA SUJUGAKI BUCHIKOWASHITE IKINOBIRU~ RAW/Chapter 1",
+      "normalizedKey": "rawinu (ja)/kuzu-ouji yarinaosu! ~zamaa sarete shinda kedo, konda wa sujugaki buchikowashite ikinobiru~ raw/chapter 1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/KUZU-OUJI YARINAOSU! ~ZAMAA SARETE SHINDA KEDO, KONDA WA SUJUGAKI BUCHIKOWASHITE IKINOBIRU~ RAW/Chapter 4",
+      "normalizedKey": "rawinu (ja)/kuzu-ouji yarinaosu! ~zamaa sarete shinda kedo, konda wa sujugaki buchikowashite ikinobiru~ raw/chapter 4",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/KUZU-OUJI YARINAOSU! ~ZAMAA SARETE SHINDA KEDO, KONDA WA SUJUGAKI BUCHIKOWASHITE IKINOBIRU~ RAW/Chapter 5",
+      "normalizedKey": "rawinu (ja)/kuzu-ouji yarinaosu! ~zamaa sarete shinda kedo, konda wa sujugaki buchikowashite ikinobiru~ raw/chapter 5",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/KUZULESSE OBLIGE_ 18-KIN GEE SEKAI NO KUZU AKUYAKU NI TENSEI SHITESHIMATTA ORE WA, GENSAKU CHISHIKI NO CHIKARA DE DOUSHITE MO MOB JINSEI O TSUKAMI TORITAI/Chapter 1",
+      "normalizedKey": "rawinu (ja)/kuzulesse oblige_ 18-kin gee sekai no kuzu akuyaku ni tensei shiteshimatta ore wa, gensaku chishiki no chikara de doushite mo mob jinsei o tsukami toritai/chapter 1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/KUZULESSE OBLIGE_ 18-KIN GEE SEKAI NO KUZU AKUYAKU NI TENSEI SHITESHIMATTA ORE WA, GENSAKU CHISHIKI NO CHIKARA DE DOUSHITE MO MOB JINSEI O TSUKAMI TORITAI/Chapter 5.1",
+      "normalizedKey": "rawinu (ja)/kuzulesse oblige_ 18-kin gee sekai no kuzu akuyaku ni tensei shiteshimatta ore wa, gensaku chishiki no chikara de doushite mo mob jinsei o tsukami toritai/chapter 5.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/KUZULESSE OBLIGE_ 18-KIN GEE SEKAI NO KUZU AKUYAKU NI TENSEI SHITESHIMATTA ORE WA, GENSAKU CHISHIKI NO CHIKARA DE DOUSHITE MO MOB JINSEI O TSUKAMI TORITAI/Chapter 6.2",
+      "normalizedKey": "rawinu (ja)/kuzulesse oblige_ 18-kin gee sekai no kuzu akuyaku ni tensei shiteshimatta ore wa, gensaku chishiki no chikara de doushite mo mob jinsei o tsukami toritai/chapter 6.2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/KUZULESSE OBLIGE_ 18-KIN GEE SEKAI NO KUZU AKUYAKU NI TENSEI SHITESHIMATTA ORE WA, GENSAKU CHISHIKI NO CHIKARA DE DOUSHITE MO MOB JINSEI O TSUKAMI TORITAI/Chapter 9.1",
+      "normalizedKey": "rawinu (ja)/kuzulesse oblige_ 18-kin gee sekai no kuzu akuyaku ni tensei shiteshimatta ore wa, gensaku chishiki no chikara de doushite mo mob jinsei o tsukami toritai/chapter 9.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MAOUGUN SHITENNOU GA KAWAISUGITE TAOSENAI/Chapter 2.4",
+      "normalizedKey": "rawinu (ja)/maougun shitennou ga kawaisugite taosenai/chapter 2.4",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MAOUGUN SHITENNOU GA KAWAISUGITE TAOSENAI/Chapter 3.1",
+      "normalizedKey": "rawinu (ja)/maougun shitennou ga kawaisugite taosenai/chapter 3.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MAOUGUN SHITENNOU GA KAWAISUGITE TAOSENAI/Chapter 3.3",
+      "normalizedKey": "rawinu (ja)/maougun shitennou ga kawaisugite taosenai/chapter 3.3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MAOUGUN SHITENNOU GA KAWAISUGITE TAOSENAI/Chapter 4.1",
+      "normalizedKey": "rawinu (ja)/maougun shitennou ga kawaisugite taosenai/chapter 4.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MASHIRUBE ZAIKUSHI NOMIE NO ISEKAI CRAFT SEIKATSU_ ZENSEI CHISHIKI TO CHEAT NA ITEM DE, MAOUJOU WO DONDON KAITEKI NI SHIMASU! - RAW/Chapter 1",
+      "normalizedKey": "rawinu (ja)/mashirube zaikushi nomie no isekai craft seikatsu_ zensei chishiki to cheat na item de, maoujou wo dondon kaiteki ni shimasu! - raw/chapter 1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MASHIRUBE ZAIKUSHI NOMIE NO ISEKAI CRAFT SEIKATSU_ ZENSEI CHISHIKI TO CHEAT NA ITEM DE, MAOUJOU WO DONDON KAITEKI NI SHIMASU! - RAW/Chapter 3.2",
+      "normalizedKey": "rawinu (ja)/mashirube zaikushi nomie no isekai craft seikatsu_ zensei chishiki to cheat na item de, maoujou wo dondon kaiteki ni shimasu! - raw/chapter 3.2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MASHIRUBE ZAIKUSHI NOMIE NO ISEKAI CRAFT SEIKATSU_ ZENSEI CHISHIKI TO CHEAT NA ITEM DE, MAOUJOU WO DONDON KAITEKI NI SHIMASU! - RAW/Chapter 5.2",
+      "normalizedKey": "rawinu (ja)/mashirube zaikushi nomie no isekai craft seikatsu_ zensei chishiki to cheat na item de, maoujou wo dondon kaiteki ni shimasu! - raw/chapter 5.2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MASHIRUBE ZAIKUSHI NOMIE NO ISEKAI CRAFT SEIKATSU_ ZENSEI CHISHIKI TO CHEAT NA ITEM DE, MAOUJOU WO DONDON KAITEKI NI SHIMASU! - RAW/Chapter 8.1",
+      "normalizedKey": "rawinu (ja)/mashirube zaikushi nomie no isekai craft seikatsu_ zensei chishiki to cheat na item de, maoujou wo dondon kaiteki ni shimasu! - raw/chapter 8.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MOB SHISAIDAKEDO, KONO SEKAI GA OTOME GAMEDA TO KIZUITANODE HEROINE WO IKUSEI SHIMASU/Chapter 1",
+      "normalizedKey": "rawinu (ja)/mob shisaidakedo, kono sekai ga otome gameda to kizuitanode heroine wo ikusei shimasu/chapter 1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MOB SHISAIDAKEDO, KONO SEKAI GA OTOME GAMEDA TO KIZUITANODE HEROINE WO IKUSEI SHIMASU/Chapter 10",
+      "normalizedKey": "rawinu (ja)/mob shisaidakedo, kono sekai ga otome gameda to kizuitanode heroine wo ikusei shimasu/chapter 10",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MOB SHISAIDAKEDO, KONO SEKAI GA OTOME GAMEDA TO KIZUITANODE HEROINE WO IKUSEI SHIMASU/Chapter 4",
+      "normalizedKey": "rawinu (ja)/mob shisaidakedo, kono sekai ga otome gameda to kizuitanode heroine wo ikusei shimasu/chapter 4",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/MOB SHISAIDAKEDO, KONO SEKAI GA OTOME GAMEDA TO KIZUITANODE HEROINE WO IKUSEI SHIMASU/Chapter 7",
+      "normalizedKey": "rawinu (ja)/mob shisaidakedo, kono sekai ga otome gameda to kizuitanode heroine wo ikusei shimasu/chapter 7",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/NAITE AYAMARARETE MO KYOUKAI NI WA MODORI MASEN! TSUIHOU SARETA MOTO SEIJO KOUHO DESU GA, ONAJIKU TSUIHOU SARETA “KENSHIN”-SAMA TO IKITOUGOU SHITA NO DE DAINI NO JINSEI WO HAJIMETEMASU/Chapter 3",
+      "normalizedKey": "rawinu (ja)/naite ayamararete mo kyoukai ni wa modori masen! tsuihou sareta moto seijo kouho desu ga, onajiku tsuihou sareta “kenshin”-sama to ikitougou shita no de daini no jinsei wo hajimetemasu/chapter 3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/NAITE AYAMARARETE MO KYOUKAI NI WA MODORI MASEN! TSUIHOU SARETA MOTO SEIJO KOUHO DESU GA, ONAJIKU TSUIHOU SARETA “KENSHIN”-SAMA TO IKITOUGOU SHITA NO DE DAINI NO JINSEI WO HAJIMETEMASU/Chapter 5",
+      "normalizedKey": "rawinu (ja)/naite ayamararete mo kyoukai ni wa modori masen! tsuihou sareta moto seijo kouho desu ga, onajiku tsuihou sareta “kenshin”-sama to ikitougou shita no de daini no jinsei wo hajimetemasu/chapter 5",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/NAITE AYAMARARETE MO KYOUKAI NI WA MODORI MASEN! TSUIHOU SARETA MOTO SEIJO KOUHO DESU GA, ONAJIKU TSUIHOU SARETA “KENSHIN”-SAMA TO IKITOUGOU SHITA NO DE DAINI NO JINSEI WO HAJIMETEMASU/Chapter 7",
+      "normalizedKey": "rawinu (ja)/naite ayamararete mo kyoukai ni wa modori masen! tsuihou sareta moto seijo kouho desu ga, onajiku tsuihou sareta “kenshin”-sama to ikitougou shita no de daini no jinsei wo hajimetemasu/chapter 7",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/SHINMAI MAJO NO ISEKAI OKIRAKU TABI ~ISEKAI NI OCHITA MOTO AROUND 40 SHACHIKU WA MAJO NO DESHI WO NANORI DAINI NO JINSEI WO OUKA SURU~ RAW/Chapter 3.1",
+      "normalizedKey": "rawinu (ja)/shinmai majo no isekai okiraku tabi ~isekai ni ochita moto around 40 shachiku wa majo no deshi wo nanori daini no jinsei wo ouka suru~ raw/chapter 3.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/SHINMAI MAJO NO ISEKAI OKIRAKU TABI ~ISEKAI NI OCHITA MOTO AROUND 40 SHACHIKU WA MAJO NO DESHI WO NANORI DAINI NO JINSEI WO OUKA SURU~ RAW/Chapter 4.1",
+      "normalizedKey": "rawinu (ja)/shinmai majo no isekai okiraku tabi ~isekai ni ochita moto around 40 shachiku wa majo no deshi wo nanori daini no jinsei wo ouka suru~ raw/chapter 4.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/SHINMAI MAJO NO ISEKAI OKIRAKU TABI ~ISEKAI NI OCHITA MOTO AROUND 40 SHACHIKU WA MAJO NO DESHI WO NANORI DAINI NO JINSEI WO OUKA SURU~ RAW/Chapter 5.1",
+      "normalizedKey": "rawinu (ja)/shinmai majo no isekai okiraku tabi ~isekai ni ochita moto around 40 shachiku wa majo no deshi wo nanori daini no jinsei wo ouka suru~ raw/chapter 5.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/SHINMAI MAJO NO ISEKAI OKIRAKU TABI ~ISEKAI NI OCHITA MOTO AROUND 40 SHACHIKU WA MAJO NO DESHI WO NANORI DAINI NO JINSEI WO OUKA SURU~ RAW/Chapter 7.1",
+      "normalizedKey": "rawinu (ja)/shinmai majo no isekai okiraku tabi ~isekai ni ochita moto around 40 shachiku wa majo no deshi wo nanori daini no jinsei wo ouka suru~ raw/chapter 7.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/TENSEI RENKIN SHOUJO NO SLOW LIFE/Chapter 15",
+      "normalizedKey": "rawinu (ja)/tensei renkin shoujo no slow life/chapter 15",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/TENSEI RENKIN SHOUJO NO SLOW LIFE/Chapter 19",
+      "normalizedKey": "rawinu (ja)/tensei renkin shoujo no slow life/chapter 19",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/TENSEI RENKIN SHOUJO NO SLOW LIFE/Chapter 5",
+      "normalizedKey": "rawinu (ja)/tensei renkin shoujo no slow life/chapter 5",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "RawINU (JA)/TENSEI RENKIN SHOUJO NO SLOW LIFE/Chapter 8",
+      "normalizedKey": "rawinu (ja)/tensei renkin shoujo no slow life/chapter 8",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/28-Sai OL, Akuyaku Oujo wo Hajimemashita/Chapter 2",
+      "normalizedKey": "rawkuma (ja)/28-sai ol, akuyaku oujo wo hajimemashita/chapter 2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Aku no Koujo wa Mou dare mo Korosanai/Chapter 2.2",
+      "normalizedKey": "rawkuma (ja)/aku no koujo wa mou dare mo korosanai/chapter 2.2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Akuninzura shita B-kyuu Boukensha  Shujinkou to Sono Osananajimi-tachi no Papa ni naru/Chapter 16.2",
+      "normalizedKey": "rawkuma (ja)/akuninzura shita b-kyuu boukensha  shujinkou to sono osananajimi-tachi no papa ni naru/chapter 16.2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru/Chapter 16.2",
+      "normalizedKey": "rawkuma (ja)/akuninzura shita b-kyuu boukensha – shujinkou to sono osananajimi-tachi no papa ni naru/chapter 16.2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Akuyaku ga Ippai Detekuru Eroge no Kimo Debu Akuyaku Kizoku ni Tensei Shita/Chapter 8.1",
+      "normalizedKey": "rawkuma (ja)/akuyaku ga ippai detekuru eroge no kimo debu akuyaku kizoku ni tensei shita/chapter 8.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Akuyaku Reijou no Chichioya ni Tensei shitanode, Tsuma to Musume wo Dekiai shimasu/Chapter 11",
+      "normalizedKey": "rawkuma (ja)/akuyaku reijou no chichioya ni tensei shitanode, tsuma to musume wo dekiai shimasu/chapter 11",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Akuyaku Reijou no Chichioya ni Tensei shitanode, Tsuma to Musume wo Dekiai shimasu/Chapter 3",
+      "normalizedKey": "rawkuma (ja)/akuyaku reijou no chichioya ni tensei shitanode, tsuma to musume wo dekiai shimasu/chapter 3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Bakunyuu-tachi ni Tsuihou Saretaga Modore to Iwaretemo, mou oso… Modorimashiyuu!/Chapter 20.1",
+      "normalizedKey": "rawkuma (ja)/bakunyuu-tachi ni tsuihou saretaga modore to iwaretemo, mou oso... modorimashiyuu!/chapter 20.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Daisougen no Chiisana Ryoushu/Chapter 10.1",
+      "normalizedKey": "rawkuma (ja)/daisougen no chiisana ryoushu/chapter 10.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Danshi Koukousei, Otome Game no Akuyaku Reijou ni Tensei Suru/Chapter 17",
+      "normalizedKey": "rawkuma (ja)/danshi koukousei, otome game no akuyaku reijou ni tensei suru/chapter 17",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Densetsu no Yuusha wa Jitsuwa Mama deshita!_/Chapter 1",
+      "normalizedKey": "rawkuma (ja)/densetsu no yuusha wa jitsuwa mama deshita!_/chapter 1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Game Kaishi Mae ni Shini Mob Akuyaku Ouji ni Tensei shita Ore/Chapter 2",
+      "normalizedKey": "rawkuma (ja)/game kaishi mae ni shini mob akuyaku ouji ni tensei shita ore/chapter 2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Hametsu wo Hikaeta Akuyaku Reijou ga Muri Shite Heroine wo Enjita Kekka/Chapter 4.1",
+      "normalizedKey": "rawkuma (ja)/hametsu wo hikaeta akuyaku reijou ga muri shite heroine wo enjita kekka/chapter 4.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Himan Reijou wa Hosoku nari, Ato wa Keikoku no Bijo (Butsuri) to shite Ikiru nomi @COMIC/Chapter 3",
+      "normalizedKey": "rawkuma (ja)/himan reijou wa hosoku nari, ato wa keikoku no bijo (butsuri) to shite ikiru nomi @comic/chapter 3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Isekai ni Houchi Game Riron wo Mochikondara Sekai Saikyou ni Nareru Setsu/Chapter 7",
+      "normalizedKey": "rawkuma (ja)/isekai ni houchi game riron wo mochikondara sekai saikyou ni nareru setsu/chapter 7",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Isekai Tensei Reijou, Shuppon Suru/Chapter 3",
+      "normalizedKey": "rawkuma (ja)/isekai tensei reijou, shuppon suru/chapter 3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Koukishin Wa Maou Wo Korosu/Chapter 13",
+      "normalizedKey": "rawkuma (ja)/koukishin wa maou wo korosu/chapter 13",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita/Chapter 11.1",
+      "normalizedKey": "rawkuma (ja)/kurobuta ouji wa zense wo omoi da shite kaishin suru  akuyaku chara ni tensei shita no de shibou end kara nigete itara saikyou ni natte ita/chapter 11.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita/Chapter 2",
+      "normalizedKey": "rawkuma (ja)/kurobuta ouji wa zense wo omoi da shite kaishin suru  akuyaku chara ni tensei shita no de shibou end kara nigete itara saikyou ni natte ita/chapter 2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru – Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita/Chapter 11.3",
+      "normalizedKey": "rawkuma (ja)/kurobuta ouji wa zense wo omoi da shite kaishin suru – akuyaku chara ni tensei shita no de shibou end kara nigete itara saikyou ni natte ita/chapter 11.3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Minikui Orc No Gyakushuu/Chapter 2.2",
+      "normalizedKey": "rawkuma (ja)/minikui orc no gyakushuu/chapter 2.2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Ore no Shibou Flag ga Todomaru Tokoro o Shiranai/Chapter 1",
+      "normalizedKey": "rawkuma (ja)/ore no shibou flag ga todomaru tokoro o shiranai/chapter 1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Ore no Shibou Flag ga Todomaru Tokoro o Shiranai/Chapter 85",
+      "normalizedKey": "rawkuma (ja)/ore no shibou flag ga todomaru tokoro o shiranai/chapter 85",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Origami Shokunin Mimosa Nikkichou/Chapter 2",
+      "normalizedKey": "rawkuma (ja)/origami shokunin mimosa nikkichou/chapter 2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Ossan, Tensei shite Tensai Yakusha ni Naru/Chapter 47",
+      "normalizedKey": "rawkuma (ja)/ossan, tensei shite tensai yakusha ni naru/chapter 47",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Otome Game Heroine no Hikitate Yaku no Imouto ni Tensei Shita node Tachiba wo Ubatte Yaru Koto ni Shita/Chapter 6",
+      "normalizedKey": "rawkuma (ja)/otome game heroine no hikitate yaku no imouto ni tensei shita node tachiba wo ubatte yaru koto ni shita/chapter 6",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Rukeichi Koushaku Tsuma no Mahou Kaikaku/Chapter 5.1",
+      "normalizedKey": "rawkuma (ja)/rukeichi koushaku tsuma no mahou kaikaku/chapter 5.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Saijaku Kizoku ni Tensei Shita node Akuyaku Tachi wo Atsumete Mita/Chapter 10.3",
+      "normalizedKey": "rawkuma (ja)/saijaku kizoku ni tensei shita node akuyaku tachi wo atsumete mita/chapter 10.3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Saikyou no Kensei, Bishoujo Maid ni Tenseishi Houki de Musou Suru/Chapter 9.1",
+      "normalizedKey": "rawkuma (ja)/saikyou no kensei, bishoujo maid ni tenseishi houki de musou suru/chapter 9.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Shuuen no Majo to Sekai no Tabi/Chapter 12",
+      "normalizedKey": "rawkuma (ja)/shuuen no majo to sekai no tabi/chapter 12",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Slime Master-chan no VRMMO/Chapter 3",
+      "normalizedKey": "rawkuma (ja)/slime master-chan no vrmmo/chapter 3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Slime Master-chan no VRMMO/Chapter 5.1",
+      "normalizedKey": "rawkuma (ja)/slime master-chan no vrmmo/chapter 5.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Soshite Hero to Uso wo Tsuku/Chapter 9.6",
+      "normalizedKey": "rawkuma (ja)/soshite hero to uso wo tsuku/chapter 9.6",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Tada no Murabito no Boku ga, Sanbyakunen Mae no Boukun Ouji ni Tensei shite shimaimashita – Zense no Chishiki de Ansatsu Flag wo Kaihi shite, Odayaka ni Ikinokorimasu!/Chapter 15.2",
+      "normalizedKey": "rawkuma (ja)/tada no murabito no boku ga, sanbyakunen mae no boukun ouji ni tensei shite shimaimashita – zense no chishiki de ansatsu flag wo kaihi shite, odayaka ni ikinokorimasu!/chapter 15.2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Teikoku Dai 11 Zensen Kichi Mashirube Toshokan, Tadaima Kaikan Chuu/Chapter 3",
+      "normalizedKey": "rawkuma (ja)/teikoku dai 11 zensen kichi mashirube toshokan, tadaima kaikan chuu/chapter 3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Tomodachi ga Hoshikatta no de Akuma wo Fukkatsu Sasemashita wa!/Chapter 3.1",
+      "normalizedKey": "rawkuma (ja)/tomodachi ga hoshikatta no de akuma wo fukkatsu sasemashita wa!/chapter 3.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Tomodachi ga Hoshikatta no de Akuma wo Fukkatsu Sasemashita wa!/Chapter 8.2",
+      "normalizedKey": "rawkuma (ja)/tomodachi ga hoshikatta no de akuma wo fukkatsu sasemashita wa!/chapter 8.2",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Tsuihoukei no Akuyaku Party no Leader ni Tensei Shita node, Zamaa sareru Mae ni Jibun wo Tsuihoushimashita/Chapter 4.1",
+      "normalizedKey": "rawkuma (ja)/tsuihoukei no akuyaku party no leader ni tensei shita node, zamaa sareru mae ni jibun wo tsuihoushimashita/chapter 4.1",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Twin Reincarnation/Chapter 4",
+      "normalizedKey": "rawkuma (ja)/twin reincarnation/chapter 4",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    },
+    {
+      "key": "Rawkuma (JA)/Yadoya no Kanban Musume, Koushaku Reijou to Irekawaru/Chapter 4.3",
+      "normalizedKey": "rawkuma (ja)/yadoya no kanban musume, koushaku reijou to irekawaru/chapter 4.3",
+      "reason": "historical-koharu-or-font-size-evaluation",
+      "sourceManifest": "C:\\Users\\sam40\\Downloads\\망가번역기-hayai-ocr-evaluation\\artifacts\\koharu-only-layout-evaluation-180-2026-08-31\\manifest.json"
+    }
+  ],
+  "selections": [
+    {
+      "chapter": "Chapter 28.2",
+      "experimentsUsed": 5,
+      "key": "Rawkuma (JA)/Ossan, Tensei shite Tensai Yakusha ni Naru/Chapter 28.2",
+      "normalizedKey": "rawkuma (ja)/ossan, tensei shite tensai yakusha ni naru/chapter 28.2",
+      "pageCount": 32,
+      "provider": "Rawkuma (JA)",
+      "report": "artifacts/font-size-ai-lab/campaign-001/chapter-report.html",
+      "sealedAt": "2026-09-02T01:17:44.492Z",
+      "seed": "0ebd16e1bc8424009dd07bb25bae876331f941115ed401ae744deaac476219cc",
+      "series": "Ossan, Tensei shite Tensai Yakusha ni Naru",
+      "status": "completed-promoted-fsai-lab-v0.1.0"
+    },
+    {
+      "chapter": "Chapter 2",
+      "experimentsUsed": 2,
+      "key": "RawINU (JA)/TENSEI RENKIN SHOUJO NO SLOW LIFE/Chapter 2",
+      "normalizedKey": "rawinu (ja)/tensei renkin shoujo no slow life/chapter 2",
+      "pageCount": 32,
+      "provider": "RawINU (JA)",
+      "report": "artifacts/font-size-ai-lab/campaign-002/chapter-report.html",
+      "sealedAt": "2026-09-02T03:26:11.610Z",
+      "seed": "4a9dd7f096aba71442ca72060ac675048e6806a5ff811b409bb4fb3969c853ba",
+      "series": "TENSEI RENKIN SHOUJO NO SLOW LIFE",
+      "status": "completed-promoted-fsai-lab-v0.2.0"
+    },
+    {
+      "chapter": "Chapter 4",
+      "experimentsUsed": 4,
+      "key": "Rawkuma (JA)/Isekai Tensei Reijou, Shuppon Suru/Chapter 4",
+      "normalizedKey": "rawkuma (ja)/isekai tensei reijou, shuppon suru/chapter 4",
+      "pageCount": 21,
+      "provider": "Rawkuma (JA)",
+      "report": "artifacts/font-size-ai-lab/campaign-003/chapter-report.html",
+      "sealedAt": "2026-09-02T05:09:44.161Z",
+      "seed": "90d6867c1b7b3ed50bf69bf6b303764ce9c43c946e4886b697e3ace1b8bfb774",
+      "series": "Isekai Tensei Reijou, Shuppon Suru",
+      "status": "completed-promoted-fsai-lab-v0.3.0"
+    },
+    {
+      "chapter": "Chapter 13.2",
+      "experimentsUsed": 2,
+      "key": "Rawkuma (JA)/Saijaku Kizoku ni Tensei Shita node Akuyaku Tachi wo Atsumete Mita/Chapter 13.2",
+      "normalizedKey": "rawkuma (ja)/saijaku kizoku ni tensei shita node akuyaku tachi wo atsumete mita/chapter 13.2",
+      "pageCount": 10,
+      "provider": "Rawkuma (JA)",
+      "report": "artifacts/font-size-ai-lab/campaign-004/chapter-report.html",
+      "sealedAt": "2026-09-02T08:42:22.937Z",
+      "seed": "eca7c21077bbdf12e583ddb98dffb610e7422b446343f15174a36d2cc7e97fe0",
+      "series": "Saijaku Kizoku ni Tensei Shita node Akuyaku Tachi wo Atsumete Mita",
+      "status": "completed-promoted-fsai-lab-v0.4.0"
+    }
+  ]
+}

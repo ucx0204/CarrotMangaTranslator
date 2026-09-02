@@ -119,6 +119,12 @@ function buildNormalizedTranslationBlock(
     backgroundColor: valueOr(patch.backgroundColor, block.backgroundColor),
     opacity: valueOr(patch.opacity, block.opacity),
   };
+  if (
+    patch.fontSizeIntent === undefined &&
+    (Object.hasOwn(patch, "fontSizePx") || Object.hasOwn(patch, "autoFitText"))
+  ) {
+    next.fontSizeIntent = "manual";
+  }
   if (patch.renderDirection !== undefined) {
     delete next.layoutIntent;
     next.layoutIntentSuppressed = true;

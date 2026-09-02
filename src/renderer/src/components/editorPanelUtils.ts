@@ -5,6 +5,27 @@ export type EditorPanelModel = {
   renderDirection: "horizontal" | "vertical";
 };
 
+export function resolveEditorPanelModel(
+  block: TranslationBlock,
+  resolvedFontSizePx: number | null = null,
+): EditorPanelModel {
+  const displayedFontSizePx =
+    typeof resolvedFontSizePx === "number" &&
+    Number.isFinite(resolvedFontSizePx) &&
+    resolvedFontSizePx > 0
+      ? resolvedFontSizePx
+      : block.fontSizePx;
+  return {
+    autoFitText: block.autoFitText ?? true,
+    fontSizePx: clampFontSize(displayedFontSizePx),
+    outlineColor: resolveColor(block.outlineColor, "#ffffff"),
+    renderDirection: normalizeRenderDirection(
+      block.renderDirection,
+      "horizontal",
+    ),
+  };
+}
+
 export function resolveColor(
   value: string | undefined,
   fallback: string,
@@ -35,6 +56,8 @@ export function storeEditorTab(tab: EditorTabId): void {
   }
 }
 import { clampFontSizePx } from "../../../shared/blockFormatValues";
+import { normalizeRenderDirection } from "../../../shared/geometry";
+import type { TranslationBlock } from "../../../shared/textTypes";
 import type { EditorTabId } from "./EditorPanelChrome";
 
 const EDITOR_TABS: EditorTabId[] = ["text", "layout", "format"];

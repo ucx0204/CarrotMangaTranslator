@@ -26,6 +26,8 @@ export type HayaiRegionManifest = {
   diagnostics: {
     dialogueOverlapMerges: number;
     dialogueOverlapCuts: number;
+    dialogueOwnershipSkips: number;
+    rejectedDialogueCount: number;
     effectOverlapMerges: number;
     effectOverlapCuts: number;
     rejectedEffectCount: number;
@@ -50,11 +52,17 @@ type MutableRegion = Omit<HayaiRegion, "id" | "regionId"> & {
   protectedMask: Uint8Array;
   centroid: [number, number];
   maskArea: number;
+  ownershipKeys: string[];
 };
 
 const MIN_TEXT_CONTAINMENT = 0.55;
 const MIN_DUPLICATE_TEXT_MASK_OVERLAP = 0.75;
 const MAX_NESTED_DUPLICATE_TEXT_AREA_RATIO = 0.01;
+const TEXT_MASK_OUTLIER_TAIL_RATIO = 0.005;
+const TEXT_MASK_OUTLIER_MIN_AREA_GAIN = 1.25;
+const TEXT_BROAD_SPARSE_MIN_PAGE_AREA = 0.055;
+const TEXT_BROAD_SPARSE_MAX_DENSITY = 0.04;
+const TEXT_BROAD_SPARSE_MAX_CONTAINER_MASK_SUPPORT = 0.25;
 const FX_MAX_GROUP_GAP = 42;
 const FX_MIN_GROUP_GAP = 8;
 const FX_GAP_SCALE = 0.55;
@@ -75,7 +83,7 @@ export function buildHayaiRegionManifest(
   result: ComicPageDetectionResult,
 ): HayaiRegionManifest {
   const detections = prepareDetections(result);
-  const text = detections.filter((item) => item.detection.label === "text");
+  const rawText = detections.filter((item) => item.detection.label === "text");
   const bubbles = detections.filter(
     (item) => item.detection.label === "bubble",
   );
@@ -83,6 +91,8 @@ export function buildHayaiRegionManifest(
   const effects = detections.filter(
     (item) => item.detection.label === "onomatopoeia",
   );
+  const textResult = rejectBroadSparseText(rawText, bubbles, panels);
+  const text = textResult.kept;
   const assignments = assignTextToBubbles(text, bubbles);
   const dialogue = buildDialogueRegions(
     text,
@@ -118,6 +128,8 @@ export function buildHayaiRegionManifest(
     diagnostics: {
       dialogueOverlapMerges: dialogueRectification.merges,
       dialogueOverlapCuts: dialogueRectification.cuts,
+      dialogueOwnershipSkips: dialogueRectification.ownershipSkips,
+      rejectedDialogueCount: textResult.rejected,
       effectOverlapMerges: effectRectification.merges,
       effectOverlapCuts: effectRectification.cuts,
       rejectedEffectCount: effectResult.rejected,
@@ -137,8 +149,14 @@ function prepareDetections(result: ComicPageDetectionResult): MaskDetection[] {
         area += 1;
       }
     }
-    const gridBox = findMaskBox(mask, source.width, source.height);
-    if (!gridBox || area === 0) return [];
+    const rawGridBox = findMaskBox(mask, source.width, source.height);
+    if (!rawGridBox || area === 0) return [];
+    const refined =
+      detection.label === "text"
+        ? trimTextMaskOutliers(mask, source.width, source.height, rawGridBox)
+        : { area, box: rawGridBox, mask };
+    const gridBox = refined.box;
+    area = refined.area;
     const prefix =
       detection.label === "text"
         ? "T"
@@ -151,7 +169,7 @@ function prepareDetections(result: ComicPageDetectionResult): MaskDetection[] {
       {
         detection,
         detectionId: `${prefix}${String(index + 1).padStart(3, "0")}`,
-        mask,
+        mask: refined.mask,
         maskWidth: source.width,
         maskHeight: source.height,
         pageWidth: result.imageWidth,
@@ -165,7 +183,7 @@ function prepareDetections(result: ComicPageDetectionResult): MaskDetection[] {
           result.imageHeight,
         ),
         centroid: maskCentroid(
-          mask,
+          refined.mask,
           source.width,
           source.height,
           result.imageWidth,
@@ -174,6 +192,111 @@ function prepareDetections(result: ComicPageDetectionResult): MaskDetection[] {
       },
     ];
   });
+}
+
+function trimTextMaskOutliers(
+  source: Uint8Array,
+  width: number,
+  height: number,
+  rawBox: PixelBox,
+): { area: number; box: PixelBox; mask: Uint8Array } {
+  const robustBox = maskQuantileBox(
+    source,
+    width,
+    height,
+    TEXT_MASK_OUTLIER_TAIL_RATIO,
+  );
+  if (
+    !robustBox ||
+    boxArea(rawBox) / Math.max(1, boxArea(robustBox)) <
+      TEXT_MASK_OUTLIER_MIN_AREA_GAIN
+  ) {
+    return { area: countMaskPixels(source), box: rawBox, mask: source };
+  }
+  const mask = new Uint8Array(source);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (
+        x < robustBox[0] ||
+        x >= robustBox[2] ||
+        y < robustBox[1] ||
+        y >= robustBox[3]
+      ) {
+        mask[y * width + x] = 0;
+      }
+    }
+  }
+  return {
+    area: countMaskPixels(mask),
+    box: robustBox,
+    mask,
+  };
+}
+
+function maskQuantileBox(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  tailRatio: number,
+): PixelBox | null {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!mask[y * width + x]) continue;
+      xs.push(x);
+      ys.push(y);
+    }
+  }
+  if (xs.length === 0) return null;
+  xs.sort((left, right) => left - right);
+  ys.sort((left, right) => left - right);
+  const lowIndex = Math.floor((xs.length - 1) * tailRatio);
+  const highIndex = Math.floor((xs.length - 1) * (1 - tailRatio));
+  return [
+    xs[lowIndex] ?? 0,
+    ys[lowIndex] ?? 0,
+    (xs[highIndex] ?? width - 1) + 1,
+    (ys[highIndex] ?? height - 1) + 1,
+  ];
+}
+
+function countMaskPixels(mask: Uint8Array): number {
+  return mask.reduce((sum, value) => sum + (value ? 1 : 0), 0);
+}
+
+function rejectBroadSparseText(
+  text: MaskDetection[],
+  bubbles: MaskDetection[],
+  panels: MaskDetection[],
+): { kept: MaskDetection[]; rejected: number } {
+  const containers = [...bubbles, ...panels];
+  const kept: MaskDetection[] = [];
+  let rejected = 0;
+  for (const item of text) {
+    const pageArea = Math.max(1, item.pageWidth * item.pageHeight);
+    const areaFraction = boxArea(item.maskBox) / pageArea;
+    const density =
+      item.maskArea /
+      Math.max(
+        1,
+        boxAreaInGrid(item.maskBox, item, item.pageWidth, item.pageHeight),
+      );
+    const containerSupport = Math.max(
+      0,
+      ...containers.map((container) => maskContainment(item, container)),
+    );
+    if (
+      areaFraction >= TEXT_BROAD_SPARSE_MIN_PAGE_AREA &&
+      density <= TEXT_BROAD_SPARSE_MAX_DENSITY &&
+      containerSupport < TEXT_BROAD_SPARSE_MAX_CONTAINER_MASK_SUPPORT
+    ) {
+      rejected += 1;
+      continue;
+    }
+    kept.push(item);
+  }
+  return { kept, rejected };
 }
 
 function assignTextToBubbles(
@@ -218,10 +341,17 @@ function buildDialogueRegions(
   width: number,
   height: number,
 ): MutableRegion[] {
+  const ownershipByText = new Map(
+    text.map((item) => [
+      item,
+      assignments.get(item)?.detectionId ?? `free:${item.detectionId}`,
+    ]),
+  );
   const groups = new DisjointSet(text.length);
   for (let left = 0; left < text.length; left += 1) {
     for (let right = left + 1; right < text.length; right += 1) {
       const sameBubble =
+        assignments.has(text[left]) &&
         assignments.get(text[left]) === assignments.get(text[right]);
       const bothUncontained =
         !assignments.has(text[left]) && !assignments.has(text[right]);
@@ -237,7 +367,16 @@ function buildDialogueRegions(
     membersByRoot.set(root, [...(membersByRoot.get(root) ?? []), item]);
   });
   return [...membersByRoot.values()].map((members) =>
-    createRegion(members, "dialogue", width, height, 5),
+    createRegion(
+      members,
+      "dialogue",
+      width,
+      height,
+      5,
+      members.map(
+        (member) => ownershipByText.get(member) ?? `free:${member.detectionId}`,
+      ),
+    ),
   );
 }
 
@@ -264,13 +403,26 @@ function isDuplicateText(
   ) {
     return true;
   }
+  // Koharu sometimes emits a composite text mask plus a nearly identical
+  // child whose box protrudes by one grid cell.  The protrusion can drop both
+  // IoU and strict containment even though almost every child mask pixel is
+  // already represented by the composite.  Treat that strong mask evidence
+  // as a duplicate without reviving bbox-only nested suppression.
+  if (boxContainment >= 0.8 && maskOverlap >= 0.9) {
+    return true;
+  }
   if (
     boxContainment >= 0.95 &&
-    areaRatio <= MAX_NESTED_DUPLICATE_TEXT_AREA_RATIO
+    areaRatio <= MAX_NESTED_DUPLICATE_TEXT_AREA_RATIO &&
+    maskOverlap >= 0.25
   ) {
     return true;
   }
-  return uncontained && boxContainment >= 0.9;
+  return (
+    uncontained &&
+    boxContainment >= 0.9 &&
+    maskOverlap >= MIN_DUPLICATE_TEXT_MASK_OVERLAP
+  );
 }
 
 function buildEffectRegions(
@@ -514,6 +666,7 @@ function createRegion(
   width: number,
   height: number,
   padding: number,
+  ownershipKeys: readonly string[] = [],
 ): MutableRegion {
   const maskArea = members.reduce((sum, member) => sum + member.maskArea, 0);
   const centroid: [number, number] = [
@@ -549,6 +702,7 @@ function createRegion(
     protectedMask,
     centroid,
     maskArea,
+    ownershipKeys: [...new Set(ownershipKeys)],
   };
 }
 
@@ -557,9 +711,10 @@ function rectifyOverlaps(
   width: number,
   height: number,
   separationMargin: number,
-): { cuts: number; merges: number } {
+): { cuts: number; merges: number; ownershipSkips: number } {
   let cuts = 0;
   let merges = 0;
+  const ownershipSkips = new Set<string>();
   for (let pass = 0; pass < 500; pass += 1) {
     let changed = false;
     outer: for (let left = 0; left < regions.length; left += 1) {
@@ -577,6 +732,18 @@ function rectifyOverlaps(
           regions[left].bbox = cut.first;
           regions[right].bbox = cut.second;
           cuts += 1;
+        } else if (
+          hasConflictingDialogueOwnership(regions[left], regions[right])
+        ) {
+          ownershipSkips.add(
+            [
+              [...regions[left].sourceDetectionIds].sort().join("+"),
+              [...regions[right].sourceDetectionIds].sort().join("+"),
+            ]
+              .sort()
+              .join("|"),
+          );
+          continue;
         } else {
           regions[left] = mergeRegions(regions[left], regions[right]);
           regions.splice(right, 1);
@@ -588,7 +755,20 @@ function rectifyOverlaps(
     }
     if (!changed) break;
   }
-  return { cuts, merges };
+  return { cuts, merges, ownershipSkips: ownershipSkips.size };
+}
+
+function hasConflictingDialogueOwnership(
+  first: MutableRegion,
+  second: MutableRegion,
+): boolean {
+  return (
+    first.kind === "dialogue" &&
+    second.kind === "dialogue" &&
+    first.ownershipKeys.length > 0 &&
+    second.ownershipKeys.length > 0 &&
+    !first.ownershipKeys.some((key) => second.ownershipKeys.includes(key))
+  );
 }
 
 function findLosslessCut(
@@ -751,6 +931,9 @@ function mergeRegions(
         Math.max(1, area),
     ],
     maskArea: area,
+    ownershipKeys: [
+      ...new Set([...first.ownershipKeys, ...second.ownershipKeys]),
+    ],
   };
 }
 

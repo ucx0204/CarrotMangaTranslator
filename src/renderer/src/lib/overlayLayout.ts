@@ -172,10 +172,7 @@ function resolveBlockTextMetrics(
     layoutStageSize.width / Math.max(1, pageSize.width),
     layoutStageSize.height / Math.max(1, pageSize.height),
   );
-  const geometryFontSize = Math.max(
-    MIN_FONT_SIZE_PX,
-    Math.floor(block.fontSizePx * scale),
-  );
+  const geometryFontSize = Math.max(MIN_FONT_SIZE_PX, block.fontSizePx * scale);
   const sourceMatchedCapPx = resolveSourceMatchedFontSizeCapPx(
     block,
     text,
@@ -326,10 +323,12 @@ function resolveTextFontSizePx(
   maxFontSize: number,
   fitsAtFontSize: (fontSize: number) => boolean,
 ): number {
-  const capped = Math.max(MIN_FONT_SIZE_PX, Math.floor(maxFontSize));
+  const bounded = Math.max(MIN_FONT_SIZE_PX, maxFontSize);
   if (!(block.autoFitText ?? true) || !text.trim()) {
-    return capped;
+    return bounded;
   }
+
+  const capped = Math.floor(bounded);
 
   let low = MIN_FONT_SIZE_PX;
   let high = capped;

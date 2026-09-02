@@ -1,6 +1,5 @@
 import React from "react";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
-import { normalizeRenderDirection } from "../../../shared/geometry";
 import type {
   BlockStylePresetSummary,
   CreateBlockStylePresetInput,
@@ -13,11 +12,7 @@ import { BlockStylePresetControls } from "./BlockStylePresetControls";
 import { EditorColorGroup } from "./EditorColorGroup";
 import { FormatEditorGroup } from "./EditorFormatControls";
 import { EditorTextEffectGroup } from "./EditorTextEffectControls";
-import {
-  clampFontSize,
-  resolveColor,
-  type EditorPanelModel,
-} from "./editorPanelUtils";
+import { resolveEditorPanelModel } from "./editorPanelUtils";
 
 type EditorFormatGroupsProps = {
   activeStylePresetId: string;
@@ -45,6 +40,7 @@ type EditorFormatGroupsProps = {
     name: string,
   ) => boolean | Promise<boolean>;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
+  resolvedFontSizePx: number | null;
   selectedBlockCount: number;
   showStylePresets?: boolean;
   setFontFamilyDraft: React.Dispatch<React.SetStateAction<string | undefined>>;
@@ -69,12 +65,13 @@ export function EditorFormatGroups({
   onOverwriteStylePreset,
   onRenameStylePreset,
   onUpdate,
+  resolvedFontSizePx,
   selectedBlockCount,
   showStylePresets = true,
   setFontFamilyDraft,
   stylePresets,
 }: EditorFormatGroupsProps): React.JSX.Element {
-  const model = resolveEditorPanelModel(block);
+  const model = resolveEditorPanelModel(block, resolvedFontSizePx);
   return (
     <>
       {showStylePresets ? (
@@ -124,16 +121,4 @@ export function EditorFormatGroups({
       />
     </>
   );
-}
-
-function resolveEditorPanelModel(block: TranslationBlock): EditorPanelModel {
-  return {
-    autoFitText: block.autoFitText ?? true,
-    fontSizePx: clampFontSize(block.fontSizePx),
-    outlineColor: resolveColor(block.outlineColor, "#ffffff"),
-    renderDirection: normalizeRenderDirection(
-      block.renderDirection,
-      "horizontal",
-    ),
-  };
 }

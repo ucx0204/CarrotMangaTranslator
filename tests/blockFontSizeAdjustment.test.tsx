@@ -12,7 +12,15 @@ import {
   within,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import {
   chooseCustomSelectOption,
   openCustomSelect,
@@ -35,6 +43,27 @@ import { useRemotePanelSession } from "../src/renderer/src/panels/useRemotePanel
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 
+const originalGetContext = HTMLCanvasElement.prototype.getContext;
+
+beforeAll(() => {
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    value: () => ({
+      font: "",
+      measureText(this: { font: string }, text: string) {
+        const fontSize = Number(/([\d.]+)px/.exec(this.font)?.[1] ?? 16);
+        return {
+          width: Array.from(text).length * fontSize,
+          actualBoundingBoxAscent: fontSize * 0.8,
+          actualBoundingBoxDescent: fontSize * 0.2,
+          actualBoundingBoxLeft: fontSize * 0.5,
+          actualBoundingBoxRight: fontSize * 0.5,
+        };
+      },
+    }),
+  });
+});
+
 vi.stubGlobal(
   "ResizeObserver",
   class ResizeObserverMock {
@@ -47,6 +76,13 @@ vi.stubGlobal(
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+});
+
+afterAll(() => {
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    value: originalGetContext,
+  });
 });
 
 describe("selected block font-size adjustment", () => {
@@ -108,8 +144,64 @@ describe("selected block font-size adjustment", () => {
     );
 
     expect(next.pages[0]?.blocks[0]?.fontSizePx).toBe(24.5);
+    expect(next.pages[0]?.blocks[0]?.fontSizeIntent).toBe("manual");
     expect(next.pages[0]?.blocks[1]?.fontSizePx).toBe(40);
+    expect(
+      resolveBlockTextLayout(
+        next.pages[0]?.blocks[0] as TranslationBlock,
+        "번역",
+        { width: 1000, height: 1000 },
+        { width: 1000, height: 1000 },
+        DEFAULT_BLOCK_FONT_CATALOG,
+      ).fontSizePx,
+    ).toBe(24.5);
   });
+
+  it.each([-1, 1] as const)(
+    "takes a %i step from the visible source-matched size and hands control to manual sizing",
+    (adjustment) => {
+      const block = makeBlock({
+        autoFitText: false,
+        fontSizeIntent: "source-match",
+        fontSizePx: 12,
+        sourceFontFacePx: 24,
+        sourceFontSizeConfidence: 0.9,
+        sourceFontSizeMethod: "raster-core-v1",
+      });
+      const chapter = makeChapter([block]);
+      const page = chapter.pages[0] as MangaPage;
+      const naturalSize = { width: page.width, height: page.height };
+      const visibleBefore = resolveBlockTextLayout(
+        block,
+        block.translatedText,
+        naturalSize,
+        naturalSize,
+        DEFAULT_BLOCK_FONT_CATALOG,
+      ).fontSizePx;
+
+      const next = adjustBlockFontSizeInChapter(
+        chapter,
+        page.id,
+        block.id,
+        adjustment,
+        DEFAULT_BLOCK_FONT_CATALOG,
+      );
+      const adjusted = next.pages[0]?.blocks[0] as TranslationBlock;
+      const visibleAfter = resolveBlockTextLayout(
+        adjusted,
+        adjusted.translatedText,
+        naturalSize,
+        naturalSize,
+        DEFAULT_BLOCK_FONT_CATALOG,
+      ).fontSizePx;
+
+      expect(visibleBefore).toBe(24);
+      expect(adjusted.autoFitText).toBe(false);
+      expect(adjusted.fontSizeIntent).toBe("manual");
+      expect(adjusted.fontSizePx).toBe(visibleBefore + adjustment * 0.5);
+      expect(visibleAfter).toBe(visibleBefore + adjustment * 0.5);
+    },
+  );
 
   it("adjusts every selected block in one immutable chapter update", () => {
     const chapter = makeChapter([
@@ -165,6 +257,67 @@ describe("selected block font-size adjustment", () => {
       Math.max(1, Math.min(512, resolved - 0.5)),
     );
     expect(adjusted?.fontSizePx).not.toBe(block.fontSizePx - 0.5);
+  });
+
+  it("shows the resolved canvas size instead of the stored auto-fit seed", () => {
+    const block = makeBlock({
+      autoFitText: true,
+      fontSizePx: 12,
+      fontSizeIntent: "source-match",
+    });
+    const resolvedFontSizePx = 37;
+    const onUpdate = vi.fn();
+
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={block}
+          disabled={false}
+          resolvedFontSizePx={resolvedFontSizePx}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+
+    selectEditorTab("서식");
+    const sizeInput = screen.getByLabelText("글자 크기 값") as HTMLInputElement;
+    expect(sizeInput.value).toBe("37");
+    expect(sizeInput.disabled).toBe(true);
+    expect(block.fontSizePx).toBe(12);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "자동" }));
+    expect(onUpdate).toHaveBeenCalledWith({
+      autoFitText: false,
+      fontSizeIntent: "manual",
+      fontSizePx: 37,
+    });
+  });
+
+  it("enables automatic sizing without overwriting the manual size", () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ autoFitText: false, fontSizePx: 37 })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+
+    selectEditorTab("서식");
+    fireEvent.click(screen.getByRole("checkbox", { name: "자동" }));
+
+    expect(onUpdate).toHaveBeenCalledWith({
+      autoFitText: true,
+      fontSizeIntent: "manual",
+    });
   });
 
   it("clamps to 1..512 and skips empty bound edits", () => {

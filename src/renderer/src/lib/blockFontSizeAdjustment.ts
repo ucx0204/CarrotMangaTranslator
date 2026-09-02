@@ -79,34 +79,57 @@ function adjustBlockFontSize(
   fontCatalog: BlockFontCatalog,
 ): TranslationBlock {
   const autoFitText = block.autoFitText ?? true;
-  const baseFontSize = autoFitText
-    ? resolveAutoFitFontSizeAtNaturalPageScale(block, page, fontCatalog)
-    : block.fontSizePx;
-  const fontSizePx = clampFontSizePx(
-    baseFontSize + adjustment * FONT_SIZE_STEP_PX,
-  );
-  if (!autoFitText && fontSizePx === block.fontSizePx) {
-    return block;
-  }
-  return { ...block, autoFitText: false, fontSizePx };
-}
-
-function resolveAutoFitFontSizeAtNaturalPageScale(
-  block: TranslationBlock,
-  page: MangaPage,
-  fontCatalog: BlockFontCatalog,
-): number {
-  const displayText = block.translatedText || block.sourceText || "...";
+  const usesResolvedFontSize =
+    autoFitText || block.fontSizeIntent === "source-match";
   const naturalPageSize = { width: page.width, height: page.height };
   const sourceFontFaceFallbackPx = resolvePageSourceFontFaceFallbacks(
     page.blocks,
     naturalPageSize,
   ).get(block.id);
+  const baseFontSize = usesResolvedFontSize
+    ? resolveBlockFontSizeAtNaturalPageScale(
+        block,
+        naturalPageSize,
+        fontCatalog,
+        sourceFontFaceFallbackPx,
+      )
+    : block.fontSizePx;
+  const fontSizePx = clampFontSizePx(
+    baseFontSize + adjustment * FONT_SIZE_STEP_PX,
+  );
+  if (
+    !usesResolvedFontSize &&
+    !autoFitText &&
+    fontSizePx === block.fontSizePx
+  ) {
+    return block;
+  }
+  return {
+    ...block,
+    autoFitText: false,
+    fontSizePx,
+    fontSizeIntent: "manual",
+  };
+}
+
+/**
+ * Resolves the base font size that the production overlay renders in source
+ * page pixels. This is intentionally shared by the canvas adjustment action
+ * and the format inspector so an auto-fitted block never reports only its
+ * stored seed size.
+ */
+export function resolveBlockFontSizeAtNaturalPageScale(
+  block: TranslationBlock,
+  pageSize: Readonly<{ width: number; height: number }>,
+  fontCatalog: BlockFontCatalog,
+  sourceFontFaceFallbackPx?: number,
+): number {
+  const displayText = block.translatedText || block.sourceText || "...";
   return resolveBlockTextLayout(
     block,
     displayText,
-    naturalPageSize,
-    naturalPageSize,
+    pageSize,
+    pageSize,
     fontCatalog,
     { sourceFontFaceFallbackPx },
   ).fontSizePx;

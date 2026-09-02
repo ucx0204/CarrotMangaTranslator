@@ -1,12 +1,15 @@
 import type { MangaPage } from "../../shared/libraryTypes";
 import { stripRichTextMarkup } from "../../shared/richTextMarkup";
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
-import {
-  estimateSourceFontFace,
-  type SourceFontSizeEstimate,
-} from "./sourceFontSizeGeometry";
+import { estimateSourceFontFace } from "./sourceFontSizeGeometry";
+import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometryTypes";
 import type { FontMatchingRasterPage } from "./fontMatchingPagePixelPreprocessing";
 import { buildSourceFontCoreMask } from "./sourceFontSizeRaster";
+import {
+  createSourceFontSizeHypothesisCandidate,
+  refinePageSourceFontSizeHypotheses,
+} from "./sourceFontSizePeerGatedLattice";
+import type { SourceFontSizeHypothesisCandidate } from "./sourceFontSizePeerGatedTypes";
 import { logPipelineWarning } from "./pipelineLogger";
 import type { OverlayItem } from "./types";
 
@@ -15,6 +18,10 @@ const MAX_LINE_FACE_DISPERSION = 0.35;
 type SourceFontLine = NonNullable<
   OverlayItem["sourceFontLineGeometry"]
 >["lines"][number];
+type SourceFontSizeItemMeasurement = Readonly<{
+  estimate?: SourceFontSizeEstimate;
+  hypothesis?: SourceFontSizeHypothesisCandidate;
+}>;
 
 export async function estimatePageSourceFontSizes({
   enabled,
@@ -42,13 +49,13 @@ export async function estimatePageSourceFontSizes({
       );
     }
     await yieldToEventLoop();
-    const estimates: Array<SourceFontSizeEstimate | undefined> = [];
+    const measurements: SourceFontSizeItemMeasurement[] = [];
     for (const item of items) {
       throwIfAborted(signal);
-      estimates.push(estimateSourceFontSizeForItem(raster, item, signal));
+      measurements.push(measureSourceFontSizeItem(raster, item, signal));
       await yieldToEventLoop();
     }
-    return estimates;
+    return refinePageMeasurements(measurements);
   } catch (error) {
     if (signal?.aborted) throw error;
     logPipelineWarning("Source font-size matching failed closed for page", {
@@ -64,30 +71,50 @@ export function estimateSourceFontSizeForItem(
   item: OverlayItem,
   signal?: AbortSignal,
 ): SourceFontSizeEstimate | undefined {
-  if (!isEligibleSourceSizeItem(item)) return undefined;
+  return measureSourceFontSizeItem(raster, item, signal).estimate;
+}
+
+function measureSourceFontSizeItem(
+  raster: FontMatchingRasterPage,
+  item: OverlayItem,
+  signal?: AbortSignal,
+): SourceFontSizeItemMeasurement {
+  if (!isEligibleSourceSizeItem(item)) return {};
   const direction = item.direction;
   const sourceText = stripRichTextMarkup(item.sourceText ?? item.jp ?? "");
   const glyphCount = visibleGlyphCount(sourceText);
-  if (glyphCount < 2 || glyphCount > 160) return undefined;
-  const lineEstimate = estimateFromOcrLineGeometry(
+  if (glyphCount < 2 || glyphCount > 160) return {};
+  const lineMeasurement = measureFromOcrLineGeometry(
     raster,
     item,
     direction,
     signal,
   );
-  if (lineEstimate) return lineEstimate;
+  if (lineMeasurement) return lineMeasurement;
   const core = buildSourceFontCoreMask(raster, item.bbox, signal);
-  return core
-    ? (estimateSourceFontFace(core, direction, glyphCount) ?? undefined)
-    : undefined;
+  if (!core) return {};
+  const estimate = estimateSourceFontFace(core, direction, glyphCount, {
+    geometryConsensus: true,
+  });
+  return estimate
+    ? {
+        estimate,
+        hypothesis: createSourceFontSizeHypothesisCandidate({
+          baseline: estimate,
+          core,
+          direction,
+          glyphCount,
+        }),
+      }
+    : {};
 }
 
-function estimateFromOcrLineGeometry(
+function measureFromOcrLineGeometry(
   raster: FontMatchingRasterPage,
   item: OverlayItem,
   direction: "horizontal" | "vertical",
   signal?: AbortSignal,
-): SourceFontSizeEstimate | undefined {
+): SourceFontSizeItemMeasurement | undefined {
   const geometry = item.sourceFontLineGeometry;
   if (
     geometry?.contractVersion !== "source-font-line-geometry-v1" ||
@@ -98,31 +125,37 @@ function estimateFromOcrLineGeometry(
   }
   const voterIds = item.sourceCandidateMembership?.voterCandidateIds;
   const voterSet = voterIds ? new Set(voterIds) : null;
-  const lineEstimates = collectOcrLineEstimates(
+  const lineMeasurements = collectOcrLineMeasurements(
     raster,
     geometry.lines,
     direction,
     voterSet,
     signal,
   );
-  return combineOcrLineEstimates(lineEstimates);
+  if (lineMeasurements.length === 1) return lineMeasurements[0];
+  const estimate = combineOcrLineEstimates(
+    lineMeasurements.flatMap((measurement) =>
+      measurement.estimate ? [measurement.estimate] : [],
+    ),
+  );
+  return estimate ? { estimate } : undefined;
 }
 
-function collectOcrLineEstimates(
+function collectOcrLineMeasurements(
   raster: FontMatchingRasterPage,
   lines: readonly SourceFontLine[],
   direction: "horizontal" | "vertical",
   voterSet: ReadonlySet<number> | null,
   signal?: AbortSignal,
-): SourceFontSizeEstimate[] {
+): SourceFontSizeItemMeasurement[] {
   const seenCandidateIds = new Set<number>();
-  const estimates: SourceFontSizeEstimate[] = [];
+  const measurements: SourceFontSizeItemMeasurement[] = [];
   for (const line of lines) {
     if (!claimSourceFontLine(line, voterSet, seenCandidateIds)) continue;
-    const estimate = measureSourceFontLine(raster, line, direction, signal);
-    if (estimate) estimates.push(estimate);
+    const measurement = measureSourceFontLine(raster, line, direction, signal);
+    if (measurement) measurements.push(measurement);
   }
-  return estimates;
+  return measurements;
 }
 
 function claimSourceFontLine(
@@ -148,13 +181,42 @@ function measureSourceFontLine(
   line: SourceFontLine,
   direction: "horizontal" | "vertical",
   signal?: AbortSignal,
-): SourceFontSizeEstimate | undefined {
+): SourceFontSizeItemMeasurement | undefined {
   const glyphCount = visibleGlyphCount(stripRichTextMarkup(line.sourceText));
   if (glyphCount < 2 || glyphCount > 160) return undefined;
   const core = buildSourceFontCoreMask(raster, line.bbox, signal);
-  return core
-    ? (estimateSourceFontFace(core, direction, glyphCount) ?? undefined)
+  if (!core) return undefined;
+  const estimate = estimateSourceFontFace(core, direction, glyphCount);
+  return estimate
+    ? {
+        estimate,
+        hypothesis: createSourceFontSizeHypothesisCandidate({
+          baseline: estimate,
+          core,
+          direction,
+          glyphCount,
+        }),
+      }
     : undefined;
+}
+
+function refinePageMeasurements(
+  measurements: readonly SourceFontSizeItemMeasurement[],
+): readonly (SourceFontSizeEstimate | undefined)[] {
+  const candidateSlots = measurements.flatMap((measurement, index) =>
+    measurement.hypothesis
+      ? [{ hypothesis: measurement.hypothesis, index }]
+      : [],
+  );
+  const refined = refinePageSourceFontSizeHypotheses(
+    candidateSlots.map((slot) => slot.hypothesis),
+  );
+  const refinedByIndex = new Map(
+    candidateSlots.map((slot, index) => [slot.index, refined[index]]),
+  );
+  return measurements.map(
+    (measurement, index) => refinedByIndex.get(index) ?? measurement.estimate,
+  );
 }
 
 function combineOcrLineEstimates(

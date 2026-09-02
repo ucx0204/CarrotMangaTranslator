@@ -5,6 +5,7 @@ import {
 } from "../../../../shared/panelBridgeTypes";
 import type { AppSessionViewModel } from "./appSessionViewModel";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
+import { resolvePageSourceFontFaceFallbacks } from "../../lib/sourceFontSizeMatching";
 
 export function buildPanelSyncState({
   blockEditingActions,
@@ -32,6 +33,17 @@ export function buildPanelSyncState({
     derivedState.selectedPage?.blocks.filter((block) =>
       selectedIdSet.has(block.id),
     ) ?? [];
+  const selectedPageSize = derivedState.selectedPage
+    ? {
+        width: derivedState.selectedPage.width,
+        height: derivedState.selectedPage.height,
+      }
+    : null;
+  const selectedBlockSourceFontFaceFallbackPx =
+    resolveSelectedBlockSourceFontFaceFallbackPx(
+      derivedState,
+      selectedPageSize,
+    );
   return {
     areaTranslateAvailable:
       isWorkspaceImageReadyForSelectedPage({
@@ -55,13 +67,28 @@ export function buildPanelSyncState({
       uiState.stageTool === "warp"
         ? uiState.stageTool
         : "select",
-    selectedPageSize: derivedState.selectedPage
-      ? {
-          width: derivedState.selectedPage.width,
-          height: derivedState.selectedPage.height,
-        }
-      : null,
+    selectedPageSize,
+    selectedBlockSourceFontFaceFallbackPx,
   };
+}
+
+function resolveSelectedBlockSourceFontFaceFallbackPx(
+  derivedState: AppSessionViewModel["derivedState"],
+  selectedPageSize: { width: number; height: number } | null,
+): number | null {
+  if (
+    !derivedState.selectedBlock ||
+    !derivedState.selectedPage ||
+    !selectedPageSize
+  ) {
+    return null;
+  }
+  return (
+    resolvePageSourceFontFaceFallbacks(
+      derivedState.selectedPage.blocks,
+      selectedPageSize,
+    ).get(derivedState.selectedBlock.id) ?? null
+  );
 }
 
 function resolvePanelSelectedIds(

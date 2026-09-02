@@ -271,7 +271,7 @@ export function applyResolvedSoundEffectEntries(
       ],
     },
     analysisStatus: "completed",
-    translationCompletion: resolveCompletionAfterBlockMutation(
+    translationCompletion: resolveCompletionAfterSoundEffectAppend(
       page.translationCompletion,
       page.blocks,
       nextBlocks,
@@ -279,6 +279,24 @@ export function applyResolvedSoundEffectEntries(
     lastError: undefined,
     updatedAt: now,
   };
+}
+
+function resolveCompletionAfterSoundEffectAppend(
+  current: ChapterFile["pages"][number]["translationCompletion"],
+  previousBlocks: ChapterFile["pages"][number]["blocks"],
+  nextBlocks: ChapterFile["pages"][number]["blocks"],
+): ChapterFile["pages"][number]["translationCompletion"] {
+  const invalidated = resolveCompletionAfterBlockMutation(
+    current,
+    previousBlocks,
+    nextBlocks,
+  );
+  if (!invalidated || !current?.erasedBlockIds?.length) return invalidated;
+  const nextIds = new Set(nextBlocks.map((block) => block.id));
+  const preserved = current.erasedBlockIds.filter((id) => nextIds.has(id));
+  return preserved.length > 0
+    ? { ...invalidated, erasedBlockIds: preserved }
+    : invalidated;
 }
 
 export function applyDismissedSoundEffectRegion(

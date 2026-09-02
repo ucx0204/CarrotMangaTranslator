@@ -8,7 +8,15 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { AppRightQuickRail } from "../src/renderer/src/components/AppRightQuickRail";
@@ -35,6 +43,34 @@ class ResizeObserverStub {
 }
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+
+const originalGetContext = HTMLCanvasElement.prototype.getContext;
+
+beforeAll(() => {
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    value: () => ({
+      font: "",
+      measureText(this: { font: string }, text: string) {
+        const fontSize = Number(/([\d.]+)px/.exec(this.font)?.[1] ?? 16);
+        return {
+          width: Array.from(text).length * fontSize,
+          actualBoundingBoxAscent: fontSize * 0.8,
+          actualBoundingBoxDescent: fontSize * 0.2,
+          actualBoundingBoxLeft: fontSize * 0.5,
+          actualBoundingBoxRight: fontSize * 0.5,
+        };
+      },
+    }),
+  });
+});
+
+afterAll(() => {
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    value: originalGetContext,
+  });
+});
 
 afterEach(() => {
   cleanup();

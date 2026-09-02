@@ -35,6 +35,8 @@ type EditorPanelProps = {
   selectedBlockCount?: number;
   editorTextTabRequestToken?: number;
   pageSize?: { width: number; height: number } | null;
+  /** Actual base size currently rendered on the source page, in page pixels. */
+  resolvedFontSizePx?: number | null;
   transformMode?: TransformEditorMode;
   canCreateStylePreset?: boolean;
   stylePresets?: readonly BlockStylePresetSummary[];
@@ -188,6 +190,7 @@ function SelectedEditorPanelBody({
         onUpdate={props.onUpdate}
         onUpdateFormat={props.onUpdateFormat ?? props.onUpdate}
         pageSize={props.pageSize ?? null}
+        resolvedFontSizePx={nullableFontSizePx(props.resolvedFontSizePx)}
         selectedBlockCount={props.selectedBlockCount ?? 0}
         showStylePresets={props.showStylePresets ?? true}
         stylePresets={props.stylePresets ?? EMPTY_STYLE_PRESETS}
@@ -197,6 +200,10 @@ function SelectedEditorPanelBody({
       />
     </div>
   );
+}
+
+function nullableFontSizePx(value: number | null | undefined): number | null {
+  return value ?? null;
 }
 
 type AppliedStylePresetSelection = {
@@ -317,6 +324,7 @@ type EditorBlockGroupsProps = {
   onUpdate: EditorPanelProps["onUpdate"];
   onUpdateFormat: EditorPanelProps["onUpdate"];
   pageSize: NonNullable<EditorPanelProps["pageSize"]> | null;
+  resolvedFontSizePx: number | null;
   selectedBlockCount: number;
   showStylePresets: boolean;
   stylePresets: readonly BlockStylePresetSummary[];
@@ -340,6 +348,7 @@ function EditorBlockGroups({
   onUpdate,
   onUpdateFormat,
   pageSize,
+  resolvedFontSizePx,
   templateMode,
   transformMode,
   ...formatProps
@@ -375,6 +384,7 @@ function EditorBlockGroups({
           block={block}
           disabled={disabled}
           disableChapterApply={disableChapterApply}
+          resolvedFontSizePx={resolvedFontSizePx}
           onUpdate={(patch) => {
             onClearStylePreset();
             onUpdateFormat(patch);

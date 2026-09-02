@@ -62,6 +62,30 @@ describe("applyGatherDirectFormat", () => {
     expect(changed.bbox).toEqual({ x: 1, y: 2, w: 3, h: 4 });
   });
 
+  it("makes an explicit gathered size authoritative over source matching", () => {
+    const chapter = makeChapter([
+      makePage("p1", [
+        makeBlock("one", {
+          autoFitText: false,
+          fontSizeIntent: "source-match",
+          fontSizePx: 12,
+          sourceFontFacePx: 30,
+        }),
+      ]),
+    ]);
+
+    const result = applyGatherDirectFormat(chapter, {
+      targets: [{ pageId: "p1", blockId: "one" }],
+      patch: { autoFitText: false, fontSizePx: 32 },
+    });
+
+    expect(result.chapter.pages[0].blocks[0]).toMatchObject({
+      autoFitText: false,
+      fontSizeIntent: "manual",
+      fontSizePx: 32,
+    });
+  });
+
   it("makes an explicit gathered direction authoritative without clearing on unrelated edits", () => {
     const chapter = makeChapter([
       makePage("p1", [makeBlock("one", { layoutIntent: "vertical" })]),

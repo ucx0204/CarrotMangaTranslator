@@ -54,6 +54,8 @@ export type PanelSyncState = {
   areaTranslateSelecting: boolean;
   transformMode: TransformEditorMode;
   selectedPageSize: { width: number; height: number } | null;
+  /** Page-peer OCR face fallback used to reproduce the canvas font-size cap. */
+  selectedBlockSourceFontFaceFallbackPx?: number | null;
   blockStylePresets: BlockStylePresetSummary[];
 };
 

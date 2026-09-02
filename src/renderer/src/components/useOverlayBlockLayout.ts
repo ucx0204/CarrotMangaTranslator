@@ -204,6 +204,7 @@ function canReuseCanonicalLayout(
     canonical.autoFitText === candidate.autoFitText,
     canonical.bold === candidate.bold,
     canonical.fontFamily === candidate.fontFamily,
+    canonical.fontSizeIntent === candidate.fontSizeIntent,
     canonical.fontSizePx === candidate.fontSizePx,
     canonical.fontWidthScale === candidate.fontWidthScale,
     canonical.italic === candidate.italic,

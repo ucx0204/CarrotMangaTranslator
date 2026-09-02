@@ -5,11 +5,28 @@ import { EditorPanel } from "../components/EditorPanel";
 import { SaveBlockLibraryModal } from "../components/SaveBlockLibraryModal";
 import { IconButton } from "../components/ui/IconButton";
 import { ExpandIcon, FloatIcon } from "../components/ui/icons";
+import { useFonts } from "../fonts/useFonts";
+import { resolveBlockFontSizeAtNaturalPageScale } from "../lib/blockFontSizeAdjustment";
 import { usePanelSession, type PanelSessionValue } from "./panelSession";
 
 export function EditorPanelContainer(): React.JSX.Element {
   const session = usePanelSession();
+  const { catalog } = useFonts();
   const [saveOpen, setSaveOpen] = React.useState(false);
+  const resolvedFontSizePx = React.useMemo(() => {
+    if (!session.selectedBlock || !session.selectedPageSize) return null;
+    return resolveBlockFontSizeAtNaturalPageScale(
+      session.selectedBlock,
+      session.selectedPageSize,
+      catalog,
+      session.selectedBlockSourceFontFaceFallbackPx ?? undefined,
+    );
+  }, [
+    catalog,
+    session.selectedBlock,
+    session.selectedBlockSourceFontFaceFallbackPx,
+    session.selectedPageSize,
+  ]);
   return (
     <>
       <EditorPanel
@@ -22,6 +39,7 @@ export function EditorPanelContainer(): React.JSX.Element {
         selectedBlockCount={session.selectedBlockCount}
         editorTextTabRequestToken={session.editorTextTabRequestToken}
         pageSize={session.selectedPageSize}
+        resolvedFontSizePx={resolvedFontSizePx}
         transformMode={session.transformMode}
         headerActions={
           <EditorPanelHeaderActions

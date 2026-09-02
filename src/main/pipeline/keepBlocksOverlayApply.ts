@@ -9,7 +9,7 @@ import { resolveAutomaticFontDecisionV2 } from "./automaticFontMatchingV2";
 import { applyAutomaticFontDecisionV2 } from "./automaticFontMatchingV2Apply";
 import type { KeepBlocksAutomaticFontOptions } from "./keepBlocksAutomaticFont";
 import { applySizeOptions } from "./overlayFontSize";
-import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometry";
+import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometryTypes";
 import type { OverlayItem } from "./types";
 
 export function applyOverlayItemToExistingBlock({

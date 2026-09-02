@@ -42,6 +42,7 @@ export const BLOCK_FORMAT_FIELD_KEYS = [
   "fontFamily",
   "fontSizePx",
   "autoFitText",
+  "fontSizeIntent",
   "textAlign",
   "wordBreak",
   "renderDirection",
@@ -78,7 +79,11 @@ type BlockFormatGroup = {
 
 export const BLOCK_FORMAT_GROUPS: readonly BlockFormatGroup[] = [
   { id: "font", label: "글꼴", keys: ["fontFamily"] },
-  { id: "size", label: "글자 크기", keys: ["fontSizePx", "autoFitText"] },
+  {
+    id: "size",
+    label: "글자 크기",
+    keys: ["fontSizePx", "autoFitText", "fontSizeIntent"],
+  },
   { id: "align", label: "정렬", keys: ["textAlign"] },
   { id: "wordBreak", label: "줄바꿈", keys: ["wordBreak"] },
   { id: "direction", label: "가로/세로", keys: ["renderDirection"] },

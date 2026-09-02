@@ -64,8 +64,10 @@ function resolveUsableSourceFacePx(
   pageSize: Readonly<{ height: number; width: number }> | undefined,
   fallbackSourceFacePx: number | undefined,
 ): number | null {
-  if (!hasUsableSourceFaceMeasurement(block)) return null;
-  if (hasReliableSourceGeometry(block, pageSize)) {
+  if (
+    hasUsableSourceFaceMeasurement(block) &&
+    hasReliableSourceGeometry(block, pageSize)
+  ) {
     return Number(block.sourceFontFacePx);
   }
   const fallback = Number(fallbackSourceFacePx);
@@ -90,8 +92,9 @@ export function resolvePageSourceFontFaceFallbacks(
   const fallbacks = new Map<string, number>();
   for (const block of blocks) {
     if (
-      !hasUsableSourceFaceMeasurement(block) ||
-      hasReliableSourceGeometry(block, pageSize)
+      !canUsePageSourceFaceFallback(block) ||
+      (hasUsableSourceFaceMeasurement(block) &&
+        hasReliableSourceGeometry(block, pageSize))
     ) {
       continue;
     }
@@ -119,6 +122,17 @@ export function resolvePageSourceFontFaceFallbacks(
     if (fallback !== null) fallbacks.set(block.id, fallback);
   }
   return fallbacks;
+}
+
+function canUsePageSourceFaceFallback(block: TranslationBlock): boolean {
+  return (
+    block.textRole !== "sound" &&
+    (block.sourceDirection === "horizontal" ||
+      block.sourceDirection === "vertical") &&
+    visibleProbe(block.sourceText).length >= 2 &&
+    (hasUsableSourceFaceMeasurement(block) ||
+      block.fontSizeIntent === "source-match")
+  );
 }
 
 /**

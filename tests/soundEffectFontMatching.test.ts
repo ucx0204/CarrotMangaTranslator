@@ -40,7 +40,7 @@ describe("dedicated SFX font matching", () => {
       expect.objectContaining({
         regionId: "FX001",
         block: expect.objectContaining({
-          autoFitText: false,
+          autoFitText: true,
           fontFamily: "dohyeon",
           fontSizePx: 40,
           textRole: "sound",

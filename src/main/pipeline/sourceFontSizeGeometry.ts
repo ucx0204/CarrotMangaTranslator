@@ -1,5 +1,15 @@
 import type { SourceTextDirection } from "../../shared/textTypes";
+import {
+  measureComponentAffinity,
+  type ComponentAffinityMeasurement,
+} from "./sourceFontSizeComponentAffinity";
+import { estimateSourceFontFaceWithGeometryConsensus } from "./sourceFontSizeGeometryConsensus";
+import type {
+  SourceFontSizeEstimate,
+  SourceFontSizeGeometryOptions,
+} from "./sourceFontSizeGeometryTypes";
 import type { SourceFontCoreMask } from "./sourceFontSizeRaster";
+import { measureLineFaces } from "./sourceFontSizeProjection";
 
 const CORRECTION_INTERCEPT = 0.079120888;
 const CORRECTION_COEFFICIENTS = [
@@ -8,11 +18,24 @@ const CORRECTION_COEFFICIENTS = [
 ] as const;
 const LEARNED_CORRECTION_BLEND = 0.35;
 const SOURCE_FACE_SCALE = 1.02;
+const COMPONENT_STRONG_DISAGREEMENT_CONFIDENCE = 0.62;
+const COMPONENT_STRONG_DISAGREEMENT_MIN = 0.68;
+const COMPONENT_STRONG_DISAGREEMENT_MAX = 1.47;
+const COMPONENT_BLEND_MIN = 0.82;
+const COMPONENT_BLEND_MAX = 1.22;
+const COMPONENT_FACE_BLEND = 0.22;
 
-export type SourceFontSizeEstimate = Readonly<{
-  confidence: number;
-  facePx: number;
-  method: "raster-core-v1";
+type ProjectionEvidence = Readonly<{
+  agreement: number;
+  bboxCross: number;
+  bboxMajor: number;
+  componentMeasurement: ComponentAffinityMeasurement | null;
+  componentRatio: number | null;
+  dispersion: number;
+  expectedLines: number;
+  lineAgreement: number;
+  pitch: number;
+  rawFace: number;
 }>;
 
 /**
@@ -24,11 +47,78 @@ export function estimateSourceFontFace(
   core: SourceFontCoreMask,
   direction: SourceTextDirection,
   glyphCount: number,
+  options: SourceFontSizeGeometryOptions = {},
 ): SourceFontSizeEstimate | null {
   if (glyphCount < 2 || glyphCount > 160) return null;
+  if (options.geometryConsensus === true) {
+    return estimateSourceFontFaceWithGeometryConsensus(
+      core,
+      direction,
+      glyphCount,
+      (lineCount) =>
+        estimateSourceFontFaceFromProjection(core, direction, glyphCount, {
+          componentAffinity: false,
+          lineCountOverride: lineCount,
+        }),
+    );
+  }
+  return estimateSourceFontFaceFromProjection(
+    core,
+    direction,
+    glyphCount,
+    options,
+  );
+}
+
+function estimateSourceFontFaceFromProjection(
+  core: SourceFontCoreMask,
+  direction: SourceTextDirection,
+  glyphCount: number,
+  options: SourceFontSizeGeometryOptions,
+): SourceFontSizeEstimate | null {
+  const evidence = measureProjectionEvidence(
+    core,
+    direction,
+    glyphCount,
+    options,
+  );
+  if (!evidence) return null;
+  const facePx = resolveCorrectedProjectionFace(
+    core,
+    direction,
+    glyphCount,
+    evidence,
+  );
+  if (facePx === null) return null;
+  return {
+    confidence: clamp(
+      resolveConfidence(evidence) +
+        componentConfidenceAdjustment(
+          evidence.componentMeasurement,
+          evidence.componentRatio,
+        ),
+      0.5,
+      0.94,
+    ),
+    facePx,
+    method: "raster-core-v1",
+  };
+}
+
+function measureProjectionEvidence(
+  core: SourceFontCoreMask,
+  direction: SourceTextDirection,
+  glyphCount: number,
+  options: SourceFontSizeGeometryOptions,
+): ProjectionEvidence | null {
   const bboxCross = direction === "vertical" ? core.width : core.height;
   const bboxMajor = direction === "vertical" ? core.height : core.width;
-  const expectedLines = estimateLineCount(glyphCount, bboxCross, bboxMajor);
+  const expectedLines = resolveExpectedLineCount(
+    options.lineCountOverride,
+    glyphCount,
+    bboxCross,
+    bboxMajor,
+  );
   const faces = measureLineFaces(core, direction, expectedLines);
   if (faces.length === 0) return null;
 
@@ -37,6 +127,19 @@ export function estimateSourceFontFace(
   const glyphsPerLine = Math.max(1, glyphCount / Math.max(1, expectedLines));
   const pitch = bboxMajor / glyphsPerLine;
   const rawFace = Math.min(coreFace, lineCross * 1.06, pitch * 1.08);
+  // Component affinity is an opt-in laboratory path until a locked-chapter
+  // visual audit proves it can improve projection without losing coverage.
+  // Keeping the default projection-only also prevents rejected experiments
+  // from leaking into the currently promoted app version.
+  const componentMeasurement =
+    options.componentAffinity === true
+      ? measureComponentAffinity(core, direction, expectedLines)
+      : null;
+  const componentRatio = componentMeasurement
+    ? componentMeasurement.primaryFace / Math.max(1, rawFace)
+    : null;
+  if (hasStrongComponentDisagreement(componentMeasurement, componentRatio))
+    return null;
   const dispersion = relativeDispersion(faces);
   const agreement = rawFace / Math.max(1, pitch);
   const lineAgreement = rawFace / Math.max(1, lineCross);
@@ -52,6 +155,66 @@ export function estimateSourceFontFace(
     })
   )
     return null;
+
+  return {
+    agreement,
+    bboxCross,
+    bboxMajor,
+    componentMeasurement,
+    componentRatio,
+    dispersion,
+    expectedLines,
+    lineAgreement,
+    pitch,
+    rawFace,
+  };
+}
+
+function resolveExpectedLineCount(
+  lineCountOverride: number | undefined,
+  glyphCount: number,
+  bboxCross: number,
+  bboxMajor: number,
+): number {
+  if (!Number.isInteger(lineCountOverride) || Number(lineCountOverride) < 1) {
+    return estimateLineCount(glyphCount, bboxCross, bboxMajor);
+  }
+  return clamp(
+    Number(lineCountOverride),
+    1,
+    Math.max(1, Math.min(12, Math.ceil(glyphCount / 2))),
+  );
+}
+
+function hasStrongComponentDisagreement(
+  measurement: ComponentAffinityMeasurement | null,
+  ratio: number | null,
+): boolean {
+  return Boolean(
+    measurement &&
+    measurement.confidence >= COMPONENT_STRONG_DISAGREEMENT_CONFIDENCE &&
+    ratio !== null &&
+    (ratio < COMPONENT_STRONG_DISAGREEMENT_MIN ||
+      ratio > COMPONENT_STRONG_DISAGREEMENT_MAX),
+  );
+}
+
+function resolveCorrectedProjectionFace(
+  core: SourceFontCoreMask,
+  direction: SourceTextDirection,
+  glyphCount: number,
+  evidence: ProjectionEvidence,
+): number | null {
+  const {
+    bboxCross,
+    bboxMajor,
+    componentMeasurement,
+    componentRatio,
+    dispersion,
+    expectedLines,
+    pitch,
+    rawFace,
+  } = evidence;
 
   const features = [
     rawFace / Math.max(1, bboxCross / Math.max(1, expectedLines)),
@@ -74,19 +237,47 @@ export function estimateSourceFontFace(
     -0.2,
     0.2,
   );
-  const facePx = clamp(
+  let facePx = clamp(
     rawFace *
       Math.exp(correction * LEARNED_CORRECTION_BLEND) *
       SOURCE_FACE_SCALE,
     1,
     512,
   );
-  if (!Number.isFinite(facePx) || facePx <= 0) return null;
-  return {
-    confidence: resolveConfidence({ agreement, dispersion, lineAgreement }),
-    facePx,
-    method: "raster-core-v1",
-  };
+  if (
+    componentMeasurement &&
+    componentRatio !== null &&
+    componentRatio >= COMPONENT_BLEND_MIN &&
+    componentRatio <= COMPONENT_BLEND_MAX
+  ) {
+    facePx = blendComponentFace(facePx, componentMeasurement.primaryFace);
+  }
+  return Number.isFinite(facePx) && facePx > 0 ? facePx : null;
+}
+
+function blendComponentFace(facePx: number, componentFacePx: number): number {
+  const componentFace = componentFacePx * SOURCE_FACE_SCALE;
+  return clamp(
+    Math.exp(
+      Math.log(Math.max(1, facePx)) * (1 - COMPONENT_FACE_BLEND) +
+        Math.log(Math.max(1, componentFace)) * COMPONENT_FACE_BLEND,
+    ),
+    1,
+    512,
+  );
+}
+
+function componentConfidenceAdjustment(
+  measurement: ComponentAffinityMeasurement | null,
+  ratio: number | null,
+): number {
+  if (!measurement || ratio === null) return 0;
+  const distance = Math.abs(Math.log(Math.max(0.01, ratio)));
+  if (distance <= Math.log(1.12)) {
+    return 0.04 * measurement.confidence;
+  }
+  if (distance <= Math.log(1.28)) return 0;
+  return -0.08 * measurement.confidence;
 }
 
 function isReliableMeasurement(input: {
@@ -122,113 +313,6 @@ function estimateLineCount(
   return clamp(Math.round(estimate), 1, maximum);
 }
 
-function measureLineFaces(
-  core: SourceFontCoreMask,
-  direction: SourceTextDirection,
-  expectedLines: number,
-): number[] {
-  const profile = buildCrossProfile(core, direction);
-  const bands = selectLineBands(profile, expectedLines);
-  const positionsByBand = bands.map(() => [] as number[]);
-  const bandByCross = new Int16Array(profile.length).fill(-1);
-  bands.forEach(([start, end], bandIndex) => {
-    bandByCross.fill(bandIndex, start, end);
-  });
-  for (let y = 0; y < core.height; y += 1) {
-    for (let x = 0; x < core.width; x += 1) {
-      if (!core.mask[y * core.width + x]) continue;
-      const cross = direction === "vertical" ? x : y;
-      const bandIndex = bandByCross[cross] ?? -1;
-      if (bandIndex >= 0) positionsByBand[bandIndex]?.push(cross);
-    }
-  }
-  const faces: number[] = [];
-  for (const positions of positionsByBand) {
-    if (positions.length < 3) continue;
-    positions.sort((left, right) => left - right);
-    faces.push(quantile(positions, 0.995) - quantile(positions, 0.005) + 1);
-  }
-  return faces.filter((value) => Number.isFinite(value) && value > 0);
-}
-
-function buildCrossProfile(
-  core: SourceFontCoreMask,
-  direction: SourceTextDirection,
-): number[] {
-  const length = direction === "vertical" ? core.width : core.height;
-  const profile = Array.from({ length }, () => 0);
-  for (let y = 0; y < core.height; y += 1) {
-    for (let x = 0; x < core.width; x += 1) {
-      if (!core.mask[y * core.width + x]) continue;
-      const cross = direction === "vertical" ? x : y;
-      profile[cross] = (profile[cross] ?? 0) + 1;
-    }
-  }
-  return profile;
-}
-
-function selectLineBands(
-  profile: readonly number[],
-  expectedLines: number,
-): Array<[number, number]> {
-  const active = profile.map((value) => value > 0);
-  const gap = Math.max(1, Math.round(profile.length * 0.012));
-  let runs = closeSmallGaps(findRuns(active), gap);
-  const minimum = Math.max(2, Math.round(profile.length * 0.025));
-  runs = runs.filter(([start, end]) => end - start >= minimum);
-  if (runs.length === 0) return [[0, profile.length]];
-
-  while (runs.length > expectedLines) {
-    let mergeAt = 0;
-    let smallestGap = Number.POSITIVE_INFINITY;
-    for (let index = 0; index < runs.length - 1; index += 1) {
-      const currentGap = (runs[index + 1]?.[0] ?? 0) - (runs[index]?.[1] ?? 0);
-      if (currentGap < smallestGap) {
-        mergeAt = index;
-        smallestGap = currentGap;
-      }
-    }
-    const left = runs[mergeAt] ?? [0, profile.length];
-    const right = runs[mergeAt + 1] ?? left;
-    runs.splice(mergeAt, 2, [left[0], right[1]]);
-  }
-  if (runs.length < expectedLines) {
-    const step = profile.length / expectedLines;
-    return Array.from({ length: expectedLines }, (_unused, index) => [
-      Math.round(index * step),
-      Math.round((index + 1) * step),
-    ]);
-  }
-  return runs;
-}
-
-function findRuns(active: readonly boolean[]): Array<[number, number]> {
-  const runs: Array<[number, number]> = [];
-  let start = -1;
-  for (let index = 0; index <= active.length; index += 1) {
-    if (active[index] && start < 0) start = index;
-    if ((!active[index] || index === active.length) && start >= 0) {
-      runs.push([start, index]);
-      start = -1;
-    }
-  }
-  return runs;
-}
-
-function closeSmallGaps(
-  runs: Array<[number, number]>,
-  maximumGap: number,
-): Array<[number, number]> {
-  if (runs.length < 2) return runs;
-  const merged: Array<[number, number]> = [runs[0] as [number, number]];
-  for (const run of runs.slice(1)) {
-    const previous = merged[merged.length - 1] as [number, number];
-    if (run[0] - previous[1] <= maximumGap) previous[1] = run[1];
-    else merged.push([...run]);
-  }
-  return merged;
-}
-
 function relativeDispersion(values: readonly number[]): number {
   if (values.length < 2) return 0;
   const center = median(values);
@@ -262,18 +346,6 @@ function median(values: readonly number[]): number {
   return sorted.length % 2
     ? (sorted[middle] ?? 0)
     : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
-}
-
-function quantile(sorted: readonly number[], ratio: number): number {
-  if (sorted.length === 0) return 0;
-  const position = clamp(ratio, 0, 1) * (sorted.length - 1);
-  const lower = Math.floor(position);
-  const upper = Math.ceil(position);
-  if (lower === upper) return sorted[lower] ?? 0;
-  const fraction = position - lower;
-  return (
-    (sorted[lower] ?? 0) * (1 - fraction) + (sorted[upper] ?? 0) * fraction
-  );
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

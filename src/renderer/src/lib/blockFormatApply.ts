@@ -35,6 +35,12 @@ function applyFormatPatchToBlock(
   patch: Partial<TranslationBlock>,
 ): TranslationBlock {
   const next = { ...block, ...patch };
+  if (
+    Object.hasOwn(patch, "fontSizePx") ||
+    Object.hasOwn(patch, "autoFitText")
+  ) {
+    next.fontSizeIntent = "manual";
+  }
   if (patch.renderDirection !== undefined) {
     next.renderDirection = normalizeRenderDirection(
       patch.renderDirection,

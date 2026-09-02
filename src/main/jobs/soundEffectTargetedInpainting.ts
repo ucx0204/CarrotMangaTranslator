@@ -1,7 +1,9 @@
 import type { MangaPage } from "../../shared/libraryTypes";
+import { normalizeTranslationCompletionReferences } from "../translationCompletionReferences";
 import { getAppPaths } from "../appPaths";
 import { inpaintPatternPage } from "../inpainting";
 import { acquireInpaintingEngine } from "../inpainting/inpaintingEnginePool";
+import { resolveEligiblePatternBlocks } from "../inpainting/patternBlockEligibility";
 import { openChapter, updatePagesAfterInpainting } from "../library";
 import { getAppSettings } from "../settingsStore";
 import type { ImageDecodeFallback } from "../regionCrop";
@@ -194,12 +196,18 @@ async function inpaintPageTarget({
       signal,
       decodeFallback,
       inpaintingEngine: engineLease.engine,
+      preserveExistingInpainting: true,
     });
     const erased = new Set(result.erasedBlockIds ?? []);
     warnings.push(
       ...buildIncompleteInpaintingWarnings(page, selectedIds, erased),
     );
-    return erased.size > 0 ? { page: result.page, warnings } : { warnings };
+    return erased.size > 0
+      ? {
+          page: mergeTargetedInpaintingCompletion(result.page, erased),
+          warnings,
+        }
+      : { warnings };
   } catch (error) {
     throwIfAborted(signal);
     warnings.push(
@@ -207,6 +215,32 @@ async function inpaintPageTarget({
     );
     return { warnings };
   }
+}
+
+function mergeTargetedInpaintingCompletion(
+  page: MangaPage,
+  erased: ReadonlySet<string>,
+): MangaPage {
+  const current = normalizeTranslationCompletionReferences(
+    page.translationCompletion,
+    page.blocks,
+  );
+  if (!current) return page;
+  const erasedBlockIds = [
+    ...new Set([...(current.erasedBlockIds ?? []), ...erased]),
+  ];
+  const erasedSet = new Set(erasedBlockIds);
+  const allEligibleErased = resolveEligiblePatternBlocks(page).every((block) =>
+    erasedSet.has(block.id),
+  );
+  return {
+    ...page,
+    translationCompletion: {
+      workflow: current.workflow,
+      status: allEligibleErased ? "completed" : "pending",
+      ...(erasedBlockIds.length > 0 ? { erasedBlockIds } : {}),
+    },
+  };
 }
 
 function buildIncompleteInpaintingWarnings(

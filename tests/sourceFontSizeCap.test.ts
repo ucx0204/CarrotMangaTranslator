@@ -31,6 +31,22 @@ describe("source-matched font-size cap", () => {
     expect(layout.overflow).toBe(false);
   });
 
+  it("converts a horizontal source face through horizontal font metrics", () => {
+    installCanvasMeasureMock();
+    const layout = resolveLayout(
+      makeBlock({
+        fontSizeIntent: "source-match",
+        sourceDirection: "horizontal",
+        sourceFontFacePx: 24,
+        sourceFontSizeConfidence: 0.9,
+        sourceFontSizeMethod: "raster-core-v1",
+      }),
+    );
+
+    expect(layout.fontSizePx).toBe(24);
+    expect(layout.overflow).toBe(false);
+  });
+
   it("shrinks below the cap when a long translation does not fit", () => {
     installCanvasMeasureMock();
     const block = makeBlock({
@@ -132,6 +148,48 @@ describe("source-matched font-size cap", () => {
 
     expect(fallbacks.get(target.id)).toBe(18);
     expect(fallbacks.size).toBe(1);
+  });
+
+  it("rescues a missing measurement in a narrow tall vertical-source box", () => {
+    installCanvasMeasureMock();
+    const target = makeBlock({
+      id: "narrow-tall-missing-source-face",
+      bbox: { x: 196, y: 590, w: 73, h: 159 },
+      bboxSpace: "normalized_1000",
+      sourceText: "神の慈悲により",
+      translatedText: "신의 자비로",
+      sourceDirection: "vertical",
+      renderDirection: "horizontal",
+      fontRole: "dialogue",
+      fontSizePx: 12,
+      fontSizeIntent: "source-match",
+      autoFitText: false,
+    });
+    const peers = [
+      makeMeasuredPeer("peer-a", 19.6, {
+        fontRole: "dialogue",
+        sourceDirection: "vertical",
+      }),
+      makeMeasuredPeer("peer-b", 20.8, {
+        fontRole: "dialogue",
+        sourceDirection: "vertical",
+      }),
+      makeMeasuredPeer("peer-c", 26.4, {
+        fontRole: "dialogue",
+        sourceDirection: "vertical",
+      }),
+    ];
+
+    const fallback = resolvePageSourceFontFaceFallbacks(
+      [target, ...peers],
+      pageSize,
+    ).get(target.id);
+    const layout = resolveLayout(target, fallback);
+
+    expect(fallback).toBe(20.8);
+    expect(layout.fontSizePx).toBe(21);
+    expect(layout.fontSizePx).toBeGreaterThan(target.fontSizePx);
+    expect(layout.lines?.length).toBeGreaterThanOrEqual(2);
   });
 
   it("keeps the source cap when the small source geometry is centered", () => {

@@ -21,6 +21,7 @@ module.exports = {
     "tests/pageArtworkPixelParityPanelEntry.tsx",
     "tests/fixtures/dataRootInstanceLockWorker.ts",
     "scripts/font-render-bank/electron-runner.cjs",
+    "scripts/font-size-ai-lab/*.cjs",
     "scripts/library-full-pipeline-qa/electron-runner.cjs",
     "scripts/library-full-pipeline-qa/gemma-cleanup-audit-electron-runner.cjs",
     "scripts/library-full-pipeline-qa/font-inference-runtime-validator.cjs",

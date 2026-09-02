@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyBubbleNaturalTextLayout } from "../src/main/inpainting/bubbleLayoutNaturalText";
 import { applyFormatToChapterPages } from "../src/renderer/src/lib/blockFormatApply";
+import { normalizeTranslationBlockPatch } from "../src/renderer/src/hooks/useUpdateSelectedBlockAction";
 import {
   applyFormatDefaultsToBlock,
   DEFAULT_BLOCK_FORMAT_DEFAULTS,
@@ -61,6 +62,58 @@ describe("text layout intent user overrides", () => {
       applyBubbleNaturalTextLayout(makePage(horizontal), { locale: "ko" })
         .blocks[0]?.renderDirection,
     ).toBe("horizontal");
+  });
+
+  it("makes bulk font-size formatting authoritative over source matching", () => {
+    const page = makePage(
+      makeBlock({
+        autoFitText: false,
+        fontSizeIntent: "source-match",
+        fontSizePx: 12,
+        sourceFontFacePx: 30,
+      }),
+    );
+    const chapter = makeChapter(page);
+
+    const changed = applyFormatToChapterPages(
+      chapter,
+      new Set([page.id]),
+      null,
+      { autoFitText: false, fontSizePx: 28 },
+    );
+    const unrelated = applyFormatToChapterPages(
+      chapter,
+      new Set([page.id]),
+      null,
+      { bold: true },
+    );
+
+    expect(changed.pages[0].blocks[0]).toMatchObject({
+      autoFitText: false,
+      fontSizeIntent: "manual",
+      fontSizePx: 28,
+    });
+    expect(unrelated.pages[0].blocks[0]?.fontSizeIntent).toBe("source-match");
+  });
+
+  it("makes an editor size patch manual even when a relay omits the intent", () => {
+    const sourceMatched = makeBlock({
+      autoFitText: true,
+      fontSizeIntent: "source-match",
+      fontSizePx: 12,
+      sourceFontFacePx: 12,
+    });
+
+    const changed = normalizeTranslationBlockPatch(sourceMatched, {
+      autoFitText: false,
+      fontSizePx: 79,
+    });
+
+    expect(changed).toMatchObject({
+      autoFitText: false,
+      fontSizeIntent: "manual",
+      fontSizePx: 79,
+    });
   });
 });
 

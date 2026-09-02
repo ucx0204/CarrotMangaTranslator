@@ -72,6 +72,7 @@ export function CurveOverflowWarning({
             onUpdate({
               fontSizePx: clampFontSizePx(block.fontSizePx - FONT_SIZE_STEP_PX),
               autoFitText: false,
+              fontSizeIntent: "manual",
             })
           }
         >

@@ -151,6 +151,7 @@ function useBlockLibraryEditState({
       ...current,
       autoFitText: false,
       fontSizePx: clampFontSize(current.fontSizePx + adjustment),
+      fontSizeIntent: "manual",
     }));
   }, []);
   const save = React.useCallback(

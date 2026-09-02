@@ -178,7 +178,7 @@ describe("sound-effect review boundary", () => {
     });
 
     expect(reviewed).toMatchObject({
-      autoFitText: false,
+      autoFitText: true,
       textRole: "sound",
     });
     expect(reviewed).not.toHaveProperty("fontRole");
@@ -207,6 +207,59 @@ describe("sound-effect review boundary", () => {
     ).toEqual([["T002"], ["T003"]]);
     expect(manifest.effectRegions).toHaveLength(1);
     expect(manifest.effectRegions[0]?.kind).toBe("effect");
+  });
+
+  it("trims a sub-percent extreme text-mask tail without clipping the dense glyph core", () => {
+    const points: Array<[number, number]> = [];
+    for (let y = 2; y < 11; y += 1) {
+      for (let x = 5; x < 9; x += 1) points.push([x, y]);
+    }
+    points.push([6, 19]);
+    const manifest = buildHayaiRegionManifest({
+      imageWidth: 100,
+      imageHeight: 100,
+      detections: [maskedDetection("text", 0.95, 20, 20, points)],
+    });
+
+    expect(manifest.dialogueRegions).toHaveLength(1);
+    expect(manifest.dialogueRegions[0]?.bbox).toEqual([20, 5, 50, 60]);
+    expect(manifest.diagnostics.rejectedDialogueCount).toBe(0);
+  });
+
+  it("rejects a page-spanning sparse text proposal with no bubble or panel support", () => {
+    const points = Array.from(
+      { length: 10 },
+      (_, index) => [index * 2 + 1, index * 2 + 1] as [number, number],
+    );
+    const manifest = buildHayaiRegionManifest({
+      imageWidth: 100,
+      imageHeight: 100,
+      detections: [maskedDetection("text", 0.4, 20, 20, points)],
+    });
+
+    expect(manifest.dialogueRegions).toHaveLength(0);
+    expect(manifest.diagnostics.rejectedDialogueCount).toBe(1);
+  });
+
+  it("deduplicates near-identical masks even when sparse edge pixels weaken box overlap", () => {
+    const core: Array<[number, number]> = [];
+    for (let y = 10; y < 20; y += 1) {
+      for (let x = 10; x < 20; x += 1) core.push([x, y]);
+    }
+    const manifest = buildHayaiRegionManifest({
+      imageWidth: 300,
+      imageHeight: 300,
+      detections: [
+        maskedDetection("text", 0.9, 30, 30, [...core, [10, 5], [11, 5]]),
+        maskedDetection("text", 0.8, 30, 30, [...core, [10, 21], [11, 21]]),
+      ],
+    });
+
+    expect(manifest.dialogueRegions).toHaveLength(1);
+    expect(manifest.dialogueRegions[0]?.sourceDetectionIds).toEqual([
+      "T001",
+      "T002",
+    ]);
   });
 
   it("normalizes v1 review data to v3 while preserving legacy dismissals", () => {
@@ -419,7 +472,7 @@ describe("sound-effect review boundary", () => {
     expect(parsed.pages[0].blocks[0]).toMatchObject({
       id: "generated-sfx",
       textRole: "sound",
-      autoFitText: false,
+      autoFitText: true,
     });
     expect(parsed.pages[0].blocks[0]).not.toHaveProperty("reviewStatus");
     expect(parsed.pages[0].blocks[0]).not.toHaveProperty("inpaintExcluded");
@@ -515,5 +568,35 @@ function detection(
     score,
     box: gridBox.map((value) => value * 10) as [number, number, number, number],
     mask: { logits, width: 10, height: 10 },
+  };
+}
+
+function maskedDetection(
+  label: ComicPageDetection["label"],
+  score: number,
+  width: number,
+  height: number,
+  points: ReadonlyArray<readonly [number, number]>,
+): ComicPageDetection {
+  const logits = new Float32Array(width * height).fill(-1);
+  for (const [x, y] of points) logits[y * width + x] = 1;
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  const labelId = { text: 0, onomatopoeia: 1, bubble: 2, panel: 3 }[label] as
+    | 0
+    | 1
+    | 2
+    | 3;
+  return {
+    label,
+    labelId,
+    score,
+    box: [
+      (Math.min(...xs) / width) * 100,
+      (Math.min(...ys) / height) * 100,
+      ((Math.max(...xs) + 1) / width) * 100,
+      ((Math.max(...ys) + 1) / height) * 100,
+    ],
+    mask: { logits, width, height },
   };
 }

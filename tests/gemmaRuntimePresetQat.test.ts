@@ -5,8 +5,11 @@ import {
   resolveModelSpecificGemmaRuntimePreset,
 } from "../src/main/settings/gemmaRuntimePresets";
 import {
+  getDefaultGemmaPresetForVramMode,
   getDefaultMmprojForGemmaModel,
+  getModeAwareGemmaDefaults,
   isBuiltInGemmaMmproj,
+  isSpeedGemmaModel,
   resolveRuntimeGemmaSettings,
 } from "../src/main/settings/gemmaModelPresets";
 import { resolveTranslationRuntimeState } from "../src/main/settings/translationGemmaOptions";
@@ -45,6 +48,53 @@ import {
 } from "../src/shared/modelPresets";
 
 describe("QAT Gemma runtime preset routing", () => {
+  it("recognizes every speed model without accepting a legacy preset", () => {
+    const speedModels = [
+      {
+        mode: "minimum12b" as const,
+        modelRepo: GEMMA_12B_QAT_MODEL_REPO,
+        modelFile: GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+      },
+      {
+        mode: "economy26b" as const,
+        modelRepo: GEMMA_26B_QAT_MODEL_REPO,
+        modelFile: GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+      },
+      {
+        mode: "full31b" as const,
+        modelRepo: GEMMA_31B_QAT_MODEL_REPO,
+        modelFile: GEMMA_31B_QAT_MODEL_FILE_Q4_K_M,
+      },
+    ];
+    for (const model of speedModels) {
+      expect(isSpeedGemmaModel(model)).toBe(true);
+      expect(getDefaultGemmaPresetForVramMode(model.mode)).toMatchObject({
+        modelRepo: model.modelRepo,
+        modelFile: model.modelFile,
+      });
+    }
+    expect(isSpeedGemmaModel(GEMMA_MODEL_PRESETS.minimum12b)).toBe(false);
+
+    const defaults = resolveDefaultAppSettings();
+    expect(
+      getModeAwareGemmaDefaults(
+        {
+          ...defaults,
+          gemma: {
+            ...defaults.gemma,
+            ...GEMMA_MODEL_PRESETS.minimum12b,
+          },
+        },
+        "full31b",
+      ),
+    ).toEqual({
+      modelRepo: GEMMA_MODEL_PRESETS.full31b.modelRepo,
+      modelFile: GEMMA_MODEL_PRESETS.full31b.modelFile,
+      mmprojRepo: GEMMA_MODEL_PRESETS.full31b.mmprojRepo,
+      mmprojFile: GEMMA_MODEL_PRESETS.full31b.mmprojFile,
+    });
+  });
+
   it("recognizes every built-in mmproj pair without accepting lookalikes", () => {
     const pairs = [
       [GEMMA_12B_MMPROJ_REPO, GEMMA_12B_MMPROJ_FILE],
@@ -69,6 +119,10 @@ describe("QAT Gemma runtime preset routing", () => {
     expect(
       isBuiltInGemmaMmproj(GEMMA_31B_QAT_MMPROJ_REPO, "lookalike.gguf"),
     ).toBe(false);
+    expect(getDefaultMmprojForGemmaModel(GEMMA_MODEL_PRESETS.full31b)).toEqual({
+      mmprojRepo: GEMMA_31B_MMPROJ_REPO,
+      mmprojFile: GEMMA_31B_MMPROJ_FILE,
+    });
   });
 
   it("uses model-sized free-VRAM targets and 1536 MiB for 31B", () => {

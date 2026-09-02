@@ -58,7 +58,15 @@ export function EditorFontSizeRow({
         checked={autoFitText}
         disabled={disabled}
         onCheckedChange={(checked) =>
-          onUpdate({ autoFitText: checked, fontSizeIntent: "manual" })
+          onUpdate(
+            checked
+              ? { autoFitText: true, fontSizeIntent: "manual" }
+              : {
+                  autoFitText: false,
+                  fontSizeIntent: "manual",
+                  fontSizePx: clampFontSize(fontSizePx),
+                },
+          )
         }
       />
     </div>

@@ -24,6 +24,7 @@ const PanelFormatPatchSchema = TranslationBlockObjectSchema.pick({
   fontFamily: true,
   fontSizePx: true,
   autoFitText: true,
+  fontSizeIntent: true,
   bold: true,
   italic: true,
   underline: true,
@@ -105,6 +106,13 @@ export const PanelSyncStateSchema = z
       })
       .strict()
       .nullable(),
+    selectedBlockSourceFontFaceFallbackPx: z
+      .number()
+      .finite()
+      .positive()
+      .max(100000)
+      .nullable()
+      .optional(),
     blockStylePresets: z
       .array(BlockStylePresetSummarySchema)
       .max(MAX_BLOCK_STYLE_PRESETS),

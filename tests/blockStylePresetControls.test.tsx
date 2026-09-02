@@ -11,7 +11,10 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BlockStylePresetControls } from "../src/renderer/src/components/BlockStylePresetControls";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe("block style preset controls", () => {
   it("uses one clear menu and keeps the applied preset name visible", () => {
@@ -120,7 +123,49 @@ describe("block style preset controls", () => {
     });
     await waitFor(() => expect(document.activeElement).toBe(remainingPreset));
   });
+
+  it("restores focus to the picker after deleting the only preset", async () => {
+    const focusSpy = vi.spyOn(HTMLButtonElement.prototype, "focus");
+    render(<SinglePresetDeleteHarness />);
+
+    const trigger = screen.getByRole("button", { name: "유일한 프리셋" });
+    fireEvent.click(trigger);
+    focusSpy.mockClear();
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "유일한 프리셋 삭제" }),
+    );
+
+    await waitFor(() =>
+      expect((trigger as HTMLButtonElement).disabled).toBe(true),
+    );
+    await waitFor(() => expect(focusSpy).toHaveBeenCalled());
+  });
 });
+
+function SinglePresetDeleteHarness(): React.JSX.Element {
+  const [presets, setPresets] = React.useState([
+    {
+      id: "only",
+      name: "유일한 프리셋",
+      pinned: true,
+      missingFont: false,
+    },
+  ]);
+  return (
+    <BlockStylePresetControls
+      activePresetId="only"
+      canCreate={false}
+      disabled={false}
+      presets={presets}
+      onApply={vi.fn()}
+      onCreate={vi.fn()}
+      onDelete={async () => {
+        setPresets([]);
+        return true;
+      }}
+    />
+  );
+}
 
 function ControlsHarness({
   onApply,

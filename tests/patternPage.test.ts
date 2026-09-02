@@ -130,6 +130,61 @@ describe("pattern page inpainting result validation", () => {
     );
   });
 
+  it("adds an explicitly targeted pass to the existing inpainted image", async () => {
+    const originalBitmap = Buffer.alloc(32 * 32 * 4, 255);
+    const dialogueCleanBitmap = Buffer.from(originalBitmap);
+    const preservedOffset = (2 * 32 + 2) * 4;
+    dialogueCleanBitmap[preservedOffset] = 41;
+    dialogueCleanBitmap[preservedOffset + 1] = 42;
+    dialogueCleanBitmap[preservedOffset + 2] = 43;
+    const engine: InpaintingEngine = {
+      model: "lama-manga",
+      runtimePath: "C:\\runtime\\inpaint.exe",
+      backend: "cpu",
+      runRootDir: "C:\\runtime\\runs",
+      inpaint: vi.fn(async (bitmap) => {
+        const targetOffset = (16 * 32 + 16) * 4;
+        bitmap[targetOffset] = 0;
+        bitmap[targetOffset + 1] = 0;
+        bitmap[targetOffset + 2] = 0;
+      }),
+      dispose: vi.fn(async () => undefined),
+    };
+    const page = makePage();
+    page.inpaintedImagePath = join(testLogDirectory, "dialogue-clean.png");
+    page.translationCompletion = {
+      workflow: "erase-original",
+      status: "pending",
+    };
+    nativeImageMocks.createFromPath.mockImplementation((filePath: string) => ({
+      getSize: () => ({ width: 32, height: 32 }),
+      isEmpty: () => false,
+      toBitmap: () =>
+        Buffer.from(
+          filePath === page.inpaintedImagePath
+            ? dialogueCleanBitmap
+            : originalBitmap,
+        ),
+    }));
+    const { inpaintPatternPage } =
+      await import("../src/main/inpainting/patternPage");
+
+    await inpaintPatternPage(page, {
+      blockIds: ["block-1"],
+      inpaintingEngine: engine,
+      preserveExistingInpainting: true,
+    });
+
+    expect(nativeImageMocks.createFromPath).toHaveBeenNthCalledWith(
+      1,
+      page.inpaintedImagePath,
+    );
+    const outputBitmap = nativeImageMocks.createFromBitmap.mock.calls[0]?.[0];
+    expect(
+      outputBitmap?.subarray(preservedOffset, preservedOffset + 3),
+    ).toEqual(Buffer.from([41, 42, 43]));
+  });
+
   it("seals retry evidence against the immutable original bitmap and asset", async () => {
     const page = makePage();
     const cleanedPath = join(testLogDirectory, "retry-cleaned.png");

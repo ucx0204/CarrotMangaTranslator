@@ -41,6 +41,32 @@ describe("source font-size raster estimator", () => {
     expect(estimate?.facePx).toBeLessThan(24);
   });
 
+  it("refines a full page while preserving abstained item slots", async () => {
+    const raster = createRaster(100, 30, (setBlack) => {
+      for (let glyph = 0; glyph < 4; glyph += 1) {
+        fillRect(setBlack, 5 + glyph * 23, 5, 12, 20);
+      }
+    });
+    const loadRaster = vi.fn(async () => raster);
+
+    const estimates = await estimatePageSourceFontSizes({
+      enabled: true,
+      items: [
+        makeItem({ id: 1 }),
+        makeItem({ id: 2 }),
+        makeItem({ id: 3, textRole: "sound" }),
+      ],
+      page: { id: "page-refine", width: 100, height: 30 } as never,
+      loadRaster,
+    });
+
+    expect(loadRaster).toHaveBeenCalledOnce();
+    expect(estimates).toHaveLength(3);
+    expect(estimates[0]?.method).toBe("raster-core-v1");
+    expect(estimates[1]?.method).toBe("raster-core-v1");
+    expect(estimates[2]).toBeUndefined();
+  });
+
   it("abstains for sound effects and strongly rotated ordinary text", () => {
     const raster = createRaster(100, 30, (setBlack) => {
       fillRect(setBlack, 5, 5, 80, 20);
