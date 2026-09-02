@@ -1154,6 +1154,19 @@
       "seed": "3c1999a50f555d0df268037f641e46ed331434bc024e3ee36658dfcd6a523097",
       "series": "Daisougen no Chiisana Ryoushu",
       "status": "completed-promoted-fsai-lab-v0.5.0"
+    },
+    {
+      "chapter": "Chapter 10.1",
+      "experimentsUsed": 3,
+      "key": "Rawkuma (JA)/Tada no Murabito no Boku ga, Sanbyakunen Mae no Boukun Ouji ni Tensei shite shimaimashita – Zense no Chishiki de Ansatsu Flag wo Kaihi shite, Odayaka ni Ikinokorimasu!/Chapter 10.1",
+      "normalizedKey": "rawkuma (ja)/tada no murabito no boku ga, sanbyakunen mae no boukun ouji ni tensei shite shimaimashita – zense no chishiki de ansatsu flag wo kaihi shite, odayaka ni ikinokorimasu!/chapter 10.1",
+      "pageCount": 18,
+      "provider": "Rawkuma (JA)",
+      "report": "artifacts/font-size-ai-lab/campaign-006/chapter-report.html",
+      "sealedAt": "2026-09-02T12:21:54.121Z",
+      "seed": "d1458f8304d9ef2db89b2ad1bfc4f9c6c692508a3b938cd755c3c8ec8aacf23f",
+      "series": "Tada no Murabito no Boku ga, Sanbyakunen Mae no Boukun Ouji ni Tensei shite shimaimashita – Zense no Chishiki de Ansatsu Flag wo Kaihi shite, Odayaka ni Ikinokorimasu!",
+      "status": "completed-promoted-fsai-lab-v0.6.0"
     }
   ]
 }

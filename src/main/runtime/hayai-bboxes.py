@@ -326,8 +326,16 @@ def process_page(
         raise RuntimeError("HayaiOCR region dimensions do not match the source image.")
     dialogue = require_regions(manifest.get("dialogueRegions"), "dialogue")
     effects = require_regions(manifest.get("effectRegions"), "effect")
-    work = [*dialogue, *effects]
-    recognized: dict[str, str] = {}
+    work: list[dict[str, Any]] = []
+    for region in [*dialogue, *effects]:
+        boxes = list(region.get("recognitionBboxes") or [region["bbox"]])
+        for segment_index, box in enumerate(boxes):
+            work.append({
+                "regionId": str(region["regionId"]),
+                "segmentIndex": segment_index,
+                "bbox": box,
+            })
+    recognized_parts: dict[str, list[tuple[int, str]]] = {}
     for offset in range(0, len(work), batch_size):
         batch = work[offset : offset + batch_size]
         crops = [crop_region(image, item["bbox"]) for item in batch]
@@ -337,7 +345,16 @@ def process_page(
             max_num_patches=max_num_patches,
         )
         for item, text in zip(batch, texts):
-            recognized[str(item["regionId"])] = normalize_text(text)
+            region_id = str(item["regionId"])
+            recognized_parts.setdefault(region_id, []).append(
+                (int(item["segmentIndex"]), normalize_text(text))
+            )
+    recognized = {
+        region_id: normalize_text("".join(
+            text for _index, text in sorted(parts, key=lambda value: value[0])
+        ))
+        for region_id, parts in recognized_parts.items()
+    }
     hints = [dialogue_hint(region, recognized.get(str(region["regionId"]), "")) for region in dialogue]
     effect_review = [effect_item(region, recognized.get(str(region["regionId"]), "")) for region in effects]
     payload = {
@@ -368,11 +385,54 @@ def require_regions(value: object, kind: str) -> list[dict[str, Any]]:
     for raw in value:
         if not isinstance(raw, dict) or raw.get("kind") != kind:
             raise RuntimeError(f"Invalid HayaiOCR {kind} region.")
-        box = raw.get("bbox")
-        if not isinstance(box, list) or len(box) != 4:
-            raise RuntimeError(f"Invalid HayaiOCR {kind} bbox.")
-        output.append(raw)
+        box = require_box(raw.get("bbox"), f"{kind} bbox")
+        normalized = dict(raw)
+        normalized["bbox"] = box
+        recognition_boxes = raw.get("recognitionBboxes")
+        if recognition_boxes is not None:
+            if (
+                kind != "dialogue"
+                or not isinstance(recognition_boxes, list)
+                or not 2 <= len(recognition_boxes) <= 8
+            ):
+                raise RuntimeError("Invalid HayaiOCR dialogue recognition segments.")
+            segments = [
+                require_box(segment, "dialogue recognition bbox")
+                for segment in recognition_boxes
+            ]
+            if any(not box_contains(box, segment) for segment in segments):
+                raise RuntimeError(
+                    "HayaiOCR dialogue recognition segment escapes its logical bbox."
+                )
+            normalized["recognitionBboxes"] = segments
+        output.append(normalized)
     return output
+
+
+def require_box(value: object, label: str) -> list[float]:
+    if not isinstance(value, list) or len(value) != 4:
+        raise RuntimeError(f"Invalid HayaiOCR {label}.")
+    try:
+        box = [float(item) for item in value]
+    except (TypeError, ValueError) as error:
+        raise RuntimeError(f"Invalid HayaiOCR {label}.") from error
+    if (
+        not all(math.isfinite(item) for item in box)
+        or box[2] <= box[0]
+        or box[3] <= box[1]
+    ):
+        raise RuntimeError(f"Invalid HayaiOCR {label}.")
+    return box
+
+
+def box_contains(container: Sequence[float], subject: Sequence[float]) -> bool:
+    tolerance = 0.001
+    return (
+        subject[0] >= container[0] - tolerance
+        and subject[1] >= container[1] - tolerance
+        and subject[2] <= container[2] + tolerance
+        and subject[3] <= container[3] + tolerance
+    )
 
 
 def crop_region(image: Image.Image, box: Sequence[object]) -> Image.Image:

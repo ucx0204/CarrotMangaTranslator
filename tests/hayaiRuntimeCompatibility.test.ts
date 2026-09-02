@@ -52,4 +52,20 @@ describe("HayaiOCR managed runner contract", () => {
     expect(prepass).toContain("detectPageTextRegions");
     expect(runner).toContain('OUTPUT_SCHEMA = "hayai-ocr-regions-v1"');
   });
+
+  it("recognizes logical dialogue fragments separately and joins them deterministically", () => {
+    expect(runner).toContain(
+      'boxes = list(region.get("recognitionBboxes") or [region["bbox"]])',
+    );
+    expect(runner).toContain('"segmentIndex": segment_index');
+    expect(runner).toContain(
+      "text for _index, text in sorted(parts, key=lambda value: value[0])",
+    );
+    expect(runner).toContain(
+      'raise RuntimeError("Invalid HayaiOCR dialogue recognition segments.")',
+    );
+    expect(runner).toContain(
+      '"HayaiOCR dialogue recognition segment escapes its logical bbox."',
+    );
+  });
 });

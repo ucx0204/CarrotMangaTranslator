@@ -473,6 +473,39 @@ major-axis pitch가 합의하고 연결 잉크·페이지 peer가 허용하는 �
   `evaluation.json`과 `verdict.json`이다. 실제 이미지 220개가 내장된 보고서는
   `artifacts/font-size-ai-lab/campaign-005/chapter-report.html`이다.
 
+## 캠페인 006 · 동일 말풍선 분할의 segmented recognition 승격
+
+봉인 화:
+`Rawkuma (JA)/Tada no Murabito no Boku ga, Sanbyakunen Mae no Boukun Ouji ni Tensei shite shimaimashita – Zense no Chishiki de Ansatsu Flag wo Kaihi shite, Odayaka ni Ikinokorimasu!/Chapter 10.1`
+
+- seed `d1458f8304d9ef2db89b2ad1bfc4f9c6c692508a3b938cd755c3c8ec8aacf23f`로
+  검사 전에 봉인했다. HayaiOCR CUDA/cu126로 18페이지를 실행하고 전체 오버레이 18/18과
+  일반 텍스트 crop 164/164를 각각 원본 해상도로 확대 확인했다. 효과음 31개는 사용자
+  선택 흐름이므로 판정·점수·수정에서 제외했다.
+- 기준선에서 P005 D004/D005, P009 D011/D012, P011 D010/D012가 각각 같은 말풍선의
+  한 발화인데 두 text mask로 갈라졌다. 세 건은 bubble ownership, detector confidence,
+  cross-axis overlap과 원 마스크를 함께 확인한 명확한 결함이다.
+- 실험 2는 같은 말풍선 조각을 큰 bbox 하나로 합쳐 HayaiOCR에 한 번 넣었다. geometry는
+  3/3 복원했지만 P005와 P011의 세로 열 읽기 순서가 섞여 OCR exact가 `1/3`에 그쳤다.
+  **논리 bbox 결합을 recognition crop 결합으로 대신하는 이 방식은 폐기하며 반복하지 않는다.**
+- 실험 3은 논리 bbox만 합치고 원 조각 bbox를 `recognitionBboxes`로 보존한다. HayaiOCR은
+  조각별로 읽은 뒤 세로로 쌓인 조각은 위→아래, 일본어 세로문장의 좌우 조각은 오른쪽→왼쪽
+  순서로 결합한다. 같은 bubble 소유, detector score `>=0.90`, mask area ratio `>=0.35`,
+  mask overlap `<=0.20`, cross-axis overlap `>=0.95`를 모두 요구한다.
+- 실제 결과는 세 대상 OCR exact `3/3`, 나머지 논리 영역 bbox·OCR·추정 크기
+  `158/158` 동일이다. 캠페인 001의 32페이지 캡처 회귀에서는 P032의 명확한 같은 말풍선
+  좌우 분할 한 건만 추가 복원됐고 육안으로 올바름을 확인했다.
+- P011 D004의 `64×1026px` 페이지 횡단 선형 일반 텍스트 오검출은 score가 0.90 미만이라
+  안전 gate가 보존했다. P010/P014/P016의 점묘 배경 굵은 문장과 P013 D013 등 또렷한
+  글자의 source-size abstain도 해결됐다고 표시하지 않고 다음 화 후보로 이월한다.
+- 3/5회 안에 실제 HayaiOCR과 과거 캡처 회귀에서 명확한 개선이 나왔으므로 수백 건 상세
+  조사 전환 조건은 발생하지 않았다. 제품 경로에 반영하고 내부 minor 버전을
+  `fsai-lab-v0.6.0`으로 올렸다.
+- 권위 결과는
+  `artifacts/font-size-ai-lab/campaign-006/exp-03-segmented-fragment-rejoin/`의
+  `evaluation.json`과 `verdict.json`이다. 전체 페이지와 최종 bbox, 변경 전 조각을 포함한
+  자체 포함 보고서는 `artifacts/font-size-ai-lab/campaign-006/chapter-report.html`이다.
+
 ## 내부 버전 승격 규칙
 
 - `v0.0.0`: 현재 제품 기준선.
@@ -494,6 +527,7 @@ major-axis pitch가 합의하고 연결 잉크·페이지 peer가 허용하는 �
 | `Isekai…/Chapter 4`        |     4/5 | raw lattice 폐기; peer-gated 교정 6개·과거 555개 회귀 통과    | `v0.3.0`  | `artifacts/font-size-ai-lab/campaign-003/chapter-report.html` |
 | `Saijaku…/Chapter 13.2`    |     2/5 | 낮은 mode 1개 복구·과거 706개 실제 제품 기대값 일치           | `v0.4.0`  | `artifacts/font-size-ai-lab/campaign-004/chapter-report.html` |
 | `Daisougen…/Chapter 4`     |     2/5 | 좁은 세로 1줄 과분할 2개 복구·과거 776개 추가 변경 없음       | `v0.5.0`  | `artifacts/font-size-ai-lab/campaign-005/chapter-report.html` |
+| `Tada no Murabito…/10.1`   |     3/5 | 동일 말풍선 분할 3개 복원·나머지 158개 exact parity           | `v0.6.0`  | `artifacts/font-size-ai-lab/campaign-006/chapter-report.html` |
 
 ## 워크트리 링크 주의
 

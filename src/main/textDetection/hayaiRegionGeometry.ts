@@ -14,6 +14,7 @@ type HayaiRegion = {
   kind: "dialogue" | "effect";
   bbox: PixelBox;
   detectorConfidence: number;
+  recognitionBboxes?: PixelBox[];
   sourceDetectionIds: string[];
 };
 
@@ -24,6 +25,7 @@ export type HayaiRegionManifest = {
   dialogueRegions: HayaiRegion[];
   effectRegions: HayaiRegion[];
   diagnostics: {
+    dialogueFragmentMerges: number;
     dialogueOverlapMerges: number;
     dialogueOverlapCuts: number;
     dialogueOwnershipSkips: number;
@@ -53,7 +55,10 @@ type MutableRegion = Omit<HayaiRegion, "id" | "regionId"> & {
   centroid: [number, number];
   maskArea: number;
   ownershipKeys: string[];
+  recognitionBboxes: PixelBox[];
 };
+
+type TextFragmentPair = readonly [string, string];
 
 const MIN_TEXT_CONTAINMENT = 0.55;
 const MIN_DUPLICATE_TEXT_MASK_OVERLAP = 0.75;
@@ -63,6 +68,11 @@ const TEXT_MASK_OUTLIER_MIN_AREA_GAIN = 1.25;
 const TEXT_BROAD_SPARSE_MIN_PAGE_AREA = 0.055;
 const TEXT_BROAD_SPARSE_MAX_DENSITY = 0.04;
 const TEXT_BROAD_SPARSE_MAX_CONTAINER_MASK_SUPPORT = 0.25;
+const TEXT_FRAGMENT_MIN_SCORE = 0.9;
+const TEXT_FRAGMENT_MIN_MASK_AREA_RATIO = 0.35;
+const TEXT_FRAGMENT_MAX_MASK_OVERLAP = 0.2;
+const TEXT_FRAGMENT_MIN_CROSS_AXIS_OVERLAP = 0.95;
+const TEXT_FRAGMENT_MIN_PRIMARY_AXIS_SEPARATION = 0.35;
 const FX_MAX_GROUP_GAP = 42;
 const FX_MIN_GROUP_GAP = 8;
 const FX_GAP_SCALE = 0.55;
@@ -94,12 +104,13 @@ export function buildHayaiRegionManifest(
   const textResult = rejectBroadSparseText(rawText, bubbles, panels);
   const text = textResult.kept;
   const assignments = assignTextToBubbles(text, bubbles);
-  const dialogue = buildDialogueRegions(
+  const dialogueResult = buildDialogueRegions(
     text,
     assignments,
     result.imageWidth,
     result.imageHeight,
   );
+  const dialogue = dialogueResult.regions;
   const effectResult = buildEffectRegions(
     effects,
     text,
@@ -112,6 +123,10 @@ export function buildHayaiRegionManifest(
     result.imageWidth,
     result.imageHeight,
     2,
+  );
+  const dialogueFragmentMerges = mergeDialogueFragments(
+    dialogue,
+    dialogueResult.fragmentPairs,
   );
   const effectRectification = rectifyOverlaps(
     effectResult.regions,
@@ -126,6 +141,7 @@ export function buildHayaiRegionManifest(
     dialogueRegions: finalizeRegions(dialogue, "dialogue"),
     effectRegions: finalizeRegions(effectResult.regions, "effect"),
     diagnostics: {
+      dialogueFragmentMerges,
       dialogueOverlapMerges: dialogueRectification.merges,
       dialogueOverlapCuts: dialogueRectification.cuts,
       dialogueOwnershipSkips: dialogueRectification.ownershipSkips,
@@ -340,7 +356,7 @@ function buildDialogueRegions(
   assignments: Map<MaskDetection, MaskDetection>,
   width: number,
   height: number,
-): MutableRegion[] {
+): { regions: MutableRegion[]; fragmentPairs: TextFragmentPair[] } {
   const ownershipByText = new Map(
     text.map((item) => [
       item,
@@ -348,6 +364,7 @@ function buildDialogueRegions(
     ]),
   );
   const groups = new DisjointSet(text.length);
+  const fragmentPairs: TextFragmentPair[] = [];
   for (let left = 0; left < text.length; left += 1) {
     for (let right = left + 1; right < text.length; right += 1) {
       const sameBubble =
@@ -358,6 +375,11 @@ function buildDialogueRegions(
       if (!sameBubble && !bothUncontained) continue;
       if (isDuplicateText(text[left], text[right], bothUncontained)) {
         groups.union(left, right);
+      } else if (
+        sameBubble &&
+        isSameBubbleTextFragment(text[left], text[right])
+      ) {
+        fragmentPairs.push([text[left].detectionId, text[right].detectionId]);
       }
     }
   }
@@ -366,18 +388,125 @@ function buildDialogueRegions(
     const root = groups.find(index);
     membersByRoot.set(root, [...(membersByRoot.get(root) ?? []), item]);
   });
-  return [...membersByRoot.values()].map((members) =>
-    createRegion(
-      members,
-      "dialogue",
-      width,
-      height,
-      5,
-      members.map(
-        (member) => ownershipByText.get(member) ?? `free:${member.detectionId}`,
+  return {
+    regions: [...membersByRoot.values()].map((members) =>
+      createRegion(
+        members,
+        "dialogue",
+        width,
+        height,
+        5,
+        members.map(
+          (member) =>
+            ownershipByText.get(member) ?? `free:${member.detectionId}`,
+        ),
       ),
     ),
+    fragmentPairs,
+  };
+}
+
+function isSameBubbleTextFragment(
+  first: MaskDetection,
+  second: MaskDetection,
+): boolean {
+  if (
+    Math.min(first.detection.score, second.detection.score) <
+    TEXT_FRAGMENT_MIN_SCORE
+  ) {
+    return false;
+  }
+  const smallerMask = Math.max(1, Math.min(first.maskArea, second.maskArea));
+  const largerMask = Math.max(1, Math.max(first.maskArea, second.maskArea));
+  const maskAreaRatio = smallerMask / largerMask;
+  const maskOverlap = maskIntersection(first, second) / smallerMask;
+  if (
+    maskAreaRatio < TEXT_FRAGMENT_MIN_MASK_AREA_RATIO ||
+    maskOverlap > TEXT_FRAGMENT_MAX_MASK_OVERLAP ||
+    boxIntersection(first.maskBox, second.maskBox) <= 0
+  ) {
+    return false;
+  }
+  const firstWidth = Math.max(1, first.maskBox[2] - first.maskBox[0]);
+  const firstHeight = Math.max(1, first.maskBox[3] - first.maskBox[1]);
+  const secondWidth = Math.max(1, second.maskBox[2] - second.maskBox[0]);
+  const secondHeight = Math.max(1, second.maskBox[3] - second.maskBox[1]);
+  const horizontalOverlap = axisOverlap(
+    first.maskBox[0],
+    first.maskBox[2],
+    second.maskBox[0],
+    second.maskBox[2],
   );
+  const verticalOverlap = axisOverlap(
+    first.maskBox[1],
+    first.maskBox[3],
+    second.maskBox[1],
+    second.maskBox[3],
+  );
+  const horizontalSeparation =
+    Math.abs(
+      (first.maskBox[0] + first.maskBox[2]) / 2 -
+        (second.maskBox[0] + second.maskBox[2]) / 2,
+    ) / Math.min(firstWidth, secondWidth);
+  const verticalSeparation =
+    Math.abs(
+      (first.maskBox[1] + first.maskBox[3]) / 2 -
+        (second.maskBox[1] + second.maskBox[3]) / 2,
+    ) / Math.min(firstHeight, secondHeight);
+  return (
+    (horizontalOverlap >= TEXT_FRAGMENT_MIN_CROSS_AXIS_OVERLAP &&
+      verticalSeparation >= TEXT_FRAGMENT_MIN_PRIMARY_AXIS_SEPARATION) ||
+    (verticalOverlap >= TEXT_FRAGMENT_MIN_CROSS_AXIS_OVERLAP &&
+      horizontalSeparation >= TEXT_FRAGMENT_MIN_PRIMARY_AXIS_SEPARATION)
+  );
+}
+
+function mergeDialogueFragments(
+  regions: MutableRegion[],
+  fragmentPairs: readonly TextFragmentPair[],
+): number {
+  let merges = 0;
+  for (const [firstId, secondId] of fragmentPairs) {
+    const firstIndex = regions.findIndex((region) =>
+      region.sourceDetectionIds.includes(firstId),
+    );
+    const secondIndex = regions.findIndex((region) =>
+      region.sourceDetectionIds.includes(secondId),
+    );
+    if (firstIndex < 0 || secondIndex < 0 || firstIndex === secondIndex) {
+      continue;
+    }
+    const first = regions[firstIndex];
+    const second = regions[secondIndex];
+    const verticalStack =
+      axisOverlap(
+        first.bbox[0],
+        first.bbox[2],
+        second.bbox[0],
+        second.bbox[2],
+      ) >=
+      axisOverlap(first.bbox[1], first.bbox[3], second.bbox[1], second.bbox[3]);
+    const recognitionBboxes = [
+      ...(first.recognitionBboxes.length
+        ? first.recognitionBboxes
+        : [first.bbox]),
+      ...(second.recognitionBboxes.length
+        ? second.recognitionBboxes
+        : [second.bbox]),
+    ].sort((left, right) =>
+      verticalStack
+        ? left[1] - right[1] || right[0] - left[0]
+        : right[0] - left[0] || left[1] - right[1],
+    );
+    const merged = mergeRegions(first, second);
+    merged.recognitionBboxes = recognitionBboxes;
+    const keepIndex = Math.min(firstIndex, secondIndex);
+    const removeIndex = Math.max(firstIndex, secondIndex);
+    regions[keepIndex] = merged;
+    regions.splice(removeIndex, 1);
+    merges += 1;
+  }
+  return merges;
 }
 
 function isDuplicateText(
@@ -703,6 +832,7 @@ function createRegion(
     centroid,
     maskArea,
     ownershipKeys: [...new Set(ownershipKeys)],
+    recognitionBboxes: [],
   };
 }
 
@@ -934,6 +1064,10 @@ function mergeRegions(
     ownershipKeys: [
       ...new Set([...first.ownershipKeys, ...second.ownershipKeys]),
     ],
+    recognitionBboxes: [
+      ...first.recognitionBboxes,
+      ...second.recognitionBboxes,
+    ],
   };
 }
 
@@ -955,6 +1089,14 @@ function finalizeRegions(
       ) as PixelBox,
       detectorConfidence:
         Math.round(region.detectorConfidence * 1_000_000) / 1_000_000,
+      ...(region.recognitionBboxes.length > 1
+        ? {
+            recognitionBboxes: region.recognitionBboxes.map(
+              (box) =>
+                box.map((value) => Math.round(value * 1000) / 1000) as PixelBox,
+            ),
+          }
+        : {}),
       sourceDetectionIds: region.sourceDetectionIds,
     }));
 }
