@@ -170,7 +170,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       }),
     ).toEqual({
       modelProvider: "gemma",
-      gemmaVramMode: "full31b",
+      gemmaVramMode: "economy26b",
       ocrDevice: "gpu",
       ocrQualityMode: "full",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
@@ -204,7 +204,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       }),
     ).toEqual({
       modelProvider: "gemma",
-      gemmaVramMode: "full31b",
+      gemmaVramMode: "economy26b",
       ocrDevice: "gpu",
       ocrQualityMode: "full",
       ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
@@ -275,7 +275,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       }),
     ).toEqual({
       modelProvider: "gemma",
-      gemmaVramMode: "full31b",
+      gemmaVramMode: "economy26b",
       ocrDevice: "gpu",
       ocrQualityMode: "full",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,

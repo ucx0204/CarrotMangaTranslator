@@ -27,6 +27,7 @@ import {
   GEMMA_31B_QAT_MODEL_REPO,
   GEMMA_31B_QAT_MTP_MODEL_FILE,
   GEMMA_31B_QAT_MTP_MODEL_REPO,
+  GEMMA_MODEL_PRESETS,
 } from "../src/shared/modelPresets";
 
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
@@ -126,7 +127,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
       join(
         "C:/app-data",
         "tools",
-        "lemonade-llama-b1291-rocm-gfx110X",
+        "lemonade-llama-b1317-rocm-gfx110X",
         "llama-server.exe",
       ),
     );
@@ -151,7 +152,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
         ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
         gemma: {
           ...defaults.gemma,
-          vramMode: "economy26b",
+          ...GEMMA_MODEL_PRESETS.economy26b,
         },
         ocr: {
           ...defaults.ocr,
@@ -410,7 +411,14 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
         hfHomeDir: "C:/hf-home",
         hfHubCacheDir: "C:/hf-home/hub",
       },
-      settings: defaults,
+      settings: {
+        ...defaults,
+        gemma: {
+          ...defaults.gemma,
+          ...GEMMA_MODEL_PRESETS.full31b,
+          fitTargetMb: 1536,
+        },
+      },
       env: {},
     });
 

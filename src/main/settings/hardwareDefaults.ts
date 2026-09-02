@@ -25,7 +25,6 @@ import { resolveWindowsHipSdkGpuSupport } from "./fluxZludaSupport";
 
 const GEMMA_MINIMUM_VRAM_MB = 8000;
 const GEMMA_ECONOMY_VRAM_MB = 16000;
-const GEMMA_FULL_VRAM_MB = 24000;
 const GEMMA_APPLE_MINIMUM_UNIFIED_MEMORY_MB = 16 * 1024;
 const GEMMA_APPLE_ECONOMY_UNIFIED_MEMORY_MB = 24 * 1024;
 const GEMMA_APPLE_FULL_UNIFIED_MEMORY_MB = 32 * 1024;
@@ -152,9 +151,6 @@ function resolveGemmaDefaultVramMode(
       return "economy26b";
     }
     return "minimum12b";
-  }
-  if (memoryMb >= GEMMA_FULL_VRAM_MB) {
-    return "full31b";
   }
   if (memoryMb >= GEMMA_ECONOMY_VRAM_MB) {
     return "economy26b";

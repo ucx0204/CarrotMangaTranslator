@@ -131,15 +131,18 @@ describe("settings store", () => {
     }));
 
     expect(lowMemoryDefaults.gemma).toMatchObject({
+      vramMode: "minimum12b",
       fitTargetMb: 512,
       mmprojOffload: false,
     });
     expect(largerMemoryDefaults.gemma).toMatchObject({
+      vramMode: "economy26b",
       fitTargetMb: 1024,
       mmprojOffload: true,
     });
     expect(fullMemoryDefaults.gemma).toMatchObject({
-      fitTargetMb: 1536,
+      vramMode: "economy26b",
+      fitTargetMb: 1024,
       mmprojOffload: true,
     });
   });

@@ -174,11 +174,11 @@ The Settings window is divided into six tabs.
 | OpenAI Codex | Uses the embedded official Codex App Server and an app-private ChatGPT sign-in; no API key is stored in the app | A ChatGPT account with Codex access and an internet connection                     |
 | API          | Connects to OpenAI-compatible vision models, local servers, NVIDIA NIM, Gemini-compatible endpoints, and more   | A Base URL, the name of an image-capable model, and an API key if required         |
 
-As a general guide, try the Gemma presets in this order:
+The `Speed (recommended)` model family is the default. The automatic size choice is:
 
-- Around 8 GB VRAM: `12B Minimal`
-- Around 16 GB VRAM: `26B Efficient`
-- 24 GB VRAM or more: `31B Full`
+- Around 8 GB VRAM: `12B`
+- 16 GB VRAM or more, including 24 GB and larger cards: `26B`
+- `31B`: select it manually when you prefer it over the faster default
 - Specialized configurations: `Custom`
 
 OCR quality options are `Minimal`, `Efficient`, and `Full`. `Full` uses the PP-OCRv6 Transformers semantic pipeline and requires a supported GPU; on CPU, start with `Efficient`.

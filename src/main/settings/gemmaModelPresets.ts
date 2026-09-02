@@ -31,7 +31,7 @@ type GemmaModelPreset = Pick<
   "modelRepo" | "modelFile" | "mmprojRepo" | "mmprojFile"
 >;
 
-export function getDefaultGemmaPresetForVramMode(
+export function getLegacyGemmaPresetForVramMode(
   vramMode: GemmaVramMode,
 ): GemmaModelPreset {
   if (vramMode === "minimum12b") {
@@ -58,6 +58,33 @@ export function getDefaultGemmaPresetForVramMode(
   };
 }
 
+export function getDefaultGemmaPresetForVramMode(
+  vramMode: GemmaVramMode,
+): GemmaModelPreset {
+  if (vramMode === "minimum12b") {
+    return {
+      modelRepo: GEMMA_12B_QAT_MODEL_REPO,
+      modelFile: GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+      mmprojRepo: GEMMA_12B_QAT_MMPROJ_REPO,
+      mmprojFile: GEMMA_12B_QAT_MMPROJ_FILE,
+    };
+  }
+  if (vramMode === "economy26b") {
+    return {
+      modelRepo: GEMMA_26B_QAT_MODEL_REPO,
+      modelFile: GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+      mmprojRepo: GEMMA_26B_QAT_MMPROJ_REPO,
+      mmprojFile: GEMMA_26B_QAT_MMPROJ_FILE,
+    };
+  }
+  return {
+    modelRepo: GEMMA_31B_QAT_MODEL_REPO,
+    modelFile: GEMMA_31B_QAT_MODEL_FILE_Q4_K_M,
+    mmprojRepo: GEMMA_31B_QAT_MMPROJ_REPO,
+    mmprojFile: GEMMA_31B_QAT_MMPROJ_FILE,
+  };
+}
+
 export function getModeAwareGemmaDefaults(
   defaults: AppSettings,
   vramMode: GemmaVramMode,
@@ -66,6 +93,9 @@ export function getModeAwareGemmaDefaults(
     modelRepo: defaults.gemma.modelRepo,
     modelFile: defaults.gemma.modelFile,
   };
+  if (isSpeedGemmaModel(currentDefaultModel)) {
+    return getDefaultGemmaPresetForVramMode(vramMode);
+  }
   if (!isModeManagedGemmaModel(currentDefaultModel)) {
     return {
       modelRepo: defaults.gemma.modelRepo,
@@ -74,7 +104,7 @@ export function getModeAwareGemmaDefaults(
       mmprojFile: defaults.gemma.mmprojFile,
     };
   }
-  return getDefaultGemmaPresetForVramMode(vramMode);
+  return getLegacyGemmaPresetForVramMode(vramMode);
 }
 
 export function resolveRuntimeGemmaSettings(
@@ -92,7 +122,7 @@ export function resolveRuntimeGemmaSettings(
 
   return {
     ...gemma,
-    ...getDefaultGemmaPresetForVramMode(vramMode),
+    ...getLegacyGemmaPresetForVramMode(vramMode),
   };
 }
 

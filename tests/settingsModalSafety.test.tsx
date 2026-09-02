@@ -11,6 +11,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import exampleSettings from "../settings.example.json";
+import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { SettingsModal } from "../src/renderer/src/components/SettingsModal";
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
@@ -248,6 +249,31 @@ describe("settings draft safety", () => {
         }),
       }),
     );
+  });
+
+  it("shows a 24 GB GPU default as the speed-family 26B preset", () => {
+    const settings = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 4090",
+        memoryMb: 24564,
+        rtxGeneration: 40,
+        computeCapability: 8.9,
+        vendor: "nvidia",
+      },
+    );
+    renderSettings({ settings });
+
+    fireEvent.click(screen.getByRole("tab", { name: "LLM" }));
+    const familyGroup = screen.getByRole("group", { name: "모델 계열" });
+    const presetGroup = screen.getByRole("group", { name: "모델 프리셋" });
+
+    expect(
+      within(familyGroup).getByRole("button", { name: "속도(추천)" }),
+    ).toHaveProperty("ariaPressed", "true");
+    expect(
+      within(presetGroup).getByRole("button", { name: "26B (16GB)" }),
+    ).toHaveProperty("ariaPressed", "true");
   });
 
   it("warns when the selected model needs more VRAM than the detected GPU", () => {

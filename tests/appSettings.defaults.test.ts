@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   resolveDefaultAppSettings,
-  GEMMA_12B_MODEL_REPO,
-  GEMMA_12B_MODEL_FILE_Q4_K_M,
-  GEMMA_12B_MMPROJ_REPO,
-  GEMMA_12B_MMPROJ_FILE,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
   DEFAULT_API_BASE_URL,
@@ -21,7 +17,6 @@ import {
   DEFAULT_MAX_TOKENS,
   DEFAULT_CONTEXT_TOKENS,
   parseStoredAppSettings,
-  DEFAULT_GEMMA_MODEL_FILE,
   DEFAULT_GEMMA_MAX_TOKENS,
   DEFAULT_GEMMA_CONTEXT_TOKENS,
   GEMMA_26B_MODEL_REPO,
@@ -29,6 +24,18 @@ import {
   RTX_50_OCR_GPU_CUDA_TAG,
   buildBaseTranslationOptions,
 } from "../src/main/appSettings";
+import {
+  GEMMA_12B_QAT_MMPROJ_FILE,
+  GEMMA_12B_QAT_MMPROJ_REPO,
+  GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_12B_QAT_MODEL_REPO,
+  GEMMA_26B_QAT_MMPROJ_FILE,
+  GEMMA_26B_QAT_MMPROJ_REPO,
+  GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_26B_QAT_MODEL_REPO,
+  GEMMA_31B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_31B_QAT_MODEL_REPO,
+} from "../src/shared/modelPresets";
 import type { AppSettings } from "../src/shared/settingsTypes";
 
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
@@ -37,11 +44,13 @@ describeWindows("app settings helpers: defaults and stored values", () => {
   it("uses Codex as the hardware-safe fallback when GPU detection is unavailable", () => {
     const defaults = resolveDefaultAppSettings();
 
-    expect(defaults.gemma.modelRepo).toBe(GEMMA_12B_MODEL_REPO);
-    expect(defaults.gemma.modelFile).toBe(GEMMA_12B_MODEL_FILE_Q4_K_M);
-    expect(defaults.gemma.mmprojRepo).toBe(GEMMA_12B_MMPROJ_REPO);
-    expect(defaults.gemma.mmprojFile).toBe(GEMMA_12B_MMPROJ_FILE);
-    expect(defaults.gemma.mmprojFile).toBe("mmproj-gemma-4-12B-it-BF16.gguf");
+    expect(defaults.gemma.modelRepo).toBe(GEMMA_12B_QAT_MODEL_REPO);
+    expect(defaults.gemma.modelFile).toBe(GEMMA_12B_QAT_MODEL_FILE_Q4_K_M);
+    expect(defaults.gemma.mmprojRepo).toBe(GEMMA_12B_QAT_MMPROJ_REPO);
+    expect(defaults.gemma.mmprojFile).toBe(GEMMA_12B_QAT_MMPROJ_FILE);
+    expect(defaults.gemma.mmprojFile).toBe(
+      "mmproj-Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced-BF16.gguf",
+    );
     expect(defaults.gemma.fitTargetMb).toBe(512);
     expect(defaults.gemma.mmprojOffload).toBe(true);
     expect(defaults.modelProvider).toBe("openai-codex");
@@ -366,13 +375,13 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       "openai-codex",
     );
     expect(resolveDefaultAppSettings({}, 12000).gemma.modelFile).toBe(
-      GEMMA_12B_MODEL_FILE_Q4_K_M,
+      GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
     );
     expect(resolveDefaultAppSettings({}, 24564).modelProvider).toBe(
       "openai-codex",
     );
     expect(resolveDefaultAppSettings({}, 32768).gemma.modelFile).toBe(
-      GEMMA_12B_MODEL_FILE_Q4_K_M,
+      GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
     );
     const rtx4090Defaults = resolveDefaultAppSettings(
       {},
@@ -384,9 +393,12 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       },
     );
     expect(rtx4090Defaults.modelProvider).toBe("gemma");
-    expect(rtx4090Defaults.gemma.vramMode).toBe("full31b");
-    expect(rtx4090Defaults.gemma.fitTargetMb).toBe(1536);
-    expect(rtx4090Defaults.gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
+    expect(rtx4090Defaults.gemma.vramMode).toBe("economy26b");
+    expect(rtx4090Defaults.gemma.fitTargetMb).toBe(1024);
+    expect(rtx4090Defaults.gemma.modelRepo).toBe(GEMMA_26B_QAT_MODEL_REPO);
+    expect(rtx4090Defaults.gemma.modelFile).toBe(
+      GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+    );
     expect(rtx4090Defaults.maxTokens).toBe(DEFAULT_GEMMA_MAX_TOKENS);
     expect(rtx4090Defaults.ctx).toBe(DEFAULT_GEMMA_CONTEXT_TOKENS);
     expect(rtx4090Defaults.maxTokens).toBe(24576);
@@ -403,20 +415,18 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(rtx5070Defaults.modelProvider).toBe("gemma");
     expect(rtx5070Defaults.gemma.vramMode).toBe("economy26b");
     expect(rtx5070Defaults.gemma.fitTargetMb).toBe(1024);
-    expect(rtx5070Defaults.gemma.modelRepo).toBe(GEMMA_26B_MODEL_REPO);
-    expect(rtx5070Defaults.gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
+    expect(rtx5070Defaults.gemma.modelRepo).toBe(GEMMA_26B_QAT_MODEL_REPO);
+    expect(rtx5070Defaults.gemma.modelFile).toBe(
+      GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+    );
     expect(rtx5070Defaults.gemma.modelRepo).toBe(
-      "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF",
+      "HauhauCS/Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-MTP",
     );
     expect(rtx5070Defaults.gemma.modelFile).toBe(
-      "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf",
+      "Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf",
     );
-    expect(rtx5070Defaults.gemma.mmprojRepo).toBe(
-      "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF",
-    );
-    expect(rtx5070Defaults.gemma.mmprojFile).toBe(
-      "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf",
-    );
+    expect(rtx5070Defaults.gemma.mmprojRepo).toBe(GEMMA_26B_QAT_MMPROJ_REPO);
+    expect(rtx5070Defaults.gemma.mmprojFile).toBe(GEMMA_26B_QAT_MMPROJ_FILE);
     expect(rtx5070Defaults.ocr.gpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
   });
 
@@ -449,6 +459,44 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(aboveBoundaryDefaults.gemma).toMatchObject({
       fitTargetMb: 512,
       mmprojOffload: true,
+    });
+  });
+
+  it("keeps explicit legacy choices while mode-only defaults stay in the speed family", () => {
+    const defaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 4090",
+        memoryMb: 24564,
+        rtxGeneration: 40,
+        computeCapability: 8.9,
+        vendor: "nvidia",
+      },
+    );
+    const fullModeDefaults = parseStoredAppSettings(
+      JSON.stringify({ gemma: { vramMode: "full31b" } }),
+      defaults,
+    );
+    const savedLegacy = parseStoredAppSettings(
+      JSON.stringify({
+        gemma: {
+          modelRepo: GEMMA_26B_MODEL_REPO,
+          modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
+          vramMode: "economy26b",
+        },
+      }),
+      defaults,
+    );
+
+    expect(fullModeDefaults.gemma).toMatchObject({
+      modelRepo: GEMMA_31B_QAT_MODEL_REPO,
+      modelFile: GEMMA_31B_QAT_MODEL_FILE_Q4_K_M,
+      vramMode: "full31b",
+    });
+    expect(savedLegacy.gemma).toMatchObject({
+      modelRepo: GEMMA_26B_MODEL_REPO,
+      modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
+      vramMode: "economy26b",
     });
   });
 

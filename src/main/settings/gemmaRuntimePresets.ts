@@ -167,8 +167,6 @@ function resolveQatGemmaCudaOverride(
     cacheTypeK: "q4_0",
     cacheTypeV: "q4_0",
     ctxCheckpoints: 0,
-    kvOffload: true,
-    mmprojOffload: true,
     disableMmap: true,
     threads: 10,
     threadsBatch: 12,

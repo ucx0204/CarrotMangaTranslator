@@ -41,6 +41,7 @@ import {
   GEMMA_31B_QAT_MMPROJ_REPO,
   GEMMA_31B_QAT_MTP_MODEL_FILE,
   GEMMA_31B_QAT_MTP_MODEL_REPO,
+  GEMMA_MODEL_PRESETS,
 } from "../src/shared/modelPresets";
 
 describe("QAT Gemma runtime preset routing", () => {
@@ -218,11 +219,15 @@ describe("QAT Gemma runtime preset routing", () => {
       modelSource: "local" as const,
       localModelPath: "C:/models/custom.gguf",
     };
+    const nonQatGemma = {
+      ...defaults.gemma,
+      ...GEMMA_MODEL_PRESETS.minimum12b,
+    };
 
     expect(resolveModelSpecificGemmaRuntimePreset(preset, localGemma)).toBe(
       preset,
     );
-    expect(resolveModelSpecificGemmaRuntimePreset(preset, defaults.gemma)).toBe(
+    expect(resolveModelSpecificGemmaRuntimePreset(preset, nonQatGemma)).toBe(
       preset,
     );
   });

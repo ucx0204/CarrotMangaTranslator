@@ -174,11 +174,11 @@ Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 
 | OpenAI Codex | 使用內建的官方 Codex App Server 和應用程式專用 ChatGPT 登入，不儲存 API 金鑰 | 可使用 Codex 的 ChatGPT 帳號、網路連線                           |
 | API          | 可連接相容 OpenAI 的視覺模型、本機伺服器、NVIDIA NIM、相容 Gemini 的端點等   | Base URL、支援圖片輸入的模型名稱，以及視需要提供 API 金鑰        |
 
-可大致依照以下順序選擇 Gemma 預設。
+模型系列預設使用`速度（建議）`。模型大小會自動依照以下規則選擇。
 
-- 約 8 GB VRAM：`12B 最小`
-- 約 16 GB VRAM：`26B 省資源`
-- 24 GB 或更多 VRAM：`31B 完整載入`
+- 約 8 GB VRAM：`12B`
+- 16 GB 或更多 VRAM（包含 24 GB 及以上顯示卡）：`26B`
+- `31B`：希望優先於較快的預設選項時手動選擇
 - 特殊設定：`自訂`
 
 OCR 品質分為 `最小`、`省資源` 和 `完整載入`。`完整載入`使用 PP-OCRv6 Transformers 語意路徑並需要支援的 GPU；使用 CPU 時請從`省資源`開始。

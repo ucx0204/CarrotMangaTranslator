@@ -30,7 +30,7 @@ import {
   resolveOptionalString,
 } from "./appSettingsResolvers";
 import {
-  getDefaultGemmaPresetForVramMode,
+  getLegacyGemmaPresetForVramMode,
   getDefaultMmprojForGemmaModel,
   isBuiltInGemmaMmproj,
   isModeManagedGemmaModel,
@@ -250,7 +250,7 @@ export function resolveStoredGemmaModel(
   }
   const resolvedModel = { modelRepo, modelFile };
   if (isModeManagedGemmaModel(resolvedModel)) {
-    const preset = getDefaultGemmaPresetForVramMode(vramMode);
+    const preset = getLegacyGemmaPresetForVramMode(vramMode);
     return {
       modelRepo: preset.modelRepo,
       modelFile: preset.modelFile,

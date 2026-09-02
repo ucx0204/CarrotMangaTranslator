@@ -8,6 +8,7 @@ import {
 } from "../src/main/appSettings";
 import { join } from "node:path";
 import type { AppSettings } from "../src/shared/settingsTypes";
+import { GEMMA_MODEL_PRESETS } from "../src/shared/modelPresets";
 import {
   resolveStoredLlamaRocmTarget,
   resolveStoredOcrGpuCudaTag,
@@ -117,10 +118,10 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(economyOptions.llamaRuntimeProfile).toBe("rtx50");
     expect(economyOptions.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
     expect(economyOptions.serverPath).toBe(
-      join("C:/app-data", "tools", "llama-b9553-cuda13.3", "llama-server.exe"),
+      join("C:/app-data", "tools", "llama-b10621-cuda13.3", "llama-server.exe"),
     );
 
-    const rtx50FullDefaults = resolveDefaultAppSettings(
+    const rtx50LargeDefaults = resolveDefaultAppSettings(
       {},
       {
         name: "NVIDIA GeForce RTX 5090",
@@ -129,9 +130,9 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
         computeCapability: 12,
       },
     );
-    const fullOptions = buildBaseTranslationOptions({
-      jobId: "job-rtx50-full",
-      runDir: "C:/runs/job-rtx50-full",
+    const largeOptions = buildBaseTranslationOptions({
+      jobId: "job-rtx50-large",
+      runDir: "C:/runs/job-rtx50-large",
       paths: {
         dataRoot: "C:/app-data",
         toolsDir: "C:/tools",
@@ -139,18 +140,14 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
         hfHomeDir: "C:/hf-home",
         hfHubCacheDir: "C:/hf-home/hub",
       },
-      settings: rtx50FullDefaults,
+      settings: rtx50LargeDefaults,
       env: {},
     });
 
-    expect(fullOptions.llamaRuntimeProfile).toBe("rtx50");
-    expect(fullOptions.serverPath).toBe(
-      join(
-        "C:/app-data",
-        "tools",
-        "beellama-v0.2.0-cuda13.1",
-        "llama-server.exe",
-      ),
+    expect(rtx50LargeDefaults.gemma.vramMode).toBe("economy26b");
+    expect(largeOptions.llamaRuntimeProfile).toBe("rtx50");
+    expect(largeOptions.serverPath).toBe(
+      join("C:/app-data", "tools", "llama-b10621-cuda13.3", "llama-server.exe"),
     );
   });
 
@@ -167,6 +164,13 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
         supportsRocm: false,
       },
     );
+    const fullLegacySettings: AppSettings = {
+      ...amdDefaults,
+      gemma: {
+        ...amdDefaults.gemma,
+        ...GEMMA_MODEL_PRESETS.full31b,
+      },
+    };
     const options = buildBaseTranslationOptions({
       jobId: "job-amd-rocm",
       runDir: "C:/runs/job-amd-rocm",
@@ -177,12 +181,13 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
         hfHomeDir: "C:/hf-home",
         hfHubCacheDir: "C:/hf-home/hub",
       },
-      settings: amdDefaults,
+      settings: fullLegacySettings,
       env: {},
     });
 
-    expect(amdDefaults.gemma.llamaRuntimeProfile).toBe("rocm");
-    expect(amdDefaults.gemma.llamaRocmTarget).toBe("gfx110X");
+    expect(fullLegacySettings.gemma.vramMode).toBe("full31b");
+    expect(fullLegacySettings.gemma.llamaRuntimeProfile).toBe("rocm");
+    expect(fullLegacySettings.gemma.llamaRocmTarget).toBe("gfx110X");
     expect(options.llamaRuntimeProfile).toBe("rocm");
     expect(options.llamaRocmTarget).toBe("gfx110X");
     expect(options.ocrPipeline).toBe("hayai");
@@ -267,7 +272,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
       join(
         "C:/app-data",
         "tools",
-        "lemonade-llama-b1291-rocm-gfx110X",
+        "lemonade-llama-b1317-rocm-gfx110X",
         "llama-server.exe",
       ),
     );
@@ -574,7 +579,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(nvidiaDefaults.ocr.qualityMode).toBe("full");
 
     // Hardware defaults: a 32GB AMD card without Windows ROCm OCR support
-    // gets CPU OCR, so the full31b tier must not select GPU-only full quality.
+    // gets CPU OCR independently of the 26B Gemma default.
     const w6800Defaults = resolveDefaultAppSettings(
       {},
       {
@@ -587,7 +592,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
         supportsRocm: false,
       },
     );
-    expect(w6800Defaults.gemma.vramMode).toBe("full31b");
+    expect(w6800Defaults.gemma.vramMode).toBe("economy26b");
     expect(w6800Defaults.ocr.device).toBe("cpu");
     expect(w6800Defaults.ocr.qualityMode).toBe("economy");
 
@@ -959,12 +964,12 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(cuda12Options.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
     expect(cuda12Options.llamaRuntimeProfile).toBe("cuda12");
     expect(cuda12Options.serverPath).toBe(
-      join("C:/app-data", "tools", "llama-b9553-cuda12.4", "llama-server.exe"),
+      join("C:/app-data", "tools", "llama-b10621-cuda12.4", "llama-server.exe"),
     );
     expect(rtx50Options.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
     expect(rtx50Options.llamaRuntimeProfile).toBe("rtx50");
     expect(rtx50Options.serverPath).toBe(
-      join("C:/app-data", "tools", "llama-b9553-cuda13.3", "llama-server.exe"),
+      join("C:/app-data", "tools", "llama-b10621-cuda13.3", "llama-server.exe"),
     );
   });
 

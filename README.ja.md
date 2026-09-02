@@ -174,11 +174,11 @@ Apple Silicon向け正式版には、arm64版FFmpeg、Paddle OCRをCPUで実行�
 | OpenAI Codex | 内蔵の公式Codex App Serverとアプリ専用のChatGPTログインを使用し、APIキーを保存しない             | Codexを利用できるChatGPTアカウント、インターネット接続           |
 | API          | OpenAI互換のビジョンモデル、ローカルサーバー、NVIDIA NIM、Gemini互換エンドポイントなどに接続可能 | Base URL、画像入力対応モデルの名前、必要に応じてAPIキー          |
 
-Gemmaのプリセットは、おおよそ次の順で試せます。
+モデル系統は`速度（推奨）`がデフォルトです。モデルサイズは自動的に次のように選択されます。
 
-- VRAM 8GBクラス：`12B 最小`
-- VRAM 16GBクラス：`26B 省メモリ`
-- VRAM 24GB以上：`31B フル`
+- VRAM 8GBクラス：`12B`
+- VRAM 16GB以上（24GB以上を含む）：`26B`
+- `31B`：高速なデフォルトより優先したい場合に手動で選択
 - 特殊な構成：`カスタム`
 
 OCR品質は`最小`、`省メモリ`、`フル`の3種類です。`フル`はPP-OCRv6 Transformersのセマンティック経路を使用し、対応GPUが必要です。CPUでは`省メモリ`から始めてください。
