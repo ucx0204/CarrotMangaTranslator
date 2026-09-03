@@ -136,9 +136,12 @@ const allowedElectronLocales = new Set([
 // omission adds one model-prompt runtime leaf. Fixed-block recovery adds the
 // partial-response parser and bounded repair loop as two production runtime
 // leaves. Gemma speed routing and MTP fitting add three model leaves plus one
-// transport calibration flow. Keep the resulting payload ceiling exact so
-// unrelated growth fails closed.
-const MAX_PACKAGED_FILES = 308;
+// transport calibration flow. HayaiOCR and reviewed sound-effect translation
+// add the detector, engine contract, four pinned environment locks, isolated
+// import/path helpers, shell argument parser, and sound-effect request contract.
+// Keep the resulting 314-file thin payload ceiling exact so unrelated growth
+// fails closed.
+const MAX_PACKAGED_FILES = 314;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the
