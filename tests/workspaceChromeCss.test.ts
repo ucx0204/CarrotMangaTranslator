@@ -87,10 +87,10 @@ describe("workspace chrome CSS", () => {
     ).toContain("background: linear-gradient(");
   });
 
-  it("moves the quick rail with a collapsible right panel track", () => {
+  it("keeps the canvas in the first viewport with contextual rail tracks", () => {
     const shell = rule(shellCss, ".app-shell");
     expect(shell).toMatch(
-      /grid-template-columns:\s*var\(--app-sidebar-width\)\s+minmax\(0, 1fr\)\s+var\(\s*--app-right-rail-track\s*\)/u,
+      /grid-template-columns:\s*var\(--app-sidebar-track\)\s+minmax\(0, 1fr\)\s+var\(\s*--app-right-rail-track\s*\)/u,
     );
     expect(shell).toContain("transition: grid-template-columns 240ms");
     expect(rule(shellCss, ".app-shell:has(> .right-rail.is-hidden)")).toContain(
@@ -101,8 +101,12 @@ describe("workspace chrome CSS", () => {
     expect(rule(shellCss, ".right-rail.is-hidden {")).toContain(
       "transform: translateX(28px)",
     );
-    expect(shellCss).toContain("justify-self: stretch");
-    expect(shellCss).toContain("min-height: 640px");
+    expect(shellCss).toContain("--app-sidebar-track: 52px");
+    expect(shellCss).toContain("--app-right-rail-track: 52px");
+    expect(shellCss).toContain("@media (max-width: 1119px)");
+    expect(shellCss).toContain("justify-self: end");
+    expect(shellCss).not.toContain("min-height: 640px");
+    expect(shellCss).not.toContain("height: auto");
     const rightToolbar = rule(shellCss, ".right-quick-rail");
     expect(rightToolbar).toContain("right: 10px");
     expect(rightToolbar).toContain("position: absolute");

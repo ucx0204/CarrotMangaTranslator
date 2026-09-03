@@ -18,6 +18,8 @@ import {
   STAGE_MASK_TOOL,
   STAGE_TOOL_BY_ID,
   STAGE_TOOL_GROUPS,
+  resolveActiveStageToolInGroup,
+  resolveSelectedStageToolInGroup,
   type StageToolbarToolGroup,
 } from "./stageToolbarTools";
 import { useStageToolbarFlyout } from "./useStageToolbarFlyout";
@@ -39,13 +41,11 @@ type StageToolbarProps = {
 
 type StageToolbarFlyout = ReturnType<typeof useStageToolbarFlyout>;
 type StageToolbarFlyoutActions = Omit<StageToolbarFlyout, "rootRef">;
-type ToolGroup = StageToolbarToolGroup;
-
 type StageToolGroupProps = {
   activeTool: WorkspaceTool | null;
   brushColor: string;
   disabled: boolean;
-  group: ToolGroup;
+  group: StageToolbarToolGroup;
   onActivate: StageToolbarFlyout["activate"];
   onCancelScheduledClose: StageToolbarFlyout["cancelScheduledClose"];
   onClose: () => void;
@@ -75,7 +75,6 @@ type StageToolGroupTriggerProps = Pick<
   menuId: string;
 };
 
-/** Compact canvas tool picker with advanced tools grouped into flyouts. */
 export function StageToolbar(props: StageToolbarProps): React.JSX.Element {
   const { rootRef, ...flyout } = useStageToolbarFlyout({
     disabled: props.disabled,
@@ -134,31 +133,7 @@ function ExpandedStageToolbar({
           entry={STAGE_MASK_TOOL}
           onSelectTool={props.onSelectTool}
         />
-        {STAGE_TOOL_GROUPS.map((group) => {
-          const activeTool = resolveActiveGroupTool(props, group);
-          return (
-            <StageToolGroup
-              activeTool={activeTool}
-              brushColor={props.brushColor}
-              disabled={props.disabled}
-              group={group}
-              key={group.id}
-              onClose={() => flyout.close(true)}
-              onCancelScheduledClose={flyout.cancelScheduledClose}
-              onMenuKeyDown={flyout.onMenuKeyDown}
-              onOpenFromPointerOrFocus={flyout.openFromPointerOrFocus}
-              onSelectTool={props.onSelectTool}
-              onActivate={flyout.activate}
-              onScheduleClose={flyout.scheduleClose}
-              open={flyout.openGroup === group.id}
-              selectedTool={resolveGroupSelectedTool(
-                group,
-                activeTool,
-                props.lastRetouchTool,
-              )}
-            />
-          );
-        })}
+        <StageToolbarRetouchGroups flyout={flyout} props={props} />
       </StageToolbarSection>
       <StageToolbarSection name="collapse">
         <StageToolbarHideButton onToggleHidden={props.onToggleHidden} />
@@ -167,14 +142,46 @@ function ExpandedStageToolbar({
   );
 }
 
-function resolveActiveGroupTool(
-  props: StageToolbarProps,
-  group: ToolGroup,
-): WorkspaceTool | null {
-  return !props.regionTranslationActive &&
-    group.tools.some((entry) => entry.id === props.tool)
-    ? props.tool
-    : null;
+function StageToolbarRetouchGroups({
+  flyout,
+  props,
+}: {
+  flyout: StageToolbarFlyoutActions;
+  props: StageToolbarProps;
+}): React.JSX.Element {
+  return (
+    <>
+      {STAGE_TOOL_GROUPS.map((group) => {
+        const activeTool = resolveActiveStageToolInGroup(
+          props.tool,
+          props.regionTranslationActive,
+          group,
+        );
+        return (
+          <StageToolGroup
+            activeTool={activeTool}
+            brushColor={props.brushColor}
+            disabled={props.disabled}
+            group={group}
+            key={group.id}
+            onClose={() => flyout.close(true)}
+            onCancelScheduledClose={flyout.cancelScheduledClose}
+            onMenuKeyDown={flyout.onMenuKeyDown}
+            onOpenFromPointerOrFocus={flyout.openFromPointerOrFocus}
+            onSelectTool={props.onSelectTool}
+            onActivate={flyout.activate}
+            onScheduleClose={flyout.scheduleClose}
+            open={flyout.openGroup === group.id}
+            selectedTool={resolveSelectedStageToolInGroup(
+              group,
+              activeTool,
+              props.lastRetouchTool,
+            )}
+          />
+        );
+      })}
+    </>
+  );
 }
 
 function StageToolbarSection({
@@ -189,20 +196,6 @@ function StageToolbarSection({
       {children}
     </div>
   );
-}
-
-function resolveGroupSelectedTool(
-  group: ToolGroup,
-  activeTool: WorkspaceTool | null,
-  lastRetouchTool: RetouchTool,
-): RetouchTool {
-  if (activeTool && group.tools.some((entry) => entry.id === activeTool)) {
-    return activeTool as RetouchTool;
-  }
-  if (group.tools.some((entry) => entry.id === lastRetouchTool)) {
-    return lastRetouchTool;
-  }
-  return group.defaultTool;
 }
 
 function RegionTranslationButton(props: StageToolbarProps): React.JSX.Element {

@@ -14,7 +14,9 @@ import {
 } from "./useConditionalBatchEditorModel";
 import styles from "./ConditionalBatchEditor.module.css";
 
-export type ConditionalBatchEditorProps = ConditionalBatchEditorModelProps;
+export type ConditionalBatchEditorProps = ConditionalBatchEditorModelProps & {
+  onEntered?: () => void;
+};
 
 export function ConditionalBatchEditor(
   props: ConditionalBatchEditorProps,
@@ -34,6 +36,7 @@ export function ConditionalBatchEditor(
       <ConditionalBatchEditorModal
         model={model}
         title={t("conditionalBatch.title")}
+        onEntered={props.onEntered}
         onClose={handleClose}
       />
       <DiscardTemporaryRulesConfirm
@@ -51,10 +54,12 @@ export function ConditionalBatchEditor(
 function ConditionalBatchEditorModal({
   model,
   title,
+  onEntered,
   onClose,
 }: {
   model: ConditionalBatchEditorModel;
   title: React.ReactNode;
+  onEntered?: () => void;
   onClose: () => void;
 }): React.JSX.Element {
   const [activeTab, setActiveTab] = React.useState<
@@ -64,6 +69,7 @@ function ConditionalBatchEditorModal({
   return (
     <Modal
       title={title}
+      onEntered={onEntered}
       onClose={onClose}
       fillHeight
       bodyLayout="bare"

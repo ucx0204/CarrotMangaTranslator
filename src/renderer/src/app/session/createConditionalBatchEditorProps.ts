@@ -72,6 +72,9 @@ export function createConditionalBatchEditorProps(
         excludedResultKeys,
         options,
       ),
+    onEntered: () => {
+      if (uiState.textViewOpen) uiState.setTextViewOpen(false);
+    },
     onClose: () => {
       uiState.setConditionalBatchInitialFind("");
       uiState.setConditionalBatchInitialReplace("");

@@ -970,6 +970,9 @@
 }
 
 .gather-text-exchange-menu {
+  --motion-enter-y: 5px;
+  --motion-clip-top: 7%;
+  --motion-clip-bottom: 0%;
   position: absolute;
   z-index: var(--layer-panel-menu);
   right: 0;
@@ -983,6 +986,15 @@
   border-radius: var(--r-md);
   background: #20242c;
   box-shadow: var(--shadow-overlay);
+  transform-origin: bottom right;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gather-text-exchange-menu {
+    animation-name: ui-surface-enter-reduced;
+    animation-duration: var(--motion-fast);
+  }
 }
 
 .gather-text-exchange-menu button {

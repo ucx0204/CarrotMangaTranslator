@@ -308,7 +308,7 @@ describe("useImportShareActions", () => {
 
     await act(async () => result.current.selectTranslateSource("web"));
 
-    expect(setTranslationSourceOpen).toHaveBeenCalledWith(false);
+    expect(setTranslationSourceOpen).not.toHaveBeenCalled();
     expect(setWebImportOpen).toHaveBeenCalledWith(true);
   });
 
@@ -344,7 +344,7 @@ describe("useImportShareActions", () => {
 
     await act(async () => result.current.selectTranslateSource("pdf"));
 
-    expect(setTranslationSourceOpen).toHaveBeenCalledWith(false);
+    expect(setTranslationSourceOpen).not.toHaveBeenCalled();
     expect(previewPdfImport).toHaveBeenCalledOnce();
     expect(setImportPreview).toHaveBeenCalledWith(preview);
   });

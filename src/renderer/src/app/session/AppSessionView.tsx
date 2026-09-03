@@ -102,6 +102,8 @@ export function AppSessionView({
           />
           <AppRightQuickRail
             {...rightRailProps}
+            regionTranslationActive={workspaceProps.regionSelectionActive}
+            stageToolbarHidden={workspaceProps.stageToolbarHidden}
             workspaceOriginalOpacityControl={
               workspaceView.originalOpacityControl
             }
@@ -111,10 +113,6 @@ export function AppSessionView({
         <AppRightRail {...rightRailProps} />
         <MemoizedAppModals {...modalsProps} />
       </main>
-      {conditionalBatchEditorProps ? (
-        <ConditionalBatchEditor {...conditionalBatchEditorProps} />
-      ) : null}
-      {conditionalBatchEditorProps ? null : <MemoizedEditorFloatingLayer />}
       <MemoizedSessionFloatingOverlays
         autoInpaintingOptionsProps={autoInpaintingOptionsProps}
         blockLibraryProps={blockLibraryProps}
@@ -127,6 +125,11 @@ export function AppSessionView({
         styleGuideProps={styleGuideProps}
         translationOptionsProps={translationOptionsProps}
       />
+      {conditionalBatchEditorProps ? (
+        <ConditionalBatchEditor {...conditionalBatchEditorProps} />
+      ) : (
+        <MemoizedEditorFloatingLayer />
+      )}
       <LibraryDropOverlay {...libraryDropOverlayProps} />
     </PanelSessionContext.Provider>
   );

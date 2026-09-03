@@ -1,4 +1,5 @@
 .surface {
+  --motion-enter-y: -5px;
   position: absolute;
   z-index: var(--layer-panel-menu);
   top: calc(100% + var(--sp-2));
@@ -13,6 +14,8 @@
   border-radius: var(--r-lg);
   background: color-mix(in srgb, var(--bg-panel) 94%, var(--bg-app));
   box-shadow: var(--shadow-lg);
+  transform-origin: top right;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
 }
 
 .item {
@@ -31,6 +34,10 @@
   font-size: var(--font-sm);
   font-weight: 550;
   text-align: left;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 .item:hover:not(:disabled),
@@ -56,10 +63,15 @@
   width: 18px;
   color: var(--accent-hi);
   opacity: 0;
+  scale: 0.82;
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-enter);
 }
 
 .check[data-visible] {
   opacity: 1;
+  scale: 1;
 }
 
 .label {
@@ -79,4 +91,15 @@
 
 .item[aria-checked="true"] .meta {
   color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface {
+    animation-name: ui-surface-enter-reduced;
+    animation-duration: var(--motion-fast);
+  }
+
+  .check {
+    scale: 1;
+  }
 }

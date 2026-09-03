@@ -17,7 +17,8 @@
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-enter);
 }
 
 .button:hover:not(:disabled) {
@@ -28,6 +29,10 @@
 .button:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.985);
 }
 
 .button:disabled {
@@ -94,4 +99,10 @@
   background: var(--control-bg);
   border-color: var(--control-border-hover);
   color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button:active:not(:disabled) {
+    transform: none;
+  }
 }

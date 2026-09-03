@@ -94,21 +94,19 @@ function useOpenImportPreviewAction({
 
 function useSelectTranslateSourceAction({
   openImportPreview,
-  setTranslationSourceOpen,
   setWebImportOpen,
 }: UseImportShareActionsOptions & {
   openImportPreview: ImportShareActions["openImportPreview"];
 }): ImportShareActions["selectTranslateSource"] {
   return useCallback(
     async (mode: TranslateSourceMode) => {
-      setTranslationSourceOpen(false);
       if (mode === "web") {
         setWebImportOpen(true);
         return;
       }
       await openImportPreview(mode);
     },
-    [openImportPreview, setTranslationSourceOpen, setWebImportOpen],
+    [openImportPreview, setWebImportOpen],
   );
 }
 

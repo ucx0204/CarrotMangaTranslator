@@ -67,6 +67,31 @@ export const STAGE_TOOL_GROUPS: StageToolbarToolGroup[] = [
   },
 ];
 
+export function resolveActiveStageToolInGroup(
+  tool: WorkspaceTool,
+  regionTranslationActive: boolean,
+  group: StageToolbarToolGroup,
+): WorkspaceTool | null {
+  return !regionTranslationActive &&
+    group.tools.some((entry) => entry.id === tool)
+    ? tool
+    : null;
+}
+
+export function resolveSelectedStageToolInGroup(
+  group: StageToolbarToolGroup,
+  activeTool: WorkspaceTool | null,
+  lastRetouchTool: RetouchTool,
+): RetouchTool {
+  if (activeTool && group.tools.some((entry) => entry.id === activeTool)) {
+    return activeTool as RetouchTool;
+  }
+  if (group.tools.some((entry) => entry.id === lastRetouchTool)) {
+    return lastRetouchTool;
+  }
+  return group.defaultTool;
+}
+
 function toolEntry(id: WorkspaceTool, Icon: TablerIcon): StageToolbarToolEntry {
   return {
     id,

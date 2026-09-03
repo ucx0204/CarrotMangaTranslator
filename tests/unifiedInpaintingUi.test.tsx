@@ -95,8 +95,61 @@ describe("unified workspace toolbar", () => {
       />,
     );
 
+    expect(screen.queryByText("현재 도구: 선택")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "도구 모음 표시 (4)" }));
     expect(onToggleHidden).toHaveBeenCalledOnce();
+  });
+
+  it("shows the current tool beside the right rail only while the stage toolbar is hidden", () => {
+    const props = makeRightRailProps({ stageTool: "brush" });
+    const chromeProps = makeQuickRailChromeProps();
+    const view = render(<AppRightQuickRail {...props} {...chromeProps} />, {
+      wrapper: RightRailTestProviders,
+    });
+
+    expect(screen.queryByText("현재 도구: 브러시")).toBeNull();
+    view.rerender(
+      <AppRightQuickRail {...props} {...chromeProps} stageToolbarHidden />,
+    );
+    expect(screen.getByText("현재 도구: 브러시")).not.toBeNull();
+    view.rerender(
+      <AppRightQuickRail
+        {...props}
+        {...chromeProps}
+        stageToolbarHidden={false}
+      />,
+    );
+    expect(screen.queryByText("현재 도구: 브러시")).toBeNull();
+  });
+
+  it("opens all three lower quick-rail controls", () => {
+    const props = makeRightRailProps();
+    const { container } = renderQuickRail(props);
+
+    const viewControl = screen.getByRole("button", {
+      name: "보기 조절 펼치기",
+    });
+    fireEvent.click(viewControl);
+    expect(viewControl.getAttribute("aria-expanded")).toBe("true");
+    expect(container.querySelector(".workspace-view-controls")).not.toBeNull();
+    fireEvent.click(viewControl);
+
+    const opacityControl = screen.getByRole("button", {
+      name: "원본 불투명도 조절 열기",
+    });
+    fireEvent.click(opacityControl);
+    expect(opacityControl.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      container.querySelector(".workspace-original-opacity-panel"),
+    ).not.toBeNull();
+    fireEvent.click(opacityControl);
+
+    const statusControl = screen.getByRole("button", {
+      name: "작업 센터 열기",
+    });
+    fireEvent.click(statusControl);
+    expect(statusControl.getAttribute("aria-expanded")).toBe("true");
+    expect(container.querySelector(".status-popover")).not.toBeNull();
   });
 
   it("renders one mutually-exclusive toolbar for translation and retouch tools", () => {
@@ -119,6 +172,7 @@ describe("unified workspace toolbar", () => {
     );
 
     expect(screen.getAllByRole("button")).toHaveLength(9);
+    expect(screen.queryByText("현재 도구: 브러시")).toBeNull();
     const groupTriggers = Array.from(
       container.querySelectorAll<HTMLButtonElement>(
         ".stage-toolbar-group-trigger",
@@ -413,6 +467,13 @@ describe("unified right rail", () => {
     const openRail = document.querySelector(".right-rail");
     expect(openRail?.classList.contains("is-open")).toBe(true);
     expect(openRail?.hasAttribute("aria-hidden")).toBe(false);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "검수·편집 패널 펼치기" }),
+    );
+    expect(openRail?.classList.contains("is-context-expanded")).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(openRail?.classList.contains("is-context-expanded")).toBe(false);
   });
 
   it("keeps all page quick actions in one icon toolbar off the canvas", () => {
@@ -545,9 +606,32 @@ describe("unified right rail", () => {
     renderRightRail(props);
 
     expect(
-      (screen.getByRole("button", { name: "번역 실행" }) as HTMLButtonElement)
-        .disabled,
+      (
+        screen.getByRole("button", {
+          name: "번역 설정…",
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(false);
+    expect(
+      screen.queryByRole("button", {
+        name: "전체 1페이지 중 번역할 페이지를 고를 수 있어요.",
+      }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", {
+        name: "다시 번역한 페이지의 기존 결과는 새 결과로 바뀝니다.",
+      }),
+    ).not.toBeNull();
+    expect(
+      document.querySelectorAll(".run-panel-translation-warning-icon"),
+    ).toHaveLength(1);
+    expect(
+      Array.from(document.querySelectorAll(".run-panel button")).filter(
+        (button) => button.className.includes("_primary_"),
+      ),
+    ).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "페이지 작업" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "페이지 작업" })).toBeNull();
     expect(
       (
         screen.getByRole("button", {
@@ -864,6 +948,17 @@ describe("persistent library sidebar", () => {
     expect(screen.getByRole("heading", { name: "보관함" })).not.toBeNull();
     expect(screen.getByText("page-1.png")).not.toBeNull();
     expect(screen.queryByText("인페인팅 나가기")).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "새 원본 추가" })
+        .className.includes("_secondary_"),
+    ).toBe(true);
+
+    const sidebar = document.querySelector(".sidebar");
+    fireEvent.click(screen.getByRole("button", { name: "탐색 패널 열기" }));
+    expect(sidebar?.classList.contains("is-context-expanded")).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(sidebar?.classList.contains("is-context-expanded")).toBe(false);
   });
 });
 
@@ -886,9 +981,14 @@ function renderQuickRail(props: RightRailProps) {
 
 function makeQuickRailChromeProps(): Pick<
   React.ComponentProps<typeof AppRightQuickRail>,
-  "workspaceOriginalOpacityControl" | "workspaceViewControls"
+  | "regionTranslationActive"
+  | "stageToolbarHidden"
+  | "workspaceOriginalOpacityControl"
+  | "workspaceViewControls"
 > {
   return {
+    regionTranslationActive: false,
+    stageToolbarHidden: false,
     workspaceOriginalOpacityControl: {
       available: true,
       opacity: 0,

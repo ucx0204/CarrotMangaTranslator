@@ -245,6 +245,7 @@
 }
 
 .page-actions-menu {
+  --motion-enter-y: -5px;
   position: absolute;
   z-index: var(--layer-panel-menu);
   top: 34px;
@@ -256,6 +257,8 @@
   border-radius: var(--r-md);
   background: var(--bg-raised);
   box-shadow: var(--shadow-overlay);
+  transform-origin: top right;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
 }
 
 .page-actions-menu > button {
@@ -306,6 +309,11 @@
 @media (prefers-reduced-motion: reduce) {
   .page-thumbnail-skeleton {
     animation: none;
+  }
+
+  .page-actions-menu {
+    animation-name: ui-surface-enter-reduced;
+    animation-duration: var(--motion-fast);
   }
 }
 

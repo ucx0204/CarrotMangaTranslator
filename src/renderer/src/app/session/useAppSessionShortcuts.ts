@@ -211,7 +211,6 @@ function createEditAndGlobalShortcutHandlers(
         uiState.setConditionalBatchOpen(false);
         return;
       }
-      uiState.setTextViewOpen(false);
       uiState.setConditionalBatchInitialFind("");
       uiState.setConditionalBatchInitialReplace("");
       uiState.setConditionalBatchOpen(true);

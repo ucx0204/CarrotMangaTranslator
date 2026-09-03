@@ -1079,6 +1079,10 @@ kbd {
 }
 
 .workspace-original-opacity-panel {
+  --motion-enter-x: 6px;
+  --motion-enter-y: 0px;
+  --motion-clip-right: 7%;
+  --motion-clip-bottom: 0%;
   position: absolute;
   right: calc(100% + 8px);
   bottom: -1px;
@@ -1095,6 +1099,8 @@ kbd {
   color: #d7dde6;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
+  transform-origin: right bottom;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
 }
 
 .workspace-original-opacity-panel label,
@@ -1120,4 +1126,11 @@ kbd {
   .workspace-original-opacity-trigger
   > .control-tooltip-bubble {
   display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-original-opacity-panel {
+    animation-name: ui-surface-enter-reduced;
+    animation-duration: var(--motion-fast);
+  }
 }

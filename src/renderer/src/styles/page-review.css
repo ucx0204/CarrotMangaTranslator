@@ -139,6 +139,7 @@
 }
 
 .block-style-preset-menu {
+  --motion-enter-y: -5px;
   position: absolute;
   z-index: var(--layer-panel-menu);
   top: calc(100% + 5px);
@@ -153,6 +154,15 @@
   border-radius: var(--r-md);
   background: #171a20;
   box-shadow: var(--shadow-overlay);
+  transform-origin: top center;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block-style-preset-menu {
+    animation-name: ui-surface-enter-reduced;
+    animation-duration: var(--motion-fast);
+  }
 }
 
 .block-style-preset-menu-row {
@@ -343,111 +353,10 @@
   }
 }
 
-.page-block-list-panel {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  flex: 1 1 360px;
-  min-height: 260px;
-  overflow: hidden;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-lg);
-  background: var(--surface-panel);
-}
-
+/* Keep the established status colours in their original debt-owning domain;
+   block-reading-order.css only owns layout and disclosure motion. */
 .page-block-list-panel-header {
-  display: grid;
-  gap: var(--sp-3);
-  padding: var(--sp-4);
-  border-bottom: 1px solid var(--border-soft);
   background: color-mix(in srgb, var(--surface-panel) 90%, #171a20);
-}
-
-.page-block-list-panel-header > div:first-child {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--sp-2);
-}
-
-.page-block-list-panel-header h2 {
-  margin: 0;
-  color: var(--text-head);
-  font-size: var(--font-md);
-}
-
-.page-block-list-panel-header > div:first-child > span {
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-}
-
-.page-block-list-scroll {
-  display: grid;
-  align-content: start;
-  gap: var(--sp-3);
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--sp-3);
-}
-
-.page-block-list-row {
-  display: grid;
-  gap: var(--sp-2);
-  min-width: 0;
-  padding: var(--sp-3);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-sunken);
-  transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    box-shadow 120ms ease;
-}
-
-.page-block-list-row:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-hover);
-}
-
-.page-block-list-row.selected {
-  border-color: var(--accent-bd);
-  background: color-mix(in srgb, var(--accent-soft) 50%, var(--bg-sunken));
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-
-.page-block-list-row-header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--sp-2);
-}
-
-.page-block-list-index {
-  display: grid;
-  place-items: center;
-  min-width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--bg-raised);
-  color: var(--text-head);
-  font-size: var(--font-xs);
-  font-weight: 750;
-  font-variant-numeric: tabular-nums;
-}
-
-.page-block-list-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-width: 0;
-}
-
-.page-block-badge {
-  padding: 2px 6px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-pill);
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 700;
 }
 
 .page-block-badge.review {
@@ -463,44 +372,6 @@
 .page-block-badge.excluded {
   border-color: rgba(192, 132, 252, 0.4);
   color: #d8b4fe;
-}
-
-.page-block-source-field,
-.page-block-translation-field {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.page-block-source-text {
-  color: var(--text-dim);
-  font-size: var(--font-sm);
-  line-height: 1.45;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.page-block-translation-field textarea {
-  width: 100%;
-  min-height: 60px;
-  padding: 8px 9px;
-  resize: vertical;
-  color: var(--text-head);
-  font-size: var(--font-sm);
-  line-height: 1.45;
-}
-
-.page-block-translation-field textarea:focus {
-  border-color: var(--accent-bd);
-  outline: 2px solid color-mix(in srgb, var(--focus) 50%, transparent);
-  outline-offset: 1px;
-}
-
-.page-block-list-empty {
-  padding: var(--sp-5) var(--sp-3);
-  text-align: center;
 }
 
 .style-preset-manager {

@@ -35,9 +35,10 @@ describe("page block list", () => {
     const translations = screen.getAllByRole<HTMLTextAreaElement>("textbox");
     expect(translations.map((field) => field.value)).toEqual([
       "translated-right",
-      "translated-left",
-      "translated-lower",
     ]);
+    expect(
+      container.querySelectorAll(".page-block-list-row.compact"),
+    ).toHaveLength(2);
     expect(screen.getByText("검토 필요")).not.toBeNull();
     expect(screen.getByText("효과음")).not.toBeNull();
     expect(screen.getByText("지우기 제외")).not.toBeNull();
@@ -53,18 +54,38 @@ describe("page block list", () => {
         onUpdateBlock={onUpdateBlock}
       />,
     );
-    const unselectedTranslations =
-      screen.getAllByRole<HTMLTextAreaElement>("textbox");
-    fireEvent.focus(unselectedTranslations[1] as HTMLTextAreaElement);
+    expect(screen.queryAllByRole("textbox")).toHaveLength(0);
+    fireEvent.click(
+      container.querySelector(
+        '[data-page-block-id="left"] .page-block-summary-button',
+      ) as HTMLButtonElement,
+    );
+    expect(onSelectBlock).toHaveBeenCalledWith("left");
+
+    rerender(
+      <PageBlockListPanel
+        disabled={false}
+        page={makePage()}
+        readingDirection="rtl"
+        selectedBlockId="left"
+        onOpenEditor={onOpenEditor}
+        onSelectBlock={onSelectBlock}
+        onUpdateBlock={onUpdateBlock}
+      />,
+    );
+    onSelectBlock.mockClear();
+    const selectedTranslation =
+      screen.getByRole<HTMLTextAreaElement>("textbox");
+    fireEvent.focus(selectedTranslation);
     expect(onSelectBlock).toHaveBeenCalledWith("left");
     onSelectBlock.mockClear();
-    fireEvent.change(unselectedTranslations[1] as HTMLTextAreaElement, {
+    fireEvent.change(selectedTranslation, {
       target: { value: "직접 수정" },
     });
     expect(onUpdateBlock).toHaveBeenCalledWith("left", {
       translatedText: "직접 수정",
     });
-    expect(screen.getAllByRole("textbox")).toHaveLength(3);
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
 
     fireEvent.click(
       container.querySelector('[data-page-block-id="left"]') as HTMLElement,
@@ -77,6 +98,15 @@ describe("page block list", () => {
       })[1] as HTMLButtonElement,
     );
     expect(onOpenEditor).toHaveBeenCalledWith("left");
+
+    fireEvent.click(screen.getByRole("button", { name: "검토만" }));
+    expect(container.querySelectorAll("[data-page-block-id]")).toHaveLength(1);
+    expect(
+      container.querySelector('[data-page-block-id="left"]'),
+    ).not.toBeNull();
+    expect(screen.getByText("검토 1개 남음")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "전체 보기" }));
+    expect(container.querySelectorAll("[data-page-block-id]")).toHaveLength(3);
   });
 
   it("keeps formatting controls out of the page block list", () => {

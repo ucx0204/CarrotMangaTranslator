@@ -132,6 +132,7 @@
 }
 
 .editor-overflow-menu {
+  --motion-enter-y: -5px;
   position: absolute;
   z-index: var(--layer-panel-menu);
   top: calc(100% + 6px);
@@ -143,6 +144,15 @@
   border-radius: var(--r-md);
   background: #191b21;
   box-shadow: var(--shadow-lg);
+  transform-origin: top right;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-overflow-menu {
+    animation-name: ui-surface-enter-reduced;
+    animation-duration: var(--motion-fast);
+  }
 }
 
 .editor-overflow-menu button {

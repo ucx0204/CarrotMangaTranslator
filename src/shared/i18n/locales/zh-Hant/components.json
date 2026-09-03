@@ -54,7 +54,9 @@
     "batchTranslate": "新增多個章節",
     "libraryFolder": "資料庫資料夾",
     "share": "匯出專案",
-    "importWork": "匯入專案"
+    "importWork": "匯入專案",
+    "showNavigator": "開啟導覽面板",
+    "hideNavigator": "關閉導覽面板"
   },
   "conditionalBatch": {
     "open": "批次編輯文字",
@@ -657,6 +659,8 @@
   },
   "translationOptions": {
     "title": "執行翻譯",
+    "workspaceAction": "翻譯設定…",
+    "workspaceUndoWarning": "重新翻譯的頁面會用新結果取代現有結果。",
     "start": "開始翻譯",
     "startSelection": "翻譯所選範圍",
     "continueSelection": "繼續翻譯所選範圍",
@@ -975,7 +979,10 @@
   "runPanel": {
     "openChapterHint": "請從資料庫開啟一個章節。",
     "chapterTools": "章節工具",
-    "currentPage": "目前頁面"
+    "currentPage": "目前頁面",
+    "pageActions": "頁面操作",
+    "showInspector": "展開檢查與編輯面板",
+    "hideInspector": "收合檢查與編輯面板"
   },
   "areaTranslation": { "title": "區域翻譯", "cancelSelection": "取消選擇" },
   "stageToolbar": {
@@ -984,6 +991,7 @@
     "hide": "隱藏工具列",
     "hideTitle": "隱藏工具列（4）",
     "imageTools": "影像工具",
+    "currentTool": "目前工具：{{tool}}",
     "groups": {
       "textShape": {
         "label": "文字形狀",
@@ -2191,6 +2199,11 @@
     "empty": "此頁面沒有文字區塊。",
     "backToList": "返回頁面文字區塊",
     "selectedCount": "已選取{{count}}個",
+    "reviewProgress": "{{count}}個待檢查",
+    "reviewComplete": "沒有待檢查項目",
+    "reviewOnly": "只看待檢查",
+    "showAll": "顯示全部",
+    "noReviewItems": "沒有需要檢查的文字區塊。",
     "moveEarlier": "閱讀順序前移",
     "moveLater": "閱讀順序後移",
     "sortReadingOrder": "依位置排序"

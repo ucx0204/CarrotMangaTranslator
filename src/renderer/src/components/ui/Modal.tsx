@@ -43,6 +43,8 @@ type ModalAccessibleName =
 export type ModalProps = ModalAccessibleName & {
   /** Called by the close button, Esc, and backdrop click (when enabled). Omit to hide the close button. */
   onClose?: () => void;
+  /** Called once the card's entrance animation has fully completed. */
+  onEntered?: () => void;
   /**
    * Keeps the close affordance visible but inert (e.g. while saving).
    * Prefer this over dropping `onClose`, which would remove the close button
@@ -144,6 +146,7 @@ function ModalCard({
   } = props;
   const titleId = React.useId();
   const handleCardKeyDown = useModalFocusTrap(cardRef, modalId);
+  const handleCardAnimationEnd = useModalEnteredCallback(props.onEntered);
   const showHeader = Boolean(title) || Boolean(headerExtra) || Boolean(onClose);
   return (
     <div
@@ -161,6 +164,7 @@ function ModalCard({
       aria-modal="true"
       {...resolveModalAccessibleName(title, props.ariaLabel, titleId)}
       tabIndex={-1}
+      onAnimationEnd={handleCardAnimationEnd}
       onKeyDown={handleCardKeyDown}
       onMouseDown={(event) => event.stopPropagation()}
     >
@@ -186,6 +190,21 @@ function ModalCard({
       </div>
       {footer ? <div className={styles.footer}>{footer}</div> : null}
     </div>
+  );
+}
+
+function useModalEnteredCallback(
+  onEntered: (() => void) | undefined,
+): (event: React.AnimationEvent<HTMLDivElement>) => void {
+  const enteredRef = React.useRef(false);
+  const notifyEntered = useStableModalCallback(() => onEntered?.());
+  return React.useCallback(
+    (event: React.AnimationEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget || enteredRef.current) return;
+      enteredRef.current = true;
+      notifyEntered();
+    },
+    [notifyEntered],
   );
 }
 

@@ -182,6 +182,10 @@
 }
 
 .status-popover {
+  --motion-enter-x: 7px;
+  --motion-enter-y: 0px;
+  --motion-clip-right: 6%;
+  --motion-clip-bottom: 0%;
   position: absolute;
   z-index: var(--layer-status);
   right: calc(100% + 8px);
@@ -199,6 +203,8 @@
   box-shadow: var(--shadow-overlay);
   backdrop-filter: blur(12px);
   overflow-y: auto;
+  transform-origin: right bottom;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
 }
 
 .status-popover > header {
@@ -487,6 +493,7 @@
 }
 
 .status-sound-popover {
+  --motion-enter-y: -5px;
   position: fixed;
   z-index: var(--layer-panel-menu);
   display: grid;
@@ -504,6 +511,16 @@
     0 12px 34px rgb(0 0 0 / 46%),
     inset 0 1px 0 rgb(255 255 255 / 3%);
   backdrop-filter: blur(12px);
+  transform-origin: top center;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-popover,
+  .status-sound-popover {
+    animation-name: ui-surface-enter-reduced;
+    animation-duration: var(--motion-fast);
+  }
 }
 
 .status-sound-popover::before {

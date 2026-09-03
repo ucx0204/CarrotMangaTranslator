@@ -12,7 +12,8 @@
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-enter);
 }
 
 .iconButton:hover:not(:disabled) {
@@ -24,6 +25,10 @@
 .iconButton:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
+}
+
+.iconButton:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .iconButton:disabled {
@@ -111,5 +116,11 @@
     var(--canvas-chrome-active-end)
   );
   color: var(--accent-hi);
-  box-shadow: inset 3px 0 0 var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconButton:active:not(:disabled) {
+    transform: none;
+  }
 }

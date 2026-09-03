@@ -14,10 +14,12 @@ import { useWebImportModalState } from "./webImport/useWebImportModalState";
 export function WebImportModal({
   onCancel,
   onBackgroundStateChange,
+  onEntered,
   onPrepared,
 }: {
   onCancel: () => void;
   onBackgroundStateChange?: (backgrounded: boolean) => void;
+  onEntered?: () => void;
   onPrepared: (preview: ImportPreviewSession) => void;
 }): React.JSX.Element | null {
   const { t } = useTranslation("components");
@@ -36,6 +38,7 @@ export function WebImportModal({
     <Modal
       size="xl"
       title={t("webImport.title")}
+      onEntered={onEntered}
       onClose={state.cancel}
       // Results stream in; a growing card would move the grid under the pointer.
       fillHeight={Boolean(state.result)}

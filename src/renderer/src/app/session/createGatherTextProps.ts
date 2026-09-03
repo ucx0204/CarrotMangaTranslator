@@ -47,7 +47,6 @@ export function createGatherTextProps(
         onOpenBatchEdit: (initialFind) => {
           uiState.setConditionalBatchInitialFind(initialFind?.trim() ?? "");
           uiState.setConditionalBatchInitialReplace("");
-          uiState.setTextViewOpen(false);
           uiState.setConditionalBatchOpen(true);
         },
         onNavigateToBlock: (pageId, blockId) => {

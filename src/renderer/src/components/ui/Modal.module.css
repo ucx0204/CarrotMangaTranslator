@@ -23,6 +23,7 @@
     place-items: center;
     padding: var(--modal-gutter);
     background: var(--bg-overlay);
+    animation: modal-backdrop-enter var(--motion-overlay) var(--ease-enter) both;
   }
 
   /* App-blocking progress must stay above ordinary dialogs. */
@@ -45,6 +46,8 @@
     background: var(--bg-modal);
     box-shadow: var(--shadow-overlay), var(--surface-highlight);
     overflow: hidden;
+    transform-origin: center 42%;
+    animation: modal-card-enter var(--motion-overlay) var(--ease-enter) both;
   }
 
   /* Programmatic dialog focus is for keyboard entry, not a visual selection. */
@@ -166,6 +169,70 @@
 
     .body:not(.bodyBare) {
       padding: var(--sp-4);
+    }
+  }
+
+  @keyframes modal-backdrop-enter {
+    from {
+      background-color: transparent;
+    }
+
+    to {
+      background-color: var(--bg-overlay);
+    }
+  }
+
+  @keyframes modal-card-enter {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.985);
+      filter: blur(3px);
+      clip-path: inset(2% 1% 0 round var(--r-lg));
+      box-shadow: var(--shadow-overlay-enter);
+    }
+
+    68% {
+      filter: blur(0);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+      clip-path: inset(0 round var(--r-lg));
+      box-shadow: var(--shadow-overlay), var(--surface-highlight);
+    }
+  }
+
+  @keyframes modal-backdrop-enter-reduced {
+    from {
+      background-color: transparent;
+    }
+
+    to {
+      background-color: var(--bg-overlay);
+    }
+  }
+
+  @keyframes modal-card-enter-reduced {
+    from {
+      opacity: 0.72;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .backdrop {
+      animation-name: modal-backdrop-enter-reduced;
+      animation-duration: var(--motion-fast);
+    }
+
+    .card {
+      animation-name: modal-card-enter-reduced;
+      animation-duration: var(--motion-fast);
     }
   }
 }

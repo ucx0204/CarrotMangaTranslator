@@ -54,7 +54,9 @@
     "batchTranslate": "Add multiple chapters",
     "libraryFolder": "Library folder",
     "share": "Export work",
-    "importWork": "Import work"
+    "importWork": "Import work",
+    "showNavigator": "Open navigation panel",
+    "hideNavigator": "Close navigation panel"
   },
   "conditionalBatch": {
     "open": "Batch edit text",
@@ -669,6 +671,8 @@
   },
   "translationOptions": {
     "title": "Run translation",
+    "workspaceAction": "Translation settings…",
+    "workspaceUndoWarning": "Re-translated pages replace their existing results.",
     "start": "Start translation",
     "startSelection": "Translate selection",
     "continueSelection": "Continue selected pages",
@@ -987,7 +991,10 @@
   "runPanel": {
     "openChapterHint": "Open a chapter from the library.",
     "chapterTools": "Chapter tools",
-    "currentPage": "Current page"
+    "currentPage": "Current page",
+    "pageActions": "Page actions",
+    "showInspector": "Show review and editing panel",
+    "hideInspector": "Hide review and editing panel"
   },
   "areaTranslation": {
     "title": "Region translation",
@@ -999,6 +1006,7 @@
     "hide": "Hide toolbar",
     "hideTitle": "Hide toolbar (4)",
     "imageTools": "Image tools",
+    "currentTool": "Current tool: {{tool}}",
     "groups": {
       "textShape": {
         "label": "Text shape",
@@ -2233,6 +2241,11 @@
     "empty": "This page has no text blocks.",
     "backToList": "Back to page blocks",
     "selectedCount": "{{count}} selected",
+    "reviewProgress": "{{count}} need review",
+    "reviewComplete": "Nothing needs review",
+    "reviewOnly": "Review only",
+    "showAll": "Show all",
+    "noReviewItems": "No blocks need review.",
     "moveEarlier": "Move earlier in reading order",
     "moveLater": "Move later in reading order",
     "sortReadingOrder": "Sort by position"

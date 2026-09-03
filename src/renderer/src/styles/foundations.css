@@ -102,6 +102,7 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.42);
   --shadow-lg: 0 20px 56px rgba(0, 0, 0, 0.5);
+  --shadow-overlay-enter: 0 8px 28px rgba(0, 0, 0, 0.28);
   --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.55);
   --bg-overlay: rgba(8, 10, 13, 0.62);
 
@@ -166,7 +167,10 @@
 
   --motion-fast: 120ms;
   --motion-normal: 160ms;
+  --motion-surface: 180ms;
+  --motion-overlay: 280ms;
   --ease-standard: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
 
   color: var(--text);
   background: var(--bg-app);
@@ -174,6 +178,42 @@
   font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+@keyframes ui-surface-enter {
+  from {
+    opacity: 0;
+    translate: var(--motion-enter-x, 0px) var(--motion-enter-y, -6px);
+    scale: 0.985;
+    filter: blur(1.5px);
+    clip-path: inset(
+      var(--motion-clip-top, 0%) var(--motion-clip-right, 0%)
+        var(--motion-clip-bottom, 7%) var(--motion-clip-left, 0%) round
+        var(--r-md)
+    );
+  }
+
+  68% {
+    filter: blur(0);
+  }
+
+  to {
+    opacity: 1;
+    translate: none;
+    scale: none;
+    filter: none;
+    clip-path: none;
+  }
+}
+
+@keyframes ui-surface-enter-reduced {
+  from {
+    opacity: 0.72;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 * {
@@ -546,6 +586,10 @@ input[type="radio"]:disabled {
   border-color: var(--danger-bd);
 }
 .stage-toolbar {
+  --motion-enter-x: -6px;
+  --motion-enter-y: 0px;
+  --motion-clip-bottom: 0%;
+  --motion-clip-left: 7%;
   position: absolute;
   z-index: var(--layer-toolbar);
   top: 12px;
@@ -558,6 +602,27 @@ input[type="radio"]:disabled {
   background: #14161b;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   overflow: visible;
+  transform-origin: left top;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
+}
+
+.stage-toolbar-current-tool {
+  display: block;
+  width: max-content;
+  max-width: min(160px, calc(100vw - 86px));
+  min-height: 28px;
+  padding: 6px 9px;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--surface-panel);
+  color: var(--text-dim);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--font-xs);
+  font-weight: 650;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .stage-toolbar-control {
@@ -624,6 +689,10 @@ input[type="radio"]:disabled {
 }
 
 .stage-toolbar-flyout {
+  --motion-enter-x: -6px;
+  --motion-enter-y: 0px;
+  --motion-clip-bottom: 0%;
+  --motion-clip-left: 7%;
   position: absolute;
   z-index: var(--layer-popover);
   top: -1px;
@@ -640,6 +709,8 @@ input[type="radio"]:disabled {
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(10px);
   overflow: visible;
+  transform-origin: left top;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
 }
 
 .stage-toolbar-flyout-control,
@@ -676,6 +747,37 @@ input[type="radio"]:disabled {
 }
 
 @media (max-height: 520px) {
+  .stage-toolbar:not(.collapsed) {
+    top: 6px;
+  }
+
+  .stage-toolbar:not(.collapsed) .stage-toolbar-control,
+  .stage-toolbar:not(.collapsed) .stage-toolbar-section,
+  .stage-toolbar:not(.collapsed) .stage-toolbar-control > button,
+  .stage-toolbar:not(.collapsed) .stage-toolbar-group-control {
+    width: 34px;
+    height: 34px;
+  }
+
+  .stage-toolbar:not(.collapsed)
+    .stage-toolbar-section
+    + .stage-toolbar-section {
+    margin-top: 3px;
+    padding-top: 3px;
+  }
+
+  .stage-toolbar:not(.collapsed)
+    .stage-toolbar-section
+    + .stage-toolbar-section::before {
+    left: 7px;
+  }
+
+  .stage-toolbar:not(.collapsed) .stage-toolbar-toggle,
+  .stage-toolbar:not(.collapsed)
+    .stage-toolbar-control:has(.stage-toolbar-toggle) {
+    height: 28px;
+  }
+
   .stage-toolbar-flyout-control,
   .stage-toolbar-flyout-control > button {
     height: 32px;
@@ -698,4 +800,12 @@ input[type="radio"]:disabled {
 .stage-toolbar.collapsed .stage-toolbar-toggle {
   width: 34px;
   height: 34px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-toolbar,
+  .stage-toolbar-flyout {
+    animation-name: ui-surface-enter-reduced;
+    animation-duration: var(--motion-fast);
+  }
 }

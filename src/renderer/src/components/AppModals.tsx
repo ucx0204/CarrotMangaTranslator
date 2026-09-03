@@ -137,6 +137,7 @@ function ImportFlowModals({
         <WebImportModal
           onCancel={onCancelWebImport}
           onBackgroundStateChange={onWebImportBackgroundStateChange}
+          onEntered={onCancelTranslationSource}
           onPrepared={onPreparedWebImport}
         />
       ) : null}
@@ -148,6 +149,10 @@ function ImportFlowModals({
           busy={importBusy}
           initialDraft={importDraft}
           feedback={importFeedback}
+          onEntered={() => {
+            onCancelTranslationSource();
+            onCancelWebImport();
+          }}
           onCancel={onCancelImport}
           onSubmit={onSubmitImport}
         />

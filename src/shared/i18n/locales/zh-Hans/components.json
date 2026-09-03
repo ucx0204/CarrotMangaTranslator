@@ -54,7 +54,9 @@
     "batchTranslate": "添加多个章节",
     "libraryFolder": "资料库文件夹",
     "share": "导出项目",
-    "importWork": "导入项目"
+    "importWork": "导入项目",
+    "showNavigator": "打开导航面板",
+    "hideNavigator": "关闭导航面板"
   },
   "conditionalBatch": {
     "open": "批量编辑文本",
@@ -657,6 +659,8 @@
   },
   "translationOptions": {
     "title": "运行翻译",
+    "workspaceAction": "翻译设置…",
+    "workspaceUndoWarning": "重新翻译的页面会用新结果替换现有结果。",
     "start": "开始翻译",
     "startSelection": "翻译所选范围",
     "continueSelection": "继续翻译所选范围",
@@ -975,7 +979,10 @@
   "runPanel": {
     "openChapterHint": "请从资料库打开一个章节。",
     "chapterTools": "章节工具",
-    "currentPage": "当前页"
+    "currentPage": "当前页",
+    "pageActions": "页面操作",
+    "showInspector": "展开检查与编辑面板",
+    "hideInspector": "收起检查与编辑面板"
   },
   "areaTranslation": { "title": "区域翻译", "cancelSelection": "取消选择" },
   "stageToolbar": {
@@ -984,6 +991,7 @@
     "hide": "隐藏工具栏",
     "hideTitle": "隐藏工具栏（4）",
     "imageTools": "图像工具",
+    "currentTool": "当前工具：{{tool}}",
     "groups": {
       "textShape": {
         "label": "文本形状",
@@ -2188,6 +2196,11 @@
     "empty": "此页面没有文本块。",
     "backToList": "返回页面文本块",
     "selectedCount": "已选择{{count}}个",
+    "reviewProgress": "{{count}}个待检查",
+    "reviewComplete": "没有待检查项",
+    "reviewOnly": "仅看待检查",
+    "showAll": "显示全部",
+    "noReviewItems": "没有需要检查的文本块。",
     "moveEarlier": "阅读顺序前移",
     "moveLater": "阅读顺序后移",
     "sortReadingOrder": "按位置排序"

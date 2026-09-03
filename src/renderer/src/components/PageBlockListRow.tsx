@@ -6,11 +6,13 @@ import {
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import { Button } from "./ui/Button";
 import { IconButton } from "./ui/IconButton";
 
 type PageBlockListRowProps = {
   block: TranslationBlock;
   disabled: boolean;
+  expanded: boolean;
   index: number;
   last: boolean;
   selected: boolean;
@@ -27,6 +29,7 @@ type PageBlockListRowProps = {
 export function PageBlockListRow({
   block,
   disabled,
+  expanded,
   index,
   last,
   selected,
@@ -38,7 +41,7 @@ export function PageBlockListRow({
 }: PageBlockListRowProps): React.JSX.Element {
   return (
     <article
-      className={`page-block-list-row ${selected ? "selected" : ""}`}
+      className={`page-block-list-row ${selected ? "selected" : ""} ${expanded ? "expanded" : "compact"}`.trim()}
       data-page-block-id={block.id}
       onClick={(event) =>
         onSelect(block.id, {
@@ -56,13 +59,48 @@ export function PageBlockListRow({
         onMoveLater={onMoveLater}
         onOpenEditor={onOpenEditor}
       />
-      <PageBlockTextFields
-        block={block}
-        disabled={disabled}
-        onSelect={onSelect}
-        onUpdate={onUpdate}
-      />
+      {expanded ? (
+        <PageBlockTextFields
+          block={block}
+          disabled={disabled}
+          onSelect={onSelect}
+          onUpdate={onUpdate}
+        />
+      ) : (
+        <PageBlockCompactSummary block={block} onSelect={onSelect} />
+      )}
     </article>
+  );
+}
+
+function PageBlockCompactSummary({
+  block,
+  onSelect,
+}: Pick<PageBlockListRowProps, "block" | "onSelect">): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const preview =
+    block.translatedText || block.sourceText || t("pageBlocks.emptySource");
+  return (
+    <Button
+      className="page-block-summary-button"
+      variant="ghost"
+      fullWidth
+      aria-expanded={false}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect(block.id, {
+          additive: event.ctrlKey || event.metaKey,
+          range: event.shiftKey,
+        });
+      }}
+    >
+      <span className="page-block-summary-kind">
+        {t(
+          block.translatedText ? "pageBlocks.translation" : "pageBlocks.source",
+        )}
+      </span>
+      <span className="page-block-summary-preview">{preview}</span>
+    </Button>
   );
 }
 

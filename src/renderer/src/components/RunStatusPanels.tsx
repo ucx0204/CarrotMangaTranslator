@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
+  IconAlertTriangle,
   IconDownload,
   IconFolderOpen,
   IconLayersSelected,
@@ -9,6 +10,7 @@ import {
 import type { AutoInpaintingEntryScope } from "../lib/autoInpaintingSelection";
 import { Button } from "./ui/Button";
 import { ControlTooltip } from "./ui/ControlTooltip";
+import { IconButton } from "./ui/IconButton";
 import { ChapterTaskHeader } from "./ChapterTaskHeader";
 import { areChapterTaskHubPropsEqual } from "./chapterTaskHubMemo";
 import type { ChapterTaskHubProps } from "./chapterTaskHubTypes";
@@ -42,14 +44,17 @@ export const ChapterTaskHub = React.memo(function ChapterTaskHub(
         onRetrySave={props.onRetrySave}
       />
       <div className="run-primary-actions">
-        <Button
-          variant="primary"
-          fullWidth
-          onClick={props.onOpenTranslateOptions}
-          disabled={actionsDisabled}
-        >
-          {t("translationOptions.title")}
-        </Button>
+        <div className="run-translation-action-row">
+          <Button
+            variant="primary"
+            fullWidth
+            onClick={props.onOpenTranslateOptions}
+            disabled={actionsDisabled}
+          >
+            {t("translationOptions.workspaceAction")}
+          </Button>
+          {props.currentChapter ? <TranslationReplacementWarning /> : null}
+        </div>
         {props.currentChapter && props.hasSelectedPage ? (
           <CurrentPageActionsSection
             actionsDisabled={actionsDisabled}
@@ -68,6 +73,27 @@ export const ChapterTaskHub = React.memo(function ChapterTaskHub(
     </section>
   );
 }, areChapterTaskHubPropsEqual);
+
+function TranslationReplacementWarning(): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const replacementDescription = t("translationOptions.workspaceUndoWarning");
+  return (
+    <ControlTooltip
+      className="run-panel-translation-warning"
+      content={replacementDescription}
+      placement="left"
+    >
+      <IconButton
+        className="run-panel-translation-warning-icon"
+        label={replacementDescription}
+        size="sm"
+        title=""
+      >
+        <IconAlertTriangle size={16} stroke={2} aria-hidden="true" />
+      </IconButton>
+    </ControlTooltip>
+  );
+}
 
 function CurrentPageActionsSection({
   actionsDisabled,
@@ -95,9 +121,9 @@ function CurrentPageActionsSection({
   const { t } = useTranslation("components");
   return (
     <div className="current-page-actions-section">
-      <small className="current-page-actions-label">
-        {t("runPanel.currentPage")}
-      </small>
+      <h3 className="current-page-actions-title">
+        {t("runPanel.pageActions")}
+      </h3>
       <div className="current-page-actions">
         <AutomaticEraseActions
           disabled={actionsDisabled || !hasSelectedPage}

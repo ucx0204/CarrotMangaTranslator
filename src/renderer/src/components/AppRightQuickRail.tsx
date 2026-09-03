@@ -14,6 +14,8 @@ import {
 } from "./WorkspaceOriginalOpacityControl";
 import { ControlTooltip } from "./ui/ControlTooltip";
 import { IconButton } from "./ui/IconButton";
+import { StageToolbarCurrentTool } from "./StageToolbarCurrentTool";
+import { useStageToolbarCurrentToolLabel } from "./stageToolbarCurrentToolState";
 
 export type AppRightQuickRailProps = Pick<
   UnifiedRightRailProps,
@@ -54,10 +56,13 @@ export type AppRightQuickRailProps = Pick<
   | "showBlockChrome"
   | "showTextBlocks"
   | "showProgressBar"
+  | "stageTool"
   | "statusEntries"
   | "statusLines"
   | "undoLabel"
 > & {
+  regionTranslationActive: boolean;
+  stageToolbarHidden: boolean;
   workspaceOriginalOpacityControl: WorkspaceOriginalOpacityControlProps;
   workspaceViewControls: WorkspaceViewControlsProps;
 };
@@ -72,8 +77,36 @@ export function AppRightQuickRail(
   const { t } = useTranslation("components");
   const controlsId = React.useId();
   const disabled = !props.currentChapter || props.jobActive || props.flowActive;
-  const [topCollapsed, setTopCollapsed] = React.useState(false);
-  const [bottomCollapsed, setBottomCollapsed] = React.useState(false);
+  const currentToolLabel = useStageToolbarCurrentToolLabel(
+    props.stageTool,
+    props.regionTranslationActive,
+  );
+  const [topCollapsed, setTopCollapsed] = React.useState(() =>
+    viewportMatches("(max-height: 430px), (max-width: 599px)"),
+  );
+  const [bottomCollapsed, setBottomCollapsed] = React.useState(() =>
+    viewportMatches("(max-height: 620px), (max-width: 719px)"),
+  );
+
+  React.useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const topQuery = window.matchMedia(
+      "(max-height: 430px), (max-width: 599px)",
+    );
+    const bottomQuery = window.matchMedia(
+      "(max-height: 620px), (max-width: 719px)",
+    );
+    const collapseForViewport = (): void => {
+      if (topQuery.matches) setTopCollapsed(true);
+      if (bottomQuery.matches) setBottomCollapsed(true);
+    };
+    topQuery.addEventListener("change", collapseForViewport);
+    bottomQuery.addEventListener("change", collapseForViewport);
+    return () => {
+      topQuery.removeEventListener("change", collapseForViewport);
+      bottomQuery.removeEventListener("change", collapseForViewport);
+    };
+  }, []);
 
   return (
     <aside className="right-quick-rail">
@@ -91,6 +124,8 @@ export function AppRightQuickRail(
       />
       <BottomQuickRailGroup
         collapsed={bottomCollapsed}
+        currentToolLabel={currentToolLabel}
+        showCurrentToolLabel={props.stageToolbarHidden}
         label={t(
           bottomCollapsed
             ? "workspace.quickRail.showBottom"
@@ -100,6 +135,14 @@ export function AppRightQuickRail(
         onToggle={() => setBottomCollapsed((collapsed) => !collapsed)}
       />
     </aside>
+  );
+}
+
+function viewportMatches(query: string): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(query).matches
   );
 }
 
@@ -159,17 +202,27 @@ function TopQuickRailGroup({
 
 function BottomQuickRailGroup({
   collapsed,
+  currentToolLabel,
+  showCurrentToolLabel,
   label,
   quickRailProps: props,
   onToggle,
 }: {
   collapsed: boolean;
+  currentToolLabel: string;
+  showCurrentToolLabel: boolean;
   label: string;
   quickRailProps: AppRightQuickRailProps;
   onToggle: () => void;
 }): React.JSX.Element {
   return (
     <div className="right-quick-rail-bottom">
+      {showCurrentToolLabel ? (
+        <StageToolbarCurrentTool
+          className="right-quick-rail-current-tool"
+          label={currentToolLabel}
+        />
+      ) : null}
       <div
         className={`right-quick-controls-frame right-quick-bottom-frame ${collapsed ? "collapsed" : ""}`.trim()}
       >

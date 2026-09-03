@@ -54,7 +54,9 @@
     "batchTranslate": "여러 화 추가",
     "libraryFolder": "보관함 폴더",
     "share": "작업 내보내기",
-    "importWork": "작업 가져오기"
+    "importWork": "작업 가져오기",
+    "showNavigator": "탐색 패널 열기",
+    "hideNavigator": "탐색 패널 닫기"
   },
   "conditionalBatch": {
     "open": "텍스트 일괄 편집",
@@ -663,6 +665,8 @@
   },
   "translationOptions": {
     "title": "번역 실행",
+    "workspaceAction": "번역 설정…",
+    "workspaceUndoWarning": "다시 번역한 페이지의 기존 결과는 새 결과로 바뀝니다.",
     "start": "번역 시작",
     "startSelection": "선택 범위 번역",
     "continueSelection": "선택 범위 이어서 번역",
@@ -981,7 +985,10 @@
   "runPanel": {
     "openChapterHint": "보관함에서 화를 열어 주세요.",
     "chapterTools": "챕터 도구",
-    "currentPage": "현재 페이지"
+    "currentPage": "현재 페이지",
+    "pageActions": "페이지 작업",
+    "showInspector": "검수·편집 패널 펼치기",
+    "hideInspector": "검수·편집 패널 접기"
   },
   "areaTranslation": { "title": "영역 번역", "cancelSelection": "선택 취소" },
   "stageToolbar": {
@@ -990,6 +997,7 @@
     "hide": "도구 모음 숨기기",
     "hideTitle": "도구 모음 숨기기 (4)",
     "imageTools": "이미지 도구",
+    "currentTool": "현재 도구: {{tool}}",
     "groups": {
       "textShape": {
         "label": "텍스트 모양",
@@ -2221,6 +2229,11 @@
     "empty": "이 페이지에는 텍스트 블록이 없습니다.",
     "backToList": "페이지 블록 목록으로",
     "selectedCount": "{{count}}개 선택",
+    "reviewProgress": "검토 {{count}}개 남음",
+    "reviewComplete": "검토할 항목 없음",
+    "reviewOnly": "검토만",
+    "showAll": "전체 보기",
+    "noReviewItems": "검토할 블록이 없습니다.",
     "moveEarlier": "읽기 순서 앞으로",
     "moveLater": "읽기 순서 뒤로",
     "sortReadingOrder": "좌표순 정렬"

@@ -34,6 +34,7 @@ type ImportModalProps = {
   initialDraft?: ImportModalSubmit | null;
   feedback?: ImportModalFeedback | null;
   onCancel: () => void;
+  onEntered?: () => void;
   onSubmit: (payload: ImportModalSubmit) => void;
 };
 
@@ -45,6 +46,7 @@ export function ImportModal({
   initialDraft = null,
   feedback = null,
   onCancel,
+  onEntered,
   onSubmit,
 }: ImportModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -85,6 +87,7 @@ export function ImportModal({
   return (
     <Modal
       title={modalTitle}
+      onEntered={onEntered}
       onClose={onCancel}
       closeDisabled={busy}
       footer={

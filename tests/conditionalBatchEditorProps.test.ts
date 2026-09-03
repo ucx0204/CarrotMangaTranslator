@@ -82,6 +82,19 @@ describe("conditional batch editor session binding", () => {
         ?.canUndo,
     ).toBe(false);
   });
+
+  it("closes the gathered-text source only after the editor reports that it entered", () => {
+    const model = createModel({ textViewOpen: true });
+    const props = createConditionalBatchEditorProps(
+      model,
+      {} as AppWorkspaceProps,
+    );
+    if (!props) throw new Error("conditional batch props are missing");
+
+    expect(model.uiState.setTextViewOpen).not.toHaveBeenCalled();
+    props.onEntered?.();
+    expect(model.uiState.setTextViewOpen).toHaveBeenCalledWith(false);
+  });
 });
 
 type TestModel = AppSessionViewModel & {
@@ -90,6 +103,8 @@ type TestModel = AppSessionViewModel & {
     setConditionalBatchInitialFind: ReturnType<typeof vi.fn>;
     setConditionalBatchInitialReplace: ReturnType<typeof vi.fn>;
     setConditionalBatchOpen: ReturnType<typeof vi.fn>;
+    setTextViewOpen: ReturnType<typeof vi.fn>;
+    textViewOpen: boolean;
   };
   updateCurrentChapter: ReturnType<typeof vi.fn<UpdateCurrentChapter>>;
 };
@@ -99,12 +114,14 @@ function createModel(
     conditionalBatchOpen?: boolean;
     currentChapter?: ChapterSnapshot | null;
     selectedPage?: MangaPage | null;
+    textViewOpen?: boolean;
     undoLabel?: string | null;
   } = {},
 ) {
   const setConditionalBatchOpen = vi.fn();
   const setConditionalBatchInitialFind = vi.fn();
   const setConditionalBatchInitialReplace = vi.fn();
+  const setTextViewOpen = vi.fn();
   const selectPageForReading = vi.fn();
   const updateCurrentChapter = vi.fn<UpdateCurrentChapter>();
   return defineFixture<TestModel>({
@@ -130,6 +147,8 @@ function createModel(
       setConditionalBatchInitialFind,
       setConditionalBatchInitialReplace,
       setConditionalBatchOpen,
+      setTextViewOpen,
+      textViewOpen: overrides.textViewOpen ?? false,
     },
     updateCurrentChapter,
     workspaceHistory: {

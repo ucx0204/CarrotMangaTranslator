@@ -134,6 +134,17 @@ describe("app-session shortcut handlers", () => {
     expect(spies.applyStylePreset).toHaveBeenCalledWith("preset-one");
   });
 
+  it("keeps gathered text mounted while the batch editor begins opening", () => {
+    const spies = makeSpies();
+    const { result } = renderShortcutHarness(spies);
+
+    run(result, "gather-text");
+    run(result, "open-search-replace");
+
+    expect(result.current.uiState.textViewOpen).toBe(true);
+    expect(result.current.uiState.conditionalBatchOpen).toBe(true);
+  });
+
   it("uses the toolbar anchor rules for keyboard zoom shortcuts", () => {
     const spies = makeSpies();
     const controller: WorkspaceZoomController = {

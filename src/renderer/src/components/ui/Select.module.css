@@ -63,6 +63,7 @@
 }
 
 .menu {
+  --motion-enter-y: -5px;
   position: fixed;
   z-index: var(--layer-select-menu, 210);
   display: flex;
@@ -73,6 +74,8 @@
   border-radius: var(--r-lg);
   background: var(--bg-sunken);
   box-shadow: var(--shadow-overlay);
+  transform-origin: top center;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
 }
 
 .menuHeader {
@@ -128,6 +131,10 @@
   border-radius: var(--r-md);
   color: var(--text-dim);
   cursor: default;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 /*
@@ -194,10 +201,15 @@
   font-size: 14px;
   font-weight: 700;
   opacity: 0;
+  scale: 0.82;
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-enter);
 }
 
 .check[data-visible] {
   opacity: 1;
+  scale: 1;
 }
 
 .empty {
@@ -210,5 +222,16 @@
 @media (max-width: 520px) {
   .option {
     min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    animation-name: ui-surface-enter-reduced;
+    animation-duration: var(--motion-fast);
+  }
+
+  .check {
+    scale: 1;
   }
 }

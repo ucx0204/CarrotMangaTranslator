@@ -54,7 +54,9 @@
     "batchTranslate": "複数話を追加",
     "libraryFolder": "ライブラリフォルダー",
     "share": "作業を書き出す",
-    "importWork": "作業を読み込む"
+    "importWork": "作業を読み込む",
+    "showNavigator": "ナビゲーションパネルを開く",
+    "hideNavigator": "ナビゲーションパネルを閉じる"
   },
   "conditionalBatch": {
     "open": "テキスト一括編集",
@@ -664,6 +666,8 @@
   },
   "translationOptions": {
     "title": "翻訳を実行",
+    "workspaceAction": "翻訳設定…",
+    "workspaceUndoWarning": "再翻訳したページの既存結果は新しい結果に変わります。",
     "start": "翻訳を開始",
     "startSelection": "選択範囲を翻訳",
     "continueSelection": "選択範囲の翻訳を続行",
@@ -982,7 +986,10 @@
   "runPanel": {
     "openChapterHint": "ライブラリから話を開いてください。",
     "chapterTools": "話のツール",
-    "currentPage": "現在のページ"
+    "currentPage": "現在のページ",
+    "pageActions": "ページ操作",
+    "showInspector": "確認・編集パネルを表示",
+    "hideInspector": "確認・編集パネルを隠す"
   },
   "areaTranslation": {
     "title": "範囲翻訳",
@@ -994,6 +1001,7 @@
     "hide": "ツールバーを隠す",
     "hideTitle": "ツールバーを隠す（4）",
     "imageTools": "画像ツール",
+    "currentTool": "現在のツール：{{tool}}",
     "groups": {
       "textShape": {
         "label": "テキスト形状",
@@ -2222,6 +2230,11 @@
     "empty": "このページにはテキストブロックがありません。",
     "backToList": "ページのブロック一覧へ",
     "selectedCount": "{{count}}個を選択",
+    "reviewProgress": "要確認 残り{{count}}件",
+    "reviewComplete": "確認項目なし",
+    "reviewOnly": "要確認のみ",
+    "showAll": "すべて表示",
+    "noReviewItems": "確認が必要なブロックはありません。",
     "moveEarlier": "読み順を前へ",
     "moveLater": "読み順を後ろへ",
     "sortReadingOrder": "位置で並べ替え"

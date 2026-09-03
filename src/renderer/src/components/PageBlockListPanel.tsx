@@ -41,6 +41,78 @@ export function PageBlockListPanel({
 }: PageBlockListPanelProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const view = usePageBlockListView({
+    onChangeSelection,
+    onSelectBlock,
+    page,
+    readingDirection,
+    selectedBlockId,
+    selectedBlockIdsProp,
+  });
+  useScrollSelectedBlockIntoView(scrollRef, selectedBlockId);
+
+  return (
+    <section className="page-block-list-panel">
+      <PageBlockListHeader
+        blockCount={view.orderedBlocks.length}
+        disabled={disabled}
+        needsReviewCount={view.needsReviewCount}
+        reviewOnly={view.reviewOnly}
+        selectedCount={view.selectedBlockIds.length}
+        onReviewOnlyChange={view.setReviewOnly}
+        onSortReadingOrder={onSortReadingOrder}
+      />
+      <div className="page-block-list-scroll" ref={scrollRef}>
+        {view.visibleBlocks.length > 0 ? (
+          view.visibleBlocks.map((block) => {
+            const readingIndex = view.readingIndexById.get(block.id) ?? 0;
+            return (
+              <PageBlockListRow
+                key={block.id}
+                block={block}
+                disabled={disabled}
+                expanded={block.id === selectedBlockId}
+                index={readingIndex}
+                last={readingIndex === view.orderedBlocks.length - 1}
+                selected={view.selectedIds.has(block.id)}
+                onMoveEarlier={(blockId) => onMoveBlock(blockId, -1)}
+                onMoveLater={(blockId) => onMoveBlock(blockId, 1)}
+                onOpenEditor={onOpenEditor}
+                onSelect={view.selectBlock}
+                onUpdate={onUpdateBlock}
+              />
+            );
+          })
+        ) : (
+          <p className="muted-line page-block-list-empty">
+            {t(
+              view.reviewOnly ? "pageBlocks.noReviewItems" : "pageBlocks.empty",
+            )}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function usePageBlockListView({
+  onChangeSelection,
+  onSelectBlock,
+  page,
+  readingDirection,
+  selectedBlockId,
+  selectedBlockIdsProp,
+}: Pick<
+  PageBlockListPanelProps,
+  | "onChangeSelection"
+  | "onSelectBlock"
+  | "page"
+  | "readingDirection"
+  | "selectedBlockId"
+> & {
+  selectedBlockIdsProp: string[] | undefined;
+}) {
+  const [reviewOnly, setReviewOnly] = React.useState(false);
   const selectedBlockIds = React.useMemo(
     () => selectedBlockIdsProp ?? (selectedBlockId ? [selectedBlockId] : []),
     [selectedBlockId, selectedBlockIdsProp],
@@ -49,19 +121,45 @@ export function PageBlockListPanel({
     () => resolvePageBlocksForReading(page, readingDirection),
     [page, readingDirection],
   );
+  const readingIndexById = React.useMemo(
+    () => new Map(orderedBlocks.map((block, index) => [block.id, index])),
+    [orderedBlocks],
+  );
   const selectedIds = React.useMemo(
     () => new Set(selectedBlockIds),
     [selectedBlockIds],
   );
+  const needsReviewCount = orderedBlocks.filter(
+    (block) => block.reviewStatus === "needs_review",
+  ).length;
+  const visibleBlocks = reviewOnly
+    ? orderedBlocks.filter((block) => block.reviewStatus === "needs_review")
+    : orderedBlocks;
   const selectBlock = usePageBlockListSelection({
-    onChangeSelection,
+    onChangeSelection: onChangeSelection ?? NOOP_SELECTION_CHANGE,
     onSelectBlock,
     orderedBlocks,
     selectedBlockId,
     selectedBlockIds,
     selectedIds,
   });
+  return {
+    needsReviewCount,
+    orderedBlocks,
+    readingIndexById,
+    reviewOnly,
+    selectedBlockIds,
+    selectedIds,
+    selectBlock,
+    setReviewOnly,
+    visibleBlocks,
+  };
+}
 
+function useScrollSelectedBlockIntoView(
+  scrollRef: React.RefObject<HTMLDivElement | null>,
+  selectedBlockId: string | null,
+): void {
   React.useEffect(() => {
     if (!selectedBlockId) return;
     const row = Array.from(
@@ -70,41 +168,7 @@ export function PageBlockListPanel({
       ) ?? [],
     ).find((node) => node.dataset.pageBlockId === selectedBlockId);
     row?.scrollIntoView({ block: "nearest" });
-  }, [selectedBlockId]);
-
-  return (
-    <section className="page-block-list-panel">
-      <PageBlockListHeader
-        blockCount={orderedBlocks.length}
-        disabled={disabled}
-        selectedCount={selectedBlockIds.length}
-        onSortReadingOrder={onSortReadingOrder}
-      />
-      <div className="page-block-list-scroll" ref={scrollRef}>
-        {orderedBlocks.length > 0 ? (
-          orderedBlocks.map((block, index) => (
-            <PageBlockListRow
-              key={block.id}
-              block={block}
-              disabled={disabled}
-              index={index}
-              last={index === orderedBlocks.length - 1}
-              selected={selectedIds.has(block.id)}
-              onMoveEarlier={(blockId) => onMoveBlock(blockId, -1)}
-              onMoveLater={(blockId) => onMoveBlock(blockId, 1)}
-              onOpenEditor={onOpenEditor}
-              onSelect={selectBlock}
-              onUpdate={onUpdateBlock}
-            />
-          ))
-        ) : (
-          <p className="muted-line page-block-list-empty">
-            {t("pageBlocks.empty")}
-          </p>
-        )}
-      </div>
-    </section>
-  );
+  }, [scrollRef, selectedBlockId]);
 }
 
 function usePageBlockListSelection({
@@ -186,32 +250,63 @@ const NOOP_SELECTION_CHANGE = (): void => undefined;
 function PageBlockListHeader({
   blockCount,
   disabled,
+  needsReviewCount,
+  reviewOnly,
   selectedCount,
+  onReviewOnlyChange,
   onSortReadingOrder,
 }: {
   blockCount: number;
   disabled: boolean;
+  needsReviewCount: number;
+  reviewOnly: boolean;
   selectedCount: number;
+  onReviewOnlyChange: (reviewOnly: boolean) => void;
   onSortReadingOrder: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
     <header className="page-block-list-panel-header">
       <div>
-        <h2>{t("pageBlocks.title")}</h2>
-        <span>{t("pageBlocks.count", { count: blockCount })}</span>
+        <div className="page-block-list-title-row">
+          <h2>{t("pageBlocks.title")}</h2>
+          <span>{t("pageBlocks.count", { count: blockCount })}</span>
+        </div>
+        {blockCount > 0 ? (
+          <span className="page-block-review-progress">
+            {t(
+              needsReviewCount > 0
+                ? "pageBlocks.reviewProgress"
+                : "pageBlocks.reviewComplete",
+              { count: needsReviewCount },
+            )}
+          </span>
+        ) : null}
         {selectedCount > 1 ? (
           <span>{t("pageBlocks.selectedCount", { count: selectedCount })}</span>
         ) : null}
       </div>
-      <Button
-        className="page-block-order-sort"
-        disabled={disabled || blockCount < 2}
-        onClick={onSortReadingOrder}
-        size="sm"
-      >
-        {t("pageBlocks.sortReadingOrder")}
-      </Button>
+      {blockCount > 0 ? (
+        <div className="page-block-list-header-actions">
+          <Button
+            aria-pressed={reviewOnly}
+            onClick={() => onReviewOnlyChange(!reviewOnly)}
+            size="sm"
+          >
+            {t(reviewOnly ? "pageBlocks.showAll" : "pageBlocks.reviewOnly")}
+          </Button>
+          {blockCount > 1 ? (
+            <Button
+              className="page-block-order-sort"
+              disabled={disabled}
+              onClick={onSortReadingOrder}
+              size="sm"
+            >
+              {t("pageBlocks.sortReadingOrder")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </header>
   );
 }

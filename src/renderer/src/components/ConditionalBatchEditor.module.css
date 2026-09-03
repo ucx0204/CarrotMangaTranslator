@@ -68,6 +68,7 @@
 }
 
 .schemeMenuPopover {
+  --motion-enter-y: -5px;
   position: absolute;
   z-index: 40;
   top: calc(100% + 5px);
@@ -80,6 +81,15 @@
   border-radius: var(--r-sm);
   background: var(--bg-panel);
   box-shadow: var(--shadow-lg);
+  transform-origin: top right;
+  animation: ui-surface-enter var(--motion-surface) var(--ease-enter) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schemeMenuPopover {
+    animation-name: ui-surface-enter-reduced;
+    animation-duration: var(--motion-fast);
+  }
 }
 
 .rulePanelScroll {
