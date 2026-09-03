@@ -25,12 +25,17 @@ import {
   researchWorkContext,
   type WorkContextResearchProgressHandler,
 } from "../workContextResearch";
-import { buildWorkContextUsage } from "../workContextUsage";
+import {
+  buildWorkContextUsage,
+  type WorkContextUsageRepository,
+} from "../workContextUsage";
 import { emitJobEvent } from "../jobs/jobEvents";
 import {
   getChapterStoryMemory,
   getWorkResearchTitle,
   getWorkStyleGuide,
+  listLibrary,
+  openChapter,
   resetWorkContext,
   saveChapterStoryMemory,
   saveWorkResearchTitle,
@@ -39,6 +44,13 @@ import {
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
+
+const workContextUsageRepository: WorkContextUsageRepository = {
+  getChapterStoryMemory,
+  getWorkStyleGuide,
+  listLibrary,
+  openChapter,
+};
 
 export interface WorkContextOperationGateDependencies {
   createBusyError: () => Error;
@@ -126,7 +138,7 @@ export function registerWorkContextIpc(context: IpcContext): void {
         { workId },
         tMain("ipc.labels.styleGuideOpen"),
       );
-      return buildWorkContextUsage(request.workId);
+      return buildWorkContextUsage(request.workId, workContextUsageRepository);
     },
   );
   registerInternetResearchIpc(context, operationGate);

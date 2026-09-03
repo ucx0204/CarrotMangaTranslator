@@ -316,7 +316,7 @@ async function researchWithCodex(
         emitCodexResearchProgress(onProgress, {
           stage: "searching",
           progressText: "호환 Codex 모델로 웹 조사 재시도 중",
-          detail: `${settings.internetResearch.codexModel} 세션에 직접 웹 검색 도구가 없어 ${fallback.model}로 다시 조사하고 있습니다.`,
+          detail: `${settings.internetResearch.codexModel} 조사에서 웹 검색 호출이 확인되지 않아 ${fallback.model}로 다시 조사하고 있습니다.`,
         }),
     });
     emitCodexResearchProgress(onProgress, {

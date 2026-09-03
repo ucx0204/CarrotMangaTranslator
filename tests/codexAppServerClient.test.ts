@@ -192,6 +192,7 @@ describe("CodexAppServerClient", () => {
     });
     expect(findRequest(messages, "thread/start")).toMatchObject({
       params: {
+        model: "gpt-test",
         approvalPolicy: "never",
         sandbox: "read-only",
         ephemeral: true,
@@ -211,6 +212,7 @@ describe("CodexAppServerClient", () => {
     expect(findRequest(messages, "turn/start")).toMatchObject({
       params: {
         threadId: "thread-1",
+        model: "gpt-test",
         effort: "high",
         input: [
           { type: "text", text: "translate", text_elements: [] },
@@ -240,6 +242,17 @@ describe("CodexAppServerClient", () => {
       expect(
         hasDisabledFeature(CODEX_APP_SERVER_RESEARCH_ARGUMENTS, feature),
       ).toBe(true);
+    }
+    for (const feature of ["code_mode", "code_mode_host"]) {
+      expect(
+        hasDisabledFeature(CODEX_APP_SERVER_RESEARCH_ARGUMENTS, feature),
+      ).toBe(false);
+      expect(
+        hasEnabledFeature(CODEX_APP_SERVER_RESEARCH_ARGUMENTS, feature),
+      ).toBe(true);
+      expect(hasDisabledFeature(CODEX_APP_SERVER_ARGUMENTS, feature)).toBe(
+        true,
+      );
     }
   });
 
@@ -300,8 +313,9 @@ describe("CodexAppServerClient", () => {
     >;
     expect(findRequest(messages, "thread/start")).toMatchObject({
       params: {
+        model: "gpt-web-test",
         developerInstructions: expect.stringContaining(
-          "hosted web_search tool directly",
+          "code-mode functions.exec wrapper",
         ),
         config: {
           web_search: "live",
@@ -312,11 +326,16 @@ describe("CodexAppServerClient", () => {
           },
           model_context_window: 262_144,
           features: {
+            code_mode: true,
+            code_mode_host: true,
             shell_tool: false,
             unified_exec: false,
           },
         },
       },
+    });
+    expect(findRequest(messages, "turn/start")).toMatchObject({
+      params: { model: "gpt-web-test", effort: "high" },
     });
   });
 });
@@ -324,6 +343,12 @@ describe("CodexAppServerClient", () => {
 function hasDisabledFeature(args: readonly string[], feature: string): boolean {
   return args.some(
     (value, index) => value === "--disable" && args[index + 1] === feature,
+  );
+}
+
+function hasEnabledFeature(args: readonly string[], feature: string): boolean {
+  return args.some(
+    (value, index) => value === "--enable" && args[index + 1] === feature,
   );
 }
 

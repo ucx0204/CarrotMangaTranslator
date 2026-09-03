@@ -4479,6 +4479,28 @@
         "pct": 70.17
       }
     },
+    "src/main/runtime/ocr/managed-python-integrity.cjs": {
+      "lines": {
+        "covered": 35,
+        "total": 36,
+        "pct": 97.22
+      },
+      "statements": {
+        "covered": 36,
+        "total": 37,
+        "pct": 97.29
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 23,
+        "total": 24,
+        "pct": 95.83
+      }
+    },
     "src/main/runtime/ocr/managed-python.cjs": {
       "lines": {
         "covered": 74,

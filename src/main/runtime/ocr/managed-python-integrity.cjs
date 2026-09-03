@@ -38,9 +38,12 @@ function installedManagedPythonHashesMatch(pythonDir, stored) {
   const expected = /** @type {Record<string, unknown>} */ (stored);
   const actual = collectManagedPythonExecutableHashes(pythonDir);
   const names = Object.keys(actual).sort();
+  const expectedNames = Object.keys(expected)
+    .filter((name) => !isMutablePipManagedPath(name))
+    .sort();
   return (
     names.length > 0 &&
-    names.length === Object.keys(expected).length &&
+    names.length === expectedNames.length &&
     names.every(
       (name) =>
         typeof expected[name] === "string" && expected[name] === actual[name],
@@ -54,6 +57,8 @@ function collectManagedPythonExecutableFiles(root) {
   const files = [];
   /** @param {string} dir */
   const visit = (dir) => {
+    const relativeDir = path.relative(root, dir).replace(/\\/g, "/");
+    if (isMutablePipManagedPath(relativeDir)) return;
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const filePath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
@@ -68,6 +73,27 @@ function collectManagedPythonExecutableFiles(root) {
   };
   visit(root);
   return files.sort();
+}
+
+/**
+ * pip, setuptools, and wheel are intentionally upgraded from the pinned OCR
+ * build-tools lock after the embeddable Python marker is created. Their
+ * launchers and native modules therefore do not belong to the immutable
+ * Python archive boundary. Legacy markers can contain these paths, so the
+ * same predicate is also applied while reading stored hashes.
+ * @param {string} relativePath
+ * @returns {boolean}
+ */
+function isMutablePipManagedPath(relativePath) {
+  const normalized = String(relativePath ?? "")
+    .replace(/\\/g, "/")
+    .toLowerCase();
+  return (
+    normalized === "scripts" ||
+    normalized.startsWith("scripts/") ||
+    normalized === "lib/site-packages" ||
+    normalized.startsWith("lib/site-packages/")
+  );
 }
 
 /** @param {string} filePath @returns {string} */

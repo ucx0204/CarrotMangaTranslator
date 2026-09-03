@@ -42,7 +42,7 @@ export async function runCodexWebResearchWithFallback({
   return {
     result,
     warnings: [
-      `선택한 Codex 모델 ${selectedModel}의 현재 세션에 직접 웹 검색 도구가 제공되지 않아 ${fallback.model}로 자동 재시도했습니다.`,
+      `선택한 Codex 모델 ${selectedModel}의 조사에서 웹 검색 호출이 확인되지 않아 ${fallback.model}로 자동 재시도했습니다.`,
     ],
   };
 }
@@ -89,9 +89,9 @@ function webSearchUnavailableError(
   fallbackModel?: string,
 ): Error {
   const fallbackDetail = fallbackModel
-    ? ` ${fallbackModel} 자동 재시도에서도 검색 도구를 사용할 수 없었습니다.`
+    ? ` ${fallbackModel} 자동 재시도에서도 웹 검색 호출이 확인되지 않았습니다.`
     : " 자동 재시도할 호환 모델도 현재 계정에서 사용할 수 없습니다.";
   return new Error(
-    `선택한 Codex 모델 ${selectedModel}의 현재 세션에 직접 웹 검색 도구가 제공되지 않았습니다.${fallbackDetail}`,
+    `선택한 Codex 모델 ${selectedModel}의 조사에서 웹 검색 호출이 확인되지 않았습니다.${fallbackDetail}`,
   );
 }

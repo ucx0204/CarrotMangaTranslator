@@ -13,13 +13,6 @@ import type {
   WorkContextUsageLastSeen,
   WorkContextUsageMetric,
 } from "../shared/workContextUsageTypes";
-import {
-  getChapterStoryMemory,
-  getWorkStyleGuide,
-  listLibrary,
-  openChapter,
-} from "./library";
-
 type MutableMetric = WorkContextUsageMetric;
 type UsageMatcher = { id: string; keys: string[] };
 
@@ -30,16 +23,9 @@ export type WorkContextUsageRepository = {
   getChapterStoryMemory: (chapterId: string) => Promise<ChapterStoryMemory>;
 };
 
-const defaultRepository: WorkContextUsageRepository = {
-  getChapterStoryMemory,
-  getWorkStyleGuide,
-  listLibrary,
-  openChapter,
-};
-
 export async function buildWorkContextUsage(
   workId: string,
-  repository: WorkContextUsageRepository = defaultRepository,
+  repository: WorkContextUsageRepository,
 ): Promise<WorkContextUsage> {
   const [library, guide] = await Promise.all([
     repository.listLibrary(),
@@ -51,7 +37,7 @@ export async function buildWorkContextUsage(
 export async function buildWorkContextUsageForGuide(
   workId: string,
   guide: WorkStyleGuide,
-  repository: WorkContextUsageRepository = defaultRepository,
+  repository: WorkContextUsageRepository,
 ): Promise<WorkContextUsage> {
   return buildUsageFromLibrary(
     workId,

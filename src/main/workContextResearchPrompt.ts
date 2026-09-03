@@ -406,8 +406,8 @@ export function buildCodexWebResearchPrompt(
     instructions: researchSystemPrompt(true),
     userPrompt: [
       buildResearchInstructions(),
-      "최종 답변 전에 호스팅된 web_search 도구를 직접 최소 한 번 사용하고 공식 출처부터 확인하라.",
-      "exec, functions.exec, tools.web__run으로 검색을 감싸지 마라. 이 실행에서는 해당 코드형 도구를 사용할 수 없다.",
+      "최종 답변 전에 제공된 웹 검색 도구를 최소 한 번 사용하고 공식 출처부터 확인하라.",
+      "GPT-5.6에서 functions.exec 코드형 도구가 보이면 그 안에서 제공된 웹 검색 도구만 호출하라. 셸·파일 도구나 검색 이외의 도구는 호출하지 마라.",
       "검색하지 않고 기억만으로 외부 사실을 추가하지 마라.",
       ...(limits
         ? [`최종 JSON은 최대 ${limits.maxOutputTokens} 토큰 안에서 작성하라.`]

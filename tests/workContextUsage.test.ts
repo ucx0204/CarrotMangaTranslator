@@ -166,6 +166,20 @@ describe("work context usage", () => {
     );
   });
 
+  it("returns empty usage when the requested work is no longer in the library", async () => {
+    const repository = makeRepository();
+
+    await expect(
+      buildWorkContextUsage("missing-work", repository),
+    ).resolves.toEqual({
+      workId: "missing-work",
+      glossary: [{ id: "hero", pageCount: 0, mentionCount: 0 }],
+      characters: [{ id: "aria", pageCount: 0, mentionCount: 0 }],
+    });
+    expect(repository.openChapter).not.toHaveBeenCalled();
+    expect(repository.getChapterStoryMemory).not.toHaveBeenCalled();
+  });
+
   it("measures an unsaved guide snapshot without reading the stored guide", async () => {
     const repository = makeRepository();
     const draftGuide = await repository.getWorkStyleGuide("work-1");

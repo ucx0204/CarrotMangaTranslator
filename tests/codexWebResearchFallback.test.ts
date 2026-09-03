@@ -84,7 +84,7 @@ describe("Codex web-research fallback", () => {
         selectedEffort: "low",
         runTurn: async () => turnResult(0),
       }),
-    ).rejects.toThrow("gpt-5.5 자동 재시도에서도 검색 도구");
+    ).rejects.toThrow("gpt-5.5 자동 재시도에서도 웹 검색 호출");
   });
 });
 
