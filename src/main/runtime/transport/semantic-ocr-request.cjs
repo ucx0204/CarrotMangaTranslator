@@ -31,7 +31,6 @@ const {
   sendChatCompletion,
 } = require("./chat-completion.cjs");
 const {
-  assertFixedBlockRepairComplete,
   recordFixedBlockRepairSummary,
   repairInvalidFixedBlockTranslations,
 } = require("./fixed-block-repair-loop.cjs");
@@ -81,10 +80,11 @@ async function requestFixedBlockTranslation(
     initialPass.forbiddenTokenBias;
   requestSummary.localForbiddenTokenBias =
     requestSummary.fixedBlockTranslationForbiddenTokenBias;
-  const initialPartial = parseFixedBlockTranslationPartialResponse(
+  const initialPartial = parseInitialFixedBlockTranslationResponse(
     initialPass.response.outputText,
     plan,
     options,
+    requestSummary,
   );
   return completeFixedBlockTranslation(
     server,
@@ -185,7 +185,6 @@ async function completeFixedBlockTranslation(
   const translations = repaired.translations;
   const repairResponses = repaired.responses;
   recordFixedBlockRepairSummary(requestSummary, repaired);
-  assertFixedBlockRepairComplete(repaired);
   return {
     requestBody: requestSummary,
     rawResponse:
@@ -199,6 +198,58 @@ async function completeFixedBlockTranslation(
       buildFixedBlockOverlayPayload(plan, translations),
     ),
   };
+}
+
+/**
+ * A syntactically unusable model response contains no salvageable ownership,
+ * but the immutable OCR plan still does. Retry every planned id and degrade to
+ * source text if those focused repairs also fail.
+ *
+ * @param {string} outputText
+ * @param {ReturnType<typeof buildFixedBlockPlan>} plan
+ * @param {SemanticRequestOptions} options
+ * @param {RequestSummary} requestSummary
+ */
+function parseInitialFixedBlockTranslationResponse(
+  outputText,
+  plan,
+  options,
+  requestSummary,
+) {
+  try {
+    return parseFixedBlockTranslationPartialResponse(outputText, plan, options);
+  } catch (error) {
+    if (!isRepairableFixedBlockResponseError(error)) throw error;
+    const code = readErrorCode(error);
+    const blockIds = plan.blocks.map((block) => block.blockId);
+    requestSummary.fixedBlockInitialResponseError = {
+      code,
+      message: error instanceof Error ? error.message : String(error),
+    };
+    return {
+      translations: { items: [] },
+      retryBlockIds: blockIds,
+      retryReasons: Object.fromEntries(
+        blockIds.map((blockId) => [blockId, [code]]),
+      ),
+    };
+  }
+}
+
+/** @param {unknown} error */
+function isRepairableFixedBlockResponseError(error) {
+  const code = readErrorCode(error);
+  return (
+    code === "semantic-ocr-json-invalid" ||
+    code.startsWith("fixed-block-translation")
+  );
+}
+
+/** @param {unknown} error */
+function readErrorCode(error) {
+  return error && typeof error === "object" && "code" in error
+    ? String(error.code ?? "")
+    : "";
 }
 
 /**

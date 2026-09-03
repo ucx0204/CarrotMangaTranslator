@@ -7,12 +7,12 @@
  * @typedef {{role:string;path:string;[key:string]:unknown}} ImageVariant
  * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";layoutIntent?:"horizontal"|"vertical";fontRole?:string;fontRoleConfidence?:number;visualClusterId?:string}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
- * @typedef {{translations:FixedBlockTranslationResult;retryBlockIds:string[];retryReasons:Record<string,string[]>;horizontalFallbackTranslations?:FixedBlockTranslationResult;fontIntentFallbackTranslations?:FixedBlockTranslationResult;targetTypographyFallbackTranslations?:FixedBlockTranslationResult}} FixedBlockPartialResult
+ * @typedef {{translations:FixedBlockTranslationResult;retryBlockIds:string[];retryReasons:Record<string,string[]>;horizontalFallbackTranslations?:FixedBlockTranslationResult;fontIntentFallbackTranslations?:FixedBlockTranslationResult;targetTypographyFallbackTranslations?:FixedBlockTranslationResult;sourceScriptFallbackTranslations?:FixedBlockTranslationResult;readableTextFallbackTranslations?:FixedBlockTranslationResult}} FixedBlockPartialResult
  * @typedef {{response:{outputText:string;rawResponse:unknown};forbiddenTokenBias:unknown}} FixedBlockPassResult
  * @typedef {(server:ModelServer,options:SemanticRequestOptions,imageVariants:ImageVariant[],plan:FixedBlockPlan,promptText:string,systemPrompt:string,requestSummary:Record<string,unknown>,requestStartedAt:number)=>Promise<FixedBlockPassResult>} FixedBlockPassRequester
  * @typedef {ReturnType<typeof _buildFixedBlockPlan>} FixedBlockPlan
  * @typedef {{translations:FixedBlockTranslationResult;pendingBlockIds:string[];retryReasons:Record<string,string[]>;responses:unknown[];history:unknown[]}} FixedBlockRepairState
- * @typedef {{horizontal:Map<string,FixedBlockTranslation>;fontIntent:Map<string,FixedBlockTranslation>;targetTypography:Map<string,FixedBlockTranslation>}} FixedBlockFallbacks
+ * @typedef {{horizontal:Map<string,FixedBlockTranslation>;fontIntent:Map<string,FixedBlockTranslation>;targetTypography:Map<string,FixedBlockTranslation>;sourceScript:Map<string,FixedBlockTranslation>;readableText:Map<string,FixedBlockTranslation>}} FixedBlockFallbacks
  */
 
 const {
@@ -25,7 +25,6 @@ const {
 const {
   completeFixedBlockFallbacks,
 } = require("../semantic-ocr/fixed-block-repair-fallback.cjs");
-const { semanticContractError } = require("../semantic-ocr/values.cjs");
 const { findAbortError } = require("./model-http-errors.cjs");
 
 const MAX_FIXED_BLOCK_REPAIR_ATTEMPTS = 3;
@@ -44,7 +43,7 @@ async function repairInvalidFixedBlockTranslations(context) {
     expectedIds,
     fallbacks,
   );
-  return completeFixedBlockFallbacks(state, fallbacks, expectedIds);
+  return completeFixedBlockFallbacks(state, fallbacks, context.plan.blocks);
 }
 
 /**
@@ -138,6 +137,14 @@ function applySuccessfulRepair(
     fallbacks.targetTypography,
     partial.targetTypographyFallbackTranslations,
   );
+  replaceFallbackTranslations(
+    fallbacks.sourceScript,
+    partial.sourceScriptFallbackTranslations,
+  );
+  replaceFallbackTranslations(
+    fallbacks.readableText,
+    partial.readableTextFallbackTranslations,
+  );
   state.pendingBlockIds = partial.retryBlockIds;
   state.retryReasons = partial.retryReasons;
   state.responses.push(pass.response.rawResponse);
@@ -199,6 +206,12 @@ function createFallbackIndexes(initial) {
     targetTypography: indexFallbackTranslations(
       initial.targetTypographyFallbackTranslations,
     ),
+    sourceScript: indexFallbackTranslations(
+      initial.sourceScriptFallbackTranslations,
+    ),
+    readableText: indexFallbackTranslations(
+      initial.readableTextFallbackTranslations,
+    ),
   };
 }
 
@@ -218,6 +231,18 @@ function indexFallbackTranslations(translations) {
 function preserveFirstFallbackTranslations(fallbackById, translations) {
   for (const item of translations?.items ?? []) {
     if (!fallbackById.has(item.blockId)) fallbackById.set(item.blockId, item);
+  }
+}
+
+/**
+ * A focused repair is more useful than the earlier malformed value even when
+ * it still needs review, so retain the latest readable text candidate.
+ * @param {Map<string,FixedBlockTranslation>} fallbackById
+ * @param {FixedBlockTranslationResult|undefined} translations
+ */
+function replaceFallbackTranslations(fallbackById, translations) {
+  for (const item of translations?.items ?? []) {
+    fallbackById.set(item.blockId, item);
   }
 }
 
@@ -263,6 +288,30 @@ function recordFixedBlockRepairSummary(summary, repaired) {
       "fixedBlockTargetTypographyFallbackIds",
       repaired.targetTypographyFallbackBlockIds,
     ),
+    ...asNonEmptyValue(
+      "fixedBlockSourceScriptFallbackIds",
+      repaired.sourceScriptFallbackBlockIds,
+    ),
+    ...asNonEmptyValue(
+      "fixedBlockReadableTextFallbackIds",
+      repaired.readableTextFallbackBlockIds,
+    ),
+    ...asNonEmptyValue(
+      "fixedBlockSourceTextFallbackIds",
+      repaired.sourceTextFallbackBlockIds,
+    ),
+    ...asNonEmptyValue(
+      "fixedBlockNeedsReviewIds",
+      repaired.needsReviewBlockIds,
+    ),
+    ...(repaired.needsReviewBlockIds.length > 0
+      ? {
+          fixedBlockNeedsReviewReasons: pickRetryReasons(
+            repaired.retryReasons,
+            repaired.needsReviewBlockIds,
+          ),
+        }
+      : {}),
     ...(repaired.pendingBlockIds.length > 0
       ? {
           fixedBlockUnresolvedIds: repaired.pendingBlockIds,
@@ -280,27 +329,13 @@ function asNonEmptyValue(key, values) {
   return values.length > 0 ? { [key]: values } : {};
 }
 
-/** @param {ReturnType<typeof completeFixedBlockFallbacks>} repaired */
-function assertFixedBlockRepairComplete(repaired) {
-  const unresolvedIds = repaired.pendingBlockIds;
-  if (unresolvedIds.length === 0) return;
-  throw semanticContractError(
-    "fixed-block-translation-repair-exhausted",
-    `Fixed-block translation repair exhausted with unresolved ids: [${unresolvedIds.join(",")}]. Refusing to omit untranslated or malformed blocks.`,
-    {
-      blockIds: unresolvedIds,
-      rejectionReasons: pickRetryReasons(repaired.retryReasons, unresolvedIds),
-    },
-  );
-}
-
 /** @param {unknown} error */
 function isFixedBlockRepairContractError(error) {
   if (!error || typeof error !== "object") return false;
   const code = String(/** @type {{code?:unknown}} */ (error).code ?? "");
   return (
     code === "semantic-ocr-json-invalid" ||
-    code.startsWith("fixed-block-translation-")
+    code.startsWith("fixed-block-translation")
   );
 }
 
@@ -319,7 +354,6 @@ function pickRetryReasons(reasons, blockIds) {
 }
 
 module.exports = {
-  assertFixedBlockRepairComplete,
   recordFixedBlockRepairSummary,
   repairInvalidFixedBlockTranslations,
 };

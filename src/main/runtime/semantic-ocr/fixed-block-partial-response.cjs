@@ -1,6 +1,7 @@
 // @ts-check
 
 const {
+  cleanText,
   isRecord,
   parseJsonObject,
   semanticContractError,
@@ -18,7 +19,7 @@ const {
  * @typedef {{blocks:Array<{blockId:string}>}} FixedBlockPlan
  * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;collectPageContext?:unknown;autoFontMatching?:unknown;[key:string]:unknown}} FixedBlockOptions
  * @typedef {(value:unknown,index:number,options:FixedBlockOptions)=>FixedBlockTranslation} FixedBlockItemReader
- * @typedef {{translations:FixedBlockTranslationResult;retryBlockIds:string[];retryReasons:Record<string,string[]>;horizontalFallbackTranslations?:FixedBlockTranslationResult;fontIntentFallbackTranslations?:FixedBlockTranslationResult;targetTypographyFallbackTranslations?:FixedBlockTranslationResult}} FixedBlockPartialResult
+ * @typedef {{translations:FixedBlockTranslationResult;retryBlockIds:string[];retryReasons:Record<string,string[]>;horizontalFallbackTranslations?:FixedBlockTranslationResult;fontIntentFallbackTranslations?:FixedBlockTranslationResult;targetTypographyFallbackTranslations?:FixedBlockTranslationResult;sourceScriptFallbackTranslations?:FixedBlockTranslationResult;readableTextFallbackTranslations?:FixedBlockTranslationResult}} FixedBlockPartialResult
  */
 
 /**
@@ -71,6 +72,28 @@ function parseFixedBlockTranslationPartialResponse(
     [...primary.rejected, ...horizontal.rejected, ...fontIntent.rejected],
     options,
   );
+  const targetTypographyIds = new Set(
+    targetTypography.map((item) => item.blockId),
+  );
+  const sourceScript = uniqueItemsByBlockId([
+    ...primary.rejected,
+    ...horizontal.rejected,
+    ...fontIntent.rejected,
+  ]).filter((item) => !targetTypographyIds.has(item.blockId));
+  const specializedFallbackIds = new Set(
+    [
+      ...primary.accepted,
+      ...horizontal.accepted,
+      ...fontIntent.accepted,
+      ...targetTypography,
+      ...sourceScript,
+    ].map((item) => item.blockId),
+  );
+  const readableText = buildReadableTextFallbackItems(
+    rawItems,
+    expectedIdSet,
+    specializedFallbackIds,
+  );
   return buildPartialResult({
     expectedIds,
     items: primary.accepted,
@@ -79,11 +102,13 @@ function parseFixedBlockTranslationPartialResponse(
     horizontal: horizontal.accepted,
     fontIntent: fontIntent.accepted,
     targetTypography,
+    sourceScript,
+    readableText,
   });
 }
 
 /**
- * @param {{expectedIds:string[];items:FixedBlockTranslation[];pageContext:Record<string,unknown>|undefined;retryReasonById:Map<string,Set<string>>;horizontal:FixedBlockTranslation[];fontIntent:FixedBlockTranslation[];targetTypography:FixedBlockTranslation[]}} value
+ * @param {{expectedIds:string[];items:FixedBlockTranslation[];pageContext:Record<string,unknown>|undefined;retryReasonById:Map<string,Set<string>>;horizontal:FixedBlockTranslation[];fontIntent:FixedBlockTranslation[];targetTypography:FixedBlockTranslation[];sourceScript:FixedBlockTranslation[];readableText:FixedBlockTranslation[]}} value
  * @returns {FixedBlockPartialResult}
  */
 function buildPartialResult(value) {
@@ -113,6 +138,8 @@ function buildPartialResult(value) {
       "targetTypographyFallbackTranslations",
       value.targetTypography,
     ),
+    ...asFallbackResult("sourceScriptFallbackTranslations", value.sourceScript),
+    ...asFallbackResult("readableTextFallbackTranslations", value.readableText),
   };
 }
 
@@ -321,6 +348,49 @@ function buildTargetTypographyFallbackItems(candidates, options) {
     recoveredById.set(recovered.blockId, recovered);
   }
   return [...recoveredById.values()];
+}
+
+/**
+ * Retain a readable target string even when duplicate claims or advisory
+ * metadata make the complete item contract invalid. This value is never used
+ * until targeted repairs are exhausted, and the completed block is marked for
+ * review by the pipeline.
+ *
+ * @param {unknown[]} rawItems
+ * @param {Set<string>} expectedIds
+ * @param {Set<string>} specializedFallbackIds
+ * @returns {FixedBlockTranslation[]}
+ */
+function buildReadableTextFallbackItems(
+  rawItems,
+  expectedIds,
+  specializedFallbackIds,
+) {
+  const fallbackById = new Map();
+  for (const value of rawItems) {
+    if (!isRecord(value) || typeof value.blockId !== "string") continue;
+    const blockId = value.blockId.trim();
+    if (!expectedIds.has(blockId) || specializedFallbackIds.has(blockId)) {
+      continue;
+    }
+    const ko = normalizeReadableFallbackText(value.ko);
+    if (!ko || fallbackById.has(blockId)) continue;
+    fallbackById.set(blockId, { blockId, ko });
+  }
+  return [...fallbackById.values()];
+}
+
+/** @param {unknown} value */
+function normalizeReadableFallbackText(value) {
+  return cleanText(value, 8000)
+    .replace(/\\[nr]|[\r\n]/gu, " ")
+    .replace(/\s{2,}/gu, " ")
+    .trim();
+}
+
+/** @param {FixedBlockTranslation[]} items */
+function uniqueItemsByBlockId(items) {
+  return [...new Map(items.map((item) => [item.blockId, item])).values()];
 }
 
 /**

@@ -4,6 +4,7 @@ import type { OpenAICompatibleApiEndpoint } from "../openaiApiEndpoint";
 import type { CodexAppServerEndpoint } from "../codexAppServerEndpoint";
 import type {
   BBox,
+  ReviewStatus,
   SourceTextDirection,
   TextLayoutIntent,
 } from "../../shared/textTypes";
@@ -185,6 +186,8 @@ export type OverlayItem = {
   angle?: number;
   fontSize?: number | null;
   confidence?: number | null;
+  /** Code-owned degradation marker; model output cannot set this field. */
+  reviewStatus?: ReviewStatus;
 };
 
 type SourceFontLineGeometryV1 = Readonly<{
@@ -246,6 +249,9 @@ export type RequestSummary = {
   fixedBlockIds?: string[];
   fixedBlockCandidateIds?: number[][];
   fixedBlockDirectionVoterCandidateIds?: number[][];
+  fixedBlockNeedsReviewIds?: string[];
+  fixedBlockNeedsReviewReasons?: Record<string, string[]>;
+  fixedBlockInitialResponseError?: { code: string; message: string };
   previousBlocksForPrompt?: PreviousOverlayBlockForPrompt[];
   strictRefineMode?: boolean;
   ocrGeometryOnlyMode?: boolean;

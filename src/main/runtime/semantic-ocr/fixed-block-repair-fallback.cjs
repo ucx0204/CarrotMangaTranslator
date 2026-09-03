@@ -7,48 +7,31 @@ const {
 /**
  * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";layoutIntent?:"horizontal"|"vertical";fontRole?:string;fontRoleConfidence?:number;visualClusterId?:string}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
+ * @typedef {{blockId:string;jp:string}} FixedBlockSource
+ * @typedef {"horizontal"|"fontIntent"|"targetTypography"|"sourceScript"|"readableText"|"sourceText"} FixedBlockFallbackKind
+ * @typedef {{blockId:string;kind:FixedBlockFallbackKind;item:FixedBlockTranslation}} SelectedFixedBlockFallback
  */
 
 /**
- * Recover only exhausted presentation-metadata conflicts or target-side
- * punctuation that already carried an otherwise-valid translation. Every
- * other pending id remains unresolved for the transport's fail-closed check.
+ * Prefer a repaired or safely normalized translation, then retain the last
+ * readable model text, and finally preserve the immutable OCR source. A
+ * block-local model failure must not discard the rest of the translated page.
  *
  * @param {{translations:FixedBlockTranslationResult;pendingBlockIds:string[];responses:unknown[];history:unknown[];retryReasons:Record<string,string[]>}} repaired
- * @param {{horizontal:Map<string,FixedBlockTranslation>;fontIntent:Map<string,FixedBlockTranslation>;targetTypography:Map<string,FixedBlockTranslation>}} fallbacks
- * @param {string[]} expectedIds
+ * @param {{horizontal:Map<string,FixedBlockTranslation>;fontIntent:Map<string,FixedBlockTranslation>;targetTypography:Map<string,FixedBlockTranslation>;sourceScript:Map<string,FixedBlockTranslation>;readableText:Map<string,FixedBlockTranslation>}} fallbacks
+ * @param {FixedBlockSource[]} blocks
  */
-function completeFixedBlockFallbacks(repaired, fallbacks, expectedIds) {
-  const selectedFallbacks = repaired.pendingBlockIds.flatMap((blockId) => {
-    const targetTypography = fallbacks.targetTypography.get(blockId);
-    if (targetTypography) {
-      return [{ blockId, kind: "targetTypography", item: targetTypography }];
-    }
-    const fontIntent = fallbacks.fontIntent.get(blockId);
-    if (fontIntent) {
-      return [{ blockId, kind: "fontIntent", item: fontIntent }];
-    }
-    const horizontal = fallbacks.horizontal.get(blockId);
-    return horizontal
-      ? [{ blockId, kind: "horizontal", item: horizontal }]
-      : [];
-  });
-  const horizontalFallbackBlockIds = selectedFallbacks
-    .filter(({ kind }) => kind === "horizontal")
-    .map(({ blockId }) => blockId);
-  const fontIntentFallbackBlockIds = selectedFallbacks
-    .filter(({ kind }) => kind === "fontIntent")
-    .map(({ blockId }) => blockId);
-  const targetTypographyFallbackBlockIds = selectedFallbacks
-    .filter(({ kind }) => kind === "targetTypography")
-    .map(({ blockId }) => blockId);
+function completeFixedBlockFallbacks(repaired, fallbacks, blocks) {
+  const expectedIds = blocks.map((block) => block.blockId);
+  const sourceById = new Map(blocks.map((block) => [block.blockId, block.jp]));
+  const selectedFallbacks = selectFixedBlockFallbacks(
+    repaired.pendingBlockIds,
+    fallbacks,
+    sourceById,
+  );
+  const summary = summarizeSelectedFallbacks(selectedFallbacks);
   if (selectedFallbacks.length === 0) {
-    return {
-      ...repaired,
-      horizontalFallbackBlockIds,
-      fontIntentFallbackBlockIds,
-      targetTypographyFallbackBlockIds,
-    };
+    return { ...repaired, ...summary };
   }
   const recoveredIds = new Set(selectedFallbacks.map(({ blockId }) => blockId));
   return {
@@ -61,9 +44,70 @@ function completeFixedBlockFallbacks(repaired, fallbacks, expectedIds) {
     pendingBlockIds: repaired.pendingBlockIds.filter(
       (blockId) => !recoveredIds.has(blockId),
     ),
-    horizontalFallbackBlockIds,
-    fontIntentFallbackBlockIds,
-    targetTypographyFallbackBlockIds,
+    ...summary,
+  };
+}
+
+/**
+ * @param {string[]} pendingBlockIds
+ * @param {{horizontal:Map<string,FixedBlockTranslation>;fontIntent:Map<string,FixedBlockTranslation>;targetTypography:Map<string,FixedBlockTranslation>;sourceScript:Map<string,FixedBlockTranslation>;readableText:Map<string,FixedBlockTranslation>}} fallbacks
+ * @param {Map<string,string>} sourceById
+ * @returns {SelectedFixedBlockFallback[]}
+ */
+function selectFixedBlockFallbacks(pendingBlockIds, fallbacks, sourceById) {
+  return pendingBlockIds.map((blockId) =>
+    selectFixedBlockFallback(blockId, fallbacks, sourceById),
+  );
+}
+
+/**
+ * @param {string} blockId
+ * @param {{horizontal:Map<string,FixedBlockTranslation>;fontIntent:Map<string,FixedBlockTranslation>;targetTypography:Map<string,FixedBlockTranslation>;sourceScript:Map<string,FixedBlockTranslation>;readableText:Map<string,FixedBlockTranslation>}} fallbacks
+ * @param {Map<string,string>} sourceById
+ * @returns {SelectedFixedBlockFallback}
+ */
+function selectFixedBlockFallback(blockId, fallbacks, sourceById) {
+  const storedKinds = /** @type {const} */ ([
+    "targetTypography",
+    "fontIntent",
+    "horizontal",
+    "sourceScript",
+    "readableText",
+  ]);
+  for (const kind of storedKinds) {
+    const item = fallbacks[kind].get(blockId);
+    if (item) return { blockId, kind, item };
+  }
+  const sourceText = String(sourceById.get(blockId) ?? "").trim();
+  return {
+    blockId,
+    kind: "sourceText",
+    item: { blockId, ko: sourceText || "…" },
+  };
+}
+
+/** @param {SelectedFixedBlockFallback[]} selected */
+function summarizeSelectedFallbacks(selected) {
+  /** @param {FixedBlockFallbackKind} kind */
+  const ids = (kind) =>
+    selected
+      .filter((fallback) => fallback.kind === kind)
+      .map(({ blockId }) => blockId);
+  const sourceScriptFallbackBlockIds = ids("sourceScript");
+  const readableTextFallbackBlockIds = ids("readableText");
+  const sourceTextFallbackBlockIds = ids("sourceText");
+  return {
+    horizontalFallbackBlockIds: ids("horizontal"),
+    fontIntentFallbackBlockIds: ids("fontIntent"),
+    targetTypographyFallbackBlockIds: ids("targetTypography"),
+    sourceScriptFallbackBlockIds,
+    readableTextFallbackBlockIds,
+    sourceTextFallbackBlockIds,
+    needsReviewBlockIds: [
+      ...sourceScriptFallbackBlockIds,
+      ...readableTextFallbackBlockIds,
+      ...sourceTextFallbackBlockIds,
+    ],
   };
 }
 

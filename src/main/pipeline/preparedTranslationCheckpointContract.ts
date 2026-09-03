@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   BBoxSchema,
   MAX_BLOCKS_PER_PAGE,
+  ReviewStatusSchema,
   TranslationBlockSchema,
   finiteNumber,
 } from "../../shared/ipcSchemaPrimitives";
@@ -66,6 +67,7 @@ const OverlayItemSchema = z
     angle: finiteNumber.optional(),
     fontSize: finiteNumber.nullable().optional(),
     confidence: finiteNumber.nullable().optional(),
+    reviewStatus: ReviewStatusSchema.optional(),
   })
   .strict();
 

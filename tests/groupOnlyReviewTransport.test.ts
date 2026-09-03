@@ -734,7 +734,55 @@ describe("axis-v4 group-only review transport", () => {
     expect(result.requestBody).not.toHaveProperty("fixedBlockUnresolvedIds");
   });
 
-  it("fails closed when a malformed block remains unresolved after bounded repairs", async () => {
+  it("keeps the last readable translation for review when source script remains after bounded repairs", async () => {
+    const request = makeRequest();
+    const bodies: RequestBody[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+        const body = postedBody(init);
+        bodies.push(body);
+        if (!isFixedTranslation(body)) {
+          return chatResponse({ labels: [{ group: 1, role: "body" }] });
+        }
+        const blocks = readPayload<Array<{ blockId: string }>>(
+          body,
+          "fixedBlocks",
+        );
+        return chatResponse({
+          items: blocks.map((block) => ({
+            blockId: block.blockId,
+            ko:
+              block.blockId === "B002"
+                ? "메리나국에서 爪紅의 전매권을 원합니다"
+                : "살아남는 번역",
+          })),
+        });
+      }),
+    );
+
+    const result = await requestTranslation(request.server, request.options);
+    const output = JSON.parse(result.outputText) as {
+      items: Array<{ ko: string }>;
+    };
+
+    expect(output.items.map((item) => item.ko)).toEqual([
+      "살아남는 번역",
+      "메리나국에서 爪紅의 전매권을 원합니다",
+    ]);
+    expect(result.requestBody).toMatchObject({
+      fixedBlockRepairAttempts: 3,
+      fixedBlockSourceScriptFallbackIds: ["B002"],
+      fixedBlockNeedsReviewIds: ["B002"],
+      fixedBlockNeedsReviewReasons: {
+        B002: ["fixed-block-translation-source-script-leak"],
+      },
+    });
+    expect(result.requestBody).not.toHaveProperty("fixedBlockUnresolvedIds");
+    expect(bodies.filter(isFixedTranslation)).toHaveLength(4);
+  });
+
+  it("preserves the immutable source for review when a malformed block has no readable translation", async () => {
     const request = makeRequest();
     const bodies: RequestBody[] = [];
     vi.stubGlobal(
@@ -758,16 +806,55 @@ describe("axis-v4 group-only review transport", () => {
       }),
     );
 
-    await expect(
-      requestTranslation(request.server, request.options),
-    ).rejects.toMatchObject({
-      code: "fixed-block-translation-repair-exhausted",
-      blockIds: ["B002"],
-      rejectionReasons: {
+    const result = await requestTranslation(request.server, request.options);
+    const output = JSON.parse(result.outputText) as {
+      items: Array<{ jp: string; ko: string }>;
+    };
+
+    expect(output.items[0]?.ko).toBe("살아남는 번역");
+    expect(output.items[1]?.ko).toBe(output.items[1]?.jp);
+    expect(result.requestBody).toMatchObject({
+      fixedBlockRepairAttempts: 3,
+      fixedBlockSourceTextFallbackIds: ["B002"],
+      fixedBlockNeedsReviewIds: ["B002"],
+      fixedBlockNeedsReviewReasons: {
         B002: ["fixed-block-translation-empty-text"],
       },
-      message: expect.stringContaining("Refusing to omit"),
     });
+    expect(result.requestBody).not.toHaveProperty("fixedBlockUnresolvedIds");
+    expect(bodies.filter(isFixedTranslation)).toHaveLength(4);
+  });
+
+  it("degrades an unreadable fixed-block response to reviewable source blocks instead of failing the page", async () => {
+    const request = makeRequest();
+    const bodies: RequestBody[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+        const body = postedBody(init);
+        bodies.push(body);
+        return isFixedTranslation(body)
+          ? chatResponse("not a JSON object")
+          : chatResponse({ labels: [{ group: 1, role: "body" }] });
+      }),
+    );
+
+    const result = await requestTranslation(request.server, request.options);
+    const output = JSON.parse(result.outputText) as {
+      items: Array<{ jp: string; ko: string }>;
+    };
+
+    expect(output.items).toHaveLength(2);
+    expect(output.items.every((item) => item.ko === item.jp)).toBe(true);
+    expect(result.requestBody).toMatchObject({
+      fixedBlockInitialResponseError: {
+        code: "semantic-ocr-json-invalid",
+      },
+      fixedBlockRepairAttempts: 3,
+      fixedBlockSourceTextFallbackIds: ["B001", "B002"],
+      fixedBlockNeedsReviewIds: ["B001", "B002"],
+    });
+    expect(result.requestBody).not.toHaveProperty("fixedBlockUnresolvedIds");
     expect(bodies.filter(isFixedTranslation)).toHaveLength(4);
   });
 });

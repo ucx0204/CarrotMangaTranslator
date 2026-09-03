@@ -16,6 +16,7 @@ import type {
   OcrBboxResult,
   OverlayItem,
   PageContextPayload,
+  RequestSummary,
   TranslationResult,
 } from "./types";
 
@@ -122,19 +123,51 @@ export function parsePageResponse({
   warnings: string[];
 } {
   const extracted = extractPageContextResponse(result.outputText);
+  const parsedItems = isJapaneseCumulativeNoTextRequest(
+    pageOptions,
+    result.requestBody,
+  )
+    ? []
+    : parseOverlayItems(
+        runtime,
+        result,
+        page,
+        pageOptions,
+        extracted.overlayText,
+      );
   return {
-    items: isJapaneseCumulativeNoTextRequest(pageOptions, result.requestBody)
-      ? []
-      : parseOverlayItems(
-          runtime,
-          result,
-          page,
-          pageOptions,
-          extracted.overlayText,
-        ),
+    items: markFixedBlockFallbacksForReview(parsedItems, result.requestBody),
     pageContext: extracted.pageContext,
     warnings: buildPageContextWarnings(page, pageOptions, extracted.status),
   };
+}
+
+function markFixedBlockFallbacksForReview(
+  items: OverlayItem[],
+  requestBody: unknown,
+): OverlayItem[] {
+  if (!requestBody || typeof requestBody !== "object") return items;
+  const summary = requestBody as RequestSummary;
+  const reviewIds = new Set(summary.fixedBlockNeedsReviewIds ?? []);
+  if (reviewIds.size === 0) return items;
+  const reviewedMemberships = new Set(
+    (summary.fixedBlockIds ?? []).flatMap((blockId, index) => {
+      if (!reviewIds.has(blockId)) return [];
+      const candidateIds = summary.fixedBlockCandidateIds?.[index];
+      const membership = fixedBlockMembershipKey(candidateIds);
+      return membership ? [membership] : [];
+    }),
+  );
+  if (reviewedMemberships.size === 0) return items;
+  return items.map((item) =>
+    reviewedMemberships.has(fixedBlockMembershipKey(item.candidateIds))
+      ? { ...item, reviewStatus: "needs_review" }
+      : item,
+  );
+}
+
+function fixedBlockMembershipKey(candidateIds: number[] | undefined): string {
+  return candidateIds?.length ? candidateIds.join(",") : "";
 }
 
 function parseOverlayItems(

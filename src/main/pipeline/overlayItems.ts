@@ -104,6 +104,7 @@ export function overlayItemToBlock(
     backgroundColor: visualStyle.backgroundColor,
     opacity: visualStyle.defaultOpacity,
     autoFitText: true,
+    ...(item.reviewStatus ? { reviewStatus: item.reviewStatus } : {}),
   };
   const formatted = applySizeOptions(block, formatDefaults, fontSizeOptions);
   const fontMatched = applyAutomaticFontToOverlayBlock(

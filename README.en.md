@@ -18,8 +18,8 @@
 
 Carrot Manga Translator is a manga production tool that finds dialogue and sound effects in images, creates translation blocks with AI, and lets you refine the wording and layout before exporting a finished PNG or layered PSD. The default translation direction is Japanese → Korean, but you can choose other source and target languages.
 
-- Download the stable v2.2.0 release (Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- Current version information: [v2.2.0 release notes](docs/release-notes/v2.2.0.md)
+- Download the stable v2.3.1 release (Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- Current version information: [v2.3.1 release notes](docs/release-notes/v2.3.1.md)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Architecture and quality rules: [docs/architecture.md](docs/architecture.md)
 - Project usage and public references: [docs/reputation.md](docs/reputation.md)
@@ -42,11 +42,11 @@ Carrot Manga Translator is a manga production tool that finds dialogue and sound
 - Internet connection: Required for installation, the first model download, and Codex/API use. Local models can work offline after setup is complete.
 - Some CPU paths work without a GPU, but OCR, local translation, and Flux inpainting may be much slower.
 
-The stable Apple Silicon build bundles arm64 FFmpeg, a Python runtime for Paddle OCR on the CPU, and Metal executables. Only Gemma, OCR, and inpainting model weights are checksum-verified and downloaded on first use. The v2.2.0 macOS build is ad-hoc signed unless the release workflow is provided with Developer ID and notarization credentials, so Gatekeeper may require manual approval under System Settings → Privacy & Security on first launch. macOS data is stored under `~/Library/Application Support/manga-gemma-translator`.
+The stable Apple Silicon build bundles arm64 FFmpeg, a Python runtime for Paddle OCR on the CPU, and Metal executables. Only Gemma, OCR, and inpainting model weights are checksum-verified and downloaded on first use. The v2.3.1 macOS build is ad-hoc signed unless the release workflow is provided with Developer ID and notarization credentials, so Gatekeeper may require manual approval under System Settings → Privacy & Security on first launch. macOS data is stored under `~/Library/Application Support/manga-gemma-translator`.
 
 ## Quick Start
 
-1. From the [stable v2.2.0 release](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.2.0), download `CarrotMangaTranslator-Setup-v2.2.0.exe` for Windows or the arm64 DMG/ZIP for Apple Silicon. If macOS blocks the first launch, approve the app manually under System Settings → Privacy & Security.
+1. From the [stable v2.3.1 release](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.3.1), download `CarrotMangaTranslator-Setup-v2.3.1.exe` for Windows or the arm64 DMG/ZIP for Apple Silicon. If macOS blocks the first launch, approve the app manually under System Settings → Privacy & Security.
 2. Check the interface language under `Settings → General`. On first launch, the app automatically selects a supported Windows language. If the Windows language is not supported, the app uses Korean.
 3. Under `Settings → Translation Engine`, choose the source language, target language, and engine.
    - To process everything on your PC, choose `Gemma 4`.

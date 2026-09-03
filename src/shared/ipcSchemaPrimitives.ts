@@ -79,7 +79,7 @@ export const filePath = z.string().min(1).max(MAX_PATH_LENGTH);
 const boundedText = z.string().max(MAX_TEXT_LENGTH);
 export const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i);
 
-const ReviewStatusSchema = z.enum(["draft", "needs_review", "reviewed"]);
+export const ReviewStatusSchema = z.enum(["draft", "needs_review", "reviewed"]);
 
 const LegacyRenderDirectionSchema = z.preprocess(
   (value) => {

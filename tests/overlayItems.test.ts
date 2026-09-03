@@ -9,6 +9,26 @@ import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../src/shared/blockFormat";
 import { makeAutomaticFontCandidate } from "./helpers/automaticFontCandidate";
 
 describe("overlay item conversion", () => {
+  it("preserves a code-owned translation fallback review marker", () => {
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "ordinary",
+        bbox: { x: 100, y: 100, w: 300, h: 160 },
+        jp: "原文",
+        ko: "일부 原文을 보존한 번역",
+        direction: "horizontal",
+        confidence: 1,
+        reviewStatus: "needs_review",
+      },
+      makePage(),
+      0,
+    );
+
+    expect(block.reviewStatus).toBe("needs_review");
+  });
+
   it("makes the translation-run size choice authoritative over legacy default-format auto fit", () => {
     const item: OverlayItem = {
       id: 1,

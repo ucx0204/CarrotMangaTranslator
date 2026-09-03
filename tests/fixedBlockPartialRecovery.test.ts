@@ -8,6 +8,17 @@ const fixed =
       options: Record<string, unknown>,
     ) => Record<string, unknown>;
   };
+const fallback =
+  require("../src/main/runtime/semantic-ocr/fixed-block-repair-fallback.cjs") as {
+    completeFixedBlockFallbacks: (
+      repaired: Record<string, unknown>,
+      fallbacks: Record<string, Map<string, unknown>>,
+      blocks: Array<{ blockId: string; jp: string }>,
+    ) => {
+      translations: { items: Array<{ blockId: string; ko: string }> };
+      sourceTextFallbackBlockIds: string[];
+    };
+  };
 
 type FixedBlockPlan = {
   version: string;
@@ -54,6 +65,12 @@ describe("fixed-block partial recovery", () => {
         B001: ["fixed-block-translation-duplicate"],
         B003: ["fixed-block-translation-source-script-leak"],
       },
+      sourceScriptFallbackTranslations: {
+        items: [{ blockId: "B003", ko: "俺" }],
+      },
+      readableTextFallbackTranslations: {
+        items: [{ blockId: "B001", ko: "첫째" }],
+      },
     });
   });
 
@@ -80,6 +97,36 @@ describe("fixed-block partial recovery", () => {
         items: [{ blockId: "B001", ko: "무리예요~~!!" }],
       },
     });
+  });
+
+  it("keeps an inspectable placeholder when even immutable source text is empty", () => {
+    const emptyFallbacks = Object.fromEntries(
+      [
+        "horizontal",
+        "fontIntent",
+        "targetTypography",
+        "sourceScript",
+        "readableText",
+      ].map((kind) => [kind, new Map()]),
+    );
+    const completed = fallback.completeFixedBlockFallbacks(
+      {
+        translations: { items: [] },
+        pendingBlockIds: ["B001"],
+        responses: [],
+        history: [],
+        retryReasons: {
+          B001: ["fixed-block-translation-empty-text"],
+        },
+      },
+      emptyFallbacks,
+      [{ blockId: "B001", jp: "" }],
+    );
+
+    expect(completed.translations.items).toEqual([
+      { blockId: "B001", ko: "…" },
+    ]);
+    expect(completed.sourceTextFallbackBlockIds).toEqual(["B001"]);
   });
 });
 
