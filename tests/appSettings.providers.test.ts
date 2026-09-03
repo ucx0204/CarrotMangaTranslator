@@ -14,6 +14,7 @@ import {
   DEFAULT_API_CUSTOM_HEADERS_JSON,
   buildBaseTranslationOptions,
 } from "../src/main/appSettings";
+import { normalizeInternetResearchSettings } from "../src/main/settings/appSettingsInternetResearchNormalize";
 
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
@@ -57,6 +58,7 @@ describeWindows("app settings helpers: model providers", () => {
       blockStylePresetGroups: defaults.blockStylePresetGroups,
       blockStylePresets: defaults.blockStylePresets,
       keybindings: defaults.keybindings,
+      generationLimits: defaults.generationLimits,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });
@@ -84,6 +86,31 @@ describeWindows("app settings helpers: model providers", () => {
       extraBodyJson: DEFAULT_API_EXTRA_BODY_JSON,
       customHeadersJson: DEFAULT_API_CUSTOM_HEADERS_JSON,
     });
+  });
+
+  it("keeps research defaults usable when an active API profile mirror is absent", () => {
+    const defaults = resolveDefaultAppSettings();
+    const api = {
+      ...defaults.api,
+      provider: "google-ai-studio" as const,
+      model: "gemini-3.5-flash-lite",
+      profiles: {},
+    };
+    const normalized = normalizeInternetResearchSettings(
+      {},
+      { ...defaults.internetResearch, apiProfiles: {} },
+      api,
+    );
+    expect(normalized.apiModel).toBe("gemini-3.5-flash-lite");
+
+    const unknownProviderApi = { ...api };
+    Reflect.set(unknownProviderApi, "provider", "future-provider");
+    const defensive = normalizeInternetResearchSettings(
+      {},
+      { ...defaults.internetResearch, apiProfiles: {} },
+      unknownProviderApi,
+    );
+    expect(defensive.apiModel).toBe("gemini-3.5-flash-lite");
   });
 
   it("normalizes Codex provider settings", () => {
@@ -119,6 +146,7 @@ describeWindows("app settings helpers: model providers", () => {
       blockStylePresetGroups: defaults.blockStylePresetGroups,
       blockStylePresets: defaults.blockStylePresets,
       keybindings: defaults.keybindings,
+      generationLimits: defaults.generationLimits,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });
@@ -158,6 +186,22 @@ describeWindows("app settings helpers: model providers", () => {
         reasoningEffort: DEFAULT_API_REASONING_EFFORT,
         extraBodyJson: DEFAULT_API_EXTRA_BODY_JSON,
         customHeadersJson: DEFAULT_API_CUSTOM_HEADERS_JSON,
+        provider: "custom",
+        profiles: {
+          custom: {
+            baseUrl: "http://127.0.0.1:1234/v1",
+            model: "local-vision-model",
+            apiKey: "sk-test",
+            keyMaxAttempts: defaults.api.keyMaxAttempts,
+            retryDelaySeconds: defaults.api.retryDelaySeconds,
+            temperature: DEFAULT_API_TEMPERATURE,
+            topP: DEFAULT_API_TOP_P,
+            topK: DEFAULT_API_TOP_K,
+            reasoningEffort: DEFAULT_API_REASONING_EFFORT,
+            extraBodyJson: DEFAULT_API_EXTRA_BODY_JSON,
+            customHeadersJson: DEFAULT_API_CUSTOM_HEADERS_JSON,
+          },
+        },
       },
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
@@ -166,6 +210,7 @@ describeWindows("app settings helpers: model providers", () => {
       blockStylePresetGroups: defaults.blockStylePresetGroups,
       blockStylePresets: defaults.blockStylePresets,
       keybindings: defaults.keybindings,
+      generationLimits: defaults.generationLimits,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });

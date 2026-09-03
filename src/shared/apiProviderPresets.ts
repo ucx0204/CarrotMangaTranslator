@@ -10,6 +10,23 @@ export const API_PROVIDER_PRESET_IDS = [
 export type ApiProviderPresetId = (typeof API_PROVIDER_PRESET_IDS)[number];
 export type DiscoverableApiProviderId = Exclude<ApiProviderPresetId, "custom">;
 
+export function isApiProviderPresetId(
+  value: unknown,
+): value is ApiProviderPresetId {
+  return API_PROVIDER_PRESET_IDS.some((candidate) => candidate === value);
+}
+
+export function createApiProviderRecord<T>(
+  createValue: (provider: ApiProviderPresetId) => T,
+): Record<ApiProviderPresetId, T> {
+  return Object.fromEntries(
+    API_PROVIDER_PRESET_IDS.map((provider) => [
+      provider,
+      createValue(provider),
+    ]),
+  ) as Record<ApiProviderPresetId, T>;
+}
+
 export type VertexAuthMode = "access-token" | "service-account";
 
 export const VERTEX_SETUP_PAGE_IDS = [

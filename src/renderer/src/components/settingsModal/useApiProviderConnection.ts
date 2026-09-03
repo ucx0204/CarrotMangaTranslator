@@ -2,7 +2,6 @@ import React from "react";
 import { MAX_API_KEYS, parseApiKeys } from "../../../../shared/apiKeySettings";
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../../../../shared/settingsSecrets";
 import {
-  inferApiProviderPreset,
   inferVertexSettings,
   resolveApiProviderBaseUrl,
   type ApiModelOption,
@@ -16,6 +15,7 @@ import { useMountedRef } from "../../hooks/useMountedRef";
 export type ApiProviderConnectionProps = Pick<
   EngineSettingsPanelProps,
   | "apiBaseUrl"
+  | "apiProvider"
   | "apiKey"
   | "apiKeyCount"
   | "apiVertexAuthMode"
@@ -26,6 +26,7 @@ export type ApiProviderConnectionProps = Pick<
   | "clearTestState"
   | "controlsBusy"
   | "setApiBaseUrl"
+  | "setApiProvider"
   | "setApiKey"
   | "setApiVertexAuthMode"
   | "setApiVertexServiceAccountPath"
@@ -57,9 +58,7 @@ type DiscoveryController = {
 };
 
 export function useApiProviderConnection(props: ApiProviderConnectionProps) {
-  const [provider, setProvider] = React.useState<ApiProviderPresetId>(() =>
-    inferApiProviderPreset(props.apiBaseUrl),
-  );
+  const provider = props.apiProvider;
   const [vertexProject, setVertexProject] = React.useState(
     () => inferVertexSettings(props.apiBaseUrl).project,
   );
@@ -72,19 +71,16 @@ export function useApiProviderConnection(props: ApiProviderConnectionProps) {
     baseUrl: props.apiBaseUrl,
     invalidate: modelDiscovery.invalidate,
     setBaseUrl: props.setApiBaseUrl,
-    setProvider,
     setVertexLocation,
     setVertexProject,
   });
   const { applyProvider, updateVertex } = createProviderSelectionActions({
     clearTestState: props.clearTestState,
     invalidate: modelDiscovery.invalidate,
-    setProvider,
+    setProvider: props.setApiProvider,
     setVertexLocation,
     setVertexProject,
     updateBaseUrl,
-    vertexLocation,
-    vertexProject,
   });
   const vertexCredentials = useVertexCredentialController(
     props,
@@ -146,8 +142,6 @@ function createProviderSelectionActions({
   setVertexLocation,
   setVertexProject,
   updateBaseUrl,
-  vertexLocation,
-  vertexProject,
 }: {
   clearTestState: () => void;
   invalidate: () => void;
@@ -155,20 +149,11 @@ function createProviderSelectionActions({
   setVertexLocation: React.Dispatch<React.SetStateAction<string>>;
   setVertexProject: React.Dispatch<React.SetStateAction<string>>;
   updateBaseUrl: (value: string) => void;
-  vertexLocation: string;
-  vertexProject: string;
 }) {
   const applyProvider = (nextProvider: ApiProviderPresetId): void => {
     setProvider(nextProvider);
     invalidate();
     clearTestState();
-    const baseUrl = resolveApiProviderBaseUrl({
-      provider: nextProvider,
-      vertexProject,
-      vertexLocation,
-    });
-    if (baseUrl) updateBaseUrl(baseUrl);
-    else if (nextProvider === "google-vertex") updateBaseUrl("");
   };
   const updateVertex = (project: string, location: string): void => {
     setVertexProject(project);
@@ -254,14 +239,12 @@ function useExternalBaseUrlSync({
   baseUrl,
   invalidate,
   setBaseUrl,
-  setProvider,
   setVertexLocation,
   setVertexProject,
 }: {
   baseUrl: string;
   invalidate: () => void;
   setBaseUrl: (value: string) => void;
-  setProvider: React.Dispatch<React.SetStateAction<ApiProviderPresetId>>;
   setVertexLocation: React.Dispatch<React.SetStateAction<string>>;
   setVertexProject: React.Dispatch<React.SetStateAction<string>>;
 }): (value: string) => void {
@@ -276,11 +259,10 @@ function useExternalBaseUrlSync({
     }
     pendingBaseUrl.current = null;
     const nextVertex = inferVertexSettings(baseUrl);
-    setProvider(inferApiProviderPreset(baseUrl));
     setVertexProject(nextVertex.project);
     setVertexLocation(nextVertex.location);
     invalidate();
-  }, [baseUrl, invalidate, setProvider, setVertexLocation, setVertexProject]);
+  }, [baseUrl, invalidate, setVertexLocation, setVertexProject]);
   return React.useCallback(
     (value: string) => {
       pendingBaseUrl.current = value;

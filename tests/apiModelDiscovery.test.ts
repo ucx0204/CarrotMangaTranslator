@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { discoverApiModels } from "../src/main/apiModelDiscovery";
 import {
   buildVertexOpenAiBaseUrl,
+  createApiProviderRecord,
   GOOGLE_AI_STUDIO_BASE_URL,
   inferApiProviderPreset,
   NVIDIA_NIM_BASE_URL,
@@ -35,6 +36,21 @@ describe("API provider presets", () => {
       "ollama",
     );
     expect(inferApiProviderPreset("https://my-api.example/v1")).toBe("custom");
+  });
+
+  it("creates a complete provider-keyed record without sharing values", () => {
+    const record = createApiProviderRecord((provider) => ({ provider }));
+
+    expect(Object.keys(record)).toEqual([
+      "custom",
+      "nvidia-nim",
+      "google-ai-studio",
+      "google-vertex",
+      "openrouter",
+      "ollama",
+    ]);
+    expect(record.ollama).toEqual({ provider: "ollama" });
+    expect(record.ollama).not.toBe(record.custom);
   });
 });
 

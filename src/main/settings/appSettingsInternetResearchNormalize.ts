@@ -14,11 +14,17 @@ import {
   RESEARCH_GEMMA_PRESETS,
   TAVILY_ANALYSIS_PROVIDERS,
   type InternetResearchSettings,
+  type ResolvedInternetResearchSettings,
+  type ResearchApiProfileSettings,
   type ResearchGemmaPreset,
   type ResearchGemmaReasoningEffort,
   type TavilyAnalysisProvider,
 } from "../../shared/internetResearchTypes";
-import type { AppSettings } from "../../shared/settingsTypes";
+import type {
+  AppSettings,
+  ResolvedApiSettings,
+} from "../../shared/settingsTypes";
+import { API_PROVIDER_PRESET_IDS } from "../../shared/apiProviderPresets";
 import {
   asRecord,
   resolveCodexReasoningEffort,
@@ -31,8 +37,13 @@ import {
 
 export function resolveDefaultInternetResearchSettings(
   codex: AppSettings["codex"],
-  api: AppSettings["api"],
-): InternetResearchSettings {
+  api: ResolvedApiSettings,
+): ResolvedInternetResearchSettings {
+  const apiProfile = {
+    model: api.model,
+    maxOutputTokens: DEFAULT_RESEARCH_API_MAX_OUTPUT_TOKENS,
+    contextTokens: DEFAULT_RESEARCH_API_CONTEXT_TOKENS,
+  };
   return {
     tavilyAnalysisProvider: DEFAULT_TAVILY_ANALYSIS_PROVIDER,
     gemmaPreset: DEFAULT_RESEARCH_GEMMA_PRESET,
@@ -42,6 +53,7 @@ export function resolveDefaultInternetResearchSettings(
     apiModel: api.model,
     apiMaxOutputTokens: DEFAULT_RESEARCH_API_MAX_OUTPUT_TOKENS,
     apiContextTokens: DEFAULT_RESEARCH_API_CONTEXT_TOKENS,
+    apiProfiles: { [api.provider]: apiProfile },
     codexModel: codex.model,
     codexReasoningEffort: codex.reasoningEffort,
     codexMaxOutputTokens: DEFAULT_RESEARCH_CODEX_MAX_OUTPUT_TOKENS,
@@ -53,9 +65,16 @@ export function resolveDefaultInternetResearchSettings(
 export function normalizeInternetResearchSettings(
   raw: unknown,
   defaults: InternetResearchSettings,
-): InternetResearchSettings {
+  api: ResolvedApiSettings,
+): ResolvedInternetResearchSettings {
   const record = asRecord(raw) ?? {};
   const tavilyApiKey = resolveOptionalString(record.tavilyApiKey);
+  const apiProfiles = normalizeResearchApiProfiles(record, defaults, api);
+  const activeApiProfile = apiProfiles[api.provider] ?? {
+    model: api.model,
+    maxOutputTokens: DEFAULT_RESEARCH_API_MAX_OUTPUT_TOKENS,
+    contextTokens: DEFAULT_RESEARCH_API_CONTEXT_TOKENS,
+  };
   return {
     tavilyAnalysisProvider: resolveTavilyAnalysisProvider(
       record.tavilyAnalysisProvider,
@@ -77,15 +96,10 @@ export function normalizeInternetResearchSettings(
       record.gemmaContextTokens,
       defaults.gemmaContextTokens,
     ),
-    apiModel: resolveNonEmptyString(record.apiModel, defaults.apiModel),
-    apiMaxOutputTokens: resolveMaxTokens(
-      record.apiMaxOutputTokens,
-      defaults.apiMaxOutputTokens,
-    ),
-    apiContextTokens: resolveContextTokens(
-      record.apiContextTokens,
-      defaults.apiContextTokens,
-    ),
+    apiModel: activeApiProfile.model,
+    apiMaxOutputTokens: activeApiProfile.maxOutputTokens,
+    apiContextTokens: activeApiProfile.contextTokens,
+    apiProfiles,
     codexModel: resolveNonEmptyString(record.codexModel, defaults.codexModel),
     codexReasoningEffort: resolveCodexReasoningEffort(
       record.codexReasoningEffort,
@@ -107,6 +121,48 @@ export function normalizeInternetResearchSettings(
         MIN_TAVILY_MAX_CREDITS_PER_RUN,
         Number.MAX_SAFE_INTEGER,
       ),
+    ),
+  };
+}
+
+function normalizeResearchApiProfiles(
+  record: Record<string, unknown>,
+  defaults: InternetResearchSettings,
+  api: ResolvedApiSettings,
+): ResolvedInternetResearchSettings["apiProfiles"] {
+  const rawProfiles = asRecord(record.apiProfiles) ?? {};
+  const profiles: ResolvedInternetResearchSettings["apiProfiles"] = {};
+  for (const provider of API_PROVIDER_PRESET_IDS) {
+    const rawProfile = asRecord(rawProfiles[provider]);
+    const defaultProfile = defaults.apiProfiles?.[provider];
+    const apiProfile = api.profiles[provider];
+    if (!rawProfile && !defaultProfile && provider !== api.provider) continue;
+    const legacyProfile = provider === api.provider ? record : null;
+    profiles[provider] = normalizeResearchApiProfile(
+      rawProfile ?? legacyProfile,
+      defaultProfile ?? {
+        model: apiProfile?.model ?? api.model,
+        maxOutputTokens: DEFAULT_RESEARCH_API_MAX_OUTPUT_TOKENS,
+        contextTokens: DEFAULT_RESEARCH_API_CONTEXT_TOKENS,
+      },
+    );
+  }
+  return profiles;
+}
+
+function normalizeResearchApiProfile(
+  raw: Record<string, unknown> | null,
+  fallback: ResearchApiProfileSettings,
+) {
+  return {
+    model: resolveNonEmptyString(raw?.model ?? raw?.apiModel, fallback.model),
+    maxOutputTokens: resolveMaxTokens(
+      raw?.maxOutputTokens ?? raw?.apiMaxOutputTokens,
+      fallback.maxOutputTokens,
+    ),
+    contextTokens: resolveContextTokens(
+      raw?.contextTokens ?? raw?.apiContextTokens,
+      fallback.contextTokens,
     ),
   };
 }

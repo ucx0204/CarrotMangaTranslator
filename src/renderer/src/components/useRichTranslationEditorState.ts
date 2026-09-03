@@ -15,6 +15,12 @@ export type RichTranslationSelectionState = {
   } | null>;
   caretRun: TextStyleRun | null;
   clearTypingStyle: () => void;
+  compositionBeforeInputRef: React.MutableRefObject<{
+    selection: RichTextEditorSelection;
+    style: TextStylePatch | null;
+  } | null>;
+  compositionCommitTimerRef: React.MutableRefObject<number | null>;
+  compositionEndPendingRef: React.MutableRefObject<boolean>;
   composingRef: React.MutableRefObject<boolean>;
   recordVisualSelection: (
     root: HTMLElement,
@@ -46,6 +52,12 @@ export function useRichTranslationEditorState(
     style: TextStylePatch | null;
   } | null>(null);
   const composingRef = React.useRef(false);
+  const compositionBeforeInputRef = React.useRef<{
+    selection: RichTextEditorSelection;
+    style: TextStylePatch | null;
+  } | null>(null);
+  const compositionEndPendingRef = React.useRef(false);
+  const compositionCommitTimerRef = React.useRef<number | null>(null);
   const setSelection = React.useCallback((next: RichTextEditorSelection) => {
     selectionRef.current = next;
     setSelectionState(next);
@@ -74,12 +86,18 @@ export function useRichTranslationEditorState(
     beforeInputRef,
     blockId,
     clearTypingStyle,
+    compositionBeforeInputRef,
+    compositionCommitTimerRef,
+    compositionEndPendingRef,
     composingRef,
   });
   return {
     beforeInputRef,
     caretRun,
     clearTypingStyle,
+    compositionBeforeInputRef,
+    compositionCommitTimerRef,
+    compositionEndPendingRef,
     composingRef,
     recordVisualSelection,
     selection,
@@ -146,14 +164,42 @@ function useResetRichTranslationState({
   beforeInputRef,
   blockId,
   clearTypingStyle,
+  compositionBeforeInputRef,
   composingRef,
+  compositionCommitTimerRef,
+  compositionEndPendingRef,
 }: Pick<
   RichTranslationSelectionState,
-  "beforeInputRef" | "clearTypingStyle" | "composingRef"
+  | "beforeInputRef"
+  | "clearTypingStyle"
+  | "compositionBeforeInputRef"
+  | "compositionCommitTimerRef"
+  | "compositionEndPendingRef"
+  | "composingRef"
 > & { blockId: string }): void {
   React.useEffect(() => {
     clearTypingStyle();
     beforeInputRef.current = null;
     composingRef.current = false;
-  }, [beforeInputRef, blockId, clearTypingStyle, composingRef]);
+    compositionBeforeInputRef.current = null;
+    compositionEndPendingRef.current = false;
+    if (compositionCommitTimerRef.current !== null) {
+      window.clearTimeout(compositionCommitTimerRef.current);
+      compositionCommitTimerRef.current = null;
+    }
+    return () => {
+      if (compositionCommitTimerRef.current !== null) {
+        window.clearTimeout(compositionCommitTimerRef.current);
+        compositionCommitTimerRef.current = null;
+      }
+    };
+  }, [
+    beforeInputRef,
+    blockId,
+    clearTypingStyle,
+    compositionCommitTimerRef,
+    compositionBeforeInputRef,
+    compositionEndPendingRef,
+    composingRef,
+  ]);
 }

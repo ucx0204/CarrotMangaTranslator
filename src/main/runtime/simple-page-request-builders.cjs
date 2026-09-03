@@ -23,6 +23,8 @@ const {
 const {
   isOpenAIApiProvider,
   isOpenAICodexProvider,
+  isOllamaOpenAiCompatibleEndpoint,
+  resolveConfiguredApiBaseUrl,
   resolveConfiguredApiCustomHeadersJson,
   resolveConfiguredApiExtraBodyJson,
   resolveConfiguredApiKey,
@@ -41,6 +43,23 @@ const FORBIDDEN_CUSTOM_HEADER_NAMES = new Set([
   "cookie",
   "set-cookie",
 ]);
+
+const GOOGLE_OPENAI_UNSUPPORTED_REQUEST_FIELDS = [
+  "chat_template_kwargs",
+  "reasoning_format",
+  "reasoning_budget",
+  "enable_thinking",
+  "top_k",
+  "seed",
+  "cache_prompt",
+  "repeat_penalty",
+  "repeat_last_n",
+];
+
+// Ollama's `/v1/chat/completions` compatibility surface intentionally exposes
+// fewer sampling fields than its native `/api/chat` endpoint. `top_k` belongs
+// to the native API and must not leak into the OpenAI-compatible request.
+const OLLAMA_OPENAI_UNSUPPORTED_REQUEST_FIELDS = ["top_k"];
 
 /** @type {Readonly<Record<string, string>>} */
 const IMAGE_VARIANT_DESCRIPTIONS = Object.freeze({
@@ -297,7 +316,7 @@ function buildChatRequestBodyWithModelResolver(
       messages: body.messages,
       max_tokens: body.max_tokens,
     };
-    return merged;
+    return sanitizeOpenAiCompatibleRequestBody(options, merged);
   }
 
   const reasoningBudget = resolveGemmaReasoningBudget(options);
@@ -315,6 +334,37 @@ function buildChatRequestBodyWithModelResolver(
     chat_template_kwargs: { enable_thinking: enableThinking },
     messages,
   };
+}
+
+/** @param {RequestOptions} options */
+function isGoogleOpenAiCompatibleEndpoint(options) {
+  try {
+    const hostname = new URL(resolveConfiguredApiBaseUrl(options)).hostname;
+    return (
+      hostname === "generativelanguage.googleapis.com" ||
+      hostname === "aiplatform.googleapis.com" ||
+      hostname.endsWith("-aiplatform.googleapis.com")
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+/** @param {RequestOptions} options */
+/** @param {RequestOptions} options @param {JsonRecord} body */
+function sanitizeOpenAiCompatibleRequestBody(options, body) {
+  if (isGoogleOpenAiCompatibleEndpoint(options)) {
+    removeRequestFields(body, GOOGLE_OPENAI_UNSUPPORTED_REQUEST_FIELDS);
+  }
+  if (isOllamaOpenAiCompatibleEndpoint(options)) {
+    removeRequestFields(body, OLLAMA_OPENAI_UNSUPPORTED_REQUEST_FIELDS);
+  }
+  return body;
+}
+
+/** @param {JsonRecord} body @param {string[]} fields */
+function removeRequestFields(body, fields) {
+  for (const field of fields) delete body[field];
 }
 
 /** @param {RequestOptions} options */
@@ -455,6 +505,8 @@ function createApiSettingsError(message, detail = {}) {
 module.exports = {
   buildChatRequestBodyWithModelResolver,
   buildChatRequestHeaders,
+  isGoogleOpenAiCompatibleEndpoint,
+  isOllamaOpenAiCompatibleEndpoint,
   buildMessages,
   buildResponsesInput,
   buildResponsesRequestBodyWithModelResolver,

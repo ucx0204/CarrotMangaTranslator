@@ -37,6 +37,7 @@ import {
   GEMMA_31B_QAT_MODEL_REPO,
 } from "../src/shared/modelPresets";
 import type { AppSettings } from "../src/shared/settingsTypes";
+import { normalizeAppSettings } from "../src/main/settings/appSettingsNormalize";
 
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
@@ -67,6 +68,13 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       apiModel: DEFAULT_API_MODEL,
       apiMaxOutputTokens: 32768,
       apiContextTokens: 65536,
+      apiProfiles: {
+        custom: {
+          model: DEFAULT_API_MODEL,
+          maxOutputTokens: 32768,
+          contextTokens: 65536,
+        },
+      },
       codexModel: DEFAULT_CODEX_MODEL,
       codexReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
       codexMaxOutputTokens: 32768,
@@ -543,8 +551,43 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       blockStylePresetGroups: defaults.blockStylePresetGroups,
       blockStylePresets: defaults.blockStylePresets,
       keybindings: defaults.keybindings,
+      generationLimits: defaults.generationLimits,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
+    });
+  });
+
+  it("repairs optional legacy defaults without assuming nested settings exist", () => {
+    const defaults = resolveDefaultAppSettings();
+    defaults.translation = undefined;
+    defaults.keybindings = undefined;
+    defaults.ocr.pipeline = undefined;
+    defaults.inpainting = undefined;
+
+    const gpu = normalizeAppSettings(
+      {
+        keybindings: null,
+        ocr: { device: "gpu" },
+        inpainting: {},
+      },
+      defaults,
+    );
+    const cpu = normalizeAppSettings(
+      { ocr: { device: "cpu" }, inpainting: {} },
+      defaults,
+    );
+
+    expect(gpu.translation).toEqual({
+      sourceLanguage: "ja",
+      targetLanguage: "ko",
+    });
+    expect(gpu.keybindings).toEqual({});
+    expect(gpu.ocr.pipeline).toBe("hayai");
+    expect(cpu.ocr.pipeline).toBe("paddle-legacy");
+    expect(gpu.inpainting).toMatchObject({
+      allowUnsafeLowMemoryFlux: false,
+      bubbleLayoutAfterInpainting: false,
+      bubbleLayoutPaddingRatio: 0.12,
     });
   });
 
@@ -632,6 +675,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       blockStylePresetGroups: defaults.blockStylePresetGroups,
       blockStylePresets: defaults.blockStylePresets,
       keybindings: defaults.keybindings,
+      generationLimits: defaults.generationLimits,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });
@@ -653,6 +697,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       blockStylePresetGroups: defaults.blockStylePresetGroups,
       blockStylePresets: defaults.blockStylePresets,
       keybindings: defaults.keybindings,
+      generationLimits: defaults.generationLimits,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });

@@ -11,6 +11,7 @@ import type { RichTranslationEditorMode } from "./richTranslationEditorTypes";
 
 export type RichTranslationVisualRenderCache = {
   blockId: string;
+  committedValue: string | null;
   options: RichTextEditorRenderOptions | null;
   root: HTMLElement | null;
   value: string | null;
@@ -22,6 +23,8 @@ type VisualRendererArgs = {
   renderOptions: RichTextEditorRenderOptions;
   runs: readonly TextStyleRun[];
   selectionRef: React.MutableRefObject<RichTextEditorSelection>;
+  composingRef: React.MutableRefObject<boolean>;
+  compositionEndPendingRef: React.MutableRefObject<boolean>;
   value: string;
 };
 
@@ -36,6 +39,7 @@ export function useRichTranslationVisualRenderer(
   const visualRef = React.useRef<HTMLDivElement | null>(null);
   const cacheRef = React.useRef<RichTranslationVisualRenderCache>({
     blockId: args.blockId,
+    committedValue: args.value,
     options: null,
     root: null,
     value: null,
@@ -60,6 +64,7 @@ export function renderAndCacheRichTranslationRuns(
     options,
     root,
     value,
+    committedValue: value,
   };
 }
 
@@ -69,6 +74,9 @@ function synchronizeVisualEditor(
   cacheRef: React.MutableRefObject<RichTranslationVisualRenderCache>,
 ): void {
   if (!root || args.mode !== "visual") return;
+  if (args.composingRef.current || args.compositionEndPendingRef.current) {
+    return;
+  }
   const cache = cacheRef.current;
   const switchedBlock = cache.blockId !== args.blockId;
   cache.blockId = args.blockId;

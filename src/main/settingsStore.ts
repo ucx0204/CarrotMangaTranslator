@@ -27,6 +27,11 @@ import {
   resolveSubmittedSettingsSecrets,
   separateSettingsSecrets,
 } from "./settingsSecretStore";
+import type {
+  ApiProfileSecrets,
+  SettingsSecrets,
+} from "./settingsSecretProfiles";
+import { API_PROVIDER_PRESET_IDS } from "../shared/apiProviderPresets";
 
 export type GpuInfoProvider = () => Promise<DetectedGpuInfo | null>;
 
@@ -309,22 +314,71 @@ function mergeSettingsSecrets(
   plaintext: ReturnType<typeof separateSettingsSecrets>["secrets"],
   encrypted: Awaited<ReturnType<typeof loadSettingsSecrets>>,
 ): ReturnType<typeof separateSettingsSecrets>["secrets"] {
-  return {
-    ...(plaintext.apiKey || encrypted.apiKey
-      ? { apiKey: encrypted.apiKey ?? plaintext.apiKey }
-      : {}),
-    ...(plaintext.tavilyApiKey || encrypted.tavilyApiKey
-      ? {
-          tavilyApiKey: encrypted.tavilyApiKey ?? plaintext.tavilyApiKey,
-        }
-      : {}),
-    ...((plaintext.credentialHeaders || encrypted.credentialHeaders) && {
-      credentialHeaders: {
-        ...(plaintext.credentialHeaders ?? {}),
-        ...(encrypted.credentialHeaders ?? {}),
-      },
-    }),
-  };
+  const merged: SettingsSecrets = {};
+  assignSecretString(merged, "apiKey", plaintext.apiKey, encrypted.apiKey);
+  assignSecretString(
+    merged,
+    "tavilyApiKey",
+    plaintext.tavilyApiKey,
+    encrypted.tavilyApiKey,
+  );
+  const credentialHeaders = mergeCredentialHeaders(
+    plaintext.credentialHeaders,
+    encrypted.credentialHeaders,
+  );
+  if (credentialHeaders) merged.credentialHeaders = credentialHeaders;
+  const apiProfiles = mergeApiProfileSecrets(plaintext, encrypted);
+  if (Object.keys(apiProfiles).length > 0) merged.apiProfiles = apiProfiles;
+  return merged;
+}
+
+function mergeApiProfileSecrets(
+  plaintext: SettingsSecrets,
+  encrypted: SettingsSecrets,
+): NonNullable<SettingsSecrets["apiProfiles"]> {
+  const apiProfiles: NonNullable<SettingsSecrets["apiProfiles"]> = {};
+  for (const provider of API_PROVIDER_PRESET_IDS) {
+    const plaintextProfile = plaintext.apiProfiles?.[provider];
+    const encryptedProfile = encrypted.apiProfiles?.[provider];
+    if (!plaintextProfile && !encryptedProfile) continue;
+    apiProfiles[provider] = mergeApiProfileSecret(
+      plaintextProfile,
+      encryptedProfile,
+    );
+  }
+  return apiProfiles;
+}
+
+function mergeApiProfileSecret(
+  plaintext: ApiProfileSecrets | undefined,
+  encrypted: ApiProfileSecrets | undefined,
+): ApiProfileSecrets {
+  const merged: ApiProfileSecrets = {};
+  assignSecretString(merged, "apiKey", plaintext?.apiKey, encrypted?.apiKey);
+  const credentialHeaders = mergeCredentialHeaders(
+    plaintext?.credentialHeaders,
+    encrypted?.credentialHeaders,
+  );
+  if (credentialHeaders) merged.credentialHeaders = credentialHeaders;
+  return merged;
+}
+
+function assignSecretString<K extends "apiKey" | "tavilyApiKey">(
+  target: Partial<Record<K, string>>,
+  key: K,
+  plaintext: string | undefined,
+  encrypted: string | undefined,
+): void {
+  const value = encrypted ?? plaintext;
+  if (plaintext || encrypted) target[key] = value;
+}
+
+function mergeCredentialHeaders(
+  plaintext: Record<string, unknown> | undefined,
+  encrypted: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!plaintext && !encrypted) return undefined;
+  return { ...(plaintext ?? {}), ...(encrypted ?? {}) };
 }
 
 function hasSettingsSecrets(
@@ -333,6 +387,7 @@ function hasSettingsSecrets(
   return Boolean(
     secrets.apiKey ||
     secrets.tavilyApiKey ||
+    (secrets.apiProfiles && Object.keys(secrets.apiProfiles).length > 0) ||
     (secrets.credentialHeaders &&
       Object.keys(secrets.credentialHeaders).length > 0),
   );

@@ -20,7 +20,6 @@ const {
   isOpenAICodexProvider,
   resolveConfiguredCodexModel,
   resolveConfiguredCodexReasoningEffort,
-  resolveProviderDisplayName,
 } = require("../simple-page-model-config.cjs");
 const { prepareImageVariants } = require("../simple-page-image-variants.cjs");
 const { collectOcrBboxHints } = require("../simple-page-ocr-bbox-pipeline.cjs");
@@ -28,24 +27,13 @@ const {
   applyLocalForbiddenTokenBias,
 } = require("../simple-page-logit-bias.cjs");
 const { buildRequestSummary } = require("../simple-page-request-summary.cjs");
-const {
-  buildChatRequestHeaders,
-  buildMessages,
-} = require("../simple-page-request-builders.cjs");
+const { buildMessages } = require("../simple-page-request-builders.cjs");
 const { emitRuntimeProgress, nowMs } = require("./model-runtime-services.cjs");
 const { createLinkedDeadlineController } = require("./http-deadline.cjs");
 const { MODEL_HTTP_REQUEST_DEADLINE_MS } = require("./network-budgets.cjs");
 const { resolveOcrEngineLabel } = require("../ocr/engine-profile.cjs");
-const {
-  createEmptyOutputError,
-  createHttpFailureError,
-  createModelTransportError,
-} = require("./model-http-errors.cjs");
 const { runWithApiKeyRetry } = require("./api-key-retry.cjs");
-const {
-  readCodexResponsesStream,
-  readResponseText,
-} = require("./model-response-readers.cjs");
+const { requestResponsesText } = require("./responses-completion.cjs");
 const {
   buildChatRequestBody,
   buildResponsesRequestBody,
@@ -415,41 +403,7 @@ async function requestCodexResponsesText(
   requestBody,
   requestSummary,
 ) {
-  let response;
-  try {
-    response = await fetch(`${server.baseUrl}/responses`, {
-      method: "POST",
-      headers: buildChatRequestHeaders(options),
-      body: JSON.stringify(requestBody),
-      signal: options.abortSignal,
-    });
-  } catch (error) {
-    throw createModelTransportError(
-      `${resolveProviderDisplayName(options)} request transport failed.`,
-      { requestSummary },
-      error,
-    );
-  }
-
-  if (!response.ok) {
-    const rawText = await readResponseText(response, requestSummary, options);
-    throw createHttpFailureError(options, requestSummary, response, rawText);
-  }
-
-  const streamResult = await readCodexResponsesStream(
-    response,
-    requestSummary,
-    options,
-  );
-  if (!streamResult.outputText.trim()) {
-    throw createEmptyOutputError(
-      streamResult.rawResponse,
-      JSON.stringify(streamResult.rawResponse),
-      requestSummary,
-      options,
-    );
-  }
-  return streamResult;
+  return requestResponsesText(server, options, requestBody, requestSummary);
 }
 
 module.exports = {

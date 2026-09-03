@@ -1,4 +1,5 @@
 import type { CodexReasoningEffort } from "./codexSettings";
+import type { ApiProviderPresetId } from "./apiProviderPresets";
 
 export const RESEARCH_ENGINES = ["tavily", "codex-web"] as const;
 export type ResearchEngine = (typeof RESEARCH_ENGINES)[number];
@@ -40,6 +41,12 @@ export const DEFAULT_RESEARCH_CODEX_CONTEXT_TOKENS = 256 * 1_024;
 export const DEFAULT_TAVILY_MAX_CREDITS_PER_RUN = 10;
 export const MIN_TAVILY_MAX_CREDITS_PER_RUN = 5;
 
+export type ResearchApiProfileSettings = {
+  model: string;
+  maxOutputTokens: number;
+  contextTokens: number;
+};
+
 export type InternetResearchSettings = {
   tavilyAnalysisProvider: TavilyAnalysisProvider;
   gemmaPreset: ResearchGemmaPreset;
@@ -49,6 +56,10 @@ export type InternetResearchSettings = {
   apiModel: string;
   apiMaxOutputTokens: number;
   apiContextTokens: number;
+  /** API analyzer model and limits isolated by the selected API provider. */
+  apiProfiles?: Partial<
+    Record<ApiProviderPresetId, ResearchApiProfileSettings>
+  >;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
   codexMaxOutputTokens: number;
@@ -56,6 +67,10 @@ export type InternetResearchSettings = {
   /** Stored only in the OS-encrypted settings vault. */
   tavilyApiKey?: string;
   tavilyMaxCreditsPerRun: number;
+};
+
+export type ResolvedInternetResearchSettings = InternetResearchSettings & {
+  apiProfiles: Partial<Record<ApiProviderPresetId, ResearchApiProfileSettings>>;
 };
 
 export type TavilyUsageSnapshot = {

@@ -10,6 +10,7 @@ import { createSettingsFormValues } from "../src/renderer/src/components/setting
 import { resolveCodexReasoningEffortForModel } from "../src/renderer/src/components/settingsOptions";
 import { normalizeVertexAuthSettings } from "../src/main/settings/vertexAuthSettingsNormalize";
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
+import { createDefaultApiProfileFormValues } from "../src/renderer/src/components/settingsModal/settingsModalProfileFormValues";
 
 describe("remote model settings form", () => {
   it("keeps the masked API key count for display without saving the metadata", () => {
@@ -42,6 +43,87 @@ describe("remote model settings form", () => {
     const draft = resolveSettingsDraft(values);
 
     expect(isSettingsFormSubmittable(values, draft)).toBe(true);
+  });
+
+  it("keeps valid stored provider profiles when incomplete drafts are ignored", () => {
+    const initialSettings = resolveDefaultAppSettings();
+    const initialNimProfile = {
+      baseUrl: "https://integrate.api.nvidia.com/v1",
+      model: "stored-vision-model",
+      apiKey: "stored-key",
+      keyMaxAttempts: 2,
+      retryDelaySeconds: 1,
+      temperature: null,
+      topP: null,
+      topK: null,
+      reasoningEffort: null,
+      extraBodyJson: "",
+      customHeadersJson: "",
+    };
+    initialSettings.api.profiles = {
+      ...initialSettings.api.profiles,
+      "nvidia-nim": initialNimProfile,
+    };
+    const generationLimits = initialSettings.generationLimits;
+    if (!generationLimits) {
+      throw new Error("Default generation limits are missing");
+    }
+    initialSettings.generationLimits = {
+      ...generationLimits,
+      api: {
+        ...initialSettings.generationLimits?.api,
+        "nvidia-nim": { maxTokens: 12000, contextTokens: 24000 },
+      },
+    };
+    const baseValues = createSettingsFormValues(initialSettings);
+    const nimValues = createDefaultApiProfileFormValues("nvidia-nim");
+    const openRouterValues = createDefaultApiProfileFormValues("openrouter");
+    const values = {
+      ...baseValues,
+      modelProvider: "openai-api" as const,
+      apiProfiles: {
+        ...baseValues.apiProfiles,
+        "nvidia-nim": {
+          ...nimValues,
+          apiModel: "   ",
+        },
+        openrouter: {
+          ...openRouterValues,
+          apiBaseUrl: "not a URL",
+          apiModel: "",
+        },
+      },
+      generationLimitProfiles: {
+        ...baseValues.generationLimitProfiles,
+        api: {
+          ...baseValues.generationLimitProfiles.api,
+          "nvidia-nim": {
+            maxTokens: "not-a-number",
+            contextTokens: "not-a-number",
+          },
+        },
+      },
+    };
+
+    const result = buildSettingsFromDraft({
+      draft: resolveSettingsDraft(values),
+      initialSettings,
+      keybindings: initialSettings.keybindings ?? {},
+      blockFormatDefaults:
+        initialSettings.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      values,
+    });
+
+    expect(result.api.profiles?.["nvidia-nim"]).toEqual(initialNimProfile);
+    expect(result.api.profiles?.openrouter).toBeUndefined();
+    expect(result.generationLimits?.api["nvidia-nim"]).toEqual({
+      maxTokens: 12000,
+      contextTokens: 24000,
+    });
+    expect(result.generationLimits?.api[values.apiProvider]).toEqual({
+      maxTokens: Number(values.maxTokens),
+      contextTokens: Number(values.contextTokens),
+    });
   });
 
   it("repairs an unsupported saved Codex reasoning level", () => {
@@ -91,6 +173,13 @@ describe("internet research settings form", () => {
       apiModel: "research-api-model",
       apiMaxOutputTokens: 28672,
       apiContextTokens: 73728,
+      apiProfiles: {
+        custom: {
+          model: "research-api-model",
+          maxOutputTokens: 28672,
+          contextTokens: 73728,
+        },
+      },
       codexModel: "gpt-5.5",
       codexReasoningEffort: "high",
       codexMaxOutputTokens: 30720,
@@ -214,6 +303,8 @@ describe("Vertex service-account settings form", () => {
       baseUrl:
         "https://aiplatform.googleapis.com/v1/projects/sample-project/locations/global/endpoints/openapi",
       apiKey: "legacy-access-token",
+      provider: undefined,
+      profiles: undefined,
       vertexAuthMode: undefined,
     };
 
@@ -342,6 +433,24 @@ describe("Gemma VRAM tuning settings form", () => {
     expect(createSettingsFormValues(result)).toMatchObject({
       gemmaFitTargetMb: 512,
       gemmaMmprojOffload: false,
+    });
+  });
+
+  it("uses safe form fallbacks for optional legacy engine fields", () => {
+    const settings = resolveDefaultAppSettings();
+    settings.gemma.llamaRuntimeProfile = undefined;
+    settings.ocr.pipeline = undefined;
+    settings.ocr.gpuBackend = undefined;
+    delete (settings.ocr as Partial<typeof settings.ocr>).qualityMode;
+    settings.inpainting = undefined;
+
+    expect(createSettingsFormValues(settings)).toMatchObject({
+      llamaRuntimeProfile: "cuda12",
+      ocrPipeline: "paddle-legacy",
+      ocrGpuBackend: "cuda",
+      ocrQualityMode: "economy",
+      inpaintingModel: "flux-klein",
+      fluxBackend: "cuda-native",
     });
   });
 });

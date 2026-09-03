@@ -1910,8 +1910,8 @@
         "openRouter": "OpenRouter",
         "ollama": "Ollama（本地）"
       },
-      "providerHintCustom": "可在下方直接输入Base URL和模型ID，也支持私有或自托管的OpenAI兼容API。",
-      "providerHintVerified": "仅加载当前可验证支持图像输入的模型。列表中没有的模型ID仍可在下方手动输入。",
+      "providerHintCustom": "直接输入 Base URL 和模型 ID。密钥、模型和生成上限会按供应商分别保存。",
+      "providerHintVerified": "仅加载已验证支持图像输入的模型。密钥、模型和生成上限会按供应商分别保存。",
       "vertexProject": "Google Cloud项目ID",
       "vertexLocation": "Vertex区域",
       "vertexAuthMode": "Vertex身份验证方式",

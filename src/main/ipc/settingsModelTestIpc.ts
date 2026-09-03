@@ -10,21 +10,8 @@ import {
   buildBaseTranslationOptions,
   type TranslationOptions,
 } from "../appSettings";
-import { logError } from "../logger";
-import {
-  startCodexAppServerEndpoint,
-  stopCodexAppServerEndpoint,
-  type CodexAppServerEndpoint,
-} from "../codexAppServerEndpoint";
-import {
-  createOpenAICompatibleApiEndpoint,
-  isOpenAICompatibleApiEndpoint,
-  type OpenAICompatibleApiEndpoint,
-} from "../openaiApiEndpoint";
-import {
-  isCodexAppServerEndpoint,
-  type SimplePageRuntime,
-} from "../simplePageRuntime";
+import { logError, logWarn } from "../logger";
+import type { SimplePageRuntime } from "../simplePageRuntime";
 import type { IpcContext } from "./context";
 import {
   createModelTestProgressSender,
@@ -36,26 +23,17 @@ import {
 import { tMain } from "./localization";
 import { reserveFreePort } from "./settingsModelTestPort";
 import { toModelTestActivity } from "./settingsModelTestActivity";
+import {
+  formatModelTestError,
+  productionModelTestEndpointRuntime,
+  startModelTestServerWithRetry,
+  stopModelTestServer,
+  type ModelTestEndpointRuntime,
+  type ModelTestServer,
+} from "./settingsModelTestServer";
 
 const MAX_MODEL_TEST_ID_LENGTH = 200;
 const SAFE_MODEL_TEST_ID_PATTERN = /^(?=.*[A-Za-z0-9_-])[A-Za-z0-9._-]+$/;
-const MODEL_TEST_PORT_ATTEMPTS = 4;
-
-type ModelTestServer =
-  | Awaited<ReturnType<SimplePageRuntime["startServer"]>>
-  | CodexAppServerEndpoint
-  | OpenAICompatibleApiEndpoint;
-
-export type ModelTestEndpointRuntime = {
-  startCodexAppServerEndpoint: typeof startCodexAppServerEndpoint;
-  stopCodexAppServerEndpoint: typeof stopCodexAppServerEndpoint;
-};
-
-const productionEndpointRuntime: ModelTestEndpointRuntime = {
-  startCodexAppServerEndpoint,
-  stopCodexAppServerEndpoint,
-};
-
 type ModelTestRunInput = {
   endpointRuntime: ModelTestEndpointRuntime;
   options: TranslationOptions;
@@ -70,7 +48,7 @@ export async function handleModelSettingsTest(
   event: ModelTestProgressEventSource,
   rawSettings: unknown,
   providedTestId: unknown,
-  endpointRuntime: ModelTestEndpointRuntime = productionEndpointRuntime,
+  endpointRuntime: ModelTestEndpointRuntime = productionModelTestEndpointRuntime,
 ): Promise<ModelTestResult> {
   const settings = parseIpcPayload(
     AppSettingsSchema,
@@ -199,7 +177,13 @@ async function runModelTestWithServer({
   } catch (error) {
     return handleModelTestFailure(error, settings, sendProgress, testId);
   } finally {
-    await stopModelTestServer(runtime, server, endpointRuntime);
+    await stopModelTestServer(
+      runtime,
+      server,
+      endpointRuntime,
+      initialOptions,
+      logWarn,
+    );
   }
 }
 
@@ -308,18 +292,6 @@ function handleModelTestFailure(
   };
 }
 
-async function stopModelTestServer(
-  runtime: SimplePageRuntime,
-  server: ModelTestServer | null,
-  endpointRuntime: ModelTestEndpointRuntime,
-): Promise<void> {
-  if (isCodexAppServerEndpoint(server)) {
-    await endpointRuntime.stopCodexAppServerEndpoint(server);
-  } else if (!isOpenAICompatibleApiEndpoint(server)) {
-    await runtime.stopServer(server);
-  }
-}
-
 function resolveModelTestId(providedTestId: unknown): string {
   if (
     typeof providedTestId === "string" &&
@@ -342,86 +314,4 @@ function resolveSettingsLaunchMode(
     return "openai-api";
   }
   return settings.gemma.modelSource === "local" ? "local" : "huggingface";
-}
-
-async function startModelTestServerWithRetry(
-  runtime: SimplePageRuntime,
-  initialOptions: TranslationOptions,
-  sendProgress: SendModelTestProgress,
-  endpointRuntime: ModelTestEndpointRuntime,
-): Promise<{
-  server: ModelTestServer;
-  options: TranslationOptions;
-}> {
-  const initialSignal = initialOptions.abortSignal ?? undefined;
-  throwIfAborted(initialSignal);
-  if (initialOptions.modelProvider === "openai-api") {
-    return {
-      server: createOpenAICompatibleApiEndpoint(initialOptions),
-      options: initialOptions,
-    };
-  }
-  if (initialOptions.modelProvider === "openai-codex") {
-    return {
-      server: await endpointRuntime.startCodexAppServerEndpoint(initialOptions),
-      options: initialOptions,
-    };
-  }
-
-  let options = initialOptions;
-  for (let attempt = 1; attempt <= MODEL_TEST_PORT_ATTEMPTS; attempt += 1) {
-    try {
-      throwIfAborted(options.abortSignal ?? undefined);
-      const server = await runtime.startServer(options);
-      return { server, options };
-    } catch (error) {
-      if (!isPortBindError(error) || attempt >= MODEL_TEST_PORT_ATTEMPTS) {
-        throw error;
-      }
-      const nextPort = await reserveFreePort(options.abortSignal ?? undefined);
-      throwIfAborted(options.abortSignal ?? undefined);
-      options = { ...options, port: nextPort };
-      sendProgress({
-        phase: "booting",
-        progressText: tMain("modelTest.portRetry"),
-        detail: tMain("modelTest.portRetryDetail", { port: nextPort }),
-        installLogLine: tMain("modelTest.portRetryLog", { port: nextPort }),
-      });
-    }
-  }
-
-  throw new Error(tMain("modelTest.portUnavailable"));
-}
-
-function isPortBindError(error: unknown): boolean {
-  const text = formatModelTestError(error).toLowerCase();
-  return (
-    text.includes("eaddrinuse") ||
-    text.includes("address already in use") ||
-    text.includes("bind failed") ||
-    text.includes("failed to bind") ||
-    text.includes("only one usage of each socket address")
-  );
-}
-
-function formatModelTestError(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return String(error);
-  }
-
-  const details = [
-    error.message,
-    "recentStderr" in error &&
-    typeof error.recentStderr === "string" &&
-    error.recentStderr.trim()
-      ? error.recentStderr.trim()
-      : null,
-    "rawTextPreview" in error &&
-    typeof error.rawTextPreview === "string" &&
-    error.rawTextPreview.trim()
-      ? error.rawTextPreview.trim()
-      : null,
-  ].filter(Boolean);
-
-  return details.join("\n\n");
 }

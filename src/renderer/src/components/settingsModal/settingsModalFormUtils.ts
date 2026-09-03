@@ -20,7 +20,6 @@ import {
   normalizeApiKeysText,
   parseApiKeys,
 } from "../../../../shared/apiKeySettings";
-import { inferApiProviderPreset } from "../../../../shared/apiProviderPresets";
 
 export type SettingsDraft = ReturnType<typeof resolveSettingsDraft>;
 
@@ -208,7 +207,7 @@ function isOpenAiApiSettingsReady(
   draft: SettingsDraft,
 ): boolean {
   const vertexServiceAccountReady =
-    inferApiProviderPreset(values.apiBaseUrl) !== "google-vertex" ||
+    values.apiProvider !== "google-vertex" ||
     values.apiVertexAuthMode !== "service-account" ||
     Boolean(draft.trimmedApiVertexServiceAccountPath);
   return Boolean(

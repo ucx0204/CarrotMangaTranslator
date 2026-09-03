@@ -147,6 +147,56 @@ describe("runtime Responses request body contracts", () => {
     expect(requestBody).not.toHaveProperty("top_p");
   });
 
+  it("strips llama.cpp-only fields from ordinary Google OpenAI-compatible requests", () => {
+    const messages = [
+      {
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      },
+    ];
+    const requestBody = buildChatRequestBody(
+      {
+        modelProvider: "openai-api",
+        apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+        apiModel: "gemini-3.5-flash-lite",
+        apiTopK: 64,
+        apiExtraBodyJson: JSON.stringify({
+          chat_template_kwargs: { enable_thinking: false },
+          reasoning_format: "none",
+          reasoning_budget: 0,
+          enable_thinking: false,
+          seed: 7,
+          cache_prompt: true,
+          repeat_penalty: 1.1,
+          repeat_last_n: 64,
+          provider: { sort: "throughput" },
+        }),
+      },
+      messages,
+      256,
+    );
+
+    expect(requestBody).toMatchObject({
+      model: "gemini-3.5-flash-lite",
+      max_tokens: 256,
+      messages,
+      provider: { sort: "throughput" },
+    });
+    for (const field of [
+      "chat_template_kwargs",
+      "reasoning_format",
+      "reasoning_budget",
+      "enable_thinking",
+      "top_k",
+      "seed",
+      "cache_prompt",
+      "repeat_penalty",
+      "repeat_last_n",
+    ]) {
+      expect(requestBody).not.toHaveProperty(field);
+    }
+  });
+
   it("throws readable errors for invalid API extra body JSON", () => {
     expect(() =>
       buildChatRequestBody(

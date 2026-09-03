@@ -14,6 +14,7 @@ import type {
   CodexAccountIpcRuntime,
 } from "../src/main/ipc/codexAccountIpc";
 import { normalizeAppSettingsForRuntime } from "../src/main/settingsStore";
+import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
 
 type IpcHandler = (
   event: {
@@ -75,6 +76,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -247,6 +249,57 @@ describe("settings IPC Tavily usage", () => {
     expect(tavilyMock.getUsage).toHaveBeenCalledWith(undefined, {
       force: undefined,
     });
+  });
+});
+
+describe("settings IPC API model discovery", () => {
+  it("hydrates the selected provider with only its stored credential", async () => {
+    const settings = createApiSettings();
+    settings.api = {
+      baseUrl: "http://localhost:11434/v1",
+      model: "gemma4:31b-cloud",
+      provider: "ollama",
+      apiKey: "active-ollama-key",
+      profiles: {
+        ollama: {
+          baseUrl: "http://localhost:11434/v1",
+          model: "gemma4:31b-cloud",
+          apiKey: "stored-ollama-key",
+        },
+      },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(JSON.stringify({ data: [{ id: "gemma4:31b-cloud" }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const dataRoot = mkdtempSync(join(tmpdir(), "settings-model-discovery-"));
+    tempDirs.push(dataRoot);
+    registerSettingsIpc(
+      createContext(dataRoot, createRuntime({ cached: true })),
+      { getSettings: async () => settings },
+    );
+    const handler = electronMock.handlers.get("settings:discover-api-models");
+    if (!handler)
+      throw new Error("API model discovery handler was not registered");
+
+    await expect(
+      handler(trustedEvent(), {
+        provider: "ollama",
+        apiKey: SETTINGS_SECRET_PRESERVE_SENTINEL,
+      }),
+    ).resolves.toMatchObject({
+      provider: "ollama",
+      models: [{ id: "gemma4:31b-cloud" }],
+    });
+    const headers = new Headers(
+      (vi.mocked(fetch).mock.calls[0]?.[1] as RequestInit | undefined)?.headers,
+    );
+    expect(headers.get("Authorization")).toBe("Bearer stored-ollama-key");
   });
 });
 
@@ -427,6 +480,38 @@ describe("settings IPC model/runtime check", () => {
     expect(progressEvents.map((event) => event.progressText)).toContain(
       "API 엔드포인트 확인 중",
     );
+  });
+
+  it("unloads a local Ollama model after the direct model test", async () => {
+    const runtime = createRuntime({ cached: true });
+    const settings = createApiSettings();
+    settings.api = {
+      baseUrl: "http://localhost:11434/v1",
+      model: "gemma4:latest",
+    };
+    const unloadRequest = vi.fn(
+      async (_input: string | URL, _init?: RequestInit) => ({
+        ok: true,
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", unloadRequest);
+
+    const { result } = await invokeSettingsModelTest({
+      runtime,
+      settings,
+      testId: "ollama-local-unload",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(unloadRequest).toHaveBeenCalledOnce();
+    const [url, init] = unloadRequest.mock.calls[0] ?? [];
+    expect(url).toBe("http://localhost:11434/api/generate");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      model: "gemma4:latest",
+      keep_alive: 0,
+      stream: false,
+    });
   });
 
   it("shows a localized failure summary while keeping raw errors out of the UI payload", async () => {

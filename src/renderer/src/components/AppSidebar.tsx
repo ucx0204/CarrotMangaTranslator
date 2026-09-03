@@ -19,6 +19,7 @@ import {
   type AppCommandId,
   type AppCommandLabels,
 } from "../lib/appCommandTypes";
+import { useContextRailExpansion } from "./useContextRailExpansion";
 
 type AppSidebarProps = {
   commandLabels?: AppCommandLabels;
@@ -52,24 +53,9 @@ type AppSidebarProps = {
 
 export function AppSidebar(props: AppSidebarProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const [contextExpanded, setContextExpanded] = React.useState(false);
-  const toggleRef = React.useRef<HTMLButtonElement | null>(null);
   const hasChapter = Boolean(props.currentChapter);
-
-  React.useEffect(() => {
-    setContextExpanded(false);
-  }, [props.currentChapter?.id]);
-
-  React.useEffect(() => {
-    if (!contextExpanded) return;
-    const closeOnEscape = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      setContextExpanded(false);
-      toggleRef.current?.focus();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [contextExpanded]);
+  const { contextExpanded, toggleContextExpanded, toggleRef } =
+    useContextRailExpansion(props.currentChapter?.id);
 
   const toggleLabel = t(
     contextExpanded ? "sidebar.hideNavigator" : "sidebar.showNavigator",
@@ -88,7 +74,7 @@ export function AppSidebar(props: AppSidebarProps): React.JSX.Element {
           label={toggleLabel}
           title={toggleLabel}
           aria-expanded={contextExpanded}
-          onClick={() => setContextExpanded((expanded) => !expanded)}
+          onClick={toggleContextExpanded}
         >
           <ToggleIcon size={19} stroke={2} aria-hidden="true" />
         </IconButton>

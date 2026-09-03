@@ -359,6 +359,9 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
       : []),
     "Do not include source text, coordinates, explanations, markdown, or uncertainty notes in ko.",
     "Before returning, verify that each blockId appears exactly once and that ko translates only that block's supplied jp.",
+    options.collectPageContext
+      ? 'The top-level JSON object must contain the translation array under the exact key "items"; only "items" and "pageContext" are permitted at the top level. Never rename "items" to "blocks", "translations", "results", or any other key.'
+      : 'The top-level JSON object must be exactly {"items":[...]}. The translation array key is "items", never "blocks", "translations", "results", or any other key.',
     ...(options.collectPageContext
       ? [
           "Also return pageContext grounded only in the visible page: a short target-language visualSummary plus glossary and character candidates. Do not guess names from appearance.",
@@ -403,9 +406,12 @@ function buildFixedBlockTranslationSystemPrompt(options = {}) {
   const outputKeys = options.autoFontMatching
     ? "blockId, textRole, layoutIntent, fontRole, fontRoleConfidence, ko, and optional visualClusterId"
     : "blockId, textRole, layoutIntent, and ko";
+  const envelope = options.collectPageContext
+    ? 'Return one JSON object whose translation array is named exactly "items" and whose only other permitted top-level key is "pageContext"; never return a top-level "blocks" key.'
+    : 'Return exactly one JSON object shaped {"items":[...]}; never return a top-level "blocks", "translations", or "results" key.';
   return isHayaiLockedRegionMode(options)
-    ? `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator. Every supplied block is an immutable ordinary-text slot; correct its Hayai reading from the visible bbox, never merge or move slots, return textRole ordinary, write ko only in ${profile.targetName}, and output only ${outputKeys} as valid JSON.`
-    : `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator and visual text-role classifier. Source strings, geometry, and grouping are immutable; classify each visible fixed block, write ko only in ${profile.targetName} without untranslated source script, and output only ${outputKeys} as valid JSON.`;
+    ? `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator. Every supplied block is an immutable ordinary-text slot; correct its Hayai reading from the visible bbox, never merge or move slots, return textRole ordinary, write ko only in ${profile.targetName}, and output only ${outputKeys} as valid JSON. ${envelope}`
+    : `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator and visual text-role classifier. Source strings, geometry, and grouping are immutable; classify each visible fixed block, write ko only in ${profile.targetName} without untranslated source script, and output only ${outputKeys} as valid JSON. ${envelope}`;
 }
 
 /** @param {FixedBlockOptions} options */

@@ -14,6 +14,7 @@ import type {
   BlockStylePresetGroup,
 } from "./blockStylePresets";
 import type { InternetResearchSettings } from "./internetResearchTypes";
+import type { ApiProviderPresetId } from "./apiProviderPresets";
 
 export type {
   FluxBackend,
@@ -111,7 +112,7 @@ type CodexSettings = {
   reasoningEffort: CodexReasoningEffort;
 };
 
-type ApiSettings = {
+export type ApiProviderProfileSettings = {
   baseUrl: string;
   model: string;
   /** Newline-delimited keys. A single legacy key remains valid. */
@@ -130,6 +131,30 @@ type ApiSettings = {
   reasoningEffort?: ApiReasoningEffort | null;
   extraBodyJson?: string;
   customHeadersJson?: string;
+};
+
+type ApiSettings = ApiProviderProfileSettings & {
+  /** Provider profile currently projected onto the top-level API fields. */
+  provider?: ApiProviderPresetId;
+  /** Connection, credential, model, and request settings isolated by provider. */
+  profiles?: Partial<Record<ApiProviderPresetId, ApiProviderProfileSettings>>;
+};
+
+/** API settings after defaults/normalization have projected one active profile. */
+export type ResolvedApiSettings = ApiSettings & {
+  provider: ApiProviderPresetId;
+  profiles: Partial<Record<ApiProviderPresetId, ApiProviderProfileSettings>>;
+};
+
+export type GenerationLimitSettings = {
+  maxTokens: number;
+  contextTokens: number;
+};
+
+export type GenerationLimitProfiles = {
+  gemma: GenerationLimitSettings;
+  codex: GenerationLimitSettings;
+  api: Partial<Record<ApiProviderPresetId, GenerationLimitSettings>>;
 };
 
 type OcrSettings = {
@@ -211,6 +236,8 @@ export type AppSettings = {
   blockStylePresetGroups?: BlockStylePresetGroup[];
   keybindings?: KeybindingOverrides;
   runtimeHardware?: RuntimeHardwareInfo;
+  /** Canonical per-provider limits. `maxTokens` and `ctx` are active mirrors. */
+  generationLimits?: GenerationLimitProfiles;
   maxTokens: number;
   ctx: number;
 };

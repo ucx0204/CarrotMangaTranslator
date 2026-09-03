@@ -13,6 +13,7 @@ import type {
 } from "./types";
 import { startModelEndpointSession } from "./runtimeModules";
 import type { OcrGroupingEvidencePort } from "./ocrGroupingEvidencePort";
+import { logPipelineWarning } from "./pipelineLogger";
 
 type TranslationEndpointSession = {
   readonly handle: ModelEndpointHandle;
@@ -122,7 +123,7 @@ export function createTranslationRuntimePort({
       }
       await groupingEvidence.releaseIdleResources("translation-model-start");
       await releaseInpaintingBeforeGemma(gpuMemory, options);
-      return startModelEndpointSession(runtime, options);
+      return startModelEndpointSession(runtime, options, logPipelineWarning);
     },
     collectOcrHints: (options) =>
       collectOcrHints({

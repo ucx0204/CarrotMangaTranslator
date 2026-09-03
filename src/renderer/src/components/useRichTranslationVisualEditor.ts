@@ -56,6 +56,8 @@ export function useRichTranslationVisualEditor(
     renderOptions: args.renderOptions,
     runs: args.runs,
     selectionRef: args.selectionState.selectionRef,
+    composingRef: args.selectionState.composingRef,
+    compositionEndPendingRef: args.selectionState.compositionEndPendingRef,
     value: args.value,
   });
   useVisualSelectionListener(args.mode, visualRef, args.selectionState);
@@ -190,17 +192,20 @@ function commitVisualInput(
   const nextSelection =
     getRichTextEditorSelection(root) ?? state.selectionRef.current;
   const nextRuns = extractRichTextEditorRuns(root);
-  const beforeInput = state.beforeInputRef.current;
+  let beforeInput = state.beforeInputRef.current;
   if (state.composingRef.current) {
-    commitComposingInput(
-      args.onChange,
-      root,
-      nextRuns,
-      nextSelection,
-      state,
-      cacheRef,
-    );
+    commitComposingInput(root, nextRuns, nextSelection, state, cacheRef);
     return;
+  }
+  if (state.compositionEndPendingRef.current) {
+    beforeInput = state.compositionBeforeInputRef.current ?? beforeInput;
+    state.compositionEndPendingRef.current = false;
+    state.compositionBeforeInputRef.current = null;
+    if (state.compositionCommitTimerRef.current !== null) {
+      window.clearTimeout(state.compositionCommitTimerRef.current);
+      state.compositionCommitTimerRef.current = null;
+    }
+    normalizeDom = true;
   }
   state.beforeInputRef.current = null;
   if (
@@ -220,7 +225,10 @@ function commitVisualInput(
   }
   const nextValue = serializeRichTextRuns(nextRuns);
   cacheRef.current.value = nextValue;
-  args.onChange(nextValue);
+  if (cacheRef.current.committedValue !== nextValue) {
+    cacheRef.current.committedValue = nextValue;
+    args.onChange(nextValue);
+  }
   state.recordVisualSelection(root, nextSelection);
 }
 
@@ -247,7 +255,6 @@ function commitPendingTypingStyle(
 }
 
 function commitComposingInput(
-  onChange: (value: string) => void,
   root: HTMLElement,
   runs: readonly TextStyleRun[],
   selection: RichTextEditorSelection,
@@ -256,7 +263,6 @@ function commitComposingInput(
 ): void {
   const composingValue = serializeRichTextRuns(runs);
   cacheRef.current.value = composingValue;
-  onChange(composingValue);
   state.setSelection(selection);
   state.setCaretRun(
     isCaret(selection) ? getRichTextEditorCaretRun(root) : null,
@@ -318,13 +324,28 @@ function useCompositionHandlers(
 > {
   return {
     onCompositionStart: React.useCallback(() => {
+      if (state.compositionCommitTimerRef.current !== null) {
+        window.clearTimeout(state.compositionCommitTimerRef.current);
+        state.compositionCommitTimerRef.current = null;
+      }
+      state.compositionEndPendingRef.current = false;
       state.composingRef.current = true;
       captureBeforeInput();
-    }, [captureBeforeInput, state.composingRef]),
+      state.compositionBeforeInputRef.current = state.beforeInputRef
+        .current ?? {
+        selection: state.selectionRef.current,
+        style: state.typingStyleRef.current,
+      };
+    }, [captureBeforeInput, state]),
     onCompositionEnd: React.useCallback(() => {
       state.composingRef.current = false;
-      commitInput(true);
-    }, [commitInput, state.composingRef]),
+      state.compositionEndPendingRef.current = true;
+      state.compositionCommitTimerRef.current = window.setTimeout(() => {
+        state.compositionCommitTimerRef.current = null;
+        if (!state.compositionEndPendingRef.current) return;
+        commitInput(true);
+      }, 0);
+    }, [commitInput, state]),
   };
 }
 

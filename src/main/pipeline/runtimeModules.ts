@@ -8,6 +8,7 @@ import type { CodexAppServerEndpoint } from "../codexAppServerEndpoint";
 import {
   createOpenAICompatibleApiEndpoint,
   isOpenAICompatibleApiEndpoint,
+  stopOpenAICompatibleApiEndpoint,
 } from "../openaiApiEndpoint";
 import {
   assertRuntimeFunctions,
@@ -72,12 +73,26 @@ async function startModelEndpoint(
 export class ModelEndpointSession {
   private endpoint: ModelEndpointHandle | null;
   private disposed = false;
+  private readonly cleanupOptions: Pick<
+    TranslationOptions,
+    "modelProvider" | "apiBaseUrl" | "apiModel"
+  >;
 
   constructor(
     private readonly runtime: RuntimeModules,
     endpoint: ModelEndpointHandle,
+    options: TranslationOptions,
+    private readonly onCleanupWarning?: (
+      message: string,
+      detail?: unknown,
+    ) => void,
   ) {
     this.endpoint = endpoint;
+    this.cleanupOptions = {
+      modelProvider: options.modelProvider,
+      apiBaseUrl: options.apiBaseUrl,
+      apiModel: options.apiModel,
+    };
   }
 
   get handle(): ModelEndpointHandle {
@@ -94,29 +109,43 @@ export class ModelEndpointSession {
     this.disposed = true;
     const endpoint = this.endpoint;
     this.endpoint = null;
-    await stopModelEndpoint(this.runtime, endpoint);
+    await stopModelEndpoint(
+      this.runtime,
+      endpoint,
+      this.cleanupOptions,
+      this.onCleanupWarning,
+    );
   }
 }
 
 export async function startModelEndpointSession(
   runtime: RuntimeModules,
   options: TranslationOptions,
+  onCleanupWarning?: (message: string, detail?: unknown) => void,
 ): Promise<ModelEndpointSession> {
   return new ModelEndpointSession(
     runtime,
     await startModelEndpoint(runtime, options),
+    options,
+    onCleanupWarning,
   );
 }
 
 async function stopModelEndpoint(
   runtime: RuntimeModules,
   endpoint: ModelEndpointHandle | null | undefined,
+  options: Pick<
+    TranslationOptions,
+    "modelProvider" | "apiBaseUrl" | "apiModel"
+  >,
+  onCleanupWarning?: (message: string, detail?: unknown) => void,
 ): Promise<void> {
   if (isCodexAppServerEndpoint(endpoint)) {
     await stopCodexAppServerEndpoint(endpoint);
     return;
   }
   if (isOpenAICompatibleApiEndpoint(endpoint)) {
+    await stopOpenAICompatibleApiEndpoint(options, onCleanupWarning);
     return;
   }
   await runtime.simplePage.stopServer(endpoint);

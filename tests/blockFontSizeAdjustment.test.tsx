@@ -1150,21 +1150,25 @@ describe("selected block font-size adjustment", () => {
       document.dispatchEvent(new Event("selectionchange"));
     });
     fireEvent.compositionStart(editor);
-    act(() => {
-      textNode.data = "가한나다라";
-      placeCaret(2);
-      fireEvent.input(editor, {
-        data: "한",
-        inputType: "insertCompositionText",
-        isComposing: true,
+    for (const composingText of ["가ㅈ나다라", "가저나다라", "가정나다라"]) {
+      act(() => {
+        textNode.data = composingText;
+        placeCaret(2);
+        fireEvent.input(editor, {
+          data: composingText.slice(1, 2),
+          inputType: "insertCompositionText",
+          isComposing: true,
+        });
       });
-    });
-    expect(onUpdate).toHaveBeenLastCalledWith({ translatedText: "가한나다라" });
+      expect(editor.contains(textNode)).toBe(true);
+      expect(onUpdate).not.toHaveBeenCalled();
+    }
+    expect(onUpdate).not.toHaveBeenCalled();
 
-    fireEvent.compositionEnd(editor, { data: "한" });
+    fireEvent.compositionEnd(editor, { data: "정" });
     await waitFor(() =>
       expect(onUpdate).toHaveBeenLastCalledWith({
-        translatedText: "가[size=40]한[/size]나다라",
+        translatedText: "가[size=40]정[/size]나다라",
       }),
     );
   });

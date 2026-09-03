@@ -13,6 +13,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   OLLAMA_BASE_URL,
   OPENROUTER_BASE_URL,
+  resolveApiProviderBaseUrl,
+  type ApiProviderPresetId,
 } from "../src/shared/apiProviderPresets";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { appI18n, initializeAppI18n } from "../src/renderer/src/appI18n";
@@ -343,6 +345,8 @@ function Harness({
   const [apiBaseUrl, setApiBaseUrl] = React.useState(
     "https://private.example/v1",
   );
+  const [apiProvider, setApiProvider] =
+    React.useState<ApiProviderPresetId>("custom");
   const [apiModel, setApiModel] = React.useState("manual-vision-model");
   const [apiKey, setApiKey] = React.useState(initialApiKey);
   const [apiVertexAuthMode, setApiVertexAuthMode] = React.useState<
@@ -352,11 +356,22 @@ function Harness({
     React.useState("");
   const [apiKeyMaxAttempts, setApiKeyMaxAttempts] = React.useState("2");
   const [apiRetryDelaySeconds, setApiRetryDelaySeconds] = React.useState("1");
+  const selectApiProvider: React.Dispatch<
+    React.SetStateAction<ApiProviderPresetId>
+  > = (next) => {
+    setApiProvider((current) => {
+      const provider = typeof next === "function" ? next(current) : next;
+      const baseUrl = resolveApiProviderBaseUrl({ provider });
+      if (baseUrl) setApiBaseUrl(baseUrl);
+      return provider;
+    });
+  };
 
   return (
     <>
       <ApiProviderConnectionFields
         apiBaseUrl={apiBaseUrl}
+        apiProvider={apiProvider}
         apiModel={apiModel}
         apiKey={apiKey}
         apiKeyCount={apiKeyCount}
@@ -367,6 +382,7 @@ function Harness({
         clearTestState={() => undefined}
         controlsBusy={false}
         setApiBaseUrl={setApiBaseUrl}
+        setApiProvider={selectApiProvider}
         setApiModel={setApiModel}
         setApiKey={setApiKey}
         setApiVertexAuthMode={setApiVertexAuthMode}
@@ -378,6 +394,7 @@ function Harness({
       <button
         type="button"
         onClick={() => {
+          setApiProvider("custom");
           setApiBaseUrl("https://private.example/v1");
           setApiModel("manual-vision-model");
           setApiKey("");

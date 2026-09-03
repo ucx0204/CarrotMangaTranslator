@@ -13,7 +13,10 @@ import {
   DEFAULT_GEMMA_CONTEXT_TOKENS,
   DEFAULT_CONTEXT_TOKENS,
 } from "../src/main/appSettings";
-import { CURRENT_GENERATION_LIMITS_VERSION } from "../src/main/settings/appSettingsGenerationLimitMigration";
+import {
+  CURRENT_GENERATION_LIMITS_VERSION,
+  migrateLegacyRemoteGenerationLimits,
+} from "../src/main/settings/appSettingsGenerationLimitMigration";
 import {
   GEMMA_12B_QAT_MMPROJ_FILE,
   GEMMA_12B_QAT_MMPROJ_REPO,
@@ -522,6 +525,36 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
     expect(codex.ctx).toBe(65536);
     expect(gemini.maxTokens).toBe(65536);
     expect(gemini.ctx).toBe(524288);
+  });
+
+  it("infers the API generation-limit bucket for pre-profile normalized settings", () => {
+    const defaults = resolveDefaultAppSettings();
+    const normalized = parseStoredAppSettings(
+      JSON.stringify({
+        generationLimitsVersion: CURRENT_GENERATION_LIMITS_VERSION,
+        modelProvider: "openai-api",
+        api: {
+          baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+          model: "gemini-3.5-flash-lite",
+        },
+      }),
+      defaults,
+    );
+    normalized.api.provider = undefined;
+
+    const migrated = migrateLegacyRemoteGenerationLimits(
+      {
+        modelProvider: "openai-api",
+        maxTokens: 12000,
+        ctx: 16384,
+      },
+      normalized,
+    );
+
+    expect(migrated.generationLimits?.api["google-ai-studio"]).toEqual({
+      maxTokens: 65536,
+      contextTokens: 524288,
+    });
   });
 
   it("preserves custom, local, and versioned generation limits", () => {

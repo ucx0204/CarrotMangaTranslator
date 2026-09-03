@@ -4,6 +4,14 @@ import {
   createSettingsFormValues,
   type SettingsFormValues,
 } from "./settingsModalFormValues";
+import {
+  createDefaultApiProfileFormValues,
+  createDefaultGenerationLimitFormValues,
+  createDefaultResearchApiProfileFormValues,
+  type ApiProfileFormValues,
+} from "./settingsModalProfileFormValues";
+import type { ApiProviderPresetId } from "../../../../shared/apiProviderPresets";
+import type { ModelProvider } from "../../../../shared/settingsTypes";
 
 type FieldSetter<K extends keyof SettingsFormValues> = React.Dispatch<
   React.SetStateAction<SettingsFormValues[K]>
@@ -11,11 +19,19 @@ type FieldSetter<K extends keyof SettingsFormValues> = React.Dispatch<
 
 type MutableSettingsFormField = Exclude<
   keyof SettingsFormValues,
-  "apiKeyCount"
+  | "apiKeyCount"
+  | "apiProfiles"
+  | "apiProvider"
+  | "generationLimitProfiles"
+  | "modelProvider"
+  | "researchApiProfiles"
 >;
 
 export type SettingsFormSetters = {
   [K in MutableSettingsFormField as `set${Capitalize<string & K>}`]: FieldSetter<K>;
+} & {
+  setApiProvider: FieldSetter<"apiProvider">;
+  setModelProvider: FieldSetter<"modelProvider">;
 };
 
 export type SettingsFormRefs = {
@@ -67,7 +83,7 @@ function useSettingsFormSetters(
         setValues,
         "wheelZoomSensitivityPercent",
       ),
-      setModelProvider: createFormFieldDispatch(setValues, "modelProvider"),
+      setModelProvider: createModelProviderDispatch(setValues),
       setSourceLanguage: createFormFieldDispatch(setValues, "sourceLanguage"),
       setTargetLanguage: createFormFieldDispatch(setValues, "targetLanguage"),
       setModelSource: createFormFieldDispatch(setValues, "modelSource"),
@@ -187,6 +203,7 @@ function createApiFormSetters(
   setValues: React.Dispatch<React.SetStateAction<SettingsFormValues>>,
 ) {
   return {
+    setApiProvider: createApiProviderDispatch(setValues),
     setApiBaseUrl: createFormFieldDispatch(setValues, "apiBaseUrl"),
     setApiModel: createFormFieldDispatch(setValues, "apiModel"),
     setApiKey: createFormFieldDispatch(setValues, "apiKey"),
@@ -219,6 +236,146 @@ function createApiFormSetters(
       "apiCustomHeadersJson",
     ),
   };
+}
+
+function createModelProviderDispatch(
+  setValues: React.Dispatch<React.SetStateAction<SettingsFormValues>>,
+): FieldSetter<"modelProvider"> {
+  return (next) => {
+    setValues((current) => {
+      const provider = resolveStateAction(next, current.modelProvider);
+      if (provider === current.modelProvider) return current;
+      const generationLimitProfiles = snapshotActiveGenerationLimits(current);
+      const limits = resolveGenerationLimitsForProvider(
+        generationLimitProfiles,
+        provider,
+        current.apiProvider,
+        current,
+      );
+      return {
+        ...current,
+        modelProvider: provider,
+        generationLimitProfiles,
+        maxTokens: limits.maxTokens,
+        contextTokens: limits.contextTokens,
+      };
+    });
+  };
+}
+
+function createApiProviderDispatch(
+  setValues: React.Dispatch<React.SetStateAction<SettingsFormValues>>,
+): FieldSetter<"apiProvider"> {
+  return (next) => {
+    setValues((current) => {
+      const provider = resolveStateAction(next, current.apiProvider);
+      if (provider === current.apiProvider) return current;
+      const apiProfiles = {
+        ...current.apiProfiles,
+        [current.apiProvider]: readActiveApiProfile(current),
+      };
+      const researchApiProfiles = {
+        ...current.researchApiProfiles,
+        [current.apiProvider]: {
+          model: current.researchApiModel,
+          maxOutputTokens: current.researchApiMaxOutputTokens,
+          contextTokens: current.researchApiContextTokens,
+        },
+      };
+      const generationLimitProfiles = snapshotActiveGenerationLimits(current);
+      const apiProfile =
+        apiProfiles[provider] ?? createDefaultApiProfileFormValues(provider);
+      const researchProfile =
+        researchApiProfiles[provider] ??
+        createDefaultResearchApiProfileFormValues(apiProfile.apiModel);
+      const apiLimits =
+        generationLimitProfiles.api[provider] ??
+        createDefaultGenerationLimitFormValues(
+          "openai-api",
+          apiProfile.apiModel,
+        );
+      return {
+        ...current,
+        ...apiProfile,
+        apiProvider: provider,
+        apiProfiles,
+        generationLimitProfiles,
+        researchApiModel: researchProfile.model,
+        researchApiMaxOutputTokens: researchProfile.maxOutputTokens,
+        researchApiContextTokens: researchProfile.contextTokens,
+        researchApiProfiles,
+        ...(current.modelProvider === "openai-api"
+          ? {
+              maxTokens: apiLimits.maxTokens,
+              contextTokens: apiLimits.contextTokens,
+            }
+          : {}),
+      };
+    });
+  };
+}
+
+function snapshotActiveGenerationLimits(
+  current: SettingsFormValues,
+): SettingsFormValues["generationLimitProfiles"] {
+  const limits = {
+    maxTokens: current.maxTokens,
+    contextTokens: current.contextTokens,
+  };
+  if (current.modelProvider === "gemma") {
+    return { ...current.generationLimitProfiles, gemma: limits };
+  }
+  if (current.modelProvider === "openai-codex") {
+    return { ...current.generationLimitProfiles, codex: limits };
+  }
+  return {
+    ...current.generationLimitProfiles,
+    api: {
+      ...current.generationLimitProfiles.api,
+      [current.apiProvider]: limits,
+    },
+  };
+}
+
+function resolveGenerationLimitsForProvider(
+  profiles: SettingsFormValues["generationLimitProfiles"],
+  provider: ModelProvider,
+  apiProvider: ApiProviderPresetId,
+  current: SettingsFormValues,
+) {
+  if (provider === "gemma") return profiles.gemma;
+  if (provider === "openai-codex") return profiles.codex;
+  return (
+    profiles.api[apiProvider] ??
+    createDefaultGenerationLimitFormValues("openai-api", current.apiModel)
+  );
+}
+
+function readActiveApiProfile(
+  values: SettingsFormValues,
+): ApiProfileFormValues {
+  return {
+    apiBaseUrl: values.apiBaseUrl,
+    apiModel: values.apiModel,
+    apiKey: values.apiKey,
+    apiKeyCount: values.apiKeyCount,
+    apiVertexAuthMode: values.apiVertexAuthMode,
+    apiVertexServiceAccountPath: values.apiVertexServiceAccountPath,
+    apiKeyMaxAttempts: values.apiKeyMaxAttempts,
+    apiRetryDelaySeconds: values.apiRetryDelaySeconds,
+    apiTemperature: values.apiTemperature,
+    apiTopP: values.apiTopP,
+    apiTopK: values.apiTopK,
+    apiReasoningEffort: values.apiReasoningEffort,
+    apiExtraBodyJson: values.apiExtraBodyJson,
+    apiCustomHeadersJson: values.apiCustomHeadersJson,
+  };
+}
+
+function resolveStateAction<T>(action: React.SetStateAction<T>, current: T): T {
+  return typeof action === "function"
+    ? (action as (value: T) => T)(current)
+    : action;
 }
 
 function createFormFieldDispatch<K extends keyof SettingsFormValues>(

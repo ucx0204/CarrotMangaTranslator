@@ -35,12 +35,16 @@ import {
   resolveModelPreset,
   type ModelPresetId,
 } from "../settingsOptions";
-import {
-  DEFAULT_API_KEY_MAX_ATTEMPTS,
-  DEFAULT_API_RETRY_DELAY_SECONDS,
-} from "../../../../shared/apiKeySettings";
 import { DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO } from "../../../../shared/bubbleLayoutSettings";
-import { inferApiProviderPreset } from "../../../../shared/apiProviderPresets";
+import {
+  resolveApiFormValues,
+  resolveGenerationLimitProfileFormValues,
+  resolveResearchApiProfileFormValues,
+  type ApiProfileFormValues,
+  type GenerationLimitProfilesFormValues,
+  type ResearchApiProfileFormValues,
+} from "./settingsModalProfileFormValues";
+import type { ApiProviderPresetId } from "../../../../shared/apiProviderPresets";
 
 export type SettingsFormValues = {
   uiLocale: UiLocale;
@@ -48,6 +52,7 @@ export type SettingsFormValues = {
   graphicsGpuPreference: GraphicsGpuPreference;
   computeGpuIndex: number | null;
   modelProvider: ModelProvider;
+  generationLimitProfiles: GenerationLimitProfilesFormValues;
   sourceLanguage: string;
   targetLanguage: string;
   modelSource: ModelSource;
@@ -71,6 +76,9 @@ export type SettingsFormValues = {
   researchApiModel: string;
   researchApiMaxOutputTokens: string;
   researchApiContextTokens: string;
+  researchApiProfiles: Partial<
+    Record<ApiProviderPresetId, ResearchApiProfileFormValues>
+  >;
   researchCodexModel: string;
   researchCodexReasoningEffort: CodexReasoningEffort;
   researchCodexMaxOutputTokens: string;
@@ -78,6 +86,8 @@ export type SettingsFormValues = {
   tavilyApiKey: string;
   tavilyMaxCreditsPerRun: string;
   apiBaseUrl: string;
+  apiProvider: ApiProviderPresetId;
+  apiProfiles: Partial<Record<ApiProviderPresetId, ApiProfileFormValues>>;
   apiModel: string;
   apiKey: string;
   apiKeyCount: number;
@@ -115,6 +125,7 @@ export function createSettingsFormValues(
     ...resolveHardwareFormValues(settings),
     maxTokens: String(settings.maxTokens),
     contextTokens: String(settings.ctx),
+    generationLimitProfiles: resolveGenerationLimitProfileFormValues(settings),
   };
 }
 
@@ -130,6 +141,7 @@ function resolveResearchFormValues(
   | "researchApiModel"
   | "researchApiMaxOutputTokens"
   | "researchApiContextTokens"
+  | "researchApiProfiles"
   | "researchCodexModel"
   | "researchCodexReasoningEffort"
   | "researchCodexMaxOutputTokens"
@@ -147,6 +159,7 @@ function resolveResearchFormValues(
     researchApiModel: research.apiModel,
     researchApiMaxOutputTokens: String(research.apiMaxOutputTokens),
     researchApiContextTokens: String(research.apiContextTokens),
+    researchApiProfiles: resolveResearchApiProfileFormValues(settings),
     researchCodexModel: research.codexModel,
     researchCodexReasoningEffort: research.codexReasoningEffort,
     researchCodexMaxOutputTokens: String(research.codexMaxOutputTokens),
@@ -222,57 +235,6 @@ function resolveModelFormValues(
   };
 }
 
-function resolveApiFormValues(
-  settings: AppSettings,
-): Pick<
-  SettingsFormValues,
-  | "apiBaseUrl"
-  | "apiModel"
-  | "apiKey"
-  | "apiKeyCount"
-  | "apiVertexAuthMode"
-  | "apiVertexServiceAccountPath"
-  | "apiKeyMaxAttempts"
-  | "apiRetryDelaySeconds"
-  | "apiTemperature"
-  | "apiTopP"
-  | "apiTopK"
-  | "apiReasoningEffort"
-  | "apiExtraBodyJson"
-  | "apiCustomHeadersJson"
-> {
-  return {
-    apiBaseUrl: settings.api.baseUrl,
-    apiModel: settings.api.model,
-    apiKey: settings.api.apiKey ?? "",
-    apiKeyCount: settings.api.apiKeyCount ?? 0,
-    apiVertexAuthMode: resolveVertexAuthMode(settings),
-    apiVertexServiceAccountPath: settings.api.vertexServiceAccountPath ?? "",
-    apiKeyMaxAttempts: String(
-      settings.api.keyMaxAttempts ?? DEFAULT_API_KEY_MAX_ATTEMPTS,
-    ),
-    apiRetryDelaySeconds: String(
-      settings.api.retryDelaySeconds ?? DEFAULT_API_RETRY_DELAY_SECONDS,
-    ),
-    apiTemperature: formatNullableNumberInput(settings.api.temperature),
-    apiTopP: formatNullableNumberInput(settings.api.topP),
-    apiTopK: formatNullableNumberInput(settings.api.topK),
-    apiReasoningEffort: settings.api.reasoningEffort ?? "",
-    apiExtraBodyJson: settings.api.extraBodyJson ?? "",
-    apiCustomHeadersJson: settings.api.customHeadersJson ?? "",
-  };
-}
-
-function resolveVertexAuthMode(
-  settings: AppSettings,
-): SettingsFormValues["apiVertexAuthMode"] {
-  if (settings.api.vertexAuthMode) return settings.api.vertexAuthMode;
-  const isLegacyVertexToken =
-    inferApiProviderPreset(settings.api.baseUrl) === "google-vertex" &&
-    Boolean(settings.api.apiKey?.trim());
-  return isLegacyVertexToken ? "access-token" : "service-account";
-}
-
 function resolveHardwareFormValues(
   settings: AppSettings,
 ): Pick<
@@ -308,8 +270,4 @@ function resolveGpuFormValues(
     graphicsGpuPreference: settings.hardware?.graphicsGpuPreference ?? "auto",
     computeGpuIndex: settings.hardware?.computeGpuIndex ?? null,
   };
-}
-
-function formatNullableNumberInput(value: number | null | undefined): string {
-  return value === null || value === undefined ? "" : String(value);
 }

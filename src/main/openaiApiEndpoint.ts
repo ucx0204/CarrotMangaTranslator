@@ -1,4 +1,5 @@
 import type { TranslationOptions } from "./appSettings";
+import { releaseOllamaLocalModel } from "./ollamaModelLifecycle";
 
 export type OpenAICompatibleApiEndpoint = {
   baseUrl: string;
@@ -25,4 +26,14 @@ export function isOpenAICompatibleApiEndpoint(
     return false;
   }
   return endpoint.provider === "openai-api";
+}
+
+export async function stopOpenAICompatibleApiEndpoint(
+  options: Pick<
+    TranslationOptions,
+    "modelProvider" | "apiBaseUrl" | "apiModel"
+  >,
+  onWarning?: (message: string, detail?: unknown) => void,
+): Promise<void> {
+  await releaseOllamaLocalModel(options, fetch, onWarning);
 }

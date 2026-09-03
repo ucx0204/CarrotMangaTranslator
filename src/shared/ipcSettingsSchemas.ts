@@ -1,18 +1,14 @@
 import { z } from "zod";
 import {
   AmdRocmTargetSchema,
-  ApiReasoningEffortSchema,
-  CustomHeadersJsonObjectStringSchema,
   FluxBackendSchema,
   GemmaVramModeSchema,
   InpaintingModelSchema,
   KoharuInpaintingBackendSchema,
-  JsonObjectStringSchema,
   LlamaRuntimeProfileSchema,
   MAX_MAX_TOKENS,
   MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
-  OpenAiCompatibleBaseUrlSchema,
   TextEffectSchema,
   TextGlowSchema,
   filePath,
@@ -22,14 +18,6 @@ import { MAX_LANGUAGE_CODE_LENGTH } from "./translationLanguages";
 import { CODEX_REASONING_EFFORTS } from "./codexSettings";
 import { SUPPORTED_UI_LOCALES } from "./uiLocales";
 import { TEXT_WORD_BREAK_VALUES } from "./textWrapping";
-import {
-  MAX_API_KEY_MAX_ATTEMPTS,
-  MAX_API_KEYS,
-  MAX_API_KEYS_TEXT_LENGTH,
-  MAX_API_RETRY_DELAY_SECONDS,
-  MIN_API_KEY_MAX_ATTEMPTS,
-  MIN_API_RETRY_DELAY_SECONDS,
-} from "./apiKeySettings";
 import {
   MAX_BUBBLE_LAYOUT_PADDING_RATIO,
   MIN_BUBBLE_LAYOUT_PADDING_RATIO,
@@ -66,6 +54,12 @@ import {
   TAVILY_ANALYSIS_PROVIDERS,
 } from "./internetResearchTypes";
 import { OcrSettingsSchema } from "./ipcOcrSettingsSchema";
+import {
+  ApiProviderPresetSchema,
+  ApiProviderProfileSettingsSchema,
+  GenerationLimitSettingsSchema,
+  apiProviderProfileMapSchema,
+} from "./ipcSettingsProviderSchemas";
 
 const LanguageCodeSchema = z
   .string()
@@ -238,6 +232,19 @@ export const AppSettingsSchema = z
           .min(MIN_MAX_TOKENS)
           .max(MAX_MAX_TOKENS),
         apiContextTokens: z.number().int().min(MIN_CONTEXT_TOKENS),
+        apiProfiles: apiProviderProfileMapSchema(
+          z
+            .object({
+              model: z.string().min(1).max(200),
+              maxOutputTokens: z
+                .number()
+                .int()
+                .min(MIN_MAX_TOKENS)
+                .max(MAX_MAX_TOKENS),
+              contextTokens: z.number().int().min(MIN_CONTEXT_TOKENS),
+            })
+            .strict(),
+        ).optional(),
         codexModel: z.string().min(1).max(120),
         codexReasoningEffort: z.enum(CODEX_REASONING_EFFORTS),
         codexMaxOutputTokens: z
@@ -253,33 +260,12 @@ export const AppSettingsSchema = z
           .min(MIN_TAVILY_MAX_CREDITS_PER_RUN),
       })
       .strict(),
-    api: z
-      .object({
-        baseUrl: OpenAiCompatibleBaseUrlSchema,
-        model: z.string().min(1).max(200),
-        apiKey: z.string().max(MAX_API_KEYS_TEXT_LENGTH).optional(),
-        apiKeyCount: z.number().int().min(0).max(MAX_API_KEYS).optional(),
-        vertexAuthMode: z.enum(["access-token", "service-account"]).optional(),
-        vertexServiceAccountPath: filePath.optional(),
-        keyMaxAttempts: z
-          .number()
-          .int()
-          .min(MIN_API_KEY_MAX_ATTEMPTS)
-          .max(MAX_API_KEY_MAX_ATTEMPTS)
-          .optional(),
-        retryDelaySeconds: z
-          .number()
-          .min(MIN_API_RETRY_DELAY_SECONDS)
-          .max(MAX_API_RETRY_DELAY_SECONDS)
-          .optional(),
-        temperature: z.number().min(0).max(2).nullable().optional(),
-        topP: z.number().min(0).max(1).nullable().optional(),
-        topK: z.number().int().min(1).max(1000).nullable().optional(),
-        reasoningEffort: ApiReasoningEffortSchema.nullable().optional(),
-        extraBodyJson: JsonObjectStringSchema.optional(),
-        customHeadersJson: CustomHeadersJsonObjectStringSchema.optional(),
-      })
-      .strict(),
+    api: ApiProviderProfileSettingsSchema.extend({
+      provider: ApiProviderPresetSchema.optional(),
+      profiles: apiProviderProfileMapSchema(
+        ApiProviderProfileSettingsSchema,
+      ).optional(),
+    }).strict(),
     ocr: OcrSettingsSchema,
     ui: z
       .object({
@@ -388,6 +374,14 @@ export const AppSettingsSchema = z
         supportsVulkan: z.boolean().optional(),
         supportsMetal: z.boolean().optional(),
         unifiedMemoryMb: z.number().int().positive().nullable().optional(),
+      })
+      .strict()
+      .optional(),
+    generationLimits: z
+      .object({
+        gemma: GenerationLimitSettingsSchema,
+        codex: GenerationLimitSettingsSchema,
+        api: apiProviderProfileMapSchema(GenerationLimitSettingsSchema),
       })
       .strict()
       .optional(),

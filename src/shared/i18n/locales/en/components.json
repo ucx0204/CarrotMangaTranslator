@@ -1955,8 +1955,8 @@
         "openRouter": "OpenRouter",
         "ollama": "Ollama (local)"
       },
-      "providerHintCustom": "Enter a Base URL and model ID below. Private and self-hosted OpenAI-compatible APIs are supported.",
-      "providerHintVerified": "Loads only current models whose image input support can be verified. You can still type any model ID below.",
+      "providerHintCustom": "Enter a Base URL and model ID. Keys, models, and generation limits are saved separately for each provider.",
+      "providerHintVerified": "Only models with verified image input are loaded. Keys, models, and generation limits are saved separately for each provider.",
       "vertexProject": "Google Cloud project ID",
       "vertexLocation": "Vertex region",
       "vertexAuthMode": "Vertex authentication",

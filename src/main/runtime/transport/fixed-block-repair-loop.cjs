@@ -25,6 +25,8 @@ const {
 const {
   completeFixedBlockFallbacks,
 } = require("../semantic-ocr/fixed-block-repair-fallback.cjs");
+const { semanticContractError } = require("../semantic-ocr/values.cjs");
+const { isOllamaCloudApiModel } = require("../simple-page-model-config.cjs");
 const { findAbortError } = require("./model-http-errors.cjs");
 
 const MAX_FIXED_BLOCK_REPAIR_ATTEMPTS = 3;
@@ -43,6 +45,19 @@ async function repairInvalidFixedBlockTranslations(context) {
     expectedIds,
     fallbacks,
   );
+  if (isOllamaCloudApiModel(context.options) && state.pendingBlockIds.length) {
+    throw semanticContractError(
+      "fixed-block-translation-ollama-cloud-contract-invalid",
+      "Ollama Cloud did not return the required fixed-block translation contract after focused retries.",
+      {
+        unresolvedBlockIds: state.pendingBlockIds,
+        rejectionReasons: pickRetryReasons(
+          state.retryReasons,
+          state.pendingBlockIds,
+        ),
+      },
+    );
+  }
   return completeFixedBlockFallbacks(state, fallbacks, context.plan.blocks);
 }
 

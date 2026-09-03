@@ -11,9 +11,6 @@
  */
 
 const { prepareImageVariants } = require("../simple-page-image-variants.cjs");
-const {
-  applyLocalForbiddenTokenBias,
-} = require("../simple-page-logit-bias.cjs");
 const { buildRequestSummary } = require("../simple-page-request-summary.cjs");
 const {
   FIXED_BLOCK_TRANSLATION_VERSION,
@@ -27,10 +24,6 @@ const {
   buildFixedBlockTranslationResponseFormat,
 } = require("../semantic-ocr/response-formats.cjs");
 const {
-  readChatCompletionResult,
-  sendChatCompletion,
-} = require("./chat-completion.cjs");
-const {
   recordFixedBlockRepairSummary,
   repairInvalidFixedBlockTranslations,
 } = require("./fixed-block-repair-loop.cjs");
@@ -39,6 +32,7 @@ const {
   buildSemanticStageRequestBody,
   resolveStructuredTokenBudget,
 } = require("./semantic-ocr-request-builders.cjs");
+const { requestStructuredCompletion } = require("./structured-completion.cjs");
 
 /**
  * Translate code-owned OCR groups. The model receives the page for context,
@@ -294,25 +288,14 @@ async function requestFixedBlockPass(
     responseMaxTokens: tokenBudget.maxTokens,
     responseTokenLimitSource: tokenBudget.source,
   });
-  const forbiddenTokenBias = await applyLocalForbiddenTokenBias(
+  const result = await requestStructuredCompletion(
     server,
     options,
     requestBody,
-  );
-  const rawResponse = await sendChatCompletion(
-    server,
-    options,
-    requestBody,
-    requestSummary,
-    undefined,
-  );
-  const response = await readChatCompletionResult(
-    rawResponse,
-    options,
     requestSummary,
     requestStartedAt,
   );
-  return { response, forbiddenTokenBias };
+  return result;
 }
 
 /**

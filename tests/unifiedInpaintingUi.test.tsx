@@ -17,12 +17,11 @@ import {
   it,
   vi,
 } from "vitest";
-import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
-import type { TranslationBlock } from "../src/shared/textTypes";
 import { AppRightQuickRail } from "../src/renderer/src/components/AppRightQuickRail";
 import { AppRightRail } from "../src/renderer/src/components/AppRightRail";
 import { AppSidebar } from "../src/renderer/src/components/AppSidebar";
 import { StageToolbar } from "../src/renderer/src/components/StageToolbar";
+import { StageToolbarCurrentTool } from "../src/renderer/src/components/StageToolbarCurrentTool";
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
 import {
   DEFAULT_BLOCK_FONT_CATALOG,
@@ -33,6 +32,11 @@ import {
   PanelSessionContext,
   type PanelSessionValue,
 } from "../src/renderer/src/panels/panelSession";
+import {
+  makeBlock,
+  makeChapter,
+  makePage,
+} from "./unifiedInpaintingUiFixtures";
 
 class ResizeObserverStub {
   disconnect(): void {}
@@ -120,6 +124,105 @@ describe("unified workspace toolbar", () => {
       />,
     );
     expect(screen.queryByText("현재 도구: 브러시")).toBeNull();
+    view.rerender(
+      <AppRightQuickRail
+        {...props}
+        {...chromeProps}
+        regionTranslationActive
+        stageToolbarHidden
+      />,
+    );
+    expect(screen.getByText("현재 도구: 영역 번역")).not.toBeNull();
+  });
+
+  it("keeps the standalone current-tool announcement class minimal", () => {
+    const { container } = render(<StageToolbarCurrentTool label="선택" />);
+    expect(container.firstElementChild?.className).toBe(
+      "stage-toolbar-current-tool",
+    );
+  });
+
+  it("collapses quick-rail groups for constrained viewports and releases listeners", () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(
+      window,
+      "matchMedia",
+    );
+    const queryStates = new Map<
+      string,
+      {
+        matches: boolean;
+        listener: ((event: MediaQueryListEvent) => void) | null;
+        removeEventListener: ReturnType<typeof vi.fn>;
+      }
+    >();
+    const matchMedia = vi.fn((query: string) => {
+      let state = queryStates.get(query);
+      if (!state) {
+        state = {
+          matches: query.includes("430px"),
+          listener: null,
+          removeEventListener: vi.fn(),
+        };
+        queryStates.set(query, state);
+      }
+      return {
+        get matches() {
+          return state?.matches ?? false;
+        },
+        media: query,
+        onchange: null,
+        addEventListener: (_type: string, listener: EventListener) => {
+          if (state) {
+            state.listener = listener as (event: MediaQueryListEvent) => void;
+          }
+        },
+        removeEventListener: state.removeEventListener,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(() => true),
+      } as MediaQueryList;
+    });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: matchMedia,
+    });
+
+    try {
+      const view = renderQuickRail(makeRightRailProps());
+      expect(
+        document.querySelector(".right-quick-controls-frame.collapsed"),
+      ).not.toBeNull();
+
+      const bottom = [...queryStates.entries()].find(([query]) =>
+        query.includes("620px"),
+      )?.[1];
+      const top = [...queryStates.entries()].find(([query]) =>
+        query.includes("430px"),
+      )?.[1];
+      if (!top?.listener || !bottom?.listener) {
+        throw new Error("Missing viewport listeners");
+      }
+      top.matches = false;
+      bottom.matches = false;
+      act(() => bottom.listener?.({} as MediaQueryListEvent));
+      top.matches = true;
+      bottom.matches = true;
+      act(() => bottom.listener?.({} as MediaQueryListEvent));
+      expect(
+        document.querySelectorAll(".right-quick-controls-frame.collapsed"),
+      ).toHaveLength(2);
+
+      view.unmount();
+      for (const state of queryStates.values()) {
+        expect(state.removeEventListener).toHaveBeenCalledOnce();
+      }
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(window, "matchMedia", originalDescriptor);
+      } else {
+        delete (window as Partial<Window>).matchMedia;
+      }
+    }
   });
 
   it("opens all three lower quick-rail controls", () => {
@@ -349,6 +452,33 @@ describe("unified workspace toolbar", () => {
 
     fireEvent.pointerEnter(retouch as HTMLButtonElement);
     fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("opens a tool group with arrow keys and closes it from the trigger", () => {
+    const { container } = render(
+      <StageToolbar
+        bubbleLayoutAvailable
+        brushColor="#ffffff"
+        disabled={false}
+        hidden={false}
+        lastRetouchTool="brush"
+        onSelectTool={() => undefined}
+        onToggleRegionTranslation={() => undefined}
+        onToggleHidden={() => undefined}
+        regionTranslationActive={false}
+        regionTranslationAvailable={true}
+        tool="select"
+      />,
+    );
+    const trigger = container.querySelector<HTMLButtonElement>(
+      '[data-stage-tool-group="paint"]',
+    );
+    if (!trigger) throw new Error("Missing paint group trigger");
+
+    fireEvent.keyDown(trigger, { key: "ArrowRight" });
+    expect(screen.getByRole("menu")).not.toBeNull();
+    fireEvent.keyDown(trigger, { key: "Escape" });
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
@@ -1140,54 +1270,5 @@ function makeRightRailProps(
     rightRailMode: "block-editor",
     saveStatus: "idle",
     ...overrides,
-  };
-}
-
-function makeChapter(): ChapterSnapshot {
-  const page = makePage();
-  return {
-    id: "chapter-1",
-    workId: "work-1",
-    title: "1화",
-    sourceKind: "images",
-    status: "idle",
-    pageOrder: [page.id],
-    pages: [page],
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-  };
-}
-
-function makePage(): MangaPage {
-  return {
-    id: "page-1",
-    name: "page-1.png",
-    imagePath: "page-1.png",
-    dataUrl: "",
-    width: 1000,
-    height: 1600,
-    blocks: [],
-    analysisStatus: "idle",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-  };
-}
-
-function makeBlock(): TranslationBlock {
-  return {
-    id: "block-1",
-    type: "nonsolid",
-    bbox: { x: 0, y: 0, w: 100, h: 100 },
-    sourceText: "source",
-    translatedText: "translated",
-    confidence: 1,
-    sourceDirection: "horizontal",
-    renderDirection: "horizontal",
-    fontSizePx: 24,
-    lineHeight: 1.2,
-    textAlign: "center",
-    textColor: "#000000",
-    backgroundColor: "#ffffff",
-    opacity: 1,
   };
 }

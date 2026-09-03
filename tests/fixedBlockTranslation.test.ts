@@ -17,6 +17,9 @@ const fixed =
       plan: FixedBlockPlan,
       options: Record<string, unknown>,
     ) => string;
+    buildFixedBlockTranslationSystemPrompt: (
+      options: Record<string, unknown>,
+    ) => string;
     parseFixedBlockTranslationResponse: (
       raw: string,
       plan: FixedBlockPlan,

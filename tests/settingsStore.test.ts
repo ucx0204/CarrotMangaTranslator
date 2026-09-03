@@ -17,6 +17,7 @@ import { CURRENT_GENERATION_LIMITS_VERSION } from "../src/main/settings/appSetti
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
 import {
   hasSettingsSecretSentinels,
+  loadSettingsSecrets,
   settingsSecretVaultPath,
 } from "../src/main/settingsSecretStore";
 import {
@@ -44,6 +45,36 @@ describe("settings store", () => {
         await rm(dir, { recursive: true, force: true });
       }
     }
+  });
+
+  it("treats absent public settings or an absent secret vault as empty secrets", async () => {
+    const emptyRoot = await createTempDir();
+    const emptyPaths = makeAppPaths(emptyRoot);
+    await expect(loadSettingsSecrets(emptyPaths)).resolves.toEqual({});
+
+    const publicOnlyRoot = await createTempDir();
+    const publicOnlyPaths = makeAppPaths(publicOnlyRoot);
+    await writeFile(publicOnlyPaths.settingsPath, "{}\n", "utf8");
+    await expect(loadSettingsSecrets(publicOnlyPaths)).resolves.toEqual({});
+  });
+
+  it("surfaces malformed public settings and malformed secret vaults", async () => {
+    const malformedPublicRoot = await createTempDir();
+    const malformedPublicPaths = makeAppPaths(malformedPublicRoot);
+    await writeFile(malformedPublicPaths.settingsPath, "{broken", "utf8");
+    await expect(loadSettingsSecrets(malformedPublicPaths)).rejects.toThrow();
+
+    const malformedVaultRoot = await createTempDir();
+    const malformedVaultPaths = makeAppPaths(malformedVaultRoot);
+    await writeFile(malformedVaultPaths.settingsPath, "{}\n", "utf8");
+    await writeFile(
+      settingsSecretVaultPath(malformedVaultPaths),
+      "{broken",
+      "utf8",
+    );
+    await expect(loadSettingsSecrets(malformedVaultPaths)).rejects.toThrow(
+      "Encrypted settings secret vault is unreadable",
+    );
   });
 
   it("backs up malformed settings and returns defaults", async () => {
@@ -471,6 +502,150 @@ describe("settings store", () => {
     expect(caseChanged.api.customHeadersJson).toContain("private-header");
   });
 
+  it("encrypts and restores credentials independently for every API provider", async () => {
+    const rootDir = await createTempDir();
+    const paths = makeAppPaths(rootDir);
+    const defaults = resolveDefaultAppSettings({
+      MANGA_TRANSLATOR_MODEL_PROVIDER: "openai-api",
+    });
+    const {
+      provider: _provider,
+      profiles: _profiles,
+      ...baseProfile
+    } = defaults.api;
+    const googleProfile = {
+      ...baseProfile,
+      baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+      model: "gemini-3.5-flash-lite",
+      apiKey: "google-private-key",
+      customHeadersJson: JSON.stringify({
+        Authorization: "Bearer google-private-header",
+        "X-Google-Public": "google-public",
+      }),
+    };
+    const openRouterProfile = {
+      ...baseProfile,
+      baseUrl: "https://openrouter.ai/api/v1",
+      model: "openrouter/vision-model",
+      apiKey: "router-private-key-one\nrouter-private-key-two",
+      customHeadersJson: JSON.stringify({
+        "Proxy-Authorization": "Bearer router-private-header",
+        "X-Router-Public": "router-public",
+      }),
+    };
+    if (!defaults.generationLimits) {
+      throw new Error("Resolved defaults must include generation limits");
+    }
+    const configured = {
+      ...defaults,
+      api: {
+        ...googleProfile,
+        provider: "google-ai-studio" as const,
+        profiles: {
+          "google-ai-studio": googleProfile,
+          openrouter: openRouterProfile,
+        },
+      },
+      generationLimits: {
+        ...defaults.generationLimits,
+        api: {
+          "google-ai-studio": {
+            maxTokens: 55000,
+            contextTokens: 500000,
+          },
+          openrouter: { maxTokens: 33000, contextTokens: 120000 },
+        },
+      },
+      internetResearch: {
+        ...defaults.internetResearch,
+        apiModel: "google-research-model",
+        apiMaxOutputTokens: 21000,
+        apiContextTokens: 81000,
+        apiProfiles: {
+          "google-ai-studio": {
+            model: "google-research-model",
+            maxOutputTokens: 21000,
+            contextTokens: 81000,
+          },
+          openrouter: {
+            model: "router-research-model",
+            maxOutputTokens: 22000,
+            contextTokens: 82000,
+          },
+        },
+      },
+      maxTokens: 55000,
+      ctx: 500000,
+    };
+
+    await saveAppSettings(configured, paths, {}, async () => null);
+    const publicText = await readFile(paths.settingsPath, "utf8");
+    const vaultText = await readFile(settingsSecretVaultPath(paths), "utf8");
+    for (const secret of [
+      "google-private-key",
+      "google-private-header",
+      "router-private-key-one",
+      "router-private-header",
+    ]) {
+      expect(publicText).not.toContain(secret);
+      expect(vaultText).not.toContain(secret);
+    }
+
+    const loaded = await getAppSettings(paths, {}, async () => null);
+    expect(loaded.api.profiles?.["google-ai-studio"]?.apiKey).toBe(
+      "google-private-key",
+    );
+    expect(loaded.api.profiles?.openrouter?.apiKey).toBe(
+      "router-private-key-one\nrouter-private-key-two",
+    );
+    expect(
+      loaded.api.profiles?.["google-ai-studio"]?.customHeadersJson,
+    ).toContain("google-private-header");
+    expect(loaded.api.profiles?.openrouter?.customHeadersJson).toContain(
+      "router-private-header",
+    );
+    expect(loaded.generationLimits?.api.openrouter).toEqual({
+      maxTokens: 33000,
+      contextTokens: 120000,
+    });
+    expect(loaded.internetResearch.apiProfiles?.openrouter).toEqual({
+      model: "router-research-model",
+      maxOutputTokens: 22000,
+      contextTokens: 82000,
+    });
+
+    const masked = maskAppSettingsSecrets(loaded);
+    expect(masked.api.profiles?.["google-ai-studio"]).toMatchObject({
+      apiKey: SETTINGS_SECRET_PRESERVE_SENTINEL,
+      apiKeyCount: 1,
+    });
+    expect(masked.api.profiles?.openrouter).toMatchObject({
+      apiKey: SETTINGS_SECRET_PRESERVE_SENTINEL,
+      apiKeyCount: 2,
+    });
+    const router = masked.api.profiles?.openrouter;
+    if (!router) throw new Error("Expected masked OpenRouter profile");
+    const savedAfterSwitch = await saveAppSettings(
+      {
+        ...masked,
+        api: {
+          ...router,
+          provider: "openrouter",
+          profiles: masked.api.profiles,
+        },
+      },
+      paths,
+      {},
+      async () => null,
+    );
+    expect(savedAfterSwitch.api.apiKey).toBe(
+      "router-private-key-one\nrouter-private-key-two",
+    );
+    expect(savedAfterSwitch.api.profiles?.["google-ai-studio"]?.apiKey).toBe(
+      "google-private-key",
+    );
+  });
+
   it("detects every supported masked secret without flagging ordinary settings", () => {
     const settings = resolveDefaultAppSettings();
     expect(hasSettingsSecretSentinels(settings)).toBe(false);
@@ -664,6 +839,11 @@ describe("settings store", () => {
         MANGA_TRANSLATOR_MODEL_PROVIDER: "openai-api",
         MANGA_TRANSLATOR_API_MODEL: "gemini-3.5-flash-lite",
       }),
+      generationLimits: {
+        gemma: { maxTokens: 24576, contextTokens: 32768 },
+        codex: { maxTokens: 32768, contextTokens: 65536 },
+        api: { custom: { maxTokens: 12000, contextTokens: 16384 } },
+      },
       maxTokens: 12000,
       ctx: 16384,
     };

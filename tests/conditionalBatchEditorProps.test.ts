@@ -19,6 +19,8 @@ describe("conditional batch editor session binding", () => {
 
     expect(props.canUndo).toBe(true);
     expect(props.busy).toBe(false);
+    props.onEntered?.();
+    expect(model.uiState.setTextViewOpen).not.toHaveBeenCalled();
     props.onClose();
     expect(model.uiState.setConditionalBatchInitialFind).toHaveBeenCalledWith(
       "",

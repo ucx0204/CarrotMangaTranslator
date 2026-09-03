@@ -56,6 +56,7 @@ function createBaseEngineProps(): EngineSettingsPanelProps {
   const noop = vi.fn();
   return {
     apiBaseUrl: "https://api.openai.com/v1",
+    apiProvider: "custom",
     apiKey: "sk-test",
     apiKeyCount: 1,
     apiVertexAuthMode: "access-token",
@@ -115,6 +116,7 @@ function createBaseEngineProps(): EngineSettingsPanelProps {
     targetLanguage: "ko",
     setSelectedPreset: noop,
     setApiBaseUrl: noop,
+    setApiProvider: noop,
     setApiCustomHeadersJson: noop,
     setApiExtraBodyJson: noop,
     setApiKey: noop,

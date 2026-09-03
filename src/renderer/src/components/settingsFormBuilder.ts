@@ -16,6 +16,7 @@ import type {
   UiLocale,
   WheelZoomSensitivityPercent,
 } from "../../../shared/settingsTypes";
+import type { ApiProviderPresetId } from "../../../shared/apiProviderPresets";
 import type {
   ResearchGemmaPreset,
   ResearchGemmaReasoningEffort,
@@ -40,6 +41,7 @@ type BuildSettingsFromFormInput = {
   uiLocale: UiLocale;
   wheelZoomSensitivityPercent: WheelZoomSensitivityPercent;
   modelProvider: ModelProvider;
+  generationLimits: AppSettings["generationLimits"];
   sourceLanguage: string;
   targetLanguage: string;
   modelSource: ModelSource;
@@ -64,6 +66,7 @@ type BuildSettingsFromFormInput = {
   researchApiModel: string;
   researchApiMaxOutputTokens: number;
   researchApiContextTokens: number;
+  researchApiProfiles: AppSettings["internetResearch"]["apiProfiles"];
   researchCodexModel: string;
   researchCodexReasoningEffort: CodexReasoningEffort;
   researchCodexMaxOutputTokens: number;
@@ -71,6 +74,8 @@ type BuildSettingsFromFormInput = {
   tavilyApiKey: string;
   tavilyMaxCreditsPerRun: number;
   apiBaseUrl: string;
+  apiProvider: ApiProviderPresetId;
+  apiProfiles: AppSettings["api"]["profiles"];
   apiModel: string;
   apiKey: string;
   apiVertexAuthMode: import("../../../shared/apiProviderPresets").VertexAuthMode;
@@ -133,6 +138,7 @@ export function buildSettingsFromForm(
         input.initialSettings.internetResearch.apiModel,
       apiMaxOutputTokens: input.researchApiMaxOutputTokens,
       apiContextTokens: input.researchApiContextTokens,
+      apiProfiles: input.researchApiProfiles,
       codexModel:
         input.researchCodexModel ||
         input.initialSettings.internetResearch.codexModel,
@@ -164,6 +170,7 @@ export function buildSettingsFromForm(
       input.initialSettings.blockStylePresetGroups ??
       [],
     blockStylePresets: input.blockStylePresets,
+    generationLimits: input.generationLimits,
     maxTokens: input.maxTokens,
     ctx: input.ctx,
   };
@@ -206,7 +213,7 @@ function buildOcrSettings(input: BuildSettingsFromFormInput) {
 }
 
 function buildApiSettings(input: BuildSettingsFromFormInput) {
-  return {
+  const activeProfile = {
     baseUrl: input.apiBaseUrl || input.initialSettings.api.baseUrl,
     model: input.apiModel || input.initialSettings.api.model,
     ...(input.apiKey ? { apiKey: input.apiKey } : {}),
@@ -222,5 +229,13 @@ function buildApiSettings(input: BuildSettingsFromFormInput) {
     reasoningEffort: input.apiReasoningEffort,
     extraBodyJson: input.apiExtraBodyJson,
     customHeadersJson: input.apiCustomHeadersJson,
+  };
+  return {
+    ...activeProfile,
+    provider: input.apiProvider,
+    profiles: {
+      ...input.apiProfiles,
+      [input.apiProvider]: activeProfile,
+    },
   };
 }

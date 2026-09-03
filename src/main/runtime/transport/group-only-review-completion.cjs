@@ -1,21 +1,19 @@
 // @ts-check
 
-const {
-  applyLocalForbiddenTokenBias,
-} = require("../simple-page-logit-bias.cjs");
 const { buildRequestSummary } = require("../simple-page-request-summary.cjs");
+const {
+  isOpenAIApiProvider,
+  isOpenAICodexProvider,
+} = require("../simple-page-model-config.cjs");
 const {
   GROUP_ONLY_PROMPT_CONTRACT_VERSION,
   GROUP_ONLY_REVIEW_VERSION,
 } = require("../semantic-ocr/group-only-review.cjs");
-const {
-  readChatCompletionResult,
-  sendChatCompletion,
-} = require("./chat-completion.cjs");
 const { nowMs } = require("./model-runtime-services.cjs");
 const {
   buildSemanticStageRequestBody,
 } = require("./semantic-ocr-request-builders.cjs");
+const { requestStructuredCompletion } = require("./structured-completion.cjs");
 
 /**
  * @typedef {Record<string,unknown>} JsonRecord
@@ -70,23 +68,19 @@ async function requestGroupOnlyCropCompletion(
     /** @type {JsonRecord} */ (payload.responseFormat),
     candidateOrder.length,
   );
-  summary.semanticGroupReviewForbiddenTokenBias =
-    await applyLocalForbiddenTokenBias(server, options, body);
   const startedAt = nowMs();
-  const response = await sendChatCompletion(
+  const result = await requestStructuredCompletion(
     server,
     options,
     body,
     summary,
-    undefined,
-  );
-  const result = await readChatCompletionResult(
-    response,
-    options,
-    summary,
     startedAt,
   );
-  return { outputText: result.outputText, rawResponse: result.rawResponse };
+  summary.semanticGroupReviewForbiddenTokenBias = result.forbiddenTokenBias;
+  return {
+    outputText: result.response.outputText,
+    rawResponse: result.response.rawResponse,
+  };
 }
 
 /**
@@ -116,18 +110,27 @@ function buildRequestBody(
       ],
     },
   ];
-  const body = buildSemanticStageRequestBody(
-    options,
-    messages,
-    responseFormat,
-    "grouping",
-    count,
+  const body = /** @type {JsonRecord} */ (
+    buildSemanticStageRequestBody(
+      options,
+      messages,
+      responseFormat,
+      "grouping",
+      count,
+    )
   );
-  body.repeat_penalty = 1.05;
-  body.max_tokens = Math.min(
+  const maxOutputTokens = Math.min(
     900,
     Math.max(256, positiveInteger(options.maxTokens) || 4096),
   );
+  if (isOpenAICodexProvider(options)) {
+    body.max_output_tokens = maxOutputTokens;
+  } else {
+    body.max_tokens = maxOutputTokens;
+  }
+  if (!isOpenAIApiProvider(options) && !isOpenAICodexProvider(options)) {
+    body.repeat_penalty = 1.05;
+  }
   return body;
 }
 

@@ -2,7 +2,7 @@
 
 const { fail, unionTuples } = require("./group-only-review-values.cjs");
 
-const GROUP_ONLY_PROMPT_CONTRACT_VERSION = 17;
+const GROUP_ONLY_PROMPT_CONTRACT_VERSION = 18;
 const ROLES = ["body", "ruby"];
 
 /** @typedef {import("./group-only-review-types").ReviewCandidate} ReviewCandidate */
@@ -22,6 +22,7 @@ function buildGroupOnlyReviewSystemPrompt() {
     "This pass must keep every supplied candidate; noise removal belongs to a later audit.",
     "When unsure, prefer the shared Paddle group unless a visible boundary contradicts it.",
     "Return exactly one label for every supplied candidate, in the supplied order.",
+    'Return exactly one top-level JSON object shaped {"labels":[...]}; "labels" is the only permitted top-level key.',
     "Return only the schema-constrained JSON object.",
   ].join("\n");
 }
@@ -37,6 +38,7 @@ function buildGroupOnlyReviewPromptFromPlan(plan) {
     "# Grouping-only task",
     `candidateOrder=[${plan.candidateOrder.join(",")}].`,
     `Return exactly ${plan.candidateOrder.length} labels. labels[i] classifies candidateOrder[i].`,
+    'The top-level JSON object must be exactly {"labels":[...]}. Never rename "labels" to "items", "groups", "results", or any other key.',
     "For visible text, group is an integer from 1 through the candidate count. Candidates with the same group number form one final group.",
     'role is "body" for main printed text or "ruby" for visibly smaller furigana that reads nearby main text.',
     "Every candidate must use a nonzero group and one of those two roles. Do not discard candidates in this pass.",

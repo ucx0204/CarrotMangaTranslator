@@ -10,6 +10,7 @@ import {
 } from "./rightRailPanels";
 import { useEventCallback } from "../hooks/useEventCallback";
 import { IconButton } from "./ui/IconButton";
+import { useContextRailExpansion } from "./useContextRailExpansion";
 
 type AppRightRailProps = UnifiedRightRailProps;
 
@@ -20,23 +21,8 @@ export function AppRightRail(props: AppRightRailProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const stableActions = useStableRightRailActions(props);
   const panelOpen = Boolean(props.currentChapter);
-  const [contextExpanded, setContextExpanded] = React.useState(false);
-  const toggleRef = React.useRef<HTMLButtonElement | null>(null);
-
-  React.useEffect(() => {
-    setContextExpanded(false);
-  }, [props.currentChapter?.id]);
-
-  React.useEffect(() => {
-    if (!contextExpanded) return;
-    const closeOnEscape = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      setContextExpanded(false);
-      toggleRef.current?.focus();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [contextExpanded]);
+  const { contextExpanded, toggleContextExpanded, toggleRef } =
+    useContextRailExpansion(props.currentChapter?.id);
 
   const toggleLabel = t(
     contextExpanded ? "runPanel.hideInspector" : "runPanel.showInspector",
@@ -56,7 +42,7 @@ export function AppRightRail(props: AppRightRailProps): React.JSX.Element {
           label={toggleLabel}
           title={toggleLabel}
           aria-expanded={contextExpanded}
-          onClick={() => setContextExpanded((expanded) => !expanded)}
+          onClick={toggleContextExpanded}
         >
           <ToggleIcon size={19} stroke={2} aria-hidden="true" />
         </IconButton>

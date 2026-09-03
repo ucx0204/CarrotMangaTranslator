@@ -1943,8 +1943,8 @@
         "openRouter": "OpenRouter",
         "ollama": "Ollama (로컬)"
       },
-      "providerHintCustom": "아래 Base URL과 모델 ID를 직접 입력할 수 있습니다. 사설·셀프호스트 OpenAI 호환 API도 사용할 수 있습니다.",
-      "providerHintVerified": "제공자의 현재 목록에서 이미지 입력 지원을 확인할 수 있는 모델만 불러옵니다. 목록에 없어도 아래 모델 ID를 직접 입력할 수 있습니다.",
+      "providerHintCustom": "Base URL과 모델 ID를 직접 입력합니다. 키·모델·생성 한도는 공급자별로 따로 저장됩니다.",
+      "providerHintVerified": "이미지 입력을 확인한 모델만 불러옵니다. 키·모델·생성 한도는 공급자별로 따로 저장됩니다.",
       "vertexProject": "Google Cloud 프로젝트 ID",
       "vertexLocation": "Vertex 리전",
       "vertexAuthMode": "Vertex 인증 방식",

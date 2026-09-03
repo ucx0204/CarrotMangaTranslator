@@ -1,6 +1,5 @@
 import { MIN_TAVILY_MAX_CREDITS_PER_RUN } from "../../../../shared/internetResearchTypes";
 import type { SettingsFormValues } from "./settingsModalFormValues";
-import { inferApiProviderPreset } from "../../../../shared/apiProviderPresets";
 import {
   isValidContextTokens,
   isValidMaxTokens,
@@ -87,7 +86,7 @@ function isResearchApiReady(
   draft: SubmittableInternetResearchDraft,
 ): boolean {
   const vertexServiceAccountReady =
-    inferApiProviderPreset(values.apiBaseUrl) !== "google-vertex" ||
+    values.apiProvider !== "google-vertex" ||
     values.apiVertexAuthMode !== "service-account" ||
     Boolean(draft.trimmedApiVertexServiceAccountPath);
   return Boolean(

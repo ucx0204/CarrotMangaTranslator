@@ -83,6 +83,85 @@ describe("renderer effect dependency stability", () => {
     expect(result.current.refs).toBe(initialRefs);
     expect(result.current.setters).toBe(initialSetters);
   });
+
+  it("restores provider-specific credentials, limits, and research settings", () => {
+    const settings = resolveDefaultAppSettings({});
+    const { result } = renderHook(() => useSettingsFormState(settings));
+
+    act(() => {
+      result.current.setters.setModelProvider("openai-api");
+      result.current.setters.setApiKey("custom-key");
+      result.current.setters.setApiModel("custom-model");
+      result.current.setters.setMaxTokens("11111");
+      result.current.setters.setContextTokens("22222");
+      result.current.setters.setResearchApiModel("custom-research");
+      result.current.setters.setResearchApiMaxOutputTokens("33333");
+      result.current.setters.setResearchApiContextTokens("44444");
+    });
+
+    act(() => {
+      result.current.setters.setApiProvider("google-ai-studio");
+    });
+    expect(result.current.values).toMatchObject({
+      apiKey: "",
+      apiModel: "gemini-3.5-flash-lite",
+      maxTokens: "65536",
+      contextTokens: "524288",
+    });
+
+    act(() => {
+      result.current.setters.setApiKey("google-key");
+      result.current.setters.setMaxTokens("55555");
+      result.current.setters.setContextTokens("66666");
+      result.current.setters.setResearchApiModel("google-research");
+      result.current.setters.setResearchApiMaxOutputTokens("77777");
+      result.current.setters.setResearchApiContextTokens("88888");
+      result.current.setters.setApiProvider("custom");
+    });
+    expect(result.current.values).toMatchObject({
+      apiKey: "custom-key",
+      apiModel: "custom-model",
+      maxTokens: "11111",
+      contextTokens: "22222",
+      researchApiModel: "custom-research",
+      researchApiMaxOutputTokens: "33333",
+      researchApiContextTokens: "44444",
+    });
+
+    act(() => {
+      result.current.setters.setApiProvider("google-ai-studio");
+    });
+    expect(result.current.values).toMatchObject({
+      apiKey: "google-key",
+      maxTokens: "55555",
+      contextTokens: "66666",
+      researchApiModel: "google-research",
+      researchApiMaxOutputTokens: "77777",
+      researchApiContextTokens: "88888",
+    });
+
+    act(() => {
+      result.current.setters.setModelProvider("gemma");
+      result.current.setters.setMaxTokens("12345");
+      result.current.setters.setContextTokens("23456");
+      result.current.setters.setModelProvider("openai-codex");
+    });
+    expect(result.current.values.maxTokens).not.toBe("12345");
+    act(() => {
+      result.current.setters.setModelProvider("gemma");
+    });
+    expect(result.current.values).toMatchObject({
+      maxTokens: "12345",
+      contextTokens: "23456",
+    });
+
+    const unchanged = result.current.values;
+    act(() => {
+      result.current.setters.setModelProvider("gemma");
+      result.current.setters.setApiProvider(result.current.values.apiProvider);
+    });
+    expect(result.current.values).toBe(unchanged);
+  });
 });
 
 function ModalHarness({

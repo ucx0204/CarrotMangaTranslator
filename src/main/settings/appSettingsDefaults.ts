@@ -1,16 +1,7 @@
 import {
-  DEFAULT_API_BASE_URL,
-  DEFAULT_API_CUSTOM_HEADERS_JSON,
-  DEFAULT_API_EXTRA_BODY_JSON,
-  DEFAULT_API_MODEL,
-  DEFAULT_API_REASONING_EFFORT,
-  DEFAULT_API_TEMPERATURE,
-  DEFAULT_API_TOP_K,
-  DEFAULT_API_TOP_P,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
   DEFAULT_MODEL_SOURCE,
-  resolveRecommendedGenerationLimits,
 } from "../../shared/modelPresets";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO } from "../../shared/bubbleLayoutSettings";
@@ -25,24 +16,17 @@ import { normalizeAmdRocmTarget } from "../gpuInfo";
 import { getDefaultGemmaPresetForVramMode } from "./gemmaModelPresets";
 import {
   resolveCodexReasoningEffort,
-  resolveContextTokens,
   resolveFluxBackend,
   resolveGemmaVramMode,
   resolveInpaintingModel,
   resolveKoharuInpaintingBackend,
-  resolveMaxTokens,
   resolveModelProvider,
-  resolveNullableIntegerRange,
-  resolveNullableNumberRange,
-  resolveNullableReasoningEffort,
   resolveNonEmptyString,
-  resolveNumberRange,
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrPipeline,
   resolveOcrQualityMode,
-  resolveOpenAiCompatibleBaseUrl,
   resolveOptionalString,
 } from "./appSettingsResolvers";
 import {
@@ -52,18 +36,10 @@ import {
 import { resolveLlamaRuntimeProfile } from "./llamaRuntimeProfile";
 import { DEFAULT_UI_LOCALE, normalizeUiLocale } from "../../shared/uiLocales";
 import {
-  DEFAULT_API_KEY_MAX_ATTEMPTS,
-  DEFAULT_API_RETRY_DELAY_SECONDS,
-  MAX_API_KEY_MAX_ATTEMPTS,
-  MAX_API_RETRY_DELAY_SECONDS,
-  MIN_API_KEY_MAX_ATTEMPTS,
-  MIN_API_RETRY_DELAY_SECONDS,
-} from "../../shared/apiKeySettings";
-import {
   normalizeComputeGpuIndex,
   normalizeGraphicsGpuPreference,
 } from "../../shared/gpuSettings";
-import { resolveDefaultInternetResearchSettings } from "./appSettingsInternetResearchNormalize";
+import { resolveDefaultRemoteSettings } from "./appSettingsRemoteDefaults";
 
 export function resolveDefaultAppSettings(
   env: NodeJS.ProcessEnv = process.env,
@@ -76,22 +52,15 @@ export function resolveDefaultAppSettings(
   );
   const gemma = resolveDefaultGemmaSettings(env, hardwareDefaults, detectedGpu);
   const codex = resolveDefaultCodexSettings(env);
-  const api = resolveDefaultApiSettings(env);
-  const recommendedLimits = resolveRecommendedGenerationLimits(
-    modelProvider,
-    modelProvider === "openai-codex"
-      ? codex.model
-      : modelProvider === "openai-api"
-        ? api.model
-        : null,
-  );
+  const { api, internetResearch, generationLimits, activeLimits } =
+    resolveDefaultRemoteSettings(env, modelProvider, codex);
   return {
     modelProvider,
     hardware: resolveDefaultHardwareGpuSettings(env),
     translation: resolveDefaultTranslationLanguageSettings(env),
     gemma,
     codex,
-    internetResearch: resolveDefaultInternetResearchSettings(codex, api),
+    internetResearch,
     api,
     ocr: resolveDefaultOcrSettings(env, hardwareDefaults),
     ui: resolveDefaultUiSettings(env),
@@ -103,14 +72,9 @@ export function resolveDefaultAppSettings(
     blockStylePresets: [],
     blockStylePresetGroups: [],
     keybindings: {},
-    maxTokens: resolveMaxTokens(
-      env.MANGA_TRANSLATOR_MAX_TOKENS,
-      recommendedLimits.maxTokens,
-    ),
-    ctx: resolveContextTokens(
-      env.MANGA_TRANSLATOR_CTX,
-      recommendedLimits.contextTokens,
-    ),
+    generationLimits,
+    maxTokens: activeLimits.maxTokens,
+    ctx: activeLimits.contextTokens,
   };
 }
 
@@ -250,59 +214,6 @@ function resolveDefaultCodexSettings(
       env.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT,
       DEFAULT_CODEX_REASONING_EFFORT,
     ),
-  };
-}
-
-function resolveDefaultApiSettings(env: NodeJS.ProcessEnv): AppSettings["api"] {
-  return {
-    baseUrl: resolveOpenAiCompatibleBaseUrl(
-      env.MANGA_TRANSLATOR_API_BASE_URL,
-      DEFAULT_API_BASE_URL,
-    ),
-    model: resolveNonEmptyString(
-      env.MANGA_TRANSLATOR_API_MODEL,
-      DEFAULT_API_MODEL,
-    ),
-    keyMaxAttempts: Math.round(
-      resolveNumberRange(
-        env.MANGA_TRANSLATOR_API_KEY_MAX_ATTEMPTS,
-        DEFAULT_API_KEY_MAX_ATTEMPTS,
-        MIN_API_KEY_MAX_ATTEMPTS,
-        MAX_API_KEY_MAX_ATTEMPTS,
-      ),
-    ),
-    retryDelaySeconds: resolveNumberRange(
-      env.MANGA_TRANSLATOR_API_RETRY_DELAY_SECONDS,
-      DEFAULT_API_RETRY_DELAY_SECONDS,
-      MIN_API_RETRY_DELAY_SECONDS,
-      MAX_API_RETRY_DELAY_SECONDS,
-    ),
-    temperature: resolveNullableNumberRange(
-      env.MANGA_TRANSLATOR_API_TEMPERATURE,
-      DEFAULT_API_TEMPERATURE,
-      0,
-      2,
-    ),
-    topP: resolveNullableNumberRange(
-      env.MANGA_TRANSLATOR_API_TOP_P,
-      DEFAULT_API_TOP_P,
-      0,
-      1,
-    ),
-    topK: resolveNullableIntegerRange(
-      env.MANGA_TRANSLATOR_API_TOP_K,
-      DEFAULT_API_TOP_K,
-      1,
-      1000,
-    ),
-    reasoningEffort: resolveNullableReasoningEffort(
-      env.MANGA_TRANSLATOR_API_REASONING_EFFORT,
-      DEFAULT_API_REASONING_EFFORT,
-    ),
-    extraBodyJson:
-      env.MANGA_TRANSLATOR_API_EXTRA_BODY ?? DEFAULT_API_EXTRA_BODY_JSON,
-    customHeadersJson:
-      env.MANGA_TRANSLATOR_API_HEADERS ?? DEFAULT_API_CUSTOM_HEADERS_JSON,
   };
 }
 

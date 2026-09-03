@@ -10,6 +10,7 @@ import { Select } from "../ui/Select";
 export type ApiSettingsFieldsProps = Pick<
   EngineSettingsPanelProps,
   | "apiBaseUrl"
+  | "apiProvider"
   | "apiCustomHeadersJson"
   | "apiExtraBodyJson"
   | "apiKey"
@@ -26,6 +27,7 @@ export type ApiSettingsFieldsProps = Pick<
   | "clearTestState"
   | "controlsBusy"
   | "setApiBaseUrl"
+  | "setApiProvider"
   | "setApiCustomHeadersJson"
   | "setApiExtraBodyJson"
   | "setApiKey"

@@ -84,9 +84,10 @@ describe("group-only crop review contract", () => {
     };
 
     expect(plan.candidateOrder).toEqual([10, 11, 20, 21]);
-    expect(GROUP_ONLY_PROMPT_CONTRACT_VERSION).toBe(17);
+    expect(GROUP_ONLY_PROMPT_CONTRACT_VERSION).toBe(18);
     expect(prompt).toContain("candidateOrder=[10,11,20,21]");
     expect(prompt).toContain("Return exactly 4 labels");
+    expect(prompt).toContain('exactly {"labels":[...]}');
     expect(prompt).toContain("Never split a supplied upstream fragment");
     expect(prompt).toContain(
       "Do not output text. Do not correct OCR text. Do not output or propose coordinates.",
@@ -95,6 +96,7 @@ describe("group-only crop review contract", () => {
     expect(prompt).not.toContain("STALE-A");
     expect(system).toContain("grouping only");
     expect(system).toContain("never transcribe, correct");
+    expect(system).toContain('shaped {"labels":[...]}');
     expect(system).toContain(
       "This pass may merge upstream fragments but must never split one.",
     );

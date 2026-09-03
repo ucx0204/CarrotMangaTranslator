@@ -79,6 +79,28 @@ function isOpenAIApiProvider(options = /** @type {ModelConfigOptions} */ ({})) {
   return resolveModelProvider(options) === "openai-api";
 }
 
+function isOllamaOpenAiCompatibleEndpoint(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
+  if (!isOpenAIApiProvider(options)) return false;
+  try {
+    // Ollama exposes both its native API and OpenAI-compatible `/v1` surface
+    // through the same default port, including LAN-hosted daemons.
+    return new URL(resolveConfiguredApiBaseUrl(options)).port === "11434";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isOllamaCloudApiModel(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
+  return (
+    isOllamaOpenAiCompatibleEndpoint(options) &&
+    /(?:-cloud|:cloud)$/i.test(resolveConfiguredApiModel(options))
+  );
+}
+
 function resolveProviderDisplayName(
   options = /** @type {ModelConfigOptions} */ ({}),
 ) {
@@ -434,6 +456,8 @@ function shouldUseConfiguredMmproj(
 
 module.exports = {
   isOfficialOpenAiApiBaseUrl,
+  isOllamaCloudApiModel,
+  isOllamaOpenAiCompatibleEndpoint,
   isOpenAIApiProvider,
   isOpenAICodexProvider,
   resolveConfiguredApiBaseUrl,
