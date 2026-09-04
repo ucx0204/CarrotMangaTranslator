@@ -69,6 +69,7 @@ recent-dialog-paths.json
 /linked-sync-queue.json
 /codex/
 /.codex-workspace/
+/.bug-hunter/
 /results/
 /.claude/
 /.pytest_cache/
