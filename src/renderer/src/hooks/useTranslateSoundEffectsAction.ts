@@ -168,6 +168,10 @@ async function prepareSoundEffectTargets(
   targets: StartSoundEffectTranslationRequest["targets"];
   completed?: StartSoundEffectTranslationResult;
 }> {
+  const chapterBeforeSave =
+    context.currentChapterRef.current?.id === chapter.id
+      ? context.currentChapterRef.current
+      : chapter;
   await context.saveNow();
   const savedChapter = context.currentChapterRef.current;
   const authoritativeChapter =
@@ -175,10 +179,16 @@ async function prepareSoundEffectTargets(
   if (!prepareRequest) {
     return { targets: refreshTargetRevisions(authoritativeChapter, targets) };
   }
-  const prepared =
-    await libraryGateway.prepareSoundEffectTranslation(prepareRequest);
+  const currentPrepareRequest = refreshPrepareRequestRevisions(
+    chapterBeforeSave,
+    authoritativeChapter,
+    prepareRequest,
+  );
+  const prepared = await libraryGateway.prepareSoundEffectTranslation(
+    currentPrepareRequest,
+  );
   context.mergeLiveChapter(prepared.chapter);
-  for (const page of prepareRequest.pages) {
+  for (const page of currentPrepareRequest.pages) {
     context.syncSavedPageVersion(prepared.chapter, page.pageId);
   }
   return prepared.targets.length > 0
@@ -193,6 +203,51 @@ async function prepareSoundEffectTargets(
           remainingRegionCount: 0,
         },
       };
+}
+
+function refreshPrepareRequestRevisions(
+  chapterBeforeSave: NonNullable<SoundEffectActionContext["currentChapter"]>,
+  chapterAfterSave: NonNullable<SoundEffectActionContext["currentChapter"]>,
+  request: PrepareSoundEffectTranslationRequest,
+): PrepareSoundEffectTranslationRequest {
+  if (
+    chapterBeforeSave.id !== request.chapterId ||
+    chapterAfterSave.id !== request.chapterId
+  ) {
+    return request;
+  }
+  const pagesBeforeSave = new Map(
+    chapterBeforeSave.pages.map((page) => [page.id, page]),
+  );
+  const pagesAfterSave = new Map(
+    chapterAfterSave.pages.map((page) => [page.id, page]),
+  );
+  let changed = false;
+  const pages = request.pages.map((draft) => {
+    const pageBeforeSave = pagesBeforeSave.get(draft.pageId);
+    const pageAfterSave = pagesAfterSave.get(draft.pageId);
+    if (!pageBeforeSave || !pageAfterSave) return draft;
+
+    const beforeRevision = createSoundEffectReviewPageRevision(pageBeforeSave);
+    const afterRevision = createSoundEffectReviewPageRevision(pageAfterSave);
+    const beforeWithSavedCompletionRevision =
+      createSoundEffectReviewPageRevision({
+        ...pageBeforeSave,
+        translationCompletion: pageAfterSave.translationCompletion,
+      });
+    // A block save can update the completion receipt without changing the
+    // modal's candidates. Any other revision change must stay stale.
+    if (
+      draft.pageRevision !== beforeRevision ||
+      beforeWithSavedCompletionRevision !== afterRevision ||
+      draft.pageRevision === afterRevision
+    ) {
+      return draft;
+    }
+    changed = true;
+    return { ...draft, pageRevision: afterRevision };
+  });
+  return changed ? { ...request, pages } : request;
 }
 
 function mergeSoundEffectTranslationResult(
