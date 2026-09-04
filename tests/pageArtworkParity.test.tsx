@@ -35,6 +35,29 @@ afterAll(() => {
   });
 });
 
+function expectCurveFormattingArtifacts(
+  container: HTMLElement,
+  text: string,
+): void {
+  const curve = container.querySelector<SVGElement>(
+    `svg[aria-label="${text}"]`,
+  );
+  const glyphCount = text.length;
+
+  expect(curve?.querySelector("rect")?.getAttribute("fill")).toBe("#ffeeaa");
+  expect(curve?.querySelectorAll("circle")).toHaveLength(glyphCount);
+  expect(curve?.querySelectorAll('text[fill="#111111"]')).toHaveLength(
+    glyphCount,
+  );
+  expect(curve?.querySelectorAll('text[fill="none"]')).toHaveLength(glyphCount);
+  expect(
+    curve?.querySelectorAll('[data-curve-decoration="underline"]'),
+  ).toHaveLength(glyphCount);
+  expect(
+    curve?.querySelectorAll('[data-curve-decoration="strikethrough"]'),
+  ).toHaveLength(glyphCount);
+}
+
 describe("page artwork renderer parity", () => {
   it("uses byte-identical artwork DOM apart from editor-only annotations", () => {
     const blocks = makeBlocks();
@@ -122,14 +145,7 @@ describe("page artwork renderer parity", () => {
         ?.style.backgroundColor,
     ).toBe("rgb(250, 248, 240)");
 
-    const curve = exported.container.querySelector<SVGElement>(
-      'svg[aria-label="곡선 텍스트"]',
-    );
-    expect(curve?.querySelector("rect")?.getAttribute("fill")).toBe("#ffeeaa");
-    expect(curve?.querySelector("circle")).not.toBeNull();
-    expect(curve?.querySelectorAll("text").length).toBeGreaterThan(
-      "곡선 텍스트".length,
-    );
+    expectCurveFormattingArtifacts(exported.container, "곡선 텍스트");
   });
 
   it("omits block text when the shared artwork model hides it", () => {

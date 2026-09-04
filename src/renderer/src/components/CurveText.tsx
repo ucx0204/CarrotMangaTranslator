@@ -12,6 +12,7 @@ import {
   parseRichText,
   type TextStyleRun,
 } from "../../../shared/richTextMarkup";
+import { segmentNaturalTextGraphemes } from "../../../shared/naturalTextLayoutSegmentation";
 import type { BlockFontCatalog } from "../lib/fonts";
 import { resolveFontWidthScale } from "../lib/blockFormatGeometry";
 import {
@@ -23,6 +24,8 @@ import {
   createTextRunStyleResolver,
   type TextRunStyleResolver,
 } from "../lib/textStyleRunResolution";
+import { resolveRunTextDecorations } from "../lib/textRunVisualStyles";
+import { CurveGlyphDecorations } from "./CurveGlyphDecorations";
 import { resolveBlockTextOutlinePx } from "./overlayTextStyles";
 
 let measureCanvas: HTMLCanvasElement | null = null;
@@ -100,7 +103,7 @@ function measureGlyphs(
   return runs.flatMap((run) => {
     const style = resolveRunStyle(run);
     context.font = resolveCanvasFont(run, style.fontSizePx, style.fontFamily);
-    return Array.from(run.text).map((char) => ({
+    return segmentNaturalTextGraphemes(run.text).map((char) => ({
       char,
       width: context.measureText(char).width,
       bold: run.bold,
@@ -164,20 +167,12 @@ function CurveGlyph({
         }}
         widthScale={appearance.widthScale}
       />
-      {appearance.decoration ? (
-        <CurveGlyphText
-          color={appearance.mainColor}
-          fill={appearance.mainColor}
-          glyph={glyph}
-          stroke="none"
-          strokeWidth={0}
-          style={{
-            textDecorationLine: appearance.decoration,
-            textDecorationColor: appearance.mainColor,
-          }}
-          widthScale={appearance.widthScale}
-        />
-      ) : null}
+      <CurveGlyphDecorations
+        color={appearance.mainColor}
+        decorations={appearance.decorations}
+        glyph={glyph}
+        layoutFontSizePx={layoutFontSizePx}
+      />
       {appearance.emphasis ? (
         <CurveGlyphEmphasis
           color={appearance.mainColor}
@@ -191,7 +186,7 @@ function CurveGlyph({
 
 type CurveGlyphAppearance = {
   backgroundColor?: string;
-  decoration: string;
+  decorations: ReturnType<typeof resolveRunTextDecorations>;
   emphasis: boolean;
   glowFilter?: string;
   innerColor: string;
@@ -227,7 +222,7 @@ function resolveCurveGlyphAppearance({
       : style.outerOutlineWidthPx * scale;
   return {
     backgroundColor: style.backgroundColor,
-    decoration: resolveCurveDecoration(block, style),
+    decorations: resolveRunTextDecorations(block, style),
     emphasis: Boolean(block.emphasisMark || style.emphasisMark),
     glowFilter: resolveCurveGlowFilter(block, style, scale),
     innerColor: style.outlineColor ?? resolveEffectiveTextOutlineColor(block),
@@ -237,18 +232,6 @@ function resolveCurveGlyphAppearance({
     outerWidth,
     widthScale: widthScale * (style.widthScale ?? 1),
   };
-}
-
-function resolveCurveDecoration(
-  block: TranslationBlock,
-  style: Omit<TextStyleRun, "text">,
-): string {
-  return [
-    block.underline || style.underline ? "underline" : "",
-    block.strikethrough || style.strikethrough ? "line-through" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
 }
 
 function CurveGlyphBackground({
@@ -326,7 +309,7 @@ function CurveGlyphText({
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={strokeWidth}
-      style={{ color, ...style }}
+      style={{ color, fontSynthesis: "weight style", ...style }}
       textAnchor="middle"
       transform={`scale(${widthScale} 1)`}
       x={0}

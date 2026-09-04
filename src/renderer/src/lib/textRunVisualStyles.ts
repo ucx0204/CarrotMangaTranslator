@@ -16,6 +16,21 @@ import type {
 
 const DEFAULT_OUTER_OUTLINE_COLOR = "#111111";
 
+export type TextRunDecorations = Readonly<{
+  strikethrough: boolean;
+  underline: boolean;
+}>;
+
+export function resolveRunTextDecorations(
+  block: TranslationBlock,
+  run: Pick<TextStyleRun, "strikethrough" | "underline">,
+): TextRunDecorations {
+  return {
+    strikethrough: Boolean(block.strikethrough || run.strikethrough),
+    underline: Boolean(block.underline || run.underline),
+  };
+}
+
 export function resolveMainRunVisualStyle(
   block: TranslationBlock,
   run: TextStyleRun,
@@ -118,9 +133,10 @@ export function resolveRunTextDecorationStyle(
   block: TranslationBlock,
   run: TextStyleRun,
 ): React.CSSProperties | null {
+  const decorations = resolveRunTextDecorations(block, run);
   const lines = [
-    block.underline || run.underline ? "underline" : "",
-    block.strikethrough || run.strikethrough ? "line-through" : "",
+    decorations.underline ? "underline" : "",
+    decorations.strikethrough ? "line-through" : "",
   ]
     .filter(Boolean)
     .join(" ");

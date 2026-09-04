@@ -154,9 +154,11 @@ editing the totals by hand.
   The multi-block formatting and conditional-batch property-editor UX pass
   extended it to SHA-256
   `a98a95ccce5ec8c53c0ad8f9f67193679cb0a980756f583081e5d034c22e760c`.
+  The curved-text formatting parity pass extended it to SHA-256
+  `9e93aeffc8a5e12745b2d2f705b01bf7033584e68bd51197b85a163d4973e23a`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
   percentage for lines/statements/functions/branches in all 660 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 390 new
+  coverage-eligible `src/**` files changed since cleanup start. The 391 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   ten removed source files are recorded explicitly in `deletedFiles`.
@@ -180,6 +182,10 @@ editing the totals by hand.
   passed all 643 Vitest files: 5,150 tests passed and two platform-specific
   tests were skipped. Aggregate V8 coverage was 81.87% lines, 80.56%
   statements, 83.09% functions, and 73.06% branches.
+- The curved-text formatting parity capture passed all 643 Vitest files: 5,158
+  tests passed and two platform-specific tests were skipped. Aggregate V8
+  coverage was 81.87% lines, 80.56% statements, 83.09% functions, and 73.08%
+  branches.
 - Isolated production Electron QA exercised 100 conditional-batch combinations
   across 61 condition fields and four apply/undo persistence sequences. Editor
   stress covered multi/range selection, 64 formatting mutations, 75 rapid tab

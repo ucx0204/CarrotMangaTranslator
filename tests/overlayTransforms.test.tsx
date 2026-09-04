@@ -127,6 +127,87 @@ describe("overlay transform controls", () => {
     expect(container.querySelector(".curve-path-line")).not.toBeNull();
   });
 
+  it("preserves block emphasis and draws curve decorations from the glyph baseline", () => {
+    const { container } = renderOverlay({
+      block: {
+        ...makeBlock(),
+        bold: true,
+        italic: true,
+        strikethrough: true,
+        translatedText: "곡선",
+        underline: true,
+        curveLayout: makeCurveLayout(),
+      },
+      transformMode: "curve",
+    });
+
+    const glyphs = container.querySelectorAll<SVGTextElement>(
+      ".overlay-curve-text text",
+    );
+    expect(glyphs).toHaveLength(2);
+    for (const glyph of glyphs) {
+      expect(glyph.getAttribute("font-weight")).toBe("800");
+      expect(glyph.getAttribute("font-style")).toBe("italic");
+      expect(glyph.getAttribute("style")).toContain(
+        "font-synthesis: weight style",
+      );
+      expect(glyph.style.textDecorationLine).toBe("");
+    }
+
+    const underlines = container.querySelectorAll<SVGLineElement>(
+      '[data-curve-decoration="underline"]',
+    );
+    const strikethroughs = container.querySelectorAll<SVGLineElement>(
+      '[data-curve-decoration="strikethrough"]',
+    );
+    expect(underlines).toHaveLength(2);
+    expect(strikethroughs).toHaveLength(2);
+    for (const underline of underlines) {
+      expect(Number(underline.getAttribute("y1"))).toBeGreaterThan(0);
+      expect(underline.getAttribute("y2")).toBe(underline.getAttribute("y1"));
+    }
+    for (const strikethrough of strikethroughs) {
+      expect(Number(strikethrough.getAttribute("y1"))).toBe(0);
+      expect(strikethrough.getAttribute("y2")).toBe(
+        strikethrough.getAttribute("y1"),
+      );
+    }
+  });
+
+  it("keeps inline curve styles and grapheme clusters on their intended glyphs", () => {
+    const { container } = renderOverlay({
+      block: {
+        ...makeBlock(),
+        translatedText:
+          "A***B***[underline]👨‍👩‍👧‍👦[/underline][strike]é[/strike][emphasis]C[/emphasis]",
+        curveLayout: makeCurveLayout(),
+      },
+      transformMode: "curve",
+    });
+
+    const glyphs = Array.from(
+      container.querySelectorAll<SVGTextElement>(".overlay-curve-text text"),
+    );
+    expect(glyphs.map((glyph) => glyph.textContent)).toEqual([
+      "A",
+      "B",
+      "👨‍👩‍👧‍👦",
+      "é",
+      "C",
+    ]);
+    expect(glyphs[1]?.getAttribute("font-weight")).toBe("800");
+    expect(glyphs[1]?.getAttribute("font-style")).toBe("italic");
+    expect(
+      container.querySelectorAll('[data-curve-decoration="underline"]'),
+    ).toHaveLength(1);
+    expect(
+      container.querySelectorAll('[data-curve-decoration="strikethrough"]'),
+    ).toHaveLength(1);
+    expect(
+      container.querySelectorAll(".overlay-curve-text circle"),
+    ).toHaveLength(1);
+  });
+
   it("renders per-character size, font, and opacity in ordinary and curved text", () => {
     const translatedText =
       "[font=nanum-myeongjo][size=56][opacity=40]A[/opacity][/size][/font]B";
