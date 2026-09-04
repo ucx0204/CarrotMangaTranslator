@@ -62,6 +62,7 @@ const formats =
 
 type FixedBlockResponseFormat = {
   schema: {
+    required: string[];
     properties: {
       items: {
         items: {
@@ -1035,6 +1036,7 @@ describe("fixed-block translation contract", () => {
       { collectPageContext: true },
     );
     expect(responseFormat.schema.properties).toHaveProperty("pageContext");
+    expect(responseFormat.schema.required).toEqual(["items", "pageContext"]);
     expect(responseFormat.schema.properties.items.items.properties).toEqual(
       expect.objectContaining({
         blockId: expect.any(Object),

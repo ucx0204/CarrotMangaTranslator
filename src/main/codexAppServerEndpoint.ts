@@ -179,12 +179,8 @@ async function handleEndpointRequest({
     sendResponsesSse(response, body.model, result);
   } catch (error) {
     if (response.destroyed || isAbortError(error)) return;
-    const message = error instanceof Error ? error.message : String(error);
     sendJson(response, statusForEndpointError(error), {
-      error: {
-        message,
-        type: "codex_app_server_error",
-      },
+      error: buildEndpointError(error),
     });
   }
 }
@@ -327,6 +323,20 @@ function statusForEndpointError(error: unknown): number {
   const candidate = asRecord(error);
   if (typeof candidate?.httpStatus === "number") return candidate.httpStatus;
   return 502;
+}
+
+function buildEndpointError(error: unknown): JsonRecord {
+  const candidate = asRecord(error);
+  const upstreamError = asRecord(candidate?.upstreamError);
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    ...(upstreamError ?? {}),
+    message,
+    type:
+      typeof upstreamError?.type === "string"
+        ? upstreamError.type
+        : "codex_app_server_error",
+  };
 }
 
 function isAbortError(error: unknown): boolean {

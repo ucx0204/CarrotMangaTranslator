@@ -425,7 +425,7 @@ function buildFixedBlockFontRoleLines(options) {
       'layoutIntent "vertical" is valid only when this same response has fontRole exactly "narration" and finite fontRoleConfidence >= 0.82. Every other role or confidence must use layoutIntent "horizontal" or "auto", regardless of Japanese source orientation.',
       "fontRoleConfidence is confidence in the fine-grained visual role only. Use below 0.82 when uncertain and unknown_needs_review when the role cannot be decided safely.",
       "visualClusterId is optional. Use one short ID only when two or more separate non-body accent blocks visibly share the same repeated lettering treatment, and reuse that exact ID on those members.",
-      "Omit visualClusterId for dialogue, narration, thought, and whenever the visual grouping is uncertain.",
+      "Omit visualClusterId for dialogue, narration, thought, and whenever the visual grouping is uncertain; if the response schema requires the key, return null instead.",
     ];
   }
   return [
@@ -437,7 +437,7 @@ function buildFixedBlockFontRoleLines(options) {
     'layoutIntent "vertical" is valid only when this same response has fontRole exactly "narration" and finite fontRoleConfidence >= 0.82. Every other role or confidence must use layoutIntent "horizontal" or "auto", regardless of Japanese source orientation.',
     "fontRoleConfidence is confidence in the fine-grained visual role only. Use below 0.82 when uncertain and unknown_needs_review when the role cannot be decided safely.",
     "visualClusterId is optional. Use one short ID only when two or more separate non-body accent blocks visibly share the same repeated lettering treatment, and reuse that exact ID on those members.",
-    "Omit visualClusterId for dialogue, narration, thought, and whenever the visual grouping is uncertain.",
+    "Omit visualClusterId for dialogue, narration, thought, and whenever the visual grouping is uncertain; if the response schema requires the key, return null instead.",
   ];
 }
 

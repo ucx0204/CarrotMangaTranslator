@@ -59,6 +59,46 @@ describe("CodexAppServerClient", () => {
     expect(readLoginFailure(null)).toBe("Codex 로그인이 완료되지 않았습니다.");
   });
 
+  it("preserves an upstream HTTP failure from a completed turn notification", () => {
+    const upstreamError = {
+      type: "invalid_request_error",
+      code: "invalid_json_schema",
+      message: "The response schema is invalid.",
+      param: "text.format.schema",
+    };
+
+    expect(() =>
+      extractCompletedTurn(
+        {
+          params: {
+            turn: {
+              id: "turn-invalid-schema",
+              status: "failed",
+              error: {
+                message: JSON.stringify({
+                  type: "error",
+                  error: upstreamError,
+                  status: 400,
+                }),
+              },
+            },
+          },
+        },
+        "thread-invalid-schema",
+        "turn-invalid-schema",
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        message: upstreamError.message,
+        failureCategory: "model-request",
+        httpStatus: 400,
+        status: 400,
+        nonRetriable: true,
+        upstreamError,
+      }),
+    );
+  });
+
   it("uses the official protocol for login, model discovery, and an isolated ephemeral turn", async () => {
     const root = mkdtempSync(join(tmpdir(), "mgt-codex-client-test-"));
     temporaryDirectories.push(root);

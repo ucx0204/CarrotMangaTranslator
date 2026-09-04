@@ -78,7 +78,10 @@ function buildFixedBlockTranslationResponseFormat(blockIds, options = {}) {
     schema: {
       type: "object",
       additionalProperties: false,
-      required: ["items"],
+      required: [
+        "items",
+        ...(options.collectPageContext ? ["pageContext"] : []),
+      ],
       properties,
     },
   };

@@ -15,6 +15,13 @@ const { buildSemanticStageRequestBody, resolveStructuredTokenBudget } =
       unitCount: number,
     ) => { maxTokens: number; source: string };
   };
+const { buildFixedBlockTranslationResponseFormat } =
+  require("../src/main/runtime/semantic-ocr/response-formats.cjs") as {
+    buildFixedBlockTranslationResponseFormat: (
+      blockIds: string[],
+      options?: Record<string, unknown>,
+    ) => Record<string, unknown>;
+  };
 
 function maxTokens(
   options: Record<string, unknown>,
@@ -274,6 +281,102 @@ describe("semantic OCR structured output budgets", () => {
     expect(body).not.toHaveProperty("messages");
     expect(body).not.toHaveProperty("max_tokens");
     expect(body).not.toHaveProperty("response_format");
+  });
+
+  it("makes every Codex object field required while keeping optional values nullable", () => {
+    const fixedBlockFormat = buildFixedBlockTranslationResponseFormat(
+      ["B001"],
+      { collectPageContext: true, autoFontMatching: true },
+    );
+    const body = buildSemanticStageRequestBody(
+      {
+        modelProvider: "openai-codex",
+        codexModel: "gpt-5.6-sol",
+        codexReasoningEffort: "high",
+        collectPageContext: true,
+        autoFontMatching: true,
+      },
+      messages,
+      fixedBlockFormat,
+      "translation",
+      1,
+    );
+    const schema = (
+      body as {
+        text: {
+          format: {
+            schema: {
+              required: string[];
+              properties: {
+                items: {
+                  items: {
+                    required: string[];
+                    properties: Record<string, unknown>;
+                  };
+                };
+              };
+            };
+          };
+        };
+      }
+    ).text.format.schema;
+    const itemSchema = schema.properties.items.items;
+
+    expect(schema.required).toEqual(["items", "pageContext"]);
+    expect(itemSchema.required).toEqual(Object.keys(itemSchema.properties));
+    expect(itemSchema.properties.visualClusterId).toEqual({
+      anyOf: [{ type: "string" }, { type: "null" }],
+    });
+  });
+
+  it("does not wrap Codex fields that already accept null", () => {
+    const nullableProperties = {
+      nullOnly: { type: "null" },
+      nullableType: { type: ["string", "null"] },
+      nullableAnyOf: {
+        anyOf: [{ type: "string" }, { type: "null" }],
+      },
+      nullableOneOf: {
+        oneOf: [{ type: "number" }, { type: "null" }],
+      },
+      booleanSchema: false,
+    };
+    const body = buildSemanticStageRequestBody(
+      {
+        modelProvider: "openai-codex",
+        codexModel: "gpt-5.6-sol",
+        codexReasoningEffort: "high",
+      },
+      messages,
+      {
+        type: "json_object",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: nullableProperties,
+        },
+      },
+      "translation",
+      1,
+    );
+    const schema = (
+      body as {
+        text: {
+          format: {
+            schema: {
+              required: string[];
+              properties: Record<string, unknown>;
+            };
+          };
+        };
+      }
+    ).text.format.schema;
+
+    expect(schema.required).toEqual(Object.keys(nullableProperties));
+    expect(schema.properties).toEqual({
+      ...nullableProperties,
+      booleanSchema: { anyOf: [false, { type: "null" }] },
+    });
   });
 
   it("keeps the compact grouping budget", () => {

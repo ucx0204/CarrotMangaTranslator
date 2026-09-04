@@ -186,10 +186,86 @@ function buildOpenAiStructuredResponseFormat(options, responseFormat, stage) {
       name: `manga_${stage}`,
       strict: true,
       schema: isGoogleOpenAiCompatibleEndpoint(options)
-        ? toGoogleCompatibleJsonSchema(schema)
-        : schema,
+        ? toGoogleCompatibleJsonSchema(toOpenAiStrictJsonSchema(schema))
+        : toOpenAiStrictJsonSchema(schema),
     },
   };
+}
+
+/**
+ * OpenAI Structured Outputs requires every object property to appear in
+ * `required`. Preserve the runtime contract of optional fields by making only
+ * those originally omitted from `required` nullable before requiring them.
+ * The local llama.cpp branch keeps its native optional-property schema.
+ *
+ * @param {unknown} value
+ * @returns {unknown}
+ */
+function toOpenAiStrictJsonSchema(value) {
+  if (Array.isArray(value)) {
+    return value.map(toOpenAiStrictJsonSchema);
+  }
+  if (!value || typeof value !== "object") return value;
+
+  const source = /** @type {Record<string,unknown>} */ (value);
+  const properties = readSchemaProperties(source);
+  const result = /** @type {Record<string,unknown>} */ ({});
+  for (const [key, child] of Object.entries(source)) {
+    if (key === "properties" && properties) continue;
+    result[key] = toOpenAiStrictJsonSchema(child);
+  }
+  if (!properties) return result;
+
+  const originallyRequired = new Set(
+    Array.isArray(source.required)
+      ? source.required.filter((key) => typeof key === "string")
+      : [],
+  );
+  result.properties = Object.fromEntries(
+    Object.entries(properties).map(([key, propertySchema]) => {
+      const strictPropertySchema = toOpenAiStrictJsonSchema(propertySchema);
+      return [
+        key,
+        originallyRequired.has(key)
+          ? strictPropertySchema
+          : makeJsonSchemaNullable(strictPropertySchema),
+      ];
+    }),
+  );
+  result.required = Object.keys(properties);
+  return result;
+}
+
+/** @param {Record<string,unknown>} schema */
+function readSchemaProperties(schema) {
+  if (
+    !schema.properties ||
+    typeof schema.properties !== "object" ||
+    Array.isArray(schema.properties)
+  ) {
+    return null;
+  }
+  return /** @type {Record<string,unknown>} */ (schema.properties);
+}
+
+/** @param {unknown} schema */
+function makeJsonSchemaNullable(schema) {
+  if (jsonSchemaAcceptsNull(schema)) return schema;
+  return { anyOf: [schema, { type: "null" }] };
+}
+
+/** @param {unknown} schema */
+function jsonSchemaAcceptsNull(schema) {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+    return false;
+  }
+  const record = /** @type {Record<string,unknown>} */ (schema);
+  if (record.type === "null") return true;
+  if (Array.isArray(record.type) && record.type.includes("null")) return true;
+  return [record.anyOf, record.oneOf].some(
+    (variants) =>
+      Array.isArray(variants) && variants.some(jsonSchemaAcceptsNull),
+  );
 }
 
 const GOOGLE_JSON_SCHEMA_KEYS = new Set([
@@ -278,7 +354,7 @@ function buildCodexSemanticRequestBody(
         type: "json_schema",
         name: `manga_${stage}`,
         strict: true,
-        schema: readStructuredSchema(responseFormat),
+        schema: toOpenAiStrictJsonSchema(readStructuredSchema(responseFormat)),
       },
     },
     stream: true,

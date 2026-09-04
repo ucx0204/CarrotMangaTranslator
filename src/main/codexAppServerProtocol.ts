@@ -180,19 +180,106 @@ function assertCompletedTurn(
 ): asserts turn is JsonRecord {
   if (turn?.status === "completed") return;
   const turnError = asRecord(turn?.error);
-  const error = new Error(readTurnFailureMessage(turn?.status, turnError));
-  Object.assign(error, { failureCategory: "model-request" });
+  const failure = readTurnFailure(turn?.status, turnError);
+  const error = new Error(failure.message);
+  Object.assign(error, {
+    failureCategory: "model-request",
+    ...(failure.httpStatus === undefined
+      ? {}
+      : {
+          httpStatus: failure.httpStatus,
+          status: failure.httpStatus,
+          ...(isNonRetriableModelHttpStatus(failure.httpStatus)
+            ? { nonRetriable: true }
+            : {}),
+        }),
+    ...(failure.upstreamError ? { upstreamError: failure.upstreamError } : {}),
+  });
   throw error;
 }
 
-function readTurnFailureMessage(
+function readTurnFailure(
   status: unknown,
   turnError: JsonRecord | null,
+): {
+  message: string;
+  httpStatus?: number;
+  upstreamError?: JsonRecord;
+} {
+  const encodedMessage =
+    typeof turnError?.message === "string" ? turnError.message : "";
+  const payload = parseJsonRecord(encodedMessage);
+  const upstreamError = asRecord(payload?.error);
+  const httpStatus = readHttpErrorStatus(
+    turnError?.status,
+    payload?.status,
+    upstreamError?.status,
+  );
+  return {
+    message: resolveTurnFailureMessage(
+      status,
+      encodedMessage,
+      payload,
+      upstreamError,
+    ),
+    ...(httpStatus === undefined ? {} : { httpStatus }),
+    ...(upstreamError ? { upstreamError } : {}),
+  };
+}
+
+function resolveTurnFailureMessage(
+  status: unknown,
+  encodedMessage: string,
+  payload: JsonRecord | null,
+  upstreamError: JsonRecord | null,
 ): string {
-  if (typeof turnError?.message === "string") return turnError.message;
+  return (
+    readNonEmptyString(upstreamError?.message) ??
+    readNonEmptyString(payload?.message) ??
+    readNonEmptyString(encodedMessage) ??
+    defaultTurnFailureMessage(status)
+  );
+}
+
+function defaultTurnFailureMessage(status: unknown): string {
   return status === "interrupted"
     ? "Codex 요청이 중단되었습니다."
     : "Codex 요청이 실패했습니다.";
+}
+
+function parseJsonRecord(value: string): JsonRecord | null {
+  if (!value.trim().startsWith("{")) return null;
+  try {
+    return asRecord(JSON.parse(value));
+  } catch (_error) {
+    return null;
+  }
+}
+
+function readNonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readHttpErrorStatus(...values: unknown[]): number | undefined {
+  return values.find(
+    (value): value is number =>
+      typeof value === "number" &&
+      Number.isInteger(value) &&
+      value >= 400 &&
+      value <= 599,
+  );
+}
+
+function isNonRetriableModelHttpStatus(status: number): boolean {
+  return (
+    status >= 400 &&
+    status < 500 &&
+    status !== 402 &&
+    status !== 408 &&
+    status !== 409 &&
+    status !== 425 &&
+    status !== 429
+  );
 }
 
 function readAgentMessages(turn: JsonRecord): JsonRecord[] {

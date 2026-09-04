@@ -177,6 +177,40 @@ describe("Codex App Server Responses compatibility endpoint", () => {
       );
       expect(invalidImageResponse.status).toBe(400);
       expect(runEphemeralTurn).toHaveBeenCalledOnce();
+
+      const upstreamError = {
+        type: "invalid_request_error",
+        code: "invalid_json_schema",
+        message: "The response schema is invalid.",
+        param: "text.format.schema",
+      };
+      runEphemeralTurn.mockRejectedValueOnce(
+        Object.assign(new Error(upstreamError.message), {
+          httpStatus: 400,
+          upstreamError,
+        }),
+      );
+      const upstreamFailureResponse = await fetch(
+        `${endpoint.baseUrl}/responses`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "gpt-test",
+            input: [
+              {
+                role: "user",
+                content: [{ type: "input_text", text: "translate" }],
+              },
+            ],
+          }),
+        },
+      );
+      expect(upstreamFailureResponse.status).toBe(400);
+      await expect(upstreamFailureResponse.json()).resolves.toEqual({
+        error: upstreamError,
+      });
+      expect(runEphemeralTurn).toHaveBeenCalledTimes(2);
     } finally {
       await stopCodexAppServerEndpoint(endpoint);
     }
