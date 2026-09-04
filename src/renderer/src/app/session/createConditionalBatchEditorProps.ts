@@ -13,10 +13,10 @@ import type {
 import type { AppWorkspaceProps } from "../../components/appWorkspaceTypes";
 import type { AppSessionViewProps } from "./AppSessionView";
 import type { AppSessionViewModel } from "./appSessionViewModel";
+import { isChapterMutationBlocked } from "./workspaceActivity";
 
 const HISTORY_LABEL_PREFIX = "일괄 편집: ";
 
-// eslint-disable-next-line complexity -- the modal binding deliberately gates every nullable session owner before exposing mutation callbacks
 export function createConditionalBatchEditorProps(
   model: AppSessionViewModel,
   workspaceProps: AppWorkspaceProps,
@@ -24,7 +24,6 @@ export function createConditionalBatchEditorProps(
   const {
     core,
     derivedState,
-    libraryDrop,
     pageNavigationHandlers,
     settingsDialog,
     uiState,
@@ -36,6 +35,7 @@ export function createConditionalBatchEditorProps(
   ) {
     return null;
   }
+  const mutationDisabled = isChapterMutationBlocked(model);
   return {
     chapter: core.currentChapter,
     blockStylePresets: settingsDialog?.settings?.blockStylePresets ?? [],
@@ -45,10 +45,7 @@ export function createConditionalBatchEditorProps(
     selectedPageId: derivedState.selectedPage.id,
     workId: core.currentChapter.workId,
     workspaceProps,
-    busy:
-      derivedState.selectedPageEditLocked ||
-      model.workspaceHistory.busy ||
-      libraryDrop.busy,
+    busy: mutationDisabled,
     canUndo:
       model.workspaceHistory.canUndo &&
       Boolean(
@@ -93,6 +90,9 @@ function applyEditorSequenceChanges(
   excludedResultKeys: ReadonlySet<string>,
   options?: ConditionalBatchEngineOptions,
 ) {
+  if (isChapterMutationBlocked(model)) {
+    return { appliedCount: 0, conflictCount: 0, dirtyPageIds: [] };
+  }
   const current = model.core.currentChapter;
   if (!current) {
     return { appliedCount: 0, conflictCount: 0, dirtyPageIds: [] };
@@ -127,6 +127,9 @@ function applyEditorChanges(
   excludedResultKeys: ReadonlySet<string>,
   options?: ConditionalBatchEngineOptions,
 ) {
+  if (isChapterMutationBlocked(model)) {
+    return { appliedCount: 0, conflictCount: 0, dirtyPageIds: [] };
+  }
   const current = model.core.currentChapter;
   if (!current) {
     return { appliedCount: 0, conflictCount: 0, dirtyPageIds: [] };

@@ -14,6 +14,7 @@ import { GatheredPageList } from "./gatherText/GatheredPageList";
 import type { GatherTextModalProps } from "./gatherText/gatherTextTypes";
 import { useGatherTextModalModel } from "./gatherText/useGatherTextModalModel";
 import { GatherTextFormatSelectionBar } from "./gatherText/GatherTextFormatSelectionBar";
+import { useEventCallback } from "../hooks/useEventCallback";
 
 export function GatherTextModal({
   blockStylePresets,
@@ -29,14 +30,24 @@ export function GatherTextModal({
   readingDirection = "rtl",
 }: GatherTextModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const applyTranslatedText = useEventCallback(
+    (updates: Parameters<NonNullable<typeof onApplyTranslatedText>>[0]) =>
+      onApplyTranslatedText?.(updates),
+  );
+  const applyChapterUpdate = useEventCallback(
+    (updatedChapter: Parameters<NonNullable<typeof onChapterUpdated>>[0]) =>
+      onChapterUpdated?.(updatedChapter),
+  );
   const model = useGatherTextModalModel({
     blockStylePresets,
     chapter,
     formatApplyDisabled,
     onApplyFormat,
     page,
-    onChapterUpdated,
-    onApplyTranslatedText,
+    onChapterUpdated: onChapterUpdated ? applyChapterUpdate : undefined,
+    onApplyTranslatedText: onApplyTranslatedText
+      ? applyTranslatedText
+      : undefined,
     readingDirection,
   });
   return (
@@ -49,6 +60,7 @@ export function GatherTextModal({
         <GatherTextModalFooter
           chapter={chapter}
           model={model}
+          mutationDisabled={Boolean(formatApplyDisabled)}
           onApplyTranslatedText={onApplyTranslatedText}
           onClose={onClose}
         />
@@ -67,11 +79,13 @@ export function GatherTextModal({
 function GatherTextModalFooter({
   chapter,
   model,
+  mutationDisabled,
   onApplyTranslatedText,
   onClose,
 }: {
   chapter: GatherTextModalProps["chapter"];
   model: ReturnType<typeof useGatherTextModalModel>;
+  mutationDisabled: boolean;
   onApplyTranslatedText: GatherTextModalProps["onApplyTranslatedText"];
   onClose: () => void;
 }): React.JSX.Element {
@@ -82,6 +96,7 @@ function GatherTextModalFooter({
       hasContent={model.hasContent}
       hasChapter={Boolean(chapter)}
       canImportTxt={Boolean(onApplyTranslatedText)}
+      mutationDisabled={mutationDisabled}
       reviewBusy={model.reviewBusy}
       onClose={onClose}
       onSave={() => void model.handleSave()}

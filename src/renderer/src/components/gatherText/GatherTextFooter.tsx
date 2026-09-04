@@ -15,6 +15,7 @@ type GatherTextFooterProps = {
   hasContent: boolean;
   hasChapter: boolean;
   canImportTxt: boolean;
+  mutationDisabled?: boolean;
   reviewBusy: boolean;
   onClose: () => void;
   onSave: () => void;
@@ -36,6 +37,7 @@ export function GatherTextFooter({
   hasContent,
   hasChapter,
   canImportTxt,
+  mutationDisabled = false,
   reviewBusy,
   onClose,
   onSave,
@@ -65,6 +67,7 @@ export function GatherTextFooter({
             hasContent={hasContent}
             hasChapter={hasChapter}
             canImportTxt={canImportTxt}
+            mutationDisabled={mutationDisabled}
             reviewBusy={reviewBusy}
             onSave={onSave}
             onExportReview={onExportReview}
@@ -127,6 +130,7 @@ type GatherTextExchangeMenuProps = Pick<
   | "hasContent"
   | "hasChapter"
   | "canImportTxt"
+  | "mutationDisabled"
   | "reviewBusy"
   | "onSave"
   | "onExportReview"
@@ -138,6 +142,7 @@ function GatherTextExchangeMenu({
   hasContent,
   hasChapter,
   canImportTxt,
+  mutationDisabled,
   reviewBusy,
   onSave,
   onExportReview,
@@ -169,6 +174,7 @@ function GatherTextExchangeMenu({
           canImportTxt={canImportTxt}
           hasChapter={hasChapter}
           hasContent={hasContent}
+          mutationDisabled={mutationDisabled}
           menuRef={contentRef}
           reviewBusy={reviewBusy}
           onClose={close}
@@ -200,6 +206,8 @@ function GatherTextExchangeMenuItems({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const reviewDisabled = !props.hasChapter || props.reviewBusy;
+  const importReviewDisabled =
+    reviewDisabled || Boolean(props.mutationDisabled);
   const actions: ExchangeMenuAction[] = [
     {
       id: "save",
@@ -211,7 +219,10 @@ function GatherTextExchangeMenuItems({
       id: "import-txt",
       label: t("gatherText.importTxt.button"),
       title: t("gatherText.importTxt.title"),
-      disabled: !props.hasChapter || !props.canImportTxt,
+      disabled:
+        !props.hasChapter ||
+        !props.canImportTxt ||
+        Boolean(props.mutationDisabled),
       run: props.onImportTxt,
     },
     {
@@ -229,7 +240,7 @@ function GatherTextExchangeMenuItems({
     {
       id: "import-review",
       label: t("gatherText.review.import"),
-      disabled: reviewDisabled,
+      disabled: importReviewDisabled,
       run: props.onImportReview,
     },
   ];

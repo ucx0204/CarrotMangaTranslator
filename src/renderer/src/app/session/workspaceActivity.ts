@@ -11,3 +11,16 @@ export function isWorkspaceJobActive(
     libraryDrop.busy
   );
 }
+
+export function isChapterMutationBlocked(model: AppSessionViewModel): boolean {
+  return [
+    model.derivedState.jobActive || model.derivedState.selectedPageEditLocked,
+    model.inpaintingBridge?.contextValue.jobActive,
+    model.inpaintingActions?.actionBusy,
+    model.uiState.translationFlowActive,
+    model.workspaceHistory.busy,
+    model.libraryDrop?.busy,
+    model.operationActivity?.active,
+    model.importShareModal?.importBusy,
+  ].some(Boolean);
+}

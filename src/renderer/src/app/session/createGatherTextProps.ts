@@ -4,6 +4,7 @@ import { applyTranslatedTextUpdates } from "./applyTranslatedTextUpdates";
 import { applyGatherTextFormatRequest } from "./applyGatherTextFormatRequest";
 import type { AppSessionViewProps } from "./AppSessionView";
 import type { AppSessionViewModel } from "./appSessionViewModel";
+import { isChapterMutationBlocked } from "./workspaceActivity";
 
 export function createGatherTextProps(
   model: AppSessionViewModel,
@@ -11,7 +12,6 @@ export function createGatherTextProps(
   const {
     core,
     derivedState,
-    inpaintingBridge,
     libraryActions,
     pageNavigationHandlers,
     settingsDialog,
@@ -19,27 +19,26 @@ export function createGatherTextProps(
     updateCurrentChapter,
     workspaceHistory,
   } = model;
-  const formatApplyDisabled =
-    derivedState.jobActive ||
-    inpaintingBridge.contextValue.jobActive ||
-    uiState.translationFlowActive ||
-    workspaceHistory.busy;
+  const mutationDisabled = isChapterMutationBlocked(model);
   return uiState.textViewOpen
     ? {
         blockStylePresets: settingsDialog.settings?.blockStylePresets ?? [],
         chapter: core.currentChapter,
-        formatApplyDisabled,
+        formatApplyDisabled: mutationDisabled,
         onApplyFormat: (request) => {
-          if (formatApplyDisabled) return;
+          if (isChapterMutationBlocked(model)) return;
           applyGatherTextFormatRequest(
             core.currentChapter,
             request,
             updateCurrentChapter,
           );
         },
-        onApplyTranslatedText: (updates) =>
-          applyTranslatedTextUpdates(updates, updateCurrentChapter),
+        onApplyTranslatedText: (updates) => {
+          if (isChapterMutationBlocked(model)) return;
+          applyTranslatedTextUpdates(updates, updateCurrentChapter);
+        },
         onChapterUpdated: (updatedChapter) => {
+          if (isChapterMutationBlocked(model)) return;
           workspaceHistory.reset();
           libraryActions.applyChapter(updatedChapter);
         },
