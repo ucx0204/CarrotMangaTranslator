@@ -8,7 +8,14 @@ const {
   renameSync,
   writeFileSync,
 } = require("node:fs");
-const { dirname, isAbsolute, join, relative, resolve } = require("node:path");
+const {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} = require("node:path");
 const {
   FONT_MATCHING_BUNDLE_DIRECTORY,
   isDevelopmentRuntimePath,
@@ -17,6 +24,7 @@ const {
 const {
   resolveElectronRuntimeSupportFiles,
 } = require("./compile-electron.cjs");
+const { resolveTargetRuntime } = require("./stage-onnxruntime-node.cjs");
 
 const CACHE_SCHEMA_VERSION = 1;
 const CROSS_SCRIPT_PROXY_RUNTIME_DIRECTORY = "font-matching-crossscript-proxy";
@@ -160,9 +168,10 @@ function writeSuccessfulCacheRecord(step, plannedInputFingerprint) {
 
 /**
  * @param {string} root
+ * @param {{ cacheFile?: string; additionalInputFiles?: string[] }} [options]
  * @returns {CachedBuildStep}
  */
-function createElectronCompileCacheStep(root) {
+function createElectronCompileCacheStep(root, options = {}) {
   const sourceRoot = join(root, "src");
   const mainSource = join(sourceRoot, "main");
   const sharedSource = join(sourceRoot, "shared");
@@ -178,7 +187,8 @@ function createElectronCompileCacheStep(root) {
   );
   const preloadSource = join(sourceRoot, "preload");
   const pageExportSource = join(sourceRoot, "renderer", "src");
-  const cacheFile = join(root, ".tmp", "dev-build-cache", "electron.json");
+  const cacheFile =
+    options.cacheFile ?? join(root, ".tmp", "dev-build-cache", "electron.json");
 
   const getTscInputs = () => [
     ...listTreeFiles(
@@ -210,6 +220,7 @@ function createElectronCompileCacheStep(root) {
       join(root, "vite.page-export.config.ts"),
       join(root, "package.json"),
       join(root, "package-lock.json"),
+      ...(options.additionalInputFiles ?? []),
       ...getRuntimeSupportFiles().map((entry) => entry.source),
       ...getTscInputs(),
       ...getBundledInputs(),
@@ -235,7 +246,13 @@ function createElectronCompileCacheStep(root) {
 /**
  * @param {string} root
  * @param {string} outputDir
- * @param {{ runtimeModulesOnly?: boolean }} [options]
+ * @param {{
+ *   additionalInputFiles?: string[];
+ *   cacheFile?: string;
+ *   cacheKey?: string;
+ *   excludedOutputDirectories?: string[];
+ *   runtimeModulesOnly?: boolean;
+ * }} [options]
  * @returns {CachedBuildStep}
  */
 function createRuntimeAssetsCacheStep(root, outputDir, options = {}) {
@@ -252,18 +269,39 @@ function createRuntimeAssetsCacheStep(root, outputDir, options = {}) {
     options.runtimeModulesOnly
       ? []
       : listTreeFiles(fontMatchingBundleDir, undefined, true);
+  const excludedOutputDirectories = (
+    options.excludedOutputDirectories ?? []
+  ).map((directory) => resolve(directory));
+  for (const directory of excludedOutputDirectories) {
+    if (
+      resolve(directory) === resolve(outputDir) ||
+      !isSameOrDescendant(outputDir, directory)
+    ) {
+      throw new Error(
+        `Excluded cached output must be below the output directory: ${directory}`,
+      );
+    }
+  }
   return {
     root,
-    cacheFile: join(root, ".tmp", "dev-build-cache", "runtime-assets.json"),
-    cacheKey: "runtime-assets",
+    cacheFile:
+      options.cacheFile ??
+      join(root, ".tmp", "dev-build-cache", "runtime-assets.json"),
+    cacheKey: options.cacheKey ?? "runtime-assets",
     fingerprintSalt: platformFingerprintSalt(),
     getInputFiles: () => [
       join(root, "scripts", "prepare-runtime.cjs"),
       join(root, "scripts", "dev-build-cache.cjs"),
+      ...(options.additionalInputFiles ?? []),
       ...sourceFiles(),
       ...fontMatchingBundleFiles(),
     ],
-    getOutputFiles: () => listTreeFiles(outputDir, undefined, true),
+    getOutputFiles: () =>
+      listTreeFiles(outputDir, undefined, true).filter((filePath) =>
+        excludedOutputDirectories.every(
+          (directory) => !isSameOrDescendant(directory, filePath),
+        ),
+      ),
     getRequiredOutputFiles: () => [
       ...sourceFiles().map((sourcePath) =>
         join(outputDir, relative(sourceDir, sourcePath)),
@@ -274,6 +312,109 @@ function createRuntimeAssetsCacheStep(root, outputDir, options = {}) {
           FONT_MATCHING_BUNDLE_DIRECTORY,
           relative(fontMatchingBundleDir, sourcePath),
         ),
+      ),
+    ],
+  };
+}
+
+/**
+ * Cache the production renderer as one owned output tree. The source font
+ * assets are part of the exact input/output fingerprints, so a cache hit still
+ * proves that the packageable font bytes are present and unchanged.
+ *
+ * @param {string} root
+ * @returns {CachedBuildStep}
+ */
+function createRendererBundleCacheStep(root) {
+  const rendererSource = join(root, "src", "renderer");
+  const sharedSource = join(root, "src", "shared");
+  const fontSource = join(rendererSource, "src", "assets", "fonts");
+  const outputDirectory = join(root, "out", "renderer");
+  return {
+    root,
+    cacheFile: join(root, ".tmp", "check-cache", "build", "renderer.json"),
+    cacheKey: "production-renderer",
+    fingerprintSalt: platformFingerprintSalt(),
+    getInputFiles: () => [
+      join(root, "scripts", "build.cjs"),
+      __filename,
+      join(root, "vite.renderer.config.ts"),
+      join(root, "package.json"),
+      join(root, "package-lock.json"),
+      packageManifest(root, "vite"),
+      packageManifest(root, "@vitejs/plugin-react"),
+      packageManifest(root, "react"),
+      packageManifest(root, "react-dom"),
+      ...listTreeFiles(rendererSource),
+      ...listTreeFiles(sharedSource),
+    ],
+    getOutputFiles: () => listTreeFiles(outputDirectory, undefined, true),
+    getRequiredOutputFiles: () => [
+      join(outputDirectory, "index.html"),
+      ...listTreeFiles(fontSource).map((sourcePath) =>
+        join(
+          outputDirectory,
+          "assets",
+          "fonts",
+          relative(fontSource, sourcePath),
+        ),
+      ),
+    ],
+  };
+}
+
+/**
+ * @param {string} root
+ * @param {string} outputDir
+ * @returns {CachedBuildStep}
+ */
+function createOnnxRuntimeCacheStep(root, outputDir) {
+  const target = resolveTargetRuntime({ root });
+  const nodePackageRoot = join(root, "node_modules", "onnxruntime-node");
+  const commonCjsRoot = join(
+    root,
+    "node_modules",
+    "onnxruntime-common",
+    "dist",
+    "cjs",
+  );
+  const nodeDistFiles = listTreeFiles(
+    join(nodePackageRoot, "dist"),
+    (filePath) => filePath.endsWith(".js"),
+  );
+  const commonFiles = listTreeFiles(
+    commonCjsRoot,
+    (filePath) =>
+      filePath.endsWith(".js") || basename(filePath) === "package.json",
+  );
+  const binaryFiles = listTreeFiles(target.binarySource);
+  const onnxOutput = join(outputDir, "o");
+  return {
+    root,
+    cacheFile: join(root, ".tmp", "check-cache", "build", "onnx-runtime.json"),
+    cacheKey: "production-onnx-runtime",
+    fingerprintSalt: `${platformFingerprintSalt()}/target-${target.platform}-${target.arch}`,
+    getInputFiles: () => [
+      join(root, "scripts", "build.cjs"),
+      join(root, "scripts", "dev-build-cache.cjs"),
+      join(root, "scripts", "stage-onnxruntime-node.cjs"),
+      join(root, "package-lock.json"),
+      join(nodePackageRoot, "package.json"),
+      ...nodeDistFiles,
+      ...commonFiles,
+      ...binaryFiles,
+    ],
+    getOutputFiles: () => listTreeFiles(onnxOutput, undefined, true),
+    getRequiredOutputFiles: () => [
+      join(onnxOutput, "package.json"),
+      ...nodeDistFiles.map((sourcePath) =>
+        join(onnxOutput, basename(sourcePath)),
+      ),
+      ...commonFiles.map((sourcePath) =>
+        join(onnxOutput, "c", relative(commonCjsRoot, sourcePath)),
+      ),
+      ...binaryFiles.map((sourcePath) =>
+        join(onnxOutput, "b", relative(target.binarySource, sourcePath)),
       ),
     ],
   };
@@ -468,6 +609,11 @@ function platformFingerprintSalt() {
   return `${process.platform}/${process.arch}/node-${process.versions.node}`;
 }
 
+/** @param {string} root @param {string} packageName */
+function packageManifest(root, packageName) {
+  return join(root, "node_modules", ...packageName.split("/"), "package.json");
+}
+
 /** @param {string} parent @param {string} candidate */
 function isSameOrDescendant(parent, candidate) {
   const relativePath = relative(resolve(parent), resolve(candidate));
@@ -486,6 +632,8 @@ function comparePaths(left, right) {
 
 module.exports = {
   createElectronCompileCacheStep,
+  createOnnxRuntimeCacheStep,
+  createRendererBundleCacheStep,
   createRuntimeAssetsCacheStep,
   listTreeFiles,
   planCachedBuildStep,

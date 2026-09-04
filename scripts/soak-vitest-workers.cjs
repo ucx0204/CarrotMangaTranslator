@@ -9,7 +9,7 @@ const {
   unlinkSync,
   writeFileSync,
 } = require("node:fs");
-const { dirname, join } = require("node:path");
+const { dirname, isAbsolute, join, relative, resolve } = require("node:path");
 const {
   CANDIDATE_WORKERS,
   MINIMUM_ITERATIONS,
@@ -17,6 +17,8 @@ const {
   buildProfileRecord,
   createProfileBinding,
   isCiEnvironment,
+  machineSupportsProfile,
+  resolveWorkerResourceLimit,
   stableJson,
 } = require("./vitest-worker-profile.cjs");
 
@@ -46,7 +48,7 @@ function parseArguments(args) {
 
 function printHelp() {
   console.log(
-    "Runs Windows-local Vitest coverage at 4/6/8 workers in rotating order.",
+    `Runs Windows-local Vitest coverage at ${CANDIDATE_WORKERS.join("/")} workers in rotating order.`,
   );
   console.log(
     "Writes a machine/toolchain-bound profile only after identical tests and coverage.",
@@ -72,8 +74,8 @@ function workerOrderForIteration(iteration) {
   ];
 }
 
-/** @param {number} workers @param {number} iteration */
-function runCoverageIteration(workers, iteration) {
+/** @param {number} workers @param {number} iteration @param {number} resourceLimit */
+function runCoverageIteration(workers, iteration, resourceLimit) {
   const runDirectory = join(root, ".tmp", "vitest-worker-soak");
   const resultFile = join(runDirectory, `w${workers}-i${iteration}.json`);
   const coverageFile = join(root, "coverage", "coverage-summary.json");
@@ -106,12 +108,14 @@ function runCoverageIteration(workers, iteration) {
   const durationMs = Math.round(
     Number(process.hrtime.bigint()) / 1_000_000 - started,
   );
-  /** @type {{ workers: number; iteration: number; durationMs: number; exitCode: number; error?: string }} */
+  /** @type {{ workers: number; iteration: number; durationMs: number; exitCode: number; resourceLimit: number; resourceSafe: boolean; error?: string }} */
   const run = {
     workers,
     iteration,
     durationMs,
     exitCode: result.status ?? 1,
+    resourceLimit,
+    resourceSafe: workers <= resourceLimit,
   };
   if (result.error) run.error = result.error.message;
   if (run.exitCode !== 0) return run;
@@ -159,16 +163,16 @@ function digestTestReport(report) {
       if (typeof result !== "object" || result === null) return [];
       const entries = /** @type {Record<string, unknown>} */ (result);
       if (!Array.isArray(entries.assertionResults)) return [];
+      const file = normalizeTestFilePath(entries.name);
       return entries.assertionResults.map((assertion) => {
         if (typeof assertion !== "object" || assertion === null) {
-          return assertion;
+          return { file, fullName: assertion, status: undefined };
         }
         const item = /** @type {Record<string, unknown>} */ (assertion);
         return {
-          ancestorTitles: item.ancestorTitles,
+          file,
           fullName: item.fullName,
           status: item.status,
-          title: item.title,
         };
       });
     })
@@ -176,6 +180,22 @@ function digestTestReport(report) {
       stableJson(left).localeCompare(stableJson(right), "en"),
     );
   return sha256(stableJson({ counts: extractTestCounts(report), assertions }));
+}
+
+/** @param {unknown} value */
+function normalizeTestFilePath(value) {
+  if (typeof value !== "string") return value;
+  const normalized = value.replaceAll("\\", "/");
+  if (!isAbsolute(value)) return normalized;
+  const repositoryRelative = relative(root, resolve(value));
+  if (
+    repositoryRelative &&
+    !repositoryRelative.startsWith("..") &&
+    !isAbsolute(repositoryRelative)
+  ) {
+    return repositoryRelative.replaceAll("\\", "/");
+  }
+  return normalized;
 }
 
 /** @param {string} value */
@@ -203,6 +223,12 @@ function main() {
   if (process.platform !== "win32") {
     throw new Error("Vitest worker profiles may only be generated on Windows.");
   }
+  const resourceLimit = resolveWorkerResourceLimit();
+  if (!machineSupportsProfile()) {
+    throw new Error(
+      `Vitest worker profiling requires capacity for ${Math.max(...CANDIDATE_WORKERS)} workers; this machine safely allows ${resourceLimit}.`,
+    );
+  }
 
   const runs = [];
   for (let iteration = 1; iteration <= options.iterations; iteration += 1) {
@@ -210,7 +236,7 @@ function main() {
       console.log(
         `\n[vitest-soak] iteration ${iteration}/${options.iterations}, workers=${workers}`,
       );
-      runs.push(runCoverageIteration(workers, iteration));
+      runs.push(runCoverageIteration(workers, iteration, resourceLimit));
     }
   }
   const profile = buildProfileRecord({

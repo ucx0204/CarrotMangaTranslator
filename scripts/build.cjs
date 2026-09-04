@@ -11,20 +11,39 @@ const {
 const { spawnSync } = require("node:child_process");
 const { assertRealGeneratedPath } = require("./compile-electron.cjs");
 const { prepareRuntimeAssets } = require("./prepare-runtime.cjs");
+const { stageOnnxRuntimeNode } = require("./stage-onnxruntime-node.cjs");
+const {
+  createElectronCompileCacheStep,
+  createOnnxRuntimeCacheStep,
+  createRendererBundleCacheStep,
+  createRuntimeAssetsCacheStep,
+  runCachedBuildStep,
+} = require("./dev-build-cache.cjs");
 
 const root = join(__dirname, "..");
 const rendererOutDir = join(root, "out", "renderer");
 const skipTypecheck = process.argv.includes("--skip-typecheck");
+const reuseVerifiedOutputs = process.argv.includes("--reuse-verified-outputs");
+const supportedArguments = new Set([
+  "--skip-typecheck",
+  "--reuse-verified-outputs",
+]);
 const unsupportedArgs = process.argv
   .slice(2)
-  .filter((argument) => argument !== "--skip-typecheck");
+  .filter((argument) => !supportedArguments.has(argument));
 
 if (
   unsupportedArgs.length > 0 ||
-  process.argv.filter((argument) => argument === "--skip-typecheck").length > 1
+  [...supportedArguments].some(
+    (argument) =>
+      process.argv.filter((candidate) => candidate === argument).length > 1,
+  )
 ) {
   throw new Error(`Unsupported build arguments: ${unsupportedArgs.join(" ")}`);
 }
+
+/** @type {Array<{ name: string; status: "built" | "skipped"; reason: string }>} */
+const buildStepResults = [];
 
 /**
  * @param {string} command
@@ -43,6 +62,28 @@ function run(command, args) {
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }
+}
+
+/**
+ * @param {string} name
+ * @param {() => import("./dev-build-cache.cjs").CachedBuildStep} createStep
+ * @param {() => void} build
+ */
+function runBuildStep(name, createStep, build) {
+  const result = reuseVerifiedOutputs
+    ? runCachedBuildStep(createStep(), build)
+    : runUncachedBuildStep(build);
+  buildStepResults.push({ name, ...result });
+  console.log(`[build-cache] ${name}: ${result.status} (${result.reason})`);
+}
+
+/** @param {() => void} build */
+function runUncachedBuildStep(build) {
+  build();
+  return /** @type {const} */ ({
+    status: "built",
+    reason: "cache disabled",
+  });
 }
 
 /** @param {string} dir */
@@ -87,24 +128,69 @@ if (skipTypecheck) {
     "tsconfig.typecheck.json",
   ]);
 }
-run(process.execPath, [
-  join(__dirname, "compile-electron.cjs"),
-  ...(skipTypecheck ? ["--noCheck"] : []),
-]);
-cleanDirectoryContents(rendererOutDir);
-run(process.execPath, [
-  nodeBin("vite", "bin", "vite.js"),
-  "build",
-  "--config",
-  "vite.renderer.config.ts",
-]);
-// 빌트인 폰트는 fonts.css에서 mgt-font:///<rel> 커스텀 스킴으로 로드한다. Vite는
-// 이 절대 URL을 외부 자산으로 취급해 해시 복사본을 내보내지 않으므로, 패키짭 후
-// 메인 프로세스의 mgt-font 핸들이 Node fs(asar 인식)로 읽을 수 있도록 원본 폰트
-// 트리를 out/renderer/assets/fonts 아래에 그대로 복사한다(#53 OTS zero-length).
-copyFontAssets(root);
-prepareRuntimeAssets({ root, outputDir: join(root, "out", "app-runtime") });
-run(process.execPath, [join(__dirname, "stage-onnxruntime-node.cjs")]);
+runBuildStep(
+  "electron",
+  () =>
+    createElectronCompileCacheStep(root, {
+      cacheFile: join(root, ".tmp", "check-cache", "build", "electron.json"),
+      additionalInputFiles: [join(root, "scripts", "build.cjs")],
+    }),
+  () =>
+    run(process.execPath, [
+      join(__dirname, "compile-electron.cjs"),
+      ...(skipTypecheck ? ["--noCheck"] : []),
+    ]),
+);
+runBuildStep(
+  "renderer",
+  () => createRendererBundleCacheStep(root),
+  () => {
+    cleanDirectoryContents(rendererOutDir);
+    run(process.execPath, [
+      nodeBin("vite", "bin", "vite.js"),
+      "build",
+      "--config",
+      "vite.renderer.config.ts",
+    ]);
+    // 빌트인 폰트는 fonts.css에서 mgt-font:///<rel> 커스텀 스킴으로 로드한다. Vite는
+    // 이 절대 URL을 외부 자산으로 취급해 해시 복사본을 내보내지 않으므로, 패키징 후
+    // 메인 프로세스의 mgt-font 핸들이 Node fs(asar 인식)로 읽을 수 있도록 원본 폰트
+    // 트리를 out/renderer/assets/fonts 아래에 그대로 복사한다(#53 OTS zero-length).
+    copyFontAssets(root);
+  },
+);
+const runtimeOutputDir = join(root, "out", "app-runtime");
+runBuildStep(
+  "runtime-assets",
+  () =>
+    createRuntimeAssetsCacheStep(root, runtimeOutputDir, {
+      additionalInputFiles: [join(root, "scripts", "build.cjs")],
+      cacheFile: join(
+        root,
+        ".tmp",
+        "check-cache",
+        "build",
+        "runtime-assets.json",
+      ),
+      cacheKey: "production-runtime-assets",
+      excludedOutputDirectories: [join(runtimeOutputDir, "o")],
+    }),
+  () => prepareRuntimeAssets({ root, outputDir: runtimeOutputDir }),
+);
+runBuildStep(
+  "onnx-runtime",
+  () => createOnnxRuntimeCacheStep(root, runtimeOutputDir),
+  () => stageOnnxRuntimeNode({ root }),
+);
+console.log(
+  `[check-metadata] ${JSON.stringify({
+    stage: "build",
+    cacheHit:
+      reuseVerifiedOutputs &&
+      buildStepResults.every((result) => result.status === "skipped"),
+    buildSteps: buildStepResults,
+  })}`,
+);
 
 /**
  * @param {string} packageName

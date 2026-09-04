@@ -13,7 +13,7 @@ export default defineConfig({
   test: {
     coverage: {
       provider: "v8",
-      reporter: ["text", "json-summary"],
+      reporter: ["text-summary", "json-summary"],
       reportsDirectory: "coverage",
       include: [
         "src/main/**/*.{ts,cjs}",

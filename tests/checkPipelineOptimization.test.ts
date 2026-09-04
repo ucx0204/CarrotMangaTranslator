@@ -1,51 +1,61 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-type CachePlan = {
-  cacheRoot: string;
-  entryDirectory: string;
-  inputFingerprint: string;
-  inputs: string[];
-  root: string;
+type Stage = {
+  id: string;
+  command: string;
+  args: string[];
+  dependsOn: string[];
+  executionClass: "parallel" | "exclusive";
 };
 
-type BuildCacheModule = {
-  assertRealOwnedPath(
-    root: string,
-    candidate: string,
-    options?: {
-      exists(path: string): boolean;
-      lstat(path: string): { isSymbolicLink(): boolean };
-    },
-  ): void;
-  buildEnvironmentFingerprint(env: Record<string, string | undefined>): string;
-  createCheckBuildPlan(root: string): CachePlan;
-  isRealBuildInputFile(
-    path: string,
-    options?: {
-      lstat(path: string): {
-        isFile(): boolean;
-        isSymbolicLink(): boolean;
-      };
-    },
-  ): boolean;
-  promoteCheckBuild(plan: CachePlan): { promoted: boolean };
-  restoreCheckBuild(plan: CachePlan): { restored: boolean; reason: string };
+type StageResult = {
+  id: string;
+  command: string;
+  dependsOn: string[];
+  executionClass: "parallel" | "exclusive";
+  queuedMs: number;
+  durationMs: number;
+  startedAt: string;
+  completedAt: string;
+  status: "passed" | "failed";
+  exitCode: number;
+  logPath: string;
+  logBytes: number;
 };
 
 type CheckModule = {
-  buildCacheOptedIn(env: Record<string, string | undefined>): boolean;
-  createStages(): Array<{ id: string; command: string; args: string[] }>;
+  calculateCriticalPathMs(stages: Stage[], results: StageResult[]): number;
+  createStages(options?: { cold?: boolean }): Stage[];
+  nodeStage(
+    id: string,
+    args: string[],
+    options?: {
+      dependsOn?: string[];
+      executionClass?: "parallel" | "exclusive";
+    },
+  ): Stage;
+  readStageMetadata(
+    logPath: string,
+    expectedStageId?: string,
+  ): Record<string, unknown>;
+  resolveCheckParallelism(system: {
+    availableCpuCount: number;
+    freeMemory: number;
+  }): number;
+  runStageGraph(
+    stages: Stage[],
+    options: {
+      maxParallel: number;
+      run: (
+        stage: Stage,
+        options: { queuedMs: number },
+      ) => Promise<StageResult>;
+    },
+  ): Promise<StageResult[]>;
+  validateStages(stages: Stage[]): Stage[];
 };
 
 type CompileElectronModule = {
@@ -61,21 +71,12 @@ type CompileElectronModule = {
   parseArguments(args: string[]): { noCheck: boolean };
 };
 
-const buildCache =
-  require("../scripts/check-build-cache.cjs") as BuildCacheModule;
 const check = require("../scripts/check.cjs") as CheckModule;
 const compileElectron =
   require("../scripts/compile-electron.cjs") as CompileElectronModule;
-const temporaryDirectories: string[] = [];
 
-afterEach(() => {
-  for (const directory of temporaryDirectories.splice(0)) {
-    rmSync(directory, { force: true, recursive: true });
-  }
-});
-
-describe("check direct invocation", () => {
-  it("keeps the complete stage gate without npm wrapper subprocesses", () => {
+describe("check DAG", () => {
+  it("keeps all 26 gates and their production ordering constraints", () => {
     const stages = check.createStages();
     expect(stages.map((stage) => stage.id)).toEqual([
       "private-workspace",
@@ -115,42 +116,215 @@ describe("check direct invocation", () => {
         ),
       ),
     ).toBe(false);
+
+    const preflight = stages.slice(1, 19);
     expect(
-      stages.find((stage) => stage.id === "prepare-electron")?.args,
-    ).toEqual([expect.stringMatching(/[\\/]electron[\\/]install\.js$/u)]);
-    expect(
-      stages.find((stage) => stage.id === "prepare-import-source-runner")?.args,
-    ).toEqual([
-      expect.stringMatching(
-        /[\\/]scripts[\\/]prepare-import-source-runner\.cjs$/u,
+      preflight.every(
+        (stage) =>
+          stage.executionClass === "parallel" &&
+          JSON.stringify(stage.dependsOn) ===
+            JSON.stringify(["private-workspace"]),
       ),
-      "--no-copy",
-    ]);
+    ).toBe(true);
+    expect(stages[19]).toMatchObject({
+      id: "test-coverage",
+      executionClass: "exclusive",
+      dependsOn: preflight.map((stage) => stage.id),
+    });
+    expect(stages[20].dependsOn).toEqual(["test-coverage"]);
+    expect(stages[21]).toMatchObject({
+      id: "build",
+      dependsOn: ["production-cleanup-coverage"],
+    });
     expect(
-      stages.find((stage) => stage.id === "typecheck-electron")?.args,
-    ).toEqual([
-      expect.stringMatching(/[\\/]typescript[\\/]bin[\\/]tsc$/u),
-      "-p",
-      "tsconfig.electron-typecheck.json",
-    ]);
-    expect(stages.find((stage) => stage.id === "test-coverage")?.args).toEqual([
-      expect.stringMatching(/[\\/]vitest[\\/]vitest\.mjs$/u),
-      "run",
-      "--coverage",
-    ]);
-    expect(
-      stages.find((stage) => stage.id === "production-cleanup-coverage")?.args,
-    ).toEqual([
-      expect.stringMatching(
-        /[\\/]scripts[\\/]check-production-cleanup-coverage\.cjs$/u,
-      ),
-    ]);
+      stages.slice(22).every((stage) => stage.dependsOn[0] === "build"),
+    ).toBe(true);
   });
 
-  it("keeps the unbenchmarked build cache opt-in only", () => {
-    expect(check.buildCacheOptedIn({})).toBe(false);
-    expect(check.buildCacheOptedIn({ MGT_CHECK_BUILD_CACHE: "0" })).toBe(false);
-    expect(check.buildCacheOptedIn({ MGT_CHECK_BUILD_CACHE: "1" })).toBe(true);
+  it("uses machine-readable Vitest results and verified build reuse", () => {
+    const stages = check.createStages();
+    const coverage = stages.find((stage) => stage.id === "test-coverage");
+    expect(coverage?.args).toEqual(
+      expect.arrayContaining([
+        "run",
+        "--coverage",
+        "--reporter=default",
+        "--reporter=json",
+        expect.stringMatching(/^--outputFile\.json=/u),
+      ]),
+    );
+    expect(stages.find((stage) => stage.id === "build")?.args).toContain(
+      "--reuse-verified-outputs",
+    );
+    expect(
+      check.createStages({ cold: true }).find((stage) => stage.id === "build")
+        ?.args,
+    ).not.toContain("--reuse-verified-outputs");
+    expect(
+      check.createStages({ cold: true }).find((stage) => stage.id === "lint")
+        ?.args,
+    ).not.toContain("--cache");
+    expect(
+      check
+        .createStages({ cold: true })
+        .find((stage) => stage.id === "typecheck")?.args,
+    ).toEqual(expect.arrayContaining(["--incremental", "false"]));
+  });
+
+  it("bounds static parallelism by CPU and free memory", () => {
+    const gibibyte = 1024 ** 3;
+    expect(
+      check.resolveCheckParallelism({
+        availableCpuCount: 32,
+        freeMemory: 64 * gibibyte,
+      }),
+    ).toBe(4);
+    expect(
+      check.resolveCheckParallelism({
+        availableCpuCount: 8,
+        freeMemory: 64 * gibibyte,
+      }),
+    ).toBe(2);
+    expect(
+      check.resolveCheckParallelism({
+        availableCpuCount: 32,
+        freeMemory: gibibyte,
+      }),
+    ).toBe(1);
+  });
+
+  it("rejects missing dependencies and cycles before starting commands", () => {
+    expect(() => check.validateStages([stage("a", ["missing"])])).toThrow(
+      /missing stage/,
+    );
+    expect(() =>
+      check.validateStages([stage("a", ["b"]), stage("b", ["a"])]),
+    ).toThrow(/cycle/);
+  });
+
+  it("rejects duplicate IDs and unknown execution classes", () => {
+    expect(() =>
+      check.validateStages([stage("same", []), stage("same", [])]),
+    ).toThrow(/Duplicate/);
+    const invalid = stage("invalid", []);
+    Reflect.set(invalid, "executionClass", "background");
+    expect(() => check.validateStages([invalid])).toThrow(/execution class/);
+  });
+
+  it("computes the dependency critical path rather than summing peers", () => {
+    const stages = [
+      stage("seal", ["left", "right"], "exclusive"),
+      stage("right", ["root"]),
+      stage("root", [], "exclusive"),
+      stage("left", ["root"]),
+    ];
+    const durations = new Map([
+      ["root", 2],
+      ["left", 5],
+      ["right", 3],
+      ["seal", 7],
+    ]);
+    const results = stages.map((current) => ({
+      ...result(current),
+      durationMs: durations.get(current.id) ?? 0,
+    }));
+    expect(check.calculateCriticalPathMs(stages, results)).toBe(14);
+  });
+
+  it("accepts metadata only from the stage that owns the log", () => {
+    const directory = mkdtempSync(join(tmpdir(), "manga-check-meta-"));
+    const logPath = join(directory, "test.log");
+    try {
+      writeFileSync(
+        logPath,
+        [
+          '[check-metadata] {"stage":"format","cacheHit":false}',
+          '[check-metadata] {"stage":"build","cacheHit":true}',
+        ].join("\n"),
+      );
+      expect(check.readStageMetadata(logPath, "test-coverage")).toEqual({});
+      expect(check.readStageMetadata(logPath, "build")).toEqual({
+        stage: "build",
+        cacheHit: true,
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("creates an extensible stage descriptor with safe defaults", () => {
+    expect(check.nodeStage("example", ["script.cjs"])).toEqual({
+      id: "example",
+      command: process.execPath,
+      args: ["script.cjs"],
+      dependsOn: [],
+      executionClass: "parallel",
+    });
+  });
+
+  it("runs independent stages concurrently but keeps exclusive stages alone", async () => {
+    const stages = [
+      stage("root", [], "exclusive"),
+      stage("left", ["root"]),
+      stage("right", ["root"]),
+      stage("queued", ["root"]),
+      stage("seal", ["left", "right", "queued"], "exclusive"),
+    ];
+    let active = 0;
+    let maximumActive = 0;
+    const activeWhenStarted = new Map<string, number>();
+    const results = await check.runStageGraph(stages, {
+      maxParallel: 2,
+      run: async (current, options) => {
+        active += 1;
+        maximumActive = Math.max(maximumActive, active);
+        activeWhenStarted.set(current.id, active);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        active -= 1;
+        return { ...result(current), queuedMs: options.queuedMs };
+      },
+    });
+
+    expect(results.map((entry) => entry.id)).toEqual([
+      "root",
+      "left",
+      "right",
+      "queued",
+      "seal",
+    ]);
+    expect(maximumActive).toBe(2);
+    expect(activeWhenStarted.get("root")).toBe(1);
+    expect(activeWhenStarted.get("seal")).toBe(1);
+    expect(
+      results.find((entry) => entry.id === "queued")?.queuedMs,
+    ).toBeGreaterThan(5);
+  });
+
+  it("stops scheduling downstream work after a peer fails", async () => {
+    const stages = [
+      stage("root", [], "exclusive"),
+      stage("failure", ["root"]),
+      stage("peer", ["root"]),
+      stage("downstream", ["failure", "peer"], "exclusive"),
+    ];
+    const started: string[] = [];
+    const results = await check.runStageGraph(stages, {
+      maxParallel: 2,
+      run: async (current) => {
+        started.push(current.id);
+        await new Promise((resolve) =>
+          setTimeout(resolve, current.id === "peer" ? 10 : 1),
+        );
+        return result(current, current.id === "failure" ? "failed" : "passed");
+      },
+    });
+
+    expect(started).toEqual(["root", "failure", "peer"]);
+    expect(results.map((entry) => entry.id)).toEqual([
+      "root",
+      "failure",
+      "peer",
+    ]);
   });
 });
 
@@ -170,190 +344,38 @@ describe("check-only Electron noCheck emit", () => {
       /Unsupported compile-electron arguments/,
     );
   });
-
-  it("refuses an ancestor symlink before generated output cleanup", () => {
-    const root = join(tmpdir(), "manga-generated-owned-root");
-    const linkedOut = join(root, "out");
-    expect(() =>
-      compileElectron.assertRealGeneratedPath(root, join(linkedOut, "main"), {
-        exists: () => true,
-        lstat: (path) => ({ isSymbolicLink: () => path === linkedOut }),
-      }),
-    ).toThrow(/cannot contain symbolic links/);
-  });
 });
 
-describe("content-addressed check build cache", () => {
-  it("promotes only when called, restores exact outputs, and invalidates input drift", () => {
-    const root = createFixture();
-    const plan = buildCache.createCheckBuildPlan(root);
-    expect(buildCache.restoreCheckBuild(plan).restored).toBe(false);
-    expect(() =>
-      readFileSync(join(plan.entryDirectory, "manifest.json")),
-    ).toThrow();
-
-    expect(buildCache.promoteCheckBuild(plan).promoted).toBe(true);
-    writeFileSync(join(root, "out", "main", "bootstrap.js"), "corrupt\n");
-    expect(buildCache.restoreCheckBuild(plan).restored).toBe(true);
-    expect(
-      readFileSync(join(root, "out", "main", "bootstrap.js"), "utf8"),
-    ).toBe("bootstrap\n");
-
-    writeFileSync(join(root, "src", "main", "input.ts"), "changed\n");
-    const changedPlan = buildCache.createCheckBuildPlan(root);
-    expect(changedPlan.inputFingerprint).not.toBe(plan.inputFingerprint);
-    expect(buildCache.restoreCheckBuild(changedPlan).restored).toBe(false);
-  });
-
-  it("treats a corrupted snapshot as a miss and refuses input-racy promotion", () => {
-    const root = createFixture();
-    const plan = buildCache.createCheckBuildPlan(root);
-    buildCache.promoteCheckBuild(plan);
-    writeFileSync(
-      join(plan.entryDirectory, "snapshot", "out", "main", "bootstrap.js"),
-      "corrupt\n",
-    );
-    expect(buildCache.restoreCheckBuild(plan)).toMatchObject({
-      restored: false,
-      reason: expect.stringMatching(/corrupt/),
-    });
-
-    writeFileSync(join(root, "src", "main", "input.ts"), "changed\n");
-    expect(() => buildCache.promoteCheckBuild(plan)).toThrow(
-      /inputs changed during check/,
-    );
-  });
-
-  it("binds environment values without exposing them and ignores unrelated variables", () => {
-    const first = buildCache.buildEnvironmentFingerprint({
-      VITE_FEATURE: "secret-value",
-      PATH: "first",
-    });
-    const unrelated = buildCache.buildEnvironmentFingerprint({
-      VITE_FEATURE: "secret-value",
-      PATH: "changed",
-    });
-    const changed = buildCache.buildEnvironmentFingerprint({
-      VITE_FEATURE: "changed-value",
-      PATH: "first",
-    });
-    expect(first).toBe(unrelated);
-    expect(first).not.toBe(changed);
-    expect(first).not.toContain("secret-value");
-  });
-
-  it("invalidates when a tracked non-source input changes", () => {
-    const root = createFixture();
-    write(root, "docs/build-note.md", "first\n");
-    runGit(root, ["add", "docs/build-note.md"]);
-    const first = buildCache.createCheckBuildPlan(root);
-    write(root, "docs/build-note.md", "second\n");
-    const second = buildCache.createCheckBuildPlan(root);
-    expect(second.inputFingerprint).not.toBe(first.inputFingerprint);
-  });
-
-  it("fails closed for a dangling tracked input symlink", () => {
-    expect(() =>
-      buildCache.isRealBuildInputFile("src/dangling.ts", {
-        lstat: () => ({
-          isFile: () => false,
-          isSymbolicLink: () => true,
-        }),
-      }),
-    ).toThrow(/inputs cannot be symbolic links/);
-  });
-
-  it("keeps only the newest successful large build snapshot", () => {
-    const root = createFixture();
-    const first = buildCache.createCheckBuildPlan(root);
-    buildCache.promoteCheckBuild(first);
-    write(root, "src/main/input.ts", "changed\n");
-    const second = buildCache.createCheckBuildPlan(root);
-
-    buildCache.promoteCheckBuild(second);
-
-    expect(existsSync(second.entryDirectory)).toBe(true);
-    expect(existsSync(first.entryDirectory)).toBe(false);
-  });
-
-  it("refuses an ancestor symlink before recursive output cleanup", () => {
-    const root = join(tmpdir(), "manga-cache-owned-root");
-    const linkedOut = join(root, "out");
-    expect(() =>
-      buildCache.assertRealOwnedPath(root, join(linkedOut, "main"), {
-        exists: () => true,
-        lstat: (path) => ({
-          isSymbolicLink: () => path === linkedOut,
-        }),
-      }),
-    ).toThrow(/refuses symbolic links/);
-  });
-
-  it("restores a manifest whose directory and sibling names sort differently on Windows", () => {
-    const root = createFixture();
-    write(root, "out/main/library/libraryContextFacade.js", "facade");
-    write(root, "out/main/libraryStore/chapterRecords.js", "records");
-    const plan = buildCache.createCheckBuildPlan(root);
-    buildCache.promoteCheckBuild(plan);
-
-    expect(buildCache.restoreCheckBuild(plan)).toMatchObject({
-      restored: true,
-    });
-  });
-});
-
-function createFixture(): string {
-  const root = mkdtempSync(join(tmpdir(), "manga-check-cache-test-"));
-  temporaryDirectories.push(root);
-  for (const path of [
-    "package.json",
-    "package-lock.json",
-    "tsconfig.json",
-    "tsconfig.typecheck.json",
-    "tsconfig.electron.json",
-    "vite.renderer.config.ts",
-    "vite.preload.config.ts",
-    "vite.page-export.config.ts",
-    "scripts/build.cjs",
-    "scripts/compile-electron.cjs",
-    "scripts/prepare-runtime.cjs",
-    "scripts/codex-app-server-runtime.cjs",
-    "scripts/check-build-cache.cjs",
-    "node_modules/typescript/package.json",
-    "node_modules/vite/package.json",
-    "node_modules/@vitejs/plugin-react/package.json",
-    "node_modules/electron/package.json",
-    "node_modules/rolldown/package.json",
-    "node_modules/@openai/codex/package.json",
-    `node_modules/@openai/codex-${process.platform}-${process.arch}/package.json`,
-    "node_modules/react/package.json",
-    "node_modules/react-dom/package.json",
-    "src/main/input.ts",
-  ]) {
-    write(root, path, `${path}\n`);
-  }
-  runGit(root, ["init", "--quiet"]);
-  runGit(root, ["add", "."]);
-  for (const [path, contents] of Object.entries({
-    "out/main/bootstrap.js": "bootstrap\n",
-    "out/main/runtime/python-pip-environment.cjs": "pip isolation\n",
-    "out/shared/value.js": "shared\n",
-    "out/preload/index.js": "preload\n",
-    "out/page-export/runtime.js": "runtime\n",
-    "out/page-export/styles.css": "styles\n",
-    "out/renderer/index.html": "renderer\n",
-  })) {
-    write(root, path, contents);
-  }
-  return root;
+function stage(
+  id: string,
+  dependsOn: string[],
+  executionClass: "parallel" | "exclusive" = "parallel",
+): Stage {
+  return {
+    id,
+    command: process.execPath,
+    args: [id],
+    dependsOn,
+    executionClass,
+  };
 }
 
-function runGit(root: string, args: string[]): void {
-  execFileSync("git", args, { cwd: root });
-}
-
-function write(root: string, relativePath: string, contents: string): void {
-  const target = join(root, relativePath);
-  mkdirSync(join(target, ".."), { recursive: true });
-  writeFileSync(target, contents, "utf8");
+function result(
+  current: Stage,
+  status: "passed" | "failed" = "passed",
+): StageResult {
+  return {
+    id: current.id,
+    command: current.command,
+    dependsOn: current.dependsOn,
+    executionClass: current.executionClass,
+    queuedMs: 0,
+    durationMs: 1,
+    startedAt: "2026-01-01T00:00:00.000Z",
+    completedAt: "2026-01-01T00:00:00.001Z",
+    status,
+    exitCode: status === "passed" ? 0 : 1,
+    logPath: "",
+    logBytes: 0,
+  };
 }

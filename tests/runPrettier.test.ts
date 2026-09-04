@@ -1,5 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -15,6 +22,11 @@ type RunPrettierModule = {
       isSymbolicLink(): boolean;
     };
   }): Promise<string[]>;
+  createPrettierCacheDescriptor(root: string): {
+    cachePath: string;
+    fingerprint: string;
+    configurationPaths: string[];
+  };
   isPersonalLocalFile(path: string): boolean;
   parseCliMode(args: string[]): "check" | "write";
   runPrettier(
@@ -22,6 +34,7 @@ type RunPrettierModule = {
     paths: string[],
     options: {
       root: string;
+      cacheEnabled?: boolean;
       spawn?: (
         command: string,
         args: readonly string[],
@@ -122,6 +135,7 @@ describe("run-prettier inventory", () => {
     const inventory = await runner.collectPrettierInventory({ root });
 
     expect(runner.runPrettier("check", inventory, { root })).toBe(1);
+    expect(runner.runPrettier("check", inventory, { root })).toBe(1);
     expect(runner.runPrettier("write", inventory, { root })).toBe(0);
     expect(runner.runPrettier("check", inventory, { root })).toBe(0);
 
@@ -170,7 +184,10 @@ describe("run-prettier command contract", () => {
     ).toEqual([["src/a.ts"], ["src/b.ts"], ["tests/c.ts"]]);
   });
 
-  it("always inspects current bytes instead of reusing a local cache", () => {
+  it("uses a verified content cache and allows a real cold run", () => {
+    const root = createGitRepository();
+    write(root, ".prettierignore", "");
+    write(root, "src/a.ts", "export const value = 1;\n");
     const calls: string[][] = [];
     const spawn = (_command: string, args: readonly string[]) => {
       calls.push([...args]);
@@ -179,14 +196,68 @@ describe("run-prettier command contract", () => {
 
     expect(
       runner.runPrettier("check", ["src/a.ts"], {
-        root: process.cwd(),
+        root,
         spawn,
+        cacheEnabled: true,
       }),
     ).toBe(0);
     expect(calls).toHaveLength(1);
     expect(calls[0]).toContain("--check");
     expect(calls[0]).not.toContain("--cache");
-    expect(calls[0]).not.toContain("--cache-location");
+
+    expect(
+      runner.runPrettier("check", ["src/a.ts"], {
+        root,
+        spawn,
+        cacheEnabled: true,
+      }),
+    ).toBe(0);
+    expect(calls).toHaveLength(1);
+
+    const originalTimestamps = statSync(join(root, "src/a.ts"));
+    write(root, "src/a.ts", "export const value = 2;\n");
+    utimesSync(
+      join(root, "src/a.ts"),
+      originalTimestamps.atime,
+      originalTimestamps.mtime,
+    );
+    expect(
+      runner.runPrettier("check", ["src/a.ts"], {
+        root,
+        spawn,
+        cacheEnabled: true,
+      }),
+    ).toBe(0);
+    expect(calls).toHaveLength(2);
+
+    expect(
+      runner.runPrettier("check", ["src/a.ts"], {
+        root,
+        spawn,
+        cacheEnabled: false,
+      }),
+    ).toBe(0);
+    expect(calls).toHaveLength(3);
+  });
+
+  it("invalidates the namespace for configuration and toolchain drift", () => {
+    const root = createGitRepository();
+    write(root, ".prettierignore", "");
+    write(root, "package.json", '{"prettier":{"tabWidth":2}}\n');
+    write(root, "package-lock.json", '{"lockfileVersion":3}\n');
+    write(root, "src/input.ts", "export const value = 1;\n");
+    execFileSync("git", ["add", "."], { cwd: root });
+
+    const initial = runner.createPrettierCacheDescriptor(root);
+    write(root, "src/input.ts", "export const value = 2;\n");
+    expect(runner.createPrettierCacheDescriptor(root).fingerprint).toBe(
+      initial.fingerprint,
+    );
+
+    write(root, "package-lock.json", '{"lockfileVersion":3,"changed":true}\n');
+    expect(runner.createPrettierCacheDescriptor(root).fingerprint).not.toBe(
+      initial.fingerprint,
+    );
   });
 });
 

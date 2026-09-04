@@ -1,13 +1,21 @@
 const { createHash } = require("node:crypto");
 const { existsSync, readFileSync } = require("node:fs");
-const { cpus, hostname, totalmem } = require("node:os");
+const {
+  availableParallelism,
+  cpus,
+  freemem,
+  hostname,
+  totalmem,
+} = require("node:os");
 const { join } = require("node:path");
 
-const PROFILE_SCHEMA_VERSION = 1;
-const DEFAULT_WORKERS = 4;
-const CANDIDATE_WORKERS = [4, 6, 8];
+const PROFILE_SCHEMA_VERSION = 2;
+const DEFAULT_WORKERS = 12;
+const MAX_EXPLICIT_WORKERS = 16;
+const CANDIDATE_WORKERS = [4, 12, 16];
 const MINIMUM_ITERATIONS = 10;
 const PROFILE_RELATIVE_PATH = join(".tmp", "vitest-worker-profile.json");
+const WORKER_MEMORY_BYTES = 2 * 1024 ** 3;
 
 /** @param {NodeJS.ProcessEnv | Record<string, string | undefined>} env */
 function isCiEnvironment(env) {
@@ -20,16 +28,64 @@ function isCiEnvironment(env) {
   );
 }
 
-/** @param {string} value */
-function parseLocalWorkerCount(value) {
+/** @param {string} value @param {number} [resourceLimit] */
+function parseLocalWorkerCount(
+  value,
+  resourceLimit = resolveWorkerResourceLimit(),
+) {
   if (!/^[1-9]\d*$/u.test(value)) throw invalidWorkerOverride();
   const workers = Number(value);
-  if (!CANDIDATE_WORKERS.includes(workers)) throw invalidWorkerOverride();
+  if (workers > Math.min(MAX_EXPLICIT_WORKERS, resourceLimit)) {
+    throw invalidWorkerOverride(resourceLimit);
+  }
   return workers;
 }
 
-function invalidWorkerOverride() {
-  return new Error("MGT_VITEST_MAX_WORKERS must be one of 4, 6, or 8.");
+/** @param {number} [resourceLimit] */
+function invalidWorkerOverride(resourceLimit = resolveWorkerResourceLimit()) {
+  return new Error(
+    `MGT_VITEST_MAX_WORKERS must be an integer from 1 to ${Math.min(MAX_EXPLICIT_WORKERS, resourceLimit)} for the available CPU and memory.`,
+  );
+}
+
+/**
+ * @param {{ logicalCpuCount?: number; freeMemory?: number; totalMemory?: number }} [system]
+ */
+function resolveWorkerResourceLimit(system = {}) {
+  const logicalCpuCount = Math.max(
+    1,
+    Math.floor(system.logicalCpuCount ?? availableParallelism()),
+  );
+  const availableMemory = Math.max(
+    0,
+    system.freeMemory ?? system.totalMemory ?? freemem(),
+  );
+  const memoryWorkers = Math.max(
+    1,
+    Math.floor(availableMemory / WORKER_MEMORY_BYTES),
+  );
+  return Math.max(
+    1,
+    Math.min(MAX_EXPLICIT_WORKERS, logicalCpuCount, memoryWorkers),
+  );
+}
+
+/**
+ * @param {{ logicalCpuCount?: number; freeMemory?: number; totalMemory?: number }} [system]
+ */
+function resolveResourceAwareDefault(system = {}) {
+  const logicalCpuCount = Math.max(
+    1,
+    Math.floor(system.logicalCpuCount ?? availableParallelism()),
+  );
+  const cpuCandidate = Math.min(
+    DEFAULT_WORKERS,
+    Math.max(4, Math.floor(logicalCpuCount / 2)),
+  );
+  return Math.max(
+    1,
+    Math.min(logicalCpuCount, cpuCandidate, resolveWorkerResourceLimit(system)),
+  );
 }
 
 /**
@@ -40,12 +96,14 @@ function invalidWorkerOverride() {
  *   hostname?: string;
  *   nodeVersion?: string;
  *   platform?: string;
+ *   availableCpuCount?: number;
  *   totalMemory?: number;
  * }} [system]
  */
 function createProfileBinding(root, system = {}) {
   const machineDescriptor = {
     arch: system.arch ?? process.arch,
+    availableCpuCount: system.availableCpuCount ?? availableParallelism(),
     cpuModels: system.cpuModels ?? cpus().map((cpu) => cpu.model),
     hostname: system.hostname ?? hostname(),
     platform: system.platform ?? process.platform,
@@ -81,23 +139,17 @@ function createProfileBinding(root, system = {}) {
  *   platform?: string;
  *   profile?: unknown;
  *   root?: string;
- *   system?: { logicalCpuCount?: number; totalMemory?: number };
+ *   system?: { logicalCpuCount?: number; freeMemory?: number; totalMemory?: number };
  * }} [options]
  */
 function resolveVitestMaxWorkers(options = {}) {
   const env = options.env ?? process.env;
   const explicit = env.MGT_VITEST_MAX_WORKERS;
-  if (isCiEnvironment(env)) {
-    return DEFAULT_WORKERS;
-  }
+  const resourceLimit = resolveWorkerResourceLimit(options.system);
   if (explicit !== undefined && explicit !== "") {
-    return parseLocalWorkerCount(explicit);
+    return parseLocalWorkerCount(explicit, resourceLimit);
   }
-  // Profiles currently prove result/coverage parity and bind to one machine
-  // and toolchain. They deliberately remain advisory until the soak also
-  // records peak RSS, handles, temporary I/O, and orphan-process counts.
-  // Explicit local overrides are the only way to opt in above four workers.
-  return DEFAULT_WORKERS;
+  return resolveResourceAwareDefault(options.system);
 }
 
 /**
@@ -120,12 +172,12 @@ function buildProfileRecord(options) {
     selectionRule: {
       p50ImprovementMinimum: 0.1,
       p95ImprovementMinimum: 0.1,
-      preferSixWithinEightP95: 0.05,
+      preferLowerWorkerCountWithinFastestP95: 0.05,
     },
     validated: selection.validated,
     activationEligible: false,
     diagnosticOnlyReason:
-      "resource safety metrics (peak RSS, handles, temporary I/O, and orphan processes) are not recorded",
+      "profiles recommend a worker override; runtime defaults remain resource-aware",
     selectedWorkers: selection.workers,
     reason: selection.reason,
     candidateSummaries,
@@ -142,6 +194,8 @@ function buildProfileRecord(options) {
  *   iteration: number;
  *   testDigest?: string;
  *   testCounts?: Record<string, number>;
+ *   resourceLimit?: number;
+ *   resourceSafe?: boolean;
  *   workers: number;
  * }} WorkerRun
  */
@@ -154,6 +208,19 @@ function summarizeCandidateRuns(workers, runs) {
     workers,
     iterations: runs.length,
     failures: runs.length - successful.length,
+    resourceUnsafeRuns: runs.filter(
+      (run) =>
+        run.resourceSafe !== true ||
+        !Number.isSafeInteger(run.resourceLimit) ||
+        run.workers > Number(run.resourceLimit),
+    ).length,
+    resourceLimits: uniqueSorted(
+      runs.map((run) =>
+        Number.isSafeInteger(run.resourceLimit)
+          ? String(run.resourceLimit)
+          : undefined,
+      ),
+    ),
     p50Ms: percentile(durations, 0.5),
     p95Ms: percentile(durations, 0.95),
     testDigests: uniqueSorted(successful.map((run) => run.testDigest)),
@@ -175,6 +242,7 @@ function selectValidatedWorkers(summaries) {
     (summary) =>
       summary.iterations >= MINIMUM_ITERATIONS &&
       summary.failures === 0 &&
+      summary.resourceUnsafeRuns === 0 &&
       summary.testDigests.length === 1 &&
       summary.coverageDigests.length === 1 &&
       summary.testCounts.length === 1 &&
@@ -206,18 +274,20 @@ function selectValidatedWorkers(summaries) {
   }
 
   const eligible = summaries
-    .filter((summary) => summary.workers !== DEFAULT_WORKERS)
+    .filter((summary) => summary.workers > DEFAULT_WORKERS)
     .filter(
       (summary) =>
         summary.p50Ms <= baseline.p50Ms * 0.9 &&
         summary.p95Ms <= baseline.p95Ms * 0.9,
     );
-  const six = eligible.find((summary) => summary.workers === 6);
-  const eight = eligible.find((summary) => summary.workers === 8);
-  const selected =
-    six && eight && six.p95Ms <= eight.p95Ms * 1.05
-      ? six
-      : [...eligible].sort((left, right) => left.p95Ms - right.p95Ms)[0];
+  const fastest = [...eligible].sort(
+    (left, right) => left.p95Ms - right.p95Ms,
+  )[0];
+  const selected = fastest
+    ? [...eligible]
+        .filter((summary) => summary.p95Ms <= fastest.p95Ms * 1.05)
+        .sort((left, right) => left.workers - right.workers)[0]
+    : undefined;
   return selected
     ? {
         validated: true,
@@ -227,17 +297,15 @@ function selectValidatedWorkers(summaries) {
     : {
         validated: true,
         workers: DEFAULT_WORKERS,
-        reason: "no candidate safely outperformed the four-worker baseline",
+        reason: "no candidate safely outperformed the resource-aware baseline",
       };
 }
 
 /**
- * @param {{ logicalCpuCount?: number; totalMemory?: number }} [system]
+ * @param {{ logicalCpuCount?: number; freeMemory?: number; totalMemory?: number }} [system]
  */
 function machineSupportsProfile(system = {}) {
-  const logicalCpuCount = system.logicalCpuCount ?? cpus().length;
-  const totalMemory = system.totalMemory ?? totalmem();
-  return logicalCpuCount >= 16 && totalMemory >= 32 * 1024 ** 3;
+  return resolveWorkerResourceLimit(system) >= MAX_EXPLICIT_WORKERS;
 }
 
 /** @param {unknown} value @param {object} expectedBinding */
@@ -306,6 +374,7 @@ function stableJson(value) {
 module.exports = {
   CANDIDATE_WORKERS,
   DEFAULT_WORKERS,
+  MAX_EXPLICIT_WORKERS,
   MINIMUM_ITERATIONS,
   PROFILE_RELATIVE_PATH,
   buildProfileRecord,
@@ -314,7 +383,9 @@ module.exports = {
   isValidatedProfile,
   machineSupportsProfile,
   parseLocalWorkerCount,
+  resolveResourceAwareDefault,
   resolveVitestMaxWorkers,
+  resolveWorkerResourceLimit,
   selectValidatedWorkers,
   stableJson,
 };

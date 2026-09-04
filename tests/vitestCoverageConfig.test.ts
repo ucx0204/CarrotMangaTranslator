@@ -8,9 +8,15 @@ type CoverageThresholds = Record<string, number | Record<string, number>>;
 describe("Vitest coverage configuration", () => {
   it("keeps every exact per-file threshold attached to an existing file", () => {
     const resolved = config as {
-      test?: { coverage?: { thresholds?: CoverageThresholds } };
+      test?: {
+        coverage?: {
+          reporter?: string[];
+          thresholds?: CoverageThresholds;
+        };
+      };
     };
-    const thresholds = resolved.test?.coverage?.thresholds ?? {};
+    const coverage = resolved.test?.coverage;
+    const thresholds = coverage?.thresholds ?? {};
     const missing = Object.entries(thresholds)
       .filter(
         ([pattern, value]) =>
@@ -20,5 +26,6 @@ describe("Vitest coverage configuration", () => {
       .filter((path) => !existsSync(resolve(path)));
 
     expect(missing).toEqual([]);
+    expect(coverage?.reporter).toEqual(["text-summary", "json-summary"]);
   });
 });

@@ -15,18 +15,24 @@ const { basename, dirname, join, resolve } = require("node:path");
 const { assertRealGeneratedPath } = require("./compile-electron.cjs");
 
 const root = resolve(__dirname, "..");
-const outputRoot = join(root, "out", "app-runtime", "o");
 
-function stageOnnxRuntimeNode() {
-  assertRealGeneratedPath(root, outputRoot);
+/** @param {{ root?: string }} [options] */
+function stageOnnxRuntimeNode(options = {}) {
+  const workingRoot = resolve(options.root ?? root);
+  const outputRoot = join(workingRoot, "out", "app-runtime", "o");
+  assertRealGeneratedPath(workingRoot, outputRoot);
   if (existsSync(outputRoot)) removePath(outputRoot);
   mkdirSync(join(outputRoot, "b"), { recursive: true });
   mkdirSync(join(outputRoot, "c"), { recursive: true });
 
-  const nodePackageRoot = join(root, "node_modules", "onnxruntime-node");
-  const commonPackageRoot = join(root, "node_modules", "onnxruntime-common");
+  const nodePackageRoot = join(workingRoot, "node_modules", "onnxruntime-node");
+  const commonPackageRoot = join(
+    workingRoot,
+    "node_modules",
+    "onnxruntime-common",
+  );
   const nodePackage = readJson(join(nodePackageRoot, "package.json"));
-  const target = resolveTargetRuntime();
+  const target = resolveTargetRuntime({ root: workingRoot });
   for (const entry of realFiles(join(nodePackageRoot, "dist"), ".js")) {
     const source = join(nodePackageRoot, "dist", entry);
     let code = readFileSync(source, "utf8").replaceAll(
@@ -85,7 +91,7 @@ function stageOnnxRuntimeNode() {
 }
 
 /**
- * @param {{ hostPlatform?: NodeJS.Platform; requestedPlatform?: string }} [options]
+ * @param {{ hostPlatform?: NodeJS.Platform; requestedPlatform?: string; root?: string }} [options]
  */
 function resolveTargetRuntime(options = {}) {
   const hostPlatform = options.hostPlatform ?? process.platform;
@@ -107,11 +113,12 @@ function resolveTargetRuntime(options = {}) {
     );
   }
   const arch = platform === "darwin" ? "arm64" : "x64";
+  const workingRoot = resolve(options.root ?? root);
   return {
     platform,
     arch,
     binarySource: join(
-      root,
+      workingRoot,
       "node_modules",
       "onnxruntime-node",
       "bin",
