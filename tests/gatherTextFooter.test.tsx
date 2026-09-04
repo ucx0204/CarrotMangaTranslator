@@ -51,4 +51,41 @@ describe("gather text footer", () => {
     expect(onExportReview).toHaveBeenCalledWith("csv");
     expect(screen.queryByRole("menu")).toBeNull();
   });
+
+  it("disables imports during a mutation while keeping exports available", () => {
+    render(
+      <GatherTextFooter
+        excludeHeaders={false}
+        onToggleExcludeHeaders={vi.fn()}
+        hasContent
+        hasChapter
+        canImportTxt
+        mutationDisabled
+        reviewBusy={false}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        onCopy={vi.fn()}
+        onExportReview={vi.fn()}
+        onImportReview={vi.fn()}
+        onImportTxt={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "가져오기 · 내보내기" }),
+    );
+
+    expect(
+      screen.getByRole("menuitem", { name: ".txt 불러오기" }),
+    ).toHaveProperty("disabled", true);
+    expect(
+      screen.getByRole("menuitem", { name: "검수표 가져오기" }),
+    ).toHaveProperty("disabled", true);
+    expect(
+      screen.getByRole("menuitem", { name: "CSV 검수표 내보내기" }),
+    ).toHaveProperty("disabled", false);
+    expect(
+      screen.getByRole("menuitem", { name: "TSV 검수표 내보내기" }),
+    ).toHaveProperty("disabled", false);
+  });
 });

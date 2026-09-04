@@ -3,8 +3,15 @@ import type { AppSessionViewModel } from "../src/renderer/src/app/session/appSes
 import { createConditionalBatchEditorProps } from "../src/renderer/src/app/session/createConditionalBatchEditorProps";
 import type { AppWorkspaceProps } from "../src/renderer/src/components/appWorkspaceTypes";
 import type { UpdateCurrentChapter } from "../src/renderer/src/hooks/useCurrentChapterUpdater";
-import { createConditionalBatchPreview } from "../src/shared/conditionalBatchEngine";
-import { createEllipsisBatchSchemeDraft } from "../src/shared/conditionalBatchRules";
+import {
+  createConditionalBatchPreview,
+  createConditionalBatchSequencePreview,
+} from "../src/shared/conditionalBatchEngine";
+import {
+  createEllipsisBatchSchemeDraft,
+  type ConditionalBatchSequenceV2,
+  type ConditionalBatchSnapshotV2,
+} from "../src/shared/conditionalBatchRules";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
@@ -62,6 +69,79 @@ describe("conditional batch editor session binding", () => {
     ).toEqual(["하나…", "둘…"]);
   });
 
+  it("applies a sequence through the same labeled workspace history boundary", () => {
+    const model = createModel();
+    const props = createConditionalBatchEditorProps(
+      model,
+      {} as AppWorkspaceProps,
+    );
+    if (!props) throw new Error("conditional batch props are missing");
+    if (!props.onApplySequence) {
+      throw new Error("conditional batch sequence callback is missing");
+    }
+
+    const scheme = { id: "ellipsis", ...createEllipsisBatchSchemeDraft() };
+    const sequence: ConditionalBatchSequenceV2 = {
+      id: "sequence",
+      name: "연속 말줄임표 정리",
+      description: "",
+      steps: [{ id: "step", schemeId: scheme.id, enabled: true }],
+    };
+    const snapshot: ConditionalBatchSnapshotV2 = {
+      schemaVersion: 1,
+      schemes: [scheme],
+      sequences: [sequence],
+    };
+    const preview = createConditionalBatchSequencePreview(
+      CHAPTER,
+      { kind: "chapter" },
+      sequence,
+      snapshot,
+    );
+
+    expect(
+      props.onApplySequence(sequence, snapshot, preview, new Set()),
+    ).toEqual({
+      appliedCount: 2,
+      conflictCount: 0,
+      dirtyPageIds: ["page-1", "page-2"],
+    });
+    expect(model.updateCurrentChapter).toHaveBeenCalledOnce();
+    expect(model.updateCurrentChapter.mock.calls[0]?.[2]).toEqual({
+      dirtyPageIds: ["page-1", "page-2"],
+      label: "일괄 편집: 연속 말줄임표 정리",
+    });
+  });
+
+  it("blocks both apply paths while another workspace job is active", () => {
+    const model = createModel({ jobActive: true });
+    const props = createConditionalBatchEditorProps(
+      model,
+      {} as AppWorkspaceProps,
+    );
+    if (!props) throw new Error("conditional batch props are missing");
+    if (!props.onApplySequence) {
+      throw new Error("conditional batch sequence callback is missing");
+    }
+    const scheme = createEllipsisBatchSchemeDraft();
+    const preview = createConditionalBatchPreview(
+      CHAPTER,
+      { kind: "chapter" },
+      scheme,
+    );
+
+    expect(props.busy).toBe(true);
+    expect(props.onApply(scheme, preview, new Set())).toEqual({
+      appliedCount: 0,
+      conflictCount: 0,
+      dirtyPageIds: [],
+    });
+    expect(
+      props.onApplySequence({} as never, {} as never, {} as never, new Set()),
+    ).toEqual({ appliedCount: 0, conflictCount: 0, dirtyPageIds: [] });
+    expect(model.updateCurrentChapter).not.toHaveBeenCalled();
+  });
+
   it("stays closed without all required session state and does not offer unrelated undo history", () => {
     const closed = createModel({ conditionalBatchOpen: false });
     expect(
@@ -115,6 +195,7 @@ function createModel(
   overrides: {
     conditionalBatchOpen?: boolean;
     currentChapter?: ChapterSnapshot | null;
+    jobActive?: boolean;
     selectedPage?: MangaPage | null;
     textViewOpen?: boolean;
     undoLabel?: string | null;
@@ -134,6 +215,7 @@ function createModel(
           : overrides.currentChapter,
     },
     derivedState: {
+      jobActive: overrides.jobActive ?? false,
       selectedPage:
         overrides.selectedPage === undefined
           ? CHAPTER.pages[0]

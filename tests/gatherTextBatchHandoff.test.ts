@@ -45,6 +45,63 @@ describe("gathered-text to conditional-batch handoff", () => {
     expect(setConditionalBatchOpen).toHaveBeenCalledWith(true);
     expect(setTextViewOpen).not.toHaveBeenCalled();
   });
+
+  it("blocks every chapter mutation callback while a workspace job is active", () => {
+    const updateCurrentChapter = vi.fn();
+    const reset = vi.fn();
+    const applyChapter = vi.fn();
+    const props = createGatherTextProps(
+      defineFixture<AppSessionViewModel>({
+        core: {
+          currentChapter: CHAPTER,
+          library: { works: [] },
+          selectedBlockIdRef: { current: null },
+          setSelectedBlockId: vi.fn(),
+          setSelectedBlockIds: vi.fn(),
+        },
+        derivedState: {
+          jobActive: true,
+          selectedPage: PAGE,
+          selectedPageEditLocked: false,
+        },
+        importShareModal: { importBusy: false },
+        inpaintingActions: { actionBusy: false },
+        inpaintingBridge: { contextValue: { jobActive: true } },
+        libraryActions: { applyChapter },
+        libraryDrop: { busy: false },
+        operationActivity: { active: false },
+        pageNavigationHandlers: { selectPageForReading: vi.fn() },
+        settingsDialog: { settings: null },
+        uiState: {
+          setConditionalBatchInitialFind: vi.fn(),
+          setConditionalBatchInitialReplace: vi.fn(),
+          setConditionalBatchOpen: vi.fn(),
+          setRightRailMode: vi.fn(),
+          setTextViewOpen: vi.fn(),
+          textViewOpen: true,
+          translationFlowActive: false,
+        },
+        updateCurrentChapter,
+        workspaceHistory: { busy: false, reset },
+      }),
+    );
+    if (!props) throw new Error("gather text props are missing");
+
+    expect(props.formatApplyDisabled).toBe(true);
+    props.onApplyFormat?.({ targets: [], patch: {} });
+    props.onApplyTranslatedText?.([
+      {
+        pageId: PAGE.id,
+        blockId: "block-1",
+        translatedText: "경합 변경",
+      },
+    ]);
+    props.onChapterUpdated?.(CHAPTER);
+
+    expect(updateCurrentChapter).not.toHaveBeenCalled();
+    expect(reset).not.toHaveBeenCalled();
+    expect(applyChapter).not.toHaveBeenCalled();
+  });
 });
 
 const PAGE: MangaPage = {
