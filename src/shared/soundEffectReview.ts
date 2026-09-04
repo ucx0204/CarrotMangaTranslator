@@ -103,15 +103,20 @@ export function resolvePendingSoundEffectReviewRegions(
   const resolved = new Set(
     normalized.resolvedRegions.map((entry) => entry.regionId),
   );
+  const userReviewed = new Set([
+    ...normalized.regionOverrides.map((entry) => entry.regionId),
+    ...normalized.manualRegions.map((region) => region.id),
+  ]);
   return resolveEffectiveSoundEffectReviewRegions(normalized).filter(
     (region) =>
       !dismissed.has(region.id) &&
       !resolved.has(region.id) &&
-      !blocks.some(
-        (block) =>
-          block.textRole !== "sound" &&
-          reviewRegionConflictsWithBlock(region.bbox, block.bbox),
-      ),
+      (userReviewed.has(region.id) ||
+        !blocks.some(
+          (block) =>
+            block.textRole !== "sound" &&
+            reviewRegionConflictsWithBlock(region.bbox, block.bbox),
+        )),
   );
 }
 
