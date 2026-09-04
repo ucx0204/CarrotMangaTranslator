@@ -53,6 +53,59 @@ describe("sound-effect review boundary", () => {
     ).toBe(true);
   });
 
+  it("keeps user-reviewed geometry pending across ordinary text overlaps", () => {
+    const page = makePage();
+    const overlap = { x: 100, y: 100, w: 200, h: 300 };
+    page.blocks = [makeBlock(overlap)];
+    page.soundEffectReview = {
+      contractVersion: 3,
+      producer: "hayai-regions-v1",
+      regions: [
+        makeEffect("FX-raw", overlap),
+        makeEffect("FX-edited", { x: 600, y: 100, w: 90, h: 140 }),
+        makeEffect("FX-resolved", { x: 700, y: 100, w: 90, h: 140 }),
+      ],
+      regionOverrides: [
+        {
+          regionId: "FX-edited",
+          bbox: overlap,
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+        {
+          regionId: "FX-resolved",
+          bbox: overlap,
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+      ],
+      manualRegions: [
+        {
+          id: "manual-pending",
+          bbox: overlap,
+          detectorConfidence: 1,
+          createdAt: "2026-09-04T00:00:00.000Z",
+        },
+        {
+          id: "manual-dismissed",
+          bbox: overlap,
+          detectorConfidence: 1,
+          createdAt: "2026-09-04T00:00:00.000Z",
+        },
+      ],
+      resolvedRegions: [
+        {
+          regionId: "FX-resolved",
+          blockId: "resolved-block",
+          resolvedAt: "2026-09-04T00:00:00.000Z",
+        },
+      ],
+      dismissedRegionIds: ["manual-dismissed"],
+    };
+
+    expect(
+      resolveVisibleSoundEffectReviewRegions(page).map(({ id }) => id),
+    ).toEqual(["FX-edited", "manual-pending"]);
+  });
+
   it("retains user dismissals across a Hayai retranslation", () => {
     const page = makePage();
     page.soundEffectReview = {
