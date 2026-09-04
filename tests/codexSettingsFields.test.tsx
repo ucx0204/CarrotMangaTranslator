@@ -2,6 +2,7 @@
 
 import React from "react";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -84,10 +85,163 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   Reflect.deleteProperty(window, "mangaApi");
 });
 
 describe("CodexSettingsFields", () => {
+  it("loads the catalog after StrictMode effect cleanup and replay", async () => {
+    render(
+      <React.StrictMode>
+        <Harness initialModel="gpt-5.6-sol" initialEffort="low" />
+      </React.StrictMode>,
+    );
+    await screen.findByRole("combobox", { name: "Codex 모델" });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("discovers Astra and an unregistered future model without changing the selection", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    renderHarness("gpt-5.6-sol", "low");
+    await screen.findByRole("combobox", { name: "Codex 모델" });
+    accountGateway.get.mockResolvedValue({
+      ...signedInAccount,
+      models: [
+        ...catalog,
+        {
+          ...catalog[0],
+          id: "gpt-6-astra",
+          displayName: "GPT-6-Astra",
+          isDefault: true,
+        },
+        {
+          ...catalog[1],
+          id: "future-codex-model",
+          displayName: "Future Codex Model",
+        },
+      ],
+    });
+
+    await act(() => vi.advanceTimersByTimeAsync(5 * 60_000));
+
+    expect(customSelectOptionValues("Codex 모델")).toEqual([
+      "gpt-5.6-sol",
+      "gpt-5.5",
+      "gpt-6-astra",
+      "future-codex-model",
+    ]);
+    expect(screen.getByTestId("selected-model").textContent).toBe(
+      "gpt-5.6-sol",
+    );
+    chooseCustomSelectOption("Codex 모델", "GPT-6-Astra");
+    expect(screen.getByTestId("selected-model").textContent).toBe(
+      "gpt-6-astra",
+    );
+    chooseCustomSelectOption("Codex 모델", "Future Codex Model");
+    expect(screen.getByTestId("selected-model").textContent).toBe(
+      "future-codex-model",
+    );
+    expect(customSelectOptionValues(/추론 강도/)).toEqual(
+      catalog[1].supportedReasoningEfforts,
+    );
+  });
+
+  it("preserves the catalog on refresh failure and recovers automatically", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    renderHarness("gpt-5.5", "high");
+    await screen.findByRole("combobox", { name: "Codex 모델" });
+    accountGateway.get.mockRejectedValueOnce(new Error("Catalog unavailable"));
+
+    await act(() => vi.advanceTimersByTimeAsync(5 * 60_000));
+
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Codex 인증 상태를 확인하지 못했습니다.",
+    );
+    expect(screen.getByTestId("selected-model").textContent).toBe("gpt-5.5");
+    expect(screen.getByTestId("selected-effort").textContent).toBe("high");
+    expect(customSelectOptionValues("Codex 모델")).toEqual(
+      catalog.map((model) => model.id),
+    );
+
+    await act(() => vi.advanceTimersByTimeAsync(5 * 60_000));
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(accountGateway.get).toHaveBeenCalledTimes(3);
+  });
+
+  it("refreshes stale catalogs on returning to the window and stops after unmount", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    const view = renderHarness("gpt-5.6-sol", "low");
+    await screen.findByRole("combobox", { name: "Codex 모델" });
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+
+    await act(() => vi.advanceTimersByTimeAsync(5 * 60_000));
+    expect(accountGateway.get).toHaveBeenCalledOnce();
+    hidden.mockReturnValue(false);
+    await act(async () => {
+      fireEvent(document, new Event("visibilitychange"));
+    });
+    expect(accountGateway.get).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      fireEvent(window, new Event("focus"));
+    });
+    expect(accountGateway.get).toHaveBeenCalledTimes(2);
+
+    vi.setSystemTime(Date.now() + 5 * 60_000);
+    await act(async () => {
+      fireEvent(window, new Event("focus"));
+    });
+    expect(accountGateway.get).toHaveBeenCalledTimes(3);
+    view.unmount();
+    await act(() => vi.advanceTimersByTimeAsync(10 * 60_000));
+    fireEvent(window, new Event("focus"));
+    expect(accountGateway.get).toHaveBeenCalledTimes(3);
+  });
+
+  it("coalesces refresh triggers and discards a stale result after logout", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    renderHarness("gpt-5.6-sol", "low");
+    await screen.findByRole("combobox", { name: "Codex 모델" });
+    let resolveRefresh!: (snapshot: CodexAccountSnapshot) => void;
+    const pending = new Promise<CodexAccountSnapshot>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    accountGateway.get.mockReturnValueOnce(pending);
+    await act(() => vi.advanceTimersByTimeAsync(5 * 60_000));
+    await act(() => vi.advanceTimersByTimeAsync(5 * 60_000));
+    fireEvent(window, new Event("focus"));
+    expect(accountGateway.get).toHaveBeenCalledTimes(2);
+
+    accountGateway.get.mockResolvedValue(signedOutAccount);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
+    });
+    await act(async () => {
+      resolveRefresh(signedInAccount);
+    });
+
+    expect(accountGateway.get).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("로그인되지 않음")).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: "Codex 모델" })).toBeNull();
+  });
+
+  it("does not refresh while controls are busy and reloads when available", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    const view = renderHarness("gpt-5.6-sol", "low");
+    await screen.findByRole("combobox", { name: "Codex 모델" });
+    view.rerender(
+      <Harness initialModel="gpt-5.6-sol" initialEffort="low" busy />,
+    );
+    await act(() => vi.advanceTimersByTimeAsync(5 * 60_000));
+    expect(accountGateway.get).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      view.rerender(<Harness initialModel="gpt-5.6-sol" initialEffort="low" />);
+    });
+    expect(accountGateway.get).toHaveBeenCalledTimes(2);
+  });
+
   it("hides model and reasoning controls until the account is authenticated", async () => {
     accountGateway.get.mockResolvedValueOnce(signedOutAccount);
     renderHarness("gpt-5.6-sol", "low");
@@ -242,24 +396,34 @@ function renderHarness(
   initialModel: string,
   initialEffort: CodexReasoningEffort,
 ) {
-  function Harness(): React.JSX.Element {
-    const [model, setModel] = React.useState(initialModel);
-    const [effort, setEffort] = React.useState(initialEffort);
-    return (
-      <>
-        <CodexSettingsFields
-          clearTestState={vi.fn()}
-          codexModel={model}
-          codexReasoningEffort={effort}
-          controlsBusy={false}
-          setCodexModel={setModel}
-          setCodexReasoningEffort={setEffort}
-        />
-        <output data-testid="selected-model">{model}</output>
-        <output data-testid="selected-effort">{effort}</output>
-      </>
-    );
-  }
+  return render(
+    <Harness initialModel={initialModel} initialEffort={initialEffort} />,
+  );
+}
 
-  return render(<Harness />);
+function Harness({
+  initialModel,
+  initialEffort,
+  busy = false,
+}: {
+  initialModel: string;
+  initialEffort: CodexReasoningEffort;
+  busy?: boolean;
+}): React.JSX.Element {
+  const [model, setModel] = React.useState(initialModel);
+  const [effort, setEffort] = React.useState(initialEffort);
+  return (
+    <>
+      <CodexSettingsFields
+        clearTestState={vi.fn()}
+        codexModel={model}
+        codexReasoningEffort={effort}
+        controlsBusy={busy}
+        setCodexModel={setModel}
+        setCodexReasoningEffort={setEffort}
+      />
+      <output data-testid="selected-model">{model}</output>
+      <output data-testid="selected-effort">{effort}</output>
+    </>
+  );
 }
