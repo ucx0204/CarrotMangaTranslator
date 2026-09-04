@@ -146,6 +146,17 @@ describe("right rail block selection routing", () => {
     expect(setRightRailMode).toHaveBeenCalledOnce();
     expect(setRightRailMode).toHaveBeenCalledWith("block-editor");
 
+    setRightRailMode.mockClear();
+    props.onChangeBlockSelection?.(
+      ["block-from-range", "block-from-range-2"],
+      "block-from-range-2",
+    );
+    expect(setSelectedBlockIds).toHaveBeenLastCalledWith([
+      "block-from-range",
+      "block-from-range-2",
+    ]);
+    expect(setRightRailMode).toHaveBeenCalledWith("block-editor");
+
     const viewResults = vi.fn();
     const openExportOptions = vi.fn();
     const moveSelectedBlockInReadingOrder = vi.fn();

@@ -831,6 +831,11 @@
   color: var(--text-dim);
 }
 
+.color-field[data-mixed] .color-picker-button {
+  border-style: dashed;
+  border-color: var(--accent-bd);
+}
+
 .color-picker-button {
   position: relative;
   min-width: 0;

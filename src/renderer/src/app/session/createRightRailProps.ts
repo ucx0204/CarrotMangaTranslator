@@ -259,6 +259,7 @@ function createRightRailActions({
       core.selectedBlockIdRef.current = primaryBlockId;
       core.setSelectedBlockId(primaryBlockId);
       core.setSelectedBlockIds(blockIds);
+      if (blockIds.length > 1) uiState.setRightRailMode("block-editor");
     },
     onOpenAutoInpaintingOptions: (scope: AutoInpaintingEntryScope) => {
       prepareAutoInpainting(core, uiState, scope);

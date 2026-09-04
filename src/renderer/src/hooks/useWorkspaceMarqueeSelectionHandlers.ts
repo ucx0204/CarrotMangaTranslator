@@ -34,6 +34,7 @@ type Options = {
   active: boolean;
   getImagePointerRect: () => PointerRect | null;
   interactionPreviewStore: WorkspaceInteractionPreviewStore;
+  onMultiBlockSelection?: () => void;
   page: MangaPage | null;
   selectedBlockId: string | null;
   selectedBlockIds: string[];
@@ -149,10 +150,18 @@ function useMarqueePointerUp(
           : (hitIds[hitIds.length - 1] ?? nextIds[0])) ?? null;
       options.setSelectedBlockId(primaryId);
       options.setSelectedBlockIds(nextIds);
+      notifyMultiBlockSelection(nextIds, options.onMultiBlockSelection);
       return true;
     },
     [activeRef, options],
   );
+}
+
+function notifyMultiBlockSelection(
+  blockIds: readonly string[],
+  notify: (() => void) | undefined,
+): void {
+  if (blockIds.length > 1 && notify) notify();
 }
 
 export function resolveMarqueeHitBlockIds(

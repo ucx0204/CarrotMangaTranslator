@@ -9,7 +9,6 @@ import {
 } from "@tabler/icons-react";
 import React from "react";
 import type { BlockStylePreset } from "../../../shared/blockStylePresets";
-import { getConditionalBatchFieldDefinition } from "../../../shared/conditionalBatchFieldRegistry";
 import { createConditionalLiteralMatcher } from "../../../shared/conditionalTextPattern";
 import {
   MAX_CONDITIONAL_BATCH_ACTIONS,
@@ -20,25 +19,19 @@ import {
   type ConditionalBatchReplaceTextActionV2,
   type ConditionalBatchPreviewResult,
   type ConditionalBatchSchemeDraftV2,
-  type ConditionalBatchSetFieldChangeV2,
   type ConditionalBatchSetFieldsActionV2,
   type ConditionalBatchStyleTextActionV2,
   type ConditionalBatchTextStyleField,
   type ConditionalBatchTextStyleMatchCondition,
   type ConditionalBatchTextStyleOperator,
-  type ConditionalBatchWritableField,
 } from "../../../shared/conditionalBatchRules";
 import {
   stripRichTextMarkup,
   type TextStylePatch,
 } from "../../../shared/richTextMarkup";
 import {
-  CONDITIONAL_BATCH_FIELD_LABELS,
   actionStage,
-  conditionalBatchEnumOptions,
   createDefaultAction,
-  isNewConditionalBatchWritableField,
-  listConditionalBatchFields,
   summarizeAction,
 } from "./conditionalBatchUi";
 import {
@@ -53,6 +46,7 @@ import { Field, TextField } from "./ui/Field";
 import { IconButton } from "./ui/IconButton";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import { ConditionalPatternBuilder } from "./ConditionalPatternBuilder";
+import { ConditionalBatchSetFieldsEditor } from "./ConditionalBatchSetFieldsEditor";
 import styles from "./ConditionalBatchEditor.module.css";
 
 export type ConditionalBatchActionsCardProps = {
@@ -370,7 +364,9 @@ function ActionEditor({
     );
   }
   if (action.type === "setFields") {
-    return <SetFieldsActionEditor action={action} onChange={onChange} />;
+    return (
+      <ConditionalBatchSetFieldsEditor action={action} onChange={onChange} />
+    );
   }
   if (action.type === "applyStylePreset") {
     return (
@@ -457,246 +453,6 @@ function ReplaceActionEditor({
         }
       />
     </>
-  );
-}
-
-function SetFieldsActionEditor({
-  action,
-  onChange,
-}: {
-  action: ConditionalBatchSetFieldsActionV2;
-  onChange: (action: ConditionalBatchActionV2) => void;
-}) {
-  const existingFields = new Set(action.changes.map((change) => change.field));
-  const writableFields = listConditionalBatchFields().filter(
-    (field) =>
-      field.writable &&
-      (existingFields.has(field.id as ConditionalBatchWritableField) ||
-        isNewConditionalBatchWritableField(field.id)),
-  );
-  const unused = writableFields.filter(
-    (field) => !action.changes.some((change) => change.field === field.id),
-  );
-  const [fieldToAdd, setFieldToAdd] =
-    React.useState<ConditionalBatchWritableField>(
-      (unused[0]?.id as ConditionalBatchWritableField) ?? "translatedText",
-    );
-  React.useEffect(() => {
-    if (!unused.some((field) => field.id === fieldToAdd)) {
-      setFieldToAdd(
-        (unused[0]?.id as ConditionalBatchWritableField | undefined) ??
-          "translatedText",
-      );
-    }
-  }, [fieldToAdd, unused]);
-  const updateChange = (
-    index: number,
-    change: ConditionalBatchSetFieldChangeV2,
-  ): void =>
-    onChange({
-      ...action,
-      changes: action.changes.map((entry, entryIndex) =>
-        entryIndex === index ? change : entry,
-      ),
-    });
-  return (
-    <>
-      <div className={styles.setFieldList}>
-        {action.changes.map((change, index) => (
-          <div className={styles.setFieldRow} key={change.field}>
-            <Field as="div" label="속성">
-              <Select
-                ariaLabel="바꿀 속성"
-                searchable
-                value={change.field}
-                options={writableFields.map((field) => ({
-                  value: field.id,
-                  label: field.label,
-                  group: field.categoryLabel,
-                  searchText: `${field.label} ${field.id} ${field.categoryLabel}`,
-                  disabled: action.changes.some(
-                    (entry) =>
-                      entry.field === field.id && entry.field !== change.field,
-                  ),
-                }))}
-                onValueChange={(field) => {
-                  const nextField = field as ConditionalBatchWritableField;
-                  const changes = action.changes.map((entry, entryIndex) =>
-                    entryIndex === index
-                      ? createSetFieldChange(nextField)
-                      : entry,
-                  );
-                  onChange({
-                    ...action,
-                    changes: appendSetFieldDependencies(changes, nextField),
-                  });
-                }}
-              />
-            </Field>
-            <Field as="div" label="방법">
-              <Select
-                ariaLabel="속성 변경 방법"
-                value={change.operation}
-                options={[
-                  { value: "set", label: "값 설정" },
-                  { value: "clear", label: "초기화" },
-                ]}
-                onValueChange={(operation) =>
-                  updateChange(
-                    index,
-                    operation === "clear"
-                      ? { field: change.field, operation }
-                      : createSetFieldChange(change.field),
-                  )
-                }
-              />
-            </Field>
-            {change.operation === "set" ? (
-              <SetFieldValueEditor
-                change={change}
-                onChange={(next) => updateChange(index, next)}
-              />
-            ) : (
-              <span />
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-label="속성 변경 삭제"
-              disabled={action.changes.length <= 1}
-              iconLeft={<IconTrash size={14} />}
-              onClick={() =>
-                onChange({
-                  ...action,
-                  changes: action.changes.filter(
-                    (_entry, entryIndex) => entryIndex !== index,
-                  ),
-                })
-              }
-            />
-          </div>
-        ))}
-      </div>
-      {unused.length ? (
-        <div className={styles.fieldPickerAll}>
-          <Select
-            ariaLabel="추가할 속성"
-            searchable
-            value={fieldToAdd}
-            options={unused.map((field) => ({
-              value: field.id,
-              label: field.label,
-              group: field.categoryLabel,
-              searchText: `${field.label} ${field.id} ${field.categoryLabel}`,
-            }))}
-            onValueChange={(field) =>
-              setFieldToAdd(field as ConditionalBatchWritableField)
-            }
-          />
-          <Button
-            size="sm"
-            iconLeft={<IconPlus size={14} />}
-            disabled={!unused.some((field) => field.id === fieldToAdd)}
-            onClick={() => {
-              if (!unused.some((field) => field.id === fieldToAdd)) return;
-              const changes = [
-                ...action.changes,
-                createSetFieldChange(fieldToAdd),
-              ];
-              onChange({
-                ...action,
-                changes: appendSetFieldDependencies(changes, fieldToAdd),
-              });
-            }}
-          >
-            속성 추가
-          </Button>
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-// eslint-disable-next-line complexity -- the field registry's finite value kinds intentionally share one editor dispatch point
-function SetFieldValueEditor({
-  change,
-  onChange,
-}: {
-  change: ConditionalBatchSetFieldChangeV2;
-  onChange: (change: ConditionalBatchSetFieldChangeV2) => void;
-}) {
-  const definition = getConditionalBatchFieldDefinition(change.field);
-  const enumOptions = conditionalBatchEnumOptions(change.field);
-  if (change.field === "fontFamily") {
-    return (
-      <Field as="div" label="글꼴">
-        <FontSelect
-          ariaLabel="설정할 글꼴"
-          value={String(change.value ?? "") || undefined}
-          onChange={(fontFamily) =>
-            onChange({ ...change, value: fontFamily ?? "" })
-          }
-        />
-      </Field>
-    );
-  }
-  if (definition.kind === "enum") {
-    return (
-      <Field as="div" label="값">
-        <Select
-          ariaLabel={`${CONDITIONAL_BATCH_FIELD_LABELS[change.field]} 값`}
-          value={String(change.value ?? "")}
-          options={enumOptions}
-          onValueChange={(value) => onChange({ ...change, value })}
-        />
-      </Field>
-    );
-  }
-  if (definition.kind === "boolean") {
-    return (
-      <CheckboxField
-        checked={Boolean(change.value)}
-        label="켜기"
-        onCheckedChange={(value) => onChange({ ...change, value })}
-      />
-    );
-  }
-  if (definition.kind === "number") {
-    const number = definition.number;
-    return (
-      <TextField
-        type="number"
-        min={number?.min}
-        max={number?.max}
-        step={number?.step ?? "any"}
-        label="값"
-        value={
-          typeof change.value === "number"
-            ? change.value
-            : (number?.defaultValue ?? 0)
-        }
-        onChange={(event) =>
-          onChange({ ...change, value: Number(event.target.value) })
-        }
-      />
-    );
-  }
-  if (definition.kind === "color") {
-    return (
-      <ColorField
-        label={`${CONDITIONAL_BATCH_FIELD_LABELS[change.field]} 값`}
-        value={String(change.value ?? "#000000")}
-        disabled={false}
-        onChange={(value) => onChange({ ...change, value })}
-      />
-    );
-  }
-  return (
-    <TextField
-      label="값"
-      value={String(change.value ?? "")}
-      onChange={(event) => onChange({ ...change, value: event.target.value })}
-    />
   );
 }
 
@@ -1590,121 +1346,6 @@ function createPresetAction(
     format: structuredClone(preset.format),
   };
 }
-
-function createSetFieldChange(
-  field: ConditionalBatchWritableField,
-): ConditionalBatchSetFieldChangeV2 {
-  const definition = getConditionalBatchFieldDefinition(field);
-  if (definition.kind === "boolean") {
-    return { field, operation: "set", value: true };
-  }
-  if (definition.kind === "number") {
-    return {
-      field,
-      operation: "set",
-      value: definition.number?.defaultValue ?? 0,
-    };
-  }
-  if (definition.kind === "color") {
-    return {
-      field,
-      operation: "set",
-      value: DEFAULT_SET_FIELD_COLORS[field] ?? "#000000",
-    };
-  }
-  if (definition.kind === "enum") {
-    return {
-      field,
-      operation: "set",
-      value: conditionalBatchEnumOptions(field)[0]?.value ?? "",
-    };
-  }
-  return { field, operation: "set", value: "" };
-}
-
-/**
- * A color or numeric component on its own can be valid persisted data while
- * its visual effect remains disabled. Rules created through the card editor
- * make those prerequisites explicit so a newly added property is visible in
- * the preview immediately. Imported YAML keeps its exact semantics.
- */
-function appendSetFieldDependencies(
-  changes: readonly ConditionalBatchSetFieldChangeV2[],
-  field: ConditionalBatchWritableField,
-): ConditionalBatchSetFieldChangeV2[] {
-  const next = [...changes];
-  const dependency = SET_FIELD_DEPENDENCIES[field];
-  if (dependency && !next.some((change) => change.field === dependency.field)) {
-    next.push(dependency);
-  }
-  return next;
-}
-
-const DEFAULT_SET_FIELD_COLORS: Partial<
-  Record<ConditionalBatchWritableField, string>
-> = {
-  textColor: "#111111",
-  outlineColor: "#ffffff",
-  outerOutlineColor: "#111111",
-  textBackgroundColor: "#ffffff",
-  textEffectColor: "#000000",
-  textGlowColor: "#ffffff",
-};
-
-const SET_FIELD_DEPENDENCIES: Partial<
-  Record<ConditionalBatchWritableField, ConditionalBatchSetFieldChangeV2>
-> = {
-  textBackgroundColor: {
-    field: "textBackgroundEnabled",
-    operation: "set",
-    value: true,
-  },
-  outerOutlineColor: {
-    field: "outerOutlineWidthPx",
-    operation: "set",
-    value: 1.5,
-  },
-  textEffectColor: {
-    field: "textEffectEnabled",
-    operation: "set",
-    value: true,
-  },
-  textEffectOffsetX: {
-    field: "textEffectEnabled",
-    operation: "set",
-    value: true,
-  },
-  textEffectOffsetY: {
-    field: "textEffectEnabled",
-    operation: "set",
-    value: true,
-  },
-  textEffectBlur: {
-    field: "textEffectEnabled",
-    operation: "set",
-    value: true,
-  },
-  textEffectOpacity: {
-    field: "textEffectEnabled",
-    operation: "set",
-    value: true,
-  },
-  textGlowColor: {
-    field: "textGlowEnabled",
-    operation: "set",
-    value: true,
-  },
-  textGlowBlur: {
-    field: "textGlowEnabled",
-    operation: "set",
-    value: true,
-  },
-  textGlowOpacity: {
-    field: "textGlowEnabled",
-    operation: "set",
-    value: true,
-  },
-};
 
 function updatePatch<T extends object, K extends keyof T>(
   patch: T,

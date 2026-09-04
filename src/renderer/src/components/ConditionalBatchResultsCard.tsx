@@ -8,7 +8,10 @@ import {
   type ConditionalBatchWritableField,
 } from "../../../shared/conditionalBatchRules";
 import { stripRichTextMarkup } from "../../../shared/richTextMarkup";
-import { CONDITIONAL_BATCH_FIELD_LABELS } from "./conditionalBatchUi";
+import {
+  CONDITIONAL_BATCH_FIELD_LABELS,
+  conditionalBatchEnumOptions,
+} from "./conditionalBatchUi";
 import { Button, CheckboxField } from "./ConditionalBatchControls";
 import styles from "./ConditionalBatchEditor.module.css";
 
@@ -34,7 +37,11 @@ export function ConditionalBatchResultsCard(
   return (
     <section className={styles.resultsPanel} aria-label="결과">
       <header className={styles.resultsToolbar}>
-        <strong>결과 {props.preview.results.length}</strong>
+        <strong>
+          {props.preview.inspectionOnly
+            ? `조건 일치 ${props.preview.matchedCount}`
+            : `적용 대상 ${includedCount}/${props.preview.results.length}`}
+        </strong>
         <div>
           <Button
             size="sm"
@@ -57,18 +64,54 @@ export function ConditionalBatchResultsCard(
           </Button>
         </div>
       </header>
+      <ResultScopeSummary preview={props.preview} />
       <div className={styles.resultsPanelBody}>
         <ResultList {...props} />
         {props.currentResult ? (
           <CurrentResultCard {...props} result={props.currentResult} />
         ) : (
           <div className={styles.emptyResults}>
-            조건에 맞는 결과가 없습니다.
+            {emptyResultMessage(props.preview)}
           </div>
         )}
       </div>
     </section>
   );
+}
+
+function ResultScopeSummary({
+  preview,
+}: {
+  preview: ConditionalBatchPreview;
+}): React.JSX.Element {
+  if (preview.inspectionOnly) {
+    return (
+      <div className={styles.resultScopeSummary} role="status">
+        조건 일치 {preview.matchedCount} · 검사만 수행하며 값은 바꾸지 않습니다.
+      </div>
+    );
+  }
+  return (
+    <div className={styles.resultScopeSummary} role="status">
+      <span>
+        조건 일치 {preview.matchedCount} · 실제 변경 {preview.results.length} ·
+        변경 없음 {preview.unchangedMatchCount}
+      </span>
+      {preview.unchangedMatchCount > 0 ? (
+        <small>
+          목록에는 실제로 값이 바뀌는 항목만 표시됩니다. 이미 같은 값이거나 작업
+          결과가 같으면 제외됩니다.
+        </small>
+      ) : null}
+    </div>
+  );
+}
+
+function emptyResultMessage(preview: ConditionalBatchPreview): string {
+  if (preview.inspectionOnly || preview.matchedCount === 0) {
+    return "조건에 맞는 블록이 없습니다.";
+  }
+  return `조건에는 ${preview.matchedCount}개가 맞았지만 실제로 바뀔 항목은 없습니다.`;
 }
 
 function CurrentResultCard({
@@ -276,11 +319,11 @@ function DiffText({ before, after }: { before: string; after: string }) {
   return (
     <div className={styles.diffText}>
       <div>
-        <span>전</span>
+        <span>변경 전</span>
         <p>{before || "∅"}</p>
       </div>
       <div>
-        <span>후</span>
+        <span>변경 후</span>
         <p>{after || "∅"}</p>
       </div>
     </div>
@@ -295,11 +338,17 @@ function readChangedField(
   if (field === "translatedText") {
     return stripRichTextMarkup(String(value ?? ""));
   }
-  if (value === undefined || value === "") return "∅";
-  if (typeof value === "boolean") return value ? "예" : "아니오";
+  if (value === undefined) return "지정 없음";
+  if (value === "") return "비어 있음";
+  if (typeof value === "boolean") return value ? "켜짐" : "꺼짐";
   if (typeof value === "number") return formatConditionalBatchFieldValue(value);
   if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  const rawValue = String(value);
+  return (
+    conditionalBatchEnumOptions(field).find(
+      (option) => option.value === rawValue,
+    )?.label ?? rawValue
+  );
 }
 
 function resultListSummary(
@@ -309,13 +358,19 @@ function resultListSummary(
   if (preview.inspectionOnly) {
     return stripRichTextMarkup(result.beforeBlock.translatedText) || "빈 번역";
   }
-  const fields = result.changedFields
-    .map((field) => CONDITIONAL_BATCH_FIELD_LABELS[field])
-    .join(", ");
   const first = result.changedFields[0];
-  return first
-    ? `${fields} · ${readChangedField(result.beforeBlock, first)}`
-    : fields;
+  if (!first) return "변경 없음";
+  const remainingCount = result.changedFields.length - 1;
+  const remaining = remainingCount > 0 ? ` · 외 ${remainingCount}개` : "";
+  const afterValue = readConditionalBatchWritableValue(
+    result.afterBlock,
+    first,
+  );
+  const outcome =
+    afterValue === undefined
+      ? "지정 해제"
+      : `${readChangedField(result.afterBlock, first)} 적용`;
+  return `${CONDITIONAL_BATCH_FIELD_LABELS[first]} · ${outcome}${remaining}`;
 }
 
 function actionTypeLabel(

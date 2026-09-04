@@ -70,6 +70,7 @@ type HarnessApi = {
   getSelectedBlockId: () => string | null;
   getSelectedBlockIds: () => string[];
   onBlockCreated: ReturnType<typeof vi.fn>;
+  onMultiBlockSelection: ReturnType<typeof vi.fn>;
   startRegionTranslationSelection: () => void;
   statuses: string[];
   onBubbleLayoutFinished: ReturnType<typeof vi.fn>;
@@ -431,31 +432,28 @@ describe("workspace pointer interactions", () => {
     });
     const stage = screen.getByTestId("stage");
 
-    fireEvent.pointerDown(stage, {
-      button: 0,
-      clientX: 59,
-      clientY: 39,
-      pointerId: 31,
-    });
-    fireEvent.pointerUp(stage, {
-      clientX: 81,
-      clientY: 51,
-      pointerId: 31,
-    });
+    dragMarquee(stage, [59, 39], [81, 51], 31);
     expect(api.current.getSelectedBlockIds()).toEqual(["block-1"]);
 
-    fireEvent.pointerDown(stage, {
-      button: 0,
-      clientX: 9,
-      clientY: 9,
-      pointerId: 32,
-    });
-    fireEvent.pointerUp(stage, {
-      clientX: 31,
-      clientY: 21,
-      pointerId: 32,
-    });
+    dragMarquee(stage, [9, 9], [31, 21], 32);
     expect(api.current.getSelectedBlockIds()).toEqual([]);
+  });
+
+  it("notifies the app when a marquee selects multiple blocks", () => {
+    const api = renderHarness({
+      additionalBlocks: [
+        makeBlock(false, {
+          id: "block-2",
+          bbox: { x: 500, y: 300, w: 200, h: 100 },
+        }),
+      ],
+    });
+    const stage = screen.getByTestId("stage");
+
+    dragMarquee(stage, [5, 5], [75, 45], 33);
+
+    expect(api.current.getSelectedBlockIds()).toEqual(["block-1", "block-2"]);
+    expect(api.current.onMultiBlockSelection).toHaveBeenCalledOnce();
   });
 
   it("keeps region and block-create marquee bursts outside root React state", () => {
@@ -911,6 +909,7 @@ function WorkspacePointerHarness({
   const updateCurrentChapter = useMemo(createUpdateCurrentChapterMock, []);
   const onBubbleLayoutFinished = useMemo(() => vi.fn(), []);
   const onBlockCreated = useMemo(() => vi.fn(), []);
+  const onMultiBlockSelection = useMemo(() => vi.fn(), []);
   const translateSelectedRegion = useMemo(
     createTranslateSelectedRegionMock,
     [],
@@ -934,6 +933,7 @@ function WorkspacePointerHarness({
     onPatternMaskChange: () => undefined,
     onBubbleLayoutApplied: onBubbleLayoutFinished,
     onBlockCreated,
+    onMultiBlockSelection,
     patternMaskStrokesByPage,
     pushStatus: (line) => {
       statusesRef.current.push(line);
@@ -985,6 +985,7 @@ function WorkspacePointerHarness({
       getSelectedBlockIds: () => selectedBlockIds,
       onBubbleLayoutFinished,
       onBlockCreated,
+      onMultiBlockSelection,
       startRegionTranslationSelection: handlers.startRegionTranslationSelection,
       statuses: statusesRef.current,
       translateSelectedRegion,
@@ -996,6 +997,7 @@ function WorkspacePointerHarness({
     getBounds,
     onBubbleLayoutFinished,
     onBlockCreated,
+    onMultiBlockSelection,
     onReady,
     regionSelection,
     selectedBlockId,
@@ -1252,6 +1254,25 @@ function drawBubbleBrush(
     clientX: last[0],
     clientY: last[1],
     pointerId: 19,
+  });
+}
+
+function dragMarquee(
+  stage: HTMLElement,
+  [startX, startY]: [number, number],
+  [endX, endY]: [number, number],
+  pointerId: number,
+): void {
+  fireEvent.pointerDown(stage, {
+    button: 0,
+    clientX: startX,
+    clientY: startY,
+    pointerId,
+  });
+  fireEvent.pointerUp(stage, {
+    clientX: endX,
+    clientY: endY,
+    pointerId,
   });
 }
 

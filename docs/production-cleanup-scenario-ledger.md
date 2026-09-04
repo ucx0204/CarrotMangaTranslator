@@ -151,9 +151,12 @@ editing the totals by hand.
   The provider-profile, structured-response, Ollama lifecycle, and IME editor
   pass extended it to SHA-256
   `669efdadabe36e5e93ab2be57a2757a9a04ec86e044e7b90e85284853a2af2e3`.
+  The multi-block formatting and conditional-batch property-editor UX pass
+  extended it to SHA-256
+  `a98a95ccce5ec8c53c0ad8f9f67193679cb0a980756f583081e5d034c22e760c`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
   percentage for lines/statements/functions/branches in all 660 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 387 new
+  coverage-eligible `src/**` files changed since cleanup start. The 390 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   ten removed source files are recorded explicitly in `deletedFiles`.
@@ -173,6 +176,10 @@ editing the totals by hand.
   capture passed all 640 Vitest files: 5,120 tests passed and two
   platform-specific tests were skipped. Aggregate V8 coverage was 81.74% lines,
   80.42% statements, 82.94% functions, and 72.87% branches.
+- The multi-block formatting and conditional-batch property-editor UX capture
+  passed all 643 Vitest files: 5,150 tests passed and two platform-specific
+  tests were skipped. Aggregate V8 coverage was 81.87% lines, 80.56%
+  statements, 83.09% functions, and 73.06% branches.
 - Isolated production Electron QA exercised 100 conditional-batch combinations
   across 61 condition fields and four apply/undo persistence sequences. Editor
   stress covered multi/range selection, 64 formatting mutations, 75 rapid tab

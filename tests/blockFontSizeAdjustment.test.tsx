@@ -29,6 +29,7 @@ import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { BlockLibraryEntryV1 } from "../src/shared/blockLibrary";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { PanelCommandSchema } from "../src/shared/panelBridgeSchemas";
+import type { PanelFormatSelection } from "../src/shared/panelBridgeTypes";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { EditorPanel } from "../src/renderer/src/components/EditorPanel";
 import { useBlockEditingActions } from "../src/renderer/src/hooks/useBlockEditingActions";
@@ -1449,6 +1450,177 @@ describe("selected block font-size adjustment", () => {
     ).toBe("true");
   });
 
+  it("opens the format tab whenever a new multi-block selection is made", () => {
+    const props = {
+      block: makeBlock(),
+      disabled: false,
+      onAdjustFontSize: vi.fn(),
+      onDelete: vi.fn(),
+      onDuplicate: vi.fn(),
+      onUpdate: vi.fn(),
+    };
+    const view = render(
+      <FontsTestProvider>
+        <EditorPanel
+          {...props}
+          selectedBlockCount={1}
+          selectionKey='["block-1"]'
+        />
+      </FontsTestProvider>,
+    );
+
+    view.rerender(
+      <FontsTestProvider>
+        <EditorPanel
+          {...props}
+          selectedBlockCount={2}
+          selectionKey='["block-1","block-2"]'
+        />
+      </FontsTestProvider>,
+    );
+    expect(
+      screen.getByRole("tab", { name: "서식" }).getAttribute("aria-selected"),
+    ).toBe("true");
+
+    selectEditorTab("텍스트");
+    view.rerender(
+      <FontsTestProvider>
+        <EditorPanel
+          {...props}
+          selectedBlockCount={2}
+          selectionKey='["block-1","block-3"]'
+        />
+      </FontsTestProvider>,
+    );
+    expect(
+      screen.getByRole("tab", { name: "서식" }).getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("commits mixed format controls even when choosing the primary block value", () => {
+    const onUpdate = vi.fn();
+    const onUpdateFormat = vi.fn();
+    const formatSelection: PanelFormatSelection = {
+      common: {},
+      mixedFields: [
+        "fontFamily",
+        "bold",
+        "textAlign",
+        "wordBreak",
+        "renderDirection",
+        "fontSizePx",
+        "autoFitText",
+        "lineHeight",
+        "textColor",
+        "textBackgroundEnabled",
+        "opacity",
+      ],
+    };
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({
+            bold: true,
+            fontFamily: undefined,
+            textBackgroundColor: "#ffffff",
+            textBackgroundEnabled: true,
+            wordBreak: "break-word",
+          })}
+          disabled={false}
+          formatSelection={formatSelection}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+          onUpdateFormat={onUpdateFormat}
+          selectedBlockCount={2}
+          selectionKey='["block-1","block-2"]'
+        />
+      </FontsTestProvider>,
+    );
+
+    expect(
+      screen.getByRole("tab", { name: "서식" }).getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("combobox", { name: "폰트" }).textContent,
+    ).toContain("혼합");
+    chooseCustomSelectOption("폰트", "기본 폰트");
+    expect(onUpdateFormat).toHaveBeenCalledWith({ fontFamily: undefined });
+
+    const bold = screen.getByRole("button", { name: "블록 전체 굵게" });
+    expect(bold.getAttribute("aria-pressed")).toBe("mixed");
+    fireEvent.click(bold);
+    expect(onUpdateFormat).toHaveBeenCalledWith({ bold: true });
+
+    const center = screen.getByRole("button", { name: "가운데 정렬" });
+    expect(center.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(center);
+    expect(onUpdateFormat).toHaveBeenCalledWith({ textAlign: "center" });
+
+    expect(
+      screen.getByRole("combobox", { name: "줄바꿈 방식" }).textContent,
+    ).toContain("혼합");
+    chooseCustomSelectOption("줄바꿈 방식", "표준+넘침 방지");
+    expect(onUpdateFormat).toHaveBeenCalledWith({ wordBreak: "break-word" });
+
+    const size = screen.getByRole("spinbutton", {
+      name: "글자 크기 값",
+    }) as HTMLInputElement;
+    expect(size.value).toBe("");
+    fireEvent.change(size, { target: { value: "24" } });
+    fireEvent.keyDown(size, { key: "Enter" });
+    expect(onUpdateFormat).toHaveBeenCalledWith({
+      autoFitText: false,
+      fontSizeIntent: "manual",
+      fontSizePx: 24,
+    });
+
+    const autoFit = screen.getByRole("checkbox", {
+      name: "자동",
+    }) as HTMLInputElement;
+    expect(autoFit.indeterminate).toBe(true);
+    fireEvent.click(autoFit);
+    expect(onUpdateFormat).toHaveBeenCalledWith({
+      autoFitText: true,
+      fontSizeIntent: "manual",
+    });
+
+    const textColor = screen.getByRole("textbox", {
+      name: "글자색 HEX",
+    }) as HTMLInputElement;
+    expect(textColor.value).toBe("");
+    expect(textColor.placeholder).toBe("혼합");
+    fireEvent.change(textColor, { target: { value: "#111111" } });
+    expect(onUpdateFormat).toHaveBeenCalledWith({ textColor: "#111111" });
+
+    const textBackground = screen.getByRole("checkbox", {
+      name: "글자 영역 배경",
+    }) as HTMLInputElement;
+    expect(textBackground.indeterminate).toBe(true);
+    fireEvent.click(textBackground);
+    expect(onUpdateFormat).toHaveBeenCalledWith({
+      textBackgroundColor: "#ffffff",
+      textBackgroundEnabled: true,
+    });
+
+    const backgroundOpacity = screen.getByRole("slider", {
+      name: "블록 배경 투명도",
+    });
+    fireEvent.pointerDown(backgroundOpacity);
+    fireEvent.pointerUp(backgroundOpacity);
+    expect(onUpdateFormat).toHaveBeenCalledWith({ opacity: 1 });
+
+    const callCount = onUpdateFormat.mock.calls.length;
+    fireEvent.pointerDown(backgroundOpacity);
+    fireEvent.change(backgroundOpacity, { target: { value: "0.5" } });
+    fireEvent.pointerUp(backgroundOpacity);
+    expect(onUpdateFormat).toHaveBeenCalledTimes(callCount + 1);
+    expect(onUpdateFormat).toHaveBeenLastCalledWith({ opacity: 0.5 });
+    fireEvent.pointerCancel(backgroundOpacity);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
   it("opens a newly mounted blank manual block on the text tab", () => {
     const props = {
       disabled: false,
@@ -1857,6 +2029,9 @@ describe("selected block font-size adjustment", () => {
       "1",
     ]);
     expect(textOpacity.valueAsNumber).toBe(80);
+    fireEvent.pointerDown(backgroundOpacity);
+    fireEvent.pointerUp(backgroundOpacity);
+    expect(onUpdate).not.toHaveBeenCalled();
     fireEvent.change(textOpacity, { target: { value: "40" } });
     fireEvent.keyDown(textOpacity, { key: "Enter" });
     fireEvent.change(backgroundOpacity, { target: { value: "0.2" } });

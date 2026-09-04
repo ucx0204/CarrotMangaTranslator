@@ -101,6 +101,10 @@ describe("detached editor block-library ownership", () => {
       </FontsContext.Provider>,
     );
 
+    expect(
+      screen.getByRole("tab", { name: "서식" }).getAttribute("aria-selected"),
+    ).toBe("true");
+    fireEvent.click(screen.getByRole("tab", { name: "텍스트" }));
     const translation = screen.getByRole("textbox", {
       name: "번역문",
     }) as HTMLDivElement;

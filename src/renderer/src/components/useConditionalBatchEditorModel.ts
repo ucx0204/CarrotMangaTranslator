@@ -560,6 +560,7 @@ function emptyPreview(chapterId: string): ConditionalBatchPreview {
   return {
     chapterId,
     matchedCount: 0,
+    matchedResultKeys: [],
     unchangedMatchCount: 0,
     inspectionOnly: false,
     results: [],

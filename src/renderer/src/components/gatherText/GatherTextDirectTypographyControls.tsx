@@ -98,12 +98,10 @@ function GatherTypographyTypeRow({
   return (
     <div className="gather-direct-editor-type-row">
       <BlockTypographyFontPicker
-        defaultLabel={t("gatherText.defaultFont")}
         disabled={disabled}
         fontFamily={values.fontFamily.value}
         label={t("formatBatch.groups.font")}
         mixed={values.fontFamily.mixed}
-        mixedLabel={t("gatherText.mixedValue")}
         touched={values.fontFamily.touched}
         onChange={(value) => onChange("fontFamily", value)}
       />

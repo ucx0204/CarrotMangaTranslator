@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import type { PanelFormatFieldKey } from "../../../shared/panelBridgeTypes";
 import {
   FONT_WIDTH_SCALE_STEP,
   LETTER_SPACING_STEP_EM,
@@ -20,12 +21,14 @@ import { NumberField } from "./ui/NumberField";
 type BlockSpacingFieldsProps = {
   block: TranslationBlock;
   disabled: boolean;
+  mixedFields: ReadonlySet<PanelFormatFieldKey>;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
 };
 
 export function BlockSpacingFields({
   block,
   disabled,
+  mixedFields,
   onUpdate,
 }: BlockSpacingFieldsProps): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -56,6 +59,7 @@ export function BlockSpacingFields({
           precision={2}
           value={lineHeight}
           disabled={disabled}
+          mixed={mixedFields.has("lineHeight")}
           onValueChange={(value) =>
             onUpdate({ lineHeight: clampLineHeight(value) })
           }
@@ -73,6 +77,7 @@ export function BlockSpacingFields({
           precision={2}
           value={letterSpacing}
           disabled={disabled}
+          mixed={mixedFields.has("letterSpacing")}
           unit="em"
           onValueChange={(value) =>
             onUpdate({ letterSpacing: clampLetterSpacingEm(value) })
@@ -91,6 +96,7 @@ export function BlockSpacingFields({
           precision={0}
           value={fontWidthScale * 100}
           disabled={disabled}
+          mixed={mixedFields.has("fontWidthScale")}
           unit="%"
           onValueChange={(value) =>
             onUpdate({ fontWidthScale: clampFontWidthScale(value / 100) })

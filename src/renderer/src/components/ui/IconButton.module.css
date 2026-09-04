@@ -42,6 +42,12 @@
   color: var(--accent-text);
 }
 
+.iconButton[aria-pressed="mixed"] {
+  border-style: dashed;
+  border-color: var(--accent-bd);
+  color: var(--accent-text);
+}
+
 .sm {
   width: var(--ctl-h-sm);
   height: var(--ctl-h-sm);

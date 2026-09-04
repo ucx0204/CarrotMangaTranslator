@@ -10,17 +10,24 @@ export function BlockDisplayGroup({
   block,
   disabled,
   disableChapterApply,
+  mixed,
   onApply,
   onUpdate,
 }: {
   block: TranslationBlock;
   disabled: boolean;
   disableChapterApply: boolean;
+  mixed: boolean;
   onApply?: (scope: BlockBackgroundApplyScope) => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const [batchOpen, setBatchOpen] = React.useState(false);
+  const sliderChangedRef = React.useRef(false);
+  const sliderMixedAtPointerDownRef = React.useRef(false);
+  const opacityLabel = mixed
+    ? t("gatherText.mixedValue")
+    : `${Math.round(block.opacity * 100)}%`;
   return (
     <div className="editor-group editor-display-group">
       <div className="editor-group-head">
@@ -38,13 +45,33 @@ export function BlockDisplayGroup({
       </div>
       <FieldSlider
         label={t("format.blockBackgroundOpacity")}
-        valueLabel={`${Math.round(block.opacity * 100)}%`}
+        valueLabel={opacityLabel}
+        aria-valuetext={opacityLabel}
         min={0}
         max={1}
         step={0.01}
         value={block.opacity}
         disabled={disabled}
-        onChange={(event) => onUpdate({ opacity: Number(event.target.value) })}
+        onPointerDown={() => {
+          sliderChangedRef.current = false;
+          sliderMixedAtPointerDownRef.current = mixed;
+        }}
+        onPointerUp={(event) => {
+          if (
+            sliderMixedAtPointerDownRef.current &&
+            !sliderChangedRef.current
+          ) {
+            onUpdate({ opacity: Number(event.currentTarget.value) });
+          }
+          sliderMixedAtPointerDownRef.current = false;
+        }}
+        onPointerCancel={() => {
+          sliderMixedAtPointerDownRef.current = false;
+        }}
+        onChange={(event) => {
+          sliderChangedRef.current = true;
+          onUpdate({ opacity: Number(event.target.value) });
+        }}
       />
       {batchOpen && onApply ? (
         <BlockBackgroundApplyModal

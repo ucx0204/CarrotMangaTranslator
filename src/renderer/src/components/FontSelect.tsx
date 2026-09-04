@@ -13,6 +13,8 @@ import {
   type FontSelectProps,
 } from "./fontSelectModel";
 
+const MIXED_FONT_VALUE = "__mixed_block_font__";
+
 /**
  * Font picker. Registration, deletion, ordering, and visibility live in the
  * adjacent manager; the picker keeps only selection and quick favourites.
@@ -21,7 +23,10 @@ export function FontSelect(props: FontSelectProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const model = useFontSelectModel(props);
   const [managerOpen, setManagerOpen] = React.useState(false);
-  const options = useFontSelectOptions(model);
+  const options = useFontSelectOptions(
+    model,
+    props.mixed ? t("gatherText.mixedValue") : null,
+  );
   const openManager = props.onOpenManager ?? (() => setManagerOpen(true));
   return (
     <>
@@ -33,15 +38,17 @@ export function FontSelect(props: FontSelectProps): React.JSX.Element {
           options={options}
           searchable="auto"
           triggerExtra={
-            <span
-              className={styles.triggerSample}
-              style={{ fontFamily: model.selected.cssFamily }}
-              aria-hidden="true"
-            >
-              {model.selected.sample}
-            </span>
+            props.mixed ? null : (
+              <span
+                className={styles.triggerSample}
+                style={{ fontFamily: model.selected.cssFamily }}
+                aria-hidden="true"
+              >
+                {model.selected.sample}
+              </span>
+            )
           }
-          value={model.selected.id}
+          value={props.mixed ? MIXED_FONT_VALUE : model.selected.id}
           onValueChange={model.onCommit}
         />
         <button
@@ -62,10 +69,22 @@ export function FontSelect(props: FontSelectProps): React.JSX.Element {
   );
 }
 
-function useFontSelectOptions(model: FontSelectModel): SelectOption[] {
+function useFontSelectOptions(
+  model: FontSelectModel,
+  mixedLabel: string | null,
+): SelectOption[] {
   return React.useMemo(
-    () =>
-      model.options.map((option) => ({
+    () => [
+      ...(mixedLabel
+        ? [
+            {
+              value: MIXED_FONT_VALUE,
+              label: mixedLabel,
+              disabled: true,
+            },
+          ]
+        : []),
+      ...model.options.map((option) => ({
         value: option.id,
         label: option.label,
         searchText: `${option.label} ${option.sample}`,
@@ -87,7 +106,8 @@ function useFontSelectOptions(model: FontSelectModel): SelectOption[] {
           />
         ),
       })),
-    [model],
+    ],
+    [mixedLabel, model],
   );
 }
 

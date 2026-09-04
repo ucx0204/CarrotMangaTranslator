@@ -550,7 +550,6 @@
 
 .conditionList,
 .actionList,
-.setFieldList,
 .fieldDiffs {
   display: grid;
   gap: var(--sp-2);
@@ -696,6 +695,7 @@
 .presetAdd {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
   gap: var(--sp-2);
 }
 
@@ -766,16 +766,87 @@
   font-size: var(--font-lg);
 }
 
+.setFieldsEditor {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.setFieldIntro {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.45;
+}
+
+.setFieldList {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
+
 .setFieldRow {
   display: grid;
-  grid-template-columns:
-    minmax(110px, 1fr) minmax(90px, 0.7fr) minmax(110px, 1fr)
-    auto;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: var(--sp-3) 0;
+}
+
+.setFieldRow + .setFieldRow {
+  border-top: 1px solid var(--border-soft);
+}
+
+.setFieldHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: var(--sp-2);
+  min-width: 0;
+}
+
+.setFieldRemove {
+  margin-bottom: 1px;
+}
+
+.setFieldResult {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.setFieldChoice[data-ui-segmented] {
+  overflow: hidden;
+}
+
+.setFieldChoice[data-ui-segmented] > span {
+  flex: 1 1 0;
+}
+
+.setFieldChoice[data-ui-segmented] button {
+  padding-right: var(--sp-1);
+  padding-left: var(--sp-1);
+}
+
+.setFieldDefaultNote {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
   padding: var(--sp-3);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+}
+
+.setFieldDefaultNote strong {
+  color: var(--text);
+  font-size: var(--font-sm);
+}
+
+.setFieldDefaultNote span {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.4;
 }
 
 .inlineStyleGrid {
@@ -1129,7 +1200,7 @@
   min-height: 0;
   height: 100%;
   display: grid;
-  grid-template-rows: 40px minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   border-left: 1px solid var(--surface-border);
   background: var(--surface-rail);
   overflow: hidden;
@@ -1141,9 +1212,26 @@
   justify-content: space-between;
   gap: var(--sp-3);
   min-width: 0;
+  min-height: 40px;
   padding: 4px var(--sp-2) 4px var(--sp-3);
   border-bottom: 1px solid var(--surface-border);
   background: var(--surface-rail);
+}
+
+.resultScopeSummary {
+  display: grid;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--surface-border);
+  background: var(--bg-sunken);
+  color: var(--text);
+  font-size: var(--font-xs);
+  line-height: 1.45;
+}
+
+.resultScopeSummary small {
+  color: var(--text-muted);
+  font-size: inherit;
 }
 
 .resultsToolbar strong {
@@ -1224,7 +1312,7 @@
 .diffText > div,
 .inspectionValues > div {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-columns: 52px minmax(0, 1fr);
   gap: var(--sp-2);
 }
 
@@ -1437,14 +1525,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .setFieldRow {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-  }
-
-  .setFieldRow > :nth-child(3) {
-    grid-column: 1 / 3;
-  }
-
   .replacementGrid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1488,6 +1568,11 @@
 }
 
 @media (max-width: 420px) {
+  .fieldPickerAll,
+  .presetAdd {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .inlineStyleGrid {
     grid-template-columns: minmax(0, 1fr);
   }

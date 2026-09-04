@@ -151,6 +151,7 @@ function normalize(options: NumberDraftOptions, value: number): number {
 
 function isSameValue(options: NumberDraftOptions, next: number): boolean {
   return (
+    !options.mixed &&
     options.value !== null &&
     next === roundToPrecision(options.value, options.precision)
   );

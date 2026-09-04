@@ -1,43 +1,30 @@
 import React from "react";
-import { DEFAULT_BLOCK_FONT_ID } from "../../../../shared/blockFontCatalog";
 import {
   FONT_SIZE_STEP_PX,
   MAX_FONT_SIZE_PX,
   MIN_FONT_SIZE_PX,
 } from "../../../../shared/blockFormatValues";
-import { useFonts } from "../../fonts/useFonts";
+import { FontSelect } from "../FontSelect";
 import { NumberField } from "../ui/NumberField";
-import { Select } from "../ui/Select";
 import { BlockFormatControlCaption } from "./BlockFormatPrimitives";
 
-const DEFAULT_FONT_VALUE = "__block_format_default_font__";
-const MIXED_FONT_VALUE = "__block_format_mixed_font__";
-
 export function BlockTypographyFontPicker({
-  defaultLabel,
   disabled = false,
   fontFamily,
   label,
   mixed = false,
-  mixedLabel,
   touched = false,
   onChange,
 }: {
-  defaultLabel: string;
   disabled?: boolean;
   fontFamily: string | undefined;
   label: string;
   mixed?: boolean;
-  mixedLabel: string;
   touched?: boolean;
   onChange: (fontFamily: string | undefined) => void;
 }): React.JSX.Element {
-  const { options } = useFonts();
-  const defaultOption = options.find(
-    (option) => option.id === DEFAULT_BLOCK_FONT_ID,
-  );
   return (
-    <label
+    <div
       className="gather-direct-font-picker"
       data-touched={touched || undefined}
     >
@@ -46,34 +33,14 @@ export function BlockTypographyFontPicker({
         mixed={mixed}
         touched={touched}
       />
-      <Select
+      <FontSelect
         ariaLabel={label}
-        value={mixed ? MIXED_FONT_VALUE : (fontFamily ?? DEFAULT_FONT_VALUE)}
         disabled={disabled}
-        options={[
-          ...(mixed
-            ? [
-                {
-                  value: MIXED_FONT_VALUE,
-                  label: mixedLabel,
-                  disabled: true,
-                },
-              ]
-            : []),
-          {
-            value: DEFAULT_FONT_VALUE,
-            label: defaultOption?.label ?? defaultLabel,
-          },
-          ...options
-            .filter((option) => option.id !== DEFAULT_BLOCK_FONT_ID)
-            .map((option) => ({ value: option.id, label: option.label })),
-        ]}
-        searchable="auto"
-        onValueChange={(value) =>
-          onChange(value === DEFAULT_FONT_VALUE ? undefined : value)
-        }
+        mixed={mixed}
+        value={fontFamily}
+        onChange={onChange}
       />
-    </label>
+    </div>
   );
 }
 

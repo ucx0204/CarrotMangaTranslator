@@ -237,6 +237,59 @@ describe("conditional batch v2 matching and preview", () => {
     ).toBe(true);
   });
 
+  it("treats omitted boolean formatting as the value rendered by the editor", () => {
+    const block = makeBlock("block", "원문", "번역");
+
+    expect(
+      evaluateConditionalBatchMatch(block, {
+        mode: "all",
+        conditions: [condition("bold", "isFalse")],
+        groups: [],
+      }).matched,
+    ).toBe(true);
+    expect(
+      evaluateConditionalBatchMatch(block, {
+        mode: "all",
+        conditions: [condition("autoFitText", "isTrue")],
+        groups: [],
+      }).matched,
+    ).toBe(true);
+  });
+
+  it("does not create false boolean overrides for formatting that is already off", () => {
+    const chapter = makeChapter([
+      makePage("page", [
+        makeBlock("unset", "원문", "미지정"),
+        { ...makeBlock("off", "원문", "꺼짐"), bold: false },
+        { ...makeBlock("on", "원문", "켜짐"), bold: true },
+      ]),
+    ]);
+    const preview = createConditionalBatchPreview(
+      chapter,
+      { kind: "chapter" },
+      {
+        name: "굵게 끄기",
+        description: "",
+        match: allBlocksMatch(),
+        actions: [
+          {
+            id: "bold-off",
+            enabled: true,
+            type: "setFields",
+            changes: [{ field: "bold", operation: "set", value: false }],
+          },
+        ],
+      },
+    );
+
+    expect(preview.matchedCount).toBe(3);
+    expect(preview.matchedResultKeys).toHaveLength(3);
+    expect(preview.results.map((result) => result.blockId)).toEqual(["on"]);
+    expect(preview.unchangedMatchCount).toBe(2);
+    expect(preview.results[0]?.beforeBlock.bold).toBe(true);
+    expect(preview.results[0]?.afterBlock.bold).toBe(false);
+  });
+
   it("returns inspection results without mutating data", () => {
     const chapter = makeChapter([
       makePage("page", [

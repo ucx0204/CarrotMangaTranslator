@@ -5,10 +5,12 @@ import { NumberField } from "./ui/NumberField";
 export function BlockTextOpacityField({
   block,
   disabled,
+  mixed,
   onUpdate,
 }: {
   block: TranslationBlock;
   disabled: boolean;
+  mixed: boolean;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -27,6 +29,7 @@ export function BlockTextOpacityField({
         precision={0}
         value={Math.round((block.textOpacity ?? 1) * 100)}
         disabled={disabled}
+        mixed={mixed}
         unit="%"
         onValueChange={(value) => onUpdate({ textOpacity: value / 100 })}
       />

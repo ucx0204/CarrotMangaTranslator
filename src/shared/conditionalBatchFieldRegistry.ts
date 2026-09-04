@@ -484,6 +484,7 @@ export function readConditionalBatchField(
     case "outlineColor":
     case "outerOutlineColor":
     case "textBackgroundColor":
+      return block[fieldId];
     case "bold":
     case "italic":
     case "underline":
@@ -492,7 +493,9 @@ export function readConditionalBatchField(
     case "textBackgroundEnabled":
     case "autoFitText":
     case "inpaintExcluded":
-      return block[fieldId];
+    case "textEffectEnabled":
+    case "textGlowEnabled":
+      return readConditionalBatchBooleanValue(block, fieldId);
     case "pageIndex":
       return context.pageIndex + 1;
     case "blockIndex":
@@ -523,8 +526,6 @@ export function readConditionalBatchField(
       return Boolean(block.speakerId?.trim());
     case "hasGlossary":
       return Boolean(block.glossaryEntryIds?.length);
-    case "textEffectEnabled":
-      return Boolean(block.textEffect?.enabled);
     case "textEffectColor":
       return block.textEffect?.color;
     case "textEffectOffsetX":
@@ -535,8 +536,6 @@ export function readConditionalBatchField(
       return block.textEffect?.blurPx;
     case "textEffectOpacity":
       return block.textEffect?.opacity;
-    case "textGlowEnabled":
-      return Boolean(block.textGlow?.enabled);
     case "textGlowColor":
       return block.textGlow?.color;
     case "textGlowBlur":
@@ -555,6 +554,31 @@ export function readConditionalBatchField(
       return hasSuspiciousWhitespace(stripRichTextMarkup(block.translatedText));
     case "glossaryMismatch":
       return hasGlossaryMismatch(block, context.glossary ?? []);
+  }
+}
+
+/** Read the value users actually see instead of the optional persisted shape. */
+export function readConditionalBatchBooleanValue(
+  block: TranslationBlock,
+  fieldId: ConditionalBatchField,
+): boolean | undefined {
+  switch (fieldId) {
+    case "bold":
+    case "italic":
+    case "underline":
+    case "strikethrough":
+    case "emphasisMark":
+    case "textBackgroundEnabled":
+    case "inpaintExcluded":
+      return Boolean(block[fieldId]);
+    case "autoFitText":
+      return block.autoFitText ?? true;
+    case "textEffectEnabled":
+      return Boolean(block.textEffect?.enabled);
+    case "textGlowEnabled":
+      return Boolean(block.textGlow?.enabled);
+    default:
+      return undefined;
   }
 }
 

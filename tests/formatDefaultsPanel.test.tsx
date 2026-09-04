@@ -1,7 +1,13 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../src/shared/blockFormat";
 import type { BlockFormatDefaults } from "../src/shared/settingsTypes";
@@ -44,6 +50,21 @@ describe("FormatDefaultsPanel", () => {
         }) as HTMLButtonElement
       ).value,
     ).toBe("break-word");
+  });
+
+  it("shows font previews, favorite actions, and font management", () => {
+    renderPanel();
+
+    expect(screen.getByRole("button", { name: "폰트 관리" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("combobox", { name: "글꼴" }));
+
+    const option = screen.getByRole("option", { name: "나눔고딕" });
+    expect(option.textContent).toContain("나눔고딕 Aa");
+    expect(
+      within(option).getByRole("button", {
+        name: "나눔고딕 즐겨찾기에 추가",
+      }),
+    ).toBeTruthy();
   });
 
   it("updates the live preview while keeping sample text out of settings", () => {

@@ -2,6 +2,7 @@
 import { resolveBlockStylePresetPatchFields } from "./blockStylePresetFormat";
 import {
   formatConditionalBatchFieldValue,
+  readConditionalBatchBooleanValue,
   readConditionalBatchField,
   type ConditionalBatchFieldReadContext,
 } from "./conditionalBatchFieldRegistry";
@@ -108,6 +109,7 @@ export function createConditionalBatchPreview(
   options: ConditionalBatchEngineOptions = {},
 ): ConditionalBatchPreview {
   const results: ConditionalBatchPreviewResult[] = [];
+  const matchedResultKeys: string[] = [];
   let matchedCount = 0;
   const inspectionOnly = !scheme.actions.some((action) => action.enabled);
   const orderedPages = selectScopePages(chapter, scope);
@@ -128,6 +130,8 @@ export function createConditionalBatchPreview(
       );
       if (!evaluation.matched) continue;
       matchedCount += 1;
+      const resultKey = createConditionalBatchResultKey(page.id, block.id);
+      matchedResultKeys.push(resultKey);
 
       const applied = applyConditionalBatchActions(block, scheme.actions);
       const changedFields = resolveChangedFields(block, applied.block);
@@ -135,7 +139,7 @@ export function createConditionalBatchPreview(
       if (!inspectionOnly && changedFields.length === 0) continue;
 
       results.push({
-        key: createConditionalBatchResultKey(page.id, block.id),
+        key: resultKey,
         pageId: page.id,
         pageName: page.name,
         blockId: block.id,
@@ -159,6 +163,7 @@ export function createConditionalBatchPreview(
   return {
     chapterId: chapter.id,
     matchedCount,
+    matchedResultKeys,
     unchangedMatchCount: inspectionOnly ? 0 : matchedCount - results.length,
     inspectionOnly,
     results,
@@ -254,6 +259,7 @@ export function createConditionalBatchSequencePreview(
     string,
     NonNullable<ConditionalBatchPreviewResult["sequenceTrace"]>
   >();
+  const matchedResultKeys = new Set<string>();
   let hasMutatingStep = false;
   for (const step of sequence.steps) {
     if (!step.enabled) continue;
@@ -270,6 +276,7 @@ export function createConditionalBatchSequencePreview(
       options,
     );
     hasMutatingStep ||= !preview.inspectionOnly;
+    for (const key of preview.matchedResultKeys) matchedResultKeys.add(key);
     steps.push({
       stepId: step.id,
       schemeId: scheme.id,
@@ -358,9 +365,10 @@ export function createConditionalBatchSequencePreview(
   }
   const combinedPreview: ConditionalBatchPreview = {
     chapterId: chapter.id,
-    matchedCount: traceByResultKey.size,
+    matchedCount: matchedResultKeys.size,
+    matchedResultKeys: [...matchedResultKeys],
     unchangedMatchCount: hasMutatingStep
-      ? traceByResultKey.size - combinedResults.length
+      ? matchedResultKeys.size - combinedResults.length
       : 0,
     inspectionOnly: !hasMutatingStep,
     results: combinedResults,
@@ -535,6 +543,17 @@ function applySetFieldChange(
     value?: string | number | boolean | string[] | null;
   },
 ): TranslationBlock {
+  if (change.operation === "set" && BOOLEAN_FIELDS.has(change.field)) {
+    const normalized = normalizeWritableValue(change.field, change.value);
+    const current = readConditionalBatchBooleanValue(block, change.field);
+    if (
+      normalized !== INVALID_VALUE &&
+      typeof normalized === "boolean" &&
+      current === normalized
+    ) {
+      return block;
+    }
+  }
   if (TEXT_EFFECT_WRITABLE_FIELDS.has(change.field)) {
     return applyTextEffectFieldChange(block, change);
   }

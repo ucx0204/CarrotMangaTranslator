@@ -28,7 +28,7 @@ export const PANEL_FORMAT_FIELD_KEYS = [
   "opacity",
 ] as const satisfies readonly (keyof TranslationBlock)[];
 
-type PanelFormatFieldKey = (typeof PANEL_FORMAT_FIELD_KEYS)[number];
+export type PanelFormatFieldKey = (typeof PANEL_FORMAT_FIELD_KEYS)[number];
 export type PanelFormatPatch = Partial<
   Pick<TranslationBlock, PanelFormatFieldKey>
 >;

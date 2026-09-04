@@ -83,10 +83,8 @@ function DefaultsTypographyTypeRow({
     <div className="gather-direct-editor-type-row">
       <PresetGroupControl availability={presetGroups} groupId="font">
         <BlockTypographyFontPicker
-          defaultLabel={t("gatherText.defaultFont")}
           fontFamily={value.fontFamily}
           label={t("formatBatch.groups.font")}
-          mixedLabel={t("gatherText.mixedValue")}
           onChange={(fontFamily) => onChange({ fontFamily })}
         />
       </PresetGroupControl>

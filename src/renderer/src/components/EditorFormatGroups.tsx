@@ -5,6 +5,10 @@ import type {
   CreateBlockStylePresetInput,
 } from "../../../shared/blockStylePresets";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import type {
+  PanelFormatFieldKey,
+  PanelFormatSelection,
+} from "../../../shared/panelBridgeTypes";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import { BlockDisplayGroup } from "./BlockDisplayGroup";
@@ -21,6 +25,7 @@ type EditorFormatGroupsProps = {
   disabled: boolean;
   disableChapterApply: boolean;
   fontFamilyDraft: string | undefined;
+  formatSelection: PanelFormatSelection;
   onAdjustFontSize: (adjustment: -1 | 1) => void;
   onApplyBlockBackgroundOpacity?: (scope: BlockBackgroundApplyScope) => void;
   onApplyFormat?: (
@@ -47,52 +52,38 @@ type EditorFormatGroupsProps = {
   stylePresets: readonly BlockStylePresetSummary[];
 };
 
-export function EditorFormatGroups({
-  activeStylePresetId,
-  block,
-  canCreateStylePreset,
-  disabled,
-  disableChapterApply,
-  fontFamilyDraft,
-  onAdjustFontSize,
-  onApplyBlockBackgroundOpacity,
-  onApplyFormat,
-  onApplyStylePreset,
-  onCreateStylePreset,
-  onDeleteStylePreset,
-  onOpenStylePresetManager,
-  onOpenFontManager,
-  onOverwriteStylePreset,
-  onRenameStylePreset,
-  onUpdate,
-  resolvedFontSizePx,
-  selectedBlockCount,
-  showStylePresets = true,
-  setFontFamilyDraft,
-  stylePresets,
-}: EditorFormatGroupsProps): React.JSX.Element {
+export function EditorFormatGroups(
+  props: EditorFormatGroupsProps,
+): React.JSX.Element {
+  const {
+    block,
+    disabled,
+    disableChapterApply,
+    fontFamilyDraft,
+    formatSelection,
+    onAdjustFontSize,
+    onApplyBlockBackgroundOpacity,
+    onApplyFormat,
+    onOpenFontManager,
+    onUpdate,
+    resolvedFontSizePx,
+    selectedBlockCount,
+    setFontFamilyDraft,
+  } = props;
   const model = resolveEditorPanelModel(block, resolvedFontSizePx);
+  const mixedFields = React.useMemo<ReadonlySet<PanelFormatFieldKey>>(
+    () => new Set(formatSelection.mixedFields),
+    [formatSelection.mixedFields],
+  );
   return (
     <>
-      {showStylePresets ? (
-        <BlockStylePresetControls
-          activePresetId={activeStylePresetId}
-          canCreate={canCreateStylePreset}
-          disabled={disabled}
-          presets={stylePresets}
-          onApply={onApplyStylePreset}
-          onCreate={onCreateStylePreset}
-          onDelete={onDeleteStylePreset}
-          onManage={onOpenStylePresetManager}
-          onOverwrite={onOverwriteStylePreset}
-          onRename={onRenameStylePreset}
-        />
-      ) : null}
+      <EditorStylePresetControls props={props} />
       <FormatEditorGroup
         block={block}
         disabled={disabled}
         disableChapterApply={disableChapterApply}
         fontFamilyDraft={fontFamilyDraft}
+        mixedFields={mixedFields}
         model={model}
         onApplyFormat={onApplyFormat}
         onAdjustFontSize={onAdjustFontSize}
@@ -104,21 +95,46 @@ export function EditorFormatGroups({
       <EditorColorGroup
         block={block}
         disabled={disabled}
+        mixedFields={mixedFields}
         model={model}
         onUpdate={onUpdate}
       />
       <EditorTextEffectGroup
         block={block}
         disabled={disabled}
+        mixedFields={mixedFields}
         onUpdate={onUpdate}
       />
       <BlockDisplayGroup
         block={block}
         disabled={disabled}
         disableChapterApply={disableChapterApply}
+        mixed={mixedFields.has("opacity")}
         onApply={onApplyBlockBackgroundOpacity}
         onUpdate={onUpdate}
       />
     </>
+  );
+}
+
+function EditorStylePresetControls({
+  props,
+}: {
+  props: EditorFormatGroupsProps;
+}): React.JSX.Element | null {
+  if (props.showStylePresets === false) return null;
+  return (
+    <BlockStylePresetControls
+      activePresetId={props.activeStylePresetId}
+      canCreate={props.canCreateStylePreset}
+      disabled={props.disabled}
+      presets={props.stylePresets}
+      onApply={props.onApplyStylePreset}
+      onCreate={props.onCreateStylePreset}
+      onDelete={props.onDeleteStylePreset}
+      onManage={props.onOpenStylePresetManager}
+      onOverwrite={props.onOverwriteStylePreset}
+      onRename={props.onRenameStylePreset}
+    />
   );
 }

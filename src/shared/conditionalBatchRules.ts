@@ -241,7 +241,10 @@ const ConditionalBatchSetFieldChangeV2Schema = z
         path: ["value"],
       });
     }
-    if (change.operation === "clear" && isRequiredWritableField(change.field)) {
+    if (
+      change.operation === "clear" &&
+      isRequiredConditionalBatchWritableField(change.field)
+    ) {
       context.addIssue({
         code: "custom",
         message: "필수 값은 초기화할 수 없습니다.",
@@ -792,6 +795,8 @@ type ConditionalBatchSequenceStepTrace = {
 export type ConditionalBatchPreview = {
   chapterId: string;
   matchedCount: number;
+  /** Stable keys for every condition match, including no-op action results. */
+  matchedResultKeys: string[];
   unchangedMatchCount: number;
   inspectionOnly: boolean;
   results: ConditionalBatchPreviewResult[];
@@ -1230,7 +1235,7 @@ function validateCondition(
   }
 }
 
-function isRequiredWritableField(
+export function isRequiredConditionalBatchWritableField(
   field: ConditionalBatchWritableField,
 ): boolean {
   return [

@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
+import type { PanelFormatFieldKey } from "../../../shared/panelBridgeTypes";
 import { resolveBlockTextWordBreak } from "../../../shared/textWrapping";
 import { BlockSpacingFields } from "./BlockSpacingFields";
 import { BlockTextOpacityField } from "./BlockTextOpacityField";
@@ -34,6 +35,7 @@ type ApplyFormatHandler = (
 type BlockSectionProps = {
   block: TranslationBlock;
   disabled: boolean;
+  mixedFields: ReadonlySet<PanelFormatFieldKey>;
   onUpdate: BlockPatchHandler;
 };
 
@@ -42,6 +44,7 @@ export function FormatEditorGroup({
   disabled,
   disableChapterApply,
   fontFamilyDraft,
+  mixedFields,
   model,
   onApplyFormat,
   onAdjustFontSize,
@@ -84,35 +87,63 @@ export function FormatEditorGroup({
         open={applyOpen}
         selectedBlockCount={selectedBlockCount}
       />
-      <StyleToolbar {...{ block, disabled, model, onUpdate }} />
+      <StyleToolbar {...{ block, disabled, mixedFields, model, onUpdate }} />
       <FontField
         disabled={disabled}
         fontFamilyDraft={fontFamilyDraft}
+        mixed={mixedFields.has("fontFamily")}
         onFontFamilyDraftChange={onFontFamilyDraftChange}
         onOpenFontManager={onOpenFontManager}
         onUpdate={onUpdate}
       />
-      <TextWrappingField {...{ block, disabled, onUpdate }} />
-      <div className="editor-format-fields">
-        <EditorFontSizeRow
-          autoFitText={model.autoFitText}
+      <TextWrappingField {...{ block, disabled, mixedFields, onUpdate }} />
+      <FormatNumberFields
+        block={block}
+        disabled={disabled}
+        mixedFields={mixedFields}
+        model={model}
+        onAdjustFontSize={onAdjustFontSize}
+        onUpdate={onUpdate}
+      />
+    </div>
+  );
+}
+
+function FormatNumberFields({
+  block,
+  disabled,
+  mixedFields,
+  model,
+  onAdjustFontSize,
+  onUpdate,
+}: BlockSectionProps & {
+  model: EditorPanelModel;
+  onAdjustFontSize: (adjustment: -1 | 1) => void;
+}): React.JSX.Element {
+  return (
+    <div className="editor-format-fields">
+      <EditorFontSizeRow
+        autoFitText={model.autoFitText}
+        autoFitMixed={mixedFields.has("autoFitText")}
+        disabled={disabled}
+        fontSizePx={model.fontSizePx}
+        fontSizeMixed={mixedFields.has("fontSizePx")}
+        onAdjust={onAdjustFontSize}
+        onUpdate={onUpdate}
+      />
+      <div className="editor-format-number-grid">
+        <BlockTextOpacityField
+          block={block}
           disabled={disabled}
-          fontSizePx={model.fontSizePx}
-          onAdjust={onAdjustFontSize}
+          mixed={mixedFields.has("textOpacity")}
           onUpdate={onUpdate}
         />
-        <div className="editor-format-number-grid">
-          <BlockTextOpacityField
-            block={block}
-            disabled={disabled}
-            onUpdate={onUpdate}
-          />
-          <BlockSpacingFields
-            block={block}
-            disabled={disabled}
-            onUpdate={onUpdate}
-          />
-        </div>
+        <BlockSpacingFields
+          block={block}
+          disabled={disabled}
+          mixedFields={mixedFields}
+          onUpdate={onUpdate}
+        />
       </div>
     </div>
   );
@@ -145,6 +176,7 @@ function BatchApplyDialog({
 function TextWrappingField({
   block,
   disabled,
+  mixedFields,
   onUpdate,
 }: BlockSectionProps): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -158,6 +190,7 @@ function TextWrappingField({
           block.renderDirection,
         )}
         disabled={disabled}
+        mixed={mixedFields.has("wordBreak")}
         onChange={(wordBreak) => onUpdate({ wordBreak })}
       />
     </label>
@@ -167,6 +200,7 @@ function TextWrappingField({
 function StyleToolbar({
   block,
   disabled,
+  mixedFields,
   model,
   onUpdate,
 }: BlockSectionProps & {
@@ -177,11 +211,18 @@ function StyleToolbar({
       <TextEmphasisButtons
         block={block}
         disabled={disabled}
+        mixedFields={mixedFields}
         onUpdate={onUpdate}
       />
-      <TextAlignButtons block={block} disabled={disabled} onUpdate={onUpdate} />
+      <TextAlignButtons
+        block={block}
+        disabled={disabled}
+        mixedFields={mixedFields}
+        onUpdate={onUpdate}
+      />
       <DirectionToggle
         disabled={disabled}
+        mixed={mixedFields.has("renderDirection")}
         onUpdate={onUpdate}
         renderDirection={model.renderDirection}
       />
@@ -192,9 +233,41 @@ function StyleToolbar({
 function TextEmphasisButtons({
   block,
   disabled,
+  mixedFields,
   onUpdate,
 }: BlockSectionProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const controls = [
+    {
+      field: "bold",
+      label: t("format.blockBold", { defaultValue: "블록 전체 굵게" }),
+      icon: <BoldIcon size={18} />,
+    },
+    {
+      field: "italic",
+      label: t("format.blockItalic", { defaultValue: "블록 전체 기울임" }),
+      icon: <ItalicIcon size={18} />,
+    },
+    {
+      field: "underline",
+      label: t("format.blockUnderline", { defaultValue: "블록 전체 밑줄" }),
+      icon: <UnderlineIcon size={18} />,
+    },
+    {
+      field: "strikethrough",
+      label: t("format.blockStrikethrough", {
+        defaultValue: "블록 전체 취소선",
+      }),
+      icon: <StrikethroughIcon size={18} />,
+    },
+    {
+      field: "emphasisMark",
+      label: t("format.blockEmphasisMark", {
+        defaultValue: "블록 전체 강조점",
+      }),
+      icon: <EmphasisMarkIcon size={18} />,
+    },
+  ] as const;
   return (
     <div
       className="format-emphasis-control"
@@ -202,59 +275,24 @@ function TextEmphasisButtons({
       aria-label={t("format.blockStyle", { defaultValue: "블록 전체" })}
     >
       <div className="block-style-group">
-        <IconButton
-          size="sm"
-          label={t("format.blockBold", { defaultValue: "블록 전체 굵게" })}
-          aria-pressed={Boolean(block.bold)}
-          disabled={disabled}
-          onClick={() => onUpdate({ bold: !block.bold })}
-        >
-          <BoldIcon size={18} />
-        </IconButton>
-        <IconButton
-          size="sm"
-          label={t("format.blockItalic", {
-            defaultValue: "블록 전체 기울임",
-          })}
-          aria-pressed={Boolean(block.italic)}
-          disabled={disabled}
-          onClick={() => onUpdate({ italic: !block.italic })}
-        >
-          <ItalicIcon size={18} />
-        </IconButton>
-        <IconButton
-          size="sm"
-          label={t("format.blockUnderline", {
-            defaultValue: "블록 전체 밑줄",
-          })}
-          aria-pressed={Boolean(block.underline)}
-          disabled={disabled}
-          onClick={() => onUpdate({ underline: !block.underline })}
-        >
-          <UnderlineIcon size={18} />
-        </IconButton>
-        <IconButton
-          size="sm"
-          label={t("format.blockStrikethrough", {
-            defaultValue: "블록 전체 취소선",
-          })}
-          aria-pressed={Boolean(block.strikethrough)}
-          disabled={disabled}
-          onClick={() => onUpdate({ strikethrough: !block.strikethrough })}
-        >
-          <StrikethroughIcon size={18} />
-        </IconButton>
-        <IconButton
-          size="sm"
-          label={t("format.blockEmphasisMark", {
-            defaultValue: "블록 전체 강조점",
-          })}
-          aria-pressed={Boolean(block.emphasisMark)}
-          disabled={disabled}
-          onClick={() => onUpdate({ emphasisMark: !block.emphasisMark })}
-        >
-          <EmphasisMarkIcon size={18} />
-        </IconButton>
+        {controls.map(({ field, icon, label }) => (
+          <IconButton
+            key={field}
+            size="sm"
+            label={label}
+            aria-pressed={
+              mixedFields.has(field) ? "mixed" : Boolean(block[field])
+            }
+            disabled={disabled}
+            onClick={() =>
+              onUpdate({
+                [field]: mixedFields.has(field) || !block[field],
+              })
+            }
+          >
+            {icon}
+          </IconButton>
+        ))}
       </div>
     </div>
   );
@@ -263,6 +301,7 @@ function TextEmphasisButtons({
 function TextAlignButtons({
   block,
   disabled,
+  mixedFields,
   onUpdate,
 }: BlockSectionProps): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -272,7 +311,9 @@ function TextAlignButtons({
         size="sm"
         label={t("format.align.left")}
         title={t("format.align.left")}
-        aria-pressed={block.textAlign === "left"}
+        aria-pressed={
+          !mixedFields.has("textAlign") && block.textAlign === "left"
+        }
         disabled={disabled}
         onClick={() => onUpdate({ textAlign: "left" })}
       >
@@ -282,7 +323,9 @@ function TextAlignButtons({
         size="sm"
         label={t("format.align.center")}
         title={t("format.align.center")}
-        aria-pressed={block.textAlign === "center"}
+        aria-pressed={
+          !mixedFields.has("textAlign") && block.textAlign === "center"
+        }
         disabled={disabled}
         onClick={() => onUpdate({ textAlign: "center" })}
       >
@@ -292,7 +335,9 @@ function TextAlignButtons({
         size="sm"
         label={t("format.align.right")}
         title={t("format.align.right")}
-        aria-pressed={block.textAlign === "right"}
+        aria-pressed={
+          !mixedFields.has("textAlign") && block.textAlign === "right"
+        }
         disabled={disabled}
         onClick={() => onUpdate({ textAlign: "right" })}
       >
@@ -304,10 +349,12 @@ function TextAlignButtons({
 
 function DirectionToggle({
   disabled,
+  mixed,
   onUpdate,
   renderDirection,
 }: {
   disabled: boolean;
+  mixed: boolean;
   onUpdate: BlockPatchHandler;
   renderDirection: EditorPanelModel["renderDirection"];
 }): React.JSX.Element {
@@ -317,6 +364,7 @@ function DirectionToggle({
       ariaLabel={t("format.directionLabel")}
       className="editor-direction-toggle"
       disabled={disabled}
+      mixed={mixed}
       singleRow
       options={[
         { id: "horizontal", label: t("format.direction.horizontal") },
@@ -331,12 +379,14 @@ function DirectionToggle({
 function FontField({
   disabled,
   fontFamilyDraft,
+  mixed,
   onFontFamilyDraftChange,
   onOpenFontManager,
   onUpdate,
 }: {
   disabled: boolean;
   fontFamilyDraft?: string;
+  mixed: boolean;
   onFontFamilyDraftChange: (fontFamily?: string) => void;
   onOpenFontManager?: () => void;
   onUpdate: BlockPatchHandler;
@@ -346,6 +396,7 @@ function FontField({
       <FontSelect
         value={fontFamilyDraft}
         disabled={disabled}
+        mixed={mixed}
         onOpenManager={onOpenFontManager}
         onChange={(fontFamily) => {
           onFontFamilyDraftChange(fontFamily);

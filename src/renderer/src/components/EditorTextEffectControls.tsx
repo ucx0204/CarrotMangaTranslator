@@ -4,6 +4,7 @@ import type {
   TextGlow,
   TranslationBlock,
 } from "../../../shared/textTypes";
+import type { PanelFormatFieldKey } from "../../../shared/panelBridgeTypes";
 import {
   MAX_TEXT_EFFECT_BLUR_PX,
   MAX_TEXT_EFFECT_OFFSET_PX,
@@ -25,10 +26,12 @@ import { NumberField } from "./ui/NumberField";
 export function EditorTextEffectGroup({
   block,
   disabled,
+  mixedFields = EMPTY_MIXED_FIELDS,
   onUpdate,
 }: {
   block: TranslationBlock;
   disabled: boolean;
+  mixedFields?: ReadonlySet<PanelFormatFieldKey>;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -40,11 +43,13 @@ export function EditorTextEffectGroup({
       <TextEffectControls
         disabled={disabled}
         effect={block.textEffect}
+        mixed={mixedFields.has("textEffect")}
         onChange={(textEffect) => onUpdate({ textEffect })}
       />
       <TextGlowControls
         disabled={disabled}
         glow={block.textGlow}
+        mixed={mixedFields.has("textGlow")}
         onChange={(textGlow) => onUpdate({ textGlow })}
       />
     </div>
@@ -54,10 +59,12 @@ export function EditorTextEffectGroup({
 function TextGlowControls({
   disabled,
   glow,
+  mixed,
   onChange,
 }: {
   disabled: boolean;
   glow: TextGlow | undefined;
+  mixed: boolean;
   onChange: (glow: TextGlow) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -72,8 +79,11 @@ function TextGlowControls({
           className="editor-appearance-toggle text-effect-enabled-toggle"
           label={label}
           checked={value.enabled}
+          indeterminate={mixed}
           disabled={disabled}
-          onCheckedChange={(enabled) => update({ enabled })}
+          onCheckedChange={(enabled) =>
+            update({ enabled: mixed ? true : enabled })
+          }
         />
         {value.enabled ? (
           <ColorField
@@ -82,6 +92,7 @@ function TextGlowControls({
             labelHidden
             value={value.color}
             disabled={disabled}
+            mixed={mixed}
             onChange={(color) => update({ color })}
           />
         ) : null}
@@ -95,6 +106,7 @@ function TextGlowControls({
             max={MAX_TEXT_GLOW_BLUR_PX}
             step={TEXT_GLOW_BLUR_STEP_PX}
             value={value.blurPx}
+            mixed={mixed}
             onChange={(blurPx) => update({ blurPx })}
           />
           <TextEffectNumberField
@@ -106,6 +118,7 @@ function TextGlowControls({
             step={1}
             unit="%"
             value={Math.round(value.opacity * 100)}
+            mixed={mixed}
             onChange={(opacity) => update({ opacity: opacity / 100 })}
           />
         </div>
@@ -117,10 +130,12 @@ function TextGlowControls({
 export function TextEffectControls({
   disabled,
   effect,
+  mixed = false,
   onChange,
 }: {
   disabled: boolean;
   effect: TextEffect | undefined;
+  mixed?: boolean;
   onChange: (effect: TextEffect) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -134,8 +149,11 @@ export function TextEffectControls({
           className="editor-appearance-toggle text-effect-enabled-toggle"
           label={t("format.textEffect.enabled")}
           checked={value.enabled}
+          indeterminate={mixed}
           disabled={disabled}
-          onCheckedChange={(enabled) => update({ enabled })}
+          onCheckedChange={(enabled) =>
+            update({ enabled: mixed ? true : enabled })
+          }
         />
         {value.enabled ? (
           <ColorField
@@ -144,49 +162,76 @@ export function TextEffectControls({
             labelHidden
             value={value.color}
             disabled={disabled}
+            mixed={mixed}
             onChange={(color) => update({ color })}
           />
         ) : null}
       </div>
       {value.enabled ? (
-        <div className="text-effect-number-grid">
-          <TextEffectNumberField
-            disabled={disabled}
-            label={t("format.textEffect.offsetX")}
-            min={MIN_TEXT_EFFECT_OFFSET_PX}
-            max={MAX_TEXT_EFFECT_OFFSET_PX}
-            value={value.offsetXpx}
-            onChange={(offsetXpx) => update({ offsetXpx })}
-          />
-          <TextEffectNumberField
-            disabled={disabled}
-            label={t("format.textEffect.offsetY")}
-            min={MIN_TEXT_EFFECT_OFFSET_PX}
-            max={MAX_TEXT_EFFECT_OFFSET_PX}
-            value={value.offsetYpx}
-            onChange={(offsetYpx) => update({ offsetYpx })}
-          />
-          <TextEffectNumberField
-            disabled={disabled}
-            label={t("format.textEffect.blur")}
-            min={MIN_TEXT_EFFECT_BLUR_PX}
-            max={MAX_TEXT_EFFECT_BLUR_PX}
-            value={value.blurPx}
-            onChange={(blurPx) => update({ blurPx })}
-          />
-          <TextEffectNumberField
-            disabled={disabled}
-            label={t("format.textEffect.opacity")}
-            min={0}
-            max={100}
-            precision={0}
-            step={1}
-            unit="%"
-            value={Math.round(value.opacity * 100)}
-            onChange={(opacity) => update({ opacity: opacity / 100 })}
-          />
-        </div>
+        <TextEffectNumberGrid
+          disabled={disabled}
+          mixed={mixed}
+          value={value}
+          onUpdate={update}
+        />
       ) : null}
+    </div>
+  );
+}
+
+function TextEffectNumberGrid({
+  disabled,
+  mixed,
+  onUpdate,
+  value,
+}: {
+  disabled: boolean;
+  mixed: boolean;
+  onUpdate: (patch: Partial<TextEffect>) => void;
+  value: TextEffect;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="text-effect-number-grid">
+      <TextEffectNumberField
+        disabled={disabled}
+        label={t("format.textEffect.offsetX")}
+        min={MIN_TEXT_EFFECT_OFFSET_PX}
+        max={MAX_TEXT_EFFECT_OFFSET_PX}
+        value={value.offsetXpx}
+        mixed={mixed}
+        onChange={(offsetXpx) => onUpdate({ offsetXpx })}
+      />
+      <TextEffectNumberField
+        disabled={disabled}
+        label={t("format.textEffect.offsetY")}
+        min={MIN_TEXT_EFFECT_OFFSET_PX}
+        max={MAX_TEXT_EFFECT_OFFSET_PX}
+        value={value.offsetYpx}
+        mixed={mixed}
+        onChange={(offsetYpx) => onUpdate({ offsetYpx })}
+      />
+      <TextEffectNumberField
+        disabled={disabled}
+        label={t("format.textEffect.blur")}
+        min={MIN_TEXT_EFFECT_BLUR_PX}
+        max={MAX_TEXT_EFFECT_BLUR_PX}
+        value={value.blurPx}
+        mixed={mixed}
+        onChange={(blurPx) => onUpdate({ blurPx })}
+      />
+      <TextEffectNumberField
+        disabled={disabled}
+        label={t("format.textEffect.opacity")}
+        min={0}
+        max={100}
+        precision={0}
+        step={1}
+        unit="%"
+        value={Math.round(value.opacity * 100)}
+        mixed={mixed}
+        onChange={(opacity) => onUpdate({ opacity: opacity / 100 })}
+      />
     </div>
   );
 }
@@ -195,6 +240,7 @@ function TextEffectNumberField({
   disabled,
   label,
   max,
+  mixed,
   min,
   onChange,
   precision = 1,
@@ -205,6 +251,7 @@ function TextEffectNumberField({
   disabled: boolean;
   label: string;
   max: number;
+  mixed: boolean;
   min: number;
   onChange: (value: number) => void;
   precision?: number;
@@ -222,6 +269,7 @@ function TextEffectNumberField({
         decreaseLabel={t("format.decreaseValue", { label })}
         increaseLabel={t("format.increaseValue", { label })}
         disabled={disabled}
+        mixed={mixed}
         max={max}
         min={min}
         precision={precision}
@@ -233,3 +281,5 @@ function TextEffectNumberField({
     </div>
   );
 }
+
+const EMPTY_MIXED_FIELDS: ReadonlySet<PanelFormatFieldKey> = new Set();

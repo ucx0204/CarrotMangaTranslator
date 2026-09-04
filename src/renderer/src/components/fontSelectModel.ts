@@ -8,6 +8,7 @@ export type FontSelectProps = {
   value: string | undefined;
   ariaLabel?: string;
   disabled?: boolean;
+  mixed?: boolean;
   onOpenManager?: () => void;
   onChange: (fontFamily: string | undefined) => void;
 };

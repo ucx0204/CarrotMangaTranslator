@@ -10,19 +10,24 @@ import { CheckboxField } from "./ui/CheckboxField";
 import { NumberField } from "./ui/NumberField";
 
 export function EditorFontSizeRow({
+  autoFitMixed,
   autoFitText,
   disabled,
+  fontSizeMixed,
   fontSizePx,
   onAdjust,
   onUpdate,
 }: {
+  autoFitMixed: boolean;
   autoFitText: boolean;
   disabled: boolean;
+  fontSizeMixed: boolean;
   fontSizePx: number;
   onAdjust: (adjustment: -1 | 1) => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
+  const autoFitUniformlyEnabled = autoFitText && !autoFitMixed;
   const updateFontSize = (value: number) =>
     onUpdate({
       fontSizePx: clampFontSize(value),
@@ -43,9 +48,10 @@ export function EditorFontSizeRow({
           step={FONT_SIZE_STEP_PX}
           precision={1}
           value={fontSizePx}
+          mixed={fontSizeMixed}
           disabled={disabled}
-          inputDisabled={autoFitText}
-          scrubDisabled={autoFitText}
+          inputDisabled={autoFitUniformlyEnabled}
+          scrubDisabled={autoFitUniformlyEnabled}
           unit="px"
           onStep={onAdjust}
           onValueChange={updateFontSize}
@@ -56,18 +62,20 @@ export function EditorFontSizeRow({
         title={t("format.autoFitTitle")}
         label={t("format.auto")}
         checked={autoFitText}
+        indeterminate={autoFitMixed}
         disabled={disabled}
-        onCheckedChange={(checked) =>
+        onCheckedChange={(checked) => {
+          const nextChecked = autoFitMixed ? true : checked;
           onUpdate(
-            checked
+            nextChecked
               ? { autoFitText: true, fontSizeIntent: "manual" }
               : {
                   autoFitText: false,
                   fontSizeIntent: "manual",
                   fontSizePx: clampFontSize(fontSizePx),
                 },
-          )
-        }
+          );
+        }}
       />
     </div>
   );

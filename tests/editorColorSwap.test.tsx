@@ -272,6 +272,32 @@ describe("editor text and outline color swap", () => {
 });
 
 describe("editor text shadow and glow controls", () => {
+  it("resolves mixed shadow and glow toggles to enabled", () => {
+    const onUpdate = vi.fn();
+    render(
+      <EditorTextEffectGroup
+        block={makeBlock()}
+        disabled={false}
+        mixedFields={new Set(["textEffect", "textGlow"])}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    const shadow = screen.getByRole("checkbox", { name: "그림자 사용" });
+    const glow = screen.getByRole("checkbox", { name: "광선" });
+    expect((shadow as HTMLInputElement).indeterminate).toBe(true);
+    expect((glow as HTMLInputElement).indeterminate).toBe(true);
+    fireEvent.click(shadow);
+    fireEvent.click(glow);
+
+    expect(onUpdate).toHaveBeenCalledWith({
+      textEffect: expect.objectContaining({ enabled: true }),
+    });
+    expect(onUpdate).toHaveBeenCalledWith({
+      textGlow: expect.objectContaining({ enabled: true }),
+    });
+  });
+
   it("starts disabled, preserves explicit values, and commits direct numeric edits", () => {
     const onUpdate = vi.fn();
     const { rerender } = render(

@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import type { PanelFormatFieldKey } from "../../../shared/panelBridgeTypes";
 import {
   DEFAULT_MANUAL_TEXT_OUTLINE_WIDTH_PX,
   MAX_TEXT_OUTLINE_WIDTH_PX,
@@ -26,11 +27,13 @@ type OutlineControlModel = {
 export function EditorOutlineControls({
   block,
   disabled,
+  mixedFields = EMPTY_MIXED_FIELDS,
   outlineColor,
   onUpdate,
 }: {
   block: TranslationBlock;
   disabled: boolean;
+  mixedFields?: ReadonlySet<PanelFormatFieldKey>;
   outlineColor: string;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
 }): React.JSX.Element {
@@ -44,8 +47,13 @@ export function EditorOutlineControls({
         colorLabel={t("format.outline")}
         control={outline}
         disabled={disabled}
+        colorMixed={mixedFields.has("outlineColor")}
         enabledLabel={t("settings.format.color.outlineEnabled")}
         widthLabel={t("gatherText.outlineWidth")}
+        widthMixed={
+          mixedFields.has("outlineWidthPx") ||
+          mixedFields.has("outlineWidthScale")
+        }
         onColorChange={(value) => onUpdate({ outlineColor: value })}
       />
       <OutlineControl
@@ -55,12 +63,14 @@ export function EditorOutlineControls({
         })}
         control={outerOutline}
         disabled={disabled}
+        colorMixed={mixedFields.has("outerOutlineColor")}
         enabledLabel={t("format.outerOutline.enabled", {
           defaultValue: "바깥 외곽선",
         })}
         widthLabel={t("format.outerOutline.width", {
           defaultValue: "바깥 외곽선 두께",
         })}
+        widthMixed={mixedFields.has("outerOutlineWidthPx")}
         onColorChange={(value) => onUpdate({ outerOutlineColor: value })}
       />
     </>
@@ -69,20 +79,24 @@ export function EditorOutlineControls({
 
 function OutlineControl({
   color,
+  colorMixed,
   colorLabel,
   control,
   disabled,
   enabledLabel,
   onColorChange,
   widthLabel,
+  widthMixed,
 }: {
   color: string;
+  colorMixed: boolean;
   colorLabel: string;
   control: OutlineControlModel;
   disabled: boolean;
   enabledLabel: string;
   onColorChange: (value: string) => void;
   widthLabel: string;
+  widthMixed: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -91,8 +105,11 @@ function OutlineControl({
         className="editor-appearance-toggle"
         label={enabledLabel}
         checked={control.enabled}
+        indeterminate={widthMixed}
         disabled={disabled}
-        onCheckedChange={control.toggle}
+        onCheckedChange={(checked) =>
+          control.toggle(widthMixed ? true : checked)
+        }
       />
       {control.enabled ? (
         <>
@@ -102,6 +119,7 @@ function OutlineControl({
             labelHidden
             value={color}
             disabled={disabled}
+            mixed={colorMixed}
             onChange={onColorChange}
           />
           <div className="editor-format-number-cell editor-appearance-number">
@@ -118,6 +136,7 @@ function OutlineControl({
               unit="px"
               value={control.widthPx}
               disabled={disabled}
+              mixed={widthMixed}
               onValueChange={control.updateWidth}
             />
           </div>
@@ -126,6 +145,8 @@ function OutlineControl({
     </div>
   );
 }
+
+const EMPTY_MIXED_FIELDS: ReadonlySet<PanelFormatFieldKey> = new Set();
 
 function useEditorOutlineControls(
   block: TranslationBlock,

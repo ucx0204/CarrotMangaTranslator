@@ -255,6 +255,7 @@ function createBlockSelectionPointerOptions(
 ): {
   onBlockActivated: () => void;
   onBlockCreated: () => void;
+  onMultiBlockSelection: () => void;
   onSelectedBlockChange: () => void;
   selectedBlockId: string | null;
 } {
@@ -264,6 +265,7 @@ function createBlockSelectionPointerOptions(
       uiState.setRightRailMode("block-editor");
       uiState.requestEditorTextTab();
     },
+    onMultiBlockSelection: () => uiState.setRightRailMode("block-editor"),
     onSelectedBlockChange: () => {
       resetBlockTransformTool(uiState);
     },

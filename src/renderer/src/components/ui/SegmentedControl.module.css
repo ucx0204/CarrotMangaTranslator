@@ -18,6 +18,11 @@
   background: var(--bg-sunken);
 }
 
+.group[data-mixed] {
+  border-style: dashed;
+  border-color: var(--accent-bd);
+}
+
 /* Compact toolbars need a true segmented row, not one full-width button per
    line when the generic 108px basis no longer fits. Each choice stays intact;
    a genuinely narrow host can scroll the group instead of stacking choices. */

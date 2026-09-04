@@ -37,6 +37,8 @@ export function EditorPanelContainer(): React.JSX.Element {
         areaTranslateAvailable={session.areaTranslateAvailable}
         areaTranslateSelecting={session.areaTranslateSelecting}
         selectedBlockCount={session.selectedBlockCount}
+        selectionKey={session.selectionKey}
+        formatSelection={session.formatSelection}
         editorTextTabRequestToken={session.editorTextTabRequestToken}
         pageSize={session.selectedPageSize}
         resolvedFontSizePx={resolvedFontSizePx}

@@ -1,7 +1,10 @@
 import React from "react";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
-import type { TransformEditorMode } from "../../../shared/panelBridgeTypes";
+import type {
+  PanelFormatSelection,
+  TransformEditorMode,
+} from "../../../shared/panelBridgeTypes";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import {
@@ -33,6 +36,8 @@ type EditorPanelProps = {
   areaTranslateSelecting?: boolean;
   disableChapterApply?: boolean;
   selectedBlockCount?: number;
+  selectionKey?: string;
+  formatSelection?: PanelFormatSelection;
   editorTextTabRequestToken?: number;
   pageSize?: { width: number; height: number } | null;
   /** Actual base size currently rendered on the source page, in page pixels. */
@@ -74,6 +79,10 @@ type EditorPanelProps = {
 };
 
 const EMPTY_STYLE_PRESETS: readonly BlockStylePresetSummary[] = [];
+const EMPTY_FORMAT_SELECTION: PanelFormatSelection = {
+  common: {},
+  mixedFields: [],
+};
 const NOOP_ACTION = (): void => undefined;
 const NOOP_RESULT = (): boolean => false;
 
@@ -103,6 +112,9 @@ function SelectedEditorPanel(
     props.editorTextTabRequestToken ?? 0,
     props.block.sourceText.trim().length === 0 &&
       props.block.translatedText.trim().length === 0,
+    (props.selectedBlockCount ?? 0) > 1
+      ? (props.selectionKey ?? String(props.selectedBlockCount))
+      : "",
   );
   const panelIdBase = React.useId();
   const presetSelection = useAppliedStylePreset(props);
@@ -173,6 +185,7 @@ function SelectedEditorPanelBody({
         disabled={props.disabled}
         disableChapterApply={props.disableChapterApply ?? false}
         fontFamilyDraft={fontFamilyDraft}
+        formatSelection={resolveFormatSelection(props.formatSelection)}
         onAdjustFontSize={props.onAdjustFontSize}
         onApplyBlockBackgroundOpacity={props.onApplyBlockBackgroundOpacity}
         onApplyFormat={props.onApplyFormat}
@@ -204,6 +217,12 @@ function SelectedEditorPanelBody({
 
 function nullableFontSizePx(value: number | null | undefined): number | null {
   return value ?? null;
+}
+
+function resolveFormatSelection(
+  value: PanelFormatSelection | undefined,
+): PanelFormatSelection {
+  return value ?? EMPTY_FORMAT_SELECTION;
 }
 
 type AppliedStylePresetSelection = {
@@ -304,6 +323,7 @@ type EditorBlockGroupsProps = {
   disableChapterApply: boolean;
   canCreateStylePreset: boolean;
   fontFamilyDraft: string | undefined;
+  formatSelection: PanelFormatSelection;
   onAdjustFontSize: EditorPanelProps["onAdjustFontSize"];
   onApplyBlockBackgroundOpacity?: EditorPanelProps["onApplyBlockBackgroundOpacity"];
   onApplyFormat: EditorPanelProps["onApplyFormat"];

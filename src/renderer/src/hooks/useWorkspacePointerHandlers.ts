@@ -59,6 +59,7 @@ type UseWorkspacePointerHandlersOptions = {
   onBubbleLayoutApplied?: () => void;
   onBlockActivated?: (blockId: string) => void;
   onBlockCreated?: (blockId: string) => void;
+  onMultiBlockSelection?: () => void;
   onSelectedBlockChange?: (blockId: string) => void;
   lastInpaintingRetouchPointRef: MutableRefObject<{
     x: number;
@@ -237,6 +238,7 @@ function useWorkspaceDrawingHandlers(
       !options.regionSelection?.active,
     getImagePointerRect,
     interactionPreviewStore,
+    onMultiBlockSelection: options.onMultiBlockSelection,
     page: options.selectedPage,
     selectedBlockId: options.selectedBlockId,
     selectedBlockIds: options.selectedBlockIds ?? [],

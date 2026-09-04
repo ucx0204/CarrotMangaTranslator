@@ -9,6 +9,7 @@ import {
   createConditionalBatchClientId,
   type ConditionalBatchActionV2,
   type ConditionalBatchConditionV2,
+  type ConditionalBatchSetFieldChangeV2,
 } from "../../../shared/conditionalBatchRules";
 import {
   createConditionalLiteralMatcher,
@@ -513,14 +514,7 @@ export function summarizeAction(action: ConditionalBatchActionV2): string {
     return `${action.presetName} 프리셋 적용`;
   }
   if (action.type === "setFields") {
-    return action.changes
-      .map(
-        (change) =>
-          `${CONDITIONAL_BATCH_FIELD_LABELS[change.field]} ${
-            change.operation === "clear" ? "초기화" : String(change.value ?? "")
-          }`,
-      )
-      .join(" · ");
+    return action.changes.map(summarizeSetFieldChange).join(" · ");
   }
   const target =
     action.scope === "allText"
@@ -528,6 +522,59 @@ export function summarizeAction(action: ConditionalBatchActionV2): string {
       : summarizeTextMatcher(action.matcher);
   return `${target}에 부분 서식 적용`;
 }
+
+function summarizeSetFieldChange(
+  change: ConditionalBatchSetFieldChangeV2,
+): string {
+  const label = CONDITIONAL_BATCH_FIELD_LABELS[change.field];
+  if (change.operation === "clear") return `${label} 지정 해제`;
+  const definition = getConditionalBatchFieldDefinition(change.field);
+  if (definition.kind === "boolean") {
+    return summarizeBooleanSetField(label, change.value);
+  }
+  if (definition.kind === "enum") {
+    return summarizeEnumSetField(label, change);
+  }
+  if (definition.kind === "number") {
+    return summarizeNumberSetField(label, change, definition.number?.unit);
+  }
+  const value = String(change.value ?? "");
+  return `${label} ${value || "빈 값"}`;
+}
+
+function summarizeBooleanSetField(
+  label: string,
+  value: ConditionalBatchSetFieldChangeV2["value"],
+): string {
+  return `${label} ${value === true ? "켜기" : "끄기"}`;
+}
+
+function summarizeEnumSetField(
+  label: string,
+  change: ConditionalBatchSetFieldChangeV2,
+): string {
+  const rawValue = String(change.value ?? "");
+  const option = conditionalBatchEnumOptions(change.field).find(
+    (entry) => entry.value === rawValue,
+  );
+  return `${label} ${option?.label ?? rawValue}`;
+}
+
+function summarizeNumberSetField(
+  label: string,
+  change: ConditionalBatchSetFieldChangeV2,
+  unit: string | undefined,
+): string {
+  if (typeof change.value !== "number") return `${label} 값 없음`;
+  if (PERCENT_VALUE_FIELDS.has(change.field)) {
+    return `${label} ${Math.round(change.value * 100)}%`;
+  }
+  return `${label} ${change.value}${unit ?? ""}`;
+}
+
+const PERCENT_VALUE_FIELDS = new Set<ConditionalBatchSetFieldChangeV2["field"]>(
+  ["fontWidthScale", "textOpacity", "textEffectOpacity", "textGlowOpacity"],
+);
 
 export function actionStage(action: ConditionalBatchActionV2): 1 | 2 | 3 {
   if (action.type === "replaceText") return 2;

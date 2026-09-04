@@ -24,6 +24,7 @@ export function SegmentedControl<T extends string>({
   buttonClassName,
   className,
   disabled = false,
+  mixed = false,
   singleRow = false,
   tooltipPlacement = "bottom",
   options,
@@ -35,6 +36,7 @@ export function SegmentedControl<T extends string>({
   buttonClassName?: string;
   className?: string;
   disabled?: boolean;
+  mixed?: boolean;
   /** Keep every option in one horizontal row. Labels may wrap inside a cell. */
   singleRow?: boolean;
   tooltipPlacement?: SegmentedTooltipPlacement;
@@ -43,6 +45,10 @@ export function SegmentedControl<T extends string>({
   onChange: (value: T) => void;
 }): React.JSX.Element {
   const tooltipBaseId = React.useId();
+  const firstEnabledIndex = options.findIndex((option) => !option.disabled);
+  const selectedIndex = options.findIndex((option) => option.id === value);
+  const tabStopIndex =
+    !mixed && selectedIndex >= 0 ? selectedIndex : firstEnabledIndex;
   const roving = useRovingFocus({
     count: options.length,
     disabled,
@@ -64,18 +70,20 @@ export function SegmentedControl<T extends string>({
       role="radiogroup"
       aria-label={ariaLabel}
       aria-describedby={ariaDescribedBy}
+      data-mixed={mixed ? "" : undefined}
       data-ui-segmented=""
     >
       {options.map((option, index) => (
         <SegmentedControlOption
           key={option.id}
           buttonClassName={buttonClassName}
-          checked={option.id === value}
+          checked={!mixed && option.id === value}
           disabled={disabled}
           index={index}
           onSelect={() => onChange(option.id)}
           option={option}
           roving={roving}
+          tabStop={index === tabStopIndex}
           tooltipPlacement={tooltipPlacement}
           tooltipId={
             option.tooltip ? `${tooltipBaseId}-option-${index}` : undefined
@@ -94,6 +102,7 @@ function SegmentedControlOption<T extends string>({
   onSelect,
   option,
   roving,
+  tabStop,
   tooltipId,
   tooltipPlacement,
 }: {
@@ -104,6 +113,7 @@ function SegmentedControlOption<T extends string>({
   onSelect: () => void;
   option: SegmentedOption<T>;
   roving: RovingFocus;
+  tabStop: boolean;
   tooltipId?: string;
   tooltipPlacement: SegmentedTooltipPlacement;
 }): React.JSX.Element {
@@ -124,7 +134,7 @@ function SegmentedControlOption<T extends string>({
         role="radio"
         aria-checked={checked}
         aria-describedby={tooltipId}
-        tabIndex={checked ? 0 : -1}
+        tabIndex={tabStop ? 0 : -1}
         className={[
           styles.button,
           buttonClassName ?? "",

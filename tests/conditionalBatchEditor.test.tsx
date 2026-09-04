@@ -778,6 +778,9 @@ describe("beginner conditional batch editor", () => {
     fireEvent.click(screen.getByText("작업 추가"));
     fireEvent.click(screen.getByRole("button", { name: "텍스트 전체 바꾸기" }));
     expect(screen.getAllByLabelText(/번 작업 삭제/)).toHaveLength(2);
+    fireEvent.click(screen.getByText("작업 추가"));
+    fireEvent.click(screen.getByRole("button", { name: "속성 바꾸기" }));
+    expect(screen.getAllByLabelText(/번 작업 삭제/)).toHaveLength(3);
 
     fireEvent.click(screen.getByLabelText("규칙 편집"));
     fireEvent.change(screen.getByLabelText("규칙 이름"), {
@@ -893,7 +896,7 @@ describe("beginner conditional batch editor", () => {
       "[data-conditional-batch-preview-column]",
     );
     expect(previewColumn).toBeTruthy();
-    expect(screen.getByText("결과 3")).toBeTruthy();
+    expect(screen.getByText("적용 대상 3/3")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "전체 제외" }));
     expect(
       (screen.getByRole("button", { name: "적용" }) as HTMLButtonElement)
@@ -1080,7 +1083,7 @@ describe("beginner conditional batch editor", () => {
 
     expect(screen.getByText("QA Sans")).toBeTruthy();
     expect(screen.getByText("30")).toBeTruthy();
-    expect(screen.getByText("예")).toBeTruthy();
+    expect(screen.getByText("켜짐")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "이전 변경 후보" }));
     fireEvent.click(screen.getByRole("button", { name: "다음 변경 후보" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "이번 실행에 포함" }));
@@ -1126,6 +1129,63 @@ describe("beginner conditional batch editor", () => {
     );
     expect(screen.getAllByText("∅").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("빈 번역")).toBeTruthy();
+  });
+
+  it("separates condition matches from actual changes without repeating before values", () => {
+    const generated = createConditionalBatchPreview(
+      CHAPTER,
+      { kind: "chapter" },
+      createEllipsisBatchSchemeDraft(),
+    );
+    const base = requiredItem(generated.results, 0);
+    const beforeBlock = { ...base.beforeBlock, bold: true };
+    const turnedOff: ConditionalBatchPreviewResult = {
+      ...base,
+      key: "bold-off",
+      pageName: "굵게 끄기.jpg",
+      beforeBlock,
+      afterBlock: { ...beforeBlock, bold: false },
+      changedFields: ["bold"],
+    };
+    const unset: ConditionalBatchPreviewResult = {
+      ...base,
+      key: "bold-unset",
+      pageName: "굵게 지정 해제.jpg",
+      beforeBlock,
+      afterBlock: { ...beforeBlock, bold: undefined },
+      changedFields: ["bold"],
+    };
+    const preview: ConditionalBatchPreview = {
+      ...generated,
+      matchedCount: 5,
+      unchangedMatchCount: 3,
+      results: [turnedOff, unset],
+    };
+
+    render(
+      <ConditionalBatchResultsCard
+        currentResult={turnedOff}
+        currentResultIndex={0}
+        excludedResultKeys={new Set()}
+        preview={preview}
+        onMoveResult={vi.fn()}
+        onSelectResult={vi.fn()}
+        onSetAllResultsIncluded={vi.fn()}
+        onToggleResult={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("적용 대상 2/2")).toBeTruthy();
+    expect(
+      screen.getByText("조건 일치 5 · 실제 변경 2 · 변경 없음 3"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/목록에는 실제로 값이 바뀌는 항목만 표시됩니다/),
+    ).toBeTruthy();
+    expect(screen.getByText("굵게 · 꺼짐 적용")).toBeTruthy();
+    expect(screen.getByText("굵게 · 지정 해제")).toBeTruthy();
+    expect(screen.getByText("변경 전")).toBeTruthy();
+    expect(screen.getByText("변경 후")).toBeTruthy();
   });
 });
 
