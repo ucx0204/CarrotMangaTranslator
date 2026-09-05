@@ -255,8 +255,16 @@ function ChangedFieldDiffs({
         <div className={styles.fieldDiff} key={field}>
           <strong>{CONDITIONAL_BATCH_FIELD_LABELS[field]}</strong>
           <DiffText
-            before={readChangedField(result.beforeBlock, field)}
-            after={readChangedField(result.afterBlock, field)}
+            before={readChangedField(
+              result.beforeBlock,
+              field,
+              result.resolvedFieldValues?.[field]?.before,
+            )}
+            after={readChangedField(
+              result.afterBlock,
+              field,
+              result.resolvedFieldValues?.[field]?.after,
+            )}
           />
         </div>
       ))}
@@ -333,8 +341,10 @@ function DiffText({ before, after }: { before: string; after: string }) {
 function readChangedField(
   block: ConditionalBatchPreviewResult["beforeBlock"],
   field: ConditionalBatchWritableField,
+  resolvedValue?: unknown,
 ): string {
-  const value = readConditionalBatchWritableValue(block, field);
+  const value =
+    resolvedValue ?? readConditionalBatchWritableValue(block, field);
   if (field === "translatedText") {
     return stripRichTextMarkup(String(value ?? ""));
   }
@@ -369,7 +379,7 @@ function resultListSummary(
   const outcome =
     afterValue === undefined
       ? "지정 해제"
-      : `${readChangedField(result.afterBlock, first)} 적용`;
+      : `${readChangedField(result.afterBlock, first, result.resolvedFieldValues?.[first]?.after)} 적용`;
   return `${CONDITIONAL_BATCH_FIELD_LABELS[first]} · ${outcome}${remaining}`;
 }
 

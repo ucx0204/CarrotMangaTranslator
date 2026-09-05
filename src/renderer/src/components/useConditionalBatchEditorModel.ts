@@ -33,6 +33,7 @@ import {
   type ConditionalBatchApplyNotice,
   type ConditionalBatchParsedDraft,
 } from "./useConditionalBatchSchemeController";
+import { useConditionalBatchTypography } from "./useConditionalBatchTypography";
 
 type ConditionalBatchScopeKind = "selection" | "page" | "chapter";
 type PreviewMode = "before" | "after";
@@ -80,6 +81,7 @@ export function useConditionalBatchEditorModel(
   props: ConditionalBatchEditorModelProps,
 ): ConditionalBatchEditorModel {
   const glossary = useWorkGlossary(props.workId);
+  const typography = useConditionalBatchTypography(props.chapter, glossary);
   const scheme = useConditionalBatchSchemeController({
     initialFind: props.initialFind,
     initialReplace: props.initialReplace,
@@ -97,7 +99,7 @@ export function useConditionalBatchEditorModel(
   const preview = usePreviewController(
     props,
     scheme.parsedDraft,
-    glossary,
+    typography,
     activeSequence,
     scheme.snapshot,
     scheme.selectedSchemeId,
@@ -109,7 +111,7 @@ export function useConditionalBatchEditorModel(
     preview: preview.preview,
     props,
     setApplyNotice: scheme.setApplyNotice,
-    glossary,
+    options: typography.options,
     activeSequence,
     sequencePreview: preview.sequencePreview,
     snapshot: scheme.snapshot,
@@ -187,7 +189,7 @@ export function useConditionalBatchEditorModel(
     },
     footerProps: {
       applyNotice: scheme.applyNotice,
-      busy: props.busy,
+      busy: props.busy || !typography.ready,
       canUndo: props.canUndo,
       conflictCount: application.conflictCount,
       excludedCount: preview.excludedResultKeys.size,
@@ -231,7 +233,7 @@ function useWorkGlossary(workId: string | undefined): readonly GlossaryEntry[] {
 function usePreviewController(
   props: ConditionalBatchEditorModelProps,
   parsedDraft: ConditionalBatchParsedDraft,
-  glossary: readonly GlossaryEntry[],
+  typography: ReturnType<typeof useConditionalBatchTypography>,
   activeSequence: ConditionalBatchSequenceV2 | null,
   snapshot: ConditionalBatchSnapshotV2,
   schemeKey: string,
@@ -256,25 +258,42 @@ function usePreviewController(
   );
   const sequencePreview = React.useMemo(
     () =>
-      activeSequence
+      activeSequence && typography.ready
         ? createConditionalBatchSequencePreview(
             props.chapter,
             scope,
             activeSequence,
             snapshot,
-            { glossary },
+            typography.options,
           )
         : null,
-    [activeSequence, glossary, props.chapter, scope, snapshot],
+    [
+      activeSequence,
+      typography.options,
+      typography.ready,
+      props.chapter,
+      scope,
+      snapshot,
+    ],
   );
   const preview = React.useMemo(() => {
     if (sequencePreview) return sequencePreview.preview;
-    return parsedDraft.success
-      ? createConditionalBatchPreview(props.chapter, scope, parsedDraft.data, {
-          glossary,
-        })
+    return parsedDraft.success && typography.ready
+      ? createConditionalBatchPreview(
+          props.chapter,
+          scope,
+          parsedDraft.data,
+          typography.options,
+        )
       : emptyPreview(props.chapter.id);
-  }, [glossary, parsedDraft, props.chapter, scope, sequencePreview]);
+  }, [
+    typography.options,
+    typography.ready,
+    parsedDraft,
+    props.chapter,
+    scope,
+    sequencePreview,
+  ]);
   React.useEffect(() => {
     const availableKeys = new Set(preview.results.map((result) => result.key));
     setExcludedByScheme((current) => {
@@ -489,7 +508,7 @@ function useApplicationController({
   preview,
   props,
   setApplyNotice,
-  glossary,
+  options,
   sequencePreview,
   snapshot,
 }: {
@@ -502,7 +521,7 @@ function useApplicationController({
   setApplyNotice: React.Dispatch<
     React.SetStateAction<ConditionalBatchApplyNotice>
   >;
-  glossary: readonly GlossaryEntry[];
+  options: ConditionalBatchEngineOptions;
   sequencePreview: ConditionalBatchSequencePreview | null;
   snapshot: ConditionalBatchSnapshotV2;
 }) {
@@ -519,13 +538,11 @@ function useApplicationController({
             snapshot,
             sequencePreview,
             excludedResultKeys,
-            { glossary },
+            options,
           )
         : null
       : parsedDraft.success
-        ? props.onApply(parsedDraft.data, preview, excludedResultKeys, {
-            glossary,
-          })
+        ? props.onApply(parsedDraft.data, preview, excludedResultKeys, options)
         : null;
     if (!outcome) return;
     setConflictCount(outcome.conflictCount);

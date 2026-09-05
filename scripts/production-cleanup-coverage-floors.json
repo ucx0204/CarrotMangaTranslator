@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "9e93aeffc8a5e12745b2d2f705b01bf7033584e68bd51197b85a163d4973e23a",
+    "introducedArtifactSha256": "c2fb4a92245f28b1a483f5c1645c0a74f85b073bc2b079c5016f422f5658ef32",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -189,6 +189,50 @@
         "pct": 90.9
       }
     },
+    "src/main/bubbleLayout/bubbleBlockAssociation.ts": {
+      "lines": {
+        "covered": 59,
+        "total": 60,
+        "pct": 98.33
+      },
+      "statements": {
+        "covered": 62,
+        "total": 63,
+        "pct": 98.41
+      },
+      "functions": {
+        "covered": 23,
+        "total": 23,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 28,
+        "total": 34,
+        "pct": 82.35
+      }
+    },
+    "src/main/bubbleLayout/bubbleDistanceTransform.ts": {
+      "lines": {
+        "covered": 25,
+        "total": 25,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 32,
+        "total": 32,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      }
+    },
     "src/main/bubbleLayout/bubbleLayoutFacade.ts": {
       "lines": {
         "covered": 39,
@@ -230,6 +274,28 @@
       "branches": {
         "covered": 50,
         "total": 60,
+        "pct": 83.33
+      }
+    },
+    "src/main/bubbleLayout/bubbleRegionPartition.ts": {
+      "lines": {
+        "covered": 113,
+        "total": 114,
+        "pct": 99.12
+      },
+      "statements": {
+        "covered": 126,
+        "total": 132,
+        "pct": 95.45
+      },
+      "functions": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 45,
+        "total": 54,
         "pct": 83.33
       }
     },
@@ -12685,6 +12751,28 @@
         "pct": 94.11
       }
     },
+    "src/renderer/src/lib/bubbleTextLayout.ts": {
+      "lines": {
+        "covered": 42,
+        "total": 43,
+        "pct": 97.67
+      },
+      "statements": {
+        "covered": 49,
+        "total": 52,
+        "pct": 94.23
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 33,
+        "total": 38,
+        "pct": 86.84
+      }
+    },
     "src/renderer/src/lib/bubbleTextWrapping.ts": {
       "lines": {
         "covered": 120,
@@ -14621,6 +14709,28 @@
         "total": 12,
         "covered": 7,
         "pct": 58.33
+      }
+    },
+    "src/main/bubbleLayout/bubbleMaskOwnership.ts": {
+      "lines": {
+        "covered": 94,
+        "total": 96,
+        "pct": 97.91
+      },
+      "statements": {
+        "covered": 105,
+        "total": 110,
+        "pct": 95.45
+      },
+      "functions": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 54,
+        "total": 62,
+        "pct": 87.09
       }
     },
     "src/main/bubbleLayout/koharuMaskRefinement.ts": {
@@ -16713,6 +16823,28 @@
         "pct": 100
       }
     },
+    "src/main/pipeline/sourceFontSizeBodyEvidence.ts": {
+      "lines": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      }
+    },
     "src/main/pipeline/sourceFontSizeComponentAffinity.ts": {
       "lines": {
         "total": 128,
@@ -17041,6 +17173,28 @@
         "total": 60,
         "covered": 43,
         "pct": 71.66
+      }
+    },
+    "src/main/pipeline/sourceFontSizeTextEvidence.ts": {
+      "lines": {
+        "covered": 25,
+        "total": 27,
+        "pct": 92.59
+      },
+      "statements": {
+        "covered": 27,
+        "total": 31,
+        "pct": 87.09
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 20,
+        "total": 26,
+        "pct": 76.92
       }
     },
     "src/main/pipeline/wholePageCheckpointFlow.ts": {
@@ -21003,6 +21157,28 @@
         "pct": 75
       }
     },
+    "src/renderer/src/components/useConditionalBatchTypography.ts": {
+      "lines": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      },
+      "statements": {
+        "total": 8,
+        "covered": 8,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 3,
+        "covered": 2,
+        "pct": 66.66
+      }
+    },
     "src/renderer/src/components/useContainedPageSize.ts": {
       "lines": {
         "total": 15,
@@ -21355,6 +21531,28 @@
         "pct": 66.66
       }
     },
+    "src/renderer/src/hooks/useBlockFontReadiness.ts": {
+      "lines": {
+        "total": 24,
+        "covered": 18,
+        "pct": 75
+      },
+      "statements": {
+        "total": 28,
+        "covered": 20,
+        "pct": 71.42
+      },
+      "functions": {
+        "total": 7,
+        "covered": 6,
+        "pct": 85.71
+      },
+      "branches": {
+        "total": 24,
+        "covered": 19,
+        "pct": 79.16
+      }
+    },
     "src/renderer/src/hooks/useCompletionSound.ts": {
       "lines": {
         "covered": 35,
@@ -21639,6 +21837,72 @@
         "total": 12,
         "covered": 10,
         "pct": 83.33
+      }
+    },
+    "src/renderer/src/lib/balancedBubbleTextWrapping.ts": {
+      "lines": {
+        "covered": 71,
+        "total": 71,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 80,
+        "total": 81,
+        "pct": 98.76
+      },
+      "functions": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 62,
+        "total": 66,
+        "pct": 93.93
+      }
+    },
+    "src/renderer/src/lib/bubbleFontSizeFitting.ts": {
+      "lines": {
+        "covered": 25,
+        "total": 31,
+        "pct": 80.64
+      },
+      "statements": {
+        "covered": 29,
+        "total": 35,
+        "pct": 82.85
+      },
+      "functions": {
+        "covered": 7,
+        "total": 8,
+        "pct": 87.5
+      },
+      "branches": {
+        "covered": 28,
+        "total": 37,
+        "pct": 75.67
+      }
+    },
+    "src/renderer/src/lib/conditionalBatchTypography.ts": {
+      "lines": {
+        "total": 11,
+        "covered": 11,
+        "pct": 100
+      },
+      "statements": {
+        "total": 12,
+        "covered": 12,
+        "pct": 100
+      },
+      "functions": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "branches": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
       }
     },
     "src/renderer/src/lib/consistentEditSuggestion.ts": {

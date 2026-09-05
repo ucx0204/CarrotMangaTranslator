@@ -6,6 +6,10 @@ import { formatSettingsErrorMessage } from "../settingsModalHelpers";
 
 type AccountAction = "login" | "logout";
 
+const CATALOG_REFRESH_INTERVAL_MS = 5 * 60_000;
+
+type AccountRefreshState = { lastReadAt: number | null; revision: number };
+
 type CodexAccountController = {
   snapshot: CodexAccountSnapshot | null;
   loading: boolean;
@@ -21,7 +25,7 @@ export function CodexAccountField({
   controlsBusy: boolean;
   onSnapshotChange?: (snapshot: CodexAccountSnapshot | null) => void;
 }): React.JSX.Element {
-  const controller = useCodexAccountController(onSnapshotChange);
+  const controller = useCodexAccountController(controlsBusy, onSnapshotChange);
   const authenticated = controller.snapshot?.authenticated === true;
   const disabled =
     controlsBusy || controller.loading || controller.action !== null;
@@ -114,6 +118,7 @@ function CodexAccountActionButton({
 }
 
 function useCodexAccountController(
+  controlsBusy: boolean,
   onSnapshotChange?: (snapshot: CodexAccountSnapshot | null) => void,
 ): CodexAccountController {
   const { t } = useTranslation("components");
@@ -123,41 +128,30 @@ function useCodexAccountController(
   const [loading, setLoading] = React.useState(true);
   const [action, setAction] = React.useState<AccountAction | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const refreshState = React.useRef<AccountRefreshState>({
+    lastReadAt: null,
+    revision: 0,
+  });
   const publishSnapshot = React.useCallback(
     (next: CodexAccountSnapshot) => {
+      refreshState.current.lastReadAt = Date.now();
       setSnapshot(next);
       onSnapshotChange?.(next);
     },
     [onSnapshotChange],
   );
 
-  React.useEffect(() => {
-    let active = true;
-    void settingsGateway
-      .getCodexAccount()
-      .then((next) => {
-        if (active) publishSnapshot(next);
-      })
-      .catch((caught: unknown) => {
-        if (active) {
-          setError(
-            formatSettingsErrorMessage(
-              caught,
-              t("settings.codex.account.loadFailed"),
-            ),
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [publishSnapshot, t]);
+  useCodexAccountRefresh(
+    controlsBusy || action !== null,
+    refreshState,
+    publishSnapshot,
+    setLoading,
+    setError,
+  );
 
   const runAction = React.useCallback(
     async (nextAction: AccountAction) => {
+      refreshState.current.revision += 1;
       setAction(nextAction);
       setError(null);
       try {
@@ -176,6 +170,66 @@ function useCodexAccountController(
     [publishSnapshot, t],
   );
   return { snapshot, loading, action, error, runAction };
+}
+
+function useCodexAccountRefresh(
+  paused: boolean,
+  refreshState: React.RefObject<AccountRefreshState>,
+  publishSnapshot: (snapshot: CodexAccountSnapshot) => void,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setError: React.Dispatch<React.SetStateAction<string | null>>,
+): void {
+  const { t } = useTranslation("components");
+  React.useEffect(() => {
+    if (paused) return;
+    let active = true;
+    let inFlight = false;
+    const refresh = () => {
+      if (!active || inFlight || document.hidden) return;
+      inFlight = true;
+      const revision = refreshState.current.revision;
+      void settingsGateway
+        .getCodexAccount()
+        .then((next) => {
+          if (!active || revision !== refreshState.current.revision) return;
+          setError(null);
+          publishSnapshot(next);
+        })
+        .catch((caught: unknown) => {
+          if (!active || revision !== refreshState.current.revision) return;
+          setError(
+            formatSettingsErrorMessage(
+              caught,
+              t("settings.codex.account.loadFailed"),
+            ),
+          );
+        })
+        .finally(() => {
+          inFlight = false;
+          if (!active || revision !== refreshState.current.revision) return;
+          refreshState.current.lastReadAt = Date.now();
+          setLoading(false);
+        });
+    };
+    const refreshWhenStale = () => {
+      const lastReadAt = refreshState.current.lastReadAt;
+      if (
+        lastReadAt === null ||
+        Date.now() - lastReadAt >= CATALOG_REFRESH_INTERVAL_MS
+      )
+        refresh();
+    };
+    refreshWhenStale();
+    const timer = window.setInterval(refresh, CATALOG_REFRESH_INTERVAL_MS);
+    window.addEventListener("focus", refreshWhenStale);
+    document.addEventListener("visibilitychange", refreshWhenStale);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenStale);
+      document.removeEventListener("visibilitychange", refreshWhenStale);
+    };
+  }, [paused, refreshState, publishSnapshot, setError, setLoading, t]);
 }
 
 async function performAccountAction(

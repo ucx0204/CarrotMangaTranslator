@@ -222,7 +222,7 @@ describe("conditional batch v2 matching and preview", () => {
         condition("textGlowColor", "equals", "#ff8800"),
         condition("textGlowBlur", "equals", 8),
         condition("textGlowOpacity", "equals", 0.65),
-        condition("bboxAspectRatio", "equals", 2),
+        condition("bboxAspectRatio", "equals", 1.25),
         condition("numberMismatch", "isTrue"),
         condition("suspiciousWhitespace", "isTrue"),
       ],

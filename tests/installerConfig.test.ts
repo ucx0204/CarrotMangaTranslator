@@ -224,7 +224,7 @@ describe("Windows installer clean uninstall option", () => {
     }
     expect(packageJson.dependencies["onnxruntime-web"]).toBe("1.27.0");
     expect(packageJson.dependencies["onnxruntime-node"]).toBe("1.27.0");
-    expect(packageJson.dependencies["@openai/codex"]).toBe("0.150.1");
+    expect(packageJson.dependencies["@openai/codex"]).toBe("0.153.1");
     expect(packageJson.devDependencies).not.toHaveProperty("@openai/codex");
     expect(packageJson.overrides["onnxruntime-node"]?.["adm-zip"]).toBe(
       "^0.6.0",

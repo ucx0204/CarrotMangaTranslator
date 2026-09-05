@@ -60,6 +60,13 @@ const bridgeTemplate = `(() => {
   };
   const codexModels = [
     {
+      id: "gpt-6-astra",
+      displayName: "GPT-6-Astra",
+      supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
+      defaultReasoningEffort: "medium",
+      isDefault: false,
+    },
+    {
       id: "gpt-5.6-sol",
       displayName: "GPT-5.6-Sol",
       supportedReasoningEfforts: [
@@ -87,7 +94,7 @@ const bridgeTemplate = `(() => {
     email: "reader@example.com",
     planType: "plus",
     requiresOpenaiAuth: true,
-    appServerVersion: "0.150.1",
+    appServerVersion: "0.153.1",
     models: codexModels,
   };
   let codexAccount = signedInCodexAccount;

@@ -65,6 +65,7 @@ settings.json
 panel-window-bounds.json
 recent-dialog-paths.json
 /block-library.json
+/batch-edit-schemes.yaml
 /linked-workspaces.json
 /linked-sync-queue.json
 /codex/

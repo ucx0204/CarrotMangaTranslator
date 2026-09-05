@@ -771,6 +771,15 @@ export type ConditionalBatchPreviewResult = {
   after: ConditionalBatchTextValues;
   beforeBlock: TranslationBlock;
   afterBlock: TranslationBlock;
+  resolvedFieldValues?: Partial<
+    Record<
+      ConditionalBatchWritableField,
+      {
+        before: ConditionalBatchConditionEvaluation["rawValue"];
+        after: ConditionalBatchConditionEvaluation["rawValue"];
+      }
+    >
+  >;
   changedFields: ConditionalBatchWritableField[];
   actionTargetFields: ConditionalBatchWritableField[];
   conditionEvaluations: ConditionalBatchConditionEvaluation[];
