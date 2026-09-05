@@ -401,8 +401,15 @@ describe("bubble layout page processor", () => {
     expect(inpaintPrepass.context.inpaintWindows).toHaveLength(1);
     expect(inpaintPrepass.context.inpaintWindowConstraints).toHaveLength(1);
     expect(
+      finalLayout.ownedMasks[0].every(
+        (value, index) => value === 0 || finalLayout.ownedMasks[1][index] === 0,
+      ),
+    ).toBe(true);
+    // The mask-path distance margin rasterizes to two empty rows here;
+    // the former ellipse partition used a different gutter multiplier.
+    expect(
       countUnmaskedRowsBetweenOwners(finalLayout.ownedMasks, centerX),
-    ).toBeGreaterThanOrEqual(3);
+    ).toBe(2);
 
     const activeRows = activeRowsAtX(inpaintPrepass.context.pageMask, centerX);
     const firstActiveRow = activeRows[0];

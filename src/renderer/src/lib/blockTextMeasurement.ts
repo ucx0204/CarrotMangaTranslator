@@ -71,6 +71,7 @@ export function resolveFixedHorizontalTextLines(
     resolveLetterSpacingPx(block, fontSize),
     resolveBlockTextWordBreak(block.wordBreak, "horizontal"),
     resolveRunStyle,
+    block.fontSizeIntent === "source-match" && !/[\r\n]/u.test(text),
   ).lines;
 }
 
@@ -117,6 +118,7 @@ export function doesBlockTextFit(
     letterSpacingPx,
     resolveBlockTextWordBreak(block.wordBreak, "horizontal"),
     createTextRunStyleResolver(block, fontSize, fontCatalog),
+    block.fontSizeIntent === "source-match" && !/[\r\n]/u.test(text),
   );
   return (
     measured.totalHeight <= innerHeight &&

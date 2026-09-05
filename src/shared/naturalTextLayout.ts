@@ -102,8 +102,12 @@ export function applyNaturalTextLayout(
   }
   if (
     shouldPreserveVertical(block, options) ||
-    !supportsNaturalHardBreaks(block)
+    !supportsNaturalHardBreaks(block) ||
+    block.fontSizeIntent === "source-match"
   ) {
+    // Source matching resolves the actual face size in the renderer, after the
+    // font has loaded. Hard breaks calculated from the provisional nominal
+    // size would survive both that conversion and later balloon fitting.
     return unchangedResult(block, text, "unchanged", withVerticalMetrics);
   }
 

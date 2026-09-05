@@ -1,4 +1,5 @@
 import type { TextStyleRun } from "../../../shared/richTextMarkup";
+import { isCjkGrapheme } from "../../../shared/naturalTextLayoutSegmentation";
 import {
   allowsLongTokenFallback,
   keepsWordsTogether,
@@ -60,7 +61,7 @@ export function assessWrappedTextQuality(
   let semanticGraphemeCount = 0;
   for (const [index, line] of lines.entries()) {
     const lineText = line.runs.map((run) => run.text).join("");
-    textOffset += lineText.length;
+    textOffset += line.sourceTextLength ?? lineText.length;
     semanticGraphemeCount += countSemanticGraphemes(lineText);
     if (countContentGraphemes(lineText) === 1) {
       orphanLineCount += 1;
@@ -109,16 +110,17 @@ function isDamagingWordBoundary(
   naturalBoundaries: ReadonlySet<number>,
   explicitBoundaries: ReadonlySet<number>,
 ): boolean {
-  if (
-    offset <= 0 ||
-    offset >= text.length ||
-    naturalBoundaries.has(offset) ||
-    explicitBoundaries.has(offset)
-  ) {
+  if (offset <= 0 || offset >= text.length || explicitBoundaries.has(offset)) {
     return false;
   }
   const previous = segmentGraphemes(text.slice(0, offset)).slice(-1).join("");
   const next = segmentGraphemes(text.slice(offset)).slice(0, 1).join("");
+  if (
+    naturalBoundaries.has(offset) &&
+    !isCjkGrapheme(previous) &&
+    !isCjkGrapheme(next)
+  )
+    return false;
   return isWordContent(previous) && isWordContent(next);
 }
 

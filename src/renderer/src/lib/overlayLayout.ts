@@ -9,6 +9,7 @@ import {
   resolveFontWidthScale,
 } from "../../../shared/geometry";
 import { parseRichText } from "../../../shared/richTextMarkup";
+import { isGeneratedBubbleLayout } from "../../../shared/bubbleLayout";
 import type { BlockFontCatalog } from "./fonts";
 import {
   doesBlockTextFit as doesTextFit,
@@ -16,6 +17,7 @@ import {
   resolveHorizontalTextContentWidth,
 } from "./blockTextMeasurement";
 import { resolveBubbleWrappedText } from "./bubbleBlockTextLayout";
+import { resolveSourceMatchedBubbleFontSize } from "./bubbleFontSizeFitting";
 import { type BlockTextLine } from "./overlayTextWrapping";
 import { resolveSourceMatchedFontSizeCapPx } from "./sourceFontSizeMatching";
 
@@ -198,20 +200,31 @@ function resolveBlockTextMetrics(
     sourceMatchedCapPx,
   );
   const bubbleMeasurer = createBubbleMeasurer(input);
-  const fontSizePx = resolveTextFontSizePx(
+  const fittedFontSizePx = resolveTextFontSizePx(
     block,
     text,
     maxFontSize,
     createFitsAtFontSize(input, bubbleMeasurer),
   );
+  const fontSizePx =
+    sourceMatchedCapPx !== null
+      ? resolveSourceMatchedBubbleFontSize(
+          block,
+          text,
+          fittedFontSizePx,
+          bubbleMeasurer,
+        )
+      : fittedFontSizePx;
   return resolveFinalTextMetrics(input, fontSizePx, bubbleMeasurer);
 }
 
 function createBubbleMeasurer(input: TextMetricsInput): BubbleMeasurer | null {
   const { block, text, fitInnerWidth, fitInnerHeight, fontCatalog } = input;
   if (!text.trim() || block.curveLayout) return null;
-  const measure: BubbleMeasurer = (fontSize) =>
-    resolveBubbleWrappedText(
+  const cache = new Map<number, ReturnType<BubbleMeasurer>>();
+  const measure: BubbleMeasurer = (fontSize) => {
+    if (cache.has(fontSize)) return cache.get(fontSize) ?? null;
+    const result = resolveBubbleWrappedText(
       block,
       text,
       fontSize,
@@ -219,6 +232,9 @@ function createBubbleMeasurer(input: TextMetricsInput): BubbleMeasurer | null {
       fitInnerHeight,
       fontCatalog,
     );
+    cache.set(fontSize, result);
+    return result;
+  };
   return measure(MIN_FONT_SIZE_PX) ? measure : null;
 }
 
@@ -324,11 +340,21 @@ function resolveTextFontSizePx(
   fitsAtFontSize: (fontSize: number) => boolean,
 ): number {
   const bounded = Math.max(MIN_FONT_SIZE_PX, maxFontSize);
-  if (!(block.autoFitText ?? true) || !text.trim()) {
+  const automaticSourceFit =
+    block.fontSizeIntent === "source-match" &&
+    block.renderDirection === "horizontal" &&
+    !/[\r\n]/u.test(text);
+  if (!text.trim()) return bounded;
+  if (!automaticSourceFit && !(block.autoFitText ?? true)) {
     return bounded;
   }
 
   const capped = Math.floor(bounded);
+
+  // Discrete mask slots and emergency wrapping do not form a monotonic fit predicate.
+  if (automaticSourceFit && isGeneratedBubbleLayout(block.bubbleLayout)) {
+    return findLargestMaskFit(capped, fitsAtFontSize);
+  }
 
   let low = MIN_FONT_SIZE_PX;
   let high = capped;
@@ -343,6 +369,16 @@ function resolveTextFontSizePx(
     }
   }
   return Math.min(best, capped);
+}
+
+function findLargestMaskFit(
+  capped: number,
+  fits: (size: number) => boolean,
+): number {
+  for (let size = capped; size >= MIN_FONT_SIZE_PX; size--) {
+    if (fits(size)) return size;
+  }
+  return MIN_FONT_SIZE_PX;
 }
 
 function resolveAutoFitUpperBound(

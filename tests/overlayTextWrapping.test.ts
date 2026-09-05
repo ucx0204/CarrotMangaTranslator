@@ -15,6 +15,26 @@ import {
 } from "../src/renderer/src/lib/overlayTextSegmentation";
 
 describe("overlay text word breaking", () => {
+  it("uses visible soft-line width without changing the manual whitespace contract", () => {
+    const measure = (trimLineEnds: boolean) =>
+      measureStyledWrappedText(
+        fixedMeasureContext,
+        plainRuns("상관없어! 정말"),
+        50,
+        12,
+        10,
+        "sans-serif",
+        0,
+        "keep-all-overflow",
+        undefined,
+        trimLineEnds,
+      );
+    const automatic = measure(true);
+    expect(lineTexts(automatic.lines)).toEqual(["상관없어!", "정말"]);
+    expect(automatic.lines[0].width).toBe(50);
+    expect(automatic.lines[0].sourceTextLength).toBe(6);
+    expect(lineTexts(measure(false).lines)).toEqual(["상관없어!", " 정말"]);
+  });
   it("distinguishes natural, anywhere, keep-together, and emergency wrapping", () => {
     const expected: Record<TextWordBreak, string[]> = {
       normal: ["ab ", "cdefgh"],

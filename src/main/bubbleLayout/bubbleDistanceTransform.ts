@@ -13,7 +13,7 @@ export function erodeBinaryMask(
   return eroded;
 }
 
-function distanceFromMaskBoundary(
+export function distanceFromMaskBoundary(
   mask: Uint8Array,
   width: number,
   height: number,

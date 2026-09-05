@@ -25,6 +25,8 @@ type RenderedTextStyleRun = TextStyleRun & {
 export type BlockTextLine = {
   runs: RenderedTextStyleRun[];
   width: number;
+  /** Consumed source characters, including whitespace omitted at a soft wrap. */
+  sourceTextLength?: number;
   slot?: TextLineSlot;
 };
 
@@ -71,6 +73,7 @@ export function measureStyledWrappedText(
   letterSpacingPx: number,
   wordBreak: TextWordBreak,
   resolveRunStyle?: TextRunStyleResolver,
+  trimLineEnds = false,
 ): WrappedTextMeasurement {
   const graphemes = measureStyledGraphemes(
     context,
@@ -90,6 +93,7 @@ export function measureStyledWrappedText(
     effectiveLineHeightPx,
     letterSpacingPx,
     resolveTextWordBreak(wordBreak),
+    trimLineEnds,
   );
 }
 
@@ -220,13 +224,20 @@ function measureWrappedGraphemes(
   lineHeightPx: number,
   letterSpacingPx: number,
   wordBreak: TextWordBreak,
+  trimLineEnds = false,
 ): WrappedTextMeasurement {
   const lines: BlockTextLine[] = [];
   let paragraph: StyledGrapheme[] = [];
 
   const flushParagraph = (): void => {
     lines.push(
-      ...wrapParagraph(paragraph, maxWidth, letterSpacingPx, wordBreak),
+      ...wrapParagraph(
+        paragraph,
+        maxWidth,
+        letterSpacingPx,
+        wordBreak,
+        trimLineEnds,
+      ),
     );
     paragraph = [];
   };
@@ -257,12 +268,13 @@ function wrapParagraph(
   maxWidth: number,
   letterSpacingPx: number,
   wordBreak: TextWordBreak,
+  trimLineEnds: boolean,
 ): BlockTextLine[] {
   if (graphemes.length === 0) {
     return [{ runs: [], width: 0 }];
   }
   if (wordBreak === "break-all") {
-    return wrapEagerly(graphemes, maxWidth, letterSpacingPx);
+    return wrapEagerly(graphemes, maxWidth, letterSpacingPx, trimLineEnds);
   }
 
   const units = buildNaturalUnits(graphemes, !keepsWordsTogether(wordBreak));
@@ -271,6 +283,7 @@ function wrapParagraph(
     maxWidth,
     letterSpacingPx,
     allowsLongTokenFallback(wordBreak),
+    trimLineEnds,
   );
 }
 
@@ -279,31 +292,50 @@ function wrapNaturalUnits(
   maxWidth: number,
   letterSpacingPx: number,
   emergencyBreak: boolean,
+  trimLineEnds: boolean,
 ): BlockTextLine[] {
   const lines: BlockTextLine[] = [];
   let line: StyledGrapheme[] = [];
   let lineWidth = 0;
 
   const pushLine = (): void => {
-    lines.push(toBlockTextLine(line, lineWidth));
+    lines.push(
+      toBlockTextLine(
+        line,
+        measureGraphemeSequence(line, letterSpacingPx, trimLineEnds),
+        trimLineEnds,
+      ),
+    );
     line = [];
     lineWidth = 0;
   };
 
   for (const unit of units) {
     const unitWidth = measureGraphemeSequence(unit, letterSpacingPx);
+    const visibleUnitWidth = measureGraphemeSequence(
+      unit,
+      letterSpacingPx,
+      trimLineEnds,
+    );
     const combinedWidth =
-      lineWidth + (line.length > 0 ? letterSpacingPx : 0) + unitWidth;
+      lineWidth + (line.length > 0 ? letterSpacingPx : 0) + visibleUnitWidth;
     if (line.length > 0 && combinedWidth > maxWidth) {
       pushLine();
     }
 
-    if (emergencyBreak && unitWidth > maxWidth) {
-      const emergencyLines = wrapEagerly(unit, maxWidth, letterSpacingPx);
+    if (emergencyBreak && visibleUnitWidth > maxWidth) {
+      const emergencyLines = wrapEagerly(
+        unit,
+        maxWidth,
+        letterSpacingPx,
+        trimLineEnds,
+      );
       lines.push(...emergencyLines.slice(0, -1));
       const finalLine = emergencyLines.at(-1);
-      line = finalLine ? lineFromRuns(finalLine.runs, unit) : [];
-      lineWidth = finalLine?.width ?? 0;
+      line = finalLine
+        ? lineFromRuns(finalLine.runs, unit, finalLine.sourceTextLength)
+        : [];
+      lineWidth = measureGraphemeSequence(line, letterSpacingPx);
       continue;
     }
 
@@ -321,20 +353,31 @@ function wrapEagerly(
   graphemes: StyledGrapheme[],
   maxWidth: number,
   letterSpacingPx: number,
+  trimLineEnds = false,
 ): BlockTextLine[] {
   const lines: BlockTextLine[] = [];
   let line: StyledGrapheme[] = [];
   let lineWidth = 0;
 
   const pushLine = (): void => {
-    lines.push(toBlockTextLine(line, lineWidth));
+    lines.push(
+      toBlockTextLine(
+        line,
+        measureGraphemeSequence(line, letterSpacingPx, trimLineEnds),
+        trimLineEnds,
+      ),
+    );
     line = [];
     lineWidth = 0;
   };
 
   for (const grapheme of graphemes) {
     const advance = grapheme.width + (line.length > 0 ? letterSpacingPx : 0);
-    if (line.length > 0 && lineWidth + advance > maxWidth) {
+    if (
+      line.length > 0 &&
+      lineWidth + advance > maxWidth &&
+      !(trimLineEnds && /^\s+$/u.test(grapheme.text))
+    ) {
       pushLine();
     }
     if (line.length > 0) {
@@ -381,8 +424,12 @@ export function buildNaturalUnits(
 export function measureGraphemeSequence(
   graphemes: StyledGrapheme[],
   letterSpacingPx: number,
+  trimEndWhitespace = false,
 ): number {
-  return graphemes.reduce(
+  const measured = trimEndWhitespace
+    ? graphemes.slice(0, visibleEnd(graphemes))
+    : graphemes;
+  return measured.reduce(
     (width, grapheme, index) =>
       width + grapheme.width + (index > 0 ? letterSpacingPx : 0),
     0,
@@ -392,9 +439,11 @@ export function measureGraphemeSequence(
 export function toBlockTextLine(
   graphemes: StyledGrapheme[],
   width: number,
+  trimEndWhitespace = false,
 ): BlockTextLine {
   const runs: RenderedTextStyleRun[] = [];
-  for (const grapheme of graphemes) {
+  const end = trimEndWhitespace ? visibleEnd(graphemes) : graphemes.length;
+  for (const grapheme of graphemes.slice(0, end)) {
     const lastRun = runs.at(-1);
     if (
       lastRun &&
@@ -408,7 +457,24 @@ export function toBlockTextLine(
       runs.push(createRenderedTextStyleRun(grapheme));
     }
   }
-  return { runs, width };
+  return {
+    runs,
+    width,
+    ...(end < graphemes.length
+      ? {
+          sourceTextLength: graphemes.reduce(
+            (sum, g) => sum + g.text.length,
+            0,
+          ),
+        }
+      : {}),
+  };
+}
+
+function visibleEnd(graphemes: readonly StyledGrapheme[]): number {
+  let end = graphemes.length;
+  while (end > 0 && /^\s+$/u.test(graphemes[end - 1].text)) end--;
+  return end;
 }
 
 function createRenderedTextStyleRun(
@@ -448,8 +514,10 @@ function haveSameRunStyle(left: TextStyleRun, right: TextStyleRun): boolean {
 function lineFromRuns(
   runs: RenderedTextStyleRun[],
   candidates: StyledGrapheme[],
+  sourceTextLength?: number,
 ): StyledGrapheme[] {
-  const textLength = runs.reduce((total, run) => total + run.text.length, 0);
+  const textLength =
+    sourceTextLength ?? runs.reduce((total, run) => total + run.text.length, 0);
   let recoveredLength = 0;
   let start = candidates.length;
   while (start > 0 && recoveredLength < textLength) {

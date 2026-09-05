@@ -4,6 +4,7 @@ import type {
   BubbleOwnershipPartition,
 } from "./bubbleBlockAssociation";
 import type { RefinedBubbleRegion } from "./bubbleMaskTypes";
+import { isMaskOwnedPoint } from "./bubbleMaskOwnership";
 
 const TEXT_SHAPE_WEIGHT = 0.78;
 const MIN_TEXT_RADIUS_SCALE = 0.55;
@@ -140,6 +141,15 @@ function isOwnedPartitionPoint(
   y: number,
   partition: BubbleOwnershipPartition,
 ): boolean {
+  if (partition.maskOwnership) {
+    const owned = isMaskOwnedPoint(
+      partition.maskOwnership,
+      x,
+      y,
+      partition.gapPx,
+    );
+    if (owned !== null) return owned;
+  }
   return partition.competingOwnerBoxes.every((competingOwnerBox) =>
     isOwnedAgainstCompetingText(
       x,
