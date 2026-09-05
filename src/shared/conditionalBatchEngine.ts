@@ -51,6 +51,7 @@ import type {
 
 export type ConditionalBatchEngineOptions = {
   glossary?: readonly GlossaryEntry[];
+  resolveFontSizePx?: ConditionalBatchFieldReadContext["resolveFontSizePx"];
 };
 
 type MatchEvaluation = {
@@ -122,6 +123,7 @@ export function createConditionalBatchPreview(
         pageIndex: resolveChapterPageIndex(chapter, page.id, pageIndex),
         blockIndex: resolvePageBlockIndex(page, block.id, blockIndex),
         glossary: options.glossary,
+        resolveFontSizePx: options.resolveFontSizePx,
       };
       const evaluation = evaluateConditionalBatchMatch(
         block,
@@ -133,7 +135,11 @@ export function createConditionalBatchPreview(
       const resultKey = createConditionalBatchResultKey(page.id, block.id);
       matchedResultKeys.push(resultKey);
 
-      const applied = applyConditionalBatchActions(block, scheme.actions);
+      const applied = applyConditionalBatchActions(
+        block,
+        scheme.actions,
+        context,
+      );
       const changedFields = resolveChangedFields(block, applied.block);
       const actionTargetFields = resolveActionTargetFields(scheme.actions);
       if (!inspectionOnly && changedFields.length === 0) continue;
@@ -147,6 +153,12 @@ export function createConditionalBatchPreview(
         after: readTextValues(applied.block),
         beforeBlock: cloneBlock(block),
         afterBlock: cloneBlock(applied.block),
+        resolvedFieldValues: resolvePreviewFieldValues(
+          block,
+          applied.block,
+          changedFields,
+          context,
+        ),
         changedFields,
         actionTargetFields,
         conditionEvaluations: evaluation.conditionEvaluations,
@@ -337,6 +349,21 @@ export function createConditionalBatchSequencePreview(
       after: readTextValues(afterBlock),
       beforeBlock: cloneBlock(beforeBlock),
       afterBlock: cloneBlock(afterBlock),
+      resolvedFieldValues:
+        originalPage && finalPage
+          ? resolvePreviewFieldValues(
+              beforeBlock,
+              afterBlock,
+              changedFields,
+              {
+                page: originalPage,
+                pageIndex: 0,
+                blockIndex: 0,
+                ...options,
+              },
+              finalPage,
+            )
+          : undefined,
       changedFields,
       actionTargetFields,
       conditionEvaluations: sequenceTrace.flatMap((trace) =>
@@ -439,8 +466,8 @@ export function applyConditionalBatchSequencePreview(
         expected.changedFields.some(
           (field) =>
             !sameValue(
-              readConditionalBatchWritableValue(current.afterBlock, field),
-              readConditionalBatchWritableValue(expected.afterBlock, field),
+              readConditionalBatchComparisonValue(current.afterBlock, field),
+              readConditionalBatchComparisonValue(expected.afterBlock, field),
             ),
         )
       ) {
@@ -469,6 +496,7 @@ export function applyConditionalBatchSequencePreview(
 function applyConditionalBatchActions(
   block: TranslationBlock,
   actions: readonly ConditionalBatchActionV2[],
+  context: ConditionalBatchFieldReadContext,
 ): AppliedActions {
   let updated = block;
   const actionTrace: ConditionalBatchActionTrace[] = [];
@@ -483,7 +511,7 @@ function applyConditionalBatchActions(
 
   for (const { action } of orderedActions) {
     const before = updated;
-    updated = applyConditionalBatchAction(updated, action);
+    updated = applyConditionalBatchAction(updated, action, context);
     const changedFields = resolveChangedFields(before, updated);
     actionTrace.push({
       actionId: action.id,
@@ -497,12 +525,30 @@ function applyConditionalBatchActions(
 function applyConditionalBatchAction(
   block: TranslationBlock,
   action: ConditionalBatchActionV2,
+  context: ConditionalBatchFieldReadContext,
 ): TranslationBlock {
   if (action.type === "replaceText") {
     return applyReplaceTextAction(block, action);
   }
   if (action.type === "setFields") {
-    return action.changes.reduce(applySetFieldChange, block);
+    const updated = action.changes.reduce(applySetFieldChange, block);
+    const sizeChange = action.changes.some(
+      (change) => change.field === "fontSizePx",
+    );
+    const fitChange = action.changes.some(
+      (change) => change.field === "autoFitText",
+    );
+    if (!sizeChange && !fitChange) return updated;
+    return {
+      ...updated,
+      fontSizeIntent: "manual",
+      fontSizePx:
+        !sizeChange && !(updated.autoFitText ?? true)
+          ? (context.resolveFontSizePx?.(block, context.page) ??
+            block.fontSizePx)
+          : updated.fontSizePx,
+      autoFitText: sizeChange && !fitChange ? false : updated.autoFitText,
+    };
   }
   if (action.type === "applyStylePreset") {
     const patch = resolveBlockStylePresetPatchFields(
@@ -1052,13 +1098,18 @@ function applyPreviewToPage({
       pageIndex: resolveChapterPageIndex(chapter, page.id, pageIndex),
       blockIndex: orderedBlockIndex.get(block.id) ?? 0,
       glossary: options.glossary,
+      resolveFontSizePx: options.resolveFontSizePx,
     };
     const currentMatch = evaluateConditionalBatchMatch(
       block,
       scheme.match,
       context,
     );
-    const currentApplied = applyConditionalBatchActions(block, scheme.actions);
+    const currentApplied = applyConditionalBatchActions(
+      block,
+      scheme.actions,
+      context,
+    );
     if (
       !currentMatch.matched ||
       !sameConditionInputs(
@@ -1072,19 +1123,19 @@ function applyPreviewToPage({
       result.actionTargetFields.some(
         (field) =>
           !sameValue(
-            readConditionalBatchWritableValue(block, field),
-            readConditionalBatchWritableValue(result.beforeBlock, field),
+            readConditionalBatchComparisonValue(block, field),
+            readConditionalBatchComparisonValue(result.beforeBlock, field),
           ),
       ) ||
       result.changedFields.some(
         (field) =>
           !sameValue(
-            readConditionalBatchWritableValue(block, field),
-            readConditionalBatchWritableValue(result.beforeBlock, field),
+            readConditionalBatchComparisonValue(block, field),
+            readConditionalBatchComparisonValue(result.beforeBlock, field),
           ) ||
           !sameValue(
-            readConditionalBatchWritableValue(currentApplied.block, field),
-            readConditionalBatchWritableValue(result.afterBlock, field),
+            readConditionalBatchComparisonValue(currentApplied.block, field),
+            readConditionalBatchComparisonValue(result.afterBlock, field),
           ),
       )
     ) {
@@ -1118,6 +1169,27 @@ function sameConditionInputs(
   });
 }
 
+function resolvePreviewFieldValues(
+  before: TranslationBlock,
+  after: TranslationBlock,
+  fields: readonly ConditionalBatchWritableField[],
+  context: ConditionalBatchFieldReadContext,
+  afterPage = context.page,
+): ConditionalBatchPreviewResult["resolvedFieldValues"] {
+  return Object.fromEntries(
+    fields.map((field) => [
+      field,
+      {
+        before: readConditionalBatchField(before, field, context),
+        after: readConditionalBatchField(after, field, {
+          ...context,
+          page: afterPage,
+        }),
+      },
+    ]),
+  );
+}
+
 function resolveChangedFields(
   before: TranslationBlock,
   after: TranslationBlock,
@@ -1125,8 +1197,8 @@ function resolveChangedFields(
   return WRITABLE_FIELDS.filter(
     (field) =>
       !sameValue(
-        readConditionalBatchWritableValue(before, field),
-        readConditionalBatchWritableValue(after, field),
+        readConditionalBatchComparisonValue(before, field),
+        readConditionalBatchComparisonValue(after, field),
       ),
   );
 }
@@ -1152,6 +1224,18 @@ function applyBlockPatch(
   const next = { ...block, ...patch };
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) delete (next as Record<string, unknown>)[key];
+  }
+  if (
+    Object.hasOwn(patch, "fontSizePx") ||
+    Object.hasOwn(patch, "autoFitText")
+  ) {
+    next.fontSizeIntent = "manual";
+    if (
+      patch.fontSizePx !== undefined &&
+      !Object.hasOwn(patch, "autoFitText")
+    ) {
+      next.autoFitText = false;
+    }
   }
   if (patch.renderDirection !== undefined) {
     delete next.layoutIntent;
@@ -1235,7 +1319,7 @@ function createConflictFingerprint(
     ]),
     actionTargets: actionTargetFields.map((field) => [
       field,
-      readConditionalBatchWritableValue(block, field),
+      readConditionalBatchComparisonValue(block, field),
     ]),
   });
 }
@@ -1275,6 +1359,9 @@ function resolveActionTargetFields(
       fields.push(...TEXT_GLOW_WRITABLE_FIELD_LIST);
     }
   }
+  if (fields.includes("fontSizePx") || fields.includes("autoFitText")) {
+    fields.push("fontSizePx", "autoFitText");
+  }
   return uniqueWritableFields(fields);
 }
 
@@ -1282,6 +1369,20 @@ function uniqueWritableFields(
   fields: readonly ConditionalBatchWritableField[],
 ): ConditionalBatchWritableField[] {
   return [...new Set(fields)];
+}
+
+function readConditionalBatchComparisonValue(
+  block: TranslationBlock,
+  field: ConditionalBatchWritableField,
+): unknown {
+  const value = readConditionalBatchWritableValue(block, field);
+  if (field === "fontSizePx") {
+    return [value, block.fontSizeIntent ?? "manual"];
+  }
+  if (field === "renderDirection") {
+    return [value, block.layoutIntent, block.layoutIntentSuppressed];
+  }
+  return value;
 }
 
 export function readConditionalBatchWritableValue(

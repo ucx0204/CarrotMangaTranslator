@@ -21157,6 +21157,28 @@
         "pct": 75
       }
     },
+    "src/renderer/src/components/useConditionalBatchTypography.ts": {
+      "lines": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      },
+      "statements": {
+        "total": 8,
+        "covered": 8,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 3,
+        "covered": 2,
+        "pct": 66.66
+      }
+    },
     "src/renderer/src/components/useContainedPageSize.ts": {
       "lines": {
         "total": 15,
@@ -21509,6 +21531,28 @@
         "pct": 66.66
       }
     },
+    "src/renderer/src/hooks/useBlockFontReadiness.ts": {
+      "lines": {
+        "total": 24,
+        "covered": 18,
+        "pct": 75
+      },
+      "statements": {
+        "total": 28,
+        "covered": 20,
+        "pct": 71.42
+      },
+      "functions": {
+        "total": 7,
+        "covered": 6,
+        "pct": 85.71
+      },
+      "branches": {
+        "total": 24,
+        "covered": 19,
+        "pct": 79.16
+      }
+    },
     "src/renderer/src/hooks/useCompletionSound.ts": {
       "lines": {
         "covered": 35,
@@ -21837,6 +21881,28 @@
         "covered": 28,
         "total": 37,
         "pct": 75.67
+      }
+    },
+    "src/renderer/src/lib/conditionalBatchTypography.ts": {
+      "lines": {
+        "total": 11,
+        "covered": 11,
+        "pct": 100
+      },
+      "statements": {
+        "total": 12,
+        "covered": 12,
+        "pct": 100
+      },
+      "functions": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "branches": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
       }
     },
     "src/renderer/src/lib/consistentEditSuggestion.ts": {

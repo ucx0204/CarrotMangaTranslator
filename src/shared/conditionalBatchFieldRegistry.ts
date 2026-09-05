@@ -13,6 +13,12 @@ import {
   MIN_LETTER_SPACING_EM,
   MIN_LINE_HEIGHT,
 } from "./blockFormatValues";
+import { DEFAULT_BLOCK_FONT_ID } from "./blockFontCatalog";
+import {
+  normalizeRotationDeg,
+  resolveFontWidthScale,
+} from "./blockGeometryValues";
+import { resolveBlockTextWordBreak } from "./textWrapping";
 import { parseRichText, stripRichTextMarkup } from "./richTextMarkup";
 import type { MangaPage } from "./libraryTypes";
 import {
@@ -21,16 +27,22 @@ import {
   MIN_TEXT_EFFECT_BLUR_PX,
   MIN_TEXT_EFFECT_OFFSET_PX,
   TEXT_EFFECT_LENGTH_STEP_PX,
+  resolveTextEffect,
 } from "./textEffect";
 import {
   MAX_TEXT_GLOW_BLUR_PX,
   MIN_TEXT_GLOW_BLUR_PX,
   TEXT_GLOW_BLUR_STEP_PX,
+  resolveTextGlow,
 } from "./textGlow";
 import {
   MAX_TEXT_OUTLINE_WIDTH_PX,
   MIN_TEXT_OUTLINE_WIDTH_PX,
   TEXT_OUTLINE_WIDTH_STEP_PX,
+  resolveEffectiveTextColor,
+  resolveEffectiveTextOutlineColor,
+  resolveEffectiveTextOutlineWidthPx,
+  resolveEffectiveTextOutlineWidthScale,
 } from "./textOutline";
 import type { TranslationBlock } from "./textTypes";
 import type { GlossaryEntry } from "./workContextTypes";
@@ -430,6 +442,7 @@ export type ConditionalBatchFieldReadContext = {
   pageIndex: number;
   blockIndex: number;
   glossary?: readonly GlossaryEntry[];
+  resolveFontSizePx?: (block: TranslationBlock, page: MangaPage) => number;
 };
 
 export function getConditionalBatchFieldDefinition(
@@ -460,6 +473,7 @@ export function readConditionalBatchField(
     case "translatedText":
       return stripRichTextMarkup(block.translatedText);
     case "fontFamily":
+      return block.fontFamily ?? DEFAULT_BLOCK_FONT_ID;
     case "speakerId":
     case "reviewNote":
     case "textRole":
@@ -467,24 +481,42 @@ export function readConditionalBatchField(
     case "sourceDirection":
     case "renderDirection":
     case "textAlign":
-    case "wordBreak":
     case "reviewStatus":
     case "confidence":
     case "fontRoleConfidence":
-    case "fontSizePx":
     case "lineHeight":
-    case "letterSpacing":
-    case "fontWidthScale":
-    case "rotationDeg":
-    case "textOpacity":
-    case "outlineWidthPx":
-    case "outlineWidthScale":
-    case "outerOutlineWidthPx":
-    case "textColor":
-    case "outlineColor":
-    case "outerOutlineColor":
-    case "textBackgroundColor":
       return block[fieldId];
+    case "wordBreak":
+      return resolveBlockTextWordBreak(block.wordBreak, block.renderDirection);
+    case "letterSpacing":
+      return block.letterSpacing ?? 0;
+    case "fontWidthScale":
+      return resolveFontWidthScale(block.fontWidthScale);
+    case "rotationDeg":
+      return normalizeRotationDeg(block.rotationDeg);
+    case "textOpacity":
+      return block.textOpacity ?? 1;
+    case "outlineWidthPx":
+      return resolveEffectiveTextOutlineWidthPx(
+        block,
+        context.resolveFontSizePx?.(block, context.page) ?? block.fontSizePx,
+      );
+    case "outlineWidthScale":
+      return resolveEffectiveTextOutlineWidthScale(block);
+    case "outerOutlineWidthPx":
+      return Math.max(0, block.outerOutlineWidthPx ?? 0);
+    case "textColor":
+      return resolveEffectiveTextColor(block);
+    case "outlineColor":
+      return resolveEffectiveTextOutlineColor(block);
+    case "outerOutlineColor":
+      return block.outerOutlineColor ?? "#111111";
+    case "textBackgroundColor":
+      return block.textBackgroundColor ?? "#ffffff";
+    case "fontSizePx":
+      return (
+        context.resolveFontSizePx?.(block, context.page) ?? block.fontSizePx
+      );
     case "bold":
     case "italic":
     case "underline":
@@ -519,7 +551,7 @@ export function readConditionalBatchField(
         context.page.height,
       );
     case "bboxAspectRatio":
-      return block.bbox.h === 0 ? 0 : block.bbox.w / block.bbox.h;
+      return resolveBboxAspectRatio(block, context.page);
     case "hasInlineStyle":
       return hasInlineStyle(block);
     case "hasSpeaker":
@@ -527,21 +559,21 @@ export function readConditionalBatchField(
     case "hasGlossary":
       return Boolean(block.glossaryEntryIds?.length);
     case "textEffectColor":
-      return block.textEffect?.color;
+      return resolveTextEffect(block.textEffect).color;
     case "textEffectOffsetX":
-      return block.textEffect?.offsetXpx;
+      return resolveTextEffect(block.textEffect).offsetXpx;
     case "textEffectOffsetY":
-      return block.textEffect?.offsetYpx;
+      return resolveTextEffect(block.textEffect).offsetYpx;
     case "textEffectBlur":
-      return block.textEffect?.blurPx;
+      return resolveTextEffect(block.textEffect).blurPx;
     case "textEffectOpacity":
-      return block.textEffect?.opacity;
+      return resolveTextEffect(block.textEffect).opacity;
     case "textGlowColor":
-      return block.textGlow?.color;
+      return resolveTextGlow(block.textGlow).color;
     case "textGlowBlur":
-      return block.textGlow?.blurPx;
+      return resolveTextGlow(block.textGlow).blurPx;
     case "textGlowOpacity":
-      return block.textGlow?.opacity;
+      return resolveTextGlow(block.textGlow).opacity;
     case "sameAsSource":
       return textsAreSame(block);
     case "numberMismatch":
@@ -598,6 +630,17 @@ function normalizeBboxDimension(
 ): number {
   const denominator = space === "pixels" ? pageDimension : 1_000;
   return denominator <= 0 ? 0 : value / denominator;
+}
+
+function resolveBboxAspectRatio(
+  block: TranslationBlock,
+  page: MangaPage,
+): number {
+  const width =
+    block.bbox.w * (block.bboxSpace === "pixels" ? 1 : page.width / 1_000);
+  const height =
+    block.bbox.h * (block.bboxSpace === "pixels" ? 1 : page.height / 1_000);
+  return height > 0 ? width / height : 0;
 }
 
 function countVisibleLines(value: string): number {
