@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BlockBubbleCandidate } from "../src/main/bubbleLayout/bubbleBlockAssociation";
+import { createBubbleMaskOwnershipResolver } from "../src/main/bubbleLayout/bubbleMaskOwnership";
 import { partitionSharedBubbleOwnership } from "../src/main/bubbleLayout/bubbleOwnershipPartition";
 import {
   buildOwnershipFallbackRegion,
@@ -10,6 +11,85 @@ import type { RefinedBubbleRegion } from "../src/main/bubbleLayout/bubbleMaskTyp
 import type { BBox } from "../src/shared/textTypes";
 
 describe("bubble ownership region partition", () => {
+  it("requires explicit permission for a fallback without an owner partition", () => {
+    const unowned = candidate({ x: 0, y: 0, w: 20, h: 20 });
+    expect(buildOwnershipFallbackRegion(unowned, 0)).toBeNull();
+    expect(
+      buildOwnershipFallbackRegion(unowned, 0, true)?.area,
+    ).toBeGreaterThan(0);
+  });
+
+  it.each([
+    { x: 0, y: 0, w: 1, h: 20 },
+    { x: 0.75, y: 0.75, w: 2, h: 2 },
+  ])(
+    "rejects fallback boxes without a two-pixel raster interior: %j",
+    (box) => {
+      expect(buildOwnershipFallbackRegion(candidate(box), 0, true)).toBeNull();
+    },
+  );
+
+  it("clips shared mask fields and retains geometric ownership outside their support", () => {
+    const bubbleBox = { x: -5, y: -5, w: 90, h: 70 };
+    const owners = [
+      { id: "left", bbox: { x: 15, y: 20, w: 10, h: 20 } },
+      { id: "right", bbox: { x: 55, y: 20, w: 10, h: 20 } },
+    ];
+    const detection = bubbleDetection(bubbleBox);
+    const ownerships = partitionSharedBubbleOwnership(
+      owners.map((owner) => ({
+        owner,
+        candidates: [candidate(bubbleBox, detection)],
+      })),
+      (owner) => owner.bbox,
+      3,
+    );
+    const logits = new Float32Array(80 * 60).fill(1);
+    logits.fill(-1, 0, 80 * 10);
+    const detectorMask = { width: 80, height: 60, logits };
+    const resolveOwnership = createBubbleMaskOwnershipResolver(80, 60);
+    const refined: RefinedBubbleRegion = {
+      bounds: bubbleBox,
+      width: 90,
+      height: 70,
+      area: 90 * 70,
+      mask: new Uint8Array(90 * 70).fill(1),
+    };
+    const regions = ownerships.map((item, index) => {
+      const partition = item.candidates[0].ownershipPartition;
+      if (!partition) throw new Error("Expected a shared ownership partition");
+      const field = resolveOwnership(detectorMask, owners[index].bbox, [
+        owners[1 - index].bbox,
+      ]);
+      if (!field) throw new Error("Expected valid detector mask support");
+      if (index === 0) {
+        const otherSide: RefinedBubbleRegion = {
+          bounds: { x: 55, y: 25, w: 10, h: 10 },
+          width: 10,
+          height: 10,
+          area: 100,
+          mask: new Uint8Array(100).fill(1),
+        };
+        expect(
+          clipRegionsToOwnershipPartition([otherSide], {
+            ...partition,
+            maskOwnership: field,
+          }),
+        ).toEqual([]);
+      }
+      return clipRegionsToOwnershipPartition([refined], {
+        ...partition,
+        maskOwnership: field,
+      })[0];
+    });
+    expect(readPageMask(regions[0], 20, 30)).toBe(1);
+    expect(readPageMask(regions[0], 60, 30)).toBe(0);
+    expect(readPageMask(regions[1], 60, 30)).toBe(1);
+    expect(readPageMask(regions[0], 20, 5)).toBe(1);
+    expect(readPageMask(regions[0], -3, 30)).toBe(1);
+    expectRegionsDisjoint(regions[0], regions[1], bubbleBox);
+  });
+
   it("uses OCR proximity instead of a full-height straight cut for diagonal owners", () => {
     const bubbleBox = { x: 0, y: 0, w: 100, h: 100 };
     const upperRight = {

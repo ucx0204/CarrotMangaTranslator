@@ -3,11 +3,56 @@ import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 import { resolveBlockTextLayout } from "../src/renderer/src/lib/overlayLayout";
 import { resolvePageSourceFontFaceFallbacks } from "../src/renderer/src/lib/sourceFontSizeMatching";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import { MIN_READABLE_FONT_SIZE_PX } from "../src/shared/readableTextBox";
 
 const originalDocument = globalThis.document;
 const pageSize = { width: 1000, height: 1000 };
 
 describe("source-matched font-size cap", () => {
+  it.each(["", "  \n  "])(
+    "keeps an untranslated generated balloon empty without overflow: %j",
+    (translatedText) => {
+      installCanvasMeasureMock();
+      const layout = resolveLayout(
+        makeBlock({
+          translatedText,
+          bubbleLayout: makeDetectedBubbleLayout(),
+          fontSizeIntent: "source-match",
+        }),
+      );
+      expect(layout.overflow).toBe(false);
+      expect(layout.fontSizePx).toBeGreaterThanOrEqual(
+        MIN_READABLE_FONT_SIZE_PX,
+      );
+      expect(
+        (layout.lines ?? [])
+          .flatMap((line) => line.runs)
+          .map((run) => run.text)
+          .join("")
+          .trim(),
+      ).toBe("");
+    },
+  );
+
+  it("reports overflow at the readable minimum when no generated mask size fits", () => {
+    installCanvasMeasureMock();
+    const block = makeBlock({
+      bbox: { x: 0, y: 0, w: 1, h: 1 },
+      renderBbox: { x: 0, y: 0, w: 1, h: 1 },
+      bubbleLayout: makeDetectedBubbleLayout(),
+      fontSizeIntent: "source-match",
+      autoFitText: false,
+      translatedText: "한 글자도 들어가지 않는 말풍선",
+      sourceFontFacePx: 24,
+      sourceFontSizeConfidence: 0.9,
+      sourceFontSizeMethod: "raster-core-v1",
+    });
+    const layout = resolveLayout(block);
+    expect(layout.fontSizePx).toBe(MIN_READABLE_FONT_SIZE_PX);
+    expect(layout.overflow).toBe(true);
+    expect(layout.lines?.length).toBeGreaterThan(0);
+  });
+
   it("fits automatic source text without a detected mask while preserving manual size", () => {
     installCanvasMeasureMock();
     const block = makeBlock({
