@@ -4,6 +4,7 @@ import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePi
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import { resolveAutomaticFontEmphasisStyle } from "./automaticFontMatchingV2Emphasis";
 import { resolveCrossScriptProxySelectionStyle } from "./automaticFontMatchingV2CrossScriptProxy";
+import { resolveAutomaticFontExpression } from "./automaticFontMatchingExpression";
 
 /**
  * Family selection and emphasis treatment are intentionally independent.
@@ -27,6 +28,13 @@ export function applyAutomaticPixelStyle({
     result.decision.resolvedBy !== "v2_automatic"
   ) {
     return result;
+  }
+  const expressionStyle = resolveAutomaticFontExpression(
+    pixelInference,
+    candidates,
+  );
+  if (expressionStyle?.fontId === result.selectedStyle.fontId) {
+    return { ...result, selectedStyle: expressionStyle };
   }
   const crossScriptStyle = resolveCrossScriptProxySelectionStyle(
     pixelInference,

@@ -15,6 +15,10 @@ import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePi
 import type { FontMatchingRuntimePolicy } from "./fontMatchingRuntimePolicyContract";
 import { applySelectionRoleFamilyConflictConfidenceCap } from "./fontMatchingSelectionCalibration";
 import { applyCrossScriptProxyCandidateRanking } from "./automaticFontMatchingV2CrossScriptProxy";
+import {
+  applyFontExpressionRanking,
+  resolveAutomaticFontExpression,
+} from "./automaticFontMatchingExpression";
 
 export function prepareAutomaticFontEvidence({
   block,
@@ -52,9 +56,13 @@ export function prepareAutomaticFontEvidence({
     pixelInference,
   );
   if (crossScriptCandidates) {
+    const style = resolveAutomaticFontExpression(pixelInference, candidates);
     return {
       catalogVersion: resolveFontMatchingV2CatalogVersion(candidates),
-      rankedCandidates: crossScriptCandidates,
+      rankedCandidates: applyFontExpressionRanking(
+        crossScriptCandidates,
+        style,
+      ),
       translationAssessments: assessAutomaticFontTranslations(
         candidates,
         block.translatedText,

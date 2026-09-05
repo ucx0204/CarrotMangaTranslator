@@ -10,6 +10,7 @@ import type { BlockLocalFontEvidenceV2 } from "./fontMatchingDecisionV2Types";
 import type { FontMatchingGlyphMorphologyV1 } from "./fontMatchingPagePixelPreprocessing";
 import type { FontMatchingRuntimeArtifactStatus } from "./fontMatchingRuntimeArtifactStatus";
 import type { FontMatchingOcrGeometryDirectionV2 } from "./fontMatchingOcrGeometryDirection";
+import type { FontExpressionInference } from "./fontMatchingExpressionTypes";
 import type {
   FontMatchingOcrCandidateMembershipV2,
   OverlayItem,
@@ -105,6 +106,8 @@ export type VerifiedAutomaticFontPixelInferenceV2 = Readonly<{
   glyphMorphology?: FontMatchingGlyphMorphologyV1;
   /** Page-local visual voice selected by the user-approved cross-script model. */
   crossScriptProxy?: VerifiedCrossScriptProxyInferenceV1;
+  /** Source-ink treatment evidence; does not replace R33 or its candidate catalog. */
+  sourceExpression?: FontExpressionInference;
   localEvidence: BlockLocalFontEvidenceV2;
 }>;
 

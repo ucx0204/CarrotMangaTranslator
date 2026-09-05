@@ -21,6 +21,10 @@
  *   cancel { type:"cancel", id } -> 해당 id의 AbortController 중단
  */
 import { parentPort } from "node:worker_threads";
+import {
+  inferFontExpressionPage,
+  loadFontExpressionModel,
+} from "./fontMatchingExpressionRuntime";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import type {
@@ -123,6 +127,9 @@ if (!port) {
 
 let runtimeModel: FontMatchingRuntimeModel | null = null;
 let crossScriptProxyModel: CrossScriptProxyRuntimeModel | null = null;
+let expressionModel: Awaited<
+  ReturnType<typeof loadFontExpressionModel>
+> | null = null;
 const abortControllers = new Map<string, AbortController>();
 
 port.on("message", (message: FontMatchingWorkerInboundMessage) => {
@@ -139,6 +146,11 @@ async function handleInit(
   message: FontMatchingWorkerInitMessage,
 ): Promise<void> {
   try {
+    // A client normally initializes once. Release this additive CPU session
+    // before a repeated init so a failed reload cannot retain stale evidence.
+    const previousExpressionModel = expressionModel;
+    expressionModel = null;
+    await previousExpressionModel?.release();
     const result = await loadFontMatchingRuntimeModel({
       artifactDir: message.artifactDir,
       installedCandidates: message.installedCandidates,
@@ -171,6 +183,7 @@ async function handleInit(
         "Cross-script proxy and R33 candidate catalogs do not match.",
       );
     }
+    expressionModel = await loadFontExpressionModel();
     post({
       type: "ready",
       id: message.id,
@@ -225,7 +238,16 @@ async function handleInfer(
       const row = result.get(blockId);
       if (row) combined.set(blockId, { ...row, crossScriptProxy });
     }
-    post({ type: "infer-done", id: message.id, ok: true, result: combined });
+    const expressive = expressionModel
+      ? await inferFontExpressionPage({
+          session: expressionModel,
+          blocks: message.blocks,
+          rows: combined,
+          raster: cachedRaster,
+          signal: controller.signal,
+        })
+      : combined;
+    post({ type: "infer-done", id: message.id, ok: true, result: expressive });
   } catch (error) {
     post({
       type: "infer-done",

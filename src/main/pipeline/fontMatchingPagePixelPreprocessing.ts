@@ -103,6 +103,38 @@ type ConnectedGlyphComponent = Readonly<{
   y2: number;
 }>;
 
+/** Separate source-expression input; the existing three-view recipe is unchanged. */
+export function prepareFontMatchingInkComponents(
+  page: FontMatchingRasterPage,
+  bbox: BBox,
+  signal?: AbortSignal,
+) {
+  assertRaster(page);
+  throwIfAborted(signal);
+  const rectangle = normalizedBboxToPixels(bbox, page.width, page.height);
+  if (!rectangle) return null;
+  const image = cropBgraToRgb(page, rectangle);
+  const { grayscale, histogram } = buildMorphologyGrayscale(image, signal);
+  const { mask, threshold, foregroundPolarity } = buildMorphologyMask(
+    grayscale,
+    histogram,
+  );
+  const { labels, components } = cleanAndLabelGlyphComponents(
+    mask,
+    image.width,
+    image.height,
+    signal,
+  );
+  return {
+    width: image.width,
+    height: image.height,
+    labels,
+    components,
+    threshold,
+    foregroundPolarity,
+  };
+}
+
 /**
  * A separate audit mask is intentional here. The model's glyph view keeps its
  * established color-distance mask, while morphology uses polarity-neutral raw

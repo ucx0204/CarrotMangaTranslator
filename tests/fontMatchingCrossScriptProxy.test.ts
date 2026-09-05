@@ -30,8 +30,116 @@ import type { AutomaticFontCandidate } from "../src/shared/fontMatchingTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { BUILT_IN_BLOCK_FONTS } from "../src/shared/blockFontCatalog";
 import { makeAutomaticFontCandidate } from "./helpers/automaticFontCandidate";
+import {
+  FONT_EXPRESSION_CONTRACT,
+  FONT_EXPRESSION_MODEL_SHA256,
+} from "../src/main/pipeline/fontMatchingExpressionTypes";
+import {
+  inferFontExpressionPage,
+  loadFontExpressionModel,
+} from "../src/main/pipeline/fontMatchingExpressionRuntime";
+import expressionFixture from "./fixtures/fontExpressionParity.json";
 
 describe("cross-script page font proxy", () => {
+  it("adds native expression evidence without changing R33 or bypassing the proxy boundary", async () => {
+    const candidates = makeCandidates();
+    const row = makeInference(candidates);
+    const skipped = { ...row, blockId: "skip", crossScriptProxy: undefined };
+    const gray = Buffer.from(expressionFixture.grayBase64, "base64");
+    const bgra = new Uint8Array(gray.length * 4);
+    gray.forEach((value, i) => {
+      bgra.fill(value, i * 4, i * 4 + 3);
+      bgra[i * 4 + 3] = 255;
+    });
+    const block = makeInferenceBlock("dialogue");
+    const session = await loadFontExpressionModel();
+    try {
+      const output = await inferFontExpressionPage({
+        session,
+        blocks: [
+          {
+            ...block,
+            item: { ...block.item, bbox: { x: 0, y: 0, w: 1000, h: 1000 } },
+          },
+          { ...block, blockId: "skip" },
+        ],
+        rows: new Map([
+          [row.blockId, row],
+          [skipped.blockId, skipped],
+        ]),
+        raster: {
+          width: expressionFixture.width,
+          height: expressionFixture.height,
+          bgra,
+        },
+      });
+      expect(output.get("skip")).toBe(skipped);
+      const added = output.get(row.blockId);
+      expect(added?.localEvidence).toBe(row.localEvidence);
+      expect(added?.crossScriptProxy).toBe(row.crossScriptProxy);
+      expect(added?.sourceExpression).toMatchObject({
+        modelSha256: FONT_EXPRESSION_MODEL_SHA256,
+        componentCount: expressionFixture.components,
+      });
+      expect(
+        added?.sourceExpression?.probabilities.reduce((a, b) => a + b, 0),
+      ).toBeCloseTo(1, 8);
+      expect(row.sourceExpression).toBeUndefined();
+    } finally {
+      await session.release();
+    }
+  });
+  it("carries heavy rescue through real evidence, decision and style while keeping manual locks", () => {
+    const candidates = [
+      makeAutomaticFontCandidate({ fontId: "dohyeon" }),
+      makeAutomaticFontCandidate({ fontId: "nanum-myeongjo", weight: 700 }),
+    ];
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
+    const inference: VerifiedAutomaticFontPixelInferenceV2 = {
+      ...makeRuntimeBoundInference(candidates, catalogVersion),
+      sourceExpression: {
+        contractVersion: FONT_EXPRESSION_CONTRACT,
+        modelSha256: FONT_EXPRESSION_MODEL_SHA256,
+        componentCount: 3,
+        probabilities: [0.01, 0.01, 0.01, 0.95, 0.01, 0.01],
+      },
+    };
+    const decision = resolveAutomaticFontDecisionV2({
+      block: makeBlock(),
+      item: makeItem("dialogue"),
+      page: makePage(),
+      options: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates,
+        pixelInference: inference,
+        runtimeArtifactStatus: makeRuntimeStatus(candidates, catalogVersion),
+      },
+    });
+    expect(decision?.result.decision.selectedFontId).toBe("dohyeon");
+    expect(decision?.result.selectedStyle).toEqual({
+      fontId: "dohyeon",
+      fontWeight: 400,
+      italic: false,
+    });
+    const locked = makeDecisionResult("block_user_lock");
+    expect(
+      applyAutomaticPixelStyle({
+        candidates,
+        pixelInference: inference,
+        result: locked,
+        workState: undefined,
+      }),
+    ).toBe(locked);
+    if (!decision) throw new Error("Missing automatic decision");
+    expect(applyAutomaticFontDecisionV2(makeBlock(), decision)).toMatchObject({
+      fontFamily: "dohyeon",
+      bold: false,
+      fontSizePx: 24,
+      outlineWidthPx: 3.25,
+      outlineWidthScale: 1.6,
+    });
+  });
   it("discards OCR character identity before the model boundary", () => {
     const input = buildFontMatchingSourceGlyphInput({
       item: makeItem("dialogue"),

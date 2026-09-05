@@ -3423,6 +3423,28 @@
         "pct": 100
       }
     },
+    "src/main/pipeline/fontMatchingPagePixelPreprocessing.ts": {
+      "lines": {
+        "covered": 387,
+        "total": 392,
+        "pct": 98.72
+      },
+      "statements": {
+        "covered": 447,
+        "total": 462,
+        "pct": 96.75
+      },
+      "functions": {
+        "covered": 43,
+        "total": 43,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 173,
+        "total": 242,
+        "pct": 71.48
+      }
+    },
     "src/main/pipeline/fontMatchingRuntimeAssets.ts": {
       "lines": {
         "covered": 43,
@@ -16339,6 +16361,28 @@
         "pct": 61.11
       }
     },
+    "src/main/pipeline/automaticFontMatchingExpression.ts": {
+      "lines": {
+        "covered": 32,
+        "total": 32,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 42,
+        "total": 45,
+        "pct": 93.33
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 51,
+        "total": 58,
+        "pct": 87.93
+      }
+    },
     "src/main/pipeline/automaticFontMatchingV2Continuity.ts": {
       "lines": {
         "covered": 15,
@@ -16557,6 +16601,72 @@
         "total": 177,
         "covered": 0,
         "pct": 0
+      }
+    },
+    "src/main/pipeline/fontMatchingExpressionRuntime.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 35,
+        "pct": 11.42
+      },
+      "statements": {
+        "covered": 4,
+        "total": 47,
+        "pct": 8.51
+      },
+      "functions": {
+        "covered": 1,
+        "total": 12,
+        "pct": 8.33
+      },
+      "branches": {
+        "covered": 6,
+        "total": 27,
+        "pct": 22.22
+      }
+    },
+    "src/main/pipeline/fontMatchingExpressionSupport.ts": {
+      "lines": {
+        "covered": 47,
+        "total": 47,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 51,
+        "total": 52,
+        "pct": 98.07
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 22,
+        "pct": 77.27
+      }
+    },
+    "src/main/pipeline/fontMatchingExpressionTypes.ts": {
+      "lines": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/main/pipeline/fontMatchingInferenceBackendReporting.ts": {

@@ -1,0 +1,439 @@
+{
+  "schemaVersion": 1,
+  "policy": "source-ink-heavy-sans-v3",
+  "candidate": "C10",
+  "model": {
+    "modelSha256": "71f15f0b1bef9fd57fcf20246586cdbe06749bf31d60e2bfdd26f3a1d788a183",
+    "modelBytes": 1047989,
+    "dataSha256": "0d92d4b650da85b607de1a8112f05b36975e35964efc26f0c8dd2031a5861834",
+    "sourceInventorySha256": "880d97a34dbc63194f9d793ef3e1cd841af2707223873c91bbc0a626cac8ac3f",
+    "scriptSha256": "154030ee343f4b5d206d14d1a483b101256510cfb17b5d026cace9bf3a93861c",
+    "steps": 12000,
+    "validation": [
+      {
+        "split": 1,
+        "count": 13624,
+        "accuracy": 0.6810041103934233,
+        "confusion": [
+          [3064, 397, 226, 205, 347, 772],
+          [243, 650, 77, 7, 14, 206],
+          [83, 62, 685, 22, 36, 150],
+          [35, 3, 10, 211, 2, 53],
+          [66, 13, 28, 8, 482, 51],
+          [528, 286, 195, 162, 59, 4186]
+        ]
+      },
+      {
+        "split": 2,
+        "count": 8121,
+        "accuracy": 0.4387390715429134,
+        "confusion": [
+          [719, 49, 60, 11, 49, 108],
+          [677, 832, 119, 9, 12, 599],
+          [298, 200, 880, 13, 48, 320],
+          [35, 8, 56, 391, 9, 847],
+          [0, 0, 0, 0, 0, 0],
+          [551, 74, 121, 252, 33, 741]
+        ]
+      }
+    ]
+  },
+  "classes": [
+    "body",
+    "scribble",
+    "brush",
+    "heavy_sans",
+    "heavy_serif",
+    "display"
+  ],
+  "dataAuthority": {
+    "training": "Synthetic components from verified OFL source fonts only. No manga crops, user screenshots, v11, or 1347 direct labels.",
+    "quality": "Codex visual judgments and explicit user feedback, evaluation-only; not training labels or human gold.",
+    "producerPolicy": "Producer snapshot contains rejected C7 inference defaults. Production uses only the TS source-ink-heavy-sans-v3 policy."
+  },
+  "chapters": [
+    {
+      "chapter": "source-confirmation-002",
+      "role": "locked regression; exhausted 5 development candidates before C9",
+      "translationSha256": "6b1c22487a21c95f2c1fdcff8666583fad4b8542a85fb158e56a5175ee49eb82",
+      "selectionSha256": "67095cd5b950978bba4ba49a899a1dbba2e818d266885f06bcb6a58986d21648",
+      "productionCodeRoot": "C:\\Users\\sam40\\Downloads\\망가번역기",
+      "visualStatus": "All 3 changed crops and full P004/P006 inspected; ordinary consistency failures remain.",
+      "changed": [
+        {
+          "key": "P004/D009",
+          "fontId": "dohyeon",
+          "fields": ["fontFamily", "bold"]
+        },
+        {
+          "key": "P006/D001",
+          "fontId": "dohyeon",
+          "fields": ["fontFamily"]
+        },
+        {
+          "key": "P006/D005",
+          "fontId": "dohyeon",
+          "fields": ["fontFamily", "bold"]
+        }
+      ],
+      "unchangedBlocks": 90,
+      "unchangedPages": 12,
+      "inferenceRows": 93,
+      "proxyScoreMaxAbsoluteDelta": 2.155684502486155e-6,
+      "proxyRankingAndOtherEvidenceIdentical": true,
+      "pages": 14
+    },
+    {
+      "chapter": "confirmation-004",
+      "role": "development C8/C9; C10 locked replay",
+      "translationSha256": "429a93e0bc499b9d416545ac9eb3b4d11dc249b7ea9d7ccb1edafa134be7541a",
+      "selectionSha256": "f79539faa8ef77b22182aad44d217e00718af67ecc17131ad373556c7d5868dc",
+      "productionCodeRoot": "C:\\Users\\sam40\\Downloads\\망가번역기",
+      "visualStatus": "All 3 changed crops and full P005/P006 inspected; narration consistency remains.",
+      "changed": [
+        {
+          "key": "P005/D008",
+          "fontId": "dohyeon",
+          "fields": ["fontFamily"]
+        },
+        {
+          "key": "P006/D002",
+          "fontId": "dohyeon",
+          "fields": ["fontFamily"]
+        },
+        {
+          "key": "P006/D003",
+          "fontId": "dohyeon",
+          "fields": ["translatedText", "fontFamily"]
+        }
+      ],
+      "unchangedBlocks": 21,
+      "unchangedPages": 2,
+      "inferenceRows": 24,
+      "proxyScoreMaxAbsoluteDelta": 5.622082268605388e-6,
+      "proxyRankingAndOtherEvidenceIdentical": true,
+      "pages": 4
+    },
+    {
+      "chapter": "confirmation-005",
+      "role": "C9 fresh check rejected; C10 development candidate 2/5",
+      "translationSha256": "c76441b4f51f70196e9e34a6ae9b16015879aba39f61d827979f2e17967f79c5",
+      "selectionSha256": "daada78ee95d79c3e523215bdeb7b128e9091d0f47084a921f9bead8201c24a5",
+      "productionCodeRoot": "C:\\Users\\sam40\\Downloads\\망가번역기",
+      "visualStatus": "All 5 changed crops and full P013/P019/P022/P023 inspected. Heavy-only gain; source chibi serif mapping unresolved.",
+      "changed": [
+        {
+          "key": "P013/D004",
+          "fontId": "dohyeon",
+          "fields": ["fontFamily"]
+        },
+        {
+          "key": "P019/D003",
+          "fontId": "dohyeon",
+          "fields": ["fontFamily", "bold"]
+        },
+        {
+          "key": "P023/D001",
+          "fontId": "dohyeon",
+          "fields": ["fontFamily"]
+        },
+        {
+          "key": "P023/D003",
+          "fontId": "dohyeon",
+          "fields": ["fontFamily"]
+        },
+        {
+          "key": "P023/D004",
+          "fontId": "dohyeon",
+          "fields": ["fontFamily", "bold"]
+        }
+      ],
+      "unchangedBlocks": 154,
+      "unchangedPages": 23,
+      "inferenceRows": 159,
+      "proxyScoreMaxAbsoluteDelta": 5.592166565177026e-6,
+      "proxyRankingAndOtherEvidenceIdentical": true,
+      "pages": 26
+    },
+    {
+      "chapter": "confirmation-006",
+      "role": "fresh C10 only, ordinary-serif negative control",
+      "translationSha256": "96a7f437830eb32206dfbc7ed767ee76a8426f8d363a3baf0f323a8e620881b6",
+      "selectionSha256": "10cbc077b0a7c3f76ab27073c68d96bb1968bac6bd12e4a0692770ab0c4baedc",
+      "productionCodeRoot": "C:\\Users\\sam40\\Downloads\\망가번역기",
+      "visualStatus": "All 32 source pages inspected; all 32 rendered PNG and 294 blocks equal baseline; representative native output inspected.",
+      "changed": [],
+      "unchangedBlocks": 294,
+      "unchangedPages": 32,
+      "inferenceRows": 294,
+      "proxyScoreMaxAbsoluteDelta": 3.58066540956381e-6,
+      "proxyRankingAndOtherEvidenceIdentical": true,
+      "pages": 32
+    }
+  ],
+  "checks": {
+    "status": "passed",
+    "startedAt": "2026-09-05T18:17:16.446Z",
+    "completedAt": "2026-09-05T18:20:04.653Z",
+    "gates": [
+      {
+        "id": "private-workspace",
+        "status": "passed"
+      },
+      {
+        "id": "typecheck",
+        "status": "passed"
+      },
+      {
+        "id": "typecheck-electron",
+        "status": "passed"
+      },
+      {
+        "id": "typecheck-js",
+        "status": "passed"
+      },
+      {
+        "id": "format",
+        "status": "passed"
+      },
+      {
+        "id": "lint",
+        "status": "passed"
+      },
+      {
+        "id": "error-handling",
+        "status": "passed"
+      },
+      {
+        "id": "test-mock-boundaries",
+        "status": "passed"
+      },
+      {
+        "id": "architecture",
+        "status": "passed"
+      },
+      {
+        "id": "maintainability-policy",
+        "status": "passed"
+      },
+      {
+        "id": "duplicates",
+        "status": "passed"
+      },
+      {
+        "id": "reexports",
+        "status": "passed"
+      },
+      {
+        "id": "generated",
+        "status": "passed"
+      },
+      {
+        "id": "css-structure",
+        "status": "passed"
+      },
+      {
+        "id": "script-entrypoints",
+        "status": "passed"
+      },
+      {
+        "id": "deadcode",
+        "status": "passed"
+      },
+      {
+        "id": "deadcode-exports",
+        "status": "passed"
+      },
+      {
+        "id": "prepare-electron",
+        "status": "passed"
+      },
+      {
+        "id": "prepare-import-source-runner",
+        "status": "passed"
+      },
+      {
+        "id": "test-coverage",
+        "status": "passed"
+      },
+      {
+        "id": "production-cleanup-coverage",
+        "status": "passed"
+      },
+      {
+        "id": "build",
+        "status": "passed"
+      },
+      {
+        "id": "page-artwork-parity",
+        "status": "passed"
+      },
+      {
+        "id": "image-protocol-smoke",
+        "status": "passed"
+      },
+      {
+        "id": "renderer-bundle",
+        "status": "passed"
+      },
+      {
+        "id": "preload-bundle",
+        "status": "passed"
+      }
+    ]
+  },
+  "coverageFloorAppendix": {
+    "oldFloorsUnchanged": true,
+    "additionalExisting": "fontMatchingPagePixelPreprocessing.ts from original node22 baseline",
+    "newFileFloorsFrom": ".tmp/font-expression-coverage/coverage-summary.json",
+    "newFileFloorsSourceSha256": "c73cfd5bf399556e66ae7e549544a1a7d18b03046ddd586367ba862915d330ab",
+    "finalFullCoverageSha256": "5e724ca01000405e1d2ca54fcd477629858ecb3f972a6b346b6f97e37ef99052"
+  },
+  "reviewQa": {
+    "path": "C:\\Users\\sam40\\Downloads\\망가번역기-font-palette-lab-20260905\\artifacts\\font-palette-lab\\font-hd-review-016\\interaction-qa.json",
+    "sha256": "5c6337ed2fee617ccc5b5740f4b50e883487c743ca7c5c8f5dfa61ffdb977712",
+    "result": {
+      "reports": [
+        {
+          "report": "font-hd-review-016",
+          "widths": [
+            {
+              "width": 1500,
+              "blocks": 159,
+              "pages": 26,
+              "reportPages": 26,
+              "reportBlocks": 159,
+              "jumps": 5,
+              "zoom": true,
+              "nativePixelsExact": true,
+              "scales": [100, 200, 300, "fit"]
+            },
+            {
+              "width": 430,
+              "blocks": 159,
+              "pages": 26,
+              "reportPages": 26,
+              "reportBlocks": 159,
+              "jumps": 5,
+              "zoom": true,
+              "nativePixelsExact": true,
+              "scales": [100, 200, 300, "fit"]
+            }
+          ]
+        },
+        {
+          "report": "font-hd-review-017",
+          "widths": [
+            {
+              "width": 1500,
+              "blocks": 93,
+              "pages": 14,
+              "reportPages": 14,
+              "reportBlocks": 93,
+              "jumps": 3,
+              "zoom": true,
+              "nativePixelsExact": true,
+              "scales": [100, 200, 300, "fit"]
+            },
+            {
+              "width": 430,
+              "blocks": 93,
+              "pages": 14,
+              "reportPages": 14,
+              "reportBlocks": 93,
+              "jumps": 3,
+              "zoom": true,
+              "nativePixelsExact": true,
+              "scales": [100, 200, 300, "fit"]
+            }
+          ]
+        },
+        {
+          "report": "font-hd-review-018",
+          "widths": [
+            {
+              "width": 1500,
+              "blocks": 24,
+              "pages": 4,
+              "reportPages": 4,
+              "reportBlocks": 24,
+              "jumps": 3,
+              "zoom": true,
+              "nativePixelsExact": true,
+              "scales": [100, 200, 300, "fit"]
+            },
+            {
+              "width": 430,
+              "blocks": 24,
+              "pages": 4,
+              "reportPages": 4,
+              "reportBlocks": 24,
+              "jumps": 3,
+              "zoom": true,
+              "nativePixelsExact": true,
+              "scales": [100, 200, 300, "fit"]
+            }
+          ]
+        },
+        {
+          "report": "font-app-review-012",
+          "widths": [
+            {
+              "width": 1500,
+              "blocks": 294,
+              "pages": 32,
+              "reportPages": 32,
+              "reportBlocks": 294,
+              "jumps": 0,
+              "zoom": true,
+              "nativePixelsExact": true,
+              "scales": [100, 200, 300, "fit"]
+            },
+            {
+              "width": 430,
+              "blocks": 294,
+              "pages": 32,
+              "reportPages": 32,
+              "reportBlocks": 294,
+              "jumps": 0,
+              "zoom": true,
+              "nativePixelsExact": true,
+              "scales": [100, 200, 300, "fit"]
+            }
+          ]
+        }
+      ],
+      "runtimeErrors": [],
+      "source": "local frozen output reports",
+      "zoom": true
+    },
+    "visualInspection": "Wide/narrow captures directly opened; intended per-image overflow for native zoom; no document horizontal overflow."
+  },
+  "reports": [
+    {
+      "directory": "font-hd-review-016",
+      "htmlSha256": "a27a0e5efbaf21b7a48a20d25406865ec2494e9ac91afbf754c4000b4a768957",
+      "bytes": 89764995
+    },
+    {
+      "directory": "font-hd-review-017",
+      "htmlSha256": "6516ccf015024f18a5d75dabc8a72c4a61e9927de7e3383fd9830796107f6c3e",
+      "bytes": 17252414
+    },
+    {
+      "directory": "font-hd-review-018",
+      "htmlSha256": "aa2a1c394c0e7243e7ff3fb81ea2ea7449c1c272b8cff083b5094dc2b6a619a9",
+      "bytes": 6819480
+    },
+    {
+      "directory": "font-app-review-012",
+      "htmlSha256": "c06932d4a45eb9ebbb5816a421bbd16a353add1bf93cf0d68cebac58e4c1735b",
+      "bytes": 81772758
+    }
+  ],
+  "unresolvedUserRegressions": {
+    "manifest": "C:\\Users\\sam40\\Downloads\\망가번역기-font-palette-lab-20260905\\artifacts\\font-palette-lab\\user-failures-002\\manifest.json",
+    "sha256": "98736ea5147e0acd606c8bdc62febc66b4a9b3dfb0e27b14cde6d08bebfde308",
+    "count": 4
+  }
+}
