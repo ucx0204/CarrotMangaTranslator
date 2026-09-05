@@ -1,4 +1,5 @@
 import type * as Ort from "onnxruntime-node";
+import type { DirectMlDeviceRequest } from "../runtimeSupport/directMlAdapterPolicy";
 import type { ImageDecodeFallback } from "../inpainting/inpaintingTypes";
 import { loadPageImage } from "../inpainting/imageIO";
 import { KOHARU_LAYOUT_INPUT_SIZE } from "./constants";
@@ -40,6 +41,7 @@ export async function detectKoharuPageLayout(
     /** Callers must pass the original page image, not an inpainted derivative. */
     imagePath: string;
     modelPath: string;
+    directMl?: DirectMlDeviceRequest;
     signal?: AbortSignal;
     decodeFallback?: ImageDecodeFallback;
   },
@@ -63,6 +65,7 @@ export async function detectKoharuPageLayout(
   const { session, provider } = await getKoharuLayoutSession({
     modelPath: options.modelPath,
     signal: options.signal,
+    directMl: options.directMl,
   });
   const input = new ort.Tensor("float32", prepared.rgbChw, [
     1,

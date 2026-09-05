@@ -1,11 +1,13 @@
 import type { ComicPageDetectionResult } from "../bubbleLayout/contracts";
 import { ensureKoharuLayoutAssets } from "../bubbleLayout/assets";
 import { detectKoharuPageLayout } from "../bubbleLayout/detector";
+import type { DirectMlDeviceRequest } from "../runtimeSupport/directMlAdapterPolicy";
 
 export type PageTextRegionDetectionOptions = {
   dataRoot: string;
   imagePath: string;
   signal?: AbortSignal;
+  directMl?: DirectMlDeviceRequest;
 };
 
 /**
@@ -25,5 +27,6 @@ export async function detectPageTextRegions(
     imagePath: options.imagePath,
     modelPath: assets.modelPath,
     signal: options.signal,
+    directMl: options.directMl,
   });
 }

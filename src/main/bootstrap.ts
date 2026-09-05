@@ -16,6 +16,7 @@ import {
   releaseDataRootInstanceLockLease,
 } from "./dataRootInstanceLockState";
 import { createBootstrapLogger } from "./bootstrapLogger";
+import { describeWindowsNativeRuntimeFailure } from "./windowsNativeRuntimeFailure";
 import {
   resolvePackagedDataRoot,
   resolvePackagedMainRuntimeSmokeMarker,
@@ -80,6 +81,13 @@ function bootstrap(): void {
   } catch (error) {
     writeBootstrapLog("bootstrap:load-failed", error);
     releaseBootstrapLocks();
+    const runtimeFailure = describeWindowsNativeRuntimeFailure(error);
+    if (runtimeFailure) {
+      writeBootstrapLog("bootstrap:windows-runtime-missing", runtimeFailure);
+      reportEarlyStartupFailure(runtimeFailure.title, runtimeFailure.detail);
+      app.exit(2);
+      return;
+    }
     throw error;
   } finally {
     removeBootstrapErrorListeners();

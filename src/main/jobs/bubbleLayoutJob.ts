@@ -64,6 +64,13 @@ export async function prepareBubbleLayoutJob({
     runner: runtime.createBubbleLayoutRunner({
       dataRoot: context.appPaths.dataRoot,
       decodeFallback: context.decodeImage,
+      directMl: {
+        ...appSettings.hardware,
+        computeGpuBackend:
+          appSettings.ocr.device === "gpu"
+            ? (appSettings.ocr.gpuBackend ?? "cuda")
+            : undefined,
+      },
     }),
   };
 }

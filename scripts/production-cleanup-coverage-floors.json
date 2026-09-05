@@ -10067,6 +10067,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/components/settingsModal/GpuAssignmentSettings.tsx": {
+      "lines": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      }
+    },
     "src/renderer/src/components/settingsModal/HardwareContextNotes.tsx": {
       "lines": {
         "covered": 16,
@@ -17747,6 +17769,28 @@
         "pct": 78.57
       }
     },
+    "src/main/runtimeSupport/directMlAdapterPolicy.ts": {
+      "lines": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      }
+    },
     "src/main/runtimeSupport/nativeOnnxRuntime.ts": {
       "lines": {
         "total": 21,
@@ -17767,6 +17811,50 @@
         "total": 22,
         "covered": 17,
         "pct": 77.27
+      }
+    },
+    "src/main/runtimeSupport/windowsDirectMlAdapter.ts": {
+      "lines": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 10,
+        "total": 12,
+        "pct": 83.33
+      }
+    },
+    "src/main/runtimeSupport/windowsDirectMlProbe.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/main/settings/appSettingsApiDefaults.ts": {
@@ -18207,6 +18295,28 @@
         "total": 101,
         "covered": 65,
         "pct": 64.35
+      }
+    },
+    "src/main/windowsNativeRuntimeFailure.ts": {
+      "lines": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 18,
+        "pct": 94.44
       }
     },
     "src/main/workContextResearch.ts": {

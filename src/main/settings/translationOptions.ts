@@ -52,6 +52,7 @@ export function buildBaseTranslationOptions({
       runtimeState.gemmaVramMode,
     ),
     ...(computeGpuIndex === undefined ? {} : { computeGpuIndex }),
+    graphicsGpuPreference: settings.hardware?.graphicsGpuPreference,
     ocrRuntimeDir: paths.ocrRuntimeDir,
     hfHomeDir: paths.hfHomeDir,
     hfHubCacheDir: paths.hfHubCacheDir,

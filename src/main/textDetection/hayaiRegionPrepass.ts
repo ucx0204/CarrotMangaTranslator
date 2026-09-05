@@ -27,6 +27,12 @@ export async function prepareHayaiRegions(
     dataRoot: options.workingDir,
     imagePath: options.imagePath,
     signal: options.abortSignal,
+    directMl: {
+      graphicsGpuPreference: options.graphicsGpuPreference,
+      computeGpuIndex: options.computeGpuIndex,
+      computeGpuBackend:
+        options.ocrDevice === "gpu" ? options.ocrGpuBackend : undefined,
+    },
   });
   const manifest = buildHayaiRegionManifest(detection);
   const manifestPath = join(options.outputDir, "hayai-regions.json");

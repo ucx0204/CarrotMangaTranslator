@@ -4,6 +4,7 @@ import type {
 } from "../../shared/inpaintingTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { AppSettings } from "../../shared/settingsTypes";
+import type { DirectMlDeviceRequest } from "../runtimeSupport/directMlAdapterPolicy";
 import type { BBox, TranslationBlock } from "../../shared/textTypes";
 import { resolveBubbleLayoutPaddingRatio } from "../../shared/bubbleLayoutPadding";
 import type { ImageDecodeFallback } from "../regionCrop";
@@ -62,6 +63,7 @@ export interface BubbleLayoutRunner {
 
 export type BubbleLayoutRunnerFactoryOptions = {
   dataRoot: string;
+  directMl?: DirectMlDeviceRequest;
   decodeFallback?: ImageDecodeFallback;
 };
 

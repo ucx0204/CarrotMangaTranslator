@@ -1,0 +1,63 @@
+{
+  "issues": [88, 89],
+  "coverage": {
+    "provider": "vitest-v8-json-summary",
+    "node": "26.7.0",
+    "v8": "14.6.202.34-node.28",
+    "existingFloorSource": {
+      "path": ".tmp/production-cleanup-coverage-baseline-node22.json",
+      "sha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
+      "files": [
+        "src/renderer/src/components/settingsModal/GpuAssignmentSettings.tsx"
+      ]
+    },
+    "introducedFloorAppendix": {
+      "path": "artifacts/qa/issues-88-89/coverage-summary.json",
+      "sha256": "ad4a80c639ba60aeec9d5c57c38d879b9689b735e3fb140ae634d0108ccf426f",
+      "files": [
+        "src/main/runtimeSupport/directMlAdapterPolicy.ts",
+        "src/main/runtimeSupport/windowsDirectMlAdapter.ts",
+        "src/main/runtimeSupport/windowsDirectMlProbe.ts",
+        "src/main/windowsNativeRuntimeFailure.ts"
+      ]
+    },
+    "historicalIntroducedArtifactPreserved": true,
+    "existingFloorsLowered": false,
+    "focusedResult": {
+      "testFiles": 6,
+      "testsPassed": 52
+    },
+    "note": "V8 measures the C# probe source as a TypeScript string, not native C# branches. Real DXGI/CUDA/DirectML execution is recorded separately."
+  },
+  "nativeGpuSmoke": "artifacts/qa/issues-88-89/directml-model-smoke.json",
+  "runtimeDialogQa": "artifacts/qa/issues-88-89/vc-runtime-diagnostic.json",
+  "finalCheck": {
+    "command": "npm run check",
+    "completedAt": "2026-09-05T22:54:21.356Z",
+    "status": "passed",
+    "gatesPassed": 26,
+    "testFiles": 652,
+    "testsPassed": 5268,
+    "testsSkipped": 2,
+    "testsFailed": 0,
+    "report": "artifacts/qa/issues-88-89/check-timings.json",
+    "reportSha256": "a0fad475ddb1a36b81ec8e830cec446df2f263d59c163ab81e695eb9bc94a951"
+  },
+  "uiQa": {
+    "gallery": "artifacts/qa/issues-88-89/screenshots.md",
+    "finalScreenshots": [
+      "gpu-wide-final.png",
+      "gpu-narrow-final.png",
+      "gpu-auto-final.png",
+      "gpu-device-list-final.png",
+      "gpu-disabled-en-final.png",
+      "gpu-japanese-final.png",
+      "gpu-reduced-viewport-final.png",
+      "vc-runtime-dialog-final-v2.png"
+    ],
+    "inspected": true,
+    "outerOverflowOrClipping": false,
+    "capturesPreservedAtUserRequest": true,
+    "nativeDialogCondition": "Injected missing DLL detection; real Electron native dialog"
+  }
+}

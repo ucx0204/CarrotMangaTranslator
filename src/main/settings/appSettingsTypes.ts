@@ -1,4 +1,5 @@
 import type { BlockFormatDefaults } from "../../shared/blockFormat";
+import type { GraphicsGpuPreference } from "../../shared/gpuSettings";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import type { WorkTypographyProfileV2 } from "../../shared/fontMatchingProfileTypes";
 import type {
@@ -87,6 +88,8 @@ export type TranslationOptions = {
   fitEnabled?: boolean;
   /** Backend-local CUDA/HIP GPU ordinal. Missing keeps automatic selection. */
   computeGpuIndex?: number;
+  /** Windows DirectML pre-processing preference, captured at job start. */
+  graphicsGpuPreference?: GraphicsGpuPreference;
   gpuLayers?: number | "fit" | "all";
   cacheTypeK?: string;
   cacheTypeV?: string;

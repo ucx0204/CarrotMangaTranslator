@@ -74,6 +74,14 @@ describe("bubble-aware inpainting postprocess", () => {
     );
     const createBubbleLayoutRunner = vi.fn(() => ({ runPage }));
     const runtime = makeRuntime(chapters, createBubbleLayoutRunner);
+    const gpuSettings = resolveDefaultAppSettings({});
+    gpuSettings.hardware = {
+      graphicsGpuPreference: "high-performance",
+      computeGpuIndex: 0,
+    };
+    gpuSettings.ocr.device = "gpu";
+    gpuSettings.ocr.gpuBackend = undefined;
+    runtime.getSettings = vi.fn(async () => gpuSettings);
     const disposalError = new Error("layout session release failed");
     const disposeBubbleLayoutSessions = runtime.disposeBubbleLayoutSessions;
     if (!disposeBubbleLayoutSessions) {
@@ -103,6 +111,11 @@ describe("bubble-aware inpainting postprocess", () => {
       { error: disposalError },
     );
     expect(createBubbleLayoutRunner).toHaveBeenCalledTimes(1);
+    expect(createBubbleLayoutRunner).toHaveBeenCalledWith(
+      expect.objectContaining({
+        directMl: { ...gpuSettings.hardware, computeGpuBackend: "cuda" },
+      }),
+    );
     expect(runPage).toHaveBeenCalledTimes(2);
     expect(runPage.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({

@@ -33,10 +33,7 @@ export function GpuAssignmentSettings({
 }: GpuAssignmentSettingsProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <SettingsSection
-      title={t("settings.hardware.gpuSection")}
-      description={t("settings.hardware.gpuSectionDescription")}
-    >
+    <SettingsSection title={t("settings.hardware.gpuSection")}>
       <div className="settings-subsection-stack">
         <label className="settings-field-stack">
           <span>{t("settings.hardware.graphicsGpu")}</span>
@@ -79,9 +76,6 @@ export function GpuAssignmentSettings({
             }}
           />
         </label>
-        <p className="muted-line modal-note">
-          {t("settings.hardware.gpuNumberingNote")}
-        </p>
         <p className="muted-line modal-note settings-gpu-restart-note">
           {t("settings.hardware.graphicsGpuRestartNote")}
         </p>

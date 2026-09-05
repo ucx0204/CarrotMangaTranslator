@@ -55,6 +55,7 @@ describe("compute GPU runtime routing", () => {
     settings.hardware = {
       ...settings.hardware,
       computeGpuIndex: 2,
+      graphicsGpuPreference: "high-performance",
     };
 
     const options = buildBaseTranslationOptions({
@@ -70,6 +71,7 @@ describe("compute GPU runtime routing", () => {
     });
 
     expect(options.computeGpuIndex).toBe(2);
+    expect(options.graphicsGpuPreference).toBe("high-performance");
 
     settings.hardware = { graphicsGpuPreference: "auto" };
     expect(

@@ -3,6 +3,9 @@ import { resolve } from "node:path";
 import type * as Ort from "onnxruntime-node";
 import { onnxRuntimeNode as ort } from "../runtimeSupport/nativeOnnxRuntime";
 import { disposeKoharuWasmInferenceWorker } from "./wasmWorkerClient";
+import type { DirectMlDeviceRequest } from "../runtimeSupport/directMlAdapterPolicy";
+import { queryWindowsDirectMlAdapter } from "../runtimeSupport/windowsDirectMlAdapter";
+import { logInfo, logWarn } from "../logger";
 
 export type KoharuExecutionProvider = "dml" | "cpu";
 
@@ -20,6 +23,7 @@ export async function getKoharuLayoutSession(options: {
   modelPath: string;
   signal?: AbortSignal;
   providerPreference?: readonly KoharuExecutionProvider[];
+  directMl?: DirectMlDeviceRequest;
 }): Promise<KoharuLayoutSessionHandle> {
   throwIfAborted(options.signal);
   const disposalBarrier = sessionDisposalBarrier;
@@ -32,10 +36,26 @@ export async function getKoharuLayoutSession(options: {
     options.providerPreference ?? resolveKoharuProviderPreference();
   const errors: unknown[] = [];
   for (const provider of providers) {
-    const cacheKey = JSON.stringify([modelPath, provider]);
+    const directMl = options.directMl ?? {};
+    const cacheKey = JSON.stringify([
+      modelPath,
+      provider,
+      ...(provider === "dml"
+        ? [
+            directMl.graphicsGpuPreference ?? "auto",
+            directMl.computeGpuBackend,
+            directMl.computeGpuIndex,
+          ]
+        : []),
+    ]);
     if (unavailableProviderKeys.has(cacheKey)) continue;
     try {
-      const session = await getOrCreateSession(modelPath, provider, cacheKey);
+      const session = await getOrCreateSession(
+        modelPath,
+        provider,
+        cacheKey,
+        directMl,
+      );
       throwIfAborted(options.signal);
       return { session, provider };
     } catch (error) {
@@ -43,6 +63,11 @@ export async function getKoharuLayoutSession(options: {
       throwIfAborted(options.signal);
       unavailableProviderKeys.add(cacheKey);
       errors.push(error);
+      logWarn("KoharuLayout execution provider unavailable", {
+        provider,
+        directMl,
+        error,
+      });
     }
   }
   throw new AggregateError(
@@ -169,10 +194,11 @@ function getOrCreateSession(
   modelPath: string,
   provider: KoharuExecutionProvider,
   cacheKey: string,
+  directMl: DirectMlDeviceRequest,
 ): Promise<Ort.InferenceSession> {
   let pending = sessionCache.get(cacheKey);
   if (!pending) {
-    pending = createCachedSession(modelPath, provider, cacheKey);
+    pending = createCachedSession(modelPath, provider, cacheKey, directMl);
     sessionCache.set(cacheKey, pending);
   }
   return pending;
@@ -182,26 +208,43 @@ function createCachedSession(
   modelPath: string,
   provider: KoharuExecutionProvider,
   cacheKey: string,
+  directMl: DirectMlDeviceRequest,
 ): Promise<Ort.InferenceSession> {
-  const pending = ort.InferenceSession.create(modelPath, {
-    executionProviders: [provider],
+  const pending = createNativeSession(modelPath, provider, directMl).catch(
+    (error: unknown) => {
+      if (sessionCache.get(cacheKey) === pending) {
+        sessionCache.delete(cacheKey);
+      }
+      throw error;
+    },
+  );
+  return pending;
+}
+
+async function createNativeSession(
+  modelPath: string,
+  provider: KoharuExecutionProvider,
+  directMl: DirectMlDeviceRequest,
+): Promise<Ort.InferenceSession> {
+  const adapter =
+    provider === "dml" ? await queryWindowsDirectMlAdapter(directMl) : null;
+  const session = await ort.InferenceSession.create(modelPath, {
+    executionProviders: [
+      adapter ? { name: "dml", deviceId: adapter.deviceId } : "cpu",
+    ],
     executionMode: "sequential",
     graphOptimizationLevel: "all",
     intraOpNumThreads: provider === "cpu" ? resolveKoharuCpuThreadCount() : 1,
     interOpNumThreads: 1,
     enableMemPattern: provider === "cpu",
-  })
-    .then((session) => {
-      assertSessionContract(session);
-      return session;
-    })
-    .catch((error: unknown) => {
-      if (sessionCache.get(cacheKey) === pending) {
-        sessionCache.delete(cacheKey);
-      }
-      throw error;
-    });
-  return pending;
+  });
+  assertSessionContract(session);
+  logInfo("KoharuLayout execution provider ready", {
+    provider,
+    adapter,
+    requested: directMl,
+  });
+  return session;
 }
 
 function assertSessionContract(session: Ort.InferenceSession): void {

@@ -125,6 +125,7 @@ async function detectOriginalPageLayoutUncached(
   return detectKoharuPageLayout({
     imagePath: request.page.imagePath,
     modelPath: detectorAssets.modelPath,
+    directMl: options.directMl,
     signal: request.signal,
     decodeFallback: options.decodeFallback,
   });

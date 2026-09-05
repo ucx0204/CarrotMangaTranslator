@@ -33,7 +33,8 @@
       "reason": "IPC composition root"
     },
     "src/main/logger.ts": {
-      "maxImportedBy": 29
+      "maxImportedBy": 30,
+      "reason": "Main diagnostic sink, including DirectML adapter identity and CPU fallback telemetry"
     },
     "src/main/libraryStore/storage.ts": {
       "maxImportedBy": 26
