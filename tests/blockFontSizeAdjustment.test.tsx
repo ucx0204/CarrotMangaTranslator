@@ -196,7 +196,7 @@ describe("selected block font-size adjustment", () => {
         DEFAULT_BLOCK_FONT_CATALOG,
       ).fontSizePx;
 
-      expect(visibleBefore).toBe(24);
+      expect(visibleBefore).toBe(25);
       expect(adjusted.autoFitText).toBe(false);
       expect(adjusted.fontSizeIntent).toBe("manual");
       expect(adjusted.fontSizePx).toBe(visibleBefore + adjustment * 0.5);

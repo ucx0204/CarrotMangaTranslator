@@ -16,6 +16,7 @@ import {
   type BlockBubbleCandidate,
 } from "./bubbleBlockAssociation";
 import { partitionSharedBubbleOwnership } from "./bubbleOwnershipPartition";
+import { createBubbleMaskOwnershipResolver } from "./bubbleMaskOwnership";
 import type { ComicPageDetection } from "./contracts";
 import {
   clipRegionsToOwnershipPartition,
@@ -73,6 +74,22 @@ export function processDetectedBubbleLayouts(options: {
   const candidatesByBlock = new Map(
     ownerships.map(({ owner, candidates }) => [owner, candidates]),
   );
+  const resolveMaskOwnership = createBubbleMaskOwnershipResolver(
+    options.imageWidth,
+    options.imageHeight,
+  );
+  for (const { candidates } of ownerships)
+    for (const candidate of candidates) {
+      const partition = candidate.ownershipPartition;
+      const mask = candidate.bubbleDetection.mask;
+      if (mask && partition?.scope === "full" && partition.gapPx > 0) {
+        partition.maskOwnership = resolveMaskOwnership(
+          mask,
+          partition.ownerBox,
+          partition.competingOwnerBoxes,
+        );
+      }
+    }
   const patches: BubbleLayoutBlockPatch[] = [];
   for (const block of options.page.blocks) {
     const patch = processBlock(

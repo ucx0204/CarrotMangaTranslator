@@ -8,6 +8,108 @@ const originalDocument = globalThis.document;
 const pageSize = { width: 1000, height: 1000 };
 
 describe("source-matched font-size cap", () => {
+  it("fits automatic source text without a detected mask while preserving manual size", () => {
+    installCanvasMeasureMock();
+    const block = makeBlock({
+      bbox: { x: 0, y: 0, w: 120, h: 75 },
+      autoFitText: false,
+      fontSizeIntent: "source-match",
+      translatedText: "긴 외부 대사도 할당된 영역을 넘지 않아야 한다.",
+      sourceFontFacePx: 35,
+      sourceFontSizeConfidence: 0.9,
+      sourceFontSizeMethod: "raster-core-v1",
+    });
+    expect(resolveLayout(block).overflow).toBe(false);
+    expect(resolveLayout(block).fontSizePx).toBeLessThan(35);
+    const manual = resolveLayout({
+      ...block,
+      fontSizeIntent: "manual",
+      fontSizePx: 35,
+    });
+    expect(manual.fontSizePx).toBe(35);
+    expect(manual.overflow).toBe(true);
+  });
+  it("matches painted ink when a font has a negative left bearing", () => {
+    installCanvasMeasureMock();
+    const block = makeBlock({
+      translatedText: "좌우획",
+      fontSizeIntent: "source-match",
+      sourceFontFacePx: 24,
+      sourceFontSizeConfidence: 0.9,
+      sourceFontSizeMethod: "raster-core-v1",
+    });
+    const result = resolveLayout(block);
+    expect(result.fontSizePx * 0.8).toBeGreaterThan(24);
+    expect(result.fontSizePx * 0.8).toBeLessThan(26);
+    expect(
+      resolveLayout({
+        ...block,
+        fontSizeIntent: "manual",
+        autoFitText: false,
+        fontSizePx: 24,
+      }).fontSizePx,
+    ).toBe(24);
+  });
+  it("fits a complete generated balloon despite the automatic font style disabling generic autofit", () => {
+    installCanvasMeasureMock();
+    const block = makeBlock({
+      bbox: { x: 0, y: 0, w: 130, h: 85 },
+      bubbleLayout: makeDetectedBubbleLayout(),
+      fontSizeIntent: "source-match",
+      autoFitText: false,
+      wordBreak: "keep-all-overflow",
+      translatedText:
+        "이 문장은 원문 크기 그대로는 말풍선 안에 들어가지 않는다.",
+      sourceFontFacePx: 40,
+      sourceFontSizeConfidence: 0.9,
+      sourceFontSizeMethod: "raster-core-v1",
+    });
+    const result = resolveLayout(block);
+    expect(result.fontSizePx).toBeLessThan(40);
+    expect(result.overflow).toBe(false);
+    expect(
+      result.lines?.every(
+        (line) => line.slot && line.width <= line.slot.availableWidth,
+      ),
+    ).toBe(true);
+    expect(
+      result.lines
+        ?.map((line) => line.runs.map((run) => run.text).join(""))
+        .join("")
+        .replace(/\s/gu, ""),
+    ).toBe(block.translatedText.replace(/\s/gu, ""));
+    expect(
+      resolveLayout({ ...block, fontSizeIntent: "manual", fontSizePx: 40 })
+        .fontSizePx,
+    ).toBe(40);
+  });
+  it("makes a small local adjustment to keep an automatic phrase whole", () => {
+    installCanvasMeasureMock();
+    const block = makeBlock({
+      bbox: { x: 0, y: 0, w: 86, h: 100 },
+      bubbleLayout: makeDetectedBubbleLayout(),
+      fontSizeIntent: "source-match",
+      autoFitText: false,
+      translatedText: "너희는…",
+      wordBreak: "keep-all-overflow",
+      sourceFontFacePx: 24,
+      sourceFontSizeConfidence: 0.9,
+      sourceFontSizeMethod: "raster-core-v1",
+    });
+    const result = resolveLayout(block);
+    expect(result.fontSizePx).toBe(22);
+    expect(
+      result.lines?.map((line) => line.runs.map((run) => run.text).join("")),
+    ).toEqual(["너희는…"]);
+    expect(
+      resolveLayout({ ...block, fontSizeIntent: "manual", fontSizePx: 24 })
+        .fontSizePx,
+    ).toBe(24);
+    expect(
+      resolveLayout({ ...block, translatedText: "너희는\n…" }).fontSizePx,
+    ).toBe(25);
+  });
+
   afterEach(() => {
     Object.defineProperty(globalThis, "document", {
       value: originalDocument,
@@ -27,7 +129,7 @@ describe("source-matched font-size cap", () => {
 
     const layout = resolveLayout(block);
 
-    expect(layout.fontSizePx).toBe(24);
+    expect(layout.fontSizePx).toBe(25);
     expect(layout.overflow).toBe(false);
   });
 
@@ -43,7 +145,7 @@ describe("source-matched font-size cap", () => {
       }),
     );
 
-    expect(layout.fontSizePx).toBe(24);
+    expect(layout.fontSizePx).toBe(25);
     expect(layout.overflow).toBe(false);
   });
 
@@ -187,7 +289,7 @@ describe("source-matched font-size cap", () => {
     const layout = resolveLayout(target, fallback);
 
     expect(fallback).toBe(20.8);
-    expect(layout.fontSizePx).toBe(21);
+    expect(layout.fontSizePx).toBe(22);
     expect(layout.fontSizePx).toBeGreaterThan(target.fontSizePx);
     expect(layout.lines?.length).toBeGreaterThanOrEqual(2);
   });
@@ -210,7 +312,7 @@ describe("source-matched font-size cap", () => {
       }),
     );
 
-    expect(layout.fontSizePx).toBe(12);
+    expect(layout.fontSizePx).toBe(13);
     expect(layout.overflow).toBe(false);
   });
 });
@@ -258,12 +360,13 @@ function installCanvasMeasureMock(): void {
     measureText(text: string) {
       const match = /(\d+)px/.exec(this.font);
       const fontSize = Number(match?.[1] ?? 16);
+      const signedBearing = /^[좌우획]+$/u.test(text);
       return {
         width: [...text].length * fontSize * 0.95,
         actualBoundingBoxAscent: fontSize * 0.8,
         actualBoundingBoxDescent: fontSize * 0.2,
-        actualBoundingBoxLeft: fontSize * 0.5,
-        actualBoundingBoxRight: fontSize * 0.5,
+        actualBoundingBoxLeft: fontSize * (signedBearing ? -0.1 : 0.5),
+        actualBoundingBoxRight: fontSize * (signedBearing ? 0.9 : 0.5),
       } as TextMetrics;
     },
   };

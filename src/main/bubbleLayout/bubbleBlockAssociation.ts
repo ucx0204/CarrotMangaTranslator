@@ -1,4 +1,5 @@
 import type { BBox } from "../../shared/textTypes";
+import type { BubbleMaskOwnership } from "./bubbleMaskOwnership";
 import type {
   AssociatedComicBubble,
   ComicDetectionAssociations,
@@ -23,6 +24,8 @@ export type BlockBubbleCandidateOwnership<Owner> = {
 };
 
 export type BubbleOwnershipPartition = {
+  /** Job-local field shared before per-block safe insets; never persisted. */
+  maskOwnership?: BubbleMaskOwnership;
   /** Job-local conflict component key used to merge one transient Flux crop. */
   sharedGroupId: string;
   /**

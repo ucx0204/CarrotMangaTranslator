@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 import {
   estimatePageSourceFontSizes,
   estimateSourceFontSizeForItem,
@@ -7,6 +7,47 @@ import type { FontMatchingRasterPage } from "../src/main/pipeline/fontMatchingPa
 import type { OverlayItem } from "../src/main/pipeline/types";
 
 describe("source font-size raster estimator", () => {
+  it("measures single CJK ink while leaving blank crops and isolated dots abstained", () => {
+    const raster = createRaster(50, 40, (setBlack) =>
+      fillRect(setBlack, 18, 10, 12, 20),
+    );
+    const item = makeItem({ jp: "わ", sourceText: "わ" });
+    expect(estimateSourceFontSizeForItem(raster, item)?.facePx).toBeGreaterThan(
+      17,
+    );
+    expect(estimateSourceFontSizeForItem(raster, item)?.facePx).toBeLessThan(
+      22,
+    );
+    expect(
+      estimateSourceFontSizeForItem(
+        createRaster(50, 40, () => undefined),
+        item,
+      ),
+    ).toBeUndefined();
+    expect(
+      estimateSourceFontSizeForItem(raster, makeItem({ sourceText: "." })),
+    ).toBeUndefined();
+  });
+
+  it("keeps a stable single-line raster scale despite ambiguous OCR ellipsis spelling", () => {
+    const raster = createRaster(100, 30, (setBlack) => {
+      for (let glyph = 0; glyph < 4; glyph += 1)
+        fillRect(setBlack, 5 + glyph * 23, 5, 12, 20);
+    });
+    const canonical = estimateSourceFontSizeForItem(
+      raster,
+      makeItem({ sourceText: "原…文字" }),
+    );
+    assert(canonical);
+    const dots = estimateSourceFontSizeForItem(
+      raster,
+      makeItem({ sourceText: "原...文字" }),
+    );
+    assert(dots);
+    expect(dots.facePx / canonical.facePx).toBeGreaterThan(0.9);
+    expect(dots.facePx / canonical.facePx).toBeLessThan(1.1);
+  });
+
   it("skips raster loading when source-size fitting is disabled", async () => {
     const loadRaster = vi.fn(async () =>
       createRaster(100, 30, () => undefined),

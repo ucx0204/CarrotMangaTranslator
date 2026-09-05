@@ -26,6 +26,7 @@ export type BubbleSlotPlanInput = {
   lineHeightPx: number;
   /** Text-derived upper bound; no plan can consume more than this many slots. */
   maximumSlotCount?: number;
+  preferBodyCenter?: boolean;
   renderDirection: RenderTextDirection;
 };
 
@@ -96,16 +97,25 @@ function resolveRegionSlotPlans(
     Math.floor((regionExtentPx + COORDINATE_EPSILON) / input.lineHeightPx),
   );
   const plans: TextLineSlot[][] = [];
+  const centers = resolveRegionCenters(
+    region,
+    input,
+    regionStartPx,
+    regionEndPx,
+  );
   for (let lineCount = 1; lineCount <= maximumLineCount; lineCount += 1) {
-    const plan = resolveCenteredRegionPlan(
-      region,
-      regionIndex,
-      lineCount,
-      regionStartPx,
-      regionEndPx,
-      input,
-    );
-    if (plan) plans.push(plan);
+    for (const centerPx of centers) {
+      const plan = resolveCenteredRegionPlan(
+        region,
+        regionIndex,
+        lineCount,
+        regionStartPx,
+        regionEndPx,
+        input,
+        centerPx,
+      );
+      if (plan) plans.push(plan);
+    }
   }
   return plans;
 }
@@ -117,9 +127,10 @@ function resolveCenteredRegionPlan(
   regionStartPx: number,
   regionEndPx: number,
   input: BubbleSlotPlanInput,
+  centerPx: number,
 ): TextLineSlot[] | null {
   const contentExtentPx = lineCount * input.lineHeightPx;
-  const blockOffsetPx = (regionStartPx + regionEndPx - contentExtentPx) / 2;
+  const blockOffsetPx = centerPx - contentExtentPx / 2;
   if (
     blockOffsetPx < regionStartPx - COORDINATE_EPSILON ||
     blockOffsetPx + contentExtentPx > regionEndPx + COORDINATE_EPSILON
@@ -157,6 +168,33 @@ function resolveCenteredRegionPlan(
     });
   }
   return slots;
+}
+
+function resolveRegionCenters(
+  region: BubbleShapeRegion,
+  input: BubbleSlotPlanInput,
+  start: number,
+  end: number,
+): number[] {
+  const center = (start + end) / 2;
+  if (!input.preferBodyCenter) return [center];
+  let mass = 0;
+  let moment = 0;
+  for (const span of region.spans) {
+    const area =
+      (span.blockEnd - span.blockStart) * (span.inlineEnd - span.inlineStart);
+    mass += area;
+    moment += (area * (span.blockStart + span.blockEnd)) / 2;
+  }
+  const bodyCenter = mass > 0 ? (moment / mass) * input.blockExtentPx : center;
+  return [
+    ...new Set([
+      bodyCenter,
+      center,
+      bodyCenter - input.lineHeightPx / 2,
+      bodyCenter + input.lineHeightPx / 2,
+    ]),
+  ];
 }
 
 /**

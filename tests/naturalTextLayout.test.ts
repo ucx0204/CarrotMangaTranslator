@@ -17,6 +17,24 @@ import type { TranslationBlock } from "../src/shared/textTypes";
 const PAGE_SIZE = { width: 1000, height: 1000 };
 
 describe("natural translated-text layout", () => {
+  it("defers source-matched wrapping until the actual font face is measured", () => {
+    const text = "옷장에 있는 것 중에서 고르겠습니다만…";
+    const block = makeBlock(
+      text,
+      { w: 90, h: 210 },
+      {
+        fontSizeIntent: "source-match",
+        fontSizePx: 12,
+        autoFitText: false,
+        sourceFontFacePx: 28,
+      },
+    );
+    expect(layout(block).translatedText).toBe(text);
+    expect(
+      layout({ ...block, translatedText: "직접 넣은\n줄바꿈" }).translatedText,
+    ).toBe("직접 넣은\n줄바꿈");
+  });
+
   it("is an exact identity while the option is disabled", () => {
     const block = makeBlock("긴 번역 문장을 그대로 유지합니다", {
       w: 80,

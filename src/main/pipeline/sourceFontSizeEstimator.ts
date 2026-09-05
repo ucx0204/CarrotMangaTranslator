@@ -1,11 +1,14 @@
 import type { MangaPage } from "../../shared/libraryTypes";
 import { stripRichTextMarkup } from "../../shared/richTextMarkup";
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
-import { estimateSourceFontFace } from "./sourceFontSizeGeometry";
+import { measureSourceFontFaceForText } from "./sourceFontSizeTextEvidence";
 import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometryTypes";
-import { clamp, median } from "./sourceFontSizeMath";
+import { buildCrossProfile, clamp, median } from "./sourceFontSizeMath";
 import type { FontMatchingRasterPage } from "./fontMatchingPagePixelPreprocessing";
-import { buildSourceFontCoreMask } from "./sourceFontSizeRaster";
+import {
+  buildSourceFontCoreMask,
+  type SourceFontCoreMask,
+} from "./sourceFontSizeRaster";
 import {
   createSourceFontSizeHypothesisCandidate,
   refinePageSourceFontSizeHypotheses,
@@ -84,7 +87,19 @@ function measureSourceFontSizeItem(
   const direction = item.direction;
   const sourceText = stripRichTextMarkup(item.sourceText ?? item.jp ?? "");
   const glyphCount = visibleGlyphCount(sourceText);
-  if (glyphCount < 2 || glyphCount > 160) return {};
+  if (glyphCount < 1 || glyphCount > 160) return {};
+  if (glyphCount === 1) {
+    if (
+      !/^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}!?！？]$/u.test(
+        sourceText.trim(),
+      )
+    )
+      return {};
+    const core = buildSourceFontCoreMask(raster, item.bbox, signal);
+    return {
+      estimate: core ? measureSingleSourceGlyph(core, direction) : undefined,
+    };
+  }
   const lineMeasurement = measureFromOcrLineGeometry(
     raster,
     item,
@@ -94,9 +109,13 @@ function measureSourceFontSizeItem(
   if (lineMeasurement) return lineMeasurement;
   const core = buildSourceFontCoreMask(raster, item.bbox, signal);
   if (!core) return {};
-  const estimate = estimateSourceFontFace(core, direction, glyphCount, {
-    geometryConsensus: true,
-  });
+  const measured = measureSourceFontFaceForText(
+    core,
+    direction,
+    sourceText,
+    true,
+  );
+  const { estimate } = measured;
   return estimate
     ? {
         estimate,
@@ -104,7 +123,7 @@ function measureSourceFontSizeItem(
           baseline: estimate,
           core,
           direction,
-          glyphCount,
+          glyphCount: measured.glyphCount,
         }),
       }
     : {};
@@ -188,7 +207,13 @@ function measureSourceFontLine(
   if (glyphCount < 2 || glyphCount > 160) return undefined;
   const core = buildSourceFontCoreMask(raster, line.bbox, signal);
   if (!core) return undefined;
-  const estimate = estimateSourceFontFace(core, direction, glyphCount);
+  const measured = measureSourceFontFaceForText(
+    core,
+    direction,
+    stripRichTextMarkup(line.sourceText),
+    false,
+  );
+  const { estimate } = measured;
   return estimate
     ? {
         estimate,
@@ -196,7 +221,7 @@ function measureSourceFontLine(
           baseline: estimate,
           core,
           direction,
-          glyphCount,
+          glyphCount: measured.glyphCount,
         }),
       }
     : undefined;
@@ -242,7 +267,36 @@ function combineOcrLineEstimates(
 }
 
 function visibleGlyphCount(value: string): number {
-  return Array.from(value).filter((grapheme) => !/^\s$/u.test(grapheme)).length;
+  // Used only for eligibility. Occupancy alternatives need raster agreement.
+  return Array.from(value.replace(/\.{3}/gu, "…")).filter(
+    (grapheme) => !/^\s$/u.test(grapheme),
+  ).length;
+}
+
+function measureSingleSourceGlyph(
+  core: SourceFontCoreMask,
+  direction: "horizontal" | "vertical",
+): SourceFontSizeEstimate | undefined {
+  if (
+    core.componentCount > 12 ||
+    core.foregroundRatio < 0.015 ||
+    core.foregroundRatio > 0.47
+  )
+    return undefined;
+  const profile = buildCrossProfile(core, direction);
+  const mass = profile.reduce((sum, value) => sum + value, 0);
+  let cumulative = 0;
+  let first = -1;
+  let last = -1;
+  for (const [index, value] of profile.entries()) {
+    cumulative += value;
+    if (first < 0 && cumulative >= mass * 0.02) first = index;
+    if (cumulative <= mass * 0.98 || last < 0) last = index;
+  }
+  const facePx = last - first + 1;
+  return facePx >= 6
+    ? { facePx, confidence: 0.65, method: "raster-core-v1" }
+    : undefined;
 }
 
 function isFiniteBbox(value: {

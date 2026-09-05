@@ -1,10 +1,62 @@
 import { describe, expect, it } from "vitest";
+import { refineSourceFontFaceWithBody } from "../src/main/pipeline/sourceFontSizeBodyEvidence";
 import { estimateSourceFontFace } from "../src/main/pipeline/sourceFontSizeGeometry";
 import { measureComponentAffinity } from "../src/main/pipeline/sourceFontSizeComponentAffinity";
 import { measureMajorAxisPitch } from "../src/main/pipeline/sourceFontSizeMajorPitch";
 import type { SourceFontCoreMask } from "../src/main/pipeline/sourceFontSizeRaster";
 
 describe("source font-size projection geometry", () => {
+  it("nudges a narrow projection toward independently agreeing repeated glyph bodies", () => {
+    const core = createCore(
+      30,
+      110,
+      (set) => {
+        for (let i = 0; i < 4; i++) fillRect(set, 4, 2 + i * 26, 20, 20);
+      },
+      4,
+    );
+    const estimate = {
+      facePx: 17,
+      confidence: 0.9,
+      method: "raster-core-v1" as const,
+    };
+    const refined = refineSourceFontFaceWithBody(core, "vertical", 4, estimate);
+    expect(refined.facePx).toBeGreaterThan(18);
+    expect(refined.facePx).toBeLessThan(20);
+    expect(refined.confidence).toBeLessThanOrEqual(estimate.confidence);
+    const normal = { ...estimate, facePx: 20 };
+    expect(refineSourceFontFaceWithBody(core, "vertical", 4, normal)).toBe(
+      normal,
+    );
+  });
+
+  it("preserves projection when the repeated body axes disagree or evidence is empty", () => {
+    const narrow = createCore(
+      30,
+      110,
+      (set) => {
+        for (let i = 0; i < 4; i++) fillRect(set, 4, 2 + i * 26, 8, 20);
+      },
+      4,
+    );
+    const estimate = {
+      facePx: 12,
+      confidence: 0.9,
+      method: "raster-core-v1" as const,
+    };
+    expect(refineSourceFontFaceWithBody(narrow, "vertical", 4, estimate)).toBe(
+      estimate,
+    );
+    expect(
+      refineSourceFontFaceWithBody(
+        createCore(30, 110, () => undefined, 0),
+        "vertical",
+        4,
+        estimate,
+      ),
+    ).toBe(estimate);
+  });
+
   it("rejects impossible glyph counts and an empty foreground mask", () => {
     const regularCore = createCore(
       46,
