@@ -1,3 +1,6 @@
+import { isDemotedBlockFontId } from "../../shared/demotedBlockFonts";
+import { ADDED_MATCHING_FONT_IDS } from "./fontMatchingCatalogRevision";
+import { verifyAdditionalFontFiles } from "./fontCatalogReferenceExtension";
 import { join } from "node:path";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { getAppPaths, type AppPaths } from "../appPaths";
@@ -55,8 +58,9 @@ export type FontMatchingOutputDependencies = Pick<
   "fontMatching" | "diagnostics"
 >;
 
-export function createDefaultWholePagePipelineDependencies(): WholePagePipelineDependencies {
-  const paths = getAppPaths();
+export function createDefaultWholePagePipelineDependencies(
+  paths = getAppPaths(),
+): WholePagePipelineDependencies {
   const selectionByLocale = new Map<
     string,
     AutoMatchActiveCandidateSelection
@@ -84,8 +88,21 @@ export function createDefaultWholePagePipelineDependencies(): WholePagePipelineD
       builtInCandidates,
       targetLocale: locale,
     });
-    selectionByLocale.set(locale, selection);
-    return selection;
+    const roots = resolveBuiltInFontMatchingAssetRoots();
+    verifyAdditionalFontFiles(roots);
+    const currentSelection = {
+      ...selection,
+      renderCandidates: [
+        ...selection.candidates.filter(
+          (font) => !isDemotedBlockFontId(font.fontId),
+        ),
+        ...builtInCandidates.filter((font) =>
+          ADDED_MATCHING_FONT_IDS.some((id) => id === font.fontId),
+        ),
+      ],
+    };
+    selectionByLocale.set(locale, currentSelection);
+    return currentSelection;
   };
   return {
     paths,
@@ -95,7 +112,8 @@ export function createDefaultWholePagePipelineDependencies(): WholePagePipelineD
         const locale = resolveUiLocale(targetLanguage);
         if (!locale) return [];
         if (locale !== "ko") return [];
-        return loadSelection(locale).candidates;
+        const selection = loadSelection(locale);
+        return selection.renderCandidates ?? selection.candidates;
       },
       loadProfile: readWorkTypographyProfile,
       pageInference: createWorkerFontMatchingPageInferencePort({

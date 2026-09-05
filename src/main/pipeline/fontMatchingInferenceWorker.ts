@@ -1,3 +1,4 @@
+import { completeFontPaletteInference } from "./fontMatchingPaletteInference";
 /**
  * Font matching ONNX inference worker (node:worker_threads).
  *
@@ -21,10 +22,7 @@
  *   cancel { type:"cancel", id } -> 해당 id의 AbortController 중단
  */
 import { parentPort } from "node:worker_threads";
-import {
-  inferFontExpressionPage,
-  loadFontExpressionModel,
-} from "./fontMatchingExpressionRuntime";
+import { loadFontExpressionModel } from "./fontMatchingExpressionRuntime";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import type {
@@ -45,7 +43,6 @@ import {
   inferFontMatchingPagePixels,
 } from "./fontMatchingPagePixelInference";
 import {
-  inferCrossScriptProxyPage,
   loadCrossScriptProxyRuntimeModel,
   type CrossScriptProxyRuntimeModel,
 } from "./fontMatchingCrossScriptProxyRuntime";
@@ -66,6 +63,7 @@ export type FontMatchingWorkerInferMessage = Readonly<{
   page: MangaPage;
   blocks: readonly FontMatchingPageInferenceBlock[];
   candidates: readonly AutomaticFontCandidate[];
+  inferenceCandidates?: readonly AutomaticFontCandidate[];
   boundary: FontMatchingInferenceInputBoundary;
   qaPageRelativeRoleReroute?: boolean;
   raster: FontMatchingRasterPage;
@@ -213,40 +211,29 @@ async function handleInfer(
     const cachedRaster = message.raster;
     const loadRaster = async (): Promise<FontMatchingRasterPage> =>
       cachedRaster;
+    const inferenceCandidates =
+      message.inferenceCandidates ?? message.candidates;
     const result = await inferFontMatchingPagePixels({
       page: message.page,
       blocks: message.blocks,
-      candidates: message.candidates,
+      candidates: inferenceCandidates,
       boundary: message.boundary,
       qaPageRelativeRoleReroute: message.qaPageRelativeRoleReroute === true,
       signal: controller.signal,
       model: runtimeModel,
       loadRaster,
     });
-    const proxyByBlockId = crossScriptProxyModel
-      ? await inferCrossScriptProxyPage({
-          blocks: message.blocks,
-          candidates: message.candidates,
-          existingRows: result,
-          model: crossScriptProxyModel,
-          raster: cachedRaster,
-          signal: controller.signal,
-        })
-      : new Map();
-    const combined = new Map(result);
-    for (const [blockId, crossScriptProxy] of proxyByBlockId) {
-      const row = result.get(blockId);
-      if (row) combined.set(blockId, { ...row, crossScriptProxy });
-    }
-    const expressive = expressionModel
-      ? await inferFontExpressionPage({
-          session: expressionModel,
-          blocks: message.blocks,
-          rows: combined,
-          raster: cachedRaster,
-          signal: controller.signal,
-        })
-      : combined;
+    if (!crossScriptProxyModel || !expressionModel)
+      throw new Error("Font palette sessions are unavailable.");
+    const expressive = await completeFontPaletteInference({
+      ...message,
+      inferenceCandidates,
+      rows: result,
+      model: crossScriptProxyModel,
+      expressionModel,
+      raster: cachedRaster,
+      signal: controller.signal,
+    });
     post({ type: "infer-done", id: message.id, ok: true, result: expressive });
   } catch (error) {
     post({

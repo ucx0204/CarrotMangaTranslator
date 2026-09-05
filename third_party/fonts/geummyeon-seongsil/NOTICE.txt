@@ -1,0 +1,6 @@
+금면성실체
+Copyright SangSangTokki / Shin Yong. Free personal, corporate and commercial use. Redistribution permitted; selling the font itself or modifying the font file prohibited.
+
+License authority: https://sangsangfont.com/21/?idx=162
+Downloaded source: https://portalnum.com/29
+Verified 2026-09-06. Font bytes unmodified. See ../manifest.json for SHA-256.

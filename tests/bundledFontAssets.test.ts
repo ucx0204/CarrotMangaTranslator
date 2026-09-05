@@ -47,12 +47,12 @@ const NEW_KOREAN_FONT_IDS = [
   "start-over",
   "jua",
   "gaegu",
-  "black-and-white-picture",
   "black-han-sans",
   "gasoek-one",
-  "kirang-haerang",
   "nanum-brush-script",
-  "single-day",
+  "kkubulim",
+  "geummyeon-seongsil",
+  "shilla-culture",
 ] as const;
 const FONT_SIGNATURES = {
   ttf: Buffer.from([0, 1, 0, 0]),

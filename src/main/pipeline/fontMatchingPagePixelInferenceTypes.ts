@@ -64,6 +64,8 @@ type FontMatchingSelectionCalibrationAudit = Readonly<{
 
 export type VerifiedAutomaticFontPixelInferenceV2 = Readonly<{
   kind: "verified_pixel_inference";
+  /** App-owned catalog projection; R33 evidence below retains its original channel identities. */
+  catalogRevision?: "korean-palette-20260906-v1";
   pageId: string;
   blockId: string;
   modelVersion: string;

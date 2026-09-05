@@ -33,12 +33,12 @@ const EXPECTED_IDS_BY_LOCALE = {
     "start-over",
     "jua",
     "gaegu",
-    "black-and-white-picture",
     "black-han-sans",
     "gasoek-one",
-    "kirang-haerang",
     "nanum-brush-script",
-    "single-day",
+    "kkubulim",
+    "geummyeon-seongsil",
+    "shilla-culture",
   ],
   en: [
     "comic-neue",
@@ -90,12 +90,12 @@ const FIRST_KOREAN_FONT_ADDITION_IDS = [
   "gaegu",
 ] as const;
 const SFX_KOREAN_FONT_ADDITION_IDS = [
-  "black-and-white-picture",
   "black-han-sans",
   "gasoek-one",
-  "kirang-haerang",
   "nanum-brush-script",
-  "single-day",
+  "kkubulim",
+  "geummyeon-seongsil",
+  "shilla-culture",
 ] as const;
 const ADDED_KOREAN_FONT_IDS = [
   ...FIRST_KOREAN_FONT_ADDITION_IDS,

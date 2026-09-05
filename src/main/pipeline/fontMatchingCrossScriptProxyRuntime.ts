@@ -1,4 +1,6 @@
 /* eslint-disable complexity, max-depth, max-lines, max-lines-per-function -- sealed numerical model loading, clustering, and scoring stay co-located for auditability */
+import { isDemotedBlockFontId } from "../../shared/demotedBlockFonts";
+import { readAdditionalFontReferenceBank } from "./fontCatalogReferenceExtension";
 import { createHash } from "node:crypto";
 import { lstat, readFile, readdir } from "node:fs/promises";
 import { availableParallelism } from "node:os";
@@ -131,6 +133,61 @@ export async function loadCrossScriptProxyRuntimeModel(
     styleSession,
     decoderSession,
   };
+}
+
+const revisedCatalogs = new WeakMap<
+  CrossScriptProxyRuntimeModel,
+  CrossScriptProxyRuntimeModel
+>();
+
+/** Preserve every retained face byte; add real glyph references without relabeling classifier outputs. */
+export function withRevisedCrossScriptCatalog(
+  model: CrossScriptProxyRuntimeModel,
+): CrossScriptProxyRuntimeModel {
+  const cached = revisedCatalogs.get(model);
+  if (cached) return cached;
+  const extra = readAdditionalFontReferenceBank();
+  const retained = model.candidates.filter(
+    (face) => !isDemotedBlockFontId(face.fontId),
+  );
+  const rowBytes = GLYPH_COUNT * CROSS_SCRIPT_PROXY_IMAGE_SIZE ** 2;
+  const candidates: CandidateMetadata[] = [];
+  const bank = new Uint8Array(
+    (retained.length + extra.faces.length) * rowBytes,
+  );
+  for (const face of retained) {
+    const offset = candidates.length * rowBytes;
+    bank.set(
+      model.scoreCache.bank.subarray(
+        face.bankByteOffset,
+        face.bankByteOffset + rowBytes,
+      ),
+      offset,
+    );
+    candidates.push({ ...face, bankByteOffset: offset });
+  }
+  for (const face of extra.faces) {
+    const offset = candidates.length * rowBytes;
+    bank.set(
+      extra.bytes.subarray(face.bankByteOffset, face.bankByteOffset + rowBytes),
+      offset,
+    );
+    candidates.push({
+      bankByteLength: rowBytes,
+      bankByteOffset: offset,
+      displayId: `${face.fontId}/sha256:${face.sha256}/w${face.weight}/normal`,
+      fontId: face.fontId,
+      fontWeight: face.weight,
+      italic: false,
+    });
+  }
+  const revised = {
+    ...model,
+    candidates,
+    scoreCache: prepareCandidateScoreCache(bank, candidates.length),
+  };
+  revisedCatalogs.set(model, revised);
+  return revised;
 }
 
 export async function inferCrossScriptProxyPage({

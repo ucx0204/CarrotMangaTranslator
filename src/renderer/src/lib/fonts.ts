@@ -1,3 +1,4 @@
+import { resolveDemotedBlockFontId } from "../../../shared/demotedBlockFonts";
 import type { CustomFont } from "../../../shared/libraryTypes";
 import {
   DEFAULT_BLOCK_FONT_ID,
@@ -57,12 +58,15 @@ const FIRST_KOREAN_FONT_ADDITION_IDS = [
   "gaegu",
 ] as const;
 const SFX_KOREAN_FONT_ADDITION_IDS = [
-  "black-and-white-picture",
   "black-han-sans",
   "gasoek-one",
-  "kirang-haerang",
   "nanum-brush-script",
-  "single-day",
+] as const;
+
+const CURRENT_KOREAN_FONT_ADDITION_IDS = [
+  "kkubulim",
+  "geummyeon-seongsil",
+  "shilla-culture",
 ] as const;
 
 const ACTIVE_BUILT_IN_BLOCK_FONTS =
@@ -74,16 +78,26 @@ const KOREAN_FONT_ADDITION_MIGRATIONS = [
     requiredIds: ACTIVE_BUILT_IN_BLOCK_FONTS.filter(
       (font) =>
         !FIRST_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id) &&
-        !SFX_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id),
+        !SFX_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id) &&
+        !CURRENT_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id),
     ).map((font) => font.id),
     anchorId: "seoul-hangang",
   },
   {
     addedIds: SFX_KOREAN_FONT_ADDITION_IDS,
     requiredIds: ACTIVE_BUILT_IN_BLOCK_FONTS.filter(
-      (font) => !SFX_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id),
+      (font) =>
+        !SFX_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id) &&
+        !CURRENT_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id),
     ).map((font) => font.id),
     anchorId: "gaegu",
+  },
+  {
+    addedIds: CURRENT_KOREAN_FONT_ADDITION_IDS,
+    requiredIds: ACTIVE_BUILT_IN_BLOCK_FONTS.filter(
+      (font) => !CURRENT_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id),
+    ).map((font) => font.id),
+    anchorId: "nanum-brush-script",
   },
 ] as const;
 
@@ -279,7 +293,7 @@ export function normalizeBlockFontFamily(
   value: string | undefined,
   catalog: BlockFontCatalog,
 ): string | undefined {
-  const id = String(value ?? "").trim();
+  const id = resolveDemotedBlockFontId(String(value ?? "").trim());
   if (
     !id ||
     id === DEFAULT_BLOCK_FONT_ID ||
@@ -295,7 +309,7 @@ export function resolveBlockFontOption(
   value: string | undefined,
   options: readonly BlockFontOption[],
 ): BlockFontOption {
-  const id = String(value ?? "").trim();
+  const id = resolveDemotedBlockFontId(String(value ?? "").trim());
   return (
     options.find((option) => option.id === id) ??
     options.find((option) => option.id === DEFAULT_BLOCK_FONT_ID) ??
@@ -307,7 +321,7 @@ export function resolveBlockFontFamily(
   value: string | undefined,
   catalog: BlockFontCatalog,
 ): string {
-  const id = String(value ?? "").trim();
+  const id = resolveDemotedBlockFontId(String(value ?? "").trim());
   const explicitFamily =
     id && id !== DEFAULT_BLOCK_FONT_ID
       ? resolveConcreteFontFamily(id, catalog)

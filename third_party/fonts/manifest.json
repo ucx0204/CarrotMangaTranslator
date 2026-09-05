@@ -1,5 +1,5 @@
 {
-  "generatedOn": "2026-08-01",
+  "generatedOn": "2026-09-06",
   "sourceRevisions": {
     "google-fonts": "2796410152d4f9524b68ed46e69c1b60f8e0f7c3",
     "chenyuluoyan_thin-v2.0": "79d19aa663b4647291c57568d52321d81b719103",
@@ -335,23 +335,6 @@
       ]
     },
     {
-      "id": "black-and-white-picture",
-      "family": "Black And White Picture",
-      "locale": "ko",
-      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/blackandwhitepicture",
-      "license": "OFL-1.1",
-      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/blackandwhitepicture/OFL.txt",
-      "faces": [
-        {
-          "file": "src/renderer/src/assets/fonts/ko/black-and-white-picture.ttf",
-          "sourceFile": "BlackAndWhitePicture-Regular.ttf",
-          "sha256": "4d72cd6de1f210b446c86f06b4e13d7641cbcfb1b375c6927341388aa8e08056",
-          "format": "ttf",
-          "weight": 400
-        }
-      ]
-    },
-    {
       "id": "black-han-sans",
       "family": "Black Han Sans",
       "locale": "ko",
@@ -386,23 +369,6 @@
       ]
     },
     {
-      "id": "kirang-haerang",
-      "family": "Kirang Haerang",
-      "locale": "ko",
-      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/kiranghaerang",
-      "license": "OFL-1.1",
-      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/kiranghaerang/OFL.txt",
-      "faces": [
-        {
-          "file": "src/renderer/src/assets/fonts/ko/kirang-haerang.ttf",
-          "sourceFile": "KirangHaerang-Regular.ttf",
-          "sha256": "d677d28d466989017c520f00a2a7794ea581ea3d9fa9a830fbb44f1015eac72d",
-          "format": "ttf",
-          "weight": 400
-        }
-      ]
-    },
-    {
       "id": "nanum-brush-script",
       "family": "Nanum Brush Script",
       "locale": "ko",
@@ -414,6 +380,87 @@
           "file": "src/renderer/src/assets/fonts/ko/nanum-brush-script.ttf",
           "sourceFile": "NanumBrushScript-Regular.ttf",
           "sha256": "27ceaf578c96f594cdf07fe0181b251790acbb746a164e45c1f6473f89911a31",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "kkubulim",
+      "family": "꾸불림체",
+      "locale": "ko",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/kkubulim.ttf",
+          "sha256": "47c1b9ea9e405c418272952786d972265e3a8c688a08877f3aa6cb233f52d99b",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "geummyeon-seongsil",
+      "family": "금면성실체",
+      "locale": "ko",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/geummyeon-seongsil.ttf",
+          "sha256": "ce6e1967b1e5ef4627e94d12b5de893078f9e4868181ab285db78e58b4af6da6",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "shilla-culture",
+      "family": "신라문화체",
+      "locale": "ko",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/shilla-medium.ttf",
+          "sha256": "af5262dbf7561681ba702e197de64e2c88bbee1490153080dad3276f4f269670",
+          "format": "ttf",
+          "weight": 500
+        },
+        {
+          "file": "src/renderer/src/assets/fonts/ko/shilla-bold.ttf",
+          "sha256": "6aee0a25c4cb6c956e47611fb551a229759c2087335625b5ab5e411256aa594a",
+          "format": "ttf",
+          "weight": 700
+        }
+      ]
+    }
+  ],
+  "demotedFonts": [
+    {
+      "id": "black-and-white-picture",
+      "family": "Black And White Picture",
+      "locale": "ko",
+      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/blackandwhitepicture",
+      "license": "OFL-1.1",
+      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/blackandwhitepicture/OFL.txt",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/black-and-white-picture.ttf",
+          "sourceFile": "BlackAndWhitePicture-Regular.ttf",
+          "sha256": "4d72cd6de1f210b446c86f06b4e13d7641cbcfb1b375c6927341388aa8e08056",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "kirang-haerang",
+      "family": "Kirang Haerang",
+      "locale": "ko",
+      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/kiranghaerang",
+      "license": "OFL-1.1",
+      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/kiranghaerang/OFL.txt",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/kirang-haerang.ttf",
+          "sourceFile": "KirangHaerang-Regular.ttf",
+          "sha256": "d677d28d466989017c520f00a2a7794ea581ea3d9fa9a830fbb44f1015eac72d",
           "format": "ttf",
           "weight": 400
         }

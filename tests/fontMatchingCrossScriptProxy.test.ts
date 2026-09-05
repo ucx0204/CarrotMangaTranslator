@@ -1,3 +1,10 @@
+import { isDemotedBlockFontId } from "../src/shared/demotedBlockFonts";
+import { DEMOTED_BLOCK_FONTS } from "../src/shared/demotedBlockFonts";
+import {
+  ADDED_MATCHING_FONT_IDS,
+  FONT_CATALOG_REVISION,
+} from "../src/main/pipeline/fontMatchingCatalogRevision";
+import { resolveVerifiedPixelInferenceForBlockId } from "../src/main/pipeline/automaticFontMatchingV2RuntimeGate";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -41,6 +48,103 @@ import {
 import expressionFixture from "./fixtures/fontExpressionParity.json";
 
 describe("cross-script page font proxy", () => {
+  it.each(ADDED_MATCHING_FONT_IDS)(
+    "carries a verified %s winner through the actual decision and style path",
+    (fontId) => {
+      const legacy = [
+        ...makeCandidates(),
+        ...DEMOTED_BLOCK_FONTS.map(({ id }) =>
+          makeAutomaticFontCandidate({ fontId: id }),
+        ),
+      ];
+      const current = [
+        ...makeCandidates(),
+        ...ADDED_MATCHING_FONT_IDS.map((id) =>
+          makeAutomaticFontCandidate({ fontId: id }),
+        ),
+      ];
+      const version = resolveFontMatchingV2CatalogVersion(legacy);
+      const inference: VerifiedAutomaticFontPixelInferenceV2 = {
+        ...makeRuntimeBoundInference(legacy, version),
+        catalogRevision: FONT_CATALOG_REVISION,
+        crossScriptProxy: {
+        kind: "verified_cross_script_proxy",
+        contractVersion: "font-matching-cross-script-proxy-inference-v2",
+        modelVersion: "manga-font-crossscript-proxy-runtime-v2",
+        voice: 1,
+        voiceCount: 1,
+        candidates: [...current]
+          .sort(
+            (a, b) => Number(b.fontId === fontId) - Number(a.fontId === fontId),
+          )
+          .map((c, i) => ({
+            fontId: c.fontId,
+            displayId: `${c.fontId}/actual-face`,
+            score: 0.1 + i * 0.1,
+            fontWeight: c.fontId === "shilla-culture" ? 500 : 400,
+            italic: false,
+          })),
+      };
+      };
+      const status = makeRuntimeStatus(legacy, version);
+      const decision = resolveAutomaticFontDecisionV2({
+        block: makeBlock(),
+        item: makeItem("dialogue"),
+        page: makePage(),
+        options: {
+          enabled: true,
+          targetLanguage: "ko",
+          candidates: current,
+          pixelInference: inference,
+          runtimeArtifactStatus: status,
+        },
+      });
+      expect(decision?.result.decision.selectedFontId).toBe(fontId);
+      expect(decision?.result.selectedStyle).toMatchObject({
+        fontId,
+        fontWeight: fontId === "shilla-culture" ? 500 : 400,
+        italic: false,
+      });
+      const gate = (
+        row: VerifiedAutomaticFontPixelInferenceV2,
+        candidates = current,
+      ) =>
+        resolveVerifiedPixelInferenceForBlockId({
+          blockId: makeBlock().id,
+          page: makePage(),
+          candidates,
+          inference: row,
+          status,
+        });
+      expect(gate(inference)).toBe(inference);
+      expect(gate({ ...inference, catalogRevision: undefined })).toBeNull();
+      expect(
+        gate(inference, [...current.slice(1), current[0], current[0]]),
+      ).toBeNull();
+      expect(
+        gate({
+          ...inference,
+          localEvidence: {
+            ...inference.localEvidence,
+            rankedCandidates: inference.localEvidence.rankedCandidates.slice(1),
+          },
+        }),
+      ).toBeNull();
+      const evidence = prepareAutomaticFontEvidence({
+        block: makeBlock(),
+        candidates: current,
+        locale: "ko",
+        pixelInference: { ...inference, crossScriptProxy: undefined },
+        role: inference.rolePrediction,
+        runtimePolicy: null,
+        workState: undefined,
+      });
+      expect(
+        evidence.rankedCandidates.find((c) => c.fontId === fontId)
+          ?.renderStatus,
+      ).toBe("unrenderable");
+    },
+  );
   it("adds native expression evidence without changing R33 or bypassing the proxy boundary", async () => {
     const candidates = makeCandidates();
     const row = makeInference(candidates);
@@ -269,7 +373,11 @@ describe("cross-script page font proxy", () => {
       BUILT_IN_BLOCK_FONTS.map((font) => [font.id, font.locale]),
     );
     const outputFontIds = [
-      ...new Set(manifest.candidates.map((candidate) => candidate.font_id)),
+      ...new Set(
+        manifest.candidates
+          .map((candidate) => candidate.font_id)
+          .filter((id) => !isDemotedBlockFontId(id)),
+      ),
     ];
 
     expect(outputFontIds.length).toBeGreaterThan(0);

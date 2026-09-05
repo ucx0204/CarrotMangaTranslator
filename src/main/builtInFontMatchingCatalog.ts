@@ -6,6 +6,7 @@ import {
 } from "../shared/blockFontCatalog";
 import type { AutomaticFontCandidate } from "../shared/fontMatchingTypes";
 import type { UiLocale } from "../shared/uiLocales";
+import { additionalFontCoverage } from "./pipeline/fontCatalogReferenceExtension";
 import {
   inspectCustomFontBuffer,
   type CustomFontInspection,
@@ -47,20 +48,17 @@ const BUILT_IN_FONT_ASSETS = [
     relativePath: "ko/cafe24-gowoonbam.ttf",
   },
   { id: "start-over", relativePath: "ko/start-over.ttf" },
+  { id: "kkubulim", relativePath: "ko/kkubulim.ttf" },
+  { id: "geummyeon-seongsil", relativePath: "ko/geummyeon-seongsil.ttf" },
+  { id: "shilla-culture", relativePath: "ko/shilla-medium.ttf" },
   { id: "jua", relativePath: "ko/jua.ttf" },
   { id: "gaegu", relativePath: "ko/gaegu-regular.ttf" },
-  {
-    id: "black-and-white-picture",
-    relativePath: "ko/black-and-white-picture.ttf",
-  },
   { id: "black-han-sans", relativePath: "ko/black-han-sans.ttf" },
   { id: "gasoek-one", relativePath: "ko/gasoek-one.ttf" },
-  { id: "kirang-haerang", relativePath: "ko/kirang-haerang.ttf" },
   {
     id: "nanum-brush-script",
     relativePath: "ko/nanum-brush-script.ttf",
   },
-  { id: "single-day", relativePath: "ko/single-day.ttf" },
   { id: "comic-neue", relativePath: "en/comic-neue.ttf" },
   { id: "kalam", relativePath: "en/kalam.ttf" },
   { id: "bangers", relativePath: "en/bangers.ttf" },
@@ -182,7 +180,8 @@ export function loadBuiltInFontMatchingCandidatesWith(
         fontId: definition.id,
         label: definition.label,
         supportedLocales: inspection.supportedLocales,
-        unicodeRanges: inspection.unicodeRanges,
+        unicodeRanges:
+          additionalFontCoverage(definition.id) ?? inspection.unicodeRanges,
         weight: inspection.weight,
         width: inspection.width,
         italic: inspection.italic,

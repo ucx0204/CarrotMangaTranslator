@@ -1,0 +1,6 @@
+꾸불림체
+Copyright Woowa Brothers Corporation. SIL Open Font License 1.1.
+
+License authority: https://www.woowahan.com/fonts/license
+Downloaded source: https://github.com/fonts-archive/BMKkubulim
+Verified 2026-09-06. Font bytes unmodified. See ../manifest.json for SHA-256.

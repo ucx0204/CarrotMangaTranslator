@@ -27,3 +27,15 @@ export function assertFontFileLooksValid(
     throw new Error("TTF 폰트 파일 형식이 올바르지 않습니다.");
   }
 }
+
+export function sanitizeFontLabel(raw: string): string {
+  const cleaned = Array.from(raw)
+    .filter((char) => {
+      const codePoint = char.codePointAt(0);
+      return codePoint !== undefined && codePoint >= 0x20;
+    })
+    .join("")
+    .trim()
+    .slice(0, 60);
+  return cleaned || "사용자 폰트";
+}

@@ -1,3 +1,4 @@
+import { resolveFontPaletteEvidence } from "./fontMatchingPaletteEvidence";
 import type {
   FontMatchRolePredictionV2,
   RankedFontCandidateV2,
@@ -41,7 +42,7 @@ export function prepareAutomaticFontEvidence({
   rankedCandidates: readonly RankedFontCandidateV2[];
   translationAssessments: ReturnType<typeof assessAutomaticFontTranslations>;
 } {
-  const localCandidates =
+  const originalCandidates =
     pixelInference?.localEvidence.rankedCandidates ??
     rankFontMatchingV2Candidates({
       candidates,
@@ -50,6 +51,14 @@ export function prepareAutomaticFontEvidence({
       role,
       userDefaultFontId: block.fontFamily,
     });
+  const localCandidates = resolveFontPaletteEvidence({
+    originalCandidates,
+    candidates,
+    locale,
+    role,
+    block,
+    pixelInference,
+  });
   const crossScriptCandidates = applyCrossScriptProxyCandidateRanking(
     localCandidates,
     candidates,

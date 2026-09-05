@@ -1,3 +1,5 @@
+import { isDemotedBlockFontId } from "../../shared/demotedBlockFonts";
+import { retiredClassifierChannel } from "./fontMatchingCatalogRevision";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import type { UiLocale } from "../../shared/uiLocales";
 import {
@@ -129,6 +131,15 @@ function selectInstalledCandidates(
   const installedCandidates: InstalledAutoMatchCandidate[] = [];
   const directoryEntries = new Map<string, readonly string[] | null>();
   for (const activeCandidate of activeCatalog.candidates) {
+    if (isDemotedBlockFontId(activeCandidate.candidateId)) {
+      candidates.push(retiredClassifierChannel(activeCandidate.candidateId));
+      installedCandidates.push({
+        candidateId: activeCandidate.candidateId,
+        assets: [],
+        referenceOnly: true,
+      });
+      continue;
+    }
     const candidate = candidatesById.get(activeCandidate.candidateId);
     if (!candidate) {
       throw new AutoMatchActiveCatalogError(

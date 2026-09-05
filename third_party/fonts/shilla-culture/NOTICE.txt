@@ -1,0 +1,6 @@
+신라문화체
+Copyright Gyeongju City. Korea Open Government License Type 1 (attribution). Official current page last revised 2025-12-16; it supersedes the older restriction reproduced on Noonnu.
+
+License authority: https://www.gyeongju.go.kr/open_content/ko/page.do?mnu_uid=3288
+Downloaded source: https://www.gyeongju.go.kr/noticeLink/noticeLinkStats.do?id=103
+Verified 2026-09-06. Font bytes unmodified. See ../manifest.json for SHA-256.

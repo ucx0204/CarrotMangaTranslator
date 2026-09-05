@@ -52,7 +52,7 @@ type WorkerClientDependencies = Readonly<{
     locale: UiLocale,
   ) => Pick<
     AutoMatchActiveCandidateSelection,
-    "candidates" | "installedCandidates"
+    "candidates" | "installedCandidates" | "renderCandidates"
   >;
   reportWarning?: (message: string, detail: unknown) => void;
   reportInfo?: (message: string, detail: unknown) => void;
@@ -128,7 +128,12 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
       return emptyResult(this.initStatus);
     }
     const selection = this.deps.loadSelection("ko");
-    if (!sameCandidateSnapshot(request.candidates, selection.candidates)) {
+    if (
+      !sameCandidateSnapshot(
+        request.candidates,
+        selection.renderCandidates ?? selection.candidates,
+      )
+    ) {
       return emptyResult(disabled("catalog_mismatch"));
     }
     return null;
@@ -422,6 +427,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
           page: request.page,
           blocks: request.blocks,
           candidates: request.candidates,
+          inferenceCandidates: this.deps.loadSelection("ko").candidates,
           boundary: request.boundary,
           qaPageRelativeRoleReroute: request.qaPageRelativeRoleReroute === true,
           raster,
@@ -442,7 +448,7 @@ export function createWorkerFontMatchingPageInferencePort(
 }
 
 function deserializeError(serialized: SerializedError): Error {
-  const error = new Error(serialized.message);
-  error.name = serialized.name;
-  return error;
+  return Object.assign(new Error(serialized.message), {
+    name: serialized.name,
+  });
 }

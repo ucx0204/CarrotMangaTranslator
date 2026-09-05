@@ -1,3 +1,7 @@
+import {
+  FONT_CATALOG_REVISION,
+  isRevisedFontCatalog,
+} from "./fontMatchingCatalogRevision";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type {
   FontMatchingSemanticRole,
@@ -113,10 +117,15 @@ function validPixelInferenceEvidence(
     validRuntimeInputBoundary(inference.inputBoundary) &&
     validSelectionCalibrationAudit(inference) &&
     validSemanticEvidence(inference) &&
-    sameCandidateSet(
+    (sameCandidateSet(
       candidates.map((candidate) => candidate.fontId),
       status.candidateIds,
-    ) &&
+    ) ||
+      (inference.catalogRevision === FONT_CATALOG_REVISION &&
+        isRevisedFontCatalog(
+          status.candidateIds,
+          candidates.map((candidate) => candidate.fontId),
+        ))) &&
     sameCandidateSet(
       inference.localEvidence.rankedCandidates.map((entry) => entry.fontId),
       status.candidateIds,

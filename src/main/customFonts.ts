@@ -1,3 +1,5 @@
+import { resolveDemotedBlockFontId } from "../shared/demotedBlockFonts";
+import { preserveDemotedFonts } from "./demotedFontMigration";
 import {
   copyFileSync,
   existsSync,
@@ -28,7 +30,10 @@ import type {
   FontPreferences,
 } from "../shared/libraryTypes";
 import { getAppPaths } from "./appPaths";
-import { assertFontFileLooksValid } from "./customFontFileValidation";
+import {
+  assertFontFileLooksValid,
+  sanitizeFontLabel,
+} from "./customFontFileValidation";
 import { logError } from "./logger";
 
 export const ALLOWED_EXTENSIONS = new Set([".ttf", ".otf"]);
@@ -38,6 +43,7 @@ const UUID_PATTERN =
 
 export type CustomFontLibraryDependencies = {
   getFontsDirectory: () => string;
+  getLegacyBundledFontsDirectory?: () => string;
   reportError: (message: string, error: unknown) => void;
 };
 
@@ -56,6 +62,12 @@ export type CustomFontLibrary = {
 
 const productionDependencies: CustomFontLibraryDependencies = {
   getFontsDirectory: () => getAppPaths().fontsDir,
+  getLegacyBundledFontsDirectory: () => {
+    const paths = getAppPaths();
+    return paths.isPackaged
+      ? join(paths.repoRoot, "out/renderer/assets/fonts")
+      : join(paths.repoRoot, "src/renderer/src/assets/fonts");
+  },
   reportError: logError,
 };
 
@@ -148,7 +160,7 @@ function normalizeCustomFont(value: unknown): CustomFont | null {
   }
   return {
     id,
-    label: sanitizeLabel(font.label),
+    label: sanitizeFontLabel(font.label),
     family: `MGTUser-${id}`,
     fileName: font.fileName,
   };
@@ -182,6 +194,9 @@ function listCustomFontsWith(
   dependencies: CustomFontLibraryDependencies,
 ): CustomFont[] {
   try {
+    const legacyDirectory = dependencies.getLegacyBundledFontsDirectory?.();
+    if (legacyDirectory)
+      preserveDemotedFonts(fontsDir(dependencies), legacyDirectory);
     const path = join(fontsDir(dependencies), "index.json");
     if (!existsSync(path)) {
       return [];
@@ -231,7 +246,9 @@ function normalizeKnownIds(
   }
   const result: string[] = [];
   const seen = new Set<string>();
-  for (const candidate of value) {
+  for (const raw of value) {
+    const candidate =
+      typeof raw === "string" ? resolveDemotedBlockFontId(raw) : raw;
     if (
       typeof candidate === "string" &&
       knownIds.has(candidate) &&
@@ -253,10 +270,13 @@ function normalizeFontPreferences(
       ? (value as Record<string, unknown>)
       : {};
   const knownIds = knownFontIds(customFonts);
-  const defaultFontId =
-    typeof data.defaultFontId === "string" && knownIds.has(data.defaultFontId)
-      ? data.defaultFontId
-      : DEFAULT_BLOCK_FONT_ID;
+  const requestedDefault =
+    typeof data.defaultFontId === "string"
+      ? resolveDemotedBlockFontId(data.defaultFontId)
+      : "";
+  const defaultFontId = knownIds.has(requestedDefault)
+    ? requestedDefault
+    : DEFAULT_BLOCK_FONT_ID;
   return {
     favoriteIds: normalizeKnownIds(data.favoriteIds, knownIds),
     orderedIds: normalizeKnownIds(data.orderedIds, knownIds),
@@ -329,18 +349,6 @@ function getFontLibrarySnapshotWith(
   };
 }
 
-function sanitizeLabel(raw: string): string {
-  const cleaned = Array.from(raw)
-    .filter((char) => {
-      const codePoint = char.codePointAt(0);
-      return codePoint !== undefined && codePoint >= 0x20;
-    })
-    .join("")
-    .trim()
-    .slice(0, 60);
-  return cleaned || "사용자 폰트";
-}
-
 export function registerCustomFontFromFile(sourcePath: string): CustomFont {
   return registerCustomFontFromFileWith(productionDependencies, sourcePath);
 }
@@ -363,7 +371,7 @@ function registerCustomFontFromFileWith(
   copyFileSync(sourcePath, join(fontsDir(dependencies), fileName));
   const font: CustomFont = {
     id,
-    label: sanitizeLabel(basename(sourcePath, extname(sourcePath))),
+    label: sanitizeFontLabel(basename(sourcePath, extname(sourcePath))),
     family: `MGTUser-${id}`,
     fileName,
   };
@@ -379,7 +387,7 @@ function removeCustomFontWith(
   dependencies: CustomFontLibraryDependencies,
   id: string,
 ): CustomFont[] {
-  const normalizedId = normalizeUuid(id);
+  const normalizedId = normalizeUuid(resolveDemotedBlockFontId(id));
   if (!normalizedId) {
     return listCustomFontsWith(dependencies);
   }
@@ -419,7 +427,7 @@ function resolveCustomFontFilePathWith(
   dependencies: CustomFontLibraryDependencies,
   id: string,
 ): string | null {
-  const normalizedId = normalizeUuid(id);
+  const normalizedId = normalizeUuid(resolveDemotedBlockFontId(id));
   if (!normalizedId) {
     return null;
   }

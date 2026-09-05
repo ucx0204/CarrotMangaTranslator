@@ -1,3 +1,4 @@
+import { isDemotedBlockFontId } from "../../shared/demotedBlockFonts";
 import { resolve } from "node:path";
 import {
   FONT_MATCHING_ACTIVE_CATALOG_FILE,
@@ -9,9 +10,7 @@ import {
 } from "./fontMatchingRuntimeArtifactContract";
 import type {
   AutoMatchActiveCatalog,
-  AutoMatchFontAssetDescriptor,
   InstalledAutoMatchCandidate,
-  InstalledAutoMatchFontAsset,
 } from "./autoMatchActiveCatalogTypes";
 import { candidateOrderSha256 } from "./autoMatchActiveCatalogContract";
 import {
@@ -35,7 +34,7 @@ import {
   textAt,
   validHybridRoutingForSchema,
 } from "./fontMatchingRuntimeArtifactValidation";
-import { verifyInstalledAssetBytes } from "./fontMatchingInstalledAssetVerification";
+import { installedCandidateAssetsMatch } from "./fontMatchingInstalledAssetVerification";
 
 const RUNTIME_ASSET_FILES = [
   FONT_MATCHING_SELECTION_CALIBRATION_FILE,
@@ -372,6 +371,14 @@ async function verifyInstalledCatalog(
   for (let index = 0; index < activeCatalog.candidates.length; index += 1) {
     const expected = activeCatalog.candidates[index];
     const installed = installedCandidates[index];
+    if (installed?.referenceOnly) {
+      if (
+        !isDemotedBlockFontId(expected.candidateId) ||
+        installed.assets.length !== 0
+      )
+        return false;
+      continue;
+    }
     if (
       !installed ||
       !sameCandidateOrder(
@@ -388,36 +395,6 @@ async function verifyInstalledCatalog(
         installed.assets,
         reverifyInstalledAssetBytes,
       ))
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-async function installedCandidateAssetsMatch(
-  expectedAssets: readonly AutoMatchFontAssetDescriptor[],
-  installedAssets: readonly InstalledAutoMatchFontAsset[],
-  reverifyInstalledAssetBytes: boolean,
-): Promise<boolean> {
-  for (
-    let assetIndex = 0;
-    assetIndex < expectedAssets.length;
-    assetIndex += 1
-  ) {
-    const expectedAsset = expectedAssets[assetIndex];
-    const installedAsset = installedAssets[assetIndex];
-    if (
-      !installedAsset ||
-      installedAsset.file !== expectedAsset.file ||
-      installedAsset.byteSize !== expectedAsset.byteSize ||
-      installedAsset.sha256 !== expectedAsset.sha256
-    ) {
-      return false;
-    }
-    if (
-      reverifyInstalledAssetBytes &&
-      !(await verifyInstalledAssetBytes(installedAsset))
     ) {
       return false;
     }

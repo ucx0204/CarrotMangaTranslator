@@ -48,10 +48,12 @@ export type InstalledAutoMatchFontAsset = AutoMatchFontAssetDescriptor &
 export type InstalledAutoMatchCandidate = Readonly<{
   candidateId: string;
   assets: readonly InstalledAutoMatchFontAsset[];
+  referenceOnly?: true;
 }>;
 
 export type AutoMatchActiveCandidateSelection = Readonly<{
   activeCatalog: AutoMatchActiveCatalog;
+  renderCandidates?: readonly AutomaticFontCandidate[];
   candidates: readonly AutomaticFontCandidate[];
   installedCandidates: readonly InstalledAutoMatchCandidate[];
 }>;

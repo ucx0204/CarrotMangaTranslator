@@ -146,13 +146,6 @@ export const BUILT_IN_BLOCK_FONTS = [
     sample: "개구쟁이 낙서",
   },
   {
-    id: "black-and-white-picture",
-    locale: "ko",
-    label: "Black And White Picture",
-    cssFamily: fontFamily("MGT Black And White Picture", KOREAN_SANS_FALLBACK),
-    sample: "거친 효과음 쾅!",
-  },
-  {
     id: "black-han-sans",
     locale: "ko",
     label: "Black Han Sans",
@@ -167,25 +160,33 @@ export const BUILT_IN_BLOCK_FONTS = [
     sample: "압축 충격음 콰앙!",
   },
   {
-    id: "kirang-haerang",
-    locale: "ko",
-    label: "Kirang Haerang",
-    cssFamily: fontFamily("MGT Kirang Haerang", KOREAN_SANS_FALLBACK),
-    sample: "불규칙 반응 삐질",
-  },
-  {
     id: "nanum-brush-script",
     locale: "ko",
     label: "Nanum Brush Script",
     cssFamily: fontFamily("MGT Nanum Brush Script", KOREAN_SANS_FALLBACK),
     sample: "붓글씨 스르륵",
   },
+
   {
-    id: "single-day",
+    id: "kkubulim",
     locale: "ko",
-    label: "Single Day",
-    cssFamily: fontFamily("MGT Single Day", KOREAN_SANS_FALLBACK),
-    sample: "가벼운 낙서 두근",
+    label: "꾸불림체",
+    cssFamily: fontFamily("MGT Kkubulim", KOREAN_SANS_FALLBACK),
+    sample: "꾸불꾸불한 혼잣말",
+  },
+  {
+    id: "geummyeon-seongsil",
+    locale: "ko",
+    label: "금면성실체",
+    cssFamily: fontFamily("MGT Geummyeon Seongsil", KOREAN_SANS_FALLBACK),
+    sample: "성실하게 적은 손글씨",
+  },
+  {
+    id: "shilla-culture",
+    locale: "ko",
+    label: "신라문화체",
+    cssFamily: fontFamily("MGT Shilla Culture", KOREAN_SANS_FALLBACK),
+    sample: "천년의 이야기를 쓰다",
   },
 
   // English
