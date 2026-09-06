@@ -16,6 +16,13 @@ export function useBlockFontReadiness(
     () => createBlockFontLoadKey(blocks, catalog),
     [blocks, catalog],
   );
+  return useBlockFontReadinessForKey(loadKey, catalogReady);
+}
+
+export function useBlockFontReadinessForKey(
+  loadKey: string,
+  catalogReady: boolean,
+): boolean {
   const [settledLoadKey, setSettledLoadKey] = React.useState<string | null>(
     null,
   );

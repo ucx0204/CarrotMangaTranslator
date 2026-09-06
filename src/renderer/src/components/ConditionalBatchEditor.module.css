@@ -46,6 +46,10 @@
   background: var(--surface-rail);
 }
 
+.rulePanel[data-sequence-active="true"] {
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .schemeBar {
   position: relative;
   z-index: 30;

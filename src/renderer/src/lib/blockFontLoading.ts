@@ -4,6 +4,7 @@ import {
 } from "../../../shared/blockFontCatalog";
 import { parseRichText } from "../../../shared/richTextMarkup";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import { clearSourceFontFaceRatioCache } from "./sourceFontSizeMatching";
 import {
   normalizeBlockFontFamily,
   resolveBlockFontFamily,
@@ -46,7 +47,7 @@ const requestCacheByDocument = new WeakMap<
 >();
 
 export function createBlockFontLoadKey(
-  blocks: readonly TranslationBlock[],
+  blocks: Iterable<TranslationBlock>,
   catalog: BlockFontCatalog,
 ): string {
   return JSON.stringify(collectBlockFontLoadRequests(blocks, catalog));
@@ -107,6 +108,7 @@ export function clearBlockFontLoadCache(
   targetDocument: BlockFontDocument,
 ): void {
   requestCacheByDocument.delete(targetDocument);
+  clearSourceFontFaceRatioCache();
 }
 
 function loadBlockFontRequest(
@@ -125,6 +127,7 @@ function loadBlockFontRequest(
     .then(() => targetDocument.fonts.load(css, BLOCK_FONT_LOAD_SAMPLE))
     .then<BlockFontRequestOutcome, BlockFontRequestOutcome>(
       (faces) => {
+        clearSourceFontFaceRatioCache();
         const current = cache.get(css);
         if (current) current.status = "ready";
         return { faces };
@@ -141,7 +144,7 @@ function loadBlockFontRequest(
 }
 
 function collectBlockFontLoadRequests(
-  blocks: readonly TranslationBlock[],
+  blocks: Iterable<TranslationBlock>,
   catalog: BlockFontCatalog,
 ): BlockFontLoadRequest[] {
   const requests = new Map<string, BlockFontLoadRequest>();
@@ -153,7 +156,14 @@ function collectBlockFontLoadRequests(
       Boolean(block.bold),
       Boolean(block.italic),
     );
-    for (const run of runs) {
+    for (const run of [
+      {
+        fontFamily: block.fontFamily,
+        bold: Boolean(block.bold),
+        italic: Boolean(block.italic),
+      },
+      ...runs,
+    ]) {
       const fontId = run.fontFamily ?? block.fontFamily;
       const family = resolveBlockFontFamily(fontId, catalog);
       const required = isManagedFont(

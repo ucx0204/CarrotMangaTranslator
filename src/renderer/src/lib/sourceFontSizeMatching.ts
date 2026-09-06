@@ -17,6 +17,10 @@ const CENTRAL_HALF_MAX_CENTER_OFFSET = 1 / 4;
 
 const faceRatioCache = new Map<string, number>();
 
+export function clearSourceFontFaceRatioCache(): void {
+  faceRatioCache.clear();
+}
+
 /**
  * Convert a source-raster glyph-face measurement into the nominal size of the
  * font that will actually render the Korean text. The result is only an upper

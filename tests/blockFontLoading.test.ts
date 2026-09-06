@@ -13,6 +13,20 @@ import {
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 describe("block font loading", () => {
+  it("also loads the base face used by source size matching when every visible run has an inline face", () => {
+    const key = createBlockFontLoadKey(
+      [
+        makeBlock({
+          fontFamily: "nanum-gothic",
+          translatedText: "[font=ridi-batang]전부 인라인[/font]",
+        }),
+      ],
+      DEFAULT_BLOCK_FONT_CATALOG,
+    );
+    expect(key).toContain("MGT Nanum Gothic");
+    expect(key).toContain("MGT Ridi Batang");
+  });
+
   it("reports a bundled font that has no declared FontFace", async () => {
     const fonts = makeFontSet(() => Promise.resolve([]));
     const report = await loadBlockFonts(

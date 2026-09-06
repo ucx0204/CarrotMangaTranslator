@@ -1,21 +1,26 @@
 import React from "react";
 import type { ConditionalBatchEngineOptions } from "../../../shared/conditionalBatchEngine";
+import type { ConditionalBatchSchemeDraftV2 } from "../../../shared/conditionalBatchRules";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { GlossaryEntry } from "../../../shared/workContextTypes";
 import { useFonts } from "../fonts/useFonts";
-import { useBlockFontReadiness } from "../hooks/useBlockFontReadiness";
-import { createConditionalBatchFontSizeResolver } from "../lib/conditionalBatchTypography";
+import { useBlockFontReadinessForKey } from "../hooks/useBlockFontReadiness";
+import {
+  createConditionalBatchFontSizeResolver,
+  createConditionalBatchTypographyLoadKey,
+} from "../lib/conditionalBatchTypography";
 
 export function useConditionalBatchTypography(
   chapter: ChapterSnapshot,
   glossary: readonly GlossaryEntry[],
+  schemes: readonly ConditionalBatchSchemeDraftV2[],
 ): { ready: boolean; options: ConditionalBatchEngineOptions } {
   const { catalog, ready: catalogReady = true } = useFonts();
-  const blocks = React.useMemo(
-    () => chapter.pages.flatMap((page) => page.blocks),
-    [chapter],
+  const loadKey = React.useMemo(
+    () => createConditionalBatchTypographyLoadKey(chapter, schemes, catalog),
+    [chapter, schemes, catalog],
   );
-  const ready = useBlockFontReadiness(blocks, catalog, catalogReady);
+  const ready = useBlockFontReadinessForKey(loadKey, catalogReady);
   // Never retain measurements made with a fallback face while fonts loaded.
   const options = React.useMemo(
     () => ({

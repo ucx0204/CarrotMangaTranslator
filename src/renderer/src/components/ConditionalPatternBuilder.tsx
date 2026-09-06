@@ -395,6 +395,7 @@ function PatternNodeToolbar({
     <div className={styles.patternNodeToolbar}>
       {matchable ? (
         <RepeatEditor
+          key={matchable.id}
           repeat={matchable.repeat}
           onChange={(repeat) => onChange({ ...matchable, repeat })}
         />
@@ -464,7 +465,10 @@ function RepeatEditor({
   repeat: ConditionalPatternRepeatV3;
   onChange: (repeat: ConditionalPatternRepeatV3) => void;
 }) {
-  const preset = repeatPreset(repeat);
+  const [countMode, setCountMode] = React.useState<"exact" | "range" | null>(
+    null,
+  );
+  const preset = countMode ?? repeatPreset(repeat);
   return (
     <>
       <Select
@@ -478,7 +482,10 @@ function RepeatEditor({
           { value: "exact", label: "정확히 N개" },
           { value: "range", label: "N~M개" },
         ]}
-        onValueChange={(value) => onChange(repeatFromPreset(value, repeat))}
+        onValueChange={(value) => {
+          setCountMode(value === "exact" || value === "range" ? value : null);
+          onChange(repeatFromPreset(value, repeat));
+        }}
       />
       {preset === "exact" || preset === "range" ? (
         <span className={styles.repeatNumbers}>
@@ -848,7 +855,9 @@ function AdvancedPatternCode({
                       mode: "raw",
                       source: replacement.parts
                         .map((part) => {
-                          if (part.kind === "literal") return part.text;
+                          if (part.kind === "literal") {
+                            return part.text.replaceAll("$", () => "$$");
+                          }
                           const name = compiled.captureNames.get(
                             part.captureId,
                           );

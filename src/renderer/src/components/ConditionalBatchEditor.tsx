@@ -29,7 +29,7 @@ export function ConditionalBatchEditor(
       setDiscardConfirmOpen(true);
       return;
     }
-    props.onClose();
+    model.close();
   };
   return (
     <>
@@ -44,7 +44,7 @@ export function ConditionalBatchEditor(
         onCancel={() => setDiscardConfirmOpen(false)}
         onConfirm={() => {
           setDiscardConfirmOpen(false);
-          props.onClose();
+          model.close();
         }}
       />
     </>
@@ -78,6 +78,8 @@ function ConditionalBatchEditorModal({
     >
       <div
         className={styles.root}
+        inert={model.rulePanelProps.storageBusy}
+        aria-busy={model.rulePanelProps.storageBusy}
         data-active-tab={activeTab}
         data-conditional-batch-editor=""
         onKeyDown={handleKeyDown}

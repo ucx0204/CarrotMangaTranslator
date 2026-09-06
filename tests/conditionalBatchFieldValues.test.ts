@@ -35,6 +35,62 @@ const context: ConditionalBatchFieldReadContext = {
 };
 
 describe("conditional batch effective field values", () => {
+  it.each([undefined, false, true])(
+    "keeps plain text without inline overrides when block decorations are %s",
+    (decoration) => {
+      for (const translatedText of ["", "번역문"]) {
+        const plain = {
+          ...block,
+          translatedText,
+          underline: decoration,
+          strikethrough: decoration,
+          emphasisMark: decoration,
+        };
+        expect(
+          readConditionalBatchField(plain, "hasInlineStyle", context),
+        ).toBe(false);
+        expect(
+          evaluateConditionalBatchMatch(
+            plain,
+            {
+              mode: "all",
+              groups: [],
+              conditions: [
+                {
+                  id: "small",
+                  enabled: true,
+                  field: "fontSizePx",
+                  operator: "lessThan",
+                  value: 30,
+                },
+                {
+                  id: "plain",
+                  enabled: true,
+                  field: "hasInlineStyle",
+                  operator: "isFalse",
+                },
+              ],
+            },
+            context,
+          ).matched,
+        ).toBe(true);
+      }
+    },
+  );
+
+  it.each(["**일부**", "[size=40]일부[/size]", "[font=test]일부[/font]"])(
+    "recognizes explicit partial style in %s",
+    (text) => {
+      expect(
+        readConditionalBatchField(
+          { ...block, translatedText: `앞 ${text} 뒤` },
+          "hasInlineStyle",
+          context,
+        ),
+      ).toBe(true);
+    },
+  );
+
   it.each<[ConditionalBatchField, string | number]>([
     ["fontFamily", DEFAULT_BLOCK_FONT_ID],
     ["wordBreak", "break-all"],

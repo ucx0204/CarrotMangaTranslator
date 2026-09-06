@@ -7,7 +7,7 @@ import { createConditionalBatchSequenceItemId } from "./conditionalBatchSequence
 
 export function useConditionalBatchSequenceEditor(
   savedSchemes: readonly ConditionalBatchSchemeV2[],
-  onSaveSequence: (sequence: ConditionalBatchSequenceV2) => void,
+  onSaveSequence: (sequence: ConditionalBatchSequenceV2) => Promise<boolean>,
 ) {
   const [formOpen, setFormOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -33,6 +33,7 @@ export function useConditionalBatchSequenceEditor(
     setDescription("");
     setSteps([]);
   };
+  const { saving, saveSequence } = useSequenceSave(onSaveSequence, reset);
   const edit = (
     sequence: ConditionalBatchSequenceV2,
     duplicate = false,
@@ -49,23 +50,19 @@ export function useConditionalBatchSequenceEditor(
     );
   };
   const startNew = (): void => {
-    setEditingId(null);
-    setName("연속 실행");
-    setDescription("");
-    setSteps([]);
+    reset();
     setFormOpen(true);
   };
-  const save = (): void => {
+  const save = async (): Promise<void> => {
     if (!canSaveSequence(name, steps)) {
       return;
     }
-    onSaveSequence({
+    await saveSequence({
       id: editingId ?? createConditionalBatchSequenceItemId("sequence"),
       name: name.trim(),
       description: description.trim(),
       steps,
     });
-    reset();
   };
 
   return {
@@ -76,6 +73,7 @@ export function useConditionalBatchSequenceEditor(
     name,
     reset,
     save,
+    saving,
     schemeToAdd,
     setDescription,
     setName,
@@ -84,6 +82,28 @@ export function useConditionalBatchSequenceEditor(
     startNew,
     steps,
   };
+}
+
+function useSequenceSave(
+  onSave: (sequence: ConditionalBatchSequenceV2) => Promise<boolean>,
+  onSaved: () => void,
+) {
+  const [saving, setSaving] = React.useState(false);
+  const savingRef = React.useRef(false);
+  const saveSequence = async (
+    sequence: ConditionalBatchSequenceV2,
+  ): Promise<void> => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      if (await onSave(sequence)) onSaved();
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
+  return { saving, saveSequence };
 }
 
 function canSaveSequence(

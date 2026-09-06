@@ -70,6 +70,7 @@ export type ConditionalBatchEditorModelProps = {
 
 export type ConditionalBatchEditorModel = {
   footerProps: ConditionalBatchFooterProps;
+  close: () => void;
   hasDirtyTemporaryDrafts: boolean;
   previewPaneProps: ConditionalBatchPreviewPaneProps;
   resultsProps: ConditionalBatchResultsCardProps;
@@ -81,7 +82,6 @@ export function useConditionalBatchEditorModel(
   props: ConditionalBatchEditorModelProps,
 ): ConditionalBatchEditorModel {
   const glossary = useWorkGlossary(props.workId);
-  const typography = useConditionalBatchTypography(props.chapter, glossary);
   const scheme = useConditionalBatchSchemeController({
     initialFind: props.initialFind,
     initialReplace: props.initialReplace,
@@ -93,6 +93,22 @@ export function useConditionalBatchEditorModel(
   const activeSequence =
     scheme.sequences.find((sequence) => sequence.id === activeSequenceId) ??
     null;
+  const typographySchemes = React.useMemo(() => {
+    if (activeSequence) {
+      const ids = new Set(
+        activeSequence.steps
+          .filter((step) => step.enabled)
+          .map((step) => step.schemeId),
+      );
+      return scheme.savedSchemes.filter((entry) => ids.has(entry.id));
+    }
+    return scheme.parsedDraft.success ? [scheme.parsedDraft.data] : [];
+  }, [activeSequence, scheme.savedSchemes, scheme.parsedDraft]);
+  const typography = useConditionalBatchTypography(
+    props.chapter,
+    glossary,
+    typographySchemes,
+  );
   React.useEffect(() => {
     if (activeSequenceId && !activeSequence) setActiveSequenceId(null);
   }, [activeSequence, activeSequenceId]);
@@ -102,9 +118,13 @@ export function useConditionalBatchEditorModel(
     typography,
     activeSequence,
     scheme.snapshot,
-    scheme.selectedSchemeId,
+    activeSequence
+      ? `sequence:${activeSequence.id}`
+      : `scheme:${scheme.selectedSchemeId}`,
   );
+  const busy = props.busy || scheme.storageBusy || !typography.ready;
   const application = useApplicationController({
+    busy,
     excludedResultKeys: preview.excludedResultKeys,
     includedCount: preview.includedCount,
     parsedDraft: scheme.parsedDraft,
@@ -127,6 +147,7 @@ export function useConditionalBatchEditorModel(
     onToggleResult: preview.toggleResult,
   };
   return {
+    close: () => void scheme.runWithSavedDraft(props.onClose),
     hasDirtyTemporaryDrafts: scheme.hasDirtyTemporaryDrafts,
     previewPaneProps: {
       currentResultIndex: preview.currentResultIndex,
@@ -180,7 +201,8 @@ export function useConditionalBatchEditorModel(
       onReflectYaml: scheme.reflectYamlInDraft,
       onSaveScheme: scheme.saveScheme,
       onSaveSequence: scheme.saveSequence,
-      onPreviewSequence: setActiveSequenceId,
+      onPreviewSequence: (id) =>
+        void scheme.runWithSavedDraft(() => setActiveSequenceId(id)),
       onExitSequence: () => setActiveSequenceId(null),
       onSelectScheme: scheme.selectScheme,
       onSetYamlOpen: scheme.setYamlOpen,
@@ -189,7 +211,7 @@ export function useConditionalBatchEditorModel(
     },
     footerProps: {
       applyNotice: scheme.applyNotice,
-      busy: props.busy || !typography.ready,
+      busy,
       canUndo: props.canUndo,
       conflictCount: application.conflictCount,
       excludedCount: preview.excludedResultKeys.size,
@@ -295,6 +317,7 @@ function usePreviewController(
     sequencePreview,
   ]);
   React.useEffect(() => {
+    if (!typography.ready) return;
     const availableKeys = new Set(preview.results.map((result) => result.key));
     setExcludedByScheme((current) => {
       const currentKeys = current[schemeKey] ?? EMPTY_RESULT_KEYS;
@@ -310,7 +333,7 @@ function usePreviewController(
         ? current
         : (preview.results[0]?.key ?? null),
     );
-  }, [preview, schemeKey]);
+  }, [preview, schemeKey, typography.ready]);
   const currentResultIndex = Math.max(
     0,
     preview.results.findIndex((result) => result.key === currentResultKey),
@@ -502,6 +525,7 @@ function createPreviewWorkspaceView({
 
 function useApplicationController({
   activeSequence,
+  busy,
   excludedResultKeys,
   includedCount,
   parsedDraft,
@@ -513,6 +537,7 @@ function useApplicationController({
   snapshot,
 }: {
   activeSequence: ConditionalBatchSequenceV2 | null;
+  busy: boolean;
   excludedResultKeys: ReadonlySet<string>;
   includedCount: number;
   parsedDraft: ConditionalBatchParsedDraft;
@@ -528,7 +553,7 @@ function useApplicationController({
   const { t } = useTranslation("components");
   const [conflictCount, setConflictCount] = React.useState(0);
   const apply = (): void => {
-    if (includedCount === 0 || preview.inspectionOnly) {
+    if (busy || includedCount === 0 || preview.inspectionOnly) {
       return;
     }
     const outcome = activeSequence

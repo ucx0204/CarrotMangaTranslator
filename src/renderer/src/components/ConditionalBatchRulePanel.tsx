@@ -21,7 +21,11 @@ export function ConditionalBatchRulePanel(
   const [sequenceExpanded, setSequenceExpanded] = React.useState(true);
   const [advancedExpanded, setAdvancedExpanded] = React.useState(true);
   return (
-    <aside className={styles.rulePanel} aria-label="일괄 편집 규칙">
+    <aside
+      className={styles.rulePanel}
+      aria-label="일괄 편집 규칙"
+      data-sequence-active={Boolean(props.activeSequence)}
+    >
       {props.activeSequence ? null : (
         <ConditionalBatchSchemeManager {...props} />
       )}
@@ -59,9 +63,9 @@ export function ConditionalBatchRulePanel(
               expanded={advancedExpanded}
               onToggle={() => setAdvancedExpanded((current) => !current)}
             />
-            <RuleNotices {...props} />
           </>
         )}
+        <RuleNotices {...props} />
       </div>
     </aside>
   );

@@ -106,6 +106,8 @@ export function useConditionalBatchSchemeController(
   );
   const lastSavedDraftRef = React.useRef("");
   const saveGenerationRef = React.useRef(0);
+  const autosaveTimerRef = React.useRef<number | null>(null);
+  const transitionPendingRef = React.useRef(false);
 
   React.useEffect(() => {
     let active = true;
@@ -132,7 +134,9 @@ export function useConditionalBatchSchemeController(
     () => ConditionalBatchSchemeDraftV2Schema.safeParse(draft),
     [draft],
   );
-  const stored = isStoredSchemeId(selectedSchemeId);
+  const stored = Boolean(
+    snapshot?.schemes.some((scheme) => scheme.id === selectedSchemeId),
+  );
   const serializedDraft = parsedDraft.success
     ? stableDraftString(parsedDraft.data)
     : "";
@@ -148,6 +152,7 @@ export function useConditionalBatchSchemeController(
     setAutosaveState("waiting");
     const generation = ++saveGenerationRef.current;
     const timer = window.setTimeout(() => {
+      autosaveTimerRef.current = null;
       setAutosaveState("saving");
       void conditionalBatchGateway
         .saveConditionalBatchScheme({
@@ -167,11 +172,16 @@ export function useConditionalBatchSchemeController(
           setStorageError(readErrorMessage(error));
         });
     }, 600);
-    return () => window.clearTimeout(timer);
+    autosaveTimerRef.current = timer;
+    return () => {
+      window.clearTimeout(timer);
+      if (autosaveTimerRef.current === timer) autosaveTimerRef.current = null;
+    };
   }, [parsedDraft, selectedSchemeId, serializedDraft, stored]);
 
   const changeDraft = React.useCallback(
     (next: ConditionalBatchSchemeDraftV2): void => {
+      ++saveGenerationRef.current;
       setDraft(next);
       setTemporaryDrafts((current) =>
         current.map((session) =>
@@ -187,7 +197,10 @@ export function useConditionalBatchSchemeController(
   );
 
   const saveScheme = async (): Promise<void> => {
-    if (!parsedDraft.success) return;
+    if (!parsedDraft.success || storageBusy || transitionPendingRef.current)
+      return;
+    transitionPendingRef.current = true;
+    cancelAutosave();
     setStorageBusy(true);
     setStorageError(null);
     setAutosaveState("saving");
@@ -216,6 +229,7 @@ export function useConditionalBatchSchemeController(
       setAutosaveState("error");
       setStorageError(readErrorMessage(error));
     } finally {
+      transitionPendingRef.current = false;
       setStorageBusy(false);
     }
   };
@@ -256,11 +270,14 @@ export function useConditionalBatchSchemeController(
   };
 
   const deleteScheme = async (): Promise<void> => {
+    if (storageBusy || transitionPendingRef.current) return;
     if (!stored) {
       removeTemporaryScheme();
       return;
     }
     setStorageBusy(true);
+    transitionPendingRef.current = true;
+    cancelAutosave();
     setStorageError(null);
     try {
       const next =
@@ -277,18 +294,34 @@ export function useConditionalBatchSchemeController(
     } catch (error) {
       setStorageError(readErrorMessage(error));
     } finally {
+      transitionPendingRef.current = false;
       setStorageBusy(false);
     }
   };
 
-  const flushStoredDraft = async (): Promise<void> => {
-    if (
-      !stored ||
-      !parsedDraft.success ||
-      serializedDraft === lastSavedDraftRef.current
-    ) {
-      return;
+  const cancelAutosave = (): void => {
+    if (autosaveTimerRef.current !== null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
     }
+    ++saveGenerationRef.current;
+  };
+
+  const flushStoredDraft = async (): Promise<boolean> => {
+    cancelAutosave();
+    if (!stored) return true;
+    if (!parsedDraft.success) {
+      setStorageError(
+        formatConditionalBatchValidationIssue(parsedDraft.error.issues[0]) ??
+          "규칙을 확인하세요.",
+      );
+      return false;
+    }
+    if (
+      serializedDraft === lastSavedDraftRef.current &&
+      (autosaveState === "idle" || autosaveState === "saved")
+    )
+      return true;
     const generation = ++saveGenerationRef.current;
     setAutosaveState("saving");
     try {
@@ -296,16 +329,42 @@ export function useConditionalBatchSchemeController(
         id: selectedSchemeId,
         scheme: parsedDraft.data,
       });
-      if (generation !== saveGenerationRef.current) return;
+      if (generation !== saveGenerationRef.current) return false;
       setSnapshot(next);
       lastSavedDraftRef.current = serializedDraft;
       setAutosaveState("saved");
       setStorageError(null);
+      return true;
     } catch (error) {
-      if (generation !== saveGenerationRef.current) return;
+      if (generation !== saveGenerationRef.current) return false;
       setAutosaveState("error");
       setStorageError(readErrorMessage(error));
-      throw error;
+      return false;
+    }
+  };
+
+  const runWithSavedDraft = async (
+    action: () => void | Promise<void>,
+  ): Promise<boolean> => {
+    if (storageBusy || transitionPendingRef.current) return false;
+    transitionPendingRef.current = true;
+    setStorageBusy(true);
+    try {
+      const needsFlush =
+        stored &&
+        (!parsedDraft.success ||
+          serializedDraft !== lastSavedDraftRef.current ||
+          (autosaveState !== "idle" && autosaveState !== "saved"));
+      if (needsFlush && !(await flushStoredDraft())) return false;
+      const pending = action();
+      if (pending) await pending;
+      return true;
+    } catch (error) {
+      setStorageError(readErrorMessage(error));
+      return false;
+    } finally {
+      transitionPendingRef.current = false;
+      setStorageBusy(false);
     }
   };
 
@@ -313,7 +372,9 @@ export function useConditionalBatchSchemeController(
     setSelectedSchemeId(selected.id);
     const nextDraft = copySavedSchemeAsDraft(selected);
     setDraft(nextDraft);
-    lastSavedDraftRef.current = stableDraftString(nextDraft);
+    lastSavedDraftRef.current = stableDraftString(
+      ConditionalBatchSchemeDraftV2Schema.parse(nextDraft),
+    );
     setStorageError(null);
     setApplyNotice(null);
     setAutosaveState("idle");
@@ -321,16 +382,8 @@ export function useConditionalBatchSchemeController(
     setRecipePickerCanClose(false);
   };
 
-  const selectScheme = async (id: string): Promise<void> => {
+  const selectScheme = (id: string): void => {
     if (id === selectedSchemeId) return;
-    if (stored) {
-      try {
-        await flushStoredDraft();
-      } catch (error) {
-        setStorageError(readErrorMessage(error));
-        return;
-      }
-    }
     const temporary = temporaryDrafts.find((entry) => entry.id === id);
     if (temporary) {
       ++saveGenerationRef.current;
@@ -458,8 +511,7 @@ export function useConditionalBatchSchemeController(
   };
 
   const exportYaml = async (all: boolean): Promise<void> => {
-    setStorageBusy(true);
-    try {
+    await runWithSavedDraft(async () => {
       const value =
         !all && !stored && parsedDraft.success
           ? serializeDraftYaml(parsedDraft.data)
@@ -472,11 +524,7 @@ export function useConditionalBatchSchemeController(
         defaultName: all ? "batch-edit-schemes.yaml" : `${draft.name}.yaml`,
       });
       setYamlError(null);
-    } catch (error) {
-      setStorageError(readErrorMessage(error));
-    } finally {
-      setStorageBusy(false);
-    }
+    });
   };
 
   const openYamlFile = async (): Promise<void> => {
@@ -499,36 +547,34 @@ export function useConditionalBatchSchemeController(
   const importYaml = async (
     conflictPolicy: "duplicate" | "overwrite" = "duplicate",
   ): Promise<void> => {
-    setStorageBusy(true);
     setYamlError(null);
-    try {
-      const next = await conditionalBatchGateway.importConditionalBatchYaml({
-        yaml: yamlText,
-        conflictPolicy,
-      });
-      setSnapshot(next);
-      setYamlOpen(false);
-    } catch (error) {
-      setYamlError(readErrorMessage(error));
-    } finally {
-      setStorageBusy(false);
-    }
+    await runWithSavedDraft(async () => {
+      try {
+        const next = await conditionalBatchGateway.importConditionalBatchYaml({
+          yaml: yamlText,
+          conflictPolicy,
+        });
+        setSnapshot(next);
+        const selected = stored
+          ? next.schemes.find((entry) => entry.id === selectedSchemeId)
+          : undefined;
+        if (selected) switchToSavedScheme(selected);
+        setYamlOpen(false);
+      } catch (error) {
+        setYamlError(readErrorMessage(error));
+      }
+    });
   };
 
   const saveSequence = async (
     sequence: ConditionalBatchSequenceV2,
-  ): Promise<void> => {
-    setStorageBusy(true);
-    try {
+  ): Promise<boolean> => {
+    return runWithSavedDraft(async () => {
       setSnapshot(
         await conditionalBatchGateway.saveConditionalBatchSequence(sequence),
       );
       setStorageError(null);
-    } catch (error) {
-      setStorageError(readErrorMessage(error));
-    } finally {
-      setStorageBusy(false);
-    }
+    });
   };
 
   const deleteSequence = async (id: string): Promise<void> => {
@@ -563,27 +609,31 @@ export function useConditionalBatchSchemeController(
       selectedSchemeId as (typeof CONDITIONAL_BATCH_STARTER_SCHEME_IDS)[number],
     ),
     changeDraft,
-    chooseRecipe: resetToRecipe,
+    chooseRecipe: (
+      recipe: ConditionalBatchRecipeId,
+      preset?: BlockStylePreset,
+    ) => void runWithSavedDraft(() => resetToRecipe(recipe, preset)),
     createNewScheme,
     deleteScheme: () => void deleteScheme(),
     deleteSequence: (id: string) => void deleteSequence(id),
     draft,
-    duplicateScheme,
+    duplicateScheme: () => void runWithSavedDraft(duplicateScheme),
     exportYaml: (all: boolean) => void exportYaml(all),
     favoriteSchemeIds,
     importYaml: (policy?: "duplicate" | "overwrite") => void importYaml(policy),
     openYamlEditor: () => void openYamlEditor(),
     openYamlFile: () => void openYamlFile(),
     parsedDraft,
+    runWithSavedDraft,
     recipePickerOpen,
     recipePickerCanClose,
     reflectYamlInDraft,
     savedSchemes: snapshot?.schemes ?? [],
     saveScheme: () => void saveScheme(),
-    saveSequence: (sequence: ConditionalBatchSequenceV2) =>
-      void saveSequence(sequence),
+    saveSequence,
     selectedSchemeId,
-    selectScheme: (id: string) => void selectScheme(id),
+    selectScheme: (id: string) =>
+      void runWithSavedDraft(() => selectScheme(id)),
     sequences: snapshot?.sequences ?? [],
     snapshot: snapshot ?? createEmptyConditionalBatchSnapshot(),
     setApplyNotice,
@@ -702,10 +752,6 @@ function stableDraftString(draft: ConditionalBatchSchemeDraftV2): string {
 function createCopyName(name: string): string {
   const suffix = " 복사본";
   return name.slice(0, Math.max(1, 80 - suffix.length)) + suffix;
-}
-
-function isStoredSchemeId(id: string): boolean {
-  return !id.startsWith("draft:");
 }
 
 function readErrorMessage(error: unknown): string {

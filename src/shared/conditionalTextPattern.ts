@@ -552,8 +552,11 @@ function readSupportedRegexRepeat(
     const counted = /^\{(\d+)(?:,(\d*)?)?\}/u.exec(rest);
     if (counted) {
       min = Number(counted[1]);
-      max =
-        counted[2] === undefined ? min : counted[2] ? Number(counted[2]) : null;
+      max = counted[0].includes(",")
+        ? counted[2]
+          ? Number(counted[2])
+          : null
+        : min;
       length = counted[0].length;
     }
   }

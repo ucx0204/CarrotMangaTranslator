@@ -12,6 +12,30 @@ import {
 } from "../src/shared/conditionalTextPattern";
 
 describe("conditional text pattern v3", () => {
+  it.each([
+    "a{2,}",
+    "a{2,}?",
+    "a{0,}",
+    "a{0,}?",
+    "a{2}",
+    "a{2,3}",
+    "\\p{N}{2,}",
+  ])("preserves match ranges when converting %s to visual mode", (source) => {
+    const matcher: ConditionalTextMatcherV3 = {
+      mode: "regex",
+      source,
+      caseSensitive: true,
+    };
+    const visual = tryConvertConditionalRegexToVisual(matcher);
+    expect(visual).not.toBeNull();
+    if (!visual) throw new Error("Expected a supported visual pattern");
+    const collect = (pattern: ConditionalTextMatcherV3) =>
+      findConditionalTextMatches("aaaa 12345", pattern, null, true).map(
+        ({ start, end, text }) => ({ start, end, text }),
+      );
+    expect(collect(visual.matcher)).toEqual(collect(matcher));
+  });
+
   it("treats regex punctuation as ordinary text in visual literals", () => {
     const needle = [".", "$", "[", "\\"].join("");
     const text = `앞 ${needle} 뒤 ${needle}`;

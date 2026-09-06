@@ -37,7 +37,12 @@ export function ConditionalBatchSequenceManager(
     props.onSaveSequence,
   );
   return (
-    <section className={styles.sequenceManager} data-expanded={props.expanded}>
+    <section
+      className={styles.sequenceManager}
+      data-expanded={props.expanded}
+      inert={editor.saving}
+      aria-busy={editor.saving}
+    >
       <header className={styles.sequenceHeader}>
         <ConditionalBatchCollapsibleTrigger
           bodyId={bodyId}
@@ -69,7 +74,7 @@ export function ConditionalBatchSequenceManager(
               {...editor}
               savedSchemes={props.savedSchemes}
               onCancel={editor.reset}
-              onSave={editor.save}
+              onSave={() => void editor.save()}
             />
           ) : null}
         </div>

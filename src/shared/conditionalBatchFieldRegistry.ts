@@ -661,9 +661,12 @@ function hasInlineStyle(block: TranslationBlock): boolean {
     (run) =>
       run.bold !== Boolean(block.bold) ||
       run.italic !== Boolean(block.italic) ||
-      run.underline !== Boolean(block.underline) ||
-      run.strikethrough !== Boolean(block.strikethrough) ||
-      run.emphasisMark !== Boolean(block.emphasisMark) ||
+      (run.underline !== undefined &&
+        run.underline !== Boolean(block.underline)) ||
+      (run.strikethrough !== undefined &&
+        run.strikethrough !== Boolean(block.strikethrough)) ||
+      (run.emphasisMark !== undefined &&
+        run.emphasisMark !== Boolean(block.emphasisMark)) ||
       run.sizePx !== undefined ||
       run.fontFamily !== undefined ||
       run.opacity !== undefined ||
