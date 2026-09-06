@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "c2fb4a92245f28b1a483f5c1645c0a74f85b073bc2b079c5016f422f5658ef32",
+    "introducedArtifactSha256": "f812a53fbcbd17519c7d910c054b2c54a460cad5635a8bae58e62bc4daaff029",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -2915,6 +2915,28 @@
         "covered": 16,
         "total": 16,
         "pct": 100
+      }
+    },
+    "src/main/pipeline/automaticFontMatchingV2CandidateAssessment.ts": {
+      "lines": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 3,
+        "total": 6,
+        "pct": 50
       }
     },
     "src/main/pipeline/automaticFontMatchingV2ChapterPrior.ts": {
@@ -16603,6 +16625,28 @@
         "pct": 87.93
       }
     },
+    "src/main/pipeline/automaticFontMatchingTexture.ts": {
+      "lines": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 25,
+        "total": 25,
+        "pct": 100
+      }
+    },
     "src/main/pipeline/automaticFontMatchingV2Continuity.ts": {
       "lines": {
         "covered": 15,
@@ -17062,6 +17106,72 @@
       "branches": {
         "total": 0,
         "covered": 0,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/fontMatchingTextureRuntime.ts": {
+      "lines": {
+        "covered": 24,
+        "total": 26,
+        "pct": 92.3
+      },
+      "statements": {
+        "covered": 30,
+        "total": 32,
+        "pct": 93.75
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 14,
+        "total": 16,
+        "pct": 87.5
+      }
+    },
+    "src/main/pipeline/fontMatchingTextureSupport.ts": {
+      "lines": {
+        "covered": 34,
+        "total": 34,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 37,
+        "total": 38,
+        "pct": 97.36
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 16,
+        "total": 18,
+        "pct": 88.88
+      }
+    },
+    "src/main/pipeline/fontMatchingTextureTypes.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
         "pct": 100
       }
     },
@@ -22915,6 +23025,28 @@
         "covered": 5,
         "total": 6,
         "pct": 83.33
+      }
+    },
+    "src/shared/blockFontPunctuationFallback.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
       }
     },
     "src/shared/blockFormatValueSchemas.ts": {

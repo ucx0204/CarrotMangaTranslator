@@ -47,6 +47,6 @@ S10 P013의 두 강조 영역은 고운밤에서 신라문화체로 바뀌었다
 
 ## 제품 검증과 후속
 
-관련 focused tests에는 실제 ONNX/픽셀 parity, gate·pool·비정상 evidence, 수동/프로필 잠금, 기존 표현체 보존, 기호 fallback 로드와 누락 검사가 포함된다. actual PageArtwork의 넓은/좁은 화면 QA 및 MAIN 전체 check/build 결과는 최종 비교 결과 문서에 기록한다.
+관련 focused tests에는 실제 ONNX/픽셀 parity, gate·pool·비정상 evidence, 수동/프로필 잠금, 기존 표현체 보존, 기호 fallback 로드와 누락 검사가 포함된다. actual PageArtwork의 넓은/좁은 화면 QA 및 MAIN 전체 check/build, 20작품 194페이지와 남은 반례는 [최종 비교 결과](font-shilla-c15-final-20-work-results.md)에 기록했다. 분류기가 일반 명조를 항상 정확히 배제한다는 보장은 없으며 경계 사례를 다음 독립 확인에서 검증해야 한다.
 
 롤백은 이 C15 제품 커밋을 revert하고 앱을 다시 빌드한다. C10/R33 외부 runtime과 설치 폰트는 그대로이므로 사용자 데이터나 외부 자산을 삭제할 필요가 없다. 재시작 전 이미 열린 앱은 이전 코드를 계속 실행할 수 있다. 기존 출력물은 자동으로 재작성하지 않는다.

@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import fixture from "./fixtures/fontTextureParity.json";
 import { prepareFontTextureSupport } from "../src/main/pipeline/fontMatchingTextureSupport";
-import { loadFontTextureModel } from "../src/main/pipeline/fontMatchingTextureRuntime";
+import {
+  inferFontTexturePage,
+  loadFontTextureModel,
+} from "../src/main/pipeline/fontMatchingTextureRuntime";
+import { makePixelWinnerInference } from "./helpers/automaticFontMatchingV2Fixtures";
+import { makePage } from "./helpers/automaticFontMatchingV2Fixtures";
+import { createDefaultFontPaletteInferencePort } from "../src/main/pipeline/fontMatchingPaletteFallback";
+import type {
+  FontMatchingPageInferenceBlock,
+  VerifiedAutomaticFontPixelInferenceV2,
+} from "../src/main/pipeline/fontMatchingPagePixelInferenceTypes";
 import {
   onnxRuntimeNode as ort,
   runDisposableFloatTensorStage,
@@ -19,6 +29,143 @@ function raster(row: (typeof fixture.cases)[number]) {
   return { width: row.width, height: row.height, bgra };
 }
 describe("frozen intact-texture native parity", () => {
+  it("does not reopen palette resources after disposal and allows repeated disposal", async () => {
+    let selectionReads = 0;
+    const unused = "font-texture-disposed-port-not-loaded";
+    const port = createDefaultFontPaletteInferencePort({
+      paths: {
+        isPackaged: false,
+        repoRoot: unused,
+        executableDir: unused,
+        resourcesDir: unused,
+        dataRoot: unused,
+        settingsPath: unused,
+        libraryDir: unused,
+        fontsDir: unused,
+        logsDir: unused,
+        logFile: unused,
+        runtimeDir: unused,
+        toolsDir: unused,
+        ocrRuntimeDir: unused,
+        llamaRuntimeDir: unused,
+        llamaServerPath: unused,
+      },
+      loadSelection: () => {
+        selectionReads++;
+        return {
+          candidates: [],
+          renderCandidates: [],
+          installedCandidates: [],
+          activeCatalog: {
+            catalogVersion: "empty",
+            locale: "ko",
+            candidateIds: [],
+            candidateOrderSha256: "",
+            candidates: [],
+            excludedCandidates: [],
+            recordSha256: "",
+            sourceRecords: {
+              catalogDispositionRecordSha256: "",
+              deploymentFontFaceManifestSha256: "",
+              deploymentRenderBankManifestSha256: "",
+              evidenceFontFaceManifestSha256: "",
+              evidenceRenderBankManifestSha256: "",
+              finalCatalogRecordSha256: "",
+            },
+          },
+        };
+      },
+    });
+    // The base port's non-Korean abstention must not load Korean native models.
+    const empty = await port.inferPage({
+      page: makePage(),
+      blocks: [],
+      candidates: [],
+      targetLanguage: "en",
+      boundary: { source: "user_page", datasetSplit: null, qaOverlay: false },
+    });
+    expect(empty.pixelInferenceByBlockId.size).toBe(0);
+    expect(selectionReads).toBe(1);
+    await port.dispose?.();
+    await port.dispose?.();
+    await expect(
+      port.inferPage({
+        page: makePage(),
+        blocks: [],
+        candidates: [],
+        boundary: { source: "user_page", datasetSplit: null, qaOverlay: false },
+      }),
+    ).rejects.toThrow("disposed");
+    expect(selectionReads).toBe(1);
+  });
+  it("attaches native page evidence without altering proxy rows, and abstains or cancels at the page boundary", async () => {
+    const block: FontMatchingPageInferenceBlock = {
+      blockId: "texture",
+      item: {
+        id: 1,
+        type: "nonsolid",
+        direction: "horizontal",
+        bbox,
+        jp: "台詞",
+        ko: "대사",
+      },
+    };
+    const original: VerifiedAutomaticFontPixelInferenceV2 = {
+      ...makePixelWinnerInference("nanum-myeongjo", block.blockId),
+      crossScriptProxy: {
+        kind: "verified_cross_script_proxy",
+        contractVersion: "font-matching-cross-script-proxy-inference-v2",
+        modelVersion: "manga-font-crossscript-proxy-runtime-v2",
+        voice: 1,
+        voiceCount: 1,
+        candidates: [],
+      },
+    };
+    const rows = new Map([[block.blockId, original]]);
+    const session = await loadFontTextureModel();
+    try {
+      const options = {
+        session,
+        blocks: [block],
+        rows,
+        raster: raster(fixture.cases[0]),
+      };
+      const output = await inferFontTexturePage(options);
+      expect(output.get(block.blockId)?.sourceTexture).toMatchObject({
+        modelSha256: fixture.modelSha256,
+        patchCount: fixture.cases[0].count,
+      });
+      expect(
+        output
+          .get(block.blockId)
+          ?.sourceTexture?.probabilities.reduce((a, b) => a + b, 0),
+      ).toBeCloseTo(1, 10);
+      expect(
+        output
+          .get(block.blockId)
+          ?.sourceTexture?.weightProbabilities.reduce((a, b) => a + b, 0),
+      ).toBeCloseTo(1, 10);
+      expect(output.get(block.blockId)?.crossScriptProxy).toBe(
+        original.crossScriptProxy,
+      );
+      expect(rows.get(block.blockId)?.sourceTexture).toBeUndefined();
+      const noProxy = { ...original, crossScriptProxy: undefined };
+      const unverified = await inferFontTexturePage({
+        ...options,
+        rows: new Map([[block.blockId, noProxy]]),
+      });
+      expect(unverified.get(block.blockId)).toBe(noProxy);
+      options.raster.bgra.fill(255);
+      expect((await inferFontTexturePage(options)).get(block.blockId)).toBe(
+        original,
+      );
+      await expect(
+        inferFontTexturePage({ ...options, signal: AbortSignal.abort() }),
+      ).rejects.toThrow();
+    } finally {
+      await session.release();
+    }
+  });
   for (const row of fixture.cases)
     it(`matches PIL/OpenCV source patches: ${row.name}`, () => {
       const support = prepareFontTextureSupport(raster(row), bbox);
