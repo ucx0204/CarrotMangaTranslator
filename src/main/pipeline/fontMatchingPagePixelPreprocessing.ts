@@ -108,13 +108,18 @@ export function prepareFontMatchingInkComponents(
   page: FontMatchingRasterPage,
   bbox: BBox,
   signal?: AbortSignal,
+  grayscaleMode: "opencv" | "pil" = "opencv",
 ) {
   assertRaster(page);
   throwIfAborted(signal);
   const rectangle = normalizedBboxToPixels(bbox, page.width, page.height);
   if (!rectangle) return null;
   const image = cropBgraToRgb(page, rectangle);
-  const { grayscale, histogram } = buildMorphologyGrayscale(image, signal);
+  const { grayscale, histogram } = buildMorphologyGrayscale(
+    image,
+    signal,
+    grayscaleMode,
+  );
   const { mask, threshold, foregroundPolarity } = buildMorphologyMask(
     grayscale,
     histogram,
@@ -132,6 +137,7 @@ export function prepareFontMatchingInkComponents(
     components,
     threshold,
     foregroundPolarity,
+    grayscale,
   };
 }
 
@@ -185,6 +191,7 @@ function buildGlyphMorphology(
 function buildMorphologyGrayscale(
   image: RgbImage,
   signal?: AbortSignal,
+  mode: "opencv" | "pil" = "opencv",
 ): Readonly<{ grayscale: Uint8Array; histogram: Uint32Array }> {
   const histogram = new Uint32Array(256);
   const grayscale = new Uint8Array(image.width * image.height);
@@ -195,7 +202,10 @@ function buildMorphologyGrayscale(
     const green = image.data[offset + 1] ?? 0;
     const blue = image.data[offset + 2] ?? 0;
     // Canonical OpenCV 4.11 uint8 BGR2GRAY fixed-point coefficients.
-    const value = (red * 9_798 + green * 19_235 + blue * 3_735 + 16_384) >> 15;
+    const value =
+      mode === "pil"
+        ? (red * 19_595 + green * 38_470 + blue * 7_471 + 32_768) >> 16
+        : (red * 9_798 + green * 19_235 + blue * 3_735 + 16_384) >> 15;
     grayscale[pixel] = value;
     histogram[value] += 1;
   }

@@ -13,6 +13,35 @@ import {
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 describe("block font loading", () => {
+  it("waits for the concrete punctuation face used by Shilla quotes", () => {
+    const key = createBlockFontLoadKey(
+      [
+        makeBlock({
+          fontFamily: "shilla-culture",
+          translatedText: "『희망』을 지켜요.",
+        }),
+      ],
+      DEFAULT_BLOCK_FONT_CATALOG,
+    );
+    const requests = JSON.parse(key);
+    expect(requests).toContainEqual({
+      css: 'normal 400 16px "MGT Nanum Myeongjo"',
+      family: '"MGT Nanum Myeongjo"',
+      required: true,
+    });
+    const plain = JSON.parse(
+      createBlockFontLoadKey(
+        [
+          makeBlock({
+            fontFamily: "shilla-culture",
+            translatedText: "지켜요.",
+          }),
+        ],
+        DEFAULT_BLOCK_FONT_CATALOG,
+      ),
+    );
+    expect(requests.length).toBe(plain.length + 1);
+  });
   it("also loads the base face used by source size matching when every visible run has an inline face", () => {
     const key = createBlockFontLoadKey(
       [

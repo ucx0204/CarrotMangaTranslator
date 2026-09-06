@@ -23,6 +23,7 @@ import { completeFontPaletteInference } from "./fontMatchingPaletteInference";
  */
 import { parentPort } from "node:worker_threads";
 import { loadFontExpressionModel } from "./fontMatchingExpressionRuntime";
+import { loadFontTextureModel } from "./fontMatchingTextureRuntime";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import type {
@@ -129,6 +130,8 @@ let expressionModel: Awaited<
   ReturnType<typeof loadFontExpressionModel>
 > | null = null;
 const abortControllers = new Map<string, AbortController>();
+let textureModel: Awaited<ReturnType<typeof loadFontTextureModel>> | null =
+  null;
 
 port.on("message", (message: FontMatchingWorkerInboundMessage) => {
   if (message.type === "init") {
@@ -149,6 +152,9 @@ async function handleInit(
     const previousExpressionModel = expressionModel;
     expressionModel = null;
     await previousExpressionModel?.release();
+    const previousTextureModel = textureModel;
+    textureModel = null;
+    await previousTextureModel?.release();
     const result = await loadFontMatchingRuntimeModel({
       artifactDir: message.artifactDir,
       installedCandidates: message.installedCandidates,
@@ -182,6 +188,7 @@ async function handleInit(
       );
     }
     expressionModel = await loadFontExpressionModel();
+    textureModel = await loadFontTextureModel();
     post({
       type: "ready",
       id: message.id,
@@ -191,6 +198,10 @@ async function handleInit(
   } catch (error) {
     runtimeModel = null;
     crossScriptProxyModel = null;
+    await expressionModel?.release();
+    expressionModel = null;
+    await textureModel?.release();
+    textureModel = null;
     post({ type: "init-error", id: message.id, error: serializeError(error) });
   }
 }
@@ -223,7 +234,7 @@ async function handleInfer(
       model: runtimeModel,
       loadRaster,
     });
-    if (!crossScriptProxyModel || !expressionModel)
+    if (!crossScriptProxyModel || !expressionModel || !textureModel)
       throw new Error("Font palette sessions are unavailable.");
     const expressive = await completeFontPaletteInference({
       ...message,
@@ -231,6 +242,7 @@ async function handleInfer(
       rows: result,
       model: crossScriptProxyModel,
       expressionModel,
+      textureModel,
       raster: cachedRaster,
       signal: controller.signal,
     });

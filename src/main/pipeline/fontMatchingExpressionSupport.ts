@@ -19,13 +19,7 @@ export function prepareFontExpressionSupport(
 ) {
   const ink = prepareFontMatchingInkComponents(page, bbox, signal);
   if (!ink) return null;
-  const eligible = ink.components
-    .filter((component) => isEligibleComponent(component, ink))
-    .sort((a, b) => b.area - a.area || a.y1 - b.y1 || a.x1 - b.x1);
-  const largestArea = eligible[0]?.area ?? 0;
-  const components = eligible
-    .filter((component) => component.area >= largestArea * 0.07)
-    .slice(0, MAXIMUM_COMPONENTS);
+  const components = selectFontExpressionComponents(ink);
   if (components.length === 0) return null;
   const values = new Float32Array(
     components.length * FONT_EXPRESSION_COMPONENT_SIZE ** 2,
@@ -35,6 +29,17 @@ export function prepareFontExpressionSupport(
     renderComponent(values, index, component, ink);
   }
   return { values, count: components.length, threshold: ink.threshold };
+}
+
+/** Shared eligibility only; texture and isolated-ink raster contracts differ. */
+export function selectFontExpressionComponents(ink: InkMask) {
+  const eligible = ink.components
+    .filter((component) => isEligibleComponent(component, ink))
+    .sort((a, b) => b.area - a.area || a.y1 - b.y1 || a.x1 - b.x1);
+  const largestArea = eligible[0]?.area ?? 0;
+  return eligible
+    .filter((component) => component.area >= largestArea * 0.07)
+    .slice(0, MAXIMUM_COMPONENTS);
 }
 
 function isEligibleComponent(c: InkComponent, ink: InkMask): boolean {

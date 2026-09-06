@@ -11,6 +11,7 @@ import type { FontMatchingGlyphMorphologyV1 } from "./fontMatchingPagePixelPrepr
 import type { FontMatchingRuntimeArtifactStatus } from "./fontMatchingRuntimeArtifactStatus";
 import type { FontMatchingOcrGeometryDirectionV2 } from "./fontMatchingOcrGeometryDirection";
 import type { FontExpressionInference } from "./fontMatchingExpressionTypes";
+import type { FontTextureInference } from "./fontMatchingTextureTypes";
 import type {
   FontMatchingOcrCandidateMembershipV2,
   OverlayItem,
@@ -110,6 +111,7 @@ export type VerifiedAutomaticFontPixelInferenceV2 = Readonly<{
   crossScriptProxy?: VerifiedCrossScriptProxyInferenceV1;
   /** Source-ink treatment evidence; does not replace R33 or its candidate catalog. */
   sourceExpression?: FontExpressionInference;
+  sourceTexture?: FontTextureInference;
   localEvidence: BlockLocalFontEvidenceV2;
 }>;
 

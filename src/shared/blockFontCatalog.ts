@@ -1,4 +1,5 @@
 import type { UiLocale } from "./uiLocales";
+import { resolveBlockFontPunctuationFallback } from "./blockFontPunctuationFallback";
 
 export const DEFAULT_BLOCK_FONT_ID = "default";
 
@@ -185,7 +186,10 @@ export const BUILT_IN_BLOCK_FONTS = [
     id: "shilla-culture",
     locale: "ko",
     label: "신라문화체",
-    cssFamily: fontFamily("MGT Shilla Culture", KOREAN_SANS_FALLBACK),
+    cssFamily: fontFamily(
+      "MGT Shilla Culture",
+      `${resolveBlockFontPunctuationFallback("shilla-culture")?.cssFamily}, ${KOREAN_SANS_FALLBACK}`,
+    ),
     sample: "천년의 이야기를 쓰다",
   },
 

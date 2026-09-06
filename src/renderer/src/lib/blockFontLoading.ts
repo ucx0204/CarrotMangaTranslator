@@ -3,6 +3,7 @@ import {
   isBuiltInBlockFontId,
 } from "../../../shared/blockFontCatalog";
 import { parseRichText } from "../../../shared/richTextMarkup";
+import { resolveBlockFontPunctuationFallback } from "../../../shared/blockFontPunctuationFallback";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { clearSourceFontFaceRatioCache } from "./sourceFontSizeMatching";
 import {
@@ -172,6 +173,20 @@ function collectBlockFontLoadRequests(
       );
       const css = `${run.italic ? "italic" : "normal"} ${run.bold ? 800 : 400} 16px ${family}`;
       requests.set(css, { css, family, required });
+      const fallback = resolveBlockFontPunctuationFallback(
+        resolveEffectiveFontId(fontId, catalog),
+      );
+      if (
+        fallback &&
+        [...displayText].some((c) => fallback.characters.includes(c))
+      ) {
+        const fallbackCss = `${run.italic ? "italic" : "normal"} ${run.bold ? 800 : 400} 16px ${fallback.cssFamily}`;
+        requests.set(fallbackCss, {
+          css: fallbackCss,
+          family: fallback.cssFamily,
+          required: true,
+        });
+      }
     }
   }
   return [...requests.values()].sort((left, right) =>

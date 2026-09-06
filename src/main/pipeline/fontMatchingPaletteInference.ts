@@ -17,6 +17,10 @@ import {
   FONT_CATALOG_REVISION,
   isRevisedFontCatalog,
 } from "./fontMatchingCatalogRevision";
+import {
+  inferFontTexturePage,
+  loadFontTextureModel,
+} from "./fontMatchingTextureRuntime";
 
 /** Shared worker/fallback completion; classifier evidence keeps its sealed identities. */
 export async function completeFontPaletteInference(options: {
@@ -26,6 +30,7 @@ export async function completeFontPaletteInference(options: {
   rows: ReadonlyMap<string, VerifiedAutomaticFontPixelInferenceV2>;
   model: CrossScriptProxyRuntimeModel;
   expressionModel: Awaited<ReturnType<typeof loadFontExpressionModel>>;
+  textureModel: Awaited<ReturnType<typeof loadFontTextureModel>>;
   raster: FontMatchingRasterPage;
   signal?: AbortSignal;
 }) {
@@ -47,9 +52,14 @@ export async function completeFontPaletteInference(options: {
       ...(revised ? { catalogRevision: FONT_CATALOG_REVISION } : {}),
       ...(proxy.has(id) ? { crossScriptProxy: proxy.get(id) } : {}),
     });
-  return inferFontExpressionPage({
+  const expressive = await inferFontExpressionPage({
     ...options,
     session: options.expressionModel,
     rows: combined,
+  });
+  return inferFontTexturePage({
+    ...options,
+    session: options.textureModel,
+    rows: expressive,
   });
 }

@@ -1,6 +1,7 @@
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import { stripRichTextMarkup } from "../../shared/richTextMarkup";
 import { fontCandidateSupportsText } from "../fontCoverage";
+import { resolveBlockFontPunctuationFallback } from "../../shared/blockFontPunctuationFallback";
 import type { TranslationFontAssessmentV2 } from "./fontMatchingDecisionV2";
 
 const WIDTH_CLASS_SCALE: Readonly<Record<number, number>> = {
@@ -20,7 +21,9 @@ export function assessAutomaticFontTranslations(
   translatedText: string,
 ): readonly TranslationFontAssessmentV2[] {
   const text = stripRichTextMarkup(translatedText).trim();
-  return candidates.map((candidate) => assessTranslation(candidate, text));
+  return candidates.map((candidate) =>
+    assessTranslation(candidate, text, candidates),
+  );
 }
 
 export function resolveAutomaticFontCandidateWidthScale(
@@ -32,12 +35,28 @@ export function resolveAutomaticFontCandidateWidthScale(
 function assessTranslation(
   candidate: AutomaticFontCandidate,
   translatedText: string,
+  candidates: readonly AutomaticFontCandidate[],
 ): TranslationFontAssessmentV2 {
   const visibleCharacters = [...translatedText].filter(
     (character) => !/^\s$/u.test(character),
   );
+  const fallback =
+    candidate.source === "built-in"
+      ? resolveBlockFontPunctuationFallback(candidate.fontId)
+      : null;
+  const fallbackCandidate =
+    fallback &&
+    candidates.find(
+      (c) => c.source === "built-in" && c.fontId === fallback.fontId,
+    );
   const missingGlyphCount = visibleCharacters.filter(
-    (character) => !fontCandidateSupportsText(candidate, character),
+    (character) =>
+      !fontCandidateSupportsText(candidate, character) &&
+      !(
+        fallback?.characters.includes(character) &&
+        fallbackCandidate &&
+        fontCandidateSupportsText(fallbackCandidate, character)
+      ),
   ).length;
   const glyphCoverage =
     visibleCharacters.length === 0

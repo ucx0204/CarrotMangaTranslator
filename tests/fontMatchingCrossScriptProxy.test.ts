@@ -50,6 +50,11 @@ import {
   loadFontExpressionModel,
 } from "../src/main/pipeline/fontMatchingExpressionRuntime";
 import expressionFixture from "./fixtures/fontExpressionParity.json";
+import {
+  FONT_TEXTURE_CONTRACT,
+  FONT_TEXTURE_MODEL_SHA256,
+} from "../src/main/pipeline/fontMatchingTextureTypes";
+import { resolveAutomaticFontExpression } from "../src/main/pipeline/automaticFontMatchingExpression";
 
 describe("cross-script page font proxy", () => {
   const bundledProxy = join(
@@ -308,6 +313,74 @@ describe("cross-script page font proxy", () => {
       outlineWidthPx: 3.25,
       outlineWidthScale: 1.6,
     });
+  });
+  it("carries selective Shilla through real ranking, decision and style; preserves expressive and manual choices", () => {
+    const candidates = ["shilla-culture", "nanum-myeongjo"].map((fontId) =>
+      makeAutomaticFontCandidate({ fontId }),
+    );
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
+    const inference: VerifiedAutomaticFontPixelInferenceV2 = {
+      ...makeRuntimeBoundInference(candidates, catalogVersion),
+      sourceTexture: {
+        contractVersion: FONT_TEXTURE_CONTRACT,
+        modelSha256: FONT_TEXTURE_MODEL_SHA256,
+        patchCount: 8,
+        probabilities: Array.from({ length: 11 }, (_, i) =>
+          i === 9 ? 0.95 : 0.005,
+        ),
+        weightProbabilities: [0.01, 0.01, 0.01, 0.97],
+      },
+    };
+    const decision = resolveAutomaticFontDecisionV2({
+      block: makeBlock(),
+      item: makeItem("dialogue"),
+      page: makePage(),
+      options: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates,
+        pixelInference: inference,
+        runtimeArtifactStatus: makeRuntimeStatus(candidates, catalogVersion),
+      },
+    });
+    expect(decision?.result.selectedStyle).toEqual({
+      fontId: "shilla-culture",
+      fontWeight: 500,
+      italic: false,
+    });
+    if (!decision) throw new Error("Missing Shilla decision");
+    expect(applyAutomaticFontDecisionV2(makeBlock(), decision)).toMatchObject({
+      fontFamily: "shilla-culture",
+      bold: false,
+      fontSizePx: 24,
+      outlineWidthPx: 3.25,
+    });
+    for (const mode of [
+      "block_user_lock",
+      "work_profile",
+      "work_role_user_lock",
+    ] as const) {
+      const locked = makeDecisionResult(mode);
+      expect(
+        applyAutomaticPixelStyle({
+          candidates,
+          pixelInference: inference,
+          result: locked,
+          workState: undefined,
+        }),
+      ).toBe(locked);
+    }
+    const expressive = ["shilla-culture", "griun-pol-sensibility"].map(
+      (fontId) => makeAutomaticFontCandidate({ fontId }),
+    );
+    const preserved = {
+      ...makeRuntimeBoundInference(
+        expressive,
+        resolveFontMatchingV2CatalogVersion(expressive),
+      ),
+      sourceTexture: inference.sourceTexture,
+    };
+    expect(resolveAutomaticFontExpression(preserved, expressive)).toBeNull();
   });
   it("discards OCR character identity before the model boundary", () => {
     const input = buildFontMatchingSourceGlyphInput({
@@ -705,7 +778,11 @@ function makeRanked(fontId: string, index: number): RankedFontCandidateV2 {
 }
 
 function makeDecisionResult(
-  resolvedBy: "v2_automatic" | "block_user_lock",
+  resolvedBy:
+    | "v2_automatic"
+    | "block_user_lock"
+    | "work_profile"
+    | "work_role_user_lock",
 ): FontMatchingDecisionResultV2 {
   return {
     decision: {

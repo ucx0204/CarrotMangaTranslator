@@ -11,6 +11,7 @@ import {
 } from "./fontMatchingExpressionTypes";
 import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePixelInferenceTypes";
 import { hasVerifiedCrossScriptProxyInference } from "./automaticFontMatchingV2CrossScriptProxy";
+import { resolveFontTextureSelection } from "./automaticFontMatchingTexture";
 
 const EXPRESSION_FONTS: Readonly<
   Record<string, { fontId: string; minimum: number }>
@@ -48,10 +49,24 @@ export function resolveAutomaticFontExpression(
   candidates: readonly AutomaticFontCandidate[],
 ) {
   if (!hasVerifiedCrossScriptProxyInference(inference, candidates)) return null;
-  return resolveFontExpressionSelection(
+  const expression = resolveFontExpressionSelection(
     inference?.sourceExpression,
     candidates,
   );
+  if (expression) return expression;
+  // Keep existing expressive choices, including police brush and handwriting.
+  const current = inference?.crossScriptProxy?.candidates[0]?.fontId;
+  if (
+    !current ||
+    ![
+      "ridi-batang",
+      "nanum-myeongjo",
+      "nanum-gothic",
+      "cafe24-gowoonbam",
+    ].includes(current)
+  )
+    return null;
+  return resolveFontTextureSelection(inference?.sourceTexture, candidates);
 }
 
 export function applyFontExpressionRanking(
@@ -70,7 +85,12 @@ export function applyFontExpressionRanking(
       ...(index === 0
         ? {
             totalScore: maximum + 1,
-            reasonCodes: [...candidate.reasonCodes, "source_ink_heavy_sans_v3"],
+            reasonCodes: [
+              ...candidate.reasonCodes,
+              selection.fontId === "shilla-culture"
+                ? "source_texture_serif_emphasis_c15"
+                : "source_ink_heavy_sans_v3",
+            ],
           }
         : {}),
     }),

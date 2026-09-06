@@ -6,6 +6,7 @@ import type {
 } from "./fontMatchingPagePixelInferenceTypes";
 import { loadCrossScriptProxyRuntimeModel } from "./fontMatchingCrossScriptProxyRuntime";
 import { loadFontExpressionModel } from "./fontMatchingExpressionRuntime";
+import { loadFontTextureModel } from "./fontMatchingTextureRuntime";
 import { completeFontPaletteInference } from "./fontMatchingPaletteInference";
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
 import {
@@ -45,7 +46,7 @@ function createFontPaletteFallback(options: {
       )
         return result;
       resources ??= loadResources(options.proxyDirectory());
-      const { model, expressionModel } = await resources;
+      const { model, expressionModel, textureModel } = await resources;
       const raster = await loadFontMatchingPageRaster(
         request.page,
         request.signal,
@@ -58,6 +59,7 @@ function createFontPaletteFallback(options: {
           rows: result.pixelInferenceByBlockId,
           model,
           expressionModel,
+          textureModel,
           raster,
         }),
       };
@@ -74,6 +76,7 @@ function createFontPaletteFallback(options: {
           loaded.value.model.styleSession.release(),
           loaded.value.model.decoderSession.release(),
           loaded.value.expressionModel.release(),
+          loaded.value.textureModel.release(),
         ]);
     },
   };
@@ -81,12 +84,21 @@ function createFontPaletteFallback(options: {
 
 async function loadResources(directory: string) {
   const model = await loadCrossScriptProxyRuntimeModel(directory);
+  let expressionModel:
+    | Awaited<ReturnType<typeof loadFontExpressionModel>>
+    | undefined;
   try {
-    return { model, expressionModel: await loadFontExpressionModel() };
+    expressionModel = await loadFontExpressionModel();
+    return {
+      model,
+      expressionModel,
+      textureModel: await loadFontTextureModel(),
+    };
   } catch (error) {
     await Promise.all([
       model.styleSession.release(),
       model.decoderSession.release(),
+      expressionModel?.release(),
     ]);
     throw error;
   }
