@@ -88,8 +88,9 @@ function resolveUsableSourceFacePx(
 /**
  * Resolve a page-local source-face fallback for blocks whose own merged OCR
  * geometry is contradictory. Source face pixels are comparable before target
- * font conversion, so a robust median of trusted, stylistically compatible
- * dialogue peers preserves the page's actual typographic scale.
+ * font conversion, so a robust median of trusted peers with the same source
+ * direction and role preserves the page's actual typographic scale. Target
+ * font/weight choices must not change an unchanged block's source estimate.
  */
 export function resolvePageSourceFontFaceFallbacks(
   blocks: readonly TranslationBlock[],
@@ -118,15 +119,7 @@ export function resolvePageSourceFontFaceFallbacks(
     const rolePeers = directionPeers.filter(
       (peer) => peer.fontRole === block.fontRole,
     );
-    const weightPeers = rolePeers.filter(
-      (peer) => Boolean(peer.bold) === Boolean(block.bold),
-    );
-    const selected =
-      weightPeers.length > 0
-        ? weightPeers
-        : rolePeers.length > 0
-          ? rolePeers
-          : directionPeers;
+    const selected = rolePeers.length > 0 ? rolePeers : directionPeers;
     const fallback = median(
       selected.map((peer) => Number(peer.sourceFontFacePx)),
     );

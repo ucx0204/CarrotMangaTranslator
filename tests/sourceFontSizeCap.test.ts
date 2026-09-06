@@ -254,7 +254,56 @@ describe("source-matched font-size cap", () => {
     expect(suspicious.overflow).toBe(false);
   });
 
-  it("derives the fallback from reliable peers with matching page typography", () => {
+  it("keeps the source fallback independent of neighboring Korean font choices", () => {
+    const target = makeBlock({
+      id: "unchanged-ellipsis",
+      sourceText: "……",
+      translatedText: "……",
+      sourceDirection: "vertical",
+      fontSizeIntent: "source-match",
+      fontRole: "dialogue",
+      fontFamily: "nanum-myeongjo",
+      bold: true,
+    });
+    const peers = [
+      makeMeasuredPeer("small-source", 10, {
+        sourceDirection: "vertical",
+        fontRole: "dialogue",
+        bold: false,
+      }),
+      makeMeasuredPeer("ordinary-source-a", 24, {
+        sourceDirection: "vertical",
+        fontRole: "dialogue",
+        bold: true,
+      }),
+      makeMeasuredPeer("ordinary-source-b", 28, {
+        sourceDirection: "vertical",
+        fontRole: "dialogue",
+        bold: true,
+      }),
+    ];
+    const before = resolvePageSourceFontFaceFallbacks(
+      [target, ...peers],
+      pageSize,
+    );
+    const after = resolvePageSourceFontFaceFallbacks(
+      [
+        target,
+        ...peers.map((peer) => ({
+          ...peer,
+          fontFamily: "jua",
+          bold: !peer.bold,
+          italic: true,
+        })),
+      ],
+      pageSize,
+    );
+    expect(after.get(target.id)).toBe(before.get(target.id));
+    expect(after.get(target.id)).toBe(24);
+    expect(after.size).toBe(1);
+  });
+
+  it("derives the fallback from reliable peers with matching source roles", () => {
     const target = makeBlock({
       id: "target",
       bbox: { x: 540, y: 110, w: 40, h: 40 },
@@ -293,7 +342,7 @@ describe("source-matched font-size cap", () => {
       pageSize,
     );
 
-    expect(fallbacks.get(target.id)).toBe(18);
+    expect(fallbacks.get(target.id)).toBe(20);
     expect(fallbacks.size).toBe(1);
   });
 
