@@ -10,6 +10,7 @@ import base64
 import gzip
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -54,12 +55,29 @@ def produce(original: dict) -> dict:
             "bankGzipBase64": base64.b64encode(gzip.compress(bank, mtime=0)).decode("ascii")}
 
 
+def check_css_coverage(faces: list[dict]) -> None:
+    css = (ROOT / "src/renderer/src/styles/fonts.css").read_text(encoding="utf-8")
+    rules = re.findall(r"@font-face\s*\{([^}]+)\}", css)
+    for face in faces:
+        rule = next(rule for rule in rules if f'mgt-font:///{face["file"]}' in rule)
+        match = re.search(r"unicode-range:\s*([^;]+);", rule)
+        if not match:
+            raise ValueError(f"Missing CSS coverage: {face['file']}")
+        ranges = []
+        for value in match[1].split(","):
+            bounds = [int(part, 16) for part in value.strip().removeprefix("U+").split("-")]
+            ranges.append([bounds[0], bounds[-1]])
+        if ranges != face["unicodeRanges"]:
+            raise ValueError(f"CSS coverage drift: {face['file']}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     original = json.loads(ARTIFACT.read_text(encoding="utf-8"))
     result = produce(original)
+    check_css_coverage(result["faces"])
     if args.check:
         # Different Python/zlib versions may encode identical bytes differently.
         for record in (original, result):

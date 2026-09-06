@@ -1,5 +1,3 @@
-import { createFontPaletteFallback } from "./fontMatchingPaletteFallback";
-import { resolveCrossScriptProxyRuntimeDir } from "./fontMatchingCrossScriptProxyPaths";
 /* eslint-disable max-lines -- sealed ONNX loading and inference stay co-located for auditability */
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
@@ -342,24 +340,12 @@ export function createDefaultFontMatchingPageInferencePort({
   loadSelection: (locale: UiLocale) => AutoMatchActiveCandidateSelection;
   reportWarning?: (message: string, detail: unknown) => void;
 }): FontMatchingPageInferencePort {
-  const base = createFontMatchingPageInferencePort({
+  return createFontMatchingPageInferencePort({
     artifactDir: resolveFontMatchingArtifactDirSync(paths),
     loadSelection,
     resolveWasmAssets: () => resolveFontMatchingOrtWasmAssets(paths),
     loadRaster: loadFontMatchingPageRaster,
     reportWarning,
-  });
-  return createFontPaletteFallback({
-    base,
-    loadSelection: () => loadSelection("ko"),
-    proxyDirectory: () => resolveCrossScriptProxyRuntimeDir(paths),
-    validateCatalog: (request, selection) =>
-      sameCandidateSnapshot(
-        request.candidates,
-        selection.renderCandidates ?? selection.candidates,
-      )
-        ? null
-        : emptyResult(disabled("catalog_mismatch")),
   });
 }
 

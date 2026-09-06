@@ -5,7 +5,7 @@ import {
   FONT_CATALOG_REVISION,
 } from "../src/main/pipeline/fontMatchingCatalogRevision";
 import { resolveVerifiedPixelInferenceForBlockId } from "../src/main/pipeline/automaticFontMatchingV2RuntimeGate";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -22,7 +22,11 @@ import { prepareAutomaticFontEvidence } from "../src/main/pipeline/automaticFont
 import { applyAutomaticPixelStyle } from "../src/main/pipeline/automaticFontMatchingV2Style";
 import { buildFontMatchingSourceGlyphInput } from "../src/main/pipeline/fontMatchingCrossScriptProxyHints";
 import { isCrossScriptProxyEligibleBlock } from "../src/main/pipeline/fontMatchingCrossScriptProxyPolicy";
-import { selectCrossScriptProxyWeightFace } from "../src/main/pipeline/fontMatchingCrossScriptProxyRuntime";
+import {
+  selectCrossScriptProxyWeightFace,
+  loadCrossScriptProxyRuntimeModel,
+  withRevisedCrossScriptCatalog,
+} from "../src/main/pipeline/fontMatchingCrossScriptProxyRuntime";
 import type { AutomaticFontDecisionV2 } from "../src/main/pipeline/automaticFontMatchingV2";
 import type { FontMatchingDecisionResultV2 } from "../src/main/pipeline/fontMatchingDecisionV2";
 import type { FontMatchingRuntimeArtifactStatus } from "../src/main/pipeline/fontMatchingRuntimeArtifactStatus";
@@ -48,6 +52,66 @@ import {
 import expressionFixture from "./fixtures/fontExpressionParity.json";
 
 describe("cross-script page font proxy", () => {
+  const bundledProxy = join(
+    process.cwd(),
+    "out/app-runtime/font-matching-crossscript-proxy",
+  );
+  const proxyDirectory = existsSync(join(bundledProxy, ".owned.json"))
+    ? bundledProxy
+    : join(
+        process.cwd(),
+        "models/font-matching-crossscript-proxy/manga-font-crossscript-proxy-runtime-v2",
+      );
+  it.skipIf(!existsSync(join(proxyDirectory, ".owned.json")))(
+    "preserves the installed native proxy face bytes when extending its catalog",
+    async () => {
+      const model = await loadCrossScriptProxyRuntimeModel(proxyDirectory);
+      try {
+        const revised = withRevisedCrossScriptCatalog(model);
+        expect(withRevisedCrossScriptCatalog(model)).toBe(revised);
+        const retained = model.candidates.filter(
+          (c) => !isDemotedBlockFontId(c.fontId),
+        );
+        expect(revised.candidates).toHaveLength(retained.length + 4);
+        for (const face of retained) {
+          const next = revised.candidates.find(
+            (c) => c.displayId === face.displayId,
+          );
+          if (!next) throw new Error("Retained face missing");
+          const actual = revised.scoreCache.bank.subarray(
+            next.bankByteOffset,
+            next.bankByteOffset + next.bankByteLength,
+          );
+          const original = model.scoreCache.bank.subarray(
+            face.bankByteOffset,
+            face.bankByteOffset + face.bankByteLength,
+          );
+          expect(
+            Buffer.from(actual).equals(Buffer.from(original)),
+            face.displayId,
+          ).toBe(true);
+        }
+        expect(
+          revised.candidates
+            .filter((c) =>
+              ADDED_MATCHING_FONT_IDS.some((id) => id === c.fontId),
+            )
+            .map((c) => [c.fontId, c.fontWeight]),
+        ).toEqual([
+          ["kkubulim", 400],
+          ["geummyeon-seongsil", 400],
+          ["shilla-culture", 500],
+          ["shilla-culture", 700],
+        ]);
+      } finally {
+        await Promise.all([
+          model.styleSession.release(),
+          model.decoderSession.release(),
+        ]);
+      }
+    },
+    60_000,
+  );
   it.each(ADDED_MATCHING_FONT_IDS)(
     "carries a verified %s winner through the actual decision and style path",
     (fontId) => {
@@ -68,23 +132,24 @@ describe("cross-script page font proxy", () => {
         ...makeRuntimeBoundInference(legacy, version),
         catalogRevision: FONT_CATALOG_REVISION,
         crossScriptProxy: {
-        kind: "verified_cross_script_proxy",
-        contractVersion: "font-matching-cross-script-proxy-inference-v2",
-        modelVersion: "manga-font-crossscript-proxy-runtime-v2",
-        voice: 1,
-        voiceCount: 1,
-        candidates: [...current]
-          .sort(
-            (a, b) => Number(b.fontId === fontId) - Number(a.fontId === fontId),
-          )
-          .map((c, i) => ({
-            fontId: c.fontId,
-            displayId: `${c.fontId}/actual-face`,
-            score: 0.1 + i * 0.1,
-            fontWeight: c.fontId === "shilla-culture" ? 500 : 400,
-            italic: false,
-          })),
-      };
+          kind: "verified_cross_script_proxy",
+          contractVersion: "font-matching-cross-script-proxy-inference-v2",
+          modelVersion: "manga-font-crossscript-proxy-runtime-v2",
+          voice: 1,
+          voiceCount: 1,
+          candidates: [...current]
+            .sort(
+              (a, b) =>
+                Number(b.fontId === fontId) - Number(a.fontId === fontId),
+            )
+            .map((c, i) => ({
+              fontId: c.fontId,
+              displayId: `${c.fontId}/actual-face`,
+              score: 0.1 + i * 0.1,
+              fontWeight: c.fontId === "shilla-culture" ? 500 : 400,
+              italic: false,
+            })),
+        },
       };
       const status = makeRuntimeStatus(legacy, version);
       const decision = resolveAutomaticFontDecisionV2({

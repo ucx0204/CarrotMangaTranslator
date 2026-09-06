@@ -98,8 +98,33 @@ it("preserves installed bytes, preferences and saved block aliases exactly once 
 it("does not install absent demoted fonts or replace a pre-existing custom font index", () => {
   const f = fixture();
   expect(f.library.getFontLibrarySnapshot().customFonts).toEqual([]);
+  expect(f.library.resolveCustomFontFilePath("single-day")).toBeNull();
   expect(existsSync(join(f.fonts, "index.json"))).toBe(false);
   expect(f.reportError).not.toHaveBeenCalled();
+});
+
+it("rejects malformed preferences and preserves an unreadable existing index during migration", () => {
+  const f = fixture();
+  expect(f.library.saveFontPreferences(null, [])).toMatchObject({
+    favoriteIds: [],
+    orderedIds: [],
+    hiddenIds: [],
+  });
+  expect(
+    f.library.saveFontPreferences(
+      {
+        defaultFontId: 42,
+        favoriteIds: [42, null, "single-day", "missing"],
+        orderedIds: "invalid",
+        hiddenIds: [false],
+      },
+      [],
+    ),
+  ).toMatchObject({ favoriteIds: [], orderedIds: [], hiddenIds: [] });
+  writeFileSync(join(f.fonts, "index.json"), "{broken");
+  expect(f.library.listCustomFonts()).toEqual([]);
+  expect(readFileSync(join(f.fonts, "index.json"), "utf8")).toBe("{broken");
+  expect(f.reportError).toHaveBeenCalled();
 });
 
 it("verifies all four new faces and rejects empty Hangul outlines as font coverage", () => {

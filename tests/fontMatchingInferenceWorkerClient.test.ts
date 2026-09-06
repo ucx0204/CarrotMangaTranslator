@@ -276,6 +276,40 @@ function makePort(
 }
 
 describe("font matching worker client protocol", () => {
+  it("leaves a page unchanged when its source raster cannot be decoded", async () => {
+    const reportWarning = vi.fn();
+    const port = makePort({
+      loadRaster: async () => {
+        throw new Error("Source raster unreadable");
+      },
+      reportWarning,
+    });
+    try {
+      const result = await port.inferPage(makeRequest());
+      expect(result.runtimeArtifactStatus).toMatchObject({
+        state: "disabled",
+        reason: "artifact_verification_failed",
+      });
+      expect(result.pixelInferenceByBlockId.size).toBe(0);
+      expect(reportWarning).toHaveBeenCalled();
+    } finally {
+      await port.dispose?.();
+    }
+  });
+  it("uses the production recovery port and fails closed when its runtime is absent", async () => {
+    FakeWorker.exitAfterReady = true;
+    const port = makePort();
+    try {
+      const result = await port.inferPage(makeRequest());
+      expect(result.runtimeArtifactStatus).toMatchObject({
+        state: "disabled",
+        automaticMutationAllowed: false,
+      });
+      expect(result.pixelInferenceByBlockId.size).toBe(0);
+    } finally {
+      await port.dispose?.();
+    }
+  });
   it("runs init handshake then returns the worker inference result", async () => {
     const reportInfo = vi.fn();
     const reportWarning = vi.fn();

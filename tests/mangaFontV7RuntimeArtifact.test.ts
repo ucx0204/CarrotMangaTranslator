@@ -1,3 +1,4 @@
+import { isDemotedBlockFontId } from "../src/shared/demotedBlockFonts";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -62,16 +63,20 @@ function installedCandidatesFor(
   const rawCatalog = JSON.parse(
     readFileSync(resolve(directory, "auto-match-active-catalog.json"), "utf8"),
   ) as RawActiveCatalog;
-  return rawCatalog.candidates.map((candidate) => ({
-    candidateId: candidate.candidate_id,
-    assets: candidate.assets.map((asset) => ({
-      byteSize: asset.byte_size,
-      faceId: asset.face_id,
-      file: asset.file,
-      resolvedFile: resolve(workspace, asset.file),
-      sha256: asset.sha256,
-    })),
-  }));
+  return rawCatalog.candidates.map((candidate) =>
+    isDemotedBlockFontId(candidate.candidate_id)
+      ? { candidateId: candidate.candidate_id, referenceOnly: true, assets: [] }
+      : {
+          candidateId: candidate.candidate_id,
+          assets: candidate.assets.map((asset) => ({
+            byteSize: asset.byte_size,
+            faceId: asset.face_id,
+            file: asset.file,
+            resolvedFile: resolve(workspace, asset.file),
+            sha256: asset.sha256,
+          })),
+        },
+  );
 }
 
 describe.skipIf(!artifactAvailable)(

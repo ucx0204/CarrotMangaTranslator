@@ -35,6 +35,52 @@ afterEach(async () => {
 });
 
 describe("font matching runtime artifact status", () => {
+  it("does not let an installed active face bypass verification as a retired reference", async () => {
+    const bundle = await writeBundle();
+    const verifiedBundle = await readVerifiedRuntimeArtifactBundle(bundle.root);
+    const installedCandidates = bundle.installedCandidates.map((c, i) =>
+      i === 0 ? { ...c, referenceOnly: true as const, assets: [] } : c,
+    );
+    await expect(
+      projectFontMatchingRuntimeArtifactStatus({
+        verifiedBundle,
+        installedCandidates,
+      }),
+    ).resolves.toMatchObject({
+      state: "disabled",
+      automaticMutationAllowed: false,
+    });
+  });
+  it.each(["file", "sha256", "byteSize"] as const)(
+    "rejects %s descriptor drift even when the face identity is retained",
+    async (field) => {
+      const bundle = await writeBundle();
+      const verifiedBundle = await readVerifiedRuntimeArtifactBundle(
+        bundle.root,
+      );
+      const installedCandidates = bundle.installedCandidates.map((c, i) =>
+        i === 0
+          ? {
+              ...c,
+              assets: c.assets.map((a) => ({
+                ...a,
+                [field]: field === "byteSize" ? a.byteSize + 1 : "drift",
+              })),
+            }
+          : c,
+      );
+      await expect(
+        projectFontMatchingRuntimeArtifactStatus({
+          verifiedBundle,
+          installedCandidates,
+          reverifyInstalledAssetBytes: false,
+        }),
+      ).resolves.toMatchObject({
+        state: "disabled",
+        automaticMutationAllowed: false,
+      });
+    },
+  );
   it("returns calibrated ready status for a fully verified dynamic bundle", async () => {
     const bundle = await writeBundle();
 

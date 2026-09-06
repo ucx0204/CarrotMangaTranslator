@@ -1,3 +1,5 @@
+import { verifyAdditionalFontFiles } from "./fontCatalogReferenceExtension";
+import type { AutoMatchActiveCandidateSelection } from "./autoMatchActiveCatalogTypes";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import { isDemotedBlockFontId } from "../../shared/demotedBlockFonts";
 
@@ -43,4 +45,29 @@ export function retiredClassifierChannel(
     defaultFont: false,
     preferenceRank: 1000,
   };
+}
+
+/** Validate actual new faces before exposing the current render palette. */
+export function reviseFontMatchingSelection(
+  selection: AutoMatchActiveCandidateSelection,
+  builtInCandidates: readonly AutomaticFontCandidate[],
+  roots: readonly string[],
+): AutoMatchActiveCandidateSelection {
+  verifyAdditionalFontFiles(roots);
+  const renderCandidates = [
+    ...selection.candidates.filter(
+      (font) => !isDemotedBlockFontId(font.fontId),
+    ),
+    ...builtInCandidates.filter((font) =>
+      ADDED_MATCHING_FONT_IDS.some((id) => id === font.fontId),
+    ),
+  ];
+  if (
+    !isRevisedFontCatalog(
+      selection.candidates.map((c) => c.fontId),
+      renderCandidates.map((c) => c.fontId),
+    )
+  )
+    throw new Error("Current font palette is incomplete.");
+  return { ...selection, renderCandidates };
 }

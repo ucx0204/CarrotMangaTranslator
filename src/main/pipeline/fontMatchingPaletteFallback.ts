@@ -8,10 +8,16 @@ import { loadCrossScriptProxyRuntimeModel } from "./fontMatchingCrossScriptProxy
 import { loadFontExpressionModel } from "./fontMatchingExpressionRuntime";
 import { completeFontPaletteInference } from "./fontMatchingPaletteInference";
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
-import { isKoreanLanguageCode } from "../../shared/translationLanguages";
+import {
+  createDefaultFontMatchingPageInferencePort,
+  sameCandidateSnapshot,
+  emptyResult,
+  disabled,
+} from "./fontMatchingPagePixelInference";
+import { resolveCrossScriptProxyRuntimeDir } from "./fontMatchingCrossScriptProxyPaths";
 
 /** The in-process recovery path uses the same palette, pixels, and native sessions as the worker. */
-export function createFontPaletteFallback(options: {
+function createFontPaletteFallback(options: {
   base: FontMatchingPageInferencePort;
   loadSelection: () => AutoMatchActiveCandidateSelection;
   proxyDirectory: () => string;
@@ -25,8 +31,6 @@ export function createFontPaletteFallback(options: {
   return {
     async inferPage(request) {
       if (disposed) throw new Error("Font palette fallback is disposed.");
-      if (!isKoreanLanguageCode(request.targetLanguage))
-        return options.base.inferPage(request);
       const selection = options.loadSelection();
       if (!selection.renderCandidates) return options.base.inferPage(request);
       const invalid = options.validateCatalog(request, selection);
@@ -86,4 +90,22 @@ async function loadResources(directory: string) {
     ]);
     throw error;
   }
+}
+
+/** Called after the worker client's Korean/user-page boundary check. */
+export function createDefaultFontPaletteInferencePort(
+  options: Parameters<typeof createDefaultFontMatchingPageInferencePort>[0],
+): FontMatchingPageInferencePort {
+  return createFontPaletteFallback({
+    base: createDefaultFontMatchingPageInferencePort(options),
+    loadSelection: () => options.loadSelection("ko"),
+    proxyDirectory: () => resolveCrossScriptProxyRuntimeDir(options.paths),
+    validateCatalog: (request, selection) =>
+      sameCandidateSnapshot(
+        request.candidates,
+        selection.renderCandidates ?? selection.candidates,
+      )
+        ? null
+        : emptyResult(disabled("catalog_mismatch")),
+  });
 }

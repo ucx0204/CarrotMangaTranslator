@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import type { InstalledAutoMatchCandidate } from "./autoMatchActiveCatalogTypes";
 
-export async function verifyInstalledAssetBytes(
+async function verifyInstalledAssetBytes(
   asset: InstalledAutoMatchCandidate["assets"][number],
 ): Promise<boolean> {
   try {

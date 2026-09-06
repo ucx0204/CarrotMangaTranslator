@@ -1,3 +1,4 @@
+import { createDefaultFontPaletteInferencePort } from "./fontMatchingPaletteFallback";
 /**
  * Font matching inference worker client — FontMatchingPageInferencePort 구현.
  *
@@ -30,7 +31,6 @@ import type {
   SerializedError,
 } from "./fontMatchingInferenceWorker";
 import {
-  createDefaultFontMatchingPageInferencePort,
   resolveFontMatchingOrtWasmAssets,
   assertUserPageBoundary,
   sameCandidateSnapshot,
@@ -163,7 +163,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
     if (!this.fallbackPort) {
       this.fallbackPort = this.deps.createFallbackPort
         ? this.deps.createFallbackPort()
-        : createDefaultFontMatchingPageInferencePort({
+        : createDefaultFontPaletteInferencePort({
             paths: this.deps.paths as AppPaths,
             loadSelection: this.deps.loadSelection as (
               locale: UiLocale,
@@ -183,9 +183,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
     if (!pending || pending.settled) return;
     pending.settled = true;
     this.pendingInfers.delete(id);
-    if (pending.signal) {
-      pending.signal.removeEventListener("abort", pending.onAbort);
-    }
+    pending.signal?.removeEventListener("abort", pending.onAbort);
     if (action === "resolve") {
       pending.resolve(
         value as ReadonlyMap<string, VerifiedAutomaticFontPixelInferenceV2>,

@@ -39,3 +39,14 @@ export function sanitizeFontLabel(raw: string): string {
     .slice(0, 60);
   return cleaned || "사용자 폰트";
 }
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+export function normalizeFontUuid(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const id = value.toLowerCase();
+  return UUID_PATTERN.test(id) ? id : null;
+}

@@ -11,21 +11,22 @@ import { hasVerifiedCrossScriptProxyInference } from "./automaticFontMatchingV2C
 import { rankFontMatchingV2Candidates } from "./automaticFontMatchingV2Ranking";
 
 export function resolveFontPaletteEvidence(options: {
-  originalCandidates: readonly RankedFontCandidateV2[];
   candidates: readonly AutomaticFontCandidate[];
   locale: UiLocale;
   role: FontMatchRolePredictionV2;
   block: TranslationBlock;
   pixelInference: VerifiedAutomaticFontPixelInferenceV2 | null;
 }) {
-  const {
-    originalCandidates,
-    candidates,
-    locale,
-    role,
-    block,
-    pixelInference,
-  } = options;
+  const { candidates, locale, role, block, pixelInference } = options;
+  const originalCandidates =
+    pixelInference?.localEvidence.rankedCandidates ??
+    rankFontMatchingV2Candidates({
+      candidates,
+      locale,
+      profile: null,
+      role,
+      userDefaultFontId: block.fontFamily,
+    });
   return pixelInference?.catalogRevision === FONT_CATALOG_REVISION
     ? projectFontPaletteEvidence(
         originalCandidates,

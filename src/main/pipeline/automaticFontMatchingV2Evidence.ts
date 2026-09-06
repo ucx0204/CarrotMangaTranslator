@@ -10,7 +10,6 @@ import { assessAutomaticFontTranslations } from "./automaticFontMatchingV2Candid
 import { resolveFontMatchingV2CatalogVersion } from "./automaticFontMatchingV2Catalog";
 import { applyAutomaticFontChapterBodyPrior } from "./automaticFontMatchingV2ChapterPrior";
 import { applyAutomaticFontPageConsistency } from "./automaticFontMatchingV2PageConsistency";
-import { rankFontMatchingV2Candidates } from "./automaticFontMatchingV2Ranking";
 import type { FontMatchingWorkStateV2 } from "./fontMatchingDecisionV2Types";
 import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePixelInferenceTypes";
 import type { FontMatchingRuntimePolicy } from "./fontMatchingRuntimePolicyContract";
@@ -42,17 +41,7 @@ export function prepareAutomaticFontEvidence({
   rankedCandidates: readonly RankedFontCandidateV2[];
   translationAssessments: ReturnType<typeof assessAutomaticFontTranslations>;
 } {
-  const originalCandidates =
-    pixelInference?.localEvidence.rankedCandidates ??
-    rankFontMatchingV2Candidates({
-      candidates,
-      locale,
-      profile: null,
-      role,
-      userDefaultFontId: block.fontFamily,
-    });
   const localCandidates = resolveFontPaletteEvidence({
-    originalCandidates,
     candidates,
     locale,
     role,
@@ -64,17 +53,20 @@ export function prepareAutomaticFontEvidence({
     candidates,
     pixelInference,
   );
+  const common = {
+    catalogVersion: resolveFontMatchingV2CatalogVersion(candidates),
+    translationAssessments: assessAutomaticFontTranslations(
+      candidates,
+      block.translatedText,
+    ),
+  };
   if (crossScriptCandidates) {
     const style = resolveAutomaticFontExpression(pixelInference, candidates);
     return {
-      catalogVersion: resolveFontMatchingV2CatalogVersion(candidates),
+      ...common,
       rankedCandidates: applyFontExpressionRanking(
         crossScriptCandidates,
         style,
-      ),
-      translationAssessments: assessAutomaticFontTranslations(
-        candidates,
-        block.translatedText,
       ),
     };
   }
@@ -95,14 +87,10 @@ export function prepareAutomaticFontEvidence({
       )
     : priorAdjustedCandidates;
   return {
-    catalogVersion: resolveFontMatchingV2CatalogVersion(candidates),
+    ...common,
     rankedCandidates: applyAutomaticFontPageConsistency(
       roleAdjustedCandidates,
       workState,
-    ),
-    translationAssessments: assessAutomaticFontTranslations(
-      candidates,
-      block.translatedText,
     ),
   };
 }

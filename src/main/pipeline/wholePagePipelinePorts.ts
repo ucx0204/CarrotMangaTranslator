@@ -1,6 +1,4 @@
-import { isDemotedBlockFontId } from "../../shared/demotedBlockFonts";
-import { ADDED_MATCHING_FONT_IDS } from "./fontMatchingCatalogRevision";
-import { verifyAdditionalFontFiles } from "./fontCatalogReferenceExtension";
+import { reviseFontMatchingSelection } from "./fontMatchingCatalogRevision";
 import { join } from "node:path";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { getAppPaths, type AppPaths } from "../appPaths";
@@ -89,18 +87,11 @@ export function createDefaultWholePagePipelineDependencies(
       targetLocale: locale,
     });
     const roots = resolveBuiltInFontMatchingAssetRoots();
-    verifyAdditionalFontFiles(roots);
-    const currentSelection = {
-      ...selection,
-      renderCandidates: [
-        ...selection.candidates.filter(
-          (font) => !isDemotedBlockFontId(font.fontId),
-        ),
-        ...builtInCandidates.filter((font) =>
-          ADDED_MATCHING_FONT_IDS.some((id) => id === font.fontId),
-        ),
-      ],
-    };
+    const currentSelection = reviseFontMatchingSelection(
+      selection,
+      builtInCandidates,
+      roots,
+    );
     selectionByLocale.set(locale, currentSelection);
     return currentSelection;
   };

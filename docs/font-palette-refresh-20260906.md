@@ -8,6 +8,7 @@
 - 공개 자동 후보는 기존 목록에서 세 폰트를 빼고 새 세 폰트를 더한 목록이다. `korean-palette-20260906-v1` revision을 가진 추론만 이 목록 차이를 통과한다. 분류기 순서·모델·local evidence 검증은 유지한다.
 - 기존 cross-script generator가 생성한 한국어 glyph를 **실제 새 폰트로 렌더한 참조 glyph**와 비교한다. 기존 유지 face의 bank bytes는 그대로 복사한다. 신라문화체는 실제 500/700 두 face를 비교한다. 과거 출력 채널의 이름만 새 폰트로 바꾸지 않는다.
 - worker와 in-process fallback은 `completeFontPaletteInference`를 공유한다. 새 후보는 검증된 시각 proxy가 없으면 선택 불가다. 수동 서식 잠금, 번역 coverage, 사용자 외곽선은 기존 gateway가 적용한다.
+- 실제 native runtime에서 유지한 기존 38개 face의 bank bytes가 원본과 같음을 확인했다. P002 5블록의 worker/fallback proxy 결과는 모든 순위·점수·face가 완전히 동일했고, 후보가 누락된 fallback 요청은 `catalog_mismatch`로 거부됐다. receipt: lab `confirmation-005/c12-current-palette/runtime-parity-receipt.json`.
 - 기준 참조는 `src/main/pipeline/fontCatalogReferenceExtension.json`. 4 faces × 24 glyphs × 96 × 96, 884,736 bytes, SHA-256 `7726bdc2cf84069d268168feb953eed7bd53c921434fd1d9d533c58381cb849e`다. 외부 학습 데이터나 사용자 판정을 새 학습 정답으로 사용하지 않았다. 재훈련 대신 참조 bank를 확장했다.
 
 재현: `python -X utf8 scripts/build_font_palette_reference_extension.py --check`. 기존 proxy trainer의 `_render_glyph`와 고정 glyph 순서를 그대로 사용한다. fontTools/Pillow/NumPy 및 기존 trainer 의존성이 필요하다. 출력 압축 바이트가 달라도 해제한 bank와 전체 metadata가 같아야 한다.
@@ -31,6 +32,10 @@
 **배포 시 주의:** 앱 릴리스는 이번 작업 범위가 아니다. 이전 installer를 덮어써 `app.asar`를 없애기 전에 이전 번들 파일을 보존할 수 있는 업그레이드 단계가 필요하다. 기존 설치의 원본이 사라진 뒤 새 버전을 처음 실행하면 없는 파일을 복원하거나 다운로드하지 않는다.
 
 ## 검증과 한계
+
+- 메인 작업 트리에서 `npm run check`의 26개 gate가 모두 통과했다. 653개 테스트 파일, 5,283개 테스트 통과/2개 플랫폼 조건 skip, 타입·린트·아키텍처·coverage floor·빌드·출력 pixel parity·이미지 protocol smoke 포함이다. 로그: 메인 `.tmp/font-palette-refresh-check-9.log`.
+- 기존 coverage floor는 낮추지 않았다. 새 보호 대상 기존 파일 8개는 원래 node22 baseline에서, 새 실행 파일 7개는 이번 최종 Windows 측정에서 floor를 가져왔다. 과거 `introducedArtifact`의 경로·SHA와 기존 407개 floor는 유지했다. 새 7개 측정 근거는 `.tmp/font-palette-refresh-coverage-final-node26.json`, SHA-256 `0380a37ba576b942c85a1712ca47db6ff38ae0a809580ba0f496dd1cc5de55d0`다. native 별도 smoke는 V8 단위 테스트 coverage와 구분한다.
+- 빌드 결과의 새 TTF 네 파일이 원본 SHA와 일치하고, 제거한 세 TTF가 `out/renderer/assets/fonts`에 남아 있지 않음을 확인했다. 사용자 `fonts`의 세 보존 파일은 이전 원본 SHA와 일치한다. 메인 `.tmp/font-palette-refresh-bundle-receipt.json`.
 
 - 실제 FontManagerModal과 FontsContext로 1440×1000 및 600×950 캡처를 직접 확인했다. 새 세 폰트와 제거 가능한 일반 폰트 세 개, 내부 스크롤, 좁은 폭 줄바꿈/버튼 배치가 정상이다. 임시 QA 엔트리와 PNG는 확인 후 제거했다. 실행 로그는 lab `.tmp/font-catalog-refresh/qa-*.log`.
 - migration/기존 블록 alias/없는 폰트/실제 폰트 bytes/빈 glyph coverage 검증을 추가했다. 새 세 폰트 각각에 대해 proxy 우승이 실제 decision/style까지 도달하고 revision 누락·후보 중복·분류기 evidence 유실은 거부되는 테스트를 추가했다.

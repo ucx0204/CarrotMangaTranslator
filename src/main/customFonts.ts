@@ -33,13 +33,12 @@ import { getAppPaths } from "./appPaths";
 import {
   assertFontFileLooksValid,
   sanitizeFontLabel,
+  normalizeFontUuid,
 } from "./customFontFileValidation";
 import { logError } from "./logger";
 
 export const ALLOWED_EXTENSIONS = new Set([".ttf", ".otf"]);
 const MAX_FONTS = 200;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export type CustomFontLibraryDependencies = {
   getFontsDirectory: () => string;
@@ -109,14 +108,6 @@ export function isPathInside(rootPath: string, targetPath: string): boolean {
   );
 }
 
-function normalizeUuid(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const id = value.toLowerCase();
-  return UUID_PATTERN.test(id) ? id : null;
-}
-
 function isSafeFontFileName(id: string, fileName: string): boolean {
   if (!fileName || fileName.includes("\0") || basename(fileName) !== fileName) {
     return false;
@@ -143,7 +134,7 @@ function normalizeCustomFont(value: unknown): CustomFont | null {
     return null;
   }
   const font = value as Record<string, unknown>;
-  const id = normalizeUuid(font.id);
+  const id = normalizeFontUuid(font.id);
   if (
     !id ||
     typeof font.label !== "string" ||
@@ -387,7 +378,7 @@ function removeCustomFontWith(
   dependencies: CustomFontLibraryDependencies,
   id: string,
 ): CustomFont[] {
-  const normalizedId = normalizeUuid(resolveDemotedBlockFontId(id));
+  const normalizedId = normalizeFontUuid(resolveDemotedBlockFontId(id));
   if (!normalizedId) {
     return listCustomFontsWith(dependencies);
   }
@@ -427,15 +418,13 @@ function resolveCustomFontFilePathWith(
   dependencies: CustomFontLibraryDependencies,
   id: string,
 ): string | null {
-  const normalizedId = normalizeUuid(resolveDemotedBlockFontId(id));
+  const normalizedId = normalizeFontUuid(resolveDemotedBlockFontId(id));
   if (!normalizedId) {
     return null;
   }
   const font = listCustomFontsWith(dependencies).find(
     (candidate) => candidate.id === normalizedId,
   );
-  if (!font) {
-    return null;
-  }
+  if (!font) return null;
   return resolveExistingFontFilePath(font, fontsDir(dependencies));
 }

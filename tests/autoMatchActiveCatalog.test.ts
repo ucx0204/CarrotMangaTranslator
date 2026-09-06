@@ -34,6 +34,37 @@ afterEach(() => {
 });
 
 describe("active auto-match catalog", () => {
+  it("keeps a retired classifier identity without requiring or installing its font file", () => {
+    const fixture = makeFixture();
+    const record = JSON.parse(
+      readFileSync(fixture.catalogPath, "utf8").replaceAll(
+        "font-a",
+        "single-day",
+      ),
+    ) as Record<string, unknown>;
+    record.candidate_order_sha256 = sha256("single-day\nfont-b\n");
+    writeFileSync(fixture.catalogPath, JSON.stringify(sealRecord(record)));
+    rmSync(fixture.assetPaths["font-a"]);
+    const selected = loadAutoMatchActiveCandidateSelectionWith({
+      activeCatalogPath: fixture.catalogPath,
+      builtInCandidates: fixture.builtInCandidates,
+      dependencies: fixture.dependencies,
+      targetLocale: "ko",
+    });
+    expect(selected.candidates[0]).toMatchObject({
+      fontId: "single-day",
+      supportedLocales: [],
+      unicodeRanges: [],
+    });
+    expect(selected.installedCandidates[0]).toEqual({
+      candidateId: "single-day",
+      referenceOnly: true,
+      assets: [],
+    });
+    expect(readdirSync(join(fixture.dependencies.assetRoots[0], "ko"))).toEqual(
+      [],
+    );
+  });
   it("orders only built-in candidates by the sealed active vocabulary", () => {
     const fixture = makeFixture();
     const selection = loadAutoMatchActiveCandidateSelectionWith({
