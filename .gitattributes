@@ -2,3 +2,5 @@
 *.pdf binary
 # Published font runtime inventory binds exact bytes, including CRLF.
 src/main/runtime/font-matching-crossscript-proxy/runtime-manifest.json -text
+# C18 verifies the frozen Python sources by their exact producer bytes.
+src/main/runtime/font-chapter-c18/*.py -text
