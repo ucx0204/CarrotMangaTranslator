@@ -27,7 +27,7 @@ describe("C18 chapter pipeline integration", () => {
         fontWeight: 400,
         italic: false,
         groupId: "chapter-source-1",
-        runtimeVersion: "c18.1",
+        runtimeVersion: "c23.0",
       });
     });
     const { runWholePagePipeline, runtime } = await loadPipeline({

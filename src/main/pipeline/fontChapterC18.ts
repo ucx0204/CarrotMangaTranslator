@@ -21,7 +21,7 @@ import type {
 import { logPipelineInfo } from "./pipelineLogger";
 
 const resultSchema = z.object({
-  version: z.literal("c18.1"),
+  version: z.literal("c23.0"),
   choices: z.array(
     z.object({
       key: z.string(),
@@ -50,7 +50,7 @@ async function prepareChapter(
   );
   const first = selected[0];
   if (!first) return undefined;
-  const assets = join(paths.dataRoot, "font-chapter-c18/v1");
+  const assets = join(paths.dataRoot, manifest.assetDirectory);
   // Missing installation is an explicit failure, never an old-font success.
   await access(join(assets, "ownership.json"));
   const input = await buildFontChapterC18Input(selected, signal);
@@ -121,7 +121,7 @@ function bindChoices(
       fontWeight: choice.fontWeight,
       italic: choice.italic,
       groupId: choice.groupId,
-      runtimeVersion: "c18.1",
+      runtimeVersion: "c23.0",
     });
     pages.set(identity.pageId, page);
   }

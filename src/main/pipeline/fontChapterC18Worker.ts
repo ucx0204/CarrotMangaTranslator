@@ -1,6 +1,7 @@
 import { delimiter, join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import type { TranslationOptions } from "../appSettings";
+import manifest from "./fontChapterC18Manifest.json";
 import { loadSimplePageRuntime } from "../simplePageRuntime";
 import { loadRuntimeModuleFromDirectory } from "../runtimeModuleLoader";
 import {
@@ -40,7 +41,7 @@ export async function launchFontChapterC18Worker(
       ...env,
       C18_HAYAI_PYTHONPATH: env.PYTHONPATH ?? "",
       PYTHONPATH: [
-        join(paths.dataRoot, "font-chapter-c18/v1/python-packages"),
+        join(paths.dataRoot, manifest.assetDirectory, "python-packages"),
         env.PYTHONPATH,
       ]
         .filter(Boolean)

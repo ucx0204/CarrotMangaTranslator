@@ -20,7 +20,7 @@ const style: FontChapterC18Style = {
   fontWeight: 400,
   italic: false,
   groupId: "source-group",
-  runtimeVersion: "c18.1",
+  runtimeVersion: "c23.0",
 };
 
 function run({ available = true, locked = false, enabled = true } = {}) {

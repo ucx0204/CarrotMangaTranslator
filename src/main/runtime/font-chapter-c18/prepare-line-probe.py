@@ -36,7 +36,7 @@ def runs(active):
     return list(zip(np.flatnonzero(changes == 1), np.flatnonzero(changes == -1)))
 
 
-def source_lines(image, candidate):
+def source_lines(image, candidate, dark_core=False):
     box = candidate["bbox"]
     left, top = max(0, math.floor(box["x1"])), max(0, math.floor(box["y1"]))
     right, bottom = min(image.width, math.ceil(box["x2"])), min(image.height, math.ceil(box["y2"]))
@@ -44,9 +44,14 @@ def source_lines(image, candidate):
     if face < 6 or right <= left or bottom <= top:
         return [], "insufficient_scale"
     gray = np.array(image.crop((left, top, right, bottom)).convert("L"))
-    _, mask = cv2.threshold(gray, 0, 1, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    if mask.mean() > 0.5:
-        mask = 1 - mask
+    if dark_core:
+        # C23 uses this mask only for line positions. OCR, glyph verification,
+        # style inference and rendering still consume the unfiltered source.
+        mask = (cv2.medianBlur(gray, 3) < 64).astype(np.uint8)
+    else:
+        _, mask = cv2.threshold(gray, 0, 1, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        if mask.mean() > 0.5:
+            mask = 1 - mask
     vertical = candidate["direction"] == "vertical"
     oriented = mask if vertical else mask.T
     # Require repeated occupied positions so a small ruby or isolated artifact
@@ -93,11 +98,16 @@ def short_box_scale(candidate):
     return face if face >= 6 else None
 
 
-def build(chapter, output, repair_missing_scale=False):
+def build(chapter, output, repair_missing_scale=False, *, only_keys=None, dark_core=False):
     output.mkdir(parents=True, exist_ok=False)
     baseline_path = chapter / "ocr-baseline/baseline-report.json"
     report = json.loads(baseline_path.read_text(encoding="utf-8"))
     policy = {**POLICY, "id": "short-box-scale-hayai-probe-s11", "scope": "Only missing-scale blocks with 2-4 Japanese characters and compatible bbox aspect. Geometry hint proposes an OCR probe; it is not a font measurement or evidence acceptance."} if repair_missing_scale else POLICY
+    if dark_core:
+        if only_keys is None or repair_missing_scale:
+            raise ValueError("C23 line recovery requires an explicit zero-glyph inventory")
+        policy = {**POLICY, "id": "c23-zero-glyph-dark-core-positions",
+                  "purpose": "Only location proposals; exact raw pixels feed line/glyph OCR. No product font candidate labels."}
     manifest = {"policy": policy, "baselineSha256": hashlib.sha256(baseline_path.read_bytes()).hexdigest(),
                 "scriptSha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "blocks": []}
     batches = []
@@ -109,12 +119,14 @@ def build(chapter, output, repair_missing_scale=False):
         draw = ImageDraw.Draw(overlay)
         regions = []
         for candidate in entry["candidates"]:
+            if only_keys is not None and pid + "/" + candidate["candidateId"] not in only_keys:
+                continue
             hint = short_box_scale(candidate) if repair_missing_scale else None
             if repair_missing_scale:
                 if hint is None:
                     continue
                 candidate = {**candidate, "estimate": {**(candidate.get("estimate") or {}), "facePx": hint}}
-            boxes, reason = source_lines(image, candidate)
+            boxes, reason = source_lines(image, candidate, dark_core)
             record = {"key": pid + "/" + candidate["candidateId"], "sourceText": candidate["sourceText"],
                       "direction": candidate["direction"], "reason": reason, "lines": []}
             if hint is not None:

@@ -2266,6 +2266,18 @@
       "status": "frozen S6+C13 fresh-chapter rotation in progress; never eligible for fresh reuse",
       "report": "docs/font-palette-lab-fresh-chapters-001.json",
       "sourceRegistry": "C:\\Users\\sam40\\Downloads\\망가번역기-font-palette-lab-20260905\\docs\\font-size-ai-lab-used-chapters.json"
+    },
+    {
+      "chapter": "Chapter 10.3",
+      "experimentsUsed": 1,
+      "key": "Rawkuma (JA)/Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru – Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita/Chapter 10.3",
+      "normalizedKey": "rawkuma (ja)/kurobuta ouji wa zense wo omoi da shite kaishin suru – akuyaku chara ni tensei shita no de shibou end kara nigete itara saikyou ni natte ita/chapter 10.3",
+      "pageCount": 10,
+      "provider": "Rawkuma (JA)",
+      "sealedAt": "2026-09-06T06:03:09.840Z",
+      "seed": "07b70f923a25ad02dbfc806b2616ba211d9746545a2b43220b7d3eef494ab963",
+      "series": "Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru – Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita",
+      "status": "sealed-before-visual-inspection"
     }
   ]
 }

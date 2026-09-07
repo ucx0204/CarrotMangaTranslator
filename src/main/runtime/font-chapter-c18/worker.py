@@ -103,12 +103,28 @@ def execute(request):
     hayai(chapter / 'aligned-glyphs/batch.json', request)
     module('group-verified-glyphs').run(chapter, chapter / 'aligned-glyphs', chapter / 'verified-glyphs')
     module('refine-line-supported-glyphs').run(chapter, chapter / 'aligned-glyphs', chapter / 'verified-glyphs', chapter / 'line-supported')
-    module('group-source-metric').run(chapter, chapter / 'line-supported', assets / 'source-metric', chapter / 'source-groups-s5')
-    module('pool-source-groups').run(chapter / 'source-groups-s5', chapter / 'line-supported', chapter / 'source-groups-s6')
+    supported = recover_source_evidence(chapter, assets, request)
+    module('group-source-metric').run(chapter, supported, assets / 'source-metric', chapter / 'source-groups-s5')
+    module('pool-source-groups').run(chapter / 'source-groups-s5', supported, chapter / 'source-groups-s6')
     prediction = chapter / 'source-region-predictions.json'
     module('infer-source-region-chapter').run(chapter, assets / 'source-region', prediction, None)
-    module('assign-coherent-source-palette').run(chapter, prediction, chapter / 'source-groups-s6/groups.json', chapter / 'line-supported', chapter / 'selected')
+    module('assign-coherent-source-palette').run(chapter, prediction, chapter / 'source-groups-s6/groups.json', supported, chapter / 'selected')
     return {'choices': read(chapter / 'selected/choices.json')['choices'], 'version': manifest['version'], 'output': str(chapter)}
+
+
+def recover_source_evidence(chapter, assets, request):
+    supported = chapter / 'line-supported'
+    zero_keys = {b['key'] for b in read(supported / 'analysis.json')['blocks'] if not b['glyphs']}
+    if not zero_keys:
+        return supported
+    recovery = chapter / 'recovery'
+    module('prepare-line-probe').build(chapter, recovery / 'line-probe', only_keys=zero_keys, dark_core=True)
+    hayai(recovery / 'line-probe/batch.json', request)
+    module('align-hayai-glyphs').run(chapter, recovery / 'line-probe', assets, recovery / 'aligned', [])
+    hayai(recovery / 'aligned/batch.json', request)
+    module('group-verified-glyphs').run(chapter, recovery / 'aligned', recovery / 'verified')
+    module('recover-zero-glyph-evidence').run(chapter, recovery / 'aligned', recovery / 'verified', recovery / 'line-supported')
+    return recovery / 'line-supported'
 
 
 def serve():

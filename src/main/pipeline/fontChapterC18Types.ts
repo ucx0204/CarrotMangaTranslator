@@ -4,7 +4,7 @@ import type { TranslationOptions } from "../appSettings";
 import type { OverlayItem } from "./types";
 
 export type FontChapterC18Style = FontStyleSelectionV2 & {
-  runtimeVersion: "c18.1";
+  runtimeVersion: "c23.0";
   groupId: string;
 };
 

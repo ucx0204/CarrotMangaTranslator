@@ -51,7 +51,7 @@ def main():
     source = args.source.resolve()
     manifest = read(MANIFEST)
     files = verify(source, manifest)
-    target = (args.data_root.resolve() / 'font-chapter-c18/v1'
+    target = (args.data_root.resolve() / manifest['assetDirectory']
               if args.data_root else source)
     if target != source:
         if target.exists():

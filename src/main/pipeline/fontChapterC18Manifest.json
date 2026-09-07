@@ -1,6 +1,6 @@
 {
-  "version": "c18.1",
-  "source": "C18 approved on confirmation-010; exact source grouping/palette, CPU reference arithmetic. No evaluation labels. Local installation; not a published app release.",
+  "version": "c23.0",
+  "source": "C23 user-approved after confirmation-014 whole-chapter comparison. Preserve C18 models, grouping and palette; recover raw Hayai evidence only in zero-glyph regions. Local app integration, not a published app release.",
   "files": [
     {
       "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/source-manifest.json",
@@ -450,63 +450,57 @@
   ],
   "runtimeSources": [
     {
-      "path": "analyze-matched-glyphs.py",
-      "producerSha256": "0d9a96b962361b7b4669235dcabffab1521faaecc74e7436840b0c4f0f6ef374",
-      "sha256": "0d9a96b962361b7b4669235dcabffab1521faaecc74e7436840b0c4f0f6ef374"
-    },
-    {
-      "path": "japanese-probe-profile.py",
-      "producerSha256": "7c207016a0633a43d29d0ac6f0215774f27560b39d2fb072535a137589e835c0",
-      "sha256": "7c207016a0633a43d29d0ac6f0215774f27560b39d2fb072535a137589e835c0"
-    },
-    {
-      "path": "prepare-line-probe.py",
-      "producerSha256": "ad8ce070e6a9bbfb12c6d3744c03d53453671c349c443d891389dc9304eca39d",
-      "sha256": "ad8ce070e6a9bbfb12c6d3744c03d53453671c349c443d891389dc9304eca39d"
-    },
-    {
       "path": "align-hayai-glyphs.py",
-      "producerSha256": "ea5ad92372f1bc09694c7d97484d8c5dcd8429e6445a6f1ded2bb17a94a4f296",
       "sha256": "08c24481de486720ddd4071c1cd842cd92667b67cb0e17fe53a37a90cdc7898a"
     },
     {
-      "path": "group-verified-glyphs.py",
-      "producerSha256": "900ae23e5b18c782ab886d7393e146520b112e161b489482c805220e1275ac2f",
-      "sha256": "900ae23e5b18c782ab886d7393e146520b112e161b489482c805220e1275ac2f"
-    },
-    {
-      "path": "refine-line-supported-glyphs.py",
-      "producerSha256": "e107fa9910125a58ae50a19ebc35eea67e0a4fef8485aebdf12a6ddbca047d14",
-      "sha256": "e107fa9910125a58ae50a19ebc35eea67e0a4fef8485aebdf12a6ddbca047d14"
-    },
-    {
-      "path": "group-source-metric.py",
-      "producerSha256": "bcdabdaa5285064b73ab53bbf26db53e6b688b76df03d8b5e79862e61a168e12",
-      "sha256": "bcdabdaa5285064b73ab53bbf26db53e6b688b76df03d8b5e79862e61a168e12"
-    },
-    {
-      "path": "pool-source-groups.py",
-      "producerSha256": "4f98be69111cb2830180cc0e7e0db81722097fca20c3815b482238508684adfa",
-      "sha256": "da37f2905e3cd9d555ec84782ce1df3aa86eba828c9bda96a1660ae06a155631"
-    },
-    {
-      "path": "assign-source-region-palette.py",
-      "producerSha256": "45f09bf9f5bdd0dcd7a9ca8b9259a6d5d1b7524346656dfcf4410bb2a4f85cea",
-      "sha256": "45f09bf9f5bdd0dcd7a9ca8b9259a6d5d1b7524346656dfcf4410bb2a4f85cea"
+      "path": "analyze-matched-glyphs.py",
+      "sha256": "0d9a96b962361b7b4669235dcabffab1521faaecc74e7436840b0c4f0f6ef374"
     },
     {
       "path": "assign-coherent-source-palette.py",
-      "producerSha256": "ae2d7caa4acecea21822502f05b345196243155295e017a4bcd7248c9b8435b0",
       "sha256": "c9358a38f82eb4aeecaccb63c61e23e9a2170fcb0ebdf40cbc481f4b332d8b5d"
     },
     {
+      "path": "assign-source-region-palette.py",
+      "sha256": "45f09bf9f5bdd0dcd7a9ca8b9259a6d5d1b7524346656dfcf4410bb2a4f85cea"
+    },
+    {
+      "path": "group-source-metric.py",
+      "sha256": "bcdabdaa5285064b73ab53bbf26db53e6b688b76df03d8b5e79862e61a168e12"
+    },
+    {
+      "path": "group-verified-glyphs.py",
+      "sha256": "900ae23e5b18c782ab886d7393e146520b112e161b489482c805220e1275ac2f"
+    },
+    {
       "path": "infer-source-region-chapter.py",
-      "producerSha256": "0bbdc92e83340f3cf2a35ec6394c92ac90bd443fa4277dc8b2543e4205f89dec",
       "sha256": "0bbdc92e83340f3cf2a35ec6394c92ac90bd443fa4277dc8b2543e4205f89dec"
     },
     {
+      "path": "japanese-probe-profile.py",
+      "sha256": "7c207016a0633a43d29d0ac6f0215774f27560b39d2fb072535a137589e835c0"
+    },
+    {
+      "path": "pool-source-groups.py",
+      "sha256": "da37f2905e3cd9d555ec84782ce1df3aa86eba828c9bda96a1660ae06a155631"
+    },
+    {
+      "path": "prepare-line-probe.py",
+      "sha256": "c3e70a1f59fd9a4fb462fb5563fc2c8f2519395ecc8be88e03760ce1f5828e7c"
+    },
+    {
+      "path": "recover-zero-glyph-evidence.py",
+      "sha256": "73ac49525b28db1c500449424fa5cff68469b99b840dd6d3b2dc42b7c5fc55fe"
+    },
+    {
+      "path": "refine-line-supported-glyphs.py",
+      "sha256": "e107fa9910125a58ae50a19ebc35eea67e0a4fef8485aebdf12a6ddbca047d14"
+    },
+    {
       "path": "worker.py",
-      "sha256": "217900ef829c1959ae4ca991a6e071ed5fe35aa4a3c06053cd168201fce8d7ff"
+      "sha256": "ac43c2aa7c5e0571b0e75e37fca2fb47140b5a35b112870ac7616c8f382efbf0"
     }
-  ]
+  ],
+  "assetDirectory": "font-chapter-c18/c23-v1"
 }
