@@ -206,6 +206,7 @@ function resolveDefaultCodexSettings(
   env: NodeJS.ProcessEnv,
 ): AppSettings["codex"] {
   return {
+    delegateAll: false,
     model: resolveNonEmptyString(
       env.MANGA_TRANSLATOR_CODEX_MODEL,
       DEFAULT_CODEX_MODEL,

@@ -59,6 +59,11 @@ export function PageBlockListRow({
         onMoveLater={onMoveLater}
         onOpenEditor={onOpenEditor}
       />
+      {expanded && block.reviewStatus === "needs_review" && block.reviewNote ? (
+        <p className="page-block-review-note">
+          {reviewNoteMessage(block.reviewNote)}
+        </p>
+      ) : null}
       {expanded ? (
         <PageBlockTextFields
           block={block}
@@ -71,6 +76,30 @@ export function PageBlockListRow({
       )}
     </article>
   );
+}
+
+function reviewNoteMessage(note: string): string {
+  try {
+    const items: unknown = JSON.parse(note);
+    if (
+      Array.isArray(items) &&
+      items.length &&
+      items.every(
+        (item: unknown) =>
+          item !== null &&
+          typeof item === "object" &&
+          "reason" in item &&
+          typeof item.reason === "string",
+      )
+    )
+      return [
+        ...new Set(items.map((item: { reason: string }) => item.reason)),
+      ].join("\n");
+  } catch (error) {
+    if (error instanceof SyntaxError) return note;
+    throw error;
+  }
+  return note;
 }
 
 function PageBlockCompactSummary({

@@ -95,6 +95,16 @@ export type TranslationBlock = {
   bubbleLayout?: BubbleLayout;
   sourceText: string;
   translatedText: string;
+  /** Portable, independently movable ImageGen lettering. Editing the text reveals the editable font fallback. */
+  generatedLettering?: {
+    maskStrokes?: import("./generatedLetteringMaskTypes").LetteringMaskStroke[];
+    occlusionPolygons?: Point[][];
+    version: 1;
+    enabled?: boolean;
+    dataUrl: string;
+    translatedText: string;
+    sourceText: string;
+  };
   /** Persisted visual role so keep-block retranslations do not guess by length. */
   textRole?: "ordinary" | "sound";
   /** V2 visual typography intent, persisted for stable retranslations. */

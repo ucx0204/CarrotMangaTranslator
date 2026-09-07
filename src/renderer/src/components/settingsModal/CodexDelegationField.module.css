@@ -1,0 +1,8 @@
+.setting {
+  margin-block-start: 16px;
+  padding-block: 16px;
+  border-block-start: 1px solid var(--border);
+}
+.setting strong {
+  color: var(--accent-hi);
+}

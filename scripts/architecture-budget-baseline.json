@@ -6,7 +6,7 @@
     "src/main/inpainting.ts": 16,
     "src/main/ipc/importPreviewIpc.ts": 13,
     "src/main/ipc/settingsModelTestIpc.ts": 11,
-    "src/main/jobs/soundEffectTranslationJobRunner.ts": 14,
+    "src/main/jobs/soundEffectTranslationJobRunner.ts": 13,
     "src/main/libraryStore/importWorkflow.ts": 13,
     "src/main/libraryStore/shareImportMaterialize.ts": 13,
     "src/main/libraryStore/shareWorkflow.ts": 13,
@@ -24,6 +24,18 @@
     "src/renderer/src/components/ConditionalBatchActionCard.tsx": 13
   },
   "allow": {
+    "src/shared/ipcSettingsSchemas.ts": {
+      "maxRuntimeImports": 14,
+      "reason": "Settings IPC composition adds the separately owned Codex typesetting preset contract; existing domain validators remain authoritative"
+    },
+    "src/main/wholePagePipeline.ts": {
+      "maxRuntimeImports": 23,
+      "reason": "Translation entrypoint selects the independent Codex application adapter before legacy OCR setup; protected existing pipeline stays in place"
+    },
+    "src/main/pipeline/codexTypesettingRuntime.ts": {
+      "maxRuntimeImports": 15,
+      "reason": "Codex composition root binds account, settings, font registry, production rendering, raster, image generation, scoped erasure preview and the separately owned actual-background inspection adapter to the pure application service"
+    },
     "src/main/index.ts": {
       "maxRuntimeImports": 30,
       "reason": "Electron main composition root"
@@ -115,7 +127,12 @@
       "maxImportedBy": 27
     },
     "src/shared/geometry.ts": {
-      "maxImportedBy": 31
+      "maxImportedBy": 32,
+      "reason": "Codex native-view batching reuses canonical box intersection for both source and actual destination coverage. Geometry algorithms are unchanged; avoid duplicated overlap code or an alias gateway."
+    },
+    "src/shared/richTextMarkup.ts": {
+      "maxImportedBy": 28,
+      "reason": "Merged direct consumers include Codex treatment serialization, image lettering prompts, blind readback and literal font specimens, plus master's conditionalBatchTypography rich-run scaling. Preserve both features on the canonical grammar without duplication or alias gateways; parser/serializer ownership remains unchanged."
     },
     "src/shared/ipcSchemaPrimitives.ts": {
       "maxRuntimeImports": 15,

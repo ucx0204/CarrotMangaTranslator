@@ -9,8 +9,10 @@ import {
 } from "../lib/appCommandTypes";
 
 type UseAppCommandsOptions = {
+  startRegionTranslation?: () => void;
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
+  aiUnavailable?: boolean;
   runAnalysis: (runMode: "pending" | "all") => void;
   openTranslateOptions: () => void;
   runCurrentPageInpainting: () => void;
@@ -34,9 +36,11 @@ export function useAppCommands(
 ): AppCommandRegistry {
   const { t } = useTranslation("renderer");
   const {
+    startRegionTranslation,
     cancelJob,
     currentChapter,
     jobActive,
+    aiUnavailable,
     openErrorReport,
     openImportPreview,
     openLibraryFolder,
@@ -56,9 +60,11 @@ export function useAppCommands(
   return useMemo(
     () =>
       buildAppCommandRegistry({
+        startRegionTranslation,
         cancelJob,
         currentChapter,
         jobActive,
+        aiUnavailable,
         openErrorReport,
         openImportPreview,
         openLibraryFolder,
@@ -77,9 +83,11 @@ export function useAppCommands(
         t,
       }),
     [
+      startRegionTranslation,
       cancelJob,
       currentChapter,
       jobActive,
+      aiUnavailable,
       openErrorReport,
       openImportPreview,
       openLibraryFolder,
@@ -118,18 +126,22 @@ function buildAppCommandRegistry(
 }
 
 type TranslationCommandId =
+  | "translate-region"
   | "open-translate-options"
   | "translate-pending"
   | "translate-all";
 
 function buildTranslationCommands({
+  startRegionTranslation,
   currentChapter,
   jobActive,
+  aiUnavailable,
   openTranslateOptions,
   runAnalysis,
   t,
 }: LocalizedCommandOptions): Pick<AppCommandMap, TranslationCommandId> {
-  const paletteVisible = Boolean(currentChapter) && !jobActive;
+  const paletteVisible =
+    Boolean(currentChapter) && !jobActive && !aiUnavailable;
   return {
     "open-translate-options": {
       id: "open-translate-options",
@@ -138,6 +150,12 @@ function buildTranslationCommands({
       keywords: t("commands.translate.keywords"),
       paletteVisible,
       run: openTranslateOptions,
+    },
+    "translate-region": {
+      id: "translate-region",
+      label: t("regionTranslation.title"),
+      paletteVisible: paletteVisible && Boolean(startRegionTranslation),
+      run: () => startRegionTranslation?.(),
     },
     "translate-pending": {
       id: "translate-pending",
@@ -161,6 +179,7 @@ function buildTranslationCommands({
 function buildInpaintingCommands({
   currentChapter,
   jobActive,
+  aiUnavailable,
   runCurrentPageInpainting,
   t,
 }: LocalizedCommandOptions): Pick<
@@ -172,7 +191,7 @@ function buildInpaintingCommands({
       id: "run-current-page-inpainting",
       label: t("commands.autoInpainting.label"),
       keywords: t("commands.autoInpainting.keywords"),
-      paletteVisible: Boolean(currentChapter) && !jobActive,
+      paletteVisible: Boolean(currentChapter) && !jobActive && !aiUnavailable,
       run: runCurrentPageInpainting,
     },
   };

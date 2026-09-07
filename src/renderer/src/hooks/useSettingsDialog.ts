@@ -1,4 +1,7 @@
+import { isCodexDelegationEnabled } from "../../../shared/codexCapabilities";
+import type { CodexTypesettingPreferences } from "../../../shared/codexTypesettingTypes";
 import React from "react";
+import { useCodexDelegation } from "./useCodexDelegation";
 import { useTranslation } from "react-i18next";
 import { normalizeUiLocale } from "../../../shared/uiLocales";
 import { appI18n } from "../appI18n";
@@ -8,6 +11,11 @@ import { formatErrorMessage } from "../lib/errorPresentation";
 import { toast } from "../lib/toastStore";
 
 type UseSettingsDialogResult = {
+  codexDelegationActive?: boolean;
+  codexDelegationEnabled?: boolean;
+  saveCodexPreferences?: (
+    preferences: CodexTypesettingPreferences,
+  ) => Promise<CodexTypesettingPreferences>;
   settings: AppSettings | null;
   settingsOpen: boolean;
   settingsBusy: boolean;
@@ -53,6 +61,23 @@ export function useSettingsDialog(
     setSettingsBusy,
   });
   const saveSettingsQuietly = useQuietSettingsSaveAction(setSettings);
+  const saveCodexPreferences = React.useCallback(
+    async (preferences: CodexTypesettingPreferences) => {
+      const saved =
+        await mangaGateway.saveCodexTypesettingPreferences(preferences);
+      setSettings((current) =>
+        current
+          ? {
+              ...current,
+              ui: { ...current.ui, codexTypesettingPreferences: saved },
+            }
+          : current,
+      );
+      return saved;
+    },
+    [],
+  );
+  const codexDelegationActive = useCodexDelegation(settings);
   const resetSettings = useResetSettingsAction({
     pushStatus,
     setSettingsBusy,
@@ -65,6 +90,9 @@ export function useSettingsDialog(
   }, [refreshSettings]);
 
   return {
+    codexDelegationActive,
+    codexDelegationEnabled: isCodexDelegationEnabled(settings),
+    saveCodexPreferences,
     settings,
     settingsOpen,
     settingsBusy,

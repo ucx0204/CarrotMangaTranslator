@@ -45,14 +45,15 @@ export function buildPanelSyncState({
       selectedPageSize,
     );
   return {
-    areaTranslateAvailable:
-      isWorkspaceImageReadyForSelectedPage({
-        selectedPage: derivedState.selectedPage,
-        workspaceImageDataUrl: derivedState.workspaceImageDataUrl,
-        workspaceImagePageId: derivedState.workspaceImagePageId,
-      }) && !interactionBusy,
+    aiUnavailable: inpaintingBridge.contextValue.aiUnavailable,
+    areaTranslateAvailable: panelRegionAvailable(
+      derivedState,
+      interactionBusy,
+      inpaintingBridge.contextValue.aiUnavailable,
+    ),
     areaTranslateSelecting: Boolean(core.regionSelection?.active),
     disableChapterApply: interactionBusy,
+    letteringTool: uiState.letteringTool,
     editorDisabled:
       derivedState.selectedPageEditLocked || workspaceHistory.busy,
     blockStylePresets: blockEditingActions.stylePresetSummaries,
@@ -98,4 +99,12 @@ function resolvePanelSelectedIds(
     return derivedState.selectedBlockIds;
   }
   return derivedState.selectedBlock ? [derivedState.selectedBlock.id] : [];
+}
+
+function panelRegionAvailable(
+  derived: AppSessionViewModel["derivedState"],
+  busy: boolean,
+  unavailable?: boolean,
+) {
+  return !busy && !unavailable && isWorkspaceImageReadyForSelectedPage(derived);
 }

@@ -6,6 +6,9 @@ import { toast } from "../lib/toastStore";
 
 export type FontSelectProps = {
   value: string | undefined;
+  excludedIds?: readonly string[];
+  preserveFontId?: boolean;
+  placeholder?: string;
   ariaLabel?: string;
   disabled?: boolean;
   mixed?: boolean;
@@ -33,6 +36,8 @@ export type FontSelectModel = {
 export function useFontSelectModel({
   value,
   onChange,
+  excludedIds = [],
+  preserveFontId = false,
 }: FontSelectProps): FontSelectModel {
   const { baseOptions, catalog, options, savePreferences, busy } = useFonts();
   const { preferences } = catalog;
@@ -43,15 +48,19 @@ export function useFontSelectModel({
   const selected = resolveBlockFontOption(value, baseOptions);
   const pickerOptions = React.useMemo(
     () =>
-      options.some((option) => option.id === selected.id)
+      (options.some((option) => option.id === selected.id)
         ? options
-        : [selected, ...options],
-    [options, selected],
+        : [selected, ...options]
+      ).filter(
+        (option) => option.id === value || !excludedIds.includes(option.id),
+      ),
+    [options, selected, value, excludedIds],
   );
 
   const onCommit = React.useCallback(
-    (id: string) => onChange(normalizeBlockFontFamily(id, catalog)),
-    [catalog, onChange],
+    (id: string) =>
+      onChange(preserveFontId ? id : normalizeBlockFontFamily(id, catalog)),
+    [catalog, onChange, preserveFontId],
   );
   const onToggleFavorite = useFavoriteToggle(preferences, savePreferences);
 

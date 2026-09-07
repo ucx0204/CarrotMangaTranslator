@@ -25,6 +25,8 @@ import type { useAppSessionUiState } from "./useAppSessionUiState";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 
 type AppSessionInpaintingControllerArgs = {
+  aiUnavailable?: boolean;
+  codexDelegateAll?: boolean;
   askConfirm: ReturnType<typeof useConfirmDialog>["askConfirm"];
   blockFormatDefaults?: BlockFormatDefaults;
   bridgeActions: ReturnType<typeof useAppSessionBridgeActions>;
@@ -107,6 +109,8 @@ function useRetouchController({
 function useInpaintingRunController(
   {
     askConfirm,
+    aiUnavailable,
+    codexDelegateAll,
     core,
     derivedState,
     dirty,
@@ -121,6 +125,8 @@ function useInpaintingRunController(
   retouch: ReturnType<typeof useInpaintingRetouch>,
 ): ReturnType<typeof useInpaintingActions> {
   return useInpaintingActions({
+    aiUnavailable,
+    codexDelegateAll,
     askConfirm,
     clearPageImageCache: derivedState.clearPageImageCache,
     clearRetouchHistory: retouch.clearRetouchHistory,
@@ -287,6 +293,8 @@ function resetBlockTransformTool(
 
 function useInpaintingBridgeController(
   {
+    aiUnavailable,
+    codexDelegateAll,
     bridgeActions,
     core,
     derivedState,
@@ -310,6 +318,8 @@ function useInpaintingBridgeController(
     workspaceHistory,
   });
   return useInpaintingContextBridge({
+    aiUnavailable,
+    codexDelegateAll,
     blockCounts: derivedState.blockCounts,
     brushColor: uiState.inpaintingPaintColor,
     brushRadius: uiState.inpaintingBrushRadius,

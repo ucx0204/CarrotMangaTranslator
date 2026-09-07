@@ -12,6 +12,7 @@ import type { ImageStageProps } from "./ImageStage";
 import type { AppCommandLabels } from "../lib/appCommandTypes";
 
 export type AppWorkspaceProps = {
+  letteringRetouch?: ImageStageProps["letteringRetouch"];
   commandLabels?: AppCommandLabels;
   workspacePanelRef: React.RefObject<HTMLElement | null>;
   workspaceZoomControllerRef: React.RefObject<WorkspaceZoomController | null>;

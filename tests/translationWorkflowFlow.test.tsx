@@ -6,6 +6,8 @@ import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway
 import type { NotificationPort } from "../src/renderer/src/lib/notificationPort";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationWorkflowMode } from "../src/shared/settingsTypes";
+import { createCodexTypesettingPreferences } from "../src/shared/codexTypesettingDefaults";
+import type { CodexTypesettingOptions } from "../src/shared/codexTypesettingTypes";
 import type { UseTranslationActionsOptions } from "../src/renderer/src/hooks/translationActionTypes";
 
 const startAnalysis = vi.fn();
@@ -88,7 +90,10 @@ function makeOptions(): UseTranslationActionsOptions {
   };
 }
 
-async function runWorkflow(workflowMode: TranslationWorkflowMode) {
+async function runWorkflow(
+  workflowMode: TranslationWorkflowMode,
+  codexTypesetting?: CodexTypesettingOptions,
+) {
   const options = makeOptions();
   startAnalysis.mockResolvedValue({ status: "completed" });
   const { result } = renderHook(() =>
@@ -100,6 +105,7 @@ async function runWorkflow(workflowMode: TranslationWorkflowMode) {
       selection: [{ chapterId: "chapter-1", mode: "pending" }],
       workflowMode,
       blockMode: "auto",
+      ...(codexTypesetting ? { codexTypesetting } : {}),
     });
   });
 
@@ -113,6 +119,13 @@ afterEach(() => {
 });
 
 describe("translation workflow modes", () => {
+  it("delivers the chosen Codex font preset through the real translation flow", async () => {
+    const preset = createCodexTypesettingPreferences("ko").presets[0];
+    const codex = { version: 1 as const, preset };
+    await runWorkflow("cumulative", codex);
+    expect(startAnalysis.mock.lastCall?.[0].codexTypesetting).toEqual(codex);
+  });
+
   it("runs sound-effect translation through the dedicated action", async () => {
     const options = makeOptions();
     startSoundEffectTranslation.mockResolvedValue({

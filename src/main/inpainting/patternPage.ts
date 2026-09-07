@@ -197,6 +197,7 @@ function createPatternMaskContext(
     height: size.height,
     mode:
       options.inpaintingEngine?.model === "flux-klein" ||
+      options.inpaintingEngine?.model === "codex" ||
       options.typographySegmentation
         ? "flux-region"
         : "glyph",

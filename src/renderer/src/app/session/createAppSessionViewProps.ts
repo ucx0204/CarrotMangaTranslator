@@ -54,12 +54,15 @@ export function createAppSessionViewProps(model: AppSessionViewModel) {
       createSoundEffectTranslationModalProps(model),
     styleGuideProps: createStyleGuideProps(model),
     translationOptionsProps: createTranslationOptionsProps(model),
+    regionTranslationProps:
+      model.translationActions.regionTranslationDialog ?? null,
     workspaceProps,
   };
 }
 
 function createAutoInpaintingOptionsProps({
   core,
+  settingsDialog,
   derivedState,
   inpaintingActions,
   uiState,
@@ -68,6 +71,10 @@ function createAutoInpaintingOptionsProps({
     core.currentChapter &&
     derivedState.selectedPage
     ? {
+        codexDelegateAll: settingsDialog.codexDelegationEnabled,
+        aiUnavailable:
+          settingsDialog.codexDelegationEnabled &&
+          !settingsDialog.codexDelegationActive,
         chapter: core.currentChapter,
         currentPageId: derivedState.selectedPage.id,
         initialScope: uiState.autoInpaintingEntryScope,
@@ -194,13 +201,7 @@ function createModalsProps({
 function createPanelSessionValue(
   model: AppSessionViewModel,
 ): PanelSessionValue {
-  const {
-    blockEditingActions,
-    panelBridge,
-    pointerHandlers,
-    settingsDialog,
-    uiState,
-  } = model;
+  const { blockEditingActions, panelBridge, settingsDialog, uiState } = model;
   return {
     ...buildPanelSyncState(model),
     ...createPanelBlockActions(model),
@@ -234,10 +235,14 @@ function createPanelSessionValue(
     },
     onInsertBlockLibraryEntry: blockEditingActions.insertBlockLibraryEntry,
     onRemoveBubbleLayout: blockEditingActions.removeSelectedBlockBubbleLayout,
+    onChangeLetteringTool: (tool) => {
+      uiState.selectWorkspaceTool("select");
+      uiState.setLetteringTool(tool);
+    },
     onSelectTransformMode: (mode) => {
       uiState.selectWorkspaceTool(mode);
     },
-    onStartAreaTranslate: pointerHandlers.startRegionTranslationSelection,
+    onStartAreaTranslate: model.commandRegistry.byId["translate-region"].run,
     onUpdateBlock: blockEditingActions.updateSelectedBlock,
     onUpdateFormat: (patch) =>
       blockEditingActions.updateSelectedBlocks(pickPanelFormatPatch(patch)),

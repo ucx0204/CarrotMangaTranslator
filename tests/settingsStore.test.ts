@@ -1,3 +1,6 @@
+import { readTypesettingConfiguration } from "../src/main/pipeline/codexTypesettingConfiguration";
+import { saveCodexTypesettingPreferences } from "../src/main/settings/codexPreferencesStore";
+import { createCodexTypesettingPreferences } from "../src/shared/codexTypesettingDefaults";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppPaths } from "../src/main/appPaths";
 import {
   getAppSettings,
+  resetAppSettings,
   getDefaultAppSettings,
   maskAppSettingsSecrets,
   normalizeAppSettingsForRuntime,
@@ -27,6 +31,7 @@ import {
 } from "../src/main/settingsPairStorage";
 
 vi.mock("electron", () => ({
+  app: { isPackaged: false },
   safeStorage: {
     isEncryptionAvailable: () => true,
     encryptString: (value: string) => Buffer.from(`encrypted:${value}`),
@@ -45,6 +50,47 @@ describe("settings store", () => {
         await rm(dir, { recursive: true, force: true });
       }
     }
+  });
+
+  it("allows explicit region-image Codex execution without changing the saved provider or unlocking full-page delegation", async () => {
+    const paths = makeAppPaths(await createTempDir());
+    const configured = resolveDefaultAppSettings({});
+    configured.modelProvider = "openai-api";
+    configured.codex.delegateAll = false;
+    configured.translation = {
+      ...configured.translation,
+      sourceLanguage: "ja",
+      targetLanguage: "ko",
+    };
+    await saveAppSettings(configured, paths, {}, async () => null);
+    const before = await readFile(paths.settingsPath, "utf8");
+    const options = {
+      version: 1,
+      regionOutput: "image",
+      preset: createCodexTypesettingPreferences("ko").presets[0],
+    };
+    const result = await readTypesettingConfiguration(paths, options, true);
+    expect(result.settings.regionOutput).toBe("image");
+    expect(result.codex.delegateAll).toBe(false);
+    for (const regionOutput of ["image", "text"]) {
+      const soundEffect = await readTypesettingConfiguration(
+        paths,
+        { ...options, regionOutput },
+        "sound-effects",
+      );
+      expect(soundEffect.settings.regionOutput).toBe(regionOutput);
+    }
+    await expect(readTypesettingConfiguration(paths, options)).rejects.toThrow(
+      "Codex Astra",
+    );
+    await expect(
+      readTypesettingConfiguration(
+        paths,
+        { ...options, regionOutput: "text" },
+        true,
+      ),
+    ).rejects.toThrow("Codex Astra");
+    expect(await readFile(paths.settingsPath, "utf8")).toBe(before);
   });
 
   it("treats absent public settings or an absent secret vault as empty secrets", async () => {
@@ -860,6 +906,99 @@ describe("settings store", () => {
       CURRENT_GENERATION_LIMITS_VERSION,
     );
     expect(restored).toMatchObject({ maxTokens: 12000, ctx: 16384 });
+  });
+  it.each([true, false])(
+    "serializes narrow font saves with stale settings writes (font first=%s)",
+    async (fontFirst) => {
+      const paths = makeAppPaths(await createTempDir());
+      const initial = await saveAppSettings(
+        {
+          ...resolveDefaultAppSettings({}),
+          api: {
+            ...resolveDefaultAppSettings({}).api,
+            apiKey: "private-fixture-key",
+          },
+        },
+        paths,
+        {},
+        async () => null,
+      );
+      const preferences = createCodexTypesettingPreferences("ko");
+      preferences.presets[0].fonts[0].purpose = "대사는 이 서체";
+      const fontWrite = () =>
+        saveCodexTypesettingPreferences(
+          preferences,
+          paths,
+          {},
+          async () => null,
+        );
+      const otherWrite = () =>
+        saveAppSettings(
+          {
+            ...initial,
+            translation: {
+              sourceLanguage: "ja",
+              ...initial.translation,
+              targetLanguage: "ja",
+            },
+          },
+          paths,
+          {},
+          async () => null,
+        );
+      await Promise.all(
+        fontFirst ? [fontWrite(), otherWrite()] : [otherWrite(), fontWrite()],
+      );
+      const reopened = await getAppSettings(paths, {}, async () => null);
+      expect(reopened.translation?.targetLanguage).toBe("ja");
+      expect(reopened.ui?.codexTypesettingPreferences).toEqual(preferences);
+      expect(reopened.api.apiKey).toBe("private-fixture-key");
+      expect(await readFile(paths.settingsPath, "utf8")).not.toContain(
+        "private-fixture-key",
+      );
+    },
+  );
+  it("preserves saved font data on invalid updates and allows a later valid retry", async () => {
+    const paths = makeAppPaths(await createTempDir());
+    const preferences = createCodexTypesettingPreferences("ko");
+    await saveCodexTypesettingPreferences(
+      preferences,
+      paths,
+      {},
+      async () => null,
+    );
+    const invalid = structuredClone(preferences);
+    invalid.presets[0].name = "";
+    await expect(
+      saveCodexTypesettingPreferences(invalid, paths, {}, async () => null),
+    ).rejects.toThrow();
+    expect(
+      (await getAppSettings(paths, {}, async () => null)).ui
+        ?.codexTypesettingPreferences,
+    ).toEqual(preferences);
+    preferences.presets[0].name = "새 이름";
+    await saveCodexTypesettingPreferences(
+      preferences,
+      paths,
+      {},
+      async () => null,
+    );
+    expect(
+      (await getAppSettings(paths, {}, async () => null)).ui
+        ?.codexTypesettingPreferences,
+    ).toEqual(preferences);
+  });
+  it("serializes an explicit reset with preference writes in the same data root", async () => {
+    const paths = makeAppPaths(await createTempDir());
+    const preferences = createCodexTypesettingPreferences("ko");
+    await saveCodexTypesettingPreferences(
+      preferences,
+      paths,
+      {},
+      async () => null,
+    );
+    const reset = await resetAppSettings(paths, {}, async () => null);
+    expect(await getAppSettings(paths, {}, async () => null)).toEqual(reset);
   });
 });
 

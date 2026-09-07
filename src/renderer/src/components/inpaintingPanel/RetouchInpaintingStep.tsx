@@ -6,6 +6,7 @@ import { Button } from "../ui/Button";
 import { RangeInput } from "../ui/Field";
 
 type RetouchInpaintingStepProps = {
+  aiUnavailable?: boolean;
   activeToolLabel: string;
   brushColor: string;
   brushRadius: number;
@@ -135,6 +136,7 @@ function RetouchColorControl({
 }
 
 function DrawnMaskActionGroup({
+  aiUnavailable,
   hasSelectedPage,
   jobActive,
   maskStrokeCount,
@@ -194,7 +196,12 @@ function DrawnMaskActionGroup({
         <Button
           variant="primary"
           fullWidth
-          disabled={jobActive || !hasSelectedPage || maskStrokeCount === 0}
+          disabled={
+            aiUnavailable ||
+            jobActive ||
+            !hasSelectedPage ||
+            maskStrokeCount === 0
+          }
           onClick={onRunDrawnPattern}
         >
           {t("inpainting.retouch.eraseDrawnArea")}

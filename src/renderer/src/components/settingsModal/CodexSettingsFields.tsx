@@ -1,4 +1,7 @@
 import React from "react";
+import { CheckboxField } from "../ui/CheckboxField";
+import { canUseCodexTypesetting } from "../../../../shared/codexCapabilities";
+import styles from "./CodexDelegationField.module.css";
 import { useTranslation } from "react-i18next";
 import type {
   CodexAccountModel,
@@ -11,6 +14,10 @@ import { Select } from "../ui/Select";
 import { CodexAccountField } from "./CodexAccountField";
 
 export type CodexSettingsFieldsProps = {
+  codexDelegateAll?: boolean;
+  setCodexDelegateAll?: React.Dispatch<
+    React.SetStateAction<boolean | undefined>
+  >;
   clearTestState: () => void;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
@@ -25,16 +32,18 @@ export type CodexSettingsFieldsProps = {
 export function CodexSettingsFields(
   props: CodexSettingsFieldsProps,
 ): React.JSX.Element {
-  const { onAccountSnapshotChange } = props;
+  const { t } = useTranslation("components");
+  const { onAccountSnapshotChange, setCodexDelegateAll } = props;
   const [account, setAccount] = React.useState<CodexAccountSnapshot | null>(
     null,
   );
   const publishAccount = React.useCallback(
     (snapshot: CodexAccountSnapshot | null) => {
       setAccount(snapshot);
+      if (snapshot && !snapshot.authenticated) setCodexDelegateAll?.(false);
       onAccountSnapshotChange?.(snapshot);
     },
-    [onAccountSnapshotChange],
+    [onAccountSnapshotChange, setCodexDelegateAll],
   );
   const models = account?.models ?? [];
   useCatalogSelectionRepair(props, account);
@@ -49,6 +58,32 @@ export function CodexSettingsFields(
         <div className="codex-catalog-fields">
           <CodexModelField {...props} models={models} />
           <CodexReasoningField {...props} models={models} />
+        </div>
+      ) : null}
+      {props.setCodexDelegateAll && props.codexModel === "gpt-6-astra" ? (
+        <div className={styles.setting}>
+          <CheckboxField
+            variant="switch"
+            label={<strong>{t("codexDelegation.title")}</strong>}
+            checked={props.codexDelegateAll === true}
+            disabled={
+              props.controlsBusy ||
+              !canUseCodexTypesetting(
+                {
+                  modelProvider: "openai-codex",
+                  codex: {
+                    model: props.codexModel,
+                    reasoningEffort: props.codexReasoningEffort,
+                  },
+                },
+                account,
+              )
+            }
+            onCheckedChange={(enabled) => {
+              props.clearTestState();
+              props.setCodexDelegateAll?.(enabled);
+            }}
+          />
         </div>
       ) : null}
     </>

@@ -6,11 +6,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PageRetranslateModal } from "../src/renderer/src/components/PageRetranslateModal";
 import type { UiSettings } from "../src/shared/settingsTypes";
 
-function renderModal(uiSettings?: UiSettings) {
+function renderModal(
+  uiSettings?: UiSettings,
+  codexDelegateAll = false,
+  codexUnavailable = false,
+) {
   const onStart = vi.fn();
   const onPersistDefaults = vi.fn();
   render(
     <PageRetranslateModal
+      codexDelegateAll={codexDelegateAll}
+      codexUnavailable={codexUnavailable}
       pageName="page.png"
       blockCount={2}
       uiSettings={uiSettings}
@@ -106,4 +112,18 @@ describe("PageRetranslateModal", () => {
       expect.objectContaining({ autoFontMatchingDefault: true }),
     );
   });
+});
+
+it("keeps Codex retranslation concise and available only while connected", () => {
+  const connected = renderModal(undefined, true);
+  expect(
+    screen.queryByRole("switch", { name: "자연스러운 줄 나눔" }),
+  ).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "이 페이지 다시 번역" }));
+  expect(connected.onStart).toHaveBeenCalledOnce();
+  expect(connected.onPersistDefaults).not.toHaveBeenCalled();
+  cleanup();
+  const offline = renderModal(undefined, true, true);
+  fireEvent.click(screen.getByRole("button", { name: "이 페이지 다시 번역" }));
+  expect(offline.onStart).not.toHaveBeenCalled();
 });

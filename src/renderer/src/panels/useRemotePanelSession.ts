@@ -110,6 +110,8 @@ function buildRemotePanelSessionValue(
     ...createRemoteBlockActions(selectedBlockId, syncState.selectionKey),
     onApplyBlockBackgroundOpacity: (scope) =>
       dispatchCommand({ type: "applyBlockBackgroundOpacity", scope }),
+    onChangeLetteringTool: (tool) =>
+      dispatchCommand({ type: "setLetteringTool", tool }),
     onSelectTransformMode: (mode) =>
       dispatchCommand({ type: "selectTransformMode", mode }),
     onStartAreaTranslate: () => dispatchCommand({ type: "startAreaTranslate" }),

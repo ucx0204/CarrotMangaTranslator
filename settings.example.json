@@ -14,7 +14,8 @@
   },
   "codex": {
     "model": "gpt-5.6-sol",
-    "reasoningEffort": "medium"
+    "reasoningEffort": "medium",
+    "delegateAll": false
   },
   "internetResearch": {
     "tavilyAnalysisProvider": "gemma",

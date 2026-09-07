@@ -36,7 +36,10 @@
     "created": "Added",
     "chapters": "Chapter count"
   },
-  "fonts": { "default": "Default", "defaultSample": "Abc 가나다" },
+  "fonts": {
+    "default": "Default",
+    "defaultSample": "Abc 가나다"
+  },
   "eta": {
     "seconds": "About {{count}} sec remaining",
     "minutes": "About {{count}} min remaining",
@@ -110,6 +113,27 @@
       "cancelled": "The job was cancelled.",
       "openLogs": "Open log folder",
       "reportError": "Report error"
+    },
+    "codex": {
+      "stages": {
+        "reading": "Reading and translation",
+        "fonts": "Font comparison",
+        "typesetting": "Typesetting and review"
+      },
+      "steps": {
+        "reading": "Reading and translation",
+        "erasurePlan": "Checking erasure boundaries",
+        "groupFonts": "Comparing source lettering",
+        "matchFonts": "Choosing fonts",
+        "background": "Removing source text",
+        "sfx": "Generating sound effects",
+        "layout": "Placing text",
+        "review": "Reviewing the page",
+        "saving": "Saving results",
+        "retry": "Retrying in {{seconds}}s ({{attempt}}/2)",
+        "confirmText": "Confirm text"
+      },
+      "page": "Page {{page}}"
     }
   },
   "commands": {
@@ -141,7 +165,10 @@
       "label": "Start inpainting",
       "keywords": "inpaint start"
     },
-    "cancelJob": { "label": "Cancel job", "keywords": "cancel stop job" },
+    "cancelJob": {
+      "label": "Cancel job",
+      "keywords": "cancel stop job"
+    },
     "gatherText": {
       "label": "Gather text",
       "hint": "Page · whole chapter",
@@ -180,7 +207,10 @@
       "label": "Open library folder",
       "keywords": "library folder"
     },
-    "openLogs": { "label": "Open log folder", "keywords": "log folder" },
+    "openLogs": {
+      "label": "Open log folder",
+      "keywords": "log folder"
+    },
     "reportProblem": {
       "label": "Report a problem",
       "keywords": "error report issue github problem"
@@ -361,7 +391,7 @@
     },
     "drawn": {
       "title": "Erase painted area",
-      "message": "Erase only the mask area painted in orange with Flux.",
+      "message": "Erase source lettering inside the orange mask.",
       "detail": "Paint generously over the text. The cropped background will be restored and saved as a separate image; the original page is preserved.",
       "preparing": "Preparing to erase painted area",
       "saveFailed": "Could not save changes before erasing the painted area.",
@@ -376,7 +406,7 @@
       "pendingPages": "pages not yet erased",
       "selectedPages": "selected pages",
       "message": "Erase source text at translation-block positions on the {{scope}}.",
-      "detail": "Flux inpainting removes text over speech bubbles, tones, backgrounds, and sound effects. Original images are preserved and results are saved separately.",
+      "detail": "Keep the original and save the erased result separately.",
       "preparing": "Preparing to erase source text",
       "saveFailed": "Could not save changes before erasing source text.",
       "startFailed": "Could not start erasing source text.",
@@ -442,7 +472,8 @@
     "startFailed": "Could not start region translation.",
     "success": "Created {{count}} blocks from the selected area.",
     "success_one": "Created {{count}} block from the selected area.",
-    "success_other": "Created {{count}} blocks from the selected area."
+    "success_other": "Created {{count}} blocks from the selected area.",
+    "title": "Translate region"
   },
   "translation": {
     "errors": {
@@ -606,5 +637,8 @@
     "saved": "Saved style preset “{{name}}”.",
     "deleted": "Deleted style preset “{{name}}”.",
     "deleteFailed": "Could not delete the style preset."
+  },
+  "codexDelegation": {
+    "disconnected": "Codex disconnected. Reconnect and run again."
   }
 }

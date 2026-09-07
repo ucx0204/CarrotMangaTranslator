@@ -8,14 +8,13 @@ import type {
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import {
-  BlockOverflowMenu,
-  EditorPanelHeader,
+  SelectedBlockHeader,
   EditorPanelTabs,
   EditorTabPanel,
   EmptyEditorPanel,
   type EditorTabId,
 } from "./EditorPanelChrome";
-import { BubbleLayoutOption, TextEditorGroup } from "./EditorPanelSections";
+import { TextEditorGroup } from "./EditorPanelSections";
 import { TransformEditorGroup } from "./TransformEditorGroup";
 import type {
   BlockStylePresetSummary,
@@ -25,6 +24,7 @@ import { EditorFormatGroups } from "./EditorFormatGroups";
 import { useEditorPanelTab } from "./useEditorPanelTab";
 
 type EditorPanelProps = {
+  generatedLetteringControls?: React.ReactNode;
   block: TranslationBlock | null;
   disabled: boolean;
   /** Embeds the production editor controls without page-level panel chrome. */
@@ -72,6 +72,7 @@ type EditorPanelProps = {
   onDuplicate: () => void;
   onSaveToLibrary?: () => void;
   onSuggestConsistentEdit?: (find: string, replace: string) => void;
+  aiUnavailable?: boolean;
   onEraseOriginal?: () => void;
   onFitBubble?: () => void;
   onRemoveBubbleLayout?: () => void;
@@ -176,6 +177,7 @@ function SelectedEditorPanelBody({
   }, [block.id, block.fontFamily]);
   return (
     <div className="editor-panel-body">
+      {props.generatedLetteringControls}
       <EditorBlockGroups
         activeTab={activeTab}
         activeStylePresetId={presetSelection.activePresetId}
@@ -197,6 +199,7 @@ function SelectedEditorPanelBody({
         onOpenFontManager={props.onOpenFontManager}
         onOverwriteStylePreset={props.onOverwriteStylePreset ?? NOOP_RESULT}
         onRenameStylePreset={props.onRenameStylePreset ?? NOOP_RESULT}
+        aiUnavailable={props.aiUnavailable}
         onEraseOriginal={props.onEraseOriginal}
         onFitBubble={props.onFitBubble}
         onSelectTransformMode={props.onSelectTransformMode}
@@ -256,64 +259,6 @@ function useAppliedStylePreset({
   };
 }
 
-function SelectedBlockHeader({
-  activeTab,
-  baseId,
-  block,
-  disabled,
-  headerActions,
-  onDelete,
-  onDuplicate,
-  onSaveToLibrary,
-  onRemoveBubbleLayout,
-  onSelect,
-  onUpdate,
-}: {
-  activeTab: EditorTabId;
-  baseId: string;
-  block: TranslationBlock;
-  disabled: boolean;
-  headerActions?: React.ReactNode;
-  onDelete: () => void;
-  onDuplicate: () => void;
-  onSaveToLibrary: () => void;
-  onRemoveBubbleLayout: () => void;
-  onSelect: (tab: EditorTabId) => void;
-  onUpdate: EditorPanelProps["onUpdate"];
-}): React.JSX.Element {
-  return (
-    <div className="editor-panel-sticky">
-      <EditorPanelHeader
-        excluded={Boolean(block.inpaintExcluded)}
-        actions={
-          <>
-            {headerActions}
-            <BlockOverflowMenu
-              block={block}
-              disabled={disabled}
-              onDelete={onDelete}
-              onDuplicate={onDuplicate}
-              onSaveToLibrary={onSaveToLibrary}
-              onUpdate={onUpdate}
-            />
-          </>
-        }
-      />
-      <EditorPanelTabs
-        activeTab={activeTab}
-        baseId={baseId}
-        onSelect={onSelect}
-      />
-      {block.bubbleLayout ? (
-        <BubbleLayoutOption
-          disabled={disabled}
-          onRemove={onRemoveBubbleLayout}
-        />
-      ) : null}
-    </div>
-  );
-}
-
 type EditorBlockGroupsProps = {
   activeTab: EditorTabId;
   activeStylePresetId: string;
@@ -337,6 +282,7 @@ type EditorBlockGroupsProps = {
     EditorPanelProps["onOverwriteStylePreset"]
   >;
   onRenameStylePreset: NonNullable<EditorPanelProps["onRenameStylePreset"]>;
+  aiUnavailable?: boolean;
   onEraseOriginal?: EditorPanelProps["onEraseOriginal"];
   onFitBubble?: EditorPanelProps["onFitBubble"];
   onSuggestConsistentEdit?: EditorPanelProps["onSuggestConsistentEdit"];
@@ -360,6 +306,7 @@ function EditorBlockGroups({
   block,
   disabled,
   disableChapterApply,
+  aiUnavailable,
   onEraseOriginal,
   onFitBubble,
   onSuggestConsistentEdit,
@@ -379,6 +326,7 @@ function EditorBlockGroups({
         <TextEditorGroup
           block={block}
           disabled={disabled}
+          aiUnavailable={aiUnavailable}
           onEraseOriginal={onEraseOriginal}
           onFitBubble={onFitBubble}
           onSuggestConsistentEdit={onSuggestConsistentEdit}

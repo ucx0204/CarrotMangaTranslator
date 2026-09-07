@@ -2,6 +2,7 @@ import type {
   AppSettings,
   WheelZoomSensitivityPercent,
 } from "../../shared/settingsTypes";
+import { codexTypesettingPreferencesSchema } from "../../shared/codexTypesettingSchemas";
 import { normalizeUiLocale } from "../../shared/uiLocales";
 import { resolveBoolean } from "./appSettingsResolvers";
 
@@ -26,6 +27,7 @@ export function normalizeUiSettings(
     base.cumulativeContextDetailDefault,
   );
   return {
+    ...resolveCodexTypesettingPreferences(data.codexTypesettingPreferences),
     locale: normalizeUiLocale(data.locale, base.locale),
     inpaintingGuideHidden: resolveBoolean(
       data.inpaintingGuideHidden,
@@ -75,6 +77,11 @@ export function normalizeUiSettings(
     ),
     ...(blockModeDefault ? { blockModeDefault } : {}),
   };
+}
+
+function resolveCodexTypesettingPreferences(value: unknown) {
+  const result = codexTypesettingPreferencesSchema.safeParse(value);
+  return result.success ? { codexTypesettingPreferences: result.data } : {};
 }
 
 function resolveWheelZoomSensitivityPercent(

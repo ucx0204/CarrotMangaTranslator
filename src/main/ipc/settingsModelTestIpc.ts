@@ -15,6 +15,7 @@ import type { SimplePageRuntime } from "../simplePageRuntime";
 import type { IpcContext } from "./context";
 import {
   createModelTestProgressSender,
+  sendModelTestBootProgress,
   sendEnginePreparationProgress,
   verifyOcrRuntime,
   type ModelTestProgressEventSource,
@@ -153,10 +154,10 @@ async function runModelTestWithServer({
   const signal = initialOptions.abortSignal ?? undefined;
   try {
     throwIfAborted(signal);
-    sendModelTestBootProgress(sendProgress);
+    sendModelTestBootProgress(sendProgress, settings);
     const options = withModelTestProgress(initialOptions, sendProgress);
     throwIfAborted(signal);
-    await verifyOcrRuntime(runtime, options, sendProgress);
+    await verifyOcrRuntime(runtime, options, sendProgress, settings);
     throwIfAborted(signal);
     sendEnginePreparationProgress(runtime, options, sendProgress);
     throwIfAborted(signal);
@@ -197,14 +198,6 @@ function withModelTestProgress(
       sendProgress(progress);
     },
   };
-}
-
-function sendModelTestBootProgress(sendProgress: SendModelTestProgress): void {
-  sendProgress({
-    phase: "booting",
-    progressText: tMain("modelTest.preparing"),
-    installLogLine: tMain("modelTest.startLog"),
-  });
 }
 
 async function finishModelRuntimeTest(

@@ -1,3 +1,4 @@
+import { confirmRegionTranslation } from "../jobs/regionTranslationReview";
 import {
   RegionAnalysisRequestSchema,
   StartAnalysisRequestSchema,
@@ -20,6 +21,11 @@ import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 export function registerTranslationJobIpc(context: IpcContext): void {
+  trustedHandleContract(
+    context,
+    translationJobIpcContracts.confirmRegionTranslation,
+    async (_event, request) => confirmRegionTranslation(request),
+  );
   trustedHandleContract(
     context,
     translationJobIpcContracts.startAnalysis,

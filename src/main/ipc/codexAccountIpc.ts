@@ -1,3 +1,4 @@
+import { saveCodexTypesettingPreferences } from "../settings/codexPreferencesStore";
 import { app, shell } from "electron";
 import { randomUUID } from "node:crypto";
 import type {
@@ -50,6 +51,12 @@ export function registerCodexAccountIpc(
   context: IpcContext,
   providedRuntime?: CodexAccountIpcRuntime,
 ): void {
+  trustedHandleContract(
+    context,
+    settingsIpcContracts.saveCodexTypesettingPreferences,
+    async (_event, preferences) =>
+      saveCodexTypesettingPreferences(preferences, context.appPaths),
+  );
   const runtime = providedRuntime ?? productionRuntime;
   const getAccount = createCodexAccountReader(context, runtime);
   trustedHandleContract(

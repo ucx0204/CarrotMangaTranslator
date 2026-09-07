@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { nativeImage } from "electron";
 import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
@@ -13,6 +14,9 @@ export async function loadPageImage(
   if (!direct.isEmpty()) {
     return direct;
   }
+
+  const bytes = nativeImage.createFromBuffer(await readFile(filePath));
+  if (!bytes.isEmpty()) return bytes;
 
   const fallbackBuffer = decodeFallback ? await decodeFallback(filePath) : null;
   if (fallbackBuffer?.length) {

@@ -1,3 +1,4 @@
+import { DEFAULT_LETTERING_TOOL } from "../src/shared/generatedLetteringMask";
 import { describe, expect, it, vi } from "vitest";
 import type { BlockLibraryEntryV1 } from "../src/shared/blockLibrary";
 import {
@@ -333,4 +334,25 @@ describe("panel command dispatch", () => {
       }),
     ).toBe(true);
   });
+});
+
+it("routes lettering brushes through the selected editor and switches to selection mode", () => {
+  const actions = { ...createTarget(), setLetteringTool: vi.fn() };
+  const command = {
+    type: "setLetteringTool" as const,
+    tool: { ...DEFAULT_LETTERING_TOOL, blockId: "current-block" },
+  };
+  const input = {
+    actions,
+    busy: false,
+    command,
+    selectedBlockId: "current-block",
+    selectionKey: currentSelectionKey,
+  };
+  expect(dispatchPanelCommand(input)).toBe(true);
+  expect(actions.selectWorkspaceTool).toHaveBeenCalledWith("select");
+  expect(actions.setLetteringTool).toHaveBeenCalledWith(command.tool);
+  expect(dispatchPanelCommand({ ...input, actions: createTarget() })).toBe(
+    true,
+  );
 });

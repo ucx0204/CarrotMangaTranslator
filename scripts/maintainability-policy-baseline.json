@@ -69,7 +69,6 @@
     "src/shared/conditionalBatchFieldRegistry.ts": "complexity, max-lines, max-lines-per-function -- field metadata and exhaustive typed readers stay co-located as the single registry contract",
     "src/shared/conditionalBatchRules.ts": "and validation form one compatibility boundary, complexity, max-lines, max-lines-per-function -- versioned schemas, migration, recipe constructors",
     "src/shared/conditionalTextPattern.ts": "and replacement runtime form one compatibility boundary, compiler, complexity, max-lines -- the recursive v3 AST, validation",
-    "src/shared/ipcJobSchemas.ts": "max-lines -- bounded job request variants stay together for schema contract review",
     "src/shared/mangaApi.ts": "max-lines -- the preload-facing API type intentionally enumerates the complete renderer contract",
     "src/shared/richTextMarkup.ts": "and serialization share one safe markup grammar contract, max-lines -- parsing, normalization, range editing"
   },

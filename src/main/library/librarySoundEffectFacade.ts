@@ -18,6 +18,7 @@ export async function appendResolvedSoundEffectBlocks(
   pageId: string,
   expectedRevision: PageRevision,
   entries: readonly ResolvedSoundEffectBlock[],
+  image?: Parameters<typeof appendResolvedSoundEffectBlocksUnlocked>[4],
 ): Promise<ChapterSnapshot> {
   const chapter = await withLibraryMutation(() =>
     appendResolvedSoundEffectBlocksUnlocked(
@@ -25,6 +26,7 @@ export async function appendResolvedSoundEffectBlocks(
       pageId,
       expectedRevision,
       entries,
+      image,
     ),
   );
   notifyLinkedWorkspacePagesSaved(chapterId, [pageId]);

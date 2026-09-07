@@ -1272,3 +1272,24 @@ function makeRightRailProps(
     ...overrides,
   };
 }
+
+it("disables generated erasure offline while leaving manual mask editing available", () => {
+  const props = makeRightRailProps({
+    selectedBlock: makeBlock(),
+    stageTool: "mask",
+    aiUnavailable: true,
+    maskStrokeCount: 1,
+  });
+  renderRightRail(props);
+  const actions = screen.getAllByRole("button");
+  const erase = actions.find((button) =>
+    button.textContent?.includes("그린 영역 지우기"),
+  );
+  expect(erase).toBeDefined();
+  expect(erase?.hasAttribute("disabled")).toBe(true);
+  expect(
+    screen
+      .getAllByRole("slider")
+      .some((input) => !input.hasAttribute("disabled")),
+  ).toBe(true);
+});

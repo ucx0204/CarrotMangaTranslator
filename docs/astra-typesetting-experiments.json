@@ -1,0 +1,1753 @@
+{
+  "version": 1,
+  "promotedVersion": null,
+  "lockedPage6": {
+    "limit": 10,
+    "uses": [
+      {
+        "trialId": "0ab3fc11-d72a-4b27-a942-0a0f62c7269a",
+        "reservedAt": "2026-09-05T14:31:17.915Z",
+        "recipe": "astra-typesetting-v0.2.0-candidate",
+        "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\locked-page6\\trial-001"
+      }
+    ],
+    "retired": false,
+    "reactivation": "explicit-user-request-only"
+  },
+  "usedChapters": [],
+  "trials": [
+    {
+      "id": "bcb0af82-575d-40dc-a71e-3e2e200fe15b",
+      "chapter": "Rawkuma (JA)/Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita/Chapter 4.3",
+      "startedAt": "2026-09-05T11:30:29.273Z",
+      "status": "infrastructure-failed",
+      "candidate": "astra-typesetting-v0.1.0-candidate",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T11:23:46.615Z",
+        "seed": "1a8209ff210aec8c68a547af97894f1f94944e2b86b922ac44a444939f20e452",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1110,
+        "eligibleCount": 89,
+        "selectionRank": "08cbbd3a37dd44789cd6da32c74a94a39ce1ba6127ddcb234da1d06df93e95f2",
+        "key": "Rawkuma (JA)/Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita/Chapter 4.3",
+        "normalizedKey": "rawkuma (ja)/kurobuta ouji wa zense wo omoi da shite kaishin suru  akuyaku chara ni tensei shita no de shibou end kara nigete itara saikyou ni natte ita/chapter 4.3",
+        "provider": "Rawkuma (JA)",
+        "series": "Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita",
+        "chapter": "Chapter 4.3",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3",
+        "pageCount": 10,
+        "pages": [
+          {
+            "byteSize": 673533,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\001.jpeg",
+            "sha256": "5c2277ae053d85425482c0e7b82bac524dd4d0ad501d59d45f2b214be6e852ad"
+          },
+          {
+            "byteSize": 920569,
+            "index": 2,
+            "name": "002.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\002.jpeg",
+            "sha256": "d4e06270e1dcd6ad79bf6ced634193059776b7b5035ec67452cdabcda48cead3"
+          },
+          {
+            "byteSize": 683045,
+            "index": 3,
+            "name": "003.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\003.jpeg",
+            "sha256": "80feddf009a1e2e7e87fdf637e29b46e31e802eb52ae309669200571f02ecfbc"
+          },
+          {
+            "byteSize": 533236,
+            "index": 4,
+            "name": "004.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\004.jpeg",
+            "sha256": "f18deeb47ee969a41509c8081c1e34833f5a3a3fb529a30fde75119b2a3aafeb"
+          },
+          {
+            "byteSize": 977554,
+            "index": 5,
+            "name": "005.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\005.jpeg",
+            "sha256": "1ca23745e8b8a810635e144fa2f2529977e93688a209cdd20265ae40ec1ad8db"
+          },
+          {
+            "byteSize": 741864,
+            "index": 6,
+            "name": "006.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\006.jpeg",
+            "sha256": "81d95135e273c465660e6f034623154f9149b99f98fc115445ba7daa30604753"
+          },
+          {
+            "byteSize": 701385,
+            "index": 7,
+            "name": "007.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\007.jpeg",
+            "sha256": "1d23508d7ab33e4bdfd7d6ded05b2f4a64bce678cf38e057bf3c69f7e49cf910"
+          },
+          {
+            "byteSize": 621969,
+            "index": 8,
+            "name": "008.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\008.jpeg",
+            "sha256": "6c958920a30da795dc89272d29ca6fe0f973890e4cae59429c145b01d7a8717d"
+          },
+          {
+            "byteSize": 664331,
+            "index": 9,
+            "name": "009.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\009.jpeg",
+            "sha256": "e5e08b9f4255cb8feca76d1334e492a0bfb3113da2fde580e05e6904b6f605c8"
+          },
+          {
+            "byteSize": 611917,
+            "index": 10,
+            "name": "010.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\010.jpeg",
+            "sha256": "16e403c6ae0527c4b5e7893baeb6634174510edf2cc24979049017777c5382e9"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Chapter-wide source-family grouping plus actual font samples and production render review improves coherent editable translation.",
+      "gates": {
+        "sourceOutsideErasePixelsUnchanged": true,
+        "nonJapanesePreserved": true,
+        "materialClippingOrWrongText": 0,
+        "maximumRepairs": 2,
+        "promotionRequiresRealUi": true
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-001",
+      "fingerprint": "b111def913f88ca1c35e89fe5abc5b2c1f87a7baea644ec3c0c7f4124fddffea",
+      "reason": "No model call or quality output: import runtime bundle missing before full build."
+    },
+    {
+      "id": "a8184dde-bd20-4aaf-875a-f49cd020f9cb",
+      "chapter": "Rawkuma (JA)/Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita/Chapter 4.3",
+      "startedAt": "2026-09-05T11:32:46.72Z",
+      "status": "rejected",
+      "candidate": "astra-typesetting-v0.1.0-candidate",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T11:23:46.615Z",
+        "seed": "1a8209ff210aec8c68a547af97894f1f94944e2b86b922ac44a444939f20e452",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1110,
+        "eligibleCount": 89,
+        "selectionRank": "08cbbd3a37dd44789cd6da32c74a94a39ce1ba6127ddcb234da1d06df93e95f2",
+        "key": "Rawkuma (JA)/Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita/Chapter 4.3",
+        "normalizedKey": "rawkuma (ja)/kurobuta ouji wa zense wo omoi da shite kaishin suru  akuyaku chara ni tensei shita no de shibou end kara nigete itara saikyou ni natte ita/chapter 4.3",
+        "provider": "Rawkuma (JA)",
+        "series": "Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita",
+        "chapter": "Chapter 4.3",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3",
+        "pageCount": 10,
+        "pages": [
+          {
+            "byteSize": 673533,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\001.jpeg",
+            "sha256": "5c2277ae053d85425482c0e7b82bac524dd4d0ad501d59d45f2b214be6e852ad"
+          },
+          {
+            "byteSize": 920569,
+            "index": 2,
+            "name": "002.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\002.jpeg",
+            "sha256": "d4e06270e1dcd6ad79bf6ced634193059776b7b5035ec67452cdabcda48cead3"
+          },
+          {
+            "byteSize": 683045,
+            "index": 3,
+            "name": "003.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\003.jpeg",
+            "sha256": "80feddf009a1e2e7e87fdf637e29b46e31e802eb52ae309669200571f02ecfbc"
+          },
+          {
+            "byteSize": 533236,
+            "index": 4,
+            "name": "004.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\004.jpeg",
+            "sha256": "f18deeb47ee969a41509c8081c1e34833f5a3a3fb529a30fde75119b2a3aafeb"
+          },
+          {
+            "byteSize": 977554,
+            "index": 5,
+            "name": "005.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\005.jpeg",
+            "sha256": "1ca23745e8b8a810635e144fa2f2529977e93688a209cdd20265ae40ec1ad8db"
+          },
+          {
+            "byteSize": 741864,
+            "index": 6,
+            "name": "006.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\006.jpeg",
+            "sha256": "81d95135e273c465660e6f034623154f9149b99f98fc115445ba7daa30604753"
+          },
+          {
+            "byteSize": 701385,
+            "index": 7,
+            "name": "007.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\007.jpeg",
+            "sha256": "1d23508d7ab33e4bdfd7d6ded05b2f4a64bce678cf38e057bf3c69f7e49cf910"
+          },
+          {
+            "byteSize": 621969,
+            "index": 8,
+            "name": "008.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\008.jpeg",
+            "sha256": "6c958920a30da795dc89272d29ca6fe0f973890e4cae59429c145b01d7a8717d"
+          },
+          {
+            "byteSize": 664331,
+            "index": 9,
+            "name": "009.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\009.jpeg",
+            "sha256": "e5e08b9f4255cb8feca76d1334e492a0bfb3113da2fde580e05e6904b6f605c8"
+          },
+          {
+            "byteSize": 611917,
+            "index": 10,
+            "name": "010.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\010.jpeg",
+            "sha256": "16e403c6ae0527c4b5e7893baeb6634174510edf2cc24979049017777c5382e9"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Chapter-wide source-family grouping plus actual font samples and production render review improves coherent editable translation.",
+      "gates": {
+        "sourceOutsideErasePixelsUnchanged": true,
+        "nonJapanesePreserved": true,
+        "materialClippingOrWrongText": 0,
+        "maximumRepairs": 2,
+        "promotionRequiresRealUi": true
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-001",
+      "fingerprint": "b111def913f88ca1c35e89fe5abc5b2c1f87a7baea644ec3c0c7f4124fddffea",
+      "reason": "Unconstrained JSON emitted bare seventy in numeric width on page 2. 2 vision calls, 18,710 measured tokens, no completed translation pages.",
+      "finishedAt": "2026-09-05T11:39:02.083Z"
+    },
+    {
+      "id": "5f0be075-ae4b-46cf-a065-5a20233d92e5",
+      "chapter": "Rawkuma (JA)/Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita/Chapter 4.3",
+      "startedAt": "2026-09-05T11:39:54.344Z",
+      "status": "completed",
+      "candidate": "astra-typesetting-v0.1.1-candidate",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T11:23:46.615Z",
+        "seed": "1a8209ff210aec8c68a547af97894f1f94944e2b86b922ac44a444939f20e452",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1110,
+        "eligibleCount": 89,
+        "selectionRank": "08cbbd3a37dd44789cd6da32c74a94a39ce1ba6127ddcb234da1d06df93e95f2",
+        "key": "Rawkuma (JA)/Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita/Chapter 4.3",
+        "normalizedKey": "rawkuma (ja)/kurobuta ouji wa zense wo omoi da shite kaishin suru  akuyaku chara ni tensei shita no de shibou end kara nigete itara saikyou ni natte ita/chapter 4.3",
+        "provider": "Rawkuma (JA)",
+        "series": "Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita",
+        "chapter": "Chapter 4.3",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3",
+        "pageCount": 10,
+        "pages": [
+          {
+            "byteSize": 673533,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\001.jpeg",
+            "sha256": "5c2277ae053d85425482c0e7b82bac524dd4d0ad501d59d45f2b214be6e852ad"
+          },
+          {
+            "byteSize": 920569,
+            "index": 2,
+            "name": "002.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\002.jpeg",
+            "sha256": "d4e06270e1dcd6ad79bf6ced634193059776b7b5035ec67452cdabcda48cead3"
+          },
+          {
+            "byteSize": 683045,
+            "index": 3,
+            "name": "003.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\003.jpeg",
+            "sha256": "80feddf009a1e2e7e87fdf637e29b46e31e802eb52ae309669200571f02ecfbc"
+          },
+          {
+            "byteSize": 533236,
+            "index": 4,
+            "name": "004.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\004.jpeg",
+            "sha256": "f18deeb47ee969a41509c8081c1e34833f5a3a3fb529a30fde75119b2a3aafeb"
+          },
+          {
+            "byteSize": 977554,
+            "index": 5,
+            "name": "005.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\005.jpeg",
+            "sha256": "1ca23745e8b8a810635e144fa2f2529977e93688a209cdd20265ae40ec1ad8db"
+          },
+          {
+            "byteSize": 741864,
+            "index": 6,
+            "name": "006.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\006.jpeg",
+            "sha256": "81d95135e273c465660e6f034623154f9149b99f98fc115445ba7daa30604753"
+          },
+          {
+            "byteSize": 701385,
+            "index": 7,
+            "name": "007.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\007.jpeg",
+            "sha256": "1d23508d7ab33e4bdfd7d6ded05b2f4a64bce678cf38e057bf3c69f7e49cf910"
+          },
+          {
+            "byteSize": 621969,
+            "index": 8,
+            "name": "008.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\008.jpeg",
+            "sha256": "6c958920a30da795dc89272d29ca6fe0f973890e4cae59429c145b01d7a8717d"
+          },
+          {
+            "byteSize": 664331,
+            "index": 9,
+            "name": "009.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\009.jpeg",
+            "sha256": "e5e08b9f4255cb8feca76d1334e492a0bfb3113da2fde580e05e6904b6f605c8"
+          },
+          {
+            "byteSize": 611917,
+            "index": 10,
+            "name": "010.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita\\Chapter 4.3\\010.jpeg",
+            "sha256": "16e403c6ae0527c4b5e7893baeb6634174510edf2cc24979049017777c5382e9"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Chapter-wide source-family grouping plus actual font samples and production render review improves coherent editable translation.",
+      "gates": {
+        "sourceOutsideErasePixelsUnchanged": true,
+        "nonJapanesePreserved": true,
+        "materialClippingOrWrongText": 0,
+        "maximumRepairs": 2,
+        "promotionRequiresRealUi": true
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-001",
+      "fingerprint": "399d153abcff3c3d4a6fd6df237512c0c44039a712c9e558288128f8dd18be74",
+      "finishedAt": "2026-09-05T14:00:37.957Z",
+      "promoted": false,
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 25,
+      "report": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-001\\report.html"
+    },
+    {
+      "id": "registration-diagnostic-001",
+      "chapter": "Rawkuma (JA)/Kurobuta Ouji wa Zense wo Omoi da shite Kaishin suru  Akuyaku Chara ni Tensei shita no de Shibou End kara Nigete Itara Saikyou ni Natte Ita/Chapter 4.3",
+      "startedAt": "2026-09-05T12:25:30Z",
+      "status": "rejected",
+      "candidate": "registration-diagnostic-001",
+      "preregistered": false,
+      "scope": "existing first-page outputs only; incomplete whole-chapter evidence",
+      "modelCalls": 0,
+      "countsAgainstCandidateBudget": true,
+      "artifacts": ".tmp/astra-typesetting-research/registration-diagnostic-001",
+      "reason": "Geometric improvement observed, r5 fails provisional gate and r2 interior reconstruction remains damaged; no promotion."
+    },
+    {
+      "id": "0ab3fc11-d72a-4b27-a942-0a0f62c7269a",
+      "chapter": "Raw Otaku (JA)/転生悪女の黒歴史/第9話_ 転生悪女の黒歴史 (Raw – Free) 【第9話】",
+      "startedAt": "2026-09-05T14:31:17.915Z",
+      "status": "failed",
+      "candidate": "astra-typesetting-v0.2.0-candidate",
+      "scope": "locked regression, not fresh generalization",
+      "source": {
+        "schemaVersion": 1,
+        "status": "locked-diagnostic-not-fresh",
+        "key": "Raw Otaku (JA)/転生悪女の黒歴史/第9話_ 転生悪女の黒歴史 (Raw – Free) 【第9話】",
+        "series": "転生悪女の黒歴史",
+        "chapter": "第9話 · 015.jpeg only",
+        "pageCount": 1,
+        "pages": [
+          {
+            "name": "015.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Raw Otaku (JA)\\転生悪女の黒歴史\\第9話_ 転生悪女の黒歴史 (Raw – Free) 【第9話】\\015.jpeg",
+            "sha256": "27b8478666d1180e5f4ba31d185c5581c62f3d771f73e199ce708bc3cad887ec"
+          }
+        ],
+        "experimentLimit": 10
+      },
+      "hypothesis": "Separate glyph envelopes and context registration preserve surrounding art; new transparent foreground generation and actual renderer line evidence reduce lettering failures. This is a bundled candidate, not a causal ablation.",
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          }
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\locked-page6\\trial-001",
+      "promoted": false,
+      "fingerprint": "69fff4ad266dabcbdd259a65a833114f36854ef0c3c5615dec830222dbc93c32",
+      "researchEvidence": "docs/astra-typesetting-mechanism-research.md",
+      "finishedAt": "2026-09-05T15:25:37.071Z",
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 0,
+      "report": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\locked-page6\\trial-001\\report.html"
+    },
+    {
+      "id": "e3e5ac44-7682-43e7-9649-c30398544a34",
+      "chapter": "Manga Mura (JA)/悪の皇女はもう誰も殺さない/第10.3話-JP_ 第10.3話",
+      "startedAt": "2026-09-05T15:08:21.066Z",
+      "status": "completed",
+      "candidate": "astra-typesetting-v0.2.0-candidate",
+      "scope": "complete sealed chapter",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T14:21:26.386Z",
+        "seed": "db9292f28802e1686120df1fe838f37027da8d983462b9a84b744dc88d4c87d9",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1140,
+        "eligibleCount": 59,
+        "selectionRank": "06fdf12afe40588012f9568c254457a7a53ab2d29ce0de8c980135838469fa3c",
+        "key": "Manga Mura (JA)/悪の皇女はもう誰も殺さない/第10.3話-JP_ 第10.3話",
+        "normalizedKey": "manga mura (ja)/悪の皇女はもう誰も殺さない/第10.3話-jp_ 第10.3話",
+        "provider": "Manga Mura (JA)",
+        "series": "悪の皇女はもう誰も殺さない",
+        "chapter": "第10.3話-JP_ 第10.3話",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Manga Mura (JA)\\悪の皇女はもう誰も殺さない\\第10.3話-JP_ 第10.3話",
+        "pageCount": 1,
+        "pages": [
+          {
+            "byteSize": 2530705,
+            "index": 1,
+            "name": "001.jpg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Manga Mura (JA)\\悪の皇女はもう誰も殺さない\\第10.3話-JP_ 第10.3話\\001.jpg",
+            "sha256": "4bba9282eb75a5deeadaf7bfd6568f581d5e38e35f025fdb8e92a2af51e8027a"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Separate glyph envelopes and context registration preserve surrounding art; new transparent foreground generation and actual renderer line evidence reduce lettering failures. This is a bundled candidate, not a causal ablation.",
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          }
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-002",
+      "promoted": false,
+      "fingerprint": "69fff4ad266dabcbdd259a65a833114f36854ef0c3c5615dec830222dbc93c32",
+      "researchEvidence": "docs/astra-typesetting-mechanism-research.md",
+      "finishedAt": "2026-09-05T15:59:22.306Z",
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 35,
+      "report": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-002\\report.html"
+    },
+    {
+      "id": "b8286605-cf76-4f06-864e-7e6ff61c7124",
+      "chapter": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第8話_ 第8話-v10",
+      "startedAt": "2026-09-05T16:27:18.491Z",
+      "status": "completed",
+      "candidate": "astra-typesetting-v0.3.0-candidate",
+      "scope": "complete sealed chapter",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T16:18:50.359Z",
+        "seed": "47384ad7150b827a70dc1d7ffbf8787d2047792ef6f94503f4f34ed4c5539eb5",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1150,
+        "eligibleCount": 49,
+        "selectionRank": "00e2a98ec1501fc507b7e5402225c79397689b56f0d9e5cb5cce9fe82ff33473",
+        "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第8話_ 第8話-v10",
+        "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第8話_ 第8話-v10",
+        "provider": "Raw Otaku (JA)",
+        "series": "死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～",
+        "chapter": "第8話_ 第8話-v10",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Raw Otaku (JA)\\死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～\\第8話_ 第8話-v10",
+        "pageCount": 1,
+        "pages": [
+          {
+            "byteSize": 6500250,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Raw Otaku (JA)\\死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～\\第8話_ 第8話-v10\\001.jpeg",
+            "sha256": "acb630d59802c11de03feff8c93e825c94cd5d2374c4509f8c952e06427cc49e"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Context-local erasure envelopes refine source geometry before chapter-wide font grouping. Native pixel rebasing must preserve mask permissions and reduce source clipping without harming neighboring art.",
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          }
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003",
+      "promoted": false,
+      "fingerprint": "11aadb35529ee6e1fe7b36cd76ff8eba137486a712795cb8b540cb0944dcd52d",
+      "researchEvidence": "docs/astra-typesetting-spatial-research.md",
+      "finishedAt": "2026-09-05T16:28:32.663Z",
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 0,
+      "report": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003\\report.html",
+      "qualityReason": "Model explicitly reported an unreadable downscaled input; application incorrectly committed zero blocks as completed.",
+      "directAudit": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003\\direct-audit.json"
+    },
+    {
+      "id": "f47e760e-8f9f-421b-9106-b4faa65226c2",
+      "chapter": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第8話_ 第8話-v10",
+      "startedAt": "2026-09-05T16:54:25.551Z",
+      "status": "failed",
+      "candidate": "astra-typesetting-v0.3.1-candidate",
+      "scope": "complete sealed chapter",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T16:18:50.359Z",
+        "seed": "47384ad7150b827a70dc1d7ffbf8787d2047792ef6f94503f4f34ed4c5539eb5",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1150,
+        "eligibleCount": 49,
+        "selectionRank": "00e2a98ec1501fc507b7e5402225c79397689b56f0d9e5cb5cce9fe82ff33473",
+        "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第8話_ 第8話-v10",
+        "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第8話_ 第8話-v10",
+        "provider": "Raw Otaku (JA)",
+        "series": "死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～",
+        "chapter": "第8話_ 第8話-v10",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Raw Otaku (JA)\\死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～\\第8話_ 第8話-v10",
+        "pageCount": 1,
+        "pages": [
+          {
+            "byteSize": 6500250,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Raw Otaku (JA)\\死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～\\第8話_ 第8話-v10\\001.jpeg",
+            "sha256": "acb630d59802c11de03feff8c93e825c94cd5d2374c4509f8c952e06427cc49e"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Read overlapping native views with disjoint center ownership and explicit readability, rebase all geometry, and use native original/rendered views throughout. Gate actual permission boundaries including internal gaps. Existing original-mode export remains the pixel authority. Bundled candidate, not causal ablation.",
+      "priorTrialsOnThisChapter": 1,
+      "freshConfirmation": false,
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          }
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003\\candidate-002",
+      "promoted": false,
+      "fingerprint": "872a3db1ecb45f65dedbf9a1283a36bcec646796d6d3f6e2d3331c91d3643ed0",
+      "researchEvidence": "docs/astra-typesetting-research-memory.md#discovery-003-v030--rejected-explicit-unreadability-lost",
+      "finishedAt": "2026-09-05T17:51:38.537Z",
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 0,
+      "report": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003\\candidate-002\\report.html",
+      "qualityReason": "unbounded structured response: 280-region erasure planning exceeded 12-minute turn timeout",
+      "directAudit": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003\\candidate-002\\direct-audit.json"
+    },
+    {
+      "id": "f5657402-af00-4e11-9369-519c3339e0e8",
+      "chapter": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第8話_ 第8話-v10",
+      "startedAt": "2026-09-05T18:13:31.660Z",
+      "status": "failed",
+      "candidate": "astra-typesetting-v0.3.3-candidate",
+      "scope": "complete sealed chapter",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T16:18:50.359Z",
+        "seed": "47384ad7150b827a70dc1d7ffbf8787d2047792ef6f94503f4f34ed4c5539eb5",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1150,
+        "eligibleCount": 49,
+        "selectionRank": "00e2a98ec1501fc507b7e5402225c79397689b56f0d9e5cb5cce9fe82ff33473",
+        "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第8話_ 第8話-v10",
+        "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第8話_ 第8話-v10",
+        "provider": "Raw Otaku (JA)",
+        "series": "死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～",
+        "chapter": "第8話_ 第8話-v10",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Raw Otaku (JA)\\死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～\\第8話_ 第8話-v10",
+        "pageCount": 1,
+        "pages": [
+          {
+            "byteSize": 6500250,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Raw Otaku (JA)\\死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～\\第8話_ 第8話-v10\\001.jpeg",
+            "sha256": "acb630d59802c11de03feff8c93e825c94cd5d2374c4509f8c952e06427cc49e"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Bound erasure responses to 12 regions and layout/review to 16, preserving full native-view review coverage and chapter-wide source-font comparison. Select text/image after actual font samples, retain mixed editable emphasis and latest layout destinations. Keep native mask-boundary registration and original-pixel export. Bundled reliability and typography candidate, not causal ablation; v0.3.2 was unexecuted source preparation.",
+      "priorTrialsOnThisChapter": 2,
+      "freshConfirmation": false,
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          }
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003\\candidate-003",
+      "promoted": false,
+      "fingerprint": "591ae9422e1a322a45ed986a98b9494680b846a372f3a68f4fe3e4681bc1eeec",
+      "researchEvidence": "docs/astra-typesetting-next-experiments.md",
+      "finishedAt": "2026-09-05T18:15:00.934Z",
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 0,
+      "report": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003\\candidate-003\\report.html",
+      "qualityReason": "coarse readability status conflates clipped non-owned context with readable owned content",
+      "directAudit": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003\\candidate-003\\direct-audit.json"
+    },
+    {
+      "id": "d47a8ba4-437d-44e3-ac5f-2a4f8a8d9532",
+      "chapter": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第8話_ 第8話-v10",
+      "startedAt": "2026-09-05T18:28:23.843Z",
+      "status": "failed",
+      "candidate": "astra-typesetting-v0.3.4-candidate",
+      "scope": "complete sealed chapter",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T16:18:50.359Z",
+        "seed": "47384ad7150b827a70dc1d7ffbf8787d2047792ef6f94503f4f34ed4c5539eb5",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1150,
+        "eligibleCount": 49,
+        "selectionRank": "00e2a98ec1501fc507b7e5402225c79397689b56f0d9e5cb5cce9fe82ff33473",
+        "key": "Raw Otaku (JA)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～/第8話_ 第8話-v10",
+        "normalizedKey": "raw otaku (ja)/死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います~世界最強はオレだけど、世界最カワは妹に違いない~/第8話_ 第8話-v10",
+        "provider": "Raw Otaku (JA)",
+        "series": "死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～",
+        "chapter": "第8話_ 第8話-v10",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Raw Otaku (JA)\\死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～\\第8話_ 第8話-v10",
+        "pageCount": 1,
+        "pages": [
+          {
+            "byteSize": 6500250,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Raw Otaku (JA)\\死ぬ運命にある悪役令嬢の兄に転生したので、妹を育てて未来を変えたいと思います～世界最強はオレだけど、世界最カワは妹に違いない～\\第8話_ 第8話-v10\\001.jpeg",
+            "sha256": "acb630d59802c11de03feff8c93e825c94cd5d2374c4509f8c952e06427cc49e"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Separate ownedReadability from clipped non-owned context, state ownership in view-normalized coordinates, and separate narrative context from diagnostic reasons. Unreadable owned content still aborts; no coercion or reuse of previous failed responses. Native views, batching, typography, fonts, erasure and repair budgets remain v0.3.3.",
+      "priorTrialsOnThisChapter": 3,
+      "freshConfirmation": false,
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          }
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003\\candidate-004",
+      "promoted": false,
+      "fingerprint": "cb7da1d8effc4721ed711e2d4b687346bf82f1b0fe122a2c37ff82dd426a2ab6",
+      "researchEvidence": "docs/astra-typesetting-next-experiments.md",
+      "finishedAt": "2026-09-05T20:15:48.111Z",
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 0,
+      "report": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003\\candidate-004\\report.html",
+      "qualityReason": "Strict layout wire schema rejected optional rich-run sizePx before layout generation; repeated mask-coverage and patch-quality failures independently observed",
+      "directAudit": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-003\\candidate-004\\direct-audit.json"
+    },
+    {
+      "id": "20ef6fe1-4fd6-4a45-99f8-d06be38a1fd6",
+      "chapter": "Rawkuma (JA)/Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru/Chapter 11.2",
+      "startedAt": "2026-09-05T20:34:58.509Z",
+      "status": "failed",
+      "candidate": "astra-typesetting-v0.4.0-candidate",
+      "scope": "complete sealed chapter",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T20:30:04.436Z",
+        "seed": "4d2e3ba6f2d7565075f86a9665e2d29c23d25d4e0c911a5acdfeda71e2d989cb",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1151,
+        "eligibleCount": 48,
+        "selectionRank": "0531e03d4cb43f7c3ceec6aac58397b3e09911eea9207a457b924490e3f56023",
+        "key": "Rawkuma (JA)/Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru/Chapter 11.2",
+        "normalizedKey": "rawkuma (ja)/akuninzura shita b-kyuu boukensha – shujinkou to sono osananajimi-tachi no papa ni naru/chapter 11.2",
+        "provider": "Rawkuma (JA)",
+        "series": "Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru",
+        "chapter": "Chapter 11.2",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2",
+        "pageCount": 14,
+        "pages": [
+          {
+            "byteSize": 355407,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\001.jpeg",
+            "sha256": "ab39c3a4dc777ff62728725a17314099a9f5e39e306f68d77d503c423696fe1f"
+          },
+          {
+            "byteSize": 290937,
+            "index": 2,
+            "name": "002.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\002.jpeg",
+            "sha256": "a283ef5601d2d9291827ef7c9333b938c5aa02a1dd54feb587ce5c8ea900d652"
+          },
+          {
+            "byteSize": 397536,
+            "index": 3,
+            "name": "003.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\003.jpeg",
+            "sha256": "7920e68ff7988f943b3b646b15c4da3c8f52cdab5860f70b8a77273555a25a11"
+          },
+          {
+            "byteSize": 295024,
+            "index": 4,
+            "name": "004.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\004.jpeg",
+            "sha256": "41524ca0c44694e13eed5c6a0bc2ea15866fcdfb714df94ca81184b5cc76243e"
+          },
+          {
+            "byteSize": 283097,
+            "index": 5,
+            "name": "005.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\005.jpeg",
+            "sha256": "ad397e2869d659b2e30049f4fef387dcfd9ba16d54365b977f65f0308b4a2247"
+          },
+          {
+            "byteSize": 464859,
+            "index": 6,
+            "name": "006.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\006.jpeg",
+            "sha256": "716355bcf0445fd4b7cde8798b0132e5675d9df6da48363df36d5422cd270e18"
+          },
+          {
+            "byteSize": 368664,
+            "index": 7,
+            "name": "007.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\007.jpeg",
+            "sha256": "90cd8c557082eb1157c2c13c388f5ca65f9f08fb8aefecf5d3125fe051059d98"
+          },
+          {
+            "byteSize": 358563,
+            "index": 8,
+            "name": "008.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\008.jpeg",
+            "sha256": "40ab0162980d125f0c999753796bb0b7a15a32d253dc606f07a05e16e5111224"
+          },
+          {
+            "byteSize": 368101,
+            "index": 9,
+            "name": "009.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\009.jpeg",
+            "sha256": "744226da1e42cd338aaffbf1d874c772b9a07809c6704c224ab4d59783177a73"
+          },
+          {
+            "byteSize": 454216,
+            "index": 10,
+            "name": "010.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\010.jpeg",
+            "sha256": "83886777853748fe5fa182f6a3740c54d2ca7092f14e02e6c79daee74f9d39a8"
+          },
+          {
+            "byteSize": 385755,
+            "index": 11,
+            "name": "011.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\011.jpeg",
+            "sha256": "bdb996b58ca78f505cc13ab8d3754d4ed397aec521c12db17f69fbcc1a25acab"
+          },
+          {
+            "byteSize": 328787,
+            "index": 12,
+            "name": "012.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\012.jpeg",
+            "sha256": "d1aad064e1118cadd844124e81d3ea5f5b4900d193e4bde587a13a3b98adc9f2"
+          },
+          {
+            "byteSize": 292946,
+            "index": 13,
+            "name": "013.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\013.jpeg",
+            "sha256": "f1e6b7c3e7693523ba9a7da9b04005874371a515a73e0a132221a3b6bad227c9"
+          },
+          {
+            "byteSize": 332200,
+            "index": 14,
+            "name": "014.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\014.jpeg",
+            "sha256": "5378dc57e27104f87aed7c845117cd47d0f6241e1305c00a67ad2b792fa497ca"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "A scoped Astra tool returns actual original/permission/plain-erasure images and binds final erasure geometry to the last rendered proposal. Initial plus at most two mask revisions; existing two downstream repairs, chapter-wide font groups and image registration remain unchanged. Bundle includes readable unscaled font specimens, cumulative thread accounting, and strict required/nullable style wire compatibility with seven actual preflight schemas. This is a preregistered bundle, not a causal ablation.",
+      "priorTrialsOnThisChapter": 0,
+      "freshConfirmation": true,
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          }
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004",
+      "promoted": false,
+      "maximumMaskPreviews": 3,
+      "accountingScope": "ephemeral-thread-total; missing usage remains unknown",
+      "fingerprint": "778441960e2c070a647f18ed208a845b8cd61de571094b10dd4a1589e36fe59c",
+      "researchEvidence": "docs/astra-typesetting-visual-feedback-research.md",
+      "finishedAt": "2026-09-05T20:36:54.923Z",
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 0,
+      "report": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004\\report.html",
+      "qualityReason": "Reading scope incorrectly includes excluded English logo illegibility",
+      "pixelAudit": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004\\pixel-audit.json"
+    },
+    {
+      "id": "23b71556-bcd4-45d7-91b7-d9945228f877",
+      "chapter": "Rawkuma (JA)/Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru/Chapter 11.2",
+      "startedAt": "2026-09-05T20:49:39.894Z",
+      "status": "failed",
+      "candidate": "astra-typesetting-v0.4.1-candidate",
+      "scope": "complete sealed chapter",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T20:30:04.436Z",
+        "seed": "4d2e3ba6f2d7565075f86a9665e2d29c23d25d4e0c911a5acdfeda71e2d989cb",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1151,
+        "eligibleCount": 48,
+        "selectionRank": "0531e03d4cb43f7c3ceec6aac58397b3e09911eea9207a457b924490e3f56023",
+        "key": "Rawkuma (JA)/Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru/Chapter 11.2",
+        "normalizedKey": "rawkuma (ja)/akuninzura shita b-kyuu boukensha – shujinkou to sono osananajimi-tachi no papa ni naru/chapter 11.2",
+        "provider": "Rawkuma (JA)",
+        "series": "Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru",
+        "chapter": "Chapter 11.2",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2",
+        "pageCount": 14,
+        "pages": [
+          {
+            "byteSize": 355407,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\001.jpeg",
+            "sha256": "ab39c3a4dc777ff62728725a17314099a9f5e39e306f68d77d503c423696fe1f"
+          },
+          {
+            "byteSize": 290937,
+            "index": 2,
+            "name": "002.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\002.jpeg",
+            "sha256": "a283ef5601d2d9291827ef7c9333b938c5aa02a1dd54feb587ce5c8ea900d652"
+          },
+          {
+            "byteSize": 397536,
+            "index": 3,
+            "name": "003.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\003.jpeg",
+            "sha256": "7920e68ff7988f943b3b646b15c4da3c8f52cdab5860f70b8a77273555a25a11"
+          },
+          {
+            "byteSize": 295024,
+            "index": 4,
+            "name": "004.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\004.jpeg",
+            "sha256": "41524ca0c44694e13eed5c6a0bc2ea15866fcdfb714df94ca81184b5cc76243e"
+          },
+          {
+            "byteSize": 283097,
+            "index": 5,
+            "name": "005.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\005.jpeg",
+            "sha256": "ad397e2869d659b2e30049f4fef387dcfd9ba16d54365b977f65f0308b4a2247"
+          },
+          {
+            "byteSize": 464859,
+            "index": 6,
+            "name": "006.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\006.jpeg",
+            "sha256": "716355bcf0445fd4b7cde8798b0132e5675d9df6da48363df36d5422cd270e18"
+          },
+          {
+            "byteSize": 368664,
+            "index": 7,
+            "name": "007.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\007.jpeg",
+            "sha256": "90cd8c557082eb1157c2c13c388f5ca65f9f08fb8aefecf5d3125fe051059d98"
+          },
+          {
+            "byteSize": 358563,
+            "index": 8,
+            "name": "008.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\008.jpeg",
+            "sha256": "40ab0162980d125f0c999753796bb0b7a15a32d253dc606f07a05e16e5111224"
+          },
+          {
+            "byteSize": 368101,
+            "index": 9,
+            "name": "009.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\009.jpeg",
+            "sha256": "744226da1e42cd338aaffbf1d874c772b9a07809c6704c224ab4d59783177a73"
+          },
+          {
+            "byteSize": 454216,
+            "index": 10,
+            "name": "010.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\010.jpeg",
+            "sha256": "83886777853748fe5fa182f6a3740c54d2ca7092f14e02e6c79daee74f9d39a8"
+          },
+          {
+            "byteSize": 385755,
+            "index": 11,
+            "name": "011.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\011.jpeg",
+            "sha256": "bdb996b58ca78f505cc13ab8d3754d4ed397aec521c12db17f69fbcc1a25acab"
+          },
+          {
+            "byteSize": 328787,
+            "index": 12,
+            "name": "012.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\012.jpeg",
+            "sha256": "d1aad064e1118cadd844124e81d3ea5f5b4900d193e4bde587a13a3b98adc9f2"
+          },
+          {
+            "byteSize": 292946,
+            "index": 13,
+            "name": "013.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\013.jpeg",
+            "sha256": "f1e6b7c3e7693523ba9a7da9b04005874371a515a73e0a132221a3b6bad227c9"
+          },
+          {
+            "byteSize": 332200,
+            "index": 14,
+            "name": "014.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\014.jpeg",
+            "sha256": "5378dc57e27104f87aed7c845117cd47d0f6241e1305c00a67ad2b792fa497ca"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Scope initial owned readability to Japanese translation targets, preserving excluded English/Korean/digits/punctuation without requiring their exact transcription. Unknown script and unreadable Japanese still fail; no failed response is coerced or reused. Every downstream v0.4.0 mechanism, schema, font and budget is unchanged.",
+      "priorTrialsOnThisChapter": 1,
+      "freshConfirmation": false,
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          }
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004\\candidate-002",
+      "promoted": false,
+      "maximumMaskPreviews": 3,
+      "accountingScope": "ephemeral-thread-total; missing usage remains unknown",
+      "fingerprint": "138350bfdd0c762edd3d72ea762eb5296bbac593abfd9b3f3bc8764c0a205f86",
+      "researchEvidence": "docs/astra-typesetting-language-scope-candidate.md",
+      "finishedAt": "2026-09-05T20:56:39.122Z",
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 0,
+      "report": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004\\candidate-002\\report.html",
+      "qualityReason": "A localized uncertain Japanese SFX on page 2 aborts the entire chapter",
+      "directAudit": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004\\candidate-002\\direct-audit.json"
+    },
+    {
+      "id": "514206fd-b855-4941-92fa-e8c884ceaf4b",
+      "chapter": "Rawkuma (JA)/Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru/Chapter 11.2",
+      "startedAt": "2026-09-05T21:27:33.782Z",
+      "status": "failed",
+      "candidate": "astra-typesetting-v0.4.2-candidate",
+      "scope": "complete sealed chapter",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T20:30:04.436Z",
+        "seed": "4d2e3ba6f2d7565075f86a9665e2d29c23d25d4e0c911a5acdfeda71e2d989cb",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1151,
+        "eligibleCount": 48,
+        "selectionRank": "0531e03d4cb43f7c3ceec6aac58397b3e09911eea9207a457b924490e3f56023",
+        "key": "Rawkuma (JA)/Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru/Chapter 11.2",
+        "normalizedKey": "rawkuma (ja)/akuninzura shita b-kyuu boukensha – shujinkou to sono osananajimi-tachi no papa ni naru/chapter 11.2",
+        "provider": "Rawkuma (JA)",
+        "series": "Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru",
+        "chapter": "Chapter 11.2",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2",
+        "pageCount": 14,
+        "pages": [
+          {
+            "byteSize": 355407,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\001.jpeg",
+            "sha256": "ab39c3a4dc777ff62728725a17314099a9f5e39e306f68d77d503c423696fe1f"
+          },
+          {
+            "byteSize": 290937,
+            "index": 2,
+            "name": "002.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\002.jpeg",
+            "sha256": "a283ef5601d2d9291827ef7c9333b938c5aa02a1dd54feb587ce5c8ea900d652"
+          },
+          {
+            "byteSize": 397536,
+            "index": 3,
+            "name": "003.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\003.jpeg",
+            "sha256": "7920e68ff7988f943b3b646b15c4da3c8f52cdab5860f70b8a77273555a25a11"
+          },
+          {
+            "byteSize": 295024,
+            "index": 4,
+            "name": "004.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\004.jpeg",
+            "sha256": "41524ca0c44694e13eed5c6a0bc2ea15866fcdfb714df94ca81184b5cc76243e"
+          },
+          {
+            "byteSize": 283097,
+            "index": 5,
+            "name": "005.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\005.jpeg",
+            "sha256": "ad397e2869d659b2e30049f4fef387dcfd9ba16d54365b977f65f0308b4a2247"
+          },
+          {
+            "byteSize": 464859,
+            "index": 6,
+            "name": "006.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\006.jpeg",
+            "sha256": "716355bcf0445fd4b7cde8798b0132e5675d9df6da48363df36d5422cd270e18"
+          },
+          {
+            "byteSize": 368664,
+            "index": 7,
+            "name": "007.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\007.jpeg",
+            "sha256": "90cd8c557082eb1157c2c13c388f5ca65f9f08fb8aefecf5d3125fe051059d98"
+          },
+          {
+            "byteSize": 358563,
+            "index": 8,
+            "name": "008.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\008.jpeg",
+            "sha256": "40ab0162980d125f0c999753796bb0b7a15a32d253dc606f07a05e16e5111224"
+          },
+          {
+            "byteSize": 368101,
+            "index": 9,
+            "name": "009.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\009.jpeg",
+            "sha256": "744226da1e42cd338aaffbf1d874c772b9a07809c6704c224ab4d59783177a73"
+          },
+          {
+            "byteSize": 454216,
+            "index": 10,
+            "name": "010.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\010.jpeg",
+            "sha256": "83886777853748fe5fa182f6a3740c54d2ca7092f14e02e6c79daee74f9d39a8"
+          },
+          {
+            "byteSize": 385755,
+            "index": 11,
+            "name": "011.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\011.jpeg",
+            "sha256": "bdb996b58ca78f505cc13ab8d3754d4ed397aec521c12db17f69fbcc1a25acab"
+          },
+          {
+            "byteSize": 328787,
+            "index": 12,
+            "name": "012.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\012.jpeg",
+            "sha256": "d1aad064e1118cadd844124e81d3ea5f5b4900d193e4bde587a13a3b98adc9f2"
+          },
+          {
+            "byteSize": 292946,
+            "index": 13,
+            "name": "013.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\013.jpeg",
+            "sha256": "f1e6b7c3e7693523ba9a7da9b04005874371a515a73e0a132221a3b6bad227c9"
+          },
+          {
+            "byteSize": 332200,
+            "index": 14,
+            "name": "014.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\014.jpeg",
+            "sha256": "5378dc57e27104f87aed7c845117cd47d0f6241e1305c00a67ad2b792fa497ca"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Represent localized unreadable Japanese separately as protected keep source with persisted review markers, without guessed transcription. Preserve global unlocalized failures as errors. Keep geometry must not overlap active source/render regions; use existing two repairs and overlap restoration. Entire chapter grouping, actual erasure previews, registration, fonts and budgets are unchanged.",
+      "priorTrialsOnThisChapter": 2,
+      "freshConfirmation": false,
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          }
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004\\candidate-003",
+      "promoted": false,
+      "maximumMaskPreviews": 3,
+      "accountingScope": "ephemeral-thread-total; missing usage remains unknown",
+      "fingerprint": "61ed92e82ffa5847c861cbf6c5bf968f0443ae3a9f9b9c212940066297ac4336",
+      "researchEvidence": "docs/astra-typesetting-partial-reading-candidate.md",
+      "finishedAt": "2026-09-05T22:06:12.832Z",
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 0,
+      "report": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004\\candidate-003\\report.html",
+      "qualityReason": "No successful actual erasure preview exists for the last page; final output is rejected by the preview binding guard, which currently reports the same message as geometry mismatch.",
+      "directAudit": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004\\candidate-003\\direct-audit.json"
+    },
+    {
+      "id": "dc344f04-3b12-4ae9-9c06-9e4398e3a2ed",
+      "chapter": "Rawkuma (JA)/Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru/Chapter 11.2",
+      "startedAt": "2026-09-05T22:56:11.390Z",
+      "status": "completed",
+      "candidate": "astra-typesetting-v0.4.3-candidate",
+      "scope": "complete sealed chapter",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-05T20:30:04.436Z",
+        "seed": "4d2e3ba6f2d7565075f86a9665e2d29c23d25d4e0c911a5acdfeda71e2d989cb",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1151,
+        "eligibleCount": 48,
+        "selectionRank": "0531e03d4cb43f7c3ceec6aac58397b3e09911eea9207a457b924490e3f56023",
+        "key": "Rawkuma (JA)/Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru/Chapter 11.2",
+        "normalizedKey": "rawkuma (ja)/akuninzura shita b-kyuu boukensha – shujinkou to sono osananajimi-tachi no papa ni naru/chapter 11.2",
+        "provider": "Rawkuma (JA)",
+        "series": "Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru",
+        "chapter": "Chapter 11.2",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2",
+        "pageCount": 14,
+        "pages": [
+          {
+            "byteSize": 355407,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\001.jpeg",
+            "sha256": "ab39c3a4dc777ff62728725a17314099a9f5e39e306f68d77d503c423696fe1f"
+          },
+          {
+            "byteSize": 290937,
+            "index": 2,
+            "name": "002.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\002.jpeg",
+            "sha256": "a283ef5601d2d9291827ef7c9333b938c5aa02a1dd54feb587ce5c8ea900d652"
+          },
+          {
+            "byteSize": 397536,
+            "index": 3,
+            "name": "003.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\003.jpeg",
+            "sha256": "7920e68ff7988f943b3b646b15c4da3c8f52cdab5860f70b8a77273555a25a11"
+          },
+          {
+            "byteSize": 295024,
+            "index": 4,
+            "name": "004.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\004.jpeg",
+            "sha256": "41524ca0c44694e13eed5c6a0bc2ea15866fcdfb714df94ca81184b5cc76243e"
+          },
+          {
+            "byteSize": 283097,
+            "index": 5,
+            "name": "005.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\005.jpeg",
+            "sha256": "ad397e2869d659b2e30049f4fef387dcfd9ba16d54365b977f65f0308b4a2247"
+          },
+          {
+            "byteSize": 464859,
+            "index": 6,
+            "name": "006.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\006.jpeg",
+            "sha256": "716355bcf0445fd4b7cde8798b0132e5675d9df6da48363df36d5422cd270e18"
+          },
+          {
+            "byteSize": 368664,
+            "index": 7,
+            "name": "007.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\007.jpeg",
+            "sha256": "90cd8c557082eb1157c2c13c388f5ca65f9f08fb8aefecf5d3125fe051059d98"
+          },
+          {
+            "byteSize": 358563,
+            "index": 8,
+            "name": "008.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\008.jpeg",
+            "sha256": "40ab0162980d125f0c999753796bb0b7a15a32d253dc606f07a05e16e5111224"
+          },
+          {
+            "byteSize": 368101,
+            "index": 9,
+            "name": "009.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\009.jpeg",
+            "sha256": "744226da1e42cd338aaffbf1d874c772b9a07809c6704c224ab4d59783177a73"
+          },
+          {
+            "byteSize": 454216,
+            "index": 10,
+            "name": "010.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\010.jpeg",
+            "sha256": "83886777853748fe5fa182f6a3740c54d2ca7092f14e02e6c79daee74f9d39a8"
+          },
+          {
+            "byteSize": 385755,
+            "index": 11,
+            "name": "011.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\011.jpeg",
+            "sha256": "bdb996b58ca78f505cc13ab8d3754d4ed397aec521c12db17f69fbcc1a25acab"
+          },
+          {
+            "byteSize": 328787,
+            "index": 12,
+            "name": "012.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\012.jpeg",
+            "sha256": "d1aad064e1118cadd844124e81d3ea5f5b4900d193e4bde587a13a3b98adc9f2"
+          },
+          {
+            "byteSize": 292946,
+            "index": 13,
+            "name": "013.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\013.jpeg",
+            "sha256": "f1e6b7c3e7693523ba9a7da9b04005874371a515a73e0a132221a3b6bad227c9"
+          },
+          {
+            "byteSize": 332200,
+            "index": 14,
+            "name": "014.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuninzura shita B-kyuu Boukensha – Shujinkou to Sono Osananajimi-tachi no Papa ni naru\\Chapter 11.2\\014.jpeg",
+            "sha256": "5378dc57e27104f87aed7c845117cd47d0f6241e1305c00a67ad2b792fa497ca"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Return actual per-region erasure previews, retaining invalid targets as explicit unresolved original-only crops. Commit the latest revision/hash/exact unresolved membership without retranscribing geometry; resolve only its stored plans. Preserve bounded partial fallback. Separately protect keep source using actual per-block native transparent painted bounds and deterministic renderer overflow feedback. This is a preregistered bundle, not a causal ablation; chapter-wide fonts, other model schemas, generation mechanisms and repair budgets stay fixed.",
+      "priorTrialsOnThisChapter": 3,
+      "freshConfirmation": false,
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          }
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004\\candidate-004",
+      "promoted": false,
+      "maximumMaskPreviews": 3,
+      "accountingScope": "ephemeral-thread-total; missing usage remains unknown",
+      "fingerprint": "807252eb95d9dd001e66d9f38eb4bc30f72b960ecc944c4755f339ecb095d487",
+      "researchEvidence": "docs/astra-typesetting-preview-commit-candidate.md",
+      "finishedAt": "2026-09-06T01:21:39.660Z",
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 25,
+      "report": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004\\candidate-004\\audited-report.html",
+      "qualityReason": "Whole-chapter output retains required Japanese effects and other targets. Source preservation and execution completion are not translation success.",
+      "directAudit": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-004\\candidate-004\\direct-audit.json"
+    },
+    {
+      "id": "76427c4e-7057-465f-94ed-44952c0722d1",
+      "chapter": "Raw Otaku (JA)/魔導細工師ノーミィの異世界クラフト生活 ～前世知識とチートなアイテムで、魔王城をどんどん快適にします!～/第8.2話_ 第8.2話-v15",
+      "startedAt": "2026-09-06T02:35:02.839Z",
+      "status": "failed",
+      "candidate": "astra-typesetting-v0.4.5-candidate",
+      "scope": "complete sealed chapter",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-06T02:28:32.002Z",
+        "seed": "55451f5c348433d6ad4ac76c3d756e1a203a4415bfd731c6baa27f3c6dfbc6f0",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 1185,
+        "eligibleCount": 14,
+        "selectionRank": "1a7707178748669e3042e6fbe7dc530966019e8f42ab4e916e3ab20a4fe129fa",
+        "key": "Raw Otaku (JA)/魔導細工師ノーミィの異世界クラフト生活 ～前世知識とチートなアイテムで、魔王城をどんどん快適にします!～/第8.2話_ 第8.2話-v15",
+        "normalizedKey": "raw otaku (ja)/魔導細工師ノーミィの異世界クラフト生活 ~前世知識とチートなアイテムで、魔王城をどんどん快適にします!~/第8.2話_ 第8.2話-v15",
+        "provider": "Raw Otaku (JA)",
+        "series": "魔導細工師ノーミィの異世界クラフト生活 ～前世知識とチートなアイテムで、魔王城をどんどん快適にします!～",
+        "chapter": "第8.2話_ 第8.2話-v15",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Raw Otaku (JA)\\魔導細工師ノーミィの異世界クラフト生活 ～前世知識とチートなアイテムで、魔王城をどんどん快適にします!～\\第8.2話_ 第8.2話-v15",
+        "pageCount": 1,
+        "pages": [
+          {
+            "byteSize": 3777066,
+            "index": 1,
+            "name": "001.jpg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Raw Otaku (JA)\\魔導細工師ノーミィの異世界クラフト生活 ～前世知識とチートなアイテムで、魔王城をどんどん快適にします!～\\第8.2話_ 第8.2話-v15\\001.jpg",
+            "sha256": "94e9541d8759b7b6495b90c88a916b294260791e80fb964f410029250fb81585"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "Inspect immutable native cleaned background before lettering, with original/context/actual-splice/raw-generation views and exact revision/SHA acknowledgement. Unseen mask corrections require a fresh render, and initial plus two background attempts cannot be bypassed. Failed backgrounds retain known source/translation review blocks and never enter foreground generation; independent successes continue. Prior transparent readback, source-padding conflict and static-font weight defects were separately characterized and fixed. No registration threshold relaxation or joint/wider generation mechanism is bundled.",
+      "priorTrialsOnThisChapter": 0,
+      "freshConfirmation": false,
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          }
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-005\\candidate-001",
+      "promoted": false,
+      "maximumMaskPreviews": 3,
+      "accountingScope": "ephemeral-thread-total; missing usage remains unknown",
+      "fingerprint": "0bfc96fca2ee0845bd545de4cb1c2333ef069ff00ecdebec8b29a82d3e0bcc6b",
+      "researchEvidence": "docs/astra-typesetting-background-candidate.md",
+      "maximumBackgroundAttempts": 3,
+      "backgroundReviewBatchSize": 12,
+      "foregroundOnFailedBackground": false,
+      "qualityDenominator": "Every initially active Japanese target, including hidden failed-background review records, plus separately reported localized unreadable targets",
+      "inputExposure": "Sealed never-used discovery chapter; first native source view shown to the user before candidate reservation. This is discovery, not confirmation.",
+      "preflight": {
+        "result": ".tmp\\astra-typesetting-research\\background-stage-preflight-v045\\result.json",
+        "sha256": "6843cc8c1e427e41adac62ee51c16e80b0f04de0d00490cb3736bb77bc7286c0"
+      },
+      "finishedAt": "2026-09-06T04:18:42.373Z",
+      "qualityStatus": "rejected",
+      "reviewRegionCount": 181,
+      "report": ".tmp/astra-typesetting-research/discovery-005/candidate-001/audited-report.html",
+      "qualityTargetCount": 181,
+      "qualityFailedTargetCount": 181,
+      "developmentExperiments": [
+        "user-requested-mask-feather-001",
+        "user-requested-mask-feather-002",
+        "user-requested-mask-feather-003",
+        "user-requested-mask-feather-004"
+      ],
+      "effectiveExperimentsOnChapter": 5,
+      "retired": true
+    },
+    {
+      "id": "e836a73f-f7c6-4e5e-8db4-babccb0de9b8",
+      "chapter": "Manga Mura (JA)/転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～/第16.2話_ 第16.2話-v25",
+      "startedAt": "2026-09-06T05:56:00.947Z",
+      "status": "cancelled",
+      "candidate": "astra-typesetting-v0.4.8-candidate",
+      "scope": "complete sealed chapter",
+      "source": {
+        "schemaVersion": 1,
+        "campaign": "font-size-ai-hayai-ocr",
+        "sealedAt": "2026-09-06T05:49:09.192Z",
+        "seed": "2cf530c82de1081ab1669dc80e56b743cbb72857cb4817ae3a3b22b0f52aea79",
+        "inventoryDigest": "68cba2628f8c733e66522ee58c8aaf99adbe7b01a63a7bf4d20b42269e1519f1",
+        "inventoryCount": 1199,
+        "excludedCount": 331,
+        "eligibleCount": 868,
+        "selectionRank": "000a2760a338c63e7ace440a4d9bdfbf6b2867cfd8fee86e5c903bb9c9362e55",
+        "key": "Manga Mura (JA)/転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～/第16.2話_ 第16.2話-v25",
+        "normalizedKey": "manga mura (ja)/転生しました、サラナ・キンジェです。ごきげんよう。 ~優雅なスローライフで大忙し~ 転生しました、サラナ・キンジェです。ごきげんよう。 ~婚約破棄されたので田舎で気ままに暮らしたいと思います~/第16.2話_ 第16.2話-v25",
+        "provider": "Manga Mura (JA)",
+        "series": "転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～",
+        "chapter": "第16.2話_ 第16.2話-v25",
+        "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Manga Mura (JA)\\転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～\\第16.2話_ 第16.2話-v25",
+        "pageCount": 1,
+        "pages": [
+          {
+            "byteSize": 2632852,
+            "index": 1,
+            "name": "001.jpeg",
+            "path": "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Manga Mura (JA)\\転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～\\第16.2話_ 第16.2話-v25\\001.jpeg",
+            "sha256": "72cb4a1ea2abb44850c9c17d85ede2b8c59043f1d84cbaa2de9acd413a17b131"
+          }
+        ],
+        "experimentsUsed": 0,
+        "experimentLimit": 5,
+        "status": "sealed-before-visual-inspection"
+      },
+      "hypothesis": "User-approved full-word opaque core plus outer-only smoothstep feather, native-width starting radii, protected support checks, expanded restoration closure, and staged actual-background visual acceptance. Legacy numeric registration remains diagnostic with unchanged thresholds; technical coverage/opacity still reject. Reuse immutable same-job raw backgrounds only for explicit geometry-only correction fitting their original crop, followed by a fresh actual-splice review. Preserve known unreadable observations without treating them as active repairs. Hidden text overflow does not apply to active generated images. User-directed SFX mode is image for EVERY sound region, enforced through all repairs; ordinary text keeps font-guided editing. This is an explicitly bundled candidate, not a causal ablation.",
+      "priorTrialsOnThisChapter": 0,
+      "freshConfirmation": false,
+      "maximumRepairs": 2,
+      "request": {
+        "model": "gpt-6-astra",
+        "effort": "high",
+        "sourceLanguage": "ja",
+        "targetLanguage": "ko",
+        "codexTypesetting": {
+          "version": 1,
+          "preset": {
+            "id": "default",
+            "name": "기본 서체",
+            "fonts": [
+              {
+                "fontId": "mongtori",
+                "purpose": "부드럽고 가벼운 손글씨 계열. 원문이 같은 계열이면 작은 덧말과 큰 감정 표현도 같은 폰트를 유지하고 크기·굵기로 구분."
+              },
+              {
+                "fontId": "chosun-gungseo",
+                "purpose": "붓의 강약이 있는 손글씨와 극적인 효과음 계열. 실제 견본의 굵기 차이를 확인하고, 글자 변형만으로 자연스럽지 않으면 이미지 전경 사용."
+              },
+              {
+                "fontId": "nanum-gothic",
+                "purpose": "단정한 고딕 대사 계열. 일반 대사의 중립적인 기준. 원문의 서체 계열을 우선하고 굵은 강조도 같은 계열 안에서 처리."
+              },
+              {
+                "fontId": "nanum-myeongjo",
+                "purpose": "명조·세리프 계열의 차분한 서술과 격식 있는 표현. 내레이션이라는 이유만으로 강제하지 말고 원문의 획 모양을 우선."
+              }
+            ]
+          },
+          "sfxRendering": "image"
+        }
+      },
+      "artifacts": "C:\\Users\\sam40\\Downloads\\망가번역기-astra-typesetting-20260905\\.tmp\\astra-typesetting-research\\discovery-006\\candidate-001",
+      "promoted": false,
+      "maximumMaskPreviews": 3,
+      "accountingScope": "ephemeral-thread-total; missing usage remains unknown",
+      "fingerprint": "e5a8efa3b1f6f210a3c7f4fa24bd0ec0ba235afeb5cf2dc710d04d5f19ded809",
+      "researchEvidence": "docs/astra-typesetting-feather-candidate.md",
+      "maximumBackgroundAttempts": 3,
+      "backgroundReviewBatchSize": 12,
+      "foregroundOnFailedBackground": false,
+      "qualityDenominator": "Every initially active Japanese target, including hidden failed-background review records, plus separately reported localized unreadable targets",
+      "inputExposure": "Seed/inventory/source hashes sealed before native source inspection. First run on an unused complete chapter; discovery, not final confirmation.",
+      "preflight": {
+        "result": ".tmp/astra-typesetting-research/sfx-mode-preparation-v048/verified.json",
+        "sha256": "f0596cde1a074f39b87c034d788eceabaac84a17107db4bb3a0e895e58f6a244"
+      },
+      "sfxRendering": "image",
+      "transition": "Previous discovery chapter closed at 1 product candidate plus 4 pixel-changing developments. Clear local improvement explicitly accepted by user; carry this new mechanism to an unused chapter. No new 200-query transition claimed.",
+      "finishedAt": "2026-09-06T07:31:26.612Z",
+      "interruption": {
+        "at": "2026-09-06T07:31:26.612Z",
+        "status": "cancelled",
+        "reason": "User redirected work to source-style-conditioned Korean SFX generation and accepted current background level. Preserve all original chapter artifacts; no whole-chapter pass or failure rate inferred from unfinished candidate.",
+        "method": "Stopped verified owning Electron runner and its descendant process identities; runner had no graceful cancellation endpoint. In-flight remote generation completion/usage is unknown.",
+        "runtimeVerifiedBeforeStop": ".tmp/astra-typesetting-research/discovery-006/candidate-001/runtime-before-sfx-steering.json",
+        "promoted": false,
+        "followup": ".tmp/astra-typesetting-research/sfx-source-conditioned-001",
+        "countsAsUsedChapter": true
+      }
+    }
+  ]
+}

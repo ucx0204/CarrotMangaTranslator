@@ -1,8 +1,40 @@
 import { describe, expect, it } from "vitest";
 import type { MangaPage } from "../src/shared/libraryTypes";
-import { createPageRevision } from "../src/shared/pageRevision";
+import {
+  createPageRevision,
+  createPageVisualRevision,
+} from "../src/shared/pageRevision";
 
 describe("page job revisions", () => {
+  it("invalidates rendered-image caches when source editing switches generated lettering to text", () => {
+    const page = makePage();
+    const original = page.blocks[0];
+    if (!original) throw new Error("Missing fixture block");
+    const block = {
+      ...original,
+      generatedLettering: {
+        version: 1 as const,
+        sourceText: original.sourceText,
+        translatedText: original.translatedText,
+        dataUrl: "data:image/png;base64,aA==",
+      },
+    };
+    const active = { ...page, blocks: [block] };
+    const edited = {
+      ...page,
+      blocks: [{ ...block, sourceText: "edited source" }],
+    };
+    expect(createPageVisualRevision(edited)).not.toBe(
+      createPageVisualRevision(active),
+    );
+    expect(
+      createPageVisualRevision({
+        ...page,
+        blocks: [{ ...original, sourceText: "metadata edit" }],
+      }),
+    ).toBe(createPageVisualRevision(page));
+  });
+
   it("ignores runtime status and timestamp changes", () => {
     const page = makePage();
     const revision = createPageRevision(page);

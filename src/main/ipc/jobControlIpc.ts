@@ -11,29 +11,47 @@ import { pageTimingSessionManager } from "../jobs/pageTimingSessionManager";
 type JobControlIpcContext = Pick<IpcContext, "getMainWindow" | "jobs">;
 
 export function registerJobControlIpc(context: JobControlIpcContext): void {
-  trustedHandleContract(context, jobControlIpcContracts.cancelJob, async () => {
-    const job = context.jobs.current;
-    if (!job) {
-      return { cancelled: false };
-    }
+  trustedHandleContract(
+    context,
+    jobControlIpcContracts.cancelJob,
+    async (
+      _event,
+      request?: { reason?: "codex-disconnected"; jobId: string },
+    ) => {
+      const job = context.jobs.current;
+      if (!job || !canCancelJob(job, request)) return { cancelled: false };
 
-    const payload = {
-      id: job.id,
-      kind: job.kind,
-      status: "cancelling",
-      progressText: tMain("jobs.cancelling"),
-      progressCurrent: job.lastEvent?.progressCurrent,
-      progressTotal: job.lastEvent?.progressTotal,
-      pageIndex: job.lastEvent?.pageIndex,
-      pageTotal: job.lastEvent?.pageTotal,
-      attempt: job.lastEvent?.attempt,
-      attemptTotal: job.lastEvent?.attemptTotal,
-    } satisfies JobEvent;
-    emitJobEvent(context.jobs, context.getMainWindow(), payload);
-    job.abortController.abort();
-    await context.jobs.runCleanup(job, "cancel");
-    return { cancelled: true };
-  });
+      const disconnected = request?.reason === "codex-disconnected";
+      const last: Partial<JobEvent> = job.lastEvent ?? {};
+      const payload = {
+        id: job.id,
+        kind: job.kind,
+        status: disconnected ? "failed" : "cancelling",
+        phase: disconnected ? "failed" : undefined,
+        detail: disconnected
+          ? "Codex 연결이 끊겼습니다. 연결 후 다시 실행해 주세요."
+          : undefined,
+        progressText: tMain(disconnected ? "jobs.failed" : "jobs.cancelling"),
+        progressCurrent: last.progressCurrent,
+        progressTotal: last.progressTotal,
+        pageIndex: last.pageIndex,
+        pageTotal: last.pageTotal,
+        attempt: last.attempt,
+        attemptTotal: last.attemptTotal,
+      } satisfies JobEvent;
+      emitJobEvent(context.jobs, context.getMainWindow(), payload);
+      job.abortController.abort(
+        disconnected
+          ? Object.assign(
+              new Error("Codex 연결이 끊겼습니다. 연결 후 다시 실행해 주세요."),
+              { code: "CODEX_DISCONNECTED" },
+            )
+          : undefined,
+      );
+      await context.jobs.runCleanup(job, "cancel");
+      return { cancelled: true };
+    },
+  );
 
   trustedHandleContract(
     context,
@@ -46,5 +64,18 @@ export function registerJobControlIpc(context: JobControlIpcContext): void {
           "페이지 소요 시간 정산",
         ),
       ),
+  );
+}
+
+function canCancelJob(
+  job: NonNullable<JobControlIpcContext["jobs"]["current"]>,
+  request?: { jobId: string },
+): boolean {
+  if (
+    ["completed", "failed", "cancelled"].includes(job.lastEvent?.status ?? "")
+  )
+    return false;
+  return (
+    !request || (job.id === request.jobId && job.kind === "gemma-analysis")
   );
 }

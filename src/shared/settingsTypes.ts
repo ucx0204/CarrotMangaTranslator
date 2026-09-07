@@ -108,6 +108,7 @@ type GemmaSettings = {
 };
 
 type CodexSettings = {
+  delegateAll?: boolean;
   model: string;
   reasoningEffort: CodexReasoningEffort;
 };
@@ -167,6 +168,7 @@ type OcrSettings = {
 };
 
 export type UiSettings = {
+  codexTypesettingPreferences?: import("./codexTypesettingTypes").CodexTypesettingPreferences;
   /** Application interface language. Independent from the manga translation pair. */
   locale?: UiLocale;
   inpaintingGuideHidden?: boolean;

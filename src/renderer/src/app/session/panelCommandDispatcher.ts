@@ -88,6 +88,9 @@ export type PanelCommandTarget = {
   applyBlockBackgroundOpacityToScope: (
     scope: ApplyBackgroundCommand["scope"],
   ) => void;
+  setLetteringTool?: (
+    tool: import("../../../../shared/generatedLetteringMaskTypes").LetteringTool,
+  ) => void;
   selectWorkspaceTool: (mode: SelectTransformCommand["mode"]) => void;
   startAreaTranslate: () => void;
 };
@@ -205,6 +208,7 @@ function applyBasicPanelCommand(
     SelectionEditCommand
   >,
 ): void {
+  if (applyPanelToolCommand(actions, command)) return;
   switch (command.type) {
     case "updateBlock":
       actions.updateBlock(command.blockId, command.patch);
@@ -226,9 +230,6 @@ function applyBasicPanelCommand(
       return;
     case "removeBubbleLayout":
       actions.removeSelectedBlockBubbleLayout();
-      return;
-    case "selectTransformMode":
-      actions.selectWorkspaceTool(command.mode);
       return;
     case "applyFormat":
       actions.applyFormatToScope(command.scope, command.groupIds);
@@ -276,4 +277,20 @@ function isStaleBlockCommand(
     command.type === "removeBubbleLayout"
     ? command.blockId !== selectedBlockId
     : false;
+}
+
+function applyPanelToolCommand(
+  actions: PanelCommandTarget,
+  command: PanelCommand,
+): boolean {
+  if (command.type === "setLetteringTool") {
+    actions.selectWorkspaceTool("select");
+    actions.setLetteringTool?.(command.tool);
+    return true;
+  }
+  if (command.type === "selectTransformMode") {
+    actions.selectWorkspaceTool(command.mode);
+    return true;
+  }
+  return false;
 }

@@ -1,7 +1,72 @@
 // @ts-check
+const { PNG } = require("pngjs");
 
 function createFixtureBlocks() {
   return [
+    createBlock("generated-lettering", {
+      bbox: { x: 430, y: 260, w: 180, h: 180 },
+      generatedLettering: {
+        version: 1,
+        sourceText: "",
+        translatedText: "텍스트",
+        dataUrl: generatedLayerFixture(),
+      },
+      rotationDeg: -11,
+      textOpacity: 0.65,
+      warpTransform: createWarpFixture("flag", 3),
+    }),
+    createBlock("generated-masked-lettering", {
+      bbox: { x: 630, y: 570, w: 200, h: 210 },
+      opacity: 0,
+      rotationDeg: 19,
+      generatedLettering: {
+        version: 1,
+        sourceText: "",
+        translatedText: "텍스트",
+        dataUrl: generatedLayerFixture(),
+        occlusionPolygons: [
+          [
+            { x: 710, y: 650 },
+            { x: 900, y: 650 },
+            { x: 900, y: 700 },
+            { x: 710, y: 700 },
+          ],
+        ],
+        maskStrokes: [
+          {
+            space: "asset",
+            mode: "hide",
+            shape: "circle",
+            points: [
+              { x: 50, y: 500 },
+              { x: 950, y: 500 },
+            ],
+            radiusX: 100,
+            radiusY: 50,
+            softness: 0.8,
+          },
+          {
+            space: "asset",
+            mode: "restore",
+            shape: "square",
+            points: [{ x: 500, y: 500 }],
+            radiusX: 60,
+            radiusY: 120,
+            softness: 0,
+          },
+          {
+            space: "page",
+            mode: "restore",
+            shape: "circle",
+            points: [{ x: 770, y: 680 }],
+            radiusX: 35,
+            radiusY: 35,
+            softness: 0.5,
+          },
+        ],
+      },
+      warpTransform: createWarpFixture("flag", 3),
+    }),
     createBlock("rich", {
       bbox: { x: 110.25, y: 75.5, w: 300.5, h: 155.25 },
       bold: true,
@@ -86,6 +151,21 @@ function createFixtureBlocks() {
       translatedText: "",
     }),
   ];
+}
+
+function generatedLayerFixture() {
+  const image = new PNG({ width: 48, height: 48 });
+  for (let y = 5; y < 43; y++) {
+    for (let x = 5; x < 43; x++) {
+      if (Math.abs(x - y) > 5 && Math.abs(x + y - 47) > 5) continue;
+      const at = (y * 48 + x) * 4;
+      image.data[at] = 35;
+      image.data[at + 1] = 72;
+      image.data[at + 2] = 105;
+      image.data[at + 3] = x < 24 ? 255 : 170;
+    }
+  }
+  return `data:image/png;base64,${PNG.sync.write(image).toString("base64")}`;
 }
 
 /**

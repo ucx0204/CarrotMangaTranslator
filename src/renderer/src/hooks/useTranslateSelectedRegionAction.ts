@@ -1,4 +1,6 @@
 import { useCallback, useMemo } from "react";
+import type { RegionAnalysisRequest } from "../../../shared/analysisTypes";
+import { createPageRevision } from "../../../shared/pageRevision";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { BBox } from "../../../shared/textTypes";
@@ -6,10 +8,7 @@ import { isUsableRegionBbox } from "../../../shared/region";
 import { analysisGateway } from "../api/analysisGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import type { NotificationPort } from "../lib/notificationPort";
-import type {
-  TranslationActions,
-  UseTranslationActionsOptions,
-} from "./translationActionTypes";
+import type { UseTranslationActionsOptions } from "./translationActionTypes";
 import {
   failAnalysisJob,
   handleTranslateRegionResult,
@@ -20,6 +19,7 @@ import {
 
 type RegionTranslationContext = Pick<
   UseTranslationActionsOptions,
+  | "recordImageEdit"
   | "beforeTranslate"
   | "currentChapter"
   | "currentChapterRef"
@@ -40,17 +40,19 @@ type RegionTranslationContext = Pick<
 export function useTranslateSelectedRegionAction(
   options: UseTranslationActionsOptions,
   notificationPort: NotificationPort,
-): TranslationActions["translateSelectedRegion"] {
+): (bbox: BBox, request?: Partial<RegionAnalysisRequest>) => Promise<boolean> {
   const { t } = useTranslation("renderer");
   const context = useRegionTranslationContext(options, notificationPort, t);
   return useCallback(
-    (bbox: BBox) => translateSelectedRegion(bbox, context),
+    (bbox: BBox, request?: Partial<RegionAnalysisRequest>) =>
+      translateSelectedRegion(bbox, context, request),
     [context],
   );
 }
 
 function useRegionTranslationContext(
   {
+    recordImageEdit,
     beforeTranslate,
     currentChapter,
     currentChapterRef,
@@ -69,6 +71,7 @@ function useRegionTranslationContext(
 ): RegionTranslationContext {
   return useMemo(
     () => ({
+      recordImageEdit,
       beforeTranslate,
       currentChapter,
       currentChapterRef,
@@ -85,6 +88,7 @@ function useRegionTranslationContext(
       t,
     }),
     [
+      recordImageEdit,
       beforeTranslate,
       currentChapter,
       currentChapterRef,
@@ -106,22 +110,33 @@ function useRegionTranslationContext(
 async function translateSelectedRegion(
   bbox: BBox,
   context: RegionTranslationContext,
-): Promise<void> {
+  request?: Partial<RegionAnalysisRequest>,
+): Promise<boolean> {
   const { currentChapter, selectedPage } = context;
-  if (!currentChapter || !selectedPage || context.jobActive) return;
+  if (!currentChapter || !selectedPage || context.jobActive) return false;
   if (!isUsableRegionBbox(bbox, 10)) {
     context.pushStatus(context.t("regionTranslation.tooSmall"));
-    return;
+    return false;
   }
   try {
-    await context.saveNow();
-    context.setJobState(regionTranslationStartingState(context.t));
-    await context.beforeTranslate?.();
+    await prepareSelectedRegionTranslation(context, request);
     const result = await analysisGateway.translateRegion({
+      ...request,
+      pageRevision: createPageRevision(
+        context.currentChapterRef.current?.pages.find(
+          (page) => page.id === selectedPage.id,
+        ) ?? selectedPage,
+      ),
       chapterId: currentChapter.id,
       pageId: selectedPage.id,
       bbox,
     });
+    if (result.status === "completed" && result.history)
+      context.recordImageEdit({
+        label: context.t("regionTranslation.title"),
+        transactionId: result.history.transactionId,
+        chapterId: currentChapter.id,
+      });
     mergeTranslatedRegionResult(result, {
       currentChapterRef: context.currentChapterRef,
       mergeLiveChapter: context.mergeLiveChapter,
@@ -143,12 +158,26 @@ async function translateSelectedRegion(
       },
       context.t,
     );
+    return result.status === "completed";
   } catch (error) {
+    context.notificationPort.error(
+      formatErrorMessage(error, context.t("regionTranslation.startFailed")),
+    );
     failAnalysisJob(
       context.setJobState,
       context.pushStatus,
       context.t("regionTranslation.failedTitle"),
       formatErrorMessage(error, context.t("regionTranslation.startFailed")),
     );
+    return false;
   }
+}
+
+async function prepareSelectedRegionTranslation(
+  context: RegionTranslationContext,
+  request?: Partial<RegionAnalysisRequest>,
+) {
+  await context.saveNow();
+  context.setJobState(regionTranslationStartingState(context.t));
+  if (!request?.codexTypesetting) await context.beforeTranslate?.();
 }

@@ -66,6 +66,7 @@ export type SettingsFormValues = {
   gemmaMmprojOffload: boolean;
   llamaRuntimeProfile: LlamaRuntimeProfile;
   allowUnsafeUnifiedMemory: boolean;
+  codexDelegateAll?: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
   researchTavilyAnalysisProvider: TavilyAnalysisProvider;
@@ -209,6 +210,7 @@ function resolveModelFormValues(
   | "gemmaMmprojOffload"
   | "llamaRuntimeProfile"
   | "allowUnsafeUnifiedMemory"
+  | "codexDelegateAll"
   | "codexModel"
   | "codexReasoningEffort"
 > {
@@ -227,6 +229,7 @@ function resolveModelFormValues(
     gemmaMmprojOffload: settings.gemma.mmprojOffload ?? true,
     llamaRuntimeProfile: settings.gemma.llamaRuntimeProfile ?? "cuda12",
     allowUnsafeUnifiedMemory: settings.gemma.allowUnsafeUnifiedMemory === true,
+    codexDelegateAll: settings.codex.delegateAll === true,
     codexModel: settings.codex.model,
     codexReasoningEffort: resolveCodexReasoningEffortForModel(
       settings.codex.model,

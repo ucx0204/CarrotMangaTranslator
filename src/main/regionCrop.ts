@@ -1,6 +1,6 @@
 import { nativeImage } from "electron";
 import { randomUUID } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { BBox, TranslationBlock } from "../shared/textTypes";
 import type { MangaPage } from "../shared/libraryTypes";
@@ -87,6 +87,13 @@ export async function createRegionCropPage(
       name: `${page.name} 선택 영역`,
       imagePath: cropPath,
       dataUrl: "",
+      inpaintedImagePath: undefined,
+      inpaintMaskPath: undefined,
+      maskProvenance: undefined,
+      translationCompletion: undefined,
+      translationCheckpoint: undefined,
+      blockOrder: [],
+      soundEffectReview: undefined,
       width: cropRect.w,
       height: cropRect.h,
       blocks: [],
@@ -111,6 +118,26 @@ export function mapRegionBlocksToPageBlocks(
       renderBbox: block.renderBbox
         ? mapCropNormalizedBboxToPageBbox(cropRect, pageSize, block.renderBbox)
         : undefined,
+      ...(block.generatedLettering
+        ? {
+            generatedLettering: {
+              ...block.generatedLettering,
+              occlusionPolygons:
+                block.generatedLettering.occlusionPolygons?.map((polygon) =>
+                  polygon.map((point) => ({
+                    x:
+                      ((cropRect.x + (point.x * cropRect.w) / 1000) /
+                        page.width) *
+                      1000,
+                    y:
+                      ((cropRect.y + (point.y * cropRect.h) / 1000) /
+                        page.height) *
+                      1000,
+                  })),
+                ),
+            },
+          }
+        : {}),
       bboxSpace: "normalized_1000",
       renderBboxSpace: block.renderBbox ? "normalized_1000" : undefined,
     };
@@ -144,6 +171,14 @@ export async function loadImageForRegionCrop(
     return direct;
   }
 
+  const bytes = await readFile(imagePath).catch((error: unknown) => {
+    throw new Error("선택한 페이지 이미지를 읽지 못했습니다.", {
+      cause: error,
+    });
+  });
+  assertNotAborted(signal);
+  const decoded = nativeImage.createFromBuffer(bytes);
+  if (!decoded.isEmpty()) return decoded;
   throw new Error("선택한 페이지 이미지를 읽지 못했습니다.");
 }
 

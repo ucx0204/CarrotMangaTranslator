@@ -335,6 +335,7 @@ async function parseOrRepairAnalysisResponse({
       outputPreview: rawText.slice(0, 4000),
       outputLength: rawText.length,
     });
+    if (options.modelProvider === "openai-codex") throw error;
     return repairAnalysisResponse({
       rawText,
       endpoint,

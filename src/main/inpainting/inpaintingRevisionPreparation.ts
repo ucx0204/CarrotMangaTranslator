@@ -47,6 +47,7 @@ export function prepareInpaintingPageRevision({
     nextPage: applyInpaintingLayoutStates(
       {
         ...page,
+        blocks: target.blocks ? structuredClone(target.blocks) : page.blocks,
         inpaintedImagePath: target.path,
         inpaintMaskPath: target.maskPath,
         maskProvenance: target.maskProvenance,
@@ -57,8 +58,21 @@ export function prepareInpaintingPageRevision({
       },
       target.layout ?? [],
     ),
-    nextLayoutPatch: createLayoutPatch(change.pageId, target.layout),
-    originalLayoutPatch: createLayoutPatch(change.pageId, expected.layout),
+    nextLayoutPatch: target.blocks
+      ? {
+          pageId: change.pageId,
+          states: [],
+          replacementBlocks: target.blocks,
+          expectedRevision: expected.revision,
+        }
+      : createLayoutPatch(change.pageId, target.layout),
+    originalLayoutPatch: expected.blocks
+      ? {
+          pageId: change.pageId,
+          states: [],
+          replacementBlocks: expected.blocks,
+        }
+      : createLayoutPatch(change.pageId, expected.layout),
   };
 }
 
@@ -67,6 +81,7 @@ function resolveRevisionSides(
   direction: "undo" | "redo",
 ) {
   const before = {
+    blocks: change.beforeBlocks,
     revision: change.beforeRevision,
     path: change.beforePath,
     maskPath: change.beforeMaskPath,
@@ -75,6 +90,7 @@ function resolveRevisionSides(
     translationCompletion: change.beforeTranslationCompletion,
   };
   const after = {
+    blocks: change.afterBlocks,
     revision: change.afterRevision,
     path: change.afterPath,
     maskPath: change.afterMaskPath,

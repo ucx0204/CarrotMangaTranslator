@@ -1,0 +1,17 @@
+.letteringStatus {
+  display: grid;
+  justify-items: start;
+  gap: var(--sp-2);
+  padding-block: var(--sp-2);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.letteringStatus > button {
+  width: auto;
+}
+
+.statusText {
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}

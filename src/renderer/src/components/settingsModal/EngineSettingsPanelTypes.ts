@@ -28,6 +28,7 @@ export type EngineSettingsPanelProps = {
   apiExtraBodyJson: string;
   apiCustomHeadersJson: string;
   clearTestState: () => void;
+  codexDelegateAll?: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
   contextTokens: string;
@@ -52,6 +53,9 @@ export type EngineSettingsPanelProps = {
   pickLocalMmprojFile: () => Promise<void>;
   pickLocalModelFile: () => Promise<void>;
   selectedPreset: ModelPresetId;
+  setCodexDelegateAll?: React.Dispatch<
+    React.SetStateAction<boolean | undefined>
+  >;
   setCodexModel: React.Dispatch<React.SetStateAction<string>>;
   setCodexReasoningEffort: React.Dispatch<
     React.SetStateAction<CodexReasoningEffort>

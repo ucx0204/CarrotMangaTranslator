@@ -10,4 +10,5 @@ export const analysisGateway = createMangaDomainGateway("Analysis", [
   "startAnalysis",
   "startSoundEffectTranslation",
   "translateRegion",
+  "confirmRegionTranslation",
 ] as const);

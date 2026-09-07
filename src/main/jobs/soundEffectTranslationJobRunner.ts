@@ -1,60 +1,46 @@
+import { prepareSoundEffectTranslationRun } from "./soundEffectTranslationPreparation";
+import { isCodexDelegationEnabled } from "../../shared/codexCapabilities";
+import { createCodexSoundEffectRunner } from "./codexSoundEffectTranslation";
 import type {
   StartSoundEffectTranslationRequest,
   StartSoundEffectTranslationResult,
 } from "../../shared/analysisTypes";
 import type { JobEvent } from "../../shared/jobTypes";
-import type { ChapterSnapshot } from "../../shared/libraryTypes";
 import {
   appendResolvedSoundEffectBlocks,
   getRunPaths,
   openChapter,
   resolveWorkContextForChapter,
 } from "../library";
-import { startAnalysisEndpointSession } from "../pipeline/endpointSession";
 import { throwIfAborted } from "../pipeline/failure";
-import { prepareFontMatchingRuntimeForRun } from "../pipeline/fontMatchingRuntimeAssets";
-import { formatGemmaVramMode } from "../pipeline/options";
-import { prepareAnalysisRun } from "../pipeline/prepareAnalysisRun";
-import { configureWholePageOutputOptions } from "../pipeline/wholePageOutputOptions";
 import { createDefaultWholePagePipelineDependencies } from "../pipeline/wholePagePipelinePorts";
-import type { JobResourceCleanup } from "./jobLifetimeCleanup";
-import type { TranslationJobContext } from "./translationJobTypes";
+import type {
+  TranslationJobContext,
+  SoundEffectTranslationJobInput,
+  SoundEffectTranslationJobState,
+} from "./translationJobTypes";
 import {
   emitSoundEffectPageDone,
   emitSoundEffectPageRunning,
   emitSoundEffectTerminal,
 } from "./soundEffectTranslationEvents";
 import { buildFontMatchedSoundEffectEntries } from "./soundEffectFontMatching";
-import type { ValidatedSoundEffectTranslation } from "./soundEffectTranslationResult";
+import {
+  throwSoundEffectPhaseErrors,
+  type ValidatedSoundEffectTranslation,
+} from "./soundEffectTranslationResult";
 import { maybeInpaintTranslatedSoundEffectBlocks } from "./soundEffectTranslationInpainting";
 import { translateStoredSoundEffectRegions } from "./soundEffectTranslationPage";
 import { inpaintCreatedSoundEffectBlocks } from "./soundEffectTargetedInpainting";
 import {
   countChapterPendingSoundEffectRegions,
-  resolveStoredSoundEffectTargets,
   type StoredSoundEffectTarget,
 } from "./soundEffectTranslationTargets";
 
 type EmitJobEvent = (event: JobEvent) => void;
 
-type SoundEffectTranslationJobInput = {
-  context: TranslationJobContext;
-  request: StartSoundEffectTranslationRequest;
-  id: string;
-  abortController: AbortController;
-  emit: EmitJobEvent;
-  state: SoundEffectTranslationJobState;
-  registerResourceCleanup: (cleanup: JobResourceCleanup) => void;
-};
-
-export type SoundEffectTranslationJobState = {
-  chapter: ChapterSnapshot | null;
-  createdBlocksByPage: Array<{ pageId: string; blockIds: string[] }>;
-  translatedRegionCount: number;
-  warnings: string[];
-};
-
 export type SoundEffectTranslationJobRunnerDependencies = {
+  runCodex?: ReturnType<typeof createCodexSoundEffectRunner>;
   appendResolvedBlocks: typeof appendResolvedSoundEffectBlocks;
   createPipelineDependencies: typeof createDefaultWholePagePipelineDependencies;
   getRunPaths: typeof getRunPaths;
@@ -64,6 +50,12 @@ export type SoundEffectTranslationJobRunnerDependencies = {
 };
 
 const productionDependencies: SoundEffectTranslationJobRunnerDependencies = {
+  runCodex: createCodexSoundEffectRunner({
+    append: appendResolvedSoundEffectBlocks,
+    paths: getRunPaths,
+    open: openChapter,
+    context: resolveWorkContextForChapter,
+  }),
   appendResolvedBlocks: appendResolvedSoundEffectBlocks,
   createPipelineDependencies: createDefaultWholePagePipelineDependencies,
   getRunPaths,
@@ -76,7 +68,19 @@ export async function runSoundEffectTranslationJob(
   input: SoundEffectTranslationJobInput,
   dependencies: SoundEffectTranslationJobRunnerDependencies = productionDependencies,
 ): Promise<StartSoundEffectTranslationResult> {
-  const prepared = await prepareSoundEffectTranslationRun(input, dependencies);
+  const pipeline = dependencies.createPipelineDependencies();
+  const configured = await pipeline.settings.getAppSettings(pipeline.paths);
+  if (input.request.codexTypesetting || isCodexDelegationEnabled(configured)) {
+    if (!dependencies.runCodex)
+      throw new Error("Codex 효과음 번역을 사용할 수 없습니다.");
+    return dependencies.runCodex(input, configured);
+  }
+  const prepared = await prepareSoundEffectTranslationRun(
+    input,
+    dependencies,
+    pipeline,
+    dependencies !== productionDependencies,
+  );
   const deferredPages: DeferredSoundEffectPage[] = [];
   let translationError: unknown;
   try {
@@ -111,74 +115,6 @@ export async function runSoundEffectTranslationJob(
     pageTotal: prepared.targets.length,
   });
   return finalizeSoundEffectTranslation(input, prepared, dependencies);
-}
-
-async function prepareSoundEffectTranslationRun(
-  input: SoundEffectTranslationJobInput,
-  dependencies: SoundEffectTranslationJobRunnerDependencies,
-) {
-  const { abortController, emit, id, registerResourceCleanup, request, state } =
-    input;
-  throwIfAborted(abortController.signal);
-  const chapter = await dependencies.openChapter(request.chapterId);
-  state.chapter = chapter;
-  const targets = resolveStoredSoundEffectTargets(chapter, request);
-  const requestedRegionCount = targets.reduce(
-    (count, target) => count + target.regions.length,
-    0,
-  );
-  const runPaths = await dependencies.getRunPaths(request.chapterId, id);
-  const workContext = await dependencies.resolveWorkContext(request.chapterId);
-  const pipelineDependencies = dependencies.createPipelineDependencies();
-  await prepareFontMatchingRuntimeForRun(
-    {
-      autoFontMatching: request.autoFontMatching,
-      emit,
-      jobId: id,
-      signal: abortController.signal,
-    },
-    pipelineDependencies.paths,
-    dependencies !== productionDependencies,
-  );
-  const run = await prepareAnalysisRun({
-    jobId: id,
-    emit,
-    pages: targets.map((target) => target.page),
-    runPaths,
-    runtime: pipelineDependencies.runtime,
-    signal: abortController.signal,
-    skipOcrPrepass: true,
-    dependencies: pipelineDependencies,
-  });
-  await configureWholePageOutputOptions({
-    autoFontMatching: request.autoFontMatching === true,
-    chapterId: request.chapterId,
-    dependencies: pipelineDependencies,
-    naturalTextLayout: false,
-    aiFontSizeMatching: false,
-    run,
-    workId: workContext.workId,
-  });
-  const endpoint = await startAnalysisEndpointSession({
-    apiSelected: run.apiSelected,
-    baseOptions: run.baseOptions,
-    codexSelected: run.codexSelected,
-    formatGemmaVramMode,
-    localModelSelected: run.localModelSelected,
-    modelCached: run.modelCached,
-    onCleanupReady: registerResourceCleanup,
-    progressContext: run.progressContext,
-    runtime: run.runtime,
-  });
-  return {
-    endpoint,
-    pipelineDependencies,
-    requestedRegionCount,
-    run,
-    runPaths,
-    targets,
-    workContext,
-  };
 }
 
 type DeferredSoundEffectPage = {
@@ -297,20 +233,6 @@ async function saveDeferredFontMatchedPages(
       finalizationSignal,
     );
   }
-}
-
-function throwSoundEffectPhaseErrors(
-  translationError: unknown,
-  finalizationError: unknown,
-): void {
-  if (translationError && finalizationError) {
-    throw new AggregateError(
-      [translationError, finalizationError],
-      "효과음 번역과 결과 저장이 모두 실패했습니다.",
-    );
-  }
-  if (translationError) throw translationError;
-  if (finalizationError) throw finalizationError;
 }
 
 async function finalizeSoundEffectTranslation(

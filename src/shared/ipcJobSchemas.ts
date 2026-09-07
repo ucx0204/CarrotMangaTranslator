@@ -1,5 +1,8 @@
+import { regionTextReviewSchema } from "./regionTextReview";
+import { codexProgressSchema } from "./codexTypesettingProgress";
 /* eslint-disable max-lines -- bounded job request variants stay together for schema contract review */
 import { z } from "zod";
+import { codexTypesettingOptionsSchema } from "./codexTypesettingSchemas";
 import {
   JobKindSchema,
   JobPhaseSchema,
@@ -55,6 +58,8 @@ const PageJobTargetSnapshotSchema = z
 
 export const JobEventSchema = z
   .object({
+    regionRequestId: z.string().uuid().optional(),
+    regionTextReview: regionTextReviewSchema.optional(),
     id: z.string().min(1).max(200),
     kind: JobKindSchema,
     status: JobStatusSchema,
@@ -77,6 +82,7 @@ export const JobEventSchema = z
         "increase-context-length",
       ])
       .optional(),
+    codexProgress: codexProgressSchema.optional(),
     research: z
       .object({
         stage: ResearchJobStageSchema,
@@ -110,40 +116,35 @@ const TranslationCompletionWorkflowSchema = z.enum([
   "bubble-layout",
 ]);
 
+const TranslationRunOptionFields = {
+  blockMode: AnalysisBlockModeSchema.optional(),
+  collectPageContext: z.boolean().optional(),
+  cumulativeContextDetail: z
+    .enum(["detailed", "balanced", "essential"])
+    .optional(),
+  naturalTextLayout: z.boolean().optional(),
+  codexTypesetting: codexTypesettingOptionsSchema.optional(),
+  autoFontMatching: z.boolean().optional(),
+  aiFontSizeMatching: z.boolean().optional(),
+  fontSizeAutoFit: z.boolean().optional(),
+  completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
+  ...PageTimingSessionFields,
+};
+
 export const StartAnalysisRequestSchema = z
   .discriminatedUnion("runMode", [
     z
       .object({
         chapterId: uuid,
         runMode: z.literal("pending"),
-        blockMode: AnalysisBlockModeSchema.optional(),
-        collectPageContext: z.boolean().optional(),
-        cumulativeContextDetail: z
-          .enum(["detailed", "balanced", "essential"])
-          .optional(),
-        naturalTextLayout: z.boolean().optional(),
-        autoFontMatching: z.boolean().optional(),
-        aiFontSizeMatching: z.boolean().optional(),
-        fontSizeAutoFit: z.boolean().optional(),
-        completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
-        ...PageTimingSessionFields,
+        ...TranslationRunOptionFields,
       })
       .strict(),
     z
       .object({
         chapterId: uuid,
         runMode: z.literal("all"),
-        blockMode: AnalysisBlockModeSchema.optional(),
-        collectPageContext: z.boolean().optional(),
-        cumulativeContextDetail: z
-          .enum(["detailed", "balanced", "essential"])
-          .optional(),
-        naturalTextLayout: z.boolean().optional(),
-        autoFontMatching: z.boolean().optional(),
-        aiFontSizeMatching: z.boolean().optional(),
-        fontSizeAutoFit: z.boolean().optional(),
-        completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
-        ...PageTimingSessionFields,
+        ...TranslationRunOptionFields,
       })
       .strict(),
     z
@@ -151,17 +152,7 @@ export const StartAnalysisRequestSchema = z
         chapterId: uuid,
         runMode: z.literal("single-page"),
         pageId: uuid,
-        blockMode: AnalysisBlockModeSchema.optional(),
-        collectPageContext: z.boolean().optional(),
-        cumulativeContextDetail: z
-          .enum(["detailed", "balanced", "essential"])
-          .optional(),
-        naturalTextLayout: z.boolean().optional(),
-        autoFontMatching: z.boolean().optional(),
-        aiFontSizeMatching: z.boolean().optional(),
-        fontSizeAutoFit: z.boolean().optional(),
-        completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
-        ...PageTimingSessionFields,
+        ...TranslationRunOptionFields,
       })
       .strict(),
     z
@@ -184,17 +175,7 @@ export const StartAnalysisRequestSchema = z
             "중복된 재번역 페이지 ID가 있습니다.",
           )
           .optional(),
-        blockMode: AnalysisBlockModeSchema.optional(),
-        collectPageContext: z.boolean().optional(),
-        cumulativeContextDetail: z
-          .enum(["detailed", "balanced", "essential"])
-          .optional(),
-        naturalTextLayout: z.boolean().optional(),
-        autoFontMatching: z.boolean().optional(),
-        aiFontSizeMatching: z.boolean().optional(),
-        fontSizeAutoFit: z.boolean().optional(),
-        completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
-        ...PageTimingSessionFields,
+        ...TranslationRunOptionFields,
       })
       .strict(),
   ])
@@ -449,6 +430,10 @@ export const RendererLogRequestSchema = z
 
 export const RegionAnalysisRequestSchema = z
   .object({
+    textReviewSessionId: z.string().uuid().optional(),
+    eraseOriginal: z.boolean().optional(),
+    codexTypesetting: codexTypesettingOptionsSchema.optional(),
+    pageRevision: z.string().min(1).max(200).optional(),
     chapterId: uuid,
     pageId: uuid,
     bbox: BBoxSchema,
@@ -481,6 +466,7 @@ export const StartSoundEffectTranslationRequestSchema = z
           targets.length,
       ),
     inpaintAfterTranslation: z.boolean(),
+    codexTypesetting: codexTypesettingOptionsSchema.optional(),
     autoFontMatching: z.boolean().optional(),
   })
   .strict();

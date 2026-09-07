@@ -27,6 +27,9 @@ export function FontSelect(props: FontSelectProps): React.JSX.Element {
     model,
     props.mixed ? t("gatherText.mixedValue") : null,
   );
+  const empty =
+    props.preserveFontId &&
+    !options.some((option) => option.value === props.value);
   const openManager = props.onOpenManager ?? (() => setManagerOpen(true));
   return (
     <>
@@ -37,8 +40,9 @@ export function FontSelect(props: FontSelectProps): React.JSX.Element {
           disabled={props.disabled}
           options={options}
           searchable="auto"
+          placeholder={props.placeholder}
           triggerExtra={
-            props.mixed ? null : (
+            props.mixed || empty ? null : (
               <span
                 className={styles.triggerSample}
                 style={{ fontFamily: model.selected.cssFamily }}
@@ -48,7 +52,13 @@ export function FontSelect(props: FontSelectProps): React.JSX.Element {
               </span>
             )
           }
-          value={props.mixed ? MIXED_FONT_VALUE : model.selected.id}
+          value={
+            props.mixed
+              ? MIXED_FONT_VALUE
+              : props.preserveFontId
+                ? (props.value ?? "")
+                : model.selected.id
+          }
           onValueChange={model.onCommit}
         />
         <button

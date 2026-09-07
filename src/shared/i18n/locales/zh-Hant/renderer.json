@@ -26,14 +26,20 @@
       "popOutTitle": "將編輯器分離到新視窗"
     }
   },
-  "blockMode": { "auto": "自動產生", "keep": "保留現有文字區塊" },
+  "blockMode": {
+    "auto": "自動產生",
+    "keep": "保留現有文字區塊"
+  },
   "librarySort": {
     "updated": "修改日期",
     "title": "名稱",
     "created": "加入日期",
     "chapters": "章節數"
   },
-  "fonts": { "default": "預設", "defaultSample": "範例 Aa" },
+  "fonts": {
+    "default": "預設",
+    "defaultSample": "範例 Aa"
+  },
   "eta": {
     "seconds": "約剩餘{{count}}秒",
     "minutes": "約剩餘{{count}}分鐘",
@@ -107,6 +113,27 @@
       "cancelled": "工作已取消。",
       "openLogs": "開啟記錄資料夾",
       "reportError": "回報錯誤"
+    },
+    "codex": {
+      "stages": {
+        "reading": "原文翻譯",
+        "fonts": "字型比較",
+        "typesetting": "排版與檢查"
+      },
+      "steps": {
+        "reading": "辨識與翻譯",
+        "erasurePlan": "檢查擦除範圍",
+        "groupFonts": "比較原文字型",
+        "matchFonts": "選擇字型",
+        "background": "擦除原文",
+        "sfx": "生成音效",
+        "layout": "文字排版",
+        "review": "檢查結果",
+        "saving": "儲存結果",
+        "retry": "{{seconds}}秒後重試 ({{attempt}}/2)",
+        "confirmText": "確認譯文"
+      },
+      "page": "第{{page}}頁"
     }
   },
   "commands": {
@@ -138,7 +165,10 @@
       "label": "開始影像修補",
       "keywords": "inpaint start 影像修補 開始"
     },
-    "cancelJob": { "label": "取消工作", "keywords": "cancel stop 取消 工作" },
+    "cancelJob": {
+      "label": "取消工作",
+      "keywords": "cancel stop 取消 工作"
+    },
     "gatherText": {
       "label": "彙整文字",
       "hint": "頁面 · 整章",
@@ -169,7 +199,10 @@
       "label": "匯出專案",
       "keywords": "work share export 專案 共享 匯出"
     },
-    "openSettings": { "label": "開啟設定", "keywords": "settings 設定" },
+    "openSettings": {
+      "label": "開啟設定",
+      "keywords": "settings 設定"
+    },
     "openLibrary": {
       "label": "開啟資料庫資料夾",
       "keywords": "library folder 資料庫 資料夾"
@@ -342,7 +375,10 @@
     }
   },
   "inpainting": {
-    "common": { "saveFailedTitle": "儲存失敗", "jobFailedTitle": "工作失敗" },
+    "common": {
+      "saveFailedTitle": "儲存失敗",
+      "jobFailedTitle": "工作失敗"
+    },
     "maskDiscard": {
       "title": "捨棄繪製的遮罩",
       "message": "有尚未套用的繪製遮罩。是否開啟其他章節？",
@@ -355,7 +391,7 @@
     },
     "drawn": {
       "title": "清除繪製區域",
-      "message": "僅使用 Flux 清除以橙色繪製的遮罩區域。",
+      "message": "清除橙色遮罩內的原文。",
       "detail": "請在文字上充分塗抹。系統會裁切並還原背景，將結果另存為圖像，同時保留原始頁面。",
       "preparing": "正在準備清除繪製區域",
       "saveFailed": "清除繪製區域前無法儲存修改。",
@@ -370,7 +406,7 @@
       "pendingPages": "尚未清除的頁面",
       "selectedPages": "所選頁面",
       "message": "清除{{scope}}中翻譯文字區塊位置的原文。",
-      "detail": "Flux 影像修補會清除對話框、網點、背景圖和音效上的文字。原圖會保留，結果會另存。",
+      "detail": "保留原圖，另外儲存清除結果。",
       "preparing": "正在準備清除原文",
       "saveFailed": "清除原文前無法儲存修改。",
       "startFailed": "無法開始清除原文。",
@@ -436,7 +472,8 @@
     "startFailed": "無法開始區域翻譯。",
     "success": "已從所選區域建立 {{count}} 個文字區塊。",
     "success_one": "已從所選區域建立 {{count}} 個文字區塊。",
-    "success_other": "已從所選區域建立 {{count}} 個文字區塊。"
+    "success_other": "已從所選區域建立 {{count}} 個文字區塊。",
+    "title": "區域翻譯"
   },
   "translation": {
     "errors": {
@@ -600,5 +637,8 @@
     "saved": "已儲存格式預設「{{name}}」。",
     "deleted": "已刪除格式預設「{{name}}」。",
     "deleteFailed": "無法刪除格式預設。"
+  },
+  "codexDelegation": {
+    "disconnected": "Codex連線已中斷。請重新連線後執行。"
   }
 }

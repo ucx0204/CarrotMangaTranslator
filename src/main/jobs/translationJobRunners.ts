@@ -145,6 +145,7 @@ export async function runResolvedAnalysisJob(
     runPaths: state.runPaths,
     signal: abortController.signal,
     blockMode: request.blockMode,
+    codexTypesetting: request.codexTypesetting,
     decodeImage: context.decodeImage,
     workContext: {
       ...workContext,
@@ -209,6 +210,15 @@ export async function handleAnalysisJobError({
   context: TranslationJobContext;
 }): Promise<StartAnalysisResult> {
   const lastEvent = getLastJobEvent(context, id);
+  if (abortController.signal.reason?.code === "CODEX_DISCONNECTED")
+    return handleAnalysisFailure(
+      id,
+      emit,
+      request,
+      state,
+      lastEvent,
+      abortController.signal.reason,
+    );
   if (isAbortError(error) || abortController.signal.aborted) {
     return handleAnalysisAbort(id, emit, request, state, lastEvent);
   }

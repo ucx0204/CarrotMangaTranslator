@@ -9,6 +9,10 @@ export function useInpaintingController(
   translation: TranslationController,
 ) {
   const inpainting = useAppSessionInpaintingController({
+    aiUnavailable:
+      chapter.settingsDialog.codexDelegationEnabled &&
+      !chapter.settingsDialog.codexDelegationActive,
+    codexDelegateAll: chapter.settingsDialog.codexDelegationEnabled,
     askConfirm: chapter.confirmController.askConfirm,
     blockFormatDefaults: chapter.settingsDialog.settings?.blockFormatDefaults,
     bridgeActions: chapter.bridgeActions,
@@ -18,7 +22,9 @@ export function useInpaintingController(
     exclusiveActivityActive:
       chapter.operationActivity.active || chapter.importShareModal.importBusy,
     mergeLiveChapter: chapter.mergeLiveChapter,
-    modalOpen: chapter.modalOpen,
+    modalOpen:
+      chapter.modalOpen ||
+      Boolean(translation.translationActions.regionTranslationDialog),
     pushStatus: chapter.statusLog.pushStatus,
     refreshLibrary: chapter.libraryActions.refreshLibrary,
     saveNow: chapter.persistence.saveNow,
@@ -29,6 +35,9 @@ export function useInpaintingController(
     workspaceHistory: translation.workspaceHistory,
   });
   const commandRegistry = useAppSessionCommandController({
+    aiUnavailable: inpainting.inpaintingBridge.contextValue.aiUnavailable,
+    startRegionTranslation:
+      inpainting.pointerHandlers.startRegionTranslationSelection,
     cancelJob: () =>
       chapter.operationActivity.active
         ? void chapter.operationActivity.cancel()

@@ -24,6 +24,10 @@ import type { PageProcessingTimingCollector } from "./pageProcessingTiming";
 import type { PreparedTranslationCheckpoint } from "./preparedTranslationCheckpointContract";
 
 export type PipelineOptions = {
+  confirmRegionReading?: (
+    reading: import("../../shared/codexTypesettingTypes").CodexPageReading,
+  ) => Promise<import("../../shared/codexTypesettingTypes").CodexPageReading>;
+  codexTypesetting?: import("../../shared/codexTypesettingTypes").CodexTypesettingOptions;
   jobId: string;
   pages: MangaPage[];
   runPaths: ChapterRunPaths;
@@ -47,6 +51,8 @@ export type PipelineOptions = {
   onPageFailed?: (page: MangaPage, errorMessage: string) => Promise<void>;
   workContext?: PipelineWorkContext;
   regionContext?: PipelineRegionContext;
+  /** Source-page references for independently selected sound-effect crops. */
+  regionContexts?: ReadonlyMap<string, PipelineRegionContext>;
   writeStoryMemory?: boolean;
   collectPageContext?: boolean;
   cumulativeContextDetail?: CumulativeContextDetail;

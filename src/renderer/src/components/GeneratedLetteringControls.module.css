@@ -1,0 +1,15 @@
+.controls {
+  display: grid;
+  align-self: start;
+  align-content: start;
+  gap: 12px;
+  padding: 12px 0;
+  border-block-end: 1px solid var(--border);
+}
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}

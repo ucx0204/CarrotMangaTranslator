@@ -27,6 +27,7 @@ type JobWithProgress = Pick<
   | "attempt"
   | "attemptTotal"
   | "failureGuidance"
+  | "codexProgress"
 > & {
   progressText?: string;
 };
@@ -108,6 +109,8 @@ export function formatJobLabel(
   t?: TFunction<"renderer">,
   options: { preserveUnknownProgressText?: boolean } = {},
 ): string {
+  const codexLabel = formatCodexStageLabel(job, t);
+  if (codexLabel) return codexLabel;
   const failureGuidance = resolveFailedJobGuidance(job, t);
   if (failureGuidance) {
     return failureGuidance;
@@ -213,6 +216,16 @@ export function formatJobEventLine(
 export function resolveProgressSnapshot(
   job: JobWithProgress,
 ): ProgressSnapshot | null {
+  if (job.codexProgress) {
+    return job.codexProgress.stage === "fonts"
+      ? { mode: "indeterminate" }
+      : {
+          mode: "determinate",
+          current: job.codexProgress.completed,
+          total: job.codexProgress.total,
+          ratio: job.codexProgress.completed / job.codexProgress.total,
+        };
+  }
   const explicitSnapshot = resolveExplicitProgressSnapshot(job);
   if (explicitSnapshot !== undefined) {
     return explicitSnapshot;
@@ -390,4 +403,21 @@ function formatRetryLabel(
       : `${job.pageIndex} / ${job.pageTotal} 페이지 재시도 ${job.attempt} / ${job.attemptTotal}`;
   }
   return translate(t, "job.phase.pageRetry", "페이지 재시도 중");
+}
+
+function formatCodexStageLabel(
+  job: JobWithProgress,
+  t: TFunction<"renderer"> | undefined,
+): string | null {
+  if (
+    job.codexProgress &&
+    ["starting", "running", "cancelling"].includes(job.status)
+  ) {
+    return translate(
+      t,
+      `job.codex.stages.${job.codexProgress.stage}`,
+      job.progressText ?? "Astra",
+    );
+  }
+  return null;
 }

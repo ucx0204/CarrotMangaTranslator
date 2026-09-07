@@ -38,7 +38,7 @@ type InpaintRunOptions = {
 };
 
 export type InpaintingEngine = {
-  model: InpaintingModel;
+  model: InpaintingModel | "codex";
   runtimePath: string;
   modelPath?: string;
   backend: string;

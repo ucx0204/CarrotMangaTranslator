@@ -15,6 +15,7 @@ export type RunAnalysisOutcome =
   | "no-op";
 
 type ExecuteAnalysisArgs = {
+  codexTypesetting?: import("../../../shared/codexTypesettingTypes").CodexTypesettingOptions;
   runMode: "pending" | "all" | "single-page" | "page-set";
   chapterId?: string;
   pageId?: string;

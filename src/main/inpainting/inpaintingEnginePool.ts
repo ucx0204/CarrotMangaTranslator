@@ -21,7 +21,7 @@ import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
 
 export type InpaintingEngineLease = {
   engine: InpaintingEngine;
-  release: () => void;
+  release: () => void | Promise<void>;
 };
 
 export type InpaintingEnginePoolDependencies = {

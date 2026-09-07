@@ -151,6 +151,14 @@
   overflow-wrap: anywhere;
 }
 
+.page-block-review-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .page-block-list-row.expanded .page-block-source-text {
   display: -webkit-box;
   overflow: hidden;

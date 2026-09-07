@@ -46,12 +46,16 @@ export function useInpaintingActions(
 ): InpaintingActions {
   const refreshLibrary = useSerializedLibraryRefresh(options.refreshLibrary);
   const baseOptions = { ...options, refreshLibrary };
+  const aiOptions = {
+    ...baseOptions,
+    jobActive: options.jobActive || options.aiUnavailable === true,
+  };
   const rawActions = {
-    runBubbleLayout: useRunBubbleLayoutAction(baseOptions),
-    runInpainting: useRunInpaintingAction(baseOptions),
-    runDrawnPatternInpainting: useDrawnPatternInpaintingAction(baseOptions),
+    runBubbleLayout: useRunBubbleLayoutAction(aiOptions),
+    runInpainting: useRunInpaintingAction(aiOptions),
+    runDrawnPatternInpainting: useDrawnPatternInpaintingAction(aiOptions),
     revertInpainting: useRevertInpaintingAction(baseOptions),
-    runInpaintingSelection: useRunInpaintingSelectionAction(baseOptions),
+    runInpaintingSelection: useRunInpaintingSelectionAction(aiOptions),
   };
   const exclusive = useExclusiveImageActions(rawActions);
   const exportPageImages = useExportPageImagesAction(options);

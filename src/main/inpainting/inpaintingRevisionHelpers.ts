@@ -21,6 +21,8 @@ export type InpaintingRevisionChange = {
   afterMaskPath?: string;
   beforeMaskProvenance?: MangaPage["maskProvenance"];
   afterMaskProvenance?: MangaPage["maskProvenance"];
+  beforeBlocks?: MangaPage["blocks"];
+  afterBlocks?: MangaPage["blocks"];
   beforeLayout?: InpaintingBlockLayoutState[];
   afterLayout?: InpaintingBlockLayoutState[];
   beforeTranslationCompletion?: TranslationCompletionReceipt;
@@ -40,6 +42,11 @@ export function assertRevisionLayoutPair(
       "인페인팅 텍스트 배치 기록은 변경 전후 상태가 모두 필요합니다.",
     );
   }
+  if (
+    !optionalValuesArePaired(change.beforeBlocks, change.afterBlocks) ||
+    (change.beforeBlocks && !change.beforeRevision)
+  )
+    throw new Error("번역 기록에는 변경 전후 블록과 revision이 필요합니다.");
   if (!change.beforeLayout || !change.afterLayout) {
     return;
   }

@@ -21,6 +21,7 @@ import type { RunAnalysisOutcome } from "./translationFlowHelpers";
 export type RunAnalysisMode = "pending" | "all" | "single-page" | "page-set";
 
 export type TranslationFlowOptions = {
+  codexTypesetting?: import("../../../shared/codexTypesettingTypes").CodexTypesettingOptions;
   selection: ChapterRunSelection[];
   workflowMode: TranslationWorkflowMode;
   cumulativeContextDetail?: CumulativeContextDetail;
@@ -33,6 +34,9 @@ export type TranslationFlowOptions = {
 };
 
 export type UseTranslationActionsOptions = {
+  settings?: import("../../../shared/settingsTypes").AppSettings | null;
+  codexDelegationActive?: boolean;
+  codexUnavailable?: boolean;
   clearPageImageCache: () => void;
   clearRetouchHistory: () => void;
   currentChapter: ChapterSnapshot | null;
@@ -74,6 +78,9 @@ export type UseTranslationActionsOptions = {
 };
 
 export type TranslationActions = {
+  regionTranslationDialog?:
+    | import("../lib/regionTranslationOptions").RegionTranslationDialog
+    | null;
   runAnalysis: (
     runMode: RunAnalysisMode,
     pageId?: string,
@@ -94,5 +101,6 @@ export type TranslationActions = {
     inpaintAfterTranslation?: boolean,
     autoFontMatching?: boolean,
     prepareRequest?: PrepareSoundEffectTranslationRequest,
+    sfxRendering?: "image" | "font",
   ) => Promise<StartSoundEffectTranslationResult | null>;
 };

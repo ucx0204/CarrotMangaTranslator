@@ -131,7 +131,9 @@
       "findRequired": "検索する文字を入力してください。",
       "invalidRegex": "正規表現が正しくありません：{{message}}"
     },
-    "storage": { "error": "保存ルールを処理できませんでした" },
+    "storage": {
+      "error": "保存ルールを処理できませんでした"
+    },
     "notice": {
       "conflictsOnly": "プレビュー後に変わった{{count}}件は上書きしませんでした。",
       "applied": "{{applied}}件を適用しました。競合でスキップ：{{conflicts}}件",
@@ -255,9 +257,16 @@
     "blockUnderline": "ブロック全体に下線",
     "blockStrikethrough": "ブロック全体に取り消し線",
     "blockEmphasisMark": "ブロック全体に圏点",
-    "align": { "left": "左揃え", "center": "中央揃え", "right": "右揃え" },
+    "align": {
+      "left": "左揃え",
+      "center": "中央揃え",
+      "right": "右揃え"
+    },
     "directionLabel": "文字方向",
-    "direction": { "horizontal": "横書き", "vertical": "縦書き" },
+    "direction": {
+      "horizontal": "横書き",
+      "vertical": "縦書き"
+    },
     "size": "サイズ",
     "fontSize": "文字サイズ",
     "fontSizeValue": "文字サイズの値",
@@ -325,8 +334,16 @@
       "curve": "曲線",
       "warp": "ワープ"
     },
-    "fields": { "x": "X", "y": "Y", "w": "幅", "h": "高さ" },
-    "controlKinds": { "slider": "スライダー", "value": "値" },
+    "fields": {
+      "x": "X",
+      "y": "Y",
+      "w": "幅",
+      "h": "高さ"
+    },
+    "controlKinds": {
+      "slider": "スライダー",
+      "value": "値"
+    },
     "lockRatio": "比率を維持",
     "rotation": "回転",
     "resetRotation": "0°へ",
@@ -411,8 +428,15 @@
         "archUp": "上向き",
         "archDown": "下向き"
       },
-      "align": { "start": "開始", "center": "中央", "end": "終了" },
-      "orientations": { "tangent": "パスに沿う", "upright": "直立" }
+      "align": {
+        "start": "開始",
+        "center": "中央",
+        "end": "終了"
+      },
+      "orientations": {
+        "tangent": "パスに沿う",
+        "upright": "直立"
+      }
     },
     "warp": {
       "disabledDescription": "フォント、輪郭線、部分強調、曲線を保ったまま、テキスト全体を滑らかなメッシュで変形します。",
@@ -566,7 +590,10 @@
     "chapterSummaryComplete": "{{count}}p・完了",
     "chapterSummaryRemaining": "{{count}}p・残り{{remaining}}",
     "chapterSummary": "{{count}}p{{suffix}}",
-    "statusSuffix": { "complete": "・完了", "inProgress": "・進行中" },
+    "statusSuffix": {
+      "complete": "・完了",
+      "inProgress": "・進行中"
+    },
     "noSelectedPages": "ページが選択されていません。",
     "approximately": "約",
     "selectionSummary": "{{chapterCount}}話・{{approximate}}{{pageCount}}ページ",
@@ -894,7 +921,10 @@
     "allChaptersInFinal": "すべての共有話が最終リストにあります。",
     "toDelete": "削除予定",
     "restoreItem": "{{title}}を復元",
-    "source": { "existing": "既存", "shared": "共有" },
+    "source": {
+      "existing": "既存",
+      "shared": "共有"
+    },
     "stats": {
       "final": "最終 {{count}}件",
       "toDelete": "削除予定 {{count}}件",
@@ -915,7 +945,10 @@
       "criteriaLabel": "並べ替え基準",
       "criterion": "基準",
       "directionLabel": "並べ替え方向",
-      "direction": { "asc": "昇順", "desc": "降順" }
+      "direction": {
+        "asc": "昇順",
+        "desc": "降順"
+      }
     }
   },
   "pageList": {
@@ -1017,7 +1050,10 @@
       }
     },
     "tools": {
-      "select": { "label": "選択", "title": "選択ツール（1）" },
+      "select": {
+        "label": "選択",
+        "title": "選択ツール（1）"
+      },
       "block": {
         "label": "ブロック",
         "title": "ブロックツール（2）— ドラッグしてテキストブロックを追加"
@@ -1042,16 +1078,34 @@
         "label": "吹き出し領域",
         "title": "選択ブロックの吹き出し領域を直接指定 — 点を置いて Enter で適用"
       },
-      "mask": { "label": "マスク", "title": "マスクブラシ" },
-      "brush": { "label": "ブラシ", "title": "補正ブラシ" },
-      "rectangle": { "label": "矩形", "title": "塗りつぶした矩形で覆う" },
-      "ellipse": { "label": "楕円", "title": "塗りつぶした楕円で覆う" },
-      "eraser": { "label": "消しゴム", "title": "補正内容を消去" },
+      "mask": {
+        "label": "マスク",
+        "title": "マスクブラシ"
+      },
+      "brush": {
+        "label": "ブラシ",
+        "title": "補正ブラシ"
+      },
+      "rectangle": {
+        "label": "矩形",
+        "title": "塗りつぶした矩形で覆う"
+      },
+      "ellipse": {
+        "label": "楕円",
+        "title": "塗りつぶした楕円で覆う"
+      },
+      "eraser": {
+        "label": "消しゴム",
+        "title": "補正内容を消去"
+      },
       "eraser-rectangle": {
         "label": "矩形消しゴム",
         "title": "ドラッグした矩形範囲を元画像から復元"
       },
-      "picker": { "label": "色を抽出", "title": "キャンバスから色を抽出" }
+      "picker": {
+        "label": "色を抽出",
+        "title": "キャンバスから色を抽出"
+      }
     }
   },
   "bubbleLayoutEditor": {
@@ -1091,14 +1145,19 @@
     "excludeFromInpainting": "インペインティングから除外",
     "excludedFromInpainting": "自動消去から除外されたブロック"
   },
-  "imageStage": { "loadingImage": "画像を読み込み中" },
+  "imageStage": {
+    "loadingImage": "画像を読み込み中"
+  },
   "install": {
     "logLabel": "インストールログ",
     "checkingLogs": "ログを確認中",
     "preparingModel": "Gemma 4モデルを準備",
     "installingOcr": "OCRをインストール"
   },
-  "toast": { "close": "通知を閉じる", "region": "通知" },
+  "toast": {
+    "close": "通知を閉じる",
+    "region": "通知"
+  },
   "errorBoundary": {
     "title": "問題が発生しました",
     "description": "画面の描画中にエラーが発生しました。作業内容はライブラリに保存されている可能性があります。再起動すると通常は復旧します。",
@@ -1255,7 +1314,10 @@
       "title": "インターネット調査",
       "description": "既存の用語集を検証し、不足している用語とキャラクターを補います。",
       "engineLabel": "調査方法",
-      "engines": { "tavily": "Tavily", "codex": "Codex" },
+      "engines": {
+        "tavily": "Tavily",
+        "codex": "Codex"
+      },
       "run": "用語集を調査",
       "analyzing": "調査中…",
       "cancel": "調査をキャンセル"
@@ -1318,8 +1380,15 @@
       "apply": "選択した{{count}}件を適用",
       "noChanges": "適用できる変更案は見つかりませんでした。",
       "selectChange": "{{name}}の変更案を選択",
-      "actions": { "add": "追加", "update": "更新", "disable": "無効化" },
-      "confidence": { "high": "高信頼度", "medium": "要確認" },
+      "actions": {
+        "add": "追加",
+        "update": "更新",
+        "disable": "無効化"
+      },
+      "confidence": {
+        "high": "高信頼度",
+        "medium": "要確認"
+      },
       "localEvidence": "ローカル出現 {{pages}}ページ・{{mentions}}回",
       "previewReady": "未保存の変更案を{{count}}件作成しました。",
       "failed": "インターネット調査に失敗しました。",
@@ -1615,7 +1684,9 @@
         "applyRecommended": "推奨値を適用",
         "recommendedApplied": "推奨値を使用中"
       },
-      "provider": { "label": "翻訳エンジン" },
+      "provider": {
+        "label": "翻訳エンジン"
+      },
       "maxTokens": {
         "label": "最大出力トークン",
         "remoteDescription": "表示テキストと推論を含む応答全体の上限です。モデル上限より作業向け推奨値の方が安定します。",
@@ -1643,7 +1714,9 @@
         "maxOutput": "最大出力トークン",
         "context": "調査コンテキスト"
       },
-      "api": { "title": "API モデル" },
+      "api": {
+        "title": "API モデル"
+      },
       "limits": {
         "maxOutput": "最大出力トークン",
         "context": "調査コンテキスト"
@@ -1727,8 +1800,14 @@
         }
       },
       "reasoning": {
-        "none": { "label": "なし", "description": "推論を使用しません。" },
-        "low": { "label": "低", "description": "高速で軽量な推論です。" },
+        "none": {
+          "label": "なし",
+          "description": "推論を使用しません。"
+        },
+        "low": {
+          "label": "低",
+          "description": "高速で軽量な推論です。"
+        },
         "medium": {
           "label": "中",
           "description": "速度と品質のバランスを取ります。"
@@ -1856,7 +1935,9 @@
       "customCodeAria": "{{label}}のコードを直接入力"
     },
     "gemma": {
-      "modelSource": { "label": "モデルソース" },
+      "modelSource": {
+        "label": "モデルソース"
+      },
       "preset": {
         "label": "モデルプリセット",
         "ariaLabel": "モデルプリセット",
@@ -1912,7 +1993,10 @@
       "customModel": "直接入力",
       "customModelAria": "Codexモデルを直接入力",
       "modelPlaceholder": "モデル名",
-      "reasoning": { "label": "推論レベル", "ariaLabel": "Codex推論レベル" },
+      "reasoning": {
+        "label": "推論レベル",
+        "ariaLabel": "Codex推論レベル"
+      },
       "account": {
         "title": "ChatGPTアカウント",
         "loading": "認証状態を確認中…",
@@ -2404,7 +2488,8 @@
     "showAllPages": "全ページを表示",
     "showTranslations": "翻訳文を表示",
     "saveAsDefault": "次回翻訳の既定値として保存",
-    "reviewComplete": "確認完了"
+    "reviewComplete": "確認完了",
+    "engine": "翻訳方法"
   },
   "stylePresets": {
     "title": "書式プリセット",
@@ -2448,5 +2533,101 @@
     "ungrouped": "グループなし",
     "releaseGroup": "グループを解除",
     "emptyGroup": "このグループにプリセットはありません。"
+  },
+  "codexTypesetting": {
+    "title": "Astra translation & lettering",
+    "description": "Use Astra with your ChatGPT account to read, translate and choose fonts, sizes and line breaks.",
+    "process": "Compare source crops → group font families → translate and typeset → inspect the rendered page. Preserve weight and effects within each family.",
+    "engine": "Translation method",
+    "preset": "Font preset",
+    "copyPreset": "Duplicate preset",
+    "presetName": "Preset name",
+    "fontCount": "Selected fonts: {{count}} / 10",
+    "font": "Font {{index}}",
+    "removeFont": "Remove font {{index}}",
+    "remove": "Remove",
+    "purpose": "Intended use",
+    "purposeHint": "For example: calm dialogue; keep the same family for bold emphasis.",
+    "addFont": "Add font",
+    "imageActive": "画像の効果音。文言を編集すると編集可能なテキストに切り替わります。",
+    "imageEdited": "編集可能なテキスト。原文を消去した背景は保持されます。",
+    "editableText": "テキストに切り替え",
+    "restoreImage": "画像の効果音を使用",
+    "sfxRendering": "効果音の表現方法",
+    "sfxImage": "画像生成",
+    "sfxFont": "フォント",
+    "sfxImageDescription": "効果音の線や質感を再現した画像を別レイヤーにします。文言を変更すると編集可能なテキストに切り替わります。",
+    "sfxFontDescription": "効果音も選択したフォントで配置します。文言・サイズ・太さを直接編集できます。"
+  },
+  "codexDelegation": {
+    "title": "すべての作業をCodexに任せる",
+    "active": "Codex自動組版",
+    "hardwareManaged": "原文の読み取り・消去・書体合わせは Codex が処理します。"
+  },
+  "regionOptions": {
+    "standard": "通常翻訳",
+    "imageCodex": "効果音 · Codex",
+    "title": "領域翻訳",
+    "preview": "選択領域",
+    "output": "出力形式",
+    "text": "テキスト",
+    "image": "効果音画像",
+    "erase": "原文を消去",
+    "cancel": "キャンセル",
+    "run": "実行",
+    "unavailable": "Codexの接続を確認してください。",
+    "previewFailed": "選択領域を読み込めませんでした。",
+    "generate": "生成",
+    "recognizing": "認識中",
+    "translationNumber": "訳文 {{number}}"
+  },
+  "letteringBrush": {
+    "title": "効果音を補正",
+    "done": "完了",
+    "target": "補正対象",
+    "asset": "文字の形",
+    "page": "遮蔽境界",
+    "mode": "ブラシ機能",
+    "hide": "消去",
+    "restore": "復元",
+    "shape": "ブラシ形状",
+    "circle": "円形",
+    "square": "四角",
+    "size": "サイズ",
+    "softness": "ぼかし",
+    "showMask": "マスク表示",
+    "reset": "リセット"
+  },
+  "codexFonts": {
+    "title": "フォント編集",
+    "edit": "フォント編集",
+    "original": "原稿",
+    "previousPage": "前のページ",
+    "nextPage": "次のページ",
+    "imageFailed": "原稿を読み込めませんでした。",
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "fit": "画面に合わせる",
+    "fonts": "使用するフォント",
+    "chooseFont": "フォントを選択",
+    "missingFont": "見つからないフォント",
+    "replaceMissing": "別のフォントを選択してください。",
+    "sampleText": "本当に、これでいいのかな？",
+    "sample": "見本文",
+    "sampleSize": "見本サイズ",
+    "weight": "太さ",
+    "normal": "標準",
+    "bold": "太字",
+    "copySuffix": "コピー",
+    "deletePreset": "プリセットを削除",
+    "saveFailed": "保存できませんでした。名前と入力内容を確認してください。",
+    "retry": "再試行"
+  },
+  "codexPreview": {
+    "open": "途中結果",
+    "reading": "原文翻訳",
+    "background": "原文除去",
+    "review": "文字組みプレビュー",
+    "retry": "画像を再読み込み"
   }
 }

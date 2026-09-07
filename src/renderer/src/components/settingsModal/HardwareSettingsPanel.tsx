@@ -13,6 +13,10 @@ export function HardwareSettingsPanel(
   props: HardwareSettingsPanelProps,
 ): React.JSX.Element {
   const { t } = useTranslation("components");
+  if (props.codexDelegateAll)
+    return (
+      <p className="settings-hint">{t("codexDelegation.hardwareManaged")}</p>
+    );
   return (
     <div className="settings-panel-stack">
       <HardwareStatusSummary {...props} />

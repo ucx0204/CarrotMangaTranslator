@@ -1,4 +1,5 @@
 import React from "react";
+import { codexConnection } from "../../api/codexConnection";
 import { useTranslation } from "react-i18next";
 import type { CodexAccountSnapshot } from "../../../../shared/codexAccountTypes";
 import { settingsGateway } from "../../api/settingsGateway";
@@ -135,6 +136,7 @@ function useCodexAccountController(
   const publishSnapshot = React.useCallback(
     (next: CodexAccountSnapshot) => {
       refreshState.current.lastReadAt = Date.now();
+      codexConnection.publish(next);
       setSnapshot(next);
       onSnapshotChange?.(next);
     },

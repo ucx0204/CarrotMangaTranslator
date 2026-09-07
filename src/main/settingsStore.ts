@@ -1,3 +1,9 @@
+import {
+  withSettingsMutation,
+  preserveCodexPreferences,
+  isMissingFileError,
+  isJsonParseError,
+} from "./settings/settingsMutationQueue";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { AppSettings } from "../shared/settingsTypes";
@@ -98,6 +104,36 @@ export async function saveAppSettings(
   env: NodeJS.ProcessEnv = process.env,
   detectGpu: GpuInfoProvider = detectBestGpuInfo,
 ): Promise<AppSettings> {
+  return updateAppSettings(
+    (current) => preserveCodexPreferences(settings, current),
+    paths,
+    env,
+    detectGpu,
+  );
+}
+
+export async function updateAppSettings(
+  update: (current: AppSettings) => AppSettings,
+  paths = getAppPaths(),
+  env: NodeJS.ProcessEnv = process.env,
+  detectGpu: GpuInfoProvider = detectBestGpuInfo,
+): Promise<AppSettings> {
+  return withSettingsMutation(paths.settingsPath, async () =>
+    saveAppSettingsUnlocked(
+      update(await getAppSettings(paths, env, detectGpu)),
+      paths,
+      env,
+      detectGpu,
+    ),
+  );
+}
+
+async function saveAppSettingsUnlocked(
+  settings: AppSettings,
+  paths = getAppPaths(),
+  env: NodeJS.ProcessEnv = process.env,
+  detectGpu: GpuInfoProvider = detectBestGpuInfo,
+): Promise<AppSettings> {
   const normalized = await normalizeAppSettingsForRuntime(
     settings,
     env,
@@ -146,7 +182,17 @@ export async function getDefaultAppSettings(
   );
 }
 
-export async function resetAppSettings(
+export function resetAppSettings(
+  paths = getAppPaths(),
+  env: NodeJS.ProcessEnv = process.env,
+  detectGpu: GpuInfoProvider = detectBestGpuInfo,
+): Promise<AppSettings> {
+  return withSettingsMutation(paths.settingsPath, () =>
+    resetAppSettingsUnlocked(paths, env, detectGpu),
+  );
+}
+
+async function resetAppSettingsUnlocked(
   paths = getAppPaths(),
   env: NodeJS.ProcessEnv = process.env,
   detectGpu: GpuInfoProvider = detectBestGpuInfo,
@@ -272,14 +318,6 @@ function normalizeRuntimeGpuVendor(
 function stripRuntimeHardware(settings: AppSettings): AppSettings {
   const { runtimeHardware: _runtimeHardware, ...persistentSettings } = settings;
   return persistentSettings;
-}
-
-function isMissingFileError(error: unknown): boolean {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-
-function isJsonParseError(error: unknown): boolean {
-  return error instanceof SyntaxError;
 }
 
 async function backupCorruptSettings(

@@ -1,3 +1,4 @@
+import { resolveCodexTypesettingOptions } from "../../../shared/codexTypesettingDefaults";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -32,6 +33,7 @@ type SoundEffectActionContext = Pick<
   | "setJobState"
   | "syncSavedPageVersion"
 > & {
+  codexTypesetting?: StartSoundEffectTranslationRequest["codexTypesetting"];
   notificationPort: NotificationPort;
   t: TFunction<"renderer">;
 };
@@ -43,6 +45,12 @@ export function useTranslateSoundEffectsAction(
   const { t } = useTranslation("renderer");
   const context = useMemo<SoundEffectActionContext>(
     () => ({
+      codexTypesetting: options.codexDelegationActive
+        ? resolveCodexTypesettingOptions(
+            options.settings?.ui?.codexTypesettingPreferences,
+            options.settings?.translation?.targetLanguage ?? "ko",
+          )
+        : undefined,
       beforeTranslate: options.beforeTranslate,
       currentChapter: options.currentChapter,
       currentChapterRef: options.currentChapterRef,
@@ -64,15 +72,29 @@ export function useTranslateSoundEffectsAction(
       inpaintAfterTranslation = false,
       autoFontMatching = false,
       prepareRequest,
+      sfxRendering,
     ) =>
       translateSoundEffects(
         targets,
         inpaintAfterTranslation,
         autoFontMatching,
         prepareRequest,
-        context,
+        {
+          ...context,
+          codexTypesetting:
+            context.codexTypesetting || sfxRendering
+              ? {
+                  ...(context.codexTypesetting ??
+                    resolveCodexTypesettingOptions(
+                      options.settings?.ui?.codexTypesettingPreferences,
+                      options.settings?.translation?.targetLanguage ?? "ko",
+                    )),
+                  ...(sfxRendering ? { sfxRendering } : {}),
+                }
+              : undefined,
+        },
       ),
-    [context],
+    [context, options.settings],
   );
 }
 
@@ -146,10 +168,13 @@ async function runSoundEffectTranslation({
     progressText: context.t("soundEffectTranslation.preparing"),
     phase: "booting",
   });
-  await context.beforeTranslate?.();
+  if (!context.codexTypesetting) await context.beforeTranslate?.();
   const result = await analysisGateway.startSoundEffectTranslation({
     chapterId: chapter.id,
     targets: prepared.targets,
+    ...(context.codexTypesetting
+      ? { codexTypesetting: context.codexTypesetting }
+      : {}),
     inpaintAfterTranslation,
     autoFontMatching,
   });

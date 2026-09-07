@@ -22,6 +22,24 @@ export type PageArtworkSnapshot = Pick<
   "id" | "name" | "width" | "height" | "blocks"
 >;
 
+export const pageExportLayoutEvidenceSchema = z
+  .array(
+    z
+      .object({
+        blockId: z.string(),
+        lines: z.array(z.string()).nullable(),
+        fontSizePx: z.number().finite(),
+        innerWidth: z.number().finite(),
+        innerHeight: z.number().finite(),
+        overflow: z.boolean(),
+      })
+      .strict(),
+  )
+  .max(MAX_BLOCKS_PER_PAGE);
+export type PageExportLayoutEvidence = z.infer<
+  typeof pageExportLayoutEvidenceSchema
+>;
+
 export type PageExportDocumentData = {
   fontLibrary: FontLibrarySnapshot;
   imageSrc: string;

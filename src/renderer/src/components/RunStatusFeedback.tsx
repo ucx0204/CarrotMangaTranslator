@@ -53,7 +53,7 @@ export function RunJobFeedback({
       />
     );
   }
-  if (isCompleteProgressSnapshot(progressSnapshot)) {
+  if (shouldHideCompletedStage(jobState, progressSnapshot)) {
     return null;
   }
   if (!showProgressBar || !progressSnapshot) return null;
@@ -156,4 +156,11 @@ function formatJobByteStats(jobState: JobState, locale: string): string | null {
   const total = formatBytes(jobState.progressTotalBytes, locale);
   if (current && total) return `${current} / ${total}`;
   return current;
+}
+
+function shouldHideCompletedStage(
+  job: JobState,
+  snapshot: ProgressSnapshot | null,
+): boolean {
+  return !job.codexProgress && isCompleteProgressSnapshot(snapshot);
 }

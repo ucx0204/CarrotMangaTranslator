@@ -103,6 +103,7 @@ function willRenderRunJobFeedback(
     return true;
   }
   if (
+    !jobState.codexProgress &&
     progressSnapshot?.mode === "determinate" &&
     (progressSnapshot.current >= progressSnapshot.total ||
       progressSnapshot.ratio >= 1)

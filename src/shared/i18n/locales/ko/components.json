@@ -263,7 +263,10 @@
       "right": "오른쪽 정렬"
     },
     "directionLabel": "쓰기 방향",
-    "direction": { "horizontal": "가로", "vertical": "세로" },
+    "direction": {
+      "horizontal": "가로",
+      "vertical": "세로"
+    },
     "size": "크기",
     "fontSize": "글자 크기",
     "fontSizeValue": "글자 크기 값",
@@ -331,8 +334,16 @@
       "curve": "곡선",
       "warp": "워프"
     },
-    "fields": { "x": "X", "y": "Y", "w": "너비", "h": "높이" },
-    "controlKinds": { "slider": "슬라이더", "value": "값" },
+    "fields": {
+      "x": "X",
+      "y": "Y",
+      "w": "너비",
+      "h": "높이"
+    },
+    "controlKinds": {
+      "slider": "슬라이더",
+      "value": "값"
+    },
     "lockRatio": "비율 유지",
     "rotation": "회전",
     "resetRotation": "0°로",
@@ -412,9 +423,20 @@
         "vertical": "곡선은 가로쓰기 한 줄에서 사용할 수 있어요.",
         "multiline": "줄바꿈을 없애면 기존 곡선이 다시 적용돼요."
       },
-      "presets": { "straight": "직선", "archUp": "위로", "archDown": "아래로" },
-      "align": { "start": "시작", "center": "가운데", "end": "끝" },
-      "orientations": { "tangent": "경로 따라", "upright": "똑바로" }
+      "presets": {
+        "straight": "직선",
+        "archUp": "위로",
+        "archDown": "아래로"
+      },
+      "align": {
+        "start": "시작",
+        "center": "가운데",
+        "end": "끝"
+      },
+      "orientations": {
+        "tangent": "경로 따라",
+        "upright": "똑바로"
+      }
     },
     "warp": {
       "disabledDescription": "텍스트 전체를 부드러운 격자로 변형합니다. 글꼴, 외곽선, 부분 강조와 곡선은 그대로 유지돼요.",
@@ -470,7 +492,10 @@
       "remove": "말풍선 맞춤 해제",
       "removeHint": "자동 또는 수동으로 적용한 말풍선 영역을 지우고 원래 OCR 텍스트 영역으로 되돌립니다."
     },
-    "markupHint": { "emphasis": "일부 강조:", "escape": "별표 문자는" },
+    "markupHint": {
+      "emphasis": "일부 강조:",
+      "escape": "별표 문자는"
+    },
     "markupToolbar": {
       "boldLabel": "굵게 (**굵게**)",
       "boldTitle": "선택한 글자를 굵게 (**굵게**)",
@@ -565,7 +590,10 @@
     "chapterSummaryComplete": "{{count}}p · 완료",
     "chapterSummaryRemaining": "{{count}}p · {{remaining}} 남음",
     "chapterSummary": "{{count}}p{{suffix}}",
-    "statusSuffix": { "complete": " · 완료", "inProgress": " · 진행 중" },
+    "statusSuffix": {
+      "complete": " · 완료",
+      "inProgress": " · 진행 중"
+    },
     "noSelectedPages": "선택된 페이지가 없습니다.",
     "approximately": "약 ",
     "selectionSummary": "{{chapterCount}}개 화 · {{approximate}}{{pageCount}}페이지",
@@ -893,7 +921,10 @@
     "allChaptersInFinal": "모든 공유 화가 최종 목록에 있습니다.",
     "toDelete": "삭제 예정",
     "restoreItem": "{{title}} 되살리기",
-    "source": { "existing": "기존", "shared": "공유" },
+    "source": {
+      "existing": "기존",
+      "shared": "공유"
+    },
     "stats": {
       "final": "최종 {{count}}개",
       "toDelete": "삭제 예정 {{count}}개",
@@ -914,7 +945,10 @@
       "criteriaLabel": "정렬 기준",
       "criterion": "기준",
       "directionLabel": "정렬 방향",
-      "direction": { "asc": "오름차순", "desc": "내림차순" }
+      "direction": {
+        "asc": "오름차순",
+        "desc": "내림차순"
+      }
     }
   },
   "pageList": {
@@ -990,7 +1024,10 @@
     "showInspector": "검수·편집 패널 펼치기",
     "hideInspector": "검수·편집 패널 접기"
   },
-  "areaTranslation": { "title": "영역 번역", "cancelSelection": "선택 취소" },
+  "areaTranslation": {
+    "title": "영역 번역",
+    "cancelSelection": "선택 취소"
+  },
   "stageToolbar": {
     "show": "도구 모음 표시",
     "showTitle": "도구 모음 표시 (4)",
@@ -1013,7 +1050,10 @@
       }
     },
     "tools": {
-      "select": { "label": "선택", "title": "선택 도구 (1)" },
+      "select": {
+        "label": "선택",
+        "title": "선택 도구 (1)"
+      },
       "block": {
         "label": "블록",
         "title": "블록 도구 (2) — 드래그해서 새 텍스트 블록 추가"
@@ -1038,16 +1078,34 @@
         "label": "말풍선 영역",
         "title": "선택 블록의 말풍선 영역 직접 지정 — 점을 찍고 Enter로 적용"
       },
-      "mask": { "label": "마스크", "title": "마스크 붓" },
-      "brush": { "label": "브러시", "title": "보정 브러시" },
-      "rectangle": { "label": "사각형", "title": "드래그로 사각형 덮기" },
-      "ellipse": { "label": "원형", "title": "드래그로 원형 덮기" },
-      "eraser": { "label": "지우개", "title": "보정 내용 지우개" },
+      "mask": {
+        "label": "마스크",
+        "title": "마스크 붓"
+      },
+      "brush": {
+        "label": "브러시",
+        "title": "보정 브러시"
+      },
+      "rectangle": {
+        "label": "사각형",
+        "title": "드래그로 사각형 덮기"
+      },
+      "ellipse": {
+        "label": "원형",
+        "title": "드래그로 원형 덮기"
+      },
+      "eraser": {
+        "label": "지우개",
+        "title": "보정 내용 지우개"
+      },
       "eraser-rectangle": {
         "label": "사각 지우개",
         "title": "드래그한 사각형 영역을 원본 이미지로 복원"
       },
-      "picker": { "label": "색 추출", "title": "캔버스에서 색 추출" }
+      "picker": {
+        "label": "색 추출",
+        "title": "캔버스에서 색 추출"
+      }
     }
   },
   "bubbleLayoutEditor": {
@@ -1087,14 +1145,19 @@
     "excludeFromInpainting": "인페인팅에서 제외",
     "excludedFromInpainting": "자동 지우기에서 제외된 블록"
   },
-  "imageStage": { "loadingImage": "이미지 불러오는 중" },
+  "imageStage": {
+    "loadingImage": "이미지 불러오는 중"
+  },
   "install": {
     "logLabel": "설치 로그",
     "checkingLogs": "로그 확인 중",
     "preparingModel": "Gemma 4 모델 준비",
     "installingOcr": "OCR 설치"
   },
-  "toast": { "close": "알림 닫기", "region": "알림" },
+  "toast": {
+    "close": "알림 닫기",
+    "region": "알림"
+  },
   "errorBoundary": {
     "title": "문제가 발생했어요",
     "description": "화면을 그리는 중 오류가 발생했습니다. 작업 내용은 보관함에 저장돼 있을 수 있어요. 다시 시작하면 대부분 복구됩니다.",
@@ -1317,8 +1380,15 @@
       "apply": "선택 {{count}}개 적용",
       "noChanges": "적용할 변경안을 찾지 못했습니다.",
       "selectChange": "{{name}} 변경안 선택",
-      "actions": { "add": "추가", "update": "수정", "disable": "비활성화" },
-      "confidence": { "high": "높은 신뢰도", "medium": "검토 필요" },
+      "actions": {
+        "add": "추가",
+        "update": "수정",
+        "disable": "비활성화"
+      },
+      "confidence": {
+        "high": "높은 신뢰도",
+        "medium": "검토 필요"
+      },
       "localEvidence": "로컬 출현 {{pages}}쪽 · {{mentions}}회",
       "previewReady": "저장되지 않은 변경안 {{count}}개를 만들었습니다.",
       "failed": "인터넷 조사에 실패했습니다.",
@@ -1614,7 +1684,9 @@
         "applyRecommended": "권장값 적용",
         "recommendedApplied": "권장값 사용 중"
       },
-      "provider": { "label": "번역 엔진" },
+      "provider": {
+        "label": "번역 엔진"
+      },
       "maxTokens": {
         "label": "최대 출력 토큰",
         "remoteDescription": "표시 텍스트와 추론을 포함한 응답 상한입니다. 모델 최대값보다 작업용 권장값이 안정적입니다.",
@@ -1642,7 +1714,9 @@
         "maxOutput": "최대 출력 토큰",
         "context": "조사 컨텍스트"
       },
-      "api": { "title": "API 모델" },
+      "api": {
+        "title": "API 모델"
+      },
       "limits": {
         "maxOutput": "최대 출력 토큰",
         "context": "조사 컨텍스트"
@@ -1726,8 +1800,14 @@
         }
       },
       "reasoning": {
-        "none": { "label": "없음", "description": "추론을 사용하지 않습니다." },
-        "low": { "label": "낮음", "description": "빠르고 간단한 추론입니다." },
+        "none": {
+          "label": "없음",
+          "description": "추론을 사용하지 않습니다."
+        },
+        "low": {
+          "label": "낮음",
+          "description": "빠르고 간단한 추론입니다."
+        },
         "medium": {
           "label": "중간",
           "description": "속도와 품질의 균형을 맞춥니다."
@@ -1855,7 +1935,9 @@
       "customCodeAria": "{{label}} 코드 직접 입력"
     },
     "gemma": {
-      "modelSource": { "label": "모델 소스" },
+      "modelSource": {
+        "label": "모델 소스"
+      },
       "preset": {
         "label": "모델 프리셋",
         "ariaLabel": "모델 프리셋",
@@ -1911,7 +1993,10 @@
       "customModel": "직접 입력",
       "customModelAria": "Codex 모델 직접 입력",
       "modelPlaceholder": "모델 이름",
-      "reasoning": { "label": "추론 강도", "ariaLabel": "Codex 추론 강도" },
+      "reasoning": {
+        "label": "추론 강도",
+        "ariaLabel": "Codex 추론 강도"
+      },
       "account": {
         "title": "ChatGPT 계정",
         "loading": "인증 상태 확인 중…",
@@ -2403,7 +2488,8 @@
     "showAllPages": "전체 페이지 표시",
     "showTranslations": "번역문 표시",
     "saveAsDefault": "다음 번역의 기본값으로 저장",
-    "reviewComplete": "검토 완료"
+    "reviewComplete": "검토 완료",
+    "engine": "번역 방식"
   },
   "stylePresets": {
     "title": "서식 프리셋",
@@ -2447,5 +2533,101 @@
     "ungrouped": "그룹 없음",
     "releaseGroup": "그룹 해제",
     "emptyGroup": "이 그룹에는 프리셋이 없습니다."
+  },
+  "codexTypesetting": {
+    "title": "Astra 번역·식자",
+    "description": "ChatGPT 계정의 Astra로 원문 판독부터 서체·크기·줄바꿈까지 결정합니다.",
+    "process": "한 화의 비슷한 서체를 먼저 묶어 일관되게 적용합니다. 글자 크기·줄바꿈·굵기를 맞추고 완성 화면을 검수합니다.",
+    "engine": "번역 방식",
+    "preset": "폰트 프리셋",
+    "copyPreset": "프리셋 복제",
+    "presetName": "프리셋 이름",
+    "fontCount": "선택한 폰트 {{count}} / 10",
+    "font": "폰트 {{index}}",
+    "removeFont": "폰트 {{index}} 제거",
+    "remove": "제거",
+    "purpose": "사용 의도",
+    "purposeHint": "예: 차분한 일반 대사. 굵은 강조에도 같은 계열 유지.",
+    "addFont": "폰트 추가",
+    "imageActive": "이미지 효과음 · 문구를 수정하면 편집형 글자로 전환됩니다.",
+    "imageEdited": "편집형 글자 · 원문 제거 배경은 그대로 유지됩니다.",
+    "editableText": "편집형 글자로 전환",
+    "restoreImage": "이미지 효과음 사용",
+    "sfxRendering": "효과음",
+    "sfxImage": "생성형",
+    "sfxFont": "폰트",
+    "sfxImageDescription": "효과음의 획과 질감을 살린 이미지를 별도 레이어로 만듭니다. 문구를 수정하면 편집형 글자로 전환됩니다.",
+    "sfxFontDescription": "효과음도 선택한 서체로 배치합니다. 문구·크기·굵기를 직접 수정할 수 있습니다."
+  },
+  "codexDelegation": {
+    "title": "모든 작업 Codex에게 맡기기",
+    "active": "Codex 자동 식자",
+    "hardwareManaged": "원문 인식·원문 제거·서체 맞춤은 Codex가 처리합니다."
+  },
+  "regionOptions": {
+    "standard": "일반 번역",
+    "imageCodex": "효과음 · Codex",
+    "title": "영역 번역",
+    "preview": "선택 영역",
+    "output": "결과 형태",
+    "text": "텍스트",
+    "image": "효과음 이미지",
+    "erase": "원문 지우기",
+    "cancel": "취소",
+    "run": "실행",
+    "unavailable": "Codex 연결을 확인해 주세요.",
+    "previewFailed": "선택 영역을 불러오지 못했습니다.",
+    "generate": "생성",
+    "recognizing": "인식 중",
+    "translationNumber": "번역문 {{number}}"
+  },
+  "letteringBrush": {
+    "title": "효과음 보정",
+    "done": "완료",
+    "target": "보정 대상",
+    "asset": "글자 모양",
+    "page": "가림 경계",
+    "mode": "붓 기능",
+    "hide": "지우기",
+    "restore": "복구",
+    "shape": "붓 모양",
+    "circle": "원형",
+    "square": "사각",
+    "size": "크기",
+    "softness": "부드러움",
+    "showMask": "마스크 표시",
+    "reset": "초기화"
+  },
+  "codexFonts": {
+    "title": "폰트 편집",
+    "edit": "폰트 편집",
+    "original": "원본 만화",
+    "previousPage": "이전 페이지",
+    "nextPage": "다음 페이지",
+    "imageFailed": "원본 이미지를 불러오지 못했습니다.",
+    "zoomIn": "확대",
+    "zoomOut": "축소",
+    "fit": "화면에 맞추기",
+    "fonts": "사용할 폰트",
+    "chooseFont": "폰트 선택",
+    "missingFont": "찾을 수 없는 폰트",
+    "replaceMissing": "폰트를 다시 선택해 주세요.",
+    "sampleText": "정말, 이렇게 해도 괜찮을까?",
+    "sample": "견본문구",
+    "sampleSize": "견본 크기",
+    "weight": "굵기",
+    "normal": "보통",
+    "bold": "굵게",
+    "copySuffix": "복사본",
+    "deletePreset": "프리셋 삭제",
+    "saveFailed": "저장하지 못했습니다. 이름과 입력 내용을 확인해 주세요.",
+    "retry": "재시도"
+  },
+  "codexPreview": {
+    "open": "중간 결과",
+    "reading": "원문 번역",
+    "background": "원문 제거",
+    "review": "식자 미리보기",
+    "retry": "다시 불러오기"
   }
 }

@@ -57,7 +57,7 @@ export function resolveMenuPosition(
   const above = rect.top - MENU_GAP - VIEWPORT_MARGIN;
   const openAbove = below < Math.min(measuredHeight, 180) && above > below;
   const availableHeight = openAbove ? above : below;
-  const maxHeight = Math.max(120, Math.min(MENU_MAX_HEIGHT, availableHeight));
+  const maxHeight = Math.max(0, Math.min(MENU_MAX_HEIGHT, availableHeight));
   const top = openAbove
     ? Math.max(
         VIEWPORT_MARGIN,

@@ -62,7 +62,17 @@ class FakeExportWindow {
       this.listeners.set(event, listener);
     }),
     executeJavaScript: vi.fn(async (script: string) => {
-      void script;
+      if (script.includes("[data-layout-evidence]"))
+        return [
+          {
+            blockId: "measured",
+            lines: ["내 눈이", "이이이이!", "!"],
+            fontSizePx: 28,
+            innerWidth: 112,
+            innerHeight: 67,
+            overflow: false,
+          },
+        ];
       recordExportEvent("render-readiness:start");
       if (stalledExportPhase === "render-readiness") {
         return pendingForever();
@@ -173,9 +183,20 @@ describe("page export BrowserWindow security", () => {
 
     try {
       await session.renderPage(makePage(rootDir));
+      await expect(session.inspectLastLayout?.()).resolves.toEqual([
+        {
+          blockId: "measured",
+          lines: ["내 눈이", "이이이이!", "!"],
+          fontSizePx: 28,
+          innerWidth: 112,
+          innerHeight: 67,
+          overflow: false,
+        },
+      ]);
     } finally {
       session.close();
     }
+    await expect(session.inspectLastLayout?.()).rejects.toThrow("idle open");
 
     expectEventBefore("page-load:done", "render-readiness:start");
     expectEventBefore("render-readiness:done", "debugger:attach");

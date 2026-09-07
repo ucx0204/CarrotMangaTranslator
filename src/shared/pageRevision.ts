@@ -1,4 +1,5 @@
 import { hashStableValue } from "./blockFingerprint";
+import { getActiveGeneratedLettering } from "./generatedLettering";
 import type { MangaPage } from "./libraryTypes";
 import type { PageRevision } from "./pageRevisionTypes";
 
@@ -67,7 +68,18 @@ export function createPageVisualRevision(
       speakerId: _speakerId,
       glossaryEntryIds: _glossaryEntryIds,
       ...visual
-    }) => visual,
+    }) =>
+      visual.generatedLettering
+        ? {
+            ...visual,
+            generatedLetteringActive: Boolean(
+              getActiveGeneratedLettering({
+                ...visual,
+                sourceText: _sourceText,
+              }),
+            ),
+          }
+        : visual,
   );
   return `page-visual-v1:${hashStableValue({
     id: page.id,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { codexTypesettingPreferencesSchema } from "./codexTypesettingSchemas";
 import {
   AmdRocmTargetSchema,
   FluxBackendSchema,
@@ -210,6 +211,7 @@ export const AppSettingsSchema = z
       .strict(),
     codex: z
       .object({
+        delegateAll: z.boolean().optional(),
         model: z.string().min(1).max(120),
         reasoningEffort: z.enum(CODEX_REASONING_EFFORTS),
       })
@@ -278,6 +280,8 @@ export const AppSettingsSchema = z
           .enum(["detailed", "balanced", "essential"])
           .optional(),
         blockModeDefault: z.enum(["auto", "keep"]).optional(),
+        codexTypesettingPreferences:
+          codexTypesettingPreferencesSchema.optional(),
         naturalTextLayoutDefault: z.boolean().optional(),
         autoFontMatchingDefault: z.boolean().optional(),
         aiFontSizeMatchingDefault: z.boolean().optional(),

@@ -1,4 +1,5 @@
 import React from "react";
+import { GeneratedLetteringRetouchLayer } from "./GeneratedLetteringRetouchLayer";
 import {
   CommittedMaskLayer,
   OriginalImageBlendLayer,
@@ -73,6 +74,14 @@ function ImageStageFrame(props: ImageStageFrameProps): React.JSX.Element {
           {...layerProps}
           hideEditingOverlays={hideEditingOverlays}
         />
+        {!hideEditingOverlays && props.letteringRetouch ? (
+          <GeneratedLetteringRetouchLayer
+            page={props.page}
+            selectedBlockId={props.selectedBlockId}
+            controls={props.letteringRetouch}
+            preview={props.interactionPreviewStore}
+          />
+        ) : null}
       </div>
     </div>
   );

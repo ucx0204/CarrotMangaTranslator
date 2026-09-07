@@ -10,6 +10,8 @@ import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 import { TranslationOptionsActionBar } from "./TranslationOptionsActionBar";
 
 type PageRetranslateModalProps = {
+  codexDelegateAll?: boolean;
+  codexUnavailable?: boolean;
   pageName: string;
   blockCount: number;
   uiSettings: UiSettings | undefined;
@@ -32,6 +34,8 @@ type PageRetranslateModalProps = {
 };
 
 export function PageRetranslateModal({
+  codexDelegateAll = false,
+  codexUnavailable = false,
   pageName,
   blockCount,
   uiSettings,
@@ -41,24 +45,19 @@ export function PageRetranslateModal({
 }: PageRetranslateModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const { t: tRenderer } = useTranslation("renderer");
-  const [blockMode, setBlockMode] = React.useState<AnalysisBlockMode>(
-    uiSettings?.blockModeDefault ?? "auto",
-  );
-  const [naturalTextLayout, setNaturalTextLayout] = React.useState(
-    uiSettings?.naturalTextLayoutDefault ?? false,
-  );
-  const [autoFontMatching, setAutoFontMatching] = React.useState(
-    uiSettings?.autoFontMatchingDefault ?? false,
-  );
-  const [aiFontSizeMatching, setAiFontSizeMatching] = React.useState(
-    uiSettings?.aiFontSizeMatchingDefault ??
-      uiSettings?.fontSizeAutoFitDefault ??
-      true,
-  );
-  const [saveAsDefault, setSaveAsDefault] = React.useState(false);
+  const fields = useRetranslateFields(uiSettings);
+  const {
+    blockMode,
+    setBlockMode,
+    naturalTextLayout,
+    setNaturalTextLayout,
+    autoFontMatching,
+    setAutoFontMatching,
+    aiFontSizeMatching,
+  } = fields;
 
   const handleStart = (): void => {
-    if (saveAsDefault) {
+    if (fields.saveAsDefault && !codexDelegateAll) {
       onPersistDefaults(
         buildRetranslateDefaults(
           blockMode,
@@ -82,29 +81,36 @@ export function PageRetranslateModal({
       maxHeight="900px"
       cardClassName="translation-options-modal"
       footer={
-        <TranslationOptionsActionBar
-          saveAsDefault={saveAsDefault}
-          onCancel={onClose}
-          onSaveAsDefaultChange={setSaveAsDefault}
-          onStart={handleStart}
-          startLabel={t("retranslate.start")}
+        <RetranslateFooter
+          delegated={codexDelegateAll}
+          unavailable={codexUnavailable}
+          fields={fields}
+          close={onClose}
+          start={handleStart}
         />
       }
     >
-      <PageRetranslateOptions
-        autoFontMatching={autoFontMatching}
-        blockCount={blockCount}
-        blockMode={blockMode}
-        aiFontSizeMatching={aiFontSizeMatching}
-        naturalTextLayout={naturalTextLayout}
-        onAutoFontMatchingChange={setAutoFontMatching}
-        onBlockModeChange={setBlockMode}
-        onAiFontSizeMatchingChange={setAiFontSizeMatching}
-        onNaturalTextLayoutChange={setNaturalTextLayout}
-        pageName={pageName}
-        t={t}
-        tRenderer={tRenderer}
-      />
+      {codexDelegateAll ? (
+        <TranslationOverwriteWarning
+          title={t("retranslate.overwriteTitle")}
+          description={t("retranslate.overwriteWarning")}
+        />
+      ) : (
+        <PageRetranslateOptions
+          autoFontMatching={autoFontMatching}
+          blockCount={blockCount}
+          blockMode={blockMode}
+          aiFontSizeMatching={aiFontSizeMatching}
+          naturalTextLayout={naturalTextLayout}
+          onAutoFontMatchingChange={setAutoFontMatching}
+          onBlockModeChange={setBlockMode}
+          onAiFontSizeMatchingChange={fields.setAiFontSizeMatching}
+          onNaturalTextLayoutChange={setNaturalTextLayout}
+          pageName={pageName}
+          t={t}
+          tRenderer={tRenderer}
+        />
+      )}
     </Modal>
   );
 }
@@ -190,5 +196,63 @@ function PageRetranslateOptions({
         description={t("retranslate.overwriteWarning")}
       />
     </div>
+  );
+}
+
+function useRetranslateFields(uiSettings: UiSettings | undefined) {
+  const [blockMode, setBlockMode] = React.useState<AnalysisBlockMode>(
+    uiSettings?.blockModeDefault ?? "auto",
+  );
+  const [naturalTextLayout, setNaturalTextLayout] = React.useState(
+    uiSettings?.naturalTextLayoutDefault ?? false,
+  );
+  const [autoFontMatching, setAutoFontMatching] = React.useState(
+    uiSettings?.autoFontMatchingDefault ?? false,
+  );
+  const [aiFontSizeMatching, setAiFontSizeMatching] = React.useState(
+    uiSettings?.aiFontSizeMatchingDefault ??
+      uiSettings?.fontSizeAutoFitDefault ??
+      true,
+  );
+  const [saveAsDefault, setSaveAsDefault] = React.useState(false);
+
+  return {
+    blockMode,
+    setBlockMode,
+    naturalTextLayout,
+    setNaturalTextLayout,
+    autoFontMatching,
+    setAutoFontMatching,
+    aiFontSizeMatching,
+    setAiFontSizeMatching,
+    saveAsDefault,
+    setSaveAsDefault,
+  };
+}
+
+function RetranslateFooter({
+  delegated,
+  unavailable,
+  fields,
+  close,
+  start,
+}: {
+  delegated: boolean;
+  unavailable: boolean;
+  fields: ReturnType<typeof useRetranslateFields>;
+  close: () => void;
+  start: () => void;
+}) {
+  const { t } = useTranslation("components");
+  return (
+    <TranslationOptionsActionBar
+      showSaveAsDefault={!delegated}
+      startDisabled={unavailable}
+      saveAsDefault={fields.saveAsDefault}
+      onCancel={close}
+      onSaveAsDefaultChange={fields.setSaveAsDefault}
+      onStart={start}
+      startLabel={t("retranslate.start")}
+    />
   );
 }

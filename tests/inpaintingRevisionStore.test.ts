@@ -1,3 +1,4 @@
+import { assertRevisionLayoutPair } from "../src/main/inpainting/inpaintingRevisionHelpers";
 import { existsSync } from "node:fs";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -25,6 +26,46 @@ describe("InpaintingRevisionStore", () => {
     }
   });
 
+  it("undoes and redoes appended region blocks together with their background", async () => {
+    const rootDir = await createTempLibrary();
+    const paths = await seedLibrary(rootDir);
+    const { InpaintingRevisionStore, library } = await loadModules(rootDir);
+    const store = new InpaintingRevisionStore();
+    const initial = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const before = { ...initial, inpaintedImagePath: paths.beforeA };
+    await library.savePageBlocks({
+      chapterId: CHAPTER_A_ID,
+      pageId: PAGE_A_ID,
+      blocks: [
+        ...initial.blocks,
+        {
+          ...initial.blocks[0],
+          id: "99999999-9999-4999-8999-999999999999",
+          translatedText: "새 효과음",
+        },
+      ],
+    });
+    const after = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const transactionId = store.beginTransaction();
+    store.addChange(transactionId, {
+      chapterId: CHAPTER_A_ID,
+      pageId: PAGE_A_ID,
+      beforePath: before.inpaintedImagePath,
+      afterPath: after.inpaintedImagePath,
+      beforeRevision: createPageRevision(before),
+      afterRevision: createPageRevision(after),
+      beforeBlocks: before.blocks,
+      afterBlocks: after.blocks,
+    });
+    await store.applyTransaction({ transactionId, direction: "undo" });
+    const undone = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(undone.blocks).toEqual(before.blocks);
+    expect(undone.inpaintedImagePath).toBe(paths.beforeA);
+    await store.applyTransaction({ transactionId, direction: "redo" });
+    const redone = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(redone.blocks).toEqual(after.blocks);
+    expect(redone.inpaintedImagePath).toBe(paths.afterA);
+  });
   it("undoes and redoes a multi-chapter transaction atomically", async () => {
     const rootDir = await createTempLibrary();
     const paths = await seedLibrary(rootDir);
@@ -834,3 +875,21 @@ async function writeJson(filePath: string, payload: unknown): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true });
   await writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
+
+it("rejects incomplete region history before it can enter the undo store", () => {
+  expect(() =>
+    assertRevisionLayoutPair({
+      chapterId: "chapter",
+      pageId: "page",
+      beforeBlocks: [],
+    }),
+  ).toThrow("블록과 revision");
+  expect(() =>
+    assertRevisionLayoutPair({
+      chapterId: "chapter",
+      pageId: "page",
+      beforeBlocks: [],
+      afterBlocks: [],
+    }),
+  ).toThrow("블록과 revision");
+});

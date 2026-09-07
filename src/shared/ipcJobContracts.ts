@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  confirmRegionTranslationSchema,
+  type ConfirmRegionTranslationRequest,
+} from "./regionTextReview";
 import { MAX_ID_LIST_LENGTH } from "./ipcSchemaPrimitives";
 import type {
   RegionAnalysisRequest,
@@ -81,6 +85,7 @@ const startAnalysisResultSchema = z
   .strict();
 const regionAnalysisResultSchema = startAnalysisResultSchema
   .extend({
+    history: z.object({ transactionId: z.string().uuid() }).strict().optional(),
     pageId: stringArg.optional(),
     blockIds: z
       .array(z.string().min(1).max(200))
@@ -229,6 +234,15 @@ export const translationJobIpcContracts = {
       result: startAnalysisResultSchema,
     },
   ),
+  confirmRegionTranslation: defineIpcContract<
+    [ConfirmRegionTranslationRequest],
+    boolean
+  >({
+    apiKey: "confirmRegionTranslation",
+    channel: "job:confirm-region-translation",
+    args: z.tuple([confirmRegionTranslationSchema]),
+    result: z.boolean(),
+  }),
   translateRegion: defineIpcContract<
     [RegionAnalysisRequest],
     RegionAnalysisResult
@@ -352,10 +366,24 @@ export const pageImageExportIpcContracts = {
 } as const;
 
 export const jobControlIpcContracts = {
-  cancelJob: defineIpcContract<[], { cancelled: boolean }>({
+  cancelJob: defineIpcContract<
+    [request?: { reason?: "codex-disconnected"; jobId: string }],
+    { cancelled: boolean }
+  >({
     apiKey: "cancelJob",
     channel: "job:cancel",
-    args: z.tuple([]),
+    args: z.union([
+      z.tuple([]),
+      z.tuple([
+        z
+          .object({
+            reason: z.literal("codex-disconnected").optional(),
+            jobId: z.string().min(1).max(200),
+          })
+          .strict()
+          .optional(),
+      ]),
+    ]),
     result: cancelJobResultSchema,
   }),
   finishPageTimingSession: defineIpcContract<

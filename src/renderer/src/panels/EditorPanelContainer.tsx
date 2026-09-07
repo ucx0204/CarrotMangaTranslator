@@ -1,4 +1,5 @@
 import React from "react";
+import { GeneratedLetteringControls } from "../components/GeneratedLetteringControls";
 import { IconArrowLeft, IconLibrary } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { EditorPanel } from "../components/EditorPanel";
@@ -30,6 +31,10 @@ export function EditorPanelContainer(): React.JSX.Element {
   return (
     <>
       <EditorPanel
+        generatedLetteringControls={
+          <PanelLetteringControls session={session} />
+        }
+        aiUnavailable={session.aiUnavailable}
         block={session.selectedBlock}
         canCreateStylePreset={session.canCreateStylePreset}
         disabled={session.editorDisabled}
@@ -152,5 +157,17 @@ function EditorPanelLibraryModals({
         />
       ) : null}
     </>
+  );
+}
+
+function PanelLetteringControls({ session }: { session: PanelSessionValue }) {
+  return (
+    <GeneratedLetteringControls
+      block={session.selectedBlock}
+      disabled={session.editorDisabled}
+      tool={session.letteringTool}
+      onChange={session.onChangeLetteringTool}
+      onUpdate={session.onUpdateBlock}
+    />
   );
 }

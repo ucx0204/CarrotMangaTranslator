@@ -61,7 +61,7 @@ async function startPageExport(): Promise<void> {
       />,
     );
   });
-  await waitForRenderedImage(stage, showImage);
+  await waitForRenderedImages(stage, showImage);
   await waitForWarpDisplacementMaps(stage);
   await waitForTwoAnimationFrames();
   document.body.dataset.outputWidth = String(data.outputSize.width);
@@ -82,14 +82,16 @@ async function decodeExportImage(
   return actual;
 }
 
-async function waitForRenderedImage(
+async function waitForRenderedImages(
   stage: HTMLElement,
   showImage: boolean,
 ): Promise<void> {
-  if (!showImage) return;
-  const image = stage.querySelector<HTMLImageElement>(".page-image");
-  if (!image) throw new Error("Page export image was not rendered.");
-  await image.decode();
+  if (showImage && !stage.querySelector(".page-image"))
+    throw new Error("Page export image was not rendered.");
+  const images = Array.from(
+    stage.querySelectorAll<HTMLImageElement>("img:not([data-warp-map])"),
+  );
+  await Promise.all(images.map((image) => image.decode()));
 }
 
 function assertFontsLoaded(report: BlockFontLoadReport): void {

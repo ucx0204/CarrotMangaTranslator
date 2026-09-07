@@ -1,3 +1,4 @@
+import { DEFAULT_LETTERING_TOOL } from "../../../../shared/generatedLetteringMask";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
@@ -13,6 +14,7 @@ export type RightRailMode = "page-blocks" | "block-editor";
 
 // eslint-disable-next-line max-lines-per-function -- this top-level hook only aggregates independently scoped UI state and reset handles
 export function useAppSessionUiState() {
+  const [letteringTool, setLetteringTool] = useState(DEFAULT_LETTERING_TOOL);
   const inpaintingUi = useInpaintingUiState();
   const { resetInpaintingUi } = inpaintingUi;
   const [showBlockChrome, setShowBlockChrome] = useState(true);
@@ -61,6 +63,8 @@ export function useAppSessionUiState() {
   }, [resetInpaintingUi, soundEffectReview, translateModals, zoom]);
 
   return {
+    letteringTool,
+    setLetteringTool,
     ...zoom,
     ...originalImageOpacity,
     ...translateModals,

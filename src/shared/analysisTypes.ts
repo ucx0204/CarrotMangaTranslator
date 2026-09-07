@@ -8,6 +8,7 @@ import type { PageTimingSessionRef } from "./pageProcessingTiming";
 export type AnalysisBlockMode = "auto" | "keep";
 
 type TranslationRunOptions = {
+  codexTypesetting?: import("./codexTypesettingTypes").CodexTypesettingOptions;
   /** Renderer-owned wall-clock session shared with automatic inpainting. */
   timingSession?: PageTimingSessionRef;
   collectPageContext?: boolean;
@@ -61,17 +62,23 @@ export type StartAnalysisResult = {
 };
 
 export type RegionAnalysisRequest = {
+  textReviewSessionId?: string;
+  eraseOriginal?: boolean;
+  codexTypesetting?: import("./codexTypesettingTypes").CodexTypesettingOptions;
+  pageRevision?: string;
   chapterId: string;
   pageId: string;
   bbox: BBox;
 };
 
 export type RegionAnalysisResult = StartAnalysisResult & {
+  history?: import("./inpaintingTypes").InpaintingHistoryTransactionRef;
   pageId?: string;
   blockIds?: string[];
 };
 
 export type StartSoundEffectTranslationRequest = {
+  codexTypesetting?: import("./codexTypesettingTypes").CodexTypesettingOptions;
   chapterId: string;
   targets: Array<{
     pageId: string;

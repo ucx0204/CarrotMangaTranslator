@@ -16,6 +16,57 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("page block list", () => {
+  it.each([
+    [
+      "원문 판독 보류: 작은 효과음의 마지막 획이 불확실합니다.",
+      "원문 판독 보류: 작은 효과음의 마지막 획이 불확실합니다.",
+    ],
+    [
+      JSON.stringify([
+        {
+          regionId: "internal-id",
+          kind: "text",
+          reason: "원문을 덮지 않도록 배치하세요.",
+        },
+        { reason: "원문을 덮지 않도록 배치하세요." },
+      ]),
+      "원문을 덮지 않도록 배치하세요.",
+    ],
+    ["[]", "[]"],
+    ['{"custom":"note"}', '{"custom":"note"}'],
+    ['[{"reason":12}]', '[{"reason":12}]'],
+  ])(
+    "shows review reasons even for an empty preserved block: %s",
+    (note, expected) => {
+      const page = makePage(),
+        block = page.blocks[0];
+      Object.assign(block, {
+        sourceText: "",
+        translatedText: "",
+        reviewStatus: "needs_review",
+        reviewNote: note,
+        inpaintExcluded: true,
+        textOpacity: 0,
+      });
+      const { container } = render(
+        <PageBlockListPanel
+          disabled={false}
+          page={page}
+          readingDirection="rtl"
+          selectedBlockId={block.id}
+          onOpenEditor={vi.fn()}
+          onSelectBlock={vi.fn()}
+          onUpdateBlock={vi.fn()}
+        />,
+      );
+      expect(
+        container.querySelector(".page-block-review-note")?.textContent,
+      ).toBe(expected);
+      expect(
+        container.querySelector(".page-block-review-note")?.textContent,
+      ).not.toContain("internal-id");
+    },
+  );
   it("renders reading order, status badges, and direct block-id edits", () => {
     const onOpenEditor = vi.fn();
     const onSelectBlock = vi.fn();

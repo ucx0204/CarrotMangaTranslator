@@ -12,6 +12,7 @@ import { parseRichText, type TextStyleRun } from "../../shared/richTextMarkup";
 import type { TranslationBlock } from "../../shared/textTypes";
 import { resolveTextEffectFilter } from "../../shared/textEffect";
 import { resolveEffectiveTextOutlineWidthPx } from "../../shared/textOutline";
+import { getActiveGeneratedLettering } from "../../shared/generatedLettering";
 
 type PagePsdTextLayerInput = {
   block: TranslationBlock;
@@ -174,7 +175,11 @@ function supportsEditablePsdText(
   block: TranslationBlock,
   displayText: string,
 ): boolean {
-  if (!displayText || hasUnsupportedBlockTextFeatures(block)) {
+  if (
+    !displayText ||
+    getActiveGeneratedLettering(block) ||
+    hasUnsupportedBlockTextFeatures(block)
+  ) {
     return false;
   }
   const parsed = parseRichText(displayText);

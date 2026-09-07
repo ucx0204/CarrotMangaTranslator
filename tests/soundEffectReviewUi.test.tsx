@@ -1,3 +1,8 @@
+import { DEFAULT_LETTERING_TOOL } from "../src/shared/generatedLetteringMask";
+import { resolveDefaultAppSettings } from "../src/main/appSettings";
+import { codexConnection } from "../src/renderer/src/api/codexConnection";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
+import type { CodexAccountSnapshot } from "../src/shared/codexAccountTypes";
 /** @vitest-environment jsdom */
 
 import React from "react";
@@ -884,3 +889,117 @@ const LIBRARY: LibraryIndex = {
     },
   ],
 };
+
+it("exposes a generated lettering brush only while editing overlays are available", () => {
+  const page = makeReviewPage("page-1", "001.png", []);
+  const block = {
+    ...makeBlock("generated", { x: 200, y: 200, w: 400, h: 400 }),
+    generatedLettering: {
+      version: 1 as const,
+      sourceText: "既存",
+      translatedText: "기존",
+      dataUrl: PIXEL,
+    },
+  };
+  page.blocks = [block];
+  const base = {
+    ...makeImageStageProps(page),
+    selectedBlockId: block.id,
+    letteringRetouch: {
+      tool: { ...DEFAULT_LETTERING_TOOL, blockId: block.id },
+      onUpdate: vi.fn(),
+    },
+  };
+  const renderStage = (hidden: boolean) => (
+    <FontsContext.Provider value={FONTS_CONTEXT}>
+      <ImageStage {...base} hideEditingOverlays={hidden} />
+    </FontsContext.Provider>
+  );
+  const { container, rerender } = render(renderStage(false));
+  expect(
+    container.querySelector('svg[preserveAspectRatio="none"]'),
+  ).not.toBeNull();
+  rerender(renderStage(true));
+  expect(container.querySelector('svg[preserveAspectRatio="none"]')).toBeNull();
+});
+
+it("offers Codex image or editable lettering and keeps execution disabled offline", () => {
+  const onStart = vi.fn();
+  const props = {
+    chapter: makeChapter(),
+    jobActive: false,
+    onClose: vi.fn(),
+    onStart,
+    codexDelegateAll: true,
+  };
+  const view = render(<SoundEffectTranslationModal {...props} />);
+  expect(screen.queryByRole("switch", { name: "폰트 자동 맞춤" })).toBeNull();
+  fireEvent.click(screen.getByRole("radio", { name: "폰트" }));
+  fireEvent.click(screen.getByRole("switch", { name: "원문 지우기" }));
+  view.rerender(<SoundEffectTranslationModal {...props} codexUnavailable />);
+  const start = screen.getByRole("button", { name: "선택한 효과음 3개 번역" });
+  expect(start.hasAttribute("disabled")).toBe(true);
+  fireEvent.click(start);
+  expect(onStart).not.toHaveBeenCalled();
+});
+
+it("offers standalone Astra without changing general settings and retains its choice when disconnected", async () => {
+  const settings = resolveDefaultAppSettings({});
+  settings.modelProvider = "openai-api";
+  settings.codex.delegateAll = false;
+  settings.codex.reasoningEffort = "low";
+  const original = structuredClone(settings);
+  const account: CodexAccountSnapshot = {
+    authenticated: true,
+    accountKind: "chatgpt",
+    email: null,
+    planType: null,
+    requiresOpenaiAuth: true,
+    appServerVersion: "test",
+    models: [
+      {
+        id: "gpt-6-astra",
+        displayName: "Astra",
+        supportedReasoningEfforts: ["low"],
+        defaultReasoningEffort: "low",
+        isDefault: true,
+      },
+    ],
+  };
+  window.mangaApi = createTestMangaGatewayStub({
+    getCodexAccount: async () => account,
+  });
+  codexConnection.publish(account);
+  const onStart = vi.fn(),
+    onPersistDefaults = vi.fn();
+  render(
+    <SoundEffectTranslationModal
+      chapter={makeChapter()}
+      settings={settings}
+      jobActive={false}
+      onClose={() => {}}
+      onStart={onStart}
+      onPersistDefaults={onPersistDefaults}
+    />,
+  );
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("radio", { name: "Codex · Astra" }));
+  expect(screen.queryByRole("switch", { name: "폰트 자동 맞춤" })).toBeNull();
+  fireEvent.click(screen.getByRole("radio", { name: "폰트" }));
+  fireEvent.click(screen.getByRole("switch", { name: "원문 지우기" }));
+  act(() => codexConnection.publish(null));
+  const start = screen.getByRole("button", { name: "선택한 효과음 3개 번역" });
+  expect(start.hasAttribute("disabled")).toBe(true);
+  expect(
+    screen
+      .getByRole("radio", { name: "Codex · Astra" })
+      .getAttribute("aria-checked"),
+  ).toBe("true");
+  act(() => codexConnection.publish(account));
+  fireEvent.click(start);
+  expect(onStart).toHaveBeenCalledWith(expect.any(Object), true, false, "font");
+  expect(settings).toEqual(original);
+  expect(onPersistDefaults).not.toHaveBeenCalled();
+  cleanup();
+  codexConnection.publish(null);
+});

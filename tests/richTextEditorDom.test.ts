@@ -48,6 +48,24 @@ afterEach(() => {
 });
 
 describe("rich text editor DOM", () => {
+  it.each(["#000000", "#ffffff", "#a32727"])(
+    "keeps unoutlined %s ink readable without persisting an editor backdrop",
+    (color) => {
+      const root = makeRoot();
+      const runs = [{ text: "잠깐!", bold: true, italic: false, color }];
+      renderRichTextEditorRuns(root, runs, {
+        ...options,
+        block: { ...decoratedBlock, outlineWidthPx: 0 },
+      });
+      const glyph = root.firstElementChild as HTMLElement;
+      expect(glyph.style.backgroundColor).toBe(
+        color === "#ffffff" ? "rgb(17, 17, 17)" : "rgb(255, 255, 255)",
+      );
+      expect(glyph.dataset.backgroundColor).toBeUndefined();
+      expect(extractRichTextEditorRuns(root)).toEqual(runs);
+    },
+  );
+
   it("renders and extracts only supported safe run attributes", () => {
     const root = makeRoot();
     const runs: TextStyleRun[] = [

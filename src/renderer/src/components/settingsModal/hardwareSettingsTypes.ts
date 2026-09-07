@@ -10,6 +10,7 @@ import type {
 } from "../../../../shared/settingsTypes";
 
 export type HardwareSettingsPanelProps = {
+  codexDelegateAll?: boolean;
   allowUnsafeLowMemoryFlux: boolean;
   clearTestState: () => void;
   computeGpuIndex: number | null;

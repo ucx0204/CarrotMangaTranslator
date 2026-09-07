@@ -316,6 +316,9 @@ export type MangaApi = {
   getTavilyUsage: (
     request?: TavilyUsageRequest,
   ) => Promise<TavilyUsageSnapshot>;
+  saveCodexTypesettingPreferences: (
+    value: import("./codexTypesettingTypes").CodexTypesettingPreferences,
+  ) => Promise<import("./codexTypesettingTypes").CodexTypesettingPreferences>;
   saveSettings: (settings: AppSettings) => Promise<AppSettings>;
   resetSettings: () => Promise<AppSettings>;
   pickLocalModelFile: () => Promise<LocalModelPickResult | null>;
@@ -363,6 +366,9 @@ export type MangaApi = {
   startAnalysis: (
     request: StartAnalysisRequest,
   ) => Promise<StartAnalysisResult>;
+  confirmRegionTranslation: (
+    request: import("./regionTextReview").ConfirmRegionTranslationRequest,
+  ) => Promise<boolean>;
   translateRegion: (
     request: RegionAnalysisRequest,
   ) => Promise<RegionAnalysisResult>;
@@ -397,7 +403,10 @@ export type MangaApi = {
     request: PageExportSelectionRequest,
   ) => Promise<PageImageExportPreflightResult>;
   disposeInpaintingEngine: () => Promise<{ disposed: boolean }>;
-  cancelJob: () => Promise<unknown>;
+  cancelJob: (request?: {
+    reason?: "codex-disconnected";
+    jobId: string;
+  }) => Promise<unknown>;
   finishPageTimingSession: (
     request: FinishPageTimingSessionRequest,
   ) => Promise<FinishPageTimingSessionResult>;

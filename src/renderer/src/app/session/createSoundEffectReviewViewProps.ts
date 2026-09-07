@@ -55,6 +55,7 @@ export function createWorkspaceSoundEffectReviewProps({
   | "uiState"
 >): WorkspaceReviewProps {
   const selectedPage = derivedState.selectedPage;
+  const ui = settingsDialog.settings?.ui;
   const closeReview = (): void => {
     uiState.setSelectedSoundEffectReviewRegionId(null);
     uiState.setSoundEffectReviewVisible(false);
@@ -90,8 +91,11 @@ export function createWorkspaceSoundEffectReviewProps({
       closeReview();
       void translationActions.translateSoundEffects(
         [target],
-        settingsDialog.settings?.ui?.sfxInpaintAfterTranslationDefault ?? false,
-        settingsDialog.settings?.ui?.sfxAutoFontMatchingDefault ?? false,
+        settingsDialog.codexDelegationEnabled
+          ? settingsDialog.settings?.ui?.codexTypesettingPreferences
+              ?.eraseOriginal !== false
+          : (ui?.sfxInpaintAfterTranslationDefault ?? false),
+        ui?.sfxAutoFontMatchingDefault ?? false,
       );
     },
   };
@@ -111,14 +115,17 @@ export function createSoundEffectTranslationModalProps({
   if (!chapter || !uiState.soundEffectTranslationOpen) return null;
   return {
     chapter,
+    settings: settingsDialog.settings,
+    ...soundEffectExecutionSettings(settingsDialog),
     jobActive: derivedState.jobActive,
-    autoFontMatchingDefault:
-      settingsDialog.settings?.ui?.sfxAutoFontMatchingDefault ?? false,
-    inpaintAfterTranslationDefault:
-      settingsDialog.settings?.ui?.sfxInpaintAfterTranslationDefault ?? false,
     onPersistDefaults: createPersistUiDefaults(settingsDialog),
     onClose: () => uiState.setSoundEffectTranslationOpen(false),
-    onStart: (request, inpaintAfterTranslation, autoFontMatching) => {
+    onStart: (
+      request,
+      inpaintAfterTranslation,
+      autoFontMatching,
+      sfxRendering,
+    ) => {
       uiState.setSoundEffectTranslationOpen(false);
       uiState.setSelectedSoundEffectReviewRegionId(null);
       uiState.setSoundEffectReviewVisible(false);
@@ -127,7 +134,25 @@ export function createSoundEffectTranslationModalProps({
         inpaintAfterTranslation,
         autoFontMatching,
         request,
+        sfxRendering,
       );
     },
+  };
+}
+
+function soundEffectExecutionSettings(
+  settingsDialog: AppSessionViewModel["settingsDialog"],
+) {
+  const ui = settingsDialog.settings?.ui;
+  return {
+    codexDelegateAll: settingsDialog.codexDelegationEnabled,
+    codexUnavailable:
+      settingsDialog.codexDelegationEnabled &&
+      !settingsDialog.codexDelegationActive,
+    sfxRenderingDefault: ui?.codexTypesettingPreferences?.sfxRendering,
+    autoFontMatchingDefault: ui?.sfxAutoFontMatchingDefault ?? false,
+    inpaintAfterTranslationDefault: settingsDialog.codexDelegationEnabled
+      ? ui?.codexTypesettingPreferences?.eraseOriginal !== false
+      : (ui?.sfxInpaintAfterTranslationDefault ?? false),
   };
 }

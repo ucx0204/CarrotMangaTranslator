@@ -9,6 +9,7 @@ import {
 import { Button } from "./ui/Button";
 import { RestoreIcon, TextareaHeightIcon } from "./ui/icons";
 import { RichTranslationEditor } from "./RichTranslationEditor";
+import styles from "./EditorPanelSections.module.css";
 
 type BlockPatchHandler = (patch: Partial<TranslationBlock>) => void;
 
@@ -19,6 +20,7 @@ type BlockSectionProps = {
 };
 
 type BlockTextActionProps = {
+  aiUnavailable?: boolean;
   onEraseOriginal?: () => void;
   onFitBubble?: () => void;
   onSuggestConsistentEdit?: (find: string, replace: string) => void;
@@ -55,6 +57,7 @@ export function BubbleLayoutOption({
 export function TextEditorGroup({
   block,
   disabled,
+  aiUnavailable,
   onEraseOriginal,
   onFitBubble,
   onSuggestConsistentEdit,
@@ -86,7 +89,18 @@ export function TextEditorGroup({
 
   return (
     <div className="editor-group editor-text-group">
-      <TextBlockActions {...{ disabled, onEraseOriginal, onFitBubble }} />
+      <TextBlockActions
+        {...{
+          disabled: disabled || aiUnavailable === true,
+          onEraseOriginal,
+          onFitBubble,
+        }}
+      />
+      <GeneratedLetteringOption
+        block={block}
+        disabled={disabled}
+        onUpdate={onUpdate}
+      />
       <RichTranslationEditor
         block={block}
         value={drafts.translated}
@@ -104,25 +118,51 @@ export function TextEditorGroup({
           />
         }
       />
-      {drafts.suggestion && onSuggestConsistentEdit ? (
-        <div className="editor-consistent-edit-suggestion">
-          <span>
-            “{drafts.suggestion.find}” → “{drafts.suggestion.replace}”
-          </span>
-          <Button
-            size="sm"
-            disabled={disabled}
-            onClick={() => {
-              const suggestion = drafts.suggestion;
-              if (!suggestion) return;
-              drafts.clearSuggestion();
-              onSuggestConsistentEdit(suggestion.find, suggestion.replace);
-            }}
-          >
-            비슷한 곳도 바꾸기
-          </Button>
-        </div>
-      ) : null}
+      <ConsistentEditSuggestionButton
+        suggestion={drafts.suggestion}
+        disabled={disabled}
+        onApply={onSuggestConsistentEdit}
+        onClear={drafts.clearSuggestion}
+      />
+    </div>
+  );
+}
+
+function GeneratedLetteringOption({
+  block,
+  disabled,
+  onUpdate,
+}: BlockSectionProps): React.JSX.Element | null {
+  const { t } = useTranslation("components");
+  const artwork = block.generatedLettering;
+  if (!artwork) return null;
+  const matching =
+    artwork.translatedText === block.translatedText &&
+    artwork.sourceText === block.sourceText;
+  const active = matching && artwork.enabled !== false;
+  return (
+    <div className={styles.letteringStatus}>
+      <span className={styles.statusText} role="status">
+        {t(
+          active
+            ? "codexTypesetting.imageActive"
+            : "codexTypesetting.imageEdited",
+        )}
+      </span>
+      <Button
+        size="sm"
+        variant="secondary"
+        disabled={disabled || !matching}
+        onClick={() =>
+          onUpdate({ generatedLettering: { ...artwork, enabled: !active } })
+        }
+      >
+        {t(
+          active
+            ? "codexTypesetting.editableText"
+            : "codexTypesetting.restoreImage",
+        )}
+      </Button>
     </div>
   );
 }
@@ -262,4 +302,35 @@ function useBlockTextDrafts(
         : deriveSingleTextReplacement(translatedBaseline, translated),
     clearSuggestion: () => setTranslatedBaseline(null),
   };
+}
+
+function ConsistentEditSuggestionButton({
+  suggestion,
+  disabled,
+  onApply,
+  onClear,
+}: {
+  suggestion: ConsistentEditSuggestion | null;
+  disabled: boolean;
+  onApply?: (find: string, replace: string) => void;
+  onClear: () => void;
+}) {
+  if (!suggestion || !onApply) return null;
+  return (
+    <div className="editor-consistent-edit-suggestion">
+      <span>
+        “{suggestion.find}” → “{suggestion.replace}”
+      </span>
+      <Button
+        size="sm"
+        disabled={disabled}
+        onClick={() => {
+          onClear();
+          onApply(suggestion.find, suggestion.replace);
+        }}
+      >
+        비슷한 곳도 바꾸기
+      </Button>
+    </div>
+  );
 }

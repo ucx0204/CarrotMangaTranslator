@@ -68,6 +68,7 @@ export function buildSettingsFromDraft({
     mmprojOffload: values.gemmaMmprojOffload,
     llamaRuntimeProfile: values.llamaRuntimeProfile,
     allowUnsafeUnifiedMemory: values.allowUnsafeUnifiedMemory,
+    codexDelegateAll: values.codexDelegateAll,
     codexModel: draft.trimmedCodexModel,
     codexReasoningEffort: values.codexReasoningEffort,
     ...buildInternetResearchFields(draft, values),

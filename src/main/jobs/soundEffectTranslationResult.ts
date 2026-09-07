@@ -397,3 +397,17 @@ function normalizeKoreanTranslation(value: string): string {
     .replace(/[\s\p{P}\p{S}]/gu, "")
     .toLowerCase();
 }
+
+export function throwSoundEffectPhaseErrors(
+  translationError: unknown,
+  finalizationError: unknown,
+): void {
+  if (translationError && finalizationError) {
+    throw new AggregateError(
+      [translationError, finalizationError],
+      "효과음 번역과 결과 저장이 모두 실패했습니다.",
+    );
+  }
+  if (translationError) throw translationError;
+  if (finalizationError) throw finalizationError;
+}

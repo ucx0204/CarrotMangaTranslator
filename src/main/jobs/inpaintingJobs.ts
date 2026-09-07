@@ -249,7 +249,7 @@ async function finishInpaintingJob(
     }
   } finally {
     try {
-      state.inpaintingEngineLease?.release();
+      await state.inpaintingEngineLease?.release();
     } finally {
       try {
         await disposeBubbleLayoutSessions(runtime);

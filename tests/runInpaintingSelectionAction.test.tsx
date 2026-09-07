@@ -688,3 +688,23 @@ function createVoidDeferred(): {
   });
   return { promise, resolve };
 }
+
+it("uses the Codex erase confirmation without attaching a local completion workflow", async () => {
+  const options = makeOptions({ codexDelegateAll: true });
+  startInpainting.mockResolvedValue({
+    status: "completed",
+    chapter: makeChapter(),
+    pagesChanged: 1,
+    blocksErased: 2,
+  });
+  const { result } = renderHook(() => useRunInpaintingAction(options));
+  await act(() => result.current("page"));
+  expect(startInpainting).toHaveBeenCalledWith({
+    chapterId: "chapter-1",
+    mode: "page-pattern",
+    pageId: "page-1",
+  });
+  expect(
+    JSON.stringify(vi.mocked(options.askConfirm).mock.calls),
+  ).not.toContain("Flux");
+});

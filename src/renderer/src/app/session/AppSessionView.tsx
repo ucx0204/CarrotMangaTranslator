@@ -1,4 +1,6 @@
+import { TranslationDialogs } from "../../components/TranslationDialogs";
 import React from "react";
+import type { RegionTranslationModal } from "../../components/RegionTranslationModal";
 import { AppModals } from "../../components/AppModals";
 import { AppRightQuickRail } from "../../components/AppRightQuickRail";
 import { AppRightRail } from "../../components/AppRightRail";
@@ -15,7 +17,7 @@ import { AutoInpaintingOptionsModal } from "../../components/AutoInpaintingOptio
 import { PageRetranslateModal } from "../../components/PageRetranslateModal";
 import { ShortcutHelp } from "../../components/ShortcutHelp";
 import { StyleGuideModal } from "../../components/StyleGuideModal";
-import { TranslationOptionsModal } from "../../components/TranslationOptionsModal";
+import type { TranslationOptionsModal } from "../../components/TranslationOptionsModal";
 import { BlockLibraryModal } from "../../components/BlockLibraryModal";
 import { ConditionalBatchEditor } from "../../components/ConditionalBatchEditor";
 import { SoundEffectTranslationLauncher } from "../../components/SoundEffectTranslationLauncher";
@@ -36,6 +38,9 @@ import {
 } from "./sessionRenderBoundaries";
 
 export type AppSessionViewProps = {
+  regionTranslationProps?: React.ComponentProps<
+    typeof RegionTranslationModal
+  > | null;
   autoInpaintingOptionsProps: React.ComponentProps<
     typeof AutoInpaintingOptionsModal
   > | null;
@@ -85,6 +90,7 @@ export function AppSessionView({
   soundEffectLauncherProps,
   soundEffectTranslationModalProps,
   styleGuideProps,
+  regionTranslationProps,
   translationOptionsProps,
   workspaceProps,
 }: AppSessionViewProps): React.JSX.Element {
@@ -123,6 +129,7 @@ export function AppSessionView({
         shortcutHelpProps={shortcutHelpProps}
         soundEffectTranslationModalProps={soundEffectTranslationModalProps}
         styleGuideProps={styleGuideProps}
+        regionTranslationProps={regionTranslationProps}
         translationOptionsProps={translationOptionsProps}
       />
       {conditionalBatchEditorProps ? (
@@ -248,6 +255,7 @@ function SessionFloatingOverlays({
   shortcutHelpProps,
   soundEffectTranslationModalProps,
   styleGuideProps,
+  regionTranslationProps,
   translationOptionsProps,
 }: Pick<
   AppSessionViewProps,
@@ -260,6 +268,7 @@ function SessionFloatingOverlays({
   | "shortcutHelpProps"
   | "soundEffectTranslationModalProps"
   | "styleGuideProps"
+  | "regionTranslationProps"
   | "translationOptionsProps"
 >): React.JSX.Element {
   return (
@@ -280,9 +289,10 @@ function SessionFloatingOverlays({
       ) : null}
       {gatherTextProps ? <GatherTextModal {...gatherTextProps} /> : null}
       {styleGuideProps ? <StyleGuideModal {...styleGuideProps} /> : null}
-      {translationOptionsProps ? (
-        <TranslationOptionsModal {...translationOptionsProps} />
-      ) : null}
+      <TranslationDialogs
+        region={regionTranslationProps}
+        whole={translationOptionsProps}
+      />
       {pageRetranslateProps ? (
         <PageRetranslateModal {...pageRetranslateProps} />
       ) : null}

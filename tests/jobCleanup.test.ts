@@ -466,3 +466,70 @@ function createDeferred<T>(): {
   }
   return { promise, resolve: resolvePromise, reject: rejectPromise };
 }
+
+it("fails and aborts only the matching Codex job when its account disconnects", async () => {
+  const jobs = new ActiveJobStore();
+  const job = makeActiveJob(vi.fn(async () => undefined));
+  jobs.start(job);
+  const rendererUrl = "http://127.0.0.1:5173/";
+  const mainWindow = {
+    isDestroyed: () => false,
+    webContents: {
+      id: 17,
+      getURL: () => rendererUrl,
+      send: (_channel: string, _payload: unknown) => undefined,
+    },
+  } as BrowserWindow;
+  registerJobControlIpc({ jobs, getMainWindow: () => mainWindow });
+  const handler = electronMock.handlers.get(
+    jobControlIpcContracts.cancelJob.channel,
+  );
+  if (!handler) throw new Error("Missing cancellation handler");
+  const event = {
+    sender: { id: 17 },
+    senderFrame: { url: rendererUrl },
+  } as IpcMainInvokeEvent;
+  expect(
+    await handler(event, { reason: "codex-disconnected", jobId: "other-job" }),
+  ).toEqual({ cancelled: false });
+  expect(job.abortController.signal.aborted).toBe(false);
+  expect(
+    await handler(event, { reason: "codex-disconnected", jobId: job.id }),
+  ).toEqual({ cancelled: true });
+  expect(job.abortController.signal.reason).toMatchObject({
+    code: "CODEX_DISCONNECTED",
+  });
+  expect(job.lastEvent).toMatchObject({ status: "failed", phase: "failed" });
+  expect(await handler(event)).toEqual({ cancelled: false });
+});
+
+it("cancels a review only by its job id and reports a normal user cancellation", async () => {
+  const jobs = new ActiveJobStore();
+  const job = makeActiveJob(vi.fn(async () => undefined));
+  jobs.start(job);
+  const rendererUrl = "http://127.0.0.1:5173/";
+  const mainWindow = {
+    isDestroyed: () => false,
+    webContents: {
+      id: 17,
+      getURL: () => rendererUrl,
+      send: (_channel: string, _payload: unknown) => undefined,
+    },
+  } as BrowserWindow;
+  registerJobControlIpc({ jobs, getMainWindow: () => mainWindow });
+  const handler = electronMock.handlers.get(
+    jobControlIpcContracts.cancelJob.channel,
+  );
+  if (!handler) throw new Error("Missing cancellation handler");
+  const event = {
+    sender: { id: 17 },
+    senderFrame: { url: rendererUrl },
+  } as IpcMainInvokeEvent;
+  expect(await handler(event, { jobId: "other-job" })).toEqual({
+    cancelled: false,
+  });
+  expect(job.abortController.signal.aborted).toBe(false);
+  expect(await handler(event, { jobId: job.id })).toEqual({ cancelled: true });
+  expect(job.abortController.signal.aborted).toBe(true);
+  expect(job.lastEvent).toMatchObject({ status: "cancelling" });
+});
