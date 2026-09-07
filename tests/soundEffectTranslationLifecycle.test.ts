@@ -5,7 +5,7 @@ import {
   startSoundEffectTranslationJob,
   type TranslationJobContext,
 } from "../src/main/jobs/translationJobs";
-import type { SoundEffectTranslationJobState } from "../src/main/jobs/soundEffectTranslationJobRunner";
+import type { SoundEffectTranslationJobState } from "../src/main/jobs/translationJobTypes";
 import type { StartSoundEffectTranslationRequest } from "../src/shared/analysisTypes";
 import type { JobEvent } from "../src/shared/jobTypes";
 

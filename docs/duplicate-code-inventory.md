@@ -56,4 +56,10 @@
 
 ## 기준선 갱신 규칙
 
+2026-09-05 Astra 옵션 추가 시 38~40번의 동일 실행 옵션을 같은 파일의
+`TranslationRunOptionFields`로 모았다. 네 runMode에서 모든 공통 옵션의
+parse 결과와 잘못된 값·알 수 없는 필드의 거부를 리팩터링 전후 확인했다.
+판별자·페이지 선택·재실행 부분집합 검증은 그대로 두었다. 같은 설정의 jscpd는
+새 fingerprint 0개, 기존 3개 제거, 최종 32개를 기록했다.
+
 clone을 제거한 변경은 `jscpd`를 같은 옵션과 `--baseline scripts/jscpd-baseline.json --update-baseline`로 실행해 사라진 fingerprint를 같은 커밋에서 제거한다. 새 clone을 기준선에 추가해 검사를 통과시키는 것은 금지한다. 격리 runtime 복제를 새로 만들 수밖에 없다면 먼저 계약 fixture parity test와 이 문서의 사유를 추가하고 리뷰에서 명시적으로 승인한다.

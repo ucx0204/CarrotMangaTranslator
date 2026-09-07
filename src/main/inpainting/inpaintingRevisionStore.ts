@@ -75,6 +75,8 @@ export class InpaintingRevisionStore {
     const transaction = this.requireTransaction(transactionId);
     assertRevisionLayoutPair(change);
     if (
+      JSON.stringify(change.beforeBlocks) ===
+        JSON.stringify(change.afterBlocks) &&
       sameOptionalPath(change.beforePath, change.afterPath) &&
       sameOptionalPath(change.beforeMaskPath, change.afterMaskPath) &&
       change.beforeMaskProvenance === change.afterMaskProvenance &&
@@ -99,6 +101,12 @@ export class InpaintingRevisionStore {
     }
     transaction.changes.push({
       ...change,
+      beforeBlocks: change.beforeBlocks
+        ? structuredClone(change.beforeBlocks)
+        : undefined,
+      afterBlocks: change.afterBlocks
+        ? structuredClone(change.afterBlocks)
+        : undefined,
       beforeLayout: cloneInpaintingLayoutStates(change.beforeLayout),
       afterLayout: cloneInpaintingLayoutStates(change.afterLayout),
       beforeTranslationCompletion: cloneTranslationCompletion(

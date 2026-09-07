@@ -12,6 +12,7 @@ import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteracti
 import type { SoundEffectReviewRegion } from "../../../shared/soundEffectReview";
 
 export type ImageStageProps = {
+  letteringRetouch?: import("./GeneratedLetteringRetouchLayer").LetteringRetouchProps;
   page: MangaPage;
   imageDataUrl: string;
   imageLoading?: boolean;

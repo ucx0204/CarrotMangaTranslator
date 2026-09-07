@@ -30,6 +30,8 @@ export type InpaintingBlockLayoutState = {
 };
 
 export type InpaintingPageLayoutPatch = {
+  replacementBlocks?: TranslationBlock[];
+  expectedRevision?: import("../../shared/pageRevisionTypes").PageRevision;
   pageId: string;
   states: InpaintingBlockLayoutState[];
   /** Optional optimistic-concurrency guard checked at the chapter commit point. */

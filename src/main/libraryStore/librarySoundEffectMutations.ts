@@ -26,6 +26,7 @@ import { resolveCompletionAfterBlockMutation } from "./translationCompletionInva
 export type ResolvedSoundEffectBlock = {
   regionId: string;
   block: MangaPage["blocks"][number];
+  additionalBlocks?: MangaPage["blocks"];
 };
 
 export type PrepareSoundEffectTranslationRuntime = {
@@ -148,6 +149,7 @@ export async function appendResolvedSoundEffectBlocksUnlocked(
   pageId: string,
   expectedRevision: PageRevision,
   entries: readonly ResolvedSoundEffectBlock[],
+  image?: { inpaintedImagePath: string; inpaintMaskPath?: string },
 ): Promise<ChapterSnapshot> {
   if (entries.length === 0) {
     throw new Error("저장할 효과음 번역 결과가 없습니다.");
@@ -171,7 +173,10 @@ export async function appendResolvedSoundEffectBlocksUnlocked(
   const now = new Date().toISOString();
   const pages = chapter.pages.map((candidate) =>
     candidate.id === pageId
-      ? applyResolvedSoundEffectEntries(candidate, entries, now)
+      ? {
+          ...applyResolvedSoundEffectEntries(candidate, entries, now),
+          ...(image ? { ...image, maskProvenance: undefined } : {}),
+        }
       : candidate,
   );
   const nextChapter: ChapterFile = {
@@ -254,7 +259,13 @@ export function applyResolvedSoundEffectEntries(
 ): ChapterFile["pages"][number] {
   const review = page.soundEffectReview;
   if (!review) return page;
-  const nextBlocks = [...page.blocks, ...entries.map((entry) => entry.block)];
+  const nextBlocks = [
+    ...page.blocks,
+    ...entries.flatMap((entry) => [
+      entry.block,
+      ...(entry.additionalBlocks ?? []),
+    ]),
+  ];
   return {
     ...page,
     blocks: nextBlocks,
@@ -346,9 +357,13 @@ function assertEntriesStillPending(
 function assertUniqueEntries(
   entries: readonly ResolvedSoundEffectBlock[],
 ): void {
+  const blocks = entries.flatMap((entry) => [
+    entry.block,
+    ...(entry.additionalBlocks ?? []),
+  ]);
   if (
     new Set(entries.map((entry) => entry.regionId)).size !== entries.length ||
-    new Set(entries.map((entry) => entry.block.id)).size !== entries.length
+    new Set(blocks.map((block) => block.id)).size !== blocks.length
   ) {
     throw new Error("중복된 효과음 번역 결과는 저장할 수 없습니다.");
   }

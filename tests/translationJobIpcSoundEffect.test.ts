@@ -105,3 +105,21 @@ function makeWindow(): BrowserWindow {
   });
   return browserWindow;
 }
+
+it("routes region confirmation through the trusted IPC contract and rejects an expired session", async () => {
+  registerTranslationJobIpc(makeContext(new ActiveJobStore()));
+  const handler = ipcMocks.handlers.get(
+    translationJobIpcContracts.confirmRegionTranslation.channel,
+  );
+  if (!handler) throw Error("missing confirmation handler");
+  await expect(
+    handler(
+      { sender: { id: 17 }, senderFrame: { url: "http://127.0.0.1:5173/" } },
+      {
+        jobId: "expired",
+        sessionId: CHAPTER_ID,
+        translations: [{ regionId: "sfx", text: "고" }],
+      },
+    ),
+  ).rejects.toThrow(/만료/);
+});

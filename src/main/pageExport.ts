@@ -6,6 +6,10 @@ import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { MangaPage } from "../shared/libraryTypes";
 import {
+  pageExportLayoutEvidenceSchema,
+  type PageExportLayoutEvidence,
+} from "../shared/pageExportContracts";
+import {
   ORIGINAL_PAGE_EXPORT_RASTER_LIMITS,
   PAGE_EXPORT_SOURCE_RASTER_LIMITS,
   SAFE_PAGE_EXPORT_RASTER_LIMITS,
@@ -59,7 +63,11 @@ export type PageExportRenderSession = {
     page: MangaPage,
     captureOptions?: PageExportCaptureOptions,
   ) => Promise<Buffer>;
-  renderTransparentPage?: (page: MangaPage) => Promise<Buffer>;
+  renderTransparentPage?: (
+    page: MangaPage,
+    captureOptions?: PageExportCaptureOptions,
+  ) => Promise<Buffer>;
+  inspectLastLayout?: () => Promise<PageExportLayoutEvidence>;
   cancel?: () => void;
   close: () => void;
 };
@@ -112,8 +120,21 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
     return this.render(page, false, captureOptions);
   }
 
-  renderTransparentPage(page: MangaPage): Promise<Buffer> {
-    return this.render(page, true, STRICT_SAFE_PNG_CAPTURE_OPTIONS);
+  renderTransparentPage(
+    page: MangaPage,
+    captureOptions: PageExportCaptureOptions = STRICT_SAFE_PNG_CAPTURE_OPTIONS,
+  ): Promise<Buffer> {
+    return this.render(page, true, captureOptions);
+  }
+
+  async inspectLastLayout(): Promise<PageExportLayoutEvidence> {
+    if (this.closed || this.active)
+      throw new Error("Page layout inspection requires an idle open renderer.");
+    const value: unknown =
+      await this.tempOwner.owner.win.webContents.executeJavaScript(
+        `Array.from(document.querySelectorAll("[data-layout-evidence]"), element => JSON.parse(element.dataset.layoutEvidence))`,
+      );
+    return pageExportLayoutEvidenceSchema.parse(value);
   }
 
   cancel(): void {

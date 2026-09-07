@@ -1,3 +1,5 @@
+import { act, renderHook } from "@testing-library/react";
+import { createCodexTypesettingPreferences } from "../src/shared/codexTypesettingDefaults";
 /** @vitest-environment jsdom */
 
 import React from "react";
@@ -113,3 +115,27 @@ function SettingsDialogHarness({
     </>
   );
 }
+
+it("saves font preferences narrowly while preserving other current settings", async () => {
+  const save = vi.fn(async (value) => value);
+  const wholeSave = vi.fn();
+  window.mangaApi = createTestMangaGatewayStub({
+    getSettings: async () => structuredClone(initialSettings),
+    saveSettings: wholeSave,
+    saveCodexTypesettingPreferences: save,
+  });
+  const hook = renderHook(() => useSettingsDialog(vi.fn()));
+  await waitFor(() => expect(hook.result.current.settings).not.toBeNull());
+  const preferences = createCodexTypesettingPreferences("ko");
+  preferences.presets[0].fonts[0].purpose = "Keep the current character voice";
+  await act(async () => {
+    await hook.result.current.saveCodexPreferences?.(preferences);
+  });
+  expect(hook.result.current.settings?.ui?.codexTypesettingPreferences).toEqual(
+    preferences,
+  );
+  expect(hook.result.current.settings?.translation).toEqual(
+    initialSettings.translation,
+  );
+  expect(wholeSave).not.toHaveBeenCalled();
+});

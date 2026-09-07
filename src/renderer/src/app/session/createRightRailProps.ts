@@ -48,6 +48,7 @@ type RightRailViewModel = {
   inpaintingBridge: {
     contextValue: Pick<
       AppSessionViewModel["inpaintingBridge"]["contextValue"],
+      | "aiUnavailable"
       | "brushColor"
       | "brushRadius"
       | "jobActive"
@@ -248,6 +249,7 @@ function createRightRailActions({
     core.setSelectedBlockIds([blockId]);
   };
   return {
+    aiUnavailable: inpainting.aiUnavailable,
     onBrushColorChange: inpainting.onBrushColorChange,
     onBrushRadiusChange: inpainting.onBrushRadiusChange,
     onAdjustPatternMask: inpainting.onAdjustPatternMask ?? (() => undefined),

@@ -1,3 +1,4 @@
+import type { CodexTypesettingProgress } from "./codexTypesettingProgress";
 import type {
   JobKind,
   JobPhase,
@@ -54,10 +55,13 @@ export type JobState = {
   jobElapsedMs?: number;
   failureGuidance?: JobFailureGuidance;
   research?: ResearchJobProgress;
+  codexProgress?: CodexTypesettingProgress;
   targets?: PageJobTargetSnapshot[];
 };
 
 export type JobEvent = JobState & {
+  regionRequestId?: string;
+  regionTextReview?: import("./regionTextReview").RegionTextReview;
   detail?: string;
   notification?: JobProgressNotification;
 };

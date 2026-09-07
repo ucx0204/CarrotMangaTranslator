@@ -1,3 +1,4 @@
+import { createCodexTypesettingPreferences } from "../src/shared/codexTypesettingDefaults";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -1045,3 +1046,16 @@ function createApiSettings(): AppSettings {
     },
   };
 }
+
+it("persists Codex font preferences through the narrow IPC in the current app data root", async () => {
+  const client = createCodexAccountClient();
+  const handler = registerAndGetCodexAccountHandler(
+    "settings:save-codex-typesetting-preferences",
+    createCodexAccountRuntime(client.client),
+  );
+  const preferences = createCodexTypesettingPreferences("ko");
+  await expect(handler(trustedEvent(), preferences)).resolves.toEqual(
+    preferences,
+  );
+  expect(client.readAccount).not.toHaveBeenCalled();
+});

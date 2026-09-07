@@ -170,6 +170,7 @@ const PageRecordPathShape = {
   name: z.string().min(1).max(260),
   imagePath: filePath,
   inpaintedImagePath: filePath.optional(),
+  typesettingMethod: z.literal("codex").optional(),
   sourceFileName: z.string().min(1).max(260).optional(),
   sourceRelativePath: z.string().min(1).max(4096).optional(),
   inpaintMaskPath: filePath.optional(),

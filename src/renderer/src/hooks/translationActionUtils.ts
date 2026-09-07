@@ -58,6 +58,7 @@ export function failAnalysisJob(
 export function makeStartAnalysisRequest(
   chapterId: string,
   args: {
+    codexTypesetting?: import("../../../shared/codexTypesettingTypes").CodexTypesettingOptions;
     runMode: RunAnalysisMode;
     pageId?: string;
     pageIds?: string[];
@@ -121,6 +122,9 @@ function buildSharedAnalysisRequest(
 > {
   return {
     blockMode: args.blockMode,
+    ...(args.codexTypesetting
+      ? { codexTypesetting: args.codexTypesetting }
+      : {}),
     ...(args.collectPageContext === undefined
       ? {}
       : { collectPageContext: args.collectPageContext }),

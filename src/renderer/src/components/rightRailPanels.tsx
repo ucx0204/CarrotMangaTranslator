@@ -18,6 +18,7 @@ import type { AppOperationActivityEvent } from "../../../shared/appOperationType
 import type { StatusLogEntry } from "../hooks/useStatusLog";
 
 export type UnifiedRightRailProps = {
+  aiUnavailable?: boolean;
   brushColor: string;
   brushRadius: number;
   canRedo: boolean;
@@ -136,6 +137,7 @@ function ContextualRightRailPanel(
   if (isRetouchTool(props.stageTool)) {
     return (
       <InpaintingControlPanel
+        aiUnavailable={props.aiUnavailable}
         brushColor={props.brushColor}
         brushRadius={props.brushRadius}
         hasSelectedPage={Boolean(props.selectedPage)}

@@ -1,3 +1,4 @@
+import { BubbleLayoutOption } from "./EditorPanelSections";
 import React from "react";
 import {
   IconDotsVertical,
@@ -25,7 +26,7 @@ type BlockOverflowMenuProps = {
   onUpdate: (patch: Partial<TranslationBlock>) => void;
 };
 
-export function BlockOverflowMenu({
+function BlockOverflowMenu({
   block,
   disabled,
   onDelete,
@@ -125,7 +126,7 @@ function BlockOverflowMenuItems({
   );
 }
 
-export function EditorPanelHeader({
+function EditorPanelHeader({
   actions,
   excluded,
 }: {
@@ -237,5 +238,63 @@ export function EmptyEditorPanel({
         )}
       </Button>
     </section>
+  );
+}
+
+export function SelectedBlockHeader({
+  activeTab,
+  baseId,
+  block,
+  disabled,
+  headerActions,
+  onDelete,
+  onDuplicate,
+  onSaveToLibrary,
+  onRemoveBubbleLayout,
+  onSelect,
+  onUpdate,
+}: {
+  activeTab: EditorTabId;
+  baseId: string;
+  block: TranslationBlock;
+  disabled: boolean;
+  headerActions?: React.ReactNode;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  onSaveToLibrary: () => void;
+  onRemoveBubbleLayout: () => void;
+  onSelect: (tab: EditorTabId) => void;
+  onUpdate: (patch: Partial<TranslationBlock>) => void;
+}): React.JSX.Element {
+  return (
+    <div className="editor-panel-sticky">
+      <EditorPanelHeader
+        excluded={Boolean(block.inpaintExcluded)}
+        actions={
+          <>
+            {headerActions}
+            <BlockOverflowMenu
+              block={block}
+              disabled={disabled}
+              onDelete={onDelete}
+              onDuplicate={onDuplicate}
+              onSaveToLibrary={onSaveToLibrary}
+              onUpdate={onUpdate}
+            />
+          </>
+        }
+      />
+      <EditorPanelTabs
+        activeTab={activeTab}
+        baseId={baseId}
+        onSelect={onSelect}
+      />
+      {block.bubbleLayout ? (
+        <BubbleLayoutOption
+          disabled={disabled}
+          onRemove={onRemoveBubbleLayout}
+        />
+      ) : null}
+    </div>
   );
 }

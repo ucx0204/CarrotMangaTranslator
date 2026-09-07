@@ -1,0 +1,11 @@
+.options {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.preset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-2);
+}

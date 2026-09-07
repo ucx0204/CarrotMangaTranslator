@@ -311,6 +311,7 @@ export const TranslationBlockObjectSchema = z
     bubbleLayout: BubbleLayoutSchema.optional(),
     sourceText: boundedText,
     translatedText: boundedText,
+    generatedLettering: blockFormatValueSchemas.generatedLettering.optional(),
     textRole: z.enum(["ordinary", "sound"]).optional(),
     fontRole: z.enum(FONT_MATCHING_SEMANTIC_ROLES).optional(),
     fontRoleConfidence: finiteNumber.min(0).max(1).optional(),

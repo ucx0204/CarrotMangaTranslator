@@ -50,6 +50,10 @@ import {
   restoreTranslationCheckpointForRun,
 } from "./pipeline/wholePageCheckpointFlow";
 import { hydrateFontContinuityBeforePage } from "./pipeline/wholePageFontContinuity";
+import {
+  runCodexTypesettingPipeline,
+  runConfiguredCodexPipeline,
+} from "./pipeline/codexTypesettingRuntime";
 
 export type WholePagePipelineResult = {
   pages: MangaPage[];
@@ -62,9 +66,16 @@ export async function runWholePagePipeline(
   injectedDependencies?: WholePagePipelineDependencies,
 ): Promise<WholePagePipelineResult> {
   if (options.pages.length === 0) return { pages: [], warnings: [] };
+  if (options.codexTypesetting) return runCodexTypesettingPipeline(options);
   const ownsDependencies = injectedDependencies === undefined;
   const dependencies = injectedDependencies ?? createDependencies();
   try {
+    throwIfAborted(options.signal);
+    const configured = await dependencies.settings.getAppSettings(
+      dependencies.paths,
+    );
+    const delegated = runConfiguredCodexPipeline(options, configured);
+    if (delegated) return await delegated;
     return await runWholePagePipelineWithDependencies(
       options,
       dependencies,

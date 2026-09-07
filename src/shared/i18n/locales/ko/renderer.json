@@ -113,6 +113,27 @@
       "cancelled": "작업이 취소되었습니다.",
       "openLogs": "로그 폴더 열기",
       "reportError": "오류 보고"
+    },
+    "codex": {
+      "stages": {
+        "reading": "원문 번역",
+        "fonts": "서체 비교",
+        "typesetting": "식자·검수"
+      },
+      "steps": {
+        "reading": "원문 판독·번역",
+        "erasurePlan": "지울 글자 확인",
+        "groupFonts": "원문 서체 비교",
+        "matchFonts": "폰트 선택",
+        "background": "원문 지우기",
+        "sfx": "효과음 생성",
+        "layout": "글자 배치",
+        "review": "완성본 검수",
+        "saving": "결과 저장",
+        "retry": "{{seconds}}초 후 재시도 ({{attempt}}/2)",
+        "confirmText": "번역문 확인"
+      },
+      "page": "{{page}}페이지"
     }
   },
   "commands": {
@@ -144,7 +165,10 @@
       "label": "인페인팅 시작",
       "keywords": "inpaint 인페인팅 시작"
     },
-    "cancelJob": { "label": "작업 취소", "keywords": "cancel stop 작업 취소" },
+    "cancelJob": {
+      "label": "작업 취소",
+      "keywords": "cancel stop 작업 취소"
+    },
     "gatherText": {
       "label": "텍스트 모아보기",
       "hint": "페이지·전체 화",
@@ -175,7 +199,10 @@
       "label": "작업 내보내기",
       "keywords": "share export 작업 내보내기 공유"
     },
-    "openSettings": { "label": "설정 열기", "keywords": "settings 설정" },
+    "openSettings": {
+      "label": "설정 열기",
+      "keywords": "settings 설정"
+    },
     "openLibrary": {
       "label": "보관함 폴더 열기",
       "keywords": "library folder 보관함 폴더"
@@ -364,7 +391,7 @@
     },
     "drawn": {
       "title": "그린 영역 지우기",
-      "message": "주황색으로 그린 마스크 영역만 Flux로 지웁니다.",
+      "message": "주황색으로 그린 마스크 영역의 원문을 지웁니다.",
       "detail": "글자 위를 넉넉히 문질러 둔 영역을 crop으로 잘라 배경을 복원합니다. 결과는 별도 이미지로 저장되며 원본 페이지는 유지됩니다.",
       "preparing": "그린 영역 지우기 준비 중",
       "saveFailed": "그린 영역을 지우기 전에 변경사항을 저장하지 못했습니다.",
@@ -379,7 +406,7 @@
       "pendingPages": "아직 지우지 않은 페이지",
       "selectedPages": "선택한 페이지",
       "message": "{{scope}}의 번역 블록 위치에 있는 원문을 지웁니다.",
-      "detail": "말풍선, 톤, 배경 그림, 효과음 위 글자까지 모두 Flux 인페인팅으로 지웁니다. 원본 이미지는 유지하고 결과 이미지는 별도로 저장합니다.",
+      "detail": "원본은 유지하고 지운 결과를 별도로 저장합니다.",
       "preparing": "원문 지우기 준비 중",
       "saveFailed": "원문 지우기 전에 변경사항을 저장하지 못했습니다.",
       "startFailed": "원문 지우기를 시작하지 못했습니다.",
@@ -445,7 +472,8 @@
     "startFailed": "선택 영역 번역을 시작하지 못했습니다.",
     "success": "선택 영역에서 {{count}}개 블록을 만들었습니다.",
     "success_one": "선택 영역에서 {{count}}개 블록을 만들었습니다.",
-    "success_other": "선택 영역에서 {{count}}개 블록을 만들었습니다."
+    "success_other": "선택 영역에서 {{count}}개 블록을 만들었습니다.",
+    "title": "영역 번역"
   },
   "translation": {
     "errors": {
@@ -609,5 +637,8 @@
     "saved": "서식 프리셋 ‘{{name}}’을 저장했습니다.",
     "deleted": "서식 프리셋 ‘{{name}}’을 삭제했습니다.",
     "deleteFailed": "서식 프리셋을 삭제하지 못했습니다."
+  },
+  "codexDelegation": {
+    "disconnected": "Codex 연결이 끊겼습니다. 연결 후 다시 실행해 주세요."
   }
 }

@@ -1,3 +1,5 @@
+import { confirmRegionTranslation } from "../src/main/jobs/regionTranslationReview";
+import { resolveCodexTypesettingOptions } from "../src/shared/codexTypesettingDefaults";
 import { describe, expect, it, vi } from "vitest";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import {
@@ -7,6 +9,7 @@ import {
 import {
   type RegionJobRunnerDependencies,
   runRegionTranslationJob,
+  handleRegionJobError,
 } from "../src/main/jobs/translationRegionJobRunner";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import { createPageRevision } from "../src/shared/pageRevision";
@@ -491,3 +494,148 @@ function withTranslationCheckpoint(page: MangaPage): MangaPage {
     },
   };
 }
+
+it("rejects a stale region before model execution and reports a missing page", async () => {
+  const chapter = makeChapter();
+  const args = makeRegionArgs(new AbortController(), chapter);
+  args.request.pageRevision = createPageRevision({
+    ...firstPage(chapter),
+    imagePath: "changed.png",
+  });
+  const deps = makeRegionDependencies();
+  await expect(runRegionTranslationJob(args, deps)).rejects.toThrow(
+    "페이지가 변경",
+  );
+  expect(deps.runWholePagePipeline).not.toHaveBeenCalled();
+  args.request.pageId = "missing";
+  expect(await runRegionTranslationJob(args, deps)).toMatchObject({
+    status: "failed",
+  });
+});
+it("forwards delegated region output and erasure into the pipeline before committing", async () => {
+  const chapter = makeChapter();
+  const args = makeRegionArgs(new AbortController(), chapter);
+  args.request = {
+    ...args.request,
+    pageRevision: createPageRevision(firstPage(chapter)),
+    eraseOriginal: false,
+    codexTypesetting: {
+      ...resolveCodexTypesettingOptions(undefined, "ko"),
+      regionOutput: "image",
+    },
+  };
+  const deps = makeRegionDependencies({
+    runWholePagePipeline: vi.fn(async () => ({
+      pages: [{ ...firstPage(chapter), analysisStatus: "completed" }],
+      warnings: [],
+    })),
+  });
+  const result = await runRegionTranslationJob(args, deps);
+  expect(result.status).toBe("completed");
+  expect(deps.runWholePagePipeline).toHaveBeenCalledWith(
+    expect.objectContaining({
+      codexTypesetting: expect.objectContaining({
+        regionOutput: "image",
+        eraseOriginal: false,
+      }),
+    }),
+  );
+  expect(deps.appendAnalyzedPageBlocks).toHaveBeenCalledWith(
+    chapter.id,
+    firstPage(chapter).id,
+    [],
+    expect.objectContaining({ expectedRevision: args.request.pageRevision }),
+  );
+});
+it.each(["disconnected", "failed", "cancelled"] as const)(
+  "keeps %s region termination explicit without committing",
+  async (kind) => {
+    const chapter = makeChapter();
+    const args = makeRegionArgs(new AbortController(), chapter);
+    const error = new Error("fixture failure");
+    if (kind === "disconnected")
+      args.abortController.abort(
+        Object.assign(error, { code: "CODEX_DISCONNECTED" }),
+      );
+    if (kind === "cancelled") args.abortController.abort();
+    const result = await handleRegionJobError({
+      ...args,
+      error,
+      state: { chapter, runPaths: null },
+    });
+    expect(result.status).toBe(kind === "cancelled" ? "cancelled" : "failed");
+    expect(result.chapter).toEqual(chapter);
+    expect(args.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ status: result.status }),
+    );
+  },
+);
+
+it("connects the region job review event to the paused reading and retains source page context", async () => {
+  const args = makeRegionArgs(new AbortController(), makeChapter());
+  const sessionId = "11111111-1111-4111-8111-111111111111";
+  args.request.textReviewSessionId = sessionId;
+  args.request.codexTypesetting = {
+    version: 1,
+    preset: {
+      id: "p",
+      name: "p",
+      fonts: [{ fontId: "custom", purpose: "effects" }],
+    },
+    regionOutput: "image",
+  };
+  const seen = vi.fn();
+  args.emit = (event) => {
+    seen(event);
+    if (event.regionTextReview)
+      confirmRegionTranslation({
+        jobId: args.id,
+        sessionId,
+        translations: event.regionTextReview.regions.map((r) => ({
+          regionId: r.id,
+          text: "고",
+        })),
+      });
+  };
+  const dependencies = makeRegionDependencies({
+    runWholePagePipeline: vi.fn(
+      async (options: import("../src/main/pipeline/types").PipelineOptions) => {
+        expect(options.regionContext?.sourcePage.id).toBe(args.request.pageId);
+        expect(options.workContext?.recentPageCount).toBe(6);
+        const confirmed = await options.confirmRegionReading?.({
+          summary: "",
+          regions: [
+            {
+              id: "sfx",
+              action: "image",
+              sourceText: "ゴ",
+              translatedText: "고오",
+              sourceBbox: { x: 0, y: 0, w: 300, h: 300 },
+              renderBbox: { x: 0, y: 0, w: 300, h: 300 },
+              role: "sound",
+              direction: "horizontal",
+              background: "artwork",
+              reason: "",
+            },
+          ],
+        });
+        expect(confirmed?.regions[0]).toMatchObject({
+          translatedText: "고",
+          translationLocked: true,
+        });
+        throw Error("fixture finished before persistence");
+      },
+    ),
+  });
+  await expect(runRegionTranslationJob(args, dependencies)).rejects.toThrow(
+    "fixture finished",
+  );
+  expect(seen).toHaveBeenCalledWith(
+    expect.objectContaining({
+      pageIndex: 1,
+      pageTotal: 1,
+      codexProgress: expect.objectContaining({ step: "confirmText" }),
+      regionTextReview: expect.objectContaining({ sessionId }),
+    }),
+  );
+});

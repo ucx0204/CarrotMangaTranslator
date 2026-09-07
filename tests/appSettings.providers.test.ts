@@ -134,6 +134,7 @@ describeWindows("app settings helpers: model providers", () => {
       translation: defaults.translation,
       gemma: defaults.gemma,
       codex: {
+        delegateAll: false,
         model: "gpt-5.6-sol",
         reasoningEffort: "ultra",
       },

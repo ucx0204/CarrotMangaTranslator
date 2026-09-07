@@ -1,47 +1,29 @@
+import { useFonts } from "../fonts/useFonts";
+import { useCodexPreferences } from "../hooks/useCodexPreferences";
+import { CodexFontEditor, CodexPreferencesSaveError } from "./CodexFontEditor";
 import React from "react";
+import type { CodexTypesettingPreferences } from "../../../shared/codexTypesettingTypes";
+import { TranslationOptionsForm } from "./TranslationOptionsForm";
 import { useTranslation } from "react-i18next";
 import type {
   ChapterSnapshot,
   LibraryIndex,
 } from "../../../shared/libraryTypes";
-import type {
-  CumulativeContextDetail,
-  TranslationWorkflowMode,
-  UiSettings,
-} from "../../../shared/settingsTypes";
+import type { UiSettings } from "../../../shared/settingsTypes";
 import type { TranslationFlowOptions } from "../hooks/useTranslationActions";
-import { getBlockModeOptions } from "../lib/blockModeOptions";
 import type { TranslationOptionsInitialScope } from "../lib/translationSelection";
-import { ChapterPagePicker } from "./ChapterPagePicker";
-import {
-  OptionRow,
-  ToggleOptionRow,
-  TranslationCompletionOptions,
-  TranslationOptionSection,
-} from "./TranslationOptionControls";
 import { Modal } from "./ui/Modal";
 import { ConfirmModal } from "./ConfirmModal";
-import { TranslationOverwriteWarning } from "./TranslationOverwriteWarning";
 import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 import { TranslationOptionsActionBar } from "./TranslationOptionsActionBar";
 import {
   type TranslationOptionsFormProps,
-  resolveTranslationResumeContext,
   useTranslationOptionsModalState,
 } from "./translationOptionsState";
 
-const WORKFLOW_OPTION_IDS: TranslationWorkflowMode[] = [
-  "standard",
-  "cumulative",
-];
-const CUMULATIVE_DETAIL_IDS: CumulativeContextDetail[] = [
-  "detailed",
-  "balanced",
-  "essential",
-];
-
 type TranslationDefaultsPatch = Pick<
   UiSettings,
+  | "codexTypesettingPreferences"
   | "translationWorkflowDefault"
   | "cumulativeContextDetailDefault"
   | "blockModeDefault"
@@ -53,6 +35,11 @@ type TranslationDefaultsPatch = Pick<
 >;
 
 type TranslationOptionsModalProps = {
+  codexDelegateAll?: boolean;
+  codexUnavailable?: boolean;
+  onSaveCodexPreferences?: (
+    value: CodexTypesettingPreferences,
+  ) => Promise<CodexTypesettingPreferences>;
   chapter: ChapterSnapshot;
   currentPageId?: string | null;
   initialScope?: TranslationOptionsInitialScope;
@@ -66,6 +53,9 @@ type TranslationOptionsModalProps = {
 };
 
 export function TranslationOptionsModal({
+  codexDelegateAll = false,
+  codexUnavailable = false,
+  onSaveCodexPreferences,
   chapter,
   currentPageId,
   initialScope = "current-pending",
@@ -78,6 +68,14 @@ export function TranslationOptionsModal({
   onClose,
 }: TranslationOptionsModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const codex = useCodexPreferences(
+    uiSettings?.codexTypesettingPreferences,
+    targetLanguage ?? "ko",
+    codexDelegateAll,
+    onSaveCodexPreferences,
+  );
+  const [fontEditorOpen, setFontEditorOpen] = React.useState(false);
+  const close = () => closeAfterSave(codexDelegateAll, codex.flush, onClose);
   const state = useTranslationOptionsModalState(
     chapter,
     initialScope,
@@ -86,6 +84,8 @@ export function TranslationOptionsModal({
     { sourceLanguage, targetLanguage },
   );
   const actions = useTranslationStartActions({
+    beforeStart: codexDelegateAll ? codex.flush : undefined,
+    codexPreferences: codex.value,
     formProps: state.formProps,
     onClose,
     onPersistDefaults,
@@ -98,47 +98,44 @@ export function TranslationOptionsModal({
       <Modal
         title={t("translationOptions.title")}
         size="lg"
-        onClose={onClose}
+        onClose={() => void close()}
         fillHeight
         cardClassName="translation-options-modal page-picker-fill-modal"
         bodyClassName="translation-options-modal-body page-picker-fill-modal-body"
         footer={
-          <TranslationOptionsActionBar
-            onCancel={onClose}
-            onStart={actions.handleStart}
-            saveAsDefault={actions.saveAsDefault}
-            onSaveAsDefaultChange={actions.setSaveAsDefault}
-            startDisabled={state.runSelection.length === 0}
-            startLabel={t(
-              state.hasResumeSelection
-                ? "translationOptions.continueSelection"
-                : "translationOptions.startSelection",
-            )}
+          <TranslationFooter
+            delegated={codexDelegateAll}
+            unavailable={codexUnavailable}
+            close={close}
+            actions={actions}
+            state={state}
+            valid={codex.valid && !codex.busy}
+            preferences={codex.value}
           />
         }
       >
-        <TranslationOptionsForm
-          {...state.formProps}
+        <TranslationPreferencesForm
+          state={state}
+          codex={codex}
           currentPageId={currentPageId}
-          overwriteRisk={state.overwriteRisk}
+          onEditFonts={() => setFontEditorOpen(true)}
         />
       </Modal>
-      {actions.overwriteConfirmOpen ? (
-        <ConfirmModal
-          title={t("translationOptions.overwriteConfirm.title")}
-          message={t("translationOptions.overwriteConfirm.message")}
-          detail={t("translationOptions.overwriteConfirm.detail")}
-          confirmLabel={t("translationOptions.overwriteConfirm.action")}
-          confirmVariant="danger"
-          onCancel={() => actions.setOverwriteConfirmOpen(false)}
-          onConfirm={actions.confirmOverwrite}
-        />
-      ) : null}
+      <TranslationFontEditor
+        open={fontEditorOpen}
+        codex={codex}
+        pages={chapter.pages}
+        currentPageId={currentPageId}
+        onClose={() => setFontEditorOpen(false)}
+      />
+      <OverwriteConfirmation actions={actions} />
     </>
   );
 }
 
 function useTranslationStartActions({
+  beforeStart,
+  codexPreferences,
   formProps,
   onClose,
   onPersistDefaults,
@@ -146,6 +143,8 @@ function useTranslationStartActions({
   overwriteRisk,
   runSelection,
 }: {
+  beforeStart?: () => Promise<boolean>;
+  codexPreferences: CodexTypesettingPreferences;
   formProps: TranslationOptionsFormProps;
   onClose: () => void;
   onPersistDefaults: (patch: TranslationDefaultsPatch) => void;
@@ -155,11 +154,43 @@ function useTranslationStartActions({
 }) {
   const [saveAsDefault, setSaveAsDefault] = React.useState(false);
   const [overwriteConfirmOpen, setOverwriteConfirmOpen] = React.useState(false);
-  const performStart = (): void => {
-    if (runSelection.length === 0) return;
-    if (saveAsDefault) onPersistDefaults(buildDefaultsPatch(formProps));
+  const starting = React.useRef(false);
+  const performStart = async (): Promise<void> => {
+    if (runSelection.length === 0 || starting.current) return;
+    starting.current = true;
+    if (beforeStart && !(await beforeStart())) {
+      starting.current = false;
+      return;
+    }
+    if (saveAsDefault && !codexPreferences.enabled)
+      onPersistDefaults({
+        ...(codexPreferences.enabled ? {} : buildDefaultsPatch(formProps)),
+      });
     handoffActiveModalToWorkCenter();
-    onStart(buildTranslationFlowOptions(formProps, runSelection));
+    const base = buildTranslationFlowOptions(formProps, runSelection);
+    const preset = codexPreferences.presets.find(
+      (item) => item.id === codexPreferences.selectedPresetId,
+    );
+    const sfxRendering = codexPreferences.sfxRendering ?? "image";
+    onStart(
+      codexPreferences.enabled && preset
+        ? {
+            ...base,
+            codexTypesetting: {
+              version: 1,
+              preset,
+              sfxRendering,
+              eraseOriginal: codexPreferences.eraseOriginal !== false,
+            },
+            blockMode: "auto",
+            autoFontMatching: false,
+            aiFontSizeMatching: false,
+            naturalTextLayout: false,
+            eraseOriginalWorkflow: false,
+            bubbleLayoutWorkflow: false,
+          }
+        : base,
+    );
     onClose();
   };
   const handleStart = (): void => {
@@ -167,11 +198,11 @@ function useTranslationStartActions({
       setOverwriteConfirmOpen(true);
       return;
     }
-    performStart();
+    void performStart();
   };
   const confirmOverwrite = (): void => {
     setOverwriteConfirmOpen(false);
-    performStart();
+    void performStart();
   };
   return {
     confirmOverwrite,
@@ -216,149 +247,130 @@ function buildTranslationFlowOptions(
   };
 }
 
-function TranslationOptionsForm(
-  props: TranslationOptionsFormProps & { currentPageId?: string | null },
-): React.JSX.Element {
+function TranslationFooter({
+  unavailable,
+  preferences,
+  delegated,
+  close,
+  actions,
+  state,
+  valid,
+}: {
+  preferences: CodexTypesettingPreferences;
+  delegated: boolean;
+  unavailable: boolean;
+  close: () => Promise<void>;
+  actions: ReturnType<typeof useTranslationStartActions>;
+  state: ReturnType<typeof useTranslationOptionsModalState>;
+  valid: boolean;
+}) {
   const { t } = useTranslation("components");
-  const { t: tRenderer } = useTranslation("renderer");
-  return (
-    <div className="translate-options">
-      <div className="translate-options-selection">
-        {props.work ? (
-          <ChapterPagePicker
-            work={props.work}
-            currentChapter={props.chapter}
-            currentPageId={props.currentPageId}
-            selection={props.selection}
-            onChange={props.onSelectionChange}
-            resumeContext={resolveTranslationResumeContext(props)}
-          />
-        ) : (
-          <p className="translate-options-hint">
-            {t("translationOptions.workUnavailable")}
-          </p>
-        )}
-      </div>
-      <div className="translate-options-sections">
-        <TranslationOptionSection
-          className="translate-options-section--quality"
-          title={t("translationOptions.sections.quality")}
-        >
-          <TranslationWorkflowOptions {...props} />
-        </TranslationOptionSection>
-        <TranslationOptionSection
-          title={t("translationOptions.sections.blockLayout")}
-        >
-          <OptionRow
-            label={t("common.blocks")}
-            options={getBlockModeOptions(tRenderer).map((option) => ({
-              ...option,
-              tooltip: t(`translationOptions.blockModeSummaries.${option.id}`),
-            }))}
-            value={props.blockMode}
-            onChange={props.onBlockModeChange}
-          />
-          <div className="translate-options-toggle-grid">
-            <NaturalTextLayoutOptions {...props} />
-            <AiFontSizeMatchingOptions {...props} />
-            <AutoFontMatchingOptions {...props} />
-          </div>
-        </TranslationOptionSection>
-        <TranslationOptionSection
-          title={t("translationOptions.sections.completion")}
-        >
-          <TranslationCompletionOptions {...props} />
-        </TranslationOptionSection>
-      </div>
-      {props.overwriteRisk ? (
-        <TranslationOverwriteWarning
-          title={t("translationOptions.overwriteWarning.title")}
-          description={t("translationOptions.overwriteWarning.description")}
-        />
-      ) : null}
-    </div>
+  const { baseOptions, ready } = useFonts();
+  const preset = preferences.presets.find(
+    (item) => item.id === preferences.selectedPresetId,
   );
-}
-
-function AiFontSizeMatchingOptions(
-  props: TranslationOptionsFormProps,
-): React.JSX.Element {
-  const { t } = useTranslation("components");
+  const missing =
+    delegated &&
+    (ready === false ||
+      preset?.fonts.some(
+        (font) => !baseOptions.some((option) => option.id === font.fontId),
+      ));
   return (
-    <ToggleOptionRow
-      label={t("translationOptions.fontSizeAutoFit")}
-      pressed={props.aiFontSizeMatching}
-      onChange={props.onAiFontSizeMatchingChange}
-      description={t("translationOptions.fontSizeAutoFitSummary")}
-    />
-  );
-}
-
-function TranslationWorkflowOptions(
-  props: TranslationOptionsFormProps,
-): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <>
-      <OptionRow
-        label={t("translationOptions.workflowMode")}
-        options={WORKFLOW_OPTION_IDS.map((id) => ({
-          id,
-          label: t(`translationOptions.workflowOptions.${id}.label`),
-          tooltip: t(`translationOptions.workflowOptions.${id}.description`),
-        }))}
-        value={props.workflowMode}
-        onChange={props.onWorkflowModeChange}
-        showLabel={false}
-      />
-      {props.workflowMode === "cumulative" ? (
-        <div className="translate-options-cumulative-detail">
-          <OptionRow
-            label={t("translationOptions.cumulativeDetail.label")}
-            options={CUMULATIVE_DETAIL_IDS.map((id) => ({
-              id,
-              label: t(
-                `translationOptions.cumulativeDetail.options.${id}.label`,
-              ),
-              tooltip: t(
-                `translationOptions.cumulativeDetail.options.${id}.description`,
-              ),
-            }))}
-            value={props.cumulativeContextDetail}
-            onChange={props.onCumulativeContextDetailChange}
-          />
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-function NaturalTextLayoutOptions(
-  props: TranslationOptionsFormProps,
-): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <ToggleOptionRow
-      label={t("translationOptions.naturalTextLayout")}
-      pressed={props.naturalTextLayout}
-      onChange={props.onNaturalTextLayoutChange}
-      description={t(
-        `translationOptions.naturalTextLayoutSummaries.${props.naturalTextLayout ? "on" : "off"}`,
+    <TranslationOptionsActionBar
+      showSaveAsDefault={!delegated}
+      onCancel={() => void close()}
+      onStart={actions.handleStart}
+      saveAsDefault={actions.saveAsDefault}
+      onSaveAsDefaultChange={actions.setSaveAsDefault}
+      startDisabled={
+        unavailable || state.runSelection.length === 0 || !valid || missing
+      }
+      startLabel={t(
+        state.hasResumeSelection
+          ? "translationOptions.continueSelection"
+          : "translationOptions.startSelection",
       )}
     />
   );
 }
 
-function AutoFontMatchingOptions(
-  props: TranslationOptionsFormProps,
-): React.JSX.Element {
+function OverwriteConfirmation({
+  actions,
+}: {
+  actions: ReturnType<typeof useTranslationStartActions>;
+}) {
   const { t } = useTranslation("components");
-  return (
-    <ToggleOptionRow
-      label={t("translationOptions.autoFontMatching")}
-      pressed={props.autoFontMatching}
-      onChange={props.onAutoFontMatchingChange}
-      description={t("translationOptions.autoFontMatchingSummary")}
+  return actions.overwriteConfirmOpen ? (
+    <ConfirmModal
+      title={t("translationOptions.overwriteConfirm.title")}
+      message={t("translationOptions.overwriteConfirm.message")}
+      detail={t("translationOptions.overwriteConfirm.detail")}
+      confirmLabel={t("translationOptions.overwriteConfirm.action")}
+      confirmVariant="danger"
+      onCancel={() => actions.setOverwriteConfirmOpen(false)}
+      onConfirm={actions.confirmOverwrite}
     />
+  ) : null;
+}
+
+function TranslationFontEditor({
+  open,
+  codex,
+  pages,
+  currentPageId,
+  onClose,
+}: {
+  open: boolean;
+  codex: ReturnType<typeof useCodexPreferences>;
+  pages: ChapterSnapshot["pages"];
+  currentPageId: string | null | undefined;
+  onClose: () => void;
+}) {
+  return open ? (
+    <CodexFontEditor
+      value={codex.value}
+      onChange={codex.setValue}
+      pages={pages}
+      currentPageId={currentPageId}
+      flush={codex.flush}
+      onSelectPreset={codex.selectPreset}
+      error={codex.error}
+      busy={codex.busy}
+      onClose={onClose}
+    />
+  ) : null;
+}
+
+function TranslationPreferencesForm({
+  state,
+  codex,
+  currentPageId,
+  onEditFonts,
+}: {
+  state: ReturnType<typeof useTranslationOptionsModalState>;
+  codex: ReturnType<typeof useCodexPreferences>;
+  currentPageId?: string | null;
+  onEditFonts: () => void;
+}) {
+  return (
+    <>
+      <TranslationOptionsForm
+        {...state.formProps}
+        onEditFonts={onEditFonts}
+        onSelectCodexPreset={codex.selectPreset}
+        codexPreferences={codex.value}
+        onCodexPreferencesChange={codex.setValue}
+        currentPageId={currentPageId}
+      />
+      <CodexPreferencesSaveError error={codex.error} retry={codex.flush} />
+    </>
   );
+}
+
+async function closeAfterSave(
+  delegated: boolean,
+  flush: () => Promise<boolean>,
+  close: () => void,
+) {
+  if (!delegated || (await flush())) close();
 }

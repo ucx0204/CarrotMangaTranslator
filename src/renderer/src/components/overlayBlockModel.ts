@@ -25,6 +25,7 @@ export type OverlayBlockRenderModel = {
   outerClassName: string;
   outerStyle: React.CSSProperties;
   renderDirection: ReturnType<typeof normalizeRenderDirection>;
+  stageSize: ViewportSize;
   stageScale: { x: number; y: number };
   showChromeLayer: boolean;
   chromeStyle: React.CSSProperties | undefined;
@@ -96,6 +97,7 @@ export function resolveOverlayBlockRenderModel({
     ),
     outerStyle: resolveOverlayBlockStyle(block, layout, pointerDisabled),
     renderDirection,
+    stageSize,
     stageScale: {
       x: stageSize.width / Math.max(1, pageSize.width),
       y: stageSize.height / Math.max(1, pageSize.height),

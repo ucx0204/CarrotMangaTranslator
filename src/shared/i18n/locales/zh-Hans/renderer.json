@@ -26,14 +26,20 @@
       "popOutTitle": "将编辑器分离到新窗口"
     }
   },
-  "blockMode": { "auto": "自动生成", "keep": "保留现有文本块" },
+  "blockMode": {
+    "auto": "自动生成",
+    "keep": "保留现有文本块"
+  },
   "librarySort": {
     "updated": "修改日期",
     "title": "名称",
     "created": "添加日期",
     "chapters": "章节数"
   },
-  "fonts": { "default": "默认", "defaultSample": "示例 Aa" },
+  "fonts": {
+    "default": "默认",
+    "defaultSample": "示例 Aa"
+  },
   "eta": {
     "seconds": "约剩余{{count}}秒",
     "minutes": "约剩余{{count}}分钟",
@@ -107,6 +113,27 @@
       "cancelled": "任务已取消。",
       "openLogs": "打开日志文件夹",
       "reportError": "报告错误"
+    },
+    "codex": {
+      "stages": {
+        "reading": "原文翻译",
+        "fonts": "字体比较",
+        "typesetting": "排版与检查"
+      },
+      "steps": {
+        "reading": "识别与翻译",
+        "erasurePlan": "检查擦除范围",
+        "groupFonts": "比较原文字体",
+        "matchFonts": "选择字体",
+        "background": "擦除原文",
+        "sfx": "生成音效",
+        "layout": "文字排版",
+        "review": "检查结果",
+        "saving": "保存结果",
+        "retry": "{{seconds}}秒后重试 ({{attempt}}/2)",
+        "confirmText": "确认译文"
+      },
+      "page": "第{{page}}页"
     }
   },
   "commands": {
@@ -138,7 +165,10 @@
       "label": "开始图像修复",
       "keywords": "inpaint start 图像修复 开始"
     },
-    "cancelJob": { "label": "取消任务", "keywords": "cancel stop 取消 任务" },
+    "cancelJob": {
+      "label": "取消任务",
+      "keywords": "cancel stop 取消 任务"
+    },
     "gatherText": {
       "label": "汇总文本",
       "hint": "页面 · 整章",
@@ -169,7 +199,10 @@
       "label": "导出项目",
       "keywords": "work share export 项目 共享 导出"
     },
-    "openSettings": { "label": "打开设置", "keywords": "settings 设置" },
+    "openSettings": {
+      "label": "打开设置",
+      "keywords": "settings 设置"
+    },
     "openLibrary": {
       "label": "打开资料库文件夹",
       "keywords": "library folder 资料库 文件夹"
@@ -342,7 +375,10 @@
     }
   },
   "inpainting": {
-    "common": { "saveFailedTitle": "保存失败", "jobFailedTitle": "任务失败" },
+    "common": {
+      "saveFailedTitle": "保存失败",
+      "jobFailedTitle": "任务失败"
+    },
     "maskDiscard": {
       "title": "放弃绘制的蒙版",
       "message": "有尚未应用的绘制蒙版。是否打开其他章节？",
@@ -355,7 +391,7 @@
     },
     "drawn": {
       "title": "擦除绘制区域",
-      "message": "仅使用 Flux 擦除以橙色绘制的蒙版区域。",
+      "message": "清除橙色蒙版内的原文。",
       "detail": "请在文字上充分涂抹。系统会裁切并恢复背景，将结果另存为图像，同时保留原始页面。",
       "preparing": "正在准备擦除绘制区域",
       "saveFailed": "擦除绘制区域前无法保存修改。",
@@ -370,7 +406,7 @@
       "pendingPages": "尚未擦除的页面",
       "selectedPages": "所选页面",
       "message": "擦除{{scope}}中翻译文本块位置的原文。",
-      "detail": "Flux 图像修复会擦除对话框、网点、背景图和音效上的文字。原图会保留，结果会另存。",
+      "detail": "保留原图，另外保存清除结果。",
       "preparing": "正在准备擦除原文",
       "saveFailed": "擦除原文前无法保存修改。",
       "startFailed": "无法开始擦除原文。",
@@ -436,7 +472,8 @@
     "startFailed": "无法开始区域翻译。",
     "success": "已从所选区域创建 {{count}} 个文本块。",
     "success_one": "已从所选区域创建 {{count}} 个文本块。",
-    "success_other": "已从所选区域创建 {{count}} 个文本块。"
+    "success_other": "已从所选区域创建 {{count}} 个文本块。",
+    "title": "区域翻译"
   },
   "translation": {
     "errors": {
@@ -600,5 +637,8 @@
     "saved": "已保存格式预设“{{name}}”。",
     "deleted": "已删除格式预设“{{name}}”。",
     "deleteFailed": "无法删除格式预设。"
+  },
+  "codexDelegation": {
+    "disconnected": "Codex连接已断开。请重新连接后运行。"
   }
 }

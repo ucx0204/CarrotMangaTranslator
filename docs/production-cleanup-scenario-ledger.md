@@ -326,6 +326,66 @@ documentation deletion as production reduction.
 
 ## Verification results recorded before the tracked floor gate
 
+The Astra typesetting worktree added 18 coverage-eligible files (417 introduced
+files in total). A Windows Node 26.7.0 / V8 14.6 full Vitest capture on
+2026-09-05 recorded 5,238 passing tests, 13 skips, and the expected stale
+inventory assertion failure before this manifest extension. Coverage was emitted
+with reportOnFailure; it is not described as a passing full check. The accepted
+capture SHA-256 is
+`0e9462be1712db562f74ecc5de29e61643dbc1035e16655a7132f83bf044a91e`,
+extending the earlier provenance
+`c2fb4a92245f28b1a483f5c1645c0a74f85b073bc2b079c5016f422f5658ef32`.
+Only the 18 new file records use this capture; every earlier exact coverage
+floor is preserved. Some Electron/ImageGen adapters have no Vitest execution
+coverage: external real-account experiments do not contribute to these ratios,
+and their zero coverage is recorded rather than substituted with a claim of
+full coverage. This is an experimental route, not a production promotion.
+
+The subsequent glyph-envelope module adds one file (19 in this worktree, 418
+introduced total). Its capture on the same runtime recorded 5,249 passing tests,
+10 skips, and only the expected stale inventory failure. Its SHA-256 is
+`0a66338abaeec014721ba2add4bfdefd974172a47d5fd577be02aaa4c1d7f601`.
+Only that new file takes its initial floor from this second capture; all 417
+earlier introduced floors and all 664 existing floors remain unchanged.
+
+The bounded Astra request adapter adds one more file (20 in this worktree,
+419 introduced total). The 2026-09-06 Node 26.7.0 / V8 14.6 capture records
+5,272 passing tests, 10 skips, and the expected stale inventory failure.
+Its SHA-256 is
+`377e0b945fbe57751b8a207f4916ad1e04e85412b8fab3704094234b39806dcc`.
+Only the new request adapter receives an initial floor; all 418 earlier
+introduced floors and 664 existing floors are retained exactly. This capture
+includes the spatial-context candidate and later PSD guard but is not itself
+a passing full check. Subsequent canonical verification must pass the updated
+manifest independently.
+
+Native view geometry and its application reading adapter add two files
+(421 introduced total). Capture `.tmp/astra-v031-coverage.log` has 5,291
+passing tests, 10 skips, and the expected stale-inventory failure. Artifact
+SHA-256: `fdd72fee37f4ac8509f0e0bcc2aa7b7fef0f289b0eff38a128b8c0f111f0df17`.
+Only these two new files receive initial floors; all 419 earlier introduced
+floors and all 664 existing floors are unchanged. Later lint simplification
+of the new registration gate and test-fixture typing must pass canonical
+verification separately; this capture is not a passing full check.
+
+The font-guided treatment adapter adds one file (422 introduced total).
+Capture `.tmp/astra-v032-coverage.log` records 5,310 passing tests, 10 skips,
+and only the expected stale-inventory failure. Artifact SHA-256:
+`98d50f3d08def4182adb70b35f3d53014679368ac9601aef830dc90cdc901aac`.
+Only the new treatment file receives an initial floor; all 421 prior introduced
+floors and all 664 existing floors remain unchanged. This is source preparation
+while the previous manga candidate's compiled runtime is frozen. A later full
+check/build must validate the updated manifest; this capture is not that check.
+
+The bounded native-view planning adapter adds two files (424 introduced total).
+Capture `.tmp/astra-v033-coverage.log` records 5,321 passing tests, 10 skips,
+and the expected stale-inventory failure. Initial artifact SHA-256:
+`06f9054d9518416ace798bffc1a62f8e2a28a99e25e397f5e886d99588d80f99`.
+Only those two new files receive initial floors; all 422 prior introduced and
+664 existing floors remain unchanged. The later scoped measurement-label change
+must pass a fresh canonical check against these same floors; this capture is
+not the canonical check or manga quality evidence.
+
 - The pre-floor-gate `npm run check:cold` passed in 207,482 ms. All 474 Vitest
   files completed
   with 3,432 executable scenarios and the two expected macOS-only skips;

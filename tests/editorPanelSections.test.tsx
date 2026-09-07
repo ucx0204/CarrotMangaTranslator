@@ -31,6 +31,38 @@ afterEach(() => {
 });
 
 describe("editor text actions", () => {
+  it("switches a generated foreground to text while preserving its asset, and prevents restoring stale lettering", () => {
+    const onUpdate = vi.fn();
+    const block = {
+      ...BLOCK,
+      generatedLettering: {
+        version: 1 as const,
+        dataUrl: "data:image/png;base64,test",
+        sourceText: BLOCK.sourceText,
+        translatedText: BLOCK.translatedText,
+      },
+    };
+    const view = (value: TranslationBlock) => (
+      <FontsContext.Provider value={FONTS_CONTEXT}>
+        <TextEditorGroup block={value} disabled={false} onUpdate={onUpdate} />
+      </FontsContext.Provider>
+    );
+    const rendered = render(view(block));
+    fireEvent.click(screen.getByRole("button", { name: "편집형 글자로 전환" }));
+    expect(onUpdate).toHaveBeenCalledWith({
+      generatedLettering: { ...block.generatedLettering, enabled: false },
+    });
+    rendered.rerender(view({ ...block, translatedText: "수정한 문구" }));
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "이미지 효과음 사용",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+  });
+
   it("offers a repeated edit only after one simple translation change", () => {
     const onUpdate = vi.fn();
     const onSuggestConsistentEdit = vi.fn();

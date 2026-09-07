@@ -171,7 +171,13 @@ describe("font-render-bank-v1", () => {
     expect(
       new Set(plan.candidates.map((candidate) => candidate.face_id)).size,
     ).toBe(37);
-    expect(plan.candidates).toHaveLength(41);
+    expect(plan.candidates).toHaveLength(39);
+    for (const fontId of ["mongtori", "chosun-gungseo"])
+      expect(
+        plan.candidates
+          .filter((candidate) => candidate.font_id === fontId)
+          .map((candidate) => candidate.render_weight),
+      ).toEqual([400]);
     expect(plan.probes).toHaveLength(10);
     expect(plan.probes.map((probe) => probe.role)).toEqual([
       "dialogue_body",
@@ -193,15 +199,15 @@ describe("font-render-bank-v1", () => {
           Number.isFinite(probe.letter_spacing_em),
       ),
     ).toBe(true);
-    expect(plan.jobs).toHaveLength(800);
-    expect(plan.full_render_count).toBe(800);
-    expect(plan.expected_render_count).toBe(800);
+    expect(plan.jobs).toHaveLength(760);
+    expect(plan.full_render_count).toBe(760);
+    expect(plan.expected_render_count).toBe(760);
     expect(
       plan.jobs.filter((job) => job.writing_mode === "horizontal"),
-    ).toHaveLength(390);
+    ).toHaveLength(370);
     expect(
       plan.jobs.filter((job) => job.writing_mode === "vertical"),
-    ).toHaveLength(410);
+    ).toHaveLength(390);
 
     const unrenderable = plan.candidates.filter(
       (candidate) => !candidate.production_asset_status.chromium_ots_compatible,
@@ -301,13 +307,13 @@ function assertFixtureMetadata(
   expect(manifest).toMatchObject({
     family_count: 21,
     face_count: 37,
-    candidate_count: 41,
+    candidate_count: 39,
     rendered_candidate_count: 1,
     generation: {
       limit: 2,
       partial: true,
-      expected_render_count: 800,
-      full_render_count: 800,
+      expected_render_count: 760,
+      full_render_count: 760,
       production_asset_omitted_render_count: 0,
       complete_against_production_assets: false,
       rendered_count: 2,
@@ -327,7 +333,7 @@ function assertFixtureMetadata(
   expect(report.summary).toEqual({
     family_count: 21,
     face_count: 37,
-    candidate_count: 41,
+    candidate_count: 39,
     rendered_candidate_count: 1,
     rendered_png_count: 2,
     fonts_ready_pass_count: 2,

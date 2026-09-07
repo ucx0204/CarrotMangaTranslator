@@ -4,9 +4,11 @@ import type { AppCommandRegistry } from "../../lib/appCommandTypes";
 import { useAppCommands } from "../../hooks/useAppCommands";
 
 type UseAppSessionCommandControllerArgs = {
+  startRegionTranslation: () => void;
   cancelJob: () => void;
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
+  aiUnavailable?: boolean;
   openImportPreview: (mode: "zip-folder") => Promise<void>;
   openLibraryFolder: () => void;
   openLogFolder: () => void;
@@ -25,9 +27,11 @@ type UseAppSessionCommandControllerArgs = {
 };
 
 export function useAppSessionCommandController({
+  startRegionTranslation,
   cancelJob,
   currentChapter,
   jobActive,
+  aiUnavailable,
   openImportPreview,
   openLibraryFolder,
   openLogFolder,
@@ -45,9 +49,11 @@ export function useAppSessionCommandController({
   setTranslationSourceOpen,
 }: UseAppSessionCommandControllerArgs): AppCommandRegistry {
   return useAppCommands({
+    startRegionTranslation,
     cancelJob,
     currentChapter,
     jobActive,
+    aiUnavailable,
     openImportPreview,
     openLibraryFolder,
     openLogFolder,

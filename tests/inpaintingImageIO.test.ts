@@ -1,3 +1,7 @@
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { nativeImage } from "electron";
+import { loadPageImage } from "../src/main/inpainting/imageIO";
 import { basename, dirname, join, win32 } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
@@ -82,4 +86,30 @@ describe("resolveInpaintedImagePath", () => {
     expect(reportedLegacyPath.length).toBe(262);
     expect(reportedNewPath.length).toBeLessThan(252);
   });
+});
+
+it("loads file bytes when native path decoding fails and reports an undecodable image", async () => {
+  const root = await mkdtemp(join(tmpdir(), "inpainting-decode-"));
+  try {
+    const file = join(root, "source.jpg");
+    await writeFile(file, Buffer.from("fixture"));
+    vi.mocked(nativeImage.createFromPath).mockReturnValue({
+      isEmpty: () => true,
+    } as Electron.NativeImage);
+    const decoded = { isEmpty: () => false } as Electron.NativeImage;
+    vi.mocked(nativeImage.createFromBuffer).mockReturnValue(decoded);
+    expect(await loadPageImage(file)).toBe(decoded);
+    vi.mocked(nativeImage.createFromBuffer).mockReturnValue({
+      isEmpty: () => true,
+    } as Electron.NativeImage);
+    await expect(loadPageImage(file)).rejects.toThrow("읽지 못했습니다");
+    vi.mocked(nativeImage.createFromBuffer)
+      .mockReturnValueOnce({ isEmpty: () => true } as Electron.NativeImage)
+      .mockReturnValueOnce(decoded);
+    expect(await loadPageImage(file, async () => Buffer.from("decoded"))).toBe(
+      decoded,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

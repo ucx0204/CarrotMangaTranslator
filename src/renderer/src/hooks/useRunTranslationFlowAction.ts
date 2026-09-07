@@ -164,7 +164,13 @@ async function runTranslationFlowPasses({
     ? undefined
     : options.naturalTextLayout;
   const outcome = await runSelectionsSequentially(
-    executeAnalysisJob,
+    options.codexTypesetting
+      ? (args) =>
+          executeAnalysisJob({
+            ...args,
+            codexTypesetting: options.codexTypesetting,
+          })
+      : executeAnalysisJob,
     [selection],
     pushStatus,
     t("translation.flow.translation"),

@@ -1,6 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface, type Interface } from "node:readline";
 import { asRecord, type JsonRecord } from "./codexAppServerProtocol";
+import { CodexAppServerPreviewHost } from "./codexAppServerPreviewTool";
 
 const RPC_REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RECENT_NOTIFICATIONS = 256;
@@ -18,6 +19,7 @@ type PendingRequest = {
 };
 
 export class CodexAppServerTransport {
+  readonly previews = new CodexAppServerPreviewHost();
   readonly version: string;
   private readonly child: ChildProcessWithoutNullStreams;
   private readonly lines: Interface;
@@ -119,6 +121,52 @@ export class CodexAppServerTransport {
     };
   }
 
+  observeTurnAccounting(threadId: string): {
+    snapshot: (turnId: string) => {
+      tokenUsage: JsonRecord | null;
+      lastTokenUsage: JsonRecord | null;
+      routedModel: string | null;
+    };
+    dispose: () => void;
+  } {
+    const usageByTurn = new Map<
+      string,
+      { tokenUsage: JsonRecord | null; lastTokenUsage: JsonRecord | null }
+    >();
+    let routedModel: string | null = null;
+    const listener: NotificationListener = (notification) => {
+      const params = asRecord(notification.params);
+      if (params?.threadId !== threadId) return;
+      if (
+        notification.method === "thread/tokenUsage/updated" &&
+        typeof params.turnId === "string"
+      ) {
+        const usage = asRecord(params.tokenUsage);
+        usageByTurn.set(params.turnId, {
+          tokenUsage: asRecord(usage?.total),
+          lastTokenUsage: asRecord(usage?.last),
+        });
+      }
+      if (
+        notification.method === "model/rerouted" &&
+        typeof params.toModel === "string"
+      ) {
+        routedModel = params.toModel;
+      }
+    };
+    this.listeners.add(listener);
+    return {
+      snapshot: (turnId) => ({
+        tokenUsage: usageByTurn.get(turnId)?.tokenUsage ?? null,
+        lastTokenUsage: usageByTurn.get(turnId)?.lastTokenUsage ?? null,
+        routedModel,
+      }),
+      dispose: () => {
+        this.listeners.delete(listener);
+      },
+    };
+  }
+
   waitForNotification(
     predicate: (notification: JsonRecord) => boolean,
     timeoutMs: number,
@@ -161,6 +209,7 @@ export class CodexAppServerTransport {
   async dispose(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
+    this.previews.clear();
     this.lines.close();
     const error = new Error("Codex App Server 연결이 종료되었습니다.");
     this.rejectPending(error);
@@ -198,6 +247,16 @@ export class CodexAppServerTransport {
     }
     if (typeof message.method !== "string") return;
     if (message.id !== undefined) {
+      if (
+        this.previews.dispatch(message, (reply) => {
+          try {
+            this.writeMessage(reply);
+          } catch (error) {
+            this.handleProcessFailure(error);
+          }
+        })
+      )
+        return;
       this.rejectServerRequest(message);
       return;
     }
@@ -267,6 +326,7 @@ export class CodexAppServerTransport {
 
   private handleProcessFailure(reason: unknown): void {
     if (this.exitError) return;
+    this.previews.clear();
     const cause = normalizeError(reason);
     this.exitError = new Error(cause.message, { cause });
     Object.assign(this.exitError, {

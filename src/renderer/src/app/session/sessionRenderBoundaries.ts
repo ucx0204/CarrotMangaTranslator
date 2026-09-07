@@ -49,6 +49,7 @@ export function isFloatingOverlaySubtreeActive(props: {
   shortcutHelpProps: { open: boolean };
   soundEffectTranslationModalProps?: unknown;
   styleGuideProps: unknown;
+  regionTranslationProps?: unknown;
   translationOptionsProps: unknown;
 }): boolean {
   return Boolean(
@@ -61,6 +62,7 @@ export function isFloatingOverlaySubtreeActive(props: {
     props.shortcutHelpProps.open ||
     props.soundEffectTranslationModalProps ||
     props.styleGuideProps ||
+    props.regionTranslationProps ||
     props.translationOptionsProps,
   );
 }

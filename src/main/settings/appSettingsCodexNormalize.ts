@@ -9,6 +9,7 @@ export function normalizeCodexSettings(
   defaults: AppSettings,
 ): AppSettings["codex"] {
   return {
+    delegateAll: codex?.delegateAll === true,
     model: resolveNonEmptyString(codex?.model, defaults.codex.model),
     reasoningEffort: resolveCodexReasoningEffort(
       codex?.reasoningEffort,

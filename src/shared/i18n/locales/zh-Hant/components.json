@@ -131,7 +131,9 @@
       "findRequired": "請輸入尋找文字。",
       "invalidRegex": "規則運算式無效：{{message}}"
     },
-    "storage": { "error": "無法處理已儲存規則" },
+    "storage": {
+      "error": "無法處理已儲存規則"
+    },
     "notice": {
       "conflictsOnly": "預覽後發生變化的 {{count}} 項未被覆寫。",
       "applied": "已套用 {{applied}} 項。因衝突略過：{{conflicts}} 項",
@@ -255,9 +257,16 @@
     "blockUnderline": "整區塊加底線",
     "blockStrikethrough": "整區塊加刪除線",
     "blockEmphasisMark": "整區塊加著重號",
-    "align": { "left": "靠左對齊", "center": "置中", "right": "靠右對齊" },
+    "align": {
+      "left": "靠左對齊",
+      "center": "置中",
+      "right": "靠右對齊"
+    },
     "directionLabel": "文字方向",
-    "direction": { "horizontal": "橫排", "vertical": "直排" },
+    "direction": {
+      "horizontal": "橫排",
+      "vertical": "直排"
+    },
     "size": "大小",
     "fontSize": "字級",
     "fontSizeValue": "字級數值",
@@ -325,8 +334,16 @@
       "curve": "曲線",
       "warp": "變形網格"
     },
-    "fields": { "x": "X", "y": "Y", "w": "寬度", "h": "高度" },
-    "controlKinds": { "slider": "滑桿", "value": "數值" },
+    "fields": {
+      "x": "X",
+      "y": "Y",
+      "w": "寬度",
+      "h": "高度"
+    },
+    "controlKinds": {
+      "slider": "滑桿",
+      "value": "數值"
+    },
     "lockRatio": "保持比例",
     "rotation": "旋轉",
     "resetRotation": "歸零",
@@ -406,9 +423,20 @@
         "vertical": "曲線僅支援單行橫排文字。",
         "multiline": "移除換行後會恢復已儲存的曲線。"
       },
-      "presets": { "straight": "直線", "archUp": "向上", "archDown": "向下" },
-      "align": { "start": "起點", "center": "置中", "end": "終點" },
-      "orientations": { "tangent": "沿路徑", "upright": "保持直立" }
+      "presets": {
+        "straight": "直線",
+        "archUp": "向上",
+        "archDown": "向下"
+      },
+      "align": {
+        "start": "起點",
+        "center": "置中",
+        "end": "終點"
+      },
+      "orientations": {
+        "tangent": "沿路徑",
+        "upright": "保持直立"
+      }
     },
     "warp": {
       "disabledDescription": "使用平滑網格變形整段文字，同時保留字型、描邊、局部強調與曲線。",
@@ -464,7 +492,10 @@
       "remove": "取消對話框適配",
       "removeHint": "移除自動或手動設定的對話框區域，並恢復為原始OCR文字區域。"
     },
-    "markupHint": { "emphasis": "局部強調：", "escape": "輸入星號請使用" },
+    "markupHint": {
+      "emphasis": "局部強調：",
+      "escape": "輸入星號請使用"
+    },
     "markupToolbar": {
       "boldLabel": "粗體（**粗體**）",
       "boldTitle": "將所選文字設為粗體（**粗體**）",
@@ -559,7 +590,10 @@
     "chapterSummaryComplete": "{{count}}頁 · 完成",
     "chapterSummaryRemaining": "{{count}}頁 · 剩餘{{remaining}}",
     "chapterSummary": "{{count}}頁{{suffix}}",
-    "statusSuffix": { "complete": " · 完成", "inProgress": " · 進行中" },
+    "statusSuffix": {
+      "complete": " · 完成",
+      "inProgress": " · 進行中"
+    },
     "noSelectedPages": "未選擇頁面。",
     "approximately": "約",
     "selectionSummary": "{{chapterCount}}話 · {{approximate}}{{pageCount}}頁",
@@ -887,7 +921,10 @@
     "allChaptersInFinal": "所有分享章節都已在最終清單中。",
     "toDelete": "將刪除",
     "restoreItem": "還原{{title}}",
-    "source": { "existing": "現有", "shared": "分享" },
+    "source": {
+      "existing": "現有",
+      "shared": "分享"
+    },
     "stats": {
       "final": "最終 {{count}}項",
       "toDelete": "將刪除 {{count}}項",
@@ -908,7 +945,10 @@
       "criteriaLabel": "排序依據",
       "criterion": "依據",
       "directionLabel": "排序方向",
-      "direction": { "asc": "升序", "desc": "降序" }
+      "direction": {
+        "asc": "升序",
+        "desc": "降序"
+      }
     }
   },
   "pageList": {
@@ -984,7 +1024,10 @@
     "showInspector": "展開檢查與編輯面板",
     "hideInspector": "收合檢查與編輯面板"
   },
-  "areaTranslation": { "title": "區域翻譯", "cancelSelection": "取消選擇" },
+  "areaTranslation": {
+    "title": "區域翻譯",
+    "cancelSelection": "取消選擇"
+  },
   "stageToolbar": {
     "show": "顯示工具列",
     "showTitle": "顯示工具列（4）",
@@ -1007,7 +1050,10 @@
       }
     },
     "tools": {
-      "select": { "label": "選取", "title": "選取工具（1）" },
+      "select": {
+        "label": "選取",
+        "title": "選取工具（1）"
+      },
       "block": {
         "label": "文字區塊",
         "title": "文字區塊工具（2）— 拖曳以新增文字區塊"
@@ -1016,7 +1062,10 @@
         "label": "區域翻譯",
         "title": "區域翻譯 — 拖曳選取要重新翻譯的區域"
       },
-      "hand": { "label": "手掌", "title": "手掌工具（3）— 拖曳以移動影像" },
+      "hand": {
+        "label": "手掌",
+        "title": "手掌工具（3）— 拖曳以移動影像"
+      },
       "perspective": {
         "label": "透視",
         "title": "透視變形 — 移動四角以貼合表面"
@@ -1029,16 +1078,34 @@
         "label": "對話框區域",
         "title": "手動指定所選文字區塊的對話框區域 — 逐點描邊後按 Enter 套用"
       },
-      "mask": { "label": "遮罩", "title": "遮罩畫筆" },
-      "brush": { "label": "畫筆", "title": "修整畫筆" },
-      "rectangle": { "label": "矩形", "title": "用實心矩形覆蓋" },
-      "ellipse": { "label": "橢圓", "title": "用實心橢圓覆蓋" },
-      "eraser": { "label": "橡皮擦", "title": "清除修整筆觸" },
+      "mask": {
+        "label": "遮罩",
+        "title": "遮罩畫筆"
+      },
+      "brush": {
+        "label": "畫筆",
+        "title": "修整畫筆"
+      },
+      "rectangle": {
+        "label": "矩形",
+        "title": "用實心矩形覆蓋"
+      },
+      "ellipse": {
+        "label": "橢圓",
+        "title": "用實心橢圓覆蓋"
+      },
+      "eraser": {
+        "label": "橡皮擦",
+        "title": "清除修整筆觸"
+      },
       "eraser-rectangle": {
         "label": "矩形橡皮擦",
         "title": "拖曳以從原圖還原矩形區域"
       },
-      "picker": { "label": "取色", "title": "從畫布取色" }
+      "picker": {
+        "label": "取色",
+        "title": "從畫布取色"
+      }
     }
   },
   "bubbleLayoutEditor": {
@@ -1078,14 +1145,19 @@
     "excludeFromInpainting": "從影像修補中排除",
     "excludedFromInpainting": "已從自動清除中排除"
   },
-  "imageStage": { "loadingImage": "正在載入影像" },
+  "imageStage": {
+    "loadingImage": "正在載入影像"
+  },
   "install": {
     "logLabel": "安裝記錄",
     "checkingLogs": "正在檢查記錄",
     "preparingModel": "正在準備 Gemma 4 模型",
     "installingOcr": "正在安裝 OCR"
   },
-  "toast": { "close": "關閉通知", "region": "通知" },
+  "toast": {
+    "close": "關閉通知",
+    "region": "通知"
+  },
   "errorBoundary": {
     "title": "出現問題",
     "description": "轉譯介面時發生錯誤。工作內容可能已儲存在資料庫中。重新啟動通常可以恢復正常。",
@@ -1242,7 +1314,10 @@
       "title": "網路調查",
       "description": "檢查現有術語表，並補充遺漏的術語與角色。",
       "engineLabel": "調查方式",
-      "engines": { "tavily": "Tavily", "codex": "Codex" },
+      "engines": {
+        "tavily": "Tavily",
+        "codex": "Codex"
+      },
       "run": "調查術語表",
       "analyzing": "調查中…",
       "cancel": "取消調查"
@@ -1305,8 +1380,15 @@
       "apply": "套用所選 {{count}} 項",
       "noChanges": "找不到可套用的變更。",
       "selectChange": "選擇 {{name}} 的變更建議",
-      "actions": { "add": "新增", "update": "更新", "disable": "停用" },
-      "confidence": { "high": "高可信度", "medium": "需要審核" },
+      "actions": {
+        "add": "新增",
+        "update": "更新",
+        "disable": "停用"
+      },
+      "confidence": {
+        "high": "高可信度",
+        "medium": "需要審核"
+      },
       "localEvidence": "本機出現 {{pages}}頁 · {{mentions}}次",
       "previewReady": "已建立 {{count}}項未儲存建議。",
       "failed": "網路調查失敗。",
@@ -1602,7 +1684,9 @@
         "applyRecommended": "套用建議值",
         "recommendedApplied": "正在使用建議值"
       },
-      "provider": { "label": "翻譯引擎" },
+      "provider": {
+        "label": "翻譯引擎"
+      },
       "maxTokens": {
         "label": "最大輸出權杖數",
         "remoteDescription": "限制包含可見文字與推理在內的完整回應。使用工作建議值比直接使用模型上限更穩妥。",
@@ -1630,8 +1714,13 @@
         "maxOutput": "最大輸出權杖",
         "context": "調查上下文"
       },
-      "api": { "title": "API 模型" },
-      "limits": { "maxOutput": "最大輸出權杖", "context": "調查上下文" },
+      "api": {
+        "title": "API 模型"
+      },
+      "limits": {
+        "maxOutput": "最大輸出權杖",
+        "context": "調查上下文"
+      },
       "codex": {
         "title": "Codex",
         "description": "使用內建網頁搜尋查找資料並建立變更建議。"
@@ -1705,13 +1794,28 @@
           "label": "Codex",
           "description": "使用應用程式內建的官方 Codex App Server 與 ChatGPT 帳戶進行翻譯。"
         },
-        "api": { "label": "API", "description": "使用 OpenAI 相容 API 端點。" }
+        "api": {
+          "label": "API",
+          "description": "使用 OpenAI 相容 API 端點。"
+        }
       },
       "reasoning": {
-        "none": { "label": "無", "description": "不使用推理。" },
-        "low": { "label": "低", "description": "快速、輕量的推理。" },
-        "medium": { "label": "中", "description": "平衡速度和品質。" },
-        "high": { "label": "高", "description": "使用更多推理以提高品質。" },
+        "none": {
+          "label": "無",
+          "description": "不使用推理。"
+        },
+        "low": {
+          "label": "低",
+          "description": "快速、輕量的推理。"
+        },
+        "medium": {
+          "label": "中",
+          "description": "平衡速度和品質。"
+        },
+        "high": {
+          "label": "高",
+          "description": "使用更多推理以提高品質。"
+        },
         "xhigh": {
           "label": "非常高",
           "description": "為複雜翻譯使用更多推理。"
@@ -1749,7 +1853,10 @@
         }
       },
       "ocrQuality": {
-        "economy": { "label": "節省", "description": "平衡速度和準確度。" },
+        "economy": {
+          "label": "節省",
+          "description": "平衡速度和準確度。"
+        },
         "full": {
           "label": "完整",
           "description": "由 Gemma 4 根據座標將高品質 OCR 片段合併為語意單元。"
@@ -1768,7 +1875,10 @@
           "label": "RTX 50",
           "description": "針對 RTX 50 系列最佳化的 CUDA 執行階段。"
         },
-        "vulkan": { "label": "Vulkan", "description": "Vulkan GPU執行階段。" },
+        "vulkan": {
+          "label": "Vulkan",
+          "description": "Vulkan GPU執行階段。"
+        },
         "rocm": {
           "label": "AMD ROCm",
           "description": "AMD ROCm／HIP llama.cpp 執行階段。"
@@ -1825,7 +1935,9 @@
       "customCodeAria": "輸入{{label}}的自訂代碼"
     },
     "gemma": {
-      "modelSource": { "label": "模型來源" },
+      "modelSource": {
+        "label": "模型來源"
+      },
       "preset": {
         "label": "模型預設",
         "ariaLabel": "模型預設",
@@ -1881,7 +1993,10 @@
       "customModel": "自訂",
       "customModelAria": "輸入自訂 Codex 模型",
       "modelPlaceholder": "模型名稱",
-      "reasoning": { "label": "推理強度", "ariaLabel": "Codex 推理強度" },
+      "reasoning": {
+        "label": "推理強度",
+        "ariaLabel": "Codex 推理強度"
+      },
       "account": {
         "title": "ChatGPT 帳戶",
         "loading": "正在檢查驗證狀態…",
@@ -2375,7 +2490,8 @@
     "showAllPages": "顯示所有頁面",
     "showTranslations": "顯示譯文",
     "saveAsDefault": "儲存為下次翻譯的預設值",
-    "reviewComplete": "完成複核"
+    "reviewComplete": "完成複核",
+    "engine": "翻譯方式"
   },
   "stylePresets": {
     "title": "格式預設",
@@ -2419,5 +2535,101 @@
     "ungrouped": "無群組",
     "releaseGroup": "解除群組",
     "emptyGroup": "此群組中沒有預設。"
+  },
+  "codexTypesetting": {
+    "title": "Astra translation & lettering",
+    "description": "Use Astra with your ChatGPT account to read, translate and choose fonts, sizes and line breaks.",
+    "process": "Compare source crops → group font families → translate and typeset → inspect the rendered page. Preserve weight and effects within each family.",
+    "engine": "Translation method",
+    "preset": "Font preset",
+    "copyPreset": "Duplicate preset",
+    "presetName": "Preset name",
+    "fontCount": "Selected fonts: {{count}} / 10",
+    "font": "Font {{index}}",
+    "removeFont": "Remove font {{index}}",
+    "remove": "Remove",
+    "purpose": "Intended use",
+    "purposeHint": "For example: calm dialogue; keep the same family for bold emphasis.",
+    "addFont": "Add font",
+    "imageActive": "圖片音效。修改文字後將切換為可編輯文字。",
+    "imageEdited": "可編輯文字。已清除原文的背景保持不變。",
+    "editableText": "切換為可編輯文字",
+    "restoreImage": "使用圖片音效",
+    "sfxRendering": "音效呈現方式",
+    "sfxImage": "生成圖像",
+    "sfxFont": "字型",
+    "sfxImageDescription": "將保留音效筆畫和質感的圖像放在獨立圖層中。修改文字後會切換為可編輯文字。",
+    "sfxFontDescription": "使用所選字型排版音效，可直接修改文字、字級和字重。"
+  },
+  "codexDelegation": {
+    "title": "將所有工作交給Codex",
+    "active": "Codex自動排版",
+    "hardwareManaged": "原文辨識、清除與字體匹配由 Codex 處理。"
+  },
+  "regionOptions": {
+    "standard": "一般翻譯",
+    "imageCodex": "音效 · Codex",
+    "title": "區域翻譯",
+    "preview": "所選區域",
+    "output": "輸出形式",
+    "text": "文字",
+    "image": "音效圖片",
+    "erase": "擦除原文",
+    "cancel": "取消",
+    "run": "執行",
+    "unavailable": "請檢查Codex連線。",
+    "previewFailed": "無法載入所選區域。",
+    "generate": "產生",
+    "recognizing": "辨識中",
+    "translationNumber": "譯文 {{number}}"
+  },
+  "letteringBrush": {
+    "title": "修整音效",
+    "done": "完成",
+    "target": "修整對象",
+    "asset": "文字形狀",
+    "page": "遮擋邊界",
+    "mode": "畫筆功能",
+    "hide": "擦除",
+    "restore": "復原",
+    "shape": "畫筆形狀",
+    "circle": "圓形",
+    "square": "方形",
+    "size": "大小",
+    "softness": "柔和度",
+    "showMask": "顯示遮罩",
+    "reset": "重設"
+  },
+  "codexFonts": {
+    "title": "編輯字型",
+    "edit": "編輯字型",
+    "original": "原稿",
+    "previousPage": "上一頁",
+    "nextPage": "下一頁",
+    "imageFailed": "無法載入原稿。",
+    "zoomIn": "放大",
+    "zoomOut": "縮小",
+    "fit": "符合視窗",
+    "fonts": "使用的字型",
+    "chooseFont": "選擇字型",
+    "missingFont": "找不到字型",
+    "replaceMissing": "請選擇其他字型。",
+    "sampleText": "真的，這樣也可以嗎？",
+    "sample": "範例文字",
+    "sampleSize": "範例字級",
+    "weight": "字重",
+    "normal": "一般",
+    "bold": "粗體",
+    "copySuffix": "副本",
+    "deletePreset": "刪除預設",
+    "saveFailed": "儲存失敗，請檢查名稱與輸入內容。",
+    "retry": "重試"
+  },
+  "codexPreview": {
+    "open": "中間結果",
+    "reading": "原文翻譯",
+    "background": "原文擦除",
+    "review": "嵌字預覽",
+    "retry": "重新載入圖片"
   }
 }

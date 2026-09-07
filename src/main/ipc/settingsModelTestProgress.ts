@@ -1,3 +1,5 @@
+import { isCodexDelegationEnabled } from "../../shared/codexCapabilities";
+import type { AppSettings } from "../../shared/settingsTypes";
 import { ipcEventContracts } from "../../shared/ipcContracts";
 import type { ModelTestProgressEvent } from "../../shared/jobTypes";
 import type { TranslationOptions } from "../appSettings";
@@ -67,7 +69,9 @@ export async function verifyOcrRuntime(
   runtime: SimplePageRuntime,
   options: TranslationOptions,
   sendProgress: SendModelTestProgress,
+  settings?: AppSettings,
 ): Promise<void> {
+  if (isCodexDelegationEnabled(settings)) return;
   const ocrPipeline = options.ocrPipeline;
   const hayai = isHayaiOcrPipeline(ocrPipeline);
   sendProgress({
@@ -148,5 +152,20 @@ function sendGemmaPreparationProgress(
     detail: `${options.modelRepo} / ${options.modelFile}`,
     progressMode: "log-only",
     installLogLine: tMain("modelTest.gemmaDownloadingLog"),
+  });
+}
+
+export function sendModelTestBootProgress(
+  sendProgress: SendModelTestProgress,
+  settings: AppSettings,
+): void {
+  sendProgress({
+    phase: "booting",
+    progressText: tMain("modelTest.preparing"),
+    installLogLine: tMain(
+      isCodexDelegationEnabled(settings)
+        ? "modelTest.codexPreparingLog"
+        : "modelTest.startLog",
+    ),
   });
 }

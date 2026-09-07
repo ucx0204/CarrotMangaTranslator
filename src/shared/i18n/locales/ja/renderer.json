@@ -26,14 +26,20 @@
       "popOutTitle": "エディターを別ウィンドウに切り離す"
     }
   },
-  "blockMode": { "auto": "自動生成", "keep": "既存ブロックを維持" },
+  "blockMode": {
+    "auto": "自動生成",
+    "keep": "既存ブロックを維持"
+  },
   "librarySort": {
     "updated": "更新日",
     "title": "名前",
     "created": "追加日",
     "chapters": "話数"
   },
-  "fonts": { "default": "デフォルト", "defaultSample": "あいう Aa" },
+  "fonts": {
+    "default": "デフォルト",
+    "defaultSample": "あいう Aa"
+  },
   "eta": {
     "seconds": "残り約{{count}}秒",
     "minutes": "残り約{{count}}分",
@@ -107,6 +113,27 @@
       "cancelled": "処理をキャンセルしました。",
       "openLogs": "ログフォルダーを開く",
       "reportError": "エラーを報告"
+    },
+    "codex": {
+      "stages": {
+        "reading": "原文の翻訳",
+        "fonts": "書体比較",
+        "typesetting": "組版・確認"
+      },
+      "steps": {
+        "reading": "原文の読み取り・翻訳",
+        "erasurePlan": "消去範囲の確認",
+        "groupFonts": "原文書体の比較",
+        "matchFonts": "フォント選択",
+        "background": "原文の消去",
+        "sfx": "効果音の生成",
+        "layout": "文字配置",
+        "review": "仕上がり確認",
+        "saving": "結果の保存",
+        "retry": "{{seconds}}秒後に再試行 ({{attempt}}/2)",
+        "confirmText": "訳文の確認"
+      },
+      "page": "{{page}}ページ"
     }
   },
   "commands": {
@@ -172,7 +199,10 @@
       "label": "作業を書き出す",
       "keywords": "work share export 作業 共有 書き出し"
     },
-    "openSettings": { "label": "設定を開く", "keywords": "settings 設定" },
+    "openSettings": {
+      "label": "設定を開く",
+      "keywords": "settings 設定"
+    },
     "openLibrary": {
       "label": "ライブラリフォルダーを開く",
       "keywords": "library folder ライブラリ フォルダー"
@@ -345,7 +375,10 @@
     }
   },
   "inpainting": {
-    "common": { "saveFailedTitle": "保存失敗", "jobFailedTitle": "処理失敗" },
+    "common": {
+      "saveFailedTitle": "保存失敗",
+      "jobFailedTitle": "処理失敗"
+    },
     "maskDiscard": {
       "title": "描画マスクを破棄",
       "message": "未適用の描画マスクがあります。別の話を開きますか？",
@@ -358,7 +391,7 @@
     },
     "drawn": {
       "title": "描画範囲を消去",
-      "message": "オレンジ色で描いたマスク範囲だけをFluxで消去します。",
+      "message": "オレンジ色のマスク内の原文を消去します。",
       "detail": "文字の上を広めになぞってください。切り取った背景を復元し、結果は別画像として保存します。元画像は保持されます。",
       "preparing": "描画範囲の消去を準備中",
       "saveFailed": "描画範囲を消去する前に変更を保存できませんでした。",
@@ -373,7 +406,7 @@
       "pendingPages": "まだ消去していないページ",
       "selectedPages": "選択したページ",
       "message": "{{scope}}の翻訳ブロック位置にある原文を消去します。",
-      "detail": "吹き出し、トーン、背景、効果音上の文字をFluxインペインティングですべて消去します。元画像は保持し、結果は別画像として保存します。",
+      "detail": "原本を保持し、消去結果を別に保存します。",
       "preparing": "原文の消去を準備中",
       "saveFailed": "原文を消去する前に変更を保存できませんでした。",
       "startFailed": "原文の消去を開始できませんでした。",
@@ -439,7 +472,8 @@
     "startFailed": "範囲翻訳を開始できませんでした。",
     "success": "選択範囲から{{count}}個のブロックを作成しました。",
     "success_one": "選択範囲から{{count}}個のブロックを作成しました。",
-    "success_other": "選択範囲から{{count}}個のブロックを作成しました。"
+    "success_other": "選択範囲から{{count}}個のブロックを作成しました。",
+    "title": "領域翻訳"
   },
   "translation": {
     "errors": {
@@ -603,5 +637,8 @@
     "saved": "書式プリセット「{{name}}」を保存しました。",
     "deleted": "書式プリセット「{{name}}」を削除しました。",
     "deleteFailed": "書式プリセットを削除できませんでした。"
+  },
+  "codexDelegation": {
+    "disconnected": "Codexの接続が切れました。接続後に再実行してください。"
   }
 }

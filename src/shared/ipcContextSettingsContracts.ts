@@ -1,3 +1,5 @@
+import { codexTypesettingPreferencesSchema } from "./codexTypesettingSchemas";
+import type { CodexTypesettingPreferences } from "./codexTypesettingTypes";
 import { z } from "zod";
 import type {
   CustomFont,
@@ -289,6 +291,15 @@ const optionalModelTestArgsSchema = z.union([
   z.tuple([AppSettingsSchema, z.unknown()]),
 ]);
 export const settingsIpcContracts = {
+  saveCodexTypesettingPreferences: defineIpcContract<
+    [CodexTypesettingPreferences],
+    CodexTypesettingPreferences
+  >({
+    apiKey: "saveCodexTypesettingPreferences",
+    channel: "settings:save-codex-typesetting-preferences",
+    args: z.tuple([codexTypesettingPreferencesSchema]),
+    result: codexTypesettingPreferencesSchema,
+  }),
   getUiLocale: defineIpcContract<[], UiLocale>({
     apiKey: "getUiLocale",
     channel: "settings:get-ui-locale",

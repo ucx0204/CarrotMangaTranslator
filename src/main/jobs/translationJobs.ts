@@ -1,3 +1,4 @@
+import type { SoundEffectTranslationJobState } from "./translationJobTypes";
 import { randomUUID } from "node:crypto";
 import type {
   RegionAnalysisRequest,
@@ -29,7 +30,6 @@ import { pageTimingSessionManager } from "./pageTimingSessionManager";
 import {
   handleSoundEffectTranslationJobError,
   runSoundEffectTranslationJob,
-  type SoundEffectTranslationJobState,
 } from "./soundEffectTranslationJobRunner";
 
 export type { TranslationJobContext } from "./translationJobTypes";
@@ -253,7 +253,16 @@ export async function translateRegionJob(
     cleanup: lifetime.cleanup,
   });
   const emit = (event: JobEvent) =>
-    emitJobEvent(context.jobs, context.getMainWindow(), addEventTiming(event));
+    emitJobEvent(
+      context.jobs,
+      context.getMainWindow(),
+      addEventTiming({
+        ...event,
+        ...(request.textReviewSessionId
+          ? { regionRequestId: request.textReviewSessionId }
+          : {}),
+      }),
+    );
 
   try {
     return await runtime.runRegionTranslationJob({

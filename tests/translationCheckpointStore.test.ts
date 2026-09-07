@@ -31,6 +31,67 @@ afterEach(async () => {
 });
 
 describe("translation checkpoint store", () => {
+  it("publishes a Codex cleaned background and independent lettering together under the page revision guard", async () => {
+    const root = await createLibrary();
+    const library = await loadLibrary(root);
+    const snapshot = await library.openChapter("chapter-a");
+    const page = requirePage(snapshot, "page-a");
+    const revision = createPageRevision(page);
+    const cleanPath = page.imagePath.replace(/[^/\\]+$/, "clean.png");
+    await writeFile(cleanPath, Buffer.from("clean fixture"));
+    await library.markChapterPagesRunning(snapshot.id, [page.id]);
+    const letteringBlock = {
+      ...makeBlock("generated"),
+      generatedLettering: {
+        version: 1 as const,
+        sourceText: "ドン",
+        translatedText: "쾅",
+        dataUrl: "data:image/png;base64,aA==",
+      },
+    };
+    const proposed = {
+      ...page,
+      blocks: [letteringBlock],
+      typesettingMethod: "codex" as const,
+      inpaintedImagePath: cleanPath,
+      analysisStatus: "completed" as const,
+    };
+    expect(
+      await library.updatePageAfterAnalysis(
+        snapshot.id,
+        proposed,
+        [],
+        "completed",
+        undefined,
+        revision,
+      ),
+    ).toBe(true);
+    const persisted = requirePage(
+      await library.openChapter(snapshot.id),
+      page.id,
+    );
+    expect(persisted.inpaintedImagePath).toBe(cleanPath);
+    expect(persisted.typesettingMethod).toBe("codex");
+    expect(persisted.blocks[0]?.generatedLettering).toEqual(
+      letteringBlock.generatedLettering,
+    );
+    expect(persisted.maskProvenance).toBe("derived-diff");
+    expect(
+      await library.updatePageAfterAnalysis(
+        snapshot.id,
+        { ...proposed, inpaintedImagePath: "stale.png" },
+        [],
+        "completed",
+        undefined,
+        revision,
+      ),
+    ).toBe(false);
+    expect(
+      requirePage(await library.openChapter(snapshot.id), page.id)
+        .inpaintedImagePath,
+    ).toBe(cleanPath);
+  });
+
   it("publishes, validates, replaces, and removes one active checkpoint atomically", async () => {
     const root = await createLibrary();
     const library = await loadLibrary(root);

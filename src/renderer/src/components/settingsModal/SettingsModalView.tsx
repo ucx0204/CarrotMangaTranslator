@@ -281,7 +281,16 @@ function SettingsModalTabContent({
   if (activeTab === "general")
     return <GeneralSettingsPanel {...generalPanelProps} />;
   if (activeTab === "hardware")
-    return <HardwareSettingsPanel {...hardwarePanelProps} />;
+    return (
+      <HardwareSettingsPanel
+        {...hardwarePanelProps}
+        codexDelegateAll={
+          enginePanelProps.modelProvider === "openai-codex" &&
+          enginePanelProps.codexModel === "gpt-6-astra" &&
+          enginePanelProps.codexDelegateAll
+        }
+      />
+    );
   if (activeTab === "format")
     return <FormatDefaultsPanel {...formatPanelProps} />;
   if (activeTab === "shortcuts")

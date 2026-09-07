@@ -59,6 +59,93 @@ function expectCurveFormattingArtifacts(
 }
 
 describe("page artwork renderer parity", () => {
+  it("measures the active generated image instead of overflow in its hidden text fallback", () => {
+    const block = makeBlock("image-overflow", {
+      sourceText: "ギロ",
+      translatedText: "찌릿",
+      autoFitText: false,
+      layoutIntentSuppressed: true,
+      fontSizeIntent: "manual",
+      fontSizePx: 100,
+      lineHeight: 1,
+      renderBbox: { x: 461, y: 318, w: 402, h: 79 },
+      generatedLettering: {
+        version: 1,
+        sourceText: "ギロ",
+        translatedText: "찌릿",
+        dataUrl: "data:image/png;base64,aGVsbG8=",
+      },
+    });
+    const artwork = (value: TranslationBlock) => (
+      <PageArtwork
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        imageSrc="source.png"
+        page={{
+          id: "generated-page",
+          name: "Generated lettering",
+          width: 844,
+          height: 1200,
+          blocks: [value],
+        }}
+        visualSize={{ width: 844, height: 1200 }}
+      />
+    );
+    const { container, rerender } = render(artwork(block));
+    const measurement = () =>
+      JSON.parse(
+        container
+          .querySelector("[data-layout-evidence]")
+          ?.getAttribute("data-layout-evidence") ?? "null",
+      );
+    expect(container.querySelector('img[alt="찌릿"]')).not.toBeNull();
+    expect(measurement()).toMatchObject({ lines: null, overflow: false });
+    rerender(artwork({ ...block, translatedText: "번쩍" }));
+    expect(container.querySelector('img[alt="번쩍"]')).toBeNull();
+    expect(measurement().overflow).toBe(true);
+  });
+
+  it("reports the actual wrapped lines rather than only the requested newlines", () => {
+    const block = makeBlock("measured", {
+      bbox: { x: 10, y: 10, w: 33, h: 300 },
+      renderBbox: { x: 10, y: 10, w: 33, h: 300 },
+      renderBboxSpace: "normalized_1000",
+      bboxSpace: "normalized_1000",
+      layoutIntentSuppressed: true,
+      translatedText: "가나\n다라!!",
+      autoFitText: false,
+      fontSizePx: 18,
+      fontSizeIntent: "manual",
+      renderDirection: "horizontal",
+      wordBreak: "keep-all-overflow",
+    });
+    const { container } = render(
+      <PageArtwork
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        imageSrc="data:image/png;base64,"
+        page={{
+          id: "page",
+          name: "page",
+          width: 1000,
+          height: 1000,
+          blocks: [block],
+        }}
+        visualSize={{ width: 1000, height: 1000 }}
+      />,
+    );
+    const evidence = JSON.parse(
+      container
+        .querySelector("[data-layout-evidence]")
+        ?.getAttribute("data-layout-evidence") ?? "null",
+    );
+    const lines = Array.from(
+      container.querySelectorAll(".overlay-text-main .overlay-text-line"),
+      (line) => line.textContent,
+    );
+    expect(evidence.lines).toEqual(lines);
+    expect(lines).not.toEqual(block.translatedText.split("\n"));
+    expect(lines.join("")).toBe("가나다라!!");
+  });
+
   it("uses byte-identical artwork DOM apart from editor-only annotations", () => {
     const blocks = makeBlocks();
     const page = {
@@ -315,6 +402,19 @@ function readArtworkBlocks(container: HTMLElement): string[] {
 
 function makeBlocks(): TranslationBlock[] {
   return [
+    makeBlock("generated", {
+      sourceText: "ドン",
+      translatedText: "쾅",
+      rotationDeg: 12,
+      bbox: { x: 300, y: 350, w: 100, h: 100 },
+      renderBbox: { x: 320, y: 350, w: 130, h: 100 },
+      generatedLettering: {
+        version: 1,
+        sourceText: "ドン",
+        translatedText: "쾅",
+        dataUrl: "data:image/png;base64,aGVsbG8=",
+      },
+    }),
     makeBlock("rich", {
       bbox: { x: 123.4, y: 80.25, w: 281.5, h: 144.75 },
       translatedText: "**굵게** 그리고 *기울임*",

@@ -10,6 +10,8 @@ import type {
 import type { ProgressSnapshot } from "../lib/jobProgress";
 
 type UseInpaintingContextBridgeOptions = {
+  aiUnavailable?: boolean;
+  codexDelegateAll?: boolean;
   blockCounts: BlockCounts;
   brushColor: string;
   brushRadius: number;
@@ -61,6 +63,8 @@ type RetouchCursor = {
 
 type InpaintingContextState = Pick<
   InpaintingContextValue,
+  | "aiUnavailable"
+  | "codexDelegateAll"
   | "blockCounts"
   | "brushColor"
   | "brushRadius"
@@ -136,6 +140,8 @@ function resolveRetouchCursor({
 }
 
 function useInpaintingContextState({
+  aiUnavailable,
+  codexDelegateAll,
   blockCounts,
   brushColor,
   brushRadius,
@@ -157,6 +163,8 @@ function useInpaintingContextState({
 }: UseInpaintingContextBridgeOptions): InpaintingContextState {
   return useMemo<InpaintingContextState>(
     () => ({
+      aiUnavailable,
+      codexDelegateAll,
       currentChapter,
       selectedPage,
       blockCounts,
@@ -177,6 +185,8 @@ function useInpaintingContextState({
       peeking,
     }),
     [
+      aiUnavailable,
+      codexDelegateAll,
       blockCounts,
       brushColor,
       brushRadius,

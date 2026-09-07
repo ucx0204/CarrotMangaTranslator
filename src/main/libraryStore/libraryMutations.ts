@@ -396,6 +396,15 @@ function applyPageAnalysisUpdate({
   return {
     ...record,
     blocks: update.page.blocks,
+    ...(update.page.typesettingMethod === "codex"
+      ? {
+          inpaintedImagePath: update.page.inpaintedImagePath,
+          inpaintMaskPath: undefined,
+          maskProvenance: "derived-diff" as const,
+          typesettingMethod: update.page.typesettingMethod,
+          blockOrder: update.page.blockOrder,
+        }
+      : {}),
     soundEffectReview: update.page.soundEffectReview,
     analysisStatus: "completed",
     translationCompletion: update.page.translationCompletion,

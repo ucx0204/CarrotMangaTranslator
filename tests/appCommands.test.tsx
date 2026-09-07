@@ -131,3 +131,16 @@ function makeChapter(): ChapterSnapshot {
     updatedAt: now,
   };
 }
+
+it("uses the region command's registered operation and tolerates an unavailable entry", () => {
+  const startRegionTranslation = vi.fn();
+  const { result } = renderHook(() =>
+    useAppCommands({ ...makeCommandOptions(), startRegionTranslation }),
+  );
+  result.current.byId["translate-region"].run();
+  expect(startRegionTranslation).toHaveBeenCalledOnce();
+  const unavailable = renderHook(() => useAppCommands(makeCommandOptions()));
+  expect(() =>
+    unavailable.result.current.byId["translate-region"].run(),
+  ).not.toThrow();
+});

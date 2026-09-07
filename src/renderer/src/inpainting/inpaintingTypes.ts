@@ -20,6 +20,8 @@ export type BlockCounts = {
 };
 
 export type InpaintingContextValue = {
+  aiUnavailable?: boolean;
+  codexDelegateAll?: boolean;
   currentChapter: ChapterSnapshot | null;
   selectedPage: MangaPage | null;
   blockCounts: BlockCounts;

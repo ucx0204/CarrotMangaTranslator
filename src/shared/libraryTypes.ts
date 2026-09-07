@@ -53,6 +53,7 @@ export type FontLibrarySnapshot = {
 };
 
 export type MangaPage = {
+  typesettingMethod?: "codex";
   id: string;
   name: string;
   imagePath: string;

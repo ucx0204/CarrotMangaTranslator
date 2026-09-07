@@ -52,20 +52,31 @@ const CODEX_APP_SERVER_RESEARCH_ENABLED_FEATURES = [
   "code_mode_host",
 ] as const;
 
-export type CodexAppServerCapability = "isolated" | "research";
+export type CodexAppServerCapability =
+  | "isolated"
+  | "research"
+  | "typesetting-preview"
+  | "image-generation";
 
 export function buildCodexAppServerArguments(
   capability: CodexAppServerCapability,
 ): readonly string[] {
   const research = capability === "research";
-  const disabledFeatures = research
+  const codeMode = research || capability === "typesetting-preview";
+  const disabledFeatures = codeMode
     ? CODEX_APP_SERVER_DISABLED_FEATURES.filter(
         (feature) =>
           !CODEX_APP_SERVER_RESEARCH_ENABLED_FEATURES.some(
             (enabled) => enabled === feature,
           ),
       )
-    : CODEX_APP_SERVER_DISABLED_FEATURES;
+    : CODEX_APP_SERVER_DISABLED_FEATURES.filter(
+        (feature) =>
+          capability !== "image-generation" ||
+          !["image_generation", "code_mode_host", "unified_exec"].includes(
+            feature,
+          ),
+      );
   return [
     "app-server",
     ...CODEX_APP_SERVER_COMMON_CONFIG_OVERRIDES.flatMap((override) => [
@@ -78,7 +89,7 @@ export function buildCodexAppServerArguments(
     `tools.web_search=${research ? "true" : "false"}`,
     ...(research ? ["-c", "suppress_unstable_features_warning=true"] : []),
     ...disabledFeatures.flatMap((feature) => ["--disable", feature]),
-    ...(research
+    ...(codeMode
       ? CODEX_APP_SERVER_RESEARCH_ENABLED_FEATURES.flatMap((feature) => [
           "--enable",
           feature,

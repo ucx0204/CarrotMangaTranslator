@@ -46,7 +46,9 @@ export function useAppSessionShortcuts({
   );
 
   useSelectedBlockKeyboardNudge({
-    blocked: chapter.modalOpen,
+    blocked:
+      chapter.modalOpen ||
+      Boolean(translation.translationActions.regionTranslationDialog),
     enabled:
       Boolean(derivedState.selectedBlock) &&
       !editLocked &&
@@ -314,7 +316,9 @@ function resolveShortcutRuntime(
   return {
     editLocked,
     context: {
-      blockingModalOpen: chapter.overlayModalsOpen,
+      blockingModalOpen:
+        chapter.overlayModalsOpen ||
+        Boolean(translation.translationActions.regionTranslationDialog),
       activeModalActionId: resolveActiveModalActionId(chapter),
       paletteOpen: chapter.uiState.commandPaletteOpen,
       helpOpen: chapter.uiState.shortcutHelpOpen,

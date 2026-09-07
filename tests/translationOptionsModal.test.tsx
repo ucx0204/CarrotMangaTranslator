@@ -8,6 +8,7 @@ import {
   render,
   screen,
   within,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
@@ -21,14 +22,33 @@ import type { UiSettings } from "../src/shared/settingsTypes";
 import type { TranslationOptionsInitialScope } from "../src/renderer/src/lib/translationSelection";
 import { createPageRevision } from "../src/shared/pageRevision";
 
+const saveCodexPreferences = vi.fn(
+  async (value: ReturnType<typeof createCodexTypesettingPreferences>) => value,
+);
+
 beforeEach(() => {
   window.mangaApi = createTestMangaGatewayStub({
+    saveCodexTypesettingPreferences: saveCodexPreferences,
+    getFontLibrary: vi.fn(() =>
+      Promise.resolve({
+        customFonts: [],
+        preferences: {
+          favoriteIds: [],
+          orderedIds: [],
+          hiddenIds: [],
+          defaultFontId: "mongtori",
+        },
+      }),
+    ),
+    onFontLibraryChanged: () => () => {},
     getPageImageDataUrl: vi.fn(() => Promise.resolve("mgt-image://token")),
     openChapter: vi.fn(() => Promise.resolve(makeCurrentChapter())),
   });
 });
 
 import { TranslationOptionsModal } from "../src/renderer/src/components/TranslationOptionsModal";
+import { FontsProvider } from "../src/renderer/src/fonts/FontsProvider";
+import { createCodexTypesettingPreferences } from "../src/shared/codexTypesettingDefaults";
 import {
   OptionRow,
   ToggleOptionRow,
@@ -137,21 +157,27 @@ async function renderModal(
   initialScope?: TranslationOptionsInitialScope,
   chapter: ChapterSnapshot = makeCurrentChapter(),
   currentPageId?: string,
+  codexDelegateAll = false,
+  extra: Partial<React.ComponentProps<typeof TranslationOptionsModal>> = {},
 ) {
   const onStart = vi.fn();
   const onClose = vi.fn();
   const onPersistDefaults = vi.fn();
   render(
-    <TranslationOptionsModal
-      chapter={chapter}
-      currentPageId={currentPageId}
-      initialScope={initialScope}
-      library={makeLibrary(chapter)}
-      uiSettings={uiSettings}
-      onStart={onStart}
-      onPersistDefaults={onPersistDefaults}
-      onClose={onClose}
-    />,
+    <FontsProvider>
+      <TranslationOptionsModal
+        {...extra}
+        codexDelegateAll={codexDelegateAll}
+        chapter={chapter}
+        currentPageId={currentPageId}
+        initialScope={initialScope}
+        library={makeLibrary(chapter)}
+        uiSettings={uiSettings}
+        onStart={onStart}
+        onPersistDefaults={onPersistDefaults}
+        onClose={onClose}
+      />
+    </FontsProvider>,
   );
   // flush the lazy thumbnail image effects
   await act(async () => {
@@ -167,6 +193,86 @@ afterEach(() => {
 });
 
 describe("TranslationOptionsModal", () => {
+  it("sends a legacy Astra preset with generated SFX through the real translation action", async () => {
+    const preferences = createCodexTypesettingPreferences("ko");
+    preferences.enabled = true;
+    delete preferences.sfxRendering;
+    const { onStart } = await renderModal(
+      {
+        codexTypesettingPreferences: preferences,
+      },
+      undefined,
+      undefined,
+      undefined,
+      true,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        codexTypesetting: {
+          version: 1,
+          preset: preferences.presets[0],
+          sfxRendering: "image",
+          eraseOriginal: true,
+        },
+        blockMode: "auto",
+        autoFontMatching: false,
+        aiFontSizeMatching: false,
+        naturalTextLayout: false,
+        eraseOriginalWorkflow: false,
+        bubbleLayoutWorkflow: false,
+      }),
+    );
+  });
+
+  it("persists the user's SFX choice and forwards it to translation", async () => {
+    const preferences = createCodexTypesettingPreferences("ko");
+    preferences.enabled = true;
+    const { onStart, onPersistDefaults } = await renderModal(
+      {
+        codexTypesettingPreferences: preferences,
+      },
+      undefined,
+      undefined,
+      undefined,
+      true,
+    );
+    expect(
+      screen
+        .getByRole("radio", { name: "생성형" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: "폰트" }));
+    expect(
+      screen.getByRole("radio", { name: "폰트" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      screen.queryByRole("checkbox", { name: "다음 번역의 기본값으로 저장" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        codexTypesetting: expect.objectContaining({ sfxRendering: "font" }),
+      }),
+    );
+    expect(onPersistDefaults).not.toHaveBeenCalled();
+    expect(saveCodexPreferences).toHaveBeenCalledWith(
+      expect.objectContaining({ sfxRendering: "font" }),
+    );
+  });
+
+  it("ignores the old enable preference while global delegation is OFF", async () => {
+    const preferences = createCodexTypesettingPreferences("ko");
+    preferences.enabled = true;
+    const { onStart } = await renderModal({
+      codexTypesettingPreferences: preferences,
+    });
+    expect(screen.queryByRole("radio", { name: "생성형" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+    expect(onStart.mock.calls[0][0].codexTypesetting).toBeUndefined();
+  });
   it("renders a flat switch even when no tooltip copy is provided", () => {
     const onChange = vi.fn();
     render(
@@ -865,3 +971,113 @@ function getDescribedTooltipText(control: HTMLElement): string {
     .filter(Boolean)
     .join(" ");
 }
+
+it("cancels the overwrite confirmation without starting or closing the selection dialog", async () => {
+  const { onStart, onClose } = await renderModal(undefined, "work-all");
+  fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+  const dialogs = screen.getAllByRole("dialog");
+  expect(dialogs).toHaveLength(2);
+  fireEvent.click(within(dialogs[1]).getByRole("button", { name: "취소" }));
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  expect(onStart).not.toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it("keeps selected pages while font purposes are saved on editor close and translation starts", async () => {
+  const save = vi.fn(async (value) => value);
+  const { onStart, onClose } = await renderModal(
+    undefined,
+    undefined,
+    undefined,
+    "p2",
+    true,
+    { onSaveCodexPreferences: save },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "폰트 편집" }));
+  const editor = screen.getByRole("dialog", { name: "폰트 편집" });
+  fireEvent.change(within(editor).getByRole("textbox", { name: "사용 의도" }), {
+    target: { value: "격한 대사는 굵게" },
+  });
+  const closeEditor = within(editor)
+    .getAllByRole("button", { name: "닫기" })
+    .at(-1);
+  if (!closeEditor) throw new Error("Font editor close button missing");
+  fireEvent.click(closeEditor);
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog", { name: "폰트 편집" })).toBeNull(),
+  );
+  expect(save).toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+  await waitFor(() => expect(onStart).toHaveBeenCalled());
+  expect(
+    onStart.mock.calls[0][0].codexTypesetting.preset.fonts[0].purpose,
+  ).toBe("격한 대사는 굵게");
+});
+
+it("preserves the font draft when closing cannot save, then closes after an explicit retry", async () => {
+  const save = vi
+    .fn(async (value) => value)
+    .mockRejectedValueOnce(new Error("disk unavailable"));
+  const { onClose } = await renderModal(
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    true,
+    { onSaveCodexPreferences: save },
+  );
+  fireEvent.click(screen.getByRole("switch", { name: "원문 지우기" }));
+  fireEvent.click(screen.getByRole("button", { name: "취소" }));
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+  expect(onClose).not.toHaveBeenCalled();
+  fireEvent.keyDown(window, { key: "Escape" });
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  expect(save.mock.calls.at(-1)?.[0].eraseOriginal).toBe(false);
+});
+
+it("disables Codex execution while disconnected without replacing its options with local engines", async () => {
+  const { onStart } = await renderModal(
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    true,
+    { codexUnavailable: true },
+  );
+  expect(
+    screen
+      .getByRole("button", { name: "선택 범위 번역" })
+      .hasAttribute("disabled"),
+  ).toBe(true);
+  expect(screen.queryByRole("switch", { name: "폰트 자동 맞춤" })).toBeNull();
+  expect(screen.getByRole("radio", { name: "생성형" })).toBeTruthy();
+  expect(onStart).not.toHaveBeenCalled();
+});
+
+it("stays open with its draft when saving before translation fails, and starts only after retry succeeds", async () => {
+  const save = vi
+    .fn(async (value) => value)
+    .mockRejectedValueOnce(new Error("Disk unavailable"));
+  const { onStart } = await renderModal(
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    true,
+    { onSaveCodexPreferences: save },
+  );
+  fireEvent.click(screen.getByRole("switch", { name: "원문 지우기" }));
+  fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+  expect(onStart).not.toHaveBeenCalled();
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole("button", { name: "선택 범위 번역" })
+        .hasAttribute("disabled"),
+    ).toBe(false),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+  await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+});

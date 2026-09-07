@@ -43,6 +43,8 @@ export type PanelFormatSelection = {
  * action functions and in-app-only layout flags stay in the main window.
  */
 export type PanelSyncState = {
+  aiUnavailable?: boolean;
+  letteringTool?: import("./generatedLetteringMaskTypes").LetteringTool;
   selectedBlock: TranslationBlock | null;
   selectedBlockCount: number;
   selectionKey: string;
@@ -88,6 +90,10 @@ export type PanelCommand =
   | { type: "eraseBlockOriginal"; blockId: string }
   | { type: "fitBlockBubble"; blockId: string }
   | { type: "removeBubbleLayout"; blockId: string }
+  | {
+      type: "setLetteringTool";
+      tool: import("./generatedLetteringMaskTypes").LetteringTool;
+    }
   | { type: "selectTransformMode"; mode: TransformEditorMode }
   | {
       type: "applyFormat";

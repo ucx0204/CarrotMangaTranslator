@@ -1,3 +1,7 @@
+import { waitForRegionTextReview } from "./regionTranslationReview";
+import { resolveRegionTypesettingRequest } from "../pipeline/codexTypesettingConfiguration";
+import { completeRegionTranslation } from "./translationRegionCompletion";
+import { createPageRevision } from "../../shared/pageRevision";
 import type {
   RegionAnalysisRequest,
   RegionAnalysisResult,
@@ -33,6 +37,7 @@ export type RegionJobState = {
 };
 
 export type RegionJobRunnerDependencies = {
+  resolveRequest?: typeof resolveRegionTypesettingRequest;
   openChapter: typeof openChapter;
   getRunPaths: typeof getRunPaths;
   createRegionCropPage: typeof createRegionCropPage;
@@ -42,6 +47,7 @@ export type RegionJobRunnerDependencies = {
 };
 
 const productionRegionJobRunnerDependencies: RegionJobRunnerDependencies = {
+  resolveRequest: resolveRegionTypesettingRequest,
   openChapter,
   getRunPaths,
   createRegionCropPage,
@@ -71,6 +77,7 @@ export async function runRegionTranslationJob(
   dependencies: RegionJobRunnerDependencies = productionRegionJobRunnerDependencies,
 ): Promise<RegionAnalysisResult> {
   throwIfAborted(abortController.signal);
+  request = (await dependencies.resolveRequest?.(request)) ?? request;
   state.chapter = await dependencies.openChapter(request.chapterId);
   throwIfAborted(abortController.signal);
   const page = state.chapter.pages.find(
@@ -95,6 +102,8 @@ export async function runRegionTranslationJob(
   );
   throwIfAborted(abortController.signal);
   emitRegionStarting(id, emit, cropRect);
+  if (request.pageRevision && createPageRevision(page) !== request.pageRevision)
+    throw new Error("페이지가 변경되었습니다. 영역을 다시 선택해 주세요.");
   const result = await runRegionPipeline({
     abortController,
     cropPage,
@@ -112,6 +121,9 @@ export async function runRegionTranslationJob(
   throwIfAborted(abortController.signal);
   return completeRegionTranslation({
     cropRect,
+    cropPage,
+    context,
+    directory: state.runPaths.runDir,
     emit,
     id,
     page,
@@ -140,6 +152,15 @@ export async function handleRegionJobError({
   context: TranslationJobContext;
 }): Promise<RegionAnalysisResult> {
   const lastEvent = getLastJobEvent(context, id);
+  if (abortController.signal.reason?.code === "CODEX_DISCONNECTED")
+    return handleRegionFailure(
+      id,
+      emit,
+      request,
+      state,
+      lastEvent,
+      abortController.signal.reason,
+    );
   if (isAbortError(error) || abortController.signal.aborted) {
     return handleRegionAbort(id, emit, request, state, lastEvent);
   }
@@ -231,82 +252,18 @@ async function runRegionPipeline({
       recentPageCount: 6,
     },
     writeStoryMemory: false,
-  });
-}
-
-async function completeRegionTranslation({
-  cropRect,
-  emit,
-  id,
-  page,
-  request,
-  result,
-  signal,
-  appendBlocks,
-}: {
-  cropRect: Parameters<typeof mapRegionBlocksToPageBlocks>[2];
-  emit: EmitJobEvent;
-  id: string;
-  page: MangaPage;
-  request: RegionAnalysisRequest;
-  result: PipelineResult;
-  signal: AbortSignal;
-  appendBlocks: typeof appendAnalyzedPageBlocks;
-}): Promise<RegionAnalysisResult> {
-  const analyzedCrop = result.pages[0];
-  assertCompletedRegionPipelineResult(analyzedCrop, result.failureGuidance);
-  const translatedBlocks = analyzedCrop
-    ? mapRegionBlocksToPageBlocks(analyzedCrop.blocks, page, cropRect)
-    : [];
-  const mappedBlocks = translatedBlocks;
-  // 영역 번역은 새 블록을 덧붙이기만 하므로, 작업 중 사용자 편집이 저장됐어도
-  // 최신 페이지 상태 위에 원자적으로 append해 충돌 없이 반영한다.
-  // Commit이 시작되기 전 취소만 이기며, 성공한 commit 뒤에는 cancelled로 뒤집지 않는다.
-  throwIfAborted(signal);
-  const saved = await appendBlocks(
-    request.chapterId,
-    request.pageId,
-    mappedBlocks,
-  );
-  emitRegionCompleted(id, emit, mappedBlocks.length);
-  return {
-    status: "completed",
-    chapter: saved,
-    warnings: result.warnings,
-    pageId: request.pageId,
-    blockIds: mappedBlocks.map((block) => block.id),
-  };
-}
-
-function assertCompletedRegionPipelineResult(
-  page: MangaPage | undefined,
-  failureGuidance?: JobFailureGuidance,
-): asserts page is MangaPage {
-  if (page?.analysisStatus === "completed") {
-    return;
-  }
-  const error = new Error(page?.lastError?.trim() || tMain("region.failed"));
-  if (failureGuidance) {
-    Object.assign(error, { failureGuidance });
-  }
-  throw error;
-}
-
-function emitRegionCompleted(
-  id: string,
-  emit: EmitJobEvent,
-  blockCount: number,
-): void {
-  emit({
-    id,
-    kind: "gemma-analysis",
-    status: "completed",
-    progressText: tMain("region.completed"),
-    phase: "done",
-    progressCurrent: 1,
-    progressTotal: 1,
-    pageTotal: 1,
-    detail: tMain("units.blocks", { count: blockCount }),
+    confirmRegionReading: regionReadingReview(
+      request,
+      id,
+      abortController.signal,
+      emit,
+    ),
+    codexTypesetting: request.codexTypesetting
+      ? {
+          ...request.codexTypesetting,
+          eraseOriginal: request.eraseOriginal === true,
+        }
+      : undefined,
   });
 }
 
@@ -404,4 +361,39 @@ function getLastJobEvent(
   return context.jobs.current?.id === id
     ? context.jobs.current.lastEvent
     : undefined;
+}
+
+function regionReadingReview(
+  request: RegionAnalysisRequest,
+  id: string,
+  signal: AbortSignal,
+  emit: EmitJobEvent,
+) {
+  const sessionId = request.textReviewSessionId;
+  if (!sessionId || !request.codexTypesetting) return undefined;
+  return (reading: Parameters<typeof waitForRegionTextReview>[0]["reading"]) =>
+    waitForRegionTextReview({
+      jobId: id,
+      sessionId,
+      reading,
+      signal,
+      show: (regionTextReview) =>
+        emit({
+          id,
+          kind: "gemma-analysis",
+          status: "running",
+          phase: "model_requesting",
+          progressText: "번역문 확인",
+          codexProgress: {
+            stage: "reading",
+            step: "confirmText",
+            completed: 0,
+            total: 1,
+            page: 1,
+          },
+          pageIndex: 1,
+          pageTotal: 1,
+          regionTextReview,
+        }),
+    });
 }

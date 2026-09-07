@@ -11,6 +11,38 @@ import type { TranslationBlock } from "../src/shared/textTypes";
 import { createIdentityWarpTransform } from "../src/shared/blockTransforms";
 
 describe("layered PSD export", () => {
+  it.each(["active", "disabled", "stale"])(
+    "round-trips %s generated lettering without mislabeling the visible layer",
+    (state) => {
+      const page = makePage();
+      const layer = makePng(4, 3, [0, 0, 0, 0], [2, 1, 10, 20, 30, 255]);
+      const block: TranslationBlock = {
+        ...makeBlock(),
+        generatedLettering: {
+          version: 1,
+          enabled: state !== "disabled",
+          sourceText: "source",
+          translatedText: state === "stale" ? "previous" : "translated",
+          dataUrl: `data:image/png;base64,${layer.toString("base64")}`,
+        },
+      };
+      const background = makePng(4, 3, [255, 255, 255, 255]);
+      const output = buildPagePsd({
+        page: { ...page, blocks: [block] },
+        compositePng: background,
+        originalBackgroundPng: background,
+        textLayers: [{ block, png: layer }],
+      });
+      const psd = readPsd(output, {
+        skipCompositeImageData: true,
+        skipLayerImageData: true,
+        skipThumbnail: true,
+      });
+      expect(psd.children).toHaveLength(2);
+      expect(Boolean(psd.children?.[1]?.text)).toBe(state !== "active");
+    },
+  );
+
   it("writes a flat bottom-to-top stack with text above both backgrounds", () => {
     const page = makePage();
     const background = makePng(4, 3, [255, 255, 255, 255]);

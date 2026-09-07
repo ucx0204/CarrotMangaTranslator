@@ -1,3 +1,4 @@
+import { createPageRevision } from "../../shared/pageRevision";
 import { hydrateChapter } from "./chapterSnapshots";
 import { resolveChapterStatus } from "./chapterRecords";
 import {
@@ -17,6 +18,10 @@ export async function appendAnalyzedPageBlocksUnlocked(
   chapterId: string,
   pageId: string,
   blocks: PageBlocks,
+  options?: {
+    expectedRevision?: string;
+    image?: { inpaintedImagePath: string; inpaintMaskPath?: string };
+  },
 ): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
@@ -31,6 +36,11 @@ export async function appendAnalyzedPageBlocksUnlocked(
     throw new Error("저장할 페이지를 찾지 못했습니다.");
   }
 
+  if (
+    options?.expectedRevision &&
+    createPageRevision(page) !== options.expectedRevision
+  )
+    throw new Error("페이지가 변경되었습니다. 영역을 다시 선택해 주세요.");
   const now = new Date().toISOString();
   const pages = chapter.pages.map((candidate) => {
     if (candidate.id !== pageId) return candidate;
@@ -38,6 +48,9 @@ export async function appendAnalyzedPageBlocksUnlocked(
     return {
       ...candidate,
       blocks: nextBlocks,
+      ...(options?.image
+        ? { ...options.image, maskProvenance: undefined }
+        : {}),
       analysisStatus: "completed" as const,
       translationCompletion: resolveCompletionAfterBlockMutation(
         candidate.translationCompletion,

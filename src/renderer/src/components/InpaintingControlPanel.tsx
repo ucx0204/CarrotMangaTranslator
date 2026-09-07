@@ -12,6 +12,7 @@ import { RetouchInpaintingStep } from "./inpaintingPanel/RetouchInpaintingStep";
 
 type CommonInspectorProps = {
   jobActive: boolean;
+  aiUnavailable?: boolean;
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
   onCancelJob: () => void;
@@ -87,6 +88,7 @@ function RetouchInspectorBody({
   const { t } = useTranslation("components");
   return (
     <RetouchInpaintingStep
+      aiUnavailable={props.aiUnavailable}
       activeToolLabel={t(`inpainting.tools.${props.tool}`)}
       brushColor={props.brushColor}
       brushRadius={props.brushRadius}

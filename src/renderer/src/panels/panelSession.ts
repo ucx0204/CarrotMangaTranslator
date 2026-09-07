@@ -23,6 +23,7 @@ import type { BlockLibraryEntryV1 } from "../../../shared/blockLibrary";
  * what panels actually need crosses the window boundary.
  */
 export type PanelSessionValue = {
+  letteringTool?: import("../../../shared/generatedLetteringMaskTypes").LetteringTool;
   /** Currently selected text block, or null when none is selected. */
   selectedBlock: TranslationBlock | null;
   /** Size of the multi-selection, for batch format apply labels. */
@@ -32,6 +33,7 @@ export type PanelSessionValue = {
   editorTextTabRequestToken: number;
   /** True when block edits are disabled (locked page or busy inpainting). */
   editorDisabled: boolean;
+  aiUnavailable?: boolean;
   /** True when the block editor is detached into a floating in-app panel. */
   editorFloating: boolean;
   /** True when the block editor is detached into its own OS window. */
@@ -73,6 +75,9 @@ export type PanelSessionValue = {
   onEraseBlockOriginal: () => void;
   onFitBlockBubble: () => void;
   onRemoveBubbleLayout: () => void;
+  onChangeLetteringTool?: (
+    tool: import("../../../shared/generatedLetteringMaskTypes").LetteringTool,
+  ) => void;
   onSelectTransformMode: (mode: TransformEditorMode) => void;
   onApplyFormat: (
     scope: FormatApplyScope,

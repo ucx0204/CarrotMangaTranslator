@@ -131,7 +131,9 @@
       "findRequired": "请输入查找文本。",
       "invalidRegex": "正则表达式无效：{{message}}"
     },
-    "storage": { "error": "无法处理已保存规则" },
+    "storage": {
+      "error": "无法处理已保存规则"
+    },
     "notice": {
       "conflictsOnly": "预览后发生变化的 {{count}} 项未被覆盖。",
       "applied": "已应用 {{applied}} 项。因冲突跳过：{{conflicts}} 项",
@@ -255,9 +257,16 @@
     "blockUnderline": "整块添加下划线",
     "blockStrikethrough": "整块添加删除线",
     "blockEmphasisMark": "整块添加着重号",
-    "align": { "left": "左对齐", "center": "居中", "right": "右对齐" },
+    "align": {
+      "left": "左对齐",
+      "center": "居中",
+      "right": "右对齐"
+    },
     "directionLabel": "文字方向",
-    "direction": { "horizontal": "横排", "vertical": "竖排" },
+    "direction": {
+      "horizontal": "横排",
+      "vertical": "竖排"
+    },
     "size": "大小",
     "fontSize": "字号",
     "fontSizeValue": "字号数值",
@@ -325,8 +334,16 @@
       "curve": "曲线",
       "warp": "变形网格"
     },
-    "fields": { "x": "X", "y": "Y", "w": "宽度", "h": "高度" },
-    "controlKinds": { "slider": "滑块", "value": "数值" },
+    "fields": {
+      "x": "X",
+      "y": "Y",
+      "w": "宽度",
+      "h": "高度"
+    },
+    "controlKinds": {
+      "slider": "滑块",
+      "value": "数值"
+    },
     "lockRatio": "保持比例",
     "rotation": "旋转",
     "resetRotation": "归零",
@@ -406,9 +423,20 @@
         "vertical": "曲线仅支持单行横排文字。",
         "multiline": "移除换行后会恢复已保存的曲线。"
       },
-      "presets": { "straight": "直线", "archUp": "向上", "archDown": "向下" },
-      "align": { "start": "起点", "center": "居中", "end": "终点" },
-      "orientations": { "tangent": "沿路径", "upright": "保持直立" }
+      "presets": {
+        "straight": "直线",
+        "archUp": "向上",
+        "archDown": "向下"
+      },
+      "align": {
+        "start": "起点",
+        "center": "居中",
+        "end": "终点"
+      },
+      "orientations": {
+        "tangent": "沿路径",
+        "upright": "保持直立"
+      }
     },
     "warp": {
       "disabledDescription": "使用平滑网格变形整段文字，同时保留字体、描边、局部强调和曲线。",
@@ -464,7 +492,10 @@
       "remove": "取消气泡适配",
       "removeHint": "移除自动或手动设置的气泡区域，并恢复为原始OCR文本区域。"
     },
-    "markupHint": { "emphasis": "局部强调：", "escape": "输入星号请使用" },
+    "markupHint": {
+      "emphasis": "局部强调：",
+      "escape": "输入星号请使用"
+    },
     "markupToolbar": {
       "boldLabel": "粗体（**粗体**）",
       "boldTitle": "将所选文字设为粗体（**粗体**）",
@@ -559,7 +590,10 @@
     "chapterSummaryComplete": "{{count}}页 · 完成",
     "chapterSummaryRemaining": "{{count}}页 · 剩余{{remaining}}",
     "chapterSummary": "{{count}}页{{suffix}}",
-    "statusSuffix": { "complete": " · 完成", "inProgress": " · 进行中" },
+    "statusSuffix": {
+      "complete": " · 完成",
+      "inProgress": " · 进行中"
+    },
     "noSelectedPages": "未选择页面。",
     "approximately": "约",
     "selectionSummary": "{{chapterCount}}话 · {{approximate}}{{pageCount}}页",
@@ -887,7 +921,10 @@
     "allChaptersInFinal": "所有共享章节都已在最终列表中。",
     "toDelete": "将删除",
     "restoreItem": "恢复{{title}}",
-    "source": { "existing": "现有", "shared": "共享" },
+    "source": {
+      "existing": "现有",
+      "shared": "共享"
+    },
     "stats": {
       "final": "最终 {{count}}项",
       "toDelete": "将删除 {{count}}项",
@@ -908,7 +945,10 @@
       "criteriaLabel": "排序依据",
       "criterion": "依据",
       "directionLabel": "排序方向",
-      "direction": { "asc": "升序", "desc": "降序" }
+      "direction": {
+        "asc": "升序",
+        "desc": "降序"
+      }
     }
   },
   "pageList": {
@@ -984,7 +1024,10 @@
     "showInspector": "展开检查与编辑面板",
     "hideInspector": "收起检查与编辑面板"
   },
-  "areaTranslation": { "title": "区域翻译", "cancelSelection": "取消选择" },
+  "areaTranslation": {
+    "title": "区域翻译",
+    "cancelSelection": "取消选择"
+  },
   "stageToolbar": {
     "show": "显示工具栏",
     "showTitle": "显示工具栏（4）",
@@ -1007,7 +1050,10 @@
       }
     },
     "tools": {
-      "select": { "label": "选择", "title": "选择工具（1）" },
+      "select": {
+        "label": "选择",
+        "title": "选择工具（1）"
+      },
       "block": {
         "label": "文本块",
         "title": "文本块工具（2）— 拖动以添加新文本块"
@@ -1016,7 +1062,10 @@
         "label": "区域翻译",
         "title": "区域翻译 — 拖动选择要重新翻译的区域"
       },
-      "hand": { "label": "抓手", "title": "抓手工具（3）— 拖动以移动图像" },
+      "hand": {
+        "label": "抓手",
+        "title": "抓手工具（3）— 拖动以移动图像"
+      },
       "perspective": {
         "label": "透视",
         "title": "透视变形 — 移动四角以贴合表面"
@@ -1029,16 +1078,34 @@
         "label": "气泡区域",
         "title": "手动指定所选文本块的气泡区域 — 逐点描边后按 Enter 应用"
       },
-      "mask": { "label": "蒙版", "title": "蒙版画笔" },
-      "brush": { "label": "画笔", "title": "修整画笔" },
-      "rectangle": { "label": "矩形", "title": "用实心矩形覆盖" },
-      "ellipse": { "label": "椭圆", "title": "用实心椭圆覆盖" },
-      "eraser": { "label": "橡皮擦", "title": "清除修整笔触" },
+      "mask": {
+        "label": "蒙版",
+        "title": "蒙版画笔"
+      },
+      "brush": {
+        "label": "画笔",
+        "title": "修整画笔"
+      },
+      "rectangle": {
+        "label": "矩形",
+        "title": "用实心矩形覆盖"
+      },
+      "ellipse": {
+        "label": "椭圆",
+        "title": "用实心椭圆覆盖"
+      },
+      "eraser": {
+        "label": "橡皮擦",
+        "title": "清除修整笔触"
+      },
       "eraser-rectangle": {
         "label": "矩形橡皮擦",
         "title": "拖动以从原图恢复矩形区域"
       },
-      "picker": { "label": "取色", "title": "从画布取色" }
+      "picker": {
+        "label": "取色",
+        "title": "从画布取色"
+      }
     }
   },
   "bubbleLayoutEditor": {
@@ -1078,14 +1145,19 @@
     "excludeFromInpainting": "从图像修复中排除",
     "excludedFromInpainting": "已从自动擦除中排除"
   },
-  "imageStage": { "loadingImage": "正在加载图像" },
+  "imageStage": {
+    "loadingImage": "正在加载图像"
+  },
   "install": {
     "logLabel": "安装日志",
     "checkingLogs": "正在检查日志",
     "preparingModel": "正在准备Gemma 4模型",
     "installingOcr": "正在安装OCR"
   },
-  "toast": { "close": "关闭通知", "region": "通知" },
+  "toast": {
+    "close": "关闭通知",
+    "region": "通知"
+  },
   "errorBoundary": {
     "title": "出现问题",
     "description": "渲染界面时发生错误。工作内容可能已保存在资料库中。重新启动通常可以恢复。",
@@ -1242,7 +1314,10 @@
       "title": "互联网调查",
       "description": "核对现有术语表，并补充遗漏的术语和角色。",
       "engineLabel": "调查方式",
-      "engines": { "tavily": "Tavily", "codex": "Codex" },
+      "engines": {
+        "tavily": "Tavily",
+        "codex": "Codex"
+      },
       "run": "调查术语表",
       "analyzing": "调查中…",
       "cancel": "取消调查"
@@ -1305,8 +1380,15 @@
       "apply": "应用所选 {{count}} 项",
       "noChanges": "未找到可应用的变更。",
       "selectChange": "选择 {{name}} 的变更建议",
-      "actions": { "add": "添加", "update": "更新", "disable": "停用" },
-      "confidence": { "high": "高可信度", "medium": "需要审核" },
+      "actions": {
+        "add": "添加",
+        "update": "更新",
+        "disable": "停用"
+      },
+      "confidence": {
+        "high": "高可信度",
+        "medium": "需要审核"
+      },
       "localEvidence": "本地出现 {{pages}} 页 · {{mentions}} 次",
       "previewReady": "已创建 {{count}} 项未保存建议。",
       "failed": "互联网调查失败。",
@@ -1602,7 +1684,9 @@
         "applyRecommended": "应用推荐值",
         "recommendedApplied": "正在使用推荐值"
       },
-      "provider": { "label": "翻译引擎" },
+      "provider": {
+        "label": "翻译引擎"
+      },
       "maxTokens": {
         "label": "最大输出令牌数",
         "remoteDescription": "限制包含可见文本和推理在内的完整响应。使用任务推荐值比直接使用模型上限更稳妥。",
@@ -1630,8 +1714,13 @@
         "maxOutput": "最大输出令牌",
         "context": "调查上下文"
       },
-      "api": { "title": "API 模型" },
-      "limits": { "maxOutput": "最大输出令牌", "context": "调查上下文" },
+      "api": {
+        "title": "API 模型"
+      },
+      "limits": {
+        "maxOutput": "最大输出令牌",
+        "context": "调查上下文"
+      },
       "codex": {
         "title": "Codex",
         "description": "使用内置网页搜索查找资料并生成变更建议。"
@@ -1705,13 +1794,28 @@
           "label": "Codex",
           "description": "使用应用内置的官方 Codex App Server 和 ChatGPT 账户进行翻译。"
         },
-        "api": { "label": "API", "description": "使用兼容OpenAI的API端点。" }
+        "api": {
+          "label": "API",
+          "description": "使用兼容OpenAI的API端点。"
+        }
       },
       "reasoning": {
-        "none": { "label": "无", "description": "不使用推理。" },
-        "low": { "label": "低", "description": "快速、轻量的推理。" },
-        "medium": { "label": "中", "description": "平衡速度和质量。" },
-        "high": { "label": "高", "description": "使用更多推理以提高质量。" },
+        "none": {
+          "label": "无",
+          "description": "不使用推理。"
+        },
+        "low": {
+          "label": "低",
+          "description": "快速、轻量的推理。"
+        },
+        "medium": {
+          "label": "中",
+          "description": "平衡速度和质量。"
+        },
+        "high": {
+          "label": "高",
+          "description": "使用更多推理以提高质量。"
+        },
         "xhigh": {
           "label": "非常高",
           "description": "为复杂翻译使用更多推理。"
@@ -1743,10 +1847,16 @@
           "label": "AMD ROCm",
           "description": "使用面向AMD GPU的实验性OCR引擎。"
         },
-        "cpu": { "label": "CPU", "description": "不使用GPU，在CPU上运行OCR。" }
+        "cpu": {
+          "label": "CPU",
+          "description": "不使用GPU，在CPU上运行OCR。"
+        }
       },
       "ocrQuality": {
-        "economy": { "label": "经济", "description": "平衡速度和准确度。" },
+        "economy": {
+          "label": "经济",
+          "description": "平衡速度和准确度。"
+        },
         "full": {
           "label": "完整",
           "description": "由Gemma 4根据坐标将高质量OCR片段合并为语义单元。"
@@ -1765,7 +1875,10 @@
           "label": "RTX 50",
           "description": "针对RTX 50系列优化的CUDA运行时。"
         },
-        "vulkan": { "label": "Vulkan", "description": "Vulkan GPU运行时。" },
+        "vulkan": {
+          "label": "Vulkan",
+          "description": "Vulkan GPU运行时。"
+        },
         "rocm": {
           "label": "AMD ROCm",
           "description": "AMD ROCm/HIP llama.cpp运行时。"
@@ -1822,7 +1935,9 @@
       "customCodeAria": "输入{{label}}的自定义代码"
     },
     "gemma": {
-      "modelSource": { "label": "模型来源" },
+      "modelSource": {
+        "label": "模型来源"
+      },
       "preset": {
         "label": "模型预设",
         "ariaLabel": "模型预设",
@@ -1878,7 +1993,10 @@
       "customModel": "自定义",
       "customModelAria": "输入自定义Codex模型",
       "modelPlaceholder": "模型名称",
-      "reasoning": { "label": "推理强度", "ariaLabel": "Codex推理强度" },
+      "reasoning": {
+        "label": "推理强度",
+        "ariaLabel": "Codex推理强度"
+      },
       "account": {
         "title": "ChatGPT 账户",
         "loading": "正在检查认证状态…",
@@ -2372,7 +2490,8 @@
     "showAllPages": "显示所有页面",
     "showTranslations": "显示译文",
     "saveAsDefault": "保存为下次翻译的默认值",
-    "reviewComplete": "完成复核"
+    "reviewComplete": "完成复核",
+    "engine": "翻译方式"
   },
   "stylePresets": {
     "title": "格式预设",
@@ -2416,5 +2535,101 @@
     "ungrouped": "无分组",
     "releaseGroup": "解除分组",
     "emptyGroup": "此分组中没有预设。"
+  },
+  "codexTypesetting": {
+    "title": "Astra translation & lettering",
+    "description": "Use Astra with your ChatGPT account to read, translate and choose fonts, sizes and line breaks.",
+    "process": "Compare source crops → group font families → translate and typeset → inspect the rendered page. Preserve weight and effects within each family.",
+    "engine": "Translation method",
+    "preset": "Font preset",
+    "copyPreset": "Duplicate preset",
+    "presetName": "Preset name",
+    "fontCount": "Selected fonts: {{count}} / 10",
+    "font": "Font {{index}}",
+    "removeFont": "Remove font {{index}}",
+    "remove": "Remove",
+    "purpose": "Intended use",
+    "purposeHint": "For example: calm dialogue; keep the same family for bold emphasis.",
+    "addFont": "Add font",
+    "imageActive": "图片音效。修改文字后将切换为可编辑文本。",
+    "imageEdited": "可编辑文本。已清除原文的背景保持不变。",
+    "editableText": "切换为可编辑文本",
+    "restoreImage": "使用图片音效",
+    "sfxRendering": "音效呈现方式",
+    "sfxImage": "生成图像",
+    "sfxFont": "字体",
+    "sfxImageDescription": "将保留音效笔画和质感的图像放在独立图层中。修改文字后会切换为可编辑文本。",
+    "sfxFontDescription": "使用所选字体排布音效，可直接修改文字、字号和字重。"
+  },
+  "codexDelegation": {
+    "title": "将所有工作交给Codex",
+    "active": "Codex自动排版",
+    "hardwareManaged": "原文识别、清除和字体匹配由 Codex 处理。"
+  },
+  "regionOptions": {
+    "standard": "普通翻译",
+    "imageCodex": "音效 · Codex",
+    "title": "区域翻译",
+    "preview": "所选区域",
+    "output": "输出形式",
+    "text": "文本",
+    "image": "音效图片",
+    "erase": "擦除原文",
+    "cancel": "取消",
+    "run": "运行",
+    "unavailable": "请检查Codex连接。",
+    "previewFailed": "无法加载所选区域。",
+    "generate": "生成",
+    "recognizing": "识别中",
+    "translationNumber": "译文 {{number}}"
+  },
+  "letteringBrush": {
+    "title": "修整音效",
+    "done": "完成",
+    "target": "修整对象",
+    "asset": "文字形状",
+    "page": "遮挡边界",
+    "mode": "画笔功能",
+    "hide": "擦除",
+    "restore": "恢复",
+    "shape": "画笔形状",
+    "circle": "圆形",
+    "square": "方形",
+    "size": "大小",
+    "softness": "柔和度",
+    "showMask": "显示蒙版",
+    "reset": "重置"
+  },
+  "codexFonts": {
+    "title": "编辑字体",
+    "edit": "编辑字体",
+    "original": "原稿",
+    "previousPage": "上一页",
+    "nextPage": "下一页",
+    "imageFailed": "无法加载原稿。",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "fit": "适应窗口",
+    "fonts": "使用的字体",
+    "chooseFont": "选择字体",
+    "missingFont": "找不到字体",
+    "replaceMissing": "请选择其他字体。",
+    "sampleText": "真的，这样也可以吗？",
+    "sample": "示例文字",
+    "sampleSize": "示例字号",
+    "weight": "字重",
+    "normal": "常规",
+    "bold": "粗体",
+    "copySuffix": "副本",
+    "deletePreset": "删除预设",
+    "saveFailed": "保存失败，请检查名称和输入内容。",
+    "retry": "重试"
+  },
+  "codexPreview": {
+    "open": "中间结果",
+    "reading": "原文翻译",
+    "background": "原文擦除",
+    "review": "嵌字预览",
+    "retry": "重新加载图片"
   }
 }

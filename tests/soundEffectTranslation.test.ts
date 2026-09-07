@@ -1,3 +1,4 @@
+import { throwSoundEffectPhaseErrors } from "../src/main/jobs/soundEffectTranslationResult";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -1007,3 +1008,20 @@ function makeBlock(id: string, inpaintExcluded: boolean) {
     inpaintExcluded,
   };
 }
+
+it("surfaces translation and persistence failures together without dropping either cause", () => {
+  const translation = new Error("translation failed");
+  const saving = new Error("save failed");
+  expect(() => throwSoundEffectPhaseErrors(translation, undefined)).toThrow(
+    translation,
+  );
+  expect(() => throwSoundEffectPhaseErrors(undefined, saving)).toThrow(saving);
+  expect(() => throwSoundEffectPhaseErrors(undefined, undefined)).not.toThrow();
+  try {
+    throwSoundEffectPhaseErrors(translation, saving);
+    throw new Error("Expected failure");
+  } catch (error) {
+    expect(error).toBeInstanceOf(AggregateError);
+    expect((error as AggregateError).errors).toEqual([translation, saving]);
+  }
+});

@@ -34,6 +34,7 @@ export const WorkspaceContent = React.memo(function WorkspaceContent(
   }
   return (
     <WorkspacePane
+      letteringRetouch={props.letteringRetouch}
       blockPointerDisabled={
         props.jobActive || !isBlockEditingTool(props.stageTool)
       }
@@ -96,6 +97,7 @@ function areWorkspaceContentPropsEqual(
 }
 
 const WORKSPACE_CONTENT_RENDER_KEYS = [
+  "letteringRetouch",
   "imageRef",
   "commandLabels",
   "interactionPreviewStore",

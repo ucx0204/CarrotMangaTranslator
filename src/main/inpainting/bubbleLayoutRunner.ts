@@ -28,6 +28,7 @@ import {
 type RenderBboxSpace = NonNullable<TranslationBlock["renderBboxSpace"]>;
 
 export type BubbleLayoutRunnerRequest = {
+  targetBlockIds?: readonly string[];
   /**
    * Mask preparation may fall back and let the final pass retry. A persisted
    * final/layout-only pass must surface detector and image-processing errors.
@@ -149,6 +150,7 @@ export async function runBubbleLayoutPostprocess({
   try {
     result = await runner.runPage({
       failureMode,
+      targetBlockIds: blockId ? [blockId] : blockIds,
       imagePath,
       page: runnerPage,
       policy: config.policy,

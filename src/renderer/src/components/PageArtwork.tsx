@@ -1,4 +1,9 @@
 import React from "react";
+import {
+  GeneratedLetteringImage,
+  LetteringPageFrame,
+} from "./GeneratedLetteringImage";
+import { getActiveGeneratedLettering } from "../../../shared/generatedLettering";
 import { normalizeCurveLayout } from "../../../shared/blockTransforms";
 import type { PageArtworkSnapshot } from "../../../shared/pageExportContracts";
 import type { TranslationBlock } from "../../../shared/textTypes";
@@ -18,6 +23,7 @@ import {
   type OverlayBlockRenderModel,
 } from "./overlayBlockModel";
 import "./overlayTransforms.css";
+import styles from "./PageArtwork.module.css";
 
 type ArtworkBlockProps = {
   afterContent?: React.ReactNode;
@@ -38,22 +44,43 @@ export const ArtworkBlock = React.memo(function ArtworkBlock({
   onPointerDown,
   warpPreview = false,
 }: ArtworkBlockProps): React.JSX.Element {
+  const content = (
+    <>
+      <TextBackgroundLayer block={block} />
+      <ArtworkBlockText
+        block={block}
+        fontCatalog={fontCatalog}
+        model={model}
+        warpPreview={warpPreview}
+      />
+    </>
+  );
   return (
     <div
       className={model.outerClassName}
+      data-layout-evidence={JSON.stringify({
+        blockId: block.id,
+        lines:
+          getActiveGeneratedLettering(block) || model.curveRenderable
+            ? null
+            : (model.layout.lines?.map((line) =>
+                line.runs.map((run) => run.text).join(""),
+              ) ?? null),
+        fontSizePx: model.layout.fontSizePx,
+        innerWidth: model.layout.innerWidth,
+        innerHeight: model.layout.innerHeight,
+        // Generated lettering fills its own image rectangle. The fallback text
+        // layout is not rendered until editing invalidates that image asset.
+        overflow: getActiveGeneratedLettering(block)
+          ? false
+          : model.layout.overflow,
+      })}
       style={model.outerStyle}
       onPointerDown={onPointerDown}
     >
-      <div className="overlay-transform-content" style={model.contentStyle}>
-        {chrome}
-        <TextBackgroundLayer block={block} />
-        <ArtworkBlockText
-          block={block}
-          fontCatalog={fontCatalog}
-          model={model}
-          warpPreview={warpPreview}
-        />
-      </div>
+      <LetteringPageFrame block={block} model={model} chrome={chrome}>
+        {content}
+      </LetteringPageFrame>
       {afterContent}
     </div>
   );
@@ -86,24 +113,26 @@ function ArtworkBlockText({
   warpPreview: boolean;
 }): React.JSX.Element | null {
   if (!model.textVisible) return null;
-  const text =
-    model.curveRenderable && block.curveLayout ? (
-      <CurveText
-        block={block}
-        curveLayout={normalizeCurveLayout(block.curveLayout)}
-        displayText={model.displayText}
-        fontCatalog={fontCatalog}
-        layout={model.layout}
-      />
-    ) : (
-      <OverlayText
-        block={block}
-        displayText={model.displayText}
-        fontCatalog={fontCatalog}
-        layout={model.layout}
-        renderDirection={model.renderDirection}
-      />
-    );
+  const artwork = getActiveGeneratedLettering(block);
+  const text = artwork ? (
+    <GeneratedLetteringImage block={block} className={styles.lettering} />
+  ) : model.curveRenderable && block.curveLayout ? (
+    <CurveText
+      block={block}
+      curveLayout={normalizeCurveLayout(block.curveLayout)}
+      displayText={model.displayText}
+      fontCatalog={fontCatalog}
+      layout={model.layout}
+    />
+  ) : (
+    <OverlayText
+      block={block}
+      displayText={model.displayText}
+      fontCatalog={fontCatalog}
+      layout={model.layout}
+      renderDirection={model.renderDirection}
+    />
+  );
   return (
     <TextEffectLayer block={block} scale={model.stageScale}>
       <WarpedTextContent

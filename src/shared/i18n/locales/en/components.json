@@ -263,7 +263,10 @@
       "right": "Align right"
     },
     "directionLabel": "Writing direction",
-    "direction": { "horizontal": "Horizontal", "vertical": "Vertical" },
+    "direction": {
+      "horizontal": "Horizontal",
+      "vertical": "Vertical"
+    },
     "size": "Size",
     "fontSize": "Font size",
     "fontSizeValue": "Font size value",
@@ -331,8 +334,16 @@
       "curve": "Curve",
       "warp": "Warp"
     },
-    "fields": { "x": "X", "y": "Y", "w": "Width", "h": "Height" },
-    "controlKinds": { "slider": "slider", "value": "value" },
+    "fields": {
+      "x": "X",
+      "y": "Y",
+      "w": "Width",
+      "h": "Height"
+    },
+    "controlKinds": {
+      "slider": "slider",
+      "value": "value"
+    },
     "lockRatio": "Keep ratio",
     "rotation": "Rotation",
     "resetRotation": "To 0°",
@@ -412,9 +423,20 @@
         "vertical": "Curves are available for one horizontal line.",
         "multiline": "Remove line breaks to restore the saved curve."
       },
-      "presets": { "straight": "Straight", "archUp": "Up", "archDown": "Down" },
-      "align": { "start": "Start", "center": "Center", "end": "End" },
-      "orientations": { "tangent": "Follow path", "upright": "Upright" }
+      "presets": {
+        "straight": "Straight",
+        "archUp": "Up",
+        "archDown": "Down"
+      },
+      "align": {
+        "start": "Start",
+        "center": "Center",
+        "end": "End"
+      },
+      "orientations": {
+        "tangent": "Follow path",
+        "upright": "Upright"
+      }
     },
     "warp": {
       "disabledDescription": "Deform the complete text with a smooth mesh while preserving fonts, outlines, inline emphasis, and curves.",
@@ -899,7 +921,10 @@
     "allChaptersInFinal": "All shared chapters are in the final list.",
     "toDelete": "To be deleted",
     "restoreItem": "Restore {{title}}",
-    "source": { "existing": "Existing", "shared": "Shared" },
+    "source": {
+      "existing": "Existing",
+      "shared": "Shared"
+    },
     "stats": {
       "final": "Final: {{count}}",
       "toDelete": "To delete: {{count}}",
@@ -920,7 +945,10 @@
       "criteriaLabel": "Sort criterion",
       "criterion": "Criterion",
       "directionLabel": "Sort direction",
-      "direction": { "asc": "Ascending", "desc": "Descending" }
+      "direction": {
+        "asc": "Ascending",
+        "desc": "Descending"
+      }
     }
   },
   "pageList": {
@@ -1022,7 +1050,10 @@
       }
     },
     "tools": {
-      "select": { "label": "Select", "title": "Select tool (1)" },
+      "select": {
+        "label": "Select",
+        "title": "Select tool (1)"
+      },
       "block": {
         "label": "Block",
         "title": "Block tool (2) — drag to add a text block"
@@ -1047,19 +1078,34 @@
         "label": "Bubble region",
         "title": "Draw the selected block's bubble region — place points, then press Enter"
       },
-      "mask": { "label": "Mask", "title": "Mask brush" },
-      "brush": { "label": "Brush", "title": "Retouch brush" },
+      "mask": {
+        "label": "Mask",
+        "title": "Mask brush"
+      },
+      "brush": {
+        "label": "Brush",
+        "title": "Retouch brush"
+      },
       "rectangle": {
         "label": "Rectangle",
         "title": "Cover with a filled rectangle"
       },
-      "ellipse": { "label": "Ellipse", "title": "Cover with a filled ellipse" },
-      "eraser": { "label": "Eraser", "title": "Erase retouch strokes" },
+      "ellipse": {
+        "label": "Ellipse",
+        "title": "Cover with a filled ellipse"
+      },
+      "eraser": {
+        "label": "Eraser",
+        "title": "Erase retouch strokes"
+      },
       "eraser-rectangle": {
         "label": "Rectangle eraser",
         "title": "Drag to restore a rectangular area from the original image"
       },
-      "picker": { "label": "Pick color", "title": "Pick a canvas color" }
+      "picker": {
+        "label": "Pick color",
+        "title": "Pick a canvas color"
+      }
     }
   },
   "bubbleLayoutEditor": {
@@ -1099,14 +1145,19 @@
     "excludeFromInpainting": "Exclude from inpainting",
     "excludedFromInpainting": "Excluded from automatic erase"
   },
-  "imageStage": { "loadingImage": "Loading image" },
+  "imageStage": {
+    "loadingImage": "Loading image"
+  },
   "install": {
     "logLabel": "Installation log",
     "checkingLogs": "Checking logs",
     "preparingModel": "Preparing Gemma 4 model",
     "installingOcr": "Installing OCR"
   },
-  "toast": { "close": "Close notification", "region": "Notifications" },
+  "toast": {
+    "close": "Close notification",
+    "region": "Notifications"
+  },
   "errorBoundary": {
     "title": "Something went wrong",
     "description": "An error occurred while rendering the screen. Your work may already be saved in the library. Restarting usually restores it.",
@@ -1263,7 +1314,10 @@
       "title": "Internet research",
       "description": "Review the existing glossary and supplement missing terms and characters.",
       "engineLabel": "Research method",
-      "engines": { "tavily": "Tavily", "codex": "Codex" },
+      "engines": {
+        "tavily": "Tavily",
+        "codex": "Codex"
+      },
       "run": "Research glossary",
       "analyzing": "Researching…",
       "cancel": "Cancel research"
@@ -1326,8 +1380,15 @@
       "apply": "Apply {{count}} selected",
       "noChanges": "No applicable changes were found.",
       "selectChange": "Select proposal for {{name}}",
-      "actions": { "add": "Add", "update": "Update", "disable": "Disable" },
-      "confidence": { "high": "High confidence", "medium": "Needs review" },
+      "actions": {
+        "add": "Add",
+        "update": "Update",
+        "disable": "Disable"
+      },
+      "confidence": {
+        "high": "High confidence",
+        "medium": "Needs review"
+      },
       "localEvidence": "Local use: {{pages}} pages · {{mentions}} mentions",
       "previewReady": "Created {{count}} unsaved proposals.",
       "failed": "Internet research failed.",
@@ -1623,7 +1684,9 @@
         "applyRecommended": "Apply recommended",
         "recommendedApplied": "Using recommended"
       },
-      "provider": { "label": "Translation engine" },
+      "provider": {
+        "label": "Translation engine"
+      },
       "maxTokens": {
         "label": "Maximum output tokens",
         "remoteDescription": "Caps the full response, including visible text and reasoning. The task recommendation is safer than using the model ceiling.",
@@ -1651,7 +1714,9 @@
         "maxOutput": "Maximum output tokens",
         "context": "Research context"
       },
-      "api": { "title": "API model" },
+      "api": {
+        "title": "API model"
+      },
       "limits": {
         "maxOutput": "Maximum output tokens",
         "context": "Research context"
@@ -1735,7 +1800,10 @@
         }
       },
       "reasoning": {
-        "none": { "label": "None", "description": "Do not use reasoning." },
+        "none": {
+          "label": "None",
+          "description": "Do not use reasoning."
+        },
         "low": {
           "label": "Low",
           "description": "Fast, lightweight reasoning."
@@ -1807,7 +1875,10 @@
           "label": "RTX 50",
           "description": "CUDA runtime tuned for RTX 50-series GPUs."
         },
-        "vulkan": { "label": "Vulkan", "description": "Vulkan GPU runtime." },
+        "vulkan": {
+          "label": "Vulkan",
+          "description": "Vulkan GPU runtime."
+        },
         "rocm": {
           "label": "AMD ROCm",
           "description": "AMD ROCm/HIP llama.cpp runtime."
@@ -1864,7 +1935,9 @@
       "customCodeAria": "Enter a custom code for {{label}}"
     },
     "gemma": {
-      "modelSource": { "label": "Model source" },
+      "modelSource": {
+        "label": "Model source"
+      },
       "preset": {
         "label": "Model preset",
         "ariaLabel": "Model preset",
@@ -2417,7 +2490,8 @@
     "showAllPages": "Show all pages",
     "showTranslations": "Show translations",
     "saveAsDefault": "Save as defaults for next translation",
-    "reviewComplete": "Complete review"
+    "reviewComplete": "Complete review",
+    "engine": "Translation method"
   },
   "stylePresets": {
     "title": "Style presets",
@@ -2461,5 +2535,101 @@
     "ungrouped": "No group",
     "releaseGroup": "Ungroup presets",
     "emptyGroup": "This group has no presets."
+  },
+  "codexTypesetting": {
+    "title": "Astra translation & lettering",
+    "description": "Use Astra with your ChatGPT account to read, translate and choose fonts, sizes and line breaks.",
+    "process": "Compare source crops → group font families → translate and typeset → inspect the rendered page. Preserve weight and effects within each family.",
+    "engine": "Translation method",
+    "preset": "Font preset",
+    "copyPreset": "Duplicate preset",
+    "presetName": "Preset name",
+    "fontCount": "Selected fonts: {{count}} / 10",
+    "font": "Font {{index}}",
+    "removeFont": "Remove font {{index}}",
+    "remove": "Remove",
+    "purpose": "Intended use",
+    "purposeHint": "For example: calm dialogue; keep the same family for bold emphasis.",
+    "addFont": "Add font",
+    "imageActive": "Image lettering. Editing the wording switches to editable text.",
+    "imageEdited": "Editable text. The cleaned background stays in place.",
+    "editableText": "Use editable text",
+    "restoreImage": "Use image lettering",
+    "sfxRendering": "Sound effect rendering",
+    "sfxImage": "Generated image",
+    "sfxFont": "Font",
+    "sfxImageDescription": "Create separate image layers that preserve the strokes and texture of sound effects. Editing the wording switches to editable text.",
+    "sfxFontDescription": "Set sound effects in the selected fonts. You can edit the wording, size and weight directly."
+  },
+  "codexDelegation": {
+    "title": "Let Codex handle everything",
+    "active": "Codex typesetting",
+    "hardwareManaged": "Codex handles source reading, erasure and font matching."
+  },
+  "regionOptions": {
+    "standard": "Standard",
+    "imageCodex": "SFX · Codex",
+    "title": "Translate region",
+    "preview": "Selected region",
+    "output": "Output",
+    "text": "Text",
+    "image": "SFX image",
+    "erase": "Erase original",
+    "cancel": "Cancel",
+    "run": "Run",
+    "unavailable": "Check your Codex connection.",
+    "previewFailed": "Could not load the selected region.",
+    "generate": "Generate",
+    "recognizing": "Reading",
+    "translationNumber": "Translation {{number}}"
+  },
+  "letteringBrush": {
+    "title": "Retouch SFX",
+    "done": "Done",
+    "target": "Mask target",
+    "asset": "Lettering",
+    "page": "Occlusion",
+    "mode": "Brush mode",
+    "hide": "Erase",
+    "restore": "Restore",
+    "shape": "Brush shape",
+    "circle": "Circle",
+    "square": "Square",
+    "size": "Size",
+    "softness": "Softness",
+    "showMask": "Show mask",
+    "reset": "Reset"
+  },
+  "codexFonts": {
+    "title": "Edit fonts",
+    "edit": "Edit fonts",
+    "original": "Original page",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "imageFailed": "Could not load the original image.",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit to view",
+    "fonts": "Fonts to use",
+    "chooseFont": "Choose a font",
+    "missingFont": "Missing font",
+    "replaceMissing": "Choose a replacement font.",
+    "sampleText": "Is it really okay to do this?",
+    "sample": "Sample text",
+    "sampleSize": "Sample size",
+    "weight": "Weight",
+    "normal": "Regular",
+    "bold": "Bold",
+    "copySuffix": "Copy",
+    "deletePreset": "Delete preset",
+    "saveFailed": "Could not save. Check the name and entries.",
+    "retry": "Retry"
+  },
+  "codexPreview": {
+    "open": "Work in progress",
+    "reading": "Source translation",
+    "background": "Source removal",
+    "review": "Lettering preview",
+    "retry": "Reload image"
   }
 }

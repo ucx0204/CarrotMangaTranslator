@@ -383,18 +383,20 @@
 }
 
 .executionOptions {
-  display: grid;
-  gap: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
   min-width: 0;
 }
 
 @media (max-width: 760px) {
   .toolbar {
-    align-items: stretch;
-    flex-direction: column;
+    flex-wrap: wrap;
   }
 
   .displayToggles {
+    flex-basis: 100%;
     padding-right: 0;
     padding-bottom: var(--sp-2);
     border-right: 0;
@@ -434,8 +436,7 @@
   }
 
   .previewHeader {
-    align-items: flex-start;
-    flex-direction: column;
+    flex-wrap: wrap;
   }
 
   .previewViewport {
@@ -443,7 +444,6 @@
   }
 
   .executionSwitches {
-    align-items: flex-start;
-    flex-direction: column;
+    flex-wrap: wrap;
   }
 }

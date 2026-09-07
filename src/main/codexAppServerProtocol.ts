@@ -32,6 +32,18 @@ export type CodexAppServerTurnRequest = {
   outputSchema?: JsonRecord;
   contextWindowTokens?: number;
   signal?: AbortSignal;
+  previewTool?: CodexAppServerPreviewTool;
+};
+
+export type CodexAppServerPreviewTool = {
+  inputSchema: JsonRecord;
+  execute: (input: unknown) => Promise<{
+    contentItems: Array<
+      | { type: "inputText"; text: string }
+      | { type: "inputImage"; imageUrl: string }
+    >;
+    success: boolean;
+  }>;
 };
 
 export type CodexAppServerTurnResult = {
@@ -40,6 +52,10 @@ export type CodexAppServerTurnResult = {
   turnId: string;
   itemId: string | null;
   webSearchCount?: number;
+  tokenUsage?: JsonRecord | null;
+  tokenUsageScope?: "ephemeral-thread-total";
+  lastTokenUsage?: JsonRecord | null;
+  routedModel?: string | null;
 };
 
 export type CodexChatGptLogin = {

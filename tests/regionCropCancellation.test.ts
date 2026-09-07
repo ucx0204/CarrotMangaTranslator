@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createRegionCropPage } from "../src/main/regionCrop";
+import {
+  createRegionCropPage,
+  loadImageForRegionCrop,
+  mapRegionBlocksToPageBlocks,
+} from "../src/main/regionCrop";
 import type { MangaPage } from "../src/shared/libraryTypes";
 
 const electronMock = vi.hoisted(() => ({
@@ -8,6 +12,7 @@ const electronMock = vi.hoisted(() => ({
 }));
 
 const fsMock = vi.hoisted(() => ({
+  readFile: vi.fn(),
   mkdir: vi.fn(),
   rm: vi.fn(),
   writeFile: vi.fn(),
@@ -21,6 +26,7 @@ vi.mock("electron", () => ({
 }));
 
 vi.mock("node:fs/promises", () => ({
+  readFile: fsMock.readFile,
   mkdir: fsMock.mkdir,
   rm: fsMock.rm,
   writeFile: fsMock.writeFile,
@@ -31,6 +37,7 @@ const TIMESTAMP = "2026-01-01T00:00:00.000Z";
 beforeEach(() => {
   electronMock.createFromBuffer.mockReset();
   electronMock.createFromPath.mockReset();
+  fsMock.readFile.mockReset().mockResolvedValue(Buffer.from("encoded-png"));
   fsMock.mkdir.mockReset().mockResolvedValue(undefined);
   fsMock.rm.mockReset().mockResolvedValue(undefined);
   fsMock.writeFile.mockReset().mockResolvedValue(undefined);
@@ -171,3 +178,68 @@ function makePage(imagePath: string): MangaPage {
     updatedAt: TIMESTAMP,
   };
 }
+
+it("keeps generated pixels while rebasing only page-space occlusion on a crop result", () => {
+  const cropPage = makePage("C:/page.png");
+  const source = {
+    id: "sfx",
+    bbox: { x: 0, y: 0, w: 500, h: 500 },
+    renderBbox: { x: 100, y: 100, w: 500, h: 500 },
+    generatedLettering: {
+      version: 1,
+      sourceText: "ドン",
+      translatedText: "쿵",
+      dataUrl: "original-rgba",
+      occlusionPolygons: [
+        [
+          { x: 0, y: 0 },
+          { x: 1000, y: 0 },
+          { x: 1000, y: 1000 },
+        ],
+      ],
+    },
+  };
+  const mapped = mapRegionBlocksToPageBlocks(
+    [
+      source,
+      {
+        ...source,
+        generatedLettering: {
+          ...source.generatedLettering,
+          occlusionPolygons: undefined,
+        },
+      },
+    ] as Parameters<typeof mapRegionBlocksToPageBlocks>[0],
+    { ...cropPage, width: 1000, height: 2000 },
+    { x: 100, y: 200, w: 400, h: 600 },
+  );
+  expect(mapped[0].generatedLettering?.occlusionPolygons).toEqual([
+    [
+      { x: 100, y: 100 },
+      { x: 500, y: 100 },
+      { x: 500, y: 400 },
+    ],
+  ]);
+  expect(mapped[0].generatedLettering?.dataUrl).toBe("original-rgba");
+  expect(mapped[1].generatedLettering?.occlusionPolygons).toBeUndefined();
+  expect(source.generatedLettering.occlusionPolygons[0][0]).toEqual({
+    x: 0,
+    y: 0,
+  });
+});
+
+it("decodes existing long Windows crop paths from file bytes when Chromium path decoding fails", async () => {
+  const path = "C:/library/" + "long-chapter/".repeat(24) + "2.jpg";
+  const source = makeSourceImage();
+  electronMock.createFromPath.mockReturnValue({ isEmpty: () => true });
+  electronMock.createFromBuffer.mockReturnValue(source);
+  const fallback = vi.fn();
+  expect(
+    await loadImageForRegionCrop(path, fallback, new AbortController().signal),
+  ).toBe(source);
+  expect(fsMock.readFile).toHaveBeenCalledWith(path);
+  expect(electronMock.createFromBuffer).toHaveBeenCalledWith(
+    Buffer.from("encoded-png"),
+  );
+  expect(fallback).not.toHaveBeenCalled();
+});

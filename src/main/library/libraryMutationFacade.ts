@@ -100,9 +100,10 @@ export async function appendAnalyzedPageBlocks(
   chapterId: string,
   pageId: string,
   blocks: MangaPage["blocks"],
+  options?: Parameters<typeof appendAnalyzedPageBlocksUnlocked>[3],
 ): Promise<ChapterSnapshot> {
   const chapter = await withLibraryMutation(() =>
-    appendAnalyzedPageBlocksUnlocked(chapterId, pageId, blocks),
+    appendAnalyzedPageBlocksUnlocked(chapterId, pageId, blocks, options),
   );
   notifyLinkedWorkspacePagesSaved(chapterId, [pageId]);
   return chapter;

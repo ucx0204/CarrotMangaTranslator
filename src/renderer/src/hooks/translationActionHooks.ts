@@ -1,10 +1,12 @@
-import { useCallback, useMemo, useRef, type MutableRefObject } from "react";
+import { resolveCodexTypesettingOptions } from "../../../shared/codexTypesettingDefaults";
+import { useRegionTranslationDialog } from "./useRegionTranslationDialog";
+import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import { analysisGateway as mangaGateway } from "../api/analysisGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
-import { markChapterPagesRunning } from "../lib/chapterSync";
+import { markOpenChapterRunning } from "../lib/translationChapterSync";
 import type { NotificationPort } from "../lib/notificationPort";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 import type {
@@ -84,10 +86,11 @@ export function useTranslationActionsImpl(
     rawRunTranslationFlow,
     options,
   );
-  const translateSelectedRegion = useTranslateSelectedRegionAction(
+  const executeRegion = useTranslateSelectedRegionAction(
     options,
     notificationPort,
   );
+  const region = useRegionTranslationDialog(options, executeRegion);
   const translateSoundEffects = useTranslateSoundEffectsAction(
     options,
     notificationPort,
@@ -96,7 +99,8 @@ export function useTranslationActionsImpl(
   return {
     runAnalysis,
     runTranslationFlow,
-    translateSelectedRegion,
+    translateSelectedRegion: region.open,
+    regionTranslationDialog: region.dialog,
     translateSoundEffects,
   };
 }
@@ -227,6 +231,8 @@ function resolveFlowCheckpointPageIds(
 
 function useExecuteAnalysisJob(
   {
+    settings,
+    codexDelegationActive,
     beforeTranslate,
     currentChapter,
     currentChapterRef,
@@ -268,9 +274,23 @@ function useExecuteAnalysisJob(
       t,
     ],
   );
+  const delegated = useMemo(
+    () =>
+      codexDelegationActive
+        ? resolveCodexTypesettingOptions(
+            settings?.ui?.codexTypesettingPreferences,
+            settings?.translation?.targetLanguage ?? "ko",
+          )
+        : undefined,
+    [codexDelegationActive, settings],
+  );
   return useCallback<ExecuteAnalysisJob>(
-    (job) => executeAnalysisJob(job, context),
-    [context],
+    (job) =>
+      executeAnalysisJob(
+        { ...job, codexTypesetting: job.codexTypesetting ?? delegated },
+        context,
+      ),
+    [context, delegated],
   );
 }
 
@@ -377,32 +397,4 @@ function handleAnalysisJobError(
     );
   }
   return "failed";
-}
-
-function markOpenChapterRunning({
-  currentChapter,
-  currentChapterRef,
-  pageId,
-  pageIds,
-  runMode,
-  setCurrentChapter,
-}: {
-  currentChapter: ChapterSnapshot | null;
-  currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
-  pageId?: string;
-  pageIds?: string[];
-  runMode: RunAnalysisMode;
-  setCurrentChapter: UseTranslationActionsOptions["setCurrentChapter"];
-}): void {
-  if (!currentChapter) {
-    return;
-  }
-  const optimisticChapter = markChapterPagesRunning(
-    currentChapter,
-    runMode,
-    pageId,
-    pageIds,
-  );
-  currentChapterRef.current = optimisticChapter;
-  setCurrentChapter(optimisticChapter);
 }

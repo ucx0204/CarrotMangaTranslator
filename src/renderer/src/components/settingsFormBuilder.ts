@@ -56,6 +56,7 @@ type BuildSettingsFromFormInput = {
   mmprojOffload: boolean;
   llamaRuntimeProfile: LlamaRuntimeProfile;
   allowUnsafeUnifiedMemory: boolean;
+  codexDelegateAll?: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
   researchTavilyAnalysisProvider: TavilyAnalysisProvider;
@@ -124,6 +125,10 @@ export function buildSettingsFromForm(
     ),
     gemma: buildGemmaSettings(input),
     codex: {
+      delegateAll:
+        input.modelProvider === "openai-codex" &&
+        input.codexModel === "gpt-6-astra" &&
+        input.codexDelegateAll === true,
       model: input.codexModel || input.initialSettings.codex.model,
       reasoningEffort: input.codexReasoningEffort,
     },

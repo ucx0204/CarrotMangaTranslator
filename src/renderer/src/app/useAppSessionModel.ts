@@ -114,6 +114,7 @@ function useSessionLibraryDrop(
   return useLibraryDropImport({
     blocked:
       chapter.dropImportModalBlocked ||
+      Boolean(translation.translationActions.regionTranslationDialog) ||
       chapter.derivedState.jobActive ||
       chapter.uiState.translationFlowActive ||
       translation.workspaceHistory.busy ||
@@ -181,7 +182,7 @@ function usePanelCommandHandler(
   const setFontManagerOpen = chapter.uiState.setFontManagerOpen;
   const openSettings = chapter.settingsDialog.openSettings;
   const startAreaTranslate =
-    inpainting.pointerHandlers.startRegionTranslationSelection;
+    inpainting.commandRegistry.byId["translate-region"].run;
   const runInpainting = inpainting.inpaintingActions.runInpainting;
   const runBubbleLayout = inpainting.inpaintingActions.runBubbleLayout;
   const presetActions = createPanelStylePresetActions(chapter);
@@ -205,6 +206,7 @@ function usePanelCommandHandler(
           openBlockLibrary: () => setBlockLibraryOpen(true),
           suggestConsistentEdit: (find, replace) =>
             openConditionalBatchSuggestion(chapter, find, replace),
+          setLetteringTool: chapter.uiState.setLetteringTool,
           selectWorkspaceTool,
           startAreaTranslate,
         },

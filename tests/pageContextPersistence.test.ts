@@ -1,3 +1,7 @@
+import { createCodexRunContext } from "../src/main/pipeline/codexTypesettingContext";
+import { buildPageStoryMemory } from "../src/main/pipeline/storyMemoryBuilder";
+import type { PipelineOptions } from "../src/main/pipeline/types";
+import type { CodexPageReading } from "../src/shared/codexTypesettingTypes";
 import { describe, expect, it, vi } from "vitest";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type {
@@ -177,3 +181,232 @@ function makePage(): MangaPage {
     updatedAt: NOW,
   };
 }
+
+function codexContextFixture() {
+  const page = makePage();
+  const guide = makeGuide();
+  guide.glossary = [
+    {
+      id: "manual",
+      source: "勇者",
+      target: "용사님",
+      category: "term",
+      origin: "manual",
+      enabled: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    },
+    {
+      id: "disabled",
+      source: "幽霊",
+      target: "비활성 용어",
+      category: "term",
+      origin: "manual",
+      enabled: false,
+      createdAt: NOW,
+      updatedAt: NOW,
+    },
+  ];
+  const memory = makeMemory();
+  memory.pages = [
+    {
+      ...buildPageStoryMemory({
+        page: { ...page, id: "earlier" },
+        pageIndex: 2,
+      }),
+      visualSummary: "지난 장면",
+    },
+    {
+      ...buildPageStoryMemory({
+        page: { ...page, id: "future" },
+        pageIndex: 9,
+      }),
+      visualSummary: "아직 읽지 않은 미래 장면",
+    },
+  ];
+  const options: PipelineOptions = {
+    jobId: "codex-memory",
+    pages: [page],
+    runPaths: {} as PipelineOptions["runPaths"],
+    emit: vi.fn(),
+    signal: new AbortController().signal,
+    canonicalPageIndexById: new Map([[page.id, 5]]),
+    onPageComplete: vi.fn(async () => true),
+    workContext: {
+      workId: guide.workId,
+      chapterId: memory.chapterId,
+      styleGuide: guide,
+      storyMemory: memory,
+      recentPageCount: 6,
+    },
+  };
+  const reading: CodexPageReading = {
+    summary: "용사가 성에 도착했다.",
+    regions: [
+      {
+        id: "one",
+        action: "text",
+        role: "ordinary",
+        sourceText: "勇者は城にいる",
+        translatedText: "용사는 성에 있다",
+        sourceBbox: page.blocks[0].bbox,
+        renderBbox: page.blocks[0].bbox,
+        direction: "vertical",
+        background: "white",
+        reason: "dialogue",
+      },
+    ],
+    memory: {
+      glossary: [
+        { source: "勇者", target: "용사", category: "term" },
+        { source: "城", target: "성", category: "place" },
+        { source: "王女", target: "공주", category: "character" },
+      ],
+      characters: [],
+    },
+  };
+  return { page, reading, options, dependencies: makeDependencies() };
+}
+
+describe("Codex terminology and memory", () => {
+  it("publishes source and cleaned previews without changing stored page or memory authority", () => {
+    const { page, reading, options, dependencies } = codexContextFixture();
+    page.inpaintedImagePath = "previous-background.png";
+    const before = structuredClone(page);
+    const context = createCodexRunContext(options, dependencies);
+    context.preview(page, reading, "reading");
+    expect(options.emit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        codexProgress: expect.objectContaining({
+          preview: expect.objectContaining({
+            imagePath: page.imagePath,
+            regions: [
+              expect.objectContaining({
+                translation: reading.regions[0].translatedText,
+              }),
+            ],
+          }),
+        }),
+      }),
+    );
+    context.preview(
+      { ...page, inpaintedImagePath: "clean.png" },
+      undefined,
+      "background",
+    );
+    expect(options.emit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        codexProgress: expect.objectContaining({
+          preview: expect.objectContaining({
+            imagePath: "clean.png",
+            regions: [],
+          }),
+        }),
+      }),
+    );
+    expect(options.onPageComplete).not.toHaveBeenCalled();
+    expect(
+      dependencies.repository.saveChapterStoryMemory,
+    ).not.toHaveBeenCalled();
+    expect(page).toEqual(before);
+  });
+
+  it("uses the original page context for each independent SFX crop", async () => {
+    const { page, reading, options, dependencies } = codexContextFixture();
+    const crop = { ...page, id: "crop" };
+    options.pages = [crop];
+    options.canonicalPageIndexById = undefined;
+    options.regionContexts = new Map([
+      [
+        crop.id,
+        {
+          sourcePage: page,
+          sourcePageIndex: 5,
+          cropRect: { x: 1, y: 2, w: 10, h: 20 },
+        },
+      ],
+    ]);
+    const context = createCodexRunContext(options, dependencies);
+    expect(context.translationContext(crop)).toContain("지난 장면");
+    await context.commit(crop, reading);
+    expect(
+      dependencies.repository.saveChapterStoryMemory,
+    ).not.toHaveBeenCalled();
+  });
+  it("uses enabled terminology and strictly prior memory at the canonical page index", () => {
+    const { page, options, dependencies } = codexContextFixture();
+    const context = createCodexRunContext(
+      options,
+      dependencies,
+    ).translationContext(page);
+    expect(context).toContain("용사님");
+    expect(context).toContain("지난 장면");
+    expect(context).not.toContain("비활성 용어");
+    expect(context).not.toContain("아직 읽지 않은 미래 장면");
+    expect(
+      dependencies.repository.saveChapterStoryMemory,
+    ).not.toHaveBeenCalled();
+  });
+  it("carries grounded readings forward without persisting early or overwriting manual terms", async () => {
+    const { page, reading, options, dependencies } = codexContextFixture();
+    const context = createCodexRunContext(options, dependencies);
+    context.rememberReading(page, reading);
+    const prompt = context.translationContext({ ...page, id: "next" });
+    expect(prompt).toContain("용사님");
+    expect(prompt).toContain("城");
+    expect(prompt).not.toContain("王女");
+    expect(dependencies.repository.saveWorkStyleGuide).not.toHaveBeenCalled();
+    expect(options.workContext?.styleGuide.glossary).toHaveLength(2);
+    const committed = {
+      ...page,
+      blocks: [
+        {
+          ...page.blocks[0],
+          sourceText: reading.regions[0].sourceText,
+          translatedText: reading.regions[0].translatedText,
+        },
+      ],
+    };
+    await context.commit(committed, reading);
+    expect(options.onPageComplete).toHaveBeenCalledWith(committed);
+    expect(dependencies.repository.saveWorkStyleGuide).toHaveBeenCalledWith(
+      expect.objectContaining({
+        glossary: expect.arrayContaining([
+          expect.objectContaining({ source: "城", target: "성" }),
+          expect.objectContaining({
+            source: "勇者",
+            target: "용사님",
+            origin: "manual",
+          }),
+        ]),
+      }),
+    );
+    expect(dependencies.repository.saveChapterStoryMemory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pages: expect.arrayContaining([
+          expect.objectContaining({ pageId: page.id, pageIndex: 5 }),
+        ]),
+      }),
+    );
+  });
+  it.each(["rejected", "region", "disabled", "unsaved"] as const)(
+    "does not write memory for %s results",
+    async (mode) => {
+      const { page, reading, options, dependencies } = codexContextFixture();
+      if (mode === "rejected") options.onPageComplete = async () => false;
+      if (mode === "region")
+        options.regionContext = {
+          sourcePage: page,
+          sourcePageIndex: 5,
+          cropRect: { x: 1, y: 1, w: 20, h: 20 },
+        };
+      if (mode === "disabled") options.writeStoryMemory = false;
+      if (mode === "unsaved") options.onPageComplete = undefined;
+      await createCodexRunContext(options, dependencies).commit(page, reading);
+      expect(dependencies.repository.saveWorkStyleGuide).not.toHaveBeenCalled();
+      expect(
+        dependencies.repository.saveChapterStoryMemory,
+      ).not.toHaveBeenCalled();
+    },
+  );
+});

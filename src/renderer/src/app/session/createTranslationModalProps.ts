@@ -10,6 +10,11 @@ export function createTranslationOptionsProps({
 }: AppSessionViewModel): AppSessionViewProps["translationOptionsProps"] {
   return uiState.translateOptionsOpen && core.currentChapter
     ? {
+        codexDelegateAll: settingsDialog.codexDelegationEnabled,
+        codexUnavailable:
+          settingsDialog.codexDelegationEnabled &&
+          !settingsDialog.codexDelegationActive,
+        onSaveCodexPreferences: settingsDialog.saveCodexPreferences,
         chapter: core.currentChapter,
         currentPageId: core.selectedPageId,
         initialScope: uiState.translateOptionsInitialScope,
@@ -37,6 +42,10 @@ export function createPageRetranslateProps({
     : undefined;
   return pageId && page
     ? {
+        codexDelegateAll: settingsDialog.codexDelegationEnabled,
+        codexUnavailable:
+          settingsDialog.codexDelegationEnabled &&
+          !settingsDialog.codexDelegationActive,
         blockCount: page.blocks.length,
         onClose: () => uiState.setRetranslatePageId(null),
         onPersistDefaults: createPersistUiDefaults(settingsDialog),

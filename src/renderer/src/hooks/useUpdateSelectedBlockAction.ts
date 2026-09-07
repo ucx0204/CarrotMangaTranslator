@@ -23,7 +23,8 @@ type UpdateBlockOptions = {
 function resolveBlockEditMergeKey(
   blockId: string,
   patch: Partial<TranslationBlock>,
-): string {
+): string | undefined {
+  if ("generatedLettering" in patch) return undefined;
   const isTextEdit = "translatedText" in patch || "sourceText" in patch;
   return `${isTextEdit ? "text" : "style"}:${blockId}`;
 }

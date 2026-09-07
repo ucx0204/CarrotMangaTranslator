@@ -1,3 +1,4 @@
+import { letteringToolSchema } from "./generatedLetteringMaskSchemas";
 import { z } from "zod";
 import { ALL_BLOCK_FORMAT_GROUP_IDS } from "./blockFormat";
 import { PANEL_FORMAT_FIELD_KEYS } from "./panelBridgeTypes";
@@ -95,9 +96,11 @@ export const PanelSyncStateSchema = z
       .min(0)
       .max(Number.MAX_SAFE_INTEGER),
     editorDisabled: z.boolean(),
+    aiUnavailable: z.boolean().optional(),
     disableChapterApply: z.boolean(),
     areaTranslateAvailable: z.boolean(),
     areaTranslateSelecting: z.boolean(),
+    letteringTool: letteringToolSchema.optional(),
     transformMode: z.enum(["select", "perspective", "curve", "warp"]),
     selectedPageSize: z
       .object({
@@ -184,6 +187,9 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
       type: z.literal("removeBubbleLayout"),
       blockId: TranslationBlockObjectSchema.shape.id,
     })
+    .strict(),
+  z
+    .object({ type: z.literal("setLetteringTool"), tool: letteringToolSchema })
     .strict(),
   z
     .object({

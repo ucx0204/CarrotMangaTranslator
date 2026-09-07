@@ -105,7 +105,7 @@ describe("font-face-manifest-v1", () => {
       family_count: 21,
       face_count: 37,
       limited_hangul_syllable_face_count: 8,
-      static_face_weight_range_count: 4,
+      static_face_weight_range_count: 2,
       synthetic_or_aliased_800_family_count: 21,
     });
 

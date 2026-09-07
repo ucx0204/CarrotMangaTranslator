@@ -278,6 +278,13 @@ function applyCheckedLayout(
       "페이지의 텍스트 배치가 다른 작업으로 변경되어 인페인팅 결과를 저장할 수 없습니다.",
     );
   }
+  if (layoutPatch?.replacementBlocks) {
+    assertExpectedPageRevision(record, layoutPatch.expectedRevision);
+    return {
+      ...record,
+      blocks: structuredClone(layoutPatch.replacementBlocks),
+    };
+  }
   return layoutPatch
     ? applyInpaintingLayoutStates(record, layoutPatch.states)
     : record;

@@ -22,7 +22,13 @@ export function createWorkspaceProps({
 }: AppSessionViewModel): AppSessionViewProps["workspaceProps"] {
   return {
     ...createWorkspaceViewProps(uiState),
+    letteringRetouch: createLetteringRetouch(
+      derivedState.selectedPageEditLocked || workspaceHistory.busy,
+      uiState,
+      blockEditingActions.updateSelectedBlock,
+    ),
     commandLabels: commandRegistry.labels,
+    onToggleRegionTranslation: commandRegistry.byId["translate-region"].run,
     wheelZoomSensitivityPercent:
       settingsDialog.settings?.ui?.wheelZoomSensitivityPercent ?? 1,
     interactionPreviewStore: pointerHandlers.interactionPreviewStore,
@@ -49,11 +55,9 @@ export function createWorkspaceProps({
     onOpenTranslationSource: commandRegistry.byId["open-translate-source"].run,
     progressSnapshot: derivedState.progressSnapshot,
     regionSelectionActive: Boolean(core.regionSelection?.active),
-    regionTranslationAvailable: isWorkspaceImageReadyForSelectedPage({
-      selectedPage: derivedState.selectedPage,
-      workspaceImageDataUrl: derivedState.workspaceImageDataUrl,
-      workspaceImagePageId: derivedState.workspaceImagePageId,
-    }),
+    regionTranslationAvailable:
+      isWorkspaceImageReadyForSelectedPage(derivedState) &&
+      !inpaintingBridge.contextValue.aiUnavailable,
     regionSelectionRect: derivedState.regionSelectionRect,
     retouchCursor: inpaintingBridge.retouchCursor,
     retouchOriginalImageDataUrl: derivedState.selectedPageOriginalImageDataUrl,
@@ -107,7 +111,6 @@ function createWorkspaceInteractionProps({
       core.setRegionSelection(null);
       uiState.selectWorkspaceTool(tool);
     },
-    onToggleRegionTranslation: pointerHandlers.startRegionTranslationSelection,
     onStagePointerDown: pointerHandlers.onStagePointerDown,
     onStagePointerLeave: pointerHandlers.onStagePointerLeave,
     onStagePointerMove: pointerHandlers.onStagePointerMove,
@@ -115,5 +118,17 @@ function createWorkspaceInteractionProps({
     onUndoBubbleLayoutPoint: pointerHandlers.undoBubbleLayoutPoint,
     onToggleStageToolbarHidden: () =>
       uiState.setStageToolbarHidden((hidden) => !hidden),
+  };
+}
+
+function createLetteringRetouch(
+  locked: boolean,
+  uiState: AppSessionViewModel["uiState"],
+  onUpdate: AppSessionViewModel["blockEditingActions"]["updateSelectedBlock"],
+) {
+  if (locked || uiState.stageTool !== "select") return undefined;
+  return {
+    tool: uiState.letteringTool,
+    onUpdate,
   };
 }

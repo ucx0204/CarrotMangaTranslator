@@ -5,6 +5,7 @@ import {
   resolveTextGlowCssShadow,
 } from "../../../shared/textGlow";
 import {
+  resolveAutomaticTextOutlineColor,
   resolveEffectiveTextColor,
   resolveEffectiveTextOutlineColor,
   resolveEffectiveTextOutlineWidthPx,
@@ -91,6 +92,13 @@ export function resolveEditorRunVisualStyle(
   const glow = typeof main.textShadow === "string" ? main.textShadow : "";
   return {
     ...main,
+    // This editing-only backdrop keeps unoutlined ink readable in either theme.
+    // Run datasets and the artwork/export renderer retain the original background.
+    backgroundColor:
+      main.backgroundColor ??
+      (outlineWidth === 0
+        ? resolveAutomaticTextOutlineColor({ textColor: String(main.color) })
+        : undefined),
     WebkitTextStrokeColor: "transparent",
     WebkitTextStrokeWidth: "0px",
     textShadow: [outlineShadow, glow].filter(Boolean).join(", ") || undefined,

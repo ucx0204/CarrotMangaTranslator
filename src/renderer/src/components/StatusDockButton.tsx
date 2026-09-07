@@ -352,7 +352,7 @@ function useStatusDockController(latest: string | undefined) {
     triggerRef,
   } = usePopupController({
     initialFocus: false,
-    isInsidePopup: isStatusSoundPopoverTarget,
+    isInsidePopup: isStatusChildSurfaceTarget,
     open,
     onOpenChange: setOpen,
   });
@@ -383,9 +383,15 @@ function useStatusDockController(latest: string | undefined) {
   };
 }
 
-function isStatusSoundPopoverTarget(target: Node): boolean {
+function isStatusChildSurfaceTarget(target: Node, root: HTMLElement): boolean {
   const element = target instanceof Element ? target : target.parentElement;
-  return Boolean(element?.closest(".status-sound-popover"));
+  if (element?.closest(".status-sound-popover")) return true;
+  return [...root.querySelectorAll("[aria-controls]")].some((control) =>
+    control
+      .getAttribute("aria-controls")
+      ?.split(/\s+/)
+      .some((id) => document.getElementById(id)?.contains(target)),
+  );
 }
 
 function resolveStatusIndicator(

@@ -4,6 +4,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   createShortcutHandlers,
+  useAppSessionShortcuts,
   resolveActiveModalActionId,
 } from "../src/renderer/src/app/session/useAppSessionShortcuts";
 import { useAppSessionUiState } from "../src/renderer/src/app/session/useAppSessionUiState";
@@ -13,6 +14,41 @@ import type { TranslationBlock } from "../src/shared/textTypes";
 import type { WorkspaceZoomController } from "../src/renderer/src/lib/workspaceZoom";
 
 describe("app-session shortcut handlers", () => {
+  it("blocks workspace undo while the region modal is open and restores it after closing", () => {
+    const spies = makeSpies();
+    const { rerender } = renderHook(
+      ({ open }) => {
+        const uiState = useAppSessionUiState();
+        const chapter = makeChapterController(uiState, spies, false, null);
+        const translation: Parameters<
+          typeof useAppSessionShortcuts
+        >[0]["translation"] = makeTranslationController(spies);
+        translation.translationActions.regionTranslationDialog = open
+          ? ({} as never)
+          : null;
+        useAppSessionShortcuts({
+          chapter,
+          translation,
+          inpainting: makeInpaintingController(spies),
+        });
+      },
+      { initialProps: { open: true } },
+    );
+    const undo = () =>
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "z",
+          code: "KeyZ",
+          ctrlKey: true,
+          bubbles: true,
+        }),
+      );
+    act(undo);
+    expect(spies.undo).not.toHaveBeenCalled();
+    rerender({ open: false });
+    act(undo);
+    expect(spies.undo).toHaveBeenCalledOnce();
+  });
   it("provides a concrete runtime handler for every registered shortcut", () => {
     const spies = makeSpies();
     const { result } = renderShortcutHarness(spies);
@@ -290,6 +326,7 @@ function makeChapterController(
       selectedBlockId: "block-b",
       selectedBlockIdRef: { current: "block-b" },
       workspaceZoomControllerRef: { current: workspaceZoomController },
+      workspacePanelRef: { current: document.body },
       setRegionSelection: spies.setRegionSelection,
       setSelectedBlockId: spies.setSelectedBlockId,
       setSelectedBlockIds: spies.setSelectedBlockIds,

@@ -109,6 +109,10 @@ function useSettingsFormSetters(
         setValues,
         "allowUnsafeUnifiedMemory",
       ),
+      setCodexDelegateAll: createFormFieldDispatch(
+        setValues,
+        "codexDelegateAll",
+      ),
       setCodexModel: createFormFieldDispatch(setValues, "codexModel"),
       setCodexReasoningEffort: createFormFieldDispatch(
         setValues,

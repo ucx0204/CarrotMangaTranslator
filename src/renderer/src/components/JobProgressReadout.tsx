@@ -4,6 +4,7 @@ import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { useEtaText } from "../hooks/useEtaText";
 import { ProgressBar } from "./ui/ProgressBar";
+import { CodexJobPreview } from "./CodexJobPreview";
 
 export type JobProgressReadoutProps = {
   jobState: JobState;
@@ -38,14 +39,15 @@ export function JobProgressReadout({
   showEta = true,
 }: JobProgressReadoutProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const { t: rendererT } = useTranslation("renderer");
   const counts = resolveProgressCounts(jobState, progressSnapshot);
-  const etaText = useEtaText(progressSnapshot);
+  const etaText = useEtaText(jobState.codexProgress ? null : progressSnapshot);
   const headline = resolveProgressHeadline(jobState.progressText, counts);
-  const valueText =
-    valueTextOverride ??
-    (counts
-      ? `${counts.current} / ${counts.total}`
-      : (indeterminateLabel ?? t("common.inProgress")));
+  const valueText = resolveCountLabel(
+    valueTextOverride,
+    counts,
+    indeterminateLabel ?? t("common.inProgress"),
+  );
 
   return (
     <>
@@ -54,7 +56,7 @@ export function JobProgressReadout({
         <strong>{valueText}</strong>
       </div>
       <ProgressNotes
-        detail={showDetail ? jobState.detail : undefined}
+        detail={showDetail ? progressDetail(jobState, rendererT) : undefined}
         etaText={showEta ? etaText : null}
       />
       <ProgressBar
@@ -65,6 +67,10 @@ export function JobProgressReadout({
         valueText={valueText}
       />
       {stats ? <div className="progress-stats">{stats}</div> : null}
+      <CodexJobPreview
+        key={jobState.id}
+        preview={jobState.codexProgress?.preview}
+      />
     </>
   );
 }
@@ -129,4 +135,30 @@ function resolveProgressCounts(
   }
   if (progressSnapshot) return null;
   return resolveJobStateCounts(jobState);
+}
+
+function progressDetail(
+  job: JobState,
+  rendererT: ReturnType<typeof useTranslation<"renderer">>["t"],
+) {
+  const progress = job.codexProgress;
+  if (!progress) return job.detail;
+  return [
+    progress.page ? rendererT("job.codex.page", { page: progress.page }) : null,
+    rendererT(`job.codex.steps.${progress.step}`, {
+      attempt: progress.attempt,
+      seconds: progress.delaySeconds,
+    }),
+    progress.part ? `${progress.part} / ${progress.parts}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function resolveCountLabel(
+  override: string | undefined,
+  counts: { current: number; total: number } | null,
+  pending: string,
+): string {
+  return override ?? (counts ? `${counts.current} / ${counts.total}` : pending);
 }

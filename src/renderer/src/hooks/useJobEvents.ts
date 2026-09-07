@@ -373,6 +373,9 @@ function buildNextJobState({
     ),
     failureGuidance:
       event.failureGuidance ?? (sameJob ? current.failureGuidance : undefined),
+    codexProgress: preserveCurrentStatus
+      ? current.codexProgress
+      : event.codexProgress,
     research: event.research ?? (sameJob ? current.research : undefined),
     targets: event.targets ?? (sameJob ? current.targets : undefined),
   };

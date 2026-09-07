@@ -26,6 +26,98 @@ afterEach(() => {
 });
 
 describe("CodexAppServerClient", () => {
+  it.each([
+    ["item", "total"],
+    ["turn", "total"],
+    ["item", "last-only"],
+    ["turn", "last-only"],
+    ["item", "none"],
+    ["turn", "none"],
+  ])(
+    "receives %s image completion with %s accounting",
+    async (delivery, usageMode) => {
+      const root = mkdtempSync(join(tmpdir(), "mgt-codex-image-client-test-"));
+      temporaryDirectories.push(root);
+      const fixturePath = join(root, "fake-app-server.cjs");
+      const auditPath = join(root, "image-audit.json");
+      writeFileSync(
+        fixturePath,
+        fakeAppServerSource(delivery, usageMode),
+        "utf8",
+      );
+      const paths = createAppPaths(root);
+      const client = await CodexAppServerClient.start(
+        { paths, appVersion: "test", capability: "image-generation" },
+        {
+          resolveBinary: () => ({
+            executablePath: "fake-codex",
+            packageVersion: "0.153.1",
+            source: "packaged",
+            packageName: "@openai/codex-win32-x64",
+            triple: "x86_64-pc-windows-msvc",
+            executableName: "codex.exe",
+          }),
+          spawnAppServer: (_path, _args, options) =>
+            spawn(process.execPath, [fixturePath], {
+              cwd: options.cwd,
+              env: { ...options.env, FAKE_CODEX_AUDIT_PATH: auditPath },
+              stdio: ["pipe", "pipe", "pipe"],
+              windowsHide: true,
+            }),
+        },
+      );
+      try {
+        const result = await client.runEphemeralTurn({
+          model: "gpt-6-astra",
+          effort: "high",
+          instructions: "Make a transparent sound effect.",
+          input: [{ type: "text", text: "image" }],
+          cwd: root,
+        });
+        expect(result).toMatchObject({
+          itemId: "image-1",
+          routedModel: "gpt-6-astra",
+        });
+        expect(result.tokenUsage).toEqual(
+          usageMode === "total"
+            ? {
+                inputTokens: 300,
+                outputTokens: 70,
+                totalTokens: 370,
+                cachedInputTokens: 90,
+                reasoningOutputTokens: 20,
+              }
+            : undefined,
+        );
+        expect(result.tokenUsageScope).toBe(
+          usageMode === "total" ? "ephemeral-thread-total" : undefined,
+        );
+        expect(result.lastTokenUsage).toEqual(
+          usageMode !== "none"
+            ? {
+                inputTokens: 120,
+                outputTokens: 30,
+                totalTokens: 150,
+                cachedInputTokens: 40,
+                reasoningOutputTokens: 10,
+              }
+            : undefined,
+        );
+        expect(JSON.parse(result.text)).toMatchObject({ result: "cG5n" });
+      } finally {
+        await client.dispose();
+      }
+      const messages = JSON.parse(readFileSync(auditPath, "utf8"));
+      expect(findRequest(messages, "thread/start")).toMatchObject({
+        params: {
+          sandbox: "workspace-write",
+          ephemeral: true,
+          config: { features: { image_generation: true, shell_tool: false } },
+        },
+      });
+    },
+  );
+
   it("counts unique completed web searches and normalizes login failures", () => {
     expect(
       extractCompletedTurn(
@@ -426,10 +518,12 @@ function restoreEnvironmentValue(key: string, value: string | undefined): void {
   else process.env[key] = value;
 }
 
-function fakeAppServerSource(): string {
+function fakeAppServerSource(imageDelivery = "", usageMode = "total"): string {
   return String.raw`
 const { writeFileSync } = require("node:fs");
 const { createInterface } = require("node:readline");
+const imageDelivery = ${JSON.stringify(imageDelivery)};
+const usageMode = ${JSON.stringify(usageMode)};
 const messages = [];
 const lines = createInterface({ input: process.stdin, crlfDelay: Infinity });
 const send = (message) => process.stdout.write(JSON.stringify(message) + "\n");
@@ -489,7 +583,7 @@ lines.on("line", (line) => {
     case "thread/start":
       if (
         params.approvalPolicy !== "never" ||
-        params.sandbox !== "read-only" ||
+        params.sandbox !== (imageDelivery ? "workspace-write" : "read-only") ||
         params.ephemeral !== true ||
         params.config?.project_doc_max_bytes !== 0
       ) {
@@ -501,9 +595,33 @@ lines.on("line", (line) => {
     case "turn/start":
       if (
         params.input?.[0]?.text_elements?.length !== 0 ||
-        params.outputSchema?.properties?.translated?.type !== "string"
+        (!imageDelivery && params.outputSchema?.properties?.translated?.type !== "string")
       ) {
         fail(message.id, "turn input was not translated");
+        break;
+      }
+      if (imageDelivery) {
+        const item = { type: "imageGeneration", id: "image-1", status: "completed", result: "cG5n", revisedPrompt: "visible text" };
+        send({ method: "item/completed", params: { threadId: "unrelated", turnId: "turn-1", item } });
+        send({ method: "item/completed", params: { threadId: "thread-1", turnId: "wrong-turn", item } });
+        send({ method: "item/completed", params: { threadId: "thread-1", turnId: "turn-1", item: { type: "agentMessage" } } });
+        const usage = (threadId, turnId, tokenUsage) => send({ method: "thread/tokenUsage/updated", params: { threadId, turnId, tokenUsage } });
+        const first = { inputTokens: 180, outputTokens: 40, totalTokens: 220, cachedInputTokens: 50, reasoningOutputTokens: 10 };
+        const last = { inputTokens: 120, outputTokens: 30, totalTokens: 150, cachedInputTokens: 40, reasoningOutputTokens: 10 };
+        const total = { inputTokens: 300, outputTokens: 70, totalTokens: 370, cachedInputTokens: 90, reasoningOutputTokens: 20 };
+        if (usageMode !== "none") {
+          usage("thread-1", "turn-1", { last: first, ...(usageMode === "total" ? { total: first } : {}) });
+          for (let repeat = 0; repeat < 2; repeat++) usage("thread-1", "turn-1", { last, ...(usageMode === "total" ? { total } : {}) });
+        }
+        usage("unrelated", "turn-1", { last: first, total: first });
+        usage("thread-1", "wrong-turn", { last: first, total: first });
+        send({ method: "model/rerouted", params: { threadId: "thread-1", toModel: "gpt-6-astra" } });
+        if (imageDelivery === "item") {
+          send({ method: "item/completed", params: { threadId: "thread-1", turnId: "turn-1", item } });
+        } else {
+          send({ method: "turn/completed", params: { threadId: "thread-1", turn: { id: "turn-1", status: "completed", items: [item] } } });
+        }
+        send({ id: message.id, result: { turn: { id: "turn-1" } } });
         break;
       }
       if (params.model === "gpt-web-test") {
