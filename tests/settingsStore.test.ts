@@ -988,18 +988,33 @@ describe("settings store", () => {
         ?.codexTypesettingPreferences,
     ).toEqual(preferences);
   });
-  it("serializes an explicit reset with preference writes in the same data root", async () => {
-    const paths = makeAppPaths(await createTempDir());
-    const preferences = createCodexTypesettingPreferences("ko");
-    await saveCodexTypesettingPreferences(
-      preferences,
-      paths,
-      {},
-      async () => null,
-    );
-    const reset = await resetAppSettings(paths, {}, async () => null);
-    expect(await getAppSettings(paths, {}, async () => null)).toEqual(reset);
-  });
+  it.each(["win32", "darwin"])(
+    "keeps an explicit reset consistent with reload after preference writes on %s",
+    async (platform) => {
+      const paths = makeAppPaths(await createTempDir());
+      const originalPlatform = process.platform;
+      Object.defineProperty(process, "platform", { value: platform });
+      try {
+        const preferences = createCodexTypesettingPreferences("ko");
+        await saveCodexTypesettingPreferences(
+          preferences,
+          paths,
+          {},
+          async () => null,
+        );
+        const reset = await resetAppSettings(paths, {}, async () => null);
+        expect(reset.inpainting?.fluxBackend).toBe(
+          platform === "darwin" ? "metal-native" : "cpu-native",
+        );
+        expect(reset.ui?.codexTypesettingPreferences).toBeUndefined();
+        expect(await getAppSettings(paths, {}, async () => null)).toEqual(
+          reset,
+        );
+      } finally {
+        Object.defineProperty(process, "platform", { value: originalPlatform });
+      }
+    },
+  );
 });
 
 async function createTempDir(): Promise<string> {

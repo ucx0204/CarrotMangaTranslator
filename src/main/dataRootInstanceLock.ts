@@ -21,6 +21,7 @@ const DATA_ROOT_INSTANCE_RECLAIM_FILE = "reclaim.json";
 const MAX_OWNER_FILE_BYTES = 16 * 1024;
 const MAX_ACQUIRE_ATTEMPTS = 8;
 const MAX_TRANSIENT_RENAME_ATTEMPTS = 8;
+const MAX_TRANSIENT_RECLAIM_READ_ATTEMPTS = 8;
 const MAX_TOKEN_LENGTH = 128;
 const FILESYSTEM_RETRY_SIGNAL = new Int32Array(
   new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT),
@@ -915,6 +916,7 @@ function readReclaimOwnerFile(
   markerPath: string,
   missingBehavior: "invalid" | "retry" = "invalid",
   afterInspect?: () => void,
+  attempt = 0,
 ): ReclaimOwner {
   let markerStat;
   try {
@@ -958,12 +960,33 @@ function readReclaimOwnerFile(
       "reclaim-metadata-invalid",
     );
   }
-  const parsed = parseJsonObject(
-    rawMarker,
-    canonicalDataRoot,
-    lockDirectory,
-    "reclaim-metadata-invalid",
-  );
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = parseJsonObject(
+      rawMarker,
+      canonicalDataRoot,
+      lockDirectory,
+      "reclaim-metadata-invalid",
+    );
+  } catch (error) {
+    // Exclusive creation publishes the filename before its bytes are complete.
+    // Only a contending reader may wait; persistent corruption still fails closed.
+    if (
+      missingBehavior !== "retry" ||
+      attempt >= MAX_TRANSIENT_RECLAIM_READ_ATTEMPTS - 1
+    ) {
+      throw error;
+    }
+    Atomics.wait(FILESYSTEM_RETRY_SIGNAL, 0, 0, Math.min(5 * 2 ** attempt, 40));
+    return readReclaimOwnerFile(
+      canonicalDataRoot,
+      lockDirectory,
+      markerPath,
+      missingBehavior,
+      afterInspect,
+      attempt + 1,
+    );
+  }
   if (
     !hasExactKeys(parsed, [
       "schemaVersion",

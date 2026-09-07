@@ -266,26 +266,73 @@ describe("data-root instance lock", () => {
     expect(readCanonicalOwner(root).token).toBe("dead-owner");
   });
 
-  it("fails closed for invalid reclaim metadata", () => {
+  it.each(["", "{not-json"])(
+    "fails closed for invalid reclaim metadata %j",
+    (rawMarker) => {
+      const root = makeRoot();
+      writeCanonicalOwner(
+        root,
+        makeOwner(root, { token: "dead-owner", pid: 404 }),
+      );
+      writeReclaimMarker(root, rawMarker);
+
+      expect(() =>
+        acquireDataRootInstanceLock(
+          root,
+          makeRuntime({ token: "new-owner", isProcessAlive: () => false }),
+        ),
+      ).toThrowError(
+        expect.objectContaining({
+          code: "DATA_ROOT_INSTANCE_LOCK_INVALID",
+          reason: "reclaim-metadata-invalid",
+        }),
+      );
+      expect(readCanonicalOwner(root).token).toBe("dead-owner");
+    },
+  );
+
+  it("waits for a competing reclaimer to finish writing its marker", () => {
     const root = makeRoot();
     writeCanonicalOwner(
       root,
       makeOwner(root, { token: "dead-owner", pid: 404 }),
     );
-    writeReclaimMarker(root, "{not-json");
+    writeReclaimMarker(root, '{"schemaVersion":');
+    let inspections = 0;
 
     expect(() =>
       acquireDataRootInstanceLock(
         root,
-        makeRuntime({ token: "new-owner", isProcessAlive: () => false }),
+        makeRuntime({
+          token: "new-owner",
+          pid: 505,
+          isProcessAlive: (pid) => pid === 606,
+        }),
+        {
+          afterReclaimMarkerInspected: () => {
+            inspections += 1;
+            if (inspections === 2) {
+              writeReclaimMarker(root, {
+                schemaVersion: 1,
+                token: "live-reclaimer",
+                pid: 606,
+                hostname: "HOST-A",
+                startedAt: "2026-08-06T12:01:00.000Z",
+              });
+            }
+          },
+        },
       ),
     ).toThrowError(
       expect.objectContaining({
-        code: "DATA_ROOT_INSTANCE_LOCK_INVALID",
-        reason: "reclaim-metadata-invalid",
+        code: "DATA_ROOT_INSTANCE_LOCK_HELD",
+        reason: "reclaim-in-progress",
       }),
     );
+    expect(inspections).toBe(2);
     expect(readCanonicalOwner(root).token).toBe("dead-owner");
+    expect(readReclaimMarker(root).token).toBe("live-reclaimer");
+    expect(instanceSidecars(root, ".mgt-instance-candidate-")).toEqual([]);
   });
 
   it("removes a same-host dead-PID reclaim marker before reclaiming", () => {

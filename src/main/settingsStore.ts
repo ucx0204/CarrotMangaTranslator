@@ -198,7 +198,8 @@ async function resetAppSettingsUnlocked(
   detectGpu: GpuInfoProvider = detectBestGpuInfo,
 ): Promise<AppSettings> {
   const detectedGpu = await detectGpu();
-  const defaults = resolveDefaultAppSettings(env, detectedGpu);
+  const rawDefaults = resolveDefaultAppSettings(env, detectedGpu);
+  const defaults = normalizeAppSettings(rawDefaults, rawDefaults);
   await persistAppSettingsPair(
     separateSettingsSecrets(stripRuntimeHardware(defaults)).persistentSettings,
     {},
