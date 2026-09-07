@@ -99,18 +99,36 @@ describe("CodexSettingsFields", () => {
         { ...catalog[0], id: "gpt-6-astra", displayName: "GPT-6-Astra" },
       ],
     });
-    renderHarness("gpt-6-astra", "high");
+    render(
+      <Harness initialModel="gpt-5.6-sol" initialEffort="high" imageOnly />,
+    );
     await screen.findByRole("combobox", { name: "이미지 생성 추론 강도" });
     expect(screen.getByTestId("image-effort").textContent).toBe("low");
     chooseCustomSelectOption("이미지 생성 추론 강도", "최대");
     expect(screen.getByTestId("image-effort").textContent).toBe("max");
     expect(screen.getByTestId("selected-effort").textContent).toBe("high");
+    expect(screen.getByRole("combobox", { name: "Codex 모델" })).toBeTruthy();
+    expect(screen.queryByText(/이미지 작업이 제대로 동작하지/)).toBeNull();
     chooseCustomSelectOption("Codex 모델", "GPT-5.6-Sol");
-    expect(
-      screen.queryByRole("combobox", { name: "이미지 생성 추론 강도" }),
-    ).toBeNull();
+    expect(screen.getByText(/이미지 작업이 제대로 동작하지/)).toBeTruthy();
+    expect(screen.getByTestId("image-model").textContent).toBe("gpt-5.6-sol");
+    expect(screen.getByTestId("selected-model").textContent).toBe(
+      "gpt-5.6-sol",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
+    await screen.findByText("로그인되지 않음");
+    expect(screen.getByText(/이미지 작업이 제대로 동작하지/)).toBeTruthy();
+    accountGateway.login.mockResolvedValue({
+      ...signedInAccount,
+      models: [
+        ...catalog,
+        { ...catalog[0], id: "gpt-6-astra", displayName: "GPT-6-Astra" },
+      ],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "ChatGPT로 로그인" }));
+    await screen.findByText("reader@example.com");
     chooseCustomSelectOption("Codex 모델", "GPT-6-Astra");
-    expect(screen.getByTestId("image-effort").textContent).toBe("max");
+    expect(screen.queryByText(/이미지 작업이 제대로 동작하지/)).toBeNull();
   });
   it("loads the catalog after StrictMode effect cleanup and replay", async () => {
     render(
@@ -423,31 +441,38 @@ function renderHarness(
 }
 
 function Harness({
+  imageOnly,
   initialModel,
   initialEffort,
   busy = false,
 }: {
+  imageOnly?: boolean;
   initialModel: string;
   initialEffort: CodexReasoningEffort;
   busy?: boolean;
 }): React.JSX.Element {
   const [model, setModel] = React.useState(initialModel);
   const [effort, setEffort] = React.useState(initialEffort);
+  const [imageModel, setImageModel] = React.useState("gpt-6-astra");
   const [imageEffort, setImageEffort] =
     React.useState<CodexReasoningEffort>("low");
   return (
     <>
       <CodexSettingsFields
+        imageOnly={imageOnly}
         clearTestState={vi.fn()}
         codexModel={model}
         codexReasoningEffort={effort}
         codexImageReasoningEffort={imageEffort}
+        codexImageModel={imageModel}
+        setCodexImageModel={setImageModel}
         setCodexImageReasoningEffort={setImageEffort}
         controlsBusy={busy}
         setCodexModel={setModel}
         setCodexReasoningEffort={setEffort}
       />
       <output data-testid="image-effort">{imageEffort}</output>
+      <output data-testid="image-model">{imageModel}</output>
       <output data-testid="selected-model">{model}</output>
       <output data-testid="selected-effort">{effort}</output>
     </>

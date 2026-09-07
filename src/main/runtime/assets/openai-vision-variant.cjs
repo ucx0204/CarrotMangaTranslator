@@ -7,6 +7,7 @@ const {
 const {
   resolveElectronNativeImage,
   resolveImageSize,
+  loadNativeImage,
 } = require("./image-source-assets.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { imageHeight?: unknown; imagePath: string; imageWidth?: unknown; outputDir: string }} ImageVariantOptions */
@@ -29,7 +30,7 @@ async function buildOpenAIVisionVariant(options) {
   }
   const nativeImage = resolveElectronNativeImage();
   if (!nativeImage) return originalVariant(options, sourceSize, base);
-  const image = nativeImage.createFromPath(options.imagePath);
+  const image = loadNativeImage(nativeImage, options.imagePath);
   if (!image || image.isEmpty())
     return originalVariant(options, sourceSize, base);
   const outputPath = path.join(options.outputDir, "input-openai-vision.png");

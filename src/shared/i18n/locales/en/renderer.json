@@ -118,7 +118,8 @@
       "stages": {
         "reading": "Reading and translation",
         "fonts": "Font comparison",
-        "typesetting": "Typesetting and review"
+        "typesetting": "Typesetting and review",
+        "images": "Image editing"
       },
       "steps": {
         "reading": "Reading and translation",

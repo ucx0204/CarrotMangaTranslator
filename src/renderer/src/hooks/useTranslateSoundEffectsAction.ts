@@ -45,12 +45,6 @@ export function useTranslateSoundEffectsAction(
   const { t } = useTranslation("renderer");
   const context = useMemo<SoundEffectActionContext>(
     () => ({
-      codexTypesetting: options.codexDelegationActive
-        ? resolveCodexTypesettingOptions(
-            options.settings?.ui?.codexTypesettingPreferences,
-            options.settings?.translation?.targetLanguage ?? "ko",
-          )
-        : undefined,
       beforeTranslate: options.beforeTranslate,
       currentChapter: options.currentChapter,
       currentChapterRef: options.currentChapterRef,
@@ -168,7 +162,7 @@ async function runSoundEffectTranslation({
     progressText: context.t("soundEffectTranslation.preparing"),
     phase: "booting",
   });
-  if (!context.codexTypesetting) await context.beforeTranslate?.();
+  await context.beforeTranslate?.();
   const result = await analysisGateway.startSoundEffectTranslation({
     chapterId: chapter.id,
     targets: prepared.targets,

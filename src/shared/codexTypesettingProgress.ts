@@ -49,7 +49,7 @@ export function appendCodexPreview(
 
 export const codexProgressSchema = z
   .object({
-    stage: z.enum(["reading", "fonts", "typesetting"]),
+    stage: z.enum(["reading", "fonts", "typesetting", "images"]),
     step: z.enum([
       "reading",
       "confirmText",

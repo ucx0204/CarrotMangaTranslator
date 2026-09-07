@@ -22,7 +22,7 @@ function props(delegated = false): RegionTranslationDialog {
   return {
     page,
     bbox: { x: 100, y: 200, w: 400, h: 300 },
-    codexDelegateAll: delegated,
+    codexImageAvailable: delegated,
     initial: { output: "text", eraseOriginal: false },
     onRun: vi.fn(),
     onClose: vi.fn(),

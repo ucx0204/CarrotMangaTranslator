@@ -28,12 +28,14 @@ import { createWorkerFontMatchingPageInferencePort } from "./fontMatchingInferen
 import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
 import { createFontChapterC18Port } from "./fontChapterC18";
 import type { FontChapterC18Port } from "./fontChapterC18Types";
+import type { editTranslatedPageWithCodex } from "../codexImageEditing";
 
 type PipelineSettingsRepository = {
   getAppSettings: (paths: AppPaths) => Promise<AppSettings>;
 };
 
 export type WholePagePipelineDependencies = {
+  editImages?: typeof editTranslatedPageWithCodex;
   paths: AppPaths;
   settings: PipelineSettingsRepository;
   fontMatching: {

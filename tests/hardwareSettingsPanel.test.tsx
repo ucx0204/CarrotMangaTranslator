@@ -9,7 +9,23 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HardwareSettingsPanel } from "../src/renderer/src/components/settingsModal/HardwareSettingsPanel";
+import {
+  HardwareSettingsPanel as GpuSettingsPanel,
+  OcrSettingsSection,
+  InpaintingSettingsSection,
+} from "../src/renderer/src/components/settingsModal/HardwareSettingsPanel";
+function HardwareSettingsPanel(
+  props: React.ComponentProps<typeof GpuSettingsPanel>,
+) {
+  return (
+    <>
+      <GpuSettingsPanel {...props} />
+      <OcrSettingsSection {...props} />
+      <InpaintingSettingsSection {...props} />
+    </>
+  );
+}
+
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { RuntimeHardwareNote } from "../src/renderer/src/components/settingsModal/GemmaMemorySummary";
 import {

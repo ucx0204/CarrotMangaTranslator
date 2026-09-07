@@ -125,7 +125,6 @@ async function preparePatternInpainting(
     scope,
     blockId,
     t,
-    options.codexDelegateAll,
   );
   if (!confirmed) {
     return false;
@@ -146,7 +145,6 @@ function confirmPatternInpainting(
   scope: InpaintingScope,
   blockId: string | undefined,
   t: TFunction<"renderer">,
-  delegated?: boolean,
 ): Promise<boolean> {
   const scopeLabel = t(
     blockId
@@ -158,7 +156,7 @@ function confirmPatternInpainting(
   return askConfirm(
     t("inpainting.erase.title"),
     t("inpainting.erase.message", { scope: scopeLabel }),
-    delegated ? undefined : t("inpainting.erase.detail"),
+    t("inpainting.erase.detail"),
   );
 }
 

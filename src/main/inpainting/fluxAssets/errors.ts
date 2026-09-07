@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { sanitizeFluxRuntimeStderr } from "../fluxWorkerErrors";
+import { observeProcessErrors } from "../../runtimeSupport/observeProcessErrors";
 
 export async function runCommand(
   command: string,
@@ -27,15 +28,14 @@ export async function runCommand(
     let stderrTail = "";
     let stdoutBuffer = "";
     let stderrBuffer = "";
+    let failed = false;
     const emitLines = (text: string, isError = false) => {
       const key = isError ? "stderr" : "stdout";
       let buffer = key === "stderr" ? stderrBuffer : stdoutBuffer;
       buffer += text;
       while (true) {
         const newline = findNextLineBreak(buffer);
-        if (newline.index < 0) {
-          break;
-        }
+        if (newline.index < 0) break;
         const line = buffer.slice(0, newline.index).trimEnd();
         buffer = buffer.slice(newline.index + newline.length);
         options.onLine?.(line);
@@ -59,10 +59,14 @@ export async function runCommand(
       stderrTail = `${stderrTail}${text}`.slice(-2400);
       emitLines(text, true);
     });
-    child.on("error", (error) => {
+    const onError = (error: Error) => {
+      if (failed) return;
+      failed = true;
       options.signal?.removeEventListener("abort", onAbort);
       reject(error);
-    });
+      child.kill();
+    };
+    observeProcessErrors(child, onError);
     child.on("exit", (code) => {
       options.signal?.removeEventListener("abort", onAbort);
       if (code === 0) {

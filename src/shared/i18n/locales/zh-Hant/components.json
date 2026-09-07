@@ -1615,16 +1615,17 @@
     "title": "設定",
     "tabs": {
       "ariaLabel": "設定區域",
-      "llmAriaLabel": "LLM 設定",
+      "llmAriaLabel": "AI",
       "general": "一般",
-      "engine": "LLM",
+      "engine": "AI",
       "translation": "翻譯",
       "research": "網路調查",
       "hardware": "硬體",
       "format": "預設格式",
       "results": "結果自動儲存",
       "shortcuts": "快速鍵",
-      "test": "檢查／更新"
+      "test": "檢查／更新",
+      "image": "圖像"
     },
     "general": {
       "language": "應用程式語言",
@@ -2013,7 +2014,8 @@
         "loginFailed": "Codex 登入失敗。",
         "logoutFailed": "Codex 登出失敗。"
       },
-      "imageReasoning": "圖像生成推理強度"
+      "imageReasoning": "圖像生成推理強度",
+      "imageModelWarning": "此模型可能無法正確完成圖像作業。強烈建議使用 Astra。"
     },
     "api": {
       "sections": {
@@ -2165,7 +2167,9 @@
       "fluxAmdUnsupportedDetail": "{{gpu}}不在AMD目前Windows HIP SDK官方支援清單中。仍可實驗性選擇ZLUDA，但執行時可能失敗。",
       "fluxAmdUseCpu": "切換到CPU後端",
       "downloadHipSdk": "下載AMD HIP SDK",
-      "openLinkFailed": "無法開啟連結。請檢查預設瀏覽器。"
+      "openLinkFailed": "無法開啟連結。請檢查預設瀏覽器。",
+      "resetGemmaHint": "同時重設翻譯和研究的本機 Gemma 設定。",
+      "resetFailed": "無法載入建議設定，請重試。"
     },
     "format": {
       "alignment": {
@@ -2300,6 +2304,11 @@
       "customHeaderBlocked": "{{name}}標頭不能在 Custom headers 中覆寫。",
       "customHeaderValue": "Custom header 值只能是字串、數字或布林值。",
       "apiKeyCount": "最多可輸入 {{max}} 個 API 金鑰。"
+    },
+    "image": {
+      "localErasure": "預設原文清除",
+      "codex": "Codex 圖像工具",
+      "description": "獨立於翻譯引擎，用於清除原文及產生音效圖像。強烈建議使用 Astra。"
     }
   },
   "pageBlocks": {
@@ -2633,6 +2642,33 @@
     "reading": "原文翻譯",
     "background": "原文擦除",
     "review": "嵌字預覽",
-    "retry": "重新載入圖片"
+    "retry": "重新載入圖片",
+    "history": "歷史",
+    "actualSize": "實際大小",
+    "regions": "區域",
+    "image": "影像預覽",
+    "translations": "譯文"
+  },
+  "imageOptions": {
+    "default": "預設",
+    "connect": "連接 Codex：設定 → AI → 圖像"
+  },
+  "imageRedaction": {
+    "enabled": "遮蔽傳送的圖像",
+    "description": "傳送圖片前可遮蓋敏感裸露部位。原圖不會改變。",
+    "title": "檢查傳送的圖像",
+    "confirm": "確認並繼續",
+    "pages": "頁面",
+    "shape": "工具",
+    "rectangle": "矩形",
+    "round": "圓形筆刷",
+    "square": "方形筆刷",
+    "size": "筆刷大小",
+    "zoom": "縮放",
+    "undo": "復原",
+    "redo": "重做",
+    "preview": "傳送的圖像。拖曳以遮蔽區域。",
+    "retry": "重試",
+    "checked": "已檢視 {{count}} / {{total}}"
   }
 }

@@ -1,3 +1,4 @@
+import { withImageRedactionReview } from "./imageRedactionReview";
 import { randomUUID } from "node:crypto";
 import type {
   AutoInpaintingChapterSelection,
@@ -79,16 +80,30 @@ export async function startInpaintingJob(
         blocksIncomplete: state.blocksIncomplete,
       };
     }
-    return await runInpaintingPagesJob({
-      context,
-      request,
-      id,
-      abortController,
-      emit,
-      targets,
-      state,
-      runtime,
-    });
+    const run = () =>
+      runInpaintingPagesJob({
+        context,
+        request,
+        id,
+        abortController,
+        emit,
+        targets,
+        state,
+        runtime,
+      });
+    return "engine" in request && request.engine === "codex"
+      ? await (runtime.reviewImages ?? withImageRedactionReview)(
+          {
+            jobId: id,
+            kind: "inpainting",
+            pages: targets.map((target) => target.page),
+            signal: abortController.signal,
+            emit,
+            imageEdit: true,
+          },
+          run,
+        )
+      : await run();
   } catch (error) {
     return await handleInpaintingJobError({
       abortController,

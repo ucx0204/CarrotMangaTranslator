@@ -26,7 +26,6 @@ import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 
 type AppSessionInpaintingControllerArgs = {
   aiUnavailable?: boolean;
-  codexDelegateAll?: boolean;
   codexErasureAvailable?: boolean;
   askConfirm: ReturnType<typeof useConfirmDialog>["askConfirm"];
   blockFormatDefaults?: BlockFormatDefaults;
@@ -111,7 +110,6 @@ function useInpaintingRunController(
   {
     askConfirm,
     aiUnavailable,
-    codexDelegateAll,
     codexErasureAvailable,
     core,
     derivedState,
@@ -128,7 +126,6 @@ function useInpaintingRunController(
 ): ReturnType<typeof useInpaintingActions> {
   return useInpaintingActions({
     aiUnavailable,
-    codexDelegateAll,
     codexErasureAvailable,
     askConfirm,
     clearPageImageCache: derivedState.clearPageImageCache,
@@ -297,7 +294,6 @@ function resetBlockTransformTool(
 function useInpaintingBridgeController(
   {
     aiUnavailable,
-    codexDelegateAll,
     codexErasureAvailable,
     bridgeActions,
     core,
@@ -323,7 +319,6 @@ function useInpaintingBridgeController(
   });
   return useInpaintingContextBridge({
     aiUnavailable,
-    codexDelegateAll,
     codexErasureAvailable,
     blockCounts: derivedState.blockCounts,
     brushColor: uiState.inpaintingPaintColor,

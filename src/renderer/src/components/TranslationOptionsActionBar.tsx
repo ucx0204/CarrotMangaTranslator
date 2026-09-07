@@ -5,7 +5,6 @@ import { CheckboxField } from "./ui/CheckboxField";
 import { ModalActionBar } from "./ui/ModalActionBar";
 
 export function TranslationOptionsActionBar({
-  showSaveAsDefault = true,
   onCancel,
   onSaveAsDefaultChange,
   onStart,
@@ -13,7 +12,6 @@ export function TranslationOptionsActionBar({
   startDisabled = false,
   startLabel,
 }: {
-  showSaveAsDefault?: boolean;
   onCancel: () => void;
   onSaveAsDefaultChange: (value: boolean) => void;
   onStart: () => void;
@@ -25,14 +23,12 @@ export function TranslationOptionsActionBar({
   return (
     <ModalActionBar
       leading={
-        showSaveAsDefault ? (
-          <CheckboxField
-            className="translation-save-defaults"
-            label={t("translationOptions.saveAsDefault")}
-            checked={saveAsDefault}
-            onCheckedChange={onSaveAsDefaultChange}
-          />
-        ) : null
+        <CheckboxField
+          className="translation-save-defaults"
+          label={t("translationOptions.saveAsDefault")}
+          checked={saveAsDefault}
+          onCheckedChange={onSaveAsDefaultChange}
+        />
       }
       actions={
         <>

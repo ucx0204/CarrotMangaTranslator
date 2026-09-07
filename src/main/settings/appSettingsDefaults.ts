@@ -206,8 +206,8 @@ function resolveDefaultCodexSettings(
   env: NodeJS.ProcessEnv,
 ): AppSettings["codex"] {
   return {
-    delegateAll: false,
     imageReasoningEffort: "low",
+    imageModel: "gpt-6-astra",
     model: resolveNonEmptyString(
       env.MANGA_TRANSLATOR_CODEX_MODEL,
       DEFAULT_CODEX_MODEL,

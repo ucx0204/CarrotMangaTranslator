@@ -68,6 +68,7 @@ recent-dialog-paths.json
 /batch-edit-schemes.yaml
 /linked-workspaces.json
 /linked-sync-queue.json
+/.linked-sync-queue.json.*.tmp
 /codex/
 /.codex-workspace/
 /.bug-hunter/
@@ -81,3 +82,5 @@ recent-dialog-paths.json
 /.mgt-instance-release-*/
 /font-chapter-c18/
 /cache/font-chapter-c18/
+/image-redactions.json
+/external-image-copies/

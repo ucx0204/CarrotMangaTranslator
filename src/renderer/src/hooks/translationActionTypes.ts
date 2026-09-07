@@ -36,7 +36,6 @@ export type TranslationFlowOptions = {
 
 export type UseTranslationActionsOptions = {
   settings?: import("../../../shared/settingsTypes").AppSettings | null;
-  codexDelegationActive?: boolean;
   codexUnavailable?: boolean;
   clearPageImageCache: () => void;
   clearRetouchHistory: () => void;

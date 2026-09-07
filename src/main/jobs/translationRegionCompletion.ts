@@ -46,16 +46,19 @@ export async function completeRegionTranslation({
     ? mapRegionBlocksToPageBlocks(analyzedCrop.blocks, page, cropRect)
     : [];
   const mappedBlocks = translatedBlocks;
-  const background = await prepareRegionArtwork({
-    source: page,
-    crop: cropPage,
-    analyzed: analyzedCrop,
-    rect: cropRect,
-    request,
-    directory,
-    decode: context.decodeImage,
-    signal,
-  });
+  const background =
+    result.imageEditingError && !analyzedCrop.inpaintedImagePath
+      ? undefined
+      : await prepareRegionArtwork({
+          source: page,
+          crop: cropPage,
+          analyzed: analyzedCrop,
+          rect: cropRect,
+          request,
+          directory,
+          decode: context.decodeImage,
+          signal,
+        });
   // Commit blocks and background together, rejecting a changed source revision.
   // Commit이 시작되기 전 취소만 이기며, 성공한 commit 뒤에는 cancelled로 뒤집지 않는다.
   throwIfAborted(signal);
@@ -79,9 +82,9 @@ export async function completeRegionTranslation({
         ]
       : []),
   );
-  emitRegionCompleted(id, emit, mappedBlocks.length);
+  emitRegionResult(id, emit, mappedBlocks.length, result.imageEditingError);
   return {
-    status: "completed",
+    status: result.imageEditingError ? "partial" : "completed",
     history: recordRegionTranslationHistory(
       context.inpaintingRevisionStore,
       request.chapterId,
@@ -125,4 +128,23 @@ function emitRegionCompleted(
     pageTotal: 1,
     detail: tMain("units.blocks", { count: blockCount }),
   });
+}
+
+function emitRegionResult(
+  id: string,
+  emit: EmitJobEvent,
+  blockCount: number,
+  imageEditingError?: string,
+) {
+  if (imageEditingError)
+    emit({
+      id,
+      kind: "gemma-analysis",
+      status: "partial",
+      phase: "done",
+      progressText: "번역문 저장 · 이미지 작업 실패",
+      detail: imageEditingError,
+      pageTotal: 1,
+    });
+  else emitRegionCompleted(id, emit, blockCount);
 }

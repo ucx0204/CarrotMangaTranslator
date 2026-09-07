@@ -8,7 +8,6 @@ import {
   render,
   screen,
   within,
-  waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
@@ -49,7 +48,6 @@ function astraSettings() {
     ...settings.codex,
     model: "gpt-6-astra",
     reasoningEffort: "low",
-    delegateAll: false,
   };
   return settings;
 }
@@ -190,7 +188,6 @@ async function renderModal(
   initialScope?: TranslationOptionsInitialScope,
   chapter: ChapterSnapshot = makeCurrentChapter(),
   currentPageId?: string,
-  codexDelegateAll = false,
   extra: Partial<React.ComponentProps<typeof TranslationOptionsModal>> = {},
 ) {
   const onStart = vi.fn();
@@ -200,11 +197,10 @@ async function renderModal(
     <FontsProvider>
       <TranslationOptionsModal
         {...extra}
-        codexDelegateAll={codexDelegateAll}
         chapter={chapter}
         currentPageId={currentPageId}
         initialScope={initialScope}
-        library={makeLibrary(chapter)}
+        library={extra.library ?? makeLibrary(chapter)}
         uiSettings={uiSettings}
         onStart={onStart}
         onPersistDefaults={onPersistDefaults}
@@ -226,6 +222,22 @@ afterEach(() => {
 });
 
 describe("TranslationOptionsModal", () => {
+  it("keeps settings readable when the current work disappeared from the library", async () => {
+    const { onStart } = await renderModal(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        library: { ...makeLibrary(makeCurrentChapter()), works: [] },
+      },
+    );
+    expect(screen.getByText(/작품 정보를/)).toBeTruthy();
+    expect(
+      screen.getByRole("switch", { name: "자연스러운 줄 나눔" }),
+    ).toBeTruthy();
+    expect(onStart).not.toHaveBeenCalled();
+  });
   it("adds Codex erasure after bubble fitting and saves the independent choice", async () => {
     const settings = astraSettings();
     const { onStart, onPersistDefaults } = await renderModal(
@@ -233,7 +245,6 @@ describe("TranslationOptionsModal", () => {
       undefined,
       undefined,
       undefined,
-      false,
       { settings },
     );
     const erase = screen.getByRole("switch", { name: "Codex가 지우기" });
@@ -261,14 +272,12 @@ describe("TranslationOptionsModal", () => {
     expect(onPersistDefaults).toHaveBeenCalledWith(
       expect.objectContaining({ codexErasureDefault: true }),
     );
-    expect(settings.codex.delegateAll).toBe(false);
     cleanup();
     await renderModal(
       onPersistDefaults.mock.lastCall?.[0],
       undefined,
       undefined,
       undefined,
-      false,
       { settings },
     );
     expect(
@@ -278,36 +287,12 @@ describe("TranslationOptionsModal", () => {
     ).toBe("true");
   });
 
-  it.each(["other-provider", "other-model", "delegated"])(
-    "hides the erasure override for %s",
-    async (mode) => {
-      const settings = astraSettings();
-      if (mode === "other-provider") settings.modelProvider = "gemma";
-      if (mode === "other-model") settings.codex.model = "gpt-5.6-sol";
-      const { onStart } = await renderModal(
-        { codexErasureDefault: true, eraseOriginalWorkflowDefault: true },
-        undefined,
-        undefined,
-        undefined,
-        mode === "delegated",
-        { settings },
-      );
-      expect(
-        screen.queryByRole("switch", { name: "Codex가 지우기" }),
-      ).toBeNull();
-      fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
-      await waitFor(() => expect(onStart).toHaveBeenCalled());
-      expect(onStart.mock.lastCall?.[0].inpaintingEngine).toBeUndefined();
-    },
-  );
-
   it("blocks an enabled Codex erase on disconnection but allows translation without erasure", async () => {
     const { onStart } = await renderModal(
       { eraseOriginalWorkflowDefault: true, codexErasureDefault: true },
       undefined,
       undefined,
       undefined,
-      false,
       { settings: astraSettings() },
     );
     act(() => codexConnection.publish(null));
@@ -329,7 +314,6 @@ describe("TranslationOptionsModal", () => {
       "work-all",
       undefined,
       undefined,
-      false,
       { settings: astraSettings() },
     );
     fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
@@ -338,76 +322,6 @@ describe("TranslationOptionsModal", () => {
       screen.getByRole("button", { name: "선택 범위 다시 번역" }),
     );
     expect(onStart).not.toHaveBeenCalled();
-  });
-
-  it("sends a legacy Astra preset with generated SFX through the real translation action", async () => {
-    const preferences = createCodexTypesettingPreferences("ko");
-    preferences.enabled = true;
-    delete preferences.sfxRendering;
-    const { onStart } = await renderModal(
-      {
-        codexTypesettingPreferences: preferences,
-      },
-      undefined,
-      undefined,
-      undefined,
-      true,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
-    await waitFor(() => expect(onStart).toHaveBeenCalled());
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        codexTypesetting: {
-          version: 1,
-          preset: preferences.presets[0],
-          sfxRendering: "image",
-          eraseOriginal: true,
-        },
-        blockMode: "auto",
-        autoFontMatching: false,
-        aiFontSizeMatching: false,
-        naturalTextLayout: false,
-        eraseOriginalWorkflow: false,
-        bubbleLayoutWorkflow: false,
-      }),
-    );
-  });
-
-  it("persists the user's SFX choice and forwards it to translation", async () => {
-    const preferences = createCodexTypesettingPreferences("ko");
-    preferences.enabled = true;
-    const { onStart, onPersistDefaults } = await renderModal(
-      {
-        codexTypesettingPreferences: preferences,
-      },
-      undefined,
-      undefined,
-      undefined,
-      true,
-    );
-    expect(
-      screen
-        .getByRole("radio", { name: "생성형" })
-        .getAttribute("aria-checked"),
-    ).toBe("true");
-    fireEvent.click(screen.getByRole("radio", { name: "폰트" }));
-    expect(
-      screen.getByRole("radio", { name: "폰트" }).getAttribute("aria-checked"),
-    ).toBe("true");
-    expect(
-      screen.queryByRole("checkbox", { name: "다음 번역의 기본값으로 저장" }),
-    ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
-    await waitFor(() => expect(onStart).toHaveBeenCalled());
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        codexTypesetting: expect.objectContaining({ sfxRendering: "font" }),
-      }),
-    );
-    expect(onPersistDefaults).not.toHaveBeenCalled();
-    expect(saveCodexPreferences).toHaveBeenCalledWith(
-      expect.objectContaining({ sfxRendering: "font" }),
-    );
   });
 
   it("ignores the old enable preference while global delegation is OFF", async () => {
@@ -1128,103 +1042,4 @@ it("cancels the overwrite confirmation without starting or closing the selection
   expect(screen.getAllByRole("dialog")).toHaveLength(1);
   expect(onStart).not.toHaveBeenCalled();
   expect(onClose).not.toHaveBeenCalled();
-});
-
-it("keeps selected pages while font purposes are saved on editor close and translation starts", async () => {
-  const save = vi.fn(async (value) => value);
-  const { onStart, onClose } = await renderModal(
-    undefined,
-    undefined,
-    undefined,
-    "p2",
-    true,
-    { onSaveCodexPreferences: save },
-  );
-  fireEvent.click(screen.getByRole("button", { name: "폰트 편집" }));
-  const editor = screen.getByRole("dialog", { name: "폰트 편집" });
-  fireEvent.change(within(editor).getByRole("textbox", { name: "사용 의도" }), {
-    target: { value: "격한 대사는 굵게" },
-  });
-  const closeEditor = within(editor)
-    .getAllByRole("button", { name: "닫기" })
-    .at(-1);
-  if (!closeEditor) throw new Error("Font editor close button missing");
-  fireEvent.click(closeEditor);
-  await waitFor(() =>
-    expect(screen.queryByRole("dialog", { name: "폰트 편집" })).toBeNull(),
-  );
-  expect(save).toHaveBeenCalled();
-  expect(onClose).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
-  await waitFor(() => expect(onStart).toHaveBeenCalled());
-  expect(
-    onStart.mock.calls[0][0].codexTypesetting.preset.fonts[0].purpose,
-  ).toBe("격한 대사는 굵게");
-});
-
-it("preserves the font draft when closing cannot save, then closes after an explicit retry", async () => {
-  const save = vi
-    .fn(async (value) => value)
-    .mockRejectedValueOnce(new Error("disk unavailable"));
-  const { onClose } = await renderModal(
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    true,
-    { onSaveCodexPreferences: save },
-  );
-  fireEvent.click(screen.getByRole("switch", { name: "원문 지우기" }));
-  fireEvent.click(screen.getByRole("button", { name: "취소" }));
-  await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
-  expect(onClose).not.toHaveBeenCalled();
-  fireEvent.keyDown(window, { key: "Escape" });
-  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-  expect(save.mock.calls.at(-1)?.[0].eraseOriginal).toBe(false);
-});
-
-it("disables Codex execution while disconnected without replacing its options with local engines", async () => {
-  const { onStart } = await renderModal(
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    true,
-    { codexUnavailable: true },
-  );
-  expect(
-    screen
-      .getByRole("button", { name: "선택 범위 번역" })
-      .hasAttribute("disabled"),
-  ).toBe(true);
-  expect(screen.queryByRole("switch", { name: "폰트 자동 맞춤" })).toBeNull();
-  expect(screen.getByRole("radio", { name: "생성형" })).toBeTruthy();
-  expect(onStart).not.toHaveBeenCalled();
-});
-
-it("stays open with its draft when saving before translation fails, and starts only after retry succeeds", async () => {
-  const save = vi
-    .fn(async (value) => value)
-    .mockRejectedValueOnce(new Error("Disk unavailable"));
-  const { onStart } = await renderModal(
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    true,
-    { onSaveCodexPreferences: save },
-  );
-  fireEvent.click(screen.getByRole("switch", { name: "원문 지우기" }));
-  fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
-  await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
-  expect(onStart).not.toHaveBeenCalled();
-  await waitFor(() =>
-    expect(
-      screen
-        .getByRole("button", { name: "선택 범위 번역" })
-        .hasAttribute("disabled"),
-    ).toBe(false),
-  );
-  fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
-  await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
 });

@@ -1,3 +1,5 @@
+import { settingsGateway } from "../../api/settingsGateway";
+import { applyRecommendedGemmaSettings } from "./applyRecommendedGemmaSettings";
 import type React from "react";
 import type { TFunction } from "i18next";
 import type { KeybindingOverrides } from "../../../../shared/shortcutSettings";
@@ -245,6 +247,12 @@ function buildHardwarePanelProps({
   test: ReturnType<typeof useSettingsTestState>;
 }): SettingsModalViewProps["hardwarePanelProps"] {
   return {
+    onApplyGemmaDefaults: async () => {
+      const defaults = await settingsGateway.getDefaultSettings();
+      form.setValues((current) =>
+        applyRecommendedGemmaSettings(current, defaults),
+      );
+    },
     clearTestState: test.clearTestState,
     computeGpuIndex: form.values.computeGpuIndex,
     controlsBusy,

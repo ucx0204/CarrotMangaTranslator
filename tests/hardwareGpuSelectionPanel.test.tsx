@@ -1,7 +1,13 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HardwareSettingsPanel } from "../src/renderer/src/components/settingsModal/HardwareSettingsPanel";
 import { chooseCustomSelectOption } from "./testUtils/customSelect";
@@ -57,6 +63,46 @@ describe("HardwareSettingsPanel GPU selection", () => {
     const selects = screen.getAllByRole<HTMLButtonElement>("combobox");
     expect(selects).toHaveLength(2);
     expect(selects.every((select) => select.disabled)).toBe(true);
+  });
+
+  it("keeps hardware choices intact on a Gemma reset failure and allows retry", async () => {
+    const setComputeGpuIndex = vi.fn();
+    const onApplyGemmaDefaults = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("disk full"))
+      .mockResolvedValue(undefined);
+    const report = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      renderPanel({ onApplyGemmaDefaults, setComputeGpuIndex });
+      const apply = screen.getByRole("button", { name: "권장값 적용" });
+      fireEvent.click(apply);
+      await screen.findByRole("alert");
+      expect(setComputeGpuIndex).not.toHaveBeenCalled();
+      await waitFor(() => expect(apply).toHaveProperty("disabled", false));
+      fireEvent.click(apply);
+      await waitFor(() =>
+        expect(setComputeGpuIndex).toHaveBeenCalledWith(null),
+      );
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(onApplyGemmaDefaults).toHaveBeenCalledTimes(2);
+    } finally {
+      report.mockRestore();
+    }
+  });
+
+  it("applies recommendations for an existing AOT setup without a Gemma reset hook", async () => {
+    const setInpaintingModel = vi.fn();
+    const setComputeGpuIndex = vi.fn();
+    const { container } = renderPanel({
+      inpaintingModel: "aot-inpainting",
+      setInpaintingModel,
+      setComputeGpuIndex,
+    });
+    expect(container.textContent).toContain("AOT");
+    fireEvent.click(screen.getByRole("button", { name: "권장값 적용" }));
+    await waitFor(() => expect(setComputeGpuIndex).toHaveBeenCalledWith(null));
+    expect(setInpaintingModel).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
 

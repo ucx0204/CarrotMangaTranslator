@@ -10,7 +10,7 @@ import React from "react";
 import { render, fireEvent, screen, waitFor } from "@testing-library/react";
 import { RegionTranslationModal } from "../src/renderer/src/components/RegionTranslationModal";
 import { codexConnection } from "../src/renderer/src/api/codexConnection";
-import { canUseCodexTypesetting } from "../src/shared/codexCapabilities";
+import { canUseCodexImages } from "../src/shared/codexCapabilities";
 import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import type { JobEvent } from "../src/shared/jobTypes";
 /** @vitest-environment jsdom */
@@ -129,7 +129,6 @@ it("sends the saved region revision and registers the background/block undo tran
   const codexTypesetting = buildRegionTranslationRequest(
     resolveDefaultAppSettings({}),
     { output: "image", eraseOriginal: false },
-    false,
   ).codexTypesetting;
   await act(async () => {
     await result.current(
@@ -137,44 +136,7 @@ it("sends the saved region revision and registers the background/block undo tran
       { codexTypesetting },
     );
   });
-  expect(beforeTranslate).toHaveBeenCalledOnce();
-});
-
-it("prevents a region request after disconnect and preserves completed choices for the next selection", async () => {
-  window.mangaApi = createTestMangaGatewayStub({ onJobEvent: () => () => {} });
-  const options = regionOptions();
-  const execute = vi.fn(async () => true);
-  const { result, rerender } = renderHook(
-    ({ offline }) =>
-      useRegionTranslationDialog(
-        { ...options, codexUnavailable: offline },
-        execute,
-      ),
-    { initialProps: { offline: true } },
-  );
-  const bbox = { x: 100, y: 100, w: 300, h: 300 };
-  await act(() => result.current.open(bbox));
-  expect(result.current.dialog).toBeNull();
-  rerender({ offline: false });
-  await act(() => result.current.open(bbox));
-  expect(result.current.dialog?.codexDelegateAll).toBe(true);
-  rerender({ offline: true });
-  act(() =>
-    result.current.dialog?.onRun({ output: "image", eraseOriginal: true }),
-  );
-  expect(execute).not.toHaveBeenCalled();
-  rerender({ offline: false });
-  await act(async () =>
-    result.current.dialog?.onRun({ output: "image", eraseOriginal: true }),
-  );
-  expect(execute).toHaveBeenCalledOnce();
-  await act(() => result.current.open(bbox));
-  expect(result.current.dialog?.initial).toEqual({
-    output: "image",
-    eraseOriginal: true,
-  });
-  act(() => result.current.dialog?.onClose());
-  expect(result.current.dialog).toBeNull();
+  expect(beforeTranslate).toHaveBeenCalledTimes(2);
 });
 
 function regionOptions(): UseTranslationActionsOptions {
@@ -186,7 +148,6 @@ function regionOptions(): UseTranslationActionsOptions {
     currentChapterRef: { current: chapter },
     selectedPage: page,
     jobActive: false,
-    codexDelegationActive: true,
     library: { workOrder: [], works: [] },
     clearPageImageCache: noop,
     clearRetouchHistory: noop,
@@ -210,9 +171,7 @@ it("routes an explicit SFX output to Codex while preserving ordinary preparation
   const options = regionOptions();
   const settings = resolveDefaultAppSettings({});
   settings.modelProvider = "openai-api";
-  settings.codex.delegateAll = false;
   options.settings = settings;
-  options.codexDelegationActive = false;
   options.beforeTranslate = vi.fn(async () => {});
   const chapter = options.currentChapter;
   if (!chapter) throw new Error("Missing fixture chapter");
@@ -250,7 +209,7 @@ it("routes an explicit SFX output to Codex while preserving ordinary preparation
       inpaintAfterTranslation: true,
     }),
   );
-  expect(options.beforeTranslate).not.toHaveBeenCalled();
+  expect(options.beforeTranslate).toHaveBeenCalledOnce();
   await act(() => result.current(targets, false, false, undefined, "font"));
   expect(startSoundEffectTranslation).toHaveBeenLastCalledWith(
     expect.objectContaining({
@@ -259,7 +218,7 @@ it("routes an explicit SFX output to Codex while preserving ordinary preparation
     }),
   );
   await act(() => result.current(targets));
-  expect(options.beforeTranslate).toHaveBeenCalledOnce();
+  expect(options.beforeTranslate).toHaveBeenCalledTimes(3);
   expect(startSoundEffectTranslation.mock.calls.at(-1)?.[0]).not.toHaveProperty(
     "codexTypesetting",
   );
@@ -269,7 +228,6 @@ it("routes an explicit SFX output to Codex while preserving ordinary preparation
 it("hands off standalone Codex recognition and confirmed generation while retaining the original page and failed edits", async () => {
   const settings = resolveDefaultAppSettings({});
   settings.modelProvider = "openai-api";
-  settings.codex.delegateAll = false;
   settings.codex.reasoningEffort = "low";
   const account: CodexAccountSnapshot = {
     authenticated: true,
@@ -288,11 +246,9 @@ it("hands off standalone Codex recognition and confirmed generation while retain
       },
     ],
   };
-  expect(canUseCodexTypesetting(settings, account)).toBe(false);
-  expect(canUseCodexTypesetting(settings, account, true)).toBe(true);
-  expect(
-    canUseCodexTypesetting(settings, { ...account, models: [] }, true),
-  ).toBe(false);
+  expect(canUseCodexImages(settings, account)).toBe(true);
+  expect(canUseCodexImages(settings, account)).toBe(true);
+  expect(canUseCodexImages(settings, { ...account, models: [] })).toBe(false);
   const listeners = new Set<(event: JobEvent) => void>();
   const confirmRegionTranslation = vi
       .fn()
@@ -332,7 +288,6 @@ it("hands off standalone Codex recognition and confirmed generation while retain
   const options = {
     ...regionOptions(),
     settings,
-    codexDelegationActive: false,
   };
   function Harness({ input }: { input: UseTranslationActionsOptions }) {
     const controller = useRegionTranslationDialog(input, execute);
@@ -352,7 +307,7 @@ it("hands off standalone Codex recognition and confirmed generation while retain
   }
   const view = render(<Harness input={options} />);
   fireEvent.click(screen.getByText("select"));
-  fireEvent.click(await screen.findByRole("radio", { name: "효과음 · Codex" }));
+  fireEvent.click(await screen.findByRole("radio", { name: "효과음 이미지" }));
   await waitFor(() =>
     expect(
       (screen.getByRole("button", { name: "실행" }) as HTMLButtonElement)
@@ -425,6 +380,5 @@ it("hands off standalone Codex recognition and confirmed generation while retain
   );
   await act(async () => finish(true));
   expect(cancelJob).not.toHaveBeenCalled();
-  expect(settings.codex.delegateAll).toBe(false);
   expect(settings.modelProvider).toBe("openai-api");
 });

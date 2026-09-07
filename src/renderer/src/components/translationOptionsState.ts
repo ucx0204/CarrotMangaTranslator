@@ -1,8 +1,5 @@
 import React from "react";
-import {
-  canUseCodexTypesetting,
-  isCodexAstraConfigured,
-} from "../../../shared/codexCapabilities";
+import { canUseCodexImages } from "../../../shared/codexCapabilities";
 import { useCodexConnection } from "../hooks/useCodexConnection";
 import type { AppSettings } from "../../../shared/settingsTypes";
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
@@ -193,7 +190,7 @@ function useTranslationFormFields(
   | "work"
 > {
   const initial = resolveInitialTranslationFormValues(uiSettings);
-  const showCodexErasure = isCodexAstraConfigured(settings);
+  const showCodexErasure = Boolean(settings);
   const { account } = useCodexConnection(showCodexErasure);
   const [codexErasure, setCodexErasure] = React.useState(
     uiSettings?.codexErasureDefault ?? false,
@@ -227,7 +224,7 @@ function useTranslationFormFields(
       ? {
           codexErasure: {
             enabled: codexErasure,
-            available: canUseCodexTypesetting(settings ?? null, account),
+            available: canUseCodexImages(settings ?? null, account),
             onChange: setCodexErasure,
           },
         }

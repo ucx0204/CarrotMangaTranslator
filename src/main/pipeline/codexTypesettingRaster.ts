@@ -14,33 +14,18 @@ import {
   codexSourceContextRect,
 } from "../../shared/codexTypesettingMask";
 import type {
-  TypesettingComposition,
   TypesettingImage,
   TypesettingPageImage,
 } from "../application/codexTypesettingContracts";
 import type { PageExportRenderSession } from "../pageExport";
 import type { BBox, TranslationBlock } from "../../shared/textTypes";
 import { createCodexPageViews } from "../../shared/codexTypesettingViews";
-import { ORIGINAL_PAGE_EXPORT_RASTER_LIMITS } from "../../shared/pageExportLimits";
-import { assertPageExportRasterBudget } from "../pageExportRasterSafety";
 import {
   normalizeParagraphWhitespace,
   segmentNaturalTextGraphemes,
 } from "../../shared/naturalTextLayoutSegmentation";
 import { serializeRichTextRuns } from "../../shared/richTextMarkup";
 import { assertExactMembership } from "../application/codexTypesettingValidation";
-
-export async function pageImage(
-  page: MangaPage,
-): Promise<TypesettingPageImage[]> {
-  assertPageExportRasterBudget(
-    page,
-    page.name,
-    ORIGINAL_PAGE_EXPORT_RASTER_LIMITS,
-  );
-  const source = nativeImage.createFromBuffer(await readFile(page.imagePath));
-  return typesettingPageImages(page, source, "Original source");
-}
 
 export function typesettingPageImages(
   page: MangaPage,
@@ -231,42 +216,6 @@ function createFontSamplePage(
     createdAt: now,
     updatedAt: now,
   };
-}
-
-export async function cleanPlainRegions(
-  page: MangaPage,
-  reading: CodexPageReading,
-  directory: string,
-  preserveExisting = false,
-): Promise<TypesettingComposition> {
-  const source = nativeImage.createFromBuffer(
-    await readFile(
-      preserveExisting && page.inpaintedImagePath
-        ? page.inpaintedImagePath
-        : page.imagePath,
-    ),
-  );
-  const image = PNG.sync.read(source.toPNG());
-  const issues: TypesettingComposition["issues"] = [];
-  const protectedRegions = reading.regions.filter(
-    (region) => region.action === "keep",
-  );
-  for (const region of reading.regions) {
-    if (region.action === "keep" || region.background === "artwork") continue;
-    try {
-      const mask = createCodexEraseMask(region, page, protectedRegions);
-      fillPlainMask(image, mask, region.background === "white" ? 255 : 0);
-    } catch (error) {
-      issues.push({
-        regionId: region.id,
-        kind: "background",
-        reason: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-  const inpaintedImagePath = join(directory, `clean-${page.id}.png`);
-  await writeFile(inpaintedImagePath, PNG.sync.write(image));
-  return { page: { ...page, inpaintedImagePath }, issues };
 }
 
 export function fillPlainMask(

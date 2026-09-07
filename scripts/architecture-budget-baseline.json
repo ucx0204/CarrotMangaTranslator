@@ -29,12 +29,8 @@
       "reason": "Settings IPC composition adds the separately owned Codex typesetting preset contract; existing domain validators remain authoritative"
     },
     "src/main/wholePagePipeline.ts": {
-      "maxRuntimeImports": 23,
-      "reason": "Translation entrypoint selects the independent Codex application adapter before legacy OCR setup; protected existing pipeline stays in place"
-    },
-    "src/main/pipeline/codexTypesettingRuntime.ts": {
-      "maxRuntimeImports": 15,
-      "reason": "Codex composition root binds account, settings, font registry, production rendering, raster, image generation, scoped erasure preview and the separately owned actual-background inspection adapter to the pure application service"
+      "maxRuntimeImports": 26,
+      "reason": "Translation composition keeps the standard text pipeline and connects external image review, crop registration and optional region image editing; no protected OCR/font algorithms are moved."
     },
     "src/main/index.ts": {
       "maxRuntimeImports": 30,
@@ -60,16 +56,16 @@
       "reason": "Isolated translation runtime composition root"
     },
     "src/renderer/src/app/session/AppSessionView.tsx": {
-      "maxRuntimeImports": 25,
-      "reason": "Renderer session composition view"
+      "maxRuntimeImports": 26,
+      "reason": "Renderer session composition also mounts the job-wide manual image review host."
     },
     "src/renderer/src/app/session/createAppSessionViewProps.ts": {
       "maxRuntimeImports": 14,
       "reason": "Renderer session composition mapper"
     },
     "src/renderer/src/components/settingsModal/SettingsModalView.tsx": {
-      "maxRuntimeImports": 16,
-      "reason": "Settings feature composition view"
+      "maxRuntimeImports": 17,
+      "reason": "Settings composition groups OCR, images and hardware with text translation and research under AI; each panel keeps its public component."
     },
     "src/renderer/src/components/ui/Button.tsx": {
       "publicPrimitive": true,
@@ -145,6 +141,10 @@
     "src/main/pipeline/wholePagePipelinePorts.ts": {
       "maxRuntimeImports": 13,
       "reason": "Existing pipeline composition root adds the C18 chapter port. Source inference remains in its adapter; pipeline integration and actual chapter parity are tested."
+    },
+    "src/main/jobs/soundEffectTranslationJobRunner.ts": {
+      "maxRuntimeImports": 16,
+      "reason": "SFX job composition connects normal text translation, manual image review, overlap holding and the independent image edit adapter. Protected font matching and atomic library writes remain at their existing boundaries."
     }
   }
 }

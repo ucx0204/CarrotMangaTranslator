@@ -30,6 +30,7 @@ function runEnhancementScript(options, scriptPath, outputPath) {
         cwd: resolveWorkingDir(options),
         stdio: ["ignore", "pipe", "pipe"],
         shell: false,
+        windowsHide: true,
         env: buildUtilityChildEnv(options),
       },
     );
@@ -39,6 +40,16 @@ function runEnhancementScript(options, scriptPath, outputPath) {
         buildScriptStartError(options, scriptPath, outputPath, state, error),
       ),
     );
+    let failed = false;
+    /** @param {Error} error */
+    const failPipe = (error) => {
+      if (failed) return;
+      failed = true;
+      reject(error);
+      child.kill();
+    };
+    child.stdout.on("error", failPipe);
+    child.stderr.on("error", failPipe);
     child.on("exit", (code) =>
       finishScript(
         options,

@@ -2,7 +2,6 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { OCR_DEVICE_OPTIONS, OCR_QUALITY_OPTIONS } from "../settingsOptions";
 import { SettingsSection } from "./SettingsSection";
-import { InpaintingModelSettings } from "./InpaintingModelSettings";
 import { GpuAssignmentSettings } from "./GpuAssignmentSettings";
 import { FluxBackendSettings } from "./FluxBackendSettings";
 import { HardwareStatusSummary } from "./HardwareStatusSummary";
@@ -13,10 +12,6 @@ export function HardwareSettingsPanel(
   props: HardwareSettingsPanelProps,
 ): React.JSX.Element {
   const { t } = useTranslation("components");
-  if (props.codexDelegateAll)
-    return (
-      <p className="settings-hint">{t("codexDelegation.hardwareManaged")}</p>
-    );
   return (
     <div className="settings-panel-stack">
       <HardwareStatusSummary {...props} />
@@ -33,13 +28,11 @@ export function HardwareSettingsPanel(
           />
         </details>
       ) : null}
-      <OcrSettingsSection {...props} />
-      <InpaintingSettingsSection {...props} />
     </div>
   );
 }
 
-function OcrSettingsSection({
+export function OcrSettingsSection({
   clearTestState,
   controlsBusy,
   ocrDevice,
@@ -141,17 +134,13 @@ function OcrPipelineSettings({
   );
 }
 
-function InpaintingSettingsSection({
-  allowUnsafeLowMemoryFlux,
+export function InpaintingSettingsSection({
   clearTestState,
   controlsBusy,
   fluxBackend,
   inpaintingModel,
   isFluxBackendOptionDisabled,
-  setAllowUnsafeLowMemoryFlux,
   setFluxBackend,
-  setInpaintingModel,
-  unifiedMemoryMb,
   usesAmdHardware,
   usesAppleHardware,
   detectedGpuName,
@@ -159,18 +148,8 @@ function InpaintingSettingsSection({
 }: HardwareSettingsPanelProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <SettingsSection title={t("settings.hardware.inpaintingSection")}>
+    <>
       <div className="settings-subsection-stack">
-        <InpaintingModelSettings
-          allowUnsafeLowMemoryFlux={allowUnsafeLowMemoryFlux}
-          clearTestState={clearTestState}
-          controlsBusy={controlsBusy}
-          inpaintingModel={inpaintingModel}
-          setAllowUnsafeLowMemoryFlux={setAllowUnsafeLowMemoryFlux}
-          setInpaintingModel={setInpaintingModel}
-          unifiedMemoryMb={unifiedMemoryMb}
-          usesAppleHardware={usesAppleHardware}
-        />
         <details className="settings-advanced hardware-advanced-settings">
           <summary>{t("settings.hardware.inpaintingBackendAdvanced")}</summary>
           <FluxBackendSettings
@@ -187,7 +166,7 @@ function InpaintingSettingsSection({
           />
         </details>
       </div>
-    </SettingsSection>
+    </>
   );
 }
 

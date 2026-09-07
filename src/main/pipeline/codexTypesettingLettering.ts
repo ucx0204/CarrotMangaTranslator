@@ -50,7 +50,7 @@ export async function generateLetteringLayers(
       references ??= await sourceRegionCrops(
         [page],
         new Map([[page.id, { ...reading, regions: imageRegions }]]),
-        true,
+        false,
       );
       const reference = references[regionIndex];
       if (!reference) throw new Error("효과음 원문 참고 이미지가 없습니다.");
@@ -144,21 +144,16 @@ function letteringPrompt(
   const style = context.plan.groups.find((group) =>
     group.members.some((member) => member.regionId === regionId),
   );
-  const typography = parseRichText(
-    block.translatedText,
-    block.bold,
-    block.italic,
-  );
-  return `Create a NEW foreground lettering asset on a perfectly uniform flat ${letteringMatteColor(block)} chroma-key background. This is a new foreground asset, not a background-edit operation. Render exactly ${JSON.stringify(typography.plainText)}. Every character must be correct. No other text, Japanese, paper, surrounding drawing, checkerboard, gradients or shadows. The only background is solid ${letteringMatteColor(block)}, including every gap and enclosed counter. Never use the matte color in the lettering. The app removes this exact matte locally to produce real alpha. Keep a small uniform matte margin around complete strokes.
-If the source letters pass behind a balloon or foreground object, generate the complete translated word; do not bake the occluder or crop edge into the asset. The app applies the separate occlusion mask.
-The attached image is the ORIGINAL source lettering crop, not the cleaned background: ${sourceReferenceLabel}.
-Use the visible source glyphs as the primary style reference: match stroke pressure, weight, tapered or rounded terminals, hollow versus filled strokes, outline-to-glyph width ratio, irregular spacing and character-size hierarchy. Reinterpret these traits as legible target-language syllables; do not copy Japanese glyphs or neighboring drawing. Preserve narrow white edging only where it exists in the source. No extra glow, shadow or sticker halo.
-The family description and planned treatment below guide consistency and emphasis; do not replace the visible hand lettering with a generic font. Keep contours legible at the stated ORIGINAL PAGE size after reduction, scaling their thickness proportionally with the asset resolution. Preserve complete syllable anatomy and the same solid matte color in every background gap.
-Preserve the per-run emphasis, size and color in this typography description; do not print its field names: ${JSON.stringify(typography.runs)}.
-The source chapter's font-family analysis describes this style: ${JSON.stringify(style?.description ?? "expressive hand-drawn manga lettering")}.
-Treatment: ${JSON.stringify({ bold: block.bold, italic: block.italic, fill: block.textColor, outline: block.outlineColor, outlineWidthInPagePixels: block.outlineWidthPx })}.
-Destination is ${size.w} by ${size.h} ORIGINAL PAGE pixels. Keep the matching aspect ratio. The app applies ${block.rotationDeg ?? 0} degrees of rotation separately; do not duplicate it.
-${context.issues.length ? `Correct these observed defects: ${JSON.stringify(context.issues.filter((issue) => issue.regionId === regionId))}` : ""}`;
+  const typography = parseRichText(block.translatedText);
+  return `Create a foreground lettering asset that transfers the visual treatment of the attached ORIGINAL source glyphs to the approved target text. Render exactly ${JSON.stringify(typography.plainText)}. Every character must be correct. Do not translate, extend or paraphrase that text.
+ORIGINAL source lettering crop: ${sourceReferenceLabel}. Inspect the lettering itself, separate from surrounding artwork. Its appearance is authoritative. Match the interior tone and ink coverage, spatial texture and grain, speckles and worn patches, the shape and continuity of outlines, the relation of edge color to interior color, stroke construction, terminals, proportions, slant, spacing and character-size hierarchy. Preserve the source's variations within strokes and across letters at a comparable relative scale. Adapt the glyph anatomy to the target script while retaining those visible attributes. Do not normalize the reference into a standard brush-lettering treatment or substitute default text styling.
+LAYOUT: The reference is the exact source bounding box, and its full canvas maps edge-to-edge to the destination canvas. Preserve the original lettering's relative positions, reading path, separate groups, changing character sizes, slants and empty gaps. Place target glyph groups along the same path and within the corresponding occupied areas, adapting different character counts proportionally. Keep intervening artwork areas empty. Do not recenter, straighten, evenly distribute, or collapse scattered lettering into a single column. Do not reproduce surrounding artwork.
+${style?.description ? `Additional observed family characteristics: ${JSON.stringify(style.description)}. Use only where consistent with the source crop.` : ""}
+${block.translatedText !== typography.plainText ? `Explicit per-span overrides from text markup: ${JSON.stringify(typography.runs)}. Apply these overrides without replacing the reference texture.` : ""}
+Generate only the complete lettering. If the source passes behind a balloon or foreground object, keep the word complete without baking the occluder or crop edge into it; the app applies a separate occlusion mask. Do not copy Japanese glyphs, neighboring drawings, paper or panels. Do not add decorative effects absent from the source.
+Place the asset on a perfectly uniform flat ${letteringMatteColor(block)} chroma-key background, also in every empty gap and enclosed counter. This background must have no texture, gradient, shadow or checkerboard. Preserve texture and tonal variation INSIDE the lettering. Never use the matte color as part of the lettering. The app removes the matte locally to produce real alpha. Retain the reference's existing margins rather than adding padding that shifts or shrinks the lettering.
+Destination is ${size.w} by ${size.h} ORIGINAL PAGE pixels. Match its aspect ratio and retain the source treatment when reduced to this size. The app applies ${block.rotationDeg ?? 0} degrees of rotation separately; do not duplicate it.
+${context.issues.length ? `Observed defects: ${JSON.stringify(context.issues.filter((issue) => issue.regionId === regionId))}` : ""}`;
 }
 
 function assertTransparentLettering(image: PNG): void {

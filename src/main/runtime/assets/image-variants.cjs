@@ -17,6 +17,19 @@ const { buildOpenAIVisionVariant } = require("./openai-vision-variant.cjs");
 
 /** @param {ImageVariantOptions} options */
 async function prepareImageVariants(options) {
+  if (options.prepareExternalImage) {
+    const prepare = options.prepareExternalImage;
+    options = {
+      ...options,
+      imagePath: await prepare(options.imagePath),
+      regionContextImagePath: options.regionContextImagePath
+        ? await prepare(options.regionContextImagePath)
+        : options.regionContextImagePath,
+      soundEffectTargetCropPath: options.soundEffectTargetCropPath
+        ? await prepare(options.soundEffectTargetCropPath)
+        : options.soundEffectTargetCropPath,
+    };
+  }
   const sourceSize = resolveImageSize(options);
   const variants = await buildBaseVariants(options, sourceSize);
   appendRegionContext(variants, options);

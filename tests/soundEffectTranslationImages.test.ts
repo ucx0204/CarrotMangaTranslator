@@ -1,11 +1,94 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { PNG } from "pngjs";
+import type { MangaPage } from "../src/shared/libraryTypes";
+import type { SoundEffectReviewRegion } from "../src/shared/soundEffectReview";
+import {
+  withApprovedImageRedactions,
+  externalImageMask,
+} from "../src/main/imageRedactionContext";
 import {
   applySoundEffectTargetHighlight,
   resolveSoundEffectContextSize,
   resolveSoundEffectCropSize,
+  buildSoundEffectTranslationImages,
 } from "../src/main/jobs/soundEffectTranslationImages";
 
+// Native raster boundary only; the crop builder, disk writes and redaction
+// coordinate registration execute their production implementations.
+vi.mock("electron", () => ({
+  nativeImage: {
+    createFromPath: () => raster(200, 100),
+    createFromBitmap: (data: Buffer, size: { width: number; height: number }) =>
+      raster(size.width, size.height, data),
+  },
+}));
+function raster(
+  width: number,
+  height: number,
+  data: Buffer = Buffer.alloc(width * height * 4, 255),
+) {
+  return {
+    isEmpty: () => false,
+    getSize: () => ({ width, height }),
+    toBitmap: () => Buffer.from(data),
+    toPNG: () =>
+      PNG.sync.write(Object.assign(new PNG({ width, height }), { data })),
+    resize: (size: { width: number; height: number }) =>
+      raster(size.width, size.height),
+    crop: (rect: { width: number; height: number }) =>
+      raster(rect.width, rect.height),
+  };
+}
+
 describe("sound-effect translation images", () => {
+  it("registers both generated references with the original redaction coordinates", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "sfx-reference-"));
+    const imagePath = join(directory, "source.png");
+    try {
+      await withApprovedImageRedactions(
+        [
+          {
+            id: "page",
+            name: "source.png",
+            imagePath,
+            width: 200,
+            height: 100,
+            fingerprint: "a".repeat(64),
+            strokes: [{ shape: "square", size: 4, points: [{ x: 5, y: 5 }] }],
+          },
+        ],
+        async () => {
+          const result = await buildSoundEffectTranslationImages(
+            { imagePath } as MangaPage,
+            {
+              id: "sfx",
+              bbox: { x: 400, y: 400, w: 200, h: 200 },
+            } as SoundEffectReviewRegion,
+            directory,
+            async () => null,
+          );
+          const context = PNG.sync.read(await readFile(result.context.path));
+          expect(context.width).toBe(200);
+          expect(context.height).toBe(100);
+          expect(
+            externalImageMask(result.context.path, 200, 100)?.[5 * 200 + 5],
+          ).toBe(255);
+          const cropMask = externalImageMask(
+            result.crop.path,
+            result.crop.width,
+            result.crop.height,
+          );
+          expect(cropMask?.some(Boolean)).toBe(false);
+          expect((await readFile(result.crop.path)).length).toBeGreaterThan(0);
+        },
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
   it("keeps whole-page context near a 720p pixel budget", () => {
     expect(resolveSoundEffectContextSize(1200, 1800)).toEqual({
       width: 784,

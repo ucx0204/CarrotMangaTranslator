@@ -1,4 +1,5 @@
 import type { MangaPage } from "../shared/libraryTypes";
+import { readFile } from "node:fs/promises";
 import type { FontMatchingRasterPage } from "./pipeline/fontMatchingPagePixelPreprocessing";
 
 /**
@@ -18,7 +19,9 @@ export async function loadFontMatchingPageRaster(
 ): Promise<FontMatchingRasterPage> {
   throwIfAborted(signal);
   const { nativeImage } = require("electron") as typeof import("electron");
-  const image = nativeImage.createFromPath(page.imagePath);
+  let image = nativeImage.createFromPath(page.imagePath);
+  if (image.isEmpty())
+    image = nativeImage.createFromBuffer(await readFile(page.imagePath));
   if (image.isEmpty()) {
     throw new Error("Font matching could not decode the original page image.");
   }

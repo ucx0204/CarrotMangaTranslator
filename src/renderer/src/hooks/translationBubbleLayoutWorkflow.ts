@@ -143,7 +143,7 @@ export async function runTranslationFlowAction(
       naturalTextLayout,
     });
   } catch (error) {
-    return failTranslationFlow(error, completion, context);
+    return failTranslationFlow(error, context);
   } finally {
     context.flowActiveRef.current = false;
     context.setFlowActive(false);
@@ -351,11 +351,10 @@ function mergeChapterFlowResult(
 
 function failTranslationFlow(
   error: unknown,
-  completion: TranslationCompletion,
   context: TranslationFlowActionContext,
 ): "failed" {
   console.error(error);
-  const fallback = context.t(resolveFlowMessageKey(completion, "failed"));
+  const fallback = context.t("translation.errors.jobFailedTitle");
   const message =
     error instanceof Error && error.message.trim() ? error.message : fallback;
   setFlowTerminal(context, "failed", fallback, message);

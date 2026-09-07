@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { observeProcessErrors } from "./runtimeSupport/observeProcessErrors";
 import {
   SAFE_PAGE_EXPORT_RASTER_LIMITS,
   validatePageExportRasterSize,
@@ -385,19 +386,21 @@ function runPageExportFfmpeg(
         errorText = `${errorText}${chunk}`.slice(0, MAX_FFMPEG_ERROR_CHARS);
       }
     });
-    child.once("error", (error) => {
+    const onError = (error: Error): void => {
+      if (spawnError) return;
       spawnError = error;
-    });
+      clearTimeout(timer);
+      reject(error);
+      child.kill("SIGKILL");
+    };
+    observeProcessErrors(child, onError);
     child.once("close", (code) => {
       clearTimeout(timer);
       if (timedOut) {
         reject(new Error("Page export tile stitching timed out."));
         return;
       }
-      if (spawnError) {
-        reject(spawnError);
-        return;
-      }
+      if (spawnError) return;
       if (code !== 0) {
         reject(
           new Error(

@@ -10,8 +10,6 @@ import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 import { TranslationOptionsActionBar } from "./TranslationOptionsActionBar";
 
 type PageRetranslateModalProps = {
-  codexDelegateAll?: boolean;
-  codexUnavailable?: boolean;
   pageName: string;
   blockCount: number;
   uiSettings: UiSettings | undefined;
@@ -34,8 +32,6 @@ type PageRetranslateModalProps = {
 };
 
 export function PageRetranslateModal({
-  codexDelegateAll = false,
-  codexUnavailable = false,
   pageName,
   blockCount,
   uiSettings,
@@ -57,7 +53,7 @@ export function PageRetranslateModal({
   } = fields;
 
   const handleStart = (): void => {
-    if (fields.saveAsDefault && !codexDelegateAll) {
+    if (fields.saveAsDefault) {
       onPersistDefaults(
         buildRetranslateDefaults(
           blockMode,
@@ -82,35 +78,26 @@ export function PageRetranslateModal({
       cardClassName="translation-options-modal"
       footer={
         <RetranslateFooter
-          delegated={codexDelegateAll}
-          unavailable={codexUnavailable}
           fields={fields}
           close={onClose}
           start={handleStart}
         />
       }
     >
-      {codexDelegateAll ? (
-        <TranslationOverwriteWarning
-          title={t("retranslate.overwriteTitle")}
-          description={t("retranslate.overwriteWarning")}
-        />
-      ) : (
-        <PageRetranslateOptions
-          autoFontMatching={autoFontMatching}
-          blockCount={blockCount}
-          blockMode={blockMode}
-          aiFontSizeMatching={aiFontSizeMatching}
-          naturalTextLayout={naturalTextLayout}
-          onAutoFontMatchingChange={setAutoFontMatching}
-          onBlockModeChange={setBlockMode}
-          onAiFontSizeMatchingChange={fields.setAiFontSizeMatching}
-          onNaturalTextLayoutChange={setNaturalTextLayout}
-          pageName={pageName}
-          t={t}
-          tRenderer={tRenderer}
-        />
-      )}
+      <PageRetranslateOptions
+        autoFontMatching={autoFontMatching}
+        blockCount={blockCount}
+        blockMode={blockMode}
+        aiFontSizeMatching={aiFontSizeMatching}
+        naturalTextLayout={naturalTextLayout}
+        onAutoFontMatchingChange={setAutoFontMatching}
+        onBlockModeChange={setBlockMode}
+        onAiFontSizeMatchingChange={fields.setAiFontSizeMatching}
+        onNaturalTextLayoutChange={setNaturalTextLayout}
+        pageName={pageName}
+        t={t}
+        tRenderer={tRenderer}
+      />
     </Modal>
   );
 }
@@ -231,14 +218,10 @@ function useRetranslateFields(uiSettings: UiSettings | undefined) {
 }
 
 function RetranslateFooter({
-  delegated,
-  unavailable,
   fields,
   close,
   start,
 }: {
-  delegated: boolean;
-  unavailable: boolean;
   fields: ReturnType<typeof useRetranslateFields>;
   close: () => void;
   start: () => void;
@@ -246,8 +229,6 @@ function RetranslateFooter({
   const { t } = useTranslation("components");
   return (
     <TranslationOptionsActionBar
-      showSaveAsDefault={!delegated}
-      startDisabled={unavailable}
       saveAsDefault={fields.saveAsDefault}
       onCancel={close}
       onSaveAsDefaultChange={fields.setSaveAsDefault}

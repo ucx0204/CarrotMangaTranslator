@@ -208,6 +208,7 @@ function spawnServer(serverPath, launchArgs, options) {
     cwd: resolveWorkingDir(options),
     stdio: ["ignore", "pipe", "pipe"],
     shell: false,
+    windowsHide: true,
     env: buildLlamaServerEnv(serverPath, options),
   });
   const serverLogTarget = createServerLogTarget(
@@ -247,7 +248,17 @@ function bindServerOutput(running) {
     recordServerOutput("stderr", chunk, running),
   );
   child.once("exit", disposeOutput);
-  child.once("error", disposeOutput);
+  child.on("error", disposeOutput);
+  let pipeFailed = false;
+  /** @param {Error} error */
+  const failPipe = (error) => {
+    if (pipeFailed) return;
+    pipeFailed = true;
+    child.emit("error", error);
+    terminateChildProcessTree(child);
+  };
+  child.stdout?.on("error", failPipe);
+  child.stderr?.on("error", failPipe);
 }
 
 /** @param {"stdout" | "stderr"} stream @param {unknown} chunk @param {RunningServer} running */

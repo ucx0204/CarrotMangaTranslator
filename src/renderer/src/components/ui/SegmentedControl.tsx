@@ -48,7 +48,9 @@ export function SegmentedControl<T extends string>({
   const firstEnabledIndex = options.findIndex((option) => !option.disabled);
   const selectedIndex = options.findIndex((option) => option.id === value);
   const tabStopIndex =
-    !mixed && selectedIndex >= 0 ? selectedIndex : firstEnabledIndex;
+    !mixed && selectedIndex >= 0 && !options[selectedIndex].disabled
+      ? selectedIndex
+      : firstEnabledIndex;
   const roving = useRovingFocus({
     count: options.length,
     disabled,

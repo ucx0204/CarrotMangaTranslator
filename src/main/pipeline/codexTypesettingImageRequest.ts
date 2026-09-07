@@ -1,12 +1,14 @@
 import { nativeImage } from "electron";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { PNG } from "pngjs";
 import { CODEX_TYPESETTING_MODEL } from "../../shared/codexTypesettingDefaults";
 import type { CodexAppServerClient } from "../codexAppServerClient";
 
 export async function generateImage(
-  client: Pick<CodexAppServerClient, "runEphemeralTurn">,
+  client: Pick<CodexAppServerClient, "runEphemeralTurn"> & {
+    imageModel?: string;
+  },
   directory: string,
   signal: AbortSignal,
   prompt: string,
@@ -15,15 +17,16 @@ export async function generateImage(
 ): Promise<Buffer> {
   signal.throwIfAborted();
   const targetSize = {
-    width: Math.ceil(nativeSize.width * 1.2),
-    height: Math.ceil(nativeSize.height * 1.2),
+    width: Math.ceil((nativeSize.width * 11) / 10),
+    height: Math.ceil((nativeSize.height * 11) / 10),
   };
   const sizedPrompt =
     prompt +
-    `\nOutput budget: native destination ${nativeSize.width}x${nativeSize.height}px; desired output ${targetSize.width}x${targetSize.height}px (1.2x each edge). Request that size if the tool allows it; otherwise use its smallest supported size preserving this aspect ratio. Do not select high resolution or upscale beyond that minimum. Generate once only.`;
+    `\nOutput budget: native destination ${nativeSize.width}x${nativeSize.height}px; desired output ${targetSize.width}x${targetSize.height}px (1.1x each edge). Request that size if the tool allows it; otherwise use its smallest supported size preserving this aspect ratio. Do not select high resolution or upscale beyond that minimum. Generate once only.`;
   const started = Date.now();
+  const model = client.imageModel ?? CODEX_TYPESETTING_MODEL;
   const response = await client.runEphemeralTurn({
-    model: CODEX_TYPESETTING_MODEL,
+    model,
     effort: "low",
     cwd: directory,
     signal,
@@ -55,12 +58,15 @@ export async function generateImage(
       2,
     ),
   );
-  if (response.routedModel && response.routedModel !== CODEX_TYPESETTING_MODEL)
+  if (response.routedModel && response.routedModel !== model)
     throw new Error(
       `검증되지 않은 모델로 변경되었습니다: ${response.routedModel}`,
     );
   signal.throwIfAborted();
-  const output = await readGeneratedImage(text, directory);
+  const output = await readGeneratedImage(
+    text,
+    response.imageDirectory ?? directory,
+  );
   // Preserve failed alpha/registration outputs as evidence before consumer validation.
   await writeFile(resolve(directory, `image-output-${callId}.png`), output);
   return output;
@@ -82,7 +88,18 @@ async function readGeneratedImage(
   const local = relative(directory, path);
   if (!local || local.startsWith("..") || isAbsolute(local))
     throw new Error("ImageGen 자산 경로가 작업 폴더 밖입니다.");
-  return readFile(path);
+  const canonicalDirectory = await realpath(directory);
+  const canonicalPath = await realpath(path);
+  const canonicalRelative = relative(canonicalDirectory, canonicalPath);
+  if (
+    !canonicalRelative ||
+    canonicalRelative.startsWith("..") ||
+    isAbsolute(canonicalRelative)
+  )
+    throw new Error("ImageGen 자산 경로가 작업 폴더 밖입니다.");
+  if ((await stat(canonicalPath)).size > 67_500_000)
+    throw new Error("ImageGen 이미지 데이터가 너무 큽니다.");
+  return readFile(canonicalPath);
 }
 
 /** Conceal every authorized source stroke before generation so it cannot be retained as artwork. */

@@ -1,6 +1,7 @@
 // @ts-check
 const { spawn } = require("node:child_process");
 const { readFile } = require("node:fs/promises");
+const { readFileSync } = require("node:fs");
 const path = require("node:path");
 const { buildUtilityChildEnv } = require("../simple-page-child-env.cjs");
 const { resolveFfmpegPath } = require("../simple-page-runtime-paths.cjs");
@@ -15,7 +16,19 @@ const {
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { imageHeight?: unknown; imagePath: string; imageWidth?: unknown }} ImageVariantOptions */
 /** @typedef {{ width: number; height: number }} ImageSize */
 /** @typedef {{ isEmpty(): boolean; getSize(): ImageSize; resize(options: { width: number; height: number; quality?: "good" | "better" | "best" }): NativeImageInstance; toBitmap(): Buffer; toPNG(): Buffer }} NativeImageInstance */
-/** @typedef {{ createFromPath(filePath: string): NativeImageInstance; createFromBitmap(buffer: Buffer, size: ImageSize): NativeImageInstance }} NativeImageModule */
+/** @typedef {{ createFromPath(filePath: string): NativeImageInstance; createFromBuffer(buffer: Buffer): NativeImageInstance; createFromBitmap(buffer: Buffer, size: ImageSize): NativeImageInstance }} NativeImageModule */
+
+/**
+ * @template {{isEmpty():boolean}} T
+ * @param {{createFromPath(path:string):T, createFromBuffer?(bytes:Buffer):T}} nativeImage
+ * @param {string} filePath
+ */
+function loadNativeImage(nativeImage, filePath) {
+  const image = nativeImage.createFromPath(filePath);
+  return image.isEmpty() && nativeImage.createFromBuffer
+    ? nativeImage.createFromBuffer(readFileSync(filePath))
+    : image;
+}
 
 /** @returns {NativeImageModule | null} */
 function resolveElectronNativeImage() {
@@ -82,6 +95,14 @@ function convertImageToPngBufferWithFfmpeg(filePath, options = {}) {
     child.on("error", (error) =>
       rejectOnce(buildFfmpegStartError(filePath, ffmpegPath, error)),
     );
+    /** @param {Error} error */
+    const failPipe = (error) => {
+      if (state.settled) return;
+      rejectOnce(error);
+      terminateChildProcessTree(child);
+    };
+    child.stdout.on("error", failPipe);
+    child.stderr.on("error", failPipe);
     child.on("close", (code) =>
       finishFfmpegConversion(
         filePath,
@@ -202,7 +223,7 @@ function resolveImageSize(options = {}) {
     return { width: configuredWidth, height: configuredHeight };
   const nativeImage = resolveElectronNativeImage();
   if (!nativeImage || !options.imagePath) return { width: 0, height: 0 };
-  const size = nativeImage.createFromPath(options.imagePath)?.getSize?.() || {
+  const size = loadNativeImage(nativeImage, options.imagePath).getSize() || {
     width: 0,
     height: 0,
   };
@@ -217,4 +238,5 @@ module.exports = {
   fileToModelAsset,
   resolveElectronNativeImage,
   resolveImageSize,
+  loadNativeImage,
 };

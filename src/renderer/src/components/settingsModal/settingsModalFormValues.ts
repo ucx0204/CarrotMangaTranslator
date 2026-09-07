@@ -66,10 +66,10 @@ export type SettingsFormValues = {
   gemmaMmprojOffload: boolean;
   llamaRuntimeProfile: LlamaRuntimeProfile;
   allowUnsafeUnifiedMemory: boolean;
-  codexDelegateAll?: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
   codexImageReasoningEffort: CodexReasoningEffort;
+  codexImageModel: string;
   researchTavilyAnalysisProvider: TavilyAnalysisProvider;
   researchGemmaPreset: ResearchGemmaPreset;
   researchGemmaReasoningEffort: ResearchGemmaReasoningEffort;
@@ -212,10 +212,10 @@ function resolveModelFormValues(
   | "gemmaMmprojOffload"
   | "llamaRuntimeProfile"
   | "allowUnsafeUnifiedMemory"
-  | "codexDelegateAll"
   | "codexModel"
   | "codexReasoningEffort"
   | "codexImageReasoningEffort"
+  | "codexImageModel"
 > {
   return {
     modelSource: settings.gemma.modelSource,
@@ -232,9 +232,9 @@ function resolveModelFormValues(
     gemmaMmprojOffload: settings.gemma.mmprojOffload ?? true,
     llamaRuntimeProfile: settings.gemma.llamaRuntimeProfile ?? "cuda12",
     allowUnsafeUnifiedMemory: settings.gemma.allowUnsafeUnifiedMemory === true,
-    codexDelegateAll: settings.codex.delegateAll === true,
     codexModel: settings.codex.model,
     codexImageReasoningEffort: settings.codex.imageReasoningEffort ?? "low",
+    codexImageModel: settings.codex.imageModel ?? "gpt-6-astra",
     codexReasoningEffort: resolveCodexReasoningEffortForModel(
       settings.codex.model,
       settings.codex.reasoningEffort,

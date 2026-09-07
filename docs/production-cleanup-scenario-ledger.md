@@ -1,5 +1,23 @@
 # Production cleanup scenario ledger
 
+## September 8 Codex auxiliary image scope
+
+The removed, unused `codexBubbleLayoutRunner.ts` leaves the introduced-file
+inventory. Ten newly touched pre-existing files retain their exact original
+Node 22 baseline floors, and five new files receive their first floors from
+`.tmp/codex-coverage25-summary.json`. That bootstrap capture has 5,790 passing
+tests and excludes only the inventory test pending this scope update; it is
+not a canonical passing check. All surviving existing/introduced floors stay
+unchanged. Inventory is 696 existing / 515 introduced / 10 deleted.
+
+The accepted per-file provenance artifact adds only these five records,
+retaining its historical records and total. Its SHA-256 is
+`11a36030296f9bf3068aeb3fbbc8efe70b85047191b5745689d76986b5222134`.
+The baseline artifact is unchanged. `.tmp/coverage-scope25.json` records the
+exact added scope and `.tmp/coverage-manifest-before25.json` retains the prior
+manifest. Fresh canonical validation includes the inventory test and enforces
+all old floors; a bootstrap scope update does not waive regressions.
+
 This ledger seals the observable contracts preserved by the August 2026
 production cleanup. The sealed snapshot from the completed second-pass gate
 documented in `codebase-cleanup-scenario-ledger.md` contains 466 Vitest files

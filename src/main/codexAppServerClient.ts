@@ -22,6 +22,7 @@ import {
 } from "./codexAppServerProtocol";
 import { extractCodexImageTurn } from "./codexAppServerImageResult";
 import { CodexAppServerTransport } from "./codexAppServerTransport";
+import { createCodexAppServerWorkspace } from "./codexAppServerWorkspace";
 import {
   CODEX_PREVIEW_MEDIA_INSTRUCTIONS,
   codexPreviewToolConfig,
@@ -33,6 +34,7 @@ import {
 } from "./codexAppServerPolicy";
 
 const TURN_COMPLETION_TIMEOUT_MS = 12 * 60_000;
+type Workspace = ReturnType<typeof createCodexAppServerWorkspace>;
 
 export type CodexAppServerClientStartRuntime = {
   resolveBinary: (
@@ -60,6 +62,7 @@ export class CodexAppServerClient {
   private constructor(
     private readonly transport: CodexAppServerTransport,
     private readonly capability: CodexAppServerCapability,
+    private readonly workspace: Workspace,
   ) {}
 
   static async start(
@@ -78,22 +81,24 @@ export class CodexAppServerClient {
   ): Promise<CodexAppServerClient> {
     signal?.throwIfAborted();
     const codexHomeDir = paths.codexHomeDir ?? join(paths.dataRoot, "codex");
-    const codexWorkspaceDir =
-      paths.codexWorkspaceDir ?? join(paths.dataRoot, ".codex-workspace");
     mkdirSync(codexHomeDir, { recursive: true });
-    mkdirSync(codexWorkspaceDir, { recursive: true });
     const binary = runtime.resolveBinary(paths);
-    const child = runtime.spawnAppServer(
-      binary.executablePath,
-      buildCodexAppServerArguments(capability),
-      {
-        cwd: codexWorkspaceDir,
-        env: buildCodexEnvironment(codexHomeDir),
-      },
-    );
+    const workspace = createCodexAppServerWorkspace();
+    let child: ChildProcessWithoutNullStreams;
+    try {
+      child = runtime.spawnAppServer(
+        binary.executablePath,
+        buildCodexAppServerArguments(capability),
+        { cwd: workspace.path, env: buildCodexEnvironment(codexHomeDir) },
+      );
+    } catch (error) {
+      await workspace.remove();
+      throw error;
+    }
     const client = new CodexAppServerClient(
       new CodexAppServerTransport(child, binary.packageVersion),
       capability,
+      workspace,
     );
     const abort = () => {
       void client.dispose(true);
@@ -105,7 +110,7 @@ export class CodexAppServerClient {
       signal?.throwIfAborted();
       return client;
     } catch (error) {
-      await client.dispose();
+      await client.dispose(true);
       throw error;
     }
   }
@@ -198,6 +203,7 @@ export class CodexAppServerClient {
   async runEphemeralTurn(
     input: CodexAppServerTurnRequest,
   ): Promise<CodexAppServerTurnResult> {
+    input = { ...input, cwd: this.workspace.path };
     input.signal?.throwIfAborted();
     if (input.previewTool && this.capability !== "typesetting-preview")
       throw new Error("Preview tools require the typesetting capability.");
@@ -219,7 +225,10 @@ export class CodexAppServerClient {
         )
       : undefined;
     try {
-      return await this.runTurnInThread(input, threadId);
+      const result = await this.runTurnInThread(input, threadId);
+      return this.capability === "image-generation"
+        ? { ...result, imageDirectory: this.workspace.path }
+        : result;
     } finally {
       disposePreview?.();
       const cleanup = this.transport
@@ -234,6 +243,7 @@ export class CodexAppServerClient {
   async dispose(force = false): Promise<void> {
     this.releaseAbort?.();
     await this.transport.dispose(force);
+    await this.workspace.removeAfterExit(this.transport.process);
   }
 
   private async initialize(appVersion: string): Promise<void> {
@@ -394,11 +404,7 @@ function isolatedTurnConfig(capability: CodexAppServerCapability): JsonRecord {
     project_doc_fallback_filenames: [],
     web_search: research ? "live" : "disabled",
     tools: {
-      web_search: research
-        ? {
-            context_size: "high",
-          }
-        : false,
+      web_search: research ? { context_size: "high" } : false,
     },
     features: {
       apps: false,

@@ -1,5 +1,5 @@
 import { useCodexConnection } from "../../hooks/useCodexConnection";
-import { canUseCodexTypesetting } from "../../../../shared/codexCapabilities";
+import { canUseCodexImages } from "../../../../shared/codexCapabilities";
 import { useAppSessionCommandController } from "./useAppSessionCommandController";
 import { useAppSessionInpaintingController } from "./useAppSessionInpaintingController";
 import type { ChapterSessionController } from "./useChapterSessionController";
@@ -12,14 +12,10 @@ export function useInpaintingController(
 ) {
   const { account } = useCodexConnection(true);
   const inpainting = useAppSessionInpaintingController({
-    codexErasureAvailable: canUseCodexTypesetting(
+    codexErasureAvailable: canUseCodexImages(
       chapter.settingsDialog.settings,
       account,
     ),
-    aiUnavailable:
-      chapter.settingsDialog.codexDelegationEnabled &&
-      !chapter.settingsDialog.codexDelegationActive,
-    codexDelegateAll: chapter.settingsDialog.codexDelegationEnabled,
     askConfirm: chapter.confirmController.askConfirm,
     blockFormatDefaults: chapter.settingsDialog.settings?.blockFormatDefaults,
     bridgeActions: chapter.bridgeActions,

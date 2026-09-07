@@ -91,6 +91,7 @@ export function createInpaintingRuntimeHarness(
     ),
   );
   const runtime: InpaintingJobRuntime = {
+    reviewImages: async (_input, run) => run(),
     acquireEngine,
     emitEvent: (jobs, mainWindow, event) => {
       if (jobs.current?.id !== event.id) {

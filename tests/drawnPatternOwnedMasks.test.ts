@@ -20,80 +20,103 @@ afterEach(() => {
 });
 
 describe("drawn-pattern block-owned masks", () => {
-  it("passes one owned mask per overlapping Metal component window", async () => {
-    const width = 96;
-    const height = 64;
-    const inputImage = new FakeImage(
-      Buffer.alloc(width * height * 4, 180),
-      width,
-      height,
-    );
-    vi.doMock("electron", () => ({
-      nativeImage: {
-        createFromBitmap: (
-          bitmap: Buffer,
-          size: { width: number; height: number },
-        ) => new FakeImage(Buffer.from(bitmap), size.width, size.height),
-        createFromBuffer: () => FakeImage.empty(),
-        createFromPath: () => inputImage,
-      },
-    }));
-    const inpaint = vi.fn<InpaintingEngine["inpaint"]>(
-      async (bitmap: Parameters<InpaintingEngine["inpaint"]>[0]) => {
-        const changedPoints: Array<[number, number]> = [
-          [32, 32],
-          [48, 32],
-        ];
-        for (const [x, y] of changedPoints) {
-          const offset = (y * width + x) * 4;
-          bitmap[offset] = 0;
-          bitmap[offset + 1] = 0;
-          bitmap[offset + 2] = 0;
-        }
-      },
-    );
-    const engine: InpaintingEngine = {
-      model: "flux-klein",
-      runtimePath: "test-runtime",
-      backend: "metal-native",
-      runRootDir: "test-runs",
-      inpaint,
-      dispose: async () => {},
-    };
-    const root = createTempDir("mgt-drawn-owned-masks-");
-    const page = createPage(
-      join(root, "chapter", "images", "page.png"),
-      width,
-      height,
-    );
-    const { inpaintDrawnPatternPage } =
-      await import("../src/main/inpainting/drawnPatternPage");
+  it.each(["flux-klein", "codex"] as const)(
+    "persists %s brush results with the correct mask ownership",
+    async (model) => {
+      const width = 96;
+      const height = 64;
+      const inputImage = new FakeImage(
+        Buffer.alloc(width * height * 4, 180),
+        width,
+        height,
+      );
+      vi.doMock("electron", () => ({
+        nativeImage: {
+          createFromBitmap: (
+            bitmap: Buffer,
+            size: { width: number; height: number },
+          ) => new FakeImage(Buffer.from(bitmap), size.width, size.height),
+          createFromBuffer: () => FakeImage.empty(),
+          createFromPath: () => inputImage,
+        },
+      }));
+      const inpaint = vi.fn<InpaintingEngine["inpaint"]>(
+        async (bitmap: Parameters<InpaintingEngine["inpaint"]>[0]) => {
+          const changedPoints: Array<[number, number]> = [
+            [32, 32],
+            [48, 32],
+          ];
+          for (const [x, y] of changedPoints) {
+            const offset = (y * width + x) * 4;
+            bitmap[offset] = 0;
+            bitmap[offset + 1] = 0;
+            bitmap[offset + 2] = 0;
+          }
+        },
+      );
+      const engine: InpaintingEngine = {
+        model,
+        runtimePath: "test-runtime",
+        backend: "metal-native",
+        runRootDir: "test-runs",
+        inpaint,
+        dispose: async () => {},
+      };
+      const root = createTempDir("mgt-drawn-owned-masks-");
+      const page = createPage(
+        join(root, "chapter", "images", "page.png"),
+        width,
+        height,
+      );
+      const { inpaintDrawnPatternPage } =
+        await import("../src/main/inpainting/drawnPatternPage");
 
-    const result = await inpaintDrawnPatternPage(page, {
-      inpaintingEngine: engine,
-      strokes: [
-        { points: [{ x: 32, y: 32 }], radiusPx: 2 },
-        { points: [{ x: 48, y: 32 }], radiusPx: 2 },
-      ],
-    });
+      const result = await inpaintDrawnPatternPage(page, {
+        inpaintingEngine: engine,
+        strokes: [
+          { points: [{ x: 32, y: 32 }], radiusPx: 2 },
+          { points: [{ x: 48, y: 32 }], radiusPx: 2 },
+        ],
+      });
 
-    expect(result.blocksErased).toBe(2);
-    expect(result.blocksIncomplete).toBe(0);
-    expect(inpaint).toHaveBeenCalledOnce();
-    const call = inpaint.mock.calls[0];
-    const pageMask = call[3];
-    const windows = call[4];
-    const windowMasks = call[5]?.windowMasks;
-    expect(windows).toHaveLength(2);
-    expect(rectsOverlap(windows[0], windows[1])).toBe(true);
-    expect(windowMasks).toHaveLength(2);
-    expect(maskValueAt(windowMasks?.[0], 32, 32)).toBe(1);
-    expect(maskValueAt(windowMasks?.[0], 48, 32)).toBe(0);
-    expect(maskValueAt(windowMasks?.[1], 32, 32)).toBe(0);
-    expect(maskValueAt(windowMasks?.[1], 48, 32)).toBe(1);
-    expect(pageMask[32 * width + 32]).toBe(1);
-    expect(pageMask[32 * width + 48]).toBe(1);
-  });
+      expect(result.blocksErased).toBe(2);
+      expect(result.blocksIncomplete).toBe(0);
+      expect(inpaint).toHaveBeenCalledOnce();
+      const call = inpaint.mock.calls[0];
+      const pageMask = call[3];
+      const windows = call[4];
+      const windowMasks = call[5]?.windowMasks;
+      if (model === "codex") {
+        expect(windows).toHaveLength(1);
+        expect(windowMasks).toBeUndefined();
+        expect(result.page.inpaintMaskPath).toBeTruthy();
+        if (!result.page.inpaintMaskPath)
+          throw new Error("Expected saved mask");
+        // Reopen the real PNG artifact with the production reader. It must
+        // reflect changed pixels, not the whole painted guide.
+        const { loadMaskArtifact } =
+          await import("../src/main/inpainting/inpaintMaskArtifact");
+        const savedMask = await loadMaskArtifact(
+          result.page.inpaintMaskPath,
+          width,
+          height,
+        );
+        expect(savedMask[32 * width + 32]).toBe(1);
+        expect(savedMask[31 * width + 32]).toBe(0);
+        expect(savedMask[10 * width + 10]).toBe(0);
+        return;
+      }
+      expect(windows).toHaveLength(2);
+      expect(rectsOverlap(windows[0], windows[1])).toBe(true);
+      expect(windowMasks).toHaveLength(2);
+      expect(maskValueAt(windowMasks?.[0], 32, 32)).toBe(1);
+      expect(maskValueAt(windowMasks?.[0], 48, 32)).toBe(0);
+      expect(maskValueAt(windowMasks?.[1], 32, 32)).toBe(0);
+      expect(maskValueAt(windowMasks?.[1], 48, 32)).toBe(1);
+      expect(pageMask[32 * width + 32]).toBe(1);
+      expect(pageMask[32 * width + 48]).toBe(1);
+    },
+  );
 
   it("returns no result when the engine leaves a drawn mask unchanged", async () => {
     const width = 64;

@@ -1,5 +1,5 @@
 import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
-import { canUseCodexTypesetting } from "../../../shared/codexCapabilities";
+import { canUseCodexImages } from "../../../shared/codexCapabilities";
 import { useCodexConnection } from "./useCodexConnection";
 import { useRegionTextReview } from "./useRegionTextReview";
 import { useEffect, useRef, useState } from "react";
@@ -26,7 +26,6 @@ export function useRegionTranslationDialog(
     textReview.cancel,
   );
   const bbox = selection?.bbox ?? null;
-  const delegateAll = options.codexDelegationActive === true;
   const setBbox = () =>
     setSelection((current) => (current?.bbox === bbox ? null : current));
   const [remembered, setRemembered] = useState(
@@ -37,7 +36,6 @@ export function useRegionTranslationDialog(
     options,
     execute,
     textReview,
-    delegated: selection?.delegated,
     close: setBbox,
     imageAvailable,
     submitted: () =>
@@ -45,9 +43,7 @@ export function useRegionTranslationDialog(
         current?.bbox === bbox ? { ...current, started: true } : current,
       ),
     completed: (choices) =>
-      setRemembered((previous) =>
-        new Map(previous).set(delegateAll ? "codex" : "standard", choices),
-      ),
+      setRemembered((previous) => new Map(previous).set("region", choices)),
   });
   const dialog: RegionTranslationDialog | null =
     bbox && selection && (!selection.started || textReview.review)
@@ -55,14 +51,12 @@ export function useRegionTranslationDialog(
           bbox,
           page: selection.page,
           codexImageAvailable: imageAvailable,
-          codexDelegateAll: delegateAll,
-          initial: remembered.get(delegateAll ? "codex" : "standard") ?? {
+          initial: remembered.get("region") ?? {
             output: "text",
             eraseOriginal: false,
           },
           onRun: run,
           busy: textReview.busy,
-          unavailable: options.codexUnavailable,
           error: textReview.error,
           review: textReview.review,
           onConfirm: (translations) => {
@@ -87,15 +81,11 @@ function useRegionSelection(
 ) {
   const [selection, setSelection] = useState<{
     bbox: BBox;
-    delegated: boolean;
     page: NonNullable<UseTranslationActionsOptions["selectedPage"]>;
     started: boolean;
   } | null>(null);
   const { account } = useCodexConnection(Boolean(selection));
-  const delegateAll = options.codexDelegationActive === true;
-  const imageAvailable = delegateAll
-    ? !options.codexUnavailable
-    : canUseCodexTypesetting(options.settings ?? null, account, true);
+  const imageAvailable = canUseCodexImages(options.settings ?? null, account);
   const started = selection?.started === true;
   useEffect(() => {
     if (started) return;
@@ -104,7 +94,6 @@ function useRegionSelection(
   }, [
     options.selectedPage?.id,
     options.currentChapter?.id,
-    options.codexDelegationActive,
     cancelReview,
     started,
   ]);
@@ -113,13 +102,11 @@ function useRegionSelection(
       !options.selectedPage ||
       selection?.started ||
       options.jobActive ||
-      options.codexUnavailable ||
       !isUsableRegionBbox(next, 10)
     )
       return;
     setSelection({
       bbox: next,
-      delegated: delegateAll,
       page: options.selectedPage,
       started: false,
     });
@@ -132,7 +119,6 @@ function useRegionTranslationRun({
   options,
   execute,
   textReview,
-  delegated,
   close,
   imageAvailable,
   submitted,
@@ -142,22 +128,20 @@ function useRegionTranslationRun({
   options: UseTranslationActionsOptions;
   execute: Parameters<typeof useRegionTranslationDialog>[1];
   textReview: ReturnType<typeof useRegionTextReview>;
-  delegated: boolean | undefined;
   close: () => void;
   imageAvailable: boolean;
   submitted: () => void;
   completed: (choices: RegionTranslationChoices) => void;
 }) {
   const inFlight = useRef(false);
-  const delegateAll = options.codexDelegationActive === true;
   const run = (choices: RegionTranslationChoices) => {
     if (
       !bbox ||
       inFlight.current ||
       options.jobActive ||
-      options.codexUnavailable ||
-      (choices.output === "image" && !imageAvailable) ||
-      delegated !== delegateAll
+      ((choices.output === "image" ||
+        (choices.eraseOriginal && choices.eraseEngine === "codex")) &&
+        !imageAvailable)
     )
       return;
     const selected = bbox;
@@ -168,7 +152,7 @@ function useRegionTranslationRun({
     else close();
     inFlight.current = true;
     void execute(selected, {
-      ...buildRegionTranslationRequest(options.settings, choices, delegateAll),
+      ...buildRegionTranslationRequest(options.settings, choices),
       ...(textReviewSessionId ? { textReviewSessionId } : {}),
     })
       .then((completed) => {

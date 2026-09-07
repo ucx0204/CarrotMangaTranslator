@@ -163,5 +163,6 @@ export interface NativeImageLike {
 
 export interface NativeImageModule {
   createFromPath(path: string): NativeImageLike;
+  createFromBuffer?(bytes: Buffer): NativeImageLike;
   createFromDataURL?(dataUrl: string): NativeImageLike;
 }

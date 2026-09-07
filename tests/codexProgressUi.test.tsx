@@ -6,6 +6,7 @@ import {
   screen,
   fireEvent,
   waitFor,
+  within,
   act,
 } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
@@ -142,6 +143,7 @@ it("shows read-only live images and translations, retries failures, and closes w
   fireEvent.click(screen.getByRole("button", { name: /중간 결과/ }));
   expect(await screen.findByText("읽은 문장")).toBeTruthy();
   expect(document.querySelector("svg rect")?.getAttribute("width")).toBe("300");
+  fireEvent.click(screen.getByRole("button", { name: "실제 크기" }));
   fireEvent.pointerDown(screen.getByRole("button", { name: "확대" }));
   fireEvent.click(screen.getByRole("button", { name: "확대" }));
   expect(screen.getByText("125%")).toBeTruthy();
@@ -172,9 +174,18 @@ it("shows read-only live images and translations, retries failures, and closes w
         ?.getAttribute("src"),
     ).toContain(btoa("clean.png")),
   );
-  expect(screen.getByText("읽은 문장")).toBeTruthy();
-  expect(screen.getAllByRole("img", { name: "001.png" })).toHaveLength(2);
-  fireEvent.error(screen.getAllByRole("img", { name: "001.png" })[1]);
+  expect(screen.queryByText("읽은 문장")).toBeNull();
+  const historyPane = screen.getByRole("navigation", { name: "이력" });
+  fireEvent.click(
+    within(historyPane).getByRole("button", { name: /원문 번역/ }),
+  );
+  expect(await screen.findByText("읽은 문장")).toBeTruthy();
+  fireEvent.click(
+    within(historyPane).getByRole("button", { name: /원문 제거/ }),
+  );
+  await waitFor(() => expect(screen.queryByText("읽은 문장")).toBeNull());
+  const entry = screen.getByRole("region", { name: "001.png · 원문 제거" });
+  fireEvent.error(await within(entry).findByRole("img", { name: "001.png" }));
   expect(screen.getByRole("alert")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "다시 불러오기" }));
   await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());

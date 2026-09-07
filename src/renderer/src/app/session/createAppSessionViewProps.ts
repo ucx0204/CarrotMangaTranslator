@@ -62,7 +62,6 @@ export function createAppSessionViewProps(model: AppSessionViewModel) {
 
 function createAutoInpaintingOptionsProps({
   core,
-  settingsDialog,
   derivedState,
   inpaintingActions,
   uiState,
@@ -71,10 +70,6 @@ function createAutoInpaintingOptionsProps({
     core.currentChapter &&
     derivedState.selectedPage
     ? {
-        codexDelegateAll: settingsDialog.codexDelegationEnabled,
-        aiUnavailable:
-          settingsDialog.codexDelegationEnabled &&
-          !settingsDialog.codexDelegationActive,
         chapter: core.currentChapter,
         currentPageId: derivedState.selectedPage.id,
         initialScope: uiState.autoInpaintingEntryScope,

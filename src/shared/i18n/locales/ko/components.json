@@ -1615,16 +1615,17 @@
     "title": "설정",
     "tabs": {
       "ariaLabel": "설정 영역",
-      "llmAriaLabel": "LLM 설정",
+      "llmAriaLabel": "AI",
       "general": "일반",
-      "engine": "LLM",
+      "engine": "AI",
       "translation": "번역",
       "research": "인터넷 조사",
       "hardware": "하드웨어",
       "format": "기본 서식",
       "results": "결과물 자동 저장",
       "shortcuts": "단축키",
-      "test": "확인/업데이트"
+      "test": "확인/업데이트",
+      "image": "이미지"
     },
     "general": {
       "language": "앱 언어",
@@ -2013,7 +2014,8 @@
         "loginFailed": "Codex 로그인에 실패했습니다.",
         "logoutFailed": "Codex 로그아웃에 실패했습니다."
       },
-      "imageReasoning": "이미지 생성 추론 강도"
+      "imageReasoning": "이미지 생성 추론 강도",
+      "imageModelWarning": "이미지 작업이 제대로 동작하지 않을 수 있습니다. Astra 사용을 강력히 권장합니다."
     },
     "api": {
       "sections": {
@@ -2165,7 +2167,9 @@
       "fluxAmdUnsupportedDetail": "{{gpu}}는 AMD의 현재 Windows HIP SDK 공식 지원 목록에 없습니다. ZLUDA를 직접 선택해 실험할 수는 있지만 런타임 오류가 발생할 수 있습니다.",
       "fluxAmdUseCpu": "CPU 백엔드로 전환",
       "downloadHipSdk": "AMD HIP SDK 다운로드",
-      "openLinkFailed": "링크를 열지 못했습니다. 기본 브라우저를 확인해 주세요."
+      "openLinkFailed": "링크를 열지 못했습니다. 기본 브라우저를 확인해 주세요.",
+      "resetGemmaHint": "번역·인터넷 조사의 Gemma 로컬 설정도 권장값으로 초기화합니다.",
+      "resetFailed": "권장 설정을 불러오지 못했습니다. 다시 시도해 주세요."
     },
     "format": {
       "alignment": {
@@ -2300,6 +2304,11 @@
       "customHeaderBlocked": "{{name}} 헤더는 Custom headers에서 덮어쓸 수 없습니다.",
       "customHeaderValue": "Custom headers 값은 문자열, 숫자, boolean만 허용됩니다.",
       "apiKeyCount": "API 키는 최대 {{max}}개까지 입력할 수 있습니다."
+    },
+    "image": {
+      "localErasure": "기본 원문 제거",
+      "codex": "Codex 이미지 도구",
+      "description": "번역 엔진과 별도로 원문 제거와 효과음 이미지에 사용합니다. Astra 사용을 강력히 권장합니다."
     }
   },
   "pageBlocks": {
@@ -2633,6 +2642,33 @@
     "reading": "원문 번역",
     "background": "원문 제거",
     "review": "식자 미리보기",
-    "retry": "다시 불러오기"
+    "retry": "다시 불러오기",
+    "history": "이력",
+    "actualSize": "실제 크기",
+    "regions": "영역",
+    "image": "이미지 미리보기",
+    "translations": "번역문"
+  },
+  "imageOptions": {
+    "default": "기본",
+    "connect": "Codex 연결: 설정 → AI → 이미지"
+  },
+  "imageRedaction": {
+    "enabled": "전송 이미지 가리기",
+    "description": "노출이 있는 이미지에서 민감한 부위를 가린 뒤 전송할 수 있습니다. 원본에는 적용하지 않습니다.",
+    "title": "전송 이미지 확인",
+    "confirm": "확인 후 계속",
+    "pages": "페이지",
+    "shape": "도구",
+    "rectangle": "사각형",
+    "round": "원형 붓",
+    "square": "사각 붓",
+    "size": "붓 크기",
+    "zoom": "확대",
+    "undo": "실행 취소",
+    "redo": "다시 실행",
+    "preview": "전송할 이미지. 가릴 부분을 드래그하세요.",
+    "retry": "다시 시도",
+    "checked": "확인한 페이지 {{count}} / {{total}}"
   }
 }

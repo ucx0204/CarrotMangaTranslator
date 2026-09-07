@@ -61,7 +61,6 @@ describe("single-chapter automatic inpainting jobs", () => {
       settings.codex = {
         ...settings.codex,
         model: "gpt-6-astra",
-        delegateAll: false,
       };
       harness.runtime.getSettings = async () => settings;
       const codexInpaint = vi.fn<InpaintingEngine["inpaint"]>(
@@ -107,10 +106,16 @@ describe("single-chapter automatic inpainting jobs", () => {
       expect(codexInpaint).toHaveBeenCalledTimes(2);
       expect(release).toHaveBeenCalledOnce();
       expect(createLayout).toHaveBeenCalledTimes(bubbleLayout ? 1 : 0);
+      if (bubbleLayout)
+        expect(createLayout.mock.results[0].value.runPage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            includeTypographySegmentation: false,
+            failureMode: "required",
+          }),
+        );
       expect(
         result.chapters?.[0].pages.every((page) => page.inpaintedImagePath),
       ).toBe(true);
-      expect(settings.codex.delegateAll).toBe(false);
     },
   );
 
@@ -120,7 +125,6 @@ describe("single-chapter automatic inpainting jobs", () => {
     const settings = resolveDefaultAppSettings({});
     settings.modelProvider = "openai-codex";
     settings.codex.model = "gpt-6-astra";
-    settings.codex.delegateAll = false;
     harness.runtime.getSettings = async () => settings;
     const engine: InpaintingEngine = {
       model: "codex",

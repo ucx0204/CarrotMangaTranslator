@@ -1,11 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type { CodexTypesettingPreferences } from "../../../shared/codexTypesettingTypes";
 import type {
   TranslationWorkflowMode,
   CumulativeContextDetail,
 } from "../../../shared/settingsTypes";
-import { CodexTypesettingOptions } from "./CodexTypesettingOptions";
 import { ChapterPagePicker } from "./ChapterPagePicker";
 import { getBlockModeOptions } from "../lib/blockModeOptions";
 import {
@@ -32,10 +30,6 @@ const CUMULATIVE_DETAIL_IDS: CumulativeContextDetail[] = [
 export function TranslationOptionsForm(
   props: TranslationOptionsFormProps & {
     currentPageId?: string | null;
-    onEditFonts: () => void;
-    onSelectCodexPreset: (id: string) => Promise<void>;
-    codexPreferences: CodexTypesettingPreferences;
-    onCodexPreferencesChange: (value: CodexTypesettingPreferences) => void;
   },
 ): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -58,19 +52,7 @@ export function TranslationOptionsForm(
         )}
       </div>
       <div className="translate-options-sections">
-        {props.codexPreferences.enabled ? (
-          <TranslationOptionSection title={t("codexTypesetting.engine")}>
-            <CodexTypesettingOptions
-              onEditFonts={props.onEditFonts}
-              onSelectPreset={props.onSelectCodexPreset}
-              value={props.codexPreferences}
-              onChange={props.onCodexPreferencesChange}
-            />
-          </TranslationOptionSection>
-        ) : null}
-        {!props.codexPreferences.enabled && (
-          <LegacyTranslationSettings {...props} />
-        )}
+        <TranslationSettings {...props} />
       </div>
       {props.overwriteRisk ? (
         <TranslationOverwriteWarning
@@ -165,7 +147,7 @@ function AutoFontMatchingOptions(
   );
 }
 
-function LegacyTranslationSettings(props: TranslationOptionsFormProps) {
+function TranslationSettings(props: TranslationOptionsFormProps) {
   const { t } = useTranslation("components");
   const { t: tRenderer } = useTranslation("renderer");
   return (

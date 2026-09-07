@@ -23,6 +23,34 @@ def write(path, value):
 
 
 class SourceRecovery(unittest.TestCase):
+    def test_short_selection_without_pixel_cutoff_keeps_strict_evidence(self):
+        refine = load('refine-line-supported-glyphs')
+        items = [
+            {'accepted': True, 'authority': 'strict_glyph_ocr'},
+            {'accepted': False, 'authority': 'pending_context'},
+        ]
+        refine.corroborate(items, None)
+        self.assertEqual([i['accepted'] for i in items], [True, False])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            chapter, aligned, verified, output = [root / name for name in ['chapter', 'aligned', 'verified', 'output']]
+            image = Image.new('L', (30, 40), 255)
+            ImageDraw.Draw(image).rectangle((10, 5, 15, 34), fill=0)
+            image.save(root / 'source.png')
+            write(chapter / 'ocr-baseline/baseline-report.json', {'pages': [{'pageId': 'P1', 'imagePath': str(root / 'source.png')}]})
+            glyph = {'characterIndex': 0, 'bbox': [8, 3, 18, 37], 'token': 'あ', 'shapeDistance': 0.1}
+            write(aligned / 'alignment.json', {'records': [{'key': 'P1/D1', 'sourceText': 'あ', 'direction': 'vertical', 'lines': [
+                {'lineId': 1, 'text': 'あ', 'bbox': [8, 3, 18, 37], 'glyphs': [glyph]}]}]})
+            write(verified / 'analysis.json', {'summary': {'cutoff': None, 'glyphs': 1}, 'blocks': [{'key': 'P1/D1'}],
+                'verification': [{'key': 'P1/D1', 'lineId': 1, 'characterIndex': 0, 'accepted': True, 'actual': 'あ', 'ocrAgreement': True}]})
+            refine.run(chapter, aligned, verified, output)
+            result = json.loads((output / 'analysis.json').read_text('utf-8'))
+            self.assertIsNone(result['summary']['cutoff'])
+            self.assertEqual(result['summary']['strictGlyphs'], 1)
+            self.assertEqual(result['summary']['contextSupportedGlyphs'], 0)
+            self.assertEqual(result['groups'], [])
+            self.assertEqual(result['blocks'][0]['glyphs'][0]['authority'], 'strict_glyph_ocr')
+
     def test_preserves_existing_evidence_and_rejects_mismatched_or_single_letter_lines(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

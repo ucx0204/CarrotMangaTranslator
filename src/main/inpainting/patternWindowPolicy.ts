@@ -7,8 +7,9 @@ export function resolvePatternInpaintWindows(
   options: { preserveBlockOwnership?: boolean } = {},
 ): PixelRect[] {
   if (
-    engine.model === "flux-klein" &&
-    (engine.backend === "metal-native" || options.preserveBlockOwnership)
+    (engine.model === "codex" && options.preserveBlockOwnership) ||
+    (engine.model === "flux-klein" &&
+      (engine.backend === "metal-native" || options.preserveBlockOwnership))
   ) {
     return windows.map((window) => ({ ...window }));
   }

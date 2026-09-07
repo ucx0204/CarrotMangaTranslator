@@ -58,6 +58,45 @@ afterAll(() => {
 });
 
 describe("overlay transform controls", () => {
+  it("paints all thick outlines below every line's ink, including curved lettering", () => {
+    const block = {
+      ...makeBlock(),
+      translatedText: "AB\nCD",
+      outlineWidthPx: 18,
+      lineHeight: 0.8,
+    };
+    const ordinary = renderOverlay({ block });
+    const outline = ordinary.container.querySelector(".overlay-text-outline");
+    const ink = ordinary.container.querySelector(".overlay-text-main");
+    if (!outline || !ink) throw new Error("Missing paint planes");
+    expect(
+      outline.compareDocumentPosition(ink) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(ink.textContent?.replace(/\s/g, "")).toBe("ABCD");
+    expect(
+      ink.querySelector<HTMLElement>(".overlay-text-line > span")?.style
+        .webkitTextStrokeWidth,
+    ).toBe("0px");
+    ordinary.unmount();
+    const curved = renderOverlay({
+      block: {
+        ...block,
+        translatedText: "ABCD",
+        curveLayout: makeCurveLayout(),
+      },
+      transformMode: "curve",
+    });
+    const layers = curved.container.querySelectorAll("[data-text-layer]");
+    expect(layers[layers.length - 1]?.getAttribute("data-text-layer")).toBe(
+      "main",
+    );
+    for (const glyph of curved.container.querySelectorAll(
+      '[data-text-layer="main"] text',
+    )) {
+      expect(Number(glyph.getAttribute("stroke-width") ?? 0)).toBe(0);
+    }
+  });
+
   it("renders eight local resize handles and a rotation handle", () => {
     const onTransformPointerDown = vi.fn();
     const { container } = renderOverlay({ onTransformPointerDown });
@@ -118,9 +157,11 @@ describe("overlay transform controls", () => {
       transformMode: "curve",
     });
 
-    expect(container.querySelectorAll(".overlay-curve-text text")).toHaveLength(
-      3,
-    );
+    expect(
+      container.querySelectorAll(
+        '.overlay-curve-text [data-text-layer="main"] text',
+      ),
+    ).toHaveLength(3);
     expect(container.querySelectorAll("[data-transform-handle]")).toHaveLength(
       3,
     );
@@ -142,7 +183,7 @@ describe("overlay transform controls", () => {
     });
 
     const glyphs = container.querySelectorAll<SVGTextElement>(
-      ".overlay-curve-text text",
+      '.overlay-curve-text [data-text-layer="main"] text',
     );
     expect(glyphs).toHaveLength(2);
     for (const glyph of glyphs) {
@@ -186,7 +227,9 @@ describe("overlay transform controls", () => {
     });
 
     const glyphs = Array.from(
-      container.querySelectorAll<SVGTextElement>(".overlay-curve-text text"),
+      container.querySelectorAll<SVGTextElement>(
+        '.overlay-curve-text [data-text-layer="main"] text',
+      ),
     );
     expect(glyphs.map((glyph) => glyph.textContent)).toEqual([
       "A",
@@ -229,7 +272,7 @@ describe("overlay transform controls", () => {
       transformMode: "curve",
     });
     const glyphs = curved.container.querySelectorAll(
-      ".overlay-curve-text text",
+      '.overlay-curve-text [data-text-layer="main"] text',
     );
     expect(glyphs[0]?.getAttribute("font-size")).toBe("28");
     expect(glyphs[0]?.getAttribute("font-family")).toContain(

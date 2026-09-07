@@ -47,6 +47,8 @@ export type CodexAppServerPreviewTool = {
 };
 
 export type CodexAppServerTurnResult = {
+  /** Client-owned image asset root; never supplied by the model. */
+  imageDirectory?: string;
   text: string;
   threadId: string;
   turnId: string;

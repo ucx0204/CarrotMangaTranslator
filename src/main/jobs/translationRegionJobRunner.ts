@@ -1,5 +1,4 @@
 import { waitForRegionTextReview } from "./regionTranslationReview";
-import { resolveRegionTypesettingRequest } from "../pipeline/codexTypesettingConfiguration";
 import { completeRegionTranslation } from "./translationRegionCompletion";
 import { createPageRevision } from "../../shared/pageRevision";
 import type {
@@ -37,7 +36,6 @@ export type RegionJobState = {
 };
 
 export type RegionJobRunnerDependencies = {
-  resolveRequest?: typeof resolveRegionTypesettingRequest;
   openChapter: typeof openChapter;
   getRunPaths: typeof getRunPaths;
   createRegionCropPage: typeof createRegionCropPage;
@@ -47,7 +45,6 @@ export type RegionJobRunnerDependencies = {
 };
 
 const productionRegionJobRunnerDependencies: RegionJobRunnerDependencies = {
-  resolveRequest: resolveRegionTypesettingRequest,
   openChapter,
   getRunPaths,
   createRegionCropPage,
@@ -77,7 +74,6 @@ export async function runRegionTranslationJob(
   dependencies: RegionJobRunnerDependencies = productionRegionJobRunnerDependencies,
 ): Promise<RegionAnalysisResult> {
   throwIfAborted(abortController.signal);
-  request = (await dependencies.resolveRequest?.(request)) ?? request;
   state.chapter = await dependencies.openChapter(request.chapterId);
   throwIfAborted(abortController.signal);
   const page = state.chapter.pages.find(

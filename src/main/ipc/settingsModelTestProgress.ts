@@ -1,4 +1,3 @@
-import { isCodexDelegationEnabled } from "../../shared/codexCapabilities";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { ipcEventContracts } from "../../shared/ipcContracts";
 import type { ModelTestProgressEvent } from "../../shared/jobTypes";
@@ -69,9 +68,8 @@ export async function verifyOcrRuntime(
   runtime: SimplePageRuntime,
   options: TranslationOptions,
   sendProgress: SendModelTestProgress,
-  settings?: AppSettings,
+  _settings?: AppSettings,
 ): Promise<void> {
-  if (isCodexDelegationEnabled(settings)) return;
   const ocrPipeline = options.ocrPipeline;
   const hayai = isHayaiOcrPipeline(ocrPipeline);
   sendProgress({
@@ -163,7 +161,7 @@ export function sendModelTestBootProgress(
     phase: "booting",
     progressText: tMain("modelTest.preparing"),
     installLogLine: tMain(
-      isCodexDelegationEnabled(settings)
+      settings.modelProvider === "openai-codex"
         ? "modelTest.codexPreparingLog"
         : "modelTest.startLog",
     ),

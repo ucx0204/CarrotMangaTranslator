@@ -118,7 +118,8 @@
       "stages": {
         "reading": "원문 번역",
         "fonts": "서체 비교",
-        "typesetting": "식자·검수"
+        "typesetting": "식자·검수",
+        "images": "이미지 작업"
       },
       "steps": {
         "reading": "원문 판독·번역",

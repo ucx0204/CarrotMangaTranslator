@@ -118,7 +118,8 @@
       "stages": {
         "reading": "原文翻译",
         "fonts": "字体比较",
-        "typesetting": "排版与检查"
+        "typesetting": "排版与检查",
+        "images": "图像处理"
       },
       "steps": {
         "reading": "识别与翻译",

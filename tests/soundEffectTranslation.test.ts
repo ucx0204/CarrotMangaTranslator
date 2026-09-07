@@ -225,9 +225,11 @@ describe("dedicated sound-effect translation contract", () => {
     expect(system).toContain("魔王 => 마왕");
     expect(system).toContain("sourceNames=アリ");
     expect(system).toContain("honorifics=keep");
-    expect(system).toContain("ガチャ at a latch is 철컥");
-    expect(system).toContain("ぷんぷん showing anger");
-    expect(system).toContain("two separately printed ブン clusters");
+    expect(system).toContain("Preserve visually distinct kana, repetition");
+    expect(system).toContain(
+      "Infer whether the target is a sound, action or reaction",
+    );
+    expect(system).not.toContain("Canonical meaning contrasts");
     expect(system).not.toContain("장면-0");
     expect(system).toContain("장면-6");
     expect(prompt).toContain("regionId=FX001");

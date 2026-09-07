@@ -1,3 +1,4 @@
+import { imageRedactionIpcContracts } from "./ipcImageRedactionContracts";
 import { z } from "zod";
 import {
   confirmRegionTranslationSchema,
@@ -85,6 +86,7 @@ const startAnalysisResultSchema = z
   .strict();
 const regionAnalysisResultSchema = startAnalysisResultSchema
   .extend({
+    status: z.enum(["completed", "partial", "cancelled", "failed"]),
     history: z.object({ transactionId: z.string().uuid() }).strict().optional(),
     pageId: stringArg.optional(),
     blockIds: z
@@ -234,6 +236,7 @@ export const translationJobIpcContracts = {
       result: startAnalysisResultSchema,
     },
   ),
+  ...imageRedactionIpcContracts,
   confirmRegionTranslation: defineIpcContract<
     [ConfirmRegionTranslationRequest],
     boolean

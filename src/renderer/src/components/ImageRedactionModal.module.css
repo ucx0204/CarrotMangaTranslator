@@ -1,0 +1,32 @@
+.tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.tools > [class] {
+  flex-shrink: 0;
+}
+.tools .number {
+  width: 90px;
+}
+.viewport {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-sunken);
+}
+.image {
+  display: block;
+  margin: auto;
+  height: auto;
+  touch-action: none;
+  cursor: crosshair;
+}
+.mask {
+  fill: white;
+}
+.error {
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}

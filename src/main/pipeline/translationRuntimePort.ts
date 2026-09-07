@@ -1,3 +1,4 @@
+import { prepareExternalImageFile } from "../imageRedactionContext";
 import type { TranslationOptions } from "../appSettings";
 import {
   isHayaiOcrPipeline,
@@ -144,7 +145,13 @@ export function createTranslationRuntimePort({
     annotateOcrGroupingEvidenceBatch: (optionsList, results) =>
       groupingEvidence.annotateBatch(optionsList, results),
     requestTranslation: (endpoint, options) =>
-      runtime.simplePage.requestTranslation(endpoint, options),
+      runtime.simplePage.requestTranslation(endpoint, {
+        ...options,
+        prepareExternalImage:
+          options.modelProvider === "gemma"
+            ? undefined
+            : prepareExternalImageFile,
+      }),
     saveArtifacts: (options, result) =>
       runtime.simplePage.saveArtifacts(options, result),
     parseJsonLenient: (rawText) =>

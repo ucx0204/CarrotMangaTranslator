@@ -1,4 +1,3 @@
-import { isCodexDelegationEnabled } from "../../shared/codexCapabilities";
 import type { StartInpaintingRequest } from "../../shared/inpaintingTypes";
 import type {
   MangaPage,
@@ -55,18 +54,6 @@ export async function prepareBubbleLayoutJob({
   );
   if (!config) {
     return { appSettings, config: null, runner: null };
-  }
-  if (isCodexDelegationEnabled(appSettings)) {
-    if (!runtime.createCodexBubbleLayoutRunner)
-      throw new Error("Codex 말풍선 배치를 사용할 수 없습니다.");
-    return {
-      appSettings,
-      config: { ...config, naturalTextLayout: undefined },
-      runner: runtime.createCodexBubbleLayoutRunner(
-        context.appPaths,
-        appSettings,
-      ),
-    };
   }
   if (!runtime.createBubbleLayoutRunner) {
     throw new Error("말풍선 배치 실행기를 사용할 수 없습니다.");

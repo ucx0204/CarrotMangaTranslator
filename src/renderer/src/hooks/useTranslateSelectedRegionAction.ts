@@ -131,7 +131,10 @@ async function translateSelectedRegion(
       pageId: selectedPage.id,
       bbox,
     });
-    if (result.status === "completed" && result.history)
+    if (
+      (result.status === "completed" || result.status === "partial") &&
+      result.history
+    )
       context.recordImageEdit({
         label: context.t("regionTranslation.title"),
         transactionId: result.history.transactionId,
@@ -175,9 +178,9 @@ async function translateSelectedRegion(
 
 async function prepareSelectedRegionTranslation(
   context: RegionTranslationContext,
-  request?: Partial<RegionAnalysisRequest>,
+  _request?: Partial<RegionAnalysisRequest>,
 ) {
   await context.saveNow();
   context.setJobState(regionTranslationStartingState(context.t));
-  if (!request?.codexTypesetting) await context.beforeTranslate?.();
+  await context.beforeTranslate?.();
 }

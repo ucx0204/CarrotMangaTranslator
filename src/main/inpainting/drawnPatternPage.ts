@@ -25,7 +25,10 @@ import {
   maskComponents,
   sanitizeMaskStrokes,
 } from "./rasterMasks";
-import { persistActualInpaintMask } from "./inpaintMaskArtifact";
+import {
+  persistActualInpaintMask,
+  buildMaskFromBitmapDifference,
+} from "./inpaintMaskArtifact";
 
 type DrawnPatternOptions = {
   strokes: InpaintingMaskStroke[];
@@ -61,12 +64,19 @@ export async function inpaintDrawnPatternPage(
 
   const engine = requireInpaintingEngine(options.inpaintingEngine);
   const beforeBitmap = Buffer.from(input.bitmap);
-  await runDrawnPatternInpainting(input, engine, options);
+  await runDrawnPatternInpainting(input, engine, options, page.imagePath);
   const blocksErased = countChangedComponents(beforeBitmap, input);
   const blocksIncomplete = input.components.length - blocksErased;
   if (blocksErased === 0) {
     return { page, blocksErased: 0, blocksIncomplete };
   }
+  if (engine.model === "codex")
+    input.pageMask = buildMaskFromBitmapDifference(
+      beforeBitmap,
+      input.bitmap,
+      input.width,
+      input.height,
+    );
   return writeDrawnInpaintingResult(
     page,
     input,
@@ -135,6 +145,7 @@ async function runDrawnPatternInpainting(
   input: DrawnPatternInput,
   engine: InpaintingEngine,
   options: DrawnPatternOptions,
+  sourceImagePath: string,
 ): Promise<void> {
   await engine.inpaint(
     input.bitmap,
@@ -147,6 +158,7 @@ async function runDrawnPatternInpainting(
     ),
     {
       signal: options.signal,
+      sourceImagePath,
       featherPx: options.featherPx ?? FLUX_INPAINT_FEATHER_PX,
       contextPx: FLUX_INPAINT_CONTEXT_PX,
       maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,

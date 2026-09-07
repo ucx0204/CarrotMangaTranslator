@@ -1615,16 +1615,17 @@
     "title": "Settings",
     "tabs": {
       "ariaLabel": "Settings sections",
-      "llmAriaLabel": "LLM settings",
+      "llmAriaLabel": "AI",
       "general": "General",
-      "engine": "LLM",
+      "engine": "AI",
       "translation": "Translation",
       "research": "Internet research",
       "hardware": "Hardware",
       "format": "Default formatting",
       "results": "Automatic result saving",
       "shortcuts": "Shortcuts",
-      "test": "Check/update"
+      "test": "Check/update",
+      "image": "Images"
     },
     "general": {
       "language": "Application language",
@@ -2013,7 +2014,8 @@
         "loginFailed": "Codex sign-in failed.",
         "logoutFailed": "Codex sign-out failed."
       },
-      "imageReasoning": "Image generation reasoning effort"
+      "imageReasoning": "Image generation reasoning effort",
+      "imageModelWarning": "Image tasks may not work correctly with this model. Astra is strongly recommended."
     },
     "api": {
       "sections": {
@@ -2165,7 +2167,9 @@
       "fluxAmdUnsupportedDetail": "{{gpu}} is not listed in AMD's current Windows HIP SDK support matrix. You can still try ZLUDA experimentally, but it may fail at runtime.",
       "fluxAmdUseCpu": "Switch to CPU backend",
       "downloadHipSdk": "Download AMD HIP SDK",
-      "openLinkFailed": "Could not open the link. Check your default browser."
+      "openLinkFailed": "Could not open the link. Check your default browser.",
+      "resetGemmaHint": "Also resets local Gemma settings for translation and research.",
+      "resetFailed": "Could not load recommendations. Please try again."
     },
     "format": {
       "alignment": {
@@ -2300,6 +2304,11 @@
       "customHeaderBlocked": "The {{name}} header cannot be overridden in Custom headers.",
       "customHeaderValue": "Custom header values may only be strings, numbers, or booleans.",
       "apiKeyCount": "You can enter up to {{max}} API keys."
+    },
+    "image": {
+      "localErasure": "Default erasure",
+      "codex": "Codex image tools",
+      "description": "Erase text and generate sound effects independently of the translation engine. Astra is strongly recommended."
     }
   },
   "pageBlocks": {
@@ -2633,6 +2642,33 @@
     "reading": "Source translation",
     "background": "Source removal",
     "review": "Lettering preview",
-    "retry": "Reload image"
+    "retry": "Reload image",
+    "history": "History",
+    "actualSize": "Actual size",
+    "regions": "Regions",
+    "image": "Image preview",
+    "translations": "Translations"
+  },
+  "imageOptions": {
+    "default": "Default",
+    "connect": "Connect Codex in Settings → AI → Images."
+  },
+  "imageRedaction": {
+    "enabled": "Redact outgoing images",
+    "description": "Hide sensitive exposed areas before sending an image. Your original stays unchanged.",
+    "title": "Review outgoing images",
+    "confirm": "Confirm and continue",
+    "pages": "Pages",
+    "shape": "Tool",
+    "rectangle": "Rectangle",
+    "round": "Round brush",
+    "square": "Square brush",
+    "size": "Brush size",
+    "zoom": "Zoom",
+    "undo": "Undo",
+    "redo": "Redo",
+    "preview": "Outgoing image. Drag to cover an area.",
+    "retry": "Retry",
+    "checked": "Pages viewed {{count}} / {{total}}"
   }
 }

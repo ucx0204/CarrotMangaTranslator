@@ -571,6 +571,35 @@ it.each(["disconnected", "failed", "cancelled"] as const)(
   },
 );
 
+it("saves translated region text as partial when image editing fails before a background exists", async () => {
+  const chapter = makeChapter();
+  const args = makeRegionArgs(new AbortController(), chapter);
+  args.request.eraseOriginal = true;
+  args.request.pageRevision = createPageRevision(firstPage(chapter));
+  const deps = makeRegionDependencies({
+    runWholePagePipeline: vi.fn(async () => ({
+      pages: [{ ...firstPage(chapter), analysisStatus: "completed" }],
+      warnings: ["image transport failed"],
+      imageEditingError: "image transport failed",
+    })),
+  });
+  const result = await runRegionTranslationJob(args, deps);
+  expect(result.status).toBe("partial");
+  expect(deps.appendAnalyzedPageBlocks).toHaveBeenCalledWith(
+    chapter.id,
+    firstPage(chapter).id,
+    [],
+    { expectedRevision: args.request.pageRevision },
+  );
+  expect(args.context.decodeImage).not.toHaveBeenCalled();
+  expect(args.emit).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      status: "partial",
+      detail: "image transport failed",
+    }),
+  );
+});
+
 it("connects the region job review event to the paused reading and retains source page context", async () => {
   const args = makeRegionArgs(new AbortController(), makeChapter());
   const sessionId = "11111111-1111-4111-8111-111111111111";

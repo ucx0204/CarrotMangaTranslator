@@ -1,7 +1,7 @@
 import type { CharacterProfile, GlossaryEntry } from "./workContextTypes";
 import type { BBox, Point } from "./textTypes";
 
-export type CodexFontPreset = {
+type CodexFontPreset = {
   id: string;
   name: string;
   fonts: Array<{ fontId: string; purpose: string }>;

@@ -182,12 +182,7 @@ function useTranslationActionController(
 
   return useTranslationActions({
     settings: chapter.settingsDialog.settings,
-    codexDelegationActive: chapter.settingsDialog.codexDelegationEnabled,
-    codexUnavailable:
-      chapter.settingsDialog.codexDelegationEnabled &&
-      !chapter.settingsDialog.codexDelegationActive,
-    beforeTranslate: () =>
-      prepareTranslation(chapter.settingsDialog, prepareRegionTranslation),
+    beforeTranslate: prepareRegionTranslation,
     clearPageImageCache: chapter.derivedState.clearPageImageCache,
     clearRetouchHistory,
     currentChapter: chapter.core.currentChapter,
@@ -222,16 +217,4 @@ function useTranslationActionController(
     setSelectedBlockId: chapter.core.setSelectedBlockId,
     syncSavedPageVersion: chapter.persistence.syncSavedPageVersion,
   });
-}
-
-async function prepareTranslation(
-  settings: ChapterSessionController["settingsDialog"],
-  prepare: () => Promise<void>,
-) {
-  if (settings.codexDelegationEnabled) {
-    if (!settings.codexDelegationActive)
-      throw new Error("설정에서 Codex 연결을 확인해 주세요.");
-    return;
-  }
-  await prepare();
 }

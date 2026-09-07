@@ -20,7 +20,6 @@ import {
 import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 
 export type AutoInpaintingOptionsModalProps = {
-  codexDelegateAll?: boolean;
   aiUnavailable?: boolean;
   chapter: ChapterSnapshot;
   currentPageId: string;
@@ -34,7 +33,6 @@ export type AutoInpaintingOptionsModalProps = {
 };
 
 export function AutoInpaintingOptionsModal({
-  codexDelegateAll = false,
   aiUnavailable = false,
   chapter,
   currentPageId,
@@ -50,8 +48,7 @@ export function AutoInpaintingOptionsModal({
     initialScope,
     library,
   });
-  const [includeBubbleLayout, setIncludeBubbleLayout] =
-    React.useState(!codexDelegateAll);
+  const [includeBubbleLayout, setIncludeBubbleLayout] = React.useState(true);
   const handleStart = (): void => {
     if (aiUnavailable || state.runSelection.length === 0) return;
     handoffActiveModalToWorkCenter();
@@ -93,12 +90,10 @@ export function AutoInpaintingOptionsModal({
         work={state.work}
         onSelectionChange={state.setSelection}
       />
-      {!codexDelegateAll && (
-        <BubblePostprocessToggle
-          enabled={includeBubbleLayout}
-          onToggle={() => setIncludeBubbleLayout((enabled) => !enabled)}
-        />
-      )}
+      <BubblePostprocessToggle
+        enabled={includeBubbleLayout}
+        onToggle={() => setIncludeBubbleLayout((enabled) => !enabled)}
+      />
     </PagePickerModalShell>
   );
 }

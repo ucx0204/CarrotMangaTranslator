@@ -495,7 +495,7 @@
     },
     {
       "path": "refine-line-supported-glyphs.py",
-      "sha256": "e107fa9910125a58ae50a19ebc35eea67e0a4fef8485aebdf12a6ddbca047d14"
+      "sha256": "2e36fe3ebb5a1361e5c23e8c08012598cfeadaf367bf7ea1c60c2ebf88f57bb7"
     },
     {
       "path": "worker.py",

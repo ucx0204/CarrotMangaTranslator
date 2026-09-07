@@ -1,21 +1,21 @@
-import { app, nativeImage } from "electron";
+import { externalImageMask } from "../imageRedactionContext";
+import { flattenImageRedaction } from "../imageRedactionPixels";
+import { nativeImage } from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 import type { AppPaths } from "../appPaths";
 import type { AppSettings } from "../../shared/settingsTypes";
-import { CODEX_TYPESETTING_MODEL } from "../../shared/codexTypesettingDefaults";
-import { CodexAppServerClient } from "../codexAppServerClient";
+import { startCodexImageSession } from "../codexImageSession";
+import type { CodexAppServerClient } from "../codexAppServerClient";
 import {
   generateImage,
   erasureImageInputs,
 } from "../pipeline/codexTypesettingImageRequest";
-import {
-  registerTypesettingPatch,
-  compositeRegisteredPatch,
-} from "../pipeline/codexTypesettingRegistration";
-import { compositeFluxOutput, isolateMaskToWindow } from "./imageRaster";
+import { compositeCodexRepair } from "./codexRepairComposite";
+import { dilateBinaryMaskDisk } from "./patternMaskMorphology";
+import { isolateMaskToWindow } from "./imageRaster";
 import { expandWindowMaskToPage } from "./inpaintingWindowMask";
 import { expandRect, type PixelRect } from "./maskGeometry";
 import type { InpaintingEngine } from "./inpaintingEngine";
@@ -29,8 +29,9 @@ type Request = {
   mask: Uint8Array;
   windows: PixelRect[];
   signal: AbortSignal;
+  mode: "region" | "paint";
+  paintedCore?: Uint8Array;
   feather: number;
-  compositeMask?: Uint8Array;
   constraint?: Uint8Array;
 };
 
@@ -41,39 +42,19 @@ export async function acquireCodexInpaintingEngine(
 ): Promise<InpaintingEngineLease> {
   const directory = join(paths.dataRoot, "codex", "inpainting", randomUUID());
   await mkdir(directory, { recursive: true });
-  const connection = await CodexAppServerClient.start({
-    paths: { ...paths, codexWorkspaceDir: directory },
-    appVersion: app.getVersion(),
-    capability: "image-generation",
+  const client = await startCodexImageSession(
+    paths,
+    settings,
+    directory,
     signal,
-  });
-  try {
-    signal.throwIfAborted();
-    const account = await connection.readAccount(false);
-    if (account.account?.type !== "chatgpt")
-      throw new Error("설정에서 Codex 계정을 연결해 주세요.");
-    const effort = settings.codex.imageReasoningEffort ?? "low";
-    const model = (await connection.listModels()).find(
-      (item) => item.id === CODEX_TYPESETTING_MODEL,
-    );
-    if (!model?.supportedReasoningEfforts.includes(effort))
-      throw new Error("선택한 Astra 모델을 사용할 수 없습니다.");
-    const client: Client = {
-      runEphemeralTurn: (request) =>
-        connection.runEphemeralTurn({
-          ...request,
-          model: CODEX_TYPESETTING_MODEL,
-          effort,
-        }),
-    };
-    const engine = createCodexInpaintingEngine(client, directory, signal, () =>
-      connection.dispose(),
-    );
-    return { engine, release: engine.dispose };
-  } catch (error) {
-    await connection.dispose();
-    throw error;
-  }
+  );
+  const engine = createCodexInpaintingEngine(
+    client,
+    directory,
+    signal,
+    client.dispose,
+  );
+  return { engine, release: engine.dispose };
 }
 
 /** One generated crop per requested window; no local-model fallback or repair loop. */
@@ -94,12 +75,18 @@ export function createCodexInpaintingEngine(
         bitmap,
         width,
         height,
-        mask,
+        ...prepareRepairMask(mask, width, height, options),
         windows,
         signal: options?.signal ?? signal,
-        feather: options?.featherPx ?? 8,
       };
-      const working = Buffer.from(bitmap);
+      const hidden = externalImageMask(options?.sourceImagePath, width, height);
+      if (hidden?.some((value, pixel) => value > 0 && request.mask[pixel] > 0))
+        throw new Error(
+          "가리기와 겹치는 원문 제거 영역을 제외하거나 가리기를 수정해 주세요.",
+        );
+      const working = hidden
+        ? flattenImageRedaction(bitmap, hidden)
+        : Buffer.from(bitmap);
       for (const [index, window] of windows.entries()) {
         request.signal.throwIfAborted();
         await inpaintCodexWindow(
@@ -116,8 +103,31 @@ export function createCodexInpaintingEngine(
         );
       }
       request.signal.throwIfAborted();
+      restoreHiddenPixels(bitmap, working, hidden);
       working.copy(bitmap);
     },
+  };
+}
+
+function prepareRepairMask(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  options: Parameters<InpaintingEngine["inpaint"]>[5],
+) {
+  const mode = options?.codexMaskMode ?? "paint";
+  const feather = Math.max(
+    0,
+    Math.min(24, Math.round(options?.featherPx ?? 8)),
+  );
+  return {
+    mode,
+    feather,
+    paintedCore: mode === "paint" ? mask : undefined,
+    mask:
+      mode === "paint"
+        ? dilateBinaryMaskDisk(mask, width, height, feather)
+        : mask,
   };
 }
 
@@ -151,6 +161,7 @@ async function inpaintCodexWindow(
     request.signal,
     crop.toDataURL(),
     mask.image,
+    request.mode,
   );
   request.signal.throwIfAborted();
   const decoded = nativeImage.createFromBuffer(output);
@@ -166,56 +177,76 @@ async function inpaintCodexWindow(
     w: window.w,
     h: window.h,
   };
-  const registration = registerTypesettingPatch(
+  const repair = compositeCodexRepair(
     original,
     candidate,
     erase,
     mask.permission,
+    request.mode,
+    mask.core,
   );
   await writeFile(
     join(directory, `splice-${index}-${randomUUID()}.json`),
-    JSON.stringify({ rect, erase, registration }),
+    JSON.stringify({
+      rect,
+      erase,
+      mode: request.mode,
+      registration: repair.registration,
+      thresholds: repair.difference.thresholds,
+      tone: repair.tone,
+      changedPixels: repair.difference.changedPixels,
+    }),
   );
-  if (!registration.supported || !registration.opaque)
-    throw new Error("Codex 결과가 선택 영역을 완전히 덮지 못했습니다.");
-  const aligned = PNG.sync.read(crop.toPNG());
-  compositeRegisteredPatch(
-    aligned,
-    candidate,
-    { x: 0, y: 0, w: rect.w, h: rect.h },
-    { x: 0, y: 0 },
-    registration.transform,
+  pasteRepair(request, rect, repair);
+}
+
+function pasteRepair(
+  request: Request,
+  rect: PixelRect,
+  repair: ReturnType<typeof compositeCodexRepair>,
+) {
+  const repairedPng = Object.assign(
+    new PNG({ width: rect.w, height: rect.h }),
+    repair.output,
   );
   const pixels = nativeImage
-    .createFromBuffer(PNG.sync.write(aligned))
+    .createFromBuffer(PNG.sync.write(repairedPng))
     .toBitmap();
-  // Reuse the existing full-opacity core / outer feather and never paste the whole crop.
-  compositeFluxOutput(
-    request.bitmap,
-    pixels,
-    request.compositeMask ?? request.mask,
-    request.width,
-    rect,
-    request.feather,
-    expandRect(window, request.width, request.height, request.feather),
-    request.constraint,
-  );
+  for (let y = 0; y < rect.h; y++) {
+    for (let x = 0; x < rect.w; x++) {
+      if (!repair.difference.opacity[y * rect.w + x]) continue;
+      const from = (y * rect.w + x) * 4;
+      pixels.copy(
+        request.bitmap,
+        ((y + rect.y) * request.width + x + rect.x) * 4,
+        from,
+        from + 4,
+      );
+    }
+  }
 }
 
 function cropMask(request: Request, rect: PixelRect) {
   const image = new PNG({ width: rect.w, height: rect.h });
   const permission = new Uint8Array(rect.w * rect.h);
+  const core = request.paintedCore
+    ? new Uint8Array(permission.length)
+    : undefined;
   for (let y = 0; y < rect.h; y++)
     for (let x = 0; x < rect.w; x++) {
-      const value = request.mask[(y + rect.y) * request.width + x + rect.x]
-        ? 255
-        : 0;
+      const at = (y + rect.y) * request.width + x + rect.x;
+      const value =
+        request.mask[at] && (!request.constraint || request.constraint[at])
+          ? 255
+          : 0;
       const offset = (y * rect.w + x) * 4;
       image.data.fill(value, offset, offset + 3);
       image.data[offset + 3] = 255;
       permission[y * rect.w + x] = value ? 1 : 0;
+      if (core)
+        core[y * rect.w + x] = value && request.paintedCore?.[at] ? 1 : 0;
     }
-  return { image, permission };
+  return { image, permission, core };
 }
 
 function generateErasedCrop(
@@ -224,13 +255,21 @@ function generateErasedCrop(
   signal: AbortSignal,
   crop: string,
   mask: PNG,
+  mode: "region" | "paint",
 ) {
   return generateImage(
     client,
     directory,
     signal,
-    "Reconstruct every magenta hole in image 1 as background artwork. Image 2 is the WHITE edit-permission mask; image 3 is the original for surrounding-artwork reference only. Remove all masked lettering, outlines, detached marks and extended brush strokes; never restore them from image 3. Preserve unmasked people, objects, balloon outlines, screentone, alignment and framing. Add no replacement lettering or magenta. Return one complete edited crop at the same aspect ratio.",
-    erasureImageInputs(crop, mask),
+    mode === "region"
+      ? "Remove all lettering within the WHITE permitted region in image 2 from the original crop in image 1. This is a selection boundary, not a request to clear all artwork in that region. Locate the entire visible lettering yourself, including outlines, shadows, halos, detached marks, pale or colored lettering, and extended strokes. Remove decorative backplates and embellishments that belong to the typography as one complete graphic, rather than leaving its empty backing behind. Keep narrative balloon boundaries. Reconstruct the artwork behind only those letters. Preserve all non-lettering shapes, people, objects, borders, screentone, color, framing and their exact positions, including inside the permitted region. Do not mistake illustration contours or motion lines for lettering. If the selected area contains no identifiable typography, leave it unchanged. Do not add replacement text. Return one complete cleaned crop with the original aspect ratio."
+      : "Reconstruct every magenta hole in image 1 as background artwork. Image 2 is the WHITE edit-permission mask; image 3 is the original for surrounding-artwork reference only. Remove all masked typography including its backplates, decorative marks, outlines, shadows and extended brush strokes; never restore them from image 3. Preserve unmasked people, objects, balloon outlines, screentone, alignment and framing. Add no replacement lettering or magenta. Return one complete edited crop at the same aspect ratio.",
+    mode === "region"
+      ? [
+          crop,
+          `data:image/png;base64,${PNG.sync.write(mask).toString("base64")}`,
+        ]
+      : erasureImageInputs(crop, mask),
     { width: mask.width, height: mask.height },
   );
 }
@@ -242,7 +281,6 @@ function windowRequest(
   options: NonNullable<Parameters<InpaintingEngine["inpaint"]>[5]> = {},
 ): Request {
   const owned = options.windowMasks?.[index];
-  const core = options.compositeMasks?.[index];
   const constraint = options.compositeConstraints?.[index];
   const expand = (mask: NonNullable<typeof owned>) =>
     expandWindowMaskToPage(mask, request.width, request.height);
@@ -250,9 +288,24 @@ function windowRequest(
     ...request,
     mask: owned
       ? expand(owned)
-      : isolateMaskToWindow(request.mask, request.width, window),
-    compositeMask: core ? expand(core) : undefined,
+      : isolateMaskToWindow(
+          request.mask,
+          request.width,
+          request.mode === "paint"
+            ? expandRect(window, request.width, request.height, request.feather)
+            : window,
+        ),
     constraint: constraint ? expand(constraint) : undefined,
-    feather: options.compositeFeatherPx?.[index] ?? request.feather,
   };
+}
+
+function restoreHiddenPixels(
+  original: Buffer,
+  working: Buffer,
+  hidden?: Uint8Array,
+): void {
+  if (!hidden) return;
+  for (let pixel = 0; pixel < hidden.length; pixel++)
+    if (hidden[pixel])
+      original.copy(working, pixel * 4, pixel * 4, pixel * 4 + 4);
 }

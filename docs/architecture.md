@@ -28,7 +28,7 @@ main IPC/job ──> application service ──> pure policy ──> port
 
 현재 이 경계를 대표하는 구현은 `WebImportApplicationService`와 `PageImageExportApplicationService`다. 기존 기능은 수정할 때 같은 방향으로 이동하되, 한 번에 폴더만 옮기지 않는다. 먼저 정상·빈 입력·오류·취소·동시 실행·cleanup 실패를 행동 테스트로 고정하고, 오케스트레이션만 추출한다.
 
-Astra 실험 경로는 `runCodexTypesetting` application service에 account·raster·ImageGen·production renderer port를 주입한다. `codexTypesettingRuntime`은 이를 연결하는 composition root이며 기존 OCR 경로 시작 전에 `wholePagePipeline`이 분기한다. 실제 제거 미리보기 도구를 연결하는 runtime과 새 프리셋 계약을 받는 settings IPC를 포함한 이 세 연결 지점에만 import 상한 14/23/14의 명시적 사유를 기록했다. 일반 모듈 상한이나 보호된 기존 알고리즘을 변경하지 않는다.
+Codex 전체 위임 경로는 제품에서 제거했다. 일반 OCR·번역·용어/스토리 기억이 텍스트를 확정한 뒤 `codexImageEditing` composition root가 선택한 영역의 제거·ImageGen·실제 렌더러 미리보기만 연결한다. 텍스트 엔진과 이미지 작업용 Codex 모델·추론 강도는 독립적이다. `wholePagePipeline`의 영역 후처리, `soundEffectTranslationJobRunner`의 번역 후 이미지 작업, `AppSessionView`의 가리기 검토, `SettingsModalView`의 이미지 설정 연결에만 각각 26/16/26/17의 import 상한 사유를 기록한다. 일반 모듈 상한은 유지한다. `runCodexTypesetting`은 기존 오프라인 검증용 계약으로만 남는다.
 
 부분 강조에는 기존 `richTextMarkup`의 안전한 문법을 그대로 사용한다. 식자 직렬화,
 이미지 문자 생성의 실제 문구, 독립 재판독의 기대 문구, literal 폰트 견본이 같은 parser/serializer를

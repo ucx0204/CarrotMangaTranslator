@@ -140,7 +140,7 @@ describe("sound-effect review UI", () => {
       name: "003.png, 후보 1개 중 1개 포함",
     });
     const inpaint = screen.getByRole("switch", {
-      name: "번역 후 원문 지우기(인페인팅)",
+      name: "원문 지우기",
     });
     const autoFontMatching = screen.getByRole("switch", {
       name: "폰트 자동 맞춤",
@@ -279,7 +279,7 @@ describe("sound-effect review UI", () => {
     fireEvent.click(screen.getByRole("switch", { name: "폰트 자동 맞춤" }));
     fireEvent.click(
       screen.getByRole("switch", {
-        name: "번역 후 원문 지우기(인페인팅)",
+        name: "원문 지우기",
       }),
     );
     fireEvent.click(
@@ -329,7 +329,7 @@ describe("sound-effect review UI", () => {
     fireEvent.click(screen.getByRole("switch", { name: "번역문 표시" }));
 
     expect(screen.getByText("002.png")).not.toBeNull();
-    expect(screen.getByText("기존 번역문")).not.toBeNull();
+    expect(screen.getAllByText("기존 번역문")[0]).not.toBeNull();
     const translationChrome = document.querySelector<HTMLElement>(
       ".overlay-block-chrome",
     );
@@ -923,30 +923,9 @@ it("exposes a generated lettering brush only while editing overlays are availabl
   expect(container.querySelector('svg[preserveAspectRatio="none"]')).toBeNull();
 });
 
-it("offers Codex image or editable lettering and keeps execution disabled offline", () => {
-  const onStart = vi.fn();
-  const props = {
-    chapter: makeChapter(),
-    jobActive: false,
-    onClose: vi.fn(),
-    onStart,
-    codexDelegateAll: true,
-  };
-  const view = render(<SoundEffectTranslationModal {...props} />);
-  expect(screen.queryByRole("switch", { name: "폰트 자동 맞춤" })).toBeNull();
-  fireEvent.click(screen.getByRole("radio", { name: "폰트" }));
-  fireEvent.click(screen.getByRole("switch", { name: "원문 지우기" }));
-  view.rerender(<SoundEffectTranslationModal {...props} codexUnavailable />);
-  const start = screen.getByRole("button", { name: "선택한 효과음 3개 번역" });
-  expect(start.hasAttribute("disabled")).toBe(true);
-  fireEvent.click(start);
-  expect(onStart).not.toHaveBeenCalled();
-});
-
 it("offers standalone Astra without changing general settings and retains its choice when disconnected", async () => {
   const settings = resolveDefaultAppSettings({});
   settings.modelProvider = "openai-api";
-  settings.codex.delegateAll = false;
   settings.codex.reasoningEffort = "low";
   const original = structuredClone(settings);
   const account: CodexAccountSnapshot = {
@@ -983,17 +962,16 @@ it("offers standalone Astra without changing general settings and retains its ch
     />,
   );
   await act(async () => {});
-  fireEvent.click(screen.getByRole("radio", { name: "Codex · Astra" }));
+  fireEvent.click(screen.getByRole("radio", { name: "효과음 이미지" }));
   expect(screen.queryByRole("switch", { name: "폰트 자동 맞춤" })).toBeNull();
-  fireEvent.click(screen.getByRole("radio", { name: "폰트" }));
+  fireEvent.click(screen.getByRole("radio", { name: "텍스트" }));
   fireEvent.click(screen.getByRole("switch", { name: "원문 지우기" }));
+  fireEvent.click(screen.getByRole("radio", { name: "Codex" }));
   act(() => codexConnection.publish(null));
   const start = screen.getByRole("button", { name: "선택한 효과음 3개 번역" });
   expect(start.hasAttribute("disabled")).toBe(true);
   expect(
-    screen
-      .getByRole("radio", { name: "Codex · Astra" })
-      .getAttribute("aria-checked"),
+    screen.getByRole("radio", { name: "Codex" }).getAttribute("aria-checked"),
   ).toBe("true");
   act(() => codexConnection.publish(account));
   fireEvent.click(start);

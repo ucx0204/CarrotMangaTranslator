@@ -31,6 +31,7 @@ export type PreviousOverlayBlockForPrompt = {
 };
 
 export type TranslationOptions = {
+  prepareExternalImage?: (path: string) => Promise<string>;
   imagePath: string;
   imageWidth?: number;
   imageHeight?: number;

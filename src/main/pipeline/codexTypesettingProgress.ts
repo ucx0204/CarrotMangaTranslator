@@ -8,6 +8,7 @@ export function createCodexProgressReporter(
   jobId: string,
   total: number,
   emit: (event: JobEvent) => void,
+  kind: JobEvent["kind"] = "gemma-analysis",
 ) {
   let current: CodexTypesettingProgress = {
     stage: "reading",
@@ -31,10 +32,10 @@ export function createCodexProgressReporter(
     };
     emit({
       id: jobId,
-      kind: "gemma-analysis",
+      kind,
       status: "running",
       phase: pageCommitted ? "page_done" : "model_requesting",
-      progressText: `Astra · ${current.stage} · ${current.step}`,
+      progressText: `Codex · ${current.stage} · ${current.step}`,
       codexProgress: { ...current },
       pageIndex: current.page,
       pageTotal: total,

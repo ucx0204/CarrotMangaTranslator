@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { observeProcessErrors } from "../runtimeSupport/observeProcessErrors";
 import { existsSync } from "node:fs";
 import { lstat, mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -278,11 +279,8 @@ function runImportSourceRunner(
       settled = true;
       clearTimeout(timeout);
       signal?.removeEventListener("abort", onAbort);
-      if (error) {
-        reject(error);
-      } else {
-        resolvePromise(stdout ?? "");
-      }
+      if (error) reject(error);
+      else resolvePromise(stdout ?? "");
     };
     const stopForOutputLimit = (): void => {
       child.kill();
@@ -307,7 +305,12 @@ function runImportSourceRunner(
         onProgress,
       );
     });
-    child.once("error", (error) => settle(error));
+    const onError = (error: Error): void => {
+      if (settled) return;
+      settle(error);
+      child.kill();
+    };
+    observeProcessErrors(child, onError);
     child.once("close", (code, terminatedBySignal) => {
       if (settled) return;
       stderrPending += stderrDecoder.end();

@@ -1,3 +1,4 @@
+import { ImageRedactionReviewHost } from "../../components/ImageRedactionReviewHost";
 import { TranslationDialogs } from "../../components/TranslationDialogs";
 import React from "react";
 import type { RegionTranslationModal } from "../../components/RegionTranslationModal";
@@ -296,6 +297,7 @@ function SessionFloatingOverlays({
       {pageRetranslateProps ? (
         <PageRetranslateModal {...pageRetranslateProps} />
       ) : null}
+      <ImageRedactionReviewHost />
       <ToastViewport />
     </>
   );

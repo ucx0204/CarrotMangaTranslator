@@ -5,7 +5,6 @@ import type {
 } from "./codexTypesettingTypes";
 
 export const CODEX_TYPESETTING_MODEL = "gpt-6-astra";
-export const CODEX_TYPESETTING_RECIPE = "astra-typesetting-v0.5.0-candidate";
 
 export function createCodexTypesettingPreferences(
   targetLanguage: string,

@@ -1,5 +1,11 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -46,6 +52,8 @@ describe("CodexAppServerClient", () => {
         "utf8",
       );
       const paths = createAppPaths(root);
+      paths.codexWorkspaceDir = join(root, "deep-artifact-path-".repeat(18));
+      let executionPath = "";
       const client = await CodexAppServerClient.start(
         { paths, appVersion: "test", capability: "image-generation" },
         {
@@ -57,13 +65,15 @@ describe("CodexAppServerClient", () => {
             triple: "x86_64-pc-windows-msvc",
             executableName: "codex.exe",
           }),
-          spawnAppServer: (_path, _args, options) =>
-            spawn(process.execPath, [fixturePath], {
+          spawnAppServer: (_path, _args, options) => {
+            executionPath = options.cwd;
+            return spawn(process.execPath, [fixturePath], {
               cwd: options.cwd,
               env: { ...options.env, FAKE_CODEX_AUDIT_PATH: auditPath },
               stdio: ["pipe", "pipe", "pipe"],
               windowsHide: true,
-            }),
+            });
+          },
         },
       );
       try {
@@ -77,6 +87,7 @@ describe("CodexAppServerClient", () => {
         expect(result).toMatchObject({
           itemId: "image-1",
           routedModel: "gpt-6-astra",
+          imageDirectory: executionPath,
         });
         expect(result.tokenUsage).toEqual(
           usageMode === "total"
@@ -108,9 +119,13 @@ describe("CodexAppServerClient", () => {
         await client.dispose();
       }
       const messages = JSON.parse(readFileSync(auditPath, "utf8"));
+      expect(executionPath.length).toBeLessThan(240);
+      expect(executionPath).not.toBe(paths.codexWorkspaceDir);
+      await expect.poll(() => existsSync(executionPath)).toBe(false);
       expect(findRequest(messages, "thread/start")).toMatchObject({
         params: {
           sandbox: "workspace-write",
+          cwd: executionPath,
           ephemeral: true,
           config: { features: { image_generation: true, shell_tool: false } },
         },

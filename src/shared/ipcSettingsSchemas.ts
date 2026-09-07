@@ -16,7 +16,7 @@ import {
   hexColor,
 } from "./ipcSchemaPrimitives";
 import { MAX_LANGUAGE_CODE_LENGTH } from "./translationLanguages";
-import { CODEX_REASONING_EFFORTS } from "./codexSettings";
+import { CODEX_REASONING_EFFORTS, CODEX_IMAGE_MODELS } from "./codexSettings";
 import { SUPPORTED_UI_LOCALES } from "./uiLocales";
 import { TEXT_WORD_BREAK_VALUES } from "./textWrapping";
 import {
@@ -211,8 +211,8 @@ export const AppSettingsSchema = z
       .strict(),
     codex: z
       .object({
-        delegateAll: z.boolean().optional(),
         imageReasoningEffort: z.enum(CODEX_REASONING_EFFORTS).optional(),
+        imageModel: z.enum(CODEX_IMAGE_MODELS).optional(),
         model: z.string().min(1).max(120),
         reasoningEffort: z.enum(CODEX_REASONING_EFFORTS),
       })

@@ -87,15 +87,20 @@ export function CurveText({
       viewBox={`0 0 ${layout.layoutWidth} ${layout.layoutHeight}`}
       width={layout.layoutWidth}
     >
-      {positioned.map((glyph, index) => (
-        <CurveGlyph
-          block={block}
-          glyph={glyph}
-          key={`${index}-${glyph.char}`}
-          layoutFontSizePx={layout.fontSizePx}
-          outlineWidth={outlineWidth}
-          widthScale={widthScale}
-        />
+      {(["background", "outer", "outline", "main"] as const).map((layer) => (
+        <g key={layer} data-text-layer={layer}>
+          {positioned.map((glyph, index) => (
+            <CurveGlyph
+              block={block}
+              layer={layer}
+              glyph={glyph}
+              key={`${index}-${glyph.char}`}
+              layoutFontSizePx={layout.fontSizePx}
+              outlineWidth={outlineWidth}
+              widthScale={widthScale}
+            />
+          ))}
+        </g>
       ))}
     </svg>
   );
@@ -123,12 +128,14 @@ function measureGlyphs(
 }
 
 function CurveGlyph({
+  layer,
   block,
   glyph,
   layoutFontSizePx,
   outlineWidth,
   widthScale,
 }: {
+  layer: "background" | "outer" | "outline" | "main";
   block: TranslationBlock;
   glyph: ReturnType<typeof layoutGlyphsOnCurve>[number];
   layoutFontSizePx: number;
@@ -142,17 +149,16 @@ function CurveGlyph({
     outlineWidth,
     widthScale,
   });
-  const transform = `translate(${glyph.x} ${glyph.y}) rotate(${glyph.angleDeg})`;
   return (
-    <g transform={transform}>
-      {appearance.backgroundColor ? (
+    <g transform={`translate(${glyph.x} ${glyph.y}) rotate(${glyph.angleDeg})`}>
+      {layer === "background" && appearance.backgroundColor ? (
         <CurveGlyphBackground
           color={appearance.backgroundColor}
           glyph={glyph}
           layoutFontSizePx={layoutFontSizePx}
         />
       ) : null}
-      {appearance.outerWidth > 0 ? (
+      {layer === "outer" && appearance.outerWidth > 0 ? (
         <CurveGlyphText
           color="transparent"
           fill="none"
@@ -162,29 +168,41 @@ function CurveGlyph({
           widthScale={appearance.widthScale}
         />
       ) : null}
-      <CurveGlyphText
-        color={appearance.mainColor}
-        fill={appearance.mainColor}
-        glyph={glyph}
-        stroke={appearance.innerWidth > 0 ? appearance.innerColor : "none"}
-        strokeWidth={appearance.innerWidth * 2}
-        style={{
-          filter: appearance.glowFilter,
-        }}
-        widthScale={appearance.widthScale}
-      />
-      <CurveGlyphDecorations
-        color={appearance.mainColor}
-        decorations={appearance.decorations}
-        glyph={glyph}
-        layoutFontSizePx={layoutFontSizePx}
-      />
-      {appearance.emphasis ? (
-        <CurveGlyphEmphasis
-          color={appearance.mainColor}
+      {layer === "outline" ? (
+        <CurveGlyphText
+          color="transparent"
+          fill="none"
           glyph={glyph}
-          layoutFontSizePx={layoutFontSizePx}
+          stroke={appearance.innerWidth > 0 ? appearance.innerColor : "none"}
+          strokeWidth={appearance.innerWidth * 2}
+          style={{ filter: appearance.glowFilter }}
+          widthScale={appearance.widthScale}
         />
+      ) : null}
+      {layer === "main" ? (
+        <>
+          <CurveGlyphText
+            color={appearance.mainColor}
+            fill={appearance.mainColor}
+            glyph={glyph}
+            stroke="none"
+            strokeWidth={0}
+            widthScale={appearance.widthScale}
+          />
+          <CurveGlyphDecorations
+            color={appearance.mainColor}
+            decorations={appearance.decorations}
+            glyph={glyph}
+            layoutFontSizePx={layoutFontSizePx}
+          />
+          {appearance.emphasis ? (
+            <CurveGlyphEmphasis
+              color={appearance.mainColor}
+              glyph={glyph}
+              layoutFontSizePx={layoutFontSizePx}
+            />
+          ) : null}
+        </>
       ) : null}
     </g>
   );

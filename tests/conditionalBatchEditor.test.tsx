@@ -921,7 +921,7 @@ describe("beginner conditional batch editor", () => {
     const firstWorkspaceText = requiredItem(
       Array.from(
         document.querySelectorAll<HTMLElement>(
-          ".workspace .overlay-text-content",
+          ".workspace .overlay-text-main .overlay-text-content",
         ),
       ),
       0,
@@ -1339,7 +1339,9 @@ function requiredItem<T>(items: readonly T[], index: number): T {
 
 function readWorkspaceTexts(): string[] {
   return Array.from(
-    document.querySelectorAll<HTMLElement>(".workspace .overlay-text-content"),
+    document.querySelectorAll<HTMLElement>(
+      ".workspace .overlay-text-main .overlay-text-content",
+    ),
     (element) => element.textContent ?? "",
   );
 }

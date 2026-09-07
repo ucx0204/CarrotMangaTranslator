@@ -29,7 +29,10 @@ import {
   createPatternBitmapBaseline,
   type PatternBitmapBaseline,
 } from "./sourceGlyphEvidenceReceipt";
-import { persistActualInpaintMask } from "./inpaintMaskArtifact";
+import {
+  persistActualInpaintMask,
+  buildMaskFromBitmapDifference,
+} from "./inpaintMaskArtifact";
 
 type PatternPageInpaintingOptions = {
   blockId?: string;
@@ -67,8 +70,8 @@ export async function inpaintPatternPage(
 
   const maskContext = createPatternMaskContext(page, bitmap, size, options);
   if (maskContext.blocksErased === 0) return { page, blocksErased: 0 };
-  const beforeBitmap = working.bitmap;
   await runPatternInpaintingEngine({
+    sourceImagePath: page.imagePath,
     bitmap,
     engine: options.inpaintingEngine,
     height: size.height,
@@ -77,7 +80,7 @@ export async function inpaintPatternPage(
     width: size.width,
   });
   const changes = resolvePatternPixelChanges(
-    beforeBitmap,
+    working.bitmap,
     bitmap,
     maskContext,
     options.inpaintingEngine,
@@ -101,7 +104,13 @@ export async function inpaintPatternPage(
       working,
     });
   }
-  logPatternInpaintingResult(maskContext, options.inpaintingEngine, changes);
+  if (options.inpaintingEngine?.model === "codex")
+    maskContext.pageMask = buildMaskFromBitmapDifference(
+      working.bitmap,
+      bitmap,
+      size.width,
+      size.height,
+    );
   const { completedResult, output } = await persistPatternResult({
     bitmap,
     changes,
@@ -196,11 +205,12 @@ function createPatternMaskContext(
     width: size.width,
     height: size.height,
     mode:
-      options.inpaintingEngine?.model === "flux-klein" ||
-      options.inpaintingEngine?.model === "codex" ||
-      options.typographySegmentation
-        ? "flux-region"
-        : "glyph",
+      options.inpaintingEngine?.model === "codex"
+        ? "codex-region"
+        : options.inpaintingEngine?.model === "flux-klein" ||
+            options.typographySegmentation
+          ? "flux-region"
+          : "glyph",
     bubbleLayoutConstraintBlockIds: options.bubbleLayoutConstraintBlockIds,
     excludedBlockIds: options.excludedBlockIds,
     sharedInpaintGroupIdsByBlock: options.sharedInpaintGroupIdsByBlock,
@@ -342,9 +352,8 @@ function resolvePatternPixelChanges(
 ): PatternPixelChanges {
   const stats = mask.validationWindowMasks.map((windowMask, index) => {
     const blockId = mask.validationBlockIds[index];
-    if (!blockId) {
+    if (!blockId)
       throw new Error("Pattern validation block binding is incomplete.");
-    }
     return {
       blockId,
       ...measureWindowMaskedRegionChange(before, after, width, windowMask),
@@ -366,6 +375,14 @@ function resolvePatternPixelChanges(
       },
     );
   }
+  if (stats.length > incompleteBlockIds.length)
+    logInpaintingRuntimeInfo("Selected inpainting model processing completed", {
+      model: engine?.model,
+      blocks: mask.blocksErased,
+      blocksErased: stats.length - incompleteBlockIds.length,
+      blocksIncomplete: incompleteBlockIds.length,
+      otsuBlocks: mask.otsuBlocks,
+    });
   return {
     erasedBlockIds: stats
       .filter((item) => item.changedPixels > 0)
@@ -374,29 +391,14 @@ function resolvePatternPixelChanges(
   };
 }
 
-function logPatternInpaintingResult(
-  mask: PatternMaskContext,
-  engine: InpaintingEngine | undefined,
-  changes: PatternPixelChanges,
-): void {
-  logInpaintingRuntimeInfo("Selected inpainting model processing completed", {
-    model: engine?.model,
-    blocks: mask.blocksErased,
-    blocksErased: changes.erasedBlockIds.length,
-    blocksIncomplete: changes.incompleteBlockIds.length,
-    otsuBlocks: mask.otsuBlocks,
-  });
-}
-
 async function writePatternInpaintedImage(
   page: MangaPage,
   bitmap: Buffer,
   size: { width: number; height: number },
 ): Promise<PatternInpaintedOutput> {
   const outputImage = nativeImage.createFromBitmap(bitmap, size);
-  if (outputImage.isEmpty()) {
+  if (outputImage.isEmpty())
     throw new Error(`인페인팅 결과 이미지를 만들지 못했습니다: ${page.name}`);
-  }
 
   const outputPath = resolveInpaintedImagePath(page.imagePath, "pattern");
   const png = outputImage.toPNG();
@@ -409,15 +411,11 @@ async function tryReadFile(filePath: string): Promise<Buffer | null> {
   try {
     return await readFile(filePath);
   } catch (error) {
-    if (isMissingFileError(error)) return null;
+    if (
+      error instanceof Error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    )
+      return null;
     throw error;
   }
-}
-
-function isMissingFileError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === "ENOENT"
-  );
 }

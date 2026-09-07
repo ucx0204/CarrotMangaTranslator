@@ -49,7 +49,12 @@ function expectCurveFormattingArtifacts(
   expect(curve?.querySelectorAll('text[fill="#111111"]')).toHaveLength(
     glyphCount,
   );
-  expect(curve?.querySelectorAll('text[fill="none"]')).toHaveLength(glyphCount);
+  expect(
+    curve?.querySelectorAll('[data-text-layer="outer"] text[fill="none"]'),
+  ).toHaveLength(glyphCount);
+  expect(
+    curve?.querySelectorAll('[data-text-layer="outline"] text[fill="none"]'),
+  ).toHaveLength(glyphCount);
   expect(
     curve?.querySelectorAll('[data-curve-decoration="underline"]'),
   ).toHaveLength(glyphCount);
@@ -350,7 +355,9 @@ describe("page artwork renderer parity", () => {
 
     for (const container of [exported.container, panel.container]) {
       const normal = Array.from(
-        container.querySelectorAll<HTMLElement>(".overlay-text-content"),
+        container.querySelectorAll<HTMLElement>(
+          ".overlay-text-outline .overlay-text-content",
+        ),
       ).find((element) => element.textContent === "자동 검정");
       expect(normal?.style.textShadow).toBe("none");
       expect(normal?.style.webkitTextStrokeColor).toBe("rgb(255, 255, 255)");
@@ -358,9 +365,14 @@ describe("page artwork renderer parity", () => {
         Number.parseFloat(normal?.style.webkitTextStrokeWidth ?? "0"),
       ).toBeGreaterThan(0);
       const curveGlyph = container.querySelector<SVGTextElement>(
-        'svg[aria-label="자동 흰색"] text',
+        'svg[aria-label="자동 흰색"] [data-text-layer="outline"] text',
       );
-      expect(curveGlyph?.getAttribute("fill")).toBe("#f7f7f2");
+      expect(curveGlyph?.getAttribute("fill")).toBe("none");
+      const mainGlyph = container.querySelector<SVGTextElement>(
+        'svg[aria-label="자동 흰색"] [data-text-layer="main"] text',
+      );
+      expect(mainGlyph?.getAttribute("fill")).toBe("#f7f7f2");
+      expect(mainGlyph?.getAttribute("stroke")).toBe("none");
       expect(curveGlyph?.getAttribute("stroke")).toBe("#111111");
       expect(Number(curveGlyph?.getAttribute("stroke-width"))).toBeGreaterThan(
         0,

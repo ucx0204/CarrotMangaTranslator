@@ -1,3 +1,4 @@
+import { registerImageRedactionCrop } from "../imageRedactionContext";
 import { nativeImage } from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -52,6 +53,19 @@ export async function buildSoundEffectTranslationImages(
     signal,
   );
   const crop = await writeTargetCropImage(source, region, artifactDir, signal);
+  await registerImageRedactionCrop(
+    context.path,
+    page.imagePath,
+    { x: 0, y: 0, w: sourceSize.width, h: sourceSize.height },
+    context,
+  );
+  const rawRect = normalizedRegionToPixelRect(region.bbox, sourceSize, 2);
+  await registerImageRedactionCrop(
+    crop.path,
+    page.imagePath,
+    expandTargetRect(rawRect, sourceSize.width, sourceSize.height),
+    crop,
+  );
   return { context, crop };
 }
 

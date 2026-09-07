@@ -91,10 +91,7 @@ export function createWorkspaceSoundEffectReviewProps({
       closeReview();
       void translationActions.translateSoundEffects(
         [target],
-        settingsDialog.codexDelegationEnabled
-          ? settingsDialog.settings?.ui?.codexTypesettingPreferences
-              ?.eraseOriginal !== false
-          : (ui?.sfxInpaintAfterTranslationDefault ?? false),
+        ui?.sfxInpaintAfterTranslationDefault ?? false,
         ui?.sfxAutoFontMatchingDefault ?? false,
       );
     },
@@ -145,14 +142,9 @@ function soundEffectExecutionSettings(
 ) {
   const ui = settingsDialog.settings?.ui;
   return {
-    codexDelegateAll: settingsDialog.codexDelegationEnabled,
-    codexUnavailable:
-      settingsDialog.codexDelegationEnabled &&
-      !settingsDialog.codexDelegationActive,
     sfxRenderingDefault: ui?.codexTypesettingPreferences?.sfxRendering,
     autoFontMatchingDefault: ui?.sfxAutoFontMatchingDefault ?? false,
-    inpaintAfterTranslationDefault: settingsDialog.codexDelegationEnabled
-      ? ui?.codexTypesettingPreferences?.eraseOriginal !== false
-      : (ui?.sfxInpaintAfterTranslationDefault ?? false),
+    inpaintAfterTranslationDefault:
+      ui?.sfxInpaintAfterTranslationDefault ?? false,
   };
 }

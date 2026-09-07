@@ -59,6 +59,7 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
+process.stderr.write("worker ready\\n");
 `;
 }
 
@@ -70,6 +71,7 @@ function makeWorkerDir(script: string): { dir: string; scriptPath: string } {
 }
 
 type MakeClientOptions = {
+  onStderr?: (text: string) => void;
   requestTimeoutMs?: number;
   shutdownGraceMs?: number;
   onSpawn?: (pid: number | null) => void;
@@ -86,7 +88,7 @@ function makeClient(scriptPath: string, options: MakeClientOptions = {}) {
     buildExitError: (code, stderr) => new Error(`exit ${code} ${stderr}`),
     buildNotRunningError: (stderr) => new Error(`not running ${stderr}`),
     sanitizeStderr: (text) => text,
-    onStderr: () => {},
+    onStderr: options.onStderr ?? (() => {}),
     onSpawn: options.onSpawn,
     onTerminationError: options.onTerminationError ?? (() => {}),
     runtime:
@@ -114,7 +116,6 @@ type FakeWorkerOptions = {
 class FakeWorkerInput extends PassThrough {
   constructor(private readonly shutdownWriteError: Error | undefined) {
     super();
-    this.on("error", () => undefined);
   }
 
   override _transform(
@@ -290,6 +291,35 @@ function makeFakeClient(options: FakeClientOptions = {}) {
 }
 
 describe("JsonLinesWorkerClient", () => {
+  it.each(["stdin", "stdout", "stderr"] as const)(
+    "contains %s disconnects, rejects all requests and terminates once",
+    async (channel) => {
+      const { client, worker, forceTerminate, scheduler } = makeFakeClient();
+      const pending = Promise.allSettled([
+        client.startRequest({ type: "first" }).response,
+        client.startRequest({ type: "second" }).response,
+      ]);
+      const error = Object.assign(new Error("read ENOTCONN"), {
+        code: "ENOTCONN",
+      });
+      expect(() => worker.child[channel].emit("error", error)).not.toThrow();
+      for (const result of await pending)
+        expect(result).toEqual({ status: "rejected", reason: error });
+      expect(forceTerminate).toHaveBeenCalledOnce();
+      expect(scheduler.pendingCount()).toBe(0);
+      expect(client.isHealthy()).toBe(false);
+      expect(() => client.startRequest({ type: "late" })).toThrow(
+        "not running",
+      );
+      await client.dispose();
+      for (const pipe of [
+        worker.child.stdin,
+        worker.child.stdout,
+        worker.child.stderr,
+      ])
+        expect(() => pipe.emit("error", error)).not.toThrow();
+    },
+  );
   it("survives non-JSON stdout noise (CUDA warnings with ANSI) and still resolves the response", async () => {
     const { dir, scriptPath } = makeWorkerDir(NOISE_THEN_RESPONSE_SCRIPT);
     const client = makeClient(scriptPath);
@@ -634,8 +664,16 @@ async function expectNoiseDoesNotExtendDeadline(
 ): Promise<void> {
   const { dir, scriptPath } = makeWorkerDir(noisyHangScript(stream));
   const timeoutMs = 300;
-  const client = makeClient(scriptPath, { requestTimeoutMs: timeoutMs });
+  const ready = createDeferred<void>();
+  const client = makeClient(scriptPath, {
+    requestTimeoutMs: timeoutMs,
+    onStderr: (line) => {
+      if (line.includes("worker ready")) ready.resolve();
+    },
+  });
   try {
+    // Process startup is not part of the request deadline under test.
+    await withHardCap(ready.promise, 4_000);
     await expect(
       client.startRequest({ type: "start_noise" }).response,
     ).resolves.toMatchObject({ ok: true });

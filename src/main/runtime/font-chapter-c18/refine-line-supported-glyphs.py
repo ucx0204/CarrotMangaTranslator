@@ -78,6 +78,10 @@ def collect(aligned, verified, pages):
     return items, line_audit
 
 def corroborate(items, cutoff):
+    # A short selection may have fewer than 12 within-block repeated pairs.
+    # Keep strict OCR evidence, but do not invent a threshold for recovery.
+    if cutoff is None:
+        return
     by_char, distances = {}, {}
     for i, item in enumerate(items):
         by_char.setdefault(item['character'], []).append(i)
@@ -111,8 +115,6 @@ def run(chapter, alignment, original, output):
     aligned = helpers.read_json(alignment / 'alignment.json')
     verified = {(v['key'], v['lineId'], v['characterIndex']): v for v in prior['verification']}
     cutoff = prior['summary']['cutoff']
-    if cutoff is None:
-        raise ValueError('No frozen pixel cutoff')
     baseline = helpers.read_json(chapter / 'ocr-baseline/baseline-report.json')
     pages = {p['pageId']: Image.open(chapter / 'ocr-baseline' / p['ocrImagePath'] if p.get('ocrImagePath') else Path(p['imagePath'])).convert('L') for p in baseline['pages']}
     items, line_audit = collect(aligned, verified, pages)
@@ -135,7 +137,7 @@ def run(chapter, alignment, original, output):
         blocks.append({**block, 'glyphs':glyphs, 'usable':len(glyphs)>=helpers.POLICY['minimumGlyphsPerBlock']})
     usable = {b['key']:tensors[b['key']] for b in blocks if b['usable']}
     pairs = [{'left':a, 'right':b, **helpers.pair_evidence(usable[a],usable[b])} for a,b in itertools.combinations(sorted(usable),2)]
-    groups = helpers.group_blocks(blocks, pairs, cutoff)
+    groups = helpers.group_blocks(blocks, pairs, cutoff) if cutoff is not None else []
     strict = sum(i['authority']=='strict_glyph_ocr' for i in items)
     recovered = sum(i['authority']=='line_context_and_pixel_triangle' for i in items)
     summary = {'blocks':len(blocks), 'glyphs':strict+recovered, 'strictGlyphs':strict, 'contextSupportedGlyphs':recovered,

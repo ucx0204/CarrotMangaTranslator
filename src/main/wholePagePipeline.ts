@@ -1,4 +1,6 @@
 /* eslint-disable max-lines -- pipeline cancellation boundaries and endpoint ownership stay co-located for auditability */
+import { withImageRedactionReview } from "./jobs/imageRedactionReview";
+import { registerImageRedactionCrop } from "./imageRedactionContext";
 import type { MangaPage } from "../shared/libraryTypes";
 import type { JobFailureGuidance } from "../shared/jobTypes";
 import { isJapaneseLanguageCode } from "../shared/translationLanguages";
@@ -51,14 +53,16 @@ import {
 } from "./pipeline/wholePageCheckpointFlow";
 import { hydrateFontContinuityBeforePage } from "./pipeline/wholePageFontContinuity";
 import {
-  runCodexTypesettingPipeline,
-  runConfiguredCodexPipeline,
-} from "./pipeline/codexTypesettingRuntime";
+  editTranslatedPageWithCodex,
+  CodexImageEditError,
+} from "./codexImageEditing";
+import { createCodexProgressReporter } from "./pipeline/codexTypesettingProgress";
 
 export type WholePagePipelineResult = {
   pages: MangaPage[];
   warnings: string[];
   failureGuidance?: JobFailureGuidance;
+  imageEditingError?: string;
 };
 
 export async function runWholePagePipeline(
@@ -66,21 +70,73 @@ export async function runWholePagePipeline(
   injectedDependencies?: WholePagePipelineDependencies,
 ): Promise<WholePagePipelineResult> {
   if (options.pages.length === 0) return { pages: [], warnings: [] };
-  if (options.codexTypesetting) return runCodexTypesettingPipeline(options);
+  if (options.codexTypesetting && !options.regionContext)
+    throw new Error("전체 Codex 위임은 지원하지 않습니다.");
   const ownsDependencies = injectedDependencies === undefined;
   const dependencies = injectedDependencies ?? createDependencies();
-  try {
+  const run = async () => {
+    if (options.regionContext)
+      await registerImageRedactionCrop(
+        options.pages[0].imagePath,
+        options.regionContext.sourcePage.imagePath,
+        options.regionContext.cropRect,
+      );
     throwIfAborted(options.signal);
-    const configured = await dependencies.settings.getAppSettings(
-      dependencies.paths,
-    );
-    const delegated = runConfiguredCodexPipeline(options, configured);
-    if (delegated) return await delegated;
-    return await runWholePagePipelineWithDependencies(
+    const result = await runWholePagePipelineWithDependencies(
       options,
       dependencies,
       !ownsDependencies,
     );
+    if (!options.codexTypesetting) return result;
+    const reportImageProgress = createCodexProgressReporter(
+      options.jobId,
+      1,
+      options.emit,
+    );
+    try {
+      const pages: MangaPage[] = [];
+      for (const page of result.pages)
+        pages.push(
+          await (dependencies.editImages ?? editTranslatedPageWithCodex)({
+            page,
+            directory: options.runPaths.runDir,
+            signal: options.signal,
+            eraseOriginal: options.codexTypesetting.eraseOriginal === true,
+            output: options.codexTypesetting.regionOutput ?? "text",
+            decode: options.decodeImage ?? (async () => null),
+            progress: (update) => reportImageProgress({ ...update, page: 1 }),
+            confirmReading: options.confirmRegionReading,
+          }),
+        );
+      return { ...result, pages };
+    } catch (error) {
+      options.signal.throwIfAborted();
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        ...result,
+        pages:
+          error instanceof CodexImageEditError ? [error.page] : result.pages,
+        imageEditingError: message,
+        warnings: [...result.warnings, message],
+      };
+    }
+  };
+  try {
+    return ownsDependencies
+      ? await withImageRedactionReview(
+          {
+            jobId: options.jobId,
+            kind: "gemma-analysis",
+            pages: options.regionContext
+              ? [options.regionContext.sourcePage]
+              : options.pages,
+            signal: options.signal,
+            emit: options.emit,
+            imageEdit: Boolean(options.codexTypesetting),
+          },
+          run,
+        )
+      : await run();
   } finally {
     if (ownsDependencies) {
       await dependencies.fontMatching.pageInference?.dispose?.();

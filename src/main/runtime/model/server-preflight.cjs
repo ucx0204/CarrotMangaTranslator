@@ -284,15 +284,21 @@ function runLlamaRuntimeProbe(
       () => finishTimedOutProbe(child, state, resolve, timeoutMs),
       timeoutMs,
     );
-    child.once("error", (error) =>
+    /** @param {Error} error */
+    const fail = (error) => {
+      if (state.settled) return;
       finishProbe(
         state,
         resolve,
         timer,
         -1,
         `${state.stderr}\n${error.message}`,
-      ),
-    );
+      );
+      terminateChildProcessTree(child);
+    };
+    child.on("error", fail);
+    child.stdout.on("error", fail);
+    child.stderr.on("error", fail);
     child.once("close", (code) =>
       finishProbe(state, resolve, timer, code ?? -1, state.stderr),
     );

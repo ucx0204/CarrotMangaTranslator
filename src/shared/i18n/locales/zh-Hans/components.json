@@ -1615,16 +1615,17 @@
     "title": "设置",
     "tabs": {
       "ariaLabel": "设置区域",
-      "llmAriaLabel": "LLM 设置",
+      "llmAriaLabel": "AI",
       "general": "常规",
-      "engine": "LLM",
+      "engine": "AI",
       "translation": "翻译",
       "research": "互联网调查",
       "hardware": "硬件",
       "format": "默认格式",
       "results": "结果自动保存",
       "shortcuts": "快捷键",
-      "test": "检查/更新"
+      "test": "检查/更新",
+      "image": "图像"
     },
     "general": {
       "language": "应用语言",
@@ -2013,7 +2014,8 @@
         "loginFailed": "Codex 登录失败。",
         "logoutFailed": "Codex 退出登录失败。"
       },
-      "imageReasoning": "图像生成推理强度"
+      "imageReasoning": "图像生成推理强度",
+      "imageModelWarning": "此模型可能无法正确完成图像任务。强烈推荐使用 Astra。"
     },
     "api": {
       "sections": {
@@ -2165,7 +2167,9 @@
       "fluxAmdUnsupportedDetail": "{{gpu}}不在AMD当前Windows HIP SDK官方支持列表中。仍可实验性选择ZLUDA，但运行时可能失败。",
       "fluxAmdUseCpu": "切换到CPU后端",
       "downloadHipSdk": "下载AMD HIP SDK",
-      "openLinkFailed": "无法打开链接。请检查默认浏览器。"
+      "openLinkFailed": "无法打开链接。请检查默认浏览器。",
+      "resetGemmaHint": "同时重置翻译和研究的本地 Gemma 配置。",
+      "resetFailed": "无法加载推荐设置，请重试。"
     },
     "format": {
       "alignment": {
@@ -2300,6 +2304,11 @@
       "customHeaderBlocked": "{{name}}标头不能在Custom headers中覆盖。",
       "customHeaderValue": "Custom header值只能是字符串、数字或布尔值。",
       "apiKeyCount": "最多可输入{{max}}个API密钥。"
+    },
+    "image": {
+      "localErasure": "默认原文擦除",
+      "codex": "Codex 图像工具",
+      "description": "独立于翻译引擎，用于擦除原文和生成音效图像。强烈推荐使用 Astra。"
     }
   },
   "pageBlocks": {
@@ -2633,6 +2642,33 @@
     "reading": "原文翻译",
     "background": "原文擦除",
     "review": "嵌字预览",
-    "retry": "重新加载图片"
+    "retry": "重新加载图片",
+    "history": "历史",
+    "actualSize": "实际大小",
+    "regions": "区域",
+    "image": "图像预览",
+    "translations": "译文"
+  },
+  "imageOptions": {
+    "default": "默认",
+    "connect": "连接 Codex：设置 → AI → 图像"
+  },
+  "imageRedaction": {
+    "enabled": "遮挡发送的图像",
+    "description": "发送图片前可遮盖敏感裸露部位。原图不会改变。",
+    "title": "检查发送的图像",
+    "confirm": "确认并继续",
+    "pages": "页面",
+    "shape": "工具",
+    "rectangle": "矩形",
+    "round": "圆形画笔",
+    "square": "方形画笔",
+    "size": "画笔大小",
+    "zoom": "缩放",
+    "undo": "撤销",
+    "redo": "重做",
+    "preview": "发送的图像。拖动以遮挡区域。",
+    "retry": "重试",
+    "checked": "已查看 {{count}} / {{total}}"
   }
 }

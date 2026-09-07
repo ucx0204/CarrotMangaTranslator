@@ -58,6 +58,40 @@ afterEach(() => {
 });
 
 describe("settings draft safety", () => {
+  it.each([false, true])(
+    "applies local model recommendations transactionally, load failure=%s",
+    async (fails) => {
+      const defaults = resolveDefaultAppSettings({});
+      const getDefaultSettings = vi.fn(async () => {
+        if (fails) throw new Error("recommendation unavailable");
+        return defaults;
+      });
+      window.mangaApi = createTestMangaGatewayStub({
+        getCodexAccount: window.mangaApi.getCodexAccount,
+        getDefaultSettings,
+      });
+      const onSubmit = vi.fn();
+      renderSettings({ onSubmit });
+      fireEvent.click(screen.getByRole("tab", { name: "AI" }));
+      fireEvent.click(screen.getByRole("tab", { name: "하드웨어" }));
+      const apply = screen.getByRole("button", { name: "권장값 적용" });
+      fireEvent.click(apply);
+      await waitFor(() => expect(apply).not.toHaveProperty("disabled", true));
+      expect(getDefaultSettings).toHaveBeenCalledOnce();
+      if (fails) expect(screen.getByRole("alert")).toBeTruthy();
+      else {
+        fireEvent.click(screen.getByRole("button", { name: "저장" }));
+        expect(onSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            modelProvider: initialSettings.modelProvider,
+            gemma: expect.objectContaining({
+              vramMode: defaults.gemma.vramMode,
+            }),
+          }),
+        );
+      }
+    },
+  );
   it("opens the requested preset manager and returns to general settings", () => {
     renderSettings({
       openRequest: { revision: 1, target: "style-presets" },
@@ -85,9 +119,9 @@ describe("settings draft safety", () => {
       within(settingsTabs).queryByRole("tab", { name: "인터넷 조사" }),
     ).toBeNull();
 
-    fireEvent.click(within(settingsTabs).getByRole("tab", { name: "LLM" }));
-    const llmTabs = screen.getByRole("tablist", { name: "LLM 설정" });
-    expect(within(llmTabs).getAllByRole("tab")).toHaveLength(2);
+    fireEvent.click(within(settingsTabs).getByRole("tab", { name: "AI" }));
+    const llmTabs = screen.getByRole("tablist", { name: "AI" });
+    expect(within(llmTabs).getAllByRole("tab")).toHaveLength(5);
     expect(within(llmTabs).getByRole("tab", { name: "번역" })).toHaveProperty(
       "ariaSelected",
       "true",
@@ -214,7 +248,7 @@ describe("settings draft safety", () => {
     };
     renderSettings({ onSubmit, settings: qatSettings });
 
-    fireEvent.click(screen.getByRole("tab", { name: "LLM" }));
+    fireEvent.click(screen.getByRole("tab", { name: "AI" }));
     const familyGroup = screen.getByRole("group", { name: "모델 계열" });
     const presetGroup = screen.getByRole("group", { name: "모델 프리셋" });
 
@@ -264,7 +298,7 @@ describe("settings draft safety", () => {
     );
     renderSettings({ settings });
 
-    fireEvent.click(screen.getByRole("tab", { name: "LLM" }));
+    fireEvent.click(screen.getByRole("tab", { name: "AI" }));
     const familyGroup = screen.getByRole("group", { name: "모델 계열" });
     const presetGroup = screen.getByRole("group", { name: "모델 프리셋" });
 
@@ -284,7 +318,7 @@ describe("settings draft safety", () => {
     };
     renderSettings({ settings });
 
-    fireEvent.click(screen.getByRole("tab", { name: "LLM" }));
+    fireEvent.click(screen.getByRole("tab", { name: "AI" }));
     const presetGroup = screen.getByRole("group", { name: "모델 프리셋" });
     fireEvent.click(
       within(presetGroup).getByRole("button", { name: "26B (16GB)" }),
@@ -307,7 +341,7 @@ describe("settings draft safety", () => {
     settings.gemma = { ...settings.gemma, fitTargetMb: 777 };
     renderSettings({ onSubmit, settings });
 
-    fireEvent.click(screen.getByRole("tab", { name: "LLM" }));
+    fireEvent.click(screen.getByRole("tab", { name: "AI" }));
     const input = screen.getByRole("spinbutton", {
       name: "여유 VRAM (MiB)",
     });
@@ -373,7 +407,7 @@ describe("settings draft safety", () => {
       ctx: 65536,
     };
     renderSettings({ settings });
-    fireEvent.click(screen.getByRole("tab", { name: "LLM" }));
+    fireEvent.click(screen.getByRole("tab", { name: "AI" }));
 
     await screen.findByText("로그인되지 않음");
     expect(screen.queryByRole("combobox", { name: "Codex 모델" })).toBeNull();

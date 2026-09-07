@@ -1,7 +1,3 @@
-import {
-  isCodexAstraConfigured,
-  isCodexDelegationEnabled,
-} from "../../shared/codexCapabilities";
 import type { AppSettings } from "../../shared/settingsTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
@@ -37,7 +33,7 @@ export async function acquireInpaintingEngineIfNeeded({
   if (!shouldAcquireEngine || totalTargetBlocks <= 0 || !appSettings) {
     return null;
   }
-  const codexEngine = resolveCodexEngine(runtime, appSettings, engine);
+  const codexEngine = resolveCodexEngine(runtime, engine);
   if (codexEngine) {
     return codexEngine(context.appPaths, appSettings, abortController.signal);
   }
@@ -70,14 +66,8 @@ export async function acquireInpaintingEngineIfNeeded({
   });
 }
 
-function resolveCodexEngine(
-  runtime: InpaintingJobRuntime,
-  settings: AppSettings,
-  engine?: "codex",
-) {
-  if (engine !== "codex" && !isCodexDelegationEnabled(settings)) return null;
-  if (!isCodexAstraConfigured(settings))
-    throw new Error("번역 엔진을 Codex Astra로 설정해 주세요.");
+function resolveCodexEngine(runtime: InpaintingJobRuntime, engine?: "codex") {
+  if (engine !== "codex") return null;
   if (!runtime.acquireCodexEngine)
     throw new Error("Codex 원문 제거를 사용할 수 없습니다.");
   return runtime.acquireCodexEngine;

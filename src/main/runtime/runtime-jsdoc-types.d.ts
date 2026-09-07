@@ -4,6 +4,7 @@ export type CommandSpec = {
 };
 
 export type RuntimeOptions = {
+  prepareExternalImage?: (path: string) => Promise<string>;
   abortSignal?: AbortSignal | null;
   apiKey?: string | null;
   apiAccessTokenProvider?: (request?: {

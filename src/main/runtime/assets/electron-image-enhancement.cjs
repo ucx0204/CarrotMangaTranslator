@@ -7,11 +7,12 @@ const {
 } = require("../simple-page-image-utils.cjs");
 const { readPositiveInteger } = require("../simple-page-prompts.cjs");
 const { createDetailedError } = require("../simple-page-runtime-common.cjs");
+const { loadNativeImage } = require("./image-source-assets.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { enhancedContrast?: unknown; enhancedMaxLongSide?: unknown; imagePath: string; outputDir: string }} ImageVariantOptions */
 /** @typedef {{ width: number; height: number }} ImageSize */
 /** @typedef {{ isEmpty(): boolean; getSize(): ImageSize; resize(options: { width: number; height: number; quality?: "good" | "better" | "best" }): NativeImageInstance; toBitmap(): Buffer; toPNG(): Buffer }} NativeImageInstance */
-/** @typedef {{ createFromPath(filePath: string): NativeImageInstance; createFromBitmap(buffer: Buffer, size: ImageSize): NativeImageInstance }} NativeImageModule */
+/** @typedef {import("./image-source-assets.cjs").NativeImageModule} NativeImageModule */
 
 /** @param {ImageVariantOptions} options @param {NativeImageModule} nativeImage */
 async function buildEnhancedVariantWithElectron(options, nativeImage) {
@@ -53,7 +54,7 @@ async function buildEnhancedVariantWithElectron(options, nativeImage) {
 
 /** @param {NativeImageModule} nativeImage @param {ImageVariantOptions} options @param {string} outputPath */
 function requireDecodedImage(nativeImage, options, outputPath) {
-  const image = nativeImage.createFromPath(options.imagePath);
+  const image = loadNativeImage(nativeImage, options.imagePath);
   if (image && !image.isEmpty()) return image;
   throw imageError(
     "Electron nativeImage could not decode the source image.",

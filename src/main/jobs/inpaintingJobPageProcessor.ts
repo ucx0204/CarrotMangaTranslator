@@ -319,8 +319,9 @@ async function preparePatternMaskPage({
   sharedInpaintGroupIdsByBlock?: Record<string, string[]>;
   typographySegmentation?: KoharuTypographySegmentation;
 }> {
+  const engineModel = state.inpaintingEngineLease?.engine.model;
   if (
-    state.inpaintingEngineLease?.engine.model !== "flux-klein" ||
+    engineModel !== "flux-klein" ||
     !state.bubbleLayoutPostprocess ||
     !state.bubbleLayoutRunner
   ) {

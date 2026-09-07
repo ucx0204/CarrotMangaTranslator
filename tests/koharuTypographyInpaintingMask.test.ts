@@ -14,6 +14,58 @@ import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 describe("Koharu typography inpainting masks", () => {
+  it("lets Codex discover all text in a selected region even when segmentation misses it", () => {
+    const page = makePage();
+    page.blocks[0] = {
+      ...page.blocks[0],
+      bbox: { x: 125, y: 125, w: 750, h: 750 },
+    };
+    const options = {
+      bitmap: Buffer.alloc(64 * 64 * 4, 255),
+      height: 64,
+      width: 64,
+      page,
+      mode: "flux-region" as const,
+      typographySegmentation: makeSegmentation([
+        makeFilledDetection("onomatopoeia", 1, [14, 14, 19, 46]),
+        makeFilledDetection("onomatopoeia", 1, [44, 14, 49, 46]),
+      ]),
+    };
+    const codex = buildPatternPageMask({ ...options, mode: "codex-region" });
+    const model = expandWindowMaskToPage(
+      requireValue(codex.inpaintWindowMasks[0], "model mask"),
+      64,
+      64,
+    );
+    const constraint = expandWindowMaskToPage(
+      requireValue(codex.inpaintWindowConstraints[0], "constraint"),
+      64,
+      64,
+    );
+    expect(model[30 * 64 + 16]).toBe(1);
+    expect(model[30 * 64 + 46]).toBe(1);
+    expect(model[30 * 64 + 32]).toBe(1);
+    expect(constraint[30 * 64 + 32]).toBe(1);
+    expect(model).toEqual(constraint);
+    const restyled = buildPatternPageMask({
+      ...options,
+      mode: "codex-region",
+      page: {
+        ...page,
+        blocks: [{ ...page.blocks[0], fontSizePx: 180, outlineWidthPx: 50 }],
+      },
+    });
+    expect(restyled.pageMask).toEqual(codex.pageMask);
+    const legacy = buildPatternPageMask(options);
+    expect(legacy.pageMask[30 * 64 + 32]).toBe(1);
+    expect(() =>
+      buildPatternPageMask({
+        ...options,
+        mode: "codex-region",
+        typographySegmentation: undefined,
+      }),
+    ).not.toThrow();
+  });
   it("builds a solid outlined-glyph core and a wider feather envelope", () => {
     const page = makePage();
     const block = page.blocks[0] as TranslationBlock;

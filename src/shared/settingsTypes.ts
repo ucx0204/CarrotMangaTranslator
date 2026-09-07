@@ -108,8 +108,8 @@ type GemmaSettings = {
 };
 
 type CodexSettings = {
+  imageModel?: string;
   imageReasoningEffort?: CodexReasoningEffort;
-  delegateAll?: boolean;
   model: string;
   reasoningEffort: CodexReasoningEffort;
 };

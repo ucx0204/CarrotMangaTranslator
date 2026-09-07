@@ -63,8 +63,8 @@ export function createCodexBackgroundBlend(
 
 // Exact Euclidean distance, truncated to the bounded outer support (at most 24px).
 // Unlike a box envelope this preserves spaces between disconnected glyphs.
-function horizontalMaskDistances(
-  mask: ReturnType<typeof createCodexEraseMask>,
+export function horizontalMaskDistances(
+  mask: { bounds: PixelRect; data: Uint8Array },
   bounds: PixelRect,
   radius: number,
 ) {
@@ -91,7 +91,7 @@ function horizontalMaskDistances(
   return distances;
 }
 
-function distanceToContour(
+export function distanceToContour(
   horizontal: Float64Array,
   bounds: PixelRect,
   x: number,

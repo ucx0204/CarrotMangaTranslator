@@ -71,7 +71,8 @@ export type RegionAnalysisRequest = {
   bbox: BBox;
 };
 
-export type RegionAnalysisResult = StartAnalysisResult & {
+export type RegionAnalysisResult = Omit<StartAnalysisResult, "status"> & {
+  status: StartAnalysisResult["status"] | "partial";
   history?: import("./inpaintingTypes").InpaintingHistoryTransactionRef;
   pageId?: string;
   blockIds?: string[];

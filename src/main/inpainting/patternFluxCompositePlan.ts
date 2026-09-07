@@ -18,6 +18,7 @@ export function resolvePatternFluxCompositePlan(options: {
   segmentation?: KoharuTypographySegmentation;
   sourceRect: PixelRect;
   width: number;
+  regionOnly?: boolean;
 }): {
   compositeMask: InpaintingWindowMask;
   constraint: InpaintingWindowMask | null;
@@ -29,6 +30,14 @@ export function resolvePatternFluxCompositePlan(options: {
     options.block,
     options.page,
   );
+  if (options.regionOnly)
+    return {
+      compositeMask: options.regionMask,
+      constraint: options.regionMask,
+      featherPx: 0,
+      modelMask: options.regionMask,
+      usesTypographySegmentation: false,
+    };
   const typography = options.segmentation
     ? buildKoharuTypographyCompositeMask({
         block: options.block,

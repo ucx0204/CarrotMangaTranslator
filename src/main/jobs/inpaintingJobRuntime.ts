@@ -1,4 +1,3 @@
-import { createCodexBubbleLayoutRunner } from "../inpainting/codexBubbleLayoutRunner";
 import { acquireCodexInpaintingEngine } from "../inpainting/codexInpaintingEngine";
 import { inpaintPatternPage } from "../inpainting";
 import { inpaintDrawnPatternPage } from "../inpainting/drawnPatternPage";
@@ -15,11 +14,12 @@ import {
   type OpenPageTimingSessionOptions,
 } from "./pageTimingSessionManager";
 import type { PageProcessingTimingCollector } from "../pipeline/pageProcessingTiming";
+import { withImageRedactionReview } from "./imageRedactionReview";
 
 export type InpaintingJobRuntime = {
+  reviewImages?: typeof withImageRedactionReview;
   acquireEngine: typeof acquireInpaintingEngine;
   acquireCodexEngine?: typeof acquireCodexInpaintingEngine;
-  createCodexBubbleLayoutRunner?: typeof createCodexBubbleLayoutRunner;
   emitEvent: typeof emitJobEvent;
   getSettings: typeof getAppSettings;
   inpaintDrawnPage: typeof inpaintDrawnPatternPage;
@@ -35,9 +35,9 @@ export type InpaintingJobRuntime = {
 };
 
 export const productionInpaintingJobRuntime: InpaintingJobRuntime = {
+  reviewImages: withImageRedactionReview,
   acquireEngine: acquireInpaintingEngine,
   acquireCodexEngine: acquireCodexInpaintingEngine,
-  createCodexBubbleLayoutRunner,
   createBubbleLayoutRunner: createProductionBubbleLayoutRunner,
   disposeBubbleLayoutSessions: disposeCachedKoharuLayoutSessions,
   emitEvent: emitJobEvent,

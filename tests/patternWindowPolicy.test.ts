@@ -67,4 +67,16 @@ describe("resolvePatternInpaintWindows", () => {
       ),
     ).toEqual([{ x: 0, y: 0, w: 30, h: 10 }]);
   });
+
+  it("preserves Codex region ownership while allowing brush context windows to merge", () => {
+    const engine = createEngine("codex", "imagegen");
+    expect(
+      resolvePatternInpaintWindows(touchingWindows, engine, {
+        preserveBlockOwnership: true,
+      }),
+    ).toEqual(touchingWindows);
+    expect(resolvePatternInpaintWindows(touchingWindows, engine)).toEqual([
+      { x: 0, y: 0, w: 40, h: 20 },
+    ]);
+  });
 });

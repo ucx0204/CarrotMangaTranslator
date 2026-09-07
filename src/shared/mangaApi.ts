@@ -366,6 +366,11 @@ export type MangaApi = {
   startAnalysis: (
     request: StartAnalysisRequest,
   ) => Promise<StartAnalysisResult>;
+  confirmImageRedaction: (
+    request: import("./imageRedaction").ConfirmImageRedaction,
+  ) => Promise<boolean>;
+  getImageRedactionEnabled: () => Promise<boolean>;
+  setImageRedactionEnabled: (enabled: boolean) => Promise<boolean>;
   confirmRegionTranslation: (
     request: import("./regionTextReview").ConfirmRegionTranslationRequest,
   ) => Promise<boolean>;

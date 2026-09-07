@@ -2,6 +2,7 @@
 
 const {
   resolveElectronNativeImage,
+  loadNativeImage,
 } = require("../assets/image-source-assets.cjs");
 const {
   groupReviewImageError,
@@ -74,7 +75,7 @@ function decodeSourceImage(nativeImage, imagePath, options, plan) {
       decoded = nativeImage.createFromDataURL(dataUrl);
       decodedFromDataUrl = true;
     } else {
-      decoded = nativeImage.createFromPath(imagePath);
+      decoded = loadNativeImage(nativeImage, imagePath);
     }
   } catch (error) {
     if (error instanceof TypeError) throw error;

@@ -1,4 +1,5 @@
 import type { AppSettings } from "../../shared/settingsTypes";
+import { CODEX_IMAGE_MODELS } from "../../shared/codexSettings";
 import {
   resolveCodexReasoningEffort,
   resolveNonEmptyString,
@@ -9,7 +10,9 @@ export function normalizeCodexSettings(
   defaults: AppSettings,
 ): AppSettings["codex"] {
   return {
-    delegateAll: codex?.delegateAll === true,
+    imageModel:
+      CODEX_IMAGE_MODELS.find((model) => model === codex?.imageModel) ??
+      CODEX_IMAGE_MODELS[0],
     imageReasoningEffort: resolveCodexReasoningEffort(
       codex?.imageReasoningEffort,
       "low",

@@ -28,7 +28,7 @@ function buildSoundEffectTranslationSystemPrompt(options) {
     `Localize only the target into ${target}.`,
     "For a pure sound, choose a short natural target-language onomatopoeia that matches the pictured event rather than mechanically transliterating Japanese. Preserve meaningful rhythm, repetition, duration, and intensity.",
     "Before writing JSON, silently do four checks in order: transcribe the visible glyphs; identify the depicted action, material, emotion, and acting subject from Image 1; choose the conventional comic lettering for that meaning in the target language; reject any phonetic-looking choice that describes a different event.",
-    "For a printed reaction or short expressive phrase such as ブレないなぁ, preserve its concise semantic meaning instead of forcing it into a sound word.",
+    "For a printed reaction or short expressive phrase, preserve its concise semantic meaning instead of forcing it into a sound word.",
     "Use verdict uncertain only when the target crop truly contains no readable Japanese text (for example decoration, texture, or panel art), or is clearly ordinary dialogue. OCR uncertainty alone is never sufficient.",
     "Return one JSON object only, with an items array and no markdown or commentary.",
     ...(workContext.length > 0 ? ["", ...workContext] : []),
@@ -41,9 +41,7 @@ function buildKoreanSoundEffectGuidance(targetBaseCode) {
   if (targetBaseCode !== "ko") return [];
   return [
     "MANDATORY FINAL KOREAN CHECK: use native, scene-correct Korean comic lettering, never convenient Japanese-syllable transcription when a conventional Korean expression exists.",
-    "Canonical meaning contrasts: ガチャ at a latch is 철컥, while バタン at a slammed door or body is 쾅/탕 and must not be 철컥; がばっ when someone springs upright is 벌떡; ぷんぷん showing anger is 씩씩/부글부글, not a fart sound; ブン/ブンブン around human waving, shaking, or swinging is 붕붕/휘휘/절레절레 and must not be 부릉부릉 unless a vehicle or motor is visibly producing the sound; チチチ or チュンチュン from birds is 짹짹, not 치치치; ゴゴゴ as ominous pressure or rumbling is 쿠구구구/고오오; ワイ around cheering people is 와!/와아!, not a wind sound. Image 1 decides which listed meaning applies.",
-    "Common action contrasts: つるっ during a slip is 미끌/쭉, not the surface adjective 매끈; イラッ is a flash of irritation such as 욱/짜증, not tearful emotion 울컥; くるっ is a quick turn such as 휙/빙글/홱, not a slow glide; キッ must follow Image 1—찌릿 for a sharp glare or 꽉/질끈 for tightening—and is not automatically the vocal grunt 큭; カァァ around visible blushing is 화끈/화악 rather than phonetic 화아아.",
-    "Preserve visually distinct kana and repetition before localizing: for example ハハ is laughter while ハッ is a startled gasp, and two separately printed ブン clusters are repeated motion rather than one prolonged ブーン.",
+    "Preserve visually distinct kana, repetition, pauses and duration before localizing. Infer whether the target is a sound, action or reaction from its visual context; choose natural Korean wording for that meaning.",
   ];
 }
 
@@ -79,7 +77,7 @@ function buildSoundEffectTranslationPrompt(options) {
     ].join(" "),
     ...(language.targetBaseCode === "ko"
       ? [
-          "Final Korean gate: preserve the exact visible source reading, then choose Korean lettering for the pictured event—not Japanese phonetic transcription. Re-check the mandatory Korean contrasts in the system instruction before answering.",
+          "Final Korean gate: preserve the exact visible source reading, then choose Korean lettering for the pictured event—not Japanese phonetic transcription. Check that the Korean wording preserves the depicted meaning, rhythm and intensity before answering.",
         ]
       : []),
     "Output shape:",

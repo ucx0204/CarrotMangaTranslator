@@ -167,10 +167,10 @@ describe("lettering generation binding and reuse", () => {
       `data:image/png;base64,${imageBytes().toString("base64")}`,
     );
     expect(sourceImage.crop).toHaveBeenCalledExactlyOnceWith({
-      x: 50,
-      y: 120,
-      width: 200,
-      height: 210,
+      x: 100,
+      y: 150,
+      width: 100,
+      height: 150,
     });
     const request = client.runEphemeralTurn.mock.calls[0][0];
     expect(request.input.slice(1)).toEqual([
@@ -182,6 +182,8 @@ describe("lettering generation binding and reuse", () => {
     ]);
     expect(request.input[0].text).toContain("ORIGINAL source lettering crop");
     expect(request.input[0].text).toContain('target="ドン"');
+    expect(request.input[0].text).toContain("full canvas maps edge-to-edge");
+    expect(request.input[0].text).toContain("relative positions");
   });
 
   it.each([

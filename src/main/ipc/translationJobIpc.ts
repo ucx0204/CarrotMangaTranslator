@@ -1,3 +1,8 @@
+import { confirmImageRedaction } from "../jobs/imageRedactionReview";
+import {
+  readImageRedactionState,
+  setImageRedactionEnabled,
+} from "../imageRedactionStore";
 import { confirmRegionTranslation } from "../jobs/regionTranslationReview";
 import {
   RegionAnalysisRequestSchema,
@@ -21,6 +26,24 @@ import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 export function registerTranslationJobIpc(context: IpcContext): void {
+  trustedHandleContract(
+    context,
+    translationJobIpcContracts.confirmImageRedaction,
+    async (_event, request) => confirmImageRedaction(request),
+  );
+  trustedHandleContract(
+    context,
+    translationJobIpcContracts.getImageRedactionEnabled,
+    async () => (await readImageRedactionState()).enabled,
+  );
+  trustedHandleContract(
+    context,
+    translationJobIpcContracts.setImageRedactionEnabled,
+    async (_event, enabled) => {
+      await setImageRedactionEnabled(enabled);
+      return enabled;
+    },
+  );
   trustedHandleContract(
     context,
     translationJobIpcContracts.confirmRegionTranslation,

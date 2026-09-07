@@ -80,7 +80,15 @@ function bindExecution(execution) {
   child.stderr?.setEncoding("utf8");
   child.stdout?.on("data", (chunk) => recordOutput(execution, "stdout", chunk));
   child.stderr?.on("data", (chunk) => recordOutput(execution, "stderr", chunk));
-  child.on("error", (error) => rejectExecution(execution, error));
+  /** @param {Error} error */
+  const fail = (error) => {
+    if (execution.settled) return;
+    rejectExecution(execution, error);
+    terminateChildProcessTree(child);
+  };
+  child.on("error", fail);
+  child.stdout?.on("error", fail);
+  child.stderr?.on("error", fail);
   child.on("close", (code) => handleClose(execution, code));
 }
 

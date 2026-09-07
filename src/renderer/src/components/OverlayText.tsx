@@ -74,6 +74,16 @@ export function OverlayText({
         renderDirection={renderDirection}
         resolveRunStyle={resolveRunStyle}
         runs={parsed.runs}
+        layer="outline"
+      />
+      <OverlayTextLayer
+        block={block}
+        blockOpacityAtRoot={blockOpacityAtRoot}
+        fontCatalog={fontCatalog}
+        layout={layout}
+        renderDirection={renderDirection}
+        resolveRunStyle={resolveRunStyle}
+        runs={parsed.runs}
         layer="main"
       />
     </>
@@ -94,14 +104,14 @@ function OverlayTextLayer({
   blockOpacityAtRoot: boolean;
   fontCatalog: BlockFontCatalog;
   layout: BlockTextLayout;
-  layer: "main" | "outer";
+  layer: "main" | "outline" | "outer";
   renderDirection: RenderTextDirection;
   resolveRunStyle: TextRunStyleResolver;
   runs: ReturnType<typeof parseRichText>["runs"];
 }): React.JSX.Element {
   return (
     <div
-      aria-hidden={layer === "outer" || undefined}
+      aria-hidden={layer !== "main" || undefined}
       className={`overlay-text overlay-text-${layer}`}
       style={resolveOverlayTextWrapStyle(
         block,
@@ -144,7 +154,7 @@ function renderParsedTextRuns(
   resolveRunStyle: TextRunStyleResolver,
   blockOpacityAtRoot: boolean,
   renderedBaseFontSizePx: number,
-  layer: "main" | "outer",
+  layer: "main" | "outline" | "outer",
 ): React.ReactNode {
   return runs.map((run, index) =>
     renderTextRun(
@@ -166,7 +176,7 @@ function renderFixedLines(
   renderDirection: RenderTextDirection,
   resolveRunStyle: TextRunStyleResolver,
   blockOpacityAtRoot: boolean,
-  layer: "main" | "outer",
+  layer: "main" | "outline" | "outer",
 ): React.ReactNode {
   return layout.lines?.map((line, lineIndex) => (
     <span
@@ -241,10 +251,10 @@ function renderTextRun(
   blockOpacityAtRoot: boolean,
   block: TranslationBlock,
   renderedBaseFontSizePx: number,
-  layer: "main" | "outer",
+  layer: "main" | "outline" | "outer",
 ): React.JSX.Element | null {
   const fallback = resolveRunStyle(run);
-  const visualStyle =
+  let visualStyle =
     layer === "outer"
       ? resolveOuterRunVisualStyle(block, run, renderedBaseFontSizePx)
       : resolveMainRunVisualStyle(
@@ -254,6 +264,7 @@ function renderTextRun(
           renderDirection,
         );
   if (!visualStyle) return null;
+  visualStyle = textPlaneStyle(visualStyle, layer);
   const baseStyle: React.CSSProperties = {
     fontWeight: resolveFontWeight(run),
     fontStyle: run.italic ? "italic" : "normal",
@@ -288,4 +299,27 @@ function renderTextRun(
       {content}
     </span>
   );
+}
+
+function textPlaneStyle(
+  visualStyle: React.CSSProperties,
+  layer: "main" | "outline" | "outer",
+): React.CSSProperties {
+  // Paint the whole outline plane before any ink; adjacent lines must never erase it.
+  const outlineColor = visualStyle.WebkitTextStrokeColor;
+  const outlineWidth =
+    Number.parseFloat(String(visualStyle.WebkitTextStrokeWidth)) / 2;
+  return {
+    ...visualStyle,
+    ...(layer === "main"
+      ? {
+          WebkitTextStrokeWidth: "0px",
+          textShadow: "none",
+          backgroundColor: undefined,
+        }
+      : { color: "transparent", WebkitTextFillColor: "transparent" }),
+    "--mgt-vertical-symbol-outline-color":
+      layer === "main" ? "transparent" : outlineColor,
+    "--mgt-vertical-symbol-outline-width": `${layer === "main" ? 0 : outlineWidth}px`,
+  } as React.CSSProperties & Record<`--${string}`, string | undefined>;
 }

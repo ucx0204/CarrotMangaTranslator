@@ -10,6 +10,7 @@ import {
 import { CodexAppServerClient } from "../src/main/codexAppServerClient";
 import type { AppPaths } from "../src/main/appPaths";
 import { resolveDefaultAppSettings } from "../src/main/settings/appSettingsDefaults";
+import { withApprovedImageRedactions } from "../src/main/imageRedactionContext";
 
 vi.mock("electron", () => ({
   app: { getVersion: () => "fixture" },
@@ -196,6 +197,90 @@ async function setup() {
     ),
   };
 }
+
+it.each(["paint", "region"] as const)(
+  "redacts %s references while restoring hidden original pixels locally",
+  async (mode) => {
+    const fixture = await setup();
+    const imagePath = join(fixture.directory, "source.png");
+    const hiddenPixel = (40 * 192 + 40) * 4;
+    fixture.bitmap.fill(42, hiddenPixel, hiddenPixel + 3);
+    await withApprovedImageRedactions(
+      [
+        {
+          id: "page",
+          name: "source.png",
+          imagePath,
+          width: 192,
+          height: 160,
+          fingerprint: "a".repeat(64),
+          strokes: [{ shape: "square", size: 4, points: [{ x: 40, y: 40 }] }],
+        },
+      ],
+      () =>
+        fixture.engine.inpaint(
+          fixture.bitmap,
+          192,
+          160,
+          fixture.mask,
+          [fixture.window],
+          {
+            sourceImagePath: imagePath,
+            codexMaskMode: mode,
+          },
+        ),
+    );
+    expect(fixture.turn).toHaveBeenCalledOnce();
+    const references = fixture.turn.mock.calls[0][0].input.filter(
+      (item) => item.type === "image",
+    );
+    for (const index of mode === "paint" ? [0, 2] : [0]) {
+      const png = PNG.sync.read(
+        Buffer.from(references[index].url.split(",")[1], "base64"),
+      );
+      const offset = ((40 - 12) * png.width + 40 - 27) * 4;
+      expect([...png.data.subarray(offset, offset + 4)]).toEqual([
+        255, 255, 255, 255,
+      ]);
+    }
+    expect(fixture.bitmap[hiddenPixel]).toBe(42);
+    expect(fixture.bitmap[(75 * 192 + 85) * 4]).toBe(255);
+  },
+);
+
+it("rejects a painted feather overlap with redaction before sending any image", async () => {
+  const fixture = await setup();
+  const imagePath = join(fixture.directory, "source.png");
+  await expect(
+    withApprovedImageRedactions(
+      [
+        {
+          id: "page",
+          name: "source.png",
+          imagePath,
+          width: 192,
+          height: 160,
+          fingerprint: "a".repeat(64),
+          strokes: [{ shape: "square", size: 2, points: [{ x: 70, y: 70 }] }],
+        },
+      ],
+      () =>
+        fixture.engine.inpaint(
+          fixture.bitmap,
+          192,
+          160,
+          fixture.mask,
+          [fixture.window],
+          {
+            sourceImagePath: imagePath,
+            featherPx: 8,
+          },
+        ),
+    ),
+  ).rejects.toThrow("가리기와 겹치는");
+  expect(fixture.turn).not.toHaveBeenCalled();
+  expect(fixture.bitmap).toEqual(fixture.before);
+});
 
 /** Native-image boundary double; the real Electron decoder is also exercised by the local smoke. */
 class Raster {

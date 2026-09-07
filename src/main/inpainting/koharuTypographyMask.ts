@@ -26,6 +26,8 @@ export type KoharuTypographyCompositeMask = {
  */
 export function buildKoharuTypographyCompositeMask(options: {
   block: TranslationBlock;
+  /** Explicit source-mask policy; omitted preserves the production Flux geometry. */
+  coreDilationPx?: number;
   featherPx: number;
   height: number;
   /**
@@ -64,10 +66,9 @@ export function buildKoharuTypographyCompositeMask(options: {
     .reduce<PixelRect | null>(unionOptionalRect, null);
   if (!rawBounds) return null;
 
-  const coreDilationPx = resolveKoharuTypographyCoreDilationPx(
-    options.block,
-    options.page,
-  );
+  const coreDilationPx =
+    options.coreDilationPx ??
+    resolveKoharuTypographyCoreDilationPx(options.block, options.page);
   const featherPx = Math.max(0, Math.round(options.featherPx));
   const bounds = expandRect(
     rawBounds,

@@ -17,6 +17,9 @@ export type InpaintingWindowMask = {
 };
 
 type InpaintRunOptions = {
+  sourceImagePath?: string;
+  /** A region authorizes text discovery; a painted mask authorizes those pixels only. */
+  codexMaskMode?: "region" | "paint";
   signal?: AbortSignal;
   featherPx?: number;
   contextPx?: number;

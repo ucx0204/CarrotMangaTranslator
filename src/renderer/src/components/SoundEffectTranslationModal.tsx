@@ -1,4 +1,7 @@
-import { SegmentedControl } from "./ui/SegmentedControl";
+import {
+  ImageTranslationOptions,
+  type ImageTranslationChoices,
+} from "./ImageTranslationOptions";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { PrepareSoundEffectTranslationRequest } from "../../../shared/analysisTypes";
@@ -13,13 +16,11 @@ import { SoundEffectTranslationReviewPicker } from "./SoundEffectTranslationRevi
 import styles from "./SoundEffectTranslationModal.module.css";
 import { useSoundEffectTranslationModalState } from "./useSoundEffectTranslationModalState";
 import type { AppSettings } from "../../../shared/settingsTypes";
-import { canUseCodexTypesetting } from "../../../shared/codexCapabilities";
+import { canUseCodexImages } from "../../../shared/codexCapabilities";
 import { useCodexConnection } from "../hooks/useCodexConnection";
 
 export type SoundEffectTranslationModalProps = {
   settings?: AppSettings | null;
-  codexDelegateAll?: boolean;
-  codexUnavailable?: boolean;
   sfxRenderingDefault?: "image" | "font";
   chapter: ChapterSnapshot;
   jobActive: boolean;
@@ -37,8 +38,6 @@ export type SoundEffectTranslationModalProps = {
 
 export function SoundEffectTranslationModal({
   settings = null,
-  codexDelegateAll = false,
-  codexUnavailable = false,
   sfxRenderingDefault = "image",
   chapter,
   jobActive,
@@ -51,25 +50,29 @@ export function SoundEffectTranslationModal({
   const { t } = useTranslation("components");
   const execution = useSoundEffectExecution({
     settings,
-    codexDelegateAll,
-    codexUnavailable,
     sfxRenderingDefault,
     jobActive,
   });
-  const { useCodex, executionDisabled, sfxRendering } = execution;
+  const { sfxRendering } = execution;
   const state = useSoundEffectTranslationModalState({
     chapter,
-    jobActive: executionDisabled,
-    autoFontMatchingDefault: codexDelegateAll ? false : autoFontMatchingDefault,
+    jobActive,
+    autoFontMatchingDefault,
     inpaintAfterTranslationDefault,
     onClose,
-    onPersistDefaults: useCodex ? undefined : onPersistDefaults,
+    onPersistDefaults,
     onStart: (request, erase, font) =>
-      useCodex
-        ? onStart(request, erase, false, sfxRendering)
+      execution.output === "image" ||
+      (erase && execution.eraseEngine === "codex")
+        ? onStart(request, erase, sfxRendering === "font" && font, sfxRendering)
         : onStart(request, erase, font),
   });
 
+  const useCodex =
+    execution.output === "image" ||
+    (state.inpaintAfterTranslation && execution.eraseEngine === "codex");
+  const executionDisabled =
+    jobActive || (useCodex && !execution.codexAvailable);
   return (
     <PagePickerModalShell
       title={t("soundEffectReview.modalTitle")}
@@ -95,11 +98,7 @@ export function SoundEffectTranslationModal({
         />
       }
       footerLeading={
-        <SoundEffectTranslationFooter
-          {...execution}
-          showEngine={!codexDelegateAll}
-          state={state}
-        />
+        <SoundEffectTranslationFooter {...execution} state={state} />
       }
     >
       <SoundEffectTranslationReviewPicker
@@ -119,116 +118,68 @@ export function SoundEffectTranslationModal({
 
 function useSoundEffectExecution({
   settings,
-  codexDelegateAll,
-  codexUnavailable,
-  sfxRenderingDefault,
-  jobActive,
 }: Required<
   Pick<
     SoundEffectTranslationModalProps,
-    | "settings"
-    | "codexDelegateAll"
-    | "codexUnavailable"
-    | "sfxRenderingDefault"
-    | "jobActive"
+    "settings" | "sfxRenderingDefault" | "jobActive"
   >
 >) {
-  const [sfxRendering, onSfxRenderingChange] =
-    React.useState(sfxRenderingDefault);
-  const [engine, onEngineChange] = React.useState<"standard" | "codex">(
-    codexDelegateAll ? "codex" : "standard",
+  const [output, setOutput] = React.useState<"text" | "image">("text");
+  const [eraseEngine, setEraseEngine] = React.useState<"default" | "codex">(
+    "default",
   );
   const { account } = useCodexConnection(Boolean(settings));
-  const codexAvailable = canUseCodexTypesetting(settings, account, true);
-  const useCodex = engine === "codex";
-  const executionDisabled =
-    jobActive ||
-    (useCodex && (codexDelegateAll ? codexUnavailable : !codexAvailable));
+  const codexAvailable = canUseCodexImages(settings, account);
   return {
-    sfxRendering,
-    onSfxRenderingChange,
-    engine,
-    onEngineChange,
+    output,
+    setOutput,
+    eraseEngine,
+    setEraseEngine,
+    sfxRendering: output === "image" ? ("image" as const) : ("font" as const),
     codexAvailable,
-    useCodex,
-    executionDisabled,
   };
 }
 
 function SoundEffectTranslationFooter({
-  useCodex,
-  engine,
-  onEngineChange,
+  output,
+  setOutput,
+  eraseEngine,
+  setEraseEngine,
   codexAvailable,
-  showEngine,
-  sfxRendering,
-  onSfxRenderingChange,
   state,
-}: {
-  useCodex: boolean;
-  engine: "standard" | "codex";
-  onEngineChange: (value: "standard" | "codex") => void;
-  codexAvailable: boolean;
-  showEngine: boolean;
-  sfxRendering: "image" | "font";
-  onSfxRenderingChange: (value: "image" | "font") => void;
+}: ReturnType<typeof useSoundEffectExecution> & {
   state: ReturnType<typeof useSoundEffectTranslationModalState>;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
+  const change = (value: ImageTranslationChoices) => {
+    setOutput(value.output);
+    setEraseEngine(value.eraseEngine ?? "default");
+    state.setInpaintAfterTranslation(value.eraseOriginal);
+  };
   return (
     <div className={styles.executionOptions}>
-      {showEngine && (
-        <SegmentedControl
-          singleRow
-          ariaLabel={t("soundEffectReview.engine")}
-          value={engine}
-          onChange={onEngineChange}
-          options={[
-            { id: "standard", label: t("regionOptions.standard") },
-            { id: "codex", label: "Codex · Astra", disabled: !codexAvailable },
-          ]}
-        />
-      )}
-      <div className={styles.executionSwitches}>
-        {useCodex ? (
-          <SegmentedControl
-            singleRow
-            ariaLabel={t("codexTypesetting.sfxRendering")}
-            value={sfxRendering}
-            onChange={onSfxRenderingChange}
-            options={[
-              { id: "image", label: t("codexTypesetting.sfxImage") },
-              { id: "font", label: t("codexTypesetting.sfxFont") },
-            ]}
-          />
-        ) : (
-          <PagePickerModalCheckbox
-            checked={state.autoFontMatching}
-            label={t("translationOptions.autoFontMatching")}
-            onCheckedChange={state.setAutoFontMatching}
-            variant="switch"
-          />
-        )}
+      <ImageTranslationOptions
+        value={{
+          output,
+          eraseOriginal: state.inpaintAfterTranslation,
+          eraseEngine,
+        }}
+        onChange={change}
+        available={codexAvailable}
+      />
+      {output === "text" ? (
         <PagePickerModalCheckbox
-          checked={state.inpaintAfterTranslation}
-          label={t(
-            useCodex
-              ? "regionOptions.erase"
-              : "soundEffectReview.inpaintAfterTranslation",
-          )}
-          onCheckedChange={state.setInpaintAfterTranslation}
+          checked={state.autoFontMatching}
+          label={t("translationOptions.autoFontMatching")}
+          onCheckedChange={state.setAutoFontMatching}
           variant="switch"
         />
-      </div>
-      {!useCodex && (
-        <PagePickerModalCheckbox
-          checked={state.saveDefaults}
-          label={t("soundEffectReview.saveAsDefault", {
-            defaultValue: "다음 번역의 기본값으로 저장",
-          })}
-          onCheckedChange={state.setSaveDefaults}
-        />
-      )}
+      ) : null}
+      <PagePickerModalCheckbox
+        checked={state.saveDefaults}
+        label={t("soundEffectReview.saveAsDefault")}
+        onCheckedChange={state.setSaveDefaults}
+      />
     </div>
   );
 }

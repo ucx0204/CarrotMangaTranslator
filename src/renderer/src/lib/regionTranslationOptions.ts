@@ -7,6 +7,7 @@ import type { BBox } from "../../../shared/textTypes";
 export type RegionTranslationChoices = {
   output: "text" | "image";
   eraseOriginal: boolean;
+  eraseEngine?: "default" | "codex";
 };
 export type RegionTranslationDialog = {
   busy?: boolean;
@@ -18,7 +19,6 @@ export type RegionTranslationDialog = {
   ) => void;
   page: MangaPage;
   bbox: BBox;
-  codexDelegateAll: boolean;
   codexImageAvailable?: boolean;
   initial: RegionTranslationChoices;
   onClose: () => void;
@@ -28,9 +28,11 @@ export type RegionTranslationDialog = {
 export function buildRegionTranslationRequest(
   settings: AppSettings | null | undefined,
   choices: RegionTranslationChoices,
-  delegated: boolean,
 ): Partial<RegionAnalysisRequest> {
-  if (!delegated && choices.output !== "image")
+  if (
+    choices.output !== "image" &&
+    (!choices.eraseOriginal || choices.eraseEngine !== "codex")
+  )
     return { eraseOriginal: choices.eraseOriginal };
   const defaults = resolveCodexTypesettingOptions(
     settings?.ui?.codexTypesettingPreferences,

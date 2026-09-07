@@ -6,8 +6,7 @@ import { libraryGateway } from "../api/libraryGateway";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { Field, TextField } from "./ui/Field";
-import { ToggleOptionRow } from "./TranslationOptionControls";
-import { SegmentedControl } from "./ui/SegmentedControl";
+import { ImageTranslationOptions } from "./ImageTranslationOptions";
 import styles from "./RegionTranslationModal.module.css";
 
 export function RegionTranslationModal(
@@ -19,7 +18,7 @@ export function RegionTranslationModal(
   const form = useReviewedTexts(props.review);
   const run = () =>
     props.review ? props.onConfirm?.(form.values) : props.onRun(choices);
-  const imageAvailable = props.codexImageAvailable ?? props.codexDelegateAll;
+  const imageAvailable = props.codexImageAvailable ?? false;
   return (
     <Modal
       title={t("regionOptions.title")}
@@ -32,7 +31,7 @@ export function RegionTranslationModal(
             !source ||
             failed ||
             props.busy ||
-            regionChoiceUnavailable(props, choices.output, imageAvailable) ||
+            regionChoiceUnavailable(props, choices, imageAvailable) ||
             (!!props.review && !form.valid)
           }
           run={run}
@@ -59,7 +58,6 @@ export function RegionTranslationModal(
         <RegionTranslationFields
           choices={choices}
           setChoices={setChoices}
-          delegated={props.codexDelegateAll}
           imageAvailable={imageAvailable}
           disabled={props.busy}
         />
@@ -70,12 +68,15 @@ export function RegionTranslationModal(
 
 function regionChoiceUnavailable(
   props: RegionTranslationDialog,
-  output: "text" | "image",
+  choices: RegionTranslationDialog["initial"],
   imageAvailable: boolean,
 ) {
   return (
     props.unavailable ||
-    ((props.review || output === "image") && !imageAvailable)
+    ((props.review ||
+      choices.output === "image" ||
+      (choices.eraseOriginal && choices.eraseEngine === "codex")) &&
+      !imageAvailable)
   );
 }
 
@@ -211,57 +212,21 @@ function useReviewedTexts(review: RegionTranslationDialog["review"]) {
 function RegionTranslationFields({
   choices,
   setChoices,
-  delegated,
   imageAvailable,
   disabled,
 }: {
   choices: RegionTranslationDialog["initial"];
   setChoices: (choices: RegionTranslationDialog["initial"]) => void;
-  delegated: boolean;
   imageAvailable: boolean;
   disabled?: boolean;
 }): React.JSX.Element {
-  const { t } = useTranslation("components");
   return (
     <div className={styles.options}>
-      {delegated || imageAvailable || choices.output === "image" ? (
-        <Field
-          className={styles.option}
-          labelClassName={styles.optionLabel}
-          as="div"
-          label={t("regionOptions.output")}
-          variant="row"
-        >
-          <SegmentedControl
-            ariaLabel={t("regionOptions.output")}
-            value={choices.output}
-            disabled={disabled}
-            options={[
-              {
-                id: "text",
-                label: t(
-                  delegated ? "regionOptions.text" : "regionOptions.standard",
-                ),
-              },
-              {
-                id: "image",
-                label: t(
-                  delegated
-                    ? "regionOptions.image"
-                    : "regionOptions.imageCodex",
-                ),
-                disabled: !imageAvailable,
-              },
-            ]}
-            onChange={(output) => setChoices({ ...choices, output })}
-          />
-        </Field>
-      ) : null}
-      <ToggleOptionRow
-        label={t("regionOptions.erase")}
-        pressed={choices.eraseOriginal}
+      <ImageTranslationOptions
+        value={choices}
+        onChange={setChoices}
+        available={imageAvailable}
         disabled={disabled}
-        onChange={(eraseOriginal) => setChoices({ ...choices, eraseOriginal })}
       />
     </div>
   );

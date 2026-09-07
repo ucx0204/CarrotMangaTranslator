@@ -63,24 +63,11 @@ export function HardwareStatusSummary(
           <strong>{modelLabel}</strong>
         </div>
       </div>
-      <div className="hardware-recommendation-row">
-        <span className={matches ? "matches" : "different"}>
-          {t(
-            matches
-              ? "settings.hardware.recommendedMatch"
-              : "settings.hardware.recommendedDifferent",
-          )}
-        </span>
-        {!matches ? (
-          <Button
-            size="sm"
-            onClick={() => applyHardwareRecommendation(props, recommendation)}
-            disabled={props.controlsBusy}
-          >
-            {t("settings.hardware.applyRecommended")}
-          </Button>
-        ) : null}
-      </div>
+      <HardwareRecommendationAction
+        props={props}
+        matches={matches}
+        recommendation={recommendation}
+      />
     </section>
   );
 }
@@ -126,4 +113,54 @@ function resolveInpaintingModelKey(
 
 function formatMemoryGb(memoryMb: number): string {
   return `${Math.round((memoryMb / 1024) * 10) / 10} GB`;
+}
+
+function HardwareRecommendationAction({
+  props,
+  matches,
+  recommendation,
+}: {
+  props: HardwareSettingsPanelProps;
+  matches: boolean;
+  recommendation: HardwareRecommendation;
+}) {
+  const { t } = useTranslation("components");
+  const [applying, setApplying] = React.useState(false);
+  const [error, setError] = React.useState(false);
+  return (
+    <>
+      <div className="hardware-recommendation-row">
+        <span className={matches ? "matches" : "different"}>
+          {t(
+            matches
+              ? "settings.hardware.recommendedMatch"
+              : "settings.hardware.recommendedDifferent",
+          )}
+        </span>
+        <>
+          <Button
+            size="sm"
+            onClick={() => {
+              setApplying(true);
+              setError(false);
+              void (props.onApplyGemmaDefaults?.() ?? Promise.resolve())
+                .then(() => applyHardwareRecommendation(props, recommendation))
+                .catch((cause: unknown) => {
+                  console.error("Hardware recommendation failed", cause);
+                  setError(true);
+                })
+                .finally(() => setApplying(false));
+            }}
+            disabled={props.controlsBusy || applying}
+          >
+            {t("settings.hardware.applyRecommended")}
+          </Button>
+        </>
+      </div>
+      <p className="muted-line modal-note">
+        {t("settings.hardware.resetGemmaHint")}
+      </p>
+      {error && <p role="alert">{t("settings.hardware.resetFailed")}</p>}
+    </>
+  );
 }

@@ -32,7 +32,7 @@ import {
 
 export type { PatternMaskContext } from "./patternMaskContext";
 
-export type PatternPageMaskMode = "glyph" | "flux-region";
+export type PatternPageMaskMode = "glyph" | "flux-region" | "codex-region";
 
 export function buildPatternPageMask(options: {
   blockId?: string;
@@ -72,7 +72,7 @@ export function buildPatternPageMask(options: {
     throwIfAborted(options.signal);
     mergePatternBlock(options, context, block);
   }
-  if (options.mode === "flux-region") {
+  if (options.mode === "flux-region" || options.mode === "codex-region") {
     coalesceSharedConstrainedWindows(context);
   }
   return context;
@@ -98,9 +98,14 @@ function mergePatternBlock(
     sourceRect,
     options.width,
     options.height,
-    resolvePatternRegionPaddingPx(block, options.page),
+    options.mode === "codex-region"
+      ? Math.max(
+          2,
+          Math.min(8, Math.ceil(Math.min(sourceRect.w, sourceRect.h) * 0.02)),
+        )
+      : resolvePatternRegionPaddingPx(block, options.page),
   );
-  if (options.mode === "flux-region") {
+  if (options.mode === "flux-region" || options.mode === "codex-region") {
     mergeFluxRegionMask(
       options,
       context,
@@ -172,6 +177,7 @@ function mergeFluxRegionMask(
     shared: sharedGroupIds.length > 0,
   });
   const plan = resolvePatternFluxCompositePlan({
+    regionOnly: options.mode === "codex-region",
     block,
     fallbackConstraint: bubbleMask ? regionMask : null,
     height: options.height,
@@ -191,12 +197,14 @@ function mergeFluxRegionMask(
     modelMask.data,
   );
   context.inpaintWindows.push(
-    expandRect(
-      bounds,
-      options.width,
-      options.height,
-      resolvePatternWindowMarginPx(block, options.page),
-    ),
+    options.mode === "codex-region"
+      ? bounds
+      : expandRect(
+          bounds,
+          options.width,
+          options.height,
+          resolvePatternWindowMarginPx(block, options.page),
+        ),
   );
   context.inpaintWindowMasks.push(modelMask);
   context.inpaintCompositeMasks.push(compositeMask);
@@ -233,6 +241,8 @@ function resolveFluxRegionMask({
     block,
     sourceRect: bboxToPixelRect(block.bbox, options.page),
   };
+  if (options.mode === "codex-region")
+    return { regionMask: createFilledWindowMask(supportRect), usedOtsu: false };
   if (!bubbleMask) {
     const detection = mergePatternDetectionMask(detectionOptions);
     return {

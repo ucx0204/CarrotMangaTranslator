@@ -1615,16 +1615,17 @@
     "title": "設定",
     "tabs": {
       "ariaLabel": "設定項目",
-      "llmAriaLabel": "LLM 設定",
+      "llmAriaLabel": "AI",
       "general": "一般",
-      "engine": "LLM",
+      "engine": "AI",
       "translation": "翻訳",
       "research": "インターネット調査",
       "hardware": "ハードウェア",
       "format": "既定の書式",
       "results": "結果の自動保存",
       "shortcuts": "ショートカット",
-      "test": "確認/更新"
+      "test": "確認/更新",
+      "image": "画像"
     },
     "general": {
       "language": "アプリの言語",
@@ -2013,7 +2014,8 @@
         "loginFailed": "Codexへのログインに失敗しました。",
         "logoutFailed": "Codexからのログアウトに失敗しました。"
       },
-      "imageReasoning": "画像生成の推論強度"
+      "imageReasoning": "画像生成の推論強度",
+      "imageModelWarning": "このモデルでは画像処理が正しく動作しない場合があります。Astraの使用を強く推奨します。"
     },
     "api": {
       "sections": {
@@ -2165,7 +2167,9 @@
       "fluxAmdUnsupportedDetail": "{{gpu}}は現在のWindows HIP SDK公式サポート一覧に含まれていません。ZLUDAを実験的に選択できますが、実行時エラーが発生する可能性があります。",
       "fluxAmdUseCpu": "CPUバックエンドに切り替える",
       "downloadHipSdk": "AMD HIP SDKをダウンロード",
-      "openLinkFailed": "リンクを開けませんでした。既定のブラウザーを確認してください。"
+      "openLinkFailed": "リンクを開けませんでした。既定のブラウザーを確認してください。",
+      "resetGemmaHint": "翻訳・調査用のローカル Gemma 設定も推奨値に戻します。",
+      "resetFailed": "推奨設定を読み込めませんでした。再試行してください。"
     },
     "format": {
       "alignment": {
@@ -2300,6 +2304,11 @@
       "customHeaderBlocked": "{{name}}ヘッダーはCustom headersで上書きできません。",
       "customHeaderValue": "Custom headerの値には文字列、数値、booleanのみ使用できます。",
       "apiKeyCount": "APIキーは最大{{max}}個まで入力できます。"
+    },
+    "image": {
+      "localErasure": "標準の原文消去",
+      "codex": "Codex 画像ツール",
+      "description": "翻訳エンジンとは別に、原文消去と効果音画像に使用します。Astraの使用を強く推奨します。"
     }
   },
   "pageBlocks": {
@@ -2633,6 +2642,33 @@
     "reading": "原文翻訳",
     "background": "原文除去",
     "review": "文字組みプレビュー",
-    "retry": "画像を再読み込み"
+    "retry": "画像を再読み込み",
+    "history": "履歴",
+    "actualSize": "実寸",
+    "regions": "領域",
+    "image": "画像プレビュー",
+    "translations": "訳文"
+  },
+  "imageOptions": {
+    "default": "標準",
+    "connect": "Codex 接続：設定 → AI → 画像"
+  },
+  "imageRedaction": {
+    "enabled": "送信画像を隠す",
+    "description": "露出のある画像は、デリケートな部分を隠してから送信できます。原本は変更されません。",
+    "title": "送信画像の確認",
+    "confirm": "確認して続ける",
+    "pages": "ページ",
+    "shape": "ツール",
+    "rectangle": "長方形",
+    "round": "丸ブラシ",
+    "square": "角ブラシ",
+    "size": "ブラシサイズ",
+    "zoom": "ズーム",
+    "undo": "元に戻す",
+    "redo": "やり直す",
+    "preview": "送信画像。隠す部分をドラッグしてください。",
+    "retry": "再試行",
+    "checked": "確認済み {{count}} / {{total}}"
   }
 }

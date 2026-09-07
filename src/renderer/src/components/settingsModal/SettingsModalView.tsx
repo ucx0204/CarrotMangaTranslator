@@ -7,7 +7,10 @@ import { Modal } from "../ui/Modal";
 import { ModalActionBar } from "../ui/ModalActionBar";
 import { EngineSettingsPanel } from "./EngineSettingsPanel";
 import { FormatDefaultsPanel } from "./FormatDefaultsPanel";
-import { HardwareSettingsPanel } from "./HardwareSettingsPanel";
+import {
+  HardwareSettingsPanel,
+  OcrSettingsSection,
+} from "./HardwareSettingsPanel";
 import { SettingsTabs } from "./SettingsTabs";
 import { SettingsValidationMessages } from "./SettingsValidationMessages";
 import { ShortcutsSettingsPanel } from "./ShortcutsSettingsPanel";
@@ -19,6 +22,7 @@ import { InfoIcon } from "../ui/icons";
 import { LinkedWorkspaceSettingsPanel } from "./LinkedWorkspaceSettingsPanel";
 import { InternetResearchSettingsPanel } from "./InternetResearchSettingsPanel";
 import { Tabs } from "../ui/Tabs";
+import { ImageSettingsPanel } from "./ImageSettingsPanel";
 
 export type SettingsModalViewProps = {
   activeTab: SettingsTabId;
@@ -280,17 +284,6 @@ function SettingsModalTabContent({
 }: SettingsModalTabContentProps): React.JSX.Element | null {
   if (activeTab === "general")
     return <GeneralSettingsPanel {...generalPanelProps} />;
-  if (activeTab === "hardware")
-    return (
-      <HardwareSettingsPanel
-        {...hardwarePanelProps}
-        codexDelegateAll={
-          enginePanelProps.modelProvider === "openai-codex" &&
-          enginePanelProps.codexModel === "gpt-6-astra" &&
-          enginePanelProps.codexDelegateAll
-        }
-      />
-    );
   if (activeTab === "format")
     return <FormatDefaultsPanel {...formatPanelProps} />;
   if (activeTab === "shortcuts")
@@ -302,6 +295,7 @@ function SettingsModalTabContent({
   if (activeTab !== "engine") return null;
   return (
     <LlmSettingsPanel
+      hardwarePanelProps={hardwarePanelProps}
       enginePanelProps={enginePanelProps}
       researchPanelProps={researchPanelProps}
       validationProps={validationProps}
@@ -309,38 +303,37 @@ function SettingsModalTabContent({
   );
 }
 
-type LlmSettingsTab = "translation" | "research";
+type LlmSettingsTab = "translation" | "ocr" | "image" | "research" | "hardware";
 
 function LlmSettingsPanel({
+  hardwarePanelProps,
   enginePanelProps,
   researchPanelProps,
   validationProps,
 }: Pick<
   SettingsModalViewProps,
-  "enginePanelProps" | "researchPanelProps" | "validationProps"
+  | "enginePanelProps"
+  | "researchPanelProps"
+  | "validationProps"
+  | "hardwarePanelProps"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
   const [activeLlmTab, setActiveLlmTab] =
     React.useState<LlmSettingsTab>("translation");
-  const items = [
-    {
-      value: "translation",
-      label: t("settings.tabs.translation"),
-      id: "settings-llm-tab-translation",
-      panelId: "settings-llm-panel-translation",
-    },
-    {
-      value: "research",
-      label: t("settings.tabs.research"),
-      id: "settings-llm-tab-research",
-      panelId: "settings-llm-panel-research",
-    },
-  ] satisfies Array<{
-    value: LlmSettingsTab;
-    label: string;
-    id: string;
-    panelId: string;
-  }>;
+  const items = (
+    [
+      ["translation", "settings.tabs.translation"],
+      ["ocr", "settings.hardware.ocrSection"],
+      ["image", "settings.tabs.image"],
+      ["research", "settings.tabs.research"],
+      ["hardware", "settings.tabs.hardware"],
+    ] as const
+  ).map(([value, key]) => ({
+    value,
+    label: t(key),
+    id: `settings-llm-tab-${value}`,
+    panelId: `settings-llm-panel-${value}`,
+  }));
   return (
     <div className="settings-llm-panel">
       <Tabs
@@ -363,6 +356,15 @@ function LlmSettingsPanel({
               <SettingsValidationMessages {...validationProps} />
             </div>
           </>
+        ) : activeLlmTab === "hardware" ? (
+          <HardwareSettingsPanel {...hardwarePanelProps} />
+        ) : activeLlmTab === "ocr" ? (
+          <OcrSettingsSection {...hardwarePanelProps} />
+        ) : activeLlmTab === "image" ? (
+          <ImageSettingsPanel
+            engine={enginePanelProps}
+            hardware={hardwarePanelProps}
+          />
         ) : (
           <InternetResearchSettingsPanel {...researchPanelProps} />
         )}

@@ -1,4 +1,3 @@
-import { readTypesettingConfiguration } from "../src/main/pipeline/codexTypesettingConfiguration";
 import { saveCodexTypesettingPreferences } from "../src/main/settings/codexPreferencesStore";
 import { createCodexTypesettingPreferences } from "../src/shared/codexTypesettingDefaults";
 import { existsSync } from "node:fs";
@@ -50,47 +49,6 @@ describe("settings store", () => {
         await rm(dir, { recursive: true, force: true });
       }
     }
-  });
-
-  it("allows explicit region-image Codex execution without changing the saved provider or unlocking full-page delegation", async () => {
-    const paths = makeAppPaths(await createTempDir());
-    const configured = resolveDefaultAppSettings({});
-    configured.modelProvider = "openai-api";
-    configured.codex.delegateAll = false;
-    configured.translation = {
-      ...configured.translation,
-      sourceLanguage: "ja",
-      targetLanguage: "ko",
-    };
-    await saveAppSettings(configured, paths, {}, async () => null);
-    const before = await readFile(paths.settingsPath, "utf8");
-    const options = {
-      version: 1,
-      regionOutput: "image",
-      preset: createCodexTypesettingPreferences("ko").presets[0],
-    };
-    const result = await readTypesettingConfiguration(paths, options, true);
-    expect(result.settings.regionOutput).toBe("image");
-    expect(result.codex.delegateAll).toBe(false);
-    for (const regionOutput of ["image", "text"]) {
-      const soundEffect = await readTypesettingConfiguration(
-        paths,
-        { ...options, regionOutput },
-        "sound-effects",
-      );
-      expect(soundEffect.settings.regionOutput).toBe(regionOutput);
-    }
-    await expect(readTypesettingConfiguration(paths, options)).rejects.toThrow(
-      "Codex Astra",
-    );
-    await expect(
-      readTypesettingConfiguration(
-        paths,
-        { ...options, regionOutput: "text" },
-        true,
-      ),
-    ).rejects.toThrow("Codex Astra");
-    expect(await readFile(paths.settingsPath, "utf8")).toBe(before);
   });
 
   it("treats absent public settings or an absent secret vault as empty secrets", async () => {

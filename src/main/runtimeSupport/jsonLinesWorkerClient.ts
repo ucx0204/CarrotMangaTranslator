@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- worker protocol, lifecycle state, spawn diagnostics, and stderr tail stay co-located for auditability */
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { observeProcessErrors } from "./observeProcessErrors";
 import {
   createChildExitReceipt,
   forceTerminateChildProcessTree,
@@ -122,12 +123,16 @@ export class JsonLinesWorkerClient<
     this.runtime = resolveClientRuntime(options.runtime);
     this.child = this.runtime.spawnWorker(options);
     this.childExitReceipt = createChildExitReceipt(this.child);
+    observeProcessErrors(
+      this.child,
+      (error) => this.handleChildError(error),
+      (error) => this.handlePipeError(error),
+    );
     options.onSpawn?.(this.child.pid ?? null);
     this.child.stdout.on("data", (chunk: Buffer) => this.handleStdout(chunk));
     this.child.stderr.on("data", (chunk: Buffer) =>
       this.rememberStderr(chunk.toString("utf8")),
     );
-    this.child.on("error", (error) => this.handleChildError(error));
     this.child.on("exit", (code) => this.handleExit(code));
   }
 
@@ -384,14 +389,17 @@ export class JsonLinesWorkerClient<
   }
 
   private handleChildError(error: Error): void {
+    this.handlePipeError(this.enrichSpawnError(error));
+  }
+
+  private handlePipeError(error: Error): void {
     if (this.state !== "running") {
       return;
     }
-    const failure = this.enrichSpawnError(error);
     void this.beginPermanentFailure({
       primaryRequestId: null,
-      primaryError: failure,
-      otherError: failure,
+      primaryError: error,
+      otherError: error,
     });
   }
 

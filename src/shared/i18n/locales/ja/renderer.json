@@ -118,7 +118,8 @@
       "stages": {
         "reading": "原文の翻訳",
         "fonts": "書体比較",
-        "typesetting": "組版・確認"
+        "typesetting": "組版・確認",
+        "images": "画像処理"
       },
       "steps": {
         "reading": "原文の読み取り・翻訳",

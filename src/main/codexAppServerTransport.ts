@@ -2,6 +2,7 @@ import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface, type Interface } from "node:readline";
 import { asRecord, type JsonRecord } from "./codexAppServerProtocol";
 import { CodexAppServerPreviewHost } from "./codexAppServerPreviewTool";
+import { observeProcessErrors } from "./runtimeSupport/observeProcessErrors";
 
 const RPC_REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RECENT_NOTIFICATIONS = 256;
@@ -35,11 +36,15 @@ export class CodexAppServerTransport {
   constructor(child: ChildProcessWithoutNullStreams, version: string) {
     this.child = child;
     this.version = version;
+    // Pipe errors are emitted by the streams, independently of ChildProcess.
+    // Keep listeners attached through shutdown so a second disconnect is safe.
+    const fail = (error: Error) => this.handleProcessFailure(error);
+    observeProcessErrors(child, fail);
     this.lines = createInterface({ input: child.stdout, crlfDelay: Infinity });
+    this.lines.on("error", fail);
     this.lines.on("line", (line) => this.handleStdoutLine(line));
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk: string) => this.captureStderr(chunk));
-    child.once("error", (error) => this.handleProcessFailure(error));
     child.once("exit", (code, signal) => {
       if (this.closed) return;
       this.handleProcessFailure(
@@ -231,6 +236,7 @@ export class CodexAppServerTransport {
   }
 
   private handleStdoutLine(line: string): void {
+    if (this.closed || this.exitError) return;
     let parsed: unknown;
     try {
       parsed = JSON.parse(line);
@@ -260,7 +266,11 @@ export class CodexAppServerTransport {
         })
       )
         return;
-      this.rejectServerRequest(message);
+      try {
+        this.rejectServerRequest(message);
+      } catch (error) {
+        this.handleProcessFailure(error);
+      }
       return;
     }
     this.publishNotification(message);

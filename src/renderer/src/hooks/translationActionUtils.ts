@@ -252,7 +252,7 @@ function regionLiveMergeOptions(
   result: TranslateRegionResult,
 ): LiveChapterMergeOptions | undefined {
   if (
-    result.status !== "completed" ||
+    (result.status !== "completed" && result.status !== "partial") ||
     !result.pageId ||
     !result.blockIds ||
     result.blockIds.length === 0
@@ -284,7 +284,7 @@ export function mergeTranslatedRegionResult(
   }
   mergeLiveChapter(result.chapter, regionLiveMergeOptions(result));
   if (
-    result.status === "completed" &&
+    (result.status === "completed" || result.status === "partial") &&
     currentChapterRef.current?.id === result.chapter.id
   ) {
     syncSavedPageVersion(result.chapter, result.pageId ?? selectedPageId);
@@ -304,7 +304,7 @@ export function handleTranslateRegionResult(
   },
   t?: TFunction<"renderer">,
 ): void {
-  if (result.status === "completed") {
+  if (result.status === "completed" || result.status === "partial") {
     reportCompletedRegionTranslation(result, pushStatus, setSelectedBlockId, t);
     return;
   }

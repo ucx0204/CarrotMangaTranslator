@@ -1,4 +1,3 @@
-import { resolveCodexTypesettingOptions } from "../../../shared/codexTypesettingDefaults";
 import { useRegionTranslationDialog } from "./useRegionTranslationDialog";
 import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -231,8 +230,6 @@ function resolveFlowCheckpointPageIds(
 
 function useExecuteAnalysisJob(
   {
-    settings,
-    codexDelegationActive,
     beforeTranslate,
     currentChapter,
     currentChapterRef,
@@ -274,23 +271,9 @@ function useExecuteAnalysisJob(
       t,
     ],
   );
-  const delegated = useMemo(
-    () =>
-      codexDelegationActive
-        ? resolveCodexTypesettingOptions(
-            settings?.ui?.codexTypesettingPreferences,
-            settings?.translation?.targetLanguage ?? "ko",
-          )
-        : undefined,
-    [codexDelegationActive, settings],
-  );
   return useCallback<ExecuteAnalysisJob>(
-    (job) =>
-      executeAnalysisJob(
-        { ...job, codexTypesetting: job.codexTypesetting ?? delegated },
-        context,
-      ),
-    [context, delegated],
+    (job) => executeAnalysisJob(job, context),
+    [context],
   );
 }
 
@@ -379,6 +362,7 @@ function resolveAnalysisJobOutcome(
   if (result.failureGuidance) {
     job.onDeferredFailureGuidance?.(result.failureGuidance);
   }
+  if (result.error && !result.failureGuidance) throw new Error(result.error);
   if (result.error) console.error(result.error);
   return "failed";
 }
@@ -388,6 +372,7 @@ function handleAnalysisJobError(
   deferTerminalFailure: boolean | undefined,
   context: AnalysisJobContext,
 ): "failed" {
+  if (deferTerminalFailure) throw error;
   if (!deferTerminalFailure) {
     failAnalysisJob(
       context.setJobState,

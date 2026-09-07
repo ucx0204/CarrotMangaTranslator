@@ -1,4 +1,3 @@
-import { resolveRegionTypesettingRequest } from "../src/main/pipeline/codexTypesettingConfiguration";
 import { describe, expect, it, vi } from "vitest";
 import {
   resolveDefaultAppSettings,
@@ -6,15 +5,10 @@ import {
 } from "../src/main/appSettings";
 import { AppSettingsSchema } from "../src/shared/ipcSettingsSchemas";
 import { acquireInpaintingEngineIfNeeded } from "../src/main/jobs/inpaintingJobEngine";
-import {
-  prepareBubbleLayoutJob,
-  runBubbleLayoutOnlyPage,
-} from "../src/main/jobs/bubbleLayoutJob";
 import { productionInpaintingJobRuntime } from "../src/main/jobs/inpaintingJobRuntime";
 import type { InpaintingJobContext } from "../src/main/jobs/inpaintingJobTypes";
 import type { AppPaths } from "../src/main/appPaths";
 import type { InpaintingEngineLease } from "../src/main/inpainting/inpaintingEnginePool";
-import { makePage, makeBlock } from "./unifiedInpaintingUiFixtures";
 
 function fixture() {
   const settings = resolveDefaultAppSettings({});
@@ -23,7 +17,6 @@ function fixture() {
     ...settings.codex,
     model: "gpt-6-astra",
     reasoningEffort: "low",
-    delegateAll: true,
   };
   const lease: InpaintingEngineLease = {
     engine: {
@@ -55,7 +48,6 @@ function fixture() {
     createBubbleLayoutRunner: vi.fn(
       productionInpaintingJobRuntime.createBubbleLayoutRunner,
     ),
-    createCodexBubbleLayoutRunner: vi.fn(() => runner),
   };
   const context = {
     appPaths: {
@@ -73,11 +65,23 @@ function fixture() {
     pageCount: 1,
     totalTargetBlocks: 1,
     runtime,
+    engine: "codex" as const,
   };
   return { settings, lease, runner, runtime, context, input };
 }
 
 describe("manual Codex routing", () => {
+  it("rejects a missing Codex engine port without starting the local model", async () => {
+    const { input, runtime } = fixture();
+    await expect(
+      acquireInpaintingEngineIfNeeded({
+        ...input,
+        engine: "codex",
+        runtime: { ...runtime, acquireCodexEngine: undefined },
+      }),
+    ).rejects.toThrow("Codex 원문 제거를 사용할 수 없습니다");
+    expect(runtime.acquireEngine).not.toHaveBeenCalled();
+  });
   it("preserves the erasure default through settings validation and stored normalization", () => {
     const { settings } = fixture();
     for (const enabled of [true, false]) {
@@ -92,7 +96,6 @@ describe("manual Codex routing", () => {
   });
   it("uses a per-run Codex override with delegation off and never falls back on failure", async () => {
     const { settings, runtime, input, lease } = fixture();
-    settings.codex.delegateAll = false;
     await expect(
       acquireInpaintingEngineIfNeeded({ ...input, engine: "codex" }),
     ).resolves.toBe(lease);
@@ -106,8 +109,7 @@ describe("manual Codex routing", () => {
     settings.codex.model = "gpt-5.6-sol";
     await expect(
       acquireInpaintingEngineIfNeeded({ ...input, engine: "codex" }),
-    ).rejects.toThrow("Codex Astra");
-    expect(settings.codex.delegateAll).toBe(false);
+    ).resolves.toBe(lease);
   });
   it("selects ImageGen without touching the configured Flux model and awaits its release", async () => {
     const { lease, runtime, input } = fixture();
@@ -143,87 +145,4 @@ describe("manual Codex routing", () => {
     expect(runtime.acquireCodexEngine).not.toHaveBeenCalled();
     expect(runtime.acquireEngine).not.toHaveBeenCalled();
   });
-  it("uses Astra for manual balloon fitting and preserves source text and image pixels", async () => {
-    const { context, runtime, runner } = fixture();
-    const page = { ...makePage(), blocks: [makeBlock()] };
-    const prepared = await prepareBubbleLayoutJob({
-      context,
-      runtime,
-      request: {
-        mode: "page-bubble-layout",
-        chapterId: "chapter-1",
-        pageId: page.id,
-        blockId: page.blocks[0].id,
-        policy: "balanced",
-      },
-      totalTargetBlocks: 1,
-    });
-    const result = await runBubbleLayoutOnlyPage({
-      ...prepared,
-      page,
-      blockId: page.blocks[0].id,
-      signal: new AbortController().signal,
-    });
-    expect(runtime.createBubbleLayoutRunner).not.toHaveBeenCalled();
-    expect(runtime.acquireEngine).not.toHaveBeenCalled();
-    expect(runner.runPage).toHaveBeenCalledWith(
-      expect.objectContaining({ targetBlockIds: [page.blocks[0].id] }),
-    );
-    expect(result.page.blocks[0]).toMatchObject({
-      sourceText: page.blocks[0].sourceText,
-      translatedText: page.blocks[0].translatedText,
-      bbox: page.blocks[0].bbox,
-      renderBbox: { x: 10, y: 15, w: 140, h: 130 },
-    });
-    expect(result.page.imagePath).toBe(page.imagePath);
-    expect(result.page.inpaintedImagePath).toBe(page.inpaintedImagePath);
-    expect(result.beforeLayout).toHaveLength(1);
-    expect(result.afterLayout).toHaveLength(1);
-  });
-});
-
-it("snapshots Codex delegation for a region request without allowing a legacy erasure fallback", async () => {
-  const { settings } = fixture();
-  const request = {
-    chapterId: "chapter",
-    pageId: "page",
-    bbox: { x: 0, y: 0, w: 100, h: 100 },
-    eraseOriginal: false,
-  };
-  const resolved = await resolveRegionTypesettingRequest(request, settings);
-  expect(resolved.codexTypesetting).toMatchObject({
-    version: 1,
-    sfxRendering: "image",
-    eraseOriginal: false,
-  });
-  expect(resolved.eraseOriginal).toBe(false);
-  settings.codex.delegateAll = false;
-  expect(await resolveRegionTypesettingRequest(request, settings)).toBe(
-    request,
-  );
-});
-
-it("fails explicitly when a Codex adapter is unavailable without acquiring a local model", async () => {
-  const { runtime, input, context } = fixture();
-  await expect(
-    acquireInpaintingEngineIfNeeded({
-      ...input,
-      runtime: { ...runtime, acquireCodexEngine: undefined },
-    }),
-  ).rejects.toThrow("Codex 원문 제거");
-  await expect(
-    prepareBubbleLayoutJob({
-      context,
-      runtime: { ...runtime, createCodexBubbleLayoutRunner: undefined },
-      request: {
-        mode: "page-bubble-layout",
-        policy: "balanced",
-        chapterId: "chapter-1",
-        pageId: "p1",
-      },
-      totalTargetBlocks: 1,
-    }),
-  ).rejects.toThrow("Codex 말풍선 배치");
-  expect(runtime.acquireEngine).not.toHaveBeenCalled();
-  expect(runtime.createBubbleLayoutRunner).not.toHaveBeenCalled();
 });

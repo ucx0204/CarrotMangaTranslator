@@ -47,6 +47,7 @@ export async function loadPipeline({
   fontMatchingCandidates = [],
   fontMatchingPageInference,
   fontMatchingChapter,
+  editImages,
 }: {
   ocrHintsByImagePath?: ReadonlyMap<string, OcrBboxResult>;
   requestTranslation?: TranslationRuntimePort["requestTranslation"];
@@ -54,6 +55,7 @@ export async function loadPipeline({
   startEndpointSession?: TranslationRuntimePort["startEndpointSession"];
   fontMatchingCandidates?: readonly AutomaticFontCandidate[];
   fontMatchingChapter?: WholePagePipelineDependencies["fontMatching"]["chapter"];
+  editImages?: WholePagePipelineDependencies["editImages"];
   fontMatchingPageInference?: WholePagePipelineDependencies["fontMatching"]["pageInference"];
 } = {}) {
   const rootDir = await mkdtemp(join(tmpdir(), "mgt-pipeline-"));
@@ -94,6 +96,7 @@ export async function loadPipeline({
   );
   const loadFontMatchingProfile = vi.fn(async (_workId: string) => null);
   const dependencies = {
+    editImages,
     paths: makeAppPaths(rootDir),
     settings: {
       getAppSettings: vi.fn(async () => makeAppSettings(sourceLanguage)),

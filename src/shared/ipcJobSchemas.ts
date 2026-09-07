@@ -1,3 +1,4 @@
+import { imageRedactionReviewSchema } from "./imageRedaction";
 import { regionTextReviewSchema } from "./regionTextReview";
 import { codexProgressSchema } from "./codexTypesettingProgress";
 /* eslint-disable max-lines -- bounded job request variants stay together for schema contract review */
@@ -60,6 +61,7 @@ export const JobEventSchema = z
   .object({
     regionRequestId: z.string().uuid().optional(),
     regionTextReview: regionTextReviewSchema.optional(),
+    imageRedactionReview: imageRedactionReviewSchema.optional(),
     id: z.string().min(1).max(200),
     kind: JobKindSchema,
     status: JobStatusSchema,
