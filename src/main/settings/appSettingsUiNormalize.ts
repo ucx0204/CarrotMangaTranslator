@@ -71,6 +71,10 @@ export function normalizeUiSettings(
       : {}),
     eraseOriginalWorkflowDefault: completionDefaults.eraseOriginal,
     bubbleLayoutWorkflowDefault: completionDefaults.bubbleLayout,
+    codexErasureDefault: resolveBoolean(
+      data.codexErasureDefault,
+      base.codexErasureDefault === true,
+    ),
     wheelZoomSensitivityPercent: resolveWheelZoomSensitivityPercent(
       data.wheelZoomSensitivityPercent,
       base.wheelZoomSensitivityPercent,

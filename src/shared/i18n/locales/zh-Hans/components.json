@@ -692,6 +692,7 @@
     "bubbleLayoutHint": "从擦除后的图像中检测气泡区域，并自动调整译文排版。"
   },
   "translationOptions": {
+    "codexErasure": "用 Codex 擦除",
     "title": "运行翻译",
     "workspaceAction": "翻译设置…",
     "workspaceUndoWarning": "重新翻译的页面会用新结果替换现有结果。",

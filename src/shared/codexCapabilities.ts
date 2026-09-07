@@ -9,9 +9,7 @@ export function canUseCodexTypesetting(
 ): boolean {
   return Boolean(
     settings &&
-    (regionImage ||
-      (settings.modelProvider === "openai-codex" &&
-        settings.codex.model === CODEX_TYPESETTING_MODEL)) &&
+    (regionImage || isCodexAstraConfigured(settings)) &&
     account?.authenticated &&
     account.accountKind === "chatgpt" &&
     account.models.some(
@@ -28,8 +26,15 @@ export function isCodexDelegationEnabled(
   settings: Pick<AppSettings, "modelProvider" | "codex"> | null | undefined,
 ): boolean {
   return (
+    isCodexAstraConfigured(settings) && settings?.codex.delegateAll === true
+  );
+}
+
+export function isCodexAstraConfigured(
+  settings: Pick<AppSettings, "modelProvider" | "codex"> | null | undefined,
+): boolean {
+  return (
     settings?.modelProvider === "openai-codex" &&
-    settings.codex.model === CODEX_TYPESETTING_MODEL &&
-    settings.codex.delegateAll === true
+    settings.codex.model === CODEX_TYPESETTING_MODEL
   );
 }

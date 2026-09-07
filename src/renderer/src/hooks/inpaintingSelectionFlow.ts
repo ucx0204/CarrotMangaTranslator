@@ -58,6 +58,7 @@ type InpaintingAggregate = Omit<
 export async function runInpaintingSelectionsSequentially({
   onResult,
   postprocess,
+  engine,
   selections,
   shouldCancel,
   startInpainting = inpaintingGateway.startInpainting,
@@ -70,6 +71,7 @@ export async function runInpaintingSelectionsSequentially({
     selection: AutoInpaintingChapterSelection,
   ) => Promise<void> | void;
   postprocess?: InpaintingPostprocessOptions;
+  engine?: "codex";
   selections: AutoInpaintingChapterSelection[];
   shouldCancel?: () => boolean;
   startInpainting?: StartInpainting;
@@ -77,17 +79,10 @@ export async function runInpaintingSelectionsSequentially({
   timingStartedAtEpochMs?: number;
   workId: string;
 }): Promise<SequentialInpaintingResult> {
-  if (selections.length === 0) {
-    return {
-      status: "no-op",
-      pagesChanged: 0,
-      blocksErased: 0,
-      pagesIncomplete: 0,
-      blocksIncomplete: 0,
-    };
-  }
-  const isCancellationRequested = shouldCancel ?? NEVER_CANCEL;
   const aggregate = createInpaintingAggregate();
+  if (selections.length === 0)
+    return createSequentialInpaintingResult("no-op", aggregate);
+  const isCancellationRequested = shouldCancel ?? NEVER_CANCEL;
 
   if (timingSession && selections.length !== 1) {
     throw new Error("A continued timing session requires one chapter.");
@@ -107,6 +102,7 @@ export async function runInpaintingSelectionsSequentially({
     const attempt = await runChapterInpainting({
       onResult,
       postprocess,
+      engine,
       selection,
       startInpainting,
       timingSession: chapterTimingSession,
@@ -188,6 +184,7 @@ function createSequentialInpaintingResult(
 async function runChapterInpainting({
   onResult,
   postprocess,
+  engine,
   selection,
   startInpainting,
   timingSession,
@@ -198,6 +195,7 @@ async function runChapterInpainting({
     selection: AutoInpaintingChapterSelection,
   ) => Promise<void> | void;
   postprocess?: InpaintingPostprocessOptions;
+  engine?: "codex";
   selection: AutoInpaintingChapterSelection;
   startInpainting: StartInpainting;
   timingSession: PageTimingSessionRef;
@@ -210,6 +208,7 @@ async function runChapterInpainting({
         selection,
         postprocess,
         timingSession,
+        engine,
       ),
     );
     await onResult?.(result, selection);
@@ -275,9 +274,11 @@ function createChapterInpaintingRequest(
   selection: AutoInpaintingChapterSelection,
   postprocess: InpaintingPostprocessOptions | undefined,
   timingSession: PageTimingSessionRef,
+  engine?: "codex",
 ): StartInpaintingRequest {
   return {
     mode: "selection-pattern",
+    ...(engine ? { engine } : {}),
     workId,
     selections: [selection],
     timingSession,

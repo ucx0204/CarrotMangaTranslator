@@ -21,6 +21,38 @@ import type {
 import type { UiSettings } from "../src/shared/settingsTypes";
 import type { TranslationOptionsInitialScope } from "../src/renderer/src/lib/translationSelection";
 import { createPageRevision } from "../src/shared/pageRevision";
+import { resolveDefaultAppSettings } from "../src/main/appSettings";
+import type { CodexAccountSnapshot } from "../src/shared/codexAccountTypes";
+import { codexConnection } from "../src/renderer/src/api/codexConnection";
+
+const astraAccount: CodexAccountSnapshot = {
+  authenticated: true,
+  accountKind: "chatgpt",
+  email: null,
+  planType: null,
+  requiresOpenaiAuth: false,
+  appServerVersion: "test",
+  models: [
+    {
+      id: "gpt-6-astra",
+      displayName: "Astra",
+      supportedReasoningEfforts: ["low"],
+      defaultReasoningEffort: "low",
+      isDefault: true,
+    },
+  ],
+};
+function astraSettings() {
+  const settings = resolveDefaultAppSettings({});
+  settings.modelProvider = "openai-codex";
+  settings.codex = {
+    ...settings.codex,
+    model: "gpt-6-astra",
+    reasoningEffort: "low",
+    delegateAll: false,
+  };
+  return settings;
+}
 
 const saveCodexPreferences = vi.fn(
   async (value: ReturnType<typeof createCodexTypesettingPreferences>) => value,
@@ -28,6 +60,7 @@ const saveCodexPreferences = vi.fn(
 
 beforeEach(() => {
   window.mangaApi = createTestMangaGatewayStub({
+    getCodexAccount: async () => astraAccount,
     saveCodexTypesettingPreferences: saveCodexPreferences,
     getFontLibrary: vi.fn(() =>
       Promise.resolve({
@@ -193,6 +226,120 @@ afterEach(() => {
 });
 
 describe("TranslationOptionsModal", () => {
+  it("adds Codex erasure after bubble fitting and saves the independent choice", async () => {
+    const settings = astraSettings();
+    const { onStart, onPersistDefaults } = await renderModal(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      false,
+      { settings },
+    );
+    const erase = screen.getByRole("switch", { name: "Codex가 지우기" });
+    expect(erase).toHaveProperty("disabled", true);
+    expect(erase.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(screen.getByRole("radio", { name: "원문 지우기" }));
+    expect(erase).toHaveProperty("disabled", false);
+    const bubble = screen.getByRole("switch", { name: "말풍선 맞춤" });
+    expect(
+      bubble.compareDocumentPosition(erase) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.click(erase);
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "다음 번역의 기본값으로 저장" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inpaintingEngine: "codex",
+        eraseOriginalWorkflow: true,
+        bubbleLayoutWorkflow: true,
+      }),
+    );
+    expect(onStart.mock.lastCall?.[0].codexTypesetting).toBeUndefined();
+    expect(onPersistDefaults).toHaveBeenCalledWith(
+      expect.objectContaining({ codexErasureDefault: true }),
+    );
+    expect(settings.codex.delegateAll).toBe(false);
+    cleanup();
+    await renderModal(
+      onPersistDefaults.mock.lastCall?.[0],
+      undefined,
+      undefined,
+      undefined,
+      false,
+      { settings },
+    );
+    expect(
+      screen
+        .getByRole("switch", { name: "Codex가 지우기" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  it.each(["other-provider", "other-model", "delegated"])(
+    "hides the erasure override for %s",
+    async (mode) => {
+      const settings = astraSettings();
+      if (mode === "other-provider") settings.modelProvider = "gemma";
+      if (mode === "other-model") settings.codex.model = "gpt-5.6-sol";
+      const { onStart } = await renderModal(
+        { codexErasureDefault: true, eraseOriginalWorkflowDefault: true },
+        undefined,
+        undefined,
+        undefined,
+        mode === "delegated",
+        { settings },
+      );
+      expect(
+        screen.queryByRole("switch", { name: "Codex가 지우기" }),
+      ).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+      await waitFor(() => expect(onStart).toHaveBeenCalled());
+      expect(onStart.mock.lastCall?.[0].inpaintingEngine).toBeUndefined();
+    },
+  );
+
+  it("blocks an enabled Codex erase on disconnection but allows translation without erasure", async () => {
+    const { onStart } = await renderModal(
+      { eraseOriginalWorkflowDefault: true, codexErasureDefault: true },
+      undefined,
+      undefined,
+      undefined,
+      false,
+      { settings: astraSettings() },
+    );
+    act(() => codexConnection.publish(null));
+    expect(
+      screen.getByRole("switch", { name: "Codex가 지우기" }),
+    ).toHaveProperty("disabled", true);
+    expect(
+      screen.getByRole("button", { name: "선택 범위 번역" }),
+    ).toHaveProperty("disabled", true);
+    fireEvent.click(screen.getByRole("radio", { name: "번역만" }));
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+    expect(onStart).toHaveBeenCalled();
+    expect(onStart.mock.lastCall?.[0].inpaintingEngine).toBeUndefined();
+  });
+
+  it("rechecks the erasure connection after overwrite confirmation", async () => {
+    const { onStart } = await renderModal(
+      { eraseOriginalWorkflowDefault: true, codexErasureDefault: true },
+      "work-all",
+      undefined,
+      undefined,
+      false,
+      { settings: astraSettings() },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+    act(() => codexConnection.publish(null));
+    fireEvent.click(
+      screen.getByRole("button", { name: "선택 범위 다시 번역" }),
+    );
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
   it("sends a legacy Astra preset with generated SFX through the real translation action", async () => {
     const preferences = createCodexTypesettingPreferences("ko");
     preferences.enabled = true;

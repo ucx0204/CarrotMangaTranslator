@@ -1,4 +1,10 @@
 import React from "react";
+import {
+  canUseCodexTypesetting,
+  isCodexAstraConfigured,
+} from "../../../shared/codexCapabilities";
+import { useCodexConnection } from "../hooks/useCodexConnection";
+import type { AppSettings } from "../../../shared/settingsTypes";
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 
 import type {
@@ -50,8 +56,23 @@ export type TranslationOptionsFormProps = {
   onEraseOriginalWorkflowChange: (enabled: boolean) => void;
   bubbleLayoutWorkflow: boolean;
   onBubbleLayoutWorkflowChange: (enabled: boolean) => void;
+  codexErasure?: {
+    enabled: boolean;
+    available: boolean;
+    onChange: (enabled: boolean) => void;
+  };
   overwriteRisk?: boolean;
 };
+
+export function isCodexErasureBlocked(
+  form: TranslationOptionsFormProps,
+): boolean {
+  return Boolean(
+    form.eraseOriginalWorkflow &&
+    form.codexErasure?.enabled &&
+    !form.codexErasure.available,
+  );
+}
 
 export function useTranslationOptionsModalState(
   chapter: ChapterSnapshot,
@@ -62,6 +83,7 @@ export function useTranslationOptionsModalState(
     sourceLanguage?: string;
     targetLanguage?: string;
   }>,
+  settings?: AppSettings | null,
 ): {
   formProps: TranslationOptionsFormProps;
   runSelection: TranslationFlowOptions["selection"];
@@ -72,7 +94,7 @@ export function useTranslationOptionsModalState(
     () => library.works.find((item) => item.id === chapter.workId) ?? null,
     [chapter.workId, library.works],
   );
-  const formFields = useTranslationFormFields(uiSettings);
+  const formFields = useTranslationFormFields(uiSettings, settings);
   const sourceLanguage =
     languagePair?.sourceLanguage ?? DEFAULT_SOURCE_LANGUAGE;
   const targetLanguage =
@@ -159,6 +181,7 @@ function selectionHasResume(
 
 function useTranslationFormFields(
   uiSettings: UiSettings | undefined,
+  settings?: AppSettings | null,
 ): Omit<
   TranslationOptionsFormProps,
   | "chapter"
@@ -170,6 +193,11 @@ function useTranslationFormFields(
   | "work"
 > {
   const initial = resolveInitialTranslationFormValues(uiSettings);
+  const showCodexErasure = isCodexAstraConfigured(settings);
+  const { account } = useCodexConnection(showCodexErasure);
+  const [codexErasure, setCodexErasure] = React.useState(
+    uiSettings?.codexErasureDefault ?? false,
+  );
   const [workflowMode, onWorkflowModeChange] = React.useState(
     initial.workflowMode,
   );
@@ -195,6 +223,15 @@ function useTranslationFormFields(
   );
   return {
     autoFontMatching,
+    ...(showCodexErasure
+      ? {
+          codexErasure: {
+            enabled: codexErasure,
+            available: canUseCodexTypesetting(settings ?? null, account),
+            onChange: setCodexErasure,
+          },
+        }
+      : {}),
     blockMode,
     bubbleLayoutWorkflow,
     cumulativeContextDetail,

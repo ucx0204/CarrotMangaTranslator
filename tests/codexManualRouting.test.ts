@@ -1,6 +1,10 @@
 import { resolveRegionTypesettingRequest } from "../src/main/pipeline/codexTypesettingConfiguration";
 import { describe, expect, it, vi } from "vitest";
-import { resolveDefaultAppSettings } from "../src/main/appSettings";
+import {
+  resolveDefaultAppSettings,
+  normalizeAppSettings,
+} from "../src/main/appSettings";
+import { AppSettingsSchema } from "../src/shared/ipcSettingsSchemas";
 import { acquireInpaintingEngineIfNeeded } from "../src/main/jobs/inpaintingJobEngine";
 import {
   prepareBubbleLayoutJob,
@@ -74,6 +78,37 @@ function fixture() {
 }
 
 describe("manual Codex routing", () => {
+  it("preserves the erasure default through settings validation and stored normalization", () => {
+    const { settings } = fixture();
+    for (const enabled of [true, false]) {
+      settings.ui = { ...settings.ui, codexErasureDefault: enabled };
+      const validated = AppSettingsSchema.parse(settings);
+      const restored = normalizeAppSettings(
+        JSON.parse(JSON.stringify(validated)),
+      );
+      expect(restored.ui?.codexErasureDefault).toBe(enabled);
+    }
+    expect(normalizeAppSettings({}).ui?.codexErasureDefault).toBe(false);
+  });
+  it("uses a per-run Codex override with delegation off and never falls back on failure", async () => {
+    const { settings, runtime, input, lease } = fixture();
+    settings.codex.delegateAll = false;
+    await expect(
+      acquireInpaintingEngineIfNeeded({ ...input, engine: "codex" }),
+    ).resolves.toBe(lease);
+    runtime.acquireCodexEngine.mockRejectedValueOnce(
+      new Error("Codex disconnected"),
+    );
+    await expect(
+      acquireInpaintingEngineIfNeeded({ ...input, engine: "codex" }),
+    ).rejects.toThrow("Codex disconnected");
+    expect(runtime.acquireEngine).not.toHaveBeenCalled();
+    settings.codex.model = "gpt-5.6-sol";
+    await expect(
+      acquireInpaintingEngineIfNeeded({ ...input, engine: "codex" }),
+    ).rejects.toThrow("Codex Astra");
+    expect(settings.codex.delegateAll).toBe(false);
+  });
   it("selects ImageGen without touching the configured Flux model and awaits its release", async () => {
     const { lease, runtime, input } = fixture();
     const result = await acquireInpaintingEngineIfNeeded(input);

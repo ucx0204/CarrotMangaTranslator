@@ -9,7 +9,7 @@ import type {
   ChapterSnapshot,
   LibraryIndex,
 } from "../../../shared/libraryTypes";
-import type { UiSettings } from "../../../shared/settingsTypes";
+import type { AppSettings, UiSettings } from "../../../shared/settingsTypes";
 import type { TranslationFlowOptions } from "../hooks/useTranslationActions";
 import type { TranslationOptionsInitialScope } from "../lib/translationSelection";
 import { Modal } from "./ui/Modal";
@@ -18,6 +18,7 @@ import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 import { TranslationOptionsActionBar } from "./TranslationOptionsActionBar";
 import {
   type TranslationOptionsFormProps,
+  isCodexErasureBlocked,
   useTranslationOptionsModalState,
 } from "./translationOptionsState";
 
@@ -32,9 +33,11 @@ type TranslationDefaultsPatch = Pick<
   | "naturalTextLayoutDefault"
   | "eraseOriginalWorkflowDefault"
   | "bubbleLayoutWorkflowDefault"
+  | "codexErasureDefault"
 >;
 
 type TranslationOptionsModalProps = {
+  settings?: AppSettings | null;
   codexDelegateAll?: boolean;
   codexUnavailable?: boolean;
   onSaveCodexPreferences?: (
@@ -53,6 +56,7 @@ type TranslationOptionsModalProps = {
 };
 
 export function TranslationOptionsModal({
+  settings,
   codexDelegateAll = false,
   codexUnavailable = false,
   onSaveCodexPreferences,
@@ -63,9 +67,8 @@ export function TranslationOptionsModal({
   uiSettings,
   sourceLanguage,
   targetLanguage,
-  onStart,
-  onPersistDefaults,
   onClose,
+  ...startCallbacks
 }: TranslationOptionsModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const codex = useCodexPreferences(
@@ -82,14 +85,14 @@ export function TranslationOptionsModal({
     library,
     uiSettings,
     { sourceLanguage, targetLanguage },
+    codexDelegateAll ? undefined : settings,
   );
   const actions = useTranslationStartActions({
     beforeStart: codexDelegateAll ? codex.flush : undefined,
     codexPreferences: codex.value,
     formProps: state.formProps,
     onClose,
-    onPersistDefaults,
-    onStart,
+    ...startCallbacks,
     overwriteRisk: state.overwriteRisk,
     runSelection: state.runSelection,
   });
@@ -157,15 +160,14 @@ function useTranslationStartActions({
   const starting = React.useRef(false);
   const performStart = async (): Promise<void> => {
     if (runSelection.length === 0 || starting.current) return;
+    if (isCodexErasureBlocked(formProps)) return;
     starting.current = true;
     if (beforeStart && !(await beforeStart())) {
       starting.current = false;
       return;
     }
     if (saveAsDefault && !codexPreferences.enabled)
-      onPersistDefaults({
-        ...(codexPreferences.enabled ? {} : buildDefaultsPatch(formProps)),
-      });
+      onPersistDefaults(buildDefaultsPatch(formProps));
     handoffActiveModalToWorkCenter();
     const base = buildTranslationFlowOptions(formProps, runSelection);
     const preset = codexPreferences.presets.find(
@@ -226,6 +228,9 @@ function buildDefaultsPatch(
     naturalTextLayoutDefault: form.naturalTextLayout,
     eraseOriginalWorkflowDefault: form.eraseOriginalWorkflow,
     bubbleLayoutWorkflowDefault: form.bubbleLayoutWorkflow,
+    ...(form.codexErasure
+      ? { codexErasureDefault: form.codexErasure.enabled }
+      : {}),
   };
 }
 
@@ -242,6 +247,9 @@ function buildTranslationFlowOptions(
     aiFontSizeMatching: form.aiFontSizeMatching,
     naturalTextLayout: form.naturalTextLayout,
     eraseOriginalWorkflow: form.eraseOriginalWorkflow,
+    ...(form.eraseOriginalWorkflow && form.codexErasure?.enabled
+      ? { inpaintingEngine: "codex" as const }
+      : {}),
     bubbleLayoutWorkflow:
       form.eraseOriginalWorkflow && form.bubbleLayoutWorkflow,
   };
@@ -283,7 +291,11 @@ function TranslationFooter({
       saveAsDefault={actions.saveAsDefault}
       onSaveAsDefaultChange={actions.setSaveAsDefault}
       startDisabled={
-        unavailable || state.runSelection.length === 0 || !valid || missing
+        unavailable ||
+        state.runSelection.length === 0 ||
+        !valid ||
+        missing ||
+        (!delegated && isCodexErasureBlocked(state.formProps))
       }
       startLabel={t(
         state.hasResumeSelection

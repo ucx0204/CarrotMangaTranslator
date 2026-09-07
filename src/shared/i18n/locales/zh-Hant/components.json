@@ -692,6 +692,7 @@
     "bubbleLayoutHint": "從清除後的圖片偵測對話框區域，並自動調整譯文排版。"
   },
   "translationOptions": {
+    "codexErasure": "用 Codex 擦除",
     "title": "執行翻譯",
     "workspaceAction": "翻譯設定…",
     "workspaceUndoWarning": "重新翻譯的頁面會用新結果取代現有結果。",

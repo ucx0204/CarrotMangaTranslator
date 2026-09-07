@@ -53,6 +53,8 @@ type StartInpaintingTargetRequest =
     }
   | {
       mode: "selection-pattern";
+      /** Override only this erasure run; keep normal translation and layout. */
+      engine?: "codex";
       workId: string;
       selections: AutoInpaintingChapterSelection[];
     };

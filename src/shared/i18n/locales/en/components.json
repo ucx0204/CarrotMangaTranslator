@@ -692,6 +692,7 @@
     "bubbleLayoutHint": "Detects bubble interiors in the erased image and automatically fits translated text."
   },
   "translationOptions": {
+    "codexErasure": "Erase with Codex",
     "title": "Run translation",
     "workspaceAction": "Translation settings…",
     "workspaceUndoWarning": "Re-translated pages replace their existing results.",

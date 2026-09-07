@@ -30,6 +30,7 @@ export type TranslationFlowOptions = {
   aiFontSizeMatching?: boolean;
   naturalTextLayout?: boolean;
   eraseOriginalWorkflow?: boolean;
+  inpaintingEngine?: "codex";
   bubbleLayoutWorkflow?: boolean;
 };
 

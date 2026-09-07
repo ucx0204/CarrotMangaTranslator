@@ -692,6 +692,7 @@
     "bubbleLayoutHint": "지운 이미지에서 말풍선 영역을 찾아 번역문 배치까지 자동으로 맞춥니다."
   },
   "translationOptions": {
+    "codexErasure": "Codex가 지우기",
     "title": "번역 실행",
     "workspaceAction": "번역 설정…",
     "workspaceUndoWarning": "다시 번역한 페이지의 기존 결과는 새 결과로 바뀝니다.",

@@ -194,6 +194,7 @@ export type UiSettings = {
   eraseOriginalWorkflowDefault?: boolean;
   /** Fit translated text to detected speech balloons after erasing. */
   bubbleLayoutWorkflowDefault?: boolean;
+  codexErasureDefault?: boolean;
   /** Workspace wheel zoom applied per conventional physical wheel notch. */
   wheelZoomSensitivityPercent?: WheelZoomSensitivityPercent;
 };

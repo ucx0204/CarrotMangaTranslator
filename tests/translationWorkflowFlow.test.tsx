@@ -1,14 +1,17 @@
+import {
+  makePage,
+  makeChapter,
+  makeOptions,
+} from "./translationWorkflowFixtures";
 // @vitest-environment jsdom
 
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import type { NotificationPort } from "../src/renderer/src/lib/notificationPort";
-import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationWorkflowMode } from "../src/shared/settingsTypes";
 import { createCodexTypesettingPreferences } from "../src/shared/codexTypesettingDefaults";
 import type { CodexTypesettingOptions } from "../src/shared/codexTypesettingTypes";
-import type { UseTranslationActionsOptions } from "../src/renderer/src/hooks/translationActionTypes";
 
 const startAnalysis = vi.fn();
 const startInpainting = vi.fn();
@@ -33,62 +36,6 @@ beforeEach(() => {
 });
 
 import { useTranslationActions } from "../src/renderer/src/hooks/useTranslationActions";
-
-const TS = "2026-01-01T00:00:00.000Z";
-
-function makePage(): MangaPage {
-  return {
-    id: "page-1",
-    name: "page.png",
-    imagePath: "C:/page.png",
-    dataUrl: "",
-    width: 100,
-    height: 150,
-    blocks: [],
-    analysisStatus: "idle",
-    createdAt: TS,
-    updatedAt: TS,
-  };
-}
-
-function makeChapter(): ChapterSnapshot {
-  const page = makePage();
-  return {
-    id: "chapter-1",
-    workId: "work-1",
-    title: "1화",
-    sourceKind: "images",
-    status: "idle",
-    pageOrder: [page.id],
-    pages: [page],
-    createdAt: TS,
-    updatedAt: TS,
-  };
-}
-
-function makeOptions(): UseTranslationActionsOptions {
-  const chapter = makeChapter();
-  return {
-    clearPageImageCache: vi.fn(),
-    clearRetouchHistory: vi.fn(),
-    currentChapter: chapter,
-    currentChapterRef: { current: chapter },
-    jobActive: false,
-    library: { workOrder: [], works: [] },
-    mergeLiveChapter: vi.fn(),
-    pushStatus: vi.fn(),
-    refreshLibrary: vi.fn().mockResolvedValue(undefined),
-    recordImageEdit: vi.fn(),
-    saveNow: vi.fn().mockResolvedValue(undefined),
-    selectedPage: null,
-    setCurrentChapter: vi.fn(),
-    setFlowActive: vi.fn(),
-    setShowBlockChrome: vi.fn(),
-    setJobState: vi.fn(),
-    setSelectedBlockId: vi.fn(),
-    syncSavedPageVersion: vi.fn(),
-  };
-}
 
 async function runWorkflow(
   workflowMode: TranslationWorkflowMode,
@@ -119,6 +66,51 @@ afterEach(() => {
 });
 
 describe("translation workflow modes", () => {
+  it.each([true, false])(
+    "sends only erasure to Codex while keeping ordinary translation and bubble fitting=%s",
+    async (bubbleLayoutWorkflow) => {
+      const options = makeOptions();
+      startAnalysis.mockResolvedValue({ status: "completed" });
+      startInpainting.mockResolvedValue({
+        status: "completed",
+        chapters: [makeChapter()],
+        pagesChanged: 1,
+        blocksErased: 1,
+      });
+      const { result } = renderHook(() =>
+        useTranslationActions(options, notificationMocks),
+      );
+      await act(async () => {
+        expect(
+          await result.current.runTranslationFlow({
+            selection: [{ chapterId: "chapter-1", mode: "all" }],
+            workflowMode: "cumulative",
+            blockMode: "auto",
+            eraseOriginalWorkflow: true,
+            bubbleLayoutWorkflow,
+            inpaintingEngine: "codex",
+          }),
+        ).toBe("completed");
+      });
+      expect(startAnalysis).toHaveBeenCalledOnce();
+      expect(startAnalysis.mock.lastCall?.[0].codexTypesetting).toBeUndefined();
+      expect(startAnalysis.mock.invocationCallOrder[0]).toBeLessThan(
+        startInpainting.mock.invocationCallOrder[0] ?? 0,
+      );
+      expect(startInpainting).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          engine: "codex",
+          postprocess: {
+            bubbleLayout: {
+              enabled: bubbleLayoutWorkflow,
+              policy: "balanced",
+              ...(bubbleLayoutWorkflow ? { naturalTextLayout: true } : {}),
+            },
+          },
+        }),
+      );
+    },
+  );
   it("delivers the chosen Codex font preset through the real translation flow", async () => {
     const preset = createCodexTypesettingPreferences("ko").presets[0];
     const codex = { version: 1 as const, preset };

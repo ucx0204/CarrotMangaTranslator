@@ -301,6 +301,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
   z
     .object({
       mode: z.literal("selection-pattern"),
+      engine: z.literal("codex").optional(),
       workId: uuid,
       selections: z.array(AutoInpaintingChapterSelectionSchema).min(1).max(1),
       postprocess: InpaintingPostprocessOptionsSchema.optional(),

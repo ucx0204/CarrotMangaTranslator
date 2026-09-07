@@ -274,6 +274,7 @@ function resolveDefaultUiSettings(
     sfxInpaintAfterTranslationDefault: false,
     eraseOriginalWorkflowDefault: false,
     bubbleLayoutWorkflowDefault: true,
+    codexErasureDefault: false,
     wheelZoomSensitivityPercent: 1,
   };
 }

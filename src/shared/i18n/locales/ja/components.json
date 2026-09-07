@@ -692,6 +692,7 @@
     "bubbleLayoutHint": "消去後の画像から吹き出し領域を検出し、翻訳文の配置も自動調整します。"
   },
   "translationOptions": {
+    "codexErasure": "Codexで消去",
     "title": "翻訳を実行",
     "workspaceAction": "翻訳設定…",
     "workspaceUndoWarning": "再翻訳したページの既存結果は新しい結果に変わります。",

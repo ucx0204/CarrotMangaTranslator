@@ -393,6 +393,7 @@ async function runTranslationInpaintingChapter(
   return runInpaintingSelectionsSequentially({
     workId: currentChapter.workId,
     selections: [selection],
+    engine: execution.options.inpaintingEngine,
     postprocess,
     timingSession,
     shouldCancel: () => isFlowCancellationRequested(execution.context),

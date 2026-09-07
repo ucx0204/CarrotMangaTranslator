@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CheckboxField } from "./ui/CheckboxField";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import { Section } from "./ui/Section";
+import type { TranslationOptionsFormProps } from "./translationOptionsState";
 
 export function TranslationOptionSection({
   className,
@@ -33,11 +34,13 @@ export function TranslationCompletionOptions({
   eraseOriginalWorkflow,
   onBubbleLayoutWorkflowChange,
   onEraseOriginalWorkflowChange,
+  codexErasure,
 }: {
   bubbleLayoutWorkflow: boolean;
   eraseOriginalWorkflow: boolean;
   onBubbleLayoutWorkflowChange: (enabled: boolean) => void;
   onEraseOriginalWorkflowChange: (enabled: boolean) => void;
+  codexErasure?: TranslationOptionsFormProps["codexErasure"];
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -61,7 +64,13 @@ export function TranslationCompletionOptions({
         showLabel={false}
         tooltipPlacement="top"
       />
-      <div className="translate-options-nested">
+      <div
+        className={
+          codexErasure
+            ? "translate-options-nested translate-options-toggle-grid"
+            : "translate-options-nested"
+        }
+      >
         <ToggleOptionRow
           label={t("translationOptions.bubbleLayoutWorkflow")}
           pressed={eraseOriginalWorkflow && bubbleLayoutWorkflow}
@@ -74,6 +83,14 @@ export function TranslationCompletionOptions({
           )}
           tooltipPlacement="top"
         />
+        {codexErasure && (
+          <ToggleOptionRow
+            label={t("translationOptions.codexErasure")}
+            pressed={eraseOriginalWorkflow && codexErasure.enabled}
+            onChange={codexErasure.onChange}
+            disabled={!eraseOriginalWorkflow || !codexErasure.available}
+          />
+        )}
       </div>
     </>
   );

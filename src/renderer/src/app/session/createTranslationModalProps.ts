@@ -10,6 +10,7 @@ export function createTranslationOptionsProps({
 }: AppSessionViewModel): AppSessionViewProps["translationOptionsProps"] {
   return uiState.translateOptionsOpen && core.currentChapter
     ? {
+        settings: settingsDialog.settings,
         codexDelegateAll: settingsDialog.codexDelegationEnabled,
         codexUnavailable:
           settingsDialog.codexDelegationEnabled &&
