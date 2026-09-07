@@ -677,6 +677,23 @@ describe("font matching runtime artifact status", () => {
       reason: "runtime_version_mismatch",
     });
   });
+
+  it.each([
+    ["non-validation split", { calibration_split: "test" }],
+    ["zero temperature", { temperature: 0 }],
+    ["excessive temperature", { temperature: 11 }],
+    ["invalid probability threshold", { none_threshold: 1.01 }],
+  ])("rejects a resealed calibration with %s", async (_label, override) => {
+    const bundle = await writeBundle();
+    Object.assign(bundle.contract.calibration, override);
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      automaticMutationAllowed: false,
+      reason: "invalid_contract",
+    });
+  });
 });
 
 async function statusFor(
