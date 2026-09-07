@@ -15,6 +15,7 @@ import {
 import {
   DEFAULT_API_KEY_MAX_ATTEMPTS,
   DEFAULT_API_RETRY_DELAY_SECONDS,
+  DEFAULT_API_REQUEST_INTERVAL_SECONDS,
 } from "../../../../shared/apiKeySettings";
 import {
   DEFAULT_API_BASE_URL,
@@ -37,6 +38,7 @@ export type ApiProfileFormValues = {
   apiVertexServiceAccountPath: string;
   apiKeyMaxAttempts: string;
   apiRetryDelaySeconds: string;
+  apiRequestIntervalSeconds: string;
   apiTemperature: string;
   apiTopP: string;
   apiTopK: string;
@@ -126,6 +128,9 @@ function createApiProfileFormValues(
     apiRetryDelaySeconds: String(
       profile.retryDelaySeconds ?? DEFAULT_API_RETRY_DELAY_SECONDS,
     ),
+    apiRequestIntervalSeconds: String(
+      profile.requestIntervalSeconds ?? DEFAULT_API_REQUEST_INTERVAL_SECONDS,
+    ),
     apiTemperature: formatNullableNumberInput(profile.temperature),
     apiTopP: formatNullableNumberInput(profile.topP),
     apiTopK: formatNullableNumberInput(profile.topK),
@@ -164,6 +169,7 @@ export function createDefaultApiProfileFormValues(
     apiVertexServiceAccountPath: "",
     apiKeyMaxAttempts: String(DEFAULT_API_KEY_MAX_ATTEMPTS),
     apiRetryDelaySeconds: String(DEFAULT_API_RETRY_DELAY_SECONDS),
+    apiRequestIntervalSeconds: String(DEFAULT_API_REQUEST_INTERVAL_SECONDS),
     apiTemperature: formatNullableNumberInput(DEFAULT_API_TEMPERATURE),
     apiTopP: formatNullableNumberInput(DEFAULT_API_TOP_P),
     apiTopK: formatNullableNumberInput(DEFAULT_API_TOP_K),

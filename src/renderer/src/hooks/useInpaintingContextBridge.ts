@@ -12,6 +12,7 @@ import type { ProgressSnapshot } from "../lib/jobProgress";
 type UseInpaintingContextBridgeOptions = {
   aiUnavailable?: boolean;
   codexDelegateAll?: boolean;
+  codexErasureAvailable?: boolean;
   blockCounts: BlockCounts;
   brushColor: string;
   brushRadius: number;
@@ -32,7 +33,7 @@ type UseInpaintingContextBridgeOptions = {
   redoRetouch: () => Promise<void>;
   retouchBusy: boolean;
   revertInpainting: (scope: "page" | "chapter") => Promise<void>;
-  runDrawnPatternInpainting: () => Promise<void>;
+  runDrawnPatternInpainting: (engine?: "codex") => Promise<void>;
   runInpainting: (scope: "page" | "chapter") => Promise<void>;
   selectedPage: MangaPage | null;
   setBrushColor: Dispatch<SetStateAction<string>>;
@@ -65,6 +66,7 @@ type InpaintingContextState = Pick<
   InpaintingContextValue,
   | "aiUnavailable"
   | "codexDelegateAll"
+  | "codexErasureAvailable"
   | "blockCounts"
   | "brushColor"
   | "brushRadius"
@@ -142,6 +144,7 @@ function resolveRetouchCursor({
 function useInpaintingContextState({
   aiUnavailable,
   codexDelegateAll,
+  codexErasureAvailable,
   blockCounts,
   brushColor,
   brushRadius,
@@ -165,6 +168,7 @@ function useInpaintingContextState({
     () => ({
       aiUnavailable,
       codexDelegateAll,
+      codexErasureAvailable,
       currentChapter,
       selectedPage,
       blockCounts,
@@ -187,6 +191,7 @@ function useInpaintingContextState({
     [
       aiUnavailable,
       codexDelegateAll,
+      codexErasureAvailable,
       blockCounts,
       brushColor,
       brushRadius,
@@ -237,7 +242,7 @@ function useInpaintingContextActions({
       onRevertChapter: () => void revertInpainting("chapter"),
       onRunPage: () => void runInpainting("page"),
       onRunChapter: () => void runInpainting("chapter"),
-      onRunDrawnPattern: () => void runDrawnPatternInpainting(),
+      onRunDrawnPattern: (engine) => void runDrawnPatternInpainting(engine),
       onClearPatternMask,
       onAdjustPatternMask,
       onShowGuide,

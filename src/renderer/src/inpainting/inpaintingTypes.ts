@@ -21,6 +21,7 @@ export type BlockCounts = {
 
 export type InpaintingContextValue = {
   aiUnavailable?: boolean;
+  codexErasureAvailable?: boolean;
   codexDelegateAll?: boolean;
   currentChapter: ChapterSnapshot | null;
   selectedPage: MangaPage | null;
@@ -49,7 +50,7 @@ export type InpaintingContextValue = {
   onRevertChapter: () => void;
   onRunPage: () => void;
   onRunChapter: () => void;
-  onRunDrawnPattern: () => void;
+  onRunDrawnPattern: (engine?: "codex") => void;
   onClearPatternMask: () => void;
   onAdjustPatternMask: (deltaPx: number) => void;
   onShowGuide: () => void;

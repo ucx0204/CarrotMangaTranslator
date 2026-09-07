@@ -1,4 +1,7 @@
-import type { CodexTypesettingProgress } from "./codexTypesettingProgress";
+import type {
+  CodexPagePreview,
+  CodexTypesettingProgress,
+} from "./codexTypesettingProgress";
 import type {
   JobKind,
   JobPhase,
@@ -56,6 +59,7 @@ export type JobState = {
   failureGuidance?: JobFailureGuidance;
   research?: ResearchJobProgress;
   codexProgress?: CodexTypesettingProgress;
+  codexPreviewHistory?: CodexPagePreview[];
   targets?: PageJobTargetSnapshot[];
 };
 

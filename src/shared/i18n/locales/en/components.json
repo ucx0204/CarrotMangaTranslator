@@ -1587,7 +1587,8 @@
       "expandMask": "Expand",
       "soundEffectTouchup": "Sound-effect touch-up",
       "backAuto": "← Auto",
-      "nextExport": "Export →"
+      "nextExport": "Export →",
+      "eraseWithCodex": "Erase with Codex"
     },
     "export": {
       "resultAction": "Export results",
@@ -2011,7 +2012,8 @@
         "loadFailed": "Could not check Codex authentication.",
         "loginFailed": "Codex sign-in failed.",
         "logoutFailed": "Codex sign-out failed."
-      }
+      },
+      "imageReasoning": "Image generation reasoning effort"
     },
     "api": {
       "sections": {
@@ -2103,7 +2105,8 @@
         "reasoningEffort": "Reasoning effort",
         "extraBody": "Extra body JSON",
         "customHeaders": "Custom headers JSON"
-      }
+      },
+      "requestIntervalSeconds": "Minimum request interval (seconds)"
     },
     "hardware": {
       "summaryTitle": "Auto-detected GPU and active routes",
@@ -2563,7 +2566,8 @@
   "codexDelegation": {
     "title": "Let Codex handle everything",
     "active": "Codex typesetting",
-    "hardwareManaged": "Codex handles source reading, erasure and font matching."
+    "hardwareManaged": "Codex handles source reading, erasure and font matching.",
+    "costWarning": "Slow and token-intensive. Use when you have time and tokens to spare."
   },
   "regionOptions": {
     "standard": "Standard",

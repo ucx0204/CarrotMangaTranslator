@@ -7,6 +7,7 @@ import { RangeInput } from "../ui/Field";
 
 type RetouchInpaintingStepProps = {
   aiUnavailable?: boolean;
+  codexErasureAvailable?: boolean;
   activeToolLabel: string;
   brushColor: string;
   brushRadius: number;
@@ -18,7 +19,7 @@ type RetouchInpaintingStepProps = {
   onBrushRadiusChange: (value: number) => void;
   onAdjustPatternMask: (deltaPx: number) => void;
   onClearPatternMask: () => void;
-  onRunDrawnPattern: () => void;
+  onRunDrawnPattern: (engine?: "codex") => void;
   sizableTool: boolean;
   tool: RetouchTool;
 };
@@ -137,6 +138,7 @@ function RetouchColorControl({
 
 function DrawnMaskActionGroup({
   aiUnavailable,
+  codexErasureAvailable,
   hasSelectedPage,
   jobActive,
   maskStrokeCount,
@@ -146,6 +148,7 @@ function DrawnMaskActionGroup({
 }: RetouchInpaintingStepProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const [adjustmentRadius, setAdjustmentRadius] = React.useState(4);
+  const disabled = jobActive || !hasSelectedPage || maskStrokeCount === 0;
   return (
     <div className="inpaint-group">
       <div className="inpaint-group-head">
@@ -196,17 +199,17 @@ function DrawnMaskActionGroup({
         <Button
           variant="primary"
           fullWidth
-          disabled={
-            aiUnavailable ||
-            jobActive ||
-            !hasSelectedPage ||
-            maskStrokeCount === 0
-          }
-          onClick={onRunDrawnPattern}
+          disabled={aiUnavailable || disabled}
+          onClick={() => onRunDrawnPattern()}
         >
           {t("inpainting.retouch.eraseDrawnArea")}
         </Button>
       </div>
+      <CodexMaskButton
+        available={codexErasureAvailable}
+        disabled={disabled}
+        onRun={onRunDrawnPattern}
+      />
     </div>
   );
 }
@@ -218,4 +221,25 @@ function resolveMaskStrokeLabel(
   return maskStrokeCount > 0
     ? t("inpainting.retouch.drawnAreas", { count: maskStrokeCount })
     : t("inpainting.retouch.soundEffectTouchup");
+}
+
+function CodexMaskButton({
+  available,
+  disabled,
+  onRun,
+}: {
+  available?: boolean;
+  disabled: boolean;
+  onRun: RetouchInpaintingStepProps["onRunDrawnPattern"];
+}) {
+  const { t } = useTranslation("components");
+  return (
+    <Button
+      fullWidth
+      disabled={!available || disabled}
+      onClick={() => onRun("codex")}
+    >
+      {t("inpainting.retouch.eraseWithCodex")}
+    </Button>
+  );
 }

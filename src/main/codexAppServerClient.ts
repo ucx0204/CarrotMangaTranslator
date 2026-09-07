@@ -28,6 +28,7 @@ import {
 } from "./codexAppServerPreviewTool";
 import {
   buildCodexAppServerArguments,
+  buildCodexEnvironment,
   type CodexAppServerCapability,
 } from "./codexAppServerPolicy";
 
@@ -55,6 +56,7 @@ const productionStartRuntime: CodexAppServerClientStartRuntime = {
 };
 
 export class CodexAppServerClient {
+  private releaseAbort?: () => void;
   private constructor(
     private readonly transport: CodexAppServerTransport,
     private readonly capability: CodexAppServerCapability,
@@ -65,13 +67,16 @@ export class CodexAppServerClient {
       paths,
       appVersion,
       capability = "isolated",
+      signal,
     }: {
       paths: AppPaths;
       appVersion: string;
       capability?: CodexAppServerCapability;
+      signal?: AbortSignal;
     },
     runtime: CodexAppServerClientStartRuntime = productionStartRuntime,
   ): Promise<CodexAppServerClient> {
+    signal?.throwIfAborted();
     const codexHomeDir = paths.codexHomeDir ?? join(paths.dataRoot, "codex");
     const codexWorkspaceDir =
       paths.codexWorkspaceDir ?? join(paths.dataRoot, ".codex-workspace");
@@ -90,8 +95,14 @@ export class CodexAppServerClient {
       new CodexAppServerTransport(child, binary.packageVersion),
       capability,
     );
+    const abort = () => {
+      void client.dispose(true);
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+    client.releaseAbort = () => signal?.removeEventListener("abort", abort);
     try {
       await client.initialize(appVersion);
+      signal?.throwIfAborted();
       return client;
     } catch (error) {
       await client.dispose();
@@ -209,27 +220,20 @@ export class CodexAppServerClient {
       : undefined;
     try {
       return await this.runTurnInThread(input, threadId);
-    } catch (error) {
-      if (input.signal?.aborted) {
-        await this.transport
-          .request("turn/interrupt", { threadId })
-          .catch((_error) => {
-            // error-policy-allow: preserve the caller's abort while interruption remains best-effort.
-          });
-      }
-      throw error;
     } finally {
       disposePreview?.();
-      await this.transport
+      const cleanup = this.transport
         .request("thread/delete", { threadId }, 5_000)
         .catch((_error) => {
           // error-policy-allow: ephemeral thread cleanup must not replace the turn result or failure.
         });
+      if (!input.signal?.aborted) await cleanup;
     }
   }
 
-  async dispose(): Promise<void> {
-    await this.transport.dispose();
+  async dispose(force = false): Promise<void> {
+    this.releaseAbort?.();
+    await this.transport.dispose(force);
   }
 
   private async initialize(appVersion: string): Promise<void> {
@@ -274,7 +278,16 @@ export class CodexAppServerClient {
         threadId,
         turnId,
         input.signal,
-      );
+      ).catch((error: unknown) => {
+        if (input.signal?.aborted) {
+          void this.transport
+            .request("turn/interrupt", { threadId, turnId }, 5_000)
+            .catch((_error) => {
+              // error-policy-allow: cancellation does not wait for the remote interrupt acknowledgement.
+            });
+        }
+        throw error;
+      });
       const result =
         this.capability === "image-generation"
           ? extractCodexImageTurn(completed, threadId, turnId)
@@ -367,24 +380,6 @@ function buildThreadStart(
         : {}),
     },
   };
-}
-
-function buildCodexEnvironment(codexHomeDir: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    CODEX_HOME: codexHomeDir,
-    RUST_LOG: "warn",
-    LOG_FORMAT: "json",
-  };
-  for (const key of [
-    "OPENAI_API_KEY",
-    "CODEX_API_KEY",
-    "CODEX_ACCESS_TOKEN",
-    "OPENAI_BASE_URL",
-  ]) {
-    delete env[key];
-  }
-  return env;
 }
 
 function isolatedTurnConfig(capability: CodexAppServerCapability): JsonRecord {

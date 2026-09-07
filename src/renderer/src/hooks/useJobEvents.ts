@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- job batching and live chapter subscription cleanup share one lifecycle */
 import React from "react";
+import { appendCodexPreview } from "../../../shared/codexTypesettingProgress";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
@@ -376,6 +377,7 @@ function buildNextJobState({
     codexProgress: preserveCurrentStatus
       ? current.codexProgress
       : event.codexProgress,
+    codexPreviewHistory: nextCodexPreviewHistory(current, event),
     research: event.research ?? (sameJob ? current.research : undefined),
     targets: event.targets ?? (sameJob ? current.targets : undefined),
   };
@@ -467,4 +469,11 @@ function refreshLiveChapterAfterJobEvent({
     return;
   }
   liveChapterRefresh.request();
+}
+
+function nextCodexPreviewHistory(current: JobState, event: JobEvent) {
+  return appendCodexPreview(
+    current.id === event.id ? current.codexPreviewHistory : undefined,
+    event.codexProgress?.preview,
+  );
 }

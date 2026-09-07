@@ -1587,7 +1587,8 @@
       "expandMask": "拡張",
       "soundEffectTouchup": "効果音の補正",
       "backAuto": "← 自動",
-      "nextExport": "出力 →"
+      "nextExport": "出力 →",
+      "eraseWithCodex": "Codexで消去"
     },
     "export": {
       "resultAction": "結果を出力",
@@ -2011,7 +2012,8 @@
         "loadFailed": "Codexの認証状態を確認できませんでした。",
         "loginFailed": "Codexへのログインに失敗しました。",
         "logoutFailed": "Codexからのログアウトに失敗しました。"
-      }
+      },
+      "imageReasoning": "画像生成の推論強度"
     },
     "api": {
       "sections": {
@@ -2103,7 +2105,8 @@
         "reasoningEffort": "Reasoning effort",
         "extraBody": "Extra body JSON",
         "customHeaders": "Custom headers JSON"
-      }
+      },
+      "requestIntervalSeconds": "最小呼び出し間隔（秒）"
     },
     "hardware": {
       "summaryTitle": "自動検出GPUと現在の経路",
@@ -2563,7 +2566,8 @@
   "codexDelegation": {
     "title": "すべての作業をCodexに任せる",
     "active": "Codex自動組版",
-    "hardwareManaged": "原文の読み取り・消去・書体合わせは Codex が処理します。"
+    "hardwareManaged": "原文の読み取り・消去・書体合わせは Codex が処理します。",
+    "costWarning": "時間とトークンを多く消費します。余裕があるときにお使いください。"
   },
   "regionOptions": {
     "standard": "通常翻訳",

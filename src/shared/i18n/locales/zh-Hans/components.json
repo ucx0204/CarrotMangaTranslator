@@ -1587,7 +1587,8 @@
       "expandMask": "扩展",
       "soundEffectTouchup": "拟声词修整",
       "backAuto": "← 自动",
-      "nextExport": "导出 →"
+      "nextExport": "导出 →",
+      "eraseWithCodex": "用 Codex 擦除"
     },
     "export": {
       "resultAction": "导出结果",
@@ -2011,7 +2012,8 @@
         "loadFailed": "无法检查 Codex 认证状态。",
         "loginFailed": "Codex 登录失败。",
         "logoutFailed": "Codex 退出登录失败。"
-      }
+      },
+      "imageReasoning": "图像生成推理强度"
     },
     "api": {
       "sections": {
@@ -2103,7 +2105,8 @@
         "reasoningEffort": "Reasoning effort",
         "extraBody": "Extra body JSON",
         "customHeaders": "Custom headers JSON"
-      }
+      },
+      "requestIntervalSeconds": "最短调用间隔（秒）"
     },
     "hardware": {
       "summaryTitle": "自动检测GPU和当前路径",
@@ -2563,7 +2566,8 @@
   "codexDelegation": {
     "title": "将所有工作交给Codex",
     "active": "Codex自动排版",
-    "hardwareManaged": "原文识别、清除和字体匹配由 Codex 处理。"
+    "hardwareManaged": "原文识别、清除和字体匹配由 Codex 处理。",
+    "costWarning": "耗时且消耗大量令牌，请在时间和额度充足时使用。"
   },
   "regionOptions": {
     "standard": "普通翻译",

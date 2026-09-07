@@ -20,8 +20,42 @@ import { RunJobFeedback } from "../src/renderer/src/components/RunStatusFeedback
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { shouldRefreshLiveChapter } from "../src/renderer/src/hooks/jobEventUtils";
 import { StatusDockButton } from "../src/renderer/src/components/StatusDockButton";
+import { CodexJobPreview } from "../src/renderer/src/components/CodexJobPreview";
+import {
+  appendCodexPreview,
+  type CodexPagePreview,
+} from "../src/shared/codexTypesettingProgress";
 
 afterEach(cleanup);
+it("opens retained history without a live preview and recovers image loading failure", async () => {
+  const getPageImageDataUrl = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("unavailable"))
+    .mockResolvedValue(null);
+  window.mangaApi = createTestMangaGatewayStub({ getPageImageDataUrl });
+  const history: CodexPagePreview[] = [
+    {
+      pageId: "saved",
+      name: "saved.png",
+      imagePath: "saved.png",
+      stage: "background",
+      width: 100,
+      height: 100,
+      regions: [],
+    },
+  ];
+  const view = render(<CodexJobPreview history={history} />);
+  await waitFor(() => expect(getPageImageDataUrl).toHaveBeenCalledOnce());
+  fireEvent.click(screen.getByRole("button", { name: /중간 결과/ }));
+  expect(await screen.findByRole("alert")).toBeTruthy();
+  getPageImageDataUrl.mockResolvedValue("data:image/png;base64,c2F2ZWQ=");
+  fireEvent.click(screen.getByRole("button", { name: "다시 불러오기" }));
+  expect(await screen.findByRole("img", { name: "saved.png" })).toBeTruthy();
+  view.rerender(<CodexJobPreview history={[]} />);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.queryByRole("button", { name: /중간 결과/ })).toBeNull();
+});
+
 it("keeps page context through erasure, retry and stage changes with honest counts", () => {
   const events: JobEvent[] = [];
   const progress = createCodexProgressReporter("job", 34, (event) =>
@@ -65,9 +99,11 @@ it("shows read-only live images and translations, retries failures, and closes w
     cancelJob,
   });
   const events: JobEvent[] = [];
-  const report = createCodexProgressReporter("preview-job", 3, (event) =>
-    events.push(JobEventSchema.parse(event)),
-  );
+  let history: CodexPagePreview[] = [];
+  const report = createCodexProgressReporter("preview-job", 3, (event) => {
+    events.push(JobEventSchema.parse(event));
+    history = appendCodexPreview(history, event.codexProgress?.preview);
+  });
   report({
     step: "reading",
     page: 1,
@@ -92,7 +128,7 @@ it("shows read-only live images and translations, retries failures, and closes w
     if (!event) throw new Error("Missing emitted progress");
     return (
       <StatusDockButton
-        jobState={event}
+        jobState={{ ...event, codexPreviewHistory: history }}
         progressSnapshot={resolveProgressSnapshot(event)}
         showProgressBar
         statusLines={[]}
@@ -111,9 +147,10 @@ it("shows read-only live images and translations, retries failures, and closes w
   expect(screen.getByText("125%")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "축소" }));
   fireEvent.click(screen.getByRole("button", { name: "화면에 맞추기" }));
+  const loadsBeforeProgress = getPageImageDataUrl.mock.calls.length;
   report({ step: "erasurePlan" });
   view.rerender(renderJob());
-  expect(getPageImageDataUrl).toHaveBeenCalledTimes(1);
+  expect(getPageImageDataUrl).toHaveBeenCalledTimes(loadsBeforeProgress);
   const preview = events.at(-1)?.codexProgress?.preview;
   if (!preview) throw new Error("Missing emitted preview");
   report({
@@ -129,11 +166,15 @@ it("shows read-only live images and translations, retries failures, and closes w
   view.rerender(renderJob());
   await waitFor(() =>
     expect(
-      screen.getByRole("img", { name: "001.png" }).getAttribute("src"),
+      screen
+        .getAllByRole("img", { name: "001.png" })
+        .at(-1)
+        ?.getAttribute("src"),
     ).toContain(btoa("clean.png")),
   );
-  expect(screen.queryByText("읽은 문장")).toBeNull();
-  fireEvent.error(screen.getByRole("img", { name: "001.png" }));
+  expect(screen.getByText("읽은 문장")).toBeTruthy();
+  expect(screen.getAllByRole("img", { name: "001.png" })).toHaveLength(2);
+  fireEvent.error(screen.getAllByRole("img", { name: "001.png" })[1]);
   expect(screen.getByRole("alert")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "다시 불러오기" }));
   await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());

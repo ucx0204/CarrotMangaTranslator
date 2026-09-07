@@ -135,6 +135,7 @@ describeWindows("app settings helpers: model providers", () => {
       gemma: defaults.gemma,
       codex: {
         delegateAll: false,
+        imageReasoningEffort: "low",
         model: "gpt-5.6-sol",
         reasoningEffort: "ultra",
       },
@@ -181,6 +182,7 @@ describeWindows("app settings helpers: model providers", () => {
         apiKey: "sk-test",
         keyMaxAttempts: defaults.api.keyMaxAttempts,
         retryDelaySeconds: defaults.api.retryDelaySeconds,
+        requestIntervalSeconds: 0,
         temperature: DEFAULT_API_TEMPERATURE,
         topP: DEFAULT_API_TOP_P,
         topK: DEFAULT_API_TOP_K,
@@ -195,6 +197,7 @@ describeWindows("app settings helpers: model providers", () => {
             apiKey: "sk-test",
             keyMaxAttempts: defaults.api.keyMaxAttempts,
             retryDelaySeconds: defaults.api.retryDelaySeconds,
+            requestIntervalSeconds: 0,
             temperature: DEFAULT_API_TEMPERATURE,
             topP: DEFAULT_API_TOP_P,
             topK: DEFAULT_API_TOP_K,

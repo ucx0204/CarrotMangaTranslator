@@ -11,10 +11,13 @@ import {
 import {
   DEFAULT_API_KEY_MAX_ATTEMPTS,
   DEFAULT_API_RETRY_DELAY_SECONDS,
+  DEFAULT_API_REQUEST_INTERVAL_SECONDS,
   MAX_API_KEY_MAX_ATTEMPTS,
   MAX_API_RETRY_DELAY_SECONDS,
+  MAX_API_REQUEST_INTERVAL_SECONDS,
   MIN_API_KEY_MAX_ATTEMPTS,
   MIN_API_RETRY_DELAY_SECONDS,
+  MIN_API_REQUEST_INTERVAL_SECONDS,
 } from "../../shared/apiKeySettings";
 import { inferApiProviderPreset } from "../../shared/apiProviderPresets";
 import type { ResolvedApiSettings } from "../../shared/settingsTypes";
@@ -52,6 +55,12 @@ export function resolveDefaultApiSettings(
       DEFAULT_API_RETRY_DELAY_SECONDS,
       MIN_API_RETRY_DELAY_SECONDS,
       MAX_API_RETRY_DELAY_SECONDS,
+    ),
+    requestIntervalSeconds: resolveNumberRange(
+      env.MANGA_TRANSLATOR_API_REQUEST_INTERVAL_SECONDS,
+      DEFAULT_API_REQUEST_INTERVAL_SECONDS,
+      MIN_API_REQUEST_INTERVAL_SECONDS,
+      MAX_API_REQUEST_INTERVAL_SECONDS,
     ),
     temperature: resolveNullableNumberRange(
       env.MANGA_TRANSLATOR_API_TEMPERATURE,

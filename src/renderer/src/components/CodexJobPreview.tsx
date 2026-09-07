@@ -8,21 +8,42 @@ import { Button } from "./ui/Button";
 import { IconButton } from "./ui/IconButton";
 import { Modal } from "./ui/Modal";
 import { useEscapeStackEntry } from "./ui/popupStack";
+import {
+  usePageThumbnailObserver,
+  type ObservePageThumbnail,
+} from "./pageThumbnails";
 import { useContainedPageSize } from "./useContainedPageSize";
 import styles from "./CodexJobPreview.module.css";
 
 /** Read-only snapshots never enter the chapter draft or its autosave path. */
-export function CodexJobPreview({ preview }: { preview?: CodexPagePreview }) {
-  return preview ? <LivePreview preview={preview} /> : null;
+export function CodexJobPreview({
+  preview,
+  history = [],
+}: {
+  preview?: CodexPagePreview;
+  history?: CodexPagePreview[];
+}) {
+  const latest = preview ?? history.at(-1);
+  return latest ? (
+    <LivePreview
+      preview={latest}
+      history={history.length ? history : [latest]}
+    />
+  ) : null;
 }
 
-function LivePreview({ preview }: { preview: CodexPagePreview }) {
+function LivePreview({
+  preview,
+  history,
+}: {
+  preview: CodexPagePreview;
+  history: CodexPagePreview[];
+}) {
   const { t } = useTranslation("components");
   const [open, setOpen] = React.useState(false);
   const previewId = React.useId();
   useEscapeStackEntry(open);
-  const [reload, setReload] = React.useState(0);
-  const image = usePreviewImage(preview.imagePath, reload);
+  const image = usePreviewImage(preview.imagePath, 0);
   const title = `${preview.name} · ${t(`codexPreview.${preview.stage}`)}`;
   return (
     <>
@@ -56,28 +77,71 @@ function LivePreview({ preview }: { preview: CodexPagePreview }) {
               fillHeight
               bodyClassName={styles.body}
             >
-              <p className={styles.caption}>{title}</p>
-              {image.failed ? (
-                <div role="alert">
-                  <p>{t("codexFonts.imageFailed")}</p>
-                  <Button onClick={() => setReload((value) => value + 1)}>
-                    {t("codexPreview.retry")}
-                  </Button>
-                </div>
-              ) : image.url ? (
-                <PreviewContent
-                  preview={preview}
-                  url={image.url}
-                  onError={image.fail}
-                />
-              ) : (
-                <p role="status">{t("common.loading")}</p>
-              )}
+              <PreviewHistory history={history} />
             </Modal>
           </div>,
           document.body,
         )}
     </>
+  );
+}
+
+function PreviewHistory({ history }: { history: CodexPagePreview[] }) {
+  const list = React.useRef<HTMLOListElement>(null);
+  const observe = usePageThumbnailObserver(list);
+  React.useLayoutEffect(() => {
+    if (list.current) list.current.scrollTop = list.current.scrollHeight;
+  }, []);
+  return (
+    <ol ref={list} className={styles.history}>
+      {history.map((preview) => (
+        <PreviewEntry
+          key={preview.imagePath + preview.stage}
+          preview={preview}
+          observe={observe}
+        />
+      ))}
+    </ol>
+  );
+}
+
+function PreviewEntry({
+  preview,
+  observe,
+}: {
+  preview: CodexPagePreview;
+  observe: ObservePageThumbnail;
+}) {
+  const { t } = useTranslation("components");
+  const frame = React.useRef<HTMLLIElement>(null);
+  const [visible, setVisible] = React.useState(false);
+  const [reload, setReload] = React.useState(0);
+  React.useEffect(() => {
+    if (frame.current) return observe(frame.current, () => setVisible(true));
+  }, [observe]);
+  const image = usePreviewImage(preview.imagePath, reload, visible);
+  return (
+    <li ref={frame} className={styles.entry}>
+      <p className={styles.caption}>
+        {preview.name} · {t(`codexPreview.${preview.stage}`)}
+      </p>
+      {image.failed ? (
+        <div role="alert">
+          <p>{t("codexFonts.imageFailed")}</p>
+          <Button onClick={() => setReload((value) => value + 1)}>
+            {t("codexPreview.retry")}
+          </Button>
+        </div>
+      ) : image.url ? (
+        <PreviewContent
+          preview={preview}
+          url={image.url}
+          onError={image.fail}
+        />
+      ) : (
+        <p role="status">{t("common.loading")}</p>
+      )}
+    </li>
   );
 }
 
@@ -146,13 +210,14 @@ function PreviewContent({
   );
 }
 
-function usePreviewImage(path: string, reload: number) {
+function usePreviewImage(path: string, reload: number, enabled = true) {
   const [image, setImage] = React.useState({
     path: "",
     url: "",
     failed: false,
   });
   React.useEffect(() => {
+    if (!enabled) return;
     let active = true;
     void libraryGateway
       .getPageImageDataUrl(path)
@@ -166,7 +231,7 @@ function usePreviewImage(path: string, reload: number) {
     return () => {
       active = false;
     };
-  }, [path, reload]);
+  }, [path, reload, enabled]);
   return {
     ...(image.path === path ? image : { url: "", failed: false }),
     fail: () => setImage({ path, url: "", failed: true }),

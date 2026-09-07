@@ -212,6 +212,7 @@ export const AppSettingsSchema = z
     codex: z
       .object({
         delegateAll: z.boolean().optional(),
+        imageReasoningEffort: z.enum(CODEX_REASONING_EFFORTS).optional(),
         model: z.string().min(1).max(120),
         reasoningEffort: z.enum(CODEX_REASONING_EFFORTS),
       })

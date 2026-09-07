@@ -1,7 +1,11 @@
 import { nativeImage } from "electron";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
-import { isAbsolute, relative, resolve } from "node:path";
+import { resolve } from "node:path";
+import {
+  generateImage,
+  erasureImageInputs,
+} from "./codexTypesettingImageRequest";
 import { PNG } from "pngjs";
 import type {
   CodexPageReading,
@@ -12,7 +16,6 @@ import {
   createCodexBackgroundBlend,
   codexBackgroundSupportRect,
 } from "../../shared/codexTypesettingBlend";
-import { CODEX_TYPESETTING_MODEL } from "../../shared/codexTypesettingDefaults";
 import type { CodexAppServerClient } from "../codexAppServerClient";
 import type {
   TypesettingComposition,
@@ -61,8 +64,12 @@ export async function cleanIllustratedRegions(
           client,
           directory,
           signal,
-          `Edit the supplied source crop. Remove exactly the Japanese source lettering ${JSON.stringify(region.sourceText)} inside the WHITE permission mask. Reconstruct the artwork behind it naturally, matching linework, screentone, edges and texture. Add no replacement letters. Keep all framing and every other element. The second image is a permission mask, never artwork. Return one complete edited crop at the same aspect ratio. Keep the original pixel alignment: do not shift, zoom, crop, or redraw unmasked lines. ${repair ? `Correct these observed failures: ${JSON.stringify(repair.issues.filter((issue) => issue.regionId === region.id))}` : ""}`,
-          [crop.image, crop.mask],
+          `Reconstruct ALL magenta holes in image 1 as continuous background artwork. Image 2 is the WHITE edit-permission mask; image 3 is the original crop for surrounding-artwork reference only. Every masked stroke, including disconnected marks, outlines, long brush strokes and clipped letter fragments, must disappear. Do not restore the original lettering from image 3 or interpret its masked strokes as speed lines. The recognized source label ${JSON.stringify(region.sourceText)} is context only, never a limit on the mask. Match linework, screentone and texture. Add no replacement letters or magenta. Return one complete edited crop at the same aspect ratio and alignment; preserve all unmasked pixels. ${repair ? `Correct these observed failures: ${JSON.stringify(repair.issues.filter((issue) => issue.regionId === region.id))}` : ""}`,
+          erasureImageInputs(
+            crop.image,
+            PNG.sync.read(Buffer.from(crop.mask.split(",")[1], "base64")),
+          ),
+          { width: crop.width, height: crop.height },
         ));
       cache.set(region.id, {
         output,
@@ -243,72 +250,4 @@ async function applyGeneratedBackground(
     crop.permission,
     crop.blendOpacity,
   );
-}
-
-export async function generateImage(
-  client: Pick<CodexAppServerClient, "runEphemeralTurn">,
-  directory: string,
-  signal: AbortSignal,
-  prompt: string,
-  images: string[],
-): Promise<Buffer> {
-  const started = Date.now();
-  const response = await client.runEphemeralTurn({
-    model: CODEX_TYPESETTING_MODEL,
-    effort: "high",
-    cwd: directory,
-    signal,
-    instructions:
-      "Generate exactly one requested image using the built-in imagegen tool.",
-    input: [
-      { type: "text", text: prompt },
-      ...images.map((url) => ({
-        type: "image" as const,
-        url,
-        detail: "original" as const,
-      })),
-    ],
-  });
-  const { text, ...accounting } = response;
-  const callId = response.itemId?.replace(/[^\w-]/g, "_") ?? response.turnId;
-  await writeFile(
-    resolve(directory, `image-call-${callId}.json`),
-    JSON.stringify(
-      {
-        prompt,
-        imageCount: images.length,
-        elapsedMs: Date.now() - started,
-        ...accounting,
-      },
-      null,
-      2,
-    ),
-  );
-  if (response.routedModel && response.routedModel !== CODEX_TYPESETTING_MODEL)
-    throw new Error(
-      `검증되지 않은 모델로 변경되었습니다: ${response.routedModel}`,
-    );
-  const output = await readGeneratedImage(text, directory);
-  // Preserve failed alpha/registration outputs as evidence before consumer validation.
-  await writeFile(resolve(directory, `image-output-${callId}.png`), output);
-  return output;
-}
-
-async function readGeneratedImage(
-  text: string,
-  directory: string,
-): Promise<Buffer> {
-  const result: { result?: string; savedPath?: string } = JSON.parse(text);
-  if (result.result) {
-    const data = result.result.replace(/^data:image\/[\w+.-]+;base64,/, "");
-    if (data.length > 90_000_000 || !/^[\da-z+/=\s]+$/i.test(data))
-      throw new Error("ImageGen 이미지 데이터가 올바르지 않습니다.");
-    return Buffer.from(data, "base64");
-  }
-  if (!result.savedPath) throw new Error("ImageGen 이미지 자산이 없습니다.");
-  const path = resolve(directory, result.savedPath);
-  const local = relative(directory, path);
-  if (!local || local.startsWith("..") || isAbsolute(local))
-    throw new Error("ImageGen 자산 경로가 작업 폴더 밖입니다.");
-  return readFile(path);
 }

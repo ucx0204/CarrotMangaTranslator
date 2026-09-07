@@ -69,6 +69,7 @@ export type SettingsFormValues = {
   codexDelegateAll?: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
+  codexImageReasoningEffort: CodexReasoningEffort;
   researchTavilyAnalysisProvider: TavilyAnalysisProvider;
   researchGemmaPreset: ResearchGemmaPreset;
   researchGemmaReasoningEffort: ResearchGemmaReasoningEffort;
@@ -96,6 +97,7 @@ export type SettingsFormValues = {
   apiVertexServiceAccountPath: string;
   apiKeyMaxAttempts: string;
   apiRetryDelaySeconds: string;
+  apiRequestIntervalSeconds: string;
   apiTemperature: string;
   apiTopP: string;
   apiTopK: string;
@@ -213,6 +215,7 @@ function resolveModelFormValues(
   | "codexDelegateAll"
   | "codexModel"
   | "codexReasoningEffort"
+  | "codexImageReasoningEffort"
 > {
   return {
     modelSource: settings.gemma.modelSource,
@@ -231,6 +234,7 @@ function resolveModelFormValues(
     allowUnsafeUnifiedMemory: settings.gemma.allowUnsafeUnifiedMemory === true,
     codexDelegateAll: settings.codex.delegateAll === true,
     codexModel: settings.codex.model,
+    codexImageReasoningEffort: settings.codex.imageReasoningEffort ?? "low",
     codexReasoningEffort: resolveCodexReasoningEffortForModel(
       settings.codex.model,
       settings.codex.reasoningEffort,

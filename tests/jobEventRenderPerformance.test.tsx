@@ -20,6 +20,58 @@ afterEach(() => {
 });
 
 describe("job event render scheduling", () => {
+  it("retains every preview in a burst through completion and resets for a new job", () => {
+    const frames = installAnimationFrameController();
+    let emit: ((event: JobEvent) => void) | undefined;
+    const api = React.createRef<JobHarnessApi>();
+    render(
+      <JobHarness
+        onReady={(value) => {
+          api.current = value;
+        }}
+        subscribeJobEvents={(listener) => {
+          emit = listener;
+          return () => {};
+        }}
+      />,
+    );
+    const preview = (i: number) => ({
+      pageId: String(i),
+      name: i + ".jpg",
+      imagePath: "preview-" + i,
+      width: 100,
+      height: 100,
+      stage: "background" as const,
+      regions: [],
+    });
+    act(() => {
+      for (const i of [1, 2, 2, 3])
+        emit?.({
+          ...makeStateEvent("running"),
+          codexProgress: {
+            stage: "typesetting",
+            step: "background",
+            completed: 0,
+            total: 3,
+            preview: preview(i),
+          },
+        });
+      frames.flush();
+    });
+    expect(
+      api.current?.getJobState().codexPreviewHistory?.map((p) => p.imagePath),
+    ).toEqual(["preview-1", "preview-2", "preview-3"]);
+    act(() => {
+      emit?.(makeStateEvent("completed"));
+      frames.flush();
+    });
+    expect(api.current?.getJobState().codexPreviewHistory).toHaveLength(3);
+    act(() => {
+      emit?.({ ...makeStateEvent("starting"), id: "next-job" });
+      frames.flush();
+    });
+    expect(api.current?.getJobState().codexPreviewHistory).toEqual([]);
+  });
   it("blocks late child progress after an inpainting aggregate terminates but admits a new start", () => {
     const current: JobState = {
       id: "inpainting-flow-failed",

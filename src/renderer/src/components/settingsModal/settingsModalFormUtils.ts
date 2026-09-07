@@ -15,8 +15,10 @@ import {
   MAX_API_KEY_MAX_ATTEMPTS,
   MAX_API_KEYS,
   MAX_API_RETRY_DELAY_SECONDS,
+  MAX_API_REQUEST_INTERVAL_SECONDS,
   MIN_API_KEY_MAX_ATTEMPTS,
   MIN_API_RETRY_DELAY_SECONDS,
+  MIN_API_REQUEST_INTERVAL_SECONDS,
   normalizeApiKeysText,
   parseApiKeys,
 } from "../../../../shared/apiKeySettings";
@@ -87,6 +89,11 @@ function resolveApiDraft(values: SettingsFormValues) {
     MIN_API_RETRY_DELAY_SECONDS,
     MAX_API_RETRY_DELAY_SECONDS,
   );
+  const parsedApiRequestIntervalSeconds = parseRequiredNumberInput(
+    values.apiRequestIntervalSeconds,
+    MIN_API_REQUEST_INTERVAL_SECONDS,
+    MAX_API_REQUEST_INTERVAL_SECONDS,
+  );
   const apiKeysValidation = validateApiKeysInput(values.apiKey);
   const apiExtraBodyValidation = validateJsonObjectInput(
     values.apiExtraBodyJson,
@@ -103,8 +110,10 @@ function resolveApiDraft(values: SettingsFormValues) {
       values.apiVertexServiceAccountPath.trim(),
     parsedApiKeyMaxAttempts: parsedApiKeyMaxAttempts.value,
     parsedApiRetryDelaySeconds: parsedApiRetryDelaySeconds.value,
+    parsedApiRequestIntervalSeconds: parsedApiRequestIntervalSeconds.value,
     apiKeyMaxAttemptsValidation: parsedApiKeyMaxAttempts,
     apiRetryDelaySecondsValidation: parsedApiRetryDelaySeconds,
+    apiRequestIntervalSecondsValidation: parsedApiRequestIntervalSeconds,
     apiKeysValidation,
     parsedApiTemperature,
     parsedApiTopP,
@@ -119,6 +128,7 @@ function resolveApiDraft(values: SettingsFormValues) {
       parsedApiTemperature,
       parsedApiKeyMaxAttempts,
       parsedApiRetryDelaySeconds,
+      parsedApiRequestIntervalSeconds,
       parsedApiTopK,
       parsedApiTopP,
     }),
@@ -132,6 +142,7 @@ function resolveApiAdvancedSettingsValid({
   parsedApiTemperature,
   parsedApiKeyMaxAttempts,
   parsedApiRetryDelaySeconds,
+  parsedApiRequestIntervalSeconds,
   parsedApiTopK,
   parsedApiTopP,
 }: {
@@ -141,6 +152,7 @@ function resolveApiAdvancedSettingsValid({
   parsedApiTemperature: ValidationResult;
   parsedApiKeyMaxAttempts: ValidationResult;
   parsedApiRetryDelaySeconds: ValidationResult;
+  parsedApiRequestIntervalSeconds: ValidationResult;
   parsedApiTopK: ValidationResult;
   parsedApiTopP: ValidationResult;
 }): boolean {
@@ -150,6 +162,7 @@ function resolveApiAdvancedSettingsValid({
     parsedApiTopK.valid &&
     parsedApiKeyMaxAttempts.valid &&
     parsedApiRetryDelaySeconds.valid &&
+    parsedApiRequestIntervalSeconds.valid &&
     apiKeysValidation.valid &&
     apiExtraBodyValidation.valid &&
     apiCustomHeadersValidation.valid
@@ -172,6 +185,7 @@ export function getApiAdvancedSettingsMessage(
     draft.parsedApiTopK,
     draft.apiKeyMaxAttemptsValidation,
     draft.apiRetryDelaySecondsValidation,
+    draft.apiRequestIntervalSecondsValidation,
     draft.apiKeysValidation,
     draft.apiExtraBodyValidation,
     draft.apiCustomHeadersValidation,

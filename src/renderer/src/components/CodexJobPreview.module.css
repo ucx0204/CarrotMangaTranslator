@@ -32,8 +32,26 @@
 }
 
 .body {
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
+}
+
+.history {
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.entry {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--sp-3);
+  height: clamp(280px, 70vh, 700px);
+  padding-block: var(--sp-4);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .caption {

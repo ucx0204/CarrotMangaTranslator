@@ -13,6 +13,7 @@ import {
   buildCodexTypesetPage,
   withCodexReadingReview,
   withCodexTypesettingReview,
+  withBlockedCodexLettering,
 } from "./codexTypesettingBlocks";
 import { prepareCodexBackground } from "./codexTypesettingBackground";
 import { inspectGeneratedLettering } from "./codexTypesettingReadback";
@@ -206,16 +207,32 @@ async function typesetPage(
     return { page: clearTypesetting(page) };
   const background =
     ports.eraseOriginal === false
-      ? { page, reading, failedIds: [], issues: [] }
+      ? { page, reading, failedIds: [], blockedIds: [], issues: [] }
       : await prepareCodexBackground(page, reading, ports);
-  const result = await typesetCleanPage(
-    background.page,
-    background.reading,
-    plan,
-    samples,
-    ports,
+  const remaining = {
+    ...reading,
+    regions: reading.regions.map((region) =>
+      background.blockedIds.includes(region.id)
+        ? { ...region, action: "keep" as const }
+        : region,
+    ),
+  };
+  const result = remaining.regions.some((region) => region.action !== "keep")
+    ? await typesetCleanPage(background.page, remaining, plan, samples, ports)
+    : { page: background.page };
+  return withCodexTypesettingReview(
+    {
+      ...result,
+      page: withBlockedCodexLettering(
+        result.page,
+        reading,
+        background.blockedIds,
+        ports.blockId,
+      ),
+    },
+    background.issues,
+    ports.blockId,
   );
-  return withCodexTypesettingReview(result, background.issues, ports.blockId);
 }
 
 async function typesetCleanPage(

@@ -108,7 +108,7 @@ describe("chapter typesetting acceptance", () => {
     ]);
   });
 
-  it.each(["text", "background"] as const)(
+  it.each(["text", "background", "source", "generation", "all"] as const)(
     "retains the first %s result and exposes findings without automatic repair",
     async (kind) => {
       const stages: string[] = [];
@@ -127,8 +127,15 @@ describe("chapter typesetting acceptance", () => {
         },
         inspectBackground: async () => ({
           issues:
-            kind === "background"
-              ? [{ regionId: "page:bad", reason: "residual source", kind }]
+            kind === "background" || kind === "source"
+              ? [
+                  {
+                    regionId: "page:bad",
+                    reason: "review finding",
+                    kind: "background",
+                    sourceRemaining: kind === "source",
+                  },
+                ]
               : [],
           corrections: [],
         }),
@@ -159,7 +166,14 @@ describe("chapter typesetting acceptance", () => {
           }
           return {
             page: { ...source, inpaintedImagePath: "clean.png" },
-            issues: [],
+            issues:
+              kind === "generation" || kind === "all"
+                ? (kind === "all" ? regions : [regions[1]]).map((region) => ({
+                    regionId: `page:${region.id}`,
+                    kind: "background",
+                    reason: "registration unavailable",
+                  }))
+                : [],
           };
         },
         illustrate: async (proposed) => ({ page: proposed, issues: [] }),
@@ -219,19 +233,25 @@ describe("chapter typesetting acceptance", () => {
                   : [],
             };
           return {
-            layouts: regions.map((region) => ({
-              regionId: `page:${region.id}`,
-              translatedText: "안녕",
-              renderBbox: region.renderBbox,
-              fontSizePx: 24,
-              lineHeight: 1.2,
-              rotationDeg: 0,
-              outlineWidthPx: 0,
-              textColor: "#000000",
-              outlineColor: "#ffffff",
-              textAlign: "center",
-              direction: "horizontal",
-            })),
+            layouts: regions
+              .filter(
+                (region) =>
+                  region.id !== "bad" ||
+                  !["source", "generation"].includes(kind),
+              )
+              .map((region) => ({
+                regionId: `page:${region.id}`,
+                translatedText: "안녕",
+                renderBbox: region.renderBbox,
+                fontSizePx: 24,
+                lineHeight: 1.2,
+                rotationDeg: 0,
+                outlineWidthPx: 0,
+                textColor: "#000000",
+                outlineColor: "#ffffff",
+                textAlign: "center",
+                direction: "horizontal",
+              })),
           };
         },
       };
@@ -249,23 +269,28 @@ describe("chapter typesetting acceptance", () => {
       );
       expect(
         stages.filter((stage) => stage.startsWith("layout-")),
-      ).toHaveLength(1);
+      ).toHaveLength(kind === "all" ? 0 : 1);
       expect(
         stages.filter((stage) => stage.startsWith("review-")),
-      ).toHaveLength(1);
+      ).toHaveLength(kind === "all" ? 0 : 1);
       expect(restored).toEqual([]);
       expect(cleanedRegions).toEqual([["page:good", "page:bad"]]);
       expect(repairs).toEqual([]);
       expect(previews).toEqual(["reading", "background"]);
       expect(committed).toHaveLength(1);
       expect(result.pages[0].blocks[0].translatedText).toBe("안녕");
-      expect(result.pages[0].blocks[0].inpaintExcluded).not.toBe(true);
+      expect(result.pages[0].blocks[0].inpaintExcluded === true).toBe(
+        kind === "all",
+      );
       expect(result.pages[0].blocks[1]).toMatchObject({
         reviewStatus: "needs_review",
         translatedText: "안녕",
       });
-      expect(result.pages[0].blocks[1].textOpacity).not.toBe(0);
-      expect(result.pages[0].blocks[1].inpaintExcluded).not.toBe(true);
+      const blocked = ["source", "generation", "all"].includes(kind);
+      expect(result.pages[0].blocks[1].textOpacity === 0).toBe(blocked);
+      expect(result.pages[0].blocks[1].inpaintExcluded === true).toBe(blocked);
+      if (blocked)
+        expect(result.pages[0].blocks[1].generatedLettering).toBeUndefined();
       expect(stages.indexOf("source-families")).toBeLessThan(
         stages.indexOf("font-assignment"),
       );

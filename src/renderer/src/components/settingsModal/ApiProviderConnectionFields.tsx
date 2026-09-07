@@ -4,8 +4,10 @@ import {
   MAX_API_KEY_MAX_ATTEMPTS,
   MAX_API_KEYS_TEXT_LENGTH,
   MAX_API_RETRY_DELAY_SECONDS,
+  MAX_API_REQUEST_INTERVAL_SECONDS,
   MIN_API_KEY_MAX_ATTEMPTS,
   MIN_API_RETRY_DELAY_SECONDS,
+  MIN_API_REQUEST_INTERVAL_SECONDS,
 } from "../../../../shared/apiKeySettings";
 import {
   API_PROVIDER_PRESET_IDS,
@@ -270,18 +272,22 @@ function CredentialFields({
 function RetryFields({
   apiKeyMaxAttempts,
   apiRetryDelaySeconds,
+  apiRequestIntervalSeconds,
   clearTestState,
   controlsBusy,
   setApiKeyMaxAttempts,
   setApiRetryDelaySeconds,
+  setApiRequestIntervalSeconds,
 }: Pick<
   ApiProviderConnectionProps,
   | "apiKeyMaxAttempts"
   | "apiRetryDelaySeconds"
+  | "apiRequestIntervalSeconds"
   | "clearTestState"
   | "controlsBusy"
   | "setApiKeyMaxAttempts"
   | "setApiRetryDelaySeconds"
+  | "setApiRequestIntervalSeconds"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -310,6 +316,19 @@ function RetryFields({
           onValueChange={(next) => {
             clearTestState();
             setApiRetryDelaySeconds(next);
+          }}
+        />
+        <SettingsNumberField
+          ariaLabel={t("settings.api.requestIntervalSeconds")}
+          min={MIN_API_REQUEST_INTERVAL_SECONDS}
+          max={MAX_API_REQUEST_INTERVAL_SECONDS}
+          step={0.5}
+          precision={1}
+          value={apiRequestIntervalSeconds}
+          disabled={controlsBusy}
+          onValueChange={(next) => {
+            clearTestState();
+            setApiRequestIntervalSeconds(next);
           }}
         />
       </div>

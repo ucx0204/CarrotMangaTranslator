@@ -1,9 +1,25 @@
+import {
+  grayscale,
+  smooth,
+  sampleGray,
+  sampleChannel,
+  type Raster,
+  type GrayRaster,
+} from "./codexTypesettingPixelSampling";
 import type { PixelRect } from "../../shared/region";
+import {
+  registerTypesettingSeams,
+  typesettingSeamOffset,
+  type TypesettingSeamWarp,
+} from "./codexTypesettingSeamRegistration";
 
-type Raster = { width: number; height: number; data: Uint8Array };
-type Transform = { dx: number; dy: number; scale: number };
+type Transform = {
+  dx: number;
+  dy: number;
+  scale: number;
+  seams?: TypesettingSeamWarp;
+};
 type Sample = { x: number; y: number; value: number; weight: number };
-type GrayRaster = { width: number; height: number; data: Float32Array };
 
 /** Experimental gate: geometric agreement is necessary, not a semantic quality score. */
 export function registerTypesettingPatch(
@@ -15,12 +31,12 @@ export function registerTypesettingPatch(
   validateRegistrationInputs(source, generated, permission);
   const original = grayscale(source);
   const candidate = grayscale(generated);
-  const samples = contextSamples(original, erase);
-  const fitSamples = contextSamples(smooth(original), erase);
+  const samples = contextSamples(original, erase, permission);
+  const fitSamples = contextSamples(smooth(original), erase, permission);
   const fitCandidate = smooth(candidate);
   const identity = { dx: 0, dy: 0, scale: 1 };
   const before = sampleError(candidate, samples, identity);
-  let transform = identity;
+  let transform: Transform = identity;
   let error = sampleError(fitCandidate, fitSamples, identity);
   for (const step of [2, 0.5, 0.125]) {
     const result = searchTransform(
@@ -32,6 +48,7 @@ export function registerTypesettingPatch(
     );
     if (result.error < error) ({ transform, error } = result);
   }
+  transform = refineSeams(original, fitCandidate, permission, transform);
   error = sampleError(candidate, samples, transform);
   const boundary = boundaryErrors(candidate, original, erase, transform);
   const maskBoundary = permission
@@ -59,6 +76,24 @@ export function registerTypesettingPatch(
     opaque,
     reason: registrationReason(enoughContext, supported && opaque, accepted),
   };
+}
+
+function refineSeams(
+  source: GrayRaster,
+  candidate: GrayRaster,
+  permission: Uint8Array | undefined,
+  transform: Transform,
+): Transform {
+  if (!permission) return transform;
+  const seams = registerTypesettingSeams(
+    smooth(source),
+    permission,
+    (x, y, dx, dy) => {
+      const point = transformedPoint(candidate, x, y, transform);
+      return sampleGray(candidate, point.x + dx, point.y + dy);
+    },
+  );
+  return seams ? { ...transform, seams } : transform;
 }
 
 function validateRegistrationInputs(
@@ -131,30 +166,6 @@ function registrationReason(
     : "생성 배경과 원본의 선·명암 경계가 맞지 않습니다.";
 }
 
-function smooth(image: GrayRaster): GrayRaster {
-  const data = new Float32Array(image.data);
-  for (let y = 1; y < image.height - 1; y++) {
-    for (let x = 1; x < image.width - 1; x++) {
-      const at = y * image.width + x;
-      data[at] = smoothedValue(image, at);
-    }
-  }
-  return { ...image, data };
-}
-
-function smoothedValue(image: GrayRaster, at: number): number {
-  let value = 0;
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      value +=
-        image.data[at + dy * image.width + dx] *
-        (dx === 0 ? 2 : 1) *
-        (dy === 0 ? 2 : 1);
-    }
-  }
-  return value / 16;
-}
-
 function supportsErase(
   image: GrayRaster,
   erase: PixelRect,
@@ -217,20 +228,11 @@ export function compositeRegisteredPatch(
   }
 }
 
-function grayscale(image: Raster): GrayRaster {
-  const data = new Float32Array(image.width * image.height);
-  for (let index = 0; index < data.length; index++) {
-    const from = index * 4;
-    data[index] =
-      (image.data[from] * 0.2126 +
-        image.data[from + 1] * 0.7152 +
-        image.data[from + 2] * 0.0722) /
-      255;
-  }
-  return { width: image.width, height: image.height, data };
-}
-
-function contextSamples(image: GrayRaster, erase: PixelRect): Sample[] {
+function contextSamples(
+  image: GrayRaster,
+  erase: PixelRect,
+  permission?: Uint8Array,
+): Sample[] {
   const samples: Sample[] = [];
   const stride = Math.max(
     1,
@@ -238,11 +240,34 @@ function contextSamples(image: GrayRaster, erase: PixelRect): Sample[] {
   );
   for (let y = 2; y < image.height - 2; y += stride) {
     for (let x = 2; x < image.width - 2; x += stride) {
-      if (inside(x, y, erase, 4)) continue;
+      // A tight SFX box may span the crop while the spaces between its glyphs
+      // still contain useful, preserved alignment context.
+      if (
+        permission
+          ? nearPermission(image, permission, x, y)
+          : inside(x, y, erase, 4)
+      )
+        continue;
       samples.push(makeSample(image, x, y));
     }
   }
   return samples;
+}
+
+function nearPermission(
+  image: GrayRaster,
+  permission: Uint8Array,
+  x: number,
+  y: number,
+): boolean {
+  const top = Math.max(0, y - 4),
+    bottom = Math.min(image.height - 1, y + 4);
+  const left = Math.max(0, x - 4),
+    right = Math.min(image.width - 1, x + 4);
+  for (let row = top; row <= bottom; row++)
+    for (let col = left; col <= right; col++)
+      if (permission[row * image.width + col]) return true;
+  return false;
 }
 
 function makeSample(image: GrayRaster, x: number, y: number): Sample {
@@ -354,46 +379,14 @@ function transformedPoint(
 ) {
   const cx = (image.width - 1) / 2;
   const cy = (image.height - 1) / 2;
-  return {
+  const point = {
     x: (x - cx) * transform.scale + cx + transform.dx,
     y: (y - cy) * transform.scale + cy + transform.dy,
   };
-}
-
-function sampleGray(image: GrayRaster, x: number, y: number): number {
-  if (x < 0 || y < 0 || x > image.width - 1 || y > image.height - 1) return 0.5;
-  const left = Math.floor(x);
-  const top = Math.floor(y);
-  const right = Math.min(left + 1, image.width - 1);
-  const bottom = Math.min(top + 1, image.height - 1);
-  const fx = x - left;
-  const fy = y - top;
-  return (
-    (image.data[top * image.width + left] * (1 - fx) +
-      image.data[top * image.width + right] * fx) *
-      (1 - fy) +
-    (image.data[bottom * image.width + left] * (1 - fx) +
-      image.data[bottom * image.width + right] * fx) *
-      fy
-  );
-}
-
-function sampleChannel(
-  image: Raster,
-  x: number,
-  y: number,
-  channel: number,
-): number {
-  const left = Math.max(0, Math.min(image.width - 1, Math.floor(x)));
-  const top = Math.max(0, Math.min(image.height - 1, Math.floor(y)));
-  const right = Math.min(left + 1, image.width - 1);
-  const bottom = Math.min(top + 1, image.height - 1);
-  const fx = Math.max(0, Math.min(1, x - left));
-  const fy = Math.max(0, Math.min(1, y - top));
-  const at = (px: number, py: number) =>
-    image.data[(py * image.width + px) * 4 + channel];
-  return (
-    (at(left, top) * (1 - fx) + at(right, top) * fx) * (1 - fy) +
-    (at(left, bottom) * (1 - fx) + at(right, bottom) * fx) * fy
-  );
+  if (transform.seams) {
+    const offset = typesettingSeamOffset(transform.seams, x, y);
+    point.x = Math.max(0, Math.min(image.width - 1, point.x + offset.dx));
+    point.y = Math.max(0, Math.min(image.height - 1, point.y + offset.dy));
+  }
+  return point;
 }

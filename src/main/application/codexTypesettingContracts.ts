@@ -27,6 +27,7 @@ export type TypesettingIssue = {
   regionId: string;
   reason: string;
   kind: "text" | "background" | "image";
+  sourceRemaining?: boolean;
 };
 export type TypesettingComposition = {
   page: MangaPage;

@@ -13,6 +13,53 @@ import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets
 import { createDefaultApiProfileFormValues } from "../src/renderer/src/components/settingsModal/settingsModalProfileFormValues";
 
 describe("remote model settings form", () => {
+  it("defaults image generation to low and persists it independently from text reasoning", () => {
+    const initialSettings = resolveDefaultAppSettings({});
+    initialSettings.codex.reasoningEffort = "high";
+    expect(
+      createSettingsFormValues(initialSettings).codexImageReasoningEffort,
+    ).toBe("low");
+    delete initialSettings.codex.imageReasoningEffort;
+    expect(
+      createSettingsFormValues(initialSettings).codexImageReasoningEffort,
+    ).toBe("low");
+    const values = {
+      ...createSettingsFormValues(initialSettings),
+      codexImageReasoningEffort: "max" as const,
+    };
+    const saved = buildSettingsFromDraft({
+      values,
+      draft: resolveSettingsDraft(values),
+      initialSettings,
+      keybindings: {},
+      blockFormatDefaults: DEFAULT_BLOCK_FORMAT_DEFAULTS,
+    });
+    expect(saved.codex.reasoningEffort).toBe("high");
+    expect(saved.codex.imageReasoningEffort).toBe("max");
+    expect(createSettingsFormValues(saved).codexImageReasoningEffort).toBe(
+      "max",
+    );
+  });
+  it("round-trips the request interval in the saved active API profile", () => {
+    const initialSettings = resolveDefaultAppSettings({});
+    const values = {
+      ...createSettingsFormValues(initialSettings),
+      modelProvider: "openai-api" as const,
+      apiBaseUrl: "https://example.com/v1",
+      apiModel: "vision",
+      apiRequestIntervalSeconds: "5",
+    };
+    const saved = buildSettingsFromDraft({
+      values,
+      draft: resolveSettingsDraft(values),
+      initialSettings,
+      keybindings: {},
+      blockFormatDefaults: DEFAULT_BLOCK_FORMAT_DEFAULTS,
+    });
+    expect(saved.api.requestIntervalSeconds).toBe(5);
+    expect(createSettingsFormValues(saved).apiRequestIntervalSeconds).toBe("5");
+    expect(initialSettings.api.requestIntervalSeconds).toBe(0);
+  });
   it("keeps the masked API key count for display without saving the metadata", () => {
     const initialSettings = resolveDefaultAppSettings();
     initialSettings.api.apiKey = SETTINGS_SECRET_PRESERVE_SENTINEL;

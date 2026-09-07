@@ -105,3 +105,21 @@ export const CODEX_APP_SERVER_ARGUMENTS =
   buildCodexAppServerArguments("isolated");
 export const CODEX_APP_SERVER_RESEARCH_ARGUMENTS =
   buildCodexAppServerArguments("research");
+
+export function buildCodexEnvironment(codexHomeDir: string): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    CODEX_HOME: codexHomeDir,
+    RUST_LOG: "warn",
+    LOG_FORMAT: "json",
+  };
+  for (const key of [
+    "OPENAI_API_KEY",
+    "CODEX_API_KEY",
+    "CODEX_ACCESS_TOKEN",
+    "OPENAI_BASE_URL",
+  ]) {
+    delete env[key];
+  }
+  return env;
+}

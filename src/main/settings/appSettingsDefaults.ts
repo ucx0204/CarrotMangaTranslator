@@ -207,6 +207,7 @@ function resolveDefaultCodexSettings(
 ): AppSettings["codex"] {
   return {
     delegateAll: false,
+    imageReasoningEffort: "low",
     model: resolveNonEmptyString(
       env.MANGA_TRANSLATOR_CODEX_MODEL,
       DEFAULT_CODEX_MODEL,

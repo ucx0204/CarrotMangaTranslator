@@ -186,6 +186,7 @@ function summarizeRemoteModelOptions(
     apiKeyCount: parseApiKeys(options.apiKey).length,
     apiKeyMaxAttempts: options.apiKeyMaxAttempts,
     apiRetryDelaySeconds: options.apiRetryDelaySeconds,
+    apiRequestIntervalSeconds: options.apiRequestIntervalSeconds,
     apiTemperature: options.apiTemperature,
     apiTopP: options.apiTopP,
     apiTopK: options.apiTopK,

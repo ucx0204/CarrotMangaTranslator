@@ -71,6 +71,7 @@ export function buildSettingsFromDraft({
     codexDelegateAll: values.codexDelegateAll,
     codexModel: draft.trimmedCodexModel,
     codexReasoningEffort: values.codexReasoningEffort,
+    codexImageReasoningEffort: values.codexImageReasoningEffort,
     ...buildInternetResearchFields(draft, values),
     apiBaseUrl: draft.normalizedApiBaseUrl ?? initialSettings.api.baseUrl,
     apiProvider: values.apiProvider,
@@ -81,6 +82,7 @@ export function buildSettingsFromDraft({
     apiVertexServiceAccountPath: draft.trimmedApiVertexServiceAccountPath,
     apiKeyMaxAttempts: draft.parsedApiKeyMaxAttempts,
     apiRetryDelaySeconds: draft.parsedApiRetryDelaySeconds,
+    apiRequestIntervalSeconds: draft.parsedApiRequestIntervalSeconds,
     apiTemperature: draft.parsedApiTemperature.value,
     apiTopP: draft.parsedApiTopP.value,
     apiTopK: draft.parsedApiTopK.value,
@@ -145,11 +147,13 @@ function parseApiProfile(
   const model = profile.apiModel.trim();
   const keyMaxAttempts = Number(profile.apiKeyMaxAttempts);
   const retryDelaySeconds = Number(profile.apiRetryDelaySeconds);
+  const requestIntervalSeconds = Number(profile.apiRequestIntervalSeconds);
   if (
     !baseUrl ||
     !model ||
     !Number.isFinite(keyMaxAttempts) ||
-    !Number.isFinite(retryDelaySeconds)
+    !Number.isFinite(retryDelaySeconds) ||
+    !Number.isFinite(requestIntervalSeconds)
   ) {
     return null;
   }
@@ -164,6 +168,7 @@ function parseApiProfile(
       : {}),
     keyMaxAttempts: Math.round(keyMaxAttempts),
     retryDelaySeconds,
+    requestIntervalSeconds,
     temperature: parseOptionalNumber(profile.apiTemperature),
     topP: parseOptionalNumber(profile.apiTopP),
     topK: parseOptionalNumber(profile.apiTopK),

@@ -6,3 +6,9 @@
 .setting strong {
   color: var(--accent-hi);
 }
+
+.warning {
+  margin: var(--sp-2) 0 0;
+  color: var(--danger-text);
+  font-size: var(--font-sm);
+}

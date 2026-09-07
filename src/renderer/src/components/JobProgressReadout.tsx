@@ -70,6 +70,7 @@ export function JobProgressReadout({
       <CodexJobPreview
         key={jobState.id}
         preview={jobState.codexProgress?.preview}
+        history={jobState.codexPreviewHistory}
       />
     </>
   );

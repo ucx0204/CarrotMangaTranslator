@@ -13,6 +13,7 @@ import { RetouchInpaintingStep } from "./inpaintingPanel/RetouchInpaintingStep";
 type CommonInspectorProps = {
   jobActive: boolean;
   aiUnavailable?: boolean;
+  codexErasureAvailable?: boolean;
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
   onCancelJob: () => void;
@@ -29,7 +30,7 @@ type RetouchInspectorProps = CommonInspectorProps & {
   onBrushRadiusChange: (value: number) => void;
   onAdjustPatternMask: (deltaPx: number) => void;
   onClearPatternMask: () => void;
-  onRunDrawnPattern: () => void;
+  onRunDrawnPattern: (engine?: "codex") => void;
 };
 
 export type InpaintingControlPanelProps = RetouchInspectorProps;
@@ -89,6 +90,7 @@ function RetouchInspectorBody({
   return (
     <RetouchInpaintingStep
       aiUnavailable={props.aiUnavailable}
+      codexErasureAvailable={props.codexErasureAvailable}
       activeToolLabel={t(`inpainting.tools.${props.tool}`)}
       brushColor={props.brushColor}
       brushRadius={props.brushRadius}

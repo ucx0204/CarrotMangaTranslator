@@ -11,6 +11,8 @@ export type RuntimeOptions = {
   }) => Promise<string>;
   apiKeyMaxAttempts?: number | string | null;
   apiRetryDelaySeconds?: number | string | null;
+  apiRequestIntervalSeconds?: number | string | null;
+  apiBaseUrl?: string;
   amdRocmTarget?: string | null;
   computeGpuIndex?: number | null;
   disableHostRocmTargetDetection?: boolean | null;

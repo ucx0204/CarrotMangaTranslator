@@ -91,6 +91,27 @@ afterEach(() => {
 });
 
 describe("CodexSettingsFields", () => {
+  it("keeps Astra image effort independent and starts at low", async () => {
+    accountGateway.get.mockResolvedValue({
+      ...signedInAccount,
+      models: [
+        ...catalog,
+        { ...catalog[0], id: "gpt-6-astra", displayName: "GPT-6-Astra" },
+      ],
+    });
+    renderHarness("gpt-6-astra", "high");
+    await screen.findByRole("combobox", { name: "이미지 생성 추론 강도" });
+    expect(screen.getByTestId("image-effort").textContent).toBe("low");
+    chooseCustomSelectOption("이미지 생성 추론 강도", "최대");
+    expect(screen.getByTestId("image-effort").textContent).toBe("max");
+    expect(screen.getByTestId("selected-effort").textContent).toBe("high");
+    chooseCustomSelectOption("Codex 모델", "GPT-5.6-Sol");
+    expect(
+      screen.queryByRole("combobox", { name: "이미지 생성 추론 강도" }),
+    ).toBeNull();
+    chooseCustomSelectOption("Codex 모델", "GPT-6-Astra");
+    expect(screen.getByTestId("image-effort").textContent).toBe("max");
+  });
   it("loads the catalog after StrictMode effect cleanup and replay", async () => {
     render(
       <React.StrictMode>
@@ -412,16 +433,21 @@ function Harness({
 }): React.JSX.Element {
   const [model, setModel] = React.useState(initialModel);
   const [effort, setEffort] = React.useState(initialEffort);
+  const [imageEffort, setImageEffort] =
+    React.useState<CodexReasoningEffort>("low");
   return (
     <>
       <CodexSettingsFields
         clearTestState={vi.fn()}
         codexModel={model}
         codexReasoningEffort={effort}
+        codexImageReasoningEffort={imageEffort}
+        setCodexImageReasoningEffort={setImageEffort}
         controlsBusy={busy}
         setCodexModel={setModel}
         setCodexReasoningEffort={setEffort}
       />
+      <output data-testid="image-effort">{imageEffort}</output>
       <output data-testid="selected-model">{model}</output>
       <output data-testid="selected-effort">{effort}</output>
     </>

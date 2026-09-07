@@ -3,8 +3,13 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PNG } from "pngjs";
-import { createCodexInpaintingEngine } from "../src/main/inpainting/codexInpaintingEngine";
-import type { CodexAppServerClient } from "../src/main/codexAppServerClient";
+import {
+  createCodexInpaintingEngine,
+  acquireCodexInpaintingEngine,
+} from "../src/main/inpainting/codexInpaintingEngine";
+import { CodexAppServerClient } from "../src/main/codexAppServerClient";
+import type { AppPaths } from "../src/main/appPaths";
+import { resolveDefaultAppSettings } from "../src/main/settings/appSettingsDefaults";
 
 vi.mock("electron", () => ({
   app: { getVersion: () => "fixture" },
@@ -19,9 +24,76 @@ vi.mock("electron", () => ({
 }));
 const dirs: string[] = [];
 afterEach(async () => {
+  vi.restoreAllMocks();
   for (const dir of dirs.splice(0))
     await rm(dir, { recursive: true, force: true });
 });
+
+it.each([undefined, "max"] as const)(
+  "routes image effort independently of text effort (%s)",
+  async (imageEffort) => {
+    const fixture = await setup();
+    const dispose = vi.fn(async () => {});
+    // App Server is the external image-generation boundary; raster composition remains real.
+    const connection: Pick<
+      CodexAppServerClient,
+      "readAccount" | "listModels" | "runEphemeralTurn" | "dispose"
+    > = {
+      readAccount: async () => ({
+        account: { type: "chatgpt", email: null, planType: "plus" },
+        requiresOpenaiAuth: true,
+      }),
+      listModels: async () => [
+        {
+          id: "gpt-6-astra",
+          displayName: "GPT-6-Astra",
+          hidden: false,
+          isDefault: true,
+          defaultReasoningEffort: "low",
+          supportedReasoningEfforts: ["low", "high", "max"],
+        },
+      ],
+      runEphemeralTurn: fixture.turn,
+      dispose,
+    };
+    const start = vi
+      .spyOn(CodexAppServerClient, "start")
+      .mockResolvedValue(connection as CodexAppServerClient);
+    const settings = resolveDefaultAppSettings({});
+    settings.codex = {
+      ...settings.codex,
+      model: "gpt-6-astra",
+      reasoningEffort: "high",
+      imageReasoningEffort: imageEffort,
+    };
+    const signal = new AbortController().signal;
+    const lease = await acquireCodexInpaintingEngine(
+      { dataRoot: fixture.directory } as AppPaths,
+      settings,
+      signal,
+    );
+    await lease.engine.inpaint(
+      fixture.bitmap,
+      192,
+      160,
+      fixture.mask,
+      [fixture.window],
+      { featherPx: 8 },
+    );
+    expect(start).toHaveBeenCalledWith(
+      expect.objectContaining({ capability: "image-generation", signal }),
+    );
+    expect(fixture.turn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "gpt-6-astra",
+        effort: imageEffort ?? "low",
+      }),
+    );
+    expect(fixture.bitmap[(75 * 192 + 85) * 4]).toBe(255);
+    await lease.release();
+    expect(dispose).toHaveBeenCalledOnce();
+  },
+);
 
 it("generates one expanded crop and preserves pixels beyond the owned core and feather", async () => {
   const fixture = await setup();
@@ -110,6 +182,7 @@ async function setup() {
     },
   );
   return {
+    directory,
     bitmap,
     mask,
     window,

@@ -118,6 +118,10 @@ function useSettingsFormSetters(
         setValues,
         "codexReasoningEffort",
       ),
+      setCodexImageReasoningEffort: createFormFieldDispatch(
+        setValues,
+        "codexImageReasoningEffort",
+      ),
       ...createResearchFormSetters(setValues),
       ...createApiFormSetters(setValues),
       setGraphicsGpuPreference: createFormFieldDispatch(
@@ -226,6 +230,10 @@ function createApiFormSetters(
     setApiRetryDelaySeconds: createFormFieldDispatch(
       setValues,
       "apiRetryDelaySeconds",
+    ),
+    setApiRequestIntervalSeconds: createFormFieldDispatch(
+      setValues,
+      "apiRequestIntervalSeconds",
     ),
     setApiTemperature: createFormFieldDispatch(setValues, "apiTemperature"),
     setApiTopP: createFormFieldDispatch(setValues, "apiTopP"),
@@ -367,6 +375,7 @@ function readActiveApiProfile(
     apiVertexServiceAccountPath: values.apiVertexServiceAccountPath,
     apiKeyMaxAttempts: values.apiKeyMaxAttempts,
     apiRetryDelaySeconds: values.apiRetryDelaySeconds,
+    apiRequestIntervalSeconds: values.apiRequestIntervalSeconds,
     apiTemperature: values.apiTemperature,
     apiTopP: values.apiTopP,
     apiTopK: values.apiTopK,

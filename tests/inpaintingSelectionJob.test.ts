@@ -34,6 +34,7 @@ describe("single-chapter automatic inpainting jobs", () => {
     >();
 
   beforeEach(() => {
+    send.mockClear();
     chapters.clear();
     revisionChanges.length = 0;
     chapters.set(
@@ -112,6 +113,68 @@ describe("single-chapter automatic inpainting jobs", () => {
       expect(settings.codex.delegateAll).toBe(false);
     },
   );
+
+  it("routes brush masks through Codex with delegation off and preserves the mask contract", async () => {
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+    const settings = resolveDefaultAppSettings({});
+    settings.modelProvider = "openai-codex";
+    settings.codex.model = "gpt-6-astra";
+    settings.codex.delegateAll = false;
+    harness.runtime.getSettings = async () => settings;
+    const engine: InpaintingEngine = {
+      model: "codex",
+      backend: "imagegen",
+      runtimePath: "test",
+      runRootDir: "test",
+      inpaint: async () => {},
+      dispose: async () => {},
+    };
+    const release = vi.fn();
+    harness.runtime.acquireCodexEngine = vi.fn(async () => ({
+      engine,
+      release,
+    }));
+    const strokes = [
+      {
+        points: [
+          { x: 30, y: 30 },
+          { x: 50, y: 50 },
+        ],
+        radiusPx: 12,
+      },
+    ];
+    const drawn = vi.fn<typeof harness.runtime.inpaintDrawnPage>(
+      async (page, options) => {
+        expect(options.inpaintingEngine).toBe(engine);
+        expect(options.strokes).toEqual(strokes);
+        expect(options.featherPx).toBe(8);
+        return {
+          page: { ...page, inpaintedImagePath: "drawn-codex.png" },
+          blocksErased: 1,
+        };
+      },
+    );
+    harness.runtime.inpaintDrawnPage = drawn;
+    const request = StartInpaintingRequestSchema.parse({
+      mode: "page-pattern-drawn",
+      engine: "codex",
+      chapterId: chapterAId,
+      pageId: pageA1Id,
+      strokes,
+      featherPx: 8,
+    });
+    const result = await startInpaintingJob(
+      makeContext(send),
+      request,
+      harness.runtime,
+    );
+    expect(result.status, result.error).toBe("completed");
+    expect(drawn).toHaveBeenCalledOnce();
+    expect(harness.acquireEngine).not.toHaveBeenCalled();
+    expect(release).toHaveBeenCalledOnce();
+    expect(result.chapter?.pages[0].inpaintedImagePath).toBe("drawn-codex.png");
+  });
 
   it("processes one chapter with one engine lease and aggregate progress", async () => {
     const { startInpaintingJob } =

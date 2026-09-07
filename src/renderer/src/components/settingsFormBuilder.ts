@@ -59,6 +59,7 @@ type BuildSettingsFromFormInput = {
   codexDelegateAll?: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
+  codexImageReasoningEffort: CodexReasoningEffort;
   researchTavilyAnalysisProvider: TavilyAnalysisProvider;
   researchGemmaPreset: ResearchGemmaPreset;
   researchGemmaReasoningEffort: ResearchGemmaReasoningEffort;
@@ -83,6 +84,7 @@ type BuildSettingsFromFormInput = {
   apiVertexServiceAccountPath: string;
   apiKeyMaxAttempts: number;
   apiRetryDelaySeconds: number;
+  apiRequestIntervalSeconds: number;
   apiTemperature: number | null;
   apiTopP: number | null;
   apiTopK: number | null;
@@ -131,6 +133,7 @@ export function buildSettingsFromForm(
         input.codexDelegateAll === true,
       model: input.codexModel || input.initialSettings.codex.model,
       reasoningEffort: input.codexReasoningEffort,
+      imageReasoningEffort: input.codexImageReasoningEffort,
     },
     internetResearch: {
       tavilyAnalysisProvider: input.researchTavilyAnalysisProvider,
@@ -228,6 +231,7 @@ function buildApiSettings(input: BuildSettingsFromFormInput) {
       : {}),
     keyMaxAttempts: input.apiKeyMaxAttempts,
     retryDelaySeconds: input.apiRetryDelaySeconds,
+    requestIntervalSeconds: input.apiRequestIntervalSeconds,
     temperature: input.apiTemperature,
     topP: input.apiTopP,
     topK: input.apiTopK,

@@ -10,6 +10,10 @@ export function normalizeCodexSettings(
 ): AppSettings["codex"] {
   return {
     delegateAll: codex?.delegateAll === true,
+    imageReasoningEffort: resolveCodexReasoningEffort(
+      codex?.imageReasoningEffort,
+      "low",
+    ),
     model: resolveNonEmptyString(codex?.model, defaults.codex.model),
     reasoningEffort: resolveCodexReasoningEffort(
       codex?.reasoningEffort,

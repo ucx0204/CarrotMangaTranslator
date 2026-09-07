@@ -1,3 +1,5 @@
+import { useCodexConnection } from "../../hooks/useCodexConnection";
+import { canUseCodexTypesetting } from "../../../../shared/codexCapabilities";
 import { useAppSessionCommandController } from "./useAppSessionCommandController";
 import { useAppSessionInpaintingController } from "./useAppSessionInpaintingController";
 import type { ChapterSessionController } from "./useChapterSessionController";
@@ -8,7 +10,12 @@ export function useInpaintingController(
   chapter: ChapterSessionController,
   translation: TranslationController,
 ) {
+  const { account } = useCodexConnection(true);
   const inpainting = useAppSessionInpaintingController({
+    codexErasureAvailable: canUseCodexTypesetting(
+      chapter.settingsDialog.settings,
+      account,
+    ),
     aiUnavailable:
       chapter.settingsDialog.codexDelegationEnabled &&
       !chapter.settingsDialog.codexDelegationActive,

@@ -248,6 +248,7 @@ export const backgroundReviewSchema = z
             regionId: z.string(),
             kind: z.literal("background"),
             reason: z.string().min(1).max(2000),
+            sourceRemaining: z.boolean().optional(),
           })
           .strict(),
       )

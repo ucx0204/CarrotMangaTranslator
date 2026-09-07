@@ -1587,7 +1587,8 @@
       "expandMask": "擴張",
       "soundEffectTouchup": "擬聲詞修整",
       "backAuto": "← 自動",
-      "nextExport": "匯出 →"
+      "nextExport": "匯出 →",
+      "eraseWithCodex": "用 Codex 擦除"
     },
     "export": {
       "resultAction": "匯出結果",
@@ -2011,7 +2012,8 @@
         "loadFailed": "無法檢查 Codex 驗證狀態。",
         "loginFailed": "Codex 登入失敗。",
         "logoutFailed": "Codex 登出失敗。"
-      }
+      },
+      "imageReasoning": "圖像生成推理強度"
     },
     "api": {
       "sections": {
@@ -2103,7 +2105,8 @@
         "reasoningEffort": "Reasoning effort",
         "extraBody": "Extra body JSON",
         "customHeaders": "Custom headers JSON"
-      }
+      },
+      "requestIntervalSeconds": "最短呼叫間隔（秒）"
     },
     "hardware": {
       "summaryTitle": "自動偵測GPU與目前路徑",
@@ -2563,7 +2566,8 @@
   "codexDelegation": {
     "title": "將所有工作交給Codex",
     "active": "Codex自動排版",
-    "hardwareManaged": "原文辨識、清除與字體匹配由 Codex 處理。"
+    "hardwareManaged": "原文辨識、清除與字體匹配由 Codex 處理。",
+    "costWarning": "耗時且消耗大量權杖，請在時間和額度充足時使用。"
   },
   "regionOptions": {
     "standard": "一般翻譯",

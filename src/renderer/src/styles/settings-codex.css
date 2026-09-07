@@ -71,13 +71,14 @@
 
 .codex-catalog-fields {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--sp-3) var(--sp-4);
 }
 
-.codex-catalog-row {
+.codex-catalog-fields > .codex-catalog-row {
   display: grid;
-  grid-template-columns: minmax(104px, 0.24fr) minmax(0, 1fr);
-  gap: 14px;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
 }
 
@@ -90,9 +91,8 @@
     width: 100%;
   }
 
-  .codex-catalog-row {
-    grid-template-columns: minmax(92px, 0.3fr) minmax(0, 1fr);
-    gap: 10px;
+  .codex-catalog-fields {
+    column-gap: var(--sp-3);
   }
 }
 

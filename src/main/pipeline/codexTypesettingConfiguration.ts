@@ -4,7 +4,10 @@ import { resolveCodexTypesettingOptions } from "../../shared/codexTypesettingDef
 import type { getAppPaths } from "../appPaths";
 import { getAppSettings } from "../settingsStore";
 import { codexTypesettingOptionsSchema } from "../../shared/codexTypesettingSchemas";
-import { CODEX_TYPESETTING_MODEL } from "../../shared/codexTypesettingDefaults";
+import {
+  CODEX_TYPESETTING_MODEL,
+  CODEX_TYPESETTING_RECIPE,
+} from "../../shared/codexTypesettingDefaults";
 import { BUILT_IN_BLOCK_FONTS } from "../../shared/blockFontCatalog";
 import { listCustomFonts } from "../customFonts";
 export async function readTypesettingConfiguration(
@@ -72,4 +75,17 @@ export function configuredTypesettingOptions(
         settings.translation?.targetLanguage ?? "ko",
       )
     : undefined;
+}
+
+export function typesettingRunContract(
+  codex: Awaited<ReturnType<typeof getAppSettings>>["codex"],
+  settings: ReturnType<typeof codexTypesettingOptionsSchema.parse>,
+) {
+  return {
+    recipe: CODEX_TYPESETTING_RECIPE,
+    model: CODEX_TYPESETTING_MODEL,
+    effort: codex.reasoningEffort,
+    imageEffort: codex.imageReasoningEffort ?? "low",
+    preset: settings.preset,
+  };
 }

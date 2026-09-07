@@ -12,7 +12,11 @@ export async function prepareCodexBackground(
   reading: CodexPageReading,
   ports: CodexTypesettingPorts,
 ): Promise<
-  TypesettingComposition & { reading: CodexPageReading; failedIds: string[] }
+  TypesettingComposition & {
+    reading: CodexPageReading;
+    failedIds: string[];
+    blockedIds: string[];
+  }
 > {
   ports.signal.throwIfAborted();
   ports.progress({ step: "background" });
@@ -55,6 +59,14 @@ export async function prepareCodexBackground(
     ...cleaned,
     reading,
     failedIds: [...new Set(issues.map((issue) => issue.regionId))],
+    blockedIds: [
+      ...new Set([
+        ...cleaned.issues.map((issue) => issue.regionId),
+        ...review.issues
+          .filter((issue) => issue.sourceRemaining)
+          .map((issue) => issue.regionId),
+      ]),
+    ],
     issues,
   };
 }

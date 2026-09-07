@@ -9,7 +9,7 @@ import { getActiveGeneratedLettering } from "../../shared/generatedLettering";
 import { parseRichText } from "../../shared/richTextMarkup";
 import type { TranslationBlock } from "../../shared/textTypes";
 import type { CodexAppServerClient } from "../codexAppServerClient";
-import { generateImage } from "./codexTypesettingImageGeneration";
+import { generateImage } from "./codexTypesettingImageRequest";
 import { sourceRegionCrops } from "./codexTypesettingRaster";
 import type {
   TypesettingComposition,
@@ -66,13 +66,12 @@ export async function generateLetteringLayers(
           reference.label,
         ),
         [reference.dataUrl],
+        { width: destination.w, height: destination.h },
       );
       const bytes = transparentLetteringBytes(
         output,
         letteringMatteChannel(block),
       );
-      if (bytes.length > 5_999_980)
-        throw new Error("효과음 레이어가 저장 용량 제한을 초과했습니다.");
       blocks[index] = {
         ...block,
         generatedLettering: {
@@ -158,7 +157,7 @@ The family description and planned treatment below guide consistency and emphasi
 Preserve the per-run emphasis, size and color in this typography description; do not print its field names: ${JSON.stringify(typography.runs)}.
 The source chapter's font-family analysis describes this style: ${JSON.stringify(style?.description ?? "expressive hand-drawn manga lettering")}.
 Treatment: ${JSON.stringify({ bold: block.bold, italic: block.italic, fill: block.textColor, outline: block.outlineColor, outlineWidthInPagePixels: block.outlineWidthPx })}.
-Destination is ${size.w} by ${size.h} ORIGINAL PAGE pixels. Choose a suitable resolution and matching aspect ratio. The app applies ${block.rotationDeg ?? 0} degrees of rotation separately; do not duplicate it.
+Destination is ${size.w} by ${size.h} ORIGINAL PAGE pixels. Keep the matching aspect ratio. The app applies ${block.rotationDeg ?? 0} degrees of rotation separately; do not duplicate it.
 ${context.issues.length ? `Correct these observed defects: ${JSON.stringify(context.issues.filter((issue) => issue.regionId === regionId))}` : ""}`;
 }
 
@@ -177,12 +176,14 @@ function transparentLetteringBytes(output: Buffer, channel: number): Buffer {
   const generated = nativeImage.createFromBuffer(output);
   if (generated.isEmpty())
     throw new Error("ImageGen 효과음 이미지가 비어 있습니다.");
-  const bytes = generated.toPNG();
-  const image = PNG.sync.read(bytes);
+  const image = PNG.sync.read(generated.toPNG());
   if (!image.data.some((value, index) => index % 4 === 3 && value === 0))
     removeLetteringMatte(image, channel);
   assertTransparentLettering(image);
-  return PNG.sync.write(image);
+  const bytes = PNG.sync.write(image);
+  if (bytes.length > 5_999_980)
+    throw new Error("효과음 레이어가 저장 용량 제한을 초과했습니다.");
+  return bytes;
 }
 
 function letteringMatteChannel(block: TranslationBlock): number {

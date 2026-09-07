@@ -19,6 +19,7 @@ import type { StatusLogEntry } from "../hooks/useStatusLog";
 
 export type UnifiedRightRailProps = {
   aiUnavailable?: boolean;
+  codexErasureAvailable?: boolean;
   brushColor: string;
   brushRadius: number;
   canRedo: boolean;
@@ -80,7 +81,7 @@ export type UnifiedRightRailProps = {
   onPeekToggle: () => void;
   onRedo: () => void;
   onResetPage: () => void;
-  onRunDrawnPattern: () => void;
+  onRunDrawnPattern: (engine?: "codex") => void;
   onRunBubbleLayout: () => void;
   onRetrySave: () => void;
   onToggleBlocks: () => void;
@@ -138,6 +139,7 @@ function ContextualRightRailPanel(
     return (
       <InpaintingControlPanel
         aiUnavailable={props.aiUnavailable}
+        codexErasureAvailable={props.codexErasureAvailable}
         brushColor={props.brushColor}
         brushRadius={props.brushRadius}
         hasSelectedPage={Boolean(props.selectedPage)}

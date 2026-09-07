@@ -1587,7 +1587,8 @@
       "expandMask": "확장",
       "soundEffectTouchup": "효과음 보정",
       "backAuto": "← 자동",
-      "nextExport": "출력 →"
+      "nextExport": "출력 →",
+      "eraseWithCodex": "Codex로 지우기"
     },
     "export": {
       "resultAction": "결과물 출력",
@@ -2011,7 +2012,8 @@
         "loadFailed": "Codex 인증 상태를 확인하지 못했습니다.",
         "loginFailed": "Codex 로그인에 실패했습니다.",
         "logoutFailed": "Codex 로그아웃에 실패했습니다."
-      }
+      },
+      "imageReasoning": "이미지 생성 추론 강도"
     },
     "api": {
       "sections": {
@@ -2103,7 +2105,8 @@
         "reasoningEffort": "Reasoning effort",
         "extraBody": "Extra body JSON",
         "customHeaders": "Custom headers JSON"
-      }
+      },
+      "requestIntervalSeconds": "최소 호출 간격 (초)"
     },
     "hardware": {
       "summaryTitle": "자동 감지 GPU와 현재 경로",
@@ -2563,7 +2566,8 @@
   "codexDelegation": {
     "title": "모든 작업 Codex에게 맡기기",
     "active": "Codex 자동 식자",
-    "hardwareManaged": "원문 인식·원문 제거·서체 맞춤은 Codex가 처리합니다."
+    "hardwareManaged": "원문 인식·원문 제거·서체 맞춤은 Codex가 처리합니다.",
+    "costWarning": "시간·토큰 소모가 큽니다. 여유가 있을 때 사용하세요."
   },
   "regionOptions": {
     "standard": "일반 번역",

@@ -33,7 +33,7 @@ export type InpaintingActions = {
   ) => Promise<boolean>;
   revertInpainting: (scope: InpaintingScope) => Promise<void>;
   runBubbleLayout: (blockId?: string) => Promise<void>;
-  runDrawnPatternInpainting: () => Promise<void>;
+  runDrawnPatternInpainting: (engine?: "codex") => Promise<void>;
   runInpainting: (scope: InpaintingScope, blockId?: string) => Promise<void>;
   runInpaintingSelection: (
     selections: AutoInpaintingChapterSelection[],
@@ -122,7 +122,8 @@ function useExclusiveImageActions(
     [actions, runExclusive],
   );
   const runDrawnPatternInpainting = useCallback(
-    () => runExclusive(actions.runDrawnPatternInpainting),
+    (engine?: "codex") =>
+      runExclusive(() => actions.runDrawnPatternInpainting(engine)),
     [actions, runExclusive],
   );
   const runBubbleLayout = useCallback(

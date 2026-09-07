@@ -108,6 +108,7 @@ type GemmaSettings = {
 };
 
 type CodexSettings = {
+  imageReasoningEffort?: CodexReasoningEffort;
   delegateAll?: boolean;
   model: string;
   reasoningEffort: CodexReasoningEffort;
@@ -126,6 +127,7 @@ export type ApiProviderProfileSettings = {
   vertexServiceAccountPath?: string;
   keyMaxAttempts?: number;
   retryDelaySeconds?: number;
+  requestIntervalSeconds?: number;
   temperature?: number | null;
   topP?: number | null;
   topK?: number | null;

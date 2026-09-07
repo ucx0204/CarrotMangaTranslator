@@ -13,10 +13,13 @@ import type {
 import {
   DEFAULT_API_KEY_MAX_ATTEMPTS,
   DEFAULT_API_RETRY_DELAY_SECONDS,
+  DEFAULT_API_REQUEST_INTERVAL_SECONDS,
   MAX_API_KEY_MAX_ATTEMPTS,
   MAX_API_RETRY_DELAY_SECONDS,
+  MAX_API_REQUEST_INTERVAL_SECONDS,
   MIN_API_KEY_MAX_ATTEMPTS,
   MIN_API_RETRY_DELAY_SECONDS,
+  MIN_API_REQUEST_INTERVAL_SECONDS,
 } from "../../shared/apiKeySettings";
 import type { TranslationOptions } from "./appSettingsTypes";
 import { inferApiProviderPreset } from "../../shared/apiProviderPresets";
@@ -40,6 +43,7 @@ type ApiTranslationOptions = Pick<
   | "apiAccessTokenProvider"
   | "apiKeyMaxAttempts"
   | "apiRetryDelaySeconds"
+  | "apiRequestIntervalSeconds"
   | "apiTemperature"
   | "apiTopP"
   | "apiTopK"
@@ -72,22 +76,7 @@ export function resolveApiTranslationOptions(
       : apiKey
         ? { apiKey }
         : {}),
-    apiKeyMaxAttempts: Math.round(
-      resolveNumberRange(
-        runtimeEnv.MANGA_TRANSLATOR_API_KEY_MAX_ATTEMPTS ??
-          settings.api.keyMaxAttempts,
-        DEFAULT_API_KEY_MAX_ATTEMPTS,
-        MIN_API_KEY_MAX_ATTEMPTS,
-        MAX_API_KEY_MAX_ATTEMPTS,
-      ),
-    ),
-    apiRetryDelaySeconds: resolveNumberRange(
-      runtimeEnv.MANGA_TRANSLATOR_API_RETRY_DELAY_SECONDS ??
-        settings.api.retryDelaySeconds,
-      DEFAULT_API_RETRY_DELAY_SECONDS,
-      MIN_API_RETRY_DELAY_SECONDS,
-      MAX_API_RETRY_DELAY_SECONDS,
-    ),
+    ...resolveApiRequestPolicy(runtimeEnv, settings),
     apiTemperature: resolveApiNullableNumber({
       envValue: runtimeEnv.MANGA_TRANSLATOR_API_TEMPERATURE,
       settingsValue: settings.api.temperature,
@@ -212,4 +201,35 @@ function resolveApiReasoningEffort({
     return resolveNullableReasoningEffort(envValue, fallback);
   }
   return resolveNullableReasoningEffort(settingsValue, fallback);
+}
+
+function resolveApiRequestPolicy(
+  runtimeEnv: NodeJS.ProcessEnv,
+  settings: AppSettings,
+) {
+  return {
+    apiKeyMaxAttempts: Math.round(
+      resolveNumberRange(
+        runtimeEnv.MANGA_TRANSLATOR_API_KEY_MAX_ATTEMPTS ??
+          settings.api.keyMaxAttempts,
+        DEFAULT_API_KEY_MAX_ATTEMPTS,
+        MIN_API_KEY_MAX_ATTEMPTS,
+        MAX_API_KEY_MAX_ATTEMPTS,
+      ),
+    ),
+    apiRetryDelaySeconds: resolveNumberRange(
+      runtimeEnv.MANGA_TRANSLATOR_API_RETRY_DELAY_SECONDS ??
+        settings.api.retryDelaySeconds,
+      DEFAULT_API_RETRY_DELAY_SECONDS,
+      MIN_API_RETRY_DELAY_SECONDS,
+      MAX_API_RETRY_DELAY_SECONDS,
+    ),
+    apiRequestIntervalSeconds: resolveNumberRange(
+      runtimeEnv.MANGA_TRANSLATOR_API_REQUEST_INTERVAL_SECONDS ??
+        settings.api.requestIntervalSeconds,
+      DEFAULT_API_REQUEST_INTERVAL_SECONDS,
+      MIN_API_REQUEST_INTERVAL_SECONDS,
+      MAX_API_REQUEST_INTERVAL_SECONDS,
+    ),
+  };
 }

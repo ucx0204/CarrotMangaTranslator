@@ -21,6 +21,10 @@ export type CodexSettingsFieldsProps = {
   clearTestState: () => void;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
+  codexImageReasoningEffort?: CodexReasoningEffort;
+  setCodexImageReasoningEffort?: React.Dispatch<
+    React.SetStateAction<CodexReasoningEffort>
+  >;
   controlsBusy: boolean;
   setCodexModel: React.Dispatch<React.SetStateAction<string>>;
   setCodexReasoningEffort: React.Dispatch<
@@ -58,6 +62,10 @@ export function CodexSettingsFields(
         <div className="codex-catalog-fields">
           <CodexModelField {...props} models={models} />
           <CodexReasoningField {...props} models={models} />
+          {props.codexModel === "gpt-6-astra" &&
+            props.setCodexImageReasoningEffort && (
+              <CodexReasoningField {...props} models={models} image />
+            )}
         </div>
       ) : null}
       {props.setCodexDelegateAll && props.codexModel === "gpt-6-astra" ? (
@@ -84,6 +92,7 @@ export function CodexSettingsFields(
               props.setCodexDelegateAll?.(enabled);
             }}
           />
+          <p className={styles.warning}>{t("codexDelegation.costWarning")}</p>
         </div>
       ) : null}
     </>
@@ -144,15 +153,23 @@ function CodexReasoningField({
   controlsBusy,
   models,
   setCodexReasoningEffort,
+  codexImageReasoningEffort,
+  setCodexImageReasoningEffort,
+  image = false,
 }: CodexSettingsFieldsProps & {
   models: readonly CodexAccountModel[];
+  image?: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const model = resolveCatalogModel(models, codexModel);
-  const activeEffort = model.supportedReasoningEfforts.includes(
-    codexReasoningEffort,
-  )
-    ? codexReasoningEffort
+  const selectedEffort = image
+    ? (codexImageReasoningEffort ?? "low")
+    : codexReasoningEffort;
+  const label = image
+    ? t("settings.codex.imageReasoning")
+    : t("settings.codex.reasoning.label");
+  const activeEffort = model.supportedReasoningEfforts.includes(selectedEffort)
+    ? selectedEffort
     : model.defaultReasoningEffort;
   return (
     <Field
@@ -160,11 +177,11 @@ function CodexReasoningField({
       className="codex-catalog-row"
       density="comfortable"
       variant="row"
-      label={t("settings.codex.reasoning.label")}
-      labelId="codex-reasoning-label"
+      label={label}
+      labelId={image ? "codex-image-reasoning-label" : "codex-reasoning-label"}
     >
       <Select
-        ariaLabel={t("settings.codex.reasoning.ariaLabel")}
+        ariaLabel={image ? label : t("settings.codex.reasoning.ariaLabel")}
         value={activeEffort}
         disabled={controlsBusy}
         options={model.supportedReasoningEfforts.map((effort) => ({
@@ -176,7 +193,8 @@ function CodexReasoningField({
             (effort) => effort === nextValue,
           ) as CodexAccountModel["defaultReasoningEffort"];
           clearTestState();
-          setCodexReasoningEffort(nextEffort);
+          if (image) setCodexImageReasoningEffort?.(nextEffort);
+          else setCodexReasoningEffort(nextEffort);
         }}
       />
     </Field>
@@ -194,13 +212,29 @@ function useCatalogSelectionRepair(
     const effortChanged = !model.supportedReasoningEfforts.includes(
       props.codexReasoningEffort,
     );
-    if (!modelChanged && !effortChanged) return;
+    const imageChanged = isUnsupportedImageEffort(props, model);
+    if (!modelChanged && !effortChanged && !imageChanged) return;
+    if (imageChanged)
+      props.setCodexImageReasoningEffort?.(model.defaultReasoningEffort);
     props.clearTestState();
     if (modelChanged) props.setCodexModel(model.id);
     if (effortChanged) {
       props.setCodexReasoningEffort(model.defaultReasoningEffort);
     }
   }, [account, props]);
+}
+
+function isUnsupportedImageEffort(
+  props: CodexSettingsFieldsProps,
+  model: CodexAccountModel,
+): boolean {
+  return (
+    model.id === "gpt-6-astra" &&
+    Boolean(props.setCodexImageReasoningEffort) &&
+    !model.supportedReasoningEfforts.includes(
+      props.codexImageReasoningEffort ?? "low",
+    )
+  );
 }
 
 function resolveCatalogModel(

@@ -370,7 +370,10 @@ async function prepareInpaintingPageRuntime({
     () =>
       acquireInpaintingEngineIfNeeded({
         engine:
-          request.mode === "selection-pattern" ? request.engine : undefined,
+          request.mode === "selection-pattern" ||
+          request.mode === "page-pattern-drawn"
+            ? request.engine
+            : undefined,
         abortController,
         appSettings,
         context,

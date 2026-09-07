@@ -13,16 +13,14 @@ import { getAppPaths } from "../appPaths";
 import {
   readTypesettingConfiguration,
   configuredTypesettingOptions,
+  typesettingRunContract,
 } from "./codexTypesettingConfiguration";
 import { CodexAppServerClient } from "../codexAppServerClient";
 import {
   createPageExportRenderSession,
   type PageExportRenderSession,
 } from "../pageExport";
-import {
-  CODEX_TYPESETTING_MODEL,
-  CODEX_TYPESETTING_RECIPE,
-} from "../../shared/codexTypesettingDefaults";
+import { CODEX_TYPESETTING_MODEL } from "../../shared/codexTypesettingDefaults";
 import type { CodexTypesettingPorts } from "../application/codexTypesettingContracts";
 import { runCodexTypesetting } from "../application/codexTypesettingService";
 import { askAstraJson } from "./codexTypesettingRequest";
@@ -71,12 +69,13 @@ export async function runCodexTypesettingPipeline(options: PipelineOptions) {
   const client = await CodexAppServerClient.start({
     paths,
     appVersion: app.getVersion(),
+    signal: options.signal,
   });
   let renderer: PageExportRenderSession | undefined;
-  const images = createLetteringClient(paths, directory, codex);
-  const previews = createErasureClient(paths);
+  const images = createLetteringClient(paths, directory, codex, options.signal);
+  const previews = createErasureClient(paths, options.signal);
   try {
-    await requireAstra(client, codex.reasoningEffort);
+    await requireAstra(client, codex);
     renderer = await createPageExportRenderSession({
       dataRoot: paths.dataRoot,
       decodeFallback: options.decodeImage ?? (async () => null),
@@ -102,7 +101,7 @@ export async function runCodexTypesettingPipeline(options: PipelineOptions) {
       previewClient: previews.get,
       imageClient: images.get,
     };
-    await recordRunContract(runtime, settings.preset);
+    await evidence("run-contract", typesettingRunContract(codex, settings));
     const cancelRenderer = () => renderer?.cancel?.();
     options.signal.addEventListener("abort", cancelRenderer, { once: true });
     try {
@@ -133,7 +132,7 @@ export async function runCodexTypesettingPipeline(options: PipelineOptions) {
 
 async function requireAstra(
   client: CodexAppServerClient,
-  effort: Runtime["effort"],
+  codex: Awaited<ReturnType<typeof readTypesettingConfiguration>>["codex"],
 ): Promise<void> {
   const account = await client.readAccount(false);
   if (account.account?.type !== "chatgpt")
@@ -141,7 +140,11 @@ async function requireAstra(
   const model = (await client.listModels()).find(
     (item) => item.id === CODEX_TYPESETTING_MODEL,
   );
-  if (!model?.supportedReasoningEfforts.includes(effort))
+  if (
+    ![codex.reasoningEffort, codex.imageReasoningEffort ?? "low"].every(
+      (effort) => model?.supportedReasoningEfforts.includes(effort),
+    )
+  )
     throw new Error("이 계정에서 선택한 Astra 추론 강도를 사용할 수 없습니다.");
 }
 
@@ -225,7 +228,10 @@ function createPorts(runtime: Runtime): CodexTypesettingPorts {
   };
 }
 
-function createErasureClient(paths: ReturnType<typeof getAppPaths>) {
+function createErasureClient(
+  paths: ReturnType<typeof getAppPaths>,
+  signal: AbortSignal,
+) {
   let client: CodexAppServerClient | undefined;
   return {
     get: async () => {
@@ -233,6 +239,7 @@ function createErasureClient(paths: ReturnType<typeof getAppPaths>) {
         paths,
         appVersion: app.getVersion(),
         capability: "typesetting-preview",
+        signal,
       });
       return client;
     },
@@ -355,7 +362,8 @@ function compositionPorts(
 function createLetteringClient(
   paths: ReturnType<typeof getAppPaths>,
   directory: string,
-  codex: { model: string; reasoningEffort: Runtime["effort"] },
+  codex: { imageReasoningEffort?: Runtime["effort"] },
+  signal: AbortSignal,
 ) {
   let client: CodexAppServerClient | undefined;
   return {
@@ -364,6 +372,7 @@ function createLetteringClient(
         paths: { ...paths, codexWorkspaceDir: directory },
         appVersion: app.getVersion(),
         capability: "image-generation",
+        signal,
       });
       const connected = client;
       return {
@@ -372,8 +381,8 @@ function createLetteringClient(
         ) =>
           connected.runEphemeralTurn({
             ...request,
-            model: codex.model,
-            effort: codex.reasoningEffort,
+            model: CODEX_TYPESETTING_MODEL,
+            effort: codex.imageReasoningEffort ?? "low",
           }),
       };
     },
@@ -381,18 +390,6 @@ function createLetteringClient(
       await client?.dispose();
     },
   };
-}
-
-async function recordRunContract(
-  runtime: Runtime,
-  preset: import("../../shared/codexTypesettingTypes").CodexFontPreset,
-) {
-  await runtime.evidence("run-contract", {
-    recipe: CODEX_TYPESETTING_RECIPE,
-    model: CODEX_TYPESETTING_MODEL,
-    effort: runtime.effort,
-    preset,
-  });
 }
 
 export function runConfiguredCodexPipeline(

@@ -426,12 +426,14 @@ describe("IPC schemas", () => {
       {
         chapterId,
         mode: "page-pattern-drawn",
+        engine: "codex",
         pageId,
         strokes: Array.from({ length: 200 }, () => validStroke),
       },
       "인페인팅 작업",
     );
     expect(parsed.mode).toBe("page-pattern-drawn");
+    expect(parsed.mode === "page-pattern-drawn" && parsed.engine).toBe("codex");
     expect(
       parsed.mode === "page-pattern-drawn" ? parsed.strokes : [],
     ).toHaveLength(200);

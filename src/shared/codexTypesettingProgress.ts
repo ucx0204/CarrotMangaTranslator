@@ -31,6 +31,22 @@ const codexPagePreviewSchema = z
 
 export type CodexPagePreview = z.infer<typeof codexPagePreviewSchema>;
 
+/** Job-owned metadata survives closing either progress surface; pixels stay on disk. */
+export function appendCodexPreview(
+  history: CodexPagePreview[] = [],
+  preview?: CodexPagePreview,
+): CodexPagePreview[] {
+  if (
+    !preview ||
+    history.some(
+      (item) =>
+        item.imagePath === preview.imagePath && item.stage === preview.stage,
+    )
+  )
+    return history;
+  return [...history, preview];
+}
+
 export const codexProgressSchema = z
   .object({
     stage: z.enum(["reading", "fonts", "typesetting"]),

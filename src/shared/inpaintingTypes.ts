@@ -40,6 +40,7 @@ type StartInpaintingTargetRequest =
   | {
       chapterId: string;
       mode: "page-pattern-drawn";
+      engine?: "codex";
       pageId: string;
       strokes: InpaintingMaskStroke[];
       featherPx?: number;

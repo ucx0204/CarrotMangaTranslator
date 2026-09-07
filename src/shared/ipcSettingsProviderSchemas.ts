@@ -14,8 +14,10 @@ import {
   MAX_API_KEYS,
   MAX_API_KEYS_TEXT_LENGTH,
   MAX_API_RETRY_DELAY_SECONDS,
+  MAX_API_REQUEST_INTERVAL_SECONDS,
   MIN_API_KEY_MAX_ATTEMPTS,
   MIN_API_RETRY_DELAY_SECONDS,
+  MIN_API_REQUEST_INTERVAL_SECONDS,
 } from "./apiKeySettings";
 import { API_PROVIDER_PRESET_IDS } from "./apiProviderPresets";
 
@@ -46,6 +48,11 @@ export const ApiProviderProfileSettingsSchema = z
       .number()
       .min(MIN_API_RETRY_DELAY_SECONDS)
       .max(MAX_API_RETRY_DELAY_SECONDS)
+      .optional(),
+    requestIntervalSeconds: z
+      .number()
+      .min(MIN_API_REQUEST_INTERVAL_SECONDS)
+      .max(MAX_API_REQUEST_INTERVAL_SECONDS)
       .optional(),
     temperature: z.number().min(0).max(2).nullable().optional(),
     topP: z.number().min(0).max(1).nullable().optional(),

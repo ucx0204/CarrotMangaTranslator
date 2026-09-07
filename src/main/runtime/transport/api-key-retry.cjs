@@ -24,6 +24,7 @@ const {
   isRetryableApiKeyError,
   markApiKeyRetriesExhausted,
 } = require("./model-http-errors.cjs");
+const { waitForApiRequestStart } = require("./api-request-pacing.cjs");
 
 /**
  * Run an OpenAI-compatible API request with one selected key per attempt.
@@ -39,6 +40,7 @@ async function runWithApiKeyRetry(options, requestAttempt) {
   const { accessTokenProvider, apiKeys } = resolveCredentialSources(options);
   if (!accessTokenProvider && apiKeys.length === 0) {
     throwIfSignalAborted(options.abortSignal);
+    if (isOpenAIApiProvider(options)) await waitForApiRequestStart(options);
     return requestAttempt(undefined, {
       attemptIndex: 1,
       attemptTotal: 1,
@@ -66,6 +68,7 @@ async function runWithApiKeyRetry(options, requestAttempt) {
         forceTokenRefresh,
       );
       forceTokenRefresh = false;
+      await waitForApiRequestStart(options);
       return await requestAttempt(apiKey, {
         attemptIndex,
         attemptTotal,

@@ -1,3 +1,4 @@
+import { erasureImageInputs } from "../src/main/pipeline/codexTypesettingImageRequest";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { PNG } from "pngjs";
@@ -465,4 +466,22 @@ describe("staged and technically rejected background evidence", () => {
       expect(client.runEphemeralTurn).toHaveBeenCalledTimes(1);
     },
   );
+});
+
+it("conceals every permitted pixel including detached edge marks while preserving the reference", () => {
+  const source = new PNG({ width: 17, height: 13 });
+  for (let i = 0; i < source.data.length; i += 4)
+    source.data.set([i % 251, 80, 60, 255], i);
+  const mask = new PNG({ width: 17, height: 13 });
+  for (let i = 0; i < mask.data.length; i += 4)
+    mask.data.set([i % 12 === 0 ? 255 : 0, 0, 0, 255], i);
+  const original = `data:image/png;base64,${PNG.sync.write(source).toString("base64")}`;
+  const inputs = erasureImageInputs(original, mask),
+    edit = PNG.sync.read(Buffer.from(inputs[0].split(",")[1], "base64"));
+  expect(inputs).toHaveLength(3);
+  expect(inputs[2]).toBe(original);
+  for (let i = 0; i < source.data.length; i += 4)
+    expect([...edit.data.subarray(i, i + 4)]).toEqual(
+      mask.data[i] ? [255, 0, 255, 255] : [...source.data.subarray(i, i + 4)],
+    );
 });

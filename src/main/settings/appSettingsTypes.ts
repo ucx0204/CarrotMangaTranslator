@@ -145,6 +145,7 @@ export type TranslationOptions = {
   apiAccessTokenProvider?: import("../vertexServiceAccountAuth").VertexAccessTokenProvider;
   apiKeyMaxAttempts?: number;
   apiRetryDelaySeconds?: number;
+  apiRequestIntervalSeconds?: number;
   apiTemperature?: number | null;
   apiTopP?: number | null;
   apiTopK?: number | null;

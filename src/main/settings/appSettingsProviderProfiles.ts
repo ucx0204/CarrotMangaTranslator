@@ -7,10 +7,13 @@ import {
 import {
   DEFAULT_API_KEY_MAX_ATTEMPTS,
   DEFAULT_API_RETRY_DELAY_SECONDS,
+  DEFAULT_API_REQUEST_INTERVAL_SECONDS,
   MAX_API_KEY_MAX_ATTEMPTS,
   MAX_API_RETRY_DELAY_SECONDS,
+  MAX_API_REQUEST_INTERVAL_SECONDS,
   MIN_API_KEY_MAX_ATTEMPTS,
   MIN_API_RETRY_DELAY_SECONDS,
+  MIN_API_REQUEST_INTERVAL_SECONDS,
   normalizeApiKeysText,
 } from "../../shared/apiKeySettings";
 import type {
@@ -312,6 +315,15 @@ function normalizeApiProviderProfile(
       withDefault(fallback.retryDelaySeconds, DEFAULT_API_RETRY_DELAY_SECONDS),
       MIN_API_RETRY_DELAY_SECONDS,
       MAX_API_RETRY_DELAY_SECONDS,
+    ),
+    requestIntervalSeconds: resolveNumberRange(
+      source.requestIntervalSeconds,
+      withDefault(
+        fallback.requestIntervalSeconds,
+        DEFAULT_API_REQUEST_INTERVAL_SECONDS,
+      ),
+      MIN_API_REQUEST_INTERVAL_SECONDS,
+      MAX_API_REQUEST_INTERVAL_SECONDS,
     ),
     temperature: resolveNullableNumberRange(
       source.temperature,

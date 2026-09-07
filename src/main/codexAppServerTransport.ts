@@ -172,6 +172,7 @@ export class CodexAppServerTransport {
     timeoutMs: number,
     signal?: AbortSignal,
   ): Promise<JsonRecord> {
+    throwIfAborted(signal);
     const recent = [...this.recentNotifications].reverse().find(predicate);
     if (recent) return Promise.resolve(recent);
     if (this.exitError) return Promise.reject(this.exitError);
@@ -206,7 +207,7 @@ export class CodexAppServerTransport {
     });
   }
 
-  async dispose(): Promise<void> {
+  async dispose(force = false): Promise<void> {
     if (this.closed) return;
     this.closed = true;
     this.previews.clear();
@@ -214,7 +215,9 @@ export class CodexAppServerTransport {
     const error = new Error("Codex App Server 연결이 종료되었습니다.");
     this.rejectPending(error);
     this.rejectWaiters(error);
+    if (force && !this.child.killed) this.child.kill();
     if (!this.child.stdin.destroyed) this.child.stdin.end();
+    if (force) return;
     if (await waitForProcessExit(this.child, 1_500)) return;
     if (!this.child.killed) this.child.kill();
     await waitForProcessExit(this.child, 1_500);

@@ -13,6 +13,38 @@ import { assertExactMembership } from "./codexTypesettingValidation";
 import { serializeCodexLayoutText } from "./codexTypesettingTreatment";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
 
+/** Keep recognized text editable for failed erasures, without painting over the remaining source. */
+export function withBlockedCodexLettering(
+  page: MangaPage,
+  reading: CodexPageReading,
+  blockedIds: string[],
+  blockId: (id: string) => string,
+): MangaPage {
+  const markers: TranslationBlock[] = reading.regions
+    .filter((region) => blockedIds.includes(region.id))
+    .map((region) => ({
+      ...DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      id: blockId(region.id),
+      type: "nonsolid",
+      bbox: region.sourceBbox,
+      bboxSpace: "normalized_1000",
+      sourceText: region.sourceText,
+      translatedText: region.translatedText,
+      confidence: 1,
+      sourceDirection: region.direction,
+      renderDirection: "horizontal",
+      backgroundColor: "#ffffff",
+      opacity: 0,
+      textOpacity: 0,
+      inpaintExcluded: true,
+      layoutIntentSuppressed: true,
+      reviewStatus: "needs_review",
+      reviewNote: "원문 제거 실패로 번역 이미지 생성을 중단했습니다.",
+    }));
+  const blocks = [...page.blocks, ...markers];
+  return { ...page, blocks, blockOrder: blocks.map((block) => block.id) };
+}
+
 /** Keep the first generated pixels and annotate only the affected blocks. */
 export function withCodexTypesettingReview(
   result: { page: MangaPage; warning?: string },

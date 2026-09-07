@@ -28,7 +28,116 @@ function drawing(dx = 0, dy = 0, scale = 1) {
   return image;
 }
 
+it.each([3, -3])(
+  "reduces a locally bent line at mask joins without changing unmasked pixels (%d)",
+  (shift) => {
+    const clean = drawing();
+    const generated = drawing();
+    for (let y = 0; y < clean.height; y++) {
+      const dx = Math.round(shift * Math.sin(y / 20));
+      for (let x = 0; x < clean.width; x++) {
+        const sx = Math.max(0, Math.min(clean.width - 1, x - dx));
+        generated.data.set(
+          clean.data.subarray(
+            (y * clean.width + sx) * 4,
+            (y * clean.width + sx) * 4 + 4,
+          ),
+          (y * clean.width + x) * 4,
+        );
+      }
+    }
+    const permission = new Uint8Array(clean.width * clean.height);
+    const source = drawing();
+    for (let y = erase.y; y < erase.y + erase.h; y++)
+      for (let x = erase.x; x < erase.x + erase.w; x++) {
+        permission[y * clean.width + x] = 1;
+        source.data.fill(
+          0,
+          (y * clean.width + x) * 4,
+          (y * clean.width + x) * 4 + 3,
+        );
+      }
+    const fit = registerTypesettingPatch(source, generated, erase, permission);
+    expect(fit.transform.seams).toBeDefined();
+    const rigid = {
+      dx: fit.transform.dx,
+      dy: fit.transform.dy,
+      scale: fit.transform.scale,
+    };
+    const before = PNG.sync.read(PNG.sync.write(source));
+    const after = PNG.sync.read(PNG.sync.write(source));
+    compositeRegisteredPatch(
+      before,
+      generated,
+      erase,
+      { x: 0, y: 0 },
+      rigid,
+      permission,
+    );
+    compositeRegisteredPatch(
+      after,
+      generated,
+      erase,
+      { x: 0, y: 0 },
+      fit.transform,
+      permission,
+    );
+    let beforeError = 0,
+      afterError = 0;
+    for (let at = 0; at < permission.length; at++) {
+      if (!permission[at]) {
+        expect(after.data.subarray(at * 4, at * 4 + 4)).toEqual(
+          source.data.subarray(at * 4, at * 4 + 4),
+        );
+        continue;
+      }
+      const x = at % clean.width,
+        y = Math.floor(at / clean.width);
+      if (
+        Math.min(
+          x - erase.x,
+          erase.x + erase.w - 1 - x,
+          y - erase.y,
+          erase.y + erase.h - 1 - y,
+        ) > 6
+      )
+        continue;
+      beforeError += Math.abs(before.data[at * 4] - clean.data[at * 4]);
+      afterError += Math.abs(after.data[at * 4] - clean.data[at * 4]);
+    }
+    expect(afterError).toBeLessThan(beforeError * 0.85);
+    expect(fit.supported).toBe(true);
+    expect(fit.opaque).toBe(true);
+  },
+);
+
 describe("generated background registration", () => {
+  it("uses preserved gaps when the glyph bounding box fills a tight crop", () => {
+    const source = drawing();
+    const generated = drawing();
+    const permission = new Uint8Array(128 * 112);
+    for (let y = 0; y < 112; y++)
+      for (let x = 0; x < 128; x++) {
+        if ((x > 12 && x < 50) || (x > 65 && x < 112)) continue;
+        permission[y * 128 + x] = 1;
+        source.data.fill(0, (y * 128 + x) * 4, (y * 128 + x) * 4 + 3);
+      }
+    const full = { x: 0, y: 0, w: 128, h: 112 };
+    expect(registerTypesettingPatch(source, generated, full).samples).toBe(0);
+    const result = registerTypesettingPatch(
+      source,
+      generated,
+      full,
+      permission,
+    );
+    expect(result.samples).toBeGreaterThan(32);
+    expect(result.accepted).toBe(true);
+    expect(result.transform).toEqual({ dx: 0, dy: 0, scale: 1 });
+    expect(
+      registerTypesettingPatch(source, generated, full, permission.fill(1))
+        .samples,
+    ).toBe(0);
+  });
   it("rejects drift at internal mask gaps that passes the old rectangular boundary", () => {
     const source = drawing();
     const generated = drawing();
@@ -51,7 +160,7 @@ describe("generated background registration", () => {
     );
     expect(result.accepted).toBe(false);
     expect(result.maskBoundary?.worst).toBeGreaterThan(0.12);
-    expect(result.contextErrorAfter).toBe(0);
+    expect(result.contextErrorAfter).toBeGreaterThan(0);
   });
 
   it("accepts matching real mask boundaries after authorized lettering removal and preserves every unmasked pixel", () => {

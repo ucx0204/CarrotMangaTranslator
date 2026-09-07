@@ -20,6 +20,7 @@ export type EngineSettingsPanelProps = {
   apiVertexServiceAccountPath: string;
   apiKeyMaxAttempts: string;
   apiRetryDelaySeconds: string;
+  apiRequestIntervalSeconds: string;
   apiModel: string;
   apiTemperature: string;
   apiTopP: string;
@@ -31,6 +32,10 @@ export type EngineSettingsPanelProps = {
   codexDelegateAll?: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
+  codexImageReasoningEffort?: CodexReasoningEffort;
+  setCodexImageReasoningEffort?: React.Dispatch<
+    React.SetStateAction<CodexReasoningEffort>
+  >;
   contextTokens: string;
   controlsBusy: boolean;
   detectedGpuName?: string | null;
@@ -89,6 +94,7 @@ export type EngineSettingsPanelProps = {
   setApiVertexServiceAccountPath: React.Dispatch<React.SetStateAction<string>>;
   setApiKeyMaxAttempts: React.Dispatch<React.SetStateAction<string>>;
   setApiRetryDelaySeconds: React.Dispatch<React.SetStateAction<string>>;
+  setApiRequestIntervalSeconds: React.Dispatch<React.SetStateAction<string>>;
   setApiModel: React.Dispatch<React.SetStateAction<string>>;
   setApiReasoningEffort: React.Dispatch<
     React.SetStateAction<ApiReasoningEffort | "">

@@ -23,6 +23,7 @@ export type ApiProviderConnectionProps = Pick<
   | "apiKeyMaxAttempts"
   | "apiModel"
   | "apiRetryDelaySeconds"
+  | "apiRequestIntervalSeconds"
   | "clearTestState"
   | "controlsBusy"
   | "setApiBaseUrl"
@@ -33,6 +34,7 @@ export type ApiProviderConnectionProps = Pick<
   | "setApiKeyMaxAttempts"
   | "setApiModel"
   | "setApiRetryDelaySeconds"
+  | "setApiRequestIntervalSeconds"
   | "submit"
 >;
 

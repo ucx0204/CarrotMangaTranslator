@@ -7,7 +7,10 @@ import type { AppPaths } from "../appPaths";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { CODEX_TYPESETTING_MODEL } from "../../shared/codexTypesettingDefaults";
 import { CodexAppServerClient } from "../codexAppServerClient";
-import { generateImage } from "../pipeline/codexTypesettingImageGeneration";
+import {
+  generateImage,
+  erasureImageInputs,
+} from "../pipeline/codexTypesettingImageRequest";
 import {
   registerTypesettingPatch,
   compositeRegisteredPatch,
@@ -42,25 +45,25 @@ export async function acquireCodexInpaintingEngine(
     paths: { ...paths, codexWorkspaceDir: directory },
     appVersion: app.getVersion(),
     capability: "image-generation",
+    signal,
   });
   try {
     signal.throwIfAborted();
     const account = await connection.readAccount(false);
     if (account.account?.type !== "chatgpt")
       throw new Error("설정에서 Codex 계정을 연결해 주세요.");
+    const effort = settings.codex.imageReasoningEffort ?? "low";
     const model = (await connection.listModels()).find(
       (item) => item.id === CODEX_TYPESETTING_MODEL,
     );
-    if (
-      !model?.supportedReasoningEfforts.includes(settings.codex.reasoningEffort)
-    )
+    if (!model?.supportedReasoningEfforts.includes(effort))
       throw new Error("선택한 Astra 모델을 사용할 수 없습니다.");
     const client: Client = {
       runEphemeralTurn: (request) =>
         connection.runEphemeralTurn({
           ...request,
           model: CODEX_TYPESETTING_MODEL,
-          effort: settings.codex.reasoningEffort,
+          effort,
         }),
     };
     const engine = createCodexInpaintingEngine(client, directory, signal, () =>
@@ -226,8 +229,9 @@ function generateErasedCrop(
     client,
     directory,
     signal,
-    "Remove source lettering inside the WHITE mask from this manga crop. Reconstruct the background naturally, preserving people, objects, balloon outlines, screentone and framing. Add no replacement lettering. Keep pixel alignment and aspect ratio. The second image is an edit permission mask, never artwork. Make one complete result; do not retry or provide alternatives.",
-    [crop, `data:image/png;base64,${PNG.sync.write(mask).toString("base64")}`],
+    "Reconstruct every magenta hole in image 1 as background artwork. Image 2 is the WHITE edit-permission mask; image 3 is the original for surrounding-artwork reference only. Remove all masked lettering, outlines, detached marks and extended brush strokes; never restore them from image 3. Preserve unmasked people, objects, balloon outlines, screentone, alignment and framing. Add no replacement lettering or magenta. Return one complete edited crop at the same aspect ratio.",
+    erasureImageInputs(crop, mask),
+    { width: mask.width, height: mask.height },
   );
 }
 

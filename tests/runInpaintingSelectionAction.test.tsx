@@ -313,6 +313,33 @@ describe("useRunInpaintingSelectionAction", () => {
 });
 
 describe("useInpaintingActions refresh queue", () => {
+  it("passes a Codex brush action through exclusivity and the existing undo transaction", async () => {
+    const options = makeOptions({
+      codexErasureAvailable: true,
+      patternMaskStrokes: [{ points: [{ x: 10, y: 10 }], radiusPx: 20 }],
+    });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapter: makeChapter(),
+      pagesChanged: 1,
+      blocksErased: 1,
+      historyTransaction: { transactionId: "tx-codex-brush" },
+    });
+    const { result } = renderHook(() => useInpaintingActions(options));
+    await act(() => result.current.runDrawnPatternInpainting("codex"));
+    expect(startInpainting).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "page-pattern-drawn",
+        engine: "codex",
+        strokes: options.patternMaskStrokes,
+      }),
+    );
+    expect(options.workspaceHistory.recordImageEdit).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionId: "tx-codex-brush" }),
+    );
+    expect(result.current.actionBusy).toBe(false);
+  });
+
   it("commits sequential page results immediately without staging a result preview", async () => {
     const options = makeOptions();
     const secondChapter = {

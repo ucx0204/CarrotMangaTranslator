@@ -40,58 +40,63 @@ afterEach(() => {
 });
 
 describe("drawn-pattern image history", () => {
-  it("records the transaction with before/after masks and clears the completed mask", async () => {
-    const beforeChapter = makeChapter("before.png");
-    const afterChapter = makeChapter("after-drawn.png");
-    const recordImageEdit = vi.fn(() => true);
-    const baseOptions = makeInpaintingOptions(beforeChapter, recordImageEdit);
-    startInpainting.mockResolvedValue({
-      status: "completed",
-      chapter: afterChapter,
-      pagesChanged: 1,
-      blocksErased: 1,
-      historyTransaction: { transactionId: "tx-drawn" },
-    });
-    const { result } = renderHook(() => {
-      const [masksByPage, setMasksByPage] = React.useState<
-        Record<string, InpaintingMaskStroke[]>
-      >({ "page-1": MASK_STROKES });
-      const run = useDrawnPatternInpaintingAction({
-        ...baseOptions,
-        patternMaskStrokes: masksByPage["page-1"] ?? [],
-        setPatternMaskStrokesByPage: setMasksByPage,
+  it.each([undefined, "codex"] as const)(
+    "records the %s transaction with before/after masks and clears the completed mask",
+    async (engine) => {
+      const beforeChapter = makeChapter("before.png");
+      const afterChapter = makeChapter("after-drawn.png");
+      const recordImageEdit = vi.fn(() => true);
+      const baseOptions = makeInpaintingOptions(beforeChapter, recordImageEdit);
+      startInpainting.mockResolvedValue({
+        status: "completed",
+        chapter: afterChapter,
+        pagesChanged: 1,
+        blocksErased: 1,
+        historyTransaction: { transactionId: "tx-drawn" },
       });
-      return { masksByPage, run };
-    });
+      const { result } = renderHook(() => {
+        const [masksByPage, setMasksByPage] = React.useState<
+          Record<string, InpaintingMaskStroke[]>
+        >({ "page-1": MASK_STROKES });
+        const run = useDrawnPatternInpaintingAction({
+          ...baseOptions,
+          codexErasureAvailable: true,
+          patternMaskStrokes: masksByPage["page-1"] ?? [],
+          setPatternMaskStrokesByPage: setMasksByPage,
+        });
+        return { masksByPage, run };
+      });
 
-    await act(() => result.current.run());
+      await act(() => result.current.run(engine));
 
-    expect(startInpainting).toHaveBeenCalledWith({
-      chapterId: "chapter-1",
-      mode: "page-pattern-drawn",
-      pageId: "page-1",
-      strokes: MASK_STROKES,
-      featherPx: 8,
-    });
-    expect(recordImageEdit).toHaveBeenCalledOnce();
-    expect(recordImageEdit).toHaveBeenCalledWith({
-      label: "그린 영역 지우기",
-      transactionId: "tx-drawn",
-      mask: {
-        before: {
-          chapterId: "chapter-1",
-          pageId: "page-1",
-          strokes: MASK_STROKES,
+      expect(startInpainting).toHaveBeenCalledWith({
+        chapterId: "chapter-1",
+        mode: "page-pattern-drawn",
+        pageId: "page-1",
+        strokes: MASK_STROKES,
+        featherPx: 8,
+        ...(engine ? { engine } : {}),
+      });
+      expect(recordImageEdit).toHaveBeenCalledOnce();
+      expect(recordImageEdit).toHaveBeenCalledWith({
+        label: "그린 영역 지우기",
+        transactionId: "tx-drawn",
+        mask: {
+          before: {
+            chapterId: "chapter-1",
+            pageId: "page-1",
+            strokes: MASK_STROKES,
+          },
+          after: {
+            chapterId: "chapter-1",
+            pageId: "page-1",
+            strokes: [],
+          },
         },
-        after: {
-          chapterId: "chapter-1",
-          pageId: "page-1",
-          strokes: [],
-        },
-      },
-    });
-    expect(result.current.masksByPage).toEqual({});
-  });
+      });
+      expect(result.current.masksByPage).toEqual({});
+    },
+  );
 });
 
 describe("manual retouch image history", () => {

@@ -17,6 +17,7 @@ export type InpaintingActionTarget = {
 export type UseInpaintingActionsOptions = {
   aiUnavailable?: boolean;
   codexDelegateAll?: boolean;
+  codexErasureAvailable?: boolean;
   askConfirm: (
     title: string,
     message: string,

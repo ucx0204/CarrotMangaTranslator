@@ -4,13 +4,16 @@
  *   apiKey?: unknown;
  *   apiKeyMaxAttempts?: unknown;
  *   apiRetryDelaySeconds?: unknown;
+ *   apiRequestIntervalSeconds?: unknown;
  * }} ApiKeyOptions
  */
 
 const DEFAULT_API_KEY_MAX_ATTEMPTS = 5;
 const DEFAULT_API_RETRY_DELAY_SECONDS = 1;
+const DEFAULT_API_REQUEST_INTERVAL_SECONDS = 0;
 const MAX_API_KEY_MAX_ATTEMPTS = 20;
 const MAX_API_RETRY_DELAY_SECONDS = 300;
+const MAX_API_REQUEST_INTERVAL_SECONDS = 300;
 const MAX_CONFIGURED_API_KEYS = 100;
 
 /**
@@ -66,6 +69,18 @@ function resolveApiRetryDelaySeconds(options) {
   );
 }
 
+/** @param {ApiKeyOptions} options */
+function resolveApiRequestIntervalSeconds(options) {
+  return resolveRange(
+    process.env.MANGA_TRANSLATOR_API_REQUEST_INTERVAL_SECONDS,
+    options.apiRequestIntervalSeconds,
+    DEFAULT_API_REQUEST_INTERVAL_SECONDS,
+    0,
+    MAX_API_REQUEST_INTERVAL_SECONDS,
+    false,
+  );
+}
+
 /**
  * @param {unknown} envValue
  * @param {unknown} optionValue
@@ -89,4 +104,5 @@ module.exports = {
   resolveApiKeyMaxAttempts,
   resolveApiKeys,
   resolveApiRetryDelaySeconds,
+  resolveApiRequestIntervalSeconds,
 };

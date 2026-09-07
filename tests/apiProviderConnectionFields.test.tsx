@@ -37,6 +37,25 @@ afterEach(async () => {
 });
 
 describe("API provider connection fields", () => {
+  it("starts with no minimum interval and lets the user change and clear it", () => {
+    window.mangaApi = createTestMangaGatewayStub({
+      onUiLocaleChanged: () => () => undefined,
+    });
+    render(
+      <AppI18nProvider>
+        <Harness />
+      </AppI18nProvider>,
+    );
+    const input = screen.getByRole("textbox", {
+      name: "Minimum request interval (seconds)",
+    });
+    expect(readValue(input)).toBe("0");
+    fireEvent.change(input, { target: { value: "5" } });
+    expect(readValue(input)).toBe("5");
+    fireEvent.change(input, { target: { value: "0" } });
+    expect(readValue(input)).toBe("0");
+  });
+
   it("shows the real count for masked keys loaded from encrypted storage", () => {
     window.mangaApi = createTestMangaGatewayStub({
       onUiLocaleChanged: () => () => undefined,
@@ -356,6 +375,8 @@ function Harness({
     React.useState("");
   const [apiKeyMaxAttempts, setApiKeyMaxAttempts] = React.useState("2");
   const [apiRetryDelaySeconds, setApiRetryDelaySeconds] = React.useState("1");
+  const [apiRequestIntervalSeconds, setApiRequestIntervalSeconds] =
+    React.useState("0");
   const selectApiProvider: React.Dispatch<
     React.SetStateAction<ApiProviderPresetId>
   > = (next) => {
@@ -379,6 +400,7 @@ function Harness({
         apiVertexServiceAccountPath={apiVertexServiceAccountPath}
         apiKeyMaxAttempts={apiKeyMaxAttempts}
         apiRetryDelaySeconds={apiRetryDelaySeconds}
+        apiRequestIntervalSeconds={apiRequestIntervalSeconds}
         clearTestState={() => undefined}
         controlsBusy={false}
         setApiBaseUrl={setApiBaseUrl}
@@ -389,6 +411,7 @@ function Harness({
         setApiVertexServiceAccountPath={setApiVertexServiceAccountPath}
         setApiKeyMaxAttempts={setApiKeyMaxAttempts}
         setApiRetryDelaySeconds={setApiRetryDelaySeconds}
+        setApiRequestIntervalSeconds={setApiRequestIntervalSeconds}
         submit={() => undefined}
       />
       <button

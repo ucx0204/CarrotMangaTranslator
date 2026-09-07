@@ -49,6 +49,7 @@ type RightRailViewModel = {
     contextValue: Pick<
       AppSessionViewModel["inpaintingBridge"]["contextValue"],
       | "aiUnavailable"
+      | "codexErasureAvailable"
       | "brushColor"
       | "brushRadius"
       | "jobActive"
@@ -158,6 +159,7 @@ export function createRightRailProps(
     jobState: core.jobState,
     operationActivity: model.operationActivity?.activity ?? null,
     maskStrokeCount: inpainting.maskStrokeCount,
+    codexErasureAvailable: inpainting.codexErasureAvailable,
     peeking: derivedState.showingOriginalPeek,
     progressSnapshot: derivedState.progressSnapshot,
     redoLabel: workspaceHistory.redoLabel,

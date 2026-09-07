@@ -13,16 +13,21 @@ import {
 
 export function useDrawnPatternInpaintingAction(
   options: UseInpaintingActionsOptions,
-): () => Promise<void> {
+): (engine?: "codex") => Promise<void> {
   const { t } = useTranslation("renderer");
-  return useCallback(async () => {
-    await runDrawnPatternInpainting(options, t);
-  }, [options, t]);
+  return useCallback(
+    async (engine?: "codex") => {
+      if (engine === "codex" && !options.codexErasureAvailable) return;
+      await runDrawnPatternInpainting(options, t, engine);
+    },
+    [options, t],
+  );
 }
 
 async function runDrawnPatternInpainting(
   options: UseInpaintingActionsOptions,
   t: TFunction<"renderer">,
+  engine?: "codex",
 ): Promise<void> {
   const { currentChapter, selectedPage } = options;
   if (
@@ -38,6 +43,7 @@ async function runDrawnPatternInpainting(
     return;
   }
   await runDrawnInpaintingRequest({
+    engine,
     chapterId: currentChapter.id,
     clearPageImageCache: options.clearPageImageCache,
     clearRetouchHistory: options.clearRetouchHistory,
@@ -92,6 +98,7 @@ async function prepareDrawnInpainting(
 }
 
 type DrawnInpaintingRequestContext = {
+  engine?: "codex";
   chapterId: string;
   clearPageImageCache: () => void;
   clearRetouchHistory: () => void;
@@ -116,6 +123,7 @@ async function runDrawnInpaintingRequest(
       pageId: context.selectedPageId,
       strokes: context.patternMaskStrokes,
       featherPx: 8,
+      ...(context.engine ? { engine: context.engine } : {}),
     });
     await handleDrawnInpaintingResult(result, context);
   } catch (error) {

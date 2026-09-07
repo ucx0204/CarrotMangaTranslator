@@ -291,6 +291,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
     .object({
       chapterId: uuid,
       mode: z.literal("page-pattern-drawn"),
+      engine: z.literal("codex").optional(),
       pageId: uuid,
       strokes: z.array(InpaintingMaskStrokeSchema).min(1).max(MAX_MASK_STROKES),
       featherPx: finiteNumber.min(0).max(128).optional(),
