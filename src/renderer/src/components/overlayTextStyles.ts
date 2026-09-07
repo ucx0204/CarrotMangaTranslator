@@ -1,3 +1,4 @@
+import { resolveFontWeight } from "../../../shared/blockFontWeight";
 import type React from "react";
 import type {
   RenderTextDirection,
@@ -91,7 +92,7 @@ export function resolveOverlayTextContentStyle(
     overflowWrap: breakStyle.overflowWrap,
     wordBreak: breakStyle.wordBreak,
     whiteSpace: layout.lines ? "normal" : undefined,
-    fontWeight: block.bold ? 800 : 400,
+    fontWeight: resolveFontWeight(block),
     fontStyle: block.italic ? "italic" : "normal",
     fontSynthesis: "weight style",
     ...resolveBlockTextOutlineCss(block, layout.fontSizePx),

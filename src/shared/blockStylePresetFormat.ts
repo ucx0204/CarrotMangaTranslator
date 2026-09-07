@@ -1,4 +1,5 @@
 import type { BlockFormatDefaults, BlockFormatGroupId } from "./blockFormat";
+import { normalizeFontWeight } from "./blockFontWeight";
 import type { TranslationBlock } from "./textTypes";
 import {
   DEFAULT_TEXT_EFFECT,
@@ -42,6 +43,7 @@ export type BlockStylePresetFormat = Partial<
     | "wordBreak"
     | "renderDirection"
     | "bold"
+    | "fontWeight"
     | "italic"
     | "underline"
     | "strikethrough"
@@ -85,6 +87,7 @@ const BLOCK_FORMAT_BUILDERS: Record<
   direction: (block) => ({ renderDirection: block.renderDirection }),
   emphasis: (block) => ({
     bold: block.bold ?? false,
+    ...(block.fontWeight === undefined ? {} : { fontWeight: block.fontWeight }),
     italic: block.italic ?? false,
     ...(block.underline === undefined ? {} : { underline: block.underline }),
     ...(block.strikethrough === undefined
@@ -209,6 +212,7 @@ const NORMALIZED_FORMAT_BUILDERS: Record<
   }),
   emphasis: (record) => ({
     bold: booleanValue(record.bold, false),
+    fontWeight: normalizeFontWeight(record.fontWeight),
     italic: booleanValue(record.italic, false),
     ...(record.underline === undefined
       ? {}
@@ -323,6 +327,7 @@ const PATCH_BUILDERS: Record<
   }),
   emphasis: (format) => ({
     bold: format.bold ?? false,
+    fontWeight: format.fontWeight,
     italic: format.italic ?? false,
     ...(format.underline === undefined ? {} : { underline: format.underline }),
     ...(format.strikethrough === undefined
@@ -386,11 +391,8 @@ export function normalizePresetFormat(
   value: unknown,
   groupIds: readonly BlockFormatGroupId[],
 ): BlockStylePresetFormat {
-  return buildFormat(
-    asRecord(value) ?? {},
-    groupIds,
-    NORMALIZED_FORMAT_BUILDERS,
-  );
+  const record = asRecord(value) ?? {};
+  return buildFormat(record, groupIds, NORMALIZED_FORMAT_BUILDERS);
 }
 
 export function resolveBlockStylePresetPatchFields(

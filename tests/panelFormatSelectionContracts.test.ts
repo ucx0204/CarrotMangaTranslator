@@ -92,6 +92,7 @@ describe("panel multi-selection format contracts", () => {
     };
     const source = makeBlock("block-a", {
       fontFamily: "default",
+      fontWeight: 700,
       fontSizePx: 32,
       autoFitText: false,
       fontSizeIntent: "manual",

@@ -60,15 +60,15 @@ export async function inferFontExpressionPage({
   for (const block of blocks) {
     signal?.throwIfAborted();
     const row = rows.get(block.blockId);
-    // Reuse the existing locale/catalog/ordinary-prose boundary. Display and
-    // manually excluded candidates do not acquire a new path into matching.
-    if (!row?.crossScriptProxy) continue;
+    // Pixel analysis must not depend on a different model accepting the block.
+    // Selection still validates its own evidence; absent base rows stay absent.
+    if (!row) continue;
     const support = prepareFontExpressionSupport(
       raster,
       block.item.bbox,
       signal,
     );
-    if (!support || support.count < 2) continue;
+    if (!support) continue;
     const probabilities = await runDisposableFloatTensorStage({
       session,
       inputName: "ink",

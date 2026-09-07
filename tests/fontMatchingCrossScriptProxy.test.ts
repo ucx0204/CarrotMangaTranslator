@@ -6,6 +6,7 @@ import {
 } from "../src/main/pipeline/fontMatchingCatalogRevision";
 import { resolveVerifiedPixelInferenceForBlockId } from "../src/main/pipeline/automaticFontMatchingV2RuntimeGate";
 import { readFileSync, existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -215,7 +216,7 @@ describe("cross-script page font proxy", () => {
       ).toBe("unrenderable");
     },
   );
-  it("adds native expression evidence without changing R33 or bypassing the proxy boundary", async () => {
+  it("analyzes source expression independently of proxy success and semantic role", async () => {
     const candidates = makeCandidates();
     const row = makeInference(candidates);
     const skipped = { ...row, blockId: "skip", crossScriptProxy: undefined };
@@ -235,7 +236,15 @@ describe("cross-script page font proxy", () => {
             ...block,
             item: { ...block.item, bbox: { x: 0, y: 0, w: 1000, h: 1000 } },
           },
-          { ...block, blockId: "skip" },
+          {
+            ...block,
+            blockId: "skip",
+            item: {
+              ...block.item,
+              fontRole: "sfx_motion",
+              bbox: { x: 0, y: 0, w: 1000, h: 1000 },
+            },
+          },
         ],
         rows: new Map([
           [row.blockId, row],
@@ -247,7 +256,13 @@ describe("cross-script page font proxy", () => {
           bgra,
         },
       });
-      expect(output.get("skip")).toBe(skipped);
+      expect(output.get("skip")?.sourceExpression).toEqual(
+        output.get(row.blockId)?.sourceExpression,
+      );
+      expect(output.get("skip")?.crossScriptProxy).toBeUndefined();
+      expect(
+        resolveAutomaticFontExpression(output.get("skip") ?? null, candidates),
+      ).toBeNull();
       const added = output.get(row.blockId);
       expect(added?.localEvidence).toBe(row.localEvidence);
       expect(added?.crossScriptProxy).toBe(row.crossScriptProxy);
@@ -493,6 +508,19 @@ describe("cross-script page font proxy", () => {
   });
 
   it("keeps every production proxy output candidate Korean-only", () => {
+    const directory = join(
+      __dirname,
+      "../src/main/runtime/font-matching-crossscript-proxy",
+    );
+    const ownership = JSON.parse(
+      readFileSync(join(directory, ".owned.json"), "utf8"),
+    );
+    const bytes = readFileSync(join(directory, "runtime-manifest.json"));
+    const expected = ownership.artifacts["runtime-manifest.json"];
+    expect(bytes.length).toBe(expected.byte_size);
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(
+      expected.sha256,
+    );
     const manifest = JSON.parse(
       readFileSync(
         join(

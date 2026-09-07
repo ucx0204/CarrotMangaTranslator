@@ -130,6 +130,33 @@ describe("automatic inverse text polarity", () => {
   });
 });
 
+describe("exact automatic weight application", () => {
+  it.each([200, 300, 400, 500, 600, 700, 800, 900])(
+    "retains %i instead of quantizing it",
+    (fontWeight) => {
+      const decision = makeDecision();
+      if (!decision.result.selectedStyle)
+        throw new Error("missing fixture style");
+      decision.result.selectedStyle.fontWeight = fontWeight;
+      const result = applyAutomaticFontDecisionV2(makeBlock(), decision);
+      expect(result).toMatchObject({ fontWeight, bold: fontWeight >= 600 });
+    },
+  );
+
+  it("does not carry a previous face weight into a selection with no weight", () => {
+    const decision = makeDecision();
+    if (!decision.result.selectedStyle)
+      throw new Error("missing fixture style");
+    delete decision.result.selectedStyle.fontWeight;
+    expect(
+      applyAutomaticFontDecisionV2(
+        { ...makeBlock(), fontWeight: 300 },
+        decision,
+      ).fontWeight,
+    ).toBeUndefined();
+  });
+});
+
 function makeMorphology(
   overrides: Partial<FontMatchingGlyphMorphologyV1> = {},
 ): FontMatchingGlyphMorphologyV1 {

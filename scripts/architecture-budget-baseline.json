@@ -120,6 +120,14 @@
     "src/shared/ipcSchemaPrimitives.ts": {
       "maxRuntimeImports": 15,
       "reason": "Shared IPC schema primitive authority"
+    },
+    "src/shared/translationLanguages.ts": {
+      "maxImportedBy": 26,
+      "reason": "Shared language alias contract also gates Japanese-to-Korean C18; reuse instead of a second language parser."
+    },
+    "src/main/pipeline/wholePagePipelinePorts.ts": {
+      "maxRuntimeImports": 13,
+      "reason": "Existing pipeline composition root adds the C18 chapter port. Source inference remains in its adapter; pipeline integration and actual chapter parity are tested."
     }
   }
 }

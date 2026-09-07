@@ -1,3 +1,4 @@
+import { resolveFontWeight } from "../../../shared/blockFontWeight";
 import React from "react";
 import type {
   RenderTextDirection,
@@ -40,6 +41,7 @@ export function OverlayText({
     displayText,
     Boolean(block.bold),
     Boolean(block.italic),
+    block.fontWeight,
   );
   const blockOpacityAtRoot = !parsed.runs.some(
     (run) => run.opacity !== undefined,
@@ -253,7 +255,7 @@ function renderTextRun(
         );
   if (!visualStyle) return null;
   const baseStyle: React.CSSProperties = {
-    fontWeight: run.bold ? 800 : 400,
+    fontWeight: resolveFontWeight(run),
     fontStyle: run.italic ? "italic" : "normal",
     fontSize: `${run.renderedFontSizePx ?? fallback.fontSizePx}px`,
     fontFamily: run.renderedFontFamily ?? fallback.fontFamily,

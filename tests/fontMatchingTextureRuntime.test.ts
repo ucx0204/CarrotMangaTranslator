@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fixture from "./fixtures/fontTextureParity.json";
+import textureArtifact from "../src/main/pipeline/fontTextureModel.json";
 import { prepareFontTextureSupport } from "../src/main/pipeline/fontMatchingTextureSupport";
 import {
   inferFontTexturePage,
@@ -29,6 +30,17 @@ function raster(row: (typeof fixture.cases)[number]) {
   return { width: row.width, height: row.height, bgra };
 }
 describe("frozen intact-texture native parity", () => {
+  it("rejects a mismatched artifact inventory before opening the native session", async () => {
+    const originalByteSize = textureArtifact.byteSize;
+    try {
+      textureArtifact.byteSize = originalByteSize + 1;
+      await expect(loadFontTextureModel()).rejects.toThrow(
+        "Source font texture model integrity check failed.",
+      );
+    } finally {
+      textureArtifact.byteSize = originalByteSize;
+    }
+  });
   it("does not reopen palette resources after disposal and allows repeated disposal", async () => {
     let selectionReads = 0;
     const unused = "font-texture-disposed-port-not-loaded";
@@ -150,11 +162,17 @@ describe("frozen intact-texture native parity", () => {
       );
       expect(rows.get(block.blockId)?.sourceTexture).toBeUndefined();
       const noProxy = { ...original, crossScriptProxy: undefined };
-      const unverified = await inferFontTexturePage({
+      const independent = await inferFontTexturePage({
         ...options,
         rows: new Map([[block.blockId, noProxy]]),
       });
-      expect(unverified.get(block.blockId)).toBe(noProxy);
+      expect(independent.get(block.blockId)?.sourceTexture).toEqual(
+        output.get(block.blockId)?.sourceTexture,
+      );
+      expect(independent.get(block.blockId)?.crossScriptProxy).toBeUndefined();
+      expect(
+        (await inferFontTexturePage({ ...options, rows: new Map() })).size,
+      ).toBe(0);
       options.raster.bgra.fill(255);
       expect((await inferFontTexturePage(options)).get(block.blockId)).toBe(
         original,

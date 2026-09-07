@@ -47,6 +47,7 @@ export const BLOCK_FORMAT_FIELD_KEYS = [
   "wordBreak",
   "renderDirection",
   "bold",
+  "fontWeight",
   "italic",
   "underline",
   "strikethrough",
@@ -90,7 +91,14 @@ export const BLOCK_FORMAT_GROUPS: readonly BlockFormatGroup[] = [
   {
     id: "emphasis",
     label: "강조",
-    keys: ["bold", "italic", "underline", "strikethrough", "emphasisMark"],
+    keys: [
+      "bold",
+      "fontWeight",
+      "italic",
+      "underline",
+      "strikethrough",
+      "emphasisMark",
+    ],
   },
   { id: "lineSpacing", label: "줄 간격", keys: ["lineHeight"] },
   { id: "letterSpacing", label: "자간", keys: ["letterSpacing"] },
@@ -218,6 +226,7 @@ export function applyFormatDefaultsToBlock(
   };
 
   // Font family: undefined means "use the app's default font".
+  delete next.fontWeight;
   if (defaults.fontFamily) {
     next.fontFamily = defaults.fontFamily;
   } else {

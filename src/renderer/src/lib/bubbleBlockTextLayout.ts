@@ -80,6 +80,7 @@ function createBubbleParagraphContext(
     text,
     Boolean(block.bold),
     Boolean(block.italic),
+    block.fontWeight,
   );
   const lineHeightPx =
     resolveMaximumTextRunFontSizePx(runs, block, fontSize) * block.lineHeight;

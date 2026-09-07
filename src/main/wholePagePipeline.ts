@@ -289,8 +289,34 @@ async function completeWholePageRun(
   }
   const preparedPages = await preparePagesWithinEndpointSession(options);
   throwIfAborted(signal);
+  const sourceStyleFor =
+    await options.dependencies.fontMatching.chapter?.prepare(
+      preparedPages.entries.flatMap(({ prepared }) =>
+        prepared.kind === "translated"
+          ? [
+              {
+                page: prepared.page,
+                items: prepared.fontInferenceItems,
+                pageOptions: prepared.pageOptions,
+              },
+            ]
+          : [],
+      ),
+      signal,
+    );
+  const chapterPages =
+    sourceStyleFor && preparedPages.fontMatchingChapterCoordinator
+      ? {
+          ...preparedPages,
+          fontMatchingChapterCoordinator: {
+            ...preparedPages.fontMatchingChapterCoordinator,
+            sourceStyleFor,
+            snapshotPageContinuity: () => [],
+          },
+        }
+      : preparedPages;
   await finalizeTranslatedPages({
-    preparedPages,
+    preparedPages: chapterPages,
     filtered,
     ocrHintsByPageId: options.ocrHintsByPageId,
     onPageComplete: options.onPageComplete,

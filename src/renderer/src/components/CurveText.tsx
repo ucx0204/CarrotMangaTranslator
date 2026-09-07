@@ -1,3 +1,4 @@
+import { resolveFontWeight } from "../../../shared/blockFontWeight";
 import React from "react";
 import type { CurveLayout, TranslationBlock } from "../../../shared/textTypes";
 import {
@@ -49,7 +50,12 @@ export function CurveText({
     fontCatalog,
   );
   const glyphs = measureGlyphs(
-    parseRichText(displayText, Boolean(block.bold), Boolean(block.italic)).runs,
+    parseRichText(
+      displayText,
+      Boolean(block.bold),
+      Boolean(block.italic),
+      block.fontWeight,
+    ).runs,
     resolveRunStyle,
   );
   const widthScale = resolveFontWidthScale(block.fontWidthScale);
@@ -302,7 +308,7 @@ function CurveGlyphText({
       fontFamily={glyph.fontFamily}
       fontSize={glyph.fontSizePx}
       fontStyle={glyph.italic ? "italic" : "normal"}
-      fontWeight={glyph.bold ? 800 : 400}
+      fontWeight={resolveFontWeight(glyph.style ?? glyph)}
       opacity={glyph.opacity}
       paintOrder="stroke fill"
       stroke={stroke}
@@ -350,11 +356,11 @@ function stripRunText(run: TextStyleRun): Omit<TextStyleRun, "text"> {
 }
 
 function resolveCanvasFont(
-  run: Pick<TextStyleRun, "bold" | "italic">,
+  run: Pick<TextStyleRun, "bold" | "italic" | "fontWeight">,
   fontSizePx: number,
   fontFamily: string,
 ): string {
-  return `${run.italic ? "italic" : "normal"} ${run.bold ? 800 : 400} ${fontSizePx}px ${fontFamily}`;
+  return `${run.italic ? "italic" : "normal"} ${resolveFontWeight(run)} ${fontSizePx}px ${fontFamily}`;
 }
 
 function getMeasureContext(): CanvasRenderingContext2D {

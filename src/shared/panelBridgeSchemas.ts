@@ -26,6 +26,7 @@ const PanelFormatPatchSchema = TranslationBlockObjectSchema.pick({
   autoFitText: true,
   fontSizeIntent: true,
   bold: true,
+  fontWeight: true,
   italic: true,
   underline: true,
   strikethrough: true,

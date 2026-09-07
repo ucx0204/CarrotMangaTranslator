@@ -7,6 +7,55 @@ import type { FontMatchingRasterPage } from "../src/main/pipeline/fontMatchingPa
 import type { OverlayItem } from "../src/main/pipeline/types";
 
 describe("source font-size raster estimator", () => {
+  it.each([1, 2])(
+    "recovers body size beside a separate dot column at scale %s",
+    (scale) => {
+      for (const direction of ["vertical", "horizontal"] as const) {
+        const vertical = direction === "vertical";
+        const raster = createRaster(
+          (vertical ? 76 : 188) * scale,
+          (vertical ? 188 : 76) * scale,
+          (setBlack) => {
+            const point = (x: number, y: number) => {
+              for (let dx = 0; dx < scale; dx += 1)
+                for (let dy = 0; dy < scale; dy += 1)
+                  setBlack(
+                    (vertical ? x : y) * scale + dx,
+                    (vertical ? y : x) * scale + dy,
+                  );
+            };
+            for (const top of [55, 95, 135]) {
+              fillRect(point, 7, top, 4, 26);
+              fillRect(point, 33, top, 4, 26);
+              fillRect(point, 7, top + 11, 30, 4);
+            }
+            for (let y = 7; y < 177; y += 10) fillRect(point, 65, y, 4, 4);
+          },
+        );
+        const estimate = estimateSourceFontSizeForItem(
+          raster,
+          makeItem({ sourceText: "...かはっ!", direction }),
+        );
+        assert(estimate);
+        expect(estimate.facePx / scale).toBeGreaterThan(26);
+        expect(estimate.facePx / scale).toBeLessThan(34);
+      }
+    },
+  );
+
+  it("does not infer a body face from two columns of punctuation alone", () => {
+    const raster = createRaster(76, 188, (setBlack) => {
+      for (const x of [8, 65])
+        for (let y = 7; y < 177; y += 10) fillRect(setBlack, x, y, 4, 4);
+    });
+    expect(
+      estimateSourceFontSizeForItem(
+        raster,
+        makeItem({ sourceText: "・・・・・・", direction: "vertical" }),
+      ),
+    ).toBeUndefined();
+  });
+
   it("measures single CJK ink while leaving blank crops and isolated dots abstained", () => {
     const raster = createRaster(50, 40, (setBlack) =>
       fillRect(setBlack, 18, 10, 12, 20),

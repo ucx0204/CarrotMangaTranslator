@@ -55,6 +55,7 @@ export function resolveFixedHorizontalTextLines(
     text,
     Boolean(block.bold),
     Boolean(block.italic),
+    block.fontWeight,
   );
   const resolveRunStyle = createTextRunStyleResolver(
     block,
@@ -89,6 +90,7 @@ export function doesBlockTextFit(
     text,
     Boolean(block.bold),
     Boolean(block.italic),
+    block.fontWeight,
   );
   if (
     normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"

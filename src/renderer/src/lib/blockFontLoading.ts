@@ -1,3 +1,4 @@
+import { resolveFontWeight } from "../../../shared/blockFontWeight";
 import {
   DEFAULT_BLOCK_FONT_ID,
   isBuiltInBlockFontId,
@@ -156,11 +157,13 @@ function collectBlockFontLoadRequests(
       displayText,
       Boolean(block.bold),
       Boolean(block.italic),
+      block.fontWeight,
     );
     for (const run of [
       {
         fontFamily: block.fontFamily,
         bold: Boolean(block.bold),
+        fontWeight: block.fontWeight,
         italic: Boolean(block.italic),
       },
       ...runs,
@@ -171,7 +174,7 @@ function collectBlockFontLoadRequests(
         resolveEffectiveFontId(fontId, catalog),
         catalog,
       );
-      const css = `${run.italic ? "italic" : "normal"} ${run.bold ? 800 : 400} 16px ${family}`;
+      const css = `${run.italic ? "italic" : "normal"} ${resolveFontWeight(run)} 16px ${family}`;
       requests.set(css, { css, family, required });
       const fallback = resolveBlockFontPunctuationFallback(
         resolveEffectiveFontId(fontId, catalog),
@@ -180,7 +183,7 @@ function collectBlockFontLoadRequests(
         fallback &&
         [...displayText].some((c) => fallback.characters.includes(c))
       ) {
-        const fallbackCss = `${run.italic ? "italic" : "normal"} ${run.bold ? 800 : 400} 16px ${fallback.cssFamily}`;
+        const fallbackCss = `${run.italic ? "italic" : "normal"} ${resolveFontWeight(run)} 16px ${fallback.cssFamily}`;
         requests.set(fallbackCss, {
           css: fallbackCss,
           family: fallback.cssFamily,

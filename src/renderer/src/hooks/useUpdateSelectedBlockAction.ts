@@ -1,3 +1,4 @@
+import { normalizeFontWeightPatch } from "../../../shared/blockFontWeight";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
@@ -89,7 +90,11 @@ export function normalizeTranslationBlockPatch(
   pageSize?: { width: number; height: number },
 ): TranslationBlock {
   const next = constrainPatchedVisualTransform(
-    buildNormalizedTranslationBlock(block, patch, pageSize),
+    buildNormalizedTranslationBlock(
+      block,
+      normalizeFontWeightPatch(patch),
+      pageSize,
+    ),
     patch,
     pageSize,
   );
@@ -216,6 +221,7 @@ function hasBlockChanged(
   patch: Partial<TranslationBlock>,
 ): boolean {
   const normalizedKeys: Array<keyof TranslationBlock> = [
+    "fontWeight",
     "backgroundColor",
     "bbox",
     "bboxSpace",

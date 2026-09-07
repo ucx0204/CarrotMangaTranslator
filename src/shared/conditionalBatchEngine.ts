@@ -1,4 +1,5 @@
 /* eslint-disable complexity, max-lines, max-lines-per-function -- the exhaustive typed rule evaluator keeps preview and apply on one deterministic pipeline */
+import { normalizeFontWeightPatch } from "./blockFontWeight";
 import { resolveBlockStylePresetPatchFields } from "./blockStylePresetFormat";
 import {
   formatConditionalBatchFieldValue,
@@ -1221,7 +1222,7 @@ function applyBlockPatch(
   block: TranslationBlock,
   patch: Partial<TranslationBlock>,
 ): TranslationBlock {
-  const next = { ...block, ...patch };
+  const next = { ...block, ...normalizeFontWeightPatch(patch) };
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) delete (next as Record<string, unknown>)[key];
   }

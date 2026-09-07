@@ -1,2 +1,4 @@
 * text=auto eol=lf
 *.pdf binary
+# Published font runtime inventory binds exact bytes, including CRLF.
+src/main/runtime/font-matching-crossscript-proxy/runtime-manifest.json -text

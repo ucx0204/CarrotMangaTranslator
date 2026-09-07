@@ -46,12 +46,14 @@ export async function loadPipeline({
   startEndpointSession,
   fontMatchingCandidates = [],
   fontMatchingPageInference,
+  fontMatchingChapter,
 }: {
   ocrHintsByImagePath?: ReadonlyMap<string, OcrBboxResult>;
   requestTranslation?: TranslationRuntimePort["requestTranslation"];
   sourceLanguage?: string;
   startEndpointSession?: TranslationRuntimePort["startEndpointSession"];
   fontMatchingCandidates?: readonly AutomaticFontCandidate[];
+  fontMatchingChapter?: WholePagePipelineDependencies["fontMatching"]["chapter"];
   fontMatchingPageInference?: WholePagePipelineDependencies["fontMatching"]["pageInference"];
 } = {}) {
   const rootDir = await mkdtemp(join(tmpdir(), "mgt-pipeline-"));
@@ -97,6 +99,7 @@ export async function loadPipeline({
       getAppSettings: vi.fn(async () => makeAppSettings(sourceLanguage)),
     },
     fontMatching: {
+      chapter: fontMatchingChapter,
       loadCandidates: loadFontMatchingCandidates,
       loadProfile: loadFontMatchingProfile,
       pageInference: fontMatchingPageInference,

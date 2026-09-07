@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { getAppPaths } from "./appPaths";
 
 const APP_RUNTIME_MODULE_FILES = {
+  ocrEnvironment: "ocr/runtime-environment.cjs",
   animeTextRelations: "semantic-ocr/anime-text-review-relations.cjs",
   apiKeyRetry: "transport/api-key-retry.cjs",
   downloadUtils: "simple-page-download-utils.cjs",

@@ -5,6 +5,7 @@ import type {
 } from "./fontMatchingPagePixelInferenceTypes";
 import type { FontMatchingOcrGeometryDirectionV2 } from "./fontMatchingOcrGeometryDirection";
 import type { OverlayItem } from "./types";
+import { buildRecognitionSourceLines } from "./overlayOcrSourceLineGeometry";
 
 const CONTRACT_VERSION = "font-matching-source-glyph-input-v1" as const;
 
@@ -72,9 +73,50 @@ function readSourceGlyphLines(
       continue;
     }
     seenIds.add(id);
-    lines.push({ x1, y1, x2, y2, glyphCount });
+    const region = { x1, y1, x2, y2, glyphCount };
+    lines.push(...(readRecognitionLines(value, region, page) ?? [region]));
   }
   return lines;
+}
+
+function readRecognitionLines(
+  hint: Readonly<Record<string, unknown>>,
+  parent: FontMatchingSourceGlyphLineV1,
+  page: MangaPage,
+): FontMatchingSourceGlyphLineV1[] | undefined {
+  // Recognition subregions can still span multiple physical lines. Preserve
+  // their supplied geometry; do not claim that this validates glyph boundaries.
+  if (!Array.isArray(hint.recognitionSegments)) return undefined;
+  const segments = hint.recognitionSegments.map((segment: unknown) => {
+    if (!isRecord(segment)) return {};
+    return {
+      x1: readCoordinate(segment.x1, 0, page.width) ?? undefined,
+      y1: readCoordinate(segment.y1, 0, page.height) ?? undefined,
+      x2: readCoordinate(segment.x2, 0, page.width) ?? undefined,
+      y2: readCoordinate(segment.y2, 0, page.height) ?? undefined,
+      ocrText: typeof segment.ocrText === "string" ? segment.ocrText : "",
+    };
+  });
+  const recognized = buildRecognitionSourceLines(
+    { recognitionSegments: segments },
+    parent,
+    page,
+  );
+  if (!recognized) return undefined;
+  const lines = recognized.map(({ bbox, sourceText }) => ({
+    x1: (bbox.x * page.width) / 1000,
+    y1: (bbox.y * page.height) / 1000,
+    x2: ((bbox.x + bbox.w) * page.width) / 1000,
+    y2: ((bbox.y + bbox.h) * page.height) / 1000,
+    glyphCount: countVisibleGlyphs(sourceText),
+  }));
+  const keys = new Set(
+    lines.map(({ x1, y1, x2, y2 }) => `${x1}:${y1}:${x2}:${y2}`),
+  );
+  return keys.size === lines.length &&
+    lines.every((line) => line.glyphCount > 0)
+    ? lines
+    : undefined;
 }
 
 function countVisibleGlyphs(value: unknown): number {

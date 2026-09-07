@@ -54,13 +54,13 @@ export async function inferFontTexturePage(options: {
   for (const block of options.blocks) {
     options.signal?.throwIfAborted();
     const row = options.rows.get(block.blockId);
-    if (!row?.crossScriptProxy) continue;
+    if (!row) continue;
     const support = prepareFontTextureSupport(
       options.raster,
       block.item.bbox,
       options.signal,
     );
-    if (!support || support.count < 2) continue;
+    if (!support) continue;
     const means = await runDisposableFloatTensorStage({
       session: options.session,
       inputName: "ink",

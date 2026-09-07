@@ -146,6 +146,8 @@ export type TranslationBlock = {
   /** Optional glow kept separate from the directional text shadow. */
   textGlow?: TextGlow;
   bold?: boolean;
+  /** Exact automatic face weight; absent on legacy/manual 400/800 styles. */
+  fontWeight?: number;
   italic?: boolean;
   underline?: boolean;
   strikethrough?: boolean;

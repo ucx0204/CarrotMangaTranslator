@@ -1,3 +1,4 @@
+import { normalizeFontWeightPatch } from "../../../shared/blockFontWeight";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import {
@@ -34,7 +35,7 @@ function applyFormatPatchToBlock(
   block: TranslationBlock,
   patch: Partial<TranslationBlock>,
 ): TranslationBlock {
-  const next = { ...block, ...patch };
+  const next = { ...block, ...normalizeFontWeightPatch(patch) };
   if (
     Object.hasOwn(patch, "fontSizePx") ||
     Object.hasOwn(patch, "autoFitText")

@@ -4,9 +4,16 @@ import {
   type ComponentAffinityMeasurement,
 } from "./sourceFontSizeComponentAffinity";
 import { estimateSourceFontFace } from "./sourceFontSizeGeometry";
-import { estimateLineCount } from "./sourceFontSizeMath";
+import {
+  buildCrossProfile,
+  closeSmallGaps,
+  estimateLineCount,
+  findActiveRuns,
+  SOURCE_FONT_FACE_SCALE,
+} from "./sourceFontSizeMath";
 import type { SourceFontCoreMask } from "./sourceFontSizeRaster";
 import { refineSourceFontFaceWithBody } from "./sourceFontSizeBodyEvidence";
+import { measureLineFaces } from "./sourceFontSizeProjection";
 
 /** OCR dots are an ambiguous occupancy hypothesis, not a new source column. */
 export function measureSourceFontFaceForText(
@@ -30,8 +37,60 @@ export function measureSourceFontFaceForText(
           selected.glyphCount,
           selected.estimate,
         )
-      : null,
+      : recoverBodyBesidePunctuation(core, direction, text),
   };
+}
+
+/** A separate dot column is not another full-width text column. */
+function recoverBodyBesidePunctuation(
+  core: SourceFontCoreMask,
+  direction: SourceTextDirection,
+  text: string,
+) {
+  if (!hasBodyAndPunctuation(text)) return null;
+  const profile = buildCrossProfile(core, direction);
+  const runs = closeSmallGaps(
+    findActiveRuns(profile.map((value) => value > 0)),
+    Math.max(1, Math.round(profile.length * 0.012)),
+  );
+  if (runs.length < 2 || runs.length > 4) return null;
+  const widths = runs.map(([start, end]) => end - start);
+  const widest = Math.max(...widths);
+  if (!widths.some((width) => width <= widest * 0.3)) return null;
+  const body = measureComponentAffinity(core, direction, runs.length);
+  if (
+    !body ||
+    body.confidence < 0.7 ||
+    body.primaryMassShare < 0.55 ||
+    ratio(body.primaryFace, widest) > 1.15
+  )
+    return null;
+  const faces = measureLineFaces(core, direction, runs.length);
+  const matching = faces.filter(
+    (face) => ratio(face, body.primaryFace) <= 1.15,
+  );
+  const [projectionFace] = matching;
+  if (
+    matching.length !== 1 ||
+    projectionFace === undefined ||
+    !faces.some((face) => face < body.primaryFace * 0.35)
+  )
+    return null;
+  // Projection width and independently assembled body components agree. This
+  // recovery neither rewrites the OCR string nor guesses a character count.
+  return {
+    confidence: Math.min(0.8, body.confidence),
+    facePx:
+      Math.sqrt(projectionFace * body.primaryFace) * SOURCE_FONT_FACE_SCALE,
+    method: "raster-core-v1" as const,
+  };
+}
+
+function hasBodyAndPunctuation(text: string): boolean {
+  const body = text.match(
+    /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu,
+  );
+  return /[….·・⋯⋮]/u.test(text) && body !== null && body.length >= 2;
 }
 
 function selectSourceTextHypothesis(

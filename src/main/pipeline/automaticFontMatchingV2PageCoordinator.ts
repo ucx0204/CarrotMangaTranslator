@@ -25,6 +25,7 @@ const BODY_ANCHOR_ROLES = new Set<FontMatchingSemanticRole>([
 ]);
 
 export type AutomaticFontPageCoordinatorV2 = Readonly<{
+  sourceStyleFor?: import("./fontChapterC18Types").FontChapterC18Resolver;
   prepareWorkState: (
     item: OverlayItem,
     role: FontMatchingSemanticRole,
@@ -206,6 +207,7 @@ export function createAutomaticFontPageCoordinatorV2(
     options.items ?? [],
   );
   return {
+    sourceStyleFor: chapterCoordinator.sourceStyleFor,
     prepareWorkState(item, role, pixelInference, runtimePolicy) {
       const chapterState = chapterCoordinator.prepareWorkState(
         item,

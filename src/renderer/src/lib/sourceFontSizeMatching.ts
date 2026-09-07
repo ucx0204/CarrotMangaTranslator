@@ -1,3 +1,4 @@
+import { resolveFontWeight } from "../../../shared/blockFontWeight";
 import type { BBox, TranslationBlock } from "../../../shared/textTypes";
 import { isGeneratedBubbleLayout } from "../../../shared/bubbleLayout";
 import { parseRichText } from "../../../shared/richTextMarkup";
@@ -52,6 +53,7 @@ export function resolveSourceMatchedFontSizeCapPx(
   const fontFamily = resolveBlockFontFamily(block.fontFamily, fontCatalog);
   const ratio = resolveTargetFaceRatio({
     bold: Boolean(block.bold),
+    fontWeight: block.fontWeight,
     direction,
     fontFamily,
     italic: Boolean(block.italic),
@@ -223,6 +225,7 @@ function median(values: readonly number[]): number | null {
 
 function resolveTargetFaceRatio(input: {
   bold: boolean;
+  fontWeight?: number;
   direction: "horizontal" | "vertical";
   fontFamily: string;
   italic: boolean;
@@ -230,7 +233,7 @@ function resolveTargetFaceRatio(input: {
 }): number {
   const key = [
     input.fontFamily,
-    input.bold ? "800" : "400",
+    resolveFontWeight(input),
     input.italic ? "italic" : "normal",
     input.direction,
     input.probe,
@@ -238,7 +241,7 @@ function resolveTargetFaceRatio(input: {
   const cached = faceRatioCache.get(key);
   if (cached !== undefined) return cached;
   const context = getTextMeasureContext();
-  context.font = `${input.italic ? "italic " : ""}${input.bold ? 800 : 400} ${REFERENCE_FONT_SIZE_PX}px ${input.fontFamily}`;
+  context.font = `${input.italic ? "italic " : ""}${resolveFontWeight(input)} ${REFERENCE_FONT_SIZE_PX}px ${input.fontFamily}`;
   const facePx =
     input.direction === "vertical"
       ? measureVerticalFacePx(context, input.probe)

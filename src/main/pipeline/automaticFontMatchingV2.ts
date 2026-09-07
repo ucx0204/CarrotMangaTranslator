@@ -36,6 +36,8 @@ import {
   type AutomaticInverseTextStyleV1,
 } from "./automaticFontMatchingV2Polarity";
 import { hasVerifiedCrossScriptProxyInference } from "./automaticFontMatchingV2CrossScriptProxy";
+import { resolveFontChapterC18Style } from "./fontChapterC18Apply";
+import type { FontChapterC18Style } from "./fontChapterC18Types";
 
 export {
   FONT_MATCHING_V2_MODEL_VERSION,
@@ -60,6 +62,7 @@ export type AutomaticFontOptionsV2 = Readonly<{
 }>;
 
 export type AutomaticFontDecisionV2 = Readonly<{
+  sourceChapterStyle?: FontChapterC18Style;
   result: FontMatchingDecisionResultV2;
   role: FontMatchRolePredictionV2;
   fontMetricWidthScale?: number;
@@ -79,13 +82,23 @@ export function resolveAutomaticFontDecisionV2({
 }): AutomaticFontDecisionV2 | undefined {
   const runtime = resolveAutomaticFontRuntime(options);
   if (!runtime) return undefined;
-  return resolveAutomaticFontRuntimeDecision({
+  const decision = resolveAutomaticFontRuntimeDecision({
     block,
     item,
     options,
     page,
     runtime,
   });
+  const sourceChapterStyle = resolveFontChapterC18Style({
+    ...options,
+    style: options.pageCoordinator?.sourceStyleFor?.(page.id, item),
+    pageId: page.id,
+    blockId: block.id,
+    role: decision.role.primary,
+  });
+  return sourceChapterStyle
+    ? { ...decision, sourceChapterStyle, fontMetricWidthScale: undefined }
+    : decision;
 }
 
 function resolveAutomaticFontRuntimeDecision({
@@ -114,9 +127,8 @@ function resolveAutomaticFontRuntimeDecision({
     item,
     pixelInference?.rolePrediction ?? null,
   );
-  const runtimePolicy = resolveReadyRuntimePolicy(
-    options.runtimeArtifactStatus,
-  );
+  const status = options.runtimeArtifactStatus;
+  const runtimePolicy = status?.state === "ready" ? status.policy : null;
   const automaticMutationReady = Boolean(pixelInference && runtimePolicy);
   const workState = prepareAutomaticFontWorkState(
     options,
@@ -342,12 +354,6 @@ function recordAutomaticDecision({
     options.pixelInference,
     runtimePolicy ?? undefined,
   );
-}
-
-function resolveReadyRuntimePolicy(
-  status: FontMatchingRuntimeArtifactStatus | undefined,
-): FontMatchingRuntimePolicy | null {
-  return status?.state === "ready" ? status.policy : null;
 }
 
 function resolveAutomaticFontRuntime(options: AutomaticFontOptionsV2) {

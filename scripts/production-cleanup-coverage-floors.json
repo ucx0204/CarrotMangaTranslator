@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "f812a53fbcbd17519c7d910c054b2c54a460cad5635a8bae58e62bc4daaff029",
+    "introducedArtifactSha256": "9cdf0387657b9f5cf3ab81d5a47052436981a06ee21bfa8c869b0120d58cb29d",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -16757,6 +16757,116 @@
         "pct": 62.5
       }
     },
+    "src/main/pipeline/fontChapterC18.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 44,
+        "pct": 2.27
+      },
+      "statements": {
+        "covered": 1,
+        "total": 47,
+        "pct": 2.12
+      },
+      "functions": {
+        "covered": 0,
+        "total": 6,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 19,
+        "pct": 0
+      }
+    },
+    "src/main/pipeline/fontChapterC18Apply.ts": {
+      "lines": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/fontChapterC18Input.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 17,
+        "pct": 5.88
+      },
+      "statements": {
+        "covered": 1,
+        "total": 17,
+        "pct": 5.88
+      },
+      "functions": {
+        "covered": 1,
+        "total": 4,
+        "pct": 25
+      },
+      "branches": {
+        "covered": 2,
+        "total": 14,
+        "pct": 14.28
+      }
+    },
+    "src/main/pipeline/fontChapterC18Types.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/fontChapterC18Worker.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 11,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 11,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 6,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 4,
+        "pct": 0
+      }
+    },
     "src/main/pipeline/fontMatchingCatalogRevision.ts": {
       "lines": {
         "covered": 8,
@@ -23046,6 +23156,28 @@
       "branches": {
         "covered": 2,
         "total": 2,
+        "pct": 100
+      }
+    },
+    "src/shared/blockFontWeight.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 17,
         "pct": 100
       }
     },

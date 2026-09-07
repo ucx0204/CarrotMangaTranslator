@@ -1,3 +1,4 @@
+import { normalizeFontWeightPatch } from "../../../shared/blockFontWeight";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import {
@@ -115,7 +116,7 @@ function applyFormatPatch(
     hasExplicitRenderDirection &&
     (block.layoutIntent !== undefined || block.layoutIntentSuppressed !== true);
   const normalizedPatch: Partial<TranslationBlock> = {
-    ...patch,
+    ...normalizeFontWeightPatch(patch),
     ...(hasRenderDirectionPatch
       ? {
           renderDirection: normalizeRenderDirection(

@@ -13,6 +13,16 @@ import {
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 describe("block font loading", () => {
+  it("loads exact automatic weights and distinguishes their readiness cache keys", () => {
+    const makeKey = (fontWeight: number) =>
+      createBlockFontLoadKey(
+        [makeBlock({ fontFamily: "nanum-myeongjo", fontWeight, bold: true })],
+        DEFAULT_BLOCK_FONT_CATALOG,
+      );
+    expect(makeKey(700)).toContain("normal 700 16px");
+    expect(makeKey(800)).toContain("normal 800 16px");
+    expect(makeKey(700)).not.toBe(makeKey(800));
+  });
   it("waits for the concrete punctuation face used by Shilla quotes", () => {
     const key = createBlockFontLoadKey(
       [

@@ -341,7 +341,12 @@ function createRunSpan(
   const absoluteSize = run.sizePx ?? baseSize;
   span.style.fontSize = `${clampPreviewFontSize((absoluteSize / baseSize) * 16)}px`;
   span.style.fontFamily = options.resolveFontFamily(run.fontFamily);
-  span.style.fontWeight = options.baseBold || run.bold ? "800" : "400";
+  span.style.fontWeight = String(
+    resolveFontWeight({
+      bold: options.baseBold || run.bold,
+      fontWeight: run.fontFamily ? undefined : options.block?.fontWeight,
+    }),
+  );
   span.style.fontStyle = options.baseItalic || run.italic ? "italic" : "normal";
   span.style.opacity = String(run.opacity ?? options.baseOpacity);
   if (options.block) {
@@ -405,3 +410,4 @@ function textLength(runs: readonly TextStyleRun[]): number {
 function endsWithNewline(runs: readonly TextStyleRun[]): boolean {
   return runs.at(-1)?.text.endsWith("\n") ?? false;
 }
+import { resolveFontWeight } from "../../../shared/blockFontWeight";

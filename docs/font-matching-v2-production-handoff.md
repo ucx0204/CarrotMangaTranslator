@@ -1,5 +1,9 @@
 # 폰트 자동 맞춤 프로덕션 인계서
 
+> 2026-09-07 사용자 승인 C18의 실제 화 단위 로컬 앱 통합과 미사용 화 검증은
+> [C18 앱 통합 인계서](font-chapter-c18-handoff.md)를 먼저 읽는다.
+> 작업은 기본 워크트리 master이며 B는 정확히 v2.5.0이다. 공개 installer 릴리스와는 구별한다.
+
 > 2026-09-06 신라문화체의 제한적인 강한 명조 강조 보정은
 > [C15 제품 인계](font-shilla-texture-c15-handoff.md)와
 > [20작품 194페이지 최종 비교](font-shilla-c15-final-20-work-results.md)를 먼저 본다.

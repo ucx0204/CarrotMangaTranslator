@@ -176,9 +176,13 @@ function usePreviewPlacement({
 } {
   const plainText = React.useMemo(
     () =>
-      parseRichText(displayText, Boolean(block.bold), Boolean(block.italic))
-        .plainText,
-    [block.bold, block.italic, displayText],
+      parseRichText(
+        displayText,
+        Boolean(block.bold),
+        Boolean(block.italic),
+        block.fontWeight,
+      ).plainText,
+    [block.bold, block.italic, block.fontWeight, displayText],
   );
   return {
     layoutRect: resolveBlockRectPx(
@@ -203,6 +207,7 @@ function canReuseCanonicalLayout(
     canonicalText === candidateText,
     canonical.autoFitText === candidate.autoFitText,
     canonical.bold === candidate.bold,
+    canonical.fontWeight === candidate.fontWeight,
     canonical.fontFamily === candidate.fontFamily,
     canonical.fontSizeIntent === candidate.fontSizeIntent,
     canonical.fontSizePx === candidate.fontSizePx,

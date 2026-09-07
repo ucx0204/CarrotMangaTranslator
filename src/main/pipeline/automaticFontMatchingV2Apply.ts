@@ -9,8 +9,8 @@ export function applyAutomaticFontDecisionV2(
   block: TranslationBlock,
   decision: AutomaticFontDecisionV2 | undefined,
 ): TranslationBlock {
-  const selection = decision?.result.selectedStyle;
-  if (!selection || decision?.result.decision.mode !== "apply") return block;
+  const selection = applicableSelection(decision);
+  if (!selection || !decision) return block;
   const inverseTextStyle = decision.inverseTextStyle;
   const applied: TranslationBlock = {
     ...block,
@@ -21,9 +21,12 @@ export function applyAutomaticFontDecisionV2(
         }
       : {}),
     fontFamily: selection.fontId,
+    fontWeight: selection.fontWeight,
     ...(selection.fontWeight === undefined
       ? {}
-      : { bold: selection.fontWeight >= 600 }),
+      : {
+          bold: selection.fontWeight >= 600,
+        }),
     ...(selection.italic === undefined ? {} : { italic: selection.italic }),
     // Font matching may choose a face and source-polarity colors, but outline
     // thickness belongs to the user's block/default formatting. In particular,
@@ -42,4 +45,11 @@ export function applyAutomaticFontDecisionV2(
     ...applied,
     outlineColor: resolveAutomaticTextOutlineColor(applied),
   };
+}
+
+function applicableSelection(decision: AutomaticFontDecisionV2 | undefined) {
+  if (decision?.sourceChapterStyle) return decision.sourceChapterStyle;
+  return decision?.result.decision.mode === "apply"
+    ? decision.result.selectedStyle
+    : null;
 }

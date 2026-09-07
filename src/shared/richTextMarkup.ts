@@ -15,6 +15,8 @@ import {
 export type TextStyleRun = {
   text: string;
   bold: boolean;
+  /** Resolved block face for rendering only; never serialized into inline markup. */
+  fontWeight?: number;
   italic: boolean;
   underline?: boolean;
   strikethrough?: boolean;
@@ -101,11 +103,19 @@ export function parseRichText(
   input: string,
   baseBold = false,
   baseItalic = false,
+  baseFontWeight?: number,
 ): ParsedRichText {
   const raw = typeof input === "string" ? input : String(input ?? "");
   const runs: TextStyleRun[] = [];
   parseSegment(raw, { bold: baseBold, italic: baseItalic }, 0, runs);
   const merged = mergeTextStyleRuns(runs);
+  if (baseFontWeight !== undefined) {
+    for (const run of merged) {
+      if (run.bold === baseBold && !run.fontFamily) {
+        run.fontWeight = baseFontWeight;
+      }
+    }
+  }
   return {
     runs: merged,
     plainText: merged.map((run) => run.text).join(""),

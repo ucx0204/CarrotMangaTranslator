@@ -26,6 +26,8 @@ import { FONT_MATCHING_ACTIVE_CATALOG_FILE } from "./fontMatchingRuntimeArtifact
 import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimePaths";
 import { createWorkerFontMatchingPageInferencePort } from "./fontMatchingInferenceWorkerClient";
 import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
+import { createFontChapterC18Port } from "./fontChapterC18";
+import type { FontChapterC18Port } from "./fontChapterC18Types";
 
 type PipelineSettingsRepository = {
   getAppSettings: (paths: AppPaths) => Promise<AppSettings>;
@@ -35,6 +37,7 @@ export type WholePagePipelineDependencies = {
   paths: AppPaths;
   settings: PipelineSettingsRepository;
   fontMatching: {
+    chapter?: FontChapterC18Port;
     loadCandidates: (
       targetLanguage?: string,
     ) => readonly AutomaticFontCandidate[];
@@ -99,6 +102,7 @@ export function createDefaultWholePagePipelineDependencies(
     paths,
     settings: { getAppSettings },
     fontMatching: {
+      chapter: createFontChapterC18Port(paths),
       loadCandidates: (targetLanguage) => {
         const locale = resolveUiLocale(targetLanguage);
         if (!locale) return [];

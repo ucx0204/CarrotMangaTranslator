@@ -1,4 +1,5 @@
 /* eslint-disable max-lines -- one wrapping module owns the shared styled-grapheme measurement and line-break contract */
+import { resolveFontWeight } from "../../../shared/blockFontWeight";
 import type { TextStyleRun } from "../../../shared/richTextMarkup";
 import {
   allowsLongTokenFallback,
@@ -163,6 +164,7 @@ export function measureStyledGraphemes(
       style.fontFamily,
       run.bold,
       run.italic,
+      run.fontWeight,
     );
     graphemes.push({
       ...run,
@@ -488,6 +490,7 @@ function createRenderedTextStyleRun(
 
 const RUN_STYLE_KEYS = [
   "bold",
+  "fontWeight",
   "italic",
   "underline",
   "strikethrough",
@@ -552,8 +555,9 @@ function buildFontForStyle(
   fontFamily: string,
   bold: boolean,
   italic: boolean,
+  fontWeight?: number,
 ): string {
   const style = italic ? "italic " : "";
-  const weight = bold ? 800 : 400;
+  const weight = resolveFontWeight({ bold, fontWeight });
   return `${style}${weight} ${fontSize}px ${fontFamily}`;
 }
