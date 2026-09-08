@@ -342,6 +342,43 @@ describe("llama server output transport", () => {
     transport.dispose();
     expect(file.listenerCount("error")).toBe(0);
   });
+
+  it.each(["callback", "throw"] as const)(
+    "observes a %s error from log end and retains its listener until close",
+    (failureMode) => {
+      const file = new FakeServerLogStream();
+      const failure = new Error("log flush failed during disposal");
+      file.end = (callback) => {
+        file.endCalls += 1;
+        if (failureMode === "throw") throw failure;
+        callback?.(failure);
+      };
+      const transport = createServerOutputTransport(
+        {
+          label: "translation",
+          modelFile: "gemma.gguf",
+          onProgress: () => undefined,
+        },
+        { stream: file, header: [] },
+        { stdout: new FakeOutputStream(), stderr: new FakeOutputStream() },
+      );
+
+      transport.record("stdout", "last output before closing\n");
+      expect(() => transport.dispose()).not.toThrow();
+      transport.dispose();
+      expect(file.endCalls).toBe(1);
+      expect(file.listenerCount("error")).toBe(1);
+      expect(() => file.emit("error", failure)).not.toThrow();
+      expect(transport.recent.stderr).toContain(failure.message);
+      expect(
+        transport.recent.stderr.match(/server-log-disabled/g),
+      ).toHaveLength(1);
+      expect(transport.recent.stdout).toContain("last output before closing");
+      file.emit("close");
+      expect(file.listenerCount("error")).toBe(0);
+      expect(file.listenerCount("close")).toBe(0);
+    },
+  );
 });
 
 function makeServerLogTarget(lines: string[]): ServerLogTarget {
@@ -378,5 +415,8 @@ class FakeServerLogStream extends FakeOutputStream implements ServerLogOutput {
   end(callback?: (error?: Error | null) => void): void {
     this.endCalls += 1;
     callback?.();
+    // File streams close after finishing. A finish callback alone does not
+    // mean that pending write errors can no longer be delivered.
+    this.emit("close");
   }
 }

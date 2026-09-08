@@ -116,29 +116,49 @@ async function runChunksWithStagger(
   );
   /** @type {Array<Promise<OcrChunkRun>>} */
   const promises = [];
-  for (const [chunkIndex, chunk] of chunks.entries()) {
-    if (chunkIndex > 0) {
-      await dependencies.delayForOcrWorkerStart(
-        delayMs,
-        context.batchOptions.abortSignal,
+  const controller = new AbortController();
+  const callerSignal = context.batchOptions.abortSignal;
+  const onAbort = () => controller.abort(callerSignal?.reason);
+  if (callerSignal?.aborted) onAbort();
+  else callerSignal?.addEventListener("abort", onAbort, { once: true });
+  const batchContext = {
+    ...context,
+    batchOptions: { ...context.batchOptions, abortSignal: controller.signal },
+  };
+  /** @type {{ error: unknown } | null} */
+  let failure = null;
+  try {
+    for (const [chunkIndex, chunk] of chunks.entries()) {
+      controller.signal.throwIfAborted();
+      if (chunkIndex > 0) {
+        await dependencies.delayForOcrWorkerStart(delayMs, controller.signal);
+      }
+      await dependencies.waitForOcrCpuWorkerRamHeadroom(
+        batchContext.batchOptions,
+        chunkIndex,
       );
+      controller.signal.throwIfAborted();
+      const promise = runOcrBboxBatchChunk(dependencies, {
+        ...batchContext,
+        chunk,
+        chunkIndex,
+        emitPageProgress,
+      });
+      void promise.catch((error) => {
+        failure ??= { error };
+        controller.abort(error);
+      });
+      promises.push(promise);
     }
-    await dependencies.waitForOcrCpuWorkerRamHeadroom(
-      context.batchOptions,
-      chunkIndex,
-    );
-    const promise = runOcrBboxBatchChunk(dependencies, {
-      ...context,
-      chunk,
-      chunkIndex,
-      emitPageProgress,
-    });
-    promise.catch(() => {
-      // error-policy-allow: Promise.all observes this rejection after staggered worker starts.
-    });
-    promises.push(promise);
+    return await Promise.all(promises);
+  } catch (error) {
+    failure ??= { error };
+    controller.abort(failure.error);
+    await Promise.allSettled(promises);
+    throw failure.error;
+  } finally {
+    callerSignal?.removeEventListener("abort", onAbort);
   }
-  return await Promise.all(promises);
 }
 
 /** @param {OcrChunkRun[]} runs */

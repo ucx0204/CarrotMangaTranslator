@@ -3,6 +3,8 @@ import { win32 } from "node:path";
 
 const VC_RUNTIME_DLLS = [
   "MSVCP140.dll",
+  "MSVCP140_1.dll",
+  "MSVCP140_ATOMIC_WAIT.dll",
   "VCRUNTIME140.dll",
   "VCRUNTIME140_1.dll",
   "CONCRT140.dll",

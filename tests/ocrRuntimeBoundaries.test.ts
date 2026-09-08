@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createWriteStream,
   existsSync,
@@ -39,6 +39,17 @@ const config =
       options?: Record<string, unknown>,
     ) => string;
     resolveOcrRuntimeVariant: (options?: Record<string, unknown>) => string;
+    resolveOcrRuntimeDir: (options: Record<string, unknown>) => string;
+    resolveOcrPythonPackageDir: (
+      root: string,
+      options: Record<string, unknown>,
+    ) => string;
+    resolveOcrVenvDir: (
+      root: string,
+      variant: string,
+      options: Record<string, unknown>,
+    ) => string;
+    resolveVenvPythonPath: (venvDir: string) => string;
   };
 const manager =
   require("../src/main/runtime/simple-page-ocr-runtime-manager.cjs") as {
@@ -398,6 +409,191 @@ describeWindows("OCR runtime boundary behavior", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it.each([
+    "broken-venv",
+    "healthy-venv",
+    "absent-venv",
+    "changed-signature",
+    "broken-target",
+  ] as const)(
+    "rechecks a successful target fallback independently on the next ensure: %s",
+    async (scenario) => {
+      const orchestratorPath =
+        require.resolve("../src/main/runtime/ocr/runtime-orchestrator.cjs");
+      const flowPath =
+        require.resolve("../src/main/runtime/ocr/runtime-install-flow.cjs");
+      const installerPath =
+        require.resolve("../src/main/runtime/ocr/runtime-installer.cjs");
+      const verificationPath =
+        require.resolve("../src/main/runtime/ocr/runtime-verification.cjs");
+      const affectedPaths = [
+        orchestratorPath,
+        flowPath,
+        installerPath,
+        verificationPath,
+      ];
+      for (const modulePath of affectedPaths) require(modulePath);
+      const originals = new Map(
+        affectedPaths.map((modulePath) => [
+          modulePath,
+          require.cache[modulePath],
+        ]),
+      );
+      const actualInstaller = require(installerPath) as Record<string, unknown>;
+      const actualVerification = require(verificationPath) as Record<
+        string,
+        unknown
+      >;
+      const { OCR_INSTALL_MARKER_FILE } =
+        require("../src/main/runtime/simple-page-defaults.cjs") as {
+          OCR_INSTALL_MARKER_FILE: string;
+        };
+      const root = mkdtempSync(join(tmpdir(), "ocr-target-reuse-"));
+      const runtimeDir = join(root, "runtime");
+      const bootstrapPython = join(root, "tools", "python", "python.exe");
+      const options = {
+        ocrPipeline: "hayai",
+        ocrDevice: "cpu",
+        ocrRuntimeDir: runtimeDir,
+        toolsDir: join(root, "tools"),
+      };
+      const variant = config.resolveOcrRuntimeVariant(options);
+      const packageDir = config.resolveOcrPythonPackageDir(runtimeDir, options);
+      const venvDir = config.resolveOcrVenvDir(runtimeDir, variant, options);
+      const venvPython = config.resolveVenvPythonPath(venvDir);
+      const readyPath = join(packageDir, "fixture-runtime-ready");
+      const preservedPath = join(packageDir, "fixture-preserve-on-reuse");
+      let venvHealthy = false;
+      const installCalls: Array<{
+        pythonPath: string;
+        targetDir: string | null;
+      }> = [];
+      const checks: Array<{ pythonPath: string; includePackageDir: boolean }> =
+        [];
+      try {
+        vi.stubEnv("MANGA_TRANSLATOR_OCR_RUNTIME_DIR", runtimeDir);
+        vi.stubEnv("MANGA_TRANSLATOR_OCR_PYTHON", bootstrapPython);
+        vi.stubEnv("MANGA_TRANSLATOR_OCR_AUTO_INSTALL", "true");
+        expect(config.resolveOcrRuntimeDir(options)).toBe(runtimeDir);
+        mkdirSync(dirname(venvPython), { recursive: true });
+        mkdirSync(dirname(bootstrapPython), { recursive: true });
+        writeFileSync(venvPython, "controlled interpreter boundary");
+        writeFileSync(bootstrapPython, "controlled interpreter boundary");
+        replaceCachedExports(installerPath, {
+          ...actualInstaller,
+          async installOcrPythonPackages(
+            pythonPath: string,
+            _batches: string[][],
+            targetDir: string | null,
+          ) {
+            installCalls.push({ pythonPath, targetDir });
+            if (pythonPath === venvPython) throw new Error("venv pip failed");
+            expect(pythonPath).toBe(bootstrapPython);
+            expect(targetDir).toBe(packageDir);
+            for (const name of [
+              "torch",
+              "torchvision",
+              "transformers",
+              "tokenizers",
+              "safetensors",
+              "huggingface_hub",
+              "PIL",
+            ])
+              mkdirSync(join(packageDir, name), { recursive: true });
+            writeFileSync(readyPath, "ready");
+          },
+        });
+        replaceCachedExports(verificationPath, {
+          ...actualVerification,
+          async checkOcrRuntimeImport(
+            pythonPath: string,
+            _options: unknown,
+            runtime: { includePackageDir?: boolean },
+          ) {
+            checks.push({
+              pythonPath,
+              includePackageDir: runtime.includePackageDir === true,
+            });
+            if (pythonPath === venvPython)
+              return {
+                ok: venvHealthy,
+                message: venvHealthy ? "" : "missing venv package",
+              };
+            expect(pythonPath).toBe(bootstrapPython);
+            const ok =
+              runtime.includePackageDir === true && existsSync(readyPath);
+            return { ok, message: ok ? "" : "missing target package" };
+          },
+        });
+        delete require.cache[flowPath];
+        delete require.cache[orchestratorPath];
+        const orchestrator = require(orchestratorPath) as {
+          ensureOcrRuntime: (
+            options: Record<string, unknown>,
+          ) => Promise<Record<string, unknown>>;
+        };
+        await expect(
+          orchestrator.ensureOcrRuntime(options),
+        ).resolves.toMatchObject({
+          pythonPath: bootstrapPython,
+          usesTargetPackageDir: true,
+        });
+        expect(installCalls).toEqual([
+          { pythonPath: venvPython, targetDir: null },
+          { pythonPath: bootstrapPython, targetDir: packageDir },
+        ]);
+        expect(existsSync(venvPython)).toBe(true);
+        writeFileSync(preservedPath, "keep this installation");
+        const markerPath = join(packageDir, OCR_INSTALL_MARKER_FILE);
+        const markerBefore = readFileSync(markerPath, "utf8");
+        if (scenario === "healthy-venv") venvHealthy = true;
+        if (scenario === "absent-venv")
+          rmSync(venvDir, { recursive: true, force: true });
+        if (scenario === "broken-target") rmSync(readyPath);
+        if (scenario === "changed-signature") {
+          const marker = JSON.parse(markerBefore) as Record<string, unknown>;
+          writeFileSync(
+            markerPath,
+            JSON.stringify({
+              ...marker,
+              packageSignature: "obsolete fixture signature",
+            }),
+          );
+        }
+        const previousCheckCount = checks.length;
+        const second = await orchestrator.ensureOcrRuntime(options);
+        const mustReinstall =
+          scenario === "changed-signature" || scenario === "broken-target";
+        expect(installCalls).toHaveLength(mustReinstall ? 4 : 2);
+        if (mustReinstall) {
+          expect(existsSync(preservedPath)).toBe(false);
+          expect(existsSync(readyPath)).toBe(true);
+        } else {
+          expect(readFileSync(preservedPath, "utf8")).toBe(
+            "keep this installation",
+          );
+          expect(readFileSync(markerPath, "utf8")).toBe(markerBefore);
+          if (scenario !== "healthy-venv")
+            expect(checks.slice(previousCheckCount)).toContainEqual({
+              pythonPath: bootstrapPython,
+              includePackageDir: true,
+            });
+        }
+        expect(second).toMatchObject({
+          pythonPath: venvHealthy ? venvPython : bootstrapPython,
+          usesTargetPackageDir: !venvHealthy,
+        });
+      } finally {
+        for (const [modulePath, entry] of originals) {
+          if (entry) require.cache[modulePath] = entry;
+          else delete require.cache[modulePath];
+        }
+        vi.unstubAllEnvs();
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("retries a failed venv package install through managed Python", async () => {
     const flowPath =

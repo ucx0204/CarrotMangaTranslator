@@ -216,6 +216,29 @@ describe("source font-size projection geometry", () => {
     expect(measurement?.face).toBeLessThan(21);
   });
 
+  it.each(["horizontal", "vertical"] as const)(
+    "measures dense %s glyphs without exceeding the JavaScript argument limit",
+    (direction) => {
+      const core = createCore(
+        1000,
+        1000,
+        (set) => {
+          for (let glyph = 0; glyph < 8; glyph += 1) {
+            if (direction === "vertical")
+              fillRect(set, 300, 20 + glyph * 120, 350, 90);
+            else fillRect(set, 20 + glyph * 120, 300, 90, 350);
+          }
+        },
+        8,
+      );
+      expect(core.foregroundRatio).toBeGreaterThan(0.2);
+      const result = measureMajorAxisPitch(core, direction, 8, 1);
+      expect(result).not.toBeNull();
+      expect(result?.face).toBeCloseTo(90);
+      expect(result?.lineCount).toBe(1);
+    },
+  );
+
   it("recovers a long single column only when three geometry views agree", () => {
     const core = createCore(
       73,

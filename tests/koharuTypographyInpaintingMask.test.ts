@@ -14,6 +14,65 @@ import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 describe("Koharu typography inpainting masks", () => {
+  it("keeps a nearby excluded detection outside all selected-block Flux masks", () => {
+    const page = { ...makePage(), width: 100, height: 100 };
+    page.blocks[0] = {
+      ...requireValue(page.blocks[0], "page block"),
+      bbox: { x: 400, y: 400, w: 100, h: 100 },
+      renderBbox: { x: 200, y: 200, w: 400, h: 400 },
+      renderBboxSpace: "normalized_1000",
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 1,
+        origin: "manual",
+        insetRatio: 0,
+        regions: [
+          {
+            spans: [
+              { blockStart: 0, blockEnd: 1, inlineStart: 0, inlineEnd: 1 },
+            ],
+          },
+        ],
+      },
+    };
+    const context = buildPatternPageMask({
+      bitmap: Buffer.alloc(100 * 100 * 4, 255),
+      bubbleLayoutConstraintBlockIds: ["block-1"],
+      height: 100,
+      width: 100,
+      mode: "flux-region",
+      page,
+      typographySegmentation: {
+        ...makeSegmentation([
+          makeFilledDetection("text", 0, [40, 40, 50, 50]),
+          makeFilledDetection("text", 0, [61, 40, 66, 45]),
+        ]),
+        imageWidth: 100,
+        imageHeight: 100,
+      },
+    });
+    for (const inventory of [
+      context.inpaintWindowMasks,
+      context.inpaintCompositeMasks,
+      context.inpaintWindowConstraints,
+    ]) {
+      const mask = expandWindowMaskToPage(
+        requireValue(inventory[0], "mask"),
+        100,
+        100,
+      );
+      expect(mask[42 * 100 + 63]).toBe(0);
+      expect(mask[45 * 100 + 45]).toBe(1);
+      for (let y = 0; y < 100; y += 1) {
+        for (let x = 0; x < 100; x += 1) {
+          if (x < 20 || x >= 60 || y < 20 || y >= 60)
+            expect(mask[y * 100 + x]).toBe(0);
+        }
+      }
+    }
+  });
+
   it("lets Codex discover all text in a selected region even when segmentation misses it", () => {
     const page = makePage();
     page.blocks[0] = {

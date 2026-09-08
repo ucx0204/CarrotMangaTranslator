@@ -33,6 +33,7 @@ function applyFontMatchingIntentOutput(sections, options) {
         "textRole: <ordinary|sound>",
         "fontRole: <fine-grained role>",
         "fontRoleConfidence: <0.00-1.00>",
+        "",
       ].join("\n"),
     );
   }

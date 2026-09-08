@@ -445,6 +445,63 @@ describe("dedicated sound-effect translation contract", () => {
     expect(result.retryRegionIds).toEqual(["FX001"]);
   });
 
+  it.each([
+    ["zh-Hans", "轰隆！"],
+    ["zh-Hant", "轟隆！"],
+    ["ko", "쾅"],
+    ["en", "BANG"],
+  ])(
+    "accepts a valid %s SFX target on both visual attempts",
+    (language, text) => {
+      const region = effect("FX001", "ドン", { x: 10, y: 20, w: 100, h: 120 });
+      for (const retry of [false, true]) {
+        const result = validateSoundEffectTranslationResponse(
+          { items: [sfxResponse(region.id, "ドン", text)] },
+          [region],
+          language,
+          { allowOcrMismatch: retry, allowAmbiguousKoreanMeaning: retry },
+        );
+        expect(result.retryRegionIds).toEqual([]);
+        expect(result.valid).toEqual([
+          expect.objectContaining({ regionId: region.id, translation: text }),
+        ]);
+        expect(
+          buildReviewedSoundEffectBlock(
+            makePage(),
+            region,
+            result.valid[0],
+            "language-regression",
+            0,
+          ).translatedText,
+        ).toBe(text);
+      }
+    },
+  );
+
+  it.each([
+    ["zh-Hans", "轰ドン"],
+    ["zh-Hant", "轟どん"],
+    ["ko", "轟隆"],
+    ["en", "轰隆"],
+    ["ko", "ドン"],
+    ["en", "どん"],
+  ])(
+    "keeps unintended Japanese residue pending for %s (%s)",
+    (language, text) => {
+      const region = effect("FX001", "ドン", { x: 10, y: 20, w: 100, h: 120 });
+      for (const retry of [false, true]) {
+        const result = validateSoundEffectTranslationResponse(
+          { items: [sfxResponse(region.id, "ドン", text)] },
+          [region],
+          language,
+          { allowOcrMismatch: retry, allowAmbiguousKoreanMeaning: retry },
+        );
+        expect(result.valid).toEqual([]);
+        expect(result.retryRegionIds).toEqual([region.id]);
+      }
+    },
+  );
+
   it("trusts direct visual reading over OCR but retries duplicate or invalid-language ids", () => {
     const regions = [
       effect("FX001", "ドン", { x: 10, y: 20, w: 100, h: 120 }),

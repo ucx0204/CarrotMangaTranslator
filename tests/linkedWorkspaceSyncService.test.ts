@@ -16,7 +16,12 @@ import type {
   MangaPage,
 } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
-import { DEFAULT_RASTER_EXPORT_SETTINGS } from "../src/shared/linkedWorkspaceTypes";
+import {
+  DEFAULT_RASTER_EXPORT_SETTINGS,
+  type LinkedWorkspaceRegistryV1,
+  type RasterExportFormat,
+  type ViewLinkedResultsResult,
+} from "../src/shared/linkedWorkspaceTypes";
 
 const boundary = vi.hoisted(() => ({
   chapter: null as ChapterSnapshot | null,
@@ -75,6 +80,333 @@ afterEach(async () => {
 });
 
 describe("LinkedWorkspaceSyncService", () => {
+  for (const mode of ["connect", "update"] as const) {
+    it.each(["source", "png", "jpeg", "webp"] as const)(
+      `keeps mixed-extension same-stem pages distinct after ${mode} to %s`,
+      async (format) => {
+        vi.useRealTimers();
+        boundary.chapter = makeChapter(2);
+        requireChapter().pages.forEach((page, index) => {
+          const name = index === 0 ? "001.png" : "001.jpg";
+          page.name = name;
+          page.sourceFileName = name;
+          page.sourceRelativePath = name;
+        });
+        boundary.library = makeLibrary();
+        boundary.createSession.mockImplementation(async () => {
+          const session = makeRenderSession(async (page) =>
+            Buffer.from(`render-${page.id}`),
+          );
+          boundary.sessions.push(session);
+          return session;
+        });
+        const { dataRoot, root, service } = await makeConnectedService(
+          "custom",
+          undefined,
+          (page) => `original-${page.id}`,
+          mode === "connect" ? format : "source",
+        );
+        let restored: LinkedWorkspaceSyncService | undefined;
+        try {
+          if (mode === "update") {
+            await expect(
+              service.viewResults({ chapterId: CHAPTER_ID }),
+            ).resolves.toMatchObject({ status: "opened", syncedPages: 2 });
+            const connectionId = service.getStatus(CHAPTER_ID).connectionId;
+            if (!connectionId) throw new Error("missing test connection");
+            await service.update({
+              connectionId,
+              output: {
+                ...DEFAULT_RASTER_EXPORT_SETTINGS,
+                destinationMode: "fixed",
+                format,
+              },
+            });
+          }
+          await expect(
+            service.viewResults({ chapterId: CHAPTER_ID }),
+          ).resolves.toMatchObject({ status: "opened" });
+          const registry = JSON.parse(
+            await readFile(join(dataRoot, "linked-workspaces.json"), "utf8"),
+          ) as LinkedWorkspaceRegistryV1;
+          const record = registry.records[0];
+          if (!record) throw new Error("missing test registry record");
+          const paths = requireChapter().pages.map(
+            (page) => record.artifacts[page.id]?.result?.path,
+          );
+          expect(new Set(paths.map((path) => path?.toLowerCase())).size).toBe(
+            2,
+          );
+          for (const page of requireChapter().pages) {
+            const path = record.artifacts[page.id]?.result?.path;
+            if (!path) throw new Error("missing published test result");
+            expect(await readFile(join(root, path), "utf8")).toBe(
+              `render-${page.id}`,
+            );
+            expect(
+              await readFile(join(root, "originals", page.name), "utf8"),
+            ).toBe(`original-${page.id}`);
+            if (format === "source") expect(path).toBe(`result/${page.name}`);
+            else
+              expect(
+                path.endsWith(format === "jpeg" ? ".jpg" : `.${format}`),
+              ).toBe(true);
+          }
+          expect(await readdir(join(root, "result"))).toHaveLength(2);
+          const resultRelativePaths = Object.fromEntries(
+            requireChapter().pages.map((page, index) => [
+              page.id,
+              paths[index],
+            ]),
+          );
+          expect(record).toMatchObject({
+            pageRelativePaths: Object.fromEntries(
+              requireChapter().pages.map((page) => [page.id, page.name]),
+            ),
+            resultRelativePaths,
+          });
+          const renderedCount = boundary.sessions.flatMap(
+            (session) => session.renderPage.mock.calls,
+          ).length;
+          await expect(
+            service.viewResults({ chapterId: CHAPTER_ID }),
+          ).resolves.toMatchObject({ status: "opened", syncedPages: 0 });
+          expect(
+            boundary.sessions.flatMap(
+              (session) => session.renderPage.mock.calls,
+            ),
+          ).toHaveLength(renderedCount);
+          await service.dispose();
+          restored = createService(dataRoot);
+          await restored.initialize();
+          await expect(
+            restored.viewResults({ chapterId: CHAPTER_ID }),
+          ).resolves.toMatchObject({ status: "opened", syncedPages: 0 });
+          const restoredRegistry = JSON.parse(
+            await readFile(join(dataRoot, "linked-workspaces.json"), "utf8"),
+          ) as LinkedWorkspaceRegistryV1;
+          expect(restoredRegistry.records[0]).toMatchObject({
+            pageRelativePaths: record.pageRelativePaths,
+            sourceRelativePaths: record.sourceRelativePaths,
+            resultRelativePaths,
+            artifacts: record.artifacts,
+          });
+          expect(
+            boundary.sessions.flatMap(
+              (session) => session.renderPage.mock.calls,
+            ),
+          ).toHaveLength(renderedCount);
+        } finally {
+          await service.dispose();
+          await restored?.dispose();
+        }
+      },
+    );
+  }
+
+  it.each(["source", "png", "jpeg", "webp"] as const)(
+    "rebuilds legacy v1 result paths without changing recovery paths for %s",
+    async (format) => {
+      vi.useRealTimers();
+      boundary.chapter = makeChapter(2);
+      requireChapter().pages.forEach((page, index) => {
+        const name = index === 0 ? "001.png" : "001.jpg";
+        page.name = name;
+        page.sourceFileName = name;
+        page.sourceRelativePath = name;
+      });
+      boundary.library = makeLibrary();
+      boundary.createSession.mockImplementation(async () => {
+        const session = makeRenderSession(async (page) =>
+          Buffer.from(`render-${page.id}`),
+        );
+        boundary.sessions.push(session);
+        return session;
+      });
+      const { dataRoot, root, service } = await makeConnectedService(
+        "custom",
+        undefined,
+        (page) => `original-${page.id}`,
+        format,
+      );
+      let restored: LinkedWorkspaceSyncService | undefined;
+      try {
+        await expect(
+          service.viewResults({ chapterId: CHAPTER_ID }),
+        ).resolves.toMatchObject({ status: "opened", syncedPages: 2 });
+        await service.dispose();
+        const registryPath = join(dataRoot, "linked-workspaces.json");
+        const legacy = JSON.parse(
+          await readFile(registryPath, "utf8"),
+        ) as LinkedWorkspaceRegistryV1;
+        const record = legacy.records[0];
+        if (!record) throw new Error("missing legacy test record");
+        const pageRelativePaths = { ...record.pageRelativePaths };
+        const sourceRelativePaths = { ...record.sourceRelativePaths };
+        Reflect.deleteProperty(record, "resultRelativePaths");
+        if (format !== "source") {
+          const extension = format === "jpeg" ? "jpg" : format;
+          const sharedPath = `result/001.${extension}`;
+          for (const page of requireChapter().pages) {
+            const result = record.artifacts[page.id]?.result;
+            if (!result) throw new Error("missing legacy test artifact");
+            if (result.path !== sharedPath)
+              await rm(join(root, result.path), { force: true });
+            result.path = sharedPath;
+            await writeFile(join(root, sharedPath), `render-${page.id}`);
+          }
+        }
+        await writeFile(registryPath, JSON.stringify(legacy));
+        restored = createService(dataRoot);
+        await restored.initialize();
+        await expect(
+          restored.viewResults({ chapterId: CHAPTER_ID }),
+        ).resolves.toMatchObject({ status: "opened" });
+        const migrated = JSON.parse(
+          await readFile(registryPath, "utf8"),
+        ) as LinkedWorkspaceRegistryV1;
+        const migratedRecord = migrated.records[0];
+        if (!migratedRecord) throw new Error("missing migrated test record");
+        expect(migratedRecord).toMatchObject({
+          pageRelativePaths,
+          sourceRelativePaths,
+        });
+        const resultPaths = requireChapter().pages.map(
+          (page) => migratedRecord.artifacts[page.id]?.result?.path,
+        );
+        const resultRelativePaths = Object.fromEntries(
+          requireChapter().pages.map((page, index) => [
+            page.id,
+            resultPaths[index],
+          ]),
+        );
+        expect(migratedRecord).toMatchObject({ resultRelativePaths });
+        expect(
+          new Set(resultPaths.map((path) => path?.toLowerCase())).size,
+        ).toBe(2);
+        for (const page of requireChapter().pages) {
+          const result = migratedRecord.artifacts[page.id]?.result;
+          if (!result) throw new Error("missing migrated test artifact");
+          expect(await readFile(join(root, result.path), "utf8")).toBe(
+            `render-${page.id}`,
+          );
+          expect(
+            await readFile(join(root, "originals", page.name), "utf8"),
+          ).toBe(`original-${page.id}`);
+        }
+        expect(await readdir(join(root, "result"))).toHaveLength(2);
+        const renderedCount = boundary.sessions.flatMap(
+          (session) => session.renderPage.mock.calls,
+        ).length;
+        await restored.dispose();
+        restored = createService(dataRoot);
+        await restored.initialize();
+        await expect(
+          restored.viewResults({ chapterId: CHAPTER_ID }),
+        ).resolves.toMatchObject({ status: "opened", syncedPages: 0 });
+        expect(JSON.parse(await readFile(registryPath, "utf8"))).toMatchObject({
+          records: [
+            { pageRelativePaths, sourceRelativePaths, resultRelativePaths },
+          ],
+        });
+        expect(
+          boundary.sessions.flatMap((session) => session.renderPage.mock.calls),
+        ).toHaveLength(renderedCount);
+      } finally {
+        await service.dispose();
+        await restored?.dispose();
+      }
+    },
+  );
+
+  it.each(["opened", "error-string", "rejected"] as const)(
+    "settles every deferred view-results waiter when opening is %s",
+    async (outcome) => {
+      vi.useRealTimers();
+      const { service } = await makeConnectedService();
+      const renderGate = deferred<Buffer>();
+      const unhandled: unknown[] = [];
+      const onUnhandled = (error: unknown) => unhandled.push(error);
+      process.on("unhandledRejection", onUnhandled);
+      boundary.createSession.mockImplementation(async () => {
+        const session = makeRenderSession(() => renderGate.promise);
+        boundary.sessions.push(session);
+        return session;
+      });
+      const openingFailure = new Error("test result folder unavailable");
+      if (outcome === "rejected")
+        boundary.openPath.mockRejectedValueOnce(openingFailure);
+      else
+        boundary.openPath.mockResolvedValueOnce(
+          outcome === "error-string" ? openingFailure.message : "",
+        );
+      const results: ViewLinkedResultsResult[] = [];
+      const rejections: unknown[] = [];
+      const first = service.viewResults({ chapterId: CHAPTER_ID });
+      const second = service.viewResults({ chapterId: CHAPTER_ID });
+      const observers = [first, second].map((viewing) =>
+        viewing.then(
+          (result) => {
+            results.push(result);
+          },
+          (error: unknown) => {
+            rejections.push(error);
+          },
+        ),
+      );
+      try {
+        await vi.waitFor(() =>
+          expect(boundary.sessions[0]?.renderPage).toHaveBeenCalledTimes(1),
+        );
+        expect(results).toEqual([]);
+        renderGate.resolve(Buffer.from("rendered"));
+        await vi.waitFor(() =>
+          expect(boundary.openPath).toHaveBeenCalledTimes(1),
+        );
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect.soft(unhandled).toEqual([]);
+        await vi.waitFor(() => expect(results).toHaveLength(2), {
+          timeout: 1_000,
+        });
+        const expected =
+          outcome === "opened"
+            ? { status: "opened", syncedPages: 1 }
+            : { status: "failed", message: openingFailure.message };
+        expect(results).toEqual([expected, expected]);
+        expect(rejections).toEqual([]);
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect(unhandled).toEqual([]);
+        expect(boundary.openPath).toHaveBeenCalledTimes(1);
+      } finally {
+        renderGate.resolve(Buffer.from("rendered"));
+        await service.dispose();
+        await Promise.all(observers);
+        process.off("unhandledRejection", onUnhandled);
+      }
+    },
+  );
+
+  it("keeps cancellation settled when deferred folder opening finishes later", async () => {
+    vi.useRealTimers();
+    const { service } = await makeConnectedService();
+    const opening = deferred<string>();
+    boundary.openPath.mockImplementationOnce(() => opening.promise);
+    const viewing = service.viewResults({ chapterId: CHAPTER_ID });
+    try {
+      await vi.waitFor(() => expect(boundary.openPath).toHaveBeenCalledOnce());
+      const connectionId = service.getStatus(CHAPTER_ID).connectionId;
+      if (!connectionId) throw new Error("missing test connection");
+      await service.update({ connectionId, enabled: false });
+      await expect(viewing).resolves.toEqual({ status: "cancelled" });
+      opening.resolve("");
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      await expect(viewing).resolves.toEqual({ status: "cancelled" });
+    } finally {
+      opening.resolve("");
+      await service.dispose();
+    }
+  });
+
   it("uses Results/work/chapter as the default automatic-save location", async () => {
     vi.useRealTimers();
     const { dataRoot, root, service } = await makeConnectedService("managed");
@@ -570,6 +902,7 @@ async function makeConnectedService(
   prepareManagedRoot?: (rootPath: string) => Promise<void>,
   sourceContent: (page: MangaPage) => string | Uint8Array = (page) =>
     page.id === PAGE_ID ? "source" : `source-${page.name}`,
+  format: RasterExportFormat = "source",
 ): Promise<{
   dataRoot: string;
   root: string;
@@ -590,7 +923,11 @@ async function makeConnectedService(
     workId: WORK_ID,
     chapterId: CHAPTER_ID,
     ...(destination === "custom" ? { rootPath: customRoot } : {}),
-    output: { ...DEFAULT_RASTER_EXPORT_SETTINGS, destinationMode: "fixed" },
+    output: {
+      ...DEFAULT_RASTER_EXPORT_SETTINGS,
+      destinationMode: "fixed",
+      format,
+    },
     enqueueExistingPages: false,
   });
   const root = service.getStatus(CHAPTER_ID).rootPath ?? customRoot;

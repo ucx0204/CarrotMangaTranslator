@@ -609,6 +609,9 @@ describe("prompt contracts", () => {
 
     expect(enabled).toContain("fontRole: <fine-grained role>");
     expect(enabled).toContain("fontRoleConfidence: <0.00-1.00>");
+    expect(
+      enabled.split("fontRoleConfidence: <0.00-1.00>")[1]?.slice(0, 4),
+    ).toBe("\nx1:");
     expect(enabled).toContain("visualClusterId is optional");
     expect(enabled).toContain("Omit visualClusterId for dialogue");
     expect(enabled).toContain("aside_balloon_edge");

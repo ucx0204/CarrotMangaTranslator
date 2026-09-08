@@ -168,10 +168,12 @@ function characterNamesOverlap(
   const leftKeys = new Set(left.after.sourceNames.map(normalizeClaimText));
   const rightKeys = new Set(right.after.sourceNames.map(normalizeClaimText));
   if ([...leftKeys].some((key) => rightKeys.has(key))) return true;
-  const leftStems = new Set(left.after.sourceNames.map(characterNameStem));
   if (
     right.after.sourceNames.some((name) =>
-      leftStems.has(characterNameStem(name)),
+      leftKeys.has(characterNameStem(name)),
+    ) ||
+    left.after.sourceNames.some((name) =>
+      rightKeys.has(characterNameStem(name)),
     )
   ) {
     return true;

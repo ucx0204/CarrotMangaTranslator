@@ -42,6 +42,43 @@ vi.mock("electron", () => ({
 const tempDirs: string[] = [];
 
 describe("settings store", () => {
+  it.each(["flux-klein", "lama-manga"] as const)(
+    "starts fresh CPU installations with Hayai and AOT without rewriting saved %s",
+    async (savedModel) => {
+      const paths = makeAppPaths(await createTempDir());
+      const detectGpu = async () => null;
+      const fresh = await getAppSettings(paths, {}, detectGpu);
+      expect(fresh.ocr).toMatchObject({
+        pipeline: "hayai",
+        device: "cpu",
+        qualityMode: "economy",
+      });
+      expect(fresh.inpainting).toMatchObject({
+        model: "aot-inpainting",
+        fluxBackend: "cpu-native",
+      });
+      const explicit = {
+        ...fresh,
+        ocr: { ...fresh.ocr, pipeline: "paddle-legacy" as const },
+        inpainting: {
+          ...fresh.inpainting,
+          model: savedModel,
+          fluxBackend: "cpu-native" as const,
+        },
+      };
+      await saveAppSettings(explicit, paths, {}, detectGpu);
+      const storedBefore = await readFile(paths.settingsPath, "utf8");
+      const restored = await getAppSettings(paths, {}, detectGpu);
+      expect(restored.ocr.pipeline).toBe("paddle-legacy");
+      expect(restored.inpainting?.model).toBe(savedModel);
+      expect(await readFile(paths.settingsPath, "utf8")).toBe(storedBefore);
+      const recommended = await getDefaultAppSettings({}, detectGpu);
+      expect(recommended.ocr.pipeline).toBe("hayai");
+      expect(recommended.inpainting?.model).toBe("aot-inpainting");
+      expect(await readFile(paths.settingsPath, "utf8")).toBe(storedBefore);
+    },
+  );
+
   afterEach(async () => {
     while (tempDirs.length > 0) {
       const dir = tempDirs.pop();

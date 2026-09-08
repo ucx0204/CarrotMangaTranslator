@@ -258,6 +258,8 @@ function buildHardwarePanelProps({
     controlsBusy,
     detectedGpuName: runtime.gpuName,
     gpuMemoryMb: runtime.gpuMemoryMb,
+    computeCapability: runtime.computeCapability,
+    rtxGeneration: runtime.rtxGeneration,
     fluxBackend: form.values.fluxBackend,
     graphicsGpuPreference: form.values.graphicsGpuPreference,
     allowUnsafeLowMemoryFlux: form.values.allowUnsafeLowMemoryFlux,

@@ -2,7 +2,7 @@
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { label?: string | null }} ServerRuntimeOptions */
 /** @typedef {"stdout" | "stderr"} ServerOutputName */
 /** @typedef {{ write: (chunk: string, callback?: (error?: Error | null) => void) => unknown; on?: (event: "error", listener: (error: unknown) => void) => unknown; off?: (event: "error", listener: (error: unknown) => void) => unknown; removeListener?: (event: "error", listener: (error: unknown) => void) => unknown }} OutputWriter */
-/** @typedef {{ write: (chunk: string, callback?: (error?: Error | null) => void) => unknown; end?: (callback?: (error?: Error | null) => void) => unknown; on?: (event: "error", listener: (error: unknown) => void) => unknown; off?: (event: "error", listener: (error: unknown) => void) => unknown; removeListener?: (event: "error", listener: (error: unknown) => void) => unknown }} ServerLogWriter */
+/** @typedef {{ write: (chunk: string, callback?: (error?: Error | null) => void) => unknown; end?: (callback?: (error?: Error | null) => void) => unknown; on?: (event: "error" | "close", listener: (error: unknown) => void) => unknown; off?: (event: "error" | "close", listener: (error: unknown) => void) => unknown; removeListener?: (event: "error" | "close", listener: (error: unknown) => void) => unknown }} ServerLogWriter */
 /** @typedef {{ stream: ServerLogWriter | null; header: string[]; creationError?: unknown }} ServerLogTarget */
 const { shrinkBuffer } = require("../simple-page-shell-utils.cjs");
 const { emitServerInstallLog } = require("./llama-server-logging.cjs");
@@ -146,6 +146,7 @@ function createServerLogBoundary(stream, onFailure) {
     if (stream?.on && (stream.off || stream.removeListener)) {
       stream.on("error", disable);
       listenerAttached = true;
+      stream.on("close", detachListener);
     }
   } catch (error) {
     disable(error);
@@ -156,7 +157,7 @@ function createServerLogBoundary(stream, onFailure) {
       if (disposed) return;
       disposed = true;
       disabled = true;
-      safelyEndServerLog(stream, disable, detachListener);
+      safelyEndServerLog(stream, disable);
     },
     /** @param {string} chunk */
     write(chunk) {
@@ -175,8 +176,13 @@ function createServerLogBoundary(stream, onFailure) {
     if (!listenerAttached || !stream) return;
     listenerAttached = false;
     try {
-      if (stream.off) stream.off("error", disable);
-      else stream.removeListener?.("error", disable);
+      if (stream.off) {
+        stream.off("error", disable);
+        stream.off("close", detachListener);
+      } else {
+        stream.removeListener?.("error", disable);
+        stream.removeListener?.("close", detachListener);
+      }
     } catch (error) {
       disable(error);
     }
@@ -186,21 +192,15 @@ function createServerLogBoundary(stream, onFailure) {
 /**
  * @param {ServerLogWriter | null} stream
  * @param {(error: unknown) => void} onFailure
- * @param {() => void} detachListener
  */
-function safelyEndServerLog(stream, onFailure, detachListener) {
-  if (!stream?.end) {
-    detachListener();
-    return;
-  }
+function safelyEndServerLog(stream, onFailure) {
+  if (!stream?.end) return;
   try {
     stream.end((error) => {
       if (error) onFailure(error);
-      detachListener();
     });
   } catch (error) {
     onFailure(error);
-    detachListener();
   }
 }
 

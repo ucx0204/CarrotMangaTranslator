@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "8944fa174abc17a2d7b7cd42aaeba7cb967dc656700e8caa9c8ade71f9477186",
+    "introducedArtifactSha256": "f513fc448cb056e4cbcc8a5a2fd12a36802f3c7b1f551af5cc7477ec56efe2b0",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -297,6 +297,28 @@
         "covered": 45,
         "total": 54,
         "pct": 83.33
+      }
+    },
+    "src/main/bubbleLayout/bubbleShapeProfileBuilder.ts": {
+      "lines": {
+        "covered": 97,
+        "total": 100,
+        "pct": 97
+      },
+      "statements": {
+        "covered": 110,
+        "total": 120,
+        "pct": 91.66
+      },
+      "functions": {
+        "covered": 36,
+        "total": 36,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 43,
+        "total": 60,
+        "pct": 71.66
       }
     },
     "src/main/bubbleLayout/constants.ts": {
@@ -871,6 +893,28 @@
         "pct": 0
       }
     },
+    "src/main/inpainting/fluxAssets/pythonRuntimeInstaller.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 55,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 55,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 17,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 33,
+        "pct": 0
+      }
+    },
     "src/main/inpainting/fluxAssets/pythonRuntimeLayout.ts": {
       "lines": {
         "covered": 39,
@@ -1111,6 +1155,28 @@
         "covered": 7,
         "total": 14,
         "pct": 50
+      }
+    },
+    "src/main/inpainting/imageRaster.ts": {
+      "lines": {
+        "covered": 124,
+        "total": 132,
+        "pct": 93.93
+      },
+      "statements": {
+        "covered": 142,
+        "total": 150,
+        "pct": 94.66
+      },
+      "functions": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 64,
+        "total": 78,
+        "pct": 82.05
       }
     },
     "src/main/inpainting/inpaintingEngine.ts": {
@@ -2849,6 +2915,28 @@
         "total": 95,
         "covered": 70,
         "pct": 73.68
+      }
+    },
+    "src/main/mainWindow.ts": {
+      "lines": {
+        "covered": 70,
+        "total": 84,
+        "pct": 83.33
+      },
+      "statements": {
+        "covered": 71,
+        "total": 85,
+        "pct": 83.52
+      },
+      "functions": {
+        "covered": 18,
+        "total": 21,
+        "pct": 85.71
+      },
+      "branches": {
+        "covered": 39,
+        "total": 64,
+        "pct": 60.93
       }
     },
     "src/main/networkBudgets.ts": {
@@ -5315,6 +5403,28 @@
         "pct": 60.6
       }
     },
+    "src/main/runtime/prompts/font-matching-intent.cjs": {
+      "lines": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 19,
+        "total": 20,
+        "pct": 95
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 9,
+        "total": 12,
+        "pct": 75
+      }
+    },
     "src/main/runtime/prompts/ocr-bbox-section.cjs": {
       "lines": {
         "covered": 64,
@@ -6019,6 +6129,28 @@
         "pct": 81.48
       }
     },
+    "src/main/runtime/simple-page-logit-bias.cjs": {
+      "lines": {
+        "covered": 109,
+        "total": 146,
+        "pct": 74.65
+      },
+      "statements": {
+        "covered": 109,
+        "total": 146,
+        "pct": 74.65
+      },
+      "functions": {
+        "covered": 24,
+        "total": 30,
+        "pct": 80
+      },
+      "branches": {
+        "covered": 83,
+        "total": 139,
+        "pct": 59.71
+      }
+    },
     "src/main/runtime/simple-page-model-config.cjs": {
       "lines": {
         "covered": 86,
@@ -6413,6 +6545,28 @@
         "covered": 68,
         "total": 94,
         "pct": 72.34
+      }
+    },
+    "src/main/runtime/transport/llama-server-output.cjs": {
+      "lines": {
+        "covered": 82,
+        "total": 92,
+        "pct": 89.13
+      },
+      "statements": {
+        "covered": 92,
+        "total": 104,
+        "pct": 88.46
+      },
+      "functions": {
+        "covered": 21,
+        "total": 21,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 45,
+        "total": 59,
+        "pct": 76.27
       }
     },
     "src/main/runtime/transport/llama-server-process.cjs": {
@@ -7207,6 +7361,28 @@
         "pct": 0
       }
     },
+    "src/main/webImportDownload.ts": {
+      "lines": {
+        "covered": 121,
+        "total": 164,
+        "pct": 73.78
+      },
+      "statements": {
+        "covered": 122,
+        "total": 167,
+        "pct": 73.05
+      },
+      "functions": {
+        "covered": 15,
+        "total": 18,
+        "pct": 83.33
+      },
+      "branches": {
+        "covered": 54,
+        "total": 94,
+        "pct": 57.44
+      }
+    },
     "src/main/webImportSessionManager.ts": {
       "lines": {
         "covered": 24,
@@ -7315,6 +7491,28 @@
         "total": 72,
         "covered": 61,
         "pct": 84.72
+      }
+    },
+    "src/main/workContextPageMemory.ts": {
+      "lines": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 13,
+        "total": 14,
+        "pct": 92.85
+      },
+      "functions": {
+        "covered": 7,
+        "total": 8,
+        "pct": 87.5
+      },
+      "branches": {
+        "covered": 6,
+        "total": 9,
+        "pct": 66.66
       }
     },
     "src/main/workContextUsage.ts": {
@@ -15789,6 +15987,28 @@
         "pct": 87.09
       }
     },
+    "src/main/bubbleLayout/bubbleShapeProfilePadding.ts": {
+      "lines": {
+        "covered": 28,
+        "total": 28,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 30,
+        "total": 30,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      }
+    },
     "src/main/bubbleLayout/koharuMaskRefinement.ts": {
       "lines": {
         "total": 61,
@@ -18933,6 +19153,28 @@
         "covered": 0,
         "total": 0,
         "pct": 100
+      }
+    },
+    "src/main/pipeline/fontMatchingWorkerInitialization.ts": {
+      "lines": {
+        "covered": 32,
+        "total": 35,
+        "pct": 91.42
+      },
+      "statements": {
+        "covered": 34,
+        "total": 38,
+        "pct": 89.47
+      },
+      "functions": {
+        "covered": 6,
+        "total": 7,
+        "pct": 85.71
+      },
+      "branches": {
+        "covered": 14,
+        "total": 18,
+        "pct": 77.77
       }
     },
     "src/main/pipeline/glossaryOmission.ts": {
@@ -26258,6 +26500,28 @@
       "branches": {
         "total": 14,
         "covered": 14,
+        "pct": 100
+      }
+    },
+    "src/shared/fluxHardwarePolicy.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 12,
+        "total": 12,
         "pct": 100
       }
     },

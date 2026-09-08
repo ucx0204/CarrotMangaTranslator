@@ -53,8 +53,8 @@ function resolvePageSummary(
 ): string {
   return (
     existingPage?.summary ||
-    basePage.summary ||
     cleanText(suggestion.summary, 1200) ||
+    basePage.summary ||
     basePage.translatedDigest ||
     basePage.sourceDigest
   );

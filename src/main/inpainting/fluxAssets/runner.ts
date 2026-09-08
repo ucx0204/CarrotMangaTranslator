@@ -10,11 +10,11 @@ import { basename, dirname, join } from "node:path";
 import {
   FLUX_NVIDIA_RUNNER_ASSETS,
   FLUX_NVIDIA_RUNNER_BASE_URL,
-  FLUX_NVIDIA_RUNNER_COMPUTE_CAPS,
   FLUX_NVIDIA_RUNNER_MARKER,
   FLUX_RUNNER_DIR,
   FLUX_RUNTIME_EXECUTABLE,
 } from "./constants";
+import { FLUX_NVIDIA_RUNNER_COMPUTE_CAPS } from "../../../shared/fluxHardwarePolicy";
 import { extractZipSafely } from "./downloads";
 import { downloadToFile } from "../../runtimeSupport/modelDownloads";
 import { MAX_REMOTE_RUNTIME_ARCHIVE_BYTES } from "../../runtimeSupport/downloadBudgets";

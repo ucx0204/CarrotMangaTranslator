@@ -336,7 +336,7 @@ export async function startSoundEffectTranslationJob(
       registerResourceCleanup: lifetime.registerResourceCleanup,
     });
   } catch (error) {
-    return runtime.handleSoundEffectTranslationJobError({
+    return await runtime.handleSoundEffectTranslationJobError({
       abortController,
       emit,
       error,

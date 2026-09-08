@@ -1,4 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { AppActivityGate } from "../src/main/appActivityGate";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import { exportPageImages } from "../src/main/jobs/pageImageExportJobs";
@@ -16,6 +27,97 @@ vi.mock("electron", () => ({
 }));
 
 describe("page image export lifetime cleanup", () => {
+  it.each(
+    (["replace", "skip", "cancel"] as const).flatMap((collisionPolicy) =>
+      (["source", "png", "jpeg", "webp"] as const).map((outputFormat) => ({
+        collisionPolicy,
+        outputFormat,
+      })),
+    ),
+  )(
+    "keeps mixed-extension same-stem pages distinct for $outputFormat with $collisionPolicy",
+    async ({ collisionPolicy, outputFormat }) => {
+      const outputDir = await mkdtemp(join(tmpdir(), "page-image-collision-"));
+      const pages = ["001.png", "001.jpg"].map((name, index) => ({
+        ...makePage(`page-${index + 1}`),
+        name,
+        sourceFileName: name,
+        sourceRelativePath: `nested/${name}`,
+      }));
+      const chapter = makeChapter(pages);
+      // The renderer boundary supplies two distinguishable raster buffers.
+      const rendered = pages.map((_, index) => fakePng(10 + index, 10));
+      const allRendering = createDeferred<void>();
+      let started = 0;
+      const dependencies = makeDependencies(chapter, {
+        async renderPage(page) {
+          started += 1;
+          if (started === pages.length) allRendering.resolve();
+          await allRendering.promise;
+          const content =
+            rendered[pages.findIndex((candidate) => candidate.id === page.id)];
+          if (!content) throw new Error("missing test render content");
+          return content;
+        },
+      });
+      const writeImage = vi.fn(async (path: string, content: Buffer) =>
+        writeFile(path, content),
+      );
+      dependencies.runtime = {
+        ...dependencies.runtime,
+        async createDirectory(path, recursive = false) {
+          await mkdir(path, { recursive });
+        },
+        writeImage,
+        async fileExists(path) {
+          return stat(path).then(
+            () => true,
+            () => false,
+          );
+        },
+      };
+      try {
+        const result = await exportPageImages(
+          makeContext(),
+          {
+            ...requestFor(chapter.id),
+            outputFormat,
+            preserveSourceNames: true,
+            destinationMode: "fixed",
+            collisionPolicy,
+          },
+          outputDir,
+          dependencies,
+        );
+        expect(result).toMatchObject({ status: "completed", pageCount: 2 });
+        const names = await readdir(join(outputDir, "nested"));
+        expect(names).toHaveLength(2);
+        expect(
+          new Set(writeImage.mock.calls.map(([path]) => path.toLowerCase()))
+            .size,
+        ).toBe(2);
+        const contents = await Promise.all(
+          names.map((name) => readFile(join(outputDir, "nested", name))),
+        );
+        expect(
+          contents.map((content) => content.toString("hex")).sort(),
+        ).toEqual(rendered.map((content) => content.toString("hex")).sort());
+        if (outputFormat === "source")
+          expect(names.sort()).toEqual(["001.jpg", "001.png"]);
+        else
+          expect(
+            names.every((name) =>
+              name.endsWith(
+                outputFormat === "jpeg" ? ".jpg" : `.${outputFormat}`,
+              ),
+            ),
+          ).toBe(true);
+      } finally {
+        await rm(outputDir, { recursive: true, force: true });
+      }
+    },
+  );
+
   it("keeps cleanup pending until an immediately cancelled outer export finishes", async () => {
     const chapter = makeChapter([makePage("page-1")]);
     const library = makeLibrary(chapter);

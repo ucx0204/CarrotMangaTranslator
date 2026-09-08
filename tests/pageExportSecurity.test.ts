@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { runInNewContext } from "node:vm";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import {
   createPageExportHtmlSource,
@@ -42,6 +43,7 @@ let stalledExportPhase: StalledExportPhase | null = null;
 let exportEvents: string[] = [];
 const exportEventWaiters = new Map<string, Array<() => void>>();
 let debuggerDetachError: Error | null = null;
+let rendererReadyDelayMs: number | null = null;
 
 class FakeExportWindow {
   options: ExportWindowOptions;
@@ -50,7 +52,11 @@ class FakeExportWindow {
   debuggerAttached = false;
   listeners = new Map<string, Listener>();
   windowOpenHandler: (() => { action: "deny" | "allow" }) | null = null;
-  destroy = vi.fn();
+  rendererTimers = new Set<ReturnType<typeof setTimeout>>();
+  destroy = vi.fn(() => {
+    for (const timer of this.rendererTimers) clearTimeout(timer);
+    this.rendererTimers.clear();
+  });
   setContentSize = vi.fn();
   webContents = {
     setWindowOpenHandler: vi.fn(
@@ -76,6 +82,19 @@ class FakeExportWindow {
       recordExportEvent("render-readiness:start");
       if (stalledExportPhase === "render-readiness") {
         return pendingForever();
+      }
+      if (rendererReadyDelayMs !== null) {
+        try {
+          const result = await this.executeReadinessScript(
+            script,
+            rendererReadyDelayMs,
+          );
+          recordExportEvent("render-readiness:done");
+          return result;
+        } catch (error) {
+          recordExportEvent("render-readiness:failed");
+          throw error;
+        }
       }
       recordExportEvent("render-readiness:done");
       return rendererImageSize;
@@ -142,6 +161,32 @@ class FakeExportWindow {
     }
     recordExportEvent("page-load:done");
   }
+
+  executeReadinessScript(
+    script: string,
+    readyDelayMs: number,
+  ): Promise<unknown> {
+    const dataset: Record<string, string> = {
+      outputWidth: String(rendererImageSize.width),
+      outputHeight: String(rendererImageSize.height),
+    };
+    const schedule = (callback: () => void, delayMs: number) => {
+      const timer = setTimeout(() => {
+        this.rendererTimers.delete(timer);
+        callback();
+      }, delayMs);
+      this.rendererTimers.add(timer);
+      return timer;
+    };
+    schedule(() => {
+      dataset.ready = "1";
+    }, readyDelayMs);
+    return runInNewContext(script, {
+      document: { body: { dataset } },
+      Date,
+      setTimeout: schedule,
+    }) as Promise<unknown>;
+  }
 }
 
 describe("page export BrowserWindow security", () => {
@@ -161,6 +206,7 @@ describe("page export BrowserWindow security", () => {
     exportEvents = [];
     exportEventWaiters.clear();
     debuggerDetachError = null;
+    rendererReadyDelayMs = null;
     while (tempDirs.length > 0) {
       const dir = tempDirs.pop();
       if (dir) {
@@ -355,6 +401,82 @@ describe("page export BrowserWindow security", () => {
     });
     expect(decodeSignal?.aborted).toBe(true);
     expect(latestWindow?.destroy).toHaveBeenCalledOnce();
+  });
+
+  it.each(["original", "strict-safe"] as const)(
+    "allows %s rendering to become ready after fifteen seconds",
+    async (resolutionMode) => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+      rendererReadyDelayMs = 16_000;
+      const rootDir = await createTempRoot();
+      const { createPageExportRenderSession } = await loadPageExport();
+      const session = await createPageExportRenderSession(
+        createRenderOptions(rootDir),
+      );
+      const outcome = session
+        .renderPage(makePage(rootDir), { format: "png", resolutionMode })
+        .finally(() => session.close())
+        .then(
+          (png) => ({ png, error: undefined }),
+          (error: unknown) => ({ png: undefined, error }),
+        );
+
+      await waitForExportEvent("render-readiness:start");
+      await vi.advanceTimersByTimeAsync(16_000);
+      const result = await outcome;
+
+      expect(result.error).toBeUndefined();
+      expect(result.png && readFakePngSize(result.png)).toEqual({
+        width: 16,
+        height: 16,
+      });
+      expectEventBefore("render-readiness:done", "debugger:attach");
+      expect(latestWindow?.destroy).toHaveBeenCalledOnce();
+      expect(existsSync(dirname(latestWindow?.loadedHtmlPath ?? ""))).toBe(
+        false,
+      );
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
+  it("waits for the full original-resolution readiness deadline and cleans up on expiry", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    rendererReadyDelayMs = 121_000;
+    const rootDir = await createTempRoot();
+    const { createPageExportRenderSession } = await loadPageExport();
+    const session = await createPageExportRenderSession(
+      createRenderOptions(rootDir),
+    );
+    let settled = false;
+    const outcome = session
+      .renderPage(makePage(rootDir), {
+        format: "png",
+        resolutionMode: "original",
+      })
+      .finally(() => {
+        settled = true;
+        session.close();
+      })
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+
+    await waitForExportEvent("render-readiness:start");
+    await vi.advanceTimersByTimeAsync(119_999);
+    const settledBeforeDeadline =
+      settled || exportEvents.includes("render-readiness:failed");
+    await vi.advanceTimersByTimeAsync(1);
+    const failure = await outcome;
+
+    expect(settledBeforeDeadline).toBe(false);
+    expect(failure).toMatchObject({
+      message: "PNG export renderer readiness timeout",
+    });
+    expect(latestWindow?.webContents.debugger.attach).not.toHaveBeenCalled();
+    expect(latestWindow?.destroy).toHaveBeenCalledOnce();
+    expect(existsSync(dirname(latestWindow?.loadedHtmlPath ?? ""))).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it.each([

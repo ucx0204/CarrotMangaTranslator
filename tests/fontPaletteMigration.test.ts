@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { DEMOTED_BLOCK_FONTS } from "../src/shared/demotedBlockFonts";
 import { createCustomFontLibrary } from "../src/main/customFonts";
+import { preserveDemotedFonts } from "../src/main/demotedFontMigration";
 import {
   createBlockFontCatalog,
   normalizeBlockFontFamily,
@@ -89,9 +90,17 @@ it("preserves installed bytes, preferences and saved block aliases exactly once 
   expect(
     BUILT_IN_BLOCK_FONTS.some((font) => font.id === (old.id as string)),
   ).toBe(false);
-  rmSync(join(f.legacy, "ko", `${old.id}.ttf`));
+  expect(existsSync(join(f.legacy, "ko", `${old.id}.ttf`))).toBe(true);
   expect(f.library.removeCustomFont(old.customId)).toEqual([]);
   expect(existsSync(file)).toBe(false);
+  const restarted = createCustomFontLibrary({
+    getFontsDirectory: () => f.fonts,
+    getLegacyBundledFontsDirectory: () => f.legacy,
+    reportError: f.reportError,
+  });
+  expect(restarted.getFontLibrarySnapshot().customFonts).toEqual([]);
+  expect(restarted.resolveCustomFontFilePath(old.id)).toBeNull();
+  expect(readFileSync(join(f.legacy, "ko", `${old.id}.ttf`))).toEqual(bytes);
   expect(f.reportError).not.toHaveBeenCalled();
 });
 
@@ -101,6 +110,55 @@ it("does not install absent demoted fonts or replace a pre-existing custom font 
   expect(f.library.resolveCustomFontFilePath("single-day")).toBeNull();
   expect(existsSync(join(f.fonts, "index.json"))).toBe(false);
   expect(f.reportError).not.toHaveBeenCalled();
+});
+
+it.each(["copied", "indexed"])(
+  "resumes an interrupted %s migration and records deletion across restart",
+  (stage) => {
+    const f = fixture();
+    const old = DEMOTED_BLOCK_FONTS[0];
+    const bytes = Buffer.from([0, 1, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    writeFileSync(join(f.legacy, "ko", `${old.id}.ttf`), bytes);
+    mkdirSync(f.fonts);
+    writeFileSync(join(f.fonts, `${old.customId}.ttf`), bytes);
+    if (stage === "indexed")
+      writeFileSync(
+        join(f.fonts, "index.json"),
+        JSON.stringify([
+          {
+            id: old.customId,
+            label: old.label,
+            family: `MGTUser-${old.customId}`,
+            fileName: `${old.customId}.ttf`,
+          },
+        ]),
+      );
+    preserveDemotedFonts(f.fonts, f.legacy);
+    expect(f.library.listCustomFonts().map((font) => font.id)).toEqual([
+      old.customId,
+    ]);
+    f.library.removeCustomFont(old.customId);
+    preserveDemotedFonts(f.fonts, f.legacy);
+    expect(
+      JSON.parse(readFileSync(join(f.fonts, "index.json"), "utf8")),
+    ).toEqual([]);
+    expect(existsSync(join(f.fonts, `${old.customId}.ttf`))).toBe(false);
+    expect(readFileSync(join(f.legacy, "ko", `${old.id}.ttf`))).toEqual(bytes);
+  },
+);
+
+it("does not mark an absent legacy font as already migrated", () => {
+  const f = fixture();
+  preserveDemotedFonts(f.fonts, f.legacy);
+  const old = DEMOTED_BLOCK_FONTS[0];
+  writeFileSync(
+    join(f.legacy, "ko", `${old.id}.ttf`),
+    Buffer.from([0, 1, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8]),
+  );
+  preserveDemotedFonts(f.fonts, f.legacy);
+  expect(f.library.listCustomFonts().map((font) => font.id)).toEqual([
+    old.customId,
+  ]);
 });
 
 it("rejects malformed preferences and preserves an unreadable existing index during migration", () => {

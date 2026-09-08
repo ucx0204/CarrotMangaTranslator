@@ -1,5 +1,6 @@
 import type { CumulativeContextDetail } from "../../shared/settingsTypes";
 import type { PageContextPayload } from "./types";
+import { normalizeEvidence } from "./pageContextEvidence";
 
 const ESSENTIAL_CATEGORIES = new Set(["character", "alias", "place"]);
 
@@ -26,10 +27,10 @@ function countEvidenceOccurrences(
   evidence: readonly string[],
   value: string,
 ): number {
-  const needle = normalize(value);
+  const needle = normalizeEvidence(value);
   if (!needle) return 0;
   return evidence.reduce((count, segment) => {
-    const haystack = normalize(segment);
+    const haystack = normalizeEvidence(segment);
     let offset = 0;
     let matches = 0;
     while ((offset = haystack.indexOf(needle, offset)) >= 0) {
@@ -38,8 +39,4 @@ function countEvidenceOccurrences(
     }
     return count + matches;
   }, 0);
-}
-
-function normalize(value: string): string {
-  return value.normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase();
 }

@@ -100,7 +100,7 @@ function makeClient(scriptPath: string, options: MakeClientOptions = {}) {
 
 type FakeWorkerControl = {
   sendStdout: (text: string | Buffer) => void;
-  sendStderr: (text: string) => void;
+  sendStderr: (text: string | Buffer) => void;
 };
 
 type FakeWorkerOptions = {
@@ -291,6 +291,32 @@ function makeFakeClient(options: FakeClientOptions = {}) {
 }
 
 describe("JsonLinesWorkerClient", () => {
+  it("preserves split UTF-8 responses and independent split stderr bytes", async () => {
+    const text = "안녕 漢字 カタカナ 🥕";
+    const { client } = makeFakeClient({
+      onRequest(request, control) {
+        const response = Buffer.from(
+          `${JSON.stringify({ id: request.id, ok: true, text })}\n`,
+        );
+        const stderr = Buffer.from(`${text}\n`);
+        for (let index = 0; index < response.length; index += 1) {
+          control.sendStdout(response.subarray(index, index + 1));
+          if (index < stderr.length)
+            control.sendStderr(stderr.subarray(index, index + 1));
+        }
+      },
+    });
+    try {
+      const result = await client.startRequest({ type: "unicode" }).response;
+      expect(result).toMatchObject({ text });
+      expect(client.getStderr()).toBe(`${text}\n`);
+      const second = await client.startRequest({ type: "unicode" }).response;
+      expect(second).toMatchObject({ text });
+    } finally {
+      await client.dispose();
+    }
+  });
+
   it.each(["stdin", "stdout", "stderr"] as const)(
     "contains %s disconnects, rejects all requests and terminates once",
     async (channel) => {

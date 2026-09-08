@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it } from "vitest";
 type Gemma4OfficialChatTemplateModule = {
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_BYTES: number;
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV: string;
+  GEMMA4_OFFICIAL_CHAT_TEMPLATE_ENV: string;
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_FILE: string;
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_REVISION: string;
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_SHA256: string;
@@ -25,6 +26,9 @@ type Gemma4OfficialChatTemplateModule = {
   }) => string;
   resolveGemma4OfficialChatTemplatePath: () => string;
   verifyGemma4OfficialChatTemplate: (templatePath?: string) => string;
+  buildGemma4OfficialChatTemplateArgs: (
+    options: Record<string, unknown>,
+  ) => string[];
 };
 
 const templateModule =
@@ -32,13 +36,26 @@ const templateModule =
 
 const temporaryDirectories: string[] = [];
 const tempEnvironmentNames = ["TEMP", "TMP", "TMPDIR"] as const;
+const fallbackEnvironmentNames = [
+  "LOCALAPPDATA",
+  "APPDATA",
+  "ProgramData",
+  "PUBLIC",
+  "USERPROFILE",
+  "SystemRoot",
+  "windir",
+] as const;
 const originalEnvironment = new Map<string, string | undefined>([
-  ...tempEnvironmentNames.map(
+  ...[...tempEnvironmentNames, ...fallbackEnvironmentNames].map(
     (name) => [name, process.env[name]] as [string, string | undefined],
   ),
   [
     templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV,
     process.env[templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV],
+  ],
+  [
+    templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_ENV,
+    process.env[templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_ENV],
   ],
 ]);
 
@@ -56,6 +73,112 @@ afterEach(() => {
 });
 
 describe("official Gemma 4 26B chat template", () => {
+  it.runIf(process.platform === "win32")(
+    "stages pinned bytes when both the template and redirected app TEMP are non-ASCII",
+    () => {
+      const root = mkdtempSync(join(tmpdir(), "gemma4-unicode-temp-"));
+      temporaryDirectories.push(root);
+      const sourceDir = join(root, "번역기");
+      const appTemp = join(root, "앱자료", "tmp", "system-temp");
+      const fallbackRoot = join(root, "ascii-fallback");
+      mkdirSync(sourceDir, { recursive: true });
+      mkdirSync(appTemp, { recursive: true });
+      mkdirSync(fallbackRoot, { recursive: true });
+      const sourcePath = join(sourceDir, "chat-template.jinja");
+      copyFileSync(
+        templateModule.resolveGemma4OfficialChatTemplatePath(),
+        sourcePath,
+      );
+      delete process.env[
+        templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV
+      ];
+      for (const name of tempEnvironmentNames) process.env[name] = appTemp;
+      for (const name of fallbackEnvironmentNames)
+        process.env[name] = fallbackRoot;
+      expect(tmpdir()).toBe(appTemp);
+      const stagedPath = templateModule.prepareGemma4OfficialChatTemplate({
+        platform: "win32",
+        sourcePath,
+      });
+      expect(stagedPath).toMatch(/^[\x20-\x7e]+$/);
+      expect(stagedPath.startsWith(fallbackRoot)).toBe(true);
+      expect(readFileSync(stagedPath)).toEqual(readFileSync(sourcePath));
+      expect(templateModule.verifyGemma4OfficialChatTemplate(stagedPath)).toBe(
+        stagedPath,
+      );
+      expect(
+        templateModule.prepareGemma4OfficialChatTemplate({
+          platform: "win32",
+          sourcePath,
+        }),
+      ).toBe(stagedPath);
+    },
+  );
+
+  it("does not require staging for a non-26B model or an explicit opt-out", () => {
+    const root = mkdtempSync(join(tmpdir(), "gemma4-disabled-"));
+    temporaryDirectories.push(root);
+    process.env[templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV] = join(
+      root,
+      "금지",
+    );
+    expect(
+      templateModule.buildGemma4OfficialChatTemplateArgs({
+        modelSource: "local",
+        localModelPath: "gemma-4-12B-it.gguf",
+      }),
+    ).toEqual([]);
+    process.env[templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV] = root;
+    process.env[templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_ENV] = "on";
+    const model26B = {
+      modelSource: "local",
+      localModelPath: "gemma-4-26B-A4B-it.gguf",
+    };
+    expect(
+      templateModule.buildGemma4OfficialChatTemplateArgs(model26B),
+    ).toContain("--chat-template-file");
+    process.env[templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_ENV] = "off";
+    expect(
+      templateModule.buildGemma4OfficialChatTemplateArgs(model26B),
+    ).toEqual([]);
+    delete process.env[templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_ENV];
+    expect(
+      templateModule.buildGemma4OfficialChatTemplateArgs(model26B),
+    ).toContain("--chat-template-file");
+  });
+
+  it("reports exhausted optional cache roots without overwriting an unusable cache path", () => {
+    const root = mkdtempSync(join(tmpdir(), "gemma4-unwritable-cache-"));
+    temporaryDirectories.push(root);
+    const sourceDir = join(root, "번역기");
+    const isolatedTemp = join(root, "temp");
+    mkdirSync(sourceDir);
+    mkdirSync(isolatedTemp);
+    const sourcePath = join(sourceDir, "chat-template.jinja");
+    copyFileSync(
+      templateModule.resolveGemma4OfficialChatTemplatePath(),
+      sourcePath,
+    );
+    const blockedCache = join(isolatedTemp, "carrot-manga-translator-runtime");
+    writeFileSync(blockedCache, "existing file must survive");
+    delete process.env[templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV];
+    for (const name of tempEnvironmentNames) process.env[name] = isolatedTemp;
+    for (const name of fallbackEnvironmentNames) delete process.env[name];
+
+    expect(() =>
+      templateModule.prepareGemma4OfficialChatTemplate({
+        platform: "win32",
+        sourcePath,
+      }),
+    ).toThrow(/No writable ASCII-only Gemma 4 template cache path/);
+    expect(readFileSync(blockedCache, "utf8")).toBe(
+      "existing file must survive",
+    );
+    expect(templateModule.verifyGemma4OfficialChatTemplate(sourcePath)).toBe(
+      sourcePath,
+    );
+  });
+
   it("pins the exact upstream revision, size, and SHA-256", () => {
     const templatePath = templateModule.resolveGemma4OfficialChatTemplatePath();
     const contents = readFileSync(templatePath);

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GEMMA_MODEL_PRESETS } from "../shared/modelPresets";
 import type { AppSettings } from "../shared/settingsTypes";
+import { isKoreanLanguageCode } from "../shared/translationLanguages";
 import type { TranslationOptions } from "./settings/appSettingsTypes";
 import { getAppPaths } from "./appPaths";
 import { buildBaseOptions } from "./pipeline/options";
@@ -253,7 +254,11 @@ async function repairCriticalEvidenceCoverage({
         userPrompt: prompt.userPrompt,
         maxOutputTokens: Math.min(4_096, maxOutputTokens),
       });
-      const parsed = parseCriticalEvidenceTranslations(response, pending);
+      const parsed = parseCriticalEvidenceTranslations(
+        response,
+        pending,
+        promptInput,
+      );
       translations.push(...parsed);
       const translatedKeys = new Set(
         translations.map((translation) =>
@@ -281,6 +286,7 @@ async function repairCriticalEvidenceCoverage({
 function parseCriticalEvidenceTranslations(
   rawText: string,
   candidates: readonly string[],
+  input: WorkContextResearchPromptInput,
 ): CriticalEvidenceTranslation[] {
   const parsed = parseWorkContextModelJson(rawText) as {
     translations?: unknown;
@@ -309,7 +315,8 @@ function parseCriticalEvidenceTranslations(
       !source ||
       !target ||
       seen.has(key) ||
-      (/^[ァ-ヺー]{2,}(?:・[ァ-ヺー]{2,})+$/u.test(source) &&
+      (isKoreanLanguageCode(input.languagePair?.target.code ?? "ko") &&
+        /^[ァ-ヺー]{2,}(?:・[ァ-ヺー]{2,})+$/u.test(source) &&
         source.split("・").filter(Boolean).length >
           target.split(/\s+/u).filter(Boolean).length)
     ) {
@@ -364,7 +371,9 @@ async function auditResearchResponse({
       options,
       maxOutputTokens,
     );
-    return mergeResearchResults(initial, parsedAudit);
+    return mergeResearchResults(initial, parsedAudit, {
+      replaceOperations: true,
+    });
   } catch (_error) {
     return initial;
   }

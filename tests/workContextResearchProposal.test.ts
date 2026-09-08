@@ -375,6 +375,49 @@ describe("work context research proposals", () => {
     });
   });
 
+  it("keeps people with the same first name and different full names separate", () => {
+    const guide = makeGuide();
+    const people = [
+      { source: "アレン・ウォーカー", target: "알렌 워커" },
+      { source: "アレン・スミス", target: "알렌 스미스" },
+    ];
+    const normalized = normalizeWorkContextResearchChanges({
+      raw: {
+        operations: people.map(({ source, target }) => ({
+          entity: "character",
+          action: "add",
+          sourceNames: [source],
+          displayName: target,
+          targetName: target,
+          speechStyle: "neutral",
+          reason: "본문 등장 인물",
+          confidence: "high",
+          sources: [{ title: "Official", url: "https://official.test/work" }],
+        })),
+      },
+      guide,
+      usage: { workId: guide.workId, glossary: [], characters: [] },
+      selection: {
+        ...makeSelection(),
+        text: people
+          .map(({ source, target }) => `source="${source}" | ko="${target}"`)
+          .join("\n"),
+      },
+      allowedSourceUrls: new Set(["https://official.test/work"]),
+    });
+    expect(normalized.operations).toHaveLength(2);
+    expect(normalized.operations.map((operation) => operation.after)).toEqual(
+      expect.arrayContaining(
+        people.map(({ source, target }) =>
+          expect.objectContaining({
+            sourceNames: [source],
+            targetName: target,
+          }),
+        ),
+      ),
+    );
+  });
+
   it("keeps an external-only translation unchecked for human review", () => {
     const guide = makeGuide();
     const normalized = normalizeWorkContextResearchChanges({

@@ -38,7 +38,7 @@ import {
   disabled,
   type OrtWasmAssets,
 } from "./fontMatchingPagePixelInference";
-import { reportFontMatchingInferenceBackend } from "./fontMatchingInferenceBackendReporting";
+import { initializeFontMatchingWorker } from "./fontMatchingWorkerInitialization";
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
 import type { FontMatchingRasterPage } from "./fontMatchingPagePixelPreprocessing";
 import type { MangaPage } from "../../shared/libraryTypes";
@@ -90,6 +90,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
   private fallbackPort: FontMatchingPageInferencePort | null = null;
   private exitHandlerRegistered = false;
   private readiness: Promise<boolean> | null = null;
+  private rejectInitialization: ((error: unknown) => void) | null = null;
   private disposed = false;
   private readonly artifactDir: string;
   private readonly crossScriptProxyArtifactDir: string;
@@ -111,9 +112,11 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
     if (request.signal?.aborted)
       throw new DOMException("Aborted", "AbortError");
     if (!isKoreanLanguageCode(request.targetLanguage)) return emptyResult();
-    const ready = await this.ensureWorkerReady();
+    const ready = await this.ensureWorkerReady(request.signal);
     if (request.signal?.aborted)
       throw new DOMException("Aborted", "AbortError");
+    if (this.disposed)
+      throw new Error("Font matching inference port has been disposed.");
     if (!ready) return this.getFallback().inferPage(request);
     const preflight = this.preflight(request);
     if (preflight) return preflight;
@@ -208,6 +211,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
   }
 
   private terminateWorker(): Promise<void> {
+    this.rejectInitialization?.(new Error("Font matching worker terminated."));
     if (!this.worker) return Promise.resolve();
     for (const id of this.pendingInfers.keys()) {
       this.settle(id, "reject", new Error("Font matching worker terminated."));
@@ -263,65 +267,33 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
   private async runInit(
     target: Worker,
   ): Promise<FontMatchingRuntimeArtifactStatus> {
-    const id = `init-${this.nextId++}`;
-    const wasmAssets = this.deps.resolveWasmAssets
-      ? await this.deps.resolveWasmAssets()
-      : await resolveFontMatchingOrtWasmAssets(this.deps.paths);
-    const installedCandidates =
-      this.deps.loadSelection("ko").installedCandidates;
-    return new Promise<FontMatchingRuntimeArtifactStatus>((resolve, reject) => {
-      const cleanup = (): void => {
-        target.off("message", onMessage);
-        target.off("error", onError);
-        target.off("exit", onExit);
-      };
-      const onMessage = (message: FontMatchingWorkerOutboundMessage) => {
-        if (message.type === "ready" && message.id === id) {
-          cleanup();
-          if (message.backend) {
-            reportFontMatchingInferenceBackend({
-              activeBackend: message.backend,
-              reportInfo: this.deps.reportInfo,
-              reportWarning: this.deps.reportWarning,
-            });
-          }
-          resolve(message.status);
-        } else if (message.type === "init-error" && message.id === id) {
-          cleanup();
-          reject(deserializeError(message.error));
-        }
-      };
-      // 워커가 ready/init-error를 보내기 전에 error/exit로 죽으면 Promise가
-      // 영원히 pending으로 남아 ensureWorkerReady가 90초 페이지 타임아웃까지
-      // 걸리고 그 에러마저 조용히 삼켜지므로, 여기서 즉시 reject해
-      // ensureWorkerReady의 catch → in-process 폴백으로 빠진다.
-      const onError = (error: Error): void => {
-        cleanup();
-        reject(error);
-      };
-      const onExit = (code: number): void => {
-        cleanup();
-        reject(
-          new Error(
-            `Font matching worker exited before initialization completed: ${code}`,
-          ),
-        );
-      };
-      target.on("message", onMessage);
-      target.on("error", onError);
-      target.on("exit", onExit);
-      target.postMessage({
+    const initialization = initializeFontMatchingWorker({
+      target,
+      message: {
         type: "init",
-        id,
+        id: `init-${this.nextId++}`,
         artifactDir: this.artifactDir,
         crossScriptProxyArtifactDir: this.crossScriptProxyArtifactDir,
-        wasmAssets,
-        installedCandidates,
-      });
+        installedCandidates: this.deps.loadSelection("ko").installedCandidates,
+      },
+      resolveWasmAssets: () =>
+        this.deps.resolveWasmAssets
+          ? this.deps.resolveWasmAssets()
+          : resolveFontMatchingOrtWasmAssets(this.deps.paths),
+      isCurrent: () => this.worker === target && !this.disposed,
+      reportInfo: this.deps.reportInfo,
+      reportWarning: this.deps.reportWarning,
     });
+    this.rejectInitialization = initialization.cancel;
+    try {
+      return await initialization.readiness;
+    } finally {
+      if (this.rejectInitialization === initialization.cancel)
+        this.rejectInitialization = null;
+    }
   }
 
-  private async ensureWorkerReady(): Promise<boolean> {
+  private async ensureWorkerReady(signal?: AbortSignal): Promise<boolean> {
     if (this.disposed) {
       throw new Error("Font matching inference port has been disposed.");
     }
@@ -330,7 +302,26 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
     this.readiness ??= this.initializeWorker().finally(() => {
       this.readiness = null;
     });
-    return this.readiness;
+    if (!signal) return this.readiness;
+    const readiness = this.readiness;
+    return new Promise<boolean>((resolve, reject) => {
+      const onAbort = (): void => {
+        signal.removeEventListener("abort", onAbort);
+        reject(new DOMException("Aborted", "AbortError"));
+      };
+      if (signal.aborted) onAbort();
+      else signal.addEventListener("abort", onAbort, { once: true });
+      void readiness.then(
+        (ready) => {
+          signal.removeEventListener("abort", onAbort);
+          resolve(ready);
+        },
+        (error: unknown) => {
+          signal.removeEventListener("abort", onAbort);
+          reject(error);
+        },
+      );
+    });
   }
 
   private async initializeWorker(): Promise<boolean> {

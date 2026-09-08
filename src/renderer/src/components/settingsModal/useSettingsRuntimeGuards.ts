@@ -24,6 +24,8 @@ import { isRtx50Hardware } from "./llamaRuntimeCompatibility";
 export type SettingsRuntimeGuards = {
   gpuName: string | null;
   gpuMemoryMb: number | null;
+  computeCapability?: number | null;
+  rtxGeneration?: number | null;
   usesAmdHardware: boolean;
   usesNvidiaHardware: boolean;
   usesRtx50Hardware: boolean;
@@ -69,6 +71,9 @@ export function useSettingsRuntimeGuards({
   return {
     gpuName: initialSettings.runtimeHardware?.gpuName ?? null,
     gpuMemoryMb: initialSettings.runtimeHardware?.gpuMemoryMb ?? null,
+    computeCapability:
+      initialSettings.runtimeHardware?.computeCapability ?? null,
+    rtxGeneration: initialSettings.runtimeHardware?.rtxGeneration ?? null,
     ...runtime,
     isLlamaRuntimeOptionDisabled: React.useCallback(
       (profile: LlamaRuntimeProfile) =>

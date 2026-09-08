@@ -21,6 +21,7 @@ import { managedFluxBootstrapPythonPath } from "./pythonBootstrap";
 import { ensureEmbeddedPythonPackagePath } from "./pythonPathFile";
 import { buildTargetPythonEnv } from "./rocmRuntime";
 import { hasUsablePackageDir } from "./pythonRuntimePackages";
+import { runCommand } from "./errors";
 import {
   isExecutableFile,
   sha256FileSync,
@@ -47,12 +48,14 @@ type CurrentFluxPythonRuntimeOptions = {
 type StoredFluxPythonRuntimeMarker = Partial<FluxPythonRuntimeMarker> & {
   runtimeMode?: "venv" | "target";
   pythonPath?: string;
+  pythonArgs?: string[];
   packageDir?: string;
 };
 
 type CurrentRuntimePaths = {
   packageDir: string;
   pythonPath: string;
+  pythonArgs: string[];
 };
 
 export function resolveFluxPythonRuntimeLayout(
@@ -187,10 +190,13 @@ export async function resolveCurrentFluxPythonRuntime(
       return null;
     }
     const runtimePaths = resolveCurrentRuntimePaths(options, marker);
-    if (!canUseCurrentRuntimePaths(options, runtimePaths)) {
+    if (!(await canUseCurrentRuntimePaths(options, runtimePaths))) {
       return null;
     }
-    if (isAbsolute(runtimePaths.pythonPath)) {
+    if (
+      isAbsolute(runtimePaths.pythonPath) &&
+      runtimePaths.pythonArgs.length === 0
+    ) {
       ensureEmbeddedPythonPackagePath(
         runtimePaths.pythonPath,
         runtimePaths.packageDir,
@@ -245,11 +251,19 @@ function resolveCurrentRuntimePaths(
   options: CurrentFluxPythonRuntimeOptions,
   marker: StoredFluxPythonRuntimeMarker,
 ): CurrentRuntimePaths {
+  if (
+    marker.pythonArgs !== undefined &&
+    (!Array.isArray(marker.pythonArgs) ||
+      !marker.pythonArgs.every((arg) => typeof arg === "string"))
+  ) {
+    throw new Error("Invalid cached Python runtime arguments.");
+  }
   return {
     pythonPath:
       typeof marker.pythonPath === "string"
         ? marker.pythonPath
         : managedFluxBootstrapPythonPath(options.runtimeDir),
+    pythonArgs: marker.pythonArgs ?? [],
     packageDir:
       typeof marker.packageDir === "string"
         ? marker.packageDir
@@ -257,14 +271,17 @@ function resolveCurrentRuntimePaths(
   };
 }
 
-function canUseCurrentRuntimePaths(
+async function canUseCurrentRuntimePaths(
   options: CurrentFluxPythonRuntimeOptions,
   paths: CurrentRuntimePaths,
-): boolean {
-  return (
-    isExecutableFile(paths.pythonPath) &&
-    hasUsablePackageDir(paths.packageDir, options.expectedMarker.backend)
-  );
+): Promise<boolean> {
+  if (!hasUsablePackageDir(paths.packageDir, options.expectedMarker.backend))
+    return false;
+  if (isAbsolute(paths.pythonPath)) return isExecutableFile(paths.pythonPath);
+  await runCommand(paths.pythonPath, [...paths.pythonArgs, "--version"], {
+    signal: AbortSignal.timeout(5_000),
+  });
+  return true;
 }
 
 function buildCurrentFluxPythonRuntime(
@@ -275,7 +292,7 @@ function buildCurrentFluxPythonRuntime(
     mode: "target",
     command: paths.pythonPath,
     executable: paths.pythonPath,
-    args: [],
+    args: paths.pythonArgs,
     env: buildTargetPythonEnv(
       options.runtimeDir,
       paths.packageDir,

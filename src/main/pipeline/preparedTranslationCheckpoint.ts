@@ -8,6 +8,7 @@ import {
 } from "../../shared/translationLanguageDefaults";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
 import type { OverlayItem, PageContextPayload } from "./types";
+import { attachEffectReviewToPage } from "./pageResponseParser";
 import type {
   PageBuildResult,
   PreparedPageBuildResult,
@@ -46,6 +47,9 @@ export function resolveCheckpointCompatibility({
   if (checkpoint.blockMode !== (blockMode ?? "auto")) {
     return { reusable: false, reason: "block-mode-mismatch" };
   }
+  if (!checkpoint.soundEffectReviewPreserved) {
+    return { reusable: false, reason: "sound-effect-review-not-preserved" };
+  }
   return { reusable: true };
 }
 
@@ -71,6 +75,7 @@ export function buildPreparedTranslationCheckpoint({
   return PreparedTranslationCheckpointSchema.parse({
     schemaVersion: TRANSLATION_CHECKPOINT_SCHEMA_VERSION,
     pipelineContractVersion: TRANSLATION_CHECKPOINT_PIPELINE_CONTRACT,
+    soundEffectReviewPreserved: true,
     pageId,
     inputRevision,
     sourceLanguage,
@@ -88,18 +93,33 @@ export function restorePreparedTranslationCheckpoint(
   pageOptions: TranslationOptions,
 ): PreparedPageBuildResult {
   const prepared = checkpoint.prepared;
+  const preparedPage = prepared.soundEffectReview
+    ? attachEffectReviewToPage(page, "hayai", {
+        hints: [],
+        diagnostics: [],
+        effectReviewRegions: prepared.soundEffectReview.regions,
+      })
+    : page;
   if (prepared.kind === "ready") {
     const result: PageBuildResult =
       prepared.resultKind === "no-text"
         ? {
             kind: "no-text",
-            page: restoreReadyPage(page, prepared.blocks, prepared.blockOrder),
+            page: restoreReadyPage(
+              preparedPage,
+              prepared.blocks,
+              prepared.blockOrder,
+            ),
             warnings: prepared.warnings,
             pageContext: prepared.pageContext,
           }
         : {
             kind: "completed",
-            page: restoreReadyPage(page, prepared.blocks, prepared.blockOrder),
+            page: restoreReadyPage(
+              preparedPage,
+              prepared.blocks,
+              prepared.blockOrder,
+            ),
             warnings: prepared.warnings,
             detail: prepared.detail ?? "",
             pageContext: prepared.pageContext,
@@ -108,7 +128,7 @@ export function restorePreparedTranslationCheckpoint(
   }
   return {
     ...prepared,
-    page,
+    page: preparedPage,
     pageOptions: {
       ...pageOptions,
       previousBlocksForPrompt: prepared.previousBlocks as
@@ -130,6 +150,7 @@ function serializePrepared(prepared: PreparedPageBuildResult) {
     return {
       kind: "ready" as const,
       resultKind: prepared.result.kind,
+      soundEffectReview: prepared.result.page.soundEffectReview,
       blocks: prepared.result.page.blocks,
       blockOrder: prepared.result.page.blockOrder,
       warnings: prepared.result.warnings,
@@ -142,6 +163,7 @@ function serializePrepared(prepared: PreparedPageBuildResult) {
   }
   return {
     kind: "translated" as const,
+    soundEffectReview: prepared.page.soundEffectReview,
     jobId: prepared.jobId,
     items: prepared.items,
     fontInferenceItems: prepared.fontInferenceItems,

@@ -3,6 +3,77 @@ import { buildBubbleShapeProfile } from "../src/main/bubbleLayout/bubbleShapePro
 import type { RefinedBubbleRegion } from "../src/main/bubbleLayout/bubbleMaskTypes";
 
 describe("bubble shape profile builder", () => {
+  it.each([
+    { direction: "horizontal", padding: 0 },
+    { direction: "vertical", padding: 0 },
+    { direction: "horizontal", padding: 0.12 },
+    { direction: "vertical", padding: 0.12 },
+    { direction: "horizontal", padding: 0.7 },
+    { direction: "vertical", padding: 0.7 },
+  ] as const)(
+    "keeps every $direction span inside a concave mask at padding $padding",
+    ({ direction, padding }) => {
+      const size = 200;
+      const region = rectangularRegion(0, 0, size, size);
+      // A connected U shape has two disjoint runs in most scanlines.
+      for (let block = 0; block < 180; block += 1) {
+        for (let inline = 65; inline < 130; inline += 1) {
+          const x = direction === "horizontal" ? inline : block;
+          const y = direction === "horizontal" ? block : inline;
+          region.mask[y * size + x] = 0;
+        }
+      }
+      const result = buildBubbleShapeProfile({
+        regions: [region],
+        pageWidth: size,
+        pageHeight: size,
+        renderDirection: direction,
+        sourceDirection: direction,
+        confidence: 1,
+        modelId: "test",
+        sourceImageRevision: "revision",
+        insetPx: 0,
+        regionGapPx: 0,
+        paddingRatio: padding,
+      });
+      expect(result).not.toBeNull();
+      const spans =
+        result?.bubbleLayout.regions.flatMap((item) => item.spans) ?? [];
+      expect(spans.some((span) => span.blockStart < 0.8)).toBe(true);
+      if (!result) throw new Error("Missing safe concave profile");
+      const box = result.renderBbox;
+      const blockOffset =
+        ((direction === "horizontal" ? box.y : box.x) * size) / 1000;
+      const inlineOffset =
+        ((direction === "horizontal" ? box.x : box.y) * size) / 1000;
+      const blockSize =
+        ((direction === "horizontal" ? box.h : box.w) * size) / 1000;
+      const inlineSize =
+        ((direction === "horizontal" ? box.w : box.h) * size) / 1000;
+      for (const span of spans) {
+        for (
+          let block = Math.ceil(blockOffset + span.blockStart * blockSize);
+          block < blockOffset + span.blockEnd * blockSize - 1e-8;
+          block += 1
+        ) {
+          for (
+            let inline = Math.ceil(
+              inlineOffset + span.inlineStart * inlineSize,
+            );
+            inline < inlineOffset + span.inlineEnd * inlineSize - 1e-8;
+            inline += 1
+          ) {
+            const x = direction === "horizontal" ? inline : block;
+            const y = direction === "horizontal" ? block : inline;
+            expect(region.mask[y * size + x], `outside mask at ${x},${y}`).toBe(
+              1,
+            );
+          }
+        }
+      }
+    },
+  );
+
   it("keeps fused balloon lobes as ordered independent regions", () => {
     const left = rectangularRegion(10, 20, 30, 30);
     const right = rectangularRegion(70, 18, 32, 34);
@@ -29,6 +100,26 @@ describe("bubble shape profile builder", () => {
     expect(result?.bubbleLayout.origin).toBe("detected");
     expect(result?.bubbleLayout.modelId).toBe("test-model");
     expect(result?.bubbleLayout.sourceImageRevision).toBe("revision");
+  });
+
+  it("rejects a padded band with no surviving occupied scanline", () => {
+    const region = rectangularRegion(0, 0, 20, 200);
+    region.mask.fill(0, 20 * 4, 20 * 196);
+    expect(
+      buildBubbleShapeProfile({
+        regions: [region],
+        pageWidth: 20,
+        pageHeight: 200,
+        renderDirection: "horizontal",
+        sourceDirection: "horizontal",
+        confidence: 1,
+        modelId: "test",
+        sourceImageRevision: "revision",
+        insetPx: 0,
+        regionGapPx: 0,
+        paddingRatio: 0.7,
+      }),
+    ).toBeNull();
   });
 
   it("intersects every scanline in a band instead of using only its center", () => {

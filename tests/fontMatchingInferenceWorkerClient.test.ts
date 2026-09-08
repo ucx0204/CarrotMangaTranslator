@@ -42,6 +42,7 @@ const { FakeWorker } = vi.hoisted(() => {
     public posted: FontMatchingWorkerInboundMessage[] = [];
     public terminateCount = 0;
     public readonly scriptPath: string;
+    private stopped = false;
     private listeners = new Map<string, Set<Listener>>();
     constructor(scriptPath: string) {
       this.scriptPath = scriptPath;
@@ -65,12 +66,14 @@ const { FakeWorker } = vi.hoisted(() => {
       return this;
     }
     emit(event: string, payload: unknown): boolean {
+      if (event === "exit") this.stopped = true;
       const set = this.listeners.get(event);
       if (!set) return false;
       for (const listener of set) listener(payload);
       return true;
     }
     postMessage(data: FontMatchingWorkerInboundMessage): void {
+      if (this.stopped) return;
       this.posted.push(data);
       if (data.type === "init") {
         const id = data.id;
@@ -115,6 +118,7 @@ const { FakeWorker } = vi.hoisted(() => {
       }
     }
     async terminate(): Promise<void> {
+      this.stopped = true;
       this.terminateCount += 1;
     }
   }
@@ -380,6 +384,45 @@ describe("font matching worker client protocol", () => {
     await expect(port.inferPage(makeRequest())).rejects.toThrow("disposed");
   });
 
+  it("settles pending inference even when native worker termination rejects", async () => {
+    FakeWorker.holdInfer = true;
+    const reportWarning = vi.fn();
+    const port = makePort({ reportWarning });
+    const pending = port.inferPage(makeRequest());
+    try {
+      await vi.waitFor(() => {
+        expect(
+          FakeWorker.instances[0]?.posted.some(
+            (message) => message.type === "infer",
+          ),
+        ).toBe(true);
+      });
+      const worker = FakeWorker.instances[0];
+      const terminate = vi
+        .spyOn(worker, "terminate")
+        .mockRejectedValueOnce(new Error("native termination failed"));
+
+      await expect(port.dispose?.()).resolves.toBeUndefined();
+      const result = await pending;
+
+      expect(result.runtimeArtifactStatus).toMatchObject({
+        state: "disabled",
+        reason: "artifact_verification_failed",
+      });
+      expect(result.pixelInferenceByBlockId.size).toBe(0);
+      expect(reportWarning).toHaveBeenCalledWith(
+        expect.stringContaining("failed closed"),
+        expect.objectContaining({
+          message: "Font matching worker terminated.",
+        }),
+      );
+      expect(terminate).toHaveBeenCalledOnce();
+      await expect(port.inferPage(makeRequest())).rejects.toThrow("disposed");
+    } finally {
+      await port.dispose?.();
+    }
+  });
+
   it("honors an abort that arrives while the worker runtime is initializing", async () => {
     let resolveAssets!: (value: {
       wasmBinaryPath: string;
@@ -411,6 +454,103 @@ describe("font matching worker client protocol", () => {
     ).toBe(false);
     await port.dispose?.();
   });
+
+  it.each(["error", "exit"] as const)(
+    "settles the first waiter when a worker %ss during asynchronous asset resolution",
+    async (terminal) => {
+      const assets = deferredAssets();
+      const fallbackInfer = vi.fn(async () => ({
+        pixelInferenceByBlockId: new Map(),
+      }));
+      const port = makePort({
+        resolveWasmAssets: () => assets.promise,
+        createFallbackPort: () => ({ inferPage: fallbackInfer }),
+      });
+      let settled = false;
+      const result = port.inferPage(makeRequest()).then(
+        (value) => {
+          settled = true;
+          return value;
+        },
+        (error: unknown) => {
+          settled = true;
+          throw error;
+        },
+      );
+      const observed = result.then(
+        (value) => ({ value }),
+        (error: unknown) => ({ error }),
+      );
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      const earlyWorker = FakeWorker.instances[0];
+      if (earlyWorker)
+        earlyWorker.emit(
+          terminal,
+          terminal === "exit" ? 1 : new Error("early exit"),
+        );
+      else FakeWorker.crashBeforeInit = terminal;
+      assets.resolve();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      const settledAfterAssets = settled;
+      // A second synthetic terminal event releases only the broken baseline waiter.
+      if (!settled) earlyWorker?.emit("exit", 1);
+      const outcome = await observed;
+      await port.inferPage(makeRequest());
+      await port.dispose?.();
+
+      expect(settledAfterAssets).toBe(true);
+      expect(outcome).toHaveProperty("value");
+      expect(fallbackInfer).toHaveBeenCalledTimes(2);
+      expect(FakeWorker.instances).toHaveLength(1);
+    },
+  );
+
+  it.each(["abort", "dispose"] as const)(
+    "settles a readiness waiter on %s while its assets remain unresolved",
+    async (terminal) => {
+      const assets = deferredAssets();
+      const controller = new AbortController();
+      const fallbackInfer = vi.fn(async () => ({
+        pixelInferenceByBlockId: new Map(),
+      }));
+      const port = makePort({
+        resolveWasmAssets: () => assets.promise,
+        createFallbackPort: () => ({ inferPage: fallbackInfer }),
+      });
+      let settled = false;
+      const outcome = port
+        .inferPage(makeRequest({ signal: controller.signal }))
+        .then(
+          (value) => {
+            settled = true;
+            return { value, error: undefined };
+          },
+          (error: unknown) => {
+            settled = true;
+            return { value: undefined, error };
+          },
+        );
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      if (terminal === "abort") controller.abort();
+      else await port.dispose?.();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      const settledBeforeAssetRelease = settled;
+      assets.resolve();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      if (!settled) FakeWorker.instances[0]?.emit("exit", 0);
+      const result = await outcome;
+      await port.dispose?.();
+
+      expect(settledBeforeAssetRelease).toBe(true);
+      if (terminal === "abort")
+        expect(result.error).toMatchObject({ name: "AbortError" });
+      expect(
+        FakeWorker.instances
+          .flatMap((worker) => worker.posted)
+          .some((message) => message.type === "infer"),
+      ).toBe(false);
+    },
+  );
 
   it("rejects an already-aborted request without spawning a worker", async () => {
     const controller = new AbortController();
@@ -493,6 +633,64 @@ describe("font matching worker client protocol", () => {
     const worker = FakeWorker.instances[0];
     expect(worker.posted.some((msg) => msg.type === "cancel")).toBe(true);
   });
+
+  it.each([false, true])(
+    "fails a worker-rejected page closed and keeps the worker reusable (aborted=%s)",
+    async (aborted) => {
+      FakeWorker.holdInfer = true;
+      const reportWarning = vi.fn();
+      const fallbackInfer = vi.fn(async () => ({
+        pixelInferenceByBlockId: new Map(),
+      }));
+      const port = makePort({
+        reportWarning,
+        createFallbackPort: () => ({ inferPage: fallbackInfer }),
+      });
+      const pending = port.inferPage(makeRequest());
+      try {
+        await vi.waitFor(() => {
+          expect(
+            FakeWorker.instances[0]?.posted.some(
+              (message) => message.type === "infer",
+            ),
+          ).toBe(true);
+        });
+        const worker = FakeWorker.instances[0];
+        const request = worker.posted.find(
+          (message) => message.type === "infer",
+        );
+        if (!request) throw new Error("infer message was not posted");
+        worker.emit("message", {
+          type: "infer-done",
+          id: request.id,
+          ok: false,
+          aborted,
+          error: { name: "RangeError", message: "invalid raster dimensions" },
+        });
+        const result = await pending;
+
+        expect(result.runtimeArtifactStatus).toMatchObject({
+          state: "disabled",
+          reason: "artifact_verification_failed",
+        });
+        expect(result.pixelInferenceByBlockId.size).toBe(0);
+        expect(reportWarning).toHaveBeenCalledWith(
+          expect.stringContaining("failed closed"),
+          expect.objectContaining({
+            name: aborted ? "AbortError" : "RangeError",
+            message: aborted ? "Aborted" : "invalid raster dimensions",
+          }),
+        );
+        FakeWorker.holdInfer = false;
+        const next = await port.inferPage(makeRequest());
+        expect(next.runtimeArtifactStatus?.state).toBe("ready");
+        expect(FakeWorker.instances).toHaveLength(1);
+        expect(fallbackInfer).not.toHaveBeenCalled();
+      } finally {
+        await port.dispose?.();
+      }
+    },
+  );
 
   it("returns an empty result without spawning a worker for non-Korean targets", async () => {
     const port = makePort();
@@ -619,3 +817,21 @@ describe("font matching worker client protocol", () => {
     expect(result.pixelInferenceByBlockId.size).toBe(0);
   });
 });
+
+function deferredAssets() {
+  let release!: (value: {
+    wasmBinaryPath: string;
+    wasmModulePath: string;
+  }) => void;
+  const promise = new Promise<{
+    wasmBinaryPath: string;
+    wasmModulePath: string;
+  }>((resolve) => {
+    release = resolve;
+  });
+  return {
+    promise,
+    resolve: () =>
+      release({ wasmBinaryPath: "/fake.wasm", wasmModulePath: "/fake.mjs" }),
+  };
+}

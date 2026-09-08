@@ -295,7 +295,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(rx7600mXtDefaults.gemma.llamaRuntimeProfile).toBe("rocm");
     expect(rx7600mXtDefaults.ocr.gpuBackend).not.toBe("rocm-transformers");
     expect(rx7600mXtDefaults.ocr.device).toBe("cpu");
-    expect(rx7600mXtDefaults.inpainting?.model).toBe("lama-manga");
+    expect(rx7600mXtDefaults.inpainting?.model).toBe("aot-inpainting");
     expect(rx7600mXtDefaults.inpainting?.fluxBackend).toBe("cpu-native");
 
     const rx7600Defaults = resolveDefaultAppSettings(
@@ -348,7 +348,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(rx6800Defaults.gemma.llamaRocmTarget).toBe("gfx103X");
     expect(rx6800Defaults.ocr.gpuBackend).not.toBe("rocm-transformers");
     expect(rx6800Defaults.ocr.device).toBe("cpu");
-    expect(rx6800Defaults.inpainting?.model).toBe("lama-manga");
+    expect(rx6800Defaults.inpainting?.model).toBe("aot-inpainting");
     expect(rx6800Defaults.inpainting?.fluxBackend).toBe("cpu-native");
 
     const rx6700Defaults = resolveDefaultAppSettings(
@@ -363,7 +363,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
         supportsRocm: false,
       },
     );
-    expect(rx6700Defaults.inpainting?.model).toBe("lama-manga");
+    expect(rx6700Defaults.inpainting?.model).toBe("aot-inpainting");
     expect(rx6700Defaults.inpainting?.fluxBackend).toBe("cpu-native");
   });
 

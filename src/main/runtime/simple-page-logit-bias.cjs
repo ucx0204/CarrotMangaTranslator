@@ -30,8 +30,8 @@ const MAX_TOKENIZE_TIMEOUT_MS = 60000;
  * @typedef {"disableUnused49LogitBias" | "forbiddenTokenBias" | "forbiddenTokenIds" | "forbiddenTokenTexts" | "tokenizeTimeoutMs"} LogitBiasOptionName
  */
 
-/** @type {Map<string, ForbiddenTokenBiasResolution>} */
-const forbiddenTokenBiasCache = new Map();
+/** @type {WeakMap<LlamaServerRef, Map<string, ForbiddenTokenBiasResolution>>} */
+let forbiddenTokenBiasCaches = new WeakMap();
 
 /**
  * @param {LlamaServerRef | null | undefined} server
@@ -98,7 +98,7 @@ async function resolveLocalForbiddenTokenBias(server, options = {}) {
 
   const tokenTexts = resolveConfiguredForbiddenTokenTexts(options);
   const baseUrl = normalizeBaseUrl(server?.baseUrl);
-  if (!baseUrl || tokenTexts.length === 0) {
+  if (!server || !baseUrl || tokenTexts.length === 0) {
     return {
       tokenIds: [],
       tokenTexts,
@@ -108,7 +108,12 @@ async function resolveLocalForbiddenTokenBias(server, options = {}) {
   }
 
   const cacheKey = `${baseUrl}\u0000${tokenTexts.join("\u0000")}`;
-  const cached = forbiddenTokenBiasCache.get(cacheKey);
+  let cache = forbiddenTokenBiasCaches.get(server);
+  if (!cache) {
+    cache = new Map();
+    forbiddenTokenBiasCaches.set(server, cache);
+  }
+  const cached = cache.get(cacheKey);
   if (cached) {
     return cloneBiasResolution(cached);
   }
@@ -118,7 +123,7 @@ async function resolveLocalForbiddenTokenBias(server, options = {}) {
     tokenTexts,
     options,
   );
-  forbiddenTokenBiasCache.set(cacheKey, cloneBiasResolution(resolved));
+  cache.set(cacheKey, cloneBiasResolution(resolved));
   return resolved;
 }
 
@@ -493,7 +498,7 @@ function cloneBiasResolution(value) {
 }
 
 function clearLocalForbiddenTokenBiasCache() {
-  forbiddenTokenBiasCache.clear();
+  forbiddenTokenBiasCaches = new WeakMap();
 }
 
 module.exports = {

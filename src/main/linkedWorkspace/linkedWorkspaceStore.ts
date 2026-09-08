@@ -29,6 +29,9 @@ const linkedWorkspaceRecordSchema = z
     enabled: z.boolean(),
     output: RasterExportSettingsSchema,
     pageRelativePaths: z.record(z.string().uuid(), z.string().min(1).max(4096)),
+    resultRelativePaths: z
+      .record(z.string().uuid(), z.string().min(1).max(4096))
+      .optional(),
     sourceRelativePaths: z
       .record(z.string().uuid(), z.string().min(1).max(4096))
       .optional(),

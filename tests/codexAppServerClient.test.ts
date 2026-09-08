@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppPaths } from "../src/main/appPaths";
 import {
   CodexAppServerClient,
@@ -22,6 +22,7 @@ import {
   extractCompletedTurn,
   readLoginFailure,
 } from "../src/main/codexAppServerProtocol";
+import * as workspaceModule from "../src/main/codexAppServerWorkspace";
 
 const temporaryDirectories: string[] = [];
 
@@ -32,6 +33,88 @@ afterEach(() => {
 });
 
 describe("CodexAppServerClient", () => {
+  it("observes failed workspace removal when aborting an already exited child and disposing again", async () => {
+    const root = mkdtempSync(join(tmpdir(), "mgt-codex-abort-cleanup-test-"));
+    temporaryDirectories.push(root);
+    const fixturePath = join(root, "fake-app-server.cjs");
+    const auditPath = join(root, "audit.json");
+    writeFileSync(fixturePath, fakeAppServerSource(), "utf8");
+    const failure = new Error("fixture workspace removal denied");
+    const removeAfterExit = vi.fn(async () => {
+      throw failure;
+    });
+    const workspace = vi
+      .spyOn(workspaceModule, "createCodexAppServerWorkspace")
+      .mockReturnValue({
+        path: root,
+        remove: async () => undefined,
+        removeAfterExit,
+      });
+    const diagnostic = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    const abortController = new AbortController();
+    let client: CodexAppServerClient | undefined;
+    try {
+      client = await CodexAppServerClient.start(
+        {
+          paths: createAppPaths(root),
+          appVersion: "test",
+          signal: abortController.signal,
+        },
+        {
+          resolveBinary: () => ({
+            executablePath: "fake-codex",
+            packageVersion: "0.150.1",
+            source: "packaged",
+            packageName: "@openai/codex-win32-x64",
+            triple: "x86_64-pc-windows-msvc",
+            executableName: "codex.exe",
+          }),
+          spawnAppServer: (_path, _args, options) =>
+            spawn(process.execPath, [fixturePath], {
+              cwd: options.cwd,
+              env: { ...options.env, FAKE_CODEX_AUDIT_PATH: auditPath },
+              stdio: ["pipe", "pipe", "pipe"],
+              windowsHide: true,
+            }),
+        },
+      );
+      const child = client.process;
+      const exited = new Promise<void>((resolve) =>
+        child.once("close", () => resolve()),
+      );
+      child.stdin.end();
+      await exited;
+      expect(child.exitCode).toBe(0);
+      expect(removeAfterExit).not.toHaveBeenCalled();
+
+      abortController.abort();
+      await expect.poll(() => diagnostic.mock.calls.length).toBeGreaterThan(0);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(removeAfterExit).toHaveBeenCalledWith(child);
+      expect(diagnostic).toHaveBeenCalledWith(
+        "Codex temporary workspace cleanup failed",
+        failure,
+      );
+      expect(unhandled).not.toHaveBeenCalled();
+
+      await expect(
+        Promise.all([client.dispose(true), client.dispose(true)]),
+      ).resolves.toEqual([undefined, undefined]);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(removeAfterExit).toHaveBeenCalledTimes(3);
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      await client?.dispose(true);
+      process.off("unhandledRejection", unhandled);
+      workspace.mockRestore();
+      diagnostic.mockRestore();
+    }
+  });
+
   it.each([
     ["item", "total"],
     ["turn", "total"],

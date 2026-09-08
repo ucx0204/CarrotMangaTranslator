@@ -163,6 +163,19 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
     ).toBe(false);
   });
 
+  it.each([0, -1, NaN, Infinity])(
+    "does not enable GPU defaults for invalid memory probe result %s",
+    (memoryMb) => {
+      expect(resolveHardwareDefaults(memoryMb)).toMatchObject({
+        modelProvider: "openai-codex",
+        gemmaVramMode: "minimum12b",
+        ocrDevice: "cpu",
+        ocrQualityMode: "economy",
+        fluxBackend: "cpu-native",
+      });
+    },
+  );
+
   it("chooses first-run defaults from detected GPU generation and VRAM", () => {
     expect(
       resolveHardwareDefaults({
@@ -263,7 +276,9 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       ocrQualityMode: "full",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
-      fluxBackend: "cuda-native",
+      // The current automatic SM75 path is validated for RTX 20 hardware;
+      // do not select the BF16 CUDA path just because this adapter is NVIDIA.
+      fluxBackend: "cpu-native",
       llamaRuntimeProfile: "cuda12",
     });
     expect(

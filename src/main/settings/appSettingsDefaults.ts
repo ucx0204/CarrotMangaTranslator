@@ -229,7 +229,7 @@ function resolveDefaultOcrSettings(
   );
   const pipeline = resolveOcrPipeline(
     env.MANGA_TRANSLATOR_OCR_PIPELINE,
-    device === "gpu" ? "hayai" : "paddle-legacy",
+    "hayai",
   );
   return {
     pipeline,
@@ -285,7 +285,9 @@ function resolveDefaultInpaintingSettings(
   hardwareDefaults: HardwareDefaults,
 ): NonNullable<AppSettings["inpainting"]> {
   const defaultModel =
-    hardwareDefaults.fluxBackend === "cpu-native" ? "lama-manga" : "flux-klein";
+    hardwareDefaults.fluxBackend === "cpu-native"
+      ? "aot-inpainting"
+      : "flux-klein";
   return {
     model: resolveInpaintingModel(
       env.MANGA_TRANSLATOR_INPAINTING_MODEL ?? env.MGT_INPAINTING_MODEL,

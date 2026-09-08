@@ -7,6 +7,7 @@ import {
   finiteNumber,
 } from "../../shared/ipcSchemaPrimitives";
 import type { PageRevision } from "../../shared/pageRevisionTypes";
+import { SoundEffectReviewSchema } from "../../shared/ipcSoundEffectReviewSchemas";
 import {
   TRANSLATION_CHECKPOINT_PIPELINE_CONTRACT,
   TRANSLATION_CHECKPOINT_SCHEMA_VERSION,
@@ -140,6 +141,7 @@ const ReadyPayloadSchema = z
   .object({
     kind: z.literal("ready"),
     resultKind: z.enum(["completed", "no-text"]),
+    soundEffectReview: SoundEffectReviewSchema.optional(),
     blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
     blockOrder: z
       .array(z.string().min(1).max(200))
@@ -154,6 +156,7 @@ const ReadyPayloadSchema = z
 const TranslatedPayloadSchema = z
   .object({
     kind: z.literal("translated"),
+    soundEffectReview: SoundEffectReviewSchema.optional(),
     jobId: z.string().min(1).max(200),
     items: z.array(OverlayItemSchema).max(MAX_BLOCKS_PER_PAGE),
     fontInferenceItems: z.array(OverlayItemSchema).max(MAX_BLOCKS_PER_PAGE),
@@ -188,6 +191,7 @@ export const PreparedTranslationCheckpointSchema = z
     pipelineContractVersion: z.literal(
       TRANSLATION_CHECKPOINT_PIPELINE_CONTRACT,
     ),
+    soundEffectReviewPreserved: z.literal(true).optional(),
     pageId: z.string().min(1).max(200),
     inputRevision: z
       .string()

@@ -143,8 +143,8 @@
       "reason": "Shared IPC schema primitive authority"
     },
     "src/shared/translationLanguages.ts": {
-      "maxImportedBy": 26,
-      "reason": "Shared language alias contract also gates Japanese-to-Korean C18; reuse instead of a second language parser."
+      "maxImportedBy": 29,
+      "reason": "Shared language alias authority for C18 and research prompts, evidence filtering, and Gemma repair; the three research consumers use this contract instead of duplicating Korean/default-language detection."
     },
     "src/main/pipeline/wholePagePipelinePorts.ts": {
       "maxRuntimeImports": 13,

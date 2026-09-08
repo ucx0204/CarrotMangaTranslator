@@ -92,6 +92,45 @@ describe("sound-effect translation job lifecycle", () => {
     expect(jobs.current).toBeNull();
   });
 
+  it("retains ownership until asynchronous error reporting emits its terminal event", async () => {
+    const jobs = new ActiveJobStore();
+    const events: JobEvent[] = [];
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    runnerMocks.run.mockRejectedValue(new Error("translation failed"));
+    runnerMocks.handleError.mockImplementation(async ({ id, emit }) => {
+      await pending;
+      expect(jobs.current?.id).toBe(id);
+      emit({
+        id,
+        kind: "sound-effect-translation",
+        status: "failed",
+        progressText: "failed",
+        phase: "done",
+      });
+      return {
+        status: "failed",
+        createdBlocksByPage: [],
+        translatedRegionCount: 0,
+        remainingRegionCount: 1,
+      };
+    });
+    const result = startSoundEffectTranslationJob(
+      makeContext(jobs, events),
+      REQUEST,
+      runtime,
+    );
+    await vi.waitFor(() =>
+      expect(runnerMocks.handleError).toHaveBeenCalledOnce(),
+    );
+    release();
+    await expect(result).resolves.toMatchObject({ status: "failed" });
+    expect(events).toEqual([expect.objectContaining({ status: "failed" })]);
+    expect(jobs.current).toBeNull();
+  });
+
   it("delegates failures with the persisted partial state before cleanup", async () => {
     const jobs = new ActiveJobStore();
     const failure = new Error("model response rejected");

@@ -1,7 +1,40 @@
 import type { JobEvent } from "../../shared/jobTypes";
-import type { MangaPage } from "../../shared/libraryTypes";
+import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
+import type { StartSoundEffectTranslationResult } from "../../shared/analysisTypes";
+import type { SoundEffectTranslationJobInput } from "./translationJobTypes";
+import { countChapterPendingSoundEffectRegions } from "./soundEffectTranslationTargets";
 
 type EmitJobEvent = (event: JobEvent) => void;
+
+export function finishSoundEffectTranslation(
+  {
+    emit,
+    id,
+    state,
+  }: Pick<SoundEffectTranslationJobInput, "emit" | "id" | "state">,
+  chapter: ChapterSnapshot,
+  requestedRegionCount: number,
+  pageTotal: number,
+): StartSoundEffectTranslationResult {
+  const remainingRegionCount = countChapterPendingSoundEffectRegions(chapter);
+  const failedRequested = requestedRegionCount - state.translatedRegionCount;
+  const status = failedRequested > 0 ? "partial" : "completed";
+  emitSoundEffectTerminal(
+    id,
+    emit,
+    status,
+    pageTotal,
+    state.translatedRegionCount,
+  );
+  return {
+    status,
+    chapter,
+    createdBlocksByPage: state.createdBlocksByPage,
+    translatedRegionCount: state.translatedRegionCount,
+    remainingRegionCount,
+    ...(state.warnings.length > 0 ? { warnings: state.warnings } : {}),
+  };
+}
 
 export function emitSoundEffectPageRunning(
   id: string,

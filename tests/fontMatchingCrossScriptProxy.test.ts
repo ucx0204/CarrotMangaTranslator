@@ -5,9 +5,16 @@ import {
   FONT_CATALOG_REVISION,
 } from "../src/main/pipeline/fontMatchingCatalogRevision";
 import { resolveVerifiedPixelInferenceForBlockId } from "../src/main/pipeline/automaticFontMatchingV2RuntimeGate";
-import { readFileSync, existsSync } from "node:fs";
+import {
+  readFileSync,
+  existsSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { createHash } from "node:crypto";
-import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   FONT_MATCHING_V2_RENDERER_HASH,
@@ -56,64 +63,76 @@ import {
   FONT_TEXTURE_MODEL_SHA256,
 } from "../src/main/pipeline/fontMatchingTextureTypes";
 import { resolveAutomaticFontExpression } from "../src/main/pipeline/automaticFontMatchingExpression";
+import { CROSS_SCRIPT_PROXY_RUNTIME_ASSETS } from "../src/main/pipeline/fontMatchingCrossScriptProxyAssets";
 
 describe("cross-script page font proxy", () => {
-  const bundledProxy = join(
-    process.cwd(),
+  const proxyDirectory = [
+    "src/main/runtime/font-matching-crossscript-proxy",
+    "models/font-matching-crossscript-proxy/manga-font-crossscript-proxy-runtime-v2",
     "out/app-runtime/font-matching-crossscript-proxy",
-  );
-  const proxyDirectory = existsSync(join(bundledProxy, ".owned.json"))
-    ? bundledProxy
-    : join(
-        process.cwd(),
-        "models/font-matching-crossscript-proxy/manga-font-crossscript-proxy-runtime-v2",
-      );
-  it.skipIf(!existsSync(join(proxyDirectory, ".owned.json")))(
+  ]
+    .map((directory) => join(process.cwd(), directory))
+    .find((directory) => existsSync(join(directory, ".owned.json")));
+  it.skipIf(!proxyDirectory)(
     "preserves the installed native proxy face bytes when extending its catalog",
     async () => {
-      const model = await loadCrossScriptProxyRuntimeModel(proxyDirectory);
+      if (!proxyDirectory) throw new Error("Proxy runtime fixture is missing");
+      const fixtureDirectory = mkdtempSync(
+        join(tmpdir(), "mgt-crossscript-native-"),
+      );
       try {
-        const revised = withRevisedCrossScriptCatalog(model);
-        expect(withRevisedCrossScriptCatalog(model)).toBe(revised);
-        const retained = model.candidates.filter(
-          (c) => !isDemotedBlockFontId(c.fontId),
-        );
-        expect(revised.candidates).toHaveLength(retained.length + 4);
-        for (const face of retained) {
-          const next = revised.candidates.find(
-            (c) => c.displayId === face.displayId,
+        snapshotCrossScriptProxyRuntime(proxyDirectory, fixtureDirectory);
+        const model = await loadCrossScriptProxyRuntimeModel(fixtureDirectory);
+        try {
+          const revised = withRevisedCrossScriptCatalog(model);
+          expect(withRevisedCrossScriptCatalog(model)).toBe(revised);
+          const retained = model.candidates.filter(
+            (c) => !isDemotedBlockFontId(c.fontId),
           );
-          if (!next) throw new Error("Retained face missing");
-          const actual = revised.scoreCache.bank.subarray(
-            next.bankByteOffset,
-            next.bankByteOffset + next.bankByteLength,
-          );
-          const original = model.scoreCache.bank.subarray(
-            face.bankByteOffset,
-            face.bankByteOffset + face.bankByteLength,
-          );
+          expect(revised.candidates).toHaveLength(retained.length + 4);
+          for (const face of retained) {
+            const next = revised.candidates.find(
+              (c) => c.displayId === face.displayId,
+            );
+            if (!next) throw new Error("Retained face missing");
+            const actual = revised.scoreCache.bank.subarray(
+              next.bankByteOffset,
+              next.bankByteOffset + next.bankByteLength,
+            );
+            const original = model.scoreCache.bank.subarray(
+              face.bankByteOffset,
+              face.bankByteOffset + face.bankByteLength,
+            );
+            expect(
+              Buffer.from(actual).equals(Buffer.from(original)),
+              face.displayId,
+            ).toBe(true);
+          }
           expect(
-            Buffer.from(actual).equals(Buffer.from(original)),
-            face.displayId,
-          ).toBe(true);
+            revised.candidates
+              .filter((c) =>
+                ADDED_MATCHING_FONT_IDS.some((id) => id === c.fontId),
+              )
+              .map((c) => [c.fontId, c.fontWeight]),
+          ).toEqual([
+            ["kkubulim", 400],
+            ["geummyeon-seongsil", 400],
+            ["shilla-culture", 500],
+            ["shilla-culture", 700],
+          ]);
+        } finally {
+          const released = await Promise.allSettled([
+            model.styleSession.release(),
+            model.decoderSession.release(),
+          ]);
+          expect(released.map((result) => result.status)).toEqual([
+            "fulfilled",
+            "fulfilled",
+          ]);
         }
-        expect(
-          revised.candidates
-            .filter((c) =>
-              ADDED_MATCHING_FONT_IDS.some((id) => id === c.fontId),
-            )
-            .map((c) => [c.fontId, c.fontWeight]),
-        ).toEqual([
-          ["kkubulim", 400],
-          ["geummyeon-seongsil", 400],
-          ["shilla-culture", 500],
-          ["shilla-culture", 700],
-        ]);
       } finally {
-        await Promise.all([
-          model.styleSession.release(),
-          model.decoderSession.release(),
-        ]);
+        expect(dirname(fixtureDirectory)).toBe(resolve(tmpdir()));
+        rmSync(fixtureDirectory, { recursive: true, force: true });
       }
     },
     60_000,
@@ -640,6 +659,19 @@ describe("cross-script page font proxy", () => {
     });
   });
 });
+
+function snapshotCrossScriptProxyRuntime(source: string, destination: string) {
+  // QA/build subprocesses may replace shared out/app-runtime during this test.
+  for (const asset of CROSS_SCRIPT_PROXY_RUNTIME_ASSETS) {
+    const bytes = readFileSync(join(source, asset.fileName));
+    expect(bytes.byteLength, asset.fileName).toBe(asset.bytes);
+    expect(
+      createHash("sha256").update(bytes).digest("hex"),
+      asset.fileName,
+    ).toBe(asset.sha256);
+    writeFileSync(join(destination, asset.fileName), bytes, { flag: "wx" });
+  }
+}
 
 function makeCandidates(): AutomaticFontCandidate[] {
   return [

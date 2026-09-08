@@ -1,10 +1,20 @@
 import { EventEmitter } from "node:events";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { findPythonCommand } from "../src/main/inpainting/fluxAssets/pythonBootstrap";
+import { ensureMissingFluxPythonRuntime } from "../src/main/inpainting/fluxAssets/pythonRuntimeInstaller";
+import {
+  findFluxPythonWorkerSource,
+  resolveCurrentFluxPythonRuntime,
+  resolveFluxPythonRuntimeLayout,
+  resolveFluxPythonWorkerFile,
+} from "../src/main/inpainting/fluxAssets/pythonRuntimeLayout";
+import { verifyFluxPythonRuntime } from "../src/main/inpainting/fluxAssets/pythonRuntimePackages";
 
 const boundary = vi.hoisted(() => ({ spawn: vi.fn() }));
 vi.mock("node:child_process", async (importOriginal) => ({
@@ -117,3 +127,93 @@ async function emptyRuntime() {
   roots.push(directory);
   return directory;
 }
+
+describe("Flux target runtime installation and cache reuse", () => {
+  it.each(["python3", "python", "py", "absolute"] as const)(
+    "reuses an installed %s interpreter without repeating pip installation",
+    async (selection) => {
+      const root = await emptyRuntime();
+      Object.defineProperty(process, "platform", {
+        value:
+          selection === "py" || selection === "absolute" ? "win32" : "linux",
+      });
+      const executable = join(root, "interpreter.exe");
+      await writeFile(executable, "external process fixture");
+      if (selection === "absolute") vi.stubEnv("MGT_FLUX_PYTHON", executable);
+      if (selection === "py")
+        vi.stubEnv("MGT_FLUX_ALLOW_SYSTEM_PYTHON", "true");
+      const layout = resolveFluxPythonRuntimeLayout(root, "python-cpu");
+      expect(resolve(layout.runtimeDir).startsWith(resolve(root) + sep)).toBe(
+        true,
+      );
+      boundary.spawn.mockImplementation((command: string, args: string[]) => {
+        const child = Object.assign(new EventEmitter(), {
+          stdout: new PassThrough(),
+          stderr: new PassThrough(),
+          stdin: null,
+          kill: vi.fn(),
+        });
+        queueMicrotask(() => {
+          if (selection === "python" && command === "python3") {
+            child.emit("exit", 1);
+            return;
+          }
+          const targetIndex = args.indexOf("--target");
+          if (targetIndex >= 0) {
+            const target = args[targetIndex + 1];
+            expect(target).toBe(layout.packageDir);
+            for (const module of ["torch", "diffusers", "transformers"])
+              mkdirSync(join(target, module), { recursive: true });
+          }
+          if (args.some((arg) => arg.includes("sys.executable")))
+            child.stdout.write(`${executable}\n`);
+          child.emit("exit", 0);
+          child.emit("close", 0);
+        });
+        return child;
+      });
+      const worker = resolveFluxPythonWorkerFile("python-cpu");
+      const source = findFluxPythonWorkerSource(worker);
+      if (!source) throw new Error("Expected packaged worker source");
+      const expectedMarker = {
+        backend: "python-cpu" as const,
+        integrityId: "fixture-runtime-lock",
+        buildPackages: [],
+        packages: ["torch", "diffusers", "transformers"],
+        runtimeInstallBatches: [],
+        worker,
+        workerHash: createHash("sha256")
+          .update(await readFile(source))
+          .digest("hex"),
+      };
+      const installed = await ensureMissingFluxPythonRuntime({
+        backend: "python-cpu",
+        layout,
+        workerFile: worker,
+        expectedMarker,
+        buildPackages: [],
+        extraPackages: expectedMarker.packages,
+        runtimeInstallBatches: [],
+      });
+      const pipCalls = () =>
+        boundary.spawn.mock.calls.filter(([, args]) => args.includes("pip"));
+      expect(pipCalls().length).toBeGreaterThan(0);
+      const installationCount = pipCalls().length;
+      const installedMarker = await readFile(layout.markerPath, "utf8");
+      const cached = await resolveCurrentFluxPythonRuntime({
+        ...layout,
+        expectedMarker,
+      });
+      expect(cached).not.toBeNull();
+      if (!cached) throw new Error("Expected installed runtime cache hit");
+      expect([cached.command, cached.args]).toEqual([
+        installed.command,
+        installed.args,
+      ]);
+      expect(cached.packageDir).toBe(layout.packageDir);
+      await verifyFluxPythonRuntime(cached, "python-cpu");
+      expect(pipCalls()).toHaveLength(installationCount);
+      expect(await readFile(layout.markerPath, "utf8")).toBe(installedMarker);
+    },
+  );
+});

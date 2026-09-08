@@ -38,15 +38,6 @@ export const FLUX_CPU_RUNNER_EXECUTABLE_SHA256 =
 export const FLUX_CPU_RUNNER_EXECUTABLE_BYTES = 36_676_608;
 export const FLUX_CPU_RUNNER_MARKER = ".mgt-flux-cpu-runner.json";
 
-export const FLUX_NVIDIA_RUNNER_COMPUTE_CAPS = [
-  "75",
-  "80",
-  "86",
-  "89",
-  "90",
-  "120",
-];
-
 const FLUX_NVIDIA_RUNNER_RELEASE_TAG = "flux-runners-cuda12.9-r3";
 
 export const FLUX_NVIDIA_RUNNER_BASE_URL = `https://github.com/ucx0204/CarrotMangaTranslator/releases/download/${FLUX_NVIDIA_RUNNER_RELEASE_TAG}`;

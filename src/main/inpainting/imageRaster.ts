@@ -298,6 +298,7 @@ function maskHasValueAt(
   const index = y * width + x;
   return (
     x >= 0 &&
+    x < width &&
     y >= 0 &&
     index >= 0 &&
     index < mask.length &&

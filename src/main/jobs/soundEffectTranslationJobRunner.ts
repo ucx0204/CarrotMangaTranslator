@@ -4,11 +4,7 @@ import { withImageRedactionReview } from "./imageRedactionReview";
 import { prepareSoundEffectTranslationRun } from "./soundEffectTranslationPreparation";
 import { editTranslatedPageWithCodex } from "../codexImageEditing";
 import { createCodexProgressReporter } from "../pipeline/codexTypesettingProgress";
-import type {
-  StartSoundEffectTranslationRequest,
-  StartSoundEffectTranslationResult,
-} from "../../shared/analysisTypes";
-import type { JobEvent } from "../../shared/jobTypes";
+import type { StartSoundEffectTranslationResult } from "../../shared/analysisTypes";
 import {
   appendResolvedSoundEffectBlocks,
   getRunPaths,
@@ -17,15 +13,12 @@ import {
 } from "../library";
 import { isAbortErrorLike, throwIfAborted } from "../pipeline/failure";
 import { createDefaultWholePagePipelineDependencies } from "../pipeline/wholePagePipelinePorts";
-import type {
-  TranslationJobContext,
-  SoundEffectTranslationJobInput,
-  SoundEffectTranslationJobState,
-} from "./translationJobTypes";
+import type { SoundEffectTranslationJobInput } from "./translationJobTypes";
 import {
   emitSoundEffectPageDone,
   emitSoundEffectPageRunning,
   emitSoundEffectTerminal,
+  finishSoundEffectTranslation,
 } from "./soundEffectTranslationEvents";
 import { buildFontMatchedSoundEffectEntries } from "./soundEffectFontMatching";
 import {
@@ -40,8 +33,6 @@ import {
   resolveStoredSoundEffectTargets,
   type StoredSoundEffectTarget,
 } from "./soundEffectTranslationTargets";
-
-type EmitJobEvent = (event: JobEvent) => void;
 
 export type SoundEffectTranslationJobRunnerDependencies = {
   translateRegions?: typeof translateStoredSoundEffectRegions;
@@ -115,7 +106,15 @@ export async function runSoundEffectTranslationJob(
       inpaintCreatedBlocks: dependencies.inpaintCreatedBlocks,
       pageTotal: prepared.targets.length,
     });
-    return finalizeSoundEffectTranslation(input, prepared, dependencies);
+    input.state.chapter = await dependencies.openChapter(
+      input.request.chapterId,
+    );
+    return finishSoundEffectTranslation(
+      input,
+      input.state.chapter,
+      prepared.requestedRegionCount,
+      prepared.targets.length,
+    );
   };
   if (dependencies !== productionDependencies) return run();
   const chapter = await dependencies.openChapter(input.request.chapterId);
@@ -286,59 +285,53 @@ async function saveDeferredFontMatchedPages(
   pages: readonly DeferredSoundEffectPage[],
 ): Promise<void> {
   if (pages.length === 0) return;
-  const cancelled = input.abortController.signal.aborted;
-  const finalizationSignal = cancelled
-    ? new AbortController().signal
-    : input.abortController.signal;
-  if (cancelled) {
+  const signal = input.abortController.signal;
+  const imageErrors: unknown[] = [];
+  let nextPageIndex = 0;
+  try {
+    for (const [pageIndex, page] of pages.entries()) {
+      throwIfAborted(signal);
+      await saveTranslatedPage(
+        input,
+        prepared,
+        page,
+        dependencies,
+        signal,
+        imageErrors,
+      );
+      nextPageIndex = pageIndex + 1;
+    }
+  } catch (error) {
+    if (
+      !signal.aborted ||
+      (!isAbortErrorLike(error) && error !== signal.reason)
+    )
+      throw error;
+  }
+  if (nextPageIndex < pages.length) {
+    const finalizationSignal = new AbortController().signal;
     prepared.run.baseOptions.autoFontMatching = undefined;
     prepared.run.baseOptions.fontMatchingCandidates = undefined;
     input.state.warnings.push(
       "취소 전에 번역이 끝난 효과음은 폰트 자동 맞춤 없이 저장했습니다.",
     );
-  }
-  const imageErrors: unknown[] = [];
-  for (const page of pages) {
-    await saveTranslatedPage(
-      input,
-      prepared,
-      page,
-      dependencies,
-      finalizationSignal,
-      imageErrors,
+    const savedPageIds = new Set(
+      input.state.createdBlocksByPage.map(({ pageId }) => pageId),
     );
+    for (const page of pages.slice(nextPageIndex)) {
+      if (savedPageIds.has(page.target.page.id)) continue;
+      await saveTranslatedPage(
+        input,
+        prepared,
+        page,
+        dependencies,
+        finalizationSignal,
+        imageErrors,
+      );
+    }
   }
   if (imageErrors.length) throw imageErrors[0];
-}
-
-async function finalizeSoundEffectTranslation(
-  input: SoundEffectTranslationJobInput,
-  prepared: Awaited<ReturnType<typeof prepareSoundEffectTranslationRun>>,
-  dependencies: SoundEffectTranslationJobRunnerDependencies,
-): Promise<StartSoundEffectTranslationResult> {
-  const { emit, id, request, state } = input;
-  state.chapter = await dependencies.openChapter(request.chapterId);
-  const remainingRegionCount = countChapterPendingSoundEffectRegions(
-    state.chapter,
-  );
-  const failedRequested =
-    prepared.requestedRegionCount - state.translatedRegionCount;
-  const status = failedRequested > 0 ? "partial" : "completed";
-  emitSoundEffectTerminal(
-    id,
-    emit,
-    status,
-    prepared.targets.length,
-    state.translatedRegionCount,
-  );
-  return {
-    status,
-    chapter: state.chapter,
-    createdBlocksByPage: state.createdBlocksByPage,
-    translatedRegionCount: state.translatedRegionCount,
-    remainingRegionCount,
-    ...(state.warnings.length > 0 ? { warnings: state.warnings } : {}),
-  };
+  signal.throwIfAborted();
 }
 
 export async function handleSoundEffectTranslationJobError({
@@ -350,14 +343,8 @@ export async function handleSoundEffectTranslationJobError({
   state,
   context,
   dependencies = productionDependencies,
-}: {
-  abortController: AbortController;
-  emit: EmitJobEvent;
+}: Omit<SoundEffectTranslationJobInput, "registerResourceCleanup"> & {
   error: unknown;
-  id: string;
-  request: StartSoundEffectTranslationRequest;
-  state: SoundEffectTranslationJobState;
-  context: TranslationJobContext;
   dependencies?: SoundEffectTranslationJobRunnerDependencies;
 }): Promise<StartSoundEffectTranslationResult> {
   const cancelled = abortController.signal.aborted || isAbortErrorLike(error);

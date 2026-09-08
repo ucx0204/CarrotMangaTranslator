@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- worker protocol, lifecycle state, spawn diagnostics, and stderr tail stay co-located for auditability */
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { StringDecoder } from "node:string_decoder";
 import { observeProcessErrors } from "./observeProcessErrors";
 import {
   createChildExitReceipt,
@@ -111,6 +112,8 @@ export class JsonLinesWorkerClient<
   private readonly runtime: JsonLinesWorkerClientRuntime;
   private nextId = 1;
   private stdoutBuffer = "";
+  private readonly stdoutDecoder = new StringDecoder("utf8");
+  private readonly stderrDecoder = new StringDecoder("utf8");
   private writeQueue: Promise<void> = Promise.resolve();
   private state: WorkerClientState = "running";
   private terminationPromise: Promise<void> | null = null;
@@ -129,9 +132,17 @@ export class JsonLinesWorkerClient<
       (error) => this.handlePipeError(error),
     );
     options.onSpawn?.(this.child.pid ?? null);
-    this.child.stdout.on("data", (chunk: Buffer) => this.handleStdout(chunk));
+    this.child.stdout.on("data", (chunk: Buffer) =>
+      this.handleStdout(this.stdoutDecoder.write(chunk)),
+    );
+    this.child.stdout.on("end", () =>
+      this.handleStdout(this.stdoutDecoder.end()),
+    );
     this.child.stderr.on("data", (chunk: Buffer) =>
-      this.rememberStderr(chunk.toString("utf8")),
+      this.rememberStderr(this.stderrDecoder.write(chunk)),
+    );
+    this.child.stderr.on("end", () =>
+      this.rememberStderr(this.stderrDecoder.end()),
     );
     this.child.on("exit", (code) => this.handleExit(code));
   }
@@ -324,11 +335,11 @@ export class JsonLinesWorkerClient<
     });
   }
 
-  private handleStdout(chunk: Buffer): void {
+  private handleStdout(text: string): void {
     if (this.state !== "running") {
       return;
     }
-    this.stdoutBuffer += chunk.toString("utf8");
+    this.stdoutBuffer += text;
     while (this.state === "running") {
       const newlineIndex = this.stdoutBuffer.indexOf("\n");
       if (newlineIndex < 0) {
@@ -536,6 +547,7 @@ export class JsonLinesWorkerClient<
   }
 
   private rememberStderr(text: string): void {
+    if (!text) return;
     const sanitized = this.options
       .sanitizeStderr(text)
       .slice(-MAX_STDERR_CHUNK_LENGTH);

@@ -151,7 +151,7 @@ function normalizeOcrSettings(
   return {
     pipeline: resolveOcrPipeline(
       ocr?.pipeline,
-      defaults.ocr.pipeline ?? (device === "gpu" ? "hayai" : "paddle-legacy"),
+      defaults.ocr.pipeline ?? "hayai",
     ),
     device,
     // GPU 전용 고품질 모드는 CPU에서 못 쓸 만큼 느리므로 절약 품질로 강제한다.

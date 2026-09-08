@@ -1,8 +1,14 @@
 // @ts-check
-const { createHash } = require("node:crypto");
-const { copyFileSync, mkdirSync, readFileSync } = require("node:fs");
+const { createHash, randomUUID } = require("node:crypto");
+const {
+  copyFileSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  unlinkSync,
+} = require("node:fs");
 const { tmpdir } = require("node:os");
-const { join } = require("node:path");
+const { join, resolve } = require("node:path");
 
 const { isGemma26BModel } = require("./runtime-profile.cjs");
 
@@ -106,16 +112,47 @@ function resolveAsciiTemplateCacheRoot(configuredRoot) {
       process.env[GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV] ??
       "",
   ).trim();
-  const cacheRoot =
-    explicitRoot || join(tmpdir(), "carrot-manga-translator-runtime");
-  if (!isAsciiPath(cacheRoot)) {
+  if (explicitRoot) {
+    const cacheRoot = resolve(explicitRoot);
+    if (isAsciiPath(cacheRoot)) return prepareWritableTemplateCache(cacheRoot);
     throw new Error(
       "llama.cpp on Windows requires an ASCII-only Gemma 4 template cache " +
         `path, but received: ${cacheRoot}. Set ` +
         `${GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV} to an ASCII-only path.`,
     );
   }
+  const candidates = [
+    tmpdir(),
+    process.env.LOCALAPPDATA,
+    process.env.APPDATA,
+    process.env.ProgramData,
+    process.env.PUBLIC,
+    process.env.USERPROFILE,
+    process.env.SystemRoot && join(process.env.SystemRoot, "Temp"),
+    process.env.windir && join(process.env.windir, "Temp"),
+  ];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const cacheRoot = resolve(candidate, "carrot-manga-translator-runtime");
+    if (!isAsciiPath(cacheRoot)) continue;
+    try {
+      return prepareWritableTemplateCache(cacheRoot);
+    } catch (_error) {
+      // error-policy-allow: an unwritable optional cache root advances to the next candidate.
+    }
+  }
+  throw new Error(
+    "No writable ASCII-only Gemma 4 template cache path is available. " +
+      `Set ${GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV} to an ASCII-only writable path.`,
+  );
+}
+
+/** @param {string} cacheRoot */
+function prepareWritableTemplateCache(cacheRoot) {
   mkdirSync(cacheRoot, { recursive: true });
+  const probePath = join(cacheRoot, `.write-probe-${randomUUID()}`);
+  writeFileSync(probePath, "", { flag: "wx" });
+  unlinkSync(probePath);
   return cacheRoot;
 }
 

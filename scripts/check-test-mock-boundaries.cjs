@@ -15,6 +15,11 @@ const TEST_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx"]);
  * mocking the same internal dependency by convention.
  */
 const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
+  // Exercise real context analysis/research against isolated storage and a controlled provider lifecycle.
+  "tests/workContextAnalysisLifecycle.test.ts::../src/main/appPaths",
+  "tests/workContextAnalysisLifecycle.test.ts::../src/main/translationRuntime",
+  "tests/workContextResearchAudit.test.ts::../src/main/appPaths",
+  "tests/workContextResearchAudit.test.ts::../src/main/translationRuntime",
   "tests/bubbleOnnxRuntime.test.ts::../src/main/runtimeSupport/modelDownloads",
   "tests/bubbleOnnxRuntime.test.ts::../src/main/runtimeSupport/nativeOnnxRuntime",
   "tests/bubbleOnnxRuntime.test.ts::../src/main/logger",

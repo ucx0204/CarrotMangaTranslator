@@ -112,13 +112,56 @@ describe("AI work context merge", () => {
     expect(result.memories[0].pages[0]).toEqual(
       expect.objectContaining({
         pageId: "page-a",
-        summary: "마왕 검은 탑",
+        summary: "마왕이 검은 탑을 언급한다.",
         characterIds: [result.styleGuide.characters[0].id],
       }),
     );
     expect("workId" in result.memories[0].pages[0]).toBe(false);
     expect("chapterId" in result.memories[0].pages[0]).toBe(false);
   });
+
+  it.each([
+    {
+      suggested: "장면에서 대치가 시작된다.",
+      base: "대화 발췌",
+      translated: "번역 대화",
+      expected: "장면에서 대치가 시작된다.",
+    },
+    {
+      suggested: "장면에서 대치가 시작된다.",
+      base: "",
+      translated: "",
+      expected: "장면에서 대치가 시작된다.",
+    },
+    {
+      suggested: "  ",
+      base: "기본 발췌",
+      translated: "번역 대화",
+      expected: "기본 발췌",
+    },
+    { suggested: "", base: "", translated: "번역 대화", expected: "번역 대화" },
+    { suggested: "", base: "", translated: "", expected: "魔王 黒い塔" },
+  ])(
+    "uses the AI summary before generated digests and retains fallbacks: $expected",
+    ({ suggested, base, translated, expected }) => {
+      const page = {
+        ...makeBasePage(),
+        summary: base,
+        translatedDigest: translated,
+      };
+      const result = mergeAiWorkContextSuggestions({
+        styleGuide: makeGuide(),
+        memories: [makeMemory()],
+        basePages: [page],
+        suggestions: normalizeAiWorkContextSuggestions({
+          page_summaries: [{ page_id: page.pageId, summary: suggested }],
+        }),
+        now,
+      });
+      expect(result.memories[0].pages[0].summary).toBe(expected);
+      expect(result.memories[0].pages[0].translatedDigest).toBe(translated);
+    },
+  );
 
   it("does not overwrite existing translations, speech style, or summaries", () => {
     const guide = makeGuide();

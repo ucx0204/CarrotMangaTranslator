@@ -35,7 +35,16 @@ const SETTINGS_PAIR_SECRET_FILE = "settings.secrets.json";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 let settingsCommitTail: Promise<void> = Promise.resolve();
 
-export async function loadCommittedSettingsPairFiles<T>(
+export function loadCommittedSettingsPairFiles<T>(
+  paths: AppPaths,
+  validate: (files: SettingsPairFiles) => T | Promise<T>,
+): Promise<T | null> {
+  return runSettingsPairOperation(() =>
+    loadCommittedSettingsPairFilesNow(paths, validate),
+  );
+}
+
+async function loadCommittedSettingsPairFilesNow<T>(
   paths: AppPaths,
   validate: (files: SettingsPairFiles) => T | Promise<T>,
 ): Promise<T | null> {
@@ -86,14 +95,18 @@ export function commitSettingsPairFiles(
   paths: AppPaths,
   files: SettingsPairFiles,
 ): Promise<string> {
-  const commit = settingsCommitTail.then(() =>
+  return runSettingsPairOperation(() =>
     commitSettingsPairFilesNow(paths, files),
   );
-  settingsCommitTail = commit.then(
+}
+
+function runSettingsPairOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const pending = settingsCommitTail.then(operation);
+  settingsCommitTail = pending.then(
     () => undefined,
     () => undefined,
   );
-  return commit;
+  return pending;
 }
 
 async function commitSettingsPairFilesNow(

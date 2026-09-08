@@ -2,6 +2,7 @@ import type { KoharuTypographySegmentation } from "../bubbleLayout/contracts";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
 import type { InpaintingWindowMask } from "./inpaintingEngine";
+import { projectWindowMask } from "./bubbleLayoutConstraintMask";
 import {
   buildKoharuTypographyCompositeMask,
   resolveKoharuTypographyFeatherPx,
@@ -52,7 +53,17 @@ export function resolvePatternFluxCompositePlan(options: {
         width: options.width,
       })
     : null;
-  if (!typography) {
+  if (typography && options.fallbackConstraint) {
+    typography.core = intersectWindowMask(
+      typography.core,
+      options.fallbackConstraint,
+    );
+    typography.featherEnvelope = intersectWindowMask(
+      typography.featherEnvelope,
+      options.fallbackConstraint,
+    );
+  }
+  if (!typography || !typography.core.data.some(Boolean)) {
     return {
       compositeMask: options.regionMask,
       constraint: options.fallbackConstraint,
@@ -68,4 +79,15 @@ export function resolvePatternFluxCompositePlan(options: {
     modelMask: unionWindowMasks(options.regionMask, typography.featherEnvelope),
     usesTypographySegmentation: true,
   };
+}
+
+function intersectWindowMask(
+  mask: InpaintingWindowMask,
+  constraint: InpaintingWindowMask,
+): InpaintingWindowMask {
+  const data = projectWindowMask(constraint, mask.bounds);
+  for (let index = 0; index < data.length; index += 1) {
+    if (!mask.data[index]) data[index] = 0;
+  }
+  return { bounds: mask.bounds, data };
 }

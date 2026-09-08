@@ -1,0 +1,618 @@
+{
+  "schemaVersion": 1,
+  "baseCommit": "192fb4f66d9538cf10e04fa361a8bfaccf13e838",
+  "updatedAt": "2026-09-08T16:42:24.966Z",
+  "mode": "confirmed-defect-remediation",
+  "scope": "Only these previously confirmed defects. No additional repository discovery is included.",
+  "scanResume": "docs/bug-hunter-2026-09-08-resume.md",
+  "remainingScan": "docs/bug-hunter-2026-09-08-remaining.json",
+  "bugs": [
+    {
+      "id": "PERSISTENCE-1",
+      "file": "src/main/jobs/soundEffectTranslationResult.ts",
+      "status": "fixed",
+      "verification": "Canary 4 files 63 tests passed including Chinese output and Japanese residue controls; typecheck passed.",
+      "updatedAt": "2026-09-08T14:19:16.650Z",
+      "severity": "Medium",
+      "description": "Valid Chinese target translations are rejected as leftover Japanese, so those SFX candidates remain untranslated after both model attempts.",
+      "suggestedFix": "Separate Japanese source validation from target-language residue validation. Make the latter target-aware so Chinese ideographs are accepted for Chinese targets, while maintaining appropriate rejection of unintended Japanese text for other targets. Add zh-Hans/zh-Hant regression cases across both attempts alongside existing Korean/English controls."
+    },
+    {
+      "id": "PERSISTENCE-2",
+      "file": "src/main/jobs/soundEffectTranslationJobRunner.ts",
+      "status": "fixed",
+      "verification": "Canary 63 tests passed including cancellation at seven finalization stages, exactly-once completed text persistence, and unrelated save failures.",
+      "updatedAt": "2026-09-08T14:19:16.830Z",
+      "severity": "Medium",
+      "description": "Cancelling during deferred font finalization discards translations already completed for the remaining pages, although cancelling before finalization preserves them.",
+      "suggestedFix": "Handle cancellation throughout the deferred-save loop. Preserve the current unsaved page and remaining completed translations using a separate persistence signal with optional font/image work disabled after cancellation; track which pages have already been appended to avoid duplicates. Verify cancellation before finalization, during a page's font work, and immediately after an append."
+    },
+    {
+      "id": "REDACTION-1",
+      "file": "src/main/ipc/jobControlIpc.ts",
+      "status": "fixed",
+      "verification": "Canary 63 tests passed including actual SFX redaction wait cancelled through IPC, wrong IDs and terminal-kind controls.",
+      "updatedAt": "2026-09-08T14:19:17.015Z",
+      "severity": "Medium",
+      "description": "The image-redaction modal's Cancel action cannot cancel an SFX translation job, leaving it waiting for a review that the modal has closed.",
+      "suggestedFix": "Allow ID-matching cancellation for sound-effect-translation and other explicitly supported cancellable review-job kinds, retaining the job-ID and terminal-state checks. Do not silently dismiss an active review when targeted cancellation is refused. Verify both modal Cancel and close against a real SFX pending review, plus mismatched-ID and terminal-job controls."
+    },
+    {
+      "id": "C003-2",
+      "file": "src/main/pageExport.ts",
+      "status": "fixed",
+      "verification": "Actual emitted renderer readiness script under virtual time honors mode-specific shared budget; export/storage suite 30 passed.",
+      "updatedAt": "2026-09-08T14:56:48.657Z",
+      "severity": "Medium",
+      "description": "The renderer's hard-coded 15-second readiness deadline defeats original-resolution export's configured 120-second wait.",
+      "suggestedFix": "Use one mode-dependent readiness deadline. Pass the selected timeout or absolute deadline into the renderer polling promise, or let the outer lifecycle timeout own expiration and terminate polling when the session is cancelled/closed. Verify readiness succeeding after 15 seconds but before the original-mode deadline, and actual deadline expiry, using controlled time."
+    },
+    {
+      "id": "C004-1",
+      "file": "src/main/workContextAnalysis.ts",
+      "status": "fixed",
+      "verification": "3 end-to-end analysis lifecycle regressions passed: actual parser/persistence and controlled endpoint success/rejection/cancel disposal order; typecheck passed.",
+      "updatedAt": "2026-09-08T14:42:03.590Z",
+      "severity": "Medium",
+      "description": "Single-chapter AI context analysis disposes the model endpoint before its analysis promise completes, causing the Codex HTTP request to fail.",
+      "suggestedFix": "Await runAiAnalysisWithEndpoint inside the try so endpoint disposal only starts after the full analysis settles. Preserve finally cleanup for success, failure and cancellation; cover both pending request success and rejection with a real session lifecycle test."
+    },
+    {
+      "id": "C005-1",
+      "file": "src/main/workContextResearch.ts",
+      "status": "fixed",
+      "verification": "36 language-pair tests passed through prompts, evidence, normalization, and application; production propagation source reviewed; no worker end-to-end claim.",
+      "updatedAt": "2026-09-08T14:49:30.925Z",
+      "severity": "Medium",
+      "description": "Internet research drops the configured language pair and generates Korean glossary and character translations even when another supported target language is selected.",
+      "suggestedFix": "Carry the resolved language pair in WorkContextResearchPromptInput from loadResearchContext through all research engines and postprocessing. Generate target-language instructions from that pair and make the untranslated-target filter validate the configured target instead of requiring Hangul. Preserve Japanese-to-Korean behavior and verify ja-to-en and ja-to-zh-Hans additions/updates through the research pipeline."
+    },
+    {
+      "id": "C006-1",
+      "file": "src/main/workContextResearchNormalize.ts",
+      "status": "fixed",
+      "verification": "Name identity correction and preserved OCR/short-full controls: proposal/evidence/AI merge 3 files 112 tests passed.",
+      "updatedAt": "2026-09-08T15:33:57.633Z",
+      "severity": "Medium",
+      "description": "Character proposal deduplication merges distinct people solely because their names share the first component.",
+      "suggestedFix": "Remove first-component equality as a sufficient condition for merging character additions. Treat a shared surname or given-name component as ambiguous unless there is positive same-person evidence, such as an explicitly shared full normalized name or verified alias identity. Preserve distinct additions for independent review when identity is ambiguous. Add regression cases with the same family name and different given names, the same given name before different middle-dot-separated components, and genuine aliases of one person; verify both proposal count and the applied profiles' names, speech styles and notes."
+    },
+    {
+      "id": "C011-1",
+      "file": "src/main/inpainting/patternFluxCompositePlan.ts",
+      "status": "fixed",
+      "verification": "Actual buildPatternPageMask near-neighbor exclusion: model/core/constraint preserve ownership; typography multi-lobe and unconstrained tests passed.",
+      "updatedAt": "2026-09-08T15:05:31.276Z",
+      "severity": "Medium",
+      "description": "A selected-block Flux retry includes nearby excluded text in its erase and composite masks because the typography plan replaces the block-owned boundary with an unrestricted typography envelope.",
+      "suggestedFix": "Preserve the validated owned-region boundary when typography segmentation exists. Intersect typography core and feather envelope with that boundary before returning the plan, and retain an effective final constraint that cannot permit pixels outside it; preserve the current association fallback when there is no owned region. Keep the existing two-lobe-within-one-region behavior. Add a selected-block Flux regression with an adjacent excluded detection that overlaps only the expanded OCR association rectangle, asserting that its pixels remain unchanged through exclusive mask allocation and the actual Flux composite."
+    },
+    {
+      "id": "C014-1",
+      "file": "src/main/jobs/translationJobs.ts",
+      "status": "fixed",
+      "verification": "Regression reproduced before fix: 1 failed/3 passed. After await: all 4 lifecycle tests passed; terminal event observed before active-job cleanup.",
+      "updatedAt": "2026-09-08T14:26:28.710Z",
+      "severity": "Medium",
+      "description": "SFX cancellation clears the active job before asynchronous error handling emits its terminal event, leaving the renderer job in its previous active state.",
+      "suggestedFix": "Await runtime.handleSoundEffectTranslationJobError in startSoundEffectTranslationJob so the handler emits its terminal event and constructs its reply while the active job still exists, before finally clears the job and resolves lifetime cleanup. Add a focused cancellation-order regression using an already-resolved chapter read and the actual job emitter, asserting the terminal cancelled event is delivered and standalone renderer state becomes inactive."
+    },
+    {
+      "id": "C015-1",
+      "file": "src/main/jobs/pageImageExportJobRunner.ts",
+      "status": "fixed",
+      "verification": "Outputs verifier: 9 files 93 tests passed including case-insensitive duplicate stems, same prepared output paths, schema and service controls; typecheck/lint passed.",
+      "updatedAt": "2026-09-08T15:46:58.633Z",
+      "severity": "Medium",
+      "description": "Manual image export can report two pages completed while producing only one file when preserving same-stem source names and converting both to a fixed format; skip/cancel collision policies do not prevent same-batch collisions.",
+      "suggestedFix": "Plan every final output path before starting render workers. Detect same-batch duplicates under the destination filesystem naming rules and either assign stable unique names while preserving source context or reject the batch before any output is written. Apply the existing collision policy against pre-existing files after resolving the batch inventory, and reserve each planned path so concurrent workers cannot both claim it. Count completed outputs consistently with skipped or rejected tasks."
+    },
+    {
+      "id": "C020-1",
+      "file": "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+      "status": "fixed",
+      "verification": "Outputs verifier 93 tests passed: unique managed result mapping, same-root reservations, formats, restart, legacy collision republish and ownership-safe removal.",
+      "updatedAt": "2026-09-08T15:46:58.815Z",
+      "severity": "Medium",
+      "description": "Linked automatic export assigns the same final result path to different pages with the same stem and different source extensions when a fixed output format is selected.",
+      "suggestedFix": "Allocate unique final result-relative paths after applying the chosen output format, using case handling consistent with the destination filesystem, and persist that per-page mapping separately from original/recovery filenames. Recompute or migrate the result mapping when output format changes. Ensure old-result cleanup does not delete a path assigned to another page. Verify same-stem mixed-extension pages remain distinct across source, png, jpeg and webp, including a source-to-fixed-format update."
+    },
+    {
+      "id": "UI-1",
+      "file": "src/renderer/src/components/useSoundEffectPageEditor.ts",
+      "status": "fixed",
+      "verification": "Actual production hook cancellation, pointerup and pointer identity regressions passed; lifecycle additional 2 files15 tests passed; wide/narrow production editor QA viewed.",
+      "updatedAt": "2026-09-08T14:30:50.985Z",
+      "severity": "Low",
+      "description": "A cancelled box-drawing gesture is committed as a new region.",
+      "suggestedFix": "Separate pointercancel cleanup from pointerup creation. On cancellation clear the matching operation and creation preview without invoking onCreateRegion or leaving click suppression behind. Verify that pointercancel discards a moved create draft while pointerup still adds it in both callers."
+    },
+    {
+      "id": "UI-2",
+      "file": "src/renderer/src/hooks/useRegionTextReview.ts",
+      "status": "fixed",
+      "verification": "Regression reproduced before fix: 2 failed/6 passed. After immediate cancel and session guards: 9 hook tests passed; production RegionReviewEditor wide/narrow QA inspected, temporary fixtures removed.",
+      "updatedAt": "2026-09-08T14:26:28.538Z",
+      "severity": "Low",
+      "description": "Cancelling a region review leaves its text attached to a newly opened crop until the old execution finishes.",
+      "suggestedFix": "Clear review, error and busy UI state immediately when cancelling, while retaining any session metadata needed to deliver cancellation. Associate exposed reviews with their originating request/selection so a new crop cannot inherit an earlier session's review. Verify cancellation followed by opening another crop while the previous execute Promise remains pending."
+    },
+    {
+      "id": "TRANSPORT-1",
+      "file": "src/main/codexAppServerClient.ts",
+      "status": "fixed",
+      "verification": "Fake app-server actual exited child: cleanup rejection logged, zero unhandledRejection, repeated dispose succeeds; 15 focused tests passed.",
+      "updatedAt": "2026-09-08T14:30:51.160Z",
+      "severity": "Low",
+      "description": "Cancelling a Codex session can escalate a temporary workspace cleanup failure into an unhandled rejection and fatal app shutdown.",
+      "suggestedFix": "Observe the Promise created by abort-triggered dispose and report scratch-cleanup failures without leaving an unhandled rejection. Make cleanup-failure policy consistent between the already-exited and later-close branches while preserving genuine transport/job errors and the existing path-safety checks. Verify successful and rejected cleanup for both live and already-exited child processes, including a later repeated dispose."
+    },
+    {
+      "id": "C002-1",
+      "file": "src/main/demotedFontMigration.ts",
+      "status": "fixed",
+      "verification": "Font migration actual restart deletion and three interrupted/late-source cases: 7 passed; legacy bytes retained. Scope diff and typecheck passed.",
+      "updatedAt": "2026-09-08T14:56:48.155Z",
+      "severity": "Low",
+      "description": "Removing a migrated optional font immediately imports it again while its legacy bundled source remains present.",
+      "suggestedFix": "Persist migration completion or an explicit removal tombstone independently of the current font index. A font list must not undo a successful removal. Preserve recovery for genuinely interrupted first migration and verify remove followed by immediate snapshot with the legacy source still present."
+    },
+    {
+      "id": "C002-2",
+      "file": "src/main/index.ts",
+      "status": "fixed",
+      "verification": "Actual extracted startup dialog function: absent/destroyed/live main window, open failure and exit cases; 9 passed, original 5 failures fixed.",
+      "updatedAt": "2026-09-08T14:56:48.321Z",
+      "severity": "Low",
+      "description": "Opening Issues or Logs after a pre-window startup failure leaves a headless primary instance that prevents a normal relaunch.",
+      "suggestedFix": "After a terminal pre-window startup failure, allow diagnostics to open and then quit/release the primary process, or provide an explicit retry that reruns initialization safely. Keep this separate from recoverable renderer-load failures in an existing window. Test all dialog choices and a subsequent launch."
+    },
+    {
+      "id": "C003-1",
+      "file": "src/main/settingsPairStorage.ts",
+      "status": "fixed",
+      "verification": "Actual filesystem recovery/commit race no longer republishes stale generation; paired export/storage suite 30 passed.",
+      "updatedAt": "2026-09-08T14:56:48.482Z",
+      "severity": "Low",
+      "description": "A stale fallback recovery can overwrite a newer successful settings commit with a generation that the new commit already deleted.",
+      "suggestedFix": "Serialize the pair loader's repair/recovery side effects with commit publication and generation cleanup at the pair-storage boundary. Read or revalidate the authoritative pointer inside that serialized operation before publishing a fallback; do not allow a stale recovery to publish a generation deleted by a newer commit. Add the deterministic invalid-A/valid-B, paused-recovery, concurrent-C interleaving as a regression check."
+    },
+    {
+      "id": "C003-3",
+      "file": "src/main/mainWindow.ts",
+      "status": "fixed",
+      "verification": "IPv6 loopback initial load/navigation and nonloopback rejection controls: 9 passed; both TypeScript checks passed.",
+      "updatedAt": "2026-09-08T14:56:48.843Z",
+      "severity": "Low",
+      "description": "The development renderer allowlist rejects the IPv6 loopback URL it intends to permit.",
+      "suggestedFix": "Compare URL.hostname to the bracketed IPv6 loopback representation '[::1]' or normalize IP-literal brackets before the explicit loopback comparison. Keep the existing unpackaged-only and HTTP-only restrictions. Cover IPv6 loopback, IPv4 loopback, localhost and a non-loopback host in the load-target check."
+    },
+    {
+      "id": "C004-2",
+      "file": "src/main/webImportDownload.ts",
+      "status": "fixed",
+      "verification": "Post-fix download/storage 17 tests and real manager 6 tests passed; stalled transport cancellation, deadline and dispose await both file closes before directory cleanup. Scoped source lint passed.",
+      "updatedAt": "2026-09-08T15:51:16.131Z",
+      "severity": "Low",
+      "description": "Cancelling or timing out a web import after image headers arrive does not abort a stalled response body, leaving the download and its open file handle alive after the scan stops waiting.",
+      "suggestedFix": "Own one linked abort/deadline controller across both headers and body consumption and release it only when the download settles. Ensure cancellation interrupts pending reads and closes the file before final directory cleanup. Test stalled bodies after headers for user abort and deadline expiry, including reader cancellation and handle closure."
+    },
+    {
+      "id": "C005-2",
+      "file": "src/main/workContextPageMemory.ts",
+      "status": "fixed",
+      "verification": "Baseline2fail/12pass; after summary precedence fix all14 AI merge tests pass including manual-summary preservation and five fallback cases.",
+      "updatedAt": "2026-09-08T14:42:03.916Z",
+      "severity": "Low",
+      "description": "A freshly generated transcript digest takes precedence over the model page summary, so first-time AI analysis stores dialogue text instead of its returned story summary.",
+      "suggestedFix": "Preserve a genuine existing page summary first, then prefer the validated model suggestion over the freshly generated dialogue digest. Keep base summary/digests as fallbacks when the model summary is blank, and verify first-time translated pages, blank translations, and existing user summaries."
+    },
+    {
+      "id": "C005-3",
+      "file": "src/main/workContextResearchEvidence.ts",
+      "status": "fixed",
+      "verification": "Full Evidence suite plus AiMerge/Languages passed (136 tests). Long person name in heading retained; trusted main-title subtitle regression preserved without changing existing test expectation.",
+      "updatedAt": "2026-09-08T14:49:31.097Z",
+      "severity": "Low",
+      "description": "A full character name appearing in a search-result page title is misclassified as the work title and its valid character proposal is discarded.",
+      "suggestedFix": "Require evidence that a candidate identifies the work itself before excluding it as a work title. Do not equate occurrence anywhere in a web-page title with work-title identity; retain valid character-detail evidence while continuing to exclude actual manga titles. Verify otherwise identical work-bound character pages with and without the full name in their headings."
+    },
+    {
+      "id": "C005-4",
+      "file": "src/main/workContextResearchGemma.ts",
+      "status": "fixed",
+      "verification": "6 actual research pipeline audit regressions passed: retained/omitted/corrected operations and three explicit audit-failure fallback cases.",
+      "updatedAt": "2026-09-08T14:42:04.138Z",
+      "severity": "Low",
+      "description": "The successful research audit cannot remove rejected proposals because its final corrected operation set is unioned with the original proposals.",
+      "suggestedFix": "Treat a successfully parsed final audit operation set as authoritative rather than unioning it with the initial set. Preserve necessary warnings separately and keep any fallback-to-initial behavior explicit for an actual audit failure. Verify an omitted existing-character update is absent after coverage, evidence and normalization, while an explicit corrected replacement survives."
+    },
+    {
+      "id": "C008-1",
+      "file": "src/main/bubbleLayout/bubbleShapeProfileBuilder.ts",
+      "status": "fixed",
+      "verification": "75 focused geometry and padding tests passed including horizontal/vertical U masks at0,.12,.7, original rectangle/lobes parity; helper coverage100% (28lines,30statements,10functions,8branches), independent diff review found no actionable regression.",
+      "updatedAt": "2026-09-08T15:12:36.254Z",
+      "severity": "Low",
+      "description": "A connected concave balloon mask is converted into text-fitting spans that cross pixels outside the detected safe region.",
+      "suggestedFix": "Preserve contiguous safe runs when scanning each line and intersect those run sets across the full band, rather than taking the hull from the first to the last active pixel. Because the current region contract allows one inline interval per band, conservatively choose an interval wholly inside the safe mask, partition the shape into supported safe regions, or reject an unrepresentable generated profile; do not fill its gaps or restore an unsafe rectangular fallback. Check final padded spans against the safe mask and add focused producer-to-slot regressions for the horizontal U notch, its vertical transpose and a filled-rectangle control."
+    },
+    {
+      "id": "C009-1",
+      "file": "src/main/inpainting/fluxAssets/pythonRuntimeLayout.ts",
+      "status": "fixed",
+      "verification": "Runtime A independent latest 43 tests passed including cached PATH interpreter and argument prefixes; bounded runtime validation preserved; ESLint/typecheck passed.",
+      "updatedAt": "2026-09-08T15:51:48.788Z",
+      "severity": "Low",
+      "description": "A PATH-resolved Python command is saved as a file path, causing a successfully installed Flux Python CPU runtime to be discarded and reinstalled on subsequent launches.",
+      "suggestedFix": "Persist a canonical interpreter executable resolved from the successful interpreter itself, together with any required invocation arguments, and validate that same command contract when loading the cache. Keep the managed absolute-path path unchanged. Add an isolated successful-install/cache-reuse regression for PATH Python and an absolute-path control; do not reset a valid package directory solely because a command name is not a file in the current working directory."
+    },
+    {
+      "id": "C010-1",
+      "file": "src/main/inpainting/imageRaster.ts",
+      "status": "fixed",
+      "verification": "Actual compositor right-edge pixel isolation, core/feather controls passed in geometry suite.",
+      "updatedAt": "2026-09-08T15:05:31.083Z",
+      "severity": "Low",
+      "description": "Manual Flux feathering treats the next row's left-edge mask as a right-edge neighbor and can alter pixels outside the requested feather radius.",
+      "suggestedFix": "Add x < width to maskHasValueAt before accepting its flattened index, retaining the existing negative-coordinate and mask-length checks. Add a focused regression for the demonstrated opposite-edge manual Flux mask/crop composition, asserting that pixels beyond the true feather radius remain unchanged while valid near-edge feather pixels still blend. Include the zero-feather control."
+    },
+    {
+      "id": "C018-1",
+      "file": "src/main/libraryStore/libraryMutations.ts",
+      "status": "fixed",
+      "verification": "Managed mask deletion and shared/unmanaged owner preservation tests passed within 23-test outputs storage suite; transaction and source lint verified.",
+      "updatedAt": "2026-09-08T15:51:16.280Z",
+      "severity": "Low",
+      "description": "Deleting an inpainted page leaves its managed mask file orphaned in the chapter directory.",
+      "suggestedFix": "Retire the deleted page managed mask in the same transaction as its other owned artifacts, after preserving any supported shared/history references and path-safety contract. Cover fresh-session deletion, absent mask, shared-reference/history retention and preservation of another page in isolated regression cases."
+    },
+    {
+      "id": "C020-2",
+      "file": "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+      "status": "fixed",
+      "verification": "Deferred output-folder rejection now settles waiters and reports failure; Outputs verifier 93 tests passed and reviewed production diff.",
+      "updatedAt": "2026-09-08T15:46:58.997Z",
+      "severity": "Low",
+      "description": "The deferred results-folder opening path leaves its viewResults request unresolved and emits an unhandled rejection if creating/opening the result directory throws.",
+      "suggestedFix": "Handle both fulfillment and rejection of deferred openResultDirectory and settle every matching drain waiter with a failed result on rejection. Keep error reporting attached to that promise so it cannot become unhandled. Test a rejected mkdir after draining, a fulfilled shell error string, normal opening, and cancellation while opening."
+    },
+    {
+      "id": "C022-1",
+      "file": "src/main/pipeline/cumulativeContextDetailPolicy.ts",
+      "status": "fixed",
+      "verification": "Actual cumulative merge retains repeated punctuated grounded terms and page memory references; controls passed.",
+      "updatedAt": "2026-09-08T15:05:31.468Z",
+      "severity": "Low",
+      "description": "Essential cumulative context drops repeated glossary terms containing punctuation because its occurrence counter normalizes the term differently from the evidence.",
+      "suggestedFix": "Use the same canonical evidence normalization for both occurrence needles and source segments, preserving the essential category policy. Verify repeated punctuated/symbol-bearing terms, distinct versus duplicated evidence, existing-entry retention and balanced/detailed controls."
+    },
+    {
+      "id": "C023-1",
+      "file": "src/main/pipeline/fontMatchingInferenceWorkerClient.ts",
+      "status": "fixed",
+      "verification": "Worker early exit/error/dispose/caller abort during asset readiness regression passed after helper extraction; independent Runtime A 43 tests and typecheck passed.",
+      "updatedAt": "2026-09-08T15:51:48.969Z",
+      "severity": "Low",
+      "description": "A worker exit during asynchronous asset resolution leaves the first font-inference readiness waiter unresolved instead of falling back.",
+      "suggestedFix": "Make worker initialization readiness settle for every terminal path, including exit/error/dispose while assets are being resolved. Resolve assets before spawning the worker, or register and retain readiness rejection before the first asynchronous initialization step and recheck worker liveness afterward. Keep the existing 90-second inference deadline, and make cancellation reject the readiness wait promptly. Add focused controls for early exit before assets resolve, late exit after init handlers exist, disposal/cancellation during readiness, and a subsequent request using fallback."
+    },
+    {
+      "id": "C026-1",
+      "file": "src/main/pipeline/preparedTranslationCheckpoint.ts",
+      "status": "fixed",
+      "verification": "Runtime A 43 tests passed including actual persisted legacy v1 parse/re-OCR replacement and preservation of edits made after ready/translated checkpoints.",
+      "updatedAt": "2026-09-08T15:51:49.154Z",
+      "severity": "Low",
+      "description": "Resuming a prepared Hayai translation checkpoint drops newly detected sound-effect review regions because the checkpoint omits soundEffectReview and OCR is skipped for reusable pages.",
+      "suggestedFix": "Add the prepared page soundEffectReview to both checkpoint payload variants, validate it with the existing review contract, serialize it, and restore it together with the prepared page while preserving the intended persisted review-edit policy. Migrate/version the checkpoint contract or force appropriate OCR regeneration for older checkpoints that cannot contain the newly detected review. Add a focused save-cancel-load-restore regression with one newly detected Hayai SFX region and an existing-review control; ensure completed persistence retains the new review and original translated items."
+    },
+    {
+      "id": "C027-1",
+      "file": "src/main/pipeline/sourceFontSizeMajorPitch.ts",
+      "status": "fixed",
+      "verification": "Dense250k-mask horizontal/vertical actual measurement passed and previous glyph-face parity retained; former stack overflow reproduced.",
+      "updatedAt": "2026-09-08T15:05:31.663Z",
+      "severity": "Low",
+      "description": "A supported large text crop can exceed the JavaScript function argument limit during pitch measurement, discarding source font-size estimates for the whole page.",
+      "suggestedFix": "Replace the two unbounded Math.min/Math.max spreads in measureGlyphRunFace with iterative extrema (or accumulate extrema during traversal), preserving the existing coordinates and foreground-mass counts. Do not merely deduplicate the position arrays if it changes band mass weighting. Verify the existing large two-glyph raster, proportional small control and a page with an earlier successful item; all source-size estimates should remain available without changing normal measurement semantics. Consider item-local error isolation separately if fail-closed page behavior is to change; the minimal root fix does not require that policy change."
+    },
+    {
+      "id": "C029-1",
+      "file": "src/main/runtime/model/gemma4-official-chat-template.cjs",
+      "status": "fixed",
+      "verification": "Gemma template staging and OCR admission cancellation baseline regression corrected; 2 files 17 tests passed, bounded diff and ESLint passed; runtime binary not exercised.",
+      "updatedAt": "2026-09-08T15:43:32.186Z",
+      "severity": "Low",
+      "description": "Gemma 26B cannot start when its bundled template path and the effective app temporary directory both contain non-ASCII characters: the fallback intended to provide an ASCII template path selects another non-ASCII path and throws.",
+      "suggestedFix": "Resolve and validate a writable ASCII staging directory independently of the app-redirected TEMP when a Windows 26B template needs staging; do not choose the same non-ASCII TEMP as the fallback. Preserve pinned source/staged-byte integrity verification and the explicit override. Cover both non-ASCII source and non-ASCII app TEMP together, with ASCII-source, ASCII-data-root, non-26B, opt-out and reuse controls."
+    },
+    {
+      "id": "C030-1",
+      "file": "src/main/runtime/ocr/bbox-cpu-workers.cjs",
+      "status": "fixed",
+      "verification": "First worker failure aborts RAM/stagger waits and drains started workers; 2 files 17 tests passed, original error and caller signal controls preserved.",
+      "updatedAt": "2026-09-08T15:43:32.350Z",
+      "severity": "Low",
+      "description": "An already failed CPU OCR worker is not observed while the launch loop waits for RAM headroom for the next worker, delaying the actual failure until RAM becomes available or the user cancels.",
+      "suggestedFix": "Give the launch scheduler a failure channel for already-started chunks, and make stagger/RAM admission stop when the first chunk failure arrives. Stop scheduling further chunks while preserving the original failure. If cancellation is used internally, derive a batch-owned cancellation signal from the caller signal rather than aborting caller-owned state. Drain/clean up any active workers before the tracked OCR operation settles so waitForOcrIdle retains its child-close guarantee. Add focused controlled cases for a first-worker rejection under sustained low RAM, RAM recovery, caller cancellation, and a healthy worker legitimately waiting for RAM."
+    },
+    {
+      "id": "C031-1",
+      "file": "src/main/runtime/ocr/runtime-orchestrator.cjs",
+      "status": "fixed",
+      "verification": "Runtime B independent 23 tests passed: broken venv no longer invalidates separately verified target fallback; prior baseline assertions unchanged; lint/diff passed.",
+      "updatedAt": "2026-09-08T15:57:03.155Z",
+      "severity": "Low",
+      "description": "A successful bootstrap --target fallback is not reused while the failed venv executable remains, so the next runtime preparation removes the valid target installation and installs it again.",
+      "suggestedFix": "Keep venv and bootstrap-target verification results separate. After venv reuse fails, independently verify a matching target installation with its bootstrap interpreter even when the old venv executable exists; reuse a valid target. Only remove packageDir when that target itself fails verification or its signature is incompatible. Preserve existing backend-identity and signature protections. Add a controlled two-ensure regression for failed venv plus successful target fallback, asserting that the second ensure performs neither target removal nor package installation; retain healthy-venv, absent-venv, changed-signature and genuinely broken-target controls."
+    },
+    {
+      "id": "C032-1",
+      "file": "src/main/runtime/prompts/font-matching-intent.cjs",
+      "status": "fixed",
+      "verification": "Actual prompt contract restored newline before x1; root Runtime B 4 files 54 tests passed.",
+      "updatedAt": "2026-09-08T15:57:03.579Z",
+      "severity": "Low",
+      "description": "Enabling automatic font matching removes the newline before x1 in the ordinary-page response template, so a reply following the shipped template loses its bounding box and fails page-response parsing.",
+      "suggestedFix": "Preserve the trailing newline in applyFontMatchingIntentOutput's textRole replacement, for example by appending a newline after joining the inserted lines. Verify the generated ordinary-page prompt has fontRoleConfidence and x1 on separate lines and that a filled copy of that actual template parses with its bounding box when autoFontMatching is enabled. Keep the separate region and fixed-block formats intact."
+    },
+    {
+      "id": "C035-1",
+      "file": "src/main/runtime/simple-page-logit-bias.cjs",
+      "status": "fixed",
+      "verification": "Runtime B independent 23 tests passed: server identity cache isolation, same URL replacement, late response and explicit token ID controls; lint/diff passed.",
+      "updatedAt": "2026-09-08T15:57:03.366Z",
+      "severity": "Low",
+      "description": "Forbidden-token IDs remain cached across local model changes at the same endpoint, so a replacement model receives IDs from the previous tokenizer.",
+      "suggestedFix": "Scope the text-to-token-ID cache to the actual endpoint/model generation rather than only its URL, or invalidate it whenever a new managed native endpoint is started. Ensure a late resolution from an older endpoint cannot repopulate a newer generation. Preserve explicit-ID overrides and same-endpoint cache reuse. Verify two controlled tokenizer mappings at the same URL are independently resolved across endpoint replacement, with unchanged-tokenizer and changed-URL controls; do not assume bundled model tokenizers differ."
+    },
+    {
+      "id": "C037-1",
+      "file": "src/main/runtime/transport/llama-server-output.cjs",
+      "status": "fixed",
+      "verification": "Fresh Node child using actual Writable no longer fatally emits a late write error after end; normal close cleanup and existing output transport controls passed in 54-test suite.",
+      "updatedAt": "2026-09-08T15:57:03.763Z",
+      "severity": "Low",
+      "description": "Ending a failing server log removes its error listener before the pending Writable error event, so a diagnostic file failure can escape as an uncaught error during server shutdown.",
+      "suggestedFix": "Keep the owned fs.WriteStream error listener attached through its terminal close/error lifecycle. Use close for cleanup instead of unconditionally detaching in the end callback; the end callback may still record its error. Cover a pending write that fails after dispose begins and verify that the later error event remains handled, alongside successful close and a failure emitted before disposal."
+    },
+    {
+      "id": "C038-1",
+      "file": "src/main/runtimeSupport/jsonLinesWorkerClient.ts",
+      "status": "fixed",
+      "verification": "Actual JSON-lines client decodes split UTF8 stdout/stderr independently; Japanese/Korean/Han/emoji byte-split and existing lifecycle tests passed in 54-test suite.",
+      "updatedAt": "2026-09-08T15:57:03.950Z",
+      "severity": "Low",
+      "description": "Worker stdout is decoded independently per pipe chunk, corrupting non-ASCII JSON string values when a UTF-8 character crosses a chunk boundary.",
+      "suggestedFix": "Use one persistent UTF-8 StringDecoder for this child's stdout and pass decoder.write(chunk) into the existing line-framing logic, retaining incomplete multibyte bytes across events. Handle decoder.end() deliberately at stdout completion without relaxing the existing request-state/protocol checks. Node documents the required buffering at https://nodejs.org/api/string_decoder.html. A separate decoder is needed for stderr if applying the same correction there. Verify the actual client through its existing in-memory runtime seam with one identical valid failure response split at every byte position across two-, three- and four-byte characters, plus ASCII and whole-frame controls; assert the exact error string as well as response identity and normal lifecycle behavior."
+    },
+    {
+      "id": "C162-1",
+      "file": "src/main/windowsNativeRuntimeFailure.ts",
+      "status": "fixed",
+      "verification": "Focused windowsNativeRuntimeFailure: 8 tests passed; broader check pending. Added the two actually imported MSVC DLLs to diagnostic inventory.",
+      "updatedAt": "2026-09-08T14:11:53.879Z",
+      "severity": "Low",
+      "description": "The Windows missing-VC-runtime diagnostic omits two DLLs directly imported by the shipped ONNX runtime, so those missing dependencies bypass the actionable startup guidance.",
+      "suggestedFix": "Keep the strict win32/x64, matching ERR_DLOPEN_FAILED and existing-binding guards, and synchronize the VC diagnostic names with the bundled ONNX runtime's regular VC imports by including MSVCP140_1.dll and MSVCP140_ATOMIC_WAIT.dll. Retain the existing official VC redistributable guidance. Add focused pure fileExists-probe cases where all four old names are present but either new name is absent, plus all-dependencies-present and already-listed-missing controls. These tests validate the diagnostic decision only, not actual Windows loader availability. No fix was applied in this scan."
+    }
+  ],
+  "finalValidation": {
+    "command": "npm run check",
+    "status": "passed",
+    "startedAt": "2026-09-08T16:37:26.449Z",
+    "completedAt": "2026-09-08T16:40:43.455Z",
+    "tests": {
+      "passed": 6175,
+      "failed": 0,
+      "skipped": 2,
+      "files": 732
+    },
+    "stages": [
+      {
+        "id": "private-workspace",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "typecheck",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "typecheck-electron",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "typecheck-js",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "format",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "lint",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "error-handling",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "test-mock-boundaries",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "architecture",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "maintainability-policy",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "duplicates",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "reexports",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "generated",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "css-structure",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "script-entrypoints",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "deadcode",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "deadcode-exports",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "prepare-electron",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "prepare-import-source-runner",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "test-coverage",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "production-cleanup-coverage",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "build",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "page-artwork-parity",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "image-protocol-smoke",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "renderer-bundle",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "preload-bundle",
+        "status": "passed",
+        "exitCode": 0
+      }
+    ],
+    "pixelParity": {
+      "cases": 2,
+      "mismatchedPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "imageProtocolSmoke": {
+      "longPathCharacters": 288,
+      "status": "passed"
+    },
+    "scope": "Current working tree; no new whole-repository discovery credit and no release or commit implied.",
+    "changedSourceSha256": {
+      "src/main/bubbleLayout/bubbleShapeProfileBuilder.ts": "f3ae0bee881f1744d9cd9d8f6b6530dda99783dc40f7523bfe47b0518a943b41",
+      "src/main/bubbleLayout/bubbleShapeProfilePadding.ts": "dc43f0f1745a82568f943ba51bca3b68a29f5bb01a33447f0fbe07f5e7a4938e",
+      "src/main/codexAppServerClient.ts": "4c28d1074764ddca60c7bb6239217d6f7666f99d4e2f085cd118e4d8e6ad7644",
+      "src/main/codexAppServerPolicy.ts": "254ac8cf88ed2aedd108a46907a09f6512c1138399eddd6101a3b1f0aada5e13",
+      "src/main/demotedFontMigration.ts": "07abb827d5ab410de16c9b36793d196b8e1ba147d8924066d10f7c0e012b53d7",
+      "src/main/index.ts": "22f05c0234230dd9bbc539b1c91ac7f65b2d3c647331480627d4fee8d94d4858",
+      "src/main/inpainting/fluxAssets/constants.ts": "1097f28979d3a8f142b0fc1479a773a359c5e4a7f57607c6902bb609f5b6e7f9",
+      "src/main/inpainting/fluxAssets/pythonRuntimeInstaller.ts": "088e5893aa57783eaccc8ee11087df4ccdf8d3acb058f77afb29ceb3b5243dd6",
+      "src/main/inpainting/fluxAssets/pythonRuntimeLayout.ts": "a51e2dc5875a98c4cc00949029a318101d0c586bafa7e4e2b9e9d2daf44efa70",
+      "src/main/inpainting/fluxAssets/runner.ts": "6461e2a1cff265f0cf26d416ea43d818a30af742b76473638fd2ec738ba455da",
+      "src/main/inpainting/imageRaster.ts": "394f03269d71a881ba89ea85115c2ddad8554c26d398ba08a44fdb31d202ad58",
+      "src/main/inpainting/patternFluxCompositePlan.ts": "2a4189995155ac9d910611c3d0e3ee99da0b07502b7b8ceae3e2e9e5f0a43b6e",
+      "src/main/ipc/jobControlIpc.ts": "b2951b9ad130b2d8445c2db57a4c2bb94c2b16f2dac0f6d2e350cee518a064af",
+      "src/main/jobs/pageImageExportJobRunner.ts": "f138e5cd365a367634fea6870ef0d9f462ba3236bd8ab144eea9dc026073bd82",
+      "src/main/jobs/soundEffectTranslationEvents.ts": "a48740394eaca708a9162375dc300fc90833ba183b950861cfddbb0cf51d461a",
+      "src/main/jobs/soundEffectTranslationJobRunner.ts": "a6adcf228bbedbc3ad0b0c3fd1990f9bfe23d39766b1412a1fba55f7056c79f8",
+      "src/main/jobs/soundEffectTranslationResult.ts": "99732fcd1d8a6e250a7ef56d78194cb89296206b22eb1cbe694256ebfaafd419",
+      "src/main/jobs/translationJobs.ts": "9b82f95331e0a4bfc022fccc73c03adf90b24fe157f8f54391a565321f2f1640",
+      "src/main/libraryStore/inpaintedArtifacts.ts": "d51bd73092e8269fb7f0cee2fb683e297320b748807c84899e3f73e1ab1513f6",
+      "src/main/libraryStore/libraryMutations.ts": "098c9bb456f3e68eea4656724e543a2130bf34e8583e6c19e3a57b0d6822124c",
+      "src/main/linkedWorkspace/linkedWorkspaceStore.ts": "c84dfb8bdbb26246e62c5136e6b6b9700746953093adb15e14a0c080e09fa890",
+      "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts": "cfea9d5194b13d99f00dd12a85ad0e3a5496f78e5eedb651d18b8b2d79a87089",
+      "src/main/mainWindow.ts": "9970bcabd653a24faf9fe15874d59028126fc90943d4b8d2a40126f42a1640aa",
+      "src/main/pageExport.ts": "a9ec72e9b870f94a9b11d0054d06cce2aefec6bf7438602283a45861ebaae874",
+      "src/main/pipeline/cumulativeContextDetailPolicy.ts": "eda3b7e32503aafc2c2afb06b9ee2c3c21c560cd3dcabac1b505a230642329d4",
+      "src/main/pipeline/fontMatchingInferenceWorkerClient.ts": "9d0ee478245755f47d5d6954b7f51453598268f8fcade38b8e55d0e7965e264d",
+      "src/main/pipeline/fontMatchingWorkerInitialization.ts": "6a283fa08e11d0af13f071f9126e148c93f14f96a0aa7b8d5cfd353d06feec24",
+      "src/main/pipeline/preparedTranslationCheckpoint.ts": "68176c04d2abcf6b5d19d9bd861e410027e513345c4efbadfa6fd7d6b6adc9af",
+      "src/main/pipeline/preparedTranslationCheckpointContract.ts": "1918eaf90f62ea1f4c408f893a7941ff139a4950e2f74f611abdbfd081f54a5c",
+      "src/main/pipeline/sourceFontSizeMajorPitch.ts": "96ff878a73f5fc352576e8b02141f1dcb0bd8e8ccabfc3053e0ad0ad88edcd3a",
+      "src/main/runtime/model/gemma4-official-chat-template.cjs": "a6f42fcc03d89120dd6e83bb84e1450ff26646f318e0954ba52950bf9749dd7e",
+      "src/main/runtime/ocr/bbox-cpu-workers.cjs": "aefe07bcbb9ea9bb8f8dbd29b6b40fb7c8f5828f0b376d569f4473955eb2fcb7",
+      "src/main/runtime/ocr/runtime-orchestrator.cjs": "f0e1642affff403890f4a25eb74a33b78c6458c4f9a82a089e1ab4f8e21c9dc8",
+      "src/main/runtime/prompts/font-matching-intent.cjs": "a79591de5400fb953c354d343bd843cf18c13a801438254161a131d7f69ee086",
+      "src/main/runtime/simple-page-logit-bias.cjs": "5a8f0c24af323e25df4ce89ba6be9170bceb0931387572ffc79e387bd7ff0ef2",
+      "src/main/runtime/transport/llama-server-output.cjs": "3e92638176c9906d9502f5df35ca9e19aeb5e9dc7c9a5681b7889243d77b3031",
+      "src/main/runtimeSupport/jsonLinesWorkerClient.ts": "d68ec25d0b98cb299b4d409276d27c966fce2a0e89a4d66aff3201fe344f1eea",
+      "src/main/runtimeSupport/windowsDirectMlAdapter.ts": "a30829efd06f8db1efa0f030beb40595541ebe8a4a0bd5b947dfcdb6d6c41675",
+      "src/main/settings/appSettingsDefaults.ts": "d239cce28c637548d9f4c5770437eb845577c02af134f80176cee28968afb080",
+      "src/main/settings/appSettingsNormalize.ts": "bba0170fda020f4de6f1d260f6a5eabb3fb89240626d1649ef4df6fab5338444",
+      "src/main/settings/hardwareDefaults.ts": "f1cea79aeaff8e247e773bccc2142ea3bf5352cea5d934e14f8794d6973ee296",
+      "src/main/settingsPairStorage.ts": "1a051646600326d2f9c9b2dae7b7054130c82850a4395b82c81488efa327554b",
+      "src/main/webImportDownload.ts": "7b1e911bdfa44b766301ad86c1bdfe2cd8a547ded65c3da8f83617f09b6b656d",
+      "src/main/webImportSessionManager.ts": "eac32cdae73f6fe4fb08a15972f0e331c282b3dcd5b49822ada84929037a2021",
+      "src/main/windowsNativeRuntimeFailure.ts": "ec915ad072c54484d9a4ad7dff5d3f80d539805965b5ccc84aa00afda729f26d",
+      "src/main/workContextAnalysis.ts": "9fdd173405672a783b4b06c12fcd3910287d1292949b3d6f79d40022868d8ece",
+      "src/main/workContextPageMemory.ts": "5db6ef6185d95411947aec29bbc41e91e59282c5d024a59ea975c22ba1d126dc",
+      "src/main/workContextResearch.ts": "caee283ce06c73f1bceec5c08152de3c7ed6ac4278d3d43d03809e8ede461a55",
+      "src/main/workContextResearchEvidence.ts": "2b08509b4c967ba3d17f4296f1352708d06e6bdd94c79525a22db3118067eb05",
+      "src/main/workContextResearchGemma.ts": "7e51d48aef0be556622f7568ec777268676b95cb3996f62438ea27704d74397f",
+      "src/main/workContextResearchNormalize.ts": "4269058d5fe70804019319a280c835f7f26849b29a5e63c5a1f454c46c0e890f",
+      "src/main/workContextResearchPrompt.ts": "74739c8b1469905c5693cdb3f3f9ca6e0d3078cbe7cc1ac87b982370d23542a7",
+      "src/renderer/src/components/settingsModal/hardwareRecommendation.ts": "5679327712f2430fc51e408044abb9b7ea0f8e02310ff5ab0ebc326a9c18d8f1",
+      "src/renderer/src/components/settingsModal/hardwareSettingsTypes.ts": "1e57c2dd9b0a5a13ee951dbf521e0f646358f8312dd6b6f5338cb8bef498b193",
+      "src/renderer/src/components/settingsModal/settingsModalViewPropsBuilder.ts": "e941355d4b93f249f71f239902c2e233767d10dd0ae4e934eb70e63e55a97040",
+      "src/renderer/src/components/settingsModal/useSettingsRuntimeGuards.ts": "79a5ffe211c2c701ad09fa61763c3b46c2c652698394d5865f89e82280d4b9cd",
+      "src/renderer/src/components/useSoundEffectPageEditor.ts": "33f51cbb198795cf85517b7cb3fe18c39ac701b871a9c49f23490737582322a9",
+      "src/renderer/src/hooks/useRegionTextReview.ts": "6bc28a5a64a9f575ff00df7f447fd4d5b85f1767ab7f0b5bbd2f75b4e577a568",
+      "src/renderer/src/hooks/useRegionTranslationDialog.ts": "64e6e4ddc83fdbd3c1f668771a5b95cf59d1e81ef5e75462c3df5fe9ad120cdd",
+      "src/shared/fluxHardwarePolicy.ts": "5b28d9fca243b32d6a136acfbed768fb72e5c8642e8a54cc2a2f6d5a83d78983",
+      "src/shared/linkedWorkspaceTypes.ts": "dd8b871fc51678da5a9532469cbcd20f90d00b74a068a93c5f99aa874829a584"
+    }
+  }
+}

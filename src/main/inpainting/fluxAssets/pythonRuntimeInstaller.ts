@@ -312,6 +312,7 @@ async function writeTargetRuntimeMarker(
         ...options.expectedMarker,
         runtimeMode: "target",
         pythonPath: pythonRuntime.executable,
+        pythonArgs: pythonRuntime.args,
         packageDir: pythonRuntime.packageDir,
       },
       null,

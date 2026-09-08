@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LibraryChapter, LibraryWork } from "../src/shared/libraryTypes";
@@ -284,7 +284,136 @@ describe("inpainting artifact cleanup", () => {
       ),
     );
   });
+
+  it("retires a deleted page's saved mask in a fresh session while preserving other artifacts", async () => {
+    const fixture = await createDeletionMaskFixture("owned");
+    const library = await loadLibrary(fixture.rootDir);
+    const after = await library.deletePage("chapter-a", "page-a");
+
+    expect(after.pageOrder).toEqual(["page-b"]);
+    expect(after.pages).toHaveLength(1);
+    expect(after.pages[0]).toMatchObject(fixture.retainedPage);
+    expect(existsSync(fixture.maskPath)).toBe(false);
+    expect(existsSync(fixture.deletedPage.imagePath)).toBe(false);
+    expect(existsSync(fixture.deletedPage.inpaintedImagePath ?? "")).toBe(
+      false,
+    );
+    await expect(
+      readFile(fixture.retainedPage.imagePath, "utf8"),
+    ).resolves.toBe("image-b");
+    await expect(
+      readFile(fixture.retainedPage.inpaintedImagePath ?? "", "utf8"),
+    ).resolves.toBe("inpainted-b");
+    await expect(
+      readFile(fixture.retainedPage.inpaintMaskPath ?? "", "utf8"),
+    ).resolves.toBe("mask-b");
+    await expect(readFile(fixture.historyMaskPath, "utf8")).resolves.toBe(
+      "retained-history",
+    );
+    expect((await library.openChapter("chapter-a")).pageOrder).toEqual([
+      "page-b",
+    ]);
+  });
+
+  it.each(["missing-file", "no-reference"] as const)(
+    "deletes a page whose mask has %s without touching the remaining page",
+    async (variant) => {
+      const fixture = await createDeletionMaskFixture(variant);
+      const library = await loadLibrary(fixture.rootDir);
+      const after = await library.deletePage("chapter-a", "page-a");
+      expect(after.pageOrder).toEqual(["page-b"]);
+      expect(after.pages[0]).toMatchObject(fixture.retainedPage);
+      expect(existsSync(fixture.retainedPage.inpaintMaskPath ?? "")).toBe(true);
+    },
+  );
+
+  it("preserves a mask still referenced by another page", async () => {
+    const fixture = await createDeletionMaskFixture("shared");
+    const library = await loadLibrary(fixture.rootDir);
+    const after = await library.deletePage("chapter-a", "page-a");
+    expect(after.pageOrder).toEqual(["page-b"]);
+    expect(after.pages[0]?.inpaintMaskPath).toBe(fixture.maskPath);
+    await expect(readFile(fixture.maskPath, "utf8")).resolves.toBe("mask-b");
+  });
+
+  it("preserves a mask reference outside the managed mask directory", async () => {
+    const fixture = await createDeletionMaskFixture("unmanaged");
+    const library = await loadLibrary(fixture.rootDir);
+    const after = await library.deletePage("chapter-a", "page-a");
+    expect(after.pageOrder).toEqual(["page-b"]);
+    await expect(readFile(fixture.maskPath, "utf8")).resolves.toBe("mask-a");
+  });
+
+  it("rejects an external mask reference before deleting page metadata or files", async () => {
+    const fixture = await createDeletionMaskFixture("owned");
+    const externalRoot = await createTempLibrary();
+    const externalMask = join(externalRoot, "external-mask.png");
+    await writeFile(externalMask, "external-owner");
+    fixture.deletedPage.inpaintMaskPath = externalMask;
+    await writeJson(fixture.chapterPath, fixture.chapter);
+    const before = await readFile(fixture.chapterPath, "utf8");
+    const library = await loadLibrary(fixture.rootDir);
+
+    await expect(library.deletePage("chapter-a", "page-a")).rejects.toThrow(
+      "인페인팅 마스크 이미지 경로",
+    );
+    await expect(readFile(fixture.chapterPath, "utf8")).resolves.toBe(before);
+    await expect(readFile(externalMask, "utf8")).resolves.toBe(
+      "external-owner",
+    );
+    expect(existsSync(fixture.deletedPage.imagePath)).toBe(true);
+    expect(existsSync(fixture.retainedPage.imagePath)).toBe(true);
+  });
 });
+
+async function createDeletionMaskFixture(
+  variant: "owned" | "missing-file" | "no-reference" | "shared" | "unmanaged",
+) {
+  const rootDir = await createTempLibrary();
+  await seedLibrary(rootDir);
+  const chapter = makeChapter(rootDir);
+  const chapterDir = join(rootDir, "works", "work-1", "chapters", "chapter-a");
+  const maskDir = join(chapterDir, "mask");
+  await mkdir(maskDir, { recursive: true });
+  const retainedPage = {
+    ...firstPage(chapter),
+    id: "page-b",
+    name: "002.png",
+    imagePath: join(chapterDir, "pages", "002-page-b.png"),
+    inpaintedImagePath: join(chapterDir, "inpainted", "002-page-b.png"),
+    inpaintMaskPath: join(maskDir, "page-b.png"),
+  };
+  const maskPath =
+    variant === "shared"
+      ? retainedPage.inpaintMaskPath
+      : variant === "unmanaged"
+        ? join(chapterDir, "pages", "unmanaged-mask.png")
+        : join(maskDir, "page-a.png");
+  const deletedPage = firstPage(chapter);
+  if (variant !== "no-reference") deletedPage.inpaintMaskPath = maskPath;
+  chapter.pages.push(retainedPage);
+  chapter.pageOrder.push(retainedPage.id);
+  const historyMaskPath = join(maskDir, "page-a-history.png");
+  await Promise.all([
+    writeFile(retainedPage.imagePath, "image-b"),
+    writeFile(retainedPage.inpaintedImagePath, "inpainted-b"),
+    writeFile(retainedPage.inpaintMaskPath, "mask-b"),
+    writeFile(historyMaskPath, "retained-history"),
+  ]);
+  if (variant === "owned" || variant === "unmanaged")
+    await writeFile(maskPath, "mask-a");
+  const chapterPath = join(chapterDir, "chapter.json");
+  await writeJson(chapterPath, chapter);
+  return {
+    rootDir,
+    chapter,
+    chapterPath,
+    deletedPage,
+    retainedPage,
+    maskPath,
+    historyMaskPath,
+  };
+}
 
 async function createTempLibrary(): Promise<string> {
   const rootDir = await mkdtemp(join(tmpdir(), "manga-inpainting-cleanup-"));

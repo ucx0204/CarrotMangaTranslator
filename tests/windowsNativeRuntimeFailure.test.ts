@@ -4,6 +4,8 @@ import { describeWindowsNativeRuntimeFailure } from "../src/main/windowsNativeRu
 const binding = "C:\\Carrot\\resources\\o\\b\\onnxruntime_binding.node";
 const dlls = [
   "MSVCP140.dll",
+  "MSVCP140_1.dll",
+  "MSVCP140_ATOMIC_WAIT.dll",
   "VCRUNTIME140.dll",
   "VCRUNTIME140_1.dll",
   "CONCRT140.dll",
@@ -71,14 +73,19 @@ describe("Windows native runtime startup diagnosis", () => {
     },
   );
 
-  it("reports only the missing dependency in a partial installation", () => {
-    const result = describeWindowsNativeRuntimeFailure(
-      loadError,
-      probe([
-        binding,
-        ...dlls.slice(0, 3).map((dll) => `C:\\Windows\\System32\\${dll}`),
-      ]),
-    );
-    expect(result?.missingDlls).toEqual(["CONCRT140.dll"]);
-  });
+  it.each(["CONCRT140.dll", "MSVCP140_1.dll", "MSVCP140_ATOMIC_WAIT.dll"])(
+    "reports the missing %s dependency in a partial installation",
+    (missing) => {
+      const result = describeWindowsNativeRuntimeFailure(
+        loadError,
+        probe([
+          binding,
+          ...dlls
+            .filter((dll) => dll !== missing)
+            .map((dll) => `C:\\Windows\\System32\\${dll}`),
+        ]),
+      );
+      expect(result?.missingDlls).toEqual([missing]);
+    },
+  );
 });

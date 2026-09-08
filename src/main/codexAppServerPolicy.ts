@@ -58,6 +58,36 @@ export type CodexAppServerCapability =
   | "typesetting-preview"
   | "image-generation";
 
+export function buildCodexAppServerTurnConfig(
+  capability: CodexAppServerCapability,
+): Record<string, unknown> {
+  const research = capability === "research";
+  const preview = capability === "typesetting-preview";
+  return {
+    include_environment_context: false,
+    include_permissions_instructions: false,
+    include_apps_instructions: false,
+    include_collaboration_mode_instructions: false,
+    project_doc_max_bytes: 0,
+    project_doc_fallback_filenames: [],
+    web_search: research ? "live" : "disabled",
+    tools: {
+      web_search: research ? { context_size: "high" } : false,
+    },
+    features: {
+      apps: false,
+      code_mode: research || preview,
+      code_mode_host: research || preview || capability === "image-generation",
+      image_generation: capability === "image-generation",
+      plugins: false,
+      memories: false,
+      multi_agent: false,
+      shell_tool: false,
+      unified_exec: capability === "image-generation",
+    },
+  };
+}
+
 export function buildCodexAppServerArguments(
   capability: CodexAppServerCapability,
 ): readonly string[] {

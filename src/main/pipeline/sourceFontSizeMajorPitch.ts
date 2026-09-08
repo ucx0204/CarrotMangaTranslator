@@ -81,8 +81,14 @@ function measureGlyphRunFace(
   positions: readonly number[],
   expectedGlyphs: number,
 ): number {
-  const low = Math.floor(Math.min(...positions));
-  const high = Math.ceil(Math.max(...positions));
+  let minimum = Number.POSITIVE_INFINITY;
+  let maximum = Number.NEGATIVE_INFINITY;
+  for (const position of positions) {
+    minimum = Math.min(minimum, position);
+    maximum = Math.max(maximum, position);
+  }
+  const low = Math.floor(minimum);
+  const high = Math.ceil(maximum);
   const profile = Array.from({ length: high - low + 1 }, () => false);
   for (const position of positions) profile[Math.round(position) - low] = true;
   const runs = closeSmallGaps(findActiveRuns(profile), 2).filter(

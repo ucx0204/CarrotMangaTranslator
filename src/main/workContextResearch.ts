@@ -166,13 +166,14 @@ async function loadResearchContext(
     4_000,
     Math.min(150_000, Math.max(8_000, contextTokens - outputTokens) * 2),
   );
+  const languagePair = resolveLanguagePair(settings.translation);
   const selection = selectWorkTextForAnalysis({
     workId: current.workId,
     requestedChapterId: current.id,
     chapters,
     scope: "work",
     maxInputChars,
-    languagePair: resolveLanguagePair(settings.translation),
+    languagePair,
     priorityTerms: collectGuideResearchTerms(request.guideSnapshot),
     spreadAcrossWork: true,
   });
@@ -189,6 +190,7 @@ async function loadResearchContext(
       workTitle: request.researchTitle,
       guide: request.guideSnapshot,
       selection,
+      languagePair,
     },
   };
 }

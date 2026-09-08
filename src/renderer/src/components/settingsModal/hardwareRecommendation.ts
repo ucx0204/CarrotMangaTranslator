@@ -1,5 +1,6 @@
 import type { GraphicsGpuPreference } from "../../../../shared/gpuSettings";
 import { resolveRecommendedOcrQualityMode } from "../../../../shared/ocrMemoryPolicy";
+import { resolveDefaultFluxNvidiaBackend } from "../../../../shared/fluxHardwarePolicy";
 import type {
   FluxBackend,
   InpaintingModel,
@@ -15,6 +16,8 @@ export type HardwareRecommendationInput = {
   usesAppleHardware: boolean;
   usesNvidiaHardware: boolean;
   usesSm75Hardware?: boolean;
+  computeCapability?: number | null;
+  rtxGeneration?: number | null;
   supportsOcrRocm?: boolean;
   supportsFluxZluda?: boolean;
 };
@@ -46,14 +49,14 @@ export function resolveHardwareRecommendation(
     return createGpuRecommendation(
       props,
       "cuda",
-      props.usesSm75Hardware ? "cuda-sm75-experimental" : "cuda-native",
+      resolveDefaultFluxNvidiaBackend(props),
     );
   }
   if (props.usesAmdHardware) {
     const recommendation = createGpuRecommendation(
       props,
       "rocm-transformers",
-      props.supportsFluxZluda === false ? "cpu-native" : "zluda-native",
+      props.supportsFluxZluda === true ? "zluda-native" : "cpu-native",
     );
     return props.supportsOcrRocm === true
       ? recommendation
@@ -67,7 +70,7 @@ export function resolveHardwareRecommendation(
   return {
     fluxBackend: "cpu-native",
     graphicsGpuPreference: "auto",
-    inpaintingModel: "lama-manga",
+    inpaintingModel: "aot-inpainting",
     ocrDevice: "cpu",
     ocrGpuBackend: "cuda",
     ocrQualityMode: "economy",
@@ -83,7 +86,8 @@ function createGpuRecommendation(
   return {
     fluxBackend,
     graphicsGpuPreference: "high-performance",
-    inpaintingModel: "flux-klein",
+    inpaintingModel:
+      fluxBackend === "cpu-native" ? "aot-inpainting" : "flux-klein",
     ocrDevice,
     ocrGpuBackend,
     ocrQualityMode: resolveRecommendedOcrQualityMode({

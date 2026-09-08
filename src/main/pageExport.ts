@@ -327,11 +327,13 @@ async function renderPageInSession(
         : PAGE_LOAD_TIMEOUT_MS,
       "PNG export page load timeout",
     );
-    const renderedOutputSize = await withTimeout(
-      waitForExportRenderReady(windowState.win),
+    const renderReadyTimeoutMs =
       resolutionMode === "original"
         ? ORIGINAL_RENDER_READY_TIMEOUT_MS
-        : RENDER_READY_TIMEOUT_MS,
+        : RENDER_READY_TIMEOUT_MS;
+    const renderedOutputSize = await withTimeout(
+      waitForExportRenderReady(windowState.win, renderReadyTimeoutMs),
+      renderReadyTimeoutMs,
       "PNG export renderer readiness timeout",
     );
     assertPageExportRasterBudget(renderedOutputSize, page.name, outputLimits);
@@ -506,6 +508,7 @@ function resolveExportViewportSize(
 
 async function waitForExportRenderReady(
   win: BrowserWindow,
+  timeoutMs: number,
 ): Promise<{ width: number; height: number }> {
   const value: unknown = await win.webContents.executeJavaScript(`
     new Promise((resolve, reject) => {
@@ -524,7 +527,7 @@ async function waitForExportRenderReady(
           });
           return;
         }
-        if (Date.now() - startedAt > 15000) {
+        if (Date.now() - startedAt > ${timeoutMs}) {
           reject(new Error("PNG export render timeout"));
           return;
         }

@@ -34,6 +34,103 @@ afterEach(() => {
 });
 
 describe("local llama logit bias helpers", () => {
+  it.each([{ replacementIds: [202] }, { replacementIds: [202, 203] }])(
+    "retokenizes replacement endpoint handles at the same URL: $replacementIds",
+    async ({ replacementIds }) => {
+      const firstServer = { baseUrl: "http://127.0.0.1:18180/v1" };
+      const nextServer = { baseUrl: firstServer.baseUrl };
+      const options = {
+        forbiddenTokenIds: [],
+        forbiddenTokenTexts: ["<unused49>"],
+      };
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ tokens: [101] })))
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ tokens: replacementIds })),
+        );
+      vi.stubGlobal("fetch", fetchMock);
+      const firstBody: Record<string, unknown> = {};
+      await applyLocalForbiddenTokenBias(firstServer, options, firstBody);
+      expect(firstBody.logit_bias).toEqual({ "101": -100 });
+      const nextBody: Record<string, unknown> = {};
+      const next = await applyLocalForbiddenTokenBias(
+        nextServer,
+        options,
+        nextBody,
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      if (replacementIds.length === 1) {
+        expect(next.tokenIds).toEqual([202]);
+        expect(nextBody.logit_bias).toEqual({ "202": -100 });
+      } else {
+        expect(next).toMatchObject({ applied: false, tokenIds: [] });
+        expect(nextBody.logit_bias).toBeUndefined();
+      }
+    },
+  );
+
+  it("reuses one handle's tokenizer cache and separates a different URL", async () => {
+    const server = { baseUrl: "http://127.0.0.1:18180/v1" };
+    const options = {
+      forbiddenTokenIds: [],
+      forbiddenTokenTexts: ["<unused49>"],
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tokens: [101] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tokens: [202] })));
+    vi.stubGlobal("fetch", fetchMock);
+    for (let index = 0; index < 2; index += 1) {
+      const body: Record<string, unknown> = {};
+      await applyLocalForbiddenTokenBias(server, options, body);
+      expect(body.logit_bias).toEqual({ "101": -100 });
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const nextBody: Record<string, unknown> = {};
+    await applyLocalForbiddenTokenBias(
+      { baseUrl: "http://127.0.0.1:18181/v1" },
+      options,
+      nextBody,
+    );
+    expect(nextBody.logit_bias).toEqual({ "202": -100 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let an old handle's late tokenizer response replace the new handle's cache", async () => {
+    const firstServer = { baseUrl: "http://127.0.0.1:18180/v1" };
+    const nextServer = { baseUrl: firstServer.baseUrl };
+    const options = {
+      forbiddenTokenIds: [],
+      forbiddenTokenTexts: ["<unused49>"],
+    };
+    let resolveOld!: (response: Response) => void;
+    const oldResponse = new Promise<Response>((resolve) => {
+      resolveOld = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(oldResponse)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tokens: [202] })));
+    vi.stubGlobal("fetch", fetchMock);
+    const oldRequest = applyLocalForbiddenTokenBias(firstServer, options, {});
+    try {
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const current: Record<string, unknown> = {};
+      await applyLocalForbiddenTokenBias(nextServer, options, current);
+      expect(current.logit_bias).toEqual({ "202": -100 });
+      resolveOld(new Response(JSON.stringify({ tokens: [101] })));
+      await oldRequest;
+      const repeated: Record<string, unknown> = {};
+      await applyLocalForbiddenTokenBias(nextServer, options, repeated);
+      expect(repeated.logit_bias).toEqual({ "202": -100 });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      resolveOld(new Response(JSON.stringify({ tokens: [101] })));
+      await oldRequest;
+    }
+  });
+
   it("adds configured forbidden token ids without a tokenizer request", async () => {
     const previousIds = process.env.MANGA_TRANSLATOR_FORBIDDEN_TOKEN_IDS;
     process.env.MANGA_TRANSLATOR_FORBIDDEN_TOKEN_IDS = "777, 888";

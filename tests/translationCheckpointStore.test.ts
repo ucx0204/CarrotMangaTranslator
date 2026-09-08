@@ -17,11 +17,21 @@ import type {
 } from "../src/shared/libraryTypes";
 import { createPageRevision } from "../src/shared/pageRevision";
 import type { PreparedTranslationCheckpoint } from "../src/main/pipeline/preparedTranslationCheckpointContract";
+import type { TranslationOptions } from "../src/main/appSettings";
+import { attachEffectReviewToPage } from "../src/main/pipeline/pageResponseParser";
+import {
+  basePipelineOptions,
+  cleanupPipelineTempDirs,
+  loadPipeline,
+} from "./helpers/wholePagePipelineHarness";
+import { successTranslationResult } from "./helpers/wholePageTranslationResults";
 
 const tempDirs: string[] = [];
 const TS = "2026-01-01T00:00:00.000Z";
 
 afterEach(async () => {
+  await cleanupPipelineTempDirs();
+  vi.unstubAllEnvs();
   vi.resetModules();
   vi.clearAllMocks();
   while (tempDirs.length > 0) {
@@ -31,6 +41,281 @@ afterEach(async () => {
 });
 
 describe("translation checkpoint store", () => {
+  it.each([
+    ["ready", false, false],
+    ["ready", true, false],
+    ["translated", false, false],
+    ["translated", true, false],
+    ["ready", true, true],
+    ["translated", true, true],
+  ] as const)(
+    "retains Hayai review through %s checkpoint cancellation and resumption (history=%s, edited after save=%s)",
+    async (kind, withHistory, editAfterSave) => {
+      vi.stubEnv("MANGA_TRANSLATOR_OCR_PIPELINE", "hayai");
+      const root = await createLibrary();
+      if (withHistory) {
+        const chapter = await readChapter(root);
+        chapter.pages[0].soundEffectReview = {
+          contractVersion: 3,
+          producer: "hayai-regions-v1",
+          regions: [
+            {
+              id: "FX-old",
+              bbox: { x: 5, y: 5, w: 40, h: 40 },
+              detectorConfidence: 0.8,
+            },
+          ],
+          regionOverrides: [
+            {
+              regionId: "FX-old",
+              bbox: { x: 6, y: 6, w: 42, h: 42 },
+              updatedAt: TS,
+            },
+          ],
+          manualRegions: [
+            {
+              id: "FX-manual",
+              bbox: { x: 300, y: 300, w: 50, h: 50 },
+              detectorConfidence: 1,
+              createdAt: TS,
+            },
+          ],
+          resolvedRegions: [],
+          dismissedRegionIds: ["FX-old"],
+        };
+        await writeJson(chapterFile(root), chapter);
+      }
+      const library = await loadLibrary(root);
+      const snapshot = await library.openChapter("chapter-a");
+      const page = requirePage(snapshot, "page-a");
+      const revision = createPageRevision(page);
+      const ocrResult = {
+        hints: [],
+        diagnostics: [],
+        noTextDetected: false,
+        effectReviewRegions: [
+          {
+            id: "FX-new",
+            bbox: { x: 500, y: 600, w: 120, h: 150 },
+            detectorConfidence: 0.94,
+            recognizedText: "ドン",
+            sourceDetectionIds: ["hayai-detection-1"],
+          },
+        ],
+      };
+      let expectedReview = attachEffectReviewToPage(
+        page,
+        "hayai",
+        ocrResult,
+      ).soundEffectReview;
+      expect(expectedReview?.regions.some(({ id }) => id === "FX-new")).toBe(
+        true,
+      );
+      const requestTranslation = vi.fn(
+        async (_server: unknown, options: TranslationOptions) => {
+          expect(options.ocrPipeline).toBe("hayai");
+          return kind === "ready"
+            ? {
+                outputText: '{"items":[]}',
+                rawResponse: {},
+                requestBody: { noTextDetected: true },
+              }
+            : successTranslationResult();
+        },
+      );
+      const first = await loadPipeline({
+        requestTranslation,
+        ocrHintsByImagePath: new Map([[page.imagePath, ocrResult]]),
+      });
+      const controller = new AbortController();
+      await library.markChapterPagesRunning(snapshot.id, [page.id]);
+      const firstRun = first.runWholePagePipeline({
+        ...basePipelineOptions([page], []),
+        collectPageContext: true,
+        signal: controller.signal,
+        onPagePrepared: async (checkpoint) => {
+          expect(checkpoint.prepared.kind).toBe(kind);
+          expect(
+            await library.saveTranslationCheckpoint(
+              snapshot.id,
+              checkpoint,
+              revision,
+            ),
+          ).toBe(true);
+          controller.abort();
+          throw new DOMException(
+            "Cancelled after durable checkpoint",
+            "AbortError",
+          );
+        },
+      });
+      await expect(firstRun).rejects.toMatchObject({ name: "AbortError" });
+      expect(requestTranslation).toHaveBeenCalledOnce();
+      await library.finalizeRunningPages(snapshot.id, [page.id], "idle");
+      if (editAfterSave) {
+        const chapter = await readChapter(root);
+        const review = chapter.pages[0].soundEffectReview;
+        if (!review) throw new Error("Expected persisted review history");
+        review.regionOverrides = [
+          {
+            regionId: "FX-old",
+            bbox: { x: 12, y: 14, w: 44, h: 46 },
+            updatedAt: "2026-01-01T00:01:00.000Z",
+          },
+        ];
+        review.manualRegions.push({
+          id: "FX-after-save",
+          bbox: { x: 700, y: 720, w: 80, h: 90 },
+          detectorConfidence: 1,
+          createdAt: "2026-01-01T00:01:00.000Z",
+        });
+        review.dismissedRegionIds = [];
+        await writeJson(chapterFile(root), chapter);
+      }
+      const reloaded = await loadLibrary(root);
+      const resumedPage = requirePage(
+        await reloaded.openChapter(snapshot.id),
+        page.id,
+      );
+      if (editAfterSave) {
+        expect(createPageRevision(resumedPage)).toBe(revision);
+        expect(resumedPage.soundEffectReview?.regionOverrides[0]?.bbox.x).toBe(
+          12,
+        );
+        expect(
+          resumedPage.soundEffectReview?.manualRegions.map(({ id }) => id),
+        ).toEqual(["FX-manual", "FX-after-save"]);
+        expect(resumedPage.soundEffectReview?.dismissedRegionIds ?? []).toEqual(
+          [],
+        );
+        expectedReview = attachEffectReviewToPage(
+          resumedPage,
+          "hayai",
+          ocrResult,
+        ).soundEffectReview;
+      } else
+        expect(resumedPage.soundEffectReview).toEqual(page.soundEffectReview);
+      const stored = await reloaded.loadTranslationCheckpoint(
+        chapterDirectory(root),
+        resumedPage,
+      );
+      if (!stored.artifact)
+        throw new Error("Expected durable checkpoint artifact");
+      const resumedRequest = vi.fn();
+      const resumed = await loadPipeline({
+        requestTranslation: resumedRequest,
+      });
+      const completed = await resumed.runWholePagePipeline({
+        ...basePipelineOptions([resumedPage], []),
+        collectPageContext: true,
+        translationCheckpoints: new Map([[page.id, stored.artifact]]),
+      });
+      expect(resumedRequest).not.toHaveBeenCalled();
+      expect(resumed.runtime.collectOcrHintsBatch).not.toHaveBeenCalled();
+      const completedPage = completed.pages[0];
+      if (!completedPage) throw new Error("Expected resumed page");
+      expect(
+        await reloaded.updatePageAfterAnalysis(
+          snapshot.id,
+          completedPage,
+          [],
+          "completed",
+          undefined,
+          revision,
+        ),
+      ).toBe(true);
+      const persisted = requirePage(
+        await reloaded.openChapter(snapshot.id),
+        page.id,
+      );
+      expect(persisted.soundEffectReview).toEqual(expectedReview);
+      expect(persisted.translationCheckpoint).toBeUndefined();
+      expect(
+        await managedCheckpointDirectories(chapterDirectory(root)),
+      ).toEqual([]);
+    },
+  );
+
+  it("parses an old v1 checkpoint but reruns Hayai OCR before producing a reusable replacement", async () => {
+    vi.stubEnv("MANGA_TRANSLATOR_OCR_PIPELINE", "hayai");
+    const root = await createLibrary();
+    const library = await loadLibrary(root);
+    const snapshot = await library.openChapter("chapter-a");
+    const page = requirePage(snapshot, "page-a");
+    const revision = createPageRevision(page);
+    const legacy = makeCheckpoint(page, TS);
+    expect(legacy).not.toHaveProperty("soundEffectReviewPreserved");
+    expect(
+      await library.saveTranslationCheckpoint(snapshot.id, legacy, revision),
+    ).toBe(true);
+    const reloaded = await loadLibrary(root);
+    const resumedPage = requirePage(
+      await reloaded.openChapter(snapshot.id),
+      page.id,
+    );
+    const loaded = await reloaded.loadTranslationCheckpoint(
+      chapterDirectory(root),
+      resumedPage,
+    );
+    expect(loaded.artifact).toEqual(legacy);
+    if (!loaded.artifact)
+      throw new Error("Expected readable legacy checkpoint");
+    const effect = {
+      id: "FX-reanalyzed",
+      bbox: { x: 500, y: 600, w: 120, h: 150 },
+      detectorConfidence: 0.94,
+    };
+    const requestTranslation = vi.fn(async () => successTranslationResult());
+    const pipeline = await loadPipeline({
+      requestTranslation,
+      ocrHintsByImagePath: new Map([
+        [
+          page.imagePath,
+          {
+            hints: [],
+            diagnostics: [],
+            noTextDetected: false,
+            effectReviewRegions: [effect],
+          },
+        ],
+      ]),
+    });
+    const onPagePrepared = vi.fn(
+      async (checkpoint: PreparedTranslationCheckpoint) => {
+        expect(checkpoint.soundEffectReviewPreserved).toBe(true);
+        expect(checkpoint.prepared.soundEffectReview?.regions).toEqual([
+          effect,
+        ]);
+        return reloaded.saveTranslationCheckpoint(
+          snapshot.id,
+          checkpoint,
+          revision,
+        );
+      },
+    );
+    const completed = await pipeline.runWholePagePipeline({
+      ...basePipelineOptions([resumedPage], []),
+      translationCheckpoints: new Map([[page.id, loaded.artifact]]),
+      onPagePrepared,
+    });
+    expect(pipeline.runtime.collectOcrHintsBatch).toHaveBeenCalledOnce();
+    expect(requestTranslation).toHaveBeenCalledOnce();
+    expect(onPagePrepared).toHaveBeenCalledOnce();
+    expect(completed.pages[0]?.soundEffectReview?.regions).toEqual([effect]);
+    const replacementPage = requirePage(
+      await reloaded.openChapter(snapshot.id),
+      page.id,
+    );
+    const replacement = await reloaded.loadTranslationCheckpoint(
+      chapterDirectory(root),
+      replacementPage,
+    );
+    expect(replacement.artifact?.soundEffectReviewPreserved).toBe(true);
+    expect(replacement.artifact?.prepared.soundEffectReview?.regions).toEqual([
+      effect,
+    ]);
+  });
+
   it("publishes a Codex cleaned background and independent lettering together under the page revision guard", async () => {
     const root = await createLibrary();
     const library = await loadLibrary(root);

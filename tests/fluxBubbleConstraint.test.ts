@@ -3,6 +3,26 @@ import { compositeFluxOutput } from "../src/main/inpainting/imageRaster";
 import { compositeConstrainedFluxOutput } from "../src/main/inpainting/fluxCompositeConstraint";
 
 describe("Flux bubble composite constraints", () => {
+  it("does not feather across the right edge into the next row's mask", () => {
+    const width = 9;
+    const height = 4;
+    const bitmap = createBitmap(width, height, 10);
+    const core = new Uint8Array(width * height);
+    core[width] = 1;
+    compositeFluxOutput(
+      bitmap,
+      createBitmap(width, height, 240),
+      core,
+      width,
+      { x: 0, y: 0, w: width, h: height },
+      3,
+    );
+    expect(readValue(bitmap, width, 8, 0)).toBe(10);
+    expect(readValue(bitmap, width, 7, 0)).toBe(10);
+    expect(readValue(bitmap, width, 0, 1)).toBe(240);
+    expect(readValue(bitmap, width, 1, 1)).toBeGreaterThan(10);
+  });
+
   it("clips both the core and its feather at the green-region boundary", () => {
     const width = 9;
     const height = 9;

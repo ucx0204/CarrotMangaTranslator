@@ -13,6 +13,21 @@ export function inpaintedPathChanged(
   );
 }
 
+export function isUnreferencedPageMask(
+  chapterDir: string,
+  maskPath: string,
+  pages: readonly { inpaintMaskPath?: string }[],
+): boolean {
+  return (
+    isManagedArtifact(chapterDir, "mask", maskPath) &&
+    !pages.some(
+      (page) =>
+        page.inpaintMaskPath &&
+        !inpaintedPathChanged(maskPath, page.inpaintMaskPath),
+    )
+  );
+}
+
 export async function removeUnreferencedInpaintedArtifacts(
   chapterDir: string,
   candidatePaths: string[],

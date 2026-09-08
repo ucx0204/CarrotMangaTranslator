@@ -503,33 +503,68 @@ it("fails and aborts only the matching Codex job when its account disconnects", 
   expect(await handler(event)).toEqual({ cancelled: false });
 });
 
-it("cancels a review only by its job id and reports a normal user cancellation", async () => {
-  const jobs = new ActiveJobStore();
-  const job = makeActiveJob(vi.fn(async () => undefined));
-  jobs.start(job);
-  const rendererUrl = "http://127.0.0.1:5173/";
-  const mainWindow = {
-    isDestroyed: () => false,
-    webContents: {
-      id: 17,
-      getURL: () => rendererUrl,
-      send: (_channel: string, _payload: unknown) => undefined,
-    },
-  } as BrowserWindow;
-  registerJobControlIpc({ jobs, getMainWindow: () => mainWindow });
-  const handler = electronMock.handlers.get(
-    jobControlIpcContracts.cancelJob.channel,
-  );
-  if (!handler) throw new Error("Missing cancellation handler");
-  const event = {
-    sender: { id: 17 },
-    senderFrame: { url: rendererUrl },
-  } as IpcMainInvokeEvent;
-  expect(await handler(event, { jobId: "other-job" })).toEqual({
-    cancelled: false,
-  });
-  expect(job.abortController.signal.aborted).toBe(false);
-  expect(await handler(event, { jobId: job.id })).toEqual({ cancelled: true });
-  expect(job.abortController.signal.aborted).toBe(true);
-  expect(job.lastEvent).toMatchObject({ status: "cancelling" });
-});
+it.each([
+  { kind: "gemma-analysis", status: "running", cancellable: true },
+  { kind: "sound-effect-translation", status: "running", cancellable: true },
+  { kind: "inpainting", status: "running", cancellable: false },
+  { kind: "internet-research", status: "running", cancellable: false },
+  { kind: "page-export", status: "running", cancellable: false },
+  { kind: "sound-effect-translation", status: "completed", cancellable: false },
+  { kind: "sound-effect-translation", status: "failed", cancellable: false },
+  { kind: "sound-effect-translation", status: "cancelled", cancellable: false },
+] as const)(
+  "targets review cancellation by id and kind: $kind / $status",
+  async ({ kind, status, cancellable }) => {
+    const jobs = new ActiveJobStore();
+    const cleanup = vi.fn(async () => undefined);
+    const job = makeActiveJob(cleanup);
+    job.kind = kind;
+    job.lastEvent = {
+      id: job.id,
+      kind,
+      status,
+      progressText: "review fixture",
+    };
+    const previousEvent = job.lastEvent;
+    jobs.start(job);
+    const rendererUrl = "http://127.0.0.1:5173/";
+    const send = vi.fn((_channel: string, _payload: unknown) => undefined);
+    const mainWindow = {
+      isDestroyed: () => false,
+      webContents: {
+        id: 17,
+        getURL: () => rendererUrl,
+        send: (channel: string, payload: unknown) => send(channel, payload),
+      },
+    } as BrowserWindow;
+    registerJobControlIpc({ jobs, getMainWindow: () => mainWindow });
+    const handler = electronMock.handlers.get(
+      jobControlIpcContracts.cancelJob.channel,
+    );
+    if (!handler) throw new Error("Missing cancellation handler");
+    const event = {
+      sender: { id: 17 },
+      senderFrame: { url: rendererUrl },
+    } as IpcMainInvokeEvent;
+    expect(await handler(event, { jobId: "other-job" })).toEqual({
+      cancelled: false,
+    });
+    expect(job.abortController.signal.aborted).toBe(false);
+    expect(job.lastEvent).toBe(previousEvent);
+    expect(cleanup).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(await handler(event, { jobId: job.id })).toEqual({
+      cancelled: cancellable,
+    });
+    expect(job.abortController.signal.aborted).toBe(cancellable);
+    if (cancellable) {
+      expect(job.lastEvent).toMatchObject({ kind, status: "cancelling" });
+      expect(cleanup).toHaveBeenCalledOnce();
+      expect(send).toHaveBeenCalledOnce();
+    } else {
+      expect(job.lastEvent).toBe(previousEvent);
+      expect(cleanup).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+    }
+  },
+);

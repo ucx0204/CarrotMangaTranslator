@@ -13,7 +13,7 @@ import type {
   OcrQualityMode,
 } from "../../shared/settingsTypes";
 import type { DetectedGpuInfo } from "../gpuInfo";
-import { isFluxRtx20Sm75Hardware } from "../../shared/fluxSm75";
+import { resolveDefaultFluxNvidiaBackend } from "../../shared/fluxHardwarePolicy";
 import { resolveRecommendedOcrQualityMode } from "../../shared/ocrMemoryPolicy";
 import {
   normalizeAmdRocmTarget,
@@ -230,22 +230,14 @@ function resolveHardwareFluxBackend(info: DetectedGpuInfo | null): FluxBackend {
     return "cpu-native";
   }
   if (info?.vendor === "apple") {
-    return "metal-native";
+    return info.supportsMetal ? "metal-native" : "cpu-native";
   }
   if (info?.vendor !== "amd") {
-    if (info.vendor === "unknown" && !supportsNvidiaGpuDefaults(info)) {
-      return "cpu-native";
-    }
-    return isFluxRtx20Sm75Hardware({
-      computeCapability: info?.computeCapability,
-      rtxGeneration: info?.rtxGeneration,
-    })
-      ? "cuda-sm75-experimental"
-      : "cuda-native";
+    return resolveDefaultFluxNvidiaBackend(info);
   }
-  return resolveWindowsHipSdkGpuSupport(info) === false
-    ? "cpu-native"
-    : "zluda-native";
+  return resolveWindowsHipSdkGpuSupport(info) === true
+    ? "zluda-native"
+    : "cpu-native";
 }
 
 function normalizeDetectedGpuInfo(

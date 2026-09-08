@@ -1,5 +1,6 @@
 /* eslint-disable complexity, max-depth, max-lines, max-lines-per-function -- evidence enrichment is a fail-closed trust boundary whose independent rejection signals remain explicit and auditable */
 import type { TavilySearchResponse } from "./tavilyClient";
+import { isKoreanLanguageCode } from "../shared/translationLanguages";
 import {
   extractCreatorAttributionNames,
   extractExplicitNamedTerms,
@@ -193,13 +194,18 @@ function cachedWorkBoundResults(
 export function mergeResearchResults(
   initial: unknown,
   audited: unknown,
+  { replaceOperations = false }: { replaceOperations?: boolean } = {},
 ): unknown {
   const initialRoot = readRecord(initial);
   const auditedRoot = readRecord(audited);
+  if (replaceOperations && !Array.isArray(auditedRoot?.operations))
+    return initial;
   if (!initialRoot || !auditedRoot) return audited;
   const operations = new Map<string, unknown>();
   for (const value of [
-    ...(Array.isArray(initialRoot.operations) ? initialRoot.operations : []),
+    ...(!replaceOperations && Array.isArray(initialRoot.operations)
+      ? initialRoot.operations
+      : []),
     ...(Array.isArray(auditedRoot.operations) ? auditedRoot.operations : []),
   ]) {
     const operation = readRecord(value);
@@ -234,7 +240,7 @@ function enrichResearchResultFromEvidenceCached(
   const officialNames = collectOfficialKatakanaNames(searches, input);
   const enriched = root.operations.map((value) => {
     const operation = convertEvidenceBackedCharacterGlossaryOperation(
-      convertMisclassifiedCharacterGlossaryOperation(readRecord(value)),
+      convertMisclassifiedCharacterGlossaryOperation(readRecord(value), input),
       input,
       searches,
     );
@@ -324,7 +330,7 @@ function convertEvidenceBackedCharacterGlossaryOperation(
   const target = typeof operation.target === "string" ? operation.target : "";
   if (
     !/^[ァ-ヺー]{3,20}$/u.test(source) ||
-    !/\p{Script=Hangul}/u.test(target) ||
+    !isResearchTargetText(target, input) ||
     !hasWorkBoundCharacterEvidence(source, searches, input)
   ) {
     return operation;
@@ -403,6 +409,7 @@ function finalizeEvidenceOperation(
 
 function convertMisclassifiedCharacterGlossaryOperation(
   operation: JsonRecord | null,
+  input: WorkContextResearchPromptInput,
 ): JsonRecord | null {
   if (
     operation?.entity !== "glossary" ||
@@ -417,7 +424,7 @@ function convertMisclassifiedCharacterGlossaryOperation(
     !source ||
     source.length > 40 ||
     !hasJapaneseScript(source) ||
-    !/\p{Script=Hangul}/u.test(target) ||
+    !isResearchTargetText(target, input) ||
     looksLikeSentenceGlossarySource(source) ||
     looksLikeWebPageMetadata(source)
   ) {
@@ -447,8 +454,8 @@ function keepUsefulResearchOperation(
   if (!operation) return false;
   if (operation.action === "disable") return true;
   if (operation.action !== "add" && operation.action !== "update") return false;
-  if (hasUntranslatedJapaneseTarget(operation)) return false;
-  if (hasIncompleteCharacterTarget(operation)) return false;
+  if (hasUntranslatedJapaneseTarget(operation, input)) return false;
+  if (hasIncompleteCharacterTarget(operation, input)) return false;
   if (!hasSearchBackedSource(operation.sources, searches)) return false;
   if (operation.entity === "character") {
     return keepUsefulCharacterOperation(operation, input, searches);
@@ -590,14 +597,17 @@ function hasCreatorAliasContext(
   );
 }
 
-function hasUntranslatedJapaneseTarget(operation: JsonRecord): boolean {
+function hasUntranslatedJapaneseTarget(
+  operation: JsonRecord,
+  input: WorkContextResearchPromptInput,
+): boolean {
   if (operation.entity === "glossary") {
     const source = typeof operation.source === "string" ? operation.source : "";
     const target = typeof operation.target === "string" ? operation.target : "";
     return (
       hasJapaneseScript(source) &&
       target.length > 0 &&
-      (!/\p{Script=Hangul}/u.test(target) || hasJapaneseScript(target))
+      !isResearchTargetText(target, input)
     );
   }
   if (operation.entity !== "character") return false;
@@ -611,11 +621,14 @@ function hasUntranslatedJapaneseTarget(operation: JsonRecord): boolean {
   return (
     sourceNames.some(hasJapaneseScript) &&
     target.length > 0 &&
-    (!/\p{Script=Hangul}/u.test(target) || hasJapaneseScript(target))
+    !isResearchTargetText(target, input)
   );
 }
 
-function hasIncompleteCharacterTarget(operation: JsonRecord): boolean {
+function hasIncompleteCharacterTarget(
+  operation: JsonRecord,
+  input: WorkContextResearchPromptInput,
+): boolean {
   if (operation.entity !== "character") return false;
   const sourceNames = Array.isArray(operation.sourceNames)
     ? operation.sourceNames.filter(
@@ -624,13 +637,31 @@ function hasIncompleteCharacterTarget(operation: JsonRecord): boolean {
     : [];
   const target =
     typeof operation.targetName === "string" ? operation.targetName : "";
-  return sourceNames.some((source) => {
-    if (!/^[ァ-ヺー]{2,}(?:・[ァ-ヺー]{2,})+$/u.test(source)) return false;
+  return sourceNames.some(
+    (source) => !translationTargetCoversFullName(source, target, input),
+  );
+}
+
+function isResearchTargetText(
+  target: string,
+  input: WorkContextResearchPromptInput,
+): boolean {
+  if (!target.trim()) return false;
+  const language = (input.languagePair?.target.code ?? "ko").split("-")[0];
+  if (language === "ko")
+    return /\p{Script=Hangul}/u.test(target) && !hasJapaneseScript(target);
+  if (language === "zh")
     return (
-      source.split("・").filter(Boolean).length >
-      target.split(/\s+/u).filter(Boolean).length
+      /\p{Script=Han}/u.test(target) &&
+      !/[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(target)
     );
-  });
+  if (language === "ja")
+    return hasJapaneseScript(target) && !/\p{Script=Hangul}/u.test(target);
+  return (
+    (language === "en" ? /\p{Script=Latin}/u : /\p{L}/u).test(target) &&
+    !hasJapaneseScript(target) &&
+    !/\p{Script=Hangul}/u.test(target)
+  );
 }
 
 function hasJapaneseScript(value: string): boolean {
@@ -1543,8 +1574,8 @@ function selectCriticalEvidenceTranslationCandidatesCached(
     const operation = readRecord(value);
     if (
       !operation ||
-      (!hasUntranslatedJapaneseTarget(operation) &&
-        !hasIncompleteCharacterTarget(operation))
+      (!hasUntranslatedJapaneseTarget(operation, input) &&
+        !hasIncompleteCharacterTarget(operation, input))
     ) {
       return [];
     }
@@ -1685,11 +1716,8 @@ function buildTranslatedCriticalEvidenceOperationsCached(
       isResearchWorkTitleSource(source, input, searches) ||
       !allowedCandidates.has(candidateKey) ||
       seen.has(candidateKey) ||
-      !/\p{Script=Hangul}/u.test(normalizedTarget) ||
-      /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u.test(
-        normalizedTarget,
-      ) ||
-      !translationTargetCoversFullName(source, normalizedTarget)
+      !isResearchTargetText(normalizedTarget, input) ||
+      !translationTargetCoversFullName(source, normalizedTarget, input)
     ) {
       return [];
     }
@@ -1765,7 +1793,10 @@ function isLocallyQuotedTerm(
 function translationTargetCoversFullName(
   source: string,
   target: string,
+  input: WorkContextResearchPromptInput,
 ): boolean {
+  if (!isKoreanLanguageCode(input.languagePair?.target.code ?? "ko"))
+    return true;
   if (!/^[ァ-ヺー]{2,}(?:・[ァ-ヺー]{2,})+$/u.test(source)) return true;
   const sourceParts = source.split("・").filter(Boolean);
   return target.split(/\s+/u).filter(Boolean).length >= sourceParts.length;
@@ -1863,7 +1894,8 @@ function findLocalTarget(
       !candidate.targetIsContext &&
       normalizeLooseEvidenceKey(candidate.source) === key,
   );
-  if (direct?.target) return direct.target;
+  if (direct?.target && isResearchTargetText(direct.target, input))
+    return direct.target;
   const targetTerms = [...input.workTitle.matchAll(/【([^】]{1,30})】/gu)]
     .map((match) => match[1] ?? "")
     .filter(Boolean);
@@ -1878,7 +1910,8 @@ function findLocalTarget(
       (candidate) => normalizeEvidenceKey(candidate) === key,
     )
   ) {
-    return targetTerms[0] ?? "";
+    const target = targetTerms[0] ?? "";
+    return isResearchTargetText(target, input) ? target : "";
   }
   for (const originalTitle of cachedLikelyOriginalTitles(input)) {
     const sourceTerms = [...originalTitle.matchAll(/【([^】]{1,30})】/gu)]
@@ -1887,7 +1920,8 @@ function findLocalTarget(
     const index = sourceTerms.findIndex(
       (candidate) => normalizeEvidenceKey(candidate) === key,
     );
-    if (index >= 0 && targetTerms[index]) return targetTerms[index] ?? "";
+    const target = targetTerms[index] ?? "";
+    if (index >= 0 && isResearchTargetText(target, input)) return target;
   }
   return "";
 }
@@ -2833,21 +2867,6 @@ function sanitizeTranslatedWorkTitleTarget(value: string): string {
   return normalized;
 }
 
-function isEvidenceBackedWorkTitleSource(
-  source: string,
-  searches: readonly TavilySearchResponse[],
-): boolean {
-  const sourceKey = normalizeLooseEvidenceKey(source);
-  if (sourceKey.length < 8) return false;
-  return searches
-    .flatMap((search) => search.results)
-    .some(
-      (result) =>
-        normalizeLooseEvidenceKey(result.title).includes(sourceKey) ||
-        titleIdentitySimilarity(result.title, source) >= 0.68,
-    );
-}
-
 function isOriginalTitleSource(
   source: string,
   originalTitles: readonly string[],
@@ -2881,11 +2900,17 @@ function isResearchWorkTitleSource(
   if (isOriginalTitleSource(source, localTitles)) return true;
   if (isQuotedPublicationTitleSource(source, searches)) return true;
   if (normalizeLooseEvidenceKey(source).length < 6) return false;
+  const trustedTitles = cachedTrustedEvidenceTitles(searches, input);
   return (
-    isOriginalTitleSource(
-      source,
-      cachedTrustedEvidenceTitles(searches, input),
-    ) || isEvidenceBackedWorkTitleSource(source, searches)
+    isOriginalTitleSource(source, trustedTitles) ||
+    trustedTitles.some((title) => {
+      const mainTitle = title.split(/[～〜~:：]/u)[0]?.trim() ?? "";
+      return (
+        mainTitle !== title &&
+        normalizeLooseEvidenceKey(mainTitle) ===
+          normalizeLooseEvidenceKey(source)
+      );
+    })
   );
 }
 

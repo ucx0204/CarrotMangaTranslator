@@ -23,9 +23,17 @@ export function preserveDemotedFonts(
     : [];
   if (!Array.isArray(records))
     throw new Error("Invalid custom font index during migration.");
+  const completedPath = join(fontsDir, "demoted-font-migrations.json");
+  const completed = readCompletedFontMigrations(completedPath);
+  let completionChanged = false;
   let changed = false;
   for (const font of DEMOTED_BLOCK_FONTS) {
-    if (records.some((entry) => entry?.id === font.customId)) continue;
+    if (completed.has(font.customId)) continue;
+    if (records.some((entry) => entry?.id === font.customId)) {
+      completed.add(font.customId);
+      completionChanged = true;
+      continue;
+    }
     const source = join(bundledFontsDir, "ko", `${font.id}.ttf`);
     if (!existsSync(source)) continue;
     if (!statSync(source).isFile())
@@ -48,9 +56,29 @@ export function preserveDemotedFonts(
       fileName,
     });
     changed = true;
+    completed.add(font.customId);
+    completionChanged = true;
   }
-  if (!changed) return;
-  const staging = `${indexPath}.${randomUUID()}.tmp`;
-  writeFileSync(staging, JSON.stringify(records, null, 2), "utf8");
-  renameSync(staging, indexPath);
+  if (changed) {
+    const staging = `${indexPath}.${randomUUID()}.tmp`;
+    writeFileSync(staging, JSON.stringify(records, null, 2), "utf8");
+    renameSync(staging, indexPath);
+  }
+  if (completionChanged) {
+    const staging = `${completedPath}.${randomUUID()}.tmp`;
+    writeFileSync(staging, JSON.stringify([...completed], null, 2), "utf8");
+    renameSync(staging, completedPath);
+  }
+}
+
+function readCompletedFontMigrations(completedPath: string): Set<string> {
+  const completedRecords: unknown = existsSync(completedPath)
+    ? JSON.parse(readFileSync(completedPath, "utf8"))
+    : [];
+  if (
+    !Array.isArray(completedRecords) ||
+    completedRecords.some((id) => typeof id !== "string")
+  )
+    throw new Error("Invalid completed custom font migrations.");
+  return new Set<string>(completedRecords);
 }

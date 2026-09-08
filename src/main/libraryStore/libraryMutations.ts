@@ -45,6 +45,7 @@ import {
   resolveReconciledStoryMemory,
 } from "./workContextFiles";
 import { resolveManagedCheckpointDirectory } from "./translationCheckpointStore";
+import { isUnreferencedPageMask } from "./inpaintedArtifacts";
 
 export type PageAnalysisUpdate = {
   expectedRevision?: PageRevision;
@@ -254,6 +255,17 @@ export async function deletePageUnlocked(
       await transaction.retireFile(target.inpaintedImagePath, {
         required: false,
       });
+    }
+    const maskPath = target.inpaintMaskPath;
+    if (
+      maskPath &&
+      isUnreferencedPageMask(
+        join(getWorksRoot(), locator.workId, "chapters", locator.chapterId),
+        maskPath,
+        chapter.pages,
+      )
+    ) {
+      await transaction.retireFile(maskPath, { required: false });
     }
     for (const artifactDirectory of artifactDirectories) {
       await transaction.retireDirectory(artifactDirectory, { required: false });

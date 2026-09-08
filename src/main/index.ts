@@ -622,6 +622,7 @@ async function showStartupFailureDialog(detail: string): Promise<void> {
     return;
   }
   rendererLoadFailureDialogOpen = true;
+  let exitRequested = false;
   try {
     const result = await dialog.showMessageBox({
       type: "error",
@@ -642,11 +643,12 @@ async function showStartupFailureDialog(detail: string): Promise<void> {
     } else if (result.response === 1) {
       await shell.openPath(getLogDirectory());
     } else {
-      app.quit();
+      exitRequested = true;
     }
   } catch (error) {
     logError("Failed to show renderer load failure dialog", error);
   } finally {
     rendererLoadFailureDialogOpen = false;
+    if (exitRequested || !mainWindow || mainWindow.isDestroyed()) app.quit();
   }
 }

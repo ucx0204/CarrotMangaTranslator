@@ -1,5 +1,5 @@
 import { createServer, type Server } from "node:http";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,12 +8,34 @@ import {
   type WebImportFetchSession,
 } from "../src/main/webImportDownload";
 
+const downloadIo = vi.hoisted(() => ({ opened: 0, closed: 0 }));
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    open: async (...args: Parameters<typeof actual.open>) => {
+      const handle = await actual.open(...args);
+      downloadIo.opened += 1;
+      const close = handle.close.bind(handle);
+      handle.close = async () => {
+        await close();
+        downloadIo.closed += 1;
+      };
+      return handle;
+    },
+  };
+});
+const realSetTimeout = globalThis.setTimeout.bind(globalThis);
+const realClearTimeout = globalThis.clearTimeout.bind(globalThis);
+
 describe("web import download fixture", () => {
   let server: Server;
   let baseUrl: string;
   let directory: string;
 
   beforeEach(async () => {
+    downloadIo.opened = 0;
+    downloadIo.closed = 0;
     directory = await mkdtemp(join(tmpdir(), "web-import-download-"));
     server = createFixtureServer();
     await new Promise<void>((resolve) =>
@@ -26,6 +48,8 @@ describe("web import download fixture", () => {
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     );
@@ -83,7 +107,123 @@ describe("web import download fixture", () => {
     );
     expect(progress).toHaveBeenLastCalledWith(5, 5);
   });
+
+  it.each(["cancel", "deadline"] as const)(
+    "interrupts a stalled response body on %s and closes its staged file",
+    async (stop) => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+      const controller = new AbortController();
+      let readStarted!: () => void;
+      const stalled = new Promise<void>((resolve) => {
+        readStarted = resolve;
+      });
+      let bodyController!: ReadableStreamDefaultController<Uint8Array>;
+      let firstChunk = true;
+      const body = new ReadableStream<Uint8Array>(
+        {
+          start(stream) {
+            bodyController = stream;
+          },
+          pull(stream) {
+            if (firstChunk) {
+              firstChunk = false;
+              stream.enqueue(makePngHeader(20, 30));
+              return;
+            }
+            readStarted();
+            return new Promise<void>(() => undefined);
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      let fetchSignal: AbortSignal | null | undefined;
+      const onAbort = () => bodyController.error(fetchSignal?.reason);
+      const cancelReader = vi.spyOn(
+        ReadableStreamDefaultReader.prototype,
+        "cancel",
+      );
+      const session: WebImportFetchSession = {
+        fetch: async (_url, init) => {
+          fetchSignal = init?.signal;
+          fetchSignal?.addEventListener("abort", onAbort, { once: true });
+          return new Response(body, {
+            headers: { "content-type": "image/png" },
+          });
+        },
+      };
+      let settled = false;
+      const download = downloadDiscoveredWebImages({
+        candidates: [discovered("https://cdn.example/stalled.png", 0)],
+        deadlineAt: Date.now() + 1_000,
+        directory,
+        dnsLookup: async () => [{ address: "93.184.216.34", family: 4 }],
+        pageUrl: "https://page.example/chapter/1",
+        session,
+        signal: controller.signal,
+        onProgress: vi.fn(),
+      }).then(
+        (result) => {
+          settled = true;
+          return { result, error: undefined };
+        },
+        (error: unknown) => {
+          settled = true;
+          return { result: undefined, error };
+        },
+      );
+      await stalled;
+      expect(downloadIo.opened).toBe(1);
+      expect(downloadIo.closed).toBe(0);
+      if (stop === "cancel")
+        controller.abort(new DOMException("Canceled", "AbortError"));
+      else await vi.advanceTimersByTimeAsync(1_000);
+      await allowDownloadCleanup(download);
+      const afterStop = {
+        settled,
+        fetchAborted: fetchSignal?.aborted,
+        readerCancelled: cancelReader.mock.calls.length,
+        closed: downloadIo.closed,
+        files: await readdir(directory),
+      };
+      // Unblock only the failing baseline, so its real file handle is still closed.
+      if (!settled)
+        bodyController.error(new Error("Release stalled test body"));
+      const outcome = await download;
+      fetchSignal?.removeEventListener("abort", onAbort);
+
+      expect(afterStop).toEqual({
+        settled: true,
+        fetchAborted: true,
+        readerCancelled: 1,
+        closed: 1,
+        files: [],
+      });
+      if (stop === "cancel")
+        expect(outcome.error).toBe(controller.signal.reason);
+      else
+        expect(outcome.result).toMatchObject({
+          candidates: [],
+          timedOut: true,
+          truncated: true,
+        });
+      expect(await readdir(directory)).toEqual([]);
+    },
+  );
 });
+
+async function allowDownloadCleanup(download: Promise<unknown>): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      download,
+      new Promise<void>((resolve) => {
+        timer = realSetTimeout(resolve, 500);
+      }),
+    ]);
+  } finally {
+    if (timer) realClearTimeout(timer);
+  }
+}
 
 function discovered(url: string, discoveryIndex: number) {
   return { url, y: discoveryIndex, x: 0, discoveryIndex };

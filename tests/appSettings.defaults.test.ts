@@ -42,6 +42,35 @@ import { normalizeAppSettings } from "../src/main/settings/appSettingsNormalize"
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
 describeWindows("app settings helpers: defaults and stored values", () => {
+  it.each(["cpu", "gpu"] as const)(
+    "defaults OCR to Hayai on %s while retaining explicit selections",
+    (device) => {
+      const defaults = resolveDefaultAppSettings({
+        MANGA_TRANSLATOR_OCR_DEVICE: device,
+      });
+      expect(defaults.ocr.pipeline).toBe("hayai");
+      expect(parseStoredAppSettings("{}", defaults).ocr.pipeline).toBe("hayai");
+      expect(
+        parseStoredAppSettings(JSON.stringify({ ocr: { device } }), defaults)
+          .ocr.pipeline,
+      ).toBe("hayai");
+      for (const pipeline of ["paddle-legacy", "hayai"] as const) {
+        expect(
+          parseStoredAppSettings(
+            JSON.stringify({ ocr: { device, pipeline } }),
+            defaults,
+          ).ocr.pipeline,
+        ).toBe(pipeline);
+        expect(
+          resolveDefaultAppSettings({
+            MANGA_TRANSLATOR_OCR_DEVICE: device,
+            MANGA_TRANSLATOR_OCR_PIPELINE: pipeline,
+          }).ocr.pipeline,
+        ).toBe(pipeline);
+      }
+    },
+  );
+
   it("uses Codex as the hardware-safe fallback when GPU detection is unavailable", () => {
     const defaults = resolveDefaultAppSettings();
 
@@ -94,9 +123,10 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       DEFAULT_API_CUSTOM_HEADERS_JSON,
     );
     expect(defaults.ocr.device).toBe(DEFAULT_OCR_DEVICE);
+    expect(defaults.ocr.pipeline).toBe("hayai");
     expect(defaults.ocr.qualityMode).toBe(DEFAULT_OCR_QUALITY_MODE);
     expect(defaults.ocr.gpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
-    expect(defaults.inpainting?.model).toBe("lama-manga");
+    expect(defaults.inpainting?.model).toBe("aot-inpainting");
     expect(defaults.inpainting?.fluxBackend).toBe("cpu-native");
     expect(defaults.inpainting?.koharuBackend).toBe("auto");
     expect(defaults.inpainting?.bubbleLayoutAfterInpainting).toBe(false);
@@ -583,7 +613,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     });
     expect(gpu.keybindings).toEqual({});
     expect(gpu.ocr.pipeline).toBe("hayai");
-    expect(cpu.ocr.pipeline).toBe("paddle-legacy");
+    expect(cpu.ocr.pipeline).toBe("hayai");
     expect(gpu.inpainting).toMatchObject({
       allowUnsafeLowMemoryFlux: false,
       bubbleLayoutAfterInpainting: false,

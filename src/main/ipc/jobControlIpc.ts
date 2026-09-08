@@ -76,6 +76,9 @@ function canCancelJob(
   )
     return false;
   return (
-    !request || (job.id === request.jobId && job.kind === "gemma-analysis")
+    !request ||
+    (job.id === request.jobId &&
+      (job.kind === "gemma-analysis" ||
+        job.kind === "sound-effect-translation"))
   );
 }

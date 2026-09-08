@@ -10,6 +10,7 @@ import {
   type WebImportStoredExtension,
 } from "../shared/webImportTypes";
 import { throwIfAborted } from "./abortSignal";
+import { createLinkedDeadlineController } from "./httpResponseBudget";
 import {
   probeImageFile,
   type ImageHeaderMetadata,
@@ -104,7 +105,7 @@ export async function downloadDiscoveredWebImages({
       break;
     }
     const batch = candidates.slice(offset, offset + DOWNLOAD_CONCURRENCY);
-    const attempts = await Promise.all(
+    const settledAttempts = await Promise.allSettled(
       batch.map((candidate) =>
         downloadCandidate({
           candidate,
@@ -118,6 +119,10 @@ export async function downloadDiscoveredWebImages({
         }),
       ),
     );
+    const attempts = settledAttempts.map((attempt) => {
+      if (attempt.status === "rejected") throw attempt.reason;
+      return attempt.value;
+    });
     for (const attempt of attempts) {
       completed += 1;
       if (attempt.status === "skipped") {
@@ -190,23 +195,34 @@ async function downloadCandidate({
 }): Promise<DownloadAttempt> {
   const partialPath = join(directory, `.${randomUUID()}.part`);
   let reservedBytes = 0;
+  let response: Response | undefined;
+  const deadline = createLinkedDeadlineController(
+    signal,
+    Math.max(1, deadlineAt - Date.now()),
+    "Web import image",
+  );
   try {
     throwIfAborted(signal);
     if (Date.now() >= deadlineAt) {
       return { status: "timeout" };
     }
-    const sourceUrl = await assertPublicWebImportUrl(candidate.url, dnsLookup);
-    const response = await fetchWithDeadline({
-      deadlineAt,
+    const sourceUrl = await waitForDownloadOperation(
+      assertPublicWebImportUrl(candidate.url, dnsLookup),
+      deadline.signal,
+    );
+    response = await fetchWebImage({
       pageUrl,
       session,
-      signal,
+      signal: deadline.signal,
       url: sourceUrl.href,
     });
     if (!response.ok) {
       return { status: "skipped", reason: "failed" };
     }
-    await assertPublicWebImportUrl(response.url || sourceUrl.href, dnsLookup);
+    await waitForDownloadOperation(
+      assertPublicWebImportUrl(response.url || sourceUrl.href, dnsLookup),
+      deadline.signal,
+    );
     const contentType =
       response.headers.get("content-type")?.toLowerCase() ?? "";
     if (isKnownUnsupportedImageType(contentType)) {
@@ -226,7 +242,7 @@ async function downloadCandidate({
       deadlineAt,
       partialPath,
       response,
-      signal,
+      signal: deadline.signal,
       staged,
     });
     reservedBytes = streamed.byteLength;
@@ -234,8 +250,9 @@ async function downloadCandidate({
       partialPath,
       "web-import-image",
       undefined,
-      signal,
+      deadline.signal,
     );
+    throwIfAborted(deadline.signal);
     const sourceExtension = sourceExtensionFor(metadata.format);
     const filePath = join(directory, `${randomUUID()}${sourceExtension}`);
     await rename(partialPath, filePath);
@@ -255,7 +272,7 @@ async function downloadCandidate({
         ? signal.reason
         : new DOMException("Web import cancelled", "AbortError");
     }
-    if (error instanceof DownloadDeadlineError) {
+    if (deadline.didTimeOut() || error instanceof DownloadDeadlineError) {
       return { status: "timeout" };
     }
     if (error instanceof StagedBudgetError) {
@@ -273,57 +290,57 @@ async function downloadCandidate({
       reason: isKnownUnsupportedImageError(error) ? "unsupported" : "failed",
     };
   } finally {
+    if (response?.body && !response.body.locked) {
+      void response.body.cancel().catch(() => {
+        // error-policy-allow: rejected image bodies are cancelled without replacing the download outcome.
+      });
+    }
+    deadline.cleanup();
     await rm(partialPath, { force: true });
   }
 }
 
-async function fetchWithDeadline({
-  deadlineAt,
+async function fetchWebImage({
   pageUrl,
   session,
   signal,
   url,
 }: {
-  deadlineAt: number;
   pageUrl: string;
   session: WebImportFetchSession;
   signal: AbortSignal;
   url: string;
 }): Promise<Response> {
   throwIfAborted(signal);
-  const remaining = deadlineAt - Date.now();
-  if (remaining <= 0) {
-    throw new DownloadDeadlineError();
-  }
-  const controller = new AbortController();
-  const onAbort = (): void => controller.abort(signal.reason);
-  signal.addEventListener("abort", onAbort, { once: true });
-  const timer = setTimeout(
-    () => controller.abort(new DownloadDeadlineError()),
-    remaining,
-  );
-  try {
-    const referrer = createWebImageRequestReferrer(pageUrl, url);
-    return await session.fetch(url, {
+  const referrer = createWebImageRequestReferrer(pageUrl, url);
+  return waitForDownloadOperation(
+    session.fetch(url, {
       credentials: "include",
       headers: {
         Accept: "image/webp,image/png,image/jpeg,image/*;q=0.8,*/*;q=0.5",
         ...(referrer ? { Referer: referrer } : {}),
       },
       referrerPolicy: "strict-origin-when-cross-origin",
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if (signal.aborted) {
-      throw signal.reason instanceof Error ? signal.reason : error;
-    }
-    if (controller.signal.reason instanceof DownloadDeadlineError) {
-      throw controller.signal.reason;
-    }
-    throw error;
+      signal,
+    }),
+    signal,
+  );
+}
+
+async function waitForDownloadOperation<T>(
+  operation: Promise<T>,
+  signal: AbortSignal,
+): Promise<T> {
+  let onAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(signal.reason);
+    if (signal.aborted) onAbort();
+    else signal.addEventListener("abort", onAbort, { once: true });
+  });
+  try {
+    return await Promise.race([operation, aborted]);
   } finally {
-    clearTimeout(timer);
-    signal.removeEventListener("abort", onAbort);
+    if (onAbort) signal.removeEventListener("abort", onAbort);
   }
 }
 
@@ -365,7 +382,8 @@ async function streamResponseToFile({
       if (Date.now() >= deadlineAt) {
         throw new DownloadDeadlineError();
       }
-      const chunk = await reader.read();
+      const chunk = await waitForDownloadOperation(reader.read(), signal);
+      throwIfAborted(signal);
       if (chunk.done) {
         break;
       }
@@ -386,12 +404,10 @@ async function streamResponseToFile({
     staged.release(byteLength);
     throw error;
   } finally {
-    try {
-      await reader.cancel();
-    } catch (_error) {
+    void reader.cancel().catch(() => {
       // error-policy-allow: stream cancellation is best-effort after the primary result.
       // Reader cancellation is best-effort after the primary stream result.
-    }
+    });
     await handle.close();
   }
 }

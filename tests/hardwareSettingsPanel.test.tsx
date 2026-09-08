@@ -135,7 +135,7 @@ describe("HardwareSettingsPanel", () => {
 
     expect(unsupported).toMatchObject({
       fluxBackend: "cpu-native",
-      inpaintingModel: "flux-klein",
+      inpaintingModel: "aot-inpainting",
       ocrDevice: "cpu",
       ocrGpuBackend: "cuda",
       ocrQualityMode: "economy",
@@ -147,7 +147,8 @@ describe("HardwareSettingsPanel", () => {
       ocrQualityMode: "full",
     });
     expect(manualUnknown).toMatchObject({
-      fluxBackend: "zluda-native",
+      fluxBackend: "cpu-native",
+      inpaintingModel: "aot-inpainting",
       ocrDevice: "cpu",
       ocrGpuBackend: "cuda",
       ocrQualityMode: "economy",

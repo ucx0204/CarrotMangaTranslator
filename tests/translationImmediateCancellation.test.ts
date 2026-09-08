@@ -1,4 +1,6 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import { registerJobControlIpc } from "../src/main/ipc/jobControlIpc";
@@ -9,6 +11,11 @@ import {
 import { jobControlIpcContracts } from "../src/shared/ipcContracts";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { JobEvent } from "../src/shared/jobTypes";
+import {
+  confirmImageRedaction,
+  withImageRedactionReview,
+} from "../src/main/jobs/imageRedactionReview";
+import { createTempDir } from "./helpers/runtimeModelContracts";
 
 type InvokeHandler = (
   event: IpcMainInvokeEvent,
@@ -45,6 +52,92 @@ beforeEach(() => {
 });
 
 describe("translation immediate cancellation", () => {
+  it("the modal's targeted cancel IPC releases a pending SFX image-redaction review", async () => {
+    const chapter = makeChapter();
+    const imagePath = join(createTempDir("sfx-review-cancel-"), "page.png");
+    writeFileSync(imagePath, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    firstPage(chapter).imagePath = imagePath;
+    const jobs = new ActiveJobStore();
+    const order: string[] = [];
+    const job = {
+      id: "11111111-1111-4111-8111-111111111111",
+      kind: "sound-effect-translation" as const,
+      abortController: new AbortController(),
+    };
+    jobs.start(job);
+    const mainWindow = makeWindow(jobs, order);
+    registerJobControlIpc({ jobs, getMainWindow: () => mainWindow });
+    const entered = createDeferred<JobEvent>();
+    const run = vi.fn(async () => "should not run");
+    const save = vi.fn(async () => undefined);
+    const review = withImageRedactionReview(
+      {
+        jobId: job.id,
+        kind: job.kind,
+        pages: chapter.pages,
+        signal: job.abortController.signal,
+        imageEdit: true,
+        emit: (event) => {
+          jobs.updateLastEvent(job.id, event);
+          entered.resolve(event);
+        },
+      },
+      run,
+      {
+        read: async () => ({ enabled: true, pages: {} }),
+        save,
+        settings: async () => {
+          throw new Error("Unexpected settings read");
+        },
+      },
+    );
+    const settled = review.catch((error: unknown) => error);
+    try {
+      const event = await entered.promise;
+      const pending = event.imageRedactionReview;
+      if (!pending)
+        throw new Error("Expected a pending image-redaction review");
+      expect(pending.pages).toEqual([
+        expect.objectContaining({ id: firstPage(chapter).id, imagePath }),
+      ]);
+      const handler = electronMock.handlers.get(
+        jobControlIpcContracts.cancelJob.channel,
+      );
+      if (!handler) throw new Error("Missing cancellation handler");
+      const invocation = {
+        sender: { id: 17 },
+        senderFrame: { url: "http://127.0.0.1:5173/" },
+      } as IpcMainInvokeEvent;
+      expect(await handler(invocation, { jobId: "other-job" })).toEqual({
+        cancelled: false,
+      });
+      expect(job.abortController.signal.aborted).toBe(false);
+      expect(jobs.current?.lastEvent?.imageRedactionReview).toBe(pending);
+      expect(await handler(invocation, { jobId: job.id })).toEqual({
+        cancelled: true,
+      });
+      expect(job.abortController.signal.aborted).toBe(true);
+      expect(await settled).toBe(job.abortController.signal.reason);
+      expect(run).not.toHaveBeenCalled();
+      expect(save).not.toHaveBeenCalled();
+      await expect(
+        confirmImageRedaction({
+          jobId: job.id,
+          sessionId: pending.sessionId,
+          pages: pending.pages.map(({ id, fingerprint, strokes }) => ({
+            id,
+            fingerprint,
+            strokes,
+          })),
+        }),
+      ).rejects.toThrow("이미지 확인이 만료되었습니다.");
+    } finally {
+      job.abortController.abort();
+      await settled;
+      jobs.clearIfCurrent(job.id);
+    }
+  });
+
   it("keeps cancel cleanup pending while page resolution finishes the outer job", async () => {
     const chapter = makeChapter();
     const resolution = createDeferred<{

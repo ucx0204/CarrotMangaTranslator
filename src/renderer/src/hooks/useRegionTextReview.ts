@@ -18,6 +18,7 @@ export function useRegionTextReview() {
   const current = useRef<Session | null>(null);
   const [state, setState] = useState<State>({ busy: false });
   const cancel = useCallback(() => {
+    setState({ busy: false });
     const session = current.current;
     if (!session) return;
     session.cancelled = true;
@@ -39,7 +40,8 @@ export function useRegionTextReview() {
           cancelSession(session);
           return;
         }
-        if (event.regionTextReview)
+        if (current.current !== session) return;
+        if (event.regionTextReview?.sessionId === session.id)
           setState({ busy: false, review: event.regionTextReview });
         if (event.status === "failed" || event.status === "cancelled") {
           session.unsubscribe?.();
@@ -49,9 +51,11 @@ export function useRegionTextReview() {
       setState({ busy: true });
       return id;
     },
-    finish: (completed: boolean) => {
-      current.current?.unsubscribe?.();
-      if (current.current?.cancelled || completed) {
+    finish: (sessionId: string, completed: boolean) => {
+      const session = current.current;
+      if (session?.id !== sessionId) return;
+      session.unsubscribe?.();
+      if (session.cancelled || completed) {
         current.current = null;
         setState({ busy: false });
       } else setState((previous) => ({ ...previous, busy: false }));
@@ -80,17 +84,23 @@ export function useRegionTextReview() {
         setState({ busy: false });
         return true;
       } catch (error) {
+        if (current.current !== session || session.cancelled) return false;
         session.submitting = false;
-        setState((previous) => ({
-          ...previous,
-          busy: false,
-          error: error instanceof Error ? error.message : String(error),
-        }));
+        setState((previous) => reviewErrorState(previous, error));
         return false;
       }
     },
   };
 }
+
+function reviewErrorState(previous: State, error: unknown): State {
+  return {
+    ...previous,
+    busy: false,
+    error: error instanceof Error ? error.message : String(error),
+  };
+}
+
 function cancelSession(session: Session) {
   if (!session.jobId || session.cancelSent) return;
   session.cancelSent = true;

@@ -317,7 +317,10 @@ function validateCertainItem(
   if (!item.translation || item.translation.length > 120) {
     return "번역문이 비어 있거나 지나치게 깁니다.";
   }
-  if (containsJapanese(item.translation)) {
+  const japaneseResiduePattern = /^zh(?:-|$)/iu.test(targetLanguage.trim())
+    ? /[\u3040-\u30ff]/u
+    : /[\u3040-\u30ff\u3400-\u9fff]/u;
+  if (japaneseResiduePattern.test(item.translation)) {
     return "번역문에 일본어가 남아 있습니다.";
   }
   if (isInvalidKoreanTranslation(item.translation, targetLanguage)) {

@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
@@ -8,6 +10,7 @@ import {
   type DirectMlDeviceRequest,
 } from "./directMlAdapterPolicy";
 import { WINDOWS_DIRECT_ML_PROBE } from "./windowsDirectMlProbe";
+import { safeCleanup } from "../safeCleanup";
 
 const probeResultSchema = z.object({
   adapters: z.array(
@@ -56,7 +59,54 @@ export async function queryWindowsDirectMlAdapter(
   );
 }
 
-function runProbe(command: string, env: NodeJS.ProcessEnv): Promise<string> {
+async function runProbe(
+  command: string,
+  env: NodeJS.ProcessEnv,
+): Promise<string> {
+  const directory = await createProbeTempDirectory(env);
+  // Windows environment keys are case-insensitive. Remove aliases before
+  // setting these, otherwise child_process may select an inherited stale key.
+  for (const key of Object.keys(env)) {
+    if (["TEMP", "TMP"].includes(key.toUpperCase())) delete env[key];
+  }
+  env.TEMP = directory;
+  env.TMP = directory;
+  try {
+    return await executeProbe(command, env);
+  } finally {
+    await safeCleanup("remove DirectML probe compiler files", () =>
+      rm(directory, { recursive: true, force: true }),
+    );
+  }
+}
+
+async function createProbeTempDirectory(
+  env: NodeJS.ProcessEnv,
+): Promise<string> {
+  const candidates = [
+    tmpdir(),
+    env.LOCALAPPDATA ? join(env.LOCALAPPDATA, "Temp") : undefined,
+    join(homedir(), "AppData", "Local", "Temp"),
+  ].filter((directory): directory is string => Boolean(directory));
+  const failures: unknown[] = [];
+  for (const directory of new Set(candidates)) {
+    try {
+      await mkdir(directory, { recursive: true });
+      return await mkdtemp(join(directory, "mgt-directml-probe-"));
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  throw new AggregateError(
+    failures,
+    "GPU 정보를 확인할 임시 폴더를 만들지 못했습니다.",
+  );
+}
+
+function executeProbe(
+  command: string,
+  env: NodeJS.ProcessEnv,
+): Promise<string> {
   const powershell = join(
     process.env.SystemRoot || "C:\\Windows",
     "System32",

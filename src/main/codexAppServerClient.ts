@@ -29,6 +29,7 @@ import {
 } from "./codexAppServerPreviewTool";
 import {
   buildCodexAppServerArguments,
+  buildCodexAppServerTurnConfig,
   buildCodexEnvironment,
   type CodexAppServerCapability,
 } from "./codexAppServerPolicy";
@@ -101,7 +102,11 @@ export class CodexAppServerClient {
       workspace,
     );
     const abort = () => {
-      void client.dispose(true);
+      void client
+        .dispose(true)
+        .catch((error: unknown) =>
+          console.error("Codex App Server abort cleanup failed", error),
+        );
     };
     signal?.addEventListener("abort", abort, { once: true });
     client.releaseAbort = () => signal?.removeEventListener("abort", abort);
@@ -243,7 +248,11 @@ export class CodexAppServerClient {
   async dispose(force = false): Promise<void> {
     this.releaseAbort?.();
     await this.transport.dispose(force);
-    await this.workspace.removeAfterExit(this.transport.process);
+    await this.workspace
+      .removeAfterExit(this.transport.process)
+      .catch((error: unknown) =>
+        console.error("Codex temporary workspace cleanup failed", error),
+      );
   }
 
   private async initialize(appVersion: string): Promise<void> {
@@ -384,38 +393,10 @@ function buildThreadStart(
     ephemeral: true,
     serviceName: "carrot_manga_translator",
     config: {
-      ...isolatedTurnConfig(capability),
+      ...buildCodexAppServerTurnConfig(capability),
       ...(input.contextWindowTokens
         ? { model_context_window: input.contextWindowTokens }
         : {}),
-    },
-  };
-}
-
-function isolatedTurnConfig(capability: CodexAppServerCapability): JsonRecord {
-  const research = capability === "research";
-  const preview = capability === "typesetting-preview";
-  return {
-    include_environment_context: false,
-    include_permissions_instructions: false,
-    include_apps_instructions: false,
-    include_collaboration_mode_instructions: false,
-    project_doc_max_bytes: 0,
-    project_doc_fallback_filenames: [],
-    web_search: research ? "live" : "disabled",
-    tools: {
-      web_search: research ? { context_size: "high" } : false,
-    },
-    features: {
-      apps: false,
-      code_mode: research || preview,
-      code_mode_host: research || preview || capability === "image-generation",
-      image_generation: capability === "image-generation",
-      plugins: false,
-      memories: false,
-      multi_agent: false,
-      shell_tool: false,
-      unified_exec: capability === "image-generation",
     },
   };
 }

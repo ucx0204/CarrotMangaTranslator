@@ -134,7 +134,7 @@ async function runAiAnalysis({
   const runtime = loadTranslationRuntimePort();
   const session = await runtime.startEndpointSession(options);
   try {
-    return runAiAnalysisWithEndpoint({
+    return await runAiAnalysisWithEndpoint({
       guide,
       request,
       selection,

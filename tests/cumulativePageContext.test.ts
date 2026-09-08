@@ -7,6 +7,57 @@ import type {
 import { mergeCumulativePageContext } from "../src/main/pipeline/cumulativePageContext";
 
 describe("cumulative page context merge", () => {
+  it.each(["", "   ", "…!?☆"])(
+    "does not retain an empty or punctuation-only essential term %j",
+    (source) => {
+      const guide = makeEmptyGuide();
+      const result = mergeCumulativePageContext({
+        styleGuide: guide,
+        page: makePage({
+          sourceText: `魔法 ${source} 魔法 ${source}`,
+          translatedText: "마법, 마법",
+        }),
+        pageIndex: 0,
+        cumulativeContextDetail: "essential",
+        pageContext: {
+          glossary: [{ source, target: "기호", category: "term" }],
+          characters: [],
+        },
+      });
+      expect(result.styleGuide).toBe(guide);
+      expect(result.styleGuide.glossary).toEqual([]);
+      expect(result.pageMemory.glossaryEntryIds).toEqual([]);
+    },
+  );
+
+  it.each([
+    ["A.T.フィールド", "A.T. 필드"],
+    ["魔導・障壁", "마도 장벽"],
+    ["ＡＴフィールド", "AT 필드"],
+  ])(
+    "keeps repeated grounded punctuated term %s in essential context",
+    (source, target) => {
+      const result = mergeCumulativePageContext({
+        styleGuide: makeEmptyGuide(),
+        page: makePage({
+          sourceText: `${source}を使う。次も${source}だ。`,
+          translatedText: `${target}를 쓴다. 또 ${target}다.`,
+        }),
+        pageIndex: 0,
+        cumulativeContextDetail: "essential",
+        pageContext: {
+          glossary: [{ source, target, category: "term" }],
+          characters: [],
+        },
+      });
+      expect(result.styleGuide.glossary).toHaveLength(1);
+      expect(result.styleGuide.glossary[0]).toMatchObject({ source, target });
+      expect(result.pageMemory.glossaryEntryIds).toEqual([
+        result.styleGuide.glossary[0]?.id,
+      ]);
+    },
+  );
+
   it("keeps existing detailed behavior while filtering new balanced and essential glossary noise", () => {
     const page = makePage({
       sourceText: "アリア 王都 魔法 魔法 きれい",

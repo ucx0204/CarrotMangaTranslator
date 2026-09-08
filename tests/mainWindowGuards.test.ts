@@ -125,6 +125,37 @@ describe("main window navigation guards", () => {
     expect(blockedEvent.preventDefault).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["http://[::1]:5173/", "http://[0:0:0:0:0:0:0:1]:5173/"])(
+    "loads the IPv6 loopback development renderer: %s",
+    async (url) => {
+      process.env.ELECTRON_RENDERER_URL = url;
+      const { createMainWindow } = await loadMainWindowModule();
+      createMainWindow({}, createDiagnostics());
+      expect(latestWindow?.loadURL).toHaveBeenCalledWith(
+        new URL(url).toString(),
+      );
+      expect(latestWindow?.loadFile).not.toHaveBeenCalled();
+      const event = { preventDefault: vi.fn() };
+      latestWindow?.listeners.get("will-navigate")?.(
+        event,
+        "http://[::2]:5173/",
+      );
+      expect(event.preventDefault).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([
+    "https://[::1]:5173/",
+    "http://[::2]:5173/",
+    "http://example.test:5173/",
+  ])("still rejects unsupported development addresses: %s", async (url) => {
+    process.env.ELECTRON_RENDERER_URL = url;
+    const { createMainWindow } = await loadMainWindowModule();
+    createMainWindow({}, createDiagnostics());
+    expect(latestWindow?.loadURL).not.toHaveBeenCalled();
+    expect(latestWindow?.loadFile).toHaveBeenCalledOnce();
+  });
+
   it("allows only file navigations inside the packaged renderer directory", async () => {
     const { isAllowedMainWindowNavigation } = await loadMainWindowModule();
     const rendererIndexUrl = pathToFileURL(

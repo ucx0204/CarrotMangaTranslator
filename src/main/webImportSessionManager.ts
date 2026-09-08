@@ -50,6 +50,7 @@ type ActiveWebImportScan = {
   abortController: AbortController;
   window: BrowserWindow | null;
   directory: string | null;
+  downloadPromise?: Promise<unknown>;
 };
 
 export type PreparedWebImport = {
@@ -250,6 +251,9 @@ export class WebImportSessionManager {
       );
       destroyWindow(active.window);
     }
+    await Promise.allSettled(
+      [...this.activeScans.values()].map((active) => active.downloadPromise),
+    );
     this.activeScans.clear();
     this.sessions.clear();
     for (const timer of this.expiryTimers.values()) clearTimeout(timer);
@@ -322,27 +326,25 @@ export class WebImportSessionManager {
       0,
       discovery.candidates.length,
     );
-    const downloaded = await waitForWebImportStep(
-      downloadDiscoveredWebImages({
-        candidates: discovery.candidates,
-        deadlineAt,
-        directory,
-        dnsLookup,
-        pageUrl: finalUrl.href,
-        session: scanSession,
-        signal,
-        onProgress: (completed, total) =>
-          emitProgress(
-            onProgress,
-            request.requestId,
-            "downloading",
-            completed,
-            total,
-          ),
-      }),
+    const download = downloadDiscoveredWebImages({
+      candidates: discovery.candidates,
       deadlineAt,
+      directory,
+      dnsLookup,
+      pageUrl: finalUrl.href,
+      session: scanSession,
       signal,
-    );
+      onProgress: (completed, total) =>
+        emitProgress(
+          onProgress,
+          request.requestId,
+          "downloading",
+          completed,
+          total,
+        ),
+    });
+    active.downloadPromise = download;
+    const downloaded = await download;
     throwIfAborted(signal);
     const webSession: WebImportSession = {
       id: sessionId,

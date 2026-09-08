@@ -109,6 +109,7 @@ function useRegionSelection(
       !isUsableRegionBbox(next, 10)
     )
       return;
+    cancelReview();
     setSelection({
       bbox: next,
       page: options.selectedPage,
@@ -160,7 +161,8 @@ function useRegionTranslationRun({
       ...(textReviewSessionId ? { textReviewSessionId } : {}),
     })
       .then((completed) => {
-        if (needsReview) textReview.finish(completed);
+        if (textReviewSessionId)
+          textReview.finish(textReviewSessionId, completed);
         close();
         if (completed) onCompleted(choices);
       })

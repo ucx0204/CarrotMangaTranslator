@@ -228,6 +228,10 @@ export class LinkedWorkspaceSyncService {
       output: request.output,
       pageRelativePaths,
       sourceRelativePaths,
+      resultRelativePaths:
+        sameRoot && current?.output.format === request.output.format
+          ? current.resultRelativePaths
+          : undefined,
       publishedRevisions: sameRoot ? (current?.publishedRevisions ?? {}) : {},
       publishedMirrorRevisions: sameRoot
         ? (current?.publishedMirrorRevisions ?? {})
@@ -237,6 +241,7 @@ export class LinkedWorkspaceSyncService {
       createdAt: current?.createdAt ?? now,
       updatedAt: now,
     };
+    this.reconcileResultRelativePaths(record, chapter);
     this.reportActivity({ type: "pulse" });
     this.records.set(record.id, record);
     await this.store.replaceRecord(record);
@@ -267,8 +272,13 @@ export class LinkedWorkspaceSyncService {
       ...(request.enabled !== undefined ? { enabled: request.enabled } : {}),
       ...(request.output ? { output: request.output } : {}),
       ...(outputChanged ? { publishedRevisions: {} } : {}),
+      ...(request.output && request.output.format !== current.output.format
+        ? { resultRelativePaths: undefined }
+        : {}),
       updatedAt: new Date().toISOString(),
     };
+    const chapter = await this.dependencies.openChapter(record.chapterId);
+    this.reconcileResultRelativePaths(record, chapter);
     this.reportActivity({ type: "pulse" });
     this.records.set(record.id, record);
     await this.store.replaceRecord(record);
@@ -278,7 +288,6 @@ export class LinkedWorkspaceSyncService {
       this.resolveDrainWaiters(record.id, { status: "cancelled" });
     }
     if (record.enabled && outputChanged) {
-      const chapter = await this.dependencies.openChapter(record.chapterId);
       await this.queuePages(record.chapterId, chapter.pageOrder, {
         immediate: true,
         priority: 40,
@@ -452,7 +461,7 @@ export class LinkedWorkspaceSyncService {
     const chapter = await this.dependencies.openChapter(chapterId);
     const requested = new Set(pageIds);
     const now = Date.now();
-    let recordChanged = false;
+    let recordChanged = this.reconcileResultRelativePaths(record, chapter);
     for (const page of chapter.pages) {
       if (!requested.has(page.id)) continue;
       const visualRevision = createPageVisualRevision(page);
@@ -738,18 +747,24 @@ export class LinkedWorkspaceSyncService {
           format: record.output.format,
         })
       : null;
+    const resultRelativePath = record.resultRelativePaths?.[page.id];
+    if (result && !resultRelativePath) {
+      throw new Error("페이지의 결과 상대 경로가 없습니다.");
+    }
     return {
       item,
       page,
       recordId: record.id,
       rootPath: record.rootPath,
-      output: result
-        ? {
-            ...result,
-            jpegQuality: record.output.jpegQuality,
-            webpQuality: record.output.webpQuality,
-          }
-        : null,
+      output:
+        result && resultRelativePath
+          ? {
+              ...result,
+              path: resolvePathInside(record.rootPath, resultRelativePath),
+              jpegQuality: record.output.jpegQuality,
+              webpQuality: record.output.webpQuality,
+            }
+          : null,
     };
   }
 
@@ -827,7 +842,15 @@ export class LinkedWorkspaceSyncService {
           relativePathFromRoot(
             record.rootPath,
             rendered.output.path,
-          ).toLowerCase()
+          ).toLowerCase() &&
+        ![...this.records.values()].some(
+          (candidate) =>
+            sameFilePath(candidate.rootPath, record.rootPath) &&
+            Object.values(candidate.resultRelativePaths ?? {}).some(
+              (path) =>
+                path.toLowerCase() === previousResult.path.toLowerCase(),
+            ),
+        )
       ) {
         await unlinkIfExists(
           resolvePathInside(record.rootPath, previousResult.path),
@@ -1083,11 +1106,13 @@ export class LinkedWorkspaceSyncService {
     record.rootPath = rootPath;
     record.destinationKind = "managed";
     record.pageRelativePaths = pageRelativePaths;
+    record.resultRelativePaths = undefined;
     record.sourceRelativePaths = sourceRelativePaths;
     record.sourceFingerprints = sourceFingerprints;
     record.publishedRevisions = {};
     record.publishedMirrorRevisions = {};
     record.artifacts = {};
+    this.reconcileResultRelativePaths(record, chapter);
     record.updatedAt = new Date().toISOString();
     this.records.set(record.id, record);
     this.lastErrors.delete(record.id);
@@ -1283,7 +1308,7 @@ export class LinkedWorkspaceSyncService {
         );
         continue;
       }
-      let recordChanged = false;
+      let recordChanged = this.reconcileResultRelativePaths(record, chapter);
       for (const page of chapter.pages) {
         const sourceState = await inspectConnectedSource(record, page.id);
         if (sourceState === "changed") {
@@ -1360,6 +1385,8 @@ export class LinkedWorkspaceSyncService {
           : Boolean(artifacts?.mask);
         const visualStale =
           resultMissing ||
+          (Boolean(artifacts?.result) &&
+            record.publishedRevisions[page.id] !== visualRevision) ||
           inpaintedStale ||
           maskStale ||
           (Boolean(record.publishedRevisions[page.id]) &&
@@ -1423,8 +1450,18 @@ export class LinkedWorkspaceSyncService {
         this.forceRequestedAt.delete(connectionId);
         const record = this.records.get(connectionId);
         if (record) {
-          void this.openResultDirectory(record, 0).then((result) =>
-            this.resolveDrainWaiters(connectionId, result),
+          void this.openResultDirectory(record, 0).then(
+            (result) => this.resolveDrainWaiters(connectionId, result),
+            (error: unknown) => {
+              this.resolveDrainWaiters(connectionId, {
+                status: "failed",
+                message: error instanceof Error ? error.message : String(error),
+              });
+              this.options.reportError(
+                "Failed to open linked results directory",
+                error,
+              );
+            },
           );
         }
       } else if (this.hasTerminalFailure(connectionId)) {
@@ -1482,6 +1519,70 @@ export class LinkedWorkspaceSyncService {
         (record) => record.chapterId === chapterId,
       ) ?? null
     );
+  }
+
+  private reconcileResultRelativePaths(
+    record: LinkedWorkspaceRecordV1,
+    chapter: ChapterSnapshot,
+  ): boolean {
+    const used = new Set<string>();
+    for (const other of this.records.values()) {
+      if (
+        other.id === record.id ||
+        !sameFilePath(other.rootPath, record.rootPath)
+      )
+        continue;
+      for (const path of Object.values(other.resultRelativePaths ?? {})) {
+        used.add(path.toLowerCase());
+      }
+    }
+    const preferred: Record<string, string> = {};
+    for (const page of chapter.pages) {
+      const sourceRelativePath = record.pageRelativePaths[page.id];
+      if (!sourceRelativePath) continue;
+      const result = resolveLinkedResultPath({
+        rootPath: record.rootPath,
+        sourceRelativePath,
+        format: record.output.format,
+      });
+      preferred[page.id] = relativePathFromRoot(record.rootPath, result.path);
+    }
+    const paths: Record<string, string> = {};
+    for (const [pageId, path] of Object.entries(preferred)) {
+      const previous = record.resultRelativePaths?.[pageId];
+      if (
+        previous &&
+        previous.startsWith("result/") &&
+        extname(previous).toLowerCase() === extname(path).toLowerCase() &&
+        !used.has(previous.toLowerCase())
+      ) {
+        paths[pageId] = makeUniqueRelativePath(previous, used);
+      }
+    }
+    for (const [pageId, path] of Object.entries(preferred)) {
+      paths[pageId] ??= makeUniqueRelativePath(path, used);
+    }
+    let changed =
+      JSON.stringify(record.resultRelativePaths ?? {}) !==
+      JSON.stringify(paths);
+    const previousOwners = new Map<string, number>();
+    for (const page of chapter.pages) {
+      const path = record.artifacts[page.id]?.result?.path.toLowerCase();
+      if (path) previousOwners.set(path, (previousOwners.get(path) ?? 0) + 1);
+    }
+    for (const [pageId, path] of Object.entries(paths)) {
+      const previous = record.artifacts[pageId]?.result?.path.toLowerCase();
+      if (
+        record.publishedRevisions[pageId] &&
+        (previous !== path.toLowerCase() ||
+          (previousOwners.get(previous ?? "") ?? 0) > 1)
+      ) {
+        delete record.publishedRevisions[pageId];
+        changed = true;
+      }
+    }
+    record.resultRelativePaths = paths;
+    return changed;
   }
 
   private pageRelativePath(

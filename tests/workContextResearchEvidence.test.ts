@@ -13,6 +13,68 @@ import type { WorkContextResearchPromptInput } from "../src/main/workContextRese
 const timestamp = "2026-08-28T00:00:00.000Z";
 
 describe("work-context research evidence normalization", () => {
+  it.each(["", " | エドワード・エルリック"])(
+    "keeps work-bound character evidence when a heading appends the name: %s",
+    (suffix) => {
+      const input = makeInput();
+      input.workTitle = "星空を旅する魔法使い";
+      input.selection.text =
+        'B1: source="エドワード・エルリックは旅に出る。" | target="에드워드 엘릭은 여행을 떠난다."';
+      const source = {
+        title: `${input.workTitle} 公式キャラクター${suffix}`,
+        url: "https://publisher.example/works/star-traveler/characters/edward",
+        excerpt:
+          "星空を旅する魔法使いの主人公エドワード・エルリックを紹介。エドワード・エルリックは旅する魔法使い。",
+      };
+      const searches = [
+        {
+          query: `${input.workTitle} キャラクター`,
+          credits: 1,
+          results: [{ ...source, content: source.excerpt, score: 0.9 }],
+        },
+      ];
+      const result = enrichResearchResultFromEvidence(
+        {
+          operations: [
+            {
+              entity: "character",
+              action: "add",
+              sourceNames: ["エドワード・エルリック"],
+              displayName: "에드워드 엘릭",
+              targetName: "에드워드 엘릭",
+              aliases: [],
+              sources: [source],
+            },
+            {
+              entity: "glossary",
+              action: "add",
+              source: input.workTitle,
+              target: "별하늘을 여행하는 마법사",
+              category: "title",
+              aliases: [],
+              sources: [source],
+            },
+          ],
+          warnings: [],
+        },
+        searches,
+        input,
+      ) as { operations: Array<Record<string, unknown>> };
+      expect(result.operations).toContainEqual(
+        expect.objectContaining({
+          entity: "character",
+          sourceNames: ["エドワード・エルリック"],
+        }),
+      );
+      expect(result.operations).not.toContainEqual(
+        expect.objectContaining({
+          entity: "glossary",
+          source: input.workTitle,
+        }),
+      );
+    },
+  );
+
   it("extracts a work title across HTML breaks and incomplete edition labels", () => {
     const title = "星海の案内人は古都で眠る";
     for (const raw of [

@@ -3,10 +3,7 @@ import type {
   BubbleShapeRegion,
   BubbleShapeSpan,
 } from "../../shared/bubbleLayout";
-import {
-  applyBubbleLayoutPaddingToBounds,
-  type BubbleLayoutEnvelope,
-} from "../../shared/bubbleLayoutPadding";
+import type { BubbleLayoutEnvelope } from "../../shared/bubbleLayoutPadding";
 import { pixelsToBbox } from "../../shared/geometry";
 import type {
   BBox,
@@ -15,6 +12,7 @@ import type {
 } from "../../shared/textTypes";
 import type { RefinedBubbleRegion } from "./bubbleMaskTypes";
 import { partitionSameBlockBubbleRegions } from "./bubbleSameBlockRegionPartition";
+import { padBubbleShapeProfile } from "./bubbleShapeProfilePadding";
 
 export type BubbleShapeProfileInput = {
   regions: RefinedBubbleRegion[];
@@ -40,6 +38,7 @@ export type BubbleShapeProfileResult = {
 
 const DOMINANT_TEXT_REGION_MIN_COVERAGE = 0.7;
 const SECONDARY_TEXT_REGION_MAX_COVERAGE = 0.15;
+type MaskInterval = { start: number; end: number };
 
 export function buildBubbleShapeProfile(
   input: BubbleShapeProfileInput,
@@ -73,10 +72,8 @@ export function buildBubbleShapeProfile(
     insetRatio: 0,
     regions: profile.regions.map((item) => item.profile),
   };
-  const padded = applyBubbleLayoutPaddingToBounds(
-    rawBubbleLayout,
-    input.paddingRatio,
-  );
+  const padded = padBubbleShapeProfile(rawBubbleLayout, input.paddingRatio);
+  if (!padded) return null;
   const paddedPixelBounds = cropBoundsToLogicalEnvelope(
     profile.pixelBounds,
     padded.envelope,
@@ -283,37 +280,71 @@ function intersectBandInterval(
   direction: RenderTextDirection,
   start: number,
   end: number,
-): { start: number; end: number } | null {
-  let safeStart = 0;
-  let safeEnd = direction === "horizontal" ? region.width : region.height;
+): MaskInterval | null {
+  let intervals: MaskInterval[] = [
+    {
+      start: 0,
+      end: direction === "horizontal" ? region.width : region.height,
+    },
+  ];
   for (let block = start; block < end; block += 1) {
-    const line = scanMaskLine(region, direction, block);
-    if (!line) return null;
-    safeStart = Math.max(safeStart, line.start);
-    safeEnd = Math.min(safeEnd, line.end);
+    intervals = intersectMaskIntervals(
+      intervals,
+      scanMaskLine(region, direction, block),
+    );
+    if (intervals.length === 0) return null;
   }
-  return safeEnd > safeStart ? { start: safeStart, end: safeEnd } : null;
+  return intervals.reduce<MaskInterval | null>(
+    (best, interval) =>
+      !best || interval.end - interval.start > best.end - best.start
+        ? interval
+        : best,
+    null,
+  );
+}
+
+function intersectMaskIntervals(
+  left: MaskInterval[],
+  right: MaskInterval[],
+): MaskInterval[] {
+  const output: MaskInterval[] = [];
+  let leftIndex = 0;
+  let rightIndex = 0;
+  while (leftIndex < left.length && rightIndex < right.length) {
+    const a = left[leftIndex];
+    const b = right[rightIndex];
+    const start = Math.max(a.start, b.start);
+    const end = Math.min(a.end, b.end);
+    if (end > start) output.push({ start, end });
+    if (a.end <= b.end) leftIndex += 1;
+    else rightIndex += 1;
+  }
+  return output;
 }
 
 function scanMaskLine(
   region: RefinedBubbleRegion,
   direction: RenderTextDirection,
   block: number,
-): { start: number; end: number } | null {
+): MaskInterval[] {
   const inlineLength =
     direction === "horizontal" ? region.width : region.height;
-  let first = -1;
-  let last = -1;
+  const intervals: MaskInterval[] = [];
+  let start = -1;
   for (let inline = 0; inline < inlineLength; inline += 1) {
     const index =
       direction === "horizontal"
         ? block * region.width + inline
         : inline * region.width + block;
-    if (!region.mask[index]) continue;
-    if (first < 0) first = inline;
-    last = inline;
+    if (region.mask[index]) {
+      if (start < 0) start = inline;
+    } else if (start >= 0) {
+      intervals.push({ start, end: inline });
+      start = -1;
+    }
   }
-  return first >= 0 ? { start: first, end: last + 1 } : null;
+  if (start >= 0) intervals.push({ start, end: inlineLength });
+  return intervals;
 }
 
 function normalizeSpan(

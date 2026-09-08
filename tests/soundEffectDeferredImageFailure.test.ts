@@ -77,7 +77,79 @@ it("saves both pretranslated pages after the first deferred image failure and re
   );
 });
 
-function fixture() {
+it.each([
+  { phase: "before-finalization", pageId: "page-1" },
+  { phase: "font", pageId: "page-1" },
+  { phase: "font", pageId: "page-2" },
+  { phase: "image", pageId: "page-1" },
+  { phase: "image", pageId: "page-2" },
+  { phase: "after-save", pageId: "page-1" },
+  { phase: "after-save", pageId: "page-2" },
+] as const)(
+  "preserves both completed translations exactly once when cancelled at $phase on $pageId",
+  async (cancelAt) => {
+    const f = fixture(cancelAt);
+    const result = await runSoundEffectTranslationJob(
+      f.input,
+      f.dependencies,
+    ).catch((error: unknown) => {
+      expect(f.input.abortController.signal.aborted).toBe(true);
+      return handleSoundEffectTranslationJobError({
+        ...f.input,
+        dependencies: f.dependencies,
+        error,
+      });
+    });
+
+    expect(result.status).toBe("cancelled");
+    expect(f.input.abortController.signal.aborted).toBe(true);
+    expect(f.order.slice(0, 3)).toEqual([
+      "translate:page-1",
+      "translate:page-2",
+      "endpoint:dispose",
+    ]);
+    expect(f.saved.map((page) => page.id)).toEqual(["page-1", "page-2"]);
+    expect(
+      f.saved.map((page) => page.blocks.map((block) => block.translatedText)),
+    ).toEqual([["슥"], ["쾅"]]);
+    expect(
+      f.saved.map((page) => page.soundEffectReview?.resolvedRegions),
+    ).toEqual(
+      f.saved.map((page) => [
+        {
+          regionId: "FX001",
+          blockId: page.blocks[0].id,
+          resolvedAt: "saved",
+        },
+      ]),
+    );
+    expect(f.input.state.translatedRegionCount).toBe(2);
+    expect(f.input.state.createdBlocksByPage).toEqual(
+      f.saved.map((page) => ({
+        pageId: page.id,
+        blockIds: [page.blocks[0].id],
+      })),
+    );
+    const cancelIndex = f.order.findIndex((step) => step.startsWith("cancel:"));
+    expect(cancelIndex).toBeGreaterThan(2);
+    expect(
+      f.order
+        .slice(cancelIndex + 1)
+        .filter(
+          (step) => step.startsWith("font:page-") || step.startsWith("image:"),
+        ),
+    ).toEqual([]);
+    expect(f.order.at(-1)).toBe("font:dispose");
+    expect(f.dependencies.inpaintCreatedBlocks).not.toHaveBeenCalled();
+  },
+);
+
+type CancellationPoint = {
+  phase: "before-finalization" | "font" | "image" | "after-save";
+  pageId: string;
+};
+
+function fixture(cancelAt?: CancellationPoint) {
   let chapter = makeChapter();
   chapter.pages = [1, 2].map((index) => ({
     ...structuredClone(chapter.pages[0]),
@@ -117,14 +189,17 @@ function fixture() {
     },
     dispose: async () => {
       order.push("endpoint:dispose");
+      cancel("before-finalization", "page-1");
     },
   });
   pipeline.fontMatching = {
     loadCandidates: () => [builtIn("jua")],
     loadProfile: async () => null,
     pageInference: {
-      inferPage: async ({ page }) => {
+      inferPage: async ({ page, signal }) => {
         order.push(`font:${page.id}`);
+        cancel("font", page.id);
+        signal?.throwIfAborted();
         return { pixelInferenceByBlockId: new Map() };
       },
       dispose: async () => {
@@ -183,8 +258,11 @@ function fixture() {
         warnings: [],
       };
     },
-    editImages: vi.fn(async ({ page }) => {
+    editImages: vi.fn(async ({ page, signal }) => {
       order.push(`image:${page.id}`);
+      cancel("image", page.id);
+      signal.throwIfAborted();
+      if (cancelAt) return page;
       throw imageFailure;
     }),
     inpaintCreatedBlocks: vi.fn(),
@@ -211,8 +289,15 @@ function fixture() {
       };
       saved.push(structuredClone(updated));
       order.push(`save:${pageId}`);
+      cancel("after-save", pageId);
       return structuredClone(chapter);
     },
   };
   return { input, dependencies, order, saved, imageFailure };
+
+  function cancel(phase: CancellationPoint["phase"], pageId: string) {
+    if (cancelAt?.phase !== phase || cancelAt.pageId !== pageId) return;
+    order.push(`cancel:${phase}:${pageId}`);
+    input.abortController.abort();
+  }
 }

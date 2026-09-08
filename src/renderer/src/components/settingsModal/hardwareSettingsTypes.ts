@@ -17,6 +17,8 @@ export type HardwareSettingsPanelProps = {
   controlsBusy: boolean;
   detectedGpuName?: string | null;
   gpuMemoryMb?: number | null;
+  computeCapability?: number | null;
+  rtxGeneration?: number | null;
   fluxBackend: FluxBackend;
   graphicsGpuPreference: GraphicsGpuPreference;
   inpaintingModel: InpaintingModel;

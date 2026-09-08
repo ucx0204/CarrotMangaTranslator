@@ -12,6 +12,7 @@
  *   cachePaths: OcrRuntimeLayout;
  *   diagnostics: unknown[];
  *   importCheck: ImportCheckResult;
+ *   targetImportCheck: ImportCheckResult;
  *   bootstrapPython: string;
  * }} RuntimeState
  */
@@ -189,6 +190,7 @@ async function prepareRuntimeState(options) {
     cachePaths,
     diagnostics: [],
     importCheck,
+    targetImportCheck: { ok: false, message: "target runtime is not verified" },
     bootstrapPython: "",
   };
 }
@@ -321,23 +323,21 @@ async function resolveBootstrapPythonRuntime(options, state) {
     state.packageDir,
     state.runtimeDir,
   );
-  if (!existsSync(state.venvPython)) {
-    state.importCheck = await checkOcrRuntimeImport(
-      state.bootstrapPython,
-      options,
-      {
-        runtimeDir: state.runtimeDir,
-        packageDir: state.packageDir,
-        includePackageDir: true,
-        ...state.cachePaths,
-      },
-    );
-  }
+  state.targetImportCheck = await checkOcrRuntimeImport(
+    state.bootstrapPython,
+    options,
+    {
+      runtimeDir: state.runtimeDir,
+      packageDir: state.packageDir,
+      includePackageDir: true,
+      ...state.cachePaths,
+    },
+  );
 }
 
 /** @param {RuntimeOptions} options @param {RuntimeState} state @returns {Promise<OcrRuntimeLayout | null>} */
 async function reuseTargetRuntime(options, state) {
-  if (existsSync(state.venvPython) || !state.importCheck.ok) {
+  if (!state.targetImportCheck.ok) {
     return null;
   }
   if (hasOcrInstallMarker(state.packageDir, state.runtimeVariant, options)) {
@@ -361,7 +361,7 @@ async function reuseTargetRuntime(options, state) {
     state.packageDir,
     state.runtimeDir,
   );
-  state.importCheck = signatureChangedImportCheck();
+  state.targetImportCheck = signatureChangedImportCheck();
   return null;
 }
 
@@ -371,7 +371,7 @@ async function removeBrokenTargetRuntime(options, state) {
   const looksInstalled =
     hasOcrInstallMarker(state.packageDir, state.runtimeVariant, options) ||
     hasExpectedOcrPackages(state.packageDir, options);
-  if (!looksInstalled || state.importCheck.ok) {
+  if (!looksInstalled || state.targetImportCheck.ok) {
     return;
   }
   state.diagnostics.push({
@@ -379,10 +379,8 @@ async function removeBrokenTargetRuntime(options, state) {
     runtimeDir: state.runtimeDir,
     runtimeVariant: state.runtimeVariant,
     packageDir: state.packageDir,
-    pythonPath: existsSync(state.venvPython)
-      ? state.venvPython
-      : state.bootstrapPython,
-    importError: state.importCheck.message,
+    pythonPath: state.bootstrapPython,
+    importError: state.targetImportCheck.message,
   });
   await rm(state.packageDir, { recursive: true, force: true });
   ensureEmbeddedPythonPackagePath(

@@ -37,6 +37,8 @@ export type LinkedWorkspaceRecordV1 = {
   enabled: boolean;
   output: RasterExportSettings;
   pageRelativePaths: Record<string, string>;
+  /** Final root-relative result paths, allocated after output format conversion. */
+  resultRelativePaths?: Record<string, string>;
   /** Dedicated result folders keep recoverable source copies under `originals/`. */
   sourceRelativePaths?: Record<string, string>;
   publishedRevisions: Record<string, PageVisualRevision>;

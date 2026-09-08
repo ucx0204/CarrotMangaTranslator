@@ -144,13 +144,19 @@ function usePointerOperationLifecycle({
       setCreationBbox(null);
       operationRef.current = null;
     };
+    const handleCancel = (event: PointerEvent): void => {
+      if (operationRef.current?.pointerId !== event.pointerId) return;
+      suppressClickRef.current = false;
+      setCreationBbox(null);
+      operationRef.current = null;
+    };
     window.addEventListener("pointermove", handleMove);
     window.addEventListener("pointerup", handleUp);
-    window.addEventListener("pointercancel", handleUp);
+    window.addEventListener("pointercancel", handleCancel);
     return () => {
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
-      window.removeEventListener("pointercancel", handleUp);
+      window.removeEventListener("pointercancel", handleCancel);
     };
   }, [
     onCreateRegion,

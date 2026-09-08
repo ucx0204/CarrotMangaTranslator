@@ -100,10 +100,13 @@ it("handles cancel, missing job, terminal failure and a completed execution with
   });
   h.emit({ status: "failed", detail: "failed reading" });
   expect(h.result.current.error).toBe("failed reading");
-  act(() => h.result.current.finish(false));
+  act(() => h.result.current.finish(h.id, false));
   expect(h.result.current.busy).toBe(false);
-  act(() => h.result.current.begin());
-  act(() => h.result.current.finish(true));
+  let nextId = "";
+  act(() => {
+    nextId = h.result.current.begin();
+  });
+  act(() => h.result.current.finish(nextId, true));
   expect(h.listeners.size).toBe(0);
 });
 it("cancels once during review and never submits an already cancelled run", async () => {
@@ -115,10 +118,134 @@ it("cancels once during review and never submits an already cancelled run", asyn
   });
   await act(async () => {
     expect(await h.result.current.confirm([])).toBe(false);
-    h.result.current.finish(false);
+    h.result.current.finish(h.id, false);
   });
   expect(h.cancelJob).toHaveBeenCalledOnce();
   expect(h.result.current.review).toBeUndefined();
+});
+
+it("clears the cancelled review immediately, before the job promise settles", () => {
+  const h = fixture();
+  h.emit({ regionTextReview: h.review });
+  act(() => h.result.current.cancel());
+  expect(h.result.current.review).toBeUndefined();
+  expect(h.result.current.error).toBeUndefined();
+  expect(h.result.current.busy).toBe(false);
+});
+
+it("reports cancellation delivery failure without reviving or resubmitting the review", async () => {
+  const h = fixture();
+  const failure = new Error("cancellation channel closed");
+  const report = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  try {
+    h.emit({ regionTextReview: h.review });
+    h.cancelJob.mockRejectedValueOnce(failure);
+    await act(async () => {
+      h.result.current.cancel();
+    });
+    expect(report).toHaveBeenCalledExactlyOnceWith(
+      "Region translation cancellation failed",
+      failure,
+    );
+    expect(h.result.current.review).toBeUndefined();
+    expect(h.result.current.error).toBeUndefined();
+    expect(h.result.current.busy).toBe(false);
+    expect(h.listeners.size).toBe(0);
+    await act(async () => {
+      h.result.current.cancel();
+      expect(await h.result.current.confirm([])).toBe(false);
+    });
+    expect(h.cancelJob).toHaveBeenCalledExactlyOnceWith({ jobId: "owned" });
+    expect(h.confirmRegionTranslation).not.toHaveBeenCalled();
+  } finally {
+    h.unmount();
+    report.mockRestore();
+  }
+});
+
+it("retains edits and permits retry after a non-Error confirmation rejection", async () => {
+  const h = fixture();
+  h.emit({ regionTextReview: h.review });
+  h.confirmRegionTranslation.mockRejectedValueOnce("connection unavailable");
+  const onConfirmed = vi.fn();
+  await act(async () => {
+    expect(
+      await h.result.current.confirm(
+        [{ regionId: "a", text: "edited" }],
+        onConfirmed,
+      ),
+    ).toBe(false);
+  });
+  expect(h.result.current.review).toEqual(h.review);
+  expect(h.result.current.error).toBe("connection unavailable");
+  expect(h.result.current.busy).toBe(false);
+  expect(onConfirmed).not.toHaveBeenCalled();
+  await act(async () => {
+    expect(
+      await h.result.current.confirm(
+        [{ regionId: "a", text: "edited" }],
+        onConfirmed,
+      ),
+    ).toBe(true);
+  });
+  expect(onConfirmed).toHaveBeenCalledOnce();
+  expect(h.result.current.review).toBeUndefined();
+  expect(h.result.current.error).toBeUndefined();
+  expect(h.listeners.size).toBe(0);
+});
+
+it("does not finish a new session when the cancelled job settles late", () => {
+  const h = fixture();
+  h.emit({ regionTextReview: h.review });
+  let nextId = "";
+  act(() => {
+    nextId = h.result.current.begin();
+  });
+  const nextReview = { ...h.review, sessionId: nextId };
+  h.emit({
+    id: "next-job",
+    regionRequestId: nextId,
+    regionTextReview: nextReview,
+  });
+  act(() => h.result.current.finish(h.id, true));
+  expect(h.result.current.review).toEqual(nextReview);
+  expect(h.listeners.size).toBe(1);
+  act(() => h.result.current.finish(nextId, true));
+  expect(h.result.current.review).toBeUndefined();
+  expect(h.listeners.size).toBe(0);
+});
+
+it("ignores an old confirmation rejection after a new review has started", async () => {
+  const h = fixture();
+  h.emit({ regionTextReview: h.review });
+  let reject!: (reason: Error) => void;
+  h.confirmRegionTranslation.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      }),
+  );
+  let pending!: Promise<boolean>;
+  act(() => {
+    pending = h.result.current.confirm([{ regionId: "a", text: "confirmed" }]);
+  });
+  let nextId = "";
+  act(() => {
+    nextId = h.result.current.begin();
+  });
+  const nextReview = { ...h.review, sessionId: nextId };
+  h.emit({
+    id: "next-job",
+    regionRequestId: nextId,
+    regionTextReview: nextReview,
+  });
+  await act(async () => {
+    reject(new Error("old submission failed"));
+    expect(await pending).toBe(false);
+  });
+  expect(h.result.current.review).toEqual(nextReview);
+  expect(h.result.current.error).toBeUndefined();
+  expect(h.result.current.busy).toBe(false);
 });
 
 it("does not resume or close a cancelled review after an in-flight confirmation returns", async () => {
@@ -140,7 +267,7 @@ it("does not resume or close a cancelled review after an in-flight confirmation 
     h.result.current.cancel();
     resolve(true);
     expect(await first).toBe(false);
-    h.result.current.finish(false);
+    h.result.current.finish(h.id, false);
   });
   expect(h.cancelJob).toHaveBeenCalledOnce();
   expect(h.result.current.review).toBeUndefined();

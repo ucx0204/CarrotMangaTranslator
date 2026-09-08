@@ -133,7 +133,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     );
   });
 
-  it("uses economy VRAM runtime options without clipping image tokens", () => {
+  it("uses economy VRAM runtime options with explicit Paddle OCR without clipping image tokens", () => {
     const defaults = resolveDefaultAppSettings();
     const options = buildBaseTranslationOptions({
       jobId: "job-economy",
@@ -156,6 +156,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
         },
         ocr: {
           ...defaults.ocr,
+          pipeline: "paddle-legacy",
           qualityMode: "economy",
         },
       },
@@ -176,6 +177,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     expect(options.enablePerf).toBe(true);
     expect(options.useDraft).toBe(false);
     expect(options.fitTargetMb).toBe(512);
+    expect(options.ocrPipeline).toBe("paddle-legacy");
     expect(options.ocrBboxMode).toBe("ocr");
     expect(options.ocrEngine).toBe("paddle_static");
     expect(options.ocrTextDetectionModelName).toBe("PP-OCRv6_small_det");
@@ -188,7 +190,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     );
   });
 
-  it("uses a small detector and tiny recognizer for the minimum Gemma VRAM mode", () => {
+  it("uses the Paddle economy detector and recognizer for the minimum Gemma VRAM mode", () => {
     const defaults = resolveDefaultAppSettings();
     const options = buildBaseTranslationOptions({
       jobId: "job-minimum",
@@ -206,11 +208,16 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
           ...defaults.gemma,
           vramMode: "minimum12b",
         },
+        ocr: {
+          ...defaults.ocr,
+          pipeline: "paddle-legacy",
+        },
       },
       env: {},
     });
 
     expect(options.gemmaVramMode).toBe("minimum12b");
+    expect(options.ocrPipeline).toBe("paddle-legacy");
     expect(options.ocrBboxMode).toBe("ocr");
     expect(options.ocrEngine).toBe("paddle_static");
     expect(options.ocrTextDetectionModelName).toBe("PP-OCRv6_small_det");
@@ -650,7 +657,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     expect(options.ocrTextRecognitionModelName).toBeUndefined();
   });
 
-  it("keeps common OCR qualities on the semantic OCR path despite legacy env values", () => {
+  it("keeps explicit Paddle OCR qualities on the semantic OCR path despite legacy env values", () => {
     const defaults = resolveDefaultAppSettings();
     const paths = {
       dataRoot: "C:/app-data",
@@ -671,6 +678,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
         label: "CPU full downgraded to economy",
         ocr: {
           ...defaults.ocr,
+          pipeline: "paddle-legacy",
           device: "cpu",
           gpuBackend: "cuda",
           qualityMode: "full",
@@ -684,6 +692,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
         label: "ROCm full",
         ocr: {
           ...defaults.ocr,
+          pipeline: "paddle-legacy",
           device: "gpu",
           gpuBackend: "rocm-transformers",
           qualityMode: "full",
@@ -706,6 +715,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
       });
 
       expect({
+        pipeline: options.ocrPipeline,
         quality: options.ocrQualityMode,
         bboxMode: options.ocrBboxMode,
         mergeMode: options.ocrMergeMode,
@@ -713,6 +723,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
         detectionModel: options.ocrTextDetectionModelName,
         recognitionModel: options.ocrTextRecognitionModelName,
       }).toEqual({
+        pipeline: "paddle-legacy",
         quality: scenario.expectedQuality,
         bboxMode: "ocr",
         mergeMode: "semantic",
