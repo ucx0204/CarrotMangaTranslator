@@ -1,11 +1,13 @@
+import {
+  moveBbox,
+  resizeBbox,
+  type ResizeDirection,
+} from "../../../shared/regionSelectionGeometry";
 import React from "react";
 import type { BBox } from "../../../shared/textTypes";
 import {
-  moveBbox,
   normalizeDrawnBbox,
-  resizeBbox,
   resolvePagePoint,
-  type ResizeDirection,
 } from "./soundEffectTranslationDraftModel";
 
 type Point = { x: number; y: number };

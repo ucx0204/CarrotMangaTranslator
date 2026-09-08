@@ -13,7 +13,7 @@ import type {
 } from "../shared/imageRedaction";
 import type { PixelRect } from "../shared/region";
 import { getAppPaths } from "./appPaths";
-import { loadImageForRegionCrop } from "./regionCrop";
+import { loadPageImageSnapshot } from "./inpainting/imageIO";
 import { decodeImageThroughRuntime } from "./simplePageRuntime";
 import {
   flattenImageRedaction,
@@ -137,27 +137,43 @@ export function externalImageMask(
     throw new Error("가리기 영역의 이미지 크기가 변경되었습니다.");
   return sourceMask(source);
 }
+export async function readApprovedImageSourceSnapshot(
+  path: string | undefined,
+): Promise<Buffer | undefined> {
+  if (!contexts.getStore()) return undefined;
+  const source = requireSource(path ?? "");
+  source.signal?.throwIfAborted();
+  const bytes = await readFile(path ?? "");
+  source.signal?.throwIfAborted();
+  if (createHash("sha256").update(bytes).digest("hex") !== source.fingerprint)
+    throw new Error("확인한 원본 이미지가 변경되었습니다.");
+  return bytes;
+}
 export async function prepareExternalImageFile(
   path: string,
   root?: string,
 ): Promise<string> {
   await requireImageRedactionReview(root);
-  if (!contexts.getStore()) return path;
+  const bytes = await readApprovedImageSourceSnapshot(path);
+  if (!bytes) return path;
   const source = requireSource(path);
-  source.signal?.throwIfAborted();
-  if ((await imageFingerprint(path)) !== source.fingerprint)
-    throw new Error("확인한 원본 이미지가 변경되었습니다.");
-  return (source.copy ??= writeRedactedCopy(path, source, root));
+  return (source.copy ??= writeRedactedCopy(path, bytes, source, root));
 }
 async function writeRedactedCopy(
   path: string,
+  bytes: Buffer,
   source: Source,
   root = getAppPaths().dataRoot,
 ): Promise<string> {
-  const original = await loadImageForRegionCrop(
+  const original = await loadPageImageSnapshot(
     path,
-    (filePath, signal) =>
-      decodeImageThroughRuntime(getAppPaths().runtimeDir, filePath, signal),
+    bytes,
+    (filePath) =>
+      decodeImageThroughRuntime(
+        getAppPaths().runtimeDir,
+        filePath,
+        source.signal,
+      ),
     source.signal,
   );
   source.signal?.throwIfAborted();

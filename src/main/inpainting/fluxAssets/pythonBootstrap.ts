@@ -52,13 +52,15 @@ export async function findPythonCommand(options: {
 }): Promise<PythonCommand> {
   const configured =
     process.env.MANGA_TRANSLATOR_FLUX_PYTHON ?? process.env.MGT_FLUX_PYTHON;
-  const candidates: PythonCommand[] = [];
+  const candidates: Array<PythonCommand | (() => Promise<PythonCommand>)> = [];
   if (configured) {
     candidates.push({ command: configured, args: [] });
   }
   if (process.platform === "win32") {
-    const managedPython = await ensureManagedFluxBootstrapPython(options);
-    candidates.push({ command: managedPython, args: [] });
+    candidates.push(async () => ({
+      command: await ensureManagedFluxBootstrapPython(options),
+      args: [],
+    }));
     if (shouldAllowSystemPythonFallback()) {
       candidates.push(
         { command: "py", args: ["-3"] },
@@ -71,16 +73,21 @@ export async function findPythonCommand(options: {
       { command: "python", args: [] },
     );
   }
+  let managedError: unknown;
   for (const candidate of candidates) {
     try {
-      await runCommand(candidate.command, [...candidate.args, "--version"], {
+      const python =
+        typeof candidate === "function" ? await candidate() : candidate;
+      await runCommand(python.command, [...python.args, "--version"], {
         signal: options.signal,
       });
-      return candidate;
-    } catch (_error) {
-      continue;
+      return python;
+    } catch (error) {
+      options.signal?.throwIfAborted();
+      if (typeof candidate === "function") managedError = error;
     }
   }
+  if (managedError !== undefined) throw managedError;
   throw new Error(
     "Flux Python 런타임을 만들 Python 3 실행 파일을 찾지 못했습니다. 앱 데이터 Python 준비에 실패했거나 MGT_FLUX_PYTHON 경로가 올바르지 않습니다.",
   );

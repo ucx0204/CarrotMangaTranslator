@@ -45,20 +45,22 @@ export function mapCropNormalizedBboxToPageBbox(
   cropRect: PixelRect,
   pageSize: PageSize,
   cropBbox: BBox,
+  preserveOverflow = false,
 ): BBox {
-  const safe = clampBbox(cropBbox);
+  const safe = preserveOverflow ? cropBbox : clampBbox(cropBbox);
   const pageWidth = Math.max(1, pageSize.width);
   const pageHeight = Math.max(1, pageSize.height);
   const xPx = cropRect.x + (safe.x / 1000) * cropRect.w;
   const yPx = cropRect.y + (safe.y / 1000) * cropRect.h;
   const wPx = (safe.w / 1000) * cropRect.w;
   const hPx = (safe.h / 1000) * cropRect.h;
-  return clampBbox({
+  const mapped = {
     x: Math.round((xPx / pageWidth) * 1000),
     y: Math.round((yPx / pageHeight) * 1000),
     w: Math.round((wPx / pageWidth) * 1000),
     h: Math.round((hPx / pageHeight) * 1000),
-  });
+  };
+  return preserveOverflow ? mapped : clampBbox(mapped);
 }
 
 export function isUsableRegionBbox(bbox: BBox, minNormalizedSize = 8): boolean {

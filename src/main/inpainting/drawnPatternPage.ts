@@ -45,6 +45,7 @@ type DrawnMaskComponent = {
 };
 
 type DrawnPatternInput = {
+  assetPath: string;
   bitmap: Buffer;
   components: DrawnMaskComponent[];
   height: number;
@@ -91,10 +92,8 @@ async function loadDrawnPatternInput(
   strokes: InpaintingMaskStroke[],
   options: DrawnPatternOptions,
 ): Promise<DrawnPatternInput> {
-  const image = await loadPageImage(
-    page.inpaintedImagePath ?? page.imagePath,
-    options.decodeFallback,
-  );
+  const assetPath = page.inpaintedImagePath ?? page.imagePath;
+  const image = await loadPageImage(assetPath, options.decodeFallback);
   const { width, height } = image.getSize();
   if (!width || !height) {
     throw new Error(tMain("inpainting.errors.pageRead", { page: page.name }));
@@ -107,6 +106,7 @@ async function loadDrawnPatternInput(
   }
   const pageMask = buildMaskFromStrokes(strokes, width, height);
   return {
+    assetPath,
     bitmap,
     components: resolveDrawnMaskComponents(pageMask, width, height),
     height,
@@ -159,6 +159,8 @@ async function runDrawnPatternInpainting(
     {
       signal: options.signal,
       sourceImagePath,
+      inputImagePath: input.assetPath,
+      decodeFallback: options.decodeFallback,
       featherPx: options.featherPx ?? FLUX_INPAINT_FEATHER_PX,
       contextPx: FLUX_INPAINT_CONTEXT_PX,
       maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,

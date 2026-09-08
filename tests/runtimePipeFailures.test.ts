@@ -10,6 +10,30 @@ import {
 
 afterEach(() => vi.restoreAllMocks());
 
+it("uses an explicitly sanitized environment without restoring inherited Python/pip variables", async () => {
+  const { runCommand } =
+    await import("../src/main/inpainting/fluxAssets/errors");
+  vi.stubEnv("PIP_TARGET", "must-not-leak");
+  vi.stubEnv("PYTHONHOME", "must-not-leak");
+  try {
+    const env = { ...process.env };
+    delete env.PIP_TARGET;
+    delete env.PYTHONHOME;
+    const lines: string[] = [];
+    await runCommand(
+      process.execPath,
+      [
+        "-e",
+        "console.log(JSON.stringify([process.env.PIP_TARGET,process.env.PYTHONHOME]));",
+      ],
+      { env, onLine: (line) => lines.push(line) },
+    );
+    expect(lines).toEqual(["[null,null]"]);
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
+
 it("delivers mixed worker line endings and reports a nonzero exit with its stderr", async () => {
   const { runCommand } =
     await import("../src/main/inpainting/fluxAssets/errors");

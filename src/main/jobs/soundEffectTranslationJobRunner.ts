@@ -206,6 +206,7 @@ async function saveTranslatedPage(
   page: DeferredSoundEffectPage,
   dependencies: SoundEffectTranslationJobRunnerDependencies,
   finalizationSignal = input.abortController.signal,
+  imageErrors?: unknown[],
 ): Promise<void> {
   const { emit, id, request, state } = input;
   const { items, pageIndex, pageTotal, target } = page;
@@ -233,7 +234,9 @@ async function saveTranslatedPage(
     entries,
     image,
     error: imageError,
-  } = request.codexTypesetting && !input.abortController.signal.aborted
+  } = !imageErrors?.length &&
+  request.codexTypesetting &&
+  !input.abortController.signal.aborted
     ? await applySoundEffectImageEdit(
         translatedEntries,
         {
@@ -271,8 +274,9 @@ async function saveTranslatedPage(
     blockIds: entries.map((entry) => entry.block.id),
   });
   state.translatedRegionCount += entries.length;
-  if (imageError) throw imageError;
-  emitSoundEffectPageDone(id, emit, pageIndex, pageTotal, entries.length);
+  if (imageError && !imageErrors) throw imageError;
+  if (imageError) imageErrors?.push(imageError);
+  else emitSoundEffectPageDone(id, emit, pageIndex, pageTotal, entries.length);
 }
 
 async function saveDeferredFontMatchedPages(
@@ -293,6 +297,7 @@ async function saveDeferredFontMatchedPages(
       "취소 전에 번역이 끝난 효과음은 폰트 자동 맞춤 없이 저장했습니다.",
     );
   }
+  const imageErrors: unknown[] = [];
   for (const page of pages) {
     await saveTranslatedPage(
       input,
@@ -300,8 +305,10 @@ async function saveDeferredFontMatchedPages(
       page,
       dependencies,
       finalizationSignal,
+      imageErrors,
     );
   }
+  if (imageErrors.length) throw imageErrors[0];
 }
 
 async function finalizeSoundEffectTranslation(

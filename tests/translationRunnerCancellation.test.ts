@@ -512,6 +512,31 @@ it("rejects a stale region before model execution and reports a missing page", a
     status: "failed",
   });
 });
+it("starts the next region after automatic export materializes the unchanged background mask", async () => {
+  const chapter = makeChapter();
+  const page = firstPage(chapter);
+  page.inpaintedImagePath = "C:/already-erased.png";
+  const args = makeRegionArgs(new AbortController(), chapter);
+  args.request.pageRevision = createPageRevision(page);
+  const stored = makeChapter([
+    {
+      ...page,
+      inpaintMaskPath: "C:/derived-mask.png",
+      maskProvenance: "derived-diff",
+    },
+  ]);
+  const deps = makeRegionDependencies({
+    openChapter: vi.fn(async () => stored),
+    runWholePagePipeline: vi.fn(async () => ({
+      pages: [{ ...page, analysisStatus: "completed" }],
+      warnings: [],
+    })),
+  });
+  await expect(runRegionTranslationJob(args, deps)).resolves.toMatchObject({
+    status: "completed",
+  });
+  expect(deps.runWholePagePipeline).toHaveBeenCalledOnce();
+});
 it("forwards delegated region output and erasure into the pipeline before committing", async () => {
   const chapter = makeChapter();
   const args = makeRegionArgs(new AbortController(), chapter);

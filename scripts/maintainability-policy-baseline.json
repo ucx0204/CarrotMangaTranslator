@@ -493,12 +493,6 @@
       "select": 0,
       "textarea": 0
     },
-    "src/renderer/src/components/SoundEffectCandidateOverlay.tsx": {
-      "button": 1,
-      "input": 0,
-      "select": 0,
-      "textarea": 0
-    },
     "src/renderer/src/components/SoundEffectPageList.tsx": {
       "button": 1,
       "input": 0,
@@ -645,7 +639,7 @@
     },
     "src/renderer/src/components/SoundEffectTranslationModal.module.css": {
       "literalColors": 0,
-      "numericZIndexes": 4
+      "numericZIndexes": 1
     },
     "src/renderer/src/styles/formatting.css": {
       "literalColors": 36,

@@ -145,3 +145,41 @@ it("does not resume or close a cancelled review after an in-flight confirmation 
   expect(h.cancelJob).toHaveBeenCalledOnce();
   expect(h.result.current.review).toBeUndefined();
 });
+
+it("forwards corrected geometry and exact exclusion mask with the owned confirmation", async () => {
+  const h = fixture();
+  h.emit({ regionTextReview: h.review });
+  const rows = [
+    {
+      regionId: "a",
+      text: "confirmed",
+      sourceBbox: { x: 10, y: 20, w: 600, h: 450 },
+    },
+  ];
+  const protection = {
+    maskDataUrl: "data:image/png;base64,AA==",
+    strokes: [
+      {
+        space: "page" as const,
+        mode: "hide" as const,
+        shape: "square" as const,
+        softness: 0,
+        radiusX: 20,
+        radiusY: 30,
+        points: [{ x: 100, y: 200 }],
+      },
+    ],
+  };
+  await act(async () => {
+    expect(await h.result.current.confirm(rows, undefined, protection)).toBe(
+      true,
+    );
+  });
+  expect(h.confirmRegionTranslation).toHaveBeenCalledExactlyOnceWith({
+    jobId: "owned",
+    sessionId: h.id,
+    translations: rows,
+    protection,
+  });
+  h.unmount();
+});

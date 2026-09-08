@@ -59,6 +59,7 @@ export function useRegionTextReview() {
     confirm: async (
       translations: ConfirmRegionTranslationRequest["translations"],
       onConfirmed?: () => void,
+      protection?: ConfirmRegionTranslationRequest["protection"],
     ) => {
       const session = current.current;
       if (!session?.jobId || session.cancelled || session.submitting)
@@ -70,6 +71,7 @@ export function useRegionTextReview() {
           jobId: session.jobId,
           sessionId: session.id,
           translations,
+          protection,
         });
         if (current.current !== session || session.cancelled) return false;
         onConfirmed?.();

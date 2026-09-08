@@ -179,6 +179,10 @@ describe("pattern page inpainting result validation", () => {
       1,
       page.inpaintedImagePath,
     );
+    expect(vi.mocked(engine.inpaint).mock.calls[0]?.[5]).toMatchObject({
+      sourceImagePath: page.imagePath,
+      inputImagePath: page.inpaintedImagePath,
+    });
     const outputBitmap = nativeImageMocks.createFromBitmap.mock.calls[0]?.[0];
     expect(
       outputBitmap?.subarray(preservedOffset, preservedOffset + 3),

@@ -25,6 +25,8 @@ const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/fontMatchingPagePixelInference.test.ts::../src/main/logger",
   "tests/inpaintingArtifactCleanup.test.ts::../src/main/appPaths",
   "tests/inpaintingRevisionStore.test.ts::../src/main/appPaths",
+  // Isolate the real region-save filesystem transaction from the user library.
+  "tests/regionRevisionPersistence.test.ts::../src/main/appPaths",
   "tests/importOperationLifecycle.test.ts::../src/main/appPaths",
   "tests/libraryImportLimits.test.ts::../src/main/appPaths",
   "tests/libraryPaths.test.ts::../src/main/appPaths",

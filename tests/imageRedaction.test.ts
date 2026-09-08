@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { PNG } from "pngjs";
 import { nativeImage } from "electron";
 import {
@@ -79,6 +80,69 @@ async function fixture() {
   return { root, page };
 }
 describe("manual image redaction", () => {
+  it("keeps the original path when manual redaction is disabled", async () => {
+    const { root, page } = await fixture();
+    expect(await prepareExternalImageFile(page.imagePath, root)).toBe(
+      page.imagePath,
+    );
+  });
+  it.each(["width", "height"] as const)(
+    "rejects an approved image whose %s no longer matches its mask coordinates",
+    async (dimension) => {
+      const { root, page } = await fixture();
+      await withApprovedImageRedactions(
+        [{ ...page, [dimension]: 24 }],
+        async () => {
+          await expect(
+            prepareExternalImageFile(page.imagePath, root),
+          ).rejects.toThrow("가리기 이미지 크기가 변경되었습니다.");
+        },
+      );
+    },
+  );
+  it("redacts the approved bytes even when the source changes as decoding begins", async () => {
+    const { root, page } = await fixture();
+    const original = await readFile(page.imagePath);
+    const replacement = new PNG({ width: 12, height: 12 });
+    replacement.data.fill(180);
+    const replacementBytes = PNG.sync.write(replacement);
+    const decodePath = vi
+      .mocked(nativeImage.createFromPath)
+      .getMockImplementation();
+    const decodeBuffer = vi
+      .mocked(nativeImage.createFromBuffer)
+      .getMockImplementation();
+    if (!decodePath || !decodeBuffer)
+      throw new Error("Missing native test decoder");
+    vi.mocked(nativeImage.createFromPath).mockImplementationOnce((path) => {
+      writeFileSync(page.imagePath, replacementBytes);
+      return decodePath(path);
+    });
+    vi.mocked(nativeImage.createFromBuffer).mockImplementationOnce((bytes) => {
+      writeFileSync(page.imagePath, replacementBytes);
+      return decodeBuffer(bytes);
+    });
+    try {
+      await withApprovedImageRedactions([page], async () => {
+        const copy = await prepareExternalImageFile(page.imagePath, root);
+        const output = PNG.sync.read(await readFile(copy));
+        expect(output.data).toEqual(
+          flattenImageRedaction(
+            PNG.sync.read(original).data,
+            rasterizeImageRedaction(page.width, page.height, page.strokes),
+          ),
+        );
+        expect(await readFile(page.imagePath)).toEqual(replacementBytes);
+      });
+    } finally {
+      vi.mocked(nativeImage.createFromPath)
+        .mockReset()
+        .mockImplementation(decodePath);
+      vi.mocked(nativeImage.createFromBuffer)
+        .mockReset()
+        .mockImplementation(decodeBuffer);
+    }
+  });
   it("keeps the mask when Windows path decoding fails but the same file bytes are readable", async () => {
     const { root, page } = await fixture();
     const original = await readFile(page.imagePath);

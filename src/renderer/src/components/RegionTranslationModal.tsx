@@ -5,7 +5,8 @@ import type { RegionTranslationDialog } from "../lib/regionTranslationOptions";
 import { libraryGateway } from "../api/libraryGateway";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
-import { Field, TextField } from "./ui/Field";
+import { RegionReviewEditor } from "./RegionReviewEditor";
+import { useRegionReviewForm } from "./useRegionReviewForm";
 import { ImageTranslationOptions } from "./ImageTranslationOptions";
 import styles from "./RegionTranslationModal.module.css";
 
@@ -15,45 +16,53 @@ export function RegionTranslationModal(
   const { t } = useTranslation("components");
   const [choices, setChoices] = React.useState(props.initial);
   const { source, failed, setFailed } = useRegionPreview(props.page);
-  const form = useReviewedTexts(props.review);
-  const run = () =>
-    props.review ? props.onConfirm?.(form.values) : props.onRun(choices);
+  const form = useRegionReviewForm(props);
+  const run = () => (props.review ? void form.confirm() : props.onRun(choices));
   const imageAvailable = props.codexImageAvailable ?? false;
   return (
     <Modal
       title={t("regionOptions.title")}
-      width="360px"
+      width={props.review ? "96vw" : "360px"}
+      fillHeight={!!props.review}
+      maxHeight={props.review ? "94vh" : undefined}
+      bodyLayout={props.review ? "flex" : "grid"}
       onClose={props.onClose}
       footer={
         <RegionActions
           props={props}
-          disabled={
-            !source ||
-            failed ||
-            props.busy ||
-            regionChoiceUnavailable(props, choices, imageAvailable) ||
-            (!!props.review && !form.valid)
-          }
+          disabled={regionFormUnavailable(
+            props,
+            choices,
+            imageAvailable,
+            form,
+            source,
+            failed,
+          )}
           run={run}
         />
       }
     >
-      <RegionPreview
-        page={props.page}
-        bbox={props.bbox}
-        source={source}
-        setFailed={setFailed}
-        review={props.review}
-        focused={form.focused}
-      />
+      {props.review ? null : (
+        <RegionPreview
+          page={props.page}
+          bbox={props.bbox}
+          source={source}
+          setFailed={setFailed}
+        />
+      )}
       {failed ? <p role="alert">{t("regionOptions.previewFailed")}</p> : null}
-      {props.error ? (
+      {props.error || form.error ? (
         <p role="alert" className={styles.error}>
-          {props.error}
+          {props.error || form.error}
         </p>
       ) : null}
       {props.review ? (
-        <ReviewFields review={props.review} form={form} busy={props.busy} />
+        <RegionReviewEditor
+          props={props}
+          form={form}
+          source={source}
+          setFailed={setFailed}
+        />
       ) : (
         <RegionTranslationFields
           choices={choices}
@@ -63,6 +72,24 @@ export function RegionTranslationModal(
         />
       )}
     </Modal>
+  );
+}
+
+function regionFormUnavailable(
+  props: RegionTranslationDialog,
+  choices: RegionTranslationDialog["initial"],
+  available: boolean,
+  form: ReturnType<typeof useRegionReviewForm>,
+  source: string,
+  failed: boolean,
+) {
+  return (
+    !source ||
+    failed ||
+    props.busy ||
+    form.preparing ||
+    regionChoiceUnavailable(props, choices, available) ||
+    (!!props.review && !form.valid)
   );
 }
 
@@ -106,10 +133,9 @@ function RegionActions({
   );
 }
 function RegionPreview(
-  props: Pick<RegionTranslationDialog, "page" | "bbox" | "review"> & {
+  props: Pick<RegionTranslationDialog, "page" | "bbox"> & {
     source: string;
     setFailed: (failed: boolean) => void;
-    focused?: string;
   },
 ) {
   const { t } = useTranslation("components");
@@ -130,85 +156,9 @@ function RegionPreview(
           onError={() => setFailed(true)}
         />
       ) : null}
-      {props.review?.regions
-        .filter((region) => region.id === props.focused)
-        .map((region) => (
-          <rect
-            key={region.id}
-            className={styles.reviewOutline}
-            x={crop.x + (region.sourceBbox.x * crop.w) / 1000}
-            y={crop.y + (region.sourceBbox.y * crop.h) / 1000}
-            width={(region.sourceBbox.w * crop.w) / 1000}
-            height={(region.sourceBbox.h * crop.h) / 1000}
-          />
-        ))}
     </svg>
   );
 }
-function ReviewFields({
-  review,
-  form,
-  busy,
-}: {
-  review: NonNullable<RegionTranslationDialog["review"]>;
-  form: ReturnType<typeof useReviewedTexts>;
-  busy?: boolean;
-}) {
-  const { t } = useTranslation("components");
-  return (
-    <div className={styles.reviewFields}>
-      {review.regions.map((region, index) => (
-        <Field key={region.id} label={`${index + 1} · ${region.sourceText}`}>
-          <TextField
-            aria-label={t("regionOptions.translationNumber", {
-              number: index + 1,
-            })}
-            value={
-              form.values.find((item) => item.regionId === region.id)?.text ??
-              ""
-            }
-            maxLength={8000}
-            disabled={busy}
-            onFocus={() => form.setFocused(region.id)}
-            onChange={(event) => form.update(region.id, event.target.value)}
-          />
-        </Field>
-      ))}
-    </div>
-  );
-}
-
-function useReviewedTexts(review: RegionTranslationDialog["review"]) {
-  const [values, setValues] = React.useState<
-    Array<{ regionId: string; text: string }>
-  >([]);
-  const [focused, setFocused] = React.useState<string>();
-  React.useEffect(() => {
-    setValues(
-      review?.regions.map((region) => ({
-        regionId: region.id,
-        text: region.translatedText,
-      })) ?? [],
-    );
-    setFocused(review?.regions[0]?.id);
-  }, [review]);
-  return {
-    values,
-    focused,
-    setFocused,
-    valid:
-      !!review &&
-      values.length === review.regions.length &&
-      values.every((item) => item.text.trim().length > 0),
-    update: (id: string, text: string) =>
-      setValues((previous) =>
-        previous.map((item) =>
-          item.regionId === id ? { ...item, text } : item,
-        ),
-      ),
-  };
-}
-
 function RegionTranslationFields({
   choices,
   setChoices,

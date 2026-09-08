@@ -71,13 +71,13 @@ export async function inpaintPatternPage(
   const maskContext = createPatternMaskContext(page, bitmap, size, options);
   if (maskContext.blocksErased === 0) return { page, blocksErased: 0 };
   await runPatternInpaintingEngine({
+    ...options,
+    ...size,
     sourceImagePath: page.imagePath,
+    inputImagePath: working.assetPath,
     bitmap,
     engine: options.inpaintingEngine,
-    height: size.height,
     maskContext,
-    signal: options.signal,
-    width: size.width,
   });
   const changes = resolvePatternPixelChanges(
     working.bitmap,

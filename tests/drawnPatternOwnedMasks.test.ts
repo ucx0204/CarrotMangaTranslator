@@ -68,6 +68,7 @@ describe("drawn-pattern block-owned masks", () => {
         width,
         height,
       );
+      page.inpaintedImagePath = join(root, "already-cleaned.png");
       const { inpaintDrawnPatternPage } =
         await import("../src/main/inpainting/drawnPatternPage");
 
@@ -83,6 +84,10 @@ describe("drawn-pattern block-owned masks", () => {
       expect(result.blocksIncomplete).toBe(0);
       expect(inpaint).toHaveBeenCalledOnce();
       const call = inpaint.mock.calls[0];
+      expect(call[5]).toMatchObject({
+        sourceImagePath: page.imagePath,
+        inputImagePath: page.inpaintedImagePath,
+      });
       const pageMask = call[3];
       const windows = call[4];
       const windowMasks = call[5]?.windowMasks;

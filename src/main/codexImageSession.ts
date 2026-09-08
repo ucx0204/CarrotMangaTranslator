@@ -12,12 +12,13 @@ export async function startCodexImageSession(
   settings: AppSettings,
   directory: string,
   signal: AbortSignal,
+  capability: "image-generation" | "isolated" = "image-generation",
 ) {
   await requireImageRedactionReview(paths.dataRoot);
   const connection = await CodexAppServerClient.start({
     paths: { ...paths, codexWorkspaceDir: directory },
     appVersion: app.getVersion(),
-    capability: "image-generation",
+    capability,
     signal,
   });
   try {

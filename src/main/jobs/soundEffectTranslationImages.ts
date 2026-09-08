@@ -1,4 +1,8 @@
-import { registerImageRedactionCrop } from "../imageRedactionContext";
+import {
+  readApprovedImageSourceSnapshot,
+  registerImageRedactionCrop,
+} from "../imageRedactionContext";
+import { loadPageImageSnapshot } from "../inpainting/imageIO";
 import { nativeImage } from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -35,11 +39,15 @@ export async function buildSoundEffectTranslationImages(
   signal?: AbortSignal,
 ): Promise<SoundEffectTranslationImages> {
   throwIfAborted(signal ?? new AbortController().signal);
-  const source = await loadImageForRegionCrop(
-    page.imagePath,
-    decodeFallback,
-    signal,
-  );
+  const approved = await readApprovedImageSourceSnapshot(page.imagePath);
+  const source = approved
+    ? await loadPageImageSnapshot(
+        page.imagePath,
+        approved,
+        (path) => decodeFallback(path, signal),
+        signal,
+      )
+    : await loadImageForRegionCrop(page.imagePath, decodeFallback, signal);
   const sourceSize = source.getSize();
   if (sourceSize.width <= 0 || sourceSize.height <= 0) {
     throw new Error("효과음 번역 원본 이미지를 읽지 못했습니다.");

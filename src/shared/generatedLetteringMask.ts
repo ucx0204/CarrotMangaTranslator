@@ -27,7 +27,7 @@ export function letteringMaskSvg(
         `<polygon fill="black" points="${points.map((p) => `${p.x},${p.y}`).join(" ")}"/>`,
     )
     .join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><rect width="1000" height="1000" fill="white"/>${shapes}${strokes.map(strokeSvg).join("")}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"><rect width="1000" height="1000" fill="white"/>${shapes}${strokes.map(strokeSvg).join("")}</svg>`;
 }
 
 function strokeSvg(stroke: LetteringMaskStroke, index: number): string {

@@ -43,6 +43,26 @@ export function createPageRevision(
   })}`;
 }
 
+/** Region jobs do not consume a mask derived from the unchanged background. */
+export function matchesRegionPageRevision(
+  page: Parameters<typeof createPageRevision>[0],
+  expectedRevision: string,
+): boolean {
+  if (createPageRevision(page) === expectedRevision) return true;
+  // Automatic export may materialize this cache after the renderer snapshot.
+  // Only its addition is compatible; an existing mask or real edit stays strict.
+  return Boolean(
+    page.inpaintedImagePath &&
+    page.inpaintMaskPath &&
+    page.maskProvenance === "derived-diff" &&
+    createPageRevision({
+      ...page,
+      inpaintMaskPath: undefined,
+      maskProvenance: undefined,
+    }) === expectedRevision,
+  );
+}
+
 /**
  * Only values that can change page pixels belong in this revision. Source OCR,
  * review metadata and other workflow-only fields are intentionally removed.

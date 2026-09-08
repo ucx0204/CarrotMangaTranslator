@@ -123,8 +123,8 @@
       "maxImportedBy": 27
     },
     "src/shared/geometry.ts": {
-      "maxImportedBy": 32,
-      "reason": "Codex native-view batching reuses canonical box intersection for both source and actual destination coverage. Geometry algorithms are unchanged; avoid duplicated overlap code or an alias gateway."
+      "maxImportedBy": 33,
+      "reason": "Codex native-view batching and erasure reference preparation reuse canonical box intersection for source/destination coverage and crop-local reading hints. Geometry algorithms are unchanged; avoid duplicated overlap code or an alias gateway."
     },
     "src/shared/richTextMarkup.ts": {
       "maxImportedBy": 28,

@@ -1,0 +1,134 @@
+.frame {
+  position: absolute;
+  z-index: var(--z-raised);
+  color: var(--danger-bd);
+  pointer-events: none;
+}
+.frame[data-selected] {
+  z-index: var(--z-raised-2);
+}
+.frame[data-included="false"] {
+  color: var(--text-muted);
+}
+.target {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 3px solid currentColor;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  cursor: move;
+  touch-action: none;
+  pointer-events: auto;
+}
+.frame[data-included="false"] .target {
+  border-style: dashed;
+  opacity: 0.72;
+}
+.target:hover:not(:disabled),
+.target:active:not(:disabled),
+.target:focus-visible,
+.frame[data-selected] .target {
+  border-color: currentColor;
+  background: transparent;
+  opacity: 1;
+  transform: none;
+  box-shadow:
+    0 0 0 1px var(--bg-modal),
+    0 0 0 3px currentColor;
+}
+.target:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+.frame[data-disabled] .target {
+  pointer-events: none;
+  opacity: 0.6;
+}
+.handle {
+  position: absolute;
+  z-index: var(--z-base);
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  margin: -12px 0 0 -12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  pointer-events: auto;
+  touch-action: none;
+}
+.handle:hover:not(:disabled),
+.handle:active:not(:disabled),
+.handle:focus-visible {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+.handle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 0;
+}
+.handle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--bg-modal);
+  border-radius: 2px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+.handle[data-resize-handle="nw"] {
+  left: 0;
+  top: 0;
+  cursor: nwse-resize;
+}
+.handle[data-resize-handle="n"] {
+  left: 50%;
+  top: 0;
+  cursor: ns-resize;
+}
+.handle[data-resize-handle="ne"] {
+  left: 100%;
+  top: 0;
+  cursor: nesw-resize;
+}
+.handle[data-resize-handle="e"] {
+  left: 100%;
+  top: 50%;
+  cursor: ew-resize;
+}
+.handle[data-resize-handle="se"] {
+  left: 100%;
+  top: 100%;
+  cursor: nwse-resize;
+}
+.handle[data-resize-handle="s"] {
+  left: 50%;
+  top: 100%;
+  cursor: ns-resize;
+}
+.handle[data-resize-handle="sw"] {
+  left: 0;
+  top: 100%;
+  cursor: nesw-resize;
+}
+.handle[data-resize-handle="w"] {
+  left: 0;
+  top: 50%;
+  cursor: ew-resize;
+}

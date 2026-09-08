@@ -11,6 +11,14 @@ import type { WarpPresetName } from "../../shared/warpTransformMath";
 import type { CodexPageView } from "../../shared/codexTypesettingViews";
 import type { TextStyleRun } from "../../shared/richTextMarkup";
 import type { PageExportLayoutEvidence } from "../../shared/pageExportContracts";
+import type { PixelRect } from "../../shared/region";
+
+export type CodexErasureTarget = {
+  sourceText: string;
+  appearance?: string;
+  /** Native pixels in the bitmap or image associated with this reference. */
+  bounds: PixelRect;
+};
 
 export type TypesettingImage = { label: string; dataUrl: string };
 export type TypesettingPageImage = TypesettingImage & {
@@ -58,6 +66,7 @@ export type TypesettingRepair = {
 export type TypesettingLetteringContext = TypesettingRepair & {
   plan: CodexChapterPlan;
   previousPage?: MangaPage;
+  onGenerated?: (page: MangaPage) => Promise<void>;
 };
 export type TypesettingLayout = {
   action?: "text" | "image";

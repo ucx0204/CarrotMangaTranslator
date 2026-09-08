@@ -24,19 +24,6 @@
   padding-inline: 0;
 }
 
-.reviewFields {
-  display: grid;
-  gap: var(--sp-3);
-  max-height: min(280px, 35dvh);
-  overflow-y: auto;
-  min-height: 0;
-}
-.reviewOutline {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2px;
-  vector-effect: non-scaling-stroke;
-}
 .error {
   color: var(--danger);
   overflow-wrap: anywhere;

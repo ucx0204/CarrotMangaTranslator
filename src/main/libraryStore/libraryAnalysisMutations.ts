@@ -1,4 +1,4 @@
-import { createPageRevision } from "../../shared/pageRevision";
+import { matchesRegionPageRevision } from "../../shared/pageRevision";
 import { hydrateChapter } from "./chapterSnapshots";
 import { resolveChapterStatus } from "./chapterRecords";
 import {
@@ -38,7 +38,7 @@ export async function appendAnalyzedPageBlocksUnlocked(
 
   if (
     options?.expectedRevision &&
-    createPageRevision(page) !== options.expectedRevision
+    !matchesRegionPageRevision(page, options.expectedRevision)
   )
     throw new Error("페이지가 변경되었습니다. 영역을 다시 선택해 주세요.");
   const now = new Date().toISOString();

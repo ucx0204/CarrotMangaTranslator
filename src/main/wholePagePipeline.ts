@@ -106,6 +106,8 @@ export async function runWholePagePipeline(
             decode: options.decodeImage ?? (async () => null),
             progress: (update) => reportImageProgress({ ...update, page: 1 }),
             confirmReading: options.confirmRegionReading,
+            regionContext:
+              options.regionContext ?? options.regionContexts?.get(page.id),
           }),
         );
       return { ...result, pages };

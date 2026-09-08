@@ -2,7 +2,10 @@ import { nativeImage } from "electron";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
-import type { CodexPageReading } from "../../shared/codexTypesettingTypes";
+import type {
+  CodexPageReading,
+  CodexPageRegion,
+} from "../../shared/codexTypesettingTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { normalizedRegionToPixelRect } from "../../shared/region";
 import { getActiveGeneratedLettering } from "../../shared/generatedLettering";
@@ -11,10 +14,11 @@ import type { TranslationBlock } from "../../shared/textTypes";
 import type { CodexAppServerClient } from "../codexAppServerClient";
 import { generateImage } from "./codexTypesettingImageRequest";
 import { sourceRegionCrops } from "./codexTypesettingRaster";
+import { prepareCodexLetteringCanvas } from "./codexLetteringCanvas";
 import type {
   TypesettingComposition,
-  TypesettingLetteringContext,
   TypesettingImage,
+  TypesettingLetteringContext,
 } from "../application/codexTypesettingContracts";
 
 export async function generateLetteringLayers(
@@ -27,74 +31,41 @@ export async function generateLetteringLayers(
   context: TypesettingLetteringContext,
 ): Promise<TypesettingComposition> {
   const blocks = [...page.blocks];
-  const imageRegions = reading.regions.filter(
-    (item) => item.action === "image",
+  const imageRegions = reading.regions.filter((r) => r.action === "image");
+  if (!imageRegions.length) return { page, issues: [] };
+  const job: LetteringJob = {
+    page,
+    reading,
+    blocks,
+    imageRegions,
+    blockId,
+    client,
+    directory,
+    signal,
+    context,
+  };
+  const generate = (region: CodexPageRegion, anchor?: string) =>
+    generateRegionLayer(job, region, anchor);
+  const failures = await generateStyleGroups(
+    imageRegions,
+    context,
+    signal,
+    generate,
   );
-  let references: TypesettingImage[] | undefined;
-  for (const [regionIndex, region] of imageRegions.entries()) {
-    signal.throwIfAborted();
-    try {
-      const id = blockId(region.id);
-      const index = blocks.findIndex((block) => block.id === id);
-      const block = blocks[index];
-      if (!block) throw new Error("효과음 식자 영역이 없습니다.");
-      const existing = reusableLettering(block, region.id, context);
-      if (existing) {
-        blocks[index] = { ...block, generatedLettering: existing };
-        continue;
-      }
-      const destination = normalizedRegionToPixelRect(
-        block.renderBbox ?? block.bbox,
-        page,
-      );
-      references ??= await sourceRegionCrops(
-        [page],
-        new Map([[page.id, { ...reading, regions: imageRegions }]]),
-        false,
-      );
-      const reference = references[regionIndex];
-      if (!reference) throw new Error("효과음 원문 참고 이미지가 없습니다.");
-      const output = await generateImage(
-        client,
-        directory,
-        signal,
-        letteringPrompt(
-          block,
-          region.id,
-          destination,
-          context,
-          reference.label,
-        ),
-        [reference.dataUrl],
-        { width: destination.w, height: destination.h },
-      );
-      const bytes = transparentLetteringBytes(
-        output,
-        letteringMatteChannel(block),
-      );
-      blocks[index] = {
-        ...block,
-        generatedLettering: {
-          version: 1,
-          dataUrl: `data:image/png;base64,${bytes.toString("base64")}`,
-          occlusionPolygons: region.occlusionPolygons,
-          sourceText: block.sourceText,
-          translatedText: block.translatedText,
-        },
-      };
-      await writeFile(
-        join(directory, `lettering-${block.id}-${context.attempt}.png`),
-        bytes,
-      );
-    } catch (error) {
-      signal.throwIfAborted();
-      throw new Error(
-        `효과음 생성 실패 (${region.sourceText}): ${error instanceof Error ? error.message : String(error)}`,
-        { cause: error },
-      );
-    }
-  }
+  signal.throwIfAborted();
+  reportLetteringFailure(failures[0], { ...page, blocks });
   return { page: { ...page, blocks }, issues: [] };
+}
+
+export class CodexLetteringGenerationError extends Error {
+  constructor(
+    readonly page: MangaPage,
+    message: string,
+    cause: unknown,
+  ) {
+    super(message, { cause });
+    this.name = "CodexLetteringGenerationError";
+  }
 }
 
 function reusableLettering(
@@ -172,8 +143,7 @@ function transparentLetteringBytes(output: Buffer, channel: number): Buffer {
   if (generated.isEmpty())
     throw new Error("ImageGen 효과음 이미지가 비어 있습니다.");
   const image = PNG.sync.read(generated.toPNG());
-  if (!image.data.some((value, index) => index % 4 === 3 && value === 0))
-    removeLetteringMatte(image, channel);
+  removeLetteringMatte(image, channel);
   assertTransparentLettering(image);
   const bytes = PNG.sync.write(image);
   if (bytes.length > 5_999_980)
@@ -203,18 +173,28 @@ function removeLetteringMatte(image: PNG, channel: number): void {
     (image.height - 1) * image.width * 4,
     image.data.length - 4,
   ];
-  const strongest = corners.sort(
-    (a, b) =>
-      image.data[b + channel] -
-      Math.max(image.data[b + others[0]], image.data[b + others[1]]) -
-      image.data[a + channel] +
-      Math.max(image.data[a + others[0]], image.data[a + others[1]]),
-  )[0];
-  const matte = [0, 1, 2].map((component) => image.data[strongest + component]);
+  const strongest = corners
+    .filter((offset) => image.data[offset + 3] > 0)
+    .sort(
+      (a, b) =>
+        image.data[b + channel] -
+        Math.max(image.data[b + others[0]], image.data[b + others[1]]) -
+        image.data[a + channel] +
+        Math.max(image.data[a + others[0]], image.data[a + others[1]]),
+    )[0];
+  const matte = [0, 1, 2].map((component) =>
+    strongest === undefined ? 0 : image.data[strongest + component],
+  );
   const strength =
     matte[channel] - Math.max(matte[others[0]], matte[others[1]]);
-  if (strength < 96)
+  if (strength < 96) {
+    const transparent = image.data.some(
+      (alpha, index) => index % 4 === 3 && alpha === 0,
+    );
+    // Interior glyph colors alone are not evidence of a matte background.
+    if (transparent) return;
     throw new Error("효과음의 단색 분리 배경을 확인할 수 없습니다.");
+  }
   for (let offset = 0; offset < image.data.length; offset += 4) {
     const key = image.data[offset + channel];
     const remainder = Math.max(
@@ -224,8 +204,8 @@ function removeLetteringMatte(image: PNG, channel: number): void {
     const excess = Math.max(0, key - remainder);
     const rawAlpha = Math.max(0, 1 - excess / strength);
     const alpha = rawAlpha < 0.12 ? 0 : rawAlpha;
-    image.data[offset + 3] = Math.round(255 * alpha);
-    if (alpha <= 0) {
+    image.data[offset + 3] = Math.round(image.data[offset + 3] * alpha);
+    if (image.data[offset + 3] === 0) {
       image.data.fill(0, offset, offset + 4);
       continue;
     }
@@ -238,4 +218,160 @@ function removeLetteringMatte(image: PNG, channel: number): void {
       );
     }
   }
+}
+
+async function generateStyleGroups(
+  regions: CodexPageRegion[],
+  context: TypesettingLetteringContext,
+  signal: AbortSignal,
+  generate: (region: CodexPageRegion, anchor?: string) => Promise<string>,
+) {
+  const groups = new Map<string, CodexPageRegion[]>();
+  for (const region of regions) {
+    const groupId =
+      context.plan.groups.find((group) =>
+        group.members.some((member) => member.regionId === region.id),
+      )?.id ?? region.id;
+    groups.set(groupId, [...(groups.get(groupId) ?? []), region]);
+  }
+  const queue = [...groups.values()];
+  const failures: Array<{ source: string; error: unknown }> = [];
+  const worker = async () => {
+    for (let group = queue.shift(); group; group = queue.shift()) {
+      let anchor: string | undefined;
+      for (const region of group) {
+        signal.throwIfAborted();
+        try {
+          const generated = await generate(region, anchor);
+          anchor ??= generated;
+        } catch (error) {
+          failures.push({ source: region.sourceText, error });
+          break;
+        }
+      }
+    }
+  };
+  // Wait for all writers, including after cancellation or a failed group.
+  await Promise.allSettled(
+    Array.from({ length: Math.min(2, queue.length) }, worker),
+  );
+  return failures;
+}
+
+function reportLetteringFailure(
+  failure: { source: string; error: unknown } | undefined,
+  page: MangaPage,
+) {
+  if (failure)
+    throw new CodexLetteringGenerationError(
+      page,
+      `효과음 생성 실패 (${failure.source}): ${failure.error instanceof Error ? failure.error.message : String(failure.error)}`,
+      failure.error,
+    );
+}
+
+type LetteringJob = {
+  page: MangaPage;
+  reading: CodexPageReading;
+  blocks: TranslationBlock[];
+  imageRegions: CodexPageRegion[];
+  blockId: (id: string) => string;
+  client: Pick<CodexAppServerClient, "runEphemeralTurn">;
+  directory: string;
+  signal: AbortSignal;
+  context: TypesettingLetteringContext;
+  references?: Promise<TypesettingImage[]>;
+  preview?: Promise<void>;
+};
+async function generateRegionLayer(
+  job: LetteringJob,
+  region: CodexPageRegion,
+  anchor?: string,
+) {
+  const { page, blocks, blockId, client, directory, signal, context } = job;
+
+  const id = blockId(region.id);
+  const index = blocks.findIndex((block) => block.id === id);
+  const block = blocks[index];
+  if (!block) throw new Error("효과음 식자 영역이 없습니다.");
+  const existing = reusableLettering(block, region.id, context);
+  if (existing) {
+    blocks[index] = { ...block, generatedLettering: existing };
+    return existing.dataUrl;
+  }
+  const destination = normalizedRegionToPixelRect(
+    block.renderBbox ?? block.bbox,
+    page,
+  );
+  const reference = await letteringReference(job, region);
+  const canvas = prepareCodexLetteringCanvas(
+    reference,
+    destination,
+    block.renderBbox ?? block.bbox,
+    page,
+    letteringMatteColor(block),
+  );
+  const output = await generateImage(
+    client,
+    directory,
+    signal,
+    letteringPrompt(
+      block,
+      region.id,
+      canvas.size,
+      context,
+      canvas.reference.label,
+    ) +
+      (anchor
+        ? "\nImage 2 is the FIRST completed target lettering in this same visual family. Use it as a fixed STYLE anchor (tone, texture, edge treatment and stroke construction), never as text to copy. Render only the current approved text and layout from image 1. Preserve differences that are visible in the current original; do not progressively invent a new style."
+        : ""),
+    anchor ? [canvas.reference.dataUrl, anchor] : [canvas.reference.dataUrl],
+    { width: canvas.size.w, height: canvas.size.h },
+    "lettering",
+  );
+  const bytes = transparentLetteringBytes(output, letteringMatteChannel(block));
+  blocks[index] = {
+    ...block,
+    renderBbox: canvas.renderBbox,
+    generatedLettering: {
+      version: 1,
+      dataUrl: `data:image/png;base64,${bytes.toString("base64")}`,
+      occlusionPolygons: region.occlusionPolygons,
+      sourceText: block.sourceText,
+      translatedText: block.translatedText,
+    },
+  };
+  await writeFile(
+    join(directory, `lettering-${block.id}-${context.attempt}.png`),
+    bytes,
+  );
+  const snapshot = { ...page, blocks: [...blocks] };
+  const render = async () => {
+    await context.onGenerated?.(snapshot);
+  };
+  job.preview = (job.preview ?? Promise.resolve()).then(render, render);
+  await job.preview;
+  return `data:image/png;base64,${bytes.toString("base64")}`;
+}
+
+async function letteringReference(job: LetteringJob, region: CodexPageRegion) {
+  const { page, reading, imageRegions } = job;
+  job.references ??= sourceRegionCrops(
+    [page],
+    new Map([
+      [
+        page.id,
+        {
+          ...reading,
+          regions: reading.regions.filter(
+            (item) => item.action === "keep" || item.action === "image",
+          ),
+        },
+      ],
+    ]),
+    false,
+  );
+  const reference = (await job.references)[imageRegions.indexOf(region)];
+  if (!reference) throw new Error("효과음 원문 참고 이미지가 없습니다.");
+  return reference;
 }

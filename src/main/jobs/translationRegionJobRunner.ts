@@ -1,6 +1,6 @@
 import { waitForRegionTextReview } from "./regionTranslationReview";
 import { completeRegionTranslation } from "./translationRegionCompletion";
-import { createPageRevision } from "../../shared/pageRevision";
+import { matchesRegionPageRevision } from "../../shared/pageRevision";
 import type {
   RegionAnalysisRequest,
   RegionAnalysisResult,
@@ -98,7 +98,10 @@ export async function runRegionTranslationJob(
   );
   throwIfAborted(abortController.signal);
   emitRegionStarting(id, emit, cropRect);
-  if (request.pageRevision && createPageRevision(page) !== request.pageRevision)
+  if (
+    request.pageRevision &&
+    !matchesRegionPageRevision(page, request.pageRevision)
+  )
     throw new Error("페이지가 변경되었습니다. 영역을 다시 선택해 주세요.");
   const result = await runRegionPipeline({
     abortController,

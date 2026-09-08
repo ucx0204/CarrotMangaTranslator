@@ -5,6 +5,8 @@ import { useRovingFocus, type RovingFocus } from "./useRovingFocus";
 export type SegmentedOption<T extends string> = {
   id: T;
   label: string;
+  /** Keyboard shortcut for the owning editor, shown without an extra popup surface. */
+  shortcut?: string;
   /** App-rendered help shown when this specific choice is hovered or focused. */
   tooltip?: string;
   /** Optional trailing count, e.g. how many pages match a filter. */
@@ -136,6 +138,10 @@ function SegmentedControlOption<T extends string>({
         role="radio"
         aria-checked={checked}
         aria-describedby={tooltipId}
+        aria-keyshortcuts={option.shortcut}
+        title={
+          option.shortcut ? `${option.label} (${option.shortcut})` : undefined
+        }
         tabIndex={tabStop ? 0 : -1}
         className={[
           styles.button,

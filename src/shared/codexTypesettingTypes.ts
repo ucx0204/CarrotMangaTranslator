@@ -1,5 +1,6 @@
 import type { CharacterProfile, GlossaryEntry } from "./workContextTypes";
 import type { BBox, Point } from "./textTypes";
+import type { RegionEditProtection } from "./regionEditProtectionTypes";
 
 type CodexFontPreset = {
   id: string;
@@ -34,6 +35,10 @@ export type CodexSourceFontGroup = {
 };
 
 export type CodexPageRegion = {
+  /** Planning/review metadata; never an output-layer clipping mask. */
+  parentRegionId?: string;
+  styleGroupId?: string;
+  styleDescription?: string;
   /** Set only after explicit user confirmation; later model output cannot replace it. */
   translationLocked?: boolean;
   /** Foreground objects over the source SFX, in full-page normalized coordinates. */
@@ -73,6 +78,8 @@ type CodexPageMemory = {
 };
 
 export type CodexPageReading = {
+  /** User-approved exclusions in this page's coordinates, shared by every region. */
+  editProtection?: RegionEditProtection;
   memory?: CodexPageMemory;
   summary: string;
   regions: CodexPageRegion[];

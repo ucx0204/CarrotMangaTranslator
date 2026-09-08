@@ -21,19 +21,6 @@ export type SelectedSoundEffectDraftRegion = {
   regionId: string;
 } | null;
 
-export type ResizeDirection = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
-
-export const RESIZE_DIRECTIONS: ResizeDirection[] = [
-  "nw",
-  "n",
-  "ne",
-  "e",
-  "se",
-  "s",
-  "sw",
-  "w",
-];
-
 export function updateAllDraftRegions(
   pages: SoundEffectDraftPage[],
   included: boolean,
@@ -79,31 +66,6 @@ export function resolvePagePoint(
     x: clamp(((event.clientX - (rect?.left ?? 0)) / Math.max(1, width)) * 1000),
     y: clamp(((event.clientY - (rect?.top ?? 0)) / Math.max(1, height)) * 1000),
   };
-}
-
-export function moveBbox(bbox: BBox, dx: number, dy: number): BBox {
-  return {
-    ...bbox,
-    x: clamp(bbox.x + dx, 0, 1000 - bbox.w),
-    y: clamp(bbox.y + dy, 0, 1000 - bbox.h),
-  };
-}
-
-export function resizeBbox(
-  bbox: BBox,
-  direction: ResizeDirection,
-  dx: number,
-  dy: number,
-): BBox {
-  let left = bbox.x;
-  let top = bbox.y;
-  let right = bbox.x + bbox.w;
-  let bottom = bbox.y + bbox.h;
-  if (direction.includes("w")) left = clamp(left + dx, 0, right - 2);
-  if (direction.includes("e")) right = clamp(right + dx, left + 2, 1000);
-  if (direction.includes("n")) top = clamp(top + dy, 0, bottom - 2);
-  if (direction.includes("s")) bottom = clamp(bottom + dy, top + 2, 1000);
-  return { x: left, y: top, w: right - left, h: bottom - top };
 }
 
 export function normalizeDrawnBbox(

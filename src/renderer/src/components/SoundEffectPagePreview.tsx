@@ -1,3 +1,4 @@
+import { type ResizeDirection } from "../../../shared/regionSelectionGeometry";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { BBox } from "../../../shared/textTypes";
@@ -8,7 +9,6 @@ import { SoundEffectCandidateOverlay } from "./SoundEffectCandidateOverlay";
 import { usePageThumbnail, type ObservePageThumbnail } from "./pageThumbnails";
 import {
   bboxStyle,
-  type ResizeDirection,
   type SelectedSoundEffectDraftRegion,
   type SoundEffectDraftPage,
 } from "./soundEffectTranslationDraftModel";

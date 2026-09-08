@@ -9,31 +9,29 @@ import type { AppPaths } from "../appPaths";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { startCodexImageSession } from "../codexImageSession";
 import type { CodexAppServerClient } from "../codexAppServerClient";
-import {
-  generateImage,
-  erasureImageInputs,
-} from "../pipeline/codexTypesettingImageRequest";
+import { generateCodexErasedCrop } from "../pipeline/codexTypesettingImageRequest";
 import { compositeCodexRepair } from "./codexRepairComposite";
-import { dilateBinaryMaskDisk } from "./patternMaskMorphology";
+import {
+  planCodexRepairTiles,
+  prepareCodexRepairMask,
+  prepareCodexErasureTargets,
+} from "./codexRepairTiles";
 import { isolateMaskToWindow } from "./imageRaster";
 import { expandWindowMaskToPage } from "./inpaintingWindowMask";
 import { expandRect, type PixelRect } from "./maskGeometry";
-import type { InpaintingEngine } from "./inpaintingEngine";
+import type {
+  InpaintingEngine,
+  CodexRepairRequest as Request,
+} from "./inpaintingEngine";
+import type { CodexErasureTarget } from "../application/codexTypesettingContracts";
 import type { InpaintingEngineLease } from "./inpaintingEnginePool";
+import {
+  inpaintWithNativePageContext,
+  verifyCodexInputBitmap,
+  type CodexNativePageContext,
+} from "./codexNativePageContext";
 
 type Client = Pick<CodexAppServerClient, "runEphemeralTurn">;
-type Request = {
-  bitmap: Buffer;
-  width: number;
-  height: number;
-  mask: Uint8Array;
-  windows: PixelRect[];
-  signal: AbortSignal;
-  mode: "region" | "paint";
-  paintedCore?: Uint8Array;
-  feather: number;
-  constraint?: Uint8Array;
-};
 
 export async function acquireCodexInpaintingEngine(
   paths: AppPaths,
@@ -57,12 +55,15 @@ export async function acquireCodexInpaintingEngine(
   return { engine, release: engine.dispose };
 }
 
-/** One generated crop per requested window; no local-model fallback or repair loop. */
+/** One generation per planned native tile; no fallback or repair loop. */
 export function createCodexInpaintingEngine(
   client: Client,
   directory: string,
   signal: AbortSignal,
   dispose: () => Promise<void>,
+  protectedMask?: Uint8Array,
+  nativeContext?: CodexNativePageContext,
+  targets?: CodexErasureTarget[],
 ): InpaintingEngine {
   return {
     model: "codex",
@@ -71,63 +72,55 @@ export function createCodexInpaintingEngine(
     runRootDir: directory,
     dispose,
     inpaint: async (bitmap, width, height, mask, windows, options) => {
+      options = { ...options, codexTargets: options?.codexTargets ?? targets };
+      const original = Buffer.from(bitmap);
       const request = {
-        bitmap,
+        bitmap: original,
         width,
         height,
-        ...prepareRepairMask(mask, width, height, options),
+        ...prepareCodexRepairMask(mask, width, height, options),
         windows,
         signal: options?.signal ?? signal,
+        protectedMask,
+        targets: options.codexTargets,
       };
+      if (protectedMask && protectedMask.length !== width * height)
+        throw new Error("제외 영역의 이미지 크기가 다릅니다.");
       const hidden = externalImageMask(options?.sourceImagePath, width, height);
       if (hidden?.some((value, pixel) => value > 0 && request.mask[pixel] > 0))
         throw new Error(
           "가리기와 겹치는 원문 제거 영역을 제외하거나 가리기를 수정해 주세요.",
         );
-      const working = hidden
-        ? flattenImageRedaction(bitmap, hidden)
-        : Buffer.from(bitmap);
-      for (const [index, window] of windows.entries()) {
-        request.signal.throwIfAborted();
-        await inpaintCodexWindow(
-          client,
-          directory,
-          windowRequest(
-            { ...request, bitmap: working },
-            window,
-            index,
-            options,
-          ),
-          window,
-          index,
-        );
-      }
       request.signal.throwIfAborted();
-      restoreHiddenPixels(bitmap, working, hidden);
+      await verifyCodexInputBitmap(request, options);
+      if (
+        await tryNativeContext(
+          {
+            client,
+            directory,
+            signal: request.signal,
+            protectedMask,
+            nativeContext,
+          },
+          [original, width, height, mask, windows, options],
+        )
+      ) {
+        original.copy(bitmap);
+        return;
+      }
+      const working = hidden
+        ? flattenImageRedaction(original, hidden)
+        : original;
+      await inpaintWindows(
+        client,
+        directory,
+        { ...request, bitmap: working },
+        options,
+      );
+      request.signal.throwIfAborted();
+      restoreHiddenPixels(original, working, hidden);
       working.copy(bitmap);
     },
-  };
-}
-
-function prepareRepairMask(
-  mask: Uint8Array,
-  width: number,
-  height: number,
-  options: Parameters<InpaintingEngine["inpaint"]>[5],
-) {
-  const mode = options?.codexMaskMode ?? "paint";
-  const feather = Math.max(
-    0,
-    Math.min(24, Math.round(options?.featherPx ?? 8)),
-  );
-  return {
-    mode,
-    feather,
-    paintedCore: mode === "paint" ? mask : undefined,
-    mask:
-      mode === "paint"
-        ? dilateBinaryMaskDisk(mask, width, height, feather)
-        : mask,
   };
 }
 
@@ -136,18 +129,13 @@ async function inpaintCodexWindow(
   directory: string,
   request: Request,
   window: PixelRect,
-  index: number,
+  index: string,
+  rect: PixelRect,
 ) {
   const source = nativeImage.createFromBitmap(request.bitmap, {
     width: request.width,
     height: request.height,
   });
-  const rect = expandRect(
-    window,
-    request.width,
-    request.height,
-    Math.max(48, Math.ceil(Math.max(window.w, window.h) * 0.35)),
-  );
   const crop = source.crop({
     x: rect.x,
     y: rect.y,
@@ -155,27 +143,45 @@ async function inpaintCodexWindow(
     height: rect.h,
   });
   const mask = cropMask(request, rect);
-  const output = await generateErasedCrop(
+  await writeFile(join(directory, `source-${index}.png`), crop.toPNG());
+  await writeFile(
+    join(directory, `permission-${index}.png`),
+    PNG.sync.write(mask.image),
+  );
+  const output = await generateCodexErasedCrop(
     client,
     directory,
     request.signal,
     crop.toDataURL(),
     mask.image,
     request.mode,
+    prepareCodexErasureTargets(request.targets, rect, window),
   );
   request.signal.throwIfAborted();
   const decoded = nativeImage.createFromBuffer(output);
   if (decoded.isEmpty())
     throw new Error("Codex 원문 제거 결과를 읽지 못했습니다.");
+  const generated = decoded.getSize();
+  if (
+    Math.abs(Math.log(generated.width / generated.height / (rect.w / rect.h))) >
+    0.025
+  )
+    throw new Error(
+      "생성된 배경의 비율이 요청한 작업 영역과 다릅니다. 결과를 확인해 주세요.",
+    );
   const candidate = PNG.sync.read(
     decoded.resize({ width: rect.w, height: rect.h, quality: "best" }).toPNG(),
   );
   const original = PNG.sync.read(crop.toPNG());
   const erase = {
-    x: window.x - rect.x,
-    y: window.y - rect.y,
-    w: window.w,
-    h: window.h,
+    x: Math.max(0, window.x - rect.x),
+    y: Math.max(0, window.y - rect.y),
+    w:
+      Math.min(rect.x + rect.w, window.x + window.w) -
+      Math.max(rect.x, window.x),
+    h:
+      Math.min(rect.y + rect.h, window.y + window.h) -
+      Math.max(rect.y, window.y),
   };
   const repair = compositeCodexRepair(
     original,
@@ -185,19 +191,50 @@ async function inpaintCodexWindow(
     request.mode,
     mask.core,
   );
+  await recordRepair(
+    directory,
+    index,
+    { rect, erase, mode: request.mode, generatedSize: decoded.getSize() },
+    repair,
+  );
+  pasteRepair(request, rect, repair);
+}
+
+async function recordRepair(
+  directory: string,
+  index: string,
+  geometry: {
+    rect: PixelRect;
+    erase: PixelRect;
+    mode: Request["mode"];
+    generatedSize: { width: number; height: number };
+  },
+  repair: ReturnType<typeof compositeCodexRepair>,
+) {
   await writeFile(
     join(directory, `splice-${index}-${randomUUID()}.json`),
     JSON.stringify({
-      rect,
-      erase,
-      mode: request.mode,
+      ...geometry,
       registration: repair.registration,
       thresholds: repair.difference.thresholds,
       tone: repair.tone,
       changedPixels: repair.difference.changedPixels,
     }),
   );
-  pasteRepair(request, rect, repair);
+  // Misaligned context is not image noise. An inflated noise threshold can
+  // suppress most removed glyphs while leaving a few changed pixels behind.
+  // Those few pixels must not turn an unusable splice into a successful edit.
+  if (
+    (repair.difference.changedPixels === 0 ||
+      (repair.difference.thresholds.fine > 72 &&
+        repair.difference.thresholds.coarse > 42)) &&
+    repair.registration.samples >= 32 &&
+    repair.registration.contextErrorAfter > 0.06 &&
+    repair.registration.boundary.worst > 0.12
+  )
+    throw new Error(
+      "생성된 배경의 구도·경계가 원본과 맞지 않아 적용하지 못했습니다.",
+    );
 }
 
 function pasteRepair(
@@ -215,6 +252,8 @@ function pasteRepair(
   for (let y = 0; y < rect.h; y++) {
     for (let x = 0; x < rect.w; x++) {
       if (!repair.difference.opacity[y * rect.w + x]) continue;
+      if (request.protectedMask?.[(y + rect.y) * request.width + x + rect.x])
+        continue;
       const from = (y * rect.w + x) * 4;
       pixels.copy(
         request.bitmap,
@@ -235,10 +274,7 @@ function cropMask(request: Request, rect: PixelRect) {
   for (let y = 0; y < rect.h; y++)
     for (let x = 0; x < rect.w; x++) {
       const at = (y + rect.y) * request.width + x + rect.x;
-      const value =
-        request.mask[at] && (!request.constraint || request.constraint[at])
-          ? 255
-          : 0;
+      const value = permittedPixel(request, at) ? 255 : 0;
       const offset = (y * rect.w + x) * 4;
       image.data.fill(value, offset, offset + 3);
       image.data[offset + 3] = 255;
@@ -249,28 +285,23 @@ function cropMask(request: Request, rect: PixelRect) {
   return { image, permission, core };
 }
 
-function generateErasedCrop(
-  client: Client,
-  directory: string,
-  signal: AbortSignal,
-  crop: string,
-  mask: PNG,
-  mode: "region" | "paint",
-) {
-  return generateImage(
-    client,
-    directory,
-    signal,
-    mode === "region"
-      ? "Remove all lettering within the WHITE permitted region in image 2 from the original crop in image 1. This is a selection boundary, not a request to clear all artwork in that region. Locate the entire visible lettering yourself, including outlines, shadows, halos, detached marks, pale or colored lettering, and extended strokes. Remove decorative backplates and embellishments that belong to the typography as one complete graphic, rather than leaving its empty backing behind. Keep narrative balloon boundaries. Reconstruct the artwork behind only those letters. Preserve all non-lettering shapes, people, objects, borders, screentone, color, framing and their exact positions, including inside the permitted region. Do not mistake illustration contours or motion lines for lettering. If the selected area contains no identifiable typography, leave it unchanged. Do not add replacement text. Return one complete cleaned crop with the original aspect ratio."
-      : "Reconstruct every magenta hole in image 1 as background artwork. Image 2 is the WHITE edit-permission mask; image 3 is the original for surrounding-artwork reference only. Remove all masked typography including its backplates, decorative marks, outlines, shadows and extended brush strokes; never restore them from image 3. Preserve unmasked people, objects, balloon outlines, screentone, alignment and framing. Add no replacement lettering or magenta. Return one complete edited crop at the same aspect ratio.",
-    mode === "region"
-      ? [
-          crop,
-          `data:image/png;base64,${PNG.sync.write(mask).toString("base64")}`,
-        ]
-      : erasureImageInputs(crop, mask),
-    { width: mask.width, height: mask.height },
+function permittedPixel(request: Request, at: number): boolean {
+  const bounds = request.tileBounds;
+  if (bounds) {
+    const x = at % request.width,
+      y = Math.floor(at / request.width);
+    if (
+      x < bounds.x ||
+      x >= bounds.x + bounds.w ||
+      y < bounds.y ||
+      y >= bounds.y + bounds.h
+    )
+      return false;
+  }
+  return Boolean(
+    request.mask[at] &&
+    !request.protectedMask?.[at] &&
+    (!request.constraint || request.constraint[at]),
   );
 }
 
@@ -308,4 +339,71 @@ function restoreHiddenPixels(
   for (let pixel = 0; pixel < hidden.length; pixel++)
     if (hidden[pixel])
       original.copy(working, pixel * 4, pixel * 4, pixel * 4 + 4);
+}
+
+async function tryNativeContext(
+  owner: {
+    client: Client;
+    directory: string;
+    signal: AbortSignal;
+    protectedMask?: Uint8Array;
+    nativeContext?: CodexNativePageContext;
+  },
+  args: Parameters<InpaintingEngine["inpaint"]>,
+): Promise<boolean> {
+  const { client, directory, signal, protectedMask, nativeContext } = owner;
+  const [bitmap, width, height, mask, windows, options] = args;
+  if (!nativeContext || Math.max(width, height) <= Math.min(width, height) * 3)
+    return false;
+  await inpaintWithNativePageContext(
+    nativeContext,
+    (keep) =>
+      createCodexInpaintingEngine(
+        client,
+        directory,
+        signal,
+        async () => {},
+        keep,
+      ),
+    directory,
+    protectedMask,
+    [bitmap, width, height, mask, windows, { ...options, signal }],
+  );
+  return true;
+}
+
+async function inpaintWindows(
+  client: Client,
+  directory: string,
+  request: Request,
+  options: Parameters<InpaintingEngine["inpaint"]>[5],
+) {
+  for (const [index, window] of request.windows.entries()) {
+    request.signal.throwIfAborted();
+    const owned = windowRequest(request, window, index, options);
+    const tiles = planCodexRepairTiles(
+      window,
+      request.width,
+      request.height,
+      owned.mask,
+    );
+    await writeFile(
+      join(directory, `tiles-${index}-${randomUUID()}.json`),
+      JSON.stringify({ window, tiles }),
+    );
+    for (const [tileIndex, tile] of tiles.entries()) {
+      request.signal.throwIfAborted();
+      await inpaintCodexWindow(
+        client,
+        directory,
+        {
+          ...owned,
+          tileBounds: tiles.length > 1 ? tile.writeBounds : undefined,
+        },
+        window,
+        `${index}-${tileIndex}`,
+        tile.cropBounds,
+      );
+    }
+  }
 }

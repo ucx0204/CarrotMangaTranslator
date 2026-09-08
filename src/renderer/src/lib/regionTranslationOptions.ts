@@ -16,6 +16,7 @@ export type RegionTranslationDialog = {
   review?: import("../../../shared/regionTextReview").RegionTextReview;
   onConfirm?: (
     translations: import("../../../shared/regionTextReview").ConfirmRegionTranslationRequest["translations"],
+    protection?: import("../../../shared/regionEditProtectionTypes").RegionEditProtection,
   ) => void;
   page: MangaPage;
   bbox: BBox;

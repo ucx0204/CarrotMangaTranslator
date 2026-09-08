@@ -5,11 +5,14 @@ import {
   FLUX_INPAINT_MAX_PIXELS,
 } from "./fluxEngineConstants";
 import type { InpaintingEngine } from "./inpaintingEngine";
+import type { ImageDecodeFallback } from "./inpaintingTypes";
 import type { PatternMaskContext } from "./patternPageMask";
 import { resolvePatternInpaintWindows } from "./patternWindowPolicy";
 
 export async function runPatternInpaintingEngine(options: {
   sourceImagePath?: string;
+  inputImagePath?: string;
+  decodeFallback?: ImageDecodeFallback;
   bitmap: Buffer;
   engine?: InpaintingEngine;
   height: number;
@@ -45,6 +48,8 @@ export async function runPatternInpaintingEngine(options: {
     {
       signal: options.signal,
       sourceImagePath: options.sourceImagePath,
+      inputImagePath: options.inputImagePath,
+      decodeFallback: options.decodeFallback,
       codexMaskMode: codex ? "region" : undefined,
       featherPx: FLUX_INPAINT_FEATHER_PX,
       contextPx: FLUX_INPAINT_CONTEXT_PX,

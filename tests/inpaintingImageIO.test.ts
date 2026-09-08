@@ -1,7 +1,10 @@
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, readFile, access } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { nativeImage } from "electron";
-import { loadPageImage } from "../src/main/inpainting/imageIO";
+import {
+  loadPageImage,
+  loadPageImageSnapshot,
+} from "../src/main/inpainting/imageIO";
 import { basename, dirname, join, win32 } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
@@ -113,3 +116,44 @@ it("loads file bytes when native path decoding fails and reports an undecodable 
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it.each([false, true])(
+  "uses frozen fallback bytes and cleans temporary snapshots (%s)",
+  async (fail) => {
+    const root = await mkdtemp(join(tmpdir(), "frozen-image-"));
+    let frozenPath = "";
+    try {
+      const source = join(root, "source.jpg");
+      await writeFile(source, "replacement");
+      const decoded = { isEmpty: () => false } as Electron.NativeImage;
+      vi.mocked(nativeImage.createFromBuffer)
+        .mockReset()
+        .mockReturnValueOnce({ isEmpty: () => true } as Electron.NativeImage)
+        .mockReturnValueOnce({ isEmpty: () => true } as Electron.NativeImage)
+        .mockReturnValue(decoded);
+      vi.mocked(nativeImage.createFromPath).mockReturnValue({
+        isEmpty: () => true,
+      } as Electron.NativeImage);
+      const fallback = async (path: string) => {
+        frozenPath = path;
+        expect(path).not.toBe(source);
+        expect(path.endsWith(".jpg")).toBe(true);
+        expect((await readFile(path)).toString()).toBe("approved");
+        if (fail) throw Error("decoder failed");
+        return Buffer.from("decoded");
+      };
+      const operation = loadPageImageSnapshot(
+        source,
+        Buffer.from("approved"),
+        fallback,
+      );
+      if (fail) await expect(operation).rejects.toThrow("decoder failed");
+      else expect(await operation).toBe(decoded);
+      expect(frozenPath).not.toBe("");
+      await expect(access(frozenPath)).rejects.toThrow();
+      expect((await readFile(source)).toString()).toBe("replacement");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);

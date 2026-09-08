@@ -375,7 +375,15 @@ it("hands off standalone Codex recognition and confirmed generation while retain
   expect(document.querySelector(".work-center-handoff-ghost")).not.toBeNull();
   expect(confirmRegionTranslation).toHaveBeenLastCalledWith(
     expect.objectContaining({
-      translations: [{ regionId: "sfx", text: "confirmed wording" }],
+      translations: [
+        {
+          regionId: "sfx",
+          text: "confirmed wording",
+          sourceText: "source",
+          styleGroupId: "sfx",
+          sourceBbox: { x: 0, y: 0, w: 500, h: 500 },
+        },
+      ],
     }),
   );
   await act(async () => finish(true));

@@ -1,12 +1,8 @@
+import { type ResizeDirection } from "../../../shared/regionSelectionGeometry";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import {
-  bboxStyle,
-  RESIZE_DIRECTIONS,
-  type ResizeDirection,
-  type SoundEffectDraftRegion,
-} from "./soundEffectTranslationDraftModel";
-import styles from "./SoundEffectTranslationModal.module.css";
+import { type SoundEffectDraftRegion } from "./soundEffectTranslationDraftModel";
+import { RegionSelectionOverlay } from "./ui/RegionSelectionOverlay";
 
 export function SoundEffectCandidateOverlay({
   index,
@@ -22,7 +18,7 @@ export function SoundEffectCandidateOverlay({
   onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => void;
   onResizePointerDown: (
-    event: React.PointerEvent<HTMLSpanElement>,
+    event: React.PointerEvent<HTMLButtonElement>,
     direction: ResizeDirection,
   ) => void;
 }): React.JSX.Element {
@@ -34,35 +30,27 @@ export function SoundEffectCandidateOverlay({
       : "soundEffectReview.excluded",
   );
   return (
-    <button
-      className={`${styles.candidate} ${region.included ? styles.candidateIncluded : styles.candidateExcluded} ${selected ? styles.candidateSelected : ""}`}
-      style={bboxStyle(region.bbox)}
-      type="button"
-      aria-pressed={region.included}
-      aria-label={t("soundEffectReview.candidateToggleLabel", {
+    <RegionSelectionOverlay
+      bbox={region.bbox}
+      selected={selected}
+      included={region.included}
+      label={t("soundEffectReview.candidateToggleLabel", {
         index: index + 1,
         state,
         text,
       })}
-      title={text}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick(event);
+      targetProps={{
+        "aria-pressed": region.included,
+        title: text,
+        onClick: (event) => {
+          event.stopPropagation();
+          onClick(event);
+        },
+        onPointerDown,
       }}
-      onPointerDown={onPointerDown}
-    >
-      {selected
-        ? RESIZE_DIRECTIONS.map((direction) => (
-            <span
-              key={direction}
-              className={`${styles.resizeHandle} ${styles[`resize${direction.toUpperCase()}` as keyof typeof styles]}`}
-              data-candidate-state={region.included ? "included" : "excluded"}
-              data-resize-handle={direction}
-              onClick={(event) => event.stopPropagation()}
-              onPointerDown={(event) => onResizePointerDown(event, direction)}
-            />
-          ))
-        : null}
-    </button>
+      resizeProps={(direction) => ({
+        onPointerDown: (event) => onResizePointerDown(event, direction),
+      })}
+    />
   );
 }

@@ -1,5 +1,6 @@
 import type { InpaintingModel } from "../../shared/inpaintingSettingsTypes";
 import type { PixelRect } from "./maskGeometry";
+import type { CodexErasureTarget } from "../application/codexTypesettingContracts";
 
 export type InpaintingRuntimeProgress = {
   progressText: string;
@@ -16,10 +17,31 @@ export type InpaintingWindowMask = {
   data: Uint8Array;
 };
 
+/** Native bitmap work owned by one Codex erasure invocation. */
+export type CodexRepairRequest = {
+  bitmap: Buffer;
+  width: number;
+  height: number;
+  mask: Uint8Array;
+  windows: PixelRect[];
+  signal: AbortSignal;
+  mode: "region" | "paint";
+  paintedCore?: Uint8Array;
+  feather: number;
+  constraint?: Uint8Array;
+  protectedMask?: Uint8Array;
+  tileBounds?: PixelRect;
+  targets?: CodexErasureTarget[];
+};
+
 type InpaintRunOptions = {
   sourceImagePath?: string;
+  /** Actual decoded asset; existing inpainting remains distinct from its reviewed original. */
+  inputImagePath?: string;
+  decodeFallback?: (filePath: string) => Promise<Buffer | null>;
   /** A region authorizes text discovery; a painted mask authorizes those pixels only. */
   codexMaskMode?: "region" | "paint";
+  codexTargets?: CodexErasureTarget[];
   signal?: AbortSignal;
   featherPx?: number;
   contextPx?: number;

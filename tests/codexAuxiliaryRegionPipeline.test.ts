@@ -7,7 +7,12 @@ import {
 } from "./helpers/wholePagePipelineHarness";
 import { regionSoundTranslationResult } from "./helpers/wholePageTranslationResults";
 import { createCodexTypesettingPreferences } from "../src/shared/codexTypesettingDefaults";
-import { CodexImageEditError } from "../src/main/codexImageEditing";
+import {
+  CodexImageEditError,
+  editTranslatedPageWithCodex,
+} from "../src/main/codexImageEditing";
+import { CodexLetteringGenerationError } from "../src/main/pipeline/codexTypesettingLettering";
+import { makeBlock } from "./unifiedInpaintingUiFixtures";
 import type { CodexImageEdit } from "../src/main/codexImageEditing";
 import type { JobEvent } from "../src/shared/jobTypes";
 afterEach(cleanupPipelineTempDirs);
@@ -107,3 +112,63 @@ it.each(["complete", "partial", "error", "cancel"])(
     ).toBe(true);
   },
 );
+
+it("applies confirmed geometry and wording before returning text-only output", async () => {
+  const page = { ...makePage("reviewed", "source.png"), blocks: [makeBlock()] };
+  const sourceBbox = { x: 100, y: 200, w: 300, h: 400 };
+  const result = await editTranslatedPageWithCodex({
+    page,
+    directory: "unused",
+    signal: new AbortController().signal,
+    eraseOriginal: false,
+    output: "text",
+    decode: async () => null,
+    progress: () => {},
+    confirmReading: async (reading) => ({
+      ...reading,
+      regions: reading.regions.map((r) => ({
+        ...r,
+        translatedText: "exact words",
+        sourceBbox,
+        renderBbox: sourceBbox,
+      })),
+    }),
+  });
+  expect(result.blocks[0]).toMatchObject({
+    translatedText: "exact words",
+    bbox: sourceBbox,
+    renderBbox: sourceBbox,
+  });
+  expect(page.blocks[0].translatedText).not.toBe("exact words");
+});
+it("retains completed image layers and the real source path after a later layer fails", () => {
+  const page = {
+    ...makePage("partial", "original.png"),
+    blocks: [makeBlock()],
+  };
+  const partial = {
+    ...page,
+    imagePath: "temporary-redacted.png",
+    blocks: [
+      {
+        ...page.blocks[0],
+        generatedLettering: {
+          version: 1 as const,
+          dataUrl: "data:image/png;base64,AA==",
+          sourceText: "source",
+          translatedText: "translation",
+        },
+      },
+    ],
+  };
+  const cause = new CodexLetteringGenerationError(
+    partial,
+    "later image failed",
+    Error("offline"),
+  );
+  const error = new CodexImageEditError(page, cause);
+  expect(error.page.imagePath).toBe(page.imagePath);
+  expect(error.page.blocks).toEqual(partial.blocks);
+  expect(error.message).toBe("later image failed");
+  expect(error.cause).toBe(cause);
+});

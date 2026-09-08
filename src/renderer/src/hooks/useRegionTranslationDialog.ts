@@ -59,12 +59,16 @@ export function useRegionTranslationDialog(
           busy: textReview.busy,
           error: textReview.error,
           review: textReview.review,
-          onConfirm: (translations) => {
+          onConfirm: (translations, protection) => {
             if (!imageAvailable) return;
-            void textReview.confirm(translations, () => {
-              handoffActiveModalToWorkCenter();
-              setBbox();
-            });
+            void textReview.confirm(
+              translations,
+              () => {
+                handoffActiveModalToWorkCenter();
+                setBbox();
+              },
+              protection,
+            );
           },
           onClose: () => {
             textReview.cancel();

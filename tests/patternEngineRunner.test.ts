@@ -32,7 +32,11 @@ describe("runPatternInpaintingEngine", () => {
       context.inpaintWindowConstraints = [null, null];
       context.inpaintWindowGroupIds = [[], []];
 
+      const decodeFallback = async () => null;
       await runPatternInpaintingEngine({
+        sourceImagePath: "original.png",
+        inputImagePath: "derived.png",
+        decodeFallback,
         bitmap: Buffer.alloc(40 * 20 * 4),
         engine,
         height: 20,
@@ -43,6 +47,11 @@ describe("runPatternInpaintingEngine", () => {
       expect(inpaint).toHaveBeenCalledOnce();
       const passedWindows = inpaint.mock.calls[0]?.[4];
       const runOptions = inpaint.mock.calls[0]?.[5];
+      expect(runOptions).toMatchObject({
+        sourceImagePath: "original.png",
+        inputImagePath: "derived.png",
+        decodeFallback,
+      });
       expect(passedWindows).toEqual(windows);
       expect(passedWindows).toHaveLength(runOptions.windowMasks.length);
       expect(runOptions.codexMaskMode).toBe(

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PNG } from "pngjs";
@@ -8,6 +8,7 @@ import type { SoundEffectReviewRegion } from "../src/shared/soundEffectReview";
 import {
   withApprovedImageRedactions,
   externalImageMask,
+  imageFingerprint,
 } from "../src/main/imageRedactionContext";
 import {
   applySoundEffectTargetHighlight,
@@ -21,6 +22,10 @@ import {
 vi.mock("electron", () => ({
   nativeImage: {
     createFromPath: () => raster(200, 100),
+    createFromBuffer: (bytes: Buffer) => {
+      const image = PNG.sync.read(bytes);
+      return raster(image.width, image.height, image.data);
+    },
     createFromBitmap: (data: Buffer, size: { width: number; height: number }) =>
       raster(size.width, size.height, data),
   },
@@ -48,6 +53,7 @@ describe("sound-effect translation images", () => {
     const directory = await mkdtemp(join(tmpdir(), "sfx-reference-"));
     const imagePath = join(directory, "source.png");
     try {
+      await writeFile(imagePath, raster(200, 100).toPNG());
       await withApprovedImageRedactions(
         [
           {
@@ -56,7 +62,7 @@ describe("sound-effect translation images", () => {
             imagePath,
             width: 200,
             height: 100,
-            fingerprint: "a".repeat(64),
+            fingerprint: await imageFingerprint(imagePath),
             strokes: [{ shape: "square", size: 4, points: [{ x: 5, y: 5 }] }],
           },
         ],
@@ -83,6 +89,46 @@ describe("sound-effect translation images", () => {
           );
           expect(cropMask?.some(Boolean)).toBe(false);
           expect((await readFile(result.crop.path)).length).toBeGreaterThan(0);
+        },
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+  it("rejects a changed original before building and registering SFX references", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "sfx-changed-reference-"));
+    const imagePath = join(directory, "source.png");
+    try {
+      await writeFile(imagePath, raster(200, 100).toPNG());
+      const fingerprint = await imageFingerprint(imagePath);
+      await writeFile(
+        imagePath,
+        raster(200, 100, Buffer.alloc(200 * 100 * 4, 180)).toPNG(),
+      );
+      await withApprovedImageRedactions(
+        [
+          {
+            id: "page",
+            name: "source.png",
+            imagePath,
+            width: 200,
+            height: 100,
+            fingerprint,
+            strokes: [],
+          },
+        ],
+        async () => {
+          await expect(
+            buildSoundEffectTranslationImages(
+              { imagePath } as MangaPage,
+              {
+                id: "sfx",
+                bbox: { x: 400, y: 400, w: 200, h: 200 },
+              } as SoundEffectReviewRegion,
+              directory,
+              async () => null,
+            ),
+          ).rejects.toThrow("확인한 원본 이미지가 변경되었습니다.");
         },
       );
     } finally {

@@ -18,8 +18,7 @@ export async function runCommand(
       cwd: options.cwd,
       windowsHide: true,
       env: {
-        ...process.env,
-        ...options.env,
+        ...(options.env ?? process.env),
         PYTHONIOENCODING: "utf-8",
         PYTHONUNBUFFERED: "1",
       },

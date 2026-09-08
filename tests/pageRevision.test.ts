@@ -3,9 +3,50 @@ import type { MangaPage } from "../src/shared/libraryTypes";
 import {
   createPageRevision,
   createPageVisualRevision,
+  matchesRegionPageRevision,
 } from "../src/shared/pageRevision";
 
 describe("page job revisions", () => {
+  it("allows only newly materialized derived masks for region jobs", () => {
+    const page = { ...makePage(), inpaintedImagePath: "background.png" };
+    const revision = createPageRevision(page);
+    const derived: MangaPage = {
+      ...page,
+      inpaintMaskPath: "derived.png",
+      maskProvenance: "derived-diff",
+    };
+    expect(matchesRegionPageRevision(derived, revision)).toBe(true);
+    // Other jobs and persisted checkpoints retain their exact revision contract.
+    expect(createPageRevision(derived)).not.toBe(revision);
+    const variants: MangaPage[] = [
+      { ...derived, imagePath: "changed-original.png" },
+      { ...derived, inpaintedImagePath: "changed-background.png" },
+      { ...derived, inpaintedImagePath: undefined },
+      { ...derived, width: page.width + 1 },
+      { ...derived, blocks: [] },
+      { ...derived, maskProvenance: "actual-mask" },
+      { ...derived, maskProvenance: "retouch-updated" },
+      { ...derived, maskProvenance: undefined },
+      {
+        ...derived,
+        translationCompletion: {
+          workflow: "erase-original",
+          status: "pending",
+        },
+      },
+    ];
+    for (const edited of variants)
+      expect(matchesRegionPageRevision(edited, revision)).toBe(false);
+    expect(
+      matchesRegionPageRevision(
+        { ...derived, inpaintMaskPath: "replaced.png" },
+        createPageRevision(derived),
+      ),
+    ).toBe(false);
+    expect(matchesRegionPageRevision(page, createPageRevision(derived))).toBe(
+      false,
+    );
+  });
   it("invalidates rendered-image caches when source editing switches generated lettering to text", () => {
     const page = makePage();
     const original = page.blocks[0];

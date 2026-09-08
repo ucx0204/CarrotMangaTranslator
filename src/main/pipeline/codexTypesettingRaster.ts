@@ -26,6 +26,8 @@ import {
 } from "../../shared/naturalTextLayoutSegmentation";
 import { serializeRichTextRuns } from "../../shared/richTextMarkup";
 import { assertExactMembership } from "../application/codexTypesettingValidation";
+import { readingEditProtection } from "../regionEditProtection";
+import { flattenImageRedaction } from "../imageRedactionPixels";
 
 export function typesettingPageImages(
   page: MangaPage,
@@ -82,14 +84,25 @@ export async function sourceRegionCrops(
 ): Promise<TypesettingImage[]> {
   const crops = await Promise.all(
     pages.map(async (page) => {
-      const source = nativeImage.createFromBuffer(
-        await readFile(page.imagePath),
-      );
       const reading = readings.get(page.id);
       if (!reading) throw new Error("서체 비교에 필요한 판독 결과가 없습니다.");
+      const original = nativeImage.createFromBuffer(
+        await readFile(page.imagePath),
+      );
       return reading.regions
         .filter((region) => region.action !== "keep")
         .map((region) => {
+          let source = original;
+          const excluded = readingEditProtection(reading, page, region.id);
+          if (excluded) {
+            const pixels = PNG.sync.read(source.toPNG());
+            if (pixels.width !== page.width || pixels.height !== page.height)
+              throw new Error(
+                `원본 해상도가 페이지 정보와 다릅니다: ${page.name}`,
+              );
+            pixels.data = flattenImageRedaction(pixels.data, excluded);
+            source = nativeImage.createFromBuffer(PNG.sync.write(pixels));
+          }
           const rect = includeContext
             ? codexSourceContextRect(region, page)
             : normalizedRegionToPixelRect(region.sourceBbox, page);
@@ -100,7 +113,7 @@ export async function sourceRegionCrops(
             height: rect.h,
           });
           return {
-            label: `${region.id}; original ${includeContext ? "context" : "source"} crop ${rect.w}x${rect.h}; ${region.direction}; target=${JSON.stringify(region.sourceText)}; native page=${page.width}x${page.height}; page-pixel crop=${JSON.stringify(rect)}; input-image boundaries (not necessarily physical page edges)=${JSON.stringify({ left: rect.x === 0, top: rect.y === 0, right: rect.x + rect.w === page.width, bottom: rect.y + rect.h === page.height })}`,
+            label: `${region.id}; original ${includeContext ? "context" : "source"} crop ${rect.w}x${rect.h}; ${region.direction}; target=${JSON.stringify(region.sourceText)}; native page=${page.width}x${page.height}; page-pixel crop=${JSON.stringify(rect)}; input-image boundaries (not necessarily physical page edges)=${JSON.stringify({ left: rect.x === 0, top: rect.y === 0, right: rect.x + rect.w === page.width, bottom: rect.y + rect.h === page.height })}${excluded ? "; User-excluded reference pixels have been blanked white. Ignore those areas when identifying source lettering; the blanking is not a cutout to reproduce in the generated lettering." : ""}`,
             dataUrl: crop.toDataURL(),
           };
         });

@@ -116,12 +116,35 @@ export function mapRegionBlocksToPageBlocks(
       id,
       bbox: mapCropNormalizedBboxToPageBbox(cropRect, pageSize, block.bbox),
       renderBbox: block.renderBbox
-        ? mapCropNormalizedBboxToPageBbox(cropRect, pageSize, block.renderBbox)
+        ? mapCropNormalizedBboxToPageBbox(
+            cropRect,
+            pageSize,
+            block.renderBbox,
+            true,
+          )
         : undefined,
       ...(block.generatedLettering
         ? {
             generatedLettering: {
               ...block.generatedLettering,
+              maskStrokes: block.generatedLettering.maskStrokes?.map(
+                (stroke) =>
+                  stroke.space === "asset"
+                    ? stroke
+                    : {
+                        ...stroke,
+                        radiusX: (stroke.radiusX * cropRect.w) / page.width,
+                        radiusY: (stroke.radiusY * cropRect.h) / page.height,
+                        points: stroke.points.map((point) => ({
+                          x:
+                            (cropRect.x * 1000 + point.x * cropRect.w) /
+                            page.width,
+                          y:
+                            (cropRect.y * 1000 + point.y * cropRect.h) /
+                            page.height,
+                        })),
+                      },
+              ),
               occlusionPolygons:
                 block.generatedLettering.occlusionPolygons?.map((polygon) =>
                   polygon.map((point) => ({
