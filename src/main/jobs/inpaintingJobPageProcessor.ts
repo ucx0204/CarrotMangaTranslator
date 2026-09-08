@@ -30,6 +30,7 @@ import {
   completeTranslationWorkflow,
   countInpaintingPageTargets,
   resolvePreviouslyErasedBlockIds,
+  countIncompleteInpaintingTargets,
 } from "./inpaintingJobPageCompletion";
 import {
   emitInpaintingPageDone,
@@ -41,6 +42,7 @@ import {
 } from "../pipeline/pageProcessingTiming";
 
 type ProcessInpaintingPageOptions = {
+  continueOnNoChanges?: boolean;
   abortController: AbortController;
   context: InpaintingJobContext;
   emit: (event: JobEvent) => void;
@@ -65,6 +67,7 @@ type InpaintingExecutionOptions = Omit<
 >;
 
 export async function processInpaintingPage({
+  continueOnNoChanges,
   abortController,
   context,
   emit,
@@ -115,7 +118,9 @@ export async function processInpaintingPage({
         target,
         timing,
       });
+  abortController.signal.throwIfAborted();
   return finishProcessedInpaintingPage({
+    continueOnNoChanges,
     emit,
     id,
     page,
@@ -129,6 +134,7 @@ export async function processInpaintingPage({
 }
 
 function finishProcessedInpaintingPage({
+  continueOnNoChanges,
   emit,
   id,
   page,
@@ -139,6 +145,7 @@ function finishProcessedInpaintingPage({
   target,
   timing,
 }: {
+  continueOnNoChanges?: boolean;
   emit: (event: JobEvent) => void;
   id: string;
   page: MangaPage;
@@ -150,9 +157,16 @@ function finishProcessedInpaintingPage({
   timing: PageProcessingTimingCollector;
 }): ProcessedInpaintingPageResult {
   if (result.blocksErased <= 0) {
-    throw new Error(tMain("inpainting.noChanges"));
+    if (!continueOnNoChanges) throw new Error(tMain("inpainting.noChanges"));
+    const incompleteBlockIds = resolveEligiblePatternBlocks(
+      page,
+      target.blockId,
+      resolvePreviouslyErasedBlockIds(page, state, target),
+    ).map((block) => block.id);
+    result = { page, blocksErased: 0, incompleteBlockIds };
+  } else {
+    assertRequiredBubblePostprocess(page, result, state, target);
   }
-  assertRequiredBubblePostprocess(page, result, state, target);
   emitInpaintingPageDone(
     id,
     emit,
@@ -160,6 +174,7 @@ function finishProcessedInpaintingPage({
     pageCount,
     target,
     result.blocksErased,
+    { pageName: page.name, blocks: countIncompleteInpaintingTargets(result) },
   );
   const completed = completeTranslationWorkflow(result, state, target);
   return {

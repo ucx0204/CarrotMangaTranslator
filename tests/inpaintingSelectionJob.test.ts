@@ -267,7 +267,7 @@ describe("single-chapter automatic inpainting jobs", () => {
     expect(harness.runtime.savePages).not.toHaveBeenCalled();
   });
 
-  it("fails instead of completing when an expected erase produces no result", async () => {
+  it("records an unchanged selection as incomplete instead of claiming completion", async () => {
     const firstPage = requireChapter(chapters, chapterAId).pages[0];
     if (!firstPage) {
       throw new Error("expected first page");
@@ -296,12 +296,19 @@ describe("single-chapter automatic inpainting jobs", () => {
     );
 
     expect(result).toMatchObject({
-      status: "failed",
-      error: "인페인팅 결과가 생성되지 않았습니다.",
+      status: "partial",
+      pagesChanged: 0,
+      pagesIncomplete: 1,
+      blocksErased: 0,
+      blocksIncomplete: 1,
     });
-    expect(harness.runtime.savePages).not.toHaveBeenCalled();
+    expect(result.chapters?.[0]?.pages[0]).toMatchObject({
+      imagePath: firstPage.imagePath,
+      translationCompletion: { workflow: "erase-original", status: "pending" },
+    });
+    expect(result.chapters?.[0]?.pages[0]?.inpaintedImagePath).toBeUndefined();
     expect(send.mock.calls.at(-1)?.[1]).toMatchObject({
-      status: "failed",
+      status: "partial",
     });
   });
 

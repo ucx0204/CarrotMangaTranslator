@@ -68,7 +68,8 @@ export async function runPatternInpaintingEngine(options: {
       compositeConstraints: constrained
         ? options.maskContext.inpaintWindowConstraints
         : undefined,
-      requirePixelChange: true,
+      // The page owns per-block change accounting and can return incomplete targets.
+      requirePixelChange: false,
     },
   );
 }

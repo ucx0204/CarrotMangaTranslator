@@ -84,23 +84,28 @@ export function emitInpaintingPageDone(
   pageCount: number,
   target: InpaintingProgressTarget,
   blocksErased: number,
+  incomplete?: { pageName: string; blocks: number },
 ): void {
   const targetLabel = resolveTargetLabel(target.targetType);
   emit({
     id,
     kind: "inpainting",
     status: "running",
-    progressText: tMain("inpainting.pageDone", {
-      current: pageIndex + 1,
-      total: pageCount,
-      target: targetLabel,
-    }),
+    progressText: incomplete?.blocks
+      ? tMain("inpainting.partial", { target: targetLabel })
+      : tMain("inpainting.pageDone", {
+          current: pageIndex + 1,
+          total: pageCount,
+          target: targetLabel,
+        }),
     phase: "inpainting_done",
     progressCurrent: pageIndex + 1,
     progressTotal: pageCount,
     pageIndex: pageIndex + 1,
     pageTotal: pageCount,
-    detail: tMain("units.blocks", { count: blocksErased }),
+    detail: incomplete?.blocks
+      ? `${incomplete.pageName} · ${tMain("inpainting.partialDetail", { pages: 1, erased: blocksErased, incomplete: incomplete.blocks })}`
+      : tMain("units.blocks", { count: blocksErased }),
   });
 }
 

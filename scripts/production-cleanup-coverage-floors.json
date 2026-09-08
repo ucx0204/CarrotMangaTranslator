@@ -1883,6 +1883,28 @@
         "pct": 92.1
       }
     },
+    "src/main/jobs/inpaintingJobProgress.ts": {
+      "lines": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 1,
+        "total": 2,
+        "pct": 50
+      }
+    },
     "src/main/jobs/inpaintingJobRunner.ts": {
       "lines": {
         "covered": 49,

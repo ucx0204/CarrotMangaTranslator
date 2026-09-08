@@ -289,6 +289,7 @@ async function processInpaintingPages({
 
   for (const [pageIndex, targetPage] of targets.entries()) {
     const result = await processInpaintingPage({
+      continueOnNoChanges: request.mode === "selection-pattern",
       abortController,
       context,
       emit,

@@ -51,6 +51,7 @@ describe("runPatternInpaintingEngine", () => {
         sourceImagePath: "original.png",
         inputImagePath: "derived.png",
         decodeFallback,
+        requirePixelChange: false,
       });
       expect(passedWindows).toEqual(windows);
       expect(passedWindows).toHaveLength(runOptions.windowMasks.length);

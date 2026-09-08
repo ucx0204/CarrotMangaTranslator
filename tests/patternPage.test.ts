@@ -20,6 +20,7 @@ import {
 } from "vitest";
 import type { InpaintingEngine } from "../src/main/inpainting/inpaintingEngine";
 import type { MangaPage } from "../src/shared/libraryTypes";
+import { reportFluxInpaintSummary } from "../src/main/inpainting/fluxInpaintSummary";
 
 const nativeImageMocks = vi.hoisted(() => ({
   createFromBitmap: vi.fn(),
@@ -104,6 +105,49 @@ describe("pattern page inpainting result validation", () => {
     });
     expect(nativeImageMocks.createFromBitmap).not.toHaveBeenCalled();
   });
+
+  it.each(["unchanged", "skipped"])(
+    "keeps Flux %s targets available to the page's incomplete accounting",
+    async (outcome) => {
+      const inpaint = vi.fn<InpaintingEngine["inpaint"]>(
+        async (_bitmap, _width, _height, _mask, _windows, options) => {
+          reportFluxInpaintSummary(
+            {
+              eligibleWindows: 1,
+              coveredWindows: 0,
+              processedWindows: outcome === "unchanged" ? 1 : 0,
+              unchangedWindows: outcome === "unchanged" ? 1 : 0,
+              unchangedStats: [],
+            },
+            { warn: vi.fn() },
+            options?.requirePixelChange ?? false,
+          );
+        },
+      );
+      const engine: InpaintingEngine = {
+        model: "flux-klein",
+        backend: "cuda-native",
+        runtimePath: "fixture",
+        runRootDir: "fixture",
+        inpaint,
+        dispose: async () => {},
+      };
+      const page = makePage();
+      const { inpaintPatternPage } =
+        await import("../src/main/inpainting/patternPage");
+      const result = await inpaintPatternPage(page, {
+        inpaintingEngine: engine,
+      });
+      expect(inpaint).toHaveBeenCalledOnce();
+      expect(result).toMatchObject({
+        page,
+        blocksErased: 0,
+        incompleteBlockIds: ["block-1"],
+        blocksIncomplete: 1,
+      });
+      expect(nativeImageMocks.createFromBitmap).not.toHaveBeenCalled();
+    },
+  );
 
   it("starts a freshly translated pending workflow from the original image", async () => {
     const engine: InpaintingEngine = {

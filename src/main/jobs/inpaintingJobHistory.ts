@@ -30,15 +30,16 @@ export async function commitProcessedInpaintingPage({
   runtime: InpaintingJobRuntime;
   state: InpaintingJobState;
 }): Promise<void> {
-  if (result.blocksErased <= 0 && !result.workflowReceiptChanged) return;
-  const savedChapter = await saveInpaintingPageResult({
-    context,
-    result,
-    transactionId: state.historyTransactionId,
-    targetPage,
-    runtime,
-  });
-  recordSavedInpaintingChapter(state, targetPage.chapterId, savedChapter);
+  if (result.blocksErased > 0 || result.workflowReceiptChanged) {
+    const savedChapter = await saveInpaintingPageResult({
+      context,
+      result,
+      transactionId: state.historyTransactionId,
+      targetPage,
+      runtime,
+    });
+    recordSavedInpaintingChapter(state, targetPage.chapterId, savedChapter);
+  }
   if (result.blocksErased > 0) {
     state.blocksErased += result.blocksErased;
     state.pagesChanged += 1;
