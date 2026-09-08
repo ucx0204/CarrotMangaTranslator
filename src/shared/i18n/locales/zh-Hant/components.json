@@ -2472,6 +2472,11 @@
     "deleteFailed": "無法刪除文字區塊。"
   },
   "soundEffectReview": {
+    "reset": "重設",
+    "resetting": "正在重設…",
+    "resetHint": "恢復本話中刪除或排除的音效候選區域。保留區域調整和翻譯結果。",
+    "restored": "已恢復 {{count}} 個音效候選區域。",
+    "restoreFailed": "無法恢復音效候選區域，請重試。",
     "launcher": "執行擬聲詞翻譯，待處理 {{count}} 個",
     "launcherAction": "執行擬聲詞翻譯",
     "layerLabel": "待複核擬聲詞",

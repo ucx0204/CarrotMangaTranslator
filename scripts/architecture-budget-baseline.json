@@ -24,6 +24,14 @@
     "src/renderer/src/components/ConditionalBatchActionCard.tsx": 13
   },
   "allow": {
+    "src/shared/pageRevision.ts": {
+      "maxImportedBy": 26,
+      "reason": "SFX restoration validates the same persisted review revision as preparation; the shared revision algorithm remains unchanged."
+    },
+    "src/renderer/src/api/libraryGateway.ts": {
+      "maxImportedBy": 26,
+      "reason": "The SFX restore action uses the existing typed library gateway for an atomic, revision-checked restore instead of bypassing IPC."
+    },
     "src/shared/ipcSettingsSchemas.ts": {
       "maxRuntimeImports": 14,
       "reason": "Settings IPC composition adds the separately owned Codex typesetting preset contract; existing domain validators remain authoritative"

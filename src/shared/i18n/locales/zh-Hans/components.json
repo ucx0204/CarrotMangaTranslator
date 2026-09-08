@@ -2472,6 +2472,11 @@
     "deleteFailed": "无法删除文本块。"
   },
   "soundEffectReview": {
+    "reset": "重置",
+    "resetting": "正在重置…",
+    "resetHint": "恢复本话中删除或排除的音效候选区域。保留区域调整和翻译结果。",
+    "restored": "已恢复 {{count}} 个音效候选区域。",
+    "restoreFailed": "无法恢复音效候选区域，请重试。",
     "launcher": "执行拟声词翻译，待处理 {{count}} 个",
     "launcherAction": "执行拟声词翻译",
     "layerLabel": "待复核拟声词",

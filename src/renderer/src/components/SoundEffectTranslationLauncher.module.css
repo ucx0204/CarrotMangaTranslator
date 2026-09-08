@@ -1,0 +1,28 @@
+.empty.empty {
+  border-color: var(--control-border);
+  background: var(--control-bg);
+  box-shadow: none;
+}
+
+.empty.empty:hover:not(:disabled),
+.empty.empty:active:not(:disabled) {
+  border-color: var(--control-border-hover);
+  background: var(--control-bg-hover);
+  transform: none;
+}
+
+.empty.empty:focus-visible {
+  outline-color: var(--focus);
+}
+
+.empty.empty img {
+  animation: none;
+  transform: none;
+  filter: grayscale(1);
+}
+
+.empty.empty small {
+  border-color: var(--surface-workspace);
+  background: var(--control-bg);
+  color: var(--text-dim);
+}

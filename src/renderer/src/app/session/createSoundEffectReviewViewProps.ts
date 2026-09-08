@@ -18,7 +18,7 @@ export function createSoundEffectTranslationLauncherProps({
   const summary = summarizeSoundEffectReviewChapter(chapter?.pages ?? []);
   return {
     active: uiState.soundEffectTranslationOpen,
-    available: summary.pendingCount > 0,
+    available: Boolean(chapter?.pages.length),
     disabled: derivedState.jobActive,
     pendingCount: summary.pendingCount,
     onOpen: () => {
@@ -100,18 +100,25 @@ export function createWorkspaceSoundEffectReviewProps({
 
 export function createSoundEffectTranslationModalProps({
   core,
+  libraryActions,
   derivedState,
   settingsDialog,
   translationActions,
   uiState,
 }: Pick<
   AppSessionViewModel,
-  "core" | "derivedState" | "settingsDialog" | "translationActions" | "uiState"
+  | "core"
+  | "derivedState"
+  | "libraryActions"
+  | "settingsDialog"
+  | "translationActions"
+  | "uiState"
 >): SoundEffectTranslationModalProps | null {
   const chapter = core.currentChapter;
   if (!chapter || !uiState.soundEffectTranslationOpen) return null;
   return {
     chapter,
+    onRestore: libraryActions.restoreSoundEffectReview,
     settings: settingsDialog.settings,
     ...soundEffectExecutionSettings(settingsDialog),
     jobActive: derivedState.jobActive,

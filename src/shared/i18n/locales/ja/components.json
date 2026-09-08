@@ -2472,6 +2472,11 @@
     "deleteFailed": "ブロックを削除できませんでした。"
   },
   "soundEffectReview": {
+    "reset": "リセット",
+    "resetting": "リセット中…",
+    "resetHint": "この話で削除・除外した効果音候補を再表示します。領域の編集と翻訳結果は保持されます。",
+    "restored": "効果音候補を{{count}}件復元しました。",
+    "restoreFailed": "効果音候補を復元できませんでした。もう一度お試しください。",
     "launcher": "効果音翻訳を実行、保留 {{count}}件",
     "launcherAction": "効果音翻訳を実行",
     "layerLabel": "要確認の効果音",

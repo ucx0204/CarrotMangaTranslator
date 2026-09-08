@@ -6,8 +6,176 @@ import {
 import type { LibraryChapter } from "../src/shared/libraryTypes";
 import { createSoundEffectReviewPageRevision } from "../src/shared/pageRevision";
 import { resolveEffectiveSoundEffectReviewRegions } from "../src/shared/soundEffectReview";
+import { createRestoreSoundEffectReviewMutation } from "../src/main/libraryStore/librarySoundEffectRestore";
+import { RestoreSoundEffectReviewRequestSchema } from "../src/shared/ipcSoundEffectReviewSchemas";
+
+describe("restore excluded sound-effect candidates", () => {
+  it("persists restored decisions across reopening while retaining reviewed geometry and resolved candidates", async () => {
+    const chapter = makeChapter();
+    const first = chapter.pages[0];
+    const review = requireReview(first);
+    review.dismissedRegionIds = ["FX001", "FX002"];
+    review.regionOverrides = [
+      {
+        regionId: "FX001",
+        bbox: { x: 80, y: 90, w: 100, h: 110 },
+        updatedAt: SAVE_TIME,
+      },
+    ];
+    review.manualRegions = [
+      {
+        id: "manual-kept",
+        bbox: { x: 400, y: 0, w: 50, h: 50 },
+        detectorConfidence: 1,
+        createdAt: SAVE_TIME,
+      },
+    ];
+    review.resolvedRegions = [
+      { regionId: "FX002", blockId: "translated", resolvedAt: SAVE_TIME },
+    ];
+    first.inpaintedImagePath = "C:/qa/kept.png";
+    const storage = createStorageRuntime(chapter);
+    const restore = createRestoreSoundEffectReviewMutation(storage.runtime);
+    const request = {
+      chapterId: chapter.id,
+      pages: [
+        {
+          pageId: first.id,
+          pageRevision: createSoundEffectReviewPageRevision(first),
+          regionIds: ["FX001"],
+        },
+      ],
+    };
+    expect(
+      RestoreSoundEffectReviewRequestSchema.safeParse(request).success,
+    ).toBe(true);
+    const result = await restore(request);
+    expect(result.pages[0]?.soundEffectReview).toEqual({
+      ...review,
+      dismissedRegionIds: ["FX002"],
+    });
+    expect(storage.readStoredChapter().pages[0]).toEqual({
+      ...first,
+      soundEffectReview: result.pages[0]?.soundEffectReview,
+      updatedAt: SAVE_TIME,
+    });
+    expect(storage.readStoredChapter().pages[1]).toEqual(chapter.pages[1]);
+    expect(storage.commitChapterAndWork).toHaveBeenCalledOnce();
+    await expect(restore(request)).rejects.toThrow(/변경되었습니다/);
+    expect(storage.commitChapterAndWork).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    "unknown",
+    "resolved",
+    "not-dismissed",
+    "stale",
+    "missing-page",
+    "missing-review",
+  ])("rejects %s targets without writing any page", async (kind) => {
+    const chapter = makeChapter();
+    chapter.pages.forEach((page) => {
+      const review = requireReview(page);
+      review.dismissedRegionIds = review.regions.map((region) => region.id);
+    });
+    const second = chapter.pages[1];
+    if (kind === "resolved")
+      requireReview(second).resolvedRegions = [
+        { regionId: "FX003", blockId: "kept", resolvedAt: SAVE_TIME },
+      ];
+    if (kind === "not-dismissed") requireReview(second).dismissedRegionIds = [];
+    if (kind === "missing-review") second.soundEffectReview = undefined;
+    const storage = createStorageRuntime(chapter);
+    const request = {
+      chapterId: chapter.id,
+      pages: chapter.pages.map((page) => ({
+        pageId: page.id,
+        pageRevision: createSoundEffectReviewPageRevision(page),
+        regionIds: [page === second ? "FX003" : "FX001"],
+      })),
+    };
+    if (kind === "unknown") request.pages[1].regionIds = ["unknown"];
+    if (kind === "stale")
+      request.pages[1].pageRevision = "page-v1:0000000000000000";
+    if (kind === "missing-page") request.pages[1].pageId = "missing";
+    await expect(
+      createRestoreSoundEffectReviewMutation(storage.runtime)(request),
+    ).rejects.toThrow();
+    expect(storage.commitChapterAndWork).not.toHaveBeenCalled();
+    expect(storage.readStoredChapter()).toEqual(chapter);
+  });
+
+  it("clears the last dismissal and propagates storage failures", async () => {
+    const chapter = makeChapter();
+    const page = chapter.pages[0];
+    requireReview(page).dismissedRegionIds = ["FX001"];
+    const storage = createStorageRuntime(chapter);
+    const restore = createRestoreSoundEffectReviewMutation(storage.runtime);
+    const request = {
+      chapterId: chapter.id,
+      pages: [
+        {
+          pageId: page.id,
+          pageRevision: createSoundEffectReviewPageRevision(page),
+          regionIds: ["FX001"],
+        },
+      ],
+    };
+    storage.commitChapterAndWork.mockRejectedValueOnce(new Error("disk full"));
+    await expect(restore(request)).rejects.toThrow("disk full");
+    expect(storage.readStoredChapter()).toEqual(chapter);
+    expect(
+      (await restore(request)).pages[0]?.soundEffectReview?.dismissedRegionIds,
+    ).toBeUndefined();
+  });
+
+  it.each(["locator", "chapter"])(
+    "reports a missing %s without committing",
+    async (missing) => {
+      const storage = createStorageRuntime(makeChapter());
+      if (missing === "locator")
+        storage.runtime.findChapterLocation.mockResolvedValueOnce(null);
+      else storage.runtime.readChapterFile.mockResolvedValueOnce(null);
+      await expect(
+        createRestoreSoundEffectReviewMutation(storage.runtime)({
+          chapterId: "missing",
+          pages: [],
+        }),
+      ).rejects.toThrow(/화를 찾지/);
+      expect(storage.commitChapterAndWork).not.toHaveBeenCalled();
+    },
+  );
+
+  it("validates page and region identities at the IPC boundary", () => {
+    const chapter = makeChapter();
+    const page = {
+      pageId: chapter.pages[0].id,
+      pageRevision: createSoundEffectReviewPageRevision(chapter.pages[0]),
+      regionIds: ["FX001"],
+    };
+    for (const pages of [
+      [],
+      [page, page],
+      [{ ...page, regionIds: [] }],
+      [{ ...page, regionIds: ["FX001", "FX001"] }],
+      [{ ...page, pageRevision: "stale" }],
+    ]) {
+      expect(
+        RestoreSoundEffectReviewRequestSchema.safeParse({
+          chapterId: chapter.id,
+          pages,
+        }).success,
+      ).toBe(false);
+    }
+  });
+});
 
 const SAVE_TIME = "2026-09-02T00:00:00.000Z";
+
+function requireReview(page: LibraryChapter["pages"][number]) {
+  if (!page.soundEffectReview) throw new Error("Expected review fixture");
+  return page.soundEffectReview;
+}
 
 describe("sound-effect review preparation transaction", () => {
   it("stores two-page decisions atomically while preserving raw detector regions", async () => {

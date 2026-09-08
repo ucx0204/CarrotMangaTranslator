@@ -9,6 +9,7 @@ import type { ChapterSnapshot, LibraryIndex } from "./libraryTypes";
 import type {
   PrepareSoundEffectTranslationRequest,
   PrepareSoundEffectTranslationResult,
+  RestoreSoundEffectReviewRequest,
 } from "./analysisTypes";
 import type {
   SavePageBlocksRequest,
@@ -32,6 +33,7 @@ import {
   DismissSoundEffectReviewRegionRequestSchema,
   PrepareSoundEffectTranslationPageSchema,
   PrepareSoundEffectTranslationRequestSchema,
+  RestoreSoundEffectReviewRequestSchema,
 } from "./ipcSoundEffectReviewSchemas";
 import {
   defineIpcContract,
@@ -375,5 +377,14 @@ export const libraryIpcContracts = {
     channel: "library:prepare-sound-effect-translation",
     args: z.tuple([PrepareSoundEffectTranslationRequestSchema]),
     result: prepareSoundEffectTranslationResultSchema,
+  }),
+  restoreSoundEffectReview: defineIpcContract<
+    [RestoreSoundEffectReviewRequest],
+    ChapterSnapshot
+  >({
+    apiKey: "restoreSoundEffectReview",
+    channel: "library:restore-sound-effect-review",
+    args: z.tuple([RestoreSoundEffectReviewRequestSchema]),
+    result: ChapterSnapshotSchema,
   }),
 } as const;

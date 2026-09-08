@@ -7,6 +7,7 @@ import { useLibraryRenameActions } from "./useLibraryRenameActions";
 import { useLibraryReorderActions } from "./useLibraryReorderActions";
 import { useRemovePageAction } from "./useRemovePageAction";
 import { useDismissSoundEffectReviewAction } from "./useDismissSoundEffectReviewAction";
+import { useRestoreSoundEffectReviewAction } from "./useRestoreSoundEffectReviewAction";
 
 export function useLibraryActions(
   options: UseLibraryActionsOptions,
@@ -26,6 +27,10 @@ export function useLibraryActions(
     applyChapter: chapterActions.applyChapter,
     clearCurrentChapter: chapterActions.clearCurrentChapter,
   });
+  const restoreSoundEffectReview = useRestoreSoundEffectReviewAction({
+    ...options,
+    applyChapter: chapterActions.applyChapter,
+  });
   const reorderActions = useLibraryReorderActions({
     ...options,
     applyChapter: chapterActions.applyChapter,
@@ -37,6 +42,7 @@ export function useLibraryActions(
     ...renameActions,
     ...reorderActions,
     dismissSoundEffectReviewRegion,
+    restoreSoundEffectReview,
     removePage,
   };
 }

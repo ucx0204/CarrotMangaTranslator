@@ -1,5 +1,8 @@
 import React from "react";
-import type { PrepareSoundEffectTranslationRequest } from "../../../shared/analysisTypes";
+import type {
+  PrepareSoundEffectTranslationRequest,
+  RestoreSoundEffectReviewRequest,
+} from "../../../shared/analysisTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
 import {
@@ -11,6 +14,7 @@ import {
   buildPrepareRequest,
   createSoundEffectDraftPages,
 } from "./soundEffectTranslationDraft";
+import { useSoundEffectReviewReset } from "./useSoundEffectReviewReset";
 
 type SoundEffectTranslationModalStateInput = {
   chapter: ChapterSnapshot;
@@ -18,6 +22,9 @@ type SoundEffectTranslationModalStateInput = {
   autoFontMatchingDefault: boolean;
   inpaintAfterTranslationDefault: boolean;
   onClose: () => void;
+  onRestore?: (
+    request: RestoreSoundEffectReviewRequest,
+  ) => Promise<ChapterSnapshot>;
   onPersistDefaults?: (patch: {
     sfxAutoFontMatchingDefault: boolean;
     sfxInpaintAfterTranslationDefault: boolean;
@@ -32,13 +39,14 @@ type SoundEffectTranslationModalStateInput = {
 export function useSoundEffectTranslationModalState(
   input: SoundEffectTranslationModalStateInput,
 ) {
-  const [draftPages, setDraftPages] = React.useState<SoundEffectDraftPage[]>(
-    () => createSoundEffectDraftPages(input.chapter),
-  );
-  const [selectedRegion, setSelectedRegion] =
-    React.useState<SelectedSoundEffectDraftRegion>(null);
-  const [showAllPages, setShowAllPages] = React.useState(false);
-  const [showTranslations, setShowTranslations] = React.useState(false);
+  const draft = useSoundEffectDraft(input.chapter);
+  const {
+    draftPages,
+    setDraftPages,
+    selectedRegion,
+    setSelectedRegion,
+    prepareRequest,
+  } = draft;
   const [inpaintAfterTranslation, setInpaintAfterTranslation] = React.useState(
     input.inpaintAfterTranslationDefault,
   );
@@ -46,19 +54,27 @@ export function useSoundEffectTranslationModalState(
     input.autoFontMatchingDefault,
   );
   const [saveDefaults, setSaveDefaults] = React.useState(false);
-  const prepareRequest = React.useMemo(
-    () => buildPrepareRequest(input.chapter.id, draftPages),
-    [draftPages, input.chapter.id],
-  );
-  useDeleteSelectedRegionOnKeyboard({
+  const resetReview = useSoundEffectReviewReset({
+    chapter: input.chapter,
+    draftPages,
+    setDraftPages,
     jobActive: input.jobActive,
+    onRestore: input.onRestore,
+  });
+  useDeleteSelectedRegionOnKeyboard({
+    jobActive: input.jobActive || resetReview.busy,
     onClose: input.onClose,
     selectedRegion,
     setDraftPages,
     setSelectedRegion,
   });
   const start = React.useCallback(() => {
-    if (input.jobActive || prepareRequest.pages.length === 0) return;
+    if (
+      input.jobActive ||
+      resetReview.busy ||
+      prepareRequest.pages.length === 0
+    )
+      return;
     if (saveDefaults) {
       input.onPersistDefaults?.({
         sfxAutoFontMatchingDefault: autoFontMatching,
@@ -78,29 +94,54 @@ export function useSoundEffectTranslationModalState(
     input,
     prepareRequest,
     saveDefaults,
+    resetReview.busy,
   ]);
   const includedCount = prepareRequest.pages.reduce(
     (count, page) => count + page.includedRegionIds.length,
     0,
   );
   return {
+    ...draft,
     autoFontMatching,
-    draftPages,
     includedCount,
     inpaintAfterTranslation,
-    prepareRequest,
+    resetReview,
     saveDefaults,
-    selectedRegion,
     setAutoFontMatching,
-    setDraftPages,
     setInpaintAfterTranslation,
     setSaveDefaults,
-    setSelectedRegion,
-    setShowAllPages,
-    setShowTranslations,
-    showAllPages,
-    showTranslations,
     start,
+  };
+}
+
+function useSoundEffectDraft(chapter: ChapterSnapshot) {
+  const [draftPages, setDraftPages] = React.useState<SoundEffectDraftPage[]>(
+    () => createSoundEffectDraftPages(chapter),
+  );
+  const [selectedRegion, setSelectedRegion] =
+    React.useState<SelectedSoundEffectDraftRegion>(null);
+  const [showAllPages, setShowAllPages] = React.useState(false);
+  const [showTranslations, setShowTranslations] = React.useState(false);
+  const prepareRequest = React.useMemo(
+    () => buildPrepareRequest(chapter.id, draftPages),
+    [draftPages, chapter.id],
+  );
+  React.useEffect(() => {
+    if (
+      !draftPages.some((item) => item.regions.some((region) => !region.deleted))
+    )
+      setShowAllPages(true);
+  }, [draftPages]);
+  return {
+    draftPages,
+    setDraftPages,
+    selectedRegion,
+    setSelectedRegion,
+    showAllPages,
+    setShowAllPages,
+    showTranslations,
+    setShowTranslations,
+    prepareRequest,
   };
 }
 

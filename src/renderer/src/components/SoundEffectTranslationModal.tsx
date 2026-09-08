@@ -4,7 +4,10 @@ import {
 } from "./ImageTranslationOptions";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type { PrepareSoundEffectTranslationRequest } from "../../../shared/analysisTypes";
+import type {
+  PrepareSoundEffectTranslationRequest,
+  RestoreSoundEffectReviewRequest,
+} from "../../../shared/analysisTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { UiSettings } from "../../../shared/settingsTypes";
 import {
@@ -27,6 +30,9 @@ export type SoundEffectTranslationModalProps = {
   autoFontMatchingDefault?: boolean;
   inpaintAfterTranslationDefault?: boolean;
   onClose: () => void;
+  onRestore?: (
+    request: RestoreSoundEffectReviewRequest,
+  ) => Promise<ChapterSnapshot>;
   onPersistDefaults?: (patch: Partial<UiSettings>) => void;
   onStart: (
     request: PrepareSoundEffectTranslationRequest,
@@ -44,6 +50,7 @@ export function SoundEffectTranslationModal({
   autoFontMatchingDefault = false,
   inpaintAfterTranslationDefault = false,
   onClose,
+  onRestore,
   onPersistDefaults,
   onStart,
 }: SoundEffectTranslationModalProps): React.JSX.Element {
@@ -60,6 +67,7 @@ export function SoundEffectTranslationModal({
     autoFontMatchingDefault,
     inpaintAfterTranslationDefault,
     onClose,
+    onRestore,
     onPersistDefaults,
     onStart: (request, erase, font) =>
       execution.output === "image" ||
@@ -72,29 +80,22 @@ export function SoundEffectTranslationModal({
     execution.output === "image" ||
     (state.inpaintAfterTranslation && execution.eraseEngine === "codex");
   const executionDisabled =
-    jobActive || (useCodex && !execution.codexAvailable);
+    jobActive ||
+    state.resetReview.busy ||
+    (useCodex && !execution.codexAvailable);
   return (
     <PagePickerModalShell
       title={t("soundEffectReview.modalTitle")}
       width="min(1480px, 100%)"
       closeOnEsc={false}
       onClose={onClose}
-      closeDisabled={jobActive}
+      closeDisabled={jobActive || state.resetReview.busy}
       bodyClassName={styles.modalBody}
       footerActions={
-        <PagePickerModalActionButtons
-          cancel={{ label: t("common.cancel"), onClick: onClose }}
-          confirm={{
-            label: t(
-              state.includedCount > 0
-                ? "soundEffectReview.startSelected"
-                : "soundEffectReview.reviewComplete",
-              { count: state.includedCount },
-            ),
-            onClick: state.start,
-            disabled:
-              executionDisabled || state.prepareRequest.pages.length === 0,
-          }}
+        <SoundEffectTranslationActions
+          state={state}
+          disabled={executionDisabled}
+          onClose={onClose}
         />
       }
       footerLeading={
@@ -103,6 +104,8 @@ export function SoundEffectTranslationModal({
     >
       <SoundEffectTranslationReviewPicker
         chapterTitle={chapter.title}
+        disabled={jobActive || state.resetReview.busy}
+        resetReview={state.resetReview}
         draftPages={state.draftPages}
         selectedRegion={state.selectedRegion}
         showAllPages={state.showAllPages}
@@ -113,6 +116,37 @@ export function SoundEffectTranslationModal({
         onShowTranslationsChange={state.setShowTranslations}
       />
     </PagePickerModalShell>
+  );
+}
+
+function SoundEffectTranslationActions({
+  state,
+  disabled,
+  onClose,
+}: {
+  state: ReturnType<typeof useSoundEffectTranslationModalState>;
+  disabled: boolean;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation("components");
+  return (
+    <PagePickerModalActionButtons
+      cancel={{
+        label: t("common.cancel"),
+        onClick: onClose,
+        disabled: state.resetReview.busy,
+      }}
+      confirm={{
+        label: t(
+          state.includedCount > 0
+            ? "soundEffectReview.startSelected"
+            : "soundEffectReview.reviewComplete",
+          { count: state.includedCount },
+        ),
+        onClick: state.start,
+        disabled: disabled || state.prepareRequest.pages.length === 0,
+      }}
+    />
   );
 }
 

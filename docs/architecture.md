@@ -54,6 +54,11 @@ UI 표면과 primitive 선택은 [`ui-design-rules.md`](ui-design-rules.md)를 �
 
 ## 공용 계약과 SSOT
 
+효과음 검토 초기화는 저장된 제외 기록만 복원한다. 기존 페이지 revision 검증과
+typed library gateway를 그대로 사용하므로 두 공개 경계의 직접 소비 상한은 각각
+26으로 기록한다. 수정한 영역과 완료 번역은 보존하며 원본 검출·revision 알고리즘은
+변경하지 않는다. 복원은 화 단위 저장 트랜잭션을 사용하고 모델 작업을 시작하지 않는다.
+
 - 타입은 `libraryTypes`, `jobTypes`, `textTypes`, `settingsTypes`처럼 소유 도메인에서 직접 import한다.
 - 여러 도메인을 다시 내보내는 `shared/types` umbrella는 만들지 않는다. 실제 의존과 fan-out을 숨기기 때문이다.
 - 새 helper, shape, schema를 만들기 전에 `src/shared`, 해당 기능의 `*Types.ts`, 기존 facade를 검색한다.

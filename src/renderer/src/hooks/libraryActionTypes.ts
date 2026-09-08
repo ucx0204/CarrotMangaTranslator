@@ -64,6 +64,9 @@ export type LibraryReorderActions = {
 export type UseLibraryActionsResult = LibraryChapterSelectionActions &
   LibraryRenameActions &
   LibraryReorderActions & {
+    restoreSoundEffectReview: (
+      request: import("../../../shared/analysisTypes").RestoreSoundEffectReviewRequest,
+    ) => Promise<ChapterSnapshot>;
     dismissSoundEffectReviewRegion: (
       pageId: string,
       regionId: string,

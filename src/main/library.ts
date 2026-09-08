@@ -37,6 +37,7 @@ export {
   appendResolvedSoundEffectBlocks,
   dismissSoundEffectReviewRegion,
   prepareSoundEffectTranslation,
+  restoreSoundEffectReview,
 } from "./library/librarySoundEffectFacade";
 export {
   createLibraryImportService,

@@ -12,9 +12,16 @@ import {
   useSoundEffectPickerView,
 } from "./useSoundEffectReviewPicker";
 import styles from "./SoundEffectTranslationModal.module.css";
+import { Button } from "./ui/Button";
+import { ControlTooltip } from "./ui/ControlTooltip";
+import type { useSoundEffectReviewReset } from "./useSoundEffectReviewReset";
+
+type ReviewReset = ReturnType<typeof useSoundEffectReviewReset>;
 
 export function SoundEffectTranslationReviewPicker({
   chapterTitle,
+  disabled = false,
+  resetReview,
   draftPages,
   selectedRegion,
   showAllPages,
@@ -25,6 +32,8 @@ export function SoundEffectTranslationReviewPicker({
   onShowTranslationsChange,
 }: {
   chapterTitle: string;
+  disabled?: boolean;
+  resetReview?: ReviewReset;
   draftPages: SoundEffectDraftPage[];
   selectedRegion: SelectedSoundEffectDraftRegion;
   showAllPages: boolean;
@@ -44,6 +53,8 @@ export function SoundEffectTranslationReviewPicker({
   return (
     <section className={styles.picker}>
       <SoundEffectPickerToolbar
+        disabled={disabled}
+        resetReview={resetReview}
         pageCount={view.visiblePages.length}
         candidateCount={view.candidateCount}
         selectedCount={view.selectedCount}
@@ -55,7 +66,7 @@ export function SoundEffectTranslationReviewPicker({
         onShowTranslationsChange={onShowTranslationsChange}
       />
       {view.activePage ? (
-        <div className={styles.reviewLayout}>
+        <div className={styles.reviewLayout} inert={disabled}>
           <SoundEffectPageList
             activePageId={view.activePage.page.id}
             chapterTitle={chapterTitle}
@@ -80,6 +91,8 @@ export function SoundEffectTranslationReviewPicker({
 }
 
 function SoundEffectPickerToolbar({
+  disabled,
+  resetReview,
   pageCount,
   candidateCount,
   selectedCount,
@@ -90,6 +103,8 @@ function SoundEffectPickerToolbar({
   onShowAllPagesChange,
   onShowTranslationsChange,
 }: {
+  disabled: boolean;
+  resetReview?: ReviewReset;
   pageCount: number;
   candidateCount: number;
   selectedCount: number;
@@ -103,20 +118,16 @@ function SoundEffectPickerToolbar({
   const { t } = useTranslation("components");
   return (
     <header className={styles.toolbar}>
-      <div className={styles.displayToggles}>
+      <div className={styles.displayToggles} inert={disabled}>
         <PagePickerModalCheckbox
           checked={showAllPages}
-          label={t("soundEffectReview.showAllPages", {
-            defaultValue: "전체 페이지 표시",
-          })}
+          label={t("soundEffectReview.showAllPages")}
           onCheckedChange={onShowAllPagesChange}
           variant="switch"
         />
         <PagePickerModalCheckbox
           checked={showTranslations}
-          label={t("soundEffectReview.showTranslations", {
-            defaultValue: "번역문 표시",
-          })}
+          label={t("soundEffectReview.showTranslations")}
           onCheckedChange={onShowTranslationsChange}
           variant="switch"
         />
@@ -134,14 +145,70 @@ function SoundEffectPickerToolbar({
         </small>
       </span>
       <div className={styles.toolbarButtons}>
-        <button onClick={onSelectAll} type="button">
+        <Button
+          size="sm"
+          disabled={disabled || !candidateCount}
+          onClick={onSelectAll}
+        >
           {t("soundEffectReview.selectAll")}
-        </button>
-        <button onClick={onClearAll} type="button">
+        </Button>
+        <Button
+          size="sm"
+          disabled={disabled || !selectedCount}
+          onClick={onClearAll}
+        >
           {t("soundEffectReview.clearAll")}
-        </button>
+        </Button>
+        {resetReview ? (
+          <SoundEffectResetButton disabled={disabled} review={resetReview} />
+        ) : null}
       </div>
+      <SoundEffectResetFeedback review={resetReview} />
     </header>
+  );
+}
+
+function SoundEffectResetFeedback({ review }: { review?: ReviewReset }) {
+  return (
+    <>
+      {review?.error ? (
+        <span className={styles.resetError} role="alert">
+          {review.error}
+        </span>
+      ) : null}
+      <span className="visually-hidden" role="status">
+        {review?.feedback}
+      </span>
+    </>
+  );
+}
+
+function SoundEffectResetButton({
+  disabled,
+  review,
+}: {
+  disabled: boolean;
+  review: ReviewReset;
+}) {
+  const { t } = useTranslation("components");
+  return (
+    <ControlTooltip
+      className={styles.resetTooltip}
+      content={t("soundEffectReview.resetHint")}
+      placement="bottom"
+    >
+      <Button
+        size="sm"
+        disabled={disabled || !review.canReset}
+        onClick={review.reset}
+      >
+        {t(
+          review.busy
+            ? "soundEffectReview.resetting"
+            : "soundEffectReview.reset",
+        )}
+      </Button>
+    </ControlTooltip>
   );
 }
 

@@ -2,6 +2,8 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import sfxIcon from "../assets/images/sfx-script-icon.png";
 import { ControlTooltip } from "./ui/ControlTooltip";
+import { IconButton } from "./ui/IconButton";
+import styles from "./SoundEffectTranslationLauncher.module.css";
 
 export type SoundEffectTranslationLauncherProps = {
   available: boolean;
@@ -19,7 +21,7 @@ export function SoundEffectTranslationLauncher({
   onOpen,
 }: SoundEffectTranslationLauncherProps): React.JSX.Element | null {
   const { t } = useTranslation("components");
-  if (!available || pendingCount <= 0) return null;
+  if (!available) return null;
   const label = t("soundEffectReview.launcher", { count: pendingCount });
   return (
     <ControlTooltip
@@ -27,18 +29,20 @@ export function SoundEffectTranslationLauncher({
       content={t("soundEffectReview.launcherAction")}
       placement="right"
     >
-      <button
-        aria-label={label}
+      <IconButton
+        label={label}
+        title=""
+        variant="dock"
         aria-haspopup="dialog"
         aria-expanded={active}
-        className={`sound-effect-translation-launcher ${active ? "is-active" : ""}`.trim()}
+        className={`sound-effect-translation-launcher ${active ? "is-active" : ""} ${pendingCount <= 0 ? styles.empty : ""}`.trim()}
         disabled={disabled}
         onClick={onOpen}
         type="button"
       >
         <img alt="" aria-hidden="true" src={sfxIcon} />
         <small aria-hidden="true">{pendingCount}</small>
-      </button>
+      </IconButton>
     </ControlTooltip>
   );
 }

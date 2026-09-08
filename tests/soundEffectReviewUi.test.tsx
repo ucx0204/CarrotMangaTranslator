@@ -91,9 +91,13 @@ describe("sound-effect review UI", () => {
         />
       </>,
     );
-    expect(
-      screen.queryByRole("button", { name: /효과음 번역 실행/ }),
-    ).toBeNull();
+    const emptyLauncher = screen.getByRole("button", {
+      name: "효과음 번역 실행, 대기 0개",
+    });
+    expect((emptyLauncher as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(emptyLauncher);
+    expect(onOpen).toHaveBeenCalledOnce();
+    onOpen.mockClear();
 
     rerender(
       <>
@@ -654,7 +658,14 @@ describe("sound-effect review UI", () => {
         onStart={vi.fn()}
       />,
     );
-    expect(screen.getByText("대기 중인 효과음이 없습니다.")).not.toBeNull();
+    expect(
+      screen
+        .getByRole("switch", { name: "전체 페이지 표시" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      document.querySelector('[data-preview-page-id="page-1"]'),
+    ).not.toBeNull();
   });
 
   it("uses batch-first review actions and Esc closes popup before the layer", () => {
@@ -721,6 +732,161 @@ describe("sound-effect review UI", () => {
     );
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onExit).toHaveBeenCalledOnce();
+  });
+});
+
+describe("SFX review reset", () => {
+  it("opens an empty chapter for manual editing and restores persisted exclusions without starting a model", async () => {
+    const chapter = makeChapter();
+    chapter.pages.forEach((page) => {
+      if (page.soundEffectReview)
+        page.soundEffectReview.dismissedRegionIds =
+          page.soundEffectReview.regions.map((region) => region.id);
+    });
+    const onStart = vi.fn();
+    const restored = structuredClone(chapter);
+    restored.pages.forEach((page) => {
+      if (page.soundEffectReview)
+        page.soundEffectReview.dismissedRegionIds = [];
+    });
+    const onRestore = vi.fn(async () => restored);
+    render(
+      <SoundEffectTranslationModal
+        chapter={chapter}
+        jobActive={false}
+        onClose={vi.fn()}
+        onStart={onStart}
+        onRestore={onRestore}
+      />,
+    );
+    expect(
+      screen
+        .getByRole("switch", { name: "전체 페이지 표시" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      document.querySelector('[data-preview-page-id="page-1"]'),
+    ).not.toBeNull();
+    const reset = screen.getByRole("button", { name: "초기화" });
+    const tooltip = document.getElementById(
+      reset.getAttribute("aria-describedby") ?? "",
+    );
+    expect(tooltip?.getAttribute("role")).toBe("tooltip");
+    expect(tooltip?.textContent).toContain("영역 수정과 번역 결과는 유지");
+    await act(async () => fireEvent.click(reset));
+    expect(onRestore).toHaveBeenCalledOnce();
+    expect(screen.getByText("후보 3개 중 3개 포함")).not.toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("3개를 복원");
+    expect(onStart).not.toHaveBeenCalled();
+    expect(
+      (screen.getByRole("button", { name: "초기화" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
+
+  it("preserves unsaved boxes and manual additions while restoring local exclusions", async () => {
+    const onStart = vi.fn();
+    const { result } = renderHook(() =>
+      useSoundEffectTranslationModalState({
+        chapter: makeChapter(),
+        jobActive: false,
+        autoFontMatchingDefault: false,
+        inpaintAfterTranslationDefault: false,
+        onClose: vi.fn(),
+        onStart,
+      }),
+    );
+    const edited = { x: 123, y: 234, w: 110, h: 120 };
+    act(() =>
+      result.current.setDraftPages((pages) =>
+        pages.map((page, index) =>
+          index
+            ? page
+            : {
+                ...page,
+                regions: [
+                  ...page.regions.map((region) => ({
+                    ...region,
+                    bbox: edited,
+                    deleted: true,
+                    included: false,
+                  })),
+                  {
+                    id: "manual-local",
+                    bbox: edited,
+                    detectorConfidence: 1,
+                    manual: true,
+                    newlyAdded: true,
+                    included: false,
+                    deleted: true,
+                  },
+                ],
+              },
+        ),
+      ),
+    );
+    await act(async () => result.current.resetReview.reset());
+    expect(result.current.draftPages[0]?.regions).toHaveLength(3);
+    result.current.draftPages[0]?.regions.forEach((region) =>
+      expect(region).toMatchObject({
+        bbox: edited,
+        deleted: false,
+        included: true,
+      }),
+    );
+    expect(result.current.resetReview.canReset).toBe(false);
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
+  it("retains the draft on restore failure, prevents duplicate submissions and permits retry", async () => {
+    const chapter = makeChapter();
+    const review = chapter.pages[0]?.soundEffectReview;
+    if (!review) throw new Error("Expected review fixture");
+    review.dismissedRegionIds = ["FX-left"];
+    let rejectRestore: (error: Error) => void = () => {
+      throw new Error("restore did not start");
+    };
+    const onRestore = vi.fn(
+      () =>
+        new Promise<ChapterSnapshot>((_resolve, reject) => {
+          rejectRestore = reject;
+        }),
+    );
+    const onStart = vi.fn();
+    const { result } = renderHook(() =>
+      useSoundEffectTranslationModalState({
+        chapter,
+        jobActive: false,
+        autoFontMatchingDefault: false,
+        inpaintAfterTranslationDefault: false,
+        onClose: vi.fn(),
+        onStart,
+        onRestore,
+      }),
+    );
+    const before = result.current.draftPages;
+    let pending: Promise<void>;
+    act(() => {
+      pending = result.current.resetReview.reset();
+      void result.current.resetReview.reset();
+    });
+    expect(onRestore).toHaveBeenCalledOnce();
+    act(() => result.current.start());
+    expect(onStart).not.toHaveBeenCalled();
+    await act(async () => {
+      rejectRestore(new Error("disk full"));
+      await pending;
+    });
+    expect(result.current.draftPages).toBe(before);
+    expect(result.current.resetReview.error).toBe("disk full");
+    const restored = structuredClone(chapter);
+    const restoredReview = restored.pages[0]?.soundEffectReview;
+    if (!restoredReview) throw new Error("Expected restored review fixture");
+    restoredReview.dismissedRegionIds = [];
+    onRestore.mockResolvedValueOnce(restored);
+    await act(async () => result.current.resetReview.reset());
+    expect(result.current.resetReview.error).toBe("");
+    expect(result.current.includedCount).toBe(3);
   });
 });
 

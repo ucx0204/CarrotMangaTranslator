@@ -2472,6 +2472,11 @@
     "deleteFailed": "블록을 삭제하지 못했습니다."
   },
   "soundEffectReview": {
+    "reset": "초기화",
+    "resetting": "초기화 중…",
+    "resetHint": "현재 화에서 삭제·제외한 효과음 후보를 다시 표시합니다. 영역 수정과 번역 결과는 유지됩니다.",
+    "restored": "효과음 후보 {{count}}개를 복원했습니다.",
+    "restoreFailed": "효과음 후보를 복원하지 못했습니다. 다시 시도해 주세요.",
     "launcher": "효과음 번역 실행, 대기 {{count}}개",
     "launcherAction": "효과음 번역 실행",
     "layerLabel": "검토 대상 효과음",

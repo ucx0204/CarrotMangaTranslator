@@ -15,6 +15,7 @@ import {
 import {
   DismissSoundEffectReviewRegionRequestSchema,
   PrepareSoundEffectTranslationRequestSchema,
+  RestoreSoundEffectReviewRequestSchema,
 } from "../../shared/ipcSoundEffectReviewSchemas";
 import { libraryIpcContracts } from "../../shared/ipcContracts";
 import {
@@ -26,6 +27,7 @@ import {
   listLibrary,
   openChapter,
   prepareSoundEffectTranslation,
+  restoreSoundEffectReview,
   renameChapter,
   renameWork,
   reorderChapters,
@@ -223,6 +225,20 @@ function registerLibraryReorderIpc(context: IpcContext): void {
 }
 
 function registerSoundEffectReviewIpc(context: IpcContext): void {
+  trustedHandleContract(
+    context,
+    libraryIpcContracts.restoreSoundEffectReview,
+    async (_event, raw: unknown) => {
+      assertLibraryStructureMutationAvailable(context);
+      return restoreSoundEffectReview(
+        parseIpcPayload(
+          RestoreSoundEffectReviewRequestSchema,
+          raw,
+          "효과음 제외 후보 복원",
+        ),
+      );
+    },
+  );
   trustedHandleContract(
     context,
     libraryIpcContracts.prepareSoundEffectTranslation,

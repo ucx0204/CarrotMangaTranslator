@@ -166,3 +166,29 @@ export const PrepareSoundEffectTranslationRequestSchema = z
       ),
   })
   .strict();
+
+export const RestoreSoundEffectReviewRequestSchema = z
+  .object({
+    chapterId: uuid,
+    pages: z
+      .array(
+        z
+          .object({
+            pageId: uuid,
+            pageRevision:
+              PrepareSoundEffectTranslationPageSchema.shape.pageRevision,
+            regionIds:
+              PrepareSoundEffectTranslationPageSchema.shape.includedRegionIds.refine(
+                (ids) => ids.length > 0,
+              ),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(MAX_BLOCKS_PER_PAGE)
+      .refine(
+        (pages) =>
+          new Set(pages.map((page) => page.pageId)).size === pages.length,
+      ),
+  })
+  .strict();

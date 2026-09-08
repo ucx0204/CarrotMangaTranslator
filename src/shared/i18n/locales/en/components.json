@@ -2472,6 +2472,11 @@
     "deleteFailed": "Could not delete the block."
   },
   "soundEffectReview": {
+    "reset": "Reset",
+    "resetting": "Resetting…",
+    "resetHint": "Restore deleted or excluded SFX candidates in this chapter. Region edits and translation results are kept.",
+    "restored": "Restored {{count}} SFX candidates.",
+    "restoreFailed": "Could not restore SFX candidates. Please try again.",
     "launcher": "Run SFX translation, {{count}} pending",
     "launcherAction": "Run SFX translation",
     "layerLabel": "Sound effects to review",

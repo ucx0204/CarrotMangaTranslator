@@ -147,6 +147,9 @@ import type {
 } from "./conditionalBatchExchangeTypes";
 
 export type MangaApi = {
+  restoreSoundEffectReview: (
+    request: import("./analysisTypes").RestoreSoundEffectReviewRequest,
+  ) => Promise<ChapterSnapshot>;
   dismissSoundEffectReviewRegion: (
     chapterId: string,
     pageId: string,

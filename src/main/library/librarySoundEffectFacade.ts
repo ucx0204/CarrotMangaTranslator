@@ -1,6 +1,7 @@
 import type {
   PrepareSoundEffectTranslationRequest,
   PrepareSoundEffectTranslationResult,
+  RestoreSoundEffectReviewRequest,
 } from "../../shared/analysisTypes";
 import type { ChapterSnapshot } from "../../shared/libraryTypes";
 import type { PageRevision } from "../../shared/pageRevisionTypes";
@@ -8,10 +9,24 @@ import {
   appendResolvedSoundEffectBlocksUnlocked,
   dismissSoundEffectReviewRegionUnlocked,
   prepareSoundEffectTranslationUnlocked,
+  restoreSoundEffectReviewUnlocked,
   type ResolvedSoundEffectBlock,
 } from "../libraryStore/librarySoundEffectMutations";
 import { notifyLinkedWorkspacePagesSaved } from "../linkedWorkspace/linkedWorkspaceNotifications";
 import { withLibraryMutation } from "./lock";
+
+export async function restoreSoundEffectReview(
+  request: RestoreSoundEffectReviewRequest,
+): Promise<ChapterSnapshot> {
+  const chapter = await withLibraryMutation(() =>
+    restoreSoundEffectReviewUnlocked(request),
+  );
+  notifyLinkedWorkspacePagesSaved(
+    request.chapterId,
+    request.pages.map((page) => page.pageId),
+  );
+  return chapter;
+}
 
 export async function appendResolvedSoundEffectBlocks(
   chapterId: string,

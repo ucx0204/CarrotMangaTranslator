@@ -111,6 +111,15 @@ export type PrepareSoundEffectTranslationResult = {
   dismissedRegionCount: number;
 };
 
+export type RestoreSoundEffectReviewRequest = {
+  chapterId: string;
+  pages: Array<{
+    pageId: string;
+    pageRevision: string;
+    regionIds: string[];
+  }>;
+};
+
 export type StartSoundEffectTranslationResult = {
   status: "completed" | "partial" | "cancelled" | "failed";
   chapter?: ChapterSnapshot;

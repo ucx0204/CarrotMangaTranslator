@@ -21,6 +21,7 @@ import {
 import { runLibraryTransaction } from "./libraryTransaction";
 import { stageChapterFile, stageWorkFile } from "./libraryTransactionFiles";
 import { applySoundEffectReviewDraft } from "./librarySoundEffectReviewDraft";
+import { createRestoreSoundEffectReviewMutation } from "./librarySoundEffectRestore";
 import { resolveCompletionAfterBlockMutation } from "./translationCompletionInvalidation";
 
 export type ResolvedSoundEffectBlock = {
@@ -36,6 +37,7 @@ export type PrepareSoundEffectTranslationRuntime = {
   commitChapterAndWork: (
     chapter: ChapterFile,
     updatedAt: string,
+    operation?: "restore-sound-effect-review",
   ) => Promise<void>;
 };
 
@@ -43,11 +45,11 @@ const prepareProductionRuntime: PrepareSoundEffectTranslationRuntime = {
   findChapterLocation,
   readChapterFile,
   now: () => new Date().toISOString(),
-  commitChapterAndWork: async (chapter, updatedAt) => {
+  commitChapterAndWork: async (chapter, updatedAt, operation) => {
     const work = await readWorkFile(chapter.workId);
     if (!work) throw new Error("작품을 찾지 못했습니다.");
     await runLibraryTransaction(
-      "prepare-sound-effect-translation",
+      operation ?? "prepare-sound-effect-translation",
       async (transaction) => {
         await stageChapterFile(transaction, chapter);
         await stageWorkFile(transaction, { ...work, updatedAt });
@@ -109,6 +111,9 @@ export function createPrepareSoundEffectTranslationMutation(
 
 export const prepareSoundEffectTranslationUnlocked =
   createPrepareSoundEffectTranslationMutation(prepareProductionRuntime);
+
+export const restoreSoundEffectReviewUnlocked =
+  createRestoreSoundEffectReviewMutation(prepareProductionRuntime);
 
 function buildPreparedSoundEffectResult(
   chapter: ChapterFile,
