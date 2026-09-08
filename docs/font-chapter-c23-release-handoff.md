@@ -71,6 +71,9 @@ SHA-256으로 비교했다. ASAR의 3,885개 항목은 배포 허용 목록을 �
 `.tmp/release260-installer-font/font-runtime-smoke.json`,
 `.tmp/release260-installer-font.log`이다. macOS arm64 공개 팩의 네이티브 검사는
 `Check` workflow의 `Verify published font runtime on Apple Silicon` 단계가 실행한다.
+[Check 34261775450](https://github.com/ucx0204/CarrotMangaTranslator/actions/runs/34261775450)의
+macOS arm64 job에서 공개 r2 팩 다운로드, 네이티브 의존성, 두 모델의 CPU 수치 parity가
+모두 통과했다.
 
 ## 롤백
 

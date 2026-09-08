@@ -127,7 +127,7 @@ it.each(["complete", "cancel", "invalid"])(
       expect(bitmap[(20 * 260 + 100) * 4]).toBe(0);
     } else {
       await expect(operation).rejects.toThrow();
-      expect(bitmap).toEqual(original);
+      expect(bitmap.equals(original)).toBe(true);
       expect(turn).toHaveBeenCalledTimes(outcome === "cancel" ? 1 : 0);
     }
   },
@@ -200,10 +200,13 @@ it.each(["complete", "cancel", "failure"])(
       ).toHaveLength(3);
     } else {
       await expect(work).rejects.toThrow();
-      expect(bitmap).toEqual(before);
+      expect(bitmap.equals(before)).toBe(true);
       expect(calls).toBe(outcome === "cancel" ? 1 : 2);
     }
   },
+  // Three real PNG tiles and alignment/composition run under V8 coverage.
+  // Preserve full-size fixtures and every byte check on slower CI runners.
+  45_000,
 );
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -406,7 +409,7 @@ it("protects reviewed exclusions across owned windows and feathered pixels", asy
     },
   );
   expect(fixture.turn).toHaveBeenCalledOnce();
-  expect(fixture.bitmap).not.toEqual(fixture.before);
+  expect(fixture.bitmap.equals(fixture.before)).toBe(false);
   for (let pixel = 0; pixel < protection.length; pixel++)
     if (protection[pixel])
       expect(fixture.bitmap.subarray(pixel * 4, pixel * 4 + 4)).toEqual(
@@ -497,7 +500,7 @@ it("rejects a painted feather overlap with redaction before sending any image", 
     ),
   ).rejects.toThrow("가리기와 겹치는");
   expect(fixture.turn).not.toHaveBeenCalled();
-  expect(fixture.bitmap).toEqual(fixture.before);
+  expect(fixture.bitmap.equals(fixture.before)).toBe(true);
 });
 
 /** Native-image boundary double; the real Electron decoder is also exercised by the local smoke. */
@@ -600,7 +603,7 @@ it.each([false, true, "partial-change"] as const)(
       expect(audit.changedPixels).toBeGreaterThan(0);
     }
     expect(fixture.turn).toHaveBeenCalledOnce();
-    expect(fixture.bitmap).toEqual(fixture.before);
+    expect(fixture.bitmap.equals(fixture.before)).toBe(true);
   },
 );
 
