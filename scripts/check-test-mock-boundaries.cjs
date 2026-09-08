@@ -24,6 +24,9 @@ const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/bubbleOnnxRuntime.test.ts::../src/main/runtimeSupport/nativeOnnxRuntime",
   "tests/bubbleOnnxRuntime.test.ts::../src/main/logger",
   "tests/fontMatchingRuntimeAssets.test.ts::../src/main/runtimeSupport/modelDownloads",
+  // Keep archive extraction, inventory verification and publication real; isolate only the network gateway.
+  "tests/fontChapterAssetInstaller.test.ts::../src/main/runtimeSupport/modelDownloads",
+  "tests/fontChapterC23Manifest.test.ts::../src/main/runtimeSupport/modelDownloads",
   "tests/bubbleLayoutFacade.test.ts::../src/main/bubbleLayout/assets",
   "tests/bubbleLayoutFacade.test.ts::../src/main/bubbleLayout/detector",
   "tests/bubbleLayoutFacade.test.ts::../src/main/logger",

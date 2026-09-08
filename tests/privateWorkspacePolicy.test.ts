@@ -7,14 +7,35 @@ import { join } from "node:path";
 const {
   FORBIDDEN_GITHUB_PATH_PATTERNS,
   isForbiddenRepositoryPath,
+  isPackagedAppPath,
   normalizeRepositoryPath,
 } = require("../scripts/private-workspace-policy.cjs") as {
   FORBIDDEN_GITHUB_PATH_PATTERNS: readonly string[];
   isForbiddenRepositoryPath: (path: string) => boolean;
+  isPackagedAppPath: (path: string) => boolean;
   normalizeRepositoryPath: (path: string) => string;
 };
 
 describe("private workspace repository policy", () => {
+  it("keeps unknown future workspace folders out of the packaged application", () => {
+    for (const path of [
+      "future-experiment/private.png",
+      "cache/result.json",
+      "image-redactions.json",
+      "font-chapter-c18/model.onnx",
+    ])
+      expect(isPackagedAppPath(path)).toBe(false);
+    for (const path of [
+      "out/main/bootstrap.js",
+      "out/renderer/assets/font.ttf",
+      "node_modules/zod/package.json",
+      "third_party/fonts/example/OFL.txt",
+      "package.json",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md",
+    ])
+      expect(isPackagedAppPath(path)).toBe(true);
+  });
   it.each([
     "results/work/chapter/originals/01.webp",
     "library/work.json",
@@ -27,6 +48,13 @@ describe("private workspace repository policy", () => {
     "linked-workspaces.json",
     ".mgt-instance-candidate-123/owner.json",
     ".claude/settings.local.json",
+    "font-chapter-c18/c23-v1/ownership.json",
+    "cache/chapter/request.json",
+    "external-image-copies/page.png",
+    "image-redactions.json",
+    "batch-edit-schemes.yaml",
+    ".linked-sync-queue.json.123.tmp",
+    ".bug-hunter/reports/source.json",
   ])("rejects %s", (path) => {
     expect(isForbiddenRepositoryPath(path)).toBe(true);
   });

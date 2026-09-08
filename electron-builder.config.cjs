@@ -3,6 +3,7 @@ const { join } = require("node:path");
 const asar = require("@electron/asar");
 const {
   isForbiddenRepositoryPath,
+  isPackagedAppPath,
 } = require("./scripts/private-workspace-policy.cjs");
 const {
   WINDOWS_EXECUTABLE_BASENAME,
@@ -274,7 +275,9 @@ async function verifyPlatformPayload(context) {
   const forbiddenArchiveEntries = asar
     .listPackage(appAsarPath, { isPack: false })
     .map((path) => path.replace(/^[/\\]+/, ""))
-    .filter(isForbiddenRepositoryPath);
+    .filter(
+      (path) => isForbiddenRepositoryPath(path) || !isPackagedAppPath(path),
+    );
   if (forbiddenArchiveEntries.length > 0) {
     throw new Error(
       `Private workspace files leaked into app.asar: ${forbiddenArchiveEntries.join(", ")}`,
@@ -316,7 +319,11 @@ module.exports = {
     },
   ],
   files: [
-    "**/*",
+    "out/**/*",
+    "package.json",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "third_party/**/*",
     "!src{,/**/*}",
     "!tests{,/**/*}",
     "!scripts{,/**/*}",

@@ -1,7 +1,6 @@
 import { delimiter, join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import type { TranslationOptions } from "../appSettings";
-import manifest from "./fontChapterC18Manifest.json";
 import { loadSimplePageRuntime } from "../simplePageRuntime";
 import { loadRuntimeModuleFromDirectory } from "../runtimeModuleLoader";
 import {
@@ -23,6 +22,7 @@ type EnvironmentBuilder = {
 export async function launchFontChapterC18Worker(
   paths: AppPaths,
   options: TranslationOptions,
+  assets: string,
 ) {
   const runtime = await loadSimplePageRuntime(
     paths.runtimeDir,
@@ -40,10 +40,7 @@ export async function launchFontChapterC18Worker(
     env: {
       ...env,
       C18_HAYAI_PYTHONPATH: env.PYTHONPATH ?? "",
-      PYTHONPATH: [
-        join(paths.dataRoot, manifest.assetDirectory, "python-packages"),
-        env.PYTHONPATH,
-      ]
+      PYTHONPATH: [join(assets, "python-packages"), env.PYTHONPATH]
         .filter(Boolean)
         .join(delimiter),
       PYTHONUTF8: "1",

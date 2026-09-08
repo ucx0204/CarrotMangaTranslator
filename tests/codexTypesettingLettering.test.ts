@@ -506,6 +506,9 @@ it.each([false, true])(
     );
     expect(other.data[0]).toBe(scoped ? 80 : 255);
   },
+  // The native-image stand-in repeatedly encodes full-page PNGs. Keep the
+  // full-resolution pixel assertions on slower Windows coverage runners.
+  45_000,
 );
 
 it.each(["mixed-matte", "colored-alpha"])(

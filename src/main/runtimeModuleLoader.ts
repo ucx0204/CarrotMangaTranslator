@@ -6,6 +6,7 @@ const APP_RUNTIME_MODULE_FILES = {
   animeTextRelations: "semantic-ocr/anime-text-review-relations.cjs",
   apiKeyRetry: "transport/api-key-retry.cjs",
   downloadUtils: "simple-page-download-utils.cjs",
+  directoryPublisher: "runtime-directory-publish.cjs",
   logitBias: "simple-page-logit-bias.cjs",
   modelHttpErrors: "transport/model-http-errors.cjs",
   overlayTools: "overlay-parser.cjs",

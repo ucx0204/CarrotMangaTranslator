@@ -1,10 +1,15 @@
 const FORBIDDEN_ROOT_DIRECTORIES = Object.freeze([
   ".claude",
+  ".bug-hunter",
+  ".impeccable",
   ".codex-workspace",
   ".pytest_cache",
   ".ruff_cache",
   ".settings-pairs",
   "codex",
+  "cache",
+  "external-image-copies",
+  "font-chapter-c18",
   "fonts",
   "library",
   "logs",
@@ -14,6 +19,8 @@ const FORBIDDEN_ROOT_DIRECTORIES = Object.freeze([
 
 const FORBIDDEN_ROOT_FILES = Object.freeze([
   "block-library.json",
+  "batch-edit-schemes.yaml",
+  "image-redactions.json",
   "linked-sync-queue.json",
   "linked-workspaces.json",
   "panel-window-bounds.json",
@@ -24,6 +31,7 @@ const FORBIDDEN_ROOT_FILES = Object.freeze([
 ]);
 
 const FORBIDDEN_ROOT_PREFIXES = Object.freeze([
+  ".linked-sync-queue.json.",
   ".mgt-instance-candidate-",
   ".mgt-instance-release-",
   ".mgt-instance-stale-",
@@ -64,11 +72,24 @@ function isForbiddenRepositoryPath(value) {
   );
 }
 
+/** Only compiled code, its dependencies and distribution notices enter ASAR.
+ * @param {string} value
+ */
+function isPackagedAppPath(value) {
+  const normalized = normalizeRepositoryPath(value);
+  const root = normalized.split("/", 1)[0];
+  return (
+    ["out", "node_modules", "third_party"].includes(root) ||
+    ["package.json", "LICENSE", "THIRD_PARTY_NOTICES.md"].includes(normalized)
+  );
+}
+
 module.exports = {
   FORBIDDEN_GITHUB_PATH_PATTERNS,
   FORBIDDEN_ROOT_DIRECTORIES,
   FORBIDDEN_ROOT_FILES,
   FORBIDDEN_ROOT_PREFIXES,
   isForbiddenRepositoryPath,
+  isPackagedAppPath,
   normalizeRepositoryPath,
 };

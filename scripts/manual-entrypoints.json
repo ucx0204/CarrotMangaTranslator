@@ -2,6 +2,13 @@
   "schemaVersion": 1,
   "entries": [
     {
+      "path": "scripts/validate-font-chapter-archive.cjs",
+      "status": "manual-debug",
+      "purpose": "Validate a font runtime release with the production ZIP extractor and complete pinned file inventory before publication and after download.",
+      "usage": "node scripts/validate-font-chapter-archive.cjs <release-directory> <new-empty-output-directory>",
+      "replacement": "No replacement; this is the release asset verification entrypoint."
+    },
+    {
       "path": "scripts/prepare-flux-cuda-runtime.cjs",
       "status": "legacy-bootstrap",
       "purpose": "Prepare the legacy standalone Flux CUDA runtime layout for manual diagnostics.",

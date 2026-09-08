@@ -1,0 +1,377 @@
+{
+  "tag": "font-chapter-c23-20260909-r2",
+  "assetRoot": "models/fc23-r2",
+  "licenseFiles": [
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/aoboshione/OFL.txt",
+      "bytes": 4413,
+      "sha256": "c0093b62824cfa8786df613c00a316fa483bdcb7ccd11ba5faca006bb692f68d"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/bizudgothic/OFL.txt",
+      "bytes": 4408,
+      "sha256": "e753d7155d53c747d037a445e584c8ecfca6dd79846db610417e282a736b28bc"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/bizudmincho/OFL.txt",
+      "bytes": 4408,
+      "sha256": "ef0ed524b3bd012f37015e986809eed6f67905456ebfc1ebd7fcc2765282ee01"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/bizudpgothic/OFL.txt",
+      "bytes": 4408,
+      "sha256": "e753d7155d53c747d037a445e584c8ecfca6dd79846db610417e282a736b28bc"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/bizudpmincho/OFL.txt",
+      "bytes": 4408,
+      "sha256": "ef0ed524b3bd012f37015e986809eed6f67905456ebfc1ebd7fcc2765282ee01"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/cherrybombone/OFL.txt",
+      "bytes": 4485,
+      "sha256": "0e04cbdaa14fc3e98b6ad1c9156b04d952cbdd0d31845766bae4cb543a71bcba"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/chokokutai/OFL.txt",
+      "bytes": 4482,
+      "sha256": "55270f3e221dc526d84c2833e512cc0f399bcd2b4b1746f63d532345b23fae56"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/darumadropone/OFL.txt",
+      "bytes": 4402,
+      "sha256": "bd898c86fb555f060ee9e5d318d631bbdcd196b98ae8019e0077421f46da132f"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/hinamincho/OFL.txt",
+      "bytes": 4393,
+      "sha256": "3e9b0ddf2dd1ed6ada1bc29977601095102505d11dae646df1f6b1d59572f4ba"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/ibmplexsansjp/OFL.txt",
+      "bytes": 4456,
+      "sha256": "7e6b2818edbd8f6a01ae80641cc8f16a51080d08fb4e532be3a0b6f74adb07da"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/kaiseidecol/OFL.txt",
+      "bytes": 4383,
+      "sha256": "6c5445d4febbf6d84025b874a85c51e7e4bfa7495279eccdb4c317a6de857b46"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/kaiseiharunoumi/OFL.txt",
+      "bytes": 4383,
+      "sha256": "6c5445d4febbf6d84025b874a85c51e7e4bfa7495279eccdb4c317a6de857b46"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/kaiseiopti/OFL.txt",
+      "bytes": 4383,
+      "sha256": "6c5445d4febbf6d84025b874a85c51e7e4bfa7495279eccdb4c317a6de857b46"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/kaiseitokumin/OFL.txt",
+      "bytes": 4383,
+      "sha256": "6c5445d4febbf6d84025b874a85c51e7e4bfa7495279eccdb4c317a6de857b46"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/kapakana/OFL.txt",
+      "bytes": 4389,
+      "sha256": "89c5e961d4a259af9f3a187be51aa1e095a6fca13a7ad20b40a1d690be7cdc0a"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/kiwimaru/OFL.txt",
+      "bytes": 4399,
+      "sha256": "07ceae7a6e3294cbbd0fdf6e35226550566a1cce9fd226d0f8a57f3d34c664fe"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/kleeone/OFL.txt",
+      "bytes": 4479,
+      "sha256": "e376b0df8e8a2345a9533db6f0a5333a1107975569ad9d1973a7ee557161ca38"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/kosugi/LICENSE.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/kosugimaru/LICENSE.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/lineseedjp/OFL.txt",
+      "bytes": 4322,
+      "sha256": "1cfc3752ddd076bc7d461b6680e42a345f2579f91319fa04192b754b3b993f65"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/mochiypoppone/OFL.txt",
+      "bytes": 4387,
+      "sha256": "76be26178f13ef82866cf6a5c54272191bb583c203ad7035021c7681c9043558"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/monomaniacone/OFL.txt",
+      "bytes": 4420,
+      "sha256": "0e7bc933f607a0fe98e2635cef0df76dc9b6a0198a7a7ad035e8a2b8d329e137"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/mplus1/OFL.txt",
+      "bytes": 4387,
+      "sha256": "04971e3fcee60b247395150d93b3616f6a0b092572332c96187b472976553abc"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/mplus1code/OFL.txt",
+      "bytes": 4387,
+      "sha256": "04971e3fcee60b247395150d93b3616f6a0b092572332c96187b472976553abc"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/mplus1p/OFL.txt",
+      "bytes": 4389,
+      "sha256": "da15da6b1496d4de18f97e2ad1b722ef8a1c121149c2c93b2cf7eac6ac27b35c"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/mplus2/OFL.txt",
+      "bytes": 4387,
+      "sha256": "04971e3fcee60b247395150d93b3616f6a0b092572332c96187b472976553abc"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/mplusrounded1c/OFL.txt",
+      "bytes": 4413,
+      "sha256": "c0093b62824cfa8786df613c00a316fa483bdcb7ccd11ba5faca006bb692f68d"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/mplusu/OFL.txt",
+      "bytes": 4387,
+      "sha256": "795cd5988c81dd9b11e460de70e715ab0900ee72fbfbb6ce83c387b92990fbde"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/murecho/OFL.txt",
+      "bytes": 4393,
+      "sha256": "7d9f69e9be971aaa0caf64555545b3d34d23204d53ee88085790866ee21c75f9"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/newtegomin/OFL.txt",
+      "bytes": 4394,
+      "sha256": "448df04b698cb1101857b61c7d1b4187beb59d3a0fb5edbd834d308758cda95e"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/notosansjp/OFL.txt",
+      "bytes": 4388,
+      "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/notoserifjp/OFL.txt",
+      "bytes": 4350,
+      "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/palettemosaic/OFL.txt",
+      "bytes": 4433,
+      "sha256": "3c1a085f9dbd44877f73b0e1e1917ab084eb79828328fba74323c3bcd4171c6a"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/pottaone/OFL.txt",
+      "bytes": 4472,
+      "sha256": "fe55933bcfad354914050fe0e7c879bd666a623f1e363a651198ac40c271cd26"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/rampartone/OFL.txt",
+      "bytes": 4484,
+      "sha256": "1286896706738557c1fb98f0f66006d4ca675e475d681ca85976fd0da9daa353"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/rock3d/OFL.txt",
+      "bytes": 4414,
+      "sha256": "91595b148d8e476851147257a1234aa4a1dba722424fcdbdfca8965450fb48ad"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/rocknrollone/OFL.txt",
+      "bytes": 4488,
+      "sha256": "b2f42a005a6a48ead81e369021e300184f0cbecb48aee6f831e46c7897f6055b"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/sawarabigothic/OFL.txt",
+      "bytes": 4355,
+      "sha256": "5f247fad3e8a86b6c0779dff09277047c1ce2b0b7580a1093347a8af755352ba"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/sawarabimincho/OFL.txt",
+      "bytes": 4405,
+      "sha256": "23a49d3198c9ffd233f73208c5e39c4ed893783cece36b954c0a65ee9aa7ef29"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/shipporiantique/OFL.txt",
+      "bytes": 4400,
+      "sha256": "9ad629515fb62dfc2a831187b260bb53b4fcae1494dd4cb94c2b30da2466da51"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/shipporiantiqueb1/OFL.txt",
+      "bytes": 4400,
+      "sha256": "9ad629515fb62dfc2a831187b260bb53b4fcae1494dd4cb94c2b30da2466da51"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/shipporimincho/OFL.txt",
+      "bytes": 4399,
+      "sha256": "41fba056279be5f45ff9a99e44b7b53897b42732f5806d8e666e0ab49ac6bd38"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/shipporiminchob1/OFL.txt",
+      "bytes": 4399,
+      "sha256": "41fba056279be5f45ff9a99e44b7b53897b42732f5806d8e666e0ab49ac6bd38"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/shizuru/OFL.txt",
+      "bytes": 4414,
+      "sha256": "82e1f1ecc4c04924c6490b5a3f03c39feacb81337a45911daa30b758c69df788"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/slacksideone/OFL.txt",
+      "bytes": 4422,
+      "sha256": "7d4c49f4c5e195125c1bbec7b8c6b884b616555cdf7c7101b98b39a766f88945"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/stick/OFL.txt",
+      "bytes": 4480,
+      "sha256": "35187dd015d0c0006d57f99815fb3f81304c4445f04c3fa35bc533a7a4b00676"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/trainone/OFL.txt",
+      "bytes": 4481,
+      "sha256": "709f9689eabbab61e913ddc288187e7e3d09550339f7df894a909548f90af814"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/tsukimirounded/OFL.txt",
+      "bytes": 4420,
+      "sha256": "0d268d55bd00b6518d3f136afb63e7f01f49c922b06c4e55dd4a2841d3bd66e6"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/wdxllubrifontjpn/OFL.txt",
+      "bytes": 4521,
+      "sha256": "048eba87d28b5d74c432cfa38ca44737e86a5508cf912c1b2cc211c45944e1d9"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/yomogi/OFL.txt",
+      "bytes": 4409,
+      "sha256": "bc0330d5973ab1f200553f51b4cb4ef11b81187fdcd0249f7f83992726c02a48"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/yujiboku/OFL.txt",
+      "bytes": 4386,
+      "sha256": "ef7c85c72ae94381c8bc4832ae4e6fbabdeafa2bb8a31313cd75dce95a690256"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/yujihentaiganaakari/OFL.txt",
+      "bytes": 4386,
+      "sha256": "ef7c85c72ae94381c8bc4832ae4e6fbabdeafa2bb8a31313cd75dce95a690256"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/yujihentaiganaakebono/OFL.txt",
+      "bytes": 4386,
+      "sha256": "ef7c85c72ae94381c8bc4832ae4e6fbabdeafa2bb8a31313cd75dce95a690256"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/yujimai/OFL.txt",
+      "bytes": 4386,
+      "sha256": "ef7c85c72ae94381c8bc4832ae4e6fbabdeafa2bb8a31313cd75dce95a690256"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/yujisyuku/OFL.txt",
+      "bytes": 4386,
+      "sha256": "ef7c85c72ae94381c8bc4832ae4e6fbabdeafa2bb8a31313cd75dce95a690256"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/zenantique/OFL.txt",
+      "bytes": 4394,
+      "sha256": "c76594cc8f4af2ea35d1e05278b1911b22cc6227bc3b0ad404f68be03fe3f107"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/zenantiquesoft/OFL.txt",
+      "bytes": 4394,
+      "sha256": "c76594cc8f4af2ea35d1e05278b1911b22cc6227bc3b0ad404f68be03fe3f107"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/zenkakugothicantique/OFL.txt",
+      "bytes": 4401,
+      "sha256": "0fac78a235c98d640cb06332eb5362c211d86fa03c011df438c35005d22ad2c7"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/zenkakugothicnew/OFL.txt",
+      "bytes": 4401,
+      "sha256": "0fac78a235c98d640cb06332eb5362c211d86fa03c011df438c35005d22ad2c7"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/zenkurenaido/OFL.txt",
+      "bytes": 4398,
+      "sha256": "fdfcb596ac910b447e482f42d4d1e5df3cfcb71c681a9f10e7f2d0126b274111"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/zenmarugothic/OFL.txt",
+      "bytes": 4402,
+      "sha256": "2a20cf7ce1909d8ee1e949095d340f7d7656705f7c810a2d6faf56800ad0cb3d"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/zenoldmincho/OFL.txt",
+      "bytes": 4399,
+      "sha256": "469d214f9842809659c827b7f2adaf40ec0df6efdd5fe18b7127665c32aafaec"
+    },
+    {
+      "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/noto-cjk/LICENSE",
+      "bytes": 4301,
+      "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2"
+    },
+    {
+      "path": "third_party/fonts/dela-gothic-one/OFL.txt",
+      "bytes": 4391,
+      "sha256": "f5a4cc972b532500381c91d0b58bd81756deeee8ac0c4ab5693254db078aeddd"
+    },
+    {
+      "path": "third_party/fonts/dot-gothic-16/OFL.txt",
+      "bytes": 4398,
+      "sha256": "13cd62e1bdf8e627fb596d2709c3a8f3a53ff0753ce36c6c71e48fa6c6112eb4"
+    },
+    {
+      "path": "third_party/fonts/hachi-maru-pop/OFL.txt",
+      "bytes": 4401,
+      "sha256": "04378a922077c326fe6b69b3991289f35e344c62790d0fda2d7e99f94cd406e6"
+    },
+    {
+      "path": "third_party/fonts/mochiy-pop-one/OFL.txt",
+      "bytes": 4386,
+      "sha256": "a541175ede05bf455a58accc882017cef448baa6843e830f69b388ce29e6b58c"
+    },
+    {
+      "path": "third_party/fonts/reggae-one/OFL.txt",
+      "bytes": 4389,
+      "sha256": "51b81fd96ff796ce48e4d8c921331041d085ba542e1b26f66b5b02e0ca4fcdaa"
+    },
+    {
+      "path": "third_party/fonts/yusei-magic/OFL.txt",
+      "bytes": 4392,
+      "sha256": "d12c6f71e1bd9cbcad1189431c21ab7d3393d182a5229c114497251ab8a78b4a"
+    }
+  ],
+  "platforms": {
+    "win32-x64": {
+      "archive": {
+        "path": "font-chapter-c23-win32-x64.zip",
+        "bytes": 492932823,
+        "sha256": "302b6ab214ea4cadac864eaeb42cbb30c44ca30377434b2327fd0fa7fd9be360"
+      },
+      "pythonInventory": {
+        "path": "python-inventory.json",
+        "bytes": 364475,
+        "sha256": "6f1b97543c45dbb7d8ff411341162fb3a0b07b49b6c071d3e6e80f2ba1a41e3e"
+      }
+    },
+    "darwin-arm64": {
+      "archive": {
+        "path": "font-chapter-c23-darwin-arm64.zip",
+        "bytes": 495965035,
+        "sha256": "9ec3074edda5410f3311cb470c0ee819da16255840ca8966feb282c59fa64eba"
+      },
+      "pythonInventory": {
+        "path": "python-inventory.json",
+        "bytes": 345731,
+        "sha256": "9a60dcbcfcf2deaa5ffade6fcc045dcb1eabbd95d6586f035d6bc8e7232cfdab"
+      }
+    }
+  }
+}

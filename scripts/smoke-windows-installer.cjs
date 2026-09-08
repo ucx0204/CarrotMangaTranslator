@@ -101,6 +101,21 @@ async function main() {
       verifyInstalledPayload("fresh install");
     }
 
+    if (process.env.MGT_FONT_RUNTIME_INSTALLER_SMOKE === "1") {
+      runProcess(
+        join(root, "node_modules", "electron", "dist", "electron.exe"),
+        [
+          join(root, "scripts", "smoke-font-chapter-runtime.cjs"),
+          join(installDir, "resources", "app.asar", "out"),
+          join(smokeRoot, "font-data"),
+          join(installDir, "resources", "app-runtime"),
+          process.env.MGT_FONT_SMOKE_PYTHON || "python",
+          join(root, "tests", "fixtures", "font-chapter-native-reference.json"),
+        ],
+        "installed font runtime",
+      );
+    }
+
     console.log(
       "[installer-smoke] upgrade with an early payload file temporarily locked",
     );

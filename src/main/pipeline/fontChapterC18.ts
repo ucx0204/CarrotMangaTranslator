@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, writeFile, access } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import type { AppPaths } from "../appPaths";
@@ -6,7 +6,7 @@ import {
   isJapaneseLanguageCode,
   isKoreanLanguageCode,
 } from "../../shared/translationLanguages";
-import manifest from "./fontChapterC18Manifest.json";
+import { prepareFontChapterRuntime } from "./fontChapterRuntimeAssets";
 import {
   buildFontChapterC18Input,
   fontChapterItemIdentity,
@@ -50,11 +50,17 @@ async function prepareChapter(
   );
   const first = selected[0];
   if (!first) return undefined;
-  const assets = join(paths.dataRoot, manifest.assetDirectory);
-  // Missing installation is an explicit failure, never an old-font success.
-  await access(join(assets, "ownership.json"));
   const input = await buildFontChapterC18Input(selected, signal);
   if (input.identities.size === 0) return undefined;
+  const { assets, manifest } = await prepareFontChapterRuntime({
+    paths,
+    signal,
+    onProgress: (progress) =>
+      first.pageOptions.onProgress?.({
+        ...progress,
+        phase: "font_matching_downloading",
+      }),
+  });
   const parent = join(paths.dataRoot, "cache/font-chapter-c18");
   await mkdir(parent, { recursive: true });
   const job = await mkdtemp(join(parent, "chapter-"));
@@ -80,7 +86,7 @@ async function prepareChapter(
     }),
   );
   signal.throwIfAborted();
-  const worker = await launchFontChapterC18Worker(paths, options);
+  const worker = await launchFontChapterC18Worker(paths, options, assets);
   try {
     const { response } = worker.startRequest({ request }, signal);
     const result = await response;
