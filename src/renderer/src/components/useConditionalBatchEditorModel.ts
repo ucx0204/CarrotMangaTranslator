@@ -104,10 +104,32 @@ export function useConditionalBatchEditorModel(
     }
     return scheme.parsedDraft.success ? [scheme.parsedDraft.data] : [];
   }, [activeSequence, scheme.savedSchemes, scheme.parsedDraft]);
-  const typography = useConditionalBatchTypography(
+  const glossaryRequired = typographySchemes.some(
+    (entry) =>
+      entry.match.mode !== "allBlocks" &&
+      [
+        ...entry.match.conditions,
+        ...entry.match.groups
+          .filter((group) => group.enabled)
+          .flatMap((group) => group.conditions),
+      ].some(
+        (condition) =>
+          condition.enabled && condition.field === "glossaryMismatch",
+      ),
+  );
+  const fontTypography = useConditionalBatchTypography(
     props.chapter,
-    glossary,
+    glossary.entries,
     typographySchemes,
+  );
+  const typography = {
+    ...fontTypography,
+    ready: fontTypography.ready && (!glossaryRequired || glossary.ready),
+  };
+  const validationMessage = resolveGlossaryValidationMessage(
+    activeSequence ? null : scheme.validationMessage,
+    glossaryRequired,
+    glossary,
   );
   React.useEffect(() => {
     if (activeSequenceId && !activeSequence) setActiveSequenceId(null);
@@ -179,7 +201,7 @@ export function useConditionalBatchEditorModel(
       storageBusy: scheme.storageBusy,
       storageError: scheme.storageError,
       temporarySchemes: scheme.temporarySchemes,
-      validationMessage: activeSequence ? null : scheme.validationMessage,
+      validationMessage,
       yamlError: scheme.yamlError,
       yamlOpen: scheme.yamlOpen,
       yamlText: scheme.yamlText,
@@ -219,34 +241,69 @@ export function useConditionalBatchEditorModel(
       inspectionOnly: preview.preview.inspectionOnly,
       sequenceName: activeSequence?.name ?? null,
       undoLabel: props.undoLabel,
-      validationMessage: activeSequence ? null : scheme.validationMessage,
+      validationMessage,
       onApply: application.apply,
       onUndo: application.undo,
     },
   };
 }
 
-function useWorkGlossary(workId: string | undefined): readonly GlossaryEntry[] {
-  const [glossary, setGlossary] = React.useState<readonly GlossaryEntry[]>([]);
+function resolveGlossaryValidationMessage(
+  draftMessage: string | null,
+  required: boolean,
+  glossary: ReturnType<typeof useWorkGlossary>,
+): string | null {
+  return (
+    draftMessage ??
+    (required && !glossary.ready
+      ? (glossary.error ?? "용어집을 불러오는 중입니다.")
+      : null)
+  );
+}
+
+function useWorkGlossary(workId: string | undefined) {
+  const [glossary, setGlossary] = React.useState<{
+    workId: string | undefined;
+    entries: readonly GlossaryEntry[];
+    ready: boolean;
+    error: string | null;
+  }>({ workId, entries: [], ready: !workId, error: null });
   React.useEffect(() => {
     let active = true;
+    setGlossary({ workId, entries: [], ready: !workId, error: null });
     if (!workId) {
-      setGlossary([]);
       return;
     }
     void libraryGateway
       .getWorkStyleGuide(workId)
       .then((guide) => {
-        if (active) setGlossary(guide.glossary);
+        if (active) {
+          setGlossary({
+            workId,
+            entries: guide.glossary,
+            ready: true,
+            error: null,
+          });
+        }
       })
       .catch(() => {
-        if (active) setGlossary([]);
+        if (active) {
+          setGlossary({
+            workId,
+            entries: [],
+            ready: false,
+            error:
+              "용어집을 읽지 못했습니다. 일괄 편집 창을 다시 열어 재시도하세요.",
+          });
+        }
       });
     return () => {
       active = false;
     };
   }, [workId]);
-  return glossary;
+  return glossary.workId === workId
+    ? glossary
+    : { workId, entries: [], ready: !workId, error: null };
 }
 
 // Scope, exclusions, preview state and result navigation are intentionally one

@@ -1,6 +1,5 @@
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import React from "react";
-import { formatConditionalBatchFieldValue } from "../../../shared/conditionalBatchFieldRegistry";
 import { readConditionalBatchWritableValue } from "../../../shared/conditionalBatchEngine";
 import {
   type ConditionalBatchPreview,
@@ -11,6 +10,7 @@ import { stripRichTextMarkup } from "../../../shared/richTextMarkup";
 import {
   CONDITIONAL_BATCH_FIELD_LABELS,
   conditionalBatchEnumOptions,
+  formatConditionalBatchDisplayValue,
 } from "./conditionalBatchUi";
 import { Button, CheckboxField } from "./ConditionalBatchControls";
 import styles from "./ConditionalBatchEditor.module.css";
@@ -304,7 +304,10 @@ function JudgementDetails({
           <span key={evaluation.conditionId} data-matched={evaluation.matched}>
             {evaluation.matched ? "통과" : "불일치"} ·{" "}
             {CONDITIONAL_BATCH_FIELD_LABELS[evaluation.field]} ={" "}
-            {evaluation.actualValue}
+            {formatConditionalBatchDisplayValue(
+              evaluation.field,
+              evaluation.rawValue,
+            )}
           </span>
         ))}
         {result.actionTrace.map((trace) => (
@@ -350,8 +353,11 @@ function readChangedField(
   }
   if (value === undefined) return "지정 없음";
   if (value === "") return "비어 있음";
-  if (typeof value === "boolean") return value ? "켜짐" : "꺼짐";
-  if (typeof value === "number") return formatConditionalBatchFieldValue(value);
+  if (typeof value === "boolean") {
+    return readChangedBoolean(block, field, value);
+  }
+  if (typeof value === "number")
+    return formatConditionalBatchDisplayValue(field, value);
   if (typeof value === "object") return JSON.stringify(value);
   const rawValue = String(value);
   return (
@@ -359,6 +365,17 @@ function readChangedField(
       (option) => option.value === rawValue,
     )?.label ?? rawValue
   );
+}
+
+function readChangedBoolean(
+  block: ConditionalBatchPreviewResult["beforeBlock"],
+  field: ConditionalBatchWritableField,
+  value: boolean,
+): string {
+  const state = value ? "켜짐" : "꺼짐";
+  return field === "bold" && block.fontWeight !== undefined
+    ? `${state} · 굵기 ${block.fontWeight}`
+    : state;
 }
 
 function resultListSummary(

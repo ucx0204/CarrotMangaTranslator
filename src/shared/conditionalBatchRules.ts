@@ -316,6 +316,7 @@ const BlockStylePresetFormatSchema = z
       .optional(),
     renderDirection: z.enum(["horizontal", "vertical"]).optional(),
     bold: z.boolean().optional(),
+    fontWeight: z.number().int().min(100).max(900).optional(),
     italic: z.boolean().optional(),
     underline: z.boolean().optional(),
     strikethrough: z.boolean().optional(),

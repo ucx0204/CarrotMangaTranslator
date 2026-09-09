@@ -675,9 +675,13 @@ function expandRegexReplacement(
       if (reference === "$") return "$";
       if (reference === "&") return match[0];
       if (reference.startsWith("<")) {
-        return match.groups?.[reference.slice(1, -1)] ?? token;
+        const name = reference.slice(1, -1);
+        return match.groups && Object.hasOwn(match.groups, name)
+          ? (match.groups[name] ?? "")
+          : token;
       }
-      return match[Number(reference)] ?? token;
+      const index = Number(reference);
+      return index < match.length ? (match[index] ?? "") : token;
     },
   );
 }

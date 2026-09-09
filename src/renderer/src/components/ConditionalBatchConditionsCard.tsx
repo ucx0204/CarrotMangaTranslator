@@ -7,6 +7,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import React from "react";
+import { DEFAULT_BLOCK_FONT_ID } from "../../../shared/blockFontCatalog";
 import type {
   ConditionalBatchField,
   ConditionalBatchOperator,
@@ -29,6 +30,8 @@ import {
   isNewConditionalBatchConditionField,
   listConditionalBatchFields,
   summarizeCondition,
+  formatConditionalBatchDisplayValue,
+  resolveConditionalBatchNumberPresentation,
 } from "./conditionalBatchUi";
 import {
   Button,
@@ -40,6 +43,7 @@ import { FontSelect } from "./FontSelect";
 import { useFonts } from "../fonts/useFonts";
 import { Field, TextField } from "./ui/Field";
 import { IconButton } from "./ui/IconButton";
+import { NumberField } from "./ui/NumberField";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import { ConditionalPatternBuilder } from "./ConditionalPatternBuilder";
 import styles from "./ConditionalBatchEditor.module.css";
@@ -298,7 +302,10 @@ function ConditionCard({
           {!expanded && evaluation ? (
             <small data-matched={evaluation.matched}>
               {evaluation.matched ? "통과" : "불일치"} ·{" "}
-              {evaluation.actualValue}
+              {formatConditionalBatchDisplayValue(
+                evaluation.field,
+                evaluation.rawValue,
+              )}
             </small>
           ) : null}
         </button>
@@ -469,9 +476,13 @@ function ConditionValueEditor({
       <Field as="div" label="글꼴">
         <FontSelect
           ariaLabel="글꼴 조건 값"
+          preserveFontId
           value={String(condition.value ?? "") || undefined}
           onChange={(fontFamily) =>
-            onChange({ ...condition, value: fontFamily ?? "" })
+            onChange({
+              ...condition,
+              value: fontFamily ?? DEFAULT_BLOCK_FONT_ID,
+            })
           }
         />
       </Field>
@@ -520,39 +531,50 @@ function ConditionValueEditor({
   }
   if (definition?.kind === "number") {
     const number = definition.number;
+    const presentation = resolveConditionalBatchNumberPresentation(
+      condition.field,
+      typeof condition.value === "number"
+        ? condition.value
+        : (number?.defaultValue ?? 0),
+    );
+    const end = resolveConditionalBatchNumberPresentation(
+      condition.field,
+      condition.value2 ??
+        (number ? Math.min(number.max, number.defaultValue + number.step) : 1),
+    );
     return (
       <div className={styles.valuePair}>
         <Field label={condition.operator === "between" ? "최솟값" : "값"}>
-          <input
-            type="number"
-            min={number?.min}
-            max={number?.max}
-            step={number?.step ?? "any"}
-            value={
-              typeof condition.value === "number"
-                ? condition.value
-                : (number?.defaultValue ?? 0)
-            }
-            onChange={(event) =>
-              onChange({ ...condition, value: Number(event.target.value) })
+          <NumberField
+            ariaLabel="조건 비교 값"
+            variant="framed"
+            min={presentation.min}
+            max={presentation.max}
+            step={presentation.step}
+            precision={6}
+            unit={presentation.unit}
+            value={presentation.value}
+            onValueChange={(value) =>
+              onChange({
+                ...condition,
+                value: presentation.toStoredValue(value),
+              })
             }
           />
         </Field>
         {condition.operator === "between" ? (
           <Field label="최댓값">
-            <input
-              type="number"
-              min={number?.min}
-              max={number?.max}
-              step={number?.step ?? "any"}
-              value={
-                condition.value2 ??
-                (number
-                  ? Math.min(number.max, number.defaultValue + number.step)
-                  : 1)
-              }
-              onChange={(event) =>
-                onChange({ ...condition, value2: Number(event.target.value) })
+            <NumberField
+              ariaLabel="조건 범위 끝 값"
+              variant="framed"
+              min={end.min}
+              max={end.max}
+              step={end.step}
+              precision={6}
+              unit={end.unit}
+              value={end.value}
+              onValueChange={(value) =>
+                onChange({ ...condition, value2: end.toStoredValue(value) })
               }
             />
           </Field>

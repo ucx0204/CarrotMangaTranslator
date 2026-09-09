@@ -2,6 +2,7 @@
 import {
   CONDITIONAL_BATCH_FIELD_DEFINITIONS,
   getConditionalBatchFieldDefinition,
+  formatConditionalBatchFieldValue,
   type ConditionalBatchField,
   type ConditionalBatchOperator,
 } from "../../../shared/conditionalBatchFieldRegistry";
@@ -17,6 +18,9 @@ import {
   type ConditionalReplacementV3,
   type ConditionalTextMatcherV3,
 } from "../../../shared/conditionalTextPattern";
+import { TEXT_WORD_BREAK_VALUES } from "../../../shared/textWrapping";
+import { DEFAULT_BLOCK_FONT_ID } from "../../../shared/blockFontCatalog";
+import { appI18n } from "../appI18n";
 
 export const CONDITIONAL_BATCH_FIELD_LABELS: Record<
   ConditionalBatchField,
@@ -37,11 +41,11 @@ export const CONDITIONAL_BATCH_FIELD_LABELS: Record<
   confidence: "OCR 신뢰도",
   fontRoleConfidence: "글꼴 신뢰도",
   fontSizePx: "글자 크기",
-  lineHeight: "행간",
+  lineHeight: "줄 간격",
   letterSpacing: "자간",
-  fontWidthScale: "글자 너비",
+  fontWidthScale: "장평",
   rotationDeg: "회전",
-  textOpacity: "불투명도",
+  textOpacity: "글자 투명도",
   outlineWidthPx: "외곽선 두께",
   outlineWidthScale: "외곽선 배율",
   outerOutlineWidthPx: "바깥 외곽선 두께",
@@ -68,13 +72,13 @@ export const CONDITIONAL_BATCH_FIELD_LABELS: Record<
   hasInlineStyle: "부분 서식 있음",
   hasSpeaker: "화자 있음",
   hasGlossary: "용어 연결 있음",
-  textEffectEnabled: "그림자 있음",
+  textEffectEnabled: "그림자 사용",
   textEffectColor: "그림자색",
   textEffectOffsetX: "그림자 가로 위치",
   textEffectOffsetY: "그림자 세로 위치",
   textEffectBlur: "그림자 흐림",
   textEffectOpacity: "그림자 불투명도",
-  textGlowEnabled: "광선 있음",
+  textGlowEnabled: "광선 사용",
   textGlowColor: "광선색",
   textGlowBlur: "광선 퍼짐",
   textGlowOpacity: "광선 불투명도",
@@ -320,7 +324,7 @@ export function createConditionForField(
     };
   }
   if (field === "fontFamily") {
-    return { ...base, operator: "equals", value: "" };
+    return { ...base, operator: "equals", value: DEFAULT_BLOCK_FONT_ID };
   }
   return { ...base, operator: "contains", value: "" };
 }
@@ -462,13 +466,12 @@ export function conditionalBatchEnumOptions(
         { value: "right", label: "오른쪽" },
       ];
     case "wordBreak":
-      return [
-        { value: "normal", label: "기본" },
-        { value: "break-word", label: "단어 단위" },
-        { value: "break-all", label: "글자 단위" },
-        { value: "keep-all", label: "한글 단어 유지" },
-        { value: "keep-all-overflow", label: "단어 유지·넘침 허용" },
-      ];
+      return TEXT_WORD_BREAK_VALUES.map((value) => ({
+        value,
+        label: appI18n.t(`format.wordBreak.options.${value}`, {
+          ns: "components",
+        }),
+      }));
     case "reviewStatus":
       return [
         { value: "draft", label: "초안" },
@@ -492,12 +495,13 @@ export function summarizeCondition(
       : (displayValue ??
         (condition.value === undefined
           ? ""
-          : Array.isArray(condition.value)
-            ? condition.value.join(", ")
-            : String(condition.value)));
+          : formatConditionalBatchDisplayValue(
+              condition.field,
+              condition.value,
+            )));
   const end =
     condition.operator === "between"
-      ? ` ${value}–${condition.value2 ?? ""}`
+      ? ` ${value}–${condition.value2 === undefined ? "" : formatConditionalBatchDisplayValue(condition.field, condition.value2)}`
       : value
         ? ` “${value}”`
         : "";
@@ -536,7 +540,7 @@ function summarizeSetFieldChange(
     return summarizeEnumSetField(label, change);
   }
   if (definition.kind === "number") {
-    return summarizeNumberSetField(label, change, definition.number?.unit);
+    return `${label} ${formatConditionalBatchDisplayValue(change.field, change.value)}`;
   }
   const value = String(change.value ?? "");
   return `${label} ${value || "빈 값"}`;
@@ -560,21 +564,65 @@ function summarizeEnumSetField(
   return `${label} ${option?.label ?? rawValue}`;
 }
 
-function summarizeNumberSetField(
-  label: string,
-  change: ConditionalBatchSetFieldChangeV2,
-  unit: string | undefined,
-): string {
-  if (typeof change.value !== "number") return `${label} 값 없음`;
-  if (PERCENT_VALUE_FIELDS.has(change.field)) {
-    return `${label} ${Math.round(change.value * 100)}%`;
-  }
-  return `${label} ${change.value}${unit ?? ""}`;
+export function resolveConditionalBatchNumberPresentation(
+  field: ConditionalBatchField,
+  value: number,
+) {
+  const number = getConditionalBatchFieldDefinition(field).number;
+  const scale = PERCENT_VALUE_FIELDS.has(field) ? 100 : 1;
+  return {
+    value: cleanNumber(value * scale),
+    min: number ? cleanNumber(number.min * scale) : Number.MIN_SAFE_INTEGER,
+    max: number ? cleanNumber(number.max * scale) : Number.MAX_SAFE_INTEGER,
+    step: number ? cleanNumber(number.step * scale) : 0.01,
+    unit:
+      scale === 100
+        ? "%"
+        : (number?.unit ??
+          (field === "lineHeight" || field === "outlineWidthScale" ? "×" : "")),
+    toStoredValue: (next: number) => cleanNumber(next / scale),
+  };
 }
 
-const PERCENT_VALUE_FIELDS = new Set<ConditionalBatchSetFieldChangeV2["field"]>(
-  ["fontWidthScale", "textOpacity", "textEffectOpacity", "textGlowOpacity"],
-);
+export function formatConditionalBatchDisplayValue(
+  field: ConditionalBatchField,
+  value: unknown,
+): string {
+  if (typeof value === "number") {
+    const presentation = resolveConditionalBatchNumberPresentation(
+      field,
+      value,
+    );
+    return `${presentation.value}${presentation.unit}`;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => formatConditionalBatchDisplayValue(field, item))
+      .join(", ");
+  }
+  return (
+    conditionalBatchEnumOptions(field).find((option) => option.value === value)
+      ?.label ??
+    formatConditionalBatchFieldValue(
+      typeof value === "string" || typeof value === "boolean"
+        ? value
+        : undefined,
+    )
+  );
+}
+
+function cleanNumber(value: number): number {
+  return Number(value.toFixed(6));
+}
+
+const PERCENT_VALUE_FIELDS = new Set<ConditionalBatchField>([
+  "fontWidthScale",
+  "textOpacity",
+  "textEffectOpacity",
+  "textGlowOpacity",
+  "confidence",
+  "fontRoleConfidence",
+]);
 
 export function actionStage(action: ConditionalBatchActionV2): 1 | 2 | 3 {
   if (action.type === "replaceText") return 2;

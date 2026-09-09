@@ -1082,7 +1082,7 @@ describe("beginner conditional batch editor", () => {
     );
 
     expect(screen.getByText("QA Sans")).toBeTruthy();
-    expect(screen.getByText("30")).toBeTruthy();
+    expect(screen.getByText("30px")).toBeTruthy();
     expect(screen.getByText("켜짐")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "이전 변경 후보" }));
     fireEvent.click(screen.getByRole("button", { name: "다음 변경 후보" }));

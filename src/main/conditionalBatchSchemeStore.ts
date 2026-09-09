@@ -93,7 +93,7 @@ export class ConditionalBatchSchemeStore {
           ...sequence,
           steps: sequence.steps.filter((step) => step.schemeId !== id),
         }))
-        .filter((sequence) => sequence.steps.length > 0);
+        .filter((sequence) => sequence.steps.some((step) => step.enabled));
       const next = ConditionalBatchSnapshotV2Schema.parse({
         ...readResult.snapshot,
         schemes,

@@ -473,7 +473,7 @@ export function readConditionalBatchField(
     case "translatedText":
       return stripRichTextMarkup(block.translatedText);
     case "fontFamily":
-      return block.fontFamily ?? DEFAULT_BLOCK_FONT_ID;
+      return block.fontFamily || DEFAULT_BLOCK_FONT_ID;
     case "speakerId":
     case "reviewNote":
     case "textRole":

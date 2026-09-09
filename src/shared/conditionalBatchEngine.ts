@@ -1,5 +1,6 @@
 /* eslint-disable complexity, max-lines, max-lines-per-function -- the exhaustive typed rule evaluator keeps preview and apply on one deterministic pipeline */
 import { normalizeFontWeightPatch } from "./blockFontWeight";
+import { DEFAULT_BLOCK_FONT_ID } from "./blockFontCatalog";
 import { resolveBlockStylePresetPatchFields } from "./blockStylePresetFormat";
 import {
   formatConditionalBatchFieldValue,
@@ -590,6 +591,23 @@ function applySetFieldChange(
     value?: string | number | boolean | string[] | null;
   },
 ): TranslationBlock {
+  if (change.field === "fontFamily" || change.field === "bold") {
+    if (
+      change.field === "bold" &&
+      change.operation === "set" &&
+      block.fontWeight === undefined &&
+      readConditionalBatchBooleanValue(block, "bold") === change.value
+    ) {
+      return block;
+    }
+    const value =
+      change.operation === "clear"
+        ? undefined
+        : normalizeWritableValue(change.field, change.value);
+    return value === INVALID_VALUE
+      ? block
+      : applyBlockPatch(block, { [change.field]: value });
+  }
   if (change.operation === "set" && BOOLEAN_FIELDS.has(change.field)) {
     const normalized = normalizeWritableValue(change.field, change.value);
     const current = readConditionalBatchBooleanValue(block, change.field);
@@ -742,8 +760,7 @@ function readTextStyleValue(
   run: TextStyleRun,
   field: ConditionalBatchTextStyleMatchCondition["field"],
 ): boolean | string | number | undefined {
-  if (field === "bold") return run.bold;
-  if (field === "italic") return run.italic;
+  if (TEXT_STYLE_BOOLEAN_FIELDS.has(field)) return Boolean(run[field]);
   return run[field];
 }
 
@@ -983,7 +1000,12 @@ function resolveConditionMatched(
     );
   }
   const actual = String(actualValue ?? "");
-  const expected = String(condition.value ?? "");
+  const expected =
+    condition.field === "fontFamily" &&
+    condition.value === "" &&
+    (operator === "equals" || operator === "notEquals")
+      ? DEFAULT_BLOCK_FONT_ID
+      : String(condition.value ?? "");
   switch (operator) {
     case "contains":
       return actual.includes(expected);
@@ -1377,6 +1399,7 @@ function readConditionalBatchComparisonValue(
   field: ConditionalBatchWritableField,
 ): unknown {
   const value = readConditionalBatchWritableValue(block, field);
+  if (field === "bold") return [value, block.fontWeight];
   if (field === "fontSizePx") {
     return [value, block.fontSizeIntent ?? "manual"];
   }

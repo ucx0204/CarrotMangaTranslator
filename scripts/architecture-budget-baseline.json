@@ -24,6 +24,10 @@
     "src/renderer/src/components/ConditionalBatchActionCard.tsx": 13
   },
   "allow": {
+    "src/renderer/src/components/ConditionalBatchActionCard.tsx": {
+      "maxRuntimeImports": 15,
+      "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
+    },
     "src/shared/pageRevision.ts": {
       "maxImportedBy": 26,
       "reason": "SFX restoration validates the same persisted review revision as preparation; the shared revision algorithm remains unchanged."

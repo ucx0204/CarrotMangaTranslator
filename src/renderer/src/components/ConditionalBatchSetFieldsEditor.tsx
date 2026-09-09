@@ -12,12 +12,12 @@ import {
   conditionalBatchEnumOptions,
   isNewConditionalBatchWritableField,
   listConditionalBatchFields,
+  resolveConditionalBatchNumberPresentation,
 } from "./conditionalBatchUi";
 import {
   appendConditionalBatchSetFieldDependencies as appendSetFieldDependencies,
   createConditionalBatchSetFieldChange as createSetFieldChange,
   isConditionalBatchSetFieldClearable,
-  resolveConditionalBatchNumberPresentation,
 } from "./conditionalBatchSetFieldsModel";
 import { ConditionalBatchSetFieldPicker } from "./ConditionalBatchSetFieldPicker";
 import { ColorField } from "./ColorField";
@@ -311,6 +311,7 @@ function SetFieldValueEditor({
       <Field as="div" label="적용할 글꼴">
         <FontSelect
           ariaLabel="적용할 글꼴"
+          preserveFontId
           value={String(change.value ?? "") || undefined}
           onChange={(fontFamily) =>
             onChange({ ...change, value: fontFamily ?? "" })
@@ -379,6 +380,7 @@ function NumberSetFieldValue({
         min={presentation.min}
         max={presentation.max}
         step={presentation.step}
+        precision={6}
         unit={presentation.unit}
         value={presentation.value}
         onValueChange={(value) =>

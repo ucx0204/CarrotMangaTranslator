@@ -8,6 +8,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import React from "react";
+import { DEFAULT_BLOCK_FONT_ID } from "../../../shared/blockFontCatalog";
 import type { BlockStylePreset } from "../../../shared/blockStylePresets";
 import { createConditionalLiteralMatcher } from "../../../shared/conditionalTextPattern";
 import {
@@ -24,6 +25,7 @@ import {
   type ConditionalBatchTextStyleField,
   type ConditionalBatchTextStyleMatchCondition,
   type ConditionalBatchTextStyleOperator,
+  type ConditionalBatchWritableField,
 } from "../../../shared/conditionalBatchRules";
 import {
   stripRichTextMarkup,
@@ -33,6 +35,7 @@ import {
   actionStage,
   createDefaultAction,
   summarizeAction,
+  resolveConditionalBatchNumberPresentation,
 } from "./conditionalBatchUi";
 import {
   Button,
@@ -44,6 +47,7 @@ import { FontSelect } from "./FontSelect";
 import { ColorField } from "./ColorField";
 import { Field, TextField } from "./ui/Field";
 import { IconButton } from "./ui/IconButton";
+import { NumberField } from "./ui/NumberField";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import { ConditionalPatternBuilder } from "./ConditionalPatternBuilder";
 import { ConditionalBatchSetFieldsEditor } from "./ConditionalBatchSetFieldsEditor";
@@ -487,7 +491,13 @@ function PresetActionEditor({
           ]}
           onValueChange={(id) => {
             const preset = presets.find((entry) => entry.id === id);
-            if (preset) onChange(createPresetAction(preset, action.id));
+            if (preset) {
+              onChange({
+                ...action,
+                ...createPresetAction(preset, action.id),
+                enabled: action.enabled,
+              });
+            }
           }}
         />
       </Field>
@@ -596,7 +606,7 @@ function StyleTextActionEditor({
         />
         <PatchValue
           label="글자 크기"
-          type="number"
+          field="fontSizePx"
           value={action.patch.sizePx}
           onChange={(sizePx) => updateStyle("sizePx", sizePx)}
         />
@@ -605,20 +615,14 @@ function StyleTextActionEditor({
           onChange={(fontFamily) => updateStyle("fontFamily", fontFamily)}
         />
         <PatchValue
-          label="불투명도"
-          type="number"
-          min={0}
-          max={1}
-          step={0.05}
+          label="글자 투명도"
+          field="textOpacity"
           value={action.patch.opacity}
           onChange={(opacity) => updateStyle("opacity", opacity)}
         />
         <PatchValue
           label="장평"
-          type="number"
-          min={0.1}
-          max={5}
-          step={0.05}
+          field="fontWidthScale"
           value={action.patch.widthScale}
           onChange={(widthScale) => updateStyle("widthScale", widthScale)}
         />
@@ -647,10 +651,7 @@ function StyleTextActionEditor({
           />
           <PatchValue
             label="외곽선 두께"
-            type="number"
-            min={0}
-            max={64}
-            step={0.5}
+            field="outlineWidthPx"
             value={action.patch.outlineWidthPx}
             onChange={(outlineWidthPx) =>
               updateStyle("outlineWidthPx", outlineWidthPx)
@@ -665,10 +666,7 @@ function StyleTextActionEditor({
           />
           <PatchValue
             label="바깥 외곽선 두께"
-            type="number"
-            min={0}
-            max={64}
-            step={0.5}
+            field="outerOutlineWidthPx"
             value={action.patch.outerOutlineWidthPx}
             onChange={(outerOutlineWidthPx) =>
               updateStyle("outerOutlineWidthPx", outerOutlineWidthPx)
@@ -681,19 +679,13 @@ function StyleTextActionEditor({
           />
           <PatchValue
             label="광선 퍼짐"
-            type="number"
-            min={0}
-            max={64}
-            step={1}
+            field="textGlowBlur"
             value={action.patch.glowBlurPx}
             onChange={(glowBlurPx) => updateStyle("glowBlurPx", glowBlurPx)}
           />
           <PatchValue
             label="광선 불투명도"
-            type="number"
-            min={0}
-            max={1}
-            step={0.05}
+            field="textGlowOpacity"
             value={action.patch.glowOpacity}
             onChange={(glowOpacity) => updateStyle("glowOpacity", glowOpacity)}
           />
@@ -723,7 +715,7 @@ const TEXT_STYLE_FIELD_LABELS: Record<ConditionalBatchTextStyleField, string> =
     emphasisMark: "강조점",
     fontFamily: "글꼴",
     sizePx: "크기",
-    opacity: "불투명도",
+    opacity: "글자 투명도",
     widthScale: "장평",
     color: "글자색",
     backgroundColor: "글자 배경색",
@@ -922,9 +914,10 @@ function TextStyleMatchValueEditor({
     return (
       <FontSelect
         ariaLabel="비교할 부분 서식 글꼴"
+        preserveFontId
         value={String(condition.value) || undefined}
         onChange={(fontFamily) =>
-          onChange({ ...condition, value: fontFamily ?? "" })
+          onChange({ ...condition, value: fontFamily ?? DEFAULT_BLOCK_FONT_ID })
         }
       />
     );
@@ -939,32 +932,44 @@ function TextStyleMatchValueEditor({
       />
     );
   }
-  const [minimum, maximum, step] = textStyleNumberRange(condition.field);
+  const field = textStyleNumberField(condition.field);
+  const presentation = resolveConditionalBatchNumberPresentation(
+    field,
+    Number(condition.value),
+  );
+  const end = resolveConditionalBatchNumberPresentation(
+    field,
+    condition.value2 ?? Number(condition.value),
+  );
   return (
     <div className={styles.existingStyleNumberValue}>
-      <input
-        aria-label="부분 서식 비교 값"
-        type="number"
-        min={minimum}
-        max={maximum}
-        step={step}
-        value={Number(condition.value)}
-        onChange={(event) =>
-          onChange({ ...condition, value: Number(event.target.value) })
+      <NumberField
+        ariaLabel="부분 서식 비교 값"
+        variant="framed"
+        min={presentation.min}
+        max={presentation.max}
+        step={presentation.step}
+        precision={6}
+        unit={presentation.unit}
+        value={presentation.value}
+        onValueChange={(value) =>
+          onChange({ ...condition, value: presentation.toStoredValue(value) })
         }
       />
       {condition.operator === "between" ? (
         <>
           <span>~</span>
-          <input
-            aria-label="부분 서식 범위 끝 값"
-            type="number"
-            min={minimum}
-            max={maximum}
-            step={step}
-            value={condition.value2 ?? Number(condition.value)}
-            onChange={(event) =>
-              onChange({ ...condition, value2: Number(event.target.value) })
+          <NumberField
+            ariaLabel="부분 서식 범위 끝 값"
+            variant="framed"
+            min={end.min}
+            max={end.max}
+            step={end.step}
+            precision={6}
+            unit={end.unit}
+            value={end.value}
+            onValueChange={(value) =>
+              onChange({ ...condition, value2: end.toStoredValue(value) })
             }
           />
         </>
@@ -978,7 +983,7 @@ function createTextStyleMatchCondition(
   id = createConditionalBatchClientId("style-condition"),
 ): ConditionalBatchTextStyleMatchCondition {
   if (field === "fontFamily") {
-    return { id, field, operator: "equals", value: "" };
+    return { id, field, operator: "equals", value: DEFAULT_BLOCK_FONT_ID };
   }
   if (isTextStyleColorField(field)) {
     return { id, field, operator: "equals", value: "#000000" };
@@ -1045,19 +1050,17 @@ function isTextStyleColorField(field: ConditionalBatchTextStyleField): boolean {
   ].includes(field);
 }
 
-function textStyleNumberRange(
+function textStyleNumberField(
   field: ConditionalBatchTextStyleField,
-): readonly [number, number, number] {
-  if (field === "opacity" || field === "glowOpacity") return [0, 1, 0.05];
-  if (field === "widthScale") return [0.1, 5, 0.05];
-  if (
-    field === "outlineWidthPx" ||
-    field === "outerOutlineWidthPx" ||
-    field === "glowBlurPx"
-  ) {
-    return [0, 64, 0.5];
+): ConditionalBatchWritableField {
+  if (field === "opacity") return "textOpacity";
+  if (field === "glowOpacity") return "textGlowOpacity";
+  if (field === "widthScale") return "fontWidthScale";
+  if (field === "glowBlurPx") return "textGlowBlur";
+  if (field === "outlineWidthPx" || field === "outerOutlineWidthPx") {
+    return field;
   }
-  return [1, 512, 1];
+  return "fontSizePx";
 }
 
 function PatchFontValue({
@@ -1166,60 +1169,47 @@ function PatchBoolean({
   );
 }
 
-function PatchValue<TValue extends string | number>({
+function PatchValue({
   label,
   value,
-  type = "text",
-  min,
-  max,
-  step,
+  field,
   onChange,
 }: {
   label: string;
-  value: TValue | null | undefined;
-  type?: "text" | "number";
-  min?: number;
-  max?: number;
-  step?: number;
-  onChange: (value: TValue | null | undefined) => void;
+  value: number | null | undefined;
+  field: ConditionalBatchWritableField;
+  onChange: (value: number | null | undefined) => void;
 }) {
   const enabled = value !== undefined;
+  const presentation = resolveConditionalBatchNumberPresentation(
+    field,
+    value ?? 1,
+  );
   return (
     <div className={styles.patchField}>
       <CheckboxField
         checked={enabled}
         label={label}
-        onCheckedChange={(checked) =>
-          onChange(
-            checked ? ((type === "number" ? 1 : "") as TValue) : undefined,
-          )
-        }
+        onCheckedChange={(checked) => onChange(checked ? 1 : undefined)}
       />
       {enabled ? (
         <div className={styles.patchValue}>
-          <input
-            type={type}
-            min={min}
-            max={max}
-            step={step ?? (type === "number" ? "any" : undefined)}
+          <NumberField
+            ariaLabel={`${label} 부분 서식 값`}
+            variant="framed"
+            min={presentation.min}
+            max={presentation.max}
+            step={presentation.step}
+            precision={6}
+            unit={presentation.unit}
             disabled={value === null}
-            value={value ?? ""}
-            onChange={(event) =>
-              onChange(
-                type === "number"
-                  ? (Number(event.target.value) as TValue)
-                  : (event.target.value as TValue),
-              )
-            }
+            value={presentation.value}
+            onValueChange={(next) => onChange(presentation.toStoredValue(next))}
           />
           <CheckboxField
             checked={value === null}
             label="초기화"
-            onCheckedChange={(checked) =>
-              onChange(
-                checked ? null : ((type === "number" ? 1 : "") as TValue),
-              )
-            }
+            onCheckedChange={(checked) => onChange(checked ? null : 1)}
           />
         </div>
       ) : null}

@@ -1,49 +1,11 @@
 import { getConditionalBatchFieldDefinition } from "../../../shared/conditionalBatchFieldRegistry";
+import { DEFAULT_BLOCK_FONT_ID } from "../../../shared/blockFontCatalog";
 import {
   isRequiredConditionalBatchWritableField,
   type ConditionalBatchSetFieldChangeV2,
   type ConditionalBatchWritableField,
 } from "../../../shared/conditionalBatchRules";
 import { conditionalBatchEnumOptions } from "./conditionalBatchUi";
-
-export type ConditionalBatchNumberPresentation = {
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  unit: string;
-  toStoredValue: (value: number) => number;
-};
-
-export function resolveConditionalBatchNumberPresentation(
-  field: ConditionalBatchWritableField,
-  value: number,
-): ConditionalBatchNumberPresentation {
-  const number = getConditionalBatchFieldDefinition(field).number;
-  if (!number) {
-    throw new Error(`숫자 속성 정의가 없습니다: ${field}`);
-  }
-  if (PERCENT_FIELDS.has(field)) {
-    return {
-      value: cleanNumber(value * 100),
-      min: cleanNumber(number.min * 100),
-      max: cleanNumber(number.max * 100),
-      step: cleanNumber(number.step * 100),
-      unit: "%",
-      toStoredValue: (next) => cleanNumber(next / 100),
-    };
-  }
-  return {
-    value,
-    min: number.min,
-    max: number.max,
-    step: number.step,
-    unit:
-      number.unit ??
-      (field === "lineHeight" || field === "outlineWidthScale" ? "×" : ""),
-    toStoredValue: cleanNumber,
-  };
-}
 
 export function createConditionalBatchSetFieldChange(
   field: ConditionalBatchWritableField,
@@ -73,7 +35,11 @@ export function createConditionalBatchSetFieldChange(
       value: conditionalBatchEnumOptions(field)[0]?.value ?? "",
     };
   }
-  return { field, operation: "set", value: "" };
+  return {
+    field,
+    operation: "set",
+    value: field === "fontFamily" ? DEFAULT_BLOCK_FONT_ID : "",
+  };
 }
 
 export function isConditionalBatchSetFieldClearable(
@@ -94,17 +60,6 @@ export function appendConditionalBatchSetFieldDependencies(
   }
   return next;
 }
-
-function cleanNumber(value: number): number {
-  return Number(value.toFixed(6));
-}
-
-const PERCENT_FIELDS = new Set<ConditionalBatchWritableField>([
-  "fontWidthScale",
-  "textOpacity",
-  "textEffectOpacity",
-  "textGlowOpacity",
-]);
 
 const DEFAULT_SET_FIELD_COLORS: Partial<
   Record<ConditionalBatchWritableField, string>

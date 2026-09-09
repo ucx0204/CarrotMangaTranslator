@@ -44,6 +44,97 @@ afterEach(async () => {
 });
 
 describe("conditional batch v2 matching and preview", () => {
+  it.each([
+    ["(a)?b", "b", "$1X", "X"],
+    ["(a)?b", "ab", "$1X", "aX"],
+    ["(?<letter>a)?b", "b", "$<letter>X", "X"],
+    ["(?<letter>a)?b", "ab", "$<letter>X", "aX"],
+    ["(a)?b", "b", "$2X", "$2X"],
+    ["(a)?b", "b", "$<missing>X", "$<missing>X"],
+  ])(
+    "expands optional captures in preview and apply: %s / %s / %s",
+    (source, text, replacement, expected) => {
+      const chapter = singleBlockChapter(text);
+      const draft = ConditionalBatchSchemeDraftV2Schema.parse({
+        ...createBlankBatchSchemeDraft(),
+        actions: [
+          {
+            id: "replace",
+            enabled: true,
+            type: "replaceText",
+            target: "translatedText",
+            allOccurrences: true,
+            matcher: { mode: "regex", source, caseSensitive: true },
+            replacement: { mode: "raw", source: replacement },
+          },
+        ],
+      });
+      const preview = createConditionalBatchPreview(
+        chapter,
+        { kind: "chapter" },
+        draft,
+      );
+      expect(preview.results[0]?.after.translatedText).toBe(expected);
+      const applied = applyConditionalBatchPreview(
+        chapter,
+        draft,
+        preview,
+        new Set(),
+      );
+      expect(applied.appliedCount).toBe(1);
+      expect(applied.chapter.pages[0].blocks[0].translatedText).toBe(expected);
+      expect(chapter.pages[0].blocks[0].translatedText).toBe(text);
+    },
+  );
+
+  it.each(["disabled", "enabled", "none"] as const)(
+    "deletes a rule and validates sequences with %s remaining steps",
+    async (remaining) => {
+      const root = await makeTemporaryRoot();
+      const store = new ConditionalBatchSchemeStore(root);
+      const a = (
+        await store.save({
+          scheme: {
+            ...createBlankBatchSchemeDraft(),
+            name: "audit-a",
+            actions: [],
+          },
+        })
+      ).schemes.find((scheme) => scheme.name === "audit-a");
+      const b = (
+        await store.save({
+          scheme: {
+            ...createBlankBatchSchemeDraft(),
+            name: "audit-b",
+            actions: [],
+          },
+        })
+      ).schemes.find((scheme) => scheme.name === "audit-b");
+      if (!a || !b) throw Error("Rules missing");
+      await store.saveSequence({
+        id: "seq",
+        name: "sequence",
+        description: "",
+        steps: [
+          { id: "a", schemeId: a.id, enabled: true },
+          ...(remaining === "none"
+            ? []
+            : [{ id: "b", schemeId: b.id, enabled: remaining === "enabled" }]),
+        ],
+      });
+      const deleted = await store.delete(a.id);
+      expect(ConditionalBatchSnapshotV2Schema.safeParse(deleted).success).toBe(
+        true,
+      );
+      expect(deleted.schemes.some((scheme) => scheme.id === a.id)).toBe(false);
+      expect(deleted.schemes.some((scheme) => scheme.id === b.id)).toBe(true);
+      expect(deleted.sequences).toHaveLength(remaining === "enabled" ? 1 : 0);
+      expect(
+        (await new ConditionalBatchSchemeStore(root).list()).sequences,
+      ).toEqual(deleted.sequences);
+    },
+  );
+
   it("cleans common ellipses and repeated horizontal whitespace together", () => {
     const preview = createConditionalBatchPreview(
       singleBlockChapter("기다려...   지금 가"),

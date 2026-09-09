@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 import type { MangaPage } from "../../shared/libraryTypes";
@@ -7,6 +7,7 @@ import type { RegionAnalysisRequest } from "../../shared/analysisTypes";
 import type { PixelRect } from "../../shared/region";
 import {
   loadImageForRegionCrop,
+  mapRegionBlocksToPageBlocks,
   type ImageDecodeFallback,
 } from "../regionCrop";
 import { inpaintPatternPage } from "../inpainting";
@@ -14,7 +15,7 @@ import { acquireInpaintingEngine } from "../inpainting/inpaintingEnginePool";
 import { getAppPaths } from "../appPaths";
 import { getAppSettings } from "../settingsStore";
 
-export async function prepareRegionArtwork(input: {
+type RegionArtworkInput = {
   source: MangaPage;
   crop: MangaPage;
   analyzed: MangaPage;
@@ -23,15 +24,27 @@ export async function prepareRegionArtwork(input: {
   directory: string;
   decode: ImageDecodeFallback;
   signal: AbortSignal;
-}): Promise<string | undefined> {
+};
+
+const productionDependencies = {
+  getAppPaths,
+  getAppSettings,
+  acquireInpaintingEngine,
+};
+
+export async function prepareRegionArtwork(
+  input: RegionArtworkInput,
+  dependencies = productionDependencies,
+): Promise<string | undefined> {
   if (!input.request.eraseOriginal) return undefined;
   input.signal.throwIfAborted();
   const erased = input.request.codexTypesetting
     ? input.analyzed
     : await eraseRegionWithConfiguredEngine(
-        input.analyzed,
+        await prepareRegionInpaintingContext(input),
         input.decode,
         input.signal,
+        dependencies,
       );
   if (!erased.inpaintedImagePath) {
     if (!erased.blocks.length) return undefined;
@@ -46,13 +59,20 @@ export async function prepareRegionArtwork(input: {
       )
     ).toPNG(),
   );
+  const erasedImage = await loadImageForRegionCrop(
+    erased.inpaintedImagePath,
+    input.decode,
+    input.signal,
+  );
   const patch = PNG.sync.read(
-    (
-      await loadImageForRegionCrop(
-        erased.inpaintedImagePath,
-        input.decode,
-        input.signal,
-      )
+    (input.request.codexTypesetting
+      ? erasedImage
+      : erasedImage.crop({
+          x: input.rect.x,
+          y: input.rect.y,
+          width: input.rect.w,
+          height: input.rect.h,
+        })
     ).toPNG(),
   );
   const current = await loadImageForRegionCrop(
@@ -69,6 +89,38 @@ export async function prepareRegionArtwork(input: {
   );
   await writeFile(path, PNG.sync.write(background), { signal: input.signal });
   return path;
+}
+
+async function prepareRegionInpaintingContext(
+  input: RegionArtworkInput,
+): Promise<MangaPage> {
+  // OCR uses the tight selection. Local inpainting needs the surrounding page
+  // so its existing context windows are not clipped to that tiny OCR image.
+  const original = await loadImageForRegionCrop(
+    input.source.imagePath,
+    input.decode,
+    input.signal,
+  );
+  const size = original.getSize();
+  if (size.width !== input.source.width || size.height !== input.source.height)
+    throw new Error("원본 페이지와 인페인팅 문맥의 크기가 다릅니다.");
+  const directory = join(input.directory, "region-context");
+  await mkdir(directory, { recursive: true });
+  const imagePath = join(directory, `source-${randomUUID()}.png`);
+  await writeFile(imagePath, original.toPNG(), { signal: input.signal });
+  return {
+    ...input.crop,
+    ...size,
+    imagePath,
+    inpaintedImagePath: undefined,
+    inpaintMaskPath: undefined,
+    maskProvenance: undefined,
+    blocks: mapRegionBlocksToPageBlocks(
+      input.analyzed.blocks,
+      input.source,
+      input.rect,
+    ),
+  };
 }
 
 export function mergeRegionArtwork(
@@ -110,10 +162,11 @@ async function eraseRegionWithConfiguredEngine(
   page: MangaPage,
   decodeFallback: ImageDecodeFallback,
   signal: AbortSignal,
+  dependencies: typeof productionDependencies,
 ) {
-  const appPaths = getAppPaths();
-  const settings = await getAppSettings(appPaths);
-  const lease = await acquireInpaintingEngine({
+  const appPaths = dependencies.getAppPaths();
+  const settings = await dependencies.getAppSettings(appPaths);
+  const lease = await dependencies.acquireInpaintingEngine({
     appPaths,
     model: settings.inpainting?.model ?? "flux-klein",
     fluxBackend: settings.inpainting?.fluxBackend,

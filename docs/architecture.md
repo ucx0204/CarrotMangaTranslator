@@ -4,6 +4,11 @@
 
 ## 의존 방향
 
+일괄 편집의 작업 편집기는 숫자 입력을 공용 `NumberField`로 바꾸고 기본 글꼴의
+식별자를 `blockFontCatalog`에서 직접 사용한다. 두 공개 계약을 재사용하기 위한
+`ConditionalBatchActionCard`의 직접 import 상한만 15로 기록한다. 단위를 변환하는
+표시 계약은 기존 `conditionalBatchUi`가 소유하며, 컨트롤 복제나 alias wrapper는 만들지 않는다.
+
 ```text
 renderer app (composition root)
   └─> feature UI ──> feature model/use case ──> renderer gateway
