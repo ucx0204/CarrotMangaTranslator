@@ -5,84 +5,59 @@ const {
 } = require("../simple-page-language-profile.cjs");
 const { buildWorkContextSection } = require("../prompts/work-context.cjs");
 
-const SOUND_EFFECT_TRANSLATION_CONTRACT_VERSION = 2;
+const { buildSystemPrompt } = require("../prompts/system-prompt.cjs");
+const { buildRegionTaskSection } = require("../prompts/task-sections.cjs");
+const { localizePromptTextForProfile } = require("../prompts/localization.cjs");
+
+const SOUND_EFFECT_TRANSLATION_CONTRACT_VERSION = 3;
 
 /** @param {Record<string, unknown>} options */
 function buildSoundEffectTranslationSystemPrompt(options) {
-  const language = resolvePromptLanguageProfile(options);
-  const target = language.targetName;
-  const workContext = buildWorkContextSection(options);
-  const koreanGuidance = buildKoreanSoundEffectGuidance(
-    language.targetBaseCode,
-  );
-  return [
-    "You are a specialist Japanese manga SFX transcriber and localizer.",
-    "Each request contains exactly one code-owned, immutable candidate shown in exactly two images.",
-    "Image 1 is a downscaled whole-page context view. Its sole target is marked with translucent cyan fill and a magenta outline. Use it to infer the action, material, intensity, emotion, speaker, and nearby story context.",
-    "Image 2 is an enlarged high-detail crop of that exact target. Read the source glyphs directly from Image 2; it is the transcription authority.",
-    "Hayai OCR is only a fallible optional hint. Empty, low-confidence, garbled, or conflicting OCR must never make you skip a visibly readable target. Trust the target pixels over OCR.",
-    "When the OCR hint contains plausible Japanese, use it as an independent second reading: if it disagrees with Image 2, inspect the glyphs again before deciding, especially repeated or prolonged kana. Do not silently drop repeated characters that are visible in separate positions.",
-    "When the OCR hint is empty, punctuation-only, or contains no Japanese script, ignore it completely. Never echo punctuation as confirmedSource while Image 2 visibly contains stylized kana or kanji.",
-    "Read all adjacent or spatially repeated glyph clusters in Image 2 that clearly form this one marked sound. Stylized strokes may overlap a character or prop; distinguish the lettering from the artwork instead of reducing it to punctuation.",
-    "Candidate identity and geometry are immutable. Never add, merge, split, move, or delete a candidate, and never translate text outside the marked target.",
-    `Localize only the target into ${target}.`,
-    "For a pure sound, choose a short natural target-language onomatopoeia that matches the pictured event rather than mechanically transliterating Japanese. Preserve meaningful rhythm, repetition, duration, and intensity.",
-    "Before writing JSON, silently do four checks in order: transcribe the visible glyphs; identify the depicted action, material, emotion, and acting subject from Image 1; choose the conventional comic lettering for that meaning in the target language; reject any phonetic-looking choice that describes a different event.",
-    "For a printed reaction or short expressive phrase, preserve its concise semantic meaning instead of forcing it into a sound word.",
-    "Use verdict uncertain only when the target crop truly contains no readable Japanese text (for example decoration, texture, or panel art), or is clearly ordinary dialogue. OCR uncertainty alone is never sufficient.",
-    "Return one JSON object only, with an items array and no markdown or commentary.",
-    ...(workContext.length > 0 ? ["", ...workContext] : []),
-    ...(koreanGuidance.length > 0 ? ["", ...koreanGuidance] : []),
-  ].join("\n");
+  return buildSystemPrompt({ ...options, regionCropMode: true });
 }
 
-/** @param {string} targetBaseCode */
-function buildKoreanSoundEffectGuidance(targetBaseCode) {
-  if (targetBaseCode !== "ko") return [];
-  return [
-    "MANDATORY FINAL KOREAN CHECK: use native, scene-correct Korean comic lettering, never convenient Japanese-syllable transcription when a conventional Korean expression exists.",
-    "Preserve visually distinct kana, repetition, pauses and duration before localizing. Infer whether the target is a sound, action or reaction from its visual context; choose natural Korean wording for that meaning.",
-  ];
-}
-
-/** @param {Record<string, unknown>} options */
-function buildSoundEffectTranslationPrompt(options) {
+/**
+ * @param {Record<string, unknown>} options
+ * @param {import("../prompts/prompt-types").ImageVariant[]} [imageVariants]
+ */
+function buildSoundEffectTranslationPrompt(options, imageVariants = []) {
   const language = resolvePromptLanguageProfile(options);
   const target = readSoundEffectTarget(options);
   const attempt = Number(options.translationAttempt) || 1;
   const retryFeedback = readRetryFeedback(options.soundEffectRetryFeedback);
-  return [
-    `Contract sound-effect-translation-v${SOUND_EFFECT_TRANSLATION_CONTRACT_VERSION}.`,
-    "This request has one target only. Image 1 is the marked page context; Image 2 is the enlarged target crop.",
-    `Visual-reading attempt=${attempt}. ${attempt > 1 ? "The previous answer failed validation. Reconcile Image 2 with any plausible Japanese OCR hint from scratch; ignore a punctuation-only hint." : "Read Image 2 first, then reconcile it with any plausible Japanese OCR hint."}`,
-    ...(attempt > 1 && retryFeedback
-      ? [
-          `The previous answer was rejected for this concrete reason: ${retryFeedback}`,
-          "Correct that problem from the two images; do not merely paraphrase the rejected answer.",
-        ]
-      : []),
-    "Return exactly one item with only these keys:",
-    "regionId, verdict, confirmedSource, translation, confidence",
-    'verdict must be exactly "sound", "reaction", or "uncertain".',
-    "confirmedSource is the Japanese text you personally read from Image 2. It may disagree with or replace the OCR hint.",
-    "translation is short target-language text. For uncertain/non-text candidates it must be an empty string.",
-    "confidence is a number from 0 to 1.",
-    "Do not return bbox, coordinates, ordinary dialogue, explanations, or any regionId not listed here.",
-    "Fixed target:",
+  const regionOptions = { ...options, regionCropMode: true };
+  return localizePromptTextForProfile(
     [
-      `regionId=${target.regionId}`,
-      `bbox=${target.bbox.join(",")}`,
-      `optionalHayaiOcrHint=${formatOcrHint(target.ocrHint)}`,
-      `detectorConfidence=${target.detectorConfidence}`,
-    ].join(" "),
-    ...(language.targetBaseCode === "ko"
-      ? [
-          "Final Korean gate: preserve the exact visible source reading, then choose Korean lettering for the pictured event—not Japanese phonetic transcription. Check that the Korean wording preserves the depicted meaning, rhythm and intensity before answering.",
-        ]
-      : []),
-    "Output shape:",
-    '{"items":[{"regionId":"...","verdict":"sound","confirmedSource":"...","translation":"...","confidence":0.9}]}',
-  ].join("\n");
+      ...buildRegionTaskSection(imageVariants),
+      ...buildWorkContextSection(regionOptions),
+      `Contract sound-effect-translation-v${SOUND_EFFECT_TRANSLATION_CONTRACT_VERSION}.`,
+      "This request has one fixed target only. Image 1 is its enlarged high-detail crop; Image 2 is the whole-page context with the target marked by translucent cyan fill and a magenta outline.",
+      "Use the marker to locate the target in the scene. Read the original glyphs from Image 1, not the tinted context image. Ignore unrelated text in the crop margin and elsewhere on the page.",
+      "Candidate identity and geometry are fixed. Never add, merge, split, move, or delete a candidate.",
+      "Read all glyphs forming this target, including repeated and prolonged lettering. OCR is only a fallible reference; the visible source in Image 1 takes precedence over missing, incomplete or conflicting OCR.",
+      "Use the scene, nearby dialogue, glossary and story memory to understand the meaning and tone. For sounds, preserve rhythm, repetition, duration and intensity in natural Korean comic lettering; for an expressive phrase, preserve its meaning rather than forcing it into an onomatopoeia. Do not mechanically transliterate kana or add an explanation of the scene.",
+      `Visual-reading attempt=${attempt}.`,
+      ...(attempt > 1 && retryFeedback
+        ? [
+            `- Validation failure: ${retryFeedback}`,
+            "Read Image 1 again and correct that problem; do not simply repeat the rejected answer.",
+          ]
+        : []),
+      "Return exactly one JSON object containing an items array with one item and only these keys:",
+      "regionId, verdict, confirmedSource, translation, confidence",
+      'verdict must be exactly "sound", "reaction", or "uncertain". Use uncertain only for an unreadable/non-text target or ordinary dialogue; OCR uncertainty alone is not sufficient.',
+      "confirmedSource is the Japanese text read from Image 1. translation is one coherent, concise Korean translation; it must be empty for uncertain candidates. confidence is a number from 0 to 1.",
+      "Do not return bbox, coordinates, explanations, or any regionId not listed here.",
+      "Fixed target (bbox is a full-page locator only):",
+      [
+        `- regionId=${target.regionId}`,
+        `bbox=${target.bbox.join(",")}`,
+        `optionalHayaiOcrHint=${formatOcrHint(target.ocrHint)}`,
+        `detectorConfidence=${target.detectorConfidence}`,
+      ].join(" "),
+    ].join("\n"),
+    language,
+  );
 }
 
 /** @param {Record<string, unknown>} options */
@@ -115,9 +90,9 @@ function readFiniteNumber(value) {
 function formatOcrHint(value) {
   if (!value) return "NONE (read the image yourself)";
   if (!containsJapanese(value)) {
-    return `${JSON.stringify(value)} (IGNORE: no Japanese script; read Image 2 yourself)`;
+    return `${JSON.stringify(value)} (IGNORE: no Japanese script; read Image 1 yourself)`;
   }
-  return `${JSON.stringify(value)} (independent reading; reconcile with Image 2 and preserve supported repetition)`;
+  return `${JSON.stringify(value)} (independent reading; reconcile with Image 1 and preserve supported repetition)`;
 }
 
 /** @param {string} value */

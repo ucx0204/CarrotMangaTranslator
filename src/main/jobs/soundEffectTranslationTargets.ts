@@ -9,6 +9,7 @@ import {
 
 export type StoredSoundEffectTarget = {
   page: MangaPage;
+  pageIndex: number;
   revision: PageRevision;
   regions: SoundEffectReviewRegion[];
 };
@@ -21,12 +22,15 @@ export function resolveStoredSoundEffectTargets(
   if (chapter.id !== request.chapterId) {
     throw new Error("효과음 번역 화가 다릅니다.");
   }
-  const pages = new Map(chapter.pages.map((page) => [page.id, page]));
+  const pages = new Map(
+    chapter.pages.map((page, pageIndex) => [page.id, { page, pageIndex }]),
+  );
   return request.targets.map((requested) => {
-    const page = pages.get(requested.pageId);
-    if (!page) {
+    const stored = pages.get(requested.pageId);
+    if (!stored) {
       throw new Error(`효과음 번역 페이지가 없습니다: ${requested.pageId}`);
     }
+    const { page, pageIndex } = stored;
     const revision = createSoundEffectReviewPageRevision(page);
     if (revision !== requested.pageRevision) {
       throw new Error(
@@ -51,7 +55,7 @@ export function resolveStoredSoundEffectTargets(
     if (regions.length === 0) {
       throw new Error(`${page.name}: 번역할 pending 효과음 후보가 없습니다.`);
     }
-    return { page, revision, regions };
+    return { page, pageIndex, revision, regions };
   });
 }
 

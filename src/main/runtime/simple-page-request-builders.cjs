@@ -171,12 +171,6 @@ function describeImageVariant(variant, index, options = {}) {
  * @param {RequestOptions} options
  */
 function resolveImageVariantDescription(variant, index, options) {
-  if (variant.role === "sound-effect-page-context") {
-    return "a downscaled full manga page for scene context. The only target is covered by a translucent cyan tint and enclosed by a magenta outline. Use the mark to locate the target, not as source artwork; do not translate unmarked text.";
-  }
-  if (variant.role === "sound-effect-target-crop") {
-    return "an enlarged high-detail crop of the one fixed sound-effect candidate. This crop is authoritative for reading the target glyphs.";
-  }
   if (options.regionCropMode && index === 0) {
     return REGION_CROP_DESCRIPTION;
   }

@@ -237,7 +237,7 @@ async function prepareTranslationRequest(server, options, ocrBboxResult) {
   );
   const soundEffectRequest = isSoundEffectTranslationRequest(options);
   const promptText = soundEffectRequest
-    ? buildSoundEffectTranslationPrompt(options)
+    ? buildSoundEffectTranslationPrompt(options, imageVariants)
     : options.promptOverrideText || getOverlayPrompt(options, imageVariants);
   const systemPrompt = soundEffectRequest
     ? buildSoundEffectTranslationSystemPrompt(options)

@@ -21,18 +21,10 @@ export type SoundEffectTranslationValidation = {
   warnings: string[];
 };
 
-export type SoundEffectTranslationValidationOptions = {
-  /** The second visual pass may overrule a genuinely incorrect OCR hint. */
-  allowOcrMismatch?: boolean;
-  /** The second visual pass may confirm a context-dependent Korean reading. */
-  allowAmbiguousKoreanMeaning?: boolean;
-};
-
 export function validateSoundEffectTranslationResponse(
   payload: unknown,
   regions: readonly SoundEffectReviewRegion[],
   targetLanguage: string,
-  options: SoundEffectTranslationValidationOptions = {},
 ): SoundEffectTranslationValidation {
   const expected = new Map(regions.map((region) => [region.id, region]));
   const seen = new Set<string>();
@@ -54,7 +46,7 @@ export function validateSoundEffectTranslationResponse(
     seen.add(item.regionId);
     const region = expected.get(item.regionId);
     if (!region) continue;
-    const reason = validateItem(item, region, targetLanguage, options);
+    const reason = validateItem(item, targetLanguage);
     if (reason) {
       invalid.add(item.regionId);
       warnings.push(`${item.regionId}: ${reason}`);
@@ -65,7 +57,7 @@ export function validateSoundEffectTranslationResponse(
       warnings.push(`${item.regionId}: 모델이 검토 필요로 판정했습니다.`);
       continue;
     }
-    appendOcrOverrideWarning(warnings, item, region, options);
+    appendOcrOverrideWarning(warnings, item, region);
     valid.push({ ...item, verdict: item.verdict });
   }
   for (const region of regions) {
@@ -165,146 +157,14 @@ function readItem(value: unknown): ParsedItem | null {
   };
 }
 
-function validateItem(
-  item: ParsedItem,
-  region: SoundEffectReviewRegion,
-  targetLanguage: string,
-  options: SoundEffectTranslationValidationOptions,
-): string | null {
+function validateItem(item: ParsedItem, targetLanguage: string): string | null {
   if (item.confidence < 0 || item.confidence > 1) {
     return "confidence가 0~1 범위를 벗어났습니다.";
   }
   if (item.verdict === "uncertain") {
     return item.translation ? "불확실 판정에 번역문이 포함됐습니다." : null;
   }
-  const structuralReason = validateCertainItem(item, targetLanguage);
-  if (structuralReason) return structuralReason;
-  const sourceReason = validateSourceReconciliation(item, region, options);
-  const qualityReason = validateKoreanSoundEffectQuality(
-    item,
-    region,
-    targetLanguage,
-    options,
-  );
-  return [sourceReason, qualityReason].filter(Boolean).join(" ") || null;
-}
-
-function validateSourceReconciliation(
-  item: ParsedItem,
-  region: SoundEffectReviewRegion,
-  options: SoundEffectTranslationValidationOptions,
-): string | null {
-  const ocrSource = region.recognizedText?.trim();
-  if (!ocrSource || !hasJapaneseSourceMismatch(region, item)) return null;
-  if (options.allowOcrMismatch) return null;
-  return "Hayai OCR의 유효한 일본어 판독과 달라 반복 글자를 포함해 이미지를 다시 확인해야 합니다.";
-}
-
-function validateKoreanSoundEffectQuality(
-  item: ParsedItem,
-  region: SoundEffectReviewRegion,
-  targetLanguage: string,
-  options: SoundEffectTranslationValidationOptions,
-): string | null {
-  if (!isKoreanTargetLanguage(targetLanguage)) return null;
-  const sources = [item.confirmedSource, region.recognizedText ?? ""].map(
-    normalizeSource,
-  );
-  const translation = normalizeKoreanTranslation(item.translation);
-  return (
-    validateCanonicalKoreanMeaning(sources, translation) ??
-    validateKoreanActionMeaning(sources, translation) ??
-    validateAmbiguousKoreanMeaning(sources, translation, options)
-  );
-}
-
-function validateCanonicalKoreanMeaning(
-  sources: readonly string[],
-  translation: string,
-): string | null {
-  if (
-    sources.some((source) => source.includes("バタン")) &&
-    translation.includes("철컥")
-  ) {
-    return "バタン은 문이나 몸이 세게 닫히는 장면의 쾅/탕 계열이며 철컥이 아닙니다.";
-  }
-  if (
-    sources.some((source) => /^(?:チ){2,}$/u.test(source)) &&
-    translation.startsWith("치치")
-  ) {
-    return "チチチ를 일본어 음절대로 치치치로 옮기지 말고 장면의 실제 소리를 한국어로 번역해야 합니다.";
-  }
-  if (
-    sources.some(
-      (source) => source.includes("プンプン") || source.includes("ぷんぷん"),
-    ) &&
-    translation.includes("뿡")
-  ) {
-    return "ぷんぷん 분노 표현을 방귀 소리로 오역했습니다.";
-  }
-  if (
-    sources.some(
-      (source) => source.includes("プンプン") || source.includes("ぷんぷん"),
-    ) &&
-    translation.includes("볼")
-  ) {
-    return "ぷんぷん을 장면 설명문으로 풀지 말고 짧고 자연스러운 분노 효과음으로 옮겨야 합니다.";
-  }
-  if (
-    sources.some(
-      (source) => source.includes("ハハ") || source.includes("はは"),
-    ) &&
-    /^(?:하아|하앗)/u.test(translation)
-  ) {
-    return "ハハ 반복 웃음과 ハッ/はぁ 숨소리를 혼동했습니다. 원문 글자를 다시 판독해야 합니다.";
-  }
-  return null;
-}
-
-function validateAmbiguousKoreanMeaning(
-  sources: readonly string[],
-  translation: string,
-  options: SoundEffectTranslationValidationOptions,
-): string | null {
-  if (
-    !options.allowAmbiguousKoreanMeaning &&
-    sources.some((source) => source.includes("ブンブン")) &&
-    /^(?:부릉|부웅)/u.test(translation)
-  ) {
-    return "ブンブン이 모터 소리인지 사람의 흔들기·휘두르기인지 전체 장면에서 다시 판별해야 합니다.";
-  }
-  return null;
-}
-
-function validateKoreanActionMeaning(
-  sources: readonly string[],
-  translation: string,
-): string | null {
-  if (
-    sources.some((source) => source.includes("つるっ")) &&
-    translation.includes("매끈")
-  ) {
-    return "つるっ 미끄러짐을 표면 상태인 매끈으로 옮기지 말고 실제 움직임 효과음으로 번역해야 합니다.";
-  }
-  if (
-    sources.some((source) => source.includes("イラッ")) &&
-    translation.includes("울컥")
-  ) {
-    return "イラッ의 순간적인 짜증과 울컥하는 감정을 혼동했습니다.";
-  }
-  if (
-    sources.some((source) => source.includes("くるっ")) &&
-    translation.includes("스윽")
-  ) {
-    return "くるっ의 빠른 회전을 느린 이동 표현인 스윽으로 옮겼습니다.";
-  }
-  if (
-    sources.some((source) => source.includes("キッ")) &&
-    translation === "큭"
-  ) {
-    return "キッ이 날카로운 시선인지 힘주는 동작인지 장면에서 판별해야 하며 신음인 큭으로 바로 옮길 수 없습니다.";
-  }
-  return null;
+  return validateCertainItem(item, targetLanguage);
 }
 
 function validateCertainItem(
@@ -384,21 +244,13 @@ function appendOcrOverrideWarning(
   warnings: string[],
   item: ParsedItem,
   region: SoundEffectReviewRegion,
-  options: SoundEffectTranslationValidationOptions,
 ): void {
-  if (!options.allowOcrMismatch || !hasJapaneseSourceMismatch(region, item)) {
+  if (!hasJapaneseSourceMismatch(region, item)) {
     return;
   }
   warnings.push(
-    `${item.regionId}: Hayai OCR과 두 번째 이미지 판독이 달라 재판독 결과를 사용했습니다.`,
+    `${item.regionId}: OCR 참고문과 이미지 판독이 달라 이미지에서 읽은 원문을 사용했습니다.`,
   );
-}
-
-function normalizeKoreanTranslation(value: string): string {
-  return value
-    .normalize("NFKC")
-    .replace(/[\s\p{P}\p{S}]/gu, "")
-    .toLowerCase();
 }
 
 export function throwSoundEffectPhaseErrors(

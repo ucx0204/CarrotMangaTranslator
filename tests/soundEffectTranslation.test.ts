@@ -173,6 +173,25 @@ describe("dedicated sound-effect translation contract", () => {
     ).toThrow(/변경/u);
   });
 
+  it("keeps chapter page positions for a sparse selection in reverse order", () => {
+    const chapter = makeChapter();
+    chapter.pages = Array.from({ length: 10 }, (_, index) => ({
+      ...makePage(),
+      id: `page-${index}`,
+      name: `${index}.jpg`,
+    }));
+    const selected = [chapter.pages[8], chapter.pages[3]];
+    const targets = resolveStoredSoundEffectTargets(chapter, {
+      chapterId: chapter.id,
+      targets: selected.map((page) => ({
+        pageId: page.id,
+        pageRevision: createSoundEffectReviewPageRevision(page),
+      })),
+      inpaintAfterTranslation: false,
+    });
+    expect(targets.map((target) => target.pageIndex)).toEqual([8, 3]);
+  });
+
   it("includes glossary, character, rules, and six-page story context", () => {
     const workContext = {
       styleGuide: {
@@ -222,16 +241,22 @@ describe("dedicated sound-effect translation contract", () => {
     const system =
       promptRuntime.buildSoundEffectTranslationSystemPrompt(options);
     const prompt = promptRuntime.buildSoundEffectTranslationPrompt(options);
-    expect(system).toContain("魔王 => 마왕");
-    expect(system).toContain("sourceNames=アリ");
-    expect(system).toContain("honorifics=keep");
-    expect(system).toContain("Preserve visually distinct kana, repetition");
-    expect(system).toContain(
-      "Infer whether the target is a sound, action or reaction",
+    expect(prompt).toContain("魔王 => 마왕");
+    expect(prompt).toContain("sourceNames=アリ");
+    expect(prompt).toContain("honorifics=keep");
+    const {
+      buildSystemPrompt,
+    } = require("../src/main/runtime/prompts/system-prompt.cjs");
+    const {
+      buildRegionTaskSection,
+    } = require("../src/main/runtime/prompts/task-sections.cjs");
+    expect(system).toBe(
+      buildSystemPrompt({ ...options, regionCropMode: true }),
     );
-    expect(system).not.toContain("Canonical meaning contrasts");
-    expect(system).not.toContain("장면-0");
-    expect(system).toContain("장면-6");
+    for (const line of buildRegionTaskSection()) expect(prompt).toContain(line);
+    expect(prompt).toContain("natural Korean comic lettering");
+    expect(prompt).not.toContain("장면-0");
+    expect(prompt).toContain("장면-6");
     expect(prompt).toContain("regionId=FX001");
     expect(prompt).toContain("ブレないなぁ");
     expect(prompt).toContain("Do not return bbox");
@@ -273,7 +298,9 @@ describe("dedicated sound-effect translation contract", () => {
           },
         ],
       });
-    expect(system).not.toContain("MANDATORY FINAL KOREAN CHECK");
+    expect(system).not.toContain("Korean");
+    expect(emptyOcrPrompt).toContain("natural English comic lettering");
+    expect(emptyOcrPrompt).not.toContain("Korean");
     expect(emptyOcrPrompt).toContain("NONE (read the image yourself)");
     expect(emptyOcrPrompt).toContain("detectorConfidence=0");
     expect(punctuationOcrPrompt).toContain("IGNORE: no Japanese script");
@@ -327,10 +354,14 @@ describe("dedicated sound-effect translation contract", () => {
         modelFile: "gemma.gguf",
         sourceLanguage: "ja",
         targetLanguage: "ko",
-        imagePath: contextPath,
+        imagePath: cropPath,
+        regionCropMode: true,
+        regionContextImagePath: contextPath,
+        regionContextImageWidth: 1000,
+        regionContextImageHeight: 1000,
         outputDir,
-        imageWidth: 1000,
-        imageHeight: 1000,
+        imageWidth: 700,
+        imageHeight: 500,
         ocrBboxHints: [],
         includeEnhancedVariant: false,
         maxTokens: 1024,
@@ -348,9 +379,6 @@ describe("dedicated sound-effect translation contract", () => {
             detectorConfidence: 0.9,
           },
         ],
-        soundEffectTargetCropPath: cropPath,
-        soundEffectTargetCropWidth: 700,
-        soundEffectTargetCropHeight: 500,
         soundEffectTargetMarker: "cyan-fill-magenta-outline-v1",
       },
     );
@@ -359,10 +387,23 @@ describe("dedicated sound-effect translation contract", () => {
       items: [{ regionId: "FX001", translation: "쿵" }],
     });
     expect(result.requestBody).toMatchObject({
-      soundEffectTranslationContractVersion: 2,
+      soundEffectTranslationContractVersion: 3,
       soundEffectTranslationRegionIds: ["FX001"],
       noTextDetected: true,
     });
+    const messages = (
+      requestBody as {
+        messages?: Array<{ content: Array<{ type: string; text?: string }> }>;
+      }
+    )?.messages;
+    const imageDescriptions = messages
+      ?.flatMap((message) => message.content)
+      .filter((part) => part.type === "text" && part.text?.startsWith("Image "))
+      .map((part) => part.text);
+    expect(imageDescriptions?.[0]).toContain("Image 1:");
+    expect(imageDescriptions?.[0]).toContain("crop");
+    expect(imageDescriptions?.[1]).toContain("Image 2:");
+    expect(imageDescriptions?.[1]).toContain("full manga page");
     const serialized = JSON.stringify(requestBody);
     expect(serialized).toContain("regionId=FX001");
     expect(serialized).toContain("translucent cyan");
@@ -451,15 +492,14 @@ describe("dedicated sound-effect translation contract", () => {
     ["ko", "쾅"],
     ["en", "BANG"],
   ])(
-    "accepts a valid %s SFX target on both visual attempts",
+    "accepts a valid %s SFX target without a special SFX language override",
     (language, text) => {
       const region = effect("FX001", "ドン", { x: 10, y: 20, w: 100, h: 120 });
-      for (const retry of [false, true]) {
+      {
         const result = validateSoundEffectTranslationResponse(
           { items: [sfxResponse(region.id, "ドン", text)] },
           [region],
           language,
-          { allowOcrMismatch: retry, allowAmbiguousKoreanMeaning: retry },
         );
         expect(result.retryRegionIds).toEqual([]);
         expect(result.valid).toEqual([
@@ -489,12 +529,11 @@ describe("dedicated sound-effect translation contract", () => {
     "keeps unintended Japanese residue pending for %s (%s)",
     (language, text) => {
       const region = effect("FX001", "ドン", { x: 10, y: 20, w: 100, h: 120 });
-      for (const retry of [false, true]) {
+      {
         const result = validateSoundEffectTranslationResponse(
           { items: [sfxResponse(region.id, "ドン", text)] },
           [region],
           language,
-          { allowOcrMismatch: retry, allowAmbiguousKoreanMeaning: retry },
         );
         expect(result.valid).toEqual([]);
         expect(result.retryRegionIds).toEqual([region.id]);
@@ -543,7 +582,6 @@ describe("dedicated sound-effect translation contract", () => {
       },
       regions,
       "ko",
-      { allowOcrMismatch: true },
     );
     expect(result.valid).toEqual([
       expect.objectContaining({
@@ -553,103 +591,121 @@ describe("dedicated sound-effect translation contract", () => {
       }),
     ]);
     expect(result.retryRegionIds).toEqual(["FX002", "FX003"]);
-    expect(result.warnings.join("\n")).toContain("재판독 결과를 사용");
+    expect(result.warnings.join("\n")).toContain("이미지에서 읽은 원문을 사용");
   });
 
-  it("retries clear Korean SFX meaning errors instead of saving them", () => {
-    const regions = [
-      effect("FX001", "バタン", { x: 10, y: 20, w: 100, h: 120 }),
-      effect("FX002", "チチチ", { x: 200, y: 20, w: 100, h: 120 }),
-      effect("FX003", "ぷんぷん", { x: 400, y: 20, w: 100, h: 120 }),
-      effect("FX004", "つるっ", { x: 600, y: 20, w: 100, h: 120 }),
-      effect("FX005", "イラッ", { x: 800, y: 20, w: 100, h: 120 }),
-    ];
+  it.each([
+    null,
+    [],
+    {},
+    { items: null },
+    { items: [] },
+    { items: [null, [], "bad"] },
+    { items: [{}] },
+  ])("keeps candidates pending for an unusable response %j", (payload) => {
+    const region = effect("FX001", "ドン", { x: 10, y: 20, w: 100, h: 120 });
     const result = validateSoundEffectTranslationResponse(
-      {
-        items: [
-          {
-            regionId: "FX001",
-            verdict: "sound",
-            confirmedSource: "バタン",
-            translation: "철컥",
-            confidence: 0.99,
-          },
-          {
-            regionId: "FX002",
-            verdict: "sound",
-            confirmedSource: "チチチ",
-            translation: "치치치...",
-            confidence: 0.99,
-          },
-          {
-            regionId: "FX003",
-            verdict: "sound",
-            confirmedSource: "ぷんぷん",
-            translation: "볼을 빵빵",
-            confidence: 0.99,
-          },
-          {
-            regionId: "FX004",
-            verdict: "sound",
-            confirmedSource: "つるっ",
-            translation: "매끈",
-            confidence: 0.99,
-          },
-          {
-            regionId: "FX005",
-            verdict: "reaction",
-            confirmedSource: "イラッ",
-            translation: "울컥",
-            confidence: 0.99,
-          },
-        ],
-      },
-      regions,
+      payload,
+      [region],
       "ko",
     );
     expect(result.valid).toEqual([]);
-    expect(result.retryRegionIds).toEqual([
-      "FX001",
-      "FX002",
-      "FX003",
-      "FX004",
-      "FX005",
-    ]);
-    expect(result.warnings.join("\n")).toContain("철컥이 아닙니다");
-    expect(result.warnings.join("\n")).toContain("치치치로 옮기지 말고");
-    expect(result.warnings.join("\n")).toContain("장면 설명문");
-    expect(result.warnings.join("\n")).toContain("표면 상태인 매끈");
-    expect(result.warnings.join("\n")).toContain("짜증과 울컥");
+    expect(result.retryRegionIds).toEqual([region.id]);
+    expect(result.warnings.join(" ")).toContain("누락");
   });
 
-  it("rejects remaining canonical and action-specific Korean misreadings", () => {
-    const regions = [
-      effect("FX001", "ぷんぷん", { x: 10, y: 20, w: 100, h: 120 }),
-      effect("FX002", "ハハ", { x: 200, y: 20, w: 100, h: 120 }),
-      effect("FX003", "くるっ", { x: 400, y: 20, w: 100, h: 120 }),
-      effect("FX004", "キッ", { x: 600, y: 20, w: 100, h: 120 }),
-      effect("FX005", "ブンブン", { x: 800, y: 20, w: 100, h: 120 }),
-    ];
+  it.each([
+    { confidence: -0.1 },
+    { confidence: 1.1 },
+    { confidence: "invalid" },
+    { regionId: "" },
+    { regionId: "not-requested" },
+    { verdict: null },
+    { verdict: "ordinary" },
+    { confirmedSource: null },
+    { confirmedSource: "!!" },
+    { translation: null },
+    { translation: "가".repeat(121) },
+    { translation: "BANG" },
+    { verdict: "uncertain", translation: "" },
+    { verdict: "uncertain", translation: "쿵" },
+  ])("keeps invalid or uncertain SFX pending: %j", (override) => {
+    const region = effect("FX001", "ドン", { x: 10, y: 20, w: 100, h: 120 });
     const result = validateSoundEffectTranslationResponse(
       {
-        items: [
-          sfxResponse("FX001", "ぷんぷん", "뿡뿡"),
-          sfxResponse("FX002", "ハハ", "하아"),
-          sfxResponse("FX003", "くるっ", "스윽"),
-          sfxResponse("FX004", "キッ", "큭"),
-          sfxResponse("FX005", "ブンブン", "부릉부릉"),
-        ],
+        items: [{ ...sfxResponse(region.id, "ドン", "쿵"), ...override }],
       },
-      regions,
+      [region],
       "ko",
     );
     expect(result.valid).toEqual([]);
-    expect(result.retryRegionIds).toEqual(regions.map((region) => region.id));
-    expect(result.warnings.join("\n")).toContain("방귀 소리");
-    expect(result.warnings.join("\n")).toContain("반복 웃음");
-    expect(result.warnings.join("\n")).toContain("빠른 회전");
-    expect(result.warnings.join("\n")).toContain("신음인 큭");
-    expect(result.warnings.join("\n")).toContain("전체 장면에서 다시 판별");
+    expect(result.retryRegionIds).toEqual([region.id]);
+    expect(result.warnings.length).toBeGreaterThan(0);
+  });
+
+  it.each([undefined, "", "!!"])(
+    "accepts image reading when OCR has no usable hint (%s)",
+    (hint) => {
+      const region = {
+        ...effect("FX001", "ドン", { x: 10, y: 20, w: 100, h: 120 }),
+        recognizedText: hint,
+      };
+      const result = validateSoundEffectTranslationResponse(
+        {
+          items: [sfxResponse(region.id, "ドン", "쿵")],
+        },
+        [region],
+        "ko-KR",
+      );
+      expect(result.valid[0]?.confirmedSource).toBe("ドン");
+      expect(result.retryRegionIds).toEqual([]);
+      expect(result.warnings).toEqual([]);
+    },
+  );
+
+  it("preserves retry evidence and target identity when localizing the prompt", () => {
+    const prompt = promptRuntime.buildSoundEffectTranslationPrompt({
+      targetLanguage: "en",
+      translationAttempt: 2,
+      soundEffectRetryFeedback: "번역문이\n비어 있습니다.",
+      soundEffectTranslationRegions: [
+        { regionId: "ko", recognizedText: "ドン" },
+      ],
+    });
+    expect(prompt).toContain("- Validation failure: 번역문이 비어 있습니다.");
+    expect(prompt).toContain("regionId=ko");
+    expect(prompt).toContain("Read Image 1 again");
+  });
+
+  it.each([undefined, [], [null], [{ bbox: [] }]])(
+    "handles incomplete target metadata without inventing OCR (%j)",
+    (regions) => {
+      const prompt = promptRuntime.buildSoundEffectTranslationPrompt({
+        translationAttempt: 2,
+        soundEffectTranslationRegions: regions,
+      });
+      expect(prompt).toContain("bbox=0,0,0,0");
+      expect(prompt).toContain("NONE (read the image yourself)");
+      expect(prompt).not.toContain("Validation failure:");
+    },
+  );
+
+  it("does not override scene-dependent translations with a fixed word dictionary", () => {
+    const region = effect("FX001", "ブンブン", {
+      x: 10,
+      y: 20,
+      w: 100,
+      h: 120,
+    });
+    for (const translation of ["부릉부릉", "붕붕", "윙윙"]) {
+      const result = validateSoundEffectTranslationResponse(
+        { items: [sfxResponse(region.id, "ブンブン", translation)] },
+        [region],
+        "ko",
+      );
+      expect(result.valid[0]?.translation).toBe(translation);
+      expect(result.retryRegionIds).toEqual([]);
+    }
   });
 
   it("returns stable cancelled and failed results from the SFX job boundary", async () => {

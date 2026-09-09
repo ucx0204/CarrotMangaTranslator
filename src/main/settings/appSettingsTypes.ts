@@ -189,9 +189,6 @@ export type TranslationOptions = {
     recognizedText?: string;
     detectorConfidence: number;
   }>;
-  soundEffectTargetCropPath?: string;
-  soundEffectTargetCropWidth?: number;
-  soundEffectTargetCropHeight?: number;
   soundEffectTargetMarker?: "cyan-fill-magenta-outline-v1";
   /** Internal validation feedback supplied only to a candidate's one retry. */
   soundEffectRetryFeedback?: string;

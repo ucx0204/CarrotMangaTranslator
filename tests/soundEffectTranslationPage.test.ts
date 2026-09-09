@@ -51,6 +51,8 @@ describe("sound-effect translation page", () => {
           baseOptions: {
             outputDir: "C:/run",
             targetLanguage: "ko",
+            ctx: 32768,
+            maxTokens: 4096,
             ocrPipeline: "hayai-ocr",
           },
           progressContext: {
@@ -65,10 +67,30 @@ describe("sound-effect translation page", () => {
         runPaths: { runDir: "C:/run" } as never,
         target: {
           page: makePage(regions),
+          pageIndex: 8,
           revision: "page-v1:0000000000000000" as never,
           regions,
         },
-        workContext: undefined,
+        workContext: {
+          styleGuide: {
+            glossary: [],
+            characters: [],
+            rules: {
+              honorifics: "keep",
+              sfxMode: "translate",
+              defaultTone: "natural_korean",
+            },
+          },
+          storyMemory: {
+            pages: Array.from({ length: 10 }, (_, pageIndex) => ({
+              pageId: `story-${pageIndex}`,
+              pageName: `${pageIndex}.jpg`,
+              pageIndex,
+              visualSummary: `scene-${pageIndex}`,
+            })),
+          },
+          recentPageCount: 6,
+        } as never,
       },
       {
         buildImages,
@@ -80,21 +102,27 @@ describe("sound-effect translation page", () => {
       "FX001",
       "FX002",
     ]);
+    expect(
+      requests[0]?.workContext?.storyMemory.pages.map((page) => page.pageIndex),
+    ).toEqual([2, 3, 4, 5, 6, 7]);
     expect(buildImages).toHaveBeenCalledTimes(2);
     expect(requestTranslation).toHaveBeenCalledTimes(2);
     expect(
       requests.map((request) => ({
-        context: request.imagePath,
-        crop: request.soundEffectTargetCropPath,
+        context: request.regionContextImagePath,
+        crop: request.imagePath,
+        regionCropMode: request.regionCropMode,
         regions: request.soundEffectTranslationRegions,
       })),
     ).toEqual([
       expect.objectContaining({
+        regionCropMode: true,
         context: "C:/run/FX001-context.png",
         crop: "C:/run/FX001-crop.png",
         regions: [expect.objectContaining({ regionId: "FX001" })],
       }),
       expect.objectContaining({
+        regionCropMode: true,
         context: "C:/run/FX002-context.png",
         crop: "C:/run/FX002-crop.png",
         regions: [expect.objectContaining({ regionId: "FX002" })],
@@ -102,7 +130,7 @@ describe("sound-effect translation page", () => {
     ]);
   });
 
-  it("passes a concrete quality failure back to the one visual retry", async () => {
+  it("retries a malformed translation with concrete feedback without rewriting the source", async () => {
     const regions = [region("FX001", "バタン")];
     const requests: TranslationOptions[] = [];
     const requestTranslation: SoundEffectTranslationPageDependencies["requestTranslation"] =
@@ -115,8 +143,7 @@ describe("sound-effect translation page", () => {
                 regionId: "FX001",
                 verdict: "sound",
                 confirmedSource: "バタン",
-                translation:
-                  pageOptions.translationAttempt === 1 ? "철컥" : "쾅",
+                translation: pageOptions.translationAttempt === 1 ? "" : "쾅",
                 confidence: 0.9,
               },
             ],
@@ -133,6 +160,8 @@ describe("sound-effect translation page", () => {
           baseOptions: {
             outputDir: "C:/run",
             targetLanguage: "ko",
+            ctx: 32768,
+            maxTokens: 4096,
             ocrPipeline: "hayai-ocr",
           },
           progressContext: {
@@ -147,6 +176,7 @@ describe("sound-effect translation page", () => {
         runPaths: { runDir: "C:/run" } as never,
         target: {
           page: makePage(regions),
+          pageIndex: 8,
           revision: "page-v1:0000000000000000" as never,
           regions,
         },
@@ -162,7 +192,7 @@ describe("sound-effect translation page", () => {
     );
 
     expect(requests).toHaveLength(2);
-    expect(requests[1]?.soundEffectRetryFeedback).toContain("철컥이 아닙니다");
+    expect(requests[1]?.soundEffectRetryFeedback).toContain("번역문이 비어");
     expect(result.items).toEqual([
       expect.objectContaining({ translation: "쾅" }),
     ]);

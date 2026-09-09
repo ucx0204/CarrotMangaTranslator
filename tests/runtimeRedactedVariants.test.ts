@@ -15,7 +15,7 @@ afterEach(async () => {
     await rm(root, { recursive: true, force: true });
 });
 it.each([false, true])(
-  "sanitizes every external reference before decoding, context and SFX=%s",
+  "sanitizes every external reference before decoding, selected-region context=%s",
   async (extra) => {
     const root = await mkdtemp(join(tmpdir(), "redacted-variants-"));
     roots.push(root);
@@ -32,11 +32,12 @@ it.each([false, true])(
       ...(extra
         ? {
             regionContextImagePath: "unreadable-context.png",
-            soundEffectTargetCropPath: "unreadable-sfx.png",
+            regionCropMode: true,
+            soundEffectTranslationMode: true,
           }
         : {}),
     });
-    expect(prepare).toHaveBeenCalledTimes(extra ? 3 : 1);
+    expect(prepare).toHaveBeenCalledTimes(extra ? 2 : 1);
     expect(
       result.imageVariants.every(
         (image) =>

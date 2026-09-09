@@ -133,7 +133,7 @@ async function requestAndValidateOneRegion({
     maxAttempts: 2,
     ocrHintsByPageId: new Map<string, OcrBboxResult>(),
     page: target.page,
-    pageIndex,
+    pageIndex: target.pageIndex,
     progressPageIndex: pageIndex,
     signal: abortController.signal,
     skipOcrPrepass: true,
@@ -153,9 +153,13 @@ async function requestAndValidateOneRegion({
     abortController.signal,
   );
   Object.assign(pageOptions, {
-    imagePath: images.context.path,
-    imageWidth: images.context.width,
-    imageHeight: images.context.height,
+    imagePath: images.crop.path,
+    imageWidth: images.crop.width,
+    imageHeight: images.crop.height,
+    regionCropMode: true,
+    regionContextImagePath: images.context.path,
+    regionContextImageWidth: images.context.width,
+    regionContextImageHeight: images.context.height,
     includeEnhancedVariant: false,
     soundEffectTranslationMode: true,
     soundEffectTranslationRegions: [
@@ -166,9 +170,6 @@ async function requestAndValidateOneRegion({
         detectorConfidence: region.detectorConfidence,
       },
     ],
-    soundEffectTargetCropPath: images.crop.path,
-    soundEffectTargetCropWidth: images.crop.width,
-    soundEffectTargetCropHeight: images.crop.height,
     soundEffectTargetMarker: "cyan-fill-magenta-outline-v1",
     ...(retryFeedback ? { soundEffectRetryFeedback: retryFeedback } : {}),
   });
@@ -181,10 +182,6 @@ async function requestAndValidateOneRegion({
     run.runtime.parseJsonLenient(result.outputText),
     [region],
     pageOptions.targetLanguage ?? "ko",
-    {
-      allowAmbiguousKoreanMeaning: attempt > 1,
-      allowOcrMismatch: attempt > 1,
-    },
   );
 }
 

@@ -37,9 +37,6 @@ export type RuntimeOptions = {
     recognizedText?: string;
     detectorConfidence: number;
   }>;
-  soundEffectTargetCropPath?: string | null;
-  soundEffectTargetCropWidth?: number | null;
-  soundEffectTargetCropHeight?: number | null;
   soundEffectTargetMarker?: string | null;
   soundEffectRetryFeedback?: string | null;
   ocrCpuWorkerMinFreeRamPercent?: number | string | null;
