@@ -19,20 +19,20 @@ type Options = {
 };
 export function useRedactionWorkspaceActions(options: Options) {
   const { form, root, setSelected } = options;
-  const entry = React.useRef(form.state);
+  const finish = useFinishRedactionWorkspace(options);
   const focus = () =>
     requestAnimationFrame(() => {
       root.current
         ?.querySelector<HTMLElement>("[data-redaction-stage], [role=listbox]")
         ?.focus();
     });
-  const open = (id: string) => {
+  const open = (id: string, focusEditor = true) => {
     if (form.busy || form.drawing) return;
     form.commit((current) =>
       changeRedactionView(navigateRedactionPage(current, id), { mode: "edit" }),
     );
     setSelected(-1);
-    focus();
+    if (focusEditor) focus();
   };
   const adjacent = (direction: number) => {
     const current = form.live.current;
@@ -56,32 +56,6 @@ export function useRedactionWorkspaceActions(options: Options) {
     );
     setSelected(-1);
     focus();
-  };
-  const finish = async (send: boolean, discard = false) => {
-    if (form.busy || form.drawing) return;
-    form.setBusy(true);
-    form.setError("");
-    try {
-      if (discard)
-        form.commit((current) => ({
-          ...entry.current,
-          generation: current.generation + 1,
-        }));
-      const revision = await form.flush();
-      const snapshot = form.live.current;
-      if (send && options.job)
-        await confirmSnapshot(snapshot, options.job, revision);
-      else if (options.job)
-        await analysisGateway.cancelJob({ jobId: options.job.jobId });
-      await analysisGateway.closeRedactionWorkspace(
-        snapshot.workspace.sessionId,
-      );
-      options.onClose();
-    } catch (error) {
-      form.report(error);
-    } finally {
-      form.setBusy(false);
-    }
   };
   const continueWork = () => {
     const target = unresolvedPage(form);
@@ -140,4 +114,38 @@ async function confirmSnapshot(
     ),
   });
   if (!confirmed) throw new Error("The redaction review was not accepted");
+}
+
+function useFinishRedactionWorkspace(options: Options) {
+  const { form } = options;
+  const entry = React.useRef(form.state);
+  const finishing = React.useRef(false);
+  return async (send: boolean, discard = false) => {
+    if (form.busy || form.drawing || finishing.current) return;
+    finishing.current = true;
+    form.setBusy(true);
+    form.setError("");
+    try {
+      if (discard)
+        form.commit((current) => ({
+          ...entry.current,
+          generation: current.generation + 1,
+        }));
+      const revision = await form.flush();
+      const snapshot = form.live.current;
+      if (send && options.job)
+        await confirmSnapshot(snapshot, options.job, revision);
+      else if (options.job)
+        await analysisGateway.cancelJob({ jobId: options.job.jobId });
+      await analysisGateway.closeRedactionWorkspace(
+        snapshot.workspace.sessionId,
+      );
+      options.onClose();
+    } catch (error) {
+      form.report(error);
+    } finally {
+      finishing.current = false;
+      form.setBusy(false);
+    }
+  };
 }

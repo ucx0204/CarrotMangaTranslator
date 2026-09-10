@@ -16,16 +16,30 @@ type ShortcutModel = ReturnType<typeof useShortcutModel>;
 export function RedactionShortcutDialog(props: Props): React.JSX.Element {
   const { t } = useTranslation("components");
   const model = useShortcutModel(props);
-  return <Modal title={t("manualRedaction.shortcuts")} size="md" onClose={props.onClose}
-    footer={<ControlTooltip content={t("manualRedaction.shortcutScope")} placement="top">
-      <Button variant="primary" disabled={!model.valid} onClick={model.save}>
-        {t("manualRedaction.saveAndClose")}
-      </Button>
-    </ControlTooltip>}
-  >
-    <ShortcutList model={model} />
-    <ShortcutFields model={model} form={props.form} />
-  </Modal>;
+  return (
+    <Modal
+      title={t("manualRedaction.shortcuts")}
+      size="md"
+      onClose={props.onClose}
+      footer={
+        <ControlTooltip
+          content={t("manualRedaction.shortcutScope")}
+          placement="top"
+        >
+          <Button
+            variant="primary"
+            disabled={!model.valid}
+            onClick={model.save}
+          >
+            {t("manualRedaction.saveAndClose")}
+          </Button>
+        </ControlTooltip>
+      }
+    >
+      <ShortcutList model={model} />
+      <ShortcutFields model={model} form={props.form} />
+    </Modal>
+  );
 }
 
 function useShortcutModel({ form, onClose }: Props) {
@@ -35,7 +49,12 @@ function useShortcutModel({ form, onClose }: Props) {
   const valid = validRedactionNavigationKeys(previous, next);
   const save = () => {
     if (!valid) return;
-    form.commit((current) => changeRedactionPreferences(current, { previousKey: previous, nextKey: next }));
+    form.commit((current) =>
+      changeRedactionPreferences(current, {
+        previousKey: previous,
+        nextKey: next,
+      }),
+    );
     onClose();
   };
   return { preferences, previous, setPrevious, next, setNext, valid, save };
@@ -44,7 +63,8 @@ function useShortcutModel({ form, onClose }: Props) {
 function ShortcutList({ model }: { model: ShortcutModel }): React.JSX.Element {
   const { t } = useTranslation("components");
   const letters = model.preferences.letterShortcuts
-    ? `${model.previous.toUpperCase() || "—"} / ${model.next.toUpperCase() || "—"} · ` : "";
+    ? `${model.previous.toUpperCase() || "—"} / ${model.next.toUpperCase() || "—"} · `
+    : "";
   const rows = [
     [`${letters}← / →`, "keysNavigate"],
     ["Enter", "keysConfirm"],
@@ -57,32 +77,73 @@ function ShortcutList({ model }: { model: ShortcutModel }): React.JSX.Element {
     ["Ctrl+Shift+Z / ⌘⇧Z", "keysRedo"],
     ["F / 1", "keysZoom"],
   ];
-  return <dl className={styles.shortcutGrid}>
-    {rows.map(([keys, label]) => <React.Fragment key={label}>
-      <dt><kbd>{keys}</kbd></dt><dd>{t(`manualRedaction.${label}`)}</dd>
-    </React.Fragment>)}
-  </dl>;
+  return (
+    <dl className={styles.shortcutGrid}>
+      {rows.map(([keys, label]) => (
+        <React.Fragment key={label}>
+          <dt>
+            <kbd>{keys}</kbd>
+          </dt>
+          <dd>{t(`manualRedaction.${label}`)}</dd>
+        </React.Fragment>
+      ))}
+    </dl>
+  );
 }
 
-function ShortcutFields({ model, form }: { model: ShortcutModel; form: RedactionWorkspaceController }): React.JSX.Element {
+function ShortcutFields({
+  model,
+  form,
+}: {
+  model: ShortcutModel;
+  form: RedactionWorkspaceController;
+}): React.JSX.Element {
   const { t } = useTranslation("components");
-  return <>
-    <CheckboxField checked={model.preferences.letterShortcuts}
-      onCheckedChange={(letterShortcuts) => form.commit((current) => changeRedactionPreferences(current, { letterShortcuts }))}
-      label={t("manualRedaction.letterShortcuts")} />
-    <div className={styles.previewPair}>
-      <Field label={t("manualRedaction.previousKey")}>
-        <TextField maxLength={1} value={model.previous}
-          onChange={(event) => model.setPrevious(event.target.value.toLowerCase())} />
-      </Field>
-      <Field label={t("manualRedaction.nextKey")}>
-        <TextField maxLength={1} value={model.next}
-          onChange={(event) => model.setNext(event.target.value.toLowerCase())} />
-      </Field>
-    </div>
-    {!model.valid ? <p role="alert" className={styles.inlineError}>{t("manualRedaction.keyConflict")}</p> : null}
-    <CheckboxField checked={model.preferences.keepZoom}
-      onCheckedChange={(keepZoom) => form.commit((current) => changeRedactionPreferences(current, { keepZoom }))}
-      label={t("manualRedaction.keepZoom")} />
-  </>;
+  return (
+    <>
+      <CheckboxField
+        checked={model.preferences.letterShortcuts}
+        onCheckedChange={(letterShortcuts) =>
+          form.commit((current) =>
+            changeRedactionPreferences(current, { letterShortcuts }),
+          )
+        }
+        label={t("manualRedaction.letterShortcuts")}
+      />
+      <div className={styles.previewPair}>
+        <Field label={t("manualRedaction.previousKey")}>
+          <TextField
+            maxLength={1}
+            value={model.previous}
+            onChange={(event) =>
+              model.setPrevious(event.target.value.toLowerCase())
+            }
+          />
+        </Field>
+        <Field label={t("manualRedaction.nextKey")}>
+          <TextField
+            maxLength={1}
+            value={model.next}
+            onChange={(event) =>
+              model.setNext(event.target.value.toLowerCase())
+            }
+          />
+        </Field>
+      </div>
+      {!model.valid ? (
+        <p role="alert" className={styles.inlineError}>
+          {t("manualRedaction.keyConflict")}
+        </p>
+      ) : null}
+      <CheckboxField
+        checked={model.preferences.keepZoom}
+        onCheckedChange={(keepZoom) =>
+          form.commit((current) =>
+            changeRedactionPreferences(current, { keepZoom }),
+          )
+        }
+        label={t("manualRedaction.keepZoom")}
+      />
+    </>
+  );
 }

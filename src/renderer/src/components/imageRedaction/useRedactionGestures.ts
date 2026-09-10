@@ -54,15 +54,7 @@ export function useRedactionGestures(options: Options) {
   const [transformed, setTransformed] = React.useState<
     ImageRedactionStroke[] | null
   >(null);
-  const pendingFrame = React.useRef<number | null>(null);
-  const frame = (update: () => void) => {
-    if (pendingFrame.current !== null)
-      cancelAnimationFrame(pendingFrame.current);
-    pendingFrame.current = requestAnimationFrame(() => {
-      pendingFrame.current = null;
-      update();
-    });
-  };
+  const { pendingFrame, frame } = useGestureFrame();
   const clear = () => {
     if (pendingFrame.current !== null)
       cancelAnimationFrame(pendingFrame.current);
@@ -72,13 +64,6 @@ export function useRedactionGestures(options: Options) {
     setTransformed(null);
     options.onDrawing(false);
   };
-  React.useEffect(
-    () => () => {
-      if (pendingFrame.current !== null)
-        cancelAnimationFrame(pendingFrame.current);
-    },
-    [],
-  );
   return {
     draft,
     transformed,
@@ -175,26 +160,35 @@ function beginGesture(
     return;
   event.preventDefault();
   event.currentTarget.focus();
+  const gesture = createGesture(event, options);
+  if (!gesture) return;
+  ref.current = gesture;
+  if (gesture.kind === "draw") setDraft(gesture.stroke);
+  options.onDrawing(true);
+  event.currentTarget.setPointerCapture(event.pointerId);
+}
+function createGesture(
+  event: React.PointerEvent<HTMLDivElement>,
+  options: Options,
+): Gesture | null {
   const base = { pointer: event.pointerId, pageId: options.page.id };
-  if (
-    options.preferences.tool === "pan" ||
-    options.spaceHeld ||
-    event.button === 1
-  ) {
-    ref.current = {
+  if (usesPanTool(options, event.button))
+    return {
       ...base,
       kind: "pan",
       start: { x: event.clientX, y: event.clientY },
       left: options.viewport.current?.scrollLeft ?? 0,
       top: options.viewport.current?.scrollTop ?? 0,
     };
-  } else if (options.preferences.tool === "select") {
+  if (options.preferences.tool === "select") {
     const selected = selectionGesture(event, options);
-    if (!selected) return;
-    ref.current = { ...base, ...selected };
-  } else {
-    if (options.strokes.length >= 1000) return;
-    const stroke: ImageRedactionStroke = {
+    return selected ? { ...base, ...selected } : null;
+  }
+  if (options.strokes.length >= 1000) return null;
+  return {
+    ...base,
+    kind: "draw",
+    stroke: {
       shape:
         options.preferences.tool === "rectangle"
           ? "rectangle"
@@ -202,12 +196,8 @@ function beginGesture(
       operation: options.preferences.tool === "erase" ? "restore" : "hide",
       size: options.preferences.size,
       points: [imagePoint(event, options.page)],
-    };
-    ref.current = { ...base, kind: "draw", stroke };
-    setDraft(stroke);
-  }
-  options.onDrawing(true);
-  event.currentTarget.setPointerCapture(event.pointerId);
+    },
+  };
 }
 function selectionGesture(
   event: React.PointerEvent<HTMLDivElement>,
@@ -270,4 +260,30 @@ function moveViewport(
   if (!viewport) return;
   viewport.scrollLeft = gesture.left + gesture.start.x - event.clientX;
   viewport.scrollTop = gesture.top + gesture.start.y - event.clientY;
+}
+
+function useGestureFrame() {
+  const pendingFrame = React.useRef<number | null>(null);
+  const frame = (update: () => void) => {
+    if (pendingFrame.current !== null)
+      cancelAnimationFrame(pendingFrame.current);
+    pendingFrame.current = requestAnimationFrame(() => {
+      pendingFrame.current = null;
+      update();
+    });
+  };
+  React.useEffect(
+    () => () => {
+      if (pendingFrame.current !== null)
+        cancelAnimationFrame(pendingFrame.current);
+    },
+    [],
+  );
+  return { pendingFrame, frame };
+}
+
+function usesPanTool(options: Options, button: number): boolean {
+  return (
+    options.preferences.tool === "pan" || options.spaceHeld || button === 1
+  );
 }
