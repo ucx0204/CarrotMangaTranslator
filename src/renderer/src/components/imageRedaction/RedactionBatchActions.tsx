@@ -41,34 +41,49 @@ export function RedactionBatchActions({
   }));
   return (
     <>
+      <div>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={form.busy || form.drawing || !ids.length}
+          onClick={() => select(ids)}
+        >
+          {t("manualRedaction.selectAllShort")}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={form.busy || form.drawing || !count}
+          onClick={() => select([])}
+        >
+          {t("manualRedaction.clearSelectionShort")}
+        </Button>
+      </div>
       <Button
         size="sm"
         fullWidth
         disabled={form.busy || form.drawing || !count}
         onClick={onReview}
       >
-        {t("manualRedaction.reviewSelection")}
+        {t("manualRedaction.reviewSelectedCount", { count })}
       </Button>
       <RedactionActionsMenu
-        label={t("manualRedaction.selectedCount", { count })}
+        label={t("manualRedaction.selectionMenu")}
         disabled={form.busy || form.drawing}
         items={[
-          {
-            label: t("manualRedaction.selectFiltered"),
-            run: () => select(ids),
-            disabled: !ids.length,
-          },
-          {
-            label: t("manualRedaction.clearSelection"),
-            run: () => select([]),
-            disabled: !count,
-          },
           {
             label: t("manualRedaction.copySelection"),
             run: onCopy,
             disabled: !count || !state.documents[view.currentId].strokes.length,
           },
           ...history,
+          ...(["masked", "error"] as const).map((filter) => ({
+            label: t(`manualRedaction.filter_${filter}`),
+            run: () =>
+              commit((current) =>
+                changeRedactionView(current, { filter, gridOffset: 0 }),
+              ),
+          })),
         ]}
       />
     </>

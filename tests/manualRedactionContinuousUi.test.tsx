@@ -139,7 +139,10 @@ function pageNumber() {
   );
 }
 function selectionMenu(count: number) {
-  fireEvent.click(screen.getByRole("button", { name: `${count}장 선택` }));
+  expect(
+    screen.getByRole("button", { name: `선택 ${count}장 확인` }),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "선택 작업" }));
 }
 async function decodeCurrent(number: number) {
   const image = await screen.findByAltText(`${number}.png`);
@@ -163,9 +166,7 @@ describe("single-screen manual redaction", () => {
     expect(screen.queryByRole("tabpanel")).toBeNull();
     expect(screen.queryByRole("menu")).toBeNull();
     expect(screen.queryByRole("button", { name: "가림 프리셋" })).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "선택한 페이지 확인" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "선택 1장 확인" })).toBeTruthy();
     expect(screen.getAllByRole("option").length).toBeLessThan(12);
     expect(
       screen.getByRole("group", { name: "수동 가리기 편집 영역" }),
@@ -181,9 +182,9 @@ describe("single-screen manual redaction", () => {
     expect(pageNumber()).toBe(3);
     expect(page(2).getAttribute("aria-selected")).toBe("true");
     fireEvent.click(page(1), { shiftKey: true });
-    expect(screen.getByRole("button", { name: "3장 선택" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "선택 3장 확인" })).toBeTruthy();
     fireEvent.click(page(2), { metaKey: true });
-    expect(screen.getByRole("button", { name: "2장 선택" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "선택 2장 확인" })).toBeTruthy();
     expect(confirm).not.toHaveBeenCalled();
   });
   it("extends selection with the arrow keys and keeps text-input keys local", () => {
@@ -191,7 +192,7 @@ describe("single-screen manual redaction", () => {
     const list = screen.getByRole("listbox", { name: "가리기 페이지 목록" });
     fireEvent.keyDown(list, { key: "ArrowDown", shiftKey: true });
     expect(pageNumber()).toBe(2);
-    expect(screen.getByRole("button", { name: "2장 선택" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "선택 2장 확인" })).toBeTruthy();
     const input = screen.getByRole("spinbutton", {
       name: "페이지 번호로 이동",
     });
@@ -203,11 +204,8 @@ describe("single-screen manual redaction", () => {
     show(100);
     const list = screen.getByRole("listbox", { name: "가리기 페이지 목록" });
     fireEvent.keyDown(list, { key: "a", ctrlKey: true });
-    // The essential review action is available without opening a menu.
     expect(screen.queryByRole("menu")).toBeNull();
-    fireEvent.click(
-      screen.getByRole("button", { name: "선택한 페이지 확인" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 100장 확인" }));
     const dialog = screen.getByRole("dialog", { name: "선택한 페이지 확인" });
     fireEvent.click(within(dialog).getByRole("checkbox"));
     fireEvent.click(

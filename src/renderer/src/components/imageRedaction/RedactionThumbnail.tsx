@@ -1,12 +1,5 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import {
-  IconCheck,
-  IconClockPause,
-  IconCircleDashed,
-  IconAlertCircle,
-  IconSquareCheck,
-} from "@tabler/icons-react";
 import type {
   RedactionDocument,
   RedactionWorkspacePage,
@@ -35,13 +28,6 @@ export function RedactionThumbnail(props: Props): React.JSX.Element {
     props;
   const error = form.failed.has(page.id);
   const status = error ? "previewErrorShort" : document.decision;
-  const StatusIcon = error
-    ? IconAlertCircle
-    : {
-        reviewed: IconCheck,
-        deferred: IconClockPause,
-        unreviewed: IconCircleDashed,
-      }[document.decision];
   return (
     <SelectionSurface
       as="button"
@@ -78,15 +64,13 @@ export function RedactionThumbnail(props: Props): React.JSX.Element {
           data-status={error ? "error" : document.decision}
           aria-hidden="true"
         >
-          <StatusIcon size={14} />
+          {t(`manualRedaction.${status}`)}
         </span>
       </span>
       {selected ? (
-        <IconSquareCheck
-          className={styles.selectionMark}
-          size={16}
-          aria-hidden="true"
-        />
+        <span className={styles.selectionMark} aria-hidden="true">
+          {t("manualRedaction.selectedBadge")}
+        </span>
       ) : null}
     </SelectionSurface>
   );

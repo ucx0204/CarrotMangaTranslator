@@ -45,7 +45,7 @@
 }
 .layout {
   display: grid;
-  grid-template-columns: 148px minmax(0, 1fr);
+  grid-template-columns: 172px minmax(0, 1fr);
   gap: var(--sp-3);
   flex: 1;
   min-height: 0;
@@ -160,7 +160,8 @@
 }
 .tileCaption {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-direction: column;
   gap: var(--sp-1);
   min-width: 0;
   width: 100%;
@@ -178,6 +179,7 @@
   display: inline-flex;
   flex: none;
   color: var(--text-dim);
+  font-size: var(--font-xs);
 }
 .tileStatus[data-status="reviewed"] {
   color: var(--accent-hi);
@@ -192,6 +194,8 @@
   inset-inline-end: var(--sp-2);
   color: var(--accent-hi);
   background: var(--bg-modal);
+  font-size: var(--font-xs);
+  padding-inline: var(--sp-1);
 }
 .hint {
   margin: 0;
@@ -247,7 +251,7 @@
 }
 @media (max-width: 900px) {
   .layout {
-    grid-template-columns: 124px minmax(0, 1fr);
+    grid-template-columns: 156px minmax(0, 1fr);
     gap: var(--sp-2);
   }
   .footer {
@@ -256,7 +260,7 @@
 }
 @media (max-width: 640px) {
   .layout {
-    grid-template-columns: 112px minmax(0, 1fr);
+    grid-template-columns: 148px minmax(0, 1fr);
   }
   .tools {
     gap: var(--sp-1);
