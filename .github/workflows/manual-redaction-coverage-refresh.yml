@@ -40,6 +40,10 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: npm ci
+      - name: Prepare Electron as in the complete check
+        run: npm run prepare:electron
+      - name: Build the real import runner as in the complete check
+        run: node scripts/prepare-import-source-runner.cjs --no-copy
       - name: Measure, validate and checkpoint only coverage metadata
         env:
           GH_TOKEN: ${{ github.token }}
