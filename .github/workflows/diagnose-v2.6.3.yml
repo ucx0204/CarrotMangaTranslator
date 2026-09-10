@@ -26,15 +26,19 @@ jobs:
           import re
           import subprocess
 
+          # Never send raw escape sequences to the terminal. Capture the API
+          # response in memory, then strip controls before printing excerpts.
           result = subprocess.run(
-              ["gh", "api", "repos/ucx0204/CarrotMangaTranslator/actions/jobs/102751488429/logs"],
+              ["gh", "api", "--allow-escape-sequences", "repos/ucx0204/CarrotMangaTranslator/actions/jobs/102751488429/logs"],
               capture_output=True, text=True, timeout=120,
           )
+          text = (result.stdout if result.returncode == 0 else result.stderr + result.stdout)
+          text = text.replace(os.environ["GH_TOKEN"], "***")
+          text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", text)
+          text = "".join(char if char.isprintable() or char in "\n\t" else "" for char in text)
           if result.returncode:
-              diagnostic = (result.stderr + result.stdout).replace(os.environ["GH_TOKEN"], "***")
-              print(diagnostic[-2000:], flush=True)
+              print(text[-2000:], flush=True)
               raise SystemExit(result.returncode)
-          text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", result.stdout)
           lines = text.splitlines()
           selected = set(range(max(0, len(lines) - 100), len(lines)))
           pattern = re.compile(r"FAIL\s|Failed Tests|AssertionError|Error:|test-coverage.*failed|Test Files|Tests\s+.*failed|TimeoutError|timed out", re.I)
