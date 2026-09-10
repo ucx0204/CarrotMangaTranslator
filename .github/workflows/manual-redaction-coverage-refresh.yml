@@ -1,0 +1,56 @@
+name: Refresh redaction coverage inventory
+
+# One-shot maintenance of the exact feature checkpoint. No release or deployment.
+on:
+  push:
+    branches: [feat/manual-redaction-workspace-20260910]
+    paths: [.github/workflows/manual-redaction-coverage-refresh.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: redaction-coverage-refresh
+  cancel-in-progress: false
+
+env:
+  PYTHONIOENCODING: utf-8
+  PYTHONUTF8: "1"
+
+jobs:
+  refresh:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator'
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out the exact feature checkpoint
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          show-progress: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: npm ci
+      - name: Measure, validate and checkpoint only coverage metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python .github/refresh-redaction-coverage.py
+      - name: Preserve measurements and diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: redaction-coverage-refresh-${{ github.run_id }}
+          path: |
+            .tmp/redaction-coverage-refresh/
+            coverage/coverage-summary.json
+          if-no-files-found: error
+          retention-days: 7
