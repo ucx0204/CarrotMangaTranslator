@@ -13,6 +13,7 @@ type Props = {
   items: Item[];
   disabled: boolean;
   iconOnly?: boolean;
+  align?: "start" | "end";
 };
 
 /** Feature actions share the app's menu, focus and dismissal contracts. */
@@ -21,6 +22,7 @@ export function RedactionActionsMenu({
   items,
   disabled,
   iconOnly,
+  align,
 }: Props): React.JSX.Element {
   const [open, setOpen] = React.useState(false);
   const id = React.useId();
@@ -48,7 +50,7 @@ export function RedactionActionsMenu({
     <div
       ref={rootRef}
       className={styles.actionMenu}
-      data-align={iconOnly ? "end" : "start"}
+      data-align={align ?? (iconOnly ? "end" : "start")}
     >
       {iconOnly ? (
         <ControlTooltip content={label} placement="left">

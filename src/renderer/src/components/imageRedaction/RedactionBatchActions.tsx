@@ -27,6 +27,7 @@ export function RedactionBatchActions({
   const { state, commit } = form;
   const { view } = state.workspace;
   const count = view.selectedIds.length;
+  const disabled = form.busy || form.drawing;
   const select = (selectedIds: string[]) =>
     commit((current) => changeRedactionView(current, { selectedIds }));
   const history = (["undo", "redo"] as const).map((direction) => ({
@@ -43,6 +44,45 @@ export function RedactionBatchActions({
   }));
   return (
     <>
+      <div className={styles.selectionTools}>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={disabled || !ids.length}
+          onClick={() => select(ids)}
+        >
+          {t("manualRedaction.selectAllShort")}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={disabled || !count}
+          onClick={() => select([])}
+        >
+          {t("manualRedaction.clearSelectionShort")}
+        </Button>
+        <RedactionActionsMenu
+          iconOnly
+          align="start"
+          label={t("manualRedaction.selectionMenu")}
+          disabled={disabled}
+          items={[
+            {
+              label: t("manualRedaction.copySelection"),
+              run: onCopy,
+              disabled: !count || !state.documents[view.currentId].strokes.length,
+            },
+            ...history,
+            ...(["masked", "error"] as const).map((filter) => ({
+              label: t(`manualRedaction.filter_${filter}`),
+              run: () =>
+                commit((current) =>
+                  changeRedactionView(current, { filter, gridOffset: 0 }),
+                ),
+            })),
+          ]}
+        />
+      </div>
       <ControlTooltip
         content={t("manualRedaction.explicitReviewHint")}
         placement="right"
@@ -51,49 +91,12 @@ export function RedactionBatchActions({
           className={styles.selectionReview}
           size="sm"
           fullWidth
-          disabled={form.busy || form.drawing || !count}
+          disabled={disabled || !count}
           onClick={onReview}
         >
           {t("manualRedaction.reviewSelectedCount", { count })}
         </Button>
       </ControlTooltip>
-      <div className={styles.selectionTools}>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={form.busy || form.drawing || !ids.length}
-          onClick={() => select(ids)}
-        >
-          {t("manualRedaction.selectAllShort")}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={form.busy || form.drawing || !count}
-          onClick={() => select([])}
-        >
-          {t("manualRedaction.clearSelectionShort")}
-        </Button>
-      </div>
-      <RedactionActionsMenu
-        label={t("manualRedaction.selectionMenu")}
-        disabled={form.busy || form.drawing}
-        items={[
-          {
-            label: t("manualRedaction.copySelection"),
-            run: onCopy,
-            disabled: !count || !state.documents[view.currentId].strokes.length,
-          },
-          ...history,
-          ...(["masked", "error"] as const).map((filter) => ({
-            label: t(`manualRedaction.filter_${filter}`),
-            run: () =>
-              commit((current) =>
-                changeRedactionView(current, { filter, gridOffset: 0 }),
-              ),
-          })),
-        ]}
-      />
     </>
   );
 }
