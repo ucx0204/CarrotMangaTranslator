@@ -200,18 +200,19 @@ describe("single-screen manual redaction", () => {
     fireEvent.keyDown(input, { key: "Enter", isComposing: true });
     expect(pageNumber()).toBe(2);
   });
-  it("reviews a 100-page selection and undoes the batch from its menu", async () => {
+  it("reviews a 100-page selection without a preview acknowledgement and undoes the batch", async () => {
     show(100);
     const list = screen.getByRole("listbox", { name: "가리기 페이지 목록" });
     fireEvent.keyDown(list, { key: "a", ctrlKey: true });
-    // The essential review action is available without opening a menu.
     expect(screen.queryByRole("menu")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "선택 100장 확인" }));
     const dialog = screen.getByRole("dialog", { name: "선택한 페이지 확인" });
-    fireEvent.click(within(dialog).getByRole("checkbox"));
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: "100장에 적용" }),
-    );
+    expect(within(dialog).queryByRole("checkbox")).toBeNull();
+    const apply = within(dialog).getByRole("button", {
+      name: "선택 100장 확인",
+    });
+    expect((apply as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(apply);
     expect(screen.getByText("검토 100/100 · 남음 0")).toBeTruthy();
     expect(confirm).not.toHaveBeenCalled();
     selectionMenu(100);
@@ -291,4 +292,18 @@ it("removes Shift+Enter deferral without treating it as review or permission to 
   expect(confirm).not.toHaveBeenCalled();
   expect(within(page(1)).getByText("미확인")).toBeTruthy();
   expect(within(page(1)).getByText("선택")).toBeTruthy();
+});
+it("still blocks an actual image error instead of confusing it with an unloaded preview", async () => {
+  show(2);
+  const image = await screen.findByAltText("1.png");
+  fireEvent.error(image);
+  fireEvent.click(screen.getByRole("button", { name: "전체 선택" }));
+  fireEvent.click(screen.getByRole("button", { name: "선택 2장 확인" }));
+  const dialog = screen.getByRole("dialog", { name: "선택한 페이지 확인" });
+  expect(within(dialog).queryByRole("checkbox")).toBeNull();
+  expect(within(dialog).getByRole("alert")).toBeTruthy();
+  const apply = within(dialog).getByRole("button", { name: "선택 2장 확인" });
+  expect((apply as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(apply);
+  expect(confirm).not.toHaveBeenCalled();
 });

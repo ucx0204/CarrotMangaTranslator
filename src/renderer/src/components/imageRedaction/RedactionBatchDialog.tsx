@@ -55,9 +55,12 @@ export function RedactionBatchDialog(props: Props): React.JSX.Element {
                   onClick={model.apply}
                   disabled={!model.valid}
                 >
-                  {t("manualRedaction.applyCount", {
-                    count: intent.ids.length,
-                  })}
+                  {t(
+                    intent.kind === "review"
+                      ? "manualRedaction.reviewSelectedCount"
+                      : "manualRedaction.applyCount",
+                    { count: intent.ids.length },
+                  )}
                 </Button>
               </ControlTooltip>
             </>
@@ -83,7 +86,6 @@ export function RedactionBatchDialog(props: Props): React.JSX.Element {
 }
 
 function useBatchModel({ form, intent, onClose }: Props) {
-  const [acknowledged, setAcknowledged] = React.useState(false);
   const [scaling, setScaling] = React.useState<"exact" | "proportional">(
     "exact",
   );
@@ -92,7 +94,6 @@ function useBatchModel({ form, intent, onClose }: Props) {
     intent.ids.includes(page.id),
   );
   const failed = intent.ids.filter((id) => form.failed.has(id)).length;
-  const unseen = intent.ids.filter((id) => !form.ready.has(id)).length;
   const mismatches =
     intent.kind === "copy"
       ? pages.filter(
@@ -101,11 +102,15 @@ function useBatchModel({ form, intent, onClose }: Props) {
             page.height !== intent.source.height,
         )
       : [];
+  // Loading a thumbnail is neither a review nor a prerequisite for explicit batch review.
   const valid =
-    intent.kind === "review"
-      ? !failed && (!unseen || acknowledged)
+    !form.busy &&
+    !form.drawing &&
+    intent.ids.length > 0 &&
+    (intent.kind === "review"
+      ? !failed
       : intent.source.strokes.length > 0 &&
-        (!mismatches.length || scaling === "proportional");
+        (!mismatches.length || scaling === "proportional"));
   const apply = () => {
     if (!valid) return;
     form.commit((current) =>
@@ -116,41 +121,25 @@ function useBatchModel({ form, intent, onClose }: Props) {
     onClose();
   };
   return {
-    acknowledged,
-    setAcknowledged,
     scaling,
     setScaling,
     replace,
     setReplace,
     pages,
     failed,
-    unseen,
     mismatches,
     valid,
     apply,
   };
 }
 
-function ReviewChoices({ model }: { model: BatchModel }): React.JSX.Element {
+function ReviewChoices({ model }: { model: BatchModel }): React.JSX.Element | null {
   const { t } = useTranslation("components");
-  return (
-    <div className={styles.dialogRows}>
-      {model.failed ? (
-        <p role="alert" className={styles.inlineError}>
-          {t("manualRedaction.failedCount", { count: model.failed })}
-        </p>
-      ) : null}
-      {model.unseen ? (
-        <CheckboxField
-          checked={model.acknowledged}
-          onCheckedChange={model.setAcknowledged}
-          label={t("manualRedaction.unseenAcknowledgement", {
-            count: model.unseen,
-          })}
-        />
-      ) : null}
-    </div>
-  );
+  return model.failed ? (
+    <p role="alert" className={styles.inlineError}>
+      {t("manualRedaction.failedCount", { count: model.failed })}
+    </p>
+  ) : null;
 }
 
 function CopyChoices({
