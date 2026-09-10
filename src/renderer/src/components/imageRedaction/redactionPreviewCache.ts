@@ -1,6 +1,11 @@
 import type { RedactionPreviewRequest } from "../../../../shared/imageRedactionWorkspace";
 
-type Task = { key: string; request: RedactionPreviewRequest; resolve: (url: string) => void; reject: (error: unknown) => void };
+type Task = {
+  key: string;
+  request: RedactionPreviewRequest;
+  resolve: (url: string) => void;
+  reject: (error: unknown) => void;
+};
 const MAX_BYTES = 24 * 1024 * 1024;
 const MAX_ENTRIES = 72;
 
@@ -12,13 +17,19 @@ export class RedactionPreviewCache {
   private running = 0;
   private bytes = 0;
   private disposed = false;
-  constructor(private readonly load: (request: RedactionPreviewRequest) => Promise<string>) {}
+  constructor(
+    private readonly load: (
+      request: RedactionPreviewRequest,
+    ) => Promise<string>,
+  ) {}
   read(request: RedactionPreviewRequest, priority = false): Promise<string> {
-    if (this.disposed) return Promise.reject(new Error("Redaction preview queue is closed"));
+    if (this.disposed)
+      return Promise.reject(new Error("Redaction preview queue is closed"));
     const key = `${request.sessionId}:${request.pageId}:${request.maxEdge}`;
     const cached = this.cache.get(key);
     if (cached) {
-      this.cache.delete(key); this.cache.set(key, cached);
+      this.cache.delete(key);
+      this.cache.set(key, cached);
       return Promise.resolve(cached);
     }
     const pending = this.pending.get(key);
@@ -28,7 +39,8 @@ export class RedactionPreviewCache {
     }
     const operation = new Promise<string>((resolve, reject) => {
       const task = { key, request, resolve, reject };
-      if (priority) this.queue.unshift(task); else this.queue.push(task);
+      if (priority) this.queue.unshift(task);
+      else this.queue.push(task);
     });
     this.pending.set(key, operation);
     this.pump();
@@ -40,7 +52,8 @@ export class RedactionPreviewCache {
       this.pending.delete(task.key);
       task.reject(new Error("Redaction preview queue is closed"));
     }
-    this.cache.clear(); this.bytes = 0;
+    this.cache.clear();
+    this.bytes = 0;
   }
   private promote(key: string): void {
     const index = this.queue.findIndex((task) => task.key === key);
@@ -70,12 +83,16 @@ export class RedactionPreviewCache {
   }
   private remember(key: string, url: string): void {
     if (url.length > MAX_BYTES) return;
-    while (this.cache.size >= MAX_ENTRIES || this.bytes + url.length > MAX_BYTES) {
+    while (
+      this.cache.size >= MAX_ENTRIES ||
+      this.bytes + url.length > MAX_BYTES
+    ) {
       const first = this.cache.keys().next().value;
       if (!first) break;
       this.bytes -= this.cache.get(first)?.length ?? 0;
       this.cache.delete(first);
     }
-    this.cache.set(key, url); this.bytes += url.length;
+    this.cache.set(key, url);
+    this.bytes += url.length;
   }
 }
