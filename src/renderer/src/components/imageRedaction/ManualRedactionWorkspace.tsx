@@ -21,7 +21,7 @@ export function ManualRedactionWorkspace(
       <Modal
         title={t("manualRedaction.title")}
         size="xl"
-        width="1440px"
+        width="min(1440px, 100%)"
         fillHeight
         bodyLayout="flex"
         onEntered={actions.focus}
