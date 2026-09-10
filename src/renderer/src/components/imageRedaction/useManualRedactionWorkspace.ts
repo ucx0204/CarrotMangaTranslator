@@ -44,7 +44,6 @@ export function useManualRedactionWorkspace(
     onPrevious: actions.previous,
     onNext: actions.next,
     onConfirm: actions.confirm,
-    onDefer: actions.defer,
     onContinue: actions.continueWork,
   });
   const ids = React.useMemo(

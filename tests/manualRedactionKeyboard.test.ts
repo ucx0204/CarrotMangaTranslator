@@ -31,7 +31,7 @@ it("keeps page navigation separate from review and final approval", () => {
   ).toBeNull();
   expect(
     redactionKeyAction({ ...key("Enter"), shiftKey: true }, preferences),
-  ).toBe("defer");
+  ).toBeNull();
 });
 it("does not consume IME composition, unrelated modifiers or disabled character keys", () => {
   expect(

@@ -2,11 +2,7 @@ import { z } from "zod";
 import { imageRedactionStrokeSchema } from "./imageRedaction";
 
 const id = z.string().min(1).max(500);
-export const redactionDecisionSchema = z.enum([
-  "unreviewed",
-  "reviewed",
-  "deferred",
-]);
+export const redactionDecisionSchema = z.enum(["unreviewed", "reviewed"]);
 export type RedactionDecision = z.infer<typeof redactionDecisionSchema>;
 export const redactionDocumentSchema = z
   .object({
@@ -50,7 +46,7 @@ export const redactionViewSchema = z
   .object({
     currentId: z.string().max(500),
     selectedIds: z.array(id).max(10000),
-    filter: z.enum(["all", "unreviewed", "deferred", "masked", "error"]),
+    filter: z.enum(["all", "unreviewed", "reviewed", "masked", "error"]),
     mode: z.enum(["edit", "grid"]),
     thumbnailSize: z.number().int().min(100).max(260),
     gridOffset: z.number().finite().min(0).max(10000000),

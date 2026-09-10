@@ -41,7 +41,6 @@ describe("manual redaction session", () => {
     expect(redactionProgress(state.documents)).toEqual({
       reviewed: 0,
       unreviewed: 100,
-      deferred: 0,
     });
     const next = editRedactionDocuments(state, [
       { ...state.documents["0"], decision: "reviewed" },
@@ -55,11 +54,11 @@ describe("manual redaction session", () => {
       { ...state.documents["0"], decision: "reviewed" },
     ]);
     state = editRedactionDocuments(state, [
-      { ...state.documents["1"], decision: "deferred" },
+      { ...state.documents["1"], decision: "reviewed" },
     ]);
     state = restoreRedactionEdit(state, "undo", "0");
     expect(state.documents["0"].decision).toBe("unreviewed");
-    expect(state.documents["1"].decision).toBe("deferred");
+    expect(state.documents["1"].decision).toBe("reviewed");
     state = restoreRedactionEdit(state, "redo", "0");
     expect(state.documents["0"].decision).toBe("reviewed");
   });
@@ -74,7 +73,7 @@ describe("manual redaction session", () => {
       true,
     );
     state = editRedactionDocuments(state, [
-      { ...state.documents["1"], decision: "deferred" },
+      { ...state.documents["1"], decision: "unreviewed" },
     ]);
     expect(canRestoreRedactionEdit(state, "undo", "0", true)).toBe(false);
     state = restoreRedactionEdit(state, "undo", "1");
@@ -139,12 +138,12 @@ it("preserves a page's redo when a different page is edited", () => {
   ]);
   state = restoreRedactionEdit(state, "undo", "0");
   state = editRedactionDocuments(state, [
-    { ...state.documents["1"], decision: "deferred" },
+    { ...state.documents["1"], decision: "reviewed" },
   ]);
   expect(canRestoreRedactionEdit(state, "redo", "0")).toBe(true);
   state = restoreRedactionEdit(state, "redo", "0");
   expect(state.documents["0"].decision).toBe("reviewed");
-  expect(state.documents["1"].decision).toBe("deferred");
+  expect(state.documents["1"].decision).toBe("reviewed");
 });
 
 it("invalidates the whole overlapping batch redo but preserves unrelated history", () => {
@@ -159,11 +158,11 @@ it("invalidates the whole overlapping batch redo but preserves unrelated history
   );
   state = restoreRedactionEdit(state, "undo", "0", true);
   state = editRedactionDocuments(state, [
-    { ...state.documents["2"], decision: "deferred" },
+    { ...state.documents["2"], decision: "reviewed" },
   ]);
   expect(canRestoreRedactionEdit(state, "redo", "0", true)).toBe(true);
   state = editRedactionDocuments(state, [
-    { ...state.documents["1"], decision: "deferred" },
+    { ...state.documents["1"], decision: "reviewed" },
   ]);
   expect(canRestoreRedactionEdit(state, "redo", "0", true)).toBe(false);
   expect(state.documents["0"].decision).toBe("unreviewed");

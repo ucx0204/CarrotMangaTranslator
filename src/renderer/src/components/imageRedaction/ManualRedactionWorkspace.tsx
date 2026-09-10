@@ -15,7 +15,7 @@ export function ManualRedactionWorkspace(
   const { t } = useTranslation("components");
   const rootRef = React.useRef<HTMLDivElement>(null);
   const model = useManualRedactionWorkspace(props, rootRef);
-  const { form, actions, keyboard, setDialog, detailReady } = model;
+  const { form, actions, keyboard, setDialog } = model;
   return (
     <>
       <Modal
@@ -41,13 +41,9 @@ export function ManualRedactionWorkspace(
           <RedactionWorkspaceFooter
             form={form}
             preparation={!props.job}
-            detailReady={detailReady}
-            onPrevious={actions.previous}
-            onNext={actions.next}
-            onConfirm={actions.confirm}
-            onDefer={actions.defer}
+            onUnreviewed={actions.nextUnreviewed}
+            onIssue={actions.showIssue}
             onContinue={actions.continueWork}
-            onOpen={actions.open}
           />
         }
       >

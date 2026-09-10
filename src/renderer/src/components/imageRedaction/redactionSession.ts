@@ -120,8 +120,8 @@ export function restoreRedactionEdit(
 
 export function redactionProgress(
   documents: DocumentMap,
-): Record<"reviewed" | "unreviewed" | "deferred", number> {
-  const counts = { reviewed: 0, unreviewed: 0, deferred: 0 };
+): Record<"reviewed" | "unreviewed", number> {
+  const counts = { reviewed: 0, unreviewed: 0 };
   for (const document of Object.values(documents)) counts[document.decision]++;
   return counts;
 }

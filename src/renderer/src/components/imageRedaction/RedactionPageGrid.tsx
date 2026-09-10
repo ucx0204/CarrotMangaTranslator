@@ -14,7 +14,7 @@ type Props = {
   onOpen: (id: string, focusEditor?: boolean) => void;
 };
 const SIZE = 112;
-const ROW_HEIGHT = SIZE + 54;
+const ROW_HEIGHT = SIZE + 72;
 
 /** The former overview now has one presentation: the continuous editor's filmstrip. */
 export function RedactionPageGrid(props: Props): React.JSX.Element {

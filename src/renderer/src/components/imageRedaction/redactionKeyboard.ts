@@ -4,7 +4,6 @@ export type RedactionKeyAction =
   | "next"
   | "confirm"
   | "continue"
-  | "defer"
   | "undo"
   | "redo"
   | "fit"
@@ -51,7 +50,7 @@ function modifiedKeyAction(event: Key, key: string): RedactionKeyAction | null {
 }
 function enterKeyAction(event: Key): RedactionKeyAction | null {
   if (event.repeat) return null;
-  return event.shiftKey ? "defer" : "confirm";
+  return event.shiftKey ? null : "confirm";
 }
 function letterKeyAction(
   key: string,

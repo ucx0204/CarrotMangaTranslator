@@ -1,5 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { ControlTooltip } from "../ui/ControlTooltip";
+import styles from "./RedactionWorkspace.module.css";
 import { Button } from "../ui/Button";
 import { RedactionActionsMenu } from "./RedactionActionsMenu";
 import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
@@ -41,32 +43,38 @@ export function RedactionBatchActions({
   }));
   return (
     <>
-      <div>
+      <ControlTooltip
+        content={t("manualRedaction.explicitReviewHint")}
+        placement="right"
+      >
         <Button
-          variant="ghost"
+          className={styles.selectionReview}
           size="sm"
+          fullWidth
+          disabled={form.busy || form.drawing || !count}
+          onClick={onReview}
+        >
+          {t("manualRedaction.reviewSelectedCount", { count })}
+        </Button>
+      </ControlTooltip>
+      <div className={styles.selectionTools}>
+        <Button
+          size="sm"
+          variant="ghost"
           disabled={form.busy || form.drawing || !ids.length}
           onClick={() => select(ids)}
         >
           {t("manualRedaction.selectAllShort")}
         </Button>
         <Button
-          variant="ghost"
           size="sm"
+          variant="ghost"
           disabled={form.busy || form.drawing || !count}
           onClick={() => select([])}
         >
           {t("manualRedaction.clearSelectionShort")}
         </Button>
       </div>
-      <Button
-        size="sm"
-        fullWidth
-        disabled={form.busy || form.drawing || !count}
-        onClick={onReview}
-      >
-        {t("manualRedaction.reviewSelectedCount", { count })}
-      </Button>
       <RedactionActionsMenu
         label={t("manualRedaction.selectionMenu")}
         disabled={form.busy || form.drawing}

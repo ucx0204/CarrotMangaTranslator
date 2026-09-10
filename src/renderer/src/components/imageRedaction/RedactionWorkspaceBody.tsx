@@ -3,6 +3,7 @@ import type { ManualRedactionWorkspaceModel } from "./useManualRedactionWorkspac
 import { RedactionBatchActions } from "./RedactionBatchActions";
 import { RedactionPageFilter } from "./RedactionPageFilter";
 import { RedactionPageGrid } from "./RedactionPageGrid";
+import { RedactionPageReviewBar } from "./RedactionPageReviewBar";
 import { RedactionCanvas } from "./RedactionCanvas";
 import { RedactionTools } from "./RedactionTools";
 import styles from "./RedactionWorkspace.module.css";
@@ -42,22 +43,32 @@ export function RedactionWorkspaceBody({
           />
           <RedactionPageGrid form={form} ids={ids} onOpen={actions.open} />
         </aside>
-        <RedactionCanvas
-          key={page.id}
-          form={form}
-          page={page}
-          selected={selected}
-          setSelected={setSelected}
-          spaceHeld={keyboard.spaceHeld}
-          onReady={onPageReady}
-          toolbar={
-            <RedactionTools
-              form={form}
-              selected={selected}
-              setSelected={setSelected}
-            />
-          }
-        />
+        <div className={styles.editorPane}>
+          <RedactionCanvas
+            key={page.id}
+            form={form}
+            page={page}
+            selected={selected}
+            setSelected={setSelected}
+            spaceHeld={keyboard.spaceHeld}
+            onReady={onPageReady}
+            toolbar={
+              <RedactionTools
+                form={form}
+                selected={selected}
+                setSelected={setSelected}
+              />
+            }
+          />
+          <RedactionPageReviewBar
+            form={form}
+            detailReady={model.detailReady}
+            onPrevious={actions.previous}
+            onNext={actions.next}
+            onReview={actions.review}
+            onOpen={actions.open}
+          />
+        </div>
       </div>
       {form.error ? (
         <p role="alert" className={styles.inlineError}>

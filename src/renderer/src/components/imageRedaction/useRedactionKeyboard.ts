@@ -19,7 +19,6 @@ type Options = {
   onPrevious: () => void;
   onNext: () => void;
   onConfirm: () => void;
-  onDefer: () => void;
   onContinue: () => void;
   dialogOpen: boolean;
 };
@@ -78,7 +77,6 @@ function executeKey(
     previous: options.onPrevious,
     next: options.onNext,
     confirm: options.onConfirm,
-    defer: options.onDefer,
     continue: options.onContinue,
   };
   const navigate = navigation[action];

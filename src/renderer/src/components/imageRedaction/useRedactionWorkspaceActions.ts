@@ -1,9 +1,10 @@
 import React from "react";
 import { analysisGateway } from "../../api/analysisGateway";
-import { redactionProgress } from "./redactionSession";
+import { nextUnreviewedPage, redactionProgress } from "./redactionSession";
 import {
   changeRedactionView,
   decideAndAdvanceRedaction,
+  decideRedactionPages,
   navigateRedactionPage,
 } from "./redactionWorkspaceModel";
 import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
@@ -42,36 +43,52 @@ export function useRedactionWorkspaceActions(options: Options) {
     const page = current.workspace.pages[index + direction];
     if (page) open(page.id);
   };
-  const decide = (decision: "reviewed" | "deferred") => {
-    if (
-      form.busy ||
-      form.drawing ||
-      (decision === "reviewed" && !options.detailReady)
-    )
-      return;
+  const decide = (advance: boolean) => {
+    if (form.busy || form.drawing || !options.detailReady) return;
     form.commit((current) =>
-      changeRedactionView(decideAndAdvanceRedaction(current, decision), {
-        mode: "edit",
-      }),
+      changeRedactionView(
+        advance
+          ? decideAndAdvanceRedaction(current, "reviewed")
+          : decideRedactionPages(
+              current,
+              [current.workspace.view.currentId],
+              "reviewed",
+            ),
+        {
+          mode: "edit",
+        },
+      ),
     );
     setSelected(-1);
     focus();
   };
   const continueWork = () => {
-    const target = unresolvedPage(form);
-    if (target) {
-      open(target);
-      return;
-    }
-    void finish(true);
+    if (options.job && unresolvedPage(form)) return;
+    void finish(Boolean(options.job));
   };
   return {
     open,
     focus,
     previous: () => adjacent(-1),
     next: () => adjacent(1),
-    confirm: () => decide("reviewed"),
-    defer: () => decide("deferred"),
+    confirm: () => decide(true),
+    review: () => decide(false),
+    nextUnreviewed: () => {
+      const current = form.live.current;
+      const target = nextUnreviewedPage(
+        current,
+        current.workspace.view.currentId,
+      );
+      if (!target) return;
+      form.commit((state) =>
+        changeRedactionView(state, { filter: "unreviewed" }),
+      );
+      open(target);
+    },
+    showIssue: () => {
+      const target = unresolvedPage(form);
+      if (target) open(target);
+    },
     continueWork,
     saveExit: () => {
       void finish(false);
@@ -90,13 +107,9 @@ function unresolvedPage(
     form.failed.has(page.id),
   );
   if (firstError) return firstError.id;
-  for (const decision of ["unreviewed", "deferred"] as const) {
-    const page = state.workspace.pages.find(
-      (item) => state.documents[item.id].decision === decision,
-    );
-    if (page) return page.id;
-  }
-  return undefined;
+  return state.workspace.pages.find(
+    (page) => state.documents[page.id].decision === "unreviewed",
+  )?.id;
 }
 async function confirmSnapshot(
   snapshot: RedactionWorkspaceController["state"],
@@ -104,8 +117,7 @@ async function confirmSnapshot(
   revision: number,
 ): Promise<void> {
   const progress = redactionProgress(snapshot.documents);
-  if (progress.unreviewed || progress.deferred)
-    throw new Error("Unreviewed redaction pages remain");
+  if (progress.unreviewed) throw new Error("Unreviewed redaction pages remain");
   const confirmed = await analysisGateway.confirmImageRedaction({
     ...job,
     workspaceRevision: revision,

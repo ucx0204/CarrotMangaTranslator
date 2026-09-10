@@ -53,12 +53,12 @@ it("coalesces saves and flushes newer edits with the acknowledged revision", asy
   const first = writer.flush();
   expect(writer.flush()).toBe(first);
   current = editRedactionDocuments(current, [
-    { ...current.documents.a, decision: "deferred" },
+    { ...current.documents.a, decision: "unreviewed" },
   ]);
   release(5);
   await expect(first).resolves.toBe(6);
   expect(requests.map((request) => request.expectedRevision)).toEqual([4, 5]);
-  expect(requests[1].changes[0].decision).toBe("deferred");
+  expect(requests[1].changes[0].decision).toBe("unreviewed");
   await writer.flush();
   expect(requests).toHaveLength(2);
 });

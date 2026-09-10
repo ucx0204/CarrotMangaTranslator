@@ -151,7 +151,7 @@ async function decodeCurrent(number: number) {
     expect(
       (
         screen.getByRole("button", {
-          name: "확인하고 다음",
+          name: "이 페이지 확인",
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(false),
@@ -204,6 +204,7 @@ describe("single-screen manual redaction", () => {
     show(100);
     const list = screen.getByRole("listbox", { name: "가리기 페이지 목록" });
     fireEvent.keyDown(list, { key: "a", ctrlKey: true });
+    // The essential review action is available without opening a menu.
     expect(screen.queryByRole("menu")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "선택 100장 확인" }));
     const dialog = screen.getByRole("dialog", { name: "선택한 페이지 확인" });
@@ -211,20 +212,16 @@ describe("single-screen manual redaction", () => {
     fireEvent.click(
       within(dialog).getByRole("button", { name: "100장에 적용" }),
     );
-    expect(
-      screen.getByRole("button", { name: "100 / 100장 확인" }),
-    ).toBeTruthy();
+    expect(screen.getByText("검토 100/100 · 남음 0")).toBeTruthy();
     expect(confirm).not.toHaveBeenCalled();
     selectionMenu(100);
     fireEvent.click(screen.getByRole("menuitem", { name: "일괄 작업 취소" }));
-    expect(screen.getByRole("button", { name: "0 / 100장 확인" })).toBeTruthy();
+    expect(screen.getByText("검토 0/100 · 남음 100")).toBeTruthy();
     selectionMenu(100);
     fireEvent.click(
       screen.getByRole("menuitem", { name: "일괄 작업 다시 실행" }),
     );
-    expect(
-      screen.getByRole("button", { name: "100 / 100장 확인" }),
-    ).toBeTruthy();
+    expect(screen.getByText("검토 100/100 · 남음 0")).toBeTruthy();
   });
   it("never sends from repeated Enter, IME or the last page confirmation", async () => {
     show(2);
@@ -240,7 +237,7 @@ describe("single-screen manual redaction", () => {
     fireEvent.keyDown(canvas, { key: "Enter" });
     fireEvent.keyDown(canvas, { key: "Enter", repeat: true });
     expect(confirm).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "확인 후 계속" }));
+    fireEvent.click(screen.getByRole("button", { name: "작업 재개" }));
     await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
     expect(cancel).not.toHaveBeenCalled();
     expect(save).toHaveBeenCalled();
@@ -264,4 +261,34 @@ describe("single-screen manual redaction", () => {
       screen.queryByRole("dialog", { name: "가리기 편집 종료" }),
     ).toBeNull();
   });
+});
+
+it("keeps a page-only review under the canvas and does not navigate or resume the task", async () => {
+  show(2);
+  await decodeCurrent(1);
+  expect(screen.queryByRole("button", { name: /보류/ })).toBeNull();
+  const group = screen.getByRole("group", { name: "페이지 검토" });
+  fireEvent.click(
+    within(group).getByRole("button", { name: "이 페이지 확인" }),
+  );
+  expect(pageNumber()).toBe(1);
+  expect(within(group).getByText("확인됨")).toBeTruthy();
+  expect(screen.getByText("검토 1/2 · 남음 1").closest("button")).toBeNull();
+  expect(screen.getByText("저장됨").closest("button")).toBeNull();
+  expect(within(group).queryByRole("button", { name: "작업 재개" })).toBeNull();
+  expect(confirm).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "미확인으로 이동" }));
+  expect(pageNumber()).toBe(2);
+  expect(confirm).not.toHaveBeenCalled();
+});
+it("removes Shift+Enter deferral without treating it as review or permission to send", async () => {
+  show(2);
+  await decodeCurrent(1);
+  const canvas = screen.getByRole("group", { name: "수동 가리기 편집 영역" });
+  fireEvent.keyDown(canvas, { key: "Enter", shiftKey: true });
+  expect(pageNumber()).toBe(1);
+  expect(screen.getByText("검토 0/2 · 남음 2")).toBeTruthy();
+  expect(confirm).not.toHaveBeenCalled();
+  expect(within(page(1)).getByText("미확인")).toBeTruthy();
+  expect(within(page(1)).getByText("선택")).toBeTruthy();
 });

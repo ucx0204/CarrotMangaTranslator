@@ -68,7 +68,6 @@ function ShortcutList({ model }: { model: ShortcutModel }): React.JSX.Element {
   const rows = [
     [`${letters}← / →`, "keysNavigate"],
     ["Enter", "keysConfirm"],
-    ["Shift+Enter", "keysDefer"],
     ["Ctrl+Enter / ⌘Enter", "keysContinue"],
     ["R / B / E / V / H", "keysTools"],
     ["Space + Drag", "keysPan"],

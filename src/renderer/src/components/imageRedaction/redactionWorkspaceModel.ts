@@ -90,7 +90,7 @@ export function navigateRedactionPage(
 }
 export function decideAndAdvanceRedaction(
   state: RedactionSession,
-  decision: "reviewed" | "deferred",
+  decision: "reviewed",
 ): RedactionSession {
   const id = state.workspace.view.currentId;
   const next = decideRedactionPages(state, [id], decision);
