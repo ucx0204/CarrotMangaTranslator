@@ -141,9 +141,10 @@ const allowedElectronLocales = new Set([
 // import/path helpers, shell argument parser, and sound-effect request contract.
 // Provider-compatible structured responses add the shared Responses and
 // structured-completion transport leaves. C23 adds its 13 pinned algorithm
-// scripts, and API request pacing adds one transport leaf. Keep the resulting
-// 330-file thin payload ceiling exact so unrelated growth fails closed.
-const MAX_PACKAGED_FILES = 330;
+// scripts, and API request pacing adds one transport leaf. v2.6.3 adds
+// font-chapter-c18/hayai-pool.py for the reusable CPU OCR pool. Keep the
+// resulting 331-file thin payload ceiling exact so unrelated growth fails closed.
+const MAX_PACKAGED_FILES = 331;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the

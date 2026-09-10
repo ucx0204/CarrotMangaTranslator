@@ -267,7 +267,7 @@ describe("Windows installer clean uninstall option", () => {
       "const MAX_PACKAGED_BYTES = 1450 * 1024 * 1024;",
     );
     expect(packagedRuntimeVerifier).toContain(
-      "const MAX_PACKAGED_FILES = 330;",
+      "const MAX_PACKAGED_FILES = 331;",
     );
     expect(packagedRuntimeVerifier).toContain(
       "const mainRuntimeSmokeMessage = runPackagedMainRuntimeSmoke();",
@@ -468,6 +468,23 @@ describe("Windows installer clean uninstall option", () => {
         outputDir: join(appOutDir, "resources", "app-runtime"),
         runtimeModulesOnly: true,
       });
+      expect(
+        readFileSync(
+          join(
+            appOutDir,
+            "resources",
+            "app-runtime",
+            "font-chapter-c18",
+            "hayai-pool.py",
+          ),
+          "utf8",
+        ),
+      ).toBe(
+        readFileSync(
+          join(sourceRuntime, "font-chapter-c18", "hayai-pool.py"),
+          "utf8",
+        ),
+      );
       const fontMatchingDir = join(
         appOutDir,
         "resources",
