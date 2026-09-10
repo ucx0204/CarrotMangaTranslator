@@ -14,4 +14,8 @@ export const analysisGateway = createMangaDomainGateway("Analysis", [
   "confirmImageRedaction",
   "getImageRedactionEnabled",
   "setImageRedactionEnabled",
+  "openRedactionWorkspace",
+  "saveRedactionWorkspace",
+  "closeRedactionWorkspace",
+  "getRedactionWorkspacePreview",
 ] as const);
