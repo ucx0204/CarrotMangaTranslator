@@ -12,6 +12,10 @@ on:
       - src/main/imageRedaction*.ts
       - src/shared/i18n/**
       - tests/manualRedaction*
+      - tests/i18nKeyUsage.test.ts
+      - tests/productionCleanupCoverageGate.test.ts
+      - scripts/check-production-cleanup-coverage.cjs
+      - scripts/production-cleanup-coverage-floors.json
 
 permissions:
   contents: read
@@ -87,5 +91,7 @@ jobs:
             .tmp/manual-redaction-full-check/
             .tmp/check-timings.json
             .tmp/check-results/
+            .tmp/check-logs/
+            coverage/coverage-summary.json
           if-no-files-found: warn
           retention-days: 7
