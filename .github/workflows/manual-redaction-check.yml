@@ -1,6 +1,6 @@
 name: Manual redaction workspace checks
 
-# Development branch only; never publishes a release. checkpoint: backend-2
+# Development branch only; never publishes a release. checkpoint: workspace-ui-3
 on:
   push:
     branches: [feat/manual-redaction-workspace-20260910]
@@ -61,7 +61,7 @@ jobs:
           files = run(["git", "diff", "--name-only", "--diff-filter=AM", "19b660f4160e4a64ce479caa09a20437f9ed3c81"]).splitlines()
           files = [path for path in files if path.endswith((".ts", ".tsx", ".json", ".css", ".md", ".yml"))]
           if files:
-              print(run(["node", "node_modules/prettier/bin/prettier.cjs", "--write", *files])[-5000:])
+              print(run(["node", "node_modules/prettier/bin/prettier.cjs", "--write", *files])[-4000:])
           if run(["git", "diff", "--name-only"]):
               run(["git", "config", "user.name", "github-actions[bot]"])
               run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"])
@@ -70,28 +70,39 @@ jobs:
               run(["gh", "auth", "setup-git"])
               run(["git", "push", "origin", "HEAD:refs/heads/" + branch])
           print("VALIDATED_SOURCE_SHA=" + run(["git", "rev-parse", "HEAD"]))
-      - name: Typecheck and regression tests
+      - name: Validate types, focused regressions and code policies
+        run: python .github/manual-redaction-validate.py
+      - name: Record resumable validation status without copying raw logs
+        if: always()
         shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           import json
-          import re
+          import os
           import subprocess
           from pathlib import Path
-          commands = [
-              ["npm.cmd", "run", "typecheck"],
-              ["npm.cmd", "run", "typecheck:electron"],
-              ["npm.cmd", "run", "test", "--", "tests/manualRedactionSession.test.ts", "tests/manualRedactionRaster.test.ts", "tests/manualRedactionWorkspaceStore.test.ts", "tests/imageRedaction.test.ts", "tests/imageRedactionReview.test.ts"],
-          ]
-          failures = []
-          root = Path(".tmp/manual-redaction-check")
-          root.mkdir(parents=True, exist_ok=True)
-          for index, command in enumerate(commands):
-              result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1200)
-              text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", result.stdout + result.stderr)
-              (root / f"{index}.log").write_text(text, encoding="utf-8")
-              print("COMMAND: " + " ".join(command), flush=True)
-              print(text[-16000:], flush=True)
-              if result.returncode:
-                  failures.append({"command": command, "returncode": result.returncode})
-          print("VALIDATION_FAILURES=" + json.dumps(failures))
-          raise SystemExit(bool(failures))
+          branch = "feat/manual-redaction-workspace-20260910"
+          assert os.environ["GITHUB_REF"] == "refs/heads/" + branch
+          def run(args):
+              return subprocess.run(args, check=True, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120).stdout.strip()
+          result = Path(".tmp/manual-redaction-check/result.json")
+          if not result.exists():
+              print("Validation did not finish. Inspect the earlier failed step; no success record created.")
+              raise SystemExit(0)
+          report = json.loads(result.read_text(encoding="utf-8"))
+          remote = run(["gh", "api", "repos/ucx0204/CarrotMangaTranslator/git/ref/heads/" + branch, "--jq", ".object.sha"])
+          if remote != run(["git", "rev-parse", "HEAD"]):
+              print("Branch advanced; refusing to overwrite newer work. Results remain in this run's logs.")
+              raise SystemExit(0)
+          lines = ["# 최신 수동 가리기 검증 체크포인트", "", f"검사한 소스: `{report['source']}`", f"Actions 실행: `{report['run_id']}`", "", "전체 Check / 실제 UI QA와 별도의 집중 검증입니다.", ""]
+          lines += [f"- {check['name']}: {'PASS' if check['exit_code'] == 0 else 'FAIL'} (exit {check['exit_code']})" for check in report["checks"]]
+          lines += ["", "실패 세부 사항은 해당 Actions 로그에서 확인합니다. 원시 로그나 인증 정보는 이 문서에 복사하지 않습니다.", ""]
+          path = Path("docs/manual-redaction-latest-validation.md")
+          path.write_text("\n".join(lines), encoding="utf-8")
+          run(["git", "config", "user.name", "github-actions[bot]"])
+          run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"])
+          run(["git", "add", str(path)])
+          run(["git", "commit", "-m", "docs: record manual workspace validation checkpoint"])
+          run(["gh", "auth", "setup-git"])
+          run(["git", "push", "origin", "HEAD:refs/heads/" + branch])
