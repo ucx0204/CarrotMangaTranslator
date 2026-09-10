@@ -131,7 +131,6 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
       ) : !image.url ? (
         <p role="status">{t("manualRedaction.loading")}</p>
       ) : null}
-      <p className={styles.hint}>{t("manualRedaction.canvasHint")}</p>
     </div>
   );
 }
