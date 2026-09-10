@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
   DEFAULT_REDACTION_PREFERENCES,
+  redactionDecisionSchema,
   redactionDocumentSchema,
   redactionPreferencesSchema,
   redactionPresetSchema,
@@ -18,12 +19,24 @@ const schema = z
       redactionDocumentSchema
         .omit({ id: true })
         .extend({
+          // Read legacy drafts without approving them or discarding their masks.
+          decision: z.preprocess(
+            (value) => (value === "deferred" ? "unreviewed" : value),
+            redactionDecisionSchema,
+          ),
           width: z.number().int().positive(),
           height: z.number().int().positive(),
         })
         .strict(),
     ),
-    views: z.record(redactionViewSchema),
+    views: z.record(
+      redactionViewSchema.extend({
+        filter: z.preprocess(
+          (value) => (value === "deferred" ? "unreviewed" : value),
+          redactionViewSchema.shape.filter,
+        ),
+      }),
+    ),
     preferences: redactionPreferencesSchema,
     presets: z.array(redactionPresetSchema).max(30),
   })
