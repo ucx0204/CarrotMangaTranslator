@@ -3,7 +3,7 @@ import { useEventCallback } from "../../hooks/useEventCallback";
 import { useTranslation } from "react-i18next";
 import type { RedactionWorkspace } from "../../../../shared/imageRedactionWorkspace";
 import { analysisGateway } from "../../api/analysisGateway";
-import { formatErrorMessage } from "../../lib/errorPresentation";
+import { useAsyncErrorState } from "../../hooks/useAsyncErrorState";
 import {
   createRedactionSession,
   type RedactionSession,
@@ -27,7 +27,9 @@ export function useRedactionWorkspace(workspace: RedactionWorkspace) {
   const [saveStatus, setSaveStatus] = React.useState<RedactionSaveStatus>({
     kind: "saved",
   });
-  const [error, setError] = React.useState("");
+  const { error, setError, report } = useAsyncErrorState(
+    t("manualRedaction.operationFailed"),
+  );
   const { ready, failed, markPreview } = usePreviewStatus();
   const [busy, setBusy] = React.useState(false);
   const [drawing, setDrawing] = React.useState(false);
@@ -46,16 +48,6 @@ export function useRedactionWorkspace(workspace: RedactionWorkspace) {
       }),
   );
   const previews = useWorkspacePreviews(mounted);
-  const report = React.useCallback(
-    (failure: unknown) => {
-      const message = formatErrorMessage(
-        failure,
-        t("manualRedaction.operationFailed"),
-      );
-      if (mounted.current) setError(message);
-    },
-    [t],
-  );
   const commit = React.useCallback(
     (change: (current: RedactionSession) => RedactionSession) => {
       try {

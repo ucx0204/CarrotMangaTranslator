@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ImageRedactionReview } from "../../../shared/imageRedaction";
 import type { RedactionWorkspace } from "../../../shared/imageRedactionWorkspace";
 import { analysisGateway } from "../api/analysisGateway";
-import { formatErrorMessage } from "../lib/errorPresentation";
+import { useAsyncErrorState } from "../hooks/useAsyncErrorState";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { ManualRedactionWorkspace } from "./imageRedaction/ManualRedactionWorkspace";
@@ -16,7 +16,7 @@ export function ImageRedactionModal({
   onClose: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const { workspace, error, setError, setAttempt } = useReviewWorkspace(review);
+  const { workspace, error, report, setAttempt } = useReviewWorkspace(review);
   const [busy, setBusy] = React.useState(false);
   const cancel = async () => {
     setBusy(true);
@@ -24,9 +24,7 @@ export function ImageRedactionModal({
       await analysisGateway.cancelJob({ jobId: review.jobId });
       onClose();
     } catch (failure) {
-      setError(
-        formatErrorMessage(failure, t("manualRedaction.operationFailed")),
-      );
+      report(failure, t("manualRedaction.operationFailed"));
     } finally {
       setBusy(false);
     }
@@ -77,7 +75,9 @@ function useReviewWorkspace(review: ImageRedactionReview & { jobId: string }) {
   const [workspace, setWorkspace] = React.useState<RedactionWorkspace | null>(
     null,
   );
-  const [error, setError] = React.useState("");
+  const { error, setError, report } = useAsyncErrorState(
+    t("manualRedaction.openFailed"),
+  );
   const [attempt, setAttempt] = React.useState(0);
   React.useEffect(() => {
     let active = true;
@@ -95,15 +95,12 @@ function useReviewWorkspace(review: ImageRedactionReview & { jobId: string }) {
           }
         },
         (failure: unknown) => {
-          if (active)
-            setError(
-              formatErrorMessage(failure, t("manualRedaction.openFailed")),
-            );
+          if (active) report(failure);
         },
       );
     return () => {
       active = false;
     };
-  }, [review.jobId, review.sessionId, attempt, t]);
-  return { workspace, error, setError, setAttempt };
+  }, [review.jobId, review.sessionId, attempt, t, report, setError]);
+  return { workspace, error, report, setAttempt };
 }

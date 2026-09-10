@@ -2,7 +2,6 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { copyRedactionStrokes } from "../../../../shared/imageRedactionEditing";
 import { Modal } from "../ui/Modal";
-import { ModalActionBar } from "../ui/ModalActionBar";
 import { Button } from "../ui/Button";
 import { ControlTooltip } from "../ui/ControlTooltip";
 import { CheckboxField } from "../ui/CheckboxField";
@@ -38,34 +37,30 @@ export function RedactionBatchDialog(props: Props): React.JSX.Element {
       size="md"
       onClose={props.onClose}
       footer={
-        <ModalActionBar
-          actions={
-            <>
-              <Button onClick={props.onClose}>{t("common.cancel")}</Button>
-              <ControlTooltip
-                content={t(
-                  intent.kind === "review"
-                    ? "manualRedaction.explicitReviewHint"
-                    : "manualRedaction.copyReviewHint",
-                )}
-                placement="top"
-              >
-                <Button
-                  variant="primary"
-                  onClick={model.apply}
-                  disabled={!model.valid}
-                >
-                  {t(
-                    intent.kind === "review"
-                      ? "manualRedaction.reviewSelectedCount"
-                      : "manualRedaction.applyCount",
-                    { count: intent.ids.length },
-                  )}
-                </Button>
-              </ControlTooltip>
-            </>
-          }
-        />
+        <>
+          <Button onClick={props.onClose}>{t("common.cancel")}</Button>
+          <ControlTooltip
+            content={t(
+              intent.kind === "review"
+                ? "manualRedaction.explicitReviewHint"
+                : "manualRedaction.copyReviewHint",
+            )}
+            placement="top"
+          >
+            <Button
+              variant="primary"
+              onClick={model.apply}
+              disabled={!model.valid}
+            >
+              {t(
+                intent.kind === "review"
+                  ? "manualRedaction.reviewSelectedCount"
+                  : "manualRedaction.applyCount",
+                { count: intent.ids.length },
+              )}
+            </Button>
+          </ControlTooltip>
+        </>
       }
     >
       <p>
