@@ -8,11 +8,12 @@ import { openRedactionWorkspaceSession } from "./imageRedactionWorkspaceSessions
 
 export async function prepareRedactionWorkspace(
   request: Exclude<OpenRedactionWorkspace, { kind: "job" }>,
+  root: string,
 ) {
   const pages = await resolvePages(request);
-  const state = await readImageRedactionState();
+  const state = await readImageRedactionState(root);
   const prepared = await prepareImageRedactionPages(pages, state.pages);
-  return openRedactionWorkspaceSession(prepared, randomUUID());
+  return openRedactionWorkspaceSession(prepared, randomUUID(), root);
 }
 
 async function resolvePages(

@@ -102,12 +102,17 @@ export async function withImageRedactionReview<T>(
 export async function openPendingRedactionWorkspace(
   jobId: string,
   sessionId: string,
+  root: string,
 ) {
   const entry = pending.get(jobId);
   if (!entry || entry.sessionId !== sessionId || entry.confirming)
     throw new Error("이미지 확인이 만료되었거나 이미 저장 중입니다.");
   entry.signal.throwIfAborted();
-  const workspace = await openRedactionWorkspaceSession(entry.pages, sessionId);
+  const workspace = await openRedactionWorkspaceSession(
+    entry.pages,
+    sessionId,
+    root,
+  );
   entry.signal.throwIfAborted();
   return workspace;
 }

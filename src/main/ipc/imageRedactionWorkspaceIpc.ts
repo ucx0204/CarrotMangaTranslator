@@ -15,8 +15,12 @@ export function registerImageRedactionWorkspaceIpc(context: IpcContext): void {
     imageRedactionIpcContracts.openRedactionWorkspace,
     async (_event, request) =>
       request.kind === "job"
-        ? openPendingRedactionWorkspace(request.jobId, request.sessionId)
-        : prepareRedactionWorkspace(request),
+        ? openPendingRedactionWorkspace(
+            request.jobId,
+            request.sessionId,
+            context.appPaths.dataRoot,
+          )
+        : prepareRedactionWorkspace(request, context.appPaths.dataRoot),
   );
   trustedHandleContract(
     context,
@@ -31,6 +35,7 @@ export function registerImageRedactionWorkspaceIpc(context: IpcContext): void {
   trustedHandleContract(
     context,
     imageRedactionIpcContracts.getRedactionWorkspacePreview,
-    async (_event, request) => getRedactionWorkspacePreview(request),
+    async (_event, request) =>
+      getRedactionWorkspacePreview(request, context.decodeImage),
   );
 }

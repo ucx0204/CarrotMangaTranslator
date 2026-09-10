@@ -12,7 +12,6 @@ import {
   type SaveRedactionWorkspace,
   type RedactionView,
 } from "../shared/imageRedactionWorkspace";
-import { getAppPaths } from "./appPaths";
 import { imageFingerprint } from "./imageRedactionContext";
 import { readImageRedactionState } from "./imageRedactionStore";
 import {
@@ -33,7 +32,7 @@ const opening = new Map<string, Promise<RedactionWorkspace>>();
 export function openRedactionWorkspaceSession(
   pages: ImageRedactionPage[],
   sessionId: string,
-  root = getAppPaths().dataRoot,
+  root: string,
 ): Promise<RedactionWorkspace> {
   const current = sessions.get(sessionId);
   if (current) return Promise.resolve(current.workspace);

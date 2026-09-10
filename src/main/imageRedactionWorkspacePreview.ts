@@ -6,8 +6,7 @@ import {
 } from "../shared/imageRedactionWorkspace";
 import { getRedactionWorkspacePage } from "./imageRedactionWorkspaceSessions";
 import { loadPageImageSnapshot } from "./inpainting/imageIO";
-import { decodeImageThroughRuntime } from "./simplePageRuntime";
-import { getAppPaths } from "./appPaths";
+import type { ImageDecodeFallback } from "./regionCrop";
 
 const previews = new Map<string, string>();
 const MAX_PREVIEW_BYTES = 32 * 1024 * 1024;
@@ -15,6 +14,7 @@ let previewBytes = 0;
 
 export async function getRedactionWorkspacePreview(
   input: RedactionPreviewRequest,
+  decodeImage: ImageDecodeFallback,
 ): Promise<string> {
   const request = redactionPreviewRequestSchema.parse(input);
   const { page, signal } = getRedactionWorkspacePage(
@@ -38,7 +38,7 @@ export async function getRedactionWorkspacePreview(
   const image = await loadPageImageSnapshot(
     page.imagePath,
     bytes,
-    (path) => decodeImageThroughRuntime(getAppPaths().runtimeDir, path, signal),
+    (path) => decodeImage(path, signal),
     signal,
   );
   signal.throwIfAborted();
