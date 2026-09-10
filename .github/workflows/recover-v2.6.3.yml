@@ -1,0 +1,199 @@
+name: Recover v2.6.3 release
+
+# One-time orchestration branch only; never merged into master.
+# Existing Check, Release, and macOS Release workflows retain all their gates.
+on:
+  push:
+    branches:
+      - release-recovery-v2.6.3-930fe355
+    paths:
+      - .github/workflows/recover-v2.6.3.yml
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: recover-v2.6.3-930fe355
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check fixed commit, run native release workflows, and verify published assets
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          import base64
+          import hashlib
+          import json
+          import os
+          import re
+          import subprocess
+          import tempfile
+          import time
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+          
+          REPO = "ucx0204/CarrotMangaTranslator"
+          TARGET = "930fe355b6a29f4778446aef14db473034fafbd9"
+          TAG = "v2.6.3"
+          CHECK_RUN = 34439533673
+          API = f"https://api.github.com/repos/{REPO}/"
+          HEADERS = {
+              "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "CarrotMangaTranslator-release-recovery",
+          }
+          
+          
+          def require(condition, message):
+              if not condition:
+                  raise RuntimeError(message)
+          
+          
+          def api(path, body=None):
+              data = None if body is None else json.dumps(body).encode()
+              request = urllib.request.Request(API + path, data=data, headers=HEADERS)
+              for attempt in range(4):
+                  try:
+                      with urllib.request.urlopen(request, timeout=60) as response:
+                          content = response.read()
+                          return json.loads(content) if content else None
+                  except urllib.error.HTTPError as error:
+                      if error.code == 404 and body is None:
+                          return None
+                      if body is not None or error.code not in (429, 500, 502, 503, 504) or attempt == 3:
+                          raise
+                  except urllib.error.URLError:
+                      if body is not None or attempt == 3:
+                          raise
+                  time.sleep(5 * (attempt + 1))
+              raise RuntimeError("GitHub API retry budget exhausted")
+          
+          
+          def summary(text):
+              print(text, flush=True)
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+                  output.write(text + "\n\n")
+          
+          
+          def assert_master():
+              ref = api("git/ref/heads/master")
+              require(ref and ref["object"]["sha"] == TARGET, "master moved; refusing to release a different commit")
+          
+          
+          def wait_run(run_id, workflow):
+              deadline = time.monotonic() + 5 * 60 * 60
+              last_status = None
+              while time.monotonic() < deadline:
+                  run = api(f"actions/runs/{run_id}")
+                  require(run and run["head_sha"] == TARGET and run["head_branch"] == "master", "Unexpected workflow target")
+                  require(run["path"] == f".github/workflows/{workflow}", "Unexpected workflow path")
+                  state = (run["status"], run["conclusion"])
+                  if state != last_status:
+                      print(f"{workflow}: {run['html_url']} {state}", flush=True)
+                      last_status = state
+                  if run["status"] == "completed":
+                      require(run["conclusion"] == "success", f"{workflow} did not succeed: {run['html_url']}")
+                      summary(f"Passed {workflow}: {run['html_url']}")
+                      return run
+                  time.sleep(30)
+              raise TimeoutError(f"Timed out waiting for {workflow}")
+          
+          
+          def dispatch_and_wait(workflow):
+              assert_master()
+              endpoint = f"actions/workflows/{workflow}/runs?head_sha={TARGET}&event=workflow_dispatch&per_page=10"
+              runs = api(endpoint)
+              require(runs is not None, "Workflow is unavailable")
+              require(runs["total_count"] <= 1, "Multiple existing runs; refusing ambiguous recovery")
+              if not runs["workflow_runs"]:
+                  if workflow == "release.yml":
+                      require(api(f"releases/tags/{TAG}") is None, "Release already exists; refusing replacement")
+                      require(api(f"git/ref/tags/{TAG}") is None, "Tag already exists; refusing replacement")
+                  # Dispatch once only. An ambiguous POST failure must not cause a duplicate release.
+                  api(f"actions/workflows/{workflow}/dispatches", {"ref": "master", "inputs": {"tag_name": TAG}})
+                  for _ in range(24):
+                      time.sleep(5)
+                      runs = api(endpoint)
+                      require(runs is not None, "Workflow run listing is unavailable")
+                      if runs["workflow_runs"]:
+                          break
+              require(runs["total_count"] == 1, "Expected exactly one workflow run for the fixed commit")
+              run = runs["workflow_runs"][0]
+              summary(f"Release workflow: {run['html_url']}")
+              return wait_run(run["id"], workflow)
+          
+          
+          def stable_release():
+              release = api(f"releases/tags/{TAG}")
+              require(release and release["tag_name"] == TAG and not release["draft"] and not release["prerelease"], "Expected a published stable release")
+              ref = api(f"git/ref/tags/{TAG}")
+              require(ref is not None, "Release tag is missing")
+              obj = ref["object"]
+              while obj["type"] == "tag":
+                  obj = api(f"git/tags/{obj['sha']}")["object"]
+              require(obj["type"] == "commit" and obj["sha"] == TARGET, "Release tag does not match the fixed commit")
+              return release
+          
+          
+          assert_master()
+          package = api(f"contents/package.json?ref={TARGET}")
+          require(package is not None, "Package metadata is missing")
+          require(json.loads(base64.b64decode(package["content"]))["version"] == "2.6.3", "Unexpected version")
+          require(api(f"contents/docs/release-notes/{TAG}.md?ref={TARGET}") is not None, "Release notes are missing")
+          wait_run(CHECK_RUN, "check.yml")
+          dispatch_and_wait("release.yml")
+          windows_release = stable_release()
+          exe = f"CarrotMangaTranslator-Setup-{TAG}.exe"
+          require(exe in {asset["name"] for asset in windows_release["assets"]}, "Windows installer was not published")
+          dispatch_and_wait("mac-release.yml")
+          release = stable_release()
+          expected = {
+              exe, "SHA256SUMS-windows.txt", "windows-provenance.json",
+              "CarrotMangaTranslator-2.6.3-macOS-arm64.dmg",
+              "CarrotMangaTranslator-2.6.3-macOS-arm64.zip",
+              "SHA256SUMS-macOS-arm64.txt", "macOS-arm64-provenance.json",
+          }
+          assets = release["assets"]
+          require(len(assets) == len(expected) and {asset["name"] for asset in assets} == expected, "Unexpected release asset inventory")
+          with tempfile.TemporaryDirectory(prefix="carrot-v2.6.3-verify-") as directory:
+              root = Path(directory)
+              subprocess.run(["gh", "release", "download", TAG, "--repo", REPO, "--dir", directory], check=True)
+              hashes = {}
+              for asset in assets:
+                  path = root / asset["name"]
+                  require(path.is_file() and path.stat().st_size == asset["size"], f"Asset size mismatch: {path.name}")
+                  with path.open("rb") as stream:
+                      hashes[path.name] = hashlib.file_digest(stream, "sha256").hexdigest()
+              for manifest, names in (
+                  ("SHA256SUMS-windows.txt", {exe}),
+                  ("SHA256SUMS-macOS-arm64.txt", {"CarrotMangaTranslator-2.6.3-macOS-arm64.dmg", "CarrotMangaTranslator-2.6.3-macOS-arm64.zip"}),
+              ):
+                  seen = set()
+                  for line in (root / manifest).read_text(encoding="utf-8-sig").splitlines():
+                      match = re.fullmatch(r"([a-fA-F0-9]{64}) [ *](.+)", line)
+                      require(match is not None, "Invalid checksum manifest")
+                      digest, name = match.groups()
+                      require(name in names and name not in seen, "Unexpected checksum entry")
+                      require(hashes[name] == digest.lower(), f"Checksum mismatch: {name}")
+                      seen.add(name)
+                  require(seen == names, "Incomplete checksum manifest")
+              win = json.loads((root / "windows-provenance.json").read_text(encoding="utf-8-sig"))
+              mac = json.loads((root / "macOS-arm64-provenance.json").read_text(encoding="utf-8-sig"))
+              for provenance in (win, mac):
+                  require(provenance["commit"] == TARGET and provenance["repository"] == REPO and provenance["ref"] == "refs/heads/master", "Provenance target mismatch")
+              require(win["sha256"] == hashes[exe] and win["publishedArtifact"] == exe, "Windows provenance digest mismatch")
+              for kind in ("dmg", "zip"):
+                  require(mac["artifacts"][kind] == hashes[f"CarrotMangaTranslator-2.6.3-macOS-arm64.{kind}"], "macOS provenance digest mismatch")
+              summary("All seven published assets downloaded and verified against sizes, SHA-256 manifests, and provenance.")
+              for name in sorted(expected):
+                  summary(f"`{name}` SHA-256: `{hashes[name]}`")
+          summary(f"Verified stable release: {release['html_url']} (commit `{TARGET}`)")
