@@ -1,3 +1,4 @@
+import { registerImageRedactionWorkspaceIpc } from "./imageRedactionWorkspaceIpc";
 import { confirmImageRedaction } from "../jobs/imageRedactionReview";
 import {
   readImageRedactionState,
@@ -26,6 +27,7 @@ import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 export function registerTranslationJobIpc(context: IpcContext): void {
+  registerImageRedactionWorkspaceIpc(context);
   trustedHandleContract(
     context,
     translationJobIpcContracts.confirmImageRedaction,

@@ -372,6 +372,16 @@ export type MangaApi = {
   confirmImageRedaction: (
     request: import("./imageRedaction").ConfirmImageRedaction,
   ) => Promise<boolean>;
+  openRedactionWorkspace: (
+    request: import("./imageRedactionWorkspace").OpenRedactionWorkspace,
+  ) => Promise<import("./imageRedactionWorkspace").RedactionWorkspace>;
+  saveRedactionWorkspace: (
+    request: import("./imageRedactionWorkspace").SaveRedactionWorkspace,
+  ) => Promise<number>;
+  closeRedactionWorkspace: (sessionId: string) => Promise<boolean>;
+  getRedactionWorkspacePreview: (
+    request: import("./imageRedactionWorkspace").RedactionPreviewRequest,
+  ) => Promise<string>;
   getImageRedactionEnabled: () => Promise<boolean>;
   setImageRedactionEnabled: (enabled: boolean) => Promise<boolean>;
   confirmRegionTranslation: (
