@@ -307,3 +307,33 @@ it("still blocks an actual image error instead of confusing it with an unloaded 
   fireEvent.click(apply);
   expect(confirm).not.toHaveBeenCalled();
 });
+
+it("keeps focus on the next canvas so repeated page review does not get trapped in the filmstrip", async () => {
+  show(2);
+  await decodeCurrent(1);
+  const first = screen.getByRole("group", { name: "수동 가리기 편집 영역" });
+  first.focus();
+  fireEvent.keyDown(first, { key: "Enter" });
+  expect(pageNumber()).toBe(2);
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole("group", { name: "수동 가리기 편집 영역" }),
+    ),
+  );
+  expect(confirm).not.toHaveBeenCalled();
+});
+
+it("accepts a multi-digit page number without stealing focus or treating Enter as review", async () => {
+  show(28);
+  await decodeCurrent(1);
+  const input = screen.getByRole("spinbutton", { name: "페이지 번호로 이동" });
+  input.focus();
+  fireEvent.change(input, { target: { value: "2" } });
+  expect(document.activeElement).toBe(input);
+  expect(screen.getByAltText("1.png")).toBeTruthy();
+  fireEvent.change(input, { target: { value: "28" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  await screen.findByAltText("28.png");
+  expect(screen.getByText("검토 0/28 · 남음 28")).toBeTruthy();
+  expect(confirm).not.toHaveBeenCalled();
+});

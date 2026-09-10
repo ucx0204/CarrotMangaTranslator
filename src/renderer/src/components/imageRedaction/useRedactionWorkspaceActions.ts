@@ -22,11 +22,7 @@ export function useRedactionWorkspaceActions(options: Options) {
   const { form, root, setSelected } = options;
   const finish = useFinishRedactionWorkspace(options);
   const focus = () =>
-    requestAnimationFrame(() => {
-      root.current
-        ?.querySelector<HTMLElement>("[data-redaction-stage], [role=listbox]")
-        ?.focus();
-    });
+    requestAnimationFrame(() => focusRedactionEditor(root.current));
   const open = (id: string, focusEditor = true) => {
     if (form.busy || form.drawing) return;
     form.commit((current) =>
@@ -97,6 +93,13 @@ export function useRedactionWorkspaceActions(options: Options) {
       void finish(false, true);
     },
   };
+}
+
+function focusRedactionEditor(root: HTMLDivElement | null): void {
+  const target =
+    root?.querySelector<HTMLElement>("[data-redaction-stage]") ??
+    root?.querySelector<HTMLElement>("[role=listbox]");
+  target?.focus();
 }
 
 function unresolvedPage(

@@ -14,7 +14,7 @@ type Props = {
   onPrevious: () => void;
   onNext: () => void;
   onReview: () => void;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, focusEditor?: boolean) => void;
 };
 export function RedactionPageReviewBar(props: Props): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -71,6 +71,7 @@ function PageNavigation(props: Props): React.JSX.Element {
       <NumberField
         className={styles.pageNumber}
         variant="framed"
+        commitMode="blur"
         ariaLabel={t("manualRedaction.jumpPage")}
         value={index + 1}
         min={1}
@@ -78,7 +79,7 @@ function PageNavigation(props: Props): React.JSX.Element {
         disabled={disabled}
         onValueChange={(number) => {
           const page = pages[number - 1];
-          if (page) props.onOpen(page.id);
+          if (page) props.onOpen(page.id, false);
         }}
       />
       <span className={styles.hint}>/ {pages.length}</span>
