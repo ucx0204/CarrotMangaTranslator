@@ -108,9 +108,9 @@ async function start() {
   inViewport(dialog, "dialog");
   inViewport(pageControls, "page review controls");
   usable(button(selectionLabel));
-  usable(button(text.resumeTask));
-  if (pageControls.contains(button(text.resumeTask))) throw new Error("Page and task actions are mixed");
-  if (button(text.resumeTask).disabled !== (mode !== "ready")) throw new Error("Incorrect approval gate");
+  usable(button(text.resumeJob));
+  if (pageControls.contains(button(text.resumeJob))) throw new Error("Page and task actions are mixed");
+  if (button(text.resumeJob).disabled !== (mode !== "ready")) throw new Error("Incorrect approval gate");
   if (mode === "brush") button(text.tool_brush).click();
   if (mode === "reviewed") button(text.reviewPage).click();
   await new Promise((resolve) => setTimeout(resolve, 150));
@@ -120,7 +120,7 @@ async function start() {
   const allButtons = Array.from(dialog.querySelectorAll<HTMLButtonElement>("button"));
   if (allButtons.some((item) => /보류|확인 후 계속/.test(item.textContent ?? "")))
     throw new Error("Retired or ambiguous action remains");
-  const status = Array.from(dialog.querySelectorAll<HTMLElement>('span')).find((item) => item.textContent === text.save_saved);
+  const status = Array.from(dialog.querySelectorAll<HTMLElement>('span')).find((item) => item.textContent === text.savedShort);
   if (!status || status.closest("button") || status.querySelector("svg")) throw new Error("Save status looks actionable");
   if (mode === "menu") {
     button(text.selectionMenu).click();
@@ -151,6 +151,12 @@ checks = []
 try:
     html.write_text('<!doctype html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module" src="/src/manual-redaction-ux-qa.tsx"></script></body></html>', encoding="utf-8")
     entry.write_text(QA, encoding="utf-8")
+    # This temporary production-component fixture must typecheck too. It is not
+    # present during the earlier application check, so validate it before Chromium.
+    fixture_check = subprocess.run(["node", "node_modules/typescript/bin/tsc", "-p", "tsconfig.typecheck.json"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+    (OUT / "fixture-typecheck.log").write_text(fixture_check.stdout + fixture_check.stderr, encoding="utf-8")
+    if fixture_check.returncode:
+        raise RuntimeError("QA fixture typecheck failed; see fixture-typecheck.log")
     for name, width, height, mode, locale in [
         ("review-wide", 1600, 980, "edit", "ko"),
         ("review-narrow", 1240, 760, "edit", "ko"),

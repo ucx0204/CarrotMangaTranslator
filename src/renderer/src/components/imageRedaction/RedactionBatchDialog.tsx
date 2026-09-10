@@ -133,7 +133,11 @@ function useBatchModel({ form, intent, onClose }: Props) {
   };
 }
 
-function ReviewChoices({ model }: { model: BatchModel }): React.JSX.Element | null {
+function ReviewChoices({
+  model,
+}: {
+  model: BatchModel;
+}): React.JSX.Element | null {
   const { t } = useTranslation("components");
   return model.failed ? (
     <p role="alert" className={styles.inlineError}>
