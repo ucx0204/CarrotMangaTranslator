@@ -1047,15 +1047,20 @@ function createApiSettings(): AppSettings {
   };
 }
 
-it("persists Codex font preferences through the narrow IPC in the current app data root", async () => {
-  const client = createCodexAccountClient();
-  const handler = registerAndGetCodexAccountHandler(
-    "settings:save-codex-typesetting-preferences",
-    createCodexAccountRuntime(client.client),
-  );
-  const preferences = createCodexTypesettingPreferences("ko");
-  await expect(handler(trustedEvent(), preferences)).resolves.toEqual(
-    preferences,
-  );
-  expect(client.readAccount).not.toHaveBeenCalled();
-});
+it(
+  "persists Codex font preferences through the narrow IPC in the current app data root",
+  async () => {
+    const client = createCodexAccountClient();
+    const handler = registerAndGetCodexAccountHandler(
+      "settings:save-codex-typesetting-preferences",
+      createCodexAccountRuntime(client.client),
+    );
+    const preferences = createCodexTypesettingPreferences("ko");
+    await expect(handler(trustedEvent(), preferences)).resolves.toEqual(
+      preferences,
+    );
+    expect(client.readAccount).not.toHaveBeenCalled();
+  },
+  // Keep real filesystem transactions bounded while allowing slower Windows CI disks.
+  process.platform === "win32" && process.env.CI ? 60_000 : 15_000,
+);

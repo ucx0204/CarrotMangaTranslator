@@ -60,7 +60,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-08-24T00:00:00.000Z"));
   boundary.chapter = makeChapter();
   boundary.library = makeLibrary();
-  boundary.openPath.mockResolvedValue("");
+  boundary.openPath.mockReset().mockResolvedValue("");
   boundary.sessions.length = 0;
   boundary.createSession.mockImplementation(async () => {
     const session = makeRenderSession();
@@ -325,21 +325,25 @@ describe("LinkedWorkspaceSyncService", () => {
       vi.useRealTimers();
       const { service } = await makeConnectedService();
       const renderGate = deferred<Buffer>();
+      const renderStarted = deferred<void>();
+      const openingStarted = deferred<void>();
       const unhandled: unknown[] = [];
       const onUnhandled = (error: unknown) => unhandled.push(error);
       process.on("unhandledRejection", onUnhandled);
       boundary.createSession.mockImplementation(async () => {
-        const session = makeRenderSession(() => renderGate.promise);
+        const session = makeRenderSession(() => {
+          renderStarted.resolve();
+          return renderGate.promise;
+        });
         boundary.sessions.push(session);
         return session;
       });
       const openingFailure = new Error("test result folder unavailable");
-      if (outcome === "rejected")
-        boundary.openPath.mockRejectedValueOnce(openingFailure);
-      else
-        boundary.openPath.mockResolvedValueOnce(
-          outcome === "error-string" ? openingFailure.message : "",
-        );
+      boundary.openPath.mockImplementationOnce(async () => {
+        openingStarted.resolve();
+        if (outcome === "rejected") throw openingFailure;
+        return outcome === "error-string" ? openingFailure.message : "";
+      });
       const results: ViewLinkedResultsResult[] = [];
       const rejections: unknown[] = [];
       const first = service.viewResults({ chapterId: CHAPTER_ID });
@@ -355,19 +359,16 @@ describe("LinkedWorkspaceSyncService", () => {
         ),
       );
       try {
-        await vi.waitFor(() =>
-          expect(boundary.sessions[0]?.renderPage).toHaveBeenCalledTimes(1),
-        );
+        await renderStarted.promise;
+        expect(boundary.sessions[0]?.renderPage).toHaveBeenCalledTimes(1);
         expect(results).toEqual([]);
         renderGate.resolve(Buffer.from("rendered"));
-        await vi.waitFor(() =>
-          expect(boundary.openPath).toHaveBeenCalledTimes(1),
-        );
+        await openingStarted.promise;
+        expect(boundary.openPath).toHaveBeenCalledTimes(1);
         await new Promise<void>((resolve) => setImmediate(resolve));
         expect.soft(unhandled).toEqual([]);
-        await vi.waitFor(() => expect(results).toHaveLength(2), {
-          timeout: 1_000,
-        });
+        await Promise.all(observers);
+        expect(results).toHaveLength(2);
         const expected =
           outcome === "opened"
             ? { status: "opened", syncedPages: 1 }
@@ -390,10 +391,15 @@ describe("LinkedWorkspaceSyncService", () => {
     vi.useRealTimers();
     const { service } = await makeConnectedService();
     const opening = deferred<string>();
-    boundary.openPath.mockImplementationOnce(() => opening.promise);
+    const openingStarted = deferred<void>();
+    boundary.openPath.mockImplementationOnce(() => {
+      openingStarted.resolve();
+      return opening.promise;
+    });
     const viewing = service.viewResults({ chapterId: CHAPTER_ID });
     try {
-      await vi.waitFor(() => expect(boundary.openPath).toHaveBeenCalledOnce());
+      await openingStarted.promise;
+      expect(boundary.openPath).toHaveBeenCalledOnce();
       const connectionId = service.getStatus(CHAPTER_ID).connectionId;
       if (!connectionId) throw new Error("missing test connection");
       await service.update({ connectionId, enabled: false });

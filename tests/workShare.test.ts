@@ -122,120 +122,137 @@ describe("work share packages", () => {
     expect(existsSync(sharePath)).toBe(false);
   });
 
-  it("imports shared chapters as new ids and preserves blocks", async () => {
-    const rootDir = await createTempLibrary();
-    const sharePath = join(rootDir, "import-new.mgtshare");
-    const library = await loadLibrary(rootDir);
-    await seedLibrary(rootDir);
-    await library.exportWorkShareToFile({
-      workId: "work-1",
-      chapterIds: ["chapter-a"],
-      outputPath: sharePath,
-    });
+  it(
+    "imports shared chapters as new ids and preserves blocks",
+    async () => {
+      const rootDir = await createTempLibrary();
+      const sharePath = join(rootDir, "import-new.mgtshare");
+      const library = await loadLibrary(rootDir);
+      await seedLibrary(rootDir);
+      await library.exportWorkShareToFile({
+        workId: "work-1",
+        chapterIds: ["chapter-a"],
+        outputPath: sharePath,
+      });
 
-    const result = await library.importWorkShare({
-      packagePath: sharePath,
-      target: { mode: "new", title: "가져온 작품" },
-      entries: [
-        {
-          source: "package",
-          packageChapterId: "chapter-a",
-          title: "고화질 1화",
-        },
-      ],
-    });
+      const result = await library.importWorkShare({
+        packagePath: sharePath,
+        target: { mode: "new", title: "가져온 작품" },
+        entries: [
+          {
+            source: "package",
+            packageChapterId: "chapter-a",
+            title: "고화질 1화",
+          },
+        ],
+      });
 
-    expect(result.workId).not.toBe("work-1");
-    expect(result.chapterIds[0]).not.toBe("chapter-a");
-    expect(result.openedChapter?.title).toBe("고화질 1화");
-    expect(result.openedChapter?.pages[0]?.id).not.toBe("page-a");
-    expect(result.openedChapter?.pages[0]?.blocks[0]?.id).not.toBe("block-a");
-    expect(result.openedChapter?.pages[0]?.blocks[0]?.translatedText).toBe(
-      "안녕",
-    );
-    expect(existsSync(result.openedChapter?.pages[0]?.imagePath ?? "")).toBe(
-      true,
-    );
-  });
+      expect(result.workId).not.toBe("work-1");
+      expect(result.chapterIds[0]).not.toBe("chapter-a");
+      expect(result.openedChapter?.title).toBe("고화질 1화");
+      expect(result.openedChapter?.pages[0]?.id).not.toBe("page-a");
+      expect(result.openedChapter?.pages[0]?.blocks[0]?.id).not.toBe("block-a");
+      expect(result.openedChapter?.pages[0]?.blocks[0]?.translatedText).toBe(
+        "안녕",
+      );
+      expect(existsSync(result.openedChapter?.pages[0]?.imagePath ?? "")).toBe(
+        true,
+      );
+    },
+    // Keep real filesystem transactions bounded while allowing slower Windows CI disks.
+    process.platform === "win32" && process.env.CI ? 60_000 : 15_000,
+  );
 
-  it("round-trips pending erased block references onto imported block ids", async () => {
-    const rootDir = await createTempLibrary();
-    const sharePath = join(rootDir, "completion-remap.mgtshare");
-    const library = await loadLibrary(rootDir);
-    await seedLibrary(rootDir);
+  it(
+    "round-trips pending erased block references onto imported block ids",
+    async () => {
+      const rootDir = await createTempLibrary();
+      const sharePath = join(rootDir, "completion-remap.mgtshare");
+      const library = await loadLibrary(rootDir);
+      await seedLibrary(rootDir);
 
-    const chapter = makeChapter(
-      rootDir,
-      "chapter-a",
-      "1화",
-      "page-a",
-      "source-a",
-    );
-    const page = firstPage(chapter);
-    page.blocks.push({
-      ...firstBlock(page),
-      id: "source-b",
-      bbox: { x: 200, y: 10, w: 100, h: 100 },
-    });
-    const inpaintedDir = join(
-      rootDir,
-      "works",
-      "work-1",
-      "chapters",
-      "chapter-a",
-      "inpainted",
-    );
-    const inpaintedPath = join(inpaintedDir, "001-page-a-inpainted.png");
-    await mkdir(inpaintedDir, { recursive: true });
-    await writeFile(inpaintedPath, makePngHeader(100, 120));
-    page.inpaintedImagePath = inpaintedPath;
-    page.translationCompletion = {
-      workflow: "erase-original",
-      status: "pending",
-      erasedBlockIds: ["source-b"],
-    };
-    await writeJson(
-      join(rootDir, "works", "work-1", "chapters", "chapter-a", "chapter.json"),
-      chapter,
-    );
+      const chapter = makeChapter(
+        rootDir,
+        "chapter-a",
+        "1화",
+        "page-a",
+        "source-a",
+      );
+      const page = firstPage(chapter);
+      page.blocks.push({
+        ...firstBlock(page),
+        id: "source-b",
+        bbox: { x: 200, y: 10, w: 100, h: 100 },
+      });
+      const inpaintedDir = join(
+        rootDir,
+        "works",
+        "work-1",
+        "chapters",
+        "chapter-a",
+        "inpainted",
+      );
+      const inpaintedPath = join(inpaintedDir, "001-page-a-inpainted.png");
+      await mkdir(inpaintedDir, { recursive: true });
+      await writeFile(inpaintedPath, makePngHeader(100, 120));
+      page.inpaintedImagePath = inpaintedPath;
+      page.translationCompletion = {
+        workflow: "erase-original",
+        status: "pending",
+        erasedBlockIds: ["source-b"],
+      };
+      await writeJson(
+        join(
+          rootDir,
+          "works",
+          "work-1",
+          "chapters",
+          "chapter-a",
+          "chapter.json",
+        ),
+        chapter,
+      );
 
-    await library.exportWorkShareToFile({
-      workId: "work-1",
-      chapterIds: ["chapter-a"],
-      outputPath: sharePath,
-    });
-    const result = await library.importWorkShare({
-      packagePath: sharePath,
-      target: { mode: "new", title: "remapped work" },
-      entries: [
-        {
-          source: "package",
-          packageChapterId: "chapter-a",
-          title: "remapped chapter",
-        },
-      ],
-    });
+      await library.exportWorkShareToFile({
+        workId: "work-1",
+        chapterIds: ["chapter-a"],
+        outputPath: sharePath,
+      });
+      const result = await library.importWorkShare({
+        packagePath: sharePath,
+        target: { mode: "new", title: "remapped work" },
+        entries: [
+          {
+            source: "package",
+            packageChapterId: "chapter-a",
+            title: "remapped chapter",
+          },
+        ],
+      });
 
-    const importedChapter = result.openedChapter;
-    if (!importedChapter) {
-      throw new Error("Expected imported chapter to be opened");
-    }
-    const importedPage = firstPage(importedChapter);
-    expect(importedPage.blocks.map((block) => block.id)).not.toContain(
-      "source-a",
-    );
-    expect(importedPage.blocks.map((block) => block.id)).not.toContain(
-      "source-b",
-    );
-    expect(importedPage.translationCompletion).toEqual({
-      workflow: "erase-original",
-      status: "pending",
-      erasedBlockIds: [importedPage.blocks[1]?.id],
-    });
-    expect(importedPage.translationCompletion?.erasedBlockIds).not.toContain(
-      "source-b",
-    );
-  });
+      const importedChapter = result.openedChapter;
+      if (!importedChapter) {
+        throw new Error("Expected imported chapter to be opened");
+      }
+      const importedPage = firstPage(importedChapter);
+      expect(importedPage.blocks.map((block) => block.id)).not.toContain(
+        "source-a",
+      );
+      expect(importedPage.blocks.map((block) => block.id)).not.toContain(
+        "source-b",
+      );
+      expect(importedPage.translationCompletion).toEqual({
+        workflow: "erase-original",
+        status: "pending",
+        erasedBlockIds: [importedPage.blocks[1]?.id],
+      });
+      expect(importedPage.translationCompletion?.erasedBlockIds).not.toContain(
+        "source-b",
+      );
+    },
+    // Keep real filesystem transactions bounded while allowing slower Windows CI disks.
+    process.platform === "win32" && process.env.CI ? 60_000 : 15_000,
+  );
 
   it("exports and imports inpainted page images", async () => {
     const rootDir = await createTempLibrary();
