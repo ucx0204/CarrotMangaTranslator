@@ -1,6 +1,6 @@
 // @ts-check
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
-/** @typedef {RuntimeOptions & { ocrCpuWorkers?: unknown; ocrWorkerThreads?: unknown; ocrCpuWorkerStartDelayMs?: unknown; ocrCpuWorkerMinFreeRamPercent?: unknown; ocrCpuWorkerRamPollMs?: unknown }} OcrBboxOptions */
+/** @typedef {RuntimeOptions & { ocrCpuWorkers?: unknown; ocrCpuMinPagesPerWorker?: unknown; ocrWorkerThreads?: unknown; ocrCpuWorkerStartDelayMs?: unknown; ocrCpuWorkerMinFreeRamPercent?: unknown; ocrCpuWorkerRamPollMs?: unknown }} OcrBboxOptions */
 /** @typedef {{ os: typeof import("node:os"); runtimeOverrideEnv: (name: string, options?: RuntimeOptions) => unknown; readPositiveInteger: (value: unknown) => number | null; emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void; isHayaiOcrPipeline: (options?: OcrBboxOptions) => boolean; resolveOcrEngineLabel: (options?: OcrBboxOptions) => string }} Dependencies */
 
 /** @param {Dependencies} dependencies */
@@ -48,6 +48,41 @@ function resolveOcrCpuWorkerCount(dependencies, options = {}, pageCount = 1) {
     return Math.max(1, Math.min(pageCount, explicit));
   }
   const cpuCount = Math.max(1, dependencies.os.cpus().length || 1);
+  if (
+    dependencies.isHayaiOcrPipeline(options) &&
+    dependencies.os.platform() === "win32"
+  ) {
+    // Leave at least two logical CPUs and 25% of the CPU budget for the UI.
+    // Model loading/activations need headroom too: admit at most one worker
+    // per 3 GiB above the existing free-RAM floor, before starting children.
+    const reservedCpus = Math.max(2, Math.ceil(cpuCount / 4));
+    const ram = readSystemRamInfo(dependencies);
+    const reserveBytes = Math.max(
+      2 * 1024 ** 3,
+      ram.totalBytes *
+        resolveOcrCpuWorkerMinFreeRamRatio(dependencies, options),
+    );
+    const memoryWorkers = Number.isFinite(ram.freeRatio)
+      ? Math.floor((ram.freeBytes - reserveBytes) / (3 * 1024 ** 3))
+      : 1;
+    // Short ordinary batches do not amortize eight model imports. Dense font
+    // verification atlases opt into one item per worker and reuse the models.
+    const pagesPerWorker =
+      dependencies.readPositiveInteger(options.ocrCpuMinPagesPerWorker) || 4;
+    return Math.max(
+      1,
+      Math.min(
+        pageCount,
+        8,
+        Math.max(4, Math.ceil(pageCount / pagesPerWorker)),
+        Math.floor(
+          (cpuCount - reservedCpus) /
+            resolveOcrWorkerThreadCount(dependencies, options),
+        ),
+        memoryWorkers,
+      ),
+    );
+  }
   return Math.max(
     1,
     Math.min(

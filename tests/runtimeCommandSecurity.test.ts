@@ -27,6 +27,7 @@ const { runCommand } =
       command: CommandSpec,
       options?: {
         failureMessage?: string;
+        lowPriority?: boolean;
         onOutput?: (line: string) => void;
         signal?: AbortSignal;
         successCodes?: number[];
@@ -89,6 +90,17 @@ function collectRuntimeSourceFiles(root: string): string[] {
 }
 
 describe("runtime command security", () => {
+  it("runs CPU work below normal scheduling priority without changing its result", async () => {
+    const result = await runCommand(
+      {
+        executable: process.execPath,
+        args: ["-e", 'console.log(require("node:os").getPriority())'],
+      },
+      { lowPriority: true },
+    );
+    expect(Number(result.stdout.trim())).toBeGreaterThan(0);
+  });
+
   it("passes shell metacharacters as one literal argv value", async () => {
     const root = mkdtempSync(join(tmpdir(), "mgt-command-security-"));
     const outputPath = join(root, "argv.json");

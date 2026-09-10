@@ -45,6 +45,8 @@ app
         }
       },
     });
+    const manifestPath = join(dataRoot, "font-runtime-manifest.json");
+    writeFileSync(manifestPath, JSON.stringify(installed.manifest));
     const probe = spawnSync(
       python,
       [
@@ -53,6 +55,8 @@ app
         installed.assets,
         "--runtime",
         runtimeDir,
+        "--manifest",
+        manifestPath,
         "--reference",
         reference,
         ...(process.argv.includes("--record") ? ["--record"] : []),

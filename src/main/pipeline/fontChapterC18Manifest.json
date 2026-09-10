@@ -474,6 +474,10 @@
       "sha256": "900ae23e5b18c782ab886d7393e146520b112e161b489482c805220e1275ac2f"
     },
     {
+      "path": "hayai-pool.py",
+      "sha256": "d8f87cb77d43fcf41ef962dae7ac75ef5bd3a48adbd880ac68c6b0c78422d311"
+    },
+    {
       "path": "infer-source-region-chapter.py",
       "sha256": "0bbdc92e83340f3cf2a35ec6394c92ac90bd443fa4277dc8b2543e4205f89dec"
     },
@@ -499,7 +503,7 @@
     },
     {
       "path": "worker.py",
-      "sha256": "ac43c2aa7c5e0571b0e75e37fca2fb47140b5a35b112870ac7616c8f382efbf0"
+      "sha256": "42abda35dcaffc016ec073624e475cff9e3da0540bdd6cdefce4a63c719fc581"
     }
   ],
   "assetDirectory": "font-chapter-c18/c23-v1"

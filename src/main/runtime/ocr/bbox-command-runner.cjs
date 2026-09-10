@@ -164,6 +164,7 @@ function runCommandSpec(dependencies, command, options, runtime, runOptions) {
   return dependencies.runCommand(command, {
     timeoutMs: runOptions.timeoutMs,
     env: dependencies.buildOcrRuntimeEnv(options, runtime),
+    lowPriority: options.ocrDevice === "cpu",
     signal: options.abortSignal,
     onOutput: runOptions.onOutput,
   });

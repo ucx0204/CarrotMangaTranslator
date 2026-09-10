@@ -21,7 +21,7 @@ const { createOcrBatchConfig } =
         minFreeRatio: number,
       ) => boolean;
       resolveOcrCpuWorkerCount: (
-        options: { ocrCpuWorkers?: number },
+        options: Record<string, unknown>,
         pageCount: number,
       ) => number;
       resolveOcrCpuWorkerMinFreeRamRatio: (options?: {
@@ -48,13 +48,15 @@ function createConfig(
   platform: NodeJS.Platform,
   freeRatio = () => 0.5,
   progress = () => undefined,
+  cpuCount = 8,
+  totalBytes = 32 * 1024 ** 3,
 ) {
   return createOcrBatchConfig({
     os: {
-      cpus: () => Array.from({ length: 8 }, () => ({})),
+      cpus: () => Array.from({ length: cpuCount }, () => ({})),
       platform: () => platform,
-      freemem: () => 1000 * freeRatio(),
-      totalmem: () => 1000,
+      freemem: () => totalBytes * freeRatio(),
+      totalmem: () => totalBytes,
     },
     runtimeOverrideEnv: () => undefined,
     isHayaiOcrPipeline: (options) => options?.ocrPipeline === "hayai",
@@ -266,6 +268,48 @@ function workerDeferred<T>() {
 }
 
 describe("OCR CPU worker configuration", () => {
+  const hayai = { ocrPipeline: "hayai", ocrDevice: "cpu" };
+
+  it("uses spare CPU capacity while leaving a quarter of logical CPUs for interaction", () => {
+    const config = createConfig(
+      "win32",
+      () => 0.75,
+      undefined,
+      32,
+      128 * 1024 ** 3,
+    );
+    expect(config.resolveOcrCpuWorkerCount(hayai, 60)).toBe(8);
+    expect(config.resolveOcrCpuWorkerCount(hayai, 15)).toBe(4);
+    expect(
+      config.resolveOcrCpuWorkerCount(
+        { ...hayai, ocrCpuMinPagesPerWorker: 1 },
+        8,
+      ),
+    ).toBe(8);
+    expect(createConfig("win32").resolveOcrCpuWorkerCount(hayai, 15)).toBe(3);
+    expect(
+      createConfig("win32", () => 0.75, undefined, 4).resolveOcrCpuWorkerCount(
+        hayai,
+        15,
+      ),
+    ).toBe(1);
+  });
+
+  it("bounds model copies by free RAM and still makes progress under memory pressure", () => {
+    const config = createConfig("win32", () => 0.5, undefined, 32);
+    expect(config.resolveOcrCpuWorkerCount(hayai, 15)).toBe(3);
+    expect(
+      createConfig("win32", () => 0.2, undefined, 32).resolveOcrCpuWorkerCount(
+        hayai,
+        15,
+      ),
+    ).toBe(1);
+    expect(config.resolveOcrCpuWorkerCount(hayai, 2)).toBe(2);
+    expect(
+      config.resolveOcrCpuWorkerCount({ ...hayai, ocrWorkerThreads: 8 }, 15),
+    ).toBe(3);
+  });
+
   it("keeps parallel workers on macOS", () => {
     expect(createConfig("darwin").resolveOcrCpuWorkerCount({}, 3)).toBe(3);
   });

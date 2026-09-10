@@ -27,6 +27,7 @@ import {
 import type { PageRevision } from "./pageRevisionTypes";
 import { PageTimingSessionFields } from "./ipcPageTimingSchemas";
 import { OCR_PIPELINES } from "./ocrEngines";
+import { MAX_PAGE_EXPORT_PAGES } from "./pageExportLimits";
 
 const JobProgressFieldsSchema = {
   phase: JobPhaseSchema.optional(),
@@ -373,7 +374,7 @@ const PageImageExportChapterSelectionSchema = z.discriminatedUnion("mode", [
     .object({
       chapterId: uuid,
       mode: z.literal("page-set"),
-      pageIds: z.array(uuid).min(1).max(MAX_ID_LIST_LENGTH),
+      pageIds: z.array(uuid).min(1).max(MAX_PAGE_EXPORT_PAGES),
     })
     .strict(),
 ]);
@@ -384,11 +385,11 @@ export const PageImageExportRequestSchema = z
     selections: z
       .array(PageImageExportChapterSelectionSchema)
       .min(1)
-      .max(MAX_ID_LIST_LENGTH),
+      .max(MAX_PAGE_EXPORT_PAGES),
     expectedTargets: z
       .array(PageJobTargetSnapshotSchema)
       .min(1)
-      .max(MAX_ID_LIST_LENGTH)
+      .max(MAX_PAGE_EXPORT_PAGES)
       .optional(),
     omitText: z.boolean().optional(),
     outputFormat: z.enum(["source", "png", "jpeg", "webp"]).optional(),
@@ -406,11 +407,11 @@ export const PagePsdExportRequestSchema = z
     selections: z
       .array(PageImageExportChapterSelectionSchema)
       .min(1)
-      .max(MAX_ID_LIST_LENGTH),
+      .max(MAX_PAGE_EXPORT_PAGES),
     expectedTargets: z
       .array(PageJobTargetSnapshotSchema)
       .min(1)
-      .max(MAX_ID_LIST_LENGTH)
+      .max(MAX_PAGE_EXPORT_PAGES)
       .optional(),
     omitText: z.boolean().optional(),
     collisionPolicy: z.enum(["replace", "skip", "cancel"]).optional(),

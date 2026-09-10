@@ -5,6 +5,7 @@ import {
   type ConfirmRegionTranslationRequest,
 } from "./regionTextReview";
 import { MAX_ID_LIST_LENGTH } from "./ipcSchemaPrimitives";
+import { MAX_PAGE_EXPORT_PAGES } from "./pageExportLimits";
 import type {
   RegionAnalysisRequest,
   RegionAnalysisResult,
@@ -205,7 +206,7 @@ const pageImageExportPreflightResultSchema = z
           })
           .strict(),
       )
-      .max(MAX_ID_LIST_LENGTH * 4),
+      .max(MAX_PAGE_EXPORT_PAGES * 4),
     targets: z
       .array(
         z
@@ -216,7 +217,7 @@ const pageImageExportPreflightResultSchema = z
           })
           .strict(),
       )
-      .max(MAX_ID_LIST_LENGTH),
+      .max(MAX_PAGE_EXPORT_PAGES),
   })
   .strict();
 const disposeInpaintingResultSchema = z

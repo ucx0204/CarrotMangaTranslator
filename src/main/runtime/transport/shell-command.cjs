@@ -1,11 +1,12 @@
 // @ts-check
 /** @typedef {import("../runtime-jsdoc-types").CommandSpec} CommandSpec */
 /**
- * @typedef {{ env?: NodeJS.ProcessEnv; failureMessage?: string; onOutput?: ((line: string) => void) | null; signal?: AbortSignal | null; successCodes?: number[]; timeoutMessage?: string; timeoutMs?: number }} RunCommandOptions
+ * @typedef {{ env?: NodeJS.ProcessEnv; failureMessage?: string; lowPriority?: boolean; onOutput?: ((line: string) => void) | null; signal?: AbortSignal | null; successCodes?: number[]; timeoutMessage?: string; timeoutMs?: number }} RunCommandOptions
  * @typedef {{ write(chunk: unknown): void; flush(): void }} CommandOutputLineEmitter
  * @typedef {{ child: import("node:child_process").ChildProcess; command: CommandSpec; commandText: string; options: RunCommandOptions; stdout: string; stderr: string; stdoutLines: CommandOutputLineEmitter; stderrLines: CommandOutputLineEmitter; timeout: ReturnType<typeof setTimeout> | null; settled: boolean; onAbort: () => void; resolve: (value: {stdout: string; stderr: string}) => void; reject: (error: unknown) => void }} CommandExecution
  */
 const { spawn } = require("node:child_process");
+const { constants, setPriority } = require("node:os");
 const { buildUtilityChildEnv } = require("../simple-page-child-env.cjs");
 const { sanitizeInstallLogLine } = require("../simple-page-progress.cjs");
 const { terminateChildProcessTree } = require("./process-termination.cjs");
@@ -46,6 +47,14 @@ function startCommand(command, options, resolve, reject) {
     reject,
   );
   bindExecution(execution);
+  if (options.lowPriority && child.pid) {
+    try {
+      setPriority(child.pid, constants.priority.PRIORITY_BELOW_NORMAL);
+    } catch (error) {
+      // Scheduling priority is best effort; worker/RAM limits still apply.
+      options.onOutput?.(`OCR worker priority could not be lowered: ${error}`);
+    }
+  }
   armTimeout(execution);
 }
 

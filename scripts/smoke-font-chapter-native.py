@@ -11,10 +11,13 @@ def main():
     parser.add_argument('--assets', type=Path, required=True)
     parser.add_argument('--runtime', type=Path, required=True)
     parser.add_argument('--reference', type=Path, required=True)
+    parser.add_argument('--manifest', type=Path)
     parser.add_argument('--record', action='store_true')
     args = parser.parse_args()
     assets = args.assets.resolve()
-    manifest = json.loads((assets / 'ownership.json').read_text('utf-8'))
+    # App-owned adapter bindings may advance while the immutable model archive
+    # stays unchanged. Validate the same manifest as the production downloader.
+    manifest = json.loads((args.manifest or assets / 'ownership.json').read_text('utf-8'))
     spec = importlib.util.spec_from_file_location('font_worker', args.runtime / 'font-chapter-c18/worker.py')
     worker = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(worker)

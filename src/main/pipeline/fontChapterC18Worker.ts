@@ -10,6 +10,12 @@ import {
 import { logPipelineInfo, logPipelineWarning } from "./pipelineLogger";
 
 type WorkerResponse = JsonLinesWorkerResponse & { result?: unknown };
+type BatchPolicy = {
+  resolveOcrCpuWorkerCount: (
+    options: TranslationOptions & { ocrCpuMinPagesPerWorker: number },
+    count: number,
+  ) => number;
+};
 type EnvironmentBuilder = {
   buildOcrRuntimeEnv: (
     options: TranslationOptions,
@@ -34,12 +40,24 @@ export async function launchFontChapterC18Worker(
     "ocrEnvironment",
   ) as EnvironmentBuilder;
   const env = environment.buildOcrRuntimeEnv(options, runtime);
+  const batchPolicy = loadRuntimeModuleFromDirectory(
+    paths.runtimeDir,
+    "ocrBatch",
+  ) as BatchPolicy;
+  const workers =
+    options.ocrDevice === "cpu"
+      ? batchPolicy.resolveOcrCpuWorkerCount(
+          { ...options, ocrCpuMinPagesPerWorker: 1 },
+          8,
+        )
+      : 1;
   return new JsonLinesWorkerClient<{ request: string }, WorkerResponse>({
     executable: runtime.pythonPath,
     args: ["-u", join(paths.runtimeDir, "font-chapter-c18/worker.py")],
     env: {
       ...env,
       C18_HAYAI_PYTHONPATH: env.PYTHONPATH ?? "",
+      C18_HAYAI_CPU_WORKERS: String(workers),
       PYTHONPATH: [join(assets, "python-packages"), env.PYTHONPATH]
         .filter(Boolean)
         .join(delimiter),
