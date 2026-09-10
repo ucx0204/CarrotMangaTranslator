@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "../ui/Button";
 import { RedactionActionsMenu } from "./RedactionActionsMenu";
 import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
 import { changeRedactionView } from "./redactionWorkspaceModel";
@@ -39,32 +40,37 @@ export function RedactionBatchActions({
       ),
   }));
   return (
-    <RedactionActionsMenu
-      label={t("manualRedaction.selectedCount", { count })}
-      disabled={form.busy || form.drawing}
-      items={[
-        {
-          label: t("manualRedaction.selectFiltered"),
-          run: () => select(ids),
-          disabled: !ids.length,
-        },
-        {
-          label: t("manualRedaction.clearSelection"),
-          run: () => select([]),
-          disabled: !count,
-        },
-        {
-          label: t("manualRedaction.reviewSelection"),
-          run: onReview,
-          disabled: !count,
-        },
-        {
-          label: t("manualRedaction.copySelection"),
-          run: onCopy,
-          disabled: !count || !state.documents[view.currentId].strokes.length,
-        },
-        ...history,
-      ]}
-    />
+    <>
+      <Button
+        size="sm"
+        fullWidth
+        disabled={form.busy || form.drawing || !count}
+        onClick={onReview}
+      >
+        {t("manualRedaction.reviewSelection")}
+      </Button>
+      <RedactionActionsMenu
+        label={t("manualRedaction.selectedCount", { count })}
+        disabled={form.busy || form.drawing}
+        items={[
+          {
+            label: t("manualRedaction.selectFiltered"),
+            run: () => select(ids),
+            disabled: !ids.length,
+          },
+          {
+            label: t("manualRedaction.clearSelection"),
+            run: () => select([]),
+            disabled: !count,
+          },
+          {
+            label: t("manualRedaction.copySelection"),
+            run: onCopy,
+            disabled: !count || !state.documents[view.currentId].strokes.length,
+          },
+          ...history,
+        ]}
+      />
+    </>
   );
 }

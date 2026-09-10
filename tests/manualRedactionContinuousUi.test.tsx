@@ -164,8 +164,8 @@ describe("single-screen manual redaction", () => {
     expect(screen.queryByRole("menu")).toBeNull();
     expect(screen.queryByRole("button", { name: "가림 프리셋" })).toBeNull();
     expect(
-      screen.queryByRole("button", { name: "선택한 페이지 확인" }),
-    ).toBeNull();
+      screen.getByRole("button", { name: "선택한 페이지 확인" }),
+    ).toBeTruthy();
     expect(screen.getAllByRole("option").length).toBeLessThan(12);
     expect(
       screen.getByRole("group", { name: "수동 가리기 편집 영역" }),
@@ -203,9 +203,10 @@ describe("single-screen manual redaction", () => {
     show(100);
     const list = screen.getByRole("listbox", { name: "가리기 페이지 목록" });
     fireEvent.keyDown(list, { key: "a", ctrlKey: true });
-    selectionMenu(100);
+    // The essential review action is available without opening a menu.
+    expect(screen.queryByRole("menu")).toBeNull();
     fireEvent.click(
-      screen.getByRole("menuitem", { name: "선택한 페이지 확인" }),
+      screen.getByRole("button", { name: "선택한 페이지 확인" }),
     );
     const dialog = screen.getByRole("dialog", { name: "선택한 페이지 확인" });
     fireEvent.click(within(dialog).getByRole("checkbox"));
