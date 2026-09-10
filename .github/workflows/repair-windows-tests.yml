@@ -1,0 +1,143 @@
+name: Validate Windows test isolation repair
+
+on:
+  push:
+    branches:
+      - release-recovery-v2.6.3-930fe355
+    paths:
+      - .github/workflows/repair-windows-tests.yml
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the failed revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 930fe355b6a29f4778446aef14db473034fafbd9
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply the reviewed test-only changes
+        shell: node {0}
+        run: |
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const ts = require(path.join(process.cwd(), 'node_modules/typescript'));
+          function once(text, before, after) {
+            if (text.split(before).length !== 2) throw new Error('Patch anchor is not unique: ' + before);
+            return text.replace(before, after);
+          }
+          const linked = 'tests/linkedWorkspaceSyncService.test.ts';
+          let text = fs.readFileSync(linked, 'utf8').replace(/\r\n/g, '\n');
+          text = once(text, 'boundary.openPath.mockResolvedValue("");', 'boundary.openPath.mockReset().mockResolvedValue("");');
+          const start = text.indexOf('  it.each(["opened", "error-string", "rejected"] as const)(');
+          const end = text.indexOf('  it("uses Results/work/chapter as the default automatic-save location"');
+          if (start < 0 || end <= start) throw new Error('Missing deferred result tests');
+          let tests = text.slice(start, end);
+          tests = once(tests, 'const renderGate = deferred<Buffer>();', 'const renderGate = deferred<Buffer>();\n      const renderStarted = deferred<void>();\n      const openingStarted = deferred<void>();');
+          tests = once(tests, 'const session = makeRenderSession(() => renderGate.promise);', 'const session = makeRenderSession(() => {\n          renderStarted.resolve();\n          return renderGate.promise;\n        });');
+          tests = once(tests,
+            '      if (outcome === "rejected")\n        boundary.openPath.mockRejectedValueOnce(openingFailure);\n      else\n        boundary.openPath.mockResolvedValueOnce(\n          outcome === "error-string" ? openingFailure.message : "",\n        );',
+            '      boundary.openPath.mockImplementationOnce(async () => {\n        openingStarted.resolve();\n        if (outcome === "rejected") throw openingFailure;\n        return outcome === "error-string" ? openingFailure.message : "";\n      });');
+          tests = once(tests,
+            '        await vi.waitFor(() =>\n          expect(boundary.sessions[0]?.renderPage).toHaveBeenCalledTimes(1),\n        );',
+            '        await renderStarted.promise;\n        expect(boundary.sessions[0]?.renderPage).toHaveBeenCalledTimes(1);');
+          tests = once(tests,
+            '        await vi.waitFor(() =>\n          expect(boundary.openPath).toHaveBeenCalledTimes(1),\n        );',
+            '        await openingStarted.promise;\n        expect(boundary.openPath).toHaveBeenCalledTimes(1);');
+          tests = once(tests,
+            '        await vi.waitFor(() => expect(results).toHaveLength(2), {\n          timeout: 1_000,\n        });',
+            '        await Promise.all(observers);\n        expect(results).toHaveLength(2);');
+          tests = once(tests,
+            '    const opening = deferred<string>();\n    boundary.openPath.mockImplementationOnce(() => opening.promise);',
+            '    const opening = deferred<string>();\n    const openingStarted = deferred<void>();\n    boundary.openPath.mockImplementationOnce(() => {\n      openingStarted.resolve();\n      return opening.promise;\n    });');
+          tests = once(tests,
+            '      await vi.waitFor(() => expect(boundary.openPath).toHaveBeenCalledOnce());',
+            '      await openingStarted.promise;\n      expect(boundary.openPath).toHaveBeenCalledOnce();');
+          text = text.slice(0, start) + tests + text.slice(end);
+          fs.writeFileSync(linked, text);
+          const targets = new Map([
+            ['tests/settingsIpc.test.ts', ['persists Codex font preferences through the narrow IPC in the current app data root']],
+            ['tests/workShare.test.ts', ['imports shared chapters as new ids and preserves blocks', 'round-trips pending erased block references onto imported block ids']],
+          ]);
+          for (const [file, names] of targets) {
+            let source = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+            const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+            const positions = [];
+            const found = new Set();
+            function visit(node) {
+              if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'it' && node.arguments.length === 2 && ts.isStringLiteral(node.arguments[0]) && names.includes(node.arguments[0].text)) {
+                found.add(node.arguments[0].text);
+                positions.push(node.arguments[1].end);
+              }
+              ts.forEachChild(node, visit);
+            }
+            visit(ast);
+            if (found.size !== names.length || positions.length !== names.length) throw new Error('Timeout test anchors changed: ' + file);
+            for (const position of positions.sort((a, b) => b - a)) {
+              source = source.slice(0, position) + ',\n  // Keep real filesystem transactions bounded while allowing slower Windows CI disks.\n  process.platform === "win32" && process.env.CI ? 60_000 : 15_000' + source.slice(position);
+            }
+            fs.writeFileSync(file, source);
+          }
+      - name: Format and validate test sources
+        run: |
+          npx prettier --write tests/linkedWorkspaceSyncService.test.ts tests/settingsIpc.test.ts tests/workShare.test.ts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run typecheck
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx eslint tests/linkedWorkspaceSyncService.test.ts tests/settingsIpc.test.ts tests/workShare.test.ts --max-warnings 0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run check:test-mock-boundaries
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Repeat affected Windows suites and installer regression tests
+        run: |
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            Write-Host "Focused Windows validation $attempt/3"
+            npm test -- tests/linkedWorkspaceSyncService.test.ts tests/settingsIpc.test.ts tests/workShare.test.ts tests/installerConfig.test.ts --maxWorkers=4
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Publish the validated patch to a review branch only
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          import json
+          import subprocess
+          from pathlib import Path
+
+          repo = "ucx0204/CarrotMangaTranslator"
+          base = "930fe355b6a29f4778446aef14db473034fafbd9"
+          branch = "fix/windows-ci-test-isolation-v2.6.3-r1"
+          files = ["tests/linkedWorkspaceSyncService.test.ts", "tests/settingsIpc.test.ts", "tests/workShare.test.ts"]
+          def api(endpoint, payload=None):
+              command = ["gh", "api", f"repos/{repo}/{endpoint}"]
+              if payload is not None:
+                  command += ["--method", "POST", "--input", "-"]
+              result = subprocess.run(command, input=json.dumps(payload) if payload is not None else None, capture_output=True, text=True, check=True)
+              return json.loads(result.stdout)
+          if api("git/ref/heads/master")["object"]["sha"] != base:
+              raise RuntimeError("Master changed; refusing to promote stale changes")
+          changed = subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines()
+          if sorted(changed) != sorted(files):
+              raise RuntimeError(f"Unexpected changed-file inventory: {changed}")
+          entries = []
+          for file in files:
+              blob = api("git/blobs", {"content": Path(file).read_text(encoding="utf-8"), "encoding": "utf-8"})
+              entries.append({"path": file, "mode": "100644", "type": "blob", "sha": blob["sha"]})
+          tree = api("git/trees", {"base_tree": "71e46c519e0d4b2dcca986b31cf1392168687bed", "tree": entries})
+          commit = api("git/commits", {"message": "test: isolate deferred folder opening and bound Windows filesystem waits\n\nReset queued shell mocks between cases and await explicit render/open signals\ninstead of one-second polling. Give the three real-filesystem integration\ncases a bounded 60-second Windows CI budget; preserve all assertions and\nthe normal 15-second timeout elsewhere.\n\nValidated on Windows: typecheck, focused ESLint, mock-boundary policy,\nand three complete runs of the affected suites plus installerConfig.\nFull Check and release gates must still pass before publishing.", "tree": tree["sha"], "parents": [base]})
+          api("git/refs", {"ref": f"refs/heads/{branch}", "sha": commit["sha"]})
+          print("Validated test-only patch:", commit["sha"])
+          print(f"https://github.com/{repo}/commit/{commit['sha']}")
