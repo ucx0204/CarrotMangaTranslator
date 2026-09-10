@@ -1,0 +1,91 @@
+name: Manual redaction UX validation
+
+on:
+  push:
+    branches: [feat/manual-redaction-workspace-20260910]
+    paths:
+      - .github/workflows/manual-redaction-ux-check.yml
+      - .github/manual-redaction-ux-qa.py
+      - src/renderer/src/components/imageRedaction/**
+      - src/renderer/src/components/ImageRedactionModal.tsx
+      - src/shared/imageRedaction*.ts
+      - src/main/imageRedaction*.ts
+      - src/shared/i18n/**
+      - tests/manualRedaction*
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-redaction-ux-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONIOENCODING: utf-8
+  PYTHONUTF8: "1"
+
+jobs:
+  windows:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator'
+    runs-on: windows-latest
+    timeout-minutes: 55
+    steps:
+      - name: Check out the feature checkpoint
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          show-progress: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        id: install
+        run: npm ci
+      - name: Check actual dev compilation, regressions, lint and build
+        run: python .github/manual-redaction-validate.py
+      - name: Capture the actual wide and narrow editor
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: python .github/manual-redaction-ux-qa.py
+      - name: Preserve build evidence and real screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: manual-redaction-ux-${{ github.run_id }}
+          path: |
+            .tmp/manual-redaction-check/
+            .tmp/manual-redaction-ux-qa/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Run the complete repository check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        shell: python
+        run: |
+          import subprocess
+          from pathlib import Path
+          root = Path('.tmp/manual-redaction-full-check')
+          root.mkdir(parents=True, exist_ok=True)
+          with (root / 'check.log').open('w', encoding='utf-8') as log:
+              try:
+                  code = subprocess.run(['npm.cmd', 'run', 'check'], stdout=log, stderr=subprocess.STDOUT, timeout=2100).returncode
+              except subprocess.TimeoutExpired:
+                  code = 124
+          print((root / 'check.log').read_text(encoding='utf-8', errors='replace')[-16000:])
+          raise SystemExit(code)
+      - name: Preserve complete-check diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: manual-redaction-full-check-${{ github.run_id }}
+          path: |
+            .tmp/manual-redaction-full-check/
+            .tmp/check-timings.json
+            .tmp/check-results/
+          if-no-files-found: warn
+          retention-days: 7
