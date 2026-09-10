@@ -14,9 +14,9 @@ export function useRedactionViewport(
   onView: (view: PageView) => void,
   disabled: boolean,
 ) {
-  const viewport = React.useRef<HTMLDivElement>(null);
-  const stage = React.useRef<HTMLDivElement>(null);
-  const fit = useContainedPageSize(viewport, page);
+  const viewportRef = React.useRef<HTMLDivElement>(null);
+  const stageRef = React.useRef<HTMLDivElement>(null);
+  const fit = useContainedPageSize(viewportRef, page);
   const zoom = view?.zoom || (fit.width * 100) / page.width;
   const anchor = React.useRef<{
     x: number;
@@ -27,13 +27,13 @@ export function useRedactionViewport(
   const update = useEventCallback(onView);
   const currentView = useEventCallback(() => view ?? { zoom: 0, x: 0, y: 0 });
   useWorkspaceWheelZoom({
-    workspacePanelRef: viewport,
+    workspacePanelRef: viewportRef,
     fitHeight: () => {
       if (!disabled) update({ ...currentView(), zoom: 0 });
     },
     zoom: (gesture) => {
-      if (disabled || !stage.current) return;
-      const rect = stage.current.getBoundingClientRect();
+      if (disabled || !stageRef.current) return;
+      const rect = stageRef.current.getBoundingClientRect();
       anchor.current = {
         x: (gesture.clientX - rect.left) / rect.width,
         y: (gesture.clientY - rect.top) / rect.height,
@@ -42,24 +42,13 @@ export function useRedactionViewport(
       };
       update({
         ...currentView(),
-        zoom: Math.max(
-          1,
-          Math.min(
-            800,
-            zoom *
-              Math.exp(
-                (gesture.direction === "in" ? 1 : -1) *
-                  Math.min(240, gesture.deltaPixels) *
-                  0.002,
-              ),
-          ),
-        ),
+        zoom: resolveZoom(zoom, gesture.direction, gesture.deltaPixels),
       });
     },
   });
   React.useLayoutEffect(() => {
-    const target = viewport.current,
-      image = stage.current;
+    const target = viewportRef.current,
+      image = stageRef.current;
     if (!target || !image) return;
     const point = anchor.current;
     if (point) {
@@ -76,7 +65,7 @@ export function useRedactionViewport(
     }
   }, [page.id, zoom, currentView]);
   const onScroll = () => {
-    const target = viewport.current;
+    const target = viewportRef.current;
     if (!target) return;
     update({
       ...currentView(),
@@ -88,5 +77,22 @@ export function useRedactionViewport(
         Math.max(1, target.scrollHeight - target.clientHeight),
     });
   };
-  return { viewport, stage, zoom, onScroll };
+  return { viewportRef, stageRef, zoom, onScroll };
+}
+
+function resolveZoom(
+  zoom: number,
+  direction: "in" | "out",
+  deltaPixels: number,
+): number {
+  return Math.max(
+    1,
+    Math.min(
+      800,
+      zoom *
+        Math.exp(
+          (direction === "in" ? 1 : -1) * Math.min(240, deltaPixels) * 0.002,
+        ),
+    ),
+  );
 }

@@ -18,7 +18,7 @@ export function createRedactionSession(
   workspace: RedactionWorkspace,
 ): RedactionSession {
   return {
-    workspace,
+    workspace: { ...workspace, view: { ...workspace.view, mode: "edit" } },
     documents: Object.fromEntries(
       workspace.pages.map(({ id, fingerprint, strokes, decision }) => [
         id,
@@ -51,7 +51,9 @@ export function editRedactionDocuments(
     ...state,
     documents: { ...state.documents, ...after },
     undo: [...state.undo, { before, after, batch }].slice(-HISTORY_LIMIT),
-    redo: [],
+    redo: state.redo.filter(
+      (edit) => !Object.keys(after).some((id) => id in edit.after),
+    ),
     generation: state.generation + 1,
   };
 }

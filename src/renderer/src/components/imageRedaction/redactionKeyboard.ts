@@ -30,21 +30,35 @@ export function redactionKeyAction(
 ): RedactionKeyAction | null {
   if (event.isComposing || event.altKey) return null;
   const key = event.key.toLowerCase();
-  if (event.ctrlKey || event.metaKey) {
-    if (key === "z") return event.shiftKey ? "redo" : "undo";
-    if (key === "y") return "redo";
-    if (key === "enter" && !event.repeat) return "continue";
-    return null;
-  }
-  if (key === "enter")
-    return event.repeat ? null : event.shiftKey ? "defer" : "confirm";
-  if (key === " ") return "pan-held";
-  if (key === "arrowleft" || key === "pageup") return "previous";
-  if (key === "arrowright" || key === "pagedown") return "next";
-  if (key === "delete" || key === "backspace") return "delete";
-  if (!preferences.letterShortcuts) return null;
-  if (key === preferences.previousKey && key) return "previous";
-  if (key === preferences.nextKey && key) return "next";
+  if (event.ctrlKey || event.metaKey) return modifiedKeyAction(event, key);
+  if (key === "enter") return enterKeyAction(event);
+  const fixed: Record<string, RedactionKeyAction> = {
+    " ": "pan-held",
+    arrowleft: "previous",
+    pageup: "previous",
+    arrowright: "next",
+    pagedown: "next",
+    delete: "delete",
+    backspace: "delete",
+  };
+  if (fixed[key]) return fixed[key];
+  return preferences.letterShortcuts ? letterKeyAction(key, preferences) : null;
+}
+function modifiedKeyAction(event: Key, key: string): RedactionKeyAction | null {
+  if (key === "z") return event.shiftKey ? "redo" : "undo";
+  if (key === "y") return "redo";
+  return key === "enter" && !event.repeat ? "continue" : null;
+}
+function enterKeyAction(event: Key): RedactionKeyAction | null {
+  if (event.repeat) return null;
+  return event.shiftKey ? "defer" : "confirm";
+}
+function letterKeyAction(
+  key: string,
+  preferences: RedactionPreferences,
+): RedactionKeyAction | null {
+  if (key && key === preferences.previousKey) return "previous";
+  if (key && key === preferences.nextKey) return "next";
   const actions: Record<string, RedactionKeyAction> = {
     r: "rectangle",
     b: "brush",

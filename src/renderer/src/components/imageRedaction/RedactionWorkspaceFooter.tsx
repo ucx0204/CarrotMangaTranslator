@@ -1,6 +1,16 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import {
+  IconCheck,
+  IconClockPause,
+  IconChevronLeft,
+  IconChevronRight,
+  IconLoader2,
+} from "@tabler/icons-react";
 import { Button } from "../ui/Button";
+import { NumberField } from "../ui/NumberField";
+import { ControlTooltip } from "../ui/ControlTooltip";
+import { RedactionIconButton } from "./RedactionIconButton";
 import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
 import { redactionProgress } from "./redactionSession";
 import styles from "./RedactionWorkspace.module.css";
@@ -14,18 +24,17 @@ type Props = {
   onConfirm: () => void;
   onDefer: () => void;
   onContinue: () => void;
-  onExit: () => void;
+  onOpen: (id: string) => void;
 };
 export function RedactionWorkspaceFooter(props: Props): React.JSX.Element {
   const { form, preparation } = props;
   const { t } = useTranslation("components");
-  const { state } = form;
-  const progress = redactionProgress(state.documents);
-  const index = state.workspace.pages.findIndex(
-    (page) => page.id === state.workspace.view.currentId,
-  );
+  const progress = redactionProgress(form.state.documents);
+  const total = form.state.workspace.pages.length;
+  const unresolved =
+    form.failed.size + progress.unreviewed + progress.deferred > 0;
   const disabled = form.busy || form.drawing;
-  const nextAction = form.failed.size
+  const hint = form.failed.size
     ? t("manualRedaction.gotoErrors", { count: form.failed.size })
     : progress.unreviewed
       ? t("manualRedaction.gotoUnreviewed", { count: progress.unreviewed })
@@ -35,63 +44,128 @@ export function RedactionWorkspaceFooter(props: Props): React.JSX.Element {
             preparation
               ? "manualRedaction.finishPreparation"
               : "manualRedaction.continueCount",
-            { count: state.workspace.pages.length },
+            { count: total },
           );
   return (
-    <div className={styles.dialogRows}>
-      <div className={styles.progress} role="status" aria-live="polite">
-        <strong>
-          {t("manualRedaction.progress", {
-            count: progress.reviewed,
-            total: state.workspace.pages.length,
-          })}
-        </strong>
-        <span className={styles.hint}>
-          {t(`manualRedaction.save_${form.saveStatus.kind}`)}
-        </span>
-        {form.saveStatus.kind === "error" ? (
+    <div className={styles.footer}>
+      <div className={styles.progress}>
+        <ControlTooltip content={hint} placement="top">
           <Button
+            variant="ghost"
             size="sm"
-            onClick={() => {
-              void form.flush().catch(form.report);
-            }}
+            disabled={disabled || !unresolved}
+            onClick={props.onContinue}
           >
-            {t("imageRedaction.retry")}
+            {t("manualRedaction.progress", { count: progress.reviewed, total })}
           </Button>
-        ) : null}
+        </ControlTooltip>
+        <RedactionSaveState form={form} />
       </div>
-      <div className={styles.footer}>
-        <Button disabled={disabled || index <= 0} onClick={props.onPrevious}>
-          {t("manualRedaction.previous")}
-        </Button>
-        <Button
-          disabled={disabled || index >= state.workspace.pages.length - 1}
-          onClick={props.onNext}
+      <RedactionPageNavigation {...props} />
+      <div className={styles.footerMain}>
+        <RedactionIconButton
+          label={t("manualRedaction.deferNext")}
+          hint={`${t("manualRedaction.deferNext")} · Shift+Enter`}
+          placement="top"
+          disabled={disabled}
+          onClick={props.onDefer}
         >
-          {t("manualRedaction.next")}
-        </Button>
-        <Button disabled={disabled} onClick={props.onDefer}>
-          {t("manualRedaction.deferNext")}
-        </Button>
+          <IconClockPause size={18} aria-hidden="true" />
+        </RedactionIconButton>
         <Button
+          variant={unresolved ? "primary" : "secondary"}
           disabled={disabled || !props.detailReady}
           onClick={props.onConfirm}
         >
           {t("manualRedaction.confirmNext")}
         </Button>
-        <div className={styles.footerMain}>
-          <Button disabled={disabled} onClick={props.onExit}>
-            {t("manualRedaction.saveExit")}
-          </Button>
+        <ControlTooltip content={hint} placement="top">
           <Button
-            variant="primary"
-            disabled={disabled}
+            variant={unresolved ? "secondary" : "primary"}
+            disabled={disabled || unresolved}
             onClick={props.onContinue}
           >
-            {nextAction}
+            {t(preparation ? "common.save" : "imageRedaction.confirm")}
           </Button>
-        </div>
+        </ControlTooltip>
       </div>
     </div>
+  );
+}
+function RedactionPageNavigation(props: Props): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const { pages, view, preferences } = props.form.state.workspace;
+  const index = pages.findIndex((page) => page.id === view.currentId);
+  const disabled = props.form.busy || props.form.drawing;
+  const key = (value: string) =>
+    preferences.letterShortcuts ? value.toUpperCase() : "";
+  return (
+    <div className={styles.pageJump}>
+      <RedactionIconButton
+        label={t("manualRedaction.previous")}
+        hint={`${t("manualRedaction.previous")} · ← ${key(preferences.previousKey)}`}
+        placement="top"
+        disabled={disabled || index <= 0}
+        onClick={props.onPrevious}
+      >
+        <IconChevronLeft size={18} aria-hidden="true" />
+      </RedactionIconButton>
+      <NumberField
+        className={styles.pageNumber}
+        variant="framed"
+        ariaLabel={t("manualRedaction.jumpPage")}
+        value={index + 1}
+        min={1}
+        max={pages.length}
+        disabled={disabled}
+        onValueChange={(number) => {
+          const page = pages[number - 1];
+          if (page) props.onOpen(page.id);
+        }}
+      />
+      <span className={styles.hint}>/ {pages.length}</span>
+      <RedactionIconButton
+        label={t("manualRedaction.next")}
+        hint={`${t("manualRedaction.next")} · → ${key(preferences.nextKey)}`}
+        placement="top"
+        disabled={disabled || index >= pages.length - 1}
+        onClick={props.onNext}
+      >
+        <IconChevronRight size={18} aria-hidden="true" />
+      </RedactionIconButton>
+    </div>
+  );
+}
+function RedactionSaveState({
+  form,
+}: {
+  form: RedactionWorkspaceController;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const label = t(`manualRedaction.save_${form.saveStatus.kind}`);
+  if (form.saveStatus.kind === "error")
+    return (
+      <Button
+        size="sm"
+        disabled={form.busy}
+        onClick={() => {
+          void form.flush().catch(form.report);
+        }}
+      >
+        {t("imageRedaction.retry")}
+      </Button>
+    );
+  const Icon = form.saveStatus.kind === "saved" ? IconCheck : IconLoader2;
+  return (
+    <ControlTooltip content={label} placement="top">
+      <span
+        className={styles.saveState}
+        tabIndex={0}
+        role="status"
+        aria-label={label}
+      >
+        <Icon size={16} aria-hidden="true" />
+      </span>
+    </ControlTooltip>
   );
 }

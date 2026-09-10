@@ -1,11 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { useEventCallback } from "../../hooks/useEventCallback";
 import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
 import { selectRedactionRange } from "./redactionSession";
-import {
-  changeRedactionView,
-  navigateRedactionPage,
-} from "./redactionWorkspaceModel";
+import { changeRedactionView } from "./redactionWorkspaceModel";
 import { useRedactionGridWindow } from "./useRedactionGridWindow";
 import { RedactionThumbnail } from "./RedactionThumbnail";
 import styles from "./RedactionWorkspace.module.css";
@@ -13,29 +11,30 @@ import styles from "./RedactionWorkspace.module.css";
 type Props = {
   form: RedactionWorkspaceController;
   ids: string[];
-  compact?: boolean;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, focusEditor?: boolean) => void;
 };
-export function RedactionPageGrid({
-  form,
-  ids,
-  compact = false,
-  onOpen,
-}: Props): React.JSX.Element {
+const SIZE = 112;
+const ROW_HEIGHT = SIZE + 54;
+
+/** The former overview now has one presentation: the continuous editor's filmstrip. */
+export function RedactionPageGrid(props: Props): React.JSX.Element {
+  const { form, ids } = props;
   const { t } = useTranslation("components");
-  const { state, commit } = form;
+  const { state } = form;
   const { view, pages } = state.workspace;
-  const size = compact ? 124 : view.thumbnailSize;
-  const window = useRedactionGridWindow(
-    ids.length,
-    size,
-    compact,
-    compact ? 0 : view.gridOffset,
-    (gridOffset) => {
-      if (!compact)
-        commit((current) => changeRedactionView(current, { gridOffset }));
-    },
-  );
+  const { viewportRef, start, end, top, totalHeight, onScroll, reveal } =
+    useRedactionGridWindow(
+      ids.length,
+      ROW_HEIGHT,
+      view.gridOffset,
+      (gridOffset) =>
+        form.commit((current) => changeRedactionView(current, { gridOffset })),
+    );
+  const select = usePageSelection(props);
+  const focus = useListFocus(ids, select, reveal, viewportRef);
+  React.useEffect(() => {
+    reveal(ids.indexOf(view.currentId));
+  }, [ids, view.currentId, reveal]);
   const metadata = React.useMemo(
     () =>
       new Map(
@@ -43,75 +42,26 @@ export function RedactionPageGrid({
       ),
     [pages],
   );
-  const anchor = React.useRef(view.currentId);
-  const select = (id: string, shift: boolean, toggle: boolean) => {
-    commit((current) =>
-      changeRedactionView(navigateRedactionPage(current, id), {
-        selectedIds: selectRedactionRange(
-          ids,
-          current.workspace.view.selectedIds,
-          anchor.current,
-          id,
-          shift,
-          toggle,
-        ),
-      }),
-    );
-    if (!shift) anchor.current = id;
-  };
-  React.useEffect(() => {
-    if (compact) window.reveal(ids.indexOf(view.currentId));
-  }, [compact, ids, view.currentId]);
-  const focus = (index: number, extend: boolean) => {
-    const id = ids[Math.max(0, Math.min(ids.length - 1, index))];
-    if (!id) return;
-    select(id, extend, false);
-    window.reveal(index);
-    requestAnimationFrame(() => {
-      const options =
-        window.viewport.current?.querySelectorAll<HTMLElement>(
-          "[data-page-id]",
-        );
-      Array.from(options ?? [])
-        .find((element) => element.dataset.pageId === id)
-        ?.focus();
-    });
-  };
   return (
     <div
       className={styles.gridViewport}
-      ref={window.viewport}
-      onScroll={window.onScroll}
+      ref={viewportRef}
+      onScroll={onScroll}
       role="listbox"
-      aria-multiselectable={!compact}
+      aria-multiselectable="true"
       aria-label={t("manualRedaction.pageList")}
       tabIndex={0}
-      onKeyDown={(event) =>
-        handleGridKey(event, {
-          ids,
-          currentId: view.currentId,
-          columns: window.columns,
-          focus,
-          selectAll: () =>
-            commit((current) =>
-              changeRedactionView(current, { selectedIds: ids }),
-            ),
-        })
-      }
+      onKeyDown={(event) => handleListKey(event, props, focus)}
     >
       {!ids.length ? (
         <p className={styles.empty}>{t("manualRedaction.emptyFilter")}</p>
       ) : null}
-      <div className={styles.gridSpace} style={{ height: window.totalHeight }}>
+      <div className={styles.gridSpace} style={{ height: totalHeight }}>
         <div
           className={styles.gridRows}
-          style={{
-            top: window.top,
-            gridTemplateColumns: `repeat(${window.columns}, minmax(0, 1fr))`,
-            gridAutoRows: window.rowHeight,
-          }}
+          style={{ top, gridAutoRows: ROW_HEIGHT }}
         >
-          {ids.slice(window.start, window.end).map((id) => {
+          {ids.slice(start, end).map((id) => {
             const item = metadata.get(id);
             if (!item) return null;
             return (
@@ -120,21 +70,13 @@ export function RedactionPageGrid({
                 {...item}
                 document={state.documents[id]}
                 form={form}
-                size={size}
+                size={SIZE}
                 selected={view.selectedIds.includes(id)}
                 current={view.currentId === id}
-                onSelect={(event) => {
-                  if (
-                    compact &&
-                    !event.shiftKey &&
-                    !event.ctrlKey &&
-                    !event.metaKey
-                  )
-                    onOpen(id);
-                  else
-                    select(id, event.shiftKey, event.ctrlKey || event.metaKey);
-                }}
-                onOpen={() => onOpen(id)}
+                onSelect={(event) =>
+                  select(id, event.shiftKey, event.ctrlKey || event.metaKey)
+                }
+                onOpen={() => props.onOpen(id)}
               />
             );
           })}
@@ -143,41 +85,80 @@ export function RedactionPageGrid({
     </div>
   );
 }
-
-function handleGridKey(
+function usePageSelection({ form, ids, onOpen }: Props) {
+  const anchorRef = React.useRef(form.state.workspace.view.currentId);
+  return useEventCallback((id: string, shift: boolean, toggle: boolean) => {
+    if (form.busy || form.drawing) return;
+    form.commit((current) =>
+      changeRedactionView(current, {
+        selectedIds: selectRedactionRange(
+          ids,
+          current.workspace.view.selectedIds,
+          anchorRef.current,
+          id,
+          shift,
+          toggle,
+        ),
+      }),
+    );
+    if (!shift) anchorRef.current = id;
+    onOpen(id, false);
+  });
+}
+function handleListKey(
   event: React.KeyboardEvent,
-  options: {
-    ids: string[];
-    currentId: string;
-    columns: number;
-    focus: (index: number, extend: boolean) => void;
-    selectAll: () => void;
-  },
+  { form, ids }: Props,
+  focus: (index: number, extend: boolean) => void,
 ): void {
-  if (event.nativeEvent.isComposing || event.altKey) return;
+  if (
+    form.busy ||
+    form.drawing ||
+    event.nativeEvent.isComposing ||
+    event.altKey
+  )
+    return;
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
     event.preventDefault();
     event.stopPropagation();
-    options.selectAll();
+    form.commit((current) =>
+      changeRedactionView(current, { selectedIds: ids }),
+    );
     return;
   }
-  const deltas: Record<string, number> = {
-    ArrowLeft: -1,
-    ArrowRight: 1,
-    ArrowUp: -options.columns,
-    ArrowDown: options.columns,
+  const index = Math.max(0, ids.indexOf(form.state.workspace.view.currentId));
+  const targets: Record<string, number> = {
+    ArrowLeft: index - 1,
+    ArrowRight: index + 1,
+    ArrowUp: index - 1,
+    ArrowDown: index + 1,
+    Home: 0,
+    End: ids.length - 1,
   };
-  const index = Math.max(0, options.ids.indexOf(options.currentId));
-  const next =
-    event.key === "Home"
-      ? 0
-      : event.key === "End"
-        ? options.ids.length - 1
-        : deltas[event.key] === undefined
-          ? null
-          : index + deltas[event.key];
-  if (next === null) return;
+  const target = targets[event.key];
+  if (target === undefined) return;
   event.preventDefault();
   event.stopPropagation();
-  options.focus(next, event.shiftKey);
+  focus(target, event.shiftKey);
+}
+
+function useListFocus(
+  ids: string[],
+  select: (id: string, shift: boolean, toggle: boolean) => void,
+  reveal: (index: number) => void,
+  viewportRef: React.RefObject<HTMLDivElement | null>,
+) {
+  return useEventCallback((index: number, extend: boolean) => {
+    const id = ids[Math.max(0, Math.min(ids.length - 1, index))];
+    if (!id) return;
+    select(id, extend, false);
+    reveal(index);
+    requestAnimationFrame(() => {
+      Array.from(
+        viewportRef.current?.querySelectorAll<HTMLElement>("[data-page-id]") ??
+          [],
+      )
+        .find((element) => element.dataset.pageId === id)
+        ?.focus();
+    });
+  });
 }

@@ -98,13 +98,14 @@ export function decideAndAdvanceRedaction(
   return target ? navigateRedactionPage(next, target) : next;
 }
 export function filteredRedactionPages(
-  state: RedactionSession,
+  pages: RedactionSession["workspace"]["pages"],
+  documents: RedactionSession["documents"],
+  filter: RedactionView["filter"],
   errors: ReadonlySet<string>,
 ): string[] {
-  const filter = state.workspace.view.filter;
-  return state.workspace.pages
+  return pages
     .filter((page) => {
-      const document = state.documents[page.id];
+      const document = documents[page.id];
       if (filter === "all") return true;
       if (filter === "error") return errors.has(page.id);
       if (filter === "masked") return document.strokes.length > 0;

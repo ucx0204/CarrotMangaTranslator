@@ -2,7 +2,6 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { RedactionWorkspacePage } from "../../../../shared/imageRedactionWorkspace";
 import { redactionStrokeBounds } from "../../../../shared/imageRedactionEditing";
-import { useEventCallback } from "../../hooks/useEventCallback";
 import { Button } from "../ui/Button";
 import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
 import {
@@ -14,6 +13,7 @@ import { RedactionZoomControls } from "./RedactionTools";
 import { useRedactionPreview } from "./useRedactionPreview";
 import { useRedactionGestures } from "./useRedactionGestures";
 import { useRedactionViewport } from "./useRedactionViewport";
+import { useRedactionImageReadiness } from "./useRedactionImageReadiness";
 import styles from "./RedactionWorkspace.module.css";
 
 type Props = {
@@ -23,11 +23,12 @@ type Props = {
   setSelected: (index: number) => void;
   spaceHeld: boolean;
   onReady: (ready: boolean) => void;
+  toolbar: React.ReactNode;
 };
 export function RedactionCanvas(props: Props): React.JSX.Element {
   const { t } = useTranslation("components");
   const { form, page, selected, setSelected, spaceHeld } = props;
-  const { state, commit, markPreview } = form;
+  const { state, commit } = form;
   const document = state.documents[page.id];
   const image = useRedactionPreview(
     form.previews,
@@ -35,24 +36,21 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
     page.id,
     2048,
   );
-  const readiness = useCanvasReadiness(props, image.error, document.strokes);
-  const view = useRedactionViewport(
-    page,
-    state.workspace.view.pageViews[page.id],
-    (next) =>
-      commit((current) =>
-        changeRedactionView(current, {
-          pageViews: { ...current.workspace.view.pageViews, [page.id]: next },
-        }),
-      ),
-    form.busy || form.drawing,
-  );
-  const drawing = useRedactionGestures({
+  const readiness = useRedactionImageReadiness({
+    source: "detail",
+    form,
+    pageId: page.id,
+    ...image,
+    strokes: document.strokes,
+    onReady: props.onReady,
+  });
+  const { viewportRef, stageRef, zoom, onScroll } = useCanvasViewport(props);
+  const { handlers, draft, transformed } = useRedactionGestures({
     page,
     strokes: document.strokes,
     preferences: state.workspace.preferences,
-    viewport: view.viewport,
-    disabled: form.busy || !image.url || readiness.failed,
+    viewport: viewportRef,
+    disabled: form.busy || !readiness.ready,
     spaceHeld,
     selected,
     setSelected,
@@ -60,17 +58,16 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
     onChange: (strokes) =>
       commit((current) => changeRedactionStrokes(current, page.id, strokes)),
   });
-  const strokes = drawing.transformed ?? document.strokes;
+  const strokes = transformed ?? document.strokes;
   return (
     <div className={styles.editor}>
-      <RedactionZoomControls form={form} pageId={page.id} zoom={view.zoom} />
-      <div
-        className={styles.viewport}
-        ref={view.viewport}
-        onScroll={view.onScroll}
-      >
+      <div className={styles.editorToolbar}>
+        {props.toolbar}
+        <RedactionZoomControls form={form} pageId={page.id} zoom={zoom} />
+      </div>
+      <div className={styles.viewport} ref={viewportRef} onScroll={onScroll}>
         <div
-          ref={view.stage}
+          ref={stageRef}
           className={styles.stage}
           tabIndex={0}
           role="group"
@@ -78,98 +75,95 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
           data-redaction-stage
           data-tool={spaceHeld ? "pan" : state.workspace.preferences.tool}
           style={{
-            width: (page.width * view.zoom) / 100,
-            height: (page.height * view.zoom) / 100,
+            width: (page.width * zoom) / 100,
+            height: (page.height * zoom) / 100,
           }}
-          {...drawing.handlers}
+          {...handlers}
         >
-          {image.url ? (
-            <img
-              src={image.url}
-              alt={page.name}
-              draggable={false}
-              className={styles.sourceImage}
-              onLoad={readiness.decoded}
-              onError={() => {
-                readiness.reject();
-                markPreview(page.id, "error");
-              }}
-            />
-          ) : null}
-          {image.url && !readiness.failed ? (
-            <RedactionMaskCanvas
-              width={page.width}
-              height={page.height}
-              strokes={strokes}
-              draft={drawing.draft}
-              onReady={readiness.masked}
-              onFailure={readiness.reject}
-            />
-          ) : null}
+          <CanvasImage
+            page={page}
+            image={image}
+            readiness={readiness}
+            strokes={strokes}
+            draft={draft}
+          />
           {strokes[selected] ? (
             <SelectionOutline
               page={page}
               selected={strokes[selected]}
-              zoom={view.zoom}
+              zoom={zoom}
             />
           ) : null}
         </div>
       </div>
-      {image.error || readiness.failed ? (
-        <div role="alert" className={styles.inlineError}>
-          <span>{t("manualRedaction.previewFailed")}</span>
-          <Button
-            size="sm"
-            onClick={() => {
-              readiness.retry();
-              image.retry();
-            }}
-          >
-            {t("imageRedaction.retry")}
-          </Button>
-        </div>
-      ) : !image.url ? (
-        <p role="status">{t("manualRedaction.loading")}</p>
-      ) : null}
+      <PreviewNotice image={image} readiness={readiness} />
     </div>
   );
 }
-
-function useCanvasReadiness(
-  props: Props,
-  imageError: unknown,
-  strokes: RedactionWorkspacePage["strokes"],
-) {
-  const [decoded, setDecoded] = React.useState(false);
-  const [masked, setMasked] = React.useState(false);
-  const [failed, setFailed] = React.useState(false);
-  const notify = useEventCallback(props.onReady);
-  const { markPreview } = props.form;
-  React.useLayoutEffect(() => {
-    setMasked(false);
-  }, [strokes]);
-  React.useEffect(() => {
-    notify(decoded && masked && !failed && !imageError);
-    if (failed || imageError) markPreview(props.page.id, "error");
-    else if (decoded && masked) markPreview(props.page.id, "ready");
-    return () => notify(false);
-  }, [decoded, masked, failed, imageError, notify, markPreview, props.page.id]);
-  return {
-    failed,
-    decoded: () => setDecoded(true),
-    masked: () => setMasked(true),
-    reject: (error?: unknown) => {
-      setFailed(true);
-      if (error) props.form.report(error);
-    },
-    retry: () => {
-      setFailed(false);
-      setDecoded(false);
-      setMasked(false);
-    },
-  };
+type ImageState = ReturnType<typeof useRedactionPreview>;
+type Readiness = ReturnType<typeof useRedactionImageReadiness>;
+function CanvasImage({
+  page,
+  image,
+  readiness,
+  strokes,
+  draft,
+}: {
+  page: RedactionWorkspacePage;
+  image: ImageState;
+  readiness: Readiness;
+  strokes: RedactionWorkspacePage["strokes"];
+  draft: RedactionWorkspacePage["strokes"][number] | null;
+}): React.JSX.Element | null {
+  if (!image.url) return null;
+  return (
+    <>
+      <img
+        src={image.url}
+        alt={page.name}
+        draggable={false}
+        className={styles.sourceImage}
+        onLoad={readiness.decoded}
+        onError={() => readiness.reject()}
+      />
+      {!readiness.failed ? (
+        <RedactionMaskCanvas
+          width={page.width}
+          height={page.height}
+          strokes={strokes}
+          draft={draft}
+          onReady={readiness.masked}
+          onFailure={readiness.reject}
+        />
+      ) : null}
+    </>
+  );
 }
-
+function PreviewNotice({
+  image,
+  readiness,
+}: {
+  image: ImageState;
+  readiness: Readiness;
+}): React.JSX.Element | null {
+  const { t } = useTranslation("components");
+  if (image.error || readiness.failed)
+    return (
+      <div role="alert" className={styles.inlineError}>
+        <span>{t("manualRedaction.previewFailed")}</span>
+        <Button
+          size="sm"
+          onClick={() => {
+            readiness.retry();
+            image.retry();
+          }}
+        >
+          {t("imageRedaction.retry")}
+        </Button>
+      </div>
+    );
+  return image.url ? null : <p role="status">{t("manualRedaction.loading")}</p>;
+}
 function SelectionOutline({
   page,
   selected,
@@ -205,5 +199,20 @@ function SelectionOutline({
         />
       ) : null}
     </svg>
+  );
+}
+
+function useCanvasViewport({ form, page }: Props) {
+  const { state, commit } = form;
+  return useRedactionViewport(
+    page,
+    state.workspace.view.pageViews[page.id],
+    (next) =>
+      commit((current) =>
+        changeRedactionView(current, {
+          pageViews: { ...current.workspace.view.pageViews, [page.id]: next },
+        }),
+      ),
+    form.busy || form.drawing,
   );
 }

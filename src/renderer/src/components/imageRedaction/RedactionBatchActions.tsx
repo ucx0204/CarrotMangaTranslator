@@ -1,100 +1,70 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "../ui/Button";
+import { RedactionActionsMenu } from "./RedactionActionsMenu";
 import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
 import { changeRedactionView } from "./redactionWorkspaceModel";
 import {
   canRestoreRedactionEdit,
   restoreRedactionEdit,
 } from "./redactionSession";
-import styles from "./RedactionWorkspace.module.css";
 
+type Props = {
+  form: RedactionWorkspaceController;
+  ids: string[];
+  onReview: () => void;
+  onCopy: () => void;
+};
 export function RedactionBatchActions({
   form,
   ids,
   onReview,
   onCopy,
-}: {
-  form: RedactionWorkspaceController;
-  ids: string[];
-  onReview: () => void;
-  onCopy: () => void;
-}): React.JSX.Element {
+}: Props): React.JSX.Element {
   const { t } = useTranslation("components");
   const { state, commit } = form;
-  const view = state.workspace.view;
-  const disabled = form.busy || form.drawing;
+  const { view } = state.workspace;
+  const count = view.selectedIds.length;
+  const select = (selectedIds: string[]) =>
+    commit((current) => changeRedactionView(current, { selectedIds }));
+  const history = (["undo", "redo"] as const).map((direction) => ({
+    label: t(
+      direction === "undo"
+        ? "manualRedaction.undoBatch"
+        : "manualRedaction.redoBatch",
+    ),
+    disabled: !canRestoreRedactionEdit(state, direction, view.currentId, true),
+    run: () =>
+      commit((current) =>
+        restoreRedactionEdit(current, direction, view.currentId, true),
+      ),
+  }));
   return (
-    <div className={styles.batchBar}>
-      <span>
-        {t("manualRedaction.selectedCount", { count: view.selectedIds.length })}
-      </span>
-      <Button
-        size="sm"
-        disabled={disabled || !ids.length}
-        onClick={() =>
-          commit((current) =>
-            changeRedactionView(current, { selectedIds: ids }),
-          )
-        }
-      >
-        {t("manualRedaction.selectFiltered")}
-      </Button>
-      <Button
-        size="sm"
-        disabled={disabled || !view.selectedIds.length}
-        onClick={() =>
-          commit((current) => changeRedactionView(current, { selectedIds: [] }))
-        }
-      >
-        {t("manualRedaction.clearSelection")}
-      </Button>
-      <Button
-        size="sm"
-        disabled={disabled || !view.selectedIds.length}
-        onClick={onReview}
-      >
-        {t("manualRedaction.reviewSelection")}
-      </Button>
-      <Button
-        size="sm"
-        disabled={
-          disabled ||
-          !view.selectedIds.length ||
-          !state.documents[view.currentId].strokes.length
-        }
-        onClick={onCopy}
-      >
-        {t("manualRedaction.copySelection")}
-      </Button>
-      <Button
-        size="sm"
-        disabled={
-          disabled ||
-          !canRestoreRedactionEdit(state, "undo", view.currentId, true)
-        }
-        onClick={() =>
-          commit((current) =>
-            restoreRedactionEdit(current, "undo", view.currentId, true),
-          )
-        }
-      >
-        {t("manualRedaction.undoBatch")}
-      </Button>
-      <Button
-        size="sm"
-        disabled={
-          disabled ||
-          !canRestoreRedactionEdit(state, "redo", view.currentId, true)
-        }
-        onClick={() =>
-          commit((current) =>
-            restoreRedactionEdit(current, "redo", view.currentId, true),
-          )
-        }
-      >
-        {t("manualRedaction.redoBatch")}
-      </Button>
-    </div>
+    <RedactionActionsMenu
+      label={t("manualRedaction.selectedCount", { count })}
+      disabled={form.busy || form.drawing}
+      items={[
+        {
+          label: t("manualRedaction.selectFiltered"),
+          run: () => select(ids),
+          disabled: !ids.length,
+        },
+        {
+          label: t("manualRedaction.clearSelection"),
+          run: () => select([]),
+          disabled: !count,
+        },
+        {
+          label: t("manualRedaction.reviewSelection"),
+          run: onReview,
+          disabled: !count,
+        },
+        {
+          label: t("manualRedaction.copySelection"),
+          run: onCopy,
+          disabled: !count || !state.documents[view.currentId].strokes.length,
+        },
+        ...history,
+      ]}
+    />
   );
 }

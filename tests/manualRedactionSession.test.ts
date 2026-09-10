@@ -113,3 +113,58 @@ describe("manual redaction session", () => {
     ).toEqual([]);
   });
 });
+
+it("restores a legacy overview draft in continuous editing without changing its masks or reviews", () => {
+  const initial = fixture(4);
+  const workspace = {
+    ...initial.workspace,
+    view: {
+      ...initial.workspace.view,
+      mode: "grid" as const,
+      currentId: "2",
+      selectedIds: ["1", "2"],
+      gridOffset: 200,
+    },
+  };
+  const next = createRedactionSession(workspace);
+  expect(next.workspace.view).toEqual({ ...workspace.view, mode: "edit" });
+  expect(next.documents).toEqual(initial.documents);
+  expect(workspace.view.mode).toBe("grid");
+});
+
+it("preserves a page's redo when a different page is edited", () => {
+  let state = fixture();
+  state = editRedactionDocuments(state, [
+    { ...state.documents["0"], decision: "reviewed" },
+  ]);
+  state = restoreRedactionEdit(state, "undo", "0");
+  state = editRedactionDocuments(state, [
+    { ...state.documents["1"], decision: "deferred" },
+  ]);
+  expect(canRestoreRedactionEdit(state, "redo", "0")).toBe(true);
+  state = restoreRedactionEdit(state, "redo", "0");
+  expect(state.documents["0"].decision).toBe("reviewed");
+  expect(state.documents["1"].decision).toBe("deferred");
+});
+
+it("invalidates the whole overlapping batch redo but preserves unrelated history", () => {
+  let state = fixture();
+  state = editRedactionDocuments(
+    state,
+    ["0", "1"].map((id) => ({
+      ...state.documents[id],
+      decision: "reviewed" as const,
+    })),
+    true,
+  );
+  state = restoreRedactionEdit(state, "undo", "0", true);
+  state = editRedactionDocuments(state, [
+    { ...state.documents["2"], decision: "deferred" },
+  ]);
+  expect(canRestoreRedactionEdit(state, "redo", "0", true)).toBe(true);
+  state = editRedactionDocuments(state, [
+    { ...state.documents["1"], decision: "deferred" },
+  ]);
+  expect(canRestoreRedactionEdit(state, "redo", "0", true)).toBe(false);
+  expect(state.documents["0"].decision).toBe("unreviewed");
+});
