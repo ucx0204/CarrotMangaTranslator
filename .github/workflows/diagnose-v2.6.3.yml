@@ -1,0 +1,41 @@
+name: Diagnose v2.6.3 Windows check
+
+# Temporary recovery branch only; does not build or publish a release.
+on:
+  push:
+    branches:
+      - release-recovery-v2.6.3-930fe355
+    paths:
+      - .github/workflows/diagnose-v2.6.3.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Extract failure details from the completed Windows check
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          import re
+          import subprocess
+
+          result = subprocess.run(
+              ["gh", "api", "repos/ucx0204/CarrotMangaTranslator/actions/jobs/102751488429/logs"],
+              check=True, capture_output=True, text=True, timeout=120,
+          )
+          text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", result.stdout)
+          lines = text.splitlines()
+          selected = set(range(max(0, len(lines) - 100), len(lines)))
+          pattern = re.compile(r"FAIL\s|Failed Tests|AssertionError|Error:|test-coverage.*failed|Test Files|Tests\s+.*failed|TimeoutError|timed out", re.I)
+          for index, line in enumerate(lines):
+              if pattern.search(line):
+                  selected.update(range(max(0, index - 2), min(len(lines), index + 18)))
+          output = "\n".join(f"{i + 1}: {lines[i]}" for i in sorted(selected))
+          print(f"Original log: {len(lines)} lines; selected diagnostic tail follows.")
+          print(output[-24000:])
