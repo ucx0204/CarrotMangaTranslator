@@ -1,0 +1,19 @@
+{
+  "reviewPage": "Review this page",
+  "reviewedPage": "Reviewed",
+  "resumeJob": "Resume task",
+  "reviewProgress": "Reviewed {{count}}/{{total}} · {{remaining}} left",
+  "nextUnreviewed": "Next unreviewed",
+  "pendingCount": "{{count}} unreviewed",
+  "reviewSelectedCount": "Review {{count}} selected",
+  "selectionMenu": "Selection actions",
+  "clearSelectionShort": "Clear",
+  "selectAllShort": "Select all",
+  "savedShort": "Saved",
+  "retrySave": "Retry saving",
+  "reviewPageHint": "Click: review this page only · Enter: review and next",
+  "pageReviewControls": "Page review",
+  "allReviewed": "All reviewed",
+  "selectedBadge": "Selected",
+  "filter_reviewed": "Reviewed"
+}

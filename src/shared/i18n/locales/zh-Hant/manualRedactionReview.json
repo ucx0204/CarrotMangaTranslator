@@ -1,0 +1,19 @@
+{
+  "reviewPage": "確認此頁",
+  "reviewedPage": "已確認",
+  "resumeJob": "繼續任務",
+  "reviewProgress": "已確認 {{count}}/{{total}} · 剩餘 {{remaining}}",
+  "nextUnreviewed": "前往未確認頁",
+  "pendingCount": "{{count}} 頁未確認",
+  "reviewSelectedCount": "確認所選 {{count}} 頁",
+  "selectionMenu": "選取操作",
+  "clearSelectionShort": "取消選取",
+  "selectAllShort": "全選",
+  "savedShort": "已儲存",
+  "retrySave": "重試儲存",
+  "reviewPageHint": "點選：僅確認此頁 · Enter：確認並前往下一頁",
+  "pageReviewControls": "頁面確認",
+  "allReviewed": "全部已確認",
+  "selectedBadge": "已選",
+  "filter_reviewed": "已確認"
+}

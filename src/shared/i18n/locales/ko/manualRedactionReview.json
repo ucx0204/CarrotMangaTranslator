@@ -1,0 +1,19 @@
+{
+  "reviewPage": "이 페이지 확인",
+  "reviewedPage": "확인됨",
+  "resumeJob": "작업 재개",
+  "reviewProgress": "검토 {{count}}/{{total}} · 남음 {{remaining}}",
+  "nextUnreviewed": "미확인으로 이동",
+  "pendingCount": "미확인 {{count}}장",
+  "reviewSelectedCount": "선택 {{count}}장 확인",
+  "selectionMenu": "선택 작업",
+  "clearSelectionShort": "해제",
+  "selectAllShort": "전체 선택",
+  "savedShort": "저장됨",
+  "retrySave": "저장 재시도",
+  "reviewPageHint": "클릭: 이 페이지만 확인 · Enter: 확인하고 다음",
+  "pageReviewControls": "페이지 검토",
+  "allReviewed": "모두 확인됨",
+  "selectedBadge": "선택",
+  "filter_reviewed": "확인됨"
+}
