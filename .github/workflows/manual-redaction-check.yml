@@ -1,0 +1,88 @@
+name: Manual redaction workspace checks
+
+# Development branch only. Never builds or publishes a release.
+# Bump the checkpoint comment to explicitly validate the latest branch code.
+# checkpoint: core-1
+on:
+  push:
+    branches: [feat/manual-redaction-workspace-20260910]
+    paths: [.github/workflows/manual-redaction-check.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: manual-redaction-workspace-validation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out the exact feature checkpoint
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies with bounded diagnostics
+        shell: python
+        run: |
+          import subprocess
+          result = subprocess.run(["npm.cmd", "ci"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
+          print((result.stdout + result.stderr)[-6000:])
+          raise SystemExit(result.returncode)
+      - name: Format only feature changes and checkpoint formatting
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          import os
+          import subprocess
+          branch = "feat/manual-redaction-workspace-20260910"
+          assert os.environ["GITHUB_REF"] == "refs/heads/" + branch
+          def run(args):
+              return subprocess.run(args, check=True, capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.strip()
+          files = run(["git", "diff", "--name-only", "--diff-filter=AM", "19b660f4160e4a64ce479caa09a20437f9ed3c81", "HEAD"]).splitlines()
+          files = [path for path in files if path.endswith((".ts", ".tsx", ".json", ".css", ".md", ".yml"))]
+          if files:
+              print(run(["node", "node_modules/prettier/bin/prettier.cjs", "--write", *files])[-4000:])
+          if run(["git", "diff", "--name-only"]):
+              run(["git", "config", "user.name", "github-actions[bot]"])
+              run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"])
+              run(["git", "add", "--", *files])
+              run(["git", "commit", "-m", "style: checkpoint formatted manual redaction sources"])
+              run(["gh", "auth", "setup-git"])
+              run(["git", "push", "origin", "HEAD:refs/heads/" + branch])
+          print("VALIDATED_SOURCE_SHA=" + run(["git", "rev-parse", "HEAD"]))
+      - name: Typecheck and regression tests
+        shell: python
+        run: |
+          import json
+          import re
+          import subprocess
+          from pathlib import Path
+          commands = [
+              ["npm.cmd", "run", "typecheck"],
+              ["npm.cmd", "run", "typecheck:electron"],
+              ["npm.cmd", "run", "test", "--", "tests/manualRedactionSession.test.ts", "tests/manualRedactionRaster.test.ts", "tests/imageRedaction.test.ts", "tests/imageRedactionReview.test.ts"],
+          ]
+          failures = []
+          root = Path(".tmp/manual-redaction-check")
+          root.mkdir(parents=True, exist_ok=True)
+          for index, command in enumerate(commands):
+              result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1200)
+              text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", result.stdout + result.stderr)
+              (root / f"{index}.log").write_text(text, encoding="utf-8")
+              print("COMMAND: " + " ".join(command), flush=True)
+              print(text[-16000:], flush=True)
+              if result.returncode:
+                  failures.append({"command": command, "returncode": result.returncode})
+          print("VALIDATION_FAILURES=" + json.dumps(failures))
+          raise SystemExit(bool(failures))

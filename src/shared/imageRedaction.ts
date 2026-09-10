@@ -9,6 +9,7 @@ const point = z
 export const imageRedactionStrokeSchema = z
   .object({
     shape: z.enum(["rectangle", "round", "square"]),
+    operation: z.enum(["hide", "restore"]).optional(),
     size: z.number().finite().min(1).max(4000),
     points: z.array(point).min(1).max(20000),
   })
@@ -31,6 +32,7 @@ export const confirmImageRedactionSchema = z
   .object({
     jobId: z.string().uuid(),
     sessionId: z.string().uuid(),
+    workspaceRevision: z.number().int().nonnegative().optional(),
     pages: z
       .array(
         z
