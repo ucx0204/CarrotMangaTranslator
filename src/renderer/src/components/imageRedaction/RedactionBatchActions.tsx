@@ -30,18 +30,6 @@ export function RedactionBatchActions({
   const disabled = form.busy || form.drawing;
   const select = (selectedIds: string[]) =>
     commit((current) => changeRedactionView(current, { selectedIds }));
-  const history = (["undo", "redo"] as const).map((direction) => ({
-    label: t(
-      direction === "undo"
-        ? "manualRedaction.undoBatch"
-        : "manualRedaction.redoBatch",
-    ),
-    disabled: !canRestoreRedactionEdit(state, direction, view.currentId, true),
-    run: () =>
-      commit((current) =>
-        restoreRedactionEdit(current, direction, view.currentId, true),
-      ),
-  }));
   return (
     <>
       <div className={styles.selectionTools}>
@@ -61,27 +49,7 @@ export function RedactionBatchActions({
         >
           {t("manualRedaction.clearSelectionShort")}
         </Button>
-        <RedactionActionsMenu
-          iconOnly
-          align="start"
-          label={t("manualRedaction.selectionMenu")}
-          disabled={disabled}
-          items={[
-            {
-              label: t("manualRedaction.copySelection"),
-              run: onCopy,
-              disabled: !count || !state.documents[view.currentId].strokes.length,
-            },
-            ...history,
-            ...(["masked", "error"] as const).map((filter) => ({
-              label: t(`manualRedaction.filter_${filter}`),
-              run: () =>
-                commit((current) =>
-                  changeRedactionView(current, { filter, gridOffset: 0 }),
-                ),
-            })),
-          ]}
-        />
+        <SelectionActions form={form} onCopy={onCopy} />
       </div>
       <ControlTooltip
         content={t("manualRedaction.explicitReviewHint")}
@@ -98,5 +66,48 @@ export function RedactionBatchActions({
         </Button>
       </ControlTooltip>
     </>
+  );
+}
+
+function SelectionActions({ form, onCopy }: Pick<Props, "form" | "onCopy">) {
+  const { t } = useTranslation("components");
+  const { state, commit } = form;
+  const { view } = state.workspace;
+  const count = view.selectedIds.length;
+  const disabled = form.busy || form.drawing;
+  const history = (["undo", "redo"] as const).map((direction) => ({
+    label: t(
+      direction === "undo"
+        ? "manualRedaction.undoBatch"
+        : "manualRedaction.redoBatch",
+    ),
+    disabled: !canRestoreRedactionEdit(state, direction, view.currentId, true),
+    run: () =>
+      commit((current) =>
+        restoreRedactionEdit(current, direction, view.currentId, true),
+      ),
+  }));
+  return (
+    <RedactionActionsMenu
+      iconOnly
+      align="start"
+      label={t("manualRedaction.selectionMenu")}
+      disabled={disabled}
+      items={[
+        {
+          label: t("manualRedaction.copySelection"),
+          run: onCopy,
+          disabled: !count || !state.documents[view.currentId].strokes.length,
+        },
+        ...history,
+        ...(["masked", "error"] as const).map((filter) => ({
+          label: t(`manualRedaction.filter_${filter}`),
+          run: () =>
+            commit((current) =>
+              changeRedactionView(current, { filter, gridOffset: 0 }),
+            ),
+        })),
+      ]}
+    />
   );
 }
