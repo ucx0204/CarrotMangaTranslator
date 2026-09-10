@@ -38,16 +38,27 @@ export function RedactionWorkspaceHeader(props: Props): React.JSX.Element {
         }))}
         value={view.mode}
         onChange={(mode) => {
-          if (!disabled) form.commit((current) => changeRedactionView(current, { mode }));
+          if (!disabled)
+            form.commit((current) => changeRedactionView(current, { mode }));
         }}
       />
       <RedactionPageControls form={form} onOpen={props.onOpen} />
-      <ControlTooltip content={t("manualRedaction.canvasHint")} placement="bottom">
+      <ControlTooltip
+        content={t("manualRedaction.canvasHint")}
+        placement="bottom"
+      >
         <Button size="sm" onClick={onHelp} disabled={disabled}>
           {t("manualRedaction.shortcuts")}
         </Button>
       </ControlTooltip>
-      <ControlTooltip content={t(preparation ? "manualRedaction.preparationHint" : "manualRedaction.outboundHint")} placement="left">
+      <ControlTooltip
+        content={t(
+          preparation
+            ? "manualRedaction.preparationHint"
+            : "manualRedaction.outboundHint",
+        )}
+        placement="left"
+      >
         <IconButton label={t("manualRedaction.about")} title="">
           <IconInfoCircle size={18} aria-hidden="true" />
         </IconButton>
@@ -56,7 +67,10 @@ export function RedactionWorkspaceHeader(props: Props): React.JSX.Element {
   );
 }
 
-function RedactionPageControls({ form, onOpen }: Pick<Props, "form" | "onOpen">): React.JSX.Element {
+function RedactionPageControls({
+  form,
+  onOpen,
+}: Pick<Props, "form" | "onOpen">): React.JSX.Element {
   const { t } = useTranslation("components");
   const { pages, view } = form.state.workspace;
   const disabled = form.busy || form.drawing;
@@ -68,18 +82,24 @@ function RedactionPageControls({ form, onOpen }: Pick<Props, "form" | "onOpen">)
         value={view.filter}
         disabled={disabled}
         options={redactionViewSchema.shape.filter.options.map((value) => ({
-          value, label: t(`manualRedaction.filter_${value}`),
+          value,
+          label: t(`manualRedaction.filter_${value}`),
         }))}
         onValueChange={(value) => {
           const filter = redactionViewSchema.shape.filter.parse(value);
-          form.commit((current) => changeRedactionView(current, { filter, gridOffset: 0 }));
+          form.commit((current) =>
+            changeRedactionView(current, { filter, gridOffset: 0 }),
+          );
         }}
       />
       <div className={styles.pageJump}>
         <NumberField
-          className={styles.number} variant="framed"
+          className={styles.number}
+          variant="framed"
           ariaLabel={t("manualRedaction.jumpPage")}
-          value={index + 1} min={1} max={pages.length}
+          value={index + 1}
+          min={1}
+          max={pages.length}
           onValueChange={(number) => {
             const page = pages[number - 1];
             if (page) onOpen(page.id);
@@ -93,13 +113,25 @@ function RedactionPageControls({ form, onOpen }: Pick<Props, "form" | "onOpen">)
   );
 }
 
-function RedactionThumbnailSize({ form }: Pick<Props, "form">): React.JSX.Element {
+function RedactionThumbnailSize({
+  form,
+}: Pick<Props, "form">): React.JSX.Element {
   const { t } = useTranslation("components");
-  return <NumberField
-    className={styles.number} variant="framed"
-    ariaLabel={t("manualRedaction.thumbnailSize")}
-    min={100} max={260} value={form.state.workspace.view.thumbnailSize}
-    onValueChange={(thumbnailSize) => form.commit((current) => changeRedactionView(current, { thumbnailSize, gridOffset: 0 }))}
-    unit="px" disabled={form.busy}
-  />;
+  return (
+    <NumberField
+      className={styles.number}
+      variant="framed"
+      ariaLabel={t("manualRedaction.thumbnailSize")}
+      min={100}
+      max={260}
+      value={form.state.workspace.view.thumbnailSize}
+      onValueChange={(thumbnailSize) =>
+        form.commit((current) =>
+          changeRedactionView(current, { thumbnailSize, gridOffset: 0 }),
+        )
+      }
+      unit="px"
+      disabled={form.busy}
+    />
+  );
 }
