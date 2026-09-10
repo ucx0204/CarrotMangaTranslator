@@ -21,7 +21,7 @@
   flex: none;
   flex-wrap: wrap;
   justify-content: space-between;
-  row-gap: var(--sp-1);
+  row-gap: var(--sp-2);
 }
 .tools {
   flex-wrap: wrap;
@@ -35,17 +35,26 @@
   border-inline-start: 1px solid var(--border-soft);
   padding-inline-start: var(--sp-2);
 }
-.number {
-  width: 72px;
-  flex: none;
+.tools .number,
+.zoomTools .number {
+  width: 76px;
+  min-width: 0;
+  max-width: 76px;
+  flex: 0 0 76px;
 }
-.pageNumber {
-  width: 58px;
+.pageJump {
   flex: none;
+  white-space: nowrap;
+}
+.pageJump .pageNumber {
+  width: 64px;
+  min-width: 0;
+  max-width: 64px;
+  flex: 0 0 64px;
 }
 .layout {
   display: grid;
-  grid-template-columns: 172px minmax(0, 1fr);
+  grid-template-columns: 184px minmax(0, 1fr);
   gap: var(--sp-3);
   flex: 1;
   min-height: 0;
@@ -54,7 +63,7 @@
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-1);
+  gap: var(--sp-2);
   min-height: 0;
   min-width: 0;
   border-inline-end: 1px solid var(--border-soft);
@@ -243,15 +252,18 @@
 .pageReviewBar {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  gap: var(--sp-4);
+  gap: var(--sp-3);
   flex: none;
+  min-width: 0;
   min-height: var(--ctl-h);
 }
 .reviewedLabel {
   color: var(--accent-hi);
   font-size: var(--font-sm);
+  white-space: nowrap;
+  flex: none;
 }
 .selectionTools {
   display: flex;
@@ -283,7 +295,7 @@
 }
 @media (max-width: 900px) {
   .layout {
-    grid-template-columns: 156px minmax(0, 1fr);
+    grid-template-columns: 172px minmax(0, 1fr);
     gap: var(--sp-2);
   }
   .footer {
@@ -292,13 +304,13 @@
 }
 @media (max-width: 640px) {
   .layout {
-    grid-template-columns: 148px minmax(0, 1fr);
+    grid-template-columns: 156px minmax(0, 1fr);
   }
   .tools {
     gap: var(--sp-1);
   }
   .editorToolbar {
-    gap: var(--sp-1);
+    gap: var(--sp-2);
   }
   .footerMain {
     margin-inline-start: auto;
