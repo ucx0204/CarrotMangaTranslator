@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { RedactionWorkspaceApplicationService } from "../src/main/application/redactionWorkspaceService";
@@ -44,6 +45,10 @@ it("keeps session ownership independent between service instances without Electr
   ]);
   expect(two).toBe(one);
   expect(dependencies.readDraft).toHaveBeenCalledOnce();
+  expect(dependencies.readDraft).toHaveBeenCalledWith("root", {
+    paths: [resolve(page.imagePath)],
+    scopeKey: expect.stringMatching(/^[a-f0-9]{64}$/),
+  });
   expect(() => b.getPage(id, "a")).toThrow();
   const { signal } = a.getPage(id, "a");
   expect(await a.close(id)).toBe(true);

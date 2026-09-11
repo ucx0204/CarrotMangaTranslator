@@ -24,6 +24,7 @@ import {
 type Session = {
   root: string;
   scopeKey: string;
+  paths: string[];
   workspace: RedactionWorkspace;
   baseline: RedactionDraftBaseline;
   pages: Map<string, ImageRedactionPage>;
@@ -62,12 +63,12 @@ export class RedactionWorkspaceApplicationService {
       new Set(pages.map((page) => page.id)).size !== pages.length
     )
       throw new Error("가리기 작업의 페이지 목록이 올바르지 않습니다.");
-    const state = await this.ports.readDraft(root);
-    const approved = await this.ports.readApproved(root);
     const paths = pages.map((page) => resolve(page.imagePath));
     const scopeKey = createHash("sha256")
       .update([...paths].sort().join("\0"))
       .digest("hex");
+    const state = await this.ports.readDraft(root, { paths, scopeKey });
+    const approved = await this.ports.readApproved(root);
     const restored = pages.map((page) => {
       const draft = state.pages[resolve(page.imagePath)];
       if (
@@ -100,6 +101,7 @@ export class RedactionWorkspaceApplicationService {
     this.sessions.set(sessionId, {
       root,
       scopeKey,
+      paths,
       workspace,
       baseline: observeRedactionDraft(state, paths, scopeKey),
       pages: new Map(pages.map((page) => [page.id, page])),
@@ -143,6 +145,12 @@ export class RedactionWorkspaceApplicationService {
           request,
           pages,
         });
+      },
+      {
+        paths: request.changes.map((document) =>
+          resolve(this.getPage(request.sessionId, document.id).page.imagePath),
+        ),
+        scopeKey: session.scopeKey,
       },
     );
     const changes = new Map(
@@ -201,7 +209,10 @@ export class RedactionWorkspaceApplicationService {
       return;
     }
     this.requireSession(request.sessionId);
-    const disk = await this.ports.readDraft(session.root);
+    const disk = await this.ports.readDraft(session.root, {
+      paths: session.paths,
+      scopeKey: session.scopeKey,
+    });
     if (request.workspaceRevision !== session.workspace.revision)
       throw new Error("최신 가리기 초안을 저장한 뒤 다시 확인해 주세요.");
     assertRedactionDraftPagesCurrent(disk, session.baseline);

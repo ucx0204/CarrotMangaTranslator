@@ -1,79 +1,46 @@
-import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
-import { join } from "node:path";
-import { randomUUID } from "node:crypto";
-import { DEFAULT_REDACTION_PREFERENCES } from "../shared/imageRedactionWorkspace";
+import { resolve } from "node:path";
+import type { RedactionDraftScope } from "./application/redactionWorkspacePorts";
+import type { RedactionWorkspaceDiskState } from "./imageRedactionWorkspaceDiskSchema";
 import {
-  redactionWorkspaceDiskSchema,
-  type RedactionWorkspaceDiskState,
-} from "./imageRedactionWorkspaceDiskSchema";
+  readRedactionSnapshot,
+  writeRedactionSnapshot,
+} from "./imageRedactionWorkspaceSnapshot";
 
-const MAX_STATE_BYTES = 64 * 1024 * 1024;
-let writeTail: Promise<unknown> = Promise.resolve();
+const tails = new Map<string, Promise<void>>();
 
-export async function readRedactionWorkspaceStore(
+/** Reads share the root queue so readers never hold an index across draft cleanup. */
+export function readRedactionWorkspaceStore(
   root: string,
+  scope?: RedactionDraftScope,
 ): Promise<RedactionWorkspaceDiskState> {
-  try {
-    const bytes = await readFile(
-      join(root, "manual-redaction-workspaces.json"),
-    );
-    if (bytes.length > MAX_STATE_BYTES)
-      throw new Error("가리기 초안 저장 파일이 지원 크기를 초과했습니다.");
-    return redactionWorkspaceDiskSchema.parse(
-      JSON.parse(bytes.toString("utf8")),
-    );
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    return {
-      version: 1,
-      revision: 0,
-      pages: {},
-      views: {},
-      preferences: { ...DEFAULT_REDACTION_PREFERENCES },
-      presets: [],
-    };
-  }
+  return exclusive(
+    root,
+    async () => (await readRedactionSnapshot(root, scope)).state,
+  );
 }
 
-/** Local drafts only. This function never approves or starts an external job. */
+/** Local drafts only: a successful atomic index write does not approve a job. */
 export function updateRedactionWorkspaceStore(
   root: string,
   change: (state: RedactionWorkspaceDiskState) => Promise<void>,
+  scope?: RedactionDraftScope,
 ): Promise<number> {
-  const operation = writeTail.then(async () => {
-    const state = await readRedactionWorkspaceStore(root);
-    await change(state);
-    state.revision++;
-    const bytes = Buffer.from(
-      JSON.stringify(redactionWorkspaceDiskSchema.parse(state)),
-      "utf8",
-    );
-    if (bytes.length > MAX_STATE_BYTES)
-      throw new Error(
-        "가리기 초안이 저장 한도를 초과했습니다. 기존 초안은 보존됩니다.",
-      );
-    await writeSnapshot(root, bytes);
-    return state.revision;
+  return exclusive(root, async () => {
+    const snapshot = await readRedactionSnapshot(root, scope);
+    await change(snapshot.state);
+    return (await writeRedactionSnapshot(root, snapshot)).revision;
   });
-  writeTail = operation.catch((error: unknown) =>
-    console.error("Manual redaction draft save failed", error),
-  );
-  return operation;
 }
-
-async function writeSnapshot(root: string, bytes: Buffer): Promise<void> {
-  await mkdir(root, { recursive: true });
-  const temporary = join(root, `manual-redaction-${randomUUID()}.tmp`);
-  try {
-    const file = await open(temporary, "wx");
-    try {
-      await file.writeFile(bytes);
-      await file.sync();
-    } finally {
-      await file.close();
-    }
-    await rename(temporary, join(root, "manual-redaction-workspaces.json"));
-  } finally {
-    await rm(temporary, { force: true });
-  }
+function exclusive<T>(root: string, operation: () => Promise<T>): Promise<T> {
+  const key = resolve(root);
+  const task = (tails.get(key) ?? Promise.resolve()).then(operation);
+  const tail = task.then(
+    () => undefined,
+    () => undefined,
+  );
+  tails.set(key, tail);
+  void tail.then(() => {
+    if (tails.get(key) === tail) tails.delete(key);
+  });
+  return task;
 }
