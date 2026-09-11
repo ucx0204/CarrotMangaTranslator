@@ -143,13 +143,12 @@ async function main() {
   await mkdir(join(root, ".tmp"), { recursive: true });
   const dataRoot = await mkdtemp(join(root, ".tmp/mcp-native-"));
   try {
-    // Only compiled code is copied; no existing library/settings/fonts are used.
-    await cp(join(root, "out/main"), join(dataRoot, "out/main"), {
-      recursive: true,
-    });
-    await cp(join(root, "out/shared"), join(dataRoot, "out/shared"), {
-      recursive: true,
-    });
+    // Only built code/runtime assets are copied, never a user library or settings.
+    for (const directory of ["main", "shared", "app-runtime"]) {
+      await cp(join(root, "out", directory), join(dataRoot, "out", directory), {
+        recursive: true,
+      });
+    }
     await checkRuntime(dataRoot);
   } finally {
     await rm(dataRoot, { recursive: true, force: true });
