@@ -309,7 +309,7 @@ it("escapes metadata in consent HTML and never embeds connection secrets", () =>
   assert.equal(html.includes(PASSWORD), false);
 });
 
-it("runs discovery, browser consent, tokens and MCP over actual HTTP with auth challenges", async () => {
+it("runs discovery, consent, tokens and MCP over actual HTTP with auth challenges", async () => {
   const server = await startMcpHttpServer({
     config: {
       port: 0,
@@ -340,9 +340,11 @@ it("runs discovery, browser consent, tokens and MCP over actual HTTP with auth c
         .get("www-authenticate")
         ?.includes(`${ISSUER}/.well-known/oauth-protected-resource/mcp`),
     );
-    const resource = await fetch(
+    const metadata = await fetch(
       `${local}/.well-known/oauth-protected-resource/mcp`,
-    ).then((res) => res.json());
+    );
+    assert.equal(metadata.headers.get("referrer-policy"), "no-referrer");
+    const resource = await metadata.json();
     assert.equal(resource.resource, RESOURCE);
     const registration = await fetch(`${local}/oauth/register`, {
       method: "POST",
@@ -365,7 +367,7 @@ it("runs discovery, browser consent, tokens and MCP over actual HTTP with auth c
       code_challenge_method: "S256",
     }).toString();
     const consent = await fetch(auth);
-    assert.equal(consent.headers.get("referrer-policy"), "no-referrer");
+    assert.equal(consent.headers.get("referrer-policy"), "same-origin");
     assert.ok(
       consent.headers
         .get("content-security-policy")
@@ -388,6 +390,23 @@ it("runs discovery, browser consent, tokens and MCP over actual HTTP with auth c
       redirect: "manual",
     });
     assert.equal(noOrigin.status, 403);
+    for (const origin of ["null", "https://chatgpt.com", "https://evil.example"]) {
+      const rejected = await fetch(`${local}/oauth/approve`, {
+        method: "POST",
+        body,
+        headers: { Cookie: cookie, Origin: origin, Referer: `${ISSUER}/oauth/authorize` },
+        redirect: "manual",
+      });
+      assert.equal(rejected.status, 403);
+      assert.deepEqual(await rejected.json(), { error: "Origin is not allowed." });
+    }
+    const noCookie = await fetch(`${local}/oauth/approve`, {
+      method: "POST",
+      body,
+      headers: { Origin: ISSUER },
+      redirect: "manual",
+    });
+    assert.equal(noCookie.status, 403);
     const approved = await fetch(`${local}/oauth/approve`, {
       method: "POST",
       body,
@@ -395,6 +414,7 @@ it("runs discovery, browser consent, tokens and MCP over actual HTTP with auth c
       redirect: "manual",
     });
     assert.equal(approved.status, 303);
+    assert.equal(approved.headers.get("referrer-policy"), "no-referrer");
     const code =
       new URL(approved.headers.get("location") ?? "").searchParams.get(
         "code",
