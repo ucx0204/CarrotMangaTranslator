@@ -65,7 +65,7 @@ function patchNsisTemplates(templatesDir) {
   installSection = replaceExactlyOnce(
     installSection,
     "!insertmacro uninstallOldVersion SHELL_CONTEXT",
-    "Call MgtValidateInstallDirectory\n!insertmacro uninstallOldVersion SHELL_CONTEXT",
+    "Call MgtPrepareDataRoot\nCall MgtValidateInstallDirectory\n!insertmacro uninstallOldVersion SHELL_CONTEXT",
     "install-directory validation",
   );
   writeFileSync(installSectionPath, installSection, "utf8");
