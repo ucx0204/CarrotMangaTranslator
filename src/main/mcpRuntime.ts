@@ -21,6 +21,7 @@ export function createMcpRuntime(options: RuntimeOptions): McpServerLifecycle {
       tools: createMcpToolSet(
         { listLibrary, openChapter },
         config.allowImages ? renderMcpPagePreview : undefined,
+        config.oauthPassword !== undefined,
       ),
       reportError: (error) => options.reportError("MCP read failed", error),
     });
@@ -28,6 +29,7 @@ export function createMcpRuntime(options: RuntimeOptions): McpServerLifecycle {
       url: server.url,
       publicOrigin: config.publicOrigin ?? null,
       imageTransfer: config.allowImages === true,
+      oauth: config.oauthPassword !== undefined,
     });
     return server;
   });
