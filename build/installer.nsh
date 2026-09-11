@@ -18,17 +18,18 @@
 Function MgtValidateDataRootWriteAccess
   StrCpy $6 "0"
 
-  ${If} ${UAC_IsAdmin}
-  ${AndIfNot} ${UAC_IsInnerInstance}
-    StrCpy $6 "unverifiable"
-    Return
-  ${EndIf}
-
+  ; Prefer the original user's token when available, but an admin-only data
+  ; location is supported by the application's conditional UAC startup gate.
+  ; A setup launched directly as administrator is valid too.
   ${If} ${UAC_IsInnerInstance}
     !insertmacro UAC_AsUser_Call Function MgtProbeDataRootWriteAccess ${UAC_SYNCREGISTERS}
-  ${Else}
-    Call MgtProbeDataRootWriteAccess
+    ${If} $6 == "1"
+      Return
+    ${EndIf}
+    StrCpy $5 "$MgtDataRoot"
   ${EndIf}
+
+  Call MgtProbeDataRootWriteAccess
 FunctionEnd
 !macroend
 
@@ -185,6 +186,9 @@ Function MgtDataRootPageCreate
   ${EndIf}
   Pop $0
 
+  ${NSD_CreateLabel} 0u 88u 100% 54u "Program Files 등 보호된 위치도 사용할 수 있습니다.$\r$\n데이터 폴더에 쓰기 권한이 없으면 앱 실행 시 관리자 승인을 요청합니다. 관리자 실행 중에는 탐색기에서 파일 끌어놓기가 제한됩니다.$\r$\n일반 권한으로 사용하려면 쓰기 가능한 별도 데이터 폴더를 선택하세요."
+  Pop $0
+
   nsDialogs::Show
 FunctionEnd
 
@@ -198,11 +202,10 @@ Function MgtDataRootBrowse
   ${EndIf}
 FunctionEnd
 
-; The all-users installer runs elevated, while the installed app normally runs
-; with the interactive user's standard token. Probe from electron-builder's
-; retained outer process in that case so an elevated installer cannot mistake
-; an admin-only directory for a usable data root. $5 is the candidate path and
-; $6 is the result ("1" only after create, write, and delete all succeed).
+; $5 is the candidate path and $6 is the result ("1" only after create,
+; write, and delete all succeed). The validator first tries the original
+; user's token when available, then the current installer token. Runtime
+; startup independently checks whether the application needs UAC.
 Function MgtProbeDataRootWriteAccess
   StrCpy $6 "0"
 
@@ -263,13 +266,8 @@ Function MgtDataRootPageLeave
   StrCpy $5 "$MgtDataRoot"
   Call MgtValidateDataRootWriteAccess
 
-  ${If} $6 == "unverifiable"
-    MessageBox MB_ICONSTOP "관리자 권한으로 직접 실행하면 데이터 폴더를 제대로 확인할 수 없습니다.$\r$\n$\r$\n설치 프로그램을 닫고 일반 실행으로 다시 시작해 주세요.$\r$\n모든 사용자용으로 설치하려면 설치 화면에서 해당 항목을 선택해 주세요."
-    Abort
-  ${EndIf}
-
   ${If} $6 != "1"
-    MessageBox MB_ICONSTOP "선택한 폴더에 데이터를 저장할 수 없습니다.$\r$\n$\r$\n설정과 모델 파일을 저장할 수 있는 다른 폴더를 선택해 주세요.$\r$\n$\r$\n선택한 경로:$\r$\n$MgtDataRoot"
+    MessageBox MB_ICONSTOP "선택한 폴더에 데이터를 저장할 수 없습니다.$\r$\n$\r$\n관리자 권한이 필요한 위치라면 설치 범위에서 모든 사용자용을 선택하거나 설치 프로그램을 관리자 권한으로 실행해 주세요.$\r$\n관리자 권한으로도 실패하면 폴더 권한과 디스크 상태를 확인하거나 다른 데이터 폴더를 선택해 주세요.$\r$\n$\r$\n선택한 경로:$\r$\n$MgtDataRoot"
     Abort
   ${EndIf}
 FunctionEnd
