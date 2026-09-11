@@ -77,7 +77,9 @@ jobs:
         run: npm run build
 
       - name: Real Electron MCP runtime and redaction smoke
-        run: node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs
+        run: |
+          node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs | tee "$RUNNER_TEMP/carrot-mcp-native.log"
+          grep -Fq 'PASS MCP native smoke finished' "$RUNNER_TEMP/carrot-mcp-native.log"
 
       - name: Static checks with complete repository dependencies
         if: always()
@@ -105,4 +107,9 @@ jobs:
         timeout-minutes: 6
         env:
           CARROT_MCP_SMOKE_TUNNEL: "1"
-        run: node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs
+        run: |
+          node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs | tee "$RUNNER_TEMP/carrot-mcp-browser.log"
+          grep -Fq 'PASS browser reproduces the old no-referrer / Origin:null rejection' "$RUNNER_TEMP/carrot-mcp-browser.log"
+          grep -Fq 'PASS real browser consent preserves Origin; PKCE code exchange and revocation succeed' "$RUNNER_TEMP/carrot-mcp-browser.log"
+          grep -Fq 'PASS real browser cancellation returns access_denied without a code' "$RUNNER_TEMP/carrot-mcp-browser.log"
+          grep -Fq 'PASS MCP native smoke finished' "$RUNNER_TEMP/carrot-mcp-browser.log"
