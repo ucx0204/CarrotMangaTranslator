@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import connectionModule from "./mcp-test-connection.cjs";
 
+/** @typedef {{type: "text", text: string} | {type: "image", data: string, mimeType: string}} ToolContent */
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const { readTestConnection } = connectionModule;
 const ACCEPT = "application/json, text/event-stream";
@@ -62,7 +63,12 @@ async function rpc(connection, method, params = {}) {
   return reply.result;
 }
 
-/** @param {{url: string, token: string}} connection @param {string} name @param {object} [args] */
+/**
+ * @param {{url: string, token: string}} connection
+ * @param {string} name
+ * @param {object} [args]
+ * @returns {Promise<{isError?: boolean, content: ToolContent[]}>}
+ */
 async function call(connection, name, args = {}) {
   const result = await rpc(connection, "tools/call", { name, arguments: args });
   if (result.isError) throw new Error(`${name} was rejected by the app. For previews, check local image-redaction policy; do not disable protection for private pages. See the local app log.`);
@@ -120,7 +126,8 @@ async function inspectLibrary(connection) {
 async function savePreview(connection, target) {
   const result = await call(connection, "carrot_get_page_preview", target);
   const image = result.content.find((item) => item.type === "image");
-  assert.equal(image?.mimeType, "image/png", "Expected an MCP PNG image result");
+  if (!image) throw new Error("Expected an MCP image result. Start mcp-dev.cjs with --images.");
+  assert.equal(image.mimeType, "image/png", "Expected an MCP PNG image result");
   const bytes = Buffer.from(image.data, "base64");
   assert.ok(bytes.length <= 4 * 1024 * 1024, "Preview size must be bounded");
   assert.equal(bytes.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
