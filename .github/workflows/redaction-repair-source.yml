@@ -1,6 +1,6 @@
 name: Repair source checkpoint
 
-# F18 app integration resume snapshot; remove this temporary exporter before merging.
+# Integrated F15 and save-error verification snapshot; remove exporter before merging.
 on:
   push:
     branches: [fix/redaction-review-and-sfx-93-20260911]
