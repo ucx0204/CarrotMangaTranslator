@@ -39,7 +39,7 @@ export async function handleMcpMessage(
 }
 
 async function handleRequest(
-  request: RpcRequest & { id?: RpcId },
+  request: RpcRequest,
   tools: readonly McpTool[],
   reportError: (error: unknown) => void,
 ): Promise<McpHttpReply> {
@@ -108,20 +108,17 @@ async function callTool(
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 function readRequest(value: unknown): RpcRequest | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const item = value as Record<string, unknown>;
-  if (item.jsonrpc !== "2.0" || typeof item.method !== "string") return null;
-  if ("id" in item && !validId(item.id)) return null;
-  if (
-    "params" in item &&
-    (!item.params ||
-      typeof item.params !== "object" ||
-      Array.isArray(item.params))
-  )
-    return null;
-  if ("result" in item || "error" in item) return null;
-  return item as RpcRequest;
+  if (!isRecord(value)) return null;
+  if (value.jsonrpc !== "2.0" || typeof value.method !== "string") return null;
+  if ("id" in value && !validId(value.id)) return null;
+  if ("params" in value && !isRecord(value.params)) return null;
+  if ("result" in value || "error" in value) return null;
+  return value as RpcRequest;
 }
 
 function validId(value: unknown): value is RpcId {
