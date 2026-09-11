@@ -22,6 +22,7 @@ export type McpHttpServer = {
 };
 type ServerOptions = {
   config: McpConfiguration;
+  oauth?: McpOAuthHttp;
   tools: readonly McpTool[];
   reportError: (error: unknown) => void;
 };
@@ -33,16 +34,19 @@ export async function startMcpHttpServer(
   if (config.oauthPassword && !config.publicOrigin)
     throw new Error("OAuth requires an HTTPS public origin.");
   const oauth =
-    config.oauthPassword && config.publicOrigin
+    options.oauth ??
+    (config.oauthPassword && config.publicOrigin
       ? new McpOAuthHttp(config.publicOrigin, config.oauthPassword)
-      : undefined;
+      : undefined);
+  if (oauth && oauth.provider.issuer !== config.publicOrigin)
+    throw new Error("OAuth public origin mismatch.");
   const handler = createRequestHandler(options, config, oauth);
   const server = createServer({ maxHeaderSize: 8192 }, (request, response) => {
     void handler.serve(request, response);
   });
   server.requestTimeout = 15_000;
   server.headersTimeout = 10_000;
-  server.keepAliveTimeout = 1000;
+  server.keepAliveTimeout = 75_000;
   server.maxConnections = 32;
   let closing: Promise<void> | undefined;
   await new Promise<void>((resolve, reject) => {
@@ -62,10 +66,13 @@ export async function startMcpHttpServer(
     stopAccepting: handler.stopAccepting,
     close: () => {
       handler.stopAccepting();
-      closing ??= new Promise<void>((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
-        server.closeAllConnections();
-      });
+      closing ??= Promise.all([
+        new Promise<void>((resolve, reject) => {
+          server.close((error) => (error ? reject(error) : resolve()));
+          server.closeAllConnections();
+        }),
+        oauth?.close(),
+      ]).then(() => undefined);
       return closing;
     },
   };
@@ -100,7 +107,7 @@ function createRequestHandler(
       authorizeMcpRequest(
         request,
         config,
-        oauth && ((header) => oauth.provider.accepts(header)),
+        oauth && ((header) => oauth.accepts(header)),
       );
       if (request.url !== "/mcp") throw new McpHttpError(404, "Not found.");
       if (request.method !== "POST") {
@@ -131,7 +138,7 @@ function createRequestHandler(
     serve,
     stopAccepting: () => {
       accepting = false;
-      oauth?.provider.close();
+      oauth?.stop();
     },
   };
 }

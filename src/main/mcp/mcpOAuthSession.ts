@@ -30,8 +30,8 @@ export class McpOAuthSession {
       release();
     }
   }
-  accepts(header: string): boolean {
-    return !this.fault && !this.stopped && this.provider.accepts(header);
+  accepts(header: string, scope = "carrot.read"): boolean {
+    return !this.fault && !this.stopped && this.provider.accepts(header, scope);
   }
   stop(): void {
     this.stopped = true;

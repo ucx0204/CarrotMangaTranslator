@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { McpOAuthProvider } from "./mcpOAuthProvider";
+import type { McpOAuthSession } from "./mcpOAuthSession";
 import {
   McpOAuthError,
   oauthRecord,
@@ -28,8 +29,33 @@ export class McpOAuthHttp {
   private windowStarted = 0;
   private requests = 0;
 
-  constructor(issuer: string, password: string) {
-    this.provider = new McpOAuthProvider(issuer, password);
+  constructor(
+    issuer: string,
+    password: string,
+    private readonly session?: McpOAuthSession,
+  ) {
+    this.provider = session?.provider ?? new McpOAuthProvider(issuer, password);
+    if (this.provider.issuer !== issuer)
+      throw new Error("OAuth issuer mismatch.");
+  }
+
+  accepts(header: string, scope = "carrot.read"): boolean {
+    return this.session
+      ? this.session.accepts(header, scope)
+      : this.provider.accepts(header, scope);
+  }
+
+  stop(): void {
+    this.session?.stop();
+  }
+
+  async close(): Promise<void> {
+    if (this.session) await this.session.close();
+    else this.provider.close();
+  }
+
+  private async mutate<T>(action: () => T): Promise<T> {
+    return this.session ? this.session.run(action) : action();
   }
 
   challenge(): string {
@@ -110,10 +136,11 @@ export class McpOAuthHttp {
   ): Promise<void> {
     if (path === "/oauth/register") {
       requireContentType(request, "application/json");
+      const input = oauthRecord(await readMcpBody(request));
       sendJson(
         response,
         201,
-        this.provider.register(oauthRecord(await readMcpBody(request))),
+        await this.mutate(() => this.provider.register(input)),
       );
       return;
     }
@@ -138,9 +165,8 @@ export class McpOAuthHttp {
           "Approval cookie is required.",
           403,
         );
-      const redirect = this.provider.approve(
-        input,
-        cookies[0].slice(COOKIE.length + 1),
+      const redirect = await this.mutate(() =>
+        this.provider.approve(input, cookies[0].slice(COOKIE.length + 1)),
       );
       response.setHeader(
         "Set-Cookie",
@@ -151,9 +177,13 @@ export class McpOAuthHttp {
     } else {
       const authorization = readAuthorization(request);
       if (path === "/oauth/token")
-        sendJson(response, 200, this.provider.token(input, authorization));
+        sendJson(
+          response,
+          200,
+          await this.mutate(() => this.provider.token(input, authorization)),
+        );
       else {
-        this.provider.revoke(input, authorization);
+        await this.mutate(() => this.provider.revoke(input, authorization));
         sendJson(response, 200, {});
       }
     }
