@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { McpOAuthClients } from "./mcpOAuthClients";
 import { McpOAuthState } from "./mcpOAuthState";
 import {
@@ -11,13 +11,13 @@ import {
   verifyPkce,
 } from "./mcpOAuthPolicy";
 
-type Grant = {
-  clientId: string;
-  scope: string;
-  resource: string;
-  expiresAt: number;
-  revoked: boolean;
-};
+import {
+  mcpOAuthSnapshotSchema,
+  type McpOAuthSnapshot,
+  type McpGrant as Grant,
+} from "./mcpOAuthSnapshot";
+
+type ProviderOptions = { persistent?: boolean; allowEdits?: boolean };
 type Code = {
   grant: Grant;
   redirect: string;
@@ -42,9 +42,10 @@ export class McpOAuthProvider {
     readonly issuer: string,
     private readonly pairingSecret: string,
     private readonly now: () => number = Date.now,
+    private readonly options: ProviderOptions = {},
   ) {
     this.resource = `${issuer}/mcp`;
-    this.clients = new McpOAuthClients(now);
+    this.clients = new McpOAuthClients(now, options.persistent);
     this.pending = new McpOAuthState(now, 64);
     this.codes = new McpOAuthState(now, 64);
     this.access = new McpOAuthState(now, 512);
@@ -55,7 +56,10 @@ export class McpOAuthProvider {
     return {
       resource: this.resource,
       authorization_servers: [this.issuer],
-      scopes_supported: ["carrot.read"],
+      scopes_supported: [
+        "carrot.read",
+        ...(this.options.allowEdits ? ["carrot.edit"] : []),
+      ],
       bearer_methods_supported: ["header"],
     };
   }
@@ -80,7 +84,11 @@ export class McpOAuthProvider {
         "client_secret_post",
         "client_secret_basic",
       ],
-      scopes_supported: ["carrot.read", "offline_access"],
+      scopes_supported: [
+        "carrot.read",
+        "offline_access",
+        ...(this.options.allowEdits ? ["carrot.edit"] : []),
+      ],
     };
   }
 
@@ -103,7 +111,7 @@ export class McpOAuthProvider {
         "invalid_request",
         "Callback does not match this registered client.",
       );
-    const scope = readOAuthScope(input.scope);
+    const scope = readOAuthScope(input.scope, this.options.allowEdits);
     const cookie = randomBytes(32).toString("base64url");
     const pending: Pending = {
       cookie,
@@ -117,10 +125,14 @@ export class McpOAuthProvider {
         ),
         used: false,
         grant: {
+          id: randomUUID(),
+          clientName: client.name,
           clientId,
           scope,
           resource: this.resource,
-          expiresAt: this.now() + DAY,
+          expiresAt: this.options.persistent
+            ? Number.MAX_SAFE_INTEGER
+            : this.now() + DAY,
           revoked: false,
         },
       },
@@ -176,7 +188,7 @@ export class McpOAuthProvider {
     );
   }
 
-  accepts(header: string): boolean {
+  accepts(header: string, scope = "carrot.read"): boolean {
     if (!/^Bearer [A-Za-z0-9_-]{43}$/.test(header)) return false;
     const grant = this.access.get(header.slice(7));
     return (
@@ -184,7 +196,7 @@ export class McpOAuthProvider {
       !grant.revoked &&
       grant.expiresAt > this.now() &&
       grant.resource === this.resource &&
-      grant.scope.split(" ").includes("carrot.read")
+      grant.scope.split(" ").includes(scope)
     );
   }
 
@@ -193,6 +205,63 @@ export class McpOAuthProvider {
     const token = oauthText(input.token, 128);
     const grant = this.access.get(token) ?? this.refresh.get(token)?.grant;
     if (grant?.clientId === clientId) grant.revoked = true;
+  }
+
+  snapshot(): McpOAuthSnapshot {
+    return {
+      version: 1,
+      resource: this.resource,
+      clients: this.clients.snapshot(),
+      access: this.access.snapshot(),
+      refresh: this.refresh.snapshot(),
+    };
+  }
+
+  restore(value: unknown): void {
+    const snapshot = mcpOAuthSnapshotSchema.parse(value);
+    if (snapshot.resource !== this.resource)
+      throw new Error(
+        "OAuth resource changed. Existing approvals cannot be transferred.",
+      );
+    const grants = new Map<string, Grant>();
+    const bind = (grant: Grant): Grant => {
+      if (grant.resource !== this.resource)
+        throw new Error("Invalid grant resource.");
+      readOAuthScope(grant.scope, true);
+      const existing = grants.get(grant.id);
+      if (existing && JSON.stringify(existing) !== JSON.stringify(grant))
+        throw new Error("Inconsistent persisted grant.");
+      grants.set(grant.id, existing ?? grant);
+      return existing ?? grant;
+    };
+    snapshot.access.forEach((entry) => {
+      entry.value = bind(entry.value);
+    });
+    snapshot.refresh.forEach((entry) => {
+      entry.value.grant = bind(entry.value.grant);
+    });
+    this.clients.restore(snapshot.clients);
+    this.access.restore(snapshot.access);
+    this.refresh.restore(snapshot.refresh);
+  }
+
+  connections() {
+    const grants = new Map<string, Grant>();
+    for (const entry of this.refresh.snapshot())
+      grants.set(entry.value.grant.id, entry.value.grant);
+    return [...grants.values()].map((grant) => ({
+      id: grant.id,
+      name: grant.clientName,
+      scope: grant.scope,
+      revoked: grant.revoked,
+    }));
+  }
+
+  revokeConnection(id: string): void {
+    for (const entry of this.access.snapshot())
+      if (entry.value.id === id) entry.value.revoked = true;
+    for (const entry of this.refresh.snapshot())
+      if (entry.value.grant.id === id) entry.value.grant.revoked = true;
   }
 
   close(): void {
@@ -239,7 +308,7 @@ export class McpOAuthProvider {
     }
     if (
       input.scope !== undefined &&
-      readOAuthScope(input.scope) !== entry.grant.scope
+      readOAuthScope(input.scope, this.options.allowEdits) !== entry.grant.scope
     )
       throw new McpOAuthError(
         "invalid_scope",
@@ -262,7 +331,7 @@ export class McpOAuthProvider {
       expires_in: Math.floor(lifetime / 1000),
       refresh_token: this.refresh.issue(
         { grant, used: false },
-        grant.expiresAt - this.now(),
+        Math.min(30 * DAY, grant.expiresAt - this.now()),
       ),
       scope: grant.scope,
     };

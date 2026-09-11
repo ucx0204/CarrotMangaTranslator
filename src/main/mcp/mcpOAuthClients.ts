@@ -20,7 +20,10 @@ const CLIENT_LIFETIME = 7 * 24 * 60 * 60 * 1000;
 export class McpOAuthClients {
   private readonly clients: McpOAuthState<Client>;
 
-  constructor(private readonly now: () => number) {
+  constructor(
+    private readonly now: () => number,
+    private readonly persistent = false,
+  ) {
     this.clients = new McpOAuthState(now, 64);
   }
 
@@ -55,19 +58,12 @@ export class McpOAuthClients {
       method === "none" ? undefined : randomBytes(32).toString("base64url");
     const id = this.clients.issue(
       { name, redirects, method, secretHash: secret && oauthDigest(secret) },
-      CLIENT_LIFETIME,
+      this.persistent ? Number.MAX_SAFE_INTEGER - this.now() : CLIENT_LIFETIME,
     );
     return {
       client_id: id,
       client_id_issued_at: Math.floor(this.now() / 1000),
-      ...(secret
-        ? {
-            client_secret: secret,
-            client_secret_expires_at: Math.floor(
-              (this.now() + CLIENT_LIFETIME) / 1000,
-            ),
-          }
-        : {}),
+      ...this.secretMetadata(secret),
       client_name: name,
       redirect_uris: redirects,
       token_endpoint_auth_method: method,
@@ -131,6 +127,29 @@ export class McpOAuthClients {
         401,
       );
     return supplied.id;
+  }
+
+  private secretMetadata(secret?: string) {
+    if (!secret) return {};
+    return {
+      client_secret: secret,
+      client_secret_expires_at: this.persistent
+        ? 0
+        : Math.floor((this.now() + CLIENT_LIFETIME) / 1000),
+    };
+  }
+
+  snapshot() {
+    return this.clients.snapshot();
+  }
+
+  restore(entries: ReturnType<McpOAuthClients["snapshot"]>): void {
+    for (const entry of entries) {
+      entry.value.redirects.forEach(readChatGptRedirect);
+      if ((entry.value.method !== "none") !== Boolean(entry.value.secretHash))
+        throw new Error("Invalid persisted client authentication.");
+    }
+    this.clients.restore(entries);
   }
 
   clear(): void {

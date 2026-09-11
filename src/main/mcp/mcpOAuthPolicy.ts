@@ -63,12 +63,19 @@ export function readChatGptRedirect(value: unknown): string {
   return text;
 }
 
-export function readOAuthScope(value: unknown): string {
+export function readOAuthScope(value: unknown, allowEdits = false): string {
   const scope = value === undefined ? "carrot.read" : oauthText(value, 200);
   const scopes = [...new Set(scope.split(" ").filter(Boolean))];
   if (
     !scopes.includes("carrot.read") ||
-    scopes.some((item) => !["carrot.read", "offline_access"].includes(item))
+    scopes.some(
+      (item) =>
+        ![
+          "carrot.read",
+          "offline_access",
+          ...(allowEdits ? ["carrot.edit"] : []),
+        ].includes(item),
+    )
   )
     throw new McpOAuthError(
       "invalid_scope",

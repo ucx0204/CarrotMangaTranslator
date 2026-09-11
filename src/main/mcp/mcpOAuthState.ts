@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { McpOAuthError, oauthDigest } from "./mcpOAuthPolicy";
 
-/** Only digests are keys. No token is persisted or logged. Restart revokes all leases. */
+/** Token digests only. Durable callers explicitly snapshot validated, encrypted state. */
 export class McpOAuthState<T> {
   private readonly entries = new Map<string, { value: T; expiresAt: number }>();
 
@@ -21,7 +21,7 @@ export class McpOAuthState<T> {
     const secret = randomBytes(32).toString("base64url");
     this.entries.set(oauthDigest(secret), {
       value,
-      expiresAt: this.now() + lifetimeMs,
+      expiresAt: Math.min(Number.MAX_SAFE_INTEGER, this.now() + lifetimeMs),
     });
     return secret;
   }
@@ -39,6 +39,25 @@ export class McpOAuthState<T> {
 
   clear(): void {
     this.entries.clear();
+  }
+
+  snapshot(): { key: string; value: T; expiresAt: number }[] {
+    this.prune();
+    return [...this.entries].map(([key, entry]) => ({ key, ...entry }));
+  }
+
+  restore(entries: { key: string; value: T; expiresAt: number }[]): void {
+    if (
+      entries.length > this.capacity ||
+      new Set(entries.map((entry) => entry.key)).size !== entries.length
+    )
+      throw new Error("Invalid OAuth store capacity or duplicate keys.");
+    this.entries.clear();
+    for (const { key, value, expiresAt } of entries) {
+      if (!/^[A-Za-z0-9_-]{43}$/.test(key) || !Number.isSafeInteger(expiresAt))
+        throw new Error("Invalid OAuth store entry.");
+      if (expiresAt > this.now()) this.entries.set(key, { value, expiresAt });
+    }
   }
 
   private prune(): void {
