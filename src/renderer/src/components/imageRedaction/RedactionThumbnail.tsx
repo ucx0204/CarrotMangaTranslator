@@ -1,20 +1,21 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type {
-  RedactionDocument,
-  RedactionWorkspacePage,
-} from "../../../../shared/imageRedactionWorkspace";
+import type { RedactionDocument } from "../../../../shared/imageRedactionWorkspace";
+import type { RedactionPageMetadata } from "./redactionSession";
 import { SelectionSurface } from "../ui/SelectionCard";
 import { RedactionMaskCanvas } from "./RedactionMaskCanvas";
-import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
+import type { RedactionWorkspaceController } from "./redactionWorkspaceTypes";
 import { useRedactionPreview } from "./useRedactionPreview";
 import { useRedactionImageReadiness } from "./useRedactionImageReadiness";
 import styles from "./RedactionWorkspace.module.css";
 
 type Props = {
-  page: RedactionWorkspacePage;
+  page: RedactionPageMetadata;
   document: RedactionDocument;
-  form: RedactionWorkspaceController;
+  form: Pick<
+    RedactionWorkspaceController,
+    "state" | "busy" | "drawing" | "failed" | "previews" | "markPreview"
+  >;
   size: number;
   number: number;
   selected: boolean;

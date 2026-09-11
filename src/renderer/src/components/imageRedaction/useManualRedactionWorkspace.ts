@@ -6,6 +6,7 @@ import type {
   RedactionBatchIntent,
 } from "./manualRedactionWorkspaceTypes";
 import { useRedactionWorkspace } from "./useRedactionWorkspace";
+import type { RedactionWorkspaceController } from "./redactionWorkspaceTypes";
 import { useRedactionWorkspaceActions } from "./useRedactionWorkspaceActions";
 import { useRedactionKeyboard } from "./useRedactionKeyboard";
 import { filteredRedactionPages } from "./redactionWorkspaceModel";
@@ -27,7 +28,7 @@ export function useManualRedactionWorkspace(
   const [detail, setDetail] = React.useState({ id: "", ready: false });
   const { state } = form;
   const { view, pages } = state.workspace;
-  const page = pages.find((item) => item.id === view.currentId) ?? pages[0];
+  const page = useCurrentRedactionPage(form);
   const detailReady = detail.id === page.id && detail.ready;
   const actions = useRedactionWorkspaceActions({
     form,
@@ -87,9 +88,7 @@ export function useManualRedactionWorkspace(
   };
 }
 
-function useNeighborPreviews(
-  form: ReturnType<typeof useRedactionWorkspace>,
-): void {
+function useNeighborPreviews(form: RedactionWorkspaceController): void {
   const { previews, markPreview } = form;
   const { pages, sessionId, view } = form.state.workspace;
   React.useEffect(() => {
@@ -111,7 +110,7 @@ function useNeighborPreviews(
 }
 
 function openPreviousMask(
-  form: ReturnType<typeof useRedactionWorkspace>,
+  form: RedactionWorkspaceController,
   pageId: string,
   setBatch: (intent: RedactionBatchIntent) => void,
 ): void {
@@ -128,4 +127,19 @@ function openPreviousMask(
         strokes: state.documents[previous.id].strokes,
       },
     });
+}
+
+/** Compose a display DTO only at the boundary; never retain a second editable copy. */
+function useCurrentRedactionPage(
+  form: Pick<RedactionWorkspaceController, "state">,
+) {
+  const { workspace, documents } = form.state;
+  const metadata =
+    workspace.pages.find((page) => page.id === workspace.view.currentId) ??
+    workspace.pages[0];
+  const document = documents[metadata.id];
+  return React.useMemo(
+    () => ({ ...metadata, ...document }),
+    [metadata, document],
+  );
 }

@@ -1,6 +1,7 @@
 import type {
   RedactionDocument,
   RedactionWorkspace,
+  RedactionWorkspacePage,
 } from "../../../../shared/imageRedactionWorkspace";
 
 import {
@@ -10,8 +11,15 @@ import {
 } from "./redactionHistory";
 
 type DocumentMap = Record<string, RedactionDocument>;
+export type RedactionPageMetadata = Omit<
+  RedactionWorkspacePage,
+  "strokes" | "decision"
+>;
 export type RedactionSession = {
-  workspace: RedactionWorkspace;
+  // Mutable document content has exactly one authority: documents below.
+  workspace: Omit<RedactionWorkspace, "pages"> & {
+    pages: RedactionPageMetadata[];
+  };
   documents: DocumentMap;
   undo: RedactionEdit[];
   redo: RedactionEdit[];
@@ -22,7 +30,20 @@ export function createRedactionSession(
   workspace: RedactionWorkspace,
 ): RedactionSession {
   return {
-    workspace: { ...workspace, view: { ...workspace.view, mode: "edit" } },
+    workspace: {
+      ...workspace,
+      view: { ...workspace.view, mode: "edit" },
+      pages: workspace.pages.map(
+        ({ id, name, imagePath, width, height, fingerprint }) => ({
+          id,
+          name,
+          imagePath,
+          width,
+          height,
+          fingerprint,
+        }),
+      ),
+    },
     documents: Object.fromEntries(
       workspace.pages.map(({ id, fingerprint, strokes, decision }) => [
         id,
