@@ -10,19 +10,20 @@ permissions:
 
 concurrency:
   group: mcp-checkpoint-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   checkpoint:
     if: github.repository == 'ucx0204/CarrotMangaTranslator' && github.ref == 'refs/heads/feat/mcp-app-bridge'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: write
     steps:
-      - name: Check out feature branch
+      - name: Check out exact checkpoint
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -38,17 +39,22 @@ jobs:
         run: >-
           node node_modules/prettier/bin/prettier.cjs --write
           .github/workflows/mcp-checkpoint.yml
-          docs/mcp-implementation.md
+          'docs/mcp-*.md'
           'src/main/application/mcp*.ts'
           'src/main/mcp/*.ts'
           src/main/mcpRuntime.ts
           src/main/index.ts
           'tests/mcp*.test.ts'
+          'scripts/mcp-*.cjs'
+          'scripts/mcp-*.mjs'
+          scripts/architecture-budget-baseline.json
 
       - name: Save formatting checkpoint on this branch only
         run: |
-          git add -- .github/workflows/mcp-checkpoint.yml docs/mcp-implementation.md src/main/application/mcp*.ts src/main/mcp src/main/mcpRuntime.ts src/main/index.ts tests/mcp*.test.ts
+          git add -- .github/workflows/mcp-checkpoint.yml docs/mcp-*.md src/main/application/mcp*.ts src/main/mcp src/main/mcpRuntime.ts src/main/index.ts tests/mcp*.test.ts scripts/mcp-*.cjs scripts/mcp-*.mjs scripts/architecture-budget-baseline.json
           if ! git diff --cached --quiet; then
+            current=$(git ls-remote origin refs/heads/feat/mcp-app-bridge | cut -f1)
+            test "$current" = "$GITHUB_SHA"
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git commit -m 'style(mcp): format implementation checkpoint with repository Prettier'
@@ -56,17 +62,28 @@ jobs:
           fi
           git rev-parse HEAD
 
-      - name: Focused MCP behavior tests
-        run: node node_modules/vitest/vitest.mjs run 'tests/mcp*.test.ts'
+      - name: Focused MCP behavior tests and CLI entrypoints
+        run: |
+          node scripts/mcp-dev.cjs --help
+          node scripts/mcp-smoke.mjs --help
+          node node_modules/vitest/vitest.mjs run tests/mcp
 
       - name: Static checks with complete repository dependencies
         if: always()
         shell: bash
         run: |
           failed=0
-          for gate in typecheck typecheck:electron format:check arch:deps arch:budget lint:error-handling lint deadcode:exports; do
+          for gate in typecheck typecheck:electron typecheck:js format:check arch:deps arch:budget lint:error-handling lint deadcode:exports check:script-entrypoints check:maintainability check:duplicates; do
             echo "::group::$gate"
             if ! npm run "$gate"; then failed=1; fi
             echo '::endgroup::'
           done
           exit "$failed"
+
+      - name: Build the existing application
+        if: always()
+        run: npm run build
+
+      - name: Real Electron MCP runtime and redaction smoke
+        if: success()
+        run: xvfb-run -a node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs
