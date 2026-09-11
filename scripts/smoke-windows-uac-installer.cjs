@@ -43,8 +43,6 @@ async function main() {
   const staged = join(scratch, "payload");
   const output = join(scratch, "output");
   const templates = join(scratch, "nsis-templates");
-  const diagnostics = join(scratch, "nsis-failures.log");
-  const installerInclude = stageDiagnosticIncludes(repository, scratch);
   mkdirSync(join(staged, "resources"), { recursive: true });
   // NSIS must install/remove the real executable filename, but this fixture
   // intentionally contains no runnable app or user data.
@@ -80,7 +78,7 @@ async function main() {
         allowToChangeInstallationDirectory: true,
         differentialPackage: false,
         useZip: true,
-        include: installerInclude,
+        include: join(repository, "build", "installer.nsh"),
         runAfterFinish: false,
         createDesktopShortcut: false,
         createStartMenuShortcut: false,
@@ -182,13 +180,6 @@ async function main() {
       "[windows-uac-smoke] interactive UAC and Explorer behavior NOT tested",
     );
   } finally {
-    if (existsSync(diagnostics)) {
-      console.log(readFileSync(diagnostics, "utf8"));
-    }
-    console.log("[windows-uac-smoke] remaining fixture entries:", {
-      installDir,
-      entries: existsSync(installDir) ? readdirSync(installDir) : [],
-    });
     setNsisTemplatesDir(nsisUtil, originalTemplates);
     if (oldCompression === undefined) {
       delete process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL;
@@ -200,38 +191,6 @@ async function main() {
     rmSync(installDir, { recursive: true, force: true });
     rmSync(scratch, { recursive: true, force: true });
   }
-}
-
-/**
- * Add observation only to already-decided failure branches in private copies.
- * Production source, success paths, predicates and exit codes stay unchanged.
- * @param {string} repository
- * @param {string} scratch
- */
-function stageDiagnosticIncludes(repository, scratch) {
-  const output = join(scratch, "build");
-  const diagnosticPath = join(scratch, "nsis-failures.log");
-  assert.ok(!/[\r\n$"]/u.test(diagnosticPath));
-  mkdirSync(output, { recursive: true });
-  for (const filename of ["installer.nsh", "windows-uninstall-elevation.nsh"]) {
-    const source = readFileSync(join(repository, "build", filename), "utf8");
-    let section = "header";
-    const lines = source.split(/\r?\n/u).map((line, index) => {
-      const declaration = /^(?:Function|!macro) (\S+)/u.exec(line);
-      if (declaration) section = declaration[1];
-      if (line.trim() !== "SetErrorLevel 2") return line;
-      return [
-        "Push $R8",
-        `FileOpen $R8 "${diagnosticPath}" a`,
-        `FileWrite $R8 "${filename}:${index + 1} ${section}$\\r$\\nINSTDIR=$INSTDIR$\\r$\\nDATA=$MgtDataRoot$\\r$\\n1=$1 2=$2 3=$3 4=$4 5=$5 6=$6 9=$9$\\r$\\n"`,
-        "FileClose $R8",
-        "Pop $R8",
-        line,
-      ].join("\n");
-    });
-    writeFileSync(join(output, filename), lines.join("\n"));
-  }
-  return join(output, "installer.nsh");
 }
 
 /** @param {string} executable @param {string} expected */
