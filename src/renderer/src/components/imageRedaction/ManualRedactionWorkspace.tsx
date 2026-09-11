@@ -44,9 +44,7 @@ export function ManualRedactionWorkspace(
             failedCount={form.failed.size}
             disabled={form.busy || form.drawing}
             saveStatus={form.saveStatus}
-            onRetrySave={() => {
-              void form.flush().catch(() => undefined);
-            }}
+            onRetrySave={form.retrySave}
             preparation={!props.job}
             onUnreviewed={actions.nextUnreviewed}
             onIssue={actions.showIssue}

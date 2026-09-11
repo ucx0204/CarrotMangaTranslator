@@ -42,8 +42,7 @@ export function useRedactionWorkspace(
   const notify = useEventCallback((status: RedactionSaveStatus) => {
     if (!mounted.current) return;
     setSaveStatus(status);
-    if (status.kind === "error") saveError.report(status.error);
-    else if (status.kind === "saved") saveError.setError("");
+    if (status.kind === "saved") saveError.setError("");
   });
   const [writer] = React.useState(
     () =>
@@ -66,13 +65,14 @@ export function useRedactionWorkspace(
     },
     [report],
   );
+  const retrySave = useEventCallback(() => {
+    // Background/retry failures belong to saving, not to the current command.
+    void writer.flush().catch(saveError.report);
+  });
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      // The writer reports save failures through its own status channel.
-      void writer.flush().catch(() => undefined);
-    }, 250);
+    const timer = setTimeout(retrySave, 250);
     return () => clearTimeout(timer);
-  }, [state, writer]);
+  }, [state, retrySave]);
 
   return {
     state,
@@ -95,6 +95,7 @@ export function useRedactionWorkspace(
     drawing,
     setDrawing,
     flush: () => writer.flush(),
+    retrySave,
     pauseSaving: () => writer.pause(),
   };
 }

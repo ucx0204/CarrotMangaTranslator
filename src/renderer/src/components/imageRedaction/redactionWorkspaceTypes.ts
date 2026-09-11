@@ -37,5 +37,6 @@ export type RedactionWorkspaceController = RedactionPreviewState & {
   drawing: boolean;
   setDrawing: (drawing: boolean) => void;
   flush: () => Promise<number>;
+  retrySave: () => void;
   pauseSaving: () => () => void;
 };
