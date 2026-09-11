@@ -5,7 +5,14 @@ import {
 } from "./imageRedaction";
 import { assertSupportedRedactionSize } from "./imageRedactionLimits";
 
-type MaskTarget = { width: number; height: number; mask: Uint8Array };
+export type RedactionRasterRegion = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+export const REDACTION_RASTER_TILE_SIZE = 512;
+type MaskTarget = RedactionRasterRegion & { mask: Uint8Array };
 type Stamp = {
   left: number;
   top: number;
@@ -21,7 +28,42 @@ export function rasterizeImageRedaction(
   strokes: readonly ImageRedactionStroke[],
 ): Uint8Array {
   assertSupportedRedactionSize({ width, height });
-  const target = { width, height, mask: new Uint8Array(width * height) };
+  return rasterizeRegion({ x: 0, y: 0, width, height }, strokes);
+}
+
+/** A bounded native-pixel tile, exactly equivalent to cropping the full mask. */
+export function rasterizeImageRedactionRegion(
+  width: number,
+  height: number,
+  strokes: readonly ImageRedactionStroke[],
+  region: RedactionRasterRegion,
+): Uint8Array {
+  assertSupportedRedactionSize({ width, height });
+  if (
+    ![region.x, region.y, region.width, region.height].every(
+      Number.isSafeInteger,
+    ) ||
+    region.x < 0 ||
+    region.y < 0 ||
+    region.width < 1 ||
+    region.height < 1 ||
+    region.width > REDACTION_RASTER_TILE_SIZE ||
+    region.height > REDACTION_RASTER_TILE_SIZE ||
+    region.x + region.width > width ||
+    region.y + region.height > height
+  )
+    throw new Error("Invalid redaction raster tile");
+  return rasterizeRegion(region, strokes);
+}
+
+function rasterizeRegion(
+  region: RedactionRasterRegion,
+  strokes: readonly ImageRedactionStroke[],
+): Uint8Array {
+  const target = {
+    ...region,
+    mask: new Uint8Array(region.width * region.height),
+  };
   paintSequence(target, strokes, 0, strokes.length, 0);
   return target.mask;
 }
@@ -91,17 +133,17 @@ function fillStamp(target: MaskTarget, stamp: Stamp, value: number): void {
   const cy = (top + bottom) / 2;
   const radius = (right - left) / 2;
   for (
-    let y = Math.max(0, Math.floor(top));
-    y < Math.min(target.height, Math.ceil(bottom));
+    let y = Math.max(target.y, Math.floor(top));
+    y < Math.min(target.y + target.height, Math.ceil(bottom));
     y++
   ) {
     for (
-      let x = Math.max(0, Math.floor(left));
-      x < Math.min(target.width, Math.ceil(right));
+      let x = Math.max(target.x, Math.floor(left));
+      x < Math.min(target.x + target.width, Math.ceil(right));
       x++
     ) {
       if (!round || Math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= radius)
-        target.mask[y * target.width + x] = value;
+        target.mask[(y - target.y) * target.width + x - target.x] = value;
     }
   }
 }
