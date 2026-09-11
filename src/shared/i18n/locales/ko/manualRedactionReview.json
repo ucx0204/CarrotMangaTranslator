@@ -21,5 +21,9 @@
   "scale_proportional": "동일 종횡비로 맞춤",
   "copyProblem_aspect": "종횡비가 다른 페이지는 복사할 수 없습니다.",
   "copyProblem_brush": "확대·축소한 브러시가 지원 크기를 벗어납니다.",
-  "copyProblem_dimensions": "지원하지 않는 이미지 크기입니다."
+  "copyProblem_dimensions": "지원하지 않는 이미지 크기입니다.",
+  "prepareEditor": "가리기 사전 편집",
+  "prepare_page": "이 페이지 가리기",
+  "prepare_chapter": "이 화 전체 가리기",
+  "prepare_work": "이 작품 전체 가리기"
 }

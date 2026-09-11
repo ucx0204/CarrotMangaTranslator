@@ -21,5 +21,9 @@
   "scale_proportional": "同じ縦横比で拡大・縮小",
   "copyProblem_aspect": "縦横比が異なるページにはコピーできません。",
   "copyProblem_brush": "拡大・縮小後のブラシが対応サイズを超えます。",
-  "copyProblem_dimensions": "この画像サイズには対応していません。"
+  "copyProblem_dimensions": "この画像サイズには対応していません。",
+  "prepareEditor": "画像のマスクを事前編集",
+  "prepare_page": "このページをマスク",
+  "prepare_chapter": "この話全体をマスク",
+  "prepare_work": "この作品全体をマスク"
 }

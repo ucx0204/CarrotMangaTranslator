@@ -21,5 +21,9 @@
   "scale_proportional": "Scale with matching aspect ratio",
   "copyProblem_aspect": "Pages with a different aspect ratio cannot be copied.",
   "copyProblem_brush": "The scaled brush is outside the supported size range.",
-  "copyProblem_dimensions": "This image size is not supported."
+  "copyProblem_dimensions": "This image size is not supported.",
+  "prepareEditor": "Prepare image redactions",
+  "prepare_page": "Redact this page",
+  "prepare_chapter": "Redact this chapter",
+  "prepare_work": "Redact this work"
 }

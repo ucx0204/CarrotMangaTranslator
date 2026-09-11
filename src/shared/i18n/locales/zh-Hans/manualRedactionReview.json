@@ -21,5 +21,9 @@
   "scale_proportional": "按相同宽高比缩放",
   "copyProblem_aspect": "无法复制到宽高比不同的页面。",
   "copyProblem_brush": "缩放后的画笔超出支持的尺寸范围。",
-  "copyProblem_dimensions": "不支持此图片尺寸。"
+  "copyProblem_dimensions": "不支持此图片尺寸。",
+  "prepareEditor": "预先编辑图片遮挡",
+  "prepare_page": "遮挡当前页",
+  "prepare_chapter": "遮挡当前章节",
+  "prepare_work": "遮挡整部作品"
 }
