@@ -11,7 +11,7 @@ export type RedactionRasterRegion = {
   width: number;
   height: number;
 };
-export const REDACTION_RASTER_TILE_SIZE = 512;
+const REDACTION_RASTER_TILE_SIZE = 512;
 type MaskTarget = RedactionRasterRegion & { mask: Uint8Array };
 type Stamp = {
   left: number;

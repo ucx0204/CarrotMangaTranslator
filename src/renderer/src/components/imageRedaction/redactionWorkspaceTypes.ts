@@ -11,7 +11,7 @@ export type RedactionPreviewSource = Pick<
   RedactionPreviewCache,
   "read" | "retryPage" | "subscribe" | "version"
 >;
-export type RedactionPreviewState = {
+type RedactionPreviewState = {
   previews: RedactionPreviewSource;
   ready: ReadonlySet<string>;
   failed: ReadonlySet<string>;

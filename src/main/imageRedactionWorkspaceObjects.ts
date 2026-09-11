@@ -5,7 +5,7 @@ import { renameWithTransientRetry } from "./libraryStore/storage";
 
 export const REDACTION_INDEX_FILE = "manual-redaction-workspaces.json";
 export const REDACTION_OBJECT_DIRECTORY = "manual-redaction-drafts";
-export const MAX_REDACTION_RECORD_BYTES = 64 * 1024 * 1024;
+const MAX_REDACTION_RECORD_BYTES = 64 * 1024 * 1024;
 export type RedactionDiskWriter = (
   path: string,
   bytes: Uint8Array,
