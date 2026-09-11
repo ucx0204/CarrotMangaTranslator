@@ -1,7 +1,10 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import { createTempDir, requestTranslation } from "./helpers/runtimeModelContracts";
+import {
+  createTempDir,
+  requestTranslation,
+} from "./helpers/runtimeModelContracts";
 
 const { buildSoundEffectRequestBody } =
   require("../src/main/runtime/transport/sound-effect-request.cjs") as {
