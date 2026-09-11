@@ -43,15 +43,15 @@ Only `carrot.read` (and optional offline_access) is supported. No OAuth writes, 
 
 ## Reuse boundaries
 
-| Function | Existing app authority |
-| --- | --- |
-| Library | `src/main/library.ts`, existing read/mutation locks and notifications |
-| Preview | `imageRedactionContext.ts`, `inpainting/imageIO.ts` |
-| Translation | `wholePagePipeline.ts`, `jobs/translationJobs.ts` and existing job contracts |
-| Export | `application/pageImageExportService.ts` and actual app renderer |
-| Web import | `application/webImportService.ts` |
-| Work context | `library/libraryContextFacade.ts` |
-| Blocks/revisions | `shared/textTypes.ts`, `shared/shareTypes.ts`, `shared/pageRevision.ts` |
+| Function         | Existing app authority                                                       |
+| ---------------- | ---------------------------------------------------------------------------- |
+| Library          | `src/main/library.ts`, existing read/mutation locks and notifications        |
+| Preview          | `imageRedactionContext.ts`, `inpainting/imageIO.ts`                          |
+| Translation      | `wholePagePipeline.ts`, `jobs/translationJobs.ts` and existing job contracts |
+| Export           | `application/pageImageExportService.ts` and actual app renderer              |
+| Web import       | `application/webImportService.ts`                                            |
+| Work context     | `library/libraryContextFacade.ts`                                            |
+| Blocks/revisions | `shared/textTypes.ts`, `shared/shareTypes.ts`, `shared/pageRevision.ts`      |
 
 Only the original main composition/library-consumer budgets were adjusted in the local baseline. General complexity/dependency limits remain enforced; no alias wrappers or lint-rule disabling to conceal new coupling. No protected OCR/font algorithms, releases or user data are changed.
 
