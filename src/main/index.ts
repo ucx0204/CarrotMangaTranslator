@@ -68,6 +68,7 @@ import { focusExistingMainWindow } from "./singleInstanceWindow";
 import { runMainWindowCloseCleanup } from "./mainWindowCloseCleanup";
 import { MainWindowSessionLifecycle } from "./mainWindowSessionLifecycle";
 import { createLinkedWorkspaceRuntime } from "./linkedWorkspace/linkedWorkspaceRuntime";
+import { createMcpRuntime } from "./mcpRuntime";
 
 const resolvedAppPaths = getAppPaths();
 assertDataRootInstanceLockHeld(resolvedAppPaths.dataRoot);
@@ -78,6 +79,11 @@ const operations = new AppOperationRegistry(appActivityGate);
 const importRuntime = createImportRuntimeResources({
   dataRoot: appPaths.dataRoot,
   reportError: logError,
+});
+const mcpRuntime = createMcpRuntime({
+  env: process.env,
+  reportError: logError,
+  reportInfo: logInfo,
 });
 const inpaintingRevisionStore = new InpaintingRevisionStore();
 let mainWindow: BrowserWindow | null = null;
@@ -257,6 +263,9 @@ void app
       linkedWorkspaceSync,
       reportError: logError,
     });
+    await mcpRuntime.start().catch((error) =>
+      logError("MCP startup failed; the MCP connection is disabled", error),
+    );
     reactivateDock();
     openMainWindowNow();
     mainStartupCompleted = true;
@@ -298,6 +307,7 @@ app.on("window-all-closed", () => {
 });
 
 function closeTerminalIntake(): void {
+  mcpRuntime.stopAccepting();
   try {
     appActivityGate.closeToNewActivities();
   } finally {
@@ -405,9 +415,7 @@ async function runStartupMaintenance(): Promise<void> {
   if (
     cleanupResult.missingWorkReferencesRemoved === 0 &&
     cleanupResult.missingChapterReferencesRemoved === 0 &&
-    cleanupResult.workDirsRemoved === 0 &&
-    cleanupResult.chapterDirsRemoved === 0 &&
-    cleanupResult.checkpointDirsRemoved === 0
+    cleanupResult.missingPageReferencesRemoved === 0
   ) {
     return;
   }
@@ -423,6 +431,22 @@ function getOrStartTerminalCleanup(
 }
 
 async function finishTerminalCleanup(
+  reason: AppTerminalCleanupReason,
+  updateProgress: (progress: AppQuitCleanupProgress) => void,
+): Promise<void> {
+  const results = await Promise.allSettled([
+    mcpRuntime.dispose(),
+    finishTerminalAppCleanup(reason, updateProgress),
+  ]);
+  const failures = results.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : [],
+  );
+  if (failures.length > 0) {
+    throw new AggregateError(failures, "Application terminal cleanup failed.");
+  }
+}
+
+async function finishTerminalAppCleanup(
   reason: AppTerminalCleanupReason,
   updateProgress: (progress: AppQuitCleanupProgress) => void,
 ): Promise<void> {
