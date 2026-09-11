@@ -69,6 +69,8 @@ jobs:
         run: |
           node scripts/mcp-dev.cjs --help
           node scripts/mcp-smoke.mjs --help
+          node scripts/mcp-web.cjs --help
+          node scripts/mcp-web-smoke.mjs --help
           node node_modules/vitest/vitest.mjs run tests/mcp
 
       - name: Build the existing application
