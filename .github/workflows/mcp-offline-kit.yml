@@ -26,14 +26,20 @@ jobs:
       - name: Pack only tracked source and installed development dependencies
         run: |
           git archive --format=tar HEAD | gzip > "$RUNNER_TEMP/carrot-source.tar.gz"
-          tar -czf "$RUNNER_TEMP/carrot-tools.tar.gz" node_modules
+          tar --exclude='node_modules/onnxruntime-node/bin' --exclude='*/vendor' -czf "$RUNNER_TEMP/carrot-tools.tar.gz" node_modules
           git rev-parse HEAD > "$RUNNER_TEMP/carrot-source-commit.txt"
+          du -h "$RUNNER_TEMP"/carrot-*
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: carrot-offline-kit
+          name: carrot-offline-source
           path: |
             ${{ runner.temp }}/carrot-source.tar.gz
-            ${{ runner.temp }}/carrot-tools.tar.gz
             ${{ runner.temp }}/carrot-source-commit.txt
+          retention-days: 1
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: carrot-offline-tools
+          path: ${{ runner.temp }}/carrot-tools.tar.gz
           retention-days: 1
           compression-level: 0
