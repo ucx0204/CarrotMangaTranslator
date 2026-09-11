@@ -35,16 +35,16 @@ Checkboxes distinguish implementation from end-to-end acceptance. Milestone 1 as
 
 ## Reuse inventory
 
-| Capability | Existing boundary | MCP work |
-| --- | --- | --- |
-| Library read/write | `src/main/library.ts` and its feature facades | Read projections implemented; writes pending; no storage bypass |
-| Image previews | `imageRedactionContext.ts`, `inpainting/imageIO.ts` | Existing external-image guard and native image decode/resize |
-| Web import | `src/main/application/webImportService.ts` | Reuse sessions, progress, cancellation and cleanup in later phase |
-| Translation | `src/main/wholePagePipeline.ts`, `src/main/jobs` | Extract only necessary orchestration after characterization tests |
-| Image editing | `src/main/codexImageEditing.ts` | Later feed translated blocks into existing erasure/lettering/rendering |
-| Text geometry and styling | `src/shared/textTypes.ts` | Preserve source/render geometry and generated lettering |
-| Work context | `src/main/library/libraryContextFacade.ts` | Preserve glossary/speaker references and transactions |
-| Jobs | `src/shared/jobTypes.ts`, `src/main/appOperationRegistry.ts` | Reuse ownership; add resumable external-input jobs later |
+| Capability                | Existing boundary                                            | MCP work                                                               |
+| ------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Library read/write        | `src/main/library.ts` and its feature facades                | Read projections implemented; writes pending; no storage bypass        |
+| Image previews            | `imageRedactionContext.ts`, `inpainting/imageIO.ts`          | Existing external-image guard and native image decode/resize           |
+| Web import                | `src/main/application/webImportService.ts`                   | Reuse sessions, progress, cancellation and cleanup in later phase      |
+| Translation               | `src/main/wholePagePipeline.ts`, `src/main/jobs`             | Extract only necessary orchestration after characterization tests      |
+| Image editing             | `src/main/codexImageEditing.ts`                              | Later feed translated blocks into existing erasure/lettering/rendering |
+| Text geometry and styling | `src/shared/textTypes.ts`                                    | Preserve source/render geometry and generated lettering                |
+| Work context              | `src/main/library/libraryContextFacade.ts`                   | Preserve glossary/speaker references and transactions                  |
+| Jobs                      | `src/shared/jobTypes.ts`, `src/main/appOperationRegistry.ts` | Reuse ownership; add resumable external-input jobs later               |
 
 The app composition adds one dependency on `mcpRuntime`; that runtime adds one consumer of the existing library facade. Only these two composition budgets are explicitly documented. General dependency and complexity ceilings are unchanged; do not introduce alias wrappers to hide the dependencies.
 
