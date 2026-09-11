@@ -1,0 +1,59 @@
+name: Windows UAC Check
+
+on:
+  push:
+    branches:
+      - fix/windows-protected-folder-uac
+  pull_request:
+    paths:
+      - .github/workflows/windows-uac-check.yml
+      - build/installer.nsh
+      - build/windows*.nsh
+      - src/main/startupWriteAccess.ts
+      - src/main/windowsElevation.ts
+      - src/main/windowsStartup.ts
+      - src/main/bootstrap.ts
+      - scripts/build-windows-installer.cjs
+      - scripts/smoke-windows-uac-installer.cjs
+      - tests/*windows*Startup*.test.ts
+      - tests/windowsElevation.test.ts
+      - tests/startupWriteAccess.test.ts
+      - tests/installerConfig.test.ts
+      - tests/windowsInstallerPermissions.test.ts
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-uac-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-uac:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test startup and installer boundaries
+        run: npx vitest run tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts tests/installerConfig.test.ts
+      - name: Check Electron types
+        run: npm run typecheck:electron
+      - name: Check changed startup file formatting
+        run: npx prettier --check src/main/startupWriteAccess.ts src/main/windowsElevation.ts src/main/windowsStartup.ts tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts
+      - name: Compile and smoke-test the installer when the fixture is available
+        shell: pwsh
+        run: |
+          if (Test-Path scripts/smoke-windows-uac-installer.cjs) {
+            node scripts/smoke-windows-uac-installer.cjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
