@@ -18,6 +18,10 @@ import {
 import { createBootstrapLogger } from "./bootstrapLogger";
 import { describeWindowsNativeRuntimeFailure } from "./windowsNativeRuntimeFailure";
 import {
+  prepareWindowsStartup,
+  type WindowsStartupResult,
+} from "./windowsStartup";
+import {
   resolvePackagedDataRoot,
   resolvePackagedMainRuntimeSmokeMarker,
 } from "./dataRoot";
@@ -41,15 +45,21 @@ const PACKAGED_MAIN_RUNTIME_SMOKE_TOKEN =
 bootstrap();
 
 function bootstrap(): void {
-  const dataRoot = resolveBootstrapDataRoot();
+  let dataRoot: string | null;
   try {
+    const startup = resolveStartupDataRoot();
+    if (startup.status !== "continue") {
+      app.exit(0);
+      return;
+    }
+    dataRoot = startup.dataRoot;
     configurePackagedElectronStorage(dataRoot);
     configureDevelopmentElectronStorage(dataRoot);
   } catch (error) {
     writeBootstrapLog("bootstrap:storage-config-failed", error);
     reportEarlyStartupFailure(
-      "Carrot Manga Translator 저장 경로 오류",
-      `Electron 저장 경로를 설정하지 못해 시작을 중단했습니다.\n\n${formatError(error)}`,
+      "Carrot Manga Translator 시작 오류",
+      `저장 경로 또는 실행 권한을 준비하지 못해 시작을 중단했습니다.\n\n${formatError(error)}`,
     );
     app.exit(2);
     return;
@@ -92,6 +102,24 @@ function bootstrap(): void {
   } finally {
     removeBootstrapErrorListeners();
   }
+}
+
+function resolveStartupDataRoot(): WindowsStartupResult {
+  if (!isPackagedBootstrap() || process.platform !== "win32") {
+    return { status: "continue", dataRoot: resolveBootstrapDataRoot() };
+  }
+  const result = prepareWindowsStartup({
+    executablePath: process.execPath,
+    workingDirectory: process.cwd(),
+    arguments: process.argv.slice(1),
+    resolveDataRoot: resolveBootstrapDataRoot,
+  });
+  if (result.status === "continue" && result.dataRoot) {
+    // Main resolves AppPaths independently. Pin the exact preflight root so a
+    // relaunch or changed environment cannot redirect settings after the gate.
+    process.env.MANGA_TRANSLATOR_DATA_ROOT = result.dataRoot;
+  }
+  return result;
 }
 
 /**
