@@ -26,14 +26,20 @@ jobs:
         run: |
           npm ci --ignore-scripts
           git archive --format=tar.gz HEAD -o "$RUNNER_TEMP/carrot-source.tar.gz"
-          tar -czf "$RUNNER_TEMP/carrot-node-modules.tar.gz" node_modules
+          tar --exclude='node_modules/onnxruntime-node/bin' --exclude='node_modules/electron/dist' -czf "$RUNNER_TEMP/carrot-node-modules.tar.gz" node_modules
           git rev-parse HEAD > "$RUNNER_TEMP/carrot-source-commit.txt"
+          ls -lh "$RUNNER_TEMP"/carrot-*
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: mcp-isolated-workbench
+          name: mcp-source
           path: |
             ${{ runner.temp }}/carrot-source.tar.gz
-            ${{ runner.temp }}/carrot-node-modules.tar.gz
             ${{ runner.temp }}/carrot-source-commit.txt
+          retention-days: 1
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mcp-test-dependencies
+          path: ${{ runner.temp }}/carrot-node-modules.tar.gz
           retention-days: 1
           compression-level: 0
