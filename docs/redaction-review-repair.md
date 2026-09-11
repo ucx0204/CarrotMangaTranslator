@@ -1,46 +1,43 @@
-# Redaction review repair / issue #93
+# 수동 가리기 수정 및 SFX #93 — 현재 기준
 
-Branch: `fix/redaction-review-and-sfx-93-20260911`  
-Base: `ede815eba3881cb66117512989f71a38271906ad`
+브랜치: `fix/redaction-review-and-sfx-93-20260911`  
+기준: `ede815eba3881cb66117512989f71a38271906ad` · Draft PR #95
 
-## Resume contract
+## 재개 규칙
 
-Each completed fix is committed and pushed separately. Read this queue and the subsequent commit messages before resuming; do not replay old patches. Do not merge, squash, release, change the version, or modify user originals/library/output. Keep the three existing basic redaction UI smoke tests; use small deterministic policy/storage/transport tests, not screenshot matrices. Final verification uses the ordinary repository checks.
+이 문서와 이후 커밋 메시지가 현재 기준이다. 이전 ZIP·옛 feature 브랜치 패치를 다시 적용하지 않는다. 한 수정마다 검증 범위를 커밋에 기록하고 바로 push한다. 다른 변경이 먼저 반영됐으면 차이를 확인해 해당 수정만 이어 붙인다. 강제 push, master 병합, 스쿼시, 버전 변경, 태그·릴리즈는 하지 않는다.
 
-## Work queue
+수동 편집만 제공한다. 전체 보기 탭·보류·추가 미리보기 확인 체크박스·자동 위치 감지를 복원하지 않는다. 자동 저장·미리 불러오기·마지막 Enter는 전송 승인이 아니다. 원본·보관함·출력물을 변경하거나 정리하지 않는다. 자동 화면 캡처는 추가하지 않고 기존 단순 UI 검사 3개와 작은 모델·저장·전송 검사를 유지한다.
 
-- [x] F01: additive mask copy must not erase existing target redactions.
-- [x] F02: cancellation/exit when storage fails.
-- [ ] F03: disjoint draft revisions and safe conflict handling.
-- [ ] F04: recoverable preview failures.
-- [x] F05: no-op selection/transform preserves review.
-- [ ] F06: bounded per-page and batch undo.
-- [ ] F07: consistent copy scaling.
-- [ ] F08: bounded visible-region mask display.
-- [ ] F09: native-resolution inspection detail.
-- [ ] F10: command results and independent error ownership.
-- [ ] F11: immediate dirty state and cancellation-safe draft lifetime.
-- [ ] F12: partitioned storage and safe retention.
-- [ ] F13: shared source raster budgets.
-- [ ] F14: workspace application ports.
-- [ ] F15: narrow UI contracts and one current-document authority.
-- [ ] F16: common shortcut machinery.
-- [ ] F17: explicit trusted confirmation mode.
-- [ ] F18: work/chapter/page pre-edit entry points.
-- [ ] F19: current documentation and obsolete branch CI cleanup.
-- [ ] #93: SFX JSON/zero-translation handling.
-- [ ] Baseline Windows conditional-batch readiness failure.
-- [ ] Final static checks, regressions, ordinary full checks.
+## 구현 상태
 
-## Verification and checkpoints
+아래의 구현 반영과 최종 전체 CI 통과는 별개다.
 
-- Planning commit: `405d0a8`.
-- F01 (`378647f`): additive copies are isolated command groups whose completed masks are unioned. Nested copies and subsequent global erasers retain their semantics; old unscoped masks are unchanged. The actual batch application and its preview use the same merge policy. Local Node 22: 20 copy/raster/native-adapter tests passed; focused ESLint passed. Full renderer/shared typecheck also passed.
-- F02 (`c85f001`): an explicit no-write exit is offered after an error; it stops new autosaves and cancels the waiting job without requiring disk success. Normal save/rollback/send still require an acknowledged write. Existing in-flight writes are not misrepresented as rolled back. Local exit/draft/locale tests: 20 passed; focused ESLint passed.
-- F05: unchanged strokes now return the original session before invalidating its decision. Selection without a transform no longer consumes history or starts a save. Two deterministic model regressions and four raster cases passed; focused ESLint passed. This checkpoint does not claim a full repository check.
+- F01: 추가 복사한 마스크의 지우개를 격리해 기존 가림을 보존한다. 중첩 복사와 이후 일반 지우개 의미를 유지한다 (`378647f`).
+- F02: 저장 오류 뒤에도 새 쓰기 없이 작업을 취소하고 나갈 수 있다. 정상 저장·원복·전송의 저장 확인은 유지한다 (`c85f001`).
+- F03: 실제로 변경하는 페이지·보기·설정만 관찰한 값과 비교한다. 관계없는 저장은 충돌하지 않으며, 다른 창의 미관찰 변경을 승인하지 않는다 (`f1fa6f2`).
+- F04: 페이지 재시도는 썸네일·상세·캐시 버전을 함께 갱신한다. 늦게 도착한 이전 요청은 새 결과를 덮어쓰지 않는다 (`7d19012`).
+- F05: 위치나 마스크가 바뀌지 않은 선택은 확인 상태와 이력을 바꾸지 않는다 (`5786aee`).
+- F06: 페이지별·일괄 이력을 구분하고 메모리와 항목 수를 제한한다. 다른 100장을 작업해도 첫 장의 작은 이력이 바로 밀려나지 않는다.
+- F07: 비율 복사는 동일 종횡비에서만 허용한다. 위치와 브러시 굵기가 서로 다른 배율을 따르도록 조용히 왜곡하지 않는다.
+- F08: 표시 마스크는 제한된 뷰포트 영역으로 계산한다. 전송용 전체 마스크와 같은 픽셀 정책을 쓰며 현재 표시 영역의 준비 상태를 확인한다.
+- F09: 원본 픽셀 크롭 계약·소스 검증·분리된 캐시 키가 반영됐다 (`ffe8358`, `6f7c2ed`). **저장된 native preview 컴포넌트의 캔버스 연결과 전체 통합 검증은 아직 남았다.** 존재하지 않는 과거 체크포인트 SHA를 구현 완료 근거로 사용하지 않는다.
+- F10: 명령은 성공·실패를 반환한다. 일괄 적용 실패 시 창과 입력을 유지하며 저장 성공이 다른 명령 오류를 지우지 않는다 (`d802653`, `007419b`).
+- F11: 편집 즉시 미저장 상태를 표시한다. 외부에서 대기 작업을 취소해도 열린 초안은 저장할 수 있고, 취소된 작업의 전송 권한은 사라진다. 창·프로세스 종료 시 세션을 해제한다 (`4b3c8d8`, `a0d8fd9`). 프로세스가 갑자기 죽기 직전의 미전송 편집까지 보존한다고 보장하지 않는다.
+- F12: 초안·보기·설정을 분할 저장하고 관련 항목만 읽는다. 기존 단일 JSON은 보존한 채 이관하며 변경 문서와 manifest를 원자적으로 게시한다. 사용자 초안을 임의의 만료 기간으로 삭제하지 않는다. 세부 계약은 `redaction-draft-storage.md`에 있다.
+- F13: 준비·작업공간·픽셀 처리에 공통 이미지 크기·픽셀 예산을 적용한다.
+- F14: 세션 흐름은 application service와 작은 port가 소유한다. fingerprint 때문에 Electron·이미지 runtime을 불러오던 의존도 분리했다 (`4aad154`).
+- F15: feature 계약을 hook 구현에서 분리하고 header·footer·filter·thumbnail 권한을 줄였다. 가림과 확인 상태는 `documents` 한 곳만 소유한다 (`82b0152`, `aa811d5`, `f3ed311`).
+- F16: 앱 공통 단축키 해석·설정과 가리기 컨텍스트를 연결한다. 명시적 해제와 재지정을 존중한다.
+- F17: 이 프로세스가 생성한 작업은 저장된 workspace revision을 반드시 요구한다. renderer 필드 누락으로 구형 승인 경로를 선택하지 않는다.
+- F18: 작품·화·선택 페이지 명령과 사전 편집 host를 연결했다. 준비 모드는 job이나 전송 승인을 만들지 않는다.
+- F19: 옛 feature 브랜치 검사와 중복 재개 지침을 정리한다. **임시 소스 내보내기 workflow 제거와 최종 검증 기록은 마지막 단계에서 마무리한다.**
+- #93: 제한된 JSON 재시도·응답 구조 검사·정확한 0건 실패 분류를 반영했다. 원본 응답·문제 이미지는 제공되지 않았으므로 제보자의 커스텀 Gemma 모델을 그대로 재현했다고 주장하지 않는다. `sfx-93-repair.md` 참고.
 
-## Baseline observations
+## 검증과 다음 작업
 
-Issue #93 reports SFX output failing JSON parsing and later partial jobs reporting zero translations under Gemma. The original model response is not attached; do not claim model-specific reproduction without evidence.
+개별 커밋의 작은 검사는 해당 변경의 근거이지 최신 브랜치 전체 성공 결과가 아니다. 렌더러 전체 TypeScript 검사와 가리기 UI 3개·모델·저장 회귀, 오류 처리·아키텍처·mock 경계·포맷 검사를 실행했다. native crop fixture의 타입 오류와 준비 host 포맷 오류도 후속 커밋으로 수정했다.
 
-Baseline Check `34556120674`: macOS passed; Windows failed in `conditionalBatchEditor.test.tsx` looking for the favorite recipe button. Do not assume redaction caused it.
+로컬 SFX 순수/전송 경계 56개는 통과했다. 3개 native SFX suite는 보존된 Linux 의존성에 ONNX 공유 라이브러리가 없어 초기화되지 못했다. 해당 검사를 삭제하거나 성공으로 취급하지 않는다. 원래 Windows 오류로 기록된 조건부 일괄 편집도 현재 소스 12개 검사는 통과했지만 옛 실패 로그와 현재 파일 내용이 달라 재현됐다고 단정하지 않는다.
+
+다음 작업은 F09 화면 연결, 임시 소스 exporter 제거, 그리고 최신 소스 SHA에 대한 일반 `Check`의 모든 실제 결과 확인이다. 이전 성공 실행·타입 검사만으로 전체 성공을 대신하지 않는다. 다음 실패는 해당 실행의 원문 로그로 확인하고 검사를 끄거나 기존 기준을 낮추지 말고 원인을 고친다. 새 파일의 커버리지 목록이 필요하면 실제 측정값으로 갱신한다.
