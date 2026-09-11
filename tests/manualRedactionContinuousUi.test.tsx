@@ -58,6 +58,7 @@ beforeEach(() => {
       height,
     }),
     putImageData: vi.fn(),
+    clearRect: vi.fn(),
     drawImage: vi.fn(),
   };
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {

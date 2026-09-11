@@ -14,6 +14,8 @@ import { useRedactionPreview } from "./useRedactionPreview";
 import { useRedactionGestures } from "./useRedactionGestures";
 import { useRedactionViewport } from "./useRedactionViewport";
 import { useRedactionImageReadiness } from "./useRedactionImageReadiness";
+import { useRedactionMaskWindow } from "./useRedactionMaskWindow";
+import type { RedactionMaskWindow } from "./redactionMaskWindow";
 import styles from "./RedactionWorkspace.module.css";
 
 type Props = {
@@ -30,8 +32,9 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
   const { form, page, selected, setSelected, spaceHeld } = props;
   const { state, commit } = form;
   const document = state.documents[page.id];
-  const { image, readiness } = useCanvasImage(props);
   const { viewportRef, stageRef, zoom, onScroll } = useCanvasViewport(props);
+  const window = useRedactionMaskWindow(viewportRef, stageRef, page, zoom);
+  const { image, readiness } = useCanvasImage(props, window);
   const { handlers, draft, transformed } = useRedactionGestures({
     page,
     strokes: document.strokes,
@@ -74,6 +77,7 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
             readiness={readiness}
             strokes={strokes}
             draft={draft}
+            window={window}
           />
           {strokes[selected] ? (
             <SelectionOutline
@@ -101,8 +105,10 @@ function CanvasImage({
   readiness,
   strokes,
   draft,
+  window,
 }: {
   page: RedactionWorkspacePage;
+  window: RedactionMaskWindow;
   image: ImageState;
   readiness: Readiness;
   strokes: RedactionWorkspacePage["strokes"];
@@ -125,6 +131,7 @@ function CanvasImage({
           height={page.height}
           strokes={strokes}
           draft={draft}
+          window={window}
           onReady={readiness.masked}
           onFailure={readiness.reject}
         />
@@ -221,7 +228,10 @@ function useCanvasViewport({ form, page }: Props) {
   );
 }
 
-function useCanvasImage({ form, page, onReady }: Props) {
+function useCanvasImage(
+  { form, page, onReady }: Props,
+  renderKey: RedactionMaskWindow,
+) {
   const image = useRedactionPreview(
     form.previews,
     form.state.workspace.sessionId,
@@ -230,6 +240,7 @@ function useCanvasImage({ form, page, onReady }: Props) {
   );
   const readiness = useRedactionImageReadiness({
     source: "detail",
+    renderKey,
     form,
     pageId: page.id,
     ...image,
