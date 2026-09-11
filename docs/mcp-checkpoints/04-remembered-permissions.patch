@@ -1,0 +1,258 @@
+diff --git a/src/main/application/mcpDesktopService.ts b/src/main/application/mcpDesktopService.ts
+--- a/src/main/application/mcpDesktopService.ts
++++ b/src/main/application/mcpDesktopService.ts
+@@ -28,6 +28,9 @@
+     onFailure: (error: Error) => void,
+   ) => Promise<McpDesktopLease>;
+   reportError: (error: unknown) => void;
++  remembered?: (
++    revokeId?: string,
++  ) => Promise<{ url: string | null; connections: McpConnection[] }>;
+ };
+ /** Serializes control operations; off/quit synchronously invalidates in-flight startup and new requests. */
+ export class McpDesktopService implements McpDesktopControl {
+@@ -71,6 +74,7 @@
+   }
+   configure(preferences: McpPreferences): Promise<McpDesktopStatus> {
+     return this.enqueue(async () => {
++      if (this.status.state === "error") await this.close();
+       if (this.lease || this.status.state === "starting")
+         throw new Error("Turn off MCP before changing permissions.");
+       await this.port.savePreferences(preferences);
+@@ -84,7 +88,12 @@
+     return this.enqueue(async () => this.online().resolvePairing(id, approved));
+   }
+   revokeConnection(id: string): Promise<McpDesktopStatus> {
+-    return this.enqueue(async () => this.online().revokeConnection(id));
++    return this.enqueue(async () => {
++      if (this.lease) await this.online().revokeConnection(id);
++      else if (this.port.remembered)
++        Object.assign(this.status, await this.port.remembered(id));
++      else throw new Error("No saved MCP authorization store is available.");
++    });
+   }
+   diagnose(): Promise<McpDiagnostics> {
+     return this.online().diagnose();
+@@ -103,8 +112,10 @@
+     await this.close();
+   }
+   private load(): Promise<void> {
+-    this.ready ??= this.port.preferences().then((value) => {
++    this.ready ??= this.port.preferences().then(async (value) => {
+       this.status.preferences = value;
++      if (this.port.remembered)
++        Object.assign(this.status, await this.port.remembered());
+     });
+     return this.ready;
+   }
+diff --git a/src/main/mcp/mcpOAuthClients.ts b/src/main/mcp/mcpOAuthClients.ts
+--- a/src/main/mcp/mcpOAuthClients.ts
++++ b/src/main/mcp/mcpOAuthClients.ts
+@@ -27,16 +27,7 @@
+     this.clients = new McpOAuthState(now, 64);
+   }
+   register(input: Record<string, unknown>) {
+-    if (
+-      !Array.isArray(input.redirect_uris) ||
+-      input.redirect_uris.length < 1 ||
+-      input.redirect_uris.length > 4
+-    )
+-      throw new McpOAuthError(
+-        "invalid_client_metadata",
+-        "One to four ChatGPT callbacks are required.",
+-      );
+-    const redirects = input.redirect_uris.map(readChatGptRedirect);
++    const redirects = readRedirects(input.redirect_uris);
+     const method = input.token_endpoint_auth_method ?? "client_secret_basic";
+     if (
+       method !== "none" &&
+@@ -179,3 +170,12 @@
+     method: "client_secret_basic",
+   };
+ }
++
++function readRedirects(value: unknown): string[] {
++  if (!Array.isArray(value) || value.length < 1 || value.length > 4)
++    throw new McpOAuthError(
++      "invalid_client_metadata",
++      "One to four ChatGPT callbacks are required.",
++    );
++  return value.map(readChatGptRedirect);
++}
+diff --git a/src/main/mcp/mcpOAuthHttp.ts b/src/main/mcp/mcpOAuthHttp.ts
+--- a/src/main/mcp/mcpOAuthHttp.ts
++++ b/src/main/mcp/mcpOAuthHttp.ts
+@@ -76,25 +76,7 @@
+     try {
+       this.limitRequests();
+       if (await this.pairing?.handle(url, request, response)) return true;
+-      if (request.method === "GET" && GET_PATHS.includes(url.pathname)) {
+-        this.get(url, response);
+-      } else if (
+-        request.method === "POST" &&
+-        POST_PATHS.includes(url.pathname)
+-      ) {
+-        if (url.search)
+-          throw new McpOAuthError(
+-            "invalid_request",
+-            "POST parameters belong in the request body.",
+-          );
+-        await this.post(url.pathname, request, response);
+-      } else {
+-        response.setHeader(
+-          "Allow",
+-          GET_PATHS.includes(url.pathname) ? "GET" : "POST",
+-        );
+-        throw new McpOAuthError("invalid_request", "Method not allowed.", 405);
+-      }
++      await this.dispatch(url, request, response);
+     } catch (error) {
+       if (!(error instanceof McpOAuthError)) throw error;
+       if (error.status === 429) response.setHeader("Retry-After", "60");
+@@ -106,6 +88,29 @@
+     return true;
+   }
+ 
++  private async dispatch(
++    url: URL,
++    request: IncomingMessage,
++    response: ServerResponse,
++  ): Promise<void> {
++    if (request.method === "GET" && GET_PATHS.includes(url.pathname)) {
++      this.get(url, response);
++    } else if (request.method === "POST" && POST_PATHS.includes(url.pathname)) {
++      if (url.search)
++        throw new McpOAuthError(
++          "invalid_request",
++          "POST parameters belong in the request body.",
++        );
++      await this.post(url.pathname, request, response);
++    } else {
++      response.setHeader(
++        "Allow",
++        GET_PATHS.includes(url.pathname) ? "GET" : "POST",
++      );
++      throw new McpOAuthError("invalid_request", "Method not allowed.", 405);
++    }
++  }
++
+   private get(url: URL, response: ServerResponse): void {
+     if (url.pathname.startsWith("/.well-known/oauth-protected-resource")) {
+       sendJson(response, 200, this.provider.resourceMetadata());
+diff --git a/src/main/mcp/mcpOAuthProvider.ts b/src/main/mcp/mcpOAuthProvider.ts
+--- a/src/main/mcp/mcpOAuthProvider.ts
++++ b/src/main/mcp/mcpOAuthProvider.ts
+@@ -87,7 +87,12 @@
+     };
+   }
+   register(input: Record<string, unknown>) {
+-    return this.clients.register(input);
++    const scope = readOAuthScope(
++      input.scope ?? [...this.allowedScopes(), "offline_access"].join(" "),
++      this.options.allowEdits,
++      this.options.allowImages,
++    );
++    return { ...this.clients.register(input), scope };
+   }
+   begin(input: Record<string, unknown>) {
+     if (input.response_type !== "code")
+@@ -243,10 +248,15 @@
+   restore(value: unknown): void {
+     const state = parseMcpOAuthSnapshot(value, this.issuer);
+     const grants = new Map(state.grants.map((grant) => [grant.id, grant]));
++    const grantFor = (id: string): Grant => {
++      const grant = grants.get(id);
++      if (!grant) throw new Error("Persisted grant is missing.");
++      return grant;
++    };
+     this.clients.restore(state.clients);
+-    this.access.restore(state.access, (id) => grants.get(id)!);
++    this.access.restore(state.access, grantFor);
+     this.refresh.restore(state.refresh, (entry) => ({
+-      grant: grants.get(entry.grantId)!,
++      grant: grantFor(entry.grantId),
+       used: entry.used,
+     }));
+     this.grants.clear();
+diff --git a/src/main/mcp/mcpSecureStore.ts b/src/main/mcp/mcpSecureStore.ts
+--- a/src/main/mcp/mcpSecureStore.ts
++++ b/src/main/mcp/mcpSecureStore.ts
+@@ -71,6 +71,10 @@
+     this.current = next;
+     this.loading = Promise.resolve(next);
+   }
++  async savedAuthorization(): Promise<McpOAuthSnapshot | undefined> {
++    if ((await this.read("authorization.enc")) === null) return undefined;
++    return (await this.load()).oauth;
++  }
+   async preferences(): Promise<McpPreferences> {
+     const text = await this.read("settings.json");
+     return text === null
+diff --git a/src/main/mcp/mcpTailscalePolicy.ts b/src/main/mcp/mcpTailscalePolicy.ts
+--- a/src/main/mcp/mcpTailscalePolicy.ts
++++ b/src/main/mcp/mcpTailscalePolicy.ts
+@@ -37,15 +37,7 @@
+       throw new Error(
+         "Tailscale sharing configuration is too large to inspect safely.",
+       );
+-    const tcp = config.TCP === undefined ? {} : object(config.TCP);
+-    const web = config.Web === undefined ? {} : object(config.Web);
+-    if (
+-      Object.hasOwn(tcp, String(port)) ||
+-      Object.keys(web).some((key) => key.endsWith(`:${port}`))
+-    )
+-      throw new Error(
+-        "Tailscale HTTPS port 443 is already used. Carrot will not replace or expose another application's route.",
+-      );
++    assertListenerUnused(config, port);
+     for (const group of [config.Foreground, config.Services]) {
+       if (group === undefined || group === null) continue;
+       for (const child of Object.values(object(group)))
+@@ -63,3 +55,15 @@
+   const url = new URL(match[0]);
+   return url.origin === "https://login.tailscale.com" ? url.href : undefined;
+ }
++
++function assertListenerUnused(config: JsonObject, port: number): void {
++  const tcp = object(config.TCP ?? {});
++  const web = object(config.Web ?? {});
++  if (
++    Object.hasOwn(tcp, String(port)) ||
++    Object.keys(web).some((key) => key.endsWith(`:${port}`))
++  )
++    throw new Error(
++      `Tailscale HTTPS port ${port} is already used. Carrot will not replace or expose another application's route.`,
++    );
++}
+diff --git a/src/main/mcp/mcpRememberedConnections.ts b/src/main/mcp/mcpRememberedConnections.ts
+new file mode 100644
+--- /dev/null
++++ b/src/main/mcp/mcpRememberedConnections.ts
+@@ -0,0 +1,27 @@
++import { randomBytes } from "node:crypto";
++import type { McpSecureStore } from "./mcpSecureStore";
++import { McpOAuthProvider } from "./mcpOAuthProvider";
++/** Offline management never starts a listener or tunnel. Caller serializes it with the online lease. */
++export async function rememberedMcpConnections(
++  store: McpSecureStore,
++  revokeId?: string,
++) {
++  const snapshot = await store.savedAuthorization();
++  if (!snapshot) return { url: null, connections: [] };
++  const provider = new McpOAuthProvider(
++    snapshot.issuer,
++    randomBytes(32).toString("base64url"),
++    Date.now,
++    { persistent: true },
++  );
++  try {
++    provider.restore(snapshot);
++    if (revokeId) {
++      provider.revokeConnection(revokeId);
++      await store.saveAuthorization(provider.snapshot());
++    }
++    return { url: provider.resource, connections: provider.connections() };
++  } finally {
++    provider.close();
++  }
++}
