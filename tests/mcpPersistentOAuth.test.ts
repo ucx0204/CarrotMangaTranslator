@@ -7,17 +7,54 @@ const origin = "https://carrot.tail-test.ts.net";
 const callback = "https://chatgpt.com/connector/oauth/persistent-test";
 const verifier = "v".repeat(43);
 function fixture() {
-  const provider = new McpOAuthProvider(origin, "p".repeat(43), Date.now, { persistent: true, allowEdits: true });
-  const client = provider.register({ redirect_uris: [callback], token_endpoint_auth_method: "client_secret_post" });
-  const consent = provider.begin({ client_id: client.client_id, response_type: "code", redirect_uri: callback, resource: `${origin}/mcp`, state: "test", scope: "carrot.read carrot.edit offline_access", code_challenge: oauthDigest(verifier), code_challenge_method: "S256" });
-  const redirect = new URL(provider.approve({ transaction: consent.transaction, decision: "approve", pairing_secret: "p".repeat(43) }, consent.cookie));
-  const tokens = provider.token({ grant_type: "authorization_code", client_id: client.client_id, client_secret: client.client_secret, redirect_uri: callback, resource: `${origin}/mcp`, code: redirect.searchParams.get("code"), code_verifier: verifier });
+  const provider = new McpOAuthProvider(origin, "p".repeat(43), Date.now, {
+    persistent: true,
+    allowEdits: true,
+  });
+  const client = provider.register({
+    redirect_uris: [callback],
+    token_endpoint_auth_method: "client_secret_post",
+  });
+  const consent = provider.begin({
+    client_id: client.client_id,
+    response_type: "code",
+    redirect_uri: callback,
+    resource: `${origin}/mcp`,
+    state: "test",
+    scope: "carrot.read carrot.edit offline_access",
+    code_challenge: oauthDigest(verifier),
+    code_challenge_method: "S256",
+  });
+  const redirect = new URL(
+    provider.approve(
+      {
+        transaction: consent.transaction,
+        decision: "approve",
+        pairing_secret: "p".repeat(43),
+      },
+      consent.cookie,
+    ),
+  );
+  const tokens = provider.token({
+    grant_type: "authorization_code",
+    client_id: client.client_id,
+    client_secret: client.client_secret,
+    redirect_uri: callback,
+    resource: `${origin}/mcp`,
+    code: redirect.searchParams.get("code"),
+    code_verifier: verifier,
+  });
   return { provider, client, tokens };
 }
 function restart(provider: McpOAuthProvider) {
   const raw = JSON.stringify(provider.snapshot());
   provider.close();
-  const restored = new McpOAuthProvider(origin, "different-secret".repeat(3), Date.now, { persistent: true, allowEdits: true });
+  const restored = new McpOAuthProvider(
+    origin,
+    "different-secret".repeat(3),
+    Date.now,
+    { persistent: true, allowEdits: true },
+  );
   restored.restore(JSON.parse(raw));
   return restored;
 }
@@ -29,26 +66,53 @@ it("restores confidential client authentication and rotating grants across indep
   assert.equal(snapshot.includes(f.tokens.refresh_token), false);
   assert.equal(snapshot.includes(f.client.client_secret ?? "missing"), false);
   const restored = restart(f.provider);
-  assert.equal(restored.accepts(`Bearer ${f.tokens.access_token}`, "carrot.edit"), true);
-  const next = restored.token({ grant_type: "refresh_token", client_id: f.client.client_id, client_secret: f.client.client_secret, refresh_token: f.tokens.refresh_token, resource: `${origin}/mcp` });
+  assert.equal(
+    restored.accepts(`Bearer ${f.tokens.access_token}`, "carrot.edit"),
+    true,
+  );
+  const next = restored.token({
+    grant_type: "refresh_token",
+    client_id: f.client.client_id,
+    client_secret: f.client.client_secret,
+    refresh_token: f.tokens.refresh_token,
+    resource: `${origin}/mcp`,
+  });
   assert.notEqual(next.refresh_token, f.tokens.refresh_token);
   assert.equal(restart(restored).accepts(`Bearer ${next.access_token}`), true);
 });
 it("keeps refresh replay tombstones and revokes every related access token after restart", () => {
   const f = fixture();
-  const refresh = { grant_type: "refresh_token", client_id: f.client.client_id, client_secret: f.client.client_secret, refresh_token: f.tokens.refresh_token, resource: `${origin}/mcp` };
+  const refresh = {
+    grant_type: "refresh_token",
+    client_id: f.client.client_id,
+    client_secret: f.client.client_secret,
+    refresh_token: f.tokens.refresh_token,
+    resource: `${origin}/mcp`,
+  };
   const next = f.provider.token(refresh);
   const restored = restart(f.provider);
   assert.throws(() => restored.token(refresh));
   assert.equal(restored.accepts(`Bearer ${next.access_token}`), false);
-  assert.equal(restart(restored).accepts(`Bearer ${f.tokens.access_token}`), false);
+  assert.equal(
+    restart(restored).accepts(`Bearer ${f.tokens.access_token}`),
+    false,
+  );
 });
 it("persists local revocation and refuses moving approvals to another resource", () => {
   const f = fixture();
   f.provider.revokeConnection(f.provider.connections()[0].id);
-  assert.equal(restart(f.provider).accepts(`Bearer ${f.tokens.access_token}`), false);
-  const other = new McpOAuthProvider("https://other.tail-test.ts.net", "p".repeat(43));
-  assert.throws(() => other.restore(fixture().provider.snapshot()), /resource changed/);
+  assert.equal(
+    restart(f.provider).accepts(`Bearer ${f.tokens.access_token}`),
+    false,
+  );
+  const other = new McpOAuthProvider(
+    "https://other.tail-test.ts.net",
+    "p".repeat(43),
+  );
+  assert.throws(
+    () => other.restore(fixture().provider.snapshot()),
+    /resource changed/,
+  );
 });
 it("rejects corrupt and inconsistent persisted grants before replacing live permissions", () => {
   const f = fixture();
