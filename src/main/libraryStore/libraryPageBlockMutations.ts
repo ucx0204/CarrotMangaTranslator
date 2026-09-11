@@ -53,8 +53,9 @@ export function createSavePagesBlocksMutation(
   runtime: SavePagesBlocksMutationRuntime,
 ): (
   request: SavePagesBlocksRequest,
+  beforeCommit?: () => void,
 ) => Promise<ReturnType<typeof hydrateChapter>> {
-  return async (request) => {
+  return async (request, beforeCommit) => {
     assertValidPageBatch(request.pages);
     const locator = await runtime.findChapterLocation(request.chapterId);
     if (!locator) {
@@ -71,6 +72,7 @@ export function createSavePagesBlocksMutation(
     const updates = resolvePageUpdates(chapter, request, runtime.logWarning);
     const now = runtime.now();
     const nextChapter = applyPageUpdates(chapter, updates, now);
+    beforeCommit?.();
     await runtime.commitChapterAndWork(nextChapter, now);
     return hydrateChapter(nextChapter);
   };
@@ -81,21 +83,25 @@ export const savePagesBlocksUnlocked =
 
 export function savePageBlocksUnlocked(
   request: SavePageBlocksRequest,
+  beforeCommit?: () => void,
 ): Promise<ReturnType<typeof hydrateChapter>> {
-  return savePagesBlocksUnlocked({
-    chapterId: request.chapterId,
-    dirtyVersion: request.dirtyVersion,
-    saveReason: request.saveReason,
-    pages: [
-      {
-        pageId: request.pageId,
-        baseUpdatedAt: request.baseUpdatedAt,
-        baseBlocksHash: request.baseBlocksHash,
-        blocks: request.blocks,
-        blockOrder: request.blockOrder,
-      },
-    ],
-  });
+  return savePagesBlocksUnlocked(
+    {
+      chapterId: request.chapterId,
+      dirtyVersion: request.dirtyVersion,
+      saveReason: request.saveReason,
+      pages: [
+        {
+          pageId: request.pageId,
+          baseUpdatedAt: request.baseUpdatedAt,
+          baseBlocksHash: request.baseBlocksHash,
+          blocks: request.blocks,
+          blockOrder: request.blockOrder,
+        },
+      ],
+    },
+    beforeCommit,
+  );
 }
 
 function assertValidPageBatch(pages: SavePageBlocksUpdate[]): void {
