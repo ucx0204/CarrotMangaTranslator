@@ -18,13 +18,23 @@ export function finishSoundEffectTranslation(
 ): StartSoundEffectTranslationResult {
   const remainingRegionCount = countChapterPendingSoundEffectRegions(chapter);
   const failedRequested = requestedRegionCount - state.translatedRegionCount;
-  const status = failedRequested > 0 ? "partial" : "completed";
+  const status =
+    failedRequested <= 0
+      ? "completed"
+      : state.translatedRegionCount > 0
+        ? "partial"
+        : "failed";
+  const error =
+    status === "failed"
+      ? "확인 가능한 효과음 번역을 얻지 못했습니다. 후보는 그대로 보존했습니다. 경고를 확인한 뒤 다시 시도해 주세요."
+      : undefined;
   emitSoundEffectTerminal(
     id,
     emit,
     status,
     pageTotal,
     state.translatedRegionCount,
+    error,
   );
   return {
     status,
@@ -32,6 +42,7 @@ export function finishSoundEffectTranslation(
     createdBlocksByPage: state.createdBlocksByPage,
     translatedRegionCount: state.translatedRegionCount,
     remainingRegionCount,
+    ...(error ? { error } : {}),
     ...(state.warnings.length > 0 ? { warnings: state.warnings } : {}),
   };
 }
@@ -81,24 +92,26 @@ export function emitSoundEffectPageDone(
 export function emitSoundEffectTerminal(
   id: string,
   emit: EmitJobEvent,
-  status: "completed" | "partial" | "cancelled",
+  status: "completed" | "partial" | "cancelled" | "failed",
   pageTotal: number,
   translatedCount: number,
+  detail = `${translatedCount}개 번역`,
 ): void {
+  const labels = {
+    completed: "효과음 번역 완료",
+    partial: "효과음 번역 일부 완료",
+    cancelled: "효과음 번역 취소됨",
+    failed: "효과음 번역 실패",
+  };
   emit({
     id,
     kind: "sound-effect-translation",
     status,
-    progressText:
-      status === "cancelled"
-        ? "효과음 번역 취소됨"
-        : status === "partial"
-          ? "효과음 번역 일부 완료"
-          : "효과음 번역 완료",
+    progressText: labels[status],
     phase: status === "completed" ? "done" : status,
     progressCurrent: pageTotal,
     progressTotal: pageTotal,
     pageTotal,
-    detail: `${translatedCount}개 번역`,
+    detail,
   });
 }
