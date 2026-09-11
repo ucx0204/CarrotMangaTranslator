@@ -24,6 +24,7 @@ type ServerOptions = {
   config: McpConfiguration;
   oauth?: McpOAuthHttp;
   tools: readonly McpTool[];
+  authorizeTool?: (authorization: string, tool: McpTool) => boolean;
   reportError: (error: unknown) => void;
 };
 
@@ -124,6 +125,15 @@ function createRequestHandler(
           await readMcpBody(request),
           options.tools,
           options.reportError,
+          (tool) =>
+            accepting &&
+            !response.destroyed &&
+            !response.writableEnded &&
+            (options.authorizeTool?.(
+              request.headers.authorization ?? "",
+              tool,
+            ) ??
+              true),
         ),
       );
     } catch (error) {

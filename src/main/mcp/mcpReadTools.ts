@@ -17,13 +17,19 @@ export type McpTool = {
   description: string;
   inputSchema: Record<string, unknown>;
   oauth?: boolean;
-  invoke: (args: Record<string, unknown>) => Promise<McpToolContent[]>;
+  requiredScope?: string;
+  readOnly?: boolean;
+  invoke: (
+    args: Record<string, unknown>,
+    guard: () => void,
+  ) => Promise<McpToolContent[]>;
 };
 
 export function createMcpReadTools(
   service: McpLibraryReadService,
   imageTransfer = false,
   oauth = false,
+  editingProfile?: { allowEditing: boolean },
 ): McpTool[] {
   return [
     {
@@ -34,10 +40,8 @@ export function createMcpReadTools(
       invoke: async (args) => {
         allowArguments(args, []);
         return textContent({
-          mode: "read-only",
-          features: imageTransfer
-            ? ["library.read", "page.preview"]
-            : ["library.read"],
+          mode: editingProfile?.allowEditing ? "editing" : "read-only",
+          features: features(imageTransfer, editingProfile),
           translation: false,
           imageTransfer,
           imageRedaction: "preview-blocked-when-local-review-is-required",
@@ -101,16 +105,23 @@ export function createMcpReadTools(
 }
 
 export function describeMcpTool(tool: McpTool) {
-  const securitySchemes = [{ type: "oauth2", scopes: ["carrot.read"] }];
+  const securitySchemes = [
+    {
+      type: "oauth2",
+      scopes: [
+        ...new Set(["carrot.read", tool.requiredScope ?? "carrot.read"]),
+      ],
+    },
+  ];
   return {
     name: tool.name,
     description: tool.description,
     inputSchema: tool.inputSchema,
     ...(tool.oauth ? { securitySchemes, _meta: { securitySchemes } } : {}),
     annotations: {
-      readOnlyHint: true,
+      readOnlyHint: tool.readOnly !== false,
       destructiveHint: false,
-      idempotentHint: true,
+      idempotentHint: tool.readOnly !== false,
       openWorldHint: false,
     },
   };
@@ -127,6 +138,22 @@ function objectSchema(
   return { type: "object", properties, required, additionalProperties: false };
 }
 
-export async function invokeMcpTool(tool: McpTool, value: unknown) {
-  return tool.invoke(argumentObject(value));
+export async function invokeMcpTool(
+  tool: McpTool,
+  value: unknown,
+  guard: () => void = () => undefined,
+) {
+  return tool.invoke(argumentObject(value), guard);
+}
+
+function features(
+  images: boolean,
+  editing?: { allowEditing: boolean },
+): string[] {
+  return [
+    "library.read",
+    ...(images ? ["page.preview"] : []),
+    ...(editing ? ["page.blocks.read"] : []),
+    ...(editing?.allowEditing ? ["page.translations.patch"] : []),
+  ];
 }

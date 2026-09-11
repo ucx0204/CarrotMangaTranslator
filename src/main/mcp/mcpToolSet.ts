@@ -15,11 +15,13 @@ export function createMcpToolSet(
   library: McpLibraryReadPort,
   renderApprovedPreview?: PreviewRenderer,
   oauth = false,
+  editingProfile?: { allowEditing: boolean },
 ) {
   const tools = createMcpReadTools(
     new McpLibraryReadService(library),
     renderApprovedPreview !== undefined,
     oauth,
+    editingProfile,
   );
   if (renderApprovedPreview) {
     tools.push(
