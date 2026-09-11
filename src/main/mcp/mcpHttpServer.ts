@@ -1,39 +1,21 @@
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { McpConfiguration } from "./mcpConfiguration";
-import {
-  authorizeMcpRequest,
-  McpHttpError,
-  validateMcpPost,
-} from "./mcpHttpPolicy";
+import { authorizeMcpRequest, McpHttpError, validateMcpHost, validateMcpPost } from "./mcpHttpPolicy";
 import { handleMcpMessage, type McpHttpReply } from "./mcpProtocol";
 import type { McpTool } from "./mcpReadTools";
 import { readMcpBody } from "./mcpRequestBody";
+import { McpOAuthHttp } from "./mcpOAuthHttp";
 
-export type McpHttpServer = {
-  url: string;
-  stopAccepting: () => void;
-  close: () => Promise<void>;
-};
+export type McpHttpServer = { url: string; stopAccepting: () => void; close: () => Promise<void> };
+type ServerOptions = { config: McpConfiguration; tools: readonly McpTool[]; reportError: (error: unknown) => void };
 
-type ServerOptions = {
-  config: McpConfiguration;
-  tools: readonly McpTool[];
-  reportError: (error: unknown) => void;
-};
-
-export async function startMcpHttpServer(
-  options: ServerOptions,
-): Promise<McpHttpServer> {
+export async function startMcpHttpServer(options: ServerOptions): Promise<McpHttpServer> {
   let accepting = true;
   let active = 0;
   let config = { ...options.config };
-  const server = createServer({ maxHeaderSize: 8192 }, (request, response) => {
-    void serve(request, response);
-  });
+  if (config.oauthPassword && !config.publicOrigin) throw new Error("OAuth requires an HTTPS public origin.");
+  const oauth = config.oauthPassword && config.publicOrigin ? new McpOAuthHttp(config.publicOrigin, config.oauthPassword) : undefined;
+  const server = createServer({ maxHeaderSize: 8192 }, (request, response) => { void serve(request, response); });
   server.requestTimeout = 15_000;
   server.headersTimeout = 10_000;
   server.keepAliveTimeout = 1000;
@@ -44,33 +26,26 @@ export async function startMcpHttpServer(
     let counted = false;
     let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
-      authorizeMcpRequest(request, config);
-      if (request.url !== "/mcp") throw new McpHttpError(404, "Not found.");
+      validateMcpHost(request, config);
       if (!accepting) throw new McpHttpError(503, "MCP server is stopping.");
-      if (request.method !== "POST") {
-        response.setHeader("Allow", "POST");
-        throw new McpHttpError(
-          405,
-          "SSE and session deletion are not offered.",
-        );
-      }
-      validateMcpPost(request);
-      if (active >= 8)
-        throw new McpHttpError(429, "Too many concurrent requests.");
+      if (active >= 8) throw new McpHttpError(429, "Too many concurrent requests.");
       active++;
       counted = true;
-      deadline = setTimeout(() => {
-        sendFailure(response, new McpHttpError(504, "MCP read timed out."));
-      }, 30_000);
+      deadline = setTimeout(() => { sendFailure(response, new McpHttpError(504, "MCP read timed out."), oauth); }, 30_000);
       deadline.unref();
+      if (await oauth?.handle(request, response)) return;
+      authorizeMcpRequest(request, config, oauth && ((header) => oauth.provider.accepts(header)));
+      if (request.url !== "/mcp") throw new McpHttpError(404, "Not found.");
+      if (request.method !== "POST") {
+        response.setHeader("Allow", "POST");
+        throw new McpHttpError(405, "SSE and session deletion are not offered.");
+      }
+      validateMcpPost(request);
       const message = await readMcpBody(request);
-      sendReply(
-        response,
-        await handleMcpMessage(message, options.tools, options.reportError),
-      );
+      sendReply(response, await handleMcpMessage(message, options.tools, options.reportError));
     } catch (error) {
       if (!(error instanceof McpHttpError)) options.reportError(error);
-      sendFailure(response, error);
+      sendFailure(response, error, oauth);
     } finally {
       clearTimeout(deadline);
       if (counted) active--;
@@ -86,16 +61,14 @@ export async function startMcpHttpServer(
   });
   server.on("error", options.reportError);
   const address = server.address();
-  if (!address || typeof address === "string")
-    throw new Error("MCP listener address is unavailable.");
+  if (!address || typeof address === "string") throw new Error("MCP listener address is unavailable.");
   config = { ...config, port: address.port };
+  const stopAccepting = () => { accepting = false; oauth?.provider.close(); };
   return {
     url: `http://127.0.0.1:${address.port}/mcp`,
-    stopAccepting: () => {
-      accepting = false;
-    },
+    stopAccepting,
     close: () => {
-      accepting = false;
+      stopAccepting();
       closing ??= new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));
         server.closeAllConnections();
@@ -105,14 +78,12 @@ export async function startMcpHttpServer(
   };
 }
 
-function sendFailure(response: ServerResponse, error: unknown) {
+function sendFailure(response: ServerResponse, error: unknown, oauth?: McpOAuthHttp) {
   if (response.destroyed || response.writableEnded) return;
   const status = error instanceof McpHttpError ? error.status : 500;
-  const message =
-    error instanceof McpHttpError ? error.message : "Internal server error.";
+  const message = error instanceof McpHttpError ? error.message : "Internal server error.";
   response.setHeader("Connection", "close");
-  if (status === 401)
-    response.setHeader("WWW-Authenticate", 'Bearer realm="carrot-mcp"');
+  if (status === 401) response.setHeader("WWW-Authenticate", oauth?.challenge() ?? 'Bearer realm="carrot-mcp"');
   if (status === 429) response.setHeader("Retry-After", "1");
   sendReply(response, { status, body: { error: message } });
 }
