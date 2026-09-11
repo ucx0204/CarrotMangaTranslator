@@ -1,0 +1,31 @@
+name: Repair source checkpoint
+
+on:
+  push:
+    branches: [fix/redaction-review-and-sfx-93-20260911]
+    paths: [.github/workflows/redaction-repair-source.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive tracked source
+        run: |
+          mkdir -p "$RUNNER_TEMP/repair-source"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/repair-source/source.tar.gz"
+          git ls-tree -r HEAD > "$RUNNER_TEMP/repair-source/tree.txt"
+          git rev-parse HEAD > "$RUNNER_TEMP/repair-source/commit.txt"
+          sha256sum "$RUNNER_TEMP/repair-source/source.tar.gz" > "$RUNNER_TEMP/repair-source/source.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repair-source-${{ github.sha }}
+          path: ${{ runner.temp }}/repair-source/
+          retention-days: 3
+          if-no-files-found: error
