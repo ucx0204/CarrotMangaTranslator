@@ -1,3 +1,4 @@
+import { indexRedactionConfirmationPages } from "../application/redactionConfirmationPages";
 import { randomUUID } from "node:crypto";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { JobEvent } from "../../shared/jobTypes";
@@ -148,12 +149,10 @@ async function saveConfirmedRedactions(
   entry: Pending,
 ): Promise<boolean> {
   entry.signal.throwIfAborted();
-  const patches = new Map(request.pages.map((page) => [page.id, page]));
-  if (
-    patches.size !== request.pages.length ||
-    patches.size !== entry.pages.length
-  )
-    throw new Error("확인할 페이지 목록이 다릅니다.");
+  const patches = indexRedactionConfirmationPages(
+    request.pages,
+    entry.pages.length,
+  );
   const pages: ImageRedactionPage[] = [];
   for (let offset = 0; offset < entry.pages.length; offset += 4) {
     entry.signal.throwIfAborted();

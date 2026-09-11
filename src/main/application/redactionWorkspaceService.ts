@@ -1,3 +1,4 @@
+import { indexRedactionConfirmationPages } from "./redactionConfirmationPages";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import type {
@@ -216,12 +217,10 @@ export class RedactionWorkspaceApplicationService {
     if (request.workspaceRevision !== session.workspace.revision)
       throw new Error("최신 가리기 초안을 저장한 뒤 다시 확인해 주세요.");
     assertRedactionDraftPagesCurrent(disk, session.baseline);
-    const patches = new Map(request.pages.map((page) => [page.id, page]));
-    if (
-      patches.size !== session.pages.size ||
-      patches.size !== request.pages.length
-    )
-      throw new Error("확인할 페이지 목록이 다릅니다.");
+    const patches = indexRedactionConfirmationPages(
+      request.pages,
+      session.pages.size,
+    );
     for (const page of session.workspace.pages) {
       const patch = patches.get(page.id);
       if (
