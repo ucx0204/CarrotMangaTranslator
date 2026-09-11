@@ -27,16 +27,7 @@ export class McpOAuthClients {
     this.clients = new McpOAuthState(now, 64);
   }
   register(input: Record<string, unknown>) {
-    if (
-      !Array.isArray(input.redirect_uris) ||
-      input.redirect_uris.length < 1 ||
-      input.redirect_uris.length > 4
-    )
-      throw new McpOAuthError(
-        "invalid_client_metadata",
-        "One to four ChatGPT callbacks are required.",
-      );
-    const redirects = input.redirect_uris.map(readChatGptRedirect);
+    const redirects = readRedirects(input.redirect_uris);
     const method = input.token_endpoint_auth_method ?? "client_secret_basic";
     if (
       method !== "none" &&
@@ -178,4 +169,13 @@ function readBasic(header: string) {
     secret: decoded.slice(separator + 1),
     method: "client_secret_basic",
   };
+}
+
+function readRedirects(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 4)
+    throw new McpOAuthError(
+      "invalid_client_metadata",
+      "One to four ChatGPT callbacks are required.",
+    );
+  return value.map(readChatGptRedirect);
 }

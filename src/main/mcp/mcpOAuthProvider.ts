@@ -87,7 +87,12 @@ export class McpOAuthProvider {
     };
   }
   register(input: Record<string, unknown>) {
-    return this.clients.register(input);
+    const scope = readOAuthScope(
+      input.scope ?? [...this.allowedScopes(), "offline_access"].join(" "),
+      this.options.allowEdits,
+      this.options.allowImages,
+    );
+    return { ...this.clients.register(input), scope };
   }
   begin(input: Record<string, unknown>) {
     if (input.response_type !== "code")
@@ -243,10 +248,15 @@ export class McpOAuthProvider {
   restore(value: unknown): void {
     const state = parseMcpOAuthSnapshot(value, this.issuer);
     const grants = new Map(state.grants.map((grant) => [grant.id, grant]));
+    const grantFor = (id: string): Grant => {
+      const grant = grants.get(id);
+      if (!grant) throw new Error("Persisted grant is missing.");
+      return grant;
+    };
     this.clients.restore(state.clients);
-    this.access.restore(state.access, (id) => grants.get(id)!);
+    this.access.restore(state.access, grantFor);
     this.refresh.restore(state.refresh, (entry) => ({
-      grant: grants.get(entry.grantId)!,
+      grant: grantFor(entry.grantId),
       used: entry.used,
     }));
     this.grants.clear();

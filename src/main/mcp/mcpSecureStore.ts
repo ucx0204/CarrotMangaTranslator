@@ -71,6 +71,10 @@ export class McpSecureStore {
     this.current = next;
     this.loading = Promise.resolve(next);
   }
+  async savedAuthorization(): Promise<McpOAuthSnapshot | undefined> {
+    if ((await this.read("authorization.enc")) === null) return undefined;
+    return (await this.load()).oauth;
+  }
   async preferences(): Promise<McpPreferences> {
     const text = await this.read("settings.json");
     return text === null

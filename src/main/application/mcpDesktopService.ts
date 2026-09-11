@@ -28,6 +28,9 @@ type DesktopPort = {
     onFailure: (error: Error) => void,
   ) => Promise<McpDesktopLease>;
   reportError: (error: unknown) => void;
+  remembered?: (
+    revokeId?: string,
+  ) => Promise<{ url: string | null; connections: McpConnection[] }>;
 };
 /** Serializes control operations; off/quit synchronously invalidates in-flight startup and new requests. */
 export class McpDesktopService implements McpDesktopControl {
@@ -71,6 +74,7 @@ export class McpDesktopService implements McpDesktopControl {
   }
   configure(preferences: McpPreferences): Promise<McpDesktopStatus> {
     return this.enqueue(async () => {
+      if (this.status.state === "error") await this.close();
       if (this.lease || this.status.state === "starting")
         throw new Error("Turn off MCP before changing permissions.");
       await this.port.savePreferences(preferences);
@@ -84,7 +88,12 @@ export class McpDesktopService implements McpDesktopControl {
     return this.enqueue(async () => this.online().resolvePairing(id, approved));
   }
   revokeConnection(id: string): Promise<McpDesktopStatus> {
-    return this.enqueue(async () => this.online().revokeConnection(id));
+    return this.enqueue(async () => {
+      if (this.lease) await this.online().revokeConnection(id);
+      else if (this.port.remembered)
+        Object.assign(this.status, await this.port.remembered(id));
+      else throw new Error("No saved MCP authorization store is available.");
+    });
   }
   diagnose(): Promise<McpDiagnostics> {
     return this.online().diagnose();
@@ -103,8 +112,10 @@ export class McpDesktopService implements McpDesktopControl {
     await this.close();
   }
   private load(): Promise<void> {
-    this.ready ??= this.port.preferences().then((value) => {
+    this.ready ??= this.port.preferences().then(async (value) => {
       this.status.preferences = value;
+      if (this.port.remembered)
+        Object.assign(this.status, await this.port.remembered());
     });
     return this.ready;
   }

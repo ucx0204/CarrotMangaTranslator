@@ -76,25 +76,7 @@ export class McpOAuthHttp {
     try {
       this.limitRequests();
       if (await this.pairing?.handle(url, request, response)) return true;
-      if (request.method === "GET" && GET_PATHS.includes(url.pathname)) {
-        this.get(url, response);
-      } else if (
-        request.method === "POST" &&
-        POST_PATHS.includes(url.pathname)
-      ) {
-        if (url.search)
-          throw new McpOAuthError(
-            "invalid_request",
-            "POST parameters belong in the request body.",
-          );
-        await this.post(url.pathname, request, response);
-      } else {
-        response.setHeader(
-          "Allow",
-          GET_PATHS.includes(url.pathname) ? "GET" : "POST",
-        );
-        throw new McpOAuthError("invalid_request", "Method not allowed.", 405);
-      }
+      await this.dispatch(url, request, response);
     } catch (error) {
       if (!(error instanceof McpOAuthError)) throw error;
       if (error.status === 429) response.setHeader("Retry-After", "60");
@@ -104,6 +86,29 @@ export class McpOAuthHttp {
       });
     }
     return true;
+  }
+
+  private async dispatch(
+    url: URL,
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): Promise<void> {
+    if (request.method === "GET" && GET_PATHS.includes(url.pathname)) {
+      this.get(url, response);
+    } else if (request.method === "POST" && POST_PATHS.includes(url.pathname)) {
+      if (url.search)
+        throw new McpOAuthError(
+          "invalid_request",
+          "POST parameters belong in the request body.",
+        );
+      await this.post(url.pathname, request, response);
+    } else {
+      response.setHeader(
+        "Allow",
+        GET_PATHS.includes(url.pathname) ? "GET" : "POST",
+      );
+      throw new McpOAuthError("invalid_request", "Method not allowed.", 405);
+    }
   }
 
   private get(url: URL, response: ServerResponse): void {

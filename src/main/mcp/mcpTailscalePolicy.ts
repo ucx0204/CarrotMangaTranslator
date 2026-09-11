@@ -37,15 +37,7 @@ export function assertTailscaleListenerFree(value: unknown, port = 443): void {
       throw new Error(
         "Tailscale sharing configuration is too large to inspect safely.",
       );
-    const tcp = config.TCP === undefined ? {} : object(config.TCP);
-    const web = config.Web === undefined ? {} : object(config.Web);
-    if (
-      Object.hasOwn(tcp, String(port)) ||
-      Object.keys(web).some((key) => key.endsWith(`:${port}`))
-    )
-      throw new Error(
-        "Tailscale HTTPS port 443 is already used. Carrot will not replace or expose another application's route.",
-      );
+    assertListenerUnused(config, port);
     for (const group of [config.Foreground, config.Services]) {
       if (group === undefined || group === null) continue;
       for (const child of Object.values(object(group)))
@@ -62,4 +54,16 @@ export function readTailscaleSetupUrl(text: string): string | undefined {
   if (!match) return undefined;
   const url = new URL(match[0]);
   return url.origin === "https://login.tailscale.com" ? url.href : undefined;
+}
+
+function assertListenerUnused(config: JsonObject, port: number): void {
+  const tcp = object(config.TCP ?? {});
+  const web = object(config.Web ?? {});
+  if (
+    Object.hasOwn(tcp, String(port)) ||
+    Object.keys(web).some((key) => key.endsWith(`:${port}`))
+  )
+    throw new Error(
+      `Tailscale HTTPS port ${port} is already used. Carrot will not replace or expose another application's route.`,
+    );
 }
