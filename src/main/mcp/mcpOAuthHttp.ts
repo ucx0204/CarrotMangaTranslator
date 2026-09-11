@@ -1,27 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { McpOAuthProvider } from "./mcpOAuthProvider";
-import {
-  McpOAuthError,
-  oauthRecord,
-  uniqueOAuthParams,
-} from "./mcpOAuthPolicy";
+import { McpOAuthError, oauthRecord, uniqueOAuthParams } from "./mcpOAuthPolicy";
 import { mcpOAuthConsentPage } from "./mcpOAuthPage";
 import { readBoundedBody, readMcpBody } from "./mcpRequestBody";
 
 const COOKIE = "__Host-carrot-link";
-const GET_PATHS = [
-  "/",
-  "/.well-known/oauth-protected-resource",
-  "/.well-known/oauth-protected-resource/mcp",
-  "/.well-known/oauth-authorization-server",
-  "/oauth/authorize",
-];
-const POST_PATHS = [
-  "/oauth/register",
-  "/oauth/approve",
-  "/oauth/token",
-  "/oauth/revoke",
-];
+const GET_PATHS = ["/", "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-authorization-server", "/oauth/authorize"];
+const POST_PATHS = ["/oauth/register", "/oauth/approve", "/oauth/token", "/oauth/revoke"];
 
 export class McpOAuthHttp {
   readonly provider: McpOAuthProvider;
@@ -36,10 +21,7 @@ export class McpOAuthHttp {
     return `Bearer resource_metadata="${this.provider.issuer}/.well-known/oauth-protected-resource/mcp", scope="carrot.read"`;
   }
 
-  async handle(
-    request: IncomingMessage,
-    response: ServerResponse,
-  ): Promise<boolean> {
+  async handle(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
     const url = new URL(request.url ?? "/", this.provider.issuer);
     if (![...GET_PATHS, ...POST_PATHS].includes(url.pathname)) return false;
     secureResponse(response);
@@ -47,30 +29,17 @@ export class McpOAuthHttp {
       this.limitRequests();
       if (request.method === "GET" && GET_PATHS.includes(url.pathname)) {
         this.get(url, response);
-      } else if (
-        request.method === "POST" &&
-        POST_PATHS.includes(url.pathname)
-      ) {
-        if (url.search)
-          throw new McpOAuthError(
-            "invalid_request",
-            "POST parameters belong in the request body.",
-          );
+      } else if (request.method === "POST" && POST_PATHS.includes(url.pathname)) {
+        if (url.search) throw new McpOAuthError("invalid_request", "POST parameters belong in the request body.");
         await this.post(url.pathname, request, response);
       } else {
-        response.setHeader(
-          "Allow",
-          GET_PATHS.includes(url.pathname) ? "GET" : "POST",
-        );
+        response.setHeader("Allow", GET_PATHS.includes(url.pathname) ? "GET" : "POST");
         throw new McpOAuthError("invalid_request", "Method not allowed.", 405);
       }
     } catch (error) {
       if (!(error instanceof McpOAuthError)) throw error;
       if (error.status === 429) response.setHeader("Retry-After", "60");
-      sendJson(response, error.status, {
-        error: error.code,
-        error_description: error.message,
-      });
+      sendJson(response, error.status, { error: error.code, error_description: error.message });
     }
     return true;
   }
@@ -82,71 +51,34 @@ export class McpOAuthHttp {
       sendJson(response, 200, this.provider.authorizationMetadata());
     } else if (url.pathname === "/oauth/authorize") {
       const consent = this.provider.begin(uniqueOAuthParams(url.searchParams));
-      response.setHeader(
-        "Set-Cookie",
-        `${COOKIE}=${consent.cookie}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=300`,
-      );
+      response.setHeader("Set-Cookie", `${COOKIE}=${consent.cookie}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=300`);
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(mcpOAuthConsentPage(consent));
     } else {
-      sendJson(response, 200, {
-        service: "Carrot MCP",
-        mode: "read-only",
-        authentication: "OAuth",
-        endpoint: this.provider.resource,
-      });
+      sendJson(response, 200, { service: "Carrot MCP", mode: "read-only", authentication: "OAuth", endpoint: this.provider.resource });
     }
   }
 
-  private async post(
-    path: string,
-    request: IncomingMessage,
-    response: ServerResponse,
-  ): Promise<void> {
+  private async post(path: string, request: IncomingMessage, response: ServerResponse): Promise<void> {
     if (path === "/oauth/register") {
       requireContentType(request, "application/json");
-      sendJson(
-        response,
-        201,
-        this.provider.register(oauthRecord(await readMcpBody(request))),
-      );
+      sendJson(response, 201, this.provider.register(oauthRecord(await readMcpBody(request))));
       return;
     }
     requireContentType(request, "application/x-www-form-urlencoded");
-    const input = uniqueOAuthParams(
-      new URLSearchParams(await readForm(request)),
-    );
+    const input = uniqueOAuthParams(new URLSearchParams(await readForm(request)));
     if (path === "/oauth/approve") {
       if (request.headers.origin !== this.provider.issuer)
-        throw new McpOAuthError(
-          "access_denied",
-          "Approval must come from this server's consent page.",
-          403,
-        );
-      const cookies = (request.headers.cookie ?? "")
-        .split(";")
-        .map((part) => part.trim())
-        .filter((part) => part.startsWith(`${COOKIE}=`));
-      if (cookies.length !== 1)
-        throw new McpOAuthError(
-          "access_denied",
-          "Approval cookie is required.",
-          403,
-        );
-      const redirect = this.provider.approve(
-        input,
-        cookies[0].slice(COOKIE.length + 1),
-      );
-      response.setHeader(
-        "Set-Cookie",
-        `${COOKIE}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
-      );
+        throw new McpOAuthError("access_denied", "Approval must come from this server's consent page.", 403);
+      const cookies = (request.headers.cookie ?? "").split(";").map((part) => part.trim()).filter((part) => part.startsWith(`${COOKIE}=`));
+      if (cookies.length !== 1) throw new McpOAuthError("access_denied", "Approval cookie is required.", 403);
+      const redirect = this.provider.approve(input, cookies[0].slice(COOKIE.length + 1));
+      response.setHeader("Set-Cookie", `${COOKIE}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`);
       response.writeHead(303, { Location: redirect });
       response.end();
     } else {
       const authorization = readAuthorization(request);
-      if (path === "/oauth/token")
-        sendJson(response, 200, this.provider.token(input, authorization));
+      if (path === "/oauth/token") sendJson(response, 200, this.provider.token(input, authorization));
       else {
         this.provider.revoke(input, authorization);
         sendJson(response, 200, {});
@@ -161,37 +93,20 @@ export class McpOAuthHttp {
       this.requests = 0;
     }
     if (++this.requests > 120)
-      throw new McpOAuthError(
-        "temporarily_unavailable",
-        "Too many OAuth requests. Retry in a minute.",
-        429,
-      );
+      throw new McpOAuthError("temporarily_unavailable", "Too many OAuth requests. Retry in a minute.", 429);
   }
 }
 
 function requireContentType(request: IncomingMessage, expected: string): void {
   const types = request.headersDistinct["content-type"];
-  if (
-    !types ||
-    types.length !== 1 ||
-    types[0].split(";")[0].trim().toLowerCase() !== expected ||
-    request.headers["content-encoding"] !== undefined
-  )
-    throw new McpOAuthError(
-      "invalid_request",
-      "Unsupported content type or encoding.",
-      415,
-    );
+  if (!types || types.length !== 1 || types[0].split(";")[0].trim().toLowerCase() !== expected || request.headers["content-encoding"] !== undefined)
+    throw new McpOAuthError("invalid_request", "Unsupported content type or encoding.", 415);
 }
 
 function readAuthorization(request: IncomingMessage): string | undefined {
   const values = request.headersDistinct.authorization;
   if (values && values.length !== 1)
-    throw new McpOAuthError(
-      "invalid_client",
-      "Duplicate authentication headers.",
-      401,
-    );
+    throw new McpOAuthError("invalid_client", "Duplicate authentication headers.", 401);
   return values?.[0];
 }
 
@@ -210,17 +125,11 @@ function secureResponse(response: ServerResponse): void {
   response.setHeader("X-Content-Type-Options", "nosniff");
   response.setHeader("Referrer-Policy", "no-referrer");
   response.setHeader("X-Frame-Options", "DENY");
-  response.setHeader(
-    "Content-Security-Policy",
-    "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
-  );
+  // The only cross-origin form navigation is the strictly validated OAuth callback.
+  response.setHeader("Content-Security-Policy", "default-src 'none'; form-action 'self' https://chatgpt.com; frame-ancestors 'none'; base-uri 'none'");
 }
 
-function sendJson(
-  response: ServerResponse,
-  status: number,
-  body: unknown,
-): void {
+function sendJson(response: ServerResponse, status: number, body: unknown): void {
   if (response.writableEnded || response.destroyed) return;
   response.statusCode = status;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
