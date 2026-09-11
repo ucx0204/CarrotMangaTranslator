@@ -8,6 +8,11 @@ import { getRedactionWorkspacePage } from "./imageRedactionWorkspaceSessions";
 import { loadPageImageSnapshot } from "./inpainting/imageIO";
 import type { ImageDecodeFallback } from "./regionCrop";
 
+import {
+  assertRedactionPreviewRegion,
+  redactionPreviewVariantKey,
+} from "../shared/imageRedactionPreview";
+
 const previews = new Map<string, string>();
 const MAX_PREVIEW_BYTES = 32 * 1024 * 1024;
 let previewBytes = 0;
@@ -22,13 +27,15 @@ export async function getRedactionWorkspacePreview(
     request.pageId,
   );
   signal.throwIfAborted();
+  assertRedactionPreviewRegion(request.region, page);
   const bytes = await readFile(page.imagePath);
   signal.throwIfAborted();
   if (createHash("sha256").update(bytes).digest("hex") !== page.fingerprint)
     throw new Error(
       "원본 이미지가 변경되었습니다. 해당 페이지를 다시 준비해 주세요.",
     );
-  const key = `${page.imagePath}\0${page.fingerprint}\0${request.maxEdge}`;
+  const variant = redactionPreviewVariantKey(request.maxEdge, request.region);
+  const key = `${page.imagePath}\0${page.fingerprint}\0${variant}`;
   const cached = previews.get(key);
   if (cached) {
     previews.delete(key);
@@ -45,19 +52,7 @@ export async function getRedactionWorkspacePreview(
   const size = image.getSize();
   if (size.width !== page.width || size.height !== page.height)
     throw new Error("원본 이미지 크기가 변경되었습니다.");
-  const scale = Math.min(
-    1,
-    request.maxEdge / Math.max(size.width, size.height),
-  );
-  const preview =
-    scale < 1
-      ? image.resize({
-          width: Math.max(1, Math.round(size.width * scale)),
-          height: Math.max(1, Math.round(size.height * scale)),
-          quality: "good",
-        })
-      : image;
-  const url = preview.toDataURL();
+  const url = renderPreview(image, request);
   getRedactionWorkspacePage(request.sessionId, request.pageId);
   cachePreview(key, url);
   return url;
@@ -74,4 +69,35 @@ function cachePreview(key: string, url: string): void {
   previewBytes -= previews.get(key)?.length ?? 0;
   previews.set(key, url);
   previewBytes += url.length;
+}
+
+/** Native crop requests retain one output pixel per original source pixel. */
+function renderPreview(
+  image: Electron.NativeImage,
+  request: RedactionPreviewRequest,
+): string {
+  if (request.region) {
+    const crop = image.crop(request.region);
+    const size = crop.getSize();
+    if (
+      size.width !== request.region.width ||
+      size.height !== request.region.height
+    )
+      throw new Error("The native preview crop has an unexpected size");
+    return crop.toDataURL();
+  }
+  const size = image.getSize();
+  const scale = Math.min(
+    1,
+    request.maxEdge / Math.max(size.width, size.height),
+  );
+  return (
+    scale < 1
+      ? image.resize({
+          width: Math.max(1, Math.round(size.width * scale)),
+          height: Math.max(1, Math.round(size.height * scale)),
+          quality: "good",
+        })
+      : image
+  ).toDataURL();
 }

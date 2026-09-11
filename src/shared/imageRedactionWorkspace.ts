@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { redactionPreviewRegionSchema } from "./imageRedactionPreview";
 import { imageRedactionStrokeSchema } from "./imageRedaction";
 import {
   IMAGE_REDACTION_SIZE_ERROR,
@@ -141,6 +142,7 @@ export const redactionPreviewRequestSchema = z
     sessionId: z.string().uuid(),
     pageId: id,
     maxEdge: z.union([z.literal(320), z.literal(2048)]),
+    region: redactionPreviewRegionSchema.optional(),
   })
   .strict();
 export type RedactionPreviewRequest = z.infer<
