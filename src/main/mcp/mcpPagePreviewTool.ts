@@ -1,8 +1,14 @@
 import type { McpPagePreviewService } from "../application/mcpPagePreviewService";
-import { allowArguments, identifierSchema, readIdentifier } from "./mcpArguments";
+import {
+  allowArguments,
+  identifierSchema,
+  readIdentifier,
+} from "./mcpArguments";
 import { textContent, type McpTool } from "./mcpReadTools";
 
-export function createMcpPagePreviewTool(service: McpPagePreviewService): McpTool {
+export function createMcpPagePreviewTool(
+  service: McpPagePreviewService,
+): McpTool {
   return {
     name: "carrot_get_page_preview",
     description:
