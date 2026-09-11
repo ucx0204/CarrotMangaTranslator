@@ -11,7 +11,8 @@ export type StoredRedactionPage = Pick<
   "fingerprint" | "strokes" | "decision" | "width" | "height"
 >;
 type Settings = Pick<RedactionWorkspace, "preferences" | "presets">;
-type DraftStore = Settings & {
+export type RedactionDraftStore = Settings & {
+  revision: number;
   pages: Record<string, StoredRedactionPage>;
   views: Record<string, RedactionView>;
 };
@@ -23,7 +24,7 @@ export type RedactionDraftBaseline = Settings & {
 
 /** Observe only this session's resources, including records that do not exist yet. */
 export function observeRedactionDraft(
-  disk: DraftStore,
+  disk: RedactionDraftStore,
   paths: readonly string[],
   scopeKey: string,
 ): RedactionDraftBaseline {
@@ -45,7 +46,7 @@ function assertUnchanged(observed: unknown, current: unknown): void {
 
 /** A save never adopts unrelated writes as this session's observed baseline. */
 export function applyRedactionDraftChanges(
-  disk: DraftStore,
+  disk: RedactionDraftStore,
   baseline: RedactionDraftBaseline,
   input: {
     previous: RedactionWorkspace;
@@ -86,7 +87,7 @@ export function applyRedactionDraftChanges(
 
 /** Approval binds the pages actually observed/saved, not the root's write counter. */
 export function assertRedactionDraftPagesCurrent(
-  disk: DraftStore,
+  disk: RedactionDraftStore,
   baseline: RedactionDraftBaseline,
 ): void {
   for (const [path, observed] of Object.entries(baseline.pages))
