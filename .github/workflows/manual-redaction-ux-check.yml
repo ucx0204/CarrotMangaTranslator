@@ -1,27 +1,23 @@
-name: Manual redaction UX validation
+name: Manual redaction checks
 
+# One ordinary repository check; no browser captures or duplicated test/build runs.
 on:
   push:
     branches: [feat/manual-redaction-workspace-20260910]
     paths:
       - .github/workflows/manual-redaction-ux-check.yml
-      - .github/manual-redaction-ux-qa.py
-      - src/renderer/src/components/imageRedaction/**
-      - src/renderer/src/components/ImageRedactionModal.tsx
-      - src/shared/imageRedaction*.ts
-      - src/main/imageRedaction*.ts
-      - src/shared/i18n/**
-      - tests/manualRedaction*
-      - tests/i18nKeyUsage.test.ts
-      - tests/productionCleanupCoverageGate.test.ts
-      - scripts/check-production-cleanup-coverage.cjs
-      - scripts/production-cleanup-coverage-floors.json
+      - src/**
+      - tests/**
+      - scripts/**
+      - "*.json"
+      - "*.cjs"
+      - "*.ts"
 
 permissions:
   contents: read
 
 concurrency:
-  group: manual-redaction-ux-${{ github.ref }}
+  group: manual-redaction-check-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -50,48 +46,17 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        id: install
         run: npm ci
-      - name: Check actual dev compilation, regressions, lint and build
-        run: python .github/manual-redaction-validate.py
-      - name: Capture the actual wide and narrow editor
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: python .github/manual-redaction-ux-qa.py
-      - name: Preserve build evidence and real screenshots
+      - name: Run the complete repository check once
+        run: npm run check
+      - name: Preserve check diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: manual-redaction-ux-${{ github.run_id }}
+          name: manual-redaction-check-${{ github.run_id }}
           path: |
-            .tmp/manual-redaction-check/
-            .tmp/manual-redaction-ux-qa/
-          if-no-files-found: error
-          retention-days: 7
-      - name: Run the complete repository check
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        shell: python
-        run: |
-          import subprocess
-          from pathlib import Path
-          root = Path('.tmp/manual-redaction-full-check')
-          root.mkdir(parents=True, exist_ok=True)
-          with (root / 'check.log').open('w', encoding='utf-8') as log:
-              try:
-                  code = subprocess.run(['npm.cmd', 'run', 'check'], stdout=log, stderr=subprocess.STDOUT, timeout=2100).returncode
-              except subprocess.TimeoutExpired:
-                  code = 124
-          print((root / 'check.log').read_text(encoding='utf-8', errors='replace')[-16000:])
-          raise SystemExit(code)
-      - name: Preserve complete-check diagnostics
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: manual-redaction-full-check-${{ github.run_id }}
-          path: |
-            .tmp/manual-redaction-full-check/
             .tmp/check-timings.json
-            .tmp/check-results/
             .tmp/check-logs/
-            coverage/coverage-summary.json
+            .tmp/check-results/
           if-no-files-found: warn
           retention-days: 7
