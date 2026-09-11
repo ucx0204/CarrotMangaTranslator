@@ -21,9 +21,10 @@ function ioError(code: string): NodeJS.ErrnoException {
 }
 
 function probeFiles(root: string): string[] {
-  return fs.readdirSync(root, { recursive: true }).map(String).filter((name) =>
-    name.includes(".mgt-write-probe-"),
-  );
+  return fs
+    .readdirSync(root, { recursive: true })
+    .map(String)
+    .filter((name) => name.includes(".mgt-write-probe-"));
 }
 
 afterEach(() => {
@@ -47,7 +48,9 @@ describe("startup write-access probe", () => {
     expect(fs.readFileSync(join(root, "library", "original.png"), "utf8")).toBe(
       "untouched image",
     );
-    expect(fs.statSync(join(root, "tmp", "system-temp")).isDirectory()).toBe(true);
+    expect(fs.statSync(join(root, "tmp", "system-temp")).isDirectory()).toBe(
+      true,
+    );
     expect(probeFiles(root)).toEqual([]);
   });
 
@@ -60,18 +63,21 @@ describe("startup write-access probe", () => {
     expect(mkdir).not.toHaveBeenCalled();
   });
 
-  it.each(["EACCES", "EPERM"])("distinguishes %s from non-permission failures", (code) => {
-    const root = temporaryRoot();
-    const error = ioError(code);
-    vi.spyOn(fs, "mkdirSync").mockImplementationOnce(() => {
-      throw error;
-    });
-    expect(probeStartupWriteAccess(root)).toEqual({
-      status: "permission-denied",
-      path: root,
-      error,
-    });
-  });
+  it.each(["EACCES", "EPERM"])(
+    "distinguishes %s from non-permission failures",
+    (code) => {
+      const root = temporaryRoot();
+      const error = ioError(code);
+      vi.spyOn(fs, "mkdirSync").mockImplementationOnce(() => {
+        throw error;
+      });
+      expect(probeStartupWriteAccess(root)).toEqual({
+        status: "permission-denied",
+        path: root,
+        error,
+      });
+    },
+  );
 
   it("reports disk exhaustion without requesting elevation and cleans up", () => {
     const root = temporaryRoot();
@@ -126,7 +132,10 @@ describe("startup write-access probe", () => {
     expect(result.status).toBe("unavailable");
     if (result.status !== "writable") {
       expect(result.error).toBeInstanceOf(AggregateError);
-      expect((result.error as AggregateError).errors).toEqual([primary, cleanup]);
+      expect((result.error as AggregateError).errors).toEqual([
+        primary,
+        cleanup,
+      ]);
     }
   });
 
