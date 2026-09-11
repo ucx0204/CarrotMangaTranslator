@@ -54,12 +54,21 @@ function post(connection, message) {
 /** @param {{url: string, token: string}} connection @param {string} method @param {object} [params] */
 async function rpc(connection, method, params = {}) {
   const id = nextId++;
-  const response = await post(connection, { jsonrpc: "2.0", id, method, params });
-  if (!response.ok) throw new Error(`HTTP ${response.status} during ${method}. Check the app, token and exact public origin.`);
+  const response = await post(connection, {
+    jsonrpc: "2.0",
+    id,
+    method,
+    params,
+  });
+  if (!response.ok)
+    throw new Error(
+      `HTTP ${response.status} during ${method}. Check the app, token and exact public origin.`,
+    );
   const reply = await readJson(response);
   assert.equal(reply.jsonrpc, "2.0");
   assert.equal(reply.id, id);
-  if (reply.error) throw new Error(`MCP protocol error ${reply.error.code} during ${method}.`);
+  if (reply.error)
+    throw new Error(`MCP protocol error ${reply.error.code} during ${method}.`);
   return reply.result;
 }
 
@@ -71,7 +80,10 @@ async function rpc(connection, method, params = {}) {
  */
 async function call(connection, name, args = {}) {
   const result = await rpc(connection, "tools/call", { name, arguments: args });
-  if (result.isError) throw new Error(`${name} was rejected by the app. For previews, check local image-redaction policy; do not disable protection for private pages. See the local app log.`);
+  if (result.isError)
+    throw new Error(
+      `${name} was rejected by the app. For previews, check local image-redaction policy; do not disable protection for private pages. See the local app log.`,
+    );
   return result;
 }
 
@@ -84,7 +96,10 @@ function textResult(result) {
 
 /** @param {{url: string, token: string}} connection */
 async function handshake(connection) {
-  const denied = await post({ ...connection, token: "intentionally-invalid" }, { jsonrpc: "2.0", id: 0, method: "ping" });
+  const denied = await post(
+    { ...connection, token: "intentionally-invalid" },
+    { jsonrpc: "2.0", id: 0, method: "ping" },
+  );
   assert.equal(denied.status, 401, "Invalid credentials must be rejected");
   await denied.body?.cancel();
   console.log("PASS invalid token rejected (401)");
@@ -95,7 +110,10 @@ async function handshake(connection) {
   });
   assert.equal(initialized.serverInfo.name, "carrot-manga-translator");
   version = initialized.protocolVersion;
-  const notification = await post(connection, { jsonrpc: "2.0", method: "notifications/initialized" });
+  const notification = await post(connection, {
+    jsonrpc: "2.0",
+    method: "notifications/initialized",
+  });
   assert.equal(notification.status, 202);
   assert.equal(await notification.text(), "");
   console.log(`PASS MCP initialize / notification (${version})`);
@@ -105,28 +123,46 @@ async function handshake(connection) {
 async function inspectLibrary(connection) {
   const listing = await rpc(connection, "tools/list");
   console.log(`PASS tools/list (${listing.tools.length} tools)`);
-  const capabilities = textResult(await call(connection, "carrot_get_capabilities"));
+  const capabilities = textResult(
+    await call(connection, "carrot_get_capabilities"),
+  );
   assert.equal(capabilities.mode, "read-only");
   assert.equal(capabilities.translation, false);
-  console.log(`PASS capabilities (imageTransfer=${capabilities.imageTransfer})`);
-  const works = textResult(await call(connection, "carrot_list_works", { limit: 5 }));
+  console.log(
+    `PASS capabilities (imageTransfer=${capabilities.imageTransfer})`,
+  );
+  const works = textResult(
+    await call(connection, "carrot_list_works", { limit: 5 }),
+  );
   console.log(`PASS library read (${works.total} works)`);
   console.log(JSON.stringify(works.works, null, 2));
   if (!works.works.length) return null;
-  const chapters = textResult(await call(connection, "carrot_list_chapters", { workId: works.works[0].id, limit: 1 }));
+  const chapters = textResult(
+    await call(connection, "carrot_list_chapters", {
+      workId: works.works[0].id,
+      limit: 1,
+    }),
+  );
   console.log(`PASS chapters read (${chapters.total} chapters in first work)`);
   if (!chapters.chapters.length) return null;
   const chapterId = chapters.chapters[0].id;
-  const chapter = textResult(await call(connection, "carrot_get_chapter", { chapterId, limit: 1 }));
+  const chapter = textResult(
+    await call(connection, "carrot_get_chapter", { chapterId, limit: 1 }),
+  );
   console.log(`PASS pages read (${chapter.total} pages in first chapter)`);
-  return chapter.pages.length ? { chapterId, pageId: chapter.pages[0].id } : null;
+  return chapter.pages.length
+    ? { chapterId, pageId: chapter.pages[0].id }
+    : null;
 }
 
 /** @param {{url: string, token: string}} connection @param {{chapterId: string, pageId: string}} target */
 async function savePreview(connection, target) {
   const result = await call(connection, "carrot_get_page_preview", target);
   const image = result.content.find((item) => item.type === "image");
-  if (!image) throw new Error("Expected an MCP image result. Start mcp-dev.cjs with --images.");
+  if (!image)
+    throw new Error(
+      "Expected an MCP image result. Start mcp-dev.cjs with --images.",
+    );
   assert.equal(image.mimeType, "image/png", "Expected an MCP PNG image result");
   const bytes = Buffer.from(image.data, "base64");
   assert.ok(bytes.length <= 4 * 1024 * 1024, "Preview size must be bounded");
@@ -140,14 +176,20 @@ async function savePreview(connection, target) {
 function readOptions() {
   const args = process.argv.slice(2);
   if (args.length === 0) return { preview: false, target: null };
-  if (args.length === 1 && args[0] === "--first-preview") return { preview: true, target: null };
-  if (args.length === 3 && args[0] === "--preview") return { preview: true, target: { chapterId: args[1], pageId: args[2] } };
-  throw new Error("Usage: node scripts/mcp-smoke.mjs [--first-preview | --preview CHAPTER_ID PAGE_ID]");
+  if (args.length === 1 && args[0] === "--first-preview")
+    return { preview: true, target: null };
+  if (args.length === 3 && args[0] === "--preview")
+    return { preview: true, target: { chapterId: args[1], pageId: args[2] } };
+  throw new Error(
+    "Usage: node scripts/mcp-smoke.mjs [--first-preview | --preview CHAPTER_ID PAGE_ID]",
+  );
 }
 
 async function main() {
   if (process.argv.includes("--help")) {
-    console.log("Usage: node scripts/mcp-smoke.mjs [--first-preview | --preview CHAPTER_ID PAGE_ID]\nStart mcp-dev.cjs first. Defaults to local port 38475 and .tmp/mcp-local-token.\nOptional env: CARROT_MCP_URL, CARROT_MCP_PORT, CARROT_MCP_TOKEN.\nNo images are downloaded unless explicitly requested. No AI models or writes are invoked.");
+    console.log(
+      "Usage: node scripts/mcp-smoke.mjs [--first-preview | --preview CHAPTER_ID PAGE_ID]\nStart mcp-dev.cjs first. Defaults to local port 38475 and .tmp/mcp-local-token.\nOptional env: CARROT_MCP_URL, CARROT_MCP_PORT, CARROT_MCP_TOKEN.\nNo images are downloaded unless explicitly requested. No AI models or writes are invoked.",
+    );
     return;
   }
   const options = readOptions();
@@ -156,14 +198,24 @@ async function main() {
   const first = await inspectLibrary(connection);
   if (options.preview) {
     const target = options.target ?? first;
-    if (!target) throw new Error("No page found. Add a non-private test image to the development app first.");
+    if (!target)
+      throw new Error(
+        "No page found. Add a non-private test image to the development app first.",
+      );
     await savePreview(connection, target);
   }
-  console.log("PASS smoke test complete (read-only; no OCR or translation executed)");
+  console.log(
+    "PASS smoke test complete (read-only; no OCR or translation executed)",
+  );
 }
 
 main().catch((error) => {
-  console.error("FAIL", error instanceof Error ? error.message : "Unknown diagnostic failure");
-  console.error("Keep the development app open. Check docs/mcp-testing.md for setup and troubleshooting.");
+  console.error(
+    "FAIL",
+    error instanceof Error ? error.message : "Unknown diagnostic failure",
+  );
+  console.error(
+    "Keep the development app open. Check docs/mcp-testing.md for setup and troubleshooting.",
+  );
   process.exitCode = 1;
 });
