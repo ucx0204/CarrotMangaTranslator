@@ -86,6 +86,11 @@ export class McpOAuthHttp {
         "Set-Cookie",
         `${COOKIE}=${consent.cookie}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=300`,
       );
+      // no-referrer makes a native form POST send Origin:null, which our CSRF
+      // guard correctly rejects. Preserve same-origin form provenance instead;
+      // cross-origin referrers remain suppressed. The 303 response keeps the
+      // default no-referrer policy so the callback never receives consent URLs.
+      response.setHeader("Referrer-Policy", "same-origin");
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(mcpOAuthConsentPage(consent));
     } else {
