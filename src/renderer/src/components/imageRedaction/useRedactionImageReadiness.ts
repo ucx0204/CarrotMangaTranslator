@@ -11,6 +11,7 @@ type Options = {
   error: unknown;
   strokes: ImageRedactionStroke[];
   renderKey?: unknown;
+  inspectionReady?: boolean;
   onReady?: (ready: boolean) => void;
   source: "detail" | "thumbnail";
 };
@@ -32,6 +33,7 @@ export function useRedactionImageReadiness(options: Options) {
     mask.key === key &&
     mask.strokes === options.strokes &&
     mask.renderKey === options.renderKey &&
+    options.inspectionReady !== false &&
     !failed &&
     !options.error;
   const notify = useEventCallback((value: boolean) => options.onReady?.(value));

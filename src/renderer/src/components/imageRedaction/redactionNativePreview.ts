@@ -1,11 +1,11 @@
 import type { RedactionPreviewRegion } from "../../../../shared/imageRedactionPreview";
 import { redactionPreviewVariantKey } from "../../../../shared/imageRedactionPreview";
-import type { RedactionPreviewCache } from "./redactionPreviewCache";
+import type { RedactionPreviewSource } from "./redactionWorkspaceTypes";
 import type { RedactionMaskWindow } from "./redactionMaskWindow";
 
 type Page = { id: string; width: number; height: number };
 export function nativeRedactionPreviewKey(
-  cache: RedactionPreviewCache,
+  cache: RedactionPreviewSource,
   sessionId: string,
   page: Page,
   window: RedactionMaskWindow,
@@ -32,7 +32,7 @@ export function nativeRedactionPreviewTiles(
 }
 
 export async function renderNativeRedactionPreview(
-  cache: RedactionPreviewCache,
+  cache: RedactionPreviewSource,
   sessionId: string,
   pageId: string,
   region: RedactionPreviewRegion,
@@ -52,6 +52,11 @@ export async function renderNativeRedactionPreview(
     );
     const image = await decodeNativePreview(url, signal);
     signal.throwIfAborted();
+    if (
+      image.naturalWidth !== tile.width ||
+      image.naturalHeight !== tile.height
+    )
+      throw new Error("The native preview tile has an unexpected size");
     context.drawImage(image, tile.x - region.x, tile.y - region.y);
   }
   signal.throwIfAborted();

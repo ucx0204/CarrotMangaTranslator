@@ -9,11 +9,10 @@ import {
   changeRedactionView,
 } from "./redactionWorkspaceModel";
 import { RedactionMaskCanvas } from "./RedactionMaskCanvas";
+import { useRedactionCanvasImage } from "./useRedactionCanvasImage";
 import { RedactionZoomControls } from "./RedactionTools";
-import { useRedactionPreview } from "./useRedactionPreview";
 import { useRedactionGestures } from "./useRedactionGestures";
 import { useRedactionViewport } from "./useRedactionViewport";
-import { useRedactionImageReadiness } from "./useRedactionImageReadiness";
 import { useRedactionMaskWindow } from "./useRedactionMaskWindow";
 import type { RedactionMaskWindow } from "./redactionMaskWindow";
 import styles from "./RedactionWorkspace.module.css";
@@ -34,7 +33,11 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
   const document = state.documents[page.id];
   const { viewportRef, stageRef, zoom, onScroll } = useCanvasViewport(props);
   const window = useRedactionMaskWindow(viewportRef, stageRef, page, zoom);
-  const { image, readiness } = useCanvasImage(props, window);
+  const { image, readiness, inspection } = useRedactionCanvasImage({
+    ...props,
+    window,
+    zoom,
+  });
   const { handlers, draft, transformed } = useRedactionGestures({
     page,
     strokes: document.strokes,
@@ -78,6 +81,7 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
             strokes={strokes}
             draft={draft}
             window={window}
+            inspection={inspection}
           />
           {strokes[selected] ? (
             <SelectionOutline
@@ -97,8 +101,8 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
     </div>
   );
 }
-type ImageState = ReturnType<typeof useRedactionPreview>;
-type Readiness = ReturnType<typeof useRedactionImageReadiness>;
+type ImageState = ReturnType<typeof useRedactionCanvasImage>["image"];
+type Readiness = ReturnType<typeof useRedactionCanvasImage>["readiness"];
 function CanvasImage({
   page,
   image,
@@ -106,7 +110,9 @@ function CanvasImage({
   strokes,
   draft,
   window,
+  inspection,
 }: {
+  inspection: React.ReactNode;
   page: RedactionWorkspacePage;
   window: RedactionMaskWindow;
   image: ImageState;
@@ -125,6 +131,7 @@ function CanvasImage({
         onLoad={readiness.decoded}
         onError={() => readiness.reject()}
       />
+      {inspection}
       {!readiness.failed ? (
         <RedactionMaskCanvas
           width={page.width}
@@ -226,27 +233,4 @@ function useCanvasViewport({ form, page }: Props) {
       ),
     form.busy || form.drawing,
   );
-}
-
-function useCanvasImage(
-  { form, page, onReady }: Props,
-  renderKey: RedactionMaskWindow,
-) {
-  const image = useRedactionPreview(
-    form.previews,
-    form.state.workspace.sessionId,
-    page.id,
-    2048,
-  );
-  const readiness = useRedactionImageReadiness({
-    source: "detail",
-    renderKey,
-    form,
-    pageId: page.id,
-    ...image,
-    requestKey: image.key,
-    strokes: form.state.documents[page.id].strokes,
-    onReady,
-  });
-  return { image, readiness };
 }

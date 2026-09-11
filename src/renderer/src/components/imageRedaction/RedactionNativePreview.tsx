@@ -1,12 +1,12 @@
 import React from "react";
 import { useEventCallback } from "../../hooks/useEventCallback";
 import { renderNativeRedactionPreview } from "./redactionNativePreview";
-import type { RedactionPreviewCache } from "./redactionPreviewCache";
+import type { RedactionPreviewSource } from "./redactionWorkspaceTypes";
 import type { RedactionMaskWindow } from "./redactionMaskWindow";
 import styles from "./RedactionWorkspace.module.css";
 
 type Props = {
-  cache: RedactionPreviewCache;
+  cache: RedactionPreviewSource;
   sessionId: string;
   page: { id: string; width: number; height: number };
   window: RedactionMaskWindow;
