@@ -60,6 +60,51 @@ function buildSoundEffectTranslationPrompt(options, imageVariants = []) {
   );
 }
 
+/** Constrain the existing one-target contract, not the target's interpretation.
+ * Uncertainty remains an allowed result; downstream validation still owns it.
+ * @param {Record<string, unknown>} options
+ */
+function buildSoundEffectTranslationResponseFormat(options) {
+  const { regionId } = readSoundEffectTarget(options);
+  if (!regionId) throw new Error("A fixed sound-effect target is required");
+  return {
+    type: "json_object",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["items"],
+      properties: {
+        items: {
+          type: "array",
+          minItems: 1,
+          maxItems: 1,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "regionId",
+              "verdict",
+              "confirmedSource",
+              "translation",
+              "confidence",
+            ],
+            properties: {
+              regionId: { type: "string", enum: [regionId] },
+              verdict: {
+                type: "string",
+                enum: ["sound", "reaction", "uncertain"],
+              },
+              confirmedSource: { type: "string" },
+              translation: { type: "string" },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
 /** @param {Record<string, unknown>} options */
 function readSoundEffectTarget(options) {
   const regions = Array.isArray(options.soundEffectTranslationRegions)
@@ -112,4 +157,5 @@ module.exports = {
   SOUND_EFFECT_TRANSLATION_CONTRACT_VERSION,
   buildSoundEffectTranslationPrompt,
   buildSoundEffectTranslationSystemPrompt,
+  buildSoundEffectTranslationResponseFormat,
 };
