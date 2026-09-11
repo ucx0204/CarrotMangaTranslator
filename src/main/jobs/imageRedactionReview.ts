@@ -65,7 +65,7 @@ export async function withImageRedactionReview<T>(
     input.signal,
   );
   const sessionId = randomUUID();
-  let cancel = () => {};
+  let cancel: (() => void) | undefined;
   try {
     const approved = await new Promise<ImageRedactionPage[]>(
       (resolve, reject) => {
@@ -99,7 +99,7 @@ export async function withImageRedactionReview<T>(
     const retainDraft =
       input.signal.aborted && pending.get(input.jobId)?.retainedDraft;
     pending.delete(input.jobId);
-    input.signal.removeEventListener("abort", cancel);
+    if (cancel) input.signal.removeEventListener("abort", cancel);
     if (!retainDraft) await closeRedactionWorkspace(sessionId);
   }
 }
