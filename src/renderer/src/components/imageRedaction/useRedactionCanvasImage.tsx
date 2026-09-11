@@ -3,7 +3,7 @@ import type { RedactionWorkspacePage } from "../../../../shared/imageRedactionWo
 import type { RedactionWorkspaceController } from "./redactionWorkspaceTypes";
 import type { RedactionMaskWindow } from "./redactionMaskWindow";
 import { RedactionNativePreview } from "./RedactionNativePreview";
-import { nativeRedactionPreviewKey } from "./redactionNativePreview";
+import { nativeRedactionPreviewKey } from "./redactionNativeSurface";
 import { useRedactionPreview } from "./useRedactionPreview";
 import { useRedactionImageReadiness } from "./useRedactionImageReadiness";
 

@@ -1,6 +1,6 @@
 import React from "react";
 import { useEventCallback } from "../../hooks/useEventCallback";
-import { renderNativeRedactionPreview } from "./redactionNativePreview";
+import { renderNativeRedactionPreview } from "./redactionNativeSurface";
 import type { RedactionPreviewSource } from "./redactionWorkspaceTypes";
 import type { RedactionMaskWindow } from "./redactionMaskWindow";
 import styles from "./RedactionWorkspace.module.css";

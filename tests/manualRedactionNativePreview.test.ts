@@ -3,7 +3,7 @@ import {
   nativeRedactionPreviewKey,
   nativeRedactionPreviewTiles,
   renderNativeRedactionPreview,
-} from "../src/renderer/src/components/imageRedaction/redactionNativePreview";
+} from "../src/renderer/src/components/imageRedaction/redactionNativeSurface";
 import type { RedactionPreviewSource } from "../src/renderer/src/components/imageRedaction/redactionWorkspaceTypes";
 
 afterEach(() => vi.unstubAllGlobals());
