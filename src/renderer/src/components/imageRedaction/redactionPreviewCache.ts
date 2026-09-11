@@ -1,3 +1,4 @@
+import { redactionPreviewVariantKey } from "../../../../shared/imageRedactionPreview";
 import type { RedactionPreviewRequest } from "../../../../shared/imageRedactionWorkspace";
 
 type Task = {
@@ -50,7 +51,7 @@ export class RedactionPreviewCache {
     if (this.disposed)
       return Promise.reject(new Error("Redaction preview queue is closed"));
     const version = this.version(request.sessionId, request.pageId);
-    const key = `${request.sessionId}:${request.pageId}:${request.maxEdge}:${version}`;
+    const key = `${request.sessionId}:${request.pageId}:${redactionPreviewVariantKey(request.maxEdge, request.region)}:${version}`;
     const cached = this.cache.get(key);
     if (cached) {
       this.cache.delete(key);
