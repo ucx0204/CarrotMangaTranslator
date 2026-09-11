@@ -73,7 +73,9 @@ describe("Windows elevation process boundary", () => {
     { sid: "S-1-5-21-42", elevated: "true" },
   ])("rejects malformed identity results: %j", (value) => {
     prepareResult(value);
-    expect(() => readWindowsProcessIdentity()).toThrow("invalid process identity");
+    expect(() => readWindowsProcessIdentity()).toThrow(
+      "invalid process identity",
+    );
   });
 
   it("preserves Unicode paths and quotes arguments without interpolating them as code", () => {
@@ -98,7 +100,7 @@ describe("Windows elevation process boundary", () => {
         '"a b"',
         '"say \\"hello\\""',
         '"C:\\folder\\\\"',
-        '"$x; & calc.exe | echo \'not code\'"',
+        "\"$x; & calc.exe | echo 'not code'\"",
       ].join(" "),
     });
     expect(lastScript()).toContain("$start.UseShellExecute = $true");
@@ -124,7 +126,12 @@ describe("Windows elevation process boundary", () => {
     },
   );
 
-  it.each(["relative.exe", "C:relative.exe", "\\relative.exe", "C:\\bad\0.exe"])(
+  it.each([
+    "relative.exe",
+    "C:relative.exe",
+    "\\relative.exe",
+    "C:\\bad\0.exe",
+  ])(
     "rejects non-qualified or invalid executable paths: %s",
     (executablePath) => {
       prepareResult({ status: "launched" });
