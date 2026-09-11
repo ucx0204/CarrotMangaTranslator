@@ -1,4 +1,5 @@
 import React from "react";
+import { changeRedactionView } from "./redactionWorkspaceModel";
 import type { ManualRedactionWorkspaceModel } from "./useManualRedactionWorkspace";
 import { RedactionBatchActions } from "./RedactionBatchActions";
 import { RedactionPageFilter } from "./RedactionPageFilter";
@@ -30,7 +31,15 @@ export function RedactionWorkspaceBody({
     <>
       <div className={styles.layout}>
         <aside className={styles.sidebar}>
-          <RedactionPageFilter form={form} />
+          <RedactionPageFilter
+            value={view.filter}
+            disabled={form.busy || form.drawing}
+            onChange={(filter) =>
+              form.commit((current) =>
+                changeRedactionView(current, { filter, gridOffset: 0 }),
+              )
+            }
+          />
           <RedactionBatchActions
             form={form}
             ids={ids}

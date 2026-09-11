@@ -27,7 +27,8 @@ export function ManualRedactionWorkspace(
         onEntered={actions.focus}
         headerExtra={
           <RedactionWorkspaceHeader
-            form={form}
+            disabled={form.busy || form.drawing}
+            hasPreviousMask={model.summary.hasPreviousMask}
             preparation={!props.job}
             onHelp={() => setDialog("help")}
             onPresets={() => setDialog("presets")}
@@ -39,7 +40,13 @@ export function ManualRedactionWorkspace(
         closeDisabled={form.busy || form.drawing}
         footer={
           <RedactionWorkspaceFooter
-            form={form}
+            progress={model.summary}
+            failedCount={form.failed.size}
+            disabled={form.busy || form.drawing}
+            saveStatus={form.saveStatus}
+            onRetrySave={() => {
+              void form.flush().catch(() => undefined);
+            }}
             preparation={!props.job}
             onUnreviewed={actions.nextUnreviewed}
             onIssue={actions.showIssue}

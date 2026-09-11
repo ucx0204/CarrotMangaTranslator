@@ -1,4 +1,5 @@
 import React from "react";
+import { summarizeRedactionWorkspace } from "./redactionWorkspacePresentation";
 import { useEventCallback } from "../../hooks/useEventCallback";
 import type {
   ManualRedactionWorkspaceProps,
@@ -81,6 +82,7 @@ export function useManualRedactionWorkspace(
     ids,
     source,
     previousMask,
+    summary: summarizeRedactionWorkspace(state),
     onPageReady,
   };
 }
