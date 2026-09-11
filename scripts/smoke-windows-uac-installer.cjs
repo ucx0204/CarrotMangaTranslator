@@ -25,7 +25,11 @@ const {
  */
 async function main() {
   assert.equal(process.platform, "win32", "Windows is required.");
-  assert.equal(process.env.GITHUB_ACTIONS, "true", "Run on disposable CI only.");
+  assert.equal(
+    process.env.GITHUB_ACTIONS,
+    "true",
+    "Run on disposable CI only.",
+  );
   const repository = resolve(__dirname, "..");
   const scratchParent = join(repository, ".tmp");
   mkdirSync(scratchParent, { recursive: true });
@@ -78,7 +82,7 @@ async function main() {
         runAfterFinish: false,
         createDesktopShortcut: false,
         createStartMenuShortcut: false,
-        artifactName: "setup.exe",
+        artifactName: "carrot-uac-fixture.exe",
       },
     }),
   );
@@ -100,13 +104,16 @@ async function main() {
       publish: "never",
     });
 
-    const setup = join(output, "setup.exe");
+    const setup = join(output, "carrot-uac-fixture.exe");
     assert.ok(existsSync(setup), "The fixture installer was not built.");
     for (const scope of ["/currentuser", "/allusers"]) {
       runNsis(setup, ["/S", scope, `/D=${installDir}`], scratch);
       const pointer = join(installDir, "data-root.txt");
       const dataRoot = readFileSync(pointer, "utf8").trim();
-      assert.equal(dataRoot.toLowerCase(), join(installDir, "data").toLowerCase());
+      assert.equal(
+        dataRoot.toLowerCase(),
+        join(installDir, "data").toLowerCase(),
+      );
       assert.ok(existsSync(join(dataRoot, ".manga-gemma-translator-data")));
       const library = join(dataRoot, "library");
       mkdirSync(library, { recursive: true });
@@ -127,13 +134,20 @@ async function main() {
       const uninstall = join(scratch, "uninstall-fixture.exe");
       copyFileSync(join(installDir, uninstallName), uninstall);
       runNsis(uninstall, ["/S", scope, `_?=${installDir}`], scratch);
-      assert.equal(existsSync(join(installDir, "CarrotMangaTranslator.exe")), false);
+      assert.equal(
+        existsSync(join(installDir, "CarrotMangaTranslator.exe")),
+        false,
+      );
       assert.equal(existsSync(join(installDir, "resources")), false);
       assert.equal(readFileSync(pointer, "utf8").trim(), dataRoot);
       assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
-      console.log(`[windows-uac-smoke] ${scope}: install, repair, remove, preserve OK`);
+      console.log(
+        `[windows-uac-smoke] ${scope}: install, repair, remove, preserve OK`,
+      );
     }
-    console.log("[windows-uac-smoke] interactive UAC and Explorer behavior NOT tested");
+    console.log(
+      "[windows-uac-smoke] interactive UAC and Explorer behavior NOT tested",
+    );
   } finally {
     setNsisTemplatesDir(nsisUtil, originalTemplates);
     if (oldCompression === undefined) {
@@ -169,5 +183,6 @@ function runNsis(executable, args, cwd) {
 
 main().catch((error) => {
   console.error(error);
-  process.exitCode = 1;
+  // main's finally has already restored templates and cleaned fixture paths.
+  process.exit(1);
 });
