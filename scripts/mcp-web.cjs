@@ -27,7 +27,7 @@ function writeConnectionFile(name, value) {
     renameSync(temporary, join(root, ".tmp", name));
   } catch (error) {
     try { rmSync(temporary, { force: true }); }
-    catch (cleanup) { throw new AggregateError([error, cleanup], "Connection file setup and cleanup failed."); }
+    catch (cleanup) { throw new AggregateError([error, cleanup], "Connection file setup and cleanup failed.", { cause: cleanup }); }
     throw error;
   }
 }
