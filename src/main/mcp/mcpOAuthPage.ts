@@ -1,4 +1,9 @@
-type Consent = { transaction: string; clientName: string; scope: string; resource: string };
+type Consent = {
+  transaction: string;
+  clientName: string;
+  scope: string;
+  resource: string;
+};
 
 /** No remote assets, scripts, cookies in URLs, or user data appear in this page. */
 export function mcpOAuthConsentPage(consent: Consent): string {
@@ -19,5 +24,10 @@ export function mcpOAuthConsentPage(consent: Consent): string {
 }
 
 function escapeHtml(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }

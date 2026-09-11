@@ -49,23 +49,40 @@ export function readChatGptRedirect(value: unknown): string {
     url.pathname === "/connector_platform_oauth_redirect";
   if (
     url.origin !== "https://chatgpt.com" ||
-    url.username || url.password || url.search || url.hash ||
-    !pathAllowed || url.href !== text
-  ) throw new McpOAuthError("invalid_redirect_uri", "Only exact ChatGPT callback URLs are supported by this test server.");
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    !pathAllowed ||
+    url.href !== text
+  )
+    throw new McpOAuthError(
+      "invalid_redirect_uri",
+      "Only exact ChatGPT callback URLs are supported by this test server.",
+    );
   return text;
 }
 
 export function readOAuthScope(value: unknown): string {
   const scope = value === undefined ? "carrot.read" : oauthText(value, 200);
   const scopes = [...new Set(scope.split(" ").filter(Boolean))];
-  if (!scopes.includes("carrot.read") || scopes.some((item) => !["carrot.read", "offline_access"].includes(item)))
-    throw new McpOAuthError("invalid_scope", "Only carrot.read and optional offline_access are supported.");
+  if (
+    !scopes.includes("carrot.read") ||
+    scopes.some((item) => !["carrot.read", "offline_access"].includes(item))
+  )
+    throw new McpOAuthError(
+      "invalid_scope",
+      "Only carrot.read and optional offline_access are supported.",
+    );
   return scopes.join(" ");
 }
 
 export function assertOAuthResource(value: unknown, resource: string): void {
   if (value !== resource)
-    throw new McpOAuthError("invalid_target", "Use the exact resource from protected-resource metadata.");
+    throw new McpOAuthError(
+      "invalid_target",
+      "Use the exact resource from protected-resource metadata.",
+    );
 }
 
 export function readPkceChallenge(value: unknown, method: unknown): string {
@@ -76,14 +93,23 @@ export function readPkceChallenge(value: unknown, method: unknown): string {
 }
 
 export function verifyPkce(value: unknown, challenge: string): boolean {
-  return typeof value === "string" && /^[A-Za-z0-9._~-]{43,128}$/.test(value) && oauthEqual(oauthDigest(value), challenge);
+  return (
+    typeof value === "string" &&
+    /^[A-Za-z0-9._~-]{43,128}$/.test(value) &&
+    oauthEqual(oauthDigest(value), challenge)
+  );
 }
 
-export function uniqueOAuthParams(params: URLSearchParams): Record<string, string> {
+export function uniqueOAuthParams(
+  params: URLSearchParams,
+): Record<string, string> {
   const result: Record<string, string> = Object.create(null);
   for (const [key, value] of params) {
     if (Object.hasOwn(result, key))
-      throw new McpOAuthError("invalid_request", "Duplicate parameters are not accepted.");
+      throw new McpOAuthError(
+        "invalid_request",
+        "Duplicate parameters are not accepted.",
+      );
     result[key] = value;
   }
   return result;

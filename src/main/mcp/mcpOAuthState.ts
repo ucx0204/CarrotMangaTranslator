@@ -13,9 +13,16 @@ export class McpOAuthState<T> {
   issue(value: T, lifetimeMs: number): string {
     this.prune();
     if (this.entries.size >= this.capacity)
-      throw new McpOAuthError("temporarily_unavailable", "OAuth capacity reached. Retry later or restart the local test server.", 503);
+      throw new McpOAuthError(
+        "temporarily_unavailable",
+        "OAuth capacity reached. Retry later or restart the local test server.",
+        503,
+      );
     const secret = randomBytes(32).toString("base64url");
-    this.entries.set(oauthDigest(secret), { value, expiresAt: this.now() + lifetimeMs });
+    this.entries.set(oauthDigest(secret), {
+      value,
+      expiresAt: this.now() + lifetimeMs,
+    });
     return secret;
   }
 
