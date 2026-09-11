@@ -1,0 +1,39 @@
+name: MCP offline development kit
+
+on:
+  push:
+    branches: [feat/mcp-app-bridge]
+    paths: [.github/workflows/mcp-offline-kit.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  source-and-tools:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install exact lockfile dependencies without running application setup
+        run: npm ci --ignore-scripts
+      - name: Pack only tracked source and installed development dependencies
+        run: |
+          git archive --format=tar HEAD | gzip > "$RUNNER_TEMP/carrot-source.tar.gz"
+          tar -czf "$RUNNER_TEMP/carrot-tools.tar.gz" node_modules
+          git rev-parse HEAD > "$RUNNER_TEMP/carrot-source-commit.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: carrot-offline-kit
+          path: |
+            ${{ runner.temp }}/carrot-source.tar.gz
+            ${{ runner.temp }}/carrot-tools.tar.gz
+            ${{ runner.temp }}/carrot-source-commit.txt
+          retention-days: 1
+          compression-level: 0
