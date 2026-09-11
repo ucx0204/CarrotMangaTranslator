@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { McpOAuthProvider } from "./mcpOAuthProvider";
+import type { McpPairingHttp } from "./mcpPairingHttp";
 import type { McpOAuthSession } from "./mcpOAuthSession";
 import {
   McpOAuthError,
@@ -16,6 +17,7 @@ const GET_PATHS = [
   "/.well-known/oauth-protected-resource/mcp",
   "/.well-known/oauth-authorization-server",
   "/oauth/authorize",
+  "/oauth/pairing",
 ];
 const POST_PATHS = [
   "/oauth/register",
@@ -33,6 +35,7 @@ export class McpOAuthHttp {
     issuer: string,
     password: string,
     private readonly session?: McpOAuthSession,
+    private readonly pairing?: McpPairingHttp,
   ) {
     this.provider = session?.provider ?? new McpOAuthProvider(issuer, password);
     if (this.provider.issuer !== issuer)
@@ -46,6 +49,7 @@ export class McpOAuthHttp {
   }
 
   stop(): void {
+    this.pairing?.service.close();
     this.session?.stop();
   }
 
@@ -71,6 +75,7 @@ export class McpOAuthHttp {
     secureResponse(response);
     try {
       this.limitRequests();
+      if (await this.pairing?.handle(url, request, response)) return true;
       if (request.method === "GET" && GET_PATHS.includes(url.pathname)) {
         this.get(url, response);
       } else if (
@@ -135,6 +140,7 @@ export class McpOAuthHttp {
     response: ServerResponse,
   ): Promise<void> {
     if (path === "/oauth/register") {
+      this.pairing?.service.assertOpen();
       requireContentType(request, "application/json");
       const input = oauthRecord(await readMcpBody(request));
       sendJson(
