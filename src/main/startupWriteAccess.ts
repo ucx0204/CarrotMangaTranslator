@@ -49,7 +49,9 @@ export function probeStartupWriteAccess(
       probeWritableDirectory(directory);
     } catch (error) {
       return {
-        status: isPermissionFailure(error) ? "permission-denied" : "unavailable",
+        status: isPermissionFailure(error)
+          ? "permission-denied"
+          : "unavailable",
         path: directory,
         error,
       };
@@ -82,14 +84,14 @@ function probeWritableDirectory(directory: string): void {
     throw failures[0];
   }
   if (failures.length > 1) {
-    throw new AggregateError(failures, `Startup write probe failed: ${directory}`);
+    throw new AggregateError(
+      failures,
+      `Startup write probe failed: ${directory}`,
+    );
   }
 }
 
-function collectCleanupFailure(
-  cleanup: () => void,
-  failures: unknown[],
-): void {
+function collectCleanupFailure(cleanup: () => void, failures: unknown[]): void {
   try {
     cleanup();
   } catch (error) {
