@@ -1,0 +1,510 @@
+diff --git a/src/main/mcp/mcpOAuthClients.ts b/src/main/mcp/mcpOAuthClients.ts
+index 25838cd..b52af7c 100644
+--- a/src/main/mcp/mcpOAuthClients.ts
++++ b/src/main/mcp/mcpOAuthClients.ts
+@@ -20,7 +20,10 @@ const CLIENT_LIFETIME = 7 * 24 * 60 * 60 * 1000;
+ export class McpOAuthClients {
+   private readonly clients: McpOAuthState<Client>;
+ 
+-  constructor(private readonly now: () => number) {
++  constructor(
++    private readonly now: () => number,
++    private readonly persistent = false,
++  ) {
+     this.clients = new McpOAuthState(now, 64);
+   }
+ 
+@@ -55,19 +58,12 @@ export class McpOAuthClients {
+       method === "none" ? undefined : randomBytes(32).toString("base64url");
+     const id = this.clients.issue(
+       { name, redirects, method, secretHash: secret && oauthDigest(secret) },
+-      CLIENT_LIFETIME,
++      this.persistent ? Number.MAX_SAFE_INTEGER - this.now() : CLIENT_LIFETIME,
+     );
+     return {
+       client_id: id,
+       client_id_issued_at: Math.floor(this.now() / 1000),
+-      ...(secret
+-        ? {
+-            client_secret: secret,
+-            client_secret_expires_at: Math.floor(
+-              (this.now() + CLIENT_LIFETIME) / 1000,
+-            ),
+-          }
+-        : {}),
++      ...this.secretMetadata(secret),
+       client_name: name,
+       redirect_uris: redirects,
+       token_endpoint_auth_method: method,
+@@ -133,6 +129,29 @@ export class McpOAuthClients {
+     return supplied.id;
+   }
+ 
++  private secretMetadata(secret?: string) {
++    if (!secret) return {};
++    return {
++      client_secret: secret,
++      client_secret_expires_at: this.persistent
++        ? 0
++        : Math.floor((this.now() + CLIENT_LIFETIME) / 1000),
++    };
++  }
++
++  snapshot() {
++    return this.clients.snapshot();
++  }
++
++  restore(entries: ReturnType<McpOAuthClients["snapshot"]>): void {
++    for (const entry of entries) {
++      entry.value.redirects.forEach(readChatGptRedirect);
++      if ((entry.value.method !== "none") !== Boolean(entry.value.secretHash))
++        throw new Error("Invalid persisted client authentication.");
++    }
++    this.clients.restore(entries);
++  }
++
+   clear(): void {
+     this.clients.clear();
+   }
+ diff --git a/src/main/mcp/mcpOAuthPolicy.ts b/src/main/mcp/mcpOAuthPolicy.ts
+index 5d77bd5..f994b95 100644
+--- a/src/main/mcp/mcpOAuthPolicy.ts
++++ b/src/main/mcp/mcpOAuthPolicy.ts
+@@ -63,12 +63,19 @@ export function readChatGptRedirect(value: unknown): string {
+   return text;
+ }
+ 
+-export function readOAuthScope(value: unknown): string {
++export function readOAuthScope(value: unknown, allowEdits = false): string {
+   const scope = value === undefined ? "carrot.read" : oauthText(value, 200);
+   const scopes = [...new Set(scope.split(" ").filter(Boolean))];
+   if (
+     !scopes.includes("carrot.read") ||
+-    scopes.some((item) => !["carrot.read", "offline_access"].includes(item))
++    scopes.some(
++      (item) =>
++        ![
++          "carrot.read",
++          "offline_access",
++          ...(allowEdits ? ["carrot.edit"] : []),
++        ].includes(item),
++    )
+   )
+     throw new McpOAuthError(
+       "invalid_scope",
+ diff --git a/src/main/mcp/mcpOAuthProvider.ts b/src/main/mcp/mcpOAuthProvider.ts
+index 5c41304..50a0a8c 100644
+--- a/src/main/mcp/mcpOAuthProvider.ts
++++ b/src/main/mcp/mcpOAuthProvider.ts
+@@ -1,4 +1,4 @@
+-import { randomBytes } from "node:crypto";
++import { randomBytes, randomUUID } from "node:crypto";
+ import { McpOAuthClients } from "./mcpOAuthClients";
+ import { McpOAuthState } from "./mcpOAuthState";
+ import {
+@@ -11,13 +11,13 @@ import {
+   verifyPkce,
+ } from "./mcpOAuthPolicy";
+ 
+-type Grant = {
+-  clientId: string;
+-  scope: string;
+-  resource: string;
+-  expiresAt: number;
+-  revoked: boolean;
+-};
++import {
++  mcpOAuthSnapshotSchema,
++  type McpOAuthSnapshot,
++  type McpGrant as Grant,
++} from "./mcpOAuthSnapshot";
++
++type ProviderOptions = { persistent?: boolean; allowEdits?: boolean };
+ type Code = {
+   grant: Grant;
+   redirect: string;
+@@ -42,9 +42,10 @@ export class McpOAuthProvider {
+     readonly issuer: string,
+     private readonly pairingSecret: string,
+     private readonly now: () => number = Date.now,
++    private readonly options: ProviderOptions = {},
+   ) {
+     this.resource = `${issuer}/mcp`;
+-    this.clients = new McpOAuthClients(now);
++    this.clients = new McpOAuthClients(now, options.persistent);
+     this.pending = new McpOAuthState(now, 64);
+     this.codes = new McpOAuthState(now, 64);
+@@ -55,7 +56,10 @@ export class McpOAuthProvider {
+     return {
+       resource: this.resource,
+       authorization_servers: [this.issuer],
+-      scopes_supported: ["carrot.read"],
++      scopes_supported: [
++        "carrot.read",
++        ...(this.options.allowEdits ? ["carrot.edit"] : []),
++      ],
+       bearer_methods_supported: ["header"],
+     };
+   }
+@@ -80,7 +84,11 @@ export class McpOAuthProvider {
+         "client_secret_post",
+         "client_secret_basic",
+       ],
+-      scopes_supported: ["carrot.read", "offline_access"],
++      scopes_supported: [
++        "carrot.read",
++        "offline_access",
++        ...(this.options.allowEdits ? ["carrot.edit"] : []),
++      ],
+     };
+   }
+ 
+@@ -103,7 +111,7 @@ export class McpOAuthProvider {
+         "invalid_request",
+         "Callback does not match this registered client.",
+       );
+-    const scope = readOAuthScope(input.scope);
++    const scope = readOAuthScope(input.scope, this.options.allowEdits);
+     const cookie = randomBytes(32).toString("base64url");
+     const pending: Pending = {
+       cookie,
+@@ -117,10 +125,14 @@ export class McpOAuthProvider {
+         ),
+         used: false,
+         grant: {
++          id: randomUUID(),
++          clientName: client.name,
+           clientId,
+           scope,
+           resource: this.resource,
+-          expiresAt: this.now() + DAY,
++          expiresAt: this.options.persistent
++            ? Number.MAX_SAFE_INTEGER
++            : this.now() + DAY,
+           revoked: false,
+         },
+       },
+@@ -176,7 +188,7 @@ export class McpOAuthProvider {
+     );
+   }
+ 
+-  accepts(header: string): boolean {
++  accepts(header: string, scope = "carrot.read"): boolean {
+     if (!/^Bearer [A-Za-z0-9_-]{43}$/.test(header)) return false;
+     const grant = this.access.get(header.slice(7));
+     return (
+@@ -184,7 +196,7 @@ export class McpOAuthProvider {
+       !grant.revoked &&
+       grant.expiresAt > this.now() &&
+       grant.resource === this.resource &&
+-      grant.scope.split(" ").includes("carrot.read")
++      grant.scope.split(" ").includes(scope)
+     );
+   }
+ 
+@@ -195,6 +207,63 @@ export class McpOAuthProvider {
+     if (grant?.clientId === clientId) grant.revoked = true;
+   }
+ 
++  snapshot(): McpOAuthSnapshot {
++    return {
++      version: 1,
++      resource: this.resource,
++      clients: this.clients.snapshot(),
++      access: this.access.snapshot(),
++      refresh: this.refresh.snapshot(),
++    };
++  }
++
++  restore(value: unknown): void {
++    const snapshot = mcpOAuthSnapshotSchema.parse(value);
++    if (snapshot.resource !== this.resource)
++      throw new Error(
++        "OAuth resource changed. Existing approvals cannot be transferred.",
++      );
++    const grants = new Map<string, Grant>();
++    const bind = (grant: Grant): Grant => {
++      if (grant.resource !== this.resource)
++        throw new Error("Invalid grant resource.");
++      readOAuthScope(grant.scope, true);
++      const existing = grants.get(grant.id);
++      if (existing && JSON.stringify(existing) !== JSON.stringify(grant))
++        throw new Error("Inconsistent persisted grant.");
++      grants.set(grant.id, existing ?? grant);
++      return existing ?? grant;
++    };
++    snapshot.access.forEach((entry) => {
++      entry.value = bind(entry.value);
++    });
++    snapshot.refresh.forEach((entry) => {
++      entry.value.grant = bind(entry.value.grant);
++    });
++    this.clients.restore(snapshot.clients);
++    this.access.restore(snapshot.access);
++    this.refresh.restore(snapshot.refresh);
++  }
++
++  connections() {
++    const grants = new Map<string, Grant>();
++    for (const entry of this.refresh.snapshot())
++      grants.set(entry.value.grant.id, entry.value.grant);
++    return [...grants.values()].map((grant) => ({
++      id: grant.id,
++      name: grant.clientName,
++      scope: grant.scope,
++      revoked: grant.revoked,
++    }));
++  }
++
++  revokeConnection(id: string): void {
++    for (const entry of this.access.snapshot())
++      if (entry.value.id === id) entry.value.revoked = true;
++    for (const entry of this.refresh.snapshot())
++      if (entry.value.grant.id === id) entry.value.grant.revoked = true;
++  }
++
+   close(): void {
+     this.clients.clear();
+     this.pending.clear();
+@@ -239,7 +308,7 @@ export class McpOAuthProvider {
+     }
+     if (
+       input.scope !== undefined &&
+-      readOAuthScope(input.scope) !== entry.grant.scope
++      readOAuthScope(input.scope, this.options.allowEdits) !== entry.grant.scope
+     )
+       throw new McpOAuthError(
+         "invalid_scope",
+@@ -262,7 +331,7 @@ export class McpOAuthProvider {
+       expires_in: Math.floor(lifetime / 1000),
+       refresh_token: this.refresh.issue(
+         { grant, used: false },
+-        grant.expiresAt - this.now(),
++        Math.min(30 * DAY, grant.expiresAt - this.now()),
+       ),
+       scope: grant.scope,
+     };
+ diff --git a/src/main/mcp/mcpOAuthSnapshot.ts b/src/main/mcp/mcpOAuthSnapshot.ts
+new file mode 100644
+index 0000000..0969ad0
+--- /dev/null
++++ b/src/main/mcp/mcpOAuthSnapshot.ts
+@@ -0,0 +1,40 @@
++import { z } from "zod";
++
++const digest = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
++const expiry = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
++export const mcpGrantSchema = z
++  .object({
++    id: z.string().uuid(),
++    clientId: digest,
++    clientName: z.string().max(120),
++    scope: z.string().max(200),
++    resource: z.string().url().max(2048),
++    expiresAt: expiry,
++    revoked: z.boolean(),
++  })
++  .strict();
++const client = z
++  .object({
++    name: z.string().max(120),
++    redirects: z.array(z.string().url().max(2048)).min(1).max(4),
++    method: z.enum(["none", "client_secret_post", "client_secret_basic"]),
++    secretHash: digest.optional(),
++  })
++  .strict();
++const entry = <T extends z.ZodType>(value: T) =>
++  z.object({ key: digest, expiresAt: expiry, value }).strict();
++export const mcpOAuthSnapshotSchema = z
++  .object({
++    version: z.literal(1),
++    resource: z.string().url().max(2048),
++    clients: z.array(entry(client)).max(64),
++    access: z.array(entry(mcpGrantSchema)).max(512),
++    refresh: z
++      .array(
++        entry(z.object({ grant: mcpGrantSchema, used: z.boolean() }).strict()),
++      )
++      .max(512),
++  })
++  .strict();
++export type McpGrant = z.infer<typeof mcpGrantSchema>;
++export type McpOAuthSnapshot = z.infer<typeof mcpOAuthSnapshotSchema>;
+ diff --git a/src/main/mcp/mcpOAuthState.ts b/src/main/mcp/mcpOAuthState.ts
+index 1b2358e..fb2f905 100644
+--- a/src/main/mcp/mcpOAuthState.ts
++++ b/src/main/mcp/mcpOAuthState.ts
+@@ -1,7 +1,7 @@
+ import { randomBytes } from "node:crypto";
+ import { McpOAuthError, oauthDigest } from "./mcpOAuthPolicy";
+ 
+-/** Only digests are keys. No token is persisted or logged. Restart revokes all leases. */
++/** Token digests only. Durable callers explicitly snapshot validated, encrypted state. */
+ export class McpOAuthState<T> {
+   private readonly entries = new Map<string, { value: T; expiresAt: number }>();
+ 
+@@ -21,7 +21,7 @@ export class McpOAuthState<T> {
+     const secret = randomBytes(32).toString("base64url");
+     this.entries.set(oauthDigest(secret), {
+       value,
+-      expiresAt: this.now() + lifetimeMs,
++      expiresAt: Math.min(Number.MAX_SAFE_INTEGER, this.now() + lifetimeMs),
+     });
+     return secret;
+   }
+@@ -41,6 +41,25 @@ export class McpOAuthState<T> {
+     this.entries.clear();
+   }
+ 
++  snapshot(): { key: string; value: T; expiresAt: number }[] {
++    this.prune();
++    return [...this.entries].map(([key, entry]) => ({ key, ...entry }));
++  }
++
++  restore(entries: { key: string; value: T; expiresAt: number }[]): void {
++    if (
++      entries.length > this.capacity ||
++      new Set(entries.map((entry) => entry.key)).size !== entries.length
++    )
++      throw new Error("Invalid OAuth store capacity or duplicate keys.");
++    this.entries.clear();
++    for (const { key, value, expiresAt } of entries) {
++      if (!/^[A-Za-z0-9_-]{43}$/.test(key) || !Number.isSafeInteger(expiresAt))
++        throw new Error("Invalid OAuth store entry.");
++      if (expiresAt > this.now()) this.entries.set(key, { value, expiresAt });
++    }
++  }
++
+   private prune(): void {
+     for (const [key, entry] of this.entries)
+       if (entry.expiresAt <= this.now()) this.entries.delete(key);
+ diff --git a/tests/mcpPersistentOAuth.test.ts b/tests/mcpPersistentOAuth.test.ts
+new file mode 100644
+index 0000000..103a3c1
+--- /dev/null
++++ b/tests/mcpPersistentOAuth.test.ts
+@@ -0,0 +1,124 @@
++import assert from "node:assert/strict";
++import { it } from "vitest";
++import { McpOAuthProvider } from "../src/main/mcp/mcpOAuthProvider";
++import { oauthDigest } from "../src/main/mcp/mcpOAuthPolicy";
++
++const origin = "https://carrot.tail-test.ts.net";
++const callback = "https://chatgpt.com/connector/oauth/persistent-test";
++const verifier = "v".repeat(43);
++function fixture() {
++  const provider = new McpOAuthProvider(origin, "p".repeat(43), Date.now, {
++    persistent: true,
++    allowEdits: true,
++  });
++  const client = provider.register({
++    redirect_uris: [callback],
++    token_endpoint_auth_method: "client_secret_post",
++  });
++  const consent = provider.begin({
++    client_id: client.client_id,
++    response_type: "code",
++    redirect_uri: callback,
++    resource: `${origin}/mcp`,
++    state: "test",
++    scope: "carrot.read carrot.edit offline_access",
++    code_challenge: oauthDigest(verifier),
++    code_challenge_method: "S256",
++  });
++  const redirect = new URL(
++    provider.approve(
++      {
++        transaction: consent.transaction,
++        decision: "approve",
++        pairing_secret: "p".repeat(43),
++      },
++      consent.cookie,
++    ),
++  );
++  const tokens = provider.token({
++    grant_type: "authorization_code",
++    client_id: client.client_id,
++    client_secret: client.client_secret,
++    redirect_uri: callback,
++    resource: `${origin}/mcp`,
++    code: redirect.searchParams.get("code"),
++    code_verifier: verifier,
++  });
++  return { provider, client, tokens };
++}
++function restart(provider: McpOAuthProvider) {
++  const raw = JSON.stringify(provider.snapshot());
++  provider.close();
++  const restored = new McpOAuthProvider(
++    origin,
++    "different-secret".repeat(3),
++    Date.now,
++    { persistent: true, allowEdits: true },
++  );
++  restored.restore(JSON.parse(raw));
++  return restored;
++}
++it("restores client authentication, access and rotating refresh grants across independent processes", () => {
++  const f = fixture();
++  assert.equal(f.client.client_secret_expires_at, 0);
++  const snapshot = JSON.stringify(f.provider.snapshot());
++  assert.equal(snapshot.includes(f.tokens.access_token), false);
++  assert.equal(snapshot.includes(f.tokens.refresh_token), false);
++  assert.equal(snapshot.includes(f.client.client_secret ?? "missing"), false);
++  const restored = restart(f.provider);
++  assert.equal(
++    restored.accepts(`Bearer ${f.tokens.access_token}`, "carrot.edit"),
++    true,
++  );
++  const next = restored.token({
++    grant_type: "refresh_token",
++    client_id: f.client.client_id,
++    client_secret: f.client.client_secret,
++    refresh_token: f.tokens.refresh_token,
++    resource: `${origin}/mcp`,
++  });
++  assert.notEqual(next.refresh_token, f.tokens.refresh_token);
++  assert.equal(restart(restored).accepts(`Bearer ${next.access_token}`), true);
++});
++it("keeps refresh replay tombstones and revokes every related access token after restart", () => {
++  const f = fixture();
++  const refresh = {
++    grant_type: "refresh_token",
++    client_id: f.client.client_id,
++    client_secret: f.client.client_secret,
++    refresh_token: f.tokens.refresh_token,
++    resource: `${origin}/mcp`,
++  };
++  const next = f.provider.token(refresh);
++  const restored = restart(f.provider);
++  assert.throws(() => restored.token(refresh));
++  assert.equal(restored.accepts(`Bearer ${next.access_token}`), false);
++  assert.equal(
++    restart(restored).accepts(`Bearer ${f.tokens.access_token}`),
++    false,
++  );
++});
++it("persists local revocation and refuses moving approvals to another resource", () => {
++  const f = fixture();
++  const id = f.provider.connections()[0].id;
++  f.provider.revokeConnection(id);
++  assert.equal(
++    restart(f.provider).accepts(`Bearer ${f.tokens.access_token}`),
++    false,
++  );
++  const other = new McpOAuthProvider(
++    "https://other.tail-test.ts.net",
++    "p".repeat(43),
++  );
++  assert.throws(
++    () => other.restore(fixture().provider.snapshot()),
++    /resource changed/,
++  );
++});
++it("rejects corrupt and inconsistent persisted grants instead of restoring permissions", () => {
++  const f = fixture();
++  const data = JSON.parse(JSON.stringify(f.provider.snapshot()));
++  data.refresh[0].value.grant.revoked = true;
++  assert.throws(() => f.provider.restore(data), /Inconsistent/);
++  assert.throws(() => f.provider.restore({ version: 999 }));
++});
