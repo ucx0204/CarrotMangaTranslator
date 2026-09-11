@@ -28,10 +28,11 @@ export function readTailscaleOrigin(value: unknown): string {
 
 /** Funnel exposes an entire HTTPS listener. Never publish another app's Serve routes. */
 export function assertTailscaleListenerFree(value: unknown, port = 443): void {
-  const queue = [object(value)];
+  const queue = [object(value ?? {})];
   let examined = 0;
   while (queue.length) {
-    const config = queue.pop()!;
+    const config = queue.pop();
+    if (!config) break;
     if (++examined > 256)
       throw new Error(
         "Tailscale sharing configuration is too large to inspect safely.",
