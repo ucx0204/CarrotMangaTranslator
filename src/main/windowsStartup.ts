@@ -46,13 +46,8 @@ export function prepareWindowsStartup(
   options: WindowsStartupOptions,
   runtime: WindowsStartupRuntime = productionRuntime,
 ): WindowsStartupResult {
-  const handoff = readElevationHandoff(options.arguments);
-  const identity = handoff ? runtime.readIdentity() : null;
-  if (handoff && identity) {
-    validateRelaunchedIdentity(handoff, identity);
-  }
-
-  const dataRoot = handoff?.dataRoot ?? options.resolveDataRoot();
+  const relaunched = readRelaunchContext(options.arguments, runtime);
+  const dataRoot = relaunched?.dataRoot ?? options.resolveDataRoot();
   if (!dataRoot) {
     return { status: "continue", dataRoot: null };
   }
@@ -64,8 +59,8 @@ export function prepareWindowsStartup(
     throw startupAccessError(access, "데이터 저장 위치를 사용할 수 없습니다.");
   }
 
-  const currentIdentity = identity ?? runtime.readIdentity();
-  if (currentIdentity.elevated || handoff) {
+  const currentIdentity = relaunched?.identity ?? runtime.readIdentity();
+  if (currentIdentity.elevated) {
     throw startupAccessError(
       access,
       "관리자 권한으로도 데이터를 저장할 수 없습니다. 폴더 권한과 디스크 상태를 확인해 주세요.",
@@ -84,6 +79,19 @@ export function prepareWindowsStartup(
     ],
   });
   return { status: result === "launched" ? "relaunched" : "cancelled" };
+}
+
+function readRelaunchContext(
+  arguments_: readonly string[],
+  runtime: WindowsStartupRuntime,
+): { dataRoot: string; identity: WindowsProcessIdentity } | null {
+  const handoff = readElevationHandoff(arguments_);
+  if (!handoff) {
+    return null;
+  }
+  const identity = runtime.readIdentity();
+  validateRelaunchedIdentity(handoff, identity);
+  return { dataRoot: handoff.dataRoot, identity };
 }
 
 function validateRelaunchedIdentity(
@@ -106,13 +114,22 @@ function validateRelaunchedIdentity(
 
 function encodeElevationHandoff(handoff: ElevationHandoff): string {
   if (!isElevationHandoff(handoff)) {
-    throw new Error("Cannot relaunch with an invalid Windows data-root handoff.");
+    throw new Error(
+      "Cannot relaunch with an invalid Windows data-root handoff.",
+    );
   }
-  return RELAUNCH_PREFIX + Buffer.from(JSON.stringify(handoff), "utf8").toString("base64url");
+  return (
+    RELAUNCH_PREFIX +
+    Buffer.from(JSON.stringify(handoff), "utf8").toString("base64url")
+  );
 }
 
-function readElevationHandoff(arguments_: readonly string[]): ElevationHandoff | null {
-  const markers = arguments_.filter((argument) => argument.startsWith(RELAUNCH_PREFIX));
+function readElevationHandoff(
+  arguments_: readonly string[],
+): ElevationHandoff | null {
+  const markers = arguments_.filter((argument) =>
+    argument.startsWith(RELAUNCH_PREFIX),
+  );
   if (markers.length === 0) {
     return null;
   }
@@ -123,7 +140,9 @@ function readElevationHandoff(arguments_: readonly string[]): ElevationHandoff |
   if (encoded.length > 8192 || !/^[A-Za-z0-9_-]+$/.test(encoded)) {
     throw new Error("Invalid Windows elevation handoff encoding.");
   }
-  const value: unknown = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+  const value: unknown = JSON.parse(
+    Buffer.from(encoded, "base64url").toString("utf8"),
+  );
   if (!isElevationHandoff(value)) {
     throw new Error("Invalid Windows elevation handoff contents.");
   }
