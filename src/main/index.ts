@@ -399,7 +399,7 @@ function createFatalIncidentRuntime(): FatalMainProcessIncidentRuntime {
     reportCleanupFailure: (error) =>
       logError("Fatal main-process cleanup failed", error),
     reportForcedExit: (detail) =>
-      logError("Fatal main-process incident is forcing process exit", detail),
+      logError("Fatal main-process incident is forcing exit", detail),
     reportSecondaryIncident: (nextSource, nextReason) =>
       console.error(
         "A secondary fatal main-process incident occurred during shutdown",
@@ -415,7 +415,9 @@ async function runStartupMaintenance(): Promise<void> {
   if (
     cleanupResult.missingWorkReferencesRemoved === 0 &&
     cleanupResult.missingChapterReferencesRemoved === 0 &&
-    cleanupResult.missingPageReferencesRemoved === 0
+    cleanupResult.workDirsRemoved === 0 &&
+    cleanupResult.chapterDirsRemoved === 0 &&
+    cleanupResult.checkpointDirsRemoved === 0
   ) {
     return;
   }
