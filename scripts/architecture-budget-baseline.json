@@ -45,8 +45,12 @@
       "reason": "Translation composition keeps the standard text pipeline and connects external image review, crop registration and optional region image editing; no protected OCR/font algorithms are moved."
     },
     "src/main/index.ts": {
-      "maxRuntimeImports": 30,
-      "reason": "Electron main composition root"
+      "maxRuntimeImports": 31,
+      "reason": "Electron composition adds one opt-in MCP runtime with explicit startup and terminal cleanup ownership; no protected processing algorithm is moved."
+    },
+    "src/main/library.ts": {
+      "maxImportedBy": 26,
+      "reason": "The MCP composition uses the existing public library facade and its locks instead of bypassing storage or adding an alias wrapper. Read projections and HTTP behavior are tested."
     },
     "src/main/ipc/registerIpc.ts": {
       "maxRuntimeImports": 23,
@@ -97,7 +101,7 @@
     },
     "src/renderer/src/components/ui/MenuSurface.tsx": {
       "publicPrimitive": true,
-      "reason": "Shared accessible menu surface; broad reuse is intentional"
+      "reason": "Shared popup surface primitive; broad reuse is intentional"
     },
     "src/renderer/src/components/ui/Modal.tsx": {
       "publicPrimitive": true,
