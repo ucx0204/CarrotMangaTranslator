@@ -1,8 +1,6 @@
 import React from "react";
 import type { ImageRedactionStroke } from "../../../../shared/imageRedaction";
 import { useEventCallback } from "../../hooks/useEventCallback";
-import { formatErrorMessage } from "../../lib/errorPresentation";
-import { useTranslation } from "react-i18next";
 import type { RedactionWorkspaceController } from "./redactionWorkspaceTypes";
 
 type Options = {
@@ -18,7 +16,6 @@ type Options = {
 };
 /** Bind readiness to the displayed URL and exact committed mask, not to a previous page. */
 export function useRedactionImageReadiness(options: Options) {
-  const { t } = useTranslation("components");
   const [decoded, setDecoded] = React.useState({ key: "", url: "" });
   const [mask, setMask] = React.useState<{
     key: string;
@@ -62,7 +59,8 @@ export function useRedactionImageReadiness(options: Options) {
       setMask({ key, strokes: options.strokes, renderKey: options.renderKey }),
     reject: (error?: unknown) => {
       setFailedKey(key);
-      if (error) formatErrorMessage(error, t("manualRedaction.previewFailed"));
+      // Raw diagnostics stay out of view state; the view owns the localized notice.
+      if (error) console.error("Redaction preview failed", error);
     },
   };
 }
