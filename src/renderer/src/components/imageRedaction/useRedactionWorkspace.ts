@@ -4,15 +4,13 @@ import { useTranslation } from "react-i18next";
 import type { RedactionWorkspace } from "../../../../shared/imageRedactionWorkspace";
 import { analysisGateway } from "../../api/analysisGateway";
 import { useAsyncErrorState } from "../../hooks/useAsyncErrorState";
-import {
-  createRedactionSession,
-  type RedactionSession,
-} from "./redactionSession";
+import { createRedactionSession } from "./redactionSession";
 import {
   RedactionDraftWriter,
   type RedactionSaveStatus,
 } from "./redactionDraftWriter";
 import { RedactionPreviewCache } from "./redactionPreviewCache";
+import { runRedactionCommand, type RedactionCommand } from "./redactionCommand";
 
 export type RedactionWorkspaceController = ReturnType<
   typeof useRedactionWorkspace
@@ -27,9 +25,12 @@ export function useRedactionWorkspace(workspace: RedactionWorkspace) {
   const [saveStatus, setSaveStatus] = React.useState<RedactionSaveStatus>({
     kind: "saved",
   });
-  const { error, setError, report } = useAsyncErrorState(
-    t("manualRedaction.operationFailed"),
-  );
+  const {
+    error: commandError,
+    setError,
+    report,
+  } = useAsyncErrorState(t("manualRedaction.operationFailed"));
+  const saveError = useAsyncErrorState(t("manualRedaction.save_error"));
   const { ready, failed, markPreview } = usePreviewStatus();
   const [busy, setBusy] = React.useState(false);
   const [drawing, setDrawing] = React.useState(false);
@@ -37,7 +38,8 @@ export function useRedactionWorkspace(workspace: RedactionWorkspace) {
   const notify = useEventCallback((status: RedactionSaveStatus) => {
     if (!mounted.current) return;
     setSaveStatus(status);
-    if (status.kind === "saved") setError("");
+    if (status.kind === "error") saveError.report(status.error);
+    else if (status.kind === "saved") saveError.setError("");
   });
   const [writer] = React.useState(
     () =>
@@ -49,24 +51,24 @@ export function useRedactionWorkspace(workspace: RedactionWorkspace) {
   );
   const previews = useWorkspacePreviews(mounted);
   const commit = React.useCallback(
-    (change: (current: RedactionSession) => RedactionSession) => {
-      try {
-        const next = change(live.current);
-        if (next === live.current) return;
-        live.current = next;
-        setState(next);
-      } catch (failure) {
-        report(failure);
+    (change: RedactionCommand) => {
+      const result = runRedactionCommand(live.current, change);
+      if (!result.ok) report(result.error);
+      else if (result.state !== live.current) {
+        live.current = result.state;
+        setState(result.state);
       }
+      return result;
     },
     [report],
   );
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      void writer.flush().catch(report);
+      // The writer reports save failures through its own status channel.
+      void writer.flush().catch(() => undefined);
     }, 250);
     return () => clearTimeout(timer);
-  }, [state, writer, report]);
+  }, [state, writer]);
 
   return {
     state,
@@ -77,7 +79,7 @@ export function useRedactionWorkspace(workspace: RedactionWorkspace) {
     markPreview,
     previews,
     saveStatus,
-    error,
+    error: commandError || saveError.error,
     setError,
     report,
     busy,

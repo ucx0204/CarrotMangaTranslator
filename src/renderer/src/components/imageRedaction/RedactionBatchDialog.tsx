@@ -74,6 +74,11 @@ export function RedactionBatchDialog(props: Props): React.JSX.Element {
           ).length,
         })}
       </p>
+      {form.error ? (
+        <p role="alert" className={styles.inlineError}>
+          {form.error}
+        </p>
+      ) : null}
       {intent.kind === "review" ? (
         <ReviewChoices model={model} />
       ) : (
@@ -111,12 +116,13 @@ function useBatchModel({ form, intent, onClose }: Props) {
         (!mismatches.length || scaling === "proportional"));
   const apply = () => {
     if (!valid) return;
-    form.commit((current) =>
+    form.setError("");
+    const result = form.commit((current) =>
       intent.kind === "review"
         ? decideRedactionPages(current, intent.ids, "reviewed")
         : applyRedactionBatch(current, { ...intent, scaling, replace }),
     );
-    onClose();
+    if (result.ok) onClose();
   };
   return {
     scaling,

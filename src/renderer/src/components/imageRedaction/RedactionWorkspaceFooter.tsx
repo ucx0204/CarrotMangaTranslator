@@ -94,7 +94,7 @@ function RedactionSaveState({
           size="sm"
           disabled={form.busy}
           onClick={() => {
-            void form.flush().catch(form.report);
+            void form.flush().catch(() => undefined);
           }}
         >
           {t("manualRedaction.retrySave")}
