@@ -74,12 +74,26 @@ function checkProductionCleanupCoverage(options = {}) {
     ...Object.entries(manifest.floors),
     ...Object.entries(manifest.introducedFloors),
   ];
+  let smokeOnlyUiFiles = 0;
   for (const [file, floor] of floorEntries) {
+    // The user opted for basic UI smoke tests, not an exact UI coverage ratchet.
+    // Only newly introduced redaction views/hooks are exempt; inventory, global
+    // coverage, existing floors and pure mask/state/storage logic stay enforced.
+    const smokeOnlyUi =
+      Object.hasOwn(manifest.introducedFloors, file) &&
+      /^src\/renderer\/src\/components\/imageRedaction\/(?:[^/]+\.tsx|use[^/]+\.ts)$/.test(
+        file,
+      );
+    if (smokeOnlyUi) smokeOnlyUiFiles++;
     const record = readRequiredCoverageRecord(coverage, file);
     for (const metric of COVERAGE_METRICS) {
       const actual = readCoverageMetric(record, metric, file);
       const baseline = floor[metric];
-      if (compareFloors && isCoverageRatioBelow(actual, baseline)) {
+      if (
+        compareFloors &&
+        !smokeOnlyUi &&
+        isCoverageRatioBelow(actual, baseline)
+      ) {
         violations.push(
           `${file} ${metric}: ${actual.pct}% (${actual.covered}/${actual.total}) below exact baseline ${baseline.pct}% (${baseline.covered}/${baseline.total})`,
         );
@@ -96,6 +110,7 @@ function checkProductionCleanupCoverage(options = {}) {
   return {
     baselinePlatform: manifest.provenance.baselinePlatform,
     comparedFloors: compareFloors,
+    smokeOnlyUiFiles,
     floorFiles: Object.keys(manifest.floors).length,
     introducedFloorFiles: Object.keys(manifest.introducedFloors).length,
     deletedFiles: manifest.deletedFiles.length,
@@ -710,7 +725,7 @@ function main() {
       ? `compared ${result.floorFiles} Windows baseline files`
       : `validated ${result.floorFiles} baseline records without cross-platform floor comparison`;
     console.log(
-      `production cleanup coverage gate passed: ${floorStatus}; ${result.introducedFloorFiles} introduced files compared; ${result.deletedFiles} deletions recorded`,
+      `production cleanup coverage gate passed: ${floorStatus}; ${result.introducedFloorFiles} introduced records checked (${result.smokeOnlyUiFiles} UI smoke-only); ${result.deletedFiles} deletions recorded`,
     );
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

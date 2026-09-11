@@ -14,6 +14,13 @@ import {
   selectRedactionRange,
 } from "../src/renderer/src/components/imageRedaction/redactionSession";
 
+import {
+  changeRedactionPreferences,
+  changeRedactionView,
+  decideAndAdvanceRedaction,
+  filteredRedactionPages,
+} from "../src/renderer/src/components/imageRedaction/redactionWorkspaceModel";
+
 function fixture(count = 3) {
   const workspace: RedactionWorkspace = {
     sessionId: "11111111-1111-4111-8111-111111111111",
@@ -103,6 +110,10 @@ describe("manual redaction session", () => {
       ]),
     ).toThrow();
   });
+  it("ignores unchanged decisions", () => {
+    const state = fixture();
+    expect(editRedactionDocuments(state, [state.documents["0"]])).toBe(state);
+  });
   it("uses visible order for range selection and preserves explicit selections", () => {
     expect(
       selectRedactionRange(["a", "c", "e"], ["b"], "e", "a", true, false),
@@ -110,6 +121,9 @@ describe("manual redaction session", () => {
     expect(
       selectRedactionRange(["a", "b"], ["a"], "a", "a", false, true),
     ).toEqual([]);
+    expect(
+      selectRedactionRange(["a", "b"], ["a"], "a", "b", false, true),
+    ).toEqual(["a", "b"]);
   });
 });
 
@@ -166,4 +180,27 @@ it("invalidates the whole overlapping batch redo but preserves unrelated history
   ]);
   expect(canRestoreRedactionEdit(state, "redo", "0", true)).toBe(false);
   expect(state.documents["0"].decision).toBe("unreviewed");
+});
+
+// Exercise state transitions directly rather than driving a DOM/key/viewport matrix.
+it("keeps preferences when confirming and advancing to the next unreviewed page", () => {
+  let state = changeRedactionView(fixture(2), { currentId: "0" });
+  state = changeRedactionPreferences(state, { tool: "brush" });
+  state = decideAndAdvanceRedaction(state, "reviewed");
+  expect(state.workspace.view.currentId).toBe("1");
+  expect(state.workspace.preferences.tool).toBe("brush");
+  expect(
+    filteredRedactionPages(
+      state.workspace.pages,
+      state.documents,
+      "unreviewed",
+      new Set(),
+    ),
+  ).toEqual(["1"]);
+  state = decideAndAdvanceRedaction(state, "reviewed");
+  expect(state.workspace.view.currentId).toBe("1");
+  expect(redactionProgress(state.documents)).toEqual({
+    reviewed: 2,
+    unreviewed: 0,
+  });
 });

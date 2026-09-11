@@ -8,7 +8,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { ManualRedactionWorkspace } from "../src/renderer/src/components/imageRedaction/ManualRedactionWorkspace";
 import {
@@ -59,12 +59,6 @@ beforeEach(() => {
     }),
     putImageData: vi.fn(),
     drawImage: vi.fn(),
-    save: vi.fn(),
-    restore: vi.fn(),
-    fillRect: vi.fn(),
-    beginPath: vi.fn(),
-    arc: vi.fn(),
-    fill: vi.fn(),
   };
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
     configurable: true,
@@ -83,7 +77,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function fixture(count = 5): RedactionWorkspace {
+function fixture(count = 2): RedactionWorkspace {
   return {
     sessionId: "11111111-1111-4111-8111-111111111111",
     revision: 0,
@@ -107,7 +101,7 @@ function fixture(count = 5): RedactionWorkspace {
     presets: [],
   };
 }
-function show(count = 5) {
+function show(count = 2) {
   const workspace = fixture(count);
   const onClose = vi.fn();
   render(
@@ -124,26 +118,6 @@ function show(count = 5) {
   );
   return { workspace, onClose };
 }
-function page(number: number) {
-  return screen.getByRole("option", {
-    name: new RegExp(`^${number} · ${number}\\.png`),
-  });
-}
-function pageNumber() {
-  return Number(
-    (
-      screen.getByRole("spinbutton", {
-        name: "페이지 번호로 이동",
-      }) as HTMLInputElement
-    ).value,
-  );
-}
-function selectionMenu(count: number) {
-  expect(
-    screen.getByRole("button", { name: `선택 ${count}장 확인` }),
-  ).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "선택 작업" }));
-}
 async function decodeCurrent(number: number) {
   const image = await screen.findByAltText(`${number}.png`);
   fireEvent.load(image);
@@ -158,182 +132,39 @@ async function decodeCurrent(number: number) {
   );
 }
 
-describe("single-screen manual redaction", () => {
-  it("opens old grid drafts as one editor with advanced actions hidden", async () => {
-    show(100);
-    await screen.findByAltText("1.png");
-    expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.queryByRole("tabpanel")).toBeNull();
-    expect(screen.queryByRole("menu")).toBeNull();
-    expect(screen.queryByRole("button", { name: "가림 프리셋" })).toBeNull();
-    expect(screen.getByRole("button", { name: "선택 1장 확인" })).toBeTruthy();
-    expect(screen.getAllByRole("option").length).toBeLessThan(12);
-    expect(
-      screen.getByRole("group", { name: "수동 가리기 편집 영역" }),
-    ).toBeTruthy();
-    expect(confirm).not.toHaveBeenCalled();
-  });
-  it("supports click, Ctrl/Command and Shift selection in the same filmstrip", () => {
-    show();
-    fireEvent.click(page(2));
-    expect(pageNumber()).toBe(2);
-    expect(page(1).getAttribute("aria-selected")).toBe("false");
-    fireEvent.click(page(3), { ctrlKey: true });
-    expect(pageNumber()).toBe(3);
-    expect(page(2).getAttribute("aria-selected")).toBe("true");
-    fireEvent.click(page(1), { shiftKey: true });
-    expect(screen.getByRole("button", { name: "선택 3장 확인" })).toBeTruthy();
-    fireEvent.click(page(2), { metaKey: true });
-    expect(screen.getByRole("button", { name: "선택 2장 확인" })).toBeTruthy();
-    expect(confirm).not.toHaveBeenCalled();
-  });
-  it("extends selection with the arrow keys and keeps text-input keys local", () => {
-    show();
-    const list = screen.getByRole("listbox", { name: "가리기 페이지 목록" });
-    fireEvent.keyDown(list, { key: "ArrowDown", shiftKey: true });
-    expect(pageNumber()).toBe(2);
-    expect(screen.getByRole("button", { name: "선택 2장 확인" })).toBeTruthy();
-    const input = screen.getByRole("spinbutton", {
-      name: "페이지 번호로 이동",
-    });
-    fireEvent.keyDown(input, { key: "x" });
-    fireEvent.keyDown(input, { key: "Enter", isComposing: true });
-    expect(pageNumber()).toBe(2);
-  });
-  it("reviews a 100-page selection without a preview acknowledgement and undoes the batch", async () => {
-    show(100);
-    const list = screen.getByRole("listbox", { name: "가리기 페이지 목록" });
-    fireEvent.keyDown(list, { key: "a", ctrlKey: true });
-    expect(screen.queryByRole("menu")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "선택 100장 확인" }));
-    const dialog = screen.getByRole("dialog", { name: "선택한 페이지 확인" });
-    expect(within(dialog).queryByRole("checkbox")).toBeNull();
-    const apply = within(dialog).getByRole("button", {
-      name: "선택 100장 확인",
-    });
-    expect((apply as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(apply);
-    expect(screen.getByText("검토 100/100 · 남음 0")).toBeTruthy();
-    expect(confirm).not.toHaveBeenCalled();
-    selectionMenu(100);
-    fireEvent.click(screen.getByRole("menuitem", { name: "일괄 작업 취소" }));
-    expect(screen.getByText("검토 0/100 · 남음 100")).toBeTruthy();
-    selectionMenu(100);
-    fireEvent.click(
-      screen.getByRole("menuitem", { name: "일괄 작업 다시 실행" }),
-    );
-    expect(screen.getByText("검토 100/100 · 남음 0")).toBeTruthy();
-  });
-  it("never sends from repeated Enter, IME or the last page confirmation", async () => {
-    show(2);
-    await decodeCurrent(1);
-    let canvas = screen.getByRole("group", { name: "수동 가리기 편집 영역" });
-    fireEvent.keyDown(canvas, { key: "Enter", repeat: true });
-    fireEvent.keyDown(canvas, { key: "Enter", isComposing: true });
-    expect(pageNumber()).toBe(1);
-    fireEvent.keyDown(canvas, { key: "Enter" });
-    expect(pageNumber()).toBe(2);
-    await decodeCurrent(2);
-    canvas = screen.getByRole("group", { name: "수동 가리기 편집 영역" });
-    fireEvent.keyDown(canvas, { key: "Enter" });
-    fireEvent.keyDown(canvas, { key: "Enter", repeat: true });
-    expect(confirm).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "작업 재개" }));
-    await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
-    expect(cancel).not.toHaveBeenCalled();
-    expect(save).toHaveBeenCalled();
-  });
-  it("keeps the chosen brush through navigation and offers settings only on request", () => {
-    show();
-    const brush = screen.getByRole("button", { name: "브러시 B" });
-    fireEvent.click(brush);
-    fireEvent.click(screen.getByRole("button", { name: "다음" }));
-    expect(
-      screen
-        .getByRole("button", { name: "브러시 B" })
-        .getAttribute("aria-pressed"),
-    ).toBe("true");
-    const trigger = screen.getByRole("button", { name: "설정" });
-    fireEvent.click(trigger);
-    expect(screen.getByRole("menuitem", { name: "가림 프리셋" })).toBeTruthy();
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("menu")).toBeNull();
-    expect(
-      screen.queryByRole("dialog", { name: "가리기 편집 종료" }),
-    ).toBeNull();
-  });
+// Small DOM smoke checks only. Pixel/layout matrices and exhaustive interaction
+// scenarios are intentionally absent; core state/storage/approval tests are separate.
+it("opens the editor and moves to the next page", async () => {
+  show();
+  await screen.findByAltText("1.png");
+  expect(screen.getByRole("button", { name: "선택 1장 확인" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "다음" }));
+  await screen.findByAltText("2.png");
+  expect(confirm).not.toHaveBeenCalled();
 });
 
-it("keeps a page-only review under the canvas and does not navigate or resume the task", async () => {
-  show(2);
+it("marks the current page reviewed without starting the task", async () => {
+  show();
   await decodeCurrent(1);
-  expect(screen.queryByRole("button", { name: /보류/ })).toBeNull();
-  const group = screen.getByRole("group", { name: "페이지 검토" });
-  fireEvent.click(
-    within(group).getByRole("button", { name: "이 페이지 확인" }),
-  );
-  expect(pageNumber()).toBe(1);
-  expect(within(group).getByText("확인됨")).toBeTruthy();
-  expect(screen.getByText("검토 1/2 · 남음 1").closest("button")).toBeNull();
-  expect(screen.getByText("저장됨").closest("button")).toBeNull();
-  expect(within(group).queryByRole("button", { name: "작업 재개" })).toBeNull();
-  expect(confirm).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "미확인으로 이동" }));
-  expect(pageNumber()).toBe(2);
+  fireEvent.click(screen.getByRole("button", { name: "이 페이지 확인" }));
+  expect(screen.getByAltText("1.png")).toBeTruthy();
+  expect(screen.getByText("검토 1/2 · 남음 1")).toBeTruthy();
   expect(confirm).not.toHaveBeenCalled();
 });
-it("removes Shift+Enter deferral without treating it as review or permission to send", async () => {
-  show(2);
-  await decodeCurrent(1);
-  const canvas = screen.getByRole("group", { name: "수동 가리기 편집 영역" });
-  fireEvent.keyDown(canvas, { key: "Enter", shiftKey: true });
-  expect(pageNumber()).toBe(1);
-  expect(screen.getByText("검토 0/2 · 남음 2")).toBeTruthy();
-  expect(confirm).not.toHaveBeenCalled();
-  expect(within(page(1)).getByText("미확인")).toBeTruthy();
-  expect(within(page(1)).getByText("선택")).toBeTruthy();
-});
-it("still blocks an actual image error instead of confusing it with an unloaded preview", async () => {
-  show(2);
-  const image = await screen.findByAltText("1.png");
-  fireEvent.error(image);
+
+it("reviews a selection without an extra checkbox and resumes only explicitly", async () => {
+  show();
   fireEvent.click(screen.getByRole("button", { name: "전체 선택" }));
   fireEvent.click(screen.getByRole("button", { name: "선택 2장 확인" }));
   const dialog = screen.getByRole("dialog", { name: "선택한 페이지 확인" });
   expect(within(dialog).queryByRole("checkbox")).toBeNull();
-  expect(within(dialog).getByRole("alert")).toBeTruthy();
-  const apply = within(dialog).getByRole("button", { name: "선택 2장 확인" });
-  expect((apply as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.click(apply);
-  expect(confirm).not.toHaveBeenCalled();
-});
-
-it("keeps focus on the next canvas so repeated page review does not get trapped in the filmstrip", async () => {
-  show(2);
-  await decodeCurrent(1);
-  const first = screen.getByRole("group", { name: "수동 가리기 편집 영역" });
-  first.focus();
-  fireEvent.keyDown(first, { key: "Enter" });
-  expect(pageNumber()).toBe(2);
-  await waitFor(() =>
-    expect(document.activeElement).toBe(
-      screen.getByRole("group", { name: "수동 가리기 편집 영역" }),
-    ),
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "선택 2장 확인" }),
   );
+  expect(screen.getByText("검토 2/2 · 남음 0")).toBeTruthy();
   expect(confirm).not.toHaveBeenCalled();
-});
-
-it("accepts a multi-digit page number without stealing focus or treating Enter as review", async () => {
-  show(28);
-  await decodeCurrent(1);
-  const input = screen.getByRole("spinbutton", { name: "페이지 번호로 이동" });
-  input.focus();
-  fireEvent.change(input, { target: { value: "2" } });
-  expect(document.activeElement).toBe(input);
-  expect(screen.getByAltText("1.png")).toBeTruthy();
-  fireEvent.change(input, { target: { value: "28" } });
-  fireEvent.keyDown(input, { key: "Enter" });
-  await screen.findByAltText("28.png");
-  expect(screen.getByText("검토 0/28 · 남음 28")).toBeTruthy();
-  expect(confirm).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "작업 재개" }));
+  await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+  expect(save).toHaveBeenCalled();
+  expect(cancel).not.toHaveBeenCalled();
 });
