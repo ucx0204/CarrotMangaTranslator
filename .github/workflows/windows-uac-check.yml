@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/windows-uac-check.yml
+      - electron-builder.config.cjs
       - build/installer.nsh
       - build/windows*.nsh
       - src/main/startupWriteAccess.ts
@@ -15,7 +16,7 @@ on:
       - src/main/bootstrap.ts
       - scripts/build-windows-installer.cjs
       - scripts/smoke-windows-uac-installer.cjs
-      - tests/*windows*Startup*.test.ts
+      - tests/windowsStartup.test.ts
       - tests/windowsElevation.test.ts
       - tests/startupWriteAccess.test.ts
       - tests/installerConfig.test.ts
@@ -47,20 +48,24 @@ jobs:
         run: npm ci
       - name: Test startup and installer boundaries
         if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
-        run: npx vitest run tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts tests/installerConfig.test.ts
+        run: npx vitest run tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts tests/installerConfig.test.ts tests/windowsInstallerPermissions.test.ts
       - name: Check Electron types
         if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: npm run typecheck:electron
       - name: Check changed file lint
         if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
-        run: npx eslint src/main/startupWriteAccess.ts src/main/windowsElevation.ts src/main/windowsStartup.ts tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts scripts/smoke-windows-uac-installer.cjs --max-warnings 0
+        run: npx eslint src/main/startupWriteAccess.ts src/main/windowsElevation.ts src/main/windowsStartup.ts src/main/bootstrap.ts tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts tests/windowsInstallerPermissions.test.ts scripts/smoke-windows-uac-installer.cjs scripts/build-windows-installer.cjs --max-warnings 0
       - name: Report exact formatting differences
         if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         shell: pwsh
         run: |
-          npx prettier --write src/main/startupWriteAccess.ts src/main/windowsElevation.ts src/main/windowsStartup.ts tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts scripts/smoke-windows-uac-installer.cjs
+          npx prettier --write src/main/startupWriteAccess.ts src/main/windowsElevation.ts src/main/windowsStartup.ts src/main/bootstrap.ts tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts tests/windowsInstallerPermissions.test.ts scripts/smoke-windows-uac-installer.cjs scripts/build-windows-installer.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           git diff --exit-code
+          exit $LASTEXITCODE
       - name: Compile and smoke-test protected-folder installation
         if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
-        run: node scripts/smoke-windows-uac-installer.cjs
+        shell: pwsh
+        run: |
+          node scripts/smoke-windows-uac-installer.cjs
+          exit $LASTEXITCODE
