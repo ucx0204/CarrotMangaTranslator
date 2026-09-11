@@ -1,0 +1,294 @@
+diff --git a/src/main/mcp/mcpHttpServer.ts b/src/main/mcp/mcpHttpServer.ts
+index 3f3c3f8..5bfecf4 100644
+--- a/src/main/mcp/mcpHttpServer.ts
++++ b/src/main/mcp/mcpHttpServer.ts
+@@ -22,6 +22,7 @@ export type McpHttpServer = {
+ };
+ type ServerOptions = {
+   config: McpConfiguration;
++  oauth?: McpOAuthHttp;
+   tools: readonly McpTool[];
+   reportError: (error: unknown) => void;
+ };
+@@ -33,16 +34,19 @@ export async function startMcpHttpServer(
+   if (config.oauthPassword && !config.publicOrigin)
+     throw new Error("OAuth requires an HTTPS public origin.");
+   const oauth =
+-    config.oauthPassword && config.publicOrigin
++    options.oauth ??
++    (config.oauthPassword && config.publicOrigin
+       ? new McpOAuthHttp(config.publicOrigin, config.oauthPassword)
+-      : undefined;
++      : undefined);
++  if (oauth && oauth.provider.issuer !== config.publicOrigin)
++    throw new Error("OAuth public origin mismatch.");
+   const handler = createRequestHandler(options, config, oauth);
+   const server = createServer({ maxHeaderSize: 8192 }, (request, response) => {
+     void handler.serve(request, response);
+   });
+   server.requestTimeout = 15_000;
+   server.headersTimeout = 10_000;
+-  server.keepAliveTimeout = 1000;
++  server.keepAliveTimeout = 75_000;
+   server.maxConnections = 32;
+   let closing: Promise<void> | undefined;
+   await new Promise<void>((resolve, reject) => {
+@@ -62,10 +66,13 @@ export async function startMcpHttpServer(
+     stopAccepting: handler.stopAccepting,
+     close: () => {
+       handler.stopAccepting();
+-      closing ??= new Promise<void>((resolve, reject) => {
+-        server.close((error) => (error ? reject(error) : resolve()));
+-        server.closeAllConnections();
+-      });
++      closing ??= Promise.all([
++        new Promise<void>((resolve, reject) => {
++          server.close((error) => (error ? reject(error) : resolve()));
++          server.closeAllConnections();
++        }),
++        oauth?.close(),
++      ]).then(() => undefined);
+       return closing;
+     },
+   };
+@@ -100,7 +107,7 @@ function createRequestHandler(
+       authorizeMcpRequest(
+         request,
+         config,
+-        oauth && ((header) => oauth.provider.accepts(header)),
++        oauth && ((header) => oauth.accepts(header)),
+       );
+       if (request.url !== "/mcp") throw new McpHttpError(404, "Not found.");
+       if (request.method !== "POST") {
+@@ -131,7 +138,7 @@ function createRequestHandler(
+     serve,
+     stopAccepting: () => {
+       accepting = false;
+-      oauth?.provider.close();
++      oauth?.stop();
+     },
+   };
+ }
+diff --git a/src/main/mcp/mcpOAuthHttp.ts b/src/main/mcp/mcpOAuthHttp.ts
+index fad1ad3..0f9bc3e 100644
+--- a/src/main/mcp/mcpOAuthHttp.ts
++++ b/src/main/mcp/mcpOAuthHttp.ts
+@@ -1,5 +1,6 @@
+ import type { IncomingMessage, ServerResponse } from "node:http";
+ import { McpOAuthProvider } from "./mcpOAuthProvider";
++import type { McpOAuthSession } from "./mcpOAuthSession";
+ import {
+   McpOAuthError,
+   oauthRecord,
+@@ -28,8 +29,33 @@ export class McpOAuthHttp {
+   private windowStarted = 0;
+   private requests = 0;
+ 
+-  constructor(issuer: string, password: string) {
+-    this.provider = new McpOAuthProvider(issuer, password);
++  constructor(
++    issuer: string,
++    password: string,
++    private readonly session?: McpOAuthSession,
++  ) {
++    this.provider = session?.provider ?? new McpOAuthProvider(issuer, password);
++    if (this.provider.issuer !== issuer)
++      throw new Error("OAuth issuer mismatch.");
++  }
++
++  accepts(header: string, scope = "carrot.read"): boolean {
++    return this.session
++      ? this.session.accepts(header, scope)
++      : this.provider.accepts(header, scope);
++  }
++
++  stop(): void {
++    this.session?.stop();
++  }
++
++  async close(): Promise<void> {
++    if (this.session) await this.session.close();
++    else this.provider.close();
++  }
++
++  private async mutate<T>(action: () => T): Promise<T> {
++    return this.session ? this.session.run(action) : action();
+   }
+ 
+   challenge(): string {
+@@ -110,10 +136,11 @@ export class McpOAuthHttp {
+   ): Promise<void> {
+     if (path === "/oauth/register") {
+       requireContentType(request, "application/json");
++      const input = oauthRecord(await readMcpBody(request));
+       sendJson(
+         response,
+         201,
+-        this.provider.register(oauthRecord(await readMcpBody(request))),
++        await this.mutate(() => this.provider.register(input)),
+       );
+       return;
+     }
+@@ -138,9 +165,8 @@ export class McpOAuthHttp {
+           "Approval cookie is required.",
+           403,
+         );
+-      const redirect = this.provider.approve(
+-        input,
+-        cookies[0].slice(COOKIE.length + 1),
++      const redirect = await this.mutate(() =>
++        this.provider.approve(input, cookies[0].slice(COOKIE.length + 1)),
+       );
+       response.setHeader(
+         "Set-Cookie",
+@@ -151,9 +177,13 @@ export class McpOAuthHttp {
+     } else {
+       const authorization = readAuthorization(request);
+       if (path === "/oauth/token")
+-        sendJson(response, 200, this.provider.token(input, authorization));
++        sendJson(
++          response,
++          200,
++          await this.mutate(() => this.provider.token(input, authorization)),
++        );
+       else {
+-        this.provider.revoke(input, authorization);
++        await this.mutate(() => this.provider.revoke(input, authorization));
+         sendJson(response, 200, {});
+       }
+     }
+diff --git a/src/main/mcp/mcpOAuthSession.ts b/src/main/mcp/mcpOAuthSession.ts
+index ae20a39..1093264 100644
+--- a/src/main/mcp/mcpOAuthSession.ts
++++ b/src/main/mcp/mcpOAuthSession.ts
+@@ -30,8 +30,8 @@ export class McpOAuthSession {
+       release();
+     }
+   }
+-  accepts(header: string): boolean {
+-    return !this.fault && !this.stopped && this.provider.accepts(header);
++  accepts(header: string, scope = "carrot.read"): boolean {
++    return !this.fault && !this.stopped && this.provider.accepts(header, scope);
+   }
+   stop(): void {
+     this.stopped = true;
+   }
+diff --git a/tests/mcpDurableHttp.test.ts b/tests/mcpDurableHttp.test.ts
+new file mode 100644
+--- /dev/null
++++ b/tests/mcpDurableHttp.test.ts
+@@ -0,0 +1,114 @@
++import assert from "node:assert/strict";
++import { it } from "vitest";
++import { McpOAuthProvider } from "../src/main/mcp/mcpOAuthProvider";
++import { McpOAuthSession } from "../src/main/mcp/mcpOAuthSession";
++import { McpOAuthHttp } from "../src/main/mcp/mcpOAuthHttp";
++import { startMcpHttpServer } from "../src/main/mcp/mcpHttpServer";
++import { oauthDigest } from "../src/main/mcp/mcpOAuthPolicy";
++import type { McpOAuthSnapshot } from "../src/main/mcp/mcpOAuthSnapshot";
++
++const issuer = "https://carrot.tail-test.ts.net";
++const password = "p".repeat(43);
++const callback = "https://chatgpt.com/connector/oauth/http-restart";
++const verifier = "v".repeat(43);
++
++it("commits HTTP token exchange and revocation and resumes after a new server instance", async () => {
++  let saved: McpOAuthSnapshot | undefined;
++  async function start() {
++    const provider = new McpOAuthProvider(issuer, password, Date.now, {
++      persistent: true,
++    });
++    if (saved) provider.restore(saved);
++    const session = new McpOAuthSession(provider, {
++      save: async (state) => {
++        saved = state;
++      },
++    });
++    const server = await startMcpHttpServer({
++      config: { port: 0, token: "t".repeat(43), publicOrigin: issuer },
++      oauth: new McpOAuthHttp(issuer, password, session),
++      tools: [],
++      reportError: (error) => {
++        throw error;
++      },
++    });
++    const base = new URL(server.url).origin;
++    const post = (path: string, body: URLSearchParams) =>
++      fetch(`${base}${path}`, { method: "POST", body });
++    return { provider, session, server, post };
++  }
++  const first = await start();
++  let second: Awaited<ReturnType<typeof start>> | undefined;
++  try {
++    const client = await first.session.run(() =>
++      first.provider.register({
++        redirect_uris: [callback],
++        token_endpoint_auth_method: "none",
++      }),
++    );
++    const pending = first.provider.begin({
++      client_id: client.client_id,
++      redirect_uri: callback,
++      resource: `${issuer}/mcp`,
++      response_type: "code",
++      state: "test",
++      code_challenge: oauthDigest(verifier),
++      code_challenge_method: "S256",
++    });
++    const redirect = await first.session.run(() =>
++      first.provider.approve(
++        {
++          transaction: pending.transaction,
++          decision: "approve",
++          pairing_secret: password,
++        },
++        pending.cookie,
++      ),
++    );
++    const response = await first.post(
++      "/oauth/token",
++      new URLSearchParams({
++        client_id: client.client_id,
++        grant_type: "authorization_code",
++        resource: `${issuer}/mcp`,
++        redirect_uri: callback,
++        code: new URL(redirect).searchParams.get("code")!,
++        code_verifier: verifier,
++      }),
++    );
++    assert.equal(response.status, 200);
++    const tokens = await response.json();
++    assert.ok(saved?.refresh.length);
++    await first.server.close();
++    second = await start();
++    assert.equal(second.session.accepts(`Bearer ${tokens.access_token}`), true);
++    const refreshed = await second.post(
++      "/oauth/token",
++      new URLSearchParams({
++        client_id: client.client_id,
++        grant_type: "refresh_token",
++        resource: `${issuer}/mcp`,
++        refresh_token: tokens.refresh_token,
++      }),
++    );
++    assert.equal(refreshed.status, 200);
++    const renewed = await refreshed.json();
++    const revoked = await second.post(
++      "/oauth/revoke",
++      new URLSearchParams({
++        client_id: client.client_id,
++        token: renewed.refresh_token,
++      }),
++    );
++    assert.equal(revoked.status, 200);
++    await second.server.close();
++    const restored = new McpOAuthProvider(issuer, password, Date.now, {
++      persistent: true,
++    });
++    restored.restore(saved);
++    assert.equal(restored.accepts(`Bearer ${renewed.access_token}`), false);
++  } finally {
++    await first.server.close();
++    await second?.server.close();
++  }
++});
