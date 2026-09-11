@@ -40,18 +40,21 @@ async function fixture() {
   );
   cleanup.push(() => closeRedactionWorkspace(sessionId));
   const crop = vi.fn(
-    (region: { x: number; y: number; width: number; height: number }) => ({
-      getSize: () => ({ width: region.width, height: region.height }),
-      toDataURL: () => `native:${region.x}:${region.y}`,
-    }),
+    (region: { x: number; y: number; width: number; height: number }) =>
+      ({
+        getSize: () => ({ width: region.width, height: region.height }),
+        toDataURL: () => `native:${region.x}:${region.y}`,
+      }) as Electron.NativeImage,
   );
-  const resize = vi.fn(() => ({ toDataURL: () => "overview" }));
-  vi.mocked(nativeImage.createFromBuffer).mockReturnValue({
+  const resize = vi.fn(
+    () => ({ toDataURL: () => "overview" }) as Electron.NativeImage,
+  );
+  vi.mocked(nativeImage.createFromBuffer, { partial: true }).mockReturnValue({
     isEmpty: () => false,
     getSize: () => ({ width: 3000, height: 10000 }),
     crop,
     resize,
-  } as Electron.NativeImage);
+  });
   return {
     request: { sessionId, pageId: "a", maxEdge: 2048 as const },
     imagePath,
