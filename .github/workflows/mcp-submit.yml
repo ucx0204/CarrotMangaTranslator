@@ -1,0 +1,45 @@
+name: Apply MCP implementation checkpoint
+
+on:
+  push:
+    branches: [feat/mcp-app-bridge]
+    paths: ['docs/mcp-checkpoints/*.patch']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mcp-submit-feature-branch
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator' && github.ref == 'refs/heads/feat/mcp-app-bridge'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: feat/mcp-app-bridge
+      - name: Apply source patches without overwriting concurrent changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=$(git rev-parse HEAD)
+          shopt -s nullglob
+          patches=(docs/mcp-checkpoints/*.patch)
+          if [ ${#patches[@]} -eq 0 ]; then exit 0; fi
+          for patch in "${patches[@]}"; do
+            git apply --check --index "$patch"
+            git apply --index "$patch"
+            git rm -- "$patch"
+          done
+          if git diff --cached --name-only | grep -vE '^(src/(main|shared|preload|renderer)/|tests/mcp|scripts/mcp|docs/mcp)' ; then
+            echo 'Unexpected checkpoint path'; exit 1
+          fi
+          current=$(git ls-remote origin refs/heads/feat/mcp-app-bridge | cut -f1)
+          test "$current" = "$base"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(mcp): apply tested implementation checkpoint'
+          git push origin HEAD:refs/heads/feat/mcp-app-bridge
