@@ -56,7 +56,7 @@ function ShortcutList({ model }: { model: ShortcutModel }): React.JSX.Element {
     [keys("undo"), "keysUndo"],
     [keys("redo"), "keysRedo"],
     [keys("fit", "actual"), "keysZoom"],
-  ];
+  ] as const;
   return (
     <dl className={styles.shortcutGrid}>
       {rows.map(([keys, label]) => (
