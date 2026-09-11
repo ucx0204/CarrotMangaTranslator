@@ -29,6 +29,7 @@ type Pending = {
   resolve: (pages: ImageRedactionPage[]) => void;
   save: typeof saveImageRedactionPages;
   confirming?: boolean;
+  retainedDraft?: boolean;
 };
 const pending = new Map<string, Pending>();
 const productionStore = {
@@ -93,9 +94,12 @@ export async function withImageRedactionReview<T>(
     input.signal.throwIfAborted();
     return await withApprovedImageRedactions(approved, run, input.signal);
   } finally {
+    // A cancelled job loses approval rights, not the editor's unsaved draft.
+    const retainDraft =
+      input.signal.aborted && pending.get(input.jobId)?.retainedDraft;
     pending.delete(input.jobId);
     input.signal.removeEventListener("abort", cancel);
-    await closeRedactionWorkspace(sessionId);
+    if (!retainDraft) await closeRedactionWorkspace(sessionId);
   }
 }
 
@@ -114,6 +118,7 @@ export async function openPendingRedactionWorkspace(
     root,
   );
   entry.signal.throwIfAborted();
+  entry.retainedDraft = true;
   return workspace;
 }
 
