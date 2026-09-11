@@ -6,6 +6,7 @@ function review(id: string): JobEvent {
   return {
     id,
     kind: "gemma-analysis",
+    progressText: "Review",
     status: "running",
     imageRedactionReview: { sessionId: id, pages: [] },
   };
@@ -15,6 +16,7 @@ it("retains the visible editor as a draft after its job is cancelled", () => {
   const next = updateRedactionReviewQueue(state, {
     id: "a",
     kind: "gemma-analysis",
+    progressText: "Review",
     status: "cancelled",
   });
   expect(next).toHaveLength(1);
@@ -30,6 +32,7 @@ it("queues a later job instead of replacing a draft and drops never-edited cance
   const next = updateRedactionReviewQueue(both, {
     id: "b",
     kind: "gemma-analysis",
+    progressText: "Review",
     status: "failed",
   });
   expect(next).toEqual(a);
@@ -41,6 +44,7 @@ it("does not reset draft state on repeated reviews or unrelated progress", () =>
     updateRedactionReviewQueue(a, {
       id: "b",
       kind: "gemma-analysis",
+      progressText: "Review",
       status: "completed",
     }),
   ).toBe(a);

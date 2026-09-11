@@ -3,14 +3,10 @@ import { closeRedactionWorkspace } from "../imageRedactionWorkspaceSessions";
 type DraftWindow = {
   id: number;
   isDestroyed: () => boolean;
-  once: (
-    event: "destroyed" | "render-process-gone",
-    listener: () => void,
-  ) => unknown;
-  removeListener: (
-    event: "destroyed" | "render-process-gone",
-    listener: () => void,
-  ) => unknown;
+  once(event: "destroyed", listener: () => void): unknown;
+  once(event: "render-process-gone", listener: () => void): unknown;
+  removeListener(event: "destroyed", listener: () => void): unknown;
+  removeListener(event: "render-process-gone", listener: () => void): unknown;
 };
 type Owner = {
   sender: DraftWindow;
