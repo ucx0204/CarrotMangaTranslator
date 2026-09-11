@@ -60,6 +60,8 @@ export function changeRedactionStrokes(
     throw new Error("The page mask limit was exceeded");
   const document = state.documents[pageId];
   if (!document) throw new Error("Unknown redaction page");
+  if (JSON.stringify(document.strokes) === JSON.stringify(strokes))
+    return state;
   return editRedactionDocuments(state, [
     { ...document, strokes, decision: "unreviewed" },
   ]);

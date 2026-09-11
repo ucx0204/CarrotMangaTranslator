@@ -13,7 +13,7 @@ Each completed fix is committed and pushed separately. Read this queue and the s
 - [x] F02: cancellation/exit when storage fails.
 - [ ] F03: disjoint draft revisions and safe conflict handling.
 - [ ] F04: recoverable preview failures.
-- [ ] F05: no-op selection/transform preserves review.
+- [x] F05: no-op selection/transform preserves review.
 - [ ] F06: bounded per-page and batch undo.
 - [ ] F07: consistent copy scaling.
 - [ ] F08: bounded visible-region mask display.
@@ -35,9 +35,9 @@ Each completed fix is committed and pushed separately. Read this queue and the s
 ## Verification and checkpoints
 
 - Planning commit: `405d0a8`.
-- F01: additive copies are isolated command groups whose completed masks are unioned. Nested copies and subsequent global erasers retain their semantics; old unscoped masks are unchanged. The actual batch application and its preview use the same merge policy. Local Node 22: 20 copy/raster/native-adapter tests passed; focused ESLint passed. Full renderer/shared typecheck also passed.
-
-- F02: an explicit no-write exit is offered after an error; it stops new autosaves and cancels the waiting job without requiring disk success. Normal save/rollback/send still require an acknowledged write. Existing in-flight writes are not misrepresented as rolled back. Local exit/draft/locale tests: 20 passed; focused ESLint passed.
+- F01 (`378647f`): additive copies are isolated command groups whose completed masks are unioned. Nested copies and subsequent global erasers retain their semantics; old unscoped masks are unchanged. The actual batch application and its preview use the same merge policy. Local Node 22: 20 copy/raster/native-adapter tests passed; focused ESLint passed. Full renderer/shared typecheck also passed.
+- F02 (`c85f001`): an explicit no-write exit is offered after an error; it stops new autosaves and cancels the waiting job without requiring disk success. Normal save/rollback/send still require an acknowledged write. Existing in-flight writes are not misrepresented as rolled back. Local exit/draft/locale tests: 20 passed; focused ESLint passed.
+- F05: unchanged strokes now return the original session before invalidating its decision. Selection without a transform no longer consumes history or starts a save. Two deterministic model regressions and four raster cases passed; focused ESLint passed. This checkpoint does not claim a full repository check.
 
 ## Baseline observations
 
