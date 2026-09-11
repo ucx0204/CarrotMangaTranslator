@@ -52,6 +52,22 @@ describe("Windows installer permission policy", () => {
     expect(installer).not.toContain("!macro customFinishPage");
   });
 
+  it("validates new directories lexically before creating or writing them", () => {
+    const preflight = section(
+      installer,
+      "Function MgtPrepareDataRoot",
+      "FunctionEnd",
+    );
+    expect(preflight).not.toMatch(/^\s*GetFullPathName /m);
+    expect(preflight.match(/kernel32::GetFullPathNameW/g)).toHaveLength(2);
+    expect(preflight).toContain("$4 >= ${NSIS_MAX_STRLEN}");
+    const pinned = preflight.indexOf('StrCpy $MgtDataRoot "$1"');
+    expect(pinned).toBeGreaterThan(0);
+    expect(preflight.indexOf("Call MgtProbeDataRootWriteAccess")).toBeGreaterThan(
+      pinned,
+    );
+  });
+
   it("checks destination writes before removing the existing application", () => {
     const temporary = mkdtempSync(join(tmpdir(), "mgt-uac-templates-"));
     try {
