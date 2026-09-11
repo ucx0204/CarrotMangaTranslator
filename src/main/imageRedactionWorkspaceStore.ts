@@ -6,6 +6,8 @@ import {
   writeRedactionSnapshot,
 } from "./imageRedactionWorkspaceSnapshot";
 
+import { maintainRedactionDraftObjects } from "./imageRedactionWorkspaceCleanup";
+
 const tails = new Map<string, Promise<void>>();
 
 /** Reads share the root queue so readers never hold an index across draft cleanup. */
@@ -28,7 +30,9 @@ export function updateRedactionWorkspaceStore(
   return exclusive(root, async () => {
     const snapshot = await readRedactionSnapshot(root, scope);
     await change(snapshot.state);
-    return (await writeRedactionSnapshot(root, snapshot)).revision;
+    const index = await writeRedactionSnapshot(root, snapshot);
+    await maintainRedactionDraftObjects(root, index);
+    return index.revision;
   });
 }
 function exclusive<T>(root: string, operation: () => Promise<T>): Promise<T> {
