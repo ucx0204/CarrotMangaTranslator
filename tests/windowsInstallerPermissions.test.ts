@@ -11,15 +11,15 @@ const removal = readFileSync(
   join(root, "build/windows-uninstall-elevation.nsh"),
   "utf8",
 );
-const { nsisTemplatesDir } = require(
-  "app-builder-lib/out/targets/nsis/nsisUtil",
-) as { nsisTemplatesDir: string };
-const { copyTemplateDirectory, patchNsisTemplates } = require(
-  "../scripts/build-windows-installer.cjs",
-) as {
-  copyTemplateDirectory: (source: string, destination: string) => void;
-  patchNsisTemplates: (directory: string) => void;
-};
+const { nsisTemplatesDir } =
+  require("app-builder-lib/out/targets/nsis/nsisUtil") as {
+    nsisTemplatesDir: string;
+  };
+const { copyTemplateDirectory, patchNsisTemplates } =
+  require("../scripts/build-windows-installer.cjs") as {
+    copyTemplateDirectory: (source: string, destination: string) => void;
+    patchNsisTemplates: (directory: string) => void;
+  };
 
 function section(source: string, start: string, end: string): string {
   const from = source.indexOf(start);
@@ -37,7 +37,19 @@ describe("Windows installer permission policy", () => {
     );
     expect(removal).toContain("!macro customUnInit");
     expect(removal).toContain('ExecShellWait "runas"');
-    expect(installer).toContain("windows-uninstall-elevation.nsh");
+    expect(installer).toContain(
+      '!include "${__FILEDIR__}\\windows-uninstall-elevation.nsh"',
+    );
+  });
+
+  it("retains the builder's unelevated finish-page application launch", () => {
+    const assisted = readFileSync(
+      join(nsisTemplatesDir, "assistedInstaller.nsh"),
+      "utf8",
+    );
+    const start = section(assisted, "Function StartApp", "FunctionEnd");
+    expect(start).toContain("${StdUtils.ExecShellAsUser}");
+    expect(installer).not.toContain("!macro customFinishPage");
   });
 
   it("checks destination writes before removing the existing application", () => {
@@ -79,7 +91,7 @@ describe("Windows installer permission policy", () => {
     expect(write).toContain('GetTempFileName $9 "$INSTDIR"');
     expect(write).toContain('FileOpen $0 "$9" w');
     expect(write).toContain("kernel32::MoveFileExW");
-    expect(write).toContain('i 9) i.r0');
+    expect(write).toContain("i 9) i.r0");
     expect(write).not.toContain('FileOpen $0 "$INSTDIR\\data-root.txt" w');
     expect(write).not.toContain('Delete "$INSTDIR\\data-root.txt"');
     expect(write).toContain("MgtPointerWriteFailed:");
@@ -91,9 +103,7 @@ describe("Windows installer permission policy", () => {
       win: { requestedExecutionLevel?: string };
       nsis: { perMachine: boolean; allowElevation?: boolean };
     };
-    expect(config.win.requestedExecutionLevel ?? "asInvoker").toBe(
-      "asInvoker",
-    );
+    expect(config.win.requestedExecutionLevel ?? "asInvoker").toBe("asInvoker");
     expect(config.nsis.perMachine).toBe(false);
     expect(config.nsis.allowElevation ?? true).toBe(true);
     expect(installer).not.toMatch(/icacls|AccessControl::GrantOnFile/i);
@@ -105,7 +115,7 @@ describe("Windows installer permission policy", () => {
     expect(removal).toContain('StrCpy $R1 "/allusers"');
     expect(removal).toContain("WindowsIdentity]::GetCurrent().User.Value");
     expect(removal).toContain(
-      '${If} $MgtUninstallOriginalSid != $MgtUninstallCurrentSid',
+      "${If} $MgtUninstallOriginalSid != $MgtUninstallCurrentSid",
     );
     expect(removal).toContain("${IfNot} ${UAC_IsAdmin}");
     expect(removal).toContain("자동으로 다시 요청하지 않습니다");
