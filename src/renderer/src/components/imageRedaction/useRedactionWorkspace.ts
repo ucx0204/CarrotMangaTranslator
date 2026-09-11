@@ -12,10 +12,14 @@ import {
 import { RedactionPreviewCache } from "./redactionPreviewCache";
 import { runRedactionCommand, type RedactionCommand } from "./redactionCommand";
 
-export type RedactionWorkspaceController = ReturnType<
-  typeof useRedactionWorkspace
->;
-export function useRedactionWorkspace(workspace: RedactionWorkspace) {
+import type { RedactionWorkspaceController as WorkspaceController } from "./redactionWorkspaceTypes";
+
+// Keep the hook's public type name while the feature contract owns its shape.
+export type RedactionWorkspaceController = WorkspaceController;
+
+export function useRedactionWorkspace(
+  workspace: RedactionWorkspace,
+): RedactionWorkspaceController {
   const { t } = useTranslation("components");
   const [state, setState] = React.useState(() =>
     createRedactionSession(workspace),

@@ -1,8 +1,8 @@
 import React from "react";
-import type { RedactionPreviewCache } from "./redactionPreviewCache";
+import type { RedactionPreviewSource } from "./redactionWorkspaceTypes";
 
 export function useRedactionPreview(
-  cache: RedactionPreviewCache,
+  cache: RedactionPreviewSource,
   sessionId: string,
   pageId: string,
   edge: 320 | 2048,

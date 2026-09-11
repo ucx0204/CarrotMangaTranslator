@@ -3,10 +3,10 @@ import type { ImageRedactionStroke } from "../../../../shared/imageRedaction";
 import { useEventCallback } from "../../hooks/useEventCallback";
 import { formatErrorMessage } from "../../lib/errorPresentation";
 import { useTranslation } from "react-i18next";
-import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
+import type { RedactionWorkspaceController } from "./redactionWorkspaceTypes";
 
 type Options = {
-  form: RedactionWorkspaceController;
+  form: Pick<RedactionWorkspaceController, "markPreview">;
   pageId: string;
   requestKey: string;
   url: string;
