@@ -9,7 +9,7 @@ import {
   windowProperties,
 } from "./mcpArguments";
 
-export type McpToolContent =
+type McpToolContent =
   | { type: "text"; text: string }
   | { type: "image"; data: string; mimeType: "image/png" };
 
@@ -20,7 +20,10 @@ export type McpTool = {
   invoke: (args: Record<string, unknown>) => Promise<McpToolContent[]>;
 };
 
-export function createMcpReadTools(service: McpLibraryReadService): McpTool[] {
+export function createMcpReadTools(
+  service: McpLibraryReadService,
+  imageTransfer = false,
+): McpTool[] {
   return [
     {
       name: "carrot_get_capabilities",
@@ -31,9 +34,10 @@ export function createMcpReadTools(service: McpLibraryReadService): McpTool[] {
         allowArguments(args, []);
         return textContent({
           mode: "read-only",
-          features: ["library.read"],
+          features: imageTransfer ? ["library.read", "page.preview"] : ["library.read"],
           translation: false,
-          imageTransfer: false,
+          imageTransfer,
+          imageRedaction: "preview-blocked-when-local-review-is-required",
           sampling: false,
           oauth: false,
         });
