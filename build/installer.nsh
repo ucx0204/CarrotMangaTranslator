@@ -1,7 +1,7 @@
 !include nsDialogs.nsh
 !include LogicLib.nsh
 !include FileFunc.nsh
-!include "${__FILEDIR__}/windows-uninstall-elevation.nsh"
+!include "${__FILEDIR__}\windows-uninstall-elevation.nsh"
 
 ; Keep the historical installation directory even though the payload
 ; executable now has an ASCII-only filename for nsisunz compatibility.
