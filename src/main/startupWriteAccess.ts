@@ -101,7 +101,14 @@ function collectCleanupFailure(
 
 function isPermissionFailure(error: unknown): boolean {
   if (error instanceof AggregateError) {
-    return error.errors.length > 0 && error.errors.every(isPermissionFailure);
+    const [primary, ...cleanup]: unknown[] = error.errors;
+    return (
+      isPermissionFailure(primary) &&
+      cleanup.every(
+        (failure) =>
+          isPermissionFailure(failure) || errorCode(failure) === "ENOTEMPTY",
+      )
+    );
   }
   return ["EACCES", "EPERM"].includes(errorCode(error) ?? "");
 }
