@@ -10,10 +10,17 @@ import {
   ownRedactionWorkspace,
   releaseRedactionWorkspaceOwner,
 } from "./redactionWorkspaceOwners";
-import { trustedHandleContract } from "./trustedIpc";
-import type { IpcContext } from "./context";
+import { trustedHandleContract, type TrustedIpcContext } from "./trustedIpc";
+import type { ImageDecodeFallback } from "../regionCrop";
 
-export function registerImageRedactionWorkspaceIpc(context: IpcContext): void {
+type WorkspaceIpcContext = TrustedIpcContext & {
+  appPaths: { dataRoot: string };
+  decodeImage: ImageDecodeFallback;
+};
+
+export function registerImageRedactionWorkspaceIpc(
+  context: WorkspaceIpcContext,
+): void {
   trustedHandleContract(
     context,
     imageRedactionIpcContracts.openRedactionWorkspace,
