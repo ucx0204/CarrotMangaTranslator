@@ -150,3 +150,32 @@ export function mergeRedactionStrokes(
   });
   return [...existing, ...isolated];
 }
+
+/** Compare edit values rather than object identity or property insertion order. */
+export function redactionStrokesEqual(
+  left: readonly ImageRedactionStroke[],
+  right: readonly ImageRedactionStroke[],
+): boolean {
+  return (
+    left === right ||
+    (left.length === right.length &&
+      left.every((stroke, index) => {
+        const other = right[index];
+        const isolation = stroke.isolation ?? [];
+        const otherIsolation = other.isolation ?? [];
+        return (
+          stroke.shape === other.shape &&
+          (stroke.operation ?? "hide") === (other.operation ?? "hide") &&
+          stroke.size === other.size &&
+          isolation.length === otherIsolation.length &&
+          isolation.every((group, depth) => group === otherIsolation[depth]) &&
+          stroke.points.length === other.points.length &&
+          stroke.points.every(
+            (point, pointIndex) =>
+              point.x === other.points[pointIndex].x &&
+              point.y === other.points[pointIndex].y,
+          )
+        );
+      }))
+  );
+}

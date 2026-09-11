@@ -8,6 +8,7 @@ import type {
 import {
   copyRedactionStrokes,
   mergeRedactionStrokes,
+  redactionStrokesEqual,
 } from "../../../../shared/imageRedactionEditing";
 import {
   editRedactionDocuments,
@@ -60,8 +61,7 @@ export function changeRedactionStrokes(
     throw new Error("The page mask limit was exceeded");
   const document = state.documents[pageId];
   if (!document) throw new Error("Unknown redaction page");
-  if (JSON.stringify(document.strokes) === JSON.stringify(strokes))
-    return state;
+  if (redactionStrokesEqual(document.strokes, strokes)) return state;
   return editRedactionDocuments(state, [
     { ...document, strokes, decision: "unreviewed" },
   ]);
