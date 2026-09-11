@@ -1,4 +1,4 @@
-import { ImageRedactionReviewHost } from "../../components/ImageRedactionReviewHost";
+import { ImageRedactionDialogs } from "../../components/ImageRedactionDialogs";
 import { TranslationDialogs } from "../../components/TranslationDialogs";
 import React from "react";
 import type { RegionTranslationModal } from "../../components/RegionTranslationModal";
@@ -39,6 +39,9 @@ import {
 } from "./sessionRenderBoundaries";
 
 export type AppSessionViewProps = {
+  redactionPreparationProps?: React.ComponentProps<
+    typeof ImageRedactionDialogs
+  >["preparation"];
   regionTranslationProps?: React.ComponentProps<
     typeof RegionTranslationModal
   > | null;
@@ -75,6 +78,7 @@ export type AppSessionViewProps = {
 };
 
 export function AppSessionView({
+  redactionPreparationProps,
   autoInpaintingOptionsProps,
   blockLibraryProps,
   commandPaletteProps,
@@ -138,6 +142,7 @@ export function AppSessionView({
       ) : (
         <MemoizedEditorFloatingLayer />
       )}
+      <ImageRedactionDialogs preparation={redactionPreparationProps ?? null} />
       <LibraryDropOverlay {...libraryDropOverlayProps} />
     </PanelSessionContext.Provider>
   );
@@ -297,7 +302,6 @@ function SessionFloatingOverlays({
       {pageRetranslateProps ? (
         <PageRetranslateModal {...pageRetranslateProps} />
       ) : null}
-      <ImageRedactionReviewHost />
       <ToastViewport />
     </>
   );
