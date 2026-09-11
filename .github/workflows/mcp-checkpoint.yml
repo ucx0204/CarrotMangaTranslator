@@ -15,8 +15,11 @@ concurrency:
 jobs:
   checkpoint:
     if: github.repository == 'ucx0204/CarrotMangaTranslator' && github.ref == 'refs/heads/feat/mcp-app-bridge'
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
     permissions:
       contents: write
     steps:
@@ -70,7 +73,6 @@ jobs:
 
       - name: Static checks with complete repository dependencies
         if: always()
-        shell: bash
         run: |
           failed=0
           for gate in typecheck typecheck:electron typecheck:js format:check arch:deps arch:budget lint:error-handling lint deadcode:exports check:script-entrypoints check:maintainability check:duplicates; do
@@ -86,4 +88,4 @@ jobs:
 
       - name: Real Electron MCP runtime and redaction smoke
         if: success()
-        run: xvfb-run -a node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs
+        run: node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs
