@@ -15,6 +15,12 @@ const {
 const root = resolve(__dirname, "..");
 const exec = promisify(execFile);
 
+// This test owns Electron's lifetime. Closing the first isolated consent window
+// must not trigger Electron's default successful exit before assertions/cleanup.
+app.on("window-all-closed", () => {
+  console.log("[mcp-smoke] Consent window closed; continuing owned acceptance checks.");
+});
+
 /** @param {string} dataRoot */
 async function importFixture(dataRoot) {
   const { getAppPaths } = require(join(dataRoot, "out/main/appPaths.js"));
@@ -179,7 +185,10 @@ async function main() {
 }
 
 main().then(
-  () => app.exit(0),
+  () => {
+    console.log("PASS MCP native smoke finished");
+    app.exit(0);
+  },
   (error) => {
     console.error(error);
     app.exit(1);
