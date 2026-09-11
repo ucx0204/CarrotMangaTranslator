@@ -89,3 +89,20 @@ jobs:
             echo '::endgroup::'
           done
           exit "$failed"
+
+      - name: Verify pinned Cloudflare binary for the synthetic HTTPS test
+        shell: pwsh
+        run: |
+          $binary = Join-Path $env:RUNNER_TEMP 'carrot-cloudflared-2026.9.1.exe'
+          Invoke-WebRequest 'https://github.com/cloudflare/cloudflared/releases/download/2026.9.1/cloudflared-windows-amd64.exe' -OutFile $binary
+          if ((Get-Item $binary).Length -ne 54976432) { throw 'Unexpected cloudflared asset size' }
+          $expected = '2837888cc0f5d58f15b6dc478376de90b4d3ba5241c7947455d1e0a0df429712'
+          if ((Get-FileHash $binary -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'cloudflared checksum mismatch' }
+          "CARROT_CLOUDFLARED_PATH=$binary" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          & $binary --version
+
+      - name: Live Cloudflare OAuth with an isolated synthetic library
+        timeout-minutes: 6
+        env:
+          CARROT_MCP_SMOKE_TUNNEL: "1"
+        run: node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs
