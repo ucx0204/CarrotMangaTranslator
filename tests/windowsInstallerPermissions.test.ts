@@ -63,9 +63,9 @@ describe("Windows installer permission policy", () => {
     expect(preflight).toContain("$4 >= ${NSIS_MAX_STRLEN}");
     const pinned = preflight.indexOf('StrCpy $MgtDataRoot "$1"');
     expect(pinned).toBeGreaterThan(0);
-    expect(preflight.indexOf("Call MgtProbeDataRootWriteAccess")).toBeGreaterThan(
-      pinned,
-    );
+    expect(
+      preflight.indexOf("Call MgtProbeDataRootWriteAccess"),
+    ).toBeGreaterThan(pinned);
   });
 
   it("checks destination writes before removing the existing application", () => {
