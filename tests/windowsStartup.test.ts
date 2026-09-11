@@ -11,7 +11,8 @@ const SID = "S-1-5-21-1001";
 function fixture() {
   const resolveDataRoot = vi.fn(() => DATA_ROOT);
   const options: WindowsStartupOptions = {
-    executablePath: "C:\\Program Files\\당근망가번역기\\CarrotMangaTranslator.exe",
+    executablePath:
+      "C:\\Program Files\\당근망가번역기\\CarrotMangaTranslator.exe",
     workingDirectory: "D:\\원고 폴더",
     arguments: ["D:\\원고 폴더\\page 1.png"],
     resolveDataRoot,
@@ -66,7 +67,9 @@ describe("Windows startup permission gate", () => {
   it("relaunches the exact executable once with original arguments and cwd", () => {
     const { options, runtime } = fixture();
     denyWrites(runtime);
-    expect(prepareWindowsStartup(options, runtime)).toEqual({ status: "relaunched" });
+    expect(prepareWindowsStartup(options, runtime)).toEqual({
+      status: "relaunched",
+    });
     expect(runtime.relaunch).toHaveBeenCalledTimes(1);
     const request = vi.mocked(runtime.relaunch).mock.calls[0][0];
     expect(request.executablePath).toBe(options.executablePath);
@@ -79,7 +82,9 @@ describe("Windows startup permission gate", () => {
     const { options, runtime } = fixture();
     denyWrites(runtime);
     vi.mocked(runtime.relaunch).mockReturnValue("cancelled");
-    expect(prepareWindowsStartup(options, runtime)).toEqual({ status: "cancelled" });
+    expect(prepareWindowsStartup(options, runtime)).toEqual({
+      status: "cancelled",
+    });
     expect(runtime.relaunch).toHaveBeenCalledTimes(1);
   });
 
@@ -88,7 +93,10 @@ describe("Windows startup permission gate", () => {
     const { options, runtime, resolveDataRoot } = fixture();
     options.arguments = arguments_;
     resolveDataRoot.mockReturnValue("D:\\different-data");
-    vi.mocked(runtime.readIdentity).mockReturnValue({ sid: SID, elevated: true });
+    vi.mocked(runtime.readIdentity).mockReturnValue({
+      sid: SID,
+      elevated: true,
+    });
     expect(prepareWindowsStartup(options, runtime)).toEqual({
       status: "continue",
       dataRoot: DATA_ROOT,
@@ -106,7 +114,9 @@ describe("Windows startup permission gate", () => {
       sid: "S-1-5-21-2002",
       elevated: true,
     });
-    expect(() => prepareWindowsStartup(options, runtime)).toThrow("다른 Windows 계정");
+    expect(() => prepareWindowsStartup(options, runtime)).toThrow(
+      "다른 Windows 계정",
+    );
     expect(resolveDataRoot).not.toHaveBeenCalled();
     expect(runtime.probeWriteAccess).not.toHaveBeenCalled();
     expect(runtime.relaunch).not.toHaveBeenCalled();
@@ -116,7 +126,9 @@ describe("Windows startup permission gate", () => {
     const arguments_ = relaunchedArguments();
     const { options, runtime } = fixture();
     options.arguments = arguments_;
-    expect(() => prepareWindowsStartup(options, runtime)).toThrow("관리자 권한을 얻지 못했습니다");
+    expect(() => prepareWindowsStartup(options, runtime)).toThrow(
+      "관리자 권한을 얻지 못했습니다",
+    );
     expect(runtime.probeWriteAccess).not.toHaveBeenCalled();
     expect(runtime.relaunch).not.toHaveBeenCalled();
   });
@@ -124,8 +136,13 @@ describe("Windows startup permission gate", () => {
   it("does not loop if an already elevated process still cannot write", () => {
     const { options, runtime } = fixture();
     denyWrites(runtime);
-    vi.mocked(runtime.readIdentity).mockReturnValue({ sid: SID, elevated: true });
-    expect(() => prepareWindowsStartup(options, runtime)).toThrow("관리자 권한으로도");
+    vi.mocked(runtime.readIdentity).mockReturnValue({
+      sid: SID,
+      elevated: true,
+    });
+    expect(() => prepareWindowsStartup(options, runtime)).toThrow(
+      "관리자 권한으로도",
+    );
     expect(runtime.relaunch).not.toHaveBeenCalled();
   });
 
@@ -150,7 +167,9 @@ describe("Windows startup permission gate", () => {
     vi.mocked(runtime.relaunch).mockImplementation(() => {
       throw new Error("OS launch failed");
     });
-    expect(() => prepareWindowsStartup(options, runtime)).toThrow("OS launch failed");
+    expect(() => prepareWindowsStartup(options, runtime)).toThrow(
+      "OS launch failed",
+    );
     expect(runtime.relaunch).toHaveBeenCalledTimes(1);
   });
 
@@ -164,14 +183,15 @@ describe("Windows startup permission gate", () => {
     expect(runtime.probeWriteAccess).not.toHaveBeenCalled();
   });
 
-  it.each(["!invalid!", "e30", "a".repeat(8193)])(
-    "rejects malformed or oversized handoff %s before data access",
-    (encoded) => {
-      const { options, runtime, resolveDataRoot } = fixture();
-      options.arguments = [`--mgt-uac-relaunch=${encoded}`];
-      expect(() => prepareWindowsStartup(options, runtime)).toThrow();
-      expect(resolveDataRoot).not.toHaveBeenCalled();
-      expect(runtime.probeWriteAccess).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    { name: "invalid encoding", encoded: "!invalid!" },
+    { name: "invalid schema", encoded: "e30" },
+    { name: "oversized", encoded: "a".repeat(8193) },
+  ])("rejects $name handoff before data access", ({ encoded }) => {
+    const { options, runtime, resolveDataRoot } = fixture();
+    options.arguments = [`--mgt-uac-relaunch=${encoded}`];
+    expect(() => prepareWindowsStartup(options, runtime)).toThrow();
+    expect(resolveDataRoot).not.toHaveBeenCalled();
+    expect(runtime.probeWriteAccess).not.toHaveBeenCalled();
+  });
 });
