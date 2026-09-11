@@ -33,7 +33,9 @@ export function ImageRedactionPreparationHost(props: Props): React.JSX.Element {
     const open = async () => {
       await beforeOpen();
       if (disposed) return;
-      const loaded = await analysisGateway.openRedactionWorkspace(props.request);
+      const loaded = await analysisGateway.openRedactionWorkspace(
+        props.request,
+      );
       session = loaded.sessionId;
       if (disposed) await analysisGateway.closeRedactionWorkspace(session);
       else setWorkspace(loaded);
@@ -41,10 +43,7 @@ export function ImageRedactionPreparationHost(props: Props): React.JSX.Element {
     void open().catch((failure: unknown) => {
       if (!disposed) report(failure);
       else
-        console.error(
-          "Redaction preparation stopped while opening",
-          failure,
-        );
+        console.error("Redaction preparation stopped while opening", failure);
     });
     return () => {
       disposed = true;
@@ -58,10 +57,7 @@ export function ImageRedactionPreparationHost(props: Props): React.JSX.Element {
   }, [props.request, beforeOpen, attempt, setError, report]);
   if (workspace)
     return (
-      <ManualRedactionWorkspace
-        workspace={workspace}
-        onClose={props.onClose}
-      />
+      <ManualRedactionWorkspace workspace={workspace} onClose={props.onClose} />
     );
   return (
     <Modal
