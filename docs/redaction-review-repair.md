@@ -1,43 +1,44 @@
 # Redaction review repair / issue #93
 
-Branch: `fix/redaction-review-and-sfx-93-20260911`
+Branch: `fix/redaction-review-and-sfx-93-20260911`  
 Base: `ede815eba3881cb66117512989f71a38271906ad`
 
 ## Resume contract
 
-Each independently completed fix is committed and pushed before starting the next fix. This document records progress and verification, not an assertion that pending work is complete. Do not merge, squash, release, change the version, or modify user originals/library/output. Keep the three existing basic redaction UI smoke tests; use small deterministic policy/storage/transport tests rather than restoring screenshot matrices. Use the ordinary repository checks for final verification.
+Each completed fix is committed and pushed separately. Read this queue and the subsequent commit messages before resuming; do not replay old patches. Do not merge, squash, release, change the version, or modify user originals/library/output. Keep the three existing basic redaction UI smoke tests; use small deterministic policy/storage/transport tests, not screenshot matrices. Final verification uses the ordinary repository checks.
 
 ## Work queue
 
-- [ ] F01: additive mask copy must not erase existing target redactions.
-- [ ] F02: explicit cancellation/exit must remain possible when draft storage fails.
-- [ ] F03: isolate concurrent draft revisions and safely merge disjoint changes.
-- [ ] F04: recover preview failures without hiding source/mask validation errors.
-- [ ] F05: preserve review status for no-op selection/transform.
-- [ ] F06: bounded per-page and batch undo histories.
-- [ ] F07: explicit, consistent copy scaling across aspect ratios.
-- [ ] F08: bound native mask display work to the visible region.
-- [ ] F09: provide native-resolution detail at inspection zoom.
-- [ ] F10: propagate command failure; keep unrelated errors independent.
-- [ ] F11: immediate dirty state and explicit draft lifetime across cancellation.
-- [ ] F12: partition draft storage and define safe retention/cleanup.
-- [ ] F13: share source raster limits across preparation/schema/rendering.
-- [ ] F14: move workspace orchestration behind application ports.
-- [ ] F15: narrow UI contracts and remove duplicated current-document authority.
-- [ ] F16: integrate redaction bindings with the common shortcut machinery.
-- [ ] F17: make confirmation mode explicit in trusted pending-job state.
-- [ ] F18: wire pre-edit entry points for work/chapter/page selections.
-- [ ] F19: consolidate current documentation and remove obsolete branch CI.
-- [ ] #93: reproduce and repair SFX JSON/zero-translation handling without fabricated translations.
-- [ ] Baseline Windows conditional-batch test failure: identify and repair deterministic readiness.
-- [ ] Final: typecheck, lint, architecture, focused regressions, ordinary full checks; record exact results.
+- [x] F01: additive mask copy must not erase existing target redactions.
+- [ ] F02: cancellation/exit when storage fails.
+- [ ] F03: disjoint draft revisions and safe conflict handling.
+- [ ] F04: recoverable preview failures.
+- [ ] F05: no-op selection/transform preserves review.
+- [ ] F06: bounded per-page and batch undo.
+- [ ] F07: consistent copy scaling.
+- [ ] F08: bounded visible-region mask display.
+- [ ] F09: native-resolution inspection detail.
+- [ ] F10: command results and independent error ownership.
+- [ ] F11: immediate dirty state and cancellation-safe draft lifetime.
+- [ ] F12: partitioned storage and safe retention.
+- [ ] F13: shared source raster budgets.
+- [ ] F14: workspace application ports.
+- [ ] F15: narrow UI contracts and one current-document authority.
+- [ ] F16: common shortcut machinery.
+- [ ] F17: explicit trusted confirmation mode.
+- [ ] F18: work/chapter/page pre-edit entry points.
+- [ ] F19: current documentation and obsolete branch CI cleanup.
+- [ ] #93: SFX JSON/zero-translation handling.
+- [ ] Baseline Windows conditional-batch readiness failure.
+- [ ] Final static checks, regressions, ordinary full checks.
+
+## Verification and checkpoints
+
+- Planning commit: `405d0a8`.
+- F01: additive copies are isolated command groups whose completed masks are unioned. Nested copies and subsequent global erasers retain their semantics; old unscoped masks are unchanged. The actual batch application and its preview use the same merge policy. Local Node 22: 20 copy/raster/native-adapter tests passed; focused ESLint passed. Full typecheck is still being run, not claimed complete.
 
 ## Baseline observations
 
-Issue #93 reports selected SFX translation failing with `Failed to parse model output as JSON.` and later partial runs reporting `0개 번역` under Gemma. No original model response is attached; distinguish reproduced contract failures from unverified model-specific behavior.
+Issue #93 reports SFX output failing JSON parsing and later partial jobs reporting zero translations under Gemma. The original model response is not attached; do not claim model-specific reproduction without evidence.
 
-The baseline Check run `34556120674` passed macOS and failed Windows in `conditionalBatchEditor.test.tsx` while looking for the favorite recipe button. Do not treat this as proof that redaction caused the failure.
-
-## Completed checkpoints
-
-- Planning: created this branch from the reviewed master commit and recorded the work queue. No product changes yet.
+Baseline Check `34556120674`: macOS passed; Windows failed in `conditionalBatchEditor.test.tsx` looking for the favorite recipe button. Do not assume redaction caused it.

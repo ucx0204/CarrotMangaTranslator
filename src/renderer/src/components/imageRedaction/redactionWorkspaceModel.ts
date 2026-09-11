@@ -5,7 +5,10 @@ import type {
   RedactionPreset,
   RedactionView,
 } from "../../../../shared/imageRedactionWorkspace";
-import { copyRedactionStrokes } from "../../../../shared/imageRedactionEditing";
+import {
+  copyRedactionStrokes,
+  mergeRedactionStrokes,
+} from "../../../../shared/imageRedactionEditing";
 import {
   editRedactionDocuments,
   nextUnreviewedPage,
@@ -141,7 +144,11 @@ export function applyRedactionBatch(
       page,
       input.scaling,
     );
-    const strokes = input.replace ? copied : [...document.strokes, ...copied];
+    const strokes = mergeRedactionStrokes(
+      document.strokes,
+      copied,
+      input.replace,
+    );
     if (strokes.length > 1000)
       throw new Error("The batch would exceed a page mask limit");
     return { ...document, strokes, decision: "unreviewed" as const };

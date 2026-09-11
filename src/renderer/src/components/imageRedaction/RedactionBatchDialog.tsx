@@ -1,6 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { copyRedactionStrokes } from "../../../../shared/imageRedactionEditing";
+import {
+  copyRedactionStrokes,
+  mergeRedactionStrokes,
+} from "../../../../shared/imageRedactionEditing";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { ControlTooltip } from "../ui/ControlTooltip";
@@ -215,9 +218,12 @@ function BatchPreview({
   const copied = compatible
     ? copyRedactionStrokes(intent.source.strokes, intent.source, page, scaling)
     : [];
-  const strokes = replace
-    ? copied
-    : [...form.state.documents[page.id].strokes, ...copied];
+  const preview = previewMergedMask(
+    form.state.documents[page.id].strokes,
+    copied,
+    replace,
+  );
+  const strokes = preview.strokes;
   const width = Math.min(240, (200 * page.width) / page.height);
   const height = (width * page.height) / page.width;
   return (
@@ -237,6 +243,9 @@ function BatchPreview({
           onFailure={form.report}
         />
       </div>
+      {preview.error ? (
+        <span role="alert">{t("manualRedaction.operationFailed")}</span>
+      ) : null}
       {!compatible ? (
         <span className={styles.hint}>
           {t("manualRedaction.chooseScaling")}
@@ -244,4 +253,19 @@ function BatchPreview({
       ) : null}
     </div>
   );
+}
+
+function previewMergedMask(
+  existing: Parameters<typeof mergeRedactionStrokes>[0],
+  copied: Parameters<typeof mergeRedactionStrokes>[1],
+  replace: boolean,
+) {
+  try {
+    return {
+      strokes: mergeRedactionStrokes(existing, copied, replace),
+      error: null,
+    };
+  } catch (error) {
+    return { strokes: [...existing], error };
+  }
 }

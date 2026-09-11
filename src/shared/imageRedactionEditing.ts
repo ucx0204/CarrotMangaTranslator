@@ -1,4 +1,7 @@
-import type { ImageRedactionStroke } from "./imageRedaction";
+import {
+  MAX_REDACTION_ISOLATION_DEPTH,
+  type ImageRedactionStroke,
+} from "./imageRedaction";
 
 type Size = { width: number; height: number };
 export type RedactionBounds = {
@@ -113,4 +116,37 @@ export function copyRedactionStrokes(
       y: Math.min(target.height, point.y * y),
     })),
   }));
+}
+
+/** Add a completed source mask, not its erase commands, to the existing mask.
+ * A later unscoped eraser still edits the combined result. Nested copies retain
+ * their own isolation; a common outer group is redundant on an empty source.
+ */
+export function mergeRedactionStrokes(
+  existing: readonly ImageRedactionStroke[],
+  copied: readonly ImageRedactionStroke[],
+  replace: boolean,
+): ImageRedactionStroke[] {
+  if (replace || !existing.length) return [...copied];
+  if (!copied.length) return [...existing];
+  if (!copied.some((stroke) => stroke.operation === "restore"))
+    return [...existing, ...copied];
+  const group =
+    Math.max(0, ...existing.map((stroke) => stroke.isolation?.[0] ?? 0)) + 1;
+  const first = copied[0].isolation ?? [];
+  let common = 0;
+  while (
+    common < first.length &&
+    copied.every((stroke) => stroke.isolation?.[common] === first[common])
+  )
+    common++;
+  const isolated = copied.map((stroke) => {
+    const isolation = [group, ...(stroke.isolation?.slice(common) ?? [])];
+    if (isolation.length > MAX_REDACTION_ISOLATION_DEPTH || group > 2147483647)
+      throw new Error(
+        "The nested mask copy limit was exceeded; the existing mask is unchanged",
+      );
+    return { ...stroke, isolation };
+  });
+  return [...existing, ...isolated];
 }

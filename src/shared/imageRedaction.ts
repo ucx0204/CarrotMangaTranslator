@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const MAX_REDACTION_ISOLATION_DEPTH = 8;
+
 const point = z
   .object({
     x: z.number().finite().min(0).max(200000),
@@ -12,6 +14,12 @@ export const imageRedactionStrokeSchema = z
     operation: z.enum(["hide", "restore"]).optional(),
     size: z.number().finite().min(1).max(4000),
     points: z.array(point).min(1).max(20000),
+    // Consecutive paths form isolated additive groups. Legacy strokes are unscoped.
+    isolation: z
+      .array(z.number().int().positive().max(2147483647))
+      .min(1)
+      .max(MAX_REDACTION_ISOLATION_DEPTH)
+      .optional(),
   })
   .strict();
 export type ImageRedactionStroke = z.infer<typeof imageRedactionStrokeSchema>;

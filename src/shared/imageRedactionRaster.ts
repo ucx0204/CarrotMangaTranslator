@@ -1,5 +1,6 @@
 import {
   imageRedactionStamps,
+  MAX_REDACTION_ISOLATION_DEPTH,
   type ImageRedactionStroke,
 } from "./imageRedaction";
 import {
@@ -30,8 +31,33 @@ export function rasterizeImageRedaction(
   )
     throw new Error("가리기 이미지 크기가 지원 범위를 벗어났습니다.");
   const target = { width, height, mask: new Uint8Array(width * height) };
-  for (const stroke of strokes) paintStroke(target, stroke);
+  paintSequence(target, strokes, 0, strokes.length, 0);
   return target.mask;
+}
+
+function paintSequence(
+  target: MaskTarget,
+  strokes: readonly ImageRedactionStroke[],
+  start: number,
+  end: number,
+  depth: number,
+): void {
+  for (let index = start; index < end; ) {
+    const group = strokes[index].isolation?.[depth];
+    if (group === undefined) {
+      paintStroke(target, strokes[index++]);
+      continue;
+    }
+    if (depth >= MAX_REDACTION_ISOLATION_DEPTH)
+      throw new Error("The nested mask copy limit was exceeded");
+    let limit = index + 1;
+    while (limit < end && strokes[limit].isolation?.[depth] === group) limit++;
+    const layer = { ...target, mask: new Uint8Array(target.mask.length) };
+    paintSequence(layer, strokes, index, limit, depth + 1);
+    for (let pixel = 0; pixel < target.mask.length; pixel++)
+      if (layer.mask[pixel]) target.mask[pixel] = 255;
+    index = limit;
+  }
 }
 
 function paintStroke(target: MaskTarget, stroke: ImageRedactionStroke): void {
