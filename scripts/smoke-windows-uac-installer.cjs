@@ -106,8 +106,10 @@ async function main() {
 
     const setup = join(output, "carrot-uac-fixture.exe");
     assert.ok(existsSync(setup), "The fixture installer was not built.");
+    assertManifestLevel(setup, "requireAdministrator");
     for (const scope of ["/currentuser", "/allusers"]) {
-      runNsis(setup, ["/S", scope, `/D=${installDir}`], scratch);
+      const installArgs = ["/S", scope, `/D=${installDir}`];
+      runNsis(setup, installArgs, scratch);
       const pointer = join(installDir, "data-root.txt");
       const dataRoot = readFileSync(pointer, "utf8").trim();
       assert.equal(
@@ -120,10 +122,24 @@ async function main() {
       const sentinel = join(library, "fixture-preservation.txt");
       writeFileSync(sentinel, "keep this fixture data\n");
 
-      runNsis(setup, ["/S", scope, `/D=${installDir}`], scratch);
+      runNsis(setup, installArgs, scratch);
       assert.equal(readFileSync(pointer, "utf8").trim(), dataRoot);
       assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
       assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
+
+      // A broken data destination must fail before the old executable is removed.
+      const pointerBytes = readFileSync(pointer);
+      const blocked = join(scratch, "blocked-data-root");
+      writeFileSync(blocked, "not a directory\n");
+      try {
+        writeFileSync(pointer, `${blocked}\r\n`);
+        runNsis(setup, installArgs, scratch, 2);
+        assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
+        assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
+        assert.equal(readFileSync(pointer, "utf8").trim(), blocked);
+      } finally {
+        writeFileSync(pointer, pointerBytes);
+      }
 
       const uninstallName = readdirSync(installDir).find((name) =>
         /^Uninstall .*\.exe$/i.test(name),
@@ -133,6 +149,15 @@ async function main() {
       // rather than the short-lived process that starts a temporary copy.
       const uninstall = join(scratch, "uninstall-fixture.exe");
       copyFileSync(join(installDir, uninstallName), uninstall);
+      assertManifestLevel(uninstall, "asInvoker");
+      runNsis(
+        uninstall,
+        ["/S", scope, "/MGT-UNINSTALL-SID=S-1-0-0", `_?=${installDir}`],
+        scratch,
+        2,
+      );
+      assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
+      assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
       runNsis(uninstall, ["/S", scope, `_?=${installDir}`], scratch);
       assert.equal(
         existsSync(join(installDir, "CarrotMangaTranslator.exe")),
@@ -143,6 +168,9 @@ async function main() {
       assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
       console.log(
         `[windows-uac-smoke] ${scope}: install, repair, remove, preserve OK`,
+      );
+      console.log(
+        `[windows-uac-smoke] ${scope}: bad destination and wrong account blocked`,
       );
     }
     console.log(
@@ -162,8 +190,23 @@ async function main() {
   }
 }
 
-/** @param {string} executable @param {string[]} args @param {string} cwd */
-function runNsis(executable, args, cwd) {
+/** @param {string} executable @param {string} expected */
+function assertManifestLevel(executable, expected) {
+  const bytes = readFileSync(executable);
+  const manifest = bytes.toString("utf8");
+  const level = /<requestedExecutionLevel\b[^>]*\blevel=["']([^"']+)["']/.exec(
+    manifest,
+  );
+  assert.equal(level?.[1], expected, `Unexpected manifest in ${executable}`);
+}
+
+/**
+ * @param {string} executable
+ * @param {string[]} args
+ * @param {string} cwd
+ * @param {number} expectedStatus
+ */
+function runNsis(executable, args, cwd, expectedStatus = 0) {
   const result = spawnSync(executable, args, {
     cwd,
     argv0: `"${executable}"`,
@@ -176,13 +219,15 @@ function runNsis(executable, args, cwd) {
   if (result.error) throw result.error;
   assert.equal(
     result.status,
-    0,
+    expectedStatus,
     `NSIS fixture failed (${result.status}): ${result.stderr || result.stdout}`,
   );
 }
 
-main().catch((error) => {
-  console.error(error);
-  // main's finally has already restored templates and cleaned fixture paths.
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    // main's finally has already restored templates and cleaned fixture paths.
+    process.exit(1);
+  });
+}
