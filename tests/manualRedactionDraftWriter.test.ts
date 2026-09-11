@@ -83,3 +83,22 @@ it("retains failed input and revision for an explicit retry rather than acknowle
   ).toEqual([4, 4]);
   expect(notify).toHaveBeenLastCalledWith({ kind: "saved" });
 });
+
+it("stops new writes after no-save exit and can resume after a failed exit", async () => {
+  let current = fixture();
+  const persist = vi.fn(async () => 5);
+  const writer = new RedactionDraftWriter(current, {
+    read: () => current,
+    persist,
+    notify: vi.fn(),
+  });
+  current = editRedactionDocuments(current, [
+    { ...current.documents.a, decision: "reviewed" },
+  ]);
+  const resume = writer.pause();
+  await writer.flush();
+  expect(persist).not.toHaveBeenCalled();
+  resume();
+  await writer.flush();
+  expect(persist).toHaveBeenCalledOnce();
+});

@@ -15,5 +15,7 @@
   "pageReviewControls": "페이지 검토",
   "allReviewed": "모두 확인됨",
   "selectedBadge": "선택",
-  "filter_reviewed": "확인됨"
+  "filter_reviewed": "확인됨",
+  "closeWithoutSaving": "저장 없이 작업 취소 후 닫기",
+  "keepSavedDraftHint": "저장 오류가 계속되면 추가 저장 없이 종료할 수 있습니다. 마지막 저장본(진행 중인 저장 포함)은 남으며, 이번 변경의 원복은 보장되지 않습니다. 이미지는 전송하지 않습니다."
 }

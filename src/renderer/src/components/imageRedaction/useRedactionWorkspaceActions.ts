@@ -9,6 +9,11 @@ import {
 } from "./redactionWorkspaceModel";
 import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
 
+import {
+  finishRedactionWorkspace,
+  type RedactionFinishIntent,
+} from "./finishRedactionWorkspace";
+
 type Job = { jobId: string; sessionId: string };
 type Options = {
   form: RedactionWorkspaceController;
@@ -60,7 +65,7 @@ export function useRedactionWorkspaceActions(options: Options) {
   };
   const continueWork = () => {
     if (options.job && unresolvedPage(form)) return;
-    void finish(Boolean(options.job));
+    void finish(options.job ? "send" : "save");
   };
   return {
     open,
@@ -87,10 +92,13 @@ export function useRedactionWorkspaceActions(options: Options) {
     },
     continueWork,
     saveExit: () => {
-      void finish(false);
+      void finish("save");
+    },
+    closeWithoutSaving: () => {
+      void finish("cancel");
     },
     discard: () => {
-      void finish(false, true);
+      void finish("discard");
     },
   };
 }
@@ -135,26 +143,33 @@ function useFinishRedactionWorkspace(options: Options) {
   const { form } = options;
   const entry = React.useRef(form.state);
   const finishing = React.useRef(false);
-  return async (send: boolean, discard = false) => {
+  return async (intent: RedactionFinishIntent) => {
     if (form.busy || form.drawing || finishing.current) return;
     finishing.current = true;
     form.setBusy(true);
     form.setError("");
     try {
-      if (discard)
-        form.commit((current) => ({
-          ...entry.current,
-          generation: current.generation + 1,
-        }));
-      const revision = await form.flush();
-      const snapshot = form.live.current;
-      if (send && options.job)
-        await confirmSnapshot(snapshot, options.job, revision);
-      else if (options.job)
-        await analysisGateway.cancelJob({ jobId: options.job.jobId });
-      await analysisGateway.closeRedactionWorkspace(
-        snapshot.workspace.sessionId,
-      );
+      await finishRedactionWorkspace(intent, {
+        restore: () =>
+          form.commit((current) => ({
+            ...entry.current,
+            generation: current.generation + 1,
+          })),
+        save: form.flush,
+        pauseSaving: form.pauseSaving,
+        confirm: async (revision) => {
+          if (!options.job) throw new Error("No waiting redaction job");
+          await confirmSnapshot(form.live.current, options.job, revision);
+        },
+        cancel: async () => {
+          if (options.job)
+            await analysisGateway.cancelJob({ jobId: options.job.jobId });
+        },
+        close: () =>
+          analysisGateway.closeRedactionWorkspace(
+            form.live.current.workspace.sessionId,
+          ),
+      });
       options.onClose();
     } catch (error) {
       form.report(error);

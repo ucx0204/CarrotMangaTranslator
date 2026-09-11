@@ -10,7 +10,7 @@ Each completed fix is committed and pushed separately. Read this queue and the s
 ## Work queue
 
 - [x] F01: additive mask copy must not erase existing target redactions.
-- [ ] F02: cancellation/exit when storage fails.
+- [x] F02: cancellation/exit when storage fails.
 - [ ] F03: disjoint draft revisions and safe conflict handling.
 - [ ] F04: recoverable preview failures.
 - [ ] F05: no-op selection/transform preserves review.
@@ -35,7 +35,9 @@ Each completed fix is committed and pushed separately. Read this queue and the s
 ## Verification and checkpoints
 
 - Planning commit: `405d0a8`.
-- F01: additive copies are isolated command groups whose completed masks are unioned. Nested copies and subsequent global erasers retain their semantics; old unscoped masks are unchanged. The actual batch application and its preview use the same merge policy. Local Node 22: 20 copy/raster/native-adapter tests passed; focused ESLint passed. Full typecheck is still being run, not claimed complete.
+- F01: additive copies are isolated command groups whose completed masks are unioned. Nested copies and subsequent global erasers retain their semantics; old unscoped masks are unchanged. The actual batch application and its preview use the same merge policy. Local Node 22: 20 copy/raster/native-adapter tests passed; focused ESLint passed. Full renderer/shared typecheck also passed.
+
+- F02: an explicit no-write exit is offered after an error; it stops new autosaves and cancels the waiting job without requiring disk success. Normal save/rollback/send still require an acknowledged write. Existing in-flight writes are not misrepresented as rolled back. Local exit/draft/locale tests: 20 passed; focused ESLint passed.
 
 ## Baseline observations
 

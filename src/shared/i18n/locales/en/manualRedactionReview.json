@@ -15,5 +15,7 @@
   "pageReviewControls": "Page review",
   "allReviewed": "All reviewed",
   "selectedBadge": "Selected",
-  "filter_reviewed": "Reviewed"
+  "filter_reviewed": "Reviewed",
+  "closeWithoutSaving": "Cancel task and close without saving",
+  "keepSavedDraftHint": "You can leave without another write if saving fails. The last saved draft (including a write already in progress) remains; edits are not rolled back. No images are sent."
 }

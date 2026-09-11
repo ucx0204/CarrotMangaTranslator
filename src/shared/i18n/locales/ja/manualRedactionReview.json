@@ -15,5 +15,7 @@
   "pageReviewControls": "ページ確認",
   "allReviewed": "すべて確認済み",
   "selectedBadge": "選択中",
-  "filter_reviewed": "確認済み"
+  "filter_reviewed": "確認済み",
+  "closeWithoutSaving": "保存せず処理をキャンセルして閉じる",
+  "keepSavedDraftHint": "保存できない場合は追加の保存なしで終了できます。保存済みの下書き（実行中の保存を含む）は残り、変更は元に戻りません。画像は送信されません。"
 }

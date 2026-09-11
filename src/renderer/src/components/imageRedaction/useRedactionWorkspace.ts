@@ -85,6 +85,7 @@ export function useRedactionWorkspace(workspace: RedactionWorkspace) {
     drawing,
     setDrawing,
     flush: () => writer.flush(),
+    pauseSaving: () => writer.pause(),
   };
 }
 
