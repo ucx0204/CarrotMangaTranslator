@@ -1,0 +1,166 @@
+import React from "react";
+import { analysisGateway } from "../../api/analysisGateway";
+import { nextUnreviewedPage, redactionProgress } from "./redactionSession";
+import {
+  changeRedactionView,
+  decideAndAdvanceRedaction,
+  decideRedactionPages,
+  navigateRedactionPage,
+} from "./redactionWorkspaceModel";
+import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
+
+type Job = { jobId: string; sessionId: string };
+type Options = {
+  form: RedactionWorkspaceController;
+  root: React.RefObject<HTMLDivElement | null>;
+  job?: Job;
+  detailReady: boolean;
+  onClose: () => void;
+  setSelected: (index: number) => void;
+};
+export function useRedactionWorkspaceActions(options: Options) {
+  const { form, root, setSelected } = options;
+  const finish = useFinishRedactionWorkspace(options);
+  const focus = () =>
+    requestAnimationFrame(() => focusRedactionEditor(root.current));
+  const open = (id: string, focusEditor = true) => {
+    if (form.busy || form.drawing) return;
+    form.commit((current) =>
+      changeRedactionView(navigateRedactionPage(current, id), { mode: "edit" }),
+    );
+    setSelected(-1);
+    if (focusEditor) focus();
+  };
+  const adjacent = (direction: number) => {
+    const current = form.live.current;
+    const index = current.workspace.pages.findIndex(
+      (page) => page.id === current.workspace.view.currentId,
+    );
+    const page = current.workspace.pages[index + direction];
+    if (page) open(page.id);
+  };
+  const decide = (advance: boolean) => {
+    if (form.busy || form.drawing || !options.detailReady) return;
+    form.commit((current) =>
+      changeRedactionView(
+        advance
+          ? decideAndAdvanceRedaction(current, "reviewed")
+          : decideRedactionPages(
+              current,
+              [current.workspace.view.currentId],
+              "reviewed",
+            ),
+        {
+          mode: "edit",
+        },
+      ),
+    );
+    setSelected(-1);
+    focus();
+  };
+  const continueWork = () => {
+    if (options.job && unresolvedPage(form)) return;
+    void finish(Boolean(options.job));
+  };
+  return {
+    open,
+    focus,
+    previous: () => adjacent(-1),
+    next: () => adjacent(1),
+    confirm: () => decide(true),
+    review: () => decide(false),
+    nextUnreviewed: () => {
+      const current = form.live.current;
+      const target = nextUnreviewedPage(
+        current,
+        current.workspace.view.currentId,
+      );
+      if (!target) return;
+      form.commit((state) =>
+        changeRedactionView(state, { filter: "unreviewed" }),
+      );
+      open(target);
+    },
+    showIssue: () => {
+      const target = unresolvedPage(form);
+      if (target) open(target);
+    },
+    continueWork,
+    saveExit: () => {
+      void finish(false);
+    },
+    discard: () => {
+      void finish(false, true);
+    },
+  };
+}
+
+function focusRedactionEditor(root: HTMLDivElement | null): void {
+  const target =
+    root?.querySelector<HTMLElement>("[data-redaction-stage]") ??
+    root?.querySelector<HTMLElement>("[role=listbox]");
+  target?.focus();
+}
+
+function unresolvedPage(
+  form: RedactionWorkspaceController,
+): string | undefined {
+  const state = form.live.current;
+  const firstError = state.workspace.pages.find((page) =>
+    form.failed.has(page.id),
+  );
+  if (firstError) return firstError.id;
+  return state.workspace.pages.find(
+    (page) => state.documents[page.id].decision === "unreviewed",
+  )?.id;
+}
+async function confirmSnapshot(
+  snapshot: RedactionWorkspaceController["state"],
+  job: Job,
+  revision: number,
+): Promise<void> {
+  const progress = redactionProgress(snapshot.documents);
+  if (progress.unreviewed) throw new Error("Unreviewed redaction pages remain");
+  const confirmed = await analysisGateway.confirmImageRedaction({
+    ...job,
+    workspaceRevision: revision,
+    pages: Object.values(snapshot.documents).map(
+      ({ id, fingerprint, strokes }) => ({ id, fingerprint, strokes }),
+    ),
+  });
+  if (!confirmed) throw new Error("The redaction review was not accepted");
+}
+
+function useFinishRedactionWorkspace(options: Options) {
+  const { form } = options;
+  const entry = React.useRef(form.state);
+  const finishing = React.useRef(false);
+  return async (send: boolean, discard = false) => {
+    if (form.busy || form.drawing || finishing.current) return;
+    finishing.current = true;
+    form.setBusy(true);
+    form.setError("");
+    try {
+      if (discard)
+        form.commit((current) => ({
+          ...entry.current,
+          generation: current.generation + 1,
+        }));
+      const revision = await form.flush();
+      const snapshot = form.live.current;
+      if (send && options.job)
+        await confirmSnapshot(snapshot, options.job, revision);
+      else if (options.job)
+        await analysisGateway.cancelJob({ jobId: options.job.jobId });
+      await analysisGateway.closeRedactionWorkspace(
+        snapshot.workspace.sessionId,
+      );
+      options.onClose();
+    } catch (error) {
+      form.report(error);
+    } finally {
+      finishing.current = false;
+      form.setBusy(false);
+    }
+  };
+}

@@ -1,0 +1,19 @@
+{
+  "reviewPage": "このページを確認",
+  "reviewedPage": "確認済み",
+  "resumeJob": "処理を再開",
+  "reviewProgress": "確認 {{count}}/{{total}} · 残り {{remaining}}",
+  "nextUnreviewed": "未確認へ移動",
+  "pendingCount": "未確認 {{count}}ページ",
+  "reviewSelectedCount": "選択 {{count}}ページを確認",
+  "selectionMenu": "選択操作",
+  "clearSelectionShort": "解除",
+  "selectAllShort": "すべて選択",
+  "savedShort": "保存済み",
+  "retrySave": "保存を再試行",
+  "reviewPageHint": "クリック: このページのみ確認 · Enter: 確認して次へ",
+  "pageReviewControls": "ページ確認",
+  "allReviewed": "すべて確認済み",
+  "selectedBadge": "選択中",
+  "filter_reviewed": "確認済み"
+}

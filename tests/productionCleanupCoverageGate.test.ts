@@ -50,6 +50,7 @@ type CoverageGateModule = {
   }): {
     baselinePlatform: string;
     comparedFloors: boolean;
+    smokeOnlyUiFiles: number;
     floorFiles: number;
     introducedFloorFiles: number;
     deletedFiles: number;
@@ -80,6 +81,7 @@ describe("production cleanup coverage floor gate", () => {
     expect(runGate(fixture, "win32")).toEqual({
       baselinePlatform: "win32",
       comparedFloors: true,
+      smokeOnlyUiFiles: 0,
       floorFiles: 1,
       introducedFloorFiles: 1,
       deletedFiles: 0,
@@ -97,6 +99,35 @@ describe("production cleanup coverage floor gate", () => {
       expect(() => runGate(fixture, "win32")).toThrow(
         new RegExp(`${metric}: 79% \\(79/100\\) below exact baseline`, "u"),
       );
+    },
+  );
+
+  it.each([
+    ["src/renderer/src/components/imageRedaction/RedactionCanvas.tsx", true],
+    [
+      "src/renderer/src/components/imageRedaction/useRedactionWorkspace.ts",
+      true,
+    ],
+    [
+      "src/renderer/src/components/imageRedaction/redactionDraftWriter.ts",
+      false,
+    ],
+    [
+      "src/renderer/src/components/imageRedaction/redactionWorkspaceModel.ts",
+      false,
+    ],
+    ["src/main/jobs/imageRedactionReview.ts", false],
+  ] as const)(
+    "limits the smoke-only policy to new redaction views: %s",
+    (path, smokeOnly) => {
+      const fixture = createFixture(path);
+      fixture.coverage[fixture.addedFileAbsolute] = coverageRecord(10);
+      fixture.writeCoverage();
+      if (smokeOnly) expect(runGate(fixture, "win32").smokeOnlyUiFiles).toBe(1);
+      else
+        expect(() => runGate(fixture, "win32")).toThrow(
+          /below exact baseline/u,
+        );
     },
   );
 
@@ -426,8 +457,8 @@ describe("production cleanup coverage floor gate", () => {
     expect(Object.keys(manifest.floors)).toEqual(scope.existing);
     expect(Object.keys(manifest.introducedFloors)).toEqual(scope.added);
     expect(manifest.deletedFiles).toEqual(scope.deleted);
-    expect(scope.existing).toHaveLength(707);
-    expect(scope.added).toHaveLength(543);
+    expect(scope.existing).toHaveLength(712);
+    expect(scope.added).toHaveLength(586);
     expect(scope.deleted).toHaveLength(10);
   });
 });
@@ -451,13 +482,12 @@ const CURRENT_NODE_V8_FAMILY = `${process.versions.node.split(".")[0]}/${process
   .slice(0, 2)
   .join(".")}`;
 
-function createFixture(): Fixture {
+function createFixture(addedFile = "src/shared/added.ts"): Fixture {
   const root = mkdtempSync(
     join(tmpdir(), "manga-production-cleanup-coverage-test-"),
   );
   temporaryDirectories.push(root);
   const existingFile = "src/main/existing.ts";
-  const addedFile = "src/shared/added.ts";
   const existingFileAbsolute = join(root, existingFile);
   const addedFileAbsolute = join(root, addedFile);
   const manifestPath = join(root, "scripts", "coverage-floors.json");

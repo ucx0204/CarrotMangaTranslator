@@ -1,0 +1,398 @@
+.workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  gap: var(--sp-2);
+}
+.headerTools,
+.tools,
+.toolGroup,
+.zoomTools,
+.pageJump,
+.editorToolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.editorToolbar {
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  row-gap: var(--sp-2);
+}
+.tools {
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+.toolGroup {
+  gap: var(--sp-1);
+  flex: none;
+}
+.toolGroup + .toolGroup {
+  border-inline-start: 1px solid var(--border-soft);
+  padding-inline-start: var(--sp-2);
+}
+.tools .number,
+.zoomTools .number {
+  width: 76px;
+  min-width: 0;
+  max-width: 76px;
+  flex: 0 0 76px;
+}
+.pageJump {
+  flex: none;
+  white-space: nowrap;
+}
+.pageJump .pageNumber {
+  width: 64px;
+  min-width: 0;
+  max-width: 64px;
+  flex: 0 0 64px;
+}
+.layout {
+  display: grid;
+  grid-template-columns: 184px minmax(0, 1fr);
+  gap: var(--sp-3);
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-height: 0;
+  min-width: 0;
+  border-inline-end: 1px solid var(--border-soft);
+  padding-inline-end: var(--sp-2);
+}
+.editorPane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+  min-height: 0;
+}
+.editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  gap: var(--sp-2);
+}
+.viewport {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-sunken);
+  border-radius: var(--r-sm);
+}
+.zoomTools {
+  margin-inline-start: auto;
+  flex: none;
+  gap: var(--sp-1);
+}
+.actionMenu {
+  position: relative;
+  min-width: 0;
+}
+.actionMenuSurface {
+  position: absolute;
+  inset-block-start: calc(100% + var(--sp-1));
+  inset-inline-start: 0;
+  z-index: var(--layer-popover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  width: max-content;
+  max-width: min(320px, calc(100vw - 96px));
+  max-height: min(360px, calc(100vh - 160px));
+  overflow: auto;
+  padding: var(--sp-2);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-md);
+  background: var(--bg-modal);
+  box-shadow: var(--shadow-overlay);
+}
+.actionMenu[data-align="end"] .actionMenuSurface {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}
+.actionMenuSurface > button {
+  justify-content: flex-start;
+  text-align: start;
+}
+.gridViewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.gridSpace {
+  position: relative;
+  width: 100%;
+}
+.gridRows {
+  position: absolute;
+  inset-inline: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-2);
+  margin: var(--sp-1);
+  min-width: 0;
+  gap: var(--sp-2);
+  overflow: hidden;
+  color: var(--text);
+}
+.tile[aria-current="page"] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.thumbnailViewport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  flex: none;
+}
+.thumbnailStage {
+  position: relative;
+  display: block;
+  flex: none;
+}
+.tileCaption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  min-width: 0;
+  width: 100%;
+}
+.tileName {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--font-xs);
+}
+.tileStatus {
+  font-size: var(--font-xs);
+  display: inline-flex;
+  flex: none;
+  color: var(--text-dim);
+}
+.tileStatus[data-status="reviewed"] {
+  color: var(--accent-hi);
+}
+.tileStatus[data-status="error"] {
+  color: var(--danger);
+}
+.selectionMark {
+  padding: var(--sp-1);
+  border-radius: var(--r-sm);
+  font-size: var(--font-xs);
+  position: absolute;
+  inset-block-start: var(--sp-2);
+  inset-inline-end: var(--sp-2);
+  color: var(--accent-hi);
+  background: var(--bg-modal);
+}
+.hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+}
+.inlineError {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--danger);
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+.empty {
+  padding: var(--sp-3);
+  color: var(--text-dim);
+  text-align: center;
+}
+.progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+  font-size: var(--font-sm);
+}
+.saveState {
+  display: inline-flex;
+  gap: var(--sp-2);
+  align-items: center;
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+}
+.pageReviewBar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: none;
+  min-width: 0;
+  min-height: var(--ctl-h);
+}
+.reviewedLabel {
+  color: var(--accent-hi);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+  flex: none;
+}
+.selectionTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.selectionTools > button {
+  padding-inline: var(--sp-2);
+}
+.selectionReview {
+  white-space: normal;
+}
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+}
+.footerMain {
+  margin-inline-start: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 172px minmax(0, 1fr);
+    gap: var(--sp-2);
+  }
+  .footer {
+    gap: var(--sp-2);
+  }
+}
+@media (max-width: 640px) {
+  .layout {
+    grid-template-columns: 156px minmax(0, 1fr);
+  }
+  .tools {
+    gap: var(--sp-1);
+  }
+  .editorToolbar {
+    gap: var(--sp-2);
+  }
+  .footerMain {
+    margin-inline-start: auto;
+  }
+}
+.stage {
+  position: relative;
+  margin-inline: auto;
+  touch-action: none;
+  cursor: crosshair;
+  flex: none;
+}
+.stage:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.stage[data-tool="pan"] {
+  cursor: grab;
+}
+.stage[data-tool="pan"]:active {
+  cursor: grabbing;
+}
+.stage[data-tool="select"] {
+  cursor: default;
+}
+.sourceImage {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+.maskCanvas,
+.selectionOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.selectionBounds {
+  fill: none;
+  stroke: var(--accent-hi);
+  stroke-width: 2px;
+  stroke-dasharray: 5 3;
+}
+.selectionHandle {
+  fill: var(--accent-hi);
+  stroke: var(--bg-overlay);
+  stroke-width: 1px;
+}
+.previewPair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.previewPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.presetPreview {
+  position: relative;
+  background: var(--bg-sunken);
+  width: 200px;
+  height: 180px;
+  max-width: 100%;
+}
+.dialogRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.shortcutGrid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--sp-2) var(--sp-3);
+  margin: 0;
+}
+.shortcutGrid dd {
+  margin: 0;
+}

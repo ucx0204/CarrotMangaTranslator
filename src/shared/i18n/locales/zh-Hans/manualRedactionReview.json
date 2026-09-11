@@ -1,0 +1,19 @@
+{
+  "reviewPage": "确认此页",
+  "reviewedPage": "已确认",
+  "resumeJob": "继续任务",
+  "reviewProgress": "已确认 {{count}}/{{total}} · 剩余 {{remaining}}",
+  "nextUnreviewed": "转到未确认页",
+  "pendingCount": "{{count}} 页未确认",
+  "reviewSelectedCount": "确认所选 {{count}} 页",
+  "selectionMenu": "选择操作",
+  "clearSelectionShort": "取消选择",
+  "selectAllShort": "全选",
+  "savedShort": "已保存",
+  "retrySave": "重试保存",
+  "reviewPageHint": "点击：仅确认此页 · Enter：确认并转到下一页",
+  "pageReviewControls": "页面确认",
+  "allReviewed": "全部已确认",
+  "selectedBadge": "已选",
+  "filter_reviewed": "已确认"
+}

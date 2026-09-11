@@ -15,6 +15,12 @@ import {
   withApprovedImageRedactions,
 } from "../imageRedactionContext";
 import { getAppSettings } from "../settingsStore";
+import { prepareImageRedactionPages } from "../imageRedactionPagePreparation";
+import {
+  openRedactionWorkspaceSession,
+  assertRedactionWorkspaceConfirmation,
+  closeRedactionWorkspace,
+} from "../imageRedactionWorkspaceSessions";
 
 type Pending = {
   sessionId: string;
@@ -30,16 +36,17 @@ const productionStore = {
   save: saveImageRedactionPages,
   settings: getAppSettings,
 };
+type ReviewInput = {
+  jobId: string;
+  kind: JobEvent["kind"];
+  pages: MangaPage[];
+  signal: AbortSignal;
+  emit: (event: JobEvent) => void;
+  imageEdit?: boolean;
+};
 
 export async function withImageRedactionReview<T>(
-  input: {
-    jobId: string;
-    kind: JobEvent["kind"];
-    pages: MangaPage[];
-    signal: AbortSignal;
-    emit: (event: JobEvent) => void;
-    imageEdit?: boolean;
-  },
+  input: ReviewInput,
   run: () => Promise<T>,
   store = productionStore,
 ): Promise<T> {
@@ -50,21 +57,10 @@ export async function withImageRedactionReview<T>(
     (!input.imageEdit && (await store.settings()).modelProvider === "gemma")
   )
     return run();
-  input.signal.throwIfAborted();
-  const pages = await Promise.all(
-    input.pages.map(async (page): Promise<ImageRedactionPage> => {
-      const fingerprint = await imageFingerprint(page.imagePath);
-      const saved = settings.pages[page.imagePath];
-      return {
-        id: page.id,
-        name: page.name,
-        imagePath: page.imagePath,
-        width: page.width,
-        height: page.height,
-        fingerprint,
-        strokes: saved?.fingerprint === fingerprint ? saved.strokes : [],
-      };
-    }),
+  const pages = await prepareImageRedactionPages(
+    input.pages,
+    settings.pages,
+    input.signal,
   );
   const sessionId = randomUUID();
   let cancel = () => {};
@@ -99,7 +95,26 @@ export async function withImageRedactionReview<T>(
   } finally {
     pending.delete(input.jobId);
     input.signal.removeEventListener("abort", cancel);
+    await closeRedactionWorkspace(sessionId);
   }
+}
+
+export async function openPendingRedactionWorkspace(
+  jobId: string,
+  sessionId: string,
+  root: string,
+) {
+  const entry = pending.get(jobId);
+  if (!entry || entry.sessionId !== sessionId || entry.confirming)
+    throw new Error("이미지 확인이 만료되었거나 이미 저장 중입니다.");
+  entry.signal.throwIfAborted();
+  const workspace = await openRedactionWorkspaceSession(
+    entry.pages,
+    sessionId,
+    root,
+  );
+  entry.signal.throwIfAborted();
+  return workspace;
 }
 
 export async function confirmImageRedaction(
@@ -112,6 +127,7 @@ export async function confirmImageRedaction(
   if (entry.confirming) throw new Error("이미지 확인을 저장하고 있습니다.");
   entry.confirming = true;
   try {
+    await assertRedactionWorkspaceConfirmation(request);
     return await saveConfirmedRedactions(request, entry);
   } finally {
     entry.confirming = false;
@@ -129,18 +145,23 @@ async function saveConfirmedRedactions(
     patches.size !== entry.pages.length
   )
     throw new Error("확인할 페이지 목록이 다릅니다.");
-  const pages = await Promise.all(
-    entry.pages.map(async (page) => {
-      const patch = patches.get(page.id);
-      if (
-        !patch ||
-        patch.fingerprint !== page.fingerprint ||
-        (await imageFingerprint(page.imagePath)) !== page.fingerprint
-      )
-        throw new Error("확인한 원본 이미지가 변경되었습니다.");
-      return { ...page, strokes: patch.strokes };
-    }),
-  );
+  const pages: ImageRedactionPage[] = [];
+  for (let offset = 0; offset < entry.pages.length; offset += 4) {
+    entry.signal.throwIfAborted();
+    const chunk = await Promise.all(
+      entry.pages.slice(offset, offset + 4).map(async (page) => {
+        const patch = patches.get(page.id);
+        if (
+          !patch ||
+          patch.fingerprint !== page.fingerprint ||
+          (await imageFingerprint(page.imagePath)) !== page.fingerprint
+        )
+          throw new Error("확인한 원본 이미지가 변경되었습니다.");
+        return { ...page, strokes: patch.strokes };
+      }),
+    );
+    pages.push(...chunk);
+  }
   entry.signal.throwIfAborted();
   await entry.save(pages);
   entry.signal.throwIfAborted();

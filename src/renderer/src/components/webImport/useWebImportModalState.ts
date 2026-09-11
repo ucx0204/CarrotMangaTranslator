@@ -6,7 +6,7 @@ import type {
   WebImportSizeFilter,
 } from "../../../../shared/webImportTypes";
 import { libraryGateway } from "../../api/libraryGateway";
-import { formatErrorMessage } from "../../lib/errorPresentation";
+import { useAsyncErrorState } from "../../hooks/useAsyncErrorState";
 import {
   filterWebImportCandidates,
   setVisibleWebImportSelection,
@@ -25,7 +25,9 @@ export function useWebImportModalState({
   const [filter, setFilter] = useState<WebImportSizeFilter>("large");
   const [result, setResult] = useState<WebImportScanResult | null>(null);
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
-  const [error, setError] = useState("");
+  const { error, setError, report } = useAsyncErrorState(
+    t("webImport.errors.scanFailed"),
+  );
   const [scanning, setScanning] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const requestRef = useRef<string | null>(null);
@@ -44,6 +46,7 @@ export function useWebImportModalState({
   const scan = useWebImportScanAction({
     mountedRef,
     requestRef,
+    report,
     setError,
     setExcluded,
     setFilter,
@@ -58,6 +61,7 @@ export function useWebImportModalState({
     onPrepared,
     result,
     selectedCandidateIds: selectedCandidates.map((item) => item.id),
+    report,
     setError,
     setPreparing,
     t,
@@ -94,6 +98,7 @@ type WebImportStateSetter<T> = React.Dispatch<React.SetStateAction<T>>;
 function useWebImportScanAction({
   mountedRef,
   requestRef,
+  report,
   setError,
   setExcluded,
   setFilter,
@@ -105,6 +110,7 @@ function useWebImportScanAction({
 }: {
   mountedRef: React.RefObject<boolean>;
   requestRef: React.RefObject<string | null>;
+  report: (error: unknown, message?: string) => void;
   setError: WebImportStateSetter<string>;
   setExcluded: WebImportStateSetter<Set<string>>;
   setFilter: WebImportStateSetter<WebImportSizeFilter>;
@@ -146,7 +152,7 @@ function useWebImportScanAction({
       }
     } catch (caught) {
       if (mountedRef.current) {
-        setError(formatErrorMessage(caught, t("webImport.errors.scanFailed")));
+        report(caught, t("webImport.errors.scanFailed"));
       }
     } finally {
       if (mountedRef.current && requestRef.current === requestId) {
@@ -157,6 +163,7 @@ function useWebImportScanAction({
   }, [
     mountedRef,
     requestRef,
+    report,
     setError,
     setExcluded,
     setFilter,
@@ -204,6 +211,7 @@ function useWebImportPrepareAction({
   onPrepared,
   result,
   selectedCandidateIds,
+  report,
   setError,
   setPreparing,
   t,
@@ -211,6 +219,7 @@ function useWebImportPrepareAction({
   onPrepared: (preview: ImportPreviewSession) => void;
   result: WebImportScanResult | null;
   selectedCandidateIds: string[];
+  report: (error: unknown, message?: string) => void;
   setError: WebImportStateSetter<string>;
   setPreparing: WebImportStateSetter<boolean>;
   t: ReturnType<typeof useTranslation<"components">>["t"];
@@ -228,10 +237,18 @@ function useWebImportPrepareAction({
         }),
       );
     } catch (caught) {
-      setError(formatErrorMessage(caught, t("webImport.errors.prepareFailed")));
+      report(caught, t("webImport.errors.prepareFailed"));
       setPreparing(false);
     }
-  }, [onPrepared, result, selectedCandidateIds, setError, setPreparing, t]);
+  }, [
+    onPrepared,
+    result,
+    selectedCandidateIds,
+    report,
+    setError,
+    setPreparing,
+    t,
+  ]);
 }
 
 function useCandidateSelectionAction(
