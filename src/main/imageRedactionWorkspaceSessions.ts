@@ -18,11 +18,19 @@ import {
   readRedactionWorkspaceStore,
   updateRedactionWorkspaceStore,
 } from "./imageRedactionWorkspaceStore";
+import {
+  applyRedactionDraftChanges,
+  assertRedactionDraftPagesCurrent,
+  observeRedactionDraft,
+  type RedactionDraftBaseline,
+  type StoredRedactionPage,
+} from "./application/redactionWorkspaceMerge";
 
 type Session = {
   root: string;
   scopeKey: string;
   workspace: RedactionWorkspace;
+  baseline: RedactionDraftBaseline;
   pages: Map<string, ImageRedactionPage>;
   controller: AbortController;
 };
@@ -58,13 +66,9 @@ async function createSession(
     throw new Error("가리기 작업의 페이지 목록이 올바르지 않습니다.");
   const state = await readRedactionWorkspaceStore(root);
   const approved = await readImageRedactionState(root);
+  const paths = pages.map((page) => resolve(page.imagePath));
   const scopeKey = createHash("sha256")
-    .update(
-      pages
-        .map((page) => resolve(page.imagePath))
-        .sort()
-        .join("\0"),
-    )
+    .update([...paths].sort().join("\0"))
     .digest("hex");
   const restored = pages.map((page) => {
     const draft = state.pages[resolve(page.imagePath)];
@@ -99,6 +103,7 @@ async function createSession(
     root,
     scopeKey,
     workspace,
+    baseline: observeRedactionDraft(state, paths, scopeKey),
     pages: new Map(pages.map((page) => [page.id, page])),
     controller: new AbortController(),
   });
@@ -147,47 +152,26 @@ export async function saveRedactionWorkspace(
   const request = saveRedactionWorkspaceSchema.parse(input);
   const session = requireSession(request.sessionId);
   validateSaveScope(session, request);
+  let baseline = session.baseline;
   const revision = await updateRedactionWorkspaceStore(
     session.root,
     async (state) => {
       requireSession(request.sessionId);
-      if (
-        request.expectedRevision !== session.workspace.revision ||
-        state.revision !== request.expectedRevision
-      )
-        throw new Error(
-          "다른 가리기 창에서 초안이 변경되었습니다. 이 창의 내용을 보존한 뒤 다시 열어 주세요.",
-        );
-      for (let offset = 0; offset < request.changes.length; offset += 4)
-        await Promise.all(
-          request.changes.slice(offset, offset + 4).map(async (document) => {
-            const page = session.pages.get(document.id);
-            if (
-              !page ||
-              document.fingerprint !== page.fingerprint ||
-              (await imageFingerprint(page.imagePath)) !== page.fingerprint
-            )
-              throw new Error(
-                "확인한 원본 이미지가 변경되었습니다. 해당 페이지를 다시 열어 주세요.",
-              );
-            state.pages[resolve(page.imagePath)] = {
-              fingerprint: document.fingerprint,
-              strokes: document.strokes,
-              decision: document.decision,
-              width: page.width,
-              height: page.height,
-            };
-          }),
-        );
+      if (request.expectedRevision !== session.workspace.revision)
+        throw new Error("최신 가리기 초안을 저장한 뒤 다시 확인해 주세요.");
+      const pages = await readChangedDraftPages(session, request);
       requireSession(request.sessionId);
-      state.views[session.scopeKey] = request.view;
-      state.preferences = request.preferences;
-      state.presets = request.presets;
+      baseline = applyRedactionDraftChanges(state, session.baseline, {
+        previous: session.workspace,
+        request,
+        pages,
+      });
     },
   );
   const changes = new Map(
     request.changes.map((document) => [document.id, document]),
   );
+  session.baseline = baseline;
   session.workspace = {
     ...session.workspace,
     revision,
@@ -200,6 +184,35 @@ export async function saveRedactionWorkspace(
     })),
   };
   return revision;
+}
+
+async function readChangedDraftPages(
+  session: Session,
+  request: SaveRedactionWorkspace,
+): Promise<Record<string, StoredRedactionPage>> {
+  const changes: Record<string, StoredRedactionPage> = {};
+  for (let offset = 0; offset < request.changes.length; offset += 4)
+    await Promise.all(
+      request.changes.slice(offset, offset + 4).map(async (document) => {
+        const page = session.pages.get(document.id);
+        if (
+          !page ||
+          document.fingerprint !== page.fingerprint ||
+          (await imageFingerprint(page.imagePath)) !== page.fingerprint
+        )
+          throw new Error(
+            "확인한 원본 이미지가 변경되었습니다. 해당 페이지를 다시 열어 주세요.",
+          );
+        changes[resolve(page.imagePath)] = {
+          fingerprint: document.fingerprint,
+          strokes: document.strokes,
+          decision: document.decision,
+          width: page.width,
+          height: page.height,
+        };
+      }),
+    );
+  return changes;
 }
 
 function validateSaveScope(
@@ -236,11 +249,9 @@ export async function assertRedactionWorkspaceConfirmation(
   }
   requireSession(request.sessionId);
   const disk = await readRedactionWorkspaceStore(session.root);
-  if (
-    request.workspaceRevision !== session.workspace.revision ||
-    disk.revision !== request.workspaceRevision
-  )
+  if (request.workspaceRevision !== session.workspace.revision)
     throw new Error("최신 가리기 초안을 저장한 뒤 다시 확인해 주세요.");
+  assertRedactionDraftPagesCurrent(disk, session.baseline);
   const patches = new Map(request.pages.map((page) => [page.id, page]));
   if (
     patches.size !== session.pages.size ||
