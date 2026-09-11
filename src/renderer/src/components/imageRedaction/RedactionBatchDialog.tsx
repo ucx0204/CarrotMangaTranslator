@@ -4,6 +4,7 @@ import {
   copyRedactionStrokes,
   mergeRedactionStrokes,
 } from "../../../../shared/imageRedactionEditing";
+import { redactionCopyProblem } from "../../../../shared/imageRedactionCopyPolicy";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { ControlTooltip } from "../ui/ControlTooltip";
@@ -105,6 +106,19 @@ function useBatchModel({ form, intent, onClose }: Props) {
             page.height !== intent.source.height,
         )
       : [];
+  const copyProblem =
+    intent.kind === "copy"
+      ? pages
+          .map((page) =>
+            redactionCopyProblem(
+              intent.source.strokes,
+              intent.source,
+              page,
+              scaling,
+            ),
+          )
+          .find(Boolean)
+      : null;
   // Loading a thumbnail is neither a review nor a prerequisite for explicit batch review.
   const valid =
     !form.busy &&
@@ -112,8 +126,7 @@ function useBatchModel({ form, intent, onClose }: Props) {
     intent.ids.length > 0 &&
     (intent.kind === "review"
       ? !failed
-      : intent.source.strokes.length > 0 &&
-        (!mismatches.length || scaling === "proportional"));
+      : intent.source.strokes.length > 0 && !copyProblem);
   const apply = () => {
     if (!valid) return;
     form.setError("");
@@ -132,6 +145,7 @@ function useBatchModel({ form, intent, onClose }: Props) {
     pages,
     failed,
     mismatches,
+    copyProblem,
     valid,
     apply,
   };
@@ -177,6 +191,11 @@ function CopyChoices({
           label: t(`manualRedaction.scale_${id}`),
         }))}
       />
+      {model.copyProblem && model.copyProblem !== "size" ? (
+        <p role="status" className={styles.inlineError}>
+          {t(`manualRedaction.copyProblem_${model.copyProblem}`)}
+        </p>
+      ) : null}
       <CheckboxField
         checked={replace}
         onCheckedChange={setReplace}
@@ -217,17 +236,20 @@ function BatchPreview({
     320,
   );
   if (!page) return null;
-  const compatible =
-    scaling === "proportional" ||
-    (page.width === intent.source.width &&
-      page.height === intent.source.height);
+  const problem = redactionCopyProblem(
+    intent.source.strokes,
+    intent.source,
+    page,
+    scaling,
+  );
+  const compatible = !problem;
   const copied = compatible
     ? copyRedactionStrokes(intent.source.strokes, intent.source, page, scaling)
     : [];
   const preview = previewMergedMask(
     form.state.documents[page.id].strokes,
     copied,
-    replace,
+    replace && compatible,
   );
   const strokes = preview.strokes;
   const width = Math.min(240, (200 * page.width) / page.height);
@@ -252,7 +274,7 @@ function BatchPreview({
       {preview.error ? (
         <span role="alert">{t("manualRedaction.operationFailed")}</span>
       ) : null}
-      {!compatible ? (
+      {problem === "size" ? (
         <span className={styles.hint}>
           {t("manualRedaction.chooseScaling")}
         </span>

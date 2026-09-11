@@ -17,5 +17,9 @@
   "selectedBadge": "選択中",
   "filter_reviewed": "確認済み",
   "closeWithoutSaving": "保存せず処理をキャンセルして閉じる",
-  "keepSavedDraftHint": "保存できない場合は追加の保存なしで終了できます。保存済みの下書き（実行中の保存を含む）は残り、変更は元に戻りません。画像は送信されません。"
+  "keepSavedDraftHint": "保存できない場合は追加の保存なしで終了できます。保存済みの下書き（実行中の保存を含む）は残り、変更は元に戻りません。画像は送信されません。",
+  "scale_proportional": "同じ縦横比で拡大・縮小",
+  "copyProblem_aspect": "縦横比が異なるページにはコピーできません。",
+  "copyProblem_brush": "拡大・縮小後のブラシが対応サイズを超えます。",
+  "copyProblem_dimensions": "この画像サイズには対応していません。"
 }

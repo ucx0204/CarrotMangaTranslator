@@ -17,5 +17,9 @@
   "selectedBadge": "Selected",
   "filter_reviewed": "Reviewed",
   "closeWithoutSaving": "Cancel task and close without saving",
-  "keepSavedDraftHint": "You can leave without another write if saving fails. The last saved draft (including a write already in progress) remains; edits are not rolled back. No images are sent."
+  "keepSavedDraftHint": "You can leave without another write if saving fails. The last saved draft (including a write already in progress) remains; edits are not rolled back. No images are sent.",
+  "scale_proportional": "Scale with matching aspect ratio",
+  "copyProblem_aspect": "Pages with a different aspect ratio cannot be copied.",
+  "copyProblem_brush": "The scaled brush is outside the supported size range.",
+  "copyProblem_dimensions": "This image size is not supported."
 }

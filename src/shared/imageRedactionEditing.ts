@@ -2,6 +2,7 @@ import {
   MAX_REDACTION_ISOLATION_DEPTH,
   type ImageRedactionStroke,
 } from "./imageRedaction";
+import { assertRedactionCopyCompatible } from "./imageRedactionCopyPolicy";
 
 type Size = { width: number; height: number };
 export type RedactionBounds = {
@@ -99,21 +100,14 @@ export function copyRedactionStrokes(
   target: Size,
   scaling: "exact" | "proportional",
 ): ImageRedactionStroke[] {
-  if (
-    scaling === "exact" &&
-    (source.width !== target.width || source.height !== target.height)
-  )
-    throw new Error(
-      "이미지 크기가 다릅니다. 비율 맞추기를 명시적으로 선택해 주세요.",
-    );
-  const x = target.width / source.width,
-    y = target.height / source.height;
+  assertRedactionCopyCompatible(strokes, source, target, scaling);
+  const factor = target.width / source.width;
   return strokes.map((stroke) => ({
     ...stroke,
-    size: Math.max(1, Math.min(4000, stroke.size * Math.min(x, y))),
+    size: stroke.shape === "rectangle" ? stroke.size : stroke.size * factor,
     points: stroke.points.map((point) => ({
-      x: Math.min(target.width, point.x * x),
-      y: Math.min(target.height, point.y * y),
+      x: Math.min(target.width, point.x * factor),
+      y: Math.min(target.height, point.y * factor),
     })),
   }));
 }

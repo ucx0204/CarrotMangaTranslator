@@ -17,5 +17,9 @@
   "selectedBadge": "已选",
   "filter_reviewed": "已确认",
   "closeWithoutSaving": "不保存，取消任务并关闭",
-  "keepSavedDraftHint": "保存失败时可以不再写入而退出。已保存的草稿（包括正在进行的写入）将保留，编辑不会回滚。不会发送图片。"
+  "keepSavedDraftHint": "保存失败时可以不再写入而退出。已保存的草稿（包括正在进行的写入）将保留，编辑不会回滚。不会发送图片。",
+  "scale_proportional": "按相同宽高比缩放",
+  "copyProblem_aspect": "无法复制到宽高比不同的页面。",
+  "copyProblem_brush": "缩放后的画笔超出支持的尺寸范围。",
+  "copyProblem_dimensions": "不支持此图片尺寸。"
 }
