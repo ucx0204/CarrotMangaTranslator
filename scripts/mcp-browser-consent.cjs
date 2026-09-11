@@ -15,7 +15,9 @@ async function runMcpBrowserConsentProbe(origin, password) {
   const legacy = await submitConsent(flow, password, "approve", true);
   assert.equal(legacy.origin, "null");
   assert.equal(legacy.status, 403);
-  console.log("PASS browser reproduces the old no-referrer / Origin:null rejection");
+  console.log(
+    "PASS browser reproduces the old no-referrer / Origin:null rejection",
+  );
 
   const approved = await submitConsent(flow, password, "approve", false);
   assert.equal(approved.origin, origin);
@@ -25,7 +27,9 @@ async function runMcpBrowserConsentProbe(origin, password) {
   assert.ok(redirect.searchParams.get("code"));
   assert.equal(redirect.searchParams.has("error"), false);
   await exchangeAndRevoke(flow, redirect.searchParams.get("code") ?? "");
-  console.log("PASS real browser consent preserves Origin; PKCE code exchange and revocation succeed");
+  console.log(
+    "PASS real browser consent preserves Origin; PKCE code exchange and revocation succeed",
+  );
 
   const denied = await submitConsent(flow, "", "deny", false);
   assert.equal(denied.origin, origin);
@@ -34,7 +38,9 @@ async function runMcpBrowserConsentProbe(origin, password) {
   const denial = checkedRedirect(denied, flow);
   assert.equal(denial.searchParams.get("error"), "access_denied");
   assert.equal(denial.searchParams.has("code"), false);
-  console.log("PASS real browser cancellation returns access_denied without a code");
+  console.log(
+    "PASS real browser cancellation returns access_denied without a code",
+  );
 }
 
 /** @param {string} origin @returns {Promise<Flow>} */
@@ -72,7 +78,9 @@ function authorizationUrl(flow) {
     resource: `${flow.origin}/mcp`,
     state: flow.state,
     scope: "carrot.read",
-    code_challenge: createHash("sha256").update(flow.verifier).digest("base64url"),
+    code_challenge: createHash("sha256")
+      .update(flow.verifier)
+      .digest("base64url"),
     code_challenge_method: "S256",
   });
   return `${flow.origin}/oauth/authorize?${query}`;
@@ -102,7 +110,10 @@ async function submitConsent(flow, password, decision, legacy) {
     );
     const deadline = Date.now() + 15_000;
     while (!observation.reply && Date.now() < deadline) await delay(50);
-    assert.ok(observation.reply, "Browser form submission did not return a response");
+    assert.ok(
+      observation.reply,
+      "Browser form submission did not return a response",
+    );
     return observation.reply;
   } finally {
     window.destroy();
@@ -122,7 +133,9 @@ function observeForm(window, origin, legacy) {
   const observed = {};
   const browserSession = window.webContents.session;
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  browserSession.setPermissionRequestHandler((_contents, _permission, done) => done(false));
+  browserSession.setPermissionRequestHandler((_contents, _permission, done) =>
+    done(false),
+  );
   browserSession.webRequest.onBeforeRequest((details, done) => {
     done({ cancel: new URL(details.url).origin !== origin });
   });
@@ -152,7 +165,9 @@ function observeForm(window, origin, legacy) {
 
 /** @param {Record<string, string | string[]>} headers @param {string} name */
 function findHeader(headers, name) {
-  const value = Object.entries(headers).find(([key]) => key.toLowerCase() === name)?.[1];
+  const value = Object.entries(headers).find(
+    ([key]) => key.toLowerCase() === name,
+  )?.[1];
   return Array.isArray(value) ? value[0] : value;
 }
 
@@ -187,7 +202,10 @@ async function exchangeAndRevoke(flow, code) {
     method: "POST",
     redirect: "error",
     signal: AbortSignal.timeout(15_000),
-    body: new URLSearchParams({ client_id: flow.clientId, token: tokens.refresh_token }),
+    body: new URLSearchParams({
+      client_id: flow.clientId,
+      token: tokens.refresh_token,
+    }),
   });
   assert.equal(revoked.status, 200);
 }

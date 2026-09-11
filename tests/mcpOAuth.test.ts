@@ -390,15 +390,25 @@ it("runs discovery, consent, tokens and MCP over actual HTTP with auth challenge
       redirect: "manual",
     });
     assert.equal(noOrigin.status, 403);
-    for (const origin of ["null", "https://chatgpt.com", "https://evil.example"]) {
+    for (const origin of [
+      "null",
+      "https://chatgpt.com",
+      "https://evil.example",
+    ]) {
       const rejected = await fetch(`${local}/oauth/approve`, {
         method: "POST",
         body,
-        headers: { Cookie: cookie, Origin: origin, Referer: `${ISSUER}/oauth/authorize` },
+        headers: {
+          Cookie: cookie,
+          Origin: origin,
+          Referer: `${ISSUER}/oauth/authorize`,
+        },
         redirect: "manual",
       });
       assert.equal(rejected.status, 403);
-      assert.deepEqual(await rejected.json(), { error: "Origin is not allowed." });
+      assert.deepEqual(await rejected.json(), {
+        error: "Origin is not allowed.",
+      });
     }
     const noCookie = await fetch(`${local}/oauth/approve`, {
       method: "POST",
