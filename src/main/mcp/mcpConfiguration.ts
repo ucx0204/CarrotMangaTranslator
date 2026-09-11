@@ -2,6 +2,7 @@ export type McpConfiguration = {
   port: number;
   token: string;
   publicOrigin?: string;
+  allowImages?: boolean;
 };
 
 /** Opt-in only. Credentials are supplied locally and are never generated into logs. */
@@ -21,7 +22,10 @@ export function readMcpConfiguration(
   const publicOrigin = env.CARROT_MCP_PUBLIC_ORIGIN
     ? readPublicOrigin(env.CARROT_MCP_PUBLIC_ORIGIN)
     : undefined;
-  return { port, token, publicOrigin };
+  const images = env.CARROT_MCP_ALLOW_IMAGES ?? "0";
+  if (images !== "0" && images !== "1")
+    throw new Error("CARROT_MCP_ALLOW_IMAGES must be 0 or 1.");
+  return { port, token, publicOrigin, allowImages: images === "1" };
 }
 
 function readPublicOrigin(value: string): string {
