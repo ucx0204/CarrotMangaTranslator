@@ -43,17 +43,24 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install dependencies
+        id: dependencies
         run: npm ci
       - name: Test startup and installer boundaries
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: npx vitest run tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts tests/installerConfig.test.ts
       - name: Check Electron types
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: npm run typecheck:electron
-      - name: Check changed startup file formatting
-        run: npx prettier --check src/main/startupWriteAccess.ts src/main/windowsElevation.ts src/main/windowsStartup.ts tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts
-      - name: Compile and smoke-test the installer when the fixture is available
+      - name: Check changed file lint
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: npx eslint src/main/startupWriteAccess.ts src/main/windowsElevation.ts src/main/windowsStartup.ts tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts scripts/smoke-windows-uac-installer.cjs --max-warnings 0
+      - name: Report exact formatting differences
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         shell: pwsh
         run: |
-          if (Test-Path scripts/smoke-windows-uac-installer.cjs) {
-            node scripts/smoke-windows-uac-installer.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          npx prettier --write src/main/startupWriteAccess.ts src/main/windowsElevation.ts src/main/windowsStartup.ts tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts scripts/smoke-windows-uac-installer.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code
+      - name: Compile and smoke-test protected-folder installation
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: node scripts/smoke-windows-uac-installer.cjs
