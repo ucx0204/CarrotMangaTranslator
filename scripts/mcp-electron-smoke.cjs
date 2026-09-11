@@ -6,6 +6,7 @@ const { join, resolve } = require("node:path");
 const { promisify } = require("node:util");
 const { app, nativeImage } = require("electron");
 const { runMcpWebProbe } = require("./mcp-web-probe.cjs");
+const { runMcpBrowserConsentProbe } = require("./mcp-browser-consent.cjs");
 const {
   startQuickTunnel,
   waitQuickTunnelReady,
@@ -132,6 +133,7 @@ async function checkRuntime(dataRoot, tunnel) {
     if (tunnel) {
       await waitQuickTunnelReady(tunnel.origin, tunnel.child);
       await runMcpWebProbe(`${tunnel.origin}/mcp`, password);
+      await runMcpBrowserConsentProbe(tunnel.origin, password);
       console.log("PASS live Cloudflare HTTPS OAuth and real app library read");
     }
     const { stdout } = await exec(
