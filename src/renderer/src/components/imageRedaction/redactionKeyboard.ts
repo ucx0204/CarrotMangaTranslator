@@ -1,3 +1,9 @@
+import type { KeybindingOverrides } from "../../../../shared/shortcutSettings";
+import { comboFromEvent } from "../../lib/shortcuts/comboFromEvent";
+import {
+  resolveBindings,
+  sanitizeKeybindingOverrides,
+} from "../../lib/shortcuts/shortcutBindingResolution";
 import type { RedactionPreferences } from "../../../../shared/imageRedactionWorkspace";
 export type RedactionKeyAction =
   | "previous"
@@ -15,6 +21,7 @@ export type RedactionKeyAction =
   | RedactionPreferences["tool"];
 
 type Key = {
+  code?: string;
   key: string;
   ctrlKey: boolean;
   metaKey: boolean;
@@ -23,53 +30,68 @@ type Key = {
   repeat: boolean;
   isComposing: boolean;
 };
+const inheritedActions = {
+  "page-previous": "previous",
+  "page-next": "next",
+  "history-undo": "undo",
+  "history-redo": "redo",
+  "zoom-fit-contain": "fit",
+  "zoom-actual-size": "actual",
+} as const;
+
+/** Reuse common conflict resolution; only dispatch into this editor, never the page behind it. */
+export function redactionBindings(
+  preferences: RedactionPreferences,
+  overrides: KeybindingOverrides = {},
+): Map<string, RedactionKeyAction> {
+  const safe = sanitizeKeybindingOverrides(overrides);
+  const bindings = new Map<string, RedactionKeyAction>([
+    [" ", "pan-held"],
+    ["delete", "delete"],
+    ["backspace", "delete"],
+  ]);
+  if (preferences.letterShortcuts) {
+    for (const [combo, action] of Object.entries({
+      r: "rectangle",
+      b: "brush",
+      e: "erase",
+      v: "select",
+      h: "pan",
+      "[": "smaller",
+      "]": "larger",
+    } as const))
+      bindings.set(combo, action);
+    const aliases = [
+      ["page-previous", preferences.previousKey, "previous"],
+      ["page-next", preferences.nextKey, "next"],
+      ["zoom-fit-contain", "f", "fit"],
+      ["zoom-actual-size", "1", "actual"],
+    ] as const;
+    for (const [id, combo, action] of aliases)
+      if (safe[id] === undefined && combo) bindings.set(combo, action);
+  }
+  for (const [combo, id] of resolveBindings(safe)) {
+    if (["enter", "ctrl+enter", " "].includes(combo)) continue;
+    const action = inheritedActions[id as keyof typeof inheritedActions];
+    if (action && (preferences.letterShortcuts || !/^[a-z0-9]$/.test(combo)))
+      bindings.set(combo, action);
+  }
+  return bindings;
+}
+
 export function redactionKeyAction(
   event: Key,
   preferences: RedactionPreferences,
+  overrides: KeybindingOverrides = {},
 ): RedactionKeyAction | null {
-  if (event.isComposing || event.altKey) return null;
-  const key = event.key.toLowerCase();
-  if (event.ctrlKey || event.metaKey) return modifiedKeyAction(event, key);
-  if (key === "enter") return enterKeyAction(event);
-  const fixed: Record<string, RedactionKeyAction> = {
-    " ": "pan-held",
-    arrowleft: "previous",
-    pageup: "previous",
-    arrowright: "next",
-    pagedown: "next",
-    delete: "delete",
-    backspace: "delete",
-  };
-  if (fixed[key]) return fixed[key];
-  return preferences.letterShortcuts ? letterKeyAction(key, preferences) : null;
-}
-function modifiedKeyAction(event: Key, key: string): RedactionKeyAction | null {
-  if (key === "z") return event.shiftKey ? "redo" : "undo";
-  if (key === "y") return "redo";
-  return key === "enter" && !event.repeat ? "continue" : null;
-}
-function enterKeyAction(event: Key): RedactionKeyAction | null {
-  if (event.repeat) return null;
-  return event.shiftKey ? null : "confirm";
-}
-function letterKeyAction(
-  key: string,
-  preferences: RedactionPreferences,
-): RedactionKeyAction | null {
-  if (key && key === preferences.previousKey) return "previous";
-  if (key && key === preferences.nextKey) return "next";
-  const actions: Record<string, RedactionKeyAction> = {
-    r: "rectangle",
-    b: "brush",
-    e: "erase",
-    v: "select",
-    h: "pan",
-    f: "fit",
-    "1": "actual",
-    "[": "smaller",
-    "]": "larger",
-  };
-  return actions[key] ?? null;
+  if (event.isComposing) return null;
+  const combo = comboFromEvent(event);
+  // Approval is deliberately not customizable through ordinary navigation settings.
+  if (combo === "enter" || combo === "ctrl+enter")
+    return event.repeat ? null : combo === "enter" ? "confirm" : "continue";
+  return combo
+    ? (redactionBindings(preferences, overrides).get(combo) ?? null)
+    : null;
 }
 
 export function validRedactionNavigationKeys(

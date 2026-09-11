@@ -9,11 +9,12 @@ import {
   changeRedactionView,
 } from "./redactionWorkspaceModel";
 import { RedactionMaskCanvas } from "./RedactionMaskCanvas";
+import { useRedactionCanvasImage } from "./useRedactionCanvasImage";
 import { RedactionZoomControls } from "./RedactionTools";
-import { useRedactionPreview } from "./useRedactionPreview";
 import { useRedactionGestures } from "./useRedactionGestures";
 import { useRedactionViewport } from "./useRedactionViewport";
-import { useRedactionImageReadiness } from "./useRedactionImageReadiness";
+import { useRedactionMaskWindow } from "./useRedactionMaskWindow";
+import type { RedactionMaskWindow } from "./redactionMaskWindow";
 import styles from "./RedactionWorkspace.module.css";
 
 type Props = {
@@ -30,21 +31,13 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
   const { form, page, selected, setSelected, spaceHeld } = props;
   const { state, commit } = form;
   const document = state.documents[page.id];
-  const image = useRedactionPreview(
-    form.previews,
-    state.workspace.sessionId,
-    page.id,
-    2048,
-  );
-  const readiness = useRedactionImageReadiness({
-    source: "detail",
-    form,
-    pageId: page.id,
-    ...image,
-    strokes: document.strokes,
-    onReady: props.onReady,
-  });
   const { viewportRef, stageRef, zoom, onScroll } = useCanvasViewport(props);
+  const window = useRedactionMaskWindow(viewportRef, stageRef, page, zoom);
+  const { image, readiness, inspection } = useRedactionCanvasImage({
+    ...props,
+    window,
+    zoom,
+  });
   const { handlers, draft, transformed } = useRedactionGestures({
     page,
     strokes: document.strokes,
@@ -81,11 +74,14 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
           {...handlers}
         >
           <CanvasImage
+            key={image.key}
             page={page}
             image={image}
             readiness={readiness}
             strokes={strokes}
             draft={draft}
+            window={window}
+            inspection={inspection}
           />
           {strokes[selected] ? (
             <SelectionOutline
@@ -96,20 +92,29 @@ export function RedactionCanvas(props: Props): React.JSX.Element {
           ) : null}
         </div>
       </div>
-      <PreviewNotice image={image} readiness={readiness} />
+      <PreviewNotice
+        image={image}
+        readiness={readiness}
+        form={form}
+        pageId={page.id}
+      />
     </div>
   );
 }
-type ImageState = ReturnType<typeof useRedactionPreview>;
-type Readiness = ReturnType<typeof useRedactionImageReadiness>;
+type ImageState = ReturnType<typeof useRedactionCanvasImage>["image"];
+type Readiness = ReturnType<typeof useRedactionCanvasImage>["readiness"];
 function CanvasImage({
   page,
   image,
   readiness,
   strokes,
   draft,
+  window,
+  inspection,
 }: {
+  inspection: React.ReactNode;
   page: RedactionWorkspacePage;
+  window: RedactionMaskWindow;
   image: ImageState;
   readiness: Readiness;
   strokes: RedactionWorkspacePage["strokes"];
@@ -126,12 +131,14 @@ function CanvasImage({
         onLoad={readiness.decoded}
         onError={() => readiness.reject()}
       />
+      {inspection}
       {!readiness.failed ? (
         <RedactionMaskCanvas
           width={page.width}
           height={page.height}
           strokes={strokes}
           draft={draft}
+          window={window}
           onReady={readiness.masked}
           onFailure={readiness.reject}
         />
@@ -142,19 +149,30 @@ function CanvasImage({
 function PreviewNotice({
   image,
   readiness,
+  form,
+  pageId,
 }: {
   image: ImageState;
   readiness: Readiness;
+  form: Pick<
+    RedactionWorkspaceController,
+    "failed" | "busy" | "drawing" | "commit"
+  >;
+  pageId: string;
 }): React.JSX.Element | null {
   const { t } = useTranslation("components");
-  if (image.error || readiness.failed)
+  if (form.failed.has(pageId) || image.error || readiness.failed)
     return (
       <div role="alert" className={styles.inlineError}>
         <span>{t("manualRedaction.previewFailed")}</span>
         <Button
           size="sm"
+          disabled={form.busy || form.drawing}
           onClick={() => {
-            readiness.retry();
+            // Reveal the thumbnail so its decode/mask failure is retried too.
+            form.commit((current) =>
+              changeRedactionView(current, { filter: "all" }),
+            );
             image.retry();
           }}
         >

@@ -4,11 +4,11 @@ import { IconInfoCircle } from "@tabler/icons-react";
 import { ControlTooltip } from "../ui/ControlTooltip";
 import { IconButton } from "../ui/IconButton";
 import { RedactionActionsMenu } from "./RedactionActionsMenu";
-import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
 import styles from "./RedactionWorkspace.module.css";
 
 type Props = {
-  form: RedactionWorkspaceController;
+  disabled: boolean;
+  hasPreviousMask: boolean;
   preparation: boolean;
   onHelp: () => void;
   onPresets: () => void;
@@ -17,12 +17,7 @@ type Props = {
 };
 export function RedactionWorkspaceHeader(props: Props): React.JSX.Element {
   const { t } = useTranslation("components");
-  const { form, preparation } = props;
-  const { pages, view } = form.state.workspace;
-  const previous =
-    pages[pages.findIndex((page) => page.id === view.currentId) - 1];
-  const hasPreviousMask =
-    previous && form.state.documents[previous.id].strokes.length > 0;
+  const { disabled, hasPreviousMask, preparation } = props;
   return (
     <div className={styles.headerTools}>
       <ControlTooltip
@@ -40,7 +35,7 @@ export function RedactionWorkspaceHeader(props: Props): React.JSX.Element {
       <RedactionActionsMenu
         iconOnly
         label={t("common.settings")}
-        disabled={form.busy || form.drawing}
+        disabled={disabled}
         items={[
           {
             label: t("manualRedaction.previousMask"),

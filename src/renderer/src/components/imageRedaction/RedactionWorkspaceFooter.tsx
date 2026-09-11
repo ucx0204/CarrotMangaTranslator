@@ -2,12 +2,19 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button";
 import { ControlTooltip } from "../ui/ControlTooltip";
-import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
-import { redactionProgress } from "./redactionSession";
+import type { RedactionSaveStatus } from "./redactionDraftWriter";
+import type { RedactionWorkspaceSummary } from "./redactionWorkspacePresentation";
 import styles from "./RedactionWorkspace.module.css";
 
 type Props = {
-  form: RedactionWorkspaceController;
+  progress: Pick<
+    RedactionWorkspaceSummary,
+    "reviewed" | "unreviewed" | "total"
+  >;
+  failedCount: number;
+  disabled: boolean;
+  saveStatus: RedactionSaveStatus;
+  onRetrySave: () => void;
   preparation: boolean;
   onContinue: () => void;
   onUnreviewed: () => void;
@@ -16,24 +23,25 @@ type Props = {
 
 /** Task-level status and execution only; page review lives under the canvas. */
 export function RedactionWorkspaceFooter(props: Props): React.JSX.Element {
-  const { form, preparation } = props;
+  const { progress, failedCount, disabled, preparation } = props;
   const { t } = useTranslation("components");
   const progressId = React.useId();
-  const progress = redactionProgress(form.state.documents);
-  const total = form.state.workspace.pages.length;
-  const disabled = form.busy || form.drawing;
-  const unresolved = progress.unreviewed > 0 || form.failed.size > 0;
+  const unresolved = progress.unreviewed > 0 || failedCount > 0;
   return (
     <div className={styles.footer}>
       <div className={styles.progress}>
         <span id={progressId} aria-live="polite">
           {t("manualRedaction.reviewProgress", {
             count: progress.reviewed,
-            total,
+            total: progress.total,
             remaining: progress.unreviewed,
           })}
         </span>
-        <RedactionSaveState form={form} />
+        <RedactionSaveState
+          status={props.saveStatus}
+          disabled={disabled}
+          onRetry={props.onRetrySave}
+        />
       </div>
       {progress.unreviewed > 0 ? (
         <Button
@@ -45,9 +53,9 @@ export function RedactionWorkspaceFooter(props: Props): React.JSX.Element {
           {t("manualRedaction.nextUnreviewed")}
         </Button>
       ) : null}
-      {form.failed.size > 0 ? (
+      {failedCount > 0 ? (
         <Button size="sm" disabled={disabled} onClick={props.onIssue}>
-          {t("manualRedaction.gotoErrors", { count: form.failed.size })}
+          {t("manualRedaction.gotoErrors", { count: failedCount })}
         </Button>
       ) : null}
       <div className={styles.footerMain}>
@@ -77,26 +85,24 @@ export function RedactionWorkspaceFooter(props: Props): React.JSX.Element {
   );
 }
 function RedactionSaveState({
-  form,
+  status,
+  disabled,
+  onRetry,
 }: {
-  form: RedactionWorkspaceController;
+  status: RedactionSaveStatus;
+  disabled: boolean;
+  onRetry: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
     <span className={styles.saveState} role="status">
       {t(
-        form.saveStatus.kind === "saved"
+        status.kind === "saved"
           ? "manualRedaction.savedShort"
-          : `manualRedaction.save_${form.saveStatus.kind}`,
+          : `manualRedaction.save_${status.kind}`,
       )}
-      {form.saveStatus.kind === "error" ? (
-        <Button
-          size="sm"
-          disabled={form.busy}
-          onClick={() => {
-            void form.flush().catch(form.report);
-          }}
-        >
+      {status.kind === "error" ? (
+        <Button size="sm" disabled={disabled} onClick={onRetry}>
           {t("manualRedaction.retrySave")}
         </Button>
       ) : null}

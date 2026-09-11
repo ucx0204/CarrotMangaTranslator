@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  IMAGE_REDACTION_SIZE_ERROR,
+  isSupportedRedactionSize,
+} from "./imageRedactionLimits";
+
+export const MAX_REDACTION_ISOLATION_DEPTH = 8;
 
 const point = z
   .object({
@@ -12,6 +18,12 @@ export const imageRedactionStrokeSchema = z
     operation: z.enum(["hide", "restore"]).optional(),
     size: z.number().finite().min(1).max(4000),
     points: z.array(point).min(1).max(20000),
+    // Consecutive paths form isolated additive groups. Legacy strokes are unscoped.
+    isolation: z
+      .array(z.number().int().positive().max(2147483647))
+      .min(1)
+      .max(MAX_REDACTION_ISOLATION_DEPTH)
+      .optional(),
   })
   .strict();
 export type ImageRedactionStroke = z.infer<typeof imageRedactionStrokeSchema>;
@@ -63,7 +75,8 @@ export const imageRedactionReviewSchema = z
             fingerprint: z.string().length(64),
             strokes: z.array(imageRedactionStrokeSchema).max(1000),
           })
-          .strict(),
+          .strict()
+          .refine(isSupportedRedactionSize, IMAGE_REDACTION_SIZE_ERROR),
       )
       .max(10000),
   })

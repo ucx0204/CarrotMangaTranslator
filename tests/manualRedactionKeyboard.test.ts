@@ -63,3 +63,39 @@ it("allows explicit one-hand remapping without tool collisions", () => {
     }),
   ).toBe("next");
 });
+
+it("inherits common remaps and unbinds without moving the app page behind the modal", () => {
+  const overrides = {
+    "page-next": "ctrl+q",
+    "history-undo": "ctrl+j",
+    "page-previous": "",
+  };
+  expect(
+    redactionKeyAction({ ...key("q"), ctrlKey: true }, preferences, overrides),
+  ).toBe("next");
+  expect(redactionKeyAction(key("x"), preferences, overrides)).toBeNull();
+  expect(
+    redactionKeyAction(key("ArrowRight"), preferences, overrides),
+  ).toBeNull();
+  expect(redactionKeyAction(key("z"), preferences, overrides)).toBeNull();
+  expect(
+    redactionKeyAction(key("ArrowLeft"), preferences, overrides),
+  ).toBeNull();
+  expect(
+    redactionKeyAction({ ...key("j"), metaKey: true }, preferences, overrides),
+  ).toBe("undo");
+  expect(
+    redactionKeyAction({ ...key("z"), ctrlKey: true }, preferences, overrides),
+  ).toBeNull();
+});
+it("uses the common physical-key normalizer but never consumes active composition", () => {
+  expect(redactionKeyAction({ ...key("ㅌ"), code: "KeyX" }, preferences)).toBe(
+    "next",
+  );
+  expect(
+    redactionKeyAction(
+      { ...key("ㅌ"), code: "KeyX", isComposing: true },
+      preferences,
+    ),
+  ).toBeNull();
+});

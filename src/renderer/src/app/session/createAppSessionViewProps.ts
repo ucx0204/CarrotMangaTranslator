@@ -54,6 +54,13 @@ export function createAppSessionViewProps(model: AppSessionViewModel) {
       createSoundEffectTranslationModalProps(model),
     styleGuideProps: createStyleGuideProps(model),
     translationOptionsProps: createTranslationOptionsProps(model),
+    redactionPreparationProps: model.uiState.redactionPreparationRequest
+      ? {
+          request: model.uiState.redactionPreparationRequest,
+          beforeOpen: model.persistence.saveNow,
+          onClose: () => model.uiState.setRedactionPreparationRequest(null),
+        }
+      : null,
     regionTranslationProps:
       model.translationActions.regionTranslationDialog ?? null,
     workspaceProps,

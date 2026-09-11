@@ -87,9 +87,11 @@ function usePresetModel({ form, source }: Props) {
   const save = () => {
     if (!canSave) return;
     const entry = { ...source, id: crypto.randomUUID(), name: name.trim() };
-    form.commit((current) =>
+    form.setError("");
+    const result = form.commit((current) =>
       changeRedactionPresets(current, [...current.workspace.presets, entry]),
     );
+    if (!result.ok) return;
     setSelected(entry.id);
     setName("");
   };
@@ -99,12 +101,14 @@ function usePresetModel({ form, source }: Props) {
       setDeleting(true);
       return;
     }
-    form.commit((current) =>
+    form.setError("");
+    const result = form.commit((current) =>
       changeRedactionPresets(
         current,
         current.workspace.presets.filter((item) => item.id !== preset.id),
       ),
     );
+    if (!result.ok) return;
     setSelected(presets.find((item) => item.id !== preset.id)?.id ?? "");
     setDeleting(false);
   };

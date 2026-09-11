@@ -57,7 +57,8 @@
       "reason": "Main diagnostic sink, including DirectML adapter identity and CPU fallback telemetry"
     },
     "src/main/libraryStore/storage.ts": {
-      "maxImportedBy": 26
+      "maxImportedBy": 27,
+      "reason": "Shared filesystem primitives; the partitioned redaction draft adapter reuses Windows rename retries rather than duplicating them."
     },
     "src/main/runtime/simple-page-ocr-bbox-pipeline.cjs": {
       "maxRuntimeImports": 20,

@@ -1,3 +1,7 @@
+const {
+  resolveCoverageMetricOwner,
+  isCoverageRatioBelow,
+} = require("./coverage-metric-policy.cjs");
 // @ts-check
 
 const { execFileSync } = require("node:child_process");
@@ -87,7 +91,19 @@ function checkProductionCleanupCoverage(options = {}) {
     if (smokeOnlyUi) smokeOnlyUiFiles++;
     const record = readRequiredCoverageRecord(coverage, file);
     for (const metric of COVERAGE_METRICS) {
-      const actual = readCoverageMetric(record, metric, file);
+      let actual = readCoverageMetric(record, metric, file);
+      const owner = resolveCoverageMetricOwner(
+        file,
+        metric,
+        actual.total,
+        manifest.introducedFloors,
+      );
+      if (owner !== file)
+        actual = readCoverageMetric(
+          readRequiredCoverageRecord(coverage, owner),
+          metric,
+          owner,
+        );
       const baseline = floor[metric];
       if (
         compareFloors &&
@@ -473,21 +489,6 @@ function parseCoveredTotalPercent(value, label) {
     throw new Error(`${label} pct does not match its counts.`);
   }
   return { total, covered, pct };
-}
-
-/**
- * @param {CoverageMetric} actual
- * @param {CoverageFloorMetric} baseline
- */
-function isCoverageRatioBelow(actual, baseline) {
-  if (baseline.total === 0) {
-    return actual.covered !== actual.total;
-  }
-  if (actual.total === 0) return true;
-  return (
-    BigInt(actual.covered) * BigInt(baseline.total) <
-    BigInt(baseline.covered) * BigInt(actual.total)
-  );
 }
 
 /** @param {string} root @param {string} baseCommit @returns {CoverageScope} */

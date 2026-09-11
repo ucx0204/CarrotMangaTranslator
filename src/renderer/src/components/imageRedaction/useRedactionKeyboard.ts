@@ -1,4 +1,5 @@
 import React from "react";
+import { ShortcutBindingsContext } from "../../lib/shortcuts/shortcutBindingsContext";
 import { isEditableTarget } from "../../lib/appHelpers";
 import {
   redactionKeyAction,
@@ -23,6 +24,7 @@ type Options = {
   dialogOpen: boolean;
 };
 export function useRedactionKeyboard(options: Options) {
+  const overrides = React.useContext(ShortcutBindingsContext);
   const [spaceHeld, setSpaceHeld] = React.useState(false);
   React.useEffect(() => {
     const release = () => setSpaceHeld(false);
@@ -43,6 +45,7 @@ export function useRedactionKeyboard(options: Options) {
         const action = redactionKeyAction(
           { ...event, isComposing: event.nativeEvent.isComposing },
           options.form.state.workspace.preferences,
+          overrides,
         );
         if (!action) return;
         event.preventDefault();

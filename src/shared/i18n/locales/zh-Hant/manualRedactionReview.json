@@ -15,5 +15,15 @@
   "pageReviewControls": "頁面確認",
   "allReviewed": "全部已確認",
   "selectedBadge": "已選",
-  "filter_reviewed": "已確認"
+  "filter_reviewed": "已確認",
+  "closeWithoutSaving": "不儲存，取消任務並關閉",
+  "keepSavedDraftHint": "儲存失敗時可以不再寫入而離開。已儲存的草稿（包括進行中的寫入）將保留，編輯不會復原。不會傳送圖片。",
+  "scale_proportional": "按相同寬高比縮放",
+  "copyProblem_aspect": "無法複製到寬高比不同的頁面。",
+  "copyProblem_brush": "縮放後的筆刷超出支援的尺寸範圍。",
+  "copyProblem_dimensions": "不支援此圖片尺寸。",
+  "prepareEditor": "預先編輯圖片遮擋",
+  "prepare_page": "遮擋目前頁面",
+  "prepare_chapter": "遮擋目前章節",
+  "prepare_work": "遮擋整部作品"
 }

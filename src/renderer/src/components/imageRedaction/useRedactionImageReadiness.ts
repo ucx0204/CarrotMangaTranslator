@@ -1,26 +1,39 @@
 import React from "react";
 import type { ImageRedactionStroke } from "../../../../shared/imageRedaction";
 import { useEventCallback } from "../../hooks/useEventCallback";
-import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
+import type { RedactionWorkspaceController } from "./redactionWorkspaceTypes";
 
 type Options = {
-  form: RedactionWorkspaceController;
+  form: Pick<RedactionWorkspaceController, "markPreview">;
   pageId: string;
+  requestKey: string;
   url: string;
   error: unknown;
   strokes: ImageRedactionStroke[];
+  renderKey?: unknown;
+  inspectionReady?: boolean;
   onReady?: (ready: boolean) => void;
   source: "detail" | "thumbnail";
 };
 /** Bind readiness to the displayed URL and exact committed mask, not to a previous page. */
 export function useRedactionImageReadiness(options: Options) {
-  const [decodedUrl, setDecodedUrl] = React.useState("");
-  const [mask, setMask] = React.useState<ImageRedactionStroke[] | null>(null);
-  const [failed, setFailed] = React.useState(false);
+  const [decoded, setDecoded] = React.useState({ key: "", url: "" });
+  const [mask, setMask] = React.useState<{
+    key: string;
+    renderKey?: unknown;
+    strokes: ImageRedactionStroke[] | null;
+  }>({ key: "", strokes: null });
+  const [failedKey, setFailedKey] = React.useState<string | null>(null);
+  const key = options.requestKey;
+  const failed = failedKey === key;
   const ready =
     Boolean(options.url) &&
-    decodedUrl === options.url &&
-    mask === options.strokes &&
+    decoded.key === key &&
+    decoded.url === options.url &&
+    mask.key === key &&
+    mask.strokes === options.strokes &&
+    mask.renderKey === options.renderKey &&
+    options.inspectionReady !== false &&
     !failed &&
     !options.error;
   const notify = useEventCallback((value: boolean) => options.onReady?.(value));
@@ -43,16 +56,13 @@ export function useRedactionImageReadiness(options: Options) {
   return {
     ready,
     failed,
-    decoded: () => setDecodedUrl(options.url),
-    masked: () => setMask(options.strokes),
+    decoded: () => setDecoded({ key, url: options.url }),
+    masked: () =>
+      setMask({ key, strokes: options.strokes, renderKey: options.renderKey }),
     reject: (error?: unknown) => {
-      setFailed(true);
-      if (error) options.form.report(error);
-    },
-    retry: () => {
-      setFailed(false);
-      setDecodedUrl("");
-      setMask(null);
+      setFailedKey(key);
+      // Raw diagnostics stay out of view state; the view owns the localized notice.
+      if (error) console.error("Redaction preview failed", error);
     },
   };
 }

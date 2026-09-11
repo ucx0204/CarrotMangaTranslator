@@ -10,12 +10,14 @@ export function RedactionExitDialog({
   onClose,
   onSave,
   onDiscard,
+  onCloseWithoutSaving,
 }: {
   busy: boolean;
   error?: string;
   onClose: () => void;
   onSave: () => void;
   onDiscard: () => void;
+  onCloseWithoutSaving: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -43,7 +45,19 @@ export function RedactionExitDialog({
       }
     >
       <p>{t("manualRedaction.exitHint")}</p>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? (
+        <>
+          <p role="alert">{error}</p>
+          <p>{t("manualRedaction.keepSavedDraftHint")}</p>
+          <Button
+            variant="danger"
+            disabled={busy}
+            onClick={onCloseWithoutSaving}
+          >
+            {t("manualRedaction.closeWithoutSaving")}
+          </Button>
+        </>
+      ) : null}
     </Modal>
   );
 }

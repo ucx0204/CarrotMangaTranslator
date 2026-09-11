@@ -18,6 +18,7 @@ export function isChapterMutationBlocked(model: AppSessionViewModel): boolean {
     model.inpaintingBridge?.contextValue.jobActive,
     model.inpaintingActions?.actionBusy,
     model.uiState.translationFlowActive,
+    Boolean(model.uiState.redactionPreparationRequest),
     model.workspaceHistory.busy,
     model.libraryDrop?.busy,
     model.operationActivity?.active,

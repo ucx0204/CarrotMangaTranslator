@@ -1,24 +1,49 @@
 import type {
   RedactionDocument,
   RedactionWorkspace,
+  RedactionWorkspacePage,
 } from "../../../../shared/imageRedactionWorkspace";
 
+import {
+  createRedactionEdit,
+  retainRedactionHistory,
+  type RedactionEdit,
+} from "./redactionHistory";
+
 type DocumentMap = Record<string, RedactionDocument>;
-type Edit = { before: DocumentMap; after: DocumentMap; batch: boolean };
+export type RedactionPageMetadata = Omit<
+  RedactionWorkspacePage,
+  "strokes" | "decision"
+>;
 export type RedactionSession = {
-  workspace: RedactionWorkspace;
+  // Mutable document content has exactly one authority: documents below.
+  workspace: Omit<RedactionWorkspace, "pages"> & {
+    pages: RedactionPageMetadata[];
+  };
   documents: DocumentMap;
-  undo: Edit[];
-  redo: Edit[];
+  undo: RedactionEdit[];
+  redo: RedactionEdit[];
   generation: number;
 };
-const HISTORY_LIMIT = 100;
 
 export function createRedactionSession(
   workspace: RedactionWorkspace,
 ): RedactionSession {
   return {
-    workspace: { ...workspace, view: { ...workspace.view, mode: "edit" } },
+    workspace: {
+      ...workspace,
+      view: { ...workspace.view, mode: "edit" },
+      pages: workspace.pages.map(
+        ({ id, name, imagePath, width, height, fingerprint }) => ({
+          id,
+          name,
+          imagePath,
+          width,
+          height,
+          fingerprint,
+        }),
+      ),
+    },
     documents: Object.fromEntries(
       workspace.pages.map(({ id, fingerprint, strokes, decision }) => [
         id,
@@ -50,7 +75,10 @@ export function editRedactionDocuments(
   return {
     ...state,
     documents: { ...state.documents, ...after },
-    undo: [...state.undo, { before, after, batch }].slice(-HISTORY_LIMIT),
+    undo: retainRedactionHistory([
+      ...state.undo,
+      createRedactionEdit(before, after, batch),
+    ]),
     redo: state.redo.filter(
       (edit) => !Object.keys(after).some((id) => id in edit.after),
     ),
@@ -59,7 +87,7 @@ export function editRedactionDocuments(
 }
 
 function applicable(
-  edit: Edit,
+  edit: RedactionEdit,
   documents: DocumentMap,
   direction: "undo" | "redo",
 ): boolean {
@@ -113,7 +141,7 @@ export function restoreRedactionEdit(
       ...(direction === "undo" ? edit.before : edit.after),
     },
     [direction]: source,
-    [opposite]: [...state[opposite], edit].slice(-HISTORY_LIMIT),
+    [opposite]: retainRedactionHistory([...state[opposite], edit]),
     generation: state.generation + 1,
   };
 }

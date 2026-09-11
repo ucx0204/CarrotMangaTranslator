@@ -204,6 +204,50 @@ describe("production cleanup coverage floor gate", () => {
     );
   });
 
+  it("keeps extracted session branch floors on their service without waiving either file's coverage", () => {
+    const fixture = createFixture(
+      "src/main/application/redactionWorkspaceService.ts",
+      "src/main/imageRedactionWorkspaceSessions.ts",
+    );
+    fixture.coverage[fixture.existingFileAbsolute].branches = coverageMetric(
+      0,
+      0,
+    );
+    fixture.writeCoverage();
+    expect(() => runGate(fixture, "win32")).not.toThrow();
+    fixture.coverage[fixture.addedFileAbsolute].branches = coverageMetric(79);
+    fixture.writeCoverage();
+    expect(() => runGate(fixture, "win32")).toThrow(
+      /branches: 79%.*below exact baseline/u,
+    );
+    fixture.coverage[fixture.addedFileAbsolute].branches = coverageMetric(0, 0);
+    fixture.writeCoverage();
+    expect(() => runGate(fixture, "win32")).toThrow(
+      /0\/0.*below exact baseline/u,
+    );
+    fixture.coverage[fixture.addedFileAbsolute].branches = coverageMetric(100);
+    fixture.coverage[fixture.existingFileAbsolute].branches =
+      coverageMetric(79);
+    fixture.writeCoverage();
+    expect(() => runGate(fixture, "win32")).toThrow(
+      /imageRedactionWorkspaceSessions.ts branches: 79%/u,
+    );
+    fixture.coverage[fixture.existingFileAbsolute].branches = coverageMetric(
+      0,
+      0,
+    );
+    fixture.manifest.introducedFloors = {};
+    fixture.writeManifest();
+    fixture.writeCoverage();
+    expect(() =>
+      runGate(fixture, "win32", () => ({
+        existing: [fixture.existingFile],
+        added: [],
+        deleted: [],
+      })),
+    ).toThrow(/owner is missing/u);
+  });
+
   it("validates records on another platform without comparing Windows floors", () => {
     const fixture = createFixture();
     fixture.coverage[fixture.existingFileAbsolute] = coverageRecord(70);
@@ -457,8 +501,8 @@ describe("production cleanup coverage floor gate", () => {
     expect(Object.keys(manifest.floors)).toEqual(scope.existing);
     expect(Object.keys(manifest.introducedFloors)).toEqual(scope.added);
     expect(manifest.deletedFiles).toEqual(scope.deleted);
-    expect(scope.existing).toHaveLength(712);
-    expect(scope.added).toHaveLength(586);
+    expect(scope.existing).toHaveLength(713);
+    expect(scope.added).toHaveLength(618);
     expect(scope.deleted).toHaveLength(10);
   });
 });
@@ -482,12 +526,14 @@ const CURRENT_NODE_V8_FAMILY = `${process.versions.node.split(".")[0]}/${process
   .slice(0, 2)
   .join(".")}`;
 
-function createFixture(addedFile = "src/shared/added.ts"): Fixture {
+function createFixture(
+  addedFile = "src/shared/added.ts",
+  existingFile = "src/main/existing.ts",
+): Fixture {
   const root = mkdtempSync(
     join(tmpdir(), "manga-production-cleanup-coverage-test-"),
   );
   temporaryDirectories.push(root);
-  const existingFile = "src/main/existing.ts";
   const existingFileAbsolute = join(root, existingFile);
   const addedFileAbsolute = join(root, addedFile);
   const manifestPath = join(root, "scripts", "coverage-floors.json");

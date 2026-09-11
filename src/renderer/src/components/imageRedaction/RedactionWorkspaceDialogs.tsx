@@ -47,6 +47,7 @@ export function RedactionWorkspaceDialogs({
           onClose={() => setDialog(null)}
           onSave={actions.saveExit}
           onDiscard={actions.discard}
+          onCloseWithoutSaving={actions.closeWithoutSaving}
         />
       ) : null}
     </>

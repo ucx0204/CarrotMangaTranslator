@@ -1,4 +1,8 @@
-import type { ImageRedactionStroke } from "./imageRedaction";
+import {
+  MAX_REDACTION_ISOLATION_DEPTH,
+  type ImageRedactionStroke,
+} from "./imageRedaction";
+import { assertRedactionCopyCompatible } from "./imageRedactionCopyPolicy";
 
 type Size = { width: number; height: number };
 export type RedactionBounds = {
@@ -96,21 +100,76 @@ export function copyRedactionStrokes(
   target: Size,
   scaling: "exact" | "proportional",
 ): ImageRedactionStroke[] {
-  if (
-    scaling === "exact" &&
-    (source.width !== target.width || source.height !== target.height)
-  )
-    throw new Error(
-      "이미지 크기가 다릅니다. 비율 맞추기를 명시적으로 선택해 주세요.",
-    );
-  const x = target.width / source.width,
-    y = target.height / source.height;
+  assertRedactionCopyCompatible(strokes, source, target, scaling);
+  const factor = target.width / source.width;
   return strokes.map((stroke) => ({
     ...stroke,
-    size: Math.max(1, Math.min(4000, stroke.size * Math.min(x, y))),
+    size: stroke.shape === "rectangle" ? stroke.size : stroke.size * factor,
     points: stroke.points.map((point) => ({
-      x: Math.min(target.width, point.x * x),
-      y: Math.min(target.height, point.y * y),
+      x: Math.min(target.width, point.x * factor),
+      y: Math.min(target.height, point.y * factor),
     })),
   }));
+}
+
+/** Add a completed source mask, not its erase commands, to the existing mask.
+ * A later unscoped eraser still edits the combined result. Nested copies retain
+ * their own isolation; a common outer group is redundant on an empty source.
+ */
+export function mergeRedactionStrokes(
+  existing: readonly ImageRedactionStroke[],
+  copied: readonly ImageRedactionStroke[],
+  replace: boolean,
+): ImageRedactionStroke[] {
+  if (replace || !existing.length) return [...copied];
+  if (!copied.length) return [...existing];
+  if (!copied.some((stroke) => stroke.operation === "restore"))
+    return [...existing, ...copied];
+  const group =
+    Math.max(0, ...existing.map((stroke) => stroke.isolation?.[0] ?? 0)) + 1;
+  const first = copied[0].isolation ?? [];
+  let common = 0;
+  while (
+    common < first.length &&
+    copied.every((stroke) => stroke.isolation?.[common] === first[common])
+  )
+    common++;
+  const isolated = copied.map((stroke) => {
+    const isolation = [group, ...(stroke.isolation?.slice(common) ?? [])];
+    if (isolation.length > MAX_REDACTION_ISOLATION_DEPTH || group > 2147483647)
+      throw new Error(
+        "The nested mask copy limit was exceeded; the existing mask is unchanged",
+      );
+    return { ...stroke, isolation };
+  });
+  return [...existing, ...isolated];
+}
+
+/** Compare edit values rather than object identity or property insertion order. */
+export function redactionStrokesEqual(
+  left: readonly ImageRedactionStroke[],
+  right: readonly ImageRedactionStroke[],
+): boolean {
+  return (
+    left === right ||
+    (left.length === right.length &&
+      left.every((stroke, index) => {
+        const other = right[index];
+        const isolation = stroke.isolation ?? [];
+        const otherIsolation = other.isolation ?? [];
+        return (
+          stroke.shape === other.shape &&
+          (stroke.operation ?? "hide") === (other.operation ?? "hide") &&
+          stroke.size === other.size &&
+          isolation.length === otherIsolation.length &&
+          isolation.every((group, depth) => group === otherIsolation[depth]) &&
+          stroke.points.length === other.points.length &&
+          stroke.points.every(
+            (point, pointIndex) =>
+              point.x === other.points[pointIndex].x &&
+              point.y === other.points[pointIndex].y,
+          )
+        );
+      }))
+  );
 }

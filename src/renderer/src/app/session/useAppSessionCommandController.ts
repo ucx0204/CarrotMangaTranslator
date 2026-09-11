@@ -1,9 +1,11 @@
+import type { RedactionPreparationActions } from "../../lib/redactionPreparation";
 import { type Dispatch, type SetStateAction } from "react";
 import type { ChapterSnapshot } from "../../../../shared/libraryTypes";
 import type { AppCommandRegistry } from "../../lib/appCommandTypes";
 import { useAppCommands } from "../../hooks/useAppCommands";
 
 type UseAppSessionCommandControllerArgs = {
+  redactionPreparation: RedactionPreparationActions;
   startRegionTranslation: () => void;
   cancelJob: () => void;
   currentChapter: ChapterSnapshot | null;
@@ -27,6 +29,7 @@ type UseAppSessionCommandControllerArgs = {
 };
 
 export function useAppSessionCommandController({
+  redactionPreparation,
   startRegionTranslation,
   cancelJob,
   currentChapter,
@@ -49,6 +52,7 @@ export function useAppSessionCommandController({
   setTranslationSourceOpen,
 }: UseAppSessionCommandControllerArgs): AppCommandRegistry {
   return useAppCommands({
+    redactionPreparation,
     startRegionTranslation,
     cancelJob,
     currentChapter,

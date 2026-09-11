@@ -42,6 +42,10 @@ const {
   readChatCompletionResult,
   sendChatCompletion,
 } = require("./chat-completion.cjs");
+const {
+  buildSoundEffectRequestBody,
+  requestSoundEffectCompletion,
+} = require("./sound-effect-request.cjs");
 const { requestFixedBlockTranslation } = require("./semantic-ocr-request.cjs");
 const {
   hasHeuristicReviewFragments,
@@ -90,10 +94,8 @@ async function requestTranslation(server, options) {
     abortSignal: deadline.signal,
   });
   try {
-    const soundEffectRequest =
-      isSoundEffectTranslationRequest(boundedPromptOptions);
     const groupReviewSelected =
-      !soundEffectRequest &&
+      !isSoundEffectTranslationRequest(boundedPromptOptions) &&
       isGroupOnlyReviewEligible(boundedPromptOptions) &&
       hasHeuristicReviewFragments(boundedPromptOptions);
     const groupReviewOutcome = groupReviewSelected
@@ -142,13 +144,26 @@ async function requestTranslation(server, options) {
       prepared.requestSummary,
       groupReviewOutcome,
     );
-    const translated = isOpenAICodexProvider(finalPromptOptions)
-      ? await requestCodexTranslation(server, prepared)
-      : await requestChatTranslation(server, prepared, requestStartedAt);
+    const translated = await completePreparedTranslation(
+      server,
+      prepared,
+      requestStartedAt,
+    );
     return attachSemanticGroupReviewRawResponse(translated, groupReviewOutcome);
   } finally {
     deadline.cleanup();
   }
+}
+
+/** @param {ModelServer} server @param {PreparedTranslationRequest} prepared
+ * @param {number} requestStartedAt
+ */
+function completePreparedTranslation(server, prepared, requestStartedAt) {
+  if (isSoundEffectTranslationRequest(prepared.promptOptions))
+    return requestSoundEffectCompletion(server, prepared, requestStartedAt);
+  return isOpenAICodexProvider(prepared.promptOptions)
+    ? requestCodexTranslation(server, prepared)
+    : requestChatTranslation(server, prepared, requestStartedAt);
 }
 
 /** @param {RequestSummary} summary @param {Record<string,unknown> | null} outcome */
@@ -293,15 +308,11 @@ async function prepareTranslationRequest(server, options, ocrBboxResult) {
 
 /** @param {Record<string, unknown>} options */
 function isSoundEffectTranslationRequest(options) {
-  return (
-    options.soundEffectTranslationMode === true &&
-    Array.isArray(options.soundEffectTranslationRegions) &&
-    options.soundEffectTranslationRegions.length > 0
-  );
+  return options.soundEffectTranslationMode === true;
 }
 
 /**
- * @param {PromptRequestOptions} options
+ * @param {TranslationRequestOptions} options
  * @param {ImageVariant[]} imageVariants
  * @param {string} promptText
  * @param {string} systemPrompt
@@ -312,6 +323,12 @@ function buildProviderRequestBody(
   promptText,
   systemPrompt,
 ) {
+  if (isSoundEffectTranslationRequest(options)) {
+    return buildSoundEffectRequestBody(
+      options,
+      buildMessages(options, imageVariants, promptText, systemPrompt),
+    );
+  }
   if (isOpenAICodexProvider(options)) {
     return buildResponsesRequestBody(
       options,

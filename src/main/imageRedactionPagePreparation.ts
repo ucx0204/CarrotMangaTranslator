@@ -3,7 +3,8 @@ import type {
   ImageRedactionPage,
   ImageRedactionStroke,
 } from "../shared/imageRedaction";
-import { imageFingerprint } from "./imageRedactionContext";
+import { assertSupportedRedactionSize } from "../shared/imageRedactionLimits";
+import { fingerprintImageFile } from "./imageFingerprint";
 
 type SavedPages = Record<
   string,
@@ -16,12 +17,14 @@ export async function prepareImageRedactionPages(
   saved: SavedPages,
   signal?: AbortSignal,
 ): Promise<ImageRedactionPage[]> {
+  signal?.throwIfAborted();
+  for (const page of pages) assertSupportedRedactionSize(page);
   const prepared: ImageRedactionPage[] = [];
   for (let offset = 0; offset < pages.length; offset += 4) {
     signal?.throwIfAborted();
     const chunk = await Promise.all(
       pages.slice(offset, offset + 4).map(async (page) => {
-        const fingerprint = await imageFingerprint(page.imagePath);
+        const fingerprint = await fingerprintImageFile(page.imagePath);
         return {
           id: page.id,
           name: page.name,

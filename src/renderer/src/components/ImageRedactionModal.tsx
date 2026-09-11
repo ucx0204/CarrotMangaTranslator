@@ -10,9 +10,11 @@ import { ManualRedactionWorkspace } from "./imageRedaction/ManualRedactionWorksp
 
 export function ImageRedactionModal({
   review,
+  jobActive = true,
   onClose,
 }: {
   review: ImageRedactionReview & { jobId: string };
+  jobActive?: boolean;
   onClose: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -21,7 +23,8 @@ export function ImageRedactionModal({
   const cancel = async () => {
     setBusy(true);
     try {
-      await analysisGateway.cancelJob({ jobId: review.jobId });
+      if (jobActive) await analysisGateway.cancelJob({ jobId: review.jobId });
+      await analysisGateway.closeRedactionWorkspace(review.sessionId);
       onClose();
     } catch (failure) {
       report(failure, t("manualRedaction.operationFailed"));
@@ -34,7 +37,11 @@ export function ImageRedactionModal({
       <ManualRedactionWorkspace
         key={workspace.sessionId}
         workspace={workspace}
-        job={{ jobId: review.jobId, sessionId: review.sessionId }}
+        job={
+          jobActive
+            ? { jobId: review.jobId, sessionId: review.sessionId }
+            : undefined
+        }
         onClose={onClose}
       />
     );

@@ -76,7 +76,7 @@ it("opens a legacy deferred draft as unreviewed without losing masks, position o
   await expect(
     updateRedactionWorkspaceStore(f.root, async () => {}),
   ).resolves.toBe(8);
-  expect(JSON.parse(await readFile(f.path, "utf8"))).toMatchObject({
+  expect(await readRedactionWorkspaceStore(f.root)).toMatchObject({
     revision: 8,
     pages: { "source.png": { decision: "unreviewed" } },
     views: { scope: { filter: "unreviewed" } },

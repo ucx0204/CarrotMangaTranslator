@@ -178,13 +178,42 @@ async function requestAndValidateOneRegion({
     runtime: run.runtime,
     server: endpoint.server,
   });
-  return validateSoundEffectTranslationResponse(
-    run.runtime.parseJsonLenient(result.outputText),
-    [region],
+  throwIfAborted(abortController.signal);
+  return validateOneRegionOutput(
+    result.outputText,
+    run.runtime.parseJsonLenient,
+    region,
     pageOptions.targetLanguage ?? "ko",
   );
 }
 
 function safePathSegment(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]+/gu, "_").slice(0, 80) || "region";
+}
+
+function validateOneRegionOutput(
+  outputText: string,
+  parse: (text: string) => unknown,
+  region: StoredSoundEffectTarget["regions"][number],
+  targetLanguage: string,
+) {
+  let payload: unknown;
+  try {
+    payload = parse(outputText);
+  } catch (_error) {
+    // A malformed model response consumes the existing bounded visual retry.
+    // Transport, artifact-write and cancellation errors never enter this catch.
+    return {
+      valid: [],
+      retryRegionIds: [region.id],
+      warnings: [
+        `${region.id}: 효과음 응답의 JSON 형식을 읽지 못했습니다. items 배열에 regionId, verdict, confirmedSource, translation, confidence를 포함해 다시 응답해 주세요.`,
+      ],
+    };
+  }
+  return validateSoundEffectTranslationResponse(
+    payload,
+    [region],
+    targetLanguage,
+  );
 }

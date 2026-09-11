@@ -13,6 +13,7 @@ type Options = {
 
 /** A serialized revision-aware draft writer. It has no job confirmation capability. */
 export class RedactionDraftWriter {
+  private paused = false;
   private saved: RedactionSession;
   private revision: number;
   private flight: Promise<number> | null = null;
@@ -23,7 +24,18 @@ export class RedactionDraftWriter {
     this.saved = initial;
     this.revision = initial.workspace.revision;
   }
+  /** Unsaved includes edits queued behind the debounce or an older in-flight write. */
+  get isDirty(): boolean {
+    return this.saved !== this.options.read();
+  }
+  pause(): () => void {
+    this.paused = true;
+    return () => {
+      this.paused = false;
+    };
+  }
   flush(): Promise<number> {
+    if (this.paused) return Promise.resolve(this.revision);
     if (this.flight) return this.flight;
     this.flight = this.drain().finally(() => {
       this.flight = null;
@@ -32,7 +44,7 @@ export class RedactionDraftWriter {
   }
   private async drain(): Promise<number> {
     try {
-      while (this.saved !== this.options.read()) {
+      while (!this.paused && this.saved !== this.options.read()) {
         const snapshot = this.options.read();
         this.options.notify({ kind: "saving" });
         this.revision = await this.options.persist(this.request(snapshot));

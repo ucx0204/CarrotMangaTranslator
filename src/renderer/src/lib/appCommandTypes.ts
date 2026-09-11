@@ -17,6 +17,9 @@ export const APP_COMMAND_IDS = [
   "open-log-folder",
   "report-problem",
   "show-shortcuts",
+  "prepare-redaction-page",
+  "prepare-redaction-chapter",
+  "prepare-redaction-work",
 ] as const;
 
 export type AppCommandId = (typeof APP_COMMAND_IDS)[number];
