@@ -1,0 +1,119 @@
+name: Repair measured coverage inventory
+
+on:
+  push:
+    branches: [fix/redaction-review-and-sfx-93-20260911]
+    paths: [.github/workflows/ci-repair-coverage.yml]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Read the sealed Windows measurements
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/ucx0204/CarrotMangaTranslator/actions/artifacts/10267791368/zip > "$RUNNER_TEMP/windows-coverage.zip"
+          echo "564b80032d7d25c3af66f66b2bf81659e147af50e95b6615de2479a5a53adf61  $RUNNER_TEMP/windows-coverage.zip" | sha256sum --check
+          python3 - <<'PY'
+          import os, pathlib, zipfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          with zipfile.ZipFile(root / 'windows-coverage.zip') as archive:
+              (root / 'windows-coverage-summary.json').write_bytes(archive.read('coverage/coverage-summary.json'))
+          PY
+      - name: Install verification tools without native install scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Add only missing measured records
+        env:
+          COVERAGE_SNAPSHOT: ${{ runner.temp }}/windows-coverage-summary.json
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const cp = require('node:child_process');
+          const path = require('node:path');
+          const root = process.cwd();
+          const file = path.join(root, 'scripts/production-cleanup-coverage-floors.json');
+          const sha = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
+          async function main() {
+            const bytes = fs.readFileSync(file);
+            if (sha(bytes) !== '7230999c3bf100a14791062f691811327e3b15dd23778b0c8faa30282aed5bb6')
+              throw new Error('Coverage manifest changed; reconcile before publishing');
+            const snapshot = fs.readFileSync(process.env.COVERAGE_SNAPSHOT);
+            if (sha(snapshot) !== 'cde57ff3d4ae28e8cbae3d9deeca3802d1bbf078f1db4267f50be3ab50867927')
+              throw new Error('Windows coverage snapshot digest mismatch');
+            const old = JSON.parse(bytes);
+            const next = structuredClone(old);
+            const measurements = new Map(Object.entries(JSON.parse(snapshot)).filter(([k]) => k !== 'total').map(([k,v]) => [k.replaceAll('\\','/').split('/CarrotMangaTranslator/CarrotMangaTranslator/')[1],v]));
+            const gate = require(path.join(root,'scripts/check-production-cleanup-coverage.cjs'));
+            const scope = gate.collectCoverageScope(root, old.provenance.baseCommit);
+            const added = [];
+            for (const [category, paths] of [['floors', scope.existing], ['introducedFloors', scope.added]]) {
+              for (const present of Object.keys(old[category]))
+                if (!paths.includes(present)) throw new Error('Unexpected obsolete floor: ' + present);
+              for (const source of paths) {
+                if (Object.hasOwn(next[category], source)) continue;
+                cp.execFileSync('git', ['diff', '--exit-code', 'df849c080d82e0a6ff04be307229123686bc2a0d', '--', source]);
+                const measured = measurements.get(source);
+                if (!measured) throw new Error('No measured coverage for ' + source);
+                next[category][source] = Object.fromEntries(gate.COVERAGE_METRICS.map(metric => {
+                  const {covered,total,pct} = measured[metric];
+                  return [metric, {covered,total,pct}];
+                }));
+                added.push(source);
+              }
+              next[category] = Object.fromEntries(Object.entries(next[category]).sort(([a],[b]) => a < b ? -1 : a > b ? 1 : 0));
+              for (const [source, floor] of Object.entries(old[category]))
+                if (JSON.stringify(next[category][source]) !== JSON.stringify(floor))
+                  throw new Error('Existing coverage floor was changed: ' + source);
+            }
+            if (added.length !== 33) throw new Error('Unexpected coverage scope; expected 33 additions');
+            if (JSON.stringify(next.deletedFiles) !== JSON.stringify(scope.deleted))
+              throw new Error('Unexpected deletion inventory change');
+            next.provenance.introducedArtifactSha256 = sha(snapshot);
+            const prettier = require(path.join(root, 'node_modules/prettier'));
+            const options = await prettier.resolveConfig(file);
+            const formatted = await prettier.format(JSON.stringify(next, null, 2), {...options, filepath:file});
+            if (sha(formatted) !== '39db239e821e349569d76fdf9039a0ec5f9f2ea78e82125da943c6a3f8c7bb8b')
+              throw new Error('Generated manifest differs from the locally verified checkpoint');
+            fs.writeFileSync(file, formatted);
+            const testPath = path.join(root, 'tests/productionCleanupCoverageGate.test.ts');
+            const test = fs.readFileSync(testPath, 'utf8');
+            if (!test.includes('expect(scope.existing).toHaveLength(712);') || !test.includes('expect(scope.added).toHaveLength(586);'))
+              throw new Error('Inventory count assertions changed; reconcile before publishing');
+            fs.writeFileSync(testPath, test.replace('expect(scope.existing).toHaveLength(712);', 'expect(scope.existing).toHaveLength(713);').replace('expect(scope.added).toHaveLength(586);', 'expect(scope.added).toHaveLength(618);'));
+            gate.assertManifestCoversScope(gate.loadCoverageManifest(root, file), scope);
+            console.log(JSON.stringify({added:added.length, unchangedFloors:Object.keys(old.floors).length+Object.keys(old.introducedFloors).length, manifestSha256:sha(formatted), sourceRun:34607390730, sourceCommit:'df849c080d82e0a6ff04be307229123686bc2a0d'}, null, 2));
+          }
+          main().catch(error => {console.error(error); process.exitCode=1;});
+          NODE
+      - name: Verify the unchanged policy and updated inventory
+        run: |
+          node node_modules/vitest/vitest.mjs run tests/productionCleanupCoverageGate.test.ts --maxWorkers 2
+          node node_modules/prettier/bin/prettier.cjs --check tests/productionCleanupCoverageGate.test.ts
+          node node_modules/eslint/bin/eslint.js tests/productionCleanupCoverageGate.test.ts --max-warnings 0
+      - name: Commit the measured inventory without rewriting branch history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          gh auth setup-git
+          git add scripts/production-cleanup-coverage-floors.json tests/productionCleanupCoverageGate.test.ts
+          git commit -m 'test(coverage): add 33 missing measured records without reducing existing floors' -m 'Windows Check 34607390730 at df849c0; artifact and summary SHA-256 verified. All 1298 prior floor records remain identical. Inventory assertions updated to 713 existing and 618 introduced files; 27 policy regressions passed. Full ordinary Check still required.'
+          git push origin HEAD:refs/heads/fix/redaction-review-and-sfx-93-20260911
+          git rev-parse HEAD
