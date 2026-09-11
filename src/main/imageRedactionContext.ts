@@ -20,6 +20,8 @@ import {
   rasterizeImageRedaction,
 } from "./imageRedactionPixels";
 
+import { fingerprintImageFile } from "./imageFingerprint";
+
 type Source = {
   width: number;
   height: number;
@@ -30,10 +32,9 @@ type Source = {
   signal?: AbortSignal;
 };
 const contexts = new AsyncLocalStorage<Map<string, Source>>();
-export async function imageFingerprint(path: string): Promise<string> {
-  return createHash("sha256")
-    .update(await readFile(path))
-    .digest("hex");
+// Retain this public transmission-context entry point for existing callers.
+export function imageFingerprint(path: string): Promise<string> {
+  return fingerprintImageFile(path);
 }
 export async function withApprovedImageRedactions<T>(
   pages: readonly ImageRedactionPage[],

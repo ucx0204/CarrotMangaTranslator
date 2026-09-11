@@ -4,7 +4,7 @@ import type {
 } from "../shared/imageRedaction";
 import type { SaveRedactionWorkspace } from "../shared/imageRedactionWorkspace";
 import { RedactionWorkspaceApplicationService } from "./application/redactionWorkspaceService";
-import { imageFingerprint } from "./imageRedactionContext";
+import { fingerprintImageFile } from "./imageFingerprint";
 import { readImageRedactionState } from "./imageRedactionStore";
 import {
   readRedactionWorkspaceStore,
@@ -16,7 +16,7 @@ const service = new RedactionWorkspaceApplicationService({
   readDraft: readRedactionWorkspaceStore,
   updateDraft: updateRedactionWorkspaceStore,
   readApproved: readImageRedactionState,
-  fingerprint: imageFingerprint,
+  fingerprint: fingerprintImageFile,
   reportCleanupError: (message, error) => console.error(message, error),
 });
 
