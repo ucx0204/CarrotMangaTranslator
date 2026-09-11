@@ -34,7 +34,9 @@ export function createMcpReadTools(
         allowArguments(args, []);
         return textContent({
           mode: "read-only",
-          features: imageTransfer ? ["library.read", "page.preview"] : ["library.read"],
+          features: imageTransfer
+            ? ["library.read", "page.preview"]
+            : ["library.read"],
           translation: false,
           imageTransfer,
           imageRedaction: "preview-blocked-when-local-review-is-required",
