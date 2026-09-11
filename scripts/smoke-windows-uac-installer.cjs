@@ -211,7 +211,7 @@ async function main() {
 function stageDiagnosticIncludes(repository, scratch) {
   const output = join(scratch, "build");
   const diagnosticPath = join(scratch, "nsis-failures.log");
-  assert.ok(!/[\r\n$\"]/u.test(diagnosticPath));
+  assert.ok(!/[\r\n$"]/u.test(diagnosticPath));
   mkdirSync(output, { recursive: true });
   for (const filename of ["installer.nsh", "windows-uninstall-elevation.nsh"]) {
     const source = readFileSync(join(repository, "build", filename), "utf8");
