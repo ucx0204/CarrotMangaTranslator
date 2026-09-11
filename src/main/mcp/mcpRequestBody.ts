@@ -15,7 +15,7 @@ export async function readMcpBody(request: IncomingMessage): Promise<unknown> {
   }
 }
 
-function readBoundedBody(request: IncomingMessage): Promise<Buffer> {
+export function readBoundedBody(request: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
