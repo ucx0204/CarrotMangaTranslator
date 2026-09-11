@@ -3,7 +3,7 @@ name: Apply MCP implementation checkpoint
 on:
   push:
     branches: [feat/mcp-app-bridge]
-    paths: ['docs/mcp-checkpoints/*.patch']
+    paths: ['docs/mcp-checkpoints/*.patch', '.github/workflows/mcp-submit.yml']
 
 permissions:
   contents: write
@@ -30,8 +30,8 @@ jobs:
           patches=(docs/mcp-checkpoints/*.patch)
           if [ ${#patches[@]} -eq 0 ]; then exit 0; fi
           for patch in "${patches[@]}"; do
-            git apply --check --index "$patch"
-            git apply --index "$patch"
+            git apply --check --index --recount "$patch"
+            git apply --index --recount "$patch"
             git rm -- "$patch"
           done
           if git diff --cached --name-only | grep -vE '^(src/(main|shared|preload|renderer)/|tests/mcp|scripts/mcp|docs/mcp)' ; then
