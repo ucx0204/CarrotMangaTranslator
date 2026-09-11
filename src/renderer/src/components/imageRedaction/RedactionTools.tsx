@@ -15,6 +15,7 @@ import {
 import { Button } from "../ui/Button";
 import { NumberField } from "../ui/NumberField";
 import { ControlTooltip } from "../ui/ControlTooltip";
+import { useRedactionShortcutLabels } from "./useRedactionShortcutLabels";
 import { RedactionIconButton } from "./RedactionIconButton";
 import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
 import {
@@ -82,6 +83,7 @@ function RedactionEditHistory({
   const { t } = useTranslation("components");
   const { state, commit } = form;
   const id = state.workspace.view.currentId;
+  const keys = useRedactionShortcutLabels(state.workspace.preferences);
   const disabled = form.busy || form.drawing;
   return (
     <div className={styles.toolGroup}>
@@ -92,7 +94,7 @@ function RedactionEditHistory({
           <RedactionIconButton
             key={direction}
             label={t(`imageRedaction.${direction}`)}
-            hint={`${t(`imageRedaction.${direction}`)} · ${direction === "undo" ? "Ctrl/⌘+Z" : "Ctrl/⌘+Shift+Z"}`}
+            hint={`${t(`imageRedaction.${direction}`)} · ${keys(direction)}`}
             disabled={
               disabled || !canRestoreRedactionEdit(state, direction, id)
             }
