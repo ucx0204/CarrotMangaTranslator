@@ -98,9 +98,23 @@ Function MgtPrepareDataRoot
   ${If} $MgtDataRoot == ""
     Call MgtResolveInitialDataRoot
   ${EndIf}
-  GetFullPathName $1 "$MgtDataRoot"
+
+  ; NSIS GetFullPathName also looks up the final component and returns empty
+  ; for a not-yet-created data directory. Use the lexical Win32 API here;
+  ; actual existence and access are tested separately, after safety checks.
+  StrCpy $1 ""
+  System::Call 'kernel32::GetFullPathNameW(w "$MgtDataRoot", i ${NSIS_MAX_STRLEN}, w .r1, p 0) i.r4'
+  ${If} $4 == 0
+  ${OrIf} $4 >= ${NSIS_MAX_STRLEN}
+    Goto MgtInvalidDataRootPath
+  ${EndIf}
   ${GetRoot} "$1" $2
-  GetFullPathName $3 "$INSTDIR"
+  StrCpy $3 ""
+  System::Call 'kernel32::GetFullPathNameW(w "$INSTDIR", i ${NSIS_MAX_STRLEN}, w .r3, p 0) i.r4'
+  ${If} $4 == 0
+  ${OrIf} $4 >= ${NSIS_MAX_STRLEN}
+    Goto MgtInvalidDataRootPath
+  ${EndIf}
   StrLen $4 $1
   ${If} $MgtDataRoot == ""
   ${OrIf} $4 <= 3
@@ -108,10 +122,11 @@ Function MgtPrepareDataRoot
   ${OrIf} $1 == "$2\"
   ${OrIf} $1 == "$3"
   ${OrIf} $1 == "$3\"
-    MessageBox MB_ICONSTOP "데이터 저장 위치에는 드라이브 루트나 설치 폴더 자체가 아닌 전용 하위 폴더를 선택해 주세요.$\r$\n$MgtDataRoot" /SD IDOK
-    SetErrorLevel 2
-    Abort
+    Goto MgtInvalidDataRootPath
   ${EndIf}
+  ; Store precisely the canonical location that was checked, not a relative
+  ; value which could resolve differently during application startup.
+  StrCpy $MgtDataRoot "$1"
 
   StrCpy $5 "$INSTDIR"
   Call MgtProbeDataRootWriteAccess
@@ -127,6 +142,12 @@ Function MgtPrepareDataRoot
     SetErrorLevel 2
     Abort
   ${EndIf}
+  Return
+
+  MgtInvalidDataRootPath:
+  MessageBox MB_ICONSTOP "데이터 저장 위치가 올바르지 않습니다. 드라이브 루트나 설치 폴더 자체가 아닌 전용 하위 폴더를 선택해 주세요.$\r$\n$MgtDataRoot" /SD IDOK
+  SetErrorLevel 2
+  Abort
 FunctionEnd
 
 Function MgtResolveInitialDataRoot
