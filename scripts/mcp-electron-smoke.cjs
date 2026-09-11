@@ -48,8 +48,8 @@ async function checkRuntime(dataRoot) {
   const errors = [];
   const runtime = createMcpRuntime({
     env: { CARROT_MCP_ENABLED: "1", CARROT_MCP_TOKEN: token, CARROT_MCP_PORT: "38475", CARROT_MCP_ALLOW_IMAGES: "1" },
-    reportError: (_message, error) => errors.push(error),
-    reportInfo: (_message, detail) => { url = detail.url; },
+    reportError: (/** @type {string} */ _message, /** @type {unknown} */ error) => errors.push(error),
+    reportInfo: (/** @type {string} */ _message, /** @type {{url: string}} */ detail) => { url = detail.url; },
   });
   let preview;
   try {
@@ -68,7 +68,7 @@ async function checkRuntime(dataRoot) {
     await redaction.setImageRedactionEnabled(true, dataRoot);
     const blocked = await call(url, token, "carrot_get_page_preview", { chapterId: chapter.id, pageId: chapter.pages[0].id });
     assert.equal(blocked.isError, true);
-    assert.equal(blocked.content.some((item) => item.type === "image"), false);
+    assert.equal(blocked.content.some((/** @type {{type: string}} */ item) => item.type === "image"), false);
     assert.equal(JSON.stringify(blocked).includes(dataRoot), false);
     console.log("PASS real Electron redaction gate blocked image transfer");
   } finally {
