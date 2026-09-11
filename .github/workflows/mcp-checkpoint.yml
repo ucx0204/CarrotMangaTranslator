@@ -71,6 +71,12 @@ jobs:
           node scripts/mcp-smoke.mjs --help
           node node_modules/vitest/vitest.mjs run tests/mcp
 
+      - name: Build the existing application
+        run: npm run build
+
+      - name: Real Electron MCP runtime and redaction smoke
+        run: node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs
+
       - name: Static checks with complete repository dependencies
         if: always()
         run: |
@@ -81,11 +87,3 @@ jobs:
             echo '::endgroup::'
           done
           exit "$failed"
-
-      - name: Build the existing application
-        if: always()
-        run: npm run build
-
-      - name: Real Electron MCP runtime and redaction smoke
-        if: success()
-        run: node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs
