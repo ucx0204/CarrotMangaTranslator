@@ -1,0 +1,72 @@
+name: MCP checkpoint
+
+on:
+  push:
+    branches:
+      - feat/mcp-app-bridge
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-checkpoint-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checkpoint:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator' && github.ref == 'refs/heads/feat/mcp-app-bridge'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install repository dependencies
+        run: npm ci
+
+      - name: Format only MCP checkpoint files
+        run: >-
+          node node_modules/prettier/bin/prettier.cjs --write
+          .github/workflows/mcp-checkpoint.yml
+          docs/mcp-implementation.md
+          'src/main/application/mcp*.ts'
+          'src/main/mcp/*.ts'
+          src/main/mcpRuntime.ts
+          src/main/index.ts
+          'tests/mcp*.test.ts'
+
+      - name: Save formatting checkpoint on this branch only
+        run: |
+          git add -- .github/workflows/mcp-checkpoint.yml docs/mcp-implementation.md src/main/application/mcp*.ts src/main/mcp src/main/mcpRuntime.ts src/main/index.ts tests/mcp*.test.ts
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'style(mcp): format implementation checkpoint with repository Prettier'
+            git push origin HEAD:refs/heads/feat/mcp-app-bridge
+          fi
+          git rev-parse HEAD
+
+      - name: Focused MCP behavior tests
+        run: node node_modules/vitest/vitest.mjs run 'tests/mcp*.test.ts'
+
+      - name: Static checks with complete repository dependencies
+        if: always()
+        shell: bash
+        run: |
+          failed=0
+          for gate in typecheck typecheck:electron format:check arch:deps arch:budget lint:error-handling lint deadcode:exports; do
+            echo "::group::$gate"
+            if ! npm run "$gate"; then failed=1; fi
+            echo '::endgroup::'
+          done
+          exit "$failed"
