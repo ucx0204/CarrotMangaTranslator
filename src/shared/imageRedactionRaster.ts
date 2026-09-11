@@ -3,10 +3,7 @@ import {
   MAX_REDACTION_ISOLATION_DEPTH,
   type ImageRedactionStroke,
 } from "./imageRedaction";
-import {
-  PAGE_EXPORT_SOURCE_RASTER_LIMITS,
-  validatePageExportRasterSize,
-} from "./pageExportLimits";
+import { assertSupportedRedactionSize } from "./imageRedactionLimits";
 
 type MaskTarget = { width: number; height: number; mask: Uint8Array };
 type Stamp = {
@@ -23,13 +20,7 @@ export function rasterizeImageRedaction(
   height: number,
   strokes: readonly ImageRedactionStroke[],
 ): Uint8Array {
-  if (
-    !validatePageExportRasterSize(
-      { width, height },
-      PAGE_EXPORT_SOURCE_RASTER_LIMITS,
-    ).valid
-  )
-    throw new Error("가리기 이미지 크기가 지원 범위를 벗어났습니다.");
+  assertSupportedRedactionSize({ width, height });
   const target = { width, height, mask: new Uint8Array(width * height) };
   paintSequence(target, strokes, 0, strokes.length, 0);
   return target.mask;

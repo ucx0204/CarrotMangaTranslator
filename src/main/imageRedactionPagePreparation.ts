@@ -3,6 +3,7 @@ import type {
   ImageRedactionPage,
   ImageRedactionStroke,
 } from "../shared/imageRedaction";
+import { assertSupportedRedactionSize } from "../shared/imageRedactionLimits";
 import { imageFingerprint } from "./imageRedactionContext";
 
 type SavedPages = Record<
@@ -16,6 +17,8 @@ export async function prepareImageRedactionPages(
   saved: SavedPages,
   signal?: AbortSignal,
 ): Promise<ImageRedactionPage[]> {
+  signal?.throwIfAborted();
+  for (const page of pages) assertSupportedRedactionSize(page);
   const prepared: ImageRedactionPage[] = [];
   for (let offset = 0; offset < pages.length; offset += 4) {
     signal?.throwIfAborted();

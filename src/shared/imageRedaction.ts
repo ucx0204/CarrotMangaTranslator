@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  IMAGE_REDACTION_SIZE_ERROR,
+  isSupportedRedactionSize,
+} from "./imageRedactionLimits";
 
 export const MAX_REDACTION_ISOLATION_DEPTH = 8;
 
@@ -71,7 +75,8 @@ export const imageRedactionReviewSchema = z
             fingerprint: z.string().length(64),
             strokes: z.array(imageRedactionStrokeSchema).max(1000),
           })
-          .strict(),
+          .strict()
+          .refine(isSupportedRedactionSize, IMAGE_REDACTION_SIZE_ERROR),
       )
       .max(10000),
   })
