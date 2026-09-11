@@ -92,6 +92,7 @@ function ThumbnailImage({
     source: "thumbnail",
     form,
     pageId: page.id,
+    requestKey: image.key,
     url: image.url,
     error: image.error,
     strokes: document.strokes,
@@ -101,7 +102,11 @@ function ThumbnailImage({
   return (
     <span className={styles.thumbnailViewport} style={{ height: size }}>
       {image.url ? (
-        <span className={styles.thumbnailStage} style={{ width, height }}>
+        <span
+          key={image.key}
+          className={styles.thumbnailStage}
+          style={{ width, height }}
+        >
           <img
             src={image.url}
             alt=""

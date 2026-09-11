@@ -1,11 +1,14 @@
 import React from "react";
 import type { ImageRedactionStroke } from "../../../../shared/imageRedaction";
 import { useEventCallback } from "../../hooks/useEventCallback";
+import { formatErrorMessage } from "../../lib/errorPresentation";
+import { useTranslation } from "react-i18next";
 import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
 
 type Options = {
   form: RedactionWorkspaceController;
   pageId: string;
+  requestKey: string;
   url: string;
   error: unknown;
   strokes: ImageRedactionStroke[];
@@ -14,13 +17,21 @@ type Options = {
 };
 /** Bind readiness to the displayed URL and exact committed mask, not to a previous page. */
 export function useRedactionImageReadiness(options: Options) {
-  const [decodedUrl, setDecodedUrl] = React.useState("");
-  const [mask, setMask] = React.useState<ImageRedactionStroke[] | null>(null);
-  const [failed, setFailed] = React.useState(false);
+  const { t } = useTranslation("components");
+  const [decoded, setDecoded] = React.useState({ key: "", url: "" });
+  const [mask, setMask] = React.useState<{
+    key: string;
+    strokes: ImageRedactionStroke[] | null;
+  }>({ key: "", strokes: null });
+  const [failedKey, setFailedKey] = React.useState<string | null>(null);
+  const key = options.requestKey;
+  const failed = failedKey === key;
   const ready =
     Boolean(options.url) &&
-    decodedUrl === options.url &&
-    mask === options.strokes &&
+    decoded.key === key &&
+    decoded.url === options.url &&
+    mask.key === key &&
+    mask.strokes === options.strokes &&
     !failed &&
     !options.error;
   const notify = useEventCallback((value: boolean) => options.onReady?.(value));
@@ -43,16 +54,11 @@ export function useRedactionImageReadiness(options: Options) {
   return {
     ready,
     failed,
-    decoded: () => setDecodedUrl(options.url),
-    masked: () => setMask(options.strokes),
+    decoded: () => setDecoded({ key, url: options.url }),
+    masked: () => setMask({ key, strokes: options.strokes }),
     reject: (error?: unknown) => {
-      setFailed(true);
-      if (error) options.form.report(error);
-    },
-    retry: () => {
-      setFailed(false);
-      setDecodedUrl("");
-      setMask(null);
+      setFailedKey(key);
+      if (error) formatErrorMessage(error, t("manualRedaction.previewFailed"));
     },
   };
 }

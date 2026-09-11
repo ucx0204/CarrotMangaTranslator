@@ -94,10 +94,12 @@ function useNeighborPreviews(
     let active = true;
     const index = pages.findIndex((page) => page.id === view.currentId);
     for (const page of pages.slice(index + 1, index + 3)) {
+      const version = previews.version(sessionId, page.id);
       void previews
         .read({ sessionId, pageId: page.id, maxEdge: 2048 })
         .catch((_error: unknown) => {
-          if (active) markPreview(page.id, "error");
+          if (active && version === previews.version(sessionId, page.id))
+            markPreview(page.id, "error");
         });
     }
     return () => {

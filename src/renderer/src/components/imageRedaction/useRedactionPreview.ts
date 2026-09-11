@@ -12,7 +12,9 @@ export function useRedactionPreview(
     url: string;
     error: unknown;
   }>({ key: "", url: "", error: null });
-  const [attempt, setAttempt] = React.useState(0);
+  const attempt = React.useSyncExternalStore(cache.subscribe, () =>
+    cache.version(sessionId, pageId),
+  );
   const key = `${sessionId}:${pageId}:${edge}:${attempt}`;
   React.useEffect(() => {
     let active = true;
@@ -29,8 +31,9 @@ export function useRedactionPreview(
     };
   }, [cache, sessionId, pageId, edge, key]);
   return {
+    key,
     url: result.key === key ? result.url : "",
     error: result.key === key ? result.error : null,
-    retry: () => setAttempt((value) => value + 1),
+    retry: () => cache.retryPage(sessionId, pageId),
   };
 }
