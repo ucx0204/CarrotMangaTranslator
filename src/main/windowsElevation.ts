@@ -137,7 +137,13 @@ function runPowerShell(script: string, timeout?: number): unknown {
   // have a bounded timeout; interactive relaunches return only on an outcome.
   const output = execFileSync(
     executable,
-    ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", encodedCommand],
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-EncodedCommand",
+      encodedCommand,
+    ],
     { encoding: "utf8", windowsHide: true, timeout, maxBuffer: 65536 },
   );
   return JSON.parse(output.trim()) as unknown;
