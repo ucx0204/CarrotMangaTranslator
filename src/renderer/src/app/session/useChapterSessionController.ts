@@ -263,6 +263,7 @@ function resolveRuntimeModalState({
       libraryActions.renameTarget,
       modalController.settingsDialog.settingsOpen,
       modalController.confirmController.confirmDialog,
+      uiState.redactionPreparationRequest,
       uiState.inpaintingGuideOpen,
       uiState.autoInpaintingOptionsOpen,
       uiState.exportOptionsOpen,
