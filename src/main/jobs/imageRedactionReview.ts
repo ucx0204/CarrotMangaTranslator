@@ -124,6 +124,10 @@ export async function confirmImageRedaction(
   const entry = pending.get(request.jobId);
   if (!entry || entry.sessionId !== request.sessionId)
     throw new Error("이미지 확인이 만료되었습니다.");
+  // All jobs created by this process require a persisted workspace snapshot.
+  // A missing renderer field must not select the pre-workspace compatibility path.
+  if (request.workspaceRevision === undefined)
+    throw new Error("가리기 초안을 저장한 뒤 다시 확인해 주세요.");
   if (entry.confirming) throw new Error("이미지 확인을 저장하고 있습니다.");
   entry.confirming = true;
   try {
