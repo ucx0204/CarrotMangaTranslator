@@ -78,7 +78,11 @@ export function useRedactionWorkspace(workspace: RedactionWorkspace) {
     failed,
     markPreview,
     previews,
-    saveStatus,
+    dirty: writer.isDirty,
+    saveStatus:
+      writer.isDirty && saveStatus.kind === "saved"
+        ? ({ kind: "saving" } as const)
+        : saveStatus,
     error: commandError || saveError.error,
     setError,
     report,

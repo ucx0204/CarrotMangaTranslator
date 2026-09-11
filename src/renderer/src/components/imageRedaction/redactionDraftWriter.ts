@@ -24,6 +24,10 @@ export class RedactionDraftWriter {
     this.saved = initial;
     this.revision = initial.workspace.revision;
   }
+  /** Unsaved includes edits queued behind the debounce or an older in-flight write. */
+  get isDirty(): boolean {
+    return this.saved !== this.options.read();
+  }
   pause(): () => void {
     this.paused = true;
     return () => {

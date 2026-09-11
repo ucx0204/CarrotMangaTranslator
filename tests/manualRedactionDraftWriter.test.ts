@@ -102,3 +102,47 @@ it("stops new writes after no-save exit and can resume after a failed exit", asy
   await writer.flush();
   expect(persist).toHaveBeenCalledOnce();
 });
+
+it("reports unsaved edits immediately before debounce and during a paused save", async () => {
+  let current = fixture();
+  const writer = new RedactionDraftWriter(current, {
+    read: () => current,
+    persist: async () => 5,
+    notify: vi.fn(),
+  });
+  expect(writer.isDirty).toBe(false);
+  current = editRedactionDocuments(current, [
+    { ...current.documents.a, decision: "reviewed" },
+  ]);
+  expect(writer.isDirty).toBe(true);
+  const resume = writer.pause();
+  await writer.flush();
+  expect(writer.isDirty).toBe(true);
+  resume();
+  await writer.flush();
+  expect(writer.isDirty).toBe(false);
+});
+
+it("does not report saved after an older in-flight snapshot if newer edits remain", async () => {
+  let current = fixture();
+  let release: (revision: number) => void = () => {};
+  const writer = new RedactionDraftWriter(current, {
+    read: () => current,
+    persist: () =>
+      new Promise<number>((resolve) => {
+        release = resolve;
+      }),
+    notify: vi.fn(),
+  });
+  current = editRedactionDocuments(current, [
+    { ...current.documents.a, decision: "reviewed" },
+  ]);
+  const flight = writer.flush();
+  current = editRedactionDocuments(current, [
+    { ...current.documents.a, decision: "unreviewed" },
+  ]);
+  writer.pause();
+  release(5);
+  await flight;
+  expect(writer.isDirty).toBe(true);
+});
