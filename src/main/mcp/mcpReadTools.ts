@@ -24,7 +24,8 @@ export function createMcpReadTools(service: McpLibraryReadService): McpTool[] {
   return [
     {
       name: "carrot_get_capabilities",
-      description: "Report what this Carrot connection actually exposes. No models are started.",
+      description:
+        "Report what this Carrot connection actually exposes. No models are started.",
       inputSchema: objectSchema({}),
       invoke: async (args) => {
         allowArguments(args, []);
@@ -40,32 +41,53 @@ export function createMcpReadTools(service: McpLibraryReadService): McpTool[] {
     },
     {
       name: "carrot_list_works",
-      description: "Search and page through the existing app library. Does not return local paths or images.",
+      description:
+        "Search and page through the existing app library. Does not return local paths or images.",
       inputSchema: objectSchema({
         ...windowProperties,
         query: { type: "string", maxLength: 200 },
       }),
       invoke: async (args) => {
         allowArguments(args, ["offset", "limit", "query"]);
-        return textContent(await service.listWorks(readWindow(args), readQuery(args.query)));
+        return textContent(
+          await service.listWorks(readWindow(args), readQuery(args.query)),
+        );
       },
     },
     {
       name: "carrot_list_chapters",
-      description: "List chapters of a work by its opaque workId, not by a filesystem path.",
-      inputSchema: objectSchema({ ...windowProperties, workId: identifierSchema }, ["workId"]),
+      description:
+        "List chapters of a work by its opaque workId, not by a filesystem path.",
+      inputSchema: objectSchema(
+        { ...windowProperties, workId: identifierSchema },
+        ["workId"],
+      ),
       invoke: async (args) => {
         allowArguments(args, ["offset", "limit", "workId"]);
-        return textContent(await service.listChapters(readIdentifier(args.workId), readWindow(args)));
+        return textContent(
+          await service.listChapters(
+            readIdentifier(args.workId),
+            readWindow(args),
+          ),
+        );
       },
     },
     {
       name: "carrot_get_chapter",
-      description: "Get chapter and paginated page metadata. Text, source images, errors and internal artifacts are excluded.",
-      inputSchema: objectSchema({ ...windowProperties, chapterId: identifierSchema }, ["chapterId"]),
+      description:
+        "Get chapter and paginated page metadata. Text, source images, errors and internal artifacts are excluded.",
+      inputSchema: objectSchema(
+        { ...windowProperties, chapterId: identifierSchema },
+        ["chapterId"],
+      ),
       invoke: async (args) => {
         allowArguments(args, ["offset", "limit", "chapterId"]);
-        return textContent(await service.getChapter(readIdentifier(args.chapterId), readWindow(args)));
+        return textContent(
+          await service.getChapter(
+            readIdentifier(args.chapterId),
+            readWindow(args),
+          ),
+        );
       },
     },
   ];
@@ -89,7 +111,10 @@ export function textContent(value: unknown): McpToolContent[] {
   return [{ type: "text", text: JSON.stringify(value) }];
 }
 
-function objectSchema(properties: Record<string, unknown>, required: string[] = []) {
+function objectSchema(
+  properties: Record<string, unknown>,
+  required: string[] = [],
+) {
   return { type: "object", properties, required, additionalProperties: false };
 }
 

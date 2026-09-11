@@ -11,7 +11,9 @@ export function readMcpConfiguration(
   if (env.CARROT_MCP_ENABLED !== "1") return null;
   const token = env.CARROT_MCP_TOKEN ?? "";
   if (!/^[A-Za-z0-9_-]{43,128}$/.test(token))
-    throw new Error("CARROT_MCP_TOKEN must be a 43-128 character base64url token.");
+    throw new Error(
+      "CARROT_MCP_TOKEN must be a 43-128 character base64url token.",
+    );
   const portText = env.CARROT_MCP_PORT ?? "38475";
   const port = Number(portText);
   if (!/^\d+$/.test(portText) || port < 1 || port > 65535)

@@ -1,7 +1,4 @@
-import type {
-  ChapterSnapshot,
-  LibraryIndex,
-} from "../../shared/libraryTypes";
+import type { ChapterSnapshot, LibraryIndex } from "../../shared/libraryTypes";
 
 export type McpPageWindow = { offset: number; limit: number };
 
@@ -26,12 +23,14 @@ export class McpLibraryReadService {
     );
     return {
       ...pageWindow(works.length, window),
-      works: works.slice(window.offset, window.offset + window.limit).map((work) => ({
-        id: work.id,
-        title: work.title,
-        chapterCount: work.chapters.length,
-        updatedAt: work.updatedAt,
-      })),
+      works: works
+        .slice(window.offset, window.offset + window.limit)
+        .map((work) => ({
+          id: work.id,
+          title: work.title,
+          chapterCount: work.chapters.length,
+          updatedAt: work.updatedAt,
+        })),
     };
   }
 

@@ -6,8 +6,12 @@ function lease() {
   const calls = { stopped: 0, closed: 0 };
   return {
     calls,
-    stopAccepting: () => { calls.stopped++; },
-    close: async () => { calls.closed++; },
+    stopAccepting: () => {
+      calls.stopped++;
+    },
+    close: async () => {
+      calls.closed++;
+    },
   };
 }
 
@@ -40,7 +44,9 @@ it("does not start after disposal, including when it was never enabled", async (
 it("closes a late listener when shutdown overtakes startup", async () => {
   const server = lease();
   let release!: (value: typeof server) => void;
-  const pending = new Promise<typeof server>((resolve) => { release = resolve; });
+  const pending = new Promise<typeof server>((resolve) => {
+    release = resolve;
+  });
   const lifecycle = new McpServerLifecycle(() => pending);
   const starting = lifecycle.start();
   const closing = lifecycle.dispose();
@@ -52,7 +58,9 @@ it("closes a late listener when shutdown overtakes startup", async () => {
 
 it("reports startup failure to its caller without inventing a cleanup lease", async () => {
   const failure = new Error("listener unavailable");
-  const lifecycle = new McpServerLifecycle(async () => { throw failure; });
+  const lifecycle = new McpServerLifecycle(async () => {
+    throw failure;
+  });
   await assert.rejects(lifecycle.start(), (error) => error === failure);
   await lifecycle.dispose();
 });
@@ -61,7 +69,9 @@ it("preserves close failures on repeated disposal", async () => {
   const failure = new Error("close failed");
   const lifecycle = new McpServerLifecycle(async () => ({
     stopAccepting: () => {},
-    close: async () => { throw failure; },
+    close: async () => {
+      throw failure;
+    },
   }));
   await lifecycle.start();
   const closing = lifecycle.dispose();

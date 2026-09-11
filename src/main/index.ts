@@ -263,9 +263,11 @@ void app
       linkedWorkspaceSync,
       reportError: logError,
     });
-    await mcpRuntime.start().catch((error) =>
-      logError("MCP startup failed; the MCP connection is disabled", error),
-    );
+    await mcpRuntime
+      .start()
+      .catch((error) =>
+        logError("MCP startup failed; the MCP connection is disabled", error),
+      );
     reactivateDock();
     openMainWindowNow();
     mainStartupCompleted = true;

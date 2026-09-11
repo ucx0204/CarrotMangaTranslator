@@ -23,15 +23,15 @@ Milestones can be split into small commits. Push each coherent checkpoint; leave
 
 ## Reuse inventory
 
-| Capability | Existing boundary | MCP work |
-| --- | --- | --- |
-| Library read/write | `src/main/library.ts` and its feature facades | Explicit DTOs; no storage bypass |
-| Web import | `src/main/application/webImportService.ts` | Reuse sessions, progress, cancellation and cleanup |
-| Translation | `src/main/wholePagePipeline.ts`, `src/main/jobs` | Extract only necessary orchestration after characterization tests |
-| Image editing | `src/main/codexImageEditing.ts` | Feed translated blocks into existing erasure/lettering/rendering |
-| Text geometry and styling | `src/shared/textTypes.ts` | Preserve source/render geometry and generated lettering |
-| Work context | `src/main/library/libraryContextFacade.ts` | Preserve glossary/speaker references and transactions |
-| Jobs | `src/shared/jobTypes.ts`, `src/main/appOperationRegistry.ts` | Reuse ownership; add resumable external-input jobs later |
+| Capability                | Existing boundary                                            | MCP work                                                          |
+| ------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------- |
+| Library read/write        | `src/main/library.ts` and its feature facades                | Explicit DTOs; no storage bypass                                  |
+| Web import                | `src/main/application/webImportService.ts`                   | Reuse sessions, progress, cancellation and cleanup                |
+| Translation               | `src/main/wholePagePipeline.ts`, `src/main/jobs`             | Extract only necessary orchestration after characterization tests |
+| Image editing             | `src/main/codexImageEditing.ts`                              | Feed translated blocks into existing erasure/lettering/rendering  |
+| Text geometry and styling | `src/shared/textTypes.ts`                                    | Preserve source/render geometry and generated lettering           |
+| Work context              | `src/main/library/libraryContextFacade.ts`                   | Preserve glossary/speaker references and transactions             |
+| Jobs                      | `src/shared/jobTypes.ts`, `src/main/appOperationRegistry.ts` | Reuse ownership; add resumable external-input jobs later          |
 
 ## Security and compatibility acceptance
 

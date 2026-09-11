@@ -35,8 +35,10 @@ export function readIdentifier(value: unknown): string {
 }
 
 export function readWindow(args: Record<string, unknown>): McpPageWindow {
-  const offset = args.offset === undefined ? windowProperties.offset.default : args.offset;
-  const limit = args.limit === undefined ? windowProperties.limit.default : args.limit;
+  const offset =
+    args.offset === undefined ? windowProperties.offset.default : args.offset;
+  const limit =
+    args.limit === undefined ? windowProperties.limit.default : args.limit;
   return {
     offset: readInteger(offset, windowProperties.offset),
     limit: readInteger(limit, windowProperties.limit),
