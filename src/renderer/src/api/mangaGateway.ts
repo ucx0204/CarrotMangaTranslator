@@ -36,9 +36,15 @@ export function createTestMangaGatewayStub(
       if (value !== undefined) {
         return value;
       }
-      if (property === "onAppOperationActivity") {
+      if (
+        property === "onAppOperationActivity" ||
+        property === "onMcpPageChanged" ||
+        property === "onMcpEditorProbe"
+      ) {
         return () => () => undefined;
       }
+      if (property === "reportMcpEditorState")
+        return async () => ({ completed: true });
       if (property === "getActiveAppOperation") {
         return async () => null;
       }
