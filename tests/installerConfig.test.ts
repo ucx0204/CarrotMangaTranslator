@@ -191,7 +191,11 @@ describe("Windows installer clean uninstall option", () => {
 
   it("retains assisted elevation and does not require every app launch to be elevated", () => {
     const config = electronBuilderConfig as {
-      nsis: { oneClick: boolean; perMachine: boolean; allowElevation?: boolean };
+      nsis: {
+        oneClick: boolean;
+        perMachine: boolean;
+        allowElevation?: boolean;
+      };
       win: { requestedExecutionLevel?: string };
     };
     expect(config.nsis.oneClick).toBe(false);
@@ -657,7 +661,9 @@ describe("Windows installer clean uninstall option", () => {
     );
     expect(validator).toMatch(/\$\{EndIf\}\s+Call MgtProbeDataRootWriteAccess/);
     expect(script).not.toContain("unverifiable");
-    expect(script).not.toContain("설치 프로그램을 닫고 일반 실행으로 다시 시작");
+    expect(script).not.toContain(
+      "설치 프로그램을 닫고 일반 실행으로 다시 시작",
+    );
     expect(pageLeave).toContain("Call MgtValidateDataRootWriteAccess");
     expect(pageLeave).toContain('${If} $6 != "1"');
     expect(pageLeave).toContain("선택한 폴더에 데이터를 저장할 수 없습니다");
