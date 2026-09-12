@@ -41,6 +41,8 @@ afterEach(async () => {
 });
 
 describe("translation checkpoint store", () => {
+  // Disk-backed cancellation/resumption reloads the library twice per case.
+  // Allow Windows coverage runners headroom without changing the global timeout.
   it.each([
     ["ready", false, false],
     ["ready", true, false],
@@ -234,6 +236,7 @@ describe("translation checkpoint store", () => {
         await managedCheckpointDirectories(chapterDirectory(root)),
       ).toEqual([]);
     },
+    60_000,
   );
 
   it("parses an old v1 checkpoint but reruns Hayai OCR before producing a reusable replacement", async () => {

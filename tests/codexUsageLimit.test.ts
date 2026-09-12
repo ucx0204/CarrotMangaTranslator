@@ -32,10 +32,7 @@ function assertUsageLimit(error: Error & JsonRecord): void {
   assert.equal(error.failureCategory, "model-request");
   assert.equal(error.nonRetriable, true);
   assert.equal(error.usageLimitReached, true);
-  assert.equal(
-    (error.upstreamError as JsonRecord).type,
-    "usage_limit_reached",
-  );
+  assert.equal((error.upstreamError as JsonRecord).type, "usage_limit_reached");
 }
 
 describe("Codex App Server usage-limit failures (#97)", () => {
@@ -118,21 +115,18 @@ describe("Codex App Server usage-limit failures (#97)", () => {
       }),
     },
   ]) {
-    it(
-      `does not mark a transient or unrelated failure as quota exhaustion: ${JSON.stringify(turnError)}`,
-      () => {
-        const error = readFailedTurnError(turnError);
-        assert.equal(error.usageLimitReached, undefined);
-        assert.equal(error.nonRetriable, undefined);
-        assert.notEqual(
-          (error.upstreamError as JsonRecord | undefined)?.type,
-          "usage_limit_reached",
-        );
-        if (turnError.status !== undefined) {
-          assert.equal(error.httpStatus, turnError.status);
-        }
-      },
-    );
+    it(`keeps non-quota failure: ${JSON.stringify(turnError)}`, () => {
+      const error = readFailedTurnError(turnError);
+      assert.equal(error.usageLimitReached, undefined);
+      assert.equal(error.nonRetriable, undefined);
+      assert.notEqual(
+        (error.upstreamError as JsonRecord | undefined)?.type,
+        "usage_limit_reached",
+      );
+      if (turnError.status !== undefined) {
+        assert.equal(error.httpStatus, turnError.status);
+      }
+    });
   }
 
   it("preserves unrelated non-retriable upstream failures", () => {

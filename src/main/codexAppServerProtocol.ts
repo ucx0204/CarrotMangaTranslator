@@ -244,14 +244,7 @@ function readTurnFailure(
   );
   // App Server can omit an HTTP status for account quota failures. Normalize
   // these to the existing transport contract instead of the endpoint's 502.
-  // Only use the legacy message fallback when no structured error is present.
-  const usageLimitReached =
-    turnError?.codexErrorInfo === "usageLimitExceeded" ||
-    upstreamError?.type === "usage_limit_reached" ||
-    (turnError?.codexErrorInfo == null &&
-      upstreamError === null &&
-      message.startsWith("You've hit your usage limit."));
-  if (usageLimitReached) {
+  if (isTurnUsageLimitFailure(turnError, upstreamError, message)) {
     return {
       message,
       httpStatus: 429,
@@ -267,6 +260,21 @@ function readTurnFailure(
     ...(httpStatus === undefined ? {} : { httpStatus }),
     ...(upstreamError ? { upstreamError } : {}),
   };
+}
+
+function isTurnUsageLimitFailure(
+  turnError: JsonRecord | null,
+  upstreamError: JsonRecord | null,
+  message: string,
+): boolean {
+  // Only use the legacy message fallback when no structured error is present.
+  return (
+    turnError?.codexErrorInfo === "usageLimitExceeded" ||
+    upstreamError?.type === "usage_limit_reached" ||
+    (turnError?.codexErrorInfo == null &&
+      upstreamError === null &&
+      message.startsWith("You've hit your usage limit."))
+  );
 }
 
 function resolveTurnFailureMessage(
