@@ -24,14 +24,18 @@ function setup(open?: (signal: AbortSignal) => Promise<McpDesktopLease>) {
     close: async () => {
       closes++;
     },
-    pairing: () => ({ pairingUntil: null, pending: [] }),
+    pairingStatus: () => ({ pairingUntil: null, pending: [] }),
     beginPairing: () => undefined,
     resolvePairing: () => undefined,
     connections: () => [],
-    revokeConnection: async () => undefined,
-    diagnose: async () => ({ ok: true, checks: [] }),
+    revoke: async () => undefined,
   };
   const service = new McpDesktopService({
+    reportEditorState: () => {},
+    savedStatus: async () => ({ url: null, connections: [] }),
+    revokeSaved: async () => {},
+    diagnose: async () => ({ ok: true, checks: [] }),
+    setupUrl: () => null,
     preferences: async () => ({ ...prefs }),
     savePreferences: async () => {
       saves++;
@@ -57,16 +61,18 @@ it("stays off by default, serializes repeated on/off and preserves the fixed add
   assert.equal(on.state, "online");
   await f.service.setEnabled(true);
   assert.equal(f.counts().starts, 1);
-  await assert.rejects(f.service.configure({ ...prefs, allowImages: true }));
+  const configured = await f.service.configure({ ...prefs, allowImages: true });
+  assert.equal(configured.state, "online");
+  assert.equal(f.counts().starts, 2);
   const off = await f.service.setEnabled(false);
   assert.equal(off.state, "off");
   assert.equal(off.url, on.url);
   await f.service.configure({ ...prefs, allowImages: true });
-  assert.equal(f.counts().saves, 1);
+  assert.equal(f.counts().saves, 2);
   await f.service.setEnabled(true);
   await f.service.dispose();
-  assert.equal(f.counts().closes, 2);
-  await assert.rejects(f.service.setEnabled(true));
+  assert.equal(f.counts().closes, 3);
+  assert.equal((await f.service.setEnabled(true)).state, "off");
 });
 it("off aborts pending setup immediately and a superseded queued on never publishes", async () => {
   let signal: AbortSignal | undefined;
