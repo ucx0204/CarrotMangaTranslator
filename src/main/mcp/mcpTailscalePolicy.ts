@@ -28,21 +28,16 @@ export function readTailscaleOrigin(value: unknown): string {
 
 /** Funnel exposes an entire HTTPS listener. Never publish another app's Serve routes. */
 export function assertTailscaleListenerFree(value: unknown, port = 443): void {
-  const queue = [object(value ?? {})];
-  let examined = 0;
-  while (queue.length) {
-    const config = queue.pop();
-    if (!config) break;
-    if (++examined > 256)
+  for (const config of sharingConfigurations(value)) {
+    const tcp = object(config.TCP ?? {});
+    const web = object(config.Web ?? {});
+    if (
+      Object.hasOwn(tcp, String(port)) ||
+      Object.keys(web).some((key) => key.endsWith(`:${port}`))
+    )
       throw new Error(
-        "Tailscale sharing configuration is too large to inspect safely.",
+        `Tailscale HTTPS port ${port} is already used. Carrot will not replace or expose another application's route.`,
       );
-    assertListenerUnused(config, port);
-    for (const group of [config.Foreground, config.Services]) {
-      if (group === undefined || group === null) continue;
-      for (const child of Object.values(object(group)))
-        queue.push(object(child));
-    }
   }
 }
 
@@ -56,14 +51,40 @@ export function readTailscaleSetupUrl(text: string): string | undefined {
   return url.origin === "https://login.tailscale.com" ? url.href : undefined;
 }
 
-function assertListenerUnused(config: JsonObject, port: number): void {
-  const tcp = object(config.TCP ?? {});
-  const web = object(config.Web ?? {});
-  if (
-    Object.hasOwn(tcp, String(port)) ||
-    Object.keys(web).some((key) => key.endsWith(`:${port}`))
-  )
-    throw new Error(
-      `Tailscale HTTPS port ${port} is already used. Carrot will not replace or expose another application's route.`,
+/** Confirm the exact loopback proxy and public exposure, including foreground leases. */
+export function tailscaleRouteReady(
+  value: unknown,
+  origin: string,
+  port: number,
+): boolean {
+  const authority = `${new URL(origin).hostname}:443`;
+  return sharingConfigurations(value).some((item) => {
+    const web = object(item.Web ?? {});
+    const funnel = object(item.AllowFunnel ?? {});
+    if (!web[authority] || funnel[authority] !== true) return false;
+    const handlers = object(object(web[authority]).Handlers ?? {});
+    const route = object(handlers["/"] ?? {});
+    return (
+      Object.keys(handlers).length === 1 &&
+      route.Proxy === `http://127.0.0.1:${port}`
     );
+  });
+}
+function sharingConfigurations(value: unknown): JsonObject[] {
+  const queue = [object(value ?? {})];
+  const result: JsonObject[] = [];
+  while (queue.length) {
+    const item = queue.pop();
+    if (!item) break;
+    result.push(item);
+    if (result.length + queue.length > 256)
+      throw new Error(
+        "Tailscale sharing configuration is too large to inspect safely.",
+      );
+    for (const group of [item.Foreground, item.Services]) {
+      if (group == null) continue;
+      queue.push(...Object.values(object(group)).map(object));
+    }
+  }
+  return result;
 }
