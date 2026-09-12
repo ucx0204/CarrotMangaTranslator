@@ -115,3 +115,27 @@ it("refuses symlinked private state without touching its external target", async
   await assert.rejects(new McpSecureStore(directory, codec()).load());
   assert.equal(await readFile(target, "utf8"), "preserve");
 });
+
+it("can retry a temporarily unavailable key store without a plaintext fallback", async () => {
+  const directory = await root();
+  const encryption = codec();
+  let available = false;
+  const store = new McpSecureStore(directory, {
+    ...encryption,
+    available: () => available,
+  });
+  await assert.rejects(store.load(), /encryption is unavailable/);
+  await assert.rejects(
+    readFile(join(directory, "mcp-private/authorization.enc")),
+    { code: "ENOENT" },
+  );
+  available = true;
+  const restored = await store.load();
+  assert.equal(restored.localToken.length, 43);
+  assert.equal(
+    (
+      await readFile(join(directory, "mcp-private/authorization.enc"), "utf8")
+    ).includes(restored.localToken),
+    false,
+  );
+});
