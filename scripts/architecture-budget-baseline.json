@@ -19,7 +19,7 @@
     "src/main/wholePagePipeline.ts": 22,
     "src/main/workContextAnalysis.ts": 16,
     "src/main/workContextResearch.ts": 14,
-    "src/renderer/src/app/session/useChapterSessionController.ts": 17,
+    "src/renderer/src/app/session/useChapterSessionController.ts": 18,
     "src/renderer/src/app/useAppSessionModel.ts": 14,
     "src/renderer/src/components/ConditionalBatchActionCard.tsx": 13
   },
@@ -29,8 +29,8 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 26,
-      "reason": "SFX restoration validates the same persisted review revision as preparation; the shared revision algorithm remains unchanged."
+      "maxImportedBy": 28,
+      "reason": "SFX restoration validates the same persisted review revision as preparation; the shared revision algorithm remains unchanged. MCP translation edits reuse this same revision at read time and inside the existing library transaction; no revision algorithm is copied or changed."
     },
     "src/renderer/src/api/libraryGateway.ts": {
       "maxImportedBy": 26,
@@ -45,16 +45,16 @@
       "reason": "Translation composition keeps the standard text pipeline and connects external image review, crop registration and optional region image editing; no protected OCR/font algorithms are moved."
     },
     "src/main/index.ts": {
-      "maxRuntimeImports": 31,
-      "reason": "Electron composition adds one opt-in MCP runtime with explicit startup and terminal cleanup ownership; no protected processing algorithm is moved."
+      "maxRuntimeImports": 32,
+      "reason": "Startup composition owns the persistent desktop MCP service and legacy local test listener, including terminal shutdown."
     },
     "src/main/library.ts": {
-      "maxImportedBy": 26,
-      "reason": "The MCP composition uses the existing public library facade and its locks instead of bypassing storage or adding an alias wrapper. Read projections and HTTP behavior are tested."
+      "maxImportedBy": 27,
+      "reason": "Desktop and local-test MCP compositions both use the locked public library facade, with no storage bypass."
     },
     "src/main/ipc/registerIpc.ts": {
-      "maxRuntimeImports": 23,
-      "reason": "IPC composition root"
+      "maxRuntimeImports": 24,
+      "reason": "IPC composition adds trusted MCP desktop controls with the existing validation and sender gate."
     },
     "src/main/logger.ts": {
       "maxImportedBy": 30,
@@ -80,8 +80,8 @@
       "reason": "Renderer session composition mapper"
     },
     "src/renderer/src/components/settingsModal/SettingsModalView.tsx": {
-      "maxRuntimeImports": 17,
-      "reason": "Settings composition groups OCR, images and hardware with text translation and research under AI; each panel keeps its public component."
+      "maxRuntimeImports": 18,
+      "reason": "Settings composition adds the public MCP settings panel; existing sections and UI primitives are reused."
     },
     "src/renderer/src/components/ui/Button.tsx": {
       "publicPrimitive": true,
@@ -161,6 +161,10 @@
     "src/main/jobs/soundEffectTranslationJobRunner.ts": {
       "maxRuntimeImports": 16,
       "reason": "SFX job composition connects normal text translation, manual image review, overlap holding and the independent image edit adapter. Protected font matching and atomic library writes remain at their existing boundaries."
+    },
+    "src/main/ipc/trustedIpc.ts": {
+      "maxImportedBy": 26,
+      "reason": "MCP desktop controls use the existing trusted main-window IPC boundary; remote clients cannot approve connections or change local permissions."
     }
   }
 }
