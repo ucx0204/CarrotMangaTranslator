@@ -29,6 +29,8 @@ jobs:
           git cat-file commit "$base" > "$RUNNER_TEMP/mcp-integration/base.commit"
           git diff --binary "$archive" "$base" > "$RUNNER_TEMP/mcp-integration/archive-to-base.patch"
           git diff --binary "$base" HEAD > "$RUNNER_TEMP/mcp-integration/base-to-remote.patch"
+          git bundle create "$RUNNER_TEMP/mcp-integration/source-increment.bundle" HEAD ^"$archive"
+          git bundle verify "$RUNNER_TEMP/mcp-integration/source-increment.bundle"
           git rev-parse HEAD > "$RUNNER_TEMP/mcp-integration/remote-head.txt"
           git rev-parse 'HEAD^{tree}' > "$RUNNER_TEMP/mcp-integration/remote-tree.txt"
           git log --format='%H %s' "$base"..HEAD > "$RUNNER_TEMP/mcp-integration/remote-commits.txt"
