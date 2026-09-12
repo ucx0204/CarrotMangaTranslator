@@ -108,87 +108,7 @@ async function main() {
     assert.ok(existsSync(setup), "The fixture installer was not built.");
     assertManifestLevel(setup, "requireAdministrator");
     for (const scope of ["/currentuser", "/allusers"]) {
-      const installArgs = ["/S", scope, `/D=${installDir}`];
-      runNsis(setup, installArgs, scratch);
-      const pointer = join(installDir, "data-root.txt");
-      const dataRoot = readFileSync(pointer, "utf8").trim();
-      assert.equal(
-        dataRoot.toLowerCase(),
-        join(installDir, "data").toLowerCase(),
-      );
-      assert.ok(existsSync(join(dataRoot, ".manga-gemma-translator-data")));
-      const library = join(dataRoot, "library");
-      mkdirSync(library, { recursive: true });
-      const sentinel = join(library, "fixture-preservation.txt");
-      writeFileSync(sentinel, "keep this fixture data\n");
-
-      // Both UTF-8 forms must survive repair without changing the chosen root.
-      for (const bom of ["", "\uFEFF"]) {
-        writeFileSync(pointer, `${bom}${dataRoot}\r\n`, "utf8");
-        runNsis(setup, installArgs, scratch);
-        assert.equal(readFileSync(pointer, "utf8").trim(), dataRoot);
-        assert.equal(
-          readFileSync(sentinel, "utf8"),
-          "keep this fixture data\n",
-        );
-        assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
-      }
-      assertCorruptPointersPreserveInstall(
-        setup,
-        installArgs,
-        scratch,
-        installDir,
-        sentinel,
-      );
-
-      // A broken data destination must fail before the old executable is removed.
-      const pointerBytes = readFileSync(pointer);
-      const blocked = join(scratch, "blocked-data-root");
-      writeFileSync(blocked, "not a directory\n");
-      try {
-        writeFileSync(pointer, `${blocked}\r\n`);
-        runNsis(setup, installArgs, scratch, 2);
-        assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
-        assert.equal(
-          readFileSync(sentinel, "utf8"),
-          "keep this fixture data\n",
-        );
-        assert.equal(readFileSync(pointer, "utf8").trim(), blocked);
-      } finally {
-        writeFileSync(pointer, pointerBytes);
-      }
-
-      const uninstallName = readdirSync(installDir).find((name) =>
-        /^Uninstall .*\.exe$/i.test(name),
-      );
-      assert.ok(uninstallName, "No generated uninstaller was installed.");
-      // Run a private copy with NSIS's _?= argument to await actual removal,
-      // rather than the short-lived process that starts a temporary copy.
-      const uninstall = join(scratch, "uninstall-fixture.exe");
-      copyFileSync(join(installDir, uninstallName), uninstall);
-      assertManifestLevel(uninstall, "asInvoker");
-      runNsis(
-        uninstall,
-        ["/S", scope, "/MGT-UNINSTALL-SID=S-1-0-0", `_?=${installDir}`],
-        scratch,
-        2,
-      );
-      assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
-      assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
-      runNsis(uninstall, ["/S", scope, `_?=${installDir}`], scratch);
-      assert.equal(
-        existsSync(join(installDir, "CarrotMangaTranslator.exe")),
-        false,
-      );
-      assert.equal(existsSync(join(installDir, "resources")), false);
-      assert.equal(readFileSync(pointer, "utf8").trim(), dataRoot);
-      assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
-      console.log(
-        `[windows-uac-smoke] ${scope}: Unicode install, BOM repair, removal OK`,
-      );
-      console.log(
-        `[windows-uac-smoke] ${scope}: bad destination and wrong account blocked`,
-      );
+      verifyInstallScope(setup, scope, scratch, installDir);
     }
     console.log(
       "[windows-uac-smoke] interactive UAC and Explorer behavior NOT tested",
@@ -205,6 +125,87 @@ async function main() {
     rmSync(installDir, { recursive: true, force: true });
     rmSync(scratch, { recursive: true, force: true });
   }
+}
+
+/**
+ * @param {string} setup
+ * @param {string} scope
+ * @param {string} scratch
+ * @param {string} installDir
+ */
+function verifyInstallScope(setup, scope, scratch, installDir) {
+  const installArgs = ["/S", scope, `/D=${installDir}`];
+  runNsis(setup, installArgs, scratch);
+  const pointer = join(installDir, "data-root.txt");
+  const dataRoot = readFileSync(pointer, "utf8").trim();
+  assert.equal(dataRoot.toLowerCase(), join(installDir, "data").toLowerCase());
+  assert.ok(existsSync(join(dataRoot, ".manga-gemma-translator-data")));
+  const library = join(dataRoot, "library");
+  mkdirSync(library, { recursive: true });
+  const sentinel = join(library, "fixture-preservation.txt");
+  writeFileSync(sentinel, "keep this fixture data\n");
+
+  // Both UTF-8 forms must survive repair without changing the chosen root.
+  for (const bom of ["", "\uFEFF"]) {
+    writeFileSync(pointer, `${bom}${dataRoot}\r\n`, "utf8");
+    runNsis(setup, installArgs, scratch);
+    assert.equal(readFileSync(pointer, "utf8").trim(), dataRoot);
+    assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
+    assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
+  }
+  assertCorruptPointersPreserveInstall(
+    setup,
+    installArgs,
+    scratch,
+    installDir,
+    sentinel,
+  );
+
+  // A broken data destination must fail before the old executable is removed.
+  const pointerBytes = readFileSync(pointer);
+  const blocked = join(scratch, "blocked-data-root");
+  writeFileSync(blocked, "not a directory\n");
+  try {
+    writeFileSync(pointer, `${blocked}\r\n`);
+    runNsis(setup, installArgs, scratch, 2);
+    assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
+    assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
+    assert.equal(readFileSync(pointer, "utf8").trim(), blocked);
+  } finally {
+    writeFileSync(pointer, pointerBytes);
+  }
+
+  const uninstallName = readdirSync(installDir).find((name) =>
+    /^Uninstall .*\.exe$/i.test(name),
+  );
+  assert.ok(uninstallName, "No generated uninstaller was installed.");
+  // Run a private copy with NSIS's _?= argument to await actual removal,
+  // rather than the short-lived process that starts a temporary copy.
+  const uninstall = join(scratch, "uninstall-fixture.exe");
+  copyFileSync(join(installDir, uninstallName), uninstall);
+  assertManifestLevel(uninstall, "asInvoker");
+  runNsis(
+    uninstall,
+    ["/S", scope, "/MGT-UNINSTALL-SID=S-1-0-0", `_?=${installDir}`],
+    scratch,
+    2,
+  );
+  assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
+  assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
+  runNsis(uninstall, ["/S", scope, `_?=${installDir}`], scratch);
+  assert.equal(
+    existsSync(join(installDir, "CarrotMangaTranslator.exe")),
+    false,
+  );
+  assert.equal(existsSync(join(installDir, "resources")), false);
+  assert.equal(readFileSync(pointer, "utf8").trim(), dataRoot);
+  assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
+  console.log(
+    `[windows-uac-smoke] ${scope}: Unicode install, BOM repair, removal OK`,
+  );
+  console.log(
+    `[windows-uac-smoke] ${scope}: bad destination and wrong account blocked`,
+  );
 }
 
 /**
