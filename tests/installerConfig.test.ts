@@ -618,7 +618,9 @@ describe("Windows installer clean uninstall option", () => {
 
     expect(script).toContain('${If} $MgtDataRoot == ""');
     expect(script).toContain('StrCpy $MgtDataRoot "$INSTDIR\\data"');
-    expect(script).toContain('FileWrite $0 "$MgtDataRoot$\\r$\\n"');
+    expect(script).toContain(
+      '!insertmacro MgtWriteDataRootText $0 "$MgtDataRoot$\\r$\\n"',
+    );
     expect(script).toContain("MgtResolveLegacyAppDataDefault");
     expect(script).toContain(
       "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다",
@@ -653,16 +655,16 @@ describe("Windows installer clean uninstall option", () => {
     expect(validator).toContain(
       "!insertmacro UAC_AsUser_Call Function MgtProbeDataRootWriteAccess ${UAC_SYNCREGISTERS}",
     );
-    expect(validator).toMatch(
-      /\$\{EndIf\}\s+Call MgtProbeDataRootWriteAccess/,
-    );
+    expect(validator).toMatch(/\$\{EndIf\}\s+Call MgtProbeDataRootWriteAccess/);
     expect(script).not.toContain("unverifiable");
     expect(script).not.toContain("설치 프로그램을 닫고 일반 실행으로 다시 시작");
     expect(pageLeave).toContain("Call MgtValidateDataRootWriteAccess");
     expect(pageLeave).toContain('${If} $6 != "1"');
     expect(pageLeave).toContain("선택한 폴더에 데이터를 저장할 수 없습니다");
     expect(pageLeave).toContain("관리자 권한으로도 실패하면");
-    expect(script).toContain("관리자 실행 중에는 탐색기에서 파일 끌어놓기가 제한됩니다");
+    expect(script).toContain(
+      "관리자 실행 중에는 탐색기에서 파일 끌어놓기가 제한됩니다",
+    );
     expect(pageLeave).not.toContain("$PROGRAMFILES");
     expect(pageLeave).not.toContain("$LOCALAPPDATA");
     expect(pageLeave).not.toContain("StrCpy $MgtDataRoot");
