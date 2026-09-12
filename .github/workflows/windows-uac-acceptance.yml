@@ -119,3 +119,23 @@ jobs:
             dist/uac-acceptance.json
           if-no-files-found: error
           retention-days: 7
+      - name: Record packaged file inventory on failure
+        if: ${{ failure() && !cancelled() }}
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD 'dist/win-unpacked'
+          New-Item -ItemType Directory -Force .tmp | Out-Null
+          if (Test-Path -LiteralPath $root) {
+            Get-ChildItem -LiteralPath $root -File -Recurse | ForEach-Object {
+              @{ path = [IO.Path]::GetRelativePath($root, $_.FullName); bytes = $_.Length }
+            } | ConvertTo-Json | Set-Content -Encoding utf8 .tmp/uac-package-inventory.json
+          }
+      - name: Preserve failed package diagnostics
+        if: ${{ failure() && !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-uac-package-failure-${{ github.sha }}
+          path: .tmp/uac-package-inventory.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
