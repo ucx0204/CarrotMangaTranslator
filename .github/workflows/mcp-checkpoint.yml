@@ -65,13 +65,13 @@ jobs:
           fi
           git rev-parse HEAD
 
-      - name: Focused MCP behavior tests and CLI entrypoints
+      - name: Focused MCP and existing library behavior tests
         run: |
           node scripts/mcp-dev.cjs --help
           node scripts/mcp-smoke.mjs --help
           node scripts/mcp-web.cjs --help
           node scripts/mcp-web-smoke.mjs --help
-          node node_modules/vitest/vitest.mjs run tests/mcp
+          node node_modules/vitest/vitest.mjs run tests/mcp tests/libraryBatchPageSave.test.ts tests/pageRevision.test.ts tests/chapterSync.test.ts tests/liveChapterRefreshCoordinator.test.ts
 
       - name: Build the existing application
         run: npm run build
@@ -92,3 +92,23 @@ jobs:
             echo '::endgroup::'
           done
           exit "$failed"
+
+      - name: Remove only the already merged MCP recovery branch references
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/feat/mcp-app-bridge
+          git merge-base --is-ancestor 53de254a9c456b316a63409e649418b1505596a5 HEAD
+          while read -r branch expected; do
+            current=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
+            if [ -z "$current" ]; then continue; fi
+            if [ "$current" != "$expected" ]; then
+              echo "Preserving $branch: its tip changed after integration."
+              exit 1
+            fi
+            git merge-base --is-ancestor "$expected" HEAD
+            git push origin --delete "$branch"
+          done <<'MERGED_MCP_REFS'
+          backup/mcp-before-publication-20260912 6c1f563497b742d58a9584dd5eda25431bb4392e
+          backup/mcp-before-tailscale-checkpoint-20260912 6c1f563497b742d58a9584dd5eda25431bb4392e
+          integration/mcp-tailscale-publication-20260912 8e943038a170fa71e8825371e3bd7db58961e2be
+          MERGED_MCP_REFS

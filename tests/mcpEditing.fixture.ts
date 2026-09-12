@@ -5,7 +5,7 @@ import type { SavePageBlocksRequest } from "../src/shared/shareTypes";
 import { createPageRevision } from "../src/shared/pageRevision";
 import { McpPageEditService } from "../src/main/application/mcpPageEditService";
 
-export function editingBlock(id: string): TranslationBlock {
+function editingBlock(id: string): TranslationBlock {
   return {
     id,
     type: "nonsolid",

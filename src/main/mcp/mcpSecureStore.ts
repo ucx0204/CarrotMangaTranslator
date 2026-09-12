@@ -13,7 +13,7 @@ import {
   type McpOAuthSnapshot,
 } from "./mcpOAuthSnapshot";
 
-export type McpEncryptionPort = {
+type McpEncryptionPort = {
   available: () => boolean;
   encrypt: (text: string) => Buffer;
   decrypt: (bytes: Buffer) => string;
