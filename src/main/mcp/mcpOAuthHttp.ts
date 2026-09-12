@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { McpOAuthProvider } from "./mcpOAuthProvider";
-import type { McpPairingHttp } from "./mcpPairingHttp";
 import type { McpOAuthSession } from "./mcpOAuthSession";
+import type { McpPairingBroker } from "./mcpPairingBroker";
+import { mcpPairingPage } from "./mcpPairingPage";
+import { McpOAuthProvider } from "./mcpOAuthProvider";
 import {
   McpOAuthError,
   oauthRecord,
@@ -17,11 +18,12 @@ const GET_PATHS = [
   "/.well-known/oauth-protected-resource/mcp",
   "/.well-known/oauth-authorization-server",
   "/oauth/authorize",
-  "/oauth/pairing",
 ];
 const POST_PATHS = [
   "/oauth/register",
   "/oauth/approve",
+  "/oauth/poll",
+  "/oauth/complete",
   "/oauth/token",
   "/oauth/revoke",
 ];
@@ -34,36 +36,37 @@ export class McpOAuthHttp {
   constructor(
     issuer: string,
     password: string,
-    private readonly session?: McpOAuthSession,
-    private readonly pairing?: McpPairingHttp,
+    private readonly managed?: {
+      session: McpOAuthSession;
+      pairing: McpPairingBroker;
+    },
   ) {
-    this.provider = session?.provider ?? new McpOAuthProvider(issuer, password);
-    if (this.provider.issuer !== issuer)
-      throw new Error("OAuth issuer mismatch.");
+    this.provider =
+      managed?.session.provider ?? new McpOAuthProvider(issuer, password);
   }
-
-  accepts(header: string, scope = "carrot.read"): boolean {
-    return this.session
-      ? this.session.accepts(header, scope)
-      : this.provider.accepts(header, scope);
+  async ready(): Promise<void> {
+    await this.managed?.session.ready();
   }
-
+  scopeFor(header: string): string | undefined {
+    return this.managed
+      ? this.managed.session.scopeFor(header)
+      : this.provider.scopeFor(header);
+  }
   stop(): void {
-    this.pairing?.service.close();
-    this.session?.stop();
-  }
-
-  async close(): Promise<void> {
-    if (this.session) await this.session.close();
+    this.managed?.pairing.close();
+    if (this.managed) this.managed.session.stop();
     else this.provider.close();
   }
-
-  private async mutate<T>(action: () => T): Promise<T> {
-    return this.session ? this.session.run(action) : action();
+  async close(): Promise<void> {
+    this.stop();
+    await this.managed?.session.close();
+  }
+  private async commit<T>(action: () => T): Promise<T> {
+    return this.managed ? this.managed.session.run(action) : action();
   }
 
   challenge(): string {
-    return `Bearer resource_metadata="${this.provider.issuer}/.well-known/oauth-protected-resource/mcp", scope="carrot.read"`;
+    return `Bearer resource_metadata="${this.provider.issuer}/.well-known/oauth-protected-resource/mcp", scope="${this.provider.resourceMetadata().scopes_supported.join(" ")}"`;
   }
 
   async handle(
@@ -75,8 +78,25 @@ export class McpOAuthHttp {
     secureResponse(response);
     try {
       this.limitRequests();
-      if (await this.pairing?.handle(url, request, response)) return true;
-      await this.dispatch(url, request, response);
+      if (request.method === "GET" && GET_PATHS.includes(url.pathname)) {
+        this.get(url, response);
+      } else if (
+        request.method === "POST" &&
+        POST_PATHS.includes(url.pathname)
+      ) {
+        if (url.search)
+          throw new McpOAuthError(
+            "invalid_request",
+            "POST parameters belong in the request body.",
+          );
+        await this.post(url.pathname, request, response);
+      } else {
+        response.setHeader(
+          "Allow",
+          GET_PATHS.includes(url.pathname) ? "GET" : "POST",
+        );
+        throw new McpOAuthError("invalid_request", "Method not allowed.", 405);
+      }
     } catch (error) {
       if (!(error instanceof McpOAuthError)) throw error;
       if (error.status === 429) response.setHeader("Retry-After", "60");
@@ -88,36 +108,16 @@ export class McpOAuthHttp {
     return true;
   }
 
-  private async dispatch(
-    url: URL,
-    request: IncomingMessage,
-    response: ServerResponse,
-  ): Promise<void> {
-    if (request.method === "GET" && GET_PATHS.includes(url.pathname)) {
-      this.get(url, response);
-    } else if (request.method === "POST" && POST_PATHS.includes(url.pathname)) {
-      if (url.search)
-        throw new McpOAuthError(
-          "invalid_request",
-          "POST parameters belong in the request body.",
-        );
-      await this.post(url.pathname, request, response);
-    } else {
-      response.setHeader(
-        "Allow",
-        GET_PATHS.includes(url.pathname) ? "GET" : "POST",
-      );
-      throw new McpOAuthError("invalid_request", "Method not allowed.", 405);
-    }
-  }
-
   private get(url: URL, response: ServerResponse): void {
     if (url.pathname.startsWith("/.well-known/oauth-protected-resource")) {
       sendJson(response, 200, this.provider.resourceMetadata());
     } else if (url.pathname === "/.well-known/oauth-authorization-server") {
       sendJson(response, 200, this.provider.authorizationMetadata());
     } else if (url.pathname === "/oauth/authorize") {
-      const consent = this.provider.begin(uniqueOAuthParams(url.searchParams));
+      const input = uniqueOAuthParams(url.searchParams);
+      const consent = this.managed
+        ? this.managed.pairing.begin(input)
+        : this.provider.begin(input);
       response.setHeader(
         "Set-Cookie",
         `${COOKIE}=${consent.cookie}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=300`,
@@ -128,7 +128,14 @@ export class McpOAuthHttp {
       // default no-referrer policy so the callback never receives consent URLs.
       response.setHeader("Referrer-Policy", "same-origin");
       response.setHeader("Content-Type", "text/html; charset=utf-8");
-      response.end(mcpOAuthConsentPage(consent));
+      if ("code" in consent && typeof consent.code === "string") {
+        const page = mcpPairingPage({ ...consent, code: consent.code });
+        response.setHeader(
+          "Content-Security-Policy",
+          `default-src 'none'; script-src 'nonce-${page.nonce}'; connect-src 'self'; form-action 'self' https://chatgpt.com; frame-ancestors 'none'; base-uri 'none'`,
+        );
+        response.end(page.html);
+      } else response.end(mcpOAuthConsentPage(consent));
     } else {
       sendJson(response, 200, {
         service: "Carrot MCP",
@@ -145,13 +152,13 @@ export class McpOAuthHttp {
     response: ServerResponse,
   ): Promise<void> {
     if (path === "/oauth/register") {
-      this.pairing?.service.assertOpen();
+      this.managed?.pairing.assertOpen();
       requireContentType(request, "application/json");
       const input = oauthRecord(await readMcpBody(request));
       sendJson(
         response,
         201,
-        await this.mutate(() => this.provider.register(input)),
+        await this.commit(() => this.provider.register(input)),
       );
       return;
     }
@@ -159,45 +166,53 @@ export class McpOAuthHttp {
     const input = uniqueOAuthParams(
       new URLSearchParams(await readForm(request)),
     );
-    if (path === "/oauth/approve") {
-      if (request.headers.origin !== this.provider.issuer)
-        throw new McpOAuthError(
-          "access_denied",
-          "Approval must come from this server's consent page.",
-          403,
-        );
-      const cookies = (request.headers.cookie ?? "")
-        .split(";")
-        .map((part) => part.trim())
-        .filter((part) => part.startsWith(`${COOKIE}=`));
-      if (cookies.length !== 1)
-        throw new McpOAuthError(
-          "access_denied",
-          "Approval cookie is required.",
-          403,
-        );
-      const redirect = await this.mutate(() =>
-        this.provider.approve(input, cookies[0].slice(COOKIE.length + 1)),
-      );
-      response.setHeader(
-        "Set-Cookie",
-        `${COOKIE}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
-      );
-      response.writeHead(303, { Location: redirect });
-      response.end();
-    } else {
-      const authorization = readAuthorization(request);
-      if (path === "/oauth/token")
-        sendJson(
-          response,
-          200,
-          await this.mutate(() => this.provider.token(input, authorization)),
-        );
-      else {
-        await this.mutate(() => this.provider.revoke(input, authorization));
-        sendJson(response, 200, {});
-      }
+    if (["/oauth/approve", "/oauth/poll", "/oauth/complete"].includes(path)) {
+      await this.browserPost(path, request, response, input);
+      return;
     }
+    const authorization = readAuthorization(request);
+    const result = await this.commit(() => {
+      if (path === "/oauth/token")
+        return this.provider.token(input, authorization);
+      this.provider.revoke(input, authorization);
+      return {};
+    });
+    sendJson(response, 200, result);
+  }
+
+  private async browserPost(
+    path: string,
+    request: IncomingMessage,
+    response: ServerResponse,
+    input: Record<string, string>,
+  ): Promise<void> {
+    const cookie = readBrowserCookie(request, this.provider.issuer);
+    if (path === "/oauth/poll" && this.managed) {
+      sendJson(response, 200, {
+        status: this.managed.pairing.poll(input.transaction, cookie),
+      });
+      return;
+    }
+    let redirect: string;
+    if (path === "/oauth/complete" && this.managed) {
+      const pairing = this.managed.pairing;
+      redirect = await this.commit(() =>
+        pairing.complete(input.transaction, cookie),
+      );
+    } else if (path === "/oauth/approve" && !this.managed) {
+      redirect = await this.commit(() => this.provider.approve(input, cookie));
+    } else
+      throw new McpOAuthError(
+        "access_denied",
+        "Use the local app approval flow.",
+        403,
+      );
+    response.setHeader(
+      "Set-Cookie",
+      `${COOKIE}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+    );
+    response.writeHead(303, { Location: redirect });
+    response.end();
   }
 
   private limitRequests(): void {
@@ -272,4 +287,24 @@ function sendJson(
   response.statusCode = status;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.end(JSON.stringify(body));
+}
+
+function readBrowserCookie(request: IncomingMessage, issuer: string): string {
+  if (request.headers.origin !== issuer)
+    throw new McpOAuthError(
+      "access_denied",
+      "Approval must come from this server's consent page.",
+      403,
+    );
+  const cookies = (request.headers.cookie ?? "")
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith(`${COOKIE}=`));
+  if (cookies.length !== 1)
+    throw new McpOAuthError(
+      "access_denied",
+      "Approval cookie is required.",
+      403,
+    );
+  return cookies[0].slice(COOKIE.length + 1);
 }
