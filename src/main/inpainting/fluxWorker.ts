@@ -97,7 +97,9 @@ export class FluxWorker {
       args: this.launch.args,
       requestedComputeGpuIndex: this.launch.computeGpuIndex ?? "auto",
       selectedCudaDevice:
-        this.launch.backend === "cuda-native" ? this.launch.cudaDevice : undefined,
+        this.launch.backend === "cuda-native"
+          ? this.launch.cudaDevice
+          : undefined,
       pid,
     });
   }

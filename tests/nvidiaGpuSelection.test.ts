@@ -68,7 +68,10 @@ describe("NVIDIA physical-device selection", () => {
 
   it("rejects ambiguous multi-device output for an explicit selection", async () => {
     expect(
-      await queryNvidiaGpuInfo(1, async () => `${AMPERE_ROW}\n${BLACKWELL_ROW}`),
+      await queryNvidiaGpuInfo(
+        1,
+        async () => `${AMPERE_ROW}\n${BLACKWELL_ROW}`,
+      ),
     ).toBeNull();
   });
 
@@ -105,7 +108,9 @@ describe("NVIDIA physical-device selection", () => {
 
   it("returns no GPU for empty, malformed, or failed queries", async () => {
     for (const output of ["", "\r\n", "NVIDIA, N/A, 8.6, GPU-invalid"]) {
-      expect(await queryNvidiaGpuInfo(undefined, async () => output)).toBeNull();
+      expect(
+        await queryNvidiaGpuInfo(undefined, async () => output),
+      ).toBeNull();
     }
     expect(
       await queryNvidiaGpuInfo(undefined, async () => {

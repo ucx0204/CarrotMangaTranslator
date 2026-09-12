@@ -22,7 +22,9 @@ export async function resolveFluxCudaDevice(
     computeGpuIndex !== undefined &&
     normalizeComputeGpuIndex(computeGpuIndex) === undefined
   ) {
-    throw new Error(`유효하지 않은 Flux 연산 GPU 번호입니다: ${computeGpuIndex}`);
+    throw new Error(
+      `유효하지 않은 Flux 연산 GPU 번호입니다: ${computeGpuIndex}`,
+    );
   }
   signal?.throwIfAborted();
   const gpu = await queryGpu(computeGpuIndex);

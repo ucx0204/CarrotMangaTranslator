@@ -118,7 +118,9 @@ function parseNvidiaSmiGpuLine(
   const memoryText = parts.length >= 2 ? parts[1] : parts[0];
   const memoryMb = Number(memoryText);
   if (!Number.isFinite(memoryMb) || memoryMb <= 0) return null;
-  const nvidiaUuid = normalizeNvidiaGpuUuid(parts[hasComputeCapability ? 3 : 2]);
+  const nvidiaUuid = normalizeNvidiaGpuUuid(
+    parts[hasComputeCapability ? 3 : 2],
+  );
   return {
     name,
     memoryMb,

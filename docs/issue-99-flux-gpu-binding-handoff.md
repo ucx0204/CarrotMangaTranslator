@@ -32,10 +32,12 @@ session has not reproduced the crash on physical GPUs.
    compute capability; add hardware-selection regression coverage.
 3. `01ad435`: bind pooled and direct Flux engine launches to one device
    snapshot; add UUID-aware environment isolation and cache identity.
-4. The diagnostics/handoff checkpoint containing this update adds requested
+4. `ac00e75`: the diagnostics/handoff checkpoint adds requested
    GPU and selected device fields to the existing worker-start log, verifies
    UUID transmission through a real child process, and removes redundant
-   cancellation checks from the pool. See branch history for its commit SHA.
+   cancellation checks from the pool.
+5. A follow-up style checkpoint addresses the formatting failures reported by
+   the first CI run. Inspect the latest head checks before considering it passed.
 
 ## Implemented contract
 
@@ -80,9 +82,11 @@ selection semantics. It does not rebuild or replace native runtime assets.
 - TypeScript syntax parsing: 15 source/test files, zero parse errors. This is
   NOT semantic typechecking or a build.
 - Full checks were requested through draft PR #100. Initial Check run
-  `34678106135` started for `01ad435`; Windows and macOS jobs reached Run checks.
-  This is not a success result and does not validate later commits. Inspect
-  the latest head's checks, not a superseded run, before marking this ready.
+  `34678106135` for `01ad435`: the macOS job passed `typecheck`,
+  `typecheck-electron`, and `typecheck-js`, then failed formatting in
+  `gpuInfo.ts`, `fluxCudaDevice.ts`, `fluxEnginePool.ts`, and
+  `nvidiaGpuSelection.test.ts`. The branch includes a follow-up style fix;
+  success must still be confirmed on the current head. Later gates did not run.
 - Full Vitest, semantic typecheck, formatting, lint/architecture checks, build,
   packaged app behavior, and actual CUDA hardware execution are not recorded
   as passed here. The editing container has no direct GitHub/npm DNS access
@@ -111,11 +115,11 @@ npm run check
 - [ ] Inspect current-head CI; fix actual failures in new commits.
 - [ ] Full repository validation and packaged app smoke.
 - [ ] Mixed RTX 3080 Ti + RTX 5070 Ti hardware acceptance: automatic selection
-      and each explicit selection must pair the correct SM runner with the
-      worker's CUDA device 0. Confirm an actual page completes.
+  and each explicit selection must pair the correct SM runner with the
+  worker's CUDA device 0. Confirm an actual page completes.
 - [ ] Single-GPU, CPU, Metal, and AMD regression acceptance.
 - [ ] Confirm cache reuse for the same UUID and replacement for a different
-      UUID, including same-architecture GPUs, under the full integration suite.
+  UUID, including same-architecture GPUs, under the full integration suite.
 
 No master merge, release, version bump, or squash was performed by this work.
 Rollback is to discard/revert this branch's changes before the user-controlled
