@@ -1,5 +1,6 @@
 !ifndef MGT_DATA_ROOT_TEXT_INCLUDED
 !define MGT_DATA_ROOT_TEXT_INCLUDED
+!define /math MGT_DATA_ROOT_TEXT_MAX_BYTES ${NSIS_MAX_STRLEN} * 4
 
 ; FileRead/FileWrite use the Windows ANSI code page, even in Unicode NSIS.
 ; The application reads data-root.txt as UTF-8. Keep new pointers UTF-8 and
@@ -20,7 +21,7 @@
   ${Do}
     System::Call 'kernel32::GetFileSize(p ${HANDLE}, p 0) i.r1'
     ${If} $1 <= 0
-    ${OrIf} $1 > ${NSIS_MAX_STRLEN} * 4
+    ${OrIf} $1 > ${MGT_DATA_ROOT_TEXT_MAX_BYTES}
       ${ExitDo}
     ${EndIf}
     System::Alloc $1
@@ -33,9 +34,9 @@
     ${OrIf} $3 != $1
       ${ExitDo}
     ${EndIf}
-    System::Call 'kernel32::MultiByteToWideChar(i 65001, i 8, p r2, i r1, w .r5, i ${NSIS_MAX_STRLEN}) i.r4'
+    System::Call 'kernel32::MultiByteToWideChar(i 65001, i 8, p r2, i r1, w .r5, i ${NSIS_MAX_STRLEN}) i.r4 ?e'
+    Pop $3
     ${If} $4 == 0
-      System::Call 'kernel32::GetLastError() i.r3'
       ${If} $3 != 1113
         ${ExitDo}
       ${EndIf}
@@ -44,6 +45,11 @@
     ${EndIf}
     ${If} $4 <= 0
     ${OrIf} $4 >= ${NSIS_MAX_STRLEN}
+      ${ExitDo}
+    ${EndIf}
+    StrLen $3 $5
+    ${If} $3 != $4
+      ; Do not silently truncate an embedded NUL into another valid path.
       ${ExitDo}
     ${EndIf}
     StrCpy ${OUTPUT} $5
