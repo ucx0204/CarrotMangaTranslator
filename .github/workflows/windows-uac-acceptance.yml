@@ -1,0 +1,117 @@
+name: Windows UAC Acceptance
+
+on:
+  push:
+    branches:
+      - fix/windows-protected-folder-uac
+    paths-ignore:
+      - "docs/**"
+  pull_request:
+    paths:
+      - .github/workflows/windows-uac-acceptance.yml
+      - electron-builder.config.cjs
+      - build/installer.nsh
+      - "build/windows*.nsh"
+      - src/main/startupWriteAccess.ts
+      - src/main/windowsElevation.ts
+      - src/main/windowsStartup.ts
+      - src/main/bootstrap.ts
+      - src/main/dataRoot.ts
+      - scripts/build-windows-installer.cjs
+      - scripts/smoke-windows-installer.cjs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-uac-acceptance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-check:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: npm ci
+      - name: Run full repository checks
+        run: npm run check
+      - name: Preserve check diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-uac-full-check-${{ github.sha }}
+          path: |
+            .tmp/check-timings.json
+            .tmp/check-logs/
+            .tmp/check-results/
+            coverage/coverage-summary.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+
+  packaged-app:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: npm ci
+      - name: Build real Windows application without publishing
+        env:
+          MGT_THIN_INSTALLER: "1"
+          MGT_ALLOW_MISSING_FLUX_RUNNER: "1"
+        run: npm run dist:win
+      - name: Smoke test real fresh install and upgrade
+        run: node scripts/smoke-windows-installer.cjs
+      - name: Record tested source and package identity
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem -LiteralPath dist -Filter '* Setup *.exe')
+          if ($installers.Count -ne 1) { throw 'Expected exactly one test installer.' }
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installers[0].FullName).Hash.ToLowerInvariant()
+          "$hash  $($installers[0].Name)" | Set-Content -Encoding utf8 dist/UAC-SHA256SUMS.txt
+          @{
+            commit = '${{ github.sha }}'
+            runId = '${{ github.run_id }}'
+            artifact = $installers[0].Name
+            sha256 = $hash
+            release = $false
+            interactiveUacTested = $false
+          } | ConvertTo-Json | Set-Content -Encoding utf8 dist/uac-acceptance.json
+      - name: Preserve test installer and evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-uac-test-package-${{ github.sha }}
+          path: |
+            dist/* Setup *.exe
+            dist/UAC-SHA256SUMS.txt
+            dist/uac-acceptance.json
+          if-no-files-found: error
+          retention-days: 7
