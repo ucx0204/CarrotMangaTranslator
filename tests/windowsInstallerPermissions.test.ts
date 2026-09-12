@@ -117,11 +117,16 @@ describe("Windows installer permission policy", () => {
   it("does not widen program directory permissions or globally elevate the app", () => {
     const config = require("../electron-builder.config.cjs") as {
       win: { requestedExecutionLevel?: string };
-      nsis: { perMachine: boolean; allowElevation?: boolean };
+      nsis: {
+        perMachine: boolean;
+        allowElevation: boolean;
+        packElevateHelper: boolean;
+      };
     };
-    expect(config.win.requestedExecutionLevel ?? "asInvoker").toBe("asInvoker");
+    expect(config.win.requestedExecutionLevel).toBe("asInvoker");
     expect(config.nsis.perMachine).toBe(false);
-    expect(config.nsis.allowElevation ?? true).toBe(true);
+    expect(config.nsis.allowElevation).toBe(true);
+    expect(config.nsis.packElevateHelper).toBe(false);
     expect(installer).not.toMatch(/icacls|AccessControl::GrantOnFile/i);
     expect(removal).not.toMatch(/icacls|AccessControl::GrantOnFile/i);
   });
