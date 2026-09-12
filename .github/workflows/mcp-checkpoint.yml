@@ -81,6 +81,7 @@ jobs:
         run: |
           node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs | tee "$RUNNER_TEMP/carrot-mcp-native.log"
           grep -Fq 'PASS native OS-encrypted OAuth restore, refresh and offline revocation' "$RUNNER_TEMP/carrot-mcp-native.log"
+          grep -Fq 'PASS native external blocks -> app masks/local-engine boundary -> real renderer -> original-resolution PNG -> revoked link' "$RUNNER_TEMP/carrot-mcp-native.log"
           grep -Fq 'PASS MCP native smoke finished' "$RUNNER_TEMP/carrot-mcp-native.log"
 
       - name: Capture production MCP settings and assert layout boundaries
