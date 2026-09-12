@@ -1,0 +1,85 @@
+diff --git a/docs/mcp-implementation.md b/docs/mcp-implementation.md
+index 93b83f8..67da8b3 100644
+--- a/docs/mcp-implementation.md
++++ b/docs/mcp-implementation.md
+@@ -4,3 +4,3 @@
+ 
+-[Current user guide](mcp-tailscale-testing.md) · [Exact verification and integration record](mcp-integration-status.md).
++[Connection guide](mcp-tailscale-testing.md) · [First-page tools and tests](mcp-page-testing.md) · [Exact verification and integration record](mcp-integration-status.md).
+ 
+@@ -19,3 +19,3 @@ Expose the existing app, not a second translator. Desktop UI and MCP share the l
+ - App-side pairing window, browser-cookie and S256 PKCE binding, comparison code, local approve/deny and same-origin completion. The display code alone is not a credential. No pairing password file is needed in the normal user flow.
+-- App settings controls for on/off, image/edit/auto-start opt-ins, stable URL copy, diagnostics, pending approvals and connection revocation. Preferences never silently expand an old grant.
++- App settings controls for on/off, image/edit/processing/auto-start opt-ins, stable URL copy, diagnostics, pending approvals and connection revocation. Preferences never silently expand an old grant.
+ - `carrot_get_page_blocks`: safe paginated existing blocks and current revision.
+@@ -25,2 +25,16 @@ Expose the existing app, not a second translator. Desktop UI and MCP share the l
+ 
++## First-page processing tools
++
++The first-page implementation now adds saved-page rendering, pixel-coordinate crops, paginated saved work context, external-agent block creation, optional OCR-only execution, standalone local erasure and original-resolution PNG. See [page goal](mcp-page-goal.md) for exact verification and [Korean page testing](mcp-page-testing.md) for user instructions.
++
++- `carrot_get_work_context` returns saved overview/glossary/characters/memory; it does not research or rewrite memory.
++- `carrot_get_page_crop` returns an approved source crop and original-pixel mapping; `carrot_render_page_preview` uses the actual app renderer, not a second typesetter.
++- `carrot_create_page_blocks` appends editable readings/translation through the existing transaction and default-format contract. Original/render rectangles are integer original-image pixels. Existing blocks are never replaced. Exact retries preserve IDs; modified text, geometry or direction conflicts.
++- `carrot_run_page_ocr` uses the configured local OCR preparation without a translation endpoint. Currently it requires a block-free page and saves untranslated readings; effect-review candidates are reported separately.
++- `carrot_run_page_erasure` uses the existing page-pattern inpainting job, masks, image history and commit guard. It does not invoke OCR, translate, use Codex or recalculate bubble layout.
++- `carrot_export_page_png` uses original-resolution app rendering and returns a job receipt. `carrot_get_job` / `carrot_cancel_job` operate only on the owning OAuth grant; token refresh retains that owner.
++- Heavy operations acquire the application's existing exclusive activity/job lease. MCP owns only bounded session receipts and temporary output files. Receipts are not a durable batch queue: stop cancels work and restart requires rereading stored page state.
++- PNG access is an unguessable ten-minute single-file capability link, limited to 64 MiB/file and 256 MiB/session. Download rechecks current grant, revision and redaction; stop revokes links. It never reveals a local path or OAuth secret. Holders can fetch that one file while authorized, so links should not be made public.
++- Images, existing translation edits, and new blocks/local processing have separate scopes. Old grants never gain `carrot.process` automatically. Derived output is blocked while redaction is enabled; source/crop disclosure rechecks the existing review guard after image work.
++
+ ## Composition and protected boundaries
+@@ -29,5 +43,5 @@ Expose the existing app, not a second translator. Desktop UI and MCP share the l
+ 
+-The session root consumes `useMcpEditorSync` and its existing refresh coordinator. Its import budget is 18. `pageRevision.ts` has two additional real consumers for edit validation and compare-and-set inside the existing transaction (fan-in 28). The trusted IPC consumer ceiling is 26. Budgets reflect actual composition consumers, not alias wrappers or disabled rules. Reading-order changes are fingerprinted even when timestamps match.
++The session root consumes `useMcpEditorSync` and its existing refresh coordinator. Its import budget is 18. `pageRevision.ts` is shared by editing, image rendering, external readings, OCR, erasure and export (fan-in 33). The trusted IPC consumer ceiling is 26. Budgets reflect actual composition consumers, not alias wrappers or disabled rules. Reading-order changes are fingerprinted even when timestamps match.
+ 
+-No protected OCR, font-matching, artwork-rendering or mask algorithm is moved or changed. Permissions currently cover the running library rather than individual works. Reads, image transfer and edits have separate scopes.
++No protected OCR, font-matching, artwork-rendering or mask algorithm is moved or changed. Permissions currently cover the running library rather than individual works. Reads, image transfer, existing translation edits and local processing have separate scopes. Direct composition budgets are recorded with reasons in `scripts/architecture-budget-baseline.json`; generic complexity/dependency limits are unchanged.
+ 
+@@ -41,2 +55,2 @@ Use the exact commit/run recorded in [integration status](mcp-integration-status
+ 
+-Live Tailscale/ChatGPT acceptance remains to be recorded. New external-agent blocks, crop analysis, independent OCR/erasure/lettering jobs, rendered PNG/ZIP, SFX image generation, web chapter import, research/context replacement and optional MCP Apps viewer are not implemented by the existing-text edit tool. Continue these incrementally on this same branch, preserving app authorities and committing frequently.
++The user confirmed the Tailscale/ChatGPT connection and existing editor worked before this milestone. Acceptance of the new page tools in the user's logged-in session and actual model-quality checks remains separate from automated tests. App text-model translation, AI font matching, editable masks/geometry, SFX image generation, derived-layer redaction approval, durable multi-page jobs/ZIP, web chapter import, research/context replacement and optional MCP Apps UI remain future work. Continue independently callable tools on this same branch, preserving app authorities and committing frequently.
+diff --git a/docs/mcp-integration-status.md b/docs/mcp-integration-status.md
+index 2d81ccc..0ec4e2b 100644
+--- a/docs/mcp-integration-status.md
++++ b/docs/mcp-integration-status.md
+@@ -4,2 +4,6 @@ The only MCP development branch is **`feat/mcp-app-bridge`**, draft PR #96. Do n
+ 
++## Current first-page milestone
++
++The connection/existing-edit baseline below is historical. New external blocks, source crops, saved context, optional OCR-only work, independent local erasure and rendered PNG are now implemented on the same branch. Current contracts, recovery commits and exact acceptance boundaries are in [mcp-page-goal.md](mcp-page-goal.md); user instructions are in [mcp-page-testing.md](mcp-page-testing.md). Do not use the old remaining-work list below as the current feature inventory.
++
+ ## Source publication and branch consolidation completed
+diff --git a/docs/mcp-page-testing.md b/docs/mcp-page-testing.md
+index e483472..066dcc7 100644
+--- a/docs/mcp-page-testing.md
++++ b/docs/mcp-page-testing.md
+@@ -2,3 +2,3 @@
+ 
+-브랜치는 `feat/mcp-app-bridge` 하나입니다. Tailscale 고정 주소·암호화된 인증 저장을 그대로 사용하며, Cloudflare와 Codex 할당량은 이 경로의 필수 조건이 아닙니다. 전체 기능 공개의 첫 단위이며 모든 단계는 독립 도구입니다.
++브랜치는 `feat/mcp-app-bridge` 하나입니다. Tailscale 고정 주소·암호화된 인증 저장을 그대로 사용하며, Cloudflare는 사용하지 않습니다. 이 경로에는 Codex 할당량이 필요하지 않습니다. 전체 기능 공개의 첫 단위이며 모든 단계는 독립 도구입니다.
+ 
+@@ -43,3 +43,3 @@ carrot_export_page_png → carrot_get_job
+ 
+-새 블록은 앱 기본 서식과 자동 맞춤으로 생성됩니다. 원문·번역문·원문 영역·출력 영역을 저장하므로 앱에서 다시 편집할 수 있습니다. 이 경로가 AI 폰트 매칭, 효과음 이미지 생성, 회차 기억 자동 작성까지 실행한다는 뜻은 아닙니다. 외부 AI의 오독·좌표 판단과 실제 모델의 제거 품질은 사용자 원고에서 검토해야 합니다.
++새 블록은 앱 기본 서식을 적용하고, 자동 맞춤 여부도 앱 설정을 따릅니다. 원문·번역문·원문 영역·출력 영역을 저장하므로 앱에서 다시 편집할 수 있습니다. 이 경로가 AI 폰트 매칭, 효과음 이미지 생성, 회차 기억 자동 작성까지 실행한다는 뜻은 아닙니다. 외부 AI의 오독·좌표 판단과 실제 모델의 제거 품질은 사용자 원고에서 검토해야 합니다.
+ 
+diff --git a/docs/mcp-tailscale-handoff.md b/docs/mcp-tailscale-handoff.md
+index e559db1..6eca356 100644
+--- a/docs/mcp-tailscale-handoff.md
++++ b/docs/mcp-tailscale-handoff.md
+@@ -10,2 +10,2 @@ The cleanup step in the Windows checkpoint removes only the three explicitly enu
+ 
+-Actual Tailscale account setup/public reachability and a logged-in ChatGPT session must be tested separately. Do not infer either from synthetic HTTP or OS-encryption tests. Full page OCR/new blocks, erasure, image lettering/SFX, rendered ZIP export and research/import batching remain beyond the current existing-text edit tool.
++Actual Tailscale account setup/public reachability and a logged-in ChatGPT session must be tested separately. Do not infer either from synthetic HTTP or OS-encryption tests. Independent new blocks, OCR, local erasure, actual rendering and PNG output are now implemented; see [first-page handoff](mcp-page-goal.md). AI image lettering/SFX, rendered ZIP, durable batching, app text-model execution and research/import automation remain future work. The user already confirmed the connection baseline; new tool acceptance is separate.
+diff --git a/docs/mcp-tailscale-testing.md b/docs/mcp-tailscale-testing.md
+index d54e56c..3b8dcda 100644
+--- a/docs/mcp-tailscale-testing.md
++++ b/docs/mcp-tailscale-testing.md
+@@ -50,3 +50,3 @@ Tailscale을 PC에 설치하고 본인 계정으로 로그인합니다. 해당 t
+ 
+-**신규 블록 생성·앱 OCR/번역 엔진 실행·원문 제거·효과음 이미지 생성·PNG/ZIP 출력은 아직 MCP에 연결되지 않았습니다.** 원본 미리보기와 완성 번역 이미지 출력을 혼동하지 마세요.
++**신규 블록 생성·OCR만 실행·원문 제거만 실행·실제 렌더링·PNG 출력은 [한 페이지 완성 테스트](mcp-page-testing.md)에 추가했습니다.** 새 블록과 로컬 처리에는 별도 `carrot.process` 승인이 필요합니다. 앱 번역 모델 실행, 효과음 이미지 생성과 한 화 ZIP은 아직 후속 기능입니다. 원본 미리보기와 완성 렌더링을 구분하세요.
+ 
