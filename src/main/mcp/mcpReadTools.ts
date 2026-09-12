@@ -17,11 +17,11 @@ export type McpTool = {
   description: string;
   inputSchema: Record<string, unknown>;
   oauth?: boolean;
-  requiredScope?: string;
+  requiredScopes?: readonly string[];
   readOnly?: boolean;
   invoke: (
     args: Record<string, unknown>,
-    guard: () => void,
+    context?: { assertAuthorized: () => void },
   ) => Promise<McpToolContent[]>;
 };
 
@@ -29,7 +29,7 @@ export function createMcpReadTools(
   service: McpLibraryReadService,
   imageTransfer = false,
   oauth = false,
-  editingProfile?: { allowEditing: boolean },
+  profile?: { readBlocks: boolean; editTranslations: boolean },
 ): McpTool[] {
   return [
     {
@@ -39,15 +39,7 @@ export function createMcpReadTools(
       inputSchema: objectSchema({}),
       invoke: async (args) => {
         allowArguments(args, []);
-        return textContent({
-          mode: editingProfile?.allowEditing ? "editing" : "read-only",
-          features: features(imageTransfer, editingProfile),
-          translation: false,
-          imageTransfer,
-          imageRedaction: "preview-blocked-when-local-review-is-required",
-          sampling: false,
-          oauth,
-        });
+        return textContent(capabilityProfile(imageTransfer, oauth, profile));
       },
     },
     {
@@ -106,12 +98,7 @@ export function createMcpReadTools(
 
 export function describeMcpTool(tool: McpTool) {
   const securitySchemes = [
-    {
-      type: "oauth2",
-      scopes: [
-        ...new Set(["carrot.read", tool.requiredScope ?? "carrot.read"]),
-      ],
-    },
+    { type: "oauth2", scopes: tool.requiredScopes ?? ["carrot.read"] },
   ];
   return {
     name: tool.name,
@@ -120,8 +107,8 @@ export function describeMcpTool(tool: McpTool) {
     ...(tool.oauth ? { securitySchemes, _meta: { securitySchemes } } : {}),
     annotations: {
       readOnlyHint: tool.readOnly !== false,
-      destructiveHint: false,
-      idempotentHint: tool.readOnly !== false,
+      destructiveHint: tool.readOnly === false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   };
@@ -138,22 +125,28 @@ function objectSchema(
   return { type: "object", properties, required, additionalProperties: false };
 }
 
-export async function invokeMcpTool(
-  tool: McpTool,
-  value: unknown,
-  guard: () => void = () => undefined,
-) {
-  return tool.invoke(argumentObject(value), guard);
+export async function invokeMcpTool(tool: McpTool, value: unknown) {
+  return tool.invoke(argumentObject(value));
 }
 
-function features(
-  images: boolean,
-  editing?: { allowEditing: boolean },
-): string[] {
-  return [
-    "library.read",
-    ...(images ? ["page.preview"] : []),
-    ...(editing ? ["page.blocks.read"] : []),
-    ...(editing?.allowEditing ? ["page.translations.patch"] : []),
-  ];
+function capabilityProfile(
+  imageTransfer: boolean,
+  oauth: boolean,
+  profile?: { readBlocks: boolean; editTranslations: boolean },
+) {
+  return {
+    mode: profile?.editTranslations ? "translation-edit" : "read-only",
+    features: [
+      "library.read",
+      ...(imageTransfer ? ["page.preview"] : []),
+      ...(profile?.readBlocks ? ["page.blocks"] : []),
+      ...(profile?.editTranslations ? ["translation.edit"] : []),
+    ],
+    editing: profile?.editTranslations ?? false,
+    translation: false,
+    imageTransfer,
+    imageRedaction: "preview-blocked-when-local-review-is-required",
+    sampling: false,
+    oauth,
+  };
 }
