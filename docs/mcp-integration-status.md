@@ -2,6 +2,10 @@
 
 The only MCP development branch is **`feat/mcp-app-bridge`**, draft PR #96. Do not create another MCP/test/recovery branch, force-push, merge into master or release an application as part of this work.
 
+## Current first-page milestone
+
+The connection/existing-edit baseline below is historical. New external blocks, source crops, saved context, optional OCR-only work, independent local erasure and rendered PNG are now implemented on the same branch. Current contracts, recovery commits and exact acceptance boundaries are in [mcp-page-goal.md](mcp-page-goal.md); user instructions are in [mcp-page-testing.md](mcp-page-testing.md). Do not use the old remaining-work list below as the current feature inventory.
+
 ## Source publication and branch consolidation completed
 
 `53de254a9c456b316a63409e649418b1505596a5` merged the existing MCP branch with the recovered publication history `8e943038a170fa71e8825371e3bd7db58961e2be`. Both histories are retained. This is actual source publication, not an unapplied patch or ZIP. No separate bundle import is required by users; old new-branch instructions are superseded by [the current guide](mcp-tailscale-testing.md).
