@@ -1,3 +1,4 @@
+import type { McpEditorState } from "./mcpEditingTypes";
 export type McpPreferences = {
   allowImages: boolean;
   allowEditing: boolean;
@@ -33,6 +34,7 @@ export type McpDiagnostics = {
   checks: { name: string; passed: boolean; message: string }[];
 };
 export type McpDesktopControl = {
+  reportEditorState: (state: McpEditorState) => Promise<{ completed: boolean }>;
   getStatus: () => Promise<McpDesktopStatus>;
   setEnabled: (enabled: boolean) => Promise<McpDesktopStatus>;
   configure: (preferences: McpPreferences) => Promise<McpDesktopStatus>;
