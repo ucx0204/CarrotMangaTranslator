@@ -2,143 +2,159 @@
 
 Working branch: `fix/windows-protected-folder-uac`.
 Base: `2885975a0cee77bc1c0541d7436857eb06acae44`.
-This is an implementation checkpoint, not a release or merge approval.
+Verified implementation: `f93a0069557deb5610a3a5c45a47d6f0baef69e8`.
+Verification completed on 2026-09-12. This document-only checkpoint follows the
+verified code without changing its behavior. No master merge or release was made.
 
-## Goal and boundaries
+## Delivered behavior
 
-The Windows setup requests administrator approval when it starts. A protected
-installation or data folder is not rejected merely because ordinary-user writes
-are unavailable. Actual disk/path/write failures still stop installation.
+Windows setup requests administrator approval at startup. Program Files and
+other protected installation/data directories are supported. Direct administrator
+launch is accepted; actual invalid paths, disk errors and failed writes still stop
+installation. Assisted per-user/all-users selection and application identity stay
+unchanged.
 
-The installed application remains `asInvoker`. Writable data roots launch without
-UAC; permission-denied startup writes may cause one explicit administrator
-relaunch. An elevated app cannot accept file drops from a normal Explorer window;
-the installer explains this and allows a separate writable data location.
+The application remains `asInvoker`. A writable data root does not request UAC,
+even when the executable is installed in Program Files. Permission-denied startup
+writes may trigger one explicit `runas` relaunch before Electron storage, instance
+locks or the main module are initialized. Cancellation, a failed launch, an
+already-elevated write failure and non-permission errors do not loop.
 
-Application identity, the user's installation-scope choice, data-root selection,
-existing-data preservation and uninstall safeguards must remain intact. Do not
-loosen installation-directory ACLs, force every app launch to be elevated, publish
-a release, merge master or squash the working history in this task.
+The exact data root, executable, working directory and arguments survive relaunch.
+The child checks its actual token and the original SID before accessing data.
+Another administrator account is rejected to protect account-bound API keys and
+settings. No installation-directory ACL is loosened and no user data is silently
+relocated. The installer and user guide explain the Explorer drag/drop limitation
+of an elevated application and the separate writable-data alternative.
 
-## Incremental checkpoints
+Setup preflight runs before the old version is removed, including silent updates.
+It validates nonexistent paths lexically with `GetFullPathNameW`, checks dedicated
+root safety and probes both destinations. Pointer writes use a same-directory
+staging file, checked writes/flush and atomic replacement. Failure does not
+truncate the existing data-root pointer or report installation success.
 
-Every changed file receives its own commit. Follow-up fixes use new commits rather
-than amending earlier checkpoints. Inspect the current branch before resuming;
-source, tests and validation wiring may have separate adjacent commits.
+New `data-root.txt` files are UTF-8. Setup and removal accept UTF-8 with or without
+a BOM and decode legacy ANSI only when strict UTF-8 decoding fails. Embedded NULs,
+oversized pointers and unreadable pointers are rejected instead of becoming a
+different path. Actual Unicode/space-containing installation and repair were tested.
 
-- [x] Create the branch and record recovery instructions.
-- [x] Add startup write-access probing and regression tests.
-- [x] Add explicit UAC launch, cancellation and retry-loop prevention.
-- [x] Run the gate before Electron storage configuration and instance locks.
-- [x] Pin the original data root across relaunch and later AppPaths resolution.
-- [x] Reject another administrator SID before accessing the original data root.
-- [x] Accept elevated installer writes and direct administrator setup launches.
-- [x] Request installer elevation at startup without forcing perMachine installs.
-- [x] Add destination preflight before removing an existing version.
-- [x] Add safe data-root pointer replacement and explicit write-failure handling.
-- [x] Add the uninstaller elevation boundary and cancellation/account checks.
-- [x] Add the Explorer drag/drop warning and focused Windows CI.
-- [x] Pass the initial 62 focused Windows tests and Electron typecheck.
-- [x] Fix the reported startup complexity and source/test formatting differences.
-- [x] Fix the isolated installer smoke's unsafe setup.exe filename.
-- [ ] Confirm a complete green Windows CI run after the latest changes.
-- [ ] Complete the full repository check and real packaged-app startup smoke.
-- [ ] Complete interactive UAC, Explorer, cross-account and uninstall acceptance.
+The uninstaller retains an `asInvoker` build-time executable and requests its own
+runtime elevation. It preserves options/scope, verifies a relaunch SID/token and
+stops before deletion on cancellation or account mismatch. Normal removal keeps
+data; explicit data-cleanup choices remain separate.
 
 ## Implementation map
 
-`startupWriteAccess.ts` probes app-owned storage using unique scratch files,
-including create, replace and delete operations. Existing settings, models and
-images are not rewritten. Cleanup never recursively deletes a directory. Required
-empty app directories may be created during preflight. Permission failures remain
-distinct from disk/path failures, and primary plus cleanup errors are preserved.
+- `src/main/startupWriteAccess.ts`: app-owned create/replace/delete probes,
+  permission classification and non-recursive scratch cleanup.
+- `src/main/windowsElevation.ts`: actual token/SID inspection and system
+  PowerShell/.NET `runas`, with encoded data and Windows argument quoting.
+- `src/main/windowsStartup.ts` and `bootstrap.ts`: relaunch policy, account/data
+  handoff and ordering before storage, locks and main initialization.
+- `build/installer.nsh`, `windows-data-root-text.nsh` and
+  `windows-uninstall-elevation.nsh`: protected installation, UTF-8 pointers,
+  preflight, safe replacement and removal elevation.
+- `scripts/build-windows-installer.cjs`: guarded preflight insertion before
+  `uninstallOldVersion` in the real electron-builder templates.
+- `electron-builder.config.cjs`: explicit `asInvoker`, `allowElevation: true`
+  and `packElevateHelper: false`. The unused electron-updater `elevate.exe` is not
+  shipped; this app uses manual release updates and its own elevation boundaries.
+  The package file-count limit remains 331 rather than being relaxed.
+- `scripts/smoke-windows-uac-installer.cjs`: isolated production-NSIS fixture.
+- `scripts/smoke-windows-installer.cjs`: real installed Electron startup,
+  ordinary/Program Files installation, upgrade and data-preserving removal.
+- `docs/updating.md`: user-facing installation, update and UAC guidance.
 
-`windowsElevation.ts` uses the absolute system PowerShell executable with a fixed,
-encoded script and .NET ProcessStartInfo `UseShellExecute`/`runas`. Arguments are
-encoded as data and Windows-quoted. There is no cmd.exe, temporary script, PATH
-lookup or execution-policy bypass. Native cancellation is distinct from success.
-Identity reads have a timeout; interactive approval is not arbitrarily timed out.
+## Final Windows verification
 
-`windowsStartup.ts` validates relaunch context before accessing the data root.
-Writable roots never trigger token inspection or UAC. On permission denial, a
-non-elevated process may relaunch once. The child verifies its real token and the
-original SID; another account is rejected before root resolution or probing.
-Already-elevated failures and non-permission errors do not loop. `bootstrap.ts`
-pins the approved root before loading the main module and taking instance locks.
+All three checks below completed with `success` on the same implementation SHA
+`f93a0069557deb5610a3a5c45a47d6f0baef69e8`. Results were checked against completed
+job logs, not inferred from an earlier commit or a running workflow.
 
-`build/installer.nsh` requests admin in the installer-only custom header. The
-uninstaller-generation executable is deliberately not given that manifest, so
-packaging does not require developer elevation. Existing assisted scope selection
-is preserved rather than setting perMachine to true. Starting setup elevated
-also avoids a fragile mid-wizard scope-changing relaunch.
+### Focused UAC check
 
-`MgtPrepareDataRoot`, wired before uninstallOldVersion in the build wrapper,
-validates destinations and writes before removing a working version, including
-silent installations. Data-root pointer writes use a temporary file and
-MoveFileExW replacement rather than truncating the existing pointer first.
-Failures set an error and abort instead of reporting installation success.
+Run `34671590758`, job `103493828684`: passed.
 
-`build/windows-uninstall-elevation.nsh` provides the separate removal gate. A
-non-elevated removal requests runas, preserves scope and original arguments, checks
-the returning account and real token, and stops on cancellation or launch failure.
-Updates already launched by elevated setup do not require another prompt.
+All 71 focused tests across six files passed, together with Electron typecheck,
+changed-file lint, formatting and actual NSIS compilation/installation. Native
+PowerShell identity inspection and an actual `runas` child argument roundtrip ran
+on Windows; those two tests were not replaced by mocks.
 
-## Validation evidence
+The isolated installer exercised both `/currentuser` and `/allusers` in a
+Program Files path containing Korean, Japanese and spaces. It checked UTF-8/BOM
+repair, invalid destination and corrupt-pointer preservation, wrong-SID removal
+rejection, data-preserving removal and setup/uninstaller manifest levels.
 
-### Local, scoped checks
+### Full repository check
 
-Node 22.16.0 on Linux passed four independent filesystem checks and twenty
-startup/elevation checks. These covered existing-data preservation, scratch
-cleanup, EACCES/ENOTEMPTY classification, cancellation, exact exe/cwd/argument
-transfer, data-root pinning, SID mismatch before data access, failed elevation,
-non-permission errors, malformed markers/results, Windows quoting, NUL/size
-rejection, identity validation and missing system-directory handling.
+Run `34671590767`, job `103493840779`: passed.
 
-The checks used byte-verified copies of production files and standalone Node
-assertions, not the repository's Vitest runner. Native process responses were
-simulated; they did not execute PowerShell or display UAC. Strict scoped checking
-also passed with the available TypeScript 5.8.3, Node types 25.1.0 and ES2022/CommonJS.
-That compiler check was not a full repository check. After extracting relaunch
-context in commit a03c3f78, the twenty checks and scoped typecheck passed again.
+The complete `npm run check` passed all 26 gates, including all configured type
+checks, repository formatting/lint, error handling, mock boundaries, architecture,
+maintainability, duplicates, reexports, generated files, CSS structure, script
+entrypoints, dead-code checks, native-runner preparation, the full test/coverage
+suite, production-cleanup coverage, build, page-artwork parity, image-protocol
+smoke and renderer/preload bundle boundaries. No gate was disabled to obtain this
+result. Diagnostics artifact: `10290753840`.
 
-### Windows CI
+### Real packaged application
 
-Run 34633089282 on commit c795314d:
+Run `34671590767`, job `103493840859`: passed.
 
-- Passed all 62 focused Vitest tests across four test files.
-- Passed npm run typecheck:electron.
-- Reported one complexity error in prepareWindowsStartup and formatting diffs.
-- Did NOT complete the installer smoke: makensis rejected the fixture name
-  setup.exe with warning 9000 treated as an error. The job was subsequently
-  cancelled. Do not infer a native smoke pass from the API step summary alone;
-  the raw log contains the failed build.
+`npm run dist:win` built the real thin Windows application and passed its package
+verification without publishing. The installed executable then started successfully
+from both an ordinary temporary location and Program Files, with a Korean/spaced
+installation path. Startup read the installer's real data-root pointer rather than
+an environment override and produced the packaged main-module smoke marker.
 
-Subsequent file commits extracted relaunch-context validation, applied the exact
-formatter changes, shortened oversized-input test titles, renamed the fixture to
-carrot-uac-fixture.exe, and made smoke failure terminate explicitly with code 1.
+Both locations passed fresh install, actual installed startup, locked-file upgrade,
+startup after upgrade and uninstall preserving a sentinel in the data root.
+This was the real Electron payload, separate from the smaller NSIS-only fixture.
 
-Run 34633869592 for commit eaf5c7df was in progress at the last status check. Verify
-its actual logs and the latest branch run before recording an overall pass. This
-documentation-only commit skips CI to avoid interrupting code validation.
+The test-package artifact `10291575339` contains the installer, `UAC-SHA256SUMS.txt`
+and `uac-acceptance.json` identifying this commit/run. The workflow reports its
+archive SHA-256 as
+`7ae421ceb1c6ebe8d026067a2c6af4abf23a6a8a772f59deece790cd82ac8d25`.
+This is a CI test artifact with seven-day retention, not a published release.
 
-## Acceptance still required
+## Coverage provenance
 
-Interactive UAC consent/cancellation and Explorer drag/drop require a real desktop.
-Test normal and restricted data roots, setup's finish-page launch privilege,
-existing restricted child files, cross-token single-instance locking, update and
-optional data cleanup under both installation scopes, Unicode/space-containing
-paths, and credentials for a different administrator account. In particular,
-verify per-user registration and profile paths when setup uses another account;
-application relaunch SID protection alone is not proof of installer correctness.
+The three new source files were measured on Windows using V8 coverage in run
+`34671435748`, source `036d6531c957feb984f02a36df2c808adc9e56d7`.
+Their implementation did not change between that measurement and final acceptance.
+Combined coverage was 96.55% lines, 96.61% statements, 100% functions and 93% branches.
+Per-file measured floors were added to `introducedFloors` without changing existing
+floors, the historical provenance or deleted-file records. The inventory test was
+updated from 618 to 621 introduced files. Final full-suite coverage enforcement
+also passed on the verified implementation.
 
-Do not mark a full application install, packaged startup or manual UAC case as
-passed because a mock or minimal NSIS fixture passed. Do not merge until the latest
-Windows checks and relevant acceptance cases are reviewed.
+Measurement artifact `10291130483` contains the report and registration evidence.
+The downloaded report was checked against SHA-256
+`786247a5ed6029235801d52ef49aedc9bd76896e3b555383fe76bbbc75256abb`
+and the committed floor entries. The temporary branch-only registration workflow
+made separate file commits and was removed after completing its work; persistent
+verification workflows require only read permission for repository contents.
 
-## Resumption
+## Explicit verification limits
 
-Read this file, the latest branch history, AGENTS.md and Windows CI logs first.
-The local environment has no direct GitHub DNS access for git clone; repository
-reads and single-file commits use the authorized GitHub connector. Preserve newer
-branch changes, verify the actual tree before relying on a checkbox, and keep each
-subsequent changed file in its own commit.
+Automated Windows acceptance is complete. The hosted runner was already elevated;
+this does not constitute a person approving/cancelling a secure-desktop UAC dialog,
+Explorer drag/drop interaction, or a real different-account credential handoff.
+Cancellation/loop/account policy has behavioral tests; the native test validates
+actual `runas` and quoting under an already-elevated token. It does not prove the
+interactive UI or every individual pre-existing child-file ACL configuration.
+
+Per-user setup registration belongs to the account executing setup. Supplying a
+different administrator's credentials can therefore select that administrator's
+profile; the application SID guard is not an installer account-migration feature.
+For ordinary startup and Explorer drops, use a data folder writable by the intended
+user. A release decision should include the relevant desktop/account checks.
+
+## Branch and recovery discipline
+
+Each changed file was committed independently. Follow-up fixes were new commits;
+no amend, squash, force-push, master merge, version bump or release was performed.
+Keep that history until the user elects to squash. For later changes, start from
+the actual remote branch, preserve existing data, and rerun the relevant checks.
+The verified implementation SHA above remains the authority for these results;
+this final documentation commit does not claim a separate code-validation run.
