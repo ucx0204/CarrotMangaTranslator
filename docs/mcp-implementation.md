@@ -1,64 +1,42 @@
 # Carrot MCP implementation handoff
 
-Target branch: `feat/mcp-app-bridge`, draft PR #96. Never merge, release, force-push, or replace unrelated work automatically.
+**Only development branch: `feat/mcp-app-bridge`, draft PR #96.** Do not create additional MCP/recovery branches, force-push, merge to master or release automatically. The recovered source and both histories were consolidated in `53de254a9c456b316a63409e649418b1505596a5`.
 
-## Current requirement and execution path
+[Current user guide](mcp-tailscale-testing.md) · [Exact verification and integration record](mcp-integration-status.md).
 
-**Tailscale Funnel only; persistent authentication is required.** Cloudflare is not a prerequisite, fallback or supported launcher. Start the normal desktop app (`npm run dev` for source builds), then use Settings > AI 연결 / MCP. The user guide is [Tailscale MCP 직접 테스트](mcp-tailscale-testing.md).
+## Product contract
 
-The desktop owns the loopback MCP listener and one foreground Tailscale CLI process. It refuses conflicting Serve/Funnel HTTPS routes rather than resetting the user's network configuration. The app discovers the HTTPS identity from Tailscale's running node status. It does not read identity from untrusted forwarded headers. Tailscale installation, login and HTTPS/Funnel approval are user-account setup requirements. No Codex allocation or model API is used by connection diagnostics.
+Tailscale Funnel only. Persistent authentication is required. Cloudflare is neither a prerequisite nor a fallback. Start the normal desktop app (`npm run dev` for source builds), then use Settings > AI 연결 / MCP. Connection diagnostics do not use Codex allocation or any model API.
 
-## Implemented and reconciled for publication
+Expose the existing app, not a second translator. Desktop UI and MCP share the library facade, transaction/revision checks, image-redaction rules and editor refresh behavior. Remote tools do not expose shell, arbitrary paths, credentials, local permission changes or self-approval.
 
-- Authenticated library/capability/chapter reads; optional source PNG previews through the existing image-redaction guard. No private paths, shell or general-purpose filesystem tools.
-- OS-encrypted `mcp-private/authorization.enc`, separate app-private preferences, durable atomic commits and strict snapshot validation. No plaintext fallback, including Linux `basic_text`. Approved OAuth client registrations survive restart; access lasts at most one hour, rotating refresh tokens expire after 90 days without renewal. New, unapproved registrations expire after seven days. Revocation and replay protection survive restart.
-- Managed OAuth HTTP response commits before returning registration/token/revocation success. Stop blocks access immediately without erasing the saved authorization. Shutdown drains owned requests before closing authorization state. Corrupt or unavailable storage fails closed.
-- App-side five-minute pairing window, browser-cookie and PKCE binding, comparison code, local approve/deny and same-origin completion. The display code is not a password or independent credential. Remote calls cannot approve themselves or enable permissions.
-- Settings UI for on/off, image/edit/auto-start opt-ins, stable URL copy, safe diagnostic, pairing requests and saved-connection revocation. Existing UI primitives and trusted IPC are used. Turning off and restarting preserve registration and approval; explicit revocation invalidates access/refresh rights.
-- `carrot_get_page_blocks`: safe, paginated existing blocks and current page revision.
-- `carrot_update_translations`: strict existing-block `translatedText` changes only, preserving geometry, masks, fonts and all unrelated fields; no OCR, model invocation, erasure or export. Requires read+edit scope and the revision returned by the read tool. Returns previous texts for explicit conditional restoration.
-- Edits reuse the existing library facade and transaction. Full revision, block fingerprint and reading-order checks run inside the save transaction. Main/renderer probing rejects dirty pages, active jobs and unresponsive editors. The existing dirty-page-preserving refresh coordinator consumes save notifications. Authorization is rechecked immediately before committing a queued edit.
-- Shutdown retains the blocked local listener if owned Funnel termination fails; an explicit stop retry is possible. This avoids another local service inheriting a still-public port.
+## Implemented source
 
-## Reuse boundaries
+- Authenticated library/capability/chapter reads and optional bounded source PNGs through the existing image-redaction guard.
+- One owned foreground Tailscale process and loopback listener. Running node DNS status owns the HTTPS identity. Existing Serve/Funnel routes are not reset or made public by accident. Tailscale installation/login and account-level HTTPS/Funnel approval remain user setup.
+- Durable OS-encrypted `mcp-private/authorization.enc` with strict snapshot validation and the existing atomic/fsync adapter. No plaintext fallback, including Linux `basic_text`. Approved clients persist across restart; pending registrations expire after seven days. Access lasts at most one hour; rotating refresh tokens expire after 90 days without renewal. Revocation and replay protection persist.
+- Authorization mutations commit before returning OAuth registration/token/revocation success. Stopping rejects new requests and queued unauthorized edits, drains owned work, and preserves stored approvals. Corrupt or unavailable storage fails closed.
+- App-side pairing window, browser-cookie and S256 PKCE binding, comparison code, local approve/deny and same-origin completion. The display code alone is not a credential. No pairing password file is needed in the normal user flow.
+- App settings controls for on/off, image/edit/auto-start opt-ins, stable URL copy, diagnostics, pending approvals and connection revocation. Preferences never silently expand an old grant.
+- `carrot_get_page_blocks`: safe paginated existing blocks and current revision.
+- `carrot_update_translations`: existing `translatedText` fields only, preserving geometry, masks, fonts and unrelated data. Requires edit scope, matching revision and writable editor. Returns previous texts for conditional restoration; exact retries are idempotent.
+- Existing library transaction validates full revision, block fingerprint and reading order. Nonce-bound renderer probes reject dirty or unresponsive editors and busy jobs. Existing dirty-page-preserving refresh consumes successful edit notifications. Permission is checked again at commit time.
+- A failed Funnel shutdown keeps the blocked listener bound, preventing another local service inheriting an exposed port. A user may retry stop; the app never kills the system Tailscale daemon or clears unrelated routes.
 
-| Concern                        | Existing app authority                                                                     |
-| ------------------------------ | ------------------------------------------------------------------------------------------ |
-| Library reads and mutations    | `src/main/library.ts`, library transaction and lock implementation                         |
-| Page revision and fingerprints | `shared/pageRevision.ts`, `shared/blockFingerprint.ts`                                     |
-| Preview transfer               | `imageRedactionContext.ts`, existing image decoding                                        |
-| Editor updates                 | trusted preload bridge, `createLiveChapterRefreshCoordinator`, dirty-page-preserving merge |
-| Durable state                  | existing atomic file / fsync storage adapter, Electron `safeStorage`                       |
-| Child lifetime                 | existing process-tree termination and exit-receipt helpers                                 |
+## Composition and protected boundaries
 
-No protected OCR, font-matching, artwork-rendering or mask algorithms are changed. New grants cover the running library, not per-work restrictions. Tool scopes separate reads, images and existing-translation edits. Turning off image/edit preferences does not expand old grants; enabling additional rights requires a suitably scoped new approval.
+`mcpDesktopRuntime` composes the Tailscale, authorization and library adapters. `application/mcpDesktopService` owns lifecycle behind ports. The trusted local IPC and existing settings primitives expose controls; no raw remote IPC is registered.
 
-## Tests and acceptance boundary
+The session root consumes `useMcpEditorSync` and its existing refresh coordinator. Its import budget is 18. `pageRevision.ts` has two additional real consumers for edit validation and compare-and-set inside the existing transaction (fan-in 28). The trusted IPC consumer ceiling is 26. Budgets reflect actual composition consumers, not alias wrappers or disabled rules. Reading-order changes are fingerprinted even when timestamps match.
 
-The original local checkpoint passed 173 tests in 19 files. After reconciling the later remote changes and porting its ten additional regressions, **183 tests in 22 files passed**:
+No protected OCR, font-matching, artwork-rendering or mask algorithm is moved or changed. Permissions currently cover the running library rather than individual works. Reads, image transfer and edits have separate scopes.
 
-```sh
-node node_modules/vitest/vitest.mjs run tests/mcp tests/libraryBatchPageSave.test.ts tests/pageRevision.test.ts tests/chapterSync.test.ts tests/liveChapterRefreshCoordinator.test.ts
-```
+## Verification and continuation
 
-These include actual HTTP, durable-session serialization, injected encryption-port disk I/O, restart/revocation/scope rejection, same-request retries, existing-library transaction conflicts, editor probes and production React component interactions in jsdom. They are not live Tailscale or logged-in ChatGPT tests.
+Use the exact commit/run recorded in [integration status](mcp-integration-status.md); do not infer current success from older runs. The focused suite includes MCP HTTP, durable authorization, permissions, lifecycle/pairing, existing library save/revision/refresh tests and production React interactions. Native Windows smoke checks OS encryption/restore/refresh/offline revocation with a new fixture directory and requires explicit completion markers.
 
-The integrated source passed renderer, Electron and JavaScript typechecks, dependency directions/budgets, error policy, script inventory, mock boundaries, maintainability and duplicate checks. Full lint initially identified three non-null assertions in the ported tests; those were removed and focused lint then passed. The original checkpoint also passed full lint/format and compiled main, preload, page-export and renderer before the repository's unsupported Linux native ONNX packaging guard. No guard was relaxed.
-
-`scripts/mcp-native-authorization.cjs` is wired into the Windows checkpoint. It uses a new fixture directory, fresh service/store instances and real OS encryption to test restore, refresh and offline revocation. CI requires its completion marker, not just exit zero. Native Windows and actual Tailscale/ChatGPT account acceptance must be recorded from the resulting run, not inferred from local port-based tests. UI component interaction tests are not screenshot QA. Knip encountered a WASM parser allocation failure in the editing environment; full `npm run check` is not claimed from that attempt.
-
-## Publication and concurrency record
-
-The six original local checkpoints descend from `0ef7c4edd3767748579db23f25c0476a7a7d227c`. The remote branch had independently advanced to `6c1f563497b742d58a9584dd5eda25431bb4392e`. That exact state was preserved as `backup/mcp-before-publication-20260912` before publication.
-
-The remote source and Git object inventory were retrieved through a read-only, source-only Actions snapshot at `6c04bc099db44db5c8f572a6430b3e547a7e70ed`. Twelve overlapping files were reconciled; duplicate partial services and unapplied checkpoint patches were replaced by the integrated implementation. Ten remote lifecycle/pairing/HTTP tests were retained and ported, not discarded.
-
-Publication uses the connected GitHub Git Data write actions (`create_tree`, `create_commit`, `update_ref`) on `integration/mcp-tailscale-publication-20260912`, with each source tree checked against the local Git tree. These remote writes work. CLI DNS failure must not be described as a lack of GitHub write permission. The final source is to fast-forward the existing feature branch without force, master merge or release. The draft PR records the final publication SHA and exact CI outcome.
-
-## Composition notes
-
-`mcpDesktopRuntime` owns the Tailscale process, durable authorization and library adapters. `application/mcpDesktopService` owns lifecycle behind ports. The existing settings dialog, trusted IPC, chapter session and library facade gain only their actual new consumers; the explicit composition budgets document those dependencies. The shared page revision algorithm is unchanged, and reading-order fingerprint checks run in the existing transaction. Remote tools never expose local consent, permission changes, arbitrary paths or shell execution.
+`scripts/mcp-ui-qa.cjs` reuses the repository UI QA runner with production components/styles and synthetic state for wide/narrow, approval and error captures. Temporary entries are removed; artifacts contain screenshots, never user libraries or secrets. Visually inspect captures before claiming layout acceptance. Account-level Funnel and logged-in ChatGPT tests are separate from synthetic probes.
 
 ## Remaining product work
 
-Record the Windows/native checkpoint result and perform live Tailscale/ChatGPT acceptance next. Full external-agent block creation, crop analysis, independent OCR/erasure/lettering jobs, rendered output/PNG/ZIP, SFX image generation, web chapter import, context research/replacement and optional MCP Apps viewer remain beyond this checkpoint. Do not advertise these as implemented by the translation-text patch tool.
+Live Tailscale/ChatGPT acceptance remains to be recorded. New external-agent blocks, crop analysis, independent OCR/erasure/lettering jobs, rendered PNG/ZIP, SFX image generation, web chapter import, research/context replacement and optional MCP Apps viewer are not implemented by the existing-text edit tool. Continue these incrementally on this same branch, preserving app authorities and committing frequently.

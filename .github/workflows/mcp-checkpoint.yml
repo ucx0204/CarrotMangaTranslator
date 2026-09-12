@@ -71,6 +71,7 @@ jobs:
           node scripts/mcp-smoke.mjs --help
           node scripts/mcp-web.cjs --help
           node scripts/mcp-web-smoke.mjs --help
+          node scripts/mcp-ui-qa.cjs --help
           node node_modules/vitest/vitest.mjs run tests/mcp tests/libraryBatchPageSave.test.ts tests/pageRevision.test.ts tests/chapterSync.test.ts tests/liveChapterRefreshCoordinator.test.ts
 
       - name: Build the existing application
@@ -81,6 +82,18 @@ jobs:
           node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs | tee "$RUNNER_TEMP/carrot-mcp-native.log"
           grep -Fq 'PASS native OS-encrypted OAuth restore, refresh and offline revocation' "$RUNNER_TEMP/carrot-mcp-native.log"
           grep -Fq 'PASS MCP native smoke finished' "$RUNNER_TEMP/carrot-mcp-native.log"
+
+      - name: Capture production MCP settings and assert layout boundaries
+        run: node scripts/mcp-ui-qa.cjs
+
+      - name: Save synthetic settings screenshots for visual review
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mcp-settings-ui
+          path: .tmp/mcp-ui-qa/*.png
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Static checks with complete repository dependencies
         if: ${{ !cancelled() }}
