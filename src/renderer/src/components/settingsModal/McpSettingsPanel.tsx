@@ -139,6 +139,16 @@ function McpPermissions({
         }
       />
       <CheckboxField
+        label="새 블록 생성 및 로컬 페이지 처리 허용"
+        checked={status.preferences.allowProcessing === true}
+        disabled={busy}
+        onCheckedChange={(allowProcessing) =>
+          void run(() =>
+            mcpGateway.configureMcp({ ...status.preferences, allowProcessing }),
+          )
+        }
+      />
+      <CheckboxField
         label="앱 시작 시 MCP 자동 실행"
         checked={status.preferences.autoStart}
         disabled={busy}
@@ -152,7 +162,8 @@ function McpPermissions({
         읽기 권한은 현재 보관함 전체에 적용됩니다. 이미지 전송은 별도 승인이
         필요하며 기존 가리기 보호를 우회하지 않습니다. 편집을 허용하면 기존
         블록의 번역문만 수정하며 위치·서식·마스크를 보존합니다. 앱의 OCR·번역
-        엔진 실행과 새 블록 생성은 아직 제공하지 않습니다.
+        엔진의 자동 실행은 하지 않습니다. 새 블록 생성·로컬 페이지 처리는 별도
+        처리 권한을 승인한 연결만 사용할 수 있습니다.
       </p>
     </SettingsSection>
   );

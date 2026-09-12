@@ -38,6 +38,7 @@ export class McpDesktopAuthorization {
       persistent: true,
       allowEdits: preferences.allowEditing,
       allowImages: preferences.allowImages,
+      allowProcessing: preferences.allowProcessing === true,
     });
     if (secrets.oauth) provider.restore(secrets.oauth);
     const session = new McpOAuthSession(provider, {

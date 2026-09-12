@@ -2,6 +2,7 @@ import type { McpEditorState } from "./mcpEditingTypes";
 export type McpPreferences = {
   allowImages: boolean;
   allowEditing: boolean;
+  allowProcessing?: boolean;
   autoStart: boolean;
 };
 export type McpConnection = {

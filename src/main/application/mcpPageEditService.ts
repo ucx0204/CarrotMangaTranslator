@@ -15,7 +15,10 @@ import {
 
 type Ports = {
   openChapter: (chapterId: string) => Promise<ChapterSnapshot>;
-  savePageBlocks: (request: SavePageBlocksRequest) => Promise<ChapterSnapshot>;
+  savePageBlocks: (
+    request: SavePageBlocksRequest,
+    assertCanCommit?: () => void,
+  ) => Promise<ChapterSnapshot>;
   assertWritable: (chapterId: string, pageId: string) => Promise<void>;
   notifySaved: (chapterId: string, pageId: string) => void;
 };
@@ -74,17 +77,20 @@ export class McpPageEditService {
       );
     await this.ports.assertWritable(chapterId, pageId);
     assertAuthorized();
-    const saved = await this.save({
-      chapterId,
-      pageId,
-      expectedRevision: revision,
-      baseUpdatedAt: page.updatedAt,
-      baseBlocksHash: hashTranslationBlocks(page.blocks),
-      baseBlockOrderHash: hashStableValue(page.blockOrder ?? null),
-      blocks: patch.blocks,
-      blockOrder: page.blockOrder,
-      saveReason: "manual",
-    });
+    const saved = await this.save(
+      {
+        chapterId,
+        pageId,
+        expectedRevision: revision,
+        baseUpdatedAt: page.updatedAt,
+        baseBlocksHash: hashTranslationBlocks(page.blocks),
+        baseBlockOrderHash: hashStableValue(page.blockOrder ?? null),
+        blocks: patch.blocks,
+        blockOrder: page.blockOrder,
+        saveReason: "manual",
+      },
+      assertAuthorized,
+    );
     const updated = requirePage(saved, pageId);
     this.ports.notifySaved(chapterId, pageId);
     return {
@@ -97,9 +103,12 @@ export class McpPageEditService {
   private async load(chapterId: string, pageId: string): Promise<MangaPage> {
     return requirePage(await this.ports.openChapter(chapterId), pageId);
   }
-  private async save(request: SavePageBlocksRequest) {
+  private async save(
+    request: SavePageBlocksRequest,
+    assertCanCommit: () => void,
+  ) {
     try {
-      return await this.ports.savePageBlocks(request);
+      return await this.ports.savePageBlocks(request, assertCanCommit);
     } catch (error) {
       if (isMcpSaveConflict(error))
         throw new McpEditError(

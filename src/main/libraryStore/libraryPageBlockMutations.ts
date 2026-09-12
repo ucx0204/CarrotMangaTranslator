@@ -33,6 +33,7 @@ export type SavePagesBlocksMutationRuntime = {
   commitChapterAndWork: (
     chapter: LibraryChapter,
     updatedAt: string,
+    assertCanCommit?: () => void,
   ) => Promise<void>;
 };
 
@@ -41,15 +42,19 @@ const productionRuntime: SavePagesBlocksMutationRuntime = {
   logWarning: logLibraryWarning,
   now: () => new Date().toISOString(),
   readChapterFile,
-  commitChapterAndWork: async (chapter, updatedAt) => {
+  commitChapterAndWork: async (chapter, updatedAt, assertCanCommit) => {
     const work = await readWorkFile(chapter.workId);
     if (!work) {
       throw new Error("작품을 찾지 못했습니다.");
     }
-    await runLibraryTransaction("save-page-blocks", async (transaction) => {
-      await stageChapterFile(transaction, chapter);
-      await stageWorkFile(transaction, { ...work, updatedAt });
-    });
+    await runLibraryTransaction(
+      "save-page-blocks",
+      async (transaction) => {
+        await stageChapterFile(transaction, chapter);
+        await stageWorkFile(transaction, { ...work, updatedAt });
+      },
+      assertCanCommit,
+    );
   },
 };
 
@@ -57,8 +62,10 @@ export function createSavePagesBlocksMutation(
   runtime: SavePagesBlocksMutationRuntime,
 ): (
   request: SavePagesBlocksRequest,
+  assertCanCommit?: () => void,
 ) => Promise<ReturnType<typeof hydrateChapter>> {
-  return async (request) => {
+  return async (request, assertCanCommit) => {
+    assertCanCommit?.();
     assertValidPageBatch(request.pages);
     const locator = await runtime.findChapterLocation(request.chapterId);
     if (!locator) {
@@ -75,7 +82,8 @@ export function createSavePagesBlocksMutation(
     const updates = resolvePageUpdates(chapter, request, runtime.logWarning);
     const now = runtime.now();
     const nextChapter = applyPageUpdates(chapter, updates, now);
-    await runtime.commitChapterAndWork(nextChapter, now);
+    assertCanCommit?.();
+    await runtime.commitChapterAndWork(nextChapter, now, assertCanCommit);
     return hydrateChapter(nextChapter);
   };
 }
@@ -85,23 +93,27 @@ export const savePagesBlocksUnlocked =
 
 export function savePageBlocksUnlocked(
   request: SavePageBlocksRequest,
+  assertCanCommit?: () => void,
 ): Promise<ReturnType<typeof hydrateChapter>> {
-  return savePagesBlocksUnlocked({
-    chapterId: request.chapterId,
-    dirtyVersion: request.dirtyVersion,
-    saveReason: request.saveReason,
-    pages: [
-      {
-        pageId: request.pageId,
-        expectedRevision: request.expectedRevision,
-        baseUpdatedAt: request.baseUpdatedAt,
-        baseBlocksHash: request.baseBlocksHash,
-        baseBlockOrderHash: request.baseBlockOrderHash,
-        blocks: request.blocks,
-        blockOrder: request.blockOrder,
-      },
-    ],
-  });
+  return savePagesBlocksUnlocked(
+    {
+      chapterId: request.chapterId,
+      dirtyVersion: request.dirtyVersion,
+      saveReason: request.saveReason,
+      pages: [
+        {
+          pageId: request.pageId,
+          expectedRevision: request.expectedRevision,
+          baseUpdatedAt: request.baseUpdatedAt,
+          baseBlocksHash: request.baseBlocksHash,
+          baseBlockOrderHash: request.baseBlockOrderHash,
+          blocks: request.blocks,
+          blockOrder: request.blockOrder,
+        },
+      ],
+    },
+    assertCanCommit,
+  );
 }
 
 function assertValidPageBatch(pages: SavePageBlocksUpdate[]): void {

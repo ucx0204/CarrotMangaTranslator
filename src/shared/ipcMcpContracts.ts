@@ -10,6 +10,7 @@ const mcpPreferencesSchema = z
   .object({
     allowImages: z.boolean(),
     allowEditing: z.boolean(),
+    allowProcessing: z.boolean().optional(),
     autoStart: z.boolean(),
   })
   .strict();

@@ -1,3 +1,7 @@
+import { McpReadingService } from "../application/mcpReadingService";
+import { createMcpReadingTool } from "./mcpReadingTool";
+import { getAppSettings } from "../settingsStore";
+import { getAppPaths } from "../appPaths";
 import { McpWorkContextService } from "../application/mcpWorkContextService";
 import { McpPageImageService } from "../application/mcpPageImageService";
 import { createMcpWorkContextTool } from "./mcpWorkContextTool";
@@ -31,6 +35,19 @@ export function createMcpAppTools(options: {
       new McpWorkContextService(resolveWorkContextForChapter),
     ),
   ];
+  if (options.preferences.allowProcessing)
+    extensions.push(
+      createMcpReadingTool(
+        new McpReadingService({
+          openChapter,
+          savePageBlocks,
+          assertWritable: options.assertWritable,
+          notifySaved: options.notifySaved,
+          defaults: async () =>
+            (await getAppSettings(getAppPaths())).blockFormatDefaults,
+        }),
+      ),
+    );
   if (options.preferences.allowImages)
     extensions.push(
       ...createMcpPageImageTools(

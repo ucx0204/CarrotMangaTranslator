@@ -23,7 +23,9 @@ const grant = z
   .object({
     id: z.string().uuid(),
     clientId: digest,
-    scope: z.string().transform((value) => readOAuthScope(value, true, true)),
+    scope: z
+      .string()
+      .transform((value) => readOAuthScope(value, true, true, true)),
     resource: z.string().max(2048),
     expiresAt: timestamp,
     revoked: z.boolean(),

@@ -56,9 +56,12 @@ const productionSavePageBlocksRuntime: SavePageBlocksRuntime = {
 };
 
 export function createSavePageBlocks(runtime: SavePageBlocksRuntime) {
-  return async (request: SavePageBlocksRequest): Promise<ChapterSnapshot> => {
+  return async (
+    request: SavePageBlocksRequest,
+    assertCanCommit?: () => void,
+  ): Promise<ChapterSnapshot> => {
     const chapter = await runtime.runMutation(() =>
-      runtime.savePageBlocks(request),
+      runtime.savePageBlocks(request, assertCanCommit),
     );
     notifyLinkedWorkspacePagesSaved(request.chapterId, [request.pageId]);
     return chapter;

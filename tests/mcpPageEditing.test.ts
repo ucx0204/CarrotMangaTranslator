@@ -47,6 +47,7 @@ describe("MCP existing translation editing", () => {
         baseBlocksHash: hashTranslationBlocks(before.blocks),
         blockOrder: before.blockOrder,
       }),
+      expect.any(Function),
     );
     expect(result.revision).toBe(createPageRevision(expected));
     expect(f.notifySaved).toHaveBeenCalledWith("chapter", "page");

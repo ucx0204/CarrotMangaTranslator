@@ -20,6 +20,7 @@ type ProviderOptions = {
   persistent?: boolean;
   allowEdits?: boolean;
   allowImages?: boolean;
+  allowProcessing?: boolean;
 };
 type Grant = McpOAuthGrant;
 type Code = {
@@ -111,6 +112,7 @@ export class McpOAuthProvider {
       input.scope,
       this.options.allowEdits,
       this.options.allowImages,
+      this.options.allowProcessing,
     );
     const cookie = randomBytes(32).toString("base64url");
     const pending: Pending = {
@@ -275,6 +277,7 @@ export class McpOAuthProvider {
       "carrot.read",
       ...(this.options.allowImages ? ["carrot.images"] : []),
       ...(this.options.allowEdits ? ["carrot.edit"] : []),
+      ...(this.options.allowProcessing ? ["carrot.process"] : []),
     ];
   }
   private exchangeCode(input: Record<string, unknown>, clientId: string) {
@@ -312,7 +315,7 @@ export class McpOAuthProvider {
     }
     if (
       input.scope !== undefined &&
-      readOAuthScope(input.scope, true, true) !== entry.grant.scope
+      readOAuthScope(input.scope, true, true, true) !== entry.grant.scope
     )
       throw new McpOAuthError(
         "invalid_scope",

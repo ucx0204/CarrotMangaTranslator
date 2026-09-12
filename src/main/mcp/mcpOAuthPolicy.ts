@@ -61,6 +61,7 @@ export function readOAuthScope(
   value: unknown,
   allowEdits = false,
   allowImages = false,
+  allowProcessing = false,
 ): string {
   const scope = value === undefined ? "carrot.read" : oauthText(value, 200);
   const scopes = [...new Set(scope.split(" ").filter(Boolean))];
@@ -72,6 +73,7 @@ export function readOAuthScope(
           "carrot.read",
           ...(allowImages ? ["carrot.images"] : []),
           ...(allowEdits ? ["carrot.edit"] : []),
+          ...(allowProcessing ? ["carrot.process"] : []),
           "offline_access",
         ].includes(item),
     )
