@@ -91,6 +91,14 @@ const mcpDesktop = createMcpDesktopRuntime(
   (error) => logError("MCP desktop operation failed", error),
   {
     isBusy: () => jobs.hasActive || operations.hasActive,
+    processing: () => ({
+      appPaths,
+      jobs,
+      getMainWindow: () => mainWindow,
+      inpaintingRevisionStore,
+      decodeImage: (filePath, signal) =>
+        decodeImageThroughRuntime(appPaths.runtimeDir, filePath, signal),
+    }),
     requestProbe: (id) => {
       if (!mainWindow || mainWindow.isDestroyed())
         throw new Error("Main editor is closed.");

@@ -16,7 +16,7 @@ type RecordEntry = {
   requestId: string;
   fingerprint: string;
   kind: string;
-  status: "running" | "completed" | "failed" | "cancelled";
+  status: "running" | "completed" | "partial" | "failed" | "cancelled";
   progress: Progress;
   result?: Result;
   error?: { code: string; message: string };
@@ -130,7 +130,12 @@ export class McpOperationService {
       });
       // The executor returns only after committing. A late cancel must not falsely
       // report an already committed page as rolled back.
-      entry.status = "completed";
+      entry.status =
+        entry.result.status === "cancelled"
+          ? "cancelled"
+          : entry.result.status === "partial"
+            ? "partial"
+            : "completed";
     } catch (error) {
       entry.status = entry.controller.signal.aborted ? "cancelled" : "failed";
       entry.error =

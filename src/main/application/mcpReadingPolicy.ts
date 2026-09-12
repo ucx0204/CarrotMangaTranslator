@@ -102,6 +102,7 @@ function readingFields(block: ReturnType<typeof buildReadingBlock>) {
     bbox: block.bbox,
     renderBbox: block.renderBbox,
     sourceDirection: block.sourceDirection,
+    renderDirection: block.renderDirection,
     textRole: block.textRole,
   };
 }

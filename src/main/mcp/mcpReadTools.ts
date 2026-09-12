@@ -11,7 +11,14 @@ import {
 
 type McpToolContent =
   | { type: "text"; text: string }
-  | { type: "image"; data: string; mimeType: "image/png" };
+  | { type: "image"; data: string; mimeType: "image/png" }
+  | {
+      type: "resource_link";
+      uri: string;
+      name: string;
+      mimeType: "image/png";
+      size: number;
+    };
 export type McpTool = {
   name: string;
   description: string;
@@ -21,7 +28,7 @@ export type McpTool = {
   readOnly?: boolean;
   invoke: (
     args: Record<string, unknown>,
-    context?: { assertAuthorized: () => void },
+    context?: { assertAuthorized: () => void; principalId?: string },
   ) => Promise<McpToolContent[]>;
 };
 
@@ -142,17 +149,27 @@ function capabilityProfile(
     additionalTools?: string[];
   },
 ) {
+  const current = profile ?? { readBlocks: false, editTranslations: false };
+  const additionalTools = current.additionalTools ?? [];
+  const features = new Set(additionalTools);
   return {
-    mode: profile?.editTranslations ? "translation-edit" : "read-only",
+    mode: features.has("carrot_run_page_ocr")
+      ? "page-processing"
+      : current.editTranslations
+        ? "translation-edit"
+        : "read-only",
     features: [
       "library.read",
       ...(imageTransfer ? ["page.preview"] : []),
-      ...(profile?.readBlocks ? ["page.blocks"] : []),
-      ...(profile?.editTranslations ? ["translation.edit"] : []),
-      ...(profile?.additionalTools ?? []),
+      ...(current.readBlocks ? ["page.blocks"] : []),
+      ...(current.editTranslations ? ["translation.edit"] : []),
+      ...additionalTools,
     ],
-    editing: profile?.editTranslations ?? false,
+    editing: current.editTranslations,
     translation: false,
+    ocr: features.has("carrot_run_page_ocr"),
+    erasure: features.has("carrot_run_page_erasure"),
+    pngExport: features.has("carrot_export_page_png"),
     imageTransfer,
     imageRedaction: "preview-blocked-when-local-review-is-required",
     sampling: false,

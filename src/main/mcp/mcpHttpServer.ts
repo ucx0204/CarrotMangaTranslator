@@ -1,3 +1,5 @@
+import { handleMcpArtifact } from "./mcpArtifactHttp";
+import type { McpArtifactStore } from "./mcpArtifactStore";
 import { McpEditError } from "../application/mcpEditPolicy";
 import {
   createServer,
@@ -27,6 +29,7 @@ type ServerOptions = {
   reportError: (error: unknown) => void;
   oauthHttp?: McpOAuthHttp;
   enforceScopes?: boolean;
+  artifacts?: McpArtifactStore;
 };
 
 export async function startMcpHttpServer(
@@ -119,6 +122,7 @@ function createRequestHandler(
         );
       }, 30_000);
       deadline.unref();
+      if (await handleMcpArtifact(options.artifacts, request, response)) return;
       if (await oauth?.handle(request, response)) return;
       await authorize(request);
       if (request.url !== "/mcp") throw new McpHttpError(404, "Not found.");
@@ -222,7 +226,13 @@ function visibleTools(
         ...tool,
         invoke: async (args: Record<string, unknown>) => {
           assertAuthorized();
-          const result = await tool.invoke(args, { assertAuthorized });
+          const principalId = oauth?.provider.connectionIdFor(
+            request.headers.authorization ?? "",
+          );
+          const result = await tool.invoke(args, {
+            assertAuthorized,
+            principalId,
+          });
           assertAuthorized();
           return result;
         },

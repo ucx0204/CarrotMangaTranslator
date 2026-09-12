@@ -7,6 +7,7 @@ import { McpPageImageService } from "../application/mcpPageImageService";
 import { createMcpWorkContextTool } from "./mcpWorkContextTool";
 import { createMcpPageImageTools } from "./mcpPageImageTools";
 import { cropMcpPage, renderMcpSavedPage } from "./mcpPageImageAdapter";
+import type { McpTool } from "./mcpReadTools";
 import type { McpPreferences } from "../../shared/mcpDesktopTypes";
 import {
   listLibrary,
@@ -21,6 +22,7 @@ import { renderMcpPagePreview } from "./mcpPreviewImage";
 /** Connect tool use cases to the same public library facade and redaction adapter as the app. */
 export function createMcpAppTools(options: {
   preferences: McpPreferences;
+  additionalTools?: McpTool[];
   assertWritable: (chapterId: string, pageId: string) => Promise<void>;
   notifySaved: (chapterId: string, pageId: string) => void;
 }) {
@@ -31,6 +33,7 @@ export function createMcpAppTools(options: {
     notifySaved: options.notifySaved,
   });
   const extensions = [
+    ...(options.additionalTools ?? []),
     createMcpWorkContextTool(
       new McpWorkContextService(resolveWorkContextForChapter),
     ),

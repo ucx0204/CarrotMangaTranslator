@@ -213,6 +213,12 @@ export class McpOAuthProvider {
     const grant = this.access.get(token) ?? this.refresh.get(token)?.grant;
     if (grant?.clientId === clientId) grant.revoked = true;
   }
+  connectionIdFor(header: string): string | undefined {
+    return this.accepts(header)
+      ? this.access.get(header.slice(7))?.id
+      : undefined;
+  }
+
   scopeFor(header: string): string | undefined {
     return this.accepts(header)
       ? this.access.get(header.slice(7))?.scope

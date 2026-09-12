@@ -26,9 +26,13 @@ export class McpEditorGuard {
   async assertWritable(chapterId: string, pageId: string): Promise<void> {
     if (this.isBusy())
       throw busy("An app job is running. Retry after it finishes.");
-    const state = await this.probe();
+    await this.assertClean(chapterId, pageId);
     if (this.isBusy())
       throw busy("An app job started before the edit could be saved.");
+  }
+  /** For an adapter already holding the application's exclusive activity lease. */
+  async assertClean(chapterId: string, pageId: string): Promise<void> {
+    const state = await this.probe();
     if (
       state.chapterId === chapterId &&
       (state.hasPendingInpaintingMask || state.dirtyPageIds.includes(pageId))

@@ -221,9 +221,15 @@ export async function updatePagesAfterInpainting(
   chapterId: string,
   pages: MangaPage[],
   cleanupOptions?: InpaintingArtifactCleanupOptions,
+  assertCanCommit?: () => void,
 ): Promise<ChapterSnapshot> {
   const chapter = await withLibraryMutation(() =>
-    updatePagesAfterInpaintingUnlocked(chapterId, pages, cleanupOptions),
+    updatePagesAfterInpaintingUnlocked(
+      chapterId,
+      pages,
+      cleanupOptions,
+      assertCanCommit,
+    ),
   );
   notifyLinkedWorkspacePagesSaved(
     chapterId,

@@ -35,12 +35,16 @@ export async function cropMcpPage(page: MangaPage, rect: PixelRect) {
 /** Derived images may contain unredacted overlays. Until derived-layer review is
  * supported, reject them whenever redaction is enabled rather than masking only the base. */
 export async function renderMcpSavedPage(page: MangaPage) {
-  const bytes = await renderMcpPagePng(page);
+  const bytes = await renderMcpPagePng(page, undefined, 25_000);
   const image = nativeImage.createFromBuffer(bytes);
   if (image.isEmpty()) throw new Error("App renderer returned an invalid PNG.");
   return reduced(image);
 }
-async function renderMcpPagePng(page: MangaPage, signal?: AbortSignal) {
+export async function renderMcpPagePng(
+  page: MangaPage,
+  signal?: AbortSignal,
+  timeoutMs = 120_000,
+) {
   if ((await readImageRedactionState()).enabled)
     throw new McpEditError(
       "access_denied",
@@ -57,7 +61,7 @@ async function renderMcpPagePng(page: MangaPage, signal?: AbortSignal) {
     lowPriority: true,
   });
   const cancel = () => session.cancel?.();
-  const timeout = setTimeout(cancel, 25_000);
+  const timeout = setTimeout(cancel, timeoutMs);
   timeout.unref();
   signal?.addEventListener("abort", cancel, { once: true });
   try {
