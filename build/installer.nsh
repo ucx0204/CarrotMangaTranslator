@@ -192,7 +192,7 @@ Function MgtResolveLegacyAppDataDefault
   ${OrIf} ${FileExists} "$LOCALAPPDATA\manga-gemma-translator\hf-cache"
   ${OrIf} ${FileExists} "$LOCALAPPDATA\manga-gemma-translator\ocr-runtime"
     StrCpy $MgtDataRoot "$LOCALAPPDATA\manga-gemma-translator"
-    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다. 새 위치를 쓰려면 찾아보기로 바꾸세요."
+    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다."
     Return
   ${EndIf}
 
@@ -201,7 +201,7 @@ Function MgtResolveLegacyAppDataDefault
   ${OrIf} ${FileExists} "$APPDATA\manga-gemma-translator\hf-cache"
   ${OrIf} ${FileExists} "$APPDATA\manga-gemma-translator\ocr-runtime"
     StrCpy $MgtDataRoot "$APPDATA\manga-gemma-translator"
-    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다. 새 위치를 쓰려면 찾아보기로 바꾸세요."
+    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다."
     Return
   ${EndIf}
 
@@ -210,7 +210,7 @@ Function MgtResolveLegacyAppDataDefault
   ${OrIf} ${FileExists} "$LOCALAPPDATA\망가번역기\hf-cache"
   ${OrIf} ${FileExists} "$LOCALAPPDATA\망가번역기\ocr-runtime"
     StrCpy $MgtDataRoot "$LOCALAPPDATA\망가번역기"
-    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다. 새 위치를 쓰려면 찾아보기로 바꾸세요."
+    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다."
     Return
   ${EndIf}
 
@@ -219,7 +219,7 @@ Function MgtResolveLegacyAppDataDefault
   ${OrIf} ${FileExists} "$APPDATA\망가번역기\hf-cache"
   ${OrIf} ${FileExists} "$APPDATA\망가번역기\ocr-runtime"
     StrCpy $MgtDataRoot "$APPDATA\망가번역기"
-    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다. 새 위치를 쓰려면 찾아보기로 바꾸세요."
+    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다."
   ${EndIf}
 FunctionEnd
 
@@ -247,7 +247,7 @@ Function MgtDataRootPageCreate
     Abort
   ${EndIf}
 
-  ${NSD_CreateLabel} 0u 0u 100% 26u "모델, Paddle OCR, 보관함, 로그를 저장할 위치를 선택하세요.$\r$\n기본값은 설치 폴더 안의 data 폴더입니다. D드라이브에 설치하면 대용량 파일도 D드라이브에 저장됩니다."
+  ${NSD_CreateLabel} 0u 0u 100% 26u "모델·보관함·로그를 저장할 폴더를 선택하세요.$\r$\n기본값: 설치 폴더 안의 data 폴더"
   Pop $0
 
   ${NSD_CreateText} 0u 38u 78% 13u "$MgtDataRoot"
@@ -260,11 +260,11 @@ Function MgtDataRootPageCreate
   ${If} $MgtExistingDataRootNotice != ""
     ${NSD_CreateLabel} 0u 58u 100% 22u "$MgtExistingDataRootNotice"
   ${Else}
-    ${NSD_CreateLabel} 0u 58u 100% 22u "새 설치는 설치 폴더의 data 폴더를 사용합니다. 기존 데이터가 있다면 찾아보기로 그 폴더를 선택하세요."
+    ${NSD_CreateLabel} 0u 58u 100% 22u "기존 데이터가 있으면 해당 폴더를 선택하세요."
   ${EndIf}
   Pop $0
 
-  ${NSD_CreateLabel} 0u 88u 100% 54u "Program Files 등 보호된 위치도 사용할 수 있습니다.$\r$\n데이터 폴더에 쓰기 권한이 없으면 앱 실행 시 관리자 승인을 요청합니다. 관리자 실행 중에는 탐색기에서 파일 끌어놓기가 제한됩니다.$\r$\n일반 권한으로 사용하려면 쓰기 가능한 별도 데이터 폴더를 선택하세요."
+  ${NSD_CreateLabel} 0u 88u 100% 54u "보호된 폴더는 실행 시 관리자 승인이 필요할 수 있습니다.$\r$\n관리자 실행 중에는 탐색기에서 파일 끌어놓기가 제한됩니다."
   Pop $0
 
   nsDialogs::Show
