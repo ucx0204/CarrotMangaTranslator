@@ -37,7 +37,7 @@ async function main() {
   const programFiles = process.env.ProgramW6432 || process.env.ProgramFiles;
   assert.ok(programFiles, "Program Files is unavailable.");
   const installDir = mkdtempSync(
-    join(programFiles, "carrot-manga-translator-uac-smoke-"),
+    join(programFiles, "carrot-manga-translator-한글 공백-日本語-"),
   );
   const fixtureId = installDir.split("-").at(-1);
   const staged = join(scratch, "payload");
@@ -122,10 +122,24 @@ async function main() {
       const sentinel = join(library, "fixture-preservation.txt");
       writeFileSync(sentinel, "keep this fixture data\n");
 
-      runNsis(setup, installArgs, scratch);
-      assert.equal(readFileSync(pointer, "utf8").trim(), dataRoot);
-      assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
-      assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
+      // Both UTF-8 forms must survive repair without changing the chosen root.
+      for (const bom of ["", "\uFEFF"]) {
+        writeFileSync(pointer, `${bom}${dataRoot}\r\n`, "utf8");
+        runNsis(setup, installArgs, scratch);
+        assert.equal(readFileSync(pointer, "utf8").trim(), dataRoot);
+        assert.equal(
+          readFileSync(sentinel, "utf8"),
+          "keep this fixture data\n",
+        );
+        assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
+      }
+      assertCorruptPointersPreserveInstall(
+        setup,
+        installArgs,
+        scratch,
+        installDir,
+        sentinel,
+      );
 
       // A broken data destination must fail before the old executable is removed.
       const pointerBytes = readFileSync(pointer);
@@ -170,7 +184,7 @@ async function main() {
       assert.equal(readFileSync(pointer, "utf8").trim(), dataRoot);
       assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
       console.log(
-        `[windows-uac-smoke] ${scope}: install, repair, remove, preserve OK`,
+        `[windows-uac-smoke] ${scope}: Unicode install, BOM repair, removal OK`,
       );
       console.log(
         `[windows-uac-smoke] ${scope}: bad destination and wrong account blocked`,
@@ -190,6 +204,39 @@ async function main() {
     // Never use a configured application data root as a cleanup target.
     rmSync(installDir, { recursive: true, force: true });
     rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+/**
+ * @param {string} setup
+ * @param {string[]} args
+ * @param {string} scratch
+ * @param {string} installDir
+ * @param {string} sentinel
+ */
+function assertCorruptPointersPreserveInstall(
+  setup,
+  args,
+  scratch,
+  installDir,
+  sentinel,
+) {
+  const pointer = join(installDir, "data-root.txt");
+  const original = readFileSync(pointer);
+  const invalid = [
+    Buffer.from(`${installDir}\\data\0\\wrong\r\n`, "utf8"),
+    Buffer.alloc(256 * 1024, 65),
+  ];
+  try {
+    for (const bytes of invalid) {
+      writeFileSync(pointer, bytes);
+      runNsis(setup, args, scratch, 2);
+      assert.ok(existsSync(join(installDir, "CarrotMangaTranslator.exe")));
+      assert.deepEqual(readFileSync(pointer), bytes);
+      assert.equal(readFileSync(sentinel, "utf8"), "keep this fixture data\n");
+    }
+  } finally {
+    writeFileSync(pointer, original);
   }
 }
 
