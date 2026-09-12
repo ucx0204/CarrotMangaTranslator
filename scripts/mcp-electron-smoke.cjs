@@ -7,10 +7,7 @@ const { promisify } = require("node:util");
 const { app, nativeImage } = require("electron");
 const { runMcpWebProbe } = require("./mcp-web-probe.cjs");
 const { runMcpBrowserConsentProbe } = require("./mcp-browser-consent.cjs");
-const {
-  startQuickTunnel,
-  waitQuickTunnelReady,
-} = require("./mcp-quick-tunnel.cjs");
+const { checkNativeAuthorization } = require("./mcp-native-authorization.cjs");
 
 const root = resolve(__dirname, "..");
 const exec = promisify(execFile);
@@ -100,15 +97,20 @@ async function checkRedaction(dataRoot, url, token, chapterId) {
   console.log("PASS real Electron redaction gate blocked image transfer");
 }
 
-/** @param {string} dataRoot @param {Awaited<ReturnType<typeof startQuickTunnel>> | undefined} tunnel */
-async function checkRuntime(dataRoot, tunnel) {
+/** @param {string} dataRoot */
+async function checkRuntime(dataRoot) {
+  const tailscale = require(join(dataRoot, "out/main/mcp/mcpTailscale.js"));
+  const target =
+    process.env.CARROT_MCP_SMOKE_TAILSCALE === "1"
+      ? await tailscale.prepareTailscale()
+      : undefined;
   const imported = await importFixture(dataRoot);
   const { createMcpRuntime } = require(
     join(dataRoot, "out/main/mcpRuntime.js"),
   );
   const token = randomBytes(32).toString("base64url");
   const password = randomBytes(32).toString("base64url");
-  const issuer = tunnel?.origin ?? "https://carrot-native-test.example";
+  const issuer = target?.origin ?? "https://carrot-native-test.example";
   let url = "";
   /** @type {unknown[]} */
   const errors = [];
@@ -134,16 +136,24 @@ async function checkRuntime(dataRoot, tunnel) {
     },
   });
   let preview;
+  let tunnel;
+  let failure;
   try {
     await runtime.start();
     assert.ok(url.endsWith("/mcp"));
     await runMcpWebProbe(url, password, issuer);
-    if (tunnel) {
-      await waitQuickTunnelReady(tunnel.origin, tunnel.child);
-      await runMcpWebProbe(`${tunnel.origin}/mcp`, password);
-      await runMcpBrowserConsentProbe(tunnel.origin, password);
-      console.log("PASS live Cloudflare HTTPS OAuth and real app library read");
+    if (target) {
+      tunnel = await tailscale.openTailscale(
+        target,
+        38475,
+        AbortSignal.timeout(30_000),
+        () => runtime.stopAccepting(),
+      );
+      await runMcpWebProbe(`${issuer}/mcp`, password);
+      await runMcpBrowserConsentProbe(issuer, password);
+      console.log("PASS live Tailscale HTTPS and isolated browser consent");
     }
+
     const { stdout } = await exec(
       "node",
       [join(root, "scripts/mcp-smoke.mjs"), "--first-preview"],
@@ -157,10 +167,10 @@ async function checkRuntime(dataRoot, tunnel) {
     console.log(stdout);
     assert.deepEqual(errors, []);
     await checkRedaction(dataRoot, url, token, imported.chapterIds[0]);
-  } finally {
-    await runtime.dispose();
-    if (preview) await rm(preview, { force: true });
+  } catch (error) {
+    failure = error;
   }
+  await finishRuntime(runtime, tunnel, preview, failure);
   await assert.rejects(fetch(url, { signal: AbortSignal.timeout(1000) }));
   console.log("PASS real Electron MCP runtime stopped and listener closed");
 }
@@ -169,7 +179,6 @@ async function main() {
   await app.whenReady();
   await mkdir(join(root, ".tmp"), { recursive: true });
   const dataRoot = await mkdtemp(join(root, ".tmp/mcp-native-"));
-  let tunnel;
   try {
     // Only built code/runtime assets are copied, never a user library or settings.
     for (const directory of ["main", "shared", "app-runtime"]) {
@@ -177,11 +186,9 @@ async function main() {
         recursive: true,
       });
     }
-    if (process.env.CARROT_MCP_SMOKE_TUNNEL === "1")
-      tunnel = await startQuickTunnel(38475);
-    await checkRuntime(dataRoot, tunnel);
+    await checkRuntime(dataRoot);
+    await checkNativeAuthorization(dataRoot);
   } finally {
-    tunnel?.child.kill();
     await rm(dataRoot, { recursive: true, force: true });
   }
 }
@@ -196,3 +203,20 @@ main().then(
     app.exit(1);
   },
 );
+
+/** @param {{dispose: () => Promise<void>}} runtime @param {{close: () => Promise<void>} | undefined} tunnel @param {string | undefined} preview @param {unknown} failure */
+async function finishRuntime(runtime, tunnel, preview, failure) {
+  const cleanup = await Promise.allSettled([
+    runtime.dispose(),
+    tunnel?.close(),
+    preview ? rm(preview, { force: true }) : undefined,
+  ]);
+  const errors = cleanup.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : [],
+  );
+  if (failure) errors.unshift(failure);
+  if (errors.length)
+    throw new AggregateError(errors, "MCP smoke or cleanup failed.", {
+      cause: errors[0],
+    });
+}

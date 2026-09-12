@@ -3,7 +3,7 @@ name: Apply MCP implementation checkpoint
 on:
   push:
     branches: [feat/mcp-app-bridge]
-    paths: ['docs/mcp-checkpoints/*.patch', '.github/workflows/mcp-submit.yml']
+    paths: ["docs/mcp-checkpoints/*.patch", ".github/workflows/mcp-submit.yml"]
 
 permissions:
   contents: write

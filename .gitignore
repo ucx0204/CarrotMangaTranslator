@@ -85,3 +85,6 @@ recent-dialog-paths.json
 /cache/font-chapter-assets/
 /image-redactions.json
 /external-image-copies/
+
+# OS-encrypted MCP authorization and local connection preferences
+mcp-private/
