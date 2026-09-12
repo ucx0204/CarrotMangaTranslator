@@ -1,4 +1,5 @@
 export type SettingsTabId =
+  | "mcp"
   | "general"
   | "engine"
   | "format"
@@ -7,6 +8,7 @@ export type SettingsTabId =
   | "test";
 
 export const SETTINGS_TABS: { id: SettingsTabId; labelKey: string }[] = [
+  { id: "mcp", labelKey: "AI 연결 / MCP" },
   { id: "general", labelKey: "settings.tabs.general" },
   { id: "engine", labelKey: "settings.tabs.engine" },
   { id: "format", labelKey: "settings.tabs.format" },
