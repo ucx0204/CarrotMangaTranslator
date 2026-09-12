@@ -33,6 +33,16 @@ export class McpOAuthSession {
   accepts(header: string, scope = "carrot.read"): boolean {
     return !this.fault && !this.stopped && this.provider.accepts(header, scope);
   }
+  async ready(): Promise<void> {
+    await this.tail;
+    if (this.fault || this.stopped)
+      throw new Error("MCP authorization is unavailable.", {
+        cause: this.fault,
+      });
+  }
+  scopeFor(header: string): string | undefined {
+    return this.accepts(header) ? this.provider.scopeFor(header) : undefined;
+  }
   stop(): void {
     this.stopped = true;
   }

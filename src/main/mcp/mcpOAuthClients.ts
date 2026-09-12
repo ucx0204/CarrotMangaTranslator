@@ -27,17 +27,17 @@ export class McpOAuthClients {
     this.clients = new McpOAuthState(now, 64);
   }
   register(input: Record<string, unknown>) {
-    const redirects = readRedirects(input.redirect_uris);
-    const method = input.token_endpoint_auth_method ?? "client_secret_basic";
     if (
-      method !== "none" &&
-      method !== "client_secret_post" &&
-      method !== "client_secret_basic"
+      !Array.isArray(input.redirect_uris) ||
+      input.redirect_uris.length < 1 ||
+      input.redirect_uris.length > 4
     )
       throw new McpOAuthError(
         "invalid_client_metadata",
-        "Unsupported token authentication method.",
+        "One to four ChatGPT callbacks are required.",
       );
+    const redirects = input.redirect_uris.map(readChatGptRedirect);
+    const method = readAuthMethod(input.token_endpoint_auth_method);
     checkList(input.grant_types, ["authorization_code", "refresh_token"]);
     checkList(input.response_types, ["code"]);
     const name =
@@ -171,11 +171,16 @@ function readBasic(header: string) {
   };
 }
 
-function readRedirects(value: unknown): string[] {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 4)
+function readAuthMethod(value: unknown): AuthMethod {
+  const method = value ?? "client_secret_basic";
+  if (
+    method !== "none" &&
+    method !== "client_secret_post" &&
+    method !== "client_secret_basic"
+  )
     throw new McpOAuthError(
       "invalid_client_metadata",
-      "One to four ChatGPT callbacks are required.",
+      "Unsupported token authentication method.",
     );
-  return value.map(readChatGptRedirect);
+  return method;
 }
