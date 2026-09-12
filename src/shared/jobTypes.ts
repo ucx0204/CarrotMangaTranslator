@@ -64,6 +64,7 @@ export type JobState = {
 };
 
 export type JobEvent = JobState & {
+  soundEffectTextReview?: import("./soundEffectTextReview").SoundEffectTextReview;
   imageRedactionReview?: import("./imageRedaction").ImageRedactionReview;
   regionRequestId?: string;
   regionTextReview?: import("./regionTextReview").RegionTextReview;

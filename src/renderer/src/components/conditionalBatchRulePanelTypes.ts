@@ -1,4 +1,5 @@
 import type { BlockStylePreset } from "../../../shared/blockStylePresets";
+import type { ConditionalBatchSpeakerCatalog } from "./conditionalBatchSpeakers";
 import type {
   ConditionalBatchPreviewResult,
   ConditionalBatchRecipeId,
@@ -15,6 +16,7 @@ import type {
 type ConditionalBatchScopeKind = "selection" | "page" | "chapter";
 
 export type ConditionalBatchRulePanelProps = {
+  speakers?: ConditionalBatchSpeakerCatalog;
   activeSequence: ConditionalBatchSequenceV2 | null;
   applyNotice: ConditionalBatchApplyNotice;
   autosaveState: "idle" | "waiting" | "saving" | "saved" | "error";

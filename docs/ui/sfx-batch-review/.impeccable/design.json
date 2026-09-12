@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-12T10:13:17Z",
+  "title": "Design System: 효과음 일괄 검토",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "shadow-overlay",
+        "value": "var(--shadow-overlay)",
+        "purpose": "공용 Modal의 겹침 깊이. 값의 권위는 foundations.css이다."
+      }
+    ],
+    "motion": [
+      {
+        "name": "motion-fast",
+        "value": "var(--motion-fast)",
+        "purpose": "공용 버튼의 상태 전환."
+      },
+      {
+        "name": "motion-overlay",
+        "value": "var(--motion-overlay)",
+        "purpose": "공용 Modal의 진입. reduced-motion 처리는 Modal이 소유한다."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "horizontal-page-rail",
+        "value": "(max-width: 1000px)"
+      },
+      {
+        "name": "stacked-image-and-list",
+        "value": "(max-width: 760px) and (min-height: 560px)"
+      },
+      {
+        "name": "short-window-side-by-side",
+        "value": "(max-width: 760px) and (max-height: 559px)"
+      },
+      {
+        "name": "compact-modal-gutter",
+        "value": "(max-width: 640px)"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "전체 확정 버튼",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Button variant=primary. 전체 검토 범위의 단일 강조 행동.",
+      "html": "<button class=\"ds-primary\" type=\"button\">전체 확정 후 생성</button>",
+      "css": ".ds-primary { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); min-height: var(--ctl-h); padding: var(--ctl-pad-y) var(--sp-5); border: 1px solid var(--accent-bd); border-radius: var(--r-md); background: var(--accent); color: var(--accent-text); font: inherit; font-size: var(--font-md); font-weight: 600; line-height: 1.2; cursor: pointer; transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-enter); } .ds-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hi); } .ds-primary:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; } .ds-primary:active:not(:disabled) { transform: scale(0.985); } .ds-primary:disabled { opacity: 0.5; cursor: not-allowed; } @media (prefers-reduced-motion: reduce) { .ds-primary:active:not(:disabled) { transform: none; } }"
+    },
+    {
+      "name": "취소 버튼",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Button의 기본 secondary 표현. 제출 중에는 disabled.",
+      "html": "<button class=\"ds-secondary\" type=\"button\">취소</button>",
+      "css": ".ds-secondary { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); min-height: var(--ctl-h); padding: var(--ctl-pad-y) var(--sp-5); border: 1px solid var(--control-border); border-radius: var(--r-md); background: var(--control-bg); color: var(--text); font: inherit; font-size: var(--font-md); font-weight: 600; line-height: 1.2; cursor: pointer; transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-enter); } .ds-secondary:hover:not(:disabled) { background: var(--control-bg-hover); border-color: var(--control-border-hover); } .ds-secondary:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; } .ds-secondary:active:not(:disabled) { transform: scale(0.985); } .ds-secondary:disabled { opacity: 0.5; cursor: not-allowed; } @media (prefers-reduced-motion: reduce) { .ds-secondary:active:not(:disabled) { transform: none; } }"
+    },
+    {
+      "name": "원문 입력",
+      "kind": "input",
+      "refersTo": "text-field",
+      "description": "Field와 TextField의 레이블·입력 표현. 실제 연결과 검증은 production component가 소유한다.",
+      "html": "<label class=\"ds-field\"><span>원문</span><input class=\"ds-input\" type=\"text\" value=\"ドドドド\" aria-label=\"1번 원문\"></label>",
+      "css": ".ds-field { display: grid; gap: var(--field-gap); min-width: 0; color: var(--text-dim); font-size: var(--font-sm); } .ds-input { width: 100%; min-height: var(--ctl-h); padding: var(--ctl-pad-y) var(--ctl-pad-x); border: 1px solid var(--control-border); border-radius: var(--r-md); background: var(--bg-sunken); color: var(--text); font: inherit; font-size: var(--font-md); } .ds-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "현재 페이지",
+      "kind": "nav",
+      "refersTo": "page-navigation",
+      "description": "SelectionSurface button/row의 선택 표시. 실제 페이지 전환은 SoundEffectTextReviewModal이 소유한다.",
+      "html": "<nav aria-label=\"검토할 페이지\"><button class=\"ds-page\" type=\"button\" aria-current=\"page\" data-selected=\"true\"><strong>2 · 002.png</strong><span>4개 효과음</span></button></nav>",
+      "css": ".ds-page { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-1); min-width: 0; padding: var(--sp-5); border: 1px solid var(--border-soft); border-radius: var(--r-md); background: color-mix(in srgb, var(--bg-sunken) 88%, var(--bg-panel)); color: var(--text); font: inherit; text-align: start; overflow-wrap: anywhere; cursor: pointer; transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, box-shadow 120ms ease; } .ds-page span { color: var(--text-dim); font-size: var(--font-xs); } .ds-page::before { position: absolute; top: 7px; bottom: 7px; left: 0; width: 3px; border-radius: 0 var(--r-pill) var(--r-pill) 0; background: var(--accent); content: \"\"; opacity: 0; } .ds-page:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent-bd) 72%, var(--border-hover)); background: color-mix(in srgb, var(--accent-soft) 28%, var(--bg-sunken)); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16); transform: translateY(-1px); } .ds-page[data-selected=\"true\"] { border-color: var(--accent-bd); background: color-mix(in srgb, var(--accent-soft) 64%, var(--bg-sunken)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 14%, transparent), 0 8px 22px rgba(0, 0, 0, 0.14); } .ds-page[data-selected=\"true\"]::before { opacity: 1; } .ds-page:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 44%, transparent); outline-offset: 1px; } .ds-page:disabled { opacity: 0.45; cursor: default; }"
+    },
+    {
+      "name": "영역 도구 선택",
+      "kind": "custom",
+      "refersTo": "tool-picker",
+      "description": "SegmentedControl singleRow의 기본·선택 표현. 키보드와 선택 동작은 공용 primitive가 소유한다.",
+      "html": "<div class=\"ds-tools\" role=\"radiogroup\" aria-label=\"편집 도구\"><button class=\"ds-tool\" type=\"button\" role=\"radio\" aria-checked=\"true\">영역</button><button class=\"ds-tool\" type=\"button\" role=\"radio\" aria-checked=\"false\" tabindex=\"-1\">영역 추가</button><button class=\"ds-tool\" type=\"button\" role=\"radio\" aria-checked=\"false\" tabindex=\"-1\">제외</button></div>",
+      "css": ".ds-tools { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 3px; padding: 3px; border: 1px solid var(--border-soft); border-radius: var(--r-md); background: var(--bg-sunken); } .ds-tool { flex: 1 0 auto; min-height: 30px; padding: 4px 9px; border: 1px solid transparent; border-radius: var(--r-sm); background: transparent; color: var(--text-dim); font: inherit; font-size: var(--font-sm); font-weight: 650; line-height: 1.25; white-space: nowrap; cursor: pointer; } .ds-tool:hover:not(:disabled) { border-color: color-mix(in srgb, var(--control-border-hover) 72%, transparent); background: color-mix(in srgb, var(--control-bg-hover) 72%, transparent); color: var(--text); } .ds-tool[aria-checked=\"true\"] { border-color: color-mix(in srgb, var(--accent-bd) 70%, transparent); background: color-mix(in srgb, var(--accent-soft) 78%, var(--control-bg)); color: var(--accent-hi); box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent) 72%, transparent); } .ds-tool[aria-checked=\"true\"]:hover:not(:disabled) { border-color: var(--accent-bd); background: color-mix(in srgb, var(--accent-soft) 88%, var(--control-bg-hover)); color: var(--accent-hi); } .ds-tool:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; } .ds-tool:disabled { opacity: 0.5; cursor: not-allowed; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "페이지 검토 작업대",
+    "overview": "기존 다크 데스크톱 편집기의 밀도와 공용 컨트롤을 유지한다. 페이지를 선택하고, 원본 이미지의 번호 상자와 연결된 원문·번역문을 수정한 뒤 전체 페이지를 한 번에 확정하는 작업 화면이다.",
+    "keyCharacteristics": [
+      "페이지 목록, 이미지 작업 공간, 텍스트 목록을 분리한다.",
+      "페이지를 바꿔도 각 페이지의 입력 상태를 보존한다.",
+      "전체 확정과 생성은 하단의 단일 primary action으로 실행한다."
+    ],
+    "rules": [],
+    "dos": [
+      "Do 페이지별 form과 이미지·텍스트 선택의 연결을 유지한다.",
+      "Do 공용 Modal, Field, SelectionSurface, RegionReviewEditor의 상태와 접근성 계약을 사용한다.",
+      "Do 실제 production component로 넓은 창과 좁은 창을 캡처하여 외부 넘침과 footer 접근성을 확인한다."
+    ],
+    "donts": [
+      "Don't 이 화면을 근거로 앱 전체의 색상·표면·타이포그래피 규칙을 새로 정의한다.",
+      "Don't 임시 QA 이미지나 이미지 속 글자를 제품 자산 또는 UI 디자인 토큰으로 기록한다."
+    ]
+  }
+}

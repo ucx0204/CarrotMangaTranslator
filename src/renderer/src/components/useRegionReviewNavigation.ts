@@ -4,6 +4,16 @@ import { useWorkspaceWheelZoom } from "../hooks/useWorkspaceWheelZoom";
 import type { RegionReviewTool } from "./useRegionReviewDrawing";
 import type { useRegionReviewForm } from "./useRegionReviewForm";
 
+export function useRegionReviewListFocus(focused: string | undefined) {
+  const fields = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    fields.current
+      ?.querySelector<HTMLElement>("[data-selected]")
+      ?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [focused]);
+  return fields;
+}
+
 type Options = {
   viewport: React.RefObject<HTMLDivElement | null>;
   zoom: number;

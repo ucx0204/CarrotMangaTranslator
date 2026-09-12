@@ -19,7 +19,10 @@ import {
   type ConditionalBatchSnapshotV2,
 } from "../../../shared/conditionalBatchRules";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
-import type { GlossaryEntry } from "../../../shared/workContextTypes";
+import type {
+  CharacterProfile,
+  GlossaryEntry,
+} from "../../../shared/workContextTypes";
 import { libraryGateway } from "../api/libraryGateway";
 import { createWorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
 import type { WorkspaceZoomController } from "../lib/workspaceZoom";
@@ -28,6 +31,7 @@ import type { ConditionalBatchFooterProps } from "./ConditionalBatchFooter";
 import type { ConditionalBatchPreviewPaneProps } from "./ConditionalBatchPreviewPane";
 import type { ConditionalBatchResultsCardProps } from "./ConditionalBatchResultsCard";
 import type { ConditionalBatchRulePanelProps } from "./conditionalBatchRulePanelTypes";
+import { createConditionalBatchSpeakerCatalog } from "./conditionalBatchSpeakers";
 import {
   useConditionalBatchSchemeController,
   type ConditionalBatchApplyNotice,
@@ -81,7 +85,17 @@ export type ConditionalBatchEditorModel = {
 export function useConditionalBatchEditorModel(
   props: ConditionalBatchEditorModelProps,
 ): ConditionalBatchEditorModel {
-  const glossary = useWorkGlossary(props.workId);
+  const glossary = useBatchWorkContext(props.workId);
+  const speakers = React.useMemo(
+    () =>
+      createConditionalBatchSpeakerCatalog(
+        props.chapter,
+        glossary.characters,
+        glossary.ready,
+        glossary.error,
+      ),
+    [props.chapter, glossary.characters, glossary.ready, glossary.error],
+  );
   const scheme = useConditionalBatchSchemeController({
     initialFind: props.initialFind,
     initialReplace: props.initialReplace,
@@ -182,6 +196,7 @@ export function useConditionalBatchEditorModel(
     },
     resultsProps: sharedResultsProps,
     rulePanelProps: {
+      speakers,
       applyNotice: scheme.applyNotice,
       activeSequence,
       sequencePreview: preview.sequencePreview,
@@ -251,7 +266,7 @@ export function useConditionalBatchEditorModel(
 function resolveGlossaryValidationMessage(
   draftMessage: string | null,
   required: boolean,
-  glossary: ReturnType<typeof useWorkGlossary>,
+  glossary: ReturnType<typeof useBatchWorkContext>,
 ): string | null {
   return (
     draftMessage ??
@@ -261,16 +276,23 @@ function resolveGlossaryValidationMessage(
   );
 }
 
-function useWorkGlossary(workId: string | undefined) {
+function useBatchWorkContext(workId: string | undefined) {
   const [glossary, setGlossary] = React.useState<{
     workId: string | undefined;
     entries: readonly GlossaryEntry[];
+    characters: readonly CharacterProfile[];
     ready: boolean;
     error: string | null;
-  }>({ workId, entries: [], ready: !workId, error: null });
+  }>({ workId, entries: [], characters: [], ready: !workId, error: null });
   React.useEffect(() => {
     let active = true;
-    setGlossary({ workId, entries: [], ready: !workId, error: null });
+    setGlossary({
+      workId,
+      entries: [],
+      characters: [],
+      ready: !workId,
+      error: null,
+    });
     if (!workId) {
       return;
     }
@@ -281,6 +303,7 @@ function useWorkGlossary(workId: string | undefined) {
           setGlossary({
             workId,
             entries: guide.glossary,
+            characters: guide.characters,
             ready: true,
             error: null,
           });
@@ -291,6 +314,7 @@ function useWorkGlossary(workId: string | undefined) {
           setGlossary({
             workId,
             entries: [],
+            characters: [],
             ready: false,
             error:
               "용어집을 읽지 못했습니다. 일괄 편집 창을 다시 열어 재시도하세요.",
@@ -303,7 +327,7 @@ function useWorkGlossary(workId: string | undefined) {
   }, [workId]);
   return glossary.workId === workId
     ? glossary
-    : { workId, entries: [], ready: !workId, error: null };
+    : { workId, entries: [], characters: [], ready: !workId, error: null };
 }
 
 // Scope, exclusions, preview state and result navigation are intentionally one

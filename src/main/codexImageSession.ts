@@ -23,7 +23,7 @@ export async function startCodexImageSession(
   });
   try {
     signal.throwIfAborted();
-    const account = await connection.readAccount(false);
+    const account = await connection.readAccount(true);
     if (account.account?.type !== "chatgpt")
       throw new Error("설정에서 Codex 계정을 연결해 주세요.");
     const effort = settings.codex.imageReasoningEffort ?? "low";

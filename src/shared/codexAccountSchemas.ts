@@ -16,6 +16,7 @@ const codexAccountModelSchema = z
 
 export const codexAccountSnapshotSchema = z
   .object({
+    authenticationError: z.string().max(2000).optional(),
     authenticated: z.boolean(),
     accountKind: z.enum(["chatgpt", "api-key", "amazon-bedrock"]).nullable(),
     email: z.string().max(320).nullable(),

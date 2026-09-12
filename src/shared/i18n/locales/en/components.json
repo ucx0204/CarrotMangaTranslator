@@ -2015,7 +2015,8 @@
         "logoutFailed": "Codex sign-out failed."
       },
       "imageReasoning": "Image generation reasoning effort",
-      "imageModelWarning": "Image tasks may not work correctly with this model. Astra is strongly recommended."
+      "imageModelWarning": "Image tasks may not work correctly with this model. Astra is strongly recommended.",
+      "modelUnavailable": "The selected model is missing from the account catalog. Your selection is preserved. Sign in again or choose an available model."
     },
     "api": {
       "sections": {
@@ -2805,5 +2806,15 @@
     "outboundHint": "Originals stay unchanged. Masks apply only to outbound copies.",
     "preparationHint": "Preparation saves your edits without sending images.",
     "about": "About redaction"
+  },
+  "soundEffectTextReview": {
+    "title": "Review sound effect translations",
+    "hint": "Edit source text, translations, and image regions across pages. Confirm the batch to begin source erasure and image generation.",
+    "generate": "Confirm all and generate",
+    "pages": "Translated pages",
+    "count": "{{count}} sound effects",
+    "summary": "{{pages}} pages · {{count}} sound effects",
+    "source": "Source text",
+    "sourceNumber": "Source text {{number}}"
   }
 }

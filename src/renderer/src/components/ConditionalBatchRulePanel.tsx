@@ -9,6 +9,7 @@ import {
   ConditionalBatchSequenceRunCard,
 } from "./ConditionalBatchSequenceManager";
 import type { ConditionalBatchRulePanelProps } from "./conditionalBatchRulePanelTypes";
+import { ConditionalBatchSpeakersContext } from "./conditionalBatchSpeakers";
 import { InlineMessage } from "./ui/InlineMessage";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import styles from "./ConditionalBatchEditor.module.css";
@@ -20,54 +21,59 @@ export function ConditionalBatchRulePanel(
   const [actionsExpanded, setActionsExpanded] = React.useState(true);
   const [sequenceExpanded, setSequenceExpanded] = React.useState(true);
   const [advancedExpanded, setAdvancedExpanded] = React.useState(true);
+  const inheritedSpeakers = React.useContext(ConditionalBatchSpeakersContext);
   return (
-    <aside
-      className={styles.rulePanel}
-      aria-label="일괄 편집 규칙"
-      data-sequence-active={Boolean(props.activeSequence)}
+    <ConditionalBatchSpeakersContext.Provider
+      value={props.speakers ?? inheritedSpeakers}
     >
-      {props.activeSequence ? null : (
-        <ConditionalBatchSchemeManager {...props} />
-      )}
-      <div className={styles.rulePanelScroll}>
-        {props.activeSequence ? (
-          <ConditionalBatchSequenceRunCard {...props} />
-        ) : props.recipePickerOpen ? (
-          <ConditionalBatchRecipePicker {...props} />
-        ) : (
-          <>
-            <ScopeSection {...props} />
-            <ConditionalBatchConditionsCard
-              currentResult={props.currentResult}
-              draft={props.draft}
-              expanded={conditionsExpanded}
-              ruleId={props.selectedSchemeId}
-              onChangeDraft={props.onChangeDraft}
-              onToggle={() => setConditionsExpanded((current) => !current)}
-            />
-            <ConditionalBatchActionCard
-              blockStylePresets={props.blockStylePresets}
-              currentResult={props.currentResult}
-              draft={props.draft}
-              expanded={actionsExpanded}
-              onChangeDraft={props.onChangeDraft}
-              onToggle={() => setActionsExpanded((current) => !current)}
-            />
-            <ConditionalBatchSequenceManager
-              {...props}
-              expanded={sequenceExpanded}
-              onToggle={() => setSequenceExpanded((current) => !current)}
-            />
-            <ConditionalBatchAdvancedTools
-              {...props}
-              expanded={advancedExpanded}
-              onToggle={() => setAdvancedExpanded((current) => !current)}
-            />
-          </>
+      <aside
+        className={styles.rulePanel}
+        aria-label="일괄 편집 규칙"
+        data-sequence-active={Boolean(props.activeSequence)}
+      >
+        {props.activeSequence ? null : (
+          <ConditionalBatchSchemeManager {...props} />
         )}
-        <RuleNotices {...props} />
-      </div>
-    </aside>
+        <div className={styles.rulePanelScroll}>
+          {props.activeSequence ? (
+            <ConditionalBatchSequenceRunCard {...props} />
+          ) : props.recipePickerOpen ? (
+            <ConditionalBatchRecipePicker {...props} />
+          ) : (
+            <>
+              <ScopeSection {...props} />
+              <ConditionalBatchConditionsCard
+                currentResult={props.currentResult}
+                draft={props.draft}
+                expanded={conditionsExpanded}
+                ruleId={props.selectedSchemeId}
+                onChangeDraft={props.onChangeDraft}
+                onToggle={() => setConditionsExpanded((current) => !current)}
+              />
+              <ConditionalBatchActionCard
+                blockStylePresets={props.blockStylePresets}
+                currentResult={props.currentResult}
+                draft={props.draft}
+                expanded={actionsExpanded}
+                onChangeDraft={props.onChangeDraft}
+                onToggle={() => setActionsExpanded((current) => !current)}
+              />
+              <ConditionalBatchSequenceManager
+                {...props}
+                expanded={sequenceExpanded}
+                onToggle={() => setSequenceExpanded((current) => !current)}
+              />
+              <ConditionalBatchAdvancedTools
+                {...props}
+                expanded={advancedExpanded}
+                onToggle={() => setAdvancedExpanded((current) => !current)}
+              />
+            </>
+          )}
+          <RuleNotices {...props} />
+        </div>
+      </aside>
+    </ConditionalBatchSpeakersContext.Provider>
   );
 }
 

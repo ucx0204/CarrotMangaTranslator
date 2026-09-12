@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { letteringMaskSvg } from "../../../shared/generatedLetteringMask";
 import type { BBox, Point } from "../../../shared/textTypes";
-import type { RegionTranslationDialog } from "../lib/regionTranslationOptions";
+import type { RegionReviewInput } from "../lib/regionReviewTypes";
 import { RegionSelectionOverlay } from "./ui/RegionSelectionOverlay";
 import type { useRegionReviewForm } from "./useRegionReviewForm";
 import styles from "./RegionReviewEditor.module.css";
@@ -18,7 +18,7 @@ import { paintedSelectionSvg } from "../lib/regionReviewSelection";
 
 type Form = ReturnType<typeof useRegionReviewForm>;
 type Props = {
-  page: RegionTranslationDialog["page"];
+  page: RegionReviewInput["page"];
   crop: { x: number; y: number; w: number; h: number };
   source: string;
   form: Form;

@@ -1,3 +1,5 @@
+import { normalizeCodexAuthenticationError } from "./codexAuthentication";
+
 export type JsonRecord = Record<string, unknown>;
 
 type CodexAppServerAccount =
@@ -193,7 +195,7 @@ function unsupportedAccountError(): Error {
   return new Error("Codex App Server 계정 유형을 해석하지 못했습니다.");
 }
 
-function assertCompletedTurn(
+export function assertCompletedTurn(
   turn: JsonRecord | null,
 ): asserts turn is JsonRecord {
   if (turn?.status === "completed") return;
@@ -216,7 +218,7 @@ function assertCompletedTurn(
       ? { usageLimitReached: true, nonRetriable: true }
       : {}),
   });
-  throw error;
+  throw normalizeCodexAuthenticationError(error);
 }
 
 function readTurnFailure(

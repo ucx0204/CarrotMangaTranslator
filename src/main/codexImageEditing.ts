@@ -35,6 +35,7 @@ export type CodexImageEdit = {
   decode: ImageDecodeFallback;
   progress: (update: CodexProgressUpdate) => void;
   confirmReading?: (reading: CodexPageReading) => Promise<CodexPageReading>;
+  reviewedReading?: CodexPageReading;
   regionContext?: import("./inpainting/codexNativePageContext").CodexNativePageContext;
 };
 
@@ -46,17 +47,13 @@ export async function editTranslatedPageWithCodex(
   signal.throwIfAborted();
   let page = input.page;
   if (!page.blocks.length) return page;
-  if (
-    page.blocks.some((block) => externalImageRegionIsHidden(page, block.bbox))
-  )
-    throw new Error(
-      "가리기와 겹치는 효과음은 생성하지 않습니다. 영역을 제외하거나 가리기를 수정해 주세요.",
-    );
-  let reading = await prepareImageReading(input);
+  assertVisibleRegions(page);
+  let reading = input.reviewedReading ?? (await prepareImageReading(input));
   if (input.confirmReading) {
     reading = await input.confirmReading(reading);
   }
   page = applyReviewedRegions(page, reading);
+  assertVisibleRegions(page);
   const protection = readingEditProtection(reading, page);
   progress({ stage: "images", step: "reading" });
   preview(input, page, reading, "reading");
@@ -106,6 +103,15 @@ export async function editTranslatedPageWithCodex(
   }
 }
 
+function assertVisibleRegions(page: MangaPage): void {
+  if (
+    page.blocks.some((block) => externalImageRegionIsHidden(page, block.bbox))
+  )
+    throw new Error(
+      "가리기와 겹치는 효과음은 생성하지 않습니다. 영역을 제외하거나 가리기를 수정해 주세요.",
+    );
+}
+
 async function prepareImageReading(input: CodexImageEdit) {
   const reading = translatedPageReading(input.page, input.output);
   if (input.output !== "image" || !needsCodexRegionPlanning(input.page))
@@ -135,7 +141,7 @@ async function prepareImageReading(input: CodexImageEdit) {
   }
 }
 
-function applyReviewedRegions(
+export function applyReviewedRegions(
   page: MangaPage,
   reading: CodexPageReading,
 ): MangaPage {
@@ -232,7 +238,7 @@ async function eraseTranslatedPage(
   return result.page;
 }
 
-function translatedPageReading(
+export function translatedPageReading(
   page: MangaPage,
   output: "text" | "image",
 ): CodexPageReading {

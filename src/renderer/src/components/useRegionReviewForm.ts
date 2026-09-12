@@ -7,7 +7,7 @@ import {
 import { paintedSelectionBounds } from "../lib/regionReviewSelection";
 import type { BBox } from "../../../shared/textTypes";
 import type { LetteringMaskStroke } from "../../../shared/generatedLetteringMaskTypes";
-import type { RegionTranslationDialog } from "../lib/regionTranslationOptions";
+import type { RegionReviewInput } from "../lib/regionReviewTypes";
 import { prepareRegionReviewProtection } from "../lib/regionReviewProtection";
 import { normalizedRegionToPixelRect } from "../../../shared/region";
 
@@ -21,7 +21,7 @@ export type RegionReviewValue = {
   selectionStrokes?: LetteringMaskStroke[];
   exclusionStrokes?: LetteringMaskStroke[];
 };
-function initialReviewValues(review: RegionTranslationDialog["review"]) {
+function initialReviewValues(review: RegionReviewInput["review"]) {
   return (
     review?.regions.map((region) => ({
       regionId: region.id,
@@ -33,7 +33,7 @@ function initialReviewValues(review: RegionTranslationDialog["review"]) {
   );
 }
 
-export function useRegionReviewForm(props: RegionTranslationDialog) {
+export function useRegionReviewForm(props: RegionReviewInput) {
   const [values, setValues] = React.useState<RegionReviewValue[]>([]);
   const [focused, setFocused] = React.useState<string>();
   const [history, dispatch] = React.useReducer(reviewHistory, emptyHistory());
@@ -107,7 +107,7 @@ export function useRegionReviewForm(props: RegionTranslationDialog) {
 }
 
 function reviewValuesValid(
-  props: RegionTranslationDialog,
+  props: RegionReviewInput,
   values: RegionReviewValue[],
 ) {
   return (
@@ -118,7 +118,7 @@ function reviewValuesValid(
 }
 
 function useReviewConfirm(
-  props: RegionTranslationDialog,
+  props: RegionReviewInput,
   values: RegionReviewValue[],
   alive: React.RefObject<boolean>,
   submitting: React.RefObject<boolean>,
@@ -156,6 +156,7 @@ function useReviewConfirm(
       }));
       if (alive.current)
         props.onConfirm?.([...submitted, ...excluded], protection);
+      return { translations: [...submitted, ...excluded], protection };
     } catch (failure) {
       if (alive.current)
         setError(failure instanceof Error ? failure.message : String(failure));
@@ -168,7 +169,7 @@ function useReviewConfirm(
 }
 
 function reviewRegionAdder(
-  props: RegionTranslationDialog,
+  props: RegionReviewInput,
   resolvedValues: RegionReviewValue[],
   focused: string | undefined,
   setValues: React.Dispatch<React.SetStateAction<RegionReviewValue[]>>,
@@ -199,7 +200,7 @@ function reviewRegionAdder(
 }
 
 function reviewPaintAdder(
-  props: RegionTranslationDialog,
+  props: RegionReviewInput,
   values: RegionReviewValue[],
   focused: string | undefined,
   setValues: React.Dispatch<React.SetStateAction<RegionReviewValue[]>>,
@@ -229,7 +230,7 @@ function reviewPaintAdder(
 }
 
 function useInitializeReview(
-  review: RegionTranslationDialog["review"],
+  review: RegionReviewInput["review"],
   setValues: React.Dispatch<React.SetStateAction<RegionReviewValue[]>>,
   setFocused: (id: string | undefined) => void,
   dispatch: React.Dispatch<EditAction>,
@@ -256,11 +257,15 @@ function reviewUpdater(
     if (patch.sourceBbox) dispatch({ type: "box", id, box: patch.sourceBbox });
     if (patch.styleGroupId)
       dispatch({ type: "group", id, group: patch.styleGroupId });
-    if (patch.text !== undefined)
+    if (patch.text !== undefined || patch.sourceText !== undefined)
       setValues((previous) =>
         previous.map((value) =>
           value.regionId === id
-            ? { ...value, text: patch.text ?? value.text }
+            ? {
+                ...value,
+                text: patch.text ?? value.text,
+                sourceText: patch.sourceText ?? value.sourceText,
+              }
             : value,
         ),
       );

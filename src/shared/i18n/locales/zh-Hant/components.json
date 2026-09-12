@@ -2015,7 +2015,8 @@
         "logoutFailed": "Codex 登出失敗。"
       },
       "imageReasoning": "圖像生成推理強度",
-      "imageModelWarning": "此模型可能無法正確完成圖像作業。強烈建議使用 Astra。"
+      "imageModelWarning": "此模型可能無法正確完成圖像作業。強烈建議使用 Astra。",
+      "modelUnavailable": "目前帳戶清單中沒有所選模型。已保留您的選擇。請重新登入或選擇可用模型。"
     },
     "api": {
       "sections": {
@@ -2805,5 +2806,15 @@
     "outboundHint": "原圖保持不變，遮擋僅套用至傳送用的副本。",
     "preparationHint": "準備編輯僅儲存草稿，不會傳送圖片。",
     "about": "遮擋說明"
+  },
+  "soundEffectTextReview": {
+    "title": "確認音效譯文",
+    "hint": "切換頁面，編輯右側清單中的原文、譯文與圖像區域。確認所有頁面後開始清除原文並生成圖像。",
+    "generate": "全部確認並生成",
+    "pages": "已翻譯頁面",
+    "count": "{{count}} 個音效",
+    "summary": "{{pages}} 頁 · {{count}} 個音效",
+    "source": "原文",
+    "sourceNumber": "原文 {{number}}"
   }
 }

@@ -1,7 +1,7 @@
 const { existsSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 
-const CODEX_APP_SERVER_VERSION = "0.153.1";
+const CODEX_APP_SERVER_VERSION = "0.154.0";
 const CODEX_RUNTIME_RESOURCE_DIRECTORY = "c";
 const CODEX_APP_SERVER_CONFIG_OVERRIDES = [
   'cli_auth_credentials_store="file"',

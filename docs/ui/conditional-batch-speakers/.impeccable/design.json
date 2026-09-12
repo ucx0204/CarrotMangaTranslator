@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-12T10:47:31Z",
+  "title": "Design System: 일괄 편집 화자 선택",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "shadow-overlay",
+        "value": "var(--shadow-overlay)",
+        "purpose": "공용 Select 메뉴. foundations.css가 값의 권위다."
+      }
+    ],
+    "motion": [
+      {
+        "name": "motion-fast",
+        "value": "var(--motion-fast)",
+        "purpose": "공용 Select의 상태·caret 전환."
+      },
+      {
+        "name": "motion-surface",
+        "value": "var(--motion-surface)",
+        "purpose": "공용 검색 메뉴 진입. reduced-motion은 Select가 처리한다."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "batch-tabs",
+        "value": "(max-width: 1180px)"
+      },
+      {
+        "name": "stacked-condition-controls",
+        "value": "(max-width: 680px)"
+      },
+      {
+        "name": "shared-select-taller-options",
+        "value": "(max-width: 520px)"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "화자 선택 필드",
+      "kind": "input",
+      "refersTo": "select-trigger",
+      "description": "Field와 Select의 닫힌 상태 표현. 선택·조회·focus 동작은 production component가 소유한다.",
+      "html": "<div class=\"ds-field\"><span>화자 조건 값</span><button type=\"button\" class=\"ds-select\" role=\"combobox\" aria-label=\"화자 조건 값\" aria-describedby=\"ds-speaker-hint\" aria-expanded=\"false\" aria-haspopup=\"listbox\"><span class=\"ds-value\">아키라</span><svg class=\"ds-chevron\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m7 10 5 5 5-5\"></path></svg></button><span id=\"ds-speaker-hint\" class=\"ds-hint\">이름·원문 이름·별칭으로 검색할 수 있습니다.</span></div>",
+      "css": ".ds-field { display: grid; gap: var(--field-gap); min-width: 0; color: var(--text-dim); font-size: var(--font-sm); } .ds-select { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--sp-3); width: 100%; min-width: 0; min-height: var(--ctl-h); padding: var(--ctl-pad-y) var(--ctl-pad-x); border: 1px solid var(--control-border); border-radius: var(--r-md); background: var(--bg-sunken); color: var(--text); font: inherit; font-weight: 400; line-height: 1.2; text-align: left; cursor: pointer; } .ds-select:hover:not(:disabled) { border-color: var(--control-border-hover); background: color-mix(in srgb, var(--bg-sunken) 78%, var(--bg-hover)); } .ds-select:focus-visible, .ds-select[aria-expanded=\"true\"] { border-color: var(--accent-bd); outline: 2px solid color-mix(in srgb, var(--focus) 72%, transparent); outline-offset: 1px; } .ds-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-chevron { color: var(--text-muted); transition: transform var(--motion-fast) var(--ease-standard); } .ds-select[aria-expanded=\"true\"] .ds-chevron { transform: rotate(180deg); } .ds-select:disabled { opacity: 0.5; cursor: not-allowed; } .ds-hint { color: var(--text-muted); font-size: var(--font-xs); }"
+    },
+    {
+      "name": "별칭 검색 입력",
+      "kind": "input",
+      "refersTo": "search-input",
+      "description": "검색 메뉴 위쪽의 공용 search 입력. 아래 목록을 이름·별칭·ID로 필터링한다.",
+      "html": "<div class=\"ds-search-wrap\"><input class=\"ds-search\" type=\"search\" aria-label=\"화자 이름·별칭 검색\" placeholder=\"화자 이름·별칭 검색\" value=\"꼬마\"></div>",
+      "css": ".ds-search-wrap { padding: var(--sp-3); border-bottom: 1px solid var(--border-soft); background: color-mix(in srgb, var(--bg-raised) 82%, var(--bg-sunken)); } .ds-search { width: 100%; min-height: var(--ctl-h); padding: var(--ctl-pad-y) var(--ctl-pad-x); border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--bg-app); color: var(--text); font: inherit; } .ds-search:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; } .ds-search:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "화자 검색 결과",
+      "kind": "custom",
+      "refersTo": "speaker-option",
+      "description": "그룹·이름·대사 개수와 선택 색상의 표본. 키보드·선택 표시 아이콘은 공용 SelectMenu가 소유한다.",
+      "html": "<div class=\"ds-options\" role=\"listbox\" aria-label=\"화자 조건 값\"><div class=\"ds-group\" role=\"presentation\">작품의 인물</div><div class=\"ds-option\" role=\"option\" aria-selected=\"true\" data-active=\"true\"><span class=\"ds-option-text\"><span class=\"ds-option-label\">아키라</span><span class=\"ds-description\">이 화의 대사 1개</span></span></div><div class=\"ds-option\" role=\"option\" aria-selected=\"false\"><span class=\"ds-option-text\"><span class=\"ds-option-label\">유키</span><span class=\"ds-description\">이 화의 대사 1개</span></span></div></div>",
+      "css": ".ds-options { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--sp-1); background: var(--bg-sunken); } .ds-group { padding: 9px 9px 4px; color: var(--text-muted); font-size: var(--font-xs); font-weight: 700; } .ds-option { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); min-height: 36px; padding: 7px 9px; border: 1px solid transparent; border-radius: var(--r-md); color: var(--text-dim); cursor: default; transition: border-color var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); } .ds-option:hover, .ds-option[data-active=\"true\"] { border-color: color-mix(in srgb, var(--border-hover) 72%, transparent); background: var(--bg-hover); color: var(--text); } .ds-option[aria-selected=\"true\"] { color: var(--accent-hi); } .ds-option[aria-selected=\"true\"]:hover, .ds-option[aria-selected=\"true\"][data-active=\"true\"] { border-color: color-mix(in srgb, var(--accent-bd) 58%, transparent); background: var(--accent-soft); } .ds-option-text { display: grid; min-width: 0; gap: 2px; } .ds-option-label, .ds-description { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-description { color: var(--text-muted); font-size: var(--font-xs); } @media (max-width: 520px) { .ds-option { min-height: 40px; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "일괄 편집 작업대",
+    "overview": "화자 조건과 화자 지정에 공용 검색 Select를 사용한다. 사용자는 작품의 인물 이름으로 선택하고, 저장·판정은 기존 speaker ID 계약을 따른다. 기존 다크 데스크톱 편집기의 배치와 시각 언어를 유지한다.",
+    "keyCharacteristics": [
+      "인물 이름을 주 정보로, 현재 화의 대사 개수를 보조 정보로 표시한다.",
+      "조건과 속성 바꾸기에서 같은 화자 목록을 사용한다.",
+      "이름을 찾지 못해도 규칙에 저장된 ID를 보존한다."
+    ],
+    "rules": [],
+    "dos": [
+      "Do 표시 이름과 저장 ID를 분리하고 정확한 ID 판정·기존 YAML 형식을 유지한다.",
+      "Do 조건과 지정 작업에 같은 catalog와 공용 Field·Select를 사용한다.",
+      "Do 긴 이름, 별칭 검색, 미등록 값, 조회 상태를 실제 production component로 검증한다."
+    ],
+    "donts": [
+      "Don't 이름 중복이나 인물 정보 누락을 이유로 저장된 화자 ID를 바꾸거나 지운다.",
+      "Don't 이 선택 필드를 근거로 앱 전체의 표면·모션·아이콘 규칙을 새로 정의한다."
+    ]
+  }
+}

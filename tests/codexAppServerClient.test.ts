@@ -142,7 +142,7 @@ describe("CodexAppServerClient", () => {
         {
           resolveBinary: () => ({
             executablePath: "fake-codex",
-            packageVersion: "0.153.1",
+            packageVersion: "0.154.0",
             source: "packaged",
             packageName: "@openai/codex-win32-x64",
             triple: "x86_64-pc-windows-msvc",

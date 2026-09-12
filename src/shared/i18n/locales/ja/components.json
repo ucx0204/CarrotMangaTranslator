@@ -2015,7 +2015,8 @@
         "logoutFailed": "Codexからのログアウトに失敗しました。"
       },
       "imageReasoning": "画像生成の推論強度",
-      "imageModelWarning": "このモデルでは画像処理が正しく動作しない場合があります。Astraの使用を強く推奨します。"
+      "imageModelWarning": "このモデルでは画像処理が正しく動作しない場合があります。Astraの使用を強く推奨します。",
+      "modelUnavailable": "選択したモデルが現在のアカウント一覧にありません。選択は維持されます。再ログインするか、利用可能なモデルを選択してください。"
     },
     "api": {
       "sections": {
@@ -2805,5 +2806,15 @@
     "outboundHint": "原本は変更しません。マスクは送信用のコピーにのみ適用します。",
     "preparationHint": "事前編集は保存のみです。画像は送信しません。",
     "about": "マスキングについて"
+  },
+  "soundEffectTextReview": {
+    "title": "効果音の翻訳文を確認",
+    "hint": "ページを切り替え、右の一覧で原文・翻訳文と画像の領域を編集できます。全ページを確定すると原文削除と画像生成を開始します。",
+    "generate": "すべて確定して生成",
+    "pages": "翻訳済みページ",
+    "count": "効果音 {{count}}個",
+    "summary": "{{pages}}ページ · 効果音 {{count}}個",
+    "source": "原文",
+    "sourceNumber": "原文 {{number}}"
   }
 }

@@ -1,6 +1,7 @@
 import React from "react";
 import { RegionTranslationModal } from "./RegionTranslationModal";
 import { TranslationOptionsModal } from "./TranslationOptionsModal";
+import { SoundEffectTextReviewDialog } from "./SoundEffectTextReviewDialog";
 export function TranslationDialogs({
   region,
   whole,
@@ -10,6 +11,7 @@ export function TranslationDialogs({
 }) {
   return (
     <>
+      <SoundEffectTextReviewDialog />
       {region ? <RegionTranslationModal {...region} /> : null}
       {whole ? <TranslationOptionsModal {...whole} /> : null}
     </>

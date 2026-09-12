@@ -70,7 +70,7 @@ export async function startCodexAppServerEndpoint(
   });
   let httpServer: Server | null = null;
   try {
-    const account = await appServer.readAccount(false);
+    const account = await appServer.readAccount(true);
     if (account.requiresOpenaiAuth && !account.account) {
       throw new Error(
         "OpenAI Codex 로그인이 필요합니다. 설정 > LLM에서 ChatGPT로 로그인해 주세요.",

@@ -16229,6 +16229,50 @@
         "pct": 89.09
       }
     },
+    "src/main/application/regionTextReview.ts": {
+      "lines": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 27,
+        "total": 27,
+        "pct": 100
+      }
+    },
+    "src/main/application/soundEffectTextReview.ts": {
+      "lines": {
+        "covered": 32,
+        "total": 32,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 33,
+        "total": 34,
+        "pct": 97.05
+      },
+      "functions": {
+        "covered": 9,
+        "total": 10,
+        "pct": 90
+      },
+      "branches": {
+        "covered": 12,
+        "total": 14,
+        "pct": 85.71
+      }
+    },
     "src/main/application/webImportService.ts": {
       "lines": {
         "total": 28,
@@ -16623,6 +16667,28 @@
         "covered": 8,
         "total": 9,
         "pct": 88.88
+      }
+    },
+    "src/main/codexAuthentication.ts": {
+      "lines": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
       }
     },
     "src/main/codexImageEditing.ts": {
@@ -18383,6 +18449,28 @@
         "total": 149,
         "covered": 126,
         "pct": 84.56
+      }
+    },
+    "src/main/jobs/soundEffectTranslationReview.ts": {
+      "lines": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 14,
+        "total": 17,
+        "pct": 82.35
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 4,
+        "total": 8,
+        "pct": 50
       }
     },
     "src/main/jobs/soundEffectTranslationTargets.ts": {
@@ -22543,6 +22631,28 @@
         "pct": 81.81
       }
     },
+    "src/renderer/src/components/ConditionalBatchIdentityField.tsx": {
+      "lines": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 18,
+        "total": 22,
+        "pct": 81.81
+      }
+    },
     "src/renderer/src/components/ConditionalBatchPreviewPane.tsx": {
       "lines": {
         "covered": 3,
@@ -23269,6 +23379,28 @@
         "pct": 92.85
       }
     },
+    "src/renderer/src/components/RegionReviewTextList.tsx": {
+      "lines": {
+        "covered": 19,
+        "total": 20,
+        "pct": 95
+      },
+      "statements": {
+        "covered": 21,
+        "total": 22,
+        "pct": 95.45
+      },
+      "functions": {
+        "covered": 13,
+        "total": 14,
+        "pct": 92.85
+      },
+      "branches": {
+        "covered": 32,
+        "total": 33,
+        "pct": 96.96
+      }
+    },
     "src/renderer/src/components/RegionTranslationModal.tsx": {
       "lines": {
         "covered": 20,
@@ -23531,6 +23663,72 @@
         "covered": 0,
         "total": 21,
         "pct": 0
+      }
+    },
+    "src/renderer/src/components/SoundEffectTextReviewDialog.tsx": {
+      "lines": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/components/SoundEffectTextReviewModal.tsx": {
+      "lines": {
+        "covered": 38,
+        "total": 41,
+        "pct": 92.68
+      },
+      "statements": {
+        "covered": 38,
+        "total": 42,
+        "pct": 90.47
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 28,
+        "pct": 78.57
+      }
+    },
+    "src/renderer/src/components/SoundEffectTextReviewPage.tsx": {
+      "lines": {
+        "covered": 19,
+        "total": 21,
+        "pct": 90.47
+      },
+      "statements": {
+        "covered": 21,
+        "total": 24,
+        "pct": 87.5
+      },
+      "functions": {
+        "covered": 6,
+        "total": 7,
+        "pct": 85.71
+      },
+      "branches": {
+        "covered": 12,
+        "total": 16,
+        "pct": 75
       }
     },
     "src/renderer/src/components/SoundEffectTranslationLauncher.tsx": {
@@ -23971,6 +24169,28 @@
         "total": 28,
         "covered": 2,
         "pct": 7.14
+      }
+    },
+    "src/renderer/src/components/conditionalBatchSpeakers.ts": {
+      "lines": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 19,
+        "total": 20,
+        "pct": 95
       }
     },
     "src/renderer/src/components/conditionalBatchUi.ts": {
@@ -27075,6 +27295,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/hooks/useSoundEffectTextReview.ts": {
+      "lines": {
+        "covered": 32,
+        "total": 35,
+        "pct": 91.42
+      },
+      "statements": {
+        "covered": 32,
+        "total": 37,
+        "pct": 86.48
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 10,
+        "total": 20,
+        "pct": 50
+      }
+    },
     "src/renderer/src/hooks/useSubmitLibraryImportAction.ts": {
       "lines": {
         "total": 45,
@@ -27513,6 +27755,28 @@
         "total": 8,
         "covered": 0,
         "pct": 0
+      }
+    },
+    "src/renderer/src/lib/regionReviewTypes.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/renderer/src/lib/regionTranslationOptions.ts": {
@@ -28989,6 +29253,28 @@
         "pct": 100
       }
     },
+    "src/shared/ipcTranslationReviewContracts.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/shared/linkedWorkspaceSchemas.ts": {
       "lines": {
         "total": 10,
@@ -29284,6 +29570,28 @@
       "statements": {
         "covered": 1,
         "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/soundEffectTextReview.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 2,
+        "total": 2,
         "pct": 100
       },
       "functions": {

@@ -387,6 +387,9 @@ export type MangaApi = {
   confirmRegionTranslation: (
     request: import("./regionTextReview").ConfirmRegionTranslationRequest,
   ) => Promise<boolean>;
+  confirmSoundEffectTextReview: (
+    request: import("./soundEffectTextReview").ConfirmSoundEffectTextReview,
+  ) => Promise<boolean>;
   translateRegion: (
     request: RegionAnalysisRequest,
   ) => Promise<RegionAnalysisResult>;

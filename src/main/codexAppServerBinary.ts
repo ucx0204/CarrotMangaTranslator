@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type { AppPaths } from "./appPaths";
 
-export const BUNDLED_CODEX_VERSION = "0.153.1";
+export const BUNDLED_CODEX_VERSION = "0.154.0";
 
 type SupportedCodexTarget = {
   packageName: string;
