@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { queryNvidiaGpuInfo } from "../src/main/gpuInfo";
 import type { DetectedGpuInfo } from "../src/main/gpuInfoTypes";
 import { resolveFluxCudaDevice } from "../src/main/inpainting/fluxCudaDevice";
@@ -64,6 +66,24 @@ describe("Flux physical CUDA device binding", () => {
     expect(env.ROCR_VISIBLE_DEVICES).toBeUndefined();
     expect(env.GPU_DEVICE_ORDINAL).toBeUndefined();
     expect(env.KEEP_ME).toBe("yes");
+  });
+
+  it("passes the resolved UUID across a real child-process boundary", async () => {
+    const cudaDevice = await resolveFluxCudaDevice(
+      "cuda-native",
+      1,
+      async () => GPU,
+    );
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      ["-e", "process.stdout.write(process.env.CUDA_VISIBLE_DEVICES ?? '')"],
+      {
+        env: buildFluxWorkerEnv({ ...LAUNCH, computeGpuIndex: 1, cudaDevice }),
+        windowsHide: true,
+        timeout: 5_000,
+      },
+    );
+    expect(stdout).toBe(UUID);
   });
 
   it("preserves legacy numeric environment routing when no identity was supplied", () => {

@@ -60,14 +60,12 @@ export async function acquireFluxInpaintingEngine(options: {
     options.fluxBackend ??
     (process.platform === "darwin" ? "metal-native" : "cuda-native");
   const computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
-  options.signal?.throwIfAborted();
   const cudaDevice = await resolveFluxCudaDevice(
     fluxBackend,
     options.computeGpuIndex,
     undefined,
     options.signal,
   );
-  options.signal?.throwIfAborted();
   const nvidiaComputeCapability = cudaDevice?.computeCapability ?? null;
   const sm75Fp16Enabled = shouldEnableExperimentalSm75Flux({
     backend: fluxBackend,
@@ -137,4 +135,3 @@ async function disposeFluxEngine(
     );
   }
 }
-
