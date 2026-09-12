@@ -1,0 +1,176 @@
+name: Issue 99 coverage inventory repair
+
+on:
+  push:
+    branches:
+      - fix/issue-99-flux-gpu-binding
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  prepare-reviewed-blobs:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator' && github.ref == 'refs/heads/fix/issue-99-flux-gpu-binding'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out checkpoint
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Prepare inventory from verified Windows coverage artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+          import { createRequire } from 'node:module';
+          import { resolve } from 'node:path';
+          import AdmZip from 'adm-zip';
+          import prettier from 'prettier';
+          const require = createRequire(import.meta.url);
+          const gate = require('./scripts/check-production-cleanup-coverage.cjs');
+          const output = '.tmp/issue-99-coverage-repair';
+          mkdirSync(output, { recursive: true });
+          const paths = ['scripts/production-cleanup-coverage-floors.json', 'tests/productionCleanupCoverageGate.test.ts'];
+          const expected = ['df92d56f74646582caecdb905ec727f07a866c54', '357f431c936dde715f375b7dc5cd811bac5eb423'];
+          const originals = paths.map(path => readFileSync(path, 'utf8'));
+          const sha256 = value => createHash('sha256').update(value).digest('hex');
+          const gitBlob = value => createHash('sha1').update(`blob ${Buffer.byteLength(value)}\0`).update(value).digest('hex');
+          originals.forEach((value, index) => assert.equal(gitBlob(value), expected[index]));
+          async function coverageArtifact(id, digest) {
+            const response = await fetch(`https://api.github.com/repos/ucx0204/CarrotMangaTranslator/actions/artifacts/${id}/zip`, {
+              headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: 'application/vnd.github+json' },
+            });
+            assert.equal(response.status, 200, `artifact ${id} HTTP status`);
+            const archive = Buffer.from(await response.arrayBuffer());
+            assert.equal(sha256(archive), digest, `artifact ${id} SHA-256`);
+            const text = new AdmZip(archive).readAsText('coverage/coverage-summary.json');
+            const records = {};
+            for (const [path, value] of Object.entries(JSON.parse(text))) {
+              if (path === 'total') { records.total = value; continue; }
+              const match = path.replaceAll('\\', '/').match(/\/(src\/.+)$/);
+              assert.ok(match, `coverage source path: ${path}`);
+              assert.equal(records[match[1]], undefined);
+              records[match[1]] = value;
+            }
+            return { records, artifactId: id, archiveSha256: digest, coverageSha256: sha256(text) };
+          }
+          const baseline = await coverageArtifact(10292509960, '9ab6315cd34510e5fbd2705277c942e449f53a1bdc9ed07183e2af27b29ff319');
+          const current = await coverageArtifact(10295385137, '28cf726d2e2272f7624403dd6c2b7df6257666f6b02059346d12ba15a5070507');
+          const manifest = JSON.parse(originals[0]);
+          const previous = structuredClone(manifest);
+          const existing = ['src/main/inpainting/computeGpuEnv.ts', 'src/main/inpainting/fluxEnginePool.ts', 'src/main/inpainting/fluxWorker.ts', 'src/main/inpainting/fluxWorkerEnv.ts', 'src/shared/gpuSettings.ts'];
+          const introduced = ['src/main/inpainting/fluxCudaDevice.ts', 'src/main/inpainting/fluxEngineLaunch.ts'];
+          const metrics = ['lines', 'statements', 'functions', 'branches'];
+          for (const [key, files, source] of [['floors', existing, baseline], ['introducedFloors', introduced, current]]) {
+            for (const file of files) {
+              assert.equal(manifest[key][file], undefined, `must only add a missing floor: ${file}`);
+              assert.ok(source.records[file], `record present: ${file}`);
+              manifest[key][file] = Object.fromEntries(metrics.map(metric => {
+                const { total, covered, pct } = source.records[file][metric];
+                return [metric, { total, covered, pct }];
+              }));
+            }
+            manifest[key] = Object.fromEntries(Object.entries(manifest[key]).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
+            for (const [file, floor] of Object.entries(previous[key])) assert.deepEqual(manifest[key][file], floor);
+          }
+          assert.deepEqual(manifest.provenance, previous.provenance);
+          assert.deepEqual(manifest.deletedFiles, previous.deletedFiles);
+          const scope = gate.collectCoverageScope(process.cwd(), gate.CLEANUP_BASE_COMMIT);
+          assert.deepEqual(Object.keys(manifest.floors), scope.existing);
+          assert.deepEqual(Object.keys(manifest.introducedFloors), scope.added);
+          assert.deepEqual(manifest.deletedFiles, scope.deleted);
+          assert.deepEqual([scope.existing.length, scope.added.length, scope.deleted.length], [718, 623, 10]);
+          let test = originals[1];
+          for (const [from, to] of [['expect(scope.existing).toHaveLength(713);', 'expect(scope.existing).toHaveLength(718);'], ['expect(scope.added).toHaveLength(621);', 'expect(scope.added).toHaveLength(623);']]) {
+            assert.equal(test.split(from).length, 2);
+            test = test.replace(from, to);
+          }
+          const contents = [JSON.stringify(manifest, null, 2) + '\n', test];
+          const files = [];
+          for (let index = 0; index < paths.length; index++) {
+            const path = paths[index];
+            const formatted = await prettier.format(contents[index], { ...(await prettier.resolveConfig(path)), filepath: path });
+            writeFileSync(path, formatted);
+            writeFileSync(`${output}/original-${index}.txt`, originals[index]);
+            writeFileSync(`${output}/generated-${index}.txt`, formatted);
+            files.push({ path, originalBlob: expected[index], blob: gitBlob(formatted) });
+          }
+          const normalizedCoverage = Object.fromEntries(Object.entries(current.records).map(([path, record]) => [path === 'total' ? 'total' : resolve(path), record]));
+          writeFileSync(`${output}/windows-coverage.json`, JSON.stringify(normalizedCoverage));
+          try {
+            gate.checkProductionCleanupCoverage({ coveragePath: resolve(`${output}/windows-coverage.json`), platform: 'win32' });
+            throw new Error('Expected the old report to lack new pool preflight coverage');
+          } catch (error) {
+            const message = String(error.message);
+            const lines = message.split('\n');
+            assert.equal(lines[0], 'Production cleanup coverage floors regressed:');
+            assert.ok(lines.length > 1);
+            assert.ok(lines.slice(1).every(line => line.startsWith('- src/main/inpainting/fluxEnginePool.ts ')), message);
+            writeFileSync(`${output}/preflight-coverage-pending.txt`, message + '\n');
+          }
+          const evidence = source => ({ artifactId: source.artifactId, archiveSha256: source.archiveSha256, coverageSha256: source.coverageSha256 });
+          writeFileSync(`${output}/receipt.json`, JSON.stringify({ sourceHead: process.env.GITHUB_SHA, files, existing, introduced, baseline: evidence(baseline), introducedEvidence: evidence(current), scopeCounts: [718, 623, 10] }, null, 2) + '\n');
+          console.log('Prepared only five existing and two introduced floors; every previous floor is unchanged. No commit or ref was updated.');
+          NODE
+
+      - name: Prepare Electron for focused tests
+        run: node node_modules/electron/install.js
+
+      - name: Validate actual coverage inventory and GPU preflight behavior
+        run: |
+          node node_modules/vitest/vitest.mjs run tests/productionCleanupCoverageGate.test.ts tests/fluxEnginePoolPreflight.test.ts tests/fluxCudaDevice.test.ts tests/fluxEngineLaunch.test.ts tests/nvidiaGpuSelection.test.ts
+          node node_modules/eslint/bin/eslint.js tests/fluxEnginePoolPreflight.test.ts tests/productionCleanupCoverageGate.test.ts --max-warnings 0
+          node node_modules/prettier/bin/prettier.cjs --check scripts/production-cleanup-coverage-floors.json tests/productionCleanupCoverageGate.test.ts tests/fluxEnginePoolPreflight.test.ts
+
+      - name: Upload immutable Git blobs without creating commits or changing branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const output = '.tmp/issue-99-coverage-repair';
+          const receipt = JSON.parse(readFileSync(`${output}/receipt.json`, 'utf8'));
+          assert.equal(receipt.sourceHead, process.env.GITHUB_SHA);
+          assert.equal(process.env.GITHUB_REF, 'refs/heads/fix/issue-99-flux-gpu-binding');
+          assert.deepEqual(receipt.files.map(file => file.path), ['scripts/production-cleanup-coverage-floors.json', 'tests/productionCleanupCoverageGate.test.ts']);
+          for (let index = 0; index < receipt.files.length; index++) {
+            const file = receipt.files[index];
+            const content = readFileSync(`${output}/generated-${index}.txt`, 'utf8');
+            assert.equal(content, readFileSync(file.path, 'utf8'));
+            const response = await fetch('https://api.github.com/repos/ucx0204/CarrotMangaTranslator/git/blobs', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content, encoding: 'utf-8' }),
+            });
+            assert.equal(response.status, 201, 'Git blob upload status');
+            const result = await response.json();
+            assert.equal(result.sha, file.blob);
+          }
+          writeFileSync(`${output}/blobs-ready.json`, JSON.stringify(receipt, null, 2) + '\n');
+          console.log('Two content-addressed blobs uploaded. Branches and commits were not changed; review and commit through the connector.');
+          NODE
+
+      - name: Preserve review evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: issue-99-coverage-inventory-${{ github.sha }}
+          path: .tmp/issue-99-coverage-repair/
+          include-hidden-files: true
+          retention-days: 1
