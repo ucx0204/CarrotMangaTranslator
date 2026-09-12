@@ -12,34 +12,30 @@ jobs:
   snapshot:
     if: github.repository == 'ucx0204/CarrotMangaTranslator' && github.ref == 'refs/heads/feat/mcp-app-bridge'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: 22
-          cache: npm
-      - name: Prepare tracked source and test-only dependency snapshots
+      - name: Export exact recovery inputs without credentials or application data
         shell: bash
         run: |
-          npm ci --ignore-scripts
-          git archive --format=tar.gz HEAD -o "$RUNNER_TEMP/carrot-source.tar.gz"
-          tar --exclude='node_modules/onnxruntime-node/bin' --exclude='node_modules/electron/dist' -czf "$RUNNER_TEMP/carrot-node-modules.tar.gz" node_modules
-          git rev-parse HEAD > "$RUNNER_TEMP/carrot-source-commit.txt"
-          ls -lh "$RUNNER_TEMP"/carrot-*
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/mcp-integration"
+          archive=1a1061135d68f21d0743d3489da0e5bc506d21b9
+          base=0ef7c4edd3767748579db23f25c0476a7a7d227c
+          git cat-file commit "$archive" > "$RUNNER_TEMP/mcp-integration/archive.commit"
+          git cat-file commit "$base" > "$RUNNER_TEMP/mcp-integration/base.commit"
+          git diff --binary "$archive" "$base" > "$RUNNER_TEMP/mcp-integration/archive-to-base.patch"
+          git diff --binary "$base" HEAD > "$RUNNER_TEMP/mcp-integration/base-to-remote.patch"
+          git rev-parse HEAD > "$RUNNER_TEMP/mcp-integration/remote-head.txt"
+          git rev-parse 'HEAD^{tree}' > "$RUNNER_TEMP/mcp-integration/remote-tree.txt"
+          git log --format='%H %s' "$base"..HEAD > "$RUNNER_TEMP/mcp-integration/remote-commits.txt"
+          git diff --stat "$base" HEAD
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: mcp-source
-          path: |
-            ${{ runner.temp }}/carrot-source.tar.gz
-            ${{ runner.temp }}/carrot-source-commit.txt
+          name: mcp-integration-input
+          path: ${{ runner.temp }}/mcp-integration/
           retention-days: 1
-          compression-level: 0
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: mcp-test-dependencies
-          path: ${{ runner.temp }}/carrot-node-modules.tar.gz
-          retention-days: 1
-          compression-level: 0
+          compression-level: 6
