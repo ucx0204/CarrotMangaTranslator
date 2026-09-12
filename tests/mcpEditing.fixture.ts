@@ -68,16 +68,19 @@ export function editingFixture() {
   const assertWritable = vi.fn(async () => {});
   const notifySaved = vi.fn();
   const openChapter = vi.fn(async () => structuredClone(chapter));
-  const savePageBlocks = vi.fn(async (request: SavePageBlocksRequest) => {
-    const page = chapter.pages[0];
-    if (request.expectedRevision !== createPageRevision(page))
-      throw new Error(
-        "페이지가 다른 작업으로 갱신되었습니다. internal path /private/page.json",
-      );
-    page.blocks = structuredClone(request.blocks);
-    page.blockOrder = request.blockOrder;
-    return structuredClone(chapter);
-  });
+  const savePageBlocks = vi.fn(
+    async (request: SavePageBlocksRequest, assertCanCommit?: () => void) => {
+      assertCanCommit?.();
+      const page = chapter.pages[0];
+      if (request.expectedRevision !== createPageRevision(page))
+        throw new Error(
+          "페이지가 다른 작업으로 갱신되었습니다. internal path /private/page.json",
+        );
+      page.blocks = structuredClone(request.blocks);
+      page.blockOrder = request.blockOrder;
+      return structuredClone(chapter);
+    },
+  );
   const service = new McpPageEditService({
     openChapter,
     savePageBlocks,
