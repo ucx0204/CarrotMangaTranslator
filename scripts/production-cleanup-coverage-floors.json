@@ -21267,6 +21267,28 @@
         "pct": 75.92
       }
     },
+    "src/main/startupWriteAccess.ts": {
+      "lines": {
+        "covered": 38,
+        "total": 39,
+        "pct": 97.43
+      },
+      "statements": {
+        "covered": 40,
+        "total": 41,
+        "pct": 97.56
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 25,
+        "pct": 88
+      }
+    },
     "src/main/tavilyClient.ts": {
       "lines": {
         "total": 128,
@@ -21421,6 +21443,28 @@
         "pct": 64.35
       }
     },
+    "src/main/windowsElevation.ts": {
+      "lines": {
+        "covered": 28,
+        "total": 29,
+        "pct": 96.55
+      },
+      "statements": {
+        "covered": 28,
+        "total": 29,
+        "pct": 96.55
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 28,
+        "total": 29,
+        "pct": 96.55
+      }
+    },
     "src/main/windowsNativeRuntimeFailure.ts": {
       "lines": {
         "covered": 12,
@@ -21441,6 +21485,28 @@
         "covered": 17,
         "total": 18,
         "pct": 94.44
+      }
+    },
+    "src/main/windowsStartup.ts": {
+      "lines": {
+        "covered": 46,
+        "total": 48,
+        "pct": 95.83
+      },
+      "statements": {
+        "covered": 46,
+        "total": 48,
+        "pct": 95.83
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 43,
+        "total": 46,
+        "pct": 93.47
       }
     },
     "src/main/workContextResearch.ts": {

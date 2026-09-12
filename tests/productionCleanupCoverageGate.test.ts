@@ -502,7 +502,7 @@ describe("production cleanup coverage floor gate", () => {
     expect(Object.keys(manifest.introducedFloors)).toEqual(scope.added);
     expect(manifest.deletedFiles).toEqual(scope.deleted);
     expect(scope.existing).toHaveLength(713);
-    expect(scope.added).toHaveLength(618);
+    expect(scope.added).toHaveLength(621);
     expect(scope.deleted).toHaveLength(10);
   });
 });

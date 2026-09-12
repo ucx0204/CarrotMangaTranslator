@@ -46,8 +46,9 @@ if (
   );
 }
 
-const smokeRoot = mkdtempSync(join(tmpdir(), "mgt-installer-smoke-"));
-const installDir = join(smokeRoot, "app");
+const smokeParent = resolveSmokeParent();
+const smokeRoot = mkdtempSync(join(smokeParent, "mgt-installer-smoke-"));
+const installDir = join(smokeRoot, "carrot-manga-translator-한글 앱");
 const dataDir = join(smokeRoot, "data");
 const dataPointer = join(installDir, "data-root.txt");
 const appExecutable = join(installDir, WINDOWS_EXECUTABLE_FILENAME);
@@ -192,6 +193,7 @@ function runInstaller(installer) {
     installer,
     ["/S", "/currentuser", `/D=${installDir}`],
     "installer",
+    true,
   );
 }
 
@@ -237,6 +239,56 @@ function verifyInstalledPayload(stage) {
       `${stage} changed the isolated data root to ${installedDataRoot}`,
     );
   }
+  verifyInstalledStartup(stage);
+}
+
+/** @param {string} stage */
+function verifyInstalledStartup(stage) {
+  const marker = join(dataDir, "packaged-main-runtime-smoke.json");
+  if (existsSync(marker)) unlinkSync(marker);
+  const env = { ...process.env };
+  // Read the installer's real UTF-8 pointer instead of overriding its result.
+  delete env.MANGA_TRANSLATOR_DATA_ROOT;
+  delete env.ELECTRON_RUN_AS_NODE;
+  env.MGT_PACKAGED_MAIN_RUNTIME_SMOKE_MARKER = marker;
+  const result = spawnSync(
+    appExecutable,
+    ["--mgt-packaged-main-runtime-smoke=module-graph-v1", "--disable-gpu"],
+    {
+      cwd: installDir,
+      env,
+      encoding: "utf8",
+      timeout: 30_000,
+      windowsHide: true,
+    },
+  );
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(
+      `${stage} startup failed (${result.status}): ${result.stderr || result.stdout}`,
+    );
+  }
+  const evidence = JSON.parse(readFileSync(marker, "utf8"));
+  if (
+    evidence.ok !== true ||
+    evidence.stage !== "main-module-graph-loaded" ||
+    evidence.platform !== "win32" ||
+    evidence.arch !== "x64" ||
+    evidence.packaged !== true
+  ) {
+    throw new Error(`${stage} returned invalid installed startup evidence.`);
+  }
+  console.log(`[installer-smoke] ${stage}: installed Electron startup passed`);
+}
+
+function resolveSmokeParent() {
+  if (process.env.MGT_PROTECTED_INSTALLER_SMOKE !== "1") return tmpdir();
+  if (process.env.GITHUB_ACTIONS !== "true") {
+    throw new Error("Protected-folder installer smoke requires disposable CI.");
+  }
+  const programFiles = process.env.ProgramW6432 || process.env.ProgramFiles;
+  if (!programFiles) throw new Error("Program Files is unavailable.");
+  return programFiles;
 }
 
 function findUninstaller() {
@@ -255,9 +307,13 @@ function findUninstaller() {
  * @param {string} executable
  * @param {string[]} args
  * @param {string} label
+ * @param {boolean} nsisArguments
  */
-function runProcess(executable, args, label) {
+function runProcess(executable, args, label, nsisArguments = false) {
   const result = spawnSync(executable, args, {
+    // NSIS requires its final /D= argument unquoted, even with spaces.
+    argv0: nsisArguments ? `"${executable}"` : undefined,
+    windowsVerbatimArguments: nsisArguments,
     encoding: "utf8",
     stdio: "inherit",
     timeout: 300_000,
@@ -385,8 +441,8 @@ function listFiles(directory) {
 
 function safeRemoveSmokeRoot() {
   const resolvedRoot = resolve(smokeRoot);
-  const resolvedTemp = resolve(tmpdir());
-  const relativeToTemp = relative(resolvedTemp, resolvedRoot);
+  const resolvedParent = resolve(smokeParent);
+  const relativeToTemp = relative(resolvedParent, resolvedRoot);
   if (
     relativeToTemp === "" ||
     relativeToTemp.startsWith("..") ||

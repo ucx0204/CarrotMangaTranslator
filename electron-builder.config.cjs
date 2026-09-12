@@ -410,6 +410,7 @@ module.exports = {
   asar: true,
   win: {
     icon: "icon.ico",
+    requestedExecutionLevel: "asInvoker",
     // nsis.useZip extracts with nsisunz, which does not honor UTF-8 ZIP
     // filenames. Keep the payload executable ASCII-only while preserving the
     // Korean product, installer, shortcut, and Control Panel display names.
@@ -471,6 +472,10 @@ module.exports = {
     oneClick: false,
     allowToChangeInstallationDirectory: true,
     perMachine: false,
+    allowElevation: true,
+    // UAC is handled by setup/removal and the startup runas boundary, not
+    // electron-updater. Do not ship its unused resources/elevate.exe helper.
+    packElevateHelper: false,
     // This app links users to GitHub Releases instead of applying
     // differential electron-updater packages. ZIP extracts directly into the
     // install directory and avoids the default 7z temp-extract + full-copy
