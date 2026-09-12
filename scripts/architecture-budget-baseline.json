@@ -29,8 +29,8 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 28,
-      "reason": "SFX restoration validates the same persisted review revision as preparation; the shared revision algorithm remains unchanged. MCP translation edits reuse this same revision at read time and inside the existing library transaction; no revision algorithm is copied or changed."
+      "maxImportedBy": 33,
+      "reason": "Existing revision authority is shared by MCP page images, external readings, OCR, erasure and export; compare-and-set still occurs inside existing library transactions. No revision algorithm is copied or changed."
     },
     "src/renderer/src/api/libraryGateway.ts": {
       "maxImportedBy": 26,
@@ -49,8 +49,8 @@
       "reason": "Startup composition owns the persistent desktop MCP service and legacy local test listener, including terminal shutdown."
     },
     "src/main/library.ts": {
-      "maxImportedBy": 27,
-      "reason": "Desktop and local-test MCP compositions both use the locked public library facade, with no storage bypass."
+      "maxImportedBy": 29,
+      "reason": "MCP app tool and page-operation compositions plus OCR run-path adapter use the locked public library facade, never private storage internals."
     },
     "src/main/ipc/registerIpc.ts": {
       "maxRuntimeImports": 24,
@@ -165,6 +165,18 @@
     "src/main/ipc/trustedIpc.ts": {
       "maxImportedBy": 26,
       "reason": "MCP desktop controls use the existing trusted main-window IPC boundary; remote clients cannot approve connections or change local permissions."
+    },
+    "src/main/appPaths.ts": {
+      "maxImportedBy": 27,
+      "reason": "MCP page render/crop adapter and app-default external-reading composition reuse the canonical data-root resolver; no separate root or arbitrary paths are exposed."
+    },
+    "src/main/mcp/mcpAppTools.ts": {
+      "maxRuntimeImports": 13,
+      "reason": "MCP tool composition directly joins existing library, image/redaction, work-context and reading services. This is the composition root, not an alias facade to hide dependencies."
+    },
+    "src/main/mcp/mcpPageOperationSession.ts": {
+      "maxRuntimeImports": 14,
+      "reason": "Page-operation composition injects native app job, OCR, erasure, renderer and scoped-output adapters into independent application services. Resource ownership and public library authority remain explicit."
     }
   }
 }
