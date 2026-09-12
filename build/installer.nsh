@@ -2,6 +2,7 @@
 !include LogicLib.nsh
 !include FileFunc.nsh
 !include "${__FILEDIR__}\windows-uninstall-elevation.nsh"
+!include "${__FILEDIR__}\windows-data-root-text.nsh"
 
 ; Keep the historical installation directory even though the payload
 ; executable now has an ASCII-only filename for nsisunz compatibility.
@@ -165,12 +166,23 @@ Function MgtReadInstalledDataRootPointer
   ${If} ${FileExists} "$INSTDIR\data-root.txt"
     ClearErrors
     FileOpen $0 "$INSTDIR\data-root.txt" r
-    ${IfNot} ${Errors}
-      FileRead $0 $MgtDataRoot
-      FileClose $0
-      Call MgtTrimDataRootNewlines
+    ${If} ${Errors}
+      Goto MgtPointerReadFailed
     ${EndIf}
+    !insertmacro MgtReadDataRootText $0 $MgtDataRoot
+    ${If} ${Errors}
+      FileClose $0
+      Goto MgtPointerReadFailed
+    ${EndIf}
+    FileClose $0
+    Call MgtTrimDataRootNewlines
   ${EndIf}
+  Return
+
+  MgtPointerReadFailed:
+  MessageBox MB_ICONSTOP "기존 데이터 저장 위치를 읽지 못했습니다. 기존 설정을 덮어쓰지 않고 설치를 중단합니다.$\r$\n$INSTDIR\data-root.txt" /SD IDOK
+  SetErrorLevel 2
+  Abort
 FunctionEnd
 
 Function MgtResolveLegacyAppDataDefault
@@ -369,7 +381,7 @@ Function MgtWriteDataRootPointer
     Delete "$9"
     Goto MgtPointerWriteFailed
   ${EndIf}
-  FileWrite $0 "$MgtDataRoot$\r$\n"
+  !insertmacro MgtWriteDataRootText $0 "$MgtDataRoot$\r$\n"
   ${If} ${Errors}
     FileClose $0
     Delete "$9"
@@ -397,12 +409,23 @@ FunctionEnd
     ${If} ${FileExists} "$INSTDIR\data-root.txt"
       ClearErrors
       FileOpen $0 "$INSTDIR\data-root.txt" r
-      ${IfNot} ${Errors}
-        FileRead $0 $MgtDataRoot
-        FileClose $0
-        Call un.MgtTrimDataRootNewlines
+      ${If} ${Errors}
+        Goto MgtUninstallPointerReadFailed
       ${EndIf}
+      !insertmacro MgtReadDataRootText $0 $MgtDataRoot
+      ${If} ${Errors}
+        FileClose $0
+        Goto MgtUninstallPointerReadFailed
+      ${EndIf}
+      FileClose $0
+      Call un.MgtTrimDataRootNewlines
     ${EndIf}
+    Return
+
+    MgtUninstallPointerReadFailed:
+    MessageBox MB_ICONSTOP "데이터 저장 위치를 읽지 못해 데이터 정리를 중단했습니다.$\r$\n$INSTDIR\data-root.txt" /SD IDOK
+    SetErrorLevel 2
+    Abort
   FunctionEnd
 
   Function un.MgtTrimDataRootNewlines
