@@ -212,6 +212,9 @@ function assertCompletedTurn(
             : {}),
         }),
     ...(failure.upstreamError ? { upstreamError: failure.upstreamError } : {}),
+    ...(failure.upstreamError?.type === "usage_limit_reached"
+      ? { usageLimitReached: true, nonRetriable: true }
+      : {}),
   });
   throw error;
 }
@@ -233,13 +236,34 @@ function readTurnFailure(
     payload?.status,
     upstreamError?.status,
   );
+  const message = resolveTurnFailureMessage(
+    status,
+    encodedMessage,
+    payload,
+    upstreamError,
+  );
+  // App Server can omit an HTTP status for account quota failures. Normalize
+  // these to the existing transport contract instead of the endpoint's 502.
+  // Only use the legacy message fallback when no structured error is present.
+  const usageLimitReached =
+    turnError?.codexErrorInfo === "usageLimitExceeded" ||
+    upstreamError?.type === "usage_limit_reached" ||
+    (turnError?.codexErrorInfo == null &&
+      upstreamError === null &&
+      message.startsWith("You've hit your usage limit."));
+  if (usageLimitReached) {
+    return {
+      message,
+      httpStatus: 429,
+      upstreamError: {
+        ...upstreamError,
+        message,
+        type: "usage_limit_reached",
+      },
+    };
+  }
   return {
-    message: resolveTurnFailureMessage(
-      status,
-      encodedMessage,
-      payload,
-      upstreamError,
-    ),
+    message,
     ...(httpStatus === undefined ? {} : { httpStatus }),
     ...(upstreamError ? { upstreamError } : {}),
   };
