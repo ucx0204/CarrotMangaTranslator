@@ -40,5 +40,5 @@ jobs:
         with:
           name: mcp-integration-input
           path: ${{ runner.temp }}/mcp-integration/
-          retention-days: 1
+          retention-days: 3
           compression-level: 6
