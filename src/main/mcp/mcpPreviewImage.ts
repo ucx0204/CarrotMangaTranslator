@@ -1,5 +1,8 @@
 import type { MangaPage } from "../../shared/libraryTypes";
-import { prepareExternalImageFile } from "../imageRedactionContext";
+import {
+  prepareExternalImageFile,
+  requireImageRedactionReview,
+} from "../imageRedactionContext";
 import { loadPageImage } from "../inpainting/imageIO";
 
 const MAX_EDGE = 1600;
@@ -29,5 +32,6 @@ export async function renderMcpPagePreview(page: MangaPage) {
     throw new Error("Preview exceeds the MCP image transfer limit.");
   }
   const { width, height } = preview.getSize();
+  await requireImageRedactionReview();
   return { data: png.toString("base64"), width, height };
 }

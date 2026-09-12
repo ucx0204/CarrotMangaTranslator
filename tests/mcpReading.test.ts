@@ -86,6 +86,16 @@ describe("external readings", () => {
     });
     expect(f.savePageBlocks).toHaveBeenCalledTimes(1);
   });
+  it("rejects a retry whose saved render direction was manually changed", async () => {
+    const f = fixture();
+    await f.service.create(f.request);
+    f.chapter.pages[0].blocks[2].renderDirection = "vertical";
+    await expect(f.service.create(f.request)).rejects.toMatchObject({
+      code: "revision_conflict",
+    });
+    expect(f.savePageBlocks).toHaveBeenCalledTimes(1);
+    expect(f.chapter.pages[0].blocks[2].renderDirection).toBe("vertical");
+  });
   it("refuses duplicate keys, partial retries, out-of-bounds regions and stale revisions", async () => {
     const f = fixture();
     await expect(
