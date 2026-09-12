@@ -507,8 +507,7 @@ async function finishTerminalAppCleanup(
         }
       },
       disposeInpainting: () => disposeCachedInpaintingEngines(reason),
-      disposeTranslation: () =>
-        disposeTranslationRuntimeResources(reason),
+      disposeTranslation: () => disposeTranslationRuntimeResources(reason),
       waitForLibraryMutations: () => libraryMutationCoordinator.waitForIdle(),
       releaseInpaintingHistory: () => inpaintingRevisionStore.releaseAll(),
       updateProgress,
