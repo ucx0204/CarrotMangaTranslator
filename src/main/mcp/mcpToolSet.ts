@@ -1,3 +1,4 @@
+import type { McpTool } from "./mcpReadTools";
 import type { McpPageEditService } from "../application/mcpPageEditService";
 import { createMcpPageEditTools } from "./mcpPageEditTools";
 import {
@@ -18,14 +19,17 @@ export function createMcpToolSet(
   renderApprovedPreview?: PreviewRenderer,
   oauth = false,
   editing?: { service: McpPageEditService; allowEditing: boolean },
+  extensions: McpTool[] = [],
 ) {
   const tools = createMcpReadTools(
     new McpLibraryReadService(library),
     renderApprovedPreview !== undefined,
     oauth,
-    editing
-      ? { readBlocks: true, editTranslations: editing.allowEditing }
-      : undefined,
+    {
+      readBlocks: !!editing,
+      editTranslations: editing?.allowEditing ?? false,
+      additionalTools: extensions.map((tool) => tool.name),
+    },
   );
   if (renderApprovedPreview) {
     tools.push(
@@ -41,5 +45,6 @@ export function createMcpToolSet(
     tools.push(
       ...createMcpPageEditTools(editing.service, editing.allowEditing),
     );
+  tools.push(...extensions);
   return tools.map((tool) => ({ ...tool, oauth }));
 }

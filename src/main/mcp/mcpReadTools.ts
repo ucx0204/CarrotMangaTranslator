@@ -29,7 +29,11 @@ export function createMcpReadTools(
   service: McpLibraryReadService,
   imageTransfer = false,
   oauth = false,
-  profile?: { readBlocks: boolean; editTranslations: boolean },
+  profile?: {
+    readBlocks: boolean;
+    editTranslations: boolean;
+    additionalTools?: string[];
+  },
 ): McpTool[] {
   return [
     {
@@ -132,7 +136,11 @@ export async function invokeMcpTool(tool: McpTool, value: unknown) {
 function capabilityProfile(
   imageTransfer: boolean,
   oauth: boolean,
-  profile?: { readBlocks: boolean; editTranslations: boolean },
+  profile?: {
+    readBlocks: boolean;
+    editTranslations: boolean;
+    additionalTools?: string[];
+  },
 ) {
   return {
     mode: profile?.editTranslations ? "translation-edit" : "read-only",
@@ -141,6 +149,7 @@ function capabilityProfile(
       ...(imageTransfer ? ["page.preview"] : []),
       ...(profile?.readBlocks ? ["page.blocks"] : []),
       ...(profile?.editTranslations ? ["translation.edit"] : []),
+      ...(profile?.additionalTools ?? []),
     ],
     editing: profile?.editTranslations ?? false,
     translation: false,

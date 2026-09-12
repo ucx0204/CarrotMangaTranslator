@@ -1,5 +1,15 @@
+import { McpWorkContextService } from "../application/mcpWorkContextService";
+import { McpPageImageService } from "../application/mcpPageImageService";
+import { createMcpWorkContextTool } from "./mcpWorkContextTool";
+import { createMcpPageImageTools } from "./mcpPageImageTools";
+import { cropMcpPage, renderMcpSavedPage } from "./mcpPageImageAdapter";
 import type { McpPreferences } from "../../shared/mcpDesktopTypes";
-import { listLibrary, openChapter, savePageBlocks } from "../library";
+import {
+  listLibrary,
+  openChapter,
+  savePageBlocks,
+  resolveWorkContextForChapter,
+} from "../library";
 import { McpPageEditService } from "../application/mcpPageEditService";
 import { createMcpToolSet } from "./mcpToolSet";
 import { renderMcpPagePreview } from "./mcpPreviewImage";
@@ -16,11 +26,27 @@ export function createMcpAppTools(options: {
     assertWritable: options.assertWritable,
     notifySaved: options.notifySaved,
   });
+  const extensions = [
+    createMcpWorkContextTool(
+      new McpWorkContextService(resolveWorkContextForChapter),
+    ),
+  ];
+  if (options.preferences.allowImages)
+    extensions.push(
+      ...createMcpPageImageTools(
+        new McpPageImageService({
+          openChapter,
+          crop: cropMcpPage,
+          render: renderMcpSavedPage,
+        }),
+      ),
+    );
   return createMcpToolSet(
     { listLibrary, openChapter },
     options.preferences.allowImages ? renderMcpPagePreview : undefined,
     true,
     { service: edits, allowEditing: options.preferences.allowEditing },
+    extensions,
   ).map((tool) => ({
     ...tool,
     requiredScopes:
