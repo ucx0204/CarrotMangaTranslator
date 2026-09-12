@@ -108,6 +108,48 @@ selection semantics. It does not rebuild or replace native runtime assets.
   access or full repository dependency installation; use the existing CI gates
   for repository-wide validation and keep hardware limitations explicit.
 
+## Coverage inventory follow-up
+
+Check `34682489240` reached the full test suite. Windows passed 6,542 tests
+and failed only the coverage-inventory assertion; macOS had the same sole
+failing assertion. All new GPU tests passed. The inventory was missing five
+previously existing files touched by this fix and the two new Flux modules.
+
+Checkpoint `6b45ab0` adds actual pool preflight tests for SM75 mismatch,
+unknown architecture, invalid indices and cancellation. Only the child-process
+boundary is mocked; no GPU assets or workers are launched. The isolated
+validation in run `34683341705` passed the inventory test, new preflight tests,
+existing GPU tests, targeted lint and formatting.
+
+The inventory follow-up preserves every old floor, its provenance fields and
+the deletion list unchanged. It adds five existing-file floors measured on
+master `5cca33a` and two introduced-module floors from `2bf6230`. Exact ratios,
+not rounded-percent approximations, remain enforced. The gate's independent
+Git-derived scope stays active; expected counts become 718 existing, 623
+introduced, and 10 deleted files.
+
+Evidence for these seven added records supplements, rather than replaces,
+the manifest's original cleanup provenance:
+
+- Existing-file measurements: Windows Check `34677858384`, artifact
+  `10292509960`, coverage-summary SHA-256
+  `569c956bbc2a4e48965de58b8e87668ebc3bffb4d9d7006bd992409329317c75`.
+- Introduced-module measurements: Windows Check `34682489240`, artifact
+  `10295385137`, coverage-summary SHA-256
+  `eeef47c3cbfb8cbc4112c98173139fab170c18014516e4638cbd78e03ae3cf57`.
+- The artifact archives were independently downloaded and checked against
+  their GitHub SHA-256 digests before extracting these records. The generated
+  manifest was compared with the original: exactly seven entries were added;
+  all 1,334 pre-existing floor records are unchanged as parsed values.
+- Temporary workflow `b18239f` created only immutable Git blobs, never commits
+  or branch updates. Its successful run `34683341705` produced manifest blob
+  `d1f9bbf4f665b440ed78cc34287effbcb3bd0ad0` and scope-test blob
+  `e934e687c3709f75da3da494c66ae202acbfe414`. Both were downloaded and verified
+  before the connector committed them. The workflow is removed in that commit.
+
+The next full Check must still pass on both supported CI platforms before
+the authorized squash. No coverage threshold or test assertion is removed.
+
 ## Resume and acceptance checklist
 
 Read this document and the branch's newest commits first. Then read
