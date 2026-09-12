@@ -2,6 +2,10 @@ const { existsSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 
 const CODEX_APP_SERVER_VERSION = "0.154.0";
+// Match the application's RPC budget; callers also allow both requests and cleanup.
+const CODEX_APP_SERVER_SMOKE_RPC_TIMEOUT_MS = 30_000;
+const CODEX_APP_SERVER_SMOKE_TIMEOUT_MS =
+  2 * CODEX_APP_SERVER_SMOKE_RPC_TIMEOUT_MS + 10_000;
 const CODEX_RUNTIME_RESOURCE_DIRECTORY = "c";
 const CODEX_APP_SERVER_CONFIG_OVERRIDES = [
   'cli_auth_credentials_store="file"',
@@ -164,6 +168,8 @@ function readJson(filePath) {
 
 module.exports = {
   CODEX_APP_SERVER_ARGUMENTS,
+  CODEX_APP_SERVER_SMOKE_RPC_TIMEOUT_MS,
+  CODEX_APP_SERVER_SMOKE_TIMEOUT_MS,
   CODEX_APP_SERVER_VERSION,
   CODEX_RUNTIME_RESOURCE_DIRECTORY,
   assertCodexRuntimeReady,

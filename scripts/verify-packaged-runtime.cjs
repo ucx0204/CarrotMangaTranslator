@@ -9,7 +9,10 @@ const {
 } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { basename, join, relative, sep } = require("node:path");
-const { CODEX_APP_SERVER_VERSION } = require("./codex-app-server-runtime.cjs");
+const {
+  CODEX_APP_SERVER_VERSION,
+  CODEX_APP_SERVER_SMOKE_TIMEOUT_MS,
+} = require("./codex-app-server-runtime.cjs");
 const {
   WINDOWS_EXECUTABLE_FILENAME,
   assertFastZipPayload,
@@ -230,7 +233,7 @@ const codexResult = spawnSync(
       ...process.env,
       ELECTRON_RUN_AS_NODE: "1",
     },
-    timeout: 30_000,
+    timeout: CODEX_APP_SERVER_SMOKE_TIMEOUT_MS,
     windowsHide: true,
   },
 );
