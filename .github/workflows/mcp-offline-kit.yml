@@ -9,37 +9,30 @@ permissions:
   contents: read
 
 jobs:
-  source-and-tools:
-    if: github.repository == 'ucx0204/CarrotMangaTranslator'
+  source-review:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator' && github.ref == 'refs/heads/feat/mcp-app-bridge'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: 22
-          cache: npm
-      - name: Install exact lockfile dependencies without running application setup
-        run: npm ci --ignore-scripts
-      - name: Pack only tracked source and installed development dependencies
+      - name: Snapshot incremental source for conflict-aware publication
+        shell: bash
         run: |
-          git archive --format=tar HEAD | gzip > "$RUNNER_TEMP/carrot-source.tar.gz"
-          tar --exclude='node_modules/onnxruntime-node/bin' -czf "$RUNNER_TEMP/carrot-tools.tar.gz" node_modules
-          git rev-parse HEAD > "$RUNNER_TEMP/carrot-source-commit.txt"
-          du -h "$RUNNER_TEMP"/carrot-*
+          set -euo pipefail
+          base=0ef7c4edd3767748579db23f25c0476a7a7d227c
+          git merge-base --is-ancestor "$base" HEAD
+          git diff --binary "$base" HEAD > "$RUNNER_TEMP/mcp-remote-changes.patch"
+          git ls-tree -r HEAD > "$RUNNER_TEMP/mcp-remote-tree.txt"
+          git log -1 --format='%H%n%T%n%P%n%s' > "$RUNNER_TEMP/mcp-remote-head.txt"
+          git bundle create "$RUNNER_TEMP/mcp-remote-incremental.bundle" "$base"..HEAD
+          sha256sum "$RUNNER_TEMP"/mcp-remote-* > "$RUNNER_TEMP/mcp-remote-sha256.txt"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: carrot-offline-source
-          path: |
-            ${{ runner.temp }}/carrot-source.tar.gz
-            ${{ runner.temp }}/carrot-source-commit.txt
+          name: mcp-publication-review
+          path: ${{ runner.temp }}/mcp-remote-*
           retention-days: 1
-          compression-level: 0
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: carrot-offline-tools
-          path: ${{ runner.temp }}/carrot-tools.tar.gz
-          retention-days: 1
-          compression-level: 0
+          compression-level: 6
