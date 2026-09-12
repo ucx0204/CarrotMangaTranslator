@@ -188,7 +188,7 @@ async function main() {
       "shared",
       "app-runtime",
       "page-export",
-      "renderer/assets/fonts",
+      "renderer",
     ]) {
       await cp(join(root, "out", directory), join(dataRoot, "out", directory), {
         recursive: true,
