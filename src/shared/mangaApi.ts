@@ -1,4 +1,5 @@
 /* eslint-disable max-lines -- the preload-facing API type intentionally enumerates the complete renderer contract */
+import type { McpEditorState, McpPageChangedEvent } from "./mcpEditingTypes";
 import type {
   ResearchWorkContextRequest,
   WorkContextResearchProposal,
@@ -146,7 +147,37 @@ import type {
   ConditionalBatchYamlSaveResult,
 } from "./conditionalBatchExchangeTypes";
 
-export type MangaApi = {
+type McpApi = {
+  onMcpEditorProbe: (callback: (event: { id: number }) => void) => () => void;
+  reportMcpEditorState: (
+    state: McpEditorState,
+  ) => Promise<{ completed: boolean }>;
+  onMcpPageChanged: (
+    callback: (event: McpPageChangedEvent) => void,
+  ) => () => void;
+  getMcpStatus: () => Promise<import("./mcpDesktopTypes").McpDesktopStatus>;
+  setMcpEnabled: (
+    enabled: boolean,
+  ) => Promise<import("./mcpDesktopTypes").McpDesktopStatus>;
+  configureMcp: (
+    value: import("./mcpDesktopTypes").McpPreferences,
+  ) => Promise<import("./mcpDesktopTypes").McpDesktopStatus>;
+  beginMcpPairing: () => Promise<import("./mcpDesktopTypes").McpDesktopStatus>;
+  resolveMcpPairing: (
+    id: string,
+    approve: boolean,
+  ) => Promise<import("./mcpDesktopTypes").McpDesktopStatus>;
+  revokeMcpConnection: (
+    id: string,
+  ) => Promise<import("./mcpDesktopTypes").McpDesktopStatus>;
+  diagnoseMcp: () => Promise<import("./mcpDesktopTypes").McpDiagnostics>;
+  openMcpHelp: (
+    page: "tailscale" | "setup" | "chatgpt",
+  ) => Promise<{ completed: boolean }>;
+  copyMcpUrl: () => Promise<{ completed: boolean }>;
+};
+
+export type MangaApi = McpApi & {
   restoreSoundEffectReview: (
     request: import("./analysisTypes").RestoreSoundEffectReviewRequest,
   ) => Promise<ChapterSnapshot>;
