@@ -71,12 +71,11 @@ export async function acquireFluxInpaintingEngine(options: {
     backend: fluxBackend,
     computeCapability: nvidiaComputeCapability,
   });
-  if (fluxBackend === "cuda-sm75-experimental" && !sm75Fp16Enabled) {
-    const detected = nvidiaComputeCapability ?? "알 수 없음";
-    throw new Error(
-      `SM75 CUDA 경로에는 NVIDIA CUDA compute capability 7.5가 필요합니다. 감지값: ${detected}`,
-    );
-  }
+  assertFluxSm75Selection(
+    fluxBackend,
+    nvidiaComputeCapability,
+    sm75Fp16Enabled,
+  );
   const key = `${fluxBackend}\n${computeGpuIndex ?? "auto"}\n${cudaDevice?.uuid ?? "none"}\n${nvidiaComputeCapability ?? "generic"}\nsm75-fp16=${sm75Fp16Enabled}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
 
   const lease = await fluxEnginePool.acquire(key, () =>
@@ -132,6 +131,19 @@ async function disposeFluxEngine(
         reason,
         error,
       },
+    );
+  }
+}
+
+function assertFluxSm75Selection(
+  fluxBackend: FluxBackend,
+  nvidiaComputeCapability: number | null,
+  sm75Fp16Enabled: boolean,
+): void {
+  if (fluxBackend === "cuda-sm75-experimental" && !sm75Fp16Enabled) {
+    const detected = nvidiaComputeCapability ?? "알 수 없음";
+    throw new Error(
+      `SM75 CUDA 경로에는 NVIDIA CUDA compute capability 7.5가 필요합니다. 감지값: ${detected}`,
     );
   }
 }

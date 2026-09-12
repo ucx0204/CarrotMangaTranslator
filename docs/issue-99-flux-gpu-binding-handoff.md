@@ -41,6 +41,13 @@ session has not reproduced the crash on physical GPUs.
   without rewriting checkpoint history. GitHub's merge tree had no conflicts;
   upstream Codex quota classification and checkpoint test changes are retained.
 
+- `1acc8d9`: update the handoff and record conditional squash authorization.
+- `b4a9ee3`: add an isolated, temporary formatter/lint diagnostic workflow.
+  The subsequent CI-fix checkpoint removes it before final validation.
+- CI-fix checkpoint: use exact Prettier output for checkbox continuation
+  indentation and extract the existing SM75 guard from pool orchestration.
+  No lint limit, test, or existing Check workflow is weakened.
+
 ## Implemented contract
 
 - `src/main/gpuInfo.ts`: reuse the existing NVIDIA query and highest-VRAM
@@ -90,6 +97,10 @@ selection semantics. It does not rebuild or replace native runtime assets.
   The macOS log confirms all three typecheck gates passed and the only
   remaining format diagnostic was this handoff document. Later gates did not
   run. The follow-up document fix does not weaken or skip any check.
+- Diagnostic run `34682163595` exported Prettier 3.8.3 and its exact document
+  output. Targeted lint reported one error: `acquireFluxInpaintingEngine`
+  complexity 14 versus the existing limit of 12. The CI-fix checkpoint extracts
+  its unchanged SM75 validation guard into a private helper.
 - Inspect the latest PR head's Actions run for current results. Do not treat
   a queued, superseded, or partially successful run as complete validation.
 - Actual mixed-generation CUDA execution and packaged app acceptance have not
@@ -124,11 +135,11 @@ npm run check
 - [ ] After all Actions pass, squash PR #100 into one master commit.
 - [ ] Full repository validation and packaged app smoke.
 - [ ] Mixed RTX 3080 Ti + RTX 5070 Ti hardware acceptance: automatic selection
-  and each explicit selection must pair the correct SM runner with the
-  worker's CUDA device 0. Confirm an actual page completes.
+      and each explicit selection must pair the correct SM runner with the
+      worker's CUDA device 0. Confirm an actual page completes.
 - [ ] Single-GPU, CPU, Metal, and AMD regression acceptance.
 - [ ] Confirm cache reuse for the same UUID and replacement for a different
-  UUID, including same-architecture GPUs, under the full integration suite.
+      UUID, including same-architecture GPUs, under the full integration suite.
 
 Before the authorized squash, rollback is to discard/revert the branch's
 changes. After squash, revert the single resulting master commit. No user
