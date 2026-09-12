@@ -95,6 +95,11 @@ export class FluxWorker {
       executable: this.launch.executable,
       runtimePath: this.launch.runtimePath,
       args: this.launch.args,
+      requestedComputeGpuIndex: this.launch.computeGpuIndex ?? "auto",
+      selectedCudaDevice:
+        this.launch.backend === "cuda-native"
+          ? this.launch.cudaDevice
+          : undefined,
       pid,
     });
   }

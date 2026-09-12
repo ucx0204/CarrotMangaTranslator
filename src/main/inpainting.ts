@@ -2,7 +2,6 @@ import { nativeImage } from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { clamp } from "../shared/geometry";
-import type { FluxBackend } from "../shared/settingsTypes";
 import type { InpaintingRetouchGeometry } from "../shared/inpaintingTypes";
 import type { MangaPage } from "../shared/libraryTypes";
 import { removeArtifactAfterFailure } from "./artifactCleanup";
@@ -23,7 +22,10 @@ import {
 } from "./runtimeSupport/modelDownloads";
 import { createCombinedDownloadProgress } from "./inpainting/fluxAssets/progress";
 import { MAX_REMOTE_SUPPORT_ASSET_BYTES } from "./runtimeSupport/downloadBudgets";
-import { ensureFluxWorkerLaunch } from "./inpainting/fluxAssets/workerLaunch";
+import {
+  prepareFluxWorkerLaunch,
+  type FluxEngineLaunchOptions,
+} from "./inpainting/fluxEngineLaunch";
 import {
   createFluxEngine,
   resolveDefaultFluxRunRootDir,
@@ -44,7 +46,6 @@ import {
 } from "./inpainting/rasterMasks";
 import { loadPageImage, resolveInpaintedImagePath } from "./inpainting/imageIO";
 import type { ImageDecodeFallback } from "./inpainting/inpaintingTypes";
-import { normalizeComputeGpuIndex } from "../shared/gpuSettings";
 import { persistRetouchDifferenceMask } from "./inpainting/inpaintMaskArtifact";
 
 export type {
@@ -54,27 +55,10 @@ export type {
 };
 export { inpaintPatternPage } from "./inpainting/patternPage";
 
-export async function prepareFluxInpaintingEngine(options: {
-  runtimeDir: string;
-  modelDir: string;
-  fluxBackend?: FluxBackend;
-  computeGpuIndex?: number;
-  nvidiaComputeCapability?: number | null;
-  sm75Fp16Enabled?: boolean;
-  runRootDir?: string;
-  signal?: AbortSignal;
-  onProgress?: (progress: InpaintingRuntimeProgress) => void;
-}): Promise<FluxInpaintingEngine> {
-  const launch = await ensureFluxWorkerLaunch({
-    runtimeDir: options.runtimeDir,
-    modelDir: options.modelDir,
-    backend: options.fluxBackend ?? "cuda-native",
-    nvidiaComputeCapability: options.nvidiaComputeCapability,
-    sm75Fp16Enabled: options.sm75Fp16Enabled,
-    signal: options.signal,
-    onProgress: options.onProgress,
-  });
-  launch.computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
+export async function prepareFluxInpaintingEngine(
+  options: FluxEngineLaunchOptions & { runRootDir?: string },
+): Promise<FluxInpaintingEngine> {
+  const launch = await prepareFluxWorkerLaunch(options);
   let modelPath: string | undefined;
   let vaePath: string | undefined;
   if (usesManagedFluxModelAssets(launch.backend)) {

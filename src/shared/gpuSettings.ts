@@ -39,3 +39,12 @@ export function normalizeComputeGpuIndex(value: unknown): number | undefined {
     ? parsed
     : undefined;
 }
+
+/** Full physical-device UUIDs only; never accept an ambiguous CUDA prefix/list. */
+export function normalizeNvidiaGpuUuid(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const uuid = value.trim();
+  return /^GPU-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(uuid)
+    ? `GPU-${uuid.slice(4).toLowerCase()}`
+    : undefined;
+}

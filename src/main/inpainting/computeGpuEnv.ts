@@ -1,4 +1,7 @@
-import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
+import {
+  normalizeComputeGpuIndex,
+  normalizeNvidiaGpuUuid,
+} from "../../shared/gpuSettings";
 
 const GPU_VISIBILITY_ENV_KEYS = [
   "CUDA_VISIBLE_DEVICES",
@@ -9,19 +12,23 @@ const GPU_VISIBILITY_ENV_KEYS = [
 
 export function applyComputeGpuVisibilityEnv(
   env: NodeJS.ProcessEnv,
-  computeGpuIndex: unknown,
+  computeGpuSelection: unknown,
   backend: string,
   platform: NodeJS.Platform = process.platform,
 ): void {
-  const index = normalizeComputeGpuIndex(computeGpuIndex);
+  const index = normalizeComputeGpuIndex(computeGpuSelection);
   const isolationKey = resolveGpuIsolationKey(backend, platform);
-  if (index === undefined || !isolationKey) {
+  const uuid =
+    isolationKey === "CUDA_VISIBLE_DEVICES"
+      ? normalizeNvidiaGpuUuid(computeGpuSelection)
+      : undefined;
+  const device = uuid ?? (index === undefined ? undefined : String(index));
+  if (device === undefined || !isolationKey) {
     return;
   }
   for (const key of GPU_VISIBILITY_ENV_KEYS) {
     delete env[key];
   }
-  const device = String(index);
   env[isolationKey] = device;
 }
 

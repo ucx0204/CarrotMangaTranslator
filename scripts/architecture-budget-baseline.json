@@ -3,7 +3,7 @@
   "defaultMaxImportedBy": 25,
   "legacyMaxRuntimeImports": {
     "src/shared/ipcSettingsSchemas.ts": 13,
-    "src/main/inpainting.ts": 16,
+    "src/main/inpainting.ts": 15,
     "src/main/ipc/importPreviewIpc.ts": 13,
     "src/main/ipc/settingsModelTestIpc.ts": 11,
     "src/main/jobs/soundEffectTranslationJobRunner.ts": 13,
