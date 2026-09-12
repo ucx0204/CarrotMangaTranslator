@@ -1,3 +1,4 @@
+import { McpEditError } from "../application/mcpEditPolicy";
 import {
   createServer,
   type IncomingMessage,
@@ -22,10 +23,10 @@ export type McpHttpServer = {
 };
 type ServerOptions = {
   config: McpConfiguration;
-  oauth?: McpOAuthHttp;
   tools: readonly McpTool[];
-  authorizeTool?: (authorization: string, tool: McpTool) => boolean;
   reportError: (error: unknown) => void;
+  oauthHttp?: McpOAuthHttp;
+  enforceScopes?: boolean;
 };
 
 export async function startMcpHttpServer(
@@ -35,15 +36,19 @@ export async function startMcpHttpServer(
   if (config.oauthPassword && !config.publicOrigin)
     throw new Error("OAuth requires an HTTPS public origin.");
   const oauth =
-    options.oauth ??
+    options.oauthHttp ??
     (config.oauthPassword && config.publicOrigin
       ? new McpOAuthHttp(config.publicOrigin, config.oauthPassword)
       : undefined);
-  if (oauth && oauth.provider.issuer !== config.publicOrigin)
-    throw new Error("OAuth public origin mismatch.");
   const handler = createRequestHandler(options, config, oauth);
+  const requests = new Set<Promise<void>>();
   const server = createServer({ maxHeaderSize: 8192 }, (request, response) => {
-    void handler.serve(request, response);
+    const task = handler.serve(request, response);
+    requests.add(task);
+    const remove = () => {
+      requests.delete(task);
+    };
+    void task.then(remove, remove);
   });
   server.requestTimeout = 15_000;
   server.headersTimeout = 10_000;
@@ -62,18 +67,20 @@ export async function startMcpHttpServer(
   if (!address || typeof address === "string")
     throw new Error("MCP listener address is unavailable.");
   config.port = address.port;
+  async function closeListener(): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+      server.closeAllConnections();
+    });
+    await Promise.allSettled([...requests]);
+    await oauth?.close();
+  }
   return {
     url: `http://127.0.0.1:${address.port}/mcp`,
     stopAccepting: handler.stopAccepting,
     close: () => {
       handler.stopAccepting();
-      closing ??= Promise.all([
-        new Promise<void>((resolve, reject) => {
-          server.close((error) => (error ? reject(error) : resolve()));
-          server.closeAllConnections();
-        }),
-        oauth?.close(),
-      ]).then(() => undefined);
+      closing ??= closeListener();
       return closing;
     },
   };
@@ -86,6 +93,14 @@ function createRequestHandler(
 ) {
   let accepting = true;
   let active = 0;
+  async function authorize(request: IncomingMessage): Promise<void> {
+    await oauth?.ready();
+    authorizeMcpRequest(
+      request,
+      config,
+      oauth && ((header) => oauth.scopeFor(header) !== undefined),
+    );
+  }
   async function serve(request: IncomingMessage, response: ServerResponse) {
     let counted = false;
     let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -105,11 +120,7 @@ function createRequestHandler(
       }, 30_000);
       deadline.unref();
       if (await oauth?.handle(request, response)) return;
-      authorizeMcpRequest(
-        request,
-        config,
-        oauth && ((header) => oauth.accepts(header)),
-      );
+      await authorize(request);
       if (request.url !== "/mcp") throw new McpHttpError(404, "Not found.");
       if (request.method !== "POST") {
         response.setHeader("Allow", "POST");
@@ -119,21 +130,15 @@ function createRequestHandler(
         );
       }
       validateMcpPost(request);
+      const body = await readMcpBody(request);
+      if (!accepting) throw new McpHttpError(503, "MCP server is stopping.");
+      await authorize(request);
       sendReply(
         response,
         await handleMcpMessage(
-          await readMcpBody(request),
-          options.tools,
+          body,
+          visibleTools(options, request, oauth),
           options.reportError,
-          (tool) =>
-            accepting &&
-            !response.destroyed &&
-            !response.writableEnded &&
-            (options.authorizeTool?.(
-              request.headers.authorization ?? "",
-              tool,
-            ) ??
-              true),
         ),
       );
     } catch (error) {
@@ -182,4 +187,45 @@ function sendReply(response: ServerResponse, reply: McpHttpReply) {
     response.setHeader("Content-Type", "application/json; charset=utf-8");
     response.end(JSON.stringify(reply.body));
   }
+}
+
+function visibleTools(
+  options: ServerOptions,
+  request: IncomingMessage,
+  oauth?: McpOAuthHttp,
+) {
+  if (!options.enforceScopes) return options.tools;
+  const scope = oauth?.scopeFor(request.headers.authorization ?? "") ?? "";
+  const scopes = scope.split(" ");
+  return options.tools
+    .filter((tool) =>
+      (tool.requiredScopes ?? ["carrot.read"]).every((needed) =>
+        scopes.includes(needed),
+      ),
+    )
+    .map((tool) => {
+      const assertAuthorized = () => {
+        const current =
+          oauth?.scopeFor(request.headers.authorization ?? "")?.split(" ") ??
+          [];
+        if (
+          !(tool.requiredScopes ?? ["carrot.read"]).every((needed) =>
+            current.includes(needed),
+          )
+        )
+          throw new McpEditError(
+            "access_denied",
+            "Authorization changed. Reconnect or request approval in the app.",
+          );
+      };
+      return {
+        ...tool,
+        invoke: async (args: Record<string, unknown>) => {
+          assertAuthorized();
+          const result = await tool.invoke(args, { assertAuthorized });
+          assertAuthorized();
+          return result;
+        },
+      };
+    });
 }

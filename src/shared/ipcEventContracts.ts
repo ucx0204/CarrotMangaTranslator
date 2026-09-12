@@ -1,3 +1,4 @@
+import type { McpPageChangedEvent } from "./mcpEditingTypes";
 import { z } from "zod";
 import type { JobEvent, ModelTestProgressEvent } from "./jobTypes";
 import { JobEventSchema, ModelTestProgressEventSchema } from "./ipcSchemas";
@@ -22,6 +23,21 @@ import type { AppOperationActivityEvent } from "./appOperationTypes";
 import { AppOperationActivityEventSchema } from "./ipcAppOperationContracts";
 
 export const ipcEventContracts = {
+  mcpEditorProbe: defineIpcEventContract<{ id: number }>({
+    eventKey: "mcpEditorProbe",
+    channel: "mcp:editor-probe",
+    payload: z.object({ id: z.number().int().positive() }).strict(),
+  }),
+  mcpPageChanged: defineIpcEventContract<McpPageChangedEvent>({
+    eventKey: "mcpPageChanged",
+    channel: "mcp:page-changed",
+    payload: z
+      .object({
+        chapterId: uuid,
+        pageIds: z.array(uuid).min(1).max(MAX_ID_LIST_LENGTH),
+      })
+      .strict(),
+  }),
   ...webImportIpcEventContracts,
   appOperationActivity: defineIpcEventContract<AppOperationActivityEvent>({
     eventKey: "appOperationActivity",

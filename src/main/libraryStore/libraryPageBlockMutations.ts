@@ -1,4 +1,8 @@
-import { hashTranslationBlocks } from "../../shared/blockFingerprint";
+import { createPageRevision } from "../../shared/pageRevision";
+import {
+  hashTranslationBlocks,
+  hashStableValue,
+} from "../../shared/blockFingerprint";
 import { normalizeBlockType } from "../../shared/geometry";
 import type {
   LibraryChapter,
@@ -53,9 +57,8 @@ export function createSavePagesBlocksMutation(
   runtime: SavePagesBlocksMutationRuntime,
 ): (
   request: SavePagesBlocksRequest,
-  beforeCommit?: () => void,
 ) => Promise<ReturnType<typeof hydrateChapter>> {
-  return async (request, beforeCommit) => {
+  return async (request) => {
     assertValidPageBatch(request.pages);
     const locator = await runtime.findChapterLocation(request.chapterId);
     if (!locator) {
@@ -72,7 +75,6 @@ export function createSavePagesBlocksMutation(
     const updates = resolvePageUpdates(chapter, request, runtime.logWarning);
     const now = runtime.now();
     const nextChapter = applyPageUpdates(chapter, updates, now);
-    beforeCommit?.();
     await runtime.commitChapterAndWork(nextChapter, now);
     return hydrateChapter(nextChapter);
   };
@@ -83,25 +85,23 @@ export const savePagesBlocksUnlocked =
 
 export function savePageBlocksUnlocked(
   request: SavePageBlocksRequest,
-  beforeCommit?: () => void,
 ): Promise<ReturnType<typeof hydrateChapter>> {
-  return savePagesBlocksUnlocked(
-    {
-      chapterId: request.chapterId,
-      dirtyVersion: request.dirtyVersion,
-      saveReason: request.saveReason,
-      pages: [
-        {
-          pageId: request.pageId,
-          baseUpdatedAt: request.baseUpdatedAt,
-          baseBlocksHash: request.baseBlocksHash,
-          blocks: request.blocks,
-          blockOrder: request.blockOrder,
-        },
-      ],
-    },
-    beforeCommit,
-  );
+  return savePagesBlocksUnlocked({
+    chapterId: request.chapterId,
+    dirtyVersion: request.dirtyVersion,
+    saveReason: request.saveReason,
+    pages: [
+      {
+        pageId: request.pageId,
+        expectedRevision: request.expectedRevision,
+        baseUpdatedAt: request.baseUpdatedAt,
+        baseBlocksHash: request.baseBlocksHash,
+        baseBlockOrderHash: request.baseBlockOrderHash,
+        blocks: request.blocks,
+        blockOrder: request.blockOrder,
+      },
+    ],
+  });
 }
 
 function assertValidPageBatch(pages: SavePageBlocksUpdate[]): void {
@@ -137,13 +137,19 @@ function assertPageSaveAllowed(
   request: SavePagesBlocksRequest,
   logWarning: typeof logLibraryWarning,
 ): void {
-  if (!update.baseUpdatedAt || page.updatedAt === update.baseUpdatedAt) {
-    return;
-  }
   const currentBlocksHash = hashTranslationBlocks(page.blocks);
-  if (update.baseBlocksHash && currentBlocksHash === update.baseBlocksHash) {
-    return;
-  }
+  const revisionMatches = matchesExpectedPageRevision(page, update);
+  const blocksMatch =
+    update.baseBlocksHash === undefined ||
+    currentBlocksHash === update.baseBlocksHash;
+  const versionMatches =
+    !update.baseUpdatedAt ||
+    page.updatedAt === update.baseUpdatedAt ||
+    Boolean(update.baseBlocksHash && blocksMatch);
+  const orderMatches =
+    update.baseBlockOrderHash === undefined ||
+    hashStableValue(page.blockOrder ?? null) === update.baseBlockOrderHash;
+  if (revisionMatches && blocksMatch && versionMatches && orderMatches) return;
   logWarning("Page block save conflict", {
     chapterId: request.chapterId,
     pageId: update.pageId,
@@ -156,6 +162,18 @@ function assertPageSaveAllowed(
   });
   throw new Error(
     "페이지가 다른 작업으로 갱신되었습니다. 최신 내용을 다시 불러온 뒤 저장해 주세요.",
+  );
+}
+
+/** Versioned remote edits may not race a newly acquired page job. */
+function matchesExpectedPageRevision(
+  page: LibraryPageRecord,
+  update: SavePageBlocksUpdate,
+): boolean {
+  if (update.expectedRevision === undefined) return true;
+  return (
+    page.analysisStatus !== "running" &&
+    createPageRevision(page) === update.expectedRevision
   );
 }
 

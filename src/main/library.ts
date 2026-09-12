@@ -75,5 +75,3 @@ export {
   readWorkTypographyProfile,
   writeWorkTypographyProfile,
 } from "./libraryStore/workTypographyProfileFiles";
-
-export { editPageBlocks } from "./library/libraryBlockEditFacade";

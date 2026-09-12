@@ -69,6 +69,7 @@ import { runMainWindowCloseCleanup } from "./mainWindowCloseCleanup";
 import { MainWindowSessionLifecycle } from "./mainWindowSessionLifecycle";
 import { createLinkedWorkspaceRuntime } from "./linkedWorkspace/linkedWorkspaceRuntime";
 import { createMcpRuntime } from "./mcpRuntime";
+import { createMcpDesktopRuntime } from "./mcpDesktopRuntime";
 
 const resolvedAppPaths = getAppPaths();
 assertDataRootInstanceLockHeld(resolvedAppPaths.dataRoot);
@@ -85,6 +86,31 @@ const mcpRuntime = createMcpRuntime({
   reportError: logError,
   reportInfo: logInfo,
 });
+const mcpDesktop = createMcpDesktopRuntime(
+  appPaths.dataRoot,
+  (error) => logError("MCP desktop operation failed", error),
+  {
+    isBusy: () => jobs.hasActive || operations.hasActive,
+    requestProbe: (id) => {
+      if (!mainWindow || mainWindow.isDestroyed())
+        throw new Error("Main editor is closed.");
+      mainWindow.webContents.send(ipcEventContracts.mcpEditorProbe.channel, {
+        id,
+      });
+    },
+    notifySaved: (chapterId, pageId) => {
+      try {
+        if (mainWindow && !mainWindow.isDestroyed())
+          mainWindow.webContents.send(
+            ipcEventContracts.mcpPageChanged.channel,
+            { chapterId, pageIds: [pageId] },
+          );
+      } catch (error) {
+        logError("Could not announce a saved MCP page", error);
+      }
+    },
+  },
+);
 const inpaintingRevisionStore = new InpaintingRevisionStore();
 let mainWindow: BrowserWindow | null = null;
 const linkedWorkspaceRuntime = createLinkedWorkspaceRuntime({
@@ -249,6 +275,7 @@ void app
     }
     installNativeApplicationMenu();
     registerIpc({
+      mcpDesktop,
       appPaths,
       jobs,
       operations,
@@ -263,11 +290,7 @@ void app
       linkedWorkspaceSync,
       reportError: logError,
     });
-    await mcpRuntime
-      .start()
-      .catch((error) =>
-        logError("MCP startup failed; the MCP connection is disabled", error),
-      );
+    await initializeMcpConnections();
     reactivateDock();
     openMainWindowNow();
     mainStartupCompleted = true;
@@ -308,8 +331,21 @@ app.on("window-all-closed", () => {
   }
 });
 
+async function initializeMcpConnections(): Promise<void> {
+  if (process.env.CARROT_MCP_ENABLED !== "1")
+    await mcpDesktop
+      .initialize()
+      .catch((error) => logError("MCP configuration unavailable", error));
+  await mcpRuntime
+    .start()
+    .catch((error) =>
+      logError("MCP startup failed; the MCP connection is disabled", error),
+    );
+}
+
 function closeTerminalIntake(): void {
   mcpRuntime.stopAccepting();
+  mcpDesktop.stopAccepting();
   try {
     appActivityGate.closeToNewActivities();
   } finally {
@@ -440,6 +476,7 @@ async function finishTerminalCleanup(
 ): Promise<void> {
   const results = await Promise.allSettled([
     mcpRuntime.dispose(),
+    mcpDesktop.dispose(),
     finishTerminalAppCleanup(reason, updateProgress),
   ]);
   const failures = results.flatMap((result) =>
@@ -470,7 +507,8 @@ async function finishTerminalAppCleanup(
         }
       },
       disposeInpainting: () => disposeCachedInpaintingEngines(reason),
-      disposeTranslation: () => disposeTranslationRuntimeResources(reason),
+      disposeTranslation: () =>
+        disposeTranslationRuntimeResources(reason),
       waitForLibraryMutations: () => libraryMutationCoordinator.waitForIdle(),
       releaseInpaintingHistory: () => inpaintingRevisionStore.releaseAll(),
       updateProgress,
@@ -513,6 +551,9 @@ function openMainWindowNow(): void {
     },
   });
   mainWindow.on("closed", () => {
+    void mcpDesktop
+      .setEnabled(false)
+      .catch((error) => logError("MCP window-close cleanup failed", error));
     mainWindow = null;
     panelWindows.closeAll();
     if (quitCleanupStarted || fatalCoordinator.isHandling) {

@@ -79,6 +79,7 @@ jobs:
       - name: Real Electron MCP runtime and redaction smoke
         run: |
           node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs | tee "$RUNNER_TEMP/carrot-mcp-native.log"
+          grep -Fq 'PASS native OS-encrypted OAuth restore, refresh and offline revocation' "$RUNNER_TEMP/carrot-mcp-native.log"
           grep -Fq 'PASS MCP native smoke finished' "$RUNNER_TEMP/carrot-mcp-native.log"
 
       - name: Static checks with complete repository dependencies

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { it } from "vitest";
 import { McpOAuthProvider } from "../src/main/mcp/mcpOAuthProvider";
 import { McpOAuthSession } from "../src/main/mcp/mcpOAuthSession";
+import { McpPairingBroker } from "../src/main/mcp/mcpPairingBroker";
 import { McpOAuthHttp } from "../src/main/mcp/mcpOAuthHttp";
 import { startMcpHttpServer } from "../src/main/mcp/mcpHttpServer";
 import { oauthDigest } from "../src/main/mcp/mcpOAuthPolicy";
@@ -26,7 +27,10 @@ it("commits HTTP token exchange and revocation and resumes after a new server in
     });
     const server = await startMcpHttpServer({
       config: { port: 0, token: "t".repeat(43), publicOrigin: issuer },
-      oauth: new McpOAuthHttp(issuer, password, session),
+      oauthHttp: new McpOAuthHttp(issuer, password, {
+        session,
+        pairing: new McpPairingBroker(provider, password),
+      }),
       tools: [],
       reportError: (error) => {
         throw error;
@@ -65,6 +69,8 @@ it("commits HTTP token exchange and revocation and resumes after a new server in
         pending.cookie,
       ),
     );
+    const code = new URL(redirect).searchParams.get("code");
+    assert.ok(code);
     const response = await first.post(
       "/oauth/token",
       new URLSearchParams({
@@ -72,7 +78,7 @@ it("commits HTTP token exchange and revocation and resumes after a new server in
         grant_type: "authorization_code",
         resource: `${issuer}/mcp`,
         redirect_uri: callback,
-        code: new URL(redirect).searchParams.get("code")!,
+        code,
         code_verifier: verifier,
       }),
     );

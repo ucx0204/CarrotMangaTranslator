@@ -1,64 +1,64 @@
 # Carrot MCP implementation handoff
 
-Branch: `feat/mcp-app-bridge`. Draft PR #96. Do not merge or release automatically.
+Target branch: `feat/mcp-app-bridge`, draft PR #96. Never merge, release, force-push, or replace unrelated work automatically.
 
-Local test guide: [MCP 직접 테스트](mcp-testing.md). Current priority: [ChatGPT 웹 연결](mcp-web-testing.md). The user confirmed the local baseline works and requested web testing because their Codex quota is exhausted. Do not require Codex to test this connection.
+## Current requirement and execution path
 
-## Product contract
+**Tailscale Funnel only; persistent authentication is required.** Cloudflare is not a prerequisite, fallback or supported launcher. Start the normal desktop app (`npm run dev` for source builds), then use Settings > AI 연결 / MCP. The user guide is [Tailscale MCP 직접 테스트](mcp-tailscale-testing.md).
 
-Expose the existing application, not a second translator. Desktop UI and MCP must share application services, the library facade, revision checks, redaction policy, renderer and resource ownership. No raw IPC, arbitrary file paths, shell execution or credentials are exposed as tools. External-agent reading must not silently launch local OCR or a paid model.
+The desktop owns the loopback MCP listener and one foreground Tailscale CLI process. It refuses conflicting Serve/Funnel HTTPS routes rather than resetting the user's network configuration. The app discovers the HTTPS identity from Tailscale's running node status. It does not read identity from untrusted forwarded headers. Tailscale installation, login and HTTPS/Funnel approval are user-account setup requirements. No Codex allocation or model API is used by connection diagnostics.
 
-## Milestones
+## Implemented and reconciled for publication
 
-- [x] Local opt-in authenticated read-only endpoint, safe library projections and bounded HTTP requests.
-- [x] Optional 1600-pixel / 4 MiB PNG source previews through the existing external-image guard.
-- [x] Local launcher, HTTP diagnostic, supported Windows build/native smoke and user-confirmed local test.
-- [x] Implement personal OAuth discovery, DCR, browser consent, PKCE, resource-bound access and rotating refresh tokens. Implementation is distinct from end-to-end acceptance.
-- [x] Implement owned Quick Tunnel startup and exact-origin configuration in `mcp-web.cjs`, quota-free OAuth diagnostic and Korean ChatGPT guide.
-- [ ] Record the latest passing Windows checkpoint, native OAuth and live synthetic Cloudflare tests in PR #96.
-- [ ] Actual user ChatGPT web connection and image/tool acceptance. Do not claim an account session was tested without evidence.
-- [ ] Local image-redaction approval interaction. Current previews fail closed when review is required.
-- [ ] Shared read/write editing context, revision-checked block patches, external-agent readings and editable translation submissions.
-- [ ] Managed OCR/translation/erasure/lettering jobs, result rendering and PNG/ZIP export through existing app services.
-- [ ] Advanced region/mask/SFX editing, multi-chapter import and research/context replacement with provenance and rollback.
-- [ ] Optional MCP Apps viewer and broader client acceptance; no public plugin-directory release has been performed.
-
-## Entrypoints
-
-`node scripts/mcp-dev.cjs [--images]` retains the established local Bearer connection. The token is reused from `.tmp/mcp-local-token` or explicit environment configuration. The existing development build, app locks and child cleanup are reused.
-
-`node scripts/mcp-web.cjs [--images]` requires a locally installed `cloudflared` (optional explicit `CARROT_CLOUDFLARED_PATH`). It owns one Quick Tunnel child, writes its exact public origin into app startup configuration, creates a separate random `.tmp/mcp-web-password`, and prints only the public URL. `.tmp/mcp-web-connection.json` contains public endpoint information, not credentials. READY verifies public OAuth resource metadata, not ChatGPT itself. Normal parent exit closes its tunnel; unexpected tunnel exit initiates app shutdown. No system tunnel service or downloaded binary is installed by the user launcher.
-
-`node scripts/mcp-smoke.mjs [--first-preview]` performs the original local diagnostic. `node scripts/mcp-web-smoke.mjs` tests public discovery, DCR, consent, PKCE, token rotation, authenticated MCP/library reads and revocation. It never follows the ChatGPT callback, prints tokens, calls an AI, or modifies the library.
-
-`node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs` imports a synthetic PNG through the actual library facade into a new temporary data root and exercises the compiled native app, OAuth, previews, redaction refusal and shutdown. `CARROT_MCP_SMOKE_TUNNEL=1` explicitly adds a real Quick Tunnel for this synthetic-only test. Existing user libraries/settings are not copied. The CI binary is pinned to Cloudflare 2026.9.1 Windows amd64 with size/SHA-256 verification; no runtime package upgrade or bundled dependency was added to the product.
-
-## Web security boundary
-
-The server binds loopback and requires exact allowed Host/Origin values, never arbitrary forwarded headers. Only discovery/consent/client-registration routes are public; MCP tool calls still require static Bearer or scoped OAuth access. No unauthenticated library access is introduced. The web connection grants read access to the whole running test library; images remain separately opt-in and subject to the existing guard.
-
-This is an ephemeral personal development authorization server, not OIDC, a multi-user identity provider or a production security certification. DCR is restricted to documented ChatGPT callback shapes, then each client's exact URI is enforced. Arbitrary metadata/client/logo URLs are never fetched. The browser must present a secure consent cookie, same-origin POST, one-use transaction and separate local connection password. Only S256 is accepted. Access grants are bound to this exact MCP resource. Codes expire after 60 seconds, access after at most one hour, grants after 24 hours; refresh replay revokes the family. All OAuth state is bounded and in memory. Restart revokes existing OAuth sessions. DCR records/temporary grants consume bounded capacity; restart the personal test instance after excessive registrations.
-
-Only `carrot.read` (and optional offline_access) is supported. No OAuth writes, implicit flow, password grant, arbitrary callback, token URL query, sampling or CIMD capability is advertised. The local connection password is not an OpenAI credential or OAuth client secret. Never put it into the chat or repository. New Quick Tunnel URL means update/recreate the ChatGPT connection and reauthorize.
+- Authenticated library/capability/chapter reads; optional source PNG previews through the existing image-redaction guard. No private paths, shell or general-purpose filesystem tools.
+- OS-encrypted `mcp-private/authorization.enc`, separate app-private preferences, durable atomic commits and strict snapshot validation. No plaintext fallback, including Linux `basic_text`. Approved OAuth client registrations survive restart; access lasts at most one hour, rotating refresh tokens expire after 90 days without renewal. New, unapproved registrations expire after seven days. Revocation and replay protection survive restart.
+- Managed OAuth HTTP response commits before returning registration/token/revocation success. Stop blocks access immediately without erasing the saved authorization. Shutdown drains owned requests before closing authorization state. Corrupt or unavailable storage fails closed.
+- App-side five-minute pairing window, browser-cookie and PKCE binding, comparison code, local approve/deny and same-origin completion. The display code is not a password or independent credential. Remote calls cannot approve themselves or enable permissions.
+- Settings UI for on/off, image/edit/auto-start opt-ins, stable URL copy, safe diagnostic, pairing requests and saved-connection revocation. Existing UI primitives and trusted IPC are used. Turning off and restarting preserve registration and approval; explicit revocation invalidates access/refresh rights.
+- `carrot_get_page_blocks`: safe, paginated existing blocks and current page revision.
+- `carrot_update_translations`: strict existing-block `translatedText` changes only, preserving geometry, masks, fonts and all unrelated fields; no OCR, model invocation, erasure or export. Requires read+edit scope and the revision returned by the read tool. Returns previous texts for explicit conditional restoration.
+- Edits reuse the existing library facade and transaction. Full revision, block fingerprint and reading-order checks run inside the save transaction. Main/renderer probing rejects dirty pages, active jobs and unresponsive editors. The existing dirty-page-preserving refresh coordinator consumes save notifications. Authorization is rechecked immediately before committing a queued edit.
+- Shutdown retains the blocked local listener if owned Funnel termination fails; an explicit stop retry is possible. This avoids another local service inheriting a still-public port.
 
 ## Reuse boundaries
 
-| Function         | Existing app authority                                                       |
-| ---------------- | ---------------------------------------------------------------------------- |
-| Library          | `src/main/library.ts`, existing read/mutation locks and notifications        |
-| Preview          | `imageRedactionContext.ts`, `inpainting/imageIO.ts`                          |
-| Translation      | `wholePagePipeline.ts`, `jobs/translationJobs.ts` and existing job contracts |
-| Export           | `application/pageImageExportService.ts` and actual app renderer              |
-| Web import       | `application/webImportService.ts`                                            |
-| Work context     | `library/libraryContextFacade.ts`                                            |
-| Blocks/revisions | `shared/textTypes.ts`, `shared/shareTypes.ts`, `shared/pageRevision.ts`      |
+| Concern                        | Existing app authority                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------ |
+| Library reads and mutations    | `src/main/library.ts`, library transaction and lock implementation                         |
+| Page revision and fingerprints | `shared/pageRevision.ts`, `shared/blockFingerprint.ts`                                     |
+| Preview transfer               | `imageRedactionContext.ts`, existing image decoding                                        |
+| Editor updates                 | trusted preload bridge, `createLiveChapterRefreshCoordinator`, dirty-page-preserving merge |
+| Durable state                  | existing atomic file / fsync storage adapter, Electron `safeStorage`                       |
+| Child lifetime                 | existing process-tree termination and exit-receipt helpers                                 |
 
-Only the original main composition/library-consumer budgets were adjusted in the local baseline. General complexity/dependency limits remain enforced; no alias wrappers or lint-rule disabling to conceal new coupling. No protected OCR/font algorithms, releases or user data are changed.
+No protected OCR, font-matching, artwork-rendering or mask algorithms are changed. New grants cover the running library, not per-work restrictions. Tool scopes separate reads, images and existing-translation edits. Turning off image/edit preferences does not expand old grants; enabling additional rights requires a suitably scoped new approval.
 
-## Validation and next recovery action
+## Tests and acceptance boundary
 
-Historical local baseline `690f85885c76146d2d6663e7a9d27095424d5f58`, Windows run `34601170665`, passed 58 actual Vitest tests, build, native synthetic preview/redaction/shutdown and broad static gates. The user subsequently confirmed local operation.
+The original local checkpoint passed 173 tests in 19 files. After reconciling the later remote changes and porting its ten additional regressions, **183 tests in 22 files passed**:
 
-The first web checkpoint run `34611091342` reached 90/91 tests passed; its one failing Host test used fetch, which did not send the intended hostile Host header. The regression now uses node:http. That run also identified a long HTTP factory, a missing retry-policy annotation and a missing AggregateError cause; these were corrected in subsequent commits without relaxing the gates. New successful results must be recorded from the exact later run, not inferred from this record.
+```sh
+node node_modules/vitest/vitest.mjs run tests/mcp tests/libraryBatchPageSave.test.ts tests/pageRevision.test.ts tests/chapterSync.test.ts tests/liveChapterRefreshCoordinator.test.ts
+```
 
-The editing container cannot resolve GitHub/npm; dependency installation and full checks execute in Actions. Inspect the latest `MCP checkpoint` on this branch, correct actual failures, verify native plus live HTTPS stages and update PR #96. Preserve a distinction between scripted OAuth tests and the user's real ChatGPT authorization flow. Do not mark full `npm run check`, all PR workflows, actual ChatGPT/Claude model sessions or plugin UI acceptance complete from a focused test alone.
+These include actual HTTP, durable-session serialization, injected encryption-port disk I/O, restart/revocation/scope rejection, same-request retries, existing-library transaction conflicts, editor probes and production React component interactions in jsdom. They are not live Tailscale or logged-in ChatGPT tests.
+
+The integrated source passed renderer, Electron and JavaScript typechecks, dependency directions/budgets, error policy, script inventory, mock boundaries, maintainability and duplicate checks. Full lint initially identified three non-null assertions in the ported tests; those were removed and focused lint then passed. The original checkpoint also passed full lint/format and compiled main, preload, page-export and renderer before the repository's unsupported Linux native ONNX packaging guard. No guard was relaxed.
+
+`scripts/mcp-native-authorization.cjs` is wired into the Windows checkpoint. It uses a new fixture directory, fresh service/store instances and real OS encryption to test restore, refresh and offline revocation. CI requires its completion marker, not just exit zero. Native Windows and actual Tailscale/ChatGPT account acceptance must be recorded from the resulting run, not inferred from local port-based tests. UI component interaction tests are not screenshot QA. Knip encountered a WASM parser allocation failure in the editing environment; full `npm run check` is not claimed from that attempt.
+
+## Publication and concurrency record
+
+The six original local checkpoints descend from `0ef7c4edd3767748579db23f25c0476a7a7d227c`. The remote branch had independently advanced to `6c1f563497b742d58a9584dd5eda25431bb4392e`. That exact state was preserved as `backup/mcp-before-publication-20260912` before publication.
+
+The remote source and Git object inventory were retrieved through a read-only, source-only Actions snapshot at `6c04bc099db44db5c8f572a6430b3e547a7e70ed`. Twelve overlapping files were reconciled; duplicate partial services and unapplied checkpoint patches were replaced by the integrated implementation. Ten remote lifecycle/pairing/HTTP tests were retained and ported, not discarded.
+
+Publication uses the connected GitHub Git Data write actions (`create_tree`, `create_commit`, `update_ref`) on `integration/mcp-tailscale-publication-20260912`, with each source tree checked against the local Git tree. These remote writes work. CLI DNS failure must not be described as a lack of GitHub write permission. The final source is to fast-forward the existing feature branch without force, master merge or release. The draft PR records the final publication SHA and exact CI outcome.
+
+## Composition notes
+
+`mcpDesktopRuntime` owns the Tailscale process, durable authorization and library adapters. `application/mcpDesktopService` owns lifecycle behind ports. The existing settings dialog, trusted IPC, chapter session and library facade gain only their actual new consumers; the explicit composition budgets document those dependencies. The shared page revision algorithm is unchanged, and reading-order fingerprint checks run in the existing transaction. Remote tools never expose local consent, permission changes, arbitrary paths or shell execution.
+
+## Remaining product work
+
+Record the Windows/native checkpoint result and perform live Tailscale/ChatGPT acceptance next. Full external-agent block creation, crop analysis, independent OCR/erasure/lettering jobs, rendered output/PNG/ZIP, SFX image generation, web chapter import, context research/replacement and optional MCP Apps viewer remain beyond this checkpoint. Do not advertise these as implemented by the translation-text patch tool.
