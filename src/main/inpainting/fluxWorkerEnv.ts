@@ -35,7 +35,11 @@ export function buildFluxWorkerEnv(
   copyHostRuntimeEnv(env);
   applyRocmRuntimeEnv(env, launch.backend);
   applyZludaRuntimeEnv(env, launch.backend);
-  applyComputeGpuVisibilityEnv(env, launch.computeGpuIndex, launch.backend);
+  const computeGpuSelection =
+    launch.backend === "cuda-native"
+      ? (launch.cudaDevice?.uuid ?? launch.computeGpuIndex)
+      : launch.computeGpuIndex;
+  applyComputeGpuVisibilityEnv(env, computeGpuSelection, launch.backend);
   return env;
 }
 

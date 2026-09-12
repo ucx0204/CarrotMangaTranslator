@@ -1,4 +1,3 @@
-import { execFile } from "node:child_process";
 import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import {
@@ -7,7 +6,7 @@ import {
   type InpaintingRuntimeProgress,
 } from "../inpainting";
 import type { FluxBackend } from "../../shared/inpaintingSettingsTypes";
-import { detectBestGpuInfo } from "../gpuInfo";
+import { resolveFluxCudaDevice } from "./fluxCudaDevice";
 import { tMain } from "./localization";
 import { LeasedIdleResourcePool } from "../runtimeSupport/leasedIdleResource";
 import {
@@ -61,10 +60,15 @@ export async function acquireFluxInpaintingEngine(options: {
     options.fluxBackend ??
     (process.platform === "darwin" ? "metal-native" : "cuda-native");
   const computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
-  const nvidiaComputeCapability =
-    fluxBackend === "cuda-native" || fluxBackend === "cuda-sm75-experimental"
-      ? await detectNvidiaComputeCapability(computeGpuIndex)
-      : null;
+  options.signal?.throwIfAborted();
+  const cudaDevice = await resolveFluxCudaDevice(
+    fluxBackend,
+    options.computeGpuIndex,
+    undefined,
+    options.signal,
+  );
+  options.signal?.throwIfAborted();
+  const nvidiaComputeCapability = cudaDevice?.computeCapability ?? null;
   const sm75Fp16Enabled = shouldEnableExperimentalSm75Flux({
     backend: fluxBackend,
     computeCapability: nvidiaComputeCapability,
@@ -75,7 +79,7 @@ export async function acquireFluxInpaintingEngine(options: {
       `SM75 CUDA 경로에는 NVIDIA CUDA compute capability 7.5가 필요합니다. 감지값: ${detected}`,
     );
   }
-  const key = `${fluxBackend}\n${computeGpuIndex ?? "auto"}\n${nvidiaComputeCapability ?? "generic"}\nsm75-fp16=${sm75Fp16Enabled}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
+  const key = `${fluxBackend}\n${computeGpuIndex ?? "auto"}\n${cudaDevice?.uuid ?? "none"}\n${nvidiaComputeCapability ?? "generic"}\nsm75-fp16=${sm75Fp16Enabled}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
 
   const lease = await fluxEnginePool.acquire(key, () =>
     prepareFluxInpaintingEngine({
@@ -83,6 +87,7 @@ export async function acquireFluxInpaintingEngine(options: {
       modelDir,
       fluxBackend,
       computeGpuIndex,
+      cudaDevice,
       nvidiaComputeCapability,
       sm75Fp16Enabled,
       runRootDir,
@@ -133,41 +138,3 @@ async function disposeFluxEngine(
   }
 }
 
-export async function detectNvidiaComputeCapability(
-  computeGpuIndex?: number,
-  querySelectedGpu: (
-    index: number,
-  ) => Promise<string> = querySelectedNvidiaComputeCapability,
-): Promise<number | null> {
-  if (computeGpuIndex !== undefined) {
-    try {
-      return parseNvidiaComputeCapability(
-        await querySelectedGpu(computeGpuIndex),
-      );
-    } catch (_error) {
-      return null;
-    }
-  }
-  const gpu = await detectBestGpuInfo();
-  return gpu?.vendor === "nvidia" ? (gpu.computeCapability ?? null) : null;
-}
-
-function querySelectedNvidiaComputeCapability(index: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    execFile(
-      "nvidia-smi",
-      [
-        `--id=${index}`,
-        "--query-gpu=compute_cap",
-        "--format=csv,noheader,nounits",
-      ],
-      { encoding: "utf8", windowsHide: true },
-      (error, stdout) => (error ? reject(error) : resolve(stdout)),
-    );
-  });
-}
-
-function parseNvidiaComputeCapability(value: string): number | null {
-  const parsed = Number(value.trim().split(/\r?\n/, 1)[0]);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}

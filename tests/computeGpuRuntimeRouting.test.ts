@@ -6,7 +6,7 @@ import {
 import { buildFluxWorkerEnv } from "../src/main/inpainting/fluxWorkerEnv";
 import { buildKoharuWorkerEnv } from "../src/main/inpainting/koharuWorker";
 import { applyComputeGpuVisibilityEnv } from "../src/main/inpainting/computeGpuEnv";
-import { detectNvidiaComputeCapability } from "../src/main/inpainting/fluxEnginePool";
+import { resolveFluxCudaDevice } from "../src/main/inpainting/fluxCudaDevice";
 
 const { buildLaunchArgs } =
   require("../src/main/runtime/simple-page-launch-args.cjs") as {
@@ -216,14 +216,26 @@ describe("compute GPU runtime routing", () => {
   });
 
   it("queries the selected NVIDIA GPU when choosing a Flux runner", async () => {
-    const queried: number[] = [];
-    const capability = await detectNvidiaComputeCapability(1, async (index) => {
-      queried.push(index);
-      return "8.6\r\n";
-    });
+    const queried: Array<number | undefined> = [];
+    const device = await resolveFluxCudaDevice(
+      "cuda-native",
+      1,
+      async (index) => {
+        queried.push(index);
+        return {
+          name: "RTX 3080 Ti",
+          memoryMb: 12288,
+          rtxGeneration: 30,
+          computeCapability: 8.6,
+          vendor: "nvidia",
+          nvidiaUuid: "GPU-11111111-1111-1111-1111-111111111111",
+        };
+      },
+    );
 
     expect(queried).toEqual([1]);
-    expect(capability).toBe(8.6);
+    expect(device?.computeCapability).toBe(8.6);
+    expect(device?.uuid).toBe("GPU-11111111-1111-1111-1111-111111111111");
   });
 });
 
