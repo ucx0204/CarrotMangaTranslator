@@ -88,7 +88,11 @@ jobs:
           MGT_THIN_INSTALLER: "1"
           MGT_ALLOW_MISSING_FLUX_RUNNER: "1"
         run: npm run dist:win
-      - name: Smoke test real fresh install and upgrade
+      - name: Smoke test real fresh install startup and upgrade
+        run: node scripts/smoke-windows-installer.cjs
+      - name: Smoke test real Program Files install startup and removal
+        env:
+          MGT_PROTECTED_INSTALLER_SMOKE: "1"
         run: node scripts/smoke-windows-installer.cjs
       - name: Record tested source and package identity
         shell: pwsh
