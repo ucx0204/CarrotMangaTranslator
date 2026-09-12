@@ -57,7 +57,11 @@ export class McpSecureStore {
     this.directory = join(dataRoot, "mcp-private");
   }
   load(): Promise<Secrets> {
-    this.loading ??= this.readSecrets();
+    this.loading ??= this.readSecrets().catch((error) => {
+      // A temporarily locked OS key store may be retried, but never bypassed.
+      this.loading = undefined;
+      throw error;
+    });
     return this.loading;
   }
   async saveAuthorization(oauth: McpOAuthSnapshot): Promise<void> {
@@ -70,10 +74,6 @@ export class McpSecureStore {
     await this.writeSecrets(next);
     this.current = next;
     this.loading = Promise.resolve(next);
-  }
-  async savedAuthorization(): Promise<McpOAuthSnapshot | undefined> {
-    if ((await this.read("authorization.enc")) === null) return undefined;
-    return (await this.load()).oauth;
   }
   async preferences(): Promise<McpPreferences> {
     const text = await this.read("settings.json");
