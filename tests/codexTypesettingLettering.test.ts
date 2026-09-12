@@ -274,7 +274,8 @@ describe("lettering generation binding and reuse", () => {
       },
     ]);
     expect(request.input[0].text).toContain("ORIGINAL source lettering crop");
-    expect(request.input[0].text).toContain('target="ドン"');
+    expect(request.input[0].text).toContain('sourceText="ドン"');
+    expect(request.input[0].text).not.toContain('target="ドン"');
     expect(request.input[0].text).toContain("full canvas maps edge-to-edge");
     expect(request.input[0].text).toContain("relative positions");
   });
@@ -332,6 +333,63 @@ describe("lettering generation binding and reuse", () => {
       translatedText,
     );
   });
+
+  it.each([
+    ["두근", ["두", "근"]],
+    ["탓", ["탓"]],
+    ["끼익!", ["끼", "익"]],
+    ["쓱 쓱", ["쓱", "쓱"]],
+    ["뭉클", ["뭉", "클"]],
+    ["시내에서 쇼핑♪", ["시", "내", "에", "서", "쇼", "핑"]],
+    ["새로운 만남과 위기", ["새", "로", "운", "만", "남", "과", "위", "기"]],
+    ["두근".normalize("NFD"), ["두", "근"]],
+    ["쾅 BOOM!", ["쾅"]],
+    ["BOOM!", null],
+    ["ドン", null],
+    ["ㄷㄷ", null],
+  ])(
+    "binds script guidance to approved text without changing its spelling: %s",
+    async (translatedText, syllables) => {
+      const { client, context } = fixture();
+      const result = await generateLetteringLayers(
+        { ...page, blocks: [{ ...block, translatedText }] },
+        reading,
+        (id) => id,
+        client,
+        "C:/tmp/lettering-test",
+        new AbortController().signal,
+        { ...context, previousPage: undefined },
+      );
+      expect(client.runEphemeralTurn).toHaveBeenCalledTimes(1);
+      const request = client.runEphemeralTurn.mock.calls[0][0];
+      const prompt = request.input[0].text;
+      expect(prompt).toContain(
+        `Render exactly ${JSON.stringify(translatedText)}`,
+      );
+      expect(prompt).toContain("Correct target-script anatomy takes priority");
+      expect(prompt).toContain(
+        "Source-only letters, diacritics and elongation marks must not survive",
+      );
+      expect(prompt).toContain('sourceText="ドン"');
+      expect(prompt).not.toContain('target="ドン"');
+      if (syllables) {
+        expect(prompt).toContain(
+          `Required syllable blocks in reading order: ${JSON.stringify(syllables)}`,
+        );
+        expect(prompt).toContain("final consonant (받침)");
+      } else expect(prompt).not.toContain("KOREAN HANGUL:");
+      expect(request.input.slice(1)).toEqual([
+        {
+          type: "image",
+          url: `data:image/png;base64,${imageBytes(true).toString("base64")}`,
+          detail: "original",
+        },
+      ]);
+      expect(result.page.blocks[0].generatedLettering?.translatedText).toBe(
+        translatedText,
+      );
+    },
+  );
 
   it("rejects opaque output and never silently keeps it as accepted lettering", async () => {
     const { client, context } = fixture();
