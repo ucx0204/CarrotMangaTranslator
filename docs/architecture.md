@@ -59,6 +59,12 @@ UI 표면과 primitive 선택은 [`ui-design-rules.md`](ui-design-rules.md)를 �
 
 ## 공용 계약과 SSOT
 
+클립보드는 렌더러와 같은 `richTextMarkup` parser로 표시 문자열을 얻어 자동 확장된
+텍스트 상자를 보존한다. 이 직접 소비자를 포함해 parser fan-in은 29다.
+원문 글자 크기 측정·페이지 내 대체 측정과 말풍선 배치의 원래 계약을 유지하며,
+복사 전후 실제 `resolveBlockTextLayout`의 글자 크기·줄 배치 parity test로 검증한다.
+원문 크기 추정 및 말풍선 줄 배치 알고리즘은 이동하거나 변경하지 않는다.
+
 블록 클립보드와 이미지 블록 라이브러리는 기존 `geometry`의 렌더 좌표 정규화와
 픽셀 변환을 직접 사용한다. 두 소비자를 포함해 직접 소비 상한은 35다.
 클립보드 입력 검증과 페이지 블록 수 제한도 `ipcSchemaPrimitives`의 기존 권위를

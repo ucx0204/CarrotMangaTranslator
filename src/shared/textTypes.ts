@@ -130,6 +130,8 @@ export type TranslationBlock = {
   fontSizeIntent?: "source-match" | "manual";
   /** Visible source-glyph face measured from the immutable page raster. */
   sourceFontFacePx?: number;
+  /** Portable source-page fallback captured on copy; null preserves absence of a fallback. */
+  sourceFontFaceFallbackPx?: number | null;
   /** Confidence of sourceFontFacePx. Missing means no automatic source cap. */
   sourceFontSizeConfidence?: number;
   /** Auditable producer revision for the optional source-face measurement. */

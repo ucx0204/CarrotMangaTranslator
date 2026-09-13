@@ -10,6 +10,7 @@ import { resolvePageBlockOrder } from "../../../shared/blockReadingOrder";
 import { MAX_BLOCKS_PER_PAGE } from "../../../shared/ipcSchemaPrimitives";
 import { isEditableTarget } from "../lib/appHelpers";
 import { resolveVisibleStageCenter } from "./useBlockReadingOrderActions";
+import { resolvePageSourceFontFaceFallbacks } from "../lib/sourceFontSizeMatching";
 import type { UseBlockEditingActionsOptions } from "./blockEditingActionTypes";
 
 type BlockClipboardOptions = UseBlockEditingActionsOptions & {
@@ -97,7 +98,11 @@ function copySelectedBlocks(
     .filter((id) => selectedIds.has(id))
     .flatMap((id) => byId.get(id) ?? []);
   if (!blocks.length) return 0;
-  const serialized = serializeBlockClipboard(blocks, page);
+  const serialized = serializeBlockClipboard(
+    blocks,
+    page,
+    resolvePageSourceFontFaceFallbacks(page.blocks, page),
+  );
   data.setData(BLOCK_CLIPBOARD_MIME, serialized);
   data.setData(
     "text/plain",

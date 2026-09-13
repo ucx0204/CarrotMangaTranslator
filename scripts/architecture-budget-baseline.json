@@ -140,7 +140,7 @@
       "reason": "Codex native-view batching and erasure reference preparation reuse canonical intersections. Block library and clipboard reuse render-box normalization and pixel conversion to preserve lettering aspect across pages. Geometry algorithms remain unchanged; existing geometry tests and clipboard/library roundtrips cover these consumers."
     },
     "src/shared/richTextMarkup.ts": {
-      "maxImportedBy": 28,
+      "maxImportedBy": 29,
       "reason": "Merged direct consumers include Codex treatment serialization, image lettering prompts, blind readback and literal font specimens, plus master's conditionalBatchTypography rich-run scaling. Preserve both features on the canonical grammar without duplication or alias gateways; parser/serializer ownership remains unchanged."
     },
     "src/shared/ipcSchemaPrimitives.ts": {

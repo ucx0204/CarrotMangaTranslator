@@ -83,7 +83,11 @@ function resolveUsableSourceFacePx(
   ) {
     return Number(block.sourceFontFacePx);
   }
-  const fallback = Number(fallbackSourceFacePx);
+  const fallback = Number(
+    block.sourceFontFaceFallbackPx === undefined
+      ? fallbackSourceFacePx
+      : block.sourceFontFaceFallbackPx,
+  );
   return Number.isFinite(fallback) && fallback > 0 ? fallback : null;
 }
 
@@ -100,6 +104,7 @@ export function resolvePageSourceFontFaceFallbacks(
 ): ReadonlyMap<string, number> {
   const reliablePeers = blocks.filter(
     (block) =>
+      block.sourceFontFaceFallbackPx === undefined &&
       hasUsableSourceFaceMeasurement(block) &&
       hasReliableSourceGeometry(block, pageSize),
   );
@@ -132,6 +137,7 @@ export function resolvePageSourceFontFaceFallbacks(
 
 function canUsePageSourceFaceFallback(block: TranslationBlock): boolean {
   return (
+    block.sourceFontFaceFallbackPx === undefined &&
     block.textRole !== "sound" &&
     (block.sourceDirection === "horizontal" ||
       block.sourceDirection === "vertical") &&

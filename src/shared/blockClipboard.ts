@@ -5,7 +5,13 @@ import {
   TranslationBlockSchema,
 } from "./ipcSchemaPrimitives";
 import { clampBbox, normalizeBboxTo1000 } from "./bboxNormalization";
-import { bboxToPixels, resolveBlockRenderBbox } from "./geometry";
+import {
+  bboxToPixels,
+  resolveBlockRenderBbox,
+  resolveEffectiveRenderBbox,
+} from "./geometry";
+import { parseRichText } from "./richTextMarkup";
+import { getActiveGeneratedLettering } from "./generatedLettering";
 import { constrainEditableRenderBbox } from "./editableRenderGeometry";
 import { relocateGeneratedLettering } from "./generatedLettering";
 import type { BBox, Point, TranslationBlock } from "./textTypes";
@@ -33,18 +39,33 @@ type PageSize = BlockClipboard["pageSize"];
 export function serializeBlockClipboard(
   blocks: readonly TranslationBlock[],
   pageSize: PageSize,
+  sourceFaceFallbacks: ReadonlyMap<string, number> = new Map(),
 ): string {
   const payload = BlockClipboardSchema.parse({
     kind: "carrot-manga-blocks",
     version: 1,
     pageSize: { width: pageSize.width, height: pageSize.height },
-    blocks: blocks.map((block) => ({
-      ...block,
-      bbox: normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace),
-      bboxSpace: "normalized_1000",
-      renderBbox: resolveBlockRenderBbox(block, pageSize),
-      renderBboxSpace: "normalized_1000",
-    })),
+    blocks: blocks.map((block) => {
+      const text = parseRichText(
+        block.translatedText || block.sourceText || "...",
+        Boolean(block.bold),
+        Boolean(block.italic),
+      ).plainText;
+      const renderBbox = getActiveGeneratedLettering(block)
+        ? resolveBlockRenderBbox(block, pageSize)
+        : resolveEffectiveRenderBbox(block, pageSize, text);
+      const fallback = sourceFaceFallbacks.get(block.id);
+      return {
+        ...block,
+        // Capture the source page's peer estimate before leaving that page.
+        sourceFontFaceFallbackPx:
+          fallback ?? block.sourceFontFaceFallbackPx ?? null,
+        bbox: normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace),
+        bboxSpace: "normalized_1000",
+        renderBbox,
+        renderBboxSpace: "normalized_1000",
+      };
+    }),
   });
   const serialized = JSON.stringify(payload);
   if (serialized.length > MAX_CLIPBOARD_LENGTH) {
@@ -104,19 +125,21 @@ function createPastedBlock(
     speakerId: _speakerId,
     glossaryEntryIds: _glossaryEntryIds,
     visualClusterId: _visualClusterId,
-    reviewStatus: _reviewStatus,
-    reviewNote: _reviewNote,
-    sourceFontFacePx: _sourceFontFacePx,
-    sourceFontSizeConfidence: _sourceFontSizeConfidence,
-    sourceFontSizeMethod: _sourceFontSizeMethod,
-    bubbleLayout,
     ...portable
   } = structuredClone(source);
   const renderBbox = constrainEditableRenderBbox(portable, requestedBbox);
+  const originalRenderBbox = resolveBlockRenderBbox(source);
+  const scaleX = renderBbox.w / originalRenderBbox.w;
+  const scaleY = renderBbox.h / originalRenderBbox.h;
   const block: TranslationBlock = {
     ...portable,
     id,
-    bbox: clampBbox(renderBbox),
+    bbox: clampBbox({
+      x: renderBbox.x + (source.bbox.x - originalRenderBbox.x) * scaleX,
+      y: renderBbox.y + (source.bbox.y - originalRenderBbox.y) * scaleY,
+      w: source.bbox.w * scaleX,
+      h: source.bbox.h * scaleY,
+    }),
     bboxSpace: "normalized_1000",
     renderBbox,
     renderBboxSpace: "normalized_1000",
@@ -128,13 +151,5 @@ function createPastedBlock(
     // A pasted overlay has no source lettering to erase on its new page.
     inpaintExcluded: true,
   };
-  if (bubbleLayout) {
-    const {
-      sourceImageRevision: _revision,
-      modelId: _model,
-      ...layout
-    } = bubbleLayout;
-    block.bubbleLayout = { ...layout, origin: "manual" };
-  }
   return block;
 }

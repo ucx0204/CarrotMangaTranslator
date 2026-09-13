@@ -331,6 +331,8 @@ export const TranslationBlockObjectSchema = z
     fontSizePx: blockFormatValueSchemas.FontSizePxSchema,
     fontSizeIntent: z.enum(["source-match", "manual"]).optional(),
     sourceFontFacePx: blockFormatValueSchemas.FontSizePxSchema.optional(),
+    sourceFontFaceFallbackPx:
+      blockFormatValueSchemas.FontSizePxSchema.nullable().optional(),
     sourceFontSizeConfidence: z.number().min(0).max(1).optional(),
     sourceFontSizeMethod: z.literal("raster-core-v1").optional(),
     lineHeight: blockFormatValueSchemas.LineHeightSchema,

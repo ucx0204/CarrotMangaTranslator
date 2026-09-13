@@ -127,17 +127,12 @@ describe("portable block clipboard", () => {
       { x: 500, y: 500 },
       () => "new",
     );
-    for (const key of [
-      "speakerId",
-      "glossaryEntryIds",
-      "visualClusterId",
-      "reviewStatus",
-    ])
+    for (const key of ["speakerId", "glossaryEntryIds", "visualClusterId"])
       expect(pasted).not.toHaveProperty(key);
     expect(pasted?.inpaintExcluded).toBe(true);
     expect(pasted?.bubbleLayout?.regions).toEqual(source.bubbleLayout.regions);
-    expect(pasted?.bubbleLayout?.origin).toBe("manual");
-    expect(pasted?.bubbleLayout).not.toHaveProperty("sourceImageRevision");
+    expect(pasted?.reviewStatus).toBe("reviewed");
+    expect(pasted?.bubbleLayout).toEqual(source.bubbleLayout);
     expect(source.bubbleLayout.sourceImageRevision).toBe("old-revision");
   });
 });
