@@ -1,5 +1,9 @@
+import { createPageRevision } from "../src/shared/pageRevision";
 import { describe, expect, it, vi } from "vitest";
-import { hashTranslationBlocks } from "../src/shared/blockFingerprint";
+import {
+  hashTranslationBlocks,
+  hashStableValue,
+} from "../src/shared/blockFingerprint";
 import type {
   LibraryChapter,
   LibraryPageRecord,
@@ -11,10 +15,119 @@ import {
   type SavePagesBlocksMutationRuntime,
 } from "../src/main/libraryStore/libraryPageBlockMutations";
 
+// The service/transaction under test is real; Electron is only an external host boundary.
+vi.mock("electron", () => ({ app: { isPackaged: false } }));
+
 const BASE_TIME = "2026-01-01T00:00:00.000Z";
 const SAVE_TIME = "2026-01-02T00:00:00.000Z";
 
 describe("batch page block saves", () => {
+  it("rejects a job acquiring the page before the remote save enters its transaction", async () => {
+    const chapter = makeChapter();
+    const page = chapter.pages[0];
+    const revision = createPageRevision(page);
+    page.analysisStatus = "running";
+    const storage = createStorageRuntime(chapter);
+    await expect(
+      createSavePagesBlocksMutation(storage.runtime)(
+        makeRequest([
+          { ...updateFor("page-a", "remote edit"), expectedRevision: revision },
+        ]),
+      ),
+    ).rejects.toThrow(/다른 작업으로 갱신/);
+    expect(storage.commitChapterAndWork).not.toHaveBeenCalled();
+  });
+
+  it("rejects a simultaneous reading-order change even when blocks and timestamp match", async () => {
+    const chapter = makeChapter();
+    const page = chapter.pages[0];
+    const oldOrder = hashStableValue(page.blockOrder ?? null);
+    page.blockOrder = [page.blocks[0].id];
+    const storage = createStorageRuntime(chapter);
+    await expect(
+      createSavePagesBlocksMutation(storage.runtime)(
+        makeRequest([
+          {
+            ...updateFor("page-a", "remote edit"),
+            expectedRevision: createPageRevision(page),
+            baseBlockOrderHash: oldOrder,
+          },
+        ]),
+      ),
+    ).rejects.toThrow(/다른 작업으로 갱신/);
+    expect(storage.commitChapterAndWork).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale block contents even when the timestamp happens to be identical", async () => {
+    const chapter = makeChapter();
+    const update = updateFor("page-a", "remote edit");
+    chapter.pages[0].blocks[0].translatedText = "simultaneous local edit";
+    const before = structuredClone(chapter);
+    const storage = createStorageRuntime(chapter);
+    await expect(
+      createSavePagesBlocksMutation(storage.runtime)(makeRequest([update])),
+    ).rejects.toThrow(/다른 작업으로 갱신/);
+    expect(storage.readStoredChapter()).toEqual(before);
+    expect(storage.commitChapterAndWork).not.toHaveBeenCalled();
+  });
+  it("checks the full remote revision inside the same transaction boundary as ordinary saves", async () => {
+    const chapter = makeChapter();
+    const expectedRevision = createPageRevision(chapter.pages[0]);
+    chapter.pages[0].inpaintMaskPath = "new-mask.png";
+    const storage = createStorageRuntime(chapter);
+    await expect(
+      createSavePagesBlocksMutation(storage.runtime)(
+        makeRequest([
+          { ...updateFor("page-a", "remote edit"), expectedRevision },
+        ]),
+      ),
+    ).rejects.toThrow(/다른 작업으로 갱신/);
+    expect(storage.commitChapterAndWork).not.toHaveBeenCalled();
+  });
+  it("preserves mask/artwork fields and accepts an exact expected revision through the facade", async () => {
+    const chapter = makeChapter();
+    const page = chapter.pages[0];
+    page.inpaintMaskPath = "mask.png";
+    page.inpaintedImagePath = "clean.png";
+    const storage = createStorageRuntime(chapter);
+    const save = createSavePagesBlocks({
+      runMutation: async (operation) => operation(),
+      savePagesBlocks: createSavePagesBlocksMutation(storage.runtime),
+    });
+    const result = await save(
+      makeRequest([
+        {
+          ...updateFor("page-a", "remote edit"),
+          expectedRevision: createPageRevision(page),
+        },
+      ]),
+    );
+    expect(result.pages[0].inpaintMaskPath).toBe("mask.png");
+    expect(result.pages[0].inpaintedImagePath).toBe("clean.png");
+    expect(result.pages[0].imagePath).toBe(page.imagePath);
+    expect(storage.commitChapterAndWork).toHaveBeenCalledOnce();
+  });
+  it("keeps legacy timestamp-only requests and unchanged-block timestamp drift compatible", async () => {
+    const chapter = makeChapter();
+    chapter.pages[0].updatedAt = SAVE_TIME;
+    const storage = createStorageRuntime(chapter);
+    const save = createSavePagesBlocksMutation(storage.runtime);
+    await save(makeRequest([updateFor("page-a", "first edit")]));
+    const page = storage.readStoredChapter().pages[0];
+    await save(
+      makeRequest([
+        {
+          pageId: page.id,
+          baseUpdatedAt: page.updatedAt,
+          blocks: [makeBlock("second edit")],
+        },
+      ]),
+    );
+    expect(storage.readStoredChapter().pages[0].blocks[0].translatedText).toBe(
+      "second edit",
+    );
+  });
+
   it("applies multiple pages through one lock, read, write, and work touch", async () => {
     const storage = createStorageRuntime(makeChapter());
     let lockCalls = 0;

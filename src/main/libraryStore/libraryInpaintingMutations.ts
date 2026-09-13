@@ -70,12 +70,14 @@ export function createInpaintingMutationOperations(
       chapterId: string,
       pages: MangaPage[],
       cleanupOptions: InpaintingArtifactCleanupOptions = {},
+      assertCanCommit?: () => void,
     ) =>
       updatePagesAfterInpaintingWithMaintenance(
         chapterId,
         pages,
         cleanupOptions,
         maintenance,
+        assertCanCommit,
       ),
     setPageInpaintingResultUnlocked: (
       chapterId: string,
@@ -107,6 +109,7 @@ async function updatePagesAfterInpaintingWithMaintenance(
   pages: MangaPage[],
   cleanupOptions: InpaintingArtifactCleanupOptions,
   maintenance: InpaintingMutationMaintenance,
+  assertCanCommit?: () => void,
 ): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
@@ -158,6 +161,7 @@ async function updatePagesAfterInpaintingWithMaintenance(
       await stageChapterFile(transaction, chapter);
       await stageWorkFile(transaction, { ...work, updatedAt: now });
     },
+    assertCanCommit,
   );
   await finishCommittedInpaintingMutation({
     chapterDir,

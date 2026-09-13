@@ -64,6 +64,10 @@ export function createMangaApi(runtime: MangaApiRuntime): MangaApi {
         callback,
         runtime,
       ),
+    onMcpEditorProbe: (callback) =>
+      subscribeToIpcEvent(ipcEventContracts.mcpEditorProbe, callback, runtime),
+    onMcpPageChanged: (callback) =>
+      subscribeToIpcEvent(ipcEventContracts.mcpPageChanged, callback, runtime),
     onPageTimingUpdated: (callback) =>
       subscribeToIpcEvent(
         ipcEventContracts.pageTimingUpdated,

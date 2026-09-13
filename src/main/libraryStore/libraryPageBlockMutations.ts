@@ -1,4 +1,8 @@
-import { hashTranslationBlocks } from "../../shared/blockFingerprint";
+import { createPageRevision } from "../../shared/pageRevision";
+import {
+  hashTranslationBlocks,
+  hashStableValue,
+} from "../../shared/blockFingerprint";
 import { normalizeBlockType } from "../../shared/geometry";
 import type {
   LibraryChapter,
@@ -29,6 +33,7 @@ export type SavePagesBlocksMutationRuntime = {
   commitChapterAndWork: (
     chapter: LibraryChapter,
     updatedAt: string,
+    assertCanCommit?: () => void,
   ) => Promise<void>;
 };
 
@@ -37,15 +42,19 @@ const productionRuntime: SavePagesBlocksMutationRuntime = {
   logWarning: logLibraryWarning,
   now: () => new Date().toISOString(),
   readChapterFile,
-  commitChapterAndWork: async (chapter, updatedAt) => {
+  commitChapterAndWork: async (chapter, updatedAt, assertCanCommit) => {
     const work = await readWorkFile(chapter.workId);
     if (!work) {
       throw new Error("작품을 찾지 못했습니다.");
     }
-    await runLibraryTransaction("save-page-blocks", async (transaction) => {
-      await stageChapterFile(transaction, chapter);
-      await stageWorkFile(transaction, { ...work, updatedAt });
-    });
+    await runLibraryTransaction(
+      "save-page-blocks",
+      async (transaction) => {
+        await stageChapterFile(transaction, chapter);
+        await stageWorkFile(transaction, { ...work, updatedAt });
+      },
+      assertCanCommit,
+    );
   },
 };
 
@@ -53,8 +62,10 @@ export function createSavePagesBlocksMutation(
   runtime: SavePagesBlocksMutationRuntime,
 ): (
   request: SavePagesBlocksRequest,
+  assertCanCommit?: () => void,
 ) => Promise<ReturnType<typeof hydrateChapter>> {
-  return async (request) => {
+  return async (request, assertCanCommit) => {
+    assertCanCommit?.();
     assertValidPageBatch(request.pages);
     const locator = await runtime.findChapterLocation(request.chapterId);
     if (!locator) {
@@ -71,7 +82,8 @@ export function createSavePagesBlocksMutation(
     const updates = resolvePageUpdates(chapter, request, runtime.logWarning);
     const now = runtime.now();
     const nextChapter = applyPageUpdates(chapter, updates, now);
-    await runtime.commitChapterAndWork(nextChapter, now);
+    assertCanCommit?.();
+    await runtime.commitChapterAndWork(nextChapter, now, assertCanCommit);
     return hydrateChapter(nextChapter);
   };
 }
@@ -81,21 +93,27 @@ export const savePagesBlocksUnlocked =
 
 export function savePageBlocksUnlocked(
   request: SavePageBlocksRequest,
+  assertCanCommit?: () => void,
 ): Promise<ReturnType<typeof hydrateChapter>> {
-  return savePagesBlocksUnlocked({
-    chapterId: request.chapterId,
-    dirtyVersion: request.dirtyVersion,
-    saveReason: request.saveReason,
-    pages: [
-      {
-        pageId: request.pageId,
-        baseUpdatedAt: request.baseUpdatedAt,
-        baseBlocksHash: request.baseBlocksHash,
-        blocks: request.blocks,
-        blockOrder: request.blockOrder,
-      },
-    ],
-  });
+  return savePagesBlocksUnlocked(
+    {
+      chapterId: request.chapterId,
+      dirtyVersion: request.dirtyVersion,
+      saveReason: request.saveReason,
+      pages: [
+        {
+          pageId: request.pageId,
+          expectedRevision: request.expectedRevision,
+          baseUpdatedAt: request.baseUpdatedAt,
+          baseBlocksHash: request.baseBlocksHash,
+          baseBlockOrderHash: request.baseBlockOrderHash,
+          blocks: request.blocks,
+          blockOrder: request.blockOrder,
+        },
+      ],
+    },
+    assertCanCommit,
+  );
 }
 
 function assertValidPageBatch(pages: SavePageBlocksUpdate[]): void {
@@ -131,13 +149,19 @@ function assertPageSaveAllowed(
   request: SavePagesBlocksRequest,
   logWarning: typeof logLibraryWarning,
 ): void {
-  if (!update.baseUpdatedAt || page.updatedAt === update.baseUpdatedAt) {
-    return;
-  }
   const currentBlocksHash = hashTranslationBlocks(page.blocks);
-  if (update.baseBlocksHash && currentBlocksHash === update.baseBlocksHash) {
-    return;
-  }
+  const revisionMatches = matchesExpectedPageRevision(page, update);
+  const blocksMatch =
+    update.baseBlocksHash === undefined ||
+    currentBlocksHash === update.baseBlocksHash;
+  const versionMatches =
+    !update.baseUpdatedAt ||
+    page.updatedAt === update.baseUpdatedAt ||
+    Boolean(update.baseBlocksHash && blocksMatch);
+  const orderMatches =
+    update.baseBlockOrderHash === undefined ||
+    hashStableValue(page.blockOrder ?? null) === update.baseBlockOrderHash;
+  if (revisionMatches && blocksMatch && versionMatches && orderMatches) return;
   logWarning("Page block save conflict", {
     chapterId: request.chapterId,
     pageId: update.pageId,
@@ -150,6 +174,18 @@ function assertPageSaveAllowed(
   });
   throw new Error(
     "페이지가 다른 작업으로 갱신되었습니다. 최신 내용을 다시 불러온 뒤 저장해 주세요.",
+  );
+}
+
+/** Versioned remote edits may not race a newly acquired page job. */
+function matchesExpectedPageRevision(
+  page: LibraryPageRecord,
+  update: SavePageBlocksUpdate,
+): boolean {
+  if (update.expectedRevision === undefined) return true;
+  return (
+    page.analysisStatus !== "running" &&
+    createPageRevision(page) === update.expectedRevision
   );
 }
 

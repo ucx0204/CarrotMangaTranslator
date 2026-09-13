@@ -19,7 +19,7 @@
     "src/main/wholePagePipeline.ts": 22,
     "src/main/workContextAnalysis.ts": 16,
     "src/main/workContextResearch.ts": 14,
-    "src/renderer/src/app/session/useChapterSessionController.ts": 17,
+    "src/renderer/src/app/session/useChapterSessionController.ts": 18,
     "src/renderer/src/app/useAppSessionModel.ts": 14,
     "src/renderer/src/components/ConditionalBatchActionCard.tsx": 13
   },
@@ -29,12 +29,12 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 26,
-      "reason": "SFX restoration validates the same persisted review revision as preparation; the shared revision algorithm remains unchanged."
+      "maxImportedBy": 33,
+      "reason": "Existing revision authority is shared by MCP page images, external readings, OCR, erasure and export; compare-and-set still occurs inside existing library transactions. No revision algorithm is copied or changed."
     },
     "src/renderer/src/api/libraryGateway.ts": {
-      "maxImportedBy": 26,
-      "reason": "The SFX restore action uses the existing typed library gateway for an atomic, revision-checked restore instead of bypassing IPC."
+      "maxImportedBy": 27,
+      "reason": "MCP editor refresh and the merged SoundEffectTextReviewPage both use the existing typed library gateway alongside SFX restore. The PR merge has 27 real consumers (the feature tree alone has 26); preserve the canonical IPC boundary instead of adding alias wrappers. Dirty-page refresh and revision-checked save regressions cover the MCP consumer."
     },
     "src/shared/ipcSettingsSchemas.ts": {
       "maxRuntimeImports": 14,
@@ -45,12 +45,16 @@
       "reason": "Translation composition keeps the standard text pipeline and connects external image review, crop registration and optional region image editing; no protected OCR/font algorithms are moved."
     },
     "src/main/index.ts": {
-      "maxRuntimeImports": 30,
-      "reason": "Electron main composition root"
+      "maxRuntimeImports": 32,
+      "reason": "Startup composition owns the persistent desktop MCP service and legacy local test listener, including terminal shutdown."
+    },
+    "src/main/library.ts": {
+      "maxImportedBy": 29,
+      "reason": "MCP app tool and page-operation compositions plus OCR run-path adapter use the locked public library facade, never private storage internals."
     },
     "src/main/ipc/registerIpc.ts": {
-      "maxRuntimeImports": 23,
-      "reason": "IPC composition root"
+      "maxRuntimeImports": 24,
+      "reason": "IPC composition adds trusted MCP desktop controls with the existing validation and sender gate."
     },
     "src/main/logger.ts": {
       "maxImportedBy": 30,
@@ -77,8 +81,8 @@
       "reason": "Renderer session composition mapper"
     },
     "src/renderer/src/components/settingsModal/SettingsModalView.tsx": {
-      "maxRuntimeImports": 17,
-      "reason": "Settings composition groups OCR, images and hardware with text translation and research under AI; each panel keeps its public component."
+      "maxRuntimeImports": 18,
+      "reason": "Settings composition adds the public MCP settings panel; existing sections and UI primitives are reused."
     },
     "src/renderer/src/components/ui/Button.tsx": {
       "publicPrimitive": true,
@@ -98,7 +102,7 @@
     },
     "src/renderer/src/components/ui/MenuSurface.tsx": {
       "publicPrimitive": true,
-      "reason": "Shared accessible menu surface; broad reuse is intentional"
+      "reason": "Shared popup surface primitive; broad reuse is intentional"
     },
     "src/renderer/src/components/ui/Modal.tsx": {
       "publicPrimitive": true,
@@ -159,6 +163,22 @@
     "src/main/jobs/soundEffectTranslationJobRunner.ts": {
       "maxRuntimeImports": 16,
       "reason": "SFX job composition connects normal text translation, manual image review, overlap holding and the independent image edit adapter. Protected font matching and atomic library writes remain at their existing boundaries."
+    },
+    "src/main/ipc/trustedIpc.ts": {
+      "maxImportedBy": 26,
+      "reason": "MCP desktop controls use the existing trusted main-window IPC boundary; remote clients cannot approve connections or change local permissions."
+    },
+    "src/main/appPaths.ts": {
+      "maxImportedBy": 27,
+      "reason": "MCP page render/crop adapter and app-default external-reading composition reuse the canonical data-root resolver; no separate root or arbitrary paths are exposed."
+    },
+    "src/main/mcp/mcpAppTools.ts": {
+      "maxRuntimeImports": 13,
+      "reason": "MCP tool composition directly joins existing library, image/redaction, work-context and reading services. This is the composition root, not an alias facade to hide dependencies."
+    },
+    "src/main/mcp/mcpPageOperationSession.ts": {
+      "maxRuntimeImports": 14,
+      "reason": "Page-operation composition injects native app job, OCR, erasure, renderer and scoped-output adapters into independent application services. Resource ownership and public library authority remain explicit."
     }
   }
 }

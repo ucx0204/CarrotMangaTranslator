@@ -68,6 +68,8 @@ import { focusExistingMainWindow } from "./singleInstanceWindow";
 import { runMainWindowCloseCleanup } from "./mainWindowCloseCleanup";
 import { MainWindowSessionLifecycle } from "./mainWindowSessionLifecycle";
 import { createLinkedWorkspaceRuntime } from "./linkedWorkspace/linkedWorkspaceRuntime";
+import { createMcpRuntime } from "./mcpRuntime";
+import { createMcpDesktopRuntime } from "./mcpDesktopRuntime";
 
 const resolvedAppPaths = getAppPaths();
 assertDataRootInstanceLockHeld(resolvedAppPaths.dataRoot);
@@ -79,6 +81,44 @@ const importRuntime = createImportRuntimeResources({
   dataRoot: appPaths.dataRoot,
   reportError: logError,
 });
+const mcpRuntime = createMcpRuntime({
+  env: process.env,
+  reportError: logError,
+  reportInfo: logInfo,
+});
+const mcpDesktop = createMcpDesktopRuntime(
+  appPaths.dataRoot,
+  (error) => logError("MCP desktop operation failed", error),
+  {
+    isBusy: () => jobs.hasActive || operations.hasActive,
+    processing: () => ({
+      appPaths,
+      jobs,
+      getMainWindow: () => mainWindow,
+      inpaintingRevisionStore,
+      decodeImage: (filePath, signal) =>
+        decodeImageThroughRuntime(appPaths.runtimeDir, filePath, signal),
+    }),
+    requestProbe: (id) => {
+      if (!mainWindow || mainWindow.isDestroyed())
+        throw new Error("Main editor is closed.");
+      mainWindow.webContents.send(ipcEventContracts.mcpEditorProbe.channel, {
+        id,
+      });
+    },
+    notifySaved: (chapterId, pageId) => {
+      try {
+        if (mainWindow && !mainWindow.isDestroyed())
+          mainWindow.webContents.send(
+            ipcEventContracts.mcpPageChanged.channel,
+            { chapterId, pageIds: [pageId] },
+          );
+      } catch (error) {
+        logError("Could not announce a saved MCP page", error);
+      }
+    },
+  },
+);
 const inpaintingRevisionStore = new InpaintingRevisionStore();
 let mainWindow: BrowserWindow | null = null;
 const linkedWorkspaceRuntime = createLinkedWorkspaceRuntime({
@@ -243,6 +283,7 @@ void app
     }
     installNativeApplicationMenu();
     registerIpc({
+      mcpDesktop,
       appPaths,
       jobs,
       operations,
@@ -257,6 +298,7 @@ void app
       linkedWorkspaceSync,
       reportError: logError,
     });
+    await initializeMcpConnections();
     reactivateDock();
     openMainWindowNow();
     mainStartupCompleted = true;
@@ -297,7 +339,21 @@ app.on("window-all-closed", () => {
   }
 });
 
+async function initializeMcpConnections(): Promise<void> {
+  if (process.env.CARROT_MCP_ENABLED !== "1")
+    await mcpDesktop
+      .initialize()
+      .catch((error) => logError("MCP configuration unavailable", error));
+  await mcpRuntime
+    .start()
+    .catch((error) =>
+      logError("MCP startup failed; the MCP connection is disabled", error),
+    );
+}
+
 function closeTerminalIntake(): void {
+  mcpRuntime.stopAccepting();
+  mcpDesktop.stopAccepting();
   try {
     appActivityGate.closeToNewActivities();
   } finally {
@@ -389,7 +445,7 @@ function createFatalIncidentRuntime(): FatalMainProcessIncidentRuntime {
     reportCleanupFailure: (error) =>
       logError("Fatal main-process cleanup failed", error),
     reportForcedExit: (detail) =>
-      logError("Fatal main-process incident is forcing process exit", detail),
+      logError("Fatal main-process incident is forcing exit", detail),
     reportSecondaryIncident: (nextSource, nextReason) =>
       console.error(
         "A secondary fatal main-process incident occurred during shutdown",
@@ -423,6 +479,23 @@ function getOrStartTerminalCleanup(
 }
 
 async function finishTerminalCleanup(
+  reason: AppTerminalCleanupReason,
+  updateProgress: (progress: AppQuitCleanupProgress) => void,
+): Promise<void> {
+  const results = await Promise.allSettled([
+    mcpRuntime.dispose(),
+    mcpDesktop.dispose(),
+    finishTerminalAppCleanup(reason, updateProgress),
+  ]);
+  const failures = results.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : [],
+  );
+  if (failures.length > 0) {
+    throw new AggregateError(failures, "Application terminal cleanup failed.");
+  }
+}
+
+async function finishTerminalAppCleanup(
   reason: AppTerminalCleanupReason,
   updateProgress: (progress: AppQuitCleanupProgress) => void,
 ): Promise<void> {
@@ -485,6 +558,9 @@ function openMainWindowNow(): void {
     },
   });
   mainWindow.on("closed", () => {
+    void mcpDesktop
+      .setEnabled(false)
+      .catch((error) => logError("MCP window-close cleanup failed", error));
     mainWindow = null;
     panelWindows.closeAll();
     if (quitCleanupStarted || fatalCoordinator.isHandling) {
