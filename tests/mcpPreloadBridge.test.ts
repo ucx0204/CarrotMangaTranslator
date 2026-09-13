@@ -38,10 +38,14 @@ it("validates and unsubscribes both MCP editor events at the real preload bounda
   events.emit("mcp:editor-probe", {}, { id: -1 });
   events.emit("mcp:editor-probe", {}, { id: 8, extra: true });
   events.emit("mcp:page-changed", {}, { chapterId, pageIds: [] });
-  events.emit("mcp:page-changed", {}, {
-    chapterId: "../private",
-    pageIds: [pageId],
-  });
+  events.emit(
+    "mcp:page-changed",
+    {},
+    {
+      chapterId: "../private",
+      pageIds: [pageId],
+    },
+  );
   expect(warn).toHaveBeenCalledTimes(4);
   expect(probe).toHaveBeenCalledTimes(1);
   expect(changed).toHaveBeenCalledTimes(1);
