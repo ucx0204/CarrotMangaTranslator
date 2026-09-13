@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BlockLibraryEntryV1 } from "../src/shared/blockLibrary";
 import { BlockLibraryCard } from "../src/renderer/src/components/BlockLibraryCard";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
+import { clipboardBlock } from "./fixtures/blockClipboard";
 
 const frames = new Map<number, FrameRequestCallback>();
 let nextFrameId = 1;
@@ -73,6 +74,35 @@ afterEach(() => {
 });
 
 describe("block library card", () => {
+  it("shows the saved ImageGen image instead of its text fallback", async () => {
+    const image = clipboardBlock();
+    const { container } = render(
+      <BlockLibraryCard
+        busy={false}
+        canInsert
+        entry={{
+          ...ENTRY,
+          block: {
+            ...ENTRY.block,
+            sourceText: image.sourceText,
+            translatedText: image.translatedText,
+            generatedLettering: image.generatedLettering,
+          },
+        }}
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        missingFont={false}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        onInsert={vi.fn()}
+      />,
+    );
+    await flushAnimationFrames();
+    expect(container.querySelector("img")?.src).toBe(
+      image.generatedLettering?.dataUrl,
+    );
+    expect(container.querySelector(".overlay-text-content")).toBeNull();
+  });
+
   it("renders a measured preview and exposes insert, edit, and delete actions", async () => {
     const onDelete = vi.fn();
     const onEdit = vi.fn();

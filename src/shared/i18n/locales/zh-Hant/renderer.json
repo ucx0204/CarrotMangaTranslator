@@ -313,7 +313,8 @@
     "translationCheckpoint": "翻譯結果檢查點",
     "retranslationCheckpoint": "重新翻譯前檢查點",
     "retouch": "手動修補",
-    "resetOriginal": "重設為原圖"
+    "resetOriginal": "重設為原圖",
+    "pasteBlocks": "貼上區塊"
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "對話框區域至少需要三個點。",
@@ -333,7 +334,12 @@
     "formatAppliedSelection_one": "已對所選的 {{count}} 個文字區塊套用格式。",
     "formatAppliedSelection_other": "已對所選的 {{count}} 個文字區塊套用格式。",
     "formatAppliedPage": "已對本頁所有文字區塊套用格式。",
-    "formatAppliedChapter": "已對本章所有文字區塊套用格式。"
+    "formatAppliedChapter": "已對本章所有文字區塊套用格式。",
+    "copiedBlocks": "已複製{{count}}個區塊。",
+    "copiedBlocks_one": "已複製{{count}}個區塊。",
+    "copiedBlocks_other": "已複製{{count}}個區塊。",
+    "copyFailed": "無法複製區塊。請減少選取數量後重試。",
+    "pasteFailed": "無法貼上區塊。請重新複製。每頁最多可包含{{count}}個區塊。"
   },
   "chapter": {
     "saveFailed": "儲存失敗：{{message}}",

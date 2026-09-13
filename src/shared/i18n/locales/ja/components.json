@@ -1214,7 +1214,9 @@
       "wheelPages": "上下端でページを移動",
       "fitHeight": "作業領域の高さにページを合わせる",
       "toggleSelection": "ブロックを選択に追加・解除",
-      "rangeSelection": "連続したブロック範囲を選択"
+      "rangeSelection": "連続したブロック範囲を選択",
+      "copyBlocks": "選択したテキスト・画像ブロックをコピー",
+      "pasteBlocks": "作品・話を問わず現在のページに貼り付け"
     }
   },
   "gatherText": {

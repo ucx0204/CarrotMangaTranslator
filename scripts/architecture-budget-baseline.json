@@ -136,8 +136,8 @@
       "maxImportedBy": 27
     },
     "src/shared/geometry.ts": {
-      "maxImportedBy": 33,
-      "reason": "Codex native-view batching and erasure reference preparation reuse canonical box intersection for source/destination coverage and crop-local reading hints. Geometry algorithms are unchanged; avoid duplicated overlap code or an alias gateway."
+      "maxImportedBy": 35,
+      "reason": "Codex native-view batching and erasure reference preparation reuse canonical intersections. Block library and clipboard reuse render-box normalization and pixel conversion to preserve lettering aspect across pages. Geometry algorithms remain unchanged; existing geometry tests and clipboard/library roundtrips cover these consumers."
     },
     "src/shared/richTextMarkup.ts": {
       "maxImportedBy": 28,
@@ -145,7 +145,8 @@
     },
     "src/shared/ipcSchemaPrimitives.ts": {
       "maxRuntimeImports": 15,
-      "reason": "Shared IPC schema primitive authority"
+      "maxImportedBy": 27,
+      "reason": "Shared IPC schema primitive authority. Clipboard payload validation and paste capacity checks use the existing block schema and page block limit directly, with malformed-payload and atomic-overflow tests."
     },
     "src/shared/translationLanguages.ts": {
       "maxImportedBy": 29,

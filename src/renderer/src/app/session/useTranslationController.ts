@@ -52,6 +52,11 @@ export function useTranslationController(
     runAnalysis: translationActions.runAnalysis,
   });
   const blockEditingActions = useBlockEditingActions({
+    clipboardBlocked:
+      chapter.modalOpen ||
+      Boolean(translationActions.regionTranslationDialog) ||
+      chapter.derivedState.showingOriginalPeek ||
+      !chapter.uiState.showTextBlocks,
     availableFontIds,
     blockStylePresets: chapter.settingsDialog.settings?.blockStylePresets,
     currentChapter: chapter.core.currentChapter,

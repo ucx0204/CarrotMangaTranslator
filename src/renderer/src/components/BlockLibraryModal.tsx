@@ -2,6 +2,7 @@ import React from "react";
 import { IconSearch } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { BlockLibraryEntryV1 } from "../../../shared/blockLibrary";
+import { getActiveGeneratedLettering } from "../../../shared/generatedLettering";
 import { blockLibraryGateway } from "../api/blockLibraryGateway";
 import { useFonts } from "../fonts/useFonts";
 import { BlockLibraryCard } from "./BlockLibraryCard";
@@ -131,6 +132,7 @@ function BlockLibraryContent({
               fontCatalog={fontCatalog}
               key={entry.id}
               missingFont={Boolean(
+                !getActiveGeneratedLettering(entry.block) &&
                 entry.block.fontFamily &&
                 !availableFonts.has(entry.block.fontFamily),
               )}

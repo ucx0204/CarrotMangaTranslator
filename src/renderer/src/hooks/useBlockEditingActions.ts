@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { useBlockClipboard } from "./useBlockClipboard";
 import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
@@ -40,6 +41,7 @@ const EMPTY_STYLE_PRESETS: readonly BlockStylePreset[] = [];
 export function useBlockEditingActions(
   options: UseBlockEditingActionsOptions,
 ): BlockEditingActions {
+  useBlockClipboard({ ...options, blocked: options.clipboardBlocked ?? false });
   const adjustSelectedBlockFontSize =
     useAdjustSelectedBlockFontSizeAction(options);
   const adjustSelectedBlocksFontSize =

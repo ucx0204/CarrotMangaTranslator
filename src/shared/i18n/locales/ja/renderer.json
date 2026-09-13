@@ -313,7 +313,8 @@
     "translationCheckpoint": "翻訳結果のチェックポイント",
     "retranslationCheckpoint": "再翻訳前のチェックポイント",
     "retouch": "手動補正",
-    "resetOriginal": "原画像に戻す"
+    "resetOriginal": "原画像に戻す",
+    "pasteBlocks": "ブロックを貼り付け"
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "吹き出し領域には3点以上必要です。",
@@ -333,7 +334,12 @@
     "formatAppliedSelection_one": "選択した{{count}}個のブロックに書式を適用しました。",
     "formatAppliedSelection_other": "選択した{{count}}個のブロックに書式を適用しました。",
     "formatAppliedPage": "このページのすべてのブロックに書式を適用しました。",
-    "formatAppliedChapter": "この話のすべてのブロックに書式を適用しました。"
+    "formatAppliedChapter": "この話のすべてのブロックに書式を適用しました。",
+    "copiedBlocks": "{{count}}個のブロックをコピーしました。",
+    "copiedBlocks_one": "{{count}}個のブロックをコピーしました。",
+    "copiedBlocks_other": "{{count}}個のブロックをコピーしました。",
+    "copyFailed": "ブロックをコピーできませんでした。選択数を減らして再試行してください。",
+    "pasteFailed": "ブロックを貼り付けできませんでした。もう一度コピーしてください。1ページに最大{{count}}個まで追加できます。"
   },
   "chapter": {
     "saveFailed": "保存に失敗しました: {{message}}",

@@ -313,7 +313,8 @@
     "translationCheckpoint": "翻译结果检查点",
     "retranslationCheckpoint": "重新翻译前检查点",
     "retouch": "手动修补",
-    "resetOriginal": "重置为原图"
+    "resetOriginal": "重置为原图",
+    "pasteBlocks": "粘贴区块"
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "气泡区域至少需要三个点。",
@@ -333,7 +334,12 @@
     "formatAppliedSelection_one": "已对所选的 {{count}} 个文本块应用格式。",
     "formatAppliedSelection_other": "已对所选的 {{count}} 个文本块应用格式。",
     "formatAppliedPage": "已对本页所有文本块应用格式。",
-    "formatAppliedChapter": "已对本章所有文本块应用格式。"
+    "formatAppliedChapter": "已对本章所有文本块应用格式。",
+    "copiedBlocks": "已复制{{count}}个区块。",
+    "copiedBlocks_one": "已复制{{count}}个区块。",
+    "copiedBlocks_other": "已复制{{count}}个区块。",
+    "copyFailed": "无法复制区块。请减少选择数量后重试。",
+    "pasteFailed": "无法粘贴区块。请重新复制。每页最多可包含{{count}}个区块。"
   },
   "chapter": {
     "saveFailed": "保存失败：{{message}}",

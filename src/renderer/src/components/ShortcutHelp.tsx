@@ -35,7 +35,7 @@ export function ShortcutHelp({
     <Modal title={t("shortcuts.title")} size="md" onClose={onClose}>
       <div className="shortcut-help">
         {SHORTCUT_CATEGORY_ORDER.map((category) => {
-          const rows = getShortcutActions(tRenderer)
+          const rows: ShortcutRow[] = getShortcutActions(tRenderer)
             .filter((action) => action.category === category)
             .map((action) => ({
               id: action.id,
@@ -43,6 +43,20 @@ export function ShortcutHelp({
               desc: action.label,
             }))
             .filter((row) => row.keys.length > 0);
+          if (category === "edit") {
+            rows.unshift(
+              {
+                id: "copy-blocks",
+                keys: formatCombo("ctrl+c"),
+                desc: t("shortcuts.fixed.copyBlocks"),
+              },
+              {
+                id: "paste-blocks",
+                keys: formatCombo("ctrl+v"),
+                desc: t("shortcuts.fixed.pasteBlocks"),
+              },
+            );
+          }
           if (rows.length === 0) {
             return null;
           }

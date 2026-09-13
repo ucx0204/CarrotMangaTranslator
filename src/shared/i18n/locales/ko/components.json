@@ -1214,7 +1214,9 @@
       "wheelPages": "위·아래 끝에서 페이지 이동",
       "fitHeight": "작업 영역 높이에 페이지 맞춤",
       "toggleSelection": "블록을 선택에 추가하거나 제외",
-      "rangeSelection": "연속된 블록 범위 선택"
+      "rangeSelection": "연속된 블록 범위 선택",
+      "copyBlocks": "선택한 텍스트·이미지 블록 복사",
+      "pasteBlocks": "현재 페이지에 블록 붙여넣기 (작품·화 무관)"
     }
   },
   "gatherText": {

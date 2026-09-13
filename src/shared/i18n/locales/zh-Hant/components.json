@@ -1214,7 +1214,9 @@
       "wheelPages": "在頂端或底端切換頁面",
       "fitHeight": "使頁面符合工作區高度",
       "toggleSelection": "加入或移除所選文字區塊",
-      "rangeSelection": "選取連續的文字區塊範圍"
+      "rangeSelection": "選取連續的文字區塊範圍",
+      "copyBlocks": "複製選取的文字和圖片區塊",
+      "pasteBlocks": "貼上至目前頁面（支援跨作品、章節）"
     }
   },
   "gatherText": {

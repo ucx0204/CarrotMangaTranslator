@@ -26965,6 +26965,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/hooks/useBlockClipboard.ts": {
+      "lines": {
+        "covered": 55,
+        "total": 58,
+        "pct": 94.82
+      },
+      "statements": {
+        "covered": 58,
+        "total": 67,
+        "pct": 86.56
+      },
+      "functions": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 39,
+        "total": 51,
+        "pct": 76.47
+      }
+    },
     "src/renderer/src/hooks/useBlockFontReadiness.ts": {
       "lines": {
         "total": 24,
@@ -28173,6 +28195,28 @@
         "covered": 5,
         "total": 6,
         "pct": 83.33
+      }
+    },
+    "src/shared/blockClipboard.ts": {
+      "lines": {
+        "covered": 27,
+        "total": 29,
+        "pct": 93.1
+      },
+      "statements": {
+        "covered": 32,
+        "total": 34,
+        "pct": 94.11
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 4,
+        "total": 6,
+        "pct": 66.66
       }
     },
     "src/shared/blockFontPunctuationFallback.ts": {

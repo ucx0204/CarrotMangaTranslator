@@ -12,6 +12,7 @@ import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 import type { BlockLibraryEntryV1 } from "../../../shared/blockLibrary";
 
 export type UseBlockEditingActionsOptions = {
+  clipboardBlocked?: boolean;
   availableFontIds?: ReadonlySet<string>;
   blockStylePresets?: readonly BlockStylePreset[];
   currentChapter: ChapterSnapshot | null;

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { constrainEditableRenderBbox } from "./editableRenderGeometry";
 import { TranslationBlockObjectSchema } from "./ipcSchemaPrimitives";
+import { relocateGeneratedLettering } from "./generatedLettering";
+import { resolveBlockRenderBbox } from "./geometry";
 import type { BBox, Point, TranslationBlock } from "./textTypes";
 
 const BLOCK_LIBRARY_SCHEMA_VERSION = 1 as const;
@@ -10,6 +12,7 @@ const MAX_BLOCK_LIBRARY_NAME_LENGTH = 120;
 const BlockLibraryTemplateSchema = TranslationBlockObjectSchema.pick({
   sourceText: true,
   translatedText: true,
+  generatedLettering: true,
   textRole: true,
   sourceDirection: true,
   renderDirection: true,
@@ -34,6 +37,7 @@ const BlockLibraryTemplateSchema = TranslationBlockObjectSchema.pick({
   textEffect: true,
   textGlow: true,
   bold: true,
+  fontWeight: true,
   italic: true,
   underline: true,
   strikethrough: true,
@@ -45,6 +49,13 @@ const BlockLibraryTemplateSchema = TranslationBlockObjectSchema.pick({
   autoFitText: true,
 })
   .extend({
+    referencePageSize: z
+      .object({
+        width: z.number().finite().positive().max(100000),
+        height: z.number().finite().positive().max(100000),
+      })
+      .strict()
+      .optional(),
     size: z
       .object({
         w: z.number().finite().min(1).max(4000),
@@ -149,9 +160,15 @@ export function createBlockLibrarySaveInput(
       backgroundColor: block.backgroundColor,
       opacity: block.opacity,
       size,
+      referencePageSize: { width: pageSize.width, height: pageSize.height },
     },
   };
   copyDefinedTemplateFields(block, input.block);
+  input.block.generatedLettering = relocateGeneratedLettering(
+    block.generatedLettering,
+    resolveBlockRenderBbox(block, pageSize),
+    { x: 500 - size.w / 2, y: 500 - size.h / 2, ...size },
+  );
   return SaveBlockLibraryEntryInputSchema.parse(input);
 }
 
@@ -159,8 +176,24 @@ export function instantiateBlockLibraryEntry(
   entry: BlockLibraryEntryV1,
   id: string,
   center: Point = { x: 500, y: 500 },
+  pageSize = { width: 1000, height: 1000 },
 ): TranslationBlock {
-  const { size, ...template } = entry.block;
+  const {
+    size: storedSize,
+    referencePageSize,
+    ...template
+  } = structuredClone(entry.block);
+  const width = referencePageSize
+    ? (storedSize.w * referencePageSize.width) / pageSize.width
+    : storedSize.w;
+  const height = referencePageSize
+    ? (storedSize.h * referencePageSize.height) / pageSize.height
+    : storedSize.h;
+  const scale = Math.min(1, 4000 / width, 4000 / height);
+  const size = {
+    w: Math.max(1, width * scale),
+    h: Math.max(1, height * scale),
+  };
   const requestedRenderBbox: BBox = {
     x: center.x - size.w / 2,
     y: center.y - size.h / 2,
@@ -186,6 +219,11 @@ export function instantiateBlockLibraryEntry(
     renderBboxSpace: "normalized_1000",
     confidence: 1,
     ...template,
+    generatedLettering: relocateGeneratedLettering(
+      template.generatedLettering,
+      { x: 500 - storedSize.w / 2, y: 500 - storedSize.h / 2, ...storedSize },
+      renderBbox,
+    ),
   };
 }
 
@@ -222,6 +260,7 @@ export function normalizeBlockLibraryName(name: string): string {
 }
 
 const OPTIONAL_TEMPLATE_FIELDS = [
+  "generatedLettering",
   "textRole",
   "rotationDeg",
   "perspectiveTransform",
@@ -240,6 +279,7 @@ const OPTIONAL_TEMPLATE_FIELDS = [
   "textEffect",
   "textGlow",
   "bold",
+  "fontWeight",
   "italic",
   "underline",
   "strikethrough",

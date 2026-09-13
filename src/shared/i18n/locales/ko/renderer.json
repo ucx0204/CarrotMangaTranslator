@@ -313,7 +313,8 @@
     "translationCheckpoint": "번역 결과 체크포인트",
     "retranslationCheckpoint": "재번역 전 체크포인트",
     "retouch": "수동 보정",
-    "resetOriginal": "원본으로 초기화"
+    "resetOriginal": "원본으로 초기화",
+    "pasteBlocks": "블록 붙여넣기"
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "말풍선 영역에는 점이 3개 이상 필요합니다.",
@@ -333,7 +334,12 @@
     "formatAppliedSelection_one": "선택한 블록 {{count}}개에 서식을 적용했습니다.",
     "formatAppliedSelection_other": "선택한 블록 {{count}}개에 서식을 적용했습니다.",
     "formatAppliedPage": "이 페이지의 모든 블록에 서식을 적용했습니다.",
-    "formatAppliedChapter": "이 화 전체 블록에 서식을 적용했습니다."
+    "formatAppliedChapter": "이 화 전체 블록에 서식을 적용했습니다.",
+    "copiedBlocks": "블록 {{count}}개를 복사했습니다.",
+    "copiedBlocks_one": "블록 {{count}}개를 복사했습니다.",
+    "copiedBlocks_other": "블록 {{count}}개를 복사했습니다.",
+    "copyFailed": "블록을 복사하지 못했습니다. 선택 개수를 줄여 다시 시도해 주세요.",
+    "pasteFailed": "블록을 붙여넣지 못했습니다. 다시 복사해 주세요. 페이지당 최대 {{count}}개까지 넣을 수 있습니다."
   },
   "chapter": {
     "saveFailed": "저장 실패: {{message}}",

@@ -1214,7 +1214,9 @@
       "wheelPages": "在顶部或底部切换页面",
       "fitHeight": "使页面适合工作区高度",
       "toggleSelection": "添加或移除所选文本块",
-      "rangeSelection": "选择连续的文本块范围"
+      "rangeSelection": "选择连续的文本块范围",
+      "copyBlocks": "复制选中的文字和图片区块",
+      "pasteBlocks": "粘贴到当前页面（支持跨作品、章节）"
     }
   },
   "gatherText": {

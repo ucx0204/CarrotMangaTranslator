@@ -4,6 +4,7 @@ import type {
   BlockLibrarySnapshotV1,
 } from "../../../shared/blockLibrary";
 import { resolveTransformedBlockBounds } from "../../../shared/editableRenderGeometry";
+import { relocateGeneratedLettering } from "../../../shared/generatedLettering";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { blockLibraryGateway } from "../api/blockLibraryGateway";
 
@@ -40,14 +41,20 @@ export function resolveBlockLibraryThumbnailModel(
   const bounds = resolveTransformedBlockBounds(block, renderBbox);
   const offsetX = 500 - (bounds.x + bounds.w / 2);
   const offsetY = 500 - (bounds.y + bounds.h / 2);
+  const centeredBbox = {
+    ...renderBbox,
+    x: renderBbox.x + offsetX,
+    y: renderBbox.y + offsetY,
+  };
   const centeredBlock: TranslationBlock = {
     ...block,
-    renderBbox: {
-      ...renderBbox,
-      x: renderBbox.x + offsetX,
-      y: renderBbox.y + offsetY,
-    },
+    renderBbox: centeredBbox,
     renderBboxSpace: "normalized_1000",
+    generatedLettering: relocateGeneratedLettering(
+      block.generatedLettering,
+      renderBbox,
+      centeredBbox,
+    ),
   };
   const width = Math.max(1, bounds.w);
   const height = Math.max(1, bounds.h);

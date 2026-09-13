@@ -1214,7 +1214,9 @@
       "wheelPages": "Change page at the top or bottom edge",
       "fitHeight": "Fit the page to workspace height",
       "toggleSelection": "Add or remove a block from selection",
-      "rangeSelection": "Select a contiguous block range"
+      "rangeSelection": "Select a contiguous block range",
+      "copyBlocks": "Copy selected text and image blocks",
+      "pasteBlocks": "Paste blocks into this page, across chapters and works"
     }
   },
   "gatherText": {
