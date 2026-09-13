@@ -34,6 +34,7 @@ jobs:
           sha256sum "$RUNNER_TEMP/mcp-integration/source-increment.bundle" > "$RUNNER_TEMP/mcp-integration/SHA256SUMS.txt"
           git rev-parse HEAD > "$RUNNER_TEMP/mcp-integration/remote-head.txt"
           git rev-parse 'HEAD^{tree}' > "$RUNNER_TEMP/mcp-integration/remote-tree.txt"
+          git ls-tree -r --full-tree HEAD > "$RUNNER_TEMP/mcp-integration/source-inventory.txt"
           git log --format='%H %s' "$base"..HEAD > "$RUNNER_TEMP/mcp-integration/remote-commits.txt"
           git diff --stat "$base" HEAD
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
