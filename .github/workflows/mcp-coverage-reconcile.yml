@@ -1,0 +1,96 @@
+name: MCP coverage reconciliation
+
+on:
+  push:
+    branches: [feat/mcp-app-bridge]
+    paths: [.github/workflows/mcp-coverage-reconcile.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mcp-coverage-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator' && github.ref == 'refs/heads/feat/mcp-app-bridge'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Merge pinned upstream only into this MCP checkpoint
+        run: |
+          set -euo pipefail
+          current=$(git ls-remote origin refs/heads/feat/mcp-app-bridge | cut -f1)
+          test "$current" = "$GITHUB_SHA"
+          upstream=f06499b0c73923dbbcd9a3e14922e8eacb541142
+          if git merge-base --is-ancestor "$upstream" HEAD; then
+            echo 'Pinned upstream is already included.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          result=0
+          git merge --no-ff --no-commit "$upstream" || result=$?
+          test "$result" -le 1
+          if [ "$result" -eq 1 ]; then
+            test "$(git diff --name-only --diff-filter=U)" = 'scripts/production-cleanup-coverage-floors.json'
+            git show :2:scripts/production-cleanup-coverage-floors.json > "$RUNNER_TEMP/mcp-floors.json"
+            git show :3:scripts/production-cleanup-coverage-floors.json > "$RUNNER_TEMP/upstream-floors.json"
+            node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const read = name => JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, name), 'utf8'));
+          const ours = read('mcp-floors.json');
+          const theirs = read('upstream-floors.json');
+          assert.equal(ours.schemaVersion, theirs.schemaVersion);
+          for (const key of Object.keys(ours.provenance)) {
+            if (key !== 'introducedArtifactSha256') assert.deepEqual(ours.provenance[key], theirs.provenance[key]);
+          }
+          const merged = { ...theirs };
+          for (const group of ['floors', 'introducedFloors']) {
+            for (const [file, metric] of Object.entries(ours[group])) {
+              if (Object.hasOwn(theirs[group], file)) assert.deepEqual(metric, theirs[group][file], file);
+            }
+            merged[group] = Object.fromEntries(Object.entries({ ...ours[group], ...theirs[group] }).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
+            for (const file of Object.keys(merged[group])) assert.ok(fs.existsSync(file), file);
+          }
+          merged.deletedFiles = [...new Set([...ours.deletedFiles, ...theirs.deletedFiles])].sort();
+          for (const file of merged.deletedFiles) assert.ok(!merged.floors[file] && !merged.introducedFloors[file], file);
+          for (const file of Object.keys(merged.floors)) assert.ok(!merged.introducedFloors[file], file);
+          fs.writeFileSync('scripts/production-cleanup-coverage-floors.json', JSON.stringify(merged, null, 2) + '\n');
+          fs.appendFileSync('docs/mcp-page-coverage-evidence.md', '\n## Pinned upstream reconciliation\n\nUpstream `f06499b0c73923dbbcd9a3e14922e8eacb541142` and the MCP branch changed only disjoint coverage rows. The sole merge conflict was resolved by validating that every shared metric is identical, then retaining both complete inventories. The upstream introduced-artifact SHA-256 `cde57ff3d4ae28e8cbae3d9deeca3802d1bbf078f1db4267f50be3ab50867927` remains the historical provenance; the 68 MCP rows retain the separate Windows evidence above. No existing metric was reduced. This merge updates only `feat/mcp-app-bridge`, never master.\n');
+          NODE
+            git add scripts/production-cleanup-coverage-floors.json docs/mcp-page-coverage-evidence.md
+          fi
+          test -z "$(git diff --name-only --diff-filter=U)"
+      - name: Install lockfile dependencies and validate merged contracts
+        run: |
+          npm ci
+          node node_modules/prettier/bin/prettier.cjs --write scripts/production-cleanup-coverage-floors.json docs/mcp-page-coverage-evidence.md
+          node node_modules/vitest/vitest.mjs run tests/mcp tests/libraryBatchPageSave.test.ts tests/pageRevision.test.ts tests/chapterSync.test.ts tests/liveChapterRefreshCoordinator.test.ts
+          npm run typecheck
+          npm run typecheck:electron
+          npm run check:test-mock-boundaries
+      - name: Publish the validated merge without replacing concurrent work
+        run: |
+          set -euo pipefail
+          if [ ! -f .git/MERGE_HEAD ]; then exit 0; fi
+          current=$(git ls-remote origin refs/heads/feat/mcp-app-bridge | cut -f1)
+          test "$current" = "$GITHUB_SHA"
+          git add scripts/production-cleanup-coverage-floors.json docs/mcp-page-coverage-evidence.md
+          git commit -m 'merge(mcp): retain upstream fixes and both exact coverage inventories'
+          git push origin HEAD:refs/heads/feat/mcp-app-bridge
+          git rev-parse HEAD
