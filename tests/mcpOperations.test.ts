@@ -110,3 +110,69 @@ describe("MCP long-operation receipts", () => {
     expect(next.status(running.jobId, "connection-a").status).toBe("completed");
   });
 });
+
+describe("MCP receipt retention", () => {
+  it.each(["status", "cancel"] as const)(
+    "%s expires completed receipts even when no new operation is started",
+    async (method) => {
+      let now = 1_000;
+      const service = new McpOperationService(
+        () => {},
+        () => now,
+      );
+      const input = request(async () => ({ saved: true }));
+      const receipt = service.start(input);
+      await tick();
+      now += 60 * 60_000 - 1;
+      expect(service.status(receipt.jobId, input.owner).status).toBe(
+        "completed",
+      );
+      now += 1;
+      expect(() => service[method](receipt.jobId, input.owner)).toThrow(
+        /not found/,
+      );
+      await service.close();
+    },
+  );
+  it("does not expire a running receipt when the wall clock moves forward", async () => {
+    let now = 0;
+    let finish!: () => void;
+    const service = new McpOperationService(
+      () => {},
+      () => now,
+    );
+    const input = request(async () => {
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      return { saved: true };
+    });
+    const receipt = service.start(input);
+    await tick();
+    now = 2 * 60 * 60_000;
+    expect(service.status(receipt.jobId, input.owner).status).toBe("running");
+    finish();
+    await tick();
+    expect(service.status(receipt.jobId, input.owner).finishedAt).toBe(now);
+    await service.close();
+  });
+  it("retains exact retry identity before expiry and starts a fresh request after expiry", async () => {
+    let now = 0;
+    let calls = 0;
+    const service = new McpOperationService(
+      () => {},
+      () => now,
+    );
+    const input = request(async () => ({ count: ++calls }));
+    const first = service.start(input);
+    await tick();
+    expect(service.start(input).jobId).toBe(first.jobId);
+    expect(calls).toBe(1);
+    now = 60 * 60_000;
+    const second = service.start(input);
+    expect(second.jobId).not.toBe(first.jobId);
+    await tick();
+    expect(calls).toBe(2);
+    await service.close();
+  });
+});

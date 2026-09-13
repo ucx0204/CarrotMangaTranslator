@@ -100,7 +100,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           failed=0
-          for gate in typecheck typecheck:electron typecheck:js format:check arch:deps arch:budget lint:error-handling lint deadcode:exports check:script-entrypoints check:maintainability check:duplicates; do
+          for gate in typecheck typecheck:electron typecheck:js format:check arch:deps arch:budget lint:error-handling check:test-mock-boundaries lint deadcode:exports check:script-entrypoints check:maintainability check:duplicates; do
             echo "::group::$gate"
             if ! npm run "$gate"; then failed=1; fi
             echo '::endgroup::'

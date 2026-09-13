@@ -155,6 +155,7 @@ export class McpOperationService {
     }
   }
   private get(id: string, owner: string) {
+    this.prune();
     const entry = this.entries.get(id);
     if (!entry || entry.owner !== owner)
       throw new McpEditError(
@@ -181,7 +182,7 @@ export class McpOperationService {
     for (const [id, entry] of this.entries)
       if (
         entry.finishedAt !== undefined &&
-        entry.finishedAt + 60 * 60_000 < this.now()
+        entry.finishedAt + 60 * 60_000 <= this.now()
       )
         this.entries.delete(id);
   }

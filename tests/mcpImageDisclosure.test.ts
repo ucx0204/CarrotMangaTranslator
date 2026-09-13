@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { rm, writeFile } from "node:fs/promises";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PNG } from "pngjs";
@@ -21,7 +21,8 @@ async function fixture() {
   };
   const environment = await mcpAppEnvironment({ createFromPath: () => image });
   page.imagePath = join(environment.root, "original.png");
-  page.inpaintedImagePath = join(environment.root, "clean.png");
+  const cleanedPath = join(environment.root, "clean.png");
+  page.inpaintedImagePath = cleanedPath;
   await writeFile(page.imagePath, png);
   await writeFile(page.inpaintedImagePath, png);
   const adapter = await import("../src/main/mcp/mcpPageImageAdapter");
@@ -37,6 +38,7 @@ async function fixture() {
   return {
     ...environment,
     page,
+    cleanedPath,
     png,
     encode,
     setProtection,
@@ -94,6 +96,70 @@ it("keeps original-resolution rendering and closes its native session on success
       { ...f.page, imagePath: f.page.inpaintedImagePath },
       { format: "png", resolutionMode: "original" },
     );
+    expect(f.rendererClosed).toHaveBeenCalledOnce();
+  } finally {
+    await f.close();
+  }
+});
+
+it("refuses a missing cleaned raster instead of silently rendering the original", async () => {
+  const f = await fixture();
+  try {
+    await rm(f.cleanedPath);
+    await expect(
+      f.adapter.renderMcpPagePng(f.page, undefined, 1000, f.openRenderer),
+    ).rejects.toThrow();
+    expect(f.openRenderer).not.toHaveBeenCalled();
+  } finally {
+    await f.close();
+  }
+});
+
+it("rejects changed raster dimensions before opening the renderer", async () => {
+  const f = await fixture();
+  try {
+    await writeFile(
+      f.cleanedPath,
+      PNG.sync.write(new PNG({ width: 12, height: 14 })),
+    );
+    await expect(
+      f.adapter.renderMcpPagePng(f.page, undefined, 1000, f.openRenderer),
+    ).rejects.toMatchObject({ code: "revision_conflict" });
+    expect(f.openRenderer).not.toHaveBeenCalled();
+  } finally {
+    await f.close();
+  }
+});
+
+it("closes its native session after a renderer failure without returning partial bytes", async () => {
+  const f = await fixture();
+  try {
+    f.renderPage.mockRejectedValueOnce(new Error("native renderer failed"));
+    await expect(
+      f.adapter.renderMcpPagePng(f.page, undefined, 1000, f.openRenderer),
+    ).rejects.toThrow("native renderer failed");
+    expect(f.rendererClosed).toHaveBeenCalledOnce();
+  } finally {
+    await f.close();
+  }
+});
+
+it("does not disclose bytes if cancelled while the native renderer completes", async () => {
+  const f = await fixture();
+  const controller = new AbortController();
+  try {
+    f.renderPage.mockImplementationOnce(async () => {
+      controller.abort(new Error("caller cancelled"));
+      return f.png;
+    });
+    await expect(
+      f.adapter.renderMcpPagePng(
+        f.page,
+        controller.signal,
+        1000,
+        f.openRenderer,
+      ),
+    ).rejects.toThrow("caller cancelled");
     expect(f.rendererClosed).toHaveBeenCalledOnce();
   } finally {
     await f.close();
