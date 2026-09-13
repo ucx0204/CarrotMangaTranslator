@@ -49,6 +49,7 @@ export async function renderMcpPagePng(
   page: MangaPage,
   signal?: AbortSignal,
   timeoutMs = 120_000,
+  openRenderer = createPageExportRenderSession,
 ) {
   await assertDerivedImageAccess();
   const path = await prepareExternalImageFile(
@@ -56,7 +57,7 @@ export async function renderMcpPagePng(
   );
   await assertSize(path, page);
   signal?.throwIfAborted();
-  const session = await createPageExportRenderSession({
+  const session = await openRenderer({
     dataRoot: getAppPaths().dataRoot,
     decodeFallback: async () => null,
     lowPriority: true,

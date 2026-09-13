@@ -1,23 +1,13 @@
-import {
-  mkdtemp,
-  mkdir,
-  readFile,
-  writeFile,
-  readdir,
-  rm,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readFile, writeFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { it, expect, vi } from "vitest";
+import { it, expect } from "vitest";
+import { mcpAppEnvironment } from "./mcpAppEnvironment.fixture";
 
 it("rolls back actual staged and published files if authorization is revoked before durable commit", async () => {
-  const root = await mkdtemp(join(tmpdir(), "mcp-revoked-commit-"));
-  await mkdir(join(root, "works"));
+  const environment = await mcpAppEnvironment();
+  const root = environment.libraryDir;
+  await mkdir(join(root, "works"), { recursive: true });
   await writeFile(join(root, "a.json"), "old-a", "utf8");
-  vi.resetModules();
-  vi.doMock("../src/main/appPaths", () => ({
-    getAppPaths: () => ({ libraryDir: root, logFile: join(root, "app.log") }),
-  }));
   const transaction =
     await import("../src/main/libraryStore/libraryTransaction");
   let authorized = true;
@@ -44,8 +34,6 @@ it("rolls back actual staged and published files if authorization is revoked bef
     expect(await readdir(join(root, ".transactions", "active"))).toEqual([]);
   } finally {
     restore();
-    vi.doUnmock("../src/main/appPaths");
-    vi.resetModules();
-    await rm(root, { recursive: true, force: true });
+    await environment.close();
   }
 });

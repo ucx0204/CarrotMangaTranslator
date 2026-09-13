@@ -1,98 +1,101 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { writeFile } from "node:fs/promises";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { PNG } from "pngjs";
+import { expect, it, vi } from "vitest";
 import { editingChapter } from "./mcpEditing.fixture";
-import {
-  cropMcpPage,
-  renderMcpPagePng,
-} from "../src/main/mcp/mcpPageImageAdapter";
-import { renderMcpPagePreview } from "../src/main/mcp/mcpPreviewImage";
+import { mcpAppEnvironment } from "./mcpAppEnvironment.fixture";
 
-const ports = vi.hoisted(() => ({
-  enabled: false,
-  prepare: vi.fn(async (path: string) => path),
-  review: vi.fn(async () => {}),
-  render: vi.fn(async () => Buffer.from("rendered")),
-  close: vi.fn(),
-  cancel: vi.fn(),
-  encoded: vi.fn(() => Buffer.from("preview")),
-}));
-vi.mock("electron", () => ({ nativeImage: {} }));
-vi.mock("../src/main/imageRedactionContext", () => ({
-  prepareExternalImageFile: ports.prepare,
-  requireImageRedactionReview: ports.review,
-}));
-vi.mock("../src/main/imageRedactionStore", () => ({
-  readImageRedactionState: async () => ({ enabled: ports.enabled, pages: {} }),
-}));
-vi.mock("../src/main/inpainting/imageIO", () => ({
-  loadPageImage: async () => {
-    const image = {
-      getSize: () => ({ width: 1000, height: 1600 }),
-      toPNG: ports.encoded,
-      crop: () => image,
-      resize: () => image,
-    };
-    return image;
-  },
-}));
-vi.mock("../src/main/pageExport", () => ({
-  createPageExportRenderSession: async () => ({
-    renderPage: ports.render,
-    cancel: ports.cancel,
-    close: ports.close,
-  }),
-}));
-vi.mock("../src/main/appPaths", () => ({
-  getAppPaths: () => ({ dataRoot: "/synthetic" }),
-}));
-vi.mock("../src/main/pageExportRasterSafety", () => ({
-  probePageExportSourceImage: async () => ({ width: 1000, height: 1600 }),
-}));
-beforeEach(() => {
-  vi.clearAllMocks();
-  ports.enabled = false;
-  ports.prepare.mockImplementation(async (path) => path);
-  ports.review.mockImplementation(async () => {
-    if (ports.enabled) throw new Error("Redaction review now required");
-  });
-  ports.render.mockImplementation(async () => Buffer.from("rendered"));
-  ports.encoded.mockImplementation(() => Buffer.from("preview"));
-});
+async function fixture() {
+  const page = editingChapter().pages[0];
+  const png = PNG.sync.write(
+    new PNG({ width: page.width, height: page.height }),
+  );
+  const encode = vi.fn(() => png);
+  const image = {
+    getSize: () => ({ width: page.width, height: page.height }),
+    isEmpty: () => false,
+    toPNG: encode,
+    crop: () => image,
+    resize: () => image,
+  };
+  const environment = await mcpAppEnvironment({ createFromPath: () => image });
+  page.imagePath = join(environment.root, "original.png");
+  page.inpaintedImagePath = join(environment.root, "clean.png");
+  await writeFile(page.imagePath, png);
+  await writeFile(page.inpaintedImagePath, png);
+  const adapter = await import("../src/main/mcp/mcpPageImageAdapter");
+  const preview = await import("../src/main/mcp/mcpPreviewImage");
+  const setProtection = (enabled: boolean) =>
+    writeFileSync(
+      join(environment.root, "image-redactions.json"),
+      JSON.stringify({ enabled, pages: {} }),
+    );
+  const renderPage = vi.fn(async () => png);
+  const close = vi.fn();
+  const openRenderer = vi.fn(async () => ({ renderPage, close }));
+  return {
+    ...environment,
+    page,
+    png,
+    encode,
+    setProtection,
+    adapter,
+    preview,
+    renderPage,
+    openRenderer,
+    rendererClosed: close,
+  };
+}
+
 it.each(["crop", "source"])(
-  "rechecks review before disclosing a %s image encoded after the user enables redaction",
+  "rechecks the real review store before disclosing a %s encoded after protection is enabled",
   async (kind) => {
-    ports.encoded.mockImplementationOnce(() => {
-      ports.enabled = true;
-      return Buffer.from("must-not-return");
-    });
-    const page = editingChapter().pages[0];
-    await expect(
-      kind === "crop"
-        ? cropMcpPage(page, { x: 0, y: 0, w: 20, h: 20 })
-        : renderMcpPagePreview(page),
-    ).rejects.toThrow("Redaction review now required");
-    expect(ports.review).toHaveBeenCalledOnce();
+    const f = await fixture();
+    try {
+      f.encode.mockImplementationOnce(() => {
+        f.setProtection(true);
+        return f.png;
+      });
+      await expect(
+        kind === "crop"
+          ? f.adapter.cropMcpPage(f.page, { x: 0, y: 0, w: 20, h: 20 })
+          : f.preview.renderMcpPagePreview(f.page),
+      ).rejects.toThrow("가릴 페이지");
+    } finally {
+      await f.close();
+    }
   },
 );
+
 it("does not return a derived PNG when protection changes while the renderer works", async () => {
-  ports.render.mockImplementationOnce(async () => {
-    ports.enabled = true;
-    return Buffer.from("must-not-return");
-  });
-  await expect(
-    renderMcpPagePng(editingChapter().pages[0]),
-  ).rejects.toMatchObject({
-    code: "access_denied",
-  });
-  expect(ports.close).toHaveBeenCalledOnce();
+  const f = await fixture();
+  try {
+    f.renderPage.mockImplementationOnce(async () => {
+      f.setProtection(true);
+      return f.png;
+    });
+    await expect(
+      f.adapter.renderMcpPagePng(f.page, undefined, 1000, f.openRenderer),
+    ).rejects.toMatchObject({ code: "access_denied" });
+    expect(f.rendererClosed).toHaveBeenCalledOnce();
+  } finally {
+    await f.close();
+  }
 });
-it("keeps the original-resolution renderer path and closes the render session on success", async () => {
-  const page = editingChapter().pages[0];
-  await expect(renderMcpPagePng(page)).resolves.toEqual(
-    Buffer.from("rendered"),
-  );
-  expect(ports.render).toHaveBeenCalledWith(
-    { ...page, imagePath: page.inpaintedImagePath },
-    { format: "png", resolutionMode: "original" },
-  );
-  expect(ports.close).toHaveBeenCalledOnce();
+
+it("keeps original-resolution rendering and closes its native session on success", async () => {
+  const f = await fixture();
+  try {
+    await expect(
+      f.adapter.renderMcpPagePng(f.page, undefined, 1000, f.openRenderer),
+    ).resolves.toEqual(f.png);
+    expect(f.renderPage).toHaveBeenCalledWith(
+      { ...f.page, imagePath: f.page.inpaintedImagePath },
+      { format: "png", resolutionMode: "original" },
+    );
+    expect(f.rendererClosed).toHaveBeenCalledOnce();
+  } finally {
+    await f.close();
+  }
 });

@@ -9,16 +9,6 @@ import {
   createDeferred,
 } from "./inpaintingSelectionJobFixtures";
 
-vi.mock("../src/main/runtimeSupport/nativeOnnxRuntime", () => ({
-  onnxRuntimeNode: {
-    env: {},
-    InferenceSession: {
-      create: vi.fn(() => {
-        throw new Error("No model inference in this orchestration test");
-      }),
-    },
-  },
-}));
 vi.mock("electron", () => ({ app: { isPackaged: false }, nativeImage: {} }));
 
 function fixture() {

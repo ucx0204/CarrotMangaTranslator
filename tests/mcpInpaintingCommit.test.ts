@@ -1,11 +1,14 @@
-import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, it, vi } from "vitest";
+import { expect, it } from "vitest";
+import { mcpAppEnvironment } from "./mcpAppEnvironment.fixture";
 import { createPageJobTargetSnapshot } from "../src/shared/pageRevision";
 
 it("rolls back the actual inpainting chapter/work transaction when authority is revoked at commit", async () => {
-  const root = await mkdtemp(join(tmpdir(), "mcp-inpainting-commit-"));
+  const environment = await mcpAppEnvironment({
+    createFromPath: () => ({ getSize: () => ({ width: 64, height: 96 }) }),
+  });
+  const root = environment.libraryDir;
   const chapterDir = join(root, "works", "work", "chapters", "chapter");
   await mkdir(join(chapterDir, "pages"), { recursive: true });
   await mkdir(join(chapterDir, "inpainted"));
@@ -55,20 +58,6 @@ it("rolls back the actual inpainting chapter/work transaction when authority is 
       updatedAt: date,
     }),
   );
-  vi.resetModules();
-  vi.doMock("electron", () => ({
-    app: { isPackaged: false },
-    nativeImage: {
-      createFromPath: () => ({ getSize: () => ({ width: 64, height: 96 }) }),
-    },
-  }));
-  vi.doMock("../src/main/appPaths", () => ({
-    getAppPaths: () => ({
-      dataRoot: root,
-      libraryDir: root,
-      logFile: join(root, "app.log"),
-    }),
-  }));
   const library = await import("../src/main/library");
   const { setLibraryTransactionCrashInjectorForTests } =
     await import("../src/main/libraryStore/libraryTransaction");
@@ -96,9 +85,6 @@ it("rolls back the actual inpainting chapter/work transaction when authority is 
     expect(await readFile(imagePath, "utf8")).toBe("original");
   } finally {
     reset();
-    vi.doUnmock("../src/main/appPaths");
-    vi.doUnmock("electron");
-    vi.resetModules();
-    await rm(root, { recursive: true, force: true });
+    await environment.close();
   }
 });
