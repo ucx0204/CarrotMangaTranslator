@@ -1,4 +1,5 @@
 import { nativeImage } from "electron";
+import { randomUUID } from "node:crypto";
 import { readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { PNG } from "pngjs";
@@ -6,6 +7,8 @@ import { CODEX_TYPESETTING_MODEL } from "../../shared/codexTypesettingDefaults";
 import type { CodexAppServerClient } from "../codexAppServerClient";
 import { resolveCodexImageSize } from "./codexImageSize";
 import type { CodexErasureTarget } from "../application/codexTypesettingContracts";
+import { describeCodexImageFailure } from "../codexAppServerImageFailure";
+import { logWarn } from "../logger";
 
 export async function generateImage(
   client: Pick<CodexAppServerClient, "runEphemeralTurn"> & {
@@ -28,22 +31,41 @@ export async function generateImage(
     `\nOutput budget: native destination ${nativeSize.width}x${nativeSize.height}px; desired detail ${targetSize.width}x${targetSize.height}px (1.1x each edge). ${purpose ? `Generate on a ${resolveCodexImageSize(nativeSize).width}x${resolveCodexImageSize(nativeSize).height}px canvas, the supported size closest to that budget. ${purpose === "background" ? "The source artwork fills the canvas edge to edge. Edit in place: no framing, margins, letterbox bars, padding or inset copy of the image." : "Use the declared foreground canvas and retain its relative lettering placement. Do not add further padding or change the composition."}` : "Request that size if the tool allows it; otherwise use its smallest supported size preserving this aspect ratio."} Do not select high resolution or upscale beyond that minimum. Generate once only.`;
   const started = Date.now();
   const model = client.imageModel ?? CODEX_TYPESETTING_MODEL;
-  const response = await client.runEphemeralTurn({
+  const metadata = {
     model,
-    effort: "low",
-    cwd: directory,
-    signal,
-    instructions:
-      "Generate exactly one requested image using the built-in imagegen tool.",
-    input: [
-      { type: "text", text: sizedPrompt },
-      ...images.map((url) => ({
-        type: "image" as const,
-        url,
-        detail: "original" as const,
-      })),
-    ],
-  });
+    purpose,
+    nativeSize,
+    targetSize,
+    requestedSize: purpose ? resolveCodexImageSize(nativeSize) : undefined,
+    imageCount: images.length,
+  };
+  const response = await client
+    .runEphemeralTurn({
+      model,
+      effort: "low",
+      cwd: directory,
+      signal,
+      instructions:
+        "Generate exactly one requested image using the built-in imagegen tool.",
+      input: [
+        { type: "text", text: sizedPrompt },
+        ...images.map((url) => ({
+          type: "image" as const,
+          url,
+          detail: "original" as const,
+        })),
+      ],
+    })
+    .catch((error: unknown) =>
+      recordImageFailure(
+        directory,
+        {
+          ...metadata,
+          elapsedMs: Date.now() - started,
+        },
+        error,
+      ),
+    );
   const { text, ...accounting } = response;
   const callId = response.itemId?.replace(/[^\w-]/g, "_") ?? response.turnId;
   await writeFile(
@@ -51,11 +73,8 @@ export async function generateImage(
     JSON.stringify(
       {
         prompt: sizedPrompt,
-        nativeSize,
-        targetSize,
-        requestedSize: purpose ? resolveCodexImageSize(nativeSize) : undefined,
+        ...metadata,
         revisedPrompt: readRevisedPrompt(text),
-        imageCount: images.length,
         elapsedMs: Date.now() - started,
         ...accounting,
       },
@@ -63,18 +82,58 @@ export async function generateImage(
       2,
     ),
   );
+  return saveGeneratedImage(response, directory, model, signal, callId);
+}
+
+async function saveGeneratedImage(
+  response: Awaited<ReturnType<CodexAppServerClient["runEphemeralTurn"]>>,
+  directory: string,
+  model: string,
+  signal: AbortSignal,
+  callId: string,
+) {
   if (response.routedModel && response.routedModel !== model)
     throw new Error(
       `검증되지 않은 모델로 변경되었습니다: ${response.routedModel}`,
     );
   signal.throwIfAborted();
   const output = await readGeneratedImage(
-    text,
+    response.text,
     response.imageDirectory ?? directory,
   );
   // Preserve failed alpha/registration outputs as evidence before consumer validation.
   await writeFile(resolve(directory, `image-output-${callId}.png`), output);
   return output;
+}
+
+async function recordImageFailure(
+  directory: string,
+  request: Record<string, unknown>,
+  error: unknown,
+): Promise<never> {
+  const diagnosticId = randomUUID();
+  const failure = describeCodexImageFailure(error);
+  const diagnostic = {
+    diagnosticId,
+    recordedAt: new Date().toISOString(),
+    status: failure.name === "AbortError" ? "cancelled" : "failed",
+    ...request,
+    error: failure,
+  };
+  logWarn("ImageGen failed call evidence", diagnostic);
+  try {
+    await writeFile(
+      resolve(directory, `image-call-failed-${diagnosticId}.json`),
+      JSON.stringify(diagnostic, null, 2),
+    );
+  } catch (recordError) {
+    throw new AggregateError(
+      [error, recordError],
+      `${String(failure.message)} (실패 진단 기록 저장도 실패했습니다.)`,
+      { cause: recordError },
+    );
+  }
+  throw error;
 }
 
 function readRevisedPrompt(text: string): string | undefined {

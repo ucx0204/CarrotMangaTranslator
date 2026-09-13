@@ -1,6 +1,7 @@
 import { useLetteringPageMask } from "../hooks/useLetteringPageMask";
 import type { OverlayBlockRenderModel } from "./overlayBlockModel";
 import React from "react";
+import { ImageGenerationBlockedOverlay } from "./ImageGenerationBlockedOverlay";
 import { letteringMaskSvg } from "../../../shared/generatedLetteringMask";
 import type { TranslationBlock } from "../../../shared/textTypes";
 
@@ -54,7 +55,11 @@ export function LetteringPageFrame({
   return (
     <>
       <div className="overlay-transform-content" style={model.contentStyle}>
-        {chrome}
+        {chrome && model.textVisible && block.imageGenerationBlocked ? (
+          <ImageGenerationBlockedOverlay model={model} />
+        ) : (
+          chrome
+        )}
         {!pageMask ? children : null}
       </div>
       {pageMask ? (

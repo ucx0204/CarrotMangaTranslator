@@ -7,6 +7,7 @@ import type { BBox } from "../../../shared/textTypes";
 export type RegionTranslationChoices = {
   output: "text" | "image";
   eraseOriginal: boolean;
+  invertColors?: boolean;
   eraseEngine?: "default" | "codex";
 };
 export type RegionTranslationDialog = {
@@ -44,6 +45,9 @@ export function buildRegionTranslationRequest(
     codexTypesetting: {
       ...defaults,
       eraseOriginal: choices.eraseOriginal,
+      ...(choices.output === "image" && choices.invertColors
+        ? { invertColors: true }
+        : {}),
       regionOutput: choices.output,
       sfxRendering: choices.output === "image" ? "image" : "font",
     },

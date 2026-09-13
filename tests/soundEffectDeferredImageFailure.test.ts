@@ -163,6 +163,24 @@ it.each([
   },
 );
 
+it("finishes later pages when a refused region is retained as a local marker", async () => {
+  const f = fixture();
+  if (!f.dependencies.editImages) throw new Error("Missing image editor");
+  vi.mocked(f.dependencies.editImages).mockImplementation(async ({ page }) => ({
+    ...page,
+    blocks: page.blocks.map((block) =>
+      page.id === "page-1"
+        ? { ...block, imageGenerationBlocked: "sexual" }
+        : block,
+    ),
+  }));
+  const result = await runSoundEffectTranslationJob(f.input, f.dependencies);
+  expect(result.status).toBe("completed");
+  expect(f.dependencies.editImages).toHaveBeenCalledTimes(2);
+  expect(f.saved[0].blocks[0].imageGenerationBlocked).toBe("sexual");
+  expect(f.saved[1].blocks[0].imageGenerationBlocked).toBeUndefined();
+});
+
 type CancellationPoint = {
   phase: "before-finalization" | "font" | "image" | "after-save";
   pageId: string;

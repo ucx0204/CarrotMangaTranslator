@@ -44,7 +44,7 @@ export const ArtworkBlock = React.memo(function ArtworkBlock({
   onPointerDown,
   warpPreview = false,
 }: ArtworkBlockProps): React.JSX.Element {
-  const content = (
+  const content = block.imageGenerationBlocked ? null : (
     <>
       <TextBackgroundLayer block={block} />
       <ArtworkBlockText

@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFile, writeFile } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PNG } from "pngjs";
 import {
   CodexLetteringGenerationError,
@@ -210,6 +210,10 @@ function fixture() {
   return { client, context, previous };
 }
 beforeEach(() => {
+  vi.stubEnv(
+    "MANGA_TRANSLATOR_LOG_PATH",
+    `${process.cwd()}/.tmp/lettering-refusal-test.log`,
+  );
   vi.clearAllMocks();
   vi.mocked(readFile).mockResolvedValue(Buffer.from("source-fixture"));
   sourceImage.open.mockReturnValue({ crop: sourceImage.crop });
@@ -218,8 +222,181 @@ beforeEach(() => {
       `data:image/png;base64,${imageBytes(true).toString("base64")}`,
   });
 });
+afterEach(() => vi.unstubAllEnvs());
 
 describe("lettering generation binding and reuse", () => {
+  it.each(["first", "middle", "all"])(
+    "skips sexual refusals without stopping the family (%s)",
+    async (blocked) => {
+      const { client, context } = fixture();
+      const ids = ["first", "middle", "last"];
+      const blocks = ids.map((id) => ({ ...block, id, translatedText: id }));
+      client.runEphemeralTurn.mockImplementation(async (request) => {
+        const text = request.input[0].text;
+        if (blocked === "all" || text.includes(`Render exactly "${blocked}"`))
+          throw Object.assign(new Error("ImageGen failed"), {
+            imageGenerationDiagnostics: {
+              processError: {
+                code: "moderation_blocked",
+                moderationDetails: { categories: ["sexual"] },
+              },
+            },
+          });
+        return {
+          text: JSON.stringify({ result: imageBytes().toString("base64") }),
+          threadId: "t",
+          turnId: "t",
+          itemId: "i",
+          routedModel: "gpt-6-astra",
+        };
+      });
+      const result = await generateLetteringLayers(
+        { ...page, blocks },
+        {
+          ...reading,
+          regions: ids.map((id) => ({
+            ...reading.regions[0],
+            id,
+            translatedText: id,
+          })),
+        },
+        (id) => id,
+        client,
+        "C:/tmp/lettering-test",
+        new AbortController().signal,
+        {
+          ...context,
+          previousPage: undefined,
+          plan: {
+            ...plan,
+            groups: [
+              {
+                ...plan.groups[0],
+                members: ids.map((regionId) => ({
+                  regionId,
+                  bold: true,
+                  italic: false,
+                })),
+              },
+            ],
+          },
+        },
+      );
+      expect(client.runEphemeralTurn).toHaveBeenCalledTimes(3);
+      expect(result.issues).toEqual([]);
+      for (const output of result.page.blocks) {
+        const refused = blocked === "all" || output.id === blocked;
+        expect(output.imageGenerationBlocked).toBe(
+          refused ? "sexual" : undefined,
+        );
+        expect(Boolean(output.generatedLettering)).toBe(!refused);
+      }
+      const firstSafe = result.page.blocks.find(
+        (output) => output.generatedLettering,
+      );
+      if (firstSafe) {
+        const later:
+          | Parameters<CodexAppServerClient["runEphemeralTurn"]>[0]
+          | undefined = client.runEphemeralTurn.mock.calls.at(-1)?.[0];
+        expect(
+          later?.input.filter((part) => part.type === "image")[1]?.url,
+        ).toBe(firstSafe.generatedLettering?.dataUrl);
+      }
+    },
+  );
+
+  it.each([false, true])(
+    "restores RGB after matte removal and keeps family anchors in processing colors (invert=%s)",
+    async (invertColors) => {
+      const { client, context } = fixture();
+      const source = new PNG({ width: 2, height: 2 });
+      source.data.set([
+        12, 34, 56, 255, 240, 220, 200, 255, 0, 0, 0, 255, 255, 255, 255, 255,
+      ]);
+      const sourceBytes = PNG.sync.write(source);
+      sourceImage.crop.mockReturnValue({
+        toDataURL: () =>
+          `data:image/png;base64,${sourceBytes.toString("base64")}`,
+      });
+      const generated = new PNG({ width: 2, height: 2 });
+      generated.data.set([
+        0, 255, 0, 255, 20, 40, 60, 255, 80, 50, 20, 128, 0, 255, 0, 255,
+      ]);
+      client.runEphemeralTurn.mockResolvedValue({
+        text: JSON.stringify({
+          result: PNG.sync.write(generated).toString("base64"),
+        }),
+        threadId: "thread",
+        turnId: "turn",
+        itemId: "image",
+        routedModel: "gpt-6-astra",
+      });
+      const onGenerated = vi.fn(async () => {});
+      const result = await generateLetteringLayers(
+        { ...page, blocks: [block, { ...block, id: "second" }] },
+        {
+          ...reading,
+          regions: [
+            reading.regions[0],
+            { ...reading.regions[0], id: "second" },
+          ],
+        },
+        (id) => id,
+        client,
+        "C:/tmp/lettering-test",
+        new AbortController().signal,
+        {
+          ...context,
+          previousPage: invertColors ? context.previousPage : undefined,
+          invertColors,
+          onGenerated,
+          plan: {
+            ...plan,
+            groups: [
+              {
+                ...plan.groups[0],
+                members: [
+                  { regionId: "r", bold: true, italic: false },
+                  { regionId: "second", bold: true, italic: false },
+                ],
+              },
+            ],
+          },
+        },
+      );
+      expect(client.runEphemeralTurn).toHaveBeenCalledTimes(2);
+      const sent = client.runEphemeralTurn.mock.calls[0][0].input[1].url;
+      const sentPixels = PNG.sync.read(
+        Buffer.from(sent.split(",")[1], "base64"),
+      );
+      expect([...sentPixels.data.subarray(0, 4)]).toEqual(
+        invertColors ? [243, 221, 199, 255] : [12, 34, 56, 255],
+      );
+      const expected = invertColors
+        ? [0, 0, 0, 0, 235, 215, 195, 255, 175, 205, 235, 128, 0, 0, 0, 0]
+        : [0, 0, 0, 0, 20, 40, 60, 255, 80, 50, 20, 128, 0, 0, 0, 0];
+      for (const output of result.page.blocks) {
+        if (!output.generatedLettering) throw new Error("Missing lettering");
+        const bytes = Buffer.from(
+          output.generatedLettering.dataUrl.split(",")[1],
+          "base64",
+        );
+        expect([...PNG.sync.read(bytes).data]).toEqual(expected);
+        expect(writeFile).toHaveBeenCalledWith(
+          expect.stringContaining(`lettering-${output.id}-1.png`),
+          bytes,
+        );
+      }
+      const anchor = client.runEphemeralTurn.mock.calls[1][0].input[2].url;
+      expect([
+        ...PNG.sync.read(Buffer.from(anchor.split(",")[1], "base64")).data,
+      ]).toEqual([0, 0, 0, 0, 20, 40, 60, 255, 80, 50, 20, 128, 0, 0, 0, 0]);
+      expect(onGenerated).toHaveBeenCalledTimes(2);
+      expect([...source.data.subarray(0, 4)]).toEqual([12, 34, 56, 255]);
+      expect(result.page.imagePath).toBe(page.imagePath);
+    },
+  );
+
   it("reuses unchanged lettering and permits a separate rotation without regeneration", async () => {
     const { client, context, previous } = fixture();
     const result = await generateLetteringLayers(

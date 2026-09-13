@@ -95,6 +95,8 @@ export type TranslationBlock = {
   bubbleLayout?: BubbleLayout;
   sourceText: string;
   translatedText: string;
+  /** Provider-refused ImageGen region; retained for local review, never retried automatically. */
+  imageGenerationBlocked?: "sexual";
   /** Portable, independently movable ImageGen lettering. Editing the text reveals the editable font fallback. */
   generatedLettering?: {
     maskStrokes?: import("./generatedLetteringMaskTypes").LetteringMaskStroke[];

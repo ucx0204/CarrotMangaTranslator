@@ -571,6 +571,35 @@ describe("compact region translation dialog", () => {
       translationJobIpcContracts.translateRegion.result.parse(result),
     ).toEqual(result);
   });
+  it("offers inversion only for images and keeps it independent of erasure", async () => {
+    const input = props(true);
+    const view = render(<RegionTranslationModal {...input} />);
+    await screen.findByRole("button", { name: "실행" });
+    expect(screen.queryByRole("switch", { name: "반전으로 처리" })).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: "효과음 이미지" }));
+    const invert = screen.getByRole("switch", { name: "반전으로 처리" });
+    expect(invert.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(invert);
+    fireEvent.click(screen.getByRole("button", { name: "실행" }));
+    expect(input.onRun).toHaveBeenLastCalledWith({
+      output: "image",
+      eraseOriginal: false,
+      invertColors: true,
+    });
+    fireEvent.click(screen.getByRole("switch", { name: "원문 지우기" }));
+    expect(invert.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: "텍스트" }));
+    expect(screen.queryByRole("switch", { name: "반전으로 처리" })).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: "효과음 이미지" }));
+    view.rerender(<RegionTranslationModal {...input} busy />);
+    expect(
+      (
+        screen.getByRole("switch", {
+          name: "반전으로 처리",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+  });
   it("cancel never runs translation", () => {
     const input = props();
     render(<RegionTranslationModal {...input} />);

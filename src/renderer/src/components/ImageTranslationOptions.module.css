@@ -1,0 +1,5 @@
+.toggles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: var(--sp-3);
+}

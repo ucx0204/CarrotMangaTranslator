@@ -1139,6 +1139,7 @@
     "styleGuide": "用語/記憶"
   },
   "overlay": {
+    "sexualImageBlocked": "sexualと判定されました",
     "exclude": "除外",
     "excluded": "除外済み",
     "resize": "サイズ変更",
@@ -2595,6 +2596,8 @@
     "text": "テキスト",
     "image": "効果音画像",
     "erase": "原文を消去",
+    "invertColors": "反転して処理",
+    "invertColorsHint": "効果音の原文の色を反転して画像生成に送り、生成結果を再反転して合成します。",
     "cancel": "キャンセル",
     "run": "実行",
     "unavailable": "Codexの接続を確認してください。",

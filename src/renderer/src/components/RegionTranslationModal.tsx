@@ -173,6 +173,7 @@ function RegionTranslationFields({
   return (
     <div className={styles.options}>
       <ImageTranslationOptions
+        allowInvertColors
         value={choices}
         onChange={setChoices}
         available={imageAvailable}

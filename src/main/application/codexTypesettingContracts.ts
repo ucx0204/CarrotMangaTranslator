@@ -64,6 +64,7 @@ export type TypesettingRepair = {
   reuseBackgroundIds?: string[];
 };
 export type TypesettingLetteringContext = TypesettingRepair & {
+  invertColors?: boolean;
   plan: CodexChapterPlan;
   previousPage?: MangaPage;
   onGenerated?: (page: MangaPage) => Promise<void>;

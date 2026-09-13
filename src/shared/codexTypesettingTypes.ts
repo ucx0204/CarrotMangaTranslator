@@ -14,6 +14,8 @@ export type CodexTypesettingOptions = {
   version: 1;
   eraseOriginal?: boolean;
   regionOutput?: "text" | "image";
+  /** Invert source lettering RGB for generation, then restore the output RGB. */
+  invertColors?: boolean;
   preset: CodexFontPreset;
   /** Missing in older saved requests; defaults to generated SFX. */
   sfxRendering?: CodexSfxRendering;

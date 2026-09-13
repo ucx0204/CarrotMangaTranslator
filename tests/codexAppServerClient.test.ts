@@ -27,12 +27,102 @@ import * as workspaceModule from "../src/main/codexAppServerWorkspace";
 const temporaryDirectories: string[] = [];
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
 describe("CodexAppServerClient", () => {
+  it.each([
+    "failure-output",
+    "failure-error",
+    "failure-turn",
+    "failure-silent",
+    "failure-stderr",
+  ])(
+    "preserves %s diagnostics before deleting the failed image thread",
+    async (delivery) => {
+      const { client, root, auditPath } =
+        await startImageFailureFixture(delivery);
+      try {
+        const failure = await client
+          .runEphemeralTurn({
+            model: "gpt-6-astra",
+            effort: "low",
+            instructions: "image",
+            input: [{ type: "text", text: "private input prompt" }],
+            cwd: root,
+          })
+          .catch((error: unknown) => error);
+        expect(failure).toMatchObject({
+          threadId: "thread-1",
+          turnId: "turn-1",
+          itemId: "image-1",
+          imageGenerationDiagnostics: { codexVersion: "0.154.0" },
+        });
+        const saved = readFileSync(join(root, "app.log"), "utf8");
+        expect(saved).toContain('"itemId":"image-1"');
+        if (delivery === "failure-silent") {
+          expect(failure).toMatchObject({ message: 'ImageGen 실패: "failed"' });
+          expect(saved).toContain("collectionError");
+        } else {
+          expect(failure).toMatchObject({
+            message: expect.stringContaining("HTTP 400 fixture-request-id"),
+          });
+          expect(saved).toContain("HTTP 400 fixture-request-id");
+        }
+        if (delivery === "failure-stderr")
+          expect(failure).toMatchObject({
+            imageGenerationDiagnostics: {
+              processError: {
+                code: "moderation_blocked",
+                moderationDetails: {
+                  moderation_stage: "input",
+                  categories: ["sexual"],
+                },
+              },
+            },
+          });
+        for (const secret of [
+          "cookie-secret",
+          "token-secret",
+          "foreign-thread",
+          "foreign-turn",
+          "private input prompt",
+          "private-image",
+          "private-audio",
+          "encrypted-secret",
+        ])
+          expect(saved).not.toContain(secret);
+      } finally {
+        await client.dispose();
+      }
+      const audit = JSON.parse(readFileSync(auditPath, "utf8"));
+      expect(audit).toContainEqual({ failureLogWrittenBeforeDelete: true });
+    },
+  );
+
+  it("cancels promptly while waiting for missing image failure detail", async () => {
+    const { client, root } = await startImageFailureFixture("failure-silent");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 100);
+    try {
+      await expect(
+        client.runEphemeralTurn({
+          model: "gpt-6-astra",
+          effort: "low",
+          instructions: "image",
+          input: [{ type: "text", text: "image" }],
+          cwd: root,
+          signal: controller.signal,
+        }),
+      ).rejects.toMatchObject({ name: "AbortError" });
+    } finally {
+      clearTimeout(timer);
+      await client.dispose(true);
+    }
+  });
   it("observes failed workspace removal when aborting an already exited child and disposing again", async () => {
     const root = mkdtempSync(join(tmpdir(), "mgt-codex-abort-cleanup-test-"));
     temporaryDirectories.push(root);
@@ -616,9 +706,43 @@ function restoreEnvironmentValue(key: string, value: string | undefined): void {
   else process.env[key] = value;
 }
 
+async function startImageFailureFixture(delivery: string) {
+  const root = mkdtempSync(join(tmpdir(), "mgt-codex-image-failure-"));
+  temporaryDirectories.push(root);
+  const fixturePath = join(root, "fake-app-server.cjs");
+  const auditPath = join(root, "audit.json");
+  writeFileSync(fixturePath, fakeAppServerSource(delivery));
+  vi.stubEnv("MANGA_TRANSLATOR_LOG_PATH", join(root, "app.log"));
+  const client = await CodexAppServerClient.start(
+    {
+      paths: createAppPaths(root),
+      appVersion: "test",
+      capability: "image-generation",
+    },
+    {
+      resolveBinary: () => ({
+        executablePath: "fake-codex",
+        packageVersion: "0.154.0",
+        source: "packaged",
+        packageName: "@openai/codex-win32-x64",
+        triple: "x86_64-pc-windows-msvc",
+        executableName: "codex.exe",
+      }),
+      spawnAppServer: (_path, _args, options) =>
+        spawn(process.execPath, [fixturePath], {
+          cwd: options.cwd,
+          env: { ...options.env, FAKE_CODEX_AUDIT_PATH: auditPath },
+          stdio: ["pipe", "pipe", "pipe"],
+          windowsHide: true,
+        }),
+    },
+  );
+  return { client, root, auditPath };
+}
+
 function fakeAppServerSource(imageDelivery = "", usageMode = "total"): string {
   return String.raw`
-const { writeFileSync } = require("node:fs");
+const { writeFileSync, readFileSync, existsSync } = require("node:fs");
 const { createInterface } = require("node:readline");
 const imageDelivery = ${JSON.stringify(imageDelivery)};
 const usageMode = ${JSON.stringify(usageMode)};
@@ -699,6 +823,30 @@ lines.on("line", (line) => {
         break;
       }
       if (imageDelivery) {
+        if (imageDelivery.startsWith("failure-")) {
+          send({ id: message.id, result: { turn: { id: "turn-1" } } });
+          const output = { type: "functionCallOutput", id: "exec-1", name: "exec", output: [
+            { type: "input_text", text: "HTTP 400 fixture-request-id\nAuthorization: Bearer token-secret\nSet-Cookie: sid=cookie-secret; extra=secret" },
+            { type: "input_image", image_url: "private-image" },
+            { type: "input_audio", audio_url: "private-audio" },
+            { type: "encrypted_content", encrypted_content: "encrypted-secret" },
+          ] };
+          send({ method: "item/completed", params: { threadId: "unrelated", turnId: "turn-1", item: { ...output, output: "foreign-thread" } } });
+          send({ method: "item/completed", params: { threadId: "thread-1", turnId: "wrong-turn", item: { ...output, output: "foreign-turn" } } });
+          process.stderr.write('upstream failure headers={"set-cookie":"cookie-secret"}\n');
+          send({ method: "item/completed", params: { threadId: "thread-1", turnId: "turn-1", item: { type: "imageGeneration", id: "image-1", status: "failed", failure: null, result: "" } } });
+          if (imageDelivery !== "failure-silent") setTimeout(() => {
+            const error = { message: "HTTP 400 fixture-request-id", codexErrorInfo: "other", additionalDetails: "upstream rejected" };
+            if (imageDelivery === "failure-output") send({ method: "item/completed", params: { threadId: "thread-1", turnId: "turn-1", item: output } });
+            if (imageDelivery === "failure-error") send({ method: "error", params: { threadId: "thread-1", turnId: "turn-1", error, willRetry: false } });
+            if (imageDelivery === "failure-turn") send({ method: "turn/completed", params: { threadId: "thread-1", turn: { id: "turn-1", status: "failed", error, items: [] } } });
+            if (imageDelivery === "failure-stderr") {
+              const body = JSON.stringify({ error: { message: "HTTP 400 fixture-request-id safety_violations=[sexual]", code: "moderation_blocked", type: "image_generation_user_error", moderation_details: { moderation_stage: "input", categories: ["sexual"] } } });
+              process.stderr.write(JSON.stringify({ level: "ERROR", target: "codex_core::tools::router", fields: { error: "image generation failed: http 400 Bad Request: Some(" + JSON.stringify(body) + ")" } }) + "\n");
+            }
+          }, 50);
+          break;
+        }
         const item = { type: "imageGeneration", id: "image-1", status: "completed", result: "cG5n", revisedPrompt: "visible text" };
         send({ method: "item/completed", params: { threadId: "unrelated", turnId: "turn-1", item } });
         send({ method: "item/completed", params: { threadId: "thread-1", turnId: "wrong-turn", item } });
@@ -757,6 +905,10 @@ lines.on("line", (line) => {
       send({ id: message.id, result: { turn: { id: "turn-1" } } });
       break;
     case "thread/delete":
+      if (imageDelivery.startsWith("failure-")) {
+        const logPath = process.env.MANGA_TRANSLATOR_LOG_PATH;
+        messages.push({ failureLogWrittenBeforeDelete: existsSync(logPath) && readFileSync(logPath, "utf8").includes('"threadId":"thread-1"') });
+      }
       send({ id: message.id, result: {} });
       break;
     default:

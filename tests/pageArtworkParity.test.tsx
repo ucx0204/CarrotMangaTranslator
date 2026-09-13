@@ -64,6 +64,60 @@ function expectCurveFormattingArtifacts(
 }
 
 describe("page artwork renderer parity", () => {
+  it("shows a sexual refusal only on the affected editor box and omits it from exported artwork", () => {
+    const blocked = makeBlock("blocked", {
+      imageGenerationBlocked: "sexual",
+      translatedText: "거부된 글자",
+      textBackgroundEnabled: true,
+    });
+    const allowed = makeBlock("allowed", { translatedText: "성공" });
+    const pageSize = { width: 1000, height: 1400 };
+    const editor = render(
+      withFonts(
+        <>
+          {[blocked, allowed].map((block) => (
+            <OverlayBlock
+              key={block.id}
+              block={block}
+              pageSize={pageSize}
+              stageSize={pageSize}
+              selected={false}
+              showChrome={false}
+              textLayoutStageSize={pageSize}
+              interactionPreviewStore={createWorkspaceInteractionPreviewStore()}
+              onPointerDown={() => {}}
+              onResizePointerDown={() => {}}
+            />
+          ))}
+        </>,
+      ),
+    );
+    expect(
+      editor.container.querySelectorAll(
+        '[data-image-generation-blocked="sexual"]',
+      ),
+    ).toHaveLength(1);
+    expect(editor.container.textContent).toContain("sexual로 판정됨");
+    expect(editor.container.textContent).not.toContain("거부된 글자");
+    expect(editor.container.textContent).toContain("성공");
+    const exported = render(
+      <PageArtwork
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        imageSrc="source.png"
+        page={{ id: "p", name: "p", ...pageSize, blocks: [blocked, allowed] }}
+        visualSize={pageSize}
+      />,
+    );
+    expect(
+      exported.container.querySelector("[data-image-generation-blocked]"),
+    ).toBeNull();
+    expect(
+      exported.container.querySelector(".text-background-layer"),
+    ).toBeNull();
+    expect(exported.container.textContent).not.toContain("거부된 글자");
+    expect(exported.container.textContent).toContain("성공");
+  });
+
   it("measures the active generated image instead of overflow in its hidden text fallback", () => {
     const block = makeBlock("image-overflow", {
       sourceText: "ギロ",

@@ -5,6 +5,7 @@ import type {
 } from "../src/shared/analysisTypes";
 import type { BBox } from "../src/shared/textTypes";
 import { buildRegionTranslationRequest } from "../src/renderer/src/lib/regionTranslationOptions";
+import { RegionAnalysisRequestSchema } from "../src/shared/ipcJobSchemas";
 import type { CodexAccountSnapshot } from "../src/shared/codexAccountTypes";
 import React from "react";
 import { render, fireEvent, screen, waitFor } from "@testing-library/react";
@@ -137,6 +138,32 @@ it("sends the saved region revision and registers the background/block undo tran
     );
   });
   expect(beforeTranslate).toHaveBeenCalledTimes(2);
+});
+
+it("passes image inversion through IPC and drops it for text output", () => {
+  const options = buildRegionTranslationRequest(null, {
+    output: "image",
+    eraseOriginal: false,
+    invertColors: true,
+  });
+  const request = RegionAnalysisRequestSchema.parse({
+    ...options,
+    chapterId: "11111111-1111-4111-8111-111111111111",
+    pageId: "22222222-2222-4222-8222-222222222222",
+    bbox: { x: 0, y: 0, w: 500, h: 500 },
+  });
+  expect(request.codexTypesetting?.invertColors).toBe(true);
+  expect(request.eraseOriginal).toBe(false);
+  for (const eraseOriginal of [false, true]) {
+    expect(
+      buildRegionTranslationRequest(null, {
+        output: "text",
+        eraseOriginal,
+        eraseEngine: "codex",
+        invertColors: true,
+      }).codexTypesetting?.invertColors,
+    ).toBeUndefined();
+  }
 });
 
 function regionOptions(): UseTranslationActionsOptions {

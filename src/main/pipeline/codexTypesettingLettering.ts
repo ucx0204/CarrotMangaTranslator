@@ -15,6 +15,11 @@ import type { CodexAppServerClient } from "../codexAppServerClient";
 import { generateImage } from "./codexTypesettingImageRequest";
 import { sourceRegionCrops } from "./codexTypesettingRaster";
 import { prepareCodexLetteringCanvas } from "./codexLetteringCanvas";
+import { generateStyleGroups } from "./codexLetteringGroups";
+import {
+  invertLetteringRgb,
+  invertedLetteringReference,
+} from "./codexLetteringColorInversion";
 import type {
   TypesettingComposition,
   TypesettingImage,
@@ -31,7 +36,12 @@ export async function generateLetteringLayers(
   context: TypesettingLetteringContext,
 ): Promise<TypesettingComposition> {
   const blocks = [...page.blocks];
-  const imageRegions = reading.regions.filter((r) => r.action === "image");
+  const imageRegions = reading.regions.filter(
+    (r) =>
+      r.action === "image" &&
+      !blocks.find((block) => block.id === blockId(r.id))
+        ?.imageGenerationBlocked,
+  );
   if (!imageRegions.length) return { page, issues: [] };
   const job: LetteringJob = {
     page,
@@ -51,6 +61,16 @@ export async function generateLetteringLayers(
     context,
     signal,
     generate,
+    (region) => {
+      const index = blocks.findIndex(
+        (block) => block.id === blockId(region.id),
+      );
+      blocks[index] = {
+        ...blocks[index],
+        generatedLettering: undefined,
+        imageGenerationBlocked: "sexual",
+      };
+    },
   );
   signal.throwIfAborted();
   reportLetteringFailure(failures[0], { ...page, blocks });
@@ -74,6 +94,8 @@ function reusableLettering(
   context: TypesettingLetteringContext,
 ) {
   if (
+    context.invertColors ||
+    block.imageGenerationBlocked ||
     context.issues.some(
       (issue) => issue.regionId === regionId && issue.kind === "image",
     )
@@ -125,7 +147,8 @@ LAYOUT: The reference is the exact source bounding box, and its full canvas maps
 ${style?.description ? `Additional observed family characteristics: ${JSON.stringify(style.description)}. Use only where consistent with the source crop.` : ""}
 ${block.translatedText !== typography.plainText ? `Explicit per-span overrides from text markup: ${JSON.stringify(typography.runs)}. Apply these overrides without replacing the reference texture.` : ""}
 Generate only the complete lettering. If the source passes behind a balloon or foreground object, keep the word complete without baking the occluder or crop edge into it; the app applies a separate occlusion mask. Do not copy Japanese glyphs, neighboring drawings, paper or panels. Do not add decorative effects absent from the source.
-Place the asset on a perfectly uniform flat ${letteringMatteColor(block)} chroma-key background, also in every empty gap and enclosed counter. This background must have no texture, gradient, shadow or checkerboard. Preserve texture and tonal variation INSIDE the lettering. Never use the matte color as part of the lettering. The app removes the matte locally to produce real alpha. Retain the reference's existing margins rather than adding padding that shifts or shrinks the lettering.
+${context.invertColors ? "COLOR PROCESSING: The attached source crop and style anchor are already RGB-inverted. Match their displayed colors; do not invert them again. Any color descriptions or explicit markup colors above refer to the original palette: use their RGB complements (255 minus each channel). Keep the chroma-key background specified below unchanged. The app restores the lettering colors after removing that background." : ""}
+Place the asset on a perfectly uniform flat ${letteringMatteColor(block, context.invertColors)} chroma-key background, also in every empty gap and enclosed counter. This background must have no texture, gradient, shadow or checkerboard. Preserve texture and tonal variation INSIDE the lettering. Never use the matte color as part of the lettering. The app removes the matte locally to produce real alpha. Retain the reference's existing margins rather than adding padding that shifts or shrinks the lettering.
 Destination is ${size.w} by ${size.h} ORIGINAL PAGE pixels. Match its aspect ratio and retain the source treatment when reduced to this size. The app applies ${block.rotationDeg ?? 0} degrees of rotation separately; do not duplicate it.
 ${context.issues.length ? `Observed defects: ${JSON.stringify(context.issues.filter((issue) => issue.regionId === regionId))}` : ""}`;
 }
@@ -141,33 +164,48 @@ function assertTransparentLettering(image: PNG): void {
     throw new Error("효과음 전경에 실제 투명 배경과 글자 픽셀이 필요합니다.");
 }
 
-function transparentLetteringBytes(output: Buffer, channel: number): Buffer {
+function transparentLetteringBytes(
+  output: Buffer,
+  channel: number,
+  invertColors = false,
+): Buffer {
   const generated = nativeImage.createFromBuffer(output);
   if (generated.isEmpty())
     throw new Error("ImageGen 효과음 이미지가 비어 있습니다.");
   const image = PNG.sync.read(generated.toPNG());
   removeLetteringMatte(image, channel);
   assertTransparentLettering(image);
+  if (invertColors) invertLetteringRgb(image);
   const bytes = PNG.sync.write(image);
   if (bytes.length > 5_999_980)
     throw new Error("효과음 레이어가 저장 용량 제한을 초과했습니다.");
   return bytes;
 }
 
-function letteringMatteChannel(block: TranslationBlock): number {
+function letteringMatteChannel(
+  block: TranslationBlock,
+  invertColors = false,
+): number {
   const colors = [block.textColor, block.outlineColor ?? "#ffffff"].map(
     (color) =>
-      [1, 3, 5].map(
-        (index) => Number.parseInt(color.slice(index, index + 2), 16) || 0,
-      ),
+      [1, 3, 5].map((index) => {
+        const value = Number.parseInt(color.slice(index, index + 2), 16) || 0;
+        return invertColors ? 255 - value : value;
+      }),
   );
   return [1, 2, 0].sort((a, b) =>
     colors.reduce((sum, color) => sum + color[a] - color[b], 0),
   )[0];
 }
-function letteringMatteColor(block: TranslationBlock): string {
-  return ["#ff0000", "#00ff00", "#0000ff"][letteringMatteChannel(block)];
+function letteringMatteColor(
+  block: TranslationBlock,
+  invertColors = false,
+): string {
+  return ["#ff0000", "#00ff00", "#0000ff"][
+    letteringMatteChannel(block, invertColors)
+  ];
 }
+
 function removeLetteringMatte(image: PNG, channel: number): void {
   const others = [0, 1, 2].filter((value) => value !== channel);
   const corners = [
@@ -223,44 +261,6 @@ function removeLetteringMatte(image: PNG, channel: number): void {
   }
 }
 
-async function generateStyleGroups(
-  regions: CodexPageRegion[],
-  context: TypesettingLetteringContext,
-  signal: AbortSignal,
-  generate: (region: CodexPageRegion, anchor?: string) => Promise<string>,
-) {
-  const groups = new Map<string, CodexPageRegion[]>();
-  for (const region of regions) {
-    const groupId =
-      context.plan.groups.find((group) =>
-        group.members.some((member) => member.regionId === region.id),
-      )?.id ?? region.id;
-    groups.set(groupId, [...(groups.get(groupId) ?? []), region]);
-  }
-  const queue = [...groups.values()];
-  const failures: Array<{ source: string; error: unknown }> = [];
-  const worker = async () => {
-    for (let group = queue.shift(); group; group = queue.shift()) {
-      let anchor: string | undefined;
-      for (const region of group) {
-        signal.throwIfAborted();
-        try {
-          const generated = await generate(region, anchor);
-          anchor ??= generated;
-        } catch (error) {
-          failures.push({ source: region.sourceText, error });
-          break;
-        }
-      }
-    }
-  };
-  // Wait for all writers, including after cancellation or a failed group.
-  await Promise.allSettled(
-    Array.from({ length: Math.min(2, queue.length) }, worker),
-  );
-  return failures;
-}
-
 function reportLetteringFailure(
   failure: { source: string; error: unknown } | undefined,
   page: MangaPage,
@@ -306,13 +306,20 @@ async function generateRegionLayer(
     block.renderBbox ?? block.bbox,
     page,
   );
-  const reference = await letteringReference(job, region);
+  let reference = await letteringReference(job, region);
+  if (context.invertColors) {
+    reference = {
+      ...reference,
+      dataUrl: invertedLetteringReference(reference.dataUrl),
+    };
+    if (anchor) anchor = invertedLetteringReference(anchor);
+  }
   const canvas = prepareCodexLetteringCanvas(
     reference,
     destination,
     block.renderBbox ?? block.bbox,
     page,
-    letteringMatteColor(block),
+    letteringMatteColor(block, context.invertColors),
   );
   const output = await generateImage(
     client,
@@ -332,10 +339,15 @@ async function generateRegionLayer(
     { width: canvas.size.w, height: canvas.size.h },
     "lettering",
   );
-  const bytes = transparentLetteringBytes(output, letteringMatteChannel(block));
+  const bytes = transparentLetteringBytes(
+    output,
+    letteringMatteChannel(block, context.invertColors),
+    context.invertColors,
+  );
   blocks[index] = {
     ...block,
     renderBbox: canvas.renderBbox,
+    imageGenerationBlocked: undefined,
     generatedLettering: {
       version: 1,
       dataUrl: `data:image/png;base64,${bytes.toString("base64")}`,
@@ -349,9 +361,7 @@ async function generateRegionLayer(
     bytes,
   );
   const snapshot = { ...page, blocks: [...blocks] };
-  const render = async () => {
-    await context.onGenerated?.(snapshot);
-  };
+  const render = () => context.onGenerated?.(snapshot);
   job.preview = (job.preview ?? Promise.resolve()).then(render, render);
   await job.preview;
   return `data:image/png;base64,${bytes.toString("base64")}`;
@@ -367,7 +377,7 @@ async function letteringReference(job: LetteringJob, region: CodexPageRegion) {
         {
           ...reading,
           regions: reading.regions.filter(
-            (item) => item.action === "keep" || item.action === "image",
+            (item) => item.action === "keep" || imageRegions.includes(item),
           ),
         },
       ],

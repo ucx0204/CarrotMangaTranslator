@@ -1139,6 +1139,7 @@
     "styleGuide": "Terminology/memory"
   },
   "overlay": {
+    "sexualImageBlocked": "Flagged as sexual",
     "exclude": "Exclude",
     "excluded": "Excluded",
     "resize": "Resize",
@@ -2595,6 +2596,8 @@
     "text": "Text",
     "image": "SFX image",
     "erase": "Erase original",
+    "invertColors": "Process inverted",
+    "invertColorsHint": "Invert the source lettering colors before image generation, then invert the result back before compositing.",
     "cancel": "Cancel",
     "run": "Run",
     "unavailable": "Check your Codex connection.",

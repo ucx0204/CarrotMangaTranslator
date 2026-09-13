@@ -58,6 +58,26 @@ it.each(["image", "text", "actual-mask"])(
   },
 );
 
+it("persists a blocked image region alongside successfully translated blocks", async () => {
+  const { page, chapter, append, readStored } = await createStorage();
+  await append(
+    chapter.id,
+    page.id,
+    [
+      { ...makeBlock(), id: "blocked", imageGenerationBlocked: "sexual" },
+      { ...makeBlock(), id: "ok" },
+    ],
+    { expectedRevision: createPageRevision(page) },
+  );
+  const blocks = (await readStored()).pages[0].blocks;
+  expect(
+    blocks.find((block) => block.id === "blocked")?.imageGenerationBlocked,
+  ).toBe("sexual");
+  expect(
+    blocks.find((block) => block.id === "ok")?.imageGenerationBlocked,
+  ).toBeUndefined();
+});
+
 async function createStorage() {
   const root = await mkdtemp(join(tmpdir(), "region-revision-"));
   roots.push(root);

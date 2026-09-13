@@ -30,6 +30,7 @@ export class CodexAppServerTransport {
   private readonly failureListeners = new Set<FailureListener>();
   private readonly recentNotifications: JsonRecord[] = [];
   private readonly recentStderr: string[] = [];
+  private stderrSequence = 0;
   private nextRequestId = 1;
   private closed = false;
   private exitError: Error | null = null;
@@ -60,17 +61,42 @@ export class CodexAppServerTransport {
     return this.child;
   }
 
+  get stderrCursor(): number {
+    return this.stderrSequence;
+  }
+
+  readTurnDiagnostics(
+    threadId: string,
+    turnId: string | null,
+    stderrSince = 0,
+  ) {
+    const retainedStart = this.stderrSequence - this.recentStderr.length;
+    return {
+      notifications: this.recentNotifications.filter((notification) => {
+        const params = asRecord(notification.params);
+        return (
+          params?.threadId === threadId &&
+          turnId !== null &&
+          (params.turnId === turnId || asRecord(params.turn)?.id === turnId)
+        );
+      }),
+      // Process-wide context; stderr is not attributed to a particular turn.
+      processStderr: this.recentStderr
+        .slice(Math.max(0, stderrSince - retainedStart))
+        .join("\n"),
+    };
+  }
+
   request(
     method: string,
     params?: unknown,
     timeoutMs = RPC_REQUEST_TIMEOUT_MS,
   ): Promise<unknown> {
     if (this.exitError) return Promise.reject(this.exitError);
-    if (this.closed) {
+    if (this.closed)
       return Promise.reject(
         new Error("Codex App Server 연결이 닫혀 있습니다."),
       );
-    }
     const id = this.nextRequestId++;
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -107,9 +133,8 @@ export class CodexAppServerTransport {
       if (
         notification.method !== "item/started" &&
         notification.method !== "item/completed"
-      ) {
+      )
         return;
-      }
       const params = asRecord(notification.params);
       const item = asRecord(params?.item);
       if (
@@ -333,6 +358,7 @@ export class CodexAppServerTransport {
     for (const rawLine of chunk.split(/\r?\n/u)) {
       const line = rawLine.trim();
       if (!line) continue;
+      this.stderrSequence++;
       this.recentStderr.push(line.slice(0, MAX_STDERR_LINE_LENGTH));
       if (this.recentStderr.length > MAX_STDERR_LINES) {
         this.recentStderr.shift();

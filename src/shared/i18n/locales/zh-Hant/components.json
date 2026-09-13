@@ -1139,6 +1139,7 @@
     "styleGuide": "術語／記憶"
   },
   "overlay": {
+    "sexualImageBlocked": "被判定為 sexual",
     "exclude": "排除",
     "excluded": "已排除",
     "resize": "調整大小",
@@ -2595,6 +2596,8 @@
     "text": "文字",
     "image": "音效圖片",
     "erase": "擦除原文",
+    "invertColors": "反色處理",
+    "invertColorsHint": "將原文效果字反色後傳送進行圖像生成，再將生成結果反色還原後合成。",
     "cancel": "取消",
     "run": "執行",
     "unavailable": "請檢查Codex連線。",

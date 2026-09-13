@@ -103,6 +103,7 @@ export async function runWholePagePipeline(
             signal: options.signal,
             eraseOriginal: options.codexTypesetting.eraseOriginal === true,
             output: options.codexTypesetting.regionOutput ?? "text",
+            invertColors: options.codexTypesetting.invertColors,
             decode: options.decodeImage ?? (async () => null),
             progress: (update) => reportImageProgress({ ...update, page: 1 }),
             confirmReading: options.confirmRegionReading,
@@ -140,9 +141,8 @@ export async function runWholePagePipeline(
         )
       : await run();
   } finally {
-    if (ownsDependencies) {
+    if (ownsDependencies)
       await dependencies.fontMatching.pageInference?.dispose?.();
-    }
   }
 }
 

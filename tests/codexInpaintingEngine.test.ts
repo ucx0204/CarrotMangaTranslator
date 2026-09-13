@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { mkdtemp, rm, writeFile, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 import {
@@ -8,6 +9,8 @@ import {
   acquireCodexInpaintingEngine,
 } from "../src/main/inpainting/codexInpaintingEngine";
 import { CodexAppServerClient } from "../src/main/codexAppServerClient";
+import { eraseTranslatedPage } from "../src/main/codexImageErasure";
+import { makeBlock, makePage } from "./unifiedInpaintingUiFixtures";
 import type { AppPaths } from "../src/main/appPaths";
 import { resolveDefaultAppSettings } from "../src/main/settings/appSettingsDefaults";
 import {
@@ -18,6 +21,10 @@ import {
 vi.mock("electron", () => ({
   app: { getVersion: () => "fixture" },
   nativeImage: {
+    createFromPath: (path: string) => {
+      const png = PNG.sync.read(readFileSync(path));
+      return new Raster(png.data, png.width, png.height);
+    },
     createFromBitmap: (data: Buffer, size: { width: number; height: number }) =>
       new Raster(data, size.width, size.height),
     createFromBuffer: (bytes: Buffer) => {
@@ -27,6 +34,112 @@ vi.mock("electron", () => ({
   },
 }));
 const dirs: string[] = [];
+it.each(["normal", "sexual", "offline", "cancel"])(
+  "isolates erasure refusals per block while preserving failures and cancellation (%s)",
+  async (outcome) => {
+    const directory = await mkdtemp(join(tmpdir(), "codex-erasure-isolation-"));
+    dirs.push(directory);
+    vi.stubEnv("MANGA_TRANSLATOR_LOG_PATH", join(directory, "app.log"));
+    const imagePath = join(directory, "page.png");
+    const source = new PNG({ width: 200, height: 200 });
+    source.data.fill(255);
+    for (const corner of [20, 140])
+      for (let y = corner; y < corner + 20; y++)
+        for (let x = corner; x < corner + 20; x++)
+          source.data.fill(0, (y * 200 + x) * 4, (y * 200 + x) * 4 + 3);
+    await writeFile(imagePath, PNG.sync.write(source));
+    const page = {
+      ...makePage(),
+      imagePath,
+      width: 200,
+      height: 200,
+      blocks: [
+        {
+          ...makeBlock(),
+          id: "first",
+          bbox: { x: 100, y: 100, w: 100, h: 100 },
+        },
+        {
+          ...makeBlock(),
+          id: "second",
+          bbox: { x: 700, y: 700, w: 100, h: 100 },
+        },
+      ],
+    };
+    const controller = new AbortController();
+    const turn = vi.fn<CodexAppServerClient["runEphemeralTurn"]>(
+      async (request) => {
+        if (turn.mock.calls.length === 1) {
+          if (outcome === "cancel") {
+            controller.abort();
+            throw controller.signal.reason;
+          }
+          if (outcome === "sexual")
+            throw new Error("HTTP 400 safety_violations=[sexual]");
+          if (outcome === "offline") throw new Error("offline");
+        }
+        const images = request.input.filter((item) => item.type === "image");
+        const crop = PNG.sync.read(
+          Buffer.from(images[0].url.split(",")[1], "base64"),
+        );
+        const mask = PNG.sync.read(
+          Buffer.from(images[1].url.split(",")[1], "base64"),
+        );
+        for (let i = 0; i < crop.width * crop.height; i++)
+          if (mask.data[i * 4]) crop.data.fill(255, i * 4, i * 4 + 4);
+        return {
+          threadId: "t",
+          turnId: "t",
+          itemId: "i",
+          text: JSON.stringify({
+            result: PNG.sync.write(crop).toString("base64"),
+          }),
+        };
+      },
+    );
+    try {
+      const operation = eraseTranslatedPage(
+        page,
+        {
+          signal: controller.signal,
+          decode: async () => null,
+        },
+        { runEphemeralTurn: turn },
+        directory,
+      );
+      if (outcome === "offline" || outcome === "cancel") {
+        await expect(operation).rejects.toThrow(
+          outcome === "offline" ? "offline" : /abort/i,
+        );
+        expect(turn).toHaveBeenCalledTimes(1);
+      } else {
+        const result = await operation;
+        expect(turn).toHaveBeenCalledTimes(2);
+        expect(result.blocks[0].imageGenerationBlocked).toBe(
+          outcome === "sexual" ? "sexual" : undefined,
+        );
+        expect(result.blocks[1].imageGenerationBlocked).toBeUndefined();
+        if (!result.inpaintedImagePath)
+          throw new Error("Missing completed background");
+        const output = PNG.sync.read(await readFile(result.inpaintedImagePath));
+        expect([
+          ...output.data.subarray((25 * 200 + 25) * 4, (25 * 200 + 25) * 4 + 4),
+        ]).toEqual(
+          outcome === "sexual" ? [0, 0, 0, 255] : [255, 255, 255, 255],
+        );
+        expect([
+          ...output.data.subarray(
+            (145 * 200 + 145) * 4,
+            (145 * 200 + 145) * 4 + 4,
+          ),
+        ]).toEqual([255, 255, 255, 255]);
+      }
+      expect(await readFile(imagePath)).toEqual(PNG.sync.write(source));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  },
+);
 it.each(["complete", "cancel", "invalid"])(
   "uses original page context for a thin selection without changing its coordinates (%s)",
   async (outcome) => {

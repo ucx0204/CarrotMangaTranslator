@@ -16,8 +16,11 @@ export function extractCodexImageTurn(
   const item = readImageItem(params, turn);
   if (!item) throw new Error("ImageGen 결과를 받지 못했습니다.");
   if (item.status !== "completed" || item.failure) {
-    throw new Error(
-      `ImageGen 실패: ${JSON.stringify(item.failure ?? item.status)}`,
+    throw Object.assign(
+      new Error(
+        `ImageGen 실패: ${JSON.stringify(item.failure ?? item.status)}`,
+      ),
+      { threadId, turnId, itemId: item.id ?? null },
     );
   }
   return {

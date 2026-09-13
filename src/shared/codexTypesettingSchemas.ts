@@ -37,6 +37,7 @@ export const codexTypesettingOptionsSchema = z
     version: z.literal(1),
     eraseOriginal: z.boolean().optional(),
     regionOutput: z.enum(["text", "image"]).optional(),
+    invertColors: z.boolean().optional(),
     preset: codexFontPresetSchema,
     sfxRendering: z.enum(["image", "font"]).default("image"),
   })

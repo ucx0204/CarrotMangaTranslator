@@ -21,6 +21,7 @@ import {
   type JsonRecord,
 } from "./codexAppServerProtocol";
 import { extractCodexImageTurn } from "./codexAppServerImageResult";
+import { captureCodexImageFailure } from "./codexAppServerImageFailure";
 import { CodexAppServerTransport } from "./codexAppServerTransport";
 import { createCodexAppServerWorkspace } from "./codexAppServerWorkspace";
 import {
@@ -277,6 +278,8 @@ export class CodexAppServerClient {
     input.signal?.throwIfAborted();
     const webSearches = this.transport.observeWebSearches(threadId);
     const accounting = this.transport.observeTurnAccounting(threadId);
+    const stderrSince = this.transport.stderrCursor;
+    let turnId: string | null = null;
     try {
       const started = asRecord(
         await this.transport.request("turn/start", {
@@ -289,7 +292,7 @@ export class CodexAppServerClient {
           ...(input.outputSchema ? { outputSchema: input.outputSchema } : {}),
         }),
       );
-      const turnId = readNestedString(started, "turn", "id");
+      turnId = readNestedString(started, "turn", "id");
       if (!turnId) {
         throw new Error("Codex App Server가 턴 ID를 반환하지 않았습니다.");
       }
@@ -329,6 +332,17 @@ export class CodexAppServerClient {
           webSearches.count(),
         ),
       };
+    } catch (error) {
+      if (this.capability !== "image-generation") throw error;
+      input.signal?.throwIfAborted();
+      throw await captureCodexImageFailure(
+        this.transport,
+        error,
+        threadId,
+        turnId,
+        stderrSince,
+        input.signal,
+      );
     } finally {
       webSearches.dispose();
       accounting.dispose();

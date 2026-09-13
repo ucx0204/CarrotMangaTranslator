@@ -1139,6 +1139,7 @@
     "styleGuide": "용어/기억"
   },
   "overlay": {
+    "sexualImageBlocked": "sexual로 판정됨",
     "exclude": "제외",
     "excluded": "제외됨",
     "resize": "크기 조절",
@@ -2595,6 +2596,8 @@
     "text": "텍스트",
     "image": "효과음 이미지",
     "erase": "원문 지우기",
+    "invertColors": "반전으로 처리",
+    "invertColorsHint": "효과음 원문의 색상을 반전해 이미지 생성에 보내고, 생성 결과를 다시 반전해 합성합니다.",
     "cancel": "취소",
     "run": "실행",
     "unavailable": "Codex 연결을 확인해 주세요.",

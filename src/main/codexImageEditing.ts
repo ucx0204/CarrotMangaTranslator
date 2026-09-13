@@ -11,8 +11,7 @@ import type { CodexProgressUpdate } from "../shared/codexTypesettingProgress";
 import { getAppPaths } from "./appPaths";
 import { getAppSettings } from "./settingsStore";
 import { startCodexImageSession } from "./codexImageSession";
-import { createCodexInpaintingEngine } from "./inpainting/codexInpaintingEngine";
-import { inpaintPatternPage } from "./inpainting";
+import { eraseTranslatedPage } from "./codexImageErasure";
 import type { ImageDecodeFallback } from "./regionCrop";
 import {
   CodexLetteringGenerationError,
@@ -20,7 +19,6 @@ import {
 } from "./pipeline/codexTypesettingLettering";
 import { createPageExportRenderSession } from "./pageExport";
 import { readingEditProtection } from "./regionEditProtection";
-import { normalizedRegionToPixelRect } from "../shared/region";
 import {
   needsCodexRegionPlanning,
   planCodexImageRegions,
@@ -32,6 +30,7 @@ export type CodexImageEdit = {
   signal: AbortSignal;
   eraseOriginal: boolean;
   output: "text" | "image";
+  invertColors?: boolean;
   decode: ImageDecodeFallback;
   progress: (update: CodexProgressUpdate) => void;
   confirmReading?: (reading: CodexPageReading) => Promise<CodexPageReading>;
@@ -204,40 +203,6 @@ async function previewFinishedPage(
   }
 }
 
-async function eraseTranslatedPage(
-  page: MangaPage,
-  input: CodexImageEdit,
-  client: Awaited<ReturnType<typeof startCodexImageSession>>,
-  directory: string,
-  protection?: Uint8Array,
-  reading?: CodexPageReading,
-): Promise<MangaPage> {
-  const result = await inpaintPatternPage(page, {
-    blockIds: page.blocks.map((block) => block.id),
-    signal: input.signal,
-    decodeFallback: input.decode,
-    inpaintingEngine: createCodexInpaintingEngine(
-      client,
-      directory,
-      input.signal,
-      async () => {},
-      protection,
-      input.regionContext,
-      reading?.regions
-        .filter((region) => region.action !== "keep")
-        .map((region) => ({
-          sourceText: region.sourceText,
-          appearance: region.styleDescription,
-          bounds: normalizedRegionToPixelRect(region.sourceBbox, page),
-        })),
-    ),
-    preserveExistingInpainting: true,
-  });
-  if (page.blocks.some((block) => !result.erasedBlockIds?.includes(block.id)))
-    throw new Error("일부 원문을 지우지 못했습니다. 결과를 확인해 주세요.");
-  return result.page;
-}
-
 export function translatedPageReading(
   page: MangaPage,
   output: "text" | "image",
@@ -322,6 +287,7 @@ async function illustrateTranslatedPage(
       {
         attempt: 1,
         issues: [],
+        invertColors: input.invertColors,
         plan: {
           groups: reading.regions.map((region) => ({
             id: region.styleGroupId ?? region.id,

@@ -3,6 +3,7 @@ import {
   mkdtemp,
   mkdir,
   readFile,
+  readdir,
   rm,
   symlink,
   writeFile,
@@ -15,8 +16,88 @@ import { makePngImage } from "./helpers/imageFixtures";
 vi.mock("electron", () => ({ nativeImage: {} }));
 const roots: string[] = [];
 afterEach(async () => {
+  vi.unstubAllEnvs();
   for (const root of roots.splice(0))
     await rm(root, { recursive: true, force: true });
+});
+
+it("saves failed request metadata without input prompts, media, or credentials", async () => {
+  const root = await mkdtemp(join(tmpdir(), "image-failure-"));
+  roots.push(root);
+  vi.stubEnv("MANGA_TRANSLATOR_LOG_PATH", join(root, "app.log"));
+  const failure = Object.assign(
+    new Error("HTTP 400\nAuthorization: Bearer token-secret"),
+    {
+      threadId: "thread",
+      turnId: "turn",
+      itemId: "image",
+      imageGenerationDiagnostics: {
+        events: [{ detail: "provider-error request-123" }],
+      },
+    },
+  );
+  const client = {
+    runEphemeralTurn: vi.fn(async () => {
+      throw failure;
+    }),
+  };
+  await expect(
+    generateImage(
+      client,
+      root,
+      new AbortController().signal,
+      "private prompt",
+      ["data:image/png;base64,private-image"],
+      { width: 271, height: 203 },
+      "background",
+    ),
+  ).rejects.toBe(failure);
+  const files = (await readdir(root)).filter((name) =>
+    name.startsWith("image-call-failed-"),
+  );
+  expect(files).toHaveLength(1);
+  const text = await readFile(join(root, files[0]), "utf8");
+  expect(JSON.parse(text)).toMatchObject({
+    status: "failed",
+    purpose: "background",
+    imageCount: 1,
+    nativeSize: { width: 271, height: 203 },
+    requestedSize: { width: 944, height: 704 },
+    elapsedMs: expect.any(Number),
+    error: { threadId: "thread", turnId: "turn", itemId: "image" },
+  });
+  for (const privateValue of [
+    "private prompt",
+    "private-image",
+    "token-secret",
+  ])
+    expect(text).not.toContain(privateValue);
+  expect(text).toContain("provider-error request-123");
+  expect(client.runEphemeralTurn).toHaveBeenCalledOnce();
+});
+
+it("preserves the original failure when its diagnostic file cannot be written", async () => {
+  const root = await mkdtemp(join(tmpdir(), "image-failure-io-"));
+  roots.push(root);
+  vi.stubEnv("MANGA_TRANSLATOR_LOG_PATH", join(root, "app.log"));
+  const original = new Error("upstream failed");
+  const failure = await generateImage(
+    {
+      runEphemeralTurn: async () => {
+        throw original;
+      },
+    },
+    join(root, "missing"),
+    new AbortController().signal,
+    "private",
+    [],
+    { width: 1, height: 1 },
+  ).catch((error: unknown) => error);
+  expect(failure).toBeInstanceOf(AggregateError);
+  expect(failure).toMatchObject({
+    message: expect.stringContaining("upstream failed"),
+    errors: [original, expect.objectContaining({ code: "ENOENT" })],
+  });
 });
 
 it.each([false, true])(

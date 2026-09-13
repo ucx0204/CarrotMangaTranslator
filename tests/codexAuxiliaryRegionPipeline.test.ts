@@ -51,6 +51,7 @@ it.each(["complete", "partial", "error", "cancel"])(
       .fn()
       .mockResolvedValue(regionSoundTranslationResult());
     const editImages = vi.fn(async (input: CodexImageEdit) => {
+      expect(input.invertColors).toBe(true);
       expect(input.page.blocks[0].translatedText).toBeTruthy();
       expect(requestTranslation).toHaveBeenCalledOnce();
       expect(await input.decode(input.page.imagePath)).toBeNull();
@@ -78,6 +79,7 @@ it.each(["complete", "partial", "error", "cancel"])(
       signal: controller.signal,
       codexTypesetting: {
         version: 1 as const,
+        invertColors: true,
         preset: preferences.presets[0],
         eraseOriginal: true,
         sfxRendering: "image" as const,
