@@ -51,6 +51,16 @@ Additional disclosure/reading-layout regressions pass locally: **238 tests in 36
 
 Actual OCR/model quality, live Tailscale traffic and the logged-in user's new-tool interaction remain separate from deterministic automated tests. The user had already confirmed the connection/auth/existing editor baseline. This milestone does not claim full repository `npm run check`, all platforms, GPU model quality or every advanced translation feature.
 
+## Resumed validation on 2026-09-13
+
+The first-page code at `65d8eaea3b0b5fec681949188f8f77099ade28b7` passed the complete **MCP checkpoint** in Windows run `34710920321`: focused tests, the app build, native page-chain and encrypted-auth smoke, production settings captures and the checkpoint static gates. This success was present remotely when work resumed; the first-page implementation was not recreated.
+
+The separate PR-wide `Check` found internal module mocks in four new tests. `a56f2bda31edd106e546aaf373ce7cbd3ef553ae` replaces them with the real packaged path resolver, real redaction files and real library transactions. Only the external Electron/native renderer boundary is substituted. The mock allowlist and its checker are unchanged. Windows MCP run `34732940906` passed, including the native page chain. The full PR check then progressed past the mock-boundary gate and identified the combined library-gateway consumer count.
+
+The only merge-specific budget adjustment is the public renderer `libraryGateway` fan-in: the branch has 26 consumers and the PR merge with `SoundEffectTextReviewPage` has 27. `useMcpEditorSync` continues using the same gateway and dirty-page-preserving refresh coordinator; no alias, copied gateway or general budget increase is introduced.
+
+`4b9a12b57a99a14fb19488adfb7e6f1d2e04638b` enforces the documented receipt expiration on status/cancel lookup, adds real-raster absence/dimension and renderer failure/cancel regressions, and makes the original test-mock-boundary gate part of every MCP checkpoint. Locally, 242 tests pass; the remaining four erasure tests cannot load this offline kit's omitted Linux ONNX binary. Their Windows execution and real native smoke are required in the final checkpoint, not inferred from local results. Both TypeScript checks and focused lint passed locally. Read the final exact run/status in PR #96 rather than assuming a started run succeeded.
+
 ## Next functional work
 
 Preserve these independent tools while extending app text-model execution, reading/geometry/style patches, per-region masks, dedicated lettering/font matching, SFX images, derived-layer review, durable multi-page jobs/ZIP and import/research/context mutation. Do not silently broaden the current first-page tool contracts or replace the existing app algorithms.

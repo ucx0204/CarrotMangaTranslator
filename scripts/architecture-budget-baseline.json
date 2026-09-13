@@ -33,8 +33,8 @@
       "reason": "Existing revision authority is shared by MCP page images, external readings, OCR, erasure and export; compare-and-set still occurs inside existing library transactions. No revision algorithm is copied or changed."
     },
     "src/renderer/src/api/libraryGateway.ts": {
-      "maxImportedBy": 26,
-      "reason": "The SFX restore action uses the existing typed library gateway for an atomic, revision-checked restore instead of bypassing IPC."
+      "maxImportedBy": 27,
+      "reason": "MCP editor refresh and the merged SoundEffectTextReviewPage both use the existing typed library gateway alongside SFX restore. The PR merge has 27 real consumers (the feature tree alone has 26); preserve the canonical IPC boundary instead of adding alias wrappers. Dirty-page refresh and revision-checked save regressions cover the MCP consumer."
     },
     "src/shared/ipcSettingsSchemas.ts": {
       "maxRuntimeImports": 14,
