@@ -38,6 +38,17 @@ jobs:
           git log --format='%H %s' "$base"..HEAD > "$RUNNER_TEMP/mcp-integration/remote-commits.txt"
           node -e 'const gate = require("./scripts/check-production-cleanup-coverage.cjs"); console.log(JSON.stringify(gate.collectCoverageScope(process.cwd(), gate.CLEANUP_BASE_COMMIT), null, 2))' > "$RUNNER_TEMP/mcp-integration/coverage-scope.json"
           git diff --stat "$base" HEAD
+      - name: Inspect only upstream merge and coverage inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          target=refs/remotes/origin/master
+          git rev-parse "$target" > "$RUNNER_TEMP/mcp-integration/upstream-head.txt"
+          git show "$target:scripts/production-cleanup-coverage-floors.json" > "$RUNNER_TEMP/mcp-integration/upstream-coverage-floors.json"
+          status=0
+          git merge-tree --write-tree --name-only HEAD "$target" > "$RUNNER_TEMP/mcp-integration/upstream-merge.txt" || status=$?
+          test "$status" -le 1
+          echo "$status" > "$RUNNER_TEMP/mcp-integration/upstream-merge-status.txt"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mcp-integration-input
