@@ -34,7 +34,7 @@ jobs:
             git apply --index --recount "$patch"
             git rm -- "$patch"
           done
-          if git diff --cached --name-only | grep -vE '^(src/(main|shared|preload|renderer)/|tests/mcp|scripts/mcp|docs/mcp)' ; then
+          if git diff --cached --name-only | grep -vE '^(src/(main|shared|preload|renderer)/|tests/mcp|scripts/mcp|docs/mcp|scripts/production-cleanup-coverage-floors\.json$)' ; then
             echo 'Unexpected checkpoint path'; exit 1
           fi
           current=$(git ls-remote origin refs/heads/feat/mcp-app-bridge | cut -f1)
