@@ -1,5 +1,6 @@
 import {
   asRecord,
+  assertCompletedTurn,
   type CodexAppServerTurnResult,
   type JsonRecord,
 } from "./codexAppServerProtocol";
@@ -11,12 +12,8 @@ export function extractCodexImageTurn(
 ): CodexAppServerTurnResult {
   const params = asRecord(notification.params);
   const turn = asRecord(params?.turn);
-  const direct = asRecord(params?.item);
-  const items = Array.isArray(turn?.items) ? turn.items : [];
-  const item =
-    direct?.type === "imageGeneration"
-      ? direct
-      : items.map(asRecord).find((entry) => entry?.type === "imageGeneration");
+  if (turn) assertCompletedTurn(turn);
+  const item = readImageItem(params, turn);
   if (!item) throw new Error("ImageGen 결과를 받지 못했습니다.");
   if (item.status !== "completed" || item.failure) {
     throw new Error(
@@ -33,4 +30,12 @@ export function extractCodexImageTurn(
       revisedPrompt: item.revisedPrompt,
     }),
   };
+}
+
+function readImageItem(params: JsonRecord | null, turn: JsonRecord | null) {
+  const direct = asRecord(params?.item);
+  const items = Array.isArray(turn?.items) ? turn.items : [];
+  return direct?.type === "imageGeneration"
+    ? direct
+    : items.map(asRecord).find((entry) => entry?.type === "imageGeneration");
 }

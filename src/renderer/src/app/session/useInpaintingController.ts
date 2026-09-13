@@ -37,7 +37,21 @@ export function useInpaintingController(
     updateCurrentChapter: translation.updateCurrentChapter,
     workspaceHistory: translation.workspaceHistory,
   });
-  const commandRegistry = useAppSessionCommandController({
+  const commandRegistry = useSessionCommands(chapter, translation, inpainting);
+
+  return { commandRegistry, ...inpainting };
+}
+
+function useSessionCommands(
+  chapter: ChapterSessionController,
+  translation: TranslationController,
+  inpainting: ReturnType<typeof useAppSessionInpaintingController>,
+) {
+  return useAppSessionCommandController({
+    redactionPreparation: {
+      currentPageId: chapter.derivedState.selectedPage?.id ?? null,
+      open: chapter.uiState.setRedactionPreparationRequest,
+    },
     aiUnavailable: inpainting.inpaintingBridge.contextValue.aiUnavailable,
     startRegionTranslation:
       inpainting.pointerHandlers.startRegionTranslationSelection,
@@ -49,7 +63,10 @@ export function useInpaintingController(
     jobActive:
       inpainting.inpaintingBridge.contextValue.jobActive ||
       chapter.uiState.translationFlowActive ||
-      translation.workspaceHistory.busy,
+      translation.workspaceHistory.busy ||
+      chapter.operationActivity.active ||
+      chapter.importShareModal.importBusy ||
+      Boolean(chapter.uiState.redactionPreparationRequest),
     openImportPreview: translation.importShareActions.openImportPreview,
     openLibraryFolder: chapter.bridgeActions.openLibraryFolder,
     openLogFolder: chapter.bridgeActions.openLogFolder,
@@ -75,11 +92,6 @@ export function useInpaintingController(
     openTranslateOptions: chapter.uiState.openTranslateOptions,
     setTranslationSourceOpen: chapter.importShareModal.setTranslationSourceOpen,
   });
-
-  return {
-    commandRegistry,
-    ...inpainting,
-  };
 }
 
 export type InpaintingController = ReturnType<typeof useInpaintingController>;

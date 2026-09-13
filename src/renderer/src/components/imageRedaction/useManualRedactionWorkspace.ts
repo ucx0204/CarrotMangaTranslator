@@ -1,10 +1,12 @@
 import React from "react";
+import { summarizeRedactionWorkspace } from "./redactionWorkspacePresentation";
 import { useEventCallback } from "../../hooks/useEventCallback";
 import type {
   ManualRedactionWorkspaceProps,
   RedactionBatchIntent,
 } from "./manualRedactionWorkspaceTypes";
 import { useRedactionWorkspace } from "./useRedactionWorkspace";
+import type { RedactionWorkspaceController } from "./redactionWorkspaceTypes";
 import { useRedactionWorkspaceActions } from "./useRedactionWorkspaceActions";
 import { useRedactionKeyboard } from "./useRedactionKeyboard";
 import { filteredRedactionPages } from "./redactionWorkspaceModel";
@@ -26,7 +28,7 @@ export function useManualRedactionWorkspace(
   const [detail, setDetail] = React.useState({ id: "", ready: false });
   const { state } = form;
   const { view, pages } = state.workspace;
-  const page = pages.find((item) => item.id === view.currentId) ?? pages[0];
+  const page = useCurrentRedactionPage(form);
   const detailReady = detail.id === page.id && detail.ready;
   const actions = useRedactionWorkspaceActions({
     form,
@@ -81,23 +83,24 @@ export function useManualRedactionWorkspace(
     ids,
     source,
     previousMask,
+    summary: summarizeRedactionWorkspace(state),
     onPageReady,
   };
 }
 
-function useNeighborPreviews(
-  form: ReturnType<typeof useRedactionWorkspace>,
-): void {
+function useNeighborPreviews(form: RedactionWorkspaceController): void {
   const { previews, markPreview } = form;
   const { pages, sessionId, view } = form.state.workspace;
   React.useEffect(() => {
     let active = true;
     const index = pages.findIndex((page) => page.id === view.currentId);
     for (const page of pages.slice(index + 1, index + 3)) {
+      const version = previews.version(sessionId, page.id);
       void previews
         .read({ sessionId, pageId: page.id, maxEdge: 2048 })
         .catch((_error: unknown) => {
-          if (active) markPreview(page.id, "error");
+          if (active && version === previews.version(sessionId, page.id))
+            markPreview(page.id, "error");
         });
     }
     return () => {
@@ -107,7 +110,7 @@ function useNeighborPreviews(
 }
 
 function openPreviousMask(
-  form: ReturnType<typeof useRedactionWorkspace>,
+  form: RedactionWorkspaceController,
   pageId: string,
   setBatch: (intent: RedactionBatchIntent) => void,
 ): void {
@@ -124,4 +127,19 @@ function openPreviousMask(
         strokes: state.documents[previous.id].strokes,
       },
     });
+}
+
+/** Compose a display DTO only at the boundary; never retain a second editable copy. */
+function useCurrentRedactionPage(
+  form: Pick<RedactionWorkspaceController, "state">,
+) {
+  const { workspace, documents } = form.state;
+  const metadata =
+    workspace.pages.find((page) => page.id === workspace.view.currentId) ??
+    workspace.pages[0];
+  const document = documents[metadata.id];
+  return React.useMemo(
+    () => ({ ...metadata, ...document }),
+    [metadata, document],
+  );
 }

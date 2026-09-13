@@ -3,6 +3,7 @@ import { createInterface, type Interface } from "node:readline";
 import { asRecord, type JsonRecord } from "./codexAppServerProtocol";
 import { CodexAppServerPreviewHost } from "./codexAppServerPreviewTool";
 import { observeProcessErrors } from "./runtimeSupport/observeProcessErrors";
+import { normalizeCodexAuthenticationError } from "./codexAuthentication";
 
 const RPC_REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RECENT_NOTIFICATIONS = 256;
@@ -289,7 +290,9 @@ export class CodexAppServerTransport {
     const detail =
       typeof rpcError.message === "string" ? rpcError.message : "unknown error";
     pending.reject(
-      new Error(`Codex App Server ${pending.method} 요청 실패: ${detail}`),
+      normalizeCodexAuthenticationError(
+        new Error(`Codex App Server ${pending.method} 요청 실패: ${detail}`),
+      ),
     );
   }
 

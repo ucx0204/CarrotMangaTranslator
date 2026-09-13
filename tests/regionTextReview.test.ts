@@ -208,6 +208,21 @@ it("cancels a pending review and rejects late submissions", async () => {
     confirmRegionTranslation({ jobId: "job", sessionId, translations }),
   ).toThrow(/만료/);
 });
+it("preserves the native AbortError for cancellation without a custom reason", async () => {
+  const { controller, promise } = setup("default-abort");
+  const rejected = expect(promise).rejects.toMatchObject({
+    name: "AbortError",
+  });
+  controller.abort();
+  await rejected;
+  expect(() =>
+    confirmRegionTranslation({
+      jobId: "default-abort",
+      sessionId,
+      translations,
+    }),
+  ).toThrow(/만료/);
+});
 it("cleans up a failed delivery, rejects duplicate review and handles pre-cancelled or empty readings", async () => {
   const first = setup();
   await expect(

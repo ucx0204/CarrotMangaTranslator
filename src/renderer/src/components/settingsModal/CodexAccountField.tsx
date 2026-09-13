@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { CodexAccountSnapshot } from "../../../../shared/codexAccountTypes";
 import { settingsGateway } from "../../api/settingsGateway";
 import { formatSettingsErrorMessage } from "../settingsModalHelpers";
+import { Button } from "../ui/Button";
 
 type AccountAction = "login" | "logout";
 
@@ -45,9 +46,9 @@ export function CodexAccountField({
         disabled={disabled}
         runAction={controller.runAction}
       />
-      {controller.error ? (
+      {controller.error || controller.snapshot?.authenticationError ? (
         <p className="codex-account-error" role="alert">
-          {controller.error}
+          {controller.error || controller.snapshot?.authenticationError}
         </p>
       ) : null}
     </section>
@@ -103,8 +104,8 @@ function CodexAccountActionButton({
   const { t } = useTranslation("components");
   const nextAction = authenticated ? "logout" : "login";
   return (
-    <button
-      type="button"
+    <Button
+      variant="secondary"
       disabled={disabled}
       onClick={() => void runAction(nextAction)}
     >
@@ -114,7 +115,7 @@ function CodexAccountActionButton({
         signIn: t("settings.codex.account.signIn"),
         signOut: t("settings.codex.account.signOut"),
       })}
-    </button>
+    </Button>
   );
 }
 

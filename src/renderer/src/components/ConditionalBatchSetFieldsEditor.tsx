@@ -20,9 +20,9 @@ import {
   isConditionalBatchSetFieldClearable,
 } from "./conditionalBatchSetFieldsModel";
 import { ConditionalBatchSetFieldPicker } from "./ConditionalBatchSetFieldPicker";
+import { ConditionalBatchIdentityField } from "./ConditionalBatchIdentityField";
 import { ColorField } from "./ColorField";
 import { Select } from "./ConditionalBatchControls";
-import { FontSelect } from "./FontSelect";
 import { Field, TextField } from "./ui/Field";
 import { IconButton } from "./ui/IconButton";
 import { NumberField } from "./ui/NumberField";
@@ -306,18 +306,25 @@ function SetFieldValueEditor({
 }): React.JSX.Element {
   const definition = getConditionalBatchFieldDefinition(change.field);
   const label = CONDITIONAL_BATCH_FIELD_LABELS[change.field];
+  const textValue = String(change.value ?? "");
+  if (change.field === "speakerId") {
+    return (
+      <ConditionalBatchIdentityField
+        field="speakerId"
+        label="적용할 화자"
+        value={textValue}
+        onChange={(value) => onChange({ ...change, value })}
+      />
+    );
+  }
   if (change.field === "fontFamily") {
     return (
-      <Field as="div" label="적용할 글꼴">
-        <FontSelect
-          ariaLabel="적용할 글꼴"
-          preserveFontId
-          value={String(change.value ?? "") || undefined}
-          onChange={(fontFamily) =>
-            onChange({ ...change, value: fontFamily ?? "" })
-          }
-        />
-      </Field>
+      <ConditionalBatchIdentityField
+        field="fontFamily"
+        label="적용할 글꼴"
+        value={textValue}
+        onChange={(value) => onChange({ ...change, value })}
+      />
     );
   }
   if (definition.kind === "enum") {
@@ -325,7 +332,7 @@ function SetFieldValueEditor({
       <Field as="div" label="적용할 값">
         <Select
           ariaLabel={`${label} 적용할 값`}
-          value={String(change.value ?? "")}
+          value={textValue}
           options={conditionalBatchEnumOptions(change.field)}
           onValueChange={(value) => onChange({ ...change, value })}
         />
@@ -349,7 +356,7 @@ function SetFieldValueEditor({
     <TextField
       label="적용할 값"
       aria-label={`${label} 적용할 값`}
-      value={String(change.value ?? "")}
+      value={textValue}
       onChange={(event) => onChange({ ...change, value: event.target.value })}
     />
   );

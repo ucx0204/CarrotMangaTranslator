@@ -1,4 +1,8 @@
 import { useMemo } from "react";
+import {
+  buildRedactionPreparationCommands,
+  type RedactionPreparationActions,
+} from "../lib/redactionPreparation";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
@@ -9,6 +13,7 @@ import {
 } from "../lib/appCommandTypes";
 
 type UseAppCommandsOptions = {
+  redactionPreparation?: RedactionPreparationActions;
   startRegionTranslation?: () => void;
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
@@ -34,7 +39,7 @@ type UseAppCommandsOptions = {
 export function useAppCommands(
   options: UseAppCommandsOptions,
 ): AppCommandRegistry {
-  const { t } = useTranslation("renderer");
+  const { t, componentText } = useCommandTranslations();
   const {
     startRegionTranslation,
     cancelJob,
@@ -60,6 +65,8 @@ export function useAppCommands(
   return useMemo(
     () =>
       buildAppCommandRegistry({
+        redactionPreparation: options.redactionPreparation,
+        componentText,
         startRegionTranslation,
         cancelJob,
         currentChapter,
@@ -83,6 +90,8 @@ export function useAppCommands(
         t,
       }),
     [
+      options.redactionPreparation,
+      componentText,
       startRegionTranslation,
       cancelJob,
       currentChapter,
@@ -108,8 +117,15 @@ export function useAppCommands(
   );
 }
 
+function useCommandTranslations() {
+  const { t } = useTranslation("renderer");
+  const { t: componentText } = useTranslation("components");
+  return { t, componentText };
+}
+
 type LocalizedCommandOptions = UseAppCommandsOptions & {
   t: TFunction<"renderer">;
+  componentText: TFunction<"components">;
 };
 
 function buildAppCommandRegistry(
@@ -121,6 +137,12 @@ function buildAppCommandRegistry(
     ...buildJobCommands(options),
     ...buildChapterCommands(options),
     ...buildGlobalCommands(options),
+    ...buildRedactionPreparationCommands(
+      options.currentChapter,
+      options.jobActive,
+      options.redactionPreparation,
+      options.componentText,
+    ),
   } satisfies AppCommandMap;
   return createAppCommandRegistry(byId);
 }

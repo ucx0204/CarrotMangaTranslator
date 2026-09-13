@@ -317,6 +317,7 @@ export function useInsertBlockLibraryEntryAction({
         entry,
         id,
         resolveVisibleStageCenter(stageRef?.current ?? null),
+        { width: selectedPage.width, height: selectedPage.height },
       );
       const blockOrder = resolvePageBlockOrder(selectedPage, readingDirection);
       blockOrder.push(id);

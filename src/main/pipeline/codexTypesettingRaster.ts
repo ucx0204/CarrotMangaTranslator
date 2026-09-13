@@ -113,7 +113,7 @@ export async function sourceRegionCrops(
             height: rect.h,
           });
           return {
-            label: `${region.id}; original ${includeContext ? "context" : "source"} crop ${rect.w}x${rect.h}; ${region.direction}; target=${JSON.stringify(region.sourceText)}; native page=${page.width}x${page.height}; page-pixel crop=${JSON.stringify(rect)}; input-image boundaries (not necessarily physical page edges)=${JSON.stringify({ left: rect.x === 0, top: rect.y === 0, right: rect.x + rect.w === page.width, bottom: rect.y + rect.h === page.height })}${excluded ? "; User-excluded reference pixels have been blanked white. Ignore those areas when identifying source lettering; the blanking is not a cutout to reproduce in the generated lettering." : ""}`,
+            label: `${region.id}; original ${includeContext ? "context" : "source"} crop ${rect.w}x${rect.h}; ${region.direction}; sourceText=${JSON.stringify(region.sourceText)}; native page=${page.width}x${page.height}; page-pixel crop=${JSON.stringify(rect)}; input-image boundaries (not necessarily physical page edges)=${JSON.stringify({ left: rect.x === 0, top: rect.y === 0, right: rect.x + rect.w === page.width, bottom: rect.y + rect.h === page.height })}${excluded ? "; User-excluded reference pixels have been blanked white. Ignore those areas when identifying source lettering; the blanking is not a cutout to reproduce in the generated lettering." : ""}`,
             dataUrl: crop.toDataURL(),
           };
         });

@@ -5,6 +5,7 @@ import {
   setImageRedactionEnabled,
 } from "../imageRedactionStore";
 import { confirmRegionTranslation } from "../jobs/regionTranslationReview";
+import { confirmSoundEffectTextReview } from "../application/soundEffectTextReview";
 import {
   RegionAnalysisRequestSchema,
   StartAnalysisRequestSchema,
@@ -28,6 +29,11 @@ import { trustedHandleContract } from "./trustedIpc";
 
 export function registerTranslationJobIpc(context: IpcContext): void {
   registerImageRedactionWorkspaceIpc(context);
+  trustedHandleContract(
+    context,
+    translationJobIpcContracts.confirmSoundEffectTextReview,
+    async (_event, request) => confirmSoundEffectTextReview(request),
+  );
   trustedHandleContract(
     context,
     translationJobIpcContracts.confirmImageRedaction,

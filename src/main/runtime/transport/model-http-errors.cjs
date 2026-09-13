@@ -167,6 +167,9 @@ function asRecord(value) {
 function buildHttpFailureMessage(options, status, statusText) {
   const providerName = resolveProviderDisplayName(options);
   const statusLabel = formatHttpStatus(status, statusText);
+  if (isOpenAICodexProvider(options) && status === 401) {
+    return "Codex 로그인이 만료되었거나 취소되었습니다. 설정 > AI에서 ChatGPT로 다시 로그인해 주세요.";
+  }
   if (!isOpenAIApiProvider(options)) {
     return `${providerName} request failed (${status}).`;
   }

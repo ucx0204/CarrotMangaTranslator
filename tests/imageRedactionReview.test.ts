@@ -17,6 +17,10 @@ import type { MangaPage } from "../src/shared/libraryTypes";
 import type { JobEvent } from "../src/shared/jobTypes";
 import type { ImageRedactionPage } from "../src/shared/imageRedaction";
 
+import { saveReviewedRequest } from "./helpers/redactionReviewApproval";
+
+// Tests use actual draft/approval storage; no native image decoding is requested.
+vi.mock("electron", () => ({ nativeImage: {} }));
 const roots: string[] = [];
 afterEach(async () => {
   for (const root of roots.splice(0))
@@ -100,6 +104,7 @@ it("waits for every page, preserves failed-save input, and allows a single expli
   await expect(
     confirmImageRedaction({ ...request, pages: [] }),
   ).rejects.toThrow();
+  Object.assign(request, await saveReviewedRequest(f.root, request));
   f.save.mockRejectedValueOnce(new Error("disk unavailable"));
   await expect(confirmImageRedaction(request)).rejects.toThrow(
     "disk unavailable",
@@ -117,7 +122,7 @@ it("rejects duplicate confirmation and cancellation before any external work", a
   const f = await reviewFixture();
   const pending = f.start().catch((error) => error);
   await vi.waitFor(() => expect(f.events).toHaveLength(1));
-  const request = f.request();
+  const request = await saveReviewedRequest(f.root, f.request());
   let release = () => {};
   f.save.mockImplementationOnce(
     () =>
@@ -138,8 +143,9 @@ it("rejects a changed source and lets local-only translation run without a revie
   const f = await reviewFixture();
   const pending = f.start().catch((error) => error);
   await vi.waitFor(() => expect(f.events).toHaveLength(1));
+  const request = await saveReviewedRequest(f.root, f.request());
   await writeFile(f.page.imagePath, "changed");
-  await expect(confirmImageRedaction(f.request())).rejects.toThrow();
+  await expect(confirmImageRedaction(request)).rejects.toThrow();
   f.controller.abort();
   await pending;
   const local = await reviewFixture();

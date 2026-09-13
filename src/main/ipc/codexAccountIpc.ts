@@ -1,4 +1,5 @@
 import { saveCodexTypesettingPreferences } from "../settings/codexPreferencesStore";
+import { isCodexAuthenticationError } from "../codexAuthentication";
 import { app, shell } from "electron";
 import { randomUUID } from "node:crypto";
 import type {
@@ -102,6 +103,16 @@ async function runCodexAccountRead(
   const client = await startAccountClient(context, runtime);
   try {
     return await readAccount(client);
+  } catch (error) {
+    if (!isCodexAuthenticationError(error)) throw error;
+    return {
+      ...toSnapshot(
+        { account: null, requiresOpenaiAuth: true },
+        client.version,
+        [],
+      ),
+      authenticationError: error.message,
+    };
   } finally {
     await client.dispose();
   }
@@ -161,7 +172,7 @@ function startAccountClient(
 async function readAccount(
   client: CodexAccountClient,
 ): Promise<CodexAccountSnapshot> {
-  return readAccountSnapshot(client, false);
+  return readAccountSnapshot(client, true);
 }
 
 async function loginAccount(

@@ -1,9 +1,6 @@
 import { imageRedactionIpcContracts } from "./ipcImageRedactionContracts";
+import { translationReviewIpcContracts } from "./ipcTranslationReviewContracts";
 import { z } from "zod";
-import {
-  confirmRegionTranslationSchema,
-  type ConfirmRegionTranslationRequest,
-} from "./regionTextReview";
 import { MAX_ID_LIST_LENGTH } from "./ipcSchemaPrimitives";
 import { MAX_PAGE_EXPORT_PAGES } from "./pageExportLimits";
 import type {
@@ -238,15 +235,7 @@ export const translationJobIpcContracts = {
     },
   ),
   ...imageRedactionIpcContracts,
-  confirmRegionTranslation: defineIpcContract<
-    [ConfirmRegionTranslationRequest],
-    boolean
-  >({
-    apiKey: "confirmRegionTranslation",
-    channel: "job:confirm-region-translation",
-    args: z.tuple([confirmRegionTranslationSchema]),
-    result: z.boolean(),
-  }),
+  ...translationReviewIpcContracts,
   translateRegion: defineIpcContract<
     [RegionAnalysisRequest],
     RegionAnalysisResult

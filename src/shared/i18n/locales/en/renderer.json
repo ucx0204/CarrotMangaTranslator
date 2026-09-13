@@ -313,7 +313,8 @@
     "translationCheckpoint": "Translation result checkpoint",
     "retranslationCheckpoint": "Checkpoint before retranslation",
     "retouch": "Manual retouch",
-    "resetOriginal": "Reset to original"
+    "resetOriginal": "Reset to original",
+    "pasteBlocks": "Paste blocks"
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "A bubble region needs at least three points.",
@@ -333,7 +334,12 @@
     "formatAppliedSelection_one": "Formatting applied to {{count}} selected block.",
     "formatAppliedSelection_other": "Formatting applied to {{count}} selected blocks.",
     "formatAppliedPage": "Formatting applied to every block on this page.",
-    "formatAppliedChapter": "Formatting applied to every block in this chapter."
+    "formatAppliedChapter": "Formatting applied to every block in this chapter.",
+    "copiedBlocks": "Copied {{count}} blocks.",
+    "copiedBlocks_one": "Copied {{count}} block.",
+    "copiedBlocks_other": "Copied {{count}} blocks.",
+    "copyFailed": "Could not copy blocks. Select fewer blocks and try again.",
+    "pasteFailed": "Could not paste blocks. Copy them again. A page can contain up to {{count}} blocks."
   },
   "chapter": {
     "saveFailed": "Save failed: {{message}}",

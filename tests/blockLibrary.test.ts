@@ -16,6 +16,8 @@ import {
   resolveBlockLibraryThumbnailModel,
 } from "../src/renderer/src/components/blockLibraryModel";
 import { resolveTransformedBlockBounds } from "../src/shared/editableRenderGeometry";
+import { clipboardBlock } from "./fixtures/blockClipboard";
+import { getActiveGeneratedLettering } from "../src/shared/generatedLettering";
 
 const temporaryRoots: string[] = [];
 
@@ -99,6 +101,53 @@ describe("block library template contract", () => {
 });
 
 describe("BlockLibraryStore", () => {
+  it("saves and reloads ImageGen lettering with masks, weight and physical aspect ratio", async () => {
+    const root = await makeTemporaryRoot();
+    const source = clipboardBlock();
+    const input = createBlockLibrarySaveInput(source, {
+      width: 1200,
+      height: 1800,
+    });
+    const saved = await new BlockLibraryStore(root).save(input);
+    const entry = saved.entries[0];
+    if (!entry) throw new Error("missing image entry");
+    const reopened = new BlockLibraryStore(root);
+    const restored = await reopened.use(entry.id);
+    const pasted = instantiateBlockLibraryEntry(
+      restored,
+      "different-work-block",
+      { x: 500, y: 500 },
+      { width: 2400, height: 1200 },
+    );
+    expect(getActiveGeneratedLettering(pasted)?.dataUrl).toBe(
+      source.generatedLettering?.dataUrl,
+    );
+    expect(pasted.fontWeight).toBe(700);
+    expect(pasted.renderBbox).toEqual({ x: 440, y: 380, w: 120, h: 240 });
+    expect(pasted.generatedLettering?.maskStrokes?.[1]).toMatchObject({
+      points: [{ x: 500, y: 500 }],
+      radiusX: 5,
+      radiusY: 22.5,
+    });
+    const editInput = createBlockLibrarySaveInput(pasted, {
+      width: 2400,
+      height: 1200,
+    });
+    const updated = await reopened.update({
+      id: entry.id,
+      ...editInput,
+      name: "이미지 이름 변경",
+    });
+    expect(updated.entries[0]?.block.generatedLettering?.dataUrl).toBe(
+      source.generatedLettering?.dataUrl,
+    );
+    expect(source.generatedLettering?.maskStrokes?.[1]?.points).toEqual([
+      { x: 220, y: 280 },
+    ]);
+    const preview = instantiateBlockLibraryEntry(restored, "preview");
+    expect(preview.renderBbox?.w).toBeCloseTo(preview.renderBbox?.h ?? 0);
+  });
+
   it("atomically saves, reloads, renames, uses, and deletes entries", async () => {
     const root = await makeTemporaryRoot();
     const store = new BlockLibraryStore(root);
@@ -192,6 +241,21 @@ describe("block library filtering", () => {
 });
 
 describe("block library thumbnail camera", () => {
+  it("moves image masks with the thumbnail camera without changing the template", () => {
+    const source = clipboardBlock();
+    const model = resolveBlockLibraryThumbnailModel(source);
+    expect(model.block.renderBbox).toMatchObject({ x: 380, y: 420 });
+    expect(model.block.generatedLettering?.maskStrokes?.[1]?.points).toEqual([
+      { x: 500, y: 500 },
+    ]);
+    expect(model.block.generatedLettering?.occlusionPolygons?.[0]?.[0]).toEqual(
+      { x: 380, y: 420 },
+    );
+    expect(source.generatedLettering?.maskStrokes?.[1]?.points).toEqual([
+      { x: 220, y: 280 },
+    ]);
+  });
+
   it("fills the preview with the transformed block instead of the whole page", () => {
     const block = instantiateBlockLibraryEntry(
       makeEntry({ size: { w: 300, h: 200 } }),

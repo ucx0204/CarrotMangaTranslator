@@ -326,6 +326,9 @@ export function createConditionForField(
   if (field === "fontFamily") {
     return { ...base, operator: "equals", value: DEFAULT_BLOCK_FONT_ID };
   }
+  if (field === "speakerId") {
+    return { ...base, operator: "equals", value: "" };
+  }
   return { ...base, operator: "contains", value: "" };
 }
 

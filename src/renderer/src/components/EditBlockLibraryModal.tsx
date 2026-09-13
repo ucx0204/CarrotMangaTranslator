@@ -1,4 +1,5 @@
 import React from "react";
+import { getActiveGeneratedLettering } from "../../../shared/generatedLettering";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -138,6 +139,7 @@ function useBlockLibraryEditState({
   const [error, setError] = React.useState("");
   const normalizedName = name.replace(/\s+/g, " ").trim();
   const fontMissing = Boolean(
+    !getActiveGeneratedLettering(block) &&
     block.fontFamily &&
     !options.some((option) => option.id === block.fontFamily),
   );

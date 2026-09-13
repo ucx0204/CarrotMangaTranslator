@@ -104,12 +104,33 @@ export function CodexSettingsFields(
           )}
         </>
       ) : authenticated && models.length > 0 ? (
-        <div className="codex-catalog-fields">
-          <CodexModelField {...props} models={models} />
-          <CodexReasoningField {...props} models={models} />
-        </div>
+        <CodexTextCatalogFields {...props} models={models} />
       ) : null}
     </>
+  );
+}
+
+function CodexTextCatalogFields(
+  props: CodexSettingsFieldsProps & { models: readonly CodexAccountModel[] },
+): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const unavailable = !props.models.some(
+    (model) => model.id === props.codexModel,
+  );
+  return (
+    <div className="codex-catalog-fields">
+      <CodexModelField {...props} />
+      <CodexReasoningField
+        {...props}
+        controlsBusy={props.controlsBusy || unavailable}
+      />
+      {unavailable && (
+        <InlineMessage
+          variant="warning"
+          title={t("settings.codex.modelUnavailable")}
+        />
+      )}
+    </div>
   );
 }
 
@@ -125,7 +146,7 @@ function CodexModelField({
   models: readonly CodexAccountModel[];
 }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const activeModel = resolveCatalogModel(models, codexModel);
+  const selected = models.find((model) => model.id === codexModel);
   return (
     <Field
       as="div"
@@ -137,12 +158,17 @@ function CodexModelField({
     >
       <Select
         ariaLabel={t("settings.codex.model")}
-        value={activeModel.id}
+        value={codexModel}
         disabled={controlsBusy}
-        options={models.map((model) => ({
-          value: model.id,
-          label: model.displayName,
-        }))}
+        options={[
+          ...(selected
+            ? []
+            : [{ value: codexModel, label: codexModel, disabled: true }]),
+          ...models.map((model) => ({
+            value: model.id,
+            label: model.displayName,
+          })),
+        ]}
         onValueChange={(nextValue) => {
           const nextModel = models.find(
             (model) => model.id === nextValue,
@@ -180,7 +206,7 @@ function CodexReasoningField({
     ? models.find(
         (item) => item.id === (codexImageModel ?? CODEX_TYPESETTING_MODEL),
       )
-    : resolveCatalogModel(models, codexModel);
+    : models.find((item) => item.id === codexModel);
   const selectedEffort = image
     ? (codexImageReasoningEffort ?? "low")
     : codexReasoningEffort;
@@ -228,14 +254,13 @@ function useCatalogSelectionRepair(
       repairImageEffort(props, account.models);
       return;
     }
-    const model = resolveCatalogModel(account.models, props.codexModel);
-    const modelChanged = model.id !== props.codexModel;
+    const model = account.models.find((item) => item.id === props.codexModel);
+    if (!model) return;
     const effortChanged = !model.supportedReasoningEfforts.includes(
       props.codexReasoningEffort,
     );
-    if (!modelChanged && !effortChanged) return;
+    if (!effortChanged) return;
     props.clearTestState();
-    if (modelChanged) props.setCodexModel(model.id);
     if (effortChanged)
       props.setCodexReasoningEffort(model.defaultReasoningEffort);
   }, [account, props]);
@@ -251,14 +276,6 @@ function isUnsupportedImageEffort(
       props.codexImageReasoningEffort ?? "low",
     )
   );
-}
-
-function resolveCatalogModel(
-  models: readonly CodexAccountModel[],
-  selectedId: string,
-): CodexAccountModel {
-  const selected = models.find((model) => model.id === selectedId);
-  return selected ?? models.find((model) => model.isDefault) ?? models[0];
 }
 
 function reasoningLabel(

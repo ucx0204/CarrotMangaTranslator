@@ -44,3 +44,45 @@ it("does not cache failed reads and rejects queued requests on disposal", async 
   cache.dispose();
   await expect(cache.read(request("1"))).rejects.toThrow("closed");
 });
+
+it("retries all page variants while preserving unrelated pages and notifying consumers", async () => {
+  const calls: string[] = [];
+  const cache = new RedactionPreviewCache(async (input) => {
+    calls.push(`${input.pageId}:${input.maxEdge}`);
+    return `url-${calls.length}`;
+  });
+  let notifications = 0;
+  const unsubscribe = cache.subscribe(() => notifications++);
+  await cache.read(request("a"));
+  await cache.read({ ...request("a"), maxEdge: 2048 });
+  await cache.read(request("b"));
+  cache.retryPage(request("a").sessionId, "a");
+  expect(notifications).toBe(1);
+  expect(cache.version(request("a").sessionId, "a")).toBe(1);
+  expect(cache.version(request("b").sessionId, "b")).toBe(0);
+  await expect(cache.read(request("b"))).resolves.toBe("url-3");
+  await expect(cache.read(request("a"))).resolves.toBe("url-4");
+  await expect(cache.read({ ...request("a"), maxEdge: 2048 })).resolves.toBe(
+    "url-5",
+  );
+  unsubscribe();
+  cache.retryPage(request("a").sessionId, "a");
+  expect(notifications).toBe(1);
+  cache.dispose();
+});
+it("ignores stale cache fills when a retried request finishes before the old one", async () => {
+  const releases: ((url: string) => void)[] = [];
+  const cache = new RedactionPreviewCache(
+    () => new Promise<string>((resolve) => releases.push(resolve)),
+  );
+  const old = cache.read(request("a"));
+  cache.retryPage(request("a").sessionId, "a");
+  const retried = cache.read(request("a"));
+  releases[1]("fresh");
+  await expect(retried).resolves.toBe("fresh");
+  releases[0]("stale");
+  await expect(old).resolves.toBe("stale");
+  await expect(cache.read(request("a"))).resolves.toBe("fresh");
+  expect(releases).toHaveLength(2);
+  cache.dispose();
+});

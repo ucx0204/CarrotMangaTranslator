@@ -1,5 +1,8 @@
 !include nsDialogs.nsh
 !include LogicLib.nsh
+!include FileFunc.nsh
+!include "${__FILEDIR__}\windows-uninstall-elevation.nsh"
+!include "${__FILEDIR__}\windows-data-root-text.nsh"
 
 ; Keep the historical installation directory even though the payload
 ; executable now has an ASCII-only filename for nsisunz compatibility.
@@ -18,22 +21,27 @@
 Function MgtValidateDataRootWriteAccess
   StrCpy $6 "0"
 
-  ${If} ${UAC_IsAdmin}
-  ${AndIfNot} ${UAC_IsInnerInstance}
-    StrCpy $6 "unverifiable"
-    Return
-  ${EndIf}
-
+  ; Prefer the original user's token when available, but an admin-only data
+  ; location is supported by the application's conditional UAC startup gate.
+  ; A setup launched directly as administrator is valid too.
   ${If} ${UAC_IsInnerInstance}
     !insertmacro UAC_AsUser_Call Function MgtProbeDataRootWriteAccess ${UAC_SYNCREGISTERS}
-  ${Else}
-    Call MgtProbeDataRootWriteAccess
+    ${If} $6 == "1"
+      Return
+    ${EndIf}
+    StrCpy $5 "$MgtDataRoot"
   ${EndIf}
+
+  Call MgtProbeDataRootWriteAccess
 FunctionEnd
 !macroend
 
 !macro customHeader
   !ifndef BUILD_UNINSTALLER
+    ; Request approval before setup starts, without forcing machine-wide
+    ; registration or changing the installed application's asInvoker manifest.
+    ; Keep the uninstaller-generation EXE unprivileged; removal has its own gate.
+    RequestExecutionLevel admin
     ShowInstDetails show
     !insertmacro MgtDefineDataRootWriteAccessValidator
   !endif
@@ -67,7 +75,8 @@ Var MgtExistingDataRootNotice
 Function MgtValidateInstallDirectory
   StrLen $0 $INSTDIR
   ${If} $0 > ${MGT_MAX_FAST_ZIP_INSTALL_DIR_LENGTH}
-    MessageBox MB_ICONSTOP "설치 경로가 너무 깁니다.$\r$\n${MGT_MAX_FAST_ZIP_INSTALL_DIR_LENGTH}자 이하의 더 짧은 폴더를 선택해 주세요.$\r$\n예: D:\CarrotMangaTranslator"
+    MessageBox MB_ICONSTOP "설치 경로가 너무 깁니다.$\r$\n${MGT_MAX_FAST_ZIP_INSTALL_DIR_LENGTH}자 이하의 더 짧은 폴더를 선택해 주세요.$\r$\n예: D:\CarrotMangaTranslator" /SD IDOK
+    SetErrorLevel 2
     Abort
   ${EndIf}
 FunctionEnd
@@ -81,6 +90,65 @@ FunctionEnd
 ; directory and keeps the installer open so the user can pick a shorter folder.
 Function .onVerifyInstDir
   Call MgtValidateInstallDirectory
+FunctionEnd
+
+; The build wrapper calls this before uninstallOldVersion, also in silent mode.
+; Never remove a working version before validating the selected destination.
+Function MgtPrepareDataRoot
+  Call MgtValidateInstallDirectory
+  ${If} $MgtDataRoot == ""
+    Call MgtResolveInitialDataRoot
+  ${EndIf}
+
+  ; NSIS GetFullPathName also looks up the final component and returns empty
+  ; for a not-yet-created data directory. Use the lexical Win32 API here;
+  ; actual existence and access are tested separately, after safety checks.
+  StrCpy $1 ""
+  System::Call 'kernel32::GetFullPathNameW(w "$MgtDataRoot", i ${NSIS_MAX_STRLEN}, w .r1, p 0) i.r4'
+  ${If} $4 == 0
+  ${OrIf} $4 >= ${NSIS_MAX_STRLEN}
+    Goto MgtInvalidDataRootPath
+  ${EndIf}
+  ${GetRoot} "$1" $2
+  StrCpy $3 ""
+  System::Call 'kernel32::GetFullPathNameW(w "$INSTDIR", i ${NSIS_MAX_STRLEN}, w .r3, p 0) i.r4'
+  ${If} $4 == 0
+  ${OrIf} $4 >= ${NSIS_MAX_STRLEN}
+    Goto MgtInvalidDataRootPath
+  ${EndIf}
+  StrLen $4 $1
+  ${If} $MgtDataRoot == ""
+  ${OrIf} $4 <= 3
+  ${OrIf} $1 == "$2"
+  ${OrIf} $1 == "$2\"
+  ${OrIf} $1 == "$3"
+  ${OrIf} $1 == "$3\"
+    Goto MgtInvalidDataRootPath
+  ${EndIf}
+  ; Store precisely the canonical location that was checked, not a relative
+  ; value which could resolve differently during application startup.
+  StrCpy $MgtDataRoot "$1"
+
+  StrCpy $5 "$INSTDIR"
+  Call MgtProbeDataRootWriteAccess
+  ${If} $6 != "1"
+    MessageBox MB_ICONSTOP "설치 폴더에 파일을 저장할 수 없습니다.$\r$\n폴더 권한과 디스크 상태를 확인해 주세요.$\r$\n$INSTDIR" /SD IDOK
+    SetErrorLevel 2
+    Abort
+  ${EndIf}
+  StrCpy $5 "$MgtDataRoot"
+  Call MgtValidateDataRootWriteAccess
+  ${If} $6 != "1"
+    MessageBox MB_ICONSTOP "데이터 폴더에 파일을 저장할 수 없습니다.$\r$\n기존 버전은 제거하지 않았습니다. 폴더 권한과 디스크 상태를 확인해 주세요.$\r$\n$MgtDataRoot" /SD IDOK
+    SetErrorLevel 2
+    Abort
+  ${EndIf}
+  Return
+
+  MgtInvalidDataRootPath:
+  MessageBox MB_ICONSTOP "데이터 저장 위치가 올바르지 않습니다. 드라이브 루트나 설치 폴더 자체가 아닌 전용 하위 폴더를 선택해 주세요.$\r$\n$MgtDataRoot" /SD IDOK
+  SetErrorLevel 2
+  Abort
 FunctionEnd
 
 Function MgtResolveInitialDataRoot
@@ -98,12 +166,23 @@ Function MgtReadInstalledDataRootPointer
   ${If} ${FileExists} "$INSTDIR\data-root.txt"
     ClearErrors
     FileOpen $0 "$INSTDIR\data-root.txt" r
-    ${IfNot} ${Errors}
-      FileRead $0 $MgtDataRoot
-      FileClose $0
-      Call MgtTrimDataRootNewlines
+    ${If} ${Errors}
+      Goto MgtPointerReadFailed
     ${EndIf}
+    !insertmacro MgtReadDataRootText $0 $MgtDataRoot
+    ${If} ${Errors}
+      FileClose $0
+      Goto MgtPointerReadFailed
+    ${EndIf}
+    FileClose $0
+    Call MgtTrimDataRootNewlines
   ${EndIf}
+  Return
+
+  MgtPointerReadFailed:
+  MessageBox MB_ICONSTOP "기존 데이터 저장 위치를 읽지 못했습니다. 기존 설정을 덮어쓰지 않고 설치를 중단합니다.$\r$\n$INSTDIR\data-root.txt" /SD IDOK
+  SetErrorLevel 2
+  Abort
 FunctionEnd
 
 Function MgtResolveLegacyAppDataDefault
@@ -113,7 +192,7 @@ Function MgtResolveLegacyAppDataDefault
   ${OrIf} ${FileExists} "$LOCALAPPDATA\manga-gemma-translator\hf-cache"
   ${OrIf} ${FileExists} "$LOCALAPPDATA\manga-gemma-translator\ocr-runtime"
     StrCpy $MgtDataRoot "$LOCALAPPDATA\manga-gemma-translator"
-    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다. 새 위치를 쓰려면 찾아보기로 바꾸세요."
+    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다."
     Return
   ${EndIf}
 
@@ -122,7 +201,7 @@ Function MgtResolveLegacyAppDataDefault
   ${OrIf} ${FileExists} "$APPDATA\manga-gemma-translator\hf-cache"
   ${OrIf} ${FileExists} "$APPDATA\manga-gemma-translator\ocr-runtime"
     StrCpy $MgtDataRoot "$APPDATA\manga-gemma-translator"
-    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다. 새 위치를 쓰려면 찾아보기로 바꾸세요."
+    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다."
     Return
   ${EndIf}
 
@@ -131,7 +210,7 @@ Function MgtResolveLegacyAppDataDefault
   ${OrIf} ${FileExists} "$LOCALAPPDATA\망가번역기\hf-cache"
   ${OrIf} ${FileExists} "$LOCALAPPDATA\망가번역기\ocr-runtime"
     StrCpy $MgtDataRoot "$LOCALAPPDATA\망가번역기"
-    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다. 새 위치를 쓰려면 찾아보기로 바꾸세요."
+    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다."
     Return
   ${EndIf}
 
@@ -140,7 +219,7 @@ Function MgtResolveLegacyAppDataDefault
   ${OrIf} ${FileExists} "$APPDATA\망가번역기\hf-cache"
   ${OrIf} ${FileExists} "$APPDATA\망가번역기\ocr-runtime"
     StrCpy $MgtDataRoot "$APPDATA\망가번역기"
-    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다. 새 위치를 쓰려면 찾아보기로 바꾸세요."
+    StrCpy $MgtExistingDataRootNotice "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다."
   ${EndIf}
 FunctionEnd
 
@@ -168,7 +247,7 @@ Function MgtDataRootPageCreate
     Abort
   ${EndIf}
 
-  ${NSD_CreateLabel} 0u 0u 100% 26u "모델, Paddle OCR, 보관함, 로그를 저장할 위치를 선택하세요.$\r$\n기본값은 설치 폴더 안의 data 폴더입니다. D드라이브에 설치하면 대용량 파일도 D드라이브에 저장됩니다."
+  ${NSD_CreateLabel} 0u 0u 100% 26u "모델·보관함·로그를 저장할 폴더를 선택하세요.$\r$\n기본값: 설치 폴더 안의 data 폴더"
   Pop $0
 
   ${NSD_CreateText} 0u 38u 78% 13u "$MgtDataRoot"
@@ -181,8 +260,11 @@ Function MgtDataRootPageCreate
   ${If} $MgtExistingDataRootNotice != ""
     ${NSD_CreateLabel} 0u 58u 100% 22u "$MgtExistingDataRootNotice"
   ${Else}
-    ${NSD_CreateLabel} 0u 58u 100% 22u "새 설치는 설치 폴더의 data 폴더를 사용합니다. 기존 데이터가 있다면 찾아보기로 그 폴더를 선택하세요."
+    ${NSD_CreateLabel} 0u 58u 100% 22u "기존 데이터가 있으면 해당 폴더를 선택하세요."
   ${EndIf}
+  Pop $0
+
+  ${NSD_CreateLabel} 0u 88u 100% 54u "보호된 폴더는 실행 시 관리자 승인이 필요할 수 있습니다.$\r$\n관리자 실행 중에는 탐색기에서 파일 끌어놓기가 제한됩니다."
   Pop $0
 
   nsDialogs::Show
@@ -198,11 +280,10 @@ Function MgtDataRootBrowse
   ${EndIf}
 FunctionEnd
 
-; The all-users installer runs elevated, while the installed app normally runs
-; with the interactive user's standard token. Probe from electron-builder's
-; retained outer process in that case so an elevated installer cannot mistake
-; an admin-only directory for a usable data root. $5 is the candidate path and
-; $6 is the result ("1" only after create, write, and delete all succeed).
+; $5 is the candidate path and $6 is the result ("1" only after create,
+; write, and delete all succeed). The validator first tries the original
+; user's token when available, then the current installer token. Runtime
+; startup independently checks whether the application needs UAC.
 Function MgtProbeDataRootWriteAccess
   StrCpy $6 "0"
 
@@ -263,13 +344,8 @@ Function MgtDataRootPageLeave
   StrCpy $5 "$MgtDataRoot"
   Call MgtValidateDataRootWriteAccess
 
-  ${If} $6 == "unverifiable"
-    MessageBox MB_ICONSTOP "관리자 권한으로 직접 실행하면 데이터 폴더를 제대로 확인할 수 없습니다.$\r$\n$\r$\n설치 프로그램을 닫고 일반 실행으로 다시 시작해 주세요.$\r$\n모든 사용자용으로 설치하려면 설치 화면에서 해당 항목을 선택해 주세요."
-    Abort
-  ${EndIf}
-
   ${If} $6 != "1"
-    MessageBox MB_ICONSTOP "선택한 폴더에 데이터를 저장할 수 없습니다.$\r$\n$\r$\n설정과 모델 파일을 저장할 수 있는 다른 폴더를 선택해 주세요.$\r$\n$\r$\n선택한 경로:$\r$\n$MgtDataRoot"
+    MessageBox MB_ICONSTOP "선택한 폴더에 데이터를 저장할 수 없습니다.$\r$\n$\r$\n관리자 권한으로도 실패하면 폴더 권한과 디스크 상태를 확인하거나 다른 데이터 폴더를 선택해 주세요.$\r$\n$\r$\n선택한 경로:$\r$\n$MgtDataRoot"
     Abort
   ${EndIf}
 FunctionEnd
@@ -277,18 +353,52 @@ FunctionEnd
 Function MgtWriteDataRootPointer
   ClearErrors
   CreateDirectory "$MgtDataRoot"
-  FileOpen $0 "$MgtDataRoot\.manga-gemma-translator-data" w
-  ${IfNot} ${Errors}
+  ${If} ${Errors}
+    Goto MgtPointerWriteFailed
+  ${EndIf}
+  ${IfNot} ${FileExists} "$MgtDataRoot\.manga-gemma-translator-data"
+    FileOpen $0 "$MgtDataRoot\.manga-gemma-translator-data" w
+    ${If} ${Errors}
+      Goto MgtPointerWriteFailed
+    ${EndIf}
     FileWrite $0 "manga-gemma-translator data root$\r$\n"
+    ${If} ${Errors}
+      FileClose $0
+      Goto MgtPointerWriteFailed
+    ${EndIf}
     FileClose $0
   ${EndIf}
 
+  ; Stage on the same volume before replacing the pointer. A failed repair
+  ; must not truncate the only record of the user's existing data location.
   ClearErrors
-  FileOpen $0 "$INSTDIR\data-root.txt" w
-  ${IfNot} ${Errors}
-    FileWrite $0 "$MgtDataRoot$\r$\n"
-    FileClose $0
+  GetTempFileName $9 "$INSTDIR"
+  ${If} ${Errors}
+    Goto MgtPointerWriteFailed
   ${EndIf}
+  FileOpen $0 "$9" w
+  ${If} ${Errors}
+    Delete "$9"
+    Goto MgtPointerWriteFailed
+  ${EndIf}
+  !insertmacro MgtWriteDataRootText $0 "$MgtDataRoot$\r$\n"
+  ${If} ${Errors}
+    FileClose $0
+    Delete "$9"
+    Goto MgtPointerWriteFailed
+  ${EndIf}
+  FileClose $0
+  System::Call 'kernel32::MoveFileExW(w "$9", w "$INSTDIR\data-root.txt", i 9) i.r0'
+  ${If} $0 == 0
+    Delete "$9"
+    Goto MgtPointerWriteFailed
+  ${EndIf}
+  Return
+
+  MgtPointerWriteFailed:
+  MessageBox MB_ICONSTOP "데이터 저장 위치 설정을 저장하지 못했습니다.$\r$\n설치를 완료하지 않았습니다. 디스크 상태와 폴더 권한을 확인해 주세요.$\r$\n$INSTDIR\data-root.txt" /SD IDOK
+  SetErrorLevel 2
+  Abort
 FunctionEnd
 
 !endif
@@ -299,12 +409,23 @@ FunctionEnd
     ${If} ${FileExists} "$INSTDIR\data-root.txt"
       ClearErrors
       FileOpen $0 "$INSTDIR\data-root.txt" r
-      ${IfNot} ${Errors}
-        FileRead $0 $MgtDataRoot
-        FileClose $0
-        Call un.MgtTrimDataRootNewlines
+      ${If} ${Errors}
+        Goto MgtUninstallPointerReadFailed
       ${EndIf}
+      !insertmacro MgtReadDataRootText $0 $MgtDataRoot
+      ${If} ${Errors}
+        FileClose $0
+        Goto MgtUninstallPointerReadFailed
+      ${EndIf}
+      FileClose $0
+      Call un.MgtTrimDataRootNewlines
     ${EndIf}
+    Return
+
+    MgtUninstallPointerReadFailed:
+    MessageBox MB_ICONSTOP "데이터 저장 위치를 읽지 못해 데이터 정리를 중단했습니다.$\r$\n$INSTDIR\data-root.txt" /SD IDOK
+    SetErrorLevel 2
+    Abort
   FunctionEnd
 
   Function un.MgtTrimDataRootNewlines

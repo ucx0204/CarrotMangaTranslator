@@ -4,6 +4,7 @@ import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { Button } from "../ui/Button";
 import { NumberField } from "../ui/NumberField";
 import { ControlTooltip } from "../ui/ControlTooltip";
+import { useRedactionShortcutLabels } from "./useRedactionShortcutLabels";
 import { RedactionIconButton } from "./RedactionIconButton";
 import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
 import styles from "./RedactionWorkspace.module.css";
@@ -55,13 +56,12 @@ function PageNavigation(props: Props): React.JSX.Element {
   const { pages, view, preferences } = props.form.state.workspace;
   const index = pages.findIndex((page) => page.id === view.currentId);
   const disabled = props.form.busy || props.form.drawing;
-  const key = (value: string) =>
-    preferences.letterShortcuts ? value.toUpperCase() : "";
+  const keys = useRedactionShortcutLabels(preferences);
   return (
     <div className={styles.pageJump}>
       <RedactionIconButton
         label={t("manualRedaction.previous")}
-        hint={`${t("manualRedaction.previous")} · ← ${key(preferences.previousKey)}`}
+        hint={`${t("manualRedaction.previous")} · ${keys("previous")}`}
         placement="top"
         disabled={disabled || index <= 0}
         onClick={props.onPrevious}
@@ -85,7 +85,7 @@ function PageNavigation(props: Props): React.JSX.Element {
       <span className={styles.hint}>/ {pages.length}</span>
       <RedactionIconButton
         label={t("manualRedaction.next")}
-        hint={`${t("manualRedaction.next")} · → ${key(preferences.nextKey)}`}
+        hint={`${t("manualRedaction.next")} · ${keys("next")}`}
         placement="top"
         disabled={disabled || index >= pages.length - 1}
         onClick={props.onNext}

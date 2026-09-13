@@ -16,9 +16,16 @@ export type FluxWorkerBackend =
   | "python-rocm"
   | "python-cpu";
 
+export type FluxCudaDevice = Readonly<{
+  uuid: string;
+  name: string | null;
+  computeCapability: number;
+}>;
+
 export type FluxWorkerLaunchSpec = {
   backend: FluxWorkerBackend;
   computeGpuIndex?: number;
+  cudaDevice?: FluxCudaDevice;
   executable: string;
   args: string[];
   runtimePath: string;

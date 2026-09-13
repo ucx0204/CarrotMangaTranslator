@@ -1,5 +1,10 @@
 import { z } from "zod";
+import { redactionPreviewRegionSchema } from "./imageRedactionPreview";
 import { imageRedactionStrokeSchema } from "./imageRedaction";
+import {
+  IMAGE_REDACTION_SIZE_ERROR,
+  isSupportedRedactionSize,
+} from "./imageRedactionLimits";
 
 const id = z.string().min(1).max(500);
 export const redactionDecisionSchema = z.enum(["unreviewed", "reviewed"]);
@@ -71,7 +76,8 @@ export const redactionPresetSchema = z
     height: z.number().int().positive().max(200000),
     strokes: z.array(imageRedactionStrokeSchema).min(1).max(1000),
   })
-  .strict();
+  .strict()
+  .refine(isSupportedRedactionSize, IMAGE_REDACTION_SIZE_ERROR);
 export type RedactionPreset = z.infer<typeof redactionPresetSchema>;
 
 export const openRedactionWorkspaceSchema = z.discriminatedUnion("kind", [
@@ -107,7 +113,8 @@ export const redactionWorkspaceSchema = z
             width: z.number().int().positive().max(200000),
             height: z.number().int().positive().max(200000),
           })
-          .strict(),
+          .strict()
+          .refine(isSupportedRedactionSize, IMAGE_REDACTION_SIZE_ERROR),
       )
       .max(10000),
     view: redactionViewSchema,
@@ -135,6 +142,7 @@ export const redactionPreviewRequestSchema = z
     sessionId: z.string().uuid(),
     pageId: id,
     maxEdge: z.union([z.literal(320), z.literal(2048)]),
+    region: redactionPreviewRegionSchema.optional(),
   })
   .strict();
 export type RedactionPreviewRequest = z.infer<

@@ -10,10 +10,14 @@ import { clampOriginalImageOpacity } from "../../lib/originalImageOpacity";
 import { useSoundEffectReviewUiState } from "./useSoundEffectReviewUiState";
 import { useWorkspaceZoomControls } from "./useWorkspaceZoomControls";
 
+import type { RedactionPreparationRequest } from "../../lib/redactionPreparation";
+
 export type RightRailMode = "page-blocks" | "block-editor";
 
 // eslint-disable-next-line max-lines-per-function -- this top-level hook only aggregates independently scoped UI state and reset handles
 export function useAppSessionUiState() {
+  const [redactionPreparationRequest, setRedactionPreparationRequest] =
+    useState<RedactionPreparationRequest | null>(null);
   const [letteringTool, setLetteringTool] = useState(DEFAULT_LETTERING_TOOL);
   const inpaintingUi = useInpaintingUiState();
   const { resetInpaintingUi } = inpaintingUi;
@@ -63,6 +67,8 @@ export function useAppSessionUiState() {
   }, [resetInpaintingUi, soundEffectReview, translateModals, zoom]);
 
   return {
+    redactionPreparationRequest,
+    setRedactionPreparationRequest,
     letteringTool,
     setLetteringTool,
     ...zoom,

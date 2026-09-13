@@ -27,3 +27,7 @@ The expected manifest blob after applying the checkpoint is `2dbc78e8abb70f92dc7
 Local focused bridge coverage: 24 tests pass; the single all-IPC registration test is excluded only in that local command because the supplied offline dependency kit omits the Linux ONNX binding. No repository test is disabled. Windows CI executes it normally. Local preload coverage is 96.42% lines / 96.55% statements / 95.23% functions / 100% branches; gateway function coverage is 100%.
 
 The first-page Windows MCP checkpoint at `421922d5`, run `34733470908`, already passed before this repair. Final full-check results for the new source must be read from Actions and recorded in PR #96; do not substitute that older focused success for a new full-check result.
+
+## Pinned upstream reconciliation
+
+Upstream `f06499b0c73923dbbcd9a3e14922e8eacb541142` and the MCP branch changed only disjoint coverage rows. The sole merge conflict was resolved by validating that every shared metric is identical, then retaining both complete inventories. The upstream introduced-artifact SHA-256 `cde57ff3d4ae28e8cbae3d9deeca3802d1bbf078f1db4267f50be3ab50867927` remains the historical provenance; the 68 MCP rows retain the separate Windows evidence above. No existing metric was reduced. This merge updates only `feat/mcp-app-bridge`, never master.

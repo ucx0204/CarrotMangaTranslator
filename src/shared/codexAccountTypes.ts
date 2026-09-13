@@ -11,6 +11,7 @@ export type CodexAccountModel = {
 };
 
 export type CodexAccountSnapshot = {
+  authenticationError?: string;
   authenticated: boolean;
   accountKind: CodexAccountKind;
   email: string | null;

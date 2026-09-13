@@ -7,7 +7,6 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import React from "react";
-import { DEFAULT_BLOCK_FONT_ID } from "../../../shared/blockFontCatalog";
 import type {
   ConditionalBatchField,
   ConditionalBatchOperator,
@@ -39,13 +38,14 @@ import {
   ConditionalBatchCollapsibleCard,
   Select,
 } from "./ConditionalBatchControls";
-import { FontSelect } from "./FontSelect";
 import { useFonts } from "../fonts/useFonts";
 import { Field, TextField } from "./ui/Field";
 import { IconButton } from "./ui/IconButton";
 import { NumberField } from "./ui/NumberField";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import { ConditionalPatternBuilder } from "./ConditionalPatternBuilder";
+import { ConditionalBatchIdentityField } from "./ConditionalBatchIdentityField";
+import { ConditionalBatchSpeakersContext } from "./conditionalBatchSpeakers";
 import styles from "./ConditionalBatchEditor.module.css";
 
 export type ConditionalBatchConditionsCardProps = {
@@ -268,6 +268,15 @@ function ConditionCard({
   canRemove?: boolean;
 }) {
   const { options: fontOptions } = useFonts();
+  const { options: speakerOptions } = React.useContext(
+    ConditionalBatchSpeakersContext,
+  );
+  const speakerLabel =
+    condition.field === "speakerId" &&
+    ["equals", "notEquals"].includes(condition.operator)
+      ? speakerOptions.find((speaker) => speaker.value === condition.value)
+          ?.label
+      : undefined;
   const evaluation = currentResult?.conditionEvaluations.find(
     (entry) => entry.conditionId === condition.id,
   );
@@ -297,15 +306,20 @@ function ConditionCard({
           <span>
             {expanded
               ? CONDITIONAL_BATCH_FIELD_LABELS[condition.field]
-              : summarizeCondition(condition, fontLabel)}
+              : summarizeCondition(condition, speakerLabel ?? fontLabel)}
           </span>
           {!expanded && evaluation ? (
             <small data-matched={evaluation.matched}>
               {evaluation.matched ? "통과" : "불일치"} ·{" "}
-              {formatConditionalBatchDisplayValue(
-                evaluation.field,
-                evaluation.rawValue,
-              )}
+              {(evaluation.field === "speakerId"
+                ? speakerOptions.find(
+                    (speaker) => speaker.value === evaluation.rawValue,
+                  )?.label
+                : undefined) ??
+                formatConditionalBatchDisplayValue(
+                  evaluation.field,
+                  evaluation.rawValue,
+                )}
             </small>
           ) : null}
         </button>
@@ -471,21 +485,29 @@ function ConditionValueEditor({
     (field) => field.id === condition.field,
   );
   const enumOptions = conditionalBatchEnumOptions(condition.field);
+  if (
+    condition.field === "speakerId" &&
+    ["equals", "notEquals"].includes(condition.operator)
+  ) {
+    return (
+      <ConditionalBatchIdentityField
+        field="speakerId"
+        label="화자 조건 값"
+        value={String(condition.value ?? "")}
+        onChange={(value) => onChange({ ...condition, value })}
+      />
+    );
+  }
   if (condition.field === "fontFamily") {
     return (
-      <Field as="div" label="글꼴">
-        <FontSelect
-          ariaLabel="글꼴 조건 값"
-          preserveFontId
-          value={String(condition.value ?? "") || undefined}
-          onChange={(fontFamily) =>
-            onChange({
-              ...condition,
-              value: fontFamily ?? DEFAULT_BLOCK_FONT_ID,
-            })
-          }
-        />
-      </Field>
+      <ConditionalBatchIdentityField
+        field="fontFamily"
+        label="글꼴"
+        ariaLabel="글꼴 조건 값"
+        useDefaultFont
+        value={String(condition.value ?? "")}
+        onChange={(value) => onChange({ ...condition, value })}
+      />
     );
   }
   if (
@@ -614,7 +636,14 @@ function ConditionValueEditor({
     );
   }
   return (
-    <Field label="값">
+    <Field
+      label="값"
+      hint={
+        condition.field === "speakerId"
+          ? "저장된 규칙의 ID 문자열 비교입니다. 이름으로 선택하려면 비교를 ‘같음’이나 ‘다름’으로 바꾸세요."
+          : undefined
+      }
+    >
       <input
         placeholder="비교할 값"
         value={String(condition.value ?? "")}
@@ -879,7 +908,8 @@ function conditionOperators(
     (field) => field.id === condition.field,
   );
   if (!definition) return [];
-  if (condition.field !== "fontFamily") return definition.operators;
+  if (condition.field !== "fontFamily" && condition.field !== "speakerId")
+    return definition.operators;
   const preferred: readonly ConditionalBatchOperator[] = [
     "equals",
     "notEquals",

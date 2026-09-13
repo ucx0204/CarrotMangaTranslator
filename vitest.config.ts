@@ -15,6 +15,8 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text-summary", "json-summary"],
       reportsDirectory: "coverage",
+      // Keep measurements for diagnosis even when a test fails; exit status is unchanged.
+      reportOnFailure: true,
       include: [
         "src/main/**/*.{ts,cjs}",
         "src/preload/**/*.ts",

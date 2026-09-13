@@ -1,5 +1,9 @@
 import { execFile } from "node:child_process";
 import {
+  normalizeComputeGpuIndex,
+  normalizeNvidiaGpuUuid,
+} from "../shared/gpuSettings";
+import {
   inferAmdRocmTargetFromName,
   parseRocmArch,
   resolveAmdRocmTargetFromArch,
@@ -46,26 +50,42 @@ async function queryBestGpuInfo(): Promise<DetectedGpuInfo | null> {
   return queryAmdGpuInfo();
 }
 
-async function queryNvidiaGpuInfo(): Promise<DetectedGpuInfo | null> {
+export async function queryNvidiaGpuInfo(
+  computeGpuIndex?: number,
+  query: (file: string, args: string[]) => Promise<string> = execFileAsync,
+): Promise<DetectedGpuInfo | null> {
+  if (
+    computeGpuIndex !== undefined &&
+    normalizeComputeGpuIndex(computeGpuIndex) === undefined
+  ) {
+    return null;
+  }
+  const selection =
+    computeGpuIndex === undefined ? [] : [`--id=${computeGpuIndex}`];
   try {
     let stdout = "";
+    let hasComputeCapability = true;
     try {
-      stdout = await execFileAsync("nvidia-smi", [
-        "--query-gpu=name,memory.total,compute_cap",
+      stdout = await query("nvidia-smi", [
+        ...selection,
+        "--query-gpu=name,memory.total,compute_cap,uuid",
         "--format=csv,noheader,nounits",
       ]);
     } catch (_error) {
-      stdout = await execFileAsync("nvidia-smi", [
-        "--query-gpu=name,memory.total",
+      hasComputeCapability = false;
+      stdout = await query("nvidia-smi", [
+        ...selection,
+        "--query-gpu=name,memory.total,uuid",
         "--format=csv,noheader,nounits",
       ]);
     }
     const values = stdout
       .split(/\r?\n/)
-      .map(parseNvidiaSmiGpuLine)
+      .map((line) => parseNvidiaSmiGpuLine(line, hasComputeCapability))
       .filter((value): value is DetectedGpuInfo =>
         Boolean(value?.memoryMb && value.memoryMb > 0),
       );
+    if (computeGpuIndex !== undefined && values.length !== 1) return null;
     return values.length > 0
       ? values.sort(
           (left, right) => (right.memoryMb ?? 0) - (left.memoryMb ?? 0),
@@ -87,7 +107,10 @@ async function queryAmdGpuInfo(): Promise<DetectedGpuInfo | null> {
   return selectBestAmdGpuInfo(candidates);
 }
 
-function parseNvidiaSmiGpuLine(line: string): DetectedGpuInfo | null {
+function parseNvidiaSmiGpuLine(
+  line: string,
+  hasComputeCapability: boolean,
+): DetectedGpuInfo | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
   const parts = trimmed.split(",").map((part) => part.trim());
@@ -95,11 +118,17 @@ function parseNvidiaSmiGpuLine(line: string): DetectedGpuInfo | null {
   const memoryText = parts.length >= 2 ? parts[1] : parts[0];
   const memoryMb = Number(memoryText);
   if (!Number.isFinite(memoryMb) || memoryMb <= 0) return null;
+  const nvidiaUuid = normalizeNvidiaGpuUuid(
+    parts[hasComputeCapability ? 3 : 2],
+  );
   return {
     name,
     memoryMb,
     rtxGeneration: parseRtxGeneration(name),
-    computeCapability: parseComputeCapability(parts[2]),
+    computeCapability: parseComputeCapability(
+      hasComputeCapability ? parts[2] : undefined,
+    ),
+    ...(nvidiaUuid ? { nvidiaUuid } : {}),
     vendor: "nvidia",
     supportsRocm: false,
     supportsVulkan: true,

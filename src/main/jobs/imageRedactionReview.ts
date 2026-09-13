@@ -1,3 +1,4 @@
+import { indexRedactionConfirmationPages } from "../application/redactionConfirmationPages";
 import { randomUUID } from "node:crypto";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { JobEvent } from "../../shared/jobTypes";
@@ -29,6 +30,7 @@ type Pending = {
   resolve: (pages: ImageRedactionPage[]) => void;
   save: typeof saveImageRedactionPages;
   confirming?: boolean;
+  retainedDraft?: boolean;
 };
 const pending = new Map<string, Pending>();
 const productionStore = {
@@ -63,7 +65,7 @@ export async function withImageRedactionReview<T>(
     input.signal,
   );
   const sessionId = randomUUID();
-  let cancel = () => {};
+  let cancel: (() => void) | undefined;
   try {
     const approved = await new Promise<ImageRedactionPage[]>(
       (resolve, reject) => {
@@ -93,9 +95,12 @@ export async function withImageRedactionReview<T>(
     input.signal.throwIfAborted();
     return await withApprovedImageRedactions(approved, run, input.signal);
   } finally {
+    // A cancelled job loses approval rights, not the editor's unsaved draft.
+    const retainDraft =
+      input.signal.aborted && pending.get(input.jobId)?.retainedDraft;
     pending.delete(input.jobId);
-    input.signal.removeEventListener("abort", cancel);
-    await closeRedactionWorkspace(sessionId);
+    if (cancel) input.signal.removeEventListener("abort", cancel);
+    if (!retainDraft) await closeRedactionWorkspace(sessionId);
   }
 }
 
@@ -114,6 +119,7 @@ export async function openPendingRedactionWorkspace(
     root,
   );
   entry.signal.throwIfAborted();
+  entry.retainedDraft = true;
   return workspace;
 }
 
@@ -124,6 +130,10 @@ export async function confirmImageRedaction(
   const entry = pending.get(request.jobId);
   if (!entry || entry.sessionId !== request.sessionId)
     throw new Error("이미지 확인이 만료되었습니다.");
+  // All jobs created by this process require a persisted workspace snapshot.
+  // A missing renderer field must not select the pre-workspace compatibility path.
+  if (request.workspaceRevision === undefined)
+    throw new Error("가리기 초안을 저장한 뒤 다시 확인해 주세요.");
   if (entry.confirming) throw new Error("이미지 확인을 저장하고 있습니다.");
   entry.confirming = true;
   try {
@@ -139,12 +149,10 @@ async function saveConfirmedRedactions(
   entry: Pending,
 ): Promise<boolean> {
   entry.signal.throwIfAborted();
-  const patches = new Map(request.pages.map((page) => [page.id, page]));
-  if (
-    patches.size !== request.pages.length ||
-    patches.size !== entry.pages.length
-  )
-    throw new Error("확인할 페이지 목록이 다릅니다.");
+  const patches = indexRedactionConfirmationPages(
+    request.pages,
+    entry.pages.length,
+  );
   const pages: ImageRedactionPage[] = [];
   for (let offset = 0; offset < entry.pages.length; offset += 4) {
     entry.signal.throwIfAborted();

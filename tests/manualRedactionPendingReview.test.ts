@@ -9,7 +9,11 @@ import {
   openPendingRedactionWorkspace,
   confirmImageRedaction,
 } from "../src/main/jobs/imageRedactionReview";
-import { saveRedactionWorkspace } from "../src/main/imageRedactionWorkspaceSessions";
+import { saveReviewedRequest } from "./helpers/redactionReviewApproval";
+import {
+  closeRedactionWorkspace,
+  saveRedactionWorkspace,
+} from "../src/main/imageRedactionWorkspaceSessions";
 import {
   readImageRedactionState,
   saveImageRedactionPages,
@@ -136,7 +140,7 @@ it("opens the owning pending workspace, requires a saved review and closes it af
 it("does not reopen a pending job while its confirmation is being saved", async () => {
   const f = await fixture();
   await vi.waitFor(() => expect(f.events).toHaveLength(1));
-  const request = f.request();
+  const request = await saveReviewedRequest(f.root, f.request());
   let release!: () => void;
   f.save.mockImplementationOnce(
     () =>
@@ -165,14 +169,16 @@ it("bypasses disabled review but still requires review for local-provider image 
   const imageEdit = await fixture({ local: true, imageEdit: true });
   await vi.waitFor(() => expect(imageEdit.events).toHaveLength(1));
   expect(imageEdit.run).not.toHaveBeenCalled();
-  await confirmImageRedaction(imageEdit.request());
+  await confirmImageRedaction(
+    await saveReviewedRequest(imageEdit.root, imageEdit.request()),
+  );
   await expect(imageEdit.done).resolves.toEqual({ value: "resumed" });
 });
 
 it("rejects a foreign page without dropping the pending review", async () => {
   const f = await fixture();
   await vi.waitFor(() => expect(f.events).toHaveLength(1));
-  const request = f.request();
+  const request = await saveReviewedRequest(f.root, f.request());
   await expect(
     confirmImageRedaction({
       ...request,
@@ -182,4 +188,17 @@ it("rejects a foreign page without dropping the pending review", async () => {
   expect(f.run).not.toHaveBeenCalled();
   await confirmImageRedaction(request);
   await expect(f.done).resolves.toEqual({ value: "resumed" });
+});
+
+it("cannot downgrade a new or closed review by omitting its workspace revision", async () => {
+  const f = await fixture();
+  await vi.waitFor(() => expect(f.events).toHaveLength(1));
+  const original = f.request();
+  await expect(confirmImageRedaction(original)).rejects.toThrow("초안");
+  const saved = await saveReviewedRequest(f.root, original);
+  await closeRedactionWorkspace(saved.sessionId);
+  await expect(confirmImageRedaction(original)).rejects.toThrow("초안");
+  await expect(confirmImageRedaction(saved)).rejects.toThrow("만료");
+  expect(f.save).not.toHaveBeenCalled();
+  expect(f.run).not.toHaveBeenCalled();
 });

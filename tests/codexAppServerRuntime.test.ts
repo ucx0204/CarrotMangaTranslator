@@ -24,6 +24,7 @@ type CodexRuntimePlan = {
 
 type CodexRuntimeHelpers = {
   CODEX_APP_SERVER_ARGUMENTS: string[];
+  CODEX_APP_SERVER_SMOKE_TIMEOUT_MS: number;
   CODEX_APP_SERVER_VERSION: string;
   assertCodexRuntimeReady: (runtime: CodexRuntimePlan) => CodexRuntimePlan;
   resolveCodexRuntime: (
@@ -75,22 +76,31 @@ describeWindows("official Codex App Server runtime", () => {
     });
   });
 
-  it("starts the installed binary as an App Server and reads account state", () => {
-    const runtime = runtimeHelpers.assertCodexRuntimeReady(
-      runtimeHelpers.resolveCodexRuntime(repoRoot, "win32", "x64"),
-    );
-    const result = spawnSync(
-      process.execPath,
-      [
-        join(repoRoot, "scripts", "smoke-codex-app-server-runtime.cjs"),
-        runtime.executablePath,
-      ],
-      { cwd: repoRoot, encoding: "utf8", timeout: 30_000 },
-    );
+  it(
+    "starts the installed binary as an App Server and reads account state",
+    () => {
+      const runtime = runtimeHelpers.assertCodexRuntimeReady(
+        runtimeHelpers.resolveCodexRuntime(repoRoot, "win32", "x64"),
+      );
+      const result = spawnSync(
+        process.execPath,
+        [
+          join(repoRoot, "scripts", "smoke-codex-app-server-runtime.cjs"),
+          runtime.executablePath,
+        ],
+        {
+          cwd: repoRoot,
+          encoding: "utf8",
+          timeout: runtimeHelpers.CODEX_APP_SERVER_SMOKE_TIMEOUT_MS,
+          windowsHide: true,
+        },
+      );
 
-    expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain("packaged-codex-app-server-ok");
-  });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain("packaged-codex-app-server-ok");
+    },
+    runtimeHelpers.CODEX_APP_SERVER_SMOKE_TIMEOUT_MS + 10_000,
+  );
 
   it("resolves and version-checks the short packaged resource path", () => {
     const resourcesDir = createPackagedFixture(BUNDLED_CODEX_VERSION);

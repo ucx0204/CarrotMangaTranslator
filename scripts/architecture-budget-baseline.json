@@ -3,7 +3,7 @@
   "defaultMaxImportedBy": 25,
   "legacyMaxRuntimeImports": {
     "src/shared/ipcSettingsSchemas.ts": 13,
-    "src/main/inpainting.ts": 16,
+    "src/main/inpainting.ts": 15,
     "src/main/ipc/importPreviewIpc.ts": 13,
     "src/main/ipc/settingsModelTestIpc.ts": 11,
     "src/main/jobs/soundEffectTranslationJobRunner.ts": 13,
@@ -61,7 +61,8 @@
       "reason": "Main diagnostic sink, including DirectML adapter identity and CPU fallback telemetry"
     },
     "src/main/libraryStore/storage.ts": {
-      "maxImportedBy": 26
+      "maxImportedBy": 27,
+      "reason": "Shared filesystem primitives; the partitioned redaction draft adapter reuses Windows rename retries rather than duplicating them."
     },
     "src/main/runtime/simple-page-ocr-bbox-pipeline.cjs": {
       "maxRuntimeImports": 20,
@@ -139,8 +140,8 @@
       "maxImportedBy": 27
     },
     "src/shared/geometry.ts": {
-      "maxImportedBy": 33,
-      "reason": "Codex native-view batching and erasure reference preparation reuse canonical box intersection for source/destination coverage and crop-local reading hints. Geometry algorithms are unchanged; avoid duplicated overlap code or an alias gateway."
+      "maxImportedBy": 35,
+      "reason": "Codex native-view batching and erasure reference preparation reuse canonical intersections. Block library and clipboard reuse render-box normalization and pixel conversion to preserve lettering aspect across pages. Geometry algorithms remain unchanged; existing geometry tests and clipboard/library roundtrips cover these consumers."
     },
     "src/shared/richTextMarkup.ts": {
       "maxImportedBy": 28,
@@ -148,7 +149,8 @@
     },
     "src/shared/ipcSchemaPrimitives.ts": {
       "maxRuntimeImports": 15,
-      "reason": "Shared IPC schema primitive authority"
+      "maxImportedBy": 27,
+      "reason": "Shared IPC schema primitive authority. Clipboard payload validation and paste capacity checks use the existing block schema and page block limit directly, with malformed-payload and atomic-overflow tests."
     },
     "src/shared/translationLanguages.ts": {
       "maxImportedBy": 29,

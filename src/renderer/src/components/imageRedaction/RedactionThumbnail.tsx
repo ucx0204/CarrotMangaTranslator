@@ -1,20 +1,21 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type {
-  RedactionDocument,
-  RedactionWorkspacePage,
-} from "../../../../shared/imageRedactionWorkspace";
+import type { RedactionDocument } from "../../../../shared/imageRedactionWorkspace";
+import type { RedactionPageMetadata } from "./redactionSession";
 import { SelectionSurface } from "../ui/SelectionCard";
 import { RedactionMaskCanvas } from "./RedactionMaskCanvas";
-import type { RedactionWorkspaceController } from "./useRedactionWorkspace";
+import type { RedactionWorkspaceController } from "./redactionWorkspaceTypes";
 import { useRedactionPreview } from "./useRedactionPreview";
 import { useRedactionImageReadiness } from "./useRedactionImageReadiness";
 import styles from "./RedactionWorkspace.module.css";
 
 type Props = {
-  page: RedactionWorkspacePage;
+  page: RedactionPageMetadata;
   document: RedactionDocument;
-  form: RedactionWorkspaceController;
+  form: Pick<
+    RedactionWorkspaceController,
+    "state" | "busy" | "drawing" | "failed" | "previews" | "markPreview"
+  >;
   size: number;
   number: number;
   selected: boolean;
@@ -92,6 +93,7 @@ function ThumbnailImage({
     source: "thumbnail",
     form,
     pageId: page.id,
+    requestKey: image.key,
     url: image.url,
     error: image.error,
     strokes: document.strokes,
@@ -101,7 +103,11 @@ function ThumbnailImage({
   return (
     <span className={styles.thumbnailViewport} style={{ height: size }}>
       {image.url ? (
-        <span className={styles.thumbnailStage} style={{ width, height }}>
+        <span
+          key={image.key}
+          className={styles.thumbnailStage}
+          style={{ width, height }}
+        >
           <img
             src={image.url}
             alt=""

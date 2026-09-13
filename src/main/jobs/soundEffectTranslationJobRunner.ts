@@ -1,9 +1,12 @@
-import { applySoundEffectImageEdit } from "./soundEffectImageEditing";
+import { editSoundEffectPage } from "./soundEffectImageEditing";
+import {
+  reviewSoundEffectImages,
+  type DeferredSoundEffectPage,
+} from "./soundEffectTranslationReview";
 import { externalImageRegionIsHidden } from "../imageRedactionContext";
 import { withImageRedactionReview } from "./imageRedactionReview";
 import { prepareSoundEffectTranslationRun } from "./soundEffectTranslationPreparation";
 import { editTranslatedPageWithCodex } from "../codexImageEditing";
-import { createCodexProgressReporter } from "../pipeline/codexTypesettingProgress";
 import type { StartSoundEffectTranslationResult } from "../../shared/analysisTypes";
 import {
   appendResolvedSoundEffectBlocks,
@@ -21,17 +24,13 @@ import {
   finishSoundEffectTranslation,
 } from "./soundEffectTranslationEvents";
 import { buildFontMatchedSoundEffectEntries } from "./soundEffectFontMatching";
-import {
-  throwSoundEffectPhaseErrors,
-  type ValidatedSoundEffectTranslation,
-} from "./soundEffectTranslationResult";
+import { throwSoundEffectPhaseErrors } from "./soundEffectTranslationResult";
 import { maybeInpaintTranslatedSoundEffectBlocks } from "./soundEffectTranslationInpainting";
 import { translateStoredSoundEffectRegions } from "./soundEffectTranslationPage";
 import { inpaintCreatedSoundEffectBlocks } from "./soundEffectTargetedInpainting";
 import {
   countChapterPendingSoundEffectRegions,
   resolveStoredSoundEffectTargets,
-  type StoredSoundEffectTarget,
 } from "./soundEffectTranslationTargets";
 
 export type SoundEffectTranslationJobRunnerDependencies = {
@@ -133,13 +132,6 @@ export async function runSoundEffectTranslationJob(
   );
 }
 
-type DeferredSoundEffectPage = {
-  target: StoredSoundEffectTarget;
-  items: ValidatedSoundEffectTranslation[];
-  pageIndex: number;
-  pageTotal: number;
-};
-
 async function translateSoundEffectTargets(
   input: SoundEffectTranslationJobInput,
   prepared: Awaited<ReturnType<typeof prepareSoundEffectTranslationRun>>,
@@ -191,7 +183,7 @@ async function translateSoundEffectTargets(
       pageIndex,
       pageTotal: prepared.targets.length,
     };
-    if (request.autoFontMatching) {
+    if (request.autoFontMatching || request.codexTypesetting) {
       deferredPages.push(page);
     } else {
       await saveTranslatedPage(input, prepared, page, dependencies);
@@ -213,53 +205,21 @@ async function saveTranslatedPage(
     emitSoundEffectPageDone(id, emit, pageIndex, pageTotal, 0);
     return;
   }
-  const translatedEntries = await buildFontMatchedSoundEffectEntries({
-    baseOptions: prepared.run.baseOptions,
-    fontMatchingPort: prepared.pipelineDependencies.fontMatching.pageInference,
-    jobId: id,
-    page: target.page,
-    pageIndex,
-    regions: target.regions,
-    signal: finalizationSignal,
-    translations: items,
-  });
-  const reportImageProgress = createCodexProgressReporter(
-    id,
-    pageTotal,
-    emit,
-    "sound-effect-translation",
-  );
+  const translatedEntries =
+    page.entries ??
+    (await buildPageEntries(input, prepared, page, finalizationSignal));
   const {
     entries,
     image,
     error: imageError,
-  } = !imageErrors?.length &&
-  request.codexTypesetting &&
-  !input.abortController.signal.aborted
-    ? await applySoundEffectImageEdit(
-        translatedEntries,
-        {
-          page: {
-            ...target.page,
-            blocks: translatedEntries.map((entry) => entry.block),
-          },
-          directory: prepared.runPaths.runDir,
-          signal: input.abortController.signal,
-          eraseOriginal: request.inpaintAfterTranslation,
-          output:
-            request.codexTypesetting.sfxRendering === "font" ? "text" : "image",
-          decode: input.context.decodeImage,
-          progress: (update) =>
-            reportImageProgress({
-              ...update,
-              stage: "images",
-              page: pageIndex + 1,
-              completed: pageIndex,
-            }),
-        },
-        dependencies.editImages,
-      )
-    : { entries: translatedEntries, image: undefined, error: undefined };
+  } = await editSoundEffectPage(
+    input,
+    prepared.runPaths.runDir,
+    page,
+    translatedEntries,
+    dependencies.editImages,
+    Boolean(imageErrors?.length),
+  );
   finalizationSignal.throwIfAborted();
   state.chapter = await dependencies.appendResolvedBlocks(
     request.chapterId,
@@ -270,12 +230,33 @@ async function saveTranslatedPage(
   );
   state.createdBlocksByPage.push({
     pageId: target.page.id,
-    blockIds: entries.map((entry) => entry.block.id),
+    blockIds: entries.flatMap((entry) => [
+      entry.block.id,
+      ...(entry.additionalBlocks ?? []).map((block) => block.id),
+    ]),
   });
   state.translatedRegionCount += entries.length;
   if (imageError && !imageErrors) throw imageError;
   if (imageError) imageErrors?.push(imageError);
   else emitSoundEffectPageDone(id, emit, pageIndex, pageTotal, entries.length);
+}
+
+function buildPageEntries(
+  input: SoundEffectTranslationJobInput,
+  prepared: Awaited<ReturnType<typeof prepareSoundEffectTranslationRun>>,
+  page: DeferredSoundEffectPage,
+  signal = input.abortController.signal,
+) {
+  return buildFontMatchedSoundEffectEntries({
+    baseOptions: prepared.run.baseOptions,
+    fontMatchingPort: prepared.pipelineDependencies.fontMatching.pageInference,
+    jobId: input.id,
+    page: page.target.page,
+    pageIndex: page.pageIndex,
+    regions: page.target.regions,
+    signal,
+    translations: page.items,
+  });
 }
 
 async function saveDeferredFontMatchedPages(
@@ -289,6 +270,9 @@ async function saveDeferredFontMatchedPages(
   const imageErrors: unknown[] = [];
   let nextPageIndex = 0;
   try {
+    await reviewSoundEffectImages(input, pages, (page) =>
+      buildPageEntries(input, prepared, page),
+    );
     for (const [pageIndex, page] of pages.entries()) {
       throwIfAborted(signal);
       await saveTranslatedPage(
@@ -308,12 +292,15 @@ async function saveDeferredFontMatchedPages(
     )
       throw error;
   }
+  rejectUnconfirmedCancellation(input, pages);
   if (nextPageIndex < pages.length) {
     const finalizationSignal = new AbortController().signal;
     prepared.run.baseOptions.autoFontMatching = undefined;
     prepared.run.baseOptions.fontMatchingCandidates = undefined;
     input.state.warnings.push(
-      "취소 전에 번역이 끝난 효과음은 폰트 자동 맞춤 없이 저장했습니다.",
+      input.request.codexTypesetting
+        ? "취소 전에 확정한 효과음 번역문과 영역을 저장했습니다."
+        : "취소 전에 번역이 끝난 효과음은 폰트 자동 맞춤 없이 저장했습니다.",
     );
     const savedPageIds = new Set(
       input.state.createdBlocksByPage.map(({ pageId }) => pageId),
@@ -332,6 +319,17 @@ async function saveDeferredFontMatchedPages(
   }
   if (imageErrors.length) throw imageErrors[0];
   signal.throwIfAborted();
+}
+
+function rejectUnconfirmedCancellation(
+  input: SoundEffectTranslationJobInput,
+  pages: readonly DeferredSoundEffectPage[],
+) {
+  if (
+    input.request.codexTypesetting &&
+    !pages.every((page) => !page.items.length || page.reading)
+  )
+    input.abortController.signal.throwIfAborted();
 }
 
 export async function handleSoundEffectTranslationJobError({

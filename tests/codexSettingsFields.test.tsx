@@ -358,23 +358,23 @@ describe("CodexSettingsFields", () => {
     expect(screen.getByTestId("selected-effort").textContent).toBe("high");
   });
 
-  it("repairs a missing model and unsupported effort from server defaults", async () => {
-    renderHarness("removed-model", "none");
+  it("preserves Astra and its effort when a stale catalog omits it", async () => {
+    renderHarness("gpt-6-astra", "ultra");
 
     await waitFor(() => {
       expect(screen.getByTestId("selected-model").textContent).toBe(
-        "gpt-5.6-sol",
+        "gpt-6-astra",
       );
-      expect(screen.getByTestId("selected-effort").textContent).toBe("low");
+      expect(screen.getByTestId("selected-effort").textContent).toBe("ultra");
     });
   });
 
-  it("repairs only the missing model when its effort is still supported", async () => {
+  it("preserves a missing model until the user chooses another", async () => {
     renderHarness("removed-model", "medium");
 
     await waitFor(() =>
       expect(screen.getByTestId("selected-model").textContent).toBe(
-        "gpt-5.6-sol",
+        "removed-model",
       ),
     );
     expect(screen.getByTestId("selected-effort").textContent).toBe("medium");
@@ -389,7 +389,7 @@ describe("CodexSettingsFields", () => {
     expect(screen.getByTestId("selected-model").textContent).toBe("gpt-5.5");
   });
 
-  it("falls back to the first server model when none is marked as default", async () => {
+  it("does not replace a saved model with the first catalog entry", async () => {
     accountGateway.get.mockResolvedValueOnce({
       ...signedInAccount,
       models: catalog.map((model) => ({ ...model, isDefault: false })),
@@ -398,7 +398,7 @@ describe("CodexSettingsFields", () => {
 
     await waitFor(() =>
       expect(screen.getByTestId("selected-model").textContent).toBe(
-        "gpt-5.6-sol",
+        "removed-model",
       ),
     );
   });

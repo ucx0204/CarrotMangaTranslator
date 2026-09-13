@@ -131,6 +131,10 @@ it("restores a legacy overview draft in continuous editing without changing its 
   const initial = fixture(4);
   const workspace = {
     ...initial.workspace,
+    pages: initial.workspace.pages.map((page) => ({
+      ...page,
+      ...initial.documents[page.id],
+    })),
     view: {
       ...initial.workspace.view,
       mode: "grid" as const,
@@ -203,4 +207,22 @@ it("keeps preferences when confirming and advancing to the next unreviewed page"
     reviewed: 2,
     unreviewed: 0,
   });
+});
+
+it("stores mutable document content only in the canonical document map", () => {
+  const state = fixture(2);
+  for (const page of state.workspace.pages) {
+    expect(page).not.toHaveProperty("strokes");
+    expect(page).not.toHaveProperty("decision");
+    expect(state.documents[page.id]).toMatchObject({
+      strokes: [],
+      decision: "unreviewed",
+    });
+  }
+  const reviewed = editRedactionDocuments(state, [
+    { ...state.documents["0"], decision: "reviewed" },
+  ]);
+  expect(reviewed.workspace.pages).toBe(state.workspace.pages);
+  expect(reviewed.documents["0"].decision).toBe("reviewed");
+  expect(state.documents["0"].decision).toBe("unreviewed");
 });

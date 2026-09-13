@@ -1214,7 +1214,9 @@
       "wheelPages": "在顶部或底部切换页面",
       "fitHeight": "使页面适合工作区高度",
       "toggleSelection": "添加或移除所选文本块",
-      "rangeSelection": "选择连续的文本块范围"
+      "rangeSelection": "选择连续的文本块范围",
+      "copyBlocks": "复制选中的文字和图片区块",
+      "pasteBlocks": "粘贴到当前页面（支持跨作品、章节）"
     }
   },
   "gatherText": {
@@ -2015,7 +2017,8 @@
         "logoutFailed": "Codex 退出登录失败。"
       },
       "imageReasoning": "图像生成推理强度",
-      "imageModelWarning": "此模型可能无法正确完成图像任务。强烈推荐使用 Astra。"
+      "imageModelWarning": "此模型可能无法正确完成图像任务。强烈推荐使用 Astra。",
+      "modelUnavailable": "当前账户列表中没有所选模型。已保留您的选择。请重新登录或选择可用模型。"
     },
     "api": {
       "sections": {
@@ -2805,5 +2808,15 @@
     "outboundHint": "原图保持不变，遮挡仅应用于发送用的副本。",
     "preparationHint": "准备编辑仅保存草稿，不会发送图片。",
     "about": "遮挡说明"
+  },
+  "soundEffectTextReview": {
+    "title": "确认音效译文",
+    "hint": "切换页面，编辑右侧列表中的原文、译文和图像区域。确认所有页面后开始清除原文并生成图像。",
+    "generate": "全部确认并生成",
+    "pages": "已翻译页面",
+    "count": "{{count}} 个音效",
+    "summary": "{{pages}} 页 · {{count}} 个音效",
+    "source": "原文",
+    "sourceNumber": "原文 {{number}}"
   }
 }

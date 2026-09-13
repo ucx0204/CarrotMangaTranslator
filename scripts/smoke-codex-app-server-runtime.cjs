@@ -5,6 +5,7 @@ const { join, resolve } = require("node:path");
 const { createInterface } = require("node:readline");
 const {
   CODEX_APP_SERVER_ARGUMENTS,
+  CODEX_APP_SERVER_SMOKE_RPC_TIMEOUT_MS,
 } = require("./codex-app-server-runtime.cjs");
 
 /**
@@ -83,7 +84,7 @@ async function runSmoke() {
     });
     await waitFor(
       messages,
-      (message) => message.id === 1,
+      { id: 1, method: "initialize" },
       child,
       stderr,
       () => spawnError,
@@ -96,7 +97,7 @@ async function runSmoke() {
     });
     const account = await waitFor(
       messages,
-      (message) => message.id === 2,
+      { id: 2, method: "account/read" },
       child,
       stderr,
       () => spawnError,
@@ -152,17 +153,17 @@ function send(child, message) {
 
 /**
  * @param {AppServerMessage[]} messages
- * @param {(message: AppServerMessage) => boolean} predicate
+ * @param {{ id: number; method: string }} request
  * @param {import("node:child_process").ChildProcessWithoutNullStreams} child
  * @param {string[]} stderr
  * @param {() => Error | null} readSpawnError
  * @returns {Promise<AppServerMessage>}
  */
-function waitFor(messages, predicate, child, stderr, readSpawnError) {
+function waitFor(messages, request, child, stderr, readSpawnError) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
     const timer = setInterval(() => {
-      const match = messages.find(predicate);
+      const match = messages.find((message) => message.id === request.id);
       if (match) {
         clearInterval(timer);
         resolve(match);
@@ -172,12 +173,15 @@ function waitFor(messages, predicate, child, stderr, readSpawnError) {
       if (
         spawnError ||
         child.exitCode !== null ||
-        Date.now() - startedAt >= 15_000
+        child.signalCode !== null ||
+        Date.now() - startedAt >= CODEX_APP_SERVER_SMOKE_RPC_TIMEOUT_MS
       ) {
         clearInterval(timer);
         reject(
           new Error(
-            `Codex App Server smoke timed out or exited. ${spawnError ? String(spawnError) : ""} ${stderr.join("").slice(-4000)}`,
+            `Codex App Server ${request.method} smoke timed out or exited ` +
+              `(elapsed=${Date.now() - startedAt}ms, exitCode=${String(child.exitCode)}, signal=${String(child.signalCode)}). ` +
+              `${spawnError ? String(spawnError) : ""} ${stderr.join("").slice(-4000)}`,
           ),
         );
       }

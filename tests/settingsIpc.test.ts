@@ -15,6 +15,7 @@ import type {
   CodexAccountIpcRuntime,
 } from "../src/main/ipc/codexAccountIpc";
 import { normalizeAppSettingsForRuntime } from "../src/main/settingsStore";
+import { normalizeCodexAuthenticationError } from "../src/main/codexAuthentication";
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
 
 type IpcHandler = (
@@ -109,7 +110,46 @@ describe("settings IPC Codex account", () => {
     expect(second).toEqual(first);
     expect(accountRuntime.startClient).toHaveBeenCalledOnce();
     expect(client.readAccount).toHaveBeenCalledOnce();
+    expect(client.readAccount).toHaveBeenCalledWith(true);
     expect(client.listModels).toHaveBeenCalledOnce();
+    expect(client.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("reports revoked credentials as signed out with actionable login guidance", async () => {
+    const client = createCodexAccountClient();
+    client.readAccount.mockRejectedValue(
+      normalizeCodexAuthenticationError(
+        new Error(
+          "Your access token could not be refreshed because your refresh token was revoked. Please log out and sign in again.",
+        ),
+      ),
+    );
+    const handler = registerAndGetCodexAccountHandler(
+      "settings:codex-account",
+      createCodexAccountRuntime(client.client),
+    );
+    await expect(handler(trustedEvent())).resolves.toMatchObject({
+      authenticated: false,
+      accountKind: null,
+      models: [],
+      authenticationError: expect.stringContaining("로그인"),
+    });
+    expect(client.readAccount).toHaveBeenCalledWith(true);
+    expect(client.listModels).not.toHaveBeenCalled();
+    expect(client.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("keeps account transport failures distinct from revoked authentication", async () => {
+    const client = createCodexAccountClient();
+    const networkFailure = new Error("Codex network unavailable");
+    client.readAccount.mockRejectedValue(networkFailure);
+    const handler = registerAndGetCodexAccountHandler(
+      "settings:codex-account",
+      createCodexAccountRuntime(client.client),
+    );
+    await expect(handler(trustedEvent())).rejects.toThrow(
+      "Codex network unavailable",
+    );
     expect(client.dispose).toHaveBeenCalledOnce();
   });
 

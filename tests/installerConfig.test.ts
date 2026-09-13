@@ -189,6 +189,22 @@ describe("Windows installer clean uninstall option", () => {
     expect(electronBuilderConfig).not.toHaveProperty("asarUnpack");
   });
 
+  it("retains assisted elevation and does not require every app launch to be elevated", () => {
+    const config = electronBuilderConfig as {
+      nsis: {
+        oneClick: boolean;
+        perMachine: boolean;
+        allowElevation?: boolean;
+      };
+      win: { requestedExecutionLevel?: string };
+    };
+    expect(config.nsis.oneClick).toBe(false);
+    expect(config.nsis.perMachine).toBe(false);
+    // These are electron-builder v26 defaults when not explicitly configured.
+    expect(config.nsis.allowElevation ?? true).toBe(true);
+    expect(config.win.requestedExecutionLevel ?? "asInvoker").toBe("asInvoker");
+  });
+
   it("does not ship renderer-only or build-only packages twice", () => {
     const packageJson = JSON.parse(
       readFileSync(join(repoRoot, "package.json"), "utf8"),
@@ -224,7 +240,7 @@ describe("Windows installer clean uninstall option", () => {
     }
     expect(packageJson.dependencies["onnxruntime-web"]).toBe("1.27.0");
     expect(packageJson.dependencies["onnxruntime-node"]).toBe("1.27.0");
-    expect(packageJson.dependencies["@openai/codex"]).toBe("0.153.1");
+    expect(packageJson.dependencies["@openai/codex"]).toBe("0.154.0");
     expect(packageJson.devDependencies).not.toHaveProperty("@openai/codex");
     expect(packageJson.overrides["onnxruntime-node"]?.["adm-zip"]).toBe(
       "^0.6.0",
@@ -296,7 +312,6 @@ describe("Windows installer clean uninstall option", () => {
       ]),
     );
   });
-
   it("refuses mismatched release metadata and publishes notes with the policy link", () => {
     const releaseWorkflow = readFileSync(
       join(repoRoot, ".github", "workflows", "release.yml"),
@@ -607,7 +622,9 @@ describe("Windows installer clean uninstall option", () => {
 
     expect(script).toContain('${If} $MgtDataRoot == ""');
     expect(script).toContain('StrCpy $MgtDataRoot "$INSTDIR\\data"');
-    expect(script).toContain('FileWrite $0 "$MgtDataRoot$\\r$\\n"');
+    expect(script).toContain(
+      '!insertmacro MgtWriteDataRootText $0 "$MgtDataRoot$\\r$\\n"',
+    );
     expect(script).toContain("MgtResolveLegacyAppDataDefault");
     expect(script).toContain(
       "기존 데이터가 발견되어 해당 위치를 기본값으로 표시합니다",
@@ -617,7 +634,7 @@ describe("Windows installer clean uninstall option", () => {
     );
   });
 
-  it("rejects any data root the installed app cannot write without changing it", () => {
+  it("allows elevated data-root writes while retaining real write-failure checks", () => {
     const script = readFileSync(
       join(repoRoot, "build", "installer.nsh"),
       "utf8",
@@ -629,17 +646,30 @@ describe("Windows installer clean uninstall option", () => {
         script.indexOf("Function MgtDataRootPageLeave"),
       ),
     );
+    const validator = script.slice(
+      script.indexOf("Function MgtValidateDataRootWriteAccess"),
+      script.indexOf(
+        "FunctionEnd",
+        script.indexOf("Function MgtValidateDataRootWriteAccess"),
+      ),
+    );
 
     expect(script).toContain("Function MgtProbeDataRootWriteAccess");
     expect(script).toContain('GetTempFileName $9 "$5"');
-    expect(script).toContain(
+    expect(validator).toContain(
       "!insertmacro UAC_AsUser_Call Function MgtProbeDataRootWriteAccess ${UAC_SYNCREGISTERS}",
+    );
+    expect(validator).toMatch(/\$\{EndIf\}\s+Call MgtProbeDataRootWriteAccess/);
+    expect(script).not.toContain("unverifiable");
+    expect(script).not.toContain(
+      "설치 프로그램을 닫고 일반 실행으로 다시 시작",
     );
     expect(pageLeave).toContain("Call MgtValidateDataRootWriteAccess");
     expect(pageLeave).toContain('${If} $6 != "1"');
     expect(pageLeave).toContain("선택한 폴더에 데이터를 저장할 수 없습니다");
-    expect(pageLeave).toContain(
-      "설정과 모델 파일을 저장할 수 있는 다른 폴더를 선택해 주세요",
+    expect(pageLeave).toContain("관리자 권한으로도 실패하면");
+    expect(script).toContain(
+      "관리자 실행 중에는 탐색기에서 파일 끌어놓기가 제한됩니다",
     );
     expect(pageLeave).not.toContain("$PROGRAMFILES");
     expect(pageLeave).not.toContain("$LOCALAPPDATA");

@@ -11,6 +11,7 @@ export const analysisGateway = createMangaDomainGateway("Analysis", [
   "startSoundEffectTranslation",
   "translateRegion",
   "confirmRegionTranslation",
+  "confirmSoundEffectTextReview",
   "confirmImageRedaction",
   "getImageRedactionEnabled",
   "setImageRedactionEnabled",

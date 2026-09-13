@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
+import { confirmSoundEffectTextReview } from "../src/main/application/soundEffectTextReview";
 import {
   handleSoundEffectTranslationJobError,
   runSoundEffectTranslationJob,
@@ -30,9 +31,10 @@ it("saves both pretranslated pages after the first deferred image failure and re
     "translate:page-2",
     "endpoint:dispose",
     "font:page-1",
+    "font:page-2",
+    "review:confirm",
     "image:page-1",
     "save:page-1",
-    "font:page-2",
     "save:page-2",
     "font:dispose",
   ]);
@@ -78,9 +80,6 @@ it("saves both pretranslated pages after the first deferred image failure and re
 });
 
 it.each([
-  { phase: "before-finalization", pageId: "page-1" },
-  { phase: "font", pageId: "page-1" },
-  { phase: "font", pageId: "page-2" },
   { phase: "image", pageId: "page-1" },
   { phase: "image", pageId: "page-2" },
   { phase: "after-save", pageId: "page-1" },
@@ -141,6 +140,26 @@ it.each([
     ).toEqual([]);
     expect(f.order.at(-1)).toBe("font:dispose");
     expect(f.dependencies.inpaintCreatedBlocks).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  { phase: "before-finalization", pageId: "page-1" },
+  { phase: "font", pageId: "page-1" },
+  { phase: "font", pageId: "page-2" },
+] as const)(
+  "does not save unconfirmed translations when cancelled at $phase on $pageId",
+  async (cancelAt) => {
+    const f = fixture(cancelAt);
+    await expect(
+      runSoundEffectTranslationJob(f.input, f.dependencies),
+    ).rejects.toThrow();
+    expect(f.input.abortController.signal.aborted).toBe(true);
+    expect(f.saved).toEqual([]);
+    expect(f.input.state.createdBlocksByPage).toEqual([]);
+    expect(f.dependencies.editImages).not.toHaveBeenCalled();
+    expect(f.order).not.toContain("review:confirm");
+    expect(f.order.at(-1)).toBe("font:dispose");
   },
 );
 
@@ -215,7 +234,22 @@ function fixture(cancelAt?: CancellationPoint) {
       decodeImage: async () => null,
     },
     abortController: new AbortController(),
-    emit: vi.fn(),
+    emit: vi.fn<SoundEffectTranslationJobInput["emit"]>((event) => {
+      const review = event.soundEffectTextReview;
+      if (!review) return;
+      order.push("review:confirm");
+      confirmSoundEffectTextReview({
+        jobId: event.id,
+        sessionId: review.sessionId,
+        pages: review.pages.map((page) => ({
+          pageId: page.pageId,
+          translations: page.review.regions.map((region) => ({
+            regionId: region.id,
+            text: region.translatedText,
+          })),
+        })),
+      });
+    }),
     registerResourceCleanup: () => {},
     request: {
       chapterId: chapter.id,

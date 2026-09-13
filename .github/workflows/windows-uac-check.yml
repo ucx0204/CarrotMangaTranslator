@@ -1,0 +1,95 @@
+name: Windows UAC Check
+
+on:
+  push:
+    branches:
+      - fix/windows-protected-folder-uac
+    paths-ignore:
+      - "docs/**"
+  pull_request:
+    paths:
+      - .github/workflows/windows-uac-check.yml
+      - electron-builder.config.cjs
+      - build/installer.nsh
+      - build/windows*.nsh
+      - src/main/startupWriteAccess.ts
+      - src/main/windowsElevation.ts
+      - src/main/windowsStartup.ts
+      - src/main/bootstrap.ts
+      - scripts/build-windows-installer.cjs
+      - scripts/smoke-windows-uac-installer.cjs
+      - tests/windowsStartup.test.ts
+      - tests/windowsElevation.test.ts
+      - tests/windowsElevation.native.test.ts
+      - tests/startupWriteAccess.test.ts
+      - tests/installerConfig.test.ts
+      - tests/windowsInstallerPermissions.test.ts
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-uac-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-uac:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        id: dependencies
+        run: npm ci
+      - name: Test startup and installer boundaries
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: npx vitest run tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts tests/windowsElevation.native.test.ts tests/installerConfig.test.ts tests/windowsInstallerPermissions.test.ts
+      - name: Check Electron types
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: npm run typecheck:electron
+      - name: Check changed file lint
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: npx eslint src/main/startupWriteAccess.ts src/main/windowsElevation.ts src/main/windowsStartup.ts src/main/bootstrap.ts tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts tests/windowsElevation.native.test.ts tests/installerConfig.test.ts tests/windowsInstallerPermissions.test.ts scripts/smoke-windows-uac-installer.cjs scripts/build-windows-installer.cjs --max-warnings 0
+      - name: Report exact formatting differences
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        shell: pwsh
+        run: |
+          npx prettier --write src/main/startupWriteAccess.ts src/main/windowsElevation.ts src/main/windowsStartup.ts src/main/bootstrap.ts tests/startupWriteAccess.test.ts tests/windowsStartup.test.ts tests/windowsElevation.test.ts tests/windowsElevation.native.test.ts tests/installerConfig.test.ts tests/windowsInstallerPermissions.test.ts scripts/smoke-windows-uac-installer.cjs scripts/build-windows-installer.cjs .github/workflows/windows-uac-check.yml .github/workflows/windows-uac-acceptance.yml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force .tmp | Out-Null
+          git diff --output=.tmp/uac-format.patch
+          git diff --exit-code
+          exit $LASTEXITCODE
+      - name: Compile and smoke-test protected-folder installation
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        shell: pwsh
+        run: |
+          node scripts/smoke-windows-uac-installer.cjs
+          exit $LASTEXITCODE
+      - name: Capture exact source for failed-run diagnosis
+        if: ${{ failure() && !cancelled() }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .tmp | Out-Null
+          git archive --format=zip --output=.tmp/uac-source.zip HEAD
+          exit $LASTEXITCODE
+      - name: Preserve failure diagnostics
+        if: ${{ failure() && !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-uac-diagnostics-${{ github.sha }}
+          path: |
+            .tmp/uac-format.patch
+            .tmp/uac-source.zip
+            node_modules/prettier/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 3

@@ -10,7 +10,7 @@ import {
   assertRedactionWorkspaceConfirmation,
   getRedactionWorkspacePage,
 } from "../src/main/imageRedactionWorkspaceSessions";
-import { imageFingerprint } from "../src/main/imageRedactionContext";
+import { fingerprintImageFile } from "../src/main/imageFingerprint";
 import { readRedactionWorkspaceStore } from "../src/main/imageRedactionWorkspaceStore";
 import type {
   RedactionWorkspace,
@@ -37,7 +37,7 @@ async function fixture() {
     imagePath: path,
     width: 20,
     height: 20,
-    fingerprint: await imageFingerprint(path),
+    fingerprint: await fingerprintImageFile(path),
     strokes: [],
   };
   const workspace = await openRedactionWorkspaceSession([page], id, root);
@@ -142,7 +142,7 @@ it("does not reuse decisions after a source replacement and preserves failed-sav
   const id = randomUUID();
   sessions.push(id);
   const workspace = await openRedactionWorkspaceSession(
-    [{ ...f.page, fingerprint: await imageFingerprint(f.path) }],
+    [{ ...f.page, fingerprint: await fingerprintImageFile(f.path) }],
     id,
     f.root,
   );

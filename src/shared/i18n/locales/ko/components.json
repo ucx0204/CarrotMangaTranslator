@@ -1214,7 +1214,9 @@
       "wheelPages": "위·아래 끝에서 페이지 이동",
       "fitHeight": "작업 영역 높이에 페이지 맞춤",
       "toggleSelection": "블록을 선택에 추가하거나 제외",
-      "rangeSelection": "연속된 블록 범위 선택"
+      "rangeSelection": "연속된 블록 범위 선택",
+      "copyBlocks": "선택한 텍스트·이미지 블록 복사",
+      "pasteBlocks": "현재 페이지에 블록 붙여넣기 (작품·화 무관)"
     }
   },
   "gatherText": {
@@ -2015,7 +2017,8 @@
         "logoutFailed": "Codex 로그아웃에 실패했습니다."
       },
       "imageReasoning": "이미지 생성 추론 강도",
-      "imageModelWarning": "이미지 작업이 제대로 동작하지 않을 수 있습니다. Astra 사용을 강력히 권장합니다."
+      "imageModelWarning": "이미지 작업이 제대로 동작하지 않을 수 있습니다. Astra 사용을 강력히 권장합니다.",
+      "modelUnavailable": "선택한 모델이 현재 계정 목록에 없습니다. 선택값은 유지됩니다. 다시 로그인하거나 사용할 모델을 직접 선택해 주세요."
     },
     "api": {
       "sections": {
@@ -2805,5 +2808,15 @@
     "outboundHint": "원본은 유지됩니다. 가림은 전송용 복사본에만 적용됩니다.",
     "preparationHint": "사전 편집은 저장만 합니다. 전송은 시작하지 않습니다.",
     "about": "가리기 안내"
+  },
+  "soundEffectTextReview": {
+    "title": "효과음 번역문 확인",
+    "hint": "페이지를 오가며 오른쪽 목록의 원문·번역문과 이미지의 영역을 수정하세요. 모든 페이지를 확정하면 원문 제거와 이미지 생성을 시작합니다.",
+    "generate": "전체 확정 후 생성",
+    "pages": "번역된 페이지",
+    "count": "{{count}}개 효과음",
+    "summary": "{{pages}}페이지 · {{count}}개 효과음",
+    "source": "원문",
+    "sourceNumber": "원문 {{number}}"
   }
 }

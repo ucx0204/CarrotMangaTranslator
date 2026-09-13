@@ -1,3 +1,5 @@
+import { normalizeCodexAuthenticationError } from "./codexAuthentication";
+
 export type JsonRecord = Record<string, unknown>;
 
 type CodexAppServerAccount =
@@ -193,7 +195,7 @@ function unsupportedAccountError(): Error {
   return new Error("Codex App Server 계정 유형을 해석하지 못했습니다.");
 }
 
-function assertCompletedTurn(
+export function assertCompletedTurn(
   turn: JsonRecord | null,
 ): asserts turn is JsonRecord {
   if (turn?.status === "completed") return;
@@ -212,8 +214,11 @@ function assertCompletedTurn(
             : {}),
         }),
     ...(failure.upstreamError ? { upstreamError: failure.upstreamError } : {}),
+    ...(failure.upstreamError?.type === "usage_limit_reached"
+      ? { usageLimitReached: true, nonRetriable: true }
+      : {}),
   });
-  throw error;
+  throw normalizeCodexAuthenticationError(error);
 }
 
 function readTurnFailure(
@@ -233,16 +238,45 @@ function readTurnFailure(
     payload?.status,
     upstreamError?.status,
   );
+  const message = resolveTurnFailureMessage(
+    status,
+    encodedMessage,
+    payload,
+    upstreamError,
+  );
+  // App Server can omit an HTTP status for account quota failures. Normalize
+  // these to the existing transport contract instead of the endpoint's 502.
+  if (isTurnUsageLimitFailure(turnError, upstreamError, message)) {
+    return {
+      message,
+      httpStatus: 429,
+      upstreamError: {
+        ...upstreamError,
+        message,
+        type: "usage_limit_reached",
+      },
+    };
+  }
   return {
-    message: resolveTurnFailureMessage(
-      status,
-      encodedMessage,
-      payload,
-      upstreamError,
-    ),
+    message,
     ...(httpStatus === undefined ? {} : { httpStatus }),
     ...(upstreamError ? { upstreamError } : {}),
   };
+}
+
+function isTurnUsageLimitFailure(
+  turnError: JsonRecord | null,
+  upstreamError: JsonRecord | null,
+  message: string,
+): boolean {
+  // Only use the legacy message fallback when no structured error is present.
+  return (
+    turnError?.codexErrorInfo === "usageLimitExceeded" ||
+    upstreamError?.type === "usage_limit_reached" ||
+    (turnError?.codexErrorInfo == null &&
+      upstreamError === null &&
+      message.startsWith("You've hit your usage limit."))
+  );
 }
 
 function resolveTurnFailureMessage(

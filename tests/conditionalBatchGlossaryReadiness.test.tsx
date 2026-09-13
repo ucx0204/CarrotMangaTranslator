@@ -39,7 +39,18 @@ function guide(workId = "work", mismatch = false): WorkStyleGuide {
           },
         ]
       : [],
-    characters: [],
+    characters: [
+      {
+        id: `speaker-${workId}`,
+        displayName: workId,
+        targetName: workId,
+        sourceNames: [workId],
+        speechStyle: "neutral",
+        enabled: true,
+        createdAt: time,
+        updatedAt: time,
+      },
+    ],
     rules: {
       honorifics: "adapt",
       sfxMode: "translate",
@@ -151,6 +162,12 @@ it("waits for the glossary after selecting a real saved rule before preview or a
   await waitFor(() => expect(hook.result.current.footerProps.busy).toBe(false));
   expect(hook.result.current.footerProps.includedCount).toBe(0);
   expect(hook.result.current.footerProps.validationMessage).toBeNull();
+  expect(hook.result.current.rulePanelProps.speakers?.options[0]).toMatchObject(
+    {
+      value: "speaker-work",
+      label: "work",
+    },
+  );
 });
 
 it("distinguishes a failed glossary load from a valid empty glossary without blocking unrelated rules", async () => {
@@ -165,6 +182,10 @@ it("distinguishes a failed glossary load from a valid empty glossary without blo
   expect(hook.result.current.footerProps.validationMessage).toContain(
     "용어집을 읽지 못했습니다",
   );
+  expect(hook.result.current.rulePanelProps.speakers).toMatchObject({
+    ready: false,
+    options: [],
+  });
   act(() => hook.result.current.footerProps.onApply());
   expect(hook.onApply).not.toHaveBeenCalled();
   act(() => hook.result.current.rulePanelProps.onChooseRecipe("blank"));
@@ -193,6 +214,7 @@ it("does not reuse the prior work's glossary during a work change", async () => 
     expect(hook.result.current.footerProps.includedCount).toBe(2),
   );
   hook.rerender({ workId: "next-work" });
+  expect(hook.result.current.rulePanelProps.speakers?.options).toEqual([]);
   expect(hook.result.current.footerProps.includedCount).toBe(0);
   expect(hook.result.current.footerProps.busy).toBe(true);
   await act(async () => next.resolve(guide("next-work", true)));
@@ -241,4 +263,7 @@ it("ignores a late response for a prior work", async () => {
   expect(hook.result.current.footerProps.includedCount).toBe(0);
   await act(async () => previous.resolve(guide()));
   expect(hook.result.current.footerProps.includedCount).toBe(0);
+  expect(hook.result.current.rulePanelProps.speakers?.options[0]?.value).toBe(
+    "speaker-next-work",
+  );
 });

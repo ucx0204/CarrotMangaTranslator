@@ -331,12 +331,6 @@
       "select": 0,
       "textarea": 0
     },
-    "src/renderer/src/components/settingsModal/CodexAccountField.tsx": {
-      "button": 1,
-      "input": 0,
-      "select": 0,
-      "textarea": 0
-    },
     "src/renderer/src/components/settingsModal/EngineCommonFields.tsx": {
       "button": 1,
       "input": 0,

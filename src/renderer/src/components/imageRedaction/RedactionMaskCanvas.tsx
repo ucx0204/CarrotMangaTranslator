@@ -5,6 +5,14 @@ import {
 } from "../../../../shared/imageRedaction";
 import { rasterizeImageRedaction } from "../../../../shared/imageRedactionRaster";
 import { useEventCallback } from "../../hooks/useEventCallback";
+import {
+  renderRedactionMaskSurface,
+  type RedactionMaskSurface,
+} from "./redactionMaskSurface";
+import {
+  sameRedactionMaskWindow,
+  type RedactionMaskWindow,
+} from "./redactionMaskWindow";
 import styles from "./RedactionWorkspace.module.css";
 
 type Props = {
@@ -13,52 +21,120 @@ type Props = {
   strokes: ImageRedactionStroke[];
   draft?: ImageRedactionStroke | null;
   thumbnail?: boolean;
+  window?: RedactionMaskWindow;
   onFailure: (error: unknown) => void;
   onReady?: () => void;
 };
 
 /** Committed detail masks use exactly the transmitted pixel policy. Only an in-flight stroke is a fast vector preview. */
-export function RedactionMaskCanvas({
-  width,
-  height,
-  strokes,
-  draft,
-  thumbnail,
-  onFailure,
-  onReady,
-}: Props): React.JSX.Element {
+export function RedactionMaskCanvas(props: Props): React.JSX.Element {
+  const {
+    width,
+    height,
+    strokes,
+    draft,
+    thumbnail,
+    window,
+    onFailure,
+    onReady,
+  } = props;
   const canvas = React.useRef<HTMLCanvasElement>(null);
-  const base = React.useRef<HTMLCanvasElement | null>(null);
+  const surface = useMaskSurface(props);
   const report = useEventCallback(onFailure);
   const ready = useEventCallback(() => onReady?.());
-  const scale = thumbnail ? Math.min(1, 320 / Math.max(width, height)) : 1;
   React.useEffect(() => {
-    try {
-      base.current = buildMaskCanvas(width, height, strokes, scale);
-    } catch (error) {
-      base.current = null;
-      report(error);
-    }
-  }, [width, height, strokes, scale, report]);
-  React.useEffect(() => {
+    if (
+      !surface ||
+      surface.strokes !== strokes ||
+      (window && !thumbnail && !sameRedactionMaskWindow(surface.window, window))
+    )
+      return;
     const target = canvas.current;
-    const source = base.current;
-    if (!target || !source) return;
+    if (!target) return;
     try {
-      target.width = source.width;
-      target.height = source.height;
+      const source = surface.canvas;
+      if (target.width !== source.width || target.height !== source.height) {
+        target.width = source.width;
+        target.height = source.height;
+      }
       const context = target.getContext("2d");
       if (!context) throw new Error("The mask canvas is unavailable");
+      context.clearRect(0, 0, target.width, target.height);
       context.drawImage(source, 0, 0);
-      if (draft) paintDraft(context, scaleStroke(draft, scale));
+      if (draft) {
+        const shifted = {
+          ...draft,
+          points: draft.points.map(({ x, y }) => ({
+            x: x - surface.window.x,
+            y: y - surface.window.y,
+          })),
+        };
+        paintDraft(context, scaleStroke(shifted, 1 / surface.window.factor));
+      }
       ready();
     } catch (error) {
       report(error);
     }
-  }, [width, height, strokes, draft, scale, report, ready]);
+  }, [surface, strokes, window, thumbnail, draft, report, ready]);
+  const bounds = surface?.window ?? window;
+  const style =
+    window && bounds && !thumbnail
+      ? {
+          left: `${(100 * bounds.x) / width}%`,
+          top: `${(100 * bounds.y) / height}%`,
+          width: `${(100 * bounds.width) / width}%`,
+          height: `${(100 * bounds.height) / height}%`,
+          right: "auto",
+          bottom: "auto",
+        }
+      : undefined;
   return (
-    <canvas ref={canvas} className={styles.maskCanvas} aria-hidden="true" />
+    <canvas
+      ref={canvas}
+      style={style}
+      className={styles.maskCanvas}
+      aria-hidden="true"
+    />
   );
+}
+
+function useMaskSurface(props: Props): RedactionMaskSurface | null {
+  const { width, height, strokes, window, thumbnail, onFailure } = props;
+  const previous = React.useRef<RedactionMaskSurface | undefined>(undefined);
+  const [surface, setSurface] = React.useState<RedactionMaskSurface | null>(
+    null,
+  );
+  const report = useEventCallback(onFailure);
+  const scale = Math.min(1, 320 / Math.max(width, height));
+  React.useEffect(() => {
+    const controller = new AbortController();
+    async function build() {
+      try {
+        const next =
+          window && !thumbnail
+            ? await renderRedactionMaskSurface(
+                { width, height },
+                window,
+                strokes,
+                controller.signal,
+                previous.current,
+              )
+            : {
+                canvas: buildMaskCanvas(width, height, strokes, scale),
+                strokes,
+                window: { x: 0, y: 0, width, height, factor: 1 / scale },
+              };
+        if (controller.signal.aborted) return;
+        previous.current = next;
+        setSurface(next);
+      } catch (error) {
+        if (!controller.signal.aborted) report(error);
+      }
+    }
+    void build();
+    return () => controller.abort();
+  }, [width, height, strokes, window, thumbnail, scale, report]);
+  return surface;
 }
 
 function scaleStroke(

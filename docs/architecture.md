@@ -59,6 +59,17 @@ UI 표면과 primitive 선택은 [`ui-design-rules.md`](ui-design-rules.md)를 �
 
 ## 공용 계약과 SSOT
 
+블록 클립보드와 이미지 블록 라이브러리는 기존 `geometry`의 렌더 좌표 정규화와
+픽셀 변환을 직접 사용한다. 두 소비자를 포함해 직접 소비 상한은 35다.
+클립보드 입력 검증과 페이지 블록 수 제한도 `ipcSchemaPrimitives`의 기존 권위를
+사용하므로 해당 직접 소비 상한은 27로 기록한다. 좌표 알고리즘은 이동·변경하지
+않으며 서로 다른 페이지 크기의 이미지/텍스트 복사, 마스크 위치, 저장 후 재사용,
+잘못된 클립보드와 블록 수 초과 시 무변경을 행동 테스트로 확인한다.
+새 클립보드 파일 두 개의 coverage floor는 Windows 실측에서 추가했고 기존
+floor와 historical artifact는 유지했다. 측정 기록은
+`.tmp/block-clipboard-coverage-20260913.json`이며 SHA-256은
+`a50026c256a96f323de98d0f3d0b6ea37705c4e7f46bcc7370c2e7b84a70cced`다.
+
 인터넷 조사의 프롬프트·증거 필터·Gemma 보완은 `translationLanguages.ts`의 언어 계약을 직접 사용한다.
 한국어 전용 판정을 복제하지 않도록 이 공용 계약의 직접 소비 상한만 26에서 29로 조정했다.
 영어·간체·번체·한국어 및 기본 언어의 조사 제안 생성, 증거 검증, 적용 회귀 테스트로 소비 계약을 확인한다.
