@@ -264,6 +264,7 @@ describe("translationRuntimePort GPU OCR preparation", () => {
   });
 
   it("releases the detector and never starts HayaiOCR when region detection fails", async () => {
+    const onProgress = vi.fn();
     const { port, releaseDetectorResources, calls } = createPortWithStubs({
       detectorFailureImage: "C:/pages/page-2.png",
     });
@@ -273,6 +274,7 @@ describe("translationRuntimePort GPU OCR preparation", () => {
         makeOcrOptions({
           ocrPipeline: "hayai",
           ocrBboxProvider: "hayai-regions",
+          onProgress,
         }),
         makeOcrOptions({
           imagePath: "C:/pages/page-2.png",
@@ -286,6 +288,11 @@ describe("translationRuntimePort GPU OCR preparation", () => {
       "hayai-region-prepass-failed",
     );
     expect(calls).not.toContain("ocr-batch");
+    expect(onProgress).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        progressText: "Text Detector 메모리 해제 완료",
+      }),
+    );
   });
 
   it("releases the detector when Hayai region detection is cancelled", async () => {

@@ -17,6 +17,12 @@ export type KoharuLayoutSessionHandle = {
 const sessionCache = new Map<string, Promise<Ort.InferenceSession>>();
 const unavailableProviderKeys = new Set<string>();
 const sessionRunTails = new WeakMap<Ort.InferenceSession, Promise<void>>();
+const sessionProviderKeys = new WeakMap<
+  Ort.InferenceSession,
+  { provider: KoharuExecutionProvider; cacheKey: string }
+>();
+const failedSessions = new WeakMap<Ort.InferenceSession, unknown>();
+const sessionReleases = new WeakMap<Ort.InferenceSession, Promise<void>>();
 let sessionDisposalBarrier: Promise<void> | null = null;
 
 export async function getKoharuLayoutSession(options: {
@@ -57,6 +63,7 @@ export async function getKoharuLayoutSession(options: {
         directMl,
       );
       throwIfAborted(options.signal);
+      sessionProviderKeys.set(session, { provider, cacheKey });
       return { session, provider };
     } catch (error) {
       if (isAbortError(error)) throw error;
@@ -139,7 +146,7 @@ async function releaseKoharuLayoutSession(
     sessionRunTails.get(session) ?? Promise.resolve(),
   );
   sessionRunTails.delete(session);
-  await session.release();
+  await releaseNativeSessionOnce(session);
 }
 
 function resolveKoharuProviderPreference(
@@ -172,13 +179,72 @@ export async function withKoharuSessionLease<T>(
   try {
     await settledPrevious;
     throwIfAborted(signal);
-    return await task();
+    if (failedSessions.has(session)) throw failedSessions.get(session);
+    try {
+      return await task();
+    } catch (error) {
+      throwIfAborted(signal);
+      await retireDeviceLostSession(session, error);
+      throw error;
+    }
   } finally {
     releaseLease();
     if (sessionRunTails.get(session) === tail) {
       sessionRunTails.delete(session);
     }
   }
+}
+
+async function retireDeviceLostSession(
+  session: Ort.InferenceSession,
+  error: unknown,
+): Promise<void> {
+  const identity = sessionProviderKeys.get(session);
+  if (identity?.provider !== "dml" || !isKoharuDeviceLostError(error)) return;
+  failedSessions.set(session, error);
+  unavailableProviderKeys.add(identity.cacheKey);
+  logWarn(
+    "Text Detector DirectML device lost; retrying the same model on CPU",
+    {
+      error,
+    },
+  );
+  // This runs inside the lease. Queued callers see the failure before Run,
+  // and job cleanup shares the same release instead of releasing twice.
+  try {
+    await releaseNativeSessionOnce(session);
+  } catch (releaseError) {
+    const failure = new AggregateError(
+      [error, releaseError],
+      "Text Detector GPU failed and its session could not be released.",
+      { cause: releaseError },
+    );
+    failedSessions.set(session, failure);
+    throw failure;
+  }
+}
+
+function releaseNativeSessionOnce(
+  session: Ort.InferenceSession,
+): Promise<void> {
+  let pending = sessionReleases.get(session);
+  if (!pending) {
+    pending = Promise.resolve().then(() => session.release());
+    sessionReleases.set(session, pending);
+  }
+  return pending;
+}
+
+/** Only native GPU device-loss errors justify changing detector providers. */
+export function isKoharuDeviceLostError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.name !== "AbortError" &&
+    !(error instanceof AggregateError) &&
+    /\b(?:0x)?887a00(?:05|06|07|20)\b|\bDXGI_ERROR_DEVICE_(?:REMOVED|HUNG|RESET)\b|\bDirectML execution failed because of a device-lost\b/iu.test(
+      error.message,
+    )
+  );
 }
 
 async function waitForPreviousSessionRun(previous: Promise<void>) {

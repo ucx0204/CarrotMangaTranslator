@@ -21,6 +21,8 @@ A stale managed-provider value is replaced by the provider owned by the selected
 
 Device selection is explicit. A failed GPU runtime stops with an engine-specific error; it does not switch pipeline or device. CPU processing only starts after the user selects CPU.
 
+This OCR-runtime rule is separate from Text Detector's existing same-model DirectML/CPU provider selection. The detector now also retires a DirectML session after an explicit device-loss error during inference and retries that page once with the same ONNX model on CPU. Later pages use the CPU session until the job releases its detector resources. This does not change Hayai/Paddle selection or the OCR CUDA/ROCm/CPU setting. See [issue #103 recovery](issue-103-directml-detector-recovery.md).
+
 | Pipeline      | Device/backend                      | Runtime variant          | Windows lock                             |
 | ------------- | ----------------------------------- | ------------------------ | ---------------------------------------- |
 | Hayai         | CPU                                 | `hayai-cpu`              | `requirements-hayai-cpu-win.lock`        |

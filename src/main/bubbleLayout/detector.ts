@@ -9,7 +9,11 @@ import {
   prepareComicDetectorImage,
   type PreparedComicDetectorImage,
 } from "./preprocess";
-import { getKoharuLayoutSession, withKoharuSessionLease } from "./session";
+import {
+  getKoharuLayoutSession,
+  isKoharuDeviceLostError,
+  withKoharuSessionLease,
+} from "./session";
 import { onnxRuntimeNode as ort } from "../runtimeSupport/nativeOnnxRuntime";
 import {
   resolveKoharuInferenceBackend,
@@ -62,11 +66,6 @@ export async function detectKoharuPageLayout(
       signal: options.signal,
     });
   }
-  const { session, provider } = await getKoharuLayoutSession({
-    modelPath: options.modelPath,
-    signal: options.signal,
-    directMl: options.directMl,
-  });
   const input = new ort.Tensor("float32", prepared.rgbChw, [
     1,
     3,
@@ -74,7 +73,7 @@ export async function detectKoharuPageLayout(
     KOHARU_LAYOUT_INPUT_SIZE,
   ]);
   try {
-    const outputs = await runKoharuSession(session, input, options.signal);
+    const { outputs, provider } = await runNativeDetector(options, input);
     try {
       return {
         imageWidth: prepared.imageWidth,
@@ -93,6 +92,40 @@ export async function detectKoharuPageLayout(
   }
 }
 
+async function runNativeDetector(
+  options: Parameters<typeof getKoharuLayoutSession>[0],
+  input: Ort.TypedTensor<"float32">,
+) {
+  const handle = await getKoharuLayoutSession(options);
+  try {
+    return {
+      outputs: await runKoharuSession(handle.session, input, options.signal),
+      provider: handle.provider,
+    };
+  } catch (error) {
+    throwIfAborted(options.signal);
+    if (handle.provider !== "dml" || !isKoharuDeviceLostError(error))
+      throw error;
+    try {
+      const cpu = await getKoharuLayoutSession({
+        ...options,
+        providerPreference: ["cpu"],
+      });
+      return {
+        outputs: await runKoharuSession(cpu.session, input, options.signal),
+        provider: cpu.provider,
+      };
+    } catch (cpuError) {
+      throwIfAborted(options.signal);
+      throw new AggregateError(
+        [error, cpuError],
+        "Text Detector GPU와 CPU 처리가 모두 실패했습니다.",
+        { cause: cpuError },
+      );
+    }
+  }
+}
+
 async function runKoharuSession(
   session: Ort.InferenceSession,
   input: Ort.TypedTensor<"float32">,
@@ -108,6 +141,7 @@ async function runKoharuSession(
     const outputs = await withKoharuSessionLease(session, signal, () =>
       session.run({ input }, ["dets", "labels", "masks"], runOptions),
     );
+    if (signal?.aborted) disposeOutputs(outputs);
     throwIfAborted(signal);
     return outputs;
   } catch (error) {

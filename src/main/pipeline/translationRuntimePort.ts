@@ -273,7 +273,7 @@ async function prepareHayaiRegionStage(
   }
 
   const progressOptions = optionsList[0];
-  if (detectorDisposed && progressOptions) {
+  if (detectorDisposed && progressOptions && !preparationFailed) {
     emitDetectorReleasedBeforeHayai(progressOptions);
   }
   if (preparationFailed) {
