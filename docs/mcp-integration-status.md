@@ -1,42 +1,46 @@
 # MCP single-branch integration
 
-The only MCP development branch is **`feat/mcp-app-bridge`**, draft PR #96. Do not create another MCP/test/recovery branch, force-push, merge into master or release an application as part of this work.
+The only MCP development branch is **`feat/mcp-app-bridge`**, draft PR #96. Do not create additional MCP/test/recovery branches, force-push, merge into master or release automatically. Tailscale Funnel only; encrypted persistent authorization is required. No Cloudflare fallback.
 
-## Current first-page milestone
+[First-page user test](mcp-page-testing.md) · [Connection guide](mcp-tailscale-testing.md) · [Functional contracts](mcp-page-goal.md) · [Coverage evidence](mcp-page-coverage-evidence.md)
 
-The connection/existing-edit baseline below is historical. New external blocks, source crops, saved context, optional OCR-only work, independent local erasure and rendered PNG are now implemented on the same branch. Current contracts, recovery commits and exact acceptance boundaries are in [mcp-page-goal.md](mcp-page-goal.md); user instructions are in [mcp-page-testing.md](mcp-page-testing.md). Do not use the old remaining-work list below as the current feature inventory.
+## Current deliverable: first complete page
 
-## Source publication and branch consolidation completed
+Source reads and crops, saved work context, external reading/translation block creation, optional local OCR-only processing, standalone local erasure, current-state app rendering and original-resolution PNG are implemented and published as source. Each is separately callable. The connected AI supplies the translation in this route; no Codex or paid text-model fallback is invoked.
 
-`53de254a9c456b316a63409e649418b1505596a5` merged the existing MCP branch with the recovered publication history `8e943038a170fa71e8825371e3bd7db58961e2be`. Both histories are retained. This is actual source publication, not an unapplied patch or ZIP. No separate bundle import is required by users; old new-branch instructions are superseded by [the current guide](mcp-tailscale-testing.md).
+Keep existing source/geometry/masks/styles and library transactions authoritative. New-block writes require current page revisions. The same activity/job gate protects local heavy operations. A second inference queue, renderer, OCR algorithm or library is not introduced.
 
-After verifying their expected tips and ancestry, Windows checkpoint `34682973978` removed the three merged reference names: `backup/mcp-before-publication-20260912`, `backup/mcp-before-tailscale-checkpoint-20260912`, and `integration/mcp-tailscale-publication-20260912`. Their commits remain reachable through the consolidation merge. A subsequent GitHub branches read confirmed that only `feat/mcp-app-bridge` remains for MCP work. Unrelated branches were not removed.
+Permissions remain separate: `carrot.read`, `carrot.images`, `carrot.edit`, and the new `carrot.process`. Enable local processing in app settings and explicitly authorize that scope. Existing grants are not expanded by a preference change. Valid connections retain their Tailscale address and OS-encrypted authorization after normal stop/restart.
 
-## Verified Windows checkpoint — SUCCESS
+## Verified first-page baseline
 
-**Exact source commit: `baf2df764d5deadc40d94291233835ca44dffa70`.**
-[Run 34683291856](https://github.com/ucx0204/CarrotMangaTranslator/actions/runs/34683291856), job `103525734392`, completed with **success** on 2026-09-12 at 08:32 UTC. The workflow made no additional formatting commit for this tree.
+**Commit `421922d56f3d6cb00936cb90753442082a94b407`, Windows MCP run `34733470908`, completed successfully on 2026-09-13.** That checkpoint ran the focused suite, full Windows app build, real Electron page-chain and encrypted authorization smoke, production settings captures, and static gates including test-mock boundaries.
 
-- **183 focused tests in 22 files passed**, covering MCP plus existing library save, page revision, chapter sync and live refresh behavior.
-- **Complete Windows application build passed.**
-- **Actual Electron smoke passed**, including synthetic library import/preview, redaction refusal, listener shutdown, real OS-encrypted OAuth persistence, restoration in fresh service instances, refresh rotation and offline revocation. The explicit native completion markers were required.
-- **Production settings browser QA passed** at 1600×980 and 1240×760, with approval and conflict-error states. The four PNGs in artifact `10294497746` (`mcp-settings-ui`) were downloaded and visually inspected: no horizontal overflow or overlapping controls; long addresses and text fit; approval, rejection and revocation controls are reachable through the modal's internal scroll.
-- **All 12 static gates passed:** the three typechecks, formatting, dependency rules/budgets, error handling, ESLint, unused exports, script entrypoint inventory, maintainability and duplicate checks. No gate was disabled or weakened.
+The native page chain executes real block persistence, mask construction, inpainting composition/history, renderer assets/fonts, original-resolution PNG and file-access revocation. Only the expensive model inference boundary is deterministic. This is not evidence of real OCR/model accuracy or a logged-in user's new-tool session.
 
-The preceding unified run `34682609128` passed tests/build/native checks but reported two unused exports. Those exports were made private in `a78c1bc94f0f98286a684f146387dbc1c4513f85`; run `34682973978` then passed all its gates. The final successful run adds the actual screenshot stages and replaces stale web instructions.
+## Resumed regression checkpoints
 
-The local unified focused run also passed all 183 tests with `TMPDIR=/dev/shm`. This isolated editing environment's overlay filesystem returns EIO on fsync; using real tmpfs for test temporary directories required no change to production durability code or assertions.
+- `27f2027c` exports the exact source and coverage scope on this same branch. Source restoration matched the remote Git tree; no obsolete archive was treated as current source.
+- `1c766a4b` adds three real preload/gateway regressions: validated MCP events, listener cleanup, dirty-editor reports, and inert test defaults. No application module is mocked and no coverage floor is lowered.
+- `b01ca6f4` permits only the exact coverage JSON path in the existing source-checkpoint delivery workflow. It does not modify the coverage checker or thresholds.
+- Checkpoint `e4b46d2e` was applied by the branch-local workflow. The destination coverage manifest blob is verified as `2dbc78e8abb70f92dc72b47165d17f7be03134f0`; 68 newly tracked rows use actual Windows measurements, while every previously recorded floor stays unchanged. The patch is removed after application, not left as the implementation.
+- `085982c0` records the measurement run, artifact IDs and SHA-256 values in the coverage evidence document.
+- Checkpoint `1ba5aabf` was applied in `789e5bc3`: native readback now proves crops still contain original text after erasure, crop-to-page coordinates are correct, the saved-context tool resolves the same work, and rendered previews contain translated lettering. The verified script blob is `fba38ab3661e2a202ac73992829114ef4f640ece`.
 
-## Product behavior in this checkpoint
+The previous PR-wide `Check` run `34733472515` had **6826 passing tests, one coverage-inventory assertion failure and 11 skipped tests**. It must not be reported as success. The inventory assertion exposed newly touched existing files and newly introduced MCP files missing from the existing coverage manifest. The follow-up preserves the checker, old floors and mock restrictions, adds measured rows, and covers the preload callbacks that had lowered existing ratios.
 
-Tailscale Funnel only, no Cloudflare fallback. App on/off and restart preserve valid OS-encrypted authorization. Explicit connection revocation remains effective after restart. Pairing is approved in the trusted desktop UI with a matching browser code, not by copying a password from a terminal. Images and existing translation edits are separately opted in and scope-checked. Existing text edits use the app's transactions, full revision and dirty-editor safeguards; geometry, fonts, masks and unrelated data are preserved.
+Locally the available focused suite passes **245 tests in 36 files** with `TMPDIR=/dev/shm`. The four erasure cases require an ONNX binding omitted from the offline Linux dependency kit; they remain enabled and must run in Windows CI. The new preload-focused run passes 24 tests; its single excluded all-IPC registration case has the same local binary limitation, not a source-level skip. CheckJS and focused ESLint pass for the native readback change. Final Windows MCP and full PR `Check` results must be read from the exact final run and recorded in PR #96 after completion; no pending job is a successful check.
 
-The user guide is `docs/mcp-tailscale-testing.md`. Normal startup is `npm run dev`, then **Settings → AI 연결 / MCP**. The retired web password-file diagnostic no longer reads credentials. The local Bearer development profile remains separate and documented in `docs/mcp-testing.md`.
+## Publication and branch history
 
-## Honest acceptance boundary and continuation
+`53de254a` consolidated the original MCP branch and recovered source history. Three exact, already merged recovery references were removed after ancestry checks. Their commits remain reachable. No unrelated branch or user data was deleted. Users update the original clone with `git pull --ff-only`; old ZIP, patch import and additional-branch instructions are obsolete.
 
-This is a focused Windows checkpoint, **not a claim that every platform or the entire repository `npm run check` passed**. The native persistence test reconstructs real service/store instances; it is not a whole-PC reboot test. GUI captures use real production components/styles with synthetic state, not a logged-in user library.
+The user confirmed Tailscale/ChatGPT connection, persistent authorization and existing-text editing before this first-page milestone. Historical baseline `baf2df76` / run `34683291856` passed 183 focused tests, Windows build, native auth/preview and settings captures. It is not a substitute for current first-page verification.
 
-**Actual Tailscale-account/public-endpoint and logged-in ChatGPT approval/tool interactions still require separate acceptance.** Installation/login and account-level Funnel/HTTPS permission are user setup. No private account credentials, libraries or user images were uploaded during the automatic tests.
+## User acceptance and remaining scope
 
-New external-agent blocks, independent OCR/erasure/lettering jobs, rendered export/ZIP, SFX image generation, import and research batching remain beyond the existing-text editor. All further implementation and commits stay on this same branch. Inspect the exact remote head before writing and record fresh results instead of inferring success from this historical checkpoint.
+Test one public, block-free page first. Read saved context and source/crops, submit the connected AI's reading/translation as editable blocks, request local erasure separately, then render and export. OCR-only is optional and does not translate. See the Korean first-page guide for prompts and job polling.
+
+Derived output is currently blocked when external-image redaction is enabled; source/crops still follow the existing review guard. Do not disable protection for private material merely to pass a test. PNG links are single-file capabilities lasting ten minutes, invalidated by stop, revocation or relevant page changes. Session receipts/output links do not survive restart; stored page data and valid authorization do.
+
+Actual model quality and the logged-in user's new-tool experience remain separate from deterministic tests. Independent app text-model execution, AI font matching, existing geometry/style/mask editing, SFX image generation, derived-layer review, durable multi-page jobs/ZIP, imports and research/context replacement remain future work. Do not describe this milestone as all app functions being exposed.
