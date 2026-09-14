@@ -20,7 +20,9 @@ import {
   preparePdfImportPreview,
 } from "../libraryStore/importPreparedPreview";
 import type { ImportSourceProgress as ImportSourceRunnerProgress } from "../libraryStore/importSourceRunner";
-import { withLibraryMutation } from "./lock";
+import { withLibraryContentEdit, withLibraryMutation } from "./lock";
+import { libraryStructureResource } from "../../shared/appActivityTypes";
+import { libraryMutationCoordinator } from "../libraryStore/libraryMutationCoordinator";
 
 export {
   prepareArchiveFolderImportPreview,
@@ -61,11 +63,30 @@ export function createLibraryImportService(
   runtime: LibraryImportRuntime,
 ): LibraryImportService {
   return {
-    createImport: (request, signal) =>
-      runtime.runMutation(() => {
-        throwIfAborted(signal);
-        return createImportFromPreviewUnlocked(request, runtime.image, signal);
-      }),
+    createImport: async (request, signal) => {
+      const pending = libraryMutationCoordinator.begin();
+      try {
+        return await createImportFromPreviewUnlocked(
+          request,
+          runtime.image,
+          signal,
+          (publish) =>
+            withLibraryContentEdit(
+              request.target.mode === "existing"
+                ? [libraryStructureResource("work", request.target.workId)]
+                : [],
+              () =>
+                runtime.runMutation(() => {
+                  throwIfAborted(signal);
+                  return publish();
+                }),
+              signal ?? new AbortController().signal,
+            ),
+        );
+      } finally {
+        pending.finish();
+      }
+    },
     previewFolder,
     previewImages,
     previewZip,

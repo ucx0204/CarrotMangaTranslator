@@ -514,6 +514,10 @@
     "resetFailed": "Could not restore default settings."
   },
   "statusDock": {
+    "concurrentTasks": "Running tasks",
+    "finishingEdits": "Finishing input and saving this page.",
+    "retryHandoff": "Retry after saving",
+    "pageBusy": "This page is being processed or saved. Viewing and mask drafts remain available.",
     "operation": {
       "summary": "{{kind}} · {{state}}",
       "replacePrefix": "{{kind}}",

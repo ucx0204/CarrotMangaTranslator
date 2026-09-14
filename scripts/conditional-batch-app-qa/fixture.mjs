@@ -340,7 +340,8 @@ function createCaseSpecs(runtime) {
     numberOperatorCase("between", "textOpacity", 0.5, 0.9),
     colorOperatorCase("notEquals", "textColor", "#ffffff"),
     colorOperatorCase("near", "outlineColor", "#fdfdfd", undefined, 5),
-    colorOperatorCase("empty", "outerOutlineColor", undefined, (block) => {
+    // This field reads the effective default color when the override is absent.
+    colorOperatorCase("equals", "outerOutlineColor", "#111111", (block) => {
       delete block.outerOutlineColor;
     }),
     colorOperatorCase("notEmpty", "textBackgroundColor"),

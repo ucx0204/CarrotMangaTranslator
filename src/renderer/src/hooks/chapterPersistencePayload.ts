@@ -1,4 +1,7 @@
-import { hashTranslationBlocks } from "../../../shared/blockFingerprint";
+import {
+  hashTranslationBlocks,
+  hashStableValue,
+} from "../../../shared/blockFingerprint";
 import { constrainEditableRenderBbox } from "../../../shared/editableRenderGeometry";
 import {
   normalizeBboxTo1000,
@@ -26,6 +29,9 @@ export function collectPageBlockUpdates(
         baseUpdatedAt: baseVersion?.updatedAt ?? page.updatedAt,
         baseBlocksHash:
           baseVersion?.blocksHash ?? hashTranslationBlocks(page.blocks),
+        baseBlockOrderHash:
+          baseVersion?.blockOrderHash ??
+          hashStableValue(page.blockOrder ?? null),
         blocks: serializePageBlocks(page),
         blockOrder: page.blockOrder,
       },

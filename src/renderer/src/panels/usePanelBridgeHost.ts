@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { panelGateway as mangaGateway } from "../api/panelGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import { toast } from "../lib/toastStore";
+import { usePanelEditHandoffHost } from "./usePanelEditHandoff";
 
 /**
  * Main-window side of the panel bridge. Publishes the serializable session slice
@@ -34,6 +35,9 @@ export function usePanelBridgeHost({
 } {
   const { t } = useTranslation("renderer");
   const [openPanelIds, setOpenPanelIds] = useState<PanelId[]>([]);
+  const handoff = usePanelEditHandoffHost(openPanelIds.length > 0, syncState);
+  syncState = handoff.state;
+  const acknowledgeHandoff = handoff.acknowledge;
   const syncStateRef = useRef(syncState);
   const onCommandRef = useRef(onCommand);
   const panelsOpen = openPanelIds.length > 0;
@@ -51,9 +55,10 @@ export function usePanelBridgeHost({
 
   useEffect(() => {
     return mangaGateway.onPanelCommand((command) => {
+      if (acknowledgeHandoff(command)) return;
       onCommandRef.current(command);
     });
-  }, []);
+  }, [acknowledgeHandoff]);
 
   useEffect(() => {
     return mangaGateway.onPanelWindowsChanged((ids) => {

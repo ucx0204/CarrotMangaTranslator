@@ -243,6 +243,24 @@
   gap: var(--sp-1);
 }
 
+.status-task-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.status-task-list > button {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.status-task-handoff p {
+  overflow-wrap: anywhere;
+}
+
 .status-popover-log {
   --status-log-row-height: 40px;
   min-height: 0;

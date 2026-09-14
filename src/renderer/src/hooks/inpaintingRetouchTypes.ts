@@ -27,6 +27,7 @@ export type UseInpaintingRetouchOptions = {
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
   pushStatus: (line: string) => void;
   saveNow: () => Promise<void>;
+  savePageNow?: (chapterId: string, pageId: string) => Promise<void>;
   selectedPage: MangaPage | null;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   workspaceHistory: Pick<WorkspaceHistoryController, "recordImageEdit">;

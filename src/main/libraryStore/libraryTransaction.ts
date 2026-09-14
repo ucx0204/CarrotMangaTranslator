@@ -48,6 +48,7 @@ const TRANSACTION_OWNER_MARKER = ".mgt-transaction-owner.json";
 const transactionContext = new AsyncLocalStorage<boolean>();
 
 export type LibraryTransaction = {
+  beforePublish(operation: () => Promise<void>): void;
   stageJsonReplacement(targetPath: string, payload: unknown): Promise<void>;
   createPublishedDirectory(finalDirectory: string): Promise<{
     stagingDirectory: string;
@@ -100,6 +101,9 @@ export function setLibraryTransactionCrashInjectorForTests(
 export async function runLibraryTransaction<T>(
   kind: string,
   operation: (transaction: LibraryTransaction) => Promise<T>,
+  publish: <TResult>(operation: () => Promise<TResult>) => Promise<TResult> = (
+    operation,
+  ) => operation(),
 ): Promise<T> {
   if (transactionContext.getStore()) {
     throw new Error("중첩된 보관함 transaction은 허용되지 않습니다.");
@@ -113,37 +117,49 @@ export async function runLibraryTransaction<T>(
     let outcome: { ready: false } | { ready: true; value: T } = {
       ready: false,
     };
+    let publicationFailed = false;
     try {
       const value = await operation(state.api);
       outcome = { ready: true, value };
-      await sealLibraryTransaction(state);
-      await commitLibraryTransaction(state);
-      return value;
-    } catch (operationError) {
-      if (operationError instanceof SimulatedLibraryTransactionCrash) {
-        throw operationError;
-      }
-      if (state.committed) {
-        // The commit point is authoritative. Production cleanup paths after it
-        // must not throw, but keep this guard fail-safe if that invariant regresses.
-        logLibraryWarning(
-          "Ignoring post-commit library transaction error; final state is authoritative",
-          { transactionId: state.journal.id, error: operationError },
-        );
-        if (!outcome.ready) {
-          throw operationError;
+      return await publish(async () => {
+        try {
+          for (const prepare of state.beforePublish) await prepare();
+          await sealLibraryTransaction(state);
+          await commitLibraryTransaction(state);
+          return value;
+        } catch (error) {
+          publicationFailed = true;
+          return recoverTransactionFailure(state, outcome, error);
         }
-        return outcome.value;
-      }
-      try {
-        await rollbackTransactionState(state);
-      } catch (rollbackError) {
-        libraryMutationCoordinator.markRecoveryRequired(rollbackError);
-        throwRollbackFailure(operationError, rollbackError);
-      }
-      throw operationError;
+      });
+    } catch (operationError) {
+      if (publicationFailed) throw operationError;
+      return recoverTransactionFailure(state, outcome, operationError);
     }
   });
+}
+
+async function recoverTransactionFailure<T>(
+  state: TransactionState,
+  outcome: { ready: false } | { ready: true; value: T },
+  error: unknown,
+): Promise<T> {
+  if (error instanceof SimulatedLibraryTransactionCrash) throw error;
+  if (state.committed) {
+    logLibraryWarning(
+      "Ignoring post-commit library transaction error; final state is authoritative",
+      { transactionId: state.journal.id, error },
+    );
+    if (!outcome.ready) throw error;
+    return outcome.value;
+  }
+  try {
+    await rollbackTransactionState(state);
+  } catch (rollbackError) {
+    libraryMutationCoordinator.markRecoveryRequired(rollbackError);
+    throwRollbackFailure(error, rollbackError);
+  }
+  throw error;
 }
 
 function throwRollbackFailure(
@@ -164,6 +180,7 @@ type TransactionState = {
   journal: LibraryTransactionJournal;
   committed: boolean;
   api: LibraryTransaction;
+  beforePublish: Array<() => Promise<void>>;
 };
 
 async function beginLibraryTransaction(
@@ -196,6 +213,7 @@ async function beginLibraryTransaction(
   state.phase = "active";
   state.journal = journal;
   state.committed = false;
+  state.beforePublish = [];
   state.api = createTransactionApi(state);
   return state;
 }
@@ -212,7 +230,11 @@ async function ensureTransactionRoots(libraryRoot: string): Promise<void> {
 async function ensureSafeDirectory(path: string): Promise<void> {
   const state = await pathState(path);
   if (state === "missing") {
-    await mkdir(path);
+    try {
+      await mkdir(path);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    }
   } else if (state !== "directory") {
     throw new Error(
       `transaction directory가 안전한 directory가 아닙니다: ${path}`,
@@ -223,6 +245,10 @@ async function ensureSafeDirectory(path: string): Promise<void> {
 
 function createTransactionApi(state: TransactionState): LibraryTransaction {
   return {
+    beforePublish: (operation) => {
+      assertStagingOpen(state);
+      state.beforePublish.push(operation);
+    },
     stageJsonReplacement: (targetPath, payload) =>
       stageJsonReplacement(state, targetPath, payload),
     createPublishedDirectory: (finalDirectory) =>

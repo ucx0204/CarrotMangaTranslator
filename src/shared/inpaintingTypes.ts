@@ -1,5 +1,6 @@
 import type { ChapterSnapshot } from "./libraryTypes";
 import type { PageTimingSessionRef } from "./pageProcessingTiming";
+import type { PageRevision } from "./pageRevisionTypes";
 
 export type AutoInpaintingChapterSelection =
   | {
@@ -80,6 +81,7 @@ export type StartInpaintingResult = {
 
 export type InpaintingHistoryTransactionRef = {
   transactionId: string;
+  targets?: Array<{ chapterId: string; pageId: string }>;
 };
 
 export type ApplyInpaintingHistoryTransactionRequest = {
@@ -137,6 +139,7 @@ export type InpaintingRetouchGeometry =
 export type InpaintingRetouchRequest = {
   chapterId: string;
   pageId: string;
+  expectedRevision: PageRevision;
   mode: "paint" | "restore";
   geometry: InpaintingRetouchGeometry;
   color?: string;
@@ -179,6 +182,7 @@ export type InpaintingColorSampleResult = {
 export type SetPageInpaintingResultRequest = {
   chapterId: string;
   pageId: string;
+  expectedRevision: PageRevision;
   inpaintedImagePath?: string | null;
   retainedInpaintedArtifactPaths?: string[];
 };

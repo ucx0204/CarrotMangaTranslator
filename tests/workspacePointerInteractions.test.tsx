@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
 
+import {
+  makeChapter,
+  makePage,
+  makeBlock,
+} from "./helpers/workspacePointerFixtures";
 import React, {
   type ReactNode,
   useEffect,
@@ -26,7 +31,7 @@ import {
   vi,
 } from "vitest";
 import type { BBox, TranslationBlock } from "../src/shared/textTypes";
-import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
+import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import { BubbleLayoutContextBar } from "../src/renderer/src/components/BubbleLayoutContextBar";
 import { ImageStage } from "../src/renderer/src/components/ImageStage";
 import {
@@ -37,6 +42,7 @@ import { useWorkspacePointerHandlers } from "../src/renderer/src/hooks/useWorksp
 import type { InpaintingTool } from "../src/renderer/src/inpainting/inpaintingTypes";
 import type { RegionSelectionState } from "../src/renderer/src/lib/appHelpers";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
+import { pendingPageEdits } from "../src/renderer/src/lib/pageEditBarrier";
 import type { StageTool } from "../src/renderer/src/lib/stageTool";
 import type { BubbleLayoutDraftPreview } from "../src/renderer/src/lib/workspaceInteractionPreview";
 
@@ -80,6 +86,7 @@ type HarnessApi = {
 
 afterEach(() => {
   cleanup();
+  pendingPageEdits.setHandingOff([]);
   vi.unstubAllGlobals();
 });
 
@@ -771,7 +778,7 @@ describe("workspace pointer interactions", () => {
       fireEvent.pointerMove(stage, { clientX: 80, clientY: 80, pointerId: 1 });
     });
 
-    expect(api.current.getSelectedBlockId()).toBeNull();
+    expect(api.current.getSelectedBlockId()).toBe("block-1");
     expect(api.current.updateCurrentChapter).not.toHaveBeenCalled();
   });
 
@@ -802,6 +809,57 @@ describe("workspace pointer interactions", () => {
     });
 
     expect(api.current.getSelectedBlockId()).toBe("block-1");
+    expect(api.current.updateCurrentChapter).not.toHaveBeenCalled();
+  });
+  it("allows the hand tool during processing and clears selection on an idle blank-stage click", () => {
+    const busy = renderHarness({
+      jobActive: true,
+      stageTool: "hand",
+      initialSelectedBlockId: "block-1",
+    });
+    const stage = screen.getByTestId("stage");
+    fireEvent.pointerDown(stage, {
+      clientX: 20,
+      clientY: 20,
+      button: 0,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(stage, { clientX: 80, clientY: 80, pointerId: 1 });
+    fireEvent.pointerUp(stage, { pointerId: 1 });
+    fireEvent.pointerLeave(stage);
+    expect(busy.current.updateCurrentChapter).not.toHaveBeenCalled();
+    cleanup();
+    const idle = renderHarness({
+      initialSelectedBlockId: "block-1",
+      stageTool: "perspective",
+    });
+    fireEvent.pointerDown(screen.getByTestId("stage"), {
+      button: 0,
+      pointerId: 2,
+    });
+    expect(idle.current.getSelectedBlockId()).toBeNull();
+  });
+  it("refuses a new block while handing off and discards tiny block drafts", () => {
+    const api = renderHarness({ stageTool: "block" });
+    const stage = screen.getByTestId("stage");
+    pendingPageEdits.setHandingOff(["page-1"]);
+    fireEvent.pointerDown(stage, {
+      clientX: 10,
+      clientY: 10,
+      button: 0,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(stage, { clientX: 80, clientY: 80, pointerId: 1 });
+    fireEvent.pointerUp(stage, { pointerId: 1 });
+    expect(api.current.updateCurrentChapter).not.toHaveBeenCalled();
+    pendingPageEdits.setHandingOff([]);
+    fireEvent.pointerDown(stage, {
+      clientX: 10,
+      clientY: 10,
+      button: 0,
+      pointerId: 2,
+    });
+    fireEvent.pointerUp(stage, { clientX: 10, clientY: 10, pointerId: 2 });
     expect(api.current.updateCurrentChapter).not.toHaveBeenCalled();
   });
 });
@@ -1143,94 +1201,6 @@ function installAnimationFrameController(): {
       callbacks.clear();
       for (const callback of queued) callback(16.67);
     },
-  };
-}
-
-function makeChapter(page: MangaPage): ChapterSnapshot {
-  return {
-    id: "chapter-1",
-    workId: "work-1",
-    title: "1화",
-    sourceKind: "images",
-    status: "idle",
-    pageOrder: [page.id],
-    pages: [page],
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-  };
-}
-
-function makePage({
-  additionalBlocks = [],
-  blockPatch,
-  withBubbleLayout = false,
-}: {
-  additionalBlocks?: TranslationBlock[];
-  blockPatch?: Partial<TranslationBlock>;
-  withBubbleLayout?: boolean;
-} = {}): MangaPage {
-  return {
-    id: "page-1",
-    name: "page-1.png",
-    imagePath: "page-1.png",
-    dataUrl: "",
-    width: 1000,
-    height: 1000,
-    blocks: [makeBlock(withBubbleLayout, blockPatch), ...additionalBlocks],
-    analysisStatus: "idle",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-  };
-}
-
-function makeBlock(
-  withBubbleLayout = false,
-  patch: Partial<TranslationBlock> = {},
-): TranslationBlock {
-  return {
-    id: "block-1",
-    type: "nonsolid",
-    bbox: { x: 100, y: 100, w: 200, h: 100 },
-    sourceText: "source",
-    translatedText: "translated",
-    confidence: 0.9,
-    sourceDirection: "horizontal",
-    renderDirection: "horizontal",
-    renderBbox: withBubbleLayout
-      ? { x: 100, y: 100, w: 200, h: 100 }
-      : undefined,
-    renderBboxSpace: withBubbleLayout ? "normalized_1000" : undefined,
-    bubbleLayout: withBubbleLayout
-      ? {
-          version: 1,
-          direction: "horizontal",
-          confidence: 0.97,
-          origin: "detected",
-          modelId: "comic-rtdetr-v1",
-          sourceImageRevision: "revision-1",
-          insetRatio: 0,
-          regions: [
-            {
-              spans: [
-                {
-                  blockStart: 0,
-                  blockEnd: 1,
-                  inlineStart: 0,
-                  inlineEnd: 1,
-                },
-              ],
-            },
-          ],
-        }
-      : undefined,
-    fontSizePx: 24,
-    lineHeight: 1.2,
-    textAlign: "center",
-    textColor: "#111111",
-    backgroundColor: "#ffffff",
-    opacity: 1,
-    wordBreak: "keep-all",
-    ...patch,
   };
 }
 

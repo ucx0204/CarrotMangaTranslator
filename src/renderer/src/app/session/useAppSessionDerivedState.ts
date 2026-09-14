@@ -1,4 +1,5 @@
 import { useMemo, type RefObject } from "react";
+import type { AppActivityState } from "../../../../shared/appActivityTypes";
 import type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
 import type {
   ChapterSnapshot,
@@ -26,11 +27,17 @@ import {
   type NeighborImageTarget,
 } from "./appSessionSelectors";
 import {
+  resolvePageActivityLocks,
   resolveLockedJobTargetPageIds,
-  resolveSelectedPageEditLocked,
 } from "./jobTargetLocks";
 
 type UseAppSessionDerivedStateArgs = {
+  recoverUnavailableImage?: (
+    pageId: string,
+    imagePath: string,
+  ) => Promise<boolean>;
+  activities?: AppActivityState | null;
+  activeInputPages?: ReadonlySet<string>;
   currentChapter: ChapterSnapshot | null;
   imageRef: RefObject<HTMLImageElement | null>;
   inpaintingTool: InpaintingTool;
@@ -45,6 +52,9 @@ type UseAppSessionDerivedStateArgs = {
 };
 
 export function useAppSessionDerivedState({
+  recoverUnavailableImage,
+  activities,
+  activeInputPages,
   currentChapter,
   imageRef,
   inpaintingTool,
@@ -70,6 +80,7 @@ export function useAppSessionDerivedState({
     pageState.neighborTargets,
   );
   const pageImages = usePageImageDataUrls({
+    recoverUnavailableImage,
     chapterId: currentChapter?.id ?? null,
     neighborTargets: pageState.neighborTargets,
     selectedPage: pageState.selectedPage,
@@ -92,19 +103,21 @@ export function useAppSessionDerivedState({
   );
 
   return {
+    activities: activities ?? null,
     ...pageState,
     ...progressState,
     ...workspaceState,
     clearPageImageCache: pageImages.clearPageImageCache,
     inpaintingToolActive: inpaintingTool !== "none",
     regionSelectionRect,
-    selectedPageEditLocked: resolveSelectedPageEditLocked(
-      progressState.pageLockActive,
-      progressState.jobTargetPageIds,
-      pageState.selectedPage,
-      jobState.kind,
-      jobState.targets?.length ?? 0,
-    ),
+    ...resolvePageActivityLocks({
+      activities,
+      activeInputPages,
+      currentChapter,
+      selectedPage: pageState.selectedPage,
+      jobState,
+      progressState,
+    }),
     selectedPageImageDataUrl: pageImages.selectedPageImageDataUrl,
     selectedPageImageDataUrlPageId: pageImages.selectedPageImageDataUrlPageId,
     selectedPageOriginalImageDataUrl:

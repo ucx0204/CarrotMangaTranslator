@@ -6,6 +6,24 @@ import type { CodexNativePageContext } from "./inpainting/codexNativePageContext
 import { createCodexInpaintingEngine } from "./inpainting/codexInpaintingEngine";
 import { inpaintPatternPage } from "./inpainting";
 import { isSexualImageRefusal } from "./codexImageModeration";
+import { throwImageStorageFailure } from "./pipeline/imageJobFailure";
+
+export class CodexImageErasureError extends Error {
+  constructor(
+    readonly page: MangaPage,
+    readonly failures: Array<{ blockId: string; error: unknown }>,
+  ) {
+    super(
+      failures
+        .map(
+          ({ blockId, error }) =>
+            `${blockId}: ${error instanceof Error ? error.message : String(error)}`,
+        )
+        .join("\n"),
+    );
+    this.name = "CodexImageErasureError";
+  }
+}
 
 export async function eraseTranslatedPage(
   page: MangaPage,
@@ -13,6 +31,8 @@ export async function eraseTranslatedPage(
     signal: AbortSignal;
     decode: ImageDecodeFallback;
     regionContext?: CodexNativePageContext;
+    erasedBlockIds?: readonly string[];
+    onErased?: (page: MangaPage, blockId: string) => Promise<void>;
   },
   client: Parameters<typeof createCodexInpaintingEngine>[0],
   directory: string,
@@ -34,8 +54,13 @@ export async function eraseTranslatedPage(
         bounds: normalizedRegionToPixelRect(region.sourceBbox, page),
       })),
   );
+  const failures: Array<{ blockId: string; error: unknown }> = [];
   for (const block of page.blocks) {
-    if (block.imageGenerationBlocked) continue;
+    if (
+      block.imageGenerationBlocked ||
+      input.erasedBlockIds?.includes(block.id)
+    )
+      continue;
     input.signal.throwIfAborted();
     try {
       const result = await inpaintPatternPage(page, {
@@ -48,9 +73,14 @@ export async function eraseTranslatedPage(
       if (!result.erasedBlockIds?.includes(block.id))
         throw new Error("일부 원문을 지우지 못했습니다. 결과를 확인해 주세요.");
       page = result.page;
+      await input.onErased?.(page, block.id);
     } catch (error) {
       input.signal.throwIfAborted();
-      if (!isSexualImageRefusal(error)) throw error;
+      throwImageStorageFailure(error);
+      if (!isSexualImageRefusal(error)) {
+        failures.push({ blockId: block.id, error });
+        continue;
+      }
       page = {
         ...page,
         blocks: page.blocks.map((item) =>
@@ -65,5 +95,6 @@ export async function eraseTranslatedPage(
       };
     }
   }
+  if (failures.length) throw new CodexImageErasureError(page, failures);
   return page;
 }

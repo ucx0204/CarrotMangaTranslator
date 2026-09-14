@@ -22,6 +22,7 @@ export type BlockCounts = {
 export type InpaintingContextValue = {
   aiUnavailable?: boolean;
   codexErasureAvailable?: boolean;
+  codexErasureBusy?: boolean;
   currentChapter: ChapterSnapshot | null;
   selectedPage: MangaPage | null;
   blockCounts: BlockCounts;

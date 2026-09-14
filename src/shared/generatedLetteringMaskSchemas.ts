@@ -4,7 +4,11 @@ export const letteringToolSchema = z
   .object({
     blockId: z.string().max(200).nullable(),
     space: z.enum(["asset", "page"]),
-    mode: z.enum(["hide", "restore"]),
+    mode: z.enum(["hide", "restore", "paint"]),
+    color: z
+      .string()
+      .regex(/^#[0-9a-f]{6}$/i)
+      .optional(),
     shape: z.enum(["circle", "square"]),
     size: z.number().finite().min(1).max(400),
     softness: z.number().finite().min(0).max(1),
@@ -35,3 +39,20 @@ export const letteringMaskStrokesSchema = z
 export const letteringOcclusionSchema = z
   .array(z.array(point).min(3).max(128))
   .max(64);
+
+export const letteringPaintStrokesSchema = z
+  .array(
+    letteringMaskStrokesSchema.element
+      .omit({ space: true, mode: true })
+      .extend({
+        color: z.string().regex(/^#[0-9a-f]{6}$/i),
+      }),
+  )
+  .max(500);
+
+export const letteringOutlineSchema = z
+  .object({
+    width: z.number().finite().min(0).max(40),
+    color: z.string().regex(/^#[0-9a-f]{6}$/i),
+  })
+  .strict();

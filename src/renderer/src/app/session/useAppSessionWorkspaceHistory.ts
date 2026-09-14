@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { inpaintingGateway as mangaGateway } from "../../api/inpaintingGateway";
-import { useWorkspaceHistory } from "../../hooks/useWorkspaceHistory";
+import {
+  useWorkspaceHistory,
+  type UseWorkspaceHistoryOptions,
+} from "../../hooks/useWorkspaceHistory";
 import { formatErrorMessage } from "../../lib/errorPresentation";
 import {
   restoreWorkspaceChapterEditSnapshot,
+  workspaceHistoryBasisMatches,
   type WorkspaceChapterEditSnapshot,
   type WorkspaceMaskSnapshot,
 } from "../../lib/workspaceHistory";
 import type { ChapterSessionController } from "./useChapterSessionController";
+import {
+  activityResourcesConflict,
+  pageContentResource,
+} from "../../../../shared/appActivityTypes";
 
 export type WorkspaceHistoryChapterController = {
   core: Pick<
@@ -25,7 +33,8 @@ export type WorkspaceHistoryChapterController = {
   derivedState: Pick<
     ChapterSessionController["derivedState"],
     "clearPageImageCache"
-  >;
+  > &
+    Partial<Pick<ChapterSessionController["derivedState"], "activities">>;
   libraryActions: Pick<
     ChapterSessionController["libraryActions"],
     "refreshLibrary"
@@ -61,9 +70,46 @@ export function useAppSessionWorkspaceHistory(
     [pushStatus],
   );
 
+  const state = chapter.derivedState.activities;
+  const currentChapter = chapter.core.currentChapter;
+  const replayBlockedReason = useCallback<
+    NonNullable<UseWorkspaceHistoryOptions["replayBlockedReason"]>
+  >(
+    (entry, direction) => {
+      if (entry.kind === "mask-edit") return null;
+      const { expected, targets } = workspaceReplayTargets(entry, direction);
+      const resources = targets.map((page) =>
+        pageContentResource(page.chapterId, page.pageId),
+      );
+      if (
+        state?.activities.some((activity) =>
+          activityResourcesConflict(resources, activity.resources),
+        ) ||
+        state?.pages.some(
+          (page) =>
+            page.phase === "finishing-edits" &&
+            targets.some(
+              (saved) =>
+                saved.chapterId === page.chapterId &&
+                saved.pageId === page.pageId,
+            ),
+        )
+      ) {
+        return "이 기록이 변경하는 페이지를 처리 중입니다. 완료 후 다시 시도해 주세요.";
+      }
+      if (!expected) return null;
+      const current = currentChapter;
+      return current && workspaceHistoryBasisMatches(current, expected)
+        ? null
+        : "이후의 편집 또는 자동 결과와 충돌하여 이 기록을 적용할 수 없습니다.";
+    },
+    [state, currentChapter],
+  );
+
   const history = useWorkspaceHistory({
     chapterId: chapter.core.currentChapter?.id ?? null,
     ...appliers,
+    replayBlockedReason,
     onReplayError,
     onReleaseError: reportHistoryReleaseError,
   });
@@ -244,4 +290,26 @@ function markChangedBlockPagesDirty(
     const blocks = blocksByPage.get(page.id);
     if (blocks && blocks !== page.blocks) markDirty(page.id);
   }
+}
+
+function workspaceReplayTargets(
+  ...[entry, direction]: Parameters<
+    NonNullable<UseWorkspaceHistoryOptions["replayBlockedReason"]>
+  >
+) {
+  const expected =
+    entry.kind === "chapter-edit"
+      ? direction === "undo"
+        ? entry.after
+        : entry.before
+      : null;
+  const targets = expected
+    ? expected.pages.map(({ pageId }) => ({
+        chapterId: expected.chapterId,
+        pageId,
+      }))
+    : entry.kind === "image-edit"
+      ? (entry.targets ?? [])
+      : [];
+  return { expected, targets };
 }

@@ -320,6 +320,7 @@ export const InpaintingRetouchRequestSchema = z
   .object({
     chapterId: uuid,
     pageId: uuid,
+    expectedRevision: PageJobTargetSnapshotSchema.shape.revision,
     mode: z.enum(["paint", "restore"]),
     geometry: InpaintingRetouchGeometrySchema,
     color: hexColor.optional(),
@@ -334,6 +335,7 @@ export const SetPageInpaintingResultRequestSchema = z
   .object({
     chapterId: uuid,
     pageId: uuid,
+    expectedRevision: PageJobTargetSnapshotSchema.shape.revision,
     inpaintedImagePath: filePath.nullable().optional(),
     retainedInpaintedArtifactPaths: z
       .array(filePath)
@@ -449,6 +451,7 @@ export const RegionAnalysisRequestSchema = z
 
 export const StartSoundEffectTranslationRequestSchema = z
   .object({
+    resumeImageRunId: uuid.optional(),
     chapterId: uuid,
     targets: z
       .array(
@@ -477,3 +480,17 @@ export const StartSoundEffectTranslationRequestSchema = z
     autoFontMatching: z.boolean().optional(),
   })
   .strict();
+
+export const SoundEffectImageRecoverySchema = z
+  .object({
+    runId: uuid,
+    chapterId: uuid,
+    targets: z.array(
+      z.object({ pageId: uuid, pageRevision: z.string() }).strict(),
+    ),
+    blockCount: z.number().int().nonnegative(),
+    eraseOriginal: z.boolean(),
+    output: z.enum(["text", "image"]),
+  })
+  .strict()
+  .nullable();

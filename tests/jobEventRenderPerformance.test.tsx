@@ -20,6 +20,65 @@ afterEach(() => {
 });
 
 describe("job event render scheduling", () => {
+  it("does not let late progress in a single event batch reopen a completed job", () => {
+    const frames = installAnimationFrameController();
+    let emit: ((event: JobEvent) => void) | undefined;
+    const api = React.createRef<JobHarnessApi>();
+    render(
+      <JobHarness
+        onReady={(value) => {
+          api.current = value;
+        }}
+        subscribeJobEvents={(listener) => {
+          emit = listener;
+          return () => {};
+        }}
+      />,
+    );
+    act(() => {
+      emit?.(makeStateEvent("running"));
+      emit?.(makeStateEvent("completed"));
+      emit?.({ ...makeStateEvent("running"), progressText: "late progress" });
+      frames.flush();
+    });
+    expect(api.current?.getJobState().status).toBe("completed");
+    expect(api.current?.getJobState().progressText).not.toBe("late progress");
+  });
+  it("keeps the foreground job and its metadata when another task reports progress", () => {
+    const frames = installAnimationFrameController();
+    let emit: ((event: JobEvent) => void) | undefined;
+    const api = React.createRef<JobHarnessApi>();
+    render(
+      <JobHarness
+        onReady={(value) => {
+          api.current = value;
+        }}
+        subscribeJobEvents={(listener) => {
+          emit = listener;
+          return () => {};
+        }}
+      />,
+    );
+    act(() => {
+      emit?.({
+        ...makeStateEvent("running"),
+        failureGuidance: "increase-context-length",
+        research: { stage: "searching", query: "saved context" },
+      });
+      emit?.({
+        ...makeStateEvent("running"),
+        id: "other-job",
+        progressText: "other export",
+      });
+      frames.flush();
+    });
+    expect(api.current?.getJobState()).toMatchObject({
+      id: makeStateEvent("running").id,
+      failureGuidance: "increase-context-length",
+      research: { query: "saved context" },
+    });
+    expect(api.current?.getJobState().progressText).not.toBe("other export");
+  });
   it("retains every preview in a burst through completion and resets for a new job", () => {
     const frames = installAnimationFrameController();
     let emit: ((event: JobEvent) => void) | undefined;

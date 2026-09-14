@@ -1,3 +1,4 @@
+import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({
@@ -132,6 +133,52 @@ describe("work-context analysis job", () => {
     ).rejects.toBe("research rejected");
     expect(jobs.hasActive).toBe(false);
   });
+
+  it.each(["codex-web", "api"] as const)(
+    "allows %s research during local inference and retains the other job",
+    async (engine) => {
+      const jobs = new ActiveJobStore();
+      jobs.start({
+        id: "local",
+        kind: "gemma-analysis",
+        abortController: new AbortController(),
+        resources: [{ kind: "model-runtime", scope: "*", access: "write" }],
+      });
+      const settings = resolveDefaultAppSettings({});
+      settings.internetResearch.tavilyAnalysisProvider = "api";
+      const proposal = makeResearchProposal();
+      const request = {
+        ...makeResearchRequest(),
+        engine: engine === "api" ? ("tavily" as const) : engine,
+      };
+      const research = vi.fn<
+        NonNullable<Parameters<typeof runWorkContextResearchJob>[2]>
+      >(async (_request, _signal, progress) => {
+        expect(jobs.all).toHaveLength(2);
+        if (engine === "codex-web")
+          expect(() =>
+            jobs.gate.assertAvailable([
+              { kind: "codex-auth", scope: "*", access: "write" },
+            ]),
+          ).toThrow();
+        progress?.({
+          phase: "model_requesting",
+          progressText: "reading sources",
+          pageIndex: 0,
+          pageTotal: 2,
+        });
+        return proposal;
+      });
+      await expect(
+        runWorkContextResearchJob(
+          { jobs, getMainWindow: () => null, executionSettings: settings },
+          request,
+          research,
+        ),
+      ).resolves.toBe(proposal);
+      expect(jobs.all.map((job) => job.id)).toEqual(["local"]);
+    },
+  );
 
   it("does not start internet research while another job is active", async () => {
     const jobs = new ActiveJobStore();

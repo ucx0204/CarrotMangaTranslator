@@ -93,6 +93,7 @@ function commitPatternInpaintingResult(
     options.workspaceHistory.recordImageEdit({
       label: t("workspaceHistory.autoInpainting"),
       transactionId: result.historyTransaction.transactionId,
+      targets: result.historyTransaction.targets,
     });
   }
   void refreshLibraryWithStatus(

@@ -1,3 +1,4 @@
+import { SoundEffectImageRecoveryAction } from "./SoundEffectImageRecoveryAction";
 import {
   ImageTranslationOptions,
   type ImageTranslationChoices,
@@ -6,6 +7,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type {
   PrepareSoundEffectTranslationRequest,
+  SoundEffectImageRecovery,
   RestoreSoundEffectReviewRequest,
 } from "../../../shared/analysisTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
@@ -30,6 +32,7 @@ export type SoundEffectTranslationModalProps = {
   autoFontMatchingDefault?: boolean;
   inpaintAfterTranslationDefault?: boolean;
   onClose: () => void;
+  onResume?: (recovery: SoundEffectImageRecovery) => void;
   onRestore?: (
     request: RestoreSoundEffectReviewRequest,
   ) => Promise<ChapterSnapshot>;
@@ -53,6 +56,7 @@ export function SoundEffectTranslationModal({
   onRestore,
   onPersistDefaults,
   onStart,
+  onResume,
 }: SoundEffectTranslationModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const execution = useSoundEffectExecution({
@@ -79,23 +83,24 @@ export function SoundEffectTranslationModal({
   const useCodex =
     execution.output === "image" ||
     (state.inpaintAfterTranslation && execution.eraseEngine === "codex");
-  const executionDisabled =
-    jobActive ||
-    state.resetReview.busy ||
-    (useCodex && !execution.codexAvailable);
+  const busy = jobActive || state.resetReview.busy;
+  const executionDisabled = busy || (useCodex && !execution.codexAvailable);
   return (
     <PagePickerModalShell
       title={t("soundEffectReview.modalTitle")}
       width="min(1480px, 100%)"
       closeOnEsc={false}
       onClose={onClose}
-      closeDisabled={jobActive || state.resetReview.busy}
+      closeDisabled={busy}
       bodyClassName={styles.modalBody}
       footerActions={
         <SoundEffectTranslationActions
           state={state}
           disabled={executionDisabled}
           onClose={onClose}
+          chapter={chapter}
+          onResume={onResume}
+          codexAvailable={execution.codexAvailable}
         />
       }
       footerLeading={
@@ -104,7 +109,7 @@ export function SoundEffectTranslationModal({
     >
       <SoundEffectTranslationReviewPicker
         chapterTitle={chapter.title}
-        disabled={jobActive || state.resetReview.busy}
+        disabled={busy}
         resetReview={state.resetReview}
         draftPages={state.draftPages}
         selectedRegion={state.selectedRegion}
@@ -123,30 +128,43 @@ function SoundEffectTranslationActions({
   state,
   disabled,
   onClose,
-}: {
+  chapter,
+  onResume,
+  codexAvailable,
+}: Pick<SoundEffectTranslationModalProps, "chapter" | "onResume"> & {
+  codexAvailable: boolean;
   state: ReturnType<typeof useSoundEffectTranslationModalState>;
   disabled: boolean;
   onClose: () => void;
 }) {
   const { t } = useTranslation("components");
   return (
-    <PagePickerModalActionButtons
-      cancel={{
-        label: t("common.cancel"),
-        onClick: onClose,
-        disabled: state.resetReview.busy,
-      }}
-      confirm={{
-        label: t(
-          state.includedCount > 0
-            ? "soundEffectReview.startSelected"
-            : "soundEffectReview.reviewComplete",
-          { count: state.includedCount },
-        ),
-        onClick: state.start,
-        disabled: disabled || state.prepareRequest.pages.length === 0,
-      }}
-    />
+    <>
+      {onResume && (
+        <SoundEffectImageRecoveryAction
+          chapter={chapter}
+          disabled={state.resetReview.busy || !codexAvailable}
+          onResume={onResume}
+        />
+      )}
+      <PagePickerModalActionButtons
+        cancel={{
+          label: t("common.cancel"),
+          onClick: onClose,
+          disabled: state.resetReview.busy,
+        }}
+        confirm={{
+          label: t(
+            state.includedCount > 0
+              ? "soundEffectReview.startSelected"
+              : "soundEffectReview.reviewComplete",
+            { count: state.includedCount },
+          ),
+          onClick: state.start,
+          disabled: disabled || state.prepareRequest.pages.length === 0,
+        }}
+      />
+    </>
   );
 }
 

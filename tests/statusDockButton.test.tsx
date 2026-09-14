@@ -1,3 +1,4 @@
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 /** @vitest-environment jsdom */
 
 import React from "react";
@@ -10,14 +11,15 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StatusDockButton } from "../src/renderer/src/components/StatusDockButton";
 import {
   ResearchJobDetails,
   StatusJobHistory,
 } from "../src/renderer/src/components/StatusPopoverDetails";
 import type { AppOperationActivityEvent } from "../src/shared/appOperationTypes";
-import type { JobState } from "../src/shared/jobTypes";
+import type { AppActivityState } from "../src/shared/appActivityTypes";
+import type { JobEvent, JobState } from "../src/shared/jobTypes";
 import { requestStatusCenterOpen } from "../src/renderer/src/lib/statusCenterEvents";
 import type { StatusCenterHistoryEntry } from "../src/renderer/src/lib/statusCenterHistoryStore";
 import {
@@ -25,12 +27,59 @@ import {
   type ResolvedCompletionSoundPreferences,
 } from "../src/renderer/src/hooks/useCompletionSound";
 
+beforeEach(() => {
+  window.mangaApi = createTestMangaGatewayStub();
+});
+
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
 });
 
 describe("status dock", () => {
+  it("distinguishes partial SFX from failed import and keeps sound controls open when clicked", async () => {
+    const props = {
+      progressSnapshot: null,
+      showProgressBar: false,
+      statusLines: [],
+      onCancelJob: vi.fn(),
+      onClear: vi.fn(),
+    };
+    const view = render(
+      <StatusDockButton
+        {...props}
+        jobState={makeJobState({
+          status: "partial",
+          kind: "sound-effect-translation",
+        })}
+      />,
+    );
+    const trigger = screen.getByRole("button", { name: "작업 센터 열기" });
+    expect(trigger.classList.contains("partial")).toBe(true);
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: "완료 알림음 설정" }));
+    fireEvent.pointerDown(
+      screen.getByRole("group", { name: "완료 알림음 설정" }),
+    );
+    expect(screen.getByRole("region", { name: "작업 센터" })).not.toBeNull();
+    view.rerender(
+      <StatusDockButton
+        {...props}
+        jobState={makeJobState()}
+        operationActivity={makeOperationActivity({
+          status: "failed",
+          phase: undefined,
+          sourceKind: undefined,
+          failureCode: "ENOSPC",
+          updatedAt: 99,
+        })}
+      />,
+    );
+    await waitFor(() =>
+      expect(trigger.classList.contains("failed")).toBe(true),
+    );
+    expect(screen.getByRole("region", { name: "작업 센터" })).not.toBeNull();
+  });
   it("shows unread state without forcing open and exposes the latest line", async () => {
     render(
       <StatusDockButton
@@ -297,6 +346,103 @@ describe("status dock", () => {
     const center = screen.getByRole("region", { name: "작업 센터" });
     expect(center.querySelector(".job-pill")?.textContent).toBe("마무리 중");
     expect(within(center).queryByRole("progressbar")).toBeNull();
+  });
+
+  it("keeps the chosen concurrent task across updates and cancels or retries only that task", async () => {
+    let emitJob: ((event: JobEvent) => void) | undefined;
+    const cancelJob = vi.fn(async () => ({ cancelled: true }));
+    const cancelAppOperation = vi.fn(async () => ({ accepted: true }));
+    const retryPageEditHandoff = vi.fn(async () => true);
+    const secondary = makeJobState({
+      id: "second",
+      status: "running",
+      progressText: "Second job",
+    });
+    const activity: AppActivityState = {
+      version: 1,
+      activities: [],
+      pages: [
+        {
+          jobId: secondary.id,
+          chapterId: "chapter",
+          pageId: "B",
+          phase: "waiting",
+          requestId: "retry-b",
+          reason: "B save failed",
+        },
+      ],
+    };
+    const operation = makeOperationActivity({ id: "separate-export" });
+    window.mangaApi = createTestMangaGatewayStub({
+      getActiveJobs: async () => [secondary],
+      getActiveAppOperations: async () => [operation],
+      getAppActivities: async () => activity,
+      onJobEvent: (callback) => {
+        emitJob = callback;
+        return () => {
+          emitJob = undefined;
+        };
+      },
+      cancelJob,
+      cancelAppOperation,
+      retryPageEditHandoff,
+    });
+    const foreground = makeJobState({
+      id: "first",
+      status: "running",
+      progressText: "First job",
+    });
+    const onCancelJob = vi.fn();
+    render(
+      <StatusDockButton
+        jobState={foreground}
+        progressSnapshot={null}
+        showProgressBar={false}
+        statusLines={[]}
+        onCancelJob={onCancelJob}
+        onClear={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    const second = await screen.findByRole("button", { name: "Second job" });
+    fireEvent.click(second);
+    act(() => emitJob?.({ ...foreground, progressText: "First job advanced" }));
+    expect(second.getAttribute("aria-pressed")).toBe("true");
+    expect(await screen.findByText("B save failed")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "저장 후 다시 시도" }));
+    await waitFor(() =>
+      expect(retryPageEditHandoff).toHaveBeenCalledWith("retry-b"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "현재 작업 취소" }));
+    await waitFor(() =>
+      expect(cancelJob).toHaveBeenCalledWith({ jobId: "second" }),
+    );
+    expect(onCancelJob).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    expect(
+      screen
+        .getByRole("button", { name: "Second job" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    act(() =>
+      emitJob?.({
+        ...secondary,
+        status: "completed",
+        progressText: "Second completed",
+      }),
+    );
+    act(() =>
+      emitJob?.({ ...secondary, progressText: "Stale second progress" }),
+    );
+    expect(screen.queryByText("Stale second progress")).toBeNull();
+    const tasks = screen.getByRole("group", { name: "실행 중인 작업" });
+    const operationButton = within(tasks).getByRole("button", { name: /PDF/ });
+    fireEvent.click(operationButton);
+    fireEvent.click(screen.getByRole("button", { name: "현재 작업 취소" }));
+    await waitFor(() =>
+      expect(cancelAppOperation).toHaveBeenCalledWith("separate-export"),
+    );
   });
 
   it("shows import preparation in the activity center and cancels that operation", () => {

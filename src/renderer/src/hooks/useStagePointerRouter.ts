@@ -63,20 +63,21 @@ function useStagePointerDownRouter({
 }: StagePointerRouterDeps): (event: PointerEvent) => void {
   return useCallback(
     (event: PointerEvent) => {
-      if (jobActive) {
+      if (stageTool === "hand") {
+        panHandlers.startPan(event);
         return;
       }
       if (
         inpaintingHandlers.onPointerDown(event) ||
+        marqueeSelectionHandlers.onMarqueePointerDown(event)
+      )
+        return;
+      if (jobActive) return;
+      if (
         regionSelectionHandlers.onRegionPointerDown(event) ||
         bubbleLayoutHandlers.onBubbleLayoutPointerDown(event) ||
-        blockCreateHandlers.onBlockCreatePointerDown(event) ||
-        marqueeSelectionHandlers.onMarqueePointerDown(event)
+        blockCreateHandlers.onBlockCreatePointerDown(event)
       ) {
-        return;
-      }
-      if (stageTool === "hand") {
-        panHandlers.startPan(event);
         return;
       }
       setSelectedBlockId(null);

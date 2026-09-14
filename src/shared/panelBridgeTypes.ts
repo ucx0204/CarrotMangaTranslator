@@ -43,6 +43,8 @@ export type PanelFormatSelection = {
  * action functions and in-app-only layout flags stay in the main window.
  */
 export type PanelSyncState = {
+  editPage?: { chapterId: string; pageId: string } | null;
+  editHandoff?: { requestId: string; chapterId: string; pageId: string };
   aiUnavailable?: boolean;
   letteringTool?: import("./generatedLetteringMaskTypes").LetteringTool;
   selectedBlock: TranslationBlock | null;
@@ -66,6 +68,7 @@ export type PanelSyncState = {
  * applies it through the existing session action handlers.
  */
 export type PanelCommand =
+  | { type: "finishPageEdits"; requestId: string; error?: string }
   | {
       type: "updateBlock";
       blockId: string;

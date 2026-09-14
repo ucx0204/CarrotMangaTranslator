@@ -8,7 +8,8 @@ import { IconButton } from "./ui/IconButton";
 import { Button } from "./ui/Button";
 import type { AppOperationActivityEvent } from "../../../shared/appOperationTypes";
 import type { StatusCenterHistoryEntry } from "../lib/statusCenterHistoryStore";
-import { CurrentStatusContent, StatusJobHistory } from "./StatusPopoverDetails";
+import { StatusJobHistory } from "./StatusPopoverDetails";
+import { ConcurrentTaskStatus } from "./ConcurrentTaskStatus";
 import { CompletionSoundControl } from "./CompletionSoundControl";
 import type { StatusLogContext, StatusLogEntry } from "../hooks/useStatusLog";
 import { ControlTooltip } from "./ui/ControlTooltip";
@@ -23,6 +24,9 @@ export type StatusFailedPage = {
 };
 
 type StatusPopoverProps = {
+  taskController: React.ComponentProps<
+    typeof ConcurrentTaskStatus
+  >["taskController"];
   id: string;
   jobState: JobState;
   operationActivity?: AppOperationActivityEvent | null;
@@ -49,6 +53,7 @@ type StatusPopoverProps = {
 };
 
 export function StatusPopover({
+  taskController,
   id,
   jobState,
   operationActivity = null,
@@ -99,7 +104,8 @@ export function StatusPopover({
         onClose={onClose}
         onOpenErrorReport={onOpenErrorReport}
       />
-      <CurrentStatusContent
+      <ConcurrentTaskStatus
+        taskController={taskController}
         jobState={jobState}
         operationActivity={operationActivity}
         progressSnapshot={progressSnapshot}

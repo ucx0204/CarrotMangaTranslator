@@ -412,6 +412,86 @@ describe("page image request coalescing", () => {
     });
   });
 
+  it("ignores a replaced neighbor request failure but reports a current failure", async () => {
+    const oldImage = deferred<string>();
+    const currentImage = deferred<string>();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    installImageGateway((path) =>
+      path === "old.png" ? oldImage.promise : currentImage.promise,
+    );
+    const view = renderHook(
+      ({ imagePath }) =>
+        usePageImageDataUrls({
+          chapterId: "chapter-1",
+          selectedPage: null,
+          selectedPageImagePath: null,
+          neighborTargets: [{ pageId: "neighbor", imagePath }],
+        }),
+      { initialProps: { imagePath: "old.png" } },
+    );
+    view.rerender({ imagePath: "current.png" });
+    await act(async () => {
+      oldImage.reject(new Error("replaced artifact"));
+    });
+    expect(warning).not.toHaveBeenCalled();
+    const error = new Error("current artifact missing");
+    await act(async () => {
+      currentImage.reject(error);
+    });
+    expect(warning).toHaveBeenCalledWith(
+      "이웃 페이지 미리 불러오기 실패",
+      error,
+    );
+  });
+
+  it.each(["replaced", "missing", "read-failed"])(
+    "recovers a %s selected artifact through the current chapter owner",
+    async (mode) => {
+      const failure = new Error("old image was removed");
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+      installImageGateway(async (path) => {
+        if (path === "old.png") throw failure;
+        return `mgt-image://library/${path}`;
+      });
+      const recovered = vi.fn();
+      const view = renderHook(() => {
+        const [page, setPage] = React.useState({
+          ...makePage("page-1", "source.png"),
+          inpaintedImagePath: "old.png",
+        });
+        const recoverUnavailableImage = React.useCallback(
+          async (pageId: string, imagePath: string) => {
+            recovered(pageId, imagePath);
+            if (mode === "read-failed") throw new Error("chapter read failed");
+            if (mode === "missing") return false;
+            setPage((current) => ({
+              ...current,
+              inpaintedImagePath: "new.png",
+            }));
+            return true;
+          },
+          [],
+        );
+        return usePageImageDataUrls({
+          chapterId: "chapter-1",
+          selectedPage: page,
+          selectedPageImagePath: page.inpaintedImagePath,
+          recoverUnavailableImage,
+        });
+      });
+      await waitFor(() =>
+        expect(view.result.current.selectedPageImageLoading).toBe(false),
+      );
+      expect(recovered).toHaveBeenCalledWith("page-1", "old.png");
+      if (mode === "replaced") {
+        expect(view.result.current.selectedPageImageDataUrl).toBe(
+          "mgt-image://library/new.png",
+        );
+        expect(errorLog).not.toHaveBeenCalled();
+      } else expect(errorLog).toHaveBeenCalledWith(failure);
+    },
+  );
+
   it("keeps decoded neighbor images bounded and releases them on unmount", async () => {
     const instances: DecodingImage[] = [];
     class DecodingImage {

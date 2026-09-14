@@ -1,6 +1,9 @@
 import { join, resolve } from "node:path";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
-import { withLibraryMutation } from "../library/lock";
+import {
+  withLibraryMutation,
+  withLibraryArtifactCleanup,
+} from "../library/lock";
 import { openChapter as openChapterUnlocked } from "../libraryStore/libraryAccess";
 import {
   removeUnreferencedInpaintMaskArtifacts,
@@ -25,6 +28,7 @@ type RevisionArtifactCleanupRequest = {
 };
 
 export type InpaintingRevisionRepository = {
+  runArtifactCleanup?: <T>(operation: () => Promise<T>) => Promise<T>;
   runMutation: <T>(operation: () => Promise<T>) => Promise<T>;
   readChapter: (chapterId: string) => Promise<ChapterSnapshot>;
   readChapterAfterRollbackFailure: (
@@ -47,6 +51,7 @@ export type InpaintingRevisionRepository = {
 export const libraryInpaintingRevisionRepository: InpaintingRevisionRepository =
   {
     runMutation: withLibraryMutation,
+    runArtifactCleanup: withLibraryArtifactCleanup,
     readChapter: openChapterUnlocked,
     readChapterAfterRollbackFailure: readCurrentChapterAfterRollbackFailure,
     savePages: updatePagesAfterInpaintingUnlocked,

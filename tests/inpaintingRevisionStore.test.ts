@@ -440,7 +440,9 @@ describe("InpaintingRevisionStore", () => {
       w: 250,
       h: 250,
     });
-    expect(store.getReference(transactionId)).toEqual({ transactionId });
+    expect(store.getReference(transactionId)).toEqual(
+      expect.objectContaining({ transactionId, targets: expect.any(Array) }),
+    );
   });
 
   it("rejects a stale postprocess patch at the chapter commit point", async () => {
@@ -528,7 +530,9 @@ describe("InpaintingRevisionStore", () => {
     await expect(
       store.applyTransaction({ transactionId, direction: "undo" }),
     ).rejects.toThrow(/다른 작업/);
-    expect(store.getReference(transactionId)).toEqual({ transactionId });
+    expect(store.getReference(transactionId)).toEqual(
+      expect.objectContaining({ transactionId, targets: expect.any(Array) }),
+    );
     expect(
       firstPage(await library.openChapter(CHAPTER_A_ID)).inpaintedImagePath,
     ).toBe(paths.otherA);
@@ -576,10 +580,17 @@ describe("InpaintingRevisionStore", () => {
       const paths = await seedLibrary(rootDir);
       const applyGate = createVoidDeferred();
       let mutationCount = 0;
+      let cleanupCount = 0;
       const { InpaintingRevisionStore, library, revisionRepository } =
         await loadModules(rootDir);
       const repository = {
         ...revisionRepository,
+        runArtifactCleanup: async <T>(operation: () => Promise<T>) => {
+          cleanupCount += 1;
+          if (!revisionRepository.runArtifactCleanup)
+            throw new Error("Missing artifact cleanup port");
+          return revisionRepository.runArtifactCleanup(operation);
+        },
         runMutation: async <T>(operation: () => Promise<T>) => {
           mutationCount += 1;
           if (mutationCount === 1) {
@@ -611,14 +622,21 @@ describe("InpaintingRevisionStore", () => {
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
         expect(mutationCount).toBe(1);
-        expect(store.getReference(transactionId)).toEqual({ transactionId });
+        expect(cleanupCount).toBe(0);
+        expect(store.getReference(transactionId)).toEqual(
+          expect.objectContaining({
+            transactionId,
+            targets: expect.any(Array),
+          }),
+        );
         expect(existsSync(paths.beforeA)).toBe(true);
 
         applyGate.resolve();
         const [applied, released] = await Promise.all([applying, releasing]);
         expect(applied.invalidated).toBe(false);
         expect(released).toBe(1);
-        expect(mutationCount).toBe(2);
+        expect(mutationCount).toBe(1);
+        expect(cleanupCount).toBe(1);
         expect(
           firstPage(await library.openChapter(CHAPTER_A_ID)).inpaintedImagePath,
         ).toBe(paths.beforeA);
@@ -630,6 +648,37 @@ describe("InpaintingRevisionStore", () => {
     },
   );
 
+  it("retains history across automatic image commits until every owner releases it", async () => {
+    const rootDir = await createTempLibrary();
+    const paths = await seedLibrary(rootDir);
+    const { InpaintingRevisionStore, library } = await loadModules(rootDir);
+    const first = new InpaintingRevisionStore();
+    const second = new InpaintingRevisionStore();
+    const change = {
+      chapterId: CHAPTER_A_ID,
+      pageId: PAGE_A_ID,
+      beforePath: paths.beforeA,
+      afterPath: paths.afterA,
+    };
+    const one = first.beginTransaction();
+    const two = second.beginTransaction();
+    first.addChange(one, change);
+    second.addChange(two, change);
+    const page = firstPage(await library.openChapter(CHAPTER_A_ID));
+    await library.updatePagesAfterInpainting(CHAPTER_A_ID, [
+      { ...page, inpaintedImagePath: paths.otherA },
+    ]);
+    expect(existsSync(paths.beforeA)).toBe(true);
+    expect(existsSync(paths.afterA)).toBe(true);
+    await first.releaseAll();
+    expect(existsSync(paths.afterA)).toBe(true);
+    await second.removeChange(two, CHAPTER_A_ID, PAGE_A_ID);
+    second.discardIfEmpty(two);
+    expect(existsSync(paths.beforeA)).toBe(false);
+    expect(existsSync(paths.afterA)).toBe(false);
+    expect(existsSync(paths.otherA)).toBe(true);
+  });
+
   it("keeps a committed image revision when post-commit cleanup fails", async () => {
     const rootDir = await createTempLibrary();
     const paths = await seedLibrary(rootDir);
@@ -637,7 +686,6 @@ describe("InpaintingRevisionStore", () => {
     const warn = vi.fn();
     const { InpaintingRevisionStore, library, mutationOperations } =
       await loadModules(rootDir, {
-        collectManagedArtifacts: vi.fn(async () => [paths.beforeA]),
         removeUnreferencedArtifacts: removeArtifacts,
         warn,
       });
@@ -662,7 +710,9 @@ describe("InpaintingRevisionStore", () => {
     );
 
     expect(firstPage(saved).inpaintedImagePath).toBe(paths.otherA);
-    expect(store.getReference(transactionId)).toEqual({ transactionId });
+    expect(store.getReference(transactionId)).toEqual(
+      expect.objectContaining({ transactionId, targets: expect.any(Array) }),
+    );
     expect(
       firstPage(await library.openChapter(CHAPTER_A_ID)).inpaintedImagePath,
     ).toBe(paths.otherA);

@@ -1,18 +1,110 @@
 import { describe, expect, it } from "vitest";
-import { resolveLockedJobTargetPageIds } from "../src/renderer/src/app/session/jobTargetLocks";
+import {
+  resolveLockedJobTargetPageIds,
+  resolvePageActivityLocks,
+} from "../src/renderer/src/app/session/jobTargetLocks";
 import { resolveSelectedPageEditLocked } from "../src/renderer/src/app/session/jobTargetLocks";
 import type { JobState } from "../src/shared/jobTypes";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import { createPageJobTargetSnapshot } from "../src/shared/pageRevision";
 
 describe("page-scoped job locking", () => {
-  it("unlocks finished translation targets while later target pages keep running", () => {
+  it("distinguishes model, active content and queued reservations without unlocking an unfinished input", () => {
+    const pages = [
+      makePage("page-1", "running"),
+      makePage("page-2", "completed"),
+    ];
+    const chapter = makeChapter(pages);
+    const base = {
+      currentChapter: chapter,
+      selectedPage: pages[1],
+      jobState: makeJob("gemma-analysis", pages),
+      progressState: {
+        jobActive: true,
+        pageLockActive: true,
+        jobTargetPageIds: new Set(["page-1", "page-2"]),
+      },
+    };
+    const activities = {
+      version: 1,
+      activities: [
+        {
+          id: "job-1",
+          category: "job" as const,
+          kind: "gemma-analysis",
+          startedAt: 1,
+          blocksQuit: true,
+          mutatesLibrary: true,
+          resources: [
+            {
+              kind: "model-runtime" as const,
+              scope: "*",
+              access: "write" as const,
+            },
+            {
+              kind: "page-content" as const,
+              scope: "chapter-1/page-1",
+              access: "write" as const,
+            },
+            {
+              kind: "library-structure" as const,
+              scope: "chapter:chapter-1",
+              access: "read" as const,
+            },
+          ],
+        },
+      ],
+      pages: pages.map((page) => ({
+        jobId: "job-1",
+        chapterId: chapter.id,
+        pageId: page.id,
+        phase: "queued" as const,
+      })),
+    };
+    expect(resolvePageActivityLocks({ ...base, activities })).toMatchObject({
+      selectedPageEditLocked: false,
+      modelResourceBusy: true,
+      chapterStructureLocked: true,
+      editingLockedPageIds: new Set(["page-1"]),
+      jobTargetPageIds: new Set(["page-1", "page-2"]),
+    });
+    const finishing = {
+      ...activities,
+      pages: [{ ...activities.pages[1], phase: "finishing-edits" as const }],
+    };
+    expect(
+      resolvePageActivityLocks({ ...base, activities: finishing })
+        .selectedPageEditLocked,
+    ).toBe(true);
+    expect(
+      resolvePageActivityLocks({
+        ...base,
+        activities: finishing,
+        activeInputPages: new Set(["chapter-1/page-2"]),
+      }).selectedPageEditLocked,
+    ).toBe(false);
+    expect(
+      resolvePageActivityLocks({ ...base, activities, selectedPage: pages[0] })
+        .selectedPageEditLocked,
+    ).toBe(true);
+    expect(resolvePageActivityLocks(base).selectedPageEditLocked).toBe(true);
+    expect(
+      resolvePageActivityLocks({
+        ...base,
+        currentChapter: null,
+        selectedPage: null,
+        activities: { version: 2, activities: [], pages: [] },
+      }).modelResourceBusy,
+    ).toBe(false);
+  });
+  it("keeps legacy target locks until ownership ends, regardless of completion metadata", () => {
     const completed = makePage("page-1", "completed");
     const running = makePage("page-2", "running");
     const chapter = makeChapter([completed, running]);
     const job = makeJob("gemma-analysis", chapter.pages);
 
     expect([...resolveLockedJobTargetPageIds(job, chapter)]).toEqual([
+      "page-1",
       "page-2",
     ]);
   });
@@ -47,7 +139,7 @@ describe("page-scoped job locking", () => {
     ]).toEqual(["page-1"]);
   });
 
-  it("does not lock an unrelated or revised page from a stale target snapshot", () => {
+  it("keeps ownership across a revision change while unrelated pages remain editable", () => {
     const original = makePage("page-1", "running");
     const job = makeJob("gemma-analysis", [original]);
     const revised = {
@@ -58,7 +150,7 @@ describe("page-scoped job locking", () => {
     const chapter = makeChapter([revised, unrelated]);
     const locked = resolveLockedJobTargetPageIds(job, chapter);
 
-    expect([...locked]).toEqual([]);
+    expect([...locked]).toEqual(["page-1"]);
     expect(
       resolveSelectedPageEditLocked(
         true,

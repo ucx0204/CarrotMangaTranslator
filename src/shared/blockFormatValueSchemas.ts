@@ -1,6 +1,8 @@
 import {
   letteringMaskStrokesSchema,
   letteringOcclusionSchema,
+  letteringPaintStrokesSchema,
+  letteringOutlineSchema,
 } from "./generatedLetteringMaskSchemas";
 import { z } from "zod";
 import {
@@ -32,6 +34,8 @@ export const FontWidthScaleSchema = finiteNumber
 export const generatedLettering = z
   .object({
     maskStrokes: letteringMaskStrokesSchema.optional(),
+    paintStrokes: letteringPaintStrokesSchema.optional(),
+    outline: letteringOutlineSchema.optional(),
     occlusionPolygons: letteringOcclusionSchema.optional(),
     version: z.literal(1),
     enabled: z.boolean().optional(),

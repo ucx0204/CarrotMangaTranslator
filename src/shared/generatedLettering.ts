@@ -31,6 +31,10 @@ export function relocateGeneratedLettering(
   });
   return {
     ...artwork,
+    paintStrokes: artwork.paintStrokes
+      ? structuredClone(artwork.paintStrokes)
+      : undefined,
+    outline: artwork.outline ? { ...artwork.outline } : undefined,
     maskStrokes: artwork.maskStrokes?.map((stroke) =>
       stroke.space === "asset"
         ? structuredClone(stroke)

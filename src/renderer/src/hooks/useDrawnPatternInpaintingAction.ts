@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { hashStableValue } from "../../../shared/blockFingerprint";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
@@ -17,7 +18,9 @@ export function useDrawnPatternInpaintingAction(
   const { t } = useTranslation("renderer");
   return useCallback(
     async (engine?: "codex") => {
-      if (engine === "codex" && !options.codexErasureAvailable) return;
+      if (engine === "codex") {
+        if (!options.codexErasureAvailable || options.codexErasureBusy) return;
+      } else if (options.modelResourceBusy || options.aiUnavailable) return;
       await runDrawnPatternInpainting(options, t, engine);
     },
     [options, t],
@@ -48,7 +51,8 @@ async function runDrawnPatternInpainting(
     clearPageImageCache: options.clearPageImageCache,
     clearRetouchHistory: options.clearRetouchHistory,
     mergeLiveChapter: options.mergeLiveChapter,
-    patternMaskStrokes: options.patternMaskStrokes,
+    patternMaskStrokes: structuredClone(options.patternMaskStrokes),
+    getPatternMaskStrokes: options.getPatternMaskStrokes,
     pushStatus: options.pushStatus,
     refreshLibrary: options.refreshLibrary,
     selectedPageId: selectedPage.id,
@@ -63,9 +67,12 @@ async function prepareDrawnInpainting(
   options: UseInpaintingActionsOptions,
   t: TFunction<"renderer">,
 ): Promise<boolean> {
+  const { savePageNow, currentChapter, selectedPage } = options;
   const saved = await saveDirtyChangesOrReportFailure(
     options.dirty,
-    options.saveNow,
+    savePageNow && currentChapter && selectedPage
+      ? () => savePageNow(currentChapter.id, selectedPage.id)
+      : options.saveNow,
     (error) =>
       failInpaintingJob(
         options.setJobState,
@@ -85,15 +92,19 @@ async function prepareDrawnInpainting(
   }
   options.setPeekOriginal(false);
   options.setInpaintingTool("none");
-  options.setJobState({
-    id: "pending-inpainting",
-    kind: "inpainting",
-    status: "starting",
-    progressText: t("inpainting.drawn.preparing"),
-    phase: "inpainting_preparing",
-    progressCurrent: 0,
-    progressTotal: 1,
-  });
+  options.setJobState((current) =>
+    current.status === "running" || current.status === "cancelling"
+      ? current
+      : {
+          id: "pending-inpainting",
+          kind: "inpainting",
+          status: "starting",
+          progressText: t("inpainting.drawn.preparing"),
+          phase: "inpainting_preparing",
+          progressCurrent: 0,
+          progressTotal: 1,
+        },
+  );
   return true;
 }
 
@@ -104,6 +115,7 @@ type DrawnInpaintingRequestContext = {
   clearRetouchHistory: () => void;
   mergeLiveChapter: UseInpaintingActionsOptions["mergeLiveChapter"];
   patternMaskStrokes: UseInpaintingActionsOptions["patternMaskStrokes"];
+  getPatternMaskStrokes: UseInpaintingActionsOptions["getPatternMaskStrokes"];
   pushStatus: UseInpaintingActionsOptions["pushStatus"];
   refreshLibrary: UseInpaintingActionsOptions["refreshLibrary"];
   selectedPageId: string;
@@ -145,45 +157,62 @@ async function handleDrawnInpaintingResult(
     context.clearPageImageCache();
     context.mergeLiveChapter(result.chapter);
   }
-  recordDrawnInpaintingHistory(result, context);
+  const draftUnchanged =
+    !context.getPatternMaskStrokes ||
+    hashStableValue(context.getPatternMaskStrokes(context.selectedPageId)) ===
+      hashStableValue(context.patternMaskStrokes);
+  recordDrawnInpaintingHistory(result, context, draftUnchanged);
   void refreshLibraryWithStatus(
     context.refreshLibrary,
     context.pushStatus,
     context.t("library.refreshAfterJobFailed"),
   );
-  reportDrawnInpaintingResult(result, context.selectedPageId, context.t, {
-    pushStatus: context.pushStatus,
-    setJobState: context.setJobState,
-    setPatternMaskStrokesByPage: context.setPatternMaskStrokesByPage,
-  });
+  reportDrawnInpaintingResult(
+    result,
+    context.selectedPageId,
+    context.patternMaskStrokes,
+    context.t,
+    {
+      pushStatus: context.pushStatus,
+      setJobState: context.setJobState,
+      setPatternMaskStrokesByPage: context.setPatternMaskStrokesByPage,
+    },
+  );
 }
 
 function recordDrawnInpaintingHistory(
   result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
   context: DrawnInpaintingRequestContext,
+  draftUnchanged: boolean,
 ): void {
   if (!result.historyTransaction) return;
   context.workspaceHistory.recordImageEdit({
     label: context.t("workspaceHistory.drawnInpainting"),
     transactionId: result.historyTransaction.transactionId,
-    mask: {
-      before: captureWorkspaceMaskSnapshot(
-        context.chapterId,
-        context.selectedPageId,
-        context.patternMaskStrokes,
-      ),
-      after: captureWorkspaceMaskSnapshot(
-        context.chapterId,
-        context.selectedPageId,
-        result.status === "completed" ? [] : context.patternMaskStrokes,
-      ),
-    },
+    targets: result.historyTransaction.targets,
+    ...(draftUnchanged
+      ? {
+          mask: {
+            before: captureWorkspaceMaskSnapshot(
+              context.chapterId,
+              context.selectedPageId,
+              context.patternMaskStrokes,
+            ),
+            after: captureWorkspaceMaskSnapshot(
+              context.chapterId,
+              context.selectedPageId,
+              result.status === "completed" ? [] : context.patternMaskStrokes,
+            ),
+          },
+        }
+      : {}),
   });
 }
 
 function reportDrawnInpaintingResult(
   result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
   selectedPageId: string,
+  submittedStrokes: UseInpaintingActionsOptions["patternMaskStrokes"],
   t: TFunction<"renderer">,
   {
     pushStatus,
@@ -196,6 +225,11 @@ function reportDrawnInpaintingResult(
 ): void {
   if (result.status === "completed") {
     setPatternMaskStrokesByPage((current) => {
+      if (
+        hashStableValue(current[selectedPageId] ?? []) !==
+        hashStableValue(submittedStrokes)
+      )
+        return current;
       const next = { ...current };
       delete next[selectedPageId];
       return next;

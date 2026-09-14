@@ -1,4 +1,7 @@
-import { hashTranslationBlocks } from "../../shared/blockFingerprint";
+import {
+  hashTranslationBlocks,
+  hashStableValue,
+} from "../../shared/blockFingerprint";
 import { normalizeBlockType } from "../../shared/geometry";
 import type {
   LibraryChapter,
@@ -9,7 +12,7 @@ import type {
   SavePageBlocksUpdate,
   SavePagesBlocksRequest,
 } from "../../shared/shareTypes";
-import { resolveChapterStatus } from "./chapterRecords";
+import { resolveChapterStatus, nextChapterUpdatedAt } from "./chapterRecords";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
   findChapterLocation,
@@ -69,7 +72,7 @@ export function createSavePagesBlocksMutation(
     }
 
     const updates = resolvePageUpdates(chapter, request, runtime.logWarning);
-    const now = runtime.now();
+    const now = nextChapterUpdatedAt(chapter, runtime.now());
     const nextChapter = applyPageUpdates(chapter, updates, now);
     await runtime.commitChapterAndWork(nextChapter, now);
     return hydrateChapter(nextChapter);
@@ -91,6 +94,7 @@ export function savePageBlocksUnlocked(
         pageId: request.pageId,
         baseUpdatedAt: request.baseUpdatedAt,
         baseBlocksHash: request.baseBlocksHash,
+        baseBlockOrderHash: request.baseBlockOrderHash,
         blocks: request.blocks,
         blockOrder: request.blockOrder,
       },
@@ -135,7 +139,15 @@ function assertPageSaveAllowed(
     return;
   }
   const currentBlocksHash = hashTranslationBlocks(page.blocks);
-  if (update.baseBlocksHash && currentBlocksHash === update.baseBlocksHash) {
+  const currentBlockOrderHash = hashStableValue(page.blockOrder ?? null);
+  const orderUnchanged =
+    currentBlockOrderHash ===
+    (update.baseBlockOrderHash ?? hashStableValue(update.blockOrder ?? null));
+  if (
+    update.baseBlocksHash &&
+    currentBlocksHash === update.baseBlocksHash &&
+    orderUnchanged
+  ) {
     return;
   }
   logWarning("Page block save conflict", {

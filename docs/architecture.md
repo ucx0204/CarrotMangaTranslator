@@ -150,4 +150,63 @@ npm run check
 
 `arch:budget`의 fan-in은 런타임 의존을 기준으로 측정한다. type-only import는 초기화 결합을 만들지 않으므로 제외하지만, broad type barrel은 ESLint로 별도 금지한다.
 
+### 동시 작업과 편집 권한
+
+`shared/appActivityTypes.ts`가 자원·대상·읽기/쓰기 충돌 계약을 소유한다. 메인의
+`AppActivityGate`는 소유 ID별 lease로 이를 적용하고, 작업과 관리 작업의 종료는 자신의
+lease만 해제한다. 렌더러는 IPC 활동 상태를 기존 세션과 명령 구성에 연결한다.
+별도 전역 feature selector나 우회 gateway를 두지 않는다.
+
+페이지 예약은 구조를 보호하며 내용 쓰기 권한과 분리된다. `jobs/jobPageOwnership.ts`는
+입력 마무리 응답과 선행 이미지 편집을 기다린 뒤 보관함 저장 경계에서 최신 페이지를
+읽는다. `wholePageInputHandoff.ts`는 그 입력의 체크포인트 호환성을 다시 검사한다.
+최종 이미지·블록·문맥 저장까지 페이지 권한을 유지한다. 원본 비교·탐색·마스크 초안은
+내용 쓰기 권한을 요구하지 않는다.
+
+새 의존성 예외는 `architecture-budget-baseline.json`의 파일별 사유로 한정한다.
+revision·언어 판정·진단·이벤트 콜백은 기존 공통 계약을 재사용하고, IPC와 작업 구성은
+해당 소유권 경계를 직접 연결한다. `activityConcurrency`, `pageEditHandoff`,
+`wholePageHandoffParity` 테스트가 자원 분리·입력 보존·기존 출력 일치를 검증한다.
+
 영역 효과음 이미지의 반전 처리는 RGB만 변환하고 알파를 유지한다. ImageGen의 명시적 sexual 거부는 영역 상태로 저장하며, 그룹의 다음 항목과 다음 페이지를 중단하지 않는다. 원문 제거도 블록 단위로 격리한다. 픽셀 반전·알파 보존, 정상/거부/취소 원문 제거, 그룹 계속 진행, 저장 및 편집/내보내기 표시 분리 테스트로 확인한다. 새 모듈 5개의 커버리지 기준은 Windows 전체 실행 실측을 추가했으며 기존 기준은 유지했다. 측정 기록은 `.tmp/region-image-processing-coverage-20260914.json`, SHA-256은 `b0ca7bedfb441f2927ec728672264bcaf9dbc5b6afe1c4f5cfc02a9c2a9a1bab`다.
+
+효과음 이미지 복구는 확정한 번역문·영역을 먼저 저장하고 기존 run 디렉터리에 원자적
+JSON checkpoint를 남긴다. 새 보관함 포맷이나 폰트/OCR 알고리즘은 도입하지 않는다.
+추가 소비 경계는 storage 28, pageRevision 33, library facade 27로 기록한다.
+SFX job composition은 검토·저장·복구 연결로 runtime import 19를 사용하며,
+세션 view composition은 작품 문맥 소유권 판정으로 15를 사용한다. 범용 상한은 유지한다.
+실제 파일 저장·재실행·부분 실패·취소 테스트와 기존 입력의 이미지/글꼴 parity로 보호한다.
+
+편집 인계는 진행 중인 포인터/IME와 분리 편집 창의 마지막 명령까지 기다린 후 대상
+페이지 저장을 완료한다. 다른 페이지와 설정 입력은 이 장벽에 참여하지 않는다.
+SFX 이미지 이어하기는 Codex 인증과 대상 페이지만 사용하며 무관한 로컬 런타임을
+종료하지 않는다. 일반 SFX 실행의 로컬 전처리 자원 검사는 유지한다.
+
+이번 추가 모듈의 커버리지 기준은 `.tmp/activity-coverage-inventory-windows.json`
+Windows 전체 실행 기록에서 최초 실측한 값이며, 기존 파일과 기존 추가 모듈의
+기준을 낮추지 않았다. SHA-256은 `6e420cc800828edde2a0ef49d9df9af111a1839afa5017828824ce6e959e127c`다.
+manifest의 node22 provenance는 기존 수용 기록의 출처로 유지하며, 이후 추가한
+동시 편집·SFX 복구 모듈의 측정 출처는 이 기록이다.
+
+이미지 저장 후 정리는 그 요청이 교체한 파일에만 적용한다. 디렉터리 전체를 훑어
+다른 페이지가 생성 중인 파일을 제거하지 않는다. 실행 취소 기록은 보관함 artifact
+lease로 이전/다음 이미지와 마스크를 보존하며 마지막 소유자가 해제한 뒤 수거한다.
+오래된 UI 이미지 경로는 세션 소유자가 최신 chapter를 다시 읽고 기존 dirty-page
+병합으로 복구한다. 같은 chapter의 복구 읽기만 합치며 페이지/화 이동 뒤 응답은
+오류를 다시 띄우지 않는다. 범용 예산은 유지하고 이 연결에 필요한 gateway 27,
+event callback 29, session composition 21, checkpoint 진단 logger 35만 기록한다.
+네이티브 제외 픽셀 복사는 기존 이미지 가리기 모듈로 옮겼으며 RGBA copy parity와
+실제 인페인팅 합성 테스트로 같은 픽셀 보존을 검증한다.
+
+보관함 read/write 큐는 등록 시 `AsyncLocalStorage.bind`로 호출자의 async context를
+포착한다. 앞선 읽기/쓰기 완료가 다음 요청을 배출하더라도 작업 소유권, 실행 설정,
+transaction 문맥이 섞이지 않는다. 실제 재현에서는 큐에 기다린 SFX 저장이 앞선
+수동 편집의 소유권을 받아 자기 페이지 저장을 거절당했다. 큐 순서·실패 후 다음
+요청·소유권 없는 편집의 거절을 회귀 테스트로 검증한다.
+
+생성 효과음의 보정 붓과 외곽선은 `generatedLettering`의 선택 필드로 저장한다.
+기존 텍스트 서식과 원본 PNG는 바꾸지 않는다. 붓질과 그 영역의 마스크 복구를
+하나의 블록 편집으로 기록하고, 이미지와 붓질을 합친 뒤 마스크와 외곽선을 적용한다.
+페이지 가림과 원근/왜곡 변환은 기존 렌더 경계를 유지한다. 보정이 없는 기존 이미지는
+원래 IMG 경로로 렌더한다. 화면과 PNG/PSD 출력은 같은 `PageArtwork`를 사용하며,
+회전·왜곡·가림·보정 붓·외곽선을 포함한 실제 픽셀 parity fixture로 일치를 확인한다.

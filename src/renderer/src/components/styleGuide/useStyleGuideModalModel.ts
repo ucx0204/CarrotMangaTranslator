@@ -149,16 +149,18 @@ function useStyleGuideResourceMutations({
       const savedGuide = await mangaGateway.saveWorkStyleGuide(
         normalizeGuideForSave(guide),
       );
+      setGuide(savedGuide);
       const savedMemory = memory
         ? await mangaGateway.saveChapterStoryMemory(memory)
         : null;
-      setGuide(savedGuide);
       if (savedMemory) setMemory(savedMemory);
       await refreshUsage();
       notificationPort.success(t("styleGuide.saveSuccess"));
     } catch (error) {
       console.error(error);
-      notificationPort.error(t("styleGuide.saveFailed"));
+      notificationPort.error(
+        error instanceof Error ? error.message : t("styleGuide.saveFailed"),
+      );
     } finally {
       setSaving(false);
     }

@@ -7,6 +7,8 @@ import type { MangaPage } from "../../shared/libraryTypes";
 import { prepareBubbleLayoutJob } from "./bubbleLayoutJob";
 import {
   assertInpaintingJobHasTargets,
+  assertInpaintingCompletionWorkflow,
+  assertRequestedBlockExists,
   markFailedTranslationCompletions,
   refreshInpaintingRequestChapters,
 } from "./inpaintingJobCompletion";
@@ -21,6 +23,8 @@ import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import type { InpaintingJobRuntime } from "./inpaintingJobRuntime";
 import { commitProcessedInpaintingPage } from "./inpaintingJobHistory";
 import { acquireInpaintingEngineIfNeeded } from "./inpaintingJobEngine";
+import { acquireJobPage, releaseJobPage } from "./jobPageOwnership";
+import { createPageJobTargetSnapshot } from "../../shared/pageRevision";
 import {
   emitInpaintingCancelled,
   emitInpaintingCompleted,
@@ -176,7 +180,16 @@ export async function handleInpaintingJobError({
     };
   }
 
-  await markFailedTranslationCompletions(request, state, runtime);
+  const ownedPages = context.jobs
+    .get(id)
+    ?.resources?.filter((resource) => resource.kind === "page-content")
+    .map((resource) => resource.scope);
+  await markFailedTranslationCompletions(
+    request,
+    state,
+    runtime,
+    ownedPages ? new Set(ownedPages) : undefined,
+  );
   const refreshed = await refreshInpaintingRequestChapters(
     request,
     state,
@@ -246,35 +259,10 @@ function countTargetBlocks(
   );
 }
 
-function assertRequestedBlockExists(
-  targets: readonly InpaintingJobPage[],
-  target: InpaintingTarget,
-): void {
-  if (!target.blockId) {
-    return;
-  }
-  const page = targets[0]?.page;
-  if (
-    targets.length !== 1 ||
-    !page?.blocks.some((block) => block.id === target.blockId)
-  ) {
-    throw new Error("선택한 텍스트 블록을 페이지에서 찾지 못했습니다.");
-  }
-}
-
-async function processInpaintingPages({
-  abortController,
-  context,
-  emit,
-  id,
-  request,
-  targets,
-  state,
-  target,
-  totalTargetBlocks,
-  runtime,
-}: ProcessInpaintingPagesOptions): Promise<ProcessInpaintingPagesResult> {
-  const timing = await prepareInpaintingPageRuntime({
+async function processInpaintingPages(
+  options: ProcessInpaintingPagesOptions,
+): Promise<ProcessInpaintingPagesResult> {
+  const {
     abortController,
     context,
     emit,
@@ -283,11 +271,28 @@ async function processInpaintingPages({
     targets,
     state,
     target,
-    totalTargetBlocks,
     runtime,
-  });
+  } = options;
+  const timing = await prepareInpaintingPageRuntime(options);
 
   for (const [pageIndex, targetPage] of targets.entries()) {
+    if (context.jobs.get(id)?.resources) {
+      targetPage.page = await acquireJobPage(
+        context.jobs,
+        id,
+        targetPage.chapterId,
+        targetPage.page.id,
+        runtime.openChapter,
+      );
+      state.targetSnapshots = state.targetSnapshots.map((snapshot) =>
+        snapshot.chapterId === targetPage.chapterId &&
+        snapshot.pageId === targetPage.page.id
+          ? createPageJobTargetSnapshot(targetPage.chapterId, targetPage.page)
+          : snapshot,
+      );
+      assertRequestedBlockExists([targetPage], target);
+      assertInpaintingCompletionWorkflow(targetPage.page, state);
+    }
     const result = await processInpaintingPage({
       continueOnNoChanges: request.mode === "selection-pattern",
       abortController,
@@ -309,6 +314,7 @@ async function processInpaintingPages({
       runtime,
       state,
     });
+    releaseJobPage(context.jobs, id, targetPage.chapterId, targetPage.page.id);
   }
 
   return {
@@ -358,13 +364,17 @@ async function prepareInpaintingPageRuntime({
         context,
         request,
         runtime,
-        totalTargetBlocks,
+        totalTargetBlocks: context.jobs.get(id)?.resources
+          ? Math.max(1, totalTargetBlocks)
+          : totalTargetBlocks,
       }),
   );
   const { appSettings } = preparedBubbleLayout;
   state.bubbleLayoutPostprocess = preparedBubbleLayout.config;
   state.bubbleLayoutRunner = preparedBubbleLayout.runner;
-  assertInpaintingJobHasTargets(targets, state, target, totalTargetBlocks);
+  if (!context.jobs.get(id)?.resources) {
+    assertInpaintingJobHasTargets(targets, state, target, totalTargetBlocks);
+  }
   state.inpaintingEngineLease = await measureSharedProcessingStage(
     timing,
     "preparing",
@@ -382,7 +392,9 @@ async function prepareInpaintingPageRuntime({
         id,
         shouldAcquireEngine: !target.layoutOnly,
         pageCount: targets.length,
-        totalTargetBlocks,
+        totalTargetBlocks: context.jobs.get(id)?.resources
+          ? Math.max(1, totalTargetBlocks)
+          : totalTargetBlocks,
         runtime,
       }),
   );
@@ -393,7 +405,5 @@ function getLastJobEvent(
   context: InpaintingJobContext,
   id: string,
 ): JobEvent | undefined {
-  return context.jobs.current?.id === id
-    ? context.jobs.current.lastEvent
-    : undefined;
+  return context.jobs.get(id)?.lastEvent;
 }

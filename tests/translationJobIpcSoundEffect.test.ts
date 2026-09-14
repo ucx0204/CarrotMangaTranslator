@@ -1,3 +1,5 @@
+import { withExecutionSettings } from "../src/main/settings/executionSettings";
+import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import type { BrowserWindow } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
@@ -59,12 +61,11 @@ describe("sound-effect translation IPC", () => {
       senderFrame: { url: "http://127.0.0.1:5173/" },
     };
 
-    await expect(handler(event, request)).resolves.toMatchObject({
-      status: "failed",
-      createdBlocksByPage: [],
-      translatedRegionCount: 0,
-      error: expect.any(String),
-    });
+    await expect(
+      withExecutionSettings(resolveDefaultAppSettings(), () =>
+        handler(event, request),
+      ),
+    ).rejects.toThrow(/실행 중인 작업/);
     expect(jobs.current?.id).toBe("busy-job");
 
     await expect(
@@ -84,9 +85,10 @@ function makeContext(jobs: ActiveJobStore): IpcContext {
   const context: IpcContext = Object.create(null);
   const mainWindow = makeWindow();
   Object.defineProperties(context, {
-    decodeImage: { value: vi.fn() },
-    getMainWindow: { value: () => mainWindow },
-    jobs: { value: jobs },
+    appPaths: { value: Object.create(null), enumerable: true },
+    decodeImage: { value: vi.fn(), enumerable: true },
+    getMainWindow: { value: () => mainWindow, enumerable: true },
+    jobs: { value: jobs, enumerable: true },
   });
   return context;
 }

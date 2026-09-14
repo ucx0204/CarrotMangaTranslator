@@ -43,7 +43,11 @@ async function runRevertInpainting(
   if (!confirmed) return;
   options.setPeekOriginal(false);
   try {
-    await saveDirtyChanges(options.dirty, options.saveNow);
+    if (target.pageId && options.savePageNow) {
+      await options.savePageNow(target.chapterId, target.pageId);
+    } else {
+      await saveDirtyChanges(options.dirty, options.saveNow);
+    }
     const result = await mangaGateway.revertInpainting(
       target.pageId
         ? {
@@ -60,6 +64,7 @@ async function runRevertInpainting(
       options.workspaceHistory.recordImageEdit({
         label: t("workspaceHistory.resetOriginal"),
         transactionId: result.historyTransaction.transactionId,
+        targets: result.historyTransaction.targets,
       });
     }
     options.pushStatus(

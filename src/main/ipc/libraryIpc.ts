@@ -256,7 +256,5 @@ function registerSoundEffectReviewIpc(context: IpcContext): void {
 }
 
 function assertLibraryStructureMutationAvailable(context: IpcContext): void {
-  if (context.operations.current?.mutatesLibrary) {
-    throw new Error(tMain("ipc.errors.libraryOperationBusy"));
-  }
+  context.jobs.gate.assertAvailable([]);
 }

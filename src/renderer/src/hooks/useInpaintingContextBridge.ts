@@ -12,6 +12,7 @@ import type { ProgressSnapshot } from "../lib/jobProgress";
 type UseInpaintingContextBridgeOptions = {
   aiUnavailable?: boolean;
   codexErasureAvailable?: boolean;
+  codexErasureBusy?: boolean;
   blockCounts: BlockCounts;
   brushColor: string;
   brushRadius: number;
@@ -65,6 +66,7 @@ type InpaintingContextState = Pick<
   InpaintingContextValue,
   | "aiUnavailable"
   | "codexErasureAvailable"
+  | "codexErasureBusy"
   | "blockCounts"
   | "brushColor"
   | "brushRadius"
@@ -142,6 +144,7 @@ function resolveRetouchCursor({
 function useInpaintingContextState({
   aiUnavailable,
   codexErasureAvailable,
+  codexErasureBusy,
   blockCounts,
   brushColor,
   brushRadius,
@@ -165,6 +168,7 @@ function useInpaintingContextState({
     () => ({
       aiUnavailable,
       codexErasureAvailable,
+      codexErasureBusy,
       currentChapter,
       selectedPage,
       blockCounts,
@@ -187,6 +191,7 @@ function useInpaintingContextState({
     [
       aiUnavailable,
       codexErasureAvailable,
+      codexErasureBusy,
       blockCounts,
       brushColor,
       brushRadius,

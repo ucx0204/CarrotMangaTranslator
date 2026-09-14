@@ -168,6 +168,7 @@ describe("IPC schemas", () => {
     const base = {
       chapterId,
       pageId,
+      expectedRevision: "page-v1:0000000000000000",
       mode: "paint" as const,
       color: "#ffffff",
     };

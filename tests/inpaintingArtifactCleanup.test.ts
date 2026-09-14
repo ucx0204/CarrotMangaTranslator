@@ -33,6 +33,30 @@ describe("inpainting artifact cleanup", () => {
     ).rejects.toThrow("인페인팅 결과를 적용할 페이지를 찾지 못했습니다.");
   });
 
+  it("rejects duplicate pages and mismatched ownership targets before changing saved content", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const chapter = await library.openChapter("chapter-a");
+    const page = firstPage(chapter);
+    const target = createPageJobTargetSnapshot(chapter.id, page);
+
+    await expect(
+      library.updatePagesAfterInpainting(chapter.id, [page, page]),
+    ).rejects.toThrow("같은 페이지의 인페인팅 결과가 중복되었습니다.");
+    await expect(
+      library.updatePagesAfterInpainting(chapter.id, [page], {
+        expectedTargets: [target, target],
+      }),
+    ).rejects.toThrow("인페인팅 작업 대상이 중복되었습니다.");
+    await expect(
+      library.updatePagesAfterInpainting(chapter.id, [page], {
+        expectedTargets: [{ ...target, chapterId: "another-chapter" }],
+      }),
+    ).rejects.toThrow("인페인팅 작업 대상이 현재 화와 일치하지 않습니다.");
+    expect(await library.openChapter(chapter.id)).toEqual(chapter);
+  });
+
   it("persists a completed translation workflow receipt with the result", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);
@@ -169,7 +193,7 @@ describe("inpainting artifact cleanup", () => {
     expect(existsSync(oldPath)).toBe(false);
   });
 
-  it("keeps retained retouch artifacts while replacing an inpainted page result", async () => {
+  it("keeps history and unrelated unpublished artifacts while replacing a page result", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);
     await seedLibrary(rootDir);
@@ -203,7 +227,7 @@ describe("inpainting artifact cleanup", () => {
     expect(withNew.pages[0]?.inpaintedImagePath).toBe(newPath);
     expect(existsSync(oldPath)).toBe(true);
     expect(existsSync(newPath)).toBe(true);
-    expect(existsSync(orphanPath)).toBe(false);
+    expect(existsSync(orphanPath)).toBe(true);
   });
 
   it("keeps retained retouch artifacts while undoing and redoing a page result", async () => {

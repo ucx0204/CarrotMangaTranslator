@@ -5,11 +5,13 @@ import type { Point, TranslationBlock, WarpTransform } from "./textTypes";
 import type {
   LetteringMaskStroke,
   LetteringTool,
+  LetteringPaintStroke,
 } from "./generatedLetteringMaskTypes";
 export const DEFAULT_LETTERING_TOOL: LetteringTool = {
   blockId: null,
   space: "asset",
   mode: "hide",
+  color: "#000000",
   shape: "circle",
   size: 24,
   softness: 0,
@@ -27,11 +29,29 @@ export function letteringMaskSvg(
         `<polygon fill="black" points="${points.map((p) => `${p.x},${p.y}`).join(" ")}"/>`,
     )
     .join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"><rect width="1000" height="1000" fill="white"/>${shapes}${strokes.map(strokeSvg).join("")}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"><rect width="1000" height="1000" fill="white"/>${shapes}${strokes.map((stroke, index) => strokeSvg(stroke, index)).join("")}</svg>`;
 }
 
-function strokeSvg(stroke: LetteringMaskStroke, index: number): string {
-  const color = stroke.mode === "hide" ? "black" : "white";
+export function letteringPaintSvg(
+  strokes: readonly LetteringPaintStroke[],
+): string {
+  const shapes = strokes
+    .map((stroke, index) =>
+      strokeSvg(
+        { ...stroke, space: "asset", mode: "restore" },
+        index,
+        /^#[0-9a-f]{6}$/i.test(stroke.color) ? stroke.color : "#000000",
+      ),
+    )
+    .join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="none">${shapes}</svg>`;
+}
+
+function strokeSvg(
+  stroke: LetteringMaskStroke,
+  index: number,
+  color = stroke.mode === "hide" ? "black" : "white",
+): string {
   const points = stroke.points.map((point) => ({
     x: point.x / stroke.radiusX,
     y: point.y / stroke.radiusY,

@@ -1,3 +1,4 @@
+import { isAbortErrorLike } from "../pipeline/failure";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { StartSoundEffectTranslationResult } from "../../shared/analysisTypes";
@@ -43,7 +44,13 @@ export function finishSoundEffectTranslation(
     translatedRegionCount: state.translatedRegionCount,
     remainingRegionCount,
     ...(error ? { error } : {}),
-    ...(state.warnings.length > 0 ? { warnings: state.warnings } : {}),
+    ...(state.warnings.length > 0
+      ? {
+          warnings: state.warnings
+            .slice(0, 500)
+            .map((warning) => warning.slice(0, 100_000)),
+        }
+      : {}),
   };
 }
 
@@ -89,7 +96,7 @@ export function emitSoundEffectPageDone(
   });
 }
 
-export function emitSoundEffectTerminal(
+function emitSoundEffectTerminal(
   id: string,
   emit: EmitJobEvent,
   status: "completed" | "partial" | "cancelled" | "failed",
@@ -114,4 +121,76 @@ export function emitSoundEffectTerminal(
     pageTotal,
     detail,
   });
+}
+
+export async function finishFailedSoundEffectTranslation(
+  {
+    abortController,
+    emit,
+    error,
+    id,
+    request,
+    state,
+    context,
+  }: Omit<SoundEffectTranslationJobInput, "registerResourceCleanup"> & {
+    error: unknown;
+  },
+  readChapter: (chapterId: string) => Promise<ChapterSnapshot>,
+): Promise<StartSoundEffectTranslationResult> {
+  const cancelled = abortController.signal.aborted || isAbortErrorLike(error);
+  const chapter = await readChapter(request.chapterId).catch(
+    () => state.chapter ?? undefined,
+  );
+  const remainingRegionCount = chapter
+    ? countChapterPendingSoundEffectRegions(chapter)
+    : 0;
+  if (cancelled) {
+    emitSoundEffectTerminal(
+      id,
+      emit,
+      "cancelled",
+      context.jobs.get(id)?.lastEvent?.pageTotal ?? 0,
+      state.translatedRegionCount,
+    );
+    return {
+      status: "cancelled",
+      chapter,
+      createdBlocksByPage: state.createdBlocksByPage,
+      translatedRegionCount: state.translatedRegionCount,
+      remainingRegionCount,
+      ...(state.warnings.length > 0
+        ? {
+            warnings: state.warnings
+              .slice(0, 500)
+              .map((warning) => warning.slice(0, 100_000)),
+          }
+        : {}),
+    };
+  }
+  const message = (
+    error instanceof Error ? error.message : String(error)
+  ).slice(0, 100_000);
+  const status = state.translatedRegionCount > 0 ? "partial" : "failed";
+  emit({
+    id,
+    kind: "sound-effect-translation",
+    status,
+    progressText:
+      state.translatedRegionCount > 0
+        ? "효과음 번역 일부 완료"
+        : "효과음 번역 실패",
+    phase: status,
+    detail: message,
+  });
+  return {
+    status,
+    chapter,
+    createdBlocksByPage: state.createdBlocksByPage,
+    translatedRegionCount: state.translatedRegionCount,
+    remainingRegionCount,
+    warnings: state.warnings
+      .slice(0, 500)
+      .map((warning) => warning.slice(0, 100_000)),
+    error: message,
+  };
 }

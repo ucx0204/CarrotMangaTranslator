@@ -9,6 +9,7 @@ import { appI18n } from "../appI18n";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import { toast } from "../lib/toastStore";
 import type { PanelSessionValue } from "./panelSession";
+import { useRemotePanelEditHandoff } from "./usePanelEditHandoff";
 
 const noop = (): void => undefined;
 const REMOTE_WINDOW_ACTIONS = {
@@ -64,6 +65,7 @@ function dispatchCommand(command: PanelCommand): void {
  */
 export function useRemotePanelSession(): PanelSessionValue | null {
   const [syncState, setSyncState] = React.useState<PanelSyncState | null>(null);
+  const finishingInput = useRemotePanelEditHandoff(syncState);
   React.useEffect(() => {
     return mangaGateway.onPanelState((state) => {
       setSyncState(state);
@@ -88,8 +90,16 @@ export function useRemotePanelSession(): PanelSessionValue | null {
     };
   }, []);
   return React.useMemo(
-    () => (syncState ? buildRemotePanelSessionValue(syncState) : null),
-    [syncState],
+    () =>
+      syncState
+        ? buildRemotePanelSessionValue({
+            ...syncState,
+            editorDisabled: finishingInput
+              ? false
+              : syncState.editorDisabled || Boolean(syncState.editHandoff),
+          })
+        : null,
+    [syncState, finishingInput],
   );
 }
 

@@ -1,3 +1,4 @@
+import { ImageCheckpointError } from "./imageJobFailure";
 import { nativeImage } from "electron";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -360,10 +361,7 @@ async function generateRegionLayer(
     join(directory, `lettering-${block.id}-${context.attempt}.png`),
     bytes,
   );
-  const snapshot = { ...page, blocks: [...blocks] };
-  const render = () => context.onGenerated?.(snapshot);
-  job.preview = (job.preview ?? Promise.resolve()).then(render, render);
-  await job.preview;
+  await checkpointGeneratedLettering(job, { ...page, blocks: [...blocks] });
   return `data:image/png;base64,${bytes.toString("base64")}`;
 }
 
@@ -387,4 +385,19 @@ async function letteringReference(job: LetteringJob, region: CodexPageRegion) {
   const reference = (await job.references)[imageRegions.indexOf(region)];
   if (!reference) throw new Error("효과음 원문 참고 이미지가 없습니다.");
   return reference;
+}
+
+async function checkpointGeneratedLettering(
+  job: LetteringJob,
+  snapshot: MangaPage,
+): Promise<void> {
+  const render = () => job.context.onGenerated?.(snapshot);
+  job.preview = (job.preview ?? Promise.resolve()).then(
+    render,
+    (error: unknown) => {
+      if (error instanceof ImageCheckpointError) throw error;
+      return render();
+    },
+  );
+  await job.preview;
 }

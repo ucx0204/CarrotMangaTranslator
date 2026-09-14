@@ -21,6 +21,7 @@ export function useLetteringStroke(
   const stroke = React.useRef<{
     pointer: number;
     value: LetteringMaskStroke;
+    paintColor?: string;
   } | null>(null);
   const { tool } = controls;
   const cancel = React.useCallback(() => {
@@ -52,7 +53,7 @@ export function useLetteringStroke(
     preview.queue({
       blockPreview: {
         blockId: block.id,
-        block: withStroke(block, current.value),
+        block: withStroke(block, current.value, current.paintColor),
       },
     });
   };
@@ -69,6 +70,7 @@ export function useLetteringStroke(
     stroke.current = {
       pointer: event.pointerId,
       value: createLetteringStroke(tool, block, page),
+      paintColor: tool.mode === "paint" ? (tool.color ?? "#000000") : undefined,
     };
     update(event);
   };
@@ -76,7 +78,11 @@ export function useLetteringStroke(
     event.stopPropagation();
     if (stroke.current?.pointer !== event.pointerId) return;
     update(event);
-    const next = withStroke(block, stroke.current.value);
+    const next = withStroke(
+      block,
+      stroke.current.value,
+      stroke.current.paintColor,
+    );
     cancel();
     controls.onUpdate({ generatedLettering: next.generatedLettering });
   };
@@ -102,9 +108,10 @@ function createLetteringStroke(
   page: MangaPage,
 ): LetteringMaskStroke {
   const box = block.renderBbox ?? block.bbox;
+  const space = tool.mode === "paint" ? "asset" : tool.space;
   return {
-    space: tool.space,
-    mode: tool.mode,
+    space,
+    mode: tool.mode === "paint" ? "restore" : tool.mode,
     shape: tool.shape,
     softness: tool.softness,
     points: [],
@@ -112,13 +119,13 @@ function createLetteringStroke(
       100000,
       (tool.size / 2 / page.width) *
         1000 *
-        (tool.space === "asset" ? 1000 / box.w : 1),
+        (space === "asset" ? 1000 / box.w : 1),
     ),
     radiusY: Math.min(
       100000,
       (tool.size / 2 / page.height) *
         1000 *
-        (tool.space === "asset" ? 1000 / box.h : 1),
+        (space === "asset" ? 1000 / box.h : 1),
     ),
   };
 }
@@ -126,12 +133,28 @@ function createLetteringStroke(
 function withStroke(
   block: TranslationBlock,
   stroke: LetteringMaskStroke,
+  paintColor?: string,
 ): TranslationBlock {
   if (!block.generatedLettering) return block;
   return {
     ...block,
     generatedLettering: {
       ...block.generatedLettering,
+      ...(paintColor
+        ? {
+            paintStrokes: [
+              ...(block.generatedLettering.paintStrokes ?? []),
+              {
+                color: paintColor,
+                shape: stroke.shape,
+                radiusX: stroke.radiusX,
+                radiusY: stroke.radiusY,
+                softness: stroke.softness,
+                points: [...stroke.points],
+              },
+            ],
+          }
+        : {}),
       maskStrokes: [
         ...(block.generatedLettering?.maskStrokes ?? []),
         { ...stroke, points: [...stroke.points] },

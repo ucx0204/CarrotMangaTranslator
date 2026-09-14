@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
+import { createPageRevision } from "../../../shared/pageRevision";
 import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
 import { saveDirtyChanges } from "./inpaintingActionTypes";
 import type {
@@ -14,15 +15,16 @@ import type {
   InpaintingRetouchRefs,
   InpaintingRetouchState,
 } from "./inpaintingRetouchState";
+import { pendingPageEdits } from "../lib/pageEditBarrier";
 import {
   applyRetouchRequest,
+  saveRetouchPage,
   collectReplayRetainedPaths,
   collectRetainedRetouchArtifactPaths,
   distanceBetween,
   findPageInpaintPath,
   roundRetouchPoint,
   setRetouchBusyState,
-  updateChapterInpaintPath,
 } from "./inpaintingRetouchHelpers";
 
 type RetouchActions = Pick<
@@ -108,7 +110,6 @@ function useSaveChapterWithInpaintPath({
   dirty,
   mergeLiveChapter,
   saveNow,
-  setCurrentChapter,
 }: UseInpaintingRetouchOptions): SaveChapterWithInpaintPath {
   return useCallback(
     async (pageId, inpaintedImagePath, retainedInpaintedArtifactPaths = []) => {
@@ -117,19 +118,13 @@ function useSaveChapterWithInpaintPath({
       if (!chapter) {
         return null;
       }
-      const previousChapter = chapter;
-      const nextChapter = updateChapterInpaintPath(
-        chapter,
-        pageId,
-        inpaintedImagePath,
-      );
-      clearPageImageCache();
-      setCurrentChapter(nextChapter);
-      currentChapterRef.current = nextChapter;
+      const page = chapter.pages.find((candidate) => candidate.id === pageId);
+      if (!page) return null;
       try {
         const result = await mangaGateway.setPageInpaintingResult({
           chapterId: chapter.id,
           pageId,
+          expectedRevision: createPageRevision(page),
           inpaintedImagePath: inpaintedImagePath ?? null,
           retainedInpaintedArtifactPaths,
         });
@@ -137,19 +132,10 @@ function useSaveChapterWithInpaintPath({
         return result.chapter;
       } catch (error) {
         clearPageImageCache();
-        currentChapterRef.current = previousChapter;
-        setCurrentChapter(previousChapter);
         throw error;
       }
     },
-    [
-      clearPageImageCache,
-      currentChapterRef,
-      dirty,
-      mergeLiveChapter,
-      saveNow,
-      setCurrentChapter,
-    ],
+    [clearPageImageCache, currentChapterRef, dirty, mergeLiveChapter, saveNow],
   );
 }
 
@@ -178,6 +164,10 @@ function useApplyRetouchOperationAction({
         return;
       }
       setRetouchBusyState(refs, state.setRetouchBusy, true);
+      const finishEdit = pendingPageEdits.begin(
+        currentChapter.id,
+        selectedPage.id,
+      );
       const beforePath = selectedPage.inpaintedImagePath;
       const retainedInpaintedArtifactPaths =
         collectRetainedRetouchArtifactPaths(
@@ -186,7 +176,7 @@ function useApplyRetouchOperationAction({
           [beforePath],
         );
       try {
-        await saveDirtyChanges(options.dirty, options.saveNow);
+        await saveRetouchPage(options, currentChapter.id, selectedPage.id);
         const result = await applyRetouchRequest(
           options,
           operation,
@@ -200,12 +190,15 @@ function useApplyRetouchOperationAction({
           options.workspaceHistory.recordImageEdit({
             label: t("workspaceHistory.retouch"),
             transactionId,
+            targets: result.historyTransaction?.targets,
           });
         }
       } catch (error) {
+        finishEdit(error);
         console.error(error);
         options.pushStatus(t("inpainting.retouch.applyFailed"));
       } finally {
+        finishEdit();
         setRetouchBusyState(refs, state.setRetouchBusy, false);
       }
     },

@@ -125,7 +125,7 @@ function WorkspaceCanvasChrome({
     <StageToolbar
       bubbleLayoutAvailable={hasSelectedBubbleLayoutTarget(props)}
       brushColor={props.brushColor}
-      disabled={props.jobActive}
+      disabled={!props.selectedPage}
       hidden={props.stageToolbarHidden}
       lastRetouchTool={props.lastRetouchTool}
       onSelectTool={props.onSelectStageTool}

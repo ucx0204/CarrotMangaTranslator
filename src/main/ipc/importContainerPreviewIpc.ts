@@ -179,6 +179,7 @@ async function runContainerPreviewOperation(
       {
         id: `library-import-preview-${randomUUID()}`,
         kind: "library-import-preview",
+        resources: [],
         mutatesLibrary: false,
         presentation: { phase, sourceKind, cancellable: true },
       },

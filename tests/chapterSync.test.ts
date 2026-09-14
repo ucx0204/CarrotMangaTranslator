@@ -63,6 +63,47 @@ function makeChapter(): ChapterSnapshot {
 }
 
 describe("chapter sync helpers", () => {
+  it.each([false, true])(
+    "keeps a newer saved B page when A's older response arrives (dirty=%s)",
+    (dirty) => {
+      const local = makeChapter();
+      const live = makeChapter();
+      local.updatedAt = "2026-04-19T00:02:00.000Z";
+      local.pages[1] = {
+        ...local.pages[1],
+        updatedAt: local.updatedAt,
+        inpaintedImagePath: "B-new-paint.png",
+      };
+      live.updatedAt = "2026-04-19T00:01:00.000Z";
+      live.pages[0] = {
+        ...live.pages[0],
+        updatedAt: live.updatedAt,
+        inpaintedImagePath: "A-translated.png",
+      };
+      const result = mergeLiveChapterPreservingDirtyPages(
+        live,
+        local,
+        dirty ? ["page-2"] : [],
+      );
+      expect(result.chapter.pages[0]).toBe(live.pages[0]);
+      expect(result.chapter.pages[1]).toBe(local.pages[1]);
+      expect(result.preservedDirtyPageIds).toEqual(dirty ? ["page-2"] : []);
+      expect(result.chapter.updatedAt).toBe(local.updatedAt);
+    },
+  );
+
+  it("applies changed reading order and completion metadata even when block text is unchanged", () => {
+    const local = makeChapter();
+    const live = makeChapter();
+    live.pages[0].blockOrder = ["block-1"];
+    live.pages[0].translationCompletion = {
+      workflow: "erase-original",
+      status: "completed",
+    };
+    expect(
+      mergeLiveChapterPreservingDirtyPages(live, local, []).chapter.pages[0],
+    ).toBe(live.pages[0]);
+  });
   it("keeps the current page and block selection when they still exist after a live refresh", () => {
     const selection = resolveSelectionAfterChapterSync(
       makeChapter(),

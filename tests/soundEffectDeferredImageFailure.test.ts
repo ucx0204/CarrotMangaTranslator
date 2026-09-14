@@ -1,3 +1,4 @@
+import { CodexImageEditError } from "../src/main/codexImageEditing";
 import { expect, it, vi } from "vitest";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import { confirmSoundEffectTextReview } from "../src/main/application/soundEffectTextReview";
@@ -25,7 +26,8 @@ it("saves both pretranslated pages after the first deferred image failure and re
     f.input,
     f.dependencies,
   ).catch((failure: unknown) => failure);
-  expect(error).toBe(f.imageFailure);
+  expect(error).toBeInstanceOf(Error);
+  expect((error as Error).message).toContain(f.imageFailure.message);
   expect(f.order).toEqual([
     "translate:page-1",
     "translate:page-2",
@@ -33,9 +35,12 @@ it("saves both pretranslated pages after the first deferred image failure and re
     "font:page-1",
     "font:page-2",
     "review:confirm",
-    "image:page-1",
     "save:page-1",
     "save:page-2",
+    "image:page-1",
+    "checkpoint:page-1",
+    "image:page-2",
+    "checkpoint:page-2",
     "font:dispose",
   ]);
   expect(f.saved.map((page) => page.blocks[0]?.translatedText)).toEqual([
@@ -52,7 +57,7 @@ it("saves both pretranslated pages after the first deferred image failure and re
       }),
     ]),
   );
-  expect(f.dependencies.editImages).toHaveBeenCalledOnce();
+  expect(f.dependencies.editImages).toHaveBeenCalledTimes(2);
   expect(f.dependencies.inpaintCreatedBlocks).not.toHaveBeenCalled();
 
   const result = await handleSoundEffectTranslationJobError({
@@ -62,7 +67,7 @@ it("saves both pretranslated pages after the first deferred image failure and re
   });
   expect(result).toMatchObject({
     status: "partial",
-    error: f.imageFailure.message,
+    error: expect.stringContaining(f.imageFailure.message),
     translatedRegionCount: 2,
     remainingRegionCount: 0,
     createdBlocksByPage: f.saved.map((page) => ({
@@ -74,7 +79,7 @@ it("saves both pretranslated pages after the first deferred image failure and re
   expect(f.input.emit).toHaveBeenLastCalledWith(
     expect.objectContaining({
       status: "partial",
-      detail: f.imageFailure.message,
+      detail: expect.stringContaining(f.imageFailure.message),
     }),
   );
 });
@@ -314,9 +319,21 @@ function fixture(cancelAt?: CancellationPoint) {
       order.push(`image:${page.id}`);
       cancel("image", page.id);
       signal.throwIfAborted();
-      if (cancelAt) return page;
-      throw imageFailure;
+      if (cancelAt || page.id !== "page-1") return page;
+      throw new CodexImageEditError(page, imageFailure);
     }),
+    saveImageRecovery: vi.fn(async () => undefined),
+    saveImages: async (_chapterId, pages) => {
+      for (const page of pages) {
+        order.push(`checkpoint:${page.id}`);
+        chapter.pages = chapter.pages.map((current) =>
+          current.id === page.id ? page : current,
+        );
+        const index = saved.findIndex((current) => current.id === page.id);
+        saved[index] = structuredClone(page);
+      }
+      return structuredClone(chapter);
+    },
     inpaintCreatedBlocks: vi.fn(),
     appendResolvedBlocks: async (
       _chapterId,

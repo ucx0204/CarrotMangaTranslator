@@ -111,7 +111,7 @@ it.each(["normal", "sexual", "offline", "cancel"])(
         await expect(operation).rejects.toThrow(
           outcome === "offline" ? "offline" : /abort/i,
         );
-        expect(turn).toHaveBeenCalledTimes(1);
+        expect(turn).toHaveBeenCalledTimes(outcome === "offline" ? 2 : 1);
       } else {
         const result = await operation;
         expect(turn).toHaveBeenCalledTimes(2);
@@ -304,20 +304,20 @@ it.each(["complete", "cancel", "failure"])(
     );
     if (outcome === "complete") {
       await work;
-      expect(calls).toBe(3);
+      expect(calls).toBe(4);
       expect(bitmap.every((value) => value === 255)).toBe(true);
       expect(
         (await readdir(directory)).filter((name) =>
           name.startsWith("permission-"),
         ),
-      ).toHaveLength(3);
+      ).toHaveLength(4);
     } else {
       await expect(work).rejects.toThrow();
       expect(bitmap.equals(before)).toBe(true);
       expect(calls).toBe(outcome === "cancel" ? 1 : 2);
     }
   },
-  // Three real PNG tiles and alignment/composition run under V8 coverage.
+  // Four real PNG tiles and alignment/composition run under V8 coverage.
   // Preserve full-size fixtures and every byte check on slower CI runners.
   45_000,
 );
@@ -641,9 +641,16 @@ class Raster {
     return { width: this.width, height: this.height };
   }
   resize(size: { width: number; height: number }) {
-    expect(size.width).toBe(this.width);
-    expect(size.height).toBe(this.height);
-    return this;
+    const data = Buffer.alloc(size.width * size.height * 4);
+    for (let y = 0; y < size.height; y++)
+      for (let x = 0; x < size.width; x++) {
+        const offset =
+          (Math.floor((y * this.height) / size.height) * this.width +
+            Math.floor((x * this.width) / size.width)) *
+          4;
+        this.data.copy(data, (y * size.width + x) * 4, offset, offset + 4);
+      }
+    return new Raster(data, size.width, size.height);
   }
   crop(rect: { x: number; y: number; width: number; height: number }) {
     expect(rect.x + rect.width).toBeLessThanOrEqual(this.width);
@@ -656,6 +663,78 @@ class Raster {
     return new Raster(data, rect.width, rect.height);
   }
 }
+
+it.each([false, true])(
+  "validates geometry after resizing a different ImageGen aspect ratio (%s)",
+  async (badContext) => {
+    const exact = await setup();
+    await exact.engine.inpaint(exact.bitmap, 192, 160, exact.mask, [
+      exact.window,
+    ]);
+    const changed = await setup();
+    const generate = changed.turn.getMockImplementation();
+    if (!generate) throw new Error("Missing image boundary");
+    changed.turn.mockImplementation(async (request) => {
+      const response = await generate(request);
+      const png = PNG.sync.read(
+        Buffer.from(JSON.parse(response.text).result, "base64"),
+      );
+      if (badContext)
+        for (let i = 0; i < png.data.length; i += 4)
+          png.data.fill(12, i, i + 3);
+      const resized = new Raster(png.data, png.width, png.height).resize({
+        width: png.width * 2,
+        height: png.height * 3,
+      });
+      return {
+        ...response,
+        text: JSON.stringify({ result: resized.toPNG().toString("base64") }),
+      };
+    });
+    const operation = changed.engine.inpaint(
+      changed.bitmap,
+      192,
+      160,
+      changed.mask,
+      [changed.window],
+    );
+    if (badContext) {
+      await expect(operation).rejects.toThrow("원본 경계");
+      expect(changed.bitmap).toEqual(changed.before);
+      const rejectedFiles = await readdir(changed.directory);
+      const firstSource = rejectedFiles.find((name) =>
+        name.startsWith("source-"),
+      );
+      const diagnostic = rejectedFiles.find((name) =>
+        name.startsWith("splice-"),
+      );
+      if (!firstSource || !diagnostic)
+        throw new Error("Missing rejected input evidence");
+      const sourceBytes = await readFile(join(changed.directory, firstSource));
+      const audit = JSON.parse(
+        await readFile(join(changed.directory, diagnostic), "utf8"),
+      );
+      expect(audit.registration.accepted).toBe(false);
+      expect(audit.aspectMismatch).toBe(true);
+      changed.turn.mockImplementation(generate);
+      await changed.engine.inpaint(changed.bitmap, 192, 160, changed.mask, [
+        changed.window,
+      ]);
+      expect(await readFile(join(changed.directory, firstSource))).toEqual(
+        sourceBytes,
+      );
+      expect(
+        (await readdir(changed.directory)).filter((name) =>
+          name.startsWith("source-"),
+        ),
+      ).toHaveLength(2);
+    } else {
+      await operation;
+      expect(changed.bitmap).toEqual(exact.bitmap);
+      expect(changed.bitmap).not.toEqual(changed.before);
+    }
+  },
+);
 
 it.each([false, true, "partial-change"] as const)(
   "distinguishes unchanged output from mismatched framing (%s)",

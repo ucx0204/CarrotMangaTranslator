@@ -13,3 +13,7 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+.outline {
+  padding-block-end: 12px;
+  border-block-end: 1px solid var(--border);
+}

@@ -10,6 +10,7 @@ import {
   APP_OPERATION_STATUSES,
 } from "./appOperationTypes";
 import { defineIpcContract } from "./ipcContractCore";
+import { appActivityIpcContracts } from "./ipcAppActivityContracts";
 
 const operationIdSchema = z.string().min(1).max(240);
 
@@ -43,6 +44,13 @@ const cancelResultSchema: z.ZodType<AppOperationCancelResult> = z
   .strict();
 
 export const appOperationIpcContracts = {
+  ...appActivityIpcContracts,
+  getActiveAppOperations: defineIpcContract<[], AppOperationActivityEvent[]>({
+    apiKey: "getActiveAppOperations",
+    channel: "app-operation:get-all",
+    args: z.tuple([]),
+    result: z.array(AppOperationActivityEventSchema),
+  }),
   getActiveAppOperation: defineIpcContract<
     [],
     AppOperationActivityEvent | null

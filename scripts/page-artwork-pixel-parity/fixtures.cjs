@@ -24,6 +24,8 @@ function createFixtureBlocks() {
         sourceText: "",
         translatedText: "텍스트",
         dataUrl: generatedLayerFixture(),
+        outline: { width: 8, color: "#ffffff" },
+        paintStrokes: [letteringPaintFixture()],
         occlusionPolygons: [
           [
             { x: 710, y: 650 },
@@ -151,6 +153,20 @@ function createFixtureBlocks() {
       translatedText: "",
     }),
   ];
+}
+
+function letteringPaintFixture() {
+  return {
+    color: "#ed531c",
+    shape: "circle",
+    points: [
+      { x: 100, y: 850 },
+      { x: 900, y: 850 },
+    ],
+    radiusX: 40,
+    radiusY: 35,
+    softness: 0.2,
+  };
 }
 
 function generatedLayerFixture() {

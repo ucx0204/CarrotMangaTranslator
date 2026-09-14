@@ -1,5 +1,8 @@
 import { externalImageMask } from "../imageRedactionContext";
-import { flattenImageRedaction } from "../imageRedactionPixels";
+import {
+  flattenImageRedaction,
+  restoreHiddenPixels,
+} from "../imageRedactionPixels";
 import { nativeImage } from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -162,13 +165,9 @@ async function inpaintCodexWindow(
   if (decoded.isEmpty())
     throw new Error("Codex 원문 제거 결과를 읽지 못했습니다.");
   const generated = decoded.getSize();
-  if (
+  const aspectMismatch =
     Math.abs(Math.log(generated.width / generated.height / (rect.w / rect.h))) >
-    0.025
-  )
-    throw new Error(
-      "생성된 배경의 비율이 요청한 작업 영역과 다릅니다. 결과를 확인해 주세요.",
-    );
+    0.025;
   const candidate = PNG.sync.read(
     decoded.resize({ width: rect.w, height: rect.h, quality: "best" }).toPNG(),
   );
@@ -194,7 +193,13 @@ async function inpaintCodexWindow(
   await recordRepair(
     directory,
     index,
-    { rect, erase, mode: request.mode, generatedSize: decoded.getSize() },
+    {
+      rect,
+      erase,
+      mode: request.mode,
+      generatedSize: decoded.getSize(),
+      aspectMismatch,
+    },
     repair,
   );
   pasteRepair(request, rect, repair);
@@ -208,6 +213,7 @@ async function recordRepair(
     erase: PixelRect;
     mode: Request["mode"];
     generatedSize: { width: number; height: number };
+    aspectMismatch: boolean;
   },
   repair: ReturnType<typeof compositeCodexRepair>,
 ) {
@@ -221,6 +227,12 @@ async function recordRepair(
       changedPixels: repair.difference.changedPixels,
     }),
   );
+  if (geometry.aspectMismatch && !repair.registration.accepted) {
+    const { generatedSize: generated, rect } = geometry;
+    throw new Error(
+      `생성된 배경(${generated.width}×${generated.height})을 작업 영역(${rect.w}×${rect.h})에 맞춰도 원본 경계가 맞지 않습니다. 이 영역은 보류했습니다.`,
+    );
+  }
   // Misaligned context is not image noise. An inflated noise threshold can
   // suppress most removed glyphs while leaving a few changed pixels behind.
   // Those few pixels must not turn an unusable splice into a successful edit.
@@ -330,17 +342,6 @@ function windowRequest(
   };
 }
 
-function restoreHiddenPixels(
-  original: Buffer,
-  working: Buffer,
-  hidden?: Uint8Array,
-): void {
-  if (!hidden) return;
-  for (let pixel = 0; pixel < hidden.length; pixel++)
-    if (hidden[pixel])
-      original.copy(working, pixel * 4, pixel * 4, pixel * 4 + 4);
-}
-
 async function tryNativeContext(
   owner: {
     client: Client;
@@ -380,6 +381,7 @@ async function inpaintWindows(
 ) {
   for (const [index, window] of request.windows.entries()) {
     request.signal.throwIfAborted();
+    const attemptId = randomUUID();
     const owned = windowRequest(request, window, index, options);
     const tiles = planCodexRepairTiles(
       window,
@@ -388,7 +390,7 @@ async function inpaintWindows(
       owned.mask,
     );
     await writeFile(
-      join(directory, `tiles-${index}-${randomUUID()}.json`),
+      join(directory, `tiles-${attemptId}-${index}.json`),
       JSON.stringify({ window, tiles }),
     );
     for (const [tileIndex, tile] of tiles.entries()) {
@@ -401,7 +403,7 @@ async function inpaintWindows(
           tileBounds: tiles.length > 1 ? tile.writeBounds : undefined,
         },
         window,
-        `${index}-${tileIndex}`,
+        `${attemptId}-${index}-${tileIndex}`,
         tile.cropBounds,
       );
     }

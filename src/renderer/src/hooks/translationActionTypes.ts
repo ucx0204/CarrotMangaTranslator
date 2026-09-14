@@ -52,6 +52,7 @@ export type UseTranslationActionsOptions = {
   pushStatus: (line: string, chapterId?: string) => void;
   refreshLibrary: () => Promise<void>;
   saveNow: () => Promise<void>;
+  savePageNow?: (chapterId: string, pageId: string) => Promise<void>;
   syncSavedPageVersion: (chapter: ChapterSnapshot, pageId: string) => void;
   selectedPage: MangaPage | null;
   translationWorkflowDefault?: TranslationWorkflowMode;
@@ -102,5 +103,6 @@ export type TranslationActions = {
     autoFontMatching?: boolean,
     prepareRequest?: PrepareSoundEffectTranslationRequest,
     sfxRendering?: "image" | "font",
+    resumeImageRunId?: string,
   ) => Promise<StartSoundEffectTranslationResult | null>;
 };

@@ -4,9 +4,10 @@ import type { TranslationBlock } from "../../../shared/textTypes";
 import { DEFAULT_LETTERING_TOOL } from "../../../shared/generatedLetteringMask";
 import type { LetteringTool } from "../../../shared/generatedLetteringMaskTypes";
 import { Button } from "./ui/Button";
-import { FieldSlider } from "./ui/FieldSlider";
+import { NumberField } from "./ui/NumberField";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import { CheckboxField } from "./ui/CheckboxField";
+import { ColorField } from "./ColorField";
 import styles from "./GeneratedLetteringControls.module.css";
 
 export function GeneratedLetteringControls({
@@ -41,6 +42,11 @@ export function GeneratedLetteringControls({
       </Button>
       {active ? (
         <>
+          <LetteringOutlineSettings
+            block={block}
+            disabled={disabled}
+            onUpdate={onUpdate}
+          />
           <LetteringBrushSettings
             tool={tool}
             disabled={disabled}
@@ -58,9 +64,10 @@ export function GeneratedLetteringControls({
               size="sm"
               disabled={
                 disabled ||
-                !block.generatedLettering.maskStrokes?.some(
+                (!artwork.maskStrokes?.some(
                   (stroke) => stroke.space === tool.space,
-                )
+                ) &&
+                  !(tool.space === "asset" && artwork.paintStrokes?.length))
               }
               onClick={() =>
                 onUpdate({
@@ -69,6 +76,8 @@ export function GeneratedLetteringControls({
                     maskStrokes: artwork.maskStrokes?.filter(
                       (stroke) => stroke.space !== tool.space,
                     ),
+                    paintStrokes:
+                      tool.space === "asset" ? undefined : artwork.paintStrokes,
                   },
                 })
               }
@@ -102,7 +111,14 @@ function LetteringBrushSettings({
           { id: "asset", label: t("letteringBrush.asset") },
           { id: "page", label: t("letteringBrush.page") },
         ]}
-        onChange={(space) => change({ space })}
+        onChange={(space) =>
+          change({
+            space,
+            ...(space === "page" && tool.mode === "paint"
+              ? { mode: "hide" }
+              : {}),
+          })
+        }
         disabled={disabled}
       />
       <div className={styles.row}>
@@ -111,6 +127,11 @@ function LetteringBrushSettings({
           ariaLabel={t("letteringBrush.mode")}
           value={tool.mode}
           options={[
+            {
+              id: "paint",
+              label: t("letteringBrush.paint"),
+              disabled: tool.space === "page",
+            },
             { id: "hide", label: t("letteringBrush.hide") },
             { id: "restore", label: t("letteringBrush.restore") },
           ]}
@@ -129,26 +150,126 @@ function LetteringBrushSettings({
           disabled={disabled}
         />
       </div>
-      <FieldSlider
-        label={t("letteringBrush.size")}
-        valueLabel={`${tool.size} px`}
-        min={1}
-        max={400}
-        value={tool.size}
-        onChange={(event) => change({ size: Number(event.target.value) })}
-        disabled={disabled}
-      />
-      <FieldSlider
-        label={t("letteringBrush.softness")}
-        valueLabel={`${Math.round(tool.softness * 100)}%`}
-        min={0}
-        max={100}
-        value={tool.softness * 100}
-        onChange={(event) =>
-          change({ softness: Number(event.target.value) / 100 })
-        }
-        disabled={disabled}
-      />
+      {tool.mode === "paint" ? (
+        <ColorField
+          label={t("letteringBrush.paintColor")}
+          value={tool.color ?? "#000000"}
+          disabled={disabled}
+          onChange={(color) => change({ color })}
+        />
+      ) : null}
+      <LetteringBrushSize tool={tool} change={change} disabled={disabled} />
     </>
+  );
+}
+
+function LetteringBrushSize({
+  tool,
+  change,
+  disabled,
+}: {
+  tool: LetteringTool;
+  change: (patch: Partial<LetteringTool>) => void;
+  disabled: boolean;
+}) {
+  const { t } = useTranslation("components");
+  return (
+    <div className="editor-format-number-grid">
+      <div className="editor-format-number-cell">
+        <span>{t("letteringBrush.size")}</span>
+        <NumberField
+          variant="scrubber"
+          ariaLabel={t("letteringBrush.size")}
+          decreaseLabel={t("format.decreaseValue", {
+            label: t("letteringBrush.size"),
+          })}
+          increaseLabel={t("format.increaseValue", {
+            label: t("letteringBrush.size"),
+          })}
+          unit="px"
+          min={1}
+          max={400}
+          step={1}
+          precision={0}
+          value={tool.size}
+          commitMode="blur"
+          onValueChange={(size) => change({ size })}
+          disabled={disabled}
+        />
+      </div>
+      <div className="editor-format-number-cell">
+        <span>{t("letteringBrush.softness")}</span>
+        <NumberField
+          variant="scrubber"
+          ariaLabel={t("letteringBrush.softness")}
+          decreaseLabel={t("format.decreaseValue", {
+            label: t("letteringBrush.softness"),
+          })}
+          increaseLabel={t("format.increaseValue", {
+            label: t("letteringBrush.softness"),
+          })}
+          unit="%"
+          min={0}
+          max={100}
+          step={1}
+          precision={0}
+          value={Math.round(tool.softness * 100)}
+          commitMode="blur"
+          onValueChange={(softness) => change({ softness: softness / 100 })}
+          disabled={disabled}
+        />
+      </div>
+    </div>
+  );
+}
+
+function LetteringOutlineSettings({
+  block,
+  disabled,
+  onUpdate,
+}: {
+  block: TranslationBlock;
+  disabled: boolean;
+  onUpdate: (patch: Partial<TranslationBlock>) => void;
+}) {
+  const { t } = useTranslation("components");
+  const artwork = block.generatedLettering;
+  if (!artwork) return null;
+  const outline = artwork.outline ?? { width: 0, color: "#ffffff" };
+  const change = (patch: Partial<typeof outline>) =>
+    onUpdate({
+      generatedLettering: { ...artwork, outline: { ...outline, ...patch } },
+    });
+  return (
+    <div className={`${styles.outline} editor-format-number-grid`}>
+      <div className="editor-format-number-cell">
+        <span>{t("letteringBrush.outlineWidth")}</span>
+        <NumberField
+          variant="scrubber"
+          ariaLabel={t("letteringBrush.outlineWidth")}
+          decreaseLabel={t("format.decreaseValue", {
+            label: t("letteringBrush.outlineWidth"),
+          })}
+          increaseLabel={t("format.increaseValue", {
+            label: t("letteringBrush.outlineWidth"),
+          })}
+          unit="px"
+          min={0}
+          max={40}
+          step={0.5}
+          precision={1}
+          value={outline.width}
+          disabled={disabled}
+          commitMode="blur"
+          onValueChange={(width) => change({ width })}
+        />
+      </div>
+      <ColorField
+        label={t("letteringBrush.outlineColor")}
+        value={outline.color}
+        disabled={disabled}
+        onChange={(color) => change({ color })}
+      />
+    </div>
   );
 }

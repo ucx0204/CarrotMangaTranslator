@@ -2,6 +2,7 @@ import { useCallback, type MutableRefObject, type PointerEvent } from "react";
 import type { TFunction } from "i18next";
 import type { InpaintingTool } from "../inpainting/inpaintingTypes";
 import { inpaintingGateway } from "../api/inpaintingGateway";
+import { pendingPageEdits } from "../lib/pageEditBarrier";
 import {
   beginRetouchStroke,
   queueRetouchCursor,
@@ -35,8 +36,15 @@ export function useInpaintingPointerDown(
 ): (event: PointerEvent) => boolean {
   return useCallback(
     (event) => {
-      if (!options.inpaintingToolActive || options.jobActive) return false;
+      if (!options.inpaintingToolActive) return false;
       if (startBrushRadiusDrag(options, event, brushRadiusDragRef)) return true;
+      if (
+        (options.jobActive ||
+          pendingPageEdits.isHandingOff(options.selectedPage?.id)) &&
+        options.inpaintingTool !== "mask" &&
+        options.inpaintingTool !== "picker"
+      )
+        return true;
       const resolved = getImagePixelPoint(event, true);
       if (!resolved || !options.stageRef.current) return true;
       queueDrawToolCursor(options, resolved);

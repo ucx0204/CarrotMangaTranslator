@@ -30,9 +30,11 @@ type SoundEffectActionContext = Pick<
   | "pushStatus"
   | "refreshLibrary"
   | "saveNow"
+  | "savePageNow"
   | "setJobState"
   | "syncSavedPageVersion"
 > & {
+  resumeImageRunId?: string;
   codexTypesetting?: StartSoundEffectTranslationRequest["codexTypesetting"];
   notificationPort: NotificationPort;
   t: TFunction<"renderer">;
@@ -54,6 +56,7 @@ export function useTranslateSoundEffectsAction(
       pushStatus: options.pushStatus,
       refreshLibrary: options.refreshLibrary,
       saveNow: options.saveNow,
+      savePageNow: options.savePageNow,
       setJobState: options.setJobState,
       syncSavedPageVersion: options.syncSavedPageVersion,
       t,
@@ -67,6 +70,7 @@ export function useTranslateSoundEffectsAction(
       autoFontMatching = false,
       prepareRequest,
       sfxRendering,
+      resumeImageRunId,
     ) =>
       translateSoundEffects(
         targets,
@@ -75,6 +79,7 @@ export function useTranslateSoundEffectsAction(
         prepareRequest,
         {
           ...context,
+          resumeImageRunId,
           codexTypesetting:
             context.codexTypesetting || sfxRendering
               ? {
@@ -102,7 +107,7 @@ async function translateSoundEffects(
   const chapter = context.currentChapter;
   if (
     !chapter ||
-    context.jobActive ||
+    (context.jobActive && !context.resumeImageRunId) ||
     (targets.length === 0 && !prepareRequest)
   ) {
     return null;
@@ -162,8 +167,9 @@ async function runSoundEffectTranslation({
     progressText: context.t("soundEffectTranslation.preparing"),
     phase: "booting",
   });
-  await context.beforeTranslate?.();
+  if (!context.resumeImageRunId) await context.beforeTranslate?.();
   const result = await analysisGateway.startSoundEffectTranslation({
+    resumeImageRunId: context.resumeImageRunId,
     chapterId: chapter.id,
     targets: prepared.targets,
     ...(context.codexTypesetting
@@ -191,7 +197,14 @@ async function prepareSoundEffectTargets(
     context.currentChapterRef.current?.id === chapter.id
       ? context.currentChapterRef.current
       : chapter;
-  await context.saveNow();
+  if (context.savePageNow) {
+    const pageIds = new Set(
+      (prepareRequest?.pages ?? targets).map((page) => page.pageId),
+    );
+    for (const pageId of pageIds) await context.savePageNow(chapter.id, pageId);
+  } else {
+    await context.saveNow();
+  }
   const savedChapter = context.currentChapterRef.current;
   const authoritativeChapter =
     savedChapter?.id === chapter.id ? savedChapter : chapter;
@@ -333,16 +346,23 @@ function reportResult(
         : "soundEffectTranslation.completed",
     ),
     phase: partial ? "partial" : "done",
-    detail: context.t("soundEffectTranslation.summary", {
-      translated: result.translatedRegionCount,
-      remaining: result.remainingRegionCount,
-    }),
+    detail:
+      result.error ||
+      (context.resumeImageRunId
+        ? "저장된 효과음 이미지 작업을 완료했습니다."
+        : context.t("soundEffectTranslation.summary", {
+            translated: result.translatedRegionCount,
+            remaining: result.remainingRegionCount,
+          })),
   });
   context.pushStatus(
-    context.t("soundEffectTranslation.summary", {
-      translated: result.translatedRegionCount,
-      remaining: result.remainingRegionCount,
-    }),
+    result.error ||
+      (context.resumeImageRunId
+        ? "저장된 효과음 이미지 작업을 완료했습니다."
+        : context.t("soundEffectTranslation.summary", {
+            translated: result.translatedRegionCount,
+            remaining: result.remainingRegionCount,
+          })),
   );
   for (const warning of result.warnings ?? []) {
     context.pushStatus(warning);

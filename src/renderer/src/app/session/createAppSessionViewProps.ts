@@ -1,3 +1,4 @@
+import { activityResourcesConflict } from "../../../../shared/appActivityTypes";
 import type { PanelSessionValue } from "../../panels/panelSession";
 import type { AppSessionViewProps } from "./AppSessionView";
 import type { AppSessionViewModel } from "./appSessionViewModel";
@@ -106,7 +107,7 @@ function createExportOptionsProps({
     ? {
         chapter: core.currentChapter,
         currentPageId: derivedState.selectedPage.id,
-        jobActive: derivedState.jobActive,
+        jobActive: false,
         kind: uiState.exportOptionsKind,
         library: core.library,
         onClose: () => uiState.setExportOptionsOpen(false),
@@ -140,7 +141,6 @@ function createModalsProps({
   libraryActions,
   settingsDialog,
   uiState,
-  operationActivity,
 }: AppSessionViewModel): AppSessionViewProps["modalsProps"] {
   return {
     ...createModalCloseActions({
@@ -160,10 +160,7 @@ function createModalsProps({
     importFeedback: importShareModal.importFeedback,
     inpaintingGuideOpen: uiState.inpaintingGuideOpen,
     fontManagerOpen: uiState.fontManagerOpen,
-    jobActive:
-      derivedState.jobActive ||
-      operationActivity.active ||
-      importShareModal.importBusy,
+    jobActive: derivedState.modelResourceBusy,
     library: core.library,
     onWebImportBackgroundStateChange: importShareModal.setWebImportBackgrounded,
     onDeleteRename: () => void libraryActions.deleteRenameTarget(),
@@ -255,41 +252,19 @@ function createSidebarProps({
   commandRegistry,
   core,
   derivedState,
-  importShareModal,
-  inpaintingBridge,
   libraryActions,
   pageNavigationHandlers,
   retranslatePage,
   settingsDialog,
-  uiState,
-  workspaceHistory,
-  libraryDrop,
-  operationActivity,
 }: AppSessionViewModel): AppSessionViewProps["sidebarProps"] {
-  const ordinaryJobActive = [
-    derivedState.jobActive,
-    uiState.translationFlowActive,
-    workspaceHistory.busy,
-    libraryDrop.busy,
-  ].some(Boolean);
   return {
     commandLabels: commandRegistry.labels,
     currentChapter: core.currentChapter,
-    jobActive: [
-      inpaintingBridge.contextValue.jobActive,
-      uiState.translationFlowActive,
-      workspaceHistory.busy,
-      libraryDrop.busy,
-      operationActivity.active,
-      importShareModal.importBusy,
-    ].some(Boolean),
-    libraryMutationBlocked: [
-      ordinaryJobActive,
-      operationActivity.libraryMutationBlocked,
-      importShareModal.importBusy,
-    ].some(Boolean),
+    jobActive: false,
+    libraryMutationBlocked: false,
+    pageStructureBlocked: derivedState.chapterStructureLocked,
     library: core.library,
-    lockedPageIds: derivedState.jobTargetPageIds,
+    lockedPageIds: derivedState.editingLockedPageIds,
     onOpenBatchImport: commandRegistry.byId["open-batch"].run,
     onOpenChapter: (chapterId) => void libraryActions.openChapter(chapterId),
     onOpenLibraryFolder: commandRegistry.byId["open-library-folder"].run,
@@ -323,7 +298,20 @@ function createStyleGuideProps({
   return uiState.styleGuideOpen && core.currentChapter
     ? {
         chapter: core.currentChapter,
-        jobActive: derivedState.jobActive,
+        jobActive: derivedState.activities
+          ? derivedState.activities.activities.some((activity) =>
+              activityResourcesConflict(
+                [
+                  {
+                    kind: "work-context",
+                    scope: core.currentChapter?.workId ?? "*",
+                    access: "write",
+                  },
+                ],
+                activity.resources,
+              ),
+            )
+          : derivedState.modelResourceBusy,
         workTitle: currentWork?.title ?? "",
         onClose: () => uiState.setStyleGuideOpen(false),
         onBackgroundStateChange: uiState.setStyleGuideBackgrounded,

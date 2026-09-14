@@ -27,6 +27,7 @@ export function createPageRevision(
     | "width"
     | "height"
     | "blocks"
+    | "blockOrder"
     | "translationCompletion"
   >,
 ): PageRevision {
@@ -39,6 +40,7 @@ export function createPageRevision(
     width: page.width,
     height: page.height,
     blocks: page.blocks,
+    blockOrder: page.blockOrder,
     translationCompletion: page.translationCompletion,
   })}`;
 }

@@ -31,6 +31,10 @@ type NeighborPageImageRequest = {
 const EMPTY_NEIGHBOR_TARGETS: NeighborPageImageTarget[] = [];
 
 type UsePageImageDataUrlsOptions = {
+  recoverUnavailableImage?: (
+    pageId: string,
+    imagePath: string,
+  ) => Promise<boolean>;
   chapterId: string | null;
   selectedPage: MangaPage | null;
   selectedPageImagePath: string | null;
@@ -68,6 +72,7 @@ export function usePageImageDataUrls({
   selectedPage,
   selectedPageImagePath,
   neighborTargets = EMPTY_NEIGHBOR_TARGETS,
+  recoverUnavailableImage,
 }: UsePageImageDataUrlsOptions): UsePageImageDataUrlsResult {
   const [selectedPageImage, setSelectedPageImage] =
     React.useState<PageImageFrame>(EMPTY_PAGE_IMAGE_FRAME);
@@ -93,6 +98,7 @@ export function usePageImageDataUrls({
     setCacheRevision,
   });
   useSelectedPageImageEffect({
+    recoverUnavailableImage,
     cacheRevision,
     pageImageCacheRef,
     requestCoordinatorRef,
@@ -115,6 +121,7 @@ export function usePageImageDataUrls({
     neighborTargets,
     pageImageCacheRef,
     requestCoordinatorRef,
+    recoverUnavailableImage,
   );
 
   const { original, selected } = resolveRenderablePageImages({
@@ -177,6 +184,7 @@ function useClearPageImageCache({
 }
 
 function useSelectedPageImageEffect({
+  recoverUnavailableImage,
   cacheRevision,
   pageImageCacheRef,
   requestCoordinatorRef,
@@ -185,6 +193,7 @@ function useSelectedPageImageEffect({
   selectedPageOriginalImagePath,
   setSelectedPageImage,
 }: {
+  recoverUnavailableImage?: UsePageImageDataUrlsOptions["recoverUnavailableImage"];
   cacheRevision: number;
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
   requestCoordinatorRef: React.MutableRefObject<PageImageRequestCoordinator>;
@@ -221,7 +230,15 @@ function useSelectedPageImageEffect({
           createReadyPageImageFrame(selectedPageId, dataUrl),
         );
       })
-      .catch((error) => {
+      .catch(async (error) => {
+        if (cancelled || coordinator.epoch !== requestEpoch) return;
+        if (
+          recoverUnavailableImage &&
+          (await recoverUnavailableImage(selectedPageId, imagePath).catch(
+            () => false,
+          ))
+        )
+          return;
         if (!cancelled && coordinator.epoch === requestEpoch) {
           setSelectedPageImage((current) =>
             markPageImageFrameFailed(current, selectedPageId),
@@ -234,6 +251,7 @@ function useSelectedPageImageEffect({
       cancelled = true;
     };
   }, [
+    recoverUnavailableImage,
     cacheRevision,
     pageImageCacheRef,
     requestCoordinatorRef,
@@ -335,11 +353,10 @@ function useNeighborPagePrefetch(
   neighborTargets: NeighborPageImageTarget[],
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>,
   requestCoordinatorRef: React.MutableRefObject<PageImageRequestCoordinator>,
+  recoverUnavailableImage?: UsePageImageDataUrlsOptions["recoverUnavailableImage"],
 ): void {
   React.useEffect(() => {
-    if (neighborTargets.length === 0) {
-      return;
-    }
+    let cancelled = false;
     for (const target of neighborTargets) {
       for (const request of createNeighborPageImageRequests(target)) {
         const coordinator = requestCoordinatorRef.current;
@@ -351,19 +368,36 @@ function useNeighborPagePrefetch(
           request.imagePath,
         )
           .then((dataUrl) => {
-            if (coordinator.epoch !== epoch) {
+            if (cancelled || coordinator.epoch !== epoch) {
               return;
             }
             return preloadPageImage(coordinator, dataUrl);
           })
-          .catch((error) => {
-            if (coordinator.epoch === epoch) {
+          .catch(async (error) => {
+            if (cancelled || coordinator.epoch !== epoch) return;
+            if (
+              recoverUnavailableImage &&
+              (await recoverUnavailableImage(
+                target.pageId,
+                request.imagePath,
+              ).catch(() => false))
+            )
+              return;
+            if (!cancelled && coordinator.epoch === epoch) {
               console.warn("이웃 페이지 미리 불러오기 실패", error);
             }
           });
       }
     }
-  }, [neighborTargets, pageImageCacheRef, requestCoordinatorRef]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    neighborTargets,
+    pageImageCacheRef,
+    requestCoordinatorRef,
+    recoverUnavailableImage,
+  ]);
 }
 
 function createNeighborPageImageRequests(

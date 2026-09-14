@@ -1,6 +1,6 @@
 import { matchesRegionPageRevision } from "../../shared/pageRevision";
 import { hydrateChapter } from "./chapterSnapshots";
-import { resolveChapterStatus } from "./chapterRecords";
+import { resolveChapterStatus, nextChapterUpdatedAt } from "./chapterRecords";
 import {
   findChapterLocation,
   readChapterFile,
@@ -41,7 +41,7 @@ export async function appendAnalyzedPageBlocksUnlocked(
     !matchesRegionPageRevision(page, options.expectedRevision)
   )
     throw new Error("페이지가 변경되었습니다. 영역을 다시 선택해 주세요.");
-  const now = new Date().toISOString();
+  const now = nextChapterUpdatedAt(chapter);
   const pages = chapter.pages.map((candidate) => {
     if (candidate.id !== pageId) return candidate;
     const nextBlocks = [...candidate.blocks, ...blocks];

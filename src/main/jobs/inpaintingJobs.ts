@@ -1,5 +1,7 @@
+import { reserveJobChapter } from "./jobPageOwnership";
 import { withImageRedactionReview } from "./imageRedactionReview";
 import { randomUUID } from "node:crypto";
+import { inpaintingActivityResources } from "./jobActivityResources";
 import type {
   AutoInpaintingChapterSelection,
   StartInpaintingRequest,
@@ -30,7 +32,7 @@ export async function startInpaintingJob(
   request: StartInpaintingRequest,
   runtime: InpaintingJobRuntime = productionInpaintingJobRuntime,
 ): Promise<StartInpaintingResult> {
-  if (context.jobs.hasActive) {
+  if (!context.executionSettings && context.jobs.hasActive) {
     return { status: "failed", error: tMain("jobs.active") };
   }
 
@@ -38,9 +40,14 @@ export async function startInpaintingJob(
   const abortController = new AbortController();
   const completion = createInpaintingJobCompletion();
   const state = createInpaintingJobState(context, request);
+  const resources = inpaintingActivityResources(
+    context.executionSettings,
+    request,
+  );
   context.jobs.start({
     id,
     kind: "inpainting",
+    resources,
     abortController,
     cleanup: () => completion.promise,
   });
@@ -52,79 +59,107 @@ export async function startInpaintingJob(
         : {}),
     });
 
-  try {
-    const targets = await resolveInpaintingJobPages(request, state, runtime);
-    inferRequestedCompletionWorkflow(request, state, targets);
-    recordInpaintingTargetPages(state, targets);
-    if (targets.length === 0) {
-      emit({
-        id,
-        kind: "inpainting",
-        status: "failed",
-        progressText: tMain("inpainting.failed"),
-        phase: "failed",
-        progressCurrent: 0,
-        progressTotal: 0,
-        pageTotal: 0,
-        detail: tMain("inpainting.pageNotFound"),
-      });
-      return {
-        status: "failed",
-        ...(request.mode === "selection-pattern"
-          ? { chapters: [...state.chapters.values()] }
-          : { chapter: state.chapter ?? undefined }),
-        error: tMain("inpainting.pageNotFound"),
-        pagesChanged: state.pagesChanged,
-        blocksErased: state.blocksErased,
-        pagesIncomplete: state.pagesIncomplete,
-        blocksIncomplete: state.blocksIncomplete,
-      };
-    }
-    const run = () =>
-      runInpaintingPagesJob({
-        context,
-        request,
-        id,
-        abortController,
-        emit,
-        targets,
-        state,
-        runtime,
-      });
-    return "engine" in request && request.engine === "codex"
-      ? await (runtime.reviewImages ?? withImageRedactionReview)(
-          {
-            jobId: id,
-            kind: "inpainting",
-            pages: targets.map((target) => target.page),
-            signal: abortController.signal,
+  return context.jobs.run(
+    id,
+    async () => {
+      try {
+        const targets = await resolveInpaintingJobPages(
+          request,
+          state,
+          runtime,
+        );
+        for (const chapter of state.chapters.values()) {
+          reserveJobChapter(
+            context.jobs,
+            id,
+            chapter,
+            targets
+              .filter((target) => target.chapterId === chapter.id)
+              .map((target) => target.page.id),
+          );
+        }
+        inferRequestedCompletionWorkflow(request, state, targets);
+        recordInpaintingTargetPages(state, targets);
+        if (targets.length === 0)
+          return missingInpaintingPage(id, emit, request, state);
+        const run = () =>
+          runInpaintingPagesJob({
+            context,
+            request,
+            id,
+            abortController,
             emit,
-            imageEdit: true,
-          },
-          run,
-        )
-      : await run();
-  } catch (error) {
-    return await handleInpaintingJobError({
-      abortController,
-      emit,
-      error,
-      id,
-      request,
-      state,
-      context,
-      runtime,
-    });
-  } finally {
-    await finishTimedInpaintingJob(
-      context,
-      request,
-      state,
-      id,
-      completion.resolve,
-      runtime,
-    );
-  }
+            targets,
+            state,
+            runtime,
+          });
+        return "engine" in request && request.engine === "codex"
+          ? await (runtime.reviewImages ?? withImageRedactionReview)(
+              {
+                jobId: id,
+                kind: "inpainting",
+                pages: targets.map((target) => target.page),
+                signal: abortController.signal,
+                emit,
+                imageEdit: true,
+              },
+              run,
+            )
+          : await run();
+      } catch (error) {
+        return await handleInpaintingJobError({
+          abortController,
+          emit,
+          error,
+          id,
+          request,
+          state,
+          context,
+          runtime,
+        });
+      } finally {
+        await finishTimedInpaintingJob(
+          context,
+          request,
+          state,
+          id,
+          completion.resolve,
+          runtime,
+        );
+      }
+    },
+    context.executionSettings,
+  );
+}
+
+function missingInpaintingPage(
+  id: string,
+  emit: (event: JobEvent) => void,
+  request: StartInpaintingRequest,
+  state: InpaintingJobState,
+): StartInpaintingResult {
+  emit({
+    id,
+    kind: "inpainting",
+    status: "failed",
+    progressText: tMain("inpainting.failed"),
+    phase: "failed",
+    progressCurrent: 0,
+    progressTotal: 0,
+    pageTotal: 0,
+    detail: tMain("inpainting.pageNotFound"),
+  });
+  return {
+    status: "failed",
+    ...(request.mode === "selection-pattern"
+      ? { chapters: [...state.chapters.values()] }
+      : { chapter: state.chapter ?? undefined }),
+    error: tMain("inpainting.pageNotFound"),
+    pagesChanged: state.pagesChanged,
+    blocksErased: state.blocksErased,
+    pagesIncomplete: state.pagesIncomplete,
+    blocksIncomplete: state.blocksIncomplete,
+  };
 }
 
 async function finishTimedInpaintingJob(
@@ -267,7 +302,10 @@ async function finishInpaintingJob(
       await state.inpaintingEngineLease?.release();
     } finally {
       try {
-        await disposeBubbleLayoutSessions(runtime);
+        await disposeBubbleLayoutSessions(
+          runtime,
+          context.jobs.get(id)?.resources,
+        );
       } finally {
         context.jobs.clearIfCurrent(id);
         resolveCompletion();
@@ -278,7 +316,15 @@ async function finishInpaintingJob(
 
 async function disposeBubbleLayoutSessions(
   runtime: InpaintingJobRuntime,
+  resources:
+    | readonly import("../../shared/appActivityTypes").AppActivityResource[]
+    | undefined,
 ): Promise<void> {
+  if (
+    resources &&
+    !resources.some((resource) => resource.kind === "model-runtime")
+  )
+    return;
   try {
     await runtime.disposeBubbleLayoutSessions?.();
   } catch (error) {

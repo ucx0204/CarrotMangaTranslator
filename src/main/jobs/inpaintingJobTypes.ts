@@ -15,6 +15,7 @@ export type InpaintingJobRevisionStore = Pick<
 >;
 
 export type InpaintingJobContext = {
+  executionSettings?: import("../../shared/settingsTypes").AppSettings;
   appPaths: AppPaths;
   jobs: ActiveJobStore;
   getMainWindow: () => JobEventWindow | null;

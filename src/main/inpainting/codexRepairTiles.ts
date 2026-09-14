@@ -3,6 +3,7 @@ import type { InpaintingEngine } from "./inpaintingEngine";
 import type { CodexErasureTarget } from "../application/codexTypesettingContracts";
 import { bboxOverlapRatio } from "../../shared/geometry";
 import {
+  alignRectToMultiple,
   expandRect,
   rectHasMask,
   resolveContextTiles,
@@ -10,7 +11,7 @@ import {
   type PixelRect,
 } from "./maskGeometry";
 
-/** GPT Image 2 accepts at most 3:1. Split native context BEFORE generation. */
+/** Split elongated native context before generation to avoid reframed tall crops. */
 export function planCodexRepairTiles(
   window: PixelRect,
   width: number,
@@ -24,18 +25,36 @@ export function planCodexRepairTiles(
     Math.max(48, Math.ceil(Math.max(window.w, window.h) * 0.35)),
   );
   const short = Math.min(crop.w, crop.h);
-  if (Math.max(crop.w, crop.h) <= short * 3)
+  if (Math.max(crop.w, crop.h) <= short * 2)
     return [{ cropBounds: crop, writeBounds: crop }];
   // Existing native context tiling; no synthetic padding or output reframing.
-  // 2:1 leaves room for overlap even when the page clips the short axis.
+  // Keep overlap inside 2:1 as well. The 821x2000 and 407x1181 real SFX
+  // failures were legal requests, but ImageGen reframed their tall context.
   return resolveContextTiles(
     crop,
     width,
     height,
-    short * 2,
+    Math.floor(short * 1.6),
     Math.floor(short * 0.15),
     1,
-  ).filter(({ writeBounds }) => rectHasMask(mask, width, writeBounds));
+  )
+    .filter(({ writeBounds }) => rectHasMask(mask, width, writeBounds))
+    .map((tile) => {
+      const { cropBounds } = tile;
+      const long = Math.max(cropBounds.w, cropBounds.h);
+      if (long <= Math.min(cropBounds.w, cropBounds.h) * 2) return tile;
+      // A short final strip still needs enough native context. Expand its
+      // input only; the disjoint write bounds continue to own each pixel once.
+      return {
+        ...tile,
+        cropBounds: alignRectToMultiple(
+          cropBounds,
+          width,
+          height,
+          Math.ceil(long / 2),
+        ),
+      };
+    });
 }
 
 export function prepareCodexRepairMask(

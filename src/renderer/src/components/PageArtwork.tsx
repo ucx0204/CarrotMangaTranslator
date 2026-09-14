@@ -115,7 +115,14 @@ function ArtworkBlockText({
   if (!model.textVisible) return null;
   const artwork = getActiveGeneratedLettering(block);
   const text = artwork ? (
-    <GeneratedLetteringImage block={block} className={styles.lettering} />
+    <GeneratedLetteringImage
+      block={block}
+      className={styles.lettering}
+      nativeSize={{
+        width: model.layout.rect.width / model.stageScale.x,
+        height: model.layout.rect.height / model.stageScale.y,
+      }}
+    />
   ) : model.curveRenderable && block.curveLayout ? (
     <CurveText
       block={block}

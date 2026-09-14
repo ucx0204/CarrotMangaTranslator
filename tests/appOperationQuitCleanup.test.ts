@@ -115,6 +115,7 @@ describe("managed operation app quit cleanup", () => {
 function idleJobs() {
   return {
     current: null,
+    all: [],
     clearIfCurrent: vi.fn(),
     runCleanup: vi.fn(async () => undefined),
   };

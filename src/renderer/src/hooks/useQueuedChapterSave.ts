@@ -1,9 +1,11 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { createPageRevision } from "../../../shared/pageRevision";
 import type {
   ChapterPersistenceRefs,
   PersistChapter,
   QueuedSaveRunner,
   SaveReason,
+  QueuedSaveTarget,
   ServerVersionSyncActions,
   UseChapterPersistenceOptions,
 } from "./chapterPersistenceTypes";
@@ -19,6 +21,7 @@ type QueuedChapterSaveOptions = {
 
 type QueuedSaveLoopOptions = QueuedChapterSaveOptions & {
   reason: SaveReason;
+  target?: QueuedSaveTarget;
 };
 
 export function useQueuedChapterSave({
@@ -29,40 +32,54 @@ export function useQueuedChapterSave({
   setDirty,
   syncServerPageVersions,
 }: QueuedChapterSaveOptions): QueuedSaveRunner {
-  const { saveAgainReasonRef, saveAgainRequestedRef, saveInFlightRef } = refs;
   const { saveQueuePromiseRef } = refs;
 
   return useCallback<QueuedSaveRunner>(
-    async (reason) => {
-      if (saveInFlightRef.current) {
-        saveAgainRequestedRef.current = true;
-        saveAgainReasonRef.current = mergeSaveReason(
-          saveAgainReasonRef.current,
+    async function runQueuedSave(reason, target) {
+      const previous = saveQueuePromiseRef.current ?? Promise.resolve();
+      const ready = target
+        ? previous.catch((error) => {
+            console.warn(
+              "Earlier page save failed; retrying the requested pages",
+              error,
+            );
+          })
+        : previous;
+      const queuedSave = ready.then(() =>
+        runQueuedSaveLoop({
+          currentChapterRef,
+          persistChapter,
           reason,
-        );
-        await (saveQueuePromiseRef.current ?? Promise.resolve());
-        return;
-      }
-
-      const queuedSave = runQueuedSaveLoop({
-        currentChapterRef,
-        persistChapter,
-        reason,
-        refs,
-        setCurrentChapter,
-        setDirty,
-        syncServerPageVersions,
-      });
+          target,
+          refs,
+          setCurrentChapter,
+          setDirty,
+          syncServerPageVersions,
+        }),
+      );
       saveQueuePromiseRef.current = queuedSave;
-      await queuedSave;
+      try {
+        await queuedSave;
+      } finally {
+        if (saveQueuePromiseRef.current === queuedSave)
+          saveQueuePromiseRef.current = null;
+      }
+      // Queue another batch behind already waiting page handoffs. An unrelated
+      // page which is being typed into must not monopolize the save boundary.
+      if (
+        currentChapterRef.current &&
+        (!target || currentChapterRef.current.id === target.chapterId) &&
+        [...refs.dirtyPageIdsRef.current].some(
+          (id) => !target || target.pageIds.includes(id),
+        )
+      ) {
+        await runQueuedSave(reason, target);
+      }
     },
     [
       currentChapterRef,
       persistChapter,
       refs,
-      saveAgainReasonRef,
-      saveAgainRequestedRef,
-      saveInFlightRef,
       saveQueuePromiseRef,
       setCurrentChapter,
       setDirty,
@@ -75,6 +92,7 @@ async function runQueuedSaveLoop({
   currentChapterRef,
   persistChapter,
   reason,
+  target,
   refs,
   setCurrentChapter,
   setDirty,
@@ -82,20 +100,18 @@ async function runQueuedSaveLoop({
 }: QueuedSaveLoopOptions): Promise<void> {
   refs.saveInFlightRef.current = true;
   try {
-    do {
-      await runQueuedSaveIteration({
-        currentChapterRef,
-        persistChapter,
-        reason,
-        refs,
-        setCurrentChapter,
-        setDirty,
-        syncServerPageVersions,
-      });
-    } while (refs.saveAgainRequestedRef.current);
+    await runQueuedSaveIteration({
+      currentChapterRef,
+      persistChapter,
+      reason,
+      target,
+      refs,
+      setCurrentChapter,
+      setDirty,
+      syncServerPageVersions,
+    });
   } finally {
     refs.saveInFlightRef.current = false;
-    refs.saveQueuePromiseRef.current = null;
   }
 }
 
@@ -103,6 +119,7 @@ async function runQueuedSaveIteration({
   currentChapterRef,
   persistChapter,
   reason,
+  target,
   refs,
   setCurrentChapter,
   setDirty,
@@ -112,12 +129,21 @@ async function runQueuedSaveIteration({
   refs.saveAgainRequestedRef.current = false;
   refs.saveAgainReasonRef.current = null;
   const chapter = currentChapterRef.current;
-  if (!chapter) {
+  if (!chapter || (target && chapter.id !== target.chapterId)) {
     return;
   }
-  if (refs.dirtyPageIdsRef.current.size === 0) {
+  const pageIds = [...refs.dirtyPageIdsRef.current].filter(
+    (id) => !target || target.pageIds.includes(id),
+  );
+  if (pageIds.length === 0) {
+    if (target) return;
     markSaveSettled(refs, setDirty);
     return;
+  }
+  if (pageIds.some((id) => !chapter.pages.some((page) => page.id === id))) {
+    throw new Error(
+      "저장할 페이지가 현재 화에 없습니다. 편집 내용을 확인한 뒤 다시 시도해 주세요.",
+    );
   }
 
   const savedVersion = refs.dirtyVersionRef.current;
@@ -125,23 +151,41 @@ async function runQueuedSaveIteration({
     dirtyVersion: savedVersion,
     saveReason,
     syncState: false,
+    pageIds,
   });
-  if (refs.dirtyVersionRef.current !== savedVersion) {
-    refs.saveAgainRequestedRef.current = true;
-    refs.saveAgainReasonRef.current = mergeSaveReason(
-      refs.saveAgainReasonRef.current,
-      saveReason,
+  const latest = currentChapterRef.current;
+  if (latest?.id !== chapter.id) return;
+  const sourceById = new Map(chapter.pages.map((page) => [page.id, page]));
+  const savedById = new Map(saved.pages.map((page) => [page.id, page]));
+  if (pageIds.some((id) => !savedById.has(id))) {
+    throw new Error(
+      "저장 응답에 편집한 페이지가 없습니다. 현재 편집을 보존했습니다.",
     );
-    return;
   }
-
-  if (currentChapterRef.current?.id === saved.id) {
-    currentChapterRef.current = saved;
-    setCurrentChapter(saved);
-  }
-  refs.dirtyPageIdsRef.current.clear();
-  syncServerPageVersions(saved);
-  markSaveSettled(refs, setDirty);
+  const next = {
+    ...latest,
+    pages: latest.pages.map((page) => {
+      const source = sourceById.get(page.id);
+      const result = savedById.get(page.id);
+      if (
+        !pageIds.includes(page.id) ||
+        !source ||
+        !result ||
+        createPageRevision(page) !== createPageRevision(source)
+      )
+        return page;
+      refs.dirtyPageIdsRef.current.delete(page.id);
+      return { ...result, processingTiming: page.processingTiming };
+    }),
+  };
+  currentChapterRef.current = next;
+  setCurrentChapter(next);
+  syncServerPageVersions(next, { preserveDirtyPages: true });
+  refs.saveAgainRequestedRef.current = [...refs.dirtyPageIdsRef.current].some(
+    (id) => !target || target.pageIds.includes(id),
+  );
+  if (refs.dirtyPageIdsRef.current.size === 0) markSaveSettled(refs, setDirty);
+  else setDirty(true);
 }
 
 function markSaveSettled(
@@ -151,13 +195,4 @@ function markSaveSettled(
   refs.blockedAutoSaveVersionRef.current = null;
   refs.lastSaveErrorRef.current = null;
   setDirty(false);
-}
-
-function mergeSaveReason(
-  currentReason: SaveReason | null,
-  nextReason: SaveReason,
-): SaveReason {
-  return currentReason === "manual" || nextReason === "manual"
-    ? "manual"
-    : "autosave";
 }

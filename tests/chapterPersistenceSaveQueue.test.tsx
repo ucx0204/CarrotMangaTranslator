@@ -44,6 +44,30 @@ afterEach(() => {
 });
 
 describe("chapter persistence save queue", () => {
+  it("reports a missing dirty page instead of retrying forever", async () => {
+    const { api } = renderHarness();
+    act(() => api.current.getPersistence().markDirty("removed-page"));
+    await act(async () => {
+      await expect(api.current.saveNow()).rejects.toThrow("페이지");
+    });
+    expect(savePagesBlocksMock).not.toHaveBeenCalled();
+    expect(api.current.getDirty()).toBe(true);
+  });
+  it("preserves the draft when a save response omits its page", async () => {
+    const { api } = renderHarness();
+    act(() => api.current.updateText("keep this draft"));
+    const saved = makeChapter("server", "2026-01-01T00:00:01.000Z");
+    saved.pages = saved.pages.filter((page) => page.id !== "page-1");
+    savePagesBlocksMock.mockResolvedValue(saved);
+    await act(async () => {
+      await expect(api.current.saveNow()).rejects.toThrow("페이지");
+    });
+    expect(savePagesBlocksMock).toHaveBeenCalledOnce();
+    expect(api.current.getChapter()?.pages[0].blocks[0].translatedText).toBe(
+      "keep this draft",
+    );
+    expect(api.current.getDirty()).toBe(true);
+  });
   it("does not rehash unchanged clean pages after a local edit and saves the latest blocks", async () => {
     savePagesBlocksMock.mockResolvedValue(
       makeChapter("latest local edit", "2026-01-01T00:00:01.000Z"),
@@ -264,6 +288,75 @@ describe("chapter persistence save queue", () => {
       "second page saved",
     ]);
     expect(api.current.getDirty()).toBe(false);
+  });
+
+  it("hands off only the requested page and leaves another page's draft dirty", async () => {
+    savePagesBlocksMock.mockResolvedValueOnce(
+      makeChapterWithPageTexts("base", "B saved", "2026-01-01T00:00:01.000Z"),
+    );
+    const { api } = renderHarness();
+    act(() => api.current.updateTwoPages("A draft", "B saved"));
+    await act(async () => {
+      await api.current
+        .getPersistence()
+        .savePageNow("22222222-2222-4222-8222-222222222222", "page-2");
+    });
+    expect(
+      savePagesBlocksMock.mock.calls[0][0].pages.map((page) => page.pageId),
+    ).toEqual(["page-2"]);
+    expect(api.current.getChapter()?.pages.map(firstTranslatedText)).toEqual([
+      "A draft",
+      "B saved",
+    ]);
+    expect([...api.current.getPersistence().dirtyPageIdsRef.current]).toEqual([
+      "page-1",
+    ]);
+    expect(api.current.getDirty()).toBe(true);
+    await act(async () => {
+      await api.current
+        .getPersistence()
+        .savePageNow("22222222-2222-4222-8222-222222222222", "page-2");
+      await api.current
+        .getPersistence()
+        .savePageNow("different-chapter", "page-1");
+    });
+    expect(savePagesBlocksMock).toHaveBeenCalledOnce();
+  });
+
+  it("lets a queued page handoff retry after another page's failed save", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const failedSave = createDeferred<ChapterSnapshot>();
+    savePagesBlocksMock
+      .mockReturnValueOnce(failedSave.promise)
+      .mockResolvedValueOnce(
+        makeChapterWithPageTexts("base", "B draft", "2026-01-01T00:00:01.000Z"),
+      );
+    const { api } = renderHarness();
+    act(() => api.current.updateTwoPages("A draft", "B draft"));
+    const first = api.current
+      .getPersistence()
+      .savePageNow("22222222-2222-4222-8222-222222222222", "page-1");
+    const rejected = expect(first).rejects.toThrow("A save failed");
+    await waitFor(() => expect(savePagesBlocksMock).toHaveBeenCalledOnce());
+    const handoff = api.current
+      .getPersistence()
+      .savePageNow("22222222-2222-4222-8222-222222222222", "page-2");
+    await act(async () => {
+      failedSave.reject(new Error("A save failed"));
+      await rejected;
+      await handoff;
+    });
+    expect(savePagesBlocksMock).toHaveBeenCalledTimes(2);
+    expect(
+      savePagesBlocksMock.mock.calls[1][0].pages.map((page) => page.pageId),
+    ).toEqual(["page-2"]);
+    expect(api.current.getChapter()?.pages.map(firstTranslatedText)).toEqual([
+      "A draft",
+      "B draft",
+    ]);
+    expect([...api.current.getPersistence().dirtyPageIdsRef.current]).toEqual([
+      "page-1",
+    ]);
   });
 
   it("converts a stale server version into a page-save conflict without losing edits", async () => {

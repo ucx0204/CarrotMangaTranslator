@@ -12,6 +12,7 @@ import type { ImageDecodeFallback } from "../regionCrop";
 import type { ActiveJobStore } from "./activeJob";
 
 export type TranslationJobContext = {
+  executionSettings?: import("../../shared/settingsTypes").AppSettings;
   inpaintingRevisionStore?: import("../inpainting/inpaintingRevisionStore").InpaintingRevisionStore;
   jobs: ActiveJobStore;
   getMainWindow: () => BrowserWindow | null;

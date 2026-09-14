@@ -4,6 +4,11 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
+import {
+  captureWorkspaceChapterEditSnapshot,
+  captureWorkspaceMaskSnapshot,
+} from "../src/renderer/src/lib/workspaceHistory";
+import { makeBlock } from "./unifiedInpaintingUiFixtures";
 
 const applyHistoryTransaction = vi.fn();
 const releaseHistoryTransactions = vi.fn();
@@ -32,6 +37,165 @@ beforeEach(() => {
 });
 
 describe("app-session workspace history", () => {
+  it.each(["other-page", "same-page", "handoff", "later-result"])(
+    "replays only a compatible page basis (%s)",
+    async (mode) => {
+      const before = makeChapter("C:/chapter/page-after.png");
+      const after = {
+        ...before,
+        pages: before.pages.map((page) => ({ ...page, blocks: [makeBlock()] })),
+      };
+      const selection = {
+        selectedPageId: PAGE_ID,
+        selectedBlockId: null,
+        selectedBlockIds: [],
+      };
+      const controller = makeChapterController({
+        chapter: after,
+        clearPageImageCache: vi.fn(),
+        mergeLiveChapter: vi.fn(),
+        refreshLibrary: vi.fn(),
+      });
+      controller.derivedState.activities = {
+        version: 1,
+        pages:
+          mode === "handoff"
+            ? [
+                {
+                  jobId: "translation",
+                  chapterId: CHAPTER_ID,
+                  pageId: PAGE_ID,
+                  phase: "finishing-edits",
+                },
+              ]
+            : [],
+        activities:
+          mode === "later-result" || mode === "handoff"
+            ? []
+            : [
+                {
+                  id: "translation",
+                  category: "job",
+                  kind: "gemma-analysis",
+                  mutatesLibrary: true,
+                  blocksQuit: true,
+                  startedAt: 0,
+                  resources: [
+                    {
+                      kind: "page-content",
+                      scope: `${CHAPTER_ID}/${mode === "same-page" ? PAGE_ID : "A"}`,
+                      access: "write",
+                    },
+                  ],
+                },
+              ],
+      };
+      const { result, rerender } = renderHook(
+        ({ session }) => useAppSessionWorkspaceHistory(session),
+        { initialProps: { session: controller } },
+      );
+      act(() => {
+        result.current.recordChapterEdit({
+          label: "text",
+          before: captureWorkspaceChapterEditSnapshot(before, selection, [
+            PAGE_ID,
+          ]),
+          after: captureWorkspaceChapterEditSnapshot(after, selection, [
+            PAGE_ID,
+          ]),
+        });
+      });
+      if (mode === "later-result") {
+        controller.core.currentChapter = {
+          ...after,
+          pages: after.pages.map((page) => ({
+            ...page,
+            inpaintedImagePath: "C:/automatic.png",
+          })),
+        };
+        controller.core.currentChapterRef.current =
+          controller.core.currentChapter;
+        rerender({ session: { ...controller, core: { ...controller.core } } });
+      }
+      await act(async () =>
+        expect(await result.current.undo()).toBe(mode === "other-page"),
+      );
+      if (mode === "other-page") {
+        expect(
+          controller.core.currentChapterRef.current?.pages[0].blocks,
+        ).toEqual([]);
+        expect(controller.persistence.markDirty).toHaveBeenCalledWith(PAGE_ID);
+        controller.core.currentChapter =
+          controller.core.currentChapterRef.current;
+        rerender({ session: { ...controller, core: { ...controller.core } } });
+        await act(async () => expect(await result.current.redo()).toBe(true));
+        expect(
+          controller.core.currentChapterRef.current?.pages[0].blocks,
+        ).toEqual(after.pages[0].blocks);
+      } else {
+        expect(controller.core.setCurrentChapter).not.toHaveBeenCalled();
+        expect(controller.statusLog.pushStatus).toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("permits mask draft undo during a page write but blocks its opaque image history", async () => {
+    const controller = makeChapterController({
+      chapter: makeChapter("C:/after.png"),
+      clearPageImageCache: vi.fn(),
+      mergeLiveChapter: vi.fn(),
+      refreshLibrary: vi.fn(),
+    });
+    controller.derivedState.activities = {
+      version: 1,
+      pages: [],
+      activities: [
+        {
+          id: "translation",
+          category: "job",
+          kind: "gemma-analysis",
+          startedAt: 0,
+          mutatesLibrary: true,
+          blocksQuit: true,
+          resources: [
+            {
+              kind: "page-content",
+              scope: `${CHAPTER_ID}/${PAGE_ID}`,
+              access: "write",
+            },
+          ],
+        },
+      ],
+    };
+    const { result } = renderHook(() =>
+      useAppSessionWorkspaceHistory(controller),
+    );
+    act(() => {
+      result.current.recordImageEdit({
+        label: "brush",
+        transactionId: TRANSACTION_ID,
+        targets: [{ chapterId: CHAPTER_ID, pageId: PAGE_ID }],
+      });
+    });
+    await act(async () => expect(await result.current.undo()).toBe(false));
+    expect(applyHistoryTransaction).not.toHaveBeenCalled();
+    act(() => {
+      result.current.recordMaskEdit({
+        label: "mask",
+        before: captureWorkspaceMaskSnapshot(CHAPTER_ID, PAGE_ID, []),
+        after: captureWorkspaceMaskSnapshot(CHAPTER_ID, PAGE_ID, [
+          { points: [{ x: 5, y: 5 }], radiusPx: 3 },
+        ]),
+      });
+    });
+    await act(async () => expect(await result.current.undo()).toBe(true));
+    const update = vi.mocked(controller.uiState.setPatternMaskStrokesByPage)
+      .mock.calls[0][0];
+    if (typeof update !== "function") throw new Error("Expected mask update");
+    expect(
+      update({ [PAGE_ID]: [{ points: [{ x: 5, y: 5 }], radiusPx: 3 }] }),
+    ).toEqual({});
+  });
   it("keeps history actions stable when only session aggregate objects change", () => {
     const chapter = makeChapter("C:/chapter/page-after.png");
     const pageOrderJoin = vi.spyOn(chapter.pageOrder, "join");

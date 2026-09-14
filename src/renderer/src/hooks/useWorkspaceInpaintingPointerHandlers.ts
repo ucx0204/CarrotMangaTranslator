@@ -187,7 +187,7 @@ function handleRetouchDrawMove(
   event: PointerEvent,
 ): boolean {
   if (!isRetouchDrawTool(options.inpaintingTool)) return true;
-  if (options.jobActive) {
+  if (options.jobActive && options.inpaintingTool !== "mask") {
     hideRetouchCursor(options.stageRef.current);
     return true;
   }

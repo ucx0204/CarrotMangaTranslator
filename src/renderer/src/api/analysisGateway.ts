@@ -9,6 +9,7 @@ export const analysisGateway = createMangaDomainGateway("Analysis", [
   "researchWorkContext",
   "startAnalysis",
   "startSoundEffectTranslation",
+  "getSoundEffectImageRecovery",
   "translateRegion",
   "confirmRegionTranslation",
   "confirmSoundEffectTextReview",

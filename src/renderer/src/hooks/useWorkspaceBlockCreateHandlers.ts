@@ -17,6 +17,7 @@ import type { MangaPage } from "../../../shared/libraryTypes";
 import { isUsableRegionBbox } from "../../../shared/region";
 import type { BBox, TranslationBlock } from "../../../shared/textTypes";
 import { regionSelectionToBbox } from "../lib/appHelpers";
+import { pendingPageEdits } from "../lib/pageEditBarrier";
 import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
 import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 import {
@@ -148,7 +149,11 @@ function useBlockCreatePointerDown(
       if (!active) {
         return false;
       }
-      if (!selectedPage || selectedPageEditLocked) {
+      if (
+        !selectedPage ||
+        selectedPageEditLocked ||
+        pendingPageEdits.isHandingOff(selectedPage.id)
+      ) {
         return true;
       }
       const pointerRect = getImagePointerRect();

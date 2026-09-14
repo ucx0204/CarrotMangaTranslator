@@ -1,3 +1,10 @@
+import type { AppActivityResource } from "../../shared/appActivityTypes";
+import {
+  AppActivityBusyError,
+  type AppActivityGate,
+  type AppActivityDescriptor,
+} from "../appActivityGate";
+
 type LibraryMutationCoordinatorState = "open" | "closing" | "recovery-required";
 
 type LibraryMutationLease = {
@@ -15,6 +22,33 @@ const SUSPENDED_MESSAGE =
   "보관함 작업이 일시적으로 중지되어 새 작업을 시작할 수 없습니다.";
 
 class LibraryMutationCoordinator {
+  private activityGate: AppActivityGate | null = null;
+
+  configureActivityGate(gate: AppActivityGate | null): void {
+    this.activityGate = gate;
+  }
+
+  assertActivityAccess(
+    resources: readonly AppActivityResource[],
+    ownerId?: string,
+  ): void {
+    const conflict = this.activityGate?.findConflict(resources, ownerId);
+    if (conflict) {
+      throw new AppActivityBusyError(conflict, resources);
+    }
+  }
+
+  acquireActivity(descriptor: Omit<AppActivityDescriptor, "startedAt">) {
+    return this.activityGate?.acquire(descriptor);
+  }
+
+  async acquireActivityWhenAvailable(
+    descriptor: Omit<AppActivityDescriptor, "startedAt">,
+    signal: AbortSignal,
+  ) {
+    signal.throwIfAborted();
+    return this.activityGate?.acquireWhenAvailable(descriptor, signal);
+  }
   private state: LibraryMutationCoordinatorState = "open";
   private activeCount = 0;
   private idleWaiters = new Set<() => void>();
@@ -22,7 +56,16 @@ class LibraryMutationCoordinator {
   private readonly suspensionTokens = new Set<symbol>();
 
   begin(): LibraryMutationLease {
-    if (this.state === "closing") {
+    return this.admit(false);
+  }
+
+  /** Only reference-aware artifact cleanup may drain after intake closes. */
+  beginArtifactCleanup(): LibraryMutationLease {
+    return this.admit(true);
+  }
+
+  private admit(artifactCleanup: boolean): LibraryMutationLease {
+    if (this.state === "closing" && !artifactCleanup) {
       throw new Error(CLOSING_MESSAGE);
     }
     if (this.state === "recovery-required") {

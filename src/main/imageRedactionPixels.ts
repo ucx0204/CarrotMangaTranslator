@@ -22,3 +22,15 @@ export function flattenImageRedaction(
     if (mask[pixel]) result.fill(255, pixel * 4, pixel * 4 + 4);
   return result;
 }
+
+/** Restore excluded native pixels after compositing; generated neighbors stay intact. */
+export function restoreHiddenPixels(
+  original: Buffer,
+  working: Buffer,
+  hidden?: Uint8Array,
+): void {
+  if (!hidden) return;
+  for (let pixel = 0; pixel < hidden.length; pixel++)
+    if (hidden[pixel])
+      original.copy(working, pixel * 4, pixel * 4, pixel * 4 + 4);
+}

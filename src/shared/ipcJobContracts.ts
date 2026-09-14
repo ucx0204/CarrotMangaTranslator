@@ -1,7 +1,8 @@
+import { SoundEffectImageRecoverySchema } from "./ipcJobSchemas";
 import { imageRedactionIpcContracts } from "./ipcImageRedactionContracts";
 import { translationReviewIpcContracts } from "./ipcTranslationReviewContracts";
 import { z } from "zod";
-import { MAX_ID_LIST_LENGTH } from "./ipcSchemaPrimitives";
+import { MAX_ID_LIST_LENGTH, uuid } from "./ipcSchemaPrimitives";
 import { MAX_PAGE_EXPORT_PAGES } from "./pageExportLimits";
 import type {
   RegionAnalysisRequest,
@@ -10,6 +11,7 @@ import type {
   StartAnalysisResult,
   StartSoundEffectTranslationRequest,
   StartSoundEffectTranslationResult,
+  SoundEffectImageRecovery,
 } from "./analysisTypes";
 import type {
   ApplyInpaintingHistoryTransactionRequest,
@@ -67,6 +69,16 @@ import {
   stringArg,
 } from "./ipcContractCore";
 
+const inpaintingHistoryReferenceSchema = z
+  .object({
+    transactionId: uuid,
+    targets: z
+      .array(z.object({ chapterId: stringArg, pageId: stringArg }).strict())
+      .max(MAX_ID_LIST_LENGTH)
+      .optional(),
+  })
+  .strict();
+
 const startAnalysisResultSchema = z
   .object({
     status: analysisResultStatusSchema,
@@ -85,7 +97,7 @@ const startAnalysisResultSchema = z
 const regionAnalysisResultSchema = startAnalysisResultSchema
   .extend({
     status: z.enum(["completed", "partial", "cancelled", "failed"]),
-    history: z.object({ transactionId: z.string().uuid() }).strict().optional(),
+    history: inpaintingHistoryReferenceSchema.optional(),
     pageId: stringArg.optional(),
     blockIds: z
       .array(z.string().min(1).max(200))
@@ -130,10 +142,7 @@ const startInpaintingResultSchema = z
     blocksErased: nonNegativeInteger.optional(),
     pagesIncomplete: nonNegativeInteger.optional(),
     blocksIncomplete: nonNegativeInteger.optional(),
-    historyTransaction: z
-      .object({ transactionId: z.string().uuid() })
-      .strict()
-      .optional(),
+    historyTransaction: inpaintingHistoryReferenceSchema.optional(),
     error: diagnosticString.optional(),
   })
   .strict();
@@ -141,20 +150,14 @@ const inpaintingRetouchResultSchema = z
   .object({
     chapter: ChapterSnapshotSchema,
     pageId: stringArg,
-    historyTransaction: z
-      .object({ transactionId: z.string().uuid() })
-      .strict()
-      .optional(),
+    historyTransaction: inpaintingHistoryReferenceSchema.optional(),
   })
   .strict();
 const inpaintingRevertResultSchema = z
   .object({
     chapter: ChapterSnapshotSchema,
     pagesChanged: nonNegativeInteger,
-    historyTransaction: z
-      .object({ transactionId: z.string().uuid() })
-      .strict()
-      .optional(),
+    historyTransaction: inpaintingHistoryReferenceSchema.optional(),
   })
   .strict();
 const inpaintingColorSampleResultSchema = z
@@ -226,6 +229,15 @@ const finishPageTimingSessionResultSchema = z
   .strict();
 
 export const translationJobIpcContracts = {
+  getSoundEffectImageRecovery: defineIpcContract<
+    [string],
+    SoundEffectImageRecovery | null
+  >({
+    apiKey: "getSoundEffectImageRecovery",
+    channel: "job:get-sound-effect-image-recovery",
+    args: z.tuple([uuid]),
+    result: SoundEffectImageRecoverySchema,
+  }),
   startAnalysis: defineIpcContract<[StartAnalysisRequest], StartAnalysisResult>(
     {
       apiKey: "startAnalysis",

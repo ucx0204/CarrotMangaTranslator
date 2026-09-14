@@ -1,6 +1,7 @@
 import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import { hashStableValue } from "../../../shared/blockFingerprint";
 
 const WORKSPACE_HISTORY_MAX_ENTRIES = 60;
 const WORKSPACE_HISTORY_COALESCE_MS = 600;
@@ -17,6 +18,8 @@ export type WorkspaceSelectionSnapshot = {
 type WorkspaceChapterPageSnapshot = {
   pageId: string;
   blocks: TranslationBlock[];
+  blockOrder?: ChapterSnapshot["pages"][number]["blockOrder"];
+  imageBasis?: string;
 };
 
 /**
@@ -57,6 +60,7 @@ export type WorkspaceMaskEditHistoryEntry = WorkspaceHistoryEntryBase & {
 export type WorkspaceImageEditHistoryEntry = WorkspaceHistoryEntryBase & {
   kind: "image-edit";
   transactionId: string;
+  targets?: Array<{ chapterId: string; pageId: string }>;
   /** Chapter this opaque transaction mutates, when known. */
   chapterId?: string;
   /**
@@ -260,6 +264,8 @@ export function captureWorkspaceChapterEditSnapshot(
       .map((page) => ({
         pageId: page.id,
         blocks: page.blocks,
+        blockOrder: page.blockOrder,
+        imageBasis: historyImageBasis(page),
       })),
     selectedPageId: selection.selectedPageId,
     selectedBlockId: selection.selectedBlockId,
@@ -274,7 +280,7 @@ export function restoreWorkspaceChapterEditSnapshot(
 ): ChapterSnapshot {
   assertMatchingChapter(chapter.id, snapshot.chapterId);
   const blocksByPage = new Map(
-    snapshot.pages.map((page) => [page.pageId, page.blocks]),
+    snapshot.pages.map((page) => [page.pageId, page]),
   );
   for (const pageId of blocksByPage.keys()) {
     if (!chapter.pages.some((page) => page.id === pageId)) {
@@ -284,10 +290,45 @@ export function restoreWorkspaceChapterEditSnapshot(
   return {
     ...chapter,
     pages: chapter.pages.map((page) => {
-      const blocks = blocksByPage.get(page.id);
-      return blocks ? { ...page, blocks } : page;
+      const saved = blocksByPage.get(page.id);
+      return saved
+        ? { ...page, blocks: saved.blocks, blockOrder: saved.blockOrder }
+        : page;
     }),
   };
+}
+
+export function workspaceHistoryBasisMatches(
+  chapter: ChapterSnapshot,
+  expected: WorkspaceChapterEditSnapshot,
+): boolean {
+  return (
+    chapter.id === expected.chapterId &&
+    expected.pages.every((saved) => {
+      const page = chapter.pages.find((page) => page.id === saved.pageId);
+      return (
+        page &&
+        (!saved.imageBasis || saved.imageBasis === historyImageBasis(page)) &&
+        hashStableValue({
+          blocks: page.blocks,
+          blockOrder: page.blockOrder,
+        }) ===
+          hashStableValue({
+            blocks: saved.blocks,
+            blockOrder: saved.blockOrder,
+          })
+      );
+    })
+  );
+}
+
+function historyImageBasis(page: ChapterSnapshot["pages"][number]): string {
+  return hashStableValue({
+    imagePath: page.imagePath,
+    inpaintedImagePath: page.inpaintedImagePath,
+    width: page.width,
+    height: page.height,
+  });
 }
 
 export function captureWorkspaceMaskSnapshot(

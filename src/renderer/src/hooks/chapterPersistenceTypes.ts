@@ -23,6 +23,7 @@ export type UseChapterPersistenceOptions = {
 export type ServerPageVersion = {
   updatedAt: string;
   blocksHash: string;
+  blockOrderHash?: string;
 };
 
 export type ChapterPersistenceResult = {
@@ -33,6 +34,7 @@ export type ChapterPersistenceResult = {
   markDirty: (pageId?: string) => void;
   replaceDirtyPageIds: (pageIds: string[]) => void;
   saveNow: () => Promise<void>;
+  savePageNow: (chapterId: string, pageId: string) => Promise<void>;
   saveStatus: ChapterSaveStatus;
   syncSavedPageVersion: (chapter: ChapterSnapshot, pageId: string) => void;
 };
@@ -70,10 +72,15 @@ export type PersistChapter = (
     dirtyVersion?: number;
     saveReason?: SaveReason;
     syncState?: boolean;
+    pageIds?: string[];
   },
 ) => Promise<ChapterSnapshot>;
 
-export type QueuedSaveRunner = (reason: SaveReason) => Promise<void>;
+export type QueuedSaveTarget = { chapterId: string; pageIds: string[] };
+export type QueuedSaveRunner = (
+  reason: SaveReason,
+  target?: QueuedSaveTarget,
+) => Promise<void>;
 
 export type DirtyTrackingActions = Pick<
   ChapterPersistenceResult,
@@ -82,4 +89,5 @@ export type DirtyTrackingActions = Pick<
   | "replaceDirtyPageIds"
   | "resetSaveBaseline"
   | "saveNow"
+  | "savePageNow"
 >;

@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 type LockMode = "read" | "write";
 
 type QueuedOperation = {
@@ -24,7 +26,9 @@ export class AsyncReaderWriterLock {
     return new Promise<T>((resolve, reject) => {
       this.queue.push({
         mode,
-        operation: () => operation(),
+        // A prior reader/writer drains this queue in its own async context.
+        // Capture the caller's activity owner, settings and transaction context.
+        operation: AsyncLocalStorage.bind(operation),
         resolve: (value) => resolve(value as T),
         reject,
       });
@@ -57,11 +61,12 @@ export class AsyncReaderWriterLock {
       return;
     }
 
-    while (this.queue[0]?.mode === "read" && !this.writerActive) {
-      const operation = this.queue.shift();
-      if (!operation) {
-        return;
-      }
+    for (
+      let operation = this.queue[0];
+      operation?.mode === "read" && !this.writerActive;
+      operation = this.queue[0]
+    ) {
+      this.queue.shift();
       this.activeReaders += 1;
       void this.runQueuedOperation(operation).finally(() => {
         this.activeReaders -= 1;

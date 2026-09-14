@@ -514,6 +514,10 @@
     "resetFailed": "無法還原預設設定。"
   },
   "statusDock": {
+    "concurrentTasks": "執行中的工作",
+    "finishingEdits": "正在完成輸入並儲存此頁。",
+    "retryHandoff": "儲存後重試",
+    "pageBusy": "正在處理或儲存此頁。仍可檢視和繪製遮罩草稿。",
     "operation": {
       "summary": "{{kind}} · {{state}}",
       "replacePrefix": "{{kind}}",

@@ -7,10 +7,17 @@ import {
   fireEvent,
   render,
   renderHook,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useRichTranslationEditorState } from "../src/renderer/src/components/useRichTranslationEditorState";
 import { useRichTranslationVisualEditor } from "../src/renderer/src/components/useRichTranslationVisualEditor";
+import {
+  usePageEditHandoff,
+  usePageInputActivity,
+} from "../src/renderer/src/hooks/usePageEditHandoff";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
+import type { AppActivityState } from "../src/shared/appActivityTypes";
 
 afterEach(() => {
   cleanup();
@@ -18,6 +25,44 @@ afterEach(() => {
 });
 
 describe("rich translation editor hook boundaries", () => {
+  it("saves the production IME fallback commit before acknowledging a page handoff", async () => {
+    const acknowledge = vi.fn(async () => true);
+    window.mangaApi = createTestMangaGatewayStub({
+      finishPageEditHandoff: acknowledge,
+    });
+    const saved: string[] = [];
+    const view = render(
+      <HandoffEditor
+        state={{ version: 0, activities: [], pages: [] }}
+        saved={saved}
+      />,
+    );
+    const editor = view.getByTestId("handoff-editor");
+    fireEvent.compositionStart(editor);
+    editor.textContent = "한글 입력 완료";
+    view.rerender(
+      <HandoffEditor
+        state={{
+          version: 1,
+          activities: [],
+          pages: [
+            {
+              jobId: "job",
+              chapterId: "chapter",
+              pageId: "B",
+              requestId: "request",
+              phase: "finishing-edits",
+            },
+          ],
+        }}
+        saved={saved}
+      />,
+    );
+    expect(saved).toEqual([]);
+    fireEvent.compositionEnd(editor);
+    await waitFor(() => expect(acknowledge).toHaveBeenCalledOnce());
+    expect(saved).toEqual(["한글 입력 완료"]);
+  });
   it("clears a pending typing style when the visual selection moves", () => {
     const { result } = renderHook(() =>
       useRichTranslationEditorState("block-1"),
@@ -126,3 +171,48 @@ describe("rich translation editor hook boundaries", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+function HandoffEditor({
+  state,
+  saved,
+}: {
+  state: AppActivityState;
+  saved: string[];
+}) {
+  const value = React.useRef("base");
+  usePageInputActivity("chapter", "B", state);
+  usePageEditHandoff(state, async () => {
+    saved.push(value.current);
+  });
+  const selectionState = useRichTranslationEditorState("block-1");
+  const visual = useRichTranslationVisualEditor({
+    blockId: "block-1",
+    mode: "visual",
+    value: "base",
+    runs: [{ text: "base", bold: false, italic: false }],
+    onChange: (text) => {
+      value.current = text;
+    },
+    selectionState,
+    renderOptions: {
+      baseBold: false,
+      baseItalic: false,
+      baseFontSizePx: 24,
+      baseFontFamily: "sans-serif",
+      baseOpacity: 1,
+      resolveFontFamily: () => "sans-serif",
+    },
+  });
+  return (
+    <div className="editor-panel">
+      <div
+        ref={visual.visualRef}
+        data-testid="handoff-editor"
+        contentEditable
+        suppressContentEditableWarning
+        onCompositionStart={visual.onCompositionStart}
+        onCompositionEnd={visual.onCompositionEnd}
+      />
+    </div>
+  );
+}

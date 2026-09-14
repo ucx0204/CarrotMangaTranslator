@@ -305,6 +305,8 @@ function reduceJobState(
     return current;
   }
   const sameJob = current.id === event.id;
+  if (!sameJob && ["running", "cancelling"].includes(current.status))
+    return current;
   if (sameJob && isTerminalJobStatus(current.status)) {
     return current;
   }
@@ -439,7 +441,8 @@ function appendJobStatusLine(
     return;
   }
   const line = formatJobEventLine(event, t);
-  const group = statusLineReplacementGroup(event);
+  const baseGroup = statusLineReplacementGroup(event);
+  const group = baseGroup ? `${event.id}:${baseGroup}` : baseGroup;
   appendStatusLine(
     line,
     resolveStatusLineReplacement(

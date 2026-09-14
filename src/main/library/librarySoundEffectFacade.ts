@@ -13,14 +13,20 @@ import {
   type ResolvedSoundEffectBlock,
 } from "../libraryStore/librarySoundEffectMutations";
 import { notifyLinkedWorkspacePagesSaved } from "../linkedWorkspace/linkedWorkspaceNotifications";
-import { withLibraryMutation } from "./lock";
+import { assertLibraryActivityAccess, withLibraryMutation } from "./lock";
+import { pageContentResource } from "../../shared/appActivityTypes";
 
 export async function restoreSoundEffectReview(
   request: RestoreSoundEffectReviewRequest,
 ): Promise<ChapterSnapshot> {
-  const chapter = await withLibraryMutation(() =>
-    restoreSoundEffectReviewUnlocked(request),
-  );
+  const chapter = await withLibraryMutation(() => {
+    assertLibraryActivityAccess(
+      request.pages.map((page) =>
+        pageContentResource(request.chapterId, page.pageId),
+      ),
+    );
+    return restoreSoundEffectReviewUnlocked(request);
+  });
   notifyLinkedWorkspacePagesSaved(
     request.chapterId,
     request.pages.map((page) => page.pageId),
@@ -35,15 +41,16 @@ export async function appendResolvedSoundEffectBlocks(
   entries: readonly ResolvedSoundEffectBlock[],
   image?: Parameters<typeof appendResolvedSoundEffectBlocksUnlocked>[4],
 ): Promise<ChapterSnapshot> {
-  const chapter = await withLibraryMutation(() =>
-    appendResolvedSoundEffectBlocksUnlocked(
+  const chapter = await withLibraryMutation(() => {
+    assertLibraryActivityAccess([pageContentResource(chapterId, pageId)]);
+    return appendResolvedSoundEffectBlocksUnlocked(
       chapterId,
       pageId,
       expectedRevision,
       entries,
       image,
-    ),
-  );
+    );
+  });
   notifyLinkedWorkspacePagesSaved(chapterId, [pageId]);
   return chapter;
 }
@@ -53,9 +60,10 @@ export async function dismissSoundEffectReviewRegion(
   pageId: string,
   regionId: string,
 ): Promise<ChapterSnapshot> {
-  const chapter = await withLibraryMutation(() =>
-    dismissSoundEffectReviewRegionUnlocked(chapterId, pageId, regionId),
-  );
+  const chapter = await withLibraryMutation(() => {
+    assertLibraryActivityAccess([pageContentResource(chapterId, pageId)]);
+    return dismissSoundEffectReviewRegionUnlocked(chapterId, pageId, regionId);
+  });
   notifyLinkedWorkspacePagesSaved(chapterId, [pageId]);
   return chapter;
 }
@@ -63,9 +71,14 @@ export async function dismissSoundEffectReviewRegion(
 export async function prepareSoundEffectTranslation(
   request: PrepareSoundEffectTranslationRequest,
 ): Promise<PrepareSoundEffectTranslationResult> {
-  const result = await withLibraryMutation(() =>
-    prepareSoundEffectTranslationUnlocked(request),
-  );
+  const result = await withLibraryMutation(() => {
+    assertLibraryActivityAccess(
+      request.pages.map((page) =>
+        pageContentResource(request.chapterId, page.pageId),
+      ),
+    );
+    return prepareSoundEffectTranslationUnlocked(request);
+  });
   notifyLinkedWorkspacePagesSaved(
     request.chapterId,
     request.pages.map((page) => page.pageId),

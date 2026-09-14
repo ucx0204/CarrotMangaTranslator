@@ -73,6 +73,7 @@ const resolvedAppPaths = getAppPaths();
 assertDataRootInstanceLockHeld(resolvedAppPaths.dataRoot);
 const appPaths = ensureWritableAppDirectories();
 const appActivityGate = new AppActivityGate();
+libraryMutationCoordinator.configureActivityGate(appActivityGate);
 const jobs = new ActiveJobStore(undefined, appActivityGate);
 const operations = new AppOperationRegistry(appActivityGate);
 const importRuntime = createImportRuntimeResources({

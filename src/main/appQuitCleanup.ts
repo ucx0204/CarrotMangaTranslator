@@ -1,4 +1,3 @@
-/* eslint-disable max-lines-per-function -- quit cleanup stage ordering and release gates stay co-located for auditability */
 import type { AppOperationRegistry } from "./appOperationRegistry";
 import type { AppQuitCleanupProgress } from "./appQuitCoordinator";
 import type { ActiveJobStore } from "./jobs/activeJob";
@@ -11,7 +10,7 @@ export type AppTerminalCleanupReason = "app-quit" | "fatal-incident";
 
 type AppQuitCleanupJobs = Pick<
   ActiveJobStore,
-  "current" | "clearIfCurrent" | "runCleanup"
+  "current" | "all" | "clearIfCurrent" | "runCleanup"
 >;
 
 type AppQuitCleanupOperations = Pick<
@@ -53,51 +52,11 @@ export async function runAppQuitCleanup({
     cleanupReason,
   );
 
-  let inpaintingHistoryReleaseSafe = true;
   const job = jobs.current;
-
-  if (job) {
-    updateProgress({
-      stage: "active-job-cleanup",
-      jobId: job.id,
-      jobKind: job.kind,
-    });
-    const cleanup = await finishActiveJobCleanup({
-      job,
-      jobs,
-      reason:
-        cleanupReason === "fatal-incident" ? "fatal-incident" : "before-quit",
-      warnTimedOut: (jobId, timeoutMs) => {
-        logWarn(
-          cleanupReason === "fatal-incident"
-            ? "Timed out waiting for active job cleanup during fatal shutdown"
-            : "Timed out waiting for active job cleanup during app quit",
-          { jobId, timeoutMs },
-        );
-      },
-      reportLateFailure: (jobId, error) => {
-        logError("Active job cleanup failed after the shutdown soft deadline", {
-          jobId,
-          cleanupReason,
-          error,
-        });
-      },
-    });
-    inpaintingHistoryReleaseSafe = canReleaseInpaintingHistoryAfterQuitCleanup(
-      job.kind,
-      cleanup,
-    );
-    if (!inpaintingHistoryReleaseSafe) {
-      logWarn(
-        cleanupReason === "fatal-incident"
-          ? "Skipping inpainting history release because the active job did not settle during fatal shutdown"
-          : "Skipping inpainting history release because the active job did not settle before quit",
-        { jobId: job.id },
-      );
-    }
-  }
-
-  await cleanupManagedOperation(operations, updateProgress, cleanupReason);
+  const [inpaintingHistoryReleaseSafe] = await Promise.all([
+    cleanupAllJobs(jobs, updateProgress, cleanupReason, logError, logWarn),
+    cleanupManagedOperation(operations, updateProgress, cleanupReason),
+  ]);
 
   updateProgress({
     stage: "library-mutation-cleanup",
@@ -134,6 +93,58 @@ export async function runAppQuitCleanup({
   }
 }
 
+async function cleanupAllJobs(
+  jobs: AppQuitCleanupJobs,
+  updateProgress: (progress: AppQuitCleanupProgress) => void,
+  cleanupReason: AppTerminalCleanupReason,
+  logError: AppQuitCleanupLogger,
+  logWarn: AppQuitCleanupLogger,
+): Promise<boolean> {
+  let inpaintingHistoryReleaseSafe = true;
+  const activeJobs = jobs.all;
+  for (const active of activeJobs) active.abortController.abort();
+  for (const job of activeJobs) {
+    updateProgress({
+      stage: "active-job-cleanup",
+      jobId: job.id,
+      jobKind: job.kind,
+    });
+    const cleanup = await finishActiveJobCleanup({
+      job,
+      jobs,
+      reason:
+        cleanupReason === "fatal-incident" ? "fatal-incident" : "before-quit",
+      warnTimedOut: (jobId, timeoutMs) => {
+        logWarn(
+          cleanupReason === "fatal-incident"
+            ? "Timed out waiting for active job cleanup during fatal shutdown"
+            : "Timed out waiting for active job cleanup during app quit",
+          { jobId, timeoutMs },
+        );
+      },
+      reportLateFailure: (jobId, error) => {
+        logError("Active job cleanup failed after the shutdown soft deadline", {
+          jobId,
+          cleanupReason,
+          error,
+        });
+      },
+    });
+    inpaintingHistoryReleaseSafe &&=
+      canReleaseInpaintingHistoryAfterQuitCleanup(job.kind, cleanup);
+    if (!inpaintingHistoryReleaseSafe) {
+      logWarn(
+        cleanupReason === "fatal-incident"
+          ? "Skipping inpainting history release because the active job did not settle during fatal shutdown"
+          : "Skipping inpainting history release because the active job did not settle before quit",
+        { jobId: job.id },
+      );
+    }
+  }
+
+  return inpaintingHistoryReleaseSafe;
+}
+
 function cancelStartupMaintenanceSafely(
   cancelStartupMaintenance: () => void,
   logError: AppQuitCleanupLogger,
@@ -158,9 +169,6 @@ async function cleanupManagedOperation(
 ): Promise<void> {
   const operation = operations.current;
   if (!operation) {
-    return;
-  }
-  if (cleanupReason === "app-quit" && !operation.blocksQuit) {
     return;
   }
   updateProgress({

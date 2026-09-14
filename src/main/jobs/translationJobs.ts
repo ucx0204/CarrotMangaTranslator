@@ -1,5 +1,8 @@
+import { reserveJobChapter } from "./jobPageOwnership";
 import type { SoundEffectTranslationJobState } from "./translationJobTypes";
 import { randomUUID } from "node:crypto";
+import { translationActivityResources } from "./jobActivityResources";
+import { pageContentResource } from "../../shared/appActivityTypes";
 import type {
   RegionAnalysisRequest,
   RegionAnalysisResult,
@@ -73,7 +76,7 @@ export async function startAnalysisJob(
   request: StartAnalysisRequest,
   runtime: AnalysisJobRuntime = productionAnalysisJobRuntime,
 ): Promise<StartAnalysisResult> {
-  if (context.jobs.hasActive) {
+  if (!context.executionSettings && context.jobs.hasActive) {
     return { status: "failed", error: tMain("jobs.active") };
   }
 
@@ -90,6 +93,12 @@ export async function startAnalysisJob(
   context.jobs.start({
     id,
     kind: "gemma-analysis",
+    resources: context.executionSettings
+      ? translationActivityResources(
+          context.executionSettings,
+          Boolean(request.codexTypesetting),
+        )
+      : undefined,
     abortController,
     cleanup: lifetime.cleanup,
   });
@@ -105,72 +114,87 @@ export async function startAnalysisJob(
       }),
     );
 
-  try {
-    const requestedPageId =
-      request.runMode === "single-page" ? request.pageId : undefined;
-    const requestedPageIds =
-      request.runMode === "page-set" ? request.pageIds : undefined;
-    assertValidRequestedPageIds(request);
-    throwIfAborted(abortController.signal);
-    state.resolved = await runtime.resolvePagesForRun(
-      request.chapterId,
-      request.runMode,
-      requestedPageId,
-      requestedPageIds,
-    );
-    throwIfAborted(abortController.signal);
-    assertResolvedRequestedPages(request, state.resolved);
-    if (state.resolved.pages.length === 0) {
-      throwIfAborted(abortController.signal);
-      emit({
-        id,
-        kind: "gemma-analysis",
-        status: "completed",
-        progressText: tMain("translation.noPages"),
-        phase: "done",
-        progressCurrent: 0,
-        progressTotal: 0,
-        pageTotal: 0,
-      });
-      return {
-        status: "completed",
-        chapter: state.resolved.chapter,
-        warnings: [],
-      };
-    }
-    return await runtime.runResolvedAnalysisJob({
-      context,
-      request,
-      id,
-      abortController,
-      emit,
-      resolved: state.resolved,
-      state,
-      registerResourceCleanup: lifetime.registerResourceCleanup,
-    });
-  } catch (error) {
-    return await runtime.handleAnalysisJobError({
-      abortController,
-      emit,
-      error,
-      id,
-      request,
-      state,
-      context,
-    });
-  } finally {
-    try {
-      if (request.timingSession) {
-        await pageTimingSessionManager.checkpoint(request.timingSession.id);
-      }
-    } finally {
+  return context.jobs.run(
+    id,
+    async () => {
       try {
-        context.jobs.clearIfCurrent(id);
+        assertValidRequestedPageIds(request);
+        throwIfAborted(abortController.signal);
+        state.resolved = await runtime.resolvePagesForRun(
+          request.chapterId,
+          request.runMode,
+          request.runMode === "single-page" ? request.pageId : undefined,
+          request.runMode === "page-set" ? request.pageIds : undefined,
+        );
+        throwIfAborted(abortController.signal);
+        assertResolvedRequestedPages(request, state.resolved);
+        reserveJobChapter(
+          context.jobs,
+          id,
+          state.resolved.chapter,
+          state.resolved.pages.map((page) => page.id),
+          [
+            {
+              kind: "work-context",
+              scope: state.resolved.chapter.workId,
+              access: "write",
+            },
+          ],
+        );
+        if (state.resolved.pages.length === 0) {
+          throwIfAborted(abortController.signal);
+          emit({
+            id,
+            kind: "gemma-analysis",
+            status: "completed",
+            progressText: tMain("translation.noPages"),
+            phase: "done",
+            progressCurrent: 0,
+            progressTotal: 0,
+            pageTotal: 0,
+          });
+          return {
+            status: "completed",
+            chapter: state.resolved.chapter,
+            warnings: [],
+          };
+        }
+        return await runtime.runResolvedAnalysisJob({
+          context,
+          request,
+          id,
+          abortController,
+          emit,
+          resolved: state.resolved,
+          state,
+          registerResourceCleanup: lifetime.registerResourceCleanup,
+        });
+      } catch (error) {
+        return await runtime.handleAnalysisJobError({
+          abortController,
+          emit,
+          error,
+          id,
+          request,
+          state,
+          context,
+        });
       } finally {
-        lifetime.finish();
+        try {
+          if (request.timingSession) {
+            await pageTimingSessionManager.checkpoint(request.timingSession.id);
+          }
+        } finally {
+          try {
+            context.jobs.clearIfCurrent(id);
+          } finally {
+            lifetime.finish();
+          }
+        }
       }
-    }
-  }
+    },
+    context.executionSettings,
+  );
 }
 
 function assertValidRequestedPageIds(request: StartAnalysisRequest): void {
@@ -237,7 +261,7 @@ export async function translateRegionJob(
   request: RegionAnalysisRequest,
   runtime: RegionJobRuntime = productionRegionJobRuntime,
 ): Promise<RegionAnalysisResult> {
-  if (context.jobs.hasActive) {
+  if (!context.executionSettings && context.jobs.hasActive) {
     return { status: "failed", error: tMain("jobs.active") };
   }
 
@@ -249,6 +273,15 @@ export async function translateRegionJob(
   context.jobs.start({
     id,
     kind: "gemma-analysis",
+    resources: context.executionSettings
+      ? [
+          ...translationActivityResources(
+            context.executionSettings,
+            Boolean(request.codexTypesetting),
+          ),
+          pageContentResource(request.chapterId, request.pageId),
+        ]
+      : undefined,
     abortController,
     cleanup: lifetime.cleanup,
   });
@@ -264,33 +297,39 @@ export async function translateRegionJob(
       }),
     );
 
-  try {
-    return await runtime.runRegionTranslationJob({
-      context,
-      request,
-      id,
-      abortController,
-      emit,
-      state,
-      registerResourceCleanup: lifetime.registerResourceCleanup,
-    });
-  } catch (error) {
-    return await runtime.handleRegionJobError({
-      abortController,
-      emit,
-      error,
-      id,
-      request,
-      state,
-      context,
-    });
-  } finally {
-    try {
-      context.jobs.clearIfCurrent(id);
-    } finally {
-      lifetime.finish();
-    }
-  }
+  return context.jobs.run(
+    id,
+    async () => {
+      try {
+        return await runtime.runRegionTranslationJob({
+          context,
+          request,
+          id,
+          abortController,
+          emit,
+          state,
+          registerResourceCleanup: lifetime.registerResourceCleanup,
+        });
+      } catch (error) {
+        return await runtime.handleRegionJobError({
+          abortController,
+          emit,
+          error,
+          id,
+          request,
+          state,
+          context,
+        });
+      } finally {
+        try {
+          context.jobs.clearIfCurrent(id);
+        } finally {
+          lifetime.finish();
+        }
+      }
+    },
+    context.executionSettings,
+  );
 }
 
 export async function startSoundEffectTranslationJob(
@@ -298,7 +337,7 @@ export async function startSoundEffectTranslationJob(
   request: StartSoundEffectTranslationRequest,
   runtime: SoundEffectTranslationJobRuntime = productionSoundEffectTranslationJobRuntime,
 ): Promise<StartSoundEffectTranslationResult> {
-  if (context.jobs.hasActive) {
+  if (!context.executionSettings && context.jobs.hasActive) {
     return {
       status: "failed",
       createdBlocksByPage: [],
@@ -320,36 +359,50 @@ export async function startSoundEffectTranslationJob(
   context.jobs.start({
     id,
     kind: "sound-effect-translation",
+    resources: context.executionSettings
+      ? request.resumeImageRunId
+        ? [{ kind: "codex-auth", scope: "*", access: "read" }]
+        : translationActivityResources(
+            context.executionSettings,
+            Boolean(request.codexTypesetting),
+          )
+      : undefined,
     abortController,
     cleanup: lifetime.cleanup,
   });
   const emit = (event: JobEvent) =>
     emitJobEvent(context.jobs, context.getMainWindow(), addEventTiming(event));
-  try {
-    return await runtime.runSoundEffectTranslationJob({
-      context,
-      request,
-      id,
-      abortController,
-      emit,
-      state,
-      registerResourceCleanup: lifetime.registerResourceCleanup,
-    });
-  } catch (error) {
-    return await runtime.handleSoundEffectTranslationJobError({
-      abortController,
-      emit,
-      error,
-      id,
-      request,
-      state,
-      context,
-    });
-  } finally {
-    try {
-      context.jobs.clearIfCurrent(id);
-    } finally {
-      lifetime.finish();
-    }
-  }
+  return context.jobs.run(
+    id,
+    async () => {
+      try {
+        return await runtime.runSoundEffectTranslationJob({
+          context,
+          request,
+          id,
+          abortController,
+          emit,
+          state,
+          registerResourceCleanup: lifetime.registerResourceCleanup,
+        });
+      } catch (error) {
+        return await runtime.handleSoundEffectTranslationJobError({
+          abortController,
+          emit,
+          error,
+          id,
+          request,
+          state,
+          context,
+        });
+      } finally {
+        try {
+          context.jobs.clearIfCurrent(id);
+        } finally {
+          lifetime.finish();
+        }
+      }
+    },
+    context.executionSettings,
+  );
 }

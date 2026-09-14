@@ -12,6 +12,7 @@ import { createPageRevision } from "../../shared/pageRevision";
 import type { PageRevision } from "../../shared/pageRevisionTypes";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
+  nextChapterUpdatedAt,
   reorderIds,
   reorderRecords,
   resolveChapterStatus,
@@ -89,7 +90,7 @@ export async function renameChapterUnlocked(
     sanitizeTitle(title, "제목없음"),
     chapter.id,
   );
-  chapter.updatedAt = new Date().toISOString();
+  chapter.updatedAt = nextChapterUpdatedAt(chapter);
   await runLibraryTransaction("rename-chapter", async (transaction) => {
     await stageChapterAndTouchedWork(transaction, chapter, chapter.updatedAt);
   });
@@ -176,7 +177,7 @@ export async function reorderPagesUnlocked(
   }
   const work = await requireWork(locator.workId);
   const currentMemory = await readChapterStoryMemory(chapter.id);
-  const now = new Date().toISOString();
+  const now = nextChapterUpdatedAt(chapter);
   chapter.pageOrder = reorderIds(chapter.pageOrder, pageIds);
   chapter.pages = reorderRecords(chapter.pages, chapter.pageOrder);
   chapter.updatedAt = now;
@@ -231,7 +232,7 @@ export async function deletePageUnlocked(
       ),
     );
   }
-  const now = new Date().toISOString();
+  const now = nextChapterUpdatedAt(chapter);
   chapter.pageOrder = chapter.pageOrder.filter((id) => id !== pageId);
   chapter.pages = chapter.pages.filter((page) => page.id !== pageId);
   chapter.updatedAt = now;
@@ -287,7 +288,7 @@ export async function markChapterPagesRunningUnlocked(
     throw new Error("화를 찾지 못했습니다.");
   }
 
-  const now = new Date().toISOString();
+  const now = nextChapterUpdatedAt(chapter);
   chapter.pages = chapter.pages.map((page) =>
     pageIds.includes(page.id)
       ? {
@@ -333,7 +334,7 @@ export async function updatePagesAfterAnalysisUnlocked(
     "chapters",
     locator.chapterId,
   );
-  const now = new Date().toISOString();
+  const now = nextChapterUpdatedAt(chapter);
   chapter.pages = chapter.pages.map((record) =>
     applyPageAnalysisUpdate({
       appliedPageIds,
@@ -457,7 +458,7 @@ export async function finalizeRunningPagesUnlocked(
     return;
   }
 
-  const now = new Date().toISOString();
+  const now = nextChapterUpdatedAt(chapter);
   chapter.pages = chapter.pages.map((page) =>
     pageIds.includes(page.id) && page.analysisStatus === "running"
       ? {

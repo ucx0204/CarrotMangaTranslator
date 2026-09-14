@@ -17,6 +17,7 @@ export type InpaintingActionTarget = {
 export type UseInpaintingActionsOptions = {
   aiUnavailable?: boolean;
   codexErasureAvailable?: boolean;
+  codexErasureBusy?: boolean;
   askConfirm: (
     title: string,
     message: string,
@@ -28,11 +29,14 @@ export type UseInpaintingActionsOptions = {
   dirty: boolean;
   flowCancellationRef?: MutableRefObject<boolean>;
   jobActive: boolean;
+  modelResourceBusy?: boolean;
+  getPatternMaskStrokes?: (pageId: string) => InpaintingMaskStroke[];
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
   patternMaskStrokes: InpaintingMaskStroke[];
   pushStatus: (line: string) => void;
   refreshLibrary: () => Promise<void>;
   saveNow: () => Promise<void>;
+  savePageNow?: (chapterId: string, pageId: string) => Promise<void>;
   selectedPage: MangaPage | null;
   setInpaintingTool: Dispatch<SetStateAction<InpaintingTool>>;
   setFlowActive: (active: boolean) => void;
@@ -51,13 +55,17 @@ export function failInpaintingJob(
   progressText: string,
   message: string,
 ): void {
-  setJobState({
-    id: "failed-inpainting",
-    kind: "inpainting",
-    status: "failed",
-    progressText,
-    detail: message,
-  });
+  setJobState((current) =>
+    current.status === "running" || current.status === "cancelling"
+      ? current
+      : {
+          id: "failed-inpainting",
+          kind: "inpainting",
+          status: "failed",
+          progressText,
+          detail: message,
+        },
+  );
   pushStatus(message);
 }
 
@@ -67,13 +75,17 @@ export function failExportJob(
   message: string,
   progressText = "결과물 출력 실패",
 ): void {
-  setJobState({
-    id: "failed-export",
-    kind: "page-export",
-    status: "failed",
-    progressText,
-    detail: message,
-  });
+  setJobState((current) =>
+    current.status === "running" || current.status === "cancelling"
+      ? current
+      : {
+          id: "failed-export",
+          kind: "page-export",
+          status: "failed",
+          progressText,
+          detail: message,
+        },
+  );
   pushStatus(message);
 }
 

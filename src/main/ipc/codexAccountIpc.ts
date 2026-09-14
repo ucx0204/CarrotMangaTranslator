@@ -134,6 +134,7 @@ async function runCodexAccountOperation(
     {
       id: `codex-auth-${randomUUID()}`,
       kind: "codex-auth",
+      resources: [{ kind: "codex-auth", scope: "*", access: "write" }],
       mutatesLibrary: false,
       presentation: {
         phase:

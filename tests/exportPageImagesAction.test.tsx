@@ -23,6 +23,48 @@ afterEach(() => {
 });
 
 describe("useExportPageImagesAction", () => {
+  it.each([undefined, "folder unavailable"])(
+    "exports during another job and reports the output when opening its folder fails: %s",
+    async (openError) => {
+      const state = createJobStateHarness();
+      const pushStatus = vi.fn();
+      const options = {
+        ...makeOptions(state.setJobState, pushStatus),
+        jobActive: true,
+      };
+      exportPageImages.mockResolvedValue({
+        status: "completed",
+        pageCount: 2,
+        outputDir: "saved-output",
+        ...(openError ? { openError } : {}),
+      });
+      const { result } = renderHook(() => useExportPageImagesAction(options));
+      await act(async () => {
+        expect(
+          await result.current([{ chapterId: "chapter-1", mode: "all" }]),
+        ).toBe(true);
+      });
+      expect(pushStatus).toHaveBeenCalledOnce();
+      expect(state.setJobState).not.toHaveBeenCalled();
+    },
+  );
+  it("preserves dirty edits and refuses export when their save fails", async () => {
+    const state = createJobStateHarness();
+    const options = {
+      ...makeOptions(state.setJobState, vi.fn()),
+      dirty: true,
+      saveNow: vi.fn(async () => {
+        throw new Error("disk full");
+      }),
+    };
+    const { result } = renderHook(() => useExportPageImagesAction(options));
+    await act(async () => {
+      await expect(
+        result.current([{ chapterId: "chapter-1", mode: "all" }]),
+      ).rejects.toThrow("disk full");
+    });
+    expect(exportPageImages).not.toHaveBeenCalled();
+  });
   it("returns false for cancellation without reporting a failure", async () => {
     const state = createJobStateHarness();
     const pushStatus = vi.fn();

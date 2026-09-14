@@ -8,7 +8,6 @@ import { createPersistUiDefaults } from "./createTranslationModalProps";
 
 export function createSoundEffectTranslationLauncherProps({
   core,
-  derivedState,
   uiState,
 }: Pick<
   AppSessionViewModel,
@@ -19,7 +18,7 @@ export function createSoundEffectTranslationLauncherProps({
   return {
     active: uiState.soundEffectTranslationOpen,
     available: Boolean(chapter?.pages.length),
-    disabled: derivedState.jobActive,
+    disabled: false,
     pendingCount: summary.pendingCount,
     onOpen: () => {
       uiState.setSelectedSoundEffectReviewRegionId(null);
@@ -121,9 +120,20 @@ export function createSoundEffectTranslationModalProps({
     onRestore: libraryActions.restoreSoundEffectReview,
     settings: settingsDialog.settings,
     ...soundEffectExecutionSettings(settingsDialog),
-    jobActive: derivedState.jobActive,
+    jobActive: derivedState.modelResourceBusy,
     onPersistDefaults: createPersistUiDefaults(settingsDialog),
     onClose: () => uiState.setSoundEffectTranslationOpen(false),
+    onResume: (recovery) => {
+      uiState.setSoundEffectTranslationOpen(false);
+      void translationActions.translateSoundEffects(
+        recovery.targets,
+        recovery.eraseOriginal,
+        false,
+        undefined,
+        recovery.output === "image" ? "image" : "font",
+        recovery.runId,
+      );
+    },
     onStart: (
       request,
       inpaintAfterTranslation,

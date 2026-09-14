@@ -79,6 +79,7 @@ export type RegionAnalysisResult = Omit<StartAnalysisResult, "status"> & {
 };
 
 export type StartSoundEffectTranslationRequest = {
+  resumeImageRunId?: string;
   codexTypesetting?: import("./codexTypesettingTypes").CodexTypesettingOptions;
   chapterId: string;
   targets: Array<{
@@ -90,6 +91,15 @@ export type StartSoundEffectTranslationRequest = {
   inpaintAfterTranslation: boolean;
   /** Match each created SFX block to the visible source lettering. */
   autoFontMatching?: boolean;
+};
+
+export type SoundEffectImageRecovery = {
+  runId: string;
+  chapterId: string;
+  targets: StartSoundEffectTranslationRequest["targets"];
+  blockCount: number;
+  eraseOriginal: boolean;
+  output: "text" | "image";
 };
 
 export type PrepareSoundEffectTranslationRequest = {

@@ -58,6 +58,8 @@ export function createMangaApi(runtime: MangaApiRuntime): MangaApi {
       ),
     onJobEvent: (callback) =>
       subscribeToIpcEvent(ipcEventContracts.jobEvent, callback, runtime),
+    onAppActivities: (callback) =>
+      subscribeToIpcEvent(ipcEventContracts.appActivities, callback, runtime),
     onAppOperationActivity: (callback) =>
       subscribeToIpcEvent(
         ipcEventContracts.appOperationActivity,

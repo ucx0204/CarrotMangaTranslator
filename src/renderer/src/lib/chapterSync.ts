@@ -1,4 +1,4 @@
-import { hashTranslationBlocks } from "../../../shared/blockFingerprint";
+import { hashStableValue } from "../../../shared/blockFingerprint";
 import type {
   ChapterSnapshot,
   MangaPage,
@@ -66,16 +66,24 @@ export function mergeLiveChapterPreservingDirtyPages(
 
   const dirtyPageIdSet = new Set(dirtyPageIds);
   const localPages = new Map(localChapter.pages.map((page) => [page.id, page]));
+  const livePages = new Map(liveChapter.pages.map((page) => [page.id, page]));
+  const newestChapter =
+    localChapter.updatedAt > liveChapter.updatedAt ? localChapter : liveChapter;
   const preservedDirtyPageIds: string[] = [];
 
   return {
     chapter: {
-      ...liveChapter,
-      pages: liveChapter.pages.map((page) => {
+      ...newestChapter,
+      pages: newestChapter.pages.map((record) => {
+        const page = livePages.get(record.id) ?? record;
         const localPage = localPages.get(page.id);
         // 라이브에만 존재하는 신규 페이지는 그대로 사용한다.
         if (!localPage) {
           return page;
+        }
+        if (localPage.updatedAt > page.updatedAt) {
+          if (dirtyPageIdSet.has(page.id)) preservedDirtyPageIds.push(page.id);
+          return localPage;
         }
         // dirty 페이지는 로컬 편집을 보존하면서 라이브 상태만 반영한다.
         if (dirtyPageIdSet.has(page.id)) {
@@ -110,18 +118,8 @@ function isPageContentEqual(
     localPage.analysisStatus === livePage.analysisStatus &&
     localPage.inpaintedImagePath === livePage.inpaintedImagePath &&
     localPage.lastError === livePage.lastError &&
-    pageTimingFingerprint(localPage) === pageTimingFingerprint(livePage) &&
-    hashTranslationBlocks(localPage.blocks) ===
-      hashTranslationBlocks(livePage.blocks)
+    hashStableValue(localPage) === hashStableValue(livePage)
   );
-}
-
-function pageTimingFingerprint(page: MangaPage): string {
-  const timing = page.processingTiming;
-  if (!timing) return "";
-  return timing.version === 1
-    ? `1:${timing.measuredAt}`
-    : `2:${timing.sessionId}:${timing.checkpoint}:${timing.state}:${timing.measuredAt}`;
 }
 
 function mergeAppendedLiveBlocks(

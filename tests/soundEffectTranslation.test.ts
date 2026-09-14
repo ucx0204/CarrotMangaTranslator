@@ -733,7 +733,7 @@ describe("dedicated sound-effect translation contract", () => {
       request,
       state,
       context: {
-        jobs: { current: { lastEvent: { pageTotal: 3 } } },
+        jobs: { get: () => ({ lastEvent: { pageTotal: 3 } }) },
       } as never,
       dependencies: { openChapter } as never,
     });
@@ -746,7 +746,7 @@ describe("dedicated sound-effect translation contract", () => {
       id: "sfx-failed",
       request,
       state,
-      context: { jobs: { current: null } } as never,
+      context: { jobs: { get: () => null } } as never,
       dependencies: { openChapter } as never,
     });
     expect(failed).toMatchObject({ status: "failed", error: "model failed" });

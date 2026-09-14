@@ -53,6 +53,10 @@ import { LinkedWorkspaceStore } from "./linkedWorkspaceStore";
 import { deriveLegacyInpaintMask } from "../inpainting/inpaintMaskArtifact";
 import { probeImageFile } from "../libraryStore/imageHeaderProbe";
 import { isInvalidImageHeaderError } from "../libraryStore/imageHeaderProbeInternal";
+import { withLibraryContentEdit } from "../library/lock";
+import { pageContentResource } from "../../shared/appActivityTypes";
+import { outputPathResource } from "../outputPathActivity";
+import { AppActivityBusyError } from "../appActivityGate";
 
 const IDLE_DELAY_MS = 3_000;
 const RETRY_DELAYS_MS = [5_000, 30_000, 120_000, 600_000] as const;
@@ -568,10 +572,6 @@ export class LinkedWorkspaceSyncService {
       this.schedule(250);
       return;
     }
-    if (this.options.jobs.hasActive) {
-      this.schedule(500);
-      return;
-    }
     const readyItem = this.nextReadyItem();
     if (!readyItem) {
       this.finishDrainedConnections();
@@ -608,11 +608,7 @@ export class LinkedWorkspaceSyncService {
     renderSlot: number,
     generation: number,
   ): Promise<void> {
-    while (
-      !this.disposed &&
-      generation === this.generation &&
-      !this.options.jobs.hasActive
-    ) {
+    while (!this.disposed && generation === this.generation) {
       const item = this.claimNextReadyItem();
       if (!item) return;
       try {
@@ -689,22 +685,32 @@ export class LinkedWorkspaceSyncService {
     renderSlot: number,
   ): Promise<void> {
     try {
-      const prepared = await this.runSerializedMetadata(() =>
-        this.prepareItem(item, generation),
+      const record = this.records.get(item.connectionId);
+      if (!record) return;
+      await withLibraryContentEdit(
+        [
+          pageContentResource(item.chapterId, item.pageId),
+          await outputPathResource(record.rootPath, true),
+        ],
+        async () => {
+          const prepared = await this.runSerializedMetadata(() =>
+            this.prepareItem(item, generation),
+          );
+          if (!prepared) {
+            this.lastErrors.delete(item.connectionId);
+            return;
+          }
+          const rendered = await this.renderPreparedItem(
+            prepared,
+            generation,
+            renderSlot,
+          );
+          await this.runSerializedMetadata(() =>
+            this.commitRenderedItem(rendered, generation),
+          );
+          this.lastErrors.delete(item.connectionId);
+        },
       );
-      if (!prepared) {
-        this.lastErrors.delete(item.connectionId);
-        return;
-      }
-      const rendered = await this.renderPreparedItem(
-        prepared,
-        generation,
-        renderSlot,
-      );
-      await this.runSerializedMetadata(() =>
-        this.commitRenderedItem(rendered, generation),
-      );
-      this.lastErrors.delete(item.connectionId);
     } catch (error) {
       await this.runSerializedMetadata(() => {
         this.settleItemFailure(item, generation, error);
@@ -889,7 +895,7 @@ export class LinkedWorkspaceSyncService {
     if (!this.isCurrentQueueItem(item)) return;
     if (
       generation !== this.generation ||
-      this.options.jobs.hasActive ||
+      error instanceof AppActivityBusyError ||
       isAbortError(error)
     ) {
       item.nextRetryAt = Date.now() + IDLE_DELAY_MS;
@@ -1628,7 +1634,7 @@ export class LinkedWorkspaceSyncService {
   }
 
   private assertGeneration(generation: number): void {
-    if (generation !== this.generation || this.options.jobs.hasActive) {
+    if (generation !== this.generation || this.disposed) {
       throw new DOMException("Aborted", "AbortError");
     }
   }

@@ -24,6 +24,7 @@ type RetouchHarnessApi = {
   appendRetouchPoint: ReturnType<typeof vi.fn>;
   applyRetouchOperation: ReturnType<typeof vi.fn>;
   getBounds: ReturnType<typeof vi.fn>;
+  getMasks: () => Record<string, InpaintingMaskStroke[]>;
   getPoints: () => Array<{ x: number; y: number }>;
   getRenderCount: () => number;
 };
@@ -98,6 +99,45 @@ describe("workspace retouch pointer performance", () => {
       mode: "paint",
     });
     expect(frames.count()).toBe(0);
+  });
+
+  it("keeps every mask sample while the page is processing and refuses paint on the same page", () => {
+    installAnimationFrameController();
+    const mask = renderRetouchHarness("mask", true);
+    const stage = screen.getByTestId("retouch-stage");
+    fireEvent.pointerDown(stage, { clientX: 10, clientY: 10, pointerId: 3 });
+    fireEvent.pointerMove(stage, { clientX: 40, clientY: 60, pointerId: 3 });
+    fireEvent.pointerUp(stage, { clientX: 40, clientY: 60, pointerId: 3 });
+    expect(mask.current.getMasks()["page-1"]).toEqual([
+      {
+        points: [
+          { x: 100, y: 100 },
+          { x: 400, y: 600 },
+        ],
+        radiusPx: 28,
+      },
+    ]);
+    expect(mask.current.applyRetouchOperation).not.toHaveBeenCalled();
+    cleanup();
+    const brush = renderRetouchHarness("brush", true);
+    const blockedStage = screen.getByTestId("retouch-stage");
+    fireEvent.pointerDown(blockedStage, {
+      clientX: 10,
+      clientY: 10,
+      pointerId: 4,
+    });
+    fireEvent.pointerMove(blockedStage, {
+      clientX: 40,
+      clientY: 60,
+      pointerId: 4,
+    });
+    fireEvent.pointerUp(blockedStage, {
+      clientX: 40,
+      clientY: 60,
+      pointerId: 4,
+    });
+    expect(brush.current.applyRetouchOperation).not.toHaveBeenCalled();
+    expect(brush.current.appendRetouchPoint).not.toHaveBeenCalled();
   });
 
   it("commits one reverse-drag rectangle operation without collecting stroke points", () => {
@@ -199,11 +239,13 @@ describe("workspace retouch pointer performance", () => {
 
 function renderRetouchHarness(
   tool: InpaintingTool = "brush",
+  jobActive = false,
 ): React.MutableRefObject<RetouchHarnessApi> {
   const api = React.createRef<RetouchHarnessApi>();
   render(
     <RetouchHarness
       tool={tool}
+      jobActive={jobActive}
       onReady={(nextApi) => {
         api.current = nextApi;
       }}
@@ -218,9 +260,11 @@ function renderRetouchHarness(
 function RetouchHarness({
   onReady,
   tool,
+  jobActive,
 }: {
   onReady: (api: RetouchHarnessApi) => void;
   tool: InpaintingTool;
+  jobActive: boolean;
 }): React.JSX.Element {
   const renderCountRef = useRef(0);
   renderCountRef.current += 1;
@@ -232,7 +276,9 @@ function RetouchHarness({
   const selectedPageIdRef = useRef<string | null>("page-1");
   const [, setPaintColor] = useState("#ffffff");
   const [, setSelectedBlockId] = useState<string | null>(null);
-  const [, setMasks] = useState<Record<string, InpaintingMaskStroke[]>>({});
+  const [masks, setMasks] = useState<Record<string, InpaintingMaskStroke[]>>(
+    {},
+  );
   const page = useMemo(makePage, []);
   const appendRetouchPoint = useMemo(() => vi.fn(), []);
   const applyRetouchOperation = useMemo(() => vi.fn(async () => undefined), []);
@@ -257,10 +303,10 @@ function RetouchHarness({
     inpaintingRetouchPointsRef: pointsRef,
     inpaintingTool: tool,
     inpaintingToolActive: true,
-    jobActive: false,
+    jobActive,
     lastInpaintingRetouchPointRef: lastPointRef,
     onPatternMaskChange: () => undefined,
-    patternMaskStrokesByPage: {},
+    patternMaskStrokesByPage: masks,
     pushStatus: () => undefined,
     selectedPage: page,
     selectedPageIdRef,
@@ -277,10 +323,11 @@ function RetouchHarness({
       appendRetouchPoint,
       applyRetouchOperation,
       getBounds,
+      getMasks: () => masks,
       getPoints: () => pointsRef.current,
       getRenderCount: () => renderCountRef.current,
     });
-  }, [appendRetouchPoint, applyRetouchOperation, getBounds, onReady]);
+  }, [appendRetouchPoint, applyRetouchOperation, getBounds, masks, onReady]);
 
   return (
     <div

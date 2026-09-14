@@ -5,6 +5,7 @@ import { completeAnalysisJob } from "../src/main/jobs/translationJobRunners";
 import { startAnalysisJob } from "../src/main/jobs/translationJobs";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { JobEvent } from "../src/shared/jobTypes";
+import { resolveDefaultAppSettings } from "../src/main/appSettings";
 
 vi.mock("electron", () => ({
   app: { isPackaged: false },
@@ -13,6 +14,32 @@ vi.mock("electron", () => ({
 const TIMESTAMP = "2026-01-01T00:00:00.000Z";
 
 describe("translation job lifecycle", () => {
+  it("finishes an empty translation while preserving an unrelated owner", async () => {
+    const chapter = makeChapter([]);
+    const runtime = makeSelectionValidationRuntime(chapter, []);
+    const jobs = new ActiveJobStore();
+    jobs.start({
+      id: "export",
+      kind: "page-export",
+      resources: [],
+      abortController: new AbortController(),
+    });
+    const context = {
+      jobs,
+      getMainWindow: () => null,
+      decodeImage: vi.fn(),
+      executionSettings: resolveDefaultAppSettings({}),
+    };
+    const result = await startAnalysisJob(
+      context,
+      { chapterId: chapter.id, runMode: "all" },
+      runtime,
+    );
+    expect(result.status).toBe("completed");
+    expect(runtime.runResolvedAnalysisJob).not.toHaveBeenCalled();
+    expect(jobs.all.map((job) => job.id)).toEqual(["export"]);
+    jobs.clearIfCurrent("export");
+  });
   it("emits the cancelled terminal event before clearing the active job", async () => {
     const chapter = makeChapter();
     const runtime: NonNullable<Parameters<typeof startAnalysisJob>[2]> = {

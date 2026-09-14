@@ -1,3 +1,4 @@
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 /** @vitest-environment jsdom */
 
 import React from "react";
@@ -8,9 +9,13 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StatusDockButton } from "../src/renderer/src/components/StatusDockButton";
 import type { JobState } from "../src/shared/jobTypes";
+
+beforeEach(() => {
+  window.mangaApi = createTestMangaGatewayStub();
+});
 
 afterEach(() => {
   cleanup();

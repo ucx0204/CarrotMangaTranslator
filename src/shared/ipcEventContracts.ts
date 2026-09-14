@@ -20,8 +20,15 @@ import type { PageTimingUpdatedEvent } from "./pageProcessingTiming";
 import { MAX_ID_LIST_LENGTH, uuid } from "./ipcSchemaPrimitives";
 import type { AppOperationActivityEvent } from "./appOperationTypes";
 import { AppOperationActivityEventSchema } from "./ipcAppOperationContracts";
+import { AppActivityStateSchema } from "./ipcAppActivityContracts";
+import type { AppActivityState } from "./appActivityTypes";
 
 export const ipcEventContracts = {
+  appActivities: defineIpcEventContract<AppActivityState>({
+    eventKey: "appActivities",
+    channel: "app-activity:changed",
+    payload: AppActivityStateSchema,
+  }),
   ...webImportIpcEventContracts,
   appOperationActivity: defineIpcEventContract<AppOperationActivityEvent>({
     eventKey: "appOperationActivity",

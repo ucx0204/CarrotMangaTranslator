@@ -25,12 +25,13 @@ export function useChapterSaveStatusRunner({
 }): QueuedSaveRunner {
   const { dirtyPageIdsRef } = refs;
   return useCallback<QueuedSaveRunner>(
-    async (reason) => {
+    async (reason, target) => {
       const hadDirtyPages = dirtyPageIdsRef.current.size > 0;
       if (hadDirtyPages) setSaveStatus("saving");
       try {
-        await baseRunQueuedSave(reason);
-        if (hadDirtyPages) setSaveStatus("saved");
+        await baseRunQueuedSave(reason, target);
+        if (hadDirtyPages)
+          setSaveStatus(dirtyPageIdsRef.current.size ? "dirty" : "saved");
       } catch (error) {
         setSaveStatus(isConflictError(error) ? "conflict" : "error");
         throw error;

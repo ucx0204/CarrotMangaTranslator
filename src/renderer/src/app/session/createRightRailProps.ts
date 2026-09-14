@@ -50,6 +50,7 @@ type RightRailViewModel = {
       AppSessionViewModel["inpaintingBridge"]["contextValue"],
       | "aiUnavailable"
       | "codexErasureAvailable"
+      | "codexErasureBusy"
       | "brushColor"
       | "brushRadius"
       | "jobActive"
@@ -160,6 +161,7 @@ export function createRightRailProps(
     operationActivity: model.operationActivity?.activity ?? null,
     maskStrokeCount: inpainting.maskStrokeCount,
     codexErasureAvailable: inpainting.codexErasureAvailable,
+    codexErasureBusy: inpainting.codexErasureBusy,
     peeking: derivedState.showingOriginalPeek,
     progressSnapshot: derivedState.progressSnapshot,
     redoLabel: workspaceHistory.redoLabel,
@@ -220,13 +222,6 @@ function isRightRailEditorDisabled(model: RightRailViewModel): boolean {
 }
 
 function isRightRailJobActive(model: RightRailViewModel): boolean {
-  if (model.operationActivity?.active || model.importShareModal?.importBusy) {
-    return (
-      model.derivedState.selectedPageEditLocked ||
-      model.uiState.translationFlowActive ||
-      model.workspaceHistory.busy
-    );
-  }
   return (
     model.inpaintingBridge.contextValue.jobActive ||
     model.uiState.translationFlowActive ||

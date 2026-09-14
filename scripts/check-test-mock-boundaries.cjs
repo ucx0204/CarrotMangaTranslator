@@ -35,6 +35,8 @@ const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/inpaintingRevisionStore.test.ts::../src/main/appPaths",
   // Isolate the real region-save filesystem transaction from the user library.
   "tests/regionRevisionPersistence.test.ts::../src/main/appPaths",
+  // Exercise real recovery sidecars and image commits inside an isolated library.
+  "tests/soundEffectImageRecovery.test.ts::../src/main/appPaths",
   "tests/importOperationLifecycle.test.ts::../src/main/appPaths",
   "tests/libraryImportLimits.test.ts::../src/main/appPaths",
   "tests/libraryPaths.test.ts::../src/main/appPaths",

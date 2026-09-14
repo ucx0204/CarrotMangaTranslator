@@ -48,12 +48,15 @@ export function useInpaintingActions(
   const baseOptions = { ...options, refreshLibrary };
   const aiOptions = {
     ...baseOptions,
-    jobActive: options.jobActive || options.aiUnavailable === true,
+    jobActive:
+      options.jobActive ||
+      options.modelResourceBusy === true ||
+      options.aiUnavailable === true,
   };
   const rawActions = {
     runBubbleLayout: useRunBubbleLayoutAction(aiOptions),
     runInpainting: useRunInpaintingAction(aiOptions),
-    runDrawnPatternInpainting: useDrawnPatternInpaintingAction(aiOptions),
+    runDrawnPatternInpainting: useDrawnPatternInpaintingAction(baseOptions),
     revertInpainting: useRevertInpaintingAction(baseOptions),
     runInpaintingSelection: useRunInpaintingSelectionAction(aiOptions),
   };
@@ -131,9 +134,8 @@ function useExclusiveImageActions(
     [actions, runExclusive],
   );
   const revertInpainting = useCallback(
-    (scope: InpaintingScope) =>
-      runExclusive(() => actions.revertInpainting(scope)),
-    [actions, runExclusive],
+    (scope: InpaintingScope) => actions.revertInpainting(scope),
+    [actions],
   );
   const runInpaintingSelection = useCallback(
     (

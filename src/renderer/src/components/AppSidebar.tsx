@@ -28,6 +28,7 @@ type AppSidebarProps = {
   library: LibraryIndex;
   jobActive: boolean;
   libraryMutationBlocked?: boolean;
+  pageStructureBlocked?: boolean;
   lockedPageIds?: ReadonlySet<string>;
   settingsBusy: boolean;
   settingsOpen: boolean;
@@ -123,7 +124,11 @@ function LibrarySidebarContent(props: AppSidebarProps): React.JSX.Element {
         otherPanelCollapsed={collapsedPanel === "library"}
         pages={props.currentChapter?.pages ?? []}
         selectedPageId={props.selectedPageId}
-        jobActive={props.libraryMutationBlocked ?? props.jobActive}
+        jobActive={
+          props.pageStructureBlocked ??
+          props.libraryMutationBlocked ??
+          props.jobActive
+        }
         lockedPageIds={props.lockedPageIds ?? EMPTY_PAGE_IDS}
         onSelect={actions.onSelectPage}
         onRetranslate={actions.onRetranslatePage}

@@ -1,5 +1,8 @@
 /* eslint-disable max-lines -- transaction history, rollback, and artifact retention share one serialized state owner */
 import { randomUUID } from "node:crypto";
+import { pageContentResource } from "../../shared/appActivityTypes";
+import { assertLibraryActivityAccess } from "../library/lock";
+import { retainLibraryArtifacts } from "../libraryStore/libraryArtifactRetention";
 import type {
   ApplyInpaintingHistoryTransactionRequest,
   ApplyInpaintingHistoryTransactionResult,
@@ -59,6 +62,10 @@ export class InpaintingRevisionStore {
   private cleanupTail: Promise<void> = Promise.resolve();
   private pendingCleanupChanges: InpaintingRevisionChange[] = [];
   private transactionOperationTail: Promise<void> = Promise.resolve();
+  private readonly artifactReleases = new Map<
+    InpaintingRevisionChange,
+    () => void
+  >();
 
   constructor(
     private readonly repository: InpaintingRevisionRepository = libraryInpaintingRevisionRepository,
@@ -99,7 +106,7 @@ export class InpaintingRevisionStore {
         "하나의 인페인팅 기록에 같은 페이지를 중복 등록할 수 없습니다.",
       );
     }
-    transaction.changes.push({
+    const storedChange = {
       ...change,
       beforeBlocks: change.beforeBlocks
         ? structuredClone(change.beforeBlocks)
@@ -115,7 +122,19 @@ export class InpaintingRevisionStore {
       afterTranslationCompletion: cloneTranslationCompletion(
         change.afterTranslationCompletion,
       ),
-    });
+    };
+    transaction.changes.push(storedChange);
+    this.artifactReleases.set(
+      storedChange,
+      retainLibraryArtifacts(
+        [
+          change.beforePath,
+          change.afterPath,
+          change.beforeMaskPath,
+          change.afterMaskPath,
+        ].filter((path): path is string => Boolean(path)),
+      ),
+    );
     return true;
   }
 
@@ -152,7 +171,13 @@ export class InpaintingRevisionStore {
     }
     const transaction = this.transactions.get(transactionId);
     return transaction && transaction.changes.length > 0
-      ? { transactionId }
+      ? {
+          transactionId,
+          targets: transaction.changes.map(({ chapterId, pageId }) => ({
+            chapterId,
+            pageId,
+          })),
+        }
       : undefined;
   }
 
@@ -200,9 +225,14 @@ export class InpaintingRevisionStore {
     }
 
     try {
-      const chapters = await this.repository.runMutation(() =>
-        this.applyTransactionUnlocked(transaction, request.direction),
-      );
+      const chapters = await this.repository.runMutation(() => {
+        assertLibraryActivityAccess(
+          transaction.changes.map((change) =>
+            pageContentResource(change.chapterId, change.pageId),
+          ),
+        );
+        return this.applyTransactionUnlocked(transaction, request.direction);
+      });
       return {
         transactionId: transaction.id,
         direction: request.direction,
@@ -386,6 +416,10 @@ export class InpaintingRevisionStore {
   private cleanupReleasedChanges(
     releasedChanges: InpaintingRevisionChange[],
   ): Promise<void> {
+    for (const change of releasedChanges) {
+      this.artifactReleases.get(change)?.();
+      this.artifactReleases.delete(change);
+    }
     const scheduled = this.cleanupTail.then(() =>
       this.runReleasedChangesCleanup(releasedChanges),
     );
@@ -410,25 +444,27 @@ export class InpaintingRevisionStore {
 
     const retryChanges: InpaintingRevisionChange[] = [];
     try {
-      await this.repository.runMutation(async () => {
-        for (const [chapterId, changes] of groupChangesByChapter(
-          cleanupChanges,
-        )) {
-          try {
-            await this.repository.cleanupReleasedArtifacts({
-              chapterId,
-              changes,
-              retainedPaths: this.getRetainedArtifactPaths(chapterId),
-            });
-          } catch (error) {
-            this.diagnostics.warn(
-              "Failed to clean released inpainting history artifacts",
-              { chapterId, error },
-            );
-            retryChanges.push(...changes);
+      await (this.repository.runArtifactCleanup ?? this.repository.runMutation)(
+        async () => {
+          for (const [chapterId, changes] of groupChangesByChapter(
+            cleanupChanges,
+          )) {
+            try {
+              await this.repository.cleanupReleasedArtifacts({
+                chapterId,
+                changes,
+                retainedPaths: this.getRetainedArtifactPaths(chapterId),
+              });
+            } catch (error) {
+              this.diagnostics.warn(
+                "Failed to clean released inpainting history artifacts",
+                { chapterId, error },
+              );
+              retryChanges.push(...changes);
+            }
           }
-        }
-      });
+        },
+      );
     } catch (error) {
       this.diagnostics.warn(
         "Failed to acquire library lock for inpainting history cleanup",

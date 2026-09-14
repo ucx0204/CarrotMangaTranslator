@@ -16,13 +16,16 @@ describe("app quit cleanup orchestration", () => {
     const disposeInpainting = vi.fn(async () => {
       throw disposalFailure;
     });
-    const disposeTranslation = vi.fn(async () => undefined);
+    const disposeTranslation = vi.fn(async () => {
+      throw new Error("translation disposal failed");
+    });
     const releaseInpaintingHistory = vi.fn(async () => 0);
     const logError = vi.fn();
 
     await runAppQuitCleanup({
       jobs: {
         current: null,
+        all: [],
         clearIfCurrent: vi.fn(),
         runCleanup: vi.fn(async () => undefined),
       },
@@ -77,6 +80,7 @@ describe("app quit cleanup orchestration", () => {
     const cleanup = runAppQuitCleanup({
       jobs: {
         current: job,
+        all: [job],
         clearIfCurrent,
         runCleanup: vi.fn(() => cleanupGate.promise),
       },
@@ -146,6 +150,7 @@ describe("app quit cleanup orchestration", () => {
     await runAppQuitCleanup({
       jobs: {
         current: job,
+        all: [job],
         clearIfCurrent: vi.fn(),
         runCleanup,
       },
@@ -185,6 +190,7 @@ describe("app quit cleanup orchestration", () => {
     await runAppQuitCleanup({
       jobs: {
         current: job,
+        all: [job],
         clearIfCurrent: vi.fn(),
         runCleanup,
       },
@@ -206,6 +212,7 @@ describe("app quit cleanup orchestration", () => {
 function createIdleOperations() {
   return {
     current: null,
+    all: [],
     abortCurrentAndWait: vi.fn(async () => null),
   };
 }

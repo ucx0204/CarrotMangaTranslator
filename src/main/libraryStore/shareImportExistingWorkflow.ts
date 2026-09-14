@@ -46,6 +46,7 @@ export async function importWorkShareIntoExistingWork(
   session: SharePackageSession,
   request: WorkShareImportFromPackageRequest,
   signal?: AbortSignal,
+  publish?: Parameters<typeof runLibraryTransaction>[2],
 ): Promise<WorkShareImportResult> {
   if (request.target.mode !== "existing") {
     throw new Error(tMain("share.errors.notExistingWorkRequest"));
@@ -69,13 +70,33 @@ export async function importWorkShareIntoExistingWork(
         signal,
       });
       throwIfAborted(signal);
-      return stageExistingShareImport({
-        transaction,
-        work,
-        plan,
-        signal,
+      const result: WorkShareImportResult = {
+        workId: work.id,
+        chapterIds: plan.finalChapterIds,
+      };
+      transaction.beforePublish(async () => {
+        const latestWork = await ensureExistingWork(work.id);
+        plan.updatedExistingChapters = await Promise.all(
+          plan.updatedExistingChapters.map(async (chapter) => {
+            const latest = await readChapterFile(work.id, chapter.id);
+            if (!latest)
+              throw new Error(tMain("share.errors.existingChapterNotFound"));
+            return { ...latest, title: chapter.title, updatedAt: plan.now };
+          }),
+        );
+        Object.assign(
+          result,
+          await stageExistingShareImport({
+            transaction,
+            work: latestWork,
+            plan,
+            signal,
+          }),
+        );
       });
+      return result;
     },
+    publish,
   );
 }
 

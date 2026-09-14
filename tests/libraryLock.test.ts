@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import { AsyncReaderWriterLock } from "../src/main/libraryStore/mutex";
 import {
@@ -29,6 +30,49 @@ function waitForTurn(): Promise<void> {
 }
 
 describe("AsyncReaderWriterLock", () => {
+  it("preserves each queued caller's owner and settings across reads, writes and failures", async () => {
+    const lock = new AsyncReaderWriterLock();
+    const owner = new AsyncLocalStorage<string>();
+    const settings = new AsyncLocalStorage<string>();
+    const release = createDeferred();
+    const observed: unknown[] = [];
+    const first = owner.run("manual", () =>
+      lock.runWrite(() => release.promise),
+    );
+    const later = ["sfx", "export", "brush"].map((id, index) =>
+      owner.run(id, () =>
+        settings.run(`${id}-settings`, () =>
+          lock[index === 1 ? "runRead" : "runWrite"](async () => {
+            observed.push([owner.getStore(), settings.getStore()]);
+            await Promise.resolve();
+            observed.push([owner.getStore(), settings.getStore()]);
+            if (id === "sfx") throw new Error("save failed");
+            return id;
+          }),
+        ),
+      ),
+    );
+    const outcome = Promise.allSettled(later);
+    const noOwner = lock.runRead(async () => [
+      owner.getStore(),
+      settings.getStore(),
+    ]);
+    release.resolve();
+    await first;
+    expect((await outcome).map((result) => result.status)).toEqual([
+      "rejected",
+      "fulfilled",
+      "fulfilled",
+    ]);
+    expect(observed).toEqual(
+      ["sfx", "export", "brush"].flatMap((id) => [
+        [id, `${id}-settings`],
+        [id, `${id}-settings`],
+      ]),
+    );
+    await expect(noOwner).resolves.toEqual([undefined, undefined]);
+  });
+
   it("runs queued reads concurrently", async () => {
     const lock = new AsyncReaderWriterLock();
     const releaseReads = createDeferred();

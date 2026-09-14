@@ -44,6 +44,10 @@ import {
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
+import { getAppSettings } from "../settingsStore";
+import type { AppSettings } from "../../shared/settingsTypes";
+import type { AppActivityResource } from "../../shared/appActivityTypes";
+import { createJobLifetimeCleanupBoundary } from "../jobs/jobLifetimeCleanup";
 
 const workContextUsageRepository: WorkContextUsageRepository = {
   getChapterStoryMemory,
@@ -78,7 +82,6 @@ export class WorkContextOperationGate {
 }
 
 export function registerWorkContextIpc(context: IpcContext): void {
-  const operationGate = createWorkContextOperationGate(context);
   registerWorkResearchTitleIpc(context);
   trustedHandleContract(
     context,
@@ -95,16 +98,16 @@ export function registerWorkContextIpc(context: IpcContext): void {
   trustedHandleContract(
     context,
     workContextIpcContracts.saveWorkStyleGuide,
-    async (_event, raw: unknown) =>
-      saveWorkStyleGuide(
-        parseIpcPayload(
-          WorkStyleGuideSchema,
-          raw,
-          tMain("ipc.labels.styleGuideSave"),
-        ),
-      ),
+    async (_event, raw: unknown) => {
+      const guide = parseIpcPayload(
+        WorkStyleGuideSchema,
+        raw,
+        tMain("ipc.labels.styleGuideSave"),
+      );
+      return saveWorkStyleGuide(guide, guide.updatedAt);
+    },
   );
-  registerResetWorkContextIpc(context, operationGate);
+  registerResetWorkContextIpc(context);
   trustedHandleContract(
     context,
     workContextIpcContracts.getChapterStoryMemory,
@@ -120,14 +123,14 @@ export function registerWorkContextIpc(context: IpcContext): void {
   trustedHandleContract(
     context,
     workContextIpcContracts.saveChapterStoryMemory,
-    async (_event, raw: unknown) =>
-      saveChapterStoryMemory(
-        parseIpcPayload(
-          ChapterStoryMemorySchema,
-          raw,
-          tMain("ipc.labels.storyMemorySave"),
-        ),
-      ),
+    async (_event, raw: unknown) => {
+      const memory = parseIpcPayload(
+        ChapterStoryMemorySchema,
+        raw,
+        tMain("ipc.labels.storyMemorySave"),
+      );
+      return saveChapterStoryMemory(memory, memory.updatedAt);
+    },
   );
   trustedHandleContract(
     context,
@@ -141,7 +144,7 @@ export function registerWorkContextIpc(context: IpcContext): void {
       return buildWorkContextUsage(request.workId, workContextUsageRepository);
     },
   );
-  registerInternetResearchIpc(context, operationGate);
+  registerInternetResearchIpc(context);
 }
 
 function registerWorkResearchTitleIpc(context: IpcContext): void {
@@ -171,26 +174,24 @@ function registerWorkResearchTitleIpc(context: IpcContext): void {
   );
 }
 
-function registerInternetResearchIpc(
-  context: IpcContext,
-  operationGate: WorkContextOperationGate,
-): void {
+function registerInternetResearchIpc(context: IpcContext): void {
   trustedHandleContract(
     context,
     workContextIpcContracts.researchWorkContext,
     async (_event, raw: unknown) =>
-      operationGate.run(() =>
-        runWorkContextResearchJob(
-          context,
-          parseIpcPayload(ResearchWorkContextRequestSchema, raw, "인터넷 조사"),
-        ),
+      runWorkContextResearchJob(
+        {
+          ...context,
+          executionSettings: await getAppSettings(context.appPaths),
+        },
+        parseIpcPayload(ResearchWorkContextRequestSchema, raw, "인터넷 조사"),
       ),
   );
   trustedHandleContract(
     context,
     workContextIpcContracts.cancelWorkContextResearch,
     async (_event, runId) => {
-      const job = context.jobs.current;
+      const job = context.jobs.get(researchJobId(runId));
       if (!job || job.id !== researchJobId(runId)) {
         return { cancelled: false };
       }
@@ -200,7 +201,9 @@ function registerInternetResearchIpc(
   );
 }
 
-type WorkContextJobContext = Pick<IpcContext, "getMainWindow" | "jobs">;
+type WorkContextJobContext = Pick<IpcContext, "getMainWindow" | "jobs"> & {
+  executionSettings?: AppSettings;
+};
 type WorkContextAnalyzer = (
   request: AnalyzeWorkContextRequest,
   signal: AbortSignal,
@@ -264,7 +267,7 @@ export async function runWorkContextAnalysisJob(
     });
     throw error;
   } finally {
-    const job = context.jobs.current;
+    const job = context.jobs.get(id);
     if (job?.id === id) {
       await context.jobs.runCleanup(job, "work-context-finished");
       context.jobs.clearIfCurrent(id);
@@ -283,10 +286,17 @@ export async function runWorkContextResearchJob(
   request: ResearchWorkContextRequest,
   research: WorkContextResearcher = researchWorkContext,
 ): Promise<WorkContextResearchProposal> {
-  if (context.jobs.hasActive) throw new Error(tMain("jobs.active"));
   const id = researchJobId(request.runId);
   const abortController = new AbortController();
-  context.jobs.start({ id, kind: "internet-research", abortController });
+  const lifetime = createJobLifetimeCleanupBoundary();
+  const resources = researchActivityResources(context, request);
+  context.jobs.start({
+    id,
+    kind: "internet-research",
+    resources,
+    abortController,
+    cleanup: lifetime.cleanup,
+  });
   const emit = (event: JobEvent): void =>
     emitJobEvent(context.jobs, context.getMainWindow(), event);
   emit({
@@ -299,23 +309,20 @@ export async function runWorkContextResearchJob(
     research: { stage: "preparing" },
   });
   try {
-    const result = await research(request, abortController.signal, (progress) =>
-      emit({
-        id,
-        kind: "internet-research",
-        status: "running",
-        progressText: progress.progressText,
-        phase: progress.phase,
-        detail: progress.detail,
-        progressMode: progress.progressMode,
-        progressPercent: progress.progressPercent,
-        progressBytes: progress.progressBytes,
-        progressTotalBytes: progress.progressTotalBytes,
-        progressBytesPerSecond: progress.progressBytesPerSecond,
-        installLogLine: progress.installLogLine,
-        notification: progress.notification,
-        research: progress.research,
-      }),
+    const result = await context.jobs.run(
+      id,
+      () =>
+        research(request, abortController.signal, (progress) =>
+          emit({
+            id,
+            kind: "internet-research",
+            status: "running",
+            ...progress,
+            pageIndex: progress.pageIndex ?? undefined,
+            pageTotal: progress.pageTotal ?? undefined,
+          }),
+        ),
+      context.executionSettings,
     );
     abortController.signal.throwIfAborted();
     emit({
@@ -348,42 +355,38 @@ export async function runWorkContextResearchJob(
     });
     throw error;
   } finally {
-    const job = context.jobs.current;
-    if (job?.id === id) {
-      await context.jobs.runCleanup(job, "work-context-research-finished");
-      context.jobs.clearIfCurrent(id);
-    }
+    context.jobs.clearIfCurrent(id);
+    lifetime.finish();
   }
+}
+
+function researchActivityResources(
+  context: WorkContextJobContext,
+  request: ResearchWorkContextRequest,
+): AppActivityResource[] {
+  return request.engine === "codex-web"
+    ? [{ kind: "codex-auth", scope: "*", access: "read" }]
+    : context.executionSettings?.internetResearch.tavilyAnalysisProvider ===
+        "api"
+      ? []
+      : [{ kind: "model-runtime", scope: "*", access: "write" }];
 }
 
 function researchJobId(runId: string): string {
   return `work-context-research-${runId}`;
 }
 
-function createWorkContextOperationGate(
-  context: IpcContext,
-): WorkContextOperationGate {
-  return new WorkContextOperationGate({
-    createBusyError: () => new Error(tMain("jobs.active")),
-    isJobActive: () => context.jobs.hasActive,
-  });
-}
-
-function registerResetWorkContextIpc(
-  context: IpcContext,
-  operationGate: WorkContextOperationGate,
-): void {
+function registerResetWorkContextIpc(context: IpcContext): void {
   trustedHandleContract(
     context,
     workContextIpcContracts.resetWorkContext,
-    async (_event, raw: unknown) =>
-      operationGate.run(async () => {
-        const request = parseIpcPayload(
-          ChapterStoryMemoryRequestSchema,
-          raw,
-          tMain("ipc.labels.storyMemorySave"),
-        );
-        return resetWorkContext(request.chapterId);
-      }),
+    async (_event, raw: unknown) => {
+      const request = parseIpcPayload(
+        ChapterStoryMemoryRequestSchema,
+        raw,
+        tMain("ipc.labels.storyMemorySave"),
+      );
+      return resetWorkContext(request.chapterId);
+    },
   );
 }

@@ -85,13 +85,18 @@ export async function readWorkStyleGuide(
 
 export async function writeWorkStyleGuide(
   guide: WorkStyleGuide,
+  expectedUpdatedAt?: string,
 ): Promise<WorkStyleGuide> {
   await ensureWorkExists(guide.workId);
   const checked = parseStoredContext(
     WorkStyleGuideSchema,
     {
       ...guide,
-      updatedAt: new Date().toISOString(),
+      updatedAt: await nextContextTimestamp(
+        styleGuidePath(guide.workId),
+        "style-guide.json",
+        expectedUpdatedAt,
+      ),
     },
     "style-guide.json",
   );
@@ -164,6 +169,7 @@ export async function readChapterStoryMemory(
 
 export async function writeChapterStoryMemory(
   memory: ChapterStoryMemory,
+  expectedUpdatedAt?: string,
 ): Promise<ChapterStoryMemory> {
   const locator = await findChapterLocation(memory.chapterId);
   if (!locator) {
@@ -179,7 +185,11 @@ export async function writeChapterStoryMemory(
     ChapterStoryMemorySchema,
     {
       ...memory,
-      updatedAt: new Date().toISOString(),
+      updatedAt: await nextContextTimestamp(
+        storyMemoryPath(memory.workId, memory.chapterId),
+        "story-memory.json",
+        expectedUpdatedAt,
+      ),
     },
     "story-memory.json",
   );
@@ -347,4 +357,32 @@ function parseStoredContext<TSchema extends z.ZodTypeAny>(
     ? `${path}: ${issue.message}`
     : "unknown validation error";
   throw new Error(`${fileName} 형식이 올바르지 않습니다. ${message}`);
+}
+
+async function nextContextTimestamp(
+  filePath: string,
+  fileName: string,
+  expectedUpdatedAt?: string,
+): Promise<string> {
+  const previous = await readOptionalContextJson(filePath, fileName);
+  const updatedAt =
+    previous &&
+    typeof previous === "object" &&
+    "updatedAt" in previous &&
+    typeof previous.updatedAt === "string"
+      ? previous.updatedAt
+      : undefined;
+  if (
+    expectedUpdatedAt !== undefined &&
+    previous &&
+    updatedAt !== expectedUpdatedAt
+  ) {
+    throw new Error(
+      "[CONTEXT_SAVE_CONFLICT] 용어·기억이 다른 작업으로 변경되었습니다. 입력한 내용을 보존한 뒤 최신 내용을 다시 불러와 주세요.",
+    );
+  }
+  const prior = Date.parse(updatedAt ?? "");
+  return new Date(
+    Math.max(Date.now(), Number.isFinite(prior) ? prior + 1 : 0),
+  ).toISOString();
 }

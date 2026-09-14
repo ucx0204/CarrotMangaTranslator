@@ -44,21 +44,29 @@ export function createJobEventEmitter(
 ) => void {
   const dispatchQueueByJobs = new WeakMap<
     ActiveJobStore,
-    JobEventDispatchQueue
+    Map<string, JobEventDispatchQueue>
   >();
-  const resolveQueue = (jobs: ActiveJobStore): JobEventDispatchQueue => {
-    const existing = dispatchQueueByJobs.get(jobs);
+  const resolveQueue = (
+    jobs: ActiveJobStore,
+    id: string,
+  ): JobEventDispatchQueue => {
+    let queues = dispatchQueueByJobs.get(jobs);
+    if (!queues) {
+      queues = new Map();
+      dispatchQueueByJobs.set(jobs, queues);
+    }
+    const existing = queues.get(id);
     if (existing) {
       return existing;
     }
     const queue = createJobEventDispatchQueue((mainWindow, event) =>
       dispatchJobEvent(mainWindow, event, runtime),
     );
-    dispatchQueueByJobs.set(jobs, queue);
+    queues.set(id, queue);
     return queue;
   };
   return (jobs, mainWindow, event) => {
-    const current = jobs.current;
+    const current = jobs.get(event.id);
     if (
       current?.id !== event.id ||
       (current.lastEvent && isTerminalJobStatus(current.lastEvent.status))
@@ -66,11 +74,11 @@ export function createJobEventEmitter(
       return;
     }
     jobs.updateLastEvent(event.id, event);
-    const queue = resolveQueue(jobs);
+    const queue = resolveQueue(jobs, event.id);
     queue.enqueue(mainWindow, event);
     if (isTerminalJobStatus(event.status)) {
       queue.dispose();
-      dispatchQueueByJobs.delete(jobs);
+      dispatchQueueByJobs.get(jobs)?.delete(event.id);
     }
   };
 }

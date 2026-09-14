@@ -2630,6 +2630,10 @@
     "matchStyleRegion": "{{number}}번과 스타일 맞추기"
   },
   "letteringBrush": {
+    "paint": "칠하기",
+    "paintColor": "붓 색상",
+    "outlineWidth": "외곽선 두께",
+    "outlineColor": "외곽선 색상",
     "title": "효과음 보정",
     "done": "완료",
     "target": "보정 대상",

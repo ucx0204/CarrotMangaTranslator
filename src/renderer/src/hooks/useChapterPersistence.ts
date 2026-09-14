@@ -2,7 +2,10 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
-import { hashTranslationBlocks } from "../../../shared/blockFingerprint";
+import {
+  hashTranslationBlocks,
+  hashStableValue,
+} from "../../../shared/blockFingerprint";
 import { libraryGateway as mangaGateway } from "../api/libraryGateway";
 import { notifySaveErrorDeduped } from "./chapterSaveErrorNotification";
 import { collectPageBlockUpdates } from "./chapterPersistencePayload";
@@ -162,7 +165,6 @@ export function useChapterPersistence({
     syncServerPageVersions,
   });
   const actions = useChapterSaveStatusActions(baseActions, setSaveStatus);
-
   return useMemo(
     () => ({
       ...actions,
@@ -215,6 +217,7 @@ function useServerVersionSyncActions(
           version = {
             updatedAt: page.updatedAt,
             blocksHash: hashTranslationBlocks(page.blocks),
+            blockOrderHash: hashStableValue(page.blockOrder ?? null),
           };
           pageVersionRef.current.set(page, version);
         }
@@ -238,6 +241,7 @@ function useServerVersionSyncActions(
         const version = {
           updatedAt: savedPage.updatedAt,
           blocksHash: hashTranslationBlocks(savedPage.blocks),
+          blockOrderHash: hashStableValue(savedPage.blockOrder ?? null),
         };
         pageVersionRef.current.set(savedPage, version);
         serverVersionByPageIdRef.current.set(pageId, version);
@@ -323,9 +327,10 @@ function usePersistChapter({
         dirtyVersion?: number;
         saveReason?: SaveReason;
         syncState?: boolean;
+        pageIds?: string[];
       } = {},
     ): Promise<ChapterSnapshot> => {
-      const dirtyPageIds = [...dirtyPageIdsRef.current];
+      const dirtyPageIds = options.pageIds ?? [...dirtyPageIdsRef.current];
       const sourceChapter =
         currentChapterRef.current?.id === chapter.id
           ? currentChapterRef.current

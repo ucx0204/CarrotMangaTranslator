@@ -126,7 +126,6 @@ export function normalizeGuideForSave(guide: WorkStyleGuide): WorkStyleGuide {
       .map(normalizeCharacter)
       .filter(hasCharacterIdentity)
       .map(fillCharacterDisplayName),
-    updatedAt: nowIso(),
   };
 }
 

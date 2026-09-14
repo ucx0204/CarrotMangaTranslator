@@ -1,3 +1,4 @@
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 /** @vitest-environment jsdom */
 
 import React from "react";
@@ -11,6 +12,7 @@ import {
 import {
   afterAll,
   afterEach,
+  beforeEach,
   beforeAll,
   describe,
   expect,
@@ -74,6 +76,10 @@ afterAll(() => {
     configurable: true,
     value: originalGetContext,
   });
+});
+
+beforeEach(() => {
+  window.mangaApi = createTestMangaGatewayStub();
 });
 
 afterEach(() => {
@@ -822,7 +828,7 @@ describe("unified right rail", () => {
     expect(disabledBubbleLayout.hasAttribute("title")).toBe(false);
   });
 
-  it("disables source erase while work is busy", () => {
+  it("allows opening source erase options while work is busy", () => {
     const props = makeRightRailProps();
     const view = renderRightRail(props);
     const eraseButton = screen.getByRole("button", {
@@ -834,9 +840,9 @@ describe("unified right rail", () => {
     const disabledEraseButton = screen.getByRole("button", {
       name: "원문 지우기",
     }) as HTMLButtonElement;
-    expect(disabledEraseButton.disabled).toBe(true);
+    expect(disabledEraseButton.disabled).toBe(false);
     fireEvent.click(disabledEraseButton);
-    expect(props.onOpenAutoInpaintingOptions).not.toHaveBeenCalled();
+    expect(props.onOpenAutoInpaintingOptions).toHaveBeenCalledOnce();
   });
 
   it("hides current-page actions without a selected page", () => {

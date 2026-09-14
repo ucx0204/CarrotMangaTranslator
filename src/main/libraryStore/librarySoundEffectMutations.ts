@@ -11,7 +11,7 @@ import {
   SOUND_EFFECT_REVIEW_CONTRACT_VERSION,
 } from "../../shared/soundEffectReview";
 import { hydrateChapter } from "./chapterSnapshots";
-import { resolveChapterStatus } from "./chapterRecords";
+import { resolveChapterStatus, nextChapterUpdatedAt } from "./chapterRecords";
 import {
   findChapterLocation,
   readChapterFile,
@@ -76,7 +76,7 @@ export function createPrepareSoundEffectTranslationMutation(
       locator.chapterId,
     );
     if (!chapter) throw new Error("효과음 검토 화를 찾지 못했습니다.");
-    const now = runtime.now();
+    const now = nextChapterUpdatedAt(chapter, runtime.now());
     const draftsByPageId = new Map(
       request.pages.map((draft) => [draft.pageId, draft]),
     );
@@ -175,7 +175,7 @@ export async function appendResolvedSoundEffectBlocksUnlocked(
   }
   assertEntriesStillPending(page, entries);
 
-  const now = new Date().toISOString();
+  const now = nextChapterUpdatedAt(chapter);
   const pages = chapter.pages.map((candidate) =>
     candidate.id === pageId
       ? {
@@ -234,7 +234,7 @@ export async function dismissSoundEffectReviewRegionUnlocked(
     return hydrateChapter(chapter);
   }
 
-  const now = new Date().toISOString();
+  const now = nextChapterUpdatedAt(chapter);
   const pages = chapter.pages.map((candidate) =>
     candidate.id === pageId
       ? applyDismissedSoundEffectRegion(candidate, regionId, now)

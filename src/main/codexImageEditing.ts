@@ -11,7 +11,14 @@ import type { CodexProgressUpdate } from "../shared/codexTypesettingProgress";
 import { getAppPaths } from "./appPaths";
 import { getAppSettings } from "./settingsStore";
 import { startCodexImageSession } from "./codexImageSession";
-import { eraseTranslatedPage } from "./codexImageErasure";
+import {
+  eraseTranslatedPage,
+  CodexImageErasureError,
+} from "./codexImageErasure";
+import {
+  ImageCheckpointError,
+  throwImageStorageFailure,
+} from "./pipeline/imageJobFailure";
 import type { ImageDecodeFallback } from "./regionCrop";
 import {
   CodexLetteringGenerationError,
@@ -25,6 +32,8 @@ import {
 } from "./codexImageRegionPlanning";
 
 export type CodexImageEdit = {
+  erasedBlockIds?: readonly string[];
+  onCheckpoint?: (page: MangaPage, erasedBlockId?: string) => Promise<void>;
   page: MangaPage;
   directory: string;
   signal: AbortSignal;
@@ -61,6 +70,7 @@ export async function editTranslatedPageWithCodex(
   await mkdir(directory, { recursive: true });
   const paths = getAppPaths();
   let client: Awaited<ReturnType<typeof startCodexImageSession>> | undefined;
+  let erasureFailure: CodexImageErasureError | undefined;
   try {
     client = await startCodexImageSession(
       paths,
@@ -70,7 +80,7 @@ export async function editTranslatedPageWithCodex(
     );
     if (input.eraseOriginal) {
       progress({ step: "background" });
-      page = await eraseTranslatedPage(
+      const erased = await eraseWithPartialResults(
         page,
         input,
         client,
@@ -78,6 +88,8 @@ export async function editTranslatedPageWithCodex(
         protection,
         reading,
       );
+      page = erased.page;
+      erasureFailure = erased.failure;
       preview(input, page, reading, "background");
     }
     signal.throwIfAborted();
@@ -85,7 +97,15 @@ export async function editTranslatedPageWithCodex(
       progress({ step: "sfx" });
       page = await illustrateTranslatedPage(
         page,
-        reading,
+        {
+          ...reading,
+          regions: reading.regions.filter(
+            (region) =>
+              !erasureFailure?.failures.some(
+                ({ blockId }) => blockId === region.id,
+              ),
+          ),
+        },
         input,
         client,
         directory,
@@ -93,12 +113,26 @@ export async function editTranslatedPageWithCodex(
     }
     signal.throwIfAborted();
     await previewFinishedPage(input, page, directory);
+    if (erasureFailure) throw erasureFailure;
     return page;
   } catch (error) {
     signal.throwIfAborted();
+    throwImageStorageFailure(error);
     throw new CodexImageEditError(page, error);
   } finally {
     await client?.dispose();
+  }
+}
+
+async function checkpoint(
+  input: CodexImageEdit,
+  page: MangaPage,
+  erasedBlockId?: string,
+): Promise<void> {
+  try {
+    await input.onCheckpoint?.(page, erasedBlockId);
+  } catch (error) {
+    throw new ImageCheckpointError(error);
   }
 }
 
@@ -150,7 +184,9 @@ export function applyReviewedRegions(
     blocks: reading.regions
       .filter((region) => region.action !== "keep")
       .map((region) => {
-        const block = originals.get(region.parentRegionId ?? region.id);
+        const block =
+          originals.get(region.id) ??
+          originals.get(region.parentRegionId ?? region.id);
         if (!block) throw new Error("이미지 영역의 원본 블록이 없습니다.");
         return {
           ...block,
@@ -286,6 +322,7 @@ async function illustrateTranslatedPage(
       signal,
       {
         attempt: 1,
+        previousPage: page,
         issues: [],
         invertColors: input.invertColors,
         plan: {
@@ -299,6 +336,7 @@ async function illustrateTranslatedPage(
         },
         onGenerated: async (updated) => {
           const previewPage = { ...updated, imagePath: originalPath };
+          await checkpoint(input, previewPage);
           await previewFinishedPage(
             input,
             previewPage,
@@ -311,4 +349,32 @@ async function illustrateTranslatedPage(
     )
   ).page;
   return { ...result, imagePath: originalPath };
+}
+
+async function eraseWithPartialResults(
+  page: MangaPage,
+  input: CodexImageEdit,
+  client: Awaited<ReturnType<typeof startCodexImageSession>>,
+  directory: string,
+  protection: Uint8Array | undefined,
+  reading: CodexPageReading,
+): Promise<{ page: MangaPage; failure?: CodexImageErasureError }> {
+  try {
+    return {
+      page: await eraseTranslatedPage(
+        page,
+        {
+          ...input,
+          onErased: (updated, blockId) => checkpoint(input, updated, blockId),
+        },
+        client,
+        directory,
+        protection,
+        reading,
+      ),
+    };
+  } catch (error) {
+    if (!(error instanceof CodexImageErasureError)) throw error;
+    return { page: error.page, failure: error };
+  }
 }

@@ -1,3 +1,4 @@
+import { makeChapter } from "./helpers/workShareFixtures";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
 import {
@@ -7,6 +8,7 @@ import {
   readdir,
   rm,
   truncate,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -401,6 +403,49 @@ describe("work share packages", () => {
       join(rootDir, "works", "work-1", "chapters"),
     );
     expect(chapterDirs).not.toContain(".trash");
+  });
+  it("refuses publication if a retained chapter disappears during preparation", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const packagePath = join(rootDir, "concurrent.mgtshare");
+    await library.exportWorkShareToFile({
+      workId: "work-1",
+      chapterIds: ["chapter-a"],
+      outputPath: packagePath,
+    });
+    const { importWorkShareUnlocked } =
+      await import("../src/main/libraryStore/shareWorkflow");
+    await expect(
+      importWorkShareUnlocked(
+        {
+          packagePath,
+          target: { mode: "existing", workId: "work-1" },
+          entries: [
+            { source: "existing", chapterId: "chapter-b", title: "renamed" },
+          ],
+        },
+        undefined,
+        undefined,
+        async (publish) => {
+          await unlink(
+            join(
+              rootDir,
+              "works",
+              "work-1",
+              "chapters",
+              "chapter-b",
+              "chapter.json",
+            ),
+          );
+          return publish();
+        },
+      ),
+    ).rejects.toThrow();
+    const work = (await library.listLibrary()).works.find(
+      (work) => work.id === "work-1",
+    );
+    expect(work?.chapterOrder).toContain("chapter-a");
   });
 
   it("does not route new share merges through the legacy chapter trash path", async () => {
@@ -1174,65 +1219,6 @@ async function seedLibrary(rootDir: string): Promise<void> {
     ),
     "skip",
   );
-}
-
-function makeChapter(
-  rootDir: string,
-  chapterId: string,
-  title: string,
-  pageId: string,
-  blockId: string,
-): LibraryChapter {
-  return {
-    id: chapterId,
-    workId: "work-1",
-    title,
-    sourceKind: "folder",
-    status: "completed",
-    pageOrder: [pageId],
-    pages: [
-      {
-        id: pageId,
-        name: "001.png",
-        imagePath: join(
-          rootDir,
-          "works",
-          "work-1",
-          "chapters",
-          chapterId,
-          "pages",
-          `001-${pageId}.png`,
-        ),
-        width: 100,
-        height: 120,
-        blocks: [
-          {
-            id: blockId,
-            type: "nonsolid",
-            bbox: { x: 10, y: 10, w: 100, h: 100 },
-            bboxSpace: "normalized_1000",
-            sourceText: "こんにちは",
-            translatedText: "안녕",
-            confidence: 0.95,
-            sourceDirection: "vertical",
-            renderDirection: "vertical",
-            fontSizePx: 18,
-            lineHeight: 1.2,
-            textAlign: "center",
-            textColor: "#111111",
-            backgroundColor: "#ffffff",
-            opacity: 0.8,
-            autoFitText: true,
-          },
-        ],
-        analysisStatus: "completed",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-    ],
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-  };
 }
 
 async function attachInpaintedImage(

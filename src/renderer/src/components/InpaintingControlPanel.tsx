@@ -14,6 +14,7 @@ type CommonInspectorProps = {
   jobActive: boolean;
   aiUnavailable?: boolean;
   codexErasureAvailable?: boolean;
+  codexErasureBusy?: boolean;
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
   onCancelJob: () => void;
@@ -91,6 +92,7 @@ function RetouchInspectorBody({
     <RetouchInpaintingStep
       aiUnavailable={props.aiUnavailable}
       codexErasureAvailable={props.codexErasureAvailable}
+      codexErasureBusy={props.codexErasureBusy}
       activeToolLabel={t(`inpainting.tools.${props.tool}`)}
       brushColor={props.brushColor}
       brushRadius={props.brushRadius}

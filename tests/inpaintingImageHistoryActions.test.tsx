@@ -1,3 +1,4 @@
+import { useInpaintingActions } from "../src/renderer/src/hooks/useInpaintingActions";
 // @vitest-environment jsdom
 
 import React from "react";
@@ -97,6 +98,56 @@ describe("drawn-pattern image history", () => {
       expect(result.current.masksByPage).toEqual({});
     },
   );
+  it("saves only the target and preserves mask strokes added while ImageGen is running", async () => {
+    const chapter = makeChapter("before.png");
+    const record = vi.fn(() => true);
+    const options = makeInpaintingOptions(chapter, record);
+    options.dirty = true;
+    options.savePageNow = vi.fn(async () => undefined);
+    let finish!: (value: unknown) => void;
+    startInpainting.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { result } = renderHook(() => {
+      const [masks, setMasks] = React.useState<
+        Record<string, InpaintingMaskStroke[]>
+      >({ "page-1": structuredClone(MASK_STROKES) });
+      const masksRef = React.useRef(masks);
+      masksRef.current = masks;
+      const run = useDrawnPatternInpaintingAction({
+        ...options,
+        patternMaskStrokes: masks["page-1"],
+        getPatternMaskStrokes: (pageId) => masksRef.current[pageId] ?? [],
+        setPatternMaskStrokesByPage: setMasks,
+      });
+      return { masks, setMasks, run };
+    });
+    let running!: Promise<void>;
+    await act(async () => {
+      running = result.current.run();
+      await Promise.resolve();
+    });
+    const extra = { points: [{ x: 20, y: 30 }], radiusPx: 10 };
+    act(() => result.current.setMasks({ "page-1": [...MASK_STROKES, extra] }));
+    await act(async () => {
+      finish({
+        status: "completed",
+        chapter,
+        historyTransaction: { transactionId: "tx-new" },
+      });
+      await running;
+    });
+    expect(options.savePageNow).toHaveBeenCalledWith(chapter.id, "page-1");
+    expect(options.saveNow).not.toHaveBeenCalled();
+    expect(startInpainting.mock.calls[0][0].strokes).toEqual(MASK_STROKES);
+    expect(result.current.masks["page-1"]).toEqual([...MASK_STROKES, extra]);
+    expect(record).toHaveBeenCalledWith(
+      expect.not.objectContaining({ mask: expect.anything() }),
+    );
+  });
 });
 
 describe("manual retouch image history", () => {
@@ -127,6 +178,15 @@ describe("manual retouch image history", () => {
       historyTransaction: { transactionId: "tx-retouch" },
     });
     const { result } = renderHook(() => useInpaintingRetouch(options));
+    expect(result.current.appendRetouchPoint({ x: 10.1, y: 20.2 })).toEqual({
+      x: 10,
+      y: 20,
+    });
+    expect(result.current.appendRetouchPoint({ x: 11, y: 21 })).toBeNull();
+    expect(result.current.appendRetouchPoint({ x: 30, y: 40 })).toEqual({
+      x: 30,
+      y: 40,
+    });
     const points = [
       { x: 10, y: 20 },
       { x: 30, y: 40 },
@@ -142,6 +202,7 @@ describe("manual retouch image history", () => {
     expect(applyInpaintingRetouch).toHaveBeenCalledWith({
       chapterId: "chapter-1",
       pageId: "page-1",
+      expectedRevision: expect.stringMatching(/^page-v1:/),
       mode: "paint",
       geometry: { kind: "stroke", points, radiusPx: 32 },
       color: "#ffcc00",
@@ -215,3 +276,95 @@ function makePage(inpaintedImagePath: string): MangaPage {
     updatedAt: TS,
   };
 }
+
+it("mounts all image/export actions while another page's model job is active", () => {
+  const options = {
+    ...makeInpaintingOptions(
+      makeChapter("paint.png"),
+      vi.fn(() => true),
+    ),
+    modelResourceBusy: true,
+  };
+  const { result } = renderHook(() => useInpaintingActions(options));
+  expect(result.current.exportPageImages).toBeTypeOf("function");
+  expect(result.current.exportPagePsd).toBeTypeOf("function");
+  expect(result.current.actionBusy).toBe(false);
+});
+
+it("allows a remote mask with a local model busy and preserves its selected progress", async () => {
+  const foreground = {
+    id: "translation",
+    kind: "gemma-analysis" as const,
+    status: "running" as const,
+    progressText: "A 번역",
+  };
+  const base = makeInpaintingOptions(
+    makeChapter("paint.png"),
+    vi.fn(() => true),
+  );
+  startInpainting.mockResolvedValue({
+    status: "completed",
+    chapter: makeChapter("remote.png"),
+  });
+  const { result } = renderHook(() => {
+    const [job, setJob] = React.useState(foreground);
+    const actions = useInpaintingActions({
+      ...base,
+      modelResourceBusy: true,
+      codexErasureAvailable: true,
+      codexErasureBusy: false,
+      setJobState: setJob as UseInpaintingActionsOptions["setJobState"],
+    });
+    return { job, actions };
+  });
+  await act(() => result.current.actions.runDrawnPatternInpainting("codex"));
+  expect(startInpainting).toHaveBeenCalledOnce();
+  expect(result.current.job).toBe(foreground);
+  await act(() => result.current.actions.runDrawnPatternInpainting());
+  expect(startInpainting).toHaveBeenCalledOnce();
+});
+
+it("keeps mask strokes drawn after the submitted mask snapshot", async () => {
+  let complete: ((value: unknown) => void) | undefined;
+  startInpainting.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const recordImageEdit = vi.fn<(entry: unknown) => boolean>(() => true);
+  const base = makeInpaintingOptions(
+    makeChapter("before.png"),
+    recordImageEdit,
+  );
+  const masks = { current: structuredClone(MASK_STROKES) };
+  const setMasks = vi.fn();
+  const { result } = renderHook(() =>
+    useDrawnPatternInpaintingAction({
+      ...base,
+      getPatternMaskStrokes: () => masks.current,
+      setPatternMaskStrokesByPage: setMasks,
+    }),
+  );
+  let pending: Promise<void> | undefined;
+  await act(async () => {
+    pending = result.current();
+  });
+  expect(startInpainting).toHaveBeenCalledOnce();
+  const extra = { points: [{ x: 280, y: 300 }], radiusPx: 10 };
+  masks.current = [...MASK_STROKES, extra];
+  if (!complete) throw new Error("Expected inpainting request.");
+  complete({
+    status: "completed",
+    chapter: makeChapter("after.png"),
+    historyTransaction: { transactionId: "late-image" },
+  });
+  await act(async () => {
+    await pending;
+  });
+  expect(startInpainting.mock.calls[0][0].strokes).toEqual(MASK_STROKES);
+  expect(recordImageEdit.mock.calls[0][0]).not.toHaveProperty("mask");
+  const apply = setMasks.mock.calls[0][0];
+  const current = { "page-1": masks.current };
+  expect(apply(current)).toBe(current);
+});

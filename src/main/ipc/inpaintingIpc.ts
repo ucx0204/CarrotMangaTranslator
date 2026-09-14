@@ -12,6 +12,7 @@ import { inpaintingIpcContracts } from "../../shared/ipcContracts";
 import type {
   ApplyInpaintingHistoryTransactionResult,
   InpaintingColorSampleResult,
+  InpaintingRetouchRequest,
   InpaintingRetouchResult,
   InpaintingRevertResult,
   ReleaseInpaintingHistoryTransactionsResult,
@@ -33,12 +34,9 @@ import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 import { createPageRevision } from "../../shared/pageRevision";
-
-function assertNoActiveJob(context: IpcContext): void {
-  if (context.jobs.hasActive) {
-    throw new Error(tMain("jobs.active"));
-  }
-}
+import { pageContentResource } from "../../shared/appActivityTypes";
+import { withLibraryContentEdit } from "../library/lock";
+import { getAppSettings } from "../settingsStore";
 
 function requireRevisionStore(context: IpcContext): InpaintingRevisionStore {
   if (!context.inpaintingRevisionStore) {
@@ -62,7 +60,10 @@ function registerInpaintingJobIpc(context: IpcContext): void {
     inpaintingIpcContracts.startInpainting,
     async (_event, rawRequest: unknown): Promise<StartInpaintingResult> =>
       startInpaintingJob(
-        context,
+        {
+          ...context,
+          executionSettings: await getAppSettings(context.appPaths),
+        },
         parseIpcPayload(
           StartInpaintingRequestSchema,
           rawRequest,
@@ -74,9 +75,23 @@ function registerInpaintingJobIpc(context: IpcContext): void {
   trustedHandleContract(
     context,
     inpaintingIpcContracts.disposeInpaintingEngine,
-    async (): Promise<{ disposed: boolean }> => ({
-      disposed: await disposeCachedInpaintingEngines("renderer-exit"),
-    }),
+    async (): Promise<{ disposed: boolean }> => {
+      const lease = context.jobs.gate.acquire({
+        id: "dispose-inpainting",
+        category: "operation",
+        kind: "runtime-disposal",
+        mutatesLibrary: false,
+        blocksQuit: true,
+        resources: [{ kind: "model-runtime", scope: "*", access: "write" }],
+      });
+      try {
+        return {
+          disposed: await disposeCachedInpaintingEngines("renderer-exit"),
+        };
+      } finally {
+        lease.release();
+      }
+    },
   );
 }
 
@@ -91,66 +106,87 @@ function registerInpaintingRetouchIpc(context: IpcContext): void {
         rawRequest,
         tMain("ipc.labels.inpaintingRetouch"),
       );
-      assertNoActiveJob(context);
-      const chapter = await openChapter(request.chapterId);
-      const page = chapter.pages.find(
-        (candidate) => candidate.id === request.pageId,
+      return withLibraryContentEdit(
+        [pageContentResource(request.chapterId, request.pageId)],
+        async () => {
+          const page = await readRetouchPage(request);
+          const nextPage = await applyInpaintingRetouch(page, {
+            mode: request.mode,
+            geometry: request.geometry,
+            color: request.color,
+            decodeFallback: context.decodeImage,
+          });
+          const transactionId = revisionStore.beginTransaction();
+          const changeAdded = revisionStore.addChange(transactionId, {
+            chapterId: request.chapterId,
+            pageId: request.pageId,
+            beforeRevision: createPageRevision(page),
+            afterRevision: createPageRevision(nextPage),
+            beforePath: page.inpaintedImagePath,
+            afterPath: nextPage.inpaintedImagePath,
+            beforeMaskPath: page.inpaintMaskPath,
+            afterMaskPath: nextPage.inpaintMaskPath,
+            beforeMaskProvenance: page.maskProvenance,
+            afterMaskProvenance: nextPage.maskProvenance,
+            beforeTranslationCompletion: page.translationCompletion,
+            afterTranslationCompletion: nextPage.translationCompletion,
+          });
+          if (!changeAdded) {
+            revisionStore.discardIfEmpty(transactionId);
+          }
+          let saved: Awaited<ReturnType<typeof updatePagesAfterInpainting>>;
+          try {
+            saved = await updatePagesAfterInpainting(
+              request.chapterId,
+              [nextPage],
+              {
+                expectedTargets: [
+                  {
+                    chapterId: request.chapterId,
+                    pageId: request.pageId,
+                    revision: request.expectedRevision,
+                  },
+                ],
+                retainedInpaintedArtifactPaths:
+                  revisionStore.getRetainedArtifactPaths(
+                    request.chapterId,
+                    request.retainedInpaintedArtifactPaths,
+                  ),
+              },
+            );
+          } catch (error) {
+            if (changeAdded) {
+              await revisionStore.releaseTransactions([transactionId]);
+            }
+            throw error;
+          }
+          return {
+            chapter: saved,
+            pageId: request.pageId,
+            historyTransaction: changeAdded
+              ? revisionStore.getReference(transactionId)
+              : undefined,
+          };
+        },
       );
-      if (!page) {
-        throw new Error(tMain("inpainting.errors.retouchPageNotFound"));
-      }
-      const nextPage = await applyInpaintingRetouch(page, {
-        mode: request.mode,
-        geometry: request.geometry,
-        color: request.color,
-        decodeFallback: context.decodeImage,
-      });
-      const transactionId = revisionStore.beginTransaction();
-      const changeAdded = revisionStore.addChange(transactionId, {
-        chapterId: request.chapterId,
-        pageId: request.pageId,
-        beforeRevision: createPageRevision(page),
-        afterRevision: createPageRevision(nextPage),
-        beforePath: page.inpaintedImagePath,
-        afterPath: nextPage.inpaintedImagePath,
-        beforeMaskPath: page.inpaintMaskPath,
-        afterMaskPath: nextPage.inpaintMaskPath,
-        beforeMaskProvenance: page.maskProvenance,
-        afterMaskProvenance: nextPage.maskProvenance,
-        beforeTranslationCompletion: page.translationCompletion,
-        afterTranslationCompletion: nextPage.translationCompletion,
-      });
-      if (!changeAdded) {
-        revisionStore.discardIfEmpty(transactionId);
-      }
-      let saved: Awaited<ReturnType<typeof updatePagesAfterInpainting>>;
-      try {
-        saved = await updatePagesAfterInpainting(
-          request.chapterId,
-          [nextPage],
-          {
-            retainedInpaintedArtifactPaths:
-              revisionStore.getRetainedArtifactPaths(
-                request.chapterId,
-                request.retainedInpaintedArtifactPaths,
-              ),
-          },
-        );
-      } catch (error) {
-        if (changeAdded) {
-          await revisionStore.releaseTransactions([transactionId]);
-        }
-        throw error;
-      }
-      return {
-        chapter: saved,
-        pageId: request.pageId,
-        historyTransaction: changeAdded
-          ? revisionStore.getReference(transactionId)
-          : undefined,
-      };
     },
   );
+}
+
+async function readRetouchPage(request: InpaintingRetouchRequest) {
+  const chapter = await openChapter(request.chapterId);
+  const page = chapter.pages.find(
+    (candidate) => candidate.id === request.pageId,
+  );
+  if (!page) {
+    throw new Error(tMain("inpainting.errors.retouchPageNotFound"));
+  }
+  if (createPageRevision(page) !== request.expectedRevision) {
+    throw new Error(
+      "[PAGE_SAVE_CONFLICT] 페이지가 변경되었습니다. 최신 내용을 확인해 주세요.",
+    );
+  }
+  return page;
 }
 
 function registerInpaintingResultIpc(context: IpcContext): void {
@@ -167,12 +203,18 @@ function registerInpaintingResultIpc(context: IpcContext): void {
         rawRequest,
         tMain("ipc.labels.inpaintingApply"),
       );
-      assertNoActiveJob(context);
       const chapter = await setPageInpaintingResult(
         request.chapterId,
         request.pageId,
         request.inpaintedImagePath ?? undefined,
         {
+          expectedTargets: [
+            {
+              chapterId: request.chapterId,
+              pageId: request.pageId,
+              revision: request.expectedRevision,
+            },
+          ],
           retainedInpaintedArtifactPaths:
             revisionStore.getRetainedArtifactPaths(
               request.chapterId,
@@ -199,7 +241,6 @@ function registerInpaintingRevertIpc(context: IpcContext): void {
         rawRequest,
         tMain("ipc.labels.inpaintingRestore"),
       );
-      assertNoActiveJob(context);
       const chapter = await openChapter(request.chapterId);
       const pages =
         request.scope === "page"
@@ -227,6 +268,11 @@ function registerInpaintingRevertIpc(context: IpcContext): void {
       let saved: Awaited<ReturnType<typeof updatePagesAfterInpainting>>;
       try {
         saved = await updatePagesAfterInpainting(request.chapterId, reverted, {
+          expectedTargets: pages.map((page) => ({
+            chapterId: request.chapterId,
+            pageId: page.id,
+            revision: createPageRevision(page),
+          })),
           retainedInpaintedArtifactPaths:
             revisionStore.getRetainedArtifactPaths(request.chapterId),
         });
@@ -257,7 +303,6 @@ function registerInpaintingHistoryIpc(context: IpcContext): void {
         rawRequest,
         tMain("ipc.labels.inpaintingApply"),
       );
-      assertNoActiveJob(context);
       return revisionStore.applyTransaction(request);
     },
   );

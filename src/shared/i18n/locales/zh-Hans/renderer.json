@@ -514,6 +514,10 @@
     "resetFailed": "无法恢复默认设置。"
   },
   "statusDock": {
+    "concurrentTasks": "正在运行的任务",
+    "finishingEdits": "正在完成输入并保存此页。",
+    "retryHandoff": "保存后重试",
+    "pageBusy": "正在处理或保存此页。仍可查看和绘制蒙版草稿。",
     "operation": {
       "summary": "{{kind}} · {{state}}",
       "replacePrefix": "{{kind}}",

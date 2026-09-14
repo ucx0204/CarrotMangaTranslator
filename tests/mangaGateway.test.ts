@@ -35,6 +35,22 @@ describe("mangaGateway", () => {
     );
     expect(unsubscribe()).toBeUndefined();
     await expect(gateway.getActiveAppOperation()).resolves.toBeNull();
+    gateway.onJobEvent(vi.fn())();
+    gateway.onAppActivities(vi.fn())();
+    await expect(gateway.getActiveJobs()).resolves.toEqual([]);
+    await expect(
+      gateway.getSoundEffectImageRecovery("chapter"),
+    ).resolves.toBeNull();
+    await expect(gateway.getActiveAppOperations()).resolves.toEqual([]);
+    await expect(gateway.getAppActivities()).resolves.toEqual({
+      version: 0,
+      activities: [],
+      pages: [],
+    });
+    await expect(
+      gateway.finishPageEditHandoff({ requestId: "handoff" }),
+    ).resolves.toBe(false);
+    await expect(gateway.retryPageEditHandoff("handoff")).resolves.toBe(false);
     await expect(gateway.cancelAppOperation("operation-1")).resolves.toEqual({
       accepted: false,
     });

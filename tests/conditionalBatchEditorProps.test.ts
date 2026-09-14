@@ -113,7 +113,7 @@ describe("conditional batch editor session binding", () => {
     });
   });
 
-  it("blocks both apply paths while another workspace job is active", () => {
+  it("blocks both chapter-wide apply paths when a target page is processing", () => {
     const model = createModel({ jobActive: true });
     const props = createConditionalBatchEditorProps(
       model,
@@ -220,7 +220,7 @@ function createModel(
         overrides.selectedPage === undefined
           ? CHAPTER.pages[0]
           : overrides.selectedPage,
-      selectedPageEditLocked: false,
+      selectedPageEditLocked: overrides.jobActive ?? false,
     },
     libraryDrop: { busy: false },
     pageNavigationHandlers: { selectPageForReading },

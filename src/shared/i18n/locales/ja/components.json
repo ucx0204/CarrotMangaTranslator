@@ -2630,6 +2630,10 @@
     "matchStyleRegion": "{{number}}番のスタイルを揃える"
   },
   "letteringBrush": {
+    "paint": "描く",
+    "paintColor": "ブラシの色",
+    "outlineWidth": "縁取りの太さ",
+    "outlineColor": "縁取りの色",
     "title": "効果音を補正",
     "done": "完了",
     "target": "補正対象",

@@ -53,13 +53,13 @@ export function ChapterQuickControls(
     >
       <QuickControlGroup name="history">
         <QuickControl
-          disabled={props.disabled || !props.canUndo}
+          disabled={!props.canUndo}
           Icon={IconArrowBackUp}
           label={labels.undo}
           onClick={props.onUndo}
         />
         <QuickControl
-          disabled={props.disabled || !props.canRedo}
+          disabled={!props.canRedo}
           Icon={IconArrowForwardUp}
           label={labels.redo}
           onClick={props.onRedo}
@@ -68,7 +68,7 @@ export function ChapterQuickControls(
       <QuickControlGroup name="original">
         <QuickControl
           active={props.peeking}
-          disabled={props.disabled || !props.compareAvailable}
+          disabled={!props.compareAvailable}
           Icon={props.peeking ? IconEyeOff : IconEye}
           label={labels.compare}
           onClick={props.onPeekToggle}

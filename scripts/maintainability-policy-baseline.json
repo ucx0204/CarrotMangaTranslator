@@ -10,7 +10,6 @@
     ]
   },
   "fileWideLintDisables": {
-    "src/main/appQuitCleanup.ts": "max-lines-per-function -- quit cleanup stage ordering and release gates stay co-located for auditability",
     "src/main/dataRootInstanceLock.ts": "and token-checked release stay co-located for security auditability, complexity, max-depth, max-lines, max-lines-per-function -- acquisition, stale reclaim, strict parsing",
     "src/main/index.ts": "IPC publication, and quit ordering stay co-located for auditability, max-lines -- startup recovery, window creation",
     "src/main/inpainting/inpaintingRevisionStore.ts": "and artifact retention share one serialized state owner, max-lines -- transaction history, rollback",

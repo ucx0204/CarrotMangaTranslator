@@ -39,6 +39,7 @@ export async function markFailedTranslationCompletions(
   request: StartInpaintingRequest,
   state: InpaintingJobState,
   runtime: InpaintingJobRuntime,
+  ownedPages?: ReadonlySet<string>,
 ): Promise<void> {
   if (!canOwnFullPageCompletion(request)) return;
   const expectedWorkflow = resolveExpectedTranslationCompletionWorkflow(state);
@@ -50,7 +51,8 @@ export async function markFailedTranslationCompletions(
       if (!chapter) continue;
       const failedPages = chapter.pages.flatMap((page) => {
         const completion = page.translationCompletion;
-        return targetPageIds.has(page.id) &&
+        return (!ownedPages || ownedPages.has(`${chapterId}/${page.id}`)) &&
+          targetPageIds.has(page.id) &&
           completion?.workflow === expectedWorkflow &&
           completion.status === "pending" &&
           !completion.erasedBlockIds?.length
@@ -117,4 +119,36 @@ export function recordSavedInpaintingChapter(
 ): void {
   state.chapters.set(chapterId, chapter);
   if (state.chapter?.id === chapterId) state.chapter = chapter;
+}
+
+export function assertRequestedBlockExists(
+  targets: readonly { page: MangaPage }[],
+  target: InpaintingTarget,
+): void {
+  if (!target.blockId) {
+    return;
+  }
+  const page = targets[0]?.page;
+  if (
+    targets.length !== 1 ||
+    !page?.blocks.some((block) => block.id === target.blockId)
+  ) {
+    throw new Error("선택한 텍스트 블록을 페이지에서 찾지 못했습니다.");
+  }
+}
+
+export function assertInpaintingCompletionWorkflow(
+  page: MangaPage,
+  state: InpaintingJobState,
+): void {
+  const completion = page.translationCompletion;
+  if (
+    completion?.status === "pending" &&
+    state.requestedCompletionWorkflow &&
+    completion.workflow !== state.requestedCompletionWorkflow
+  ) {
+    throw new Error(
+      "페이지의 원문 제거 방식이 변경되었습니다. 최신 내용으로 다시 실행해 주세요.",
+    );
+  }
 }

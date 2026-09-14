@@ -8,6 +8,8 @@ import { resolveStoredSoundEffectTargets } from "./soundEffectTranslationTargets
 import type { createDefaultWholePagePipelineDependencies } from "../pipeline/wholePagePipelinePorts";
 import type { SoundEffectPreparationDependencies } from "./translationJobTypes";
 import type { SoundEffectTranslationJobInput } from "./translationJobTypes";
+import { acquireJobPage, reserveJobChapter } from "./jobPageOwnership";
+import { createSoundEffectReviewPageRevision } from "../../shared/pageRevision";
 export async function prepareSoundEffectTranslationRun(
   input: SoundEffectTranslationJobInput,
   dependencies: SoundEffectPreparationDependencies,
@@ -21,6 +23,13 @@ export async function prepareSoundEffectTranslationRun(
   throwIfAborted(abortController.signal);
   const chapter = await dependencies.openChapter(request.chapterId);
   state.chapter = chapter;
+  reserveJobChapter(
+    input.context.jobs,
+    id,
+    chapter,
+    request.targets.map((target) => target.pageId),
+    [{ kind: "work-context", scope: chapter.workId, access: "read" }],
+  );
   const targets = resolveStoredSoundEffectTargets(chapter, request);
   const requestedRegionCount = targets.reduce(
     (count, target) => count + target.regions.length,
@@ -77,4 +86,36 @@ export async function prepareSoundEffectTranslationRun(
     targets,
     workContext,
   };
+}
+
+export async function refreshSoundEffectTarget(
+  input: SoundEffectTranslationJobInput,
+  initial: ReturnType<typeof resolveStoredSoundEffectTargets>[number],
+  openChapter: SoundEffectPreparationDependencies["openChapter"],
+): Promise<ReturnType<typeof resolveStoredSoundEffectTargets>[number]> {
+  const { context, id, request, state } = input;
+  if (!context.jobs.get(id)?.resources) return initial;
+  const page = await acquireJobPage(
+    context.jobs,
+    id,
+    request.chapterId,
+    initial.page.id,
+    openChapter,
+  );
+  const chapter = state.chapter;
+  if (!chapter) throw new Error("효과음 번역 화를 찾지 못했습니다.");
+  const [latest] = resolveStoredSoundEffectTargets(
+    { ...chapter, pages: [page] },
+    {
+      ...request,
+      targets: [
+        {
+          pageId: page.id,
+          pageRevision: createSoundEffectReviewPageRevision(page),
+          regionIds: initial.regions.map((region) => region.id),
+        },
+      ],
+    },
+  );
+  return { ...latest, pageIndex: initial.pageIndex };
 }

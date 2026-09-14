@@ -3,9 +3,109 @@ import type {
   ChapterSnapshot,
   MangaPage,
 } from "../../../../shared/libraryTypes";
-import { isPageFullyCompleted } from "../../../../shared/pageCompletion";
-import { createPageRevision } from "../../../../shared/pageRevision";
 import { resolveJobActive } from "./appSessionSelectors";
+import {
+  activityResourcesConflict,
+  libraryStructureResource,
+  pageContentResource,
+  type AppActivityState,
+} from "../../../../shared/appActivityTypes";
+
+export function resolvePageActivityLocks({
+  activities,
+  activeInputPages,
+  currentChapter,
+  selectedPage,
+  jobState,
+  progressState,
+}: {
+  activities?: AppActivityState | null;
+  activeInputPages?: ReadonlySet<string>;
+  currentChapter: ChapterSnapshot | null;
+  selectedPage: MangaPage | null;
+  jobState: JobState;
+  progressState: {
+    jobActive: boolean;
+    pageLockActive: boolean;
+    jobTargetPageIds: ReadonlySet<string>;
+  };
+}) {
+  const selectedPageEditLocked =
+    activities && currentChapter && selectedPage
+      ? isPageActivityLocked(
+          activities,
+          currentChapter.id,
+          selectedPage.id,
+          activeInputPages,
+        )
+      : resolveSelectedPageEditLocked(
+          progressState.pageLockActive,
+          progressState.jobTargetPageIds,
+          selectedPage,
+          jobState.kind,
+          jobState.targets?.length ?? 0,
+        );
+  return {
+    selectedPageEditLocked,
+    editingLockedPageIds:
+      activities && currentChapter
+        ? new Set(
+            currentChapter.pages
+              .filter((page) =>
+                isPageActivityLocked(activities, currentChapter.id, page.id),
+              )
+              .map((page) => page.id),
+          )
+        : progressState.jobTargetPageIds,
+    modelResourceBusy: activities
+      ? activities.activities.some((activity) =>
+          activityResourcesConflict(
+            [{ kind: "model-runtime", scope: "*", access: "write" }],
+            activity.resources,
+          ),
+        )
+      : progressState.jobActive,
+    chapterStructureLocked: Boolean(
+      currentChapter &&
+      activities?.activities.some((activity) =>
+        activityResourcesConflict(
+          [libraryStructureResource("chapter", currentChapter.id)],
+          activity.resources,
+        ),
+      ),
+    ),
+    jobTargetPageIds: activities
+      ? new Set(
+          activities.pages
+            .filter((page) => page.chapterId === currentChapter?.id)
+            .map((page) => page.pageId),
+        )
+      : progressState.jobTargetPageIds,
+  };
+}
+
+function isPageActivityLocked(
+  state: AppActivityState,
+  chapterId: string,
+  pageId: string,
+  activeInputPages?: ReadonlySet<string>,
+): boolean {
+  return (
+    state.activities.some((activity) =>
+      activityResourcesConflict(
+        [pageContentResource(chapterId, pageId)],
+        activity.resources,
+      ),
+    ) ||
+    state.pages.some(
+      (page) =>
+        page.chapterId === chapterId &&
+        page.pageId === pageId &&
+        page.phase === "finishing-edits" &&
+        !activeInputPages?.has(`${chapterId}/${pageId}`),
+    )
+  );
+}
 
 export function resolveLockedJobTargetPageIds(
   jobState: Pick<JobState, "kind" | "status" | "targets">,
@@ -20,10 +120,7 @@ export function resolveLockedJobTargetPageIds(
     (jobState.targets ?? []).flatMap((target) => {
       if (target.chapterId !== currentChapter.id) return [];
       const page = pagesById.get(target.pageId);
-      if (!page || target.revision !== createPageRevision(page)) return [];
-      if (jobState.kind === "gemma-analysis" && isPageFullyCompleted(page)) {
-        return [];
-      }
+      if (!page) return [];
       return [target.pageId];
     }),
   );

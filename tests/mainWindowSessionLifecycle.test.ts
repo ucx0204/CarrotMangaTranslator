@@ -197,6 +197,7 @@ describe("main-window session lifecycle", () => {
         runMainWindowCloseCleanup({
           jobs: {
             current: job,
+            all: [job],
             runCleanup: vi.fn(() => new Promise<void>(() => {})),
             clearIfCurrent: vi.fn(),
           },

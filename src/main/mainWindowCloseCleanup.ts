@@ -4,7 +4,7 @@ import { finishActiveJobCleanup } from "./jobs/beforeQuitCleanup";
 
 type MainWindowCloseCleanupJobs = Pick<
   ActiveJobStore,
-  "current" | "clearIfCurrent" | "runCleanup"
+  "current" | "all" | "clearIfCurrent" | "runCleanup"
 >;
 
 type MainWindowCloseCleanupOperations = Pick<
@@ -31,8 +31,26 @@ export async function runMainWindowCloseCleanup({
   logError: MainWindowCloseCleanupLogger;
   logWarn: MainWindowCloseCleanupLogger;
 }): Promise<void> {
-  const job = jobs.current;
-  if (job) {
+  await Promise.all([
+    cleanupJobs(jobs, logError, logWarn),
+    operations.abortCurrentAndWait("main-window-closed"),
+  ]);
+  await waitForLibraryMutations();
+  await disposeRuntimeResources({
+    disposeInpainting,
+    disposeTranslation,
+    logError,
+  });
+}
+
+async function cleanupJobs(
+  jobs: MainWindowCloseCleanupJobs,
+  logError: MainWindowCloseCleanupLogger,
+  logWarn: MainWindowCloseCleanupLogger,
+): Promise<void> {
+  const active = jobs.all;
+  for (const job of active) job.abortController.abort();
+  for (const job of active) {
     const cleanupResult = await finishActiveJobCleanup({
       job,
       jobs,
@@ -54,17 +72,6 @@ export async function runMainWindowCloseCleanup({
       await cleanupResult.settlement;
     }
   }
-
-  if (operations.current) {
-    await operations.abortCurrentAndWait("main-window-closed");
-  }
-
-  await waitForLibraryMutations();
-  await disposeRuntimeResources({
-    disposeInpainting,
-    disposeTranslation,
-    logError,
-  });
 }
 
 async function disposeRuntimeResources({

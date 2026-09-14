@@ -497,6 +497,7 @@ describe("original comparison during page operations", () => {
 
   it("clears original comparison before resetting the page", async () => {
     const options = makeOptions();
+    options.savePageNow = vi.fn(async () => undefined);
     revertInpainting.mockResolvedValue({
       chapter: makeChapter(),
       pagesChanged: 1,
@@ -508,6 +509,7 @@ describe("original comparison during page operations", () => {
 
     expect(options.askConfirm).toHaveBeenCalledOnce();
     expect(options.setPeekOriginal).toHaveBeenCalledWith(false);
+    expect(options.savePageNow).toHaveBeenCalledWith("chapter-1", "page-1");
     expect(revertInpainting).toHaveBeenCalledWith({
       chapterId: "chapter-1",
       scope: "page",
@@ -515,6 +517,22 @@ describe("original comparison during page operations", () => {
     });
     expect(options.workspaceHistory.recordImageEdit).toHaveBeenCalledWith(
       expect.objectContaining({ transactionId: "tx-reset" }),
+    );
+  });
+  it("saves chapter edits before a chapter reset and reports a failed reset", async () => {
+    const options = makeOptions({ dirty: true });
+    revertInpainting.mockRejectedValue(new Error("revision changed"));
+    const { result } = renderHook(() => useRevertInpaintingAction(options));
+    await act(() => result.current("chapter"));
+    expect(options.saveNow).toHaveBeenCalledOnce();
+    expect(revertInpainting).toHaveBeenCalledWith({
+      chapterId: "chapter-1",
+      scope: "chapter",
+    });
+    expect(options.mergeLiveChapter).not.toHaveBeenCalled();
+    expect(options.setJobState).toHaveBeenCalledWith(expect.any(Function));
+    expect(options.pushStatus).toHaveBeenCalledWith(
+      expect.stringContaining("초기화하지 못했습니다"),
     );
   });
 });
@@ -564,7 +582,18 @@ describe("inpainting dirty-save failures", () => {
       expect(options.setPeekOriginal).not.toHaveBeenCalled();
       expect(options.setInpaintingTool).not.toHaveBeenCalled();
       expect(options.setJobState).toHaveBeenCalledOnce();
-      expect(options.setJobState).toHaveBeenCalledWith({
+      const update = vi.mocked(options.setJobState).mock.calls[0]?.[0];
+      expect(typeof update).toBe("function");
+      expect(
+        typeof update === "function"
+          ? update({
+              id: "idle",
+              kind: "inpainting",
+              status: "idle",
+              progressText: "",
+            })
+          : update,
+      ).toEqual({
         id: "failed-inpainting",
         kind: "inpainting",
         status: "failed",

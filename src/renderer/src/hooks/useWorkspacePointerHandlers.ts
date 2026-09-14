@@ -233,8 +233,6 @@ function useWorkspaceDrawingHandlers(
     active:
       options.stageTool === "select" &&
       !options.inpaintingToolActive &&
-      !options.jobActive &&
-      !options.selectedPageEditLocked &&
       !options.regionSelection?.active,
     getImagePointerRect,
     interactionPreviewStore,

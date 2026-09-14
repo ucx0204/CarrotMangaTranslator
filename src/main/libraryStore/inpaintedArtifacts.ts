@@ -1,5 +1,5 @@
 import { resolve, join } from "node:path";
-import { readdir } from "node:fs/promises";
+import { isLibraryArtifactRetained } from "./libraryArtifactRetention";
 import { isPathInside, isSupportedImagePath, unlinkIfExists } from "./storage";
 
 export function inpaintedPathChanged(
@@ -54,7 +54,8 @@ export async function removeUnreferencedInpaintedArtifacts(
     const normalizedCandidate = normalizePathForReference(candidatePath);
     if (
       seenCandidates.has(normalizedCandidate) ||
-      retainedPaths.has(normalizedCandidate)
+      retainedPaths.has(normalizedCandidate) ||
+      isLibraryArtifactRetained(candidatePath)
     ) {
       continue;
     }
@@ -79,49 +80,6 @@ export async function removeUnreferencedInpaintMaskArtifacts(
     pagePaths: pages.map((page) => page.inpaintMaskPath),
     retainedArtifactPaths,
   });
-}
-
-export async function collectManagedInpaintedArtifacts(
-  chapterDir: string,
-): Promise<string[]> {
-  const inpaintedDir = resolve(join(chapterDir, "inpainted"));
-  let entries: Array<{ isFile: () => boolean; name: string }>;
-  try {
-    entries = await readdir(inpaintedDir, { withFileTypes: true });
-  } catch (_error) {
-    return [];
-  }
-
-  return entries
-    .filter((entry) => entry.isFile())
-    .map((entry) => resolve(join(inpaintedDir, entry.name)))
-    .filter((filePath) => isManagedInpaintedArtifact(chapterDir, filePath));
-}
-
-export async function collectManagedInpaintMaskArtifacts(
-  chapterDir: string,
-): Promise<string[]> {
-  return collectManagedArtifacts(chapterDir, "mask");
-}
-
-async function collectManagedArtifacts(
-  chapterDir: string,
-  directoryName: "inpainted" | "mask",
-): Promise<string[]> {
-  const artifactDir = resolve(join(chapterDir, directoryName));
-  let entries: Array<{ isFile: () => boolean; name: string }>;
-  try {
-    entries = await readdir(artifactDir, { withFileTypes: true });
-  } catch (_error) {
-    return [];
-  }
-
-  return entries
-    .filter((entry) => entry.isFile())
-    .map((entry) => resolve(join(artifactDir, entry.name)))
-    .filter((filePath) =>
-      isManagedArtifact(chapterDir, directoryName, filePath),
-    );
 }
 
 async function removeUnreferencedManagedArtifacts({
@@ -153,7 +111,8 @@ async function removeUnreferencedManagedArtifacts({
     const normalizedCandidate = normalizePathForReference(candidatePath);
     if (
       seenCandidates.has(normalizedCandidate) ||
-      retainedPaths.has(normalizedCandidate)
+      retainedPaths.has(normalizedCandidate) ||
+      isLibraryArtifactRetained(candidatePath)
     ) {
       continue;
     }

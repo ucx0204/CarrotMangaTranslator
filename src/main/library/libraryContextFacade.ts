@@ -20,7 +20,12 @@ import {
   writeWorkResearchTitlePreference,
   writeWorkStyleGuide,
 } from "../libraryStore/workContextFiles";
-import { withLibraryMutation, withLibraryRead } from "./lock";
+import {
+  assertLibraryActivityAccess,
+  withLibraryMutation,
+  withLibraryRead,
+} from "./lock";
+import { pageContentResource } from "../../shared/appActivityTypes";
 
 export async function getWorkStyleGuide(
   workId: string,
@@ -30,8 +35,14 @@ export async function getWorkStyleGuide(
 
 export async function saveWorkStyleGuide(
   guide: WorkStyleGuide,
+  expectedUpdatedAt?: string,
 ): Promise<WorkStyleGuide> {
-  return withLibraryMutation(() => writeWorkStyleGuide(guide));
+  return withLibraryMutation(() => {
+    assertLibraryActivityAccess([
+      { kind: "work-context", scope: guide.workId, access: "write" },
+    ]);
+    return writeWorkStyleGuide(guide, expectedUpdatedAt);
+  });
 }
 
 export async function getChapterStoryMemory(
@@ -51,14 +62,26 @@ export async function resolveWorkContextForChapter(chapterId: string): Promise<{
 
 export async function saveChapterStoryMemory(
   memory: ChapterStoryMemory,
+  expectedUpdatedAt?: string,
 ): Promise<ChapterStoryMemory> {
-  return withLibraryMutation(() => writeChapterStoryMemory(memory));
+  return withLibraryMutation(() => {
+    assertLibraryActivityAccess([
+      { kind: "work-context", scope: memory.workId, access: "write" },
+    ]);
+    return writeChapterStoryMemory(memory, expectedUpdatedAt);
+  });
 }
 
 export async function resetWorkContext(
   chapterId: string,
 ): Promise<ResetWorkContextResult> {
-  return withLibraryMutation(() => resetWorkContextForChapter(chapterId));
+  return withLibraryMutation(async () => {
+    const context = await resolveWorkContextForChapterUnlocked(chapterId);
+    assertLibraryActivityAccess([
+      { kind: "work-context", scope: context.workId, access: "write" },
+    ]);
+    return resetWorkContextForChapter(chapterId);
+  });
 }
 
 export async function getWorkResearchTitle(
@@ -76,5 +99,8 @@ export async function saveWorkResearchTitle(
 export async function importReviewText(
   request: ImportReviewTextRequest,
 ): Promise<ImportReviewTextResult> {
-  return withLibraryMutation(() => applyReviewImportUnlocked(request));
+  return withLibraryMutation(() => {
+    assertLibraryActivityAccess([pageContentResource(request.chapterId, "**")]);
+    return applyReviewImportUnlocked(request);
+  });
 }

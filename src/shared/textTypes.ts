@@ -100,6 +100,8 @@ export type TranslationBlock = {
   /** Portable, independently movable ImageGen lettering. Editing the text reveals the editable font fallback. */
   generatedLettering?: {
     maskStrokes?: import("./generatedLetteringMaskTypes").LetteringMaskStroke[];
+    paintStrokes?: import("./generatedLetteringMaskTypes").LetteringPaintStroke[];
+    outline?: { width: number; color: string };
     occlusionPolygons?: Point[][];
     version: 1;
     enabled?: boolean;

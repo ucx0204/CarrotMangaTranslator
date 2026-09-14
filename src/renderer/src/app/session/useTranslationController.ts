@@ -14,6 +14,10 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { captureWorkspaceChapterEditSnapshot } from "../../lib/workspaceHistory";
 import { resolveSourceReadingDirection } from "../../../../shared/translationLanguages";
 import { resolveReadingDirection } from "../../../../shared/blockReadingOrder";
+import {
+  activityResourcesConflict,
+  pageContentResource,
+} from "../../../../shared/appActivityTypes";
 
 export function useTranslationController(
   chapter: ChapterSessionController,
@@ -35,6 +39,7 @@ export function useTranslationController(
     clearRetouchHistory,
   );
   const updateCurrentChapter = useCurrentChapterUpdater({
+    assertPagesEditable: (ids) => assertChapterPagesEditable(chapter, ids),
     currentChapterRef: chapter.core.currentChapterRef,
     markDirty: chapter.persistence.markDirty,
     setCurrentChapter: chapter.core.setCurrentChapter,
@@ -61,9 +66,7 @@ export function useTranslationController(
     blockStylePresets: chapter.settingsDialog.settings?.blockStylePresets,
     currentChapter: chapter.core.currentChapter,
     jobActive:
-      chapter.derivedState.jobActive ||
-      chapter.uiState.translationFlowActive ||
-      workspaceHistory.busy,
+      chapter.derivedState.selectedPageEditLocked || workspaceHistory.busy,
     pushStatus: chapter.statusLog.pushStatus,
     readingDirection: resolveReadingDirection(
       chapter.core.library.works.find(
@@ -92,6 +95,25 @@ export function useTranslationController(
     updateCurrentChapter,
     workspaceHistory,
   };
+}
+
+function assertChapterPagesEditable(
+  chapter: ChapterSessionController,
+  ids: readonly string[],
+): void {
+  const state = chapter.derivedState.activities;
+  const current = chapter.core.currentChapterRef.current;
+  if (!state || !current) return;
+  const resources = ids.map((id) => pageContentResource(current.id, id));
+  if (
+    state.activities.some((activity) =>
+      activityResourcesConflict(resources, activity.resources),
+    ) ||
+    (chapter.derivedState.selectedPageEditLocked &&
+      ids.includes(chapter.core.selectedPageId ?? ""))
+  ) {
+    throw new Error("이 페이지를 처리하거나 결과를 저장 중입니다.");
+  }
 }
 
 export type TranslationController = ReturnType<typeof useTranslationController>;
@@ -188,15 +210,13 @@ function useTranslationActionController(
   return useTranslationActions({
     settings: chapter.settingsDialog.settings,
     beforeTranslate: prepareRegionTranslation,
+    savePageNow: chapter.persistence.savePageNow,
     clearPageImageCache: chapter.derivedState.clearPageImageCache,
     clearRetouchHistory,
     currentChapter: chapter.core.currentChapter,
     currentChapterRef: chapter.core.currentChapterRef,
     flowCancellationRef: chapter.uiState.jobFlowCancellationRef,
-    jobActive:
-      chapter.derivedState.jobActive ||
-      chapter.operationActivity.active ||
-      chapter.importShareModal.importBusy,
+    jobActive: chapter.derivedState.modelResourceBusy,
     library: chapter.core.library,
     mergeLiveChapter: chapter.mergeLiveChapter,
     pushStatus: chapter.statusLog.pushStatus,

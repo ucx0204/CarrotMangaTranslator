@@ -8,6 +8,7 @@ import { nativeImage } from "electron";
 import {
   rasterizeImageRedaction,
   flattenImageRedaction,
+  restoreHiddenPixels,
 } from "../src/main/imageRedactionPixels";
 import {
   readImageRedactionState,
@@ -48,6 +49,15 @@ vi.mock("electron", async () => {
   };
 });
 const roots: string[] = [];
+it("restores only excluded RGBA pixels with the existing native copy policy", () => {
+  const original = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  const working = Buffer.alloc(12, 91);
+  restoreHiddenPixels(original, working);
+  expect(working).toEqual(Buffer.alloc(12, 91));
+  restoreHiddenPixels(original, working, new Uint8Array([0, 1, 0]));
+  expect([...working]).toEqual([91, 91, 91, 91, 5, 6, 7, 8, 91, 91, 91, 91]);
+  expect([...original]).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+});
 afterEach(async () => {
   for (const root of roots.splice(0))
     await rm(root, { recursive: true, force: true });

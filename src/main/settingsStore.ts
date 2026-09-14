@@ -4,8 +4,7 @@ import {
   isMissingFileError,
   isJsonParseError,
 } from "./settings/settingsMutationQueue";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { readFile } from "node:fs/promises";
 import type { AppSettings } from "../shared/settingsTypes";
 import { getAppPaths, type AppPaths } from "./appPaths";
 import {
@@ -22,7 +21,7 @@ import {
   type DetectedGpuInfo,
 } from "./gpuInfo";
 import { logError, writeLog } from "./logger";
-import { redactDiagnosticText } from "./errorReportRedaction";
+import { backupCorruptSettings } from "./settings/settingsRecovery";
 import {
   attachSettingsSecrets,
   commitSettingsPair,
@@ -38,6 +37,10 @@ import type {
   SettingsSecrets,
 } from "./settingsSecretProfiles";
 import { API_PROVIDER_PRESET_IDS } from "../shared/apiProviderPresets";
+import {
+  readExecutionSettings,
+  withExecutionSettings,
+} from "./settings/executionSettings";
 
 export type GpuInfoProvider = () => Promise<DetectedGpuInfo | null>;
 
@@ -56,6 +59,18 @@ export async function getAppSettings(
   env: NodeJS.ProcessEnv = process.env,
   detectGpu: GpuInfoProvider = detectBestGpuInfo,
   diagnostics: SettingsStoreDiagnostics = defaultDiagnostics,
+): Promise<AppSettings> {
+  return (
+    readExecutionSettings() ??
+    readStoredAppSettings(paths, env, detectGpu, diagnostics)
+  );
+}
+
+async function readStoredAppSettings(
+  paths: AppPaths,
+  env: NodeJS.ProcessEnv,
+  detectGpu: GpuInfoProvider,
+  diagnostics: SettingsStoreDiagnostics,
 ): Promise<AppSettings> {
   const detectedGpu = await detectGpu();
   const defaults = resolveDefaultAppSettings(env, detectedGpu);
@@ -120,7 +135,11 @@ export async function updateAppSettings(
 ): Promise<AppSettings> {
   return withSettingsMutation(paths.settingsPath, async () =>
     saveAppSettingsUnlocked(
-      update(await getAppSettings(paths, env, detectGpu)),
+      update(
+        await withExecutionSettings(undefined, () =>
+          getAppSettings(paths, env, detectGpu),
+        ),
+      ),
       paths,
       env,
       detectGpu,
@@ -319,34 +338,6 @@ function normalizeRuntimeGpuVendor(
 function stripRuntimeHardware(settings: AppSettings): AppSettings {
   const { runtimeHardware: _runtimeHardware, ...persistentSettings } = settings;
   return persistentSettings;
-}
-
-async function backupCorruptSettings(
-  paths: AppPaths,
-  error: unknown,
-  diagnostics: SettingsStoreDiagnostics,
-): Promise<void> {
-  try {
-    const rawText = await readFile(paths.settingsPath, "utf8");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const backupPath = join(
-      dirname(paths.settingsPath),
-      `${basename(paths.settingsPath)}.corrupt-${timestamp}.bak`,
-    );
-    await mkdir(dirname(backupPath), { recursive: true });
-    const redacted = redactDiagnosticText(rawText, { appPaths: paths }).text;
-    await writeFile(backupPath, redacted, { encoding: "utf8", mode: 0o600 });
-    diagnostics.warn(
-      "Settings file is corrupt; backed it up and restored defaults",
-      { settingsPath: paths.settingsPath, backupPath },
-    );
-  } catch (backupError) {
-    diagnostics.error("Failed to back up corrupt settings file", {
-      settingsPath: paths.settingsPath,
-      error,
-      backupError,
-    });
-  }
 }
 
 function mergeSettingsSecrets(

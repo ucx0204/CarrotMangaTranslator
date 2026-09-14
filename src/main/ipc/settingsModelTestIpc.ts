@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { translationActivityResources } from "../jobs/jobActivityResources";
 import { join } from "node:path";
 import { AppSettingsSchema, parseIpcPayload } from "../../shared/ipcSchemas";
 import type { ModelTestResult } from "../../shared/jobTypes";
@@ -57,9 +58,6 @@ export async function handleModelSettingsTest(
     tMain("settings.modelTestLabel"),
   );
   const testId = resolveModelTestId(providedTestId);
-  if (context.jobs.hasActive) {
-    return buildBusyModelTestResult(settings);
-  }
 
   try {
     return await runManagedAppOperation(
@@ -67,6 +65,7 @@ export async function handleModelSettingsTest(
       {
         id: `model-test-${testId}`,
         kind: "model-test",
+        resources: translationActivityResources(settings),
         mutatesLibrary: false,
         presentation: {
           phase: "model-test-preparing",

@@ -46,7 +46,7 @@ describe("gathered-text to conditional-batch handoff", () => {
     expect(setTextViewOpen).not.toHaveBeenCalled();
   });
 
-  it("blocks every chapter mutation callback while a workspace job is active", () => {
+  it("blocks chapter mutation callbacks when their target page is processing", () => {
     const updateCurrentChapter = vi.fn();
     const reset = vi.fn();
     const applyChapter = vi.fn();
@@ -62,7 +62,7 @@ describe("gathered-text to conditional-batch handoff", () => {
         derivedState: {
           jobActive: true,
           selectedPage: PAGE,
-          selectedPageEditLocked: false,
+          selectedPageEditLocked: true,
         },
         importShareModal: { importBusy: false },
         inpaintingActions: { actionBusy: false },

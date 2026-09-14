@@ -18,6 +18,7 @@ describe("main-window close cleanup", () => {
     await runMainWindowCloseCleanup({
       jobs: {
         current: job,
+        all: [job],
         runCleanup: vi.fn(async (_job, reason) => {
           events.push(`job-cleanup:${reason}`);
         }),
@@ -46,8 +47,8 @@ describe("main-window close cleanup", () => {
     expect(events).toEqual([
       "job-abort",
       "job-cleanup:main-window-closed",
-      "job-clear",
       "operation-cleanup:main-window-closed",
+      "job-clear",
       "mutation-idle",
       "dispose-inpainting",
       "dispose-translation",
@@ -74,7 +75,9 @@ describe("main-window close cleanup", () => {
 
   it("runs both disposals, logs individual failures, and rejects cleanup", async () => {
     const failure = new Error("inpainting disposal failed");
-    const disposeTranslation = vi.fn(async () => undefined);
+    const disposeTranslation = vi.fn(async () => {
+      throw failure;
+    });
     const logError = vi.fn();
 
     await expect(
@@ -92,7 +95,7 @@ describe("main-window close cleanup", () => {
     ).rejects.toEqual(
       expect.objectContaining({
         name: "AggregateError",
-        errors: [failure],
+        errors: [failure, failure],
       }),
     );
 
@@ -115,6 +118,7 @@ describe("main-window close cleanup", () => {
     const closing = runMainWindowCloseCleanup({
       jobs: {
         current: job,
+        all: [job],
         runCleanup: vi.fn(() => cleanup.promise),
         clearIfCurrent,
       },
@@ -169,6 +173,7 @@ function makeOperation(blocksQuit: boolean) {
 function idleJobs() {
   return {
     current: null,
+    all: [],
     clearIfCurrent: vi.fn(),
     runCleanup: vi.fn(async () => undefined),
   };
@@ -177,6 +182,7 @@ function idleJobs() {
 function idleOperations() {
   return {
     current: null,
+    all: [],
     abortCurrentAndWait: vi.fn(async () => null),
   };
 }

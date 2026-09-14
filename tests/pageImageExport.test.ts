@@ -18,7 +18,7 @@ import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import {
   handlePageImageExportError,
   MAX_PAGE_IMAGE_EXPORT_CONCURRENCY,
-  runPageImageExportJob,
+  runPageImageExportJob as runOwnedPageImageExportJob,
 } from "../src/main/jobs/pageImageExportJobRunner";
 import {
   preflightPageImageExport,
@@ -1270,4 +1270,18 @@ function trustedEvent(): Parameters<IpcHandler>[0] {
     sender: { id: 1 },
     senderFrame: { url: "http://127.0.0.1:5173/" },
   };
+}
+
+function runPageImageExportJob(
+  options: Parameters<typeof runOwnedPageImageExportJob>[0],
+) {
+  const {
+    id,
+    abortController,
+    context: { jobs },
+  } = options;
+  jobs.start({ id, kind: "page-export", resources: [], abortController });
+  return jobs
+    .run(options.id, () => runOwnedPageImageExportJob(options))
+    .finally(() => jobs.clearIfCurrent(options.id));
 }

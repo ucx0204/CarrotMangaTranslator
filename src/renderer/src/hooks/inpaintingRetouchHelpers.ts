@@ -1,4 +1,6 @@
+import { saveDirtyChanges } from "./inpaintingActionTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
+import { createPageRevision } from "../../../shared/pageRevision";
 import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
 import type {
   RetouchApplyOperation,
@@ -53,24 +55,10 @@ export function roundRetouchPoint(point: RetouchPoint): RetouchPoint {
   return { x: Math.round(point.x), y: Math.round(point.y) };
 }
 
-export function updateChapterInpaintPath(
-  chapter: ChapterSnapshot,
-  pageId: string,
-  inpaintedImagePath?: string,
-): ChapterSnapshot {
-  return {
-    ...chapter,
-    pages: chapter.pages.map((page) =>
-      page.id === pageId
-        ? { ...page, inpaintedImagePath, updatedAt: new Date().toISOString() }
-        : page,
-    ),
-  };
-}
-
 export async function applyRetouchRequest(
   {
     currentChapter,
+    currentChapterRef,
     inpaintingPaintColor,
     selectedPage,
   }: UseInpaintingRetouchOptions,
@@ -80,9 +68,16 @@ export async function applyRetouchRequest(
   if (!currentChapter || !selectedPage) {
     throw new Error("리터치를 적용할 페이지를 찾지 못했습니다.");
   }
+  const latest = currentChapterRef.current;
+  const page =
+    latest?.id === currentChapter.id
+      ? latest.pages.find((candidate) => candidate.id === selectedPage.id)
+      : undefined;
+  if (!page) throw new Error("페이지가 변경되었습니다. 다시 선택해 주세요.");
   return mangaGateway.applyInpaintingRetouch({
     chapterId: currentChapter.id,
     pageId: selectedPage.id,
+    expectedRevision: createPageRevision(page),
     mode: operation.mode,
     geometry: operation.geometry,
     color: inpaintingPaintColor,
@@ -115,4 +110,13 @@ export function setRetouchBusyState(
 ): void {
   refs.retouchBusyRef.current = busy;
   setRetouchBusy(busy);
+}
+
+export async function saveRetouchPage(
+  options: UseInpaintingRetouchOptions,
+  chapterId: string,
+  pageId: string,
+): Promise<void> {
+  if (options.savePageNow) await options.savePageNow(chapterId, pageId);
+  else await saveDirtyChanges(options.dirty, options.saveNow);
 }

@@ -106,6 +106,13 @@ const bridgeTemplate = `(() => {
     sequences: conditionalBatchSequences,
   });
   const implementations = {
+    getAppActivities: async () => ({ version: 0, activities: [], pages: [] }),
+    getActiveJobs: async () => [],
+    getSoundEffectImageRecovery: async () => null,
+    getActiveAppOperations: async () => [],
+    getActiveAppOperation: async () => null,
+    finishPageEditHandoff: async () => true,
+    retryPageEditHandoff: async () => true,
     deleteConditionalBatchScheme: async (id) => {
       conditionalBatchSchemes = conditionalBatchSchemes.filter(
         (scheme) => scheme.id !== id,

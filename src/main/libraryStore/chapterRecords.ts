@@ -4,6 +4,22 @@ import {
   type PageCompletionState,
 } from "../../shared/pageCompletion";
 
+/** Saved page order must remain unambiguous even when writes share a clock tick. */
+export function nextChapterUpdatedAt(
+  chapter: Pick<LibraryChapter, "updatedAt" | "pages">,
+  now = new Date().toISOString(),
+): string {
+  const previous = [
+    chapter.updatedAt,
+    ...chapter.pages.map((page) => page.updatedAt),
+  ]
+    .map(Date.parse)
+    .filter(Number.isFinite);
+  return new Date(
+    Math.max(Date.parse(now), ...previous.map((time) => time + 1)),
+  ).toISOString();
+}
+
 export function reorderIds(
   currentOrder: string[],
   nextOrder: string[],

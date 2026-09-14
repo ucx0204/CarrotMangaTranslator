@@ -1,5 +1,6 @@
 import { registerImageRedactionWorkspaceIpc } from "./imageRedactionWorkspaceIpc";
 import { confirmImageRedaction } from "../jobs/imageRedactionReview";
+import { getAppSettings } from "../settingsStore";
 import {
   readImageRedactionState,
   setImageRedactionEnabled,
@@ -26,8 +27,14 @@ import {
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
+import { getSoundEffectImageRecovery } from "../soundEffectImageRecoveryStore";
 
 export function registerTranslationJobIpc(context: IpcContext): void {
+  trustedHandleContract(
+    context,
+    translationJobIpcContracts.getSoundEffectImageRecovery,
+    async (_event, chapterId) => getSoundEffectImageRecovery(chapterId),
+  );
   registerImageRedactionWorkspaceIpc(context);
   trustedHandleContract(
     context,
@@ -57,12 +64,19 @@ export function registerTranslationJobIpc(context: IpcContext): void {
     translationJobIpcContracts.confirmRegionTranslation,
     async (_event, request) => confirmRegionTranslation(request),
   );
+  registerTranslationStartIpc(context);
+}
+
+function registerTranslationStartIpc(context: IpcContext): void {
   trustedHandleContract(
     context,
     translationJobIpcContracts.startAnalysis,
     async (_event, rawRequest: unknown): Promise<StartAnalysisResult> =>
       startAnalysisJob(
-        context,
+        {
+          ...context,
+          executionSettings: await getAppSettings(context.appPaths),
+        },
         parseIpcPayload(
           StartAnalysisRequestSchema,
           rawRequest,
@@ -76,7 +90,10 @@ export function registerTranslationJobIpc(context: IpcContext): void {
     translationJobIpcContracts.translateRegion,
     async (_event, rawRequest: unknown): Promise<RegionAnalysisResult> =>
       translateRegionJob(
-        context,
+        {
+          ...context,
+          executionSettings: await getAppSettings(context.appPaths),
+        },
         parseIpcPayload(
           RegionAnalysisRequestSchema,
           rawRequest,
@@ -93,7 +110,10 @@ export function registerTranslationJobIpc(context: IpcContext): void {
       rawRequest: unknown,
     ): Promise<StartSoundEffectTranslationResult> =>
       startSoundEffectTranslationJob(
-        context,
+        {
+          ...context,
+          executionSettings: await getAppSettings(context.appPaths),
+        },
         parseIpcPayload(
           StartSoundEffectTranslationRequestSchema,
           rawRequest,

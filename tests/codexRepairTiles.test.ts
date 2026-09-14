@@ -65,6 +65,10 @@ it.each([
   [300, 983],
   [4000, 200],
   [200, 4000],
+  [821, 2000],
+  [407, 1181],
+  [2000, 821],
+  [1181, 407],
 ])(
   "plans supported, overlapping native inputs covering every selected pixel in %sx%s",
   (width, height) => {
@@ -77,9 +81,13 @@ it.each([
     for (const { cropBounds: tile, writeBounds: write } of tiles) {
       expect(
         Math.max(tile.w, tile.h) / Math.min(tile.w, tile.h),
-      ).toBeLessThanOrEqual(3);
+      ).toBeLessThanOrEqual(2);
       expect(tile.x + tile.w).toBeLessThanOrEqual(width);
       expect(tile.y + tile.h).toBeLessThanOrEqual(height);
+      expect(tile.x).toBeLessThanOrEqual(write.x);
+      expect(tile.y).toBeLessThanOrEqual(write.y);
+      expect(tile.x + tile.w).toBeGreaterThanOrEqual(write.x + write.w);
+      expect(tile.y + tile.h).toBeGreaterThanOrEqual(write.y + write.h);
       for (let y = tile.y; y < tile.y + tile.h; y++)
         for (let x = tile.x; x < tile.x + tile.w; x++)
           coverage[y * width + x]++;

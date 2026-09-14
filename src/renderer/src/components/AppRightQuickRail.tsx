@@ -30,6 +30,7 @@ export type AppRightQuickRailProps = Pick<
   | "completionSoundResearchMuted"
   | "currentChapter"
   | "flowActive"
+  | "editorDisabled"
   | "jobActive"
   | "jobState"
   | "operationActivity"
@@ -76,7 +77,7 @@ export function AppRightQuickRail(
 ): React.JSX.Element {
   const { t } = useTranslation("components");
   const controlsId = React.useId();
-  const disabled = !props.currentChapter || props.jobActive || props.flowActive;
+  const disabled = !props.currentChapter || props.editorDisabled;
   const currentToolLabel = useStageToolbarCurrentToolLabel(
     props.stageTool,
     props.regionTranslationActive,

@@ -8,6 +8,7 @@ import { RangeInput } from "../ui/Field";
 type RetouchInpaintingStepProps = {
   aiUnavailable?: boolean;
   codexErasureAvailable?: boolean;
+  codexErasureBusy?: boolean;
   activeToolLabel: string;
   brushColor: string;
   brushRadius: number;
@@ -67,7 +68,6 @@ function RetouchToolSettings({
   brushColor,
   brushRadius,
   colorTool,
-  jobActive,
   onBrushColorChange,
   onBrushRadiusChange,
   tool,
@@ -82,7 +82,7 @@ function RetouchToolSettings({
             min={4}
             max={90}
             value={brushRadius}
-            disabled={jobActive}
+            disabled={false}
             onChange={(event) =>
               onBrushRadiusChange(Number(event.target.value))
             }
@@ -94,7 +94,7 @@ function RetouchToolSettings({
         <RetouchColorControl
           activeToolLabel={activeToolLabel}
           brushColor={brushColor}
-          disabled={jobActive}
+          disabled={false}
           onBrushColorChange={onBrushColorChange}
         />
       ) : null}
@@ -139,6 +139,7 @@ function RetouchColorControl({
 function DrawnMaskActionGroup({
   aiUnavailable,
   codexErasureAvailable,
+  codexErasureBusy,
   hasSelectedPage,
   jobActive,
   maskStrokeCount,
@@ -148,7 +149,9 @@ function DrawnMaskActionGroup({
 }: RetouchInpaintingStepProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const [adjustmentRadius, setAdjustmentRadius] = React.useState(4);
-  const disabled = jobActive || !hasSelectedPage || maskStrokeCount === 0;
+  const noMask = !hasSelectedPage || maskStrokeCount === 0;
+  const disabled = jobActive || noMask;
+  const codexDisabled = (codexErasureBusy ?? jobActive) || noMask;
   return (
     <div className="inpaint-group">
       <div className="inpaint-group-head">
@@ -164,7 +167,7 @@ function DrawnMaskActionGroup({
             min={1}
             max={32}
             value={adjustmentRadius}
-            disabled={jobActive || maskStrokeCount === 0}
+            disabled={maskStrokeCount === 0}
             onChange={(event) =>
               setAdjustmentRadius(Number(event.target.value))
             }
@@ -174,14 +177,14 @@ function DrawnMaskActionGroup({
         <div className="mask-adjust-buttons">
           <Button
             size="sm"
-            disabled={jobActive || maskStrokeCount === 0}
+            disabled={maskStrokeCount === 0}
             onClick={() => onAdjustPatternMask(-adjustmentRadius)}
           >
             {t("inpainting.retouch.shrinkMask")}
           </Button>
           <Button
             size="sm"
-            disabled={jobActive || maskStrokeCount === 0}
+            disabled={maskStrokeCount === 0}
             onClick={() => onAdjustPatternMask(adjustmentRadius)}
           >
             {t("inpainting.retouch.expandMask")}
@@ -191,7 +194,7 @@ function DrawnMaskActionGroup({
       <div className="mask-action-row">
         <Button
           size="sm"
-          disabled={jobActive || maskStrokeCount === 0}
+          disabled={maskStrokeCount === 0}
           onClick={onClearPatternMask}
         >
           {t("common.clear")}
@@ -207,7 +210,7 @@ function DrawnMaskActionGroup({
       </div>
       <CodexMaskButton
         available={codexErasureAvailable}
-        disabled={disabled}
+        disabled={codexDisabled}
         onRun={onRunDrawnPattern}
       />
     </div>

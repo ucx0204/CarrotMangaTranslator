@@ -36,7 +36,12 @@ import {
   updatePagesAfterInpaintingUnlocked,
   type InpaintingArtifactCleanupOptions,
 } from "../libraryStore/libraryInpaintingMutations";
-import { withLibraryMutation } from "./lock";
+import { assertLibraryActivityAccess, withLibraryMutation } from "./lock";
+import {
+  pageContentResource,
+  libraryStructureResource,
+  type AppActivityResource,
+} from "../../shared/appActivityTypes";
 import { notifyLinkedWorkspacePagesSaved } from "../linkedWorkspace/linkedWorkspaceNotifications";
 import {
   updatePageProcessingTimingsUnlocked,
@@ -44,6 +49,7 @@ import {
 } from "../libraryStore/libraryTimingMutations";
 import { saveTranslationCheckpointUnlocked } from "../libraryStore/translationCheckpointStore";
 import type { PreparedTranslationCheckpoint } from "../pipeline/preparedTranslationCheckpointContract";
+import { readWorkFile } from "../libraryStore/libraryFiles";
 
 export type SavePageBlocksRuntime = {
   runMutation: typeof withLibraryMutation;
@@ -55,11 +61,24 @@ const productionSavePageBlocksRuntime: SavePageBlocksRuntime = {
   savePageBlocks: savePageBlocksUnlocked,
 };
 
+function guardedMutation<T>(
+  resources: AppActivityResource[],
+  operation: () => Promise<T>,
+): Promise<T> {
+  return withLibraryMutation(() => {
+    assertLibraryActivityAccess(resources);
+    return operation();
+  });
+}
+
 export function createSavePageBlocks(runtime: SavePageBlocksRuntime) {
   return async (request: SavePageBlocksRequest): Promise<ChapterSnapshot> => {
-    const chapter = await runtime.runMutation(() =>
-      runtime.savePageBlocks(request),
-    );
+    const chapter = await runtime.runMutation(() => {
+      assertLibraryActivityAccess([
+        pageContentResource(request.chapterId, request.pageId),
+      ]);
+      return runtime.savePageBlocks(request);
+    });
     notifyLinkedWorkspacePagesSaved(request.chapterId, [request.pageId]);
     return chapter;
   };
@@ -81,9 +100,14 @@ const productionSavePagesBlocksRuntime: SavePagesBlocksRuntime = {
 
 export function createSavePagesBlocks(runtime: SavePagesBlocksRuntime) {
   return async (request: SavePagesBlocksRequest): Promise<ChapterSnapshot> => {
-    const chapter = await runtime.runMutation(() =>
-      runtime.savePagesBlocks(request),
-    );
+    const chapter = await runtime.runMutation(() => {
+      assertLibraryActivityAccess(
+        request.pages.map((page) =>
+          pageContentResource(request.chapterId, page.pageId),
+        ),
+      );
+      return runtime.savePagesBlocks(request);
+    });
     notifyLinkedWorkspacePagesSaved(
       request.chapterId,
       request.pages.map((page) => page.pageId),
@@ -102,8 +126,9 @@ export async function appendAnalyzedPageBlocks(
   blocks: MangaPage["blocks"],
   options?: Parameters<typeof appendAnalyzedPageBlocksUnlocked>[3],
 ): Promise<ChapterSnapshot> {
-  const chapter = await withLibraryMutation(() =>
-    appendAnalyzedPageBlocksUnlocked(chapterId, pageId, blocks, options),
+  const chapter = await guardedMutation(
+    [pageContentResource(chapterId, pageId)],
+    () => appendAnalyzedPageBlocksUnlocked(chapterId, pageId, blocks, options),
   );
   notifyLinkedWorkspacePagesSaved(chapterId, [pageId]);
   return chapter;
@@ -124,32 +149,60 @@ export async function renameChapter(
 }
 
 export async function deleteWork(workId: string): Promise<LibraryIndex> {
-  return withLibraryMutation(() => deleteWorkUnlocked(workId));
+  return guardedMutation(
+    [libraryStructureResource("work", workId)],
+    async () => {
+      const work = await readWorkFile(workId);
+      assertLibraryActivityAccess(
+        (work?.chapterOrder ?? []).flatMap((id) => [
+          libraryStructureResource("chapter", id),
+          pageContentResource(id, "**"),
+        ]),
+      );
+      return deleteWorkUnlocked(workId);
+    },
+  );
 }
 
 export async function deleteChapter(chapterId: string): Promise<LibraryIndex> {
-  return withLibraryMutation(() => deleteChapterUnlocked(chapterId));
+  return guardedMutation(
+    [
+      libraryStructureResource("chapter", chapterId),
+      pageContentResource(chapterId, "**"),
+    ],
+    () => deleteChapterUnlocked(chapterId),
+  );
 }
 
 export async function reorderChapters(
   workId: string,
   chapterIds: string[],
 ): Promise<LibraryIndex> {
-  return withLibraryMutation(() => reorderChaptersUnlocked(workId, chapterIds));
+  return guardedMutation([libraryStructureResource("work", workId)], () =>
+    reorderChaptersUnlocked(workId, chapterIds),
+  );
 }
 
 export async function reorderPages(
   chapterId: string,
   pageIds: string[],
 ): Promise<ChapterSnapshot> {
-  return withLibraryMutation(() => reorderPagesUnlocked(chapterId, pageIds));
+  return guardedMutation([libraryStructureResource("chapter", chapterId)], () =>
+    reorderPagesUnlocked(chapterId, pageIds),
+  );
 }
 
 export async function deletePage(
   chapterId: string,
   pageId: string,
 ): Promise<ChapterSnapshot> {
-  return withLibraryMutation(() => deletePageUnlocked(chapterId, pageId));
+  return guardedMutation(
+    [
+      libraryStructureResource("page", `${chapterId}/${pageId}`),
+      pageContentResource(chapterId, pageId),
+    ],
+    () => deletePageUnlocked(chapterId, pageId),
+  );
 }
 
 export async function markChapterPagesRunning(
@@ -169,15 +222,17 @@ export async function updatePageAfterAnalysis(
   expectedUpdatedAt?: string,
   expectedRevision?: PageRevision,
 ): Promise<boolean> {
-  const updated = await withLibraryMutation(() =>
-    updatePageAfterAnalysisUnlocked(
-      chapterId,
-      page,
-      warnings,
-      status,
-      expectedUpdatedAt,
-      expectedRevision,
-    ),
+  const updated = await guardedMutation(
+    [pageContentResource(chapterId, page.id)],
+    () =>
+      updatePageAfterAnalysisUnlocked(
+        chapterId,
+        page,
+        warnings,
+        status,
+        expectedUpdatedAt,
+        expectedRevision,
+      ),
   );
   if (updated) notifyLinkedWorkspacePagesSaved(chapterId, [page.id]);
   return updated;
@@ -187,8 +242,9 @@ export async function updatePagesAfterAnalysis(
   chapterId: string,
   updates: PageAnalysisUpdate[],
 ): Promise<ReadonlySet<string>> {
-  const changed = await withLibraryMutation(() =>
-    updatePagesAfterAnalysisUnlocked(chapterId, updates),
+  const changed = await guardedMutation(
+    updates.map(({ page }) => pageContentResource(chapterId, page.id)),
+    () => updatePagesAfterAnalysisUnlocked(chapterId, updates),
   );
   notifyLinkedWorkspacePagesSaved(chapterId, [...changed]);
   return changed;
@@ -219,8 +275,9 @@ export async function updatePagesAfterInpainting(
   pages: MangaPage[],
   cleanupOptions?: InpaintingArtifactCleanupOptions,
 ): Promise<ChapterSnapshot> {
-  const chapter = await withLibraryMutation(() =>
-    updatePagesAfterInpaintingUnlocked(chapterId, pages, cleanupOptions),
+  const chapter = await guardedMutation(
+    pages.map((page) => pageContentResource(chapterId, page.id)),
+    () => updatePagesAfterInpaintingUnlocked(chapterId, pages, cleanupOptions),
   );
   notifyLinkedWorkspacePagesSaved(
     chapterId,
@@ -235,20 +292,25 @@ export async function setPageInpaintingResult(
   inpaintedImagePath?: string | null,
   cleanupOptions?: InpaintingArtifactCleanupOptions,
 ): Promise<ChapterSnapshot> {
-  const chapter = await withLibraryMutation(() =>
-    setPageInpaintingResultUnlocked(
-      chapterId,
-      pageId,
-      inpaintedImagePath,
-      cleanupOptions,
-    ),
+  const chapter = await guardedMutation(
+    [pageContentResource(chapterId, pageId)],
+    () =>
+      setPageInpaintingResultUnlocked(
+        chapterId,
+        pageId,
+        inpaintedImagePath,
+        cleanupOptions,
+      ),
   );
   notifyLinkedWorkspacePagesSaved(chapterId, [pageId]);
   return chapter;
 }
 
 export async function cleanupLibraryOrphans(): Promise<LibraryCleanupResult> {
-  return withLibraryMutation(cleanupLibraryOrphansUnlocked);
+  return guardedMutation(
+    [{ kind: "library-structure", scope: "*", access: "write" }],
+    cleanupLibraryOrphansUnlocked,
+  );
 }
 
 export async function saveTranslationCheckpoint(
@@ -256,11 +318,13 @@ export async function saveTranslationCheckpoint(
   checkpoint: PreparedTranslationCheckpoint,
   expectedRevision: PageRevision,
 ): Promise<boolean> {
-  return withLibraryMutation(() =>
-    saveTranslationCheckpointUnlocked({
-      chapterId,
-      checkpoint,
-      expectedRevision,
-    }),
+  return guardedMutation(
+    [pageContentResource(chapterId, checkpoint.pageId)],
+    () =>
+      saveTranslationCheckpointUnlocked({
+        chapterId,
+        checkpoint,
+        expectedRevision,
+      }),
   );
 }

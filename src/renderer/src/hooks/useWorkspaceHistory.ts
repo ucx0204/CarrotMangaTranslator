@@ -37,6 +37,10 @@ type ApplyWorkspaceImageTransaction = (request: {
 }) => Promise<WorkspaceHistoryApplyOutcome>;
 
 export type UseWorkspaceHistoryOptions = {
+  replayBlockedReason?: (
+    entry: WorkspaceHistoryEntry,
+    direction: WorkspaceHistoryDirection,
+  ) => string | null;
   /** Changing the open chapter releases and clears the session history. */
   chapterId: string | null;
   applyChapterSnapshot: (snapshot: WorkspaceChapterEditSnapshot) => void;
@@ -77,6 +81,7 @@ export function useWorkspaceHistory({
   onReleaseError,
   maxEntries,
   coalesceMs,
+  replayBlockedReason,
 }: UseWorkspaceHistoryOptions): WorkspaceHistoryController {
   const busyRef = useRef(false);
   const releaseTransactions = useTransactionRelease(
@@ -91,11 +96,19 @@ export function useWorkspaceHistory({
     releaseTransactions,
   });
   const recorders = useWorkspaceHistoryRecorders(store.recordEntry);
-  const applyEntry = useWorkspaceHistoryEntryApplier({
+  const applyUncheckedEntry = useWorkspaceHistoryEntryApplier({
     applyChapterSnapshot,
     applyImageTransaction,
     applyMaskSnapshot,
   });
+  const applyEntry = useCallback<EntryApplier>(
+    async (entry, direction) => {
+      const reason = replayBlockedReason?.(entry, direction);
+      if (reason) throw new Error(reason);
+      return applyUncheckedEntry(entry, direction);
+    },
+    [applyUncheckedEntry, replayBlockedReason],
+  );
   const replay = useWorkspaceHistoryReplay({
     applyEntry,
     busyRef,
@@ -106,8 +119,12 @@ export function useWorkspaceHistory({
   const undoEntry = peekWorkspaceHistory(store.state, "undo");
   const redoEntry = peekWorkspaceHistory(store.state, "redo");
 
-  const canUndo = Boolean(undoEntry);
-  const canRedo = Boolean(redoEntry);
+  const canUndo = Boolean(
+    undoEntry && !replay.busy && !replayBlockedReason?.(undoEntry, "undo"),
+  );
+  const canRedo = Boolean(
+    redoEntry && !replay.busy && !replayBlockedReason?.(redoEntry, "redo"),
+  );
   const undoLabel = undoEntry?.label ?? null;
   const redoLabel = redoEntry?.label ?? null;
   return useMemo(

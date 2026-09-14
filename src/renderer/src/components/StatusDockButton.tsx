@@ -23,6 +23,7 @@ import {
 } from "../lib/statusCenterHistoryStore";
 import { OPEN_STATUS_CENTER_EVENT } from "../lib/statusCenterEvents";
 import type { StatusLogEntry } from "../hooks/useStatusLog";
+import { useStatusCenterTasks } from "../hooks/useStatusCenterTasks";
 
 type StatusDockButtonProps = {
   jobState: JobState;
@@ -75,6 +76,7 @@ export function StatusDockButton({
   const { t } = useTranslation("components");
   const { t: rendererT } = useTranslation("renderer");
   const popoverId = React.useId();
+  const taskController = useStatusCenterTasks(jobState, operationActivity);
   const operationLine = resolveActiveOperationLine(
     operationActivity,
     rendererT,
@@ -107,7 +109,14 @@ export function StatusDockButton({
     setOpen,
   });
 
-  const indicator = resolveStatusIndicator(jobState, operationActivity, unread);
+  const running = taskController.tasks.some((task) =>
+    ["starting", "running", "cancelling"].includes(
+      task.job?.status ?? task.operation?.status ?? "",
+    ),
+  );
+  const indicator = running
+    ? "running"
+    : resolveStatusIndicator(jobState, operationActivity, unread);
   const tooltip = resolveStatusTooltip(latest, t);
   return (
     <div className="status-dock" ref={rootRef}>
@@ -131,6 +140,7 @@ export function StatusDockButton({
       </span>
       {open ? (
         <StatusPopover
+          taskController={taskController}
           completionSoundMuted={completionSoundMuted}
           completionSoundVolume={completionSoundVolume}
           completionSoundTranslationMuted={Boolean(
@@ -399,14 +409,6 @@ function resolveStatusIndicator(
   operationActivity: AppOperationActivityEvent | null,
   unread: boolean,
 ): string {
-  if (
-    jobState.status === "starting" ||
-    jobState.status === "running" ||
-    jobState.status === "cancelling"
-  ) {
-    return "running";
-  }
-  if (isAppOperationActive(operationActivity)) return "running";
   if (jobState.status === "failed") return "failed";
   if (jobState.status === "partial") return "partial";
   if (operationActivity?.status === "failed") return "failed";

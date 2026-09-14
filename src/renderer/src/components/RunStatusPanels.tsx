@@ -49,7 +49,7 @@ export const ChapterTaskHub = React.memo(function ChapterTaskHub(
             variant="primary"
             fullWidth
             onClick={props.onOpenTranslateOptions}
-            disabled={actionsDisabled}
+            disabled={!props.currentChapter}
           >
             {t("translationOptions.workspaceAction")}
           </Button>
@@ -126,7 +126,7 @@ function CurrentPageActionsSection({
       </h3>
       <div className="current-page-actions">
         <AutomaticEraseActions
-          disabled={actionsDisabled || !hasSelectedPage}
+          disabled={!hasSelectedPage}
           onOpenScope={onOpenAutoInpaintingOptions}
         />
         <BubbleLayoutAction
@@ -135,7 +135,7 @@ function CurrentPageActionsSection({
           onRun={onRunBubbleLayout}
         />
         <ResultExportActions
-          actionsDisabled={actionsDisabled}
+          actionsDisabled={false}
           linkedWorkspaceStatus={linkedWorkspaceStatus}
           linkedWorkspaceViewBusy={linkedWorkspaceViewBusy}
           onOpenExport={onOpenExport}

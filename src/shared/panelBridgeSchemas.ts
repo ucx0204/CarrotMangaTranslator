@@ -83,6 +83,22 @@ const BlockStylePresetSummarySchema = z
 export const PanelSyncStateSchema = z
   .object({
     selectedBlock: TranslationBlockSchema.nullable(),
+    editPage: z
+      .object({
+        chapterId: z.string().min(1).max(200),
+        pageId: z.string().min(1).max(200),
+      })
+      .strict()
+      .nullable()
+      .optional(),
+    editHandoff: z
+      .object({
+        requestId: z.string().uuid(),
+        chapterId: z.string().min(1).max(200),
+        pageId: z.string().min(1).max(200),
+      })
+      .strict()
+      .optional(),
     selectedBlockCount: z.number().int().min(0).max(MAX_SELECTED_BLOCK_COUNT),
     selectionKey: PanelSelectionKeySchema,
     formatSelection: z
@@ -124,6 +140,13 @@ export const PanelSyncStateSchema = z
   .strict();
 
 export const PanelCommandSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("finishPageEdits"),
+      requestId: z.string().uuid(),
+      error: z.string().max(100000).optional(),
+    })
+    .strict(),
   z
     .object({
       type: z.literal("updateBlock"),

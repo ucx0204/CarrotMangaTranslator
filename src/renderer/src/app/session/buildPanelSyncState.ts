@@ -45,6 +45,7 @@ export function buildPanelSyncState({
       selectedPageSize,
     );
   return {
+    editPage: resolveEditPage(core, derivedState),
     aiUnavailable: inpaintingBridge.contextValue.aiUnavailable,
     areaTranslateAvailable: panelRegionAvailable(
       derivedState,
@@ -107,4 +108,13 @@ function panelRegionAvailable(
   unavailable?: boolean,
 ) {
   return !busy && !unavailable && isWorkspaceImageReadyForSelectedPage(derived);
+}
+
+function resolveEditPage(
+  core: AppSessionViewModel["core"],
+  derived: AppSessionViewModel["derivedState"],
+): PanelSyncState["editPage"] {
+  return core.currentChapter && derived.selectedPage
+    ? { chapterId: core.currentChapter.id, pageId: derived.selectedPage.id }
+    : null;
 }

@@ -42,6 +42,9 @@ import {
 } from "./pageImageExportOutput";
 import { resolvePageImageExportWriteOptions } from "./pageImageExportOptions";
 import { writePagePsdExport } from "./pagePsdExportRunner";
+import { retainLibrarySnapshot, withLibraryRead } from "../library/lock";
+import { reserveChapterTargets } from "./jobActivityResources";
+import { outputPathResource } from "../outputPathActivity";
 
 type EmitJobEvent = EmitPageImageExportEvent;
 
@@ -93,66 +96,73 @@ export async function runPageImageExportJob({
   dependencies = productionPageImageExportDependencies,
 }: RunPageImageExportJobOptions): Promise<PageImageExportCompletedResult> {
   throwIfAborted(abortController, 0, 0);
-  const resolved = await resolvePageImageExportSelection(
+  const { resolved, releaseSnapshot } = await captureExportSnapshot(
     request,
-    dependencies.repository,
-  );
-  assertTextlessExportReady(request, resolved);
-  const writeOptions = resolvePageImageExportWriteOptions(request);
-  throwIfAborted(abortController, 0, resolved.pageCount);
-  emitExportStarting(id, emit, resolved.pageCount, resolved.chapters.length);
-
-  throwIfAborted(abortController, 0, resolved.pageCount);
-  const output = await resolvePageImageExportOutputDir(
-    outputParentDir,
-    resolved.workTitle,
-    writeOptions.destinationMode,
     dependencies,
   );
-  const { outputDir } = output;
   try {
+    assertTextlessExportReady(request, resolved);
+    const writeOptions = resolvePageImageExportWriteOptions(request);
     throwIfAborted(abortController, 0, resolved.pageCount);
-    const tasks = await preparePageImageExportTasks({
-      abortController,
-      dependencies,
-      outputDir,
-      outputFormat: writeOptions.outputFormat,
-      preserveSourceNames: writeOptions.preserveSourceNames,
-      resolved,
-    });
-    await assertNoCancelCollisions({
-      dependencies,
-      policy: writeOptions.collisionPolicy,
-      tasks,
-    });
-    throwIfAborted(abortController, 0, resolved.pageCount);
-    await writePageImageExportChapters({
-      abortController,
-      context,
-      dependencies,
-      emit,
-      id,
-      tasks,
-      resolved,
-      ...writeOptions,
-    });
-    throwIfAborted(abortController, resolved.pageCount, resolved.pageCount);
-  } catch (error) {
-    if (output.removeOnFailure) {
-      await removeFailedOutput(outputDir, error, dependencies);
-    }
-    throw error;
-  }
-  emitExportCompleted(id, emit, resolved.pageCount, resolved.chapters.length);
+    emitExportStarting(id, emit, resolved.pageCount, resolved.chapters.length);
 
-  throwIfAborted(abortController, resolved.pageCount, resolved.pageCount);
-  const openError = await openExportOutputDirectory(outputDir, dependencies);
-  return {
-    status: "completed",
-    outputDir,
-    pageCount: resolved.pageCount,
-    ...(openError ? { openError } : {}),
-  };
+    throwIfAborted(abortController, 0, resolved.pageCount);
+    const output = await resolvePageImageExportOutputDir(
+      outputParentDir,
+      resolved.workTitle,
+      writeOptions.destinationMode,
+      dependencies,
+    );
+    const { outputDir } = output;
+    try {
+      context.jobs.updateResources(id, [
+        await outputPathResource(outputDir, true),
+      ]);
+      throwIfAborted(abortController, 0, resolved.pageCount);
+      const tasks = await preparePageImageExportTasks({
+        abortController,
+        dependencies,
+        outputDir,
+        outputFormat: writeOptions.outputFormat,
+        preserveSourceNames: writeOptions.preserveSourceNames,
+        resolved,
+      });
+      await assertNoCancelCollisions({
+        dependencies,
+        policy: writeOptions.collisionPolicy,
+        tasks,
+      });
+      throwIfAborted(abortController, 0, resolved.pageCount);
+      await writePageImageExportChapters({
+        abortController,
+        context,
+        dependencies,
+        emit,
+        id,
+        tasks,
+        resolved,
+        ...writeOptions,
+      });
+      throwIfAborted(abortController, resolved.pageCount, resolved.pageCount);
+    } catch (error) {
+      if (output.removeOnFailure) {
+        await removeFailedOutput(outputDir, error, dependencies);
+      }
+      throw error;
+    }
+    emitExportCompleted(id, emit, resolved.pageCount, resolved.chapters.length);
+
+    throwIfAborted(abortController, resolved.pageCount, resolved.pageCount);
+    const openError = await openExportOutputDirectory(outputDir, dependencies);
+    return {
+      status: "completed",
+      outputDir,
+      pageCount: resolved.pageCount,
+      ...(openError ? { openError } : {}),
+    };
+  } finally {
+    releaseSnapshot();
+  }
 }
 
 export function handlePageImageExportError({
@@ -705,4 +715,34 @@ function resolveAbortProgress(
   error: unknown,
 ): Pick<PageImageExportAbortError, "completedPages" | "totalPages"> | null {
   return error instanceof PageImageExportAbortError ? error : null;
+}
+
+async function captureExportSnapshot(
+  request: PageExportSelectionRequest,
+  dependencies: PageImageExportDependencies,
+) {
+  return withLibraryRead(async () => {
+    const resolved = await resolvePageImageExportSelection(
+      request,
+      dependencies.repository,
+    );
+    const releaseSnapshot = retainLibrarySnapshot(
+      resolved.chapters.flatMap(({ chapter, pages }) =>
+        reserveChapterTargets(
+          chapter,
+          pages.map(({ page }) => page.id),
+        ),
+      ),
+      resolved.chapters.flatMap(({ pages }) =>
+        pages.flatMap(({ page }) =>
+          [
+            page.imagePath,
+            page.inpaintedImagePath,
+            page.inpaintMaskPath,
+          ].filter((path): path is string => Boolean(path)),
+        ),
+      ),
+    );
+    return { resolved, releaseSnapshot };
+  });
 }

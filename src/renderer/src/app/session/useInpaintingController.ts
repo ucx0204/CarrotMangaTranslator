@@ -5,6 +5,7 @@ import { useAppSessionInpaintingController } from "./useAppSessionInpaintingCont
 import type { ChapterSessionController } from "./useChapterSessionController";
 import type { TranslationController } from "./useTranslationController";
 import { openErrorReport } from "../../lib/errorReportStore";
+import { activityResourcesConflict } from "../../../../shared/appActivityTypes";
 
 export function useInpaintingController(
   chapter: ChapterSessionController,
@@ -12,6 +13,7 @@ export function useInpaintingController(
 ) {
   const { account } = useCodexConnection(true);
   const inpainting = useAppSessionInpaintingController({
+    codexErasureBusy: isCodexErasureBusy(chapter, translation),
     codexErasureAvailable: canUseCodexImages(
       chapter.settingsDialog.settings,
       account,
@@ -31,6 +33,7 @@ export function useInpaintingController(
     pushStatus: chapter.statusLog.pushStatus,
     refreshLibrary: chapter.libraryActions.refreshLibrary,
     saveNow: chapter.persistence.saveNow,
+    savePageNow: chapter.persistence.savePageNow,
     translateSelectedRegion:
       translation.translationActions.translateSelectedRegion,
     uiState: chapter.uiState,
@@ -61,11 +64,9 @@ function useSessionCommands(
         : chapter.bridgeActions.cancelJob(),
     currentChapter: chapter.core.currentChapter,
     jobActive:
-      inpainting.inpaintingBridge.contextValue.jobActive ||
+      chapter.derivedState.modelResourceBusy ||
       chapter.uiState.translationFlowActive ||
       translation.workspaceHistory.busy ||
-      chapter.operationActivity.active ||
-      chapter.importShareModal.importBusy ||
       Boolean(chapter.uiState.redactionPreparationRequest),
     openImportPreview: translation.importShareActions.openImportPreview,
     openLibraryFolder: chapter.bridgeActions.openLibraryFolder,
@@ -95,3 +96,27 @@ function useSessionCommands(
 }
 
 export type InpaintingController = ReturnType<typeof useInpaintingController>;
+
+function isCodexErasureBusy(
+  chapter: ChapterSessionController,
+  translation: TranslationController,
+): boolean {
+  const settings = chapter.settingsDialog.settings;
+  return (
+    !settings ||
+    chapter.derivedState.selectedPageEditLocked ||
+    translation.workspaceHistory.busy ||
+    Boolean(
+      settings.inpainting?.bubbleLayoutAfterInpainting &&
+      chapter.derivedState.modelResourceBusy,
+    ) ||
+    Boolean(
+      chapter.derivedState.activities?.activities.some((activity) =>
+        activityResourcesConflict(
+          [{ kind: "codex-auth", scope: "*", access: "read" }],
+          activity.resources,
+        ),
+      ),
+    )
+  );
+}

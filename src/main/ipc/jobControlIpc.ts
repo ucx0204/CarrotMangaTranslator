@@ -18,7 +18,9 @@ export function registerJobControlIpc(context: JobControlIpcContext): void {
       _event,
       request?: { reason?: "codex-disconnected"; jobId: string },
     ) => {
-      const job = context.jobs.current;
+      const job = request
+        ? context.jobs.get(request.jobId)
+        : context.jobs.current;
       if (!job || !canCancelJob(job, request)) return { cancelled: false };
 
       const disconnected = request?.reason === "codex-disconnected";
@@ -69,16 +71,17 @@ export function registerJobControlIpc(context: JobControlIpcContext): void {
 
 function canCancelJob(
   job: NonNullable<JobControlIpcContext["jobs"]["current"]>,
-  request?: { jobId: string },
+  request?: { jobId: string; reason?: "codex-disconnected" },
 ): boolean {
   if (
     ["completed", "failed", "cancelled"].includes(job.lastEvent?.status ?? "")
   )
     return false;
-  return (
-    !request ||
-    (job.id === request.jobId &&
-      (job.kind === "gemma-analysis" ||
-        job.kind === "sound-effect-translation"))
-  );
+  if (
+    request?.reason === "codex-disconnected" &&
+    job.resources &&
+    !job.resources.some((resource) => resource.kind === "codex-auth")
+  )
+    return false;
+  return !request || job.id === request.jobId;
 }

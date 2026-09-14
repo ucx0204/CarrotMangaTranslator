@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveChapterStatus } from "../src/main/libraryStore/chapterRecords";
+import {
+  resolveChapterStatus,
+  nextChapterUpdatedAt,
+} from "../src/main/libraryStore/chapterRecords";
 import type { MangaPage } from "../src/shared/libraryTypes";
 
 function statuses(...values: MangaPage["analysisStatus"][]) {
@@ -7,6 +10,14 @@ function statuses(...values: MangaPage["analysisStatus"][]) {
 }
 
 describe("chapter analysis status", () => {
+  it("keeps saves ordered across equal ticks and a clock moving backwards", () => {
+    const chapter = { updatedAt: "2026-04-19T00:00:00.000Z", pages: [] };
+    const next = nextChapterUpdatedAt(chapter, chapter.updatedAt);
+    expect(next).toBe("2026-04-19T00:00:00.001Z");
+    expect(
+      nextChapterUpdatedAt({ ...chapter, updatedAt: next }, chapter.updatedAt),
+    ).toBe("2026-04-19T00:00:00.002Z");
+  });
   it("keeps failed plus unattempted pages partial instead of idle", () => {
     expect(resolveChapterStatus(statuses("failed", "idle"))).toBe("partial");
   });

@@ -1,5 +1,6 @@
 import { dialog } from "electron";
 import { randomUUID } from "node:crypto";
+import { outputPathResource } from "../outputPathActivity";
 import {
   WorkShareExportRequestSchema,
   WorkShareImportRequestSchema,
@@ -109,6 +110,7 @@ function registerExportWorkShareIpc(
         {
           id: `work-share-export-${randomUUID()}`,
           kind: "work-share-export",
+          resources: [await outputPathResource(outputPath)],
           mutatesLibrary: false,
           presentation: {
             phase: "share-packaging",
@@ -163,6 +165,7 @@ function registerPreviewWorkShareIpc(
         {
           id: `work-share-preview-${randomUUID()}`,
           kind: "work-share-import",
+          resources: [],
           mutatesLibrary: false,
           presentation: {
             phase: "share-reading",
@@ -196,6 +199,7 @@ function registerImportWorkShareIpc(
         {
           id: `work-share-import-${command.previewId}`,
           kind: "work-share-import",
+          resources: [],
           mutatesLibrary: true,
           presentation: {
             phase: "share-applying",

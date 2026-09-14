@@ -2630,6 +2630,10 @@
     "matchStyleRegion": "与区域{{number}}统一样式"
   },
   "letteringBrush": {
+    "paint": "绘制",
+    "paintColor": "画笔颜色",
+    "outlineWidth": "描边宽度",
+    "outlineColor": "描边颜色",
     "title": "修整音效",
     "done": "完成",
     "target": "修整对象",

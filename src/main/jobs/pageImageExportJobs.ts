@@ -6,7 +6,6 @@ import type {
   PageExportSelectionRequest,
 } from "../../shared/pageImageExportTypes";
 import type { JobEvent } from "../../shared/jobTypes";
-import { tMain } from "./localization";
 import {
   handlePageImageExportError,
   runPageImageExportJob,
@@ -48,7 +47,7 @@ async function exportPageSelection(
   outputParentDir: string,
   dependencies: PageImageExportDependencies,
 ): Promise<PageImageExportResult> {
-  assertNoActiveJob(context);
+  context.jobs.gate.assertAvailable([]);
 
   const id = randomUUID();
   const abortController = new AbortController();
@@ -56,6 +55,7 @@ async function exportPageSelection(
   context.jobs.start({
     id,
     kind: "page-export",
+    resources: [],
     abortController,
     cleanup: lifetime.cleanup,
   });
@@ -63,15 +63,17 @@ async function exportPageSelection(
     emitJobEvent(context.jobs, context.getMainWindow(), event);
 
   try {
-    return await runPageImageExportJob({
-      context,
-      request,
-      outputParentDir,
-      id,
-      abortController,
-      emit,
-      dependencies,
-    });
+    return await context.jobs.run(id, () =>
+      runPageImageExportJob({
+        context,
+        request,
+        outputParentDir,
+        id,
+        abortController,
+        emit,
+        dependencies,
+      }),
+    );
   } catch (error) {
     return handlePageImageExportError({
       abortController,
@@ -93,11 +95,5 @@ async function exportPageSelection(
 export function assertNoActivePageImageExportJob(
   context: Pick<InpaintingJobContext, "jobs">,
 ): void {
-  assertNoActiveJob(context);
-}
-
-function assertNoActiveJob(context: Pick<InpaintingJobContext, "jobs">): void {
-  if (context.jobs.hasActive) {
-    throw new Error(tMain("jobs.active"));
-  }
+  context.jobs.gate.assertAvailable([]);
 }

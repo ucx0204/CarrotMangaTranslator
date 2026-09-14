@@ -2630,6 +2630,10 @@
     "matchStyleRegion": "Match style with region {{number}}"
   },
   "letteringBrush": {
+    "paint": "Paint",
+    "paintColor": "Brush color",
+    "outlineWidth": "Outline width",
+    "outlineColor": "Outline color",
     "title": "Retouch SFX",
     "done": "Done",
     "target": "Mask target",

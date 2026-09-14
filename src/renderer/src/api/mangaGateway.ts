@@ -21,6 +21,20 @@ function createMissingBridgeError(methodName?: string): Error {
   );
 }
 
+const activityTestDefaults: Partial<MangaApi> = {
+  onJobEvent: () => () => undefined,
+  onAppOperationActivity: () => () => undefined,
+  onAppActivities: () => () => undefined,
+  getActiveAppOperation: async () => null,
+  getActiveAppOperations: async () => [],
+  getActiveJobs: async () => [],
+  getSoundEffectImageRecovery: async () => null,
+  getAppActivities: async () => ({ version: 0, activities: [], pages: [] }),
+  finishPageEditHandoff: async () => false,
+  retryPageEditHandoff: async () => false,
+  cancelAppOperation: async () => ({ accepted: false }),
+};
+
 export function createTestMangaGatewayStub(
   overrides: Partial<MangaApi> = {},
 ): MangaGateway {
@@ -36,15 +50,8 @@ export function createTestMangaGatewayStub(
       if (value !== undefined) {
         return value;
       }
-      if (property === "onAppOperationActivity") {
-        return () => () => undefined;
-      }
-      if (property === "getActiveAppOperation") {
-        return async () => null;
-      }
-      if (property === "cancelAppOperation") {
-        return async () => ({ accepted: false });
-      }
+      const fallback = Reflect.get(activityTestDefaults, property);
+      if (fallback) return fallback;
       return () => Promise.reject(createMissingBridgeError(String(property)));
     },
   });

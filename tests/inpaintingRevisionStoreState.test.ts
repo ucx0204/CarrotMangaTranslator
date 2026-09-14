@@ -152,7 +152,9 @@ describe("InpaintingRevisionStore state", () => {
     await expect(
       store.applyTransaction({ transactionId, direction: "undo" }),
     ).rejects.toThrow(/번역 완료 상태가 다른 작업/);
-    expect(store.getReference(transactionId)).toEqual({ transactionId });
+    expect(store.getReference(transactionId)).toEqual(
+      expect.objectContaining({ transactionId, targets: expect.any(Array) }),
+    );
     expect(firstPage(harness.openChapter()).translationCompletion).toEqual({
       workflow: "erase-original",
       status: "failed",

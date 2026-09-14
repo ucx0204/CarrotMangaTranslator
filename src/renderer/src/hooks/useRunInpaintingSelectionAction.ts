@@ -124,6 +124,7 @@ function applySelectionResult(
     options.workspaceHistory.recordImageEdit({
       label: t("workspaceHistory.autoInpainting"),
       transactionId: result.historyTransaction.transactionId,
+      targets: result.historyTransaction.targets,
       chapterId,
     });
   }

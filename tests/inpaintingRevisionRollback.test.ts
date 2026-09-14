@@ -34,7 +34,9 @@ describe("InpaintingRevisionStore rollback", () => {
 
     expect(pagePath(harness, CHAPTER_A_ID)).toBe("C:\\library\\a-after.png");
     expect(pagePath(harness, CHAPTER_B_ID)).toBe("C:\\library\\b-after.png");
-    expect(store.getReference(transactionId)).toEqual({ transactionId });
+    expect(store.getReference(transactionId)).toEqual(
+      expect.objectContaining({ transactionId, targets: expect.any(Array) }),
+    );
     expect(harness.getSaveCallCount()).toBe(4);
   });
 

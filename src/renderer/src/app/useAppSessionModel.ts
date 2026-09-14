@@ -115,10 +115,8 @@ function useSessionLibraryDrop(
     blocked:
       chapter.dropImportModalBlocked ||
       Boolean(translation.translationActions.regionTranslationDialog) ||
-      chapter.derivedState.jobActive ||
       chapter.uiState.translationFlowActive ||
       translation.workspaceHistory.busy ||
-      chapter.operationActivity.active ||
       chapter.importShareModal.importBusy,
     pushStatus: chapter.statusLog.pushStatus,
     setImportPreview: chapter.importShareModal.setImportPreview,

@@ -51,6 +51,13 @@ export function useDirtyTrackingActions({
     runQueuedSave,
   });
 
+  const savePageNow = useCallback(
+    async (chapterId: string, pageId: string) => {
+      await runQueuedSave("manual", { chapterId, pageIds: [pageId] });
+    },
+    [runQueuedSave],
+  );
+
   return useMemo(
     () => ({
       clearDirtyTracking,
@@ -58,6 +65,7 @@ export function useDirtyTrackingActions({
       replaceDirtyPageIds,
       resetSaveBaseline,
       saveNow,
+      savePageNow,
     }),
     [
       clearDirtyTracking,
@@ -65,6 +73,7 @@ export function useDirtyTrackingActions({
       replaceDirtyPageIds,
       resetSaveBaseline,
       saveNow,
+      savePageNow,
     ],
   );
 }

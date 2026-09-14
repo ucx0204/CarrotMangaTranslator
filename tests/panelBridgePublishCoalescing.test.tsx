@@ -2,9 +2,14 @@
 
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PanelId, PanelSyncState } from "../src/shared/panelBridgeTypes";
+import type {
+  PanelCommand,
+  PanelId,
+  PanelSyncState,
+} from "../src/shared/panelBridgeTypes";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { usePanelBridgeHost } from "../src/renderer/src/panels/usePanelBridgeHost";
+import { pendingPageEdits } from "../src/renderer/src/lib/pageEditBarrier";
 
 type PanelWindowsListener = (ids: PanelId[]) => void;
 
@@ -15,6 +20,65 @@ afterEach(() => {
 });
 
 describe("panel bridge publishing", () => {
+  it("waits for a detached editor acknowledgement and keeps its preceding commands", async () => {
+    const frames = installAnimationFrameController();
+    let command: (value: PanelCommand) => void = () => {};
+    let windows: (ids: PanelId[]) => void = () => {};
+    const publish = vi.fn<
+      (state: PanelSyncState) => Promise<{ published: boolean }>
+    >(async () => ({
+      published: true,
+    }));
+    window.mangaApi = createTestMangaGatewayStub({
+      onPanelCommand: (listener) => {
+        command = listener;
+        return () => {};
+      },
+      onPanelWindowsChanged: (listener) => {
+        windows = listener;
+        return () => {};
+      },
+      publishPanelState: publish,
+    });
+    const onCommand = vi.fn();
+    const view = renderHook(() =>
+      usePanelBridgeHost({
+        syncState: {
+          ...makePanelState(1),
+          editPage: { chapterId: "chapter", pageId: "B" },
+        },
+        onCommand,
+      }),
+    );
+    act(() => windows(["editor"]));
+    let done = false;
+    let saved!: Promise<void>;
+    act(() => {
+      saved = pendingPageEdits.flushEditors("chapter", "B").then(() => {
+        done = true;
+      });
+    });
+    act(() => frames.flush());
+    await waitFor(() => expect(publish).toHaveBeenCalled());
+    const request = publish.mock.calls.at(-1)?.[0].editHandoff;
+    if (!request) throw new Error("Missing editor handoff request");
+    expect(request.pageId).toBe("B");
+    expect(done).toBe(false);
+    expect(pendingPageEdits.getActivePages().has("chapter/B")).toBe(true);
+    await act(async () => {
+      command({
+        type: "updateBlock",
+        blockId: "block",
+        patch: { translatedText: "한글 완료" },
+      });
+      command({ type: "finishPageEdits", requestId: request.requestId });
+      await saved;
+    });
+    expect(onCommand).toHaveBeenCalledOnce();
+    expect(done).toBe(true);
+    await pendingPageEdits.flushEditors("chapter", "other");
+    view.unmount();
+  });
   it("does not publish without a pop-out and coalesces an open-panel burst", async () => {
     const frames = installAnimationFrameController();
     const bridge = installPanelBridge();

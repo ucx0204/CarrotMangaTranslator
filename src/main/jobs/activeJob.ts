@@ -1,10 +1,15 @@
 import type { JobEvent } from "../../shared/jobTypes";
+import type { AppActivityResource } from "../../shared/appActivityTypes";
 import {
   AppActivityGate,
   isAppActivityUnavailableError,
   type AppActivityLease,
 } from "../appActivityGate";
 import { logError, logInfo } from "../logger";
+import { withLibraryActivityOwner } from "../library/lock";
+import type { AppSettings } from "../../shared/settingsTypes";
+import { withExecutionSettings } from "../settings/executionSettings";
+import { PageEditHandoffs } from "./pageEditHandoffs";
 
 export type JobCleanupDiagnostics = {
   error: (message: string, detail?: unknown) => void;
@@ -22,11 +27,15 @@ export type ActiveJob = {
   abortController: AbortController;
   cleanup?: () => Promise<void>;
   lastEvent?: JobEvent;
+  resources?: readonly AppActivityResource[];
 };
 
 export class ActiveJobStore {
-  private activeJob: ActiveJob | null = null;
-  private activeActivityLease: AppActivityLease | null = null;
+  readonly pageHandoffs = new PageEditHandoffs();
+  private readonly entries = new Map<
+    string,
+    { job: ActiveJob; lease: AppActivityLease }
+  >();
   private readonly cleanupPromises = new WeakMap<ActiveJob, Promise<void>>();
 
   constructor(
@@ -35,7 +44,34 @@ export class ActiveJobStore {
   ) {}
 
   get current(): ActiveJob | null {
-    return this.activeJob;
+    return (
+      this.all.find((job) => job.kind !== "page-export") ?? this.all[0] ?? null
+    );
+  }
+
+  get all(): ActiveJob[] {
+    return [...this.entries.values()].map(({ job }) => job);
+  }
+
+  get(id: string): ActiveJob | null {
+    return this.entries.get(id)?.job ?? null;
+  }
+
+  get gate(): AppActivityGate {
+    return this.activityGate;
+  }
+
+  run<T>(id: string, run: () => T, settings?: AppSettings): T {
+    return withLibraryActivityOwner(id, () =>
+      withExecutionSettings(settings, run),
+    );
+  }
+
+  updateResources(id: string, resources: readonly AppActivityResource[]): void {
+    const entry = this.entries.get(id);
+    if (!entry) throw new Error("Job is no longer active.");
+    entry.lease.updateResources(resources);
+    entry.job.resources = structuredClone(resources);
   }
 
   get hasActive(): boolean {
@@ -43,9 +79,7 @@ export class ActiveJobStore {
   }
 
   start(job: ActiveJob): void {
-    if (this.activeJob) {
-      throw new Error("이미 실행 중인 작업이 있습니다.");
-    }
+    if (this.entries.has(job.id)) throw new Error("Job id is already active.");
 
     let lease: AppActivityLease;
     try {
@@ -55,33 +89,32 @@ export class ActiveJobStore {
         kind: job.kind,
         mutatesLibrary: job.kind !== "page-export",
         blocksQuit: true,
+        resources: job.resources,
       });
     } catch (error) {
       if (isAppActivityUnavailableError(error)) {
-        throw new Error("이미 실행 중인 작업이 있습니다.", { cause: error });
+        throw new Error(
+          `이미 실행 중인 작업이 있습니다. ${error instanceof Error ? error.message : ""}`,
+          { cause: error },
+        );
       }
       throw error;
     }
 
-    this.activeJob = job;
-    this.activeActivityLease = lease;
+    this.entries.set(job.id, { job, lease });
   }
 
   updateLastEvent(jobId: string, event: JobEvent): void {
-    if (this.activeJob?.id === jobId) {
-      this.activeJob.lastEvent = event;
-    }
+    const entry = this.entries.get(jobId);
+    if (entry) entry.job.lastEvent = event;
   }
 
   clearIfCurrent(jobId: string): void {
-    if (this.activeJob?.id !== jobId) {
-      return;
-    }
-
-    const lease = this.activeActivityLease;
-    this.activeJob = null;
-    this.activeActivityLease = null;
-    lease?.release();
+    const entry = this.entries.get(jobId);
+    if (!entry) return;
+    this.entries.delete(jobId);
+    this.pageHandoffs.removeJob(jobId);
+    entry.lease.release();
   }
 
   async runCleanup(job: ActiveJob, reason: string): Promise<void> {

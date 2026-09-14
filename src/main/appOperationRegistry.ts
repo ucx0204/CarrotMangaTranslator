@@ -1,6 +1,8 @@
 import type { AppActivityLease } from "./appActivityGate";
 import { AppActivityGate } from "./appActivityGate";
+import type { AppActivityResource } from "../shared/appActivityTypes";
 import { isAbortErrorLike } from "./abortSignal";
+import { withLibraryActivityOwner } from "./library/lock";
 import type {
   AppOperationActivityEvent,
   AppOperationKind,
@@ -65,23 +67,29 @@ type AppOperationActivityListener = (
 ) => void;
 
 export class AppOperationRegistry {
-  private currentEntry: AppOperationEntry | null = null;
+  private readonly entries = new Map<string, AppOperationEntry>();
   private readonly activityListeners = new Set<AppOperationActivityListener>();
 
   constructor(private readonly activityGate: AppActivityGate) {}
 
   get current(): Readonly<AppOperationSnapshot> | null {
-    return this.currentEntry ? { ...this.currentEntry.snapshot } : null;
+    const entry = this.entries.values().next().value;
+    return entry ? { ...entry.snapshot } : null;
   }
 
   get hasActive(): boolean {
-    return this.currentEntry !== null;
+    return this.entries.size > 0;
   }
 
   get currentActivity(): Readonly<AppOperationActivityEvent> | null {
-    return this.currentEntry?.activity
-      ? { ...this.currentEntry.activity }
-      : null;
+    const entry = this.entries.values().next().value;
+    return entry?.activity ? { ...entry.activity } : null;
+  }
+
+  get activities(): AppOperationActivityEvent[] {
+    return [...this.entries.values()].flatMap((entry) =>
+      entry.activity ? [{ ...entry.activity }] : [],
+    );
   }
 
   subscribeActivity(listener: AppOperationActivityListener): () => void {
@@ -95,13 +103,17 @@ export class AppOperationRegistry {
     mutatesLibrary: boolean;
     blocksQuit?: boolean;
     presentation?: AppOperationPresentation;
+    resources?: readonly AppActivityResource[];
   }): AppOperationLease {
+    if (this.entries.has(options.id))
+      throw new Error("Operation id is already active.");
     const activityLease = this.activityGate.acquire({
       id: options.id,
       category: "operation",
       kind: options.kind,
       mutatesLibrary: options.mutatesLibrary,
       blocksQuit: options.blocksQuit ?? true,
+      resources: options.resources,
     });
 
     const abortController = new AbortController();
@@ -156,7 +168,7 @@ export class AppOperationRegistry {
         : null,
     };
 
-    this.currentEntry = entry;
+    this.entries.set(options.id, entry);
     this.emitActivity(entry);
     return {
       id: entry.snapshot.id,
@@ -169,7 +181,7 @@ export class AppOperationRegistry {
   }
 
   requestCancel(id: string): boolean {
-    const entry = this.currentEntry;
+    const entry = this.entries.get(id);
     if (
       !entry ||
       entry.snapshot.id !== id ||
@@ -186,16 +198,13 @@ export class AppOperationRegistry {
   async abortCurrentAndWait(
     reason: string,
   ): Promise<Readonly<AppOperationSnapshot> | null> {
-    const entry = this.currentEntry;
-    if (!entry) {
-      return null;
+    const entries = [...this.entries.values()];
+    for (const entry of entries) {
+      this.markCancelling(entry);
+      this.abortEntry(entry, reason);
     }
-
-    this.markCancelling(entry);
-    this.abortEntry(entry, reason);
-
-    await entry.completion;
-    return { ...entry.snapshot };
+    await Promise.all(entries.map((entry) => entry.completion));
+    return entries[0] ? { ...entries[0].snapshot } : null;
   }
 
   private updateActivity(
@@ -265,8 +274,8 @@ export class AppOperationRegistry {
       this.emitActivity(entry);
     }
 
-    if (this.currentEntry?.token === entry.token) {
-      this.currentEntry = null;
+    if (this.entries.get(entry.snapshot.id)?.token === entry.token) {
+      this.entries.delete(entry.snapshot.id);
     }
     entry.activityLease.release();
     entry.resolveCompletion();
@@ -296,6 +305,7 @@ export function runManagedAppOperation<T>(
     mutatesLibrary: boolean;
     blocksQuit?: boolean;
     presentation?: AppOperationPresentation;
+    resources?: readonly AppActivityResource[];
   },
   run: (signal: AbortSignal, lease: AppOperationLease) => Promise<T>,
 ): Promise<T> {
@@ -304,7 +314,9 @@ export function runManagedAppOperation<T>(
   try {
     // Start the body before returning control so an immediately delivered cancel
     // cannot beat the operation's first abort listener.
-    execution = Promise.resolve(run(lease.signal, lease));
+    execution = Promise.resolve(
+      withLibraryActivityOwner(options.id, () => run(lease.signal, lease)),
+    );
   } catch (error) {
     const cancelled = lease.signal.aborted || isAbortErrorLike(error);
     lease.finish(

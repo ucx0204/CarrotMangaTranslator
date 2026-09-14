@@ -25,6 +25,7 @@ type UpdateCurrentChapterOptions = {
 };
 
 type UseCurrentChapterUpdaterOptions = {
+  assertPagesEditable?: (pageIds: readonly string[]) => void;
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
   markDirty: (pageId?: string) => void;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
@@ -44,6 +45,7 @@ export function useCurrentChapterUpdater({
   setCurrentChapter,
   selection,
   workspaceHistory,
+  assertPagesEditable,
 }: UseCurrentChapterUpdaterOptions): UpdateCurrentChapter {
   const { selectedBlockId, selectedBlockIds, selectedPageId } = selection;
   const { recordChapterEdit } = workspaceHistory;
@@ -59,6 +61,7 @@ export function useCurrentChapterUpdater({
         return;
       }
       const editedPageIds = resolveEditedPageIds(pageId, options);
+      assertPagesEditable?.(editedPageIds);
       markEditedPagesDirty(editedPageIds, markDirty);
       currentChapterRef.current = next;
       setCurrentChapter(next);
@@ -77,6 +80,7 @@ export function useCurrentChapterUpdater({
     },
     [
       currentChapterRef,
+      assertPagesEditable,
       markDirty,
       recordChapterEdit,
       selectedBlockId,

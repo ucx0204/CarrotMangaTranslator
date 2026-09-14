@@ -11,6 +11,17 @@ afterEach(() => {
 });
 
 describe("app session bridge actions", () => {
+  it("cancels the displayed job even when another job became the main default", async () => {
+    const cancelJob = vi.fn(async () => ({ cancelled: true }));
+    window.mangaApi = createTestMangaGatewayStub({ cancelJob });
+    const { result } = renderHook(() =>
+      useAppSessionBridgeActions(vi.fn(), undefined, "displayed-export"),
+    );
+    act(() => result.current.cancelJob());
+    await waitFor(() =>
+      expect(cancelJob).toHaveBeenCalledWith({ jobId: "displayed-export" }),
+    );
+  });
   it("latches aggregate cancellation before sending the main-process request", async () => {
     const calls: string[] = [];
     const cancelJob = vi.fn(async () => {

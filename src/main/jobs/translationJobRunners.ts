@@ -35,6 +35,7 @@ import type { TranslationJobContext } from "./translationJobTypes";
 import { resolvePreviousChapterStoryPages } from "../previousChapterContext";
 import { pageTimingSessionManager } from "./pageTimingSessionManager";
 import type { PreparedTranslationCheckpoint } from "../pipeline/preparedTranslationCheckpointContract";
+import { acquireJobPage, releaseJobPage } from "./jobPageOwnership";
 
 type EmitJobEvent = (event: JobEvent) => void;
 type ResolvedRunPages = Awaited<ReturnType<typeof resolvePagesForRun>>;
@@ -102,6 +103,9 @@ export async function runResolvedAnalysisJob(
   state.targetSnapshots = resolved.pages.map((page) =>
     createPageJobTargetSnapshot(request.chapterId, page),
   );
+  const handoffEnabled = Boolean(context.jobs.get(id)?.resources);
+  if (handoffEnabled)
+    context.jobs.pageHandoffs.reserve(id, request.chapterId, state.pageIds);
   const timing = await openAnalysisTimingSession(
     context,
     request,
@@ -126,14 +130,44 @@ export async function runResolvedAnalysisJob(
     loadCheckpoint: dependencies.loadTranslationCheckpoint,
   });
   throwIfAborted(abortController.signal);
-  const expectedRevisionByPageId = await prepareRunningAnalysisPages(
-    request.chapterId,
-    resolved.pages,
-    dependencies.markChapterPagesRunning,
-  );
+  const expectedRevisionByPageId = handoffEnabled
+    ? new Map<string, PageRevision>()
+    : await prepareRunningAnalysisPages(
+        request.chapterId,
+        resolved.pages,
+        dependencies.markChapterPagesRunning,
+      );
   throwIfAborted(abortController.signal);
+  const committedPageIds = new Set<string>();
   const result = await dependencies.runWholePagePipeline({
     jobId: id,
+    acquirePage: handoffEnabled
+      ? async (pageId) => {
+          const page = await acquireJobPage(
+            context.jobs,
+            id,
+            request.chapterId,
+            pageId,
+            dependencies.openChapter,
+          );
+          expectedRevisionByPageId.set(pageId, createPageRevision(page));
+          state.targetSnapshots = state.targetSnapshots?.map((target) =>
+            target.pageId === pageId
+              ? createPageJobTargetSnapshot(request.chapterId, page)
+              : target,
+          );
+          await dependencies.markChapterPagesRunning(request.chapterId, [
+            pageId,
+          ]);
+          return page;
+        }
+      : undefined,
+    onPageSettled: handoffEnabled
+      ? (pageId, failed) => {
+          if (!failed) committedPageIds.add(pageId);
+          releaseJobPage(context.jobs, id, request.chapterId, pageId, failed);
+        }
+      : undefined,
     emit,
     ...buildAnalysisPipelineCallbacks({
       expectedRevisionByPageId,
@@ -172,6 +206,7 @@ export async function runResolvedAnalysisJob(
     result,
     dependencies.openChapter,
     abortController.signal,
+    handoffEnabled ? committedPageIds : undefined,
   );
 }
 
@@ -367,6 +402,7 @@ export async function completeAnalysisJob(
   result: PipelineResult,
   openPersistedChapter: typeof openChapter = openChapter,
   signal?: AbortSignal,
+  committedPageIds?: ReadonlySet<string>,
 ): Promise<StartAnalysisResult> {
   // The pipeline result can still look completed when persisting a page loses
   // an optimistic-concurrency race. Re-open the chapter before emitting a
@@ -381,6 +417,7 @@ export async function completeAnalysisJob(
   );
   const incompletePageCount = resolved.pages.filter(
     (page) =>
+      !committedPageIds?.has(page.id) &&
       !isPersistedAnalysisTargetComplete(
         persistedPagesById.get(page.id),
         request,
@@ -576,7 +613,5 @@ function getLastJobEvent(
   context: TranslationJobContext,
   id: string,
 ): JobEvent | undefined {
-  return context.jobs.current?.id === id
-    ? context.jobs.current.lastEvent
-    : undefined;
+  return context.jobs.get(id)?.lastEvent;
 }

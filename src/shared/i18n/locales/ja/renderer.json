@@ -514,6 +514,10 @@
     "resetFailed": "デフォルト設定に戻せませんでした。"
   },
   "statusDock": {
+    "concurrentTasks": "実行中の作業",
+    "finishingEdits": "入力を完了して、このページを保存しています。",
+    "retryHandoff": "保存後に再試行",
+    "pageBusy": "このページを処理または保存しています。表示とマスクの下書きは利用できます。",
     "operation": {
       "summary": "{{kind}} · {{state}}",
       "replacePrefix": "{{kind}}",

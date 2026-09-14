@@ -15,6 +15,7 @@ import type { DragMode } from "../lib/workspaceInteractionTypes";
 import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
 import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 import { useEventCallback } from "./useEventCallback";
+import { pendingPageEdits } from "../lib/pageEditBarrier";
 import {
   capturePointerSafely,
   releasePointerCaptureSafely,
@@ -151,8 +152,6 @@ function beginBlockPointerDrag({
   if (
     !stage ||
     !page ||
-    options.jobActive ||
-    options.selectedPageEditLocked ||
     options.regionSelectionActive ||
     options.inpaintingToolActive
   ) {
@@ -181,6 +180,7 @@ function beginBlockPointerDrag({
       current.length === 1 && current[0] === block.id ? current : [block.id],
     );
   }
+  if (isBlockDragStartLocked(options)) return;
   const pointerRect =
     options.imageRef.current?.getBoundingClientRect() ??
     stage.getBoundingClientRect();
@@ -319,5 +319,15 @@ function useFinishBlockDrag(
       t,
       updateCurrentChapter,
     ],
+  );
+}
+
+function isBlockDragStartLocked(
+  options: UseWorkspaceBlockDragHandlersOptions,
+): boolean {
+  return (
+    options.jobActive ||
+    options.selectedPageEditLocked ||
+    pendingPageEdits.isHandingOff(options.selectedPage?.id)
   );
 }

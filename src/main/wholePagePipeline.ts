@@ -57,6 +57,10 @@ import {
   CodexImageEditError,
 } from "./codexImageEditing";
 import { createCodexProgressReporter } from "./pipeline/codexTypesettingProgress";
+import {
+  refreshWholePageInput,
+  completeHandedOffNoTextPage,
+} from "./pipeline/wholePageInputHandoff";
 
 export type WholePagePipelineResult = {
   pages: MangaPage[];
@@ -205,7 +209,10 @@ async function runWholePagePipelineWithDependencies(
 
   const modelPages = pages.filter((page) => !reusableCheckpoints.has(page.id));
   const filtered = filterPagesByOcrText(modelPages, ocrHintsByPageId, {
-    allowNoTextSkip: !collectPageContext && allowOcrNoTextSkip(run.baseOptions),
+    allowNoTextSkip:
+      !options.acquirePage &&
+      !collectPageContext &&
+      allowOcrNoTextSkip(run.baseOptions),
     ocrPipeline: run.baseOptions.ocrPipeline,
   });
   filtered.pageIndexById = buildPageIndexById(pages);
@@ -238,6 +245,9 @@ async function runWholePagePipelineWithDependencies(
   throwIfAborted(signal);
 
   return completeWholePageRun({
+    acquirePage: options.acquirePage,
+    onPageSettled: options.onPageSettled,
+    decodeImage: options.decodeImage,
     blockMode,
     canonicalPageIndexById,
     collectPageContext,
@@ -311,6 +321,9 @@ async function persistPrepassPageContexts({
 
 type CompleteWholePageRunOptions = Pick<
   PipelineOptions,
+  | "acquirePage"
+  | "onPageSettled"
+  | "decodeImage"
   | "blockMode"
   | "canonicalPageIndexById"
   | "collectPageContext"
@@ -389,6 +402,7 @@ async function completeWholePageRun(
     filtered,
     ocrHintsByPageId: options.ocrHintsByPageId,
     onPageComplete: options.onPageComplete,
+    onPageSettled: options.onPageSettled,
     run,
     signal,
     warningCollector,
@@ -410,8 +424,8 @@ async function completeWholePageRun(
 async function preparePagesWithinEndpointSession(
   options: CompleteWholePageRunOptions,
 ): Promise<PreparedChapterPages> {
-  const endpoint =
-    options.filtered.pagesToTranslate.length > 0
+  let endpoint =
+    !options.acquirePage && options.filtered.pagesToTranslate.length > 0
       ? await measureSharedProcessingStage(options.timing, "preparing", () =>
           startWholePageEndpoint({
             onCleanupReady: options.onCleanupReady,
@@ -429,6 +443,15 @@ async function preparePagesWithinEndpointSession(
     return await prepareTranslatedPages({
       ...options,
       endpoint,
+      ensureEndpoint: async () =>
+        (endpoint ??= await startWholePageEndpoint({
+          onCleanupReady: options.onCleanupReady,
+          run: options.run,
+        })),
+      beforePageOcr: async () => {
+        await endpoint?.disposeEndpointSession();
+        endpoint = undefined;
+      },
       writeStoryMemory: options.writeStoryMemory ?? true,
       collectPageContext: options.collectPageContext ?? false,
       cumulativeContextDetail: options.cumulativeContextDetail ?? "detailed",
@@ -522,23 +545,23 @@ async function prepareWholePageRun(
     (message, details) => dependencies.diagnostics.warn(message, details),
   );
   const modelPages = pages.filter((page) => !reusableCheckpoints.has(page.id));
-  const ocrHintsByPageId = await measureSharedProcessingStage(
-    timing,
-    "ocr",
-    () =>
-      preparePageOcrHints({
-        jobId,
-        pages: modelPages,
-        run,
-        runPaths,
-        signal,
-        skipOcrPrepass,
-        blockMode,
-        decodeImage,
-        regionContext,
-        diagnostics: dependencies.diagnostics,
-      }),
-  );
+  const ocrHintsByPageId =
+    options.acquirePage && blockMode === "keep"
+      ? new Map<string, OcrBboxResult>()
+      : await measureSharedProcessingStage(timing, "ocr", () =>
+          preparePageOcrHints({
+            jobId,
+            pages: modelPages,
+            run,
+            runPaths,
+            signal,
+            skipOcrPrepass,
+            blockMode,
+            decodeImage,
+            regionContext,
+            diagnostics: dependencies.diagnostics,
+          }),
+        );
   throwIfAborted(signal);
   return { ocrHintsByPageId, reusableCheckpoints, run };
 }
@@ -586,6 +609,12 @@ const previewPageContextDependencies: PageContextPersistenceDependencies = {
 };
 
 type PrepareTranslatedPagesOptions = {
+  acquirePage?: PipelineOptions["acquirePage"];
+  onPageSettled?: PipelineOptions["onPageSettled"];
+  onPageComplete?: PipelineOptions["onPageComplete"];
+  decodeImage?: PipelineOptions["decodeImage"];
+  ensureEndpoint?: () => Promise<AnalysisEndpointSession>;
+  beforePageOcr?: () => Promise<void>;
   endpoint?: AnalysisEndpointSession;
   filtered: ReturnType<typeof filterPagesByOcrText>;
   ocrHintsByPageId: Map<string, OcrBboxResult>;
@@ -614,6 +643,8 @@ type PrepareTranslatedPagesOptions = {
 async function prepareTranslatedPages(
   options: PrepareTranslatedPagesOptions,
 ): Promise<PreparedChapterPages> {
+  const checkpoints = new Map(options.reusableCheckpoints);
+  options = { ...options, reusableCheckpoints: checkpoints };
   const fontMatchingChapterCoordinator = options.run.baseOptions
     .autoFontMatching
     ? createAutomaticFontChapterCoordinatorV2()
@@ -626,14 +657,25 @@ async function prepareTranslatedPages(
   const modelPageIds = new Set(
     options.filtered.pagesToTranslate.map((page) => page.id),
   );
-  for (const page of options.pages) {
+  for (const [inputIndex, original] of options.pages.entries()) {
+    const page = await handOffTranslationInput(
+      original,
+      inputIndex,
+      options,
+      checkpoints,
+      modelPageIds,
+    );
+    if (!page) continue;
     const entry = await prepareTranslatedPageEntry(
       page,
       modelPageIds,
       rollingWorkContext,
       options,
     );
-    if (!entry) continue;
+    if (!entry) {
+      options.onPageSettled?.(page.id, true);
+      continue;
+    }
     if (!options.reusableCheckpoints.has(page.id)) {
       await approvePreparedTranslationCheckpoint({
         blockMode: options.blockMode,
@@ -653,6 +695,36 @@ async function prepareTranslatedPages(
     );
   }
   return { entries, fontMatchingChapterCoordinator };
+}
+
+async function handOffTranslationInput(
+  original: MangaPage,
+  inputIndex: number,
+  options: PrepareTranslatedPagesOptions,
+  checkpoints: Parameters<typeof refreshWholePageInput>[1],
+  modelPageIds: Set<string>,
+): Promise<MangaPage | undefined> {
+  if (
+    options.acquirePage &&
+    (options.blockMode === "keep" || !options.ocrHintsByPageId.has(original.id))
+  )
+    await options.beforePageOcr?.();
+  const page = await refreshWholePageInput(original, checkpoints, options);
+  options.pages[inputIndex] = page;
+  if (options.acquirePage && !checkpoints.has(page.id)) {
+    const noTextPage = await completeHandedOffNoTextPage(
+      page,
+      options.canonicalPageIndexById?.get(page.id) ?? inputIndex,
+      options,
+    );
+    if (noTextPage) {
+      options.filtered.completedPagesById.set(page.id, noTextPage);
+      return undefined;
+    }
+    modelPageIds.add(page.id);
+    options.endpoint = await options.ensureEndpoint?.();
+  }
+  return page;
 }
 
 async function prepareTranslatedPageEntry(
@@ -790,6 +862,7 @@ async function prepareModelPage({
 }
 
 type FinalizeTranslatedPagesOptions = {
+  onPageSettled?: PipelineOptions["onPageSettled"];
   preparedPages: PreparedChapterPages;
   filtered: ReturnType<typeof filterPagesByOcrText>;
   ocrHintsByPageId: Map<string, OcrBboxResult>;
@@ -809,6 +882,7 @@ type FinalizeTranslatedPagesOptions = {
 };
 
 async function finalizeTranslatedPages({
+  onPageSettled,
   preparedPages,
   filtered,
   ocrHintsByPageId,
@@ -870,6 +944,7 @@ async function finalizeTranslatedPages({
         pageContextDependencies(dependencies),
       );
     }
+    onPageSettled?.(entry.page.id, !completed.approved);
   }
 }
 

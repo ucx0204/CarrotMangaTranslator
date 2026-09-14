@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { hashTranslationBlocks } from "../src/shared/blockFingerprint";
+import {
+  hashTranslationBlocks,
+  hashStableValue,
+} from "../src/shared/blockFingerprint";
 import type {
   LibraryChapter,
   LibraryPageRecord,
@@ -15,6 +18,51 @@ const BASE_TIME = "2026-01-01T00:00:00.000Z";
 const SAVE_TIME = "2026-01-02T00:00:00.000Z";
 
 describe("batch page block saves", () => {
+  it("rejects a delayed save after only the server reading order changed", async () => {
+    const chapter = makeChapter();
+    const page = requirePage(chapter, "page-a");
+    page.blocks = [makeBlock("one"), makeBlock("two")];
+    const originalOrder = page.blocks.map((block) => block.id);
+    page.blockOrder = [...originalOrder].reverse();
+    page.updatedAt = SAVE_TIME;
+    const storage = createStorageRuntime(chapter);
+    const save = createSavePagesBlocksMutation(storage.runtime);
+    await expect(
+      save(
+        makeRequest([
+          {
+            pageId: page.id,
+            baseUpdatedAt: BASE_TIME,
+            baseBlocksHash: hashTranslationBlocks(page.blocks),
+            baseBlockOrderHash: hashStableValue(originalOrder),
+            blocks: page.blocks,
+            blockOrder: originalOrder,
+          },
+        ]),
+      ),
+    ).rejects.toThrow(/다른 작업으로 갱신/);
+    expect(storage.commitChapterAndWork).not.toHaveBeenCalled();
+  });
+
+  it("accepts text edits across an image-only save without losing the new image", async () => {
+    const chapter = makeChapter();
+    const page = requirePage(chapter, "page-a");
+    page.updatedAt = SAVE_TIME;
+    page.inpaintedImagePath = "new-brush.png";
+    const storage = createStorageRuntime(chapter);
+    const saved = await createSavePagesBlocksMutation(storage.runtime)(
+      makeRequest([
+        {
+          ...updateFor(page.id, "new text"),
+          baseBlockOrderHash: hashStableValue(null),
+        },
+      ]),
+    );
+    expect(saved.pages[0]).toMatchObject({
+      inpaintedImagePath: "new-brush.png",
+      blocks: [expect.objectContaining({ translatedText: "new text" })],
+    });
+  });
   it("applies multiple pages through one lock, read, write, and work touch", async () => {
     const storage = createStorageRuntime(makeChapter());
     let lockCalls = 0;

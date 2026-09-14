@@ -161,6 +161,18 @@ export type MangaApi = {
   startSoundEffectTranslation: (
     request: StartSoundEffectTranslationRequest,
   ) => Promise<StartSoundEffectTranslationResult>;
+  getSoundEffectImageRecovery: (
+    chapterId: string,
+  ) => Promise<import("./analysisTypes").SoundEffectImageRecovery | null>;
+  getAppActivities: () => Promise<
+    import("./appActivityTypes").AppActivityState
+  >;
+  getActiveJobs: () => Promise<JobEvent[]>;
+  finishPageEditHandoff: (
+    response: import("./appActivityTypes").PageEditHandoffResponse,
+  ) => Promise<boolean>;
+  retryPageEditHandoff: (requestId: string) => Promise<boolean>;
+  getActiveAppOperations: () => Promise<AppOperationActivityEvent[]>;
   getActiveAppOperation: () => Promise<AppOperationActivityEvent | null>;
   cancelAppOperation: (id: string) => Promise<AppOperationCancelResult>;
   listConditionalBatchSchemes: () => Promise<ConditionalBatchSnapshotV2>;
@@ -437,6 +449,9 @@ export type MangaApi = {
   publishPanelState: (state: PanelSyncState) => Promise<{ published: boolean }>;
   sendPanelCommand: (command: PanelCommand) => Promise<{ sent: boolean }>;
   onJobEvent: (callback: (event: JobEvent) => void) => () => void;
+  onAppActivities: (
+    callback: (state: import("./appActivityTypes").AppActivityState) => void,
+  ) => () => void;
   onAppOperationActivity: (
     callback: (event: AppOperationActivityEvent) => void,
   ) => () => void;

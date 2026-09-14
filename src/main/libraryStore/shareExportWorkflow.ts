@@ -33,6 +33,7 @@ import {
   MAX_SHARE_IMAGE_BYTES,
 } from "./zipSafety";
 import { stripInternalPageArtifacts } from "./translationCheckpointStore";
+import { libraryStructureResource } from "../../shared/appActivityTypes";
 
 export type WorkShareExportReaderPort = {
   loadWork: typeof ensureExistingWork;
@@ -67,8 +68,51 @@ export function createWorkShareExporter(
 export async function exportWorkShareToFile(
   request: WorkShareExportRequest & { outputPath: string },
   signal?: AbortSignal,
+  readers: WorkShareExportReaderPort = productionReaders,
 ): Promise<WorkShareExportResult> {
-  return exportWorkShareWithReaders(productionReaders, request, signal);
+  return exportWorkShareWithReaders(readers, request, signal);
+}
+
+export async function captureWorkShareSnapshot(
+  request: WorkShareExportRequest,
+  signal?: AbortSignal,
+) {
+  throwIfAborted(signal);
+  const work = await productionReaders.loadWork(request.workId);
+  const styleGuide = await productionReaders.loadStyleGuide(work.id);
+  const chapters = new Map<string, ChapterFile>();
+  for (const chapterId of work.chapterOrder.filter((id) =>
+    request.chapterIds.includes(id),
+  )) {
+    throwIfAborted(signal);
+    const chapter = await productionReaders.loadChapter(work.id, chapterId);
+    if (!chapter) throw new Error(tMain("share.errors.exportChapterNotFound"));
+    chapters.set(chapter.id, chapter);
+  }
+  const readers: WorkShareExportReaderPort = {
+    loadWork: async () => work,
+    loadStyleGuide: async () => styleGuide,
+    loadChapter: async (_workId, chapterId) => chapters.get(chapterId) ?? null,
+  };
+  return {
+    readers,
+    resources: [
+      libraryStructureResource("work", work.id, "read"),
+      ...[...chapters.values()].flatMap((chapter) => [
+        libraryStructureResource("chapter", chapter.id, "read"),
+        ...chapter.pages.map((page) =>
+          libraryStructureResource("page", `${chapter.id}/${page.id}`, "read"),
+        ),
+      ]),
+    ],
+    paths: [...chapters.values()].flatMap((chapter) =>
+      chapter.pages.flatMap((page) =>
+        [page.imagePath, page.inpaintedImagePath].filter(
+          (path): path is string => Boolean(path),
+        ),
+      ),
+    ),
+  };
 }
 
 async function exportWorkShareWithReaders(

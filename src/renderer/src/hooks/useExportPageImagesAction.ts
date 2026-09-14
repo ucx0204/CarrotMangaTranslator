@@ -51,7 +51,6 @@ function useManualExportAction(
   {
     currentChapter,
     dirty,
-    jobActive,
     pushStatus,
     saveNow,
     setJobState,
@@ -61,7 +60,7 @@ function useManualExportAction(
   const { t } = useTranslation("renderer");
   return useCallback(
     async (selections, expectedTargets, exportOptions) => {
-      if (!currentChapter || jobActive || selections.length === 0) return false;
+      if (!currentChapter || selections.length === 0) return false;
       const runtime = { pushStatus, setJobState };
       try {
         await saveDirtyChanges(dirty, saveNow);
@@ -83,16 +82,7 @@ function useManualExportAction(
         t,
       });
     },
-    [
-      currentChapter,
-      dirty,
-      jobActive,
-      kind,
-      pushStatus,
-      saveNow,
-      setJobState,
-      t,
-    ],
+    [currentChapter, dirty, kind, pushStatus, saveNow, setJobState, t],
   );
 }
 

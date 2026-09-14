@@ -254,6 +254,7 @@ export async function createImportFromPreviewUnlocked(
   request: CreateImportFromPreviewRequest,
   imageRuntime: ImportImageRuntime,
   signal?: AbortSignal,
+  publish?: Parameters<typeof runLibraryTransaction>[2],
 ): Promise<CreateImportResult> {
   const selectedDraftIds = new Set(
     request.selections
@@ -268,25 +269,29 @@ export async function createImportFromPreviewUnlocked(
   }
 
   throwIfAborted(signal);
-  return runLibraryTransaction("import", async (transaction) => {
-    throwIfAborted(signal);
-    return request.target.mode === "new"
-      ? importIntoNewWork(
-          transaction,
-          request,
-          selectedDrafts,
-          imageRuntime,
-          signal,
-        )
-      : importIntoExistingWork(
-          transaction,
-          request.target.workId,
-          request,
-          selectedDrafts,
-          imageRuntime,
-          signal,
-        );
-  });
+  return runLibraryTransaction(
+    "import",
+    async (transaction) => {
+      throwIfAborted(signal);
+      return request.target.mode === "new"
+        ? importIntoNewWork(
+            transaction,
+            request,
+            selectedDrafts,
+            imageRuntime,
+            signal,
+          )
+        : importIntoExistingWork(
+            transaction,
+            request.target.workId,
+            request,
+            selectedDrafts,
+            imageRuntime,
+            signal,
+          );
+    },
+    publish,
+  );
 }
 
 async function importIntoNewWork(
@@ -302,7 +307,6 @@ async function importIntoNewWork(
   const target = createUnpublishedWork(
     request.target.title || request.preview.suggestedWorkTitle,
   );
-  const index = await readIndexFile();
   const finalWorkDirectory = join(getWorksRoot(), target.id);
   const published =
     await transaction.createPublishedDirectory(finalWorkDirectory);
@@ -344,8 +348,12 @@ async function importIntoNewWork(
     join(published.stagingDirectory, "work.json"),
     validateWorkFile(nextWork.id, nextWork),
   );
-  await stageIndexFile(transaction, {
-    workOrder: [...index.workOrder, target.id],
+  transaction.beforePublish(async () => {
+    throwIfAborted(signal);
+    const index = await readIndexFile();
+    await stageIndexFile(transaction, {
+      workOrder: [...index.workOrder, target.id],
+    });
   });
   throwIfAborted(signal);
 
@@ -368,7 +376,7 @@ async function importIntoExistingWork(
   imageRuntime: ImportImageRuntime,
   signal?: AbortSignal,
 ): Promise<CreateImportResult> {
-  const target = await ensureExistingWork(workId);
+  await ensureExistingWork(workId);
   const usedTitles = await collectUsedChapterTitles(workId);
   throwIfAborted(signal);
   const createdChapters = await materializeSelectedDrafts({
@@ -397,15 +405,18 @@ async function importIntoExistingWork(
     throw new Error(tMain("import.errors.noChapterToCreate"));
   }
 
-  const nextWork: WorkFile = {
-    ...target,
-    chapterOrder: [
-      ...target.chapterOrder,
-      ...createdChapters.map((chapter) => chapter.id),
-    ],
-    updatedAt: new Date().toISOString(),
-  };
-  await stageWorkFile(transaction, nextWork);
+  transaction.beforePublish(async () => {
+    throwIfAborted(signal);
+    const target = await ensureExistingWork(workId);
+    await stageWorkFile(transaction, {
+      ...target,
+      chapterOrder: [
+        ...target.chapterOrder,
+        ...createdChapters.map((chapter) => chapter.id),
+      ],
+      updatedAt: new Date().toISOString(),
+    });
+  });
   throwIfAborted(signal);
 
   const openedChapter = createdChapters[0];

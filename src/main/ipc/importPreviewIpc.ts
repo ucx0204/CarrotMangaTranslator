@@ -91,6 +91,7 @@ function registerImageImportPreviewIpc(
           {
             id: `library-import-preview-${randomUUID()}`,
             kind: "library-import-preview",
+            resources: [],
             mutatesLibrary: false,
             presentation: {
               phase: "import-source-reading",
@@ -149,6 +150,7 @@ function registerFolderImportPreviewIpc(
           {
             id: `library-import-preview-${randomUUID()}`,
             kind: "library-import-preview",
+            resources: [],
             mutatesLibrary: false,
             presentation: {
               phase: "import-source-reading",
@@ -192,6 +194,7 @@ function registerDroppedImportPreviewIpc(
           {
             id: `library-import-preview-${randomUUID()}`,
             kind: "library-import-preview",
+            resources: [],
             mutatesLibrary: false,
             presentation: {
               phase: "import-source-reading",
@@ -344,6 +347,7 @@ function registerCreateImportIpc(
         {
           id: `library-import-${command.previewId}`,
           kind: "library-import",
+          resources: [],
           mutatesLibrary: true,
           presentation: {
             phase: "import-library-writing",

@@ -40,6 +40,10 @@ export type PipelineOptions = {
   /** webp 등 nativeImage가 못 읽는 이미지의 PNG 디코더 (keep 모드 블록 크롭 OCR용). */
   decodeImage?: (filePath: string) => Promise<Buffer | null>;
   onCleanupReady?: (cleanup: () => Promise<void>) => void;
+  /** Finish renderer edits and return the durable input immediately before consuming mutable page content. */
+  acquirePage?: (pageId: string) => Promise<MangaPage>;
+  /** Called only after final result and context persistence. */
+  onPageSettled?: (pageId: string, failed?: boolean) => void;
   /** Persist a validated model-stage result before it may feed rolling context. */
   onPagePrepared?: (
     checkpoint: PreparedTranslationCheckpoint,

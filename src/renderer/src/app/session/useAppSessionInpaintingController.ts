@@ -23,10 +23,12 @@ import type { AppSessionCoreState } from "./useAppSessionCoreState";
 import type { useAppSessionDerivedState } from "./useAppSessionDerivedState";
 import type { useAppSessionUiState } from "./useAppSessionUiState";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
+import { useEventCallback } from "../../hooks/useEventCallback";
 
 type AppSessionInpaintingControllerArgs = {
   aiUnavailable?: boolean;
   codexErasureAvailable?: boolean;
+  codexErasureBusy?: boolean;
   askConfirm: ReturnType<typeof useConfirmDialog>["askConfirm"];
   blockFormatDefaults?: BlockFormatDefaults;
   bridgeActions: ReturnType<typeof useAppSessionBridgeActions>;
@@ -39,6 +41,7 @@ type AppSessionInpaintingControllerArgs = {
   pushStatus: ReturnType<typeof useStatusLog>["pushStatus"];
   refreshLibrary: ReturnType<typeof useLibraryActions>["refreshLibrary"];
   saveNow: ReturnType<typeof useChapterPersistence>["saveNow"];
+  savePageNow?: ReturnType<typeof useChapterPersistence>["savePageNow"];
   translateSelectedRegion: ReturnType<
     typeof useTranslationActions
   >["translateSelectedRegion"];
@@ -84,6 +87,7 @@ function useRetouchController({
   mergeLiveChapter,
   pushStatus,
   saveNow,
+  savePageNow,
   uiState,
   workspaceHistory,
 }: AppSessionInpaintingControllerArgs): ReturnType<
@@ -100,6 +104,7 @@ function useRetouchController({
     mergeLiveChapter,
     pushStatus,
     saveNow,
+    savePageNow,
     selectedPage: derivedState.selectedPage,
     setCurrentChapter: core.setCurrentChapter,
     workspaceHistory,
@@ -111,14 +116,15 @@ function useInpaintingRunController(
     askConfirm,
     aiUnavailable,
     codexErasureAvailable,
+    codexErasureBusy,
     core,
     derivedState,
     dirty,
-    exclusiveActivityActive,
     mergeLiveChapter,
     pushStatus,
     refreshLibrary,
     saveNow,
+    savePageNow,
     uiState,
     workspaceHistory,
   }: AppSessionInpaintingControllerArgs,
@@ -127,6 +133,7 @@ function useInpaintingRunController(
   return useInpaintingActions({
     aiUnavailable,
     codexErasureAvailable,
+    codexErasureBusy,
     askConfirm,
     clearPageImageCache: derivedState.clearPageImageCache,
     clearRetouchHistory: retouch.clearRetouchHistory,
@@ -134,16 +141,19 @@ function useInpaintingRunController(
     dirty,
     flowCancellationRef: uiState.jobFlowCancellationRef,
     jobActive:
-      derivedState.jobActive ||
-      exclusiveActivityActive ||
+      derivedState.selectedPageEditLocked ||
       retouch.retouchBusy ||
-      uiState.translationFlowActive ||
       workspaceHistory.busy,
+    modelResourceBusy: derivedState.modelResourceBusy,
+    getPatternMaskStrokes: useEventCallback(
+      (pageId) => uiState.patternMaskStrokesByPage[pageId] ?? [],
+    ),
     mergeLiveChapter,
     patternMaskStrokes: derivedState.patternMaskStrokes,
     pushStatus,
     refreshLibrary,
     saveNow,
+    savePageNow,
     selectedPage: derivedState.selectedPage,
     setFlowActive: uiState.setJobFlowActive,
     setInpaintingTool: uiState.setInpaintingTool,
@@ -295,10 +305,10 @@ function useInpaintingBridgeController(
   {
     aiUnavailable,
     codexErasureAvailable,
+    codexErasureBusy,
     bridgeActions,
     core,
     derivedState,
-    exclusiveActivityActive,
     uiState,
     workspaceHistory,
   }: AppSessionInpaintingControllerArgs,
@@ -320,6 +330,8 @@ function useInpaintingBridgeController(
   return useInpaintingContextBridge({
     aiUnavailable,
     codexErasureAvailable,
+    codexErasureBusy:
+      codexErasureBusy || inpaintingActions.actionBusy || retouch.retouchBusy,
     blockCounts: derivedState.blockCounts,
     brushColor: uiState.inpaintingPaintColor,
     brushRadius: uiState.inpaintingBrushRadius,
@@ -328,10 +340,9 @@ function useInpaintingBridgeController(
     currentChapter: core.currentChapter,
     inpaintedPageCount: derivedState.inpaintedPageCount,
     jobActive:
-      derivedState.jobActive ||
-      exclusiveActivityActive ||
+      derivedState.modelResourceBusy ||
+      derivedState.selectedPageEditLocked ||
       inpaintingActions.actionBusy ||
-      uiState.translationFlowActive ||
       workspaceHistory.busy,
     jobState: core.jobState,
     maskStrokes: derivedState.patternMaskStrokes,

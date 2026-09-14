@@ -68,6 +68,36 @@ describe("work context files", () => {
     ).toBe(savedMemory.pages[0]?.summary);
   });
 
+  it("rejects stale manual context saves after an automatic update, including same-clock writes", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const initial = await library.getWorkStyleGuide("work-1");
+    const first = await library.saveWorkStyleGuide(initial, initial.updatedAt);
+    const next = await library.saveWorkStyleGuide({
+      ...first,
+      rules: { ...first.rules, defaultTone: "literal" },
+    });
+    expect(next.updatedAt).not.toBe(first.updatedAt);
+    await expect(
+      library.saveWorkStyleGuide(first, first.updatedAt),
+    ).rejects.toThrow("CONTEXT_SAVE_CONFLICT");
+    expect(await library.getWorkStyleGuide("work-1")).toEqual(next);
+    const original = await library.getChapterStoryMemory("chapter-a");
+    const saved = await library.saveChapterStoryMemory(
+      original,
+      original.updatedAt,
+    );
+    const updated = await library.saveChapterStoryMemory({
+      ...saved,
+      aiAnalyzedAt: "2026-01-01T00:00:00.000Z",
+    });
+    await expect(
+      library.saveChapterStoryMemory(saved, saved.updatedAt),
+    ).rejects.toThrow("CONTEXT_SAVE_CONFLICT");
+    expect(await library.getChapterStoryMemory("chapter-a")).toEqual(updated);
+  });
+
   it("persists a user-confirmed research title without renaming the work or changing the guide", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);

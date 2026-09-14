@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
@@ -20,6 +21,7 @@ import type { StatusLogEntry } from "../hooks/useStatusLog";
 export type UnifiedRightRailProps = {
   aiUnavailable?: boolean;
   codexErasureAvailable?: boolean;
+  codexErasureBusy?: boolean;
   brushColor: string;
   brushRadius: number;
   canRedo: boolean;
@@ -101,6 +103,7 @@ export type UnifiedRightRailProps = {
 export function UnifiedRightRail(
   props: UnifiedRightRailProps,
 ): React.JSX.Element {
+  const { t: rendererT } = useTranslation("renderer");
   return (
     <>
       {props.currentChapter ? (
@@ -109,12 +112,7 @@ export function UnifiedRightRail(
           canRunBubbleLayout={props.canRunBubbleLayout}
           hasSelectedPage={Boolean(props.selectedPage)}
           flowActive={props.flowActive}
-          jobActive={
-            props.jobActive ||
-            props.operationActivity?.status === "running" ||
-            props.operationActivity?.status === "cancelling" ||
-            Boolean(props.exclusiveActivityActive)
-          }
+          jobActive={props.jobActive}
           saveStatus={props.saveStatus}
           onOpenExport={props.onOpenExport}
           onOpenPsdExport={props.onOpenPsdExport ?? NOOP}
@@ -126,6 +124,11 @@ export function UnifiedRightRail(
           linkedWorkspaceViewBusy={props.linkedWorkspaceViewBusy ?? false}
           onViewLinkedResults={props.onViewLinkedResults ?? NOOP}
         />
+      ) : null}
+      {props.editorDisabled ? (
+        <p className="workspace-edit-lock-reason" role="status">
+          {rendererT("statusDock.pageBusy")}
+        </p>
       ) : null}
       <ContextualRightRailPanel {...props} />
     </>
@@ -140,15 +143,11 @@ function ContextualRightRailPanel(
       <InpaintingControlPanel
         aiUnavailable={props.aiUnavailable}
         codexErasureAvailable={props.codexErasureAvailable}
+        codexErasureBusy={props.codexErasureBusy}
         brushColor={props.brushColor}
         brushRadius={props.brushRadius}
         hasSelectedPage={Boolean(props.selectedPage)}
-        jobActive={
-          props.jobActive ||
-          props.operationActivity?.status === "running" ||
-          props.operationActivity?.status === "cancelling" ||
-          Boolean(props.exclusiveActivityActive)
-        }
+        jobActive={props.jobActive}
         jobState={props.jobState}
         maskStrokeCount={props.maskStrokeCount}
         mode="retouch"

@@ -1,4 +1,5 @@
 import { waitForRegionTextReview } from "./regionTranslationReview";
+import { reserveJobChapter } from "./jobPageOwnership";
 import { completeRegionTranslation } from "./translationRegionCompletion";
 import { matchesRegionPageRevision } from "../../shared/pageRevision";
 import type {
@@ -53,6 +54,16 @@ const productionRegionJobRunnerDependencies: RegionJobRunnerDependencies = {
   appendAnalyzedPageBlocks,
 };
 
+type RegionJobInput = {
+  context: TranslationJobContext;
+  request: RegionAnalysisRequest;
+  id: string;
+  abortController: AbortController;
+  emit: EmitJobEvent;
+  state: RegionJobState;
+  registerResourceCleanup: (cleanup: JobResourceCleanup) => void;
+};
+
 export async function runRegionTranslationJob(
   {
     context,
@@ -62,19 +73,19 @@ export async function runRegionTranslationJob(
     emit,
     state,
     registerResourceCleanup,
-  }: {
-    context: TranslationJobContext;
-    request: RegionAnalysisRequest;
-    id: string;
-    abortController: AbortController;
-    emit: EmitJobEvent;
-    state: RegionJobState;
-    registerResourceCleanup: (cleanup: JobResourceCleanup) => void;
-  },
+  }: RegionJobInput,
   dependencies: RegionJobRunnerDependencies = productionRegionJobRunnerDependencies,
 ): Promise<RegionAnalysisResult> {
   throwIfAborted(abortController.signal);
   state.chapter = await dependencies.openChapter(request.chapterId);
+  reserveJobChapter(
+    context.jobs,
+    id,
+    state.chapter,
+    [request.pageId],
+    [{ kind: "work-context", scope: state.chapter.workId, access: "read" }],
+    false,
+  );
   throwIfAborted(abortController.signal);
   const page = state.chapter.pages.find(
     (candidate) => candidate.id === request.pageId,
@@ -357,9 +368,7 @@ function getLastJobEvent(
   context: TranslationJobContext,
   id: string,
 ): JobEvent | undefined {
-  return context.jobs.current?.id === id
-    ? context.jobs.current.lastEvent
-    : undefined;
+  return context.jobs.get(id)?.lastEvent;
 }
 
 function regionReadingReview(

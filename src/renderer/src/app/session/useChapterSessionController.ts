@@ -1,5 +1,7 @@
 import { useChapterPersistence } from "../../hooks/useChapterPersistence";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEventCallback } from "../../hooks/useEventCallback";
+import { libraryGateway } from "../../api/libraryGateway";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useJobEvents } from "../../hooks/useJobEvents";
@@ -24,9 +26,20 @@ import { useAppSessionUiState } from "./useAppSessionUiState";
 import { useModalController } from "./useModalController";
 import { useLinkedWorkspaceController } from "../../hooks/useLinkedWorkspaceController";
 import { useAppOperationActivity } from "../../hooks/useAppOperationActivity";
+import { useAppActivities } from "../../hooks/useAppActivities";
+import {
+  usePageEditHandoff,
+  usePageInputActivity,
+} from "../../hooks/usePageEditHandoff";
 
 export function useChapterSessionController() {
   const core = useAppSessionCoreState();
+  const activities = useAppActivities();
+  const activeInputPages = usePageInputActivity(
+    core.currentChapter?.id,
+    core.selectedPageId,
+    activities,
+  );
   const statusLog = useStatusLog({
     currentChapter: core.currentChapter,
     library: core.library,
@@ -42,7 +55,14 @@ export function useChapterSessionController() {
     pushStatus: statusLog.pushStatus,
     uiState,
   });
+  const recoverUnavailableImage = useUnavailableChapterImageRecovery(
+    core,
+    (latest) => runtime.mergeLiveChapter(latest),
+  );
   const derivedState = useAppSessionDerivedState({
+    recoverUnavailableImage,
+    activities,
+    activeInputPages,
     currentChapter: core.currentChapter,
     imageRef: core.imageRef,
     inpaintingTool: uiState.inpaintingTool,
@@ -64,6 +84,7 @@ export function useChapterSessionController() {
     statusLog,
     uiState,
   });
+  usePageEditHandoff(activities, runtime.persistence.savePageNow);
 
   return {
     ...modalController,
@@ -75,6 +96,44 @@ export function useChapterSessionController() {
     statusLog,
     uiState,
   };
+}
+
+function useUnavailableChapterImageRecovery(
+  core: Pick<AppSessionCoreState, "currentChapterRef">,
+  merge: (chapter: NonNullable<AppSessionCoreState["currentChapter"]>) => void,
+): (pageId: string, imagePath: string) => Promise<boolean> {
+  const imageRecoveryRead = useRef<{
+    chapterId: string;
+    read: ReturnType<typeof libraryGateway.openChapter>;
+  } | null>(null);
+  return useEventCallback(async (pageId, imagePath) => {
+    const chapterId = core.currentChapterRef.current?.id;
+    if (!chapterId) return true;
+    const read =
+      imageRecoveryRead.current?.chapterId === chapterId
+        ? imageRecoveryRead.current.read
+        : libraryGateway.openChapter(chapterId);
+    imageRecoveryRead.current = { chapterId, read };
+    try {
+      const latest = await read;
+      if (
+        latest.id !== chapterId ||
+        core.currentChapterRef.current?.id !== chapterId
+      )
+        return true;
+      const page = latest.pages.find((page) => page.id === pageId);
+      if (
+        !page ||
+        [page.imagePath, page.inpaintedImagePath].includes(imagePath)
+      )
+        return false;
+      merge(latest);
+      return true;
+    } finally {
+      if (imageRecoveryRead.current?.read === read)
+        imageRecoveryRead.current = null;
+    }
+  });
 }
 
 function usePruneRemovedPageMasks(
@@ -143,7 +202,11 @@ function useChapterRuntimeController({
     pushStatus: statusLog.pushStatus,
     saveNow: persistence.saveNow,
   });
-  const bridgeActions = useChapterBridgeActions(statusLog, uiState);
+  const bridgeActions = useChapterBridgeActions(
+    statusLog,
+    uiState,
+    core.jobState.id,
+  );
   const libraryActions = useLibraryActions({
     askConfirm: modalController.confirmController.askConfirm,
     clearDirtyTracking: persistence.clearDirtyTracking,
@@ -206,10 +269,12 @@ function useChapterRuntimeController({
 function useChapterBridgeActions(
   statusLog: ChapterRuntimeArgs["statusLog"],
   uiState: ChapterRuntimeArgs["uiState"],
+  jobId: string,
 ): ReturnType<typeof useAppSessionBridgeActions> {
   return useAppSessionBridgeActions(
     statusLog.pushStatus,
     uiState.requestJobFlowCancellation,
+    jobId,
   );
 }
 

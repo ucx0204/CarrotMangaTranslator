@@ -1,3 +1,4 @@
+import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import { expect, it, vi } from "vitest";
 import {
   CodexImageEditError,
@@ -17,6 +18,8 @@ import { createSoundEffectReviewPageRevision } from "../src/shared/pageRevision"
 import type { SoundEffectTranslationJobInput } from "../src/main/jobs/translationJobTypes";
 import { applyResolvedSoundEffectEntries } from "../src/main/libraryStore/librarySoundEffectMutations";
 import { makeChapter } from "./unifiedInpaintingUiFixtures";
+import { refreshSoundEffectTarget } from "../src/main/jobs/soundEffectTranslationPreparation";
+import { resolveStoredSoundEffectTargets } from "../src/main/jobs/soundEffectTranslationTargets";
 vi.mock("electron", () => ({ app: { isPackaged: false } }));
 function fixture(pageCount = 1, regionCount = 1) {
   let chapter = makeChapter();
@@ -56,7 +59,7 @@ function fixture(pageCount = 1, regionCount = 1) {
   const input: SoundEffectTranslationJobInput = {
     id: "job",
     context: {
-      jobs: {} as SoundEffectTranslationJobInput["context"]["jobs"],
+      jobs: new ActiveJobStore(),
       getMainWindow: () => null,
       decodeImage: async () => null,
     },
@@ -83,6 +86,18 @@ function fixture(pageCount = 1, regionCount = 1) {
     NonNullable<SoundEffectTranslationJobRunnerDependencies["editImages"]>
   >(async ({ page }) => ({ ...page, inpaintedImagePath: "clean.png" }));
   const dependencies: SoundEffectTranslationJobRunnerDependencies = {
+    saveImageRecovery: vi.fn(async () => {}),
+    saveImages: vi.fn<
+      NonNullable<SoundEffectTranslationJobRunnerDependencies["saveImages"]>
+    >(async (_chapterId, pages) => {
+      chapter = {
+        ...chapter,
+        pages: chapter.pages.map(
+          (page) => pages.find((next) => next.id === page.id) ?? page,
+        ),
+      };
+      return structuredClone(chapter);
+    }),
     createPipelineDependencies: () => pipeline,
     openChapter: async () => structuredClone(chapter),
     getRunPaths: async () =>
@@ -154,6 +169,47 @@ function confirmReview(event: JobEvent) {
     })),
   });
 }
+
+it.each([true, false])(
+  "refreshes SFX coordinates after handoff and fails if chapter state is missing: %s",
+  async (hasChapter) => {
+    const f = fixture();
+    const chapter = await f.dependencies.openChapter(f.input.request.chapterId);
+    const initial = resolveStoredSoundEffectTargets(
+      chapter,
+      f.input.request,
+    )[0];
+    f.input.state.chapter = hasChapter ? chapter : null;
+    f.input.context.jobs.start({
+      id: f.input.id,
+      kind: "sound-effect-translation",
+      resources: [],
+      abortController: f.input.abortController,
+    });
+    const handoffs = f.input.context.jobs.pageHandoffs;
+    const unsubscribe = handoffs.subscribe(() => {
+      for (const page of handoffs.activities)
+        if (page.requestId && page.phase === "finishing-edits")
+          handoffs.respond({ requestId: page.requestId });
+    });
+    const latest = structuredClone(chapter);
+    if (!latest.pages[0].soundEffectReview)
+      throw new Error("Missing SFX review fixture");
+    latest.pages[0].soundEffectReview.regions[0].bbox.x = 321;
+    try {
+      const result = refreshSoundEffectTarget(
+        f.input,
+        initial,
+        async () => latest,
+      );
+      if (!hasChapter) await expect(result).rejects.toThrow("화");
+      else expect((await result).regions[0].bbox.x).toBe(321);
+    } finally {
+      unsubscribe();
+      f.input.context.jobs.clearIfCurrent(f.input.id);
+    }
+  },
+);
 
 it("waits for the whole batch, then preserves edited text, boxes, and added blocks", async () => {
   const f = fixture(2);
@@ -340,18 +396,18 @@ it("keeps completed source erasure and translated blocks when subsequent letteri
     runSoundEffectTranslationJob(f.input, f.dependencies),
   ).rejects.toThrow("lettering unavailable");
   expect(f.input.state.translatedRegionCount).toBe(1);
-  expect(f.dependencies.appendResolvedBlocks).toHaveBeenCalledWith(
+  expect(f.dependencies.saveImages).toHaveBeenCalledWith(
     expect.any(String),
-    expect.any(String),
-    expect.any(String),
-    expect.any(Array),
-    expect.objectContaining({
-      inpaintedImagePath: "completed-clean.png",
-      inpaintMaskPath: "completed-mask.png",
-    }),
+    [
+      expect.objectContaining({
+        inpaintedImagePath: "completed-clean.png",
+        inpaintMaskPath: "completed-mask.png",
+      }),
+    ],
+    expect.any(Object),
   );
 });
-it("translates with the configured engine, then edits images once and commits both together", async () => {
+it("translates with the configured engine, saves approved text before generating and checkpointing images", async () => {
   const f = fixture();
   const before = structuredClone(f.settings);
   const result = await runSoundEffectTranslationJob(f.input, f.dependencies);
@@ -361,13 +417,14 @@ it("translates with the configured engine, then edits images once and commits bo
     "슥",
   );
   expect(f.dependencies.inpaintCreatedBlocks).not.toHaveBeenCalled();
-  expect(f.dependencies.appendResolvedBlocks).toHaveBeenCalledWith(
+  expect(f.dependencies.saveImages).toHaveBeenCalledWith(
     expect.any(String),
-    expect.any(String),
-    expect.any(String),
-    expect.any(Array),
-    expect.objectContaining({ inpaintedImagePath: "clean.png" }),
+    [expect.objectContaining({ inpaintedImagePath: "clean.png" })],
+    expect.any(Object),
   );
+  expect(
+    vi.mocked(f.dependencies.appendResolvedBlocks).mock.invocationCallOrder[0],
+  ).toBeLessThan(f.editImages.mock.invocationCallOrder[0]);
   expect(f.settings).toEqual(before);
   expect(f.dispose).toHaveBeenCalledOnce();
 });
@@ -385,7 +442,7 @@ it("preserves confirmed text if the image adapter is unavailable", async () => {
   f.dependencies.editImages = undefined;
   await expect(
     runSoundEffectTranslationJob(f.input, f.dependencies),
-  ).rejects.toThrow("이미지 작업을 사용할 수 없습니다");
+  ).rejects.toThrow("이미지 저장 서비스를 사용할 수 없습니다");
   expect(f.input.state.translatedRegionCount).toBe(1);
   expect(f.dependencies.appendResolvedBlocks).toHaveBeenCalledOnce();
 });
@@ -407,7 +464,6 @@ it("preserves confirmed text but does not commit a late image result after cance
         block: expect.objectContaining({ translatedText: "슥" }),
       }),
     ],
-    undefined,
   );
 });
 
@@ -439,11 +495,14 @@ it("preserves confirmed edits on every page when the first image request fails",
       })),
     });
   };
-  f.editImages.mockRejectedValue(new Error("image unavailable"));
+  f.editImages.mockImplementationOnce(async ({ page }) => {
+    throw new CodexImageEditError(page, new Error("image unavailable"));
+  });
   await expect(
     runSoundEffectTranslationJob(f.input, f.dependencies),
   ).rejects.toThrow("image unavailable");
-  expect(f.editImages).toHaveBeenCalledOnce();
+  expect(f.editImages).toHaveBeenCalledTimes(2);
+  expect(f.input.state.chapter?.pages[1].inpaintedImagePath).toBe("clean.png");
   expect(f.dependencies.appendResolvedBlocks).toHaveBeenCalledTimes(2);
   for (const call of vi.mocked(f.dependencies.appendResolvedBlocks).mock
     .calls) {
@@ -458,4 +517,15 @@ it("preserves confirmed edits on every page when the first image request fails",
       },
     ]);
   }
+});
+
+it("keeps text-only SFX on the same durable text path without requesting an image", async () => {
+  const f = fixture();
+  f.input.request.codexTypesetting = undefined;
+  f.input.request.autoFontMatching = false;
+  f.input.request.inpaintAfterTranslation = false;
+  const result = await runSoundEffectTranslationJob(f.input, f.dependencies);
+  expect(result.status).toBe("completed");
+  expect(f.dependencies.appendResolvedBlocks).toHaveBeenCalledOnce();
+  expect(f.dependencies.editImages).not.toHaveBeenCalled();
 });

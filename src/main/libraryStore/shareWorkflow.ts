@@ -78,6 +78,7 @@ export async function importWorkShareUnlocked(
   request: WorkShareImportFromPackageRequest,
   signal?: AbortSignal,
   runtime: ShareWorkflowRuntime = productionShareWorkflowRuntime,
+  publish?: Parameters<typeof runLibraryTransaction>[2],
 ): Promise<WorkShareImportResult> {
   throwIfAborted(signal);
   const session = await runtime.openPackage(request.packagePath, { signal });
@@ -89,10 +90,15 @@ export async function importWorkShareUnlocked(
     }
 
     if (request.target.mode === "new") {
-      return await importWorkShareAsNewWork(session, request, signal);
+      return await importWorkShareAsNewWork(session, request, signal, publish);
     }
 
-    return await importWorkShareIntoExistingWork(session, request, signal);
+    return await importWorkShareIntoExistingWork(
+      session,
+      request,
+      signal,
+      publish,
+    );
   } finally {
     session.close();
   }
@@ -102,6 +108,7 @@ async function importWorkShareAsNewWork(
   session: SharePackageSession,
   request: WorkShareImportFromPackageRequest,
   signal?: AbortSignal,
+  publish?: Parameters<typeof runLibraryTransaction>[2],
 ): Promise<WorkShareImportResult> {
   if (request.target.mode !== "new") {
     throw new Error(tMain("share.errors.notNewWorkRequest"));
@@ -116,96 +123,103 @@ async function importWorkShareAsNewWork(
     return entry;
   });
 
-  return runLibraryTransaction("share-import-new-work", async (transaction) => {
-    const work = createUnpublishedWork(
-      requestedWorkTitle || session.manifest.work.title,
-    );
-    const index = await readIndexFile();
-    const finalWorkDirectory = join(getWorksRoot(), work.id);
-    const published =
-      await transaction.createPublishedDirectory(finalWorkDirectory);
-    const usedTitles = new Set<string>();
-    const createdChapters: ChapterFile[] = [];
+  return runLibraryTransaction(
+    "share-import-new-work",
+    async (transaction) => {
+      const work = createUnpublishedWork(
+        requestedWorkTitle || session.manifest.work.title,
+      );
+      const finalWorkDirectory = join(getWorksRoot(), work.id);
+      const published =
+        await transaction.createPublishedDirectory(finalWorkDirectory);
+      const usedTitles = new Set<string>();
+      const createdChapters: ChapterFile[] = [];
 
-    for (const entry of packageEntries) {
-      throwIfAborted(signal);
-      const packageChapter = await session.readChapter(
-        entry.packageChapterId,
-        signal,
-      );
-      const title = makeUniqueTitleInList(
-        sanitizeTitle(
-          entry.title || packageChapter.title,
-          tMain("import.untitled"),
-        ),
-        usedTitles,
-      );
-      usedTitles.add(title);
-      const chapterId = randomUUID();
-      const writeChapterDirectory = join(
-        published.stagingDirectory,
-        "chapters",
-        chapterId,
-      );
-      const publishedChapterDirectory = join(
-        published.finalDirectory,
-        "chapters",
-        chapterId,
-      );
-      await mkdir(writeChapterDirectory, { recursive: true });
-      const chapter = await materializeSharedChapter({
-        workId: work.id,
-        chapterId,
-        packageChapter,
-        entries: session.entries,
-        archiveReader: session.archiveReader,
-        requestedTitle: title,
-        signal,
-        writeChapterDirectory,
-        publishedChapterDirectory,
-      });
-      createdChapters.push(chapter);
-    }
+      for (const entry of packageEntries) {
+        throwIfAborted(signal);
+        const packageChapter = await session.readChapter(
+          entry.packageChapterId,
+          signal,
+        );
+        const title = makeUniqueTitleInList(
+          sanitizeTitle(
+            entry.title || packageChapter.title,
+            tMain("import.untitled"),
+          ),
+          usedTitles,
+        );
+        usedTitles.add(title);
+        const chapterId = randomUUID();
+        const writeChapterDirectory = join(
+          published.stagingDirectory,
+          "chapters",
+          chapterId,
+        );
+        const publishedChapterDirectory = join(
+          published.finalDirectory,
+          "chapters",
+          chapterId,
+        );
+        await mkdir(writeChapterDirectory, { recursive: true });
+        const chapter = await materializeSharedChapter({
+          workId: work.id,
+          chapterId,
+          packageChapter,
+          entries: session.entries,
+          archiveReader: session.archiveReader,
+          requestedTitle: title,
+          signal,
+          writeChapterDirectory,
+          publishedChapterDirectory,
+        });
+        createdChapters.push(chapter);
+      }
 
-    if (createdChapters.length === 0) {
-      throw new Error(tMain("share.errors.noChapters"));
-    }
-    const chapterIds = createdChapters.map((chapter) => chapter.id);
-    const nextWork: WorkFile = {
-      ...work,
-      chapterOrder: chapterIds,
-      updatedAt: new Date().toISOString(),
-    };
-    await writeJsonFile(
-      join(published.stagingDirectory, "work.json"),
-      validateWorkFile(nextWork.id, nextWork),
-    );
-
-    if (session.styleGuide) {
-      throwIfAborted(signal);
-      const styleGuide = WorkStyleGuideSchema.parse({
-        ...session.styleGuide,
-        workId: work.id,
+      if (createdChapters.length === 0) {
+        throw new Error(tMain("share.errors.noChapters"));
+      }
+      const chapterIds = createdChapters.map((chapter) => chapter.id);
+      const nextWork: WorkFile = {
+        ...work,
+        chapterOrder: chapterIds,
         updatedAt: new Date().toISOString(),
-      });
+      };
       await writeJsonFile(
-        join(published.stagingDirectory, "style-guide.json"),
-        styleGuide,
+        join(published.stagingDirectory, "work.json"),
+        validateWorkFile(nextWork.id, nextWork),
       );
-    }
-    await stageIndexFile(transaction, {
-      workOrder: [...index.workOrder, work.id],
-    });
-    throwIfAborted(signal);
 
-    const openedChapter = createdChapters[0];
-    if (!openedChapter) {
-      throw new Error(tMain("share.errors.importedChapterOpen"));
-    }
-    return {
-      workId: work.id,
-      chapterIds,
-      openedChapter: hydrateChapter(openedChapter),
-    };
-  });
+      if (session.styleGuide) {
+        throwIfAborted(signal);
+        const styleGuide = WorkStyleGuideSchema.parse({
+          ...session.styleGuide,
+          workId: work.id,
+          updatedAt: new Date().toISOString(),
+        });
+        await writeJsonFile(
+          join(published.stagingDirectory, "style-guide.json"),
+          styleGuide,
+        );
+      }
+      transaction.beforePublish(async () => {
+        throwIfAborted(signal);
+        const index = await readIndexFile();
+        await stageIndexFile(transaction, {
+          workOrder: [...index.workOrder, work.id],
+        });
+      });
+      throwIfAborted(signal);
+
+      const openedChapter = createdChapters[0];
+      if (!openedChapter) {
+        throw new Error(tMain("share.errors.importedChapterOpen"));
+      }
+      return {
+        workId: work.id,
+        chapterIds,
+        openedChapter: hydrateChapter(openedChapter),
+      };
+    },
+    publish,
+  );
 }

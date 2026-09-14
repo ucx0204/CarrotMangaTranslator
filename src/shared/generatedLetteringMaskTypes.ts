@@ -10,9 +10,17 @@ export type LetteringMaskStroke = {
 export type LetteringTool = {
   blockId: string | null;
   space: LetteringMaskStroke["space"];
-  mode: LetteringMaskStroke["mode"];
+  mode: LetteringMaskStroke["mode"] | "paint";
+  color?: string;
   shape: LetteringMaskStroke["shape"];
   size: number;
   softness: number;
   showMask: boolean;
+};
+
+export type LetteringPaintStroke = Omit<
+  LetteringMaskStroke,
+  "mode" | "space"
+> & {
+  color: string;
 };

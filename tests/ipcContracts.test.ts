@@ -262,6 +262,11 @@ it("registers and removes every preload event listener on its contract channel",
     warn: vi.fn(),
   });
   const subscriptions = [
+    ["onAppActivities", ipcEventContracts.appActivities],
+    [
+      "onLinkedWorkspaceStatusChanged",
+      ipcEventContracts.linkedWorkspaceStatusChanged,
+    ],
     ["onAppOperationActivity", ipcEventContracts.appOperationActivity],
     ["onErrorIncident", ipcEventContracts.errorIncident],
     ["onFontLibraryChanged", ipcEventContracts.fontLibraryChanged],
@@ -617,6 +622,189 @@ it("validates main handler arguments and results at the registered boundary", as
   nextResult = { accepted: true, unexpected: true };
   await expect(handler(event, "invalid-result")).rejects.toThrow();
 });
+
+it("routes concurrent activity snapshots, handoff acknowledgements and cancellation by owner", async () => {
+  const harness = await createConcurrentActivityIpcHarness();
+  const { jobs, libraryMutationCoordinator, local, remote, call } = harness;
+  try {
+    await verifyConcurrentJobCancellation(harness);
+    await verifyConcurrentOperationHandoff(harness);
+    vi.mocked(shell.openPath).mockResolvedValue("");
+    expect(await call("openLibraryFolder")).toMatchObject({ opened: true });
+    jobs.clearIfCurrent("local");
+    jobs.clearIfCurrent("remote");
+    expect(await call("disposeInpaintingEngine")).toMatchObject({
+      disposed: expect.any(Boolean),
+    });
+    await expect(call("cancelJob", { jobId: "missing" })).resolves.toEqual({
+      cancelled: false,
+    });
+    await expect(
+      call("releaseInpaintingHistoryTransactions", {
+        transactionIds: ["11111111-1111-4111-8111-111111111111"],
+      }),
+    ).resolves.toEqual({ released: 0 });
+  } finally {
+    local.abort();
+    remote.abort();
+    jobs.clearIfCurrent("local");
+    jobs.clearIfCurrent("remote");
+    libraryMutationCoordinator.configureActivityGate(null);
+  }
+});
+
+async function createConcurrentActivityIpcHarness() {
+  const [
+    { registerAppOperationIpc },
+    { registerJobControlIpc },
+    { registerInpaintingIpc },
+    { ActiveJobStore },
+    { InpaintingRevisionStore },
+    { libraryMutationCoordinator },
+    { registerLibraryIpc },
+  ] = await Promise.all([
+    import("../src/main/ipc/appOperationIpc"),
+    import("../src/main/ipc/jobControlIpc"),
+    import("../src/main/ipc/inpaintingIpc"),
+    import("../src/main/jobs/activeJob"),
+    import("../src/main/inpainting/inpaintingRevisionStore"),
+    import("../src/main/libraryStore/libraryMutationCoordinator"),
+    import("../src/main/ipc/libraryIpc"),
+  ]);
+  const gate = new AppActivityGate();
+  const jobs = new ActiveJobStore(undefined, gate);
+  const context = createIpcContext(jobs, new InpaintingRevisionStore());
+  context.operations = new AppOperationRegistry(gate);
+  const rendererUrl = "http://127.0.0.1:5173/";
+  const send = vi.fn();
+  const window = Object.assign(new BrowserWindow(), {
+    isDestroyed: () => false,
+    webContents: { id: 25, getURL: () => rendererUrl, send },
+  });
+  context.getMainWindow = () => window;
+  const event = {
+    sender: { id: 25 },
+    senderFrame: { url: rendererUrl },
+  } as IpcMainInvokeEvent;
+  const call = async (
+    key: keyof typeof ipcInvokeContracts,
+    ...args: unknown[]
+  ) => {
+    const handler = electronBoundary.handlers.get(
+      ipcInvokeContracts[key].channel,
+    );
+    if (!handler) throw new Error(`Missing handler ${key}`);
+    return handler(event, ...args);
+  };
+  registerAppOperationIpc(context);
+  registerJobControlIpc(context);
+  registerInpaintingIpc(context);
+  registerLibraryIpc(context);
+  libraryMutationCoordinator.configureActivityGate(gate);
+  return {
+    jobs,
+    context,
+    call,
+    send,
+    libraryMutationCoordinator,
+    local: new AbortController(),
+    remote: new AbortController(),
+  };
+}
+
+type ConcurrentActivityIpcHarness = Awaited<
+  ReturnType<typeof createConcurrentActivityIpcHarness>
+>;
+async function verifyConcurrentJobCancellation({
+  jobs,
+  local,
+  remote,
+  call,
+}: ConcurrentActivityIpcHarness) {
+  jobs.start({
+    id: "local",
+    kind: "gemma-analysis",
+    abortController: local,
+    resources: [
+      { kind: "model-runtime", scope: "*", access: "write" },
+      { kind: "page-content", scope: "chapter/A", access: "write" },
+    ],
+  });
+  jobs.start({
+    id: "remote",
+    kind: "sound-effect-translation",
+    abortController: remote,
+    resources: [{ kind: "codex-auth", scope: "*", access: "read" }],
+  });
+  jobs.updateLastEvent("remote", {
+    id: "remote",
+    kind: "sound-effect-translation",
+    status: "running",
+    progressText: "working",
+  });
+  expect(await call("getActiveJobs")).toEqual([
+    expect.objectContaining({ id: "local", status: "starting" }),
+    expect.objectContaining({ id: "remote", status: "running" }),
+  ]);
+  await expect(call("disposeInpaintingEngine")).rejects.toThrow("모델");
+  await expect(
+    call("cancelJob", { jobId: "local", reason: "codex-disconnected" }),
+  ).resolves.toEqual({ cancelled: false });
+  expect(local.signal.aborted).toBe(false);
+  await expect(
+    call("cancelJob", { jobId: "remote", reason: "codex-disconnected" }),
+  ).resolves.toEqual({ cancelled: true });
+  expect(remote.signal.aborted).toBe(true);
+  expect(local.signal.aborted).toBe(false);
+}
+async function verifyConcurrentOperationHandoff({
+  jobs,
+  context,
+  local,
+  call,
+  send,
+}: ConcurrentActivityIpcHarness) {
+  const operation = context.operations.begin({
+    id: "export",
+    kind: "work-share-export",
+    mutatesLibrary: false,
+    resources: [],
+    presentation: { cancellable: true },
+  });
+  expect(await call("getActiveAppOperations")).toEqual([
+    expect.objectContaining({ id: "export" }),
+  ]);
+  expect(await call("getActiveAppOperation")).toMatchObject({ id: "export" });
+  await expect(call("cancelAppOperation", "export")).resolves.toEqual({
+    accepted: true,
+  });
+  expect(operation.signal.aborted).toBe(true);
+  operation.finish("cancelled");
+  const handoff = jobs.pageHandoffs.request(
+    "local",
+    "chapter",
+    "B",
+    local.signal,
+  );
+  const requestId = jobs.pageHandoffs.activities[0].requestId;
+  expect(await call("getAppActivities")).toMatchObject({
+    activities: expect.any(Array),
+    pages: [expect.objectContaining({ requestId, phase: "finishing-edits" })],
+  });
+  expect(send).toHaveBeenCalledWith(
+    ipcEventContracts.appActivities.channel,
+    expect.objectContaining({
+      pages: [expect.objectContaining({ requestId })],
+    }),
+  );
+  await expect(call("finishPageEditHandoff", { requestId })).resolves.toBe(
+    true,
+  );
+  await handoff;
+  await expect(
+    call("retryPageEditHandoff", "11111111-1111-4111-8111-111111111111"),
+  ).resolves.toBe(false);
+}
 
 const pendingInvoker: ContractInvoker = () =>
   new Promise<never>(() => undefined);

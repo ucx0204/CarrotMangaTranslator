@@ -11,10 +11,8 @@ import {
 } from "../../shared/pageRevision";
 import type { PageRevision } from "../../shared/pageRevisionTypes";
 import { hydrateChapter } from "./chapterSnapshots";
-import { resolveChapterStatus } from "./chapterRecords";
+import { resolveChapterStatus, nextChapterUpdatedAt } from "./chapterRecords";
 import {
-  collectManagedInpaintMaskArtifacts,
-  collectManagedInpaintedArtifacts,
   inpaintedPathChanged,
   removeUnreferencedInpaintMaskArtifacts,
   removeUnreferencedInpaintedArtifacts,
@@ -47,16 +45,12 @@ export type InpaintingArtifactCleanupOptions = {
 };
 
 export type InpaintingMutationMaintenance = {
-  collectManagedArtifacts: typeof collectManagedInpaintedArtifacts;
-  collectManagedMaskArtifacts?: typeof collectManagedInpaintMaskArtifacts;
   removeUnreferencedArtifacts: typeof removeUnreferencedInpaintedArtifacts;
   removeUnreferencedMaskArtifacts?: typeof removeUnreferencedInpaintMaskArtifacts;
   warn: typeof logLibraryWarning;
 };
 
 const productionMaintenance: InpaintingMutationMaintenance = {
-  collectManagedArtifacts: collectManagedInpaintedArtifacts,
-  collectManagedMaskArtifacts: collectManagedInpaintMaskArtifacts,
   removeUnreferencedArtifacts: removeUnreferencedInpaintedArtifacts,
   removeUnreferencedMaskArtifacts: removeUnreferencedInpaintMaskArtifacts,
   warn: logLibraryWarning,
@@ -132,7 +126,7 @@ async function updatePagesAfterInpaintingWithMaintenance(
   const layoutPatchMap = resolveLayoutPatchMap(cleanupOptions.layoutPatches, [
     ...pageMap.keys(),
   ]);
-  const now = new Date().toISOString();
+  const now = nextChapterUpdatedAt(chapter);
   chapter.pages = chapter.pages.map((record) =>
     applyInpaintingPageUpdate(record, {
       expectedRevisionMap,
@@ -384,6 +378,12 @@ async function setPageInpaintingResultWithMaintenance(
   }
 
   const target = chapter.pages.find((page) => page.id === pageId);
+  const revisions = resolveExpectedRevisionMap(
+    chapterId,
+    cleanupOptions.expectedTargets,
+    [pageId],
+  );
+  if (target) assertExpectedPageRevision(target, revisions.get(pageId));
   const resolvedInpaintedPath = inpaintedImagePath
     ? assertChapterImagePath(
         locator.workId,
@@ -400,7 +400,7 @@ async function setPageInpaintingResultWithMaintenance(
   const replacedMaskPaths = target?.inpaintMaskPath
     ? [target.inpaintMaskPath]
     : [];
-  const now = new Date().toISOString();
+  const now = nextChapterUpdatedAt(chapter);
   chapter.pages = chapter.pages.map((page) =>
     page.id === pageId
       ? {
@@ -492,24 +492,18 @@ async function cleanupInpaintedArtifacts(
 ): Promise<void> {
   const retainedInpaintedArtifactPaths =
     cleanupOptions.retainedInpaintedArtifactPaths ?? [];
-  const candidatePaths =
-    retainedInpaintedArtifactPaths.length > 0
-      ? await maintenance.collectManagedArtifacts(chapterDir)
-      : replacedInpaintedPaths;
+  // A different page can be preparing an image outside the JSON write lock.
+  // Only this commit's replaced artifacts are ours to collect. A directory
+  // scan cannot distinguish an orphan from another writer's unpublished result.
   await maintenance.removeUnreferencedArtifacts(
     chapterDir,
-    candidatePaths,
+    replacedInpaintedPaths,
     pages,
     retainedInpaintedArtifactPaths,
   );
-  const maskCandidates =
-    retainedInpaintedArtifactPaths.length > 0 &&
-    maintenance.collectManagedMaskArtifacts
-      ? await maintenance.collectManagedMaskArtifacts(chapterDir)
-      : replacedMaskPaths;
   await maintenance.removeUnreferencedMaskArtifacts?.(
     chapterDir,
-    maskCandidates,
+    replacedMaskPaths,
     pages,
     retainedInpaintedArtifactPaths,
   );

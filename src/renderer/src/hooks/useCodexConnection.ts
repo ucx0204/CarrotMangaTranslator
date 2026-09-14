@@ -8,8 +8,10 @@ export function useCodexConnection(enabled: boolean) {
   );
   useEffect(() => {
     if (!enabled) return;
+    let initial = true;
     const refresh = () => {
-      if (document.hidden) return;
+      if (document.hidden && !initial) return;
+      initial = false;
       void codexConnection.refresh().catch((error: unknown) => {
         console.error("Codex account refresh failed", error);
         codexConnection.publish(null);
