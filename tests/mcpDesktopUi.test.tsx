@@ -2,6 +2,7 @@
 import React from "react";
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   renderHook,
@@ -11,6 +12,7 @@ import {
 import { afterEach, expect, it, vi } from "vitest";
 import type { McpDesktopStatus } from "../src/shared/mcpDesktopTypes";
 import type { McpPageChangedEvent } from "../src/shared/mcpEditingTypes";
+import { useMcpSettings } from "../src/renderer/src/components/settingsModal/useMcpSettings";
 import { McpSettingsView } from "../src/renderer/src/components/settingsModal/McpSettingsPanel";
 import { useMcpEditorSync } from "../src/renderer/src/hooks/useMcpEditorSync";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
@@ -18,6 +20,7 @@ import { editingChapter } from "./mcpEditing.fixture";
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   window.mangaApi = createTestMangaGatewayStub();
 });
 function status(): McpDesktopStatus {
@@ -166,4 +169,76 @@ it("refreshes remote saves through the existing live-merge path, not a direct re
   pages?.({ chapterId: chapter.id, pageIds: ["page"] });
   await waitFor(() => expect(mergeLiveChapter).toHaveBeenCalledWith(chapter));
   expect(openChapter).toHaveBeenCalledWith(chapter.id);
+});
+
+it("does not duplicate polling when StrictMode replays an unresolved initial effect", async () => {
+  vi.useFakeTimers();
+  let resolveOld!: (value: McpDesktopStatus) => void;
+  const old = new Promise<McpDesktopStatus>((resolve) => {
+    resolveOld = resolve;
+  });
+  const getMcpStatus = vi
+    .fn()
+    .mockImplementationOnce(() => old)
+    .mockResolvedValue(status());
+  window.mangaApi = createTestMangaGatewayStub({ getMcpStatus });
+  const hook = renderHook(() => useMcpSettings(), {
+    reactStrictMode: true,
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(getMcpStatus).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    resolveOld(status());
+  });
+  expect(vi.getTimerCount()).toBe(1);
+  hook.unmount();
+  expect(vi.getTimerCount()).toBe(0);
+});
+it("ignores an obsolete polling failure after a newer stop action succeeds", async () => {
+  let rejectOld!: (error: Error) => void;
+  const old = new Promise<McpDesktopStatus>((_resolve, reject) => {
+    rejectOld = reject;
+  });
+  const getMcpStatus = vi
+    .fn()
+    .mockImplementationOnce(() => old)
+    .mockResolvedValue({ ...status(), state: "off" });
+  window.mangaApi = createTestMangaGatewayStub({ getMcpStatus });
+  const hook = renderHook(() => useMcpSettings());
+  await act(async () => {
+    await hook.result.current.run(async () => {});
+  });
+  await act(async () => {
+    rejectOld(new Error("obsolete read failure"));
+  });
+  expect(hook.result.current.status?.state).toBe("off");
+  expect(hook.result.current.error).toBeNull();
+});
+it("clears a transient polling error after status recovery without hiding action errors", async () => {
+  vi.useFakeTimers();
+  const getMcpStatus = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("temporarily unavailable"))
+    .mockResolvedValue(status());
+  window.mangaApi = createTestMangaGatewayStub({ getMcpStatus });
+  const hook = renderHook(() => useMcpSettings());
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(hook.result.current.error).toBe("temporarily unavailable");
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000);
+  });
+  expect(hook.result.current.error).toBeNull();
+  await act(async () => {
+    await hook.result.current.run(async () => {
+      throw new Error("save failed");
+    });
+  });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000);
+  });
+  expect(hook.result.current.error).toBe("save failed");
 });

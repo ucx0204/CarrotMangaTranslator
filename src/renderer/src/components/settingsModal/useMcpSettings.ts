@@ -8,28 +8,34 @@ import { mcpGateway } from "../../api/mcpGateway";
 export function useMcpSettings() {
   const [status, setStatus] = useState<McpDesktopStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pollError, setPollError] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<McpDiagnostics | null>(null);
   const [busy, setBusy] = useState(false);
   const alive = useRef(true);
   const sequence = useRef(0);
   useEffect(() => {
     alive.current = true;
+    let active = true;
     let timer: ReturnType<typeof setTimeout>;
     async function poll() {
       const stamp = sequence.current;
       try {
         const next = await mcpGateway.getMcpStatus();
-        if (alive.current && stamp === sequence.current) setStatus(next);
+        if (active && stamp === sequence.current) {
+          setStatus(next);
+          setPollError(null);
+        }
       } catch (failure) {
-        if (alive.current)
-          setError(
+        if (active && stamp === sequence.current)
+          setPollError(
             failure instanceof Error ? failure.message : "MCP 상태 조회 실패",
           );
       }
-      if (alive.current) timer = setTimeout(poll, 2000);
+      if (active) timer = setTimeout(poll, 2000);
     }
     void poll();
     return () => {
+      active = false;
       alive.current = false;
       clearTimeout(timer);
     };
@@ -41,7 +47,10 @@ export function useMcpSettings() {
     try {
       await action();
       const next = await mcpGateway.getMcpStatus();
-      if (alive.current && stamp === sequence.current) setStatus(next);
+      if (alive.current && stamp === sequence.current) {
+        setStatus(next);
+        setPollError(null);
+      }
     } catch (failure) {
       if (alive.current && stamp === sequence.current)
         setError(failure instanceof Error ? failure.message : "MCP 작업 실패");
@@ -53,7 +62,7 @@ export function useMcpSettings() {
   }, []);
   return {
     status,
-    error,
+    error: error ?? pollError,
     busy,
     diagnostics,
     run,
