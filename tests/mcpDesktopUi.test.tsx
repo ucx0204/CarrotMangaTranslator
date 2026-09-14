@@ -99,6 +99,7 @@ it("approves the selected comparison code through the app, without a password fi
   window.mangaApi = createTestMangaGatewayStub({ resolveMcpPairing });
   show(current);
   expect(screen.getByText(/739412/)).toBeTruthy();
+  expect(screen.getByText("요청 권한: 보관함·텍스트 조회")).toBeTruthy();
   expect(document.querySelector('input[type="password"]')).toBeNull();
   fireEvent.click(
     screen.getByRole("button", { name: "같은 코드 확인 · 승인" }),

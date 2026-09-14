@@ -116,48 +116,61 @@ function McpPermissions({
   return (
     <SettingsSection
       title="허용할 기능"
-      description="설정은 즉시 적용됩니다. 켜진 서버의 권한 설정을 바꾸면 같은 주소로 재시작합니다. 기존 승인은 보존되지만 새 권한은 재승인이 필요합니다."
+      description="설정은 즉시 적용됩니다. 권한을 바꾸면 진행 중인 MCP 작업을 취소하고 같은 주소로 재시작합니다. 새 권한은 재승인이 필요하며, 자동 실행 설정만 바꾸면 연결은 유지됩니다."
     >
-      <CheckboxField
-        label="원본 페이지 이미지 전송 허용"
-        checked={status.preferences.allowImages}
-        disabled={busy}
-        onCheckedChange={(allowImages) =>
-          void run(() =>
-            mcpGateway.configureMcp({ ...status.preferences, allowImages }),
-          )
-        }
-      />
-      <CheckboxField
-        label="기존 블록의 번역문 수정 허용"
-        checked={status.preferences.allowEditing}
-        disabled={busy}
-        onCheckedChange={(allowEditing) =>
-          void run(() =>
-            mcpGateway.configureMcp({ ...status.preferences, allowEditing }),
-          )
-        }
-      />
-      <CheckboxField
-        label="새 블록 생성 및 로컬 페이지 처리 허용"
-        checked={status.preferences.allowProcessing === true}
-        disabled={busy}
-        onCheckedChange={(allowProcessing) =>
-          void run(() =>
-            mcpGateway.configureMcp({ ...status.preferences, allowProcessing }),
-          )
-        }
-      />
-      <CheckboxField
-        label="앱 시작 시 MCP 자동 실행"
-        checked={status.preferences.autoStart}
-        disabled={busy}
-        onCheckedChange={(autoStart) =>
-          void run(() =>
-            mcpGateway.configureMcp({ ...status.preferences, autoStart }),
-          )
-        }
-      />
+      <div
+        className={styles.permissions}
+        role="group"
+        aria-label="MCP 권한 및 실행 설정"
+      >
+        <CheckboxField
+          className={styles.permission}
+          label="원본 페이지 이미지 전송 허용"
+          checked={status.preferences.allowImages}
+          disabled={busy}
+          onCheckedChange={(allowImages) =>
+            void run(() =>
+              mcpGateway.configureMcp({ ...status.preferences, allowImages }),
+            )
+          }
+        />
+        <CheckboxField
+          className={styles.permission}
+          label="기존 블록의 번역문 수정 허용"
+          checked={status.preferences.allowEditing}
+          disabled={busy}
+          onCheckedChange={(allowEditing) =>
+            void run(() =>
+              mcpGateway.configureMcp({ ...status.preferences, allowEditing }),
+            )
+          }
+        />
+        <CheckboxField
+          className={styles.permission}
+          label="새 블록 생성 및 로컬 페이지 처리 허용"
+          checked={status.preferences.allowProcessing === true}
+          disabled={busy}
+          onCheckedChange={(allowProcessing) =>
+            void run(() =>
+              mcpGateway.configureMcp({
+                ...status.preferences,
+                allowProcessing,
+              }),
+            )
+          }
+        />
+        <CheckboxField
+          className={styles.permission}
+          label="앱 시작 시 MCP 자동 실행"
+          checked={status.preferences.autoStart}
+          disabled={busy}
+          onCheckedChange={(autoStart) =>
+            void run(() =>
+              mcpGateway.configureMcp({ ...status.preferences, autoStart }),
+            )
+          }
+        />
+      </div>
       <p>
         읽기 권한은 현재 보관함 전체에 적용됩니다. 이미지 전송은 별도 승인이
         필요하며 기존 가리기 보호를 우회하지 않습니다. 편집을 허용하면 기존
@@ -201,7 +214,7 @@ function McpConnections({
         <div key={request.id} className={styles.connection}>
           <strong>확인 코드: {request.code}</strong>
           <p>클라이언트가 표시한 이름: {request.clientName}</p>
-          <p>요청 권한: {request.scope}</p>
+          <p>요청 권한: {describeScopes(request.scope)}</p>
           <div className={styles.actions}>
             <Button
               disabled={busy}
@@ -227,7 +240,7 @@ function McpConnections({
         <div key={connection.id} className={styles.connection}>
           <strong>{connection.clientName}</strong>
           <p>
-            {connection.scope} ·{" "}
+            {describeScopes(connection.scope)} ·{" "}
             {connection.revoked ? "철회됨" : "승인 유지 중"}
           </p>
           <Button
@@ -252,4 +265,19 @@ function stateLabel(state: McpDesktopStatus["state"]) {
     stopping: "종료 중",
     error: "연결 확인 필요",
   }[state];
+}
+
+function describeScopes(scope: string): string {
+  const labels: Record<string, string> = {
+    "carrot.read": "보관함·텍스트 조회",
+    "carrot.images": "이미지 전송·PNG 출력",
+    "carrot.edit": "기존 번역문 수정",
+    "carrot.process": "새 블록·로컬 OCR·원문 제거",
+    offline_access: "다음 실행에도 승인 유지",
+  };
+  return scope
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((item) => labels[item] ?? item)
+    .join(" · ");
 }

@@ -24,9 +24,9 @@ const status: McpDesktopStatus = {
   url: "https://carrot-manga-translator-desktop-device.tail-user-network.ts.net/mcp",
   message: scenario === "error" ? "Tailscale HTTPS 443 포트는 다른 앱이 사용 중입니다. 기존 공유 설정을 덮어쓰지 않습니다." : null,
   setupUrl: null,
-  preferences: { allowImages: true, allowEditing: true, autoStart: false },
+  preferences: { allowImages: true, allowEditing: true, allowProcessing: true, autoStart: false },
   pairingUntil: Date.now() + 300000,
-  pending: [{ id: "synthetic", clientName: "ChatGPT 개인 연결 · 확인 코드를 대조하세요", code: "739412", scope: "carrot.read carrot.images carrot.edit offline_access", expiresAt: Date.now() + 300000 }],
+  pending: [{ id: "synthetic", clientName: "ChatGPT 개인 연결 · 확인 코드를 대조하세요", code: "739412", scope: "carrot.read carrot.images carrot.edit carrot.process offline_access", expiresAt: Date.now() + 300000 }],
   connections: [{ id: "approved", clientName: "ChatGPT 이전 승인", scope: "carrot.read", createdAt: Date.now(), revoked: false }],
 };
 function audit() {
@@ -39,6 +39,14 @@ function audit() {
       rect.left < -1 || rect.top < -1 || rect.right > innerWidth + 1 || rect.bottom > innerHeight + 1 ||
       panel.scrollWidth > panel.clientWidth + 1) throw new Error("MCP settings overflow the viewport");
   if (document.querySelector('input[type="password"]')) throw new Error("Unexpected pairing password control");
+  for (const input of document.querySelectorAll('input[type="checkbox"]')) {
+    const label = input.closest("label");
+    const text = label?.querySelector("span");
+    if (!label || !text) throw new Error("Checkbox has no associated label");
+    const box = input.getBoundingClientRect(), caption = text.getBoundingClientRect();
+    if (caption.left < box.right || caption.bottom < box.top || caption.top > box.bottom || label.getBoundingClientRect().height < 24)
+      throw new Error("MCP checkbox caption or target size regressed");
+  }
   if (scenario === "pairing") {
     const button = [...document.querySelectorAll("button")].find(item => item.textContent?.includes("같은 코드 확인"));
     if (!button) throw new Error("Missing app approval control");

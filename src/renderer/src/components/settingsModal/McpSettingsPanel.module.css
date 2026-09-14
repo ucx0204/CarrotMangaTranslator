@@ -17,3 +17,15 @@
   border-top: 1px solid var(--border);
   overflow-wrap: anywhere;
 }
+
+.stack p {
+  margin-block: 0;
+}
+.permissions {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.permission {
+  min-height: 24px;
+}
