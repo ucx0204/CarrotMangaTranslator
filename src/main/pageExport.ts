@@ -58,18 +58,22 @@ const STRICT_SAFE_PNG_CAPTURE_OPTIONS = {
   resolutionMode: "strict-safe",
 } as const satisfies PageExportCaptureOptions;
 
+// Public operations belong to the created session even when passed as callbacks
+// or destructured by consumers (for example the PSD text-layer renderer).
 export type PageExportRenderSession = {
   renderPage: (
+    this: void,
     page: MangaPage,
     captureOptions?: PageExportCaptureOptions,
   ) => Promise<Buffer>;
   renderTransparentPage?: (
+    this: void,
     page: MangaPage,
     captureOptions?: PageExportCaptureOptions,
   ) => Promise<Buffer>;
-  inspectLastLayout?: () => Promise<PageExportLayoutEvidence>;
-  cancel?: () => void;
-  close: () => void;
+  inspectLastLayout?: (this: void) => Promise<PageExportLayoutEvidence>;
+  cancel?: (this: void) => void;
+  close: (this: void) => void;
 };
 
 export type PageExportImageProbe = (
@@ -113,21 +117,21 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
     private readonly tempOwner: PageExportTempOwner<ExportWindowState>,
   ) {}
 
-  renderPage(
+  readonly renderPage = (
     page: MangaPage,
     captureOptions: PageExportCaptureOptions = STRICT_SAFE_PNG_CAPTURE_OPTIONS,
-  ): Promise<Buffer> {
+  ): Promise<Buffer> => {
     return this.render(page, false, captureOptions);
-  }
+  };
 
-  renderTransparentPage(
+  readonly renderTransparentPage = (
     page: MangaPage,
     captureOptions: PageExportCaptureOptions = STRICT_SAFE_PNG_CAPTURE_OPTIONS,
-  ): Promise<Buffer> {
+  ): Promise<Buffer> => {
     return this.render(page, true, captureOptions);
-  }
+  };
 
-  async inspectLastLayout(): Promise<PageExportLayoutEvidence> {
+  readonly inspectLastLayout = async (): Promise<PageExportLayoutEvidence> => {
     if (this.closed || this.active)
       throw new Error("Page layout inspection requires an idle open renderer.");
     const value: unknown =
@@ -135,9 +139,9 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
         `Array.from(document.querySelectorAll("[data-layout-evidence]"), element => JSON.parse(element.dataset.layoutEvidence))`,
       );
     return pageExportLayoutEvidenceSchema.parse(value);
-  }
+  };
 
-  cancel(): void {
+  readonly cancel = (): void => {
     if (this.closed) return;
     this.closed = true;
     try {
@@ -145,16 +149,16 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
     } finally {
       this.tempOwner.release();
     }
-  }
+  };
 
-  close(): void {
+  readonly close = (): void => {
     if (this.closed) return;
     if (this.active) {
       throw new Error("Page export session cannot close while rendering.");
     }
     this.closed = true;
     closeExportResources(this.tempOwner, this.lastRenderFailure);
-  }
+  };
 
   private async render(
     page: MangaPage,

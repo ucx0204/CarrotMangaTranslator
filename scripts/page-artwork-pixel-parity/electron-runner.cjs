@@ -10,6 +10,7 @@ const { mkdir, writeFile } = require("node:fs/promises");
 const { extname, join, resolve } = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { createFixtureBlocks } = require("./fixtures.cjs");
+const { verifyPsdExport } = require("./psd-export.cjs");
 
 const root = resolve(__dirname, "..", "..");
 const runRoot = readRequiredEnv("MGT_PIXEL_PARITY_RUN_ROOT");
@@ -110,6 +111,16 @@ async function run() {
     probeImageSize: async () => ({ width: 836, height: 1200 }),
   });
   try {
+    reportStatus("verifying production PSD export");
+    await verifyPsdExport({
+      root,
+      artifactDir,
+      session,
+      page: createFixturePage({ width: 836, height: 1200 }),
+    });
+    reportStatus(
+      "production PSD export verified: backgrounds, text layers and alpha",
+    );
     for (const testCase of createCases()) {
       reportStatus(`${testCase.id}: rendering export`);
       const page = createFixturePage(testCase.pageSize);

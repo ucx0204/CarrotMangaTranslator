@@ -131,6 +131,11 @@ SHA-256은 `c612f572a4ea99eaa38e954739ce3b429c4457904604e2c9423abfdcbc3cee7d`이
 
 ## 테스트
 
+- `PageExportRenderSession`의 공개 함수는 생성한 세션에 고정되어야 하며, 구조 분해나
+  콜백 전달 후에도 렌더·조회·취소·종료가 같은 세션을 사용한다. 호출자가 `bind`를
+  보완하는 방식에 의존하지 않는다. 실제 세션과 PSD 작성기를 연결한 테스트로 레이어,
+  투명도, 텍스트와 cleanup을 검증하고, `check`의 page-artwork parity 단계에서도
+  실제 Electron 렌더링으로 PSD를 저장한 뒤 다시 읽어 검증한다.
 - 소스 문자열이나 함수 이름 존재가 아니라 입력에 대한 출력, side effect, 호출 순서, 실패 결과를 실행해 검증한다.
 - mock은 Electron, 파일 시스템, 모델/OCR transport 같은 외부 경계에 둔다. 내부 parser, option builder, result builder는 실제 구현을 조립한다.
 - 정상 경로보다 먼저 빈 입력, 경계값, 잘못된 값, 중복 호출, 동시 lease, timeout, rollback, 실패한 cleanup을 고정한다.

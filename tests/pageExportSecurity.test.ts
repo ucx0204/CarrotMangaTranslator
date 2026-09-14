@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
+import { initializeCanvas, readPsd } from "ag-psd";
+import { PNG } from "pngjs";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import {
   createPageExportHtmlSource,
@@ -221,6 +223,7 @@ describe("page export BrowserWindow security", () => {
     const session = await createPageExportRenderSession(
       createRenderOptions(rootDir),
     );
+    const { renderPage, inspectLastLayout, close } = session;
 
     expect(latestWindow?.webContents.debugger.attach).not.toHaveBeenCalled();
     expect(
@@ -228,8 +231,14 @@ describe("page export BrowserWindow security", () => {
     ).not.toHaveBeenCalled();
 
     try {
-      await session.renderPage(makePage(rootDir));
-      await expect(session.inspectLastLayout?.()).resolves.toEqual([
+      const rendering = renderPage(makePage(rootDir));
+      await expect(renderPage(makePage(rootDir))).rejects.toThrow(
+        "already rendering",
+      );
+      await expect(inspectLastLayout?.()).rejects.toThrow("idle open");
+      expect(close).toThrow("while rendering");
+      await rendering;
+      await expect(inspectLastLayout?.()).resolves.toEqual([
         {
           blockId: "measured",
           lines: ["내 눈이", "이이이이!", "!"],
@@ -240,9 +249,12 @@ describe("page export BrowserWindow security", () => {
         },
       ]);
     } finally {
-      session.close();
+      close();
     }
-    await expect(session.inspectLastLayout?.()).rejects.toThrow("idle open");
+    await expect(inspectLastLayout?.()).rejects.toThrow("idle open");
+    await expect(renderPage(makePage(rootDir))).rejects.toThrow("closed");
+    close();
+    expect(latestWindow?.destroy).toHaveBeenCalledOnce();
 
     expectEventBefore("page-load:done", "render-readiness:start");
     expectEventBefore("render-readiness:done", "debugger:attach");
@@ -287,6 +299,8 @@ describe("page export BrowserWindow security", () => {
       createRenderOptions(rootDir),
     );
     const [firstWindow, secondWindow] = createdWindows;
+    const { renderPage: renderFirst, close: closeFirst } = firstSession;
+    const { renderPage: renderSecond, cancel: cancelSecond } = secondSession;
     if (!firstWindow || !secondWindow) {
       throw new Error("Expected two export windows.");
     }
@@ -295,8 +309,8 @@ describe("page export BrowserWindow security", () => {
     let secondDir: string | undefined;
     try {
       await Promise.all([
-        firstSession.renderPage(makePage(rootDir)),
-        secondSession.renderPage(makePage(rootDir)),
+        renderFirst(makePage(rootDir)),
+        renderSecond(makePage(rootDir)),
       ]);
       firstDir = dirname(firstWindow.loadedHtmlPath);
       secondDir = dirname(secondWindow.loadedHtmlPath);
@@ -304,15 +318,21 @@ describe("page export BrowserWindow security", () => {
       expect(existsSync(firstDir)).toBe(true);
       expect(existsSync(secondDir)).toBe(true);
 
-      firstSession.close();
+      closeFirst();
       expect(existsSync(firstDir)).toBe(false);
       expect(existsSync(secondDir)).toBe(true);
+      await renderSecond(makePage(rootDir));
+      cancelSecond?.();
+      cancelSecond?.();
+      await expect(renderSecond(makePage(rootDir))).rejects.toThrow("closed");
     } finally {
       firstSession.close();
       secondSession.close();
     }
     if (!secondDir) throw new Error("Expected a second render directory.");
     expect(existsSync(secondDir)).toBe(false);
+    expect(firstWindow.destroy).toHaveBeenCalledOnce();
+    expect(secondWindow.destroy).toHaveBeenCalledOnce();
   });
 
   it("destroys the export window even when debugger detachment fails", async () => {
@@ -658,8 +678,9 @@ describe("page export BrowserWindow security", () => {
       createRenderOptions(rootDir),
     );
 
+    const { renderTransparentPage } = session;
     try {
-      await session.renderTransparentPage?.(makePage(rootDir));
+      await renderTransparentPage?.(makePage(rootDir));
     } finally {
       session.close();
     }
@@ -672,6 +693,107 @@ describe("page export BrowserWindow security", () => {
     expect(latestWindow?.webContents.debugger.sendCommand).toHaveBeenCalledWith(
       "Emulation.setDefaultBackgroundColorOverride",
     );
+  });
+
+  it.each([
+    { omitText: false, blockCount: 2 },
+    { omitText: true, blockCount: 2 },
+    { omitText: false, blockCount: 0 },
+  ])("exports a real session to PSD: %j", async ({ omitText, blockCount }) => {
+    const rootDir = await createTempRoot();
+    const { createPageExportRenderSession } = await loadPageExport();
+    const { writePagePsdExport } =
+      await import("../src/main/jobs/pagePsdExportRunner");
+    const session = await createPageExportRenderSession(
+      createRenderOptions(rootDir),
+    );
+    const win = latestWindow;
+    if (!win) throw new Error("Expected an export window.");
+    const page = makePage(rootDir, true);
+    page.inpaintedImagePath = join(rootDir, "cleaned.png");
+    const firstBlock = page.blocks[0];
+    if (!firstBlock) throw new Error("Expected a fixture text block.");
+    page.blocks = Array.from({ length: blockCount }, (_, index) => ({
+      ...firstBlock,
+      id: `block-${index}`,
+      translatedText: `text ${index}`,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+    }));
+    // Only the Chromium screenshot boundary is simulated. Keep the production
+    // session, PSD runner, PNG decoding, PSD serialization and file I/O real.
+    win.webContents.debugger.sendCommand.mockImplementation(async (method) => {
+      if (method !== "Page.captureScreenshot") return {};
+      const transparent = win.loadedHtml.includes(
+        '"transparentBackground":true',
+      );
+      const png = new PNG({ width: 16, height: 16 });
+      png.data.fill(transparent ? 0 : 255);
+      png.data.set([10, 20, 30, 255], (2 * 16 + 2) * 4);
+      png.data.set([30, 20, 10, 255], (4 * 16 + 4) * 4);
+      return { data: PNG.sync.write(png).toString("base64") };
+    });
+    const outputPath = join(rootDir, "page.psd");
+    const writePsd = vi.fn(async (file: string, bytes: Buffer) => {
+      await writeFile(file, bytes);
+    });
+    try {
+      await writePagePsdExport({
+        abortController: new AbortController(),
+        completedPages: 0,
+        dependencies: {
+          repository: { listLibrary: vi.fn(), openChapter: vi.fn() },
+          renderer: { createSession: vi.fn() },
+          logger: { error: vi.fn() },
+          runtime: {
+            createDirectory: vi.fn(),
+            removeDirectory: vi.fn(),
+            writePng: vi.fn(),
+            openDirectory: vi.fn(),
+            createTimestamp: vi.fn(),
+            writePsd,
+          },
+        },
+        omitText,
+        outputPath,
+        page,
+        renderSession: session,
+        throwIfAborted: (controller) => controller.signal.throwIfAborted(),
+        totalPages: 1,
+      });
+      initializeCanvas(
+        () => {
+          throw new Error("PSD pixel verification must not require a canvas.");
+        },
+        (width, height) => ({
+          width,
+          height,
+          colorSpace: "srgb",
+          data: new Uint8ClampedArray(width * height * 4),
+        }),
+      );
+      const psd = readPsd(readFileSync(outputPath), { useImageData: true });
+      expect([psd.width, psd.height]).toEqual([16, 16]);
+      expect(psd.children?.map((layer) => layer.name)).toEqual([
+        "원본 배경 (Original)",
+        "정리 배경 (Inpaint)",
+        ...(omitText
+          ? []
+          : page.blocks.map(
+              (block, i) => `00${i + 1} ${block.translatedText}`,
+            )),
+      ]);
+      expect(writePsd).toHaveBeenCalledOnce();
+      if (!omitText && blockCount) {
+        expect(psd.children?.[2]?.text?.text).toBe("text 0");
+        expect(Array.from(psd.children?.[2]?.imageData?.data ?? [])).toContain(
+          0,
+        );
+      }
+    } finally {
+      session.close();
+    }
+    expect(win.destroy).toHaveBeenCalledOnce();
   });
 
   it("rejects an oversized source before page load or debugger attach", async () => {
