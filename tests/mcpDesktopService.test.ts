@@ -147,3 +147,27 @@ it("keeps a failed shutdown blocked and visible until an explicit retry complete
   await f.service.setEnabled(false);
   assert.equal((await f.service.getStatus()).state, "off");
 });
+
+it("changes auto-start without disconnecting an online client or cancelling its jobs", async () => {
+  const f = fixture();
+  await f.service.setEnabled(true);
+  const before = await f.service.getStatus();
+  const after = await f.service.configure({
+    ...before.preferences,
+    autoStart: true,
+  });
+  assert.equal(after.state, "online");
+  assert.equal(after.preferences.autoStart, true);
+  assert.deepEqual(f.events, ["open"]);
+  await f.service.dispose();
+});
+it("does not restart for an identical permission configuration including explicit false processing", async () => {
+  const f = fixture();
+  await f.service.setEnabled(true);
+  const before = await f.service.getStatus();
+  await f.service.configure({ ...before.preferences, allowProcessing: false });
+  assert.deepEqual(f.events, ["open"]);
+  await f.service.configure({ ...before.preferences, allowProcessing: true });
+  assert.deepEqual(f.events, ["open", "block", "close", "open"]);
+  await f.service.dispose();
+});

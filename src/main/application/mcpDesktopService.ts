@@ -93,9 +93,10 @@ export class McpDesktopService implements McpDesktopControl {
   }
   configure(preferences: McpPreferences): Promise<McpDesktopStatus> {
     return this.enqueue(async () => {
+      const restart = permissionsChanged(this.status.preferences, preferences);
       await this.ports.savePreferences(preferences);
       this.status.preferences = structuredClone(preferences);
-      if (this.lease) {
+      if (this.lease && restart) {
         await this.stop();
         if (this.wanted) await this.start();
       }
@@ -213,4 +214,15 @@ export class McpDesktopService implements McpDesktopControl {
         "Tailscale 연결이 종료되었습니다. 인증은 보존되었습니다. 다시 켜세요.";
     }).catch(this.ports.reportError);
   }
+}
+
+function permissionsChanged(
+  before: McpPreferences,
+  after: McpPreferences,
+): boolean {
+  return (
+    before.allowImages !== after.allowImages ||
+    before.allowEditing !== after.allowEditing ||
+    (before.allowProcessing === true) !== (after.allowProcessing === true)
+  );
 }
