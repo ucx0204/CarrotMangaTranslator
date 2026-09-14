@@ -1,0 +1,128 @@
+name: MCP checkpoint
+
+on:
+  push:
+    branches:
+      - feat/mcp-app-bridge
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-checkpoint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checkpoint:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator' && github.ref == 'refs/heads/feat/mcp-app-bridge'
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    permissions:
+      contents: write
+    steps:
+      - name: Check out exact checkpoint
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install repository dependencies
+        run: npm ci
+
+      - name: Format only MCP checkpoint files
+        run: >-
+          node node_modules/prettier/bin/prettier.cjs --write
+          .github/workflows/mcp-checkpoint.yml
+          'docs/mcp-*.md'
+          'src/main/application/mcp*.ts'
+          'src/main/mcp/*.ts'
+          src/main/mcpRuntime.ts
+          src/main/index.ts
+          'tests/mcp*.test.ts'
+          'scripts/mcp-*.cjs'
+          'scripts/mcp-*.mjs'
+          scripts/architecture-budget-baseline.json
+
+      - name: Save formatting checkpoint on this branch only
+        run: |
+          git add -- .github/workflows/mcp-checkpoint.yml docs/mcp-*.md src/main/application/mcp*.ts src/main/mcp src/main/mcpRuntime.ts src/main/index.ts tests/mcp*.test.ts scripts/mcp-*.cjs scripts/mcp-*.mjs scripts/architecture-budget-baseline.json
+          if ! git diff --cached --quiet; then
+            current=$(git ls-remote origin refs/heads/feat/mcp-app-bridge | cut -f1)
+            test "$current" = "$GITHUB_SHA"
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'style(mcp): format implementation checkpoint with repository Prettier'
+            git push origin HEAD:refs/heads/feat/mcp-app-bridge
+          fi
+          git rev-parse HEAD
+
+      - name: Focused MCP and existing library behavior tests
+        run: |
+          node scripts/mcp-dev.cjs --help
+          node scripts/mcp-smoke.mjs --help
+          node scripts/mcp-web.cjs --help
+          node scripts/mcp-web-smoke.mjs --help
+          node scripts/mcp-ui-qa.cjs --help
+          node node_modules/vitest/vitest.mjs run tests/mcp tests/libraryBatchPageSave.test.ts tests/pageRevision.test.ts tests/chapterSync.test.ts tests/liveChapterRefreshCoordinator.test.ts
+
+      - name: Build the existing application
+        run: npm run build
+
+      - name: Real Electron MCP runtime and redaction smoke
+        run: |
+          node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs | tee "$RUNNER_TEMP/carrot-mcp-native.log"
+          grep -Fq 'PASS native OS-encrypted OAuth restore, refresh and offline revocation' "$RUNNER_TEMP/carrot-mcp-native.log"
+          grep -Fq 'PASS native external blocks -> app masks/local-engine boundary -> real renderer -> original-resolution PNG -> revoked link' "$RUNNER_TEMP/carrot-mcp-native.log"
+          grep -Fq 'PASS MCP native smoke finished' "$RUNNER_TEMP/carrot-mcp-native.log"
+
+      - name: Capture production MCP settings and assert layout boundaries
+        run: node scripts/mcp-ui-qa.cjs
+
+      - name: Save synthetic settings screenshots for visual review
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mcp-settings-ui
+          path: .tmp/mcp-ui-qa/*.png
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Static checks with complete repository dependencies
+        if: ${{ !cancelled() }}
+        run: |
+          failed=0
+          for gate in typecheck typecheck:electron typecheck:js format:check arch:deps arch:budget lint:error-handling check:test-mock-boundaries lint deadcode:exports check:script-entrypoints check:maintainability check:duplicates; do
+            echo "::group::$gate"
+            if ! npm run "$gate"; then failed=1; fi
+            echo '::endgroup::'
+          done
+          exit "$failed"
+
+      - name: Remove only the already merged MCP recovery branch references
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/feat/mcp-app-bridge
+          git merge-base --is-ancestor 53de254a9c456b316a63409e649418b1505596a5 HEAD
+          while read -r branch expected; do
+            current=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
+            if [ -z "$current" ]; then continue; fi
+            if [ "$current" != "$expected" ]; then
+              echo "Preserving $branch: its tip changed after integration."
+              exit 1
+            fi
+            git merge-base --is-ancestor "$expected" HEAD
+            git push origin --delete "$branch"
+          done <<'MERGED_MCP_REFS'
+          backup/mcp-before-publication-20260912 6c1f563497b742d58a9584dd5eda25431bb4392e
+          backup/mcp-before-tailscale-checkpoint-20260912 6c1f563497b742d58a9584dd5eda25431bb4392e
+          integration/mcp-tailscale-publication-20260912 8e943038a170fa71e8825371e3bd7db58961e2be
+          MERGED_MCP_REFS

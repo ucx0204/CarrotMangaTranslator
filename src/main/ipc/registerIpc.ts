@@ -1,3 +1,4 @@
+import { registerMcpDesktopIpc } from "./mcpDesktopIpc";
 import type { IpcContext } from "./context";
 import { disposeImportPreviewSessions } from "./importPreviewSessionStore";
 import { registerErrorReportIpc } from "./errorReportIpc";
@@ -69,6 +70,7 @@ export function createImportRuntimeResources({
 }
 
 export function registerIpc(context: IpcContext): void {
+  registerMcpDesktopIpc(context);
   registerAppOperationIpc(context);
   registerBlockLibraryIpc(context);
   registerConditionalBatchIpc(context);

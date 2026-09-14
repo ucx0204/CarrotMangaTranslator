@@ -1,0 +1,19 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.address {
+  overflow-wrap: anywhere;
+}
+.connection {
+  padding-block: 12px;
+  border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}

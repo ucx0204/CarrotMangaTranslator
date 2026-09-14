@@ -30,11 +30,11 @@
     },
     "src/shared/pageRevision.ts": {
       "maxImportedBy": 33,
-      "reason": "Image recovery checkpoints, finalization, retouch, history and pipeline handoff use the canonical page revision without copying its algorithm."
+      "reason": "Image recovery checkpoints, finalization, retouch, history and pipeline handoff use the canonical page revision without copying its algorithm. MCP consumers retain the same revision, typed gateway and dirty-edit preservation boundaries; integration measures the combined consumer count."
     },
     "src/renderer/src/api/libraryGateway.ts": {
       "maxImportedBy": 27,
-      "reason": "SFX restore and the chapter session's stale-image recovery read through the existing typed library gateway. Image recovery merges the authoritative snapshot through dirty-page preservation."
+      "reason": "SFX restore and the chapter session's stale-image recovery read through the existing typed library gateway. Image recovery merges the authoritative snapshot through dirty-page preservation. MCP consumers retain the same revision, typed gateway and dirty-edit preservation boundaries; integration measures the combined consumer count."
     },
     "src/shared/ipcSettingsSchemas.ts": {
       "maxRuntimeImports": 14,
@@ -45,12 +45,12 @@
       "reason": "Whole-page composition adds fresh-input handoff and checkpoint compatibility without moving OCR/font algorithms. Whole-page handoff parity tests compare unchanged output and context order."
     },
     "src/main/index.ts": {
-      "maxRuntimeImports": 30,
-      "reason": "Electron main composition root"
+      "maxRuntimeImports": 32,
+      "reason": "Electron main composition root Startup composition owns the persistent desktop MCP service and legacy local test listener, including terminal shutdown."
     },
     "src/main/ipc/registerIpc.ts": {
-      "maxRuntimeImports": 23,
-      "reason": "IPC composition root"
+      "maxRuntimeImports": 24,
+      "reason": "IPC composition root IPC composition adds trusted MCP desktop controls with the existing validation and sender gate."
     },
     "src/main/logger.ts": {
       "maxImportedBy": 35,
@@ -77,8 +77,8 @@
       "reason": "Session composition checks work-context ownership for reset independently of an unrelated local model job."
     },
     "src/renderer/src/components/settingsModal/SettingsModalView.tsx": {
-      "maxRuntimeImports": 17,
-      "reason": "Settings composition groups OCR, images and hardware with text translation and research under AI; each panel keeps its public component."
+      "maxRuntimeImports": 18,
+      "reason": "Settings composition groups OCR, images and hardware with text translation and research under AI; each panel keeps its public component. Settings composition adds the public MCP settings panel; existing sections and UI primitives are reused."
     },
     "src/renderer/src/components/ui/Button.tsx": {
       "publicPrimitive": true,
@@ -197,8 +197,24 @@
       "reason": "The session composition root connects activity, input completion and persistence. It reads the authoritative chapter through the library gateway after an unavailable old image and merges it without losing dirty edits."
     },
     "src/main/library.ts": {
+      "maxImportedBy": 29,
+      "reason": "SFX recovery reads and writes through the locked library facade; no direct job imports from libraryStore. MCP app tool and page-operation compositions plus OCR run-path adapter use the locked public library facade, never private storage internals."
+    },
+    "src/main/ipc/trustedIpc.ts": {
+      "maxImportedBy": 26,
+      "reason": "MCP desktop controls use the existing trusted main-window IPC boundary; remote clients cannot approve connections or change local permissions."
+    },
+    "src/main/appPaths.ts": {
       "maxImportedBy": 27,
-      "reason": "SFX recovery reads and writes through the locked library facade; no direct job imports from libraryStore."
+      "reason": "MCP page render/crop adapter and app-default external-reading composition reuse the canonical data-root resolver; no separate root or arbitrary paths are exposed."
+    },
+    "src/main/mcp/mcpAppTools.ts": {
+      "maxRuntimeImports": 13,
+      "reason": "MCP tool composition directly joins existing library, image/redaction, work-context and reading services. This is the composition root, not an alias facade to hide dependencies."
+    },
+    "src/main/mcp/mcpPageOperationSession.ts": {
+      "maxRuntimeImports": 14,
+      "reason": "Page-operation composition injects native app job, OCR, erasure, renderer and scoped-output adapters into independent application services. Resource ownership and public library authority remain explicit."
     }
   }
 }
