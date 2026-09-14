@@ -215,3 +215,12 @@ transaction 문맥이 섞이지 않는다. 실제 재현에서는 큐에 기다�
 페이지 가림과 원근/왜곡 변환은 기존 렌더 경계를 유지한다. 보정이 없는 기존 이미지는
 원래 IMG 경로로 렌더한다. 화면과 PNG/PSD 출력은 같은 `PageArtwork`를 사용하며,
 회전·왜곡·가림·보정 붓·외곽선을 포함한 실제 픽셀 parity fixture로 일치를 확인한다.
+
+결과물 자동 동기화 취소는 숨은 창을 닫는 것뿐 아니라 세션의 AbortSignal로 이미지
+읽기·페이지 로드·렌더 준비·캡처 대기를 종료한다. 타일 합성 프로세스는 종료 이벤트까지
+기다린 뒤 임시 파일을 정리하며, 그 이후 기존 페이지 lease가 해제된다. 다른 세션의
+잠금은 유지한다. FFmpeg 인수와 타일 알고리즘은 그대로 두고 프로세스 수명만 기존
+`pageExportLifecycle`로 옮겼으며, 원본 픽셀 parity와 취소·오류·타임아웃 테스트로 검증한다.
+이번에 처음 수정 범위에 들어온 `pageExportLifecycle.ts`의 보호 기준은 기존
+`.tmp/production-cleanup-coverage-baseline-node22.json`의 원래 측정값을 등록했다.
+역사 artifact, SHA-256, 다른 파일의 커버리지 기준은 변경하지 않았다.

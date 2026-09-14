@@ -501,7 +501,7 @@ describe("production cleanup coverage floor gate", () => {
     expect(Object.keys(manifest.floors)).toEqual(scope.existing);
     expect(Object.keys(manifest.introducedFloors)).toEqual(scope.added);
     expect(manifest.deletedFiles).toEqual(scope.deleted);
-    expect(scope.existing).toHaveLength(749);
+    expect(scope.existing).toHaveLength(750);
     // Current master inventory (666) plus 65 independently covered MCP modules.
     expect(scope.added).toHaveLength(731);
     expect(scope.deleted).toHaveLength(10);

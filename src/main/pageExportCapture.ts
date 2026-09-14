@@ -9,7 +9,7 @@ import {
   type PageExportResolutionMode,
 } from "../shared/pageExportLimits";
 import { tMain } from "./i18n";
-import { withTimeout } from "./pageExportLifecycle";
+import { throwIfAborted, withTimeout } from "./pageExportLifecycle";
 import {
   assertPageExportImageBuffer,
   assertPageExportPngBuffer,
@@ -39,6 +39,7 @@ export type PageExportCaptureOptions = {
 };
 
 export type PageExportCaptureRuntime = {
+  signal?: AbortSignal;
   temporaryDirectory: string;
   stitchTiles?: PageExportTileStitcher;
 };
@@ -51,6 +52,8 @@ export async function captureExportPageImage(
   transparentBackground = false,
   runtime?: PageExportCaptureRuntime,
 ): Promise<Buffer> {
+  const signal = runtime?.signal;
+  throwIfAborted(signal);
   const rasterLimits =
     options.resolutionMode === "original"
       ? ORIGINAL_PAGE_EXPORT_RASTER_LIMITS
@@ -60,9 +63,14 @@ export async function captureExportPageImage(
     throw new Error("Transparent page export requires PNG.");
   }
   if (transparentBackground) {
-    await win.webContents.debugger.sendCommand(
-      "Emulation.setDefaultBackgroundColorOverride",
-      { color: { r: 0, g: 0, b: 0, a: 0 } },
+    await withTimeout(
+      win.webContents.debugger.sendCommand(
+        "Emulation.setDefaultBackgroundColorOverride",
+        { color: { r: 0, g: 0, b: 0, a: 0 } },
+      ),
+      SCREENSHOT_CAPTURE_TIMEOUT_MS,
+      "PNG export transparent background setup timeout",
+      signal,
     );
   }
   try {
@@ -78,11 +86,22 @@ export async function captureExportPageImage(
         runtime,
       );
     }
-    return await captureSinglePageExport(win, expected, pageName, options);
+    return await captureSinglePageExport(
+      win,
+      expected,
+      pageName,
+      options,
+      signal,
+    );
   } finally {
-    if (transparentBackground) {
-      await win.webContents.debugger.sendCommand(
-        "Emulation.setDefaultBackgroundColorOverride",
+    if (transparentBackground && !signal?.aborted) {
+      await withTimeout(
+        win.webContents.debugger.sendCommand(
+          "Emulation.setDefaultBackgroundColorOverride",
+        ),
+        SCREENSHOT_CAPTURE_TIMEOUT_MS,
+        "PNG export transparent background cleanup timeout",
+        signal,
       );
     }
   }
@@ -100,12 +119,14 @@ async function captureSinglePageExport(
   expected: PageExportRasterSize,
   pageName: string,
   options: PageExportCaptureOptions,
+  signal?: AbortSignal,
 ): Promise<Buffer> {
   const result = await captureScreenshot(win, {
     format: options.format,
     quality: options.quality,
     clip: { x: 0, y: 0, ...expected, scale: 1 },
     timeoutMs: SCREENSHOT_CAPTURE_TIMEOUT_MS,
+    signal,
   });
   const rasterLimits =
     options.resolutionMode === "original"
@@ -136,6 +157,7 @@ async function captureTiledPageExport(
   const tiles: PageExportCapturedTile[] = [];
   try {
     for (const tile of plan) {
+      throwIfAborted(runtime.signal);
       const tileSize = {
         width: tile.captureWidth,
         height: tile.captureHeight,
@@ -149,6 +171,7 @@ async function captureTiledPageExport(
           scale: 1,
         },
         timeoutMs: ORIGINAL_TILE_CAPTURE_TIMEOUT_MS,
+        signal: runtime.signal,
       });
       const png = decodeBoundedPageExportScreenshot(
         data,
@@ -163,6 +186,7 @@ async function captureTiledPageExport(
       tiles.push(capturedTile);
       await writeFile(path, png);
     }
+    throwIfAborted(runtime.signal);
     await rm(outputPath, { force: true });
     await (runtime.stitchTiles ?? stitchPageExportTiles)({
       expected,
@@ -170,7 +194,9 @@ async function captureTiledPageExport(
       outputPath,
       quality: options.quality,
       tiles,
+      signal: runtime.signal,
     });
+    throwIfAborted(runtime.signal);
     return await readValidatedTiledOutput(
       outputPath,
       expected,
@@ -236,8 +262,10 @@ async function captureScreenshot(
     format: "png" | "jpeg" | "webp";
     quality?: number;
     timeoutMs: number;
+    signal?: AbortSignal;
   },
 ): Promise<string> {
+  throwIfAborted(options.signal);
   const result = (await withTimeout(
     win.webContents.debugger.sendCommand("Page.captureScreenshot", {
       format: options.format,
@@ -250,6 +278,7 @@ async function captureScreenshot(
     }),
     options.timeoutMs,
     "PNG export screenshot capture timeout",
+    options.signal,
   )) as DevToolsScreenshotResult;
   if (typeof result.data !== "string") {
     throw new Error("DevTools returned an invalid page export screenshot.");
