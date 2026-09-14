@@ -243,3 +243,28 @@ it("clears a transient polling error after status recovery without hiding action
   });
   expect(hook.result.current.error).toBe("save failed");
 });
+
+it("renders human-readable permissions and preserves unrecognized scope text safely", () => {
+  const current = status();
+  current.connections = [
+    {
+      id: "connection",
+      clientName: "<img src=x>",
+      scope:
+        " carrot.read   carrot.images carrot.edit carrot.process offline_access custom.permission ",
+      createdAt: 1,
+      revoked: false,
+    },
+  ];
+  show(current);
+  expect(
+    screen.getByText(
+      /이미지 전송·PNG 출력.*기존 번역문 수정.*새 블록·로컬 OCR·원문 제거/,
+    ),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(/다음 실행에도 승인 유지.*custom.permission/),
+  ).toBeTruthy();
+  expect(screen.getByText("<img src=x>")).toBeTruthy();
+  expect(document.querySelector("img")).toBeNull();
+});

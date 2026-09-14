@@ -38,3 +38,94 @@ it("rolls back actual staged and published files if authorization is revoked bef
     await environment.close();
   }
 });
+
+it("rolls back staged files when the master's publication owner refuses entry", async () => {
+  const environment = await mcpAppEnvironment();
+  const path = join(environment.libraryDir, "publisher.json");
+  const transaction =
+    await import("../src/main/libraryStore/libraryTransaction");
+  try {
+    await mkdir(environment.libraryDir, { recursive: true });
+    await writeFile(path, "before");
+    await expect(
+      transaction.runLibraryTransaction(
+        "publisher-refused",
+        async (tx) => {
+          await tx.stageJsonReplacement(path, { value: "unpublished" });
+        },
+        async () => {
+          throw new Error("publication owner cancelled");
+        },
+      ),
+    ).rejects.toThrow("publication owner cancelled");
+    expect(await readFile(path, "utf8")).toBe("before");
+    expect(
+      await readdir(join(environment.libraryDir, ".transactions", "active")),
+    ).toEqual([]);
+  } finally {
+    await environment.close();
+  }
+});
+it("honors the committed result even if the publication wrapper fails after success", async () => {
+  const environment = await mcpAppEnvironment();
+  const path = join(environment.libraryDir, "publisher.json");
+  const transaction =
+    await import("../src/main/libraryStore/libraryTransaction");
+  try {
+    await mkdir(environment.libraryDir, { recursive: true });
+    await writeFile(path, "before");
+    const result = await transaction.runLibraryTransaction(
+      "publisher-post-commit",
+      async (tx) => {
+        await tx.stageJsonReplacement(path, { value: "committed" });
+        return "saved";
+      },
+      async (publish) => {
+        await publish();
+        throw new Error("publisher failed after durable commit");
+      },
+    );
+    expect(result).toBe("saved");
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({
+      value: "committed",
+    });
+  } finally {
+    await environment.close();
+  }
+});
+it("rechecks remote authority after pre-publication hooks under the same publisher", async () => {
+  const environment = await mcpAppEnvironment();
+  const path = join(environment.libraryDir, "publisher.json");
+  const transaction =
+    await import("../src/main/libraryStore/libraryTransaction");
+  let authorized = true;
+  const events: string[] = [];
+  try {
+    await mkdir(environment.libraryDir, { recursive: true });
+    await writeFile(path, "before");
+    await expect(
+      transaction.runLibraryTransaction(
+        "publisher-revoked",
+        async (tx) => {
+          await tx.stageJsonReplacement(path, { value: "rejected" });
+          tx.beforePublish(async () => {
+            events.push("prepare");
+            authorized = false;
+          });
+        },
+        async (publish) => {
+          events.push("owner");
+          return publish();
+        },
+        () => {
+          events.push("authority");
+          if (!authorized) throw new Error("authority revoked");
+        },
+      ),
+    ).rejects.toThrow("authority revoked");
+    expect(events).toEqual(["owner", "prepare", "authority"]);
+    expect(await readFile(path, "utf8")).toBe("before");
+  } finally {
+    await environment.close();
+  }
+});
