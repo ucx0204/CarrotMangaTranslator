@@ -108,6 +108,7 @@ export async function createPageExportRenderSession(
 type ExportWindowState = ReturnType<typeof createExportWindow>;
 
 class ManagedPageExportRenderSession implements PageExportRenderSession {
+  private readonly cancellation = new AbortController();
   private active = false;
   private closed = false;
   private lastRenderFailure: { error: unknown } | null = null;
@@ -144,10 +145,14 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
   readonly cancel = (): void => {
     if (this.closed) return;
     this.closed = true;
+    this.cancellation.abort(
+      new DOMException("Page export cancelled", "AbortError"),
+    );
     try {
       this.tempOwner.owner.win.destroy();
     } finally {
-      this.tempOwner.release();
+      // An active render still owns its pending file writes and cleanup.
+      if (!this.active) this.tempOwner.release();
     }
   };
 
@@ -176,6 +181,7 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
         this.options,
         this.tempOwner.directory,
         this.tempOwner.owner,
+        this.cancellation.signal,
         transparentBackground,
         captureOptions,
       );
@@ -184,6 +190,13 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
       throw error;
     } finally {
       this.active = false;
+      if (this.closed) {
+        try {
+          this.tempOwner.release();
+        } catch (error) {
+          throwPageExportCleanupError(this.lastRenderFailure, [error]);
+        }
+      }
     }
   }
 }
@@ -273,13 +286,18 @@ function createExportWindow(lowPriority = false): {
   };
 }
 
-async function ensureExportDebugger(win: BrowserWindow): Promise<void> {
+async function ensureExportDebugger(
+  win: BrowserWindow,
+  signal: AbortSignal,
+): Promise<void> {
+  throwIfAborted(signal);
   const debuggerApi = win.webContents.debugger;
   if (!debuggerApi.isAttached()) debuggerApi.attach("1.3");
   await withTimeout(
     debuggerApi.sendCommand("Page.enable"),
     DEBUGGER_SETUP_TIMEOUT_MS,
     "PNG export debugger setup timeout",
+    signal,
   );
 }
 
@@ -288,6 +306,7 @@ async function renderPageInSession(
   options: PageExportRenderOptions,
   renderDir: string,
   windowState: ReturnType<typeof createExportWindow>,
+  signal: AbortSignal,
   transparentBackground = false,
   captureOptions: PageExportCaptureOptions = STRICT_SAFE_PNG_CAPTURE_OPTIONS,
 ): Promise<Buffer> {
@@ -297,7 +316,9 @@ async function renderPageInSession(
     (signal) => resolveExportImageSource(page, options, signal, sourceLimits),
     IMAGE_SOURCE_TIMEOUT_MS,
     "PNG export image preflight timeout",
+    signal,
   );
+  throwIfAborted(signal);
   const plannedOutputSize = resolvePageExportOutputSize(
     image.size,
     page.name,
@@ -316,29 +337,25 @@ async function renderPageInSession(
   // fixed, maximally short file name.
   const htmlPath = join(renderDir, "page.html");
   const htmlUrl = pathToFileURL(htmlPath).toString();
-  const viewport = resolveExportViewportSize(
-    plannedOutputSize.width,
-    plannedOutputSize.height,
-  );
+  const viewport = resolveExportViewportSize(plannedOutputSize);
   windowState.win.setContentSize(viewport.width, viewport.height);
   windowState.setAllowedHtmlUrl(htmlUrl);
   try {
     await writeFile(htmlPath, html, "utf8");
+    throwIfAborted(signal);
     await withTimeout(
       windowState.win.loadFile(htmlPath),
       resolutionMode === "original"
         ? ORIGINAL_PAGE_LOAD_TIMEOUT_MS
         : PAGE_LOAD_TIMEOUT_MS,
       "PNG export page load timeout",
+      signal,
     );
-    const renderReadyTimeoutMs =
-      resolutionMode === "original"
-        ? ORIGINAL_RENDER_READY_TIMEOUT_MS
-        : RENDER_READY_TIMEOUT_MS;
-    const renderedOutputSize = await withTimeout(
-      waitForExportRenderReady(windowState.win, renderReadyTimeoutMs),
-      renderReadyTimeoutMs,
-      "PNG export renderer readiness timeout",
+    throwIfAborted(signal);
+    const renderedOutputSize = await waitForExportRenderReady(
+      windowState.win,
+      resolutionMode,
+      signal,
     );
     assertPageExportRasterBudget(renderedOutputSize, page.name, outputLimits);
     if (!pageExportRasterSizesEqual(renderedOutputSize, plannedOutputSize)) {
@@ -348,7 +365,7 @@ async function renderPageInSession(
         }),
       );
     }
-    await ensureExportDebugger(windowState.win);
+    await ensureExportDebugger(windowState.win, signal);
     return await captureExportPageImage(
       windowState.win,
       plannedOutputSize,
@@ -357,6 +374,7 @@ async function renderPageInSession(
       transparentBackground,
       {
         temporaryDirectory: renderDir,
+        signal,
         stitchTiles: options.stitchTiles,
       },
     );
@@ -501,20 +519,25 @@ function resolvePageExportOutputSize(
 }
 
 function resolveExportViewportSize(
-  width: number,
-  height: number,
-): { width: number; height: number } {
+  size: PageExportRasterSize,
+): PageExportRasterSize {
   return {
-    width: Math.min(width, MAX_EXPORT_VIEWPORT_SIDE_PX),
-    height: Math.min(height, MAX_EXPORT_VIEWPORT_SIDE_PX),
+    width: Math.min(size.width, MAX_EXPORT_VIEWPORT_SIDE_PX),
+    height: Math.min(size.height, MAX_EXPORT_VIEWPORT_SIDE_PX),
   };
 }
 
 async function waitForExportRenderReady(
   win: BrowserWindow,
-  timeoutMs: number,
+  resolutionMode: NonNullable<PageExportCaptureOptions["resolutionMode"]>,
+  signal: AbortSignal,
 ): Promise<{ width: number; height: number }> {
-  const value: unknown = await win.webContents.executeJavaScript(`
+  const timeoutMs =
+    resolutionMode === "original"
+      ? ORIGINAL_RENDER_READY_TIMEOUT_MS
+      : RENDER_READY_TIMEOUT_MS;
+  const value: unknown = await withTimeout(
+    win.webContents.executeJavaScript(`
     new Promise((resolve, reject) => {
       const startedAt = Date.now();
       const tick = () => {
@@ -539,7 +562,11 @@ async function waitForExportRenderReady(
       };
       tick();
     })
-  `);
+  `),
+    timeoutMs,
+    "PNG export renderer readiness timeout",
+    signal,
+  );
   if (!isPageExportRasterSizeShape(value)) {
     throw new Error("PNG export renderer returned an invalid output size.");
   }

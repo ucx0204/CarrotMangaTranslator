@@ -1,5 +1,4 @@
-import { spawn } from "node:child_process";
-import { observeProcessErrors } from "./runtimeSupport/observeProcessErrors";
+import { runPageExportFfmpeg } from "./pageExportLifecycle";
 import {
   SAFE_PAGE_EXPORT_RASTER_LIMITS,
   validatePageExportRasterSize,
@@ -14,8 +13,6 @@ import {
 
 const PAGE_EXPORT_TILE_OVERLAP_PX = 8;
 export const PAGE_EXPORT_CAPTURE_TILE_SIDE_PX = 4096;
-const PAGE_EXPORT_STITCH_TIMEOUT_MS = 10 * 60_000;
-const MAX_FFMPEG_ERROR_CHARS = 16_384;
 
 export type PageExportTile = {
   index: number;
@@ -36,6 +33,7 @@ export type PageExportCapturedTile = PageExportTile & {
 };
 
 export type PageExportTileStitchRequest = {
+  signal?: AbortSignal;
   expected: PageExportRasterSize;
   format: "png" | "jpeg" | "webp";
   outputPath: string;
@@ -236,7 +234,11 @@ export async function stitchPageExportTilesWithFfmpeg(
   request: PageExportTileStitchRequest,
   ffmpegPath: string,
 ): Promise<void> {
-  await runPageExportFfmpeg(ffmpegPath, buildPageExportTileFfmpegArgs(request));
+  await runPageExportFfmpeg(
+    ffmpegPath,
+    buildPageExportTileFfmpegArgs(request),
+    request.signal,
+  );
 }
 
 function resolvePageExportEncoderArgs(
@@ -361,55 +363,4 @@ function isValidPageExportTileAxis(
     outputStart + outputSize <= expectedSize &&
     cropStart + outputSize <= captureSize
   );
-}
-
-function runPageExportFfmpeg(
-  executable: string,
-  args: string[],
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(executable, args, {
-      shell: false,
-      stdio: ["ignore", "ignore", "pipe"],
-      windowsHide: true,
-    });
-    let errorText = "";
-    let spawnError: Error | null = null;
-    let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGKILL");
-    }, PAGE_EXPORT_STITCH_TIMEOUT_MS);
-    child.stderr?.setEncoding("utf8");
-    child.stderr?.on("data", (chunk: string) => {
-      if (errorText.length < MAX_FFMPEG_ERROR_CHARS) {
-        errorText = `${errorText}${chunk}`.slice(0, MAX_FFMPEG_ERROR_CHARS);
-      }
-    });
-    const onError = (error: Error): void => {
-      if (spawnError) return;
-      spawnError = error;
-      clearTimeout(timer);
-      reject(error);
-      child.kill("SIGKILL");
-    };
-    observeProcessErrors(child, onError);
-    child.once("close", (code) => {
-      clearTimeout(timer);
-      if (timedOut) {
-        reject(new Error("Page export tile stitching timed out."));
-        return;
-      }
-      if (spawnError) return;
-      if (code !== 0) {
-        reject(
-          new Error(
-            `Page export tile stitching failed (${code ?? "unknown"}): ${errorText.trim()}`,
-          ),
-        );
-        return;
-      }
-      resolve();
-    });
-  });
 }
