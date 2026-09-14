@@ -29,12 +29,12 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 33,
-      "reason": "Image recovery checkpoints, finalization, retouch, history and pipeline handoff use the canonical page revision without copying its algorithm. MCP consumers retain the same revision, typed gateway and dirty-edit preservation boundaries; integration measures the combined consumer count."
+      "maxImportedBy": 40,
+      "reason": "The v2.7.6 image history/recovery and MCP image/reading/OCR/erasure/export adapters jointly have 40 direct runtime consumers. All use the canonical revision contract; no revision algorithm or global limit is changed. Integration tests retain both families."
     },
     "src/renderer/src/api/libraryGateway.ts": {
-      "maxImportedBy": 27,
-      "reason": "SFX restore and the chapter session's stale-image recovery read through the existing typed library gateway. Image recovery merges the authoritative snapshot through dirty-page preservation. MCP consumers retain the same revision, typed gateway and dirty-edit preservation boundaries; integration measures the combined consumer count."
+      "maxImportedBy": 28,
+      "reason": "Master stale-image recovery, SFX review/restore and MCP editor refresh jointly have 28 direct consumers. All preserve the same typed gateway and dirty-page merge behavior."
     },
     "src/shared/ipcSettingsSchemas.ts": {
       "maxRuntimeImports": 14,
@@ -193,12 +193,12 @@
       "reason": "Page handoff, mask completion, detached input completion and stale-image recovery read current session state through the established event callback primitive."
     },
     "src/renderer/src/app/session/useChapterSessionController.ts": {
-      "maxRuntimeImports": 21,
-      "reason": "The session composition root connects activity, input completion and persistence. It reads the authoritative chapter through the library gateway after an unavailable old image and merges it without losing dirty edits."
+      "maxRuntimeImports": 22,
+      "reason": "The session root composes master activity/handoff/stale-image recovery and MCP editor synchronization, totaling 22 direct runtime imports. Domain implementations remain in their existing owners."
     },
     "src/main/library.ts": {
-      "maxImportedBy": 29,
-      "reason": "SFX recovery reads and writes through the locked library facade; no direct job imports from libraryStore. MCP app tool and page-operation compositions plus OCR run-path adapter use the locked public library facade, never private storage internals."
+      "maxImportedBy": 31,
+      "reason": "The merged v2.7.6 SFX recovery and MCP composition adapters have 31 direct consumers of the locked public library facade. Keep job/adapter access through this authority rather than private storage or alias facades."
     },
     "src/main/ipc/trustedIpc.ts": {
       "maxImportedBy": 26,
