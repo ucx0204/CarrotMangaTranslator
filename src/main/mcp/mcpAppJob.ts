@@ -54,7 +54,9 @@ export async function runMcpAppJob<T>(
       phase: "ready",
       progressText: "MCP 페이지 작업",
     });
-    const result = await execute(context, emit);
+    const result = await app.jobs.run(operation.id, () =>
+      execute(context, emit),
+    );
     emit({
       id: operation.id,
       kind,

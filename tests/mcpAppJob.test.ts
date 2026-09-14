@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { assertLibraryActivityAccess } from "../src/main/library/lock";
+import { libraryMutationCoordinator } from "../src/main/libraryStore/libraryMutationCoordinator";
+import { pageContentResource } from "../src/shared/appActivityTypes";
 import { runMcpAppJob } from "../src/main/mcp/mcpAppJob";
 import { makeContext, createDeferred } from "./inpaintingSelectionJobFixtures";
 
@@ -17,6 +20,25 @@ function operation() {
   };
 }
 describe("MCP native job ownership", () => {
+  it.each(["gemma-analysis", "page-export"] as const)(
+    "retains the library activity owner during %s execution",
+    async (kind) => {
+      const app = makeContext(vi.fn());
+      const f = operation();
+      libraryMutationCoordinator.configureActivityGate(app.jobs.gate);
+      try {
+        const result = await runMcpAppJob(app, f.context, kind, async () => {
+          await Promise.resolve();
+          assertLibraryActivityAccess([pageContentResource("chapter", "page")]);
+          return "authorized owner";
+        });
+        expect(result).toBe("authorized owner");
+        expect(app.jobs.current).toBeNull();
+      } finally {
+        libraryMutationCoordinator.configureActivityGate(null);
+      }
+    },
+  );
   it("uses the existing job store and finishes its quit-cleanup lease", async () => {
     const app = makeContext(vi.fn());
     const f = operation();
