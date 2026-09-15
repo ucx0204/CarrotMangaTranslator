@@ -42,3 +42,11 @@ Contract/service/output and real HTTP tests: 41 passed in four files. These incl
 Only named composition budgets change: the existing review service is the 41st direct `pageRevision.ts` consumer (40 before), and tool composition directly imports the new tool factory (14 versus 13). No algorithms, generic limits or mock allowlists change.
 
 Native isolated validation, coverage inventory/floors and the full repository check remain pending at this checkpoint. Direct use of the chat connector was refused with `FORBIDDEN: This conversation does not support developer MCPs`; do not describe native fixture verification as a successful live chat call. Existing user data, authorization and running app are unchanged.
+
+## Native and coverage checkpoint
+
+`0068bce1` is the first published production-tool integration. The same branch then adds `mcp-native-review.cjs`, invoked on the existing isolated native fixture both before block creation and after the two-block edit/erasure chain. Image, edit and processing preferences are disabled for this inspection composition. Actual library reads, tool-result validation and existing app preflight execute; no write lease or saved notification is allowed. Page data and original bytes remain identical.
+
+Windows build and native MCP smoke passed, including both `PASS native read-only chapter review and app PNG preflight` markers, encrypted auth, existing targeted editing, original crops, rendered lettering, PNG and durable job-history regressions. Only the pre-existing heavy inference test boundary is synthetic; no live user account/content was inspected through a substituted authorization path.
+
+All 334 MCP tests in 43 files passed. The 33 review-focused tests measure all three new production modules at 100% statements/branches/functions/lines (90/90, 50/50, 22/22, 80/80). Evidence: `.tmp/mcp-review-acceptance-20260916/coverage/coverage-summary.json`, SHA-256 `7333f23ae593e614df9bb81c82ed5ede429863911b90405ec4684a9be030ad4b`. The 750 prior existing and 740 prior added-file floors/provenance are unchanged; only the three first measured entries and exact added-source inventory (743) are appended. Full repository acceptance is the next gate.

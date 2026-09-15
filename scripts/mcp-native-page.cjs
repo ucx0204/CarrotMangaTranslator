@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const { checkNativeReview } = require("./mcp-native-review.cjs");
 const {
   jobPersistence,
   checkNativeJobHistory,
@@ -138,6 +139,7 @@ async function checkNativePageGoal(root) {
     return tool.invoke(args, context);
   };
   try {
+    await checkNativeReview(root, chapter.id, page.id, 0);
     const created = await invoke("carrot_create_page_blocks", {
       chapterId: chapter.id,
       pageId: page.id,
@@ -181,6 +183,7 @@ async function checkNativePageGoal(root) {
     assert.deepEqual(pixel(clean, 73, 95), [255, 255, 255]);
     assert.deepEqual(pixel(clean, 305, 505), [0, 0, 0]);
     await checkNativeReadback(invoke, chapter.id, page.id, original, clean);
+    await checkNativeReview(root, chapter.id, page.id, 2);
     const started = await invoke("carrot_export_page_png", {
       chapterId: chapter.id,
       pageId: page.id,
