@@ -188,3 +188,33 @@ it("supports an empty chapter without pretending any page has been processed", a
   expect(result.scope).toBe("saved-metadata-only");
   expect(f.preflight).not.toHaveBeenCalled();
 });
+
+it("rejects a paginated snapshot after the chapter is moved to another work", async () => {
+  const f = fixture();
+  const before = await f.service.chapter("chapter", window);
+  f.chapter.workId = "another-work";
+  await expect(
+    f.service.chapter("chapter", window, "all", before.snapshot),
+  ).rejects.toMatchObject({ code: "revision_conflict" });
+});
+it.each(["work", "order"])(
+  "does not publish preflight from stale chapter %s context",
+  async (changed) => {
+    const f = fixture();
+    const response = await f.preflight();
+    f.preflight.mockImplementationOnce(async () => {
+      if (changed === "work") f.chapter.workId = "another-work";
+      else {
+        f.chapter.pages.unshift({
+          ...structuredClone(f.chapter.pages[0]),
+          id: "inserted",
+        });
+        f.chapter.pageOrder.unshift("inserted");
+      }
+      return response;
+    });
+    await expect(f.service.preflight("chapter", "page")).rejects.toMatchObject({
+      code: "revision_conflict",
+    });
+  },
+);

@@ -27,7 +27,11 @@ export class McpReviewService {
   ) {
     const chapter = await this.ports.openChapter(chapterId);
     const pages = chapter.pages.map(inspectPage);
-    const snapshot = hashStableValue({ chapterId, pages });
+    const snapshot = hashStableValue({
+      chapterId,
+      workId: chapter.workId,
+      pages,
+    });
     if (expectedSnapshot !== undefined && expectedSnapshot !== snapshot)
       throw new McpEditError(
         "revision_conflict",
@@ -54,12 +58,15 @@ export class McpReviewService {
     if (!page) throw new McpEditError("not_found", "Page not found.");
     const review = inspectPage(page, chapter.pages.indexOf(page));
     const result = await this.ports.preflight(chapter, pageId);
-    const latest = (await this.ports.openChapter(chapterId)).pages.find(
+    const latestChapter = await this.ports.openChapter(chapterId);
+    const latestIndex = latestChapter.pages.findIndex(
       (item) => item.id === pageId,
     );
+    const latest = latestChapter.pages[latestIndex];
     if (
       !latest ||
-      hashStableValue(inspectPage(latest, review.pageIndex)) !==
+      latestChapter.workId !== chapter.workId ||
+      hashStableValue(inspectPage(latest, latestIndex)) !==
         hashStableValue(review)
     )
       throw new McpEditError(
