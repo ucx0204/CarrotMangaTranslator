@@ -1,7 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { McpConfiguration } from "./mcpConfiguration";
-import { MCP_PROTOCOL_VERSIONS } from "./mcpProtocol";
 
 export class McpHttpError extends Error {
   readonly status: number;
@@ -44,12 +43,6 @@ export function authorizeMcpRequest(
 }
 
 export function validateMcpPost(request: IncomingMessage): void {
-  const version = singleHeader(request, "mcp-protocol-version", false);
-  if (
-    version !== undefined &&
-    !MCP_PROTOCOL_VERSIONS.some((item) => item === version)
-  )
-    throw new McpHttpError(400, "Unsupported MCP protocol version.");
   const accept = request.headers.accept ?? "";
   if (
     !accepts(accept, "application/json") ||

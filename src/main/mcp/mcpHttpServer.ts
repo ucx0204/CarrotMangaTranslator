@@ -143,6 +143,7 @@ function createRequestHandler(
           body,
           visibleTools(options, request, oauth),
           options.reportError,
+          request.headersDistinct,
         ),
       );
     } catch (error) {
