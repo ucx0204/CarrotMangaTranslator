@@ -33,69 +33,70 @@ export async function handleMcpMessage(
 ): Promise<McpHttpReply> {
   const request = readRequest(value);
   if (!request) return rpcError(null, -32600, "Invalid Request", 400);
-  let modern = false;
   try {
-    modern = validateMcpEnvelope(request, headers, MCP_PROTOCOL_VERSIONS);
+    const modern = validateMcpEnvelope(request, headers, MCP_PROTOCOL_VERSIONS);
+    if (request.id === undefined) return notificationReply(request);
+    if (modern && ["initialize", "ping"].includes(request.method))
+      return rpcError(
+        request.id,
+        -32601,
+        "Use server/discover with per-request metadata.",
+        404,
+      );
+    const reply = await handleRequest(request, tools, reportError);
+    return modern ? completeModernReply(reply) : reply;
   } catch (error) {
-    if (!(error instanceof McpEnvelopeError)) throw error;
+    if (error instanceof McpEnvelopeError)
+      return envelopeFailure(request.id, error);
+    if (error instanceof McpInvalidParams)
+      return rpcError(request.id ?? null, -32602, error.message);
+    reportError(error);
+    return rpcError(request.id ?? null, -32603, "Internal error");
+  }
+}
+function notificationReply(request: RpcRequest): McpHttpReply {
+  return request.method.startsWith("notifications/")
+    ? { status: 202 }
+    : rpcError(null, -32600, "Expected a request id", 400);
+}
+function envelopeFailure(
+  id: RpcId | undefined,
+  error: McpEnvelopeError,
+): McpHttpReply {
+  return {
+    status: 400,
+    body: {
+      jsonrpc: "2.0",
+      ...(id === undefined ? {} : { id }),
+      error: {
+        code: error.code,
+        message: error.message,
+        ...(error.data ? { data: error.data } : {}),
+      },
+    },
+  };
+}
+function completeModernReply(reply: McpHttpReply): McpHttpReply {
+  if (!reply.body || typeof reply.body !== "object") return reply;
+  if ("result" in reply.body) {
     return {
-      status: 400,
+      ...reply,
       body: {
-        jsonrpc: "2.0",
-        ...(request.id === undefined ? {} : { id: request.id }),
-        error: {
-          code: error.code,
-          message: error.message,
-          ...(error.data ? { data: error.data } : {}),
+        ...reply.body,
+        result: {
+          ...(reply.body.result as Record<string, unknown>),
+          resultType: "complete",
+          _meta: { "io.modelcontextprotocol/serverInfo": MCP_SERVER_INFO },
         },
       },
     };
   }
-  if (modern && ["initialize", "ping"].includes(request.method))
-    return rpcError(
-      request.id ?? null,
-      -32601,
-      "Use server/discover with per-request metadata.",
-      404,
-    );
-  if (request.id === undefined) {
-    return request.method.startsWith("notifications/")
-      ? { status: 202 }
-      : rpcError(null, -32600, "Expected a request id", 400);
-  }
-  try {
-    const reply = await handleRequest(request, tools, reportError);
-    if (
-      modern &&
-      reply.body &&
-      typeof reply.body === "object" &&
-      "result" in reply.body
-    ) {
-      const result = reply.body.result as Record<string, unknown>;
-      reply.body = {
-        ...reply.body,
-        result: {
-          ...result,
-          resultType: "complete",
-          _meta: { "io.modelcontextprotocol/serverInfo": MCP_SERVER_INFO },
-        },
-      };
-    }
-    if (
-      modern &&
-      reply.body &&
-      typeof reply.body === "object" &&
-      "error" in reply.body &&
-      (reply.body.error as { code: number }).code === -32601
-    )
-      reply.status = 404;
-    return reply;
-  } catch (error) {
-    if (error instanceof McpInvalidParams)
-      return rpcError(request.id, -32602, error.message);
-    reportError(error);
-    return rpcError(request.id, -32603, "Internal error");
-  }
+  if (
+    "error" in reply.body &&
+    (reply.body.error as { code: number }).code === -32601
+  )
+    return { ...reply, status: 404 };
+  return reply;
 }
 
 async function handleRequest(

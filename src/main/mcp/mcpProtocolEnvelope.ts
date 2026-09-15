@@ -41,29 +41,37 @@ export function validateMcpEnvelope(
       unsupported(advertised, supported);
     return false;
   }
-  if (headers) {
-    if (
-      !advertised ||
-      advertised !== declared ||
-      one(headers, "mcp-method") !== request.method
-    )
-      mismatch();
-    const name =
-      request.method === "tools/call" || request.method === "prompts/get"
-        ? request.params?.name
-        : request.method === "resources/read"
-          ? request.params?.uri
-          : undefined;
-    if (name !== undefined && decodedName(one(headers, "mcp-name")) !== name)
-      mismatch();
-    if (
-      ["tools/call", "prompts/get", "resources/read"].includes(
-        request.method,
-      ) &&
-      typeof name !== "string"
-    )
-      mismatch();
-  }
+  if (headers) validateMirrors(request, headers, declared);
+  validateMetadata(record, declared, supported);
+  return true;
+}
+function validateMirrors(
+  request: Request,
+  headers: Headers,
+  declared: unknown,
+): void {
+  const version = one(headers, "mcp-protocol-version");
+  if (
+    !version ||
+    version !== declared ||
+    one(headers, "mcp-method") !== request.method
+  )
+    mismatch();
+  const key = request.method === "resources/read" ? "uri" : "name";
+  if (!["tools/call", "prompts/get", "resources/read"].includes(request.method))
+    return;
+  const name = request.params?.[key];
+  if (
+    typeof name !== "string" ||
+    decodedName(one(headers, "mcp-name")) !== name
+  )
+    mismatch();
+}
+function validateMetadata(
+  record: Record<string, unknown> | undefined,
+  declared: unknown,
+  supported: readonly string[],
+): void {
   if (typeof declared !== "string")
     throw new McpEnvelopeError(
       -32602,
@@ -76,16 +84,17 @@ export function validateMcpEnvelope(
       "Per-request client capabilities must be an object.",
     );
   const info = record?.["io.modelcontextprotocol/clientInfo"];
-  if (
-    info !== undefined &&
-    (!isObject(info) ||
-      typeof info.name !== "string" ||
-      !info.name ||
-      typeof info.version !== "string" ||
-      !info.version)
-  )
+  if (info !== undefined && !validIdentity(info))
     throw new McpEnvelopeError(-32602, "Invalid per-request client identity.");
-  return true;
+}
+function validIdentity(value: unknown): boolean {
+  return (
+    isObject(value) &&
+    typeof value.name === "string" &&
+    value.name.length > 0 &&
+    typeof value.version === "string" &&
+    value.version.length > 0
+  );
 }
 function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -121,7 +130,7 @@ function decodedName(value: string | undefined): string | undefined {
     if (bytes.toString("base64") !== encoded) mismatch();
     try {
       return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    } catch {
+    } catch (_error) {
       return mismatch();
     }
   }
