@@ -1,3 +1,4 @@
+const { checkNativeAdversarial } = require("./mcp-native-adversarial.cjs");
 const assert = require("node:assert/strict");
 const { checkNativeReview } = require("./mcp-native-review.cjs");
 const {
@@ -176,6 +177,7 @@ async function checkNativePageGoal(root) {
       translated,
       translated.blocks[0].id,
     );
+    await checkNativeAdversarial(root, tools, chapter.id, page.id);
     const erased = (await library.openChapter(chapter.id)).pages[0];
     assert.deepEqual(erased.blocks, translated.blocks);
     assert.deepEqual(await readFile(page.imagePath), original);
