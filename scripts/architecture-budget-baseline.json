@@ -29,8 +29,8 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 40,
-      "reason": "The v2.7.6 image history/recovery and MCP image/reading/OCR/erasure/export adapters jointly have 40 direct runtime consumers. All use the canonical revision contract; no revision algorithm or global limit is changed. Integration tests retain both families."
+      "maxImportedBy": 41,
+      "reason": "The saved-page MCP review service is one additional real revision consumer. It detects edits across filtered pagination/preflight; the canonical revision algorithm and storage authority are unchanged. Existing editor, OCR and export uses remain direct."
     },
     "src/renderer/src/api/libraryGateway.ts": {
       "maxImportedBy": 28,
@@ -209,8 +209,8 @@
       "reason": "MCP page render/crop adapter and app-default external-reading composition reuse the canonical data-root resolver; no separate root or arbitrary paths are exposed."
     },
     "src/main/mcp/mcpAppTools.ts": {
-      "maxRuntimeImports": 13,
-      "reason": "MCP tool composition directly joins existing library, image/redaction, work-context and reading services. This is the composition root, not an alias facade to hide dependencies."
+      "maxRuntimeImports": 14,
+      "reason": "This explicit composition root adds metadata-only review/preflight tools beside existing page/image/context tools. Existing app export rules and the public library facade remain authoritative; no alias wrapper, copied algorithm or generic budget change."
     },
     "src/main/mcp/mcpPageOperationSession.ts": {
       "maxRuntimeImports": 14,

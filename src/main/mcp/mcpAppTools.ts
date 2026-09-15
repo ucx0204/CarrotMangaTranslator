@@ -1,3 +1,4 @@
+import { createMcpReviewTools } from "./mcpReviewTools";
 import { McpReadingService } from "../application/mcpReadingService";
 import { createMcpReadingTool } from "./mcpReadingTool";
 import { getAppSettings } from "../settingsStore";
@@ -34,6 +35,7 @@ export function createMcpAppTools(options: {
   });
   const extensions = [
     ...(options.additionalTools ?? []),
+    ...createMcpReviewTools({ listLibrary, openChapter }),
     createMcpWorkContextTool(
       new McpWorkContextService(resolveWorkContextForChapter),
     ),

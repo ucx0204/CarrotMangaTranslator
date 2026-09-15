@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { mcpReviewOutputSchemas } from "../../shared/mcpReviewSchemas";
 import { McpEditableFieldsSchema } from "../../shared/mcpBlockEditing";
 
 const text = z.string();
@@ -97,6 +98,7 @@ const mcpJobReceiptOutput = z
 
 /** Public projections only. JSON Schema and runtime validation share these definitions. */
 export const mcpOutputSchemas: Record<string, z.ZodType> = {
+  ...mcpReviewOutputSchemas,
   carrot_get_server_info: z
     .object({
       serverId: text.regex(/^[a-f0-9]{64}$/),

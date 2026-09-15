@@ -30,3 +30,15 @@ After authorized tool writes are available, connect the service to the existing 
 - Renderer and Electron TypeScript checks passed; focused lint and mock-boundary policy passed.
 - Architecture gate identifies one additional real `pageRevision.ts` consumer (41 versus the current 40 budget). Integration must document this composition use and reconcile the specific budget; no existing authority or generic limit was changed here.
 - Full check, production tool registration, native integration and live invocation of the new schema names are NOT complete. The existing running app and user data were left unchanged.
+
+## Integration continuation (2026-09-16)
+
+The formerly reserved names now have production registrations in `mcpReviewTools.ts`, wired by `mcpAppTools.ts` and registered in `mcpOutputSchemas`. They require only `carrot.read`; image/processing/edit permissions are not silently elevated.
+
+The adapter calls the unchanged `preflightPageImageExport` with exactly one selected page, PNG and translated text included. It pins the originally inspected chapter, then the service rechecks current saved data. No output executor, image decoder, file destination, model or live editor reservation is invoked. Later review pages require the snapshot returned by the first page.
+
+Contract/service/output and real HTTP tests: 41 passed in four files. These include app-rule parity, snapshot conflict, unsupported input, private-result omission, read-only grant and revocation during a pending read. Renderer/Electron typechecks and focused lint passed before adding the HTTP tests; rerun the full gates after the next native increment.
+
+Only named composition budgets change: the existing review service is the 41st direct `pageRevision.ts` consumer (40 before), and tool composition directly imports the new tool factory (14 versus 13). No algorithms, generic limits or mock allowlists change.
+
+Native isolated validation, coverage inventory/floors and the full repository check remain pending at this checkpoint. Direct use of the chat connector was refused with `FORBIDDEN: This conversation does not support developer MCPs`; do not describe native fixture verification as a successful live chat call. Existing user data, authorization and running app are unchanged.
