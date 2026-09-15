@@ -1,11 +1,9 @@
+import type { McpOperationExecutor } from "../src/main/application/mcpOperationService";
 import { expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { McpArtifactStore } from "../src/main/mcp/mcpArtifactStore";
 import { McpOperationService } from "../src/main/application/mcpOperationService";
-import {
-  createMcpOperationTools,
-  type McpOperationExecutor,
-} from "../src/main/mcp/mcpOperationTools";
+import { createMcpOperationTools } from "../src/main/mcp/mcpOperationTools";
 import { startMcpHttpServer } from "../src/main/mcp/mcpHttpServer";
 import { McpOAuthHttp } from "../src/main/mcp/mcpOAuthHttp";
 import { McpOAuthProvider } from "../src/main/mcp/mcpOAuthProvider";

@@ -57,7 +57,7 @@ const jobTarget = z
   .object({ chapterId: text, pageId: text, revision, requestId: text.uuid() })
   .strict();
 
-export const mcpJobReceiptOutput = z
+const mcpJobReceiptOutput = z
   .object({
     target: jobTarget.optional(),
     persistence: z.enum(["durable", "memory"]),
@@ -247,3 +247,29 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
   carrot_run_page_ocr: mcpJobReceiptOutput,
   carrot_run_page_erasure: mcpJobReceiptOutput,
 };
+
+const errorSchema = z
+  .object({
+    error: z.string(),
+    message: z.string(),
+    retryable: z.boolean(),
+    nextAction: z.string(),
+  })
+  .strict();
+const schemas = new Map<string, Record<string, unknown>>();
+
+export function mcpToolOutputSchema(
+  name: string,
+): Record<string, unknown> | undefined {
+  const schema = mcpOutputSchemas[name];
+  if (!schema) return undefined;
+  let result = schemas.get(name);
+  if (!result) {
+    result = {
+      ...z.toJSONSchema(z.union([schema, errorSchema])),
+      type: "object",
+    };
+    schemas.set(name, result);
+  }
+  return result;
+}

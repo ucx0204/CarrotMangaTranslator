@@ -2,7 +2,7 @@ import { createMcpJobRecoveryTools } from "./mcpJobRecoveryTools";
 import { z } from "zod";
 import type {
   McpOperationService,
-  McpOperationContext,
+  McpOperationExecutor,
 } from "../application/mcpOperationService";
 import { McpEditError } from "../application/mcpEditPolicy";
 import {
@@ -21,10 +21,6 @@ const targetSchema = z
   })
   .strict();
 export type McpOperationTarget = z.infer<typeof targetSchema>;
-export type McpOperationExecutor = (
-  target: McpOperationTarget,
-  context: McpOperationContext,
-) => Promise<Record<string, unknown>>;
 export function createMcpOperationTools(
   operations: McpOperationService,
   executors: {

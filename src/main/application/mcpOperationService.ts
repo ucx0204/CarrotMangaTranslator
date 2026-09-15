@@ -9,6 +9,7 @@ import {
   mcpJobTargetSchema,
   type McpJobPersistence,
   type McpStoredJob,
+  type McpStoredJobTarget,
 } from "./mcpJobJournal";
 
 type Progress = { phase: string; completed?: number; total?: number };
@@ -19,6 +20,11 @@ export type McpOperationContext = {
   assertAuthorized: () => void;
   progress: (value: Progress) => void;
 };
+export type McpOperationExecutor = (
+  target: McpStoredJobTarget,
+  context: McpOperationContext,
+) => Promise<Record<string, unknown>>;
+
 type Start = {
   owner: string;
   requestId: string;

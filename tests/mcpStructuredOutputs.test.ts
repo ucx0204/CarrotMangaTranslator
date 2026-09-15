@@ -1,3 +1,4 @@
+import { mcpToolOutputSchema } from "../src/main/mcp/mcpOutputSchemas";
 import { expect, it, vi } from "vitest";
 import { handleMcpMessage } from "../src/main/mcp/mcpProtocol";
 import {
@@ -6,10 +7,7 @@ import {
   type McpTool,
 } from "../src/main/mcp/mcpReadTools";
 import { mcpOutputSchemas } from "../src/main/mcp/mcpOutputSchemas";
-import {
-  mcpToolOutputSchema,
-  mcpToolResult,
-} from "../src/main/mcp/mcpToolResult";
+import { mcpToolResult } from "../src/main/mcp/mcpToolResult";
 import { McpEditError } from "../src/main/application/mcpEditPolicy";
 import { McpOperationService } from "../src/main/application/mcpOperationService";
 import { createMcpOperationTools } from "../src/main/mcp/mcpOperationTools";

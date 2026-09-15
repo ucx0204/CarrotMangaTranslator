@@ -9,7 +9,7 @@ import { McpEditError } from "../application/mcpEditPolicy";
 import { argumentObject, McpInvalidParams } from "./mcpArguments";
 import { describeMcpTool, invokeMcpTool, type McpTool } from "./mcpReadTools";
 
-export const MCP_PROTOCOL_VERSIONS = [
+const MCP_PROTOCOL_VERSIONS = [
   MCP_MODERN_VERSION,
   "2025-11-25",
   "2025-06-18",

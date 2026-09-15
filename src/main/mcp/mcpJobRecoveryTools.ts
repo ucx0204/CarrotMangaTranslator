@@ -1,7 +1,9 @@
 import { z } from "zod";
-import type { McpOperationService } from "../application/mcpOperationService";
+import type {
+  McpOperationService,
+  McpOperationExecutor,
+} from "../application/mcpOperationService";
 import { McpEditError } from "../application/mcpEditPolicy";
-import type { McpOperationExecutor } from "./mcpOperationTools";
 import {
   allowArguments,
   readWindow,

@@ -1,4 +1,4 @@
-import { mcpToolOutputSchema } from "./mcpToolResult";
+import { mcpToolOutputSchema } from "./mcpOutputSchemas";
 import type { McpLibraryReadService } from "../application/mcpLibraryReadService";
 import {
   allowArguments,
