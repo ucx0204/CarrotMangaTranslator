@@ -945,9 +945,16 @@ it("keeps MCP controls trusted and validated without an enrollment-opening IPC",
 });
 
 async function createMcpControlBoundary() {
-  const [{ registerMcpDesktopIpc }, { McpDesktopService }] = await Promise.all([
+  const [
+    { registerMcpDesktopIpc },
+    { McpDesktopService },
+    { ActiveJobStore },
+    { InpaintingRevisionStore },
+  ] = await Promise.all([
     import("../src/main/ipc/mcpDesktopIpc"),
     import("../src/main/application/mcpDesktopService"),
+    import("../src/main/jobs/activeJob"),
+    import("../src/main/inpainting/inpaintingRevisionStore"),
   ]);
   const savePreferences = vi.fn(async () => undefined);
   const service = new McpDesktopService({
@@ -969,13 +976,16 @@ async function createMcpControlBoundary() {
     setupUrl: () => null,
   });
   const rendererUrl = "http://127.0.0.1:5173/";
-  const context = {
-    mcpDesktop: service,
-    getMainWindow: () => ({
-      isDestroyed: () => false,
-      webContents: { id: 23, getURL: () => rendererUrl },
-    }),
-  } as IpcContext;
+  const context = createIpcContext(
+    new ActiveJobStore(),
+    new InpaintingRevisionStore(),
+  );
+  const window = Object.assign(new BrowserWindow(), {
+    isDestroyed: () => false,
+    webContents: { id: 23, getURL: () => rendererUrl },
+  });
+  context.getMainWindow = () => window;
+  context.mcpDesktop = service;
   registerMcpDesktopIpc(context);
   const local = {
     sender: { id: 23 },
