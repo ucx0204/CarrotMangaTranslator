@@ -13,8 +13,7 @@ export type McpDesktopLease = {
   stopAccepting: () => void;
   close: () => Promise<void>;
   connections: () => McpConnection[];
-  pairingStatus: () => Pick<McpDesktopStatus, "pending" | "pairingUntil">;
-  beginPairing: () => void;
+  pairingStatus: () => Pick<McpDesktopStatus, "pending">;
   resolvePairing: (id: string, approve: boolean) => void;
   revoke: (id: string) => Promise<void>;
 };
@@ -47,7 +46,6 @@ export class McpDesktopService implements McpDesktopControl {
     preferences: { ...DEFAULT_MCP_PREFERENCES },
     pending: [],
     connections: [],
-    pairingUntil: null,
   };
   private lease?: McpDesktopLease;
   private starting?: AbortController;
@@ -101,12 +99,6 @@ export class McpDesktopService implements McpDesktopControl {
         await this.stop();
         if (this.wanted) await this.start();
       }
-      return this.getStatus();
-    });
-  }
-  beginPairing(): Promise<McpDesktopStatus> {
-    return this.enqueue(async () => {
-      this.requireOnline().beginPairing();
       return this.getStatus();
     });
   }
@@ -203,7 +195,6 @@ export class McpDesktopService implements McpDesktopControl {
       message: null,
       setupUrl: null,
       pending: [],
-      pairingUntil: null,
     });
   }
   private connectionLost(): void {

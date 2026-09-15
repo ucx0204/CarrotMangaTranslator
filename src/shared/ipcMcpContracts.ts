@@ -22,7 +22,6 @@ const status = z
     message: z.string().nullable(),
     setupUrl: z.string().url().nullable(),
     preferences: mcpPreferencesSchema,
-    pairingUntil: z.number().nullable(),
     pending: z.array(
       z
         .object({
@@ -87,12 +86,6 @@ export const mcpIpcContracts = {
     apiKey: "configureMcp",
     channel: "mcp:configure",
     args: z.tuple([mcpPreferencesSchema]),
-    result: status,
-  }),
-  beginMcpPairing: defineIpcContract<[], McpDesktopStatus>({
-    apiKey: "beginMcpPairing",
-    channel: "mcp:pairing-open",
-    args: z.tuple([]),
     result: status,
   }),
   resolveMcpPairing: defineIpcContract<[string, boolean], McpDesktopStatus>({

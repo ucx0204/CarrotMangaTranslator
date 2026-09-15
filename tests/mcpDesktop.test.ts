@@ -9,8 +9,15 @@ import {
   assertTailscaleListenerFree,
   readTailscaleSetupUrl,
 } from "../src/main/mcp/mcpTailscalePolicy";
+import {
+  DEFAULT_MCP_PREFERENCES,
+  type McpPreferences,
+} from "../src/shared/mcpDesktopTypes";
 const prefs = { allowImages: false, allowEditing: false, autoStart: false };
-function setup(open?: (signal: AbortSignal) => Promise<McpDesktopLease>) {
+function setup(
+  open?: (signal: AbortSignal) => Promise<McpDesktopLease>,
+  preferences: McpPreferences = prefs,
+) {
   let stops = 0,
     closes = 0,
     starts = 0,
@@ -24,8 +31,7 @@ function setup(open?: (signal: AbortSignal) => Promise<McpDesktopLease>) {
     close: async () => {
       closes++;
     },
-    pairingStatus: () => ({ pairingUntil: null, pending: [] }),
-    beginPairing: () => undefined,
+    pairingStatus: () => ({ pending: [] }),
     resolvePairing: () => undefined,
     connections: () => [],
     revoke: async () => undefined,
@@ -36,7 +42,7 @@ function setup(open?: (signal: AbortSignal) => Promise<McpDesktopLease>) {
     revokeSaved: async () => {},
     diagnose: async () => ({ ok: true, checks: [] }),
     setupUrl: () => null,
-    preferences: async () => ({ ...prefs }),
+    preferences: async () => ({ ...preferences }),
     savePreferences: async () => {
       saves++;
     },
@@ -53,7 +59,7 @@ function setup(open?: (signal: AbortSignal) => Promise<McpDesktopLease>) {
     counts: () => ({ stops, closes, starts, saves }),
   };
 }
-it("stays off by default, serializes repeated on/off and preserves the fixed address", async () => {
+it("respects saved auto-start opt-out, serializes on/off and preserves the fixed address", async () => {
   const f = setup();
   await f.service.initialize();
   assert.equal(f.counts().starts, 0);
@@ -109,7 +115,7 @@ it("reports a real startup failure rather than a false online state", async () =
   const status = await f.service.setEnabled(true);
   assert.equal(status.state, "error");
   assert.match(status.message ?? "", /Tailscale/);
-  await assert.rejects(f.service.beginPairing());
+  await assert.rejects(f.service.resolvePairing("not-online", true));
   await f.service.dispose();
 });
 it("only accepts online Tailscale node identities", () => {
@@ -143,4 +149,16 @@ it("accepts empty sharing status and rejects occupied foreground/background HTTP
     readTailscaleSetupUrl("https://login.tailscale.com.evil.example/foo"),
     undefined,
   );
+});
+
+it("starts once using all checked first-use preferences and still requires local approval", async () => {
+  const f = setup(undefined, { ...DEFAULT_MCP_PREFERENCES });
+  await f.service.initialize();
+  const result = await f.service.setEnabled(true);
+  assert.equal(result.state, "online");
+  assert.equal(f.counts().starts, 1);
+  assert.deepEqual(result.connections, []);
+  assert.deepEqual(result.pending, []);
+  assert.equal(Object.values(result.preferences).every(Boolean), true);
+  await f.service.dispose();
 });

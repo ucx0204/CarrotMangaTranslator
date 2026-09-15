@@ -6,7 +6,6 @@ export const mcpGateway = createMangaDomainGateway("AI connection / MCP", [
   "getMcpStatus",
   "setMcpEnabled",
   "configureMcp",
-  "beginMcpPairing",
   "resolveMcpPairing",
   "revokeMcpConnection",
   "diagnoseMcp",

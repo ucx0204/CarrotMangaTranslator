@@ -33,7 +33,6 @@ export type McpDesktopStatus = {
   message: string | null;
   setupUrl: string | null;
   preferences: McpPreferences;
-  pairingUntil: number | null;
   pending: McpPairingRequest[];
   connections: McpConnection[];
 };
@@ -46,7 +45,6 @@ export type McpDesktopControl = {
   getStatus: () => Promise<McpDesktopStatus>;
   setEnabled: (enabled: boolean) => Promise<McpDesktopStatus>;
   configure: (preferences: McpPreferences) => Promise<McpDesktopStatus>;
-  beginPairing: () => Promise<McpDesktopStatus>;
   resolvePairing: (id: string, approve: boolean) => Promise<McpDesktopStatus>;
   revokeConnection: (id: string) => Promise<McpDesktopStatus>;
   diagnose: () => Promise<McpDiagnostics>;

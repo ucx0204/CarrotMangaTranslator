@@ -31,26 +31,56 @@ function fixture(now = Date.now) {
   };
   return { provider, session, pairing, input };
 }
-it("requires an app-opened pairing window and omits browser secrets from desktop status", () => {
+it("accepts new connections at startup and after long idle without a timed enrollment window", () => {
   let now = 1000;
   const f = fixture(() => now);
-  assert.throws(() => f.pairing.begin(f.input));
-  f.pairing.open();
   const pending = f.pairing.begin(f.input);
+  assert.match(pending.code, /^\d{6}$/);
   assert.equal(
     JSON.stringify(f.pairing.status()).includes(pending.cookie),
     false,
   );
   assert.equal(JSON.stringify(f.pairing.status()).includes(password), false);
-  now += 300001;
-  assert.throws(() => f.pairing.begin(f.input));
+  assert.equal(f.provider.connections().length, 0);
+  now += 24 * 60 * 60_000;
   assert.equal(f.pairing.status().pending.length, 0);
+  assert.throws(() => f.pairing.resolve(pending.transaction, true));
+  assert.throws(() => f.pairing.complete(pending.transaction, pending.cookie));
+  const next = f.pairing.begin(f.input);
+  assert.equal(f.pairing.poll(next.transaction, next.cookie), "pending");
+  assert.equal(f.provider.connections().length, 0);
+});
+it("bounds pending requests and frees expired slots without disabling new enrollment", () => {
+  let now = 1000;
+  const f = fixture(() => now);
+  for (let index = 0; index < 8; index++) f.pairing.begin(f.input);
+  assert.equal(f.pairing.status().pending.length, 8);
+  assert.throws(() => f.pairing.begin(f.input), { status: 429 });
+  now += 300001;
+  assert.equal(f.pairing.status().pending.length, 0);
+  const pending = f.pairing.begin(f.input);
+  assert.equal(f.pairing.poll(pending.transaction, pending.cookie), "pending");
+});
+it("closes enrollment and discards pending approvals when MCP stops", () => {
+  const f = fixture();
+  const pending = f.pairing.begin(f.input);
+  f.pairing.close();
+  assert.equal(f.pairing.status().pending.length, 0);
+  assert.throws(() => f.pairing.begin(f.input), { status: 403 });
+  assert.throws(() => f.pairing.assertAccepting(), { status: 403 });
+  assert.throws(() => f.pairing.resolve(pending.transaction, true));
+  assert.throws(() => f.pairing.complete(pending.transaction, pending.cookie));
+  assert.equal(f.provider.connections().length, 0);
 });
 it("needs local approval AND the original browser cookie; restart cancels pending requests", async () => {
   const f = fixture();
-  f.pairing.open();
   const pending = f.pairing.begin(f.input);
   assert.equal(f.pairing.poll(pending.transaction, pending.cookie), "pending");
+  assert.throws(() => f.pairing.complete(pending.transaction, pending.cookie), {
+    status: 403,
+  });
+  assert.throws(() => f.pairing.resolve(pending.code, true));
+  assert.equal(f.provider.connections().length, 0);
   f.pairing.resolve(pending.transaction, true);
   assert.throws(() => f.pairing.poll(pending.transaction, "wrong-cookie"));
   const result = await f.session.run(() =>
@@ -63,7 +93,6 @@ it("needs local approval AND the original browser cookie; restart cancels pendin
 });
 it("local rejection returns state and access_denied without creating a grant", async () => {
   const f = fixture();
-  f.pairing.open();
   const pending = f.pairing.begin(f.input);
   f.pairing.resolve(pending.transaction, false);
   const result = new URL(
@@ -78,7 +107,6 @@ it("local rejection returns state and access_denied without creating a grant", a
 });
 it("serves password-free HTML and disables browser password approval over real HTTP", async () => {
   const f = fixture();
-  f.pairing.open();
   const server = await startMcpHttpServer({
     config: { port: 0, token: "t".repeat(43), publicOrigin: issuer },
     tools: [],

@@ -152,7 +152,7 @@ export class McpOAuthHttp {
     response: ServerResponse,
   ): Promise<void> {
     if (path === "/oauth/register") {
-      this.managed?.pairing.assertOpen();
+      this.managed?.pairing.assertAccepting();
       requireContentType(request, "application/json");
       const input = oauthRecord(await readMcpBody(request));
       sendJson(

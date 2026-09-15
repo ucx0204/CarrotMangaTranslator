@@ -193,23 +193,16 @@ function McpConnections({
     >
       <div className={styles.actions}>
         <Button
-          disabled={status.state !== "online" || busy}
-          onClick={() => void run(() => mcpGateway.beginMcpPairing())}
-        >
-          새 연결 허용 · 5분
-        </Button>
-        <Button
           onClick={() => void run(() => mcpGateway.openMcpHelp("chatgpt"))}
         >
           ChatGPT 열기
         </Button>
       </div>
-      {status.pairingUntil && (
-        <p>
-          새 연결 요청을 받고 있습니다. 브라우저와 아래 확인 코드가 같은 요청만
-          승인하세요.
-        </p>
-      )}
+      <p role="status">
+        {status.state === "online"
+          ? "MCP가 켜져 있는 동안 새 연결 요청을 항상 받습니다. 브라우저와 아래 숫자 코드가 같은 요청만 앱에서 승인하세요. 승인 전에는 접근 권한이 없습니다."
+          : "MCP를 켜면 새 연결 요청을 받습니다. 숫자 코드를 확인하고 앱에서 승인해야 연결됩니다."}
+      </p>
       {status.pending.map((request) => (
         <div key={request.id} className={styles.connection}>
           <strong>확인 코드: {request.code}</strong>

@@ -9,28 +9,27 @@ type Pending = McpPairingRequest & {
 };
 
 /** Local approval is deliberately not an MCP tool. A browser must retain its own
- * HttpOnly cookie and PKCE verifier; the display code alone grants no access. */
+ * HttpOnly cookie and PKCE verifier; the display code alone grants no access.
+ * Accept new requests throughout this running session, not in a timed enrollment
+ * window. Individual browser transactions still expire and capacity is bounded. */
 export class McpPairingBroker {
-  private until = 0;
+  private closed = false;
   private readonly requests = new Map<string, Pending>();
   constructor(
     private readonly provider: McpOAuthProvider,
     private readonly secret: string,
     private readonly now: () => number = Date.now,
   ) {}
-  open(): void {
-    this.until = this.now() + 5 * 60_000;
-  }
-  assertOpen(): void {
-    if (this.until <= this.now())
+  assertAccepting(): void {
+    if (this.closed)
       throw new McpOAuthError(
         "access_denied",
-        "Open Settings > AI connection > Allow a new connection in the Carrot app first.",
+        "The MCP server is stopped. Turn it on in the Carrot app to connect.",
         403,
       );
   }
   begin(input: Record<string, unknown>) {
-    this.assertOpen();
+    this.assertAccepting();
     this.prune();
     if (this.requests.size >= 8)
       throw new McpOAuthError(
@@ -54,7 +53,6 @@ export class McpPairingBroker {
   status() {
     this.prune();
     return {
-      pairingUntil: this.until > this.now() ? this.until : null,
       pending: [...this.requests.values()]
         .filter((item) => item.decision === "pending")
         .map(({ cookie: _cookie, decision: _decision, ...item }) => item),
@@ -91,7 +89,7 @@ export class McpPairingBroker {
     );
   }
   close(): void {
-    this.until = 0;
+    this.closed = true;
     this.requests.clear();
   }
   private requireBrowser(id: string, cookie: string): Pending {

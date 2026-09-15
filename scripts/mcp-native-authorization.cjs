@@ -95,7 +95,6 @@ async function checkNativeAuthorization(dataRoot) {
 
 /** @param {{session: {run: <T>(action: () => T) => Promise<T>}, provider: {register: (input: object) => {client_id: string}, token: (input: object) => {access_token: string, refresh_token: string}}, pairing: {open: () => void, begin: (input: object) => {transaction: string, cookie: string}, resolve: (id: string, approve: boolean) => void, complete: (id: string, cookie: string) => string}}} auth */
 async function approveFixture(auth) {
-  auth.pairing.open();
   const client = await auth.session.run(() =>
     auth.provider.register({
       client_name: "Isolated native authorization test",

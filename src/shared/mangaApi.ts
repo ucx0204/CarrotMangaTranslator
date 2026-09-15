@@ -162,7 +162,6 @@ type McpApi = {
   configureMcp: (
     value: import("./mcpDesktopTypes").McpPreferences,
   ) => Promise<import("./mcpDesktopTypes").McpDesktopStatus>;
-  beginMcpPairing: () => Promise<import("./mcpDesktopTypes").McpDesktopStatus>;
   resolveMcpPairing: (
     id: string,
     approve: boolean,

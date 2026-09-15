@@ -24,9 +24,6 @@ export function registerMcpDesktopIpc(context: IpcContext): void {
     mcpIpcContracts.configureMcp,
     (_event, value) => requireService(context).configure(value),
   );
-  trustedHandleContract(context, mcpIpcContracts.beginMcpPairing, () =>
-    requireService(context).beginPairing(),
-  );
   trustedHandleContract(
     context,
     mcpIpcContracts.resolveMcpPairing,

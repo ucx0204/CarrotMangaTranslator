@@ -10,7 +10,10 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { McpDesktopStatus } from "../src/shared/mcpDesktopTypes";
+import {
+  DEFAULT_MCP_PREFERENCES,
+  type McpDesktopStatus,
+} from "../src/shared/mcpDesktopTypes";
 import type { McpPageChangedEvent } from "../src/shared/mcpEditingTypes";
 import { useMcpSettings } from "../src/renderer/src/components/settingsModal/useMcpSettings";
 import { McpSettingsView } from "../src/renderer/src/components/settingsModal/McpSettingsPanel";
@@ -31,7 +34,6 @@ function status(): McpDesktopStatus {
     message: null,
     setupUrl: null,
     preferences: { allowImages: false, allowEditing: false, autoStart: false },
-    pairingUntil: null,
     pending: [],
     connections: [],
   };
@@ -99,6 +101,7 @@ it("approves the selected comparison code through the app, without a password fi
   window.mangaApi = createTestMangaGatewayStub({ resolveMcpPairing });
   show(current);
   expect(screen.getByText(/739412/)).toBeTruthy();
+  expect(resolveMcpPairing).not.toHaveBeenCalled();
   expect(screen.getByText("요청 권한: 보관함·텍스트 조회")).toBeTruthy();
   expect(document.querySelector('input[type="password"]')).toBeNull();
   fireEvent.click(
@@ -267,4 +270,18 @@ it("renders human-readable permissions and preserves unrecognized scope text saf
   ).toBeTruthy();
   expect(screen.getByText("<img src=x>")).toBeTruthy();
   expect(document.querySelector("img")).toBeNull();
+});
+
+it("shows all first-use options checked and receives requests online without an enrollment button", () => {
+  const current = { ...status(), preferences: { ...DEFAULT_MCP_PREFERENCES } };
+  const view = show(current);
+  const options = screen.getAllByRole("checkbox") as HTMLInputElement[];
+  expect(options).toHaveLength(4);
+  expect(options.every((option) => option.checked)).toBe(true);
+  expect(screen.queryByRole("button", { name: /새 연결 허용/ })).toBeNull();
+  expect(screen.getByText(/새 연결 요청을 항상 받습니다/)).toBeTruthy();
+  view.unmount();
+  show({ ...current, state: "off" });
+  expect(screen.queryByText(/새 연결 요청을 항상 받습니다/)).toBeNull();
+  expect(screen.getByText(/MCP를 켜면 새 연결 요청을 받습니다/)).toBeTruthy();
 });

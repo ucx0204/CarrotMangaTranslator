@@ -91,7 +91,6 @@ async function openDesktop(options: DesktopOptions): Promise<McpDesktopLease> {
       close: () => closeOwnedConnection(server, tunnel, pageOperations),
       connections: () => auth.provider.connections(),
       pairingStatus: () => auth.pairing.status(),
-      beginPairing: () => auth.pairing.open(),
       resolvePairing: (id, approve) => auth.pairing.resolve(id, approve),
       revoke: (id) =>
         auth.session.run(() => auth.provider.revokeConnection(id)),

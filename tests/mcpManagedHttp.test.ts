@@ -91,7 +91,6 @@ async function register(f: Fixture) {
   });
 }
 async function begin(f: Fixture, scope = "carrot.read offline_access") {
-  f.pairing.open();
   const registered = await register(f);
   assert.equal(registered.status, 201);
   const client = await registered.json();
@@ -151,10 +150,11 @@ function rpc(f: Fixture, token: string, method = "tools/list", params = {}) {
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
 }
-it("requires a locally opened window, browser cookie and app approval, never a remote password", async () => {
+it("accepts enrollment without a timer but still requires browser cookie and app approval", async () => {
   const f = await fixture();
   try {
-    assert.equal((await register(f)).status, 403);
+    assert.equal((await register(f)).status, 201);
+    assert.equal(f.provider.connections().length, 0);
     const b = await begin(f);
     for (const headers of [
       { Cookie: b.headers.Cookie },
@@ -175,6 +175,19 @@ it("requires a locally opened window, browser cookie and app approval, never a r
       (await f.send("/oauth/approve", { method: "POST", ...b })).status,
       403,
     );
+    const guessedCode = await f.send("/oauth/token", {
+      method: "POST",
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        client_id: b.client.client_id,
+        code: b.pending.code,
+        redirect_uri: callback,
+        code_verifier: verifier,
+        resource: `${issuer}/mcp`,
+      }),
+    });
+    assert.equal(guessedCode.status, 400);
+    assert.equal(f.provider.connections().length, 0);
     f.pairing.resolve(b.pending.id, false);
     const done = await f.send("/oauth/complete", { method: "POST", ...b });
     assert.equal(done.status, 303);
@@ -260,7 +273,6 @@ it("rejects direct write calls with read-only grants and stops without deleting 
 it("does not issue successful registration when durable persistence fails", async () => {
   const f = await fixture();
   try {
-    f.pairing.open();
     f.fail();
     assert.equal((await register(f)).status, 500);
     assert.equal(f.session.accepts(`Bearer ${"t".repeat(43)}`), false);

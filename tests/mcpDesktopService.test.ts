@@ -33,10 +33,7 @@ function fixture(
       await closeOverride?.();
     },
     connections: () => [{ ...saved }],
-    pairingStatus: () => ({ pending: [], pairingUntil: null }),
-    beginPairing: () => {
-      events.push("pair");
-    },
+    pairingStatus: () => ({ pending: [] }),
     resolvePairing: () => {
       events.push("approve");
     },
@@ -113,7 +110,7 @@ it("restarts for permission changes but does not revoke approval and supports of
   await f.service.setEnabled(false);
   await f.service.revokeConnection("a");
   assert.equal((await f.service.getStatus()).connections[0].revoked, true);
-  await assert.rejects(f.service.beginPairing(), /먼저/);
+  await assert.rejects(f.service.resolvePairing("not-online", true), /먼저/);
 });
 it("blocks immediately when its owned tunnel exits, retaining saved authentication", async () => {
   const f = fixture();

@@ -25,7 +25,6 @@ const status: McpDesktopStatus = {
   message: scenario === "error" ? "Tailscale HTTPS 443 포트는 다른 앱이 사용 중입니다. 기존 공유 설정을 덮어쓰지 않습니다." : null,
   setupUrl: null,
   preferences: { allowImages: true, allowEditing: true, allowProcessing: true, autoStart: false },
-  pairingUntil: Date.now() + 300000,
   pending: [{ id: "synthetic", clientName: "ChatGPT 개인 연결 · 확인 코드를 대조하세요", code: "739412", scope: "carrot.read carrot.images carrot.edit carrot.process offline_access", expiresAt: Date.now() + 300000 }],
   connections: [{ id: "approved", clientName: "ChatGPT 이전 승인", scope: "carrot.read", createdAt: Date.now(), revoked: false }],
 };
