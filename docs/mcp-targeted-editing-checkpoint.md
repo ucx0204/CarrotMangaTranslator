@@ -31,3 +31,7 @@ Validate contracts, unauthorized requests, conflict/no-op paths, native adapters
 Single-block erasure is optional `blockId` on the existing `carrot_run_page_erasure`; omitting it preserves the page-wide contract. OCR/PNG reject block selectors.
 
 Next independent capabilities still pending: source-geometry editing, splitting/merging/deletion, area OCR, app text-model execution, mask/history controls, automatic lettering/font matching, context writes/research, chapter batching/ZIP and imports. Server/profile identity, modern protocol and durable receipts/retry were already implemented and were not recreated.
+
+## Coverage evidence
+
+Three new production modules have first measured floors from the Windows V8 run in `.tmp/mcp-targeted-editing-20260915/new-module-coverage/coverage-summary.json`. SHA-256: `53f5448a1a76c29b8a44c5ab2ffbe402336f67cd0ca76ddce53a1af94be222bd`. The focused run passed 37 tests; combined new-module coverage was 100% lines/statements/functions and 97.56% branches. No pre-existing ratio or provenance was changed. The exact added-source inventory increases from 737 to 740. Full check is still pending at this checkpoint.
