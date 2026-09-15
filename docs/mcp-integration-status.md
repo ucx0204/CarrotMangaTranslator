@@ -4,6 +4,10 @@ The only MCP development branch is **`feat/mcp-app-bridge`**, draft PR #96. Do n
 
 [First-page user test](mcp-page-testing.md) · [Connection guide](mcp-tailscale-testing.md) · [Functional contracts](mcp-page-goal.md) · [Coverage evidence](mcp-page-coverage-evidence.md)
 
+## Current pairing and preference behavior
+
+All four first-use preferences are checked: images, translation edits, local processing and auto-start. Existing saved choices and OAuth scopes are preserved. Enrollment is always available while MCP is online, without a five-minute enrollment button. Desktop code comparison and explicit approve/deny are still required; each browser transaction expires, requests are bounded, and stopping the server closes enrollment. This supersedes earlier timed-pairing instructions. See [connection guide](mcp-tailscale-testing.md).
+
 ## Current deliverable: first complete page
 
 Source reads and crops, saved work context, external reading/translation block creation, optional local OCR-only processing, standalone local erasure, current-state app rendering and original-resolution PNG are implemented and published as source. Each is separately callable. The connected AI supplies the translation in this route; no Codex or paid text-model fallback is invoked.

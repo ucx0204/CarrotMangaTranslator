@@ -11,6 +11,7 @@ const { checkNativeAuthorization } = require("./mcp-native-authorization.cjs");
 
 const { checkNativePageGoal } = require("./mcp-native-page.cjs");
 const root = resolve(__dirname, "..");
+const smokePort = process.env.CARROT_MCP_SMOKE_PORT ?? "38475";
 require(join(root, "out/main/imageProtocol.js")).registerImageProtocolScheme();
 const exec = promisify(execFile);
 
@@ -120,7 +121,7 @@ async function checkRuntime(dataRoot) {
     env: {
       CARROT_MCP_ENABLED: "1",
       CARROT_MCP_TOKEN: token,
-      CARROT_MCP_PORT: "38475",
+      CARROT_MCP_PORT: smokePort,
       CARROT_MCP_ALLOW_IMAGES: "1",
       CARROT_MCP_PUBLIC_ORIGIN: issuer,
       CARROT_MCP_OAUTH_ENABLED: "1",
@@ -147,7 +148,7 @@ async function checkRuntime(dataRoot) {
     if (target) {
       tunnel = await tailscale.openTailscale(
         target,
-        38475,
+        Number(smokePort),
         AbortSignal.timeout(30_000),
         () => runtime.stopAccepting(),
       );

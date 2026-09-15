@@ -9,7 +9,7 @@ const root = resolve(__dirname, "..");
 // come from production components; the repository's QA runner supplies the bridge.
 const fixture = `import React from "react";
 import { createRoot } from "react-dom/client";
-import type { McpDesktopStatus } from "../../shared/mcpDesktopTypes";
+import { DEFAULT_MCP_PREFERENCES, type McpDesktopStatus } from "../../shared/mcpDesktopTypes";
 import { McpSettingsView } from "../src/components/settingsModal/McpSettingsPanel";
 import { SettingsTabs } from "../src/components/settingsModal/SettingsTabs";
 import { Modal } from "../src/components/ui/Modal";
@@ -24,7 +24,7 @@ const status: McpDesktopStatus = {
   url: "https://carrot-manga-translator-desktop-device.tail-user-network.ts.net/mcp",
   message: scenario === "error" ? "Tailscale HTTPS 443 포트는 다른 앱이 사용 중입니다. 기존 공유 설정을 덮어쓰지 않습니다." : null,
   setupUrl: null,
-  preferences: { allowImages: true, allowEditing: true, allowProcessing: true, autoStart: false },
+  preferences: { ...DEFAULT_MCP_PREFERENCES },
   pending: [{ id: "synthetic", clientName: "ChatGPT 개인 연결 · 확인 코드를 대조하세요", code: "739412", scope: "carrot.read carrot.images carrot.edit carrot.process offline_access", expiresAt: Date.now() + 300000 }],
   connections: [{ id: "approved", clientName: "ChatGPT 이전 승인", scope: "carrot.read", createdAt: Date.now(), revoked: false }],
 };
@@ -38,6 +38,9 @@ function audit() {
       rect.left < -1 || rect.top < -1 || rect.right > innerWidth + 1 || rect.bottom > innerHeight + 1 ||
       panel.scrollWidth > panel.clientWidth + 1) throw new Error("MCP settings overflow the viewport");
   if (document.querySelector('input[type="password"]')) throw new Error("Unexpected pairing password control");
+  if ([...document.querySelectorAll("button")].some(item => item.textContent?.includes("새 연결 허용"))) throw new Error("Retired enrollment timer button is still present");
+  const options = [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+  if (options.length !== 4 || options.some(item => !item.checked)) throw new Error("First-use defaults must all be checked");
   for (const input of document.querySelectorAll('input[type="checkbox"]')) {
     const label = input.closest("label");
     const text = label?.querySelector("span");
