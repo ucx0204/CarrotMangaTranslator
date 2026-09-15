@@ -284,3 +284,29 @@ it("validates record identity and removes only expired settled receipts on resta
   expect(restored.list("grant-a", 0, 10).total).toBe(0);
   await restored.close();
 });
+
+it("blocks future admission when malformed final receipt data cannot be serialized", async () => {
+  const store = storage();
+  const service = new McpOperationService(() => {}, Date.now, store);
+  const receipt = await service.start({
+    ...input(),
+    execute: async () => ({ blocksErased: -1 }),
+  });
+  expect((await settled(service, receipt.jobId)).error?.code).toBe(
+    "journal_unavailable",
+  );
+  await expect(service.start(input())).rejects.toThrow(
+    /storage is unavailable/,
+  );
+  await service.close();
+});
+it("does not label an explicitly failed app result completed", async () => {
+  const store = storage();
+  const service = new McpOperationService(() => {}, Date.now, store);
+  const receipt = await service.start({
+    ...input(),
+    execute: async () => ({ status: "failed" }),
+  });
+  expect((await settled(service, receipt.jobId)).status).toBe("failed");
+  await service.close();
+});

@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 import { hashStableValue } from "../../shared/blockFingerprint";
 
-const id = z.string().min(1).max(128);
+const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
 const timestamp = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const count = z.number().int().nonnegative();
 export const MCP_JOB_RETENTION_MS = 7 * 24 * 60 * 60_000;
@@ -101,7 +101,8 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
       requests.has(key) ||
       record.fingerprint !==
         hashStableValue([record.kind, record.parameters]) ||
-      record.requestId !== record.parameters.requestId
+      record.requestId !== record.parameters.requestId ||
+      (record.status === "running") !== (record.finishedAt === undefined)
     )
       throw new Error("Invalid duplicate or inconsistent MCP job journal.");
     ids.add(record.id);

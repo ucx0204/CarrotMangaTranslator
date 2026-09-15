@@ -40,7 +40,7 @@ type RecordEntry = Omit<McpStoredJob, "parameters" | "kind" | "result"> & {
 export class McpOperationService {
   private readonly entries = new Map<string, RecordEntry>();
   private stopped = false;
-  private fault: unknown;
+  private fault?: Error;
   private initialization?: Promise<void>;
   private admissions: Promise<unknown> = Promise.resolve();
   private writes: Promise<void> = Promise.resolve();
@@ -202,7 +202,9 @@ export class McpOperationService {
           ? "cancelled"
           : entry.result.status === "partial"
             ? "partial"
-            : "completed";
+            : entry.result.status === "failed"
+              ? "failed"
+              : "completed";
     } catch (error) {
       entry.status = entry.controller.signal.aborted ? "cancelled" : "failed";
       entry.error =
@@ -299,39 +301,26 @@ export class McpOperationService {
   private async commit(): Promise<void> {
     const persistence = this.persistence;
     if (!persistence) return;
-    const records = [...this.entries.values()].map((entry) => ({
-      id: entry.id,
-      owner: entry.owner,
-      requestId: entry.requestId,
-      fingerprint: entry.fingerprint,
-      kind: entry.kind,
-      parameters: entry.parameters,
-      status: entry.status,
-      progress: entry.progress,
-      result: persistedMcpJobResult(entry.result),
-      error: entry.error,
-      startedAt: entry.startedAt,
-      finishedAt: entry.finishedAt,
-      cancellationRequested:
-        entry.cancellationRequested || entry.controller.signal.aborted,
-    }));
-    const snapshot = {
-      version: 1,
-      records: parseMcpJobJournal({ version: 1, records }),
-    };
-    const writing = this.writes.then(() => {
-      if (this.fault) throw this.fault;
-      return persistence.save(snapshot);
-    });
-    this.writes = writing.catch(() => undefined);
     try {
+      const snapshot = snapshotEntries(this.entries.values());
+      const writing = this.writes.then(() => {
+        if (this.fault) throw this.fault;
+        return persistence.save(snapshot);
+      });
+      // A failed queue tail remains awaitable for shutdown. The original writer
+      // still rejects, while all future writes and executor commits fail closed.
+      this.writes = writing.catch((error) => this.storageFailed(error));
       await writing;
     } catch (error) {
-      this.fault = error;
-      for (const entry of this.entries.values())
-        if (!entry.settled) entry.controller.abort();
+      this.storageFailed(error);
       throw error;
     }
+  }
+  private storageFailed(error: unknown): void {
+    this.fault ??=
+      error instanceof Error ? error : new Error("MCP job storage failed.");
+    for (const entry of this.entries.values())
+      if (!entry.settled) entry.controller.abort();
   }
 }
 function restoreEntry(record: McpStoredJob, now: number): RecordEntry {
@@ -356,4 +345,24 @@ function restoreEntry(record: McpStoredJob, now: number): RecordEntry {
     settled: true,
     done: Promise.resolve(),
   };
+}
+
+function snapshotEntries(entries: Iterable<RecordEntry>) {
+  const records = [...entries].map((entry) => ({
+    id: entry.id,
+    owner: entry.owner,
+    requestId: entry.requestId,
+    fingerprint: entry.fingerprint,
+    kind: entry.kind,
+    parameters: entry.parameters,
+    status: entry.status,
+    progress: entry.progress,
+    result: persistedMcpJobResult(entry.result),
+    error: entry.error,
+    startedAt: entry.startedAt,
+    finishedAt: entry.finishedAt,
+    cancellationRequested:
+      entry.cancellationRequested || entry.controller.signal.aborted,
+  }));
+  return { version: 1, records: parseMcpJobJournal({ version: 1, records }) };
 }
