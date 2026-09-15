@@ -1,3 +1,4 @@
+import { createMcpServerInfoTool } from "../src/main/mcp/mcpServerInfoTool";
 import { mcpToolOutputSchema } from "../src/main/mcp/mcpOutputSchemas";
 import { expect, it, vi } from "vitest";
 import { handleMcpMessage } from "../src/main/mcp/mcpProtocol";
@@ -142,4 +143,27 @@ it("describes cancellation, OCR, removal and export independently", () => {
     readOnlyHint: true,
     openWorldHint: false,
   });
+});
+
+it("returns schema-validated server identity without disclosing paths or authorizing a copied data profile", async () => {
+  const info = {
+    serverId: "a".repeat(64),
+    dataProfileId: "b".repeat(64),
+    runtimeId: "11111111-1111-4111-8111-111111111111",
+    startedAt: 1000,
+    appVersion: "2.7.7",
+    resource: "https://carrot.test.ts.net/mcp",
+    mode: "development" as const,
+  };
+  const tool = createMcpServerInfoTool(info);
+  const reply = mcpToolResult(tool, await tool.invoke({}));
+  expect(reply.isError).toBe(false);
+  expect(reply.structuredContent).toMatchObject({
+    ...info,
+    protocolVersion: "2026-07-28",
+    autoTransferAuthorization: false,
+    authorizationStorage: "os-encrypted-app-data-root",
+  });
+  expect(JSON.stringify(reply)).not.toContain("localToken");
+  await expect(tool.invoke({ path: "C:/private" })).rejects.toThrow();
 });

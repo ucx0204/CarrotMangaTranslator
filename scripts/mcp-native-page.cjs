@@ -1,4 +1,8 @@
 const assert = require("node:assert/strict");
+const {
+  jobPersistence,
+  checkNativeJobHistory,
+} = require("./mcp-native-job-history.cjs");
 const { randomUUID } = require("node:crypto");
 const { readFile, writeFile } = require("node:fs/promises");
 const { join } = require("node:path");
@@ -113,11 +117,13 @@ async function checkNativePageGoal(root) {
   };
   const session = createMcpPageOperationSession({
     origin: "https://carrot-native.example",
+    jobPersistence: jobPersistence(root),
     preferences,
     app,
     editing,
     reportError: (/** @type {unknown} */ error) => console.error(error),
   });
+  await session.ready();
   const tools = createMcpAppTools({
     ...editing,
     preferences,
@@ -162,10 +168,8 @@ async function checkNativePageGoal(root) {
       revision: createPageRevision(erased),
       requestId: randomUUID(),
     });
-    const result = await waitForOutput(
-      invoke,
-      JSON.parse(started[0].text).jobId,
-    );
+    const jobId = JSON.parse(started[0].text).jobId;
+    const result = await waitForOutput(invoke, jobId);
     const bytes = await session.artifacts.read(
       new URL(result.url).pathname.split("/")[2],
     );
@@ -184,6 +188,8 @@ async function checkNativePageGoal(root) {
     await assert.rejects(() =>
       session.artifacts.read(new URL(result.url).pathname.split("/")[2]),
     );
+    await session.close();
+    await checkNativeJobHistory(root, jobId, result.url);
     console.log(
       "PASS native external blocks -> app masks/local-engine boundary -> real renderer -> original-resolution PNG -> revoked link",
     );

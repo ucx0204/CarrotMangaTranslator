@@ -43,6 +43,7 @@ async function checkNativeAuthorization(dataRoot) {
   ])
     assert.equal(encrypted.includes(value), false);
   const second = await create().open(issuer, preferences);
+  assert.deepEqual(second.identity, first.identity);
   let renewed;
   let grantId;
   try {

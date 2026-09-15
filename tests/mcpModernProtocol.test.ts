@@ -1,3 +1,4 @@
+import { handleMcpMessage } from "../src/main/mcp/mcpProtocol";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   startMcpHttpServer,
@@ -199,4 +200,167 @@ it("rejects duplicate headers and invalid client identity at the transport-indep
     ),
   ).toThrow(/identity/);
   expect(validateMcpEnvelope(request, undefined, [version])).toBe(true);
+});
+
+it("returns precise request errors for malformed stateless envelopes and requests", async () => {
+  const f = await fixture();
+  expect(
+    (await f.call("tools/list", { cursor: "unsupported" })).body.error.code,
+  ).toBe(-32602);
+  expect(
+    (await f.call("tools/call", { name: "unknown" })).body.error.code,
+  ).toBe(-32602);
+  expect(
+    (await f.call("tools/call", { name: "carrot_list_works", arguments: null }))
+      .body.error.code,
+  ).toBe(-32602);
+  expect((await f.call("tools/list", { _meta: {} })).body.error.code).toBe(
+    -32020,
+  );
+  expect(() =>
+    validateMcpEnvelope({ method: "server/discover" }, undefined, [version]),
+  ).toThrow(/metadata/);
+  expect(() =>
+    validateMcpEnvelope(
+      { method: "tools/list" },
+      { "mcp-protocol-version": ["2099-01-01"] },
+      [version],
+    ),
+  ).toThrow(/Unsupported/);
+  expect(() =>
+    validateMcpEnvelope(
+      { method: "tools/call", params: { _meta: meta, name: "x" } },
+      {
+        "mcp-protocol-version": [version],
+        "mcp-method": ["tools/call"],
+        "mcp-name": ["=?base64?YR==?="],
+      },
+      [version],
+    ),
+  ).toThrow();
+  expect(() =>
+    validateMcpEnvelope(
+      { method: "tools/call", params: { _meta: meta, name: "x" } },
+      {
+        "mcp-protocol-version": [version],
+        "mcp-method": ["tools/call"],
+        "mcp-name": [" x"],
+      },
+      [version],
+    ),
+  ).toThrow();
+  expect(f.invoke).not.toHaveBeenCalled();
+  const silent = () => {};
+  const notification = {
+    jsonrpc: "2.0",
+    method: "notifications/initialized",
+    params: { _meta: meta },
+  };
+  expect((await handleMcpMessage(notification, [], silent)).status).toBe(202);
+  const noId = await handleMcpMessage(
+    { ...notification, method: "server/discover", params: {} },
+    [],
+    silent,
+  );
+  expect(noId.body).toMatchObject({ error: { code: -32602 } });
+  expect(noId.body).not.toHaveProperty("id");
+  expect(
+    (
+      await handleMcpMessage(
+        { jsonrpc: "2.0", id: {}, method: "tools/list" },
+        [],
+        silent,
+      )
+    ).status,
+  ).toBe(400);
+  const noRequestId = await handleMcpMessage(
+    { jsonrpc: "2.0", method: "tools/list" },
+    [],
+    silent,
+  );
+  expect(noRequestId.body).toMatchObject({ error: { code: -32600 } });
+});
+
+it("enforces bounded HTTP concurrency and reports retry guidance without running excess tools", async () => {
+  let finish!: () => void;
+  const blocked = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let entered = 0;
+  const server = await startMcpHttpServer({
+    config: { port: 0, token: "t".repeat(43) },
+    reportError: () => {},
+    tools: [
+      {
+        name: "blocked",
+        description: "fixture",
+        inputSchema: {},
+        invoke: async () => {
+          entered++;
+          await blocked;
+          return textContent({ ok: true });
+        },
+      },
+    ],
+  });
+  servers.push(server);
+  const call = () =>
+    fetch(server.url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${"t".repeat(43)}`,
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "blocked" },
+      }),
+    });
+  const pending = Array.from({ length: 8 }, call);
+  try {
+    for (let i = 0; i < 100 && entered < 8; i++)
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(entered).toBe(8);
+    const excess = await call();
+    expect(excess.status).toBe(429);
+    expect(excess.headers.get("retry-after")).toBe("1");
+    expect(entered).toBe(8);
+  } finally {
+    finish();
+    await Promise.all(pending);
+  }
+});
+it("rejects incomplete OAuth server configuration before binding a listener", async () => {
+  await expect(
+    startMcpHttpServer({
+      config: { port: 0, token: "t".repeat(43), oauthPassword: "p".repeat(43) },
+      tools: [],
+      reportError: () => {},
+    }),
+  ).rejects.toThrow(/HTTPS public origin/);
+});
+it("validates request shape and existing handshake inputs without claiming unsupported capabilities", async () => {
+  const run = (value: unknown) => handleMcpMessage(value, [], () => {});
+  const request = { jsonrpc: "2.0", id: 1, method: "initialize" };
+  for (const params of [
+    { protocolVersion: "2025-11-25", clientInfo: {} },
+    {
+      protocolVersion: "2025-11-25",
+      clientInfo: { name: "client", version: "1" },
+    },
+  ]) {
+    expect((await run({ ...request, params })).body).toMatchObject({
+      error: { code: -32602 },
+    });
+  }
+  expect((await run({ ...request, method: "ping" })).body).toMatchObject({
+    result: {},
+  });
+  expect((await run({ ...request, method: "tools/call" })).body).toMatchObject({
+    error: { code: -32602 },
+  });
+  expect((await run({ ...request, result: {} })).status).toBe(400);
 });

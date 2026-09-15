@@ -295,3 +295,79 @@ it.each([false, true])(
     }
   },
 );
+
+it("validates the original execution permission on a real HTTP job retry", async () => {
+  let fail = true;
+  let runs = 0;
+  const f = await fixture(Date.now, async () => {
+    runs++;
+    if (fail) throw new Error("temporary renderer failure");
+    return { kind: "rendered-page-png" };
+  });
+  try {
+    const a = mint(f.provider, "carrot.read carrot.images offline_access");
+    const target = {
+      chapterId: "chapter",
+      pageId: "page",
+      revision: "page-v1:0000000000000000",
+      requestId: randomUUID(),
+    };
+    const started = await f.call(
+      a.tokens.access_token,
+      "carrot_export_page_png",
+      target,
+    );
+    const id = started.result.structuredContent.jobId;
+    const failed = await awaitJob(f.call, a.tokens.access_token, id);
+    expect(failed.result.structuredContent.status).toBe("failed");
+    const listed = await f.call(a.tokens.access_token, "carrot_list_jobs", {});
+    expect(listed.result.structuredContent.jobs).toHaveLength(1);
+    fail = false;
+    const retry = await f.call(a.tokens.access_token, "carrot_retry_job", {
+      jobId: id,
+      requestId: randomUUID(),
+      revision: target.revision,
+    });
+    expect(retry.result.isError).toBe(false);
+    const done = await awaitJob(
+      f.call,
+      a.tokens.access_token,
+      retry.result.structuredContent.jobId,
+    );
+    expect(done.result.structuredContent.status).toBe("completed");
+    expect(runs).toBe(2);
+    f.session.stop();
+    expect(f.session.scopeForConnection("missing")).toBeUndefined();
+    await expect(f.session.ready()).rejects.toThrow(/unavailable/);
+    await expect(f.session.run(() => {})).rejects.toThrow(/stopped/);
+  } finally {
+    await f.close();
+  }
+});
+it("closes asynchronous grant authority after a durable authorization fault", async () => {
+  const provider = new McpOAuthProvider(origin, secret, Date.now, {
+    persistent: true,
+  });
+  const session = new McpOAuthSession(provider, {
+    save: async () => {
+      throw new Error("disk write failed");
+    },
+  });
+  const linked = mint(provider, "carrot.read offline_access");
+  const owner = provider.connectionIdFor(
+    `Bearer ${linked.tokens.access_token}`,
+  );
+  if (!owner) throw new Error("Expected grant");
+  expect(session.scopeForConnection(owner)).toBe("carrot.read offline_access");
+  await expect(
+    session.run(() => {
+      throw new Error("operation failed too");
+    }),
+  ).rejects.toBeInstanceOf(AggregateError);
+  expect(session.scopeForConnection(owner)).toBeUndefined();
+  await expect(session.ready()).rejects.toThrow(/unavailable/);
+  await session.close();
+  const http = new McpOAuthHttp(origin, secret);
+  expect(http.scopeForConnection("missing")).toBeUndefined();
+  await http.close();
+});

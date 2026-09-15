@@ -8,6 +8,7 @@ const { app, nativeImage } = require("electron");
 const { runMcpWebProbe } = require("./mcp-web-probe.cjs");
 const { runMcpBrowserConsentProbe } = require("./mcp-browser-consent.cjs");
 const { checkNativeAuthorization } = require("./mcp-native-authorization.cjs");
+const { checkNativeModernProtocol } = require("./mcp-native-protocol.cjs");
 
 const { checkNativePageGoal } = require("./mcp-native-page.cjs");
 const root = resolve(__dirname, "..");
@@ -144,6 +145,7 @@ async function checkRuntime(dataRoot) {
   try {
     await runtime.start();
     assert.ok(url.endsWith("/mcp"));
+    await checkNativeModernProtocol(url, token);
     await runMcpWebProbe(url, password, issuer);
     if (target) {
       tunnel = await tailscale.openTailscale(
