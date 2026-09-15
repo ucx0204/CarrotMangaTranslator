@@ -46,7 +46,7 @@ async function call(t: McpTool) {
   };
 }
 it("publishes real 2020-12 output schemas for every existing tool, cached from runtime contracts", () => {
-  expect(Object.keys(mcpOutputSchemas)).toHaveLength(19);
+  expect(Object.keys(mcpOutputSchemas)).toHaveLength(21);
   for (const name of Object.keys(mcpOutputSchemas)) {
     const schema = mcpToolOutputSchema(name);
     expect(schema).toMatchObject({

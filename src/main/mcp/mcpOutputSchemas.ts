@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { McpEditableFieldsSchema } from "../../shared/mcpBlockEditing";
 
 const text = z.string();
 const count = z.number().int().nonnegative();
@@ -19,6 +20,7 @@ const direction = z.enum(["horizontal", "vertical"]);
 const block = z
   .object({
     id: text,
+    fields: McpEditableFieldsSchema.optional(),
     sourceText: text,
     translatedText: text,
     bbox: rect,
@@ -188,6 +190,7 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
       width: size,
       height: size,
       blockOrder: z.array(text).optional(),
+      effectiveBlockOrder: z.array(text).optional(),
       blocks: z.array(block),
     })
     .strict(),
@@ -226,6 +229,24 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
       status: z.enum(["saved", "already_applied"]),
       revision,
       blockIds: z.array(text),
+    })
+    .strict(),
+  carrot_update_page_blocks: z
+    .object({
+      status: z.enum(["saved", "already_applied"]),
+      revision,
+      changedBlockIds: z.array(text),
+      blocks: z.array(block),
+      warnings: z.array(text),
+    })
+    .strict(),
+  carrot_set_page_reading_order: z
+    .object({
+      status: z.enum(["saved", "already_applied"]),
+      revision,
+      changed: flag,
+      blockOrder: z.array(text),
+      previousBlockOrder: z.array(text),
     })
     .strict(),
   carrot_update_translations: z

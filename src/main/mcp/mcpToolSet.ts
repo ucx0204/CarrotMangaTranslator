@@ -18,9 +18,20 @@ export function createMcpToolSet(
   library: McpLibraryReadPort,
   renderApprovedPreview?: PreviewRenderer,
   oauth = false,
-  editing?: { service: McpPageEditService; allowEditing: boolean },
+  editing?: {
+    service: McpPageEditService;
+    allowEditing: boolean;
+    allowProcessing?: boolean;
+  },
   extensions: McpTool[] = [],
 ) {
+  const editTools = editing
+    ? createMcpPageEditTools(
+        editing.service,
+        editing.allowEditing,
+        editing.allowProcessing,
+      )
+    : [];
   const tools = createMcpReadTools(
     new McpLibraryReadService(library),
     renderApprovedPreview !== undefined,
@@ -28,7 +39,7 @@ export function createMcpToolSet(
     {
       readBlocks: !!editing,
       editTranslations: editing?.allowEditing ?? false,
-      additionalTools: extensions.map((tool) => tool.name),
+      additionalTools: [...extensions, ...editTools].map((tool) => tool.name),
     },
   );
   if (renderApprovedPreview) {
@@ -41,10 +52,7 @@ export function createMcpToolSet(
       ),
     );
   }
-  if (editing)
-    tools.push(
-      ...createMcpPageEditTools(editing.service, editing.allowEditing),
-    );
+  tools.push(...editTools);
   tools.push(...extensions);
   return tools.map((tool) => ({ ...tool, oauth }));
 }

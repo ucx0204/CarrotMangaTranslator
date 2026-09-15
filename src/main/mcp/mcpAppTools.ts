@@ -65,7 +65,11 @@ export function createMcpAppTools(options: {
     { listLibrary, openChapter },
     options.preferences.allowImages ? renderMcpPagePreview : undefined,
     true,
-    { service: edits, allowEditing: options.preferences.allowEditing },
+    {
+      service: edits,
+      allowEditing: options.preferences.allowEditing,
+      allowProcessing: options.preferences.allowProcessing,
+    },
     extensions,
   ).map((tool) => ({
     ...tool,

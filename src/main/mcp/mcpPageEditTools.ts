@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createMcpBlockEditingTools } from "./mcpBlockEditingTools";
 import type { McpPageEditService } from "../application/mcpPageEditService";
 import {
   allowArguments,
@@ -31,6 +32,7 @@ const editSchema = z
 export function createMcpPageEditTools(
   service: McpPageEditService,
   allowEditing: boolean,
+  allowProcessing = false,
 ): McpTool[] {
   const tools: McpTool[] = [
     {
@@ -62,6 +64,8 @@ export function createMcpPageEditTools(
     },
   ];
   if (allowEditing) tools.push(translationPatchTool(service));
+  if (allowEditing && allowProcessing)
+    tools.push(...createMcpBlockEditingTools(service));
   return tools;
 }
 

@@ -1,11 +1,19 @@
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
+import type { TranslationBlock } from "../../shared/textTypes";
 import type { McpTranslationPatch } from "../../shared/mcpEditingTypes";
+import type {
+  McpBlockPatch,
+  McpReadingOrder,
+} from "../../shared/mcpBlockEditing";
+import type { PageRevision } from "../../shared/pageRevisionTypes";
 import type { SavePageBlocksRequest } from "../../shared/shareTypes";
 import { createPageRevision } from "../../shared/pageRevision";
+import { resolvePageBlockOrder } from "../../shared/blockReadingOrder";
 import {
   hashTranslationBlocks,
   hashStableValue,
 } from "../../shared/blockFingerprint";
+import { applyMcpBlockPatch, applyMcpReadingOrder } from "./mcpBlockEditPolicy";
 import {
   applyMcpTranslations,
   isMcpSaveConflict,
@@ -22,6 +30,13 @@ type Ports = {
   assertWritable: (chapterId: string, pageId: string) => Promise<void>;
   notifySaved: (chapterId: string, pageId: string) => void;
 };
+type Target = { chapterId: string; pageId: string; revision: string };
+type Change<T> = {
+  blocks: TranslationBlock[];
+  blockOrder?: string[];
+  changed: boolean;
+  result: T;
+};
 export class McpPageEditService {
   constructor(private readonly ports: Ports) {}
   async read(
@@ -29,7 +44,7 @@ export class McpPageEditService {
     pageId: string,
     window: { offset: number; limit: number },
   ) {
-    const page = await this.load(chapterId, pageId);
+    const page = requirePage(await this.ports.openChapter(chapterId), pageId);
     return {
       chapterId,
       pageId,
@@ -37,6 +52,7 @@ export class McpPageEditService {
       width: page.width,
       height: page.height,
       blockOrder: page.blockOrder,
+      effectiveBlockOrder: resolvePageBlockOrder(page),
       total: page.blocks.length,
       offset: window.offset,
       limit: window.limit,
@@ -51,57 +67,131 @@ export class McpPageEditService {
     request: McpTranslationPatch,
     assertAuthorized: () => void = () => {},
   ) {
-    const { chapterId, pageId, revision, edits } = request;
-    assertAuthorized();
-    await this.ports.assertWritable(chapterId, pageId);
-    const page = await this.load(chapterId, pageId);
-    assertAuthorized();
+    const result = await this.mutate(
+      request,
+      assertAuthorized,
+      (_chapter, page) => {
+        const patch = applyMcpTranslations(page, request.edits);
+        return {
+          blocks: patch.blocks,
+          blockOrder: page.blockOrder,
+          changed: patch.previous.length > 0,
+          result: patch.previous,
+        };
+      },
+    );
+    return {
+      status: result.status,
+      revision: createPageRevision(result.page),
+      changed: result.data.length,
+      previousTranslations: result.data,
+    };
+  }
+  async updateBlocks(
+    request: McpBlockPatch,
+    assertAuthorized: () => void = () => {},
+  ) {
+    const result = await this.mutate(
+      request,
+      assertAuthorized,
+      (chapter, page) => {
+        const patch = applyMcpBlockPatch(chapter, page, request.edits);
+        return {
+          blocks: patch.blocks,
+          blockOrder: page.blockOrder,
+          changed: patch.changedBlockIds.length > 0,
+          result: {
+            changedBlockIds: patch.changedBlockIds,
+            warnings: patch.warnings,
+          },
+        };
+      },
+    );
+    const selected = new Set(request.edits.map((edit) => edit.blockId));
+    return {
+      status: result.status,
+      revision: createPageRevision(result.page),
+      ...result.data,
+      blocks: projectMcpBlocks(
+        {
+          ...result.page,
+          blocks: result.page.blocks.filter((block) => selected.has(block.id)),
+        },
+        0,
+        request.edits.length,
+      ),
+    };
+  }
+  async reorder(
+    request: McpReadingOrder,
+    assertAuthorized: () => void = () => {},
+  ) {
+    const result = await this.mutate(
+      request,
+      assertAuthorized,
+      (_chapter, page) => {
+        const patch = applyMcpReadingOrder(page, request);
+        return {
+          blocks: page.blocks,
+          blockOrder: patch.blockOrder,
+          changed: patch.changed,
+          result: {
+            changed: patch.changed,
+            previousBlockOrder: resolvePageBlockOrder(page),
+          },
+        };
+      },
+    );
+    return {
+      status: result.status,
+      revision: createPageRevision(result.page),
+      ...result.data,
+      blockOrder: resolvePageBlockOrder(result.page),
+    };
+  }
+  /** Every mutation uses this same two-stage editor check and commit-time authorization. */
+  private async mutate<T>(
+    target: Target,
+    authorize: () => void,
+    calculate: (chapter: ChapterSnapshot, page: MangaPage) => Change<T>,
+  ) {
+    authorize();
+    await this.ports.assertWritable(target.chapterId, target.pageId);
+    const chapter = await this.ports.openChapter(target.chapterId);
+    const page = requirePage(chapter, target.pageId);
+    authorize();
     if (page.analysisStatus === "running")
       throw new McpEditError(
         "editor_busy",
         "This page has an active app job. Retry after it finishes.",
       );
-    const patch = applyMcpTranslations(page, edits);
-    const current = createPageRevision(page);
-    if (!patch.previous.length)
-      return {
-        status: "already_applied",
-        revision: current,
-        changed: 0,
-        previousTranslations: [],
-      };
-    if (current !== revision)
+    const change = calculate(chapter, page);
+    if (!change.changed)
+      return { status: "already_applied" as const, page, data: change.result };
+    if (createPageRevision(page) !== target.revision)
       throw new McpEditError(
         "revision_conflict",
         "The page changed since it was read. Read it again before editing.",
       );
-    await this.ports.assertWritable(chapterId, pageId);
-    assertAuthorized();
+    await this.ports.assertWritable(target.chapterId, target.pageId);
+    authorize();
     const saved = await this.save(
       {
-        chapterId,
-        pageId,
-        expectedRevision: revision,
+        chapterId: target.chapterId,
+        pageId: target.pageId,
+        expectedRevision: target.revision as PageRevision,
         baseUpdatedAt: page.updatedAt,
         baseBlocksHash: hashTranslationBlocks(page.blocks),
         baseBlockOrderHash: hashStableValue(page.blockOrder ?? null),
-        blocks: patch.blocks,
-        blockOrder: page.blockOrder,
+        blocks: change.blocks,
+        blockOrder: change.blockOrder,
         saveReason: "manual",
       },
-      assertAuthorized,
+      authorize,
     );
-    const updated = requirePage(saved, pageId);
-    this.ports.notifySaved(chapterId, pageId);
-    return {
-      status: "saved",
-      revision: createPageRevision(updated),
-      changed: patch.previous.length,
-      previousTranslations: patch.previous,
-    };
-  }
-  private async load(chapterId: string, pageId: string): Promise<MangaPage> {
-    return requirePage(await this.ports.openChapter(chapterId), pageId);
+    const updated = requirePage(saved, target.pageId);
+    this.ports.notifySaved(target.chapterId, target.pageId);
+    return { status: "saved" as const, page: updated, data: change.result };
   }
   private async save(
     request: SavePageBlocksRequest,

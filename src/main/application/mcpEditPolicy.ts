@@ -1,3 +1,4 @@
+import { projectMcpEditableFields } from "../../shared/mcpBlockEditing";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { McpTranslationPatch } from "../../shared/mcpEditingTypes";
 
@@ -23,6 +24,7 @@ export function projectMcpBlocks(
 ) {
   return page.blocks.slice(offset, offset + limit).map((block) => ({
     id: block.id,
+    fields: projectMcpEditableFields(block),
     sourceText: block.sourceText,
     translatedText: block.translatedText,
     bbox: block.bbox,
