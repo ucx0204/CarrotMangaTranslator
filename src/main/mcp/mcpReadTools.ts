@@ -1,3 +1,4 @@
+import { mcpToolOutputSchema } from "./mcpToolResult";
 import type { McpLibraryReadService } from "../application/mcpLibraryReadService";
 import {
   allowArguments,
@@ -26,6 +27,9 @@ export type McpTool = {
   oauth?: boolean;
   requiredScopes?: readonly string[];
   readOnly?: boolean;
+  destructive?: boolean;
+  idempotent?: boolean;
+  openWorld?: boolean;
   invoke: (
     args: Record<string, unknown>,
     context?: { assertAuthorized: () => void; principalId?: string },
@@ -115,12 +119,13 @@ export function describeMcpTool(tool: McpTool) {
     name: tool.name,
     description: tool.description,
     inputSchema: tool.inputSchema,
+    outputSchema: mcpToolOutputSchema(tool.name),
     ...(tool.oauth ? { securitySchemes, _meta: { securitySchemes } } : {}),
     annotations: {
       readOnlyHint: tool.readOnly !== false,
-      destructiveHint: tool.readOnly === false,
-      idempotentHint: true,
-      openWorldHint: false,
+      destructiveHint: tool.destructive ?? tool.readOnly === false,
+      idempotentHint: tool.idempotent ?? tool.readOnly !== false,
+      openWorldHint: tool.openWorld ?? false,
     },
   };
 }

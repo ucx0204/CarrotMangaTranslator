@@ -1,3 +1,4 @@
+import { mcpToolResult, mcpToolError } from "./mcpToolResult";
 import { McpEditError } from "../application/mcpEditPolicy";
 import { argumentObject, McpInvalidParams } from "./mcpArguments";
 import { describeMcpTool, invokeMcpTool, type McpTool } from "./mcpReadTools";
@@ -90,25 +91,14 @@ async function callTool(
   const tool = tools.find((candidate) => candidate.name === params.name);
   if (!tool) return rpcError(id, -32602, "Unknown tool");
   try {
-    return rpcResult(id, {
-      content: await invokeMcpTool(tool, params.arguments),
-      isError: false,
-    });
+    return rpcResult(
+      id,
+      mcpToolResult(tool, await invokeMcpTool(tool, params.arguments)),
+    );
   } catch (error) {
     if (error instanceof McpInvalidParams) throw error;
     if (!(error instanceof McpEditError)) reportError(error);
-    return rpcResult(id, {
-      content: [
-        {
-          type: "text",
-          text:
-            error instanceof McpEditError
-              ? JSON.stringify({ error: error.code, message: error.message })
-              : "The app could not complete this operation. Check its local log; no internal paths or error details are returned here.",
-        },
-      ],
-      isError: true,
-    });
+    return rpcResult(id, mcpToolError(error));
   }
 }
 

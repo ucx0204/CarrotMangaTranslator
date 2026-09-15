@@ -43,6 +43,8 @@ function createJobControlTool(
   return {
     name: cancel ? "carrot_cancel_job" : "carrot_get_job",
     readOnly: !cancel,
+    destructive: false,
+    idempotent: true,
     requiredScopes: ["carrot.read"],
     description: cancel
       ? "Cancel a job owned by this connection. Does not undo already committed changes; read the resulting page before retrying."
@@ -95,6 +97,9 @@ function createStartOperationTool(
         ? "carrot_run_page_ocr"
         : "carrot_run_page_erasure",
     readOnly: image,
+    destructive: kind === "erase",
+    idempotent: true,
+    openWorld: !image,
     requiredScopes: ["carrot.read", image ? "carrot.images" : "carrot.process"],
     description: image
       ? "Export the current saved page as original-resolution PNG with the app renderer. Returns a jobId; use carrot_get_job for a ten-minute single-file download link. Never changes page data or runs OCR/translation."

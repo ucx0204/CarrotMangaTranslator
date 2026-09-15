@@ -1,0 +1,223 @@
+import { z } from "zod/v4";
+
+const text = z.string();
+const count = z.number().int().nonnegative();
+const size = z.number().positive();
+const flag = z.boolean();
+const revision = text.regex(/^page-v1:[a-f0-9]{16}$/);
+const window = {
+  total: count,
+  offset: count,
+  limit: count,
+  nextOffset: count.nullable(),
+};
+const target = { chapterId: text, pageId: text, revision };
+const rect = z
+  .object({ x: z.number(), y: z.number(), w: size, h: size })
+  .strict();
+const direction = z.enum(["horizontal", "vertical"]);
+const block = z
+  .object({
+    id: text,
+    sourceText: text,
+    translatedText: text,
+    bbox: rect,
+    bboxSpace: z.enum(["pixels", "normalized_1000"]).optional(),
+    renderBbox: rect.optional(),
+    renderBboxSpace: z.enum(["pixels", "normalized_1000"]).optional(),
+    textRole: z.enum(["ordinary", "sound"]).optional(),
+    sourceDirection: direction,
+    renderDirection: direction,
+    fontSizePx: size,
+    reviewStatus: z.enum(["draft", "needs_review", "reviewed"]).optional(),
+    hasGeneratedLettering: flag,
+  })
+  .strict();
+const image = z
+  .object({
+    ...target,
+    kind: z.enum(["source-crop", "rendered-page"]),
+    sourceWidth: size,
+    sourceHeight: size,
+    width: size,
+    height: size,
+    crop: rect.nullable(),
+    pixelMapping: z
+      .object({
+        originX: z.number(),
+        originY: z.number(),
+        scaleX: size,
+        scaleY: size,
+      })
+      .strict(),
+  })
+  .strict();
+
+export const mcpJobReceiptOutput = z
+  .object({
+    jobId: text.uuid(),
+    requestId: text,
+    kind: text,
+    status: z.enum([
+      "running",
+      "completed",
+      "partial",
+      "failed",
+      "cancelled",
+      "interrupted",
+    ]),
+    cancellationRequested: flag,
+    progress: z
+      .object({
+        phase: text,
+        completed: count.optional(),
+        total: count.optional(),
+      })
+      .strict(),
+    result: z.record(text, z.unknown()).optional(),
+    error: z.object({ code: text, message: text }).strict().optional(),
+    startedAt: count,
+    finishedAt: count.optional(),
+  })
+  .strict();
+
+/** Public projections only. JSON Schema and runtime validation share these definitions. */
+export const mcpOutputSchemas: Record<string, z.ZodType> = {
+  carrot_get_capabilities: z
+    .object({
+      mode: text,
+      features: z.array(text),
+      editing: flag,
+      translation: flag,
+      ocr: flag,
+      erasure: flag,
+      pngExport: flag,
+      imageTransfer: flag,
+      imageRedaction: text,
+      sampling: flag,
+      oauth: flag,
+    })
+    .strict(),
+  carrot_list_works: z
+    .object({
+      ...window,
+      works: z.array(
+        z
+          .object({
+            id: text,
+            title: text,
+            chapterCount: count,
+            updatedAt: text,
+          })
+          .strict(),
+      ),
+    })
+    .strict(),
+  carrot_list_chapters: z
+    .object({
+      ...window,
+      workId: text,
+      chapters: z.array(
+        z
+          .object({
+            id: text,
+            title: text,
+            status: text,
+            pageCount: count,
+            updatedAt: text,
+          })
+          .strict(),
+      ),
+    })
+    .strict(),
+  carrot_get_chapter: z
+    .object({
+      ...window,
+      id: text,
+      workId: text,
+      title: text,
+      status: text,
+      updatedAt: text,
+      pages: z.array(
+        z
+          .object({
+            id: text,
+            name: text,
+            width: size,
+            height: size,
+            analysisStatus: text,
+            blockCount: count,
+            updatedAt: text,
+          })
+          .strict(),
+      ),
+    })
+    .strict(),
+  carrot_get_page_blocks: z
+    .object({
+      ...target,
+      ...window,
+      width: size,
+      height: size,
+      blockOrder: z.array(text).optional(),
+      blocks: z.array(block),
+    })
+    .strict(),
+  carrot_get_page_preview: z
+    .object({
+      pageId: text,
+      updatedAt: text,
+      sourceWidth: size,
+      sourceHeight: size,
+      previewWidth: size,
+      previewHeight: size,
+    })
+    .strict(),
+  carrot_get_page_crop: image,
+  carrot_render_page_preview: image,
+  carrot_get_work_context: z
+    .object({
+      ...window,
+      chapterId: text,
+      workId: text,
+      workTitle: text,
+      revision: text,
+      section: z.enum(["overview", "glossary", "characters", "memory"]),
+      rules: z
+        .object({ honorifics: text, sfxMode: text, defaultTone: text })
+        .strict(),
+      counts: z
+        .object({ glossary: count, characters: count, memory: count })
+        .strict(),
+      entries: z.array(z.record(text, z.unknown())),
+      note: text,
+    })
+    .strict(),
+  carrot_create_page_blocks: z
+    .object({
+      status: z.enum(["saved", "already_applied"]),
+      revision,
+      blockIds: z.array(text),
+    })
+    .strict(),
+  carrot_update_translations: z
+    .object({
+      status: z.enum(["saved", "already_applied"]),
+      revision,
+      changed: count,
+      previousTranslations: z.array(
+        z
+          .object({
+            blockId: text,
+            translatedText: text,
+          })
+          .strict(),
+      ),
+    })
+    .strict(),
+  carrot_get_job: mcpJobReceiptOutput,
+  carrot_cancel_job: mcpJobReceiptOutput,
+  carrot_export_page_png: mcpJobReceiptOutput,
+  carrot_run_page_ocr: mcpJobReceiptOutput,
+  carrot_run_page_erasure: mcpJobReceiptOutput,
+};

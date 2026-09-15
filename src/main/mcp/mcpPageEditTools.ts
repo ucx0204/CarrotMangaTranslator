@@ -70,6 +70,8 @@ function translationPatchTool(service: McpPageEditService): McpTool {
     name: "carrot_update_translations",
     oauth: true,
     readOnly: false,
+    destructive: true,
+    idempotent: true,
     requiredScopes: ["carrot.read", "carrot.edit"],
     description:
       "Save only translatedText of specified existing blocks via the app, preserving geometry/style/masks. Requires the revision returned by carrot_get_page_blocks. Local dirty edits/jobs block writes; conflicts require re-reading. Does NOT run OCR, translation models, erasure or export. Returns previous texts for explicit restoration with the new revision.",
