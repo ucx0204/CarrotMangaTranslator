@@ -12,6 +12,14 @@ import {
 } from "./mcpArguments";
 import { textContent, type McpTool } from "./mcpReadTools";
 
+const jobIdSchema = z.object({ jobId: z.string().uuid() }).strict();
+const jobIdInputSchema = {
+  type: "object",
+  properties: { jobId: { type: "string", format: "uuid" } },
+  required: ["jobId"],
+  additionalProperties: false,
+};
+
 const targetSchema = z
   .object({
     chapterId: z.string(),
@@ -32,6 +40,7 @@ export function createMcpOperationTools(
     ocr?: McpOperationExecutor;
     erase?: McpOperationExecutor;
   },
+  assertFileAvailable?: (url: string) => Promise<void>,
 ): McpTool[] {
   const tools: McpTool[] = [false, true].map((cancel) =>
     createJobControlTool(operations, cancel),
@@ -40,6 +49,8 @@ export function createMcpOperationTools(
     if (execute)
       tools.push(createStartOperationTool(operations, kind, execute));
   tools.push(...createMcpJobRecoveryTools(operations, executors));
+  if (executors.exportPng && assertFileAvailable)
+    tools.push(createJobFileTool(operations, assertFileAvailable));
   return tools;
 }
 function createJobControlTool(
@@ -54,40 +65,71 @@ function createJobControlTool(
     requiredScopes: ["carrot.read"],
     description: cancel
       ? "Cancel a job owned by this connection. Does not undo already committed changes; read the resulting page before retrying."
-      : "Read status and results of an owned OCR, erasure or PNG export job. Poll with a few seconds between calls. Job history survives restart for seven days. Interrupted jobs require explicit retry; download links expire sooner.",
-    inputSchema: {
-      type: "object",
-      properties: { jobId: { type: "string", format: "uuid" } },
-      required: ["jobId"],
-      additionalProperties: false,
-    },
+      : "Read status and result metadata of an owned OCR, erasure or PNG export job. Never returns files or download links. Poll with a few seconds between calls. Job history survives restart for seven days. Use carrot_get_job_file explicitly for completed PNG files.",
+    inputSchema: jobIdInputSchema,
     invoke: async (args, context) => {
-      const parsed = z
-        .object({ jobId: z.string().uuid() })
-        .strict()
-        .safeParse(args);
+      const parsed = jobIdSchema.safeParse(args);
       if (!parsed.success) throw new McpInvalidParams();
       await operations.ready();
       const owner = principal(context);
       const result = cancel
         ? await operations.cancel(parsed.data.jobId, owner)
         : operations.status(parsed.data.jobId, owner);
-      const content = textContent(result);
-      const artifact = result.result;
+      return textContent(result);
+    },
+  };
+}
+function createJobFileTool(
+  operations: McpOperationService,
+  assertFileAvailable: (url: string) => Promise<void>,
+): McpTool {
+  const scopes = ["carrot.read", "carrot.images"];
+  return {
+    name: "carrot_get_job_file",
+    readOnly: true,
+    destructive: false,
+    idempotent: true,
+    requiredScopes: scopes,
+    description:
+      "Explicitly retrieve the file link and attachment for an owned, completed PNG export. Rechecks output availability, authorization, page revision and redaction. Expired or changed output requires an explicit new export; this tool never renders or starts a job.",
+    inputSchema: jobIdInputSchema,
+    invoke: async (args, context) => {
+      const parsed = jobIdSchema.safeParse(args);
+      if (!parsed.success) throw new McpInvalidParams();
+      const assertAccess = () => {
+        const owner = principal(context);
+        if (!context?.assertScopes)
+          throw new McpEditError(
+            "access_denied",
+            "Image scope verification is required.",
+          );
+        context.assertScopes(scopes);
+        return owner;
+      };
+      const owner = assertAccess();
+      await operations.ready();
+      const artifact = operations.file(parsed.data.jobId, owner);
       if (
-        !cancel &&
-        artifact?.kind === "rendered-page-png" &&
-        typeof artifact.url === "string" &&
-        typeof artifact.bytes === "number"
+        typeof artifact.url !== "string" ||
+        typeof artifact.bytes !== "number"
       )
-        content.push({
+        throw new McpEditError(
+          "not_found",
+          "PNG unavailable. Explicitly export the current page again.",
+        );
+      await assertFileAvailable(artifact.url);
+      assertAccess();
+      operations.file(parsed.data.jobId, owner);
+      return [
+        ...textContent({ jobId: parsed.data.jobId, ...artifact }),
+        {
           type: "resource_link",
           uri: artifact.url,
           name: "carrot-page.png",
           mimeType: "image/png",
           size: artifact.bytes,
-        });
-      return content;
+        },
+      ];
     },
   };
 }
@@ -109,7 +151,7 @@ function createStartOperationTool(
     openWorld: !image,
     requiredScopes: ["carrot.read", image ? "carrot.images" : "carrot.process"],
     description: image
-      ? "Export the current saved page as original-resolution PNG with the app renderer. Returns a jobId; use carrot_get_job for a ten-minute single-file download link. Never changes page data or runs OCR/translation."
+      ? "Export the current saved page as original-resolution PNG with the app renderer. Returns job metadata without attachments or links. Poll carrot_get_job, then explicitly call carrot_get_job_file for the ten-minute single-file download link. Never changes page data or runs OCR/translation."
       : kind === "ocr"
         ? "Run ONLY the app's configured local OCR on one page, saving editable untranslated blocks. Requires an empty page and current revision. No translation, erasure, image generation, or paid-model fallback. Model assets may be downloaded by the existing app. Returns a jobId."
         : "Erase original text for the page's existing non-excluded blocks, or ONLY the optional blockId. Missing/excluded selected IDs fail; selection is retained for retry. Uses the app's configured LOCAL inpainting engine and existing masks. No OCR, translation, Codex or automatic bubble layout. Preserves translation text and styles. Model assets may be downloaded by the existing app. Returns a jobId.",

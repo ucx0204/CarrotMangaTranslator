@@ -181,7 +181,10 @@ it("does not persist temporary output links, raw image contents or private paths
   };
   const first = new McpOperationService(() => {}, Date.now, store);
   const receipt = await first.start(request);
-  expect((await settled(first, receipt.jobId)).result?.url).toBeTruthy();
+  expect((await settled(first, receipt.jobId)).result).toEqual({
+    kind: "rendered-page-png",
+    bytes: 42,
+  });
   await first.close();
   const text = JSON.stringify(store.snapshot());
   for (const secret of ["secret.png", "C:/private", "sensitive"])

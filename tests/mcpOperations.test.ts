@@ -25,7 +25,7 @@ describe("MCP long-operation receipts", () => {
       await new Promise<void>((resolve) => {
         finish = resolve;
       });
-      return { saved: true };
+      return { status: "saved" };
     });
     const first = await service.start(input);
     expect(first.status).toBe("running");
@@ -44,7 +44,7 @@ describe("MCP long-operation receipts", () => {
     await tick();
     expect(calls).toBe(1);
     expect(service.status(first.jobId, input.owner).result).toEqual({
-      saved: true,
+      status: "saved",
     });
     await service.close();
   });

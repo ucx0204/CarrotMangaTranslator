@@ -38,7 +38,7 @@ carrot_get_page_preview / carrot_get_page_crop
 carrot_create_page_blocks
 carrot_run_page_erasure → carrot_get_job
 carrot_render_page_preview
-carrot_export_page_png → carrot_get_job
+carrot_export_page_png → carrot_get_job → carrot_get_job_file
 ```
 
 새 블록은 앱 기본 서식을 적용하고, 자동 맞춤 여부도 앱 설정을 따릅니다. 원문·번역문·원문 영역·출력 영역을 저장하므로 앱에서 다시 편집할 수 있습니다. 이 경로가 AI 폰트 매칭, 효과음 이미지 생성, 회차 기억 자동 작성까지 실행한다는 뜻은 아닙니다. 외부 AI의 오독·좌표 판단과 실제 모델의 제거 품질은 사용자 원고에서 검토해야 합니다.
@@ -53,7 +53,7 @@ carrot_export_page_png → carrot_get_job
 
 **렌더링만:** `carrot_render_page_preview`는 현재 저장된 배경·블록·서식을 합성합니다. 원문 제거를 하지 않은 페이지에는 원문이 그대로 남는 것이 정상입니다. 원본 미리보기와 완성 렌더링을 구분하세요.
 
-**PNG만:** `carrot_export_page_png`는 현재 저장된 페이지를 실제 앱 렌더러로 원본 크기에 맞춰 출력합니다. `carrot_get_job`의 완료 결과에 다운로드 링크·크기·SHA-256·만료 시각이 있으며 MCP `resource_link`도 반환합니다. 채팅의 파일 표시 방식은 클라이언트에 따라 다를 수 있습니다.
+**PNG만:** `carrot_export_page_png`는 현재 저장된 페이지를 실제 앱 렌더러로 원본 크기에 맞춰 출력합니다. 일반 작업 응답(시작·조회·목록·취소·중복 요청·재시도)은 크기·SHA-256 등 메타데이터만 반환하며 다운로드 주소나 첨부를 포함하지 않습니다. 파일은 `carrot_get_job_file(jobId)`을 명시적으로 호출해야 반환됩니다. 이 도구는 본인 소유의 완료 확정된 PNG 작업인지, `carrot.read`·`carrot.images` 권한이 있는지, 출력물이 존재하고 만료되지 않았는지, 페이지·가리기·권한이 여전히 유효한지 다시 검사한 뒤 다운로드 링크와 MCP `resource_link`를 반환합니다. 만료·재시작·페이지 변경 시 자동 재출력하지 않으며 현재 페이지를 명시적으로 다시 출력해야 합니다. 채팅의 파일 표시와 승인창은 클라이언트에 따라 다를 수 있습니다.
 
 ## 작업 ID와 재시도
 

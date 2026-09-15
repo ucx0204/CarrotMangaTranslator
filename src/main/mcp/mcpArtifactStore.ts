@@ -68,7 +68,12 @@ export class McpArtifactStore {
     if (this.closed || !entry || entry.expiresAt <= this.now())
       throw unavailable();
     await entry.assertAccess();
-    const bytes = await readFile(entry.file);
+    const bytes = await readFile(entry.file).catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") throw unavailable();
+        throw error;
+      },
+    );
     await entry.assertAccess();
     if (
       this.closed ||
@@ -77,6 +82,15 @@ export class McpArtifactStore {
     )
       throw unavailable();
     return bytes;
+  }
+  async assertAvailable(url: string): Promise<void> {
+    const prefix = `${this.origin}/mcp-artifacts/`;
+    if (!url.startsWith(prefix)) throw unavailable();
+    const match = /^([A-Za-z0-9_-]{43})\/page\.png$/.exec(
+      url.slice(prefix.length),
+    );
+    if (!match) throw unavailable();
+    await this.read(match[1]);
   }
   stop(): void {
     this.closed = true;

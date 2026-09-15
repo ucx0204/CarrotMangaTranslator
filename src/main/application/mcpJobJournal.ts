@@ -17,7 +17,7 @@ export const mcpJobTargetSchema = z
   .strict();
 export type McpStoredJobTarget = z.infer<typeof mcpJobTargetSchema>;
 
-const resultSchema = z.object({
+export const mcpJobResultMetadataSchema = z.object({
   status: z.string().max(40).optional(),
   revision: z.string().max(64).optional(),
   chapterId: id.optional(),
@@ -40,6 +40,7 @@ const resultSchema = z.object({
   noTextDetected: z.boolean().optional(),
   effectReviewCandidates: count.optional(),
   needsReview: z.boolean().optional(),
+  artifactExpired: z.boolean().optional(),
 });
 const jobSchema = z
   .object({
@@ -64,7 +65,7 @@ const jobSchema = z
         total: count.optional(),
       })
       .strict(),
-    result: resultSchema.optional(),
+    result: mcpJobResultMetadataSchema.optional(),
     error: z
       .object({ code: z.string().max(128), message: z.string().max(1024) })
       .strict()
@@ -90,7 +91,9 @@ const journalSchema = z
 export function persistedMcpJobResult(
   result: Record<string, unknown> | undefined,
 ) {
-  return result === undefined ? undefined : resultSchema.parse(result);
+  return result === undefined
+    ? undefined
+    : mcpJobResultMetadataSchema.parse(result);
 }
 export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
   const parsed = journalSchema.parse(value);

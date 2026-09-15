@@ -6,6 +6,7 @@ import {
   MCP_JOB_RETENTION_MS,
   parseMcpJobJournal,
   persistedMcpJobResult,
+  mcpJobResultMetadataSchema,
   mcpJobTargetSchema,
   type McpJobPersistence,
   type McpStoredJob,
@@ -71,6 +72,22 @@ export class McpOperationService {
   }
   status(id: string, owner: string) {
     return this.project(this.get(id, owner));
+  }
+  file(id: string, owner: string) {
+    this.assertAvailable();
+    const entry = this.get(id, owner);
+    if (
+      !entry.settled ||
+      entry.status !== "completed" ||
+      entry.kind !== "exportPng" ||
+      entry.result?.kind !== "rendered-page-png" ||
+      typeof entry.result.url !== "string"
+    )
+      throw new McpEditError(
+        "not_found",
+        "Completed PNG output is unavailable. Explicitly export the current page again.",
+      );
+    return structuredClone(entry.result);
   }
   list(owner: string, offset: number, limit: number) {
     this.prune();
@@ -266,7 +283,9 @@ export class McpOperationService {
         !entry.settled && entry.status !== "running"
           ? { phase: "saving_receipt" }
           : entry.progress,
-      result: entry.settled ? entry.result : undefined,
+      result: entry.settled
+        ? mcpJobResultMetadataSchema.safeParse(entry.result).data
+        : undefined,
       error: entry.settled ? entry.error : undefined,
       startedAt: entry.startedAt,
       finishedAt: entry.settled ? entry.finishedAt : undefined,

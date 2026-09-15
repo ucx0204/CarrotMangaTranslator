@@ -59,7 +59,7 @@ export function createMcpPageOperationSession(options: {
     defaults: async () =>
       (await getAppSettings(app.appPaths)).blockFormatDefaults,
   });
-  const tools = createMcpOperationTools(operations, {
+  const executors: Parameters<typeof createMcpOperationTools>[1] = {
     exportPng: preferences.allowImages
       ? (target, context) =>
           runMcpAppJob(app, context, "page-export", (job) =>
@@ -85,9 +85,13 @@ export function createMcpPageOperationSession(options: {
     erase: preferences.allowProcessing
       ? (target, context) => eraseMcpPage(app, editing, target, context)
       : undefined,
-  });
+  };
   return {
-    tools,
+    tools: createMcpOperationTools(
+      operations,
+      executors,
+      artifacts.assertAvailable.bind(artifacts),
+    ),
     artifacts,
     ready: () => operations.ready(),
     stop: () => {

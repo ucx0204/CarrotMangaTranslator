@@ -65,16 +65,20 @@ async function fixture(now = Date.now, exportPng?: McpOperationExecutor) {
     reportError: () => {},
     artifacts,
     oauthHttp: new McpOAuthHttp(origin, secret, { session, pairing }),
-    tools: createMcpOperationTools(operations, {
-      exportPng:
-        exportPng ??
-        (async (_target, context) => ({
-          kind: "rendered-page-png",
-          ...(await artifacts.put(Buffer.from("test-png"), async () =>
-            context.assertAuthorized(),
-          )),
-        })),
-    }),
+    tools: createMcpOperationTools(
+      operations,
+      {
+        exportPng:
+          exportPng ??
+          (async (_target, context) => ({
+            kind: "rendered-page-png",
+            ...(await artifacts.put(Buffer.from("test-png"), async () =>
+              context.assertAuthorized(),
+            )),
+          })),
+      },
+      artifacts.assertAvailable.bind(artifacts),
+    ),
   });
   const send = (path: string, init: RequestInit = {}) =>
     fetch(`${new URL(server.url).origin}${path}`, {
@@ -163,7 +167,25 @@ it("binds receipts to the OAuth grant across refresh, isolates clients and prote
     expect(finished.result.isError).toBe(false);
     const result = JSON.parse(finished.result.content[0].text);
     expect(result.status).toBe("completed");
-    expect(finished.result.content[1]).toMatchObject({
+    for (const [name, args] of [
+      ["carrot_get_job", { jobId }],
+      ["carrot_get_job", { jobId }],
+      ["carrot_list_jobs", {}],
+      ["carrot_cancel_job", { jobId }],
+      ["carrot_export_page_png", target],
+    ] as const) {
+      const receipt = await f.call(refreshed.access_token, name, args);
+      expect(receipt.result.isError).toBe(false);
+      expect(receipt.result.content).toHaveLength(1);
+      expect(JSON.stringify(receipt)).not.toMatch(
+        /mcp-artifacts|resource_link|"url"/,
+      );
+    }
+    const file = await f.call(refreshed.access_token, "carrot_get_job_file", {
+      jobId,
+    });
+    expect(file.result.isError).toBe(false);
+    expect(file.result.content[1]).toMatchObject({
       type: "resource_link",
       mimeType: "image/png",
     });
@@ -171,7 +193,11 @@ it("binds receipts to the OAuth grant across refresh, isolates clients and prote
       jobId,
     });
     expect(denied.result.isError).toBe(true);
-    const path = new URL(result.result.url).pathname;
+    expect(
+      (await f.call(b.tokens.access_token, "carrot_get_job_file", { jobId }))
+        .result.isError,
+    ).toBe(true);
+    const path = new URL(file.result.structuredContent.url).pathname;
     const png = await f.send(path);
     expect(png.status).toBe(200);
     expect(await png.text()).toBe("test-png");
@@ -302,7 +328,11 @@ it("validates the original execution permission on a real HTTP job retry", async
   const f = await fixture(Date.now, async () => {
     runs++;
     if (fail) throw new Error("temporary renderer failure");
-    return { kind: "rendered-page-png" };
+    return {
+      kind: "rendered-page-png",
+      url: `${origin}/mcp-artifacts/private/page.png`,
+      bytes: 8,
+    };
   });
   try {
     const a = mint(f.provider, "carrot.read carrot.images offline_access");
@@ -323,11 +353,16 @@ it("validates the original execution permission on a real HTTP job retry", async
     const listed = await f.call(a.tokens.access_token, "carrot_list_jobs", {});
     expect(listed.result.structuredContent.jobs).toHaveLength(1);
     fail = false;
-    const retry = await f.call(a.tokens.access_token, "carrot_retry_job", {
+    const retryArgs = {
       jobId: id,
       requestId: randomUUID(),
       revision: target.revision,
-    });
+    };
+    const retry = await f.call(
+      a.tokens.access_token,
+      "carrot_retry_job",
+      retryArgs,
+    );
     expect(retry.result.isError).toBe(false);
     const done = await awaitJob(
       f.call,
@@ -335,6 +370,16 @@ it("validates the original execution permission on a real HTTP job retry", async
       retry.result.structuredContent.jobId,
     );
     expect(done.result.structuredContent.status).toBe("completed");
+    const duplicate = await f.call(
+      a.tokens.access_token,
+      "carrot_retry_job",
+      retryArgs,
+    );
+    expect(duplicate.result.isError).toBe(false);
+    expect(duplicate.result.content).toHaveLength(1);
+    expect(JSON.stringify(duplicate)).not.toMatch(
+      /mcp-artifacts|resource_link|"url"/,
+    );
     expect(runs).toBe(2);
     f.session.stop();
     expect(f.session.scopeForConnection("missing")).toBeUndefined();

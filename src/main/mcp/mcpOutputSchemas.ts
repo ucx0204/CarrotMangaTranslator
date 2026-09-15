@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { mcpJobResultMetadataSchema } from "../application/mcpJobJournal";
 import { mcpReviewOutputSchemas } from "../../shared/mcpReviewSchemas";
 import { McpEditableFieldsSchema } from "../../shared/mcpBlockEditing";
 
@@ -89,7 +90,7 @@ const mcpJobReceiptOutput = z
         total: count.optional(),
       })
       .strict(),
-    result: z.record(text, z.unknown()).optional(),
+    result: mcpJobResultMetadataSchema.strict().optional(),
     error: z.object({ code: text, message: text }).strict().optional(),
     startedAt: count,
     finishedAt: count.optional(),
@@ -270,6 +271,18 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
     .object({ ...window, jobs: z.array(mcpJobReceiptOutput) })
     .strict(),
   carrot_retry_job: mcpJobReceiptOutput,
+  carrot_get_job_file: z
+    .object({
+      jobId: text.uuid(),
+      kind: z.literal("rendered-page-png"),
+      url: text.url(),
+      bytes: count,
+      mimeType: z.literal("image/png"),
+      sha256: text,
+      expiresAt: count,
+      access: text,
+    })
+    .passthrough(),
   carrot_get_job: mcpJobReceiptOutput,
   carrot_cancel_job: mcpJobReceiptOutput,
   carrot_export_page_png: mcpJobReceiptOutput,
