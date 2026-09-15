@@ -219,6 +219,16 @@ export class McpOAuthProvider {
       : undefined;
   }
 
+  scopeForConnection(id: string): string | undefined {
+    const grant = this.grants.get(id);
+    return grant &&
+      !grant.revoked &&
+      grant.expiresAt > this.now() &&
+      grant.resource === this.resource
+      ? grant.scope
+      : undefined;
+  }
+
   scopeFor(header: string): string | undefined {
     return this.accepts(header)
       ? this.access.get(header.slice(7))?.scope

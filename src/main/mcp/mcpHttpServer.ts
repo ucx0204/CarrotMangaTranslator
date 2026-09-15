@@ -230,13 +230,41 @@ function visibleTools(
           const principalId = oauth?.provider.connectionIdFor(
             request.headers.authorization ?? "",
           );
+          const required = tool.requiredScopes ?? ["carrot.read"];
+          const assertScopes = (needed: readonly string[]) =>
+            assertGranted(
+              needed,
+              oauth?.scopeFor(request.headers.authorization ?? ""),
+            );
+          const assertJobAuthorized = (
+            needed: readonly string[] = required,
+          ) => {
+            assertGranted(needed, scope);
+            assertGranted(
+              needed,
+              principalId ? oauth?.scopeForConnection(principalId) : undefined,
+            );
+          };
           const result = await tool.invoke(args, {
             assertAuthorized,
             principalId,
+            assertScopes,
+            assertJobAuthorized,
           });
           assertAuthorized();
           return result;
         },
       };
     });
+}
+
+function assertGranted(
+  needed: readonly string[],
+  scope: string | undefined,
+): void {
+  if (!scope || !needed.every((item) => scope.split(" ").includes(item)))
+    throw new McpEditError(
+      "access_denied",
+      "The operation's approved permissions are unavailable or revoked.",
+    );
 }

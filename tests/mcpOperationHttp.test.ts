@@ -2,7 +2,10 @@ import { expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { McpArtifactStore } from "../src/main/mcp/mcpArtifactStore";
 import { McpOperationService } from "../src/main/application/mcpOperationService";
-import { createMcpOperationTools } from "../src/main/mcp/mcpOperationTools";
+import {
+  createMcpOperationTools,
+  type McpOperationExecutor,
+} from "../src/main/mcp/mcpOperationTools";
 import { startMcpHttpServer } from "../src/main/mcp/mcpHttpServer";
 import { McpOAuthHttp } from "../src/main/mcp/mcpOAuthHttp";
 import { McpOAuthProvider } from "../src/main/mcp/mcpOAuthProvider";
@@ -48,10 +51,10 @@ function mint(provider: McpOAuthProvider, scope: string) {
   });
   return { client, tokens };
 }
-async function fixture() {
+async function fixture(now = Date.now, exportPng?: McpOperationExecutor) {
   const artifacts = new McpArtifactStore(origin);
   const operations = new McpOperationService(() => {});
-  const provider = new McpOAuthProvider(origin, secret, Date.now, {
+  const provider = new McpOAuthProvider(origin, secret, now, {
     persistent: true,
     allowImages: true,
     allowProcessing: true,
@@ -65,12 +68,14 @@ async function fixture() {
     artifacts,
     oauthHttp: new McpOAuthHttp(origin, secret, { session, pairing }),
     tools: createMcpOperationTools(operations, {
-      exportPng: async (_target, context) => ({
-        kind: "rendered-page-png",
-        ...(await artifacts.put(Buffer.from("test-png"), async () =>
-          context.assertAuthorized(),
-        )),
-      }),
+      exportPng:
+        exportPng ??
+        (async (_target, context) => ({
+          kind: "rendered-page-png",
+          ...(await artifacts.put(Buffer.from("test-png"), async () =>
+            context.assertAuthorized(),
+          )),
+        })),
     }),
   });
   const send = (path: string, init: RequestInit = {}) =>
@@ -218,3 +223,77 @@ it("does not expose export to a read-only grant or accept injected paths", async
     await f.close();
   }
 });
+
+it.each([false, true])(
+  "keeps admitted jobs bound to grant authority after access expiry (revoked=%s)",
+  async (revoke) => {
+    let now = Date.now();
+    let finish!: () => void;
+    let entered!: () => void;
+    let saved = false;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const f = await fixture(
+      () => now,
+      async (_target, context) => {
+        entered();
+        await blocked;
+        context.assertAuthorized();
+        saved = true;
+        return { kind: "rendered-page-png" };
+      },
+    );
+    try {
+      const a = mint(f.provider, "carrot.read carrot.images offline_access");
+      const response = await f.call(
+        a.tokens.access_token,
+        "carrot_export_page_png",
+        {
+          chapterId: "chapter",
+          pageId: "page",
+          revision: "page-v1:0000000000000000",
+          requestId: randomUUID(),
+        },
+      );
+      expect(response.result.isError).toBe(false);
+      const { jobId } = response.result.structuredContent;
+      await started;
+      const owner = f.provider.connectionIdFor(
+        `Bearer ${a.tokens.access_token}`,
+      );
+      if (!owner) throw new Error("Missing approved grant");
+      now += 60 * 60_000 + 1;
+      expect(f.provider.accepts(`Bearer ${a.tokens.access_token}`)).toBe(false);
+      const renewed = await f.session.run(() =>
+        f.provider.token({
+          client_id: a.client.client_id,
+          grant_type: "refresh_token",
+          refresh_token: a.tokens.refresh_token,
+          resource: `${origin}/mcp`,
+        }),
+      );
+      if (revoke) await f.session.run(() => f.provider.revokeConnection(owner));
+      finish();
+      if (!revoke) {
+        const done = await awaitJob(f.call, renewed.access_token, jobId);
+        expect(done.result.structuredContent.status).toBe("completed");
+        expect(saved).toBe(true);
+      } else {
+        await new Promise<void>((resolve) => setTimeout(resolve, 30));
+        expect(f.operations.status(jobId, owner).status).toBe("failed");
+        expect(saved).toBe(false);
+        expect(
+          (await f.call(renewed.access_token, "carrot_get_job", { jobId }))
+            .error,
+        ).toBeTruthy();
+      }
+    } finally {
+      finish();
+      await f.close();
+    }
+  },
+);

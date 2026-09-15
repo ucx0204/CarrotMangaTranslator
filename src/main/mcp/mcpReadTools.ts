@@ -32,7 +32,12 @@ export type McpTool = {
   openWorld?: boolean;
   invoke: (
     args: Record<string, unknown>,
-    context?: { assertAuthorized: () => void; principalId?: string },
+    context?: {
+      assertAuthorized: () => void;
+      principalId?: string;
+      assertScopes?: (scopes: readonly string[]) => void;
+      assertJobAuthorized?: (scopes?: readonly string[]) => void;
+    },
   ) => Promise<McpToolContent[]>;
 };
 

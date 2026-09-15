@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MCP_JOB_RETENTION_MS } from "../src/main/application/mcpJobJournal";
 import { McpOperationService } from "../src/main/application/mcpOperationService";
 
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
@@ -26,16 +27,16 @@ describe("MCP long-operation receipts", () => {
       });
       return { saved: true };
     });
-    const first = service.start(input);
+    const first = await service.start(input);
     expect(first.status).toBe("running");
-    expect(service.start(input).jobId).toBe(first.jobId);
-    expect(() => service.start({ ...input, parameters: {} })).toThrow(
+    expect((await service.start(input)).jobId).toBe(first.jobId);
+    await expect(service.start({ ...input, parameters: {} })).rejects.toThrow(
       /requestId/,
     );
     expect(() => service.status(first.jobId, "connection-b")).toThrow(
       /not found/,
     );
-    expect(() => service.cancel(first.jobId, "connection-b")).toThrow(
+    await expect(service.cancel(first.jobId, "connection-b")).rejects.toThrow(
       /not found/,
     );
     await tick();
@@ -56,18 +57,18 @@ describe("MCP long-operation receipts", () => {
       );
       throw new Error("C:/private/library/user.png");
     });
-    const first = service.start(input);
+    const first = await service.start(input);
     await tick();
-    service.cancel(first.jobId, input.owner);
+    await service.cancel(first.jobId, input.owner);
     await tick();
     const result = service.status(first.jobId, input.owner);
     expect(result.status).toBe("cancelled");
     expect(JSON.stringify(result)).not.toContain("private");
     expect(errors).toHaveLength(1);
     await service.close();
-    expect(() => service.start(input)).toThrow(/stopping/);
+    await expect(service.start(input)).rejects.toThrow(/stopping/);
   });
-  it("rechecks authorization before deferred execution", async () => {
+  it("rechecks authorization before asynchronous admission", async () => {
     let revoked = false;
     let called = false;
     const service = new McpOperationService(() => {});
@@ -81,32 +82,23 @@ describe("MCP long-operation receipts", () => {
       },
     });
     revoked = true;
-    await tick();
+    await expect(first).rejects.toThrow("revoked");
     expect(called).toBe(false);
-    expect(service.status(first.jobId, "connection-a").status).toBe("failed");
     await service.close();
   });
-  it("does not pretend a late cancellation rolled back an executor's commit", async () => {
+  it("rejects admission after stop but does not pretend a late cancellation rolled back a commit", async () => {
     const service = new McpOperationService(() => {});
-    const first = service.start(
-      request(async () => {
-        service.stop();
-        return { committed: true };
-      }),
-    );
+    const first = service.start(request(async () => ({ committed: true })));
     await service.close();
-    // close before execution must cancel. A completed executor is tested separately.
-    expect(service.status(first.jobId, "connection-a").status).toBe(
-      "cancelled",
-    );
+    await expect(first).rejects.toThrow(/stopping/);
     const next = new McpOperationService(() => {});
-    const running = next.start(
+    const running = await next.start(
       request(async () => {
         next.stop();
         return { committed: true };
       }),
     );
-    await tick();
+    await next.close();
     expect(next.status(running.jobId, "connection-a").status).toBe("completed");
   });
 });
@@ -121,16 +113,18 @@ describe("MCP receipt retention", () => {
         () => now,
       );
       const input = request(async () => ({ saved: true }));
-      const receipt = service.start(input);
+      const receipt = await service.start(input);
       await tick();
-      now += 60 * 60_000 - 1;
+      now += MCP_JOB_RETENTION_MS - 1;
       expect(service.status(receipt.jobId, input.owner).status).toBe(
         "completed",
       );
       now += 1;
-      expect(() => service[method](receipt.jobId, input.owner)).toThrow(
-        /not found/,
-      );
+      await expect(
+        Promise.resolve().then(() =>
+          service[method](receipt.jobId, input.owner),
+        ),
+      ).rejects.toThrow(/not found/);
       await service.close();
     },
   );
@@ -147,9 +141,9 @@ describe("MCP receipt retention", () => {
       });
       return { saved: true };
     });
-    const receipt = service.start(input);
+    const receipt = await service.start(input);
     await tick();
-    now = 2 * 60 * 60_000;
+    now = 2 * MCP_JOB_RETENTION_MS;
     expect(service.status(receipt.jobId, input.owner).status).toBe("running");
     finish();
     await tick();
@@ -164,12 +158,12 @@ describe("MCP receipt retention", () => {
       () => now,
     );
     const input = request(async () => ({ count: ++calls }));
-    const first = service.start(input);
+    const first = await service.start(input);
     await tick();
-    expect(service.start(input).jobId).toBe(first.jobId);
+    expect((await service.start(input)).jobId).toBe(first.jobId);
     expect(calls).toBe(1);
-    now = 60 * 60_000;
-    const second = service.start(input);
+    now = MCP_JOB_RETENTION_MS;
+    const second = await service.start(input);
     expect(second.jobId).not.toBe(first.jobId);
     await tick();
     expect(calls).toBe(2);

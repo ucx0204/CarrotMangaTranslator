@@ -1,3 +1,4 @@
+import type { McpJobPersistence } from "../application/mcpJobJournal";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
 import type { McpPreferences } from "../../shared/mcpDesktopTypes";
 import type { PageRevision } from "../../shared/pageRevisionTypes";
@@ -25,13 +26,18 @@ type Editing = {
  * exported temporary files belong to this MCP connection session. */
 export function createMcpPageOperationSession(options: {
   origin: string;
+  jobPersistence?: McpJobPersistence;
   preferences: McpPreferences;
   app: InpaintingJobContext;
   editing: Editing;
   reportError: (error: unknown) => void;
 }) {
   const { app, editing, preferences } = options;
-  const operations = new McpOperationService(options.reportError);
+  const operations = new McpOperationService(
+    options.reportError,
+    Date.now,
+    options.jobPersistence,
+  );
   const artifacts = new McpArtifactStore(options.origin);
   const exporter = new McpPageExportService({
     openChapter,
@@ -83,6 +89,7 @@ export function createMcpPageOperationSession(options: {
   return {
     tools,
     artifacts,
+    ready: () => operations.ready(),
     stop: () => {
       operations.stop();
       artifacts.stop();

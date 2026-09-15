@@ -79,6 +79,26 @@ export class McpSecureStore {
       dataProfileId: digest(`carrot-mcp-data-v1:${canonical}`),
     };
   }
+  async readJobJournal(): Promise<unknown | null> {
+    if (!this.encryption.available())
+      throw new Error("OS-backed MCP encryption is unavailable.");
+    const text = await this.read("jobs.enc");
+    if (text === null) return null;
+    const value = z
+      .object({ profile: z.string(), journal: z.unknown() })
+      .strict()
+      .parse(JSON.parse(this.encryption.decrypt(Buffer.from(text, "base64"))));
+    if (value.profile !== (await this.identity()).dataProfileId)
+      throw new Error("MCP job history belongs to a different data profile.");
+    return value.journal;
+  }
+  async writeJobJournal(journal: unknown): Promise<void> {
+    if (!this.encryption.available())
+      throw new Error("OS-backed MCP encryption is unavailable.");
+    const value = { profile: (await this.identity()).dataProfileId, journal };
+    const encrypted = this.encryption.encrypt(JSON.stringify(value));
+    await this.write("jobs.enc", Buffer.from(encrypted.toString("base64")));
+  }
   async saveAuthorization(oauth: McpOAuthSnapshot): Promise<void> {
     const current = await this.load();
     const checked = parseMcpOAuthSnapshot(

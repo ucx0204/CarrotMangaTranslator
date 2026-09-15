@@ -165,12 +165,14 @@ async function openPageServer(
   };
   const pageOperations = createMcpPageOperationSession({
     origin,
+    jobPersistence: auth.jobPersistence,
     preferences: options.preferences,
     app: options.editing.processing(),
     editing: editor,
     reportError: options.reportError,
   });
   try {
+    await pageOperations.ready();
     const server = await startMcpHttpServer({
       config: { port: 38475, token: auth.localToken, publicOrigin: origin },
       tools: createMcpAppTools({

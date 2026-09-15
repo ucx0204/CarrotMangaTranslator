@@ -52,6 +52,11 @@ export class McpOAuthHttp {
       ? this.managed.session.scopeFor(header)
       : this.provider.scopeFor(header);
   }
+  scopeForConnection(id: string): string | undefined {
+    return this.managed
+      ? this.managed.session.scopeForConnection(id)
+      : this.provider.scopeForConnection(id);
+  }
   stop(): void {
     this.managed?.pairing.close();
     if (this.managed) this.managed.session.stop();

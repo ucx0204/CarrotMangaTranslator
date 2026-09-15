@@ -43,6 +43,11 @@ export class McpOAuthSession {
   scopeFor(header: string): string | undefined {
     return this.accepts(header) ? this.provider.scopeFor(header) : undefined;
   }
+  scopeForConnection(id: string): string | undefined {
+    return this.fault || this.stopped
+      ? undefined
+      : this.provider.scopeForConnection(id);
+  }
   stop(): void {
     this.stopped = true;
   }

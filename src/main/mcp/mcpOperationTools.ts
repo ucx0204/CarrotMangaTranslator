@@ -1,3 +1,4 @@
+import { createMcpJobRecoveryTools } from "./mcpJobRecoveryTools";
 import { z } from "zod";
 import type {
   McpOperationService,
@@ -20,13 +21,17 @@ const targetSchema = z
   })
   .strict();
 export type McpOperationTarget = z.infer<typeof targetSchema>;
-type Executor = (
+export type McpOperationExecutor = (
   target: McpOperationTarget,
   context: McpOperationContext,
 ) => Promise<Record<string, unknown>>;
 export function createMcpOperationTools(
   operations: McpOperationService,
-  executors: { exportPng?: Executor; ocr?: Executor; erase?: Executor },
+  executors: {
+    exportPng?: McpOperationExecutor;
+    ocr?: McpOperationExecutor;
+    erase?: McpOperationExecutor;
+  },
 ): McpTool[] {
   const tools: McpTool[] = [false, true].map((cancel) =>
     createJobControlTool(operations, cancel),
@@ -34,6 +39,7 @@ export function createMcpOperationTools(
   for (const [kind, execute] of Object.entries(executors))
     if (execute)
       tools.push(createStartOperationTool(operations, kind, execute));
+  tools.push(...createMcpJobRecoveryTools(operations, executors));
   return tools;
 }
 function createJobControlTool(
@@ -48,7 +54,7 @@ function createJobControlTool(
     requiredScopes: ["carrot.read"],
     description: cancel
       ? "Cancel a job owned by this connection. Does not undo already committed changes; read the resulting page before retrying."
-      : "Read status and results of an owned OCR, erasure or PNG export job. Poll with a few seconds between calls. Receipts expire after one hour and server restart; artifacts expire sooner.",
+      : "Read status and results of an owned OCR, erasure or PNG export job. Poll with a few seconds between calls. Job history survives restart for seven days. Interrupted jobs require explicit retry; download links expire sooner.",
     inputSchema: {
       type: "object",
       properties: { jobId: { type: "string", format: "uuid" } },
@@ -61,9 +67,10 @@ function createJobControlTool(
         .strict()
         .safeParse(args);
       if (!parsed.success) throw new McpInvalidParams();
+      await operations.ready();
       const owner = principal(context);
       const result = cancel
-        ? operations.cancel(parsed.data.jobId, owner)
+        ? await operations.cancel(parsed.data.jobId, owner)
         : operations.status(parsed.data.jobId, owner);
       const content = textContent(result);
       const artifact = result.result;
@@ -87,7 +94,7 @@ function createJobControlTool(
 function createStartOperationTool(
   operations: McpOperationService,
   kind: string,
-  execute: Executor,
+  execute: McpOperationExecutor,
 ): McpTool {
   const image = kind === "exportPng";
   return {
@@ -122,14 +129,16 @@ function createStartOperationTool(
       if (!parsed.success) throw new McpInvalidParams();
       readIdentifier(parsed.data.chapterId);
       readIdentifier(parsed.data.pageId);
+      await operations.ready();
       const owner = principal(context);
       return textContent(
-        operations.start({
+        await operations.start({
           owner,
           requestId: parsed.data.requestId,
           kind,
           parameters: parsed.data,
-          assertAuthorized: () => context?.assertAuthorized(),
+          assertAuthorized: () =>
+            (context?.assertJobAuthorized ?? context?.assertAuthorized)?.(),
           execute: (operation) => execute(parsed.data, operation),
         }),
       );

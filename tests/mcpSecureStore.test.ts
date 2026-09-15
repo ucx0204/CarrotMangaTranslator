@@ -196,3 +196,61 @@ it("distinguishes new data profiles while preserving the same authority across r
   assert.equal(serialized.includes(directory), false);
   assert.equal(serialized.includes((await first.load()).localToken), false);
 });
+
+it("encrypts the job journal, restores it, and refuses a copied journal in another data profile", async () => {
+  const directory = await root();
+  const encryption = codec();
+  const store = new McpSecureStore(directory, encryption);
+  const snapshot = {
+    version: 1,
+    records: [],
+    marker: "never-plaintext-job-data",
+  };
+  assert.equal(await store.readJobJournal(), null);
+  await store.writeJobJournal(snapshot);
+  const bytes = await readFile(join(directory, "mcp-private/jobs.enc"));
+  assert.equal(bytes.includes(Buffer.from(snapshot.marker)), false);
+  const restarted = new McpSecureStore(directory, encryption);
+  assert.deepEqual(await restarted.readJobJournal(), snapshot);
+  const otherDirectory = await root();
+  const other = new McpSecureStore(otherDirectory, encryption);
+  await other.load();
+  await writeFile(join(otherDirectory, "mcp-private/jobs.enc"), bytes);
+  await assert.rejects(other.readJobJournal(), /different data profile/);
+  assert.deepEqual(
+    await readFile(join(otherDirectory, "mcp-private/jobs.enc")),
+    bytes,
+  );
+  await assert.rejects(
+    new McpSecureStore(directory, {
+      ...encryption,
+      available: () => false,
+    }).readJobJournal(),
+    /encryption/,
+  );
+  await assert.rejects(
+    new McpSecureStore(directory, {
+      ...encryption,
+      available: () => false,
+    }).writeJobJournal(snapshot),
+    /encryption/,
+  );
+  await writeFile(join(directory, "mcp-private/jobs.enc"), "corrupt");
+  await assert.rejects(restarted.readJobJournal());
+  assert.equal(
+    await readFile(join(directory, "mcp-private/jobs.enc"), "utf8"),
+    "corrupt",
+  );
+});
+
+it("refuses symlinked job journal reads and writes without touching their target", async () => {
+  const directory = await root();
+  const store = new McpSecureStore(directory, codec());
+  await store.load();
+  const external = join(await root(), "keep");
+  await writeFile(external, "preserve");
+  await symlink(external, join(directory, "mcp-private/jobs.enc"));
+  await assert.rejects(store.readJobJournal());
+  await assert.rejects(store.writeJobJournal({ version: 1, records: [] }));
+  assert.equal(await readFile(external, "utf8"), "preserve");
+});

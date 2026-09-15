@@ -53,8 +53,14 @@ const image = z
   })
   .strict();
 
+const jobTarget = z
+  .object({ chapterId: text, pageId: text, revision, requestId: text.uuid() })
+  .strict();
+
 export const mcpJobReceiptOutput = z
   .object({
+    target: jobTarget.optional(),
+    persistence: z.enum(["durable", "memory"]),
     jobId: text.uuid(),
     requestId: text,
     kind: text,
@@ -231,6 +237,10 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
       ),
     })
     .strict(),
+  carrot_list_jobs: z
+    .object({ ...window, jobs: z.array(mcpJobReceiptOutput) })
+    .strict(),
+  carrot_retry_job: mcpJobReceiptOutput,
   carrot_get_job: mcpJobReceiptOutput,
   carrot_cancel_job: mcpJobReceiptOutput,
   carrot_export_page_png: mcpJobReceiptOutput,
