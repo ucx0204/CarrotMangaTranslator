@@ -140,3 +140,50 @@ describe("MCP uses the existing app erasure job", () => {
     expect(f.app.jobs.current).toBeNull();
   });
 });
+
+it("passes a single block selector to the existing page-pattern engine without altering other blocks", async () => {
+  const f = fixture();
+  f.page.blocks.push({
+    ...f.page.blocks[0],
+    id: "second-block",
+    translatedText: "untouched",
+  });
+  f.target.revision = createPageRevision(f.page);
+  const before = structuredClone(f.page.blocks);
+  const result = await eraseMcpPage(
+    f.app,
+    f.editing,
+    { ...f.target, blockId: "second-block" },
+    f.operation,
+    f.harness.runtime,
+  );
+  expect(result).toMatchObject({
+    status: "completed",
+    blockId: "second-block",
+  });
+  expect(f.harness.inpaintPatternPage).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ blockId: "second-block" }),
+  );
+  expect(f.chapters.get("chapter")?.pages[0].blocks).toEqual(before);
+});
+it.each(["missing", "excluded"])(
+  "rejects a %s selected block before acquiring the model",
+  async (reason) => {
+    const f = fixture();
+    const blockId = reason === "missing" ? "absent" : f.page.blocks[0].id;
+    if (reason === "excluded") f.page.blocks[0].inpaintExcluded = true;
+    f.target.revision = createPageRevision(f.page);
+    await expect(
+      eraseMcpPage(
+        f.app,
+        f.editing,
+        { ...f.target, blockId },
+        f.operation,
+        f.harness.runtime,
+      ),
+    ).rejects.toThrow();
+    expect(f.harness.acquireEngine).not.toHaveBeenCalled();
+    expect(f.harness.runtime.savePages).not.toHaveBeenCalled();
+  },
+);

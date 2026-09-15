@@ -54,7 +54,13 @@ const image = z
   .strict();
 
 const jobTarget = z
-  .object({ chapterId: text, pageId: text, revision, requestId: text.uuid() })
+  .object({
+    chapterId: text,
+    pageId: text,
+    blockId: text.optional(),
+    revision,
+    requestId: text.uuid(),
+  })
   .strict();
 
 const mcpJobReceiptOutput = z

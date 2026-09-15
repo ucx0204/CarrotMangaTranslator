@@ -33,6 +33,7 @@ export async function eraseMcpPage(
       mode: "page-pattern",
       chapterId: target.chapterId,
       pageId: target.pageId,
+      blockId: target.blockId,
       postprocess: { bubbleLayout: { enabled: false, policy: "safe" } },
     },
     guarded,
@@ -55,6 +56,7 @@ export async function eraseMcpPage(
       status: result.status,
       chapterId: target.chapterId,
       pageId: target.pageId,
+      blockId: target.blockId,
       revision: page ? createPageRevision(page) : target.revision,
       pagesChanged: result.pagesChanged ?? 0,
       blocksErased: result.blocksErased ?? 0,
@@ -87,6 +89,19 @@ function guardErasureRuntime(
           "revision_conflict",
           "Read the current page before erasing.",
         );
+      if (target.blockId !== undefined) {
+        const block = page.blocks.find((entry) => entry.id === target.blockId);
+        if (!block)
+          throw new McpEditError(
+            "not_found",
+            "The selected erasure block no longer exists. Read the page again.",
+          );
+        if (block.inpaintExcluded)
+          throw new McpEditError(
+            "invalid_edit",
+            "The selected block is excluded from erasure. Change that setting explicitly before retrying.",
+          );
+      }
       return chapter;
     },
     savePages: async (chapterId, pages, options) => {

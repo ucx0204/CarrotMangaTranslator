@@ -10,6 +10,7 @@ export const mcpJobTargetSchema = z
   .object({
     chapterId: id,
     pageId: id,
+    blockId: id.optional(),
     revision: z.string().regex(/^page-v1:[a-f0-9]{16}$/),
     requestId: z.string().uuid(),
   })
@@ -21,6 +22,7 @@ const resultSchema = z.object({
   revision: z.string().max(64).optional(),
   chapterId: id.optional(),
   pageId: id.optional(),
+  blockId: id.optional(),
   engine: z.string().max(128).optional(),
   performed: z.array(z.string().max(40)).max(16).optional(),
   blockIds: z.array(id).max(5000).optional(),
@@ -101,6 +103,7 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
       requests.has(key) ||
       record.fingerprint !==
         hashStableValue([record.kind, record.parameters]) ||
+      (record.kind !== "erase" && record.parameters.blockId !== undefined) ||
       record.requestId !== record.parameters.requestId ||
       (record.status === "running") !== (record.finishedAt === undefined)
     )

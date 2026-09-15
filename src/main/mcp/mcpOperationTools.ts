@@ -16,6 +16,10 @@ const targetSchema = z
   .object({
     chapterId: z.string(),
     pageId: z.string(),
+    blockId: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{1,128}$/)
+      .optional(),
     revision: z.string().regex(/^page-v1:[a-f0-9]{16}$/),
     requestId: z.string().uuid(),
   })
@@ -108,12 +112,13 @@ function createStartOperationTool(
       ? "Export the current saved page as original-resolution PNG with the app renderer. Returns a jobId; use carrot_get_job for a ten-minute single-file download link. Never changes page data or runs OCR/translation."
       : kind === "ocr"
         ? "Run ONLY the app's configured local OCR on one page, saving editable untranslated blocks. Requires an empty page and current revision. No translation, erasure, image generation, or paid-model fallback. Model assets may be downloaded by the existing app. Returns a jobId."
-        : "Erase original text for the page's existing non-excluded blocks with the app's configured LOCAL inpainting engine and existing masks. No OCR, translation, Codex or automatic bubble layout. Preserves translation text and styles. Model assets may be downloaded by the existing app. Returns a jobId.",
+        : "Erase original text for the page's existing non-excluded blocks, or ONLY the optional blockId. Missing/excluded selected IDs fail; selection is retained for retry. Uses the app's configured LOCAL inpainting engine and existing masks. No OCR, translation, Codex or automatic bubble layout. Preserves translation text and styles. Model assets may be downloaded by the existing app. Returns a jobId.",
     inputSchema: {
       type: "object",
       properties: {
         chapterId: identifierSchema,
         pageId: identifierSchema,
+        ...(kind === "erase" ? { blockId: identifierSchema } : {}),
         revision: { type: "string", pattern: "^page-v1:[a-f0-9]{16}$" },
         requestId: { type: "string", format: "uuid" },
       },
@@ -122,7 +127,11 @@ function createStartOperationTool(
     },
     invoke: async (args, context) => {
       const parsed = targetSchema.safeParse(args);
-      if (!parsed.success) throw new McpInvalidParams();
+      if (
+        !parsed.success ||
+        (kind !== "erase" && parsed.data.blockId !== undefined)
+      )
+        throw new McpInvalidParams();
       readIdentifier(parsed.data.chapterId);
       readIdentifier(parsed.data.pageId);
       await operations.ready();
