@@ -356,3 +356,56 @@ it("drains already running tool work on close and blocks a late side effect", as
     await response;
   }
 });
+
+it("cancelled HTTP request cannot commit a deferred synchronous edit", async () => {
+  let release!: () => void, entered!: () => void;
+  const blocked = new Promise<void>((r) => {
+    release = r;
+  });
+  const started = new Promise<void>((r) => {
+    entered = r;
+  });
+  const f = await fixture(undefined, async () => {
+    entered();
+    await blocked;
+  });
+  const abort = new AbortController();
+  try {
+    const linked = await link(f, "carrot.read carrot.edit offline_access");
+    const request = f
+      .send("/mcp", {
+        method: "POST",
+        signal: abort.signal,
+        headers: {
+          Authorization: `Bearer ${linked.tokens.access_token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name: "edit", arguments: {} },
+        }),
+      })
+      .then(
+        (r) => ({ status: r.status }),
+        (error: unknown) => ({ error }),
+      );
+    await started;
+    abort.abort();
+    await request;
+    await new Promise((r) => setTimeout(r, 25));
+    release();
+    await new Promise((r) => setTimeout(r, 25));
+    assert.equal(
+      f.edits(),
+      0,
+      "A disconnected caller must not leave a deferred edit authorized",
+    );
+    assert.equal((await rpc(f, linked.tokens.access_token)).status, 200);
+  } finally {
+    release();
+    await f.server.close();
+  }
+});

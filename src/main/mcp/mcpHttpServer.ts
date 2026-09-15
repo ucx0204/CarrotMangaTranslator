@@ -141,7 +141,7 @@ function createRequestHandler(
         response,
         await handleMcpMessage(
           body,
-          visibleTools(options, request, oauth),
+          visibleTools(options, request, response, oauth),
           options.reportError,
           request.headersDistinct,
         ),
@@ -197,6 +197,7 @@ function sendReply(response: ServerResponse, reply: McpHttpReply) {
 function visibleTools(
   options: ServerOptions,
   request: IncomingMessage,
+  response: ServerResponse,
   oauth?: McpOAuthHttp,
 ) {
   if (!options.enforceScopes) return options.tools;
@@ -210,6 +211,11 @@ function visibleTools(
     )
     .map((tool) => {
       const assertAuthorized = () => {
+        if (response.destroyed || response.writableEnded)
+          throw new McpEditError(
+            "access_denied",
+            "The request ended before the operation could commit. Inspect the page before retrying.",
+          );
         const current =
           oauth?.scopeFor(request.headers.authorization ?? "")?.split(" ") ??
           [];
