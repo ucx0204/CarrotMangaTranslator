@@ -35,3 +35,14 @@ Next independent capabilities still pending: source-geometry editing, splitting/
 ## Coverage evidence
 
 Three new production modules have first measured floors from the Windows V8 run in `.tmp/mcp-targeted-editing-20260915/new-module-coverage/coverage-summary.json`. SHA-256: `53f5448a1a76c29b8a44c5ab2ffbe402336f67cd0ca76ddce53a1af94be222bd`. The focused run passed 37 tests; combined new-module coverage was 100% lines/statements/functions and 97.56% branches. No pre-existing ratio or provenance was changed. The exact added-source inventory increases from 737 to 740. Full check is still pending at this checkpoint.
+
+## Completed validation / continuation
+
+- Remote commits: `cbb3e5ee` selection contract and retry; `dd681477` precise fields/display/order tools; `6c8531c4` native selected-region/render verification; `03fec7f4` measured new-module coverage. All were pushed to the same feature branch, not left as local patches.
+- Full Windows `npm run check` on `03fec7f4`: all 26 gates passed, 7,094 tests passed / 0 failed / 11 pre-existing skips. Includes three typecheck configurations, full lint/format, dependency/size/duplicate/mock rules, existing+new coverage ratios, app build, image protocol and page-artwork parity.
+- Separate native MCP smoke passed on the same runtime source: encrypted auth, stateless discovery, durable jobs, actual existing-block edit/order commits, selected-only masking/erasure, original-pixel preservation, rendering and PNG revocation. Heavy inference was synthetic; no paid/model-quality claim.
+- Started the already-built normal review app only after confirming it was not running. The existing chat connector then successfully called capabilities, library/chapter lookup and page-block reads. Returned fields include the new editable scalar projection and effective reading order. No user-page write/erasure or credential reset was performed.
+- Server capabilities advertise the two new tools, but this conversation's registered connector definitions still contain the older 16 tools. Refresh the existing plugin's metadata, keep the same Tailscale URL and start a new conversation to call the new names/selector. Additional approval is required only if the existing grant lacks edit/process scopes.
+- User guide: `docs/mcp-targeted-editing-testing.md`. Logs and exact native markers remain under `.tmp/mcp-targeted-editing-20260915/`. The normal app is left running.
+
+Next: source-rectangle/advanced transform edits, safe split/merge/delete and area OCR/app translation. Keep the newly working selection, projection, durable retry, commit guards and existing field engine; do not recreate protocol/auth or reimplement formatting algorithms.
