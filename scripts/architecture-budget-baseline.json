@@ -136,8 +136,8 @@
       "maxImportedBy": 27
     },
     "src/shared/geometry.ts": {
-      "maxImportedBy": 35,
-      "reason": "Codex native-view batching and erasure reference preparation reuse canonical intersections. Block library and clipboard reuse render-box normalization and pixel conversion to preserve lettering aspect across pages. Geometry algorithms remain unchanged; existing geometry tests and clipboard/library roundtrips cover these consumers."
+      "maxImportedBy": 36,
+      "reason": "Codex native-view batching and erasure reference preparation reuse canonical intersections. Block library and clipboard reuse render-box normalization and pixel conversion to preserve lettering aspect across pages. Geometry algorithms remain unchanged; existing geometry tests and clipboard/library roundtrips cover these consumers. The MCP selected-block display editor is one additional direct consumer of the same pixel/render geometry normalization; parity tests and native selected-region rendering preserve this authority."
     },
     "src/shared/richTextMarkup.ts": {
       "maxImportedBy": 29,

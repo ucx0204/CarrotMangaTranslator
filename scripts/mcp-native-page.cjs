@@ -150,11 +150,30 @@ async function checkNativePageGoal(root) {
           translatedText: "Hello MCP",
           sourceRect: { x: 40, y: 50, w: 130, h: 115 },
         },
+        {
+          key: "untouched-marker",
+          sourceText: "keep source",
+          translatedText: "Keep",
+          sourceRect: { x: 295, y: 495, w: 30, h: 30 },
+          renderRect: { x: 200, y: 400, w: 80, h: 40 },
+        },
       ],
     });
     assert.equal(JSON.parse(created[0].text).status, "saved");
-    const translated = (await library.openChapter(chapter.id)).pages[0];
-    await checkErasure(root, app, editing, chapter.id, translated);
+    const translated = await checkTargetedEditing(
+      root,
+      invoke,
+      chapter.id,
+      page.id,
+    );
+    await checkErasure(
+      root,
+      app,
+      editing,
+      chapter.id,
+      translated,
+      translated.blocks[0].id,
+    );
     const erased = (await library.openChapter(chapter.id)).pages[0];
     assert.deepEqual(erased.blocks, translated.blocks);
     assert.deepEqual(await readFile(page.imagePath), original);
@@ -259,8 +278,67 @@ async function checkNativeReadback(invoke, chapterId, pageId, original, clean) {
     "PASS native source crop, coordinate mapping, saved context and rendered lettering preview",
   );
 }
-/** @param {string} root @param {object} app @param {object} editing @param {string} chapterId @param {{id: string}} page */
-async function checkErasure(root, app, editing, chapterId, page) {
+/** @param {string} root @param {(name: string, args: object) => Promise<Array<{text: string}>>} invoke
+ * @param {string} chapterId @param {string} pageId */
+async function checkTargetedEditing(root, invoke, chapterId, pageId) {
+  const library = load(root, "main/library.js");
+  const { createPageRevision } = load(root, "shared/pageRevision.js");
+  const before = (await library.openChapter(chapterId)).pages[0];
+  assert.equal(before.blocks.length, 2);
+  const request = {
+    chapterId,
+    pageId,
+    revision: createPageRevision(before),
+    edits: [
+      {
+        blockId: before.blocks[0].id,
+        fields: {
+          translatedText: "Hello MCP",
+          fontSizePx: 32,
+          textColor: "#102233",
+          reviewStatus: "reviewed",
+        },
+        renderRect: { x: 50, y: 50, w: 140, h: 115 },
+      },
+    ],
+  };
+  const result = JSON.parse(
+    (await invoke("carrot_update_page_blocks", request))[0].text,
+  );
+  assert.equal(result.status, "saved");
+  assert.deepEqual(result.changedBlockIds, [before.blocks[0].id]);
+  assert.equal(
+    JSON.parse((await invoke("carrot_update_page_blocks", request))[0].text)
+      .status,
+    "already_applied",
+  );
+  const edited = (await library.openChapter(chapterId)).pages[0];
+  assert.deepEqual(edited.blocks[0].bbox, before.blocks[0].bbox);
+  assert.deepEqual(edited.blocks[1], before.blocks[1]);
+  assert.equal(edited.blocks[0].fontSizePx, 32);
+  assert.equal(edited.blocks[0].autoFitText, false);
+  const order = [edited.blocks[1].id, edited.blocks[0].id];
+  const reordered = JSON.parse(
+    (
+      await invoke("carrot_set_page_reading_order", {
+        chapterId,
+        pageId,
+        revision: createPageRevision(edited),
+        blockIds: order,
+      })
+    )[0].text,
+  );
+  assert.equal(reordered.status, "saved");
+  const saved = (await library.openChapter(chapterId)).pages[0];
+  assert.deepEqual(saved.blockOrder, order);
+  assert.deepEqual(saved.blocks, edited.blocks);
+  console.log(
+    "PASS native existing-block text/style/placement and independent reading order persisted with original geometry intact",
+  );
+  return saved;
+}
+/** @param {string} root @param {object} app @param {object} editing @param {string} chapterId @param {{id: string}} page @param {string} blockId */
+async function checkErasure(root, app, editing, chapterId, page, blockId) {
   const { eraseMcpPage } = load(root, "main/mcp/mcpErasureAdapter.js");
   const { productionInpaintingJobRuntime } = load(
     root,
@@ -287,6 +365,7 @@ async function checkErasure(root, app, editing, chapterId, page) {
     {
       chapterId,
       pageId: page.id,
+      blockId,
       revision: createPageRevision(page),
       requestId: randomUUID(),
     },
@@ -299,7 +378,11 @@ async function checkErasure(root, app, editing, chapterId, page) {
     runtime,
   );
   assert.equal(result.status, "completed");
-  assert.ok(result.blocksErased > 0);
+  assert.equal(result.blockId, blockId);
+  assert.equal(result.blocksErased, 1);
+  console.log(
+    "PASS native selected-block erasure preserves the other source region and all block text",
+  );
 }
 /** @param {(name: string, args: object) => Promise<Array<{text: string}>>} invoke @param {string} jobId */
 async function waitForOutput(invoke, jobId) {
