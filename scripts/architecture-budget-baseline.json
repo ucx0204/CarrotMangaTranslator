@@ -29,12 +29,12 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 33,
-      "reason": "Image recovery checkpoints, finalization, retouch, history and pipeline handoff use the canonical page revision without copying its algorithm."
+      "maxImportedBy": 41,
+      "reason": "The saved-page MCP review service is one additional real revision consumer. It detects edits across filtered pagination/preflight; the canonical revision algorithm and storage authority are unchanged. Existing editor, OCR and export uses remain direct."
     },
     "src/renderer/src/api/libraryGateway.ts": {
-      "maxImportedBy": 27,
-      "reason": "SFX restore and the chapter session's stale-image recovery read through the existing typed library gateway. Image recovery merges the authoritative snapshot through dirty-page preservation."
+      "maxImportedBy": 28,
+      "reason": "Master stale-image recovery, SFX review/restore and MCP editor refresh jointly have 28 direct consumers. All preserve the same typed gateway and dirty-page merge behavior."
     },
     "src/shared/ipcSettingsSchemas.ts": {
       "maxRuntimeImports": 14,
@@ -45,12 +45,12 @@
       "reason": "Whole-page composition adds fresh-input handoff and checkpoint compatibility without moving OCR/font algorithms. Whole-page handoff parity tests compare unchanged output and context order."
     },
     "src/main/index.ts": {
-      "maxRuntimeImports": 30,
-      "reason": "Electron main composition root"
+      "maxRuntimeImports": 32,
+      "reason": "Electron main composition root Startup composition owns the persistent desktop MCP service and legacy local test listener, including terminal shutdown."
     },
     "src/main/ipc/registerIpc.ts": {
-      "maxRuntimeImports": 23,
-      "reason": "IPC composition root"
+      "maxRuntimeImports": 24,
+      "reason": "IPC composition root IPC composition adds trusted MCP desktop controls with the existing validation and sender gate."
     },
     "src/main/logger.ts": {
       "maxImportedBy": 35,
@@ -77,8 +77,8 @@
       "reason": "Session composition checks work-context ownership for reset independently of an unrelated local model job."
     },
     "src/renderer/src/components/settingsModal/SettingsModalView.tsx": {
-      "maxRuntimeImports": 17,
-      "reason": "Settings composition groups OCR, images and hardware with text translation and research under AI; each panel keeps its public component."
+      "maxRuntimeImports": 18,
+      "reason": "Settings composition groups OCR, images and hardware with text translation and research under AI; each panel keeps its public component. Settings composition adds the public MCP settings panel; existing sections and UI primitives are reused."
     },
     "src/renderer/src/components/ui/Button.tsx": {
       "publicPrimitive": true,
@@ -136,8 +136,8 @@
       "maxImportedBy": 27
     },
     "src/shared/geometry.ts": {
-      "maxImportedBy": 35,
-      "reason": "Codex native-view batching and erasure reference preparation reuse canonical intersections. Block library and clipboard reuse render-box normalization and pixel conversion to preserve lettering aspect across pages. Geometry algorithms remain unchanged; existing geometry tests and clipboard/library roundtrips cover these consumers."
+      "maxImportedBy": 36,
+      "reason": "Codex native-view batching and erasure reference preparation reuse canonical intersections. Block library and clipboard reuse render-box normalization and pixel conversion to preserve lettering aspect across pages. Geometry algorithms remain unchanged; existing geometry tests and clipboard/library roundtrips cover these consumers. The MCP selected-block display editor is one additional direct consumer of the same pixel/render geometry normalization; parity tests and native selected-region rendering preserve this authority."
     },
     "src/shared/richTextMarkup.ts": {
       "maxImportedBy": 29,
@@ -193,12 +193,28 @@
       "reason": "Page handoff, mask completion, detached input completion and stale-image recovery read current session state through the established event callback primitive."
     },
     "src/renderer/src/app/session/useChapterSessionController.ts": {
-      "maxRuntimeImports": 21,
-      "reason": "The session composition root connects activity, input completion and persistence. It reads the authoritative chapter through the library gateway after an unavailable old image and merges it without losing dirty edits."
+      "maxRuntimeImports": 22,
+      "reason": "The session root composes master activity/handoff/stale-image recovery and MCP editor synchronization, totaling 22 direct runtime imports. Domain implementations remain in their existing owners."
     },
     "src/main/library.ts": {
+      "maxImportedBy": 31,
+      "reason": "The merged v2.7.6 SFX recovery and MCP composition adapters have 31 direct consumers of the locked public library facade. Keep job/adapter access through this authority rather than private storage or alias facades."
+    },
+    "src/main/ipc/trustedIpc.ts": {
+      "maxImportedBy": 26,
+      "reason": "MCP desktop controls use the existing trusted main-window IPC boundary; remote clients cannot approve connections or change local permissions."
+    },
+    "src/main/appPaths.ts": {
       "maxImportedBy": 27,
-      "reason": "SFX recovery reads and writes through the locked library facade; no direct job imports from libraryStore."
+      "reason": "MCP page render/crop adapter and app-default external-reading composition reuse the canonical data-root resolver; no separate root or arbitrary paths are exposed."
+    },
+    "src/main/mcp/mcpAppTools.ts": {
+      "maxRuntimeImports": 14,
+      "reason": "This explicit composition root adds metadata-only review/preflight tools beside existing page/image/context tools. Existing app export rules and the public library facade remain authoritative; no alias wrapper, copied algorithm or generic budget change."
+    },
+    "src/main/mcp/mcpPageOperationSession.ts": {
+      "maxRuntimeImports": 14,
+      "reason": "Page-operation composition injects native app job, OCR, erasure, renderer and scoped-output adapters into independent application services. Resource ownership and public library authority remain explicit."
     }
   }
 }

@@ -884,3 +884,121 @@ function createAppPaths(): AppPaths {
     llamaServerPath: "C:\\test\\llama\\server.exe",
   };
 }
+
+it("keeps MCP controls trusted and validated without an enrollment-opening IPC", async () => {
+  const { service, savePreferences, local, call } =
+    await createMcpControlBoundary();
+  try {
+    expect(electronBoundary.handlers.has("mcp:pairing-open")).toBe(false);
+    const off = {
+      allowImages: false,
+      allowEditing: false,
+      allowProcessing: false,
+      autoStart: false,
+    };
+    await expect(
+      call(
+        "mcp:configure",
+        { ...local, sender: { id: 99 } } as IpcMainInvokeEvent,
+        off,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      call(
+        "mcp:configure",
+        {
+          ...local,
+          senderFrame: { url: "https://attacker.example/" },
+        } as IpcMainInvokeEvent,
+        off,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      call("mcp:configure", local, { ...off, allowImages: "true" }),
+    ).rejects.toThrow();
+    expect(savePreferences).not.toHaveBeenCalled();
+    await expect(call("mcp:configure", local, off)).resolves.toMatchObject({
+      preferences: off,
+    });
+    expect(savePreferences).toHaveBeenCalledExactlyOnceWith(off);
+    await expect(call("mcp:enabled", local, false)).resolves.toMatchObject({
+      state: "off",
+    });
+    await expect(call("mcp:status", local)).resolves.toMatchObject({
+      state: "off",
+      pending: [],
+    });
+    await expect(
+      call("mcp:pairing-resolve", local, "739412", true),
+    ).rejects.toThrow();
+    await expect(
+      call("mcp:pairing-resolve", local, "a".repeat(43), true),
+    ).rejects.toThrow(/먼저/);
+    await expect(call("mcp:copy-url", local)).rejects.toThrow(/먼저/);
+    await expect(call("mcp:diagnose", local)).resolves.toEqual({
+      ok: true,
+      checks: [],
+    });
+  } finally {
+    await service.dispose();
+  }
+});
+
+async function createMcpControlBoundary() {
+  const [
+    { registerMcpDesktopIpc },
+    { McpDesktopService },
+    { ActiveJobStore },
+    { InpaintingRevisionStore },
+  ] = await Promise.all([
+    import("../src/main/ipc/mcpDesktopIpc"),
+    import("../src/main/application/mcpDesktopService"),
+    import("../src/main/jobs/activeJob"),
+    import("../src/main/inpainting/inpaintingRevisionStore"),
+  ]);
+  const savePreferences = vi.fn(async () => undefined);
+  const service = new McpDesktopService({
+    reportEditorState: () => {},
+    preferences: async () => ({
+      allowImages: true,
+      allowEditing: true,
+      allowProcessing: true,
+      autoStart: true,
+    }),
+    savePreferences,
+    savedStatus: async () => ({ url: null, connections: [] }),
+    revokeSaved: async () => {},
+    open: async () => {
+      throw new Error("No tunnel in this IPC test");
+    },
+    diagnose: async () => ({ ok: true, checks: [] }),
+    reportError: () => {},
+    setupUrl: () => null,
+  });
+  const rendererUrl = "http://127.0.0.1:5173/";
+  const context = createIpcContext(
+    new ActiveJobStore(),
+    new InpaintingRevisionStore(),
+  );
+  const window = Object.assign(new BrowserWindow(), {
+    isDestroyed: () => false,
+    webContents: { id: 23, getURL: () => rendererUrl },
+  });
+  context.getMainWindow = () => window;
+  context.mcpDesktop = service;
+  registerMcpDesktopIpc(context);
+  const local = {
+    sender: { id: 23 },
+    senderFrame: { url: rendererUrl },
+  } as IpcMainInvokeEvent;
+  const call = (
+    channel: string,
+    event: IpcMainInvokeEvent,
+    ...args: unknown[]
+  ) => {
+    const handler = electronBoundary.handlers.get(channel);
+    if (!handler) throw new Error(`Missing MCP IPC ${channel}`);
+    return handler(event, ...args);
+  };
+  return { service, savePreferences, local, call };
+}

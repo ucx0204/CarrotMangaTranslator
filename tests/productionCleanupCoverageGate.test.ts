@@ -502,7 +502,8 @@ describe("production cleanup coverage floor gate", () => {
     expect(Object.keys(manifest.introducedFloors)).toEqual(scope.added);
     expect(manifest.deletedFiles).toEqual(scope.deleted);
     expect(scope.existing).toHaveLength(750);
-    expect(scope.added).toHaveLength(666);
+    // Current master inventory plus independently measured MCP processing/protocol modules.
+    expect(scope.added).toHaveLength(743);
     expect(scope.deleted).toHaveLength(10);
   });
 });

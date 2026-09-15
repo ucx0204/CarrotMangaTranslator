@@ -1,3 +1,4 @@
+import type { McpDesktopControl } from "../../shared/mcpDesktopTypes";
 import type { BrowserWindow } from "electron";
 import type { AppOperationRegistry } from "../appOperationRegistry";
 import type { AppPaths } from "../appPaths";
@@ -21,6 +22,7 @@ export type PanelWindowPort = Pick<
 >;
 
 export type IpcContext = {
+  mcpDesktop?: McpDesktopControl;
   appPaths: AppPaths;
   jobs: ActiveJobStore;
   operations: AppOperationRegistry;
