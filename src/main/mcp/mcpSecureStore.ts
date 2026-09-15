@@ -1,5 +1,5 @@
-import { randomBytes } from "node:crypto";
-import { lstat, mkdir, readFile } from "node:fs/promises";
+import { randomBytes, createHmac } from "node:crypto";
+import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { safeStorage } from "electron";
 import { z } from "zod";
@@ -67,6 +67,17 @@ export class McpSecureStore {
       throw error;
     });
     return this.loading;
+  }
+  async identity(): Promise<{ serverId: string; dataProfileId: string }> {
+    const secrets = await this.load();
+    const root = await realpath(this.dataRoot);
+    const canonical = process.platform === "win32" ? root.toLowerCase() : root;
+    const digest = (value: string) =>
+      createHmac("sha256", secrets.localToken).update(value).digest("hex");
+    return {
+      serverId: digest("carrot-mcp-authority-v1"),
+      dataProfileId: digest(`carrot-mcp-data-v1:${canonical}`),
+    };
   }
   async saveAuthorization(oauth: McpOAuthSnapshot): Promise<void> {
     const current = await this.load();

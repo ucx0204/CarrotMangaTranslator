@@ -1,3 +1,6 @@
+import { app } from "electron";
+import { randomUUID } from "node:crypto";
+import { createMcpServerInfoTool } from "./mcp/mcpServerInfoTool";
 import type { InpaintingJobContext } from "./jobs/inpaintingJobTypes";
 import { createMcpPageOperationSession } from "./mcp/mcpPageOperationSession";
 import type { McpPreferences } from "../shared/mcpDesktopTypes";
@@ -48,7 +51,22 @@ export function createMcpDesktopRuntime(
         signal,
         failed,
       }),
-    diagnose: diagnoseMcpEndpoint,
+    diagnose: async (url) => {
+      const result = await diagnoseMcpEndpoint(url);
+      const identity = await store.identity();
+      return {
+        ...result,
+        checks: [
+          { name: "Local data directory", passed: true, message: dataRoot },
+          {
+            name: "Server / data profile",
+            passed: true,
+            message: `${identity.serverId} / ${identity.dataProfileId}`,
+          },
+          ...result.checks,
+        ],
+      };
+    },
     reportError,
     setupUrl: (error) =>
       error instanceof McpTailscaleSetupError ? error.setupUrl : null,
@@ -158,7 +176,17 @@ async function openPageServer(
       tools: createMcpAppTools({
         ...editor,
         preferences: options.preferences,
-        additionalTools: pageOperations.tools,
+        additionalTools: [
+          ...pageOperations.tools,
+          createMcpServerInfoTool({
+            ...auth.identity,
+            runtimeId: randomUUID(),
+            startedAt: Date.now(),
+            appVersion: app.getVersion(),
+            resource: `${origin}/mcp`,
+            mode: app.isPackaged ? "installed" : "development",
+          }),
+        ],
       }),
       reportError: options.reportError,
       enforceScopes: true,

@@ -181,3 +181,18 @@ it("returns fresh checked defaults without initializing authorization or sharing
     { code: "ENOENT" },
   );
 });
+
+it("distinguishes new data profiles while preserving the same authority across restart", async () => {
+  const directory = await root();
+  const encryption = codec();
+  const first = new McpSecureStore(directory, encryption);
+  const identity = await first.identity();
+  const restarted = await new McpSecureStore(directory, encryption).identity();
+  assert.deepEqual(restarted, identity);
+  const other = await new McpSecureStore(await root(), encryption).identity();
+  assert.notEqual(other.serverId, identity.serverId);
+  assert.notEqual(other.dataProfileId, identity.dataProfileId);
+  const serialized = JSON.stringify(identity);
+  assert.equal(serialized.includes(directory), false);
+  assert.equal(serialized.includes((await first.load()).localToken), false);
+});

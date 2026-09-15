@@ -47,6 +47,7 @@ export class McpDesktopAuthorization {
     await session.run(() => undefined);
     const pairing = new McpPairingBroker(provider, secret);
     return {
+      identity: await this.store.identity(),
       provider,
       session,
       pairing,

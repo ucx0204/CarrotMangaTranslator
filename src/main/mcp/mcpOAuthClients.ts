@@ -74,7 +74,7 @@ export class McpOAuthClients {
     if (!client)
       throw new McpOAuthError(
         "invalid_client",
-        "Unknown or expired client. Reconnect the plugin.",
+        "Unknown or expired client in this app data profile. Check the running app profile or register a new connection.",
         401,
       );
     return client;
