@@ -78,7 +78,12 @@ it("writes encrypted credentials atomically and restores the same identity with 
   const restored = await new McpSecureStore(directory, encryption).load();
   assert.equal(restored.localToken, identity.localToken);
   assert.deepEqual(restored.oauth, provider.snapshot());
-  assert.equal((await first.preferences()).autoStart, false);
+  assert.deepEqual(await first.preferences(), {
+    allowImages: true,
+    allowEditing: true,
+    allowProcessing: true,
+    autoStart: true,
+  });
   await first.savePreferences({
     allowImages: true,
     allowEditing: false,
@@ -137,5 +142,42 @@ it("can retry a temporarily unavailable key store without a plaintext fallback",
       await readFile(join(directory, "mcp-private/authorization.enc"), "utf8")
     ).includes(restored.localToken),
     false,
+  );
+});
+
+it("preserves saved opt-outs and legacy processing choices instead of replacing them with new defaults", async () => {
+  const directory = await root();
+  const store = new McpSecureStore(directory, codec());
+  const disabled = {
+    allowImages: false,
+    allowEditing: false,
+    autoStart: false,
+  };
+  await store.savePreferences(disabled);
+  assert.deepEqual(
+    await new McpSecureStore(directory, codec()).preferences(),
+    disabled,
+  );
+  const explicit = { ...disabled, allowProcessing: false };
+  await store.savePreferences(explicit);
+  assert.deepEqual(
+    await new McpSecureStore(directory, codec()).preferences(),
+    explicit,
+  );
+});
+it("returns fresh checked defaults without initializing authorization or sharing mutable preference objects", async () => {
+  const directory = await root();
+  const encryption = { ...codec(), available: () => false };
+  const store = new McpSecureStore(directory, encryption);
+  const first = await store.preferences();
+  assert.equal(
+    Object.values(first).every((value) => value === true),
+    true,
+  );
+  first.allowImages = false;
+  assert.equal((await store.preferences()).allowImages, true);
+  await assert.rejects(
+    readFile(join(directory, "mcp-private/authorization.enc")),
+    { code: "ENOENT" },
   );
 });

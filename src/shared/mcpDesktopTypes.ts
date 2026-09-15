@@ -5,6 +5,13 @@ export type McpPreferences = {
   allowProcessing?: boolean;
   autoStart: boolean;
 };
+/** First-use defaults only. Persisted choices and existing grants are not expanded. */
+export const DEFAULT_MCP_PREFERENCES: Readonly<McpPreferences> = Object.freeze({
+  allowImages: true,
+  allowEditing: true,
+  allowProcessing: true,
+  autoStart: true,
+});
 export type McpConnection = {
   id: string;
   clientName: string;

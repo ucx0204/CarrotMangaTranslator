@@ -163,6 +163,7 @@ it("changes auto-start without disconnecting an online client or cancelling its 
 });
 it("does not restart for an identical permission configuration including explicit false processing", async () => {
   const f = fixture();
+  await f.service.initialize();
   await f.service.setEnabled(true);
   const before = await f.service.getStatus();
   await f.service.configure({ ...before.preferences, allowProcessing: false });

@@ -1,3 +1,4 @@
+import { DEFAULT_MCP_PREFERENCES } from "../../shared/mcpDesktopTypes";
 import type { McpEditorState } from "../../shared/mcpEditingTypes";
 import type {
   McpConnection,
@@ -43,7 +44,7 @@ export class McpDesktopService implements McpDesktopControl {
     url: null,
     message: null,
     setupUrl: null,
-    preferences: { allowImages: false, allowEditing: false, autoStart: false },
+    preferences: { ...DEFAULT_MCP_PREFERENCES },
     pending: [],
     connections: [],
     pairingUntil: null,

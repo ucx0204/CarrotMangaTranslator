@@ -3,7 +3,10 @@ import { lstat, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { safeStorage } from "electron";
 import { z } from "zod";
-import type { McpPreferences } from "../../shared/mcpDesktopTypes";
+import {
+  DEFAULT_MCP_PREFERENCES,
+  type McpPreferences,
+} from "../../shared/mcpDesktopTypes";
 import {
   assertPathWithinRootWithoutSymlinks,
   writeDurableFile,
@@ -79,7 +82,7 @@ export class McpSecureStore {
   async preferences(): Promise<McpPreferences> {
     const text = await this.read("settings.json");
     return text === null
-      ? { allowImages: false, allowEditing: false, autoStart: false }
+      ? { ...DEFAULT_MCP_PREFERENCES }
       : preferencesSchema.parse(JSON.parse(text));
   }
   async savePreferences(value: McpPreferences): Promise<void> {
