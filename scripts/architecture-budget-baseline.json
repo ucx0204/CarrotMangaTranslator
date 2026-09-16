@@ -136,12 +136,12 @@
       "maxImportedBy": 27
     },
     "src/shared/geometry.ts": {
-      "maxImportedBy": 36,
-      "reason": "Codex native-view batching and erasure reference preparation reuse canonical intersections. Block library and clipboard reuse render-box normalization and pixel conversion to preserve lettering aspect across pages. Geometry algorithms remain unchanged; existing geometry tests and clipboard/library roundtrips cover these consumers. The MCP selected-block display editor is one additional direct consumer of the same pixel/render geometry normalization; parity tests and native selected-region rendering preserve this authority."
+      "maxImportedBy": 37,
+      "reason": "Codex native-view batching and erasure reference preparation reuse canonical intersections. Block library and clipboard reuse render-box normalization and pixel conversion to preserve lettering aspect across pages. Geometry algorithms remain unchanged; existing geometry tests and clipboard/library roundtrips cover these consumers. MCP display editing and source-only frame pinning directly reuse the canonical geometry. Source rectangle policy and actual text-layout parity tests preserve this authority without copying normalization algorithms."
     },
     "src/shared/richTextMarkup.ts": {
-      "maxImportedBy": 29,
-      "reason": "Merged direct consumers include Codex treatment serialization, image lettering prompts, blind readback and literal font specimens, plus master's conditionalBatchTypography rich-run scaling. Preserve both features on the canonical grammar without duplication or alias gateways; parser/serializer ownership remains unchanged."
+      "maxImportedBy": 30,
+      "reason": "Merged direct consumers include Codex treatment serialization, image lettering prompts, blind readback and literal font specimens, plus master's conditionalBatchTypography rich-run scaling. Preserve both features on the canonical grammar without duplication or alias gateways; parser/serializer ownership remains unchanged. Source-only MCP editing is one additional consumer of plain-text parsing to pin the existing legacy render frame before changing source geometry."
     },
     "src/shared/ipcSchemaPrimitives.ts": {
       "maxRuntimeImports": 15,

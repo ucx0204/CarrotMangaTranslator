@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { expect, it, vi } from "vitest";
 import type { McpOAuthProvider } from "../src/main/mcp/mcpOAuthProvider";
 import { oauthDigest } from "../src/main/mcp/mcpOAuthPolicy";
+import { normalizeBboxTo1000 } from "../src/shared/bboxNormalization";
 import { createPageRevision } from "../src/shared/pageRevision";
 import { recoveryLibrary } from "./mcpErasureRecovery.fixture";
 
@@ -81,6 +82,7 @@ async function fixture() {
   });
   const provider = new McpOAuthProvider(origin, secret, Date.now, {
     allowProcessing: true,
+    allowEdits: true,
   });
   const session = new McpOAuthSession(provider, { save: async () => {} });
   const full = grant(provider, "carrot.read carrot.edit carrot.process");
@@ -182,9 +184,18 @@ it("saves fractional source bounds over scoped HTTP while retaining image bytes 
         })
       ).result.isError,
     ).toBe(false);
-    expect((await f.library.openChapter("chapter")).pages[0].blocks).toEqual(
-      before.blocks,
-    );
+    expect((await f.library.openChapter("chapter")).pages[0].blocks).toEqual([
+      {
+        ...before.blocks[0],
+        bbox: normalizeBboxTo1000(
+          before.blocks[0].bbox,
+          before,
+          before.blocks[0].bboxSpace,
+        ),
+        bboxSpace: "normalized_1000",
+      },
+      before.blocks[1],
+    ]);
     expect(f.jobs.gate.activities).toEqual([]);
     expect(f.errors).toEqual([]);
   } finally {
@@ -202,7 +213,7 @@ it("hides writes from read-only grants and rejects malicious or off-page inputs 
         (tool: { name: string }) => tool.name === name,
       ),
     ).toBe(false);
-    expect((await f.call(f.request, f.read)).error.code).toBe(-32601);
+    expect((await f.call(f.request, f.read)).error.code).toBe(-32602);
     const full = await f.rpc("tools/list");
     const tool = full.body.result.tools.find(
       (item: { name: string }) => item.name === name,

@@ -1,3 +1,4 @@
+const { checkNativeSourceRect } = require("./mcp-native-source-rect.cjs");
 const {
   checkNativeErasureRecovery,
 } = require("./mcp-native-erasure-recovery.cjs");
@@ -177,6 +178,7 @@ async function checkNativePageGoal(root) {
       chapter.id,
       page.id,
     );
+    await checkNativeSourceRect(root, invoke, chapter.id, page.id);
     await checkErasure(
       root,
       app,
