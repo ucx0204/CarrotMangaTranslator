@@ -1,8 +1,8 @@
 diff --git a/scripts/mcp-native-page.cjs b/scripts/mcp-native-page.cjs
-index ac1bb428..becfe8fd 100644
+index 61749eb1..becfe8fd 100644
 --- a/scripts/mcp-native-page.cjs
 +++ b/scripts/mcp-native-page.cjs
-@@ -99,15 +99,8 @@ async function checkNativePageGoal(root) {
+@@ -99,12 +99,7 @@ async function checkNativePageGoal(root) {
      decodeImage: async () => null,
      inpaintingRevisionStore: new InpaintingRevisionStore(),
    };
@@ -12,15 +12,11 @@ index ac1bb428..becfe8fd 100644
 -      if (handoff.phase === "finishing-edits" && handoff.requestId)
 -        app.jobs.pageHandoffs.respond({ requestId: handoff.requestId });
 -  });
--  const { createMcpPageEditScope } = load(
--    root, "main/mcp/mcpPageEditScope.js",
--  );
 +  const stopHandoffs = acknowledgeFixtureHandoffs(app.jobs.pageHandoffs);
-+  const { createMcpPageEditScope } = load(root, "main/mcp/mcpPageEditScope.js");
+   const { createMcpPageEditScope } = load(root, "main/mcp/mcpPageEditScope.js");
    const editing = {
      assertWritable: async () => {},
-     assertClean: async () => {},
-@@ -459,4 +452,13 @@ function assertFixtureScopes(allowed, scopes) {
+@@ -457,4 +452,13 @@ function assertFixtureScopes(allowed, scopes) {
      "Unapproved fixture scope",
    );
  }
