@@ -32,24 +32,21 @@ describe("selected inpainting model routing", () => {
   it("uses only Flux when Flux is selected", async () => {
     const fluxLease = makeLease("flux-klein");
     acquireFlux.mockResolvedValue(fluxLease);
-
-    await expect(
-      acquireInpaintingEngine(
-        {
-          appPaths,
-          model: "flux-klein",
-          fluxBackend: "metal-native",
-          computeGpuIndex: 3,
-        },
-        dependencies,
-      ),
-    ).resolves.toBe(fluxLease);
+    const lease = await acquireInpaintingEngine(
+      { appPaths, model: "flux-klein", fluxBackend: "metal-native", computeGpuIndex: 3 },
+      dependencies,
+    );
+    expect(lease.engine).toBe(fluxLease.engine);
     expect(acquireFlux).toHaveBeenCalledOnce();
     expect(acquireFlux).toHaveBeenCalledWith(
       expect.objectContaining({ computeGpuIndex: 3 }),
     );
     expect(acquireKoharu).not.toHaveBeenCalled();
     expect(disposeKoharu).toHaveBeenCalledWith("switch-to-flux");
+    expect(disposeFlux).not.toHaveBeenCalled();
+    await lease.release();
+    expect(fluxLease.release).toHaveBeenCalledOnce();
+    expect(disposeFlux).toHaveBeenCalledWith("workload-complete");
   });
 
   it.each(["lama-manga", "aot-inpainting"] as const)(
@@ -57,23 +54,20 @@ describe("selected inpainting model routing", () => {
     async (model) => {
       const koharuLease = makeLease(model);
       acquireKoharu.mockResolvedValue(koharuLease);
-
-      await expect(
-        acquireInpaintingEngine(
-          {
-            appPaths,
-            model,
-            koharuBackend: "metal-native",
-            computeGpuIndex: 4,
-          },
-          dependencies,
-        ),
-      ).resolves.toBe(koharuLease);
+      const lease = await acquireInpaintingEngine(
+        { appPaths, model, koharuBackend: "metal-native", computeGpuIndex: 4 },
+        dependencies,
+      );
+      expect(lease.engine).toBe(koharuLease.engine);
       expect(acquireKoharu).toHaveBeenCalledWith(
         expect.objectContaining({ model, computeGpuIndex: 4 }),
       );
       expect(acquireFlux).not.toHaveBeenCalled();
       expect(disposeFlux).toHaveBeenCalledWith("switch-to-koharu");
+      expect(disposeKoharu).not.toHaveBeenCalled();
+      await lease.release();
+      expect(koharuLease.release).toHaveBeenCalledOnce();
+      expect(disposeKoharu).toHaveBeenCalledWith("workload-complete");
     },
   );
 });
