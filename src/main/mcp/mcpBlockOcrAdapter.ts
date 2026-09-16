@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { PixelRect } from "../../shared/region";
@@ -44,6 +44,8 @@ export async function recognizeMcpBlock(
   operation.assertAuthorized();
   const settings = await getAppSettings(app.appPaths);
   const runPaths = await getRunPaths(chapterId, operation.id);
+  operation.assertAuthorized();
+  await mkdir(runPaths.runDir, { recursive: true });
   const directory = await mkdtemp(join(runPaths.runDir, "block-ocr-"));
   const failures: unknown[] = [];
   let evidence: Awaited<ReturnType<typeof readCrop>> | undefined;

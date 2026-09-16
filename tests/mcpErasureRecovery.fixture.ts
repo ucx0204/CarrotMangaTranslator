@@ -5,10 +5,14 @@ import { editingChapter } from "./mcpEditing.fixture";
 import { createPageRevision } from "../src/shared/pageRevision";
 
 /** Real library transactions and history/retention in an isolated data root. */
-export async function recoveryLibrary() {
-  const environment = await mcpAppEnvironment({
-    createFromPath: () => ({ getSize: () => ({ width: 1000, height: 1600 }) }),
-  });
+export async function recoveryLibrary(nativeImage?: unknown) {
+  const environment = await mcpAppEnvironment(
+    nativeImage ?? {
+      createFromPath: () => ({
+        getSize: () => ({ width: 1000, height: 1600 }),
+      }),
+    },
+  );
   const root = environment.libraryDir;
   const chapterDir = join(root, "works", "work", "chapters", "chapter");
   await mkdir(join(chapterDir, "pages"), { recursive: true });

@@ -8,6 +8,7 @@ import { recognizeMcpBlock } from "./mcpBlockOcrAdapter";
 
 export function createMcpBlockOcrExecutor(
   app: InpaintingJobContext,
+  runtime?: Parameters<typeof recognizeMcpBlock>[5],
 ): McpOperationExecutor {
   return (target, context) => {
     const request = McpBlockOcrTargetSchema.parse(target);
@@ -19,7 +20,14 @@ export function createMcpBlockOcrExecutor(
         new McpBlockOcrService({
           openChapter,
           recognize: (page, rect, operation) =>
-            recognizeMcpBlock(app, request.chapterId, page, rect, operation),
+            recognizeMcpBlock(
+              app,
+              request.chapterId,
+              page,
+              rect,
+              operation,
+              runtime,
+            ),
         }).run(request, job),
       {
         resources: [{ kind: "model-runtime", scope: "*", access: "write" }],

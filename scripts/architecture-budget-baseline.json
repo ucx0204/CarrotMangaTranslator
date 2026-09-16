@@ -29,8 +29,8 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 42,
-      "reason": "Single-page native history replay adds one direct consumer of the canonical page revision for guarded undo/redo; it rejects later edits and never replaces the revision algorithm. Real transaction and native pixel roundtrip tests cover this boundary."
+      "maxImportedBy": 43,
+      "reason": "Block OCR observation adds one direct consumer of the canonical page snapshot to reject stale read results before any later source-only edit. No revision algorithm is duplicated."
     },
     "src/renderer/src/api/libraryGateway.ts": {
       "maxImportedBy": 28,
@@ -136,8 +136,8 @@
       "maxImportedBy": 27
     },
     "src/shared/geometry.ts": {
-      "maxImportedBy": 37,
-      "reason": "Codex native-view batching and erasure reference preparation reuse canonical intersections. Block library and clipboard reuse render-box normalization and pixel conversion to preserve lettering aspect across pages. Geometry algorithms remain unchanged; existing geometry tests and clipboard/library roundtrips cover these consumers. MCP display editing and source-only frame pinning directly reuse the canonical geometry. Source rectangle policy and actual text-layout parity tests preserve this authority without copying normalization algorithms."
+      "maxImportedBy": 39,
+      "reason": "Block OCR source selection and effect-region evidence map through the existing pixel conversion. Two actual boundary consumers reuse the authoritative geometry; global limits remain unchanged."
     },
     "src/shared/richTextMarkup.ts": {
       "maxImportedBy": 30,
@@ -197,8 +197,8 @@
       "reason": "The session root composes master activity/handoff/stale-image recovery and MCP editor synchronization, totaling 22 direct runtime imports. Domain implementations remain in their existing owners."
     },
     "src/main/library.ts": {
-      "maxImportedBy": 32,
-      "reason": "MCP synchronous page ownership adds one real reader of the locked public library facade (32 consumers). The adapter re-reads after the existing UI handoff, never private storage. Native activity, same-page conflict and unrelated-page editing regressions cover this boundary; generic budgets remain unchanged."
+      "maxImportedBy": 34,
+      "reason": "Block OCR composition reads saved chapters and allocates per-job paths through the established library facade. Observation has no library mutation port and never writes page OCR cache."
     },
     "src/main/ipc/trustedIpc.ts": {
       "maxImportedBy": 26,
@@ -213,12 +213,16 @@
       "reason": "This explicit composition root adds metadata-only review/preflight tools beside existing page/image/context tools. Existing app export rules and the public library facade remain authoritative; no alias wrapper, copied algorithm or generic budget change."
     },
     "src/main/mcp/mcpPageOperationSession.ts": {
-      "maxRuntimeImports": 15,
-      "reason": "The existing composition root adds a session-only recovery adapter backed by native history and page ownership alongside OCR/erasure/export. Models, storage, and history remain with their existing authorities; HTTP and native tests cover the composition."
+      "maxRuntimeImports": 16,
+      "reason": "Existing MCP composition adds the single-block OCR executor alongside page OCR, erasure and PNG export; it shares the same operation manager and app ownership rather than creating another job queue."
     },
     "src/shared/appActivityTypes.ts": {
       "maxImportedBy": 26,
       "reason": "Single-page history replay asserts the same page-content activity at its native persistence boundary. No alternate lock, alias facade, or general import-limit change."
+    },
+    "src/main/application/mcpEditPolicy.ts": {
+      "maxImportedBy": 27,
+      "reason": "Block OCR application and native crop adapters add two typed error consumers for unchanged-page observations, invalid bounds and source-file conflicts; no permission or save guards are bypassed."
     }
   }
 }

@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import type { McpOAuthProvider } from "../src/main/mcp/mcpOAuthProvider";
-import type { McpBlockOcrService } from "../src/main/application/mcpBlockOcrService";
 import { oauthDigest } from "../src/main/mcp/mcpOAuthPolicy";
 import { createPageRevision } from "../src/shared/pageRevision";
 import { recoveryLibrary } from "./mcpErasureRecovery.fixture";
@@ -360,6 +359,57 @@ it("retains the selected block on explicit failure retry and never reruns a comp
     expect(forbidden.result.structuredContent.error).toBe("invalid_edit");
     expect(f.recognize).toHaveBeenCalledTimes(2);
   } finally {
+    await f.close();
+  }
+});
+
+it("holds page ownership through cancellation until recognition cleanup has actually returned", async () => {
+  const f = await fixture();
+  let finish!: () => void;
+  let enter!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  f.recognize.mockImplementation(async (_page, _rect, context) => {
+    enter();
+    await pending;
+    context.assertAuthorized();
+    return f.evidence;
+  });
+  try {
+    const before = await f.snapshot();
+    const started = await f.call("carrot_run_block_ocr", f.target);
+    const jobId = started.result.structuredContent.jobId;
+    await entered;
+    const repeat = await f.call("carrot_run_block_ocr", f.target);
+    expect(repeat.result.structuredContent.jobId).toBe(jobId);
+    const conflict = await f.call("carrot_update_page_blocks", {
+      chapterId: f.target.chapterId,
+      pageId: f.target.pageId,
+      revision: f.target.revision,
+      edits: [
+        { blockId: f.target.blockId, fields: { sourceText: "must not save" } },
+      ],
+    });
+    expect(conflict.result.isError).toBe(true);
+    const cancelled = await f.call("carrot_cancel_job", { jobId });
+    expect(cancelled.result.structuredContent).toMatchObject({
+      status: "running",
+      cancellationRequested: true,
+    });
+    expect(f.jobs.gate.activities.length).toBeGreaterThan(0);
+    expect(f.recognize).toHaveBeenCalledOnce();
+    finish();
+    const done = await settled(f, jobId);
+    expect(done.status).toBe("cancelled");
+    expect(done.result?.blockOcr).toBeUndefined();
+    expect(await f.snapshot()).toEqual(before);
+    expect(f.jobs.gate.activities).toEqual([]);
+  } finally {
+    finish();
     await f.close();
   }
 });
