@@ -68,6 +68,23 @@ vi.mock("electron", () => ({
   },
 }));
 
+it("preserves page-local failure scope across the strict analysis IPC response", () => {
+  const result = {
+    status: "failed",
+    failureScope: "page",
+    error: "checkpoint validation failed",
+  };
+  const schema = ipcInvokeContracts.startAnalysis.result;
+  expect(schema.parse(result)).toEqual(result);
+  expect(
+    schema.safeParse({ ...result, failureScope: "ignore-all-errors" }).success,
+  ).toBe(false);
+  expect(schema.safeParse({ ...result, unexpected: true }).success).toBe(false);
+  expect(
+    schema.parse({ status: "failed", error: "legacy job failure" }),
+  ).not.toHaveProperty("failureScope");
+});
+
 const invokeContractEntries = Object.entries(ipcInvokeContracts);
 
 beforeEach(() => {

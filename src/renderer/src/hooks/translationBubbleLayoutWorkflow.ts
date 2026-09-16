@@ -19,7 +19,10 @@ import type {
   TranslationFlowOptions,
   UseTranslationActionsOptions,
 } from "./translationActionTypes";
-import { resolveTranslationChapterSelections } from "./translationChapterSelections";
+import {
+  resolvePersistedInpaintingSelection,
+  resolveTranslationChapterSelections,
+} from "./translationChapterSelections";
 import type { PageTimingSessionRef } from "../../../shared/pageProcessingTiming";
 import {
   createRendererPageTimingSession,
@@ -83,6 +86,7 @@ type ChapterFlowResult =
       status: "continue";
       attempted: boolean;
       failed: boolean;
+      stopQueue: boolean;
       partial: boolean;
       error?: string;
     }
@@ -212,7 +216,7 @@ async function executeTranslationFlow(
     }
     mergeChapterFlowResult(aggregate, result);
     const isLastProcessedChapter =
-      result.failed || index === options.selection.length - 1;
+      result.stopQueue || index === options.selection.length - 1;
     if (isLastProcessedChapter) {
       pendingFinalTiming = {
         chapterId:
@@ -227,7 +231,7 @@ async function executeTranslationFlow(
         resolveChapterTimingState(result),
       );
     }
-    if (result.failed) break;
+    if (result.stopQueue) break;
   }
   if (completion.eraseOriginal) await refreshTranslationLibrary(context);
   if (isFlowCancellationRequested(context)) {
@@ -288,12 +292,23 @@ async function runTranslationChapter(
     translationOutcome,
     completion,
   );
-  if (translationResult) return translationResult;
-  if (!selections.inpainting) {
-    return continuationResult(translationOutcome === "completed", false);
+  if (translationResult && translationOutcome !== "page-failed")
+    return translationResult;
+  const inpaintingSelection =
+    translationOutcome === "page-failed" && selections.inpainting
+      ? await resolvePersistedInpaintingSelection(
+          selections.inpainting,
+          completion,
+        )
+      : selections.inpainting;
+  if (!inpaintingSelection) {
+    return (
+      translationResult ??
+      continuationResult(translationOutcome === "completed", false)
+    );
   }
   const inpaintingResult = await runTranslationInpaintingChapter(
-    selections.inpainting,
+    inpaintingSelection,
     execution,
     timingSession,
   );
@@ -303,12 +318,14 @@ async function runTranslationChapter(
   ) {
     return { status: "cancelled", inpainting: true, refreshLibrary: true };
   }
-  return continuationResult(
+  const result = continuationResult(
     true,
     inpaintingResult.status === "failed",
     inpaintingResult.error,
     inpaintingResult.status === "partial",
   );
+  if (translationOutcome === "page-failed") result.failed = true;
+  return result;
 }
 
 function resolveTranslationChapterResult(
@@ -323,6 +340,15 @@ function resolveTranslationChapterResult(
     };
   }
   if (outcome === "failed") return continuationResult(true, true);
+  if (outcome === "page-failed") {
+    return {
+      status: "continue",
+      attempted: true,
+      failed: true,
+      stopQueue: false,
+      partial: false,
+    };
+  }
   if (outcome === "partial") {
     return continuationResult(true, false, undefined, true);
   }
@@ -334,8 +360,15 @@ function continuationResult(
   failed: boolean,
   error?: string,
   partial = false,
-): ChapterFlowResult {
-  return { status: "continue", attempted, failed, partial, error };
+): Extract<ChapterFlowResult, { status: "continue" }> {
+  return {
+    status: "continue",
+    attempted,
+    failed,
+    stopQueue: failed,
+    partial,
+    error,
+  };
 }
 
 function mergeChapterFlowResult(

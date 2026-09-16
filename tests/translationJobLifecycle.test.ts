@@ -14,6 +14,67 @@ vi.mock("electron", () => ({
 const TIMESTAMP = "2026-01-01T00:00:00.000Z";
 
 describe("translation job lifecycle", () => {
+  it.each([
+    "confirmed",
+    "all-failed",
+    "unrecorded",
+    "not-persisted",
+    "different-error",
+    "guidance",
+    "missing-page",
+  ])(
+    "only permits page-failure continuation after persistence proof: %s",
+    async (scenario) => {
+      const failed = {
+        ...makePage(),
+        analysisStatus: "failed" as const,
+        lastError: "checkpoint validation",
+      };
+      const good = {
+        ...makePage(),
+        id: "page-2",
+        analysisStatus: "completed" as const,
+      };
+      const pages = scenario === "all-failed" ? [failed] : [failed, good];
+      const chapter = makeChapter(pages);
+      const persisted = makeChapter(
+        pages.map((page) =>
+          page.id !== failed.id
+            ? page
+            : {
+                ...page,
+                analysisStatus:
+                  scenario === "not-persisted" ? "idle" : page.analysisStatus,
+                lastError:
+                  scenario === "different-error"
+                    ? "other failure"
+                    : page.lastError,
+              },
+        ),
+      );
+      if (scenario === "missing-page") persisted.pages = [good];
+      const result = await completeAnalysisJob(
+        "job",
+        vi.fn(),
+        { chapterId: chapter.id, runMode: "all" },
+        { chapter, pages },
+        {
+          pages,
+          warnings: [],
+          pageLocalFailureIds: scenario === "unrecorded" ? [] : [failed.id],
+          ...(scenario === "guidance"
+            ? { failureGuidance: "increase-context-length" as const }
+            : {}),
+        },
+        vi.fn().mockResolvedValue(persisted),
+      );
+      expect(result.status).toBe("failed");
+      expect(result.failureScope).toBe(
+        ["confirmed", "all-failed"].includes(scenario) ? "page" : undefined,
+      );
+    },
+  );
+
   it("finishes an empty translation while preserving an unrelated owner", async () => {
     const chapter = makeChapter([]);
     const runtime = makeSelectionValidationRuntime(chapter, []);

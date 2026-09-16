@@ -67,6 +67,27 @@ export async function resolveTranslationChapterSelections(
   };
 }
 
+/** Re-read persisted successes before erasing any page in a partially failed chapter. */
+export async function resolvePersistedInpaintingSelection(
+  selection: AutoInpaintingChapterSelection,
+  completion: { bubbleLayout: boolean },
+): Promise<AutoInpaintingChapterSelection | null> {
+  const chapter = await libraryGateway.openChapter(selection.chapterId);
+  const selectedIds =
+    selection.mode === "page-set" ? new Set(selection.pageIds) : null;
+  const workflow = completion.bubbleLayout ? "bubble-layout" : "erase-original";
+  const pageIds = chapter.pages
+    .filter(
+      (page) =>
+        (!selectedIds || selectedIds.has(page.id)) &&
+        page.analysisStatus === "completed" &&
+        page.translationCompletion?.workflow === workflow &&
+        page.translationCompletion.status === "pending",
+    )
+    .map((page) => page.id);
+  return createInpaintingPageSetSelection(selection, pageIds);
+}
+
 function createPageSetSelection(
   selection: Pick<ChapterRunSelection, "chapterId">,
   pageIds: string[],

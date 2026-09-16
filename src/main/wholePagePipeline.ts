@@ -20,7 +20,10 @@ import { formatGemmaVramMode } from "./pipeline/options";
 import { prepareAnalysisRun } from "./pipeline/prepareAnalysisRun";
 import { prepareFontMatchingRuntimeForRun } from "./pipeline/fontMatchingRuntimeAssets";
 import { emitFinalizing } from "./pipeline/progressEvents";
-import { preparePageWithRetries } from "./pipeline/translatePageWithRetries";
+import {
+  preparePageWithRetries,
+  saveFailedPage,
+} from "./pipeline/translatePageWithRetries";
 import type { OcrBboxResult, PipelineOptions } from "./pipeline/types";
 import { createWarningCollector } from "./pipeline/warningCollector";
 import {
@@ -65,6 +68,8 @@ import {
 export type WholePagePipelineResult = {
   pages: MangaPage[];
   warnings: string[];
+  /** Only checkpoint validation failures whose failed-page save finished. */
+  pageLocalFailureIds?: string[];
   failureGuidance?: JobFailureGuidance;
   imageEditingError?: string;
 };
@@ -245,6 +250,7 @@ async function runWholePagePipelineWithDependencies(
   throwIfAborted(signal);
 
   return completeWholePageRun({
+    pageLocalFailureIds: new Set<string>(),
     acquirePage: options.acquirePage,
     onPageSettled: options.onPageSettled,
     decodeImage: options.decodeImage,
@@ -339,6 +345,7 @@ type CompleteWholePageRunOptions = Pick<
   | "workContext"
   | "writeStoryMemory"
 > & {
+  pageLocalFailureIds: Set<string>;
   filtered: ReturnType<typeof filterPagesByOcrText>;
   ocrHintsByPageId: Map<string, OcrBboxResult>;
   run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
@@ -367,7 +374,12 @@ async function completeWholePageRun(
     reusableCheckpoints.size === 0
   ) {
     emitPagesReadyWithoutModel(run.progressContext, pages.length);
-    return buildPipelineResult(pages, filtered, warningCollector);
+    return buildPipelineResult(
+      pages,
+      filtered,
+      warningCollector,
+      options.pageLocalFailureIds,
+    );
   }
   const preparedPages = await preparePagesWithinEndpointSession(options);
   throwIfAborted(signal);
@@ -418,7 +430,12 @@ async function completeWholePageRun(
     run.progressContext,
     tMain("translation.progress.pagesReady", { count: pages.length }),
   );
-  return buildPipelineResult(pages, filtered, warningCollector);
+  return buildPipelineResult(
+    pages,
+    filtered,
+    warningCollector,
+    options.pageLocalFailureIds,
+  );
 }
 
 async function preparePagesWithinEndpointSession(
@@ -484,12 +501,16 @@ function buildPipelineResult(
   pages: MangaPage[],
   filtered: ReturnType<typeof filterPagesByOcrText>,
   warningCollector: ReturnType<typeof createWarningCollector>,
+  pageLocalFailureIds: ReadonlySet<string>,
 ): WholePagePipelineResult {
   const completedPages = buildPipelinePages(pages, filtered.completedPagesById);
   const failureGuidance = warningCollector.resolveTerminalFailureGuidance();
   return {
     pages: completedPages,
     warnings: warningCollector.warnings,
+    ...(pageLocalFailureIds.size
+      ? { pageLocalFailureIds: [...pageLocalFailureIds] }
+      : {}),
     ...(failureGuidance ? { failureGuidance } : {}),
   };
 }
@@ -609,6 +630,7 @@ const previewPageContextDependencies: PageContextPersistenceDependencies = {
 };
 
 type PrepareTranslatedPagesOptions = {
+  pageLocalFailureIds: Set<string>;
   acquirePage?: PipelineOptions["acquirePage"];
   onPageSettled?: PipelineOptions["onPageSettled"];
   onPageComplete?: PipelineOptions["onPageComplete"];
@@ -676,15 +698,12 @@ async function prepareTranslatedPages(
       options.onPageSettled?.(page.id, true);
       continue;
     }
-    if (!options.reusableCheckpoints.has(page.id)) {
-      await approvePreparedTranslationCheckpoint({
-        blockMode: options.blockMode,
-        onPagePrepared: options.onPagePrepared,
-        page,
-        prepared: entry.prepared,
-        run: options.run,
-        timing: options.timing,
-      });
+    if (
+      !options.reusableCheckpoints.has(page.id) &&
+      !(await approveTranslatedPageEntry(entry, options))
+    ) {
+      options.onPageSettled?.(page.id, true);
+      continue;
     }
     entries.push(entry);
     await persistPreparedPageContext(
@@ -695,6 +714,44 @@ async function prepareTranslatedPages(
     );
   }
   return { entries, fontMatchingChapterCoordinator };
+}
+
+async function approveTranslatedPageEntry(
+  entry: PreparedChapterPage,
+  options: PrepareTranslatedPagesOptions,
+): Promise<boolean> {
+  return approvePreparedTranslationCheckpoint({
+    blockMode: options.blockMode,
+    onPagePrepared: options.onPagePrepared,
+    page: entry.page,
+    prepared: entry.prepared,
+    run: options.run,
+    timing: options.timing,
+    signal: options.signal,
+    onValidationFailed: async (error) => {
+      await saveFailedPage({
+        completedPagesById: options.filtered.completedPagesById,
+        context: options.run.progressContext,
+        maxAttempts: 1,
+        onPageFailed: options.onPageFailed,
+        page: entry.page,
+        pageIndex: entry.pageIndex,
+        progressPageIndex: entry.progressPageIndex,
+        result: {
+          lastError: error,
+          lastErrorMessage: error.message,
+          lastPageOptions:
+            entry.prepared.kind === "translated"
+              ? entry.prepared.pageOptions
+              : null,
+        },
+        runPaths: options.runPaths,
+        warningCollector: options.warningCollector,
+        diagnostics: options.dependencies.diagnostics,
+      });
+      options.pageLocalFailureIds.add(entry.page.id);
+    },
+  });
 }
 
 async function handOffTranslationInput(

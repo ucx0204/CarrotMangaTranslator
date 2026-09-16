@@ -329,7 +329,7 @@ function buildAnalysisPipelineCallbacks({
       );
     },
     onPageFailed: async (page, errorMessage) => {
-      await dependencies.updatePageAfterAnalysis(
+      const saved = await dependencies.updatePageAfterAnalysis(
         request.chapterId,
         page,
         [errorMessage],
@@ -337,6 +337,10 @@ function buildAnalysisPipelineCallbacks({
         undefined,
         expectedRevisionByPageId.get(page.id),
       );
+      if (!saved)
+        throw new Error(
+          "페이지가 변경되어 번역 실패 상태를 저장하지 못했습니다. 작업을 중단합니다.",
+        );
     },
   };
 }
@@ -415,16 +419,22 @@ export async function completeAnalysisJob(
   const persistedPagesById = new Map(
     chapter.pages.map((page) => [page.id, page]),
   );
-  const incompletePageCount = resolved.pages.filter(
+  const incompletePages = resolved.pages.filter(
     (page) =>
       !committedPageIds?.has(page.id) &&
       !isPersistedAnalysisTargetComplete(
         persistedPagesById.get(page.id),
         request,
       ),
-  ).length;
+  );
+  const incompletePageCount = incompletePages.length;
 
   if (incompletePageCount > 0) {
+    const failureScope = resolvePageFailureScope(
+      incompletePages,
+      persistedPagesById,
+      result,
+    );
     const message = tMain("translation.incompleteWithFailures", {
       count: incompletePageCount,
     });
@@ -444,6 +454,7 @@ export async function completeAnalysisJob(
       status: "failed",
       chapter,
       warnings: result.warnings,
+      ...(failureScope ? { failureScope } : {}),
       error: message,
       failureGuidance: result.failureGuidance,
     };
@@ -465,6 +476,30 @@ export async function completeAnalysisJob(
     chapter,
     warnings: result.warnings,
   };
+}
+
+function resolvePageFailureScope(
+  incompletePages: MangaPage[],
+  persistedPages: ReadonlyMap<string, MangaPage>,
+  result: PipelineResult,
+): "page" | undefined {
+  if (result.failureGuidance || !result.pageLocalFailureIds?.length)
+    return undefined;
+  const skippedIds = new Set(result.pageLocalFailureIds);
+  const resultPages = new Map(result.pages.map((page) => [page.id, page]));
+  return incompletePages.every(({ id }) => {
+    const persisted = persistedPages.get(id);
+    const failed = resultPages.get(id);
+    return (
+      skippedIds.has(id) &&
+      failed?.analysisStatus === "failed" &&
+      persisted?.analysisStatus === "failed" &&
+      Boolean(failed.lastError) &&
+      persisted.lastError === failed.lastError
+    );
+  })
+    ? "page"
+    : undefined;
 }
 
 function isPersistedAnalysisTargetComplete(

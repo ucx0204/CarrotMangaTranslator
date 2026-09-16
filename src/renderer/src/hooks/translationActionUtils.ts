@@ -173,6 +173,17 @@ export function resolveStartOutcome(
   if (result.status === "cancelled") {
     return "cancelled";
   }
+  reportStartFailure(result, setJobState, pushStatus, t);
+  return result.failureScope === "page" && !result.failureGuidance
+    ? "page-failed"
+    : "failed";
+}
+function reportStartFailure(
+  result: StartAnalysisResult,
+  setJobState: SetJobState,
+  pushStatus: (line: string) => void,
+  t?: TFunction<"renderer">,
+): void {
   if (result.error) {
     console.error(result.error);
   }
@@ -187,7 +198,6 @@ export function resolveStartOutcome(
         (t ? t("translation.errors.jobFailed") : "번역 작업에 실패했습니다.")),
     result.failureGuidance,
   );
-  return "failed";
 }
 
 export function reportRefreshLibraryFailure(

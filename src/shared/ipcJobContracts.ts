@@ -82,6 +82,7 @@ const inpaintingHistoryReferenceSchema = z
 const startAnalysisResultSchema = z
   .object({
     status: analysisResultStatusSchema,
+    failureScope: z.literal("page").optional(),
     chapter: ChapterSnapshotSchema.optional(),
     warnings: z.array(diagnosticString).max(MAX_WARNINGS).optional(),
     error: diagnosticString.optional(),

@@ -59,6 +59,8 @@ export type StartAnalysisResult = {
   warnings?: string[];
   error?: string;
   failureGuidance?: JobFailureGuidance;
+  /** Persisted page-data failures; later queued chapters may still run. */
+  failureScope?: "page";
 };
 
 export type RegionAnalysisRequest = {

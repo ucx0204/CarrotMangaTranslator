@@ -12,6 +12,18 @@ const selections = [
 ];
 
 describe("sequential chapter translation flow", () => {
+  it("continues after page-local failure but keeps the aggregate incomplete", async () => {
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce("page-failed")
+      .mockResolvedValueOnce("completed")
+      .mockResolvedValueOnce("completed");
+    await expect(
+      runSelectionsSequentially(execute, selections, vi.fn(), "번역"),
+    ).resolves.toBe("page-failed");
+    expect(execute).toHaveBeenCalledTimes(3);
+  });
+
   it("stops immediately after a chapter failure", async () => {
     const execute = vi
       .fn()

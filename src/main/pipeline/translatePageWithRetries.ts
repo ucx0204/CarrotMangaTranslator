@@ -115,7 +115,7 @@ export async function preparePageWithRetries({
     timing,
   });
   if (result.successPrepared) return result.successPrepared;
-  await saveFailedPageAfterRetries({
+  await saveFailedPage({
     completedPagesById,
     context,
     maxAttempts,
@@ -342,7 +342,7 @@ function handlePageAttemptFailure({
   }
 }
 
-async function saveFailedPageAfterRetries({
+export async function saveFailedPage({
   completedPagesById,
   context,
   maxAttempts,
@@ -362,7 +362,10 @@ async function saveFailedPageAfterRetries({
   page: MangaPage;
   pageIndex: number;
   progressPageIndex?: number;
-  result: PageTranslationAttemptResult;
+  result: Pick<
+    PageTranslationAttemptResult,
+    "lastError" | "lastErrorMessage" | "lastPageOptions"
+  >;
   runPaths: ChapterRunPaths;
   warningCollector: WarningCollector;
   diagnostics: PipelineDiagnostics;

@@ -22,6 +22,17 @@ import {
   TRANSLATION_CHECKPOINT_SCHEMA_VERSION,
 } from "../../shared/translationCheckpoint";
 
+export class PreparedTranslationCheckpointValidationError extends Error {
+  readonly failureCategory = "checkpoint-validation";
+
+  constructor(cause: Error) {
+    super(`번역 체크포인트 데이터 검증에 실패했습니다: ${cause.message}`, {
+      cause,
+    });
+    this.name = "PreparedTranslationCheckpointValidationError";
+  }
+}
+
 export function resolveCheckpointCompatibility({
   checkpoint,
   page,
@@ -72,7 +83,7 @@ export function buildPreparedTranslationCheckpoint({
   translationDurationMs: number;
   savedAt?: string;
 }): PreparedTranslationCheckpoint {
-  return PreparedTranslationCheckpointSchema.parse({
+  const result = PreparedTranslationCheckpointSchema.safeParse({
     schemaVersion: TRANSLATION_CHECKPOINT_SCHEMA_VERSION,
     pipelineContractVersion: TRANSLATION_CHECKPOINT_PIPELINE_CONTRACT,
     soundEffectReviewPreserved: true,
@@ -85,6 +96,9 @@ export function buildPreparedTranslationCheckpoint({
     translationDurationMs: normalizeDuration(translationDurationMs),
     prepared: serializePrepared(prepared),
   });
+  if (!result.success)
+    throw new PreparedTranslationCheckpointValidationError(result.error);
+  return result.data;
 }
 
 export function restorePreparedTranslationCheckpoint(

@@ -13,12 +13,15 @@ import {
   type PreparedPageBuildResult,
 } from "./pageResultBuilder";
 import {
+  PreparedTranslationCheckpointValidationError,
   buildPreparedTranslationCheckpoint,
   resolveCheckpointCompatibility,
   restorePreparedTranslationCheckpoint,
 } from "./preparedTranslationCheckpoint";
 import type { PreparedTranslationCheckpoint } from "./preparedTranslationCheckpointContract";
 import type { AnalysisEndpointSession } from "./endpointSession";
+
+import { throwIfAborted } from "./failure";
 
 type PreparedRun = Awaited<ReturnType<typeof prepareAnalysisRun>>;
 
@@ -119,6 +122,8 @@ export function restoreTranslationCheckpointForRun({
 export async function approvePreparedTranslationCheckpoint({
   blockMode,
   onPagePrepared,
+  onValidationFailed,
+  signal,
   page,
   prepared,
   run,
@@ -126,24 +131,42 @@ export async function approvePreparedTranslationCheckpoint({
 }: {
   blockMode?: PipelineOptions["blockMode"];
   onPagePrepared?: PipelineOptions["onPagePrepared"];
+  onValidationFailed: (
+    error: PreparedTranslationCheckpointValidationError,
+  ) => Promise<void>;
+  signal: AbortSignal;
   page: MangaPage;
   prepared: PreparedPageBuildResult;
   run: PreparedRun;
   timing: PageProcessingTimingCollector;
-}): Promise<void> {
-  if (!onPagePrepared) return;
-  const checkpoint = buildPreparedTranslationCheckpoint({
-    prepared,
-    pageId: page.id,
-    inputRevision: createPageRevision(page),
-    sourceLanguage: run.baseOptions.sourceLanguage ?? DEFAULT_SOURCE_LANGUAGE,
-    targetLanguage: run.baseOptions.targetLanguage ?? DEFAULT_TARGET_LANGUAGE,
-    blockMode: blockMode ?? "auto",
-    translationDurationMs: timing.getStages(page.id).translation ?? 0,
-  });
+}): Promise<boolean> {
+  throwIfAborted(signal);
+  if (!onPagePrepared) return true;
+  let checkpoint: PreparedTranslationCheckpoint;
+  try {
+    checkpoint = buildPreparedTranslationCheckpoint({
+      prepared,
+      pageId: page.id,
+      inputRevision: createPageRevision(page),
+      sourceLanguage: run.baseOptions.sourceLanguage ?? DEFAULT_SOURCE_LANGUAGE,
+      targetLanguage: run.baseOptions.targetLanguage ?? DEFAULT_TARGET_LANGUAGE,
+      blockMode: blockMode ?? "auto",
+      translationDurationMs: timing.getStages(page.id).translation ?? 0,
+    });
+  } catch (error) {
+    throwIfAborted(signal);
+    if (!(error instanceof PreparedTranslationCheckpointValidationError))
+      throw error;
+    await onValidationFailed(error);
+    throwIfAborted(signal);
+    return false;
+  }
+  // Publication conflicts and storage errors must still stop the whole job.
   if ((await onPagePrepared(checkpoint)) === false) {
     throw new Error(
       "페이지가 변경되어 번역 체크포인트를 저장하지 못했습니다. 작업을 중단합니다.",
     );
   }
+  throwIfAborted(signal);
+  return true;
 }

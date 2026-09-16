@@ -10,6 +10,7 @@ import type { PageTimingSessionRef } from "../../../shared/pageProcessingTiming"
 export type RunAnalysisOutcome =
   | "completed"
   | "partial"
+  | "page-failed"
   | "cancelled"
   | "failed"
   | "no-op";
@@ -75,8 +76,8 @@ export function setFlowTerminal(
 /**
  * Translate a list of chapter selections in order, each with its own scope
  * (whole chapter, pending pages, or an explicit page subset). Stops on the
- * first cancellation or failure so later chapters cannot overtake incomplete
- * work. The aggregate is completed only when every attempted chapter completed.
+ * first cancellation or job-wide failure. Persisted page-local failures allow
+ * later chapters to run without reporting the failed selection as completed. The aggregate is completed only when every attempted chapter completed.
  */
 export async function runSelectionsSequentially(
   execute: ExecuteAnalysisJob,
@@ -97,6 +98,7 @@ export async function runSelectionsSequentially(
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
   let anyPartial = false;
+  let anyPageFailed = false;
   let anyAttempted = false;
   for (let index = 0; index < selections.length; index += 1) {
     const selection = selections[index];
@@ -127,7 +129,9 @@ export async function runSelectionsSequentially(
     anyAttempted ||= outcome !== "no-op";
     anyCompleted ||= outcome === "completed";
     anyPartial ||= outcome === "partial";
+    anyPageFailed ||= outcome === "page-failed";
   }
+  if (anyPageFailed) return "page-failed";
   if (anyPartial) {
     return "partial";
   }

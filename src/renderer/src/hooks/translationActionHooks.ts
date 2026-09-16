@@ -350,7 +350,11 @@ function resolveAnalysisJobOutcome(
   job: AnalysisJob,
   context: AnalysisJobContext,
 ): RunAnalysisOutcome {
-  if (!job.deferTerminalFailure || result.status === "completed") {
+  if (
+    !job.deferTerminalFailure ||
+    result.status === "completed" ||
+    (result.failureScope === "page" && !result.failureGuidance)
+  ) {
     return resolveStartOutcome(
       result,
       context.setJobState,
