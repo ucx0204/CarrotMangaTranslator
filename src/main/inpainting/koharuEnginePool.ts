@@ -148,12 +148,8 @@ async function prepareKoharuEngineCandidate(
     return engine;
   } catch (error) {
     if (engine) {
-      await engine.dispose().catch((disposeError) => {
-        logInpaintingRuntimeError("Failed to dispose failed Koharu engine", {
-          backend,
-          disposeError,
-        });
-      });
+      const failedEngine = engine;
+      await releaseModelResource(failedEngine, () => failedEngine.dispose());
     }
     throw error;
   }

@@ -1,5 +1,4 @@
 import { basename, dirname, join, resolve } from "node:path";
-import { safeCleanup } from "../safeCleanup";
 import { FluxWorker, type FluxWorkerDiagnostics } from "./fluxWorker";
 import type { FluxWorkerLaunchSpec } from "./fluxWorkerTypes";
 import {
@@ -42,10 +41,7 @@ export function createFluxEngine(
   let worker: FluxWorker | null = null;
   const getWorker = () => {
     if (worker && !worker.isHealthy()) {
-      void safeCleanup("dispose unhealthy Flux worker", () =>
-        worker?.dispose(),
-      );
-      worker = null;
+      throw new Error("Flux worker is unhealthy; finish native cleanup before retrying the workload.");
     }
     worker ??= new FluxWorker(options.launch, {
       diagnostics: options.diagnostics,

@@ -49,6 +49,7 @@ export async function recognizeMcpPage(
       effectReviewCandidates: result.effectReviewRegions?.length ?? 0,
     };
   } finally {
+    operation.progress({ phase: "releasing_model" });
     await disposeTranslationRuntimeResources("mcp-ocr-finished");
   }
 }
