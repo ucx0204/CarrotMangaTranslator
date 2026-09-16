@@ -3,6 +3,7 @@ import { z } from "zod/v4";
 import { mcpJobResultMetadataSchema } from "../application/mcpJobJournal";
 import { mcpReviewOutputSchemas } from "../../shared/mcpReviewSchemas";
 import { McpEditableFieldsSchema } from "../../shared/mcpBlockEditing";
+import { McpSourceRectResultSchema } from "../../shared/mcpSourceRect";
 
 const text = z.string();
 const count = z.number().int().nonnegative();
@@ -102,6 +103,7 @@ const mcpJobReceiptOutput = z
 export const mcpOutputSchemas: Record<string, z.ZodType> = {
   ...mcpReviewOutputSchemas,
   ...mcpErasureRecoveryOutputs,
+  carrot_update_block_source_rect: McpSourceRectResultSchema,
   carrot_get_server_info: z
     .object({
       serverId: text.regex(/^[a-f0-9]{64}$/),
