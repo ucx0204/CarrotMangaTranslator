@@ -204,7 +204,8 @@ describe("sound-effect review UI", () => {
         chapterId: "chapter-1",
         pages: [
           expect.objectContaining({
-            dismissedRegionIds: ["FX-left"],
+            dismissedRegionIds: [],
+            excludedRegionIds: ["FX-left"],
             includedRegionIds: ["FX-right"],
             pageId: "page-1",
           }),
@@ -239,11 +240,13 @@ describe("sound-effect review UI", () => {
         pages: [
           expect.objectContaining({
             includedRegionIds: [],
-            dismissedRegionIds: ["FX-left", "FX-right"],
+            dismissedRegionIds: [],
+            excludedRegionIds: ["FX-left", "FX-right"],
           }),
           expect.objectContaining({
             includedRegionIds: [],
-            dismissedRegionIds: ["FX-third"],
+            dismissedRegionIds: [],
+            excludedRegionIds: ["FX-third"],
           }),
         ],
       }),

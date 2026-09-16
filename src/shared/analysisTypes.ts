@@ -108,6 +108,8 @@ export type PrepareSoundEffectTranslationRequest = {
     pageId: string;
     pageRevision: string;
     includedRegionIds: string[];
+    /** Skip this run while retaining the candidates for later review. */
+    excludedRegionIds?: string[];
     editedRegions: Array<{ regionId: string; bbox: BBox }>;
     addedRegions: Array<{ regionId: string; bbox: BBox }>;
     dismissedRegionIds: string[];

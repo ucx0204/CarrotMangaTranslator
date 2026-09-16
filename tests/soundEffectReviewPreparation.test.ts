@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  applyResolvedSoundEffectEntries,
   createPrepareSoundEffectTranslationMutation,
   type PrepareSoundEffectTranslationRuntime,
 } from "../src/main/libraryStore/librarySoundEffectMutations";
@@ -7,7 +8,19 @@ import type { LibraryChapter } from "../src/shared/libraryTypes";
 import { createSoundEffectReviewPageRevision } from "../src/shared/pageRevision";
 import { resolveEffectiveSoundEffectReviewRegions } from "../src/shared/soundEffectReview";
 import { createRestoreSoundEffectReviewMutation } from "../src/main/libraryStore/librarySoundEffectRestore";
-import { RestoreSoundEffectReviewRequestSchema } from "../src/shared/ipcSoundEffectReviewSchemas";
+import {
+  buildPrepareRequest,
+  createSoundEffectDraftPages,
+} from "../src/renderer/src/components/soundEffectTranslationDraft";
+import { summarizeSoundEffectReviewChapter } from "../src/renderer/src/lib/soundEffectReviewRegions";
+import {
+  countChapterPendingSoundEffectRegions,
+  resolveStoredSoundEffectTargets,
+} from "../src/main/jobs/soundEffectTranslationTargets";
+import {
+  PrepareSoundEffectTranslationRequestSchema,
+  RestoreSoundEffectReviewRequestSchema,
+} from "../src/shared/ipcSoundEffectReviewSchemas";
 
 describe("restore excluded sound-effect candidates", () => {
   it("persists restored decisions across reopening while retaining reviewed geometry and resolved candidates", async () => {
@@ -178,6 +191,195 @@ function requireReview(page: LibraryChapter["pages"][number]) {
 }
 
 describe("sound-effect review preparation transaction", () => {
+  it.each([
+    "unknown",
+    "included-overlap",
+    "dismissed-overlap",
+    "missing-decision",
+    "duplicate",
+  ])("rejects %s exclusions without writing the chapter", async (kind) => {
+    const chapter = makeChapter();
+    const storage = createStorageRuntime(chapter);
+    const draft = createSoundEffectDraftPages({
+      ...chapter,
+      pages: chapter.pages.map((page) => ({ ...page, dataUrl: "" })),
+    });
+    draft[0].regions[0].included = false;
+    const request = buildPrepareRequest(chapter.id, draft);
+    const page = request.pages[0];
+    if (kind === "unknown") page.excludedRegionIds?.push("unknown");
+    if (kind === "included-overlap") page.includedRegionIds.push("FX001");
+    if (kind === "dismissed-overlap") page.dismissedRegionIds.push("FX001");
+    if (kind === "missing-decision") page.excludedRegionIds = [];
+    if (kind === "duplicate") page.excludedRegionIds?.push("FX001");
+    const prepare = async () =>
+      createPrepareSoundEffectTranslationMutation(storage.runtime)(
+        PrepareSoundEffectTranslationRequestSchema.parse(request),
+      );
+    await expect(prepare()).rejects.toThrow();
+    expect(storage.commitChapterAndWork).not.toHaveBeenCalled();
+    expect(storage.readStoredChapter()).toEqual(chapter);
+  });
+
+  it("keeps an all-excluded review pending with no translation targets, including after reopening", async () => {
+    const chapter = makeChapter();
+    const storage = createStorageRuntime(chapter);
+    const draft = createSoundEffectDraftPages({
+      ...chapter,
+      pages: chapter.pages.map((page) => ({ ...page, dataUrl: "" })),
+    });
+    draft.forEach((item) =>
+      item.regions.forEach((region) => {
+        region.included = false;
+      }),
+    );
+    const prepared = await createPrepareSoundEffectTranslationMutation(
+      storage.runtime,
+    )(
+      PrepareSoundEffectTranslationRequestSchema.parse(
+        buildPrepareRequest(chapter.id, draft),
+      ),
+    );
+    expect(prepared.targets).toEqual([]);
+    expect(prepared.includedRegionCount).toBe(0);
+    expect(prepared.dismissedRegionCount).toBe(0);
+    expect(countChapterPendingSoundEffectRegions(prepared.chapter)).toBe(3);
+    expect(
+      summarizeSoundEffectReviewChapter(prepared.chapter.pages).pendingCount,
+    ).toBe(3);
+    expect(
+      storage.readStoredChapter().pages.map((page) => page.soundEffectReview),
+    ).toEqual(chapter.pages.map((page) => page.soundEffectReview));
+    expect(
+      createSoundEffectDraftPages(prepared.chapter).flatMap((item) =>
+        item.regions.map((region) => region.id),
+      ),
+    ).toEqual(["FX001", "FX002", "FX003"]);
+  });
+
+  it("persists newly drawn excluded regions but discards newly drawn deleted regions", async () => {
+    const chapter = makeChapter();
+    const storage = createStorageRuntime(chapter);
+    const draft = createSoundEffectDraftPages({
+      ...chapter,
+      pages: chapter.pages.map((page) => ({ ...page, dataUrl: "" })),
+    });
+    const manual = {
+      id: "manual-00000000-0000-4000-8000-000000000099",
+      bbox: { x: 500, y: 200, w: 100, h: 100 },
+      detectorConfidence: 1,
+      manual: true,
+      newlyAdded: true,
+      included: false,
+      deleted: false,
+    };
+    draft[0].regions.push(manual, {
+      ...manual,
+      id: "manual-00000000-0000-4000-8000-000000000098",
+      deleted: true,
+    });
+    const prepared = await createPrepareSoundEffectTranslationMutation(
+      storage.runtime,
+    )(
+      PrepareSoundEffectTranslationRequestSchema.parse(
+        buildPrepareRequest(chapter.id, draft),
+      ),
+    );
+    expect(prepared.includedRegionCount).toBe(3);
+    expect(requireReview(prepared.chapter.pages[0]).manualRegions).toEqual([
+      expect.objectContaining({ id: manual.id, bbox: manual.bbox }),
+    ]);
+    expect(
+      prepared.targets.flatMap((target) => target.regionIds ?? []),
+    ).not.toContain(manual.id);
+    expect(
+      createSoundEffectDraftPages(prepared.chapter)[0].regions.map(
+        (region) => region.id,
+      ),
+    ).toEqual(["FX001", "FX002", manual.id]);
+  });
+
+  it("retains excluded candidates after translating included regions and hiding deleted regions", async () => {
+    const chapter = makeChapter();
+    const storage = createStorageRuntime(chapter);
+    const draft = createSoundEffectDraftPages({
+      ...chapter,
+      pages: chapter.pages.map((page) => ({ ...page, dataUrl: "" })),
+    });
+    draft[0].regions[0].included = false;
+    draft[0].regions[0].bbox = { x: 80, y: 90, w: 100, h: 110 };
+    draft[1].regions[0].deleted = true;
+    const request = PrepareSoundEffectTranslationRequestSchema.parse(
+      buildPrepareRequest(chapter.id, draft),
+    );
+    const prepared = await createPrepareSoundEffectTranslationMutation(
+      storage.runtime,
+    )(request);
+    expect(prepared.includedRegionCount).toBe(1);
+    expect(prepared.dismissedRegionCount).toBe(1);
+    const targets = resolveStoredSoundEffectTargets(prepared.chapter, {
+      chapterId: chapter.id,
+      targets: prepared.targets,
+      inpaintAfterTranslation: false,
+    });
+    expect(
+      targets.flatMap((target) => target.regions.map((region) => region.id)),
+    ).toEqual(["FX002"]);
+    const page = prepared.chapter.pages[0];
+    const translated = applyResolvedSoundEffectEntries(
+      page,
+      [
+        {
+          regionId: "FX002",
+          block: {
+            id: "translated-sound",
+            type: "nonsolid",
+            textRole: "sound",
+            bbox: targets[0].regions[0].bbox,
+            sourceText: "ドン",
+            translatedText: "쾅",
+            confidence: 0.99,
+            sourceDirection: "vertical",
+            renderDirection: "vertical",
+            fontSizePx: 24,
+            lineHeight: 1.2,
+            textAlign: "center",
+            textColor: "#111111",
+            backgroundColor: "#ffffff",
+            opacity: 0.2,
+          },
+        },
+      ],
+      SAVE_TIME,
+    );
+    const reopened = {
+      ...prepared.chapter,
+      pages: [
+        { ...translated, dataUrl: "" },
+        ...prepared.chapter.pages.slice(1),
+      ],
+    };
+    expect(countChapterPendingSoundEffectRegions(reopened)).toBe(1);
+    expect(summarizeSoundEffectReviewChapter(reopened.pages)).toEqual({
+      available: true,
+      pendingCount: 1,
+    });
+    expect(
+      createSoundEffectDraftPages(reopened).flatMap((item) => item.regions),
+    ).toEqual([
+      expect.objectContaining({ id: "FX001", bbox: draft[0].regions[0].bbox }),
+    ]);
+    expect(
+      requireReview(storage.readStoredChapter().pages[0]).dismissedRegionIds,
+    ).toBeUndefined();
+    expect(requireReview(reopened.pages[1]).dismissedRegionIds).toEqual([
+      "FX003",
+    ]);
+    expect(requireReview(reopened.pages[0]).regions).toEqual(
+      requireReview(chapter.pages[0]).regions,
+    );
+  });
+
   it("stores two-page decisions atomically while preserving raw detector regions", async () => {
     const chapter = makeChapter();
     const storage = createStorageRuntime(chapter);

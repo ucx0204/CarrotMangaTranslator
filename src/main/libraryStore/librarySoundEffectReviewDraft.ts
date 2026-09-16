@@ -16,6 +16,7 @@ type DraftState = {
   pendingIds: Set<string>;
   knownIds: Set<string>;
   included: Set<string>;
+  excluded: Set<string>;
   dismissed: Set<string>;
 };
 
@@ -34,6 +35,8 @@ export function applySoundEffectReviewDraft(
 } {
   const state = createDraftState(page, draft);
   assertDisjoint(state.included, state.dismissed);
+  assertDisjoint(state.included, state.excluded);
+  assertDisjoint(state.dismissed, state.excluded);
   const addedIds = validateAddedRegions(draft, state);
   validateExistingRegionDecisions(draft, state, addedIds);
   const nextReview = applyDraftGeometry(draft, state, now);
@@ -55,6 +58,7 @@ function createDraftState(page: ReviewPage, draft: ReviewDraft): DraftState {
       ...review.manualRegions.map((region) => region.id),
     ]),
     included: new Set(draft.includedRegionIds),
+    excluded: new Set(draft.excludedRegionIds ?? []),
     dismissed: new Set(draft.dismissedRegionIds),
   };
 }
@@ -73,8 +77,11 @@ function validateAddedRegions(
     ) {
       throw new Error(`잘못된 수동 효과음 후보 ID입니다: ${addition.regionId}`);
     }
-    if (!state.included.has(addition.regionId)) {
-      throw new Error("제외한 새 효과음 후보는 저장할 수 없습니다.");
+    if (
+      !state.included.has(addition.regionId) &&
+      !state.excluded.has(addition.regionId)
+    ) {
+      throw new Error("검토 결정이 없는 새 효과음 후보는 저장할 수 없습니다.");
     }
     addedIds.add(addition.regionId);
   }
@@ -87,7 +94,11 @@ function validateExistingRegionDecisions(
   addedIds: Set<string>,
 ): void {
   const effectivePendingIds = new Set([...state.pendingIds, ...addedIds]);
-  for (const regionId of [...state.included, ...state.dismissed]) {
+  for (const regionId of [
+    ...state.included,
+    ...state.excluded,
+    ...state.dismissed,
+  ]) {
     if (!effectivePendingIds.has(regionId)) {
       throw new Error(`더 이상 검토할 수 없는 효과음 후보입니다: ${regionId}`);
     }
@@ -102,7 +113,11 @@ function validateExistingRegionDecisions(
     }
   }
   for (const regionId of state.pendingIds) {
-    if (!state.included.has(regionId) && !state.dismissed.has(regionId)) {
+    if (
+      !state.included.has(regionId) &&
+      !state.excluded.has(regionId) &&
+      !state.dismissed.has(regionId)
+    ) {
       throw new Error(`검토 결정이 누락된 효과음 후보입니다: ${regionId}`);
     }
   }
@@ -182,7 +197,7 @@ function assertDisjoint(left: Set<string>, right: Set<string>): void {
   for (const value of left) {
     if (right.has(value)) {
       throw new Error(
-        `포함과 제외가 동시에 선택된 효과음 후보입니다: ${value}`,
+        `서로 다른 검토 결정이 동시에 선택된 효과음 후보입니다: ${value}`,
       );
     }
   }

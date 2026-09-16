@@ -10,6 +10,7 @@ import type {
 import { createSoundEffectReviewPageRevision } from "../../../shared/pageRevision";
 import { analysisGateway } from "../api/analysisGateway";
 import { libraryGateway } from "../api/libraryGateway";
+import { summarizeSoundEffectReviewChapter } from "../lib/soundEffectReviewRegions";
 import type { NotificationPort } from "../lib/notificationPort";
 import type {
   TranslationActions,
@@ -232,7 +233,9 @@ async function prepareSoundEffectTargets(
           chapter: prepared.chapter,
           createdBlocksByPage: [],
           translatedRegionCount: 0,
-          remainingRegionCount: 0,
+          remainingRegionCount: summarizeSoundEffectReviewChapter(
+            prepared.chapter.pages,
+          ).pendingCount,
         },
       };
 }

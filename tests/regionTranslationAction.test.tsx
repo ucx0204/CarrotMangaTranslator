@@ -20,6 +20,10 @@ import { makePage, makeChapter } from "./unifiedInpaintingUiFixtures";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { useTranslateSelectedRegionAction } from "../src/renderer/src/hooks/useTranslateSelectedRegionAction";
+import {
+  buildPrepareRequest,
+  createSoundEffectDraftPages,
+} from "../src/renderer/src/components/soundEffectTranslationDraft";
 import { useTranslateSoundEffectsAction } from "../src/renderer/src/hooks/useTranslateSoundEffectsAction";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import {
@@ -164,6 +168,69 @@ it("passes image inversion through IPC and drops it for text output", () => {
       }).codexTypesetting?.invertColors,
     ).toBeUndefined();
   }
+});
+
+it("reports excluded SFX as remaining without starting a model when every candidate is excluded", async () => {
+  const options = regionOptions();
+  const chapter = options.currentChapter;
+  if (!chapter) throw new Error("Missing fixture chapter");
+  chapter.pages = [
+    {
+      ...chapter.pages[0],
+      blocks: [],
+      soundEffectReview: {
+        contractVersion: 3,
+        producer: "hayai-regions-v1",
+        regionOverrides: [],
+        manualRegions: [],
+        resolvedRegions: [],
+        regions: [
+          {
+            id: "FX-excluded",
+            bbox: { x: 50, y: 50, w: 100, h: 100 },
+            detectorConfidence: 0.9,
+          },
+        ],
+      },
+    },
+  ];
+  options.currentChapterRef.current = chapter;
+  options.mergeLiveChapter = vi.fn();
+  options.beforeTranslate = vi.fn(async () => {});
+  const draft = createSoundEffectDraftPages(chapter);
+  draft[0].regions[0].included = false;
+  const request = buildPrepareRequest(chapter.id, draft);
+  const prepareSoundEffectTranslation = vi.fn(async () => ({
+    chapter,
+    targets: [],
+    includedRegionCount: 0,
+    dismissedRegionCount: 0,
+  }));
+  const startSoundEffectTranslation = vi.fn();
+  window.mangaApi = createTestMangaGatewayStub({
+    prepareSoundEffectTranslation,
+    startSoundEffectTranslation,
+  });
+  const { result } = renderHook(() =>
+    useTranslateSoundEffectsAction(options, {
+      success: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+    }),
+  );
+  await act(async () => {
+    expect(await result.current([], false, false, request)).toMatchObject({
+      status: "completed",
+      translatedRegionCount: 0,
+      remainingRegionCount: 1,
+      chapter,
+    });
+  });
+  expect(prepareSoundEffectTranslation).toHaveBeenCalledWith(request);
+  expect(options.mergeLiveChapter).toHaveBeenCalledWith(chapter);
+  expect(startSoundEffectTranslation).not.toHaveBeenCalled();
+  expect(options.beforeTranslate).not.toHaveBeenCalled();
 });
 
 function regionOptions(): UseTranslationActionsOptions {

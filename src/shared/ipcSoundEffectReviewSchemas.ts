@@ -130,6 +130,11 @@ export const PrepareSoundEffectTranslationPageSchema = z
       .array(z.string().min(1).max(80))
       .max(MAX_BLOCKS_PER_PAGE)
       .refine((ids) => new Set(ids).size === ids.length),
+    excludedRegionIds: z
+      .array(z.string().min(1).max(80))
+      .max(MAX_BLOCKS_PER_PAGE)
+      .refine((ids) => new Set(ids).size === ids.length)
+      .optional(),
     editedRegions: z
       .array(SoundEffectReviewDraftRegionSchema)
       .max(MAX_BLOCKS_PER_PAGE)

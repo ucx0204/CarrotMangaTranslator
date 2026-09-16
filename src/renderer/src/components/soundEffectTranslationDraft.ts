@@ -47,7 +47,7 @@ function buildPreparePage(
 ): PrepareSoundEffectTranslationRequest["pages"] {
   const persisted = item.regions.filter((region) => !region.newlyAdded);
   const additions = item.regions.filter(
-    (region) => region.newlyAdded && !region.deleted && region.included,
+    (region) => region.newlyAdded && !region.deleted,
   );
   if (persisted.length === 0 && additions.length === 0) return [];
   return [
@@ -58,10 +58,15 @@ function buildPreparePage(
         ...persisted
           .filter((region) => !region.deleted && region.included)
           .map((region) => region.id),
-        ...additions.map((region) => region.id),
+        ...additions
+          .filter((region) => region.included)
+          .map((region) => region.id),
       ],
+      excludedRegionIds: item.regions
+        .filter((region) => !region.deleted && !region.included)
+        .map((region) => region.id),
       editedRegions: persisted.flatMap((region) =>
-        isEditedIncludedRegion(region)
+        isEditedRegion(region)
           ? [{ regionId: region.id, bbox: region.bbox }]
           : [],
       ),
@@ -70,18 +75,17 @@ function buildPreparePage(
         bbox: region.bbox,
       })),
       dismissedRegionIds: persisted
-        .filter((region) => region.deleted || !region.included)
+        .filter((region) => region.deleted)
         .map((region) => region.id),
     },
   ];
 }
 
-function isEditedIncludedRegion(
+function isEditedRegion(
   region: SoundEffectDraftPage["regions"][number],
 ): boolean {
   return Boolean(
     !region.deleted &&
-    region.included &&
     region.originalBbox &&
     !sameBbox(region.originalBbox, region.bbox),
   );
