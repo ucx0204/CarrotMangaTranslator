@@ -1,0 +1,27 @@
+diff --git a/src/main/bubbleLayout/session.ts b/src/main/bubbleLayout/session.ts
+--- a/src/main/bubbleLayout/session.ts
++++ b/src/main/bubbleLayout/session.ts
+@@ -1,1 +1,1 @@
+-import { assertModelCleanupComplete, releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
++import { assertModelCleanupComplete, releaseModelResource, ModelCleanupError } from "../runtimeSupport/modelCleanupBarrier";
+@@ -263,4 +263,5 @@
+     pending = releaseModelResource(session, () => session.release()).catch((error: unknown) => {
+-      sessionReleases.delete(session);
+-      throw error;
++      // A native release may be non-repeatable. Preserve its failed receipt;
++      // do not call release twice or silently replace an uncertain session.
++      throw error instanceof ModelCleanupError ? error.cause : error;
+     });
+     sessionReleases.set(session, pending);
+diff --git a/src/main/jobs/inpaintingJobs.ts b/src/main/jobs/inpaintingJobs.ts
+--- a/src/main/jobs/inpaintingJobs.ts
++++ b/src/main/jobs/inpaintingJobs.ts
+@@ -329,6 +329,7 @@
+     await runtime.disposeBubbleLayoutSessions?.();
+   } catch (error) {
+     runtime.logError("Failed to release KoharuLayout sessions after job", {
+       error,
+     });
++    throw error;
+   }
+ }
