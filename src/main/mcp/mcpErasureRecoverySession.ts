@@ -27,7 +27,8 @@ export function createMcpErasureRecoverySession(
   });
   return {
     tools: createMcpErasureRecoveryTools(service),
-    remember: (jobId: string, transactionId: string) => service.remember(jobId, transactionId),
+    remember: (jobId: string, transactionId: string) =>
+      service.remember(jobId, transactionId),
     stop: () => service.stop(),
     close: () => service.close(),
   };
