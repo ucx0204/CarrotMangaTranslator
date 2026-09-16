@@ -8,7 +8,7 @@ the structured output inventory. The earlier policy-only checkpoint is historica
 this feature is no longer waiting for its service or tool registration.
 
 Implementation/inventory baseline: `322e2d0c`.
-Tool-description clarification: `673644b5` (no processing behavior change).
+Final tested code: `673644b5`, including the tool-description clarification.
 Branch: `feat/mcp-app-bridge`; no additional branch or app release was created.
 
 ## Completed behavior
@@ -54,9 +54,10 @@ On the connected Windows development PC:
 
 - Source policy, service/ownership, renderer-layout and OAuth HTTP tests:
   **36 tests passed across four files** in this continuation.
-- Full `npm run check` on `322e2d0c`: **26/26 gates passed**, **7,260 tests
-  passed**, zero failed, 11 existing skipped. Renderer/Electron/JS types, lint,
-  architecture, unused exports, coverage, Windows build and artwork parity passed.
+- Final `npm run check` on `673644b5`: **26/26 gates passed**, **7,260 tests
+  passed**, zero failed, 11 existing skipped; exit 0. Renderer/Electron/JS types,
+  lint, architecture, unused exports, coverage, Windows build and artwork parity
+  passed. The final run completed at 2026-09-16T13:54:59Z in 179.10 seconds.
 - Build after `673644b5`: exit 0.
 - Fresh isolated Electron smoke after that build: **exit 0**, with the explicit
   source-rectangle edit/readback/restore PASS marker and final smoke PASS marker.
@@ -70,8 +71,9 @@ On the connected Windows development PC:
   stdout/stderr logs, not a shell exit code alone.
 
 Evidence under `.tmp/mcp-source-rect-finish-20260916/`:
-`full-check.log`, `build.log`, `native-stdout.log`, `native-stderr.log`,
-`native-confirmed.exit`. Repository test details are also in `.tmp/check-timings.json`.
+`full-check.log`, `full-check-final.log`, `full-check-final.exit`, `build.log`,
+`native-stdout.log`, `native-stderr.log`, `native-confirmed.exit`.
+Repository test details are also in `.tmp/check-timings.json`.
 
 ## Live-client boundary and preserved user data
 
