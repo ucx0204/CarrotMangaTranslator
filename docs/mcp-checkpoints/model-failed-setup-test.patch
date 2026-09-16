@@ -1,0 +1,8 @@
+diff --git a/tests/mcpErasureFinalization.test.ts b/tests/mcpErasureFinalization.test.ts
+--- a/tests/mcpErasureFinalization.test.ts
++++ b/tests/mcpErasureFinalization.test.ts
+@@ -59,3 +59,3 @@
+-    expect(f.harness.savedChapterIds).toEqual([]);
++    expect(f.harness.savePages).not.toHaveBeenCalled();
+     expect(f.editing.notifySaved).not.toHaveBeenCalled();
+     expect(() => assertModelCleanupComplete()).toThrow();
