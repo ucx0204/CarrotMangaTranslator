@@ -1,0 +1,85 @@
+diff --git a/src/main/bubbleLayout/session.ts b/src/main/bubbleLayout/session.ts
+--- a/src/main/bubbleLayout/session.ts
++++ b/src/main/bubbleLayout/session.ts
+@@ -1,3 +1,4 @@
++import { assertModelCleanupComplete, releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
+ import { availableParallelism } from "node:os";
+ import { resolve } from "node:path";
+ import type * as Ort from "onnxruntime-node";
+@@ -37,4 +38,5 @@
+     throwIfAborted(options.signal);
+   }
++  assertModelCleanupComplete();
+   const modelPath = resolve(options.modelPath);
+   const providers =
+@@ -108,8 +110,12 @@
+ export async function disposeCachedKoharuLayoutSessions(): Promise<boolean> {
+-  const [nativeDisposed, wasmDisposed] = await Promise.all([
++  const settled = await Promise.allSettled([
+     disposeCachedNativeKoharuLayoutSessions(),
+     disposeKoharuWasmInferenceWorker(),
+   ]);
+-  return nativeDisposed || wasmDisposed;
++  const errors = settled.flatMap((result) =>
++    result.status === "rejected" ? [result.reason] : [],
++  );
++  if (errors.length) throw new AggregateError(errors, "KoharuLayout cleanup did not complete.");
++  return settled.some((result) => result.status === "fulfilled" && result.value);
+ }
+@@ -135,3 +141,2 @@
+   const pendingSessions = [...sessionCache.values()];
+-  sessionCache.clear();
+   try {
+@@ -153,3 +158,4 @@
+       );
+     }
++    sessionCache.clear();
+     return sessions.length > 0;
+@@ -254,4 +260,7 @@
+   let pending = sessionReleases.get(session);
+   if (!pending) {
+-    pending = Promise.resolve().then(() => session.release());
++    pending = releaseModelResource(session, () => session.release()).catch((error: unknown) => {
++      sessionReleases.delete(session);
++      throw error;
++    });
+     sessionReleases.set(session, pending);
+diff --git a/src/main/bubbleLayout/wasmWorkerClient.ts b/src/main/bubbleLayout/wasmWorkerClient.ts
+--- a/src/main/bubbleLayout/wasmWorkerClient.ts
++++ b/src/main/bubbleLayout/wasmWorkerClient.ts
+@@ -1,3 +1,4 @@
++import { assertModelCleanupComplete, releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
+ import { createHash } from "node:crypto";
+ import { lstat, readFile } from "node:fs/promises";
+ import { availableParallelism } from "node:os";
+@@ -77,3 +78,4 @@
+ }): Promise<ComicPageDetectionResult> {
++  assertModelCleanupComplete();
+   sharedClient ??= new KoharuWasmInferenceWorkerClient();
+   return sharedClient.infer(options);
+@@ -83,4 +85,6 @@
+   const client = sharedClient;
+-  sharedClient = null;
+-  return client ? client.dispose() : false;
++  if (!client) return false;
++  const disposed = await client.dispose();
++  if (sharedClient === client) sharedClient = null;
++  return disposed;
+ }
+@@ -150,12 +154,18 @@
+   async dispose(): Promise<boolean> {
+-    if (this.disposed) return false;
+     this.disposed = true;
+     const worker = this.worker;
+-    this.worker = null;
+     this.rejectAll(new Error("Koharu WASM inference worker was disposed."));
+     if (!worker) return false;
+-    await worker.terminate();
++    await releaseModelResource(worker, async () => { await worker.terminate(); });
++    if (this.worker === worker) this.worker = null;
+     return true;
+   }
+ 
+   private ensureWorker(): Worker {
++    if (this.disposed) throw new Error("Koharu WASM inference worker is closing.");
+     if (this.worker) return this.worker;
