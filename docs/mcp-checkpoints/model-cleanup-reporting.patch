@@ -1,114 +1,46 @@
-diff --git a/src/main/runtimeSupport/modelCleanupBarrier.ts b/src/main/runtimeSupport/modelCleanupBarrier.ts
---- a/src/main/runtimeSupport/modelCleanupBarrier.ts
-+++ b/src/main/runtimeSupport/modelCleanupBarrier.ts
-@@ -37,3 +37,8 @@
-   return state.pending;
- }
- 
-+/** Diagnostic state only; never exposes native handles or clears the fence. */
-+export function modelCleanupIsBlocked(): boolean {
-+  return cleanups.size > 0;
-+}
-+
- /** Shared by UI and MCP admission. Lightweight, explicitly scoped work remains
-@@ -46,1 +51,1 @@
--  if (cleanups.size)
-+  if (modelCleanupIsBlocked())
-diff --git a/src/main/mcp/mcpErasureAdapter.ts b/src/main/mcp/mcpErasureAdapter.ts
---- a/src/main/mcp/mcpErasureAdapter.ts
-+++ b/src/main/mcp/mcpErasureAdapter.ts
-@@ -1,3 +1,5 @@
-+import type { MangaPage } from "../../shared/libraryTypes";
-+import { modelCleanupIsBlocked } from "../runtimeSupport/modelCleanupBarrier";
- import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
- import { startInpaintingJob } from "../jobs/inpaintingJobs";
- import {
-@@ -31,2 +33,3 @@
-   };
-   operation.assertAuthorized();
-+  let committedPage: MangaPage | undefined;
-@@ -33,1 +36,2 @@
--  const guarded = guardErasureRuntime(runtime, editing, target, operation);
-+  const guarded = guardErasureRuntime(runtime, editing, target, operation,
-+    (page) => { committedPage = page; });
-@@ -53,1 +57,1 @@
--    if (job && app.jobs.current === job) job.abortController.abort();
-+    if (job && app.jobs.get(job.id) === job) job.abortController.abort();
-@@ -80,3 +84,20 @@
-       engine: "app-configured-local",
-     };
-+  } catch (error) {
-+    if (!modelCleanupIsBlocked()) throw error;
-+    if (!committedPage)
-+      throw new McpEditError("editor_busy", "Local model cleanup is incomplete. New model work is blocked; inspect the local log before retrying.", { cause: error });
-+    runtime.logError("MCP page saved but native model cleanup failed", error);
-+    editing.notifySaved(target.chapterId, target.pageId);
-+    if (job) runtime.emitEvent(app.jobs, app.getMainWindow(), {
-+      id: job.id, kind: "inpainting", status: "failed", phase: "failed",
-+      progressText: "페이지 저장 완료 · 모델 해제 실패",
-+      detail: "저장된 페이지는 유지됩니다. 모델 해제를 확인하기 전 새 로컬 모델을 실행하지 않습니다.",
-+    });
-+    return { status: "partial" as const, cleanupFailed: true,
-+      chapterId: target.chapterId, pageId: target.pageId, blockId: target.blockId,
-+      revision: createPageRevision(committedPage), pagesChanged: 1,
-+      performed: ["erase-original"], engine: "app-configured-local" };
-   } finally {
-@@ -91,3 +112,4 @@
-   target: McpOperationTarget,
-   operation: McpOperationContext,
-+  onSaved: (page: MangaPage) => void,
- ): InpaintingJobRuntime {
-@@ -93,3 +115,13 @@
-   return {
-     ...runtime,
-+    acquireEngine: async (options) => {
-+      const lease = await runtime.acquireEngine(options);
-+      return { ...lease, release: async () => {
-+        operation.progress({ phase: "releasing_model" });
-+        await lease.release();
-+      } };
-+    },
-     openChapter: async (chapterId) => {
-@@ -122,1 +154,1 @@
--      return runtime.savePages(
-+      const saved = await runtime.savePages(
-@@ -128,3 +160,6 @@
-         operation.assertAuthorized,
-       );
-+      const page = saved.pages.find((entry) => entry.id === target.pageId);
-+      if (page) onSaved(page);
-+      return saved;
-     },
 diff --git a/src/main/application/mcpJobJournal.ts b/src/main/application/mcpJobJournal.ts
 --- a/src/main/application/mcpJobJournal.ts
 +++ b/src/main/application/mcpJobJournal.ts
-@@ -45,3 +45,4 @@
+@@ -44,6 +44,7 @@
+   noTextDetected: z.boolean().optional(),
+   effectReviewCandidates: count.optional(),
    needsReview: z.boolean().optional(),
 +  cleanupFailed: z.boolean().optional(),
    artifactExpired: z.boolean().optional(),
  });
-diff --git a/scripts/mcp-native-page.cjs b/scripts/mcp-native-page.cjs
+ const jobSchema = z
+ diff --git a/scripts/mcp-native-page.cjs b/scripts/mcp-native-page.cjs
 --- a/scripts/mcp-native-page.cjs
 +++ b/scripts/mcp-native-page.cjs
-@@ -127,2 +127,11 @@
+@@ -128,6 +128,15 @@
+     decodeImage: async () => null,
      inpaintingRevisionStore: new InpaintingRevisionStore(),
    };
-+  // Synthetic fixture only: acknowledge the same renderer handoff used by the
-+  // desktop after its edits have settled. Never auto-approve a live user's UI.
++  // Only this synthetic fixture acknowledges the renderer edit handoff.
 +  const stopHandoffs = app.jobs.pageHandoffs.subscribe(() => {
 +    for (const handoff of app.jobs.pageHandoffs.activities)
 +      if (handoff.phase === "finishing-edits" && handoff.requestId)
 +        app.jobs.pageHandoffs.respond({ requestId: handoff.requestId });
 +  });
-+  const { createMcpPageEditScope } = load(root, "main/mcp/mcpPageEditScope.js");
-@@ -166,3 +175,4 @@
++  const { createMcpPageEditScope } = load(
++    root, "main/mcp/mcpPageEditScope.js",
++  );
+   const editing = {
+     assertWritable: async () => {},
+     assertClean: async () => {},
+@@ -163,6 +172,7 @@
+   await session.ready();
    const tools = createMcpAppTools({
      ...editing,
 +    withPageEdit: createMcpPageEditScope(app, library.openChapter),
      preferences,
-@@ -269,4 +279,5 @@
+     additionalTools: session.tools,
+   });
+@@ -272,6 +282,7 @@
+     );
    } finally {
      await session.close();
 +    stopHandoffs();
    }
  }
+ /** @param {(name: string, args: object) => Promise<Array<{text?: string, data?: string}>>} invoke
