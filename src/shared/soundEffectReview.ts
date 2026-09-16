@@ -1,5 +1,9 @@
 import type { BBox, TranslationBlock } from "./textTypes";
 
+// One merged region can retain a full detector pass (currently 300 queries).
+// This provenance guard is independent of the rendered block count; never truncate IDs.
+export const MAX_SOUND_EFFECT_SOURCE_DETECTIONS = 1_000;
+
 export const SOUND_EFFECT_REVIEW_CONTRACT_VERSION = 3 as const;
 export const LEGACY_SOUND_EFFECT_REVIEW_CONTRACT_VERSION = 1 as const;
 export const LEGACY_SOUND_EFFECT_REVIEW_V2_CONTRACT_VERSION = 2 as const;

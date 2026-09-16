@@ -101,7 +101,10 @@ describe("translation checkpoint store", () => {
             bbox: { x: 500, y: 600, w: 120, h: 150 },
             detectorConfidence: 0.94,
             recognizedText: "ドン",
-            sourceDetectionIds: ["hayai-detection-1"],
+            sourceDetectionIds: Array.from(
+              { length: 300 },
+              (_, index) => `hayai-detection-${index}`,
+            ),
           },
         ],
       };

@@ -4,6 +4,7 @@ import {
   LEGACY_SOUND_EFFECT_REVIEW_CONTRACT_VERSION,
   LEGACY_SOUND_EFFECT_REVIEW_V2_CONTRACT_VERSION,
   SOUND_EFFECT_REVIEW_CONTRACT_VERSION,
+  MAX_SOUND_EFFECT_SOURCE_DETECTIONS,
   normalizeSoundEffectReview,
 } from "./soundEffectReview";
 
@@ -13,7 +14,10 @@ const SoundEffectReviewRegionSchema = z
     bbox: BBoxSchema,
     detectorConfidence: z.number().finite().min(0).max(1),
     recognizedText: z.string().max(2000).optional(),
-    sourceDetectionIds: z.array(z.string().min(1).max(80)).max(32).optional(),
+    sourceDetectionIds: z
+      .array(z.string().min(1).max(80))
+      .max(MAX_SOUND_EFFECT_SOURCE_DETECTIONS)
+      .optional(),
   })
   .strict();
 

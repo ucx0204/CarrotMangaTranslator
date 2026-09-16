@@ -18,6 +18,7 @@ import {
 } from "../src/shared/ipcSoundEffectReviewSchemas";
 import { LEGACY_REVIEWED_SOUND_EFFECT_NOTE } from "../src/shared/soundEffectBlocks";
 import {
+  MAX_SOUND_EFFECT_SOURCE_DETECTIONS,
   normalizeSoundEffectReview,
   resolveEffectiveSoundEffectReviewRegions,
   resolvePendingSoundEffectReviewRegions,
@@ -25,6 +26,90 @@ import {
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 describe("sound-effect review boundary", () => {
+  it("rejects invalid provenance without truncating or disabling validation", () => {
+    for (const sourceDetectionIds of [
+      [""],
+      ["x".repeat(81)],
+      [42],
+      Array.from(
+        { length: MAX_SOUND_EFFECT_SOURCE_DETECTIONS + 1 },
+        (_, index) => `K${index}`,
+      ),
+    ]) {
+      expect(
+        SoundEffectReviewSchema.safeParse({
+          contractVersion: 1,
+          producer: "hayai-regions-v1",
+          regions: [
+            {
+              ...makeEffect("FX001", { x: 10, y: 20, w: 30, h: 40 }),
+              sourceDetectionIds,
+            },
+          ],
+        }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("accepts the real region producer merging more than 32 effect detections", () => {
+    const manifest = buildHayaiRegionManifest({
+      imageWidth: 100,
+      imageHeight: 100,
+      detections: Array.from({ length: 33 }, (_, index) =>
+        maskedDetection("onomatopoeia", 0.99 - index / 1000, 100, 100, [
+          [index * 2 + 1, 10],
+          [index * 2 + 2, 10],
+          [index * 2 + 1, 11],
+          [index * 2 + 2, 11],
+        ]),
+      ),
+    });
+    expect(manifest.effectRegions).toHaveLength(1);
+    const sourceDetectionIds = manifest.effectRegions[0].sourceDetectionIds;
+    expect(sourceDetectionIds).toHaveLength(33);
+    const parsed = SoundEffectReviewSchema.parse({
+      contractVersion: 1,
+      producer: "hayai-regions-v1",
+      regions: [
+        {
+          ...makeEffect("FX001", { x: 10, y: 10, w: 20, h: 20 }),
+          sourceDetectionIds,
+        },
+      ],
+    });
+    expect(parsed.regions[0].sourceDetectionIds).toEqual(sourceDetectionIds);
+  });
+
+  it.each([1, 2, 3])(
+    "preserves dense detector provenance in review v%s",
+    (contractVersion) => {
+      for (const count of [32, 33, 300, MAX_SOUND_EFFECT_SOURCE_DETECTIONS]) {
+        const sourceDetectionIds = Array.from(
+          { length: count },
+          (_, index) => `K${index}`,
+        );
+        const review = SoundEffectReviewSchema.parse({
+          contractVersion,
+          producer: "hayai-regions-v1",
+          regions: [
+            {
+              ...makeEffect("FX001", { x: 10, y: 20, w: 30, h: 40 }),
+              sourceDetectionIds,
+            },
+          ],
+          ...(contractVersion >= 2 ? { resolvedRegions: [] } : {}),
+          ...(contractVersion === 3
+            ? { regionOverrides: [], manualRegions: [] }
+            : {}),
+        });
+        expect(review.contractVersion).toBe(3);
+        expect(review.regions[0].sourceDetectionIds).toEqual(
+          sourceDetectionIds,
+        );
+      }
+    },
+  );
+
   it("hides dismissed candidates and candidates that intrude on real text blocks", () => {
     const page = makePage();
     page.blocks = [makeBlock({ x: 100, y: 100, w: 200, h: 300 })];
