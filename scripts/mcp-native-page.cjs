@@ -208,21 +208,7 @@ async function checkNativePageGoal(root) {
     const bytes = await session.artifacts.read(
       new URL(result.url).pathname.split("/")[2],
     );
-    assert.equal(bytes.length, result.bytes);
-    assert.equal(
-      createHash("sha256").update(bytes).digest("hex"),
-      result.sha256,
-    );
-    assert.deepEqual(nativeImage.createFromBuffer(bytes).getSize(), {
-      width: 400,
-      height: 600,
-    });
-    assert.deepEqual(pixel(bytes, 305, 505), [0, 0, 0]);
-    assert.notDeepEqual(
-      nativeImage.createFromBuffer(bytes).toBitmap(),
-      nativeImage.createFromBuffer(clean).toBitmap(),
-      "The renderer must actually add translated lettering",
-    );
+    assertPageOutput(bytes, result, clean);
     assert.equal(JSON.stringify(result).includes(root), false);
     allowed = false;
     await assert.rejects(() => invoke("carrot_get_job_file", { jobId }));
@@ -438,6 +424,21 @@ async function waitForOutput(invoke, jobId) {
     await delay(100);
   }
   throw new Error("Page export did not finish within the native test deadline");
+}
+/** @param {Buffer} bytes @param {{bytes: number, sha256: string}} result @param {Buffer} clean */
+function assertPageOutput(bytes, result, clean) {
+  assert.equal(bytes.length, result.bytes);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), result.sha256);
+  assert.deepEqual(nativeImage.createFromBuffer(bytes).getSize(), {
+    width: 400,
+    height: 600,
+  });
+  assert.deepEqual(pixel(bytes, 305, 505), [0, 0, 0]);
+  assert.notDeepEqual(
+    nativeImage.createFromBuffer(bytes).toBitmap(),
+    nativeImage.createFromBuffer(clean).toBitmap(),
+    "The renderer must actually add translated lettering",
+  );
 }
 /** @param {boolean} allowed @param {string[]} scopes */
 function assertFixtureScopes(allowed, scopes) {
