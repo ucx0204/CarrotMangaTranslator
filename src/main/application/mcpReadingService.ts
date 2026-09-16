@@ -1,3 +1,4 @@
+import type { McpPageEditScope } from "../../shared/mcpEditingTypes";
 import type { ChapterSnapshot } from "../../shared/libraryTypes";
 import type { McpPageReading } from "../../shared/mcpReadingTypes";
 import type { BlockFormatDefaults } from "../../shared/blockFormat";
@@ -12,6 +13,7 @@ import { McpEditError, isMcpSaveConflict } from "./mcpEditPolicy";
 import { prepareMcpReading } from "./mcpReadingPolicy";
 
 type Ports = {
+  withPageEdit?: McpPageEditScope;
   openChapter: (id: string) => Promise<ChapterSnapshot>;
   savePageBlocks: (
     request: SavePageBlocksRequest,
@@ -24,7 +26,14 @@ type Ports = {
 /** Append validated readings, never replace hand-edited blocks or invoke a model. */
 export class McpReadingService {
   constructor(private readonly ports: Ports) {}
-  async create(
+  create(request: McpPageReading, assertAuthorized: () => void = () => {}) {
+    return this.ports.withPageEdit
+      ? this.ports.withPageEdit(request, assertAuthorized, (guard) =>
+          this.createOwned(request, guard),
+        )
+      : this.createOwned(request, assertAuthorized);
+  }
+  private async createOwned(
     request: McpPageReading,
     assertAuthorized: () => void = () => {},
   ) {

@@ -13,3 +13,10 @@ export type McpEditorState = {
   dirtyPageIds: string[];
   hasPendingInpaintingMask: boolean;
 };
+
+/** Trusted in-process page lease; never accepted from MCP or IPC arguments. */
+export type McpPageEditScope = <T>(
+  target: { chapterId: string; pageId: string },
+  assertAuthorized: () => void,
+  execute: (assertAuthorized: () => void) => Promise<T>,
+) => Promise<T>;

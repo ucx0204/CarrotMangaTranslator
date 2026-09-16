@@ -23,12 +23,18 @@ export async function eraseMcpPage(
   operation: McpOperationContext,
   runtime: InpaintingJobRuntime = productionInpaintingJobRuntime,
 ) {
-  await editing.assertWritable(target.chapterId, target.pageId);
+  operation.assertAuthorized();
+  const settings = await runtime.getSettings(app.appPaths);
+  const scopedApp = {
+    ...app,
+    executionSettings: settings,
+    retainPageOwnership: true,
+  };
   operation.assertAuthorized();
   const guarded = guardErasureRuntime(runtime, editing, target, operation);
   const previous = app.jobs.current;
   const pending = startInpaintingJob(
-    app,
+    scopedApp,
     {
       mode: "page-pattern",
       chapterId: target.chapterId,
@@ -36,7 +42,7 @@ export async function eraseMcpPage(
       blockId: target.blockId,
       postprocess: { bubbleLayout: { enabled: false, policy: "safe" } },
     },
-    guarded,
+    { ...guarded, getSettings: async () => settings },
   );
   const job = app.jobs.current !== previous ? app.jobs.current : null;
   const cancel = () => {

@@ -11,7 +11,7 @@ import {
 
 vi.mock("electron", () => ({ app: { isPackaged: false }, nativeImage: {} }));
 
-function fixture() {
+function fixture(autoAcknowledge = true) {
   const page = makePage("page", "page.png");
   const chapters = new Map([
     ["chapter", makeChapter("chapter", "work", [page])],
@@ -35,6 +35,11 @@ function fixture() {
     progress: vi.fn(),
   };
   const app = makeContext(vi.fn());
+  app.jobs.pageHandoffs.subscribe(() => {
+    for (const page of app.jobs.pageHandoffs.activities)
+      if (autoAcknowledge && page.phase === "finishing-edits" && page.requestId)
+        app.jobs.pageHandoffs.respond({ requestId: page.requestId });
+  });
   const target = {
     chapterId: "chapter",
     pageId: "page",
@@ -187,3 +192,80 @@ it.each(["missing", "excluded"])(
     expect(f.harness.runtime.savePages).not.toHaveBeenCalled();
   },
 );
+
+it("acquires the MCP target before loading its model and retains it through native release", async () => {
+  const f = fixture(false);
+  const cleaning = createDeferred<void>();
+  const finish = createDeferred<void>();
+  const acquire = f.harness.runtime.acquireEngine;
+  f.harness.runtime.acquireEngine = async (options) => {
+    const lease = await acquire(options);
+    return {
+      ...lease,
+      release: async () => {
+        await lease.release();
+        cleaning.resolve();
+        await finish.promise;
+      },
+    };
+  };
+  const task = eraseMcpPage(
+    f.app,
+    f.editing,
+    f.target,
+    f.operation,
+    f.harness.runtime,
+  );
+  await vi.waitFor(() =>
+    expect(f.app.jobs.pageHandoffs.activities[0]?.phase).toBe(
+      "finishing-edits",
+    ),
+  );
+  expect(f.harness.acquireEngine).not.toHaveBeenCalled();
+  const requestId = f.app.jobs.pageHandoffs.activities[0].requestId;
+  if (!requestId) throw new Error("Missing handoff");
+  f.app.jobs.pageHandoffs.respond({ requestId });
+  await cleaning.promise;
+  expect(() =>
+    f.app.jobs.gate.assertAvailable([
+      { kind: "page-content", scope: "chapter/page", access: "write" },
+    ]),
+  ).toThrow();
+  expect(() =>
+    f.app.jobs.gate.assertAvailable([
+      { kind: "page-content", scope: "chapter/other", access: "write" },
+    ]),
+  ).not.toThrow();
+  expect(() =>
+    f.app.jobs.gate.assertAvailable([
+      { kind: "model-runtime", scope: "*", access: "write" },
+    ]),
+  ).toThrow();
+  finish.resolve();
+  await expect(task).resolves.toMatchObject({ status: "completed" });
+  expect(f.app.jobs.gate.activities).toEqual([]);
+});
+
+it("does not load a model when cancellation arrives during the page handoff", async () => {
+  const f = fixture(false);
+  const task = eraseMcpPage(
+    f.app,
+    f.editing,
+    f.target,
+    f.operation,
+    f.harness.runtime,
+  );
+  await vi.waitFor(() =>
+    expect(f.app.jobs.pageHandoffs.activities[0]?.phase).toBe(
+      "finishing-edits",
+    ),
+  );
+  f.controller.abort();
+  await expect(task).resolves.toMatchObject({
+    status: "cancelled",
+    pagesChanged: 0,
+  });
+  expect(f.harness.acquireEngine).not.toHaveBeenCalled();
+  expect(f.harness.runtime.savePages).not.toHaveBeenCalled();
+  expect(f.app.jobs.all).toEqual([]);
+});

@@ -9,6 +9,7 @@ import { createMcpWorkContextTool } from "./mcpWorkContextTool";
 import { createMcpPageImageTools } from "./mcpPageImageTools";
 import { cropMcpPage, renderMcpSavedPage } from "./mcpPageImageAdapter";
 import type { McpTool } from "./mcpReadTools";
+import type { McpPageEditScope } from "../../shared/mcpEditingTypes";
 import type { McpPreferences } from "../../shared/mcpDesktopTypes";
 import {
   listLibrary,
@@ -24,6 +25,7 @@ import { renderMcpPagePreview } from "./mcpPreviewImage";
 export function createMcpAppTools(options: {
   preferences: McpPreferences;
   additionalTools?: McpTool[];
+  withPageEdit?: McpPageEditScope;
   assertWritable: (chapterId: string, pageId: string) => Promise<void>;
   notifySaved: (chapterId: string, pageId: string) => void;
 }) {
@@ -31,6 +33,7 @@ export function createMcpAppTools(options: {
     openChapter,
     savePageBlocks,
     assertWritable: options.assertWritable,
+    withPageEdit: options.withPageEdit,
     notifySaved: options.notifySaved,
   });
   const extensions = [
@@ -47,6 +50,7 @@ export function createMcpAppTools(options: {
           openChapter,
           savePageBlocks,
           assertWritable: options.assertWritable,
+          withPageEdit: options.withPageEdit,
           notifySaved: options.notifySaved,
           defaults: async () =>
             (await getAppSettings(getAppPaths())).blockFormatDefaults,

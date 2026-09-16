@@ -2,6 +2,7 @@ import { app } from "electron";
 import { randomUUID } from "node:crypto";
 import { createMcpServerInfoTool } from "./mcp/mcpServerInfoTool";
 import type { InpaintingJobContext } from "./jobs/inpaintingJobTypes";
+import { createMcpPageEditScope } from "./mcp/mcpPageEditScope";
 import { createMcpPageOperationSession } from "./mcp/mcpPageOperationSession";
 import type { McpPreferences } from "../shared/mcpDesktopTypes";
 import {
@@ -177,6 +178,8 @@ async function openPageServer(
       config: { port: 38475, token: auth.localToken, publicOrigin: origin },
       tools: createMcpAppTools({
         ...editor,
+        assertWritable: editor.assertClean,
+        withPageEdit: createMcpPageEditScope(options.editing.processing()),
         preferences: options.preferences,
         additionalTools: [
           ...pageOperations.tools,

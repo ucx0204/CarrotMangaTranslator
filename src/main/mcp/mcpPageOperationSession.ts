@@ -62,25 +62,16 @@ export function createMcpPageOperationSession(options: {
   const executors: Parameters<typeof createMcpOperationTools>[1] = {
     exportPng: preferences.allowImages
       ? (target, context) =>
-          runMcpAppJob(app, context, "page-export", (job) =>
-            exporter.export(target, job),
+          runMcpAppJob(
+            app,
+            context,
+            "page-export",
+            (job) => exporter.export(target, job),
+            { resources: [], page: { ...target, readChapter: openChapter } },
           )
       : undefined,
     ocr: preferences.allowProcessing
-      ? async (target, context) => {
-          await editing.assertWritable(target.chapterId, target.pageId);
-          return runMcpAppJob(app, context, "gemma-analysis", (job, emit) =>
-            new McpOcrService({
-              openChapter,
-              recognize: (page, operation) =>
-                recognizeMcpPage(app, target.chapterId, page, operation, emit),
-              saveReading: (reading, guard) => reader.create(reading, guard),
-            }).run(
-              { ...target, revision: target.revision as PageRevision },
-              job,
-            ),
-          );
-        }
+      ? createOcrExecutor(app, reader)
       : undefined,
     erase: preferences.allowProcessing
       ? (target, context) => eraseMcpPage(app, editing, target, context)
@@ -102,5 +93,29 @@ export function createMcpPageOperationSession(options: {
       await operations.close();
       await artifacts.close();
     },
+  };
+}
+
+function createOcrExecutor(
+  app: InpaintingJobContext,
+  reader: McpReadingService,
+): NonNullable<Parameters<typeof createMcpOperationTools>[1]["ocr"]> {
+  return async (target, context) => {
+    return runMcpAppJob(
+      app,
+      context,
+      "gemma-analysis",
+      (job, emit) =>
+        new McpOcrService({
+          openChapter,
+          recognize: (page, operation) =>
+            recognizeMcpPage(app, target.chapterId, page, operation, emit),
+          saveReading: (reading, guard) => reader.create(reading, guard),
+        }).run({ ...target, revision: target.revision as PageRevision }, job),
+      {
+        resources: [{ kind: "model-runtime", scope: "*", access: "write" }],
+        page: { ...target, readChapter: openChapter },
+      },
+    );
   };
 }

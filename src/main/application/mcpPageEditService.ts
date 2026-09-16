@@ -1,6 +1,9 @@
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
-import type { McpTranslationPatch } from "../../shared/mcpEditingTypes";
+import type {
+  McpPageEditScope,
+  McpTranslationPatch,
+} from "../../shared/mcpEditingTypes";
 import type {
   McpBlockPatch,
   McpReadingOrder,
@@ -22,6 +25,7 @@ import {
 } from "./mcpEditPolicy";
 
 type Ports = {
+  withPageEdit?: McpPageEditScope;
   openChapter: (chapterId: string) => Promise<ChapterSnapshot>;
   savePageBlocks: (
     request: SavePageBlocksRequest,
@@ -149,8 +153,19 @@ export class McpPageEditService {
       blockOrder: resolvePageBlockOrder(result.page),
     };
   }
-  /** Every mutation uses this same two-stage editor check and commit-time authorization. */
-  private async mutate<T>(
+  private mutate<T>(
+    target: Target,
+    authorize: () => void,
+    calculate: (chapter: ChapterSnapshot, page: MangaPage) => Change<T>,
+  ) {
+    return this.ports.withPageEdit
+      ? this.ports.withPageEdit(target, authorize, (guard) =>
+          this.mutateOwned(target, guard, calculate),
+        )
+      : this.mutateOwned(target, authorize, calculate);
+  }
+  /** Runs after the native page lease when the app composition provides one. */
+  private async mutateOwned<T>(
     target: Target,
     authorize: () => void,
     calculate: (chapter: ChapterSnapshot, page: MangaPage) => Change<T>,
