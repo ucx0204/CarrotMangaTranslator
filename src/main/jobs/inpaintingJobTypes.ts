@@ -15,10 +15,18 @@ export type InpaintingJobRevisionStore = Pick<
 >;
 
 export type InpaintingJobContext = {
+  /** Trusted callers can hold the target page before model setup through finalization. */
+  retainPageOwnership?: boolean;
   executionSettings?: import("../../shared/settingsTypes").AppSettings;
   appPaths: AppPaths;
   jobs: ActiveJobStore;
   getMainWindow: () => JobEventWindow | null;
   decodeImage: ImageDecodeFallback;
-  inpaintingRevisionStore?: InpaintingJobRevisionStore;
+  inpaintingRevisionStore?: InpaintingJobRevisionStore &
+    Partial<
+      Pick<
+        InpaintingRevisionStore,
+        "inspectSinglePageTransaction" | "applySinglePageTransaction"
+      >
+    >;
 };

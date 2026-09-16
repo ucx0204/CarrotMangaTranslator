@@ -1,3 +1,4 @@
+import { mcpIpcContracts } from "./ipcMcpContracts";
 import type { IpcContract, IpcEventContract } from "./ipcContractCore";
 import {
   importShareIpcContracts,
@@ -50,6 +51,7 @@ export {
 };
 
 export const ipcInvokeContracts = {
+  ...mcpIpcContracts,
   ...appOperationIpcContracts,
   ...blockLibraryIpcContracts,
   ...conditionalBatchIpcContracts,

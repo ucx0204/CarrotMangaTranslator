@@ -333,6 +333,11 @@ export const ImageDataUrlRequestSchema = z
 const SavePageBlocksUpdateSchema = z
   .object({
     pageId: uuid,
+    expectedRevision: z
+      .string()
+      .regex(/^page-v1:[a-f0-9]{16}$/)
+      .transform((value) => value as PageRevision)
+      .optional(),
     baseUpdatedAt: z.string().max(80).optional(),
     baseBlocksHash: z.string().min(1).max(80).optional(),
     baseBlockOrderHash: z.string().min(1).max(80).optional(),

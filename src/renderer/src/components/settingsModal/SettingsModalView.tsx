@@ -1,4 +1,5 @@
 import React from "react";
+import { McpSettingsPanel } from "./McpSettingsPanel";
 import { useTranslation } from "react-i18next";
 import type { ModelProvider } from "../../../../shared/settingsTypes";
 import type { LibraryIndex } from "../../../../shared/libraryTypes";
@@ -282,6 +283,7 @@ function SettingsModalTabContent({
   testPanelProps,
   validationProps,
 }: SettingsModalTabContentProps): React.JSX.Element | null {
+  if (activeTab === "mcp") return <McpSettingsPanel />;
   if (activeTab === "general")
     return <GeneralSettingsPanel {...generalPanelProps} />;
   if (activeTab === "format")

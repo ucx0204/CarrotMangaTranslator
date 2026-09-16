@@ -1,3 +1,8 @@
+import {
+  assertModelCleanupComplete,
+  releaseModelResource,
+  ModelCleanupError,
+} from "../runtimeSupport/modelCleanupBarrier";
 import { availableParallelism } from "node:os";
 import { resolve } from "node:path";
 import type * as Ort from "onnxruntime-node";
@@ -37,6 +42,7 @@ export async function getKoharuLayoutSession(options: {
     await disposalBarrier;
     throwIfAborted(options.signal);
   }
+  assertModelCleanupComplete();
   const modelPath = resolve(options.modelPath);
   const providers =
     options.providerPreference ?? resolveKoharuProviderPreference();
@@ -89,11 +95,18 @@ export async function getKoharuLayoutSession(options: {
  * DirectML session.
  */
 export async function disposeCachedKoharuLayoutSessions(): Promise<boolean> {
-  const [nativeDisposed, wasmDisposed] = await Promise.all([
+  const settled = await Promise.allSettled([
     disposeCachedNativeKoharuLayoutSessions(),
     disposeKoharuWasmInferenceWorker(),
   ]);
-  return nativeDisposed || wasmDisposed;
+  const errors = settled.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : [],
+  );
+  if (errors.length)
+    throw new AggregateError(errors, "KoharuLayout cleanup did not complete.");
+  return settled.some(
+    (result) => result.status === "fulfilled" && result.value,
+  );
 }
 
 async function disposeCachedNativeKoharuLayoutSessions(): Promise<boolean> {
@@ -111,7 +124,6 @@ async function disposeCachedNativeKoharuLayoutSessions(): Promise<boolean> {
   });
   sessionDisposalBarrier = barrier;
   const pendingSessions = [...sessionCache.values()];
-  sessionCache.clear();
   try {
     const settledSessions = await Promise.allSettled(pendingSessions);
     const sessions = settledSessions.flatMap((result) =>
@@ -129,6 +141,7 @@ async function disposeCachedNativeKoharuLayoutSessions(): Promise<boolean> {
         "KoharuLayout ONNX 세션을 해제하지 못했습니다.",
       );
     }
+    sessionCache.clear();
     return sessions.length > 0;
   } finally {
     unavailableProviderKeys.clear();
@@ -229,7 +242,13 @@ function releaseNativeSessionOnce(
 ): Promise<void> {
   let pending = sessionReleases.get(session);
   if (!pending) {
-    pending = Promise.resolve().then(() => session.release());
+    pending = releaseModelResource(session, () => session.release()).catch(
+      (error: unknown) => {
+        // Native release may be non-repeatable. Preserve its failed receipt;
+        // a failed acknowledgement never permits another provider to start.
+        throw error instanceof ModelCleanupError ? error.cause : error;
+      },
+    );
     sessionReleases.set(session, pending);
   }
   return pending;

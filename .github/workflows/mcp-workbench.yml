@@ -1,0 +1,57 @@
+name: MCP isolated workbench
+
+on:
+  push:
+    branches: [feat/mcp-app-bridge]
+    paths: [.github/workflows/mcp-workbench.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator' && github.ref == 'refs/heads/feat/mcp-app-bridge'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Export exact recovery inputs without credentials or application data
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/mcp-integration"
+          archive=1a1061135d68f21d0743d3489da0e5bc506d21b9
+          base=0ef7c4edd3767748579db23f25c0476a7a7d227c
+          git cat-file commit "$archive" > "$RUNNER_TEMP/mcp-integration/archive.commit"
+          git cat-file commit "$base" > "$RUNNER_TEMP/mcp-integration/base.commit"
+          git diff --binary "$archive" "$base" > "$RUNNER_TEMP/mcp-integration/archive-to-base.patch"
+          git diff --binary "$base" HEAD > "$RUNNER_TEMP/mcp-integration/base-to-remote.patch"
+          git bundle create "$RUNNER_TEMP/mcp-integration/source-increment.bundle" HEAD ^"$archive"
+          git bundle verify "$RUNNER_TEMP/mcp-integration/source-increment.bundle"
+          sha256sum "$RUNNER_TEMP/mcp-integration/source-increment.bundle" > "$RUNNER_TEMP/mcp-integration/SHA256SUMS.txt"
+          git rev-parse HEAD > "$RUNNER_TEMP/mcp-integration/remote-head.txt"
+          git rev-parse 'HEAD^{tree}' > "$RUNNER_TEMP/mcp-integration/remote-tree.txt"
+          git ls-tree -r --full-tree HEAD > "$RUNNER_TEMP/mcp-integration/source-inventory.txt"
+          git log --format='%H %s' "$base"..HEAD > "$RUNNER_TEMP/mcp-integration/remote-commits.txt"
+          node -e 'const gate = require("./scripts/check-production-cleanup-coverage.cjs"); console.log(JSON.stringify(gate.collectCoverageScope(process.cwd(), gate.CLEANUP_BASE_COMMIT), null, 2))' > "$RUNNER_TEMP/mcp-integration/coverage-scope.json"
+          git diff --stat "$base" HEAD
+      - name: Inspect only upstream merge and coverage inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          target=refs/remotes/origin/master
+          git rev-parse "$target" > "$RUNNER_TEMP/mcp-integration/upstream-head.txt"
+          git show "$target:scripts/production-cleanup-coverage-floors.json" > "$RUNNER_TEMP/mcp-integration/upstream-coverage-floors.json"
+          status=0
+          git merge-tree --write-tree --name-only HEAD "$target" > "$RUNNER_TEMP/mcp-integration/upstream-merge.txt" || status=$?
+          test "$status" -le 1
+          echo "$status" > "$RUNNER_TEMP/mcp-integration/upstream-merge-status.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mcp-integration-input
+          path: ${{ runner.temp }}/mcp-integration/
+          retention-days: 3
+          compression-level: 6

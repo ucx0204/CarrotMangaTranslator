@@ -70,12 +70,19 @@ export function loadTranslationRuntimePort(): TranslationRuntimePort {
 export async function disposeTranslationRuntimeResources(
   reason: string,
 ): Promise<boolean> {
-  const [groupingEvidenceDisposed, regionDetectorDisposed] = await Promise.all([
+  const settled = await Promise.allSettled([
     runtimeResources?.groupingEvidence.releaseIdleResources(reason) ??
       Promise.resolve(false),
     disposeCachedKoharuLayoutSessions(),
   ]);
-  return groupingEvidenceDisposed || regionDetectorDisposed;
+  const errors = settled.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : [],
+  );
+  if (errors.length)
+    throw new AggregateError(errors, "OCR model cleanup did not complete.");
+  return settled.some(
+    (result) => result.status === "fulfilled" && result.value,
+  );
 }
 
 async function attachEffectReviewRegions(

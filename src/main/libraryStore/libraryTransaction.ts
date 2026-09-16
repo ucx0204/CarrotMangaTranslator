@@ -104,6 +104,7 @@ export async function runLibraryTransaction<T>(
   publish: <TResult>(operation: () => Promise<TResult>) => Promise<TResult> = (
     operation,
   ) => operation(),
+  assertCanCommit?: () => void,
 ): Promise<T> {
   if (transactionContext.getStore()) {
     throw new Error("중첩된 보관함 transaction은 허용되지 않습니다.");
@@ -125,7 +126,7 @@ export async function runLibraryTransaction<T>(
         try {
           for (const prepare of state.beforePublish) await prepare();
           await sealLibraryTransaction(state);
-          await commitLibraryTransaction(state);
+          await commitLibraryTransaction(state, assertCanCommit);
           return value;
         } catch (error) {
           publicationFailed = true;
@@ -473,11 +474,13 @@ async function sealLibraryTransaction(state: TransactionState): Promise<void> {
 
 async function commitLibraryTransaction(
   state: TransactionState,
+  assertCanCommit?: () => void,
 ): Promise<void> {
   if (!state.journal.sealed || state.phase !== "active") {
     throw new Error("sealed active transaction만 commit할 수 있습니다.");
   }
   await withLibraryPublicationWrite(async () => {
+    assertCanCommit?.();
     for (const step of state.journal.steps) {
       if (step.kind === "publish-directory") {
         await applyPublishDirectoryStep(state, step);
@@ -497,6 +500,7 @@ async function commitLibraryTransaction(
       }
     }
     await maybeInjectCrash("before-commit-point");
+    assertCanCommit?.();
     const committedRoot = join(
       state.libraryRoot,
       ".transactions",

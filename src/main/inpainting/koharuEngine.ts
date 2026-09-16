@@ -1,4 +1,3 @@
-import { safeCleanup } from "../safeCleanup";
 import type {
   InpaintingEngine,
   InpaintingRuntimeProgress,
@@ -90,10 +89,9 @@ function createKoharuEngine(options: {
   let worker: KoharuWorker | null = null;
   const getWorker = () => {
     if (worker && !worker.isHealthy()) {
-      void safeCleanup("dispose unhealthy Koharu worker", () =>
-        worker?.dispose(),
+      throw new Error(
+        "Koharu worker is unhealthy; finish native cleanup before retrying the workload.",
       );
-      worker = null;
     }
     worker ??= new KoharuWorker(options.launch);
     return worker;

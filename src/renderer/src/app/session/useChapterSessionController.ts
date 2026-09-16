@@ -1,3 +1,4 @@
+import { useMcpEditorSync } from "../../hooks/useMcpEditorSync";
 import { useChapterPersistence } from "../../hooks/useChapterPersistence";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useEventCallback } from "../../hooks/useEventCallback";
@@ -243,6 +244,12 @@ function useChapterRuntimeController({
     setCurrentChapter: core.setCurrentChapter,
     setSelectedBlockId: core.setSelectedBlockId,
     setSelectedPageId: core.setSelectedPageId,
+  });
+  useMcpEditorSync({
+    currentChapterRef: core.currentChapterRef,
+    dirtyPageIdsRef: persistence.dirtyPageIdsRef,
+    hasPendingInpaintingMask,
+    mergeLiveChapter,
   });
   useChapterRuntimeEffects({
     core,
