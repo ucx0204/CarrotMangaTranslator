@@ -1,4 +1,7 @@
-import { ModelCleanupError, releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
+import {
+  ModelCleanupError,
+  releaseModelResource,
+} from "../runtimeSupport/modelCleanupBarrier";
 import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import { detectBestGpuInfo } from "../gpuInfo";
@@ -107,20 +110,8 @@ export async function acquireKoharuInpaintingEngine(
         backend,
         candidates[candidateIndex + 1] ?? null,
         error,
+        options.onProgress,
       );
-      const fallbackBackend = candidates[candidateIndex + 1] ?? null;
-      if (backend === "metal-native" && fallbackBackend === "cpu") {
-        options.onProgress?.({
-          progressText: tMain("inpainting.runtime.metalFallback"),
-          detail: tMain("inpainting.runtime.metalFallbackDetail", {
-            model: options.model,
-          }),
-          progressMode: "log-only",
-          installLogLine: tMain("inpainting.runtime.metalFallbackLog", {
-            model: options.model,
-          }),
-        });
-      }
     }
   }
 
@@ -245,6 +236,7 @@ function logKoharuBackendFailure(
   backend: ResolvedKoharuBackend,
   fallbackBackend: ResolvedKoharuBackend | null,
   error: unknown,
+  onProgress: AcquireKoharuEngineOptions["onProgress"],
 ): void {
   logInpaintingRuntimeWarn("Koharu inpainting backend failed", {
     model,
@@ -253,6 +245,14 @@ function logKoharuBackendFailure(
     fallbackBackend,
     error,
   });
+  if (backend === "metal-native" && fallbackBackend === "cpu") {
+    onProgress?.({
+      progressText: tMain("inpainting.runtime.metalFallback"),
+      detail: tMain("inpainting.runtime.metalFallbackDetail", { model }),
+      progressMode: "log-only",
+      installLogLine: tMain("inpainting.runtime.metalFallbackLog", { model }),
+    });
+  }
 }
 
 async function smokeTestKoharuEngine(

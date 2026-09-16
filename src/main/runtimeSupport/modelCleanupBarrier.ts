@@ -24,16 +24,18 @@ export function releaseModelResource(
   if (previous?.pending) return previous.pending;
   const state: Cleanup = { pending: null };
   cleanups.set(resource, state);
-  state.pending = Promise.resolve().then(dispose).then(
-    () => {
-      if (cleanups.get(resource) === state) cleanups.delete(resource);
-    },
-    (error: unknown) => {
-      state.pending = null;
-      state.failure = error;
-      throw new ModelCleanupError(error);
-    },
-  );
+  state.pending = Promise.resolve()
+    .then(dispose)
+    .then(
+      () => {
+        if (cleanups.get(resource) === state) cleanups.delete(resource);
+      },
+      (error: unknown) => {
+        state.pending = null;
+        state.failure = error;
+        throw new ModelCleanupError(error);
+      },
+    );
   return state.pending;
 }
 

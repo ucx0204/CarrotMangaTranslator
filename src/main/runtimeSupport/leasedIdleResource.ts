@@ -149,7 +149,10 @@ export class LeasedIdleResourcePool<TResource> {
       await new Promise<void>((resolve) => entry.releaseWaiters.add(resolve));
     }
     try {
-      await this.options.dispose(entry.resource, entry.disposeReason ?? "dispose");
+      await this.options.dispose(
+        entry.resource,
+        entry.disposeReason ?? "dispose",
+      );
     } catch (error) {
       entry.disposalFailure = { error };
       throw error;

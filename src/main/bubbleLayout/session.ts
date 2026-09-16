@@ -1,4 +1,8 @@
-import { assertModelCleanupComplete, releaseModelResource, ModelCleanupError } from "../runtimeSupport/modelCleanupBarrier";
+import {
+  assertModelCleanupComplete,
+  releaseModelResource,
+  ModelCleanupError,
+} from "../runtimeSupport/modelCleanupBarrier";
 import { availableParallelism } from "node:os";
 import { resolve } from "node:path";
 import type * as Ort from "onnxruntime-node";
@@ -98,8 +102,11 @@ export async function disposeCachedKoharuLayoutSessions(): Promise<boolean> {
   const errors = settled.flatMap((result) =>
     result.status === "rejected" ? [result.reason] : [],
   );
-  if (errors.length) throw new AggregateError(errors, "KoharuLayout cleanup did not complete.");
-  return settled.some((result) => result.status === "fulfilled" && result.value);
+  if (errors.length)
+    throw new AggregateError(errors, "KoharuLayout cleanup did not complete.");
+  return settled.some(
+    (result) => result.status === "fulfilled" && result.value,
+  );
 }
 
 async function disposeCachedNativeKoharuLayoutSessions(): Promise<boolean> {
@@ -235,11 +242,13 @@ function releaseNativeSessionOnce(
 ): Promise<void> {
   let pending = sessionReleases.get(session);
   if (!pending) {
-    pending = releaseModelResource(session, () => session.release()).catch((error: unknown) => {
-      // Native release may be non-repeatable. Preserve its failed receipt;
-      // a failed acknowledgement never permits another provider to start.
-      throw error instanceof ModelCleanupError ? error.cause : error;
-    });
+    pending = releaseModelResource(session, () => session.release()).catch(
+      (error: unknown) => {
+        // Native release may be non-repeatable. Preserve its failed receipt;
+        // a failed acknowledgement never permits another provider to start.
+        throw error instanceof ModelCleanupError ? error.cause : error;
+      },
+    );
     sessionReleases.set(session, pending);
   }
   return pending;

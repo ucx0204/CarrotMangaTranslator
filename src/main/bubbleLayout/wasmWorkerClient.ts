@@ -1,4 +1,7 @@
-import { assertModelCleanupComplete, releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
+import {
+  assertModelCleanupComplete,
+  releaseModelResource,
+} from "../runtimeSupport/modelCleanupBarrier";
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
@@ -156,13 +159,16 @@ export class KoharuWasmInferenceWorkerClient {
     const worker = this.worker;
     this.rejectAll(new Error("Koharu WASM inference worker was disposed."));
     if (!worker) return false;
-    await releaseModelResource(worker, async () => { await worker.terminate(); });
+    await releaseModelResource(worker, async () => {
+      await worker.terminate();
+    });
     if (this.worker === worker) this.worker = null;
     return true;
   }
 
   private ensureWorker(): Worker {
-    if (this.disposed) throw new Error("Koharu WASM inference worker is closing.");
+    if (this.disposed)
+      throw new Error("Koharu WASM inference worker is closing.");
     if (this.worker) return this.worker;
     const resolveWorkerScript =
       this.dependencies.resolveWorkerScript ??

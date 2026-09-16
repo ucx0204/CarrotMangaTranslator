@@ -99,12 +99,7 @@ async function checkNativePageGoal(root) {
     decodeImage: async () => null,
     inpaintingRevisionStore: new InpaintingRevisionStore(),
   };
-  // Only this synthetic fixture acknowledges the renderer edit handoff.
-  const stopHandoffs = app.jobs.pageHandoffs.subscribe(() => {
-    for (const handoff of app.jobs.pageHandoffs.activities)
-      if (handoff.phase === "finishing-edits" && handoff.requestId)
-        app.jobs.pageHandoffs.respond({ requestId: handoff.requestId });
-  });
+  const stopHandoffs = acknowledgeFixtureHandoffs(app.jobs.pageHandoffs);
   const { createMcpPageEditScope } = load(root, "main/mcp/mcpPageEditScope.js");
   const editing = {
     assertWritable: async () => {},
@@ -456,5 +451,14 @@ function assertFixtureScopes(allowed, scopes) {
     scopes.every((scope) => approved.includes(scope)),
     "Unapproved fixture scope",
   );
+}
+/** Only this isolated synthetic fixture acknowledges a renderer handoff.
+ * @param {import("../src/main/jobs/activeJob").ActiveJobStore["pageHandoffs"]} handoffs */
+function acknowledgeFixtureHandoffs(handoffs) {
+  return handoffs.subscribe(() => {
+    for (const handoff of handoffs.activities)
+      if (handoff.phase === "finishing-edits" && handoff.requestId)
+        handoffs.respond({ requestId: handoff.requestId });
+  });
 }
 module.exports = { checkNativePageGoal };

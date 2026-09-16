@@ -41,7 +41,9 @@ export function createFluxEngine(
   let worker: FluxWorker | null = null;
   const getWorker = () => {
     if (worker && !worker.isHealthy()) {
-      throw new Error("Flux worker is unhealthy; finish native cleanup before retrying the workload.");
+      throw new Error(
+        "Flux worker is unhealthy; finish native cleanup before retrying the workload.",
+      );
     }
     worker ??= new FluxWorker(options.launch, {
       diagnostics: options.diagnostics,

@@ -89,7 +89,9 @@ function createKoharuEngine(options: {
   let worker: KoharuWorker | null = null;
   const getWorker = () => {
     if (worker && !worker.isHealthy()) {
-      throw new Error("Koharu worker is unhealthy; finish native cleanup before retrying the workload.");
+      throw new Error(
+        "Koharu worker is unhealthy; finish native cleanup before retrying the workload.",
+      );
     }
     worker ??= new KoharuWorker(options.launch);
     return worker;

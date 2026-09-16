@@ -78,8 +78,11 @@ export async function disposeTranslationRuntimeResources(
   const errors = settled.flatMap((result) =>
     result.status === "rejected" ? [result.reason] : [],
   );
-  if (errors.length) throw new AggregateError(errors, "OCR model cleanup did not complete.");
-  return settled.some((result) => result.status === "fulfilled" && result.value);
+  if (errors.length)
+    throw new AggregateError(errors, "OCR model cleanup did not complete.");
+  return settled.some(
+    (result) => result.status === "fulfilled" && result.value,
+  );
 }
 
 async function attachEffectReviewRegions(
