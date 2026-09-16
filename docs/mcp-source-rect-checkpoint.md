@@ -90,3 +90,13 @@ with the new revision. No connection deletion or authorization reset is prescrib
 
 Usage and exact input contract: `docs/mcp-source-rect-testing.md`.
 Historical policy-only checkpoints: `35803ef1` and `220cd14a`.
+
+## Follow-up: live connector acceptance completed
+
+The previously unverified live-client boundary was tested on application code
+`6a41165d` through `망번테스트`, without restarting the normal app.
+Two disposable pages passed fractional source edits and explicit restoration;
+three exports per page matched in dimensions, byte count and SHA-256.
+Remote comparison confirmed unchanged image/mask assets and restored page content
+apart from modification timestamps. See `mcp-source-rect-live-acceptance-20260916.md`
+for live error/no-op checks, the 36-test focused rerun, evidence and remaining limits.
