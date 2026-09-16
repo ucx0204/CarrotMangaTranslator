@@ -36,25 +36,35 @@ function fixture() {
   block.sourceText = "ABCDEFGHIJKLMNO";
   block.translatedText = "Keep this text";
   const request = {
-    chapterId: "chapter", pageId: "page", blockId: "a",
+    chapterId: "chapter",
+    pageId: "page",
+    blockId: "a",
     revision: "page-v1:0000000000000000",
     sourceRect: { x: 100, y: 100, w: 30, h: 30 },
   };
-  const layout = (value: typeof block) => resolveBlockTextLayout(
-    value, value.translatedText, page, page, DEFAULT_BLOCK_FONT_CATALOG,
-  );
+  const layout = (value: typeof block) =>
+    resolveBlockTextLayout(
+      value,
+      value.translatedText,
+      page,
+      page,
+      DEFAULT_BLOCK_FONT_CATALOG,
+    );
   return { page, block, request, layout };
 }
 
-it.each([true, false])("preserves actual text layout with explicit frame=%s", (explicit) => {
-  const f = fixture();
-  if (!explicit) delete f.block.renderBbox;
-  const before = f.layout(f.block);
-  const changed = applyMcpSourceRect(f.page, f.request).blocks[0];
-  expect(f.layout(changed)).toEqual(before);
-  expect(changed.fontSizePx).toBe(f.block.fontSizePx);
-  expect(changed.translatedText).toBe(f.block.translatedText);
-});
+it.each([true, false])(
+  "preserves actual text layout with explicit frame=%s",
+  (explicit) => {
+    const f = fixture();
+    if (!explicit) delete f.block.renderBbox;
+    const before = f.layout(f.block);
+    const changed = applyMcpSourceRect(f.page, f.request).blocks[0];
+    expect(f.layout(changed)).toEqual(before);
+    expect(changed.fontSizePx).toBe(f.block.fontSizePx);
+    expect(changed.translatedText).toBe(f.block.translatedText);
+  },
+);
 
 it("rejects geometry-dependent generated font layout rather than silently changing its size", () => {
   const f = fixture();
@@ -64,15 +74,27 @@ it("rejects geometry-dependent generated font layout rather than silently changi
     sourceFontSizeConfidence: 0.95,
     sourceFontSizeMethod: "raster-core-v1",
     bubbleLayout: {
-      version: 1, origin: "detected", modelId: "koharu-layout",
-      sourceImageRevision: "original", confidence: 1,
-      direction: "horizontal", insetRatio: 0,
-      regions: [{ spans: [{ blockStart: 0, blockEnd: 1, inlineStart: 0, inlineEnd: 1 }] }],
+      version: 1,
+      origin: "detected",
+      modelId: "koharu-layout",
+      sourceImageRevision: "original",
+      confidence: 1,
+      direction: "horizontal",
+      insetRatio: 0,
+      regions: [
+        {
+          spans: [{ blockStart: 0, blockEnd: 1, inlineStart: 0, inlineEnd: 1 }],
+        },
+      ],
     },
   });
   const before = structuredClone(f.page);
   const unsafeCandidate = { ...f.block, bbox: f.request.sourceRect };
-  expect(f.layout(unsafeCandidate).fontSizePx).not.toBe(f.layout(f.block).fontSizePx);
-  expect(() => applyMcpSourceRect(f.page, f.request)).toThrow(/automatic typography/);
+  expect(f.layout(unsafeCandidate).fontSizePx).not.toBe(
+    f.layout(f.block).fontSizePx,
+  );
+  expect(() => applyMcpSourceRect(f.page, f.request)).toThrow(
+    /automatic typography/,
+  );
   expect(f.page).toEqual(before);
 });

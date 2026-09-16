@@ -75,7 +75,8 @@ export function applyMcpSourceRect(
 function assertIndependentTypography(block: TranslationBlock): void {
   if (
     isGeneratedBubbleLayout(block.bubbleLayout) &&
-    (block.sourceFontFacePx !== undefined || block.fontSizeIntent === "source-match")
+    (block.sourceFontFacePx !== undefined ||
+      block.fontSizeIntent === "source-match")
   )
     throw new McpEditError(
       "invalid_edit",
