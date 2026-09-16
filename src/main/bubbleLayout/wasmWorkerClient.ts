@@ -1,3 +1,4 @@
+import { assertModelCleanupComplete, releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
@@ -75,14 +76,17 @@ export async function runKoharuWasmInference(options: {
   rgbChw: Float32Array;
   signal?: AbortSignal;
 }): Promise<ComicPageDetectionResult> {
+  assertModelCleanupComplete();
   sharedClient ??= new KoharuWasmInferenceWorkerClient();
   return sharedClient.infer(options);
 }
 
 export async function disposeKoharuWasmInferenceWorker(): Promise<boolean> {
   const client = sharedClient;
-  sharedClient = null;
-  return client ? client.dispose() : false;
+  if (!client) return false;
+  const disposed = await client.dispose();
+  if (sharedClient === client) sharedClient = null;
+  return disposed;
 }
 
 export class KoharuWasmInferenceWorkerClient {
@@ -148,17 +152,17 @@ export class KoharuWasmInferenceWorkerClient {
   }
 
   async dispose(): Promise<boolean> {
-    if (this.disposed) return false;
     this.disposed = true;
     const worker = this.worker;
-    this.worker = null;
     this.rejectAll(new Error("Koharu WASM inference worker was disposed."));
     if (!worker) return false;
-    await worker.terminate();
+    await releaseModelResource(worker, async () => { await worker.terminate(); });
+    if (this.worker === worker) this.worker = null;
     return true;
   }
 
   private ensureWorker(): Worker {
+    if (this.disposed) throw new Error("Koharu WASM inference worker is closing.");
     if (this.worker) return this.worker;
     const resolveWorkerScript =
       this.dependencies.resolveWorkerScript ??
