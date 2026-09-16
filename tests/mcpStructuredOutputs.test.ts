@@ -47,9 +47,13 @@ async function call(t: McpTool) {
 }
 it("publishes real 2020-12 output schemas for every existing tool, cached from runtime contracts", () => {
   expect(Object.keys(mcpOutputSchemas)).toHaveLength(27);
-  expect(Object.keys(mcpOutputSchemas)).toEqual(expect.arrayContaining([
-    "carrot_get_erasure_recovery", "carrot_undo_erasure", "carrot_redo_erasure",
-  ]));
+  expect(Object.keys(mcpOutputSchemas)).toEqual(
+    expect.arrayContaining([
+      "carrot_get_erasure_recovery",
+      "carrot_undo_erasure",
+      "carrot_redo_erasure",
+    ]),
+  );
   for (const name of Object.keys(mcpOutputSchemas)) {
     const schema = mcpToolOutputSchema(name);
     expect(schema).toMatchObject({
