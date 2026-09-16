@@ -1,4 +1,13 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { rm } from "node:fs/promises";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmdirSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -15,6 +24,41 @@ describe.skipIf(process.platform !== "win32")(
       expect(identity.sid).toMatch(/^S-1-\d+(?:-\d+)+$/);
       expect(typeof identity.elevated).toBe("boolean");
     }, 15000);
+
+    it("retries cleanup until a native Windows cwd lock is released", async () => {
+      const root = mkdtempSync(join(tmpdir(), "carrot-uac-cleanup-"));
+      const child = spawn(
+        process.execPath,
+        ["-e", "process.stdout.write('ready'); setInterval(() => {}, 1000);"],
+        { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "ignore"] },
+      );
+      const exited = once(child, "close");
+      let release: ReturnType<typeof setTimeout> | undefined;
+      try {
+        if (!child.stdout) throw new Error("Missing fixture stdout");
+        await once(child.stdout, "data", { signal: AbortSignal.timeout(5000) });
+        expect(() => rmdirSync(root)).toThrowError(
+          expect.objectContaining({
+            code: expect.stringMatching(/^(EBUSY|EPERM)$/),
+          }),
+        );
+        release = setTimeout(() => {
+          child.kill();
+        }, 150);
+        await removeElevationFixture(root);
+        expect(existsSync(root)).toBe(false);
+      } finally {
+        clearTimeout(release);
+        if (child.exitCode === null && child.signalCode === null) child.kill();
+        await exited;
+        await rm(root, {
+          recursive: true,
+          force: true,
+          maxRetries: 20,
+          retryDelay: 50,
+        });
+      }
+    }, 20000);
 
     it("round-trips arguments through real runas on an already elevated runner", async ({
       skip,
@@ -74,13 +118,18 @@ describe.skipIf(process.platform !== "win32")(
           );
         }
         // Only this test's freshly allocated temporary directory is removed.
-        rmSync(root, {
-          recursive: true,
-          force: true,
-          maxRetries: 20,
-          retryDelay: 50,
-        });
+        await removeElevationFixture(root);
       }
     }, 30000);
   },
 );
+
+// Async rm retries an initial busy-directory failure before scanning children.
+async function removeElevationFixture(root: string): Promise<void> {
+  await rm(root, {
+    recursive: true,
+    force: true,
+    maxRetries: 20,
+    retryDelay: 50,
+  });
+}
