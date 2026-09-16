@@ -2,6 +2,11 @@
 
 Branch: `feat/mcp-app-bridge`. Code checkpoint: `77433108219533918216d6776d6c72146ea3ec50`.
 
+**Closeout:** Both outstanding verification items below have since been resolved.
+See [the final closeout](mcp-job-file-closeout-20260916.md) for successful actual
+connected status/export calls and the updated standalone native smoke. The limits
+below describe this earlier checkpoint, not the current state.
+
 The user's pending status/file separation was reviewed and retained. Normal job
 status, listing, cancellation, duplicate starts and retry receipts return only
 allowlisted result metadata. They contain no artifact URL or resource link.
