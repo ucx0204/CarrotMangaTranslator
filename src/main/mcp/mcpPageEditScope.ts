@@ -10,6 +10,7 @@ type Target = { chapterId: string; pageId: string };
 export function createMcpPageEditScope(
   app: InpaintingJobContext,
   readChapter = openChapter,
+  lifetime?: AbortSignal,
 ) {
   return async function run<T>(
     target: Target,
@@ -18,9 +19,16 @@ export function createMcpPageEditScope(
   ): Promise<T> {
     authorize();
     const controller = new AbortController();
+    const signal = lifetime
+      ? AbortSignal.any([controller.signal, lifetime])
+      : controller.signal;
+    const assertAuthorized = () => {
+      signal.throwIfAborted();
+      authorize();
+    };
     const monitor = setInterval(() => {
       try {
-        authorize();
+        assertAuthorized();
       } catch (error) {
         controller.abort(error);
       }
@@ -31,8 +39,8 @@ export function createMcpPageEditScope(
         app,
         {
           id: randomUUID(),
-          signal: controller.signal,
-          assertAuthorized: authorize,
+          signal,
+          assertAuthorized,
           progress: () => {},
         },
         "mcp-edit",

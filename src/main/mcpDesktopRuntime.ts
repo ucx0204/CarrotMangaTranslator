@@ -179,7 +179,11 @@ async function openPageServer(
       tools: createMcpAppTools({
         ...editor,
         assertWritable: editor.assertClean,
-        withPageEdit: createMcpPageEditScope(options.editing.processing()),
+        withPageEdit: createMcpPageEditScope(
+          options.editing.processing(),
+          undefined,
+          scope.signal,
+        ),
         preferences: options.preferences,
         additionalTools: [
           ...pageOperations.tools,

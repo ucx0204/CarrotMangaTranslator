@@ -84,3 +84,39 @@ describe("MCP native job ownership", () => {
     expect(app.jobs.current).toBeNull();
   });
 });
+
+it("does not attach abort listeners or release another owner after admission is refused", async () => {
+  const app = makeContext(vi.fn());
+  app.jobs.start({
+    id: "other",
+    kind: "mcp-edit",
+    resources: [],
+    abortController: new AbortController(),
+  });
+  const f = operation();
+  const execute = vi.fn(async () => {});
+  await expect(
+    runMcpAppJob(app, f.context, "page-export", execute),
+  ).rejects.toMatchObject({ code: "editor_busy" });
+  expect(execute).not.toHaveBeenCalled();
+  expect(app.jobs.all.map((job) => job.id)).toEqual(["other"]);
+  app.jobs.clearIfCurrent("other");
+});
+
+it("observes cancellation delivered synchronously by the activity observer during admission", async () => {
+  const app = makeContext(vi.fn());
+  const f = operation();
+  const stop = app.jobs.gate.subscribe(() =>
+    f.controller.abort(new Error("cancelled at admission")),
+  );
+  const execute = vi.fn(async () => {});
+  try {
+    await expect(
+      runMcpAppJob(app, f.context, "page-export", execute, { resources: [] }),
+    ).rejects.toThrow("cancelled at admission");
+    expect(execute).not.toHaveBeenCalled();
+    expect(app.jobs.all).toEqual([]);
+  } finally {
+    stop();
+  }
+});

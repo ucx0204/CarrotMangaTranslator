@@ -197,8 +197,8 @@
       "reason": "The session root composes master activity/handoff/stale-image recovery and MCP editor synchronization, totaling 22 direct runtime imports. Domain implementations remain in their existing owners."
     },
     "src/main/library.ts": {
-      "maxImportedBy": 31,
-      "reason": "The merged v2.7.6 SFX recovery and MCP composition adapters have 31 direct consumers of the locked public library facade. Keep job/adapter access through this authority rather than private storage or alias facades."
+      "maxImportedBy": 32,
+      "reason": "MCP synchronous page ownership adds one real reader of the locked public library facade (32 consumers). The adapter re-reads after the existing UI handoff, never private storage. Native activity, same-page conflict and unrelated-page editing regressions cover this boundary; generic budgets remain unchanged."
     },
     "src/main/ipc/trustedIpc.ts": {
       "maxImportedBy": 26,

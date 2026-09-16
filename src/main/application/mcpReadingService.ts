@@ -35,7 +35,7 @@ export class McpReadingService {
   }
   private async createOwned(
     request: McpPageReading,
-    assertAuthorized: () => void = () => {},
+    assertAuthorized: () => void,
   ) {
     const { chapterId, pageId, revision } = request;
     assertAuthorized();

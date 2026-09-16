@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMcpPageEditScope } from "../src/main/mcp/mcpPageEditScope";
 import { runMcpAppJob } from "../src/main/mcp/mcpAppJob";
+import { McpReadingService } from "../src/main/application/mcpReadingService";
+import type { SavePageBlocksRequest } from "../src/shared/shareTypes";
 import { McpPageEditService } from "../src/main/application/mcpPageEditService";
 import { createPageRevision } from "../src/shared/pageRevision";
 import {
@@ -275,4 +277,110 @@ describe("MCP page ownership through the native activity gate", () => {
     expect(page.blocks[0].translatedText).toBe("UI saved");
     expect(f.app.jobs.all).toEqual([]);
   });
+});
+
+it("allows two different-page lightweight scopes while another page owns local inference", async () => {
+  const f = fixture();
+  f.app.jobs.start({
+    id: "local-model",
+    kind: "gemma-analysis",
+    resources: [model, pageContentResource("chapter", "c")],
+    abortController: new AbortController(),
+  });
+  const stop = f.app.jobs.pageHandoffs.subscribe(() => {
+    for (const handoff of f.app.jobs.pageHandoffs.activities)
+      if (handoff.phase === "finishing-edits" && handoff.requestId)
+        f.app.jobs.pageHandoffs.respond({ requestId: handoff.requestId });
+  });
+  const finish = createDeferred<void>();
+  let entered = 0;
+  const scope = createMcpPageEditScope(f.app, f.read);
+  const run = (pageId: string) =>
+    scope(
+      { chapterId: "chapter", pageId },
+      () => {},
+      async (guard) => {
+        guard();
+        assertLibraryActivityAccess([pageContentResource("chapter", pageId)]);
+        entered++;
+        await finish.promise;
+        return pageId;
+      },
+    );
+  const tasks = Promise.all([run("a"), run("b")]);
+  try {
+    await vi.waitFor(() => expect(entered).toBe(2));
+    expect(f.app.jobs.all).toHaveLength(3);
+    finish.resolve();
+    await expect(tasks).resolves.toEqual(["a", "b"]);
+    expect(f.app.jobs.all.map((job) => job.id)).toEqual(["local-model"]);
+  } finally {
+    finish.resolve();
+    stop();
+    f.app.jobs.clearIfCurrent("local-model");
+  }
+});
+
+it("stops a synchronous page handoff with its MCP session without revoking unrelated jobs", async () => {
+  const f = fixture();
+  const lifetime = new AbortController();
+  const scope = createMcpPageEditScope(f.app, f.read, lifetime.signal);
+  const execute = vi.fn(async () => "unexpected");
+  const task = scope({ chapterId: "chapter", pageId: "a" }, () => {}, execute);
+  const rejected = expect(task).rejects.toThrow("MCP stopped");
+  await vi.waitFor(() =>
+    expect(f.app.jobs.pageHandoffs.activities).toHaveLength(1),
+  );
+  lifetime.abort(new Error("MCP stopped"));
+  await rejected;
+  expect(execute).not.toHaveBeenCalled();
+  expect(f.app.jobs.all).toEqual([]);
+  await expect(
+    scope({ chapterId: "chapter", pageId: "a" }, () => {}, execute),
+  ).rejects.toThrow("MCP stopped");
+  expect(f.app.jobs.all).toEqual([]);
+});
+
+it("saves new external readings through the same scoped page lease", async () => {
+  const f = fixture();
+  const scope = createMcpPageEditScope(f.app, f.read);
+  const save = vi.fn(
+    async (request: SavePageBlocksRequest, guard?: () => void) =>
+      withLibraryMutation(async () => {
+        guard?.();
+        assertLibraryActivityAccess([
+          pageContentResource(request.chapterId, request.pageId),
+        ]);
+        f.chapter.pages[0].blocks = request.blocks;
+        f.chapter.pages[0].blockOrder = request.blockOrder;
+        return structuredClone(f.chapter);
+      }),
+  );
+  const reader = new McpReadingService({
+    openChapter: f.read,
+    savePageBlocks: save,
+    defaults: async () => undefined,
+    assertWritable: async () => {},
+    notifySaved: () => {},
+    withPageEdit: scope,
+  });
+  const task = reader.create({
+    chapterId: "chapter",
+    pageId: "a",
+    revision: createPageRevision(f.chapter.pages[0]),
+    requestId: "new-reading",
+    blocks: [
+      {
+        key: "second",
+        sourceText: "source",
+        translatedText: "translated",
+        sourceRect: { x: 10, y: 10, w: 20, h: 20 },
+      },
+    ],
+  });
+  await acknowledge(f);
+  await expect(task).resolves.toMatchObject({ status: "saved" });
+  expect(save).toHaveBeenCalledOnce();
+  expect(f.chapter.pages[0].blocks).toHaveLength(2);
+  expect(f.app.jobs.all).toEqual([]);
 });

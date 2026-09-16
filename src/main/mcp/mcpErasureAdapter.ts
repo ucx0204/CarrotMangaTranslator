@@ -32,7 +32,7 @@ export async function eraseMcpPage(
   };
   operation.assertAuthorized();
   const guarded = guardErasureRuntime(runtime, editing, target, operation);
-  const previous = app.jobs.current;
+  const previous = new Set(app.jobs.all.map((job) => job.id));
   const pending = startInpaintingJob(
     scopedApp,
     {
@@ -44,7 +44,9 @@ export async function eraseMcpPage(
     },
     { ...guarded, getSettings: async () => settings },
   );
-  const job = app.jobs.current !== previous ? app.jobs.current : null;
+  const job = app.jobs.all.find(
+    (entry) => !previous.has(entry.id) && entry.kind === "inpainting",
+  );
   const cancel = () => {
     if (job && app.jobs.current === job) job.abortController.abort();
   };
