@@ -1,41 +1,23 @@
 import type { AppPaths } from "../appPaths";
 import { totalmem } from "node:os";
-import type {
-  FluxBackend,
-  InpaintingModel,
-  KoharuInpaintingBackend,
-} from "../../shared/inpaintingSettingsTypes";
-import type {
-  InpaintingEngine,
-  InpaintingRuntimeProgress,
-} from "./inpaintingEngine";
-import {
-  acquireFluxInpaintingEngine,
-  disposeCachedFluxInpaintingEngine,
-} from "./fluxEnginePool";
-import {
-  acquireKoharuInpaintingEngine,
-  disposeCachedKoharuInpaintingEngine,
-} from "./koharuEnginePool";
+import type { FluxBackend, InpaintingModel, KoharuInpaintingBackend } from "../../shared/inpaintingSettingsTypes";
+import type { InpaintingEngine, InpaintingRuntimeProgress } from "./inpaintingEngine";
+import { acquireFluxInpaintingEngine, disposeCachedFluxInpaintingEngine } from "./fluxEnginePool";
+import { acquireKoharuInpaintingEngine, disposeCachedKoharuInpaintingEngine } from "./koharuEnginePool";
 import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
+import { assertModelCleanupComplete } from "../runtimeSupport/modelCleanupBarrier";
 
 export type InpaintingEngineLease = {
   engine: InpaintingEngine;
   release: () => void | Promise<void>;
 };
-
 export type InpaintingEnginePoolDependencies = {
-  acquireFlux: (
-    options: Parameters<typeof acquireFluxInpaintingEngine>[0],
-  ) => Promise<InpaintingEngineLease>;
-  acquireKoharu: (
-    options: Parameters<typeof acquireKoharuInpaintingEngine>[0],
-  ) => Promise<InpaintingEngineLease>;
+  acquireFlux: (options: Parameters<typeof acquireFluxInpaintingEngine>[0]) => Promise<InpaintingEngineLease>;
+  acquireKoharu: (options: Parameters<typeof acquireKoharuInpaintingEngine>[0]) => Promise<InpaintingEngineLease>;
   disposeFlux: (reason: string) => Promise<boolean>;
   disposeKoharu: (reason: string) => Promise<boolean>;
   totalMemoryBytes: () => number;
 };
-
 const defaultDependencies: InpaintingEnginePoolDependencies = {
   acquireFlux: acquireFluxInpaintingEngine,
   acquireKoharu: acquireKoharuInpaintingEngine,
@@ -43,7 +25,6 @@ const defaultDependencies: InpaintingEnginePoolDependencies = {
   disposeKoharu: disposeCachedKoharuInpaintingEngine,
   totalMemoryBytes: totalmem,
 };
-
 export const FLUX_RECOMMENDED_UNIFIED_MEMORY_MB = 16 * 1024;
 
 export async function acquireInpaintingEngine(
@@ -59,36 +40,48 @@ export async function acquireInpaintingEngine(
   },
   dependencies: InpaintingEnginePoolDependencies = defaultDependencies,
 ): Promise<InpaintingEngineLease> {
+  assertModelCleanupComplete();
+  options.signal?.throwIfAborted();
   const computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
   if (options.model === "flux-klein") {
     assertFluxMemoryPolicy({
-      backend:
-        options.fluxBackend ??
-        (process.platform === "darwin" ? "metal-native" : "cuda-native"),
-      unifiedMemoryMb: Math.floor(
-        dependencies.totalMemoryBytes() / 1024 / 1024,
-      ),
+      backend: options.fluxBackend ?? (process.platform === "darwin" ? "metal-native" : "cuda-native"),
+      unifiedMemoryMb: Math.floor(dependencies.totalMemoryBytes() / 1024 / 1024),
       allowUnsafeLowMemoryFlux: options.allowUnsafeLowMemoryFlux ?? false,
     });
     await dependencies.disposeKoharu("switch-to-flux");
-    return dependencies.acquireFlux({
-      appPaths: options.appPaths,
-      fluxBackend: options.fluxBackend,
-      computeGpuIndex,
-      signal: options.signal,
-      onProgress: options.onProgress,
-    });
+    options.signal?.throwIfAborted();
+    return workloadLease(await dependencies.acquireFlux({
+      appPaths: options.appPaths, fluxBackend: options.fluxBackend,
+      computeGpuIndex, signal: options.signal, onProgress: options.onProgress,
+    }), dependencies.disposeFlux);
   }
-
   await dependencies.disposeFlux("switch-to-koharu");
-  return dependencies.acquireKoharu({
-    appPaths: options.appPaths,
-    model: options.model,
-    backend: options.koharuBackend ?? "auto",
-    computeGpuIndex,
-    signal: options.signal,
-    onProgress: options.onProgress,
-  });
+  options.signal?.throwIfAborted();
+  return workloadLease(await dependencies.acquireKoharu({
+    appPaths: options.appPaths, model: options.model,
+    backend: options.koharuBackend ?? "auto", computeGpuIndex,
+    signal: options.signal, onProgress: options.onProgress,
+  }), dependencies.disposeKoharu);
+}
+
+/** The existing job owns one lease for all its sequential pages. Release means
+ * actual disposal, not scheduling the idle TTL. Never abort native cleanup. */
+function workloadLease(
+  lease: InpaintingEngineLease,
+  dispose: (reason: string) => Promise<boolean>,
+): InpaintingEngineLease {
+  let releasing: Promise<void> | undefined;
+  return {
+    engine: lease.engine,
+    release: () => {
+      releasing ??= (async () => {
+        await lease.release();
+        await dispose("workload-complete");
+      })();
+      return releasing;
+    },
+  };
 }
 
 export function assertFluxMemoryPolicy(options: {
@@ -96,25 +89,18 @@ export function assertFluxMemoryPolicy(options: {
   unifiedMemoryMb: number;
   allowUnsafeLowMemoryFlux: boolean;
 }): void {
-  if (
-    options.backend !== "metal-native" ||
-    options.unifiedMemoryMb >= FLUX_RECOMMENDED_UNIFIED_MEMORY_MB ||
-    options.allowUnsafeLowMemoryFlux
-  ) {
-    return;
-  }
-  throw new Error(
-    `Flux Klein Metal은 통합 메모리 16GB 이상을 권장합니다. 현재 ${Math.max(0, Math.round(options.unifiedMemoryMb / 1024))}GB로 감지되었습니다. macOS 메모리 위험 경고를 확인하고 명시적으로 허용한 뒤 다시 시도하세요.`,
-  );
+  if (options.backend !== "metal-native" || options.unifiedMemoryMb >= FLUX_RECOMMENDED_UNIFIED_MEMORY_MB || options.allowUnsafeLowMemoryFlux) return;
+  throw new Error(`Flux Klein Metal은 통합 메모리 16GB 이상을 권장합니다. 현재 ${Math.max(0, Math.round(options.unifiedMemoryMb / 1024))}GB로 감지되었습니다. macOS 메모리 위험 경고를 확인하고 명시적으로 허용한 뒤 다시 시도하세요.`);
 }
 
 export async function disposeCachedInpaintingEngines(
   reason: string,
   dependencies: InpaintingEnginePoolDependencies = defaultDependencies,
 ): Promise<boolean> {
-  const [fluxDisposed, koharuDisposed] = await Promise.all([
-    dependencies.disposeFlux(reason),
-    dependencies.disposeKoharu(reason),
+  const settled = await Promise.allSettled([
+    dependencies.disposeFlux(reason), dependencies.disposeKoharu(reason),
   ]);
-  return fluxDisposed || koharuDisposed;
+  const errors = settled.flatMap((result) => result.status === "rejected" ? [result.reason] : []);
+  if (errors.length) throw new AggregateError(errors, "Inpainting model cleanup did not complete.");
+  return settled.some((result) => result.status === "fulfilled" && result.value);
 }
