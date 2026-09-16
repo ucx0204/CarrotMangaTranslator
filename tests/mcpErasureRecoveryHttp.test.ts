@@ -1,13 +1,8 @@
-import { McpOAuthSession } from "../src/main/mcp/mcpOAuthSession";
-import { McpPairingBroker } from "../src/main/mcp/mcpPairingBroker";
+import type { McpOAuthProvider } from "../src/main/mcp/mcpOAuthProvider";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { recoveryLibrary } from "./mcpErasureRecovery.fixture";
-import { McpOperationService } from "../src/main/application/mcpOperationService";
-import { McpOAuthProvider } from "../src/main/mcp/mcpOAuthProvider";
-import { McpOAuthHttp } from "../src/main/mcp/mcpOAuthHttp";
 import { oauthDigest } from "../src/main/mcp/mcpOAuthPolicy";
-import { startMcpHttpServer } from "../src/main/mcp/mcpHttpServer";
 import { createPageRevision } from "../src/shared/pageRevision";
 
 const origin = "https://recovery.test.ts.net";
@@ -49,6 +44,13 @@ function mint(provider: McpOAuthProvider, scope: string) {
 }
 async function fixture() {
   const f = await recoveryLibrary();
+  const { McpOAuthSession } = await import("../src/main/mcp/mcpOAuthSession");
+  const { McpPairingBroker } = await import("../src/main/mcp/mcpPairingBroker");
+  const { McpOperationService } =
+    await import("../src/main/application/mcpOperationService");
+  const { McpOAuthProvider } = await import("../src/main/mcp/mcpOAuthProvider");
+  const { McpOAuthHttp } = await import("../src/main/mcp/mcpOAuthHttp");
+  const { startMcpHttpServer } = await import("../src/main/mcp/mcpHttpServer");
   const { getAppPaths } = await import("../src/main/appPaths");
   const { ActiveJobStore } = await import("../src/main/jobs/activeJob");
   const { createMcpErasureRecoverySession } =
@@ -238,8 +240,7 @@ it("rejects other grants, read-only writes, injected targets and malformed input
       { ...action, revision: "bad" },
     ]) {
       const rejected = await f.call("carrot_undo_erasure", args);
-      expect(rejected.error ?? rejected.result?.isError).toBeTruthy();
-      expect(rejected.result?.isError).not.toBe(false);
+      expect(rejected.error?.code).toBe(-32602);
     }
     expect(await f.snapshot()).toEqual(snapshot);
     expect(f.app.jobs.gate.activities).toEqual([]);

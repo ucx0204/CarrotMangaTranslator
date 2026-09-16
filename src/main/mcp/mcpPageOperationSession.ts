@@ -78,10 +78,7 @@ export function createMcpPageOperationSession(options: {
       ? createOcrExecutor(app, reader)
       : undefined,
     erase: preferences.allowProcessing
-      ? (target, context) =>
-          eraseMcpPage(app, editing, target, context, undefined, (reference) =>
-            recovery?.remember(context.id, reference.transactionId),
-          )
+      ? createErasureExecutor(app, editing, recovery)
       : undefined,
   };
   return {
@@ -100,13 +97,7 @@ export function createMcpPageOperationSession(options: {
       operations.stop();
       artifacts.stop();
     },
-    close: async () => {
-      operations.stop();
-      recovery?.stop();
-      await recovery?.close();
-      await operations.close();
-      await artifacts.close();
-    },
+    close: () => closePageSession(operations, artifacts, recovery),
   };
 }
 
@@ -132,4 +123,27 @@ function createOcrExecutor(
       },
     );
   };
+}
+
+function createErasureExecutor(
+  app: InpaintingJobContext,
+  editing: Editing,
+  recovery: ReturnType<typeof createMcpErasureRecoverySession>,
+): NonNullable<Parameters<typeof createMcpOperationTools>[1]["erase"]> {
+  return (target, context) =>
+    eraseMcpPage(app, editing, target, context, undefined, (reference) =>
+      recovery?.remember(context.id, reference.transactionId),
+    );
+}
+
+async function closePageSession(
+  operations: McpOperationService,
+  artifacts: McpArtifactStore,
+  recovery: ReturnType<typeof createMcpErasureRecoverySession>,
+): Promise<void> {
+  operations.stop();
+  recovery?.stop();
+  await recovery?.close();
+  await operations.close();
+  await artifacts.close();
 }

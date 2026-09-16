@@ -72,12 +72,7 @@ export async function eraseMcpPage(
       (entry) => entry.id === target.pageId,
     );
     if (page) editing.notifySaved(target.chapterId, target.pageId);
-    if (
-      target.blockId &&
-      result.status === "completed" &&
-      result.historyTransaction
-    )
-      onHistory?.(result.historyTransaction);
+    recordSelectedHistory(result, target.blockId, onHistory);
     return {
       status: result.status,
       chapterId: target.chapterId,
@@ -200,4 +195,13 @@ function cleanupFailure(
     performed: ["erase-original"],
     engine: "app-configured-local",
   };
+}
+
+function recordSelectedHistory(
+  result: Awaited<ReturnType<typeof startInpaintingJob>>,
+  blockId: string | undefined,
+  remember: ((reference: InpaintingHistoryTransactionRef) => void) | undefined,
+): void {
+  if (blockId && result.status === "completed" && result.historyTransaction)
+    remember?.(result.historyTransaction);
 }
