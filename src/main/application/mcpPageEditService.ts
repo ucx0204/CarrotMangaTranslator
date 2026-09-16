@@ -8,6 +8,7 @@ import type {
   McpBlockPatch,
   McpReadingOrder,
 } from "../../shared/mcpBlockEditing";
+import type { McpSourceRectPatch } from "../../shared/mcpSourceRect";
 import type { PageRevision } from "../../shared/pageRevisionTypes";
 import type { SavePageBlocksRequest } from "../../shared/shareTypes";
 import { createPageRevision } from "../../shared/pageRevision";
@@ -17,6 +18,7 @@ import {
   hashStableValue,
 } from "../../shared/blockFingerprint";
 import { applyMcpBlockPatch, applyMcpReadingOrder } from "./mcpBlockEditPolicy";
+import { applyMcpSourceRect } from "./mcpSourceRectPolicy";
 import {
   applyMcpTranslations,
   isMcpSaveConflict,
@@ -89,6 +91,29 @@ export class McpPageEditService {
       revision: createPageRevision(result.page),
       changed: result.data.length,
       previousTranslations: result.data,
+    };
+  }
+  async updateSourceRect(
+    request: McpSourceRectPatch,
+    assertAuthorized: () => void = () => {},
+  ) {
+    const result = await this.mutate(
+      request,
+      assertAuthorized,
+      (_chapter, page) => {
+        // Unlike legacy scalar edits, even a no-op requires a fresh snapshot.
+        // A lost response is resolved by re-reading, not by replaying stale edits.
+        assertCurrentRevision(page, request.revision);
+        return applyMcpSourceRect(page, request);
+      },
+    );
+    return {
+      chapterId: request.chapterId,
+      pageId: request.pageId,
+      blockId: request.blockId,
+      status: result.status,
+      revision: createPageRevision(result.page),
+      ...result.data,
     };
   }
   async updateBlocks(
@@ -183,11 +208,7 @@ export class McpPageEditService {
     const change = calculate(chapter, page);
     if (!change.changed)
       return { status: "already_applied" as const, page, data: change.result };
-    if (createPageRevision(page) !== target.revision)
-      throw new McpEditError(
-        "revision_conflict",
-        "The page changed since it was read. Read it again before editing.",
-      );
+    assertCurrentRevision(page, target.revision);
     await this.ports.assertWritable(target.chapterId, target.pageId);
     authorize();
     const saved = await this.save(
@@ -224,6 +245,13 @@ export class McpPageEditService {
       throw error;
     }
   }
+}
+function assertCurrentRevision(page: MangaPage, revision: string): void {
+  if (createPageRevision(page) !== revision)
+    throw new McpEditError(
+      "revision_conflict",
+      "The page changed since it was read. Read it again before editing.",
+    );
 }
 function requirePage(chapter: ChapterSnapshot, pageId: string): MangaPage {
   const page = chapter.pages.find((item) => item.id === pageId);
