@@ -218,7 +218,10 @@ export class KoharuWasmInferenceWorkerClient {
 
   private handleWorkerFailure(worker: Worker, error: Error): void {
     if (this.worker !== worker) return;
-    this.worker = null;
+    // The error event precedes exit. Keep the handle so the owning finalizer
+    // awaits native termination instead of mistaking a crash for disposal.
+    // A failed client must not silently spawn a replacement worker.
+    this.disposed = true;
     this.rejectAll(error);
   }
 
