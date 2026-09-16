@@ -1,39 +1,53 @@
 # MCP page ownership checkpoint — 2026-09-16
 
-Branch: `feat/mcp-app-bridge`; starting commit `583fc4c4`.
+Only branch: `feat/mcp-app-bridge`. Base: `583fc4c4`.
+Published implementation: `d5b99b27`, followed by `a26468a8`.
+Status: page ownership implemented and regression-tested; the complete page/model bundle is NOT finished.
 
-## Scope implemented in this checkpoint
+## Implemented
 
-- Synchronous external-reading and text/style/order edits acquire the existing native page handoff and content lease.
+- Synchronous external readings and text/style/order edits acquire the existing native page handoff and content lease.
 - OCR declares the shared local-model resource and acquires its target page before recognition.
-- PNG export owns only its target page, not the entire library or local-model resource.
-- MCP erasure obtains its page before engine preparation and retains ownership through native job finalization.
-- Existing UI handoff/save acknowledgment and activity-derived editor locks are reused; no second GPU queue or lock system was introduced.
-- Unrelated pages remain available for lightweight edits. Same-page saves and chapter deletion are blocked at the actual library activity boundary.
-- Synchronous calls monitor caller authorization while awaiting handoff; cancellation waits for their callback/finalization before releasing the native activity.
-- This does not add parallel batch execution or automatic resume.
+- PNG export owns its target page, not the entire library or the model resource.
+- MCP erasure acquires its page before engine preparation and retains page ownership through native finalization.
+- Existing UI handoff/save acknowledgment and activity-derived editor locks are reused; no second lock or GPU queue exists.
+- Two unrelated lightweight scopes may coexist with a model task on another page. Same-page storage access and conflicting chapter deletion are rejected.
+- Cancellation waits for the callback/finalization to settle before releasing ownership.
+- Synchronous scopes observe both caller authorization and desktop MCP-session shutdown.
+- Erasure cancellation identifies the newly admitted native job, not an unrelated first job in the activity list.
 
-## Verification so far
+## Verified on source a26468a8
 
-- Targeted suite: 418 tests in 53 files passed (including native orchestration, library gate and renderer handoff regressions).
-- Renderer/Electron typechecks and changed-source ESLint passed.
-- Regression tests cover dirty-save refusal, cancellation during handoff, permission loss, stale revisions after UI save, unrelated-page writes and ownership retention during delayed cleanup.
+- Full test execution: **7,165 passed, 0 failed, 11 existing skipped**.
+- Three typechecks, lint, formatting, architecture, mock-boundary, duplicate and dead-code checks passed.
+- The overall `npm run check` did NOT pass: it stopped at the production coverage gate, before the build/remaining verification stages.
+- Coverage failures: `mcpErasureAdapter.ts` statements 47/50 (94%) against 36/38 (94.73%); functions 12/13 (92.3%) against 9/9 (100%). Do not lower these historical floors.
+- Page regressions cover handoff acknowledgment, dirty-save failure, stale revisions, session stop, caller loss, unrelated-page writes, model exclusion and delayed cleanup.
+- Tests exercise actual activity/ownership policies and injected processing boundaries; they do not prove real GPU-model unload or the full live UI flow.
 
-## Explicitly incomplete: model shutdown guarantee
+## Remaining model-lifetime work (not applied)
 
-The proposed resource-pool update was blocked by the tool safety check and did not run. Production `leasedIdleResource`, Flux/Koharu pools and their 30-second idle retention remain unchanged. Disposal-failure behavior was reproduced, but **this checkpoint does not guarantee actual local-model unload or prevent all post-cleanup-failure model transitions**.
-The isolated regression patch is preserved locally at `.tmp/mcp-page-model-20260916/pending-model-lifecycle-regressions.patch`, outside the active test suite.
-A native smoke-fixture adaptation was also not completed after its refactor request was blocked. Its experiment is preserved in the same directory as `pending-native-page-ownership-fixture.patch`; the original smoke script remains unchanged and needs a synthetic UI handoff acknowledgment for this new ownership path.
+The resource-pool edit request was denied by the tool safety check. Production `leasedIdleResource`, Flux/Koharu pools, disposal behavior and 30-second idle retention were NOT changed. Do not claim guaranteed unloading or safe transition after a disposer fails.
+The reproduced disposal-failure behavior and proposed tests are preserved at `.tmp/mcp-page-model-20260916/pending-model-lifecycle-regressions.patch`; these are not part of the active test suite.
+Complete actual session/worker disposal acknowledgment and cross-model admission barriers before declaring the user's model-lifetime requirement fulfilled. Retain one model for its fixed sequential workload only; release it before another model and after final work. Do not add a batch runner here.
 
-No user pages, model settings, authentication files or running application were changed by the tests. Do not claim the whole page/model bundle is complete until real disposal barriers and native acceptance are finished.
+## Remaining native and coverage acceptance
 
-## Follow-up hardening
+A native fixture-refactoring request was denied. The experiment is preserved at `.tmp/mcp-page-model-20260916/pending-native-page-ownership-fixture.patch`.
+The original `scripts/mcp-native-page.cjs` was restored and remains unchanged. Its isolated fake window needs a test-only UI handoff acknowledgment for the newly scoped erasure/export route; do not interpret a waiting handoff as a production model failure.
+An additional regression-test write for erasure cancellation behind an unrelated lightweight job was also denied. The inspected production cancellation correction is published, but that dedicated regression still needs completion.
+The full native Electron/page-flow acceptance and live user-model tests were not run for this checkpoint.
 
-- Synchronous page scopes also receive the desktop MCP session shutdown signal; stopping MCP cancels pending UI handoff instead of allowing a late edit.
-- Two unrelated text-edit scopes can coexist with a model job on a third page. They never acquire a model-runtime lease.
-- Renderer lock derivation is tested for the new `mcp-edit` kind: target only, retained after data save, released only with activity removal.
-- The public library facade has one new, direct post-handoff reader (31 → 32). Only this specific fan-in allowance changed; no general limits or rules were disabled.
-- One new source inventory entry was added. Initial focused V8 measurement for `mcpPageEditScope.ts` was 100% lines/statements/functions/branches; all existing manifest records and provenance were preserved.
-- Initial measurement SHA-256: `5b00d87a22bf7eab7dd9962bd6923bdd670536a7dbecacac7465143a20909b03a8`.
-- First broad check stopped at the new facade consumer count. The next check passed 7,160 tests but stopped at the source inventory count (743 → 744); neither run is reported as successful overall.
-- Final acceptance must be recorded after rerunning with the inventory and session-cancellation regression updates.
+## Inventory and evidence
+
+Only one new public-library consumer was added (31 → 32), with an explicit composition reason. Generic budgets and all existing coverage floors/provenance are unchanged.
+One measured source floor and its source-inventory increment (743 → 744) were added for `mcpPageEditScope.ts`.
+Logs and measurements: `.tmp/mcp-page-model-20260916/`.
+Latest broad check log: `check-a26468a8.log`; detailed test results: `.tmp/check-results/vitest.json`.
+Initial focused-scope coverage JSON SHA-256: `5b00d87a22bf7eab7dd9962bd6923bdd670536a7dbecac7465143a20909b03a8`.
+Historical checks exposed the new reader count, inventory count and missing regression coverage; none were reported as overall success.
+
+## Working-copy safety
+
+User pages, original images, authentication, model settings and the running app were not modified or restarted. Tests use isolated fixtures. No release, new branch, force push, shared queue replacement or model-download task was started.
+Resume from this branch and complete the model barrier, remaining coverage and native acknowledgment fixture before marking the entire bundle complete.
