@@ -63,7 +63,10 @@ export function createMcpBlockEditingTools(
         const request = McpSourceRectPatchSchema.safeParse(args);
         if (!request.success) throw new McpInvalidParams();
         return textContent(
-          await service.updateSourceRect(request.data, context?.assertAuthorized),
+          await service.updateSourceRect(
+            request.data,
+            context?.assertAuthorized,
+          ),
         );
       },
     },
