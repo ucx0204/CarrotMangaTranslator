@@ -5,10 +5,15 @@ import { afterEach, expect, it, vi } from "vitest";
 type Runner = {
   runCommand: (
     command: { executable: string; args: string[] },
-    options?: { signal?: AbortSignal; timeoutMs?: number; timeoutMessage?: string },
+    options?: {
+      signal?: AbortSignal;
+      timeoutMs?: number;
+      timeoutMessage?: string;
+    },
   ) => Promise<{ stdout: string; stderr: string }>;
 };
-const modulePath = require.resolve("../src/main/runtime/transport/shell-command.cjs");
+const modulePath =
+  require.resolve("../src/main/runtime/transport/shell-command.cjs");
 const original = require.cache[modulePath];
 afterEach(() => {
   vi.restoreAllMocks();
@@ -18,8 +23,11 @@ afterEach(() => {
 });
 function fixture() {
   const child = Object.assign(new ChildProcess(), {
-    stdout: new PassThrough(), stderr: new PassThrough(),
-    exitCode: null, signalCode: null, killed: false,
+    stdout: new PassThrough(),
+    stderr: new PassThrough(),
+    exitCode: null,
+    signalCode: null,
+    killed: false,
   });
   // Only the external subprocess boundary is replaced. No model process exists.
   const kill = vi.spyOn(child, "kill").mockReturnValue(false);
@@ -37,12 +45,23 @@ it.each(["cancel", "timeout", "stdout", "child"] as const)(
     const abort = new AbortController();
     const failure = new Error("native stream failure");
     let settled = false;
-    const work = f.runner.runCommand({ executable: "fixture-ocr", args: [] }, {
-      signal: abort.signal, timeoutMs: 100, timeoutMessage: "fixture timeout",
-    });
+    const work = f.runner.runCommand(
+      { executable: "fixture-ocr", args: [] },
+      {
+        signal: abort.signal,
+        timeoutMs: 100,
+        timeoutMessage: "fixture timeout",
+      },
+    );
     const result = work.then(
-      (value) => { settled = true; return { status: "fulfilled", value }; },
-      (reason: unknown) => { settled = true; return { status: "rejected", reason }; },
+      (value) => {
+        settled = true;
+        return { status: "fulfilled", value };
+      },
+      (reason: unknown) => {
+        settled = true;
+        return { status: "rejected", reason };
+      },
     );
     try {
       if (event === "cancel") abort.abort();
@@ -57,9 +76,16 @@ it.each(["cancel", "timeout", "stdout", "child"] as const)(
       expect(f.kill).toHaveBeenCalledOnce();
       f.child.emit("close", 0, null);
       const outcome = await result;
-      expect(outcome).toMatchObject({ status: "rejected", reason: event === "cancel"
-        ? { name: "AbortError" }
-        : { message: event === "timeout" ? "fixture timeout" : failure.message } });
+      expect(outcome).toMatchObject({
+        status: "rejected",
+        reason:
+          event === "cancel"
+            ? { name: "AbortError" }
+            : {
+                message:
+                  event === "timeout" ? "fixture timeout" : failure.message,
+              },
+      });
       expect(settled).toBe(true);
       expect(vi.getTimerCount()).toBe(0);
     } finally {
@@ -71,9 +97,15 @@ it.each(["cancel", "timeout", "stdout", "child"] as const)(
 
 it("preserves the cancellation reason if the native child closes synchronously from kill", async () => {
   const f = fixture();
-  f.kill.mockImplementationOnce(() => { f.child.emit("close", 0, null); return true; });
+  f.kill.mockImplementationOnce(() => {
+    f.child.emit("close", 0, null);
+    return true;
+  });
   const abort = new AbortController();
-  const work = f.runner.runCommand({ executable: "fixture-ocr", args: [] }, { signal: abort.signal });
+  const work = f.runner.runCommand(
+    { executable: "fixture-ocr", args: [] },
+    { signal: abort.signal },
+  );
   const rejected = expect(work).rejects.toMatchObject({ name: "AbortError" });
   abort.abort();
   await rejected;
