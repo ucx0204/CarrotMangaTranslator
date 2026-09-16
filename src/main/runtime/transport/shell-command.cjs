@@ -3,7 +3,7 @@
 /**
  * @typedef {{ env?: NodeJS.ProcessEnv; failureMessage?: string; lowPriority?: boolean; onOutput?: ((line: string) => void) | null; signal?: AbortSignal | null; successCodes?: number[]; timeoutMessage?: string; timeoutMs?: number }} RunCommandOptions
  * @typedef {{ write(chunk: unknown): void; flush(): void }} CommandOutputLineEmitter
- * @typedef {{ child: import("node:child_process").ChildProcess; command: CommandSpec; commandText: string; options: RunCommandOptions; stdout: string; stderr: string; stdoutLines: CommandOutputLineEmitter; stderrLines: CommandOutputLineEmitter; timeout: ReturnType<typeof setTimeout> | null; settled: boolean; onAbort: () => void; resolve: (value: {stdout: string; stderr: string}) => void; reject: (error: unknown) => void }} CommandExecution
+ * @typedef {{ child: import("node:child_process").ChildProcess; command: CommandSpec; commandText: string; options: RunCommandOptions; stdout: string; stderr: string; stdoutLines: CommandOutputLineEmitter; stderrLines: CommandOutputLineEmitter; timeout: ReturnType<typeof setTimeout> | null; settled: boolean; stopping: boolean; stopError: unknown; onAbort: () => void; resolve: (value: {stdout: string; stderr: string}) => void; reject: (error: unknown) => void }} CommandExecution
  */
 const { spawn } = require("node:child_process");
 const { constants, setPriority } = require("node:os");
@@ -71,6 +71,8 @@ function createExecution(child, command, options, resolve, reject) {
     stderrLines: createCommandOutputLineEmitter(options.onOutput),
     timeout: null,
     settled: false,
+    stopping: false,
+    stopError: null,
     onAbort: () => {},
     resolve,
     reject,
@@ -90,11 +92,7 @@ function bindExecution(execution) {
   child.stdout?.on("data", (chunk) => recordOutput(execution, "stdout", chunk));
   child.stderr?.on("data", (chunk) => recordOutput(execution, "stderr", chunk));
   /** @param {Error} error */
-  const fail = (error) => {
-    if (execution.settled) return;
-    rejectExecution(execution, error);
-    terminateChildProcessTree(child);
-  };
+  const fail = (error) => stopExecution(execution, error);
   child.on("error", fail);
   child.stdout?.on("error", fail);
   child.stderr?.on("error", fail);
@@ -109,6 +107,11 @@ function recordOutput(execution, stream, chunk) {
 
 /** @param {CommandExecution} execution */
 function armTimeout(execution) {
+  if (execution.settled || execution.stopping) return;
+  if (execution.options.signal?.aborted) {
+    abortExecution(execution);
+    return;
+  }
   const timeoutMs = execution.options.timeoutMs || 0;
   if (timeoutMs <= 0) return;
   execution.timeout = setTimeout(
@@ -119,8 +122,7 @@ function armTimeout(execution) {
 
 /** @param {CommandExecution} execution @param {number} timeoutMs */
 function timeoutExecution(execution, timeoutMs) {
-  terminateChildProcessTree(execution.child);
-  rejectExecution(
+  stopExecution(
     execution,
     createDetailedError(
       execution.options.timeoutMessage || "OCR bbox command timed out.",
@@ -131,8 +133,27 @@ function timeoutExecution(execution, timeoutMs) {
 
 /** @param {CommandExecution} execution */
 function abortExecution(execution) {
-  terminateChildProcessTree(execution.child);
-  rejectExecution(execution, createAbortError());
+  stopExecution(execution, createAbortError());
+}
+
+/** A kill request is not an exit acknowledgement. Keep the returned promise
+ * pending so the OCR/activity owner cannot release its page or load another
+ * model before the actual close event, even if native termination fails.
+ * @param {CommandExecution} execution @param {unknown} error */
+function stopExecution(execution, error) {
+  if (execution.settled || execution.stopping) return;
+  execution.stopping = true;
+  execution.stopError = error;
+  cleanupExecution(execution);
+  try {
+    terminateChildProcessTree(execution.child);
+  } catch (terminationError) {
+    execution.stopError = new AggregateError(
+      [error, terminationError],
+      "Command termination was not acknowledged; waiting for process close.",
+      { cause: terminationError },
+    );
+  }
 }
 
 /** @param {CommandExecution} execution @param {unknown} error */
@@ -147,6 +168,10 @@ function rejectExecution(execution, error) {
 /** @param {CommandExecution} execution @param {number | null} code */
 function handleClose(execution, code) {
   if (execution.settled) return;
+  if (execution.stopping) {
+    rejectExecution(execution, execution.stopError);
+    return;
+  }
   flushOutput(execution);
   const acceptedCodes = validSuccessCodes(execution.options.successCodes);
   if (typeof code === "number" && acceptedCodes.includes(code)) {
