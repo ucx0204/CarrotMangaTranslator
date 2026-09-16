@@ -4,6 +4,7 @@ const LEMONADE_CONTRACTS = Object.freeze({
   legacy: {
     release: "b1291",
     requireBundledBlas: false,
+    hipblasltKernelExemptTargets: Object.freeze([]),
     sha256ByTarget: Object.freeze({
       gfx103X:
         "3692a765ca0d5616284cbfe71c0a8a925824a538e9fe0efeb8710620612ecf77",
@@ -33,6 +34,9 @@ const LEMONADE_CONTRACTS = Object.freeze({
   speed: {
     release: "b1317",
     requireBundledBlas: true,
+    // SHA-256/size-audited b1317 gfx103X ships rocBLAS kernels and the
+    // hipBLASLt DLL, but no hipblaslt/library data. Legacy b1291 differs.
+    hipblasltKernelExemptTargets: Object.freeze(["gfx103X"]),
     sha256ByTarget: Object.freeze({
       gfx103X:
         "51bd001843b3d38ed93c88483bc8308b8a6c9384fa777a54d12e75ae1c657e17",
@@ -73,7 +77,7 @@ function resolveSpeedLemonadeLlamaRuntimeRocm(target) {
 
 /**
  * @param {unknown} target
- * @param {{ release: string; requireBundledBlas: boolean; sha256ByTarget: Readonly<Record<string, string>>; bytesByTarget: Readonly<Record<string, number>> }} contract
+ * @param {{ release: string; requireBundledBlas: boolean; hipblasltKernelExemptTargets: readonly string[]; sha256ByTarget: Readonly<Record<string, string>>; bytesByTarget: Readonly<Record<string, number>> }} contract
  */
 function resolvePinnedLemonadeRuntime(target, contract) {
   const normalized = String(target || "").trim();
@@ -97,6 +101,8 @@ function resolvePinnedLemonadeRuntime(target, contract) {
     archives: [
       { archive, url: `${baseUrl}/${archive}`, sha256, expectedBytes },
     ],
+    requiresHipblasltKernels:
+      !contract.hipblasltKernelExemptTargets.includes(normalized),
     requiredFiles: [
       "llama-server.exe",
       ["llama-server-impl.dll", "llama.dll"],

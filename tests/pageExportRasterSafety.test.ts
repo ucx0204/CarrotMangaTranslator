@@ -31,6 +31,24 @@ describe("page export raster safety", () => {
     });
   });
 
+  it.each([
+    [4299, 6071],
+    [4961, 7016],
+  ])(
+    "accepts the reported %ix%i pages only with original-resolution limits (#109)",
+    async (width, height) => {
+      const imagePath = await writeTempPng(width, height);
+      await expect(probePageExportSourceImage(imagePath)).rejects.toThrow();
+      await expect(
+        probePageExportSourceImage(
+          imagePath,
+          undefined,
+          ORIGINAL_PAGE_EXPORT_RASTER_LIMITS,
+        ),
+      ).resolves.toEqual({ width, height });
+    },
+  );
+
   it("rejects an oversized source during the file-header preflight", async () => {
     const imagePath = await writeTempPng(5000, 12000);
 

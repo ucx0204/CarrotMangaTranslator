@@ -3,6 +3,13 @@ import type { PageExportRenderSession } from "../pageExport";
 import type { PageImageExportDependencies } from "./pageImageExportPorts";
 import { buildPagePsd } from "./pagePsdExport";
 
+// Every PSD plane must share the original pixel grid, including transparent
+// text. The renderer keeps its source budgets and uses bounded tile capture.
+const PSD_CAPTURE_OPTIONS = {
+  format: "png",
+  resolutionMode: "original",
+} as const;
+
 type AbortGuard = (
   abortController: AbortController,
   completedPages: number,
@@ -35,15 +42,16 @@ export async function writePagePsdExport({
   const pageWithoutText = { ...page, blocks: [] };
   const compositePng = await renderSession.renderPage(
     omitText ? pageWithoutText : page,
+    PSD_CAPTURE_OPTIONS,
   );
   throwIfAborted(abortController, completedPages, totalPages);
-  const originalBackgroundPng = await renderSession.renderPage({
-    ...pageWithoutText,
-    inpaintedImagePath: undefined,
-  });
+  const originalBackgroundPng = await renderSession.renderPage(
+    { ...pageWithoutText, inpaintedImagePath: undefined },
+    PSD_CAPTURE_OPTIONS,
+  );
   throwIfAborted(abortController, completedPages, totalPages);
   const cleanedBackgroundPng = page.inpaintedImagePath
-    ? await renderSession.renderPage(pageWithoutText)
+    ? await renderSession.renderPage(pageWithoutText, PSD_CAPTURE_OPTIONS)
     : undefined;
   const textLayers = await renderPsdTextLayers({
     abortController,
@@ -100,7 +108,10 @@ async function renderPsdTextLayers({
     throwIfAborted(abortController, completedPages, totalPages);
     textLayers.push({
       block,
-      png: await renderTransparentPage({ ...page, blocks: [block] }),
+      png: await renderTransparentPage(
+        { ...page, blocks: [block] },
+        PSD_CAPTURE_OPTIONS,
+      ),
     });
   }
   throwIfAborted(abortController, completedPages, totalPages);

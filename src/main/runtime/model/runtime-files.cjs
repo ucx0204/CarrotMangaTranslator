@@ -4,7 +4,7 @@ const path = require("node:path");
 
 const MAX_RUNTIME_LIBRARY_SCAN_DIRECTORIES = 4096;
 
-/** @typedef {{ backend?: string; dir: string; id?: string; kind?: string; requiredFiles?: Array<string | string[]> }} LlamaRuntimeDescriptor */
+/** @typedef {{ backend?: string; dir: string; id?: string; kind?: string; requiredFiles?: Array<string | string[]>; requiresHipblasltKernels?: boolean }} LlamaRuntimeDescriptor */
 
 function serverBinaryName() {
   return process.platform === "win32" ? "llama-server.exe" : "llama-server";
@@ -94,11 +94,13 @@ function scanRuntimeLibraryDirectory(dir, pending) {
   return false;
 }
 
-/** @param {string} runtimeDir */
-function missingRocmRuntimeLibraryDirs(runtimeDir) {
+/** @param {string} runtimeDir @param {LlamaRuntimeDescriptor | null | undefined} runtime */
+function missingRocmRuntimeLibraryDirs(runtimeDir, runtime) {
   return [
     ["rocblas/library/*.dat|*.co|*.hsaco", "rocblas", "library"],
-    ["hipblaslt/library/*.dat|*.co|*.hsaco", "hipblaslt", "library"],
+    ...(runtime?.requiresHipblasltKernels === false
+      ? []
+      : [["hipblaslt/library/*.dat|*.co|*.hsaco", "hipblaslt", "library"]]),
   ]
     .filter(
       ([, ...parts]) =>
@@ -121,7 +123,7 @@ function hasRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
     }
     if (
       isRocmBackend(runtime.backend) &&
-      missingRocmRuntimeLibraryDirs(runtimeDir).length > 0
+      missingRocmRuntimeLibraryDirs(runtimeDir, runtime).length > 0
     ) {
       return false;
     }
@@ -156,7 +158,7 @@ function missingRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
     missing.push(backendLibraryNames(runtime?.backend).join(" | "));
   }
   if (isRocmBackend(runtime?.backend)) {
-    missing.push(...missingRocmRuntimeLibraryDirs(runtimeDir));
+    missing.push(...missingRocmRuntimeLibraryDirs(runtimeDir, runtime));
   }
   return missing;
 }

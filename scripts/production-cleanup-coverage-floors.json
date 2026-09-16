@@ -2433,6 +2433,28 @@
         "pct": 74.19
       }
     },
+    "src/main/jobs/pagePsdExportRunner.ts": {
+      "lines": {
+        "covered": 20,
+        "total": 21,
+        "pct": 95.23
+      },
+      "statements": {
+        "covered": 20,
+        "total": 22,
+        "pct": 90.9
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 5,
+        "total": 10,
+        "pct": 50
+      }
+    },
     "src/main/jobs/translationJobRunners.ts": {
       "lines": {
         "covered": 32,
