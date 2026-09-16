@@ -117,7 +117,7 @@ it("does not falsely claim a page was saved when preparation and cleanup both fa
   };
   try {
     await expect(f.run()).rejects.toMatchObject({ code: "editor_busy" });
-    expect(f.harness.savePages).not.toHaveBeenCalled();
+    expect(f.harness.runtime.savePages).not.toHaveBeenCalled();
     expect(f.editing.notifySaved).not.toHaveBeenCalled();
     expect(() => assertModelCleanupComplete()).toThrow();
   } finally {
