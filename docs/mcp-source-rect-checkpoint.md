@@ -1,70 +1,90 @@
-# Single-block source rectangle: implementation checkpoint
+# Single-block source rectangle: integration and acceptance
 
-## Status
+## Current status
 
-**Not yet exposed as an MCP tool. Do not report this feature as usable.**
-The original implementation checkpoint is `35803ef1`, based on `2c98012d`.
-Only a strict contract, pure policy and policy tests have been added. The running
-app, library, credentials and model settings were not changed or restarted.
+`carrot_update_block_source_rect` is registered in the existing block-editing
+composition, connected to `McpPageEditService.updateSourceRect`, and included in
+the structured output inventory. The earlier policy-only checkpoint is historical;
+this feature is no longer waiting for its service or tool registration.
 
-A Remote Desktop Commander request to add `updateSourceRect` to
-`McpPageEditService` was rejected before execution: the tool could not determine
-the request's security status. The same write was not retried through another
-transport. Verification confirmed that the existing service file is unchanged.
+Implementation/inventory baseline: `322e2d0c`.
+Tool-description clarification: `673644b5` (no processing behavior change).
+Branch: `feat/mcp-app-bridge`; no additional branch or app release was created.
 
-## Implemented and checked
+## Completed behavior
 
-- `shared/mcpSourceRect.ts`: one existing block, current page revision, source
-  rectangle in original-image pixels. Fractional pixels allow exact round trips.
-  No arbitrary file paths, image data, extra fields or multi-block input.
-- `application/mcpSourceRectPolicy.ts`: uses the app's bbox normalization, rich
-  text parser and existing render geometry. Off-page bounds and rectangles that
-  the app would silently expand to its minimum normalized extent are rejected.
-- Explicit render boxes are preserved. For legacy blocks lacking one, the old
-  effective text frame (or active image-lettering frame) is made explicit before
-  changing source geometry. Other blocks, fields, image bytes and masks are not
-  altered by the pure policy.
-- Returns previous/applied pixel bounds, normalized source bounds, frame-pinning
-  information and warning codes, not source text, paths or attachments.
-- Existing OCR text, inpainting/masks, generated lettering, font evidence and
-  bubble layouts are retained; warnings do not trigger processing or validation.
+- One existing block and a fresh page revision; source rectangle coordinates are
+  ORIGINAL IMAGE PIXELS. Fractional pixels support exact coordinate round trips.
+- The existing page handoff/ownership and `savePageBlocks` transaction are used.
+  Dirty/running pages, stale revisions, concurrent saves and revoked permission
+  cannot be overwritten. Even an unchanged rectangle needs a fresh revision.
+- Read + edit + process scopes are required. Image-transfer scope is not required.
+  Both local edit and processing preferences must expose the tool.
+- Only source geometry changes. Text, stored typography, reading order, unrelated
+  blocks, source image, inpainting and mask assets are retained. Legacy blocks
+  without an explicit render box have their previous effective frame pinned.
+- Off-page, malformed, non-finite and below-normalization-minimum rectangles are
+  rejected, never silently clipped or enlarged.
+- Results contain previous/applied pixel rectangles, normalized source bounds,
+  the new revision, frame-pinning information and review warning codes. No paths,
+  source text, images, download links or file attachments are returned.
+- OCR, model inference, erasure, automatic layout, mask regeneration and export
+  are not started. Existing library completion invalidation remains authoritative:
+  changing source evidence can mark a previous completion receipt pending.
+
+## Typography restriction
+
+A real layout regression reproduced that source geometry can change the renderer's
+font-size decision even when all stored font fields are preserved. Changes to a
+block with a generated bubble layout and source-font evidence/source-match intent
+are therefore rejected before saving. No-op inspection is still allowed.
+Do not bypass this restriction by disabling automatic typography without an
+explicit separate user request. Preserving this coupled layout while editing its
+source geometry is outside this initial feature.
+
+For accepted edits, existing source text, masks, generated lettering, font metrics
+and bubble layouts are retained with advisory warnings. They are not newly
+validated or recomputed. A warning is not an automatic follow-up operation.
+Restoring `previousSourceRect` with the current revision is a new edit, not an Undo
+transaction or a promise to restore old timestamps/legacy serialization exactly.
+
+## Verification performed on 2026-09-16
 
 On the connected Windows development PC:
 
-- `vitest run tests/mcpSourceRectPolicy.test.ts`: 14 passed.
-- Renderer and Electron TypeScript checks: exit 0.
-- ESLint on the three added files: exit 0.
-- Existing test-mock boundary check and `git diff --check`: exit 0.
-- No UI, native renderer or new-tool live-call acceptance has been performed.
+- Source policy, service/ownership, renderer-layout and OAuth HTTP tests:
+  **36 tests passed across four files** in this continuation.
+- Full `npm run check` on `322e2d0c`: **26/26 gates passed**, **7,260 tests
+  passed**, zero failed, 11 existing skipped. Renderer/Electron/JS types, lint,
+  architecture, unused exports, coverage, Windows build and artwork parity passed.
+- Build after `673644b5`: exit 0.
+- Fresh isolated Electron smoke after that build: **exit 0**, with the explicit
+  source-rectangle edit/readback/restore PASS marker and final smoke PASS marker.
+  The source edit roundtrip compares actual renderer bitmaps and original bytes,
+  retains other blocks and rejects stale/off-page edits. The complete smoke also
+  passed 189 hostile-input checks across its 27 production tools.
+- The surrounding erasure smoke uses a synthetic inference boundary. No actual
+  local OCR/inpainting model was needed for the source-rectangle feature.
+- A first shell launch returned without usable native logs and was NOT accepted
+  as evidence. Acceptance uses the waited Electron child process and its separate
+  stdout/stderr logs, not a shell exit code alone.
 
-## Remaining work before exposing the tool
+Evidence under `.tmp/mcp-source-rect-finish-20260916/`:
+`full-check.log`, `build.log`, `native-stdout.log`, `native-stderr.log`,
+`native-confirmed.exit`. Repository test details are also in `.tmp/check-timings.json`.
 
-1. Add a narrow method to the existing `McpPageEditService`, using its existing
-   `mutate`/page ownership and `savePageBlocks` transaction boundary. Require the
-   current revision even for no-ops; after a lost response, re-read instead of
-   blindly overwriting later edits. Preserve existing tools' retry contracts.
-2. Register `carrot_update_block_source_rect` with read + edit + process scopes,
-   the strict input schema and `McpSourceRectResultSchema`. No images scope is
-   needed for a metadata-only edit. Keep this operation separate from formatting.
-3. Add service/HTTP tests for stale/no-op retries, missing targets, handoff,
-   revocation at commit, competing writes, shutdown, and metadata-only responses.
-4. Test the real library's existing `translationCompletion` invalidation. Do not
-   disable it to claim unchanged metadata: source changes may correctly make a
-   saved completion receipt pending while retaining image files.
-5. Characterize source-derived font behavior before claiming pixel invariance.
-   `renderer/src/lib/sourceFontSizeMatching.ts` uses source geometry in reliable
-   measurement/peer fallback selection. Preserving stored font fields alone is
-   not proof that all automatic source-matched rendering stays pixel-identical.
-   Avoid changing font algorithms or unrelated blocks to make this test pass.
-6. Run native save/readback + rendered parity cases, including absent render
-   boxes, rich text, image lettering, source-matched fonts, page edges, small
-   rectangles and restoration using returned previous coordinates.
-7. Register measured coverage and update the exact tool inventory. Current gates
-   report `geometry.ts` fan-in 37 > 36 and `richTextMarkup.ts` fan-in 30 > 29.
-   The new output schema is unused until tool registration. Resolve legitimate
-   consumers specifically; do not lower coverage or hide imports/unused exports.
-8. Full check, build and native acceptance, then only authorized live testing on
-   a disposable page. Do not claim live availability from capability text alone.
+## Live-client boundary and preserved user data
 
-No batch scheduler, OCR, erasure, model loading, generic undo, block split/merge
-or mask regeneration belongs to this feature checkpoint.
+This continuation could not load the `망번테스트` namespace through tool discovery;
+plugin-directory search also returned no matching plugin. No new source edit was
+sent to the user's live library. Do not report a ChatGPT live invocation from the
+successful isolated HTTP/native tests or from the static tool inventory.
+
+The normal app was not restarted, and user library/images, authorization and model
+settings were not modified. Native fixtures use their own temporary data root.
+After normal app restart and tool-definition refresh, the remaining live acceptance
+is an explicitly selected disposable page: read -> source edit -> re-read -> restore
+with the new revision. No connection deletion or authorization reset is prescribed.
+
+Usage and exact input contract: `docs/mcp-source-rect-testing.md`.
+Historical policy-only checkpoints: `35803ef1` and `220cd14a`.
