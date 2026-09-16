@@ -25,7 +25,9 @@ export function releaseModelResource(
   const state: Cleanup = { pending: null };
   cleanups.set(resource, state);
   state.pending = Promise.resolve().then(dispose).then(
-    () => { if (cleanups.get(resource) === state) cleanups.delete(resource); },
+    () => {
+      if (cleanups.get(resource) === state) cleanups.delete(resource);
+    },
     (error: unknown) => {
       state.pending = null;
       state.failure = error;
@@ -35,6 +37,11 @@ export function releaseModelResource(
   return state.pending;
 }
 
+/** Diagnostics only; neither exposes native handles nor clears the fence. */
+export function modelCleanupIsBlocked(): boolean {
+  return cleanups.size > 0;
+}
+
 /** Shared by UI and MCP admission. Lightweight, explicitly scoped work remains
  * available; undeclared legacy jobs conservatively count as model consumers. */
 export function assertModelCleanupComplete(
@@ -42,7 +49,7 @@ export function assertModelCleanupComplete(
 ): void {
   if (resources && !resources.some((item) => item.kind === "model-runtime"))
     return;
-  if (cleanups.size)
+  if (modelCleanupIsBlocked())
     throw new ModelCleanupError(
       new AggregateError(
         [...cleanups.values()].map((entry) => entry.failure),
