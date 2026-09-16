@@ -1,6 +1,7 @@
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { BBox, TranslationBlock } from "../../shared/textTypes";
 import { normalizeBboxTo1000 } from "../../shared/bboxNormalization";
+import { isGeneratedBubbleLayout } from "../../shared/bubbleLayout";
 import {
   bboxToPixels,
   resolveBlockRenderBbox,
@@ -33,6 +34,7 @@ export function applyMcpSourceRect(
   const block = selected[0];
   const previous = normalizeBboxTo1000(block.bbox, page, block.bboxSpace);
   const changed = !sameBox(previous, bbox);
+  if (changed) assertIndependentTypography(block);
   const pinned = changed && !block.renderBbox;
   const next = changed
     ? {
@@ -65,6 +67,20 @@ export function applyMcpSourceRect(
       warnings: changed ? retainedEvidenceWarnings(page, block) : [],
     },
   };
+}
+
+/** Generated layouts can use source geometry to accept font-face measurements
+ * and peer fallbacks. Do not change fonts, copy that algorithm or claim parity
+ * by preserving only stored scalar fields. No-op inspection remains allowed. */
+function assertIndependentTypography(block: TranslationBlock): void {
+  if (
+    isGeneratedBubbleLayout(block.bubbleLayout) &&
+    (block.sourceFontFacePx !== undefined || block.fontSizeIntent === "source-match")
+  )
+    throw new McpEditError(
+      "invalid_edit",
+      "This block uses source geometry for automatic typography. A source-only edit cannot guarantee its existing layout; no changes were saved.",
+    );
 }
 
 function checkedBbox(page: MangaPage, value: BBox): BBox {
