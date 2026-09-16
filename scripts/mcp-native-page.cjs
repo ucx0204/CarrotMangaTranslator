@@ -76,6 +76,32 @@ async function syntheticInference(bitmap, width, height, mask) {
   for (let index = 0; index < mask.length; index++)
     if (mask[index]) bitmap.fill(255, index * 4, index * 4 + 4);
 }
+/** @param {(name: string, args: object) => Promise<Array<{text: string}>>} invoke
+ * @param {string} chapterId @param {string} pageId @param {string} revision */
+async function seedEditableBlocks(invoke, chapterId, pageId, revision) {
+  const created = await invoke("carrot_create_page_blocks", {
+    chapterId,
+    pageId,
+    revision,
+    requestId: randomUUID(),
+    blocks: [
+      {
+        key: "dialogue",
+        sourceText: "source",
+        translatedText: "Hello MCP",
+        sourceRect: { x: 40, y: 50, w: 130, h: 115 },
+      },
+      {
+        key: "untouched-marker",
+        sourceText: "keep source",
+        translatedText: "Keep",
+        sourceRect: { x: 295, y: 495, w: 30, h: 30 },
+        renderRect: { x: 200, y: 400, w: 80, h: 40 },
+      },
+    ],
+  });
+  assert.equal(JSON.parse(created[0].text).status, "saved");
+}
 /** @param {string} root */
 async function checkNativePageGoal(root) {
   const library = load(root, "main/library.js");
@@ -151,28 +177,12 @@ async function checkNativePageGoal(root) {
   };
   try {
     await checkNativeReview(root, chapter.id, page.id, 0);
-    const created = await invoke("carrot_create_page_blocks", {
-      chapterId: chapter.id,
-      pageId: page.id,
-      revision: createPageRevision(page),
-      requestId: randomUUID(),
-      blocks: [
-        {
-          key: "dialogue",
-          sourceText: "source",
-          translatedText: "Hello MCP",
-          sourceRect: { x: 40, y: 50, w: 130, h: 115 },
-        },
-        {
-          key: "untouched-marker",
-          sourceText: "keep source",
-          translatedText: "Keep",
-          sourceRect: { x: 295, y: 495, w: 30, h: 30 },
-          renderRect: { x: 200, y: 400, w: 80, h: 40 },
-        },
-      ],
-    });
-    assert.equal(JSON.parse(created[0].text).status, "saved");
+    await seedEditableBlocks(
+      invoke,
+      chapter.id,
+      page.id,
+      createPageRevision(page),
+    );
     const translated = await checkTargetedEditing(
       root,
       invoke,
