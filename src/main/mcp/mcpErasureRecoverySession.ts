@@ -20,13 +20,20 @@ export function createMcpErasureRecoverySession(
     },
     inspect: (id, target) => history.inspectSinglePageTransaction(id, target),
     apply: (id, target, direction, revision, assertCanCommit) =>
-      history.applySinglePageTransaction(id, direction, { ...target, revision, assertCanCommit }),
+      history.applySinglePageTransaction(id, direction, {
+        ...target,
+        revision,
+        assertCanCommit,
+      }),
     withPageEdit: createMcpPageEditScope(app),
     notifySaved,
   });
   return {
     tools: createMcpErasureRecoveryTools(service),
-    remember: (jobId: string, result: Awaited<ReturnType<typeof eraseMcpPage>>) => {
+    remember: (
+      jobId: string,
+      result: Awaited<ReturnType<typeof eraseMcpPage>>,
+    ) => {
       if ("historyTransaction" in result && result.historyTransaction)
         service.remember(jobId, result.historyTransaction.transactionId);
     },
