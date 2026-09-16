@@ -8,7 +8,9 @@ function createPool() {
   const pool = new LeasedIdleResourcePool<TestResource>({
     idleTtlMs: IDLE_TTL_MS,
     isReusable: (resource) => resource.healthy,
-    dispose: async (resource, reason) => { disposed.push({ resource, reason }); },
+    dispose: async (resource, reason) => {
+      disposed.push({ resource, reason });
+    },
   });
   return { disposed, pool };
 }
@@ -18,8 +20,12 @@ async function flushPromises(): Promise<void> {
 }
 
 describe("LeasedIdleResourcePool", () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   it("starts the idle timer only after the final same-key lease releases", async () => {
     const { disposed, pool } = createPool();
     const resource = { id: "shared", healthy: true };
@@ -68,7 +74,10 @@ describe("LeasedIdleResourcePool", () => {
     const first = await pool.acquire("active-key", async () => resource);
     const second = await pool.acquire("active-key", async () => resource);
     let settled = false;
-    const disposal = pool.dispose("explicit").then((result) => { settled = true; return result; });
+    const disposal = pool.dispose("explicit").then((result) => {
+      settled = true;
+      return result;
+    });
     await flushPromises();
     expect(settled).toBe(false);
     first.release();
@@ -82,7 +91,11 @@ describe("LeasedIdleResourcePool", () => {
   it("does not poison later acquisitions when resource creation fails", async () => {
     const { pool } = createPool();
     const failure = new Error("runtime preparation failed");
-    await expect(pool.acquire("broken", async () => { throw failure; })).rejects.toBe(failure);
+    await expect(
+      pool.acquire("broken", async () => {
+        throw failure;
+      }),
+    ).rejects.toBe(failure);
     const resource = { id: "recovered", healthy: true };
     const lease = await pool.acquire("working", async () => resource);
     expect(lease.resource).toBe(resource);
@@ -94,15 +107,23 @@ describe("LeasedIdleResourcePool", () => {
     async (mode) => {
       const failure = new Error("worker shutdown not acknowledged");
       let fail = true;
-      const dispose = vi.fn(async () => { if (fail) throw failure; });
-      const pool = new LeasedIdleResourcePool<TestResource>({
-        idleTtlMs: IDLE_TTL_MS, isReusable: () => true, dispose,
+      const dispose = vi.fn(async () => {
+        if (fail) throw failure;
       });
-      const first = await pool.acquire("first", async () => ({ id: "first", healthy: true }));
+      const pool = new LeasedIdleResourcePool<TestResource>({
+        idleTtlMs: IDLE_TTL_MS,
+        isReusable: () => true,
+        dispose,
+      });
+      const first = await pool.acquire("first", async () => ({
+        id: "first",
+        healthy: true,
+      }));
       first.release();
       const create = vi.fn(async () => ({ id: "second", healthy: true }));
       if (mode === "idle-ttl") await vi.advanceTimersByTimeAsync(IDLE_TTL_MS);
-      else if (mode === "explicit") await expect(pool.dispose("explicit")).rejects.toBe(failure);
+      else if (mode === "explicit")
+        await expect(pool.dispose("explicit")).rejects.toBe(failure);
       else await expect(pool.acquire("second", create)).rejects.toBe(failure);
       await expect(pool.acquire("second", create)).rejects.toBe(failure);
       await expect(pool.acquire("first", create)).rejects.toBe(failure);
@@ -121,9 +142,21 @@ describe("LeasedIdleResourcePool", () => {
   );
   it("does not create a replacement while the previous disposer is still running", async () => {
     let finish!: () => void;
-    const dispose = vi.fn(async () => new Promise<void>((resolve) => { finish = resolve; }));
-    const pool = new LeasedIdleResourcePool<TestResource>({ idleTtlMs: IDLE_TTL_MS, isReusable: () => true, dispose });
-    const first = await pool.acquire("a", async () => ({ id: "a", healthy: true }));
+    const dispose = vi.fn(
+      async () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const pool = new LeasedIdleResourcePool<TestResource>({
+      idleTtlMs: IDLE_TTL_MS,
+      isReusable: () => true,
+      dispose,
+    });
+    const first = await pool.acquire("a", async () => ({
+      id: "a",
+      healthy: true,
+    }));
     first.release();
     const create = vi.fn(async () => ({ id: "b", healthy: true }));
     const pending = pool.acquire("b", create);

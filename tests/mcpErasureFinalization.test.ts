@@ -60,51 +60,63 @@ function setup() {
   };
 }
 
-it("reports a committed page separately from failed model release and blocks later models", async () => {
-  const f = setup();
-  const resource = {};
-  const original = f.harness.runtime.acquireEngine;
-  f.harness.runtime.acquireEngine = async (options) => {
-    const lease = await original(options);
-    return {
-      ...lease,
-      release: async () => {
-        await lease.release();
-        await releaseModelResource(resource, async () => {
-          throw new Error("process still alive");
-        });
-      },
-    };
-  };
-  try {
-    const result = await f.run();
-    expect(result).toMatchObject({
-      status: "partial",
-      cleanupFailed: true,
-      pagesChanged: 1,
-    });
-    expect(result.revision).not.toBe(f.target.revision);
-    expect(f.operation.progress).toHaveBeenCalledWith({
-      phase: "releasing_model",
-    });
-    expect(f.editing.notifySaved).toHaveBeenCalledWith("chapter", "page");
-    expect(() =>
-      f.app.jobs.gate.assertAvailable([
-        { kind: "model-runtime", scope: "*", access: "write" },
-      ]),
-    ).toThrow();
-    expect(() =>
-      f.app.jobs.gate.assertAvailable([
-        { kind: "page-content", scope: "chapter/other", access: "write" },
-      ]),
-    ).not.toThrow();
-    expect(f.app.jobs.all).toEqual([]);
-    expect(JSON.stringify(result)).not.toContain("process still alive");
-  } finally {
-    f.off();
-    await releaseModelResource(resource, async () => {});
-  }
-});
+it.each(["engine", "layout"] as const)(
+  "reports a committed page separately from failed %s release and blocks later models",
+  async (kind) => {
+    const f = setup();
+    const resource = {};
+    const failRelease = () =>
+      releaseModelResource(resource, async () => {
+        throw new Error("process still alive");
+      });
+    if (kind === "engine") {
+      const original = f.harness.runtime.acquireEngine;
+      f.harness.runtime.acquireEngine = async (options) => {
+        const lease = await original(options);
+        return {
+          ...lease,
+          release: async () => {
+            await lease.release();
+            await failRelease();
+          },
+        };
+      };
+    } else {
+      f.harness.runtime.disposeBubbleLayoutSessions = async () => {
+        await failRelease();
+        return false;
+      };
+    }
+    try {
+      const result = await f.run();
+      expect(result).toMatchObject({
+        status: "partial",
+        cleanupFailed: true,
+        pagesChanged: 1,
+      });
+      expect(result.revision).not.toBe(f.target.revision);
+      expect(f.operation.progress).toHaveBeenCalledWith({
+        phase: "releasing_model",
+      });
+      expect(f.editing.notifySaved).toHaveBeenCalledWith("chapter", "page");
+      expect(() =>
+        f.app.jobs.gate.assertAvailable([
+          { kind: "model-runtime", scope: "*", access: "write" },
+        ]),
+      ).toThrow();
+      expect(() =>
+        f.app.jobs.gate.assertAvailable([
+          { kind: "page-content", scope: "chapter/other", access: "write" },
+        ]),
+      ).not.toThrow();
+      expect(f.app.jobs.all).toEqual([]);
+      expect(JSON.stringify(result)).not.toContain("process still alive");
+    } finally {
+      f.off();
+      await releaseModelResource(resource, async () => {});
+    }
+  },
+);
 
 it("does not falsely claim a page was saved when preparation and cleanup both fail", async () => {
   const f = setup();

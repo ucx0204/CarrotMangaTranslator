@@ -33,7 +33,12 @@ describe("selected inpainting model routing", () => {
     const fluxLease = makeLease("flux-klein");
     acquireFlux.mockResolvedValue(fluxLease);
     const lease = await acquireInpaintingEngine(
-      { appPaths, model: "flux-klein", fluxBackend: "metal-native", computeGpuIndex: 3 },
+      {
+        appPaths,
+        model: "flux-klein",
+        fluxBackend: "metal-native",
+        computeGpuIndex: 3,
+      },
       dependencies,
     );
     expect(lease.engine).toBe(fluxLease.engine);

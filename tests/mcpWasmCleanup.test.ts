@@ -144,3 +144,49 @@ it.each(["error", "exit"] as const)(
     }
   },
 );
+
+it("cleans up after a failed message write without leaving an inference pending", async () => {
+  const f = fixture();
+  vi.spyOn(f.worker, "postMessage").mockImplementationOnce(() => {
+    throw new Error("message write failed");
+  });
+  try {
+    await expect(f.client.infer(input())).rejects.toThrow(
+      "message write failed",
+    );
+    await expect(f.client.dispose()).resolves.toBe(true);
+    expect(f.worker.terminate).toHaveBeenCalledOnce();
+  } finally {
+    await f.client.dispose();
+  }
+});
+
+it.each([false, true])(
+  "propagates a failed native inference (aborted=%s) and still terminates the worker",
+  async (aborted) => {
+    const f = fixture();
+    const pending = f.client.infer(input());
+    const rejected = expect(pending).rejects.toMatchObject({
+      name: aborted ? "AbortError" : "RangeError",
+    });
+    try {
+      await vi.waitFor(() => expect(f.worker.messages).toHaveLength(1));
+      f.worker.emit("message", {
+        type: "infer-done",
+        id: f.worker.messages[0].id,
+        ok: false,
+        aborted,
+        error: {
+          name: "RangeError",
+          message: "native inference failed",
+          stack: "test-stack",
+        },
+      });
+      await rejected;
+      await expect(f.client.dispose()).resolves.toBe(true);
+      expect(f.worker.terminate).toHaveBeenCalledOnce();
+    } finally {
+      await f.client.dispose();
+    }
+  },
+);

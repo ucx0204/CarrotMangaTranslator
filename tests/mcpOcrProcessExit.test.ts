@@ -111,3 +111,54 @@ it("preserves the cancellation reason if the native child closes synchronously f
   await rejected;
   expect(f.kill).toHaveBeenCalledOnce();
 });
+
+it("retains ownership if native termination throws, then reports both errors after close", async () => {
+  const f = fixture();
+  const failure = new Error("native termination failed");
+  f.kill.mockImplementationOnce(() => {
+    throw failure;
+  });
+  const abort = new AbortController();
+  let settled = false;
+  const work = f.runner.runCommand(
+    { executable: "fixture-ocr", args: [] },
+    { signal: abort.signal },
+  );
+  const result = work.catch((error: unknown) => {
+    settled = true;
+    return error;
+  });
+  try {
+    expect(() => abort.abort()).not.toThrow();
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    f.child.emit("close", 1, null);
+    const error = await result;
+    expect(error).toBeInstanceOf(AggregateError);
+    expect(error).toMatchObject({ cause: failure });
+  } finally {
+    f.child.emit("close", 1, null);
+    await result;
+  }
+});
+
+it("handles an abort at process creation before event listeners have been installed", async () => {
+  const f = fixture();
+  const abort = new AbortController();
+  vi.mocked(require("node:child_process").spawn).mockImplementationOnce(() => {
+    abort.abort();
+    return f.child;
+  });
+  const work = f.runner.runCommand(
+    { executable: "fixture-ocr", args: [] },
+    { signal: abort.signal },
+  );
+  const rejected = expect(work).rejects.toMatchObject({ name: "AbortError" });
+  try {
+    expect(f.kill).toHaveBeenCalledOnce();
+    f.child.emit("close", 0, null);
+    await rejected;
+  } finally {
+    f.child.emit("close", 1, null);
+  }
+});
