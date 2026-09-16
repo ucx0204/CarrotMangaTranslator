@@ -4,8 +4,7 @@ import { mcpAppEnvironment } from "./mcpAppEnvironment.fixture";
 import { editingChapter } from "./mcpEditing.fixture";
 import { createPageRevision } from "../src/shared/pageRevision";
 
-/** Real library transactions and real history/retention, isolated data root.
- * Only Electron's external process/native-image boundary is substituted. */
+/** Real library transactions and history/retention in an isolated data root. */
 export async function recoveryLibrary() {
   const environment = await mcpAppEnvironment({
     createFromPath: () => ({ getSize: () => ({ width: 1000, height: 1600 }) }),
@@ -19,7 +18,9 @@ export async function recoveryLibrary() {
   await writeFile(original, "original-pixels");
   await writeFile(output, "erased-pixels");
   const seeded = editingChapter();
-  const page = { ...seeded.pages[0], imagePath: original, inpaintedImagePath: undefined, inpaintMaskPath: undefined };
+  const page = { ...seeded.pages[0], imagePath: original, inpaintedImagePath: undefined, inpaintMaskPath: undefined, maskProvenance: undefined, dataUrl: undefined,
+    blocks: seeded.pages[0].blocks.map((block) => ({ ...block, generatedLettering: undefined })),
+  };
   const chapterPath = join(chapterDir, "chapter.json");
   const workPath = join(root, "works", "work", "work.json");
   await writeFile(join(root, "index.json"), JSON.stringify({ workOrder: ["work"] }));
