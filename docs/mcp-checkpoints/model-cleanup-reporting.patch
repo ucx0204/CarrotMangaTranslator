@@ -1,7 +1,7 @@
 diff --git a/src/main/application/mcpJobJournal.ts b/src/main/application/mcpJobJournal.ts
 --- a/src/main/application/mcpJobJournal.ts
 +++ b/src/main/application/mcpJobJournal.ts
-@@ -44,6 +44,7 @@
+@@ -40,6 +40,7 @@
    noTextDetected: z.boolean().optional(),
    effectReviewCandidates: count.optional(),
    needsReview: z.boolean().optional(),
@@ -9,8 +9,7 @@ diff --git a/src/main/application/mcpJobJournal.ts b/src/main/application/mcpJob
    artifactExpired: z.boolean().optional(),
  });
  const jobSchema = z
-
-diff --git a/scripts/mcp-native-page.cjs b/scripts/mcp-native-page.cjs
+ diff --git a/scripts/mcp-native-page.cjs b/scripts/mcp-native-page.cjs
 --- a/scripts/mcp-native-page.cjs
 +++ b/scripts/mcp-native-page.cjs
 @@ -128,6 +128,15 @@
