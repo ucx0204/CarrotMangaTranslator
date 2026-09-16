@@ -99,6 +99,15 @@ async function checkNativePageGoal(root) {
     decodeImage: async () => null,
     inpaintingRevisionStore: new InpaintingRevisionStore(),
   };
+  // Only this synthetic fixture acknowledges the renderer edit handoff.
+  const stopHandoffs = app.jobs.pageHandoffs.subscribe(() => {
+    for (const handoff of app.jobs.pageHandoffs.activities)
+      if (handoff.phase === "finishing-edits" && handoff.requestId)
+        app.jobs.pageHandoffs.respond({ requestId: handoff.requestId });
+  });
+  const { createMcpPageEditScope } = load(
+    root, "main/mcp/mcpPageEditScope.js",
+  );
   const editing = {
     assertWritable: async () => {},
     assertClean: async () => {},
@@ -130,6 +139,7 @@ async function checkNativePageGoal(root) {
   await session.ready();
   const tools = createMcpAppTools({
     ...editing,
+    withPageEdit: createMcpPageEditScope(app, library.openChapter),
     preferences,
     additionalTools: session.tools,
   });
@@ -227,6 +237,7 @@ async function checkNativePageGoal(root) {
     );
   } finally {
     await session.close();
+    stopHandoffs();
   }
 }
 /** @param {(name: string, args: object) => Promise<Array<{text?: string, data?: string}>>} invoke

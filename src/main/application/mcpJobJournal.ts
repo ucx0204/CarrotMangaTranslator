@@ -40,6 +40,7 @@ export const mcpJobResultMetadataSchema = z.object({
   noTextDetected: z.boolean().optional(),
   effectReviewCandidates: count.optional(),
   needsReview: z.boolean().optional(),
+  cleanupFailed: z.boolean().optional(),
   artifactExpired: z.boolean().optional(),
 });
 const jobSchema = z

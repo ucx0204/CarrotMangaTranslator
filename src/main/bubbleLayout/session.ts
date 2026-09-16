@@ -1,4 +1,4 @@
-import { assertModelCleanupComplete, releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
+import { assertModelCleanupComplete, releaseModelResource, ModelCleanupError } from "../runtimeSupport/modelCleanupBarrier";
 import { availableParallelism } from "node:os";
 import { resolve } from "node:path";
 import type * as Ort from "onnxruntime-node";
@@ -236,8 +236,9 @@ function releaseNativeSessionOnce(
   let pending = sessionReleases.get(session);
   if (!pending) {
     pending = releaseModelResource(session, () => session.release()).catch((error: unknown) => {
-      sessionReleases.delete(session);
-      throw error;
+      // Native release may be non-repeatable. Preserve its failed receipt;
+      // a failed acknowledgement never permits another provider to start.
+      throw error instanceof ModelCleanupError ? error.cause : error;
     });
     sessionReleases.set(session, pending);
   }
