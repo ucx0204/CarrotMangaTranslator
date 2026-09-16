@@ -79,7 +79,7 @@ export class McpErasureRecoveryService {
     const view: View =
       target && eligible(job) && id
         ? await this.ports.inspect(id, target)
-        : { state: "unavailable", reason: unavailableReason(job, target, id) };
+        : { state: "unavailable", reason: unavailableReason(job, target) };
     this.check(authorize);
     return {
       jobId,
@@ -218,10 +218,8 @@ function eligible(job: Job): boolean {
 function unavailableReason(
   job: Job,
   target: Target | undefined,
-  id: string | undefined,
 ): View["reason"] {
   if (!target) return "not_selected_erasure";
   if (!eligible(job)) return "job_not_completed";
-  if (!id) return "history_unavailable";
   return "history_unavailable";
 }

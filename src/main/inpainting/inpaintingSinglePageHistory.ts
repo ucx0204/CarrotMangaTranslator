@@ -31,14 +31,23 @@ export async function inspectSinglePageHistory(
   const page = chapter.pages.find((entry) => entry.id === target.pageId);
   if (!page) return { state: "unavailable", reason: "history_unavailable" };
   const revision = createPageRevision(page);
-  const direction = revision === change.afterRevision ? "undo"
-    : revision === change.beforeRevision ? "redo" : undefined;
-  if (!direction) return { state: "conflict", reason: "page_changed", revision };
-  repository.validateChangePaths(chapter, change);
-  prepareInpaintingPageRevision({ chapter, change, direction });
+  const direction =
+    revision === change.afterRevision
+      ? "undo"
+      : revision === change.beforeRevision
+        ? "redo"
+        : undefined;
+  if (!direction)
+    return { state: "conflict", reason: "page_changed", revision };
   if (!(await artifactsAvailable(change, page.imagePath)))
     return { state: "unavailable", reason: "artifact_missing", revision };
-  return { state: direction === "undo" ? "applied" : "undone", reason: "ready", revision };
+  repository.validateChangePaths(chapter, change);
+  prepareInpaintingPageRevision({ chapter, change, direction });
+  return {
+    state: direction === "undo" ? "applied" : "undone",
+    reason: "ready",
+    revision,
+  };
 }
 
 export async function applySinglePageHistory(
@@ -49,23 +58,46 @@ export async function applySinglePageHistory(
   retainedPaths: string[],
 ): Promise<{ revision: PageRevision }> {
   guard.assertCanCommit();
-  assertLibraryActivityAccess([pageContentResource(guard.chapterId, guard.pageId)]);
+  assertLibraryActivityAccess([
+    pageContentResource(guard.chapterId, guard.pageId),
+  ]);
   const view = await inspectSinglePageHistory(repository, changes, guard);
-  if (view.revision !== guard.revision || view.state !== (direction === "undo" ? "applied" : "undone"))
-    throw new Error("Page history changed or is unavailable. Inspect it again.");
+  if (
+    view.revision !== guard.revision ||
+    view.state !== (direction === "undo" ? "applied" : "undone")
+  )
+    throw new Error(
+      "Page history changed or is unavailable. Inspect it again.",
+    );
   const chapter = await repository.readChapter(guard.chapterId);
-  const prepared = prepareInpaintingPageRevision({ chapter, change: changes[0], direction });
+  const prepared = prepareInpaintingPageRevision({
+    chapter,
+    change: changes[0],
+    direction,
+  });
   if (createPageRevision(prepared.originalPage) !== guard.revision)
     throw new Error("Page changed before history commit.");
   guard.assertCanCommit();
   // This single chapter/work publication is atomic. Never issue an unguarded
   // compensating write after revocation or an uncertain post-commit response.
-  const saved = await repository.savePages(guard.chapterId, [prepared.nextPage], {
-    expectedTargets: [{ chapterId: guard.chapterId, pageId: guard.pageId, revision: guard.revision }],
-    retainedInpaintedArtifactPaths: retainedPaths,
-  }, guard.assertCanCommit);
+  const saved = await repository.savePages(
+    guard.chapterId,
+    [prepared.nextPage],
+    {
+      expectedTargets: [
+        {
+          chapterId: guard.chapterId,
+          pageId: guard.pageId,
+          revision: guard.revision,
+        },
+      ],
+      retainedInpaintedArtifactPaths: retainedPaths,
+    },
+    guard.assertCanCommit,
+  );
   const page = saved.pages.find((entry) => entry.id === guard.pageId);
-  if (!page) throw new Error("Saved history page is missing; inspect the library.");
+  if (!page)
+    throw new Error("Saved history page is missing; inspect the library.");
   return { revision: createPageRevision(page) };
 }
 
@@ -81,20 +113,39 @@ function singleImageChange(
   return change;
 }
 function distinctRevisions(change: InpaintingRevisionChange): boolean {
-  return Boolean(change.beforeRevision && change.afterRevision && change.beforeRevision !== change.afterRevision);
+  return Boolean(
+    change.beforeRevision &&
+    change.afterRevision &&
+    change.beforeRevision !== change.afterRevision,
+  );
 }
 function changesBlocks(change: InpaintingRevisionChange): boolean {
-  return Boolean(change.beforeBlocks || change.afterBlocks || change.beforeLayout?.length || change.afterLayout?.length);
+  return Boolean(
+    change.beforeBlocks ||
+    change.afterBlocks ||
+    change.beforeLayout?.length ||
+    change.afterLayout?.length,
+  );
 }
-async function artifactsAvailable(change: InpaintingRevisionChange, original: string): Promise<boolean> {
-  const paths = new Set([original, change.beforePath, change.afterPath, change.beforeMaskPath, change.afterMaskPath]);
+async function artifactsAvailable(
+  change: InpaintingRevisionChange,
+  original: string,
+): Promise<boolean> {
+  const paths = new Set([
+    original,
+    change.beforePath,
+    change.afterPath,
+    change.beforeMaskPath,
+    change.afterMaskPath,
+  ]);
   for (const path of paths) {
     if (!path) continue;
     try {
       const info = await lstat(path);
       if (!info.isFile() || info.size === 0) return false;
     } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") return false;
+      if (error instanceof Error && "code" in error && error.code === "ENOENT")
+        return false;
       throw error;
     }
   }

@@ -7,14 +7,13 @@ const { setTimeout: delay } = require("node:timers/promises");
 /** All library, lease, receipt and history code is real. The caller supplies only
  * a deterministic inference boundary in its isolated native fixture.
  * @param {string} root
- * @param {import("../src/main/jobs/inpaintingJobTypes").InpaintingJobContext} app
+ * @param {import("../src/main/jobs/inpaintingJobTypes").InpaintingJobContext & {inpaintingRevisionStore: import("../src/main/inpainting/inpaintingRevisionStore").InpaintingRevisionStore}} app
  * @param {Parameters<typeof import("../src/main/mcp/mcpErasureAdapter").eraseMcpPage>[1]} editing
  * @param {import("../src/main/mcp/mcpOperationTools").McpOperationTarget} target
  * @param {import("../src/main/jobs/inpaintingJobRuntime").InpaintingJobRuntime} runtime */
 async function checkNativeErasureRecovery(root, app, editing, target, runtime) {
   const load = (/** @type {string} */ name) => require(join(root, "out", name));
   const library = load("main/library.js");
-  const { createPageRevision } = load("shared/pageRevision.js");
   const { McpOperationService } = load(
     "main/application/mcpOperationService.js",
   );
@@ -154,37 +153,12 @@ async function checkNativeErasureRecovery(root, app, editing, target, runtime) {
     );
     assert.equal(acquisitions, 1, "Undo/redo must never acquire a model");
     assert.deepEqual(await readFile(before.imagePath), original);
-    const saved = await readPage();
-    const blocks = structuredClone(saved.blocks);
-    blocks[0].translatedText += " manual edit";
-    await library.savePageBlocks({
-      chapterId: target.chapterId,
-      pageId: target.pageId,
-      blocks,
-      blockOrder: saved.blockOrder,
-      expectedRevision: createPageRevision(saved),
-    });
-    assert.equal((await inspect()).state, "conflict");
-    await assert.rejects(
-      invoke("carrot_undo_erasure", { ...undo, requestId: randomUUID() }),
-    );
-    assert.equal(
-      (await readPage()).blocks[0].translatedText,
-      blocks[0].translatedText,
-    );
-    const manual = await readPage();
-    await library.savePageBlocks({
-      chapterId: target.chapterId,
-      pageId: target.pageId,
-      blocks: saved.blocks,
-      blockOrder: saved.blockOrder,
-      expectedRevision: createPageRevision(manual),
-    });
+    await checkManualEditProtection(root, target, invoke, undo);
     allowed = false;
     await assert.rejects(inspect());
     await assert.rejects(invoke("carrot_undo_erasure", undo));
     allowed = true;
-    await app.inpaintingRevisionStore?.releaseTransactions?.([historyId]);
+    await app.inpaintingRevisionStore.releaseTransactions([historyId]);
     assert.equal((await inspect()).state, "unavailable");
     console.log(
       "PASS native selected erasure -> availability -> undo -> redo; exact pixels, unchanged blocks, no extra model, retry and manual-edit protection",
@@ -196,5 +170,48 @@ async function checkNativeErasureRecovery(root, app, editing, target, runtime) {
     await recovery.close();
     await operations.close();
   }
+}
+
+/** @param {string} root
+ * @param {import("../src/main/mcp/mcpOperationTools").McpOperationTarget} target
+ * @param {(name: string, args: object) => Promise<Record<string, unknown>>} invoke
+ * @param {{jobId: string, revision: string, requestId: string}} undo */
+async function checkManualEditProtection(root, target, invoke, undo) {
+  const library = require(join(root, "out/main/library.js"));
+  const { createPageRevision } = require(
+    join(root, "out/shared/pageRevision.js"),
+  );
+  const readPage = async () =>
+    (await library.openChapter(target.chapterId)).pages.find(
+      (/** @type {{id: string}} */ page) => page.id === target.pageId,
+    );
+  const inspect = () =>
+    invoke("carrot_get_erasure_recovery", { jobId: undo.jobId });
+  const saved = await readPage();
+  const blocks = structuredClone(saved.blocks);
+  blocks[0].translatedText += " manual edit";
+  await library.savePageBlocks({
+    chapterId: target.chapterId,
+    pageId: target.pageId,
+    blocks,
+    blockOrder: saved.blockOrder,
+    expectedRevision: createPageRevision(saved),
+  });
+  assert.equal((await inspect()).state, "conflict");
+  await assert.rejects(
+    invoke("carrot_undo_erasure", { ...undo, requestId: randomUUID() }),
+  );
+  assert.equal(
+    (await readPage()).blocks[0].translatedText,
+    blocks[0].translatedText,
+  );
+  const manual = await readPage();
+  await library.savePageBlocks({
+    chapterId: target.chapterId,
+    pageId: target.pageId,
+    blocks: saved.blocks,
+    blockOrder: saved.blockOrder,
+    expectedRevision: createPageRevision(manual),
+  });
 }
 module.exports = { checkNativeErasureRecovery };

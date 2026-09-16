@@ -22,5 +22,11 @@ export type InpaintingJobContext = {
   jobs: ActiveJobStore;
   getMainWindow: () => JobEventWindow | null;
   decodeImage: ImageDecodeFallback;
-  inpaintingRevisionStore?: InpaintingJobRevisionStore;
+  inpaintingRevisionStore?: InpaintingJobRevisionStore &
+    Partial<
+      Pick<
+        InpaintingRevisionStore,
+        "inspectSinglePageTransaction" | "applySinglePageTransaction"
+      >
+    >;
 };

@@ -1,3 +1,4 @@
+import type { InpaintingHistoryTransactionRef } from "../../shared/inpaintingTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { modelCleanupIsBlocked } from "../runtimeSupport/modelCleanupBarrier";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
@@ -23,6 +24,7 @@ export async function eraseMcpPage(
   target: McpOperationTarget,
   operation: McpOperationContext,
   runtime: InpaintingJobRuntime = productionInpaintingJobRuntime,
+  onHistory?: (reference: InpaintingHistoryTransactionRef) => void,
 ) {
   operation.assertAuthorized();
   const settings = await runtime.getSettings(app.appPaths);
@@ -70,6 +72,12 @@ export async function eraseMcpPage(
       (entry) => entry.id === target.pageId,
     );
     if (page) editing.notifySaved(target.chapterId, target.pageId);
+    if (
+      target.blockId &&
+      result.status === "completed" &&
+      result.historyTransaction
+    )
+      onHistory?.(result.historyTransaction);
     return {
       status: result.status,
       chapterId: target.chapterId,

@@ -1,3 +1,4 @@
+import { createMcpErasureRecoverySession } from "./mcpErasureRecoverySession";
 import type { McpJobPersistence } from "../application/mcpJobJournal";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
 import type { McpPreferences } from "../../shared/mcpDesktopTypes";
@@ -38,6 +39,9 @@ export function createMcpPageOperationSession(options: {
     Date.now,
     options.jobPersistence,
   );
+  const recovery = preferences.allowProcessing
+    ? createMcpErasureRecoverySession(app, operations, editing.notifySaved)
+    : undefined;
   const artifacts = new McpArtifactStore(options.origin);
   const exporter = new McpPageExportService({
     openChapter,
@@ -74,22 +78,32 @@ export function createMcpPageOperationSession(options: {
       ? createOcrExecutor(app, reader)
       : undefined,
     erase: preferences.allowProcessing
-      ? (target, context) => eraseMcpPage(app, editing, target, context)
+      ? (target, context) =>
+          eraseMcpPage(app, editing, target, context, undefined, (reference) =>
+            recovery?.remember(context.id, reference.transactionId),
+          )
       : undefined,
   };
   return {
-    tools: createMcpOperationTools(
-      operations,
-      executors,
-      artifacts.assertAvailable.bind(artifacts),
-    ),
+    tools: [
+      ...(recovery?.tools ?? []),
+      ...createMcpOperationTools(
+        operations,
+        executors,
+        artifacts.assertAvailable.bind(artifacts),
+      ),
+    ],
     artifacts,
     ready: () => operations.ready(),
     stop: () => {
+      recovery?.stop();
       operations.stop();
       artifacts.stop();
     },
     close: async () => {
+      operations.stop();
+      recovery?.stop();
+      await recovery?.close();
       await operations.close();
       await artifacts.close();
     },

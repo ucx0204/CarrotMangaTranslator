@@ -44,7 +44,13 @@ it("rejects later manual text or geometry instead of reverting it", async () => 
   try {
     const blocks = structuredClone(f.after.blocks);
     blocks[0].translatedText = "manual edit";
-    await f.library.savePageBlocks("chapter", f.target.pageId, blocks);
+    await f.library.savePageBlocks({
+      chapterId: "chapter",
+      pageId: f.target.pageId,
+      blocks,
+      expectedRevision: createPageRevision(f.after),
+      blockOrder: f.after.blockOrder,
+    });
     expect(await f.inspect()).toMatchObject({
       state: "conflict",
       reason: "page_changed",
@@ -112,7 +118,7 @@ it.each(["missing", "empty", "directory"])(
   },
 );
 
-it("treats released, restarted, empty, different-target and multi-page history as unavailable", async () => {
+it("treats released, empty and different-target history as unavailable", async () => {
   const f = await recoveryLibrary();
   try {
     const empty = f.store.beginTransaction();

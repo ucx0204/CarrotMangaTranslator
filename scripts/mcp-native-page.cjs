@@ -1,3 +1,6 @@
+const {
+  checkNativeErasureRecovery,
+} = require("./mcp-native-erasure-recovery.cjs");
 const { checkNativeAdversarial } = require("./mcp-native-adversarial.cjs");
 const assert = require("node:assert/strict");
 const { checkNativeReview } = require("./mcp-native-review.cjs");
@@ -354,9 +357,8 @@ async function checkTargetedEditing(root, invoke, chapterId, pageId) {
   );
   return saved;
 }
-/** @param {string} root @param {object} app @param {object} editing @param {string} chapterId @param {{id: string}} page @param {string} blockId */
+/** @param {string} root @param {Parameters<typeof checkNativeErasureRecovery>[1]} app @param {Parameters<typeof checkNativeErasureRecovery>[2]} editing @param {string} chapterId @param {{id: string}} page @param {string} blockId */
 async function checkErasure(root, app, editing, chapterId, page, blockId) {
-  const { eraseMcpPage } = load(root, "main/mcp/mcpErasureAdapter.js");
   const { productionInpaintingJobRuntime } = load(
     root,
     "main/jobs/inpaintingJobRuntime.js",
@@ -376,7 +378,8 @@ async function checkErasure(root, app, editing, chapterId, page, blockId) {
       release: () => {},
     }),
   };
-  const result = await eraseMcpPage(
+  const result = await checkNativeErasureRecovery(
+    root,
     app,
     editing,
     {
@@ -385,12 +388,6 @@ async function checkErasure(root, app, editing, chapterId, page, blockId) {
       blockId,
       revision: createPageRevision(page),
       requestId: randomUUID(),
-    },
-    {
-      id: randomUUID(),
-      signal: new AbortController().signal,
-      assertAuthorized: () => {},
-      progress: () => {},
     },
     runtime,
   );

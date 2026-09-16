@@ -155,13 +155,18 @@ it("passes a single block selector to the existing page-pattern engine without a
   });
   f.target.revision = createPageRevision(f.page);
   const before = structuredClone(f.page.blocks);
+  const history = vi.fn();
   const result = await eraseMcpPage(
     f.app,
     f.editing,
     { ...f.target, blockId: "second-block" },
     f.operation,
     f.harness.runtime,
+    history,
   );
+  expect(history).toHaveBeenCalledTimes(1);
+  expect(history.mock.calls[0][0].transactionId).toBeTruthy();
+  expect(result).not.toHaveProperty("historyTransaction");
   expect(result).toMatchObject({
     status: "completed",
     blockId: "second-block",

@@ -26,7 +26,7 @@ function fixture() {
     }),
     inspect: vi.fn(async () => ({
       state,
-      reason: "ready",
+      reason: "ready" as const,
       revision: state === "applied" ? after : before,
     })),
     apply: vi.fn(async (_id, _target, direction, _revision, guard) => {

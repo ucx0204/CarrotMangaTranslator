@@ -18,25 +18,94 @@ export async function recoveryLibrary() {
   await writeFile(original, "original-pixels");
   await writeFile(output, "erased-pixels");
   const seeded = editingChapter();
-  const page = { ...seeded.pages[0], imagePath: original, inpaintedImagePath: undefined, inpaintMaskPath: undefined, maskProvenance: undefined, dataUrl: undefined,
-    blocks: seeded.pages[0].blocks.map((block) => ({ ...block, generatedLettering: undefined })),
+  const page = {
+    ...seeded.pages[0],
+    imagePath: original,
+    inpaintedImagePath: undefined,
+    inpaintMaskPath: undefined,
+    maskProvenance: undefined,
+    dataUrl: undefined,
+    blocks: seeded.pages[0].blocks.map((block) => ({
+      ...block,
+      generatedLettering: undefined,
+      backgroundColor: "#ffffff",
+    })),
   };
   const chapterPath = join(chapterDir, "chapter.json");
   const workPath = join(root, "works", "work", "work.json");
-  await writeFile(join(root, "index.json"), JSON.stringify({ workOrder: ["work"] }));
-  await writeFile(workPath, JSON.stringify({ id: "work", title: "test", chapterOrder: ["chapter"], createdAt: seeded.createdAt, updatedAt: seeded.updatedAt }));
-  await writeFile(chapterPath, JSON.stringify({ ...seeded, id: "chapter", workId: "work", pages: [page], pageOrder: [page.id] }));
+  await writeFile(
+    join(root, "index.json"),
+    JSON.stringify({ workOrder: ["work"] }),
+  );
+  await writeFile(
+    workPath,
+    JSON.stringify({
+      id: "work",
+      title: "test",
+      chapterOrder: ["chapter"],
+      createdAt: seeded.createdAt,
+      updatedAt: seeded.updatedAt,
+    }),
+  );
+  await writeFile(
+    chapterPath,
+    JSON.stringify({
+      ...seeded,
+      id: "chapter",
+      workId: "work",
+      pages: [page],
+      pageOrder: [page.id],
+    }),
+  );
   const library = await import("../src/main/library");
-  const { InpaintingRevisionStore } = await import("../src/main/inpainting/inpaintingRevisionStore");
+  const { InpaintingRevisionStore } =
+    await import("../src/main/inpainting/inpaintingRevisionStore");
   const store = new InpaintingRevisionStore();
-  const target = { chapterId: "chapter", pageId: page.id, blockId: page.blocks[0].id };
+  const target = {
+    chapterId: "chapter",
+    pageId: page.id,
+    blockId: page.blocks[0].id,
+  };
   const before = (await library.openChapter("chapter")).pages[0];
-  const after = (await library.updatePagesAfterInpainting("chapter", [{ ...before, inpaintedImagePath: output }])).pages[0];
+  const after = (
+    await library.updatePagesAfterInpainting("chapter", [
+      { ...before, inpaintedImagePath: output },
+    ])
+  ).pages[0];
   const transactionId = store.beginTransaction();
-  store.addChange(transactionId, { ...target, beforeRevision: createPageRevision(before), afterRevision: createPageRevision(after), beforePath: before.inpaintedImagePath, afterPath: output });
-  const inspect = () => store.inspectSinglePageTransaction(transactionId, target);
-  const snapshot = async () => ({ chapter: await readFile(chapterPath, "utf8"), work: await readFile(workPath, "utf8"), original: await readFile(original, "utf8") });
-  return { environment, library, store, target, before, after, output, original, chapterPath, transactionId, inspect, snapshot,
-    async close() { try { await store.releaseAll(); } finally { await environment.close(); } },
+  store.addChange(transactionId, {
+    ...target,
+    beforeRevision: createPageRevision(before),
+    afterRevision: createPageRevision(after),
+    beforePath: before.inpaintedImagePath,
+    afterPath: output,
+  });
+  const inspect = () =>
+    store.inspectSinglePageTransaction(transactionId, target);
+  const snapshot = async () => ({
+    chapter: await readFile(chapterPath, "utf8"),
+    work: await readFile(workPath, "utf8"),
+    original: await readFile(original, "utf8"),
+  });
+  return {
+    environment,
+    library,
+    store,
+    target,
+    before,
+    after,
+    output,
+    original,
+    chapterPath,
+    transactionId,
+    inspect,
+    snapshot,
+    async close() {
+      try {
+        await store.releaseAll();
+      } finally {
+        await environment.close();
+      }
+    },
   };
 }
