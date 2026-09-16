@@ -1,16 +1,29 @@
 diff --git a/scripts/mcp-native-page.cjs b/scripts/mcp-native-page.cjs
+index ac1bb428..becfe8fd 100644
 --- a/scripts/mcp-native-page.cjs
 +++ b/scripts/mcp-native-page.cjs
-@@ -114,13 +114,5 @@
+@@ -99,15 +99,8 @@ async function checkNativePageGoal(root) {
+     decodeImage: async () => null,
+     inpaintingRevisionStore: new InpaintingRevisionStore(),
+   };
 -  // Only this synthetic fixture acknowledges the renderer edit handoff.
 -  const stopHandoffs = app.jobs.pageHandoffs.subscribe(() => {
 -    for (const handoff of app.jobs.pageHandoffs.activities)
 -      if (handoff.phase === "finishing-edits" && handoff.requestId)
 -        app.jobs.pageHandoffs.respond({ requestId: handoff.requestId });
 -  });
+-  const { createMcpPageEditScope } = load(
+-    root, "main/mcp/mcpPageEditScope.js",
+-  );
 +  const stopHandoffs = acknowledgeFixtureHandoffs(app.jobs.pageHandoffs);
-@@ -462,1 +454,14 @@
--module.exports = { checkNativePageGoal };
++  const { createMcpPageEditScope } = load(root, "main/mcp/mcpPageEditScope.js");
+   const editing = {
+     assertWritable: async () => {},
+     assertClean: async () => {},
+@@ -459,4 +452,13 @@ function assertFixtureScopes(allowed, scopes) {
+     "Unapproved fixture scope",
+   );
+ }
 +/** Only this isolated synthetic fixture acknowledges a renderer handoff.
 + * @param {import("../src/main/jobs/activeJob").ActiveJobStore["pageHandoffs"]} handoffs */
 +function acknowledgeFixtureHandoffs(handoffs) {
@@ -20,11 +33,270 @@ diff --git a/scripts/mcp-native-page.cjs b/scripts/mcp-native-page.cjs
 +        handoffs.respond({ requestId: handoff.requestId });
 +  });
 +}
-+module.exports = { checkNativePageGoal };
+ module.exports = { checkNativePageGoal };
+diff --git a/src/main/bubbleLayout/session.ts b/src/main/bubbleLayout/session.ts
+index 268d811d..a82ea815 100644
+--- a/src/main/bubbleLayout/session.ts
++++ b/src/main/bubbleLayout/session.ts
+@@ -1,4 +1,8 @@
+-import { assertModelCleanupComplete, releaseModelResource, ModelCleanupError } from "../runtimeSupport/modelCleanupBarrier";
++import {
++  assertModelCleanupComplete,
++  releaseModelResource,
++  ModelCleanupError,
++} from "../runtimeSupport/modelCleanupBarrier";
+ import { availableParallelism } from "node:os";
+ import { resolve } from "node:path";
+ import type * as Ort from "onnxruntime-node";
+@@ -98,8 +102,11 @@ export async function disposeCachedKoharuLayoutSessions(): Promise<boolean> {
+   const errors = settled.flatMap((result) =>
+     result.status === "rejected" ? [result.reason] : [],
+   );
+-  if (errors.length) throw new AggregateError(errors, "KoharuLayout cleanup did not complete.");
+-  return settled.some((result) => result.status === "fulfilled" && result.value);
++  if (errors.length)
++    throw new AggregateError(errors, "KoharuLayout cleanup did not complete.");
++  return settled.some(
++    (result) => result.status === "fulfilled" && result.value,
++  );
+ }
+ 
+ async function disposeCachedNativeKoharuLayoutSessions(): Promise<boolean> {
+@@ -235,11 +242,13 @@ function releaseNativeSessionOnce(
+ ): Promise<void> {
+   let pending = sessionReleases.get(session);
+   if (!pending) {
+-    pending = releaseModelResource(session, () => session.release()).catch((error: unknown) => {
+-      // Native release may be non-repeatable. Preserve its failed receipt;
+-      // a failed acknowledgement never permits another provider to start.
+-      throw error instanceof ModelCleanupError ? error.cause : error;
+-    });
++    pending = releaseModelResource(session, () => session.release()).catch(
++      (error: unknown) => {
++        // Native release may be non-repeatable. Preserve its failed receipt;
++        // a failed acknowledgement never permits another provider to start.
++        throw error instanceof ModelCleanupError ? error.cause : error;
++      },
++    );
+     sessionReleases.set(session, pending);
+   }
+   return pending;
+diff --git a/src/main/bubbleLayout/wasmWorkerClient.ts b/src/main/bubbleLayout/wasmWorkerClient.ts
+index 5b70ee2a..2ca2f56a 100644
+--- a/src/main/bubbleLayout/wasmWorkerClient.ts
++++ b/src/main/bubbleLayout/wasmWorkerClient.ts
+@@ -1,4 +1,7 @@
+-import { assertModelCleanupComplete, releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
++import {
++  assertModelCleanupComplete,
++  releaseModelResource,
++} from "../runtimeSupport/modelCleanupBarrier";
+ import { createHash } from "node:crypto";
+ import { lstat, readFile } from "node:fs/promises";
+ import { availableParallelism } from "node:os";
+@@ -156,13 +159,16 @@ export class KoharuWasmInferenceWorkerClient {
+     const worker = this.worker;
+     this.rejectAll(new Error("Koharu WASM inference worker was disposed."));
+     if (!worker) return false;
+-    await releaseModelResource(worker, async () => { await worker.terminate(); });
++    await releaseModelResource(worker, async () => {
++      await worker.terminate();
++    });
+     if (this.worker === worker) this.worker = null;
+     return true;
+   }
+ 
+   private ensureWorker(): Worker {
+-    if (this.disposed) throw new Error("Koharu WASM inference worker is closing.");
++    if (this.disposed)
++      throw new Error("Koharu WASM inference worker is closing.");
+     if (this.worker) return this.worker;
+     const resolveWorkerScript =
+       this.dependencies.resolveWorkerScript ??
+diff --git a/src/main/inpainting/fluxEngine.ts b/src/main/inpainting/fluxEngine.ts
+index d2b7fc58..a64ba345 100644
+--- a/src/main/inpainting/fluxEngine.ts
++++ b/src/main/inpainting/fluxEngine.ts
+@@ -41,7 +41,9 @@ export function createFluxEngine(
+   let worker: FluxWorker | null = null;
+   const getWorker = () => {
+     if (worker && !worker.isHealthy()) {
+-      throw new Error("Flux worker is unhealthy; finish native cleanup before retrying the workload.");
++      throw new Error(
++        "Flux worker is unhealthy; finish native cleanup before retrying the workload.",
++      );
+     }
+     worker ??= new FluxWorker(options.launch, {
+       diagnostics: options.diagnostics,
+diff --git a/src/main/inpainting/inpaintingEnginePool.ts b/src/main/inpainting/inpaintingEnginePool.ts
+index 6d5c5617..85ec8bbc 100644
+--- a/src/main/inpainting/inpaintingEnginePool.ts
++++ b/src/main/inpainting/inpaintingEnginePool.ts
+@@ -1,9 +1,22 @@
+ import type { AppPaths } from "../appPaths";
+ import { totalmem } from "node:os";
+-import type { FluxBackend, InpaintingModel, KoharuInpaintingBackend } from "../../shared/inpaintingSettingsTypes";
+-import type { InpaintingEngine, InpaintingRuntimeProgress } from "./inpaintingEngine";
+-import { acquireFluxInpaintingEngine, disposeCachedFluxInpaintingEngine } from "./fluxEnginePool";
+-import { acquireKoharuInpaintingEngine, disposeCachedKoharuInpaintingEngine } from "./koharuEnginePool";
++import type {
++  FluxBackend,
++  InpaintingModel,
++  KoharuInpaintingBackend,
++} from "../../shared/inpaintingSettingsTypes";
++import type {
++  InpaintingEngine,
++  InpaintingRuntimeProgress,
++} from "./inpaintingEngine";
++import {
++  acquireFluxInpaintingEngine,
++  disposeCachedFluxInpaintingEngine,
++} from "./fluxEnginePool";
++import {
++  acquireKoharuInpaintingEngine,
++  disposeCachedKoharuInpaintingEngine,
++} from "./koharuEnginePool";
+ import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
+ import { assertModelCleanupComplete } from "../runtimeSupport/modelCleanupBarrier";
+ 
+@@ -12,8 +25,12 @@ export type InpaintingEngineLease = {
+   release: () => void | Promise<void>;
+ };
+ export type InpaintingEnginePoolDependencies = {
+-  acquireFlux: (options: Parameters<typeof acquireFluxInpaintingEngine>[0]) => Promise<InpaintingEngineLease>;
+-  acquireKoharu: (options: Parameters<typeof acquireKoharuInpaintingEngine>[0]) => Promise<InpaintingEngineLease>;
++  acquireFlux: (
++    options: Parameters<typeof acquireFluxInpaintingEngine>[0],
++  ) => Promise<InpaintingEngineLease>;
++  acquireKoharu: (
++    options: Parameters<typeof acquireKoharuInpaintingEngine>[0],
++  ) => Promise<InpaintingEngineLease>;
+   disposeFlux: (reason: string) => Promise<boolean>;
+   disposeKoharu: (reason: string) => Promise<boolean>;
+   totalMemoryBytes: () => number;
+@@ -45,24 +62,40 @@ export async function acquireInpaintingEngine(
+   const computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
+   if (options.model === "flux-klein") {
+     assertFluxMemoryPolicy({
+-      backend: options.fluxBackend ?? (process.platform === "darwin" ? "metal-native" : "cuda-native"),
+-      unifiedMemoryMb: Math.floor(dependencies.totalMemoryBytes() / 1024 / 1024),
++      backend:
++        options.fluxBackend ??
++        (process.platform === "darwin" ? "metal-native" : "cuda-native"),
++      unifiedMemoryMb: Math.floor(
++        dependencies.totalMemoryBytes() / 1024 / 1024,
++      ),
+       allowUnsafeLowMemoryFlux: options.allowUnsafeLowMemoryFlux ?? false,
+     });
+     await dependencies.disposeKoharu("switch-to-flux");
+     options.signal?.throwIfAborted();
+-    return workloadLease(await dependencies.acquireFlux({
+-      appPaths: options.appPaths, fluxBackend: options.fluxBackend,
+-      computeGpuIndex, signal: options.signal, onProgress: options.onProgress,
+-    }), dependencies.disposeFlux);
++    return workloadLease(
++      await dependencies.acquireFlux({
++        appPaths: options.appPaths,
++        fluxBackend: options.fluxBackend,
++        computeGpuIndex,
++        signal: options.signal,
++        onProgress: options.onProgress,
++      }),
++      dependencies.disposeFlux,
++    );
+   }
+   await dependencies.disposeFlux("switch-to-koharu");
+   options.signal?.throwIfAborted();
+-  return workloadLease(await dependencies.acquireKoharu({
+-    appPaths: options.appPaths, model: options.model,
+-    backend: options.koharuBackend ?? "auto", computeGpuIndex,
+-    signal: options.signal, onProgress: options.onProgress,
+-  }), dependencies.disposeKoharu);
++  return workloadLease(
++    await dependencies.acquireKoharu({
++      appPaths: options.appPaths,
++      model: options.model,
++      backend: options.koharuBackend ?? "auto",
++      computeGpuIndex,
++      signal: options.signal,
++      onProgress: options.onProgress,
++    }),
++    dependencies.disposeKoharu,
++  );
+ }
+ 
+ /** The existing job owns one lease for all its sequential pages. Release means
+@@ -89,8 +122,15 @@ export function assertFluxMemoryPolicy(options: {
+   unifiedMemoryMb: number;
+   allowUnsafeLowMemoryFlux: boolean;
+ }): void {
+-  if (options.backend !== "metal-native" || options.unifiedMemoryMb >= FLUX_RECOMMENDED_UNIFIED_MEMORY_MB || options.allowUnsafeLowMemoryFlux) return;
+-  throw new Error(`Flux Klein Metal은 통합 메모리 16GB 이상을 권장합니다. 현재 ${Math.max(0, Math.round(options.unifiedMemoryMb / 1024))}GB로 감지되었습니다. macOS 메모리 위험 경고를 확인하고 명시적으로 허용한 뒤 다시 시도하세요.`);
++  if (
++    options.backend !== "metal-native" ||
++    options.unifiedMemoryMb >= FLUX_RECOMMENDED_UNIFIED_MEMORY_MB ||
++    options.allowUnsafeLowMemoryFlux
++  )
++    return;
++  throw new Error(
++    `Flux Klein Metal은 통합 메모리 16GB 이상을 권장합니다. 현재 ${Math.max(0, Math.round(options.unifiedMemoryMb / 1024))}GB로 감지되었습니다. macOS 메모리 위험 경고를 확인하고 명시적으로 허용한 뒤 다시 시도하세요.`,
++  );
+ }
+ 
+ export async function disposeCachedInpaintingEngines(
+@@ -98,9 +138,18 @@ export async function disposeCachedInpaintingEngines(
+   dependencies: InpaintingEnginePoolDependencies = defaultDependencies,
+ ): Promise<boolean> {
+   const settled = await Promise.allSettled([
+-    dependencies.disposeFlux(reason), dependencies.disposeKoharu(reason),
++    dependencies.disposeFlux(reason),
++    dependencies.disposeKoharu(reason),
+   ]);
+-  const errors = settled.flatMap((result) => result.status === "rejected" ? [result.reason] : []);
+-  if (errors.length) throw new AggregateError(errors, "Inpainting model cleanup did not complete.");
+-  return settled.some((result) => result.status === "fulfilled" && result.value);
++  const errors = settled.flatMap((result) =>
++    result.status === "rejected" ? [result.reason] : [],
++  );
++  if (errors.length)
++    throw new AggregateError(
++      errors,
++      "Inpainting model cleanup did not complete.",
++    );
++  return settled.some(
++    (result) => result.status === "fulfilled" && result.value,
++  );
+ }
+diff --git a/src/main/inpainting/koharuEngine.ts b/src/main/inpainting/koharuEngine.ts
+index 704d7dba..0b8e5220 100644
+--- a/src/main/inpainting/koharuEngine.ts
++++ b/src/main/inpainting/koharuEngine.ts
+@@ -89,7 +89,9 @@ function createKoharuEngine(options: {
+   let worker: KoharuWorker | null = null;
+   const getWorker = () => {
+     if (worker && !worker.isHealthy()) {
+-      throw new Error("Koharu worker is unhealthy; finish native cleanup before retrying the workload.");
++      throw new Error(
++        "Koharu worker is unhealthy; finish native cleanup before retrying the workload.",
++      );
+     }
+     worker ??= new KoharuWorker(options.launch);
+     return worker;
 diff --git a/src/main/inpainting/koharuEnginePool.ts b/src/main/inpainting/koharuEnginePool.ts
+index 8c612d39..df153842 100644
 --- a/src/main/inpainting/koharuEnginePool.ts
 +++ b/src/main/inpainting/koharuEnginePool.ts
-@@ -118,20 +118,6 @@
+@@ -1,4 +1,7 @@
+-import { ModelCleanupError, releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
++import {
++  ModelCleanupError,
++  releaseModelResource,
++} from "../runtimeSupport/modelCleanupBarrier";
+ import { join } from "node:path";
+ import type { AppPaths } from "../appPaths";
+ import { detectBestGpuInfo } from "../gpuInfo";
+@@ -107,20 +110,8 @@ export async function acquireKoharuInpaintingEngine(
+         backend,
          candidates[candidateIndex + 1] ?? null,
          error,
 +        options.onProgress,
@@ -42,12 +314,18 @@ diff --git a/src/main/inpainting/koharuEnginePool.ts b/src/main/inpainting/kohar
 -          }),
 -        });
 -      }
-@@ -247,6 +233,7 @@
+     }
+   }
+ 
+@@ -245,6 +236,7 @@ function logKoharuBackendFailure(
+   backend: ResolvedKoharuBackend,
    fallbackBackend: ResolvedKoharuBackend | null,
    error: unknown,
 +  onProgress: AcquireKoharuEngineOptions["onProgress"],
  ): void {
-@@ -256,3 +243,16 @@
+   logInpaintingRuntimeWarn("Koharu inpainting backend failed", {
+     model,
+@@ -253,6 +245,14 @@ function logKoharuBackendFailure(
      fallbackBackend,
      error,
    });
@@ -60,3 +338,72 @@ diff --git a/src/main/inpainting/koharuEnginePool.ts b/src/main/inpainting/kohar
 +    });
 +  }
  }
+ 
+ async function smokeTestKoharuEngine(
+diff --git a/src/main/runtimeSupport/leasedIdleResource.ts b/src/main/runtimeSupport/leasedIdleResource.ts
+index 60aac1da..e66c9ebe 100644
+--- a/src/main/runtimeSupport/leasedIdleResource.ts
++++ b/src/main/runtimeSupport/leasedIdleResource.ts
+@@ -149,7 +149,10 @@ export class LeasedIdleResourcePool<TResource> {
+       await new Promise<void>((resolve) => entry.releaseWaiters.add(resolve));
+     }
+     try {
+-      await this.options.dispose(entry.resource, entry.disposeReason ?? "dispose");
++      await this.options.dispose(
++        entry.resource,
++        entry.disposeReason ?? "dispose",
++      );
+     } catch (error) {
+       entry.disposalFailure = { error };
+       throw error;
+diff --git a/src/main/runtimeSupport/modelCleanupBarrier.ts b/src/main/runtimeSupport/modelCleanupBarrier.ts
+index 2268bb64..5a7f054c 100644
+--- a/src/main/runtimeSupport/modelCleanupBarrier.ts
++++ b/src/main/runtimeSupport/modelCleanupBarrier.ts
+@@ -24,16 +24,18 @@ export function releaseModelResource(
+   if (previous?.pending) return previous.pending;
+   const state: Cleanup = { pending: null };
+   cleanups.set(resource, state);
+-  state.pending = Promise.resolve().then(dispose).then(
+-    () => {
+-      if (cleanups.get(resource) === state) cleanups.delete(resource);
+-    },
+-    (error: unknown) => {
+-      state.pending = null;
+-      state.failure = error;
+-      throw new ModelCleanupError(error);
+-    },
+-  );
++  state.pending = Promise.resolve()
++    .then(dispose)
++    .then(
++      () => {
++        if (cleanups.get(resource) === state) cleanups.delete(resource);
++      },
++      (error: unknown) => {
++        state.pending = null;
++        state.failure = error;
++        throw new ModelCleanupError(error);
++      },
++    );
+   return state.pending;
+ }
+ 
+diff --git a/src/main/translationRuntime.ts b/src/main/translationRuntime.ts
+index 2e7df28b..e1791ecb 100644
+--- a/src/main/translationRuntime.ts
++++ b/src/main/translationRuntime.ts
+@@ -78,8 +78,11 @@ export async function disposeTranslationRuntimeResources(
+   const errors = settled.flatMap((result) =>
+     result.status === "rejected" ? [result.reason] : [],
+   );
+-  if (errors.length) throw new AggregateError(errors, "OCR model cleanup did not complete.");
+-  return settled.some((result) => result.status === "fulfilled" && result.value);
++  if (errors.length)
++    throw new AggregateError(errors, "OCR model cleanup did not complete.");
++  return settled.some(
++    (result) => result.status === "fulfilled" && result.value,
++  );
+ }
+ 
+ async function attachEffectReviewRegions(
