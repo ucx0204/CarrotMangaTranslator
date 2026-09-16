@@ -17263,6 +17263,28 @@
         "pct": 100
       }
     },
+    "src/main/application/mcpSourceRectPolicy.ts": {
+      "lines": {
+        "covered": 40,
+        "total": 40,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 44,
+        "total": 44,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 53,
+        "total": 57,
+        "pct": 92.98
+      }
+    },
     "src/main/application/mcpWorkContextService.ts": {
       "lines": {
         "covered": 12,
@@ -32554,6 +32576,28 @@
       }
     },
     "src/shared/mcpReviewSchemas.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/mcpSourceRect.ts": {
       "lines": {
         "covered": 8,
         "total": 8,
