@@ -16911,6 +16911,28 @@
         "pct": 96.96
       }
     },
+    "src/main/application/mcpBlockOcrService.ts": {
+      "lines": {
+        "covered": 40,
+        "total": 41,
+        "pct": 97.56
+      },
+      "statements": {
+        "covered": 42,
+        "total": 43,
+        "pct": 97.67
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 31,
+        "total": 32,
+        "pct": 96.87
+      }
+    },
     "src/main/application/mcpDesktopService.ts": {
       "lines": {
         "covered": 82,
@@ -20406,6 +20428,50 @@
       "branches": {
         "covered": 4,
         "total": 4,
+        "pct": 100
+      }
+    },
+    "src/main/mcp/mcpBlockOcrAdapter.ts": {
+      "lines": {
+        "covered": 62,
+        "total": 66,
+        "pct": 93.93
+      },
+      "statements": {
+        "covered": 63,
+        "total": 68,
+        "pct": 92.64
+      },
+      "functions": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      },
+      "branches": {
+        "covered": 28,
+        "total": 36,
+        "pct": 77.77
+      }
+    },
+    "src/main/mcp/mcpBlockOcrSession.ts": {
+      "lines": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
         "pct": 100
       }
     },
@@ -32484,6 +32550,28 @@
       "branches": {
         "covered": 4,
         "total": 4,
+        "pct": 100
+      }
+    },
+    "src/shared/mcpBlockOcr.ts": {
+      "lines": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
         "pct": 100
       }
     },

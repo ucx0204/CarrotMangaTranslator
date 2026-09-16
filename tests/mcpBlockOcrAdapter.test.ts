@@ -70,6 +70,7 @@ async function fixture() {
     recognizeMcpBlock(app, "chapter", f.after, rect, operation, runtime);
   return {
     ...f,
+    app,
     originalBytes: original,
     rect,
     operation,
@@ -260,6 +261,48 @@ it("rejects an oversized observation instead of silently keeping only the first 
     });
     await expect(f.run()).rejects.toMatchObject({ code: "invalid_edit" });
   } finally {
+    await f.close();
+  }
+});
+
+it("composes the actual block OCR executor under app page/model ownership without a write", async () => {
+  const f = await fixture();
+  const { createMcpBlockOcrExecutor } =
+    await import("../src/main/mcp/mcpBlockOcrSession");
+  const { createPageRevision } = await import("../src/shared/pageRevision");
+  const stop = f.app.jobs.pageHandoffs.subscribe(() => {
+    for (const page of f.app.jobs.pageHandoffs.activities)
+      if (page.phase === "finishing-edits" && page.requestId)
+        f.app.jobs.pageHandoffs.respond({ requestId: page.requestId });
+  });
+  try {
+    const before = await f.snapshot();
+    vi.mocked(f.runtime.collect).mockImplementationOnce(async () => {
+      expect(f.app.jobs.gate.activities.length).toBeGreaterThan(0);
+      expect(f.app.jobs.pageHandoffs.activities).toContainEqual(
+        expect.objectContaining({
+          pageId: f.target.pageId,
+          phase: "processing",
+        }),
+      );
+      return f.result;
+    });
+    const execute = createMcpBlockOcrExecutor(f.app, f.runtime);
+    const result = await execute(
+      {
+        ...f.target,
+        revision: createPageRevision(f.after),
+        requestId: randomUUID(),
+      },
+      f.operation,
+    );
+    expect(result).toMatchObject({ status: "observed", pagesChanged: 0 });
+    expect(await f.snapshot()).toEqual(before);
+    expect(f.runtime.collect).toHaveBeenCalledOnce();
+    expect(f.runtime.release).toHaveBeenCalledOnce();
+    expect(f.app.jobs.gate.activities).toEqual([]);
+  } finally {
+    stop();
     await f.close();
   }
 });

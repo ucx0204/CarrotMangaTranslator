@@ -146,9 +146,15 @@ async function fixture() {
     }),
     reportError: () => {},
   });
-  const rpc = async (method: string, params = {}, token = full) => {
+  const rpc = async (
+    method: string,
+    params = {},
+    token = full,
+    signal?: AbortSignal,
+  ) => {
     const response = await fetch(server.url, {
       method: "POST",
+      signal,
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -158,8 +164,12 @@ async function fixture() {
     });
     return response.json();
   };
-  const call = (name: string, args: unknown, token = full) =>
-    rpc("tools/call", { name, arguments: args }, token);
+  const call = (
+    name: string,
+    args: unknown,
+    token = full,
+    signal?: AbortSignal,
+  ) => rpc("tools/call", { name, arguments: args }, token, signal);
   return {
     ...f,
     evidence,
@@ -365,6 +375,8 @@ it("retains the selected block on explicit failure retry and never reruns a comp
 
 it("holds page ownership through cancellation until recognition cleanup has actually returned", async () => {
   const f = await fixture();
+  const editController = new AbortController();
+  let editOutcome: Promise<unknown> | undefined;
   let finish!: () => void;
   let enter!: () => void;
   const pending = new Promise<void>((resolve) => {
@@ -386,15 +398,32 @@ it("holds page ownership through cancellation until recognition cleanup has actu
     await entered;
     const repeat = await f.call("carrot_run_block_ocr", f.target);
     expect(repeat.result.structuredContent.jobId).toBe(jobId);
-    const conflict = await f.call("carrot_update_page_blocks", {
-      chapterId: f.target.chapterId,
-      pageId: f.target.pageId,
-      revision: f.target.revision,
-      edits: [
-        { blockId: f.target.blockId, fields: { sourceText: "must not save" } },
-      ],
-    });
-    expect(conflict.result.isError).toBe(true);
+    editOutcome = f
+      .call(
+        "carrot_update_page_blocks",
+        {
+          chapterId: f.target.chapterId,
+          pageId: f.target.pageId,
+          revision: f.target.revision,
+          edits: [
+            {
+              blockId: f.target.blockId,
+              fields: { sourceText: "must not save" },
+            },
+          ],
+        },
+        f.full,
+        editController.signal,
+      )
+      .then(
+        (reply) => ({ reply }),
+        (error: unknown) => ({ error }),
+      );
+    await vi.waitFor(() => expect(f.jobs.gate.activities).toHaveLength(2));
+    expect(await f.snapshot()).toEqual(before);
+    editController.abort();
+    expect(await editOutcome).toMatchObject({ error: expect.any(Error) });
+    await vi.waitFor(() => expect(f.jobs.gate.activities).toHaveLength(1));
     const cancelled = await f.call("carrot_cancel_job", { jobId });
     expect(cancelled.result.structuredContent).toMatchObject({
       status: "running",
@@ -410,6 +439,8 @@ it("holds page ownership through cancellation until recognition cleanup has actu
     expect(f.jobs.gate.activities).toEqual([]);
   } finally {
     finish();
+    editController.abort();
+    await editOutcome;
     await f.close();
   }
 });
