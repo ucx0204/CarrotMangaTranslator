@@ -44,12 +44,12 @@ pixel parity, image protocol and renderer/preload bundle checks.
 
 The block OCR groups in that full run were:
 
-| Test file | Passed |
-| --- | ---: |
-| `mcpBlockOcr.test.ts` | 13 |
-| `mcpBlockOcrAdapter.test.ts` | 10 |
-| `mcpBlockOcrHttp.test.ts` | 4 |
-| `mcpStructuredOutputs.test.ts` | 8 |
+| Test file                      | Passed |
+| ------------------------------ | -----: |
+| `mcpBlockOcr.test.ts`          |     13 |
+| `mcpBlockOcrAdapter.test.ts`   |     10 |
+| `mcpBlockOcrHttp.test.ts`      |      4 |
+| `mcpStructuredOutputs.test.ts` |      8 |
 
 The three focused OCR groups also passed all 27 tests when measured separately.
 That focused coverage command exited nonzero because the repository's unchanged
@@ -94,12 +94,12 @@ The isolated listener and its test Electron process were absent after completion
 
 Only these four NEW production entries were added to introducedFloors:
 
-| File | Statements | Branches | Functions | Lines |
-| --- | ---: | ---: | ---: | ---: |
-| `src/main/application/mcpBlockOcrService.ts` | 42/43 | 31/32 | 7/7 | 40/41 |
-| `src/main/mcp/mcpBlockOcrAdapter.ts` | 63/68 | 28/36 | 8/9 | 62/66 |
-| `src/main/mcp/mcpBlockOcrSession.ts` | 5/5 | 0/0 | 4/4 | 5/5 |
-| `src/shared/mcpBlockOcr.ts` | 6/6 | 0/0 | 2/2 | 5/5 |
+| File                                         | Statements | Branches | Functions | Lines |
+| -------------------------------------------- | ---------: | -------: | --------: | ----: |
+| `src/main/application/mcpBlockOcrService.ts` |      42/43 |    31/32 |       7/7 | 40/41 |
+| `src/main/mcp/mcpBlockOcrAdapter.ts`         |      63/68 |    28/36 |       8/9 | 62/66 |
+| `src/main/mcp/mcpBlockOcrSession.ts`         |        5/5 |      0/0 |       4/4 |   5/5 |
+| `src/shared/mcpBlockOcr.ts`                  |        6/6 |      0/0 |       2/2 |   5/5 |
 
 The exact file inventory increased from 752 to 756 introduced files. Existing
 floors, source provenance, historical artifacts and coverage gate behavior were
