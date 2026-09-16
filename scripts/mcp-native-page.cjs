@@ -5,7 +5,7 @@ const {
   jobPersistence,
   checkNativeJobHistory,
 } = require("./mcp-native-job-history.cjs");
-const { randomUUID } = require("node:crypto");
+const { createHash, randomUUID } = require("node:crypto");
 const { readFile, writeFile } = require("node:fs/promises");
 const { join } = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
@@ -109,6 +109,8 @@ async function checkNativePageGoal(root) {
     assertAuthorized: () => {
       assert.equal(allowed, true, "revoked");
     },
+    assertScopes: (/** @type {string[]} */ scopes) =>
+      assertFixtureScopes(allowed, scopes),
     principalId: "native-fixture",
   };
   const preferences = {
@@ -197,6 +199,11 @@ async function checkNativePageGoal(root) {
     const bytes = await session.artifacts.read(
       new URL(result.url).pathname.split("/")[2],
     );
+    assert.equal(bytes.length, result.bytes);
+    assert.equal(
+      createHash("sha256").update(bytes).digest("hex"),
+      result.sha256,
+    );
     assert.deepEqual(nativeImage.createFromBuffer(bytes).getSize(), {
       width: 400,
       height: 600,
@@ -209,6 +216,7 @@ async function checkNativePageGoal(root) {
     );
     assert.equal(JSON.stringify(result).includes(root), false);
     allowed = false;
+    await assert.rejects(() => invoke("carrot_get_job_file", { jobId }));
     await assert.rejects(() =>
       session.artifacts.read(new URL(result.url).pathname.split("/")[2]),
     );
@@ -389,7 +397,7 @@ async function checkErasure(root, app, editing, chapterId, page, blockId) {
     "PASS native selected-block erasure preserves the other source region and all block text",
   );
 }
-/** @param {(name: string, args: object) => Promise<Array<{text: string}>>} invoke @param {string} jobId */
+/** @param {(name: string, args: object) => Promise<Array<{text: string, type?: string, uri?: string}>>} invoke @param {string} jobId */
 async function waitForOutput(invoke, jobId) {
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
@@ -397,10 +405,47 @@ async function waitForOutput(invoke, jobId) {
     const receipt = JSON.parse(content[0].text);
     if (receipt.status !== "running") {
       assert.equal(receipt.status, "completed", JSON.stringify(receipt));
-      return receipt.result;
+      for (let repeat = 0; repeat < 3; repeat++) {
+        const status = await invoke("carrot_get_job", { jobId });
+        assert.equal(status.length, 1);
+        assert.doesNotMatch(
+          JSON.stringify(status),
+          /resource_link|mcp-artifacts|"url"|"uri"/,
+        );
+      }
+      const output = await invoke("carrot_get_job_file", { jobId });
+      assert.equal(output.length, 2);
+      const artifact = JSON.parse(output[0].text);
+      assert.equal(output[1].type, "resource_link");
+      assert.equal(output[1].uri, artifact.url);
+      assert.equal(artifact.sha256, receipt.result.sha256);
+      const statusAfterFile = await invoke("carrot_get_job", { jobId });
+      assert.equal(statusAfterFile.length, 1);
+      assert.doesNotMatch(
+        JSON.stringify(statusAfterFile),
+        /resource_link|mcp-artifacts|"url"|"uri"/,
+      );
+      console.log(
+        "PASS native repeated job polling stays metadata-only before and after explicit file retrieval",
+      );
+      return artifact;
     }
     await delay(100);
   }
   throw new Error("Page export did not finish within the native test deadline");
+}
+/** @param {boolean} allowed @param {string[]} scopes */
+function assertFixtureScopes(allowed, scopes) {
+  assert.equal(allowed, true, "revoked");
+  const approved = [
+    "carrot.read",
+    "carrot.images",
+    "carrot.edit",
+    "carrot.process",
+  ];
+  assert.ok(
+    scopes.every((scope) => approved.includes(scope)),
+    "Unapproved fixture scope",
+  );
 }
 module.exports = { checkNativePageGoal };
