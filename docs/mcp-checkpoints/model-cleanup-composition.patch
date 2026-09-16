@@ -1,0 +1,62 @@
+diff --git a/scripts/mcp-native-page.cjs b/scripts/mcp-native-page.cjs
+--- a/scripts/mcp-native-page.cjs
++++ b/scripts/mcp-native-page.cjs
+@@ -114,13 +114,5 @@
+-  // Only this synthetic fixture acknowledges the renderer edit handoff.
+-  const stopHandoffs = app.jobs.pageHandoffs.subscribe(() => {
+-    for (const handoff of app.jobs.pageHandoffs.activities)
+-      if (handoff.phase === "finishing-edits" && handoff.requestId)
+-        app.jobs.pageHandoffs.respond({ requestId: handoff.requestId });
+-  });
++  const stopHandoffs = acknowledgeFixtureHandoffs(app.jobs.pageHandoffs);
+@@ -462,1 +454,14 @@
+-module.exports = { checkNativePageGoal };
++/** Only this isolated synthetic fixture acknowledges a renderer handoff.
++ * @param {import("../src/main/pageOwnership/pageHandoffCoordinator").PageHandoffCoordinator} handoffs */
++function acknowledgeFixtureHandoffs(handoffs) {
++  return handoffs.subscribe(() => {
++    for (const handoff of handoffs.activities)
++      if (handoff.phase === "finishing-edits" && handoff.requestId)
++        handoffs.respond({ requestId: handoff.requestId });
++  });
++}
++module.exports = { checkNativePageGoal };
+diff --git a/src/main/inpainting/koharuEnginePool.ts b/src/main/inpainting/koharuEnginePool.ts
+--- a/src/main/inpainting/koharuEnginePool.ts
++++ b/src/main/inpainting/koharuEnginePool.ts
+@@ -118,20 +118,6 @@
+         candidates[candidateIndex + 1] ?? null,
+         error,
++        options.onProgress,
+       );
+-      const fallbackBackend = candidates[candidateIndex + 1] ?? null;
+-      if (backend === "metal-native" && fallbackBackend === "cpu") {
+-        options.onProgress?.({
+-          progressText: tMain("inpainting.runtime.metalFallback"),
+-          detail: tMain("inpainting.runtime.metalFallbackDetail", {
+-            model: options.model,
+-          }),
+-          progressMode: "log-only",
+-          installLogLine: tMain("inpainting.runtime.metalFallbackLog", {
+-            model: options.model,
+-          }),
+-        });
+-      }
+@@ -247,6 +233,7 @@
+   fallbackBackend: ResolvedKoharuBackend | null,
+   error: unknown,
++  onProgress: AcquireKoharuEngineOptions["onProgress"],
+ ): void {
+@@ -256,3 +243,16 @@
+     fallbackBackend,
+     error,
+   });
++  if (backend === "metal-native" && fallbackBackend === "cpu") {
++    onProgress?.({
++      progressText: tMain("inpainting.runtime.metalFallback"),
++      detail: tMain("inpainting.runtime.metalFallbackDetail", { model }),
++      progressMode: "log-only",
++      installLogLine: tMain("inpainting.runtime.metalFallbackLog", { model }),
++    });
++  }
+ }
