@@ -1,3 +1,4 @@
+import { releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
 import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import {
@@ -122,7 +123,7 @@ async function disposeFluxEngine(
   reason: string,
 ): Promise<void> {
   try {
-    await engine.dispose();
+    await releaseModelResource(engine, () => engine.dispose());
     logInpaintingRuntimeInfo("Flux inpainting engine disposed", { reason });
   } catch (error) {
     logInpaintingRuntimeError(
@@ -132,6 +133,7 @@ async function disposeFluxEngine(
         error,
       },
     );
+    throw error;
   }
 }
 

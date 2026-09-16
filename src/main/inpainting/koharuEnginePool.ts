@@ -1,3 +1,4 @@
+import { ModelCleanupError, releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
 import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import { detectBestGpuInfo } from "../gpuInfo";
@@ -96,6 +97,7 @@ export async function acquireKoharuInpaintingEngine(
         release: lease.release,
       };
     } catch (error) {
+      if (error instanceof ModelCleanupError) throw error;
       errors.push(
         `${backend}: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -185,7 +187,7 @@ async function disposeKoharuEngine(
   reason: string,
 ): Promise<void> {
   try {
-    await engine.dispose();
+    await releaseModelResource(engine, () => engine.dispose());
     logInpaintingRuntimeInfo("Koharu inpainting engine disposed", { reason });
   } catch (error) {
     logInpaintingRuntimeError(
@@ -195,6 +197,7 @@ async function disposeKoharuEngine(
         error,
       },
     );
+    throw error;
   }
 }
 
