@@ -178,7 +178,6 @@ async function checkNativePageGoal(root) {
       chapter.id,
       page.id,
     );
-    await checkNativeSourceRect(root, invoke, chapter.id, page.id);
     await checkErasure(
       root,
       app,
@@ -357,6 +356,7 @@ async function checkTargetedEditing(root, invoke, chapterId, pageId) {
   console.log(
     "PASS native existing-block text/style/placement and independent reading order persisted with original geometry intact",
   );
+  await checkNativeSourceRect(root, invoke, chapterId, pageId);
   return saved;
 }
 /** @param {string} root @param {Parameters<typeof checkNativeErasureRecovery>[1]} app @param {Parameters<typeof checkNativeErasureRecovery>[2]} editing @param {string} chapterId @param {{id: string}} page @param {string} blockId */

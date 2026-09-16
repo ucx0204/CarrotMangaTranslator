@@ -144,3 +144,47 @@ describe("source-only rectangle policy", () => {
     ).toBe(false);
   });
 });
+
+it("retains manual bubble geometry and font evidence without reanalysis", () => {
+  const source = page(),
+    block = source.blocks[0];
+  block.sourceFontFacePx = 16;
+  block.bubbleLayout = {
+    version: 1,
+    origin: "manual",
+    confidence: 1,
+    direction: "horizontal",
+    insetRatio: 0,
+    regions: [
+      { spans: [{ blockStart: 0, blockEnd: 1, inlineStart: 0, inlineEnd: 1 }] },
+    ],
+  };
+  const result = applyMcpSourceRect(source, request);
+  expect(result.result.warnings).toContain("source_font_metrics_retained");
+  expect(result.result.warnings).toContain("bubble_layout_retained");
+  expect(result.blocks[0].bubbleLayout).toBe(block.bubbleLayout);
+  block.bubbleLayout.origin = "detected";
+  expect(() => applyMcpSourceRect(source, request)).toThrow(
+    /automatic typography/,
+  );
+  expect(
+    applyMcpSourceRect(source, { ...request, sourceRect: block.bbox }).changed,
+  ).toBe(false);
+  delete block.sourceFontFacePx;
+  block.fontSizeIntent = "source-match";
+  expect(() => applyMcpSourceRect(source, request)).toThrow(
+    /automatic typography/,
+  );
+  block.fontSizeIntent = "manual";
+  expect(applyMcpSourceRect(source, request).result.warnings).toContain(
+    "bubble_layout_retained",
+  );
+});
+it.each([NaN, Infinity, 0, -1, 0.5])(
+  "rejects invalid page height %s without changing data",
+  (height) => {
+    const source = page();
+    source.height = height;
+    expect(() => applyMcpSourceRect(source, request)).toThrow(/dimensions/);
+  },
+);
