@@ -4,11 +4,11 @@
 
 ## 도구
 
-| 도구 | 권한 | 입력 |
-| --- | --- | --- |
-| `carrot_get_erasure_recovery` | `carrot.read` | `jobId` |
-| `carrot_undo_erasure` | `carrot.read`, `carrot.process` | `jobId`, `revision`, `requestId` |
-| `carrot_redo_erasure` | `carrot.read`, `carrot.process` | `jobId`, `revision`, `requestId` |
+| 도구                          | 권한                            | 입력                             |
+| ----------------------------- | ------------------------------- | -------------------------------- |
+| `carrot_get_erasure_recovery` | `carrot.read`                   | `jobId`                          |
+| `carrot_undo_erasure`         | `carrot.read`, `carrot.process` | `jobId`, `revision`, `requestId` |
+| `carrot_redo_erasure`         | `carrot.read`, `carrot.process` | `jobId`, `revision`, `requestId` |
 
 `jobId`는 `carrot_run_page_erasure`에 `blockId`를 지정해 실행한 작업의 ID다. 그 연결이 소유한 작업만 사용할 수 있다. 현재 버전은 조회 응답의 `revision`이며, 새 동작마다 새로운 UUID `requestId`를 사용한다. 원시 히스토리 ID나 파일 경로를 입력하지 않는다.
 
