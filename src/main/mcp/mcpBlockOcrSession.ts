@@ -15,11 +15,12 @@ export function createMcpBlockOcrExecutor(
       app,
       context,
       "gemma-analysis",
-      (job) => new McpBlockOcrService({
-        openChapter,
-        recognize: (page, rect, operation) =>
-          recognizeMcpBlock(app, request.chapterId, page, rect, operation),
-      }).run(request, job),
+      (job) =>
+        new McpBlockOcrService({
+          openChapter,
+          recognize: (page, rect, operation) =>
+            recognizeMcpBlock(app, request.chapterId, page, rect, operation),
+        }).run(request, job),
       {
         resources: [{ kind: "model-runtime", scope: "*", access: "write" }],
         page: { ...request, readChapter: openChapter },

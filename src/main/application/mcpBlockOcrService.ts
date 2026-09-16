@@ -36,7 +36,11 @@ export class McpBlockOcrService {
     const selected = selectMcpBlockOcr(page, target.blockId);
     context.assertAuthorized();
     context.progress({ phase: "ocr_preparing" });
-    const evidence = await this.ports.recognize(page, selected.cropRect, context);
+    const evidence = await this.ports.recognize(
+      page,
+      selected.cropRect,
+      context,
+    );
     context.assertAuthorized();
     await this.load(target);
     context.assertAuthorized();
@@ -55,7 +59,10 @@ export class McpBlockOcrService {
       ],
     });
     if (!parsed.success)
-      throw new McpEditError("invalid_edit", "OCR returned invalid or excessive text evidence. Nothing was saved.");
+      throw new McpEditError(
+        "invalid_edit",
+        "OCR returned invalid or excessive text evidence. Nothing was saved.",
+      );
     return {
       chapterId: target.chapterId,
       pageId: target.pageId,
@@ -78,7 +85,10 @@ export class McpBlockOcrService {
     if (chapter.id !== target.chapterId || !page)
       throw new McpEditError("not_found", "Page not found.");
     if (createPageRevision(page) !== target.revision)
-      throw new McpEditError("revision_conflict", "Page changed. Read the page again before requesting or applying block OCR.");
+      throw new McpEditError(
+        "revision_conflict",
+        "Page changed. Read the page again before requesting or applying block OCR.",
+      );
     return structuredClone(page);
   }
 }
@@ -88,19 +98,41 @@ export class McpBlockOcrService {
 export function selectMcpBlockOcr(page: MangaPage, blockId: string) {
   const matches = page.blocks.filter((item) => item.id === blockId);
   if (matches.length !== 1)
-    throw new McpEditError(matches.length ? "invalid_edit" : "not_found", "A unique existing source block is required.");
+    throw new McpEditError(
+      matches.length ? "invalid_edit" : "not_found",
+      "A unique existing source block is required.",
+    );
   const block = matches[0];
   if (typeof block.sourceText !== "string" || block.sourceText.length > 20_000)
-    throw new McpEditError("invalid_edit", "Existing source text exceeds the observation limit.");
-  const raw = block.bboxSpace === "pixels"
-    ? block.bbox
-    : bboxToPixels(block.bbox, page.width, page.height);
+    throw new McpEditError(
+      "invalid_edit",
+      "Existing source text exceeds the observation limit.",
+    );
+  const raw =
+    block.bboxSpace === "pixels"
+      ? block.bbox
+      : bboxToPixels(block.bbox, page.width, page.height);
   const parsed = McpSourceRectPatchSchema.shape.sourceRect.safeParse(raw);
-  if (!parsed.success || !Number.isSafeInteger(page.width) || !Number.isSafeInteger(page.height) || page.width <= 0 || page.height <= 0)
-    throw new McpEditError("invalid_edit", "Invalid source rectangle or image dimensions.");
+  if (
+    !parsed.success ||
+    !Number.isSafeInteger(page.width) ||
+    !Number.isSafeInteger(page.height) ||
+    page.width <= 0 ||
+    page.height <= 0
+  )
+    throw new McpEditError(
+      "invalid_edit",
+      "Invalid source rectangle or image dimensions.",
+    );
   const sourceRect = parsed.data;
-  if (sourceRect.x + sourceRect.w > page.width || sourceRect.y + sourceRect.h > page.height)
-    throw new McpEditError("invalid_edit", "Source rectangle must be inside the original image.");
+  if (
+    sourceRect.x + sourceRect.w > page.width ||
+    sourceRect.y + sourceRect.h > page.height
+  )
+    throw new McpEditError(
+      "invalid_edit",
+      "Source rectangle must be inside the original image.",
+    );
   const x = Math.floor(sourceRect.x);
   const y = Math.floor(sourceRect.y);
   const cropRect = {
