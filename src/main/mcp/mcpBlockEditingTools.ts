@@ -3,6 +3,7 @@ import {
   McpBlockPatchSchema,
   McpReadingOrderSchema,
 } from "../../shared/mcpBlockEditing";
+import { McpSourceRectPatchSchema } from "../../shared/mcpSourceRect";
 import type { McpPageEditService } from "../application/mcpPageEditService";
 import { McpInvalidParams } from "./mcpArguments";
 import { textContent, type McpTool } from "./mcpReadTools";
@@ -45,6 +46,24 @@ export function createMcpBlockEditingTools(
         if (!request.success) throw new McpInvalidParams();
         return textContent(
           await service.reorder(request.data, context?.assertAuthorized),
+        );
+      },
+    },
+    {
+      name: "carrot_update_block_source_rect",
+      oauth: true,
+      readOnly: false,
+      destructive: true,
+      idempotent: true,
+      requiredScopes: ["carrot.read", "carrot.edit", "carrot.process"],
+      description:
+        "Change ONLY one existing block's source OCR/erasure rectangle in ORIGINAL IMAGE PIXELS; fractional pixels are accepted. Read carrot_get_page_blocks first. Requires the current revision even for a no-op: after a lost response or conflict, re-read before retrying. Rejects off-page or unrepresentable bounds rather than clipping them. Preserves text, stored typography, explicit display geometry, other blocks, images and masks. A legacy implicit display frame is pinned before changing source geometry. Retained source evidence may need review; warnings never run processing. Does not run OCR, models, erasure, rendering, export or implicit undo. Requires edit and processing approval; no image transfer or attachments.",
+      inputSchema: z.toJSONSchema(McpSourceRectPatchSchema),
+      invoke: async (args, context) => {
+        const request = McpSourceRectPatchSchema.safeParse(args);
+        if (!request.success) throw new McpInvalidParams();
+        return textContent(
+          await service.updateSourceRect(request.data, context?.assertAuthorized),
         );
       },
     },
