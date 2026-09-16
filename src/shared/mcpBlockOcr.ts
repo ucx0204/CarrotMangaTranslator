@@ -31,18 +31,24 @@ export const McpBlockOcrObservationSchema = z
     sourceCropSha256: z.string().regex(/^[a-f0-9]{64}$/),
     readingOrder: z.literal("app-crop-heuristic"),
     regions: z.array(region).max(100),
-    warnings: z.array(
-      z.enum([
-        "review_before_apply",
-        "multiple_regions",
-        "no_text_keep_existing",
-        "source_evidence_retained",
-      ]),
-    ).max(4),
+    warnings: z
+      .array(
+        z.enum([
+          "review_before_apply",
+          "multiple_regions",
+          "no_text_keep_existing",
+          "source_evidence_retained",
+        ]),
+      )
+      .max(4),
   })
   .strict()
   .refine(
-    (value) => value.regions.reduce((n, item) => n + item.sourceText.length, 0) <= 20_000,
+    (value) =>
+      value.regions.reduce((n, item) => n + item.sourceText.length, 0) <=
+      20_000,
     "OCR text exceeds the observation limit; no truncation is allowed.",
   );
-export type McpBlockOcrObservation = z.infer<typeof McpBlockOcrObservationSchema>;
+export type McpBlockOcrObservation = z.infer<
+  typeof McpBlockOcrObservationSchema
+>;

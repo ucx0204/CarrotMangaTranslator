@@ -44,11 +44,11 @@ export class McpBlockOcrService {
     context.assertAuthorized();
     await this.load(target);
     context.assertAuthorized();
-    const noTextDetected = !evidence.recognizedText.trim();
+    const { engine, ...observation } = evidence;
+    const noTextDetected = !observation.recognizedText.trim();
     const parsed = McpBlockOcrObservationSchema.safeParse({
       ...selected,
-      ...evidence,
-      engine: undefined,
+      ...observation,
       differs: selected.previousSourceText !== evidence.recognizedText,
       readingOrder: "app-crop-heuristic",
       warnings: [
@@ -69,7 +69,7 @@ export class McpBlockOcrService {
       blockId: target.blockId,
       revision: target.revision,
       status: "observed",
-      engine: evidence.engine,
+      engine,
       performed: ["block-ocr"],
       pagesChanged: 0,
       noTextDetected,
@@ -115,10 +115,9 @@ export function selectMcpBlockOcr(page: MangaPage, blockId: string) {
   const parsed = McpSourceRectPatchSchema.shape.sourceRect.safeParse(raw);
   if (
     !parsed.success ||
-    !Number.isSafeInteger(page.width) ||
-    !Number.isSafeInteger(page.height) ||
-    page.width <= 0 ||
-    page.height <= 0
+    ![page.width, page.height].every(
+      (size) => Number.isSafeInteger(size) && size > 0,
+    )
   )
     throw new McpEditError(
       "invalid_edit",

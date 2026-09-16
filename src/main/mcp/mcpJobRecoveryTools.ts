@@ -15,6 +15,7 @@ import { textContent, type McpTool } from "./mcpReadTools";
 type Executors = {
   exportPng?: McpOperationExecutor;
   ocr?: McpOperationExecutor;
+  blockOcr?: McpOperationExecutor;
   erase?: McpOperationExecutor;
 };
 const retrySchema = z
@@ -133,9 +134,11 @@ function executorFor(kind: string, executors: Executors): McpOperationExecutor {
   const execute =
     kind === "ocr"
       ? executors.ocr
-      : kind === "erase"
-        ? executors.erase
-        : executors.exportPng;
+      : kind === "blockOcr"
+        ? executors.blockOcr
+        : kind === "erase"
+          ? executors.erase
+          : executors.exportPng;
   if (!execute)
     throw new McpEditError(
       "access_denied",

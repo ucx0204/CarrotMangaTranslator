@@ -1,3 +1,4 @@
+import { createMcpBlockOcrExecutor } from "./mcpBlockOcrSession";
 import { createMcpErasureRecoverySession } from "./mcpErasureRecoverySession";
 import type { McpJobPersistence } from "../application/mcpJobJournal";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
@@ -76,6 +77,9 @@ export function createMcpPageOperationSession(options: {
       : undefined,
     ocr: preferences.allowProcessing
       ? createOcrExecutor(app, reader)
+      : undefined,
+    blockOcr: preferences.allowProcessing
+      ? createMcpBlockOcrExecutor(app)
       : undefined,
     erase: preferences.allowProcessing
       ? createErasureExecutor(app, editing, recovery)

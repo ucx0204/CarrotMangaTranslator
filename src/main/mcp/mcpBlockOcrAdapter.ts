@@ -94,29 +94,7 @@ async function readCrop(
     runtime: Runtime;
   },
 ) {
-  const size = await probePageExportSourceImage(
-    page.imagePath,
-    operation.signal,
-  );
-  if (size.width !== page.width || size.height !== page.height)
-    throw new McpEditError(
-      "revision_conflict",
-      "Original image dimensions changed. Reload the page.",
-    );
-  const source = await readFile(page.imagePath, { signal: operation.signal });
-  const sourceHash = createHash("sha256").update(source).digest("hex");
-  const image = await loadPageImageSnapshot(
-    page.imagePath,
-    source,
-    app.decodeImage,
-    operation.signal,
-  );
-  const actualSize = image.getSize();
-  if (actualSize.width !== page.width || actualSize.height !== page.height)
-    throw new McpEditError(
-      "revision_conflict",
-      "Decoded source dimensions do not match the page.",
-    );
+  const { image, sourceHash } = await readSourceSnapshot(app, page, operation);
   const crop = image.crop({
     x: cropRect.x,
     y: cropRect.y,
@@ -221,4 +199,35 @@ function cropEvidence(
     language,
   );
   return { recognizedText, regions };
+}
+
+async function readSourceSnapshot(
+  app: InpaintingJobContext,
+  page: MangaPage,
+  operation: McpOperationContext,
+) {
+  const size = await probePageExportSourceImage(
+    page.imagePath,
+    operation.signal,
+  );
+  if (size.width !== page.width || size.height !== page.height)
+    throw new McpEditError(
+      "revision_conflict",
+      "Original image dimensions changed. Reload the page.",
+    );
+  const source = await readFile(page.imagePath, { signal: operation.signal });
+  const sourceHash = createHash("sha256").update(source).digest("hex");
+  const image = await loadPageImageSnapshot(
+    page.imagePath,
+    source,
+    app.decodeImage,
+    operation.signal,
+  );
+  const actualSize = image.getSize();
+  if (actualSize.width !== page.width || actualSize.height !== page.height)
+    throw new McpEditError(
+      "revision_conflict",
+      "Decoded source dimensions do not match the page.",
+    );
+  return { image, sourceHash };
 }

@@ -291,6 +291,7 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
   carrot_cancel_job: mcpJobReceiptOutput,
   carrot_export_page_png: mcpJobReceiptOutput,
   carrot_run_page_ocr: mcpJobReceiptOutput,
+  carrot_run_block_ocr: mcpJobReceiptOutput,
   carrot_run_page_erasure: mcpJobReceiptOutput,
 };
 

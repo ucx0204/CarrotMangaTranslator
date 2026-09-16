@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { McpBlockOcrObservationSchema } from "../../shared/mcpBlockOcr";
 import { hashStableValue } from "../../shared/blockFingerprint";
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
@@ -42,13 +43,15 @@ export const mcpJobResultMetadataSchema = z.object({
   needsReview: z.boolean().optional(),
   cleanupFailed: z.boolean().optional(),
   artifactExpired: z.boolean().optional(),
+  observationExpired: z.boolean().optional(),
+  blockOcr: McpBlockOcrObservationSchema.optional(),
 });
 const jobSchema = z
   .object({
     id: z.string().uuid(),
     owner: id,
     requestId: id,
-    kind: z.enum(["ocr", "erase", "exportPng"]),
+    kind: z.enum(["ocr", "blockOcr", "erase", "exportPng"]),
     parameters: mcpJobTargetSchema,
     fingerprint: z.string().regex(/^[a-f0-9]{16}$/),
     status: z.enum([
@@ -92,9 +95,9 @@ const journalSchema = z
 export function persistedMcpJobResult(
   result: Record<string, unknown> | undefined,
 ) {
-  return result === undefined
-    ? undefined
-    : mcpJobResultMetadataSchema.parse(result);
+  if (result === undefined) return undefined;
+  const { blockOcr, ...metadata } = mcpJobResultMetadataSchema.parse(result);
+  return blockOcr ? { ...metadata, observationExpired: true } : metadata;
 }
 export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
   const parsed = journalSchema.parse(value);
@@ -107,7 +110,9 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
       requests.has(key) ||
       record.fingerprint !==
         hashStableValue([record.kind, record.parameters]) ||
-      (record.kind !== "erase" && record.parameters.blockId !== undefined) ||
+      (!["erase", "blockOcr"].includes(record.kind) &&
+        record.parameters.blockId !== undefined) ||
+      (record.kind === "blockOcr" && !record.parameters.blockId) ||
       record.requestId !== record.parameters.requestId ||
       (record.status === "running") !== (record.finishedAt === undefined)
     )
