@@ -105,9 +105,7 @@ async function checkNativePageGoal(root) {
       if (handoff.phase === "finishing-edits" && handoff.requestId)
         app.jobs.pageHandoffs.respond({ requestId: handoff.requestId });
   });
-  const { createMcpPageEditScope } = load(
-    root, "main/mcp/mcpPageEditScope.js",
-  );
+  const { createMcpPageEditScope } = load(root, "main/mcp/mcpPageEditScope.js");
   const editing = {
     assertWritable: async () => {},
     assertClean: async () => {},
