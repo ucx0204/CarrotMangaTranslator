@@ -31,26 +31,53 @@ async function fixture() {
   raster.data[4 * (20 * 1000 + 10)] = 37;
   const original = PNG.sync.write(raster);
   await writeFile(f.original, original);
-  const { recognizeMcpBlock } = await import("../src/main/mcp/mcpBlockOcrAdapter");
+  const { recognizeMcpBlock } =
+    await import("../src/main/mcp/mcpBlockOcrAdapter");
   const { getAppPaths } = await import("../src/main/appPaths");
   const { ActiveJobStore } = await import("../src/main/jobs/activeJob");
   const app = {
-    appPaths: getAppPaths(), jobs: new ActiveJobStore({ info: vi.fn(), error: vi.fn() }),
-    getMainWindow: () => null, decodeImage: async () => null,
+    appPaths: getAppPaths(),
+    jobs: new ActiveJobStore({ info: vi.fn(), error: vi.fn() }),
+    getMainWindow: () => null,
+    decodeImage: async () => null,
   };
   const controller = new AbortController();
   const operation = {
-    id: randomUUID(), signal: controller.signal,
-    progress: vi.fn(), assertAuthorized: vi.fn(() => controller.signal.throwIfAborted()),
+    id: randomUUID(),
+    signal: controller.signal,
+    progress: vi.fn(),
+    assertAuthorized: vi.fn(() => controller.signal.throwIfAborted()),
   };
-  const result = { hints: [{ x1: 0, y1: 0, x2: 50, y2: 40, ocrText: "再読\n한글 🥕", direction: "vertical" }], diagnostics: [] };
+  const result = {
+    hints: [
+      {
+        x1: 0,
+        y1: 0,
+        x2: 50,
+        y2: 40,
+        ocrText: "再読\n한글 🥕",
+        direction: "vertical",
+      },
+    ],
+    diagnostics: [],
+  };
   const runtime: Runtime = {
     collect: vi.fn<Runtime["collect"]>(async () => structuredClone(result)),
     release: vi.fn<Runtime["release"]>(async () => true),
   };
   const rect = { x: 10, y: 20, w: 90, h: 120 };
-  const run = () => recognizeMcpBlock(app, "chapter", f.after, rect, operation, runtime);
-  return { ...f, originalBytes: original, rect, operation, controller, result, runtime, run };
+  const run = () =>
+    recognizeMcpBlock(app, "chapter", f.after, rect, operation, runtime);
+  return {
+    ...f,
+    originalBytes: original,
+    rect,
+    operation,
+    controller,
+    result,
+    runtime,
+    run,
+  };
 }
 
 it("reads original pixels into a fresh containing crop, maps evidence back, then removes its temporary files", async () => {
@@ -78,13 +105,22 @@ it("reads original pixels into a fresh containing crop, maps evidence back, then
     const second = await f.run();
     expect(first.sourceCropSha256).toBe(hashes[0]);
     expect(second.sourceCropSha256).toBe(first.sourceCropSha256);
-    expect(first.regions[0]).toMatchObject({ sourceRect: { x: 10, y: 20, w: 50, h: 40 }, sourceText: "再読\n한글 🥕", sourceDirection: "vertical" });
+    expect(first.regions[0]).toMatchObject({
+      sourceRect: { x: 10, y: 20, w: 50, h: 40 },
+      sourceText: "再読\n한글 🥕",
+      sourceDirection: "vertical",
+    });
     expect(inputs[0]).not.toBe(inputs[1]);
-    for (const path of inputs) await expect(access(dirname(path))).rejects.toMatchObject({ code: "ENOENT" });
+    for (const path of inputs)
+      await expect(access(dirname(path))).rejects.toMatchObject({
+        code: "ENOENT",
+      });
     expect(f.runtime.release).toHaveBeenCalledTimes(2);
     expect(await f.snapshot()).toEqual(before);
     expect(await readFile(f.original)).toEqual(f.originalBytes);
-  } finally { await f.close(); }
+  } finally {
+    await f.close();
+  }
 });
 
 it("includes separately returned effect evidence without running translation or saving blocks", async () => {
@@ -92,31 +128,59 @@ it("includes separately returned effect evidence without running translation or 
   try {
     vi.mocked(f.runtime.collect).mockResolvedValueOnce({
       ...f.result,
-      effectReviewRegions: [{ id: "effect", bbox: { x: 500, y: 500, w: 250, h: 250 }, detectorConfidence: 0.9, recognizedText: "ドン" }],
+      effectReviewRegions: [
+        {
+          id: "effect",
+          bbox: { x: 500, y: 500, w: 250, h: 250 },
+          detectorConfidence: 0.9,
+          recognizedText: "ドン",
+        },
+      ],
     });
     const result = await f.run();
     expect(result.regions).toHaveLength(2);
-    expect(result.regions[1]).toMatchObject({ sourceText: "ドン", textRole: "sound" });
+    expect(result.regions[1]).toMatchObject({
+      sourceText: "ドン",
+      textRole: "sound",
+    });
     expect(result.recognizedText).toContain("ドン");
-    expect(JSON.stringify(result)).not.toMatch(/confidence|detectorConfidence|imagePath|dataUrl/);
-  } finally { await f.close(); }
+    expect(JSON.stringify(result)).not.toMatch(
+      /confidence|detectorConfidence|imagePath|dataUrl/,
+    );
+  } finally {
+    await f.close();
+  }
 });
 
 it("waits for model cleanup after successful inference before returning an observation", async () => {
   const f = await fixture();
   let finish!: () => void;
   let entered!: () => void;
-  const released = new Promise<void>((resolve) => { finish = resolve; });
-  const releasing = new Promise<void>((resolve) => { entered = resolve; });
+  const released = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const releasing = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
   let completed = false;
-  vi.mocked(f.runtime.release).mockImplementation(async () => { entered(); await released; return true; });
-  const request = f.run().then((value) => { completed = true; return value; });
+  vi.mocked(f.runtime.release).mockImplementation(async () => {
+    entered();
+    await released;
+    return true;
+  });
+  const request = f.run().then((value) => {
+    completed = true;
+    return value;
+  });
   try {
     await releasing;
     expect(completed).toBe(false);
     finish();
     expect((await request).regions).toHaveLength(1);
-  } finally { finish(); await f.close(); }
+  } finally {
+    finish();
+    await f.close();
+  }
 });
 
 it("keeps the inference failure and the cleanup failure instead of publishing partial text", async () => {
@@ -126,26 +190,39 @@ it("keeps the inference failure and the cleanup failure instead of publishing pa
     const cleanup = new Error("release failed");
     vi.mocked(f.runtime.collect).mockRejectedValueOnce(inference);
     vi.mocked(f.runtime.release).mockRejectedValueOnce(cleanup);
-    await expect(f.run()).rejects.toMatchObject({ errors: [inference, cleanup] });
-  } finally { await f.close(); }
+    await expect(f.run()).rejects.toMatchObject({
+      errors: [inference, cleanup],
+    });
+  } finally {
+    await f.close();
+  }
 });
 
 it("rejects cleanup failure even when inference succeeded", async () => {
   const f = await fixture();
   try {
-    vi.mocked(f.runtime.release).mockRejectedValueOnce(new Error("release failed"));
+    vi.mocked(f.runtime.release).mockRejectedValueOnce(
+      new Error("release failed"),
+    );
     await expect(f.run()).rejects.toThrow("release failed");
-  } finally { await f.close(); }
+  } finally {
+    await f.close();
+  }
 });
 
 it("cleans up after cancellation without returning stale text", async () => {
   const f = await fixture();
   try {
-    vi.mocked(f.runtime.collect).mockImplementationOnce(async () => { f.controller.abort(); return f.result; });
+    vi.mocked(f.runtime.collect).mockImplementationOnce(async () => {
+      f.controller.abort();
+      return f.result;
+    });
     await expect(f.run()).rejects.toThrow();
     expect(f.runtime.release).toHaveBeenCalledOnce();
     expect(await readFile(f.original)).toEqual(f.originalBytes);
-  } finally { await f.close(); }
+  } finally {
+    await f.close();
+  }
 });
 
 it("detects source-file changes occurring during OCR", async () => {
@@ -157,7 +234,9 @@ it("detects source-file changes occurring during OCR", async () => {
     });
     await expect(f.run()).rejects.toMatchObject({ code: "revision_conflict" });
     expect(f.runtime.release).toHaveBeenCalledOnce();
-  } finally { await f.close(); }
+  } finally {
+    await f.close();
+  }
 });
 
 it("rejects raster dimension changes before inference and still releases temporary resources", async () => {
@@ -167,13 +246,20 @@ it("rejects raster dimension changes before inference and still releases tempora
     await expect(f.run()).rejects.toMatchObject({ code: "revision_conflict" });
     expect(f.runtime.collect).not.toHaveBeenCalled();
     expect(f.runtime.release).toHaveBeenCalledOnce();
-  } finally { await f.close(); }
+  } finally {
+    await f.close();
+  }
 });
 
 it("rejects an oversized observation instead of silently keeping only the first regions", async () => {
   const f = await fixture();
   try {
-    vi.mocked(f.runtime.collect).mockResolvedValueOnce({ hints: Array.from({ length: 101 }, () => f.result.hints[0]), diagnostics: [] });
+    vi.mocked(f.runtime.collect).mockResolvedValueOnce({
+      hints: Array.from({ length: 101 }, () => f.result.hints[0]),
+      diagnostics: [],
+    });
     await expect(f.run()).rejects.toMatchObject({ code: "invalid_edit" });
-  } finally { await f.close(); }
+  } finally {
+    await f.close();
+  }
 });
