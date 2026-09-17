@@ -20,6 +20,15 @@ const SAFE_EXTRA_KEYS = new Set([
 /** Task-local overrides never rewrite the user's configured provider/settings.
  * No key rotation or generation repair: an uncertain response is not retried. */
 export function prepareMcpBlockTranslationOptions(base: TranslationOptions) {
+  if (
+    ![base.ctx, base.maxTokens].every(
+      (value) => Number.isSafeInteger(value) && value > 0,
+    )
+  )
+    throw new McpEditError(
+      "invalid_edit",
+      "Translation context and output token limits must be positive safe integers.",
+    );
   if (base.modelProvider === "openai-api") assertRemoteTextApi(base);
   const execution = base.modelProvider === "gemma" ? "local" : "external";
   const options: TranslationOptions = {
@@ -38,11 +47,6 @@ export function prepareMcpBlockTranslationOptions(base: TranslationOptions) {
     apiKeyMaxAttempts: 1,
     apiRetryDelaySeconds: 0,
   };
-  if (!Number.isSafeInteger(options.maxTokens) || options.maxTokens < 1)
-    throw new McpEditError(
-      "invalid_edit",
-      "Invalid translation output token limit.",
-    );
   return { options, execution: execution as "local" | "external" };
 }
 
@@ -92,11 +96,12 @@ function assertSafeExtraBody(value: string | undefined): void {
     Object.entries(extra).some(
       ([key, value]) =>
         !SAFE_EXTRA_KEYS.has(key) ||
-        !["string", "number", "boolean"].includes(typeof value),
+        !["string", "number", "boolean"].includes(typeof value) ||
+        (typeof value === "number" && !Number.isFinite(value)),
     )
   )
     throw new McpEditError(
       "invalid_edit",
-      "API extra body must contain only scalar sampling settings for this single text request; tool, image, stream and multiple-generation overrides are not accepted.",
+      "API extra body must contain only finite scalar sampling settings for this single text request; tool, image, stream and multiple-generation overrides are not accepted.",
     );
 }
