@@ -37,6 +37,7 @@ export class McpArtifactStore {
   private closed = false;
   private bytes = 0;
   private readonly writes = new Set<Promise<unknown>>();
+  private pruning?: Promise<void>;
   constructor(
     private readonly origin: string,
     private readonly now: () => number = Date.now,
@@ -147,6 +148,13 @@ export class McpArtifactStore {
   async open(secret: string, name: string) {
     const entry = await this.lookup(secret);
     if (entry.name !== name) throw unavailable();
+    // HEAD and stream setup must establish readability, not just file existence.
+    const handle = await open(entry.file, "r");
+    try {
+      await this.check(entry);
+    } finally {
+      await handle.close();
+    }
     return {
       bytes: entry.size,
       mimeType: entry.mimeType,
@@ -175,7 +183,7 @@ export class McpArtifactStore {
   }
   async close(): Promise<void> {
     this.stop();
-    await Promise.allSettled([...this.writes]);
+    await Promise.allSettled([...this.writes, this.pruning]);
     this.entries.clear();
     if (this.directory)
       await rm(await this.directory, { recursive: true, force: true });
@@ -274,7 +282,14 @@ export class McpArtifactStore {
       this.writes.delete(task);
     }
   }
-  private async prune(): Promise<void> {
+  private prune(): Promise<void> {
+    // Concurrent admissions must share both successful and failed cleanup.
+    this.pruning ??= this.removeExpired().finally(() => {
+      this.pruning = undefined;
+    });
+    return this.pruning;
+  }
+  private async removeExpired(): Promise<void> {
     for (const [key, entry] of this.entries) {
       if (entry.expiresAt > this.now() || entry.leases) continue;
       await rm(entry.file, { force: true });
