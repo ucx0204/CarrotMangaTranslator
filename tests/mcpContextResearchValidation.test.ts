@@ -39,7 +39,11 @@ it("validates app research additions, updates and disabling against the exact gu
           },
         ],
       };
-      const proposal = contextResearchChanges(guide, changed, f.target);
+      const proposal = contextResearchChanges(
+        guide,
+        changed,
+        contextTarget(f.target),
+      );
       expect(proposal?.input.changes[0]).toMatchObject({
         entryId: existing.id,
         values: { target: "Revised", enabled: action !== "disable" },
@@ -48,7 +52,9 @@ it("validates app research additions, updates and disabling against the exact gu
       expect(guide.glossary[0]).toEqual(existing);
       const forged = structuredClone(changed);
       forged.operations[0].before.target = "Unreviewed previous value";
-      expect(() => contextResearchChanges(guide, forged, f.target)).toThrow();
+      expect(() =>
+        contextResearchChanges(guide, forged, contextTarget(f.target)),
+      ).toThrow();
     }
     expect(() =>
       contextResearchChanges(
@@ -106,7 +112,11 @@ it("rejects malformed, duplicate and unbounded research evidence without changin
       const value = structuredClone(result);
       mutate(value);
       expect(() =>
-        contextResearchChanges(snapshot.styleGuide, value, f.target),
+        contextResearchChanges(
+          snapshot.styleGuide,
+          value,
+          contextTarget(f.target),
+        ),
       ).toThrow();
     }
     expect(
@@ -127,17 +137,14 @@ it.each(["empty", "warnings"] as const)(
     const f = await contextHttpFixture();
     try {
       const before = await f.snapshot();
-      const snapshot = await f.library.readWorkContextForEdit("chapter");
-      const result = await f.research({
-        ...f.target,
-        runId: randomUUID(),
-        guideSnapshot: snapshot.styleGuide,
-      });
-      f.research.mockResolvedValueOnce(
-        kind === "empty"
+      const original = f.research.getMockImplementation();
+      if (!original) throw new Error("Missing research boundary");
+      f.research.mockImplementationOnce(async (...args) => {
+        const result = await original(...args);
+        return kind === "empty"
           ? { ...result, operations: [] }
-          : { ...result, warnings: ["x".repeat(2001)] },
-      );
+          : { ...result, warnings: ["x".repeat(2001)] };
+      });
       const start = await f.call("carrot_run_context_research", f.target);
       const job = await f.settle(start.result.structuredContent.jobId);
       if (kind === "empty") {
@@ -155,3 +162,15 @@ it.each(["empty", "warnings"] as const)(
     }
   },
 );
+
+function contextTarget(target: {
+  chapterId: string;
+  revision: string;
+  requestId: string;
+}) {
+  return {
+    chapterId: target.chapterId,
+    revision: target.revision,
+    requestId: target.requestId,
+  };
+}

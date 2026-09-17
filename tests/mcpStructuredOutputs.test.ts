@@ -46,7 +46,7 @@ async function call(t: McpTool) {
   };
 }
 it("publishes real 2020-12 output schemas for every existing tool, cached from runtime contracts", () => {
-  expect(Object.keys(mcpOutputSchemas)).toHaveLength(30);
+  expect(Object.keys(mcpOutputSchemas)).toHaveLength(35);
   expect(Object.keys(mcpOutputSchemas)).toEqual(
     expect.arrayContaining([
       "carrot_get_erasure_recovery",
@@ -55,6 +55,11 @@ it("publishes real 2020-12 output schemas for every existing tool, cached from r
       "carrot_update_block_source_rect",
       "carrot_run_block_ocr",
       "carrot_run_block_translation",
+      "carrot_preview_context_edit",
+      "carrot_preview_context_research",
+      "carrot_get_context_proposal",
+      "carrot_apply_context_proposal",
+      "carrot_run_context_research",
     ]),
   );
   for (const name of Object.keys(mcpOutputSchemas)) {
