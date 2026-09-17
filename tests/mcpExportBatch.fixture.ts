@@ -51,7 +51,7 @@ export function exportFixture() {
     openChapter,
     render,
     store: store.put.bind(store),
-    assertImageAccess: async () => {},
+    assertImageAccess: async () => assertRetained(),
   });
   const reportError = vi.fn();
   const service = new McpExportBatchService({
