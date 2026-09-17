@@ -98,6 +98,44 @@ async function fixture() {
   };
 }
 
+it.each([undefined, false, true])(
+  "returns only a text link unless includeAttachment is explicitly true (%s)",
+  async (includeAttachment) => {
+    const f = await fixture();
+    try {
+      const args = {
+        jobId: f.jobId,
+        ...(includeAttachment === undefined ? {} : { includeAttachment }),
+      };
+      const result = await f.call("carrot_get_job_file", args);
+      expect(result.content).toHaveLength(includeAttachment ? 2 : 1);
+      const metadata = JSON.parse((result.content[0] as { text: string }).text);
+      expect(result.structuredContent).toEqual(metadata);
+      expect(metadata).toMatchObject({
+        jobId: f.jobId,
+        kind: "rendered-page-png",
+        url: expect.stringContaining("https://carrot.test/mcp-artifacts/"),
+      });
+      if (includeAttachment)
+        expect(result.content[1]).toMatchObject({
+          type: "resource_link",
+          uri: metadata.url,
+          mimeType: "image/png",
+          size: metadata.bytes,
+        });
+      else expect(result.content.every((item) => item.type === "text")).toBe(true);
+      expect(await f.call("carrot_get_job_file", args)).toEqual(result);
+      expect(f.render).toHaveBeenCalledOnce();
+      const status = await f.call("carrot_get_job", { jobId: f.jobId });
+      expect(status.content).toHaveLength(1);
+      expect(JSON.stringify(status)).not.toMatch(/resource_link|mcp-artifacts|"url"/);
+      await expect(f.call("carrot_get_job", { jobId: f.jobId, includeAttachment: true })).rejects.toThrow();
+    } finally {
+      await f.close();
+    }
+  },
+);
+
 it.each([
   "expiry",
   "revision",
@@ -110,10 +148,9 @@ it.each([
   async (change) => {
     const f = await fixture();
     try {
-      expect(
-        (await f.call("carrot_get_job_file", { jobId: f.jobId })).content[1]
-          .type,
-      ).toBe("resource_link");
+      const initial = await f.call("carrot_get_job_file", { jobId: f.jobId });
+      expect(initial.content).toHaveLength(1);
+      expect(initial.content[0].type).toBe("text");
       if (change === "expiry") f.expire();
       if (change === "revision")
         f.chapter.pages[0].blocks[0].translatedText = "changed";
@@ -124,9 +161,10 @@ it.each([
         f.imageAccess.mockImplementation(async () => f.disconnect());
       if (change === "stop during check")
         f.imageAccess.mockImplementation(async () => f.store.stop());
-      await expect(
-        f.call("carrot_get_job_file", { jobId: f.jobId }),
-      ).rejects.toThrow();
+      for (const includeAttachment of [false, true])
+        await expect(
+          f.call("carrot_get_job_file", { jobId: f.jobId, includeAttachment }),
+        ).rejects.toThrow();
       expect(f.render).toHaveBeenCalledOnce();
       expect(JSON.stringify(f.operations.status(f.jobId, "owner"))).not.toMatch(
         /mcp-artifacts|"url"/,
@@ -142,18 +180,20 @@ it("requires both scopes and ownership and expires files across restart", async 
   try {
     for (const scope of ["carrot.read", "carrot.images"]) {
       f.scopes.delete(scope);
-      await expect(
-        f.call("carrot_get_job_file", { jobId: f.jobId }),
-      ).rejects.toThrow(/scope/);
+      for (const includeAttachment of [false, true])
+        await expect(
+          f.call("carrot_get_job_file", { jobId: f.jobId, includeAttachment }),
+        ).rejects.toThrow(/scope/);
       f.scopes.add(scope);
     }
-    await expect(
-      f.call(
-        "carrot_get_job_file",
-        { jobId: f.jobId },
-        { ...f.context, principalId: "other" },
-      ),
-    ).rejects.toThrow(/not found/);
+    for (const includeAttachment of [false, true])
+      await expect(
+        f.call(
+          "carrot_get_job_file",
+          { jobId: f.jobId, includeAttachment },
+          { ...f.context, principalId: "other" },
+        ),
+      ).rejects.toThrow(/not found/);
     const restored = new McpOperationService(() => {}, Date.now, f.persistence);
     await restored.ready();
     try {
@@ -244,6 +284,10 @@ it("requires a valid job ID and explicit image-scope verification before checkin
       {},
       { jobId: "not-a-uuid" },
       { jobId: f.jobId, extra: true },
+      { jobId: f.jobId, includeAttachment: "true" },
+      { jobId: f.jobId, includeAttachment: 1 },
+      { jobId: f.jobId, includeAttachment: null },
+      { jobId: f.jobId, includeAttachment: [] },
     ])
       await expect(f.call("carrot_get_job_file", args)).rejects.toThrow();
     const check = vi.fn(async () => {});

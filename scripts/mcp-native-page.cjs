@@ -430,7 +430,14 @@ async function waitForOutput(invoke, jobId) {
           /resource_link|mcp-artifacts|"url"|"uri"/,
         );
       }
-      const output = await invoke("carrot_get_job_file", { jobId });
+      const link = await invoke("carrot_get_job_file", { jobId });
+      assert.equal(link.length, 1);
+      assert.equal(link[0].type, "text");
+      const output = await invoke("carrot_get_job_file", {
+        jobId,
+        includeAttachment: true,
+      });
+      assert.deepEqual(JSON.parse(link[0].text), JSON.parse(output[0].text));
       assert.equal(output.length, 2);
       const artifact = JSON.parse(output[0].text);
       assert.equal(output[1].type, "resource_link");

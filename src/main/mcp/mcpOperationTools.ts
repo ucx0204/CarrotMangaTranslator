@@ -20,6 +20,22 @@ const jobIdInputSchema = {
   additionalProperties: false,
 };
 
+const jobFileSchema = jobIdSchema.extend({
+  includeAttachment: z.boolean().optional(),
+});
+const jobFileInputSchema = {
+  ...jobIdInputSchema,
+  properties: {
+    ...jobIdInputSchema.properties,
+    includeAttachment: {
+      type: "boolean",
+      default: false,
+      description:
+        "Return an MCP file attachment in addition to the text link. The client may require separate approval for attachment creation.",
+    },
+  },
+};
+
 const targetSchema = z
   .object({
     chapterId: z.string(),
@@ -94,10 +110,10 @@ function createJobFileTool(
     idempotent: true,
     requiredScopes: scopes,
     description:
-      "Explicitly retrieve the file link and attachment for an owned, completed PNG export. Rechecks output availability, authorization, page revision and redaction. Expired or changed output requires an explicit new export; this tool never renders or starts a job.",
-    inputSchema: jobIdInputSchema,
+      "Retrieve an expiring download link for an owned, completed PNG export. By default returns text/metadata only, with no attachment creation or file download. Set includeAttachment=true only when a file attachment is explicitly wanted; the client may require separate approval. Rechecks output availability, authorization, page revision and redaction in both modes. Expired or changed output requires an explicit new export; this tool never renders or starts a job.",
+    inputSchema: jobFileInputSchema,
     invoke: async (args, context) => {
-      const parsed = jobIdSchema.safeParse(args);
+      const parsed = jobFileSchema.safeParse(args);
       if (!parsed.success) throw new McpInvalidParams();
       const assertAccess = () => {
         const owner = principal(context);
@@ -123,8 +139,10 @@ function createJobFileTool(
       await assertFileAvailable(artifact.url);
       assertAccess();
       operations.file(parsed.data.jobId, owner);
+      const content = textContent({ jobId: parsed.data.jobId, ...artifact });
+      if (!parsed.data.includeAttachment) return content;
       return [
-        ...textContent({ jobId: parsed.data.jobId, ...artifact }),
+        ...content,
         {
           type: "resource_link",
           uri: artifact.url,

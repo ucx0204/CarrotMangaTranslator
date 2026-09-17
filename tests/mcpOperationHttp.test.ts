@@ -181,9 +181,18 @@ it("binds receipts to the OAuth grant across refresh, isolates clients and prote
         /mcp-artifacts|resource_link|"url"/,
       );
     }
-    const file = await f.call(refreshed.access_token, "carrot_get_job_file", {
+    const link = await f.call(refreshed.access_token, "carrot_get_job_file", {
       jobId,
     });
+    expect(link.result.isError).toBe(false);
+    expect(link.result.content).toHaveLength(1);
+    expect(link.result.content[0].type).toBe("text");
+    expect(JSON.parse(link.result.content[0].text)).toEqual(link.result.structuredContent);
+    const file = await f.call(refreshed.access_token, "carrot_get_job_file", {
+      jobId,
+      includeAttachment: true,
+    });
+    expect(file.result.structuredContent).toEqual(link.result.structuredContent);
     expect(file.result.isError).toBe(false);
     expect(file.result.content[1]).toMatchObject({
       type: "resource_link",
@@ -193,10 +202,11 @@ it("binds receipts to the OAuth grant across refresh, isolates clients and prote
       jobId,
     });
     expect(denied.result.isError).toBe(true);
-    expect(
-      (await f.call(b.tokens.access_token, "carrot_get_job_file", { jobId }))
-        .result.isError,
-    ).toBe(true);
+    for (const includeAttachment of [false, true])
+      expect(
+        (await f.call(b.tokens.access_token, "carrot_get_job_file", { jobId, includeAttachment }))
+          .result.isError,
+      ).toBe(true);
     const path = new URL(file.result.structuredContent.url).pathname;
     const png = await f.send(path);
     expect(png.status).toBe(200);
