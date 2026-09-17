@@ -225,3 +225,51 @@ it("denies changed-context forward writes and cancellation of an older action", 
     await f.close();
   }
 });
+
+it("rechecks chapter membership inside the page lease before committing format snapshots", async () => {
+  const { mcpBatchMembership } =
+    await import("../src/main/application/mcpPageBatchPolicy");
+  type Editor =
+    import("../src/main/application/mcpPageEditService").McpPageEditService;
+  let commit: Editor["commitFormatBatch"] | undefined;
+  const f = await structureHttpFixture((service) => {
+    commit = service.commitFormatBatch.bind(service);
+    return [];
+  });
+  try {
+    const chapter = await f.library.openChapter("chapter");
+    const membership = mcpBatchMembership(chapter);
+    const page = chapter.pages[0];
+    const changed = JSON.parse(await readFile(f.chapterPath, "utf8"));
+    changed.pages.push({
+      ...structuredClone(changed.pages[0]),
+      id: "later-page",
+    });
+    changed.pageOrder = changed.pages.map((item: { id: string }) => item.id);
+    await writeFile(f.chapterPath, JSON.stringify(changed));
+    const before = await f.snapshot();
+    let committed = false;
+    if (!commit) throw new Error("Fixture did not provide the page editor");
+    await expect(
+      commit(
+        {
+          chapterId: "chapter",
+          pageId: page.id,
+          revision: createPageRevision(page),
+          blocks: [{ ...page.blocks[0], bold: true }],
+        },
+        membership,
+        () => {},
+        () => {
+          committed = true;
+        },
+        (run) => run(),
+      ),
+    ).rejects.toMatchObject({ code: "revision_conflict" });
+    expect(committed).toBe(false);
+    expect(f.notifySaved).not.toHaveBeenCalled();
+    expect(await f.snapshot()).toEqual(before);
+  } finally {
+    await f.close();
+  }
+});
