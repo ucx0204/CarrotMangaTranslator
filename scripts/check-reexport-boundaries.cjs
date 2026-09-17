@@ -52,6 +52,8 @@ const APPROVED_REEXPORT_BOUNDARIES = new Map([
     "src/main/library.ts",
     new Set([
       "./library/libraryContextFacade",
+      // Named atomic context-edit operations; see mcp-context-research-boundaries.
+      "./library/libraryContextEditingFacade",
       "./library/libraryImportFacade",
       "./library/libraryMutationFacade",
       "./library/libraryReadFacade",
