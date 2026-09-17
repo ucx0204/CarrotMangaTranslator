@@ -22,9 +22,13 @@ model, image generation, inpainting, Tavily or automatic formatting runs.
 
 ## Current checkpoint
 
-Implementation and app registration are present. Focused unit and authenticated
-HTTP paths have been exercised; full repository and native checks are still
-pending at this checkpoint. Do not treat this document as a final acceptance.
+Implementation and app registration are complete. Fresh Windows repository checks
+passed all 26 stages with 7,469 tests passed and 11 existing skips. The isolated
+Electron smoke reached its final success marker and exited 0. The updated live
+MCP connection exercised all seven tools, three-page apply/undo/redo, historical
+retries, partial failure, explicit rendering and final data/output restoration.
+See `docs/mcp-text-batch-closeout-20260918.md` for exact evidence and limitations.
+The previous pending-check status is superseded; no implementation was rewritten.
 
 ## Safety and limits
 
