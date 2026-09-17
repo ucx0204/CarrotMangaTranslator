@@ -19,7 +19,10 @@ async function settle(invoke, jobId) {
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
     const result = await call(invoke, "carrot_get_job", { jobId });
-    assert.doesNotMatch(JSON.stringify(result), /mcp-artifacts|resource_link|"url"/);
+    assert.doesNotMatch(
+      JSON.stringify(result),
+      /mcp-artifacts|resource_link|"url"/,
+    );
     if (result.status !== "running") {
       assert.equal(result.status, "completed", JSON.stringify(result));
       return result;
@@ -46,17 +49,31 @@ async function comparePages(invoke, chapterId, jobId, pages, origin) {
   /** @type {Map<string, Buffer>} */
   const files = new Map();
   for (const page of pages) {
-    const file = await call(invoke, "carrot_get_job_file", { jobId, pageId: page.pageId });
+    const file = await call(invoke, "carrot_get_job_file", {
+      jobId,
+      pageId: page.pageId,
+    });
     const bytes = await download(origin, file);
     const rendered = nativeImage.createFromBuffer(bytes);
-    assert.deepEqual(rendered.getSize(), { width: page.width, height: page.height });
+    assert.deepEqual(rendered.getSize(), {
+      width: page.width,
+      height: page.height,
+    });
     const single = await call(invoke, "carrot_export_page_png", {
-      chapterId, pageId: page.pageId, revision: page.revision, requestId: randomUUID(),
+      chapterId,
+      pageId: page.pageId,
+      revision: page.revision,
+      requestId: randomUUID(),
     });
     await settle(invoke, single.jobId);
-    const singleFile = await call(invoke, "carrot_get_job_file", { jobId: single.jobId });
+    const singleFile = await call(invoke, "carrot_get_job_file", {
+      jobId: single.jobId,
+    });
     const singleBytes = await download(origin, singleFile);
-    assert.deepEqual(rendered.toBitmap(), nativeImage.createFromBuffer(singleBytes).toBitmap());
+    assert.deepEqual(
+      rendered.toBitmap(),
+      nativeImage.createFromBuffer(singleBytes).toBitmap(),
+    );
     files.set(page.filename, bytes);
   }
   return files;
@@ -69,52 +86,98 @@ async function checkNativeExportBatch(root, invoke, chapterId, artifacts) {
   const { getAppPaths } = require(join(root, "out/main/appPaths.js"));
   assert.equal(getAppPaths().dataRoot, root, "Never use a real user data root");
   const redaction = require(join(root, "out/main/imageRedactionStore.js"));
-  const { startMcpHttpServer } = require(join(root, "out/main/mcp/mcpHttpServer.js"));
+  const { startMcpHttpServer } = require(
+    join(root, "out/main/mcp/mcpHttpServer.js"),
+  );
   const before = await library.openChapter(chapterId);
-  const originals = await Promise.all(before.pages.map((/** @type {any} */ page) => readFile(page.imagePath)));
+  const originals = await Promise.all(
+    before.pages.map((/** @type {any} */ page) => readFile(page.imagePath)),
+  );
   /** @type {unknown[]} */
   const errors = [];
   const http = await startMcpHttpServer({
-    config: { port: 0, token: randomUUID().repeat(2) }, tools: [], artifacts,
+    config: { port: 0, token: randomUUID().repeat(2) },
+    tools: [],
+    artifacts,
     reportError: (/** @type {unknown} */ error) => errors.push(error),
   });
   const origin = new URL(http.url).origin;
   try {
-    const plan = await call(invoke, "carrot_preflight_pages_export", { chapterId });
+    const plan = await call(invoke, "carrot_preflight_pages_export", {
+      chapterId,
+    });
     assert.equal(plan.pages.length, 2);
     const target = {
-      chapterId, snapshot: plan.snapshot, requestId: randomUUID(),
-      pages: plan.pages.map((/** @type {{pageId: string, revision: string}} */ page) => ({ pageId: page.pageId, revision: page.revision })),
+      chapterId,
+      snapshot: plan.snapshot,
+      requestId: randomUUID(),
+      pages: plan.pages.map(
+        (/** @type {{pageId: string, revision: string}} */ page) => ({
+          pageId: page.pageId,
+          revision: page.revision,
+        }),
+      ),
     };
     const batch = await call(invoke, "carrot_export_pages_png", target);
     const receipt = await settle(invoke, batch.jobId);
     assert.equal(receipt.result.exportPages.completed, 2);
-    assert.equal((await call(invoke, "carrot_export_pages_png", target)).jobId, batch.jobId);
-    await assert.rejects(() => call(invoke, "carrot_get_job_file", { jobId: batch.jobId }));
-    const files = await comparePages(invoke, chapterId, batch.jobId, plan.pages, origin);
-    const zip = await call(invoke, "carrot_create_export_zip", { sourceJobId: batch.jobId, requestId: randomUUID() });
+    assert.equal(
+      (await call(invoke, "carrot_export_pages_png", target)).jobId,
+      batch.jobId,
+    );
+    await assert.rejects(() =>
+      call(invoke, "carrot_get_job_file", { jobId: batch.jobId }),
+    );
+    const files = await comparePages(
+      invoke,
+      chapterId,
+      batch.jobId,
+      plan.pages,
+      origin,
+    );
+    const zip = await call(invoke, "carrot_create_export_zip", {
+      sourceJobId: batch.jobId,
+      requestId: randomUUID(),
+    });
     await settle(invoke, zip.jobId);
-    const file = await call(invoke, "carrot_get_job_file", { jobId: zip.jobId });
+    const file = await call(invoke, "carrot_get_job_file", {
+      jobId: zip.jobId,
+    });
     assert.equal(file.mimeType, "application/zip");
-    const head = await fetch(origin + new URL(file.url).pathname, { method: "HEAD" });
+    const head = await fetch(origin + new URL(file.url).pathname, {
+      method: "HEAD",
+    });
     assert.equal(head.status, 200);
     assert.equal(head.headers.get("content-length"), String(file.bytes));
     assert.equal(await head.text(), "");
     const entries = new AdmZip(await download(origin, file)).getEntries();
-    assert.deepEqual(entries.map((/** @type {any} */ entry) => entry.entryName), [...files.keys(), "manifest.json"]);
+    assert.deepEqual(
+      entries.map((/** @type {any} */ entry) => entry.entryName),
+      [...files.keys(), "manifest.json"],
+    );
     for (const entry of entries) {
       if (entry.entryName === "manifest.json")
-        assert.doesNotMatch(entry.getData().toString(), /imagePath|mcp-artifacts|sourceText|translatedText/);
+        assert.doesNotMatch(
+          entry.getData().toString(),
+          /imagePath|mcp-artifacts|sourceText|translatedText/,
+        );
       else assert.deepEqual(entry.getData(), files.get(entry.entryName));
     }
     assert.deepEqual(await library.openChapter(chapterId), before);
     for (const [index, page] of before.pages.entries())
       assert.deepEqual(await readFile(page.imagePath), originals[index]);
     await redaction.setImageRedactionEnabled(true, root);
-    await assert.rejects(() => call(invoke, "carrot_get_job_file", { jobId: zip.jobId }));
-    assert.equal((await fetch(origin + new URL(file.url).pathname)).status, 404);
+    await assert.rejects(() =>
+      call(invoke, "carrot_get_job_file", { jobId: zip.jobId }),
+    );
+    assert.equal(
+      (await fetch(origin + new URL(file.url).pathname)).status,
+      404,
+    );
     assert.deepEqual(errors, []);
-    console.log("PASS native two-page PNG parity (zero differing pixels), ordered ZIP byte equality, HTTP HEAD/GET and post-export redaction; saved pages and originals unchanged");
+    console.log(
+      "PASS native two-page PNG parity (zero differing pixels), ordered ZIP byte equality, HTTP HEAD/GET and post-export redaction; saved pages and originals unchanged",
+    );
   } finally {
     await http.close();
     await redaction.setImageRedactionEnabled(false, root);

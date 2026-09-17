@@ -224,7 +224,12 @@ async function checkNativePageGoal(root) {
       page.imagePath,
     );
     await checkNativeFormatBatch(root, invoke, batchChapterId);
-    await checkNativeExportBatch(root, invoke, batchChapterId, session.artifacts);
+    await checkNativeExportBatch(
+      root,
+      invoke,
+      batchChapterId,
+      session.artifacts,
+    );
     await checkNativeReadback(invoke, chapter.id, page.id, original, clean);
     await checkNativeReview(root, chapter.id, page.id, 2);
     const started = await invoke("carrot_export_page_png", {
