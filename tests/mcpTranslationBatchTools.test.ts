@@ -4,7 +4,7 @@ import { expect, it, vi } from "vitest";
 import { translationBatchFixture } from "./mcpTranslationBatch.fixture";
 import { createMcpTranslationBatchTools } from "../src/main/mcp/mcpTranslationBatchTools";
 import { createPageRevision } from "../src/shared/pageRevision";
-import { mcpBatchMembership } from "../src/main/application/mcpTranslationBatchPolicy";
+import { mcpBatchMembership } from "../src/main/application/mcpPageBatchPolicy";
 
 it("rejects a generated-text block inside the native commit boundary even with its fresh revision", async () => {
   const f = translationBatchFixture();

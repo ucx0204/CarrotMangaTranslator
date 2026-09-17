@@ -1,4 +1,4 @@
-import { z } from "zod/v4";
+import { translationBatchPolicy } from "../application/mcpTranslationBatchPolicy";
 import {
   McpChapterTextSearchSchema,
   McpTranslationBatchPreviewSchema,
@@ -6,25 +6,31 @@ import {
   McpTranslationBatchActionSchema,
 } from "../../shared/mcpTranslationBatch";
 import { searchMcpChapterText } from "../application/mcpChapterTextSearch";
-import { McpTranslationBatchService } from "../application/mcpTranslationBatchService";
-import { McpEditError } from "../application/mcpEditPolicy";
-import { McpInvalidParams } from "./mcpArguments";
-import { textContent, type McpTool } from "./mcpReadTools";
+import { McpPageBatchService } from "../application/mcpPageBatchService";
+import type { McpTool } from "./mcpReadTools";
+import { createMcpBatchTool } from "./mcpBatchTool";
 
-type Ports = ConstructorParameters<typeof McpTranslationBatchService>[0];
+type Ports = ReturnType<
+  typeof import("./mcpTranslationBatchAdapter").createMcpTranslationBatchPorts
+>;
 const editScopes = ["carrot.read", "carrot.edit", "carrot.process"];
 export function createMcpTranslationBatchTools(
   ports: Ports,
   allowEditing: boolean,
   lifetime?: AbortSignal,
 ): McpTool[] {
-  const service = new McpTranslationBatchService(ports, Date.now, lifetime);
+  const service = new McpPageBatchService(
+    ports,
+    translationBatchPolicy,
+    Date.now,
+    lifetime,
+  );
   const tools = [
-    makeTool({
+    createMcpBatchTool({
       name: "carrot_search_chapter_text",
       schema: McpChapterTextSearchSchema,
       description:
-        "Search or explicitly browse ONE chapter's saved source/translation text. Infer candidates from the user's complaint; do not ask users for block IDs. Literal case-sensitive contains/exact, no regex or model. Read-only snippets include UTF-16 match offsets, nearby dialogue, revision and generated-lettering exclusions. Use the first snapshot for every subsequent offset with identical criteria; changed data requires restarting the search. Snippets are marked when truncated: read full blocks before editing. Search matches are candidates, not permission for blanket replacement.",
+        "Search or explicitly browse ONE chapter's saved source/translation text. Infer candidates from the user's complaint; do not ask users for block IDs. Literal case-sensitive contains/exact, no regex or model. Optional format conditions match stored or app-effective style values with AND semantics; font sizes are nominal, not measured rendered sizes. Use browse for style-only searches. Missing stored properties do not match. Read format views and preserve manual size intent unless the user requested changing it. Read-only snippets include UTF-16 match offsets, nearby dialogue, revision and generated-lettering exclusions. Use the first snapshot for every subsequent offset with identical criteria; changed data requires restarting the search. Snippets are marked when truncated: read full blocks before editing. Search matches are candidates, not permission for blanket replacement.",
       scopes: ["carrot.read"],
       write: false,
       execute: async (args, _owner, guard) => {
@@ -37,7 +43,7 @@ export function createMcpTranslationBatchTools(
   ];
   if (!allowEditing) return tools;
   tools.push(
-    makeTool({
+    createMcpBatchTool({
       name: "carrot_preview_translation_batch",
       schema: McpTranslationBatchPreviewSchema,
       description:
@@ -46,7 +52,7 @@ export function createMcpTranslationBatchTools(
       write: false,
       execute: (args, owner, guard) => service.preview(owner, args, guard),
     }),
-    makeTool({
+    createMcpBatchTool({
       name: "carrot_get_translation_batch",
       schema: McpTranslationBatchGetSchema,
       description:
@@ -58,7 +64,7 @@ export function createMcpTranslationBatchTools(
   );
   for (const direction of ["apply", "undo", "redo"] as const)
     tools.push(
-      makeTool({
+      createMcpBatchTool({
         name: `carrot_${direction}_translation_batch`,
         schema: McpTranslationBatchActionSchema,
         description: `${direction.toUpperCase()} an owned translation batch with a NEW action requestId. Returns accepted metadata; poll carrot_get_translation_batch. Uses the fixed plan, existing page handoff and atomic translation-only save, sequentially with no model. Stops on first conflict/failure/cancellation; committed pages remain recorded. Unprocessed pages need a fresh preview, never forced revision substitution. Undo/redo affect only eligible committed pages, refusing subsequent user edits; no automatic merge. Retry IDENTICAL action IDs only for lost replies; historical receipts never reapply. Verify actual rendering afterwards. No files or automatic formatting.`,
@@ -70,7 +76,7 @@ export function createMcpTranslationBatchTools(
       }),
     );
   tools.push(
-    makeTool({
+    createMcpBatchTool({
       name: "carrot_cancel_translation_batch",
       schema: McpTranslationBatchActionSchema,
       description:
@@ -81,49 +87,4 @@ export function createMcpTranslationBatchTools(
     }),
   );
   return tools;
-}
-function makeTool(options: {
-  name: string;
-  description: string;
-  schema: z.ZodType;
-  scopes: string[];
-  write: boolean;
-  background?: boolean;
-  execute: (
-    args: unknown,
-    owner: string,
-    guard: () => void,
-  ) => Promise<unknown>;
-}): McpTool {
-  return {
-    name: options.name,
-    description: options.description,
-    inputSchema: z.toJSONSchema(options.schema),
-    oauth: true,
-    requiredScopes: options.scopes,
-    readOnly: !options.write,
-    destructive: options.write && !options.name.includes("cancel"),
-    idempotent: true,
-    invoke: async (args, context) => {
-      if (!context?.principalId)
-        throw new McpEditError(
-          "access_denied",
-          "An approved connection is required.",
-        );
-      const guard = () => {
-        if (options.background && context.assertJobAuthorized) {
-          context.assertJobAuthorized(options.scopes);
-        } else {
-          context.assertAuthorized();
-          context.assertScopes?.(options.scopes);
-        }
-      };
-      guard();
-      const parsed = options.schema.safeParse(args);
-      if (!parsed.success) throw new McpInvalidParams();
-      return textContent(
-        await options.execute(parsed.data, context.principalId, guard),
-      );
-    },
-  };
 }

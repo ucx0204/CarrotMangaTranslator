@@ -1,3 +1,4 @@
+import { mcpFormatBatchOutputs } from "../../shared/mcpFormatBatch";
 import { mcpTranslationBatchOutputs } from "../../shared/mcpTranslationBatch";
 import { mcpStructureOutputs } from "../../shared/mcpBlockStructure";
 import { mcpErasureRecoveryOutputs } from "../../shared/mcpErasureRecoverySchemas";
@@ -111,6 +112,7 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
   ...mcpReviewOutputSchemas,
   ...mcpStructureOutputs,
   ...mcpTranslationBatchOutputs,
+  ...mcpFormatBatchOutputs,
   ...mcpContextOutputSchemas,
   ...mcpErasureRecoveryOutputs,
   carrot_update_block_source_rect: McpSourceRectResultSchema,

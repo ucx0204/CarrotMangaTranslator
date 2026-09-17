@@ -1,3 +1,7 @@
+import {
+  matchesMcpFormat,
+  projectMcpFormat,
+} from "../../shared/mcpFormatEditing";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
 import { createPageRevision } from "../../shared/pageRevision";
@@ -54,7 +58,7 @@ export function searchMcpChapterText(
     limit,
     nextOffset: offset + result.length < total ? offset + result.length : null,
     matches: result,
-    note: "Literal case-sensitive stored-text offsets use UTF-16; snippets and occurrence lists may be bounded as marked. Read full blocks before writing. Candidate matches are not automatic edits. No model or file was used.",
+    note: "Literal case-sensitive stored-text offsets use UTF-16; snippets and occurrence lists may be bounded as marked. Read full blocks before writing. Candidate matches are not automatic edits. Format effective values reuse the app conditional editor, not measured final render sizes. Missing stored values never match. All format conditions use AND. No model or file was used.",
   };
 }
 
@@ -195,6 +199,7 @@ function collectPage(
   });
   const revision = createPageRevision(page);
   for (const [index, block] of blocks.entries()) {
+    if (!matchesMcpFormat(page, block, request.format)) continue;
     const hit = blockHit(block, request);
     if (!hit) continue;
     if (hit.hasGeneratedLettering && request.generated === "exclude") {
@@ -205,6 +210,7 @@ function collectPage(
     if (scan.total >= request.offset && scan.matches.length < request.limit)
       scan.matches.push({
         ...hit,
+        format: projectMcpFormat(page, block),
         pageId: page.id,
         pageNumber: pageIndex + 1,
         revision,

@@ -2,31 +2,31 @@ import { randomUUID } from "node:crypto";
 import { createPageRevision } from "../../shared/pageRevision";
 import { mcpContextRevision } from "../../shared/mcpContextEditing";
 import {
-  McpTranslationBatchPreviewSchema,
   McpTranslationBatchGetSchema,
   McpTranslationBatchActionSchema,
-  type McpTranslationBatchPreview,
   type McpTranslationBatchDirection,
   type McpTranslationBatchReceipt,
 } from "../../shared/mcpTranslationBatch";
+import type {
+  BatchChange,
+  BatchTarget,
+  BatchPlan,
+  BatchPorts,
+  BatchPolicy,
+} from "./mcpPageBatchTypes";
 import {
-  planMcpTranslationBatch,
-  type BatchTextPlan,
-} from "./mcpTranslationBatchPolicy";
-import {
-  runMcpTranslationBatch,
-  type BatchTextCommit,
+  runMcpPageBatch,
   type BatchTextRun,
 } from "./mcpTranslationBatchRunner";
 import type { McpContextSnapshot } from "./mcpContextEditPolicy";
 import { McpEditError } from "./mcpEditPolicy";
 
-type Entry = {
+type Entry<I extends BatchTarget, C extends BatchChange> = {
   id: string;
   owner: string;
-  input: McpTranslationBatchPreview;
+  input: I;
   signature: string;
-  plan: BatchTextPlan;
+  plan: BatchPlan<C>;
   bytes: number;
   expires: number;
   busy: boolean;
@@ -37,20 +37,21 @@ type Entry = {
     { signature: string; value: McpTranslationBatchReceipt }
   >;
 };
-type Ports = {
-  read: (chapterId: string) => Promise<McpContextSnapshot>;
-  commit: BatchTextCommit;
-  reportError: (error: unknown) => void;
-};
 const TTL = 30 * 60_000;
 /** Memory-only review/history. Writes reuse the app page service; no model worker,
  * secret, file, or second library store is introduced. */
-export class McpTranslationBatchService {
-  private readonly entries = new Map<string, Entry>();
+export class McpPageBatchService<
+  I extends BatchTarget,
+  C extends BatchChange,
+  R,
+  V,
+> {
+  private readonly entries = new Map<string, Entry<I, C>>();
   private readonly tasks = new Set<Promise<void>>();
   private stopped = false;
   constructor(
-    private readonly ports: Ports,
+    private readonly ports: BatchPorts<R>,
+    private readonly policy: BatchPolicy<I, C, R, V>,
     private readonly now = Date.now,
     lifetime?: AbortSignal,
   ) {
@@ -89,11 +90,7 @@ export class McpTranslationBatchService {
       );
     return entry;
   }
-  private priorPreview(
-    owner: string,
-    input: McpTranslationBatchPreview,
-    signature: string,
-  ) {
+  private priorPreview(owner: string, input: I, signature: string) {
     const prior = [...this.entries.values()].find(
       (entry) =>
         entry.owner === owner && entry.input.requestId === input.requestId,
@@ -107,14 +104,14 @@ export class McpTranslationBatchService {
   }
   async preview(owner: string, value: unknown, guard: () => void) {
     this.check(owner, guard);
-    const input = McpTranslationBatchPreviewSchema.parse(value);
+    const input = this.policy.parse(value);
     this.prune();
     const signature = JSON.stringify(input);
     const saved = await this.ports.read(input.chapterId);
     this.check(owner, guard);
     const prior = this.priorPreview(owner, input, signature);
     if (prior) return this.summary(prior, saved);
-    const plan = planMcpTranslationBatch(saved, input);
+    const plan = this.policy.plan(saved, input);
     const bytes =
       Buffer.byteLength(JSON.stringify(plan)) + Buffer.byteLength(signature);
     const occupied = [...this.entries.values()].reduce(
@@ -130,7 +127,7 @@ export class McpTranslationBatchService {
         "editor_busy",
         "Bounded session history is full or this plan is too large. Split the explicit target list; nothing was saved.",
       );
-    const entry: Entry = {
+    const entry: Entry<I, C> = {
       id: randomUUID(),
       owner,
       input,
@@ -160,11 +157,13 @@ export class McpTranslationBatchService {
           ? input.offset + input.limit
           : null,
       changes: structuredClone(
-        changes.slice(input.offset, input.offset + input.limit),
+        changes
+          .slice(input.offset, input.offset + input.limit)
+          .map(this.policy.project),
       ),
     };
   }
-  private summary(entry: Entry, saved?: McpContextSnapshot) {
+  private summary(entry: Entry<I, C>, saved?: McpContextSnapshot) {
     const changed = saved
       ? new Set(
           entry.plan.pages
@@ -203,7 +202,7 @@ export class McpTranslationBatchService {
         ...(contextChanged ? ["saved_context_changed"] : []),
         ...[...changed].map((id) => `page_changed:${id}`),
         ...(changes.some((change) => change.excludedReason)
-          ? ["generated_lettering_excluded"]
+          ? [this.policy.exclusionWarning]
           : []),
       ],
     };
@@ -264,7 +263,7 @@ export class McpTranslationBatchService {
       direction,
       status: "accepted",
       historical: false,
-      note: "Accepted, NOT completed. Poll carrot_get_translation_batch. Cancellation does not roll back committed pages; use explicit undo.",
+      note: `Accepted, NOT completed. Poll ${this.policy.inspectTool}. Cancellation does not roll back committed pages; use explicit undo.`,
     };
     entry.receipts.set(input.requestId, { signature, value: receipt });
     entry.run = run;
@@ -277,9 +276,13 @@ export class McpTranslationBatchService {
     });
     return { ...receipt };
   }
-  private async execute(entry: Entry, run: BatchTextRun, guard: () => void) {
+  private async execute(
+    entry: Entry<I, C>,
+    run: BatchTextRun,
+    guard: () => void,
+  ) {
     try {
-      await runMcpTranslationBatch(
+      await runMcpPageBatch(
         entry.plan,
         entry.input,
         run,
@@ -296,6 +299,7 @@ export class McpTranslationBatchService {
         () => {
           entry.expires = this.now() + TTL;
         },
+        this.policy.request,
       );
       if (run.failure) this.ports.reportError(run.failure);
     } catch (error) {
@@ -322,8 +326,8 @@ export class McpTranslationBatchService {
   }
 }
 
-function batchAvailability(
-  entry: Entry,
+function batchAvailability<I extends BatchTarget, C extends BatchChange>(
+  entry: Entry<I, C>,
   changed: Set<string>,
   contextChanged: boolean,
 ) {

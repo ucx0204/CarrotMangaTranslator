@@ -1,22 +1,50 @@
 import { readWorkContextForEdit } from "../library";
 import { retainLibrarySnapshot, withLibraryRead } from "../library/lock";
 import { mcpContextRevision } from "../../shared/mcpContextEditing";
+import type { McpTranslationPatch } from "../../shared/mcpEditingTypes";
 import { logError } from "../logger";
 import { McpEditError } from "../application/mcpEditPolicy";
 import type { McpPageEditService } from "../application/mcpPageEditService";
-import type { BatchTextCommit } from "../application/mcpTranslationBatchRunner";
+import type { FormatSnapshotRequest } from "../application/mcpFormatBatchPolicy";
+import type { BatchCommit, BatchPorts } from "../application/mcpPageBatchTypes";
 
-/** The inner scope runs after page handoff. It never waits for context while
- * owning the page; a competing writer fails this page rather than deadlocking.
- * retainLibrarySnapshot preserves the current page activity owner. */
+type Scope = <T>(run: () => Promise<T>) => Promise<T>;
 export function createMcpTranslationBatchPorts(edits: McpPageEditService) {
-  const commit: BatchTextCommit = async (
+  return createBatchPorts<McpTranslationPatch>(
+    (request, membership, guard, onCommitted, scope) =>
+      edits.commitTranslationBatch(
+        request,
+        membership,
+        guard,
+        onCommitted,
+        scope,
+      ),
+  );
+}
+export function createMcpFormatBatchPorts(edits: McpPageEditService) {
+  return createBatchPorts<FormatSnapshotRequest>(
+    (request, membership, guard, onCommitted, scope) =>
+      edits.commitFormatBatch(request, membership, guard, onCommitted, scope),
+  );
+}
+/** Context is acquired after page handoff. Existing nonwaiting read lease preserves
+ * the page owner; shared here to keep format/text deadlock and authorization rules identical. */
+function createBatchPorts<R extends { chapterId: string }>(
+  save: (
+    request: R,
+    membership: string,
+    guard: () => void,
+    onCommitted: Parameters<BatchCommit<R>>[3],
+    scope: Scope,
+  ) => Promise<void>,
+): BatchPorts<R> {
+  const commit: BatchCommit<R> = async (
     request,
     expected,
     guard,
     onCommitted,
   ) => {
-    await edits.commitTranslationBatch(
+    await save(
       request,
       expected.membership,
       guard,
@@ -51,7 +79,6 @@ export function createMcpTranslationBatchPorts(edits: McpPageEditService) {
   return {
     read: readWorkContextForEdit,
     commit,
-    reportError: (error: unknown) =>
-      logError("MCP translation batch stopped", error),
+    reportError: (error) => logError("MCP page batch stopped", error),
   };
 }

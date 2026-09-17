@@ -1,10 +1,11 @@
+import { translationBatchPolicy } from "../src/main/application/mcpTranslationBatchPolicy";
 import { randomUUID } from "node:crypto";
 import { setImmediate as tick } from "node:timers/promises";
 import { vi } from "vitest";
 import { editingChapter } from "./mcpEditing.fixture";
 import type { McpContextSnapshot } from "../src/main/application/mcpContextEditPolicy";
 import { McpPageEditService } from "../src/main/application/mcpPageEditService";
-import { McpTranslationBatchService } from "../src/main/application/mcpTranslationBatchService";
+import { McpPageBatchService } from "../src/main/application/mcpPageBatchService";
 import { McpEditError } from "../src/main/application/mcpEditPolicy";
 import { createPageRevision } from "../src/shared/pageRevision";
 import { mcpContextRevision } from "../src/shared/mcpContextEditing";
@@ -97,8 +98,9 @@ export function translationBatchFixture() {
       errors.push(error);
     },
   };
-  const service = new McpTranslationBatchService(
+  const service = new McpPageBatchService(
     ports,
+    translationBatchPolicy,
     () => time,
     lifetime.signal,
   );

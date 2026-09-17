@@ -1,4 +1,8 @@
-import { mcpBatchMembership } from "./mcpTranslationBatchPolicy";
+import {
+  applyMcpFormatSnapshots,
+  type FormatSnapshotRequest,
+} from "./mcpFormatBatchPolicy";
+import { mcpBatchMembership } from "./mcpPageBatchPolicy";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
 import type {
@@ -243,6 +247,36 @@ export class McpPageEditService {
           blocks: patch.blocks,
           blockOrder: page.blockOrder,
           changed: patch.previous.length > 0,
+          result: null,
+        };
+      },
+      onCommitted,
+      scope,
+    );
+  }
+  /** Restores the exact optional typography state, not merely visible scalar defaults. */
+  async commitFormatBatch(
+    request: FormatSnapshotRequest,
+    membership: string,
+    authorize: () => void,
+    onCommitted: (page: MangaPage) => void,
+    scope: <T>(run: () => Promise<T>) => Promise<T>,
+  ): Promise<void> {
+    await this.mutate(
+      request,
+      authorize,
+      (chapter, page) => {
+        assertCurrentRevision(page, request.revision);
+        if (mcpBatchMembership(chapter) !== membership)
+          throw new McpEditError(
+            "revision_conflict",
+            "Chapter membership/order changed during batch editing.",
+          );
+        const blocks = applyMcpFormatSnapshots(page, request);
+        return {
+          blocks,
+          blockOrder: page.blockOrder,
+          changed: hashStableValue(blocks) !== hashStableValue(page.blocks),
           result: null,
         };
       },

@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { McpFormatFilterSchema, McpFormatViewSchema } from "./mcpFormatEditing";
 import { McpSourceRectPatchSchema } from "./mcpSourceRect";
 
 const { chapterId, pageId, blockId, revision } = McpSourceRectPatchSchema.shape;
@@ -22,6 +23,7 @@ export const McpChapterTextSearchSchema = z
       .enum(["all", "draft", "needs_review", "reviewed"])
       .default("all"),
     generated: z.enum(["exclude", "include", "only"]).default("exclude"),
+    format: McpFormatFilterSchema.optional(),
     snapshot: fingerprint.optional(),
     ...window,
   })
@@ -114,6 +116,7 @@ const hit = z
     reviewStatus: z.enum(["draft", "needs_review", "reviewed"]),
     hasGeneratedLettering: z.boolean(),
     editable: z.boolean(),
+    format: McpFormatViewSchema,
     previous: neighbor,
     next: neighbor,
   })

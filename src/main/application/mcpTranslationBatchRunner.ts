@@ -1,8 +1,13 @@
 import { createPageRevision } from "../../shared/pageRevision";
-import type { MangaPage } from "../../shared/libraryTypes";
+import type {
+  BatchChange,
+  BatchPlan,
+  BatchTarget,
+  BatchPolicy,
+  BatchCommit,
+} from "./mcpPageBatchTypes";
 import type { McpTranslationPatch } from "../../shared/mcpEditingTypes";
 import type { McpTranslationBatchDirection } from "../../shared/mcpTranslationBatch";
-import type { BatchTextPlan } from "./mcpTranslationBatchPolicy";
 import { McpEditError } from "./mcpEditPolicy";
 
 export type BatchTextRun = {
@@ -12,26 +17,22 @@ export type BatchTextRun = {
   status: "running" | "completed" | "partial" | "failed" | "cancelled";
   failure?: unknown;
 };
-export type BatchTextCommit = (
-  request: McpTranslationPatch,
-  expected: {
-    workId: string;
-    membership: string;
-    contextRevision: string | null;
-  },
-  guard: () => void,
-  onCommitted: (page: MangaPage) => void,
-) => Promise<void>;
+export type BatchTextCommit = BatchCommit<McpTranslationPatch>;
 
 /** A sequence of ordinary page edits, NOT a model queue or a chapter-wide lock.
  * Each committed page is acknowledged before renderer notifications can fail. */
-export async function runMcpTranslationBatch(
-  plan: BatchTextPlan,
-  target: { chapterId: string; contextRevision: string },
+export async function runMcpPageBatch<
+  I extends BatchTarget,
+  C extends BatchChange,
+  R,
+>(
+  plan: BatchPlan<C>,
+  target: I,
   run: BatchTextRun,
-  commit: BatchTextCommit,
+  commit: BatchCommit<R>,
   guard: () => void,
   touch: () => void,
+  makeRequest: BatchPolicy<I, C, R, unknown>["request"],
 ): Promise<void> {
   const required = { apply: "pending", undo: "applied", redo: "undone" }[
     run.direction
@@ -45,22 +46,8 @@ export async function runMcpTranslationBatch(
   for (const page of pages) {
     try {
       guard();
-      const edits = page.changes
-        .filter((change) => change.changed)
-        .map((change) => ({
-          blockId: change.blockId,
-          translatedText:
-            run.direction === "undo"
-              ? change.previousText
-              : change.proposedText,
-        }));
       await commit(
-        {
-          chapterId: target.chapterId,
-          pageId: page.pageId,
-          revision: page.expectedRevision as McpTranslationPatch["revision"],
-          edits,
-        },
+        makeRequest(page, target, run.direction),
         {
           workId: plan.workId,
           membership: plan.membership,

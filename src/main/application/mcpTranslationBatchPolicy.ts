@@ -1,7 +1,11 @@
+import type { BatchPage, BatchPlan, BatchPolicy } from "./mcpPageBatchTypes";
+import type { McpTranslationPatch } from "../../shared/mcpEditingTypes";
 import type { ChapterSnapshot } from "../../shared/libraryTypes";
-import { createPageRevision } from "../../shared/pageRevision";
-import { hashStableValue } from "../../shared/blockFingerprint";
-import { mcpContextRevision } from "../../shared/mcpContextEditing";
+import {
+  mcpBatchMembership,
+  requireBatchPage,
+  validateBatchTargets,
+} from "./mcpPageBatchPolicy";
 import {
   McpTranslationBatchPreviewSchema,
   type McpTranslationBatchPreview,
@@ -19,28 +23,8 @@ type BatchTextChange = {
   excludedReason: string | null;
   changed: boolean;
 };
-type BatchTextPage = {
-  pageId: string;
-  expectedRevision: string;
-  state: "pending" | "applied" | "undone" | "unchanged" | "excluded";
-  result: "not_started" | "saved" | "failed" | "cancelled";
-  errorCode: string | null;
-  changedBlocks: number;
-  changes: BatchTextChange[];
-};
-export type BatchTextPlan = {
-  workId: string;
-  membership: string;
-  pages: BatchTextPage[];
-};
-export function mcpBatchMembership(chapter: ChapterSnapshot) {
-  return hashStableValue([
-    chapter.id,
-    chapter.workId,
-    chapter.pageOrder,
-    chapter.pages.map((page) => page.id),
-  ]);
-}
+type BatchTextPage = BatchPage<BatchTextChange>;
+export type BatchTextPlan = BatchPlan<BatchTextChange>;
 /** Never accepts whole blocks or a replacement chapter from the AI. */
 export function planMcpTranslationBatch(
   saved: McpContextSnapshot,
@@ -48,22 +32,7 @@ export function planMcpTranslationBatch(
 ): BatchTextPlan {
   const request = McpTranslationBatchPreviewSchema.parse(input);
   const chapter = saved.chapter;
-  if (chapter.id !== request.chapterId || chapter.workId !== saved.workId)
-    throw new McpEditError("not_found", "Chapter membership changed.");
-  if (mcpContextRevision(saved) !== request.contextRevision)
-    throw new McpEditError(
-      "revision_conflict",
-      "Read the current work context before preparing edits.",
-    );
-  if (
-    new Set(request.pages.map((page) => page.pageId)).size !==
-      request.pages.length ||
-    request.pages.reduce((sum, page) => sum + page.edits.length, 0) > 1000
-  )
-    throw new McpEditError(
-      "invalid_edit",
-      "Use distinct pages and at most 1000 explicit block changes.",
-    );
+  validateBatchTargets(saved, request);
   const pages = request.pages.map((target) =>
     planPage(chapter, target, request.allowEmpty),
   );
@@ -84,28 +53,8 @@ function planPage(
   target: McpTranslationBatchPreview["pages"][number],
   allowEmpty: boolean,
 ): BatchTextPage {
-  const matches = chapter.pages.filter((page) => page.id === target.pageId);
-  if (matches.length !== 1)
-    throw new McpEditError(
-      "not_found",
-      "A unique page in this chapter is required.",
-    );
-  const page = matches[0];
-  if (createPageRevision(page) !== target.revision)
-    throw new McpEditError(
-      "revision_conflict",
-      "A proposed page changed; read it again.",
-    );
+  const page = requireBatchPage(chapter, target);
   const blocks = new Map(page.blocks.map((block) => [block.id, block]));
-  if (
-    blocks.size !== page.blocks.length ||
-    new Set(target.edits.map((edit) => edit.blockId)).size !==
-      target.edits.length
-  )
-    throw new McpEditError(
-      "invalid_edit",
-      "Use unique stored and requested block IDs.",
-    );
   const changes = target.edits.map((edit): BatchTextChange => {
     const block = blocks.get(edit.blockId);
     if (!block)
@@ -156,3 +105,29 @@ function planPage(
     errorCode: null,
   };
 }
+
+/** Calculation and request mapping differ; lifecycle, cancellation and receipts are shared. */
+export const translationBatchPolicy: BatchPolicy<
+  McpTranslationBatchPreview,
+  BatchTextChange,
+  McpTranslationPatch,
+  BatchTextChange
+> = {
+  parse: (value) => McpTranslationBatchPreviewSchema.parse(value),
+  plan: planMcpTranslationBatch,
+  request: (page, input, direction) => ({
+    chapterId: input.chapterId,
+    pageId: page.pageId,
+    revision: page.expectedRevision as McpTranslationPatch["revision"],
+    edits: page.changes
+      .filter((change) => change.changed)
+      .map((change) => ({
+        blockId: change.blockId,
+        translatedText:
+          direction === "undo" ? change.previousText : change.proposedText,
+      })),
+  }),
+  project: (change) => structuredClone(change),
+  inspectTool: "carrot_get_translation_batch",
+  exclusionWarning: "generated_lettering_excluded",
+};
