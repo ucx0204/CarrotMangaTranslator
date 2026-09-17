@@ -7,6 +7,7 @@ job `3b0634fd-67fc-4e3b-ac8e-2b716b10c89d`, despite the app's Allow all actions 
 The existing file tool was already read-only but always returned a resource_link.
 
 The proposed alternative deliberately does NOT create a ChatGPT attachment:
+
 - carrot_get_job_file now defaults to text/metadata containing the expiring link.
 - includeAttachment=true explicitly requests the existing resource_link response.
 - Both modes retain scope, ownership, availability, revision and redaction checks.
