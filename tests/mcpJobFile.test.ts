@@ -123,13 +123,18 @@ it.each([undefined, false, true])(
           mimeType: "image/png",
           size: metadata.bytes,
         });
-      else expect(result.content.every((item) => item.type === "text")).toBe(true);
+      else
+        expect(result.content.every((item) => item.type === "text")).toBe(true);
       expect(await f.call("carrot_get_job_file", args)).toEqual(result);
       expect(f.render).toHaveBeenCalledOnce();
       const status = await f.call("carrot_get_job", { jobId: f.jobId });
       expect(status.content).toHaveLength(1);
-      expect(JSON.stringify(status)).not.toMatch(/resource_link|mcp-artifacts|"url"/);
-      await expect(f.call("carrot_get_job", { jobId: f.jobId, includeAttachment: true })).rejects.toThrow();
+      expect(JSON.stringify(status)).not.toMatch(
+        /resource_link|mcp-artifacts|"url"/,
+      );
+      await expect(
+        f.call("carrot_get_job", { jobId: f.jobId, includeAttachment: true }),
+      ).rejects.toThrow();
     } finally {
       await f.close();
     }
