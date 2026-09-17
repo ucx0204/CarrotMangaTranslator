@@ -1,3 +1,4 @@
+import { createMcpExportBatchAdapter } from "./mcpExportBatchAdapter";
 import { createMcpContextSession } from "./mcpContextSession";
 import { createMcpBlockTranslationExecutor } from "./mcpBlockTranslationSession";
 import { createMcpBlockOcrExecutor } from "./mcpBlockOcrSession";
@@ -47,17 +48,14 @@ export function createMcpPageOperationSession(options: {
     : undefined;
   const contextSession = createMcpContextSession(app, operations, preferences);
   const artifacts = new McpArtifactStore(options.origin);
-  const exporter = new McpPageExportService({
-    openChapter,
-    render: renderMcpPagePng,
-    store: artifacts.put.bind(artifacts),
-    assertImageAccess: async () => {
-      if ((await readImageRedactionState()).enabled)
-        throw new McpEditError(
-          "access_denied",
-          "Rendered image transfer is blocked by redaction review.",
-        );
-    },
+  const exporter = createPageExporter(artifacts);
+  const exports = createMcpExportBatchAdapter({
+    app,
+    exporter,
+    operations,
+    artifacts,
+    allowImages: preferences.allowImages,
+    reportError: options.reportError,
   });
   const reader = new McpReadingService({
     openChapter,
@@ -68,9 +66,7 @@ export function createMcpPageOperationSession(options: {
       (await getAppSettings(app.appPaths)).blockFormatDefaults,
   });
   const executors: Parameters<typeof createMcpOperationTools>[1] = {
-    exportPng: preferences.allowImages
-      ? createExportExecutor(app, exporter)
-      : undefined,
+    exportPng: preferences.allowImages ? exports.exportPage : undefined,
     ocr: preferences.allowProcessing
       ? createOcrExecutor(app, reader)
       : undefined,
@@ -86,6 +82,7 @@ export function createMcpPageOperationSession(options: {
   };
   return {
     tools: [
+      // Batch tools remain unregistered until their public schemas and file routes are completed.
       ...contextSession.tools,
       ...(recovery?.tools ?? []),
       ...createMcpOperationTools(
@@ -156,16 +153,17 @@ async function closePageSession(
   await artifacts.close();
 }
 
-function createExportExecutor(
-  app: InpaintingJobContext,
-  exporter: McpPageExportService,
-): NonNullable<Parameters<typeof createMcpOperationTools>[1]["exportPng"]> {
-  return (target, context) =>
-    runMcpAppJob(
-      app,
-      context,
-      "page-export",
-      (job) => exporter.export(target, job),
-      { resources: [], page: { ...target, readChapter: openChapter } },
-    );
+function createPageExporter(artifacts: McpArtifactStore) {
+  return new McpPageExportService({
+    openChapter,
+    render: renderMcpPagePng,
+    store: artifacts.put.bind(artifacts),
+    assertImageAccess: async () => {
+      if ((await readImageRedactionState()).enabled)
+        throw new McpEditError(
+          "access_denied",
+          "Rendered image transfer is blocked by redaction review.",
+        );
+    },
+  });
 }

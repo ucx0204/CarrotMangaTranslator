@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { mcpOperationFile, mcpExportSource } from "./mcpOperationOutputs";
 import { hashStableValue } from "../../shared/blockFingerprint";
 import { McpEditError } from "./mcpEditPolicy";
 import {
@@ -74,21 +75,13 @@ export class McpOperationService {
   status(id: string, owner: string) {
     return this.project(this.get(id, owner));
   }
-  file(id: string, owner: string) {
+  file(id: string, owner: string, pageId?: string) {
     this.assertAvailable();
-    const entry = this.get(id, owner);
-    if (
-      !entry.settled ||
-      entry.status !== "completed" ||
-      entry.kind !== "exportPng" ||
-      entry.result?.kind !== "rendered-page-png" ||
-      typeof entry.result.url !== "string"
-    )
-      throw new McpEditError(
-        "not_found",
-        "Completed PNG output is unavailable. Explicitly export the current page again.",
-      );
-    return structuredClone(entry.result);
+    return mcpOperationFile(this.get(id, owner), pageId);
+  }
+  exportSource(id: string, owner: string) {
+    this.assertAvailable();
+    return mcpExportSource(this.get(id, owner));
   }
   list(owner: string, offset: number, limit: number) {
     this.prune();
@@ -115,10 +108,10 @@ export class McpOperationService {
         "invalid_edit",
         "Only failed, cancelled or interrupted jobs can be retried.",
       );
-    if (entry.kind === "contextResearch")
+    if (["contextResearch", "exportPages", "exportZip"].includes(entry.kind))
       throw new McpEditError(
         "invalid_edit",
-        "Read current context and issue a new explicit research request; page-job retry does not apply to research.",
+        "Read current context or export outcomes and issue a new explicit request; single-page retry does not apply to research or export batches.",
       );
     const target = mcpJobTargetSchema.parse(entry.parameters);
     if (target.revision !== revision)
@@ -357,7 +350,12 @@ export class McpOperationService {
 function restoreEntry(record: McpStoredJob, now: number): RecordEntry {
   const interrupted = record.status === "running";
   const result = record.result ? { ...record.result } : undefined;
-  if (result?.kind === "rendered-page-png")
+  if (
+    result &&
+    ["rendered-page-png", "rendered-pages-png", "rendered-pages-zip"].includes(
+      String(result.kind),
+    )
+  )
     Object.assign(result, { artifactExpired: true });
   return {
     ...record,

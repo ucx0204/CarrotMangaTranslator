@@ -24,9 +24,15 @@ type Ports = {
 /** Export reads an immutable page version and never starts OCR, erasure or translation. */
 export class McpPageExportService {
   constructor(private readonly ports: Ports) {}
-  async export(target: Target, context: McpOperationContext) {
+  async export(
+    target: Target,
+    context: McpOperationContext,
+    retainedAccess?: () => Promise<void>,
+  ) {
+    const authorize =
+      retainedAccess ?? (async () => context.assertAuthorized());
     const assertAccess = async () => {
-      context.assertAuthorized();
+      await authorize();
       await this.ports.assertImageAccess();
       const page = await this.load(target);
       if (createPageRevision(page) !== target.revision)
@@ -34,14 +40,17 @@ export class McpPageExportService {
           "revision_conflict",
           "Page changed. Export its current revision instead.",
         );
-      context.assertAuthorized();
+      await authorize();
     };
+    context.assertAuthorized();
     await assertAccess();
     context.progress({ phase: "rendering" });
     const page = await this.load(target);
     const bytes = await this.ports.render(page, context.signal);
+    context.assertAuthorized();
     await assertAccess();
     const artifact = await this.ports.store(bytes, assertAccess);
+    context.assertAuthorized();
     context.progress({ phase: "done", completed: 1, total: 1 });
     return {
       ...target,

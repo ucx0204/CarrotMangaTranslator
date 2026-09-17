@@ -1,5 +1,10 @@
 import { z } from "zod/v4";
 import {
+  McpExportPagesTargetSchema,
+  McpExportZipTargetSchema,
+  McpExportPagesMetadataSchema,
+} from "../../shared/mcpExportBatch";
+import {
   McpContextResearchTargetSchema,
   McpContextResearchResultSchema,
 } from "../../shared/mcpContextEditing";
@@ -26,9 +31,15 @@ export type McpStoredJobTarget = z.infer<typeof mcpJobTargetSchema>;
 export const mcpPersistedTargetSchema = z.union([
   mcpJobTargetSchema,
   McpContextResearchTargetSchema,
+  McpExportPagesTargetSchema,
+  McpExportZipTargetSchema,
 ]);
 
 export const mcpJobResultMetadataSchema = z.object({
+  exportPages: McpExportPagesMetadataSchema.optional(),
+  sourceJobId: z.string().uuid().optional(),
+  partialOutput: z.boolean().optional(),
+  pageCount: count.optional(),
   status: z.string().max(40).optional(),
   revision: z.string().max(64).optional(),
   chapterId: id.optional(),
@@ -74,6 +85,8 @@ const jobSchema = z
       "blockTranslation",
       "erase",
       "exportPng",
+      "exportPages",
+      "exportZip",
       "contextResearch",
     ]),
     parameters: mcpPersistedTargetSchema,
@@ -167,6 +180,10 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
 }
 
 function validJobTarget(record: McpStoredJob): boolean {
+  if (record.kind === "exportPages")
+    return McpExportPagesTargetSchema.safeParse(record.parameters).success;
+  if (record.kind === "exportZip")
+    return McpExportZipTargetSchema.safeParse(record.parameters).success;
   if (record.kind === "contextResearch")
     return McpContextResearchTargetSchema.safeParse(record.parameters).success;
   const parsed = mcpJobTargetSchema.safeParse(record.parameters);
