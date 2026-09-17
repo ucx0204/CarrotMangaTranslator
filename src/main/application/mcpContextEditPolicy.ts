@@ -185,7 +185,16 @@ function contextEntryId(
   options: McpContextPlanOptions,
 ): string {
   if (existing) return existing;
-  const id = (options.entryIds[changeId] ??= randomUUID());
+  // Change IDs are data, including constructor/toString/__proto__. Never read
+  // an inherited value or invoke the legacy __proto__ setter as an ID cache.
+  if (!Object.hasOwn(options.entryIds, changeId))
+    Object.defineProperty(options.entryIds, changeId, {
+      value: randomUUID(),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  const id = options.entryIds[changeId];
   if (entries.some((entry) => entry.id === id))
     throw new McpEditError(
       "invalid_edit",
