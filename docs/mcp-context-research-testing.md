@@ -4,14 +4,14 @@ This increment edits one existing work selected by chapter ID. Context editing a
 
 ## Tools and permissions
 
-| Tool | Scope | Effect |
-| --- | --- | --- |
-| `carrot_get_work_context` | read | Read saved sections and the current context revision. |
-| `carrot_preview_context_edit` | read | Prepare explicit partial changes; no library writes or model calls. |
-| `carrot_preview_context_research` | read | Review externally researched glossary/character changes and supplied references; does not browse. |
-| `carrot_get_context_proposal` | read | Inspect private paginated before/after changes and evidence. |
-| `carrot_apply_context_proposal` | read + edit | Apply only selected change IDs through the normal context write transaction. |
-| `carrot_run_context_research` | read + process | Run the app's Tavily or Codex-web research pipeline and return a review proposal, never automatically apply it. |
+| Tool                              | Scope          | Effect                                                                                                          |
+| --------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
+| `carrot_get_work_context`         | read           | Read saved sections and the current context revision.                                                           |
+| `carrot_preview_context_edit`     | read           | Prepare explicit partial changes; no library writes or model calls.                                             |
+| `carrot_preview_context_research` | read           | Review externally researched glossary/character changes and supplied references; does not browse.               |
+| `carrot_get_context_proposal`     | read           | Inspect private paginated before/after changes and evidence.                                                    |
+| `carrot_apply_context_proposal`   | read + edit    | Apply only selected change IDs through the normal context write transaction.                                    |
+| `carrot_run_context_research`     | read + process | Run the app's Tavily or Codex-web research pipeline and return a review proposal, never automatically apply it. |
 
 Editing permission must be enabled to expose application. Processing permission must be enabled to expose app research. Preview records belong to the approved connection, expire after 30 minutes, and disappear when MCP restarts. Ordinary responses contain text/structured metadata, not automatic image or file attachments.
 
