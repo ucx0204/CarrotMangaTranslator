@@ -1,6 +1,6 @@
 # Single-block translation proposals
 
-Status: implemented and connected in source; production-provider/live-connector acceptance is still pending. See `mcp-block-translation-checkpoint-20260917.md` for measured checks and remaining integration work.
+Status: implemented, connected, and tested through the actual connector with the user's configured local Gemma. See `mcp-block-translation-live-acceptance-20260917.md` for the proposal/apply/restore evidence. Five architecture budgets, full coverage verification and deployment of the latest safeguards remain open; this is not an all-gates-passing release. `mcp-block-translation-checkpoint-20260917.md` identifies the continuation point.
 
 ## Scope
 
@@ -32,6 +32,8 @@ If the user already requested generation and application, these are still separa
 
 `saved` selects bounded saved work rules, glossary and relevant character information, plus earlier-page memory using the existing app formatter and budget. It does not research the web or create new memory. `none` sends only the selected source string and required translation instructions/identifiers. An external provider receives that text and permitted context and may charge for the request.
 
+Both modes check the source/requested-output budget before starting a provider. The budget is the existing app estimate, not an exact provider tokenizer. Invalid configured limits or a request that cannot reserve its output budget are rejected rather than silently changing settings. Sampling JSON may contain only supported finite scalar values.
+
 The proposal records the actual language pair, provider/model label, execution type, context mode and context revision. Context is rechecked before returning the proposal. Generic translation editing checks the page revision; it does not atomically validate the context revision at application time. Reinspect relevant saved context before applying an old proposal. A context warning is not an automatic retry.
 
 Proposal text remains in the in-memory owned job result. The durable job journal excludes source text, prior/new translation and context evidence. After restart, metadata can survive but `proposalExpired: true` means that the proposal must not be assumed recoverable.
@@ -44,7 +46,7 @@ Supported routes are the existing app-managed Gemma runtime, existing Codex text
 
 The task uses one generation attempt, no API-key rotation, no repair generation and no paid/model fallback. A transport failure with uncertain completion is not automatically resent. Reusing the identical request ID and arguments returns the existing job, not another generation. A deliberate retry needs a new request ID and the original target revision under the existing retry rules.
 
-Local execution shares the app's exclusive model resource. The page remains owned while generation/cleanup is in flight. The model is released before the user reviews the proposal. Application is a separate lightweight page edit. Cleanup failure prevents successful proposal publication; it is not silently ignored.
+Local execution shares the app's exclusive model resource. The page remains owned while generation/cleanup is in flight. The model is released before the user reviews the proposal. Application is a separate lightweight page edit. Cleanup failure prevents successful proposal publication; it is not silently ignored. Concurrent endpoint-disposal callers await the same actual shutdown. A failed shutdown retains its cleanup target for explicit retry but does not reopen the endpoint for inference or silently clear the cleanup barrier.
 
 ## Output and limitations
 
@@ -56,8 +58,8 @@ This feature does not add batch translation, image context, OCR correction, auto
 
 ## Automated verification
 
-The focused tests are `mcpBlockTranslation.test.ts`, `mcpBlockTranslationAdapter.test.ts`, `mcpBlockTranslationHttp.test.ts`, and `mcpStructuredOutputs.test.ts`. They exercise real app policies/storage and mock only external boundaries.
+Focused translation tests are `mcpBlockTranslation.test.ts`, `mcpBlockTranslationAdapter.test.ts`, `mcpBlockTranslationBudget.test.ts`, `mcpBlockTranslationHttp.test.ts`, `mcpTranslationEndpointCleanup.test.ts`, and the relevant cases in `mcpStructuredOutputs.test.ts`. They exercise real app policies/storage and mock only external boundaries.
 
 `scripts/mcp-native-block-translation.cjs` is called by the existing isolated Electron page smoke. It checks an unchanged proposal-time chapter/raster, one request and release, exact retry reuse, translation-only application, visibly different rendering after application, identical rendering after restoration, and unchanged original/erased images. Its model reply is synthetic; it does not establish real provider compatibility or translation quality.
 
-A real-provider acceptance run must use one disposable synthetic block, the user's explicitly configured engine, a bounded request count, no automatic page application, and sequential local-model execution. Record actual outcomes rather than treating transport mocks or a successful job receipt as real translation evidence.
+The real-provider acceptance used the existing disposable block, unchanged configured Gemma/language settings, two sequential generations, no automatic application, and explicit restoration. It validates that configured local route only, not every model, Codex, externally hosted API, or saved-context generation. Deployment and actual process/VRAM inspection of subsequent GitHub-only safeguards remain separate from that live result.
