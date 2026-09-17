@@ -44,6 +44,7 @@ type Ports = {
     snapshot: { chapterId: string; workId: string },
     request: McpContextPreview,
     signal: AbortSignal,
+    guard: () => void,
     run: () => Promise<Receipt>,
   ) => Promise<Receipt>;
 };
@@ -284,6 +285,7 @@ export class McpContextProposalService {
       entry.metadata,
       subset,
       this.stopping.signal,
+      check,
       () =>
         this.ports.commit(
           entry.request.chapterId,

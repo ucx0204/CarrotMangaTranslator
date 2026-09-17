@@ -71,6 +71,7 @@ export {
   saveWorkResearchTitle,
   saveWorkStyleGuide,
 } from "./library/libraryContextFacade";
+export { readWorkContextForEdit, commitWorkContextEdit } from "./library/libraryContextEditingFacade";
 export {
   readWorkTypographyProfile,
   writeWorkTypographyProfile,

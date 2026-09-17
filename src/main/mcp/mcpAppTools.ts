@@ -15,7 +15,7 @@ import {
   listLibrary,
   openChapter,
   savePageBlocks,
-  resolveWorkContextForChapter,
+  readWorkContextForEdit,
 } from "../library";
 import { McpPageEditService } from "../application/mcpPageEditService";
 import { createMcpToolSet } from "./mcpToolSet";
@@ -40,7 +40,7 @@ export function createMcpAppTools(options: {
     ...(options.additionalTools ?? []),
     ...createMcpReviewTools({ listLibrary, openChapter }),
     createMcpWorkContextTool(
-      new McpWorkContextService(resolveWorkContextForChapter),
+      new McpWorkContextService(readWorkContextForEdit),
     ),
   ];
   if (options.preferences.allowProcessing)

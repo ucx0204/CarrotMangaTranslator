@@ -2,7 +2,7 @@ import type {
   WorkStyleGuide,
   ChapterStoryMemory,
 } from "../../shared/workContextTypes";
-import { hashStableValue } from "../../shared/blockFingerprint";
+import { mcpContextRevision } from "../../shared/mcpContextEditing";
 
 type Context = {
   workId: string;
@@ -30,7 +30,7 @@ export class McpWorkContextService {
       chapterId,
       workId: context.workId,
       workTitle: context.workTitle,
-      revision: hashStableValue({ guide, memory }),
+      revision: mcpContextRevision(context),
       section,
       rules: guide.rules,
       counts: {
