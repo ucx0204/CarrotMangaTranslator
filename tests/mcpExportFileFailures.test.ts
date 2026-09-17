@@ -35,9 +35,10 @@ it.each(["ENOENT", "EIO"])(
 );
 
 it("rejects symlink metadata, wrong suffixes, duplicate names and empty ZIPs", async () => {
-  const actual = await vi.importActual<typeof import("node:fs/promises")>(
-    "node:fs/promises",
-  );
+  const actual =
+    await vi.importActual<typeof import("node:fs/promises")>(
+      "node:fs/promises",
+    );
   const store = new McpArtifactStore("https://files.test");
   try {
     const file = await store.put(Buffer.from("PNG"), async () => {});
@@ -69,7 +70,12 @@ it("rejects symlink metadata, wrong suffixes, duplicate names and empty ZIPs", a
       ),
     ).rejects.toMatchObject({ code: "invalid_edit" });
     await expect(
-      store.zip([{ url: file.url, filename: "../image.png" }], {}, check, signal),
+      store.zip(
+        [{ url: file.url, filename: "../image.png" }],
+        {},
+        check,
+        signal,
+      ),
     ).rejects.toMatchObject({ code: "not_found" });
   } finally {
     await store.close();
