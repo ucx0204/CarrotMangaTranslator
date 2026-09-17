@@ -1,6 +1,10 @@
 # Block translation checkpoint — 2026-09-17
 
-## Current status
+## Current closeout
+
+Completed on 2026-09-17: all 26 repository gates, 7,339 tests, a fresh native smoke and real Gemma saved-context apply/restore passed. The synchronized application was gracefully restarted; source and translation were restored. The five architecture exceptions and six measured coverage registrations are resolved. See `mcp-block-translation-closeout-20260917.md` for exact scope, evidence, preserved local changes and final deployment.
+
+## Historical status before closeout
 
 Implemented, registered and exercised through the actual `망번테스트` connector: `carrot_run_block_translation` proposes one saved block's translation without saving. Explicit application reuses `carrot_update_translations`. A real configured-Gemma Japanese-to-Korean proposal was applied, read back and restored on the existing synthetic fixture.
 
@@ -20,7 +24,7 @@ Continue on `feat/mcp-app-bridge` only; do not recreate the implementation from 
 
 The GitHub test model replies are synthetic. The live Gemma results are separate evidence, not proof that the latest remote-only safeguards are already deployed on the PC or that every provider/model is validated.
 
-## Remaining integration work
+## Historical integration checklist (now closed)
 
 1. Resolve architecture integration without bypassing the existing ratchets: `translationLanguages.ts` runtimeImportedBy 31/30; `pageRevision.ts` 44/43; `mcpEditPolicy.ts` 31/27; `library.ts` 36/34; `mcpPageOperationSession.ts` runtimeImports 17/16. A prior scoped allow-list write was rejected and remains unapplied. Do not hide dependencies in pass-through wrappers, duplicate domain logic, disable checks, or change routes to a denied write.
 2. Retrieve the earlier full coverage result or rerun it after synchronization, then validate production module inventory against fresh measured coverage. No floor or historical provenance was lowered.
