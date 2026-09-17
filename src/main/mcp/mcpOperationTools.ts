@@ -21,12 +21,17 @@ const jobIdInputSchema = {
 };
 
 const jobFileSchema = jobIdSchema.extend({
+  pageId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(),
   includeAttachment: z.boolean().optional(),
 });
 const jobFileInputSchema = {
   ...jobIdInputSchema,
   properties: {
     ...jobIdInputSchema.properties,
+    pageId: {
+      ...identifierSchema,
+      description: "Required for one PNG from a page batch; omit for a single-page export or ZIP job.",
+    },
     includeAttachment: {
       type: "boolean",
       default: false,
@@ -84,7 +89,7 @@ function createJobControlTool(
     requiredScopes: ["carrot.read"],
     description: cancel
       ? "Cancel a job owned by this connection. Does not undo already committed changes; read the resulting page before retrying."
-      : "Read status and result metadata of an owned OCR, erasure or PNG export job. Never returns files or download links. Poll with a few seconds between calls. Job history survives restart for seven days. Use carrot_get_job_file explicitly for completed PNG files.",
+      : "Read status and result metadata of an owned job, including page-batch PNG and ZIP export outcomes. Never returns files or download links. Poll with a few seconds between calls. Job history survives restart for seven days; session files do not. Use carrot_get_job_file explicitly for available files.",
     inputSchema: jobIdInputSchema,
     invoke: async (args, context) => {
       const parsed = jobIdSchema.safeParse(args);
@@ -110,7 +115,7 @@ function createJobFileTool(
     idempotent: true,
     requiredScopes: scopes,
     description:
-      "Retrieve an expiring download link for an owned, completed PNG export. By default returns text/metadata only, with no attachment creation or file download. Set includeAttachment=true only when a file attachment is explicitly wanted; the client may require separate approval. Rechecks output availability, authorization, page revision and redaction in both modes. Expired or changed output requires an explicit new export; this tool never renders or starts a job.",
+      "Retrieve one expiring PNG or ZIP link from an owned, settled export job. A page batch requires an explicit exported pageId; omit pageId for single-page PNG and ZIP jobs. Completed pages of partial/cancelled batches remain individually available while valid. Default: text/metadata only, no attachment creation or download. Set includeAttachment=true only when explicitly requested. Rechecks file availability, authorization, revisions and redaction in both modes. Never renders, packs a ZIP or starts a job. Expiry/restart requires explicit new output.",
     inputSchema: jobFileInputSchema,
     invoke: async (args, context) => {
       const parsed = jobFileSchema.safeParse(args);
@@ -127,27 +132,30 @@ function createJobFileTool(
       };
       const owner = assertAccess();
       await operations.ready();
-      const artifact = operations.file(parsed.data.jobId, owner);
+      const { jobId, pageId } = parsed.data;
+      const artifact = operations.file(jobId, owner, pageId);
+      const zip = artifact.kind === "rendered-pages-zip";
+      const mimeType = zip ? "application/zip" : "image/png";
       if (
         typeof artifact.url !== "string" ||
-        typeof artifact.bytes !== "number"
+        typeof artifact.bytes !== "number" ||
+        !Number.isSafeInteger(artifact.bytes) ||
+        artifact.bytes <= 0 ||
+        artifact.mimeType !== mimeType
       )
-        throw new McpEditError(
-          "not_found",
-          "PNG unavailable. Explicitly export the current page again.",
-        );
+        throw new McpEditError("not_found", "Completed output metadata is unavailable.");
       await assertFileAvailable(artifact.url);
       assertAccess();
-      operations.file(parsed.data.jobId, owner);
-      const content = textContent({ jobId: parsed.data.jobId, ...artifact });
+      operations.file(jobId, owner, pageId);
+      const content = textContent({ jobId, ...artifact });
       if (!parsed.data.includeAttachment) return content;
       return [
         ...content,
         {
           type: "resource_link",
           uri: artifact.url,
-          name: "carrot-page.png",
-          mimeType: "image/png",
+          name: zip ? "carrot-pages.zip" : "carrot-page.png",
+          mimeType,
           size: artifact.bytes,
         },
       ];
