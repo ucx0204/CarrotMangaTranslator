@@ -91,11 +91,19 @@ it("rejects credentials and unmanaged hosts while preserving a hosted scalar req
     ]) {
       expect(() => f.prepare({ ...f.options, apiBaseUrl })).toThrow();
     }
-    for (const apiExtraBodyJson of ["0", '"sampling"', '{"temperature":null}']) {
+    for (const apiExtraBodyJson of [
+      "0",
+      '"sampling"',
+      '{"temperature":null}',
+    ]) {
       expect(() => f.prepare({ ...f.options, apiExtraBodyJson })).toThrow();
     }
-    const raw = '{"temperature":0,"enable_thinking":false,"reasoning_effort":"low"}';
-    expect(f.prepare({ ...f.options, apiExtraBodyJson: raw }).options.apiExtraBodyJson).toBe(raw);
+    const raw =
+      '{"temperature":0,"enable_thinking":false,"reasoning_effort":"low"}';
+    expect(
+      f.prepare({ ...f.options, apiExtraBodyJson: raw }).options
+        .apiExtraBodyJson,
+    ).toBe(raw);
     expect(f.runtime.request).not.toHaveBeenCalled();
   } finally {
     await f.close();
