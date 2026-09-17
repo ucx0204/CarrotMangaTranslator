@@ -25,7 +25,11 @@ export type BatchTarget = {
 };
 export type BatchCommit<R> = (
   request: R,
-  expected: { workId: string; membership: string; contextRevision: string | null },
+  expected: {
+    workId: string;
+    membership: string;
+    contextRevision: string | null;
+  },
   guard: () => void,
   onCommitted: (page: MangaPage) => void,
 ) => Promise<void>;
@@ -37,7 +41,11 @@ export type BatchPorts<R> = {
 export type BatchPolicy<I extends BatchTarget, C extends BatchChange, R, V> = {
   parse: (value: unknown) => I;
   plan: (saved: McpContextSnapshot, input: I) => BatchPlan<C>;
-  request: (page: BatchPage<C>, input: I, direction: McpTranslationBatchDirection) => R;
+  request: (
+    page: BatchPage<C>,
+    input: I,
+    direction: McpTranslationBatchDirection,
+  ) => R;
   project: (change: C) => V;
   inspectTool: string;
   exclusionWarning: string;
