@@ -16,6 +16,14 @@ export async function readMcpBlockTranslationContext(
   options: TranslationOptions,
   loadModule: typeof loadAppRuntimeModule = loadAppRuntimeModule,
 ) {
+  // Match the existing context-budget estimate. This is an admission estimate,
+  // not a provider tokenizer; neither mode may omit the requested output reserve.
+  const baseInputTokens = 1024 + Math.ceil(input.sourceText.length / 2);
+  if (options.ctx - baseInputTokens < options.maxTokens)
+    throw new McpEditError(
+      "invalid_edit",
+      "Saved source and requested output exceed the configured context budget. Nothing was sent; reduce the request or adjust the app settings explicitly.",
+    );
   if (input.contextMode === "none")
     return {
       text: "",
@@ -46,8 +54,8 @@ export async function readMcpBlockTranslationContext(
   const bounded = prunePromptWorkContextForBudget(selected, {
     ctx: options.ctx,
     maxTokens: options.maxTokens,
-    baseInputTokens: 1024 + Math.ceil(input.sourceText.length / 2),
-    minOutputHeadroomTokens: Math.min(options.maxTokens, 2048),
+    baseInputTokens,
+    minOutputHeadroomTokens: options.maxTokens,
   });
   const formatter = loadModule("workContextPrompt");
   assertRuntimeFunctions(formatter, "prompts/work-context.cjs", [
@@ -61,7 +69,7 @@ export async function readMcpBlockTranslationContext(
   );
   if (
     text.length > 24_000 ||
-    bounded.budget.effective.outputHeadroomTokens < 512
+    bounded.budget.effective.outputHeadroomTokens < options.maxTokens
   )
     throw new McpEditError(
       "invalid_edit",
