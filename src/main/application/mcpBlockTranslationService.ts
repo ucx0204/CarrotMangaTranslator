@@ -20,13 +20,21 @@ export type McpBlockTranslationInput = {
   textRole: "ordinary" | "sound";
   contextMode: "none" | "saved";
 };
-type Evidence = Pick<McpBlockTranslationProposal,
-  "translatedText" | "sourceLanguage" | "targetLanguage" | "model" |
-  "execution" | "contextRevision"
+type Evidence = Pick<
+  McpBlockTranslationProposal,
+  | "translatedText"
+  | "sourceLanguage"
+  | "targetLanguage"
+  | "model"
+  | "execution"
+  | "contextRevision"
 > & { engine: string; contextPruned: boolean };
 type Ports = {
   openChapter: (id: string) => Promise<ChapterSnapshot>;
-  translate: (input: McpBlockTranslationInput, context: McpOperationContext) => Promise<Evidence>;
+  translate: (
+    input: McpBlockTranslationInput,
+    context: McpOperationContext,
+  ) => Promise<Evidence>;
 };
 
 /** Proposal generation cannot persist a page. Explicit application reuses the
@@ -38,24 +46,42 @@ export class McpBlockTranslationService {
     context.assertAuthorized();
     const selected = await this.load(target);
     const base = {
-      chapterId: target.chapterId, pageId: target.pageId,
-      blockId: target.blockId, revision: target.revision, pagesChanged: 0,
+      chapterId: target.chapterId,
+      pageId: target.pageId,
+      blockId: target.blockId,
+      revision: target.revision,
+      pagesChanged: 0,
     };
     context.assertAuthorized();
     if (!selected.block.sourceText.trim())
-      return { ...base, status: "no_source", noSourceText: true, performed: [], needsReview: true };
-    const evidence = await this.ports.translate({
-      chapterId: target.chapterId, workId: selected.workId,
-      pageId: target.pageId, pageIndex: selected.pageIndex,
-      blockId: target.blockId, sourceText: selected.block.sourceText,
-      textRole: selected.block.textRole === "sound" ? "sound" : "ordinary",
-      contextMode: target.contextMode,
-    }, context);
+      return {
+        ...base,
+        status: "no_source",
+        noSourceText: true,
+        performed: [],
+        needsReview: true,
+      };
+    const evidence = await this.ports.translate(
+      {
+        chapterId: target.chapterId,
+        workId: selected.workId,
+        pageId: target.pageId,
+        pageIndex: selected.pageIndex,
+        blockId: target.blockId,
+        sourceText: selected.block.sourceText,
+        textRole: selected.block.textRole === "sound" ? "sound" : "ordinary",
+        contextMode: target.contextMode,
+      },
+      context,
+    );
     context.assertAuthorized();
     const current = await this.load(target);
     context.assertAuthorized();
     if (current.membership !== selected.membership)
-      throw new McpEditError("revision_conflict", "Chapter membership or page order changed during translation.");
+      throw new McpEditError(
+        "revision_conflict",
+        "Chapter membership or page order changed during translation.",
+      );
     const proposal = McpBlockTranslationProposalSchema.safeParse({
       ...evidence,
       sourceText: selected.block.sourceText,
@@ -65,18 +91,31 @@ export class McpBlockTranslationService {
       requestCount: 1,
       warnings: [
         "review_before_apply",
-        ...(evidence.translatedText === selected.block.sourceText ? ["same_as_source"] : []),
-        ...(selected.block.generatedLettering ? ["generated_lettering_retained"] : []),
+        ...(evidence.translatedText === selected.block.sourceText
+          ? ["same_as_source"]
+          : []),
+        ...(selected.block.generatedLettering
+          ? ["generated_lettering_retained"]
+          : []),
         ...(evidence.contextPruned ? ["context_budget_pruned"] : []),
-        ...(target.contextMode === "saved" ? ["saved_context_may_have_changed"] : []),
+        ...(target.contextMode === "saved"
+          ? ["saved_context_may_have_changed"]
+          : []),
       ],
     });
     if (!proposal.success)
-      throw new McpEditError("invalid_edit", "Invalid or excessive translation proposal. Nothing was saved.");
+      throw new McpEditError(
+        "invalid_edit",
+        "Invalid or excessive translation proposal. Nothing was saved.",
+      );
     return {
-      ...base, status: "proposed", engine: evidence.engine,
-      performed: ["block-translation"], needsReview: true,
-      proposalExpired: false, blockTranslation: proposal.data,
+      ...base,
+      status: "proposed",
+      engine: evidence.engine,
+      performed: ["block-translation"],
+      needsReview: true,
+      proposalExpired: false,
+      blockTranslation: proposal.data,
     };
   }
 
@@ -87,17 +126,35 @@ export class McpBlockTranslationService {
       throw new McpEditError("not_found", "A unique saved page is required.");
     const page = pages[0];
     if (createPageRevision(page) !== target.revision)
-      throw new McpEditError("revision_conflict", "Page changed. Read it again before translating or applying a proposal.");
+      throw new McpEditError(
+        "revision_conflict",
+        "Page changed. Read it again before translating or applying a proposal.",
+      );
     const matches = page.blocks.filter((block) => block.id === target.blockId);
     if (matches.length !== 1)
-      throw new McpEditError(matches.length ? "invalid_edit" : "not_found", "A unique existing block is required.");
+      throw new McpEditError(
+        matches.length ? "invalid_edit" : "not_found",
+        "A unique existing block is required.",
+      );
     const block = matches[0];
-    if (![block.sourceText, block.translatedText].every((text) => typeof text === "string" && text.length <= 20_000))
-      throw new McpEditError("invalid_edit", "Saved text exceeds the proposal limit.");
+    if (
+      ![block.sourceText, block.translatedText].every(
+        (text) => typeof text === "string" && text.length <= 20_000,
+      )
+    )
+      throw new McpEditError(
+        "invalid_edit",
+        "Saved text exceeds the proposal limit.",
+      );
     return {
-      block: structuredClone(block), workId: chapter.workId,
+      block: structuredClone(block),
+      workId: chapter.workId,
       pageIndex: chapter.pages.indexOf(page),
-      membership: hashStableValue([chapter.workId, chapter.pageOrder, chapter.pages.map((item) => item.id)]),
+      membership: hashStableValue([
+        chapter.workId,
+        chapter.pageOrder,
+        chapter.pages.map((item) => item.id),
+      ]),
     };
   }
 }
