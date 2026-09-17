@@ -29,8 +29,8 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 45,
-      "reason": "Context edit policy adds one direct consumer to verify page-memory evidence against the current saved page. Block translation keeps its existing proposal checks. No revision algorithm, alias wrapper or global limit changes. Exact boundary decisions and regression requirements are recorded in docs/mcp-context-research-boundaries-20260917.md."
+      "maxImportedBy": 46,
+      "reason": "Context edit policy adds one direct consumer to verify page-memory evidence against the current saved page. Block translation keeps its existing proposal checks. No revision algorithm, alias wrapper or global limit changes. Exact boundary decisions and regression requirements are recorded in docs/mcp-context-research-boundaries-20260917.md. Structure service directly reuses the canonical page revision for preview, apply, undo and redo. No copied hash algorithm or alias module. Structure stale-page and restore tests protect this additional consumer."
     },
     "src/renderer/src/api/libraryGateway.ts": {
       "maxImportedBy": 28,
@@ -136,8 +136,8 @@
       "maxImportedBy": 27
     },
     "src/shared/geometry.ts": {
-      "maxImportedBy": 39,
-      "reason": "Block OCR source selection and effect-region evidence map through the existing pixel conversion. Two actual boundary consumers reuse the authoritative geometry; global limits remain unchanged."
+      "maxImportedBy": 40,
+      "reason": "Block OCR source selection and effect-region evidence map through the existing pixel conversion. Two actual boundary consumers reuse the authoritative geometry; global limits remain unchanged. Structure policy projects before/after source and display rectangles using the canonical geometry and existing source-rect validation. Pixel conversions are not copied; native undo/redo rendering parity is required."
     },
     "src/shared/richTextMarkup.ts": {
       "maxImportedBy": 30,
@@ -145,8 +145,8 @@
     },
     "src/shared/ipcSchemaPrimitives.ts": {
       "maxRuntimeImports": 15,
-      "maxImportedBy": 27,
-      "reason": "Shared IPC schema primitive authority. Clipboard payload validation and paste capacity checks use the existing block schema and page block limit directly, with malformed-payload and atomic-overflow tests."
+      "maxImportedBy": 28,
+      "reason": "Shared IPC schema primitive authority. Clipboard payload validation and paste capacity checks use the existing block schema and page block limit directly, with malformed-payload and atomic-overflow tests. Structure policy directly uses MAX_BLOCKS_PER_PAGE to reject atomic split overflow. Existing IPC schema and global limits are unchanged; overflow is tested before any write."
     },
     "src/shared/translationLanguages.ts": {
       "maxImportedBy": 31,
@@ -222,8 +222,8 @@
       "reason": "Context edit and app-research scopes directly declare the app's existing work-context/content resources and share UI ownership. No alternative locking vocabulary, alias facade or global limit change. Deadlock and stale-context regression tests protect lifetime behavior; see docs/mcp-context-research-boundaries-20260917.md."
     },
     "src/main/application/mcpEditPolicy.ts": {
-      "maxImportedBy": 38,
-      "reason": "Context edit/research policies, proposal services and adapters reuse the existing typed MCP error authority. Seven direct consumers retain consistent stale/permission/invalid-input errors without copied classes or dependency-hiding wrappers. Global limits, save guards and error semantics are unchanged; see docs/mcp-context-research-boundaries-20260917.md."
+      "maxImportedBy": 41,
+      "reason": "Context edit/research policies, proposal services and adapters reuse the existing typed MCP error authority. Seven direct consumers retain consistent stale/permission/invalid-input errors without copied classes or dependency-hiding wrappers. Global limits, save guards and error semantics are unchanged; see docs/mcp-context-research-boundaries-20260917.md. Structure policy, session service and MCP tools directly use the existing typed error authority for invalid input, ownership, expiry and page conflicts. No error-class copy, dependency-hiding wrapper or global limit change."
     }
   }
 }

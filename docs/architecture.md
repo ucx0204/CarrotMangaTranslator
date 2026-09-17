@@ -224,3 +224,15 @@ transaction 문맥이 섞이지 않는다. 실제 재현에서는 큐에 기다�
 이번에 처음 수정 범위에 들어온 `pageExportLifecycle.ts`의 보호 기준은 기존
 `.tmp/production-cleanup-coverage-baseline-node22.json`의 원래 측정값을 등록했다.
 역사 artifact, SHA-256, 다른 파일의 커버리지 기준은 변경하지 않았다.
+
+## MCP structure editing boundaries
+
+Single-page structural plans reuse the existing page edit handoff, atomic blocks/order
+transaction and renderer. Four measured direct-consumer ceilings are recorded: pageRevision
+46, ipcSchemaPrimitives 28, geometry 40 and mcpEditPolicy 41. The extra consumers are
+mcpStructurePolicy (capacity, geometry and typed errors), mcpStructureService (revision
+and typed errors), and mcpStructureTools (typed boundary errors). Global ceilings,
+revision/coordinate algorithms, existing coverage floors and authorization are unchanged.
+The structure policy/service/lifecycle/HTTP suites cover preservation, stale revisions,
+request-ID races, expiration, authorization and atomic persistence; native structure
+checks exercise split/merge/delete with actual rendered-pixel restoration.
