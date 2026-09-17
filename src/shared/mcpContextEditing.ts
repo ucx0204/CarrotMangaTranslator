@@ -108,7 +108,7 @@ const source = z
             !url.username &&
             !url.password
           );
-        } catch {
+        } catch (_error) {
           return false;
         }
       }),

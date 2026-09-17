@@ -92,6 +92,18 @@ function validateOperation(
   const entries =
     operation.entity === "glossary" ? guide.glossary : guide.characters;
   const matches = entries.filter((entry) => entry.id === operation.after.id);
+  validateResearchTarget(operation, matches);
+  if (
+    !["add", "update", "disable"].includes(operation.action) ||
+    (operation.action === "disable" && operation.after.enabled !== false)
+  )
+    throw new McpEditError("invalid_edit", "Inconsistent research action.");
+}
+
+function validateResearchTarget(
+  operation: WorkContextResearchOperation,
+  matches: WorkContextResearchOperation["after"][],
+): void {
   if (operation.action === "add") {
     if (operation.before || matches.length)
       throw new McpEditError(
@@ -109,11 +121,6 @@ function validateOperation(
       "Research update does not match the existing entry.",
     );
   }
-  if (
-    !["add", "update", "disable"].includes(operation.action) ||
-    (operation.action === "disable" && operation.after.enabled !== false)
-  )
-    throw new McpEditError("invalid_edit", "Inconsistent research action.");
 }
 
 function editableValues(
@@ -122,8 +129,10 @@ function editableValues(
 ): Record<string, unknown> {
   const entry =
     operation.entity === "glossary"
-      ? guide.glossary.find((item) => item.id === operation.after.id)!
-      : guide.characters.find((item) => item.id === operation.after.id)!;
+      ? guide.glossary.find((item) => item.id === operation.after.id)
+      : guide.characters.find((item) => item.id === operation.after.id);
+  if (!entry)
+    throw new McpEditError("not_found", "Reviewed research entry is missing.");
   const {
     id: _id,
     origin: _origin,

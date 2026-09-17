@@ -132,6 +132,14 @@ function applyChange(
     snapshot.styleGuide.rules = after;
     return describeChange(change, "rules", before, after);
   }
+  return applyEntry(snapshot, change, options);
+}
+
+function applyEntry(
+  snapshot: McpContextSnapshot,
+  change: Extract<McpContextChange, { entity: "glossary" | "character" }>,
+  options: McpContextPlanOptions,
+): McpContextChangeSummary {
   const entries =
     change.entity === "glossary"
       ? snapshot.styleGuide.glossary
@@ -145,16 +153,8 @@ function applyChange(
       "A unique existing context entry is required.",
     );
   const before = matches[0];
-  const id = before?.id ?? (options.entryIds[change.changeId] ??= randomUUID());
-  if (!before && entries.some((entry) => entry.id === id))
-    throw new McpEditError(
-      "invalid_edit",
-      "New context entry ID is already in use.",
-    );
-  const defaults =
-    change.entity === "glossary"
-      ? { target: "", category: "term" }
-      : { targetName: "", sourceNames: [], speechStyle: "neutral" };
+  const id = contextEntryId(before?.id, entries, change.changeId, options);
+  const defaults = newEntryDefaults(change.entity);
   const after = {
     ...(before ?? {
       ...defaults,
@@ -168,22 +168,56 @@ function applyChange(
   };
   const changed = !before || hashStableValue(before) !== hashStableValue(after);
   if (changed) Object.assign(after, { updatedAt: options.now });
-  if (change.entity === "glossary") {
+  storeContextEntry(
+    snapshot.styleGuide,
+    change.entity,
+    id,
+    Boolean(before),
+    after,
+  );
+  return describeChange(change, id, before ?? null, after);
+}
+
+function contextEntryId(
+  existing: string | undefined,
+  entries: readonly { id: string }[],
+  changeId: string,
+  options: McpContextPlanOptions,
+): string {
+  if (existing) return existing;
+  const id = (options.entryIds[changeId] ??= randomUUID());
+  if (entries.some((entry) => entry.id === id))
+    throw new McpEditError(
+      "invalid_edit",
+      "New context entry ID is already in use.",
+    );
+  return id;
+}
+
+function newEntryDefaults(entity: "glossary" | "character") {
+  return entity === "glossary"
+    ? { target: "", category: "term" }
+    : { targetName: "", sourceNames: [], speechStyle: "neutral" };
+}
+
+function storeContextEntry(
+  guide: WorkStyleGuide,
+  entity: "glossary" | "character",
+  id: string,
+  exists: boolean,
+  after: Record<string, unknown>,
+): void {
+  if (entity === "glossary") {
     const checked = GlossaryEntrySchema.parse(after);
-    snapshot.styleGuide.glossary = before
-      ? snapshot.styleGuide.glossary.map((entry) =>
-          entry.id === id ? checked : entry,
-        )
-      : [...snapshot.styleGuide.glossary, checked];
+    guide.glossary = exists
+      ? guide.glossary.map((entry) => (entry.id === id ? checked : entry))
+      : [...guide.glossary, checked];
   } else {
     const checked = CharacterProfileSchema.parse(after);
-    snapshot.styleGuide.characters = before
-      ? snapshot.styleGuide.characters.map((entry) =>
-          entry.id === id ? checked : entry,
-        )
-      : [...snapshot.styleGuide.characters, checked];
+    guide.characters = exists
+      ? guide.characters.map((entry) => (entry.id === id ? checked : entry))
+      : [...guide.characters, checked];
   }
-  return describeChange(change, id, before ?? null, after);
 }
 
 function applyMemory(
@@ -254,7 +288,8 @@ function validateTouchedMemoryReferences(
   const glossary = new Set(guide.glossary.map((entry) => entry.id));
   const characters = new Set(guide.characters.map((entry) => entry.id));
   for (const change of changes.filter((item) => item.entity === "memory")) {
-    const page = memory.pages.find((item) => item.pageId === change.targetId)!;
+    const page = memory.pages.find((item) => item.pageId === change.targetId);
+    if (!page) throw new McpEditError("not_found", "Edited memory is missing.");
     for (const [ids, known] of [
       [page.glossaryEntryIds ?? [], glossary],
       [page.characterIds ?? [], characters],

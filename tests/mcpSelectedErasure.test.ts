@@ -87,7 +87,8 @@ it("retains a failed selected-block request through persisted restart and explic
       expect.objectContaining({ blockId: "selected" }),
       expect.anything(),
     );
-    expect(parseMcpJobJournal(f.saved())[0].parameters.blockId).toBe(
+    expect(parseMcpJobJournal(f.saved())[0].parameters).toHaveProperty(
+      "blockId",
       "selected",
     );
   } finally {
@@ -153,7 +154,7 @@ it("fails closed if a persisted non-erasure job acquires a selector", async () =
   await waitSettled(f.service, receipt.jobId);
   await f.service.close();
   const stored = parseMcpJobJournal(f.saved());
-  stored[0].parameters.blockId = "injected";
+  stored[0].parameters = { ...target, blockId: "injected" };
   stored[0].fingerprint = hashStableValue([
     stored[0].kind,
     stored[0].parameters,

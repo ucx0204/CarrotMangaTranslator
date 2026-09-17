@@ -37,7 +37,7 @@ it("marks live research receipts expired by time without mutating their retained
     sourceCount: 3,
     tavilyCreditsUsed: 1,
   });
-  expect(persistedMcpJobResult(value)?.contextResearch).toBeUndefined();
+  expect(persistedMcpJobResult(value)).not.toHaveProperty("contextResearch");
 });
 
 it("rejects malformed and unsafe evidence URLs as schema errors rather than throwing inside safeParse", () => {

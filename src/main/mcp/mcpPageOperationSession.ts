@@ -102,11 +102,8 @@ export function createMcpPageOperationSession(options: {
       operations.stop();
       artifacts.stop();
     },
-    close: async () => {
-      operations.stop();
-      await contextSession.close();
-      await closePageSession(operations, artifacts, recovery);
-    },
+    close: () =>
+      closePageSession(operations, artifacts, recovery, contextSession),
   };
 }
 
@@ -149,8 +146,10 @@ async function closePageSession(
   operations: McpOperationService,
   artifacts: McpArtifactStore,
   recovery: ReturnType<typeof createMcpErasureRecoverySession>,
+  contextSession: ReturnType<typeof createMcpContextSession>,
 ): Promise<void> {
   operations.stop();
+  await contextSession.close();
   recovery?.stop();
   await recovery?.close();
   await operations.close();

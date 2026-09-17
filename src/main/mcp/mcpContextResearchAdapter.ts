@@ -52,25 +52,12 @@ export function createMcpContextResearchExecutor(
     if (!work)
       throw new McpEditError("not_found", "Research work no longer exists.");
     const chapters = work.chapters.map((entry) => entry.id);
-    const resources: AppActivityResource[] = [
-      { kind: "work-context", scope: snapshot.workId, access: "read" },
-      libraryStructureResource("work", snapshot.workId, "read"),
-      ...chapters.flatMap((id) => [
-        libraryStructureResource("chapter", id, "read"),
-        { ...pageContentResource(id, "**"), access: "read" as const },
-      ]),
-      ...(target.engine === "codex-web"
-        ? [{ kind: "codex-auth" as const, scope: "*", access: "read" as const }]
-        : settings.internetResearch.tavilyAnalysisProvider === "api"
-          ? []
-          : [
-              {
-                kind: "model-runtime" as const,
-                scope: "*",
-                access: "write" as const,
-              },
-            ]),
-    ];
+    const resources = contextResearchResources(
+      snapshot.workId,
+      chapters,
+      target.engine,
+      settings.internetResearch.tavilyAnalysisProvider === "api",
+    );
     operation.assertAuthorized();
     // Hold activity/model leases through engine cleanup, but never while waiting
     // for the proposal queue: queued applications may need our context read lease.
@@ -114,4 +101,31 @@ export function createMcpContextResearchExecutor(
         ),
     }).run(owner, target, operation);
   };
+}
+
+function contextResearchResources(
+  workId: string,
+  chapters: string[],
+  engine: McpContextResearchTarget["engine"],
+  remoteAnalysis: boolean,
+): AppActivityResource[] {
+  return [
+    { kind: "work-context", scope: workId, access: "read" },
+    libraryStructureResource("work", workId, "read"),
+    ...chapters.flatMap((id) => [
+      libraryStructureResource("chapter", id, "read"),
+      { ...pageContentResource(id, "**"), access: "read" as const },
+    ]),
+    ...(engine === "codex-web"
+      ? [{ kind: "codex-auth" as const, scope: "*", access: "read" as const }]
+      : remoteAnalysis
+        ? []
+        : [
+            {
+              kind: "model-runtime" as const,
+              scope: "*",
+              access: "write" as const,
+            },
+          ]),
+  ];
 }
