@@ -1,3 +1,4 @@
+const { checkNativeContext } = require("./mcp-native-context.cjs");
 const { checkNativeBlockOcr } = require("./mcp-native-block-ocr.cjs");
 const {
   checkNativeBlockTranslation,
@@ -209,6 +210,7 @@ async function checkNativePageGoal(root) {
     assert.deepEqual(pixel(clean, 305, 505), [0, 0, 0]);
     await checkNativeBlockOcr(root, app, invoke, chapter.id, page.id);
     await checkNativeBlockTranslation(root, app, invoke, chapter.id, page.id);
+    await checkNativeContext(root, invoke, chapter.id, page.id);
     await checkNativeReadback(invoke, chapter.id, page.id, original, clean);
     await checkNativeReview(root, chapter.id, page.id, 2);
     const started = await invoke("carrot_export_page_png", {

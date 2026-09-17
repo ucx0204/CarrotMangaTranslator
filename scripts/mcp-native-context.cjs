@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { randomUUID } = require("node:crypto");
-const { readFile } = require("node:fs/promises");
+const { readFile, readdir, stat } = require("node:fs/promises");
 const { join } = require("node:path");
 
 /** @param {string} root @param {string} name */
@@ -26,6 +26,7 @@ async function checkNativeContext(root, invoke, chapterId, pageId) {
     return JSON.parse(content[0].text);
   };
   const before = await library.readWorkContextForEdit(chapterId);
+  const beforeFiles = await libraryFiles(root);
   const page = before.chapter.pages.find(
     (/** @type {{id: string}} */ item) => item.id === pageId,
   );
@@ -78,7 +79,13 @@ async function checkNativeContext(root, invoke, chapterId, pageId) {
     (await call("carrot_preview_context_edit", request)).proposalId,
     proposal.proposalId,
   );
-  assert.deepEqual(await library.readWorkContextForEdit(chapterId), before);
+  // Absent context files generate transient root timestamps on read. Compare
+  // content revisions AND the actual on-disk inventory; preview must not write.
+  assert.equal(
+    mcpContextRevision(await library.readWorkContextForEdit(chapterId)),
+    revision,
+  );
+  assert.deepEqual(await libraryFiles(root), beforeFiles);
   const review = await call("carrot_get_context_proposal", {
     proposalId: proposal.proposalId,
   });
@@ -229,6 +236,18 @@ async function checkExternalSelection(
     "already_applied",
   );
   assert.deepEqual(await library.readWorkContextForEdit(chapterId), after);
+}
+
+/** @param {string} root */
+async function libraryFiles(root) {
+  const folder = join(root, "library");
+  const files = await readdir(folder, { recursive: true });
+  const entries = [];
+  for (const name of files.sort()) {
+    const path = join(folder, name);
+    if ((await stat(path)).isFile()) entries.push([name, await readFile(path)]);
+  }
+  return entries;
 }
 
 module.exports = { checkNativeContext };
