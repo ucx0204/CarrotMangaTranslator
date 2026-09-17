@@ -198,7 +198,7 @@ export const mcpContextOutputSchemas = {
     .extend({
       total: z.number().int().nonnegative(),
       offset: z.number().int().nonnegative(),
-      limit: z.number().int().nonnegative(),
+      limit: z.number().int().positive(),
       nextOffset: z.number().int().nonnegative().nullable(),
       changes: z.array(summary).max(25),
     })
