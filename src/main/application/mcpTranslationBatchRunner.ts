@@ -14,7 +14,11 @@ export type BatchTextRun = {
 };
 export type BatchTextCommit = (
   request: McpTranslationPatch,
-  expected: { workId: string; membership: string; contextRevision: string | null },
+  expected: {
+    workId: string;
+    membership: string;
+    contextRevision: string | null;
+  },
   guard: () => void,
   onCommitted: (page: MangaPage) => void,
 ) => Promise<void>;
@@ -29,7 +33,9 @@ export async function runMcpTranslationBatch(
   guard: () => void,
   touch: () => void,
 ): Promise<void> {
-  const required = { apply: "pending", undo: "applied", redo: "undone" }[run.direction];
+  const required = { apply: "pending", undo: "applied", redo: "undone" }[
+    run.direction
+  ];
   const pages = plan.pages.filter((page) => page.state === required);
   let saved = 0;
   for (const page of pages) {
@@ -39,15 +45,28 @@ export async function runMcpTranslationBatch(
   for (const page of pages) {
     try {
       guard();
-      const edits = page.changes.filter((change) => change.changed).map((change) => ({
-        blockId: change.blockId,
-        translatedText: run.direction === "undo" ? change.previousText : change.proposedText,
-      }));
+      const edits = page.changes
+        .filter((change) => change.changed)
+        .map((change) => ({
+          blockId: change.blockId,
+          translatedText:
+            run.direction === "undo"
+              ? change.previousText
+              : change.proposedText,
+        }));
       await commit(
-        { chapterId: target.chapterId, pageId: page.pageId,
-          revision: page.expectedRevision as McpTranslationPatch["revision"], edits },
-        { workId: plan.workId, membership: plan.membership,
-          contextRevision: run.direction === "undo" ? null : target.contextRevision },
+        {
+          chapterId: target.chapterId,
+          pageId: page.pageId,
+          revision: page.expectedRevision as McpTranslationPatch["revision"],
+          edits,
+        },
+        {
+          workId: plan.workId,
+          membership: plan.membership,
+          contextRevision:
+            run.direction === "undo" ? null : target.contextRevision,
+        },
         guard,
         (updated) => {
           page.state = run.direction === "undo" ? "undone" : "applied";
@@ -61,10 +80,17 @@ export async function runMcpTranslationBatch(
       // Keep committed state even if a post-commit notification failed.
       if (page.result !== "saved")
         page.result = run.controller.signal.aborted ? "cancelled" : "failed";
-      page.errorCode = run.controller.signal.aborted ? "cancelled"
-        : error instanceof McpEditError ? error.code : "save_failed";
+      page.errorCode = run.controller.signal.aborted
+        ? "cancelled"
+        : error instanceof McpEditError
+          ? error.code
+          : "save_failed";
       run.failure = error;
-      run.status = saved ? "partial" : run.controller.signal.aborted ? "cancelled" : "failed";
+      run.status = saved
+        ? "partial"
+        : run.controller.signal.aborted
+          ? "cancelled"
+          : "failed";
       return;
     }
   }
