@@ -97,7 +97,7 @@ it("rejects credentials and unmanaged hosts while preserving a hosted scalar req
     }
     for (const apiExtraBodyJson of [
       "0",
-      '\"sampling\"',
+      JSON.stringify("sampling"),
       '{"temperature":null}',
     ]) {
       expect(() => f.prepare({ ...f.options, apiExtraBodyJson })).toThrow();
