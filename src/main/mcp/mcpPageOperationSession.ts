@@ -82,7 +82,7 @@ export function createMcpPageOperationSession(options: {
   };
   return {
     tools: [
-      // Batch tools remain unregistered until their public schemas and file routes are completed.
+      ...exports.tools,
       ...contextSession.tools,
       ...(recovery?.tools ?? []),
       ...createMcpOperationTools(
