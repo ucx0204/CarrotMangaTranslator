@@ -1,4 +1,7 @@
 const { checkNativeBlockOcr } = require("./mcp-native-block-ocr.cjs");
+const {
+  checkNativeBlockTranslation,
+} = require("./mcp-native-block-translation.cjs");
 const { checkNativeSourceRect } = require("./mcp-native-source-rect.cjs");
 const {
   checkNativeErasureRecovery,
@@ -205,6 +208,7 @@ async function checkNativePageGoal(root) {
     assert.deepEqual(pixel(clean, 73, 95), [255, 255, 255]);
     assert.deepEqual(pixel(clean, 305, 505), [0, 0, 0]);
     await checkNativeBlockOcr(root, app, invoke, chapter.id, page.id);
+    await checkNativeBlockTranslation(root, app, invoke, chapter.id, page.id);
     await checkNativeReadback(invoke, chapter.id, page.id, original, clean);
     await checkNativeReview(root, chapter.id, page.id, 2);
     const started = await invoke("carrot_export_page_png", {
@@ -276,10 +280,10 @@ async function checkNativeReadback(invoke, chapterId, pageId, original, clean) {
   });
   assert.ok(preview[0].text);
   assert.ok(preview[1].data);
-  assert.equal(JSON.parse(preview[0].text).kind, "rendered-page");
   const rendered = nativeImage.createFromBuffer(
     Buffer.from(preview[1].data, "base64"),
   );
+  assert.equal(JSON.parse(preview[0].text).kind, "rendered-page");
   assert.deepEqual(rendered.getSize(), { width: 400, height: 600 });
   assert.notDeepEqual(
     rendered.toBitmap(),
