@@ -97,12 +97,7 @@ export async function translateMcpBlock(
     sourceLanguage: pair.source.code,
     targetLanguage: pair.target.code,
     engine: options.modelProvider,
-    model:
-      options.modelProvider === "gemma"
-        ? basename(options.modelFile)
-        : options.modelProvider === "openai-codex"
-          ? options.codexModel
-          : options.apiModel,
+    model: modelName(options),
     execution:
       options.modelProvider === "gemma"
         ? ("local" as const)
@@ -143,10 +138,11 @@ function parseReply(raw: string, blockId: string): string {
   let value: unknown;
   try {
     value = JSON.parse(raw);
-  } catch {
+  } catch (error) {
     throw new McpEditError(
       "invalid_edit",
       "Translation returned invalid JSON. No automatic paid retry or replacement was made.",
+      { cause: error },
     );
   }
   const parsed = McpBlockTranslationReplySchema.safeParse(value);
@@ -156,4 +152,11 @@ function parseReply(raw: string, blockId: string): string {
       "Translation must contain only the requested block ID and a bounded nonempty translation.",
     );
   return parsed.data.translatedText;
+}
+
+function modelName(options: TranslationOptions): string {
+  if (options.modelProvider === "gemma") return basename(options.modelFile);
+  return options.modelProvider === "openai-codex"
+    ? options.codexModel
+    : options.apiModel;
 }

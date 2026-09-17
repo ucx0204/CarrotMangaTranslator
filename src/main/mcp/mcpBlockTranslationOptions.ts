@@ -50,10 +50,11 @@ function assertRemoteTextApi(options: TranslationOptions): void {
   let url: URL;
   try {
     url = new URL(options.apiBaseUrl);
-  } catch {
+  } catch (error) {
     throw new McpEditError(
       "invalid_edit",
       "Invalid configured translation API URL.",
+      { cause: error },
     );
   }
   const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
@@ -70,13 +71,19 @@ function assertRemoteTextApi(options: TranslationOptions): void {
       "invalid_edit",
       "This text proposal tool supports app-managed Gemma, Codex, and externally hosted HTTPS APIs. Local compatible servers need a strict unload contract and are not started by this tool.",
     );
-  const raw = options.apiExtraBodyJson?.trim();
+  assertSafeExtraBody(options.apiExtraBodyJson);
+}
+
+function assertSafeExtraBody(value: string | undefined): void {
+  const raw = value?.trim();
   if (!raw) return;
   let extra: unknown;
   try {
     extra = JSON.parse(raw);
-  } catch {
-    throw new McpEditError("invalid_edit", "Invalid API extra body JSON.");
+  } catch (error) {
+    throw new McpEditError("invalid_edit", "Invalid API extra body JSON.", {
+      cause: error,
+    });
   }
   if (
     !extra ||

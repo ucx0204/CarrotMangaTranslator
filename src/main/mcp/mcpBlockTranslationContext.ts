@@ -14,6 +14,7 @@ import { McpEditError } from "../application/mcpEditPolicy";
 export async function readMcpBlockTranslationContext(
   input: McpBlockTranslationInput,
   options: TranslationOptions,
+  loadModule: typeof loadAppRuntimeModule = loadAppRuntimeModule,
 ) {
   if (input.contextMode === "none")
     return {
@@ -48,7 +49,7 @@ export async function readMcpBlockTranslationContext(
     baseInputTokens: 1024 + Math.ceil(input.sourceText.length / 2),
     minOutputHeadroomTokens: Math.min(options.maxTokens, 2048),
   });
-  const formatter = loadAppRuntimeModule("workContextPrompt");
+  const formatter = loadModule("workContextPrompt");
   assertRuntimeFunctions(formatter, "prompts/work-context.cjs", [
     "buildWorkContextSection",
   ]);
