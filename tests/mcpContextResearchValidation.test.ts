@@ -150,6 +150,7 @@ it.each(["empty", "warnings"] as const)(
       if (kind === "empty") {
         expect(job.status).toBe("completed");
         expect(job.result.status).toBe("no_changes");
+        expect(job.result.tavilyCreditsUsed).toBe(1);
       } else {
         expect(job.status).toBe("failed");
         expect(job.error.code).toBe("invalid_edit");

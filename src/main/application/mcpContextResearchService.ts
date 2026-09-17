@@ -72,6 +72,7 @@ export class McpContextResearchService {
         status: "no_changes",
         queryCount: researched.stats.queryCount,
         sourceCount: researched.stats.sourceCount,
+        tavilyCreditsUsed: researched.stats.tavilyCreditsUsed,
       };
     const warnings = [
       ...researched.warnings,
