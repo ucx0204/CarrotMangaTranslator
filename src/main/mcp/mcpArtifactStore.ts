@@ -104,6 +104,13 @@ export class McpArtifactStore {
           },
         });
       }
+      const assertArchiveAccess = async () => {
+        await assertAccess();
+        // Preserve source redaction/grant checks without tying a finished ZIP
+        // to source-file existence or the earlier PNG link expiry.
+        for (const entry of leased) await entry.assertAccess();
+        await assertAccess();
+      };
       const budget =
         sources.reduce((sum, item) => sum + item.size, 0) +
         Buffer.byteLength(JSON.stringify(manifest)) +
@@ -113,12 +120,12 @@ export class McpArtifactStore {
           "invalid_edit",
           "ZIP exceeds the 128 MiB output budget. Select fewer pages; resolution is never reduced.",
         );
-      return await this.create(budget, "pages.zip", assertAccess, (file) =>
+      return await this.create(budget, "pages.zip", assertArchiveAccess, (file) =>
         writeMcpArtifactZip({
           file,
           sources,
           manifest,
-          assertAccess,
+          assertAccess: assertArchiveAccess,
           signal: AbortSignal.any([signal, this.lifetime.signal]),
         }),
       );
