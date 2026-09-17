@@ -18,15 +18,15 @@ A regression was first observed failing: throwing while reporting `releasing_mod
 
 ## Confirmed results
 
-| Check | Observed result |
-| --- | --- |
-| Focused service/adapter/HTTP/output suite | 35 tests in 4 files passed, exit 0 |
-| Renderer TypeScript check after fixes | Exit 0 |
-| Focused lint for the seven changed TS/test files | Exit 0 |
-| JavaScript type check for the native integration | Exit 0 |
-| Native script lint | Exit 0 |
-| Windows application build | Exit 0 |
-| Separate Electron MCP native smoke | Process 51136 returned `NATIVE_EXIT=0`, process exit 0, about 34 seconds |
+| Check                                            | Observed result                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------------ |
+| Focused service/adapter/HTTP/output suite        | 35 tests in 4 files passed, exit 0                                       |
+| Renderer TypeScript check after fixes            | Exit 0                                                                   |
+| Focused lint for the seven changed TS/test files | Exit 0                                                                   |
+| JavaScript type check for the native integration | Exit 0                                                                   |
+| Native script lint                               | Exit 0                                                                   |
+| Windows application build                        | Exit 0                                                                   |
+| Separate Electron MCP native smoke               | Process 51136 returned `NATIVE_EXIT=0`, process exit 0, about 34 seconds |
 
 The native invocation included the new translation helper and its call from `mcp-native-page.cjs` in the local working tree. Those changes were subsequently preserved via the GitHub commits above when the remote PC stopped responding. The detailed final native-log tail was not retrieved after that loss of connectivity; do not invent an individual assertion count.
 
