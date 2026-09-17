@@ -314,7 +314,7 @@ describe("production cleanup coverage floor gate", () => {
     );
 
     const inconsistent = createFixture();
-    inconsistent.coverage[inconsistent.existingFileAbsolute].lines = {
+    inconsistent.coverage[fixturePath(inconsistent)].lines = {
       total: 100,
       covered: 79,
       skipped: 0,
@@ -502,11 +502,15 @@ describe("production cleanup coverage floor gate", () => {
     expect(Object.keys(manifest.introducedFloors)).toEqual(scope.added);
     expect(manifest.deletedFiles).toEqual(scope.deleted);
     expect(scope.existing).toHaveLength(753);
-    // Current master inventory plus independently measured MCP processing/protocol modules.
-    expect(scope.added).toHaveLength(791);
+    // Includes seven independently measured MCP PNG/ZIP export modules.
+    expect(scope.added).toHaveLength(798);
     expect(scope.deleted).toHaveLength(10);
   });
 });
+
+function fixturePath(fixture: Fixture): string {
+  return fixture.existingFileAbsolute;
+}
 
 type Fixture = {
   root: string;
