@@ -120,14 +120,18 @@ export class McpArtifactStore {
           "invalid_edit",
           "ZIP exceeds the 128 MiB output budget. Select fewer pages; resolution is never reduced.",
         );
-      return await this.create(budget, "pages.zip", assertArchiveAccess, (file) =>
-        writeMcpArtifactZip({
-          file,
-          sources,
-          manifest,
-          assertAccess: assertArchiveAccess,
-          signal: AbortSignal.any([signal, this.lifetime.signal]),
-        }),
+      return await this.create(
+        budget,
+        "pages.zip",
+        assertArchiveAccess,
+        (file) =>
+          writeMcpArtifactZip({
+            file,
+            sources,
+            manifest,
+            assertAccess: assertArchiveAccess,
+            signal: AbortSignal.any([signal, this.lifetime.signal]),
+          }),
       );
     } finally {
       for (const entry of leased) entry.leases--;
