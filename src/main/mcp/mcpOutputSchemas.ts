@@ -2,12 +2,13 @@ import { mcpFormatBatchOutputs } from "../../shared/mcpFormatBatch";
 import { mcpTranslationBatchOutputs } from "../../shared/mcpTranslationBatch";
 import { mcpStructureOutputs } from "../../shared/mcpBlockStructure";
 import { mcpErasureRecoveryOutputs } from "../../shared/mcpErasureRecoverySchemas";
+import { McpExportPreflightOutput } from "../../shared/mcpExportBatch";
 import { z } from "zod/v4";
+import { mcpContextOutputSchemas } from "../../shared/mcpContextEditing";
 import {
-  McpContextResearchTargetSchema,
-  mcpContextOutputSchemas,
-} from "../../shared/mcpContextEditing";
-import { mcpJobResultMetadataSchema } from "../application/mcpJobJournal";
+  mcpJobResultMetadataSchema,
+  mcpPersistedTargetSchema,
+} from "../application/mcpJobJournal";
 import { mcpReviewOutputSchemas } from "../../shared/mcpReviewSchemas";
 import { McpEditableFieldsSchema } from "../../shared/mcpBlockEditing";
 import { McpSourceRectResultSchema } from "../../shared/mcpSourceRect";
@@ -66,20 +67,17 @@ const image = z
   })
   .strict();
 
-const jobTarget = z
-  .object({
-    chapterId: text,
-    pageId: text,
-    blockId: text.optional(),
-    contextMode: z.enum(["none", "saved"]).optional(),
-    revision,
-    requestId: text.uuid(),
-  })
-  .strict();
-
+const artifact = {
+  jobId: text.uuid(),
+  url: text.url(),
+  bytes: count,
+  sha256: text,
+  expiresAt: count,
+  access: text,
+};
 const mcpJobReceiptOutput = z
   .object({
-    target: z.union([jobTarget, McpContextResearchTargetSchema]).optional(),
+    target: mcpPersistedTargetSchema.optional(),
     persistence: z.enum(["durable", "memory"]),
     jobId: text.uuid(),
     requestId: text,
@@ -115,6 +113,7 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
   ...mcpFormatBatchOutputs,
   ...mcpContextOutputSchemas,
   ...mcpErasureRecoveryOutputs,
+  carrot_preflight_pages_export: McpExportPreflightOutput,
   carrot_update_block_source_rect: McpSourceRectResultSchema,
   carrot_get_server_info: z
     .object({
@@ -287,21 +286,31 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
     .object({ ...window, jobs: z.array(mcpJobReceiptOutput) })
     .strict(),
   carrot_retry_job: mcpJobReceiptOutput,
-  carrot_get_job_file: z
-    .object({
-      jobId: text.uuid(),
-      kind: z.literal("rendered-page-png"),
-      url: text.url(),
-      bytes: count,
-      mimeType: z.literal("image/png"),
-      sha256: text,
-      expiresAt: count,
-      access: text,
-    })
-    .passthrough(),
+  carrot_get_job_file: z.discriminatedUnion("kind", [
+    z
+      .object({
+        ...artifact,
+        kind: z.literal("rendered-page-png"),
+        mimeType: z.literal("image/png"),
+      })
+      .passthrough(),
+    z
+      .object({
+        ...artifact,
+        kind: z.literal("rendered-pages-zip"),
+        mimeType: z.literal("application/zip"),
+        filename: z.literal("carrot-pages.zip"),
+        sourceJobId: text.uuid(),
+        pageCount: count,
+        partialOutput: flag,
+      })
+      .passthrough(),
+  ]),
   carrot_get_job: mcpJobReceiptOutput,
   carrot_cancel_job: mcpJobReceiptOutput,
   carrot_export_page_png: mcpJobReceiptOutput,
+  carrot_export_pages_png: mcpJobReceiptOutput,
+  carrot_create_export_zip: mcpJobReceiptOutput,
   carrot_run_page_ocr: mcpJobReceiptOutput,
   carrot_run_block_ocr: mcpJobReceiptOutput,
   carrot_run_block_translation: mcpJobReceiptOutput,
