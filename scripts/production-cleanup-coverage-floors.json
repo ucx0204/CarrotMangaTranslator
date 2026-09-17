@@ -16955,6 +16955,94 @@
         "pct": 96.66
       }
     },
+    "src/main/application/mcpContextEditPolicy.ts": {
+      "statements": {
+        "total": 106,
+        "covered": 98,
+        "pct": 92.45
+      },
+      "branches": {
+        "total": 102,
+        "covered": 90,
+        "pct": 88.23
+      },
+      "functions": {
+        "total": 26,
+        "covered": 24,
+        "pct": 92.3
+      },
+      "lines": {
+        "total": 93,
+        "covered": 87,
+        "pct": 93.54
+      }
+    },
+    "src/main/application/mcpContextProposalService.ts": {
+      "statements": {
+        "total": 117,
+        "covered": 111,
+        "pct": 94.87
+      },
+      "branches": {
+        "total": 44,
+        "covered": 37,
+        "pct": 84.09
+      },
+      "functions": {
+        "total": 39,
+        "covered": 39,
+        "pct": 100
+      },
+      "lines": {
+        "total": 112,
+        "covered": 107,
+        "pct": 95.53
+      }
+    },
+    "src/main/application/mcpContextResearchPolicy.ts": {
+      "statements": {
+        "total": 42,
+        "covered": 39,
+        "pct": 92.85
+      },
+      "branches": {
+        "total": 41,
+        "covered": 36,
+        "pct": 87.8
+      },
+      "functions": {
+        "total": 10,
+        "covered": 9,
+        "pct": 90
+      },
+      "lines": {
+        "total": 40,
+        "covered": 37,
+        "pct": 92.5
+      }
+    },
+    "src/main/application/mcpContextResearchService.ts": {
+      "statements": {
+        "total": 23,
+        "covered": 23,
+        "pct": 100
+      },
+      "branches": {
+        "total": 6,
+        "covered": 6,
+        "pct": 100
+      },
+      "functions": {
+        "total": 3,
+        "covered": 3,
+        "pct": 100
+      },
+      "lines": {
+        "total": 23,
+        "covered": 23,
+        "pct": 100
+      }
+    },
     "src/main/application/mcpDesktopService.ts": {
       "lines": {
         "covered": 82,
@@ -19991,6 +20079,28 @@
         "pct": 50
       }
     },
+    "src/main/library/libraryContextEditingFacade.ts": {
+      "statements": {
+        "total": 21,
+        "covered": 20,
+        "pct": 95.23
+      },
+      "branches": {
+        "total": 15,
+        "covered": 14,
+        "pct": 93.33
+      },
+      "functions": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      },
+      "lines": {
+        "total": 20,
+        "covered": 19,
+        "pct": 95
+      }
+    },
     "src/main/library/librarySoundEffectFacade.ts": {
       "lines": {
         "total": 10,
@@ -20605,6 +20715,116 @@
         "covered": 43,
         "total": 43,
         "pct": 100
+      }
+    },
+    "src/main/mcp/mcpContextEditScope.ts": {
+      "statements": {
+        "total": 15,
+        "covered": 12,
+        "pct": 80
+      },
+      "branches": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 3,
+        "pct": 75
+      },
+      "lines": {
+        "total": 15,
+        "covered": 12,
+        "pct": 80
+      }
+    },
+    "src/main/mcp/mcpContextResearchAdapter.ts": {
+      "statements": {
+        "total": 30,
+        "covered": 25,
+        "pct": 83.33
+      },
+      "branches": {
+        "total": 16,
+        "covered": 8,
+        "pct": 50
+      },
+      "functions": {
+        "total": 12,
+        "covered": 11,
+        "pct": 91.66
+      },
+      "lines": {
+        "total": 29,
+        "covered": 24,
+        "pct": 82.75
+      }
+    },
+    "src/main/mcp/mcpContextResearchTool.ts": {
+      "statements": {
+        "total": 13,
+        "covered": 12,
+        "pct": 92.3
+      },
+      "branches": {
+        "total": 7,
+        "covered": 6,
+        "pct": 85.71
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "lines": {
+        "total": 12,
+        "covered": 11,
+        "pct": 91.66
+      }
+    },
+    "src/main/mcp/mcpContextSession.ts": {
+      "statements": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "functions": {
+        "total": 3,
+        "covered": 3,
+        "pct": 100
+      },
+      "lines": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      }
+    },
+    "src/main/mcp/mcpContextTools.ts": {
+      "statements": {
+        "total": 21,
+        "covered": 19,
+        "pct": 90.47
+      },
+      "branches": {
+        "total": 10,
+        "covered": 8,
+        "pct": 80
+      },
+      "functions": {
+        "total": 8,
+        "covered": 8,
+        "pct": 100
+      },
+      "lines": {
+        "total": 20,
+        "covered": 19,
+        "pct": 95
       }
     },
     "src/main/mcp/mcpDesktopAuthorization.ts": {
@@ -32704,6 +32924,28 @@
       "branches": {
         "total": 0,
         "covered": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/mcpContextEditing.ts": {
+      "statements": {
+        "total": 30,
+        "covered": 30,
+        "pct": 100
+      },
+      "branches": {
+        "total": 3,
+        "covered": 3,
+        "pct": 100
+      },
+      "functions": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "lines": {
+        "total": 30,
+        "covered": 30,
         "pct": 100
       }
     },
