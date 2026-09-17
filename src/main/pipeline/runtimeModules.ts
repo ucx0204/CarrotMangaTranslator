@@ -73,6 +73,8 @@ async function startModelEndpoint(
 export class ModelEndpointSession {
   private endpoint: ModelEndpointHandle | null;
   private disposed = false;
+  private closedForUse = false;
+  private disposal: Promise<void> | null = null;
   private readonly cleanupOptions: Pick<
     TranslationOptions,
     "modelProvider" | "apiBaseUrl" | "apiModel"
@@ -96,25 +98,32 @@ export class ModelEndpointSession {
   }
 
   get handle(): ModelEndpointHandle {
-    if (!this.endpoint) {
-      throw new Error("모델 엔드포인트가 이미 정리되었습니다.");
+    if (!this.endpoint || this.closedForUse) {
+      throw new Error("모델 엔드포인트가 이미 정리 중이거나 종료되었습니다.");
     }
     return this.endpoint;
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) {
-      return;
-    }
-    this.disposed = true;
-    const endpoint = this.endpoint;
-    this.endpoint = null;
-    await stopModelEndpoint(
+  dispose(): Promise<void> {
+    if (this.disposed) return Promise.resolve();
+    if (this.disposal) return this.disposal;
+    this.closedForUse = true;
+    // Keep the cleanup target until shutdown succeeds. Concurrent callers must
+    // await it; a failed shutdown remains retryable but never reusable for work.
+    this.disposal = stopModelEndpoint(
       this.runtime,
-      endpoint,
+      this.endpoint,
       this.cleanupOptions,
       this.onCleanupWarning,
-    );
+    )
+      .then(() => {
+        this.endpoint = null;
+        this.disposed = true;
+      })
+      .finally(() => {
+        this.disposal = null;
+      });
+    return this.disposal;
   }
 }
 
