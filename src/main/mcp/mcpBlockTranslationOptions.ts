@@ -5,8 +5,16 @@ import { inferApiProviderPreset } from "../../shared/apiProviderPresets";
 import { McpEditError } from "../application/mcpEditPolicy";
 
 const SAFE_EXTRA_KEYS = new Set([
-  "temperature", "top_p", "top_k", "seed", "presence_penalty", "frequency_penalty",
-  "repeat_penalty", "reasoning_effort", "reasoning_budget", "enable_thinking",
+  "temperature",
+  "top_p",
+  "top_k",
+  "seed",
+  "presence_penalty",
+  "frequency_penalty",
+  "repeat_penalty",
+  "reasoning_effort",
+  "reasoning_budget",
+  "enable_thinking",
 ]);
 
 /** Task-local overrides never rewrite the user's configured provider/settings.
@@ -31,26 +39,57 @@ export function prepareMcpBlockTranslationOptions(base: TranslationOptions) {
     apiRetryDelaySeconds: 0,
   };
   if (!Number.isSafeInteger(options.maxTokens) || options.maxTokens < 1)
-    throw new McpEditError("invalid_edit", "Invalid translation output token limit.");
+    throw new McpEditError(
+      "invalid_edit",
+      "Invalid translation output token limit.",
+    );
   return { options, execution: execution as "local" | "external" };
 }
 
 function assertRemoteTextApi(options: TranslationOptions): void {
   let url: URL;
-  try { url = new URL(options.apiBaseUrl); }
-  catch { throw new McpEditError("invalid_edit", "Invalid configured translation API URL."); }
+  try {
+    url = new URL(options.apiBaseUrl);
+  } catch {
+    throw new McpEditError(
+      "invalid_edit",
+      "Invalid configured translation API URL.",
+    );
+  }
   const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (url.protocol !== "https:" || url.username || url.password ||
-      isIP(host) || !host.includes(".") || /\.(?:localhost|local|lan|internal)$/.test(host) ||
-      inferApiProviderPreset(options.apiBaseUrl) === "ollama")
-    throw new McpEditError("invalid_edit", "This text proposal tool supports app-managed Gemma, Codex, and externally hosted HTTPS APIs. Local compatible servers need a strict unload contract and are not started by this tool.");
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    isIP(host) ||
+    !host.includes(".") ||
+    /\.(?:localhost|local|lan|internal)$/.test(host) ||
+    inferApiProviderPreset(options.apiBaseUrl) === "ollama"
+  )
+    throw new McpEditError(
+      "invalid_edit",
+      "This text proposal tool supports app-managed Gemma, Codex, and externally hosted HTTPS APIs. Local compatible servers need a strict unload contract and are not started by this tool.",
+    );
   const raw = options.apiExtraBodyJson?.trim();
   if (!raw) return;
   let extra: unknown;
-  try { extra = JSON.parse(raw); }
-  catch { throw new McpEditError("invalid_edit", "Invalid API extra body JSON."); }
-  if (!extra || typeof extra !== "object" || Array.isArray(extra) ||
-      Object.entries(extra).some(([key, value]) => !SAFE_EXTRA_KEYS.has(key) ||
-        !["string", "number", "boolean"].includes(typeof value)))
-    throw new McpEditError("invalid_edit", "API extra body must contain only scalar sampling settings for this single text request; tool, image, stream and multiple-generation overrides are not accepted.");
+  try {
+    extra = JSON.parse(raw);
+  } catch {
+    throw new McpEditError("invalid_edit", "Invalid API extra body JSON.");
+  }
+  if (
+    !extra ||
+    typeof extra !== "object" ||
+    Array.isArray(extra) ||
+    Object.entries(extra).some(
+      ([key, value]) =>
+        !SAFE_EXTRA_KEYS.has(key) ||
+        !["string", "number", "boolean"].includes(typeof value),
+    )
+  )
+    throw new McpEditError(
+      "invalid_edit",
+      "API extra body must contain only scalar sampling settings for this single text request; tool, image, stream and multiple-generation overrides are not accepted.",
+    );
 }

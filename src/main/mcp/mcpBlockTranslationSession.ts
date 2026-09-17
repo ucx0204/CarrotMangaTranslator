@@ -22,15 +22,23 @@ export function createMcpBlockTranslationExecutor(
     const prepared = prepareMcpBlockTranslationOptions(
       buildBaseOptions(operation.id, paths.runDir, settings, app.appPaths),
     );
-    return runMcpAppJob(app, operation, "gemma-analysis", (context) =>
-      new McpBlockTranslationService({
-        openChapter,
-        translate: (input, guard) => translateMcpBlock(input, prepared.options, guard, runtime),
-      }).run(request, context), {
-        resources: prepared.execution === "local"
-          ? [{ kind: "model-runtime", scope: "*", access: "write" }]
-          : [],
+    return runMcpAppJob(
+      app,
+      operation,
+      "gemma-analysis",
+      (context) =>
+        new McpBlockTranslationService({
+          openChapter,
+          translate: (input, guard) =>
+            translateMcpBlock(input, prepared.options, guard, runtime),
+        }).run(request, context),
+      {
+        resources:
+          prepared.execution === "local"
+            ? [{ kind: "model-runtime", scope: "*", access: "write" }]
+            : [],
         page: { ...request, readChapter: openChapter },
-      });
+      },
+    );
   };
 }
