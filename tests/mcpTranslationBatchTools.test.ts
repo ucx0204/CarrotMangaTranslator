@@ -9,27 +9,59 @@ import { mcpBatchMembership } from "../src/main/application/mcpTranslationBatchP
 it("rejects a generated-text block inside the native commit boundary even with its fresh revision", async () => {
   const f = translationBatchFixture();
   const page = f.chapter.pages[0];
-  page.blocks[0].generatedLettering = { version: 1, dataUrl: "PRIVATE", sourceText: "source", translatedText: "original-a" };
-  await expect(f.edits.commitTranslationBatch({ chapterId: "chapter", pageId: page.id,
-    revision: createPageRevision(page), edits: [{ blockId: "a", translatedText: "not applied" }] },
-    mcpBatchMembership(f.chapter), f.guard, () => {}, async (run) => run())).rejects.toThrow(/Generated lettering/);
+  page.blocks[0].generatedLettering = {
+    version: 1,
+    dataUrl: "PRIVATE",
+    sourceText: "source",
+    translatedText: "original-a",
+  };
+  await expect(
+    f.edits.commitTranslationBatch(
+      {
+        chapterId: "chapter",
+        pageId: page.id,
+        revision: createPageRevision(page),
+        edits: [{ blockId: "a", translatedText: "not applied" }],
+      },
+      mcpBatchMembership(f.chapter),
+      f.guard,
+      () => {},
+      async (run) => run(),
+    ),
+  ).rejects.toThrow(/Generated lettering/);
   expect(f.save).not.toHaveBeenCalled();
   await f.service.close();
 });
 it("exposes only text search when editing is disabled and validates ownership/input", async () => {
   const f = translationBatchFixture();
   const tools = createMcpTranslationBatchTools(f.ports, false);
-  expect(tools.map((tool) => tool.name)).toEqual(["carrot_search_chapter_text"]);
-  await expect(tools[0].invoke({ chapterId: "chapter", mode: "browse" })).rejects.toThrow(/approved connection/);
-  await expect(tools[0].invoke({ chapterId: "chapter", mode: "browse", path: "PRIVATE" },
-    { principalId: f.owner, assertAuthorized: f.guard })).rejects.toThrow();
+  expect(tools.map((tool) => tool.name)).toEqual([
+    "carrot_search_chapter_text",
+  ]);
+  await expect(
+    tools[0].invoke({ chapterId: "chapter", mode: "browse" }),
+  ).rejects.toThrow(/approved connection/);
+  await expect(
+    tools[0].invoke(
+      { chapterId: "chapter", mode: "browse", path: "PRIVATE" },
+      { principalId: f.owner, assertAuthorized: f.guard },
+    ),
+  ).rejects.toThrow();
   await f.service.close();
 });
 it("uses the connection grant after acceptance and cancels the matching asynchronous action", async () => {
   const f = translationBatchFixture();
-  const tools = createMcpTranslationBatchTools(f.ports, true, f.lifetime.signal);
-  const context = { principalId: f.owner, assertAuthorized: f.guard,
-    assertScopes: vi.fn(), assertJobAuthorized: vi.fn() };
+  const tools = createMcpTranslationBatchTools(
+    f.ports,
+    true,
+    f.lifetime.signal,
+  );
+  const context = {
+    principalId: f.owner,
+    assertAuthorized: f.guard,
+    assertScopes: vi.fn(),
+    assertJobAuthorized: vi.fn(),
+  };
   const invoke = async (name: string, args: Record<string, unknown>) => {
     const tool = tools.find((item) => item.name === name);
     if (!tool) throw new Error("Missing test tool");
@@ -42,8 +74,13 @@ it("uses the connection grant after acceptance and cancels the matching asynchro
   const originalSave = f.save.getMockImplementation();
   if (!originalSave) throw new Error("Missing storage fixture");
   let release!: () => void;
-  const held = new Promise<void>((resolve) => { release = resolve; });
-  f.save.mockImplementationOnce(async (...args) => { await held; return originalSave(...args); });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  f.save.mockImplementationOnce(async (...args) => {
+    await held;
+    return originalSave(...args);
+  });
   context.assertScopes.mockClear();
   const action = { batchId: preview.batchId, requestId: randomUUID() };
   await invoke("carrot_apply_translation_batch", action);
@@ -56,8 +93,14 @@ it("uses the connection grant after acceptance and cancels the matching asynchro
   let finished = false;
   for (let i = 0; i < 100; i++) {
     await tick();
-    const state = await invoke("carrot_get_translation_batch", { batchId: preview.batchId });
-    if (state.status !== "running") { expect(state.status).toBe("cancelled"); finished = true; break; }
+    const state = await invoke("carrot_get_translation_batch", {
+      batchId: preview.batchId,
+    });
+    if (state.status !== "running") {
+      expect(state.status).toBe("cancelled");
+      finished = true;
+      break;
+    }
   }
   expect(finished).toBe(true);
   expect(f.chapter.pages[0].blocks[0].translatedText).toBe("original-a");
