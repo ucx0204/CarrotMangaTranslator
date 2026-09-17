@@ -96,6 +96,7 @@ it("reads original pixels into a fresh containing crop, maps evidence back, then
       expect(options.imagePath).not.toBe(f.output);
       expect(options.outputDir).not.toContain("ocr-hints");
       expect(options.skipOcrBboxHints).toBe(false);
+      expect(options).toMatchObject({ ocrInputKind: "known-block-crop" });
       expect(options.abortSignal).toBe(f.operation.signal);
       options.onProgress?.({ phase: "ocr_running", progressText: "fixture" });
       inputs.push(options.imagePath);
