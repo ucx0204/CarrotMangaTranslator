@@ -197,7 +197,7 @@ async function checkNativeBlockTranslation(
 }
 /** @param {string} root @param {Invoke} invoke
  * @param {{chapterId: string, pageId: string}} target
- * @param {import("../src/shared/libraryTypes").PageRecord} page
+ * @param {import("../src/shared/libraryTypes").ChapterSnapshot["pages"][number]} page
  * @param {{revision: string, blockTranslation: {translatedText: string, previousTranslatedText: string}}} result
  * @param {Buffer} beforeBitmap */
 async function applyAndRestore(
