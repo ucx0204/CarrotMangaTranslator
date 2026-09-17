@@ -62,6 +62,13 @@
 처리한 뒤 실제 해제를 확인해야 한다. 모델 없는 편집은 페이지·공유 자원 충돌이
 없을 때만 제한적으로 함께 처리한다. 기존 Tailscale·인증 저장·승인 정책은 유지한다.
 
+## Current implementation
+
+The structural tool chain and native/HTTP roundtrips are implemented and verified.
+See `mcp-block-structure-closeout-20260917.md` for the deployed state and the
+remaining ChatGPT catalogue refresh. The following checkpoint is historical,
+not a statement that the current implementation is absent.
+
 ## 2026-09-17 체크포인트
 
 기준 소스: `feat/mcp-app-bridge`의 `7f87beb6422c93834d8a6acbfc7cb06068c9288e`.

@@ -28,23 +28,12 @@ but the app may retain a pending workflow completion status. No stale completed
 model receipt is manufactured. Subsequent page or SFX ledger edits conflict.
 Old identical action retries are historical receipts with zero new page changes.
 
-## Verification in progress
+## Current verification status
 
-Initial policy, lifecycle and output checks: 44 passed. New real HTTP storage
-and permission tests plus cross-plan request-ID race tests: 35 passed. The race
-was first reproduced (1 failed / 3 passed), then fixed by reserving in-flight
-request IDs before waiting for page ownership. Renderer notification failure
-cannot lose an already committed receipt or cause the edit to be replayed.
-
-Four new coverage records were measured on Windows and registered without
-changing any older floor or provenance. Full coverage/build/native/live checks
-are still pending at this checkpoint; focused-run global coverage is not a full
-suite result. Native tests exercise production storage and actual pixel output.
-
-Architecture checks currently report direct-consumer ceilings at pageRevision,
-ipcSchemaPrimitives, geometry and mcpEditPolicy. The attempted ceiling update
-was blocked before execution; the budget file remains unchanged. Do not claim
-that the aggregate check has passed or hide this by aliases/copied algorithms.
-
-Temporary logs: `.tmp/mcp-structure-20260917/` in the existing review worktree.
-Normal user library, authentication and model settings have not been modified.
+Implementation, full Windows check (26 gates), 7,436 passing tests and the actual
+Electron structural roundtrips are complete. The review app has been normally
+restarted and advertises all five new tools. Direct calls from this ChatGPT
+conversation await its tool-definition refresh; they are not marked passed.
+See `mcp-block-structure-closeout-20260917.md` for exact evidence, restrictions
+and the verified 14-file unchanged test-work backup. Earlier dependency-ceiling
+failures are resolved by the documented, measured per-file exceptions.
