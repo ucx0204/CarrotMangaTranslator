@@ -169,6 +169,11 @@ function sendFailure(
   oauth?: McpOAuthHttp,
 ) {
   if (response.destroyed || response.writableEnded) return;
+  if (response.headersSent) {
+    // A streamed file is incomplete: never append JSON or rewrite its headers.
+    response.destroy();
+    return;
+  }
   const status = error instanceof McpHttpError ? error.status : 500;
   const message =
     error instanceof McpHttpError ? error.message : "Internal server error.";
