@@ -17,7 +17,7 @@ type McpToolContent =
       type: "resource_link";
       uri: string;
       name: string;
-      mimeType: "image/png";
+      mimeType: "image/png" | "application/zip";
       size: number;
     };
 export type McpTool = {
