@@ -26,10 +26,7 @@ it("does not write headers when the client already closed during file validation
   const f = await exportHttpFixture();
   const socket = new Socket();
   try {
-    const source = await f.store.put(
-      Buffer.from("fixture PNG"),
-      async () => {},
-    );
+    const source = await f.store.put(Buffer.from("fixture PNG"), async () => {});
     const request = new IncomingMessage(socket);
     request.method = "GET";
     request.url = new URL(source.url).pathname;
@@ -49,7 +46,8 @@ it("stops a partially transferred ZIP when its reader fails without appending JS
   try {
     const file = await zipFile(f);
     vi.mocked(createReadStream).mockClear();
-    vi.mocked(createReadStream).mockReturnValueOnce(input as ReadStream);
+    // Only the filesystem boundary is controlled; HTTP, pipeline and store are real.
+    vi.mocked(createReadStream).mockReturnValueOnce(input as unknown as ReadStream);
     const pending = f.send(new URL(file.url).pathname);
     await vi.waitFor(() => expect(createReadStream).toHaveBeenCalledOnce());
     input.write(Buffer.from("P"));
@@ -76,13 +74,13 @@ it("cleans up an abandoned ZIP download without treating client cancellation as 
   try {
     const file = await zipFile(f);
     vi.mocked(createReadStream).mockClear();
-    vi.mocked(createReadStream).mockReturnValueOnce(input as ReadStream);
+    vi.mocked(createReadStream).mockReturnValueOnce(input as unknown as ReadStream);
     const pending = f.send(new URL(file.url).pathname);
     await vi.waitFor(() => expect(createReadStream).toHaveBeenCalledOnce());
     input.write(Buffer.from("P"));
     const response = await pending;
-    expect(response.body).not.toBeNull();
-    const reader = response.body!.getReader();
+    if (!response.body) throw new Error("The ZIP response must have a body.");
+    const reader = response.body.getReader();
     expect((await reader.read()).value).toEqual(new Uint8Array([80]));
     await reader.cancel();
     // Allow the socket close to reach the server before releasing the paused disk boundary.
