@@ -29,8 +29,8 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 46,
-      "reason": "Context edit policy adds one direct consumer to verify page-memory evidence against the current saved page. Block translation keeps its existing proposal checks. No revision algorithm, alias wrapper or global limit changes. Exact boundary decisions and regression requirements are recorded in docs/mcp-context-research-boundaries-20260917.md. Structure service directly reuses the canonical page revision for preview, apply, undo and redo. No copied hash algorithm or alias module. Structure stale-page and restore tests protect this additional consumer."
+      "maxImportedBy": 50,
+      "reason": "Context edit policy adds one direct consumer to verify page-memory evidence against the current saved page. Block translation keeps its existing proposal checks. No revision algorithm, alias wrapper or global limit changes. Exact boundary decisions and regression requirements are recorded in docs/mcp-context-research-boundaries-20260917.md. Structure service directly reuses the canonical page revision for preview, apply, undo and redo. No copied hash algorithm or alias module. Structure stale-page and restore tests protect this additional consumer. Chapter search, text plan validation, page commit receipts and advisory inspection directly consume the existing page revision; no revision algorithm or forwarding wrappers are introduced."
     },
     "src/renderer/src/api/libraryGateway.ts": {
       "maxImportedBy": 28,
@@ -53,8 +53,8 @@
       "reason": "IPC composition root IPC composition adds trusted MCP desktop controls with the existing validation and sender gate."
     },
     "src/main/logger.ts": {
-      "maxImportedBy": 35,
-      "reason": "Activity observers, handoff failures and durable image checkpoint failures use the shared diagnostic sink. Checkpoint wrappers preserve the underlying storage cause for recovery diagnostics."
+      "maxImportedBy": 36,
+      "reason": "Activity observers, handoff failures and durable image checkpoint failures use the shared diagnostic sink. Checkpoint wrappers preserve the underlying storage cause for recovery diagnostics. Text batch adapter reports the original stopped-operation cause through the existing redacting diagnostic sink."
     },
     "src/main/libraryStore/storage.ts": {
       "maxImportedBy": 28,
@@ -198,8 +198,8 @@
     },
     "src/main/library.ts": {
       "maxRuntimeImports": 13,
-      "maxImportedBy": 38,
-      "reason": "Context composition adds the explicit libraryContextEditingFacade read/commit contract to the established library facade and two direct consumers. Publication still uses the existing library mutation queue and atomic transaction with authorization recheck. No direct libraryStore access from application services, wildcard barrel or alias facade. See docs/mcp-context-research-boundaries-20260917.md."
+      "maxImportedBy": 39,
+      "reason": "Context composition adds the explicit libraryContextEditingFacade read/commit contract to the established library facade and two direct consumers. Publication still uses the existing library mutation queue and atomic transaction with authorization recheck. No direct libraryStore access from application services, wildcard barrel or alias facade. See docs/mcp-context-research-boundaries-20260917.md. Text batch adapter reads the existing atomic work/context snapshot through the public library facade."
     },
     "src/main/ipc/trustedIpc.ts": {
       "maxImportedBy": 26,
@@ -210,8 +210,8 @@
       "reason": "MCP page render/crop adapter and app-default external-reading composition reuse the canonical data-root resolver; no separate root or arbitrary paths are exposed."
     },
     "src/main/mcp/mcpAppTools.ts": {
-      "maxRuntimeImports": 14,
-      "reason": "This explicit composition root adds metadata-only review/preflight tools beside existing page/image/context tools. Existing app export rules and the public library facade remain authoritative; no alias wrapper, copied algorithm or generic budget change."
+      "maxRuntimeImports": 16,
+      "reason": "This explicit composition root adds metadata-only review/preflight tools beside existing page/image/context tools. Existing app export rules and the public library facade remain authoritative; no alias wrapper, copied algorithm or generic budget change. The application composition root directly wires the chapter text batch tools and native page/context adapter; model runtimes and alternative stores are not added."
     },
     "src/main/mcp/mcpPageOperationSession.ts": {
       "maxRuntimeImports": 18,
@@ -222,8 +222,12 @@
       "reason": "Context edit and app-research scopes directly declare the app's existing work-context/content resources and share UI ownership. No alternative locking vocabulary, alias facade or global limit change. Deadlock and stale-context regression tests protect lifetime behavior; see docs/mcp-context-research-boundaries-20260917.md."
     },
     "src/main/application/mcpEditPolicy.ts": {
-      "maxImportedBy": 41,
-      "reason": "Context edit/research policies, proposal services and adapters reuse the existing typed MCP error authority. Seven direct consumers retain consistent stale/permission/invalid-input errors without copied classes or dependency-hiding wrappers. Global limits, save guards and error semantics are unchanged; see docs/mcp-context-research-boundaries-20260917.md. Structure policy, session service and MCP tools directly use the existing typed error authority for invalid input, ownership, expiry and page conflicts. No error-class copy, dependency-hiding wrapper or global limit change."
+      "maxImportedBy": 47,
+      "reason": "Context edit/research policies, proposal services and adapters reuse the existing typed MCP error authority. Seven direct consumers retain consistent stale/permission/invalid-input errors without copied classes or dependency-hiding wrappers. Global limits, save guards and error semantics are unchanged; see docs/mcp-context-research-boundaries-20260917.md. Structure policy, session service and MCP tools directly use the existing typed error authority for invalid input, ownership, expiry and page conflicts. No error-class copy, dependency-hiding wrapper or global limit change. Chapter text search, plan, runner, service, adapter and tool boundary reuse the existing typed edit errors and translation patch authority."
+    },
+    "src/shared/blockFingerprint.ts": {
+      "maxImportedBy": 26,
+      "reason": " Chapter text search fingerprints criteria and current saved page/context snapshots for consistent pagination."
     }
   }
 }

@@ -71,9 +71,6 @@ export const McpTranslationBatchActionSchema = z
     requestId: z.uuid(),
   })
   .strict();
-export type McpTranslationBatchAction = z.infer<
-  typeof McpTranslationBatchActionSchema
->;
 export type McpTranslationBatchDirection = "apply" | "undo" | "redo";
 
 const snippet = z

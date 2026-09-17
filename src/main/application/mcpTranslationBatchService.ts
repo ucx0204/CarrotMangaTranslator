@@ -182,10 +182,6 @@ export class McpTranslationBatchService {
     const contextChanged = saved
       ? mcpContextRevision(saved) !== entry.input.contextRevision
       : false;
-    const eligible = (state: string) =>
-      entry.plan.pages.some(
-        (page) => page.state === state && !changed.has(page.pageId),
-      );
     const changes = entry.plan.pages.flatMap((page) => page.changes);
     return {
       batchId: entry.id,
@@ -193,22 +189,13 @@ export class McpTranslationBatchService {
       contextRevision: entry.input.contextRevision,
       reason: entry.input.reason,
       expiresAt: entry.expires,
-      status: entry.run?.status ?? "proposed",
-      direction: entry.run?.direction ?? null,
-      activeRequestId: entry.run?.requestId ?? null,
-      cancellationRequested: entry.run?.controller.signal.aborted ?? false,
+      ...describeBatchRun(entry.run),
       pages: entry.plan.pages.map(({ changes: _changes, ...page }) => ({
         ...page,
       })),
       totalChanges: changes.length,
       excludedChanges: changes.filter((change) => change.excludedReason).length,
-      canApply:
-        !entry.busy &&
-        !entry.applyStarted &&
-        !contextChanged &&
-        eligible("pending"),
-      canUndo: !entry.busy && eligible("applied"),
-      canRedo: !entry.busy && !contextChanged && eligible("undone"),
+      ...batchAvailability(entry, changed, contextChanged),
       warnings: [
         "availability_rechecked_under_page_lock",
         "render_each_changed_page_explicitly",
@@ -333,4 +320,33 @@ export class McpTranslationBatchService {
     if (entry.busy) entry.run.controller.abort();
     return this.summary(entry);
   }
+}
+
+function batchAvailability(
+  entry: Entry,
+  changed: Set<string>,
+  contextChanged: boolean,
+) {
+  const eligible = (state: string) =>
+    entry.plan.pages.some(
+      (page) => page.state === state && !changed.has(page.pageId),
+    );
+  return {
+    canApply:
+      !entry.busy &&
+      !entry.applyStarted &&
+      !contextChanged &&
+      eligible("pending"),
+    canUndo: !entry.busy && eligible("applied"),
+    canRedo: !entry.busy && !contextChanged && eligible("undone"),
+  };
+}
+
+function describeBatchRun(run?: BatchTextRun) {
+  return {
+    status: run?.status ?? "proposed",
+    direction: run?.direction ?? null,
+    activeRequestId: run?.requestId ?? null,
+    cancellationRequested: run?.controller.signal.aborted ?? false,
+  };
 }

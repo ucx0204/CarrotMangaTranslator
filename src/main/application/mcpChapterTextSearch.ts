@@ -1,3 +1,4 @@
+import type { MangaPage } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
 import { createPageRevision } from "../../shared/pageRevision";
 import { hashStableValue } from "../../shared/blockFingerprint";
@@ -19,21 +20,7 @@ export function searchMcpChapterText(
 ) {
   const request = McpChapterTextSearchSchema.parse(input);
   const chapter = saved.chapter;
-  if (chapter.id !== request.chapterId || chapter.workId !== saved.workId)
-    throw new McpEditError("not_found", "Chapter membership changed.");
-  if (
-    (request.mode === "search" && !request.query?.trim()) ||
-    (request.mode === "browse" && request.query !== undefined)
-  )
-    throw new McpEditError(
-      "invalid_edit",
-      "Use nonempty literal search or explicit browse mode without a query.",
-    );
-  if (request.offset > 0 && !request.snapshot)
-    throw new McpEditError(
-      "invalid_edit",
-      "Subsequent windows require the first response's snapshot.",
-    );
+  validateSearchRequest(saved, request);
   const selected = selectedPages(saved, request.pageIds);
   const contextRevision = mcpContextRevision(saved);
   const { offset, limit, snapshot: expected, ...criteria } = request;
@@ -48,38 +35,15 @@ export function searchMcpChapterText(
       "revision_conflict",
       "Search contents or criteria changed; restart at offset 0.",
     );
-  const result: McpChapterTextHit[] = [];
-  let total = 0,
-    excludedGenerated = 0;
+  const scan = {
+    matches: [] as McpChapterTextHit[],
+    total: 0,
+    excludedGenerated: 0,
+  };
   for (const [pageIndex, page] of chapter.pages.entries()) {
-    if (!selected.has(page.id)) continue;
-    const byId = new Map(page.blocks.map((block) => [block.id, block]));
-    if (byId.size !== page.blocks.length)
-      throw new McpEditError(
-        "invalid_edit",
-        "Duplicate stored block IDs must be repaired before search/edit.",
-      );
-    const blocks = resolvePageBlockOrder(page).map((id) => byId.get(id)!);
-    for (const [index, block] of blocks.entries()) {
-      const hit = blockHit(block, request);
-      if (!hit) continue;
-      if (hit.hasGeneratedLettering && request.generated === "exclude") {
-        excludedGenerated += 1;
-        continue;
-      }
-      if (request.generated === "only" && !hit.hasGeneratedLettering) continue;
-      if (total >= offset && result.length < limit)
-        result.push({
-          ...hit,
-          pageId: page.id,
-          pageNumber: pageIndex + 1,
-          revision: createPageRevision(page),
-          previous: neighbor(blocks[index - 1]),
-          next: neighbor(blocks[index + 1]),
-        });
-      total += 1;
-    }
+    if (selected.has(page.id)) collectPage(page, pageIndex, request, scan);
   }
+  const { matches: result, total, excludedGenerated } = scan;
   return {
     chapterId: chapter.id,
     snapshot,
@@ -111,11 +75,7 @@ function blockHit(block: TranslationBlock, request: McpChapterTextSearch) {
   const textRole: "sound" | "ordinary" =
     block.textRole === "sound" ? "sound" : "ordinary";
   const reviewStatus = block.reviewStatus ?? "draft";
-  if (
-    (request.textRole !== "all" && request.textRole !== textRole) ||
-    (request.reviewStatus !== "all" && request.reviewStatus !== reviewStatus)
-  )
-    return null;
+  if (!matchesBlockFilters(textRole, reviewStatus, request)) return null;
   const source = occurrences(block.sourceText, "source", request);
   const translation = occurrences(block.translatedText, "translation", request);
   if (
@@ -147,7 +107,9 @@ function occurrences(
     (request.field !== "both" && request.field !== field)
   )
     return { matches, truncated: false };
-  const query = request.query!;
+  const query = request.query;
+  if (!query)
+    throw new McpEditError("invalid_edit", "Nonempty search query required.");
   if (request.match === "exact")
     return {
       matches:
@@ -182,4 +144,84 @@ function neighbor(block?: TranslationBlock) {
         translation: snippet(block.translatedText, 0, 160).text,
       }
     : null;
+}
+
+function validateSearchRequest(
+  saved: McpContextSnapshot,
+  request: McpChapterTextSearch,
+) {
+  const chapter = saved.chapter;
+  if (chapter.id !== request.chapterId || chapter.workId !== saved.workId)
+    throw new McpEditError("not_found", "Chapter membership changed.");
+  if (
+    (request.mode === "search" && !request.query?.trim()) ||
+    (request.mode === "browse" && request.query !== undefined)
+  )
+    throw new McpEditError(
+      "invalid_edit",
+      "Use nonempty literal search or explicit browse mode without a query.",
+    );
+  if (request.offset > 0 && !request.snapshot)
+    throw new McpEditError(
+      "invalid_edit",
+      "Subsequent windows require the first response's snapshot.",
+    );
+}
+
+function collectPage(
+  page: MangaPage,
+  pageIndex: number,
+  request: McpChapterTextSearch,
+  scan: {
+    matches: McpChapterTextHit[];
+    total: number;
+    excludedGenerated: number;
+  },
+) {
+  const byId = new Map(page.blocks.map((block) => [block.id, block]));
+  if (byId.size !== page.blocks.length)
+    throw new McpEditError(
+      "invalid_edit",
+      "Duplicate stored block IDs must be repaired before search/edit.",
+    );
+  const blocks = resolvePageBlockOrder(page).map((id) => {
+    const block = byId.get(id);
+    if (!block)
+      throw new McpEditError(
+        "invalid_edit",
+        "Reading order references an absent block.",
+      );
+    return block;
+  });
+  const revision = createPageRevision(page);
+  for (const [index, block] of blocks.entries()) {
+    const hit = blockHit(block, request);
+    if (!hit) continue;
+    if (hit.hasGeneratedLettering && request.generated === "exclude") {
+      scan.excludedGenerated += 1;
+      continue;
+    }
+    if (request.generated === "only" && !hit.hasGeneratedLettering) continue;
+    if (scan.total >= request.offset && scan.matches.length < request.limit)
+      scan.matches.push({
+        ...hit,
+        pageId: page.id,
+        pageNumber: pageIndex + 1,
+        revision,
+        previous: neighbor(blocks[index - 1]),
+        next: neighbor(blocks[index + 1]),
+      });
+    scan.total += 1;
+  }
+}
+
+function matchesBlockFilters(
+  textRole: string,
+  reviewStatus: string,
+  request: McpChapterTextSearch,
+) {
+  return (
+    (request.textRole === "all" || request.textRole === textRole) &&
+    (request.reviewStatus === "all" || request.reviewStatus === reviewStatus)
+  );
 }

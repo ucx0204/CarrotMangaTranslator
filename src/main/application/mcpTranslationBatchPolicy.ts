@@ -9,7 +9,7 @@ import {
 import type { McpContextSnapshot } from "./mcpContextEditPolicy";
 import { McpEditError } from "./mcpEditPolicy";
 
-export type BatchTextChange = {
+type BatchTextChange = {
   pageId: string;
   blockId: string;
   sourceText: string;
@@ -19,7 +19,7 @@ export type BatchTextChange = {
   excludedReason: string | null;
   changed: boolean;
 };
-export type BatchTextPage = {
+type BatchTextPage = {
   pageId: string;
   expectedRevision: string;
   state: "pending" | "applied" | "undone" | "unchanged" | "excluded";

@@ -8,7 +8,8 @@ it("cancels a paused save before commit and does not start later pages", async (
   const f = translationBatchFixture();
   const before = structuredClone(f.chapter);
   const plan = await f.service.preview(f.owner, f.request(), f.guard);
-  const save = f.save.getMockImplementation()!;
+  const save = f.save.getMockImplementation();
+  if (!save) throw new Error("Missing storage fixture");
   let release!: () => void;
   const pending = new Promise<void>((resolve) => {
     release = resolve;
@@ -59,7 +60,8 @@ it("stops subsequent commits on revocation and preserves the first commit", asyn
 it("shutdown drains a held commit before closing session history", async () => {
   const f = translationBatchFixture();
   const plan = await f.service.preview(f.owner, f.request(), f.guard);
-  const save = f.save.getMockImplementation()!;
+  const save = f.save.getMockImplementation();
+  if (!save) throw new Error("Missing storage fixture");
   let release!: () => void;
   const pending = new Promise<void>((resolve) => {
     release = resolve;

@@ -111,10 +111,12 @@ function makeTool(options: {
           "An approved connection is required.",
         );
       const guard = () => {
-        if (options.background && context.assertJobAuthorized)
+        if (options.background && context.assertJobAuthorized) {
           context.assertJobAuthorized(options.scopes);
-        else context.assertAuthorized();
-        context.assertScopes?.(options.scopes);
+        } else {
+          context.assertAuthorized();
+          context.assertScopes?.(options.scopes);
+        }
       };
       guard();
       const parsed = options.schema.safeParse(args);

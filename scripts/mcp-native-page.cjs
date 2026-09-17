@@ -1,3 +1,4 @@
+const { checkNativeTextBatch } = require("./mcp-native-text-batch.cjs");
 const { checkNativeContext } = require("./mcp-native-context.cjs");
 const { checkNativeStructure } = require("./mcp-native-structure.cjs");
 const { checkNativeBlockOcr } = require("./mcp-native-block-ocr.cjs");
@@ -213,6 +214,7 @@ async function checkNativePageGoal(root) {
     await checkNativeBlockTranslation(root, app, invoke, chapter.id, page.id);
     await checkNativeContext(root, invoke, chapter.id, page.id);
     await checkNativeStructure(root, invoke, chapter.id, page.id);
+    await checkNativeTextBatch(root, invoke, page.imagePath);
     await checkNativeReadback(invoke, chapter.id, page.id, original, clean);
     await checkNativeReview(root, chapter.id, page.id, 2);
     const started = await invoke("carrot_export_page_png", {

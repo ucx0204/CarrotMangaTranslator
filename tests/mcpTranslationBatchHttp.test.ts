@@ -78,7 +78,8 @@ it("authenticates search and exact batch edits, with real read leases, persisten
       input,
       f.read,
     );
-    expect(denied.result.isError).toBe(true);
+    expect(denied.error).toBeDefined();
+    expect(denied.result).toBeUndefined();
     const preview = await f.call("carrot_preview_translation_batch", input);
     expect(preview.result.isError).toBe(false);
     const batchId = preview.result.structuredContent.batchId;

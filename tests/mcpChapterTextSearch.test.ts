@@ -22,7 +22,7 @@ it("browses in page/reading order, returns neighbors and never leaks paths or im
   const next = searchMcpChapterText(f.saved, {
     ...request,
     snapshot: first.snapshot,
-    offset: first.nextOffset!,
+    offset: first.nextOffset ?? 0,
   });
   expect(next.matches[0].pageId).toBe("second");
   expect(f.saved).toEqual(before);

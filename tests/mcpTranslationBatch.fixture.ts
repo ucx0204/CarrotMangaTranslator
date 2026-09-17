@@ -54,7 +54,8 @@ export function translationBatchFixture() {
   const save = vi.fn(
     async (request: SavePageBlocksRequest, guard?: () => void) => {
       guard?.();
-      const page = chapter.pages.find((item) => item.id === request.pageId)!;
+      const page = chapter.pages.find((item) => item.id === request.pageId);
+      if (!page) throw new Error("Fixture page missing");
       if (request.expectedRevision !== createPageRevision(page))
         throw new Error("페이지가 다른 작업으로 갱신되었습니다");
       page.blocks = structuredClone(request.blocks);
