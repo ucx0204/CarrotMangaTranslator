@@ -1,3 +1,4 @@
+const { checkNativeExportBatch } = require("./mcp-native-export-batch.cjs");
 const { checkNativeFormatBatch } = require("./mcp-native-format-batch.cjs");
 const { checkNativeTextBatch } = require("./mcp-native-text-batch.cjs");
 const { checkNativeContext } = require("./mcp-native-context.cjs");
@@ -151,6 +152,8 @@ async function checkNativePageGoal(root) {
     },
     assertScopes: (/** @type {string[]} */ scopes) =>
       assertFixtureScopes(allowed, scopes),
+    assertJobAuthorized: (/** @type {readonly string[]} */ scopes = []) =>
+      assertFixtureScopes(allowed, [...scopes]),
     principalId: "native-fixture",
   };
   const preferences = {
@@ -221,6 +224,7 @@ async function checkNativePageGoal(root) {
       page.imagePath,
     );
     await checkNativeFormatBatch(root, invoke, batchChapterId);
+    await checkNativeExportBatch(root, invoke, batchChapterId, session.artifacts);
     await checkNativeReadback(invoke, chapter.id, page.id, original, clean);
     await checkNativeReview(root, chapter.id, page.id, 2);
     const started = await invoke("carrot_export_page_png", {
