@@ -9,17 +9,21 @@ import { useCurrentChapterUpdater } from "../src/renderer/src/hooks/useCurrentCh
 
 /** Characterization of the UNCHANGED production editor. This is not a mock
  * implementation of the future split/merge/delete MCP service. */
-function deletionFixture(options: {
-  configure?: (chapter: ChapterSnapshot) => void;
-  locked?: boolean;
-  selectedId?: string;
-} = {}) {
+function deletionFixture(
+  options: {
+    configure?: (chapter: ChapterSnapshot) => void;
+    locked?: boolean;
+    selectedId?: string;
+  } = {},
+) {
   const chapter = editingChapter();
   options.configure?.(chapter);
   const before = structuredClone(chapter);
   const ref: { current: ChapterSnapshot | null } = { current: chapter };
   const page = chapter.pages[0];
-  const selected = page.blocks.find((block) => block.id === (options.selectedId ?? "a")) ?? null;
+  const selected =
+    page.blocks.find((block) => block.id === (options.selectedId ?? "a")) ??
+    null;
   const assertPagesEditable = vi.fn();
   const markDirty = vi.fn();
   const setCurrentChapter = vi.fn();
@@ -73,7 +77,10 @@ describe("structure editing baseline in the existing app", () => {
   it("deletes only the selected text object, retaining raster references and other pages", () => {
     const f = deletionFixture({
       configure: (chapter) => {
-        chapter.pages.push({ ...structuredClone(chapter.pages[0]), id: "other-page" });
+        chapter.pages.push({
+          ...structuredClone(chapter.pages[0]),
+          id: "other-page",
+        });
         chapter.pageOrder.push("other-page");
       },
     });
@@ -97,7 +104,10 @@ describe("structure editing baseline in the existing app", () => {
 
   it("uses the explicit reading predecessor rather than block array position", () => {
     const f = deletionFixture();
-    expect(f.before.pages[0].blocks.map((block) => block.id)).toEqual(["a", "b"]);
+    expect(f.before.pages[0].blocks.map((block) => block.id)).toEqual([
+      "a",
+      "b",
+    ]);
     expect(f.before.pages[0].blockOrder).toEqual(["b", "a"]);
     f.run();
     expect(f.setSelectedBlockId).toHaveBeenCalledExactlyOnceWith("b");
@@ -112,7 +122,10 @@ describe("structure editing baseline in the existing app", () => {
       },
     });
     f.run();
-    expect(f.ref.current?.pages[0]).toMatchObject({ blocks: [], blockOrder: [] });
+    expect(f.ref.current?.pages[0]).toMatchObject({
+      blocks: [],
+      blockOrder: [],
+    });
     expect(f.setSelectedBlockId).toHaveBeenCalledExactlyOnceWith(null);
     expect(f.setSelectedBlockIds).toHaveBeenCalledExactlyOnceWith([]);
     expect(f.recordChapterEdit).toHaveBeenCalledOnce();
@@ -126,7 +139,9 @@ describe("structure editing baseline in the existing app", () => {
     });
     f.run();
     expect(f.ref.current?.pages[0].blockOrder).toEqual(["b"]);
-    expect(f.ref.current?.pages[0].blocks).toEqual([f.before.pages[0].blocks[1]]);
+    expect(f.ref.current?.pages[0].blocks).toEqual([
+      f.before.pages[0].blocks[1],
+    ]);
   });
 
   it("a visible page lock prevents mutation, history and selection changes", () => {
