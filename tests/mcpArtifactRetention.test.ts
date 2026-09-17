@@ -10,9 +10,10 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 const token = (url: string) => new URL(url).pathname.split("/")[2];
 
 it("removes each expired output once when concurrent writes reclaim its budget", async () => {
-  const actual = await vi.importActual<typeof import("node:fs/promises")>(
-    "node:fs/promises",
-  );
+  const actual =
+    await vi.importActual<typeof import("node:fs/promises")>(
+      "node:fs/promises",
+    );
   let now = 0;
   const store = new McpArtifactStore("https://retention.test", () => now);
   let release: () => void = () => {};
@@ -36,8 +37,12 @@ it("removes each expired output once when concurrent writes reclaim its budget",
     release();
     const outputs = await pending;
     expect(rm).toHaveBeenCalledTimes(1);
-    expect(await store.read(token(outputs[0].url))).toEqual(Buffer.from("first"));
-    expect(await store.read(token(outputs[1].url))).toEqual(Buffer.from("second"));
+    expect(await store.read(token(outputs[0].url))).toEqual(
+      Buffer.from("first"),
+    );
+    expect(await store.read(token(outputs[1].url))).toEqual(
+      Buffer.from("second"),
+    );
     await expect(store.read(token(expired.url))).rejects.toMatchObject({
       code: "not_found",
     });
@@ -50,9 +55,10 @@ it("removes each expired output once when concurrent writes reclaim its budget",
 });
 
 it("shares a failed cleanup without admitting another write and permits an explicit retry", async () => {
-  const actual = await vi.importActual<typeof import("node:fs/promises")>(
-    "node:fs/promises",
-  );
+  const actual =
+    await vi.importActual<typeof import("node:fs/promises")>(
+      "node:fs/promises",
+    );
   let now = 0;
   const store = new McpArtifactStore("https://retention.test", () => now);
   try {
