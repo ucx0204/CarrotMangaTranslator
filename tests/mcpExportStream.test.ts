@@ -39,7 +39,10 @@ it("does not write headers when the client already closed during file validation
   const f = await exportHttpFixture();
   const socket = new Socket();
   try {
-    const source = await f.store.put(Buffer.from("fixture PNG"), async () => {});
+    const source = await f.store.put(
+      Buffer.from("fixture PNG"),
+      async () => {},
+    );
     const request = new IncomingMessage(socket);
     request.method = "GET";
     request.url = new URL(source.url).pathname;
