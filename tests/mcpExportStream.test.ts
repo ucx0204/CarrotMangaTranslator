@@ -12,6 +12,19 @@ vi.mock("node:fs", async (importOriginal) => {
   return { ...actual, createReadStream: vi.fn(actual.createReadStream) };
 });
 
+/** Controlled filesystem boundary; the HTTP handler, pipeline and store are real. */
+function diskBoundary(input: PassThrough): ReadStream {
+  return Object.assign(input, {
+    bytesRead: 0,
+    path: "fixture-read-stream",
+    pending: false,
+    close(callback?: (error?: NodeJS.ErrnoException | null) => void) {
+      input.destroy();
+      callback?.();
+    },
+  });
+}
+
 async function zipFile(f: Awaited<ReturnType<typeof exportHttpFixture>>) {
   const source = await f.store.put(Buffer.from("fixture PNG"), async () => {});
   return f.store.zip(
@@ -46,8 +59,7 @@ it("stops a partially transferred ZIP when its reader fails without appending JS
   try {
     const file = await zipFile(f);
     vi.mocked(createReadStream).mockClear();
-    // Only the filesystem boundary is controlled; HTTP, pipeline and store are real.
-    vi.mocked(createReadStream).mockReturnValueOnce(input as unknown as ReadStream);
+    vi.mocked(createReadStream).mockReturnValueOnce(diskBoundary(input));
     const pending = f.send(new URL(file.url).pathname);
     await vi.waitFor(() => expect(createReadStream).toHaveBeenCalledOnce());
     input.write(Buffer.from("P"));
@@ -74,7 +86,7 @@ it("cleans up an abandoned ZIP download without treating client cancellation as 
   try {
     const file = await zipFile(f);
     vi.mocked(createReadStream).mockClear();
-    vi.mocked(createReadStream).mockReturnValueOnce(input as unknown as ReadStream);
+    vi.mocked(createReadStream).mockReturnValueOnce(diskBoundary(input));
     const pending = f.send(new URL(file.url).pathname);
     await vi.waitFor(() => expect(createReadStream).toHaveBeenCalledOnce());
     input.write(Buffer.from("P"));
