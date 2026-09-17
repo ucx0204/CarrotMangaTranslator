@@ -21,7 +21,14 @@ export function createMcpContextSession(
   return {
     tools: [
       ...createMcpContextEditingTools(proposals, preferences.allowEditing),
-      ...(preferences.allowProcessing ? [createMcpContextResearchTool(operations, createMcpContextResearchExecutor(app, proposals))] : []),
+      ...(preferences.allowProcessing
+        ? [
+            createMcpContextResearchTool(
+              operations,
+              createMcpContextResearchExecutor(app, proposals),
+            ),
+          ]
+        : []),
     ],
     stop: () => proposals.stop(),
     close: () => proposals.close(),

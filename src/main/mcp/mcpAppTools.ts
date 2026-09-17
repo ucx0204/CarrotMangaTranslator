@@ -39,9 +39,7 @@ export function createMcpAppTools(options: {
   const extensions = [
     ...(options.additionalTools ?? []),
     ...createMcpReviewTools({ listLibrary, openChapter }),
-    createMcpWorkContextTool(
-      new McpWorkContextService(readWorkContextForEdit),
-    ),
+    createMcpWorkContextTool(new McpWorkContextService(readWorkContextForEdit)),
   ];
   if (options.preferences.allowProcessing)
     extensions.push(
