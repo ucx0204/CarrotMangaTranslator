@@ -24,9 +24,9 @@ type BatchTextChange = {
   changed: boolean;
 };
 type BatchTextPage = BatchPage<BatchTextChange>;
-export type BatchTextPlan = BatchPlan<BatchTextChange>;
+type BatchTextPlan = BatchPlan<BatchTextChange>;
 /** Never accepts whole blocks or a replacement chapter from the AI. */
-export function planMcpTranslationBatch(
+function planMcpTranslationBatch(
   saved: McpContextSnapshot,
   input: McpTranslationBatchPreview,
 ): BatchTextPlan {

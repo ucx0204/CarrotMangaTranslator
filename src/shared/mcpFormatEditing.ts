@@ -16,7 +16,7 @@ export const McpFormatFieldsSchema = McpEditableFieldsSchema.omit({
   reviewNote: true,
   textRole: true,
 });
-export type McpFormatFields = z.infer<typeof McpFormatFieldsSchema>;
+type McpFormatFields = z.infer<typeof McpFormatFieldsSchema>;
 const keys = Object.keys(
   McpFormatFieldsSchema.shape,
 ) as (keyof McpFormatFields)[];

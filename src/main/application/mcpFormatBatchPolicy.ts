@@ -21,8 +21,8 @@ import type { McpContextSnapshot } from "./mcpContextEditPolicy";
 import { McpEditError } from "./mcpEditPolicy";
 
 type FormatChange = McpFormatChangeView & {
-  beforeBlock: TranslationBlock;
-  afterBlock: TranslationBlock;
+  beforeBlock: TranslationBlock | null;
+  afterBlock: TranslationBlock | null;
 };
 export type FormatSnapshotRequest = {
   chapterId: string;
@@ -70,6 +70,13 @@ function prepareChange(
     patch?.blocks.find((item) => item.id === block.id) ?? block;
   const before = projectMcpFormat(page, block);
   const after = projectMcpFormat(page, afterBlock);
+  // Excluded generated images never enter the in-memory undo history.
+  const history = excludedReason
+    ? { beforeBlock: null, afterBlock: null }
+    : {
+        beforeBlock: structuredClone(block),
+        afterBlock: structuredClone(afterBlock),
+      };
   return {
     pageId: page.id,
     blockId: block.id,
@@ -90,8 +97,7 @@ function prepareChange(
         ? ["actual_display_geometry_is_normalized_by_app"]
         : []),
     ],
-    beforeBlock: structuredClone(block),
-    afterBlock: structuredClone(afterBlock),
+    ...history,
   };
 }
 function planPage(
@@ -193,11 +199,16 @@ export const formatBatchPolicy: BatchPolicy<
     revision: page.expectedRevision,
     blocks: page.changes
       .filter((change) => change.changed)
-      .map((change) =>
-        structuredClone(
-          direction === "undo" ? change.beforeBlock : change.afterBlock,
-        ),
-      ),
+      .map((change) => {
+        const snapshot =
+          direction === "undo" ? change.beforeBlock : change.afterBlock;
+        if (!snapshot)
+          throw new McpEditError(
+            "invalid_edit",
+            "An excluded format change cannot be committed.",
+          );
+        return structuredClone(snapshot);
+      }),
   }),
   project: ({ beforeBlock: _before, afterBlock: _after, ...view }) =>
     structuredClone(view),
