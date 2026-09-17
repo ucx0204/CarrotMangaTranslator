@@ -22,6 +22,7 @@ export function createMcpToolSet(
     service: McpPageEditService;
     allowEditing: boolean;
     allowProcessing?: boolean;
+    lifetime?: AbortSignal;
   },
   extensions: McpTool[] = [],
 ) {
@@ -30,6 +31,7 @@ export function createMcpToolSet(
         editing.service,
         editing.allowEditing,
         editing.allowProcessing,
+        editing.lifetime,
       )
     : [];
   const tools = createMcpReadTools(

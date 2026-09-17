@@ -1,3 +1,4 @@
+import { mcpStructureOutputs } from "../../shared/mcpBlockStructure";
 import { mcpErasureRecoveryOutputs } from "../../shared/mcpErasureRecoverySchemas";
 import { z } from "zod/v4";
 import {
@@ -107,6 +108,7 @@ const mcpJobReceiptOutput = z
 /** Public projections only. JSON Schema and runtime validation share these definitions. */
 export const mcpOutputSchemas: Record<string, z.ZodType> = {
   ...mcpReviewOutputSchemas,
+  ...mcpStructureOutputs,
   ...mcpContextOutputSchemas,
   ...mcpErasureRecoveryOutputs,
   carrot_update_block_source_rect: McpSourceRectResultSchema,

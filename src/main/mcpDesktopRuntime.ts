@@ -185,6 +185,7 @@ async function openPageServer(
           scope.signal,
         ),
         preferences: options.preferences,
+        lifetime: scope.signal,
         additionalTools: [
           ...pageOperations.tools,
           createMcpServerInfoTool({

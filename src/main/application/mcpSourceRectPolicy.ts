@@ -22,7 +22,7 @@ export function applyMcpSourceRect(
   page: MangaPage,
   request: McpSourceRectPatch,
 ) {
-  const bbox = checkedBbox(page, request.sourceRect);
+  const bbox = checkedMcpSourceBbox(page, request.sourceRect);
   const selected = page.blocks.filter((block) => block.id === request.blockId);
   if (!selected.length)
     throw new McpEditError("not_found", "Source block not found.");
@@ -84,7 +84,7 @@ function assertIndependentTypography(block: TranslationBlock): void {
     );
 }
 
-function checkedBbox(page: MangaPage, value: BBox): BBox {
+export function checkedMcpSourceBbox(page: MangaPage, value: BBox): BBox {
   const parsed = McpSourceRectPatchSchema.shape.sourceRect.safeParse(value);
   if (
     !parsed.success ||

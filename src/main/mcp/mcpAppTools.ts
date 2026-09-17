@@ -26,6 +26,7 @@ export function createMcpAppTools(options: {
   preferences: McpPreferences;
   additionalTools?: McpTool[];
   withPageEdit?: McpPageEditScope;
+  lifetime?: AbortSignal;
   assertWritable: (chapterId: string, pageId: string) => Promise<void>;
   notifySaved: (chapterId: string, pageId: string) => void;
 }) {
@@ -73,6 +74,7 @@ export function createMcpAppTools(options: {
       service: edits,
       allowEditing: options.preferences.allowEditing,
       allowProcessing: options.preferences.allowProcessing,
+      lifetime: options.lifetime,
     },
     extensions,
   ).map((tool) => ({

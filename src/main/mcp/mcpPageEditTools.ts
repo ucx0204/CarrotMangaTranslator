@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createMcpStructureTools } from "./mcpStructureTools";
 import { createMcpBlockEditingTools } from "./mcpBlockEditingTools";
 import type { McpPageEditService } from "../application/mcpPageEditService";
 import {
@@ -33,6 +34,7 @@ export function createMcpPageEditTools(
   service: McpPageEditService,
   allowEditing: boolean,
   allowProcessing = false,
+  lifetime?: AbortSignal,
 ): McpTool[] {
   const tools: McpTool[] = [
     {
@@ -65,7 +67,10 @@ export function createMcpPageEditTools(
   ];
   if (allowEditing) tools.push(translationPatchTool(service));
   if (allowEditing && allowProcessing)
-    tools.push(...createMcpBlockEditingTools(service));
+    tools.push(
+      ...createMcpBlockEditingTools(service),
+      ...createMcpStructureTools(service, lifetime),
+    );
   return tools;
 }
 

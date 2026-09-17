@@ -178,22 +178,54 @@ export class McpPageEditService {
       blockOrder: resolvePageBlockOrder(result.page),
     };
   }
+  /** Internal snapshot for owned structural plans; never returned as a remote object. */
+  async readStructurePage(target: { chapterId: string; pageId: string }) {
+    return requirePage(
+      await this.ports.openChapter(target.chapterId),
+      target.pageId,
+    );
+  }
+  async commitStructure(
+    target: Target,
+    snapshot: Pick<MangaPage, "blocks" | "blockOrder">,
+    reviewHash: string,
+    authorize: () => void,
+    onCommitted: (page: MangaPage) => void,
+  ) {
+    const result = await this.mutate(
+      target,
+      authorize,
+      (_chapter, page) => {
+        assertCurrentRevision(page, target.revision);
+        if (hashStableValue(page.soundEffectReview ?? null) !== reviewHash)
+          throw new McpEditError(
+            "revision_conflict",
+            "Sound-effect references changed. Inspect the page again.",
+          );
+        return { ...structuredClone(snapshot), changed: true, result: null };
+      },
+      onCommitted,
+    );
+    return result.page;
+  }
   private mutate<T>(
     target: Target,
     authorize: () => void,
     calculate: (chapter: ChapterSnapshot, page: MangaPage) => Change<T>,
+    onCommitted?: (page: MangaPage) => void,
   ) {
     return this.ports.withPageEdit
       ? this.ports.withPageEdit(target, authorize, (guard) =>
-          this.mutateOwned(target, guard, calculate),
+          this.mutateOwned(target, guard, calculate, onCommitted),
         )
-      : this.mutateOwned(target, authorize, calculate);
+      : this.mutateOwned(target, authorize, calculate, onCommitted);
   }
   /** Runs after the native page lease when the app composition provides one. */
   private async mutateOwned<T>(
     target: Target,
     authorize: () => void,
     calculate: (chapter: ChapterSnapshot, page: MangaPage) => Change<T>,
+    onCommitted?: (page: MangaPage) => void,
   ) {
     authorize();
     await this.ports.assertWritable(target.chapterId, target.pageId);
@@ -226,6 +258,8 @@ export class McpPageEditService {
       authorize,
     );
     const updated = requirePage(saved, target.pageId);
+    // Publish a receipt before notification: a failed refresh must not replay a committed edit.
+    onCommitted?.(updated);
     this.ports.notifySaved(target.chapterId, target.pageId);
     return { status: "saved" as const, page: updated, data: change.result };
   }
