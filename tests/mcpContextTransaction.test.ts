@@ -149,6 +149,7 @@ it("atomically edits glossary, characters, rules and page memory without touchin
     ).toEqual([]);
     const review = f.inspect(proposal.proposalId);
     expect(review.total).toBe(4);
+    await new Promise((resolve) => setTimeout(resolve, 25));
     const result = await f.apply(proposal.proposalId, proposal.changeIds);
     expect(result).toMatchObject({
       status: "applied",
@@ -156,6 +157,9 @@ it("atomically edits glossary, characters, rules and page memory without touchin
       pagesChanged: 0,
     });
     const saved = await f.library.readWorkContextForEdit("chapter");
+    expect(Date.parse(saved.styleGuide.updatedAt)).toBeGreaterThanOrEqual(
+      Date.parse(saved.styleGuide.createdAt),
+    );
     expect(saved.styleGuide.glossary[0]).toMatchObject({
       id: review.changes[0].targetId,
       source: "Hero",

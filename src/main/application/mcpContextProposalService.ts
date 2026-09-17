@@ -308,7 +308,10 @@ export class McpContextProposalService {
       entry.request.chapterId,
       entry.metadata.revision,
     );
-    const plan = planMcpContextChanges(current, subset, entry.options);
+    const plan = planMcpContextChanges(current, subset, {
+      ...entry.options,
+      now: proposalTimestamp(current, this.now()),
+    });
     assertReviewedChanges(plan.changes, entry.changes);
     return {
       ...(plan.guideChanged ? { styleGuide: plan.styleGuide } : {}),
@@ -371,8 +374,8 @@ function assertReviewedChanges(
     const reviewed = expected.find((item) => item.changeId === change.changeId);
     if (
       !reviewed ||
-      hashStableValue([change.before, change.after]) !==
-        hashStableValue([reviewed.before, reviewed.after])
+      hashStableValue([change.before, reviewableFields(change.after)]) !==
+        hashStableValue([reviewed.before, reviewableFields(reviewed.after)])
     )
       throw new McpEditError(
         "revision_conflict",
@@ -390,4 +393,10 @@ function proposalTimestamp(snapshot: McpContextSnapshot, now: number): string {
     .filter(Number.isFinite)
     .map((value) => value + 1);
   return new Date(Math.max(now, ...timestamps)).toISOString();
+}
+
+// Audit timestamps describe publication time, not the content a user approved.
+function reviewableFields(value: McpContextChangeSummary["after"]) {
+  const { createdAt: _created, updatedAt: _updated, ...fields } = value;
+  return fields;
 }
