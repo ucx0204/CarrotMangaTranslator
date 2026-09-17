@@ -16933,6 +16933,28 @@
         "pct": 96.87
       }
     },
+    "src/main/application/mcpBlockTranslationService.ts": {
+      "lines": {
+        "total": 36,
+        "covered": 35,
+        "pct": 97.22
+      },
+      "statements": {
+        "total": 38,
+        "covered": 37,
+        "pct": 97.36
+      },
+      "functions": {
+        "total": 8,
+        "covered": 7,
+        "pct": 87.5
+      },
+      "branches": {
+        "total": 30,
+        "covered": 29,
+        "pct": 96.66
+      }
+    },
     "src/main/application/mcpDesktopService.ts": {
       "lines": {
         "covered": 82,
@@ -20473,6 +20495,94 @@
         "covered": 0,
         "total": 0,
         "pct": 100
+      }
+    },
+    "src/main/mcp/mcpBlockTranslationAdapter.ts": {
+      "lines": {
+        "total": 52,
+        "covered": 50,
+        "pct": 96.15
+      },
+      "statements": {
+        "total": 54,
+        "covered": 52,
+        "pct": 96.29
+      },
+      "functions": {
+        "total": 9,
+        "covered": 8,
+        "pct": 88.88
+      },
+      "branches": {
+        "total": 25,
+        "covered": 21,
+        "pct": 84
+      }
+    },
+    "src/main/mcp/mcpBlockTranslationContext.ts": {
+      "lines": {
+        "total": 19,
+        "covered": 15,
+        "pct": 78.94
+      },
+      "statements": {
+        "total": 19,
+        "covered": 15,
+        "pct": 78.94
+      },
+      "functions": {
+        "total": 3,
+        "covered": 1,
+        "pct": 33.33
+      },
+      "branches": {
+        "total": 11,
+        "covered": 9,
+        "pct": 81.81
+      }
+    },
+    "src/main/mcp/mcpBlockTranslationOptions.ts": {
+      "lines": {
+        "total": 23,
+        "covered": 23,
+        "pct": 100
+      },
+      "statements": {
+        "total": 25,
+        "covered": 25,
+        "pct": 100
+      },
+      "functions": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "branches": {
+        "total": 31,
+        "covered": 31,
+        "pct": 100
+      }
+    },
+    "src/main/mcp/mcpBlockTranslationSession.ts": {
+      "lines": {
+        "total": 10,
+        "covered": 10,
+        "pct": 100
+      },
+      "statements": {
+        "total": 10,
+        "covered": 10,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 2,
+        "covered": 1,
+        "pct": 50
       }
     },
     "src/main/mcp/mcpConfiguration.ts": {
@@ -32572,6 +32682,28 @@
       "branches": {
         "covered": 0,
         "total": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/mcpBlockTranslation.ts": {
+      "lines": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "statements": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "functions": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
         "pct": 100
       }
     },
