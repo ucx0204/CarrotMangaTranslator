@@ -66,7 +66,7 @@ const characterChange = z
     values: characterFields,
   })
   .strict();
-export const McpContextChangeSchema = z.discriminatedUnion("entity", [
+const McpContextChangeSchema = z.discriminatedUnion("entity", [
   glossaryChange,
   characterChange,
   z
@@ -198,7 +198,7 @@ export const mcpContextOutputSchemas = {
     .extend({
       total: z.number().int().nonnegative(),
       offset: z.number().int().nonnegative(),
-      limit: z.number().int().positive(),
+      limit: z.number().int().nonnegative(),
       nextOffset: z.number().int().nonnegative().nullable(),
       changes: z.array(summary).max(25),
     })
