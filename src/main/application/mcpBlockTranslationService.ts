@@ -50,14 +50,14 @@ export class McpBlockTranslationService {
       chapterId: target.chapterId,
       pageId: target.pageId,
       blockId: target.blockId,
-      revision: target.revision,
+      revision: selected.revision,
       pagesChanged: 0,
     };
     context.assertAuthorized();
     if (!selected.block.sourceText.trim())
       return {
         ...base,
-        status: "no_source",
+        status: "no_source" as const,
         noSourceText: true,
         performed: [],
         needsReview: true,
@@ -113,7 +113,7 @@ export class McpBlockTranslationService {
       );
     return {
       ...base,
-      status: "proposed",
+      status: "proposed" as const,
       engine,
       performed: ["block-translation"],
       needsReview: true,
@@ -128,7 +128,8 @@ export class McpBlockTranslationService {
     if (chapter.id !== target.chapterId || pages.length !== 1)
       throw new McpEditError("not_found", "A unique saved page is required.");
     const page = pages[0];
-    if (createPageRevision(page) !== target.revision)
+    const revision = createPageRevision(page);
+    if (revision !== target.revision)
       throw new McpEditError(
         "revision_conflict",
         "Page changed. Read it again before translating or applying a proposal.",
@@ -151,6 +152,7 @@ export class McpBlockTranslationService {
       );
     return {
       block: structuredClone(block),
+      revision,
       workId: chapter.workId,
       pageIndex: chapter.pages.indexOf(page),
       previousPageIds: chapter.pages

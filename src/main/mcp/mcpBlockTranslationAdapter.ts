@@ -68,14 +68,9 @@ export async function translateMcpBlock(
   } catch (error) {
     failures.push(error);
   }
-  operation.progress({ phase: "releasing_model" });
-  try {
-    if (options.modelProvider === "gemma")
-      await releaseModelResource(session, () => session.dispose());
-    else await session.dispose();
-  } catch (error) {
-    failures.push(error);
-  }
+  failures.push(
+    ...(await finishTranslationSession(session, options, operation)),
+  );
   if (failures.length === 1) throw failures[0];
   if (failures.length > 1)
     throw new AggregateError(
@@ -159,4 +154,26 @@ function modelName(options: TranslationOptions): string {
   return options.modelProvider === "openai-codex"
     ? options.codexModel
     : options.apiModel;
+}
+
+async function finishTranslationSession(
+  session: Awaited<ReturnType<Runtime["start"]>>,
+  options: TranslationOptions,
+  operation: McpOperationContext,
+): Promise<unknown[]> {
+  const failures: unknown[] = [];
+  for (const finish of [
+    () => operation.progress({ phase: "releasing_model" }),
+    () =>
+      options.modelProvider === "gemma"
+        ? releaseModelResource(session, () => session.dispose())
+        : session.dispose(),
+  ]) {
+    try {
+      await finish();
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  return failures;
 }

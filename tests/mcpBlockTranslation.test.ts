@@ -82,7 +82,7 @@ describe("single saved-block translation proposals", () => {
     expect(JSON.stringify(result)).not.toMatch(
       /PRIVATE|\/private\/|resource_link|imagePath/,
     );
-    const proposal = result.blockTranslation;
+    const proposal = requireProposal(result);
     if (!proposal) throw new Error("Expected proposal");
     const applied = await f.service.update({
       ...f.request,
@@ -166,13 +166,11 @@ describe("single saved-block translation proposals", () => {
     f.evidence.translatedText = "source";
     f.evidence.contextPruned = true;
     const result = await f.observer.run(f.target, f.context);
-    expect(result.blockTranslation?.warnings).toContain("same_as_source");
-    expect(result.blockTranslation?.warnings).toContain(
-      "context_budget_pruned",
-    );
+    expect(requireProposal(result).warnings).toContain("same_as_source");
+    expect(requireProposal(result).warnings).toContain("context_budget_pruned");
     f.evidence.translatedText = "original-a";
     expect(
-      (await f.observer.run(f.target, f.context)).blockTranslation?.differs,
+      requireProposal(await f.observer.run(f.target, f.context)).differs,
     ).toBe(false);
   });
 
@@ -205,3 +203,10 @@ describe("single saved-block translation proposals", () => {
     expect(f.savePageBlocks).not.toHaveBeenCalled();
   });
 });
+
+function requireProposal(
+  result: Awaited<ReturnType<McpBlockTranslationService["run"]>>,
+) {
+  if (result.status !== "proposed") throw new Error("Expected proposal");
+  return result.blockTranslation;
+}

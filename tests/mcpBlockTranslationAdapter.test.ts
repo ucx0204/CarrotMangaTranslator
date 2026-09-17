@@ -186,3 +186,18 @@ it("constrains task options without rewriting settings or allowing extra tool/ge
     await f.close();
   }
 });
+
+it("completes cleanup even when reporting the release phase fails", async () => {
+  const f = await fixture();
+  try {
+    f.operation.progress.mockImplementation((progress) => {
+      if (progress.phase === "releasing_model")
+        throw new Error("progress listener failed");
+    });
+    await expect(f.run()).rejects.toThrow("progress listener failed");
+    expect(f.runtime.request).toHaveBeenCalledOnce();
+    expect(f.session.dispose).toHaveBeenCalledOnce();
+  } finally {
+    await f.close();
+  }
+});

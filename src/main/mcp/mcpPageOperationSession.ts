@@ -67,14 +67,7 @@ export function createMcpPageOperationSession(options: {
   });
   const executors: Parameters<typeof createMcpOperationTools>[1] = {
     exportPng: preferences.allowImages
-      ? (target, context) =>
-          runMcpAppJob(
-            app,
-            context,
-            "page-export",
-            (job) => exporter.export(target, job),
-            { resources: [], page: { ...target, readChapter: openChapter } },
-          )
+      ? createExportExecutor(app, exporter)
       : undefined,
     ocr: preferences.allowProcessing
       ? createOcrExecutor(app, reader)
@@ -154,4 +147,18 @@ async function closePageSession(
   await recovery?.close();
   await operations.close();
   await artifacts.close();
+}
+
+function createExportExecutor(
+  app: InpaintingJobContext,
+  exporter: McpPageExportService,
+): NonNullable<Parameters<typeof createMcpOperationTools>[1]["exportPng"]> {
+  return (target, context) =>
+    runMcpAppJob(
+      app,
+      context,
+      "page-export",
+      (job) => exporter.export(target, job),
+      { resources: [], page: { ...target, readChapter: openChapter } },
+    );
 }

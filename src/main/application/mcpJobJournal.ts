@@ -120,12 +120,7 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
       requests.has(key) ||
       record.fingerprint !==
         hashStableValue([record.kind, record.parameters]) ||
-      (!["erase", "blockOcr", "blockTranslation"].includes(record.kind) &&
-        record.parameters.blockId !== undefined) ||
-      (["blockOcr", "blockTranslation"].includes(record.kind) &&
-        !record.parameters.blockId) ||
-      (record.kind !== "blockTranslation" &&
-        record.parameters.contextMode !== undefined) ||
+      !validJobTarget(record) ||
       record.requestId !== record.parameters.requestId ||
       (record.status === "running") !== (record.finishedAt === undefined)
     )
@@ -134,4 +129,16 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
     requests.add(key);
   }
   return parsed.records;
+}
+
+function validJobTarget(record: McpStoredJob): boolean {
+  const blockRequired = ["blockOcr", "blockTranslation"].includes(record.kind);
+  return (
+    (!blockRequired || Boolean(record.parameters.blockId)) &&
+    (blockRequired ||
+      record.kind === "erase" ||
+      record.parameters.blockId === undefined) &&
+    (record.kind === "blockTranslation" ||
+      record.parameters.contextMode === undefined)
+  );
 }
