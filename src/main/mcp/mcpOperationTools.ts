@@ -21,7 +21,10 @@ const jobIdInputSchema = {
 };
 
 const jobFileSchema = jobIdSchema.extend({
-  pageId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(),
+  pageId: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,128}$/)
+    .optional(),
   includeAttachment: z.boolean().optional(),
 });
 const jobFileInputSchema = {
@@ -30,7 +33,8 @@ const jobFileInputSchema = {
     ...jobIdInputSchema.properties,
     pageId: {
       ...identifierSchema,
-      description: "Required for one PNG from a page batch; omit for a single-page export or ZIP job.",
+      description:
+        "Required for one PNG from a page batch; omit for a single-page export or ZIP job.",
     },
     includeAttachment: {
       type: "boolean",
@@ -143,7 +147,10 @@ function createJobFileTool(
         artifact.bytes <= 0 ||
         artifact.mimeType !== mimeType
       )
-        throw new McpEditError("not_found", "Completed output metadata is unavailable.");
+        throw new McpEditError(
+          "not_found",
+          "Completed output metadata is unavailable.",
+        );
       await assertFileAvailable(artifact.url);
       assertAccess();
       operations.file(jobId, owner, pageId);

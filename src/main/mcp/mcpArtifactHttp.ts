@@ -11,9 +11,10 @@ export async function handleMcpArtifact(
   response: ServerResponse,
 ): Promise<boolean> {
   if (!store || !request.url?.startsWith("/mcp-artifacts/")) return false;
-  const match = /^\/mcp-artifacts\/([A-Za-z0-9_-]{43})\/(page\.png|pages\.zip)$/.exec(
-    request.url,
-  );
+  const match =
+    /^\/mcp-artifacts\/([A-Za-z0-9_-]{43})\/(page\.png|pages\.zip)$/.exec(
+      request.url,
+    );
   if (!match) throw new McpHttpError(404, "Output not found.");
   if (request.method !== "GET" && request.method !== "HEAD")
     throw new McpHttpError(405, "Only GET and HEAD are allowed for outputs.");
