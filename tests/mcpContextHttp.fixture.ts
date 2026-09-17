@@ -50,11 +50,11 @@ export async function contextHttpFixture() {
     enforceScopes: true,
     oauthHttp: new McpOAuthHttp(origin, secret, { session, pairing: new McpPairingBroker(provider, secret) }), reportError: (error) => errors.push(error),
   });
-  const rpc = async (method: string, params: unknown = {}, token = full) => {
-    const response = await fetch(server.url, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+  const rpc = async (method: string, params: unknown = {}, token = full, signal?: AbortSignal) => {
+    const response = await fetch(server.url, { method: "POST", signal, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
     return response.json();
   };
-  const call = (name: string, args: unknown, token = full) => rpc("tools/call", { name, arguments: args }, token);
+  const call = (name: string, args: unknown, token = full, signal?: AbortSignal) => rpc("tools/call", { name, arguments: args }, token, signal);
   const settle = async (jobId: string) => {
     for (let attempt = 0; attempt < 200; attempt++) {
       const response = await call("carrot_get_job", { jobId });
