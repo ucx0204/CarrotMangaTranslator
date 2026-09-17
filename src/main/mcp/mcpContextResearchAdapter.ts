@@ -72,37 +72,46 @@ export function createMcpContextResearchExecutor(
             ]),
     ];
     operation.assertAuthorized();
-    return runMcpAppJob(
-      app,
-      operation,
-      "internet-research",
-      (context) =>
-        withExecutionSettings(settings, async () => {
-          const latest = (await listLibrary()).works.find(
-            (entry) => entry.id === snapshot.workId,
-          );
-          if (
-            JSON.stringify(latest?.chapters.map((entry) => entry.id)) !==
-            JSON.stringify(chapters)
-          )
-            throw new McpEditError(
-              "revision_conflict",
-              "Research chapter membership changed before execution.",
-            );
-          return new McpContextResearchService({
-            read: readWorkContextForEdit,
-            proposals,
-            research: (request, job) =>
-              research(request, job.signal, (progress) => {
-                job.assertAuthorized();
-                job.progress({
+    // Hold activity/model leases through engine cleanup, but never while waiting
+    // for the proposal queue: queued applications may need our context read lease.
+    // The service and proposal builder recheck the revision after lease release.
+    return new McpContextResearchService({
+      read: readWorkContextForEdit,
+      proposals,
+      research: (request, job) =>
+        runMcpAppJob(
+          app,
+          job,
+          "internet-research",
+          (context) =>
+            withExecutionSettings(settings, async () => {
+              const latest = (await listLibrary()).works.find(
+                (entry) => entry.id === snapshot.workId,
+              );
+              if (
+                JSON.stringify(latest?.chapters.map((entry) => entry.id)) !==
+                JSON.stringify(chapters)
+              )
+                throw new McpEditError(
+                  "revision_conflict",
+                  "Research chapter membership changed before execution.",
+                );
+              assertContextTarget(
+                await readWorkContextForEdit(target.chapterId),
+                target.chapterId,
+                target.revision,
+              );
+              context.assertAuthorized();
+              return research(request, context.signal, (progress) => {
+                context.assertAuthorized();
+                context.progress({
                   phase:
                     progress.research?.stage ?? progress.phase ?? "researching",
                 });
-              }),
-          }).run(owner, target, context);
-        }),
-      { resources },
-    );
+              });
+            }),
+          { resources },
+        ),
+    }).run(owner, target, operation);
   };
 }
