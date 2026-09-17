@@ -89,11 +89,11 @@ attach images or download links.
 Explicit before/final PNG exports completed for all three pages. The app-returned
 SHA-256 values and byte counts matched exactly:
 
-| Page | Bytes | Before/final SHA-256 |
-| --- | ---: | --- |
+| Page         | Bytes | Before/final SHA-256                                             |
+| ------------ | ----: | ---------------------------------------------------------------- |
 | external.png | 14908 | 89fb027ab3520f857ef73a2c3f4c83b90ba17d2a726bb43c5e52d904a2a84c3c |
-| ocr.png | 13271 | 3ed39428936097c27855d0299243fc0df26c3ddadde5e56f6d4c9fb0cdf0e990 |
-| render.png | 12297 | 00334b6123c8b6451ec87fc3cf15ad6629508375eafc17eccfc1d470ba978e35 |
+| ocr.png      | 13271 | 3ed39428936097c27855d0299243fc0df26c3ddadde5e56f6d4c9fb0cdf0e990 |
+| render.png   | 12297 | 00334b6123c8b6451ec87fc3cf15ad6629508375eafc17eccfc1d470ba978e35 |
 
 Independent PC file comparison found only `work.json` and `chapter.json` changed,
 solely in their ordinary modification timestamps. All blocks, source texts,
