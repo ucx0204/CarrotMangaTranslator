@@ -127,6 +127,7 @@ async function readCrop(
     outputDir: join(input.directory, "ocr"),
     label: "mcp-block-ocr",
     skipOcrBboxHints: false,
+    ocrInputKind: "known-block-crop" as const,
     abortSignal: operation.signal,
     onProgress: () =>
       operation.progress({ phase: "ocr_running", completed: 0, total: 1 }),
