@@ -1,6 +1,8 @@
 # MCP multi-page PNG / ZIP checkpoint — 2026-09-18
 
 Status: implementation checkpoint, NOT a completed or deployed MCP feature.
+Latest resume: 705 MCP tests passed and 2 new retention regressions failed.
+The earlier verification counts below are historical; see the resume section.
 
 ## Starting point
 
@@ -20,7 +22,8 @@ Status: implementation checkpoint, NOT a completed or deployed MCP feature.
 - Explicit partial ZIP opt-in; ordered filenames and a metadata-only omission manifest.
 - Existing operation receipts, ownership, request deduplication and durable metadata.
 - File access remains subject to grant, redaction, revision, expiry and server lifetime.
-- PNG 64 MiB / ZIP 128 MiB / session 256 MiB bounds; never downscale silently.
+- Configured limits: PNG 64 MiB / ZIP 128 MiB / session 256 MiB. Concurrent expiry
+  accounting has an unresolved defect described below; no silent downscaling.
 - Files and links remain session-local with ten-minute expiry; receipts last seven days.
 - Restart does not restore files, and this checkpoint does not implement automatic resume.
 - ZIP tests use real file/archive I/O but synthetic renderer bytes, not native pixel QA.
@@ -53,7 +56,7 @@ Important implementation notes:
 - A ZIP is not a page edit and does not provide Undo or automatic background AI work.
 - No live app restart, user-library edit, authentication migration or model run occurred.
 
-## Verification at this checkpoint
+## Verification at the earlier checkpoint
 
 - All MCP Vitest suites: 695 passed / 92 files, including 14 new export/ZIP cases.
 - Renderer/tests, Electron and JavaScript type checks: all exit 0.
@@ -68,3 +71,43 @@ Five direct-consumer ceilings were measured and documented individually, without
 changing global limits: pageRevision 51, blockFingerprint 28, mcpEditPolicy 53,
 library facade 40, and page-operation composition imports 19. These reuse existing
 revision, fingerprint, error, library and native-job authorities rather than copies.
+
+## Resume result — 2026-09-18
+
+The user's request to commit the current code first was completed before further work.
+All 16 pre-existing changed/new files were preserved as fd83373e. Existing remote
+formatting work was merged without rewriting history and pushed as c126f79c.
+
+GitHub direct file creation succeeded for tests/mcpArtifactRetention.test.ts in
+1b0eeef5. These are new, active regression tests, not skipped or expected-failure tests.
+They reproduce one expiry-cleanup concurrency defect in two scenarios:
+
+- Two simultaneous writes both remove the same expired output. The cleanup loop
+  then subtracts the same entry size twice, so retained-byte accounting is incorrect.
+- When the first removal fails, another concurrent write independently proceeds
+  instead of sharing that in-flight cleanup outcome. A later explicit retry must
+  remain possible after a failed cleanup.
+
+The request to change mcpArtifactStore.ts to share in-flight expiry cleanup was
+blocked by OpenAI's tool safety check and did not execute. No alternate tool was
+used to retry that blocked production edit. Git diff confirmed no production source
+changes after the preserved checkpoint. The defect remains unresolved.
+
+### Checks actually run during this resume
+
+- Export/ZIP, job-file and operation-HTTP suites: 36 passed / 3 files.
+- All tests selected by Vitest filter mcp: 705 passed, 2 failed / 94 files total
+  (93 passing files and the new failing retention-regression file).
+- JSON report: .tmp/mcp-export-resume-20260918-tests.json.
+- TypeScript renderer/tests, Electron and JavaScript projects: all exit 0.
+- Test-mock-boundary and error-handling policy checks: pass.
+- New retention-test ESLint: pass; formatting uses repository Prettier.
+- Full repository check, new native multi-page rendering, coverage registration
+  and live client use of batch export: not completed.
+- Live capabilities read succeeded; the running connection does not advertise
+  the new batch export tools. No user-page edits or previous live tests were run.
+
+The branch is deliberately an unfinished checkpoint with two failing regressions,
+not a release-ready implementation. Preserve the tests and existing source. Resolve
+the retention defect and outstanding integration through permitted development
+operations before advertising the batch tools or claiming successful ZIP delivery.
