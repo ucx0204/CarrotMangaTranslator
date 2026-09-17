@@ -116,6 +116,15 @@ const journalSchema = z
   .strict();
 
 /** Only public receipts/targets are retained; capability URLs, images and raw errors are deliberately omitted. */
+/** Dynamic availability is computed on reads; old receipts must not advertise
+ * a session proposal as usable after its review window has expired. */
+export function publicMcpJobResult(value: unknown, now: number) {
+  const result = mcpJobResultMetadataSchema.safeParse(value).data;
+  if (result?.contextResearch && result.contextResearch.expiresAt <= now)
+    return { ...result, proposalExpired: true };
+  return result;
+}
+
 export function persistedMcpJobResult(
   result: Record<string, unknown> | undefined,
 ) {

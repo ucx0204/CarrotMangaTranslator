@@ -6,7 +6,7 @@ import {
   MCP_JOB_RETENTION_MS,
   parseMcpJobJournal,
   persistedMcpJobResult,
-  mcpJobResultMetadataSchema,
+  publicMcpJobResult,
   mcpJobTargetSchema,
   mcpPersistedTargetSchema,
   type McpJobPersistence,
@@ -290,7 +290,7 @@ export class McpOperationService {
           ? { phase: "saving_receipt" }
           : entry.progress,
       result: entry.settled
-        ? mcpJobResultMetadataSchema.safeParse(entry.result).data
+        ? publicMcpJobResult(entry.result, this.now())
         : undefined,
       error: entry.settled ? entry.error : undefined,
       startedAt: entry.startedAt,
