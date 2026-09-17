@@ -25,7 +25,11 @@ export async function exportHttpFixture() {
     ...createMcpExportBatchTools(f.service, operations, true),
     ...createMcpOperationTools(
       operations,
-      { exportPng: async () => { throw new Error("Unexpected single export"); } },
+      {
+        exportPng: async () => {
+          throw new Error("Unexpected single export");
+        },
+      },
       f.store.assertAvailable.bind(f.store),
     ),
   ];
@@ -40,12 +44,24 @@ export async function exportHttpFixture() {
   const grant = createMcpTestGrant(origin, secret);
   const token = grant(provider, "carrot.read carrot.images");
   const send = (path: string, init: RequestInit = {}) =>
-    fetch(`${new URL(server.url).origin}${path}`, { ...init, redirect: "manual" });
+    fetch(`${new URL(server.url).origin}${path}`, {
+      ...init,
+      redirect: "manual",
+    });
   const call = async (name: string, args: object, caller = token) => {
     const response = await send("/mcp", {
       method: "POST",
-      headers: { Authorization: `Bearer ${caller}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),
+      headers: {
+        Authorization: `Bearer ${caller}`,
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name, arguments: args },
+      }),
     });
     return response.json();
   };
@@ -58,7 +74,16 @@ export async function exportHttpFixture() {
     return (await call("carrot_get_job", { jobId })).result.structuredContent;
   };
   return {
-    ...f, operations, provider, session, server, tools, token, send, call, finish,
+    ...f,
+    operations,
+    provider,
+    session,
+    server,
+    tools,
+    token,
+    send,
+    call,
+    finish,
     grant: (scope: string) => grant(provider, scope),
     close: async () => {
       operations.stop();
