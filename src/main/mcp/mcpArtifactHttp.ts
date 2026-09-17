@@ -54,17 +54,12 @@ async function readOutput(
   name: string,
 ) {
   try {
+    // Bind the requested suffix to the owned entry before selecting a reader.
+    const output = await store.open(secret, name);
     // Preserve the existing PNG read verification, including read failures.
-    if (name === "page.png") {
-      const data = await store.read(secret);
-      return {
-        data,
-        bytes: data.length,
-        mimeType: "image/png",
-        filename: "carrot-page.png",
-      };
-    }
-    return await store.open(secret, name);
+    if (name === "page.png")
+      return { ...output, data: await store.read(secret) };
+    return output;
   } catch (_error) {
     // Do not reveal whether denial came from expiry, permission or redaction.
     throw new McpHttpError(
