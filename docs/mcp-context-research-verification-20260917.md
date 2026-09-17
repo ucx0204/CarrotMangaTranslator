@@ -47,13 +47,13 @@ An existing floor still fails in `src/main/application/mcpJobJournal.ts`: statem
 
 The latest retrieved `npm run check` did not pass all 26 gates. Types, formatting and the refactored focused lint have passed, but these direct-dependency limits still require explicit review:
 
-| File | Measurement | Current ceiling |
-| --- | --- | --- |
-| `src/shared/appActivityTypes.ts` | imported by 28 | 26 |
-| `src/shared/pageRevision.ts` | imported by 45 | 44 |
-| `src/main/application/mcpEditPolicy.ts` | imported by 38 | 31 |
-| `src/main/library.ts` | imports 13 / imported by 38 | 12 / 36 |
-| `src/main/mcp/mcpPageOperationSession.ts` | imports 18 | 17 |
+| File                                      | Measurement                 | Current ceiling |
+| ----------------------------------------- | --------------------------- | --------------- |
+| `src/shared/appActivityTypes.ts`          | imported by 28              | 26              |
+| `src/shared/pageRevision.ts`              | imported by 45              | 44              |
+| `src/main/application/mcpEditPolicy.ts`   | imported by 38              | 31              |
+| `src/main/library.ts`                     | imports 13 / imported by 38 | 12 / 36         |
+| `src/main/mcp/mcpPageOperationSession.ts` | imports 18                  | 17              |
 
 The public library facade also needs review of the new `./library/libraryContextEditingFacade` source in its re-export boundary. A combined policy/configuration review read was rejected by the tool safety check. These configuration changes were not applied by another route. No global gate was disabled, and no forwarding module was introduced to hide dependencies.
 
