@@ -23,6 +23,8 @@ export async function contextHttpFixture() {
   const { McpPairingBroker } = await import("../src/main/mcp/mcpPairingBroker");
   const { startMcpHttpServer } = await import("../src/main/mcp/mcpHttpServer");
   const jobs = new ActiveJobStore({ info: vi.fn(), error: vi.fn() });
+  const { libraryMutationCoordinator } = await import("../src/main/libraryStore/libraryMutationCoordinator");
+  libraryMutationCoordinator.configureActivityGate(jobs.gate);
   const app = { jobs, appPaths: getAppPaths(), getMainWindow: () => null, decodeImage: async () => null };
   const proposals = new McpContextProposalService({ read: f.library.readWorkContextForEdit, commit: f.library.commitWorkContextEdit, withEdit: withMcpContextEditScope });
   let journal: unknown = null;
@@ -69,6 +71,6 @@ export async function contextHttpFixture() {
     target: { chapterId: "chapter", revision: mcpContextRevision(await f.library.readWorkContextForEdit("chapter")), requestId: randomUUID(), researchTitle: "Synthetic work", engine: "tavily" as const },
     stored: () => journal,
     restart: async () => { const next = new McpOperationService((error) => errors.push(error), Date.now, persistence); await next.ready(); return next; },
-    async close() { operations.stop(); proposals.stop(); await operations.close(); await proposals.close(); await server.close(); await f.close(); },
+    async close() { operations.stop(); proposals.stop(); await operations.close(); await proposals.close(); await server.close(); libraryMutationCoordinator.configureActivityGate(null); await f.close(); },
   };
 }

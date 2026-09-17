@@ -18,7 +18,7 @@ it("updates only selected entry fields and disables characters without removing 
           id: "term",
           source: "Hero",
           target: "Old target",
-          category: "name",
+          category: "character",
           aliases: ["Alias"],
           note: "User note",
           origin: "manual",
@@ -114,6 +114,7 @@ it("retains orphaned memory rows while adding a reviewed memory for an actual cu
   const f = await contextHttpFixture();
   try {
     const original = await f.library.readWorkContextForEdit("chapter");
+    await f.library.saveWorkStyleGuide(original.styleGuide);
     const orphan = {
       pageId: "deleted-page",
       pageName: "old.png",
