@@ -29,8 +29,8 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 43,
-      "reason": "Block OCR observation adds one direct consumer of the canonical page snapshot to reject stale read results before any later source-only edit. No revision algorithm is duplicated."
+      "maxImportedBy": 44,
+      "reason": "Block translation adds one direct consumer of the canonical page revision for proposal admission and post-generation validation, following the existing block OCR observation contract. Service/HTTP tests reject stale pages without writes. No revision algorithm, alias wrapper or global limit is changed."
     },
     "src/renderer/src/api/libraryGateway.ts": {
       "maxImportedBy": 28,
@@ -149,8 +149,8 @@
       "reason": "Shared IPC schema primitive authority. Clipboard payload validation and paste capacity checks use the existing block schema and page block limit directly, with malformed-payload and atomic-overflow tests."
     },
     "src/shared/translationLanguages.ts": {
-      "maxImportedBy": 30,
-      "reason": "Page input handoff reuses the canonical Japanese-language predicate for OCR parity; it does not copy language rules."
+      "maxImportedBy": 31,
+      "reason": "The text-only block translation adapter directly resolves the existing source/target language pair for prompts and result metadata. Page handoff retains its canonical Japanese predicate. Language definitions are not copied; adapter tests verify language-bearing requests without OCR or images."
     },
     "src/main/pipeline/wholePagePipelinePorts.ts": {
       "maxRuntimeImports": 13,
@@ -197,8 +197,8 @@
       "reason": "The session root composes master activity/handoff/stale-image recovery and MCP editor synchronization, totaling 22 direct runtime imports. Domain implementations remain in their existing owners."
     },
     "src/main/library.ts": {
-      "maxImportedBy": 34,
-      "reason": "Block OCR composition reads saved chapters and allocates per-job paths through the established library facade. Observation has no library mutation port and never writes page OCR cache."
+      "maxImportedBy": 36,
+      "reason": "Block translation session and saved-context adapters are two direct consumers of the established library facade: saved chapters/per-job paths and saved work context. Proposal services have no page/context writer. Tests cover unchanged storage, preceding-page context and explicit apply/restore; no direct libraryStore imports or alias facade are added."
     },
     "src/main/ipc/trustedIpc.ts": {
       "maxImportedBy": 26,
@@ -213,16 +213,16 @@
       "reason": "This explicit composition root adds metadata-only review/preflight tools beside existing page/image/context tools. Existing app export rules and the public library facade remain authoritative; no alias wrapper, copied algorithm or generic budget change."
     },
     "src/main/mcp/mcpPageOperationSession.ts": {
-      "maxRuntimeImports": 16,
-      "reason": "Existing MCP composition adds the single-block OCR executor alongside page OCR, erasure and PNG export; it shares the same operation manager and app ownership rather than creating another job queue."
+      "maxRuntimeImports": 17,
+      "reason": "The existing MCP composition root adds one block-translation executor beside block OCR and page operations. It shares the existing operation manager, page lease and model cleanup barrier; no second queue or pass-through dependency wrapper is introduced. Native proposal/apply/restore exercises the composed executor."
     },
     "src/shared/appActivityTypes.ts": {
       "maxImportedBy": 26,
       "reason": "Single-page history replay asserts the same page-content activity at its native persistence boundary. No alternate lock, alias facade, or general import-limit change."
     },
     "src/main/application/mcpEditPolicy.ts": {
-      "maxImportedBy": 27,
-      "reason": "Block OCR application and native crop adapters add two typed error consumers for unchanged-page observations, invalid bounds and source-file conflicts; no permission or save guards are bypassed."
+      "maxImportedBy": 31,
+      "reason": "Four block-translation boundaries reuse the established typed MCP error contract: service target/result validation, adapter response parsing, saved-context budgeting and execution-option admission. Error/status compatibility and zero writes on rejection are tested. Global limits, error authority, permissions and save guards remain unchanged."
     }
   }
 }
