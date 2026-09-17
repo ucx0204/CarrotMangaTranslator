@@ -108,7 +108,8 @@ function selectedPages(saved: McpContextSnapshot, pageIds?: string[]) {
   return selected;
 }
 function blockHit(block: TranslationBlock, request: McpChapterTextSearch) {
-  const textRole = block.textRole === "sound" ? "sound" : "ordinary";
+  const textRole: "sound" | "ordinary" =
+    block.textRole === "sound" ? "sound" : "ordinary";
   const reviewStatus = block.reviewStatus ?? "draft";
   if (
     (request.textRole !== "all" && request.textRole !== textRole) ||

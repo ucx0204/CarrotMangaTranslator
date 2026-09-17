@@ -1,10 +1,12 @@
+import type { McpTool } from "../src/main/mcp/mcpReadTools";
+import type { McpPageEditService as PageEditor } from "../src/main/application/mcpPageEditService";
 import { randomUUID } from "node:crypto";
 import { vi } from "vitest";
 import { createPageRevision } from "../src/shared/pageRevision";
 import { recoveryLibrary } from "./mcpErasureRecovery.fixture";
 import { createMcpTestGrant } from "./mcpOAuthGrant.fixture";
 
-export async function structureHttpFixture() {
+export async function structureHttpFixture(extensions?: (service: PageEditor, lifetime: AbortSignal) => McpTool[] | Promise<McpTool[]>) {
   const f = await recoveryLibrary();
   const { McpPageEditService } =
     await import("../src/main/application/mcpPageEditService");
@@ -62,7 +64,8 @@ export async function structureHttpFixture() {
   const errors: unknown[] = [];
   const server = await startMcpHttpServer({
     config: { port: 0, token: "t".repeat(43), publicOrigin: origin },
-    tools: createMcpPageEditTools(service, true, true, lifetime.signal),
+    tools: [...createMcpPageEditTools(service, true, true, lifetime.signal),
+      ...(await extensions?.(service, lifetime.signal) ?? [])],
     enforceScopes: true,
     oauthHttp: new McpOAuthHttp(origin, secret, {
       session,

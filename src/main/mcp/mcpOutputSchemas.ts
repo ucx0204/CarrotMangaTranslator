@@ -1,3 +1,4 @@
+import { mcpTranslationBatchOutputs } from "../../shared/mcpTranslationBatch";
 import { mcpStructureOutputs } from "../../shared/mcpBlockStructure";
 import { mcpErasureRecoveryOutputs } from "../../shared/mcpErasureRecoverySchemas";
 import { z } from "zod/v4";
@@ -109,6 +110,7 @@ const mcpJobReceiptOutput = z
 export const mcpOutputSchemas: Record<string, z.ZodType> = {
   ...mcpReviewOutputSchemas,
   ...mcpStructureOutputs,
+  ...mcpTranslationBatchOutputs,
   ...mcpContextOutputSchemas,
   ...mcpErasureRecoveryOutputs,
   carrot_update_block_source_rect: McpSourceRectResultSchema,

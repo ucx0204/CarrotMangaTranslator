@@ -1,3 +1,5 @@
+import { createMcpTranslationBatchTools } from "./mcpTranslationBatchTools";
+import { createMcpTranslationBatchPorts } from "./mcpTranslationBatchAdapter";
 import { createMcpReviewTools } from "./mcpReviewTools";
 import { McpReadingService } from "../application/mcpReadingService";
 import { createMcpReadingTool } from "./mcpReadingTool";
@@ -39,6 +41,13 @@ export function createMcpAppTools(options: {
   });
   const extensions = [
     ...(options.additionalTools ?? []),
+    ...createMcpTranslationBatchTools(
+      createMcpTranslationBatchPorts(edits),
+      Boolean(
+        options.preferences.allowEditing && options.preferences.allowProcessing,
+      ),
+      options.lifetime,
+    ),
     ...createMcpReviewTools({ listLibrary, openChapter }),
     createMcpWorkContextTool(new McpWorkContextService(readWorkContextForEdit)),
   ];

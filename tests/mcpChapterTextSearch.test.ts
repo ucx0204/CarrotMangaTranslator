@@ -71,7 +71,9 @@ it("bounds occurrences and UTF-16 snippets without breaking surrogate pairs", ()
   const far = searchMcpChapterText(f.saved, { ...request, query: "TARGET" })
     .matches[0];
   expect(far.translation.text).toContain("TARGET");
-  expect(far.translation.text.isWellFormed()).toBe(true);
+  expect(far.translation.text).not.toMatch(
+    /(^[\uDC00-\uDFFF]|[\uD800-\uDBFF]$)/,
+  );
 });
 it("counts excluded generated text and honors role/review/page filters", () => {
   const f = translationBatchFixture();

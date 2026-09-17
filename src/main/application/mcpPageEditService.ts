@@ -1,3 +1,4 @@
+import { mcpBatchMembership } from "./mcpTranslationBatchPolicy";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
 import type {
@@ -208,17 +209,61 @@ export class McpPageEditService {
     );
     return result.page;
   }
+  /** Strict text-only commit with a receipt published before UI notification.
+   * The context read lease is acquired only AFTER the native page lease. */
+  async commitTranslationBatch(
+    request: McpTranslationPatch,
+    membership: string,
+    authorize: () => void,
+    onCommitted: (page: MangaPage) => void,
+    scope: <T>(run: () => Promise<T>) => Promise<T>,
+  ): Promise<void> {
+    await this.mutate(
+      request,
+      authorize,
+      (chapter, page) => {
+        assertCurrentRevision(page, request.revision);
+        if (mcpBatchMembership(chapter) !== membership)
+          throw new McpEditError(
+            "revision_conflict",
+            "Chapter membership/order changed during batch editing.",
+          );
+        const ids = new Set(request.edits.map((edit) => edit.blockId));
+        if (
+          page.blocks.some(
+            (block) => ids.has(block.id) && block.generatedLettering,
+          )
+        )
+          throw new McpEditError(
+            "invalid_edit",
+            "Generated lettering cannot be changed by this text-only batch.",
+          );
+        const patch = applyMcpTranslations(page, request.edits);
+        return {
+          blocks: patch.blocks,
+          blockOrder: page.blockOrder,
+          changed: patch.previous.length > 0,
+          result: null,
+        };
+      },
+      onCommitted,
+      scope,
+    );
+  }
   private mutate<T>(
     target: Target,
     authorize: () => void,
     calculate: (chapter: ChapterSnapshot, page: MangaPage) => Change<T>,
     onCommitted?: (page: MangaPage) => void,
+    scope?: <R>(run: () => Promise<R>) => Promise<R>,
   ) {
+    const execute = (guard: () => void) => {
+      const run = () => this.mutateOwned(target, guard, calculate, onCommitted);
+      return scope ? scope(run) : run();
+    };
     return this.ports.withPageEdit
-      ? this.ports.withPageEdit(target, authorize, (guard) =>
-          this.mutateOwned(target, guard, calculate, onCommitted),
-        )
-      : this.mutateOwned(target, authorize, calculate, onCommitted);
+      ? this.ports.withPageEdit(target, authorize, execute)
+      : execute(authorize);
   }
   /** Runs after the native page lease when the app composition provides one. */
   private async mutateOwned<T>(

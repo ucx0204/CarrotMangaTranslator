@@ -20,9 +20,13 @@ it("cancels a paused save before commit and does not start later pages", async (
   const action = f.start(plan.batchId, "apply");
   await tick();
   expect(() => f.start(plan.batchId, "undo")).toThrow(/running/);
-  expect(f.service.cancel(f.owner, action, f.guard).cancellationRequested).toBe(
-    true,
-  );
+  expect(
+    f.service.cancel(
+      f.owner,
+      { batchId: action.batchId, requestId: action.requestId },
+      f.guard,
+    ).cancellationRequested,
+  ).toBe(true);
   expect((await f.inspect(plan.batchId)).status).toBe("running");
   release();
   expect((await f.done(plan.batchId)).status).toBe("cancelled");
@@ -83,11 +87,21 @@ it("old cancellation IDs cannot cancel a later action", async () => {
   const plan = await f.service.preview(f.owner, f.request(), f.guard);
   const apply = f.start(plan.batchId, "apply");
   await f.done(plan.batchId);
-  expect(f.service.cancel(f.owner, apply, f.guard).cancellationRequested).toBe(
-    false,
-  );
+  expect(
+    f.service.cancel(
+      f.owner,
+      { batchId: apply.batchId, requestId: apply.requestId },
+      f.guard,
+    ).cancellationRequested,
+  ).toBe(false);
   f.start(plan.batchId, "undo");
-  expect(() => f.service.cancel(f.owner, apply, f.guard)).toThrow(/currently/);
+  expect(() =>
+    f.service.cancel(
+      f.owner,
+      { batchId: apply.batchId, requestId: apply.requestId },
+      f.guard,
+    ),
+  ).toThrow(/currently/);
   await f.done(plan.batchId);
   await f.service.close();
 });
