@@ -16,7 +16,7 @@ jobs:
   checkpoint:
     if: github.repository == 'ucx0204/CarrotMangaTranslator' && github.ref == 'refs/heads/feat/mcp-app-bridge'
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
@@ -108,6 +108,32 @@ jobs:
             echo '::endgroup::'
           done
           exit "$failed"
+
+      - name: Full repository Windows acceptance
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p .tmp/mcp-acceptance
+          git rev-parse HEAD > .tmp/mcp-acceptance/commit.txt
+          set +e
+          npm run check 2>&1 | tee .tmp/mcp-acceptance/full-check.log
+          result=${PIPESTATUS[0]}
+          set -e
+          echo "$result" > .tmp/mcp-acceptance/full-check.exit
+          exit "$result"
+
+      - name: Preserve full acceptance evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mcp-full-acceptance
+          path: |
+            .tmp/mcp-acceptance/commit.txt
+            .tmp/mcp-acceptance/full-check.log
+            .tmp/mcp-acceptance/full-check.exit
+            coverage/coverage-summary.json
+            ${{ runner.temp }}/carrot-mcp-native.log
+          retention-days: 7
+          if-no-files-found: error
 
       - name: Remove only the already merged MCP recovery branch references
         run: |
