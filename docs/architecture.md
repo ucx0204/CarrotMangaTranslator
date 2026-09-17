@@ -236,3 +236,17 @@ revision/coordinate algorithms, existing coverage floors and authorization are u
 The structure policy/service/lifecycle/HTTP suites cover preservation, stale revisions,
 request-ID races, expiration, authorization and atomic persistence; native structure
 checks exercise split/merge/delete with actual rendered-pixel restoration.
+
+## MCP format batches
+
+Format and text batches share the same page-batch lifecycle, fixed-target runner,
+context read scope and authorized tool boundary. The existing field editor remains
+responsible for font intent, weights and normalized display geometry. Only selected
+app-calculated format snapshots can be committed; source/translation text, source
+geometry, images and references are checked as immutable. Undo restores optional
+field absence as well as values. Excluded generated image payloads are not retained.
+
+Measured direct-consumer ceilings: blockFingerprint 27, mcpEditPolicy 49 and the
+mcpAppTools composition root 17 imports. Global ceilings and protected algorithms
+are unchanged. Existing text batch tests characterize the shared lifecycle; format
+policy/HTTP/native tests verify exact restoration, partial failure and rendering.

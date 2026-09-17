@@ -210,8 +210,8 @@
       "reason": "MCP page render/crop adapter and app-default external-reading composition reuse the canonical data-root resolver; no separate root or arbitrary paths are exposed."
     },
     "src/main/mcp/mcpAppTools.ts": {
-      "maxRuntimeImports": 16,
-      "reason": "This explicit composition root adds metadata-only review/preflight tools beside existing page/image/context tools. Existing app export rules and the public library facade remain authoritative; no alias wrapper, copied algorithm or generic budget change. The application composition root directly wires the chapter text batch tools and native page/context adapter; model runtimes and alternative stores are not added."
+      "maxRuntimeImports": 17,
+      "reason": "This explicit composition root adds metadata-only review/preflight tools beside existing page/image/context tools. Existing app export rules and the public library facade remain authoritative; no alias wrapper, copied algorithm or generic budget change. The application composition root directly wires the chapter text batch tools and native page/context adapter; model runtimes and alternative stores are not added. The composition root directly registers format batch tools alongside the existing shared adapter; no wrapper is introduced to hide fan-out."
     },
     "src/main/mcp/mcpPageOperationSession.ts": {
       "maxRuntimeImports": 18,
@@ -222,12 +222,12 @@
       "reason": "Context edit and app-research scopes directly declare the app's existing work-context/content resources and share UI ownership. No alternative locking vocabulary, alias facade or global limit change. Deadlock and stale-context regression tests protect lifetime behavior; see docs/mcp-context-research-boundaries-20260917.md."
     },
     "src/main/application/mcpEditPolicy.ts": {
-      "maxImportedBy": 47,
-      "reason": "Context edit/research policies, proposal services and adapters reuse the existing typed MCP error authority. Seven direct consumers retain consistent stale/permission/invalid-input errors without copied classes or dependency-hiding wrappers. Global limits, save guards and error semantics are unchanged; see docs/mcp-context-research-boundaries-20260917.md. Structure policy, session service and MCP tools directly use the existing typed error authority for invalid input, ownership, expiry and page conflicts. No error-class copy, dependency-hiding wrapper or global limit change. Chapter text search, plan, runner, service, adapter and tool boundary reuse the existing typed edit errors and translation patch authority."
+      "maxImportedBy": 49,
+      "reason": "Context edit/research policies, proposal services and adapters reuse the existing typed MCP error authority. Seven direct consumers retain consistent stale/permission/invalid-input errors without copied classes or dependency-hiding wrappers. Global limits, save guards and error semantics are unchanged; see docs/mcp-context-research-boundaries-20260917.md. Structure policy, session service and MCP tools directly use the existing typed error authority for invalid input, ownership, expiry and page conflicts. No error-class copy, dependency-hiding wrapper or global limit change. Chapter text search, plan, runner, service, adapter and tool boundary reuse the existing typed edit errors and translation patch authority. Shared batch target validation and format planning add two direct typed-error consumers. Page revision, authorization, atomic-save and cancellation checks are reused, not bypassed."
     },
     "src/shared/blockFingerprint.ts": {
-      "maxImportedBy": 26,
-      "reason": " Chapter text search fingerprints criteria and current saved page/context snapshots for consistent pagination."
+      "maxImportedBy": 27,
+      "reason": " Chapter text search fingerprints criteria and current saved page/context snapshots for consistent pagination. Format snapshots add one direct caller to compare exact optional typography and protect non-format block content; app hash semantics are unchanged."
     }
   }
 }

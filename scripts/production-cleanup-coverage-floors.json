@@ -17153,6 +17153,28 @@
         "pct": 88.37
       }
     },
+    "src/main/application/mcpFormatBatchPolicy.ts": {
+      "lines": {
+        "covered": 50,
+        "total": 53,
+        "pct": 94.33
+      },
+      "statements": {
+        "covered": 57,
+        "total": 60,
+        "pct": 95
+      },
+      "functions": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 41,
+        "total": 46,
+        "pct": 89.13
+      }
+    },
     "src/main/application/mcpJobJournal.ts": {
       "lines": {
         "covered": 20,
@@ -17261,6 +17283,72 @@
         "covered": 32,
         "total": 37,
         "pct": 86.48
+      }
+    },
+    "src/main/application/mcpPageBatchPolicy.ts": {
+      "lines": {
+        "covered": 20,
+        "total": 21,
+        "pct": 95.23
+      },
+      "statements": {
+        "covered": 21,
+        "total": 22,
+        "pct": 95.45
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 18,
+        "pct": 94.44
+      }
+    },
+    "src/main/application/mcpPageBatchService.ts": {
+      "lines": {
+        "covered": 114,
+        "total": 117,
+        "pct": 97.43
+      },
+      "statements": {
+        "covered": 125,
+        "total": 131,
+        "pct": 95.41
+      },
+      "functions": {
+        "covered": 34,
+        "total": 34,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 83,
+        "total": 90,
+        "pct": 92.22
+      }
+    },
+    "src/main/application/mcpPageBatchTypes.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/main/application/mcpPageEditService.ts": {
@@ -17525,28 +17613,6 @@
         "covered": 18,
         "total": 18,
         "pct": 100
-      }
-    },
-    "src/main/application/mcpTranslationBatchService.ts": {
-      "lines": {
-        "covered": 114,
-        "total": 117,
-        "pct": 97.43
-      },
-      "statements": {
-        "covered": 125,
-        "total": 131,
-        "pct": 95.41
-      },
-      "functions": {
-        "covered": 34,
-        "total": 34,
-        "pct": 100
-      },
-      "branches": {
-        "covered": 83,
-        "total": 90,
-        "pct": 92.22
       }
     },
     "src/main/application/mcpWorkContextService.ts": {
@@ -20673,6 +20739,28 @@
         "pct": 84.61
       }
     },
+    "src/main/mcp/mcpBatchTool.ts": {
+      "lines": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      }
+    },
     "src/main/mcp/mcpBlockEditingTools.ts": {
       "lines": {
         "covered": 7,
@@ -21067,6 +21155,28 @@
         "covered": 13,
         "total": 14,
         "pct": 92.85
+      }
+    },
+    "src/main/mcp/mcpFormatBatchTools.ts": {
+      "lines": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/main/mcp/mcpHttpPolicy.ts": {
@@ -33233,6 +33343,50 @@
         "covered": 0,
         "total": 0,
         "pct": 100
+      }
+    },
+    "src/shared/mcpFormatBatch.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/mcpFormatEditing.ts": {
+      "lines": {
+        "covered": 35,
+        "total": 35,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 39,
+        "total": 40,
+        "pct": 97.5
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 41,
+        "total": 44,
+        "pct": 93.18
       }
     },
     "src/shared/mcpReadingTypes.ts": {

@@ -186,5 +186,6 @@ async function checkNativeTextBatch(root, invoke, sourcePath) {
   console.log(
     "PASS native chapter text search -> multi-page translation batch -> undo/redo -> exact rendered restoration, no model or source mutation",
   );
+  return chapterId;
 }
 module.exports = { checkNativeTextBatch };
