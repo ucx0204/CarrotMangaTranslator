@@ -230,6 +230,8 @@ function applyMemory(
       updatedAt: now,
     }),
     ...change.values,
+    pageName: page.name,
+    pageIndex: snapshot.chapter.pages.indexOf(page),
     ...(change.values.visualSummary !== undefined
       ? { visualSummarySource: "manual" as const }
       : {}),

@@ -1,3 +1,4 @@
+import { createMcpContextSession } from "./mcpContextSession";
 import { createMcpBlockTranslationExecutor } from "./mcpBlockTranslationSession";
 import { createMcpBlockOcrExecutor } from "./mcpBlockOcrSession";
 import { createMcpErasureRecoverySession } from "./mcpErasureRecoverySession";
@@ -44,6 +45,7 @@ export function createMcpPageOperationSession(options: {
   const recovery = preferences.allowProcessing
     ? createMcpErasureRecoverySession(app, operations, editing.notifySaved)
     : undefined;
+  const contextSession = createMcpContextSession(app, operations, preferences);
   const artifacts = new McpArtifactStore(options.origin);
   const exporter = new McpPageExportService({
     openChapter,
@@ -84,6 +86,7 @@ export function createMcpPageOperationSession(options: {
   };
   return {
     tools: [
+      ...contextSession.tools,
       ...(recovery?.tools ?? []),
       ...createMcpOperationTools(
         operations,
@@ -94,11 +97,16 @@ export function createMcpPageOperationSession(options: {
     artifacts,
     ready: () => operations.ready(),
     stop: () => {
+      contextSession.stop();
       recovery?.stop();
       operations.stop();
       artifacts.stop();
     },
-    close: () => closePageSession(operations, artifacts, recovery),
+    close: async () => {
+      operations.stop();
+      await contextSession.close();
+      await closePageSession(operations, artifacts, recovery);
+    },
   };
 }
 

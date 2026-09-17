@@ -1,6 +1,9 @@
 import { mcpErasureRecoveryOutputs } from "../../shared/mcpErasureRecoverySchemas";
 import { z } from "zod/v4";
-import { mcpContextOutputSchemas } from "../../shared/mcpContextEditing";
+import {
+  McpContextResearchTargetSchema,
+  mcpContextOutputSchemas,
+} from "../../shared/mcpContextEditing";
 import { mcpJobResultMetadataSchema } from "../application/mcpJobJournal";
 import { mcpReviewOutputSchemas } from "../../shared/mcpReviewSchemas";
 import { McpEditableFieldsSchema } from "../../shared/mcpBlockEditing";
@@ -73,7 +76,7 @@ const jobTarget = z
 
 const mcpJobReceiptOutput = z
   .object({
-    target: jobTarget.optional(),
+    target: z.union([jobTarget, McpContextResearchTargetSchema]).optional(),
     persistence: z.enum(["durable", "memory"]),
     jobId: text.uuid(),
     requestId: text,
@@ -296,6 +299,7 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
   carrot_run_page_ocr: mcpJobReceiptOutput,
   carrot_run_block_ocr: mcpJobReceiptOutput,
   carrot_run_block_translation: mcpJobReceiptOutput,
+  carrot_run_context_research: mcpJobReceiptOutput,
   carrot_run_page_erasure: mcpJobReceiptOutput,
 };
 

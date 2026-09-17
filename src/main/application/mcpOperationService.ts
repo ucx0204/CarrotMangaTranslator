@@ -8,6 +8,7 @@ import {
   persistedMcpJobResult,
   mcpJobResultMetadataSchema,
   mcpJobTargetSchema,
+  mcpPersistedTargetSchema,
   type McpJobPersistence,
   type McpStoredJob,
   type McpStoredJobTarget,
@@ -113,6 +114,11 @@ export class McpOperationService {
       throw new McpEditError(
         "invalid_edit",
         "Only failed, cancelled or interrupted jobs can be retried.",
+      );
+    if (entry.kind === "contextResearch")
+      throw new McpEditError(
+        "invalid_edit",
+        "Read current context and issue a new explicit research request; page-job retry does not apply to research.",
       );
     const target = mcpJobTargetSchema.parse(entry.parameters);
     if (target.revision !== revision)
@@ -289,7 +295,7 @@ export class McpOperationService {
       error: entry.settled ? entry.error : undefined,
       startedAt: entry.startedAt,
       finishedAt: entry.settled ? entry.finishedAt : undefined,
-      target: mcpJobTargetSchema.safeParse(entry.parameters).data,
+      target: mcpPersistedTargetSchema.safeParse(entry.parameters).data,
       persistence: this.persistence ? "durable" : "memory",
     });
   }

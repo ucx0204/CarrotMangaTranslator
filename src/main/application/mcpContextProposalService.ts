@@ -190,13 +190,7 @@ export class McpContextProposalService {
       );
     const snapshot = await this.ports.read(request.chapterId);
     this.check(guard);
-    const now = new Date(
-      Math.max(
-        this.now(),
-        Date.parse(snapshot.styleGuide.updatedAt) + 1,
-        Date.parse(snapshot.storyMemory.updatedAt) + 1,
-      ),
-    ).toISOString();
+    const now = proposalTimestamp(snapshot, this.now());
     const options: McpContextPlanOptions = {
       now,
       entryIds: {},
@@ -289,37 +283,7 @@ export class McpContextProposalService {
       () =>
         this.ports.commit(
           entry.request.chapterId,
-          (current) => {
-            check();
-            assertContextTarget(
-              current,
-              entry.request.chapterId,
-              entry.metadata.revision,
-            );
-            const plan = planMcpContextChanges(current, subset, entry.options);
-            assertReviewedChanges(plan.changes, entry.changes);
-            return {
-              ...(plan.guideChanged ? { styleGuide: plan.styleGuide } : {}),
-              ...(plan.memoryChanged ? { storyMemory: plan.storyMemory } : {}),
-              result:
-                mcpContextOutputSchemas.carrot_apply_context_proposal.parse({
-                  proposalId: request.proposalId,
-                  requestId: request.requestId,
-                  status: "applied",
-                  previousRevision: entry.metadata.revision,
-                  revision: mcpContextRevision({
-                    ...current,
-                    styleGuide: plan.styleGuide,
-                    storyMemory: plan.storyMemory,
-                  }),
-                  changesApplied: plan.changes.filter((item) => item.changed)
-                    .length,
-                  selectedChangeIds: request.selectedChangeIds,
-                  pagesChanged: 0,
-                  note: "Only selected context fields were applied. Translations, images and page blocks were not changed. Receipt revision is historical; read current context before another edit.",
-                }),
-            };
-          },
+          (current) => this.buildCommit(current, entry, subset, request, check),
           check,
         ),
     );
@@ -330,6 +294,41 @@ export class McpContextProposalService {
       expiresAt: this.now() + TTL,
     });
     return receipt;
+  }
+  private buildCommit(
+    current: McpContextSnapshot,
+    entry: Entry,
+    subset: McpContextPreview,
+    request: z.infer<typeof McpContextApplySchema>,
+    check: () => void,
+  ) {
+    check();
+    assertContextTarget(
+      current,
+      entry.request.chapterId,
+      entry.metadata.revision,
+    );
+    const plan = planMcpContextChanges(current, subset, entry.options);
+    assertReviewedChanges(plan.changes, entry.changes);
+    return {
+      ...(plan.guideChanged ? { styleGuide: plan.styleGuide } : {}),
+      ...(plan.memoryChanged ? { storyMemory: plan.storyMemory } : {}),
+      result: mcpContextOutputSchemas.carrot_apply_context_proposal.parse({
+        proposalId: request.proposalId,
+        requestId: request.requestId,
+        status: "applied",
+        previousRevision: entry.metadata.revision,
+        revision: mcpContextRevision({
+          ...current,
+          styleGuide: plan.styleGuide,
+          storyMemory: plan.storyMemory,
+        }),
+        changesApplied: plan.changes.filter((item) => item.changed).length,
+        selectedChangeIds: request.selectedChangeIds,
+        pagesChanged: 0,
+        note: "Only selected context fields were applied. Translations, images and page blocks were not changed. Receipt revision is historical; read current context before another edit.",
+      }),
+    };
   }
   private check(guard: () => void): void {
     this.stopping.signal.throwIfAborted();
@@ -380,4 +379,15 @@ function assertReviewedChanges(
         "The selected context change no longer matches its reviewed result.",
       );
   }
+}
+
+function proposalTimestamp(snapshot: McpContextSnapshot, now: number): string {
+  const timestamps = [
+    snapshot.styleGuide.updatedAt,
+    snapshot.storyMemory.updatedAt,
+  ]
+    .map((value) => Date.parse(value))
+    .filter(Number.isFinite)
+    .map((value) => value + 1);
+  return new Date(Math.max(now, ...timestamps)).toISOString();
 }

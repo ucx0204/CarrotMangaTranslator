@@ -1,4 +1,8 @@
 import { z } from "zod/v4";
+import {
+  McpContextResearchTargetSchema,
+  McpContextResearchResultSchema,
+} from "../../shared/mcpContextEditing";
 import { McpBlockTranslationProposalSchema } from "../../shared/mcpBlockTranslation";
 import { McpBlockOcrObservationSchema } from "../../shared/mcpBlockOcr";
 import { hashStableValue } from "../../shared/blockFingerprint";
@@ -19,6 +23,10 @@ export const mcpJobTargetSchema = z
   })
   .strict();
 export type McpStoredJobTarget = z.infer<typeof mcpJobTargetSchema>;
+export const mcpPersistedTargetSchema = z.union([
+  mcpJobTargetSchema,
+  McpContextResearchTargetSchema,
+]);
 
 export const mcpJobResultMetadataSchema = z.object({
   status: z.string().max(40).optional(),
@@ -50,14 +58,25 @@ export const mcpJobResultMetadataSchema = z.object({
   blockTranslation: McpBlockTranslationProposalSchema.optional(),
   proposalExpired: z.boolean().optional(),
   noSourceText: z.boolean().optional(),
+  contextResearch: McpContextResearchResultSchema.optional(),
+  queryCount: count.optional(),
+  sourceCount: count.optional(),
+  tavilyCreditsUsed: z.number().nonnegative().optional(),
 });
 const jobSchema = z
   .object({
     id: z.string().uuid(),
     owner: id,
     requestId: id,
-    kind: z.enum(["ocr", "blockOcr", "blockTranslation", "erase", "exportPng"]),
-    parameters: mcpJobTargetSchema,
+    kind: z.enum([
+      "ocr",
+      "blockOcr",
+      "blockTranslation",
+      "erase",
+      "exportPng",
+      "contextResearch",
+    ]),
+    parameters: mcpPersistedTargetSchema,
     fingerprint: z.string().regex(/^[a-f0-9]{16}$/),
     status: z.enum([
       "running",
@@ -101,12 +120,19 @@ export function persistedMcpJobResult(
   result: Record<string, unknown> | undefined,
 ) {
   if (result === undefined) return undefined;
-  const { blockOcr, blockTranslation, ...metadata } =
+  const { blockOcr, blockTranslation, contextResearch, ...metadata } =
     mcpJobResultMetadataSchema.parse(result);
   return {
     ...metadata,
     ...(blockOcr ? { observationExpired: true } : {}),
-    ...(blockTranslation ? { proposalExpired: true } : {}),
+    ...(blockTranslation || contextResearch ? { proposalExpired: true } : {}),
+    ...(contextResearch
+      ? {
+          queryCount: contextResearch.queryCount,
+          sourceCount: contextResearch.sourceCount,
+          tavilyCreditsUsed: contextResearch.tavilyCreditsUsed,
+        }
+      : {}),
   };
 }
 export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
@@ -132,13 +158,17 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
 }
 
 function validJobTarget(record: McpStoredJob): boolean {
+  if (record.kind === "contextResearch")
+    return McpContextResearchTargetSchema.safeParse(record.parameters).success;
+  const parsed = mcpJobTargetSchema.safeParse(record.parameters);
+  if (!parsed.success) return false;
+  const target = parsed.data;
   const blockRequired = ["blockOcr", "blockTranslation"].includes(record.kind);
   return (
-    (!blockRequired || Boolean(record.parameters.blockId)) &&
+    (!blockRequired || Boolean(target.blockId)) &&
     (blockRequired ||
       record.kind === "erase" ||
-      record.parameters.blockId === undefined) &&
-    (record.kind === "blockTranslation" ||
-      record.parameters.contextMode === undefined)
+      target.blockId === undefined) &&
+    (record.kind === "blockTranslation" || target.contextMode === undefined)
   );
 }

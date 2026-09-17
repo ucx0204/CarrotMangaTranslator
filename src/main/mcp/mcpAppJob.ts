@@ -20,7 +20,7 @@ type McpAppJobScope = {
 export async function runMcpAppJob<T>(
   app: InpaintingJobContext,
   operation: McpOperationContext,
-  kind: "gemma-analysis" | "page-export" | "mcp-edit",
+  kind: "gemma-analysis" | "page-export" | "mcp-edit" | "internet-research",
   execute: (
     context: McpOperationContext,
     emit: (event: JobEvent) => void,

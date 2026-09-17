@@ -29,7 +29,7 @@ export function prepareMcpBlockTranslationOptions(base: TranslationOptions) {
       "invalid_edit",
       "Translation context and output token limits must be positive safe integers.",
     );
-  if (base.modelProvider === "openai-api") assertRemoteTextApi(base);
+  if (base.modelProvider === "openai-api") assertMcpRemoteTextApi(base);
   const execution = base.modelProvider === "gemma" ? "local" : "external";
   const options: TranslationOptions = {
     ...base,
@@ -50,7 +50,7 @@ export function prepareMcpBlockTranslationOptions(base: TranslationOptions) {
   return { options, execution: execution as "local" | "external" };
 }
 
-function assertRemoteTextApi(options: TranslationOptions): void {
+export function assertMcpRemoteTextApi(options: TranslationOptions): void {
   let url: URL;
   try {
     url = new URL(options.apiBaseUrl);
