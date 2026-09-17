@@ -33,64 +33,180 @@ async function checkNativeContext(root, invoke, chapterId, pageId) {
   const original = await readFile(page.imagePath);
   const revision = mcpContextRevision(before);
   const request = {
-    chapterId, revision, requestId: randomUUID(),
+    chapterId,
+    revision,
+    requestId: randomUUID(),
     changes: [
-      { changeId: "g", entity: "glossary", values: { source: "Native hero", target: "Hero", aliases: ["Keep alias"], note: "Keep note" } },
-      { changeId: "c", entity: "character", values: { displayName: "Native character", targetName: "Character", speechStyle: "polite" } },
-      { changeId: "r", entity: "rules", values: { sfxMode: before.styleGuide.rules.sfxMode === "note" ? "translate" : "note" } },
-      { changeId: "m", entity: "memory", pageId, pageRevision: createPageRevision(page), values: { summary: "Explicit user memory, not internet evidence." } },
+      {
+        changeId: "g",
+        entity: "glossary",
+        values: {
+          source: "Native hero",
+          target: "Hero",
+          aliases: ["Keep alias"],
+          note: "Keep note",
+        },
+      },
+      {
+        changeId: "c",
+        entity: "character",
+        values: {
+          displayName: "Native character",
+          targetName: "Character",
+          speechStyle: "polite",
+        },
+      },
+      {
+        changeId: "r",
+        entity: "rules",
+        values: {
+          sfxMode:
+            before.styleGuide.rules.sfxMode === "note" ? "translate" : "note",
+        },
+      },
+      {
+        changeId: "m",
+        entity: "memory",
+        pageId,
+        pageRevision: createPageRevision(page),
+        values: { summary: "Explicit user memory, not internet evidence." },
+      },
     ],
   };
   const proposal = await call("carrot_preview_context_edit", request);
-  assert.equal((await call("carrot_preview_context_edit", request)).proposalId, proposal.proposalId);
+  assert.equal(
+    (await call("carrot_preview_context_edit", request)).proposalId,
+    proposal.proposalId,
+  );
   assert.deepEqual(await library.readWorkContextForEdit(chapterId), before);
-  const review = await call("carrot_get_context_proposal", { proposalId: proposal.proposalId });
+  const review = await call("carrot_get_context_proposal", {
+    proposalId: proposal.proposalId,
+  });
   assert.equal(review.total, 4);
-  const apply = { proposalId: proposal.proposalId, requestId: randomUUID(), selectedChangeIds: ["g", "c", "r", "m"] };
-  assert.equal((await call("carrot_apply_context_proposal", apply)).changesApplied, 4);
+  const apply = {
+    proposalId: proposal.proposalId,
+    requestId: randomUUID(),
+    selectedChangeIds: ["g", "c", "r", "m"],
+  };
+  assert.equal(
+    (await call("carrot_apply_context_proposal", apply)).changesApplied,
+    4,
+  );
   const changed = await library.readWorkContextForEdit(chapterId);
   assert.deepEqual(changed.chapter, before.chapter);
-  assert.deepEqual(changed.styleGuide.glossary.slice(0, -1), before.styleGuide.glossary);
-  assert.deepEqual(changed.styleGuide.characters.slice(0, -1), before.styleGuide.characters);
+  assert.deepEqual(
+    changed.styleGuide.glossary.slice(0, -1),
+    before.styleGuide.glossary,
+  );
+  assert.deepEqual(
+    changed.styleGuide.characters.slice(0, -1),
+    before.styleGuide.characters,
+  );
   assert.deepEqual(await readFile(page.imagePath), original);
-  assert.equal((await call("carrot_apply_context_proposal", apply)).status, "already_applied");
+  assert.equal(
+    (await call("carrot_apply_context_proposal", apply)).status,
+    "already_applied",
+  );
   assert.deepEqual(await library.readWorkContextForEdit(chapterId), changed);
-  await assert.rejects(() => call("carrot_preview_context_edit", { ...request, requestId: randomUUID() }));
-  await checkExternalSelection(call, chapterId, changed, library, mcpContextRevision);
+  await assert.rejects(() =>
+    call("carrot_preview_context_edit", {
+      ...request,
+      requestId: randomUUID(),
+    }),
+  );
+  await checkExternalSelection(
+    call,
+    chapterId,
+    changed,
+    library,
+    mcpContextRevision,
+  );
   const final = await library.readWorkContextForEdit(chapterId);
   assert.deepEqual(final.chapter, before.chapter);
   assert.deepEqual(final.storyMemory, changed.storyMemory);
   assert.deepEqual(await readFile(page.imagePath), original);
-  console.log("PASS native glossary/character/rules/memory preview -> atomic apply -> exact retry; original page unchanged");
-  console.log("PASS native external research provenance, selected changes, preserved optional fields and stale proposal rejection");
+  console.log(
+    "PASS native glossary/character/rules/memory preview -> atomic apply -> exact retry; original page unchanged",
+  );
+  console.log(
+    "PASS native external research provenance, selected changes, preserved optional fields and stale proposal rejection",
+  );
 }
 
 /** @param {(name: string, args: object) => Promise<any>} call
  * @param {string} chapterId @param {any} snapshot @param {any} library
  * @param {(snapshot: any) => string} revisionOf */
-async function checkExternalSelection(call, chapterId, snapshot, library, revisionOf) {
+async function checkExternalSelection(
+  call,
+  chapterId,
+  snapshot,
+  library,
+  revisionOf,
+) {
   const glossary = snapshot.styleGuide.glossary.at(-1);
   const character = snapshot.styleGuide.characters.at(-1);
   assert.ok(glossary && character);
-  const source = { title: "Synthetic reference (not fetched)", url: "https://example.com/native-context-reference" };
+  const source = {
+    title: "Synthetic reference (not fetched)",
+    url: "https://example.com/native-context-reference",
+  };
   const proposal = await call("carrot_preview_context_research", {
-    chapterId, revision: revisionOf(snapshot), requestId: randomUUID(),
+    chapterId,
+    revision: revisionOf(snapshot),
+    requestId: randomUUID(),
     changes: [
-      { change: { changeId: "g", entity: "glossary", entryId: glossary.id, values: { target: "Reviewed hero" } }, reason: "Synthetic test evidence", sources: [source] },
-      { change: { changeId: "c", entity: "character", entryId: character.id, values: { targetName: "Do not apply" } }, reason: "Unselected test evidence", sources: [source] },
+      {
+        change: {
+          changeId: "g",
+          entity: "glossary",
+          entryId: glossary.id,
+          values: { target: "Reviewed hero" },
+        },
+        reason: "Synthetic test evidence",
+        sources: [source],
+      },
+      {
+        change: {
+          changeId: "c",
+          entity: "character",
+          entryId: character.id,
+          values: { targetName: "Do not apply" },
+        },
+        reason: "Unselected test evidence",
+        sources: [source],
+      },
     ],
   });
   assert.equal(proposal.source, "external-research");
-  assert.ok(proposal.warnings.some((/** @type {string} */ warning) => warning.includes("not fetched or verified")));
-  const review = await call("carrot_get_context_proposal", { proposalId: proposal.proposalId, limit: 1 });
+  assert.ok(
+    proposal.warnings.some((/** @type {string} */ warning) =>
+      warning.includes("not fetched or verified"),
+    ),
+  );
+  const review = await call("carrot_get_context_proposal", {
+    proposalId: proposal.proposalId,
+    limit: 1,
+  });
   assert.equal(review.nextOffset, 1);
   assert.deepEqual(review.changes[0].sources, [source]);
-  const second = await call("carrot_get_context_proposal", { proposalId: proposal.proposalId, offset: 1, limit: 1 });
+  const second = await call("carrot_get_context_proposal", {
+    proposalId: proposal.proposalId,
+    offset: 1,
+    limit: 1,
+  });
   assert.equal(second.changes[0].changeId, "c");
-  const applying = { proposalId: proposal.proposalId, requestId: randomUUID(), selectedChangeIds: ["g"] };
+  const applying = {
+    proposalId: proposal.proposalId,
+    requestId: randomUUID(),
+    selectedChangeIds: ["g"],
+  };
   const stale = await call("carrot_preview_context_edit", {
-    chapterId, revision: revisionOf(snapshot), requestId: randomUUID(),
-    changes: [{ changeId: "r", entity: "rules", values: { honorifics: "drop" } }],
+    chapterId,
+    revision: revisionOf(snapshot),
+    requestId: randomUUID(),
+    changes: [
+      { changeId: "r", entity: "rules", values: { honorifics: "drop" } },
+    ],
   });
   await call("carrot_apply_context_proposal", applying);
   const after = await library.readWorkContextForEdit(chapterId);
@@ -101,10 +217,17 @@ async function checkExternalSelection(call, chapterId, snapshot, library, revisi
   assert.equal(updated.origin, glossary.origin);
   assert.equal(updated.note, glossary.note);
   assert.deepEqual(updated.aliases, glossary.aliases);
-  await assert.rejects(() => call("carrot_apply_context_proposal", {
-    proposalId: stale.proposalId, requestId: randomUUID(), selectedChangeIds: ["r"],
-  }));
-  assert.equal((await call("carrot_apply_context_proposal", applying)).status, "already_applied");
+  await assert.rejects(() =>
+    call("carrot_apply_context_proposal", {
+      proposalId: stale.proposalId,
+      requestId: randomUUID(),
+      selectedChangeIds: ["r"],
+    }),
+  );
+  assert.equal(
+    (await call("carrot_apply_context_proposal", applying)).status,
+    "already_applied",
+  );
   assert.deepEqual(await library.readWorkContextForEdit(chapterId), after);
 }
 
