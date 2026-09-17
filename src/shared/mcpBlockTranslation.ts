@@ -13,7 +13,10 @@ export type McpBlockTranslationTarget = z.infer<
 export const McpBlockTranslationReplySchema = z
   .object({
     blockId: McpBlockOcrTargetSchema.shape.blockId,
-    translatedText: z.string().max(8192).refine((text) => text.trim().length > 0),
+    translatedText: z
+      .string()
+      .max(8192)
+      .refine((text) => text.trim().length > 0),
   })
   .strict();
 
@@ -31,13 +34,17 @@ export const McpBlockTranslationProposalSchema = z
     contextRevision: z.string().regex(/^[a-f0-9]{16}$/),
     differs: z.boolean(),
     requestCount: z.literal(1),
-    warnings: z.array(z.enum([
-      "review_before_apply",
-      "same_as_source",
-      "generated_lettering_retained",
-      "context_budget_pruned",
-      "saved_context_may_have_changed",
-    ])).max(5),
+    warnings: z
+      .array(
+        z.enum([
+          "review_before_apply",
+          "same_as_source",
+          "generated_lettering_retained",
+          "context_budget_pruned",
+          "saved_context_may_have_changed",
+        ]),
+      )
+      .max(5),
   })
   .strict();
 export type McpBlockTranslationProposal = z.infer<

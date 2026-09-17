@@ -64,6 +64,7 @@ const jobTarget = z
     chapterId: text,
     pageId: text,
     blockId: text.optional(),
+    contextMode: z.enum(["none", "saved"]).optional(),
     revision,
     requestId: text.uuid(),
   })
@@ -292,6 +293,7 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
   carrot_export_page_png: mcpJobReceiptOutput,
   carrot_run_page_ocr: mcpJobReceiptOutput,
   carrot_run_block_ocr: mcpJobReceiptOutput,
+  carrot_run_block_translation: mcpJobReceiptOutput,
   carrot_run_page_erasure: mcpJobReceiptOutput,
 };
 

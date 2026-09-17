@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { McpBlockTranslationProposalSchema } from "../../shared/mcpBlockTranslation";
 import { McpBlockOcrObservationSchema } from "../../shared/mcpBlockOcr";
 import { hashStableValue } from "../../shared/blockFingerprint";
 
@@ -12,6 +13,7 @@ export const mcpJobTargetSchema = z
     chapterId: id,
     pageId: id,
     blockId: id.optional(),
+    contextMode: z.enum(["none", "saved"]).optional(),
     revision: z.string().regex(/^page-v1:[a-f0-9]{16}$/),
     requestId: z.string().uuid(),
   })
@@ -45,13 +47,16 @@ export const mcpJobResultMetadataSchema = z.object({
   artifactExpired: z.boolean().optional(),
   observationExpired: z.boolean().optional(),
   blockOcr: McpBlockOcrObservationSchema.optional(),
+  blockTranslation: McpBlockTranslationProposalSchema.optional(),
+  proposalExpired: z.boolean().optional(),
+  noSourceText: z.boolean().optional(),
 });
 const jobSchema = z
   .object({
     id: z.string().uuid(),
     owner: id,
     requestId: id,
-    kind: z.enum(["ocr", "blockOcr", "erase", "exportPng"]),
+    kind: z.enum(["ocr", "blockOcr", "blockTranslation", "erase", "exportPng"]),
     parameters: mcpJobTargetSchema,
     fingerprint: z.string().regex(/^[a-f0-9]{16}$/),
     status: z.enum([
@@ -96,8 +101,13 @@ export function persistedMcpJobResult(
   result: Record<string, unknown> | undefined,
 ) {
   if (result === undefined) return undefined;
-  const { blockOcr, ...metadata } = mcpJobResultMetadataSchema.parse(result);
-  return blockOcr ? { ...metadata, observationExpired: true } : metadata;
+  const { blockOcr, blockTranslation, ...metadata } =
+    mcpJobResultMetadataSchema.parse(result);
+  return {
+    ...metadata,
+    ...(blockOcr ? { observationExpired: true } : {}),
+    ...(blockTranslation ? { proposalExpired: true } : {}),
+  };
 }
 export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
   const parsed = journalSchema.parse(value);
@@ -110,9 +120,12 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
       requests.has(key) ||
       record.fingerprint !==
         hashStableValue([record.kind, record.parameters]) ||
-      (!["erase", "blockOcr"].includes(record.kind) &&
+      (!["erase", "blockOcr", "blockTranslation"].includes(record.kind) &&
         record.parameters.blockId !== undefined) ||
-      (record.kind === "blockOcr" && !record.parameters.blockId) ||
+      (["blockOcr", "blockTranslation"].includes(record.kind) &&
+        !record.parameters.blockId) ||
+      (record.kind !== "blockTranslation" &&
+        record.parameters.contextMode !== undefined) ||
       record.requestId !== record.parameters.requestId ||
       (record.status === "running") !== (record.finishedAt === undefined)
     )

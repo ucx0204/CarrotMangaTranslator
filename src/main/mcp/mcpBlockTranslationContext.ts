@@ -31,9 +31,12 @@ export async function readMcpBlockTranslationContext(
     baseStyleGuide: saved.styleGuide,
     storyMemory: {
       ...saved.storyMemory,
-      pages: saved.storyMemory.pages.filter(
-        (page) => page.pageIndex < input.pageIndex,
-      ),
+      pages: saved.storyMemory.pages
+        .map((page) => ({
+          ...page,
+          pageIndex: input.previousPageIds.indexOf(page.pageId),
+        }))
+        .filter((page) => page.pageIndex >= 0),
     },
     pageId: input.pageId,
     pageIndex: input.pageIndex,

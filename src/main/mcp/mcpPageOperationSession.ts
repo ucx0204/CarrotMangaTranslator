@@ -1,3 +1,4 @@
+import { createMcpBlockTranslationExecutor } from "./mcpBlockTranslationSession";
 import { createMcpBlockOcrExecutor } from "./mcpBlockOcrSession";
 import { createMcpErasureRecoverySession } from "./mcpErasureRecoverySession";
 import type { McpJobPersistence } from "../application/mcpJobJournal";
@@ -80,6 +81,9 @@ export function createMcpPageOperationSession(options: {
       : undefined,
     blockOcr: preferences.allowProcessing
       ? createMcpBlockOcrExecutor(app)
+      : undefined,
+    blockTranslation: preferences.allowProcessing
+      ? createMcpBlockTranslationExecutor(app)
       : undefined,
     erase: preferences.allowProcessing
       ? createErasureExecutor(app, editing, recovery)

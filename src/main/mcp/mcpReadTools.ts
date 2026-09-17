@@ -176,7 +176,7 @@ function capabilityProfile(
       ...additionalTools,
     ],
     editing: current.editTranslations,
-    translation: false,
+    translation: features.has("carrot_run_block_translation"),
     ocr: features.has("carrot_run_page_ocr"),
     erasure: features.has("carrot_run_page_erasure"),
     pngExport: features.has("carrot_export_page_png"),

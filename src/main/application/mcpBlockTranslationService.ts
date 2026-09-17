@@ -15,6 +15,7 @@ export type McpBlockTranslationInput = {
   workId: string;
   pageId: string;
   pageIndex: number;
+  previousPageIds: string[];
   blockId: string;
   sourceText: string;
   textRole: "ordinary" | "sound";
@@ -67,6 +68,7 @@ export class McpBlockTranslationService {
         workId: selected.workId,
         pageId: target.pageId,
         pageIndex: selected.pageIndex,
+        previousPageIds: selected.previousPageIds,
         blockId: target.blockId,
         sourceText: selected.block.sourceText,
         textRole: selected.block.textRole === "sound" ? "sound" : "ordinary",
@@ -82,8 +84,9 @@ export class McpBlockTranslationService {
         "revision_conflict",
         "Chapter membership or page order changed during translation.",
       );
+    const { engine, contextPruned, ...publicEvidence } = evidence;
     const proposal = McpBlockTranslationProposalSchema.safeParse({
-      ...evidence,
+      ...publicEvidence,
       sourceText: selected.block.sourceText,
       previousTranslatedText: selected.block.translatedText,
       contextMode: target.contextMode,
@@ -97,7 +100,7 @@ export class McpBlockTranslationService {
         ...(selected.block.generatedLettering
           ? ["generated_lettering_retained"]
           : []),
-        ...(evidence.contextPruned ? ["context_budget_pruned"] : []),
+        ...(contextPruned ? ["context_budget_pruned"] : []),
         ...(target.contextMode === "saved"
           ? ["saved_context_may_have_changed"]
           : []),
@@ -111,7 +114,7 @@ export class McpBlockTranslationService {
     return {
       ...base,
       status: "proposed",
-      engine: evidence.engine,
+      engine,
       performed: ["block-translation"],
       needsReview: true,
       proposalExpired: false,
@@ -150,6 +153,9 @@ export class McpBlockTranslationService {
       block: structuredClone(block),
       workId: chapter.workId,
       pageIndex: chapter.pages.indexOf(page),
+      previousPageIds: chapter.pages
+        .slice(0, chapter.pages.indexOf(page))
+        .map((item) => item.id),
       membership: hashStableValue([
         chapter.workId,
         chapter.pageOrder,
