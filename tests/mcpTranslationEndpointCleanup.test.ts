@@ -22,7 +22,9 @@ it("makes concurrent endpoint disposal callers await the same actual shutdown", 
   const waiting = new Promise<void>((resolve) => {
     finish = resolve;
   });
-  const stop = vi.spyOn(runtime.simplePage, "stopServer").mockReturnValue(waiting);
+  const stop = vi
+    .spyOn(runtime.simplePage, "stopServer")
+    .mockReturnValue(waiting);
   const session = new ModelEndpointSession(runtime, endpoint, {
     ...f.options,
     modelProvider: "gemma",
