@@ -21,17 +21,18 @@ The coverage gate implementation remains unchanged.
 
 ## Initial introduced records
 
-Counts are covered / total, with the exact reported percentage in parentheses.
+Counts below are covered / total (reported percentage).
+Columns are lines, statements, functions, branches, respectively.
 
-| Module | Lines | Statements | Functions | Branches |
-| --- | --- | --- | --- | --- |
-| `application/mcpExportBatchService.ts` | 60/64 (93.75) | 63/67 (94.02) | 15/17 (88.23) | 20/26 (76.92) |
-| `application/mcpExportSelection.ts` | 19/19 (100) | 20/20 (100) | 8/8 (100) | 19/19 (100) |
-| `application/mcpOperationOutputs.ts` | 16/17 (94.11) | 18/19 (94.73) | 5/5 (100) | 24/25 (96) |
-| `mcp/mcpArtifactZip.ts` | 13/13 (100) | 14/14 (100) | 2/2 (100) | 0/0 (100) |
-| `mcp/mcpExportBatchAdapter.ts` | 0/8 (0) | 0/9 (0) | 0/7 (0) | 0/0 (100) |
-| `mcp/mcpExportBatchTools.ts` | 23/24 (95.83) | 24/28 (85.71) | 9/9 (100) | 7/11 (63.63) |
-| `shared/mcpExportBatch.ts` | 12/12 (100) | 12/12 (100) | 0/0 (100) | 0/0 (100) |
+```text
+application/mcpExportBatchService.ts: 60/64 (93.75), 63/67 (94.02), 15/17 (88.23), 20/26 (76.92)
+application/mcpExportSelection.ts:    19/19 (100),   20/20 (100),   8/8 (100),     19/19 (100)
+application/mcpOperationOutputs.ts:  16/17 (94.11), 18/19 (94.73), 5/5 (100),     24/25 (96)
+mcp/mcpArtifactZip.ts:               13/13 (100),   14/14 (100),   2/2 (100),     0/0 (100)
+mcp/mcpExportBatchAdapter.ts:        0/8 (0),       0/9 (0),       0/7 (0),       0/0 (100)
+mcp/mcpExportBatchTools.ts:          23/24 (95.83), 24/28 (85.71), 9/9 (100),     7/11 (63.63)
+shared/mcpExportBatch.ts:            12/12 (100),   12/12 (100),   0/0 (100),     0/0 (100)
+```
 
 The first six paths are relative to `src/main`; the last is relative to `src`.
 The adapter has no Vitest executable coverage in this measurement. Its actual
@@ -49,9 +50,10 @@ Saved fixture chapters and original image bytes remained unchanged. User data wa
 
 ## Registration method
 
-A minimal additive JSON patch is submitted through the repository's existing
-`mcp-submit.yml` workflow using the GitHub plugin. That workflow performs indexed
-patch validation, validates allowed paths and refuses a concurrently moved branch;
-it does not force-push. Remote Desktop Commander only reads, syncs and tests the result.
-The exact added inventory becomes 798; the 753 existing records and 10 deleted-file
+A minimal additive JSON patch was submitted through the repository's existing
+`mcp-submit.yml` workflow using the GitHub plugin. That workflow performed indexed
+patch validation, validated allowed paths and refused concurrent branch overwrite;
+it did not force-push. Run `35282208661` succeeded and applied commit `ced4c6ad`.
+Remote Desktop Commander only reads, syncs and tests the result.
+The exact added inventory is 798; the 753 existing records and 10 deleted-file
 records remain unchanged. Final verification status is in the export checkpoint.
