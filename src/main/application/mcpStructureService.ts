@@ -35,6 +35,7 @@ const MAX_BYTES = 32 * 1024 * 1024;
 export class McpStructureService {
   private entries = new Map<string, Entry>();
   private stopped = false;
+  private pendingActions = new Map<string, string>();
   constructor(
     private readonly edits: Pick<
       McpPageEditService,
@@ -49,6 +50,7 @@ export class McpStructureService {
   stop() {
     this.stopped = true;
     this.entries.clear();
+    this.pendingActions.clear();
   }
   private guard(owner: string, authorize: () => void) {
     authorize();
@@ -250,6 +252,7 @@ export class McpStructureService {
         "revision_conflict",
         "Use the revision from the current edit inspection; do not force a stale change.",
       );
+    const claim = this.claimAction(owner, request.requestId, signature);
     entry.busy = true;
     try {
       await this.edits.commitStructure(
@@ -272,7 +275,19 @@ export class McpStructureService {
       return structuredClone(receipt.value);
     } finally {
       entry.busy = false;
+      this.pendingActions.delete(claim);
     }
+  }
+  private claimAction(owner: string, requestId: string, signature: string) {
+    const key = JSON.stringify([owner, requestId]);
+    const pending = this.pendingActions.get(key);
+    if (pending !== undefined)
+      throw new McpEditError(
+        pending === signature ? "editor_busy" : "invalid_edit",
+        "This requestId is already in flight. Inspect the original edit before retrying.",
+      );
+    this.pendingActions.set(key, signature);
+    return key;
   }
   private committed(
     entry: Entry,

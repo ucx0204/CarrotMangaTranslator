@@ -12,7 +12,7 @@ import {
 import { checkedMcpSourceBbox } from "./mcpSourceRectPolicy";
 import { McpEditError } from "./mcpEditPolicy";
 
-export type StructureSnapshot = Pick<MangaPage, "blocks" | "blockOrder">;
+type StructureSnapshot = Pick<MangaPage, "blocks" | "blockOrder">;
 export type StructurePlan = ReturnType<typeof planMcpStructure>;
 type Part = Extract<
   McpStructurePreview["operation"],
