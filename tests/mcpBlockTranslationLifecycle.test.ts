@@ -8,7 +8,11 @@ it.each(["gemma", "openai-codex"] as const)(
     const f = await fixture();
     try {
       const before = await f.snapshot();
-      f.options.modelProvider = provider;
+      const prepared = f.prepare({ ...f.options, modelProvider: provider });
+      expect(prepared.execution).toBe(
+        provider === "gemma" ? "local" : "external",
+      );
+      Object.assign(f.options, prepared.options);
       const result = await f.run();
       expect(result).toMatchObject({
         translatedText: "translated\n\ud83e\udd55",
@@ -93,7 +97,7 @@ it("rejects credentials and unmanaged hosts while preserving a hosted scalar req
     }
     for (const apiExtraBodyJson of [
       "0",
-      '"sampling"',
+      '\"sampling\"',
       '{"temperature":null}',
     ]) {
       expect(() => f.prepare({ ...f.options, apiExtraBodyJson })).toThrow();
