@@ -75,9 +75,7 @@ export const McpExportPagesMetadataSchema = z.object({
 });
 export type McpExportPagesTarget = z.infer<typeof McpExportPagesTargetSchema>;
 export type McpExportZipTarget = z.infer<typeof McpExportZipTargetSchema>;
-export type McpExportPagesMetadata = z.infer<
-  typeof McpExportPagesMetadataSchema
->;
+type McpExportPagesMetadata = z.infer<typeof McpExportPagesMetadataSchema>;
 export type McpExportPageResult = McpExportPagesMetadata["pages"][number] & {
   url?: string;
 };
