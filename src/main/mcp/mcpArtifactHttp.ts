@@ -30,7 +30,16 @@ export async function handleMcpArtifact(
   response.setHeader("Cache-Control", "no-store");
   response.setHeader("Referrer-Policy", "no-referrer");
   response.setHeader("X-Content-Type-Options", "nosniff");
-  if (request.method === "HEAD") response.end();
+  await sendOutput(response, output, request.method === "HEAD");
+  return true;
+}
+
+async function sendOutput(
+  response: ServerResponse,
+  output: Awaited<ReturnType<typeof readOutput>>,
+  head: boolean,
+): Promise<void> {
+  if (head) response.end();
   else if ("data" in output) response.end(output.data);
   else {
     try {
@@ -42,11 +51,10 @@ export async function handleMcpArtifact(
         response.destroyed &&
         (error as NodeJS.ErrnoException).code === "ERR_STREAM_PREMATURE_CLOSE"
       )
-        return true;
+        return;
       throw error;
     }
   }
-  return true;
 }
 
 async function readOutput(
