@@ -34,10 +34,10 @@ not force-terminated, and restarted with the same worktree's `npm run dev`.
 Its persistent server/data-profile IDs remained identical and runtime ID changed.
 Existing MCP authentication worked without reconnecting or editing credentials.
 
-| Live target | Before fix | After fix | New live job |
-| --- | --- | --- | --- |
-| `external.png`, 280x42 | Empty | `HELLOWORLD` | `6ecbcb35-565b-4694-af5c-a52377a3c7dc` |
-| `ocr.png`, 271x36 | Empty | `TEST PAGE 123` | `fc3e4084-c307-419c-8056-a100ba2bbfdc` |
+| Live target            | Before fix | After fix       | New live job                           |
+| ---------------------- | ---------- | --------------- | -------------------------------------- |
+| `external.png`, 280x42 | Empty      | `HELLOWORLD`    | `6ecbcb35-565b-4694-af5c-a52377a3c7dc` |
+| `ocr.png`, 271x36      | Empty      | `TEST PAGE 123` | `fc3e4084-c307-419c-8056-a100ba2bbfdc` |
 
 Both new jobs were polled to `completed`, with `noTextDetected: false`, one
 recognized region and `pagesChanged: 0`. An exact repeated request for the second
