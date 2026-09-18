@@ -1,14 +1,22 @@
 # Bundle 3 selected analysis checkpoint - 2026-09-18
 
+Current continuation: `mcp-selection-connected-checkpoint-20260918.md`.
+The application/reference source files and six tools have now been added through
+GitHub. The old write refusals and missing-tool statements below are historical,
+not the current implementation state. Consult the connected checkpoint for the
+latest automatic check result and exact resume point. Live acceptance is deferred.
+
+## Historical observation-only checkpoint
+
 Baseline: `623a8838`; continue only on `feat/mcp-app-bridge` in the existing
-CarrotMangaTranslator-MCP-Review worktree. Bundles 1 and 2 remain completed.
-Bundle 3 is IN PROGRESS. Bundles 4-13 are not part of this continuation.
-All real user/model/client acceptance remains deferred until all bundles are built.
+CarrotMangaTranslator-MCP-Review worktree. Bundles 1 and 2 remained completed.
+At this historical checkpoint bundle 3 was IN PROGRESS. Bundles 4-13 were not part
+of that continuation. All real user/model/client acceptance remained deferred.
 
 ## Implemented and registered observation slice
 
-The actual app composition now registers three strict output contracts, bringing
-the current output inventory to 77:
+The actual app composition then registered three strict output contracts, bringing
+the output inventory at that checkpoint to 77:
 
 - `carrot_run_selection_ocr`: explicit source blocks or original-image rectangles.
 - `carrot_run_selection_translation`: selected saved source strings only.
@@ -44,7 +52,7 @@ one million serialized characters per analysis. Repeated reads do not extend it.
 Durable receipts retain no evidence; restart never silently reruns an old request.
 Owned results require the matching completed operation, not only a guessed UUID.
 
-## Defects found and corrected
+## Defects found and corrected in the observation slice
 
 Native job entry resets execution settings unless explicitly provided. Selection
 analysis now re-enters its captured settings inside that boundary; a regression
@@ -59,13 +67,13 @@ bubble detector, package/dependency manifests and approved model assets are unch
 Six exact shared-authority consumer/import declarations were recorded; global
 limits stay 12 imports / 25 consumers. No duplicate model queue or parser was added.
 
-## Not implemented: exact next work within bundle 3
+## Historical missing application work — superseded by connected checkpoint
 
-The new selection-edit projection creation was refused by the tool checker in
-GitHub after the initial local write refusal. No such source file was installed.
-The unconnected edit contract was removed, not exposed as a functional tool.
+At the observation-only checkpoint, selection-edit projection creation was refused
+by the tool checker. No such source file was installed at that time, and the
+unconnected edit contract was removed rather than advertised as functional.
 
-Still required, in order:
+The follow-up implementation addresses that earlier list:
 
 1. Owned analysis-bound selective source/translation application, rechecking the
    original dependencies at every forward commit and preserving unrelated fields.
@@ -74,13 +82,12 @@ Still required, in order:
 3. Block character/glossary references: native IDs, enabled/valid targets, explicit
    field clearing, context-change conflicts, and exact optional-field recovery.
 4. Corresponding tool registration, native persistence/recovery/HTTP tests and full
-   acceptance before declaring bundle 3 complete or starting bundle 4.
+   automatic checks before declaring bundle 3 complete or starting bundle 4.
 
-Existing generic edit/create tools may accept manually reviewed observations with
-fresh revisions; that is NOT the missing analysis-bound application/recovery path.
-No source-update, auto-append or reference-edit capability is claimed by these tools.
+Existing generic edit/create tools still have their own contracts; they do not
+implicitly gain the new analysis-bound application/recovery guarantees.
 
-## Recorded checkpoints and automated evidence
+## Historical recorded checkpoints and automated evidence
 
 `1ff6d581`: app/job/output connection. `bf5c9d51`: focused tests, frozen settings,
 cleanup and static boundaries. `79bfec3b`: measured coverage registration.
@@ -98,13 +105,14 @@ Vitest/V8: 7,746 passed, zero failed, 11 pre-existing skips; 933 test files
 passed and one existing file skipped. All 932 MCP tests / 128 files passed.
 The exact production coverage-floor check, Windows build, page-artwork parity,
 image-protocol smoke and renderer/preload bundle checks also passed.
-The final documentation commit changes no production/test code.
-This verifies the observation slice, not the unfinished application/reference work.
+The final documentation commit changed no production/test code.
+This historical verification covered the observation slice only.
 No live app restart, user artwork/library/authentication change, real inference,
 model download, ChatGPT/Tailscale call, master merge or release was performed.
 
-Logs: `.tmp/mcp-selection-full-check.log`, `.tmp/mcp-selection-all-mcp.log`,
+Historical logs: `.tmp/mcp-selection-full-check.log`, `.tmp/mcp-selection-all-mcp.log`,
 `.tmp/mcp-selection-coverage/coverage-summary.json`, and
-`.tmp/mcp-selection-coverage-evidence.json`. The detailed boundary and provenance
+`.tmp/mcp-selection-coverage-evidence.json`. The observation boundaries/provenance
 are in `mcp-selection-analysis-boundaries-20260918.md` and
-`mcp-selection-coverage-20260918.md`.
+`mcp-selection-coverage-20260918.md`. New application evidence and current status
+are linked from `mcp-selection-connected-checkpoint-20260918.md`.
