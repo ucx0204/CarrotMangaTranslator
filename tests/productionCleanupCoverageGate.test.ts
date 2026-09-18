@@ -502,8 +502,8 @@ describe("production cleanup coverage floor gate", () => {
     expect(Object.keys(manifest.introducedFloors)).toEqual(scope.added);
     expect(manifest.deletedFiles).toEqual(scope.deleted);
     expect(scope.existing).toHaveLength(753);
-    // Includes four independently measured typography read modules after PNG/ZIP.
-    expect(scope.added).toHaveLength(802);
+    // Includes typography reads and three independently measured source-size modules.
+    expect(scope.added).toHaveLength(805);
     expect(scope.deleted).toHaveLength(10);
   });
 });
