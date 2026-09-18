@@ -26,7 +26,9 @@ export type InpaintingJobContext = {
     Partial<
       Pick<
         InpaintingRevisionStore,
-        "inspectSinglePageTransaction" | "applySinglePageTransaction"
+        | "inspectSinglePageTransaction"
+        | "applySinglePageTransaction"
+        | "releaseTransactions"
       >
     >;
 };

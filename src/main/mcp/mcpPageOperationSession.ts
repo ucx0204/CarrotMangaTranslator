@@ -1,3 +1,4 @@
+import { createMcpImageEditSession } from "./mcpImageEditSession";
 import { createMcpSelectionAnalysisSession } from "./mcpSelectionAnalysisSession";
 import { createMcpLetteringSession } from "./mcpLetteringSession";
 import { createMcpSourceSizeExecutor } from "./mcpSourceSizeAdapter";
@@ -140,7 +141,14 @@ function createAuxiliarySessions(
     undefined,
     preferences.allowEditing ? editing : undefined,
   );
+  const images = createMcpImageEditSession(
+    app,
+    editing,
+    Boolean(preferences.allowEditing && preferences.allowProcessing),
+    Boolean(preferences.allowImages),
+  );
   const stop = () => {
+    images.stop();
     context.stop();
     typography.stop();
     lettering.stop();
@@ -152,10 +160,12 @@ function createAuxiliarySessions(
       ...typography.tools,
       ...lettering.tools,
       ...selection.tools,
+      ...images.tools,
     ],
     stop,
     close: async () => {
       stop();
+      await images.close();
       await selection.close();
       await lettering.close();
       await typography.close();

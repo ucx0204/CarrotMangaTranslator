@@ -45,6 +45,7 @@ export async function captureMcpImageFiles(page: MangaPage, guard: () => void) {
       "invalid_edit",
       "Image editing supports at most 16 million original pixels per page.",
     );
+  assertConsistentMaskMetadata(page);
   const paths = [
     ...new Set([page.imagePath, page.inpaintedImagePath, page.inpaintMaskPath]),
   ].filter((path): path is string => Boolean(path));
@@ -108,4 +109,15 @@ export async function prepareMcpImageEdit(
     ]),
   };
   return { ...prepared, evidence: { files, mask } };
+}
+
+function assertConsistentMaskMetadata(page: MangaPage) {
+  if (
+    (!page.inpaintMaskPath && page.maskProvenance !== undefined) ||
+    (page.inpaintMaskPath && !page.inpaintedImagePath)
+  )
+    throw new McpEditError(
+      "invalid_edit",
+      "Inconsistent mask metadata must be repaired in the app before image editing; no implicit repair or save occurred.",
+    );
 }

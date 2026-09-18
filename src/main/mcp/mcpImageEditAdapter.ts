@@ -36,18 +36,7 @@ export function createMcpImageEditAdapter(
   lifetime: AbortSignal,
 ) {
   const references = new Set<string>();
-  const planning: McpImageEditPlanning = {
-    prepare: async (page, input, guard) => {
-      const prepared = await prepareMcpImageEdit(
-        page,
-        input.command,
-        guard,
-        lifetime,
-      );
-      await readMcpImageEditPage(input, guard);
-      return prepared.evidence;
-    },
-  };
+  const planning = createPlanning(lifetime);
   const ports = createMcpPageBatchPorts<McpImageEditRequest>(
     async (request, membership, guard, committed, contextScope) => {
       const erasing =
@@ -98,6 +87,14 @@ export function createMcpImageEditAdapter(
             );
           }
           editing.notifySaved(request.chapterId, request.pageId);
+          if (
+            request.direction === "apply" &&
+            request.change.outcome?.componentsIncomplete
+          )
+            throw new McpEditError(
+              "invalid_edit",
+              "Only some mask components changed. The saved partial image can be undone; no automatic model retry occurred.",
+            );
         }),
       );
     },
@@ -162,4 +159,19 @@ async function forwardImageEdit(
     committed,
     remember,
   });
+}
+
+function createPlanning(lifetime: AbortSignal): McpImageEditPlanning {
+  return {
+    prepare: async (page, input, guard) => {
+      const prepared = await prepareMcpImageEdit(
+        page,
+        input.command,
+        guard,
+        lifetime,
+      );
+      await readMcpImageEditPage(input, guard);
+      return prepared.evidence;
+    },
+  };
 }

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { AppActivityResource } from "../../shared/appActivityTypes";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
 import { openChapter } from "../library";
 import { runMcpAppJob } from "./mcpAppJob";
@@ -11,11 +12,12 @@ export function createMcpPageEditScope(
   app: InpaintingJobContext,
   readChapter = openChapter,
   lifetime?: AbortSignal,
+  resources: readonly AppActivityResource[] = [],
 ) {
   return async function run<T>(
     target: Target,
     authorize: () => void,
-    execute: (assertAuthorized: () => void) => Promise<T>,
+    execute: (assertAuthorized: () => void, signal: AbortSignal) => Promise<T>,
   ): Promise<T> {
     authorize();
     const controller = new AbortController();
@@ -46,9 +48,9 @@ export function createMcpPageEditScope(
         "mcp-edit",
         async (context) => {
           context.assertAuthorized();
-          return execute(context.assertAuthorized);
+          return execute(context.assertAuthorized, context.signal);
         },
-        { resources: [], page: { ...target, readChapter } },
+        { resources, page: { ...target, readChapter } },
       );
     } finally {
       clearInterval(monitor);

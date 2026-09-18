@@ -50,6 +50,7 @@ export async function publishMcpImageEdit(options: {
   try {
     const changedPixels = await verifyPixelBoundary(before, product.page, mask);
     guard();
+    recordOutcome(request, product, changedPixels);
     if (!changedPixels)
       throw new McpEditError(
         "invalid_edit",
@@ -58,21 +59,7 @@ export async function publishMcpImageEdit(options: {
     const files = await captureMcpImageFiles(product.page, guard);
     await verifyMcpImageFiles(request.change.evidence.files, guard);
     assertImageFieldsOnly(before, product.page);
-    transactionId = history.beginTransaction();
-    history.addChange(transactionId, {
-      chapterId: request.chapterId,
-      pageId: request.pageId,
-      beforeRevision: createPageRevision(before),
-      afterRevision: createPageRevision(product.page),
-      beforePath: before.inpaintedImagePath,
-      afterPath: product.page.inpaintedImagePath,
-      beforeMaskPath: before.inpaintMaskPath,
-      afterMaskPath: product.page.inpaintMaskPath,
-      beforeMaskProvenance: before.maskProvenance,
-      afterMaskProvenance: product.page.maskProvenance,
-      beforeTranslationCompletion: before.translationCompletion,
-      afterTranslationCompletion: product.page.translationCompletion,
-    });
+    transactionId = recordImageHistory(history, request, before, product.page);
     guard();
     const chapter = await updatePagesAfterInpainting(
       request.chapterId,
@@ -99,11 +86,6 @@ export async function publishMcpImageEdit(options: {
       transactionId,
       files: [...request.change.evidence.files, ...files],
     };
-    request.change.outcome = {
-      changedPixels,
-      componentsChanged: product.componentsChanged,
-      componentsIncomplete: product.componentsIncomplete,
-    };
     remember(transactionId);
     committed(page);
   } catch (error) {
@@ -114,6 +96,7 @@ export async function publishMcpImageEdit(options: {
         throw new AggregateError(
           [error, cleanup],
           "Image publication and history cleanup failed.",
+          { cause: cleanup },
         );
       }
     } else if (!saved) {
@@ -146,7 +129,7 @@ export async function replayMcpImageEdit(
   )
     throw new McpEditError(
       "revision_conflict",
-      "Image history is unavailable or changed. Later edits are never overwritten.",
+      `Image history is unavailable or changed (${view.reason}). Later edits are never overwritten.`,
     );
   const result = await history.applySinglePageTransaction(
     transactionId,
@@ -255,4 +238,40 @@ async function verifyPixelBoundary(
     changed++;
   }
   return changed;
+}
+
+function recordImageHistory(
+  history: McpImageHistory,
+  request: McpImageEditRequest,
+  before: MangaPage,
+  after: MangaPage,
+) {
+  const transactionId = history.beginTransaction();
+  history.addChange(transactionId, {
+    chapterId: request.chapterId,
+    pageId: request.pageId,
+    beforeRevision: createPageRevision(before),
+    afterRevision: createPageRevision(after),
+    beforePath: before.inpaintedImagePath,
+    afterPath: after.inpaintedImagePath,
+    beforeMaskPath: before.inpaintMaskPath,
+    afterMaskPath: after.inpaintMaskPath,
+    beforeMaskProvenance: before.maskProvenance,
+    afterMaskProvenance: after.maskProvenance,
+    beforeTranslationCompletion: before.translationCompletion,
+    afterTranslationCompletion: after.translationCompletion,
+  });
+  return transactionId;
+}
+
+function recordOutcome(
+  request: McpImageEditRequest,
+  product: McpImageProduct,
+  changedPixels: number,
+) {
+  request.change.outcome = {
+    changedPixels,
+    componentsChanged: product.componentsChanged,
+    componentsIncomplete: product.componentsIncomplete,
+  };
 }

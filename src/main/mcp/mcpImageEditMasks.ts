@@ -1,3 +1,4 @@
+import { normalizeBboxTo1000 } from "../../shared/bboxNormalization";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { InpaintingRetouchGeometry } from "../../shared/inpaintingTypes";
 import type { McpImageEditCommand } from "../../shared/mcpImageEditing";
@@ -19,6 +20,16 @@ export function buildMcpImageEditMasks(
   sourceBitmap: Buffer,
   signal?: AbortSignal,
 ) {
+  // Native erasure masks consume normalized-1000 boxes. Convert explicit pixel
+  // sources at this adapter boundary without changing saved block geometry.
+  page = {
+    ...page,
+    blocks: page.blocks.map((block) => ({
+      ...block,
+      bbox: normalizeBboxTo1000(block.bbox, page, block.bboxSpace),
+      bboxSpace: "normalized_1000" as const,
+    })),
+  };
   const geometries =
     command.kind === "erase-mask"
       ? command.strokes.map((stroke) => ({

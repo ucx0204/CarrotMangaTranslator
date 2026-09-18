@@ -31,7 +31,7 @@ it("previews the exact protected mask without saving, preserves every outside RG
     expect(applied.result.status).toBe("completed");
     expect(applied.result.changes[0].outcome?.changedPixels).toBeGreaterThan(0);
     const after = (await f.snapshot()).pages[0];
-    const result = await f.pixels(after.inpaintedImagePath!);
+    const result = await f.pixels(after.inpaintedImagePath);
     for (let i = 0; i < 10000; i++) {
       if (mask.data[i * 4] === 255) continue;
       expect(result.data.subarray(i * 4, i * 4 + 4)).toEqual(
@@ -49,6 +49,9 @@ it("previews the exact protected mask without saving, preserves every outside RG
     expect(undone.inpaintedImagePath).toBe(before.pages[0].inpaintedImagePath);
     expect(undone.inpaintMaskPath).toBe(before.pages[0].inpaintMaskPath);
     expect(undone.blocks).toEqual(before.pages[0].blocks);
+    expect(createPageRevision(undone)).toBe(
+      createPageRevision(before.pages[0]),
+    );
     expect((await f.action(plan.batchId, "redo")).result.status).toBe(
       "completed",
     );
@@ -87,7 +90,7 @@ it("erases a native multi-block mask while preserving the unselected block and a
       "completed",
     );
     const after = (await f.snapshot()).pages[0];
-    const png = await f.pixels(after.inpaintedImagePath!);
+    const png = await f.pixels(after.inpaintedImagePath);
     const original = await f.pixels(after.imagePath);
     for (let y = 30; y < 35; y++)
       for (let x = 20; x < 25; x++) {
@@ -151,7 +154,7 @@ it.each(["rectangle", "ellipse", "stroke"] as const)(
         "completed",
       );
       const restored = (await f.snapshot()).pages[0];
-      expect((await f.pixels(restored.inpaintedImagePath!)).data).toEqual(
+      expect((await f.pixels(restored.inpaintedImagePath)).data).toEqual(
         (await f.pixels(restored.imagePath)).data,
       );
       expect((await f.action(restore.batchId, "undo")).result.status).toBe(
