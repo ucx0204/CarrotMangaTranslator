@@ -317,3 +317,54 @@ it("fails unavailable font requests rather than silently substituting and requir
     await f.close();
   }
 });
+
+it("preserves manual bubble geometry and explicit line breaks by default", async () => {
+  const f = await letteringAppFixture();
+  const stored = JSON.parse(await readFile(f.chapterPath, "utf8"));
+  const manual = {
+    version: 1,
+    direction: "horizontal",
+    origin: "manual",
+    confidence: 1,
+    insetRatio: 0,
+    regions: [
+      { spans: [{ blockStart: 0, blockEnd: 1, inlineStart: 0, inlineEnd: 1 }] },
+    ],
+  };
+  stored.pages[0].blocks[0].bubbleLayout = manual;
+  stored.pages[0].blocks[0].translatedText = "Keep these\nexplicit breaks";
+  stored.pages[1].blocks[0].translatedText = "Keep these\nexplicit breaks";
+  await writeFile(f.chapterPath, JSON.stringify(stored));
+  const before = await f.library.openChapter("chapter");
+  try {
+    const result = await f.prepare(geometry),
+      id = requireBatch(result);
+    const inspected = await f.invoke("carrot_get_lettering_batch", {
+      batchId: id,
+    });
+    expect(inspected.changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pageId: "page",
+          excludedReason: "manual_layout_preserved",
+        }),
+      ]),
+    );
+    expect(f.runPage).toHaveBeenCalledOnce();
+    expect((await f.action(id, "apply")).status).toBe("completed");
+    const after = await f.library.openChapter("chapter");
+    expect(after.pages[0].blocks).toEqual(before.pages[0].blocks);
+    const wrap = await f.prepare({ kind: "layout", mode: "wrap" }),
+      wrapId = requireBatch(wrap);
+    expect(
+      (await f.invoke("carrot_get_lettering_batch", { batchId: wrapId }))
+        .canApply,
+    ).toBe(false);
+    expect(
+      (await f.library.openChapter("chapter")).pages[1].blocks[0]
+        .translatedText,
+    ).toBe("Keep these\nexplicit breaks");
+  } finally {
+    await f.close();
+  }
+});

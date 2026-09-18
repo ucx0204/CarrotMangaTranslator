@@ -17241,6 +17241,50 @@
         "pct": 100
       }
     },
+    "src/main/application/mcpLetteringPolicy.ts": {
+      "lines": {
+        "total": 52,
+        "covered": 46,
+        "pct": 88.46
+      },
+      "statements": {
+        "total": 61,
+        "covered": 55,
+        "pct": 90.16
+      },
+      "functions": {
+        "total": 26,
+        "covered": 26,
+        "pct": 100
+      },
+      "branches": {
+        "total": 49,
+        "covered": 42,
+        "pct": 85.71
+      }
+    },
+    "src/main/application/mcpLetteringProjection.ts": {
+      "lines": {
+        "total": 72,
+        "covered": 66,
+        "pct": 91.66
+      },
+      "statements": {
+        "total": 77,
+        "covered": 71,
+        "pct": 92.2
+      },
+      "functions": {
+        "total": 24,
+        "covered": 24,
+        "pct": 100
+      },
+      "branches": {
+        "total": 50,
+        "covered": 44,
+        "pct": 88
+      }
+    },
     "src/main/application/mcpLibraryReadService.ts": {
       "lines": {
         "covered": 17,
@@ -21485,6 +21529,160 @@
         "covered": 17,
         "total": 19,
         "pct": 89.47
+      }
+    },
+    "src/main/mcp/mcpLetteringAdapter.ts": {
+      "lines": {
+        "total": 17,
+        "covered": 17,
+        "pct": 100
+      },
+      "statements": {
+        "total": 21,
+        "covered": 21,
+        "pct": 100
+      },
+      "functions": {
+        "total": 8,
+        "covered": 8,
+        "pct": 100
+      },
+      "branches": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      }
+    },
+    "src/main/mcp/mcpLetteringEvidence.ts": {
+      "lines": {
+        "total": 34,
+        "covered": 32,
+        "pct": 94.11
+      },
+      "statements": {
+        "total": 36,
+        "covered": 34,
+        "pct": 94.44
+      },
+      "functions": {
+        "total": 10,
+        "covered": 9,
+        "pct": 90
+      },
+      "branches": {
+        "total": 30,
+        "covered": 27,
+        "pct": 90
+      }
+    },
+    "src/main/mcp/mcpLetteringLayout.ts": {
+      "lines": {
+        "total": 24,
+        "covered": 22,
+        "pct": 91.66
+      },
+      "statements": {
+        "total": 29,
+        "covered": 23,
+        "pct": 79.31
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 29,
+        "covered": 23,
+        "pct": 79.31
+      }
+    },
+    "src/main/mcp/mcpLetteringPagePreparation.ts": {
+      "lines": {
+        "total": 34,
+        "covered": 30,
+        "pct": 88.23
+      },
+      "statements": {
+        "total": 38,
+        "covered": 33,
+        "pct": 86.84
+      },
+      "functions": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      },
+      "branches": {
+        "total": 22,
+        "covered": 16,
+        "pct": 72.72
+      }
+    },
+    "src/main/mcp/mcpLetteringPreparation.ts": {
+      "lines": {
+        "total": 32,
+        "covered": 31,
+        "pct": 96.87
+      },
+      "statements": {
+        "total": 34,
+        "covered": 33,
+        "pct": 97.05
+      },
+      "functions": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "branches": {
+        "total": 22,
+        "covered": 21,
+        "pct": 95.45
+      }
+    },
+    "src/main/mcp/mcpLetteringPrepareTool.ts": {
+      "lines": {
+        "total": 23,
+        "covered": 23,
+        "pct": 100
+      },
+      "statements": {
+        "total": 23,
+        "covered": 23,
+        "pct": 100
+      },
+      "functions": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      },
+      "branches": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      }
+    },
+    "src/main/mcp/mcpLetteringSession.ts": {
+      "lines": {
+        "total": 20,
+        "covered": 19,
+        "pct": 95
+      },
+      "statements": {
+        "total": 20,
+        "covered": 19,
+        "pct": 95
+      },
+      "functions": {
+        "total": 9,
+        "covered": 8,
+        "pct": 88.88
+      },
+      "branches": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
       }
     },
     "src/main/mcp/mcpOAuthClients.ts": {
@@ -33915,6 +34113,50 @@
         "covered": 41,
         "total": 44,
         "pct": 93.18
+      }
+    },
+    "src/shared/mcpLettering.ts": {
+      "lines": {
+        "total": 14,
+        "covered": 14,
+        "pct": 100
+      },
+      "statements": {
+        "total": 14,
+        "covered": 14,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 12,
+        "covered": 10,
+        "pct": 83.33
+      }
+    },
+    "src/shared/mcpLetteringAdvanced.ts": {
+      "lines": {
+        "total": 21,
+        "covered": 20,
+        "pct": 95.23
+      },
+      "statements": {
+        "total": 22,
+        "covered": 21,
+        "pct": 95.45
+      },
+      "functions": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "branches": {
+        "total": 6,
+        "covered": 5,
+        "pct": 83.33
       }
     },
     "src/shared/mcpReadingTypes.ts": {

@@ -13,7 +13,7 @@ import {
 } from "./bubbleLayoutSettings";
 import type { TranslationBlock } from "./textTypes";
 
-export const McpLetteringCommandSchema = z.discriminatedUnion("kind", [
+const McpLetteringCommandSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("format"),
