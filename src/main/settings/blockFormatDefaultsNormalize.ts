@@ -22,7 +22,7 @@ import {
 
 export function normalizeBlockFormatDefaults(
   raw: Record<string, unknown> | null,
-  defaults: AppSettings,
+  defaults: Pick<AppSettings, "blockFormatDefaults">,
 ): NonNullable<AppSettings["blockFormatDefaults"]> {
   const base = defaults.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS;
   const data = raw ?? {};
@@ -96,8 +96,7 @@ function resolveBlockFormatDirection(
 
 function resolveTextAlign(
   value: unknown,
-  fallback: BlockFormatDefaults["textAlign"],
-): BlockFormatDefaults["textAlign"] {
+  fallback: BlockFormatDefaults["textAlign"]): BlockFormatDefaults["textAlign"] {
   return value === "left" || value === "center" || value === "right"
     ? value
     : fallback;
