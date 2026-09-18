@@ -7,7 +7,7 @@ export const McpSourceSizeTargetSchema = McpSourceRectPatchSchema.omit({
   sourceRect: true,
 }).extend({ requestId: z.string().uuid() });
 export type McpSourceSizeTarget = z.infer<typeof McpSourceSizeTargetSchema>;
-export const McpSourceSizeEstimateSchema = z
+const McpSourceSizeEstimateSchema = z
   .object({
     facePx: z.number().finite().positive().max(100000),
     confidence: z.number().min(0).max(1),
