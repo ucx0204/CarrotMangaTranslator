@@ -1,3 +1,6 @@
+const {
+  checkNativeTypographyRead,
+} = require("./mcp-native-typography-read.cjs");
 const { checkNativeExportBatch } = require("./mcp-native-export-batch.cjs");
 const { checkNativeFormatBatch } = require("./mcp-native-format-batch.cjs");
 const { checkNativeTextBatch } = require("./mcp-native-text-batch.cjs");
@@ -199,6 +202,7 @@ async function checkNativePageGoal(root) {
       chapter.id,
       page.id,
     );
+    await checkNativeTypographyRead(root, invoke, chapter.id, page.id);
     await checkErasure(
       root,
       app,
