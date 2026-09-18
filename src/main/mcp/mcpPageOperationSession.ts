@@ -1,5 +1,6 @@
 import { createMcpSourceSizeExecutor } from "./mcpSourceSizeAdapter";
 import { createMcpTypographyAnalysisSession } from "./mcpTypographyAnalysisSession";
+import { createMcpTypographyBatchSession } from "./mcpTypographyBatchSession";
 import { createMcpExportBatchAdapter } from "./mcpExportBatchAdapter";
 import { createMcpContextSession } from "./mcpContextSession";
 import { createMcpBlockTranslationExecutor } from "./mcpBlockTranslationSession";
@@ -48,7 +49,7 @@ export function createMcpPageOperationSession(options: {
   const recovery = preferences.allowProcessing
     ? createMcpErasureRecoverySession(app, operations, editing.notifySaved)
     : undefined;
-  const contextSession = createMcpContextSession(app, operations, preferences);
+  const auxiliary = createAuxiliarySessions(app, operations, editing, preferences);
   const artifacts = new McpArtifactStore(options.origin);
   const exporter = createPageExporter(artifacts);
   const exports = createMcpExportBatchAdapter({
@@ -86,7 +87,7 @@ export function createMcpPageOperationSession(options: {
         operations,
         Boolean(preferences.allowProcessing),
       ),
-      ...contextSession.tools,
+      ...auxiliary.tools,
       ...(recovery?.tools ?? []),
       ...createMcpOperationTools(
         operations,
@@ -97,13 +98,37 @@ export function createMcpPageOperationSession(options: {
     artifacts,
     ready: () => operations.ready(),
     stop: () => {
-      contextSession.stop();
+      auxiliary.stop();
       recovery?.stop();
       operations.stop();
       artifacts.stop();
     },
-    close: () =>
-      closePageSession(operations, artifacts, recovery, contextSession),
+    close: () => closePageSession(operations, artifacts, recovery, auxiliary),
+  };
+}
+
+function createAuxiliarySessions(
+  app: InpaintingJobContext,
+  operations: McpOperationService,
+  editing: Editing,
+  preferences: McpPreferences,
+) {
+  const context = createMcpContextSession(app, operations, preferences);
+  const typography = createMcpTypographyBatchSession(
+    app,
+    operations,
+    editing,
+    Boolean(preferences.allowEditing && preferences.allowProcessing),
+  );
+  const stop = () => { context.stop(); typography.stop(); };
+  return {
+    tools: [...context.tools, ...typography.tools],
+    stop,
+    close: async () => {
+      stop();
+      await typography.close();
+      await context.close();
+    },
   };
 }
 
@@ -146,10 +171,10 @@ async function closePageSession(
   operations: McpOperationService,
   artifacts: McpArtifactStore,
   recovery: ReturnType<typeof createMcpErasureRecoverySession>,
-  contextSession: ReturnType<typeof createMcpContextSession>,
+  auxiliary: ReturnType<typeof createAuxiliarySessions>,
 ): Promise<void> {
   operations.stop();
-  await contextSession.close();
+  await auxiliary.close();
   recovery?.stop();
   await recovery?.close();
   await operations.close();
