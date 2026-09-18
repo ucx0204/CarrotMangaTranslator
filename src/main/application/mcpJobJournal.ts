@@ -62,10 +62,7 @@ export const mcpJobResultMetadataSchema = z.object({
   width: count.optional(),
   height: count.optional(),
   bytes: count.optional(),
-  sha256: z
-    .string()
-    .regex(/^[a-f0-9]{64}$/)
-    .optional(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   kind: z.string().max(64).optional(),
   pagesChanged: count.optional(),
   blocksErased: count.optional(),
@@ -94,40 +91,17 @@ const jobSchema = z
     owner: id,
     requestId: id,
     kind: z.enum([
-      "ocr",
-      "blockOcr",
-      "sourceSize",
-      "typographyAnalysis",
-      "letteringPrepare",
-      "blockTranslation",
-      "erase",
-      "exportPng",
-      "exportPages",
-      "exportZip",
-      "contextResearch",
+      "ocr", "blockOcr", "sourceSize", "typographyAnalysis", "letteringPrepare",
+      "blockTranslation", "erase", "exportPng", "exportPages", "exportZip", "contextResearch",
     ]),
     parameters: mcpPersistedTargetSchema,
     fingerprint: z.string().regex(/^[a-f0-9]{16}$/),
-    status: z.enum([
-      "running",
-      "completed",
-      "partial",
-      "failed",
-      "cancelled",
-      "interrupted",
-    ]),
-    progress: z
-      .object({
-        phase: z.string().max(128),
-        completed: count.optional(),
-        total: count.optional(),
-      })
-      .strict(),
+    status: z.enum(["running", "completed", "partial", "failed", "cancelled", "interrupted"]),
+    progress: z.object({
+      phase: z.string().max(128), completed: count.optional(), total: count.optional(),
+    }).strict(),
     result: mcpJobResultMetadataSchema.optional(),
-    error: z
-      .object({ code: z.string().max(128), message: z.string().max(1024) })
-      .strict()
-      .optional(),
+    error: z.object({ code: z.string().max(128), message: z.string().max(1024) }).strict().optional(),
     startedAt: timestamp,
     finishedAt: timestamp.optional(),
     cancellationRequested: z.boolean(),
@@ -138,66 +112,47 @@ export type McpJobPersistence = {
   load: () => Promise<unknown | null>;
   save: (snapshot: unknown) => Promise<void>;
 };
-const journalSchema = z
-  .object({
-    version: z.literal(1),
-    records: z.array(jobSchema).max(MCP_JOB_CAPACITY),
-  })
-  .strict();
+const journalSchema = z.object({
+  version: z.literal(1), records: z.array(jobSchema).max(MCP_JOB_CAPACITY),
+}).strict();
 
-/** Only public receipts/targets are retained; capability URLs, images and raw errors are deliberately omitted. */
-/** Dynamic availability is computed on reads; old receipts must not advertise
- * a session proposal as usable after its review window has expired. */
+/** Dynamic availability is computed on reads; expired proposals are never advertised as usable. */
 export function publicMcpJobResult(value: unknown, now: number) {
   const result = mcpJobResultMetadataSchema.safeParse(value).data;
-  if (result?.sourceSize && result.sourceSize.expiresAt <= now) {
+  if (!result) return undefined;
+  if (result.sourceSize && result.sourceSize.expiresAt <= now) {
     const { sourceSize: _sourceSize, ...metadata } = result;
     return { ...metadata, sourceSize: undefined, observationExpired: true };
   }
-  if (
-    result?.typographyAnalysis &&
-    result.typographyAnalysis.expiresAt <= now
-  ) {
+  if (result.typographyAnalysis && result.typographyAnalysis.expiresAt <= now) {
     const { typographyAnalysis: _analysis, ...metadata } = result;
     return { ...metadata, observationExpired: true };
   }
-  if (result?.letteringPlan && result.letteringPlan.expiresAt <= now) {
+  if (result.letteringPlan && result.letteringPlan.expiresAt <= now) {
     const { letteringPlan: _plan, ...metadata } = result;
     return { ...metadata, proposalExpired: true };
   }
-  if (result?.contextResearch && result.contextResearch.expiresAt <= now)
+  if (result.contextResearch && result.contextResearch.expiresAt <= now)
     return { ...result, proposalExpired: true };
   return result;
 }
 
-export function persistedMcpJobResult(
-  result: Record<string, unknown> | undefined,
-) {
+/** Only public receipts/targets survive restart, never session evidence or capability URLs. */
+export function persistedMcpJobResult(result: Record<string, unknown> | undefined) {
   if (result === undefined) return undefined;
   const {
-    blockOcr,
-    sourceSize,
-    typographyAnalysis,
-    letteringPlan,
-    blockTranslation,
-    contextResearch,
-    ...metadata
+    blockOcr, sourceSize, typographyAnalysis, letteringPlan,
+    blockTranslation, contextResearch, ...metadata
   } = mcpJobResultMetadataSchema.parse(result);
   return {
     ...metadata,
-    ...(blockOcr || sourceSize || typographyAnalysis
-      ? { observationExpired: true }
-      : {}),
-    ...(blockTranslation || contextResearch || letteringPlan
-      ? { proposalExpired: true }
-      : {}),
-    ...(contextResearch
-      ? {
-          queryCount: contextResearch.queryCount,
-          sourceCount: contextResearch.sourceCount,
-          tavilyCreditsUsed: contextResearch.tavilyCreditsUsed,
-        }
-      : {}),
+    ...(blockOcr || sourceSize || typographyAnalysis ? { observationExpired: true } : {}),
+    ...(blockTranslation || contextResearch || letteringPlan ? { proposalExpired: true } : {}),
+    ...(contextResearch ? {
+      queryCount: contextResearch.queryCount,
+      sourceCount: contextResearch.sourceCount,
+      tavilyCreditsUsed: contextResearch.tavilyCreditsUsed,
+    } : {}),
   };
 }
 export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
@@ -207,15 +162,11 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
   for (const record of parsed.records) {
     const key = JSON.stringify([record.owner, record.requestId]);
     if (
-      ids.has(record.id) ||
-      requests.has(key) ||
-      record.fingerprint !==
-        hashStableValue([record.kind, record.parameters]) ||
-      !validJobTarget(record) ||
-      record.requestId !== record.parameters.requestId ||
+      ids.has(record.id) || requests.has(key) ||
+      record.fingerprint !== hashStableValue([record.kind, record.parameters]) ||
+      !validJobTarget(record) || record.requestId !== record.parameters.requestId ||
       (record.status === "running") !== (record.finishedAt === undefined)
-    )
-      throw new Error("Invalid duplicate or inconsistent MCP job journal.");
+    ) throw new Error("Invalid duplicate or inconsistent MCP job journal.");
     ids.add(record.id);
     requests.add(key);
   }
@@ -226,23 +177,23 @@ function validJobTarget(record: McpStoredJob): boolean {
   if (record.kind === "letteringPrepare")
     return McpLetteringPrepareSchema.safeParse(record.parameters).success;
   if (record.kind === "typographyAnalysis")
-    return McpTypographyAnalysisTargetSchema.safeParse(record.parameters)
-      .success;
+    return McpTypographyAnalysisTargetSchema.safeParse(record.parameters).success;
   if (record.kind === "exportPages")
     return McpExportPagesTargetSchema.safeParse(record.parameters).success;
   if (record.kind === "exportZip")
     return McpExportZipTargetSchema.safeParse(record.parameters).success;
   if (record.kind === "contextResearch")
     return McpContextResearchTargetSchema.safeParse(record.parameters).success;
+  return validPageTarget(record);
+}
+function validPageTarget(record: McpStoredJob): boolean {
   const parsed = mcpJobTargetSchema.safeParse(record.parameters);
   if (!parsed.success) return false;
   const target = parsed.data;
   const blockRequired = ["blockOcr", "blockTranslation"].includes(record.kind);
   return (
     (!blockRequired || Boolean(target.blockId)) &&
-    (blockRequired ||
-      record.kind === "erase" ||
-      target.blockId === undefined) &&
+    (blockRequired || record.kind === "erase" || target.blockId === undefined) &&
     (record.kind === "blockTranslation" || target.contextMode === undefined)
   );
 }
