@@ -3,6 +3,7 @@ const {
 } = require("./mcp-native-typography-read.cjs");
 const { checkNativeExportBatch } = require("./mcp-native-export-batch.cjs");
 const { checkNativeFormatBatch } = require("./mcp-native-format-batch.cjs");
+const { checkNativeImageEdit } = require("./mcp-native-image-edit.cjs");
 const { checkNativeTextBatch } = require("./mcp-native-text-batch.cjs");
 const { checkNativeContext } = require("./mcp-native-context.cjs");
 const { checkNativeStructure } = require("./mcp-native-structure.cjs");
@@ -230,6 +231,7 @@ async function checkNativePageGoal(root) {
       page.imagePath,
     );
     await checkNativeFormatBatch(root, invoke, batchChapterId);
+    await checkNativeImageEdit(root, invoke, batchChapterId);
     await checkNativeExportBatch(
       root,
       invoke,
