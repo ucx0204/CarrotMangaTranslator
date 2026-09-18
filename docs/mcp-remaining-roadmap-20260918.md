@@ -14,8 +14,8 @@ replace approved model assets, merge master or publish a release implicitly.
 | 1     | C23 independent analysis; selective font/source-size application and exact undo/redo | Implemented; automatic checks passed; live deferred |
 | 2     | Bubble layout, advanced typography, reusable rules/presets                           | Implemented; automatic checks passed; live deferred |
 | 3     | Region/multi-block OCR, selected translation, reviewed append and block references   | Implemented; automatic checks passed; live deferred |
-| 4     | Multi-block erasure, free/protected masks, localized correction/restoration          | NEXT; not started                                   |
-| 5     | External image/mask upload, validation and layer incorporation                       | Not started                                         |
+| 4     | Multi-block erasure, free/protected masks, localized correction/restoration          | Implemented; automatic checks passed; live deferred |
+| 5     | External image/mask upload, validation and layer incorporation                       | NEXT; not started                                   |
 | 6     | Independent sound-effect preparation, text, generation and recovery                  | Not started                                         |
 | 7     | Durable undo and retained output assets                                              | Not started                                         |
 | 8     | Model-grouped sequential jobs, chapter batches and explicit resume                   | Not started                                         |
@@ -29,7 +29,30 @@ Live C23 quality, model cleanup, actual originals, PNG/ZIP attachment reception,
 download byte/hash checks, restart/reconnection and end-to-end client acceptance
 belong to the final integrated live-test queue, not intermediate completion claims.
 
-## Current authority: verified bundle 3 completion
+## Current authority: verified bundle 4 completion
+
+See `mcp-image-edit-checkpoint-20260919.md`, verified code `32d76f3f`.
+Eight image-edit tools are connected: native multi-block/freehand erasure,
+explicit protected geometry, model-free paint and original-pixel restore,
+mask preview, color sampling and exact native image undo/redo. One versioned
+page per plan, up to 100 selected blocks and 16 million original pixels.
+Originals, text, geometry and formatting are preserved. Erasure requires the
+configured supported local engine and explicit asset-preparation consent;
+no implicit OCR, translation, C23, layout or hosted image call occurs.
+
+All 26 repository gates passed: 7,805 tests passed, zero failed, 11 existing
+skips. All 991 MCP tests across 139 files passed. Nine measured coverage rows
+were added while preserving all 1,601 inherited rows/provenance/deletions.
+The extra isolated real-Electron mask/protected-RGBA/color/restore/history smoke
+also passed with its terminal marker and exit code 0. Actual model quality,
+user artwork and live ChatGPT/Tailscale delivery remain untested by this run.
+
+NEXT: bundle 5, external image/mask upload, validation and layer incorporation.
+Do not redo bundles 1-4 or request intermediate live acceptance. Keep this branch,
+worktree and frequent commits. Durable recovery remains bundle 7, chapter-wide
+orchestration is bundle 8, and live file-delivery acceptance stays in the final queue.
+
+## Verified bundle 3 completion
 
 See `mcp-selection-connected-checkpoint-20260918.md`.
 The selected OCR/translation observations now connect to explicit reviewed source
@@ -48,10 +71,9 @@ page-artwork parity and image-protocol/bundle checks all passed. Six measured
 modules were added while preserving all 1,595 inherited coverage rows/provenance.
 The connected checkpoint records exact evidence, stage timestamps and limitations.
 
-NEXT: bundle 4, multi-block erasure, free/protected masks and localized correction
-or original-pixel restoration. Do not redo bundles 1-3 or request intermediate
-live acceptance. Keep the same branch/worktree, frequent commits and exact resume
-records. Bundles 4-13 remain unstarted; permanent recovery is still bundle 7.
+Bundle 3 remains completed. Continue from the current bundle-four checkpoint
+above, not from its historical next-step recommendation. Permanent recovery
+remains bundle 7.
 
 ## Verified bundle 2 completion
 

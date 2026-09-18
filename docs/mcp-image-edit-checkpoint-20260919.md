@@ -63,18 +63,18 @@ External uploaded image/mask incorporation remains bundle 5.
 Full repository check at `32d76f3f` completed successfully. All later changes in
 this continuation are documentation only, not production/test code.
 
-| Check | Result |
-| --- | --- |
-| Repository stage graph | All 26 stages passed, every exitCode 0 |
-| Complete Vitest/V8 suite | 7,805 passed; zero failed; 11 pre-existing skips |
-| MCP cases within the complete suite | 991 passed across 139 files; zero failed |
-| Focused image and existing native/output regressions | 48 passed across nine files |
-| Renderer, Electron and JavaScript types | Passed |
-| Lint, formatting, architecture, duplication, unused exports, mock boundaries | Passed |
-| Exact production coverage-floor gate | Passed |
-| Windows build | Passed |
-| Existing page-artwork parity, image protocol, renderer/preload bundle checks | Passed |
-| Extra real-Electron MCP/native image smoke | Passed; explicit completion marker and exit code 0 |
+| Check                                                                        | Result                                             |
+| ---------------------------------------------------------------------------- | -------------------------------------------------- |
+| Repository stage graph                                                       | All 26 stages passed, every exitCode 0             |
+| Complete Vitest/V8 suite                                                     | 7,805 passed; zero failed; 11 pre-existing skips   |
+| MCP cases within the complete suite                                          | 991 passed across 139 files; zero failed           |
+| Focused image and existing native/output regressions                         | 48 passed across nine files                        |
+| Renderer, Electron and JavaScript types                                      | Passed                                             |
+| Lint, formatting, architecture, duplication, unused exports, mock boundaries | Passed                                             |
+| Exact production coverage-floor gate                                         | Passed                                             |
+| Windows build                                                                | Passed                                             |
+| Existing page-artwork parity, image protocol, renderer/preload bundle checks | Passed                                             |
+| Extra real-Electron MCP/native image smoke                                   | Passed; explicit completion marker and exit code 0 |
 
 Canonical full-check record: `.tmp/check-timings.json`, started at
 `2026-09-18T16:45:38.351Z`, completed at `2026-09-18T16:48:41.195Z`.
