@@ -52,7 +52,8 @@ async function checkNativeTypographyRead(root, invoke, chapterId, pageId) {
   };
   const size = await call(invoke, "carrot_preflight_typography", args);
   assert.equal(size.executionReserved, false);
-  assert.equal(size.analysisToolAvailable, false);
+  assert.equal(size.analysisToolAvailable, true);
+  assert.equal(size.analysisTool, "carrot_run_page_source_size");
   assert.equal(size.requiresOcr, false);
   assert.equal(size.pages.length, 1);
   assert.equal(size.pages[0].revision, createPageRevision(page));

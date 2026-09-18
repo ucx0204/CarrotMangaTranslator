@@ -372,3 +372,53 @@ it("refuses ambiguous stored page and block identifiers", async () => {
   });
   expect(f.readCatalog).not.toHaveBeenCalled();
 });
+
+it("advertises only the actually connected one-page size execution", async () => {
+  const f = fixture();
+  const service = new McpTypographyReadService({
+    openChapter: f.openChapter,
+    readCatalog: f.readCatalog,
+    sourceSizeToolAvailable: true,
+  });
+  expect(
+    await service.preflight({ ...base, mode: "size" }, f.guard),
+  ).toMatchObject({
+    analysisToolAvailable: true,
+    analysisTool: "carrot_run_page_source_size",
+  });
+  expect(
+    await service.preflight({ ...base, mode: "font", allowOcr: true }, f.guard),
+  ).toMatchObject({
+    analysisToolAvailable: false,
+    analysisTool: null,
+  });
+  f.chapter.pages.push({
+    ...structuredClone(f.chapter.pages[0]),
+    id: "second",
+  });
+  f.chapter.pageOrder.push("second");
+  expect(
+    await service.preflight({ ...base, mode: "size" }, f.guard),
+  ).toMatchObject({
+    analysisToolAvailable: false,
+    analysisTool: null,
+  });
+});
+
+it("does not advertise unsupported manual-size overrides as executable", async () => {
+  const f = fixture();
+  const service = new McpTypographyReadService({
+    openChapter: f.openChapter,
+    readCatalog: f.readCatalog,
+    sourceSizeToolAvailable: true,
+  });
+  expect(
+    await service.preflight(
+      { ...base, mode: "size", preserveManualFontSize: false },
+      f.guard,
+    ),
+  ).toMatchObject({
+    analysisToolAvailable: false,
+    analysisTool: null,
+  });
+});

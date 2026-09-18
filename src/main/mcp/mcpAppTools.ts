@@ -47,7 +47,7 @@ export function createMcpAppTools(options: {
     notifySaved: options.notifySaved,
   });
   const extensions = [
-    ...typographyReadTools(),
+    ...typographyReadTools(options.additionalTools ?? []),
     ...(options.additionalTools ?? []),
     ...createMcpTranslationBatchTools(
       createMcpTranslationBatchPorts(edits),
@@ -110,11 +110,14 @@ export function createMcpAppTools(options: {
   }));
 }
 
-function typographyReadTools(): McpTool[] {
+function typographyReadTools(operations: readonly McpTool[]): McpTool[] {
   return createMcpTypographyReadTools(
     new McpTypographyReadService({
       openChapter,
       readCatalog: readMcpFontCatalog,
+      sourceSizeToolAvailable: operations.some(
+        (tool) => tool.name === "carrot_run_page_source_size",
+      ),
     }),
   );
 }

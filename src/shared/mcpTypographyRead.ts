@@ -76,6 +76,7 @@ export const McpTypographyPreflightOutput = z
     requiresOcr: z.boolean(),
     executionReserved: z.literal(false),
     analysisToolAvailable: z.boolean(),
+    analysisTool: z.literal("carrot_run_page_source_size").nullable(),
     pages: z
       .array(
         z

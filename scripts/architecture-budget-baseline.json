@@ -29,8 +29,8 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 52,
-      "reason": "Context edit policy adds one direct consumer to verify page-memory evidence against the current saved page. Block translation keeps its existing proposal checks. No revision algorithm, alias wrapper or global limit changes. Exact boundary decisions and regression requirements are recorded in docs/mcp-context-research-boundaries-20260917.md. Structure service directly reuses the canonical page revision for preview, apply, undo and redo. No copied hash algorithm or alias module. Structure stale-page and restore tests protect this additional consumer. Chapter search, text plan validation, page commit receipts and advisory inspection directly consume the existing page revision; no revision algorithm or forwarding wrappers are introduced. Export selection directly validates the saved page revisions; existing revision algorithms are unchanged. Typography preparation binds selected saved pages to the existing revision contract, tested against concurrent page changes."
+      "maxImportedBy": 53,
+      "reason": "Context edit policy adds one direct consumer to verify page-memory evidence against the current saved page. Block translation keeps its existing proposal checks. No revision algorithm, alias wrapper or global limit changes. Exact boundary decisions and regression requirements are recorded in docs/mcp-context-research-boundaries-20260917.md. Structure service directly reuses the canonical page revision for preview, apply, undo and redo. No copied hash algorithm or alias module. Structure stale-page and restore tests protect this additional consumer. Chapter search, text plan validation, page commit receipts and advisory inspection directly consume the existing page revision; no revision algorithm or forwarding wrappers are introduced. Export selection directly validates the saved page revisions; existing revision algorithms are unchanged. Typography preparation binds selected saved pages to the existing revision contract, tested against concurrent page changes. Source-size observations recheck the existing saved-page revision before and after measurement."
     },
     "src/renderer/src/api/libraryGateway.ts": {
       "maxImportedBy": 28,
@@ -136,8 +136,8 @@
       "maxImportedBy": 27
     },
     "src/shared/geometry.ts": {
-      "maxImportedBy": 40,
-      "reason": "Block OCR source selection and effect-region evidence map through the existing pixel conversion. Two actual boundary consumers reuse the authoritative geometry; global limits remain unchanged. Structure policy projects before/after source and display rectangles using the canonical geometry and existing source-rect validation. Pixel conversions are not copied; native undo/redo rendering parity is required."
+      "maxImportedBy": 41,
+      "reason": "Block OCR source selection and effect-region evidence map through the existing pixel conversion. Two actual boundary consumers reuse the authoritative geometry; global limits remain unchanged. Structure policy projects before/after source and display rectangles using the canonical geometry and existing source-rect validation. Pixel conversions are not copied; native undo/redo rendering parity is required. The source raster adapter uses canonical coordinate normalization after source-bound validation."
     },
     "src/shared/richTextMarkup.ts": {
       "maxImportedBy": 30,
@@ -198,8 +198,8 @@
     },
     "src/main/library.ts": {
       "maxRuntimeImports": 13,
-      "maxImportedBy": 40,
-      "reason": "Context composition adds the explicit libraryContextEditingFacade read/commit contract to the established library facade and two direct consumers. Publication still uses the existing library mutation queue and atomic transaction with authorization recheck. No direct libraryStore access from application services, wildcard barrel or alias facade. See docs/mcp-context-research-boundaries-20260917.md. Text batch adapter reads the existing atomic work/context snapshot through the public library facade. Export adapter uses the public library facade for saved-page reads and existing export preflight; application services receive ports."
+      "maxImportedBy": 41,
+      "reason": "Context composition adds the explicit libraryContextEditingFacade read/commit contract to the established library facade and two direct consumers. Publication still uses the existing library mutation queue and atomic transaction with authorization recheck. No direct libraryStore access from application services, wildcard barrel or alias facade. See docs/mcp-context-research-boundaries-20260917.md. Text batch adapter reads the existing atomic work/context snapshot through the public library facade. Export adapter uses the public library facade for saved-page reads and existing export preflight; application services receive ports. The source-size executor reads the authoritative saved chapter via the existing library gateway."
     },
     "src/main/ipc/trustedIpc.ts": {
       "maxImportedBy": 26,
@@ -214,16 +214,16 @@
       "reason": "This explicit composition root adds metadata-only review/preflight tools beside existing page/image/context tools. Existing app export rules and the public library facade remain authoritative; no alias wrapper, copied algorithm or generic budget change. The application composition root directly wires the chapter text batch tools and native page/context adapter; model runtimes and alternative stores are not added. The composition root directly registers format batch tools alongside the existing shared adapter; no wrapper is introduced to hide fan-out. The existing composition root directly connects typography read service, tools and native font adapter. No alias wrapper is introduced to hide fan-out."
     },
     "src/main/mcp/mcpPageOperationSession.ts": {
-      "maxRuntimeImports": 19,
-      "reason": "The existing session adds one direct context-session composition beside page, block OCR/translation and recovery, sharing the operation manager and stop/close lifecycle. It does not create a second queue or forwarding wrapper. Native context preview/select/apply and unchanged page bytes exercise this boundary. See docs/mcp-context-research-boundaries-20260917.md. Export composition reuses the same native page-export job/handoff for single and batch use cases. Batch tools remain unregistered in the implementation checkpoint until output schemas and download routes are complete."
+      "maxRuntimeImports": 20,
+      "reason": "The existing session adds one direct context-session composition beside page, block OCR/translation and recovery, sharing the operation manager and stop/close lifecycle. It does not create a second queue or forwarding wrapper. Native context preview/select/apply and unchanged page bytes exercise this boundary. See docs/mcp-context-research-boundaries-20260917.md. Export composition reuses the same native page-export job/handoff for single and batch use cases. Batch tools remain unregistered in the implementation checkpoint until output schemas and download routes are complete. Directly composes the source-size executor into the existing job session; no additional job manager or hiding wrapper."
     },
     "src/shared/appActivityTypes.ts": {
       "maxImportedBy": 28,
       "reason": "Context edit and app-research scopes directly declare the app's existing work-context/content resources and share UI ownership. No alternative locking vocabulary, alias facade or global limit change. Deadlock and stale-context regression tests protect lifetime behavior; see docs/mcp-context-research-boundaries-20260917.md."
     },
     "src/main/application/mcpEditPolicy.ts": {
-      "maxImportedBy": 54,
-      "reason": "Context edit/research policies, proposal services and adapters reuse the existing typed MCP error authority. Seven direct consumers retain consistent stale/permission/invalid-input errors without copied classes or dependency-hiding wrappers. Global limits, save guards and error semantics are unchanged; see docs/mcp-context-research-boundaries-20260917.md. Structure policy, session service and MCP tools directly use the existing typed error authority for invalid input, ownership, expiry and page conflicts. No error-class copy, dependency-hiding wrapper or global limit change. Chapter text search, plan, runner, service, adapter and tool boundary reuse the existing typed edit errors and translation patch authority. Shared batch target validation and format planning add two direct typed-error consumers. Page revision, authorization, atomic-save and cancellation checks are reused, not bypassed. Export selection, batch service, retained-output projection and export tool definitions add four direct consumers of existing typed errors; no copied error classes. Typography preparation shares the existing typed error contract for invalid selection and stale snapshots."
+      "maxImportedBy": 56,
+      "reason": "Context edit/research policies, proposal services and adapters reuse the existing typed MCP error authority. Seven direct consumers retain consistent stale/permission/invalid-input errors without copied classes or dependency-hiding wrappers. Global limits, save guards and error semantics are unchanged; see docs/mcp-context-research-boundaries-20260917.md. Structure policy, session service and MCP tools directly use the existing typed error authority for invalid input, ownership, expiry and page conflicts. No error-class copy, dependency-hiding wrapper or global limit change. Chapter text search, plan, runner, service, adapter and tool boundary reuse the existing typed edit errors and translation patch authority. Shared batch target validation and format planning add two direct typed-error consumers. Page revision, authorization, atomic-save and cancellation checks are reused, not bypassed. Export selection, batch service, retained-output projection and export tool definitions add four direct consumers of existing typed errors; no copied error classes. Typography preparation shares the existing typed error contract for invalid selection and stale snapshots. The source-size service and native adapter share typed conflicts/errors, without adding a parallel error contract."
     },
     "src/shared/blockFingerprint.ts": {
       "maxImportedBy": 30,

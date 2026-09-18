@@ -309,6 +309,7 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
       .passthrough(),
   ]),
   carrot_get_job: mcpJobReceiptOutput,
+  carrot_run_page_source_size: mcpJobReceiptOutput,
   carrot_cancel_job: mcpJobReceiptOutput,
   carrot_export_page_png: mcpJobReceiptOutput,
   carrot_export_pages_png: mcpJobReceiptOutput,

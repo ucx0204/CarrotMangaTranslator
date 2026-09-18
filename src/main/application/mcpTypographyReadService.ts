@@ -21,7 +21,7 @@ export type McpFontCatalog = { snapshot: string; fonts: McpFontEntry[] };
 type Ports = {
   openChapter: (id: string) => Promise<ChapterSnapshot>;
   readCatalog: () => Promise<McpFontCatalog>;
-  analysisToolAvailable?: boolean;
+  sourceSizeToolAvailable?: boolean;
 };
 
 /** Read-only preparation. A saved input inventory is not an execution reservation. */
@@ -89,7 +89,12 @@ export class McpTypographyReadService {
       pages,
       request,
       catalog,
-      Boolean(this.ports.analysisToolAvailable),
+      Boolean(
+        this.ports.sourceSizeToolAvailable &&
+        request.mode === "size" &&
+        request.preserveManualFontSize &&
+        pages.length === 1,
+      ),
     );
   }
 }
@@ -184,6 +189,12 @@ function projectBlock(
   };
 }
 
+const FONT_ANALYSIS_STAGES = [
+  "source_size_measurement",
+  "hayai_source_verification",
+  "c23_font_selection",
+];
+
 function projectPreflight(
   chapter: ChapterSnapshot,
   pages: MangaPage[],
@@ -228,17 +239,14 @@ function projectPreflight(
     status: blockers.length ? "blocked" : "inputs_available",
     blockers,
     requiredStages: requiresOcr
-      ? [
-          "source_size_measurement",
-          "hayai_source_verification",
-          "c23_font_selection",
-        ]
+      ? FONT_ANALYSIS_STAGES
       : sizeEligible > 0
         ? ["source_size_measurement"]
         : [],
     requiresOcr,
     executionReserved: false,
     analysisToolAvailable,
+    analysisTool: analysisToolAvailable ? "carrot_run_page_source_size" : null,
     pages: selected,
     counts: {
       pages: pages.length,

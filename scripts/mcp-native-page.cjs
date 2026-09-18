@@ -16,6 +16,7 @@ const {
 } = require("./mcp-native-erasure-recovery.cjs");
 const { checkNativeAdversarial } = require("./mcp-native-adversarial.cjs");
 const assert = require("node:assert/strict");
+const { checkNativeSourceSize } = require("./mcp-native-source-size.cjs");
 const { checkNativeReview } = require("./mcp-native-review.cjs");
 const {
   jobPersistence,
@@ -203,6 +204,7 @@ async function checkNativePageGoal(root) {
       page.id,
     );
     await checkNativeTypographyRead(root, invoke, chapter.id, page.id);
+    await checkNativeSourceSize(root, invoke, page.imagePath);
     await checkErasure(
       root,
       app,

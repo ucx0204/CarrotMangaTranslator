@@ -1,3 +1,4 @@
+import { createMcpSourceSizeExecutor } from "./mcpSourceSizeAdapter";
 import { createMcpExportBatchAdapter } from "./mcpExportBatchAdapter";
 import { createMcpContextSession } from "./mcpContextSession";
 import { createMcpBlockTranslationExecutor } from "./mcpBlockTranslationSession";
@@ -69,6 +70,9 @@ export function createMcpPageOperationSession(options: {
     exportPng: preferences.allowImages ? exports.exportPage : undefined,
     ocr: preferences.allowProcessing
       ? createOcrExecutor(app, reader)
+      : undefined,
+    sourceSize: preferences.allowProcessing
+      ? createMcpSourceSizeExecutor(app)
       : undefined,
     blockOcr: preferences.allowProcessing
       ? createMcpBlockOcrExecutor(app)

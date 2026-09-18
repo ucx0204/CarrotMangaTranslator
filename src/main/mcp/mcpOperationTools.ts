@@ -65,6 +65,7 @@ export function createMcpOperationTools(
     exportPng?: McpOperationExecutor;
     ocr?: McpOperationExecutor;
     blockOcr?: McpOperationExecutor;
+    sourceSize?: McpOperationExecutor;
     blockTranslation?: McpOperationExecutor;
     erase?: McpOperationExecutor;
   },
@@ -183,6 +184,11 @@ const operationDescriptions: Record<
     description:
       "Run ONLY the app's configured local OCR on one page, saving editable untranslated blocks. Requires an empty page and current revision. No translation, erasure, image generation, or paid-model fallback. Model assets may be downloaded by the existing app. Returns a jobId.",
   },
+  sourceSize: {
+    name: "carrot_run_page_source_size",
+    description:
+      "Measure visible source glyph face sizes on ONE saved page using the existing app raster estimator. Use the current revision from page blocks or typography preflight. No OCR, model, download, translation, erasure, rendering or page edits. Manual-size, generated-lettering and sound blocks are excluded. Poll carrot_get_job for per-block measurements and reasons. Source face pixels are NOT nominal fontSizePx: never copy the value blindly into a font-size edit. This tool does not implement source-match application or undo. Observations expire after 30 minutes or restart; receipts remain. No attachments.",
+  },
   blockOcr: {
     name: "carrot_run_block_ocr",
     description:
@@ -213,10 +219,10 @@ function createStartOperationTool(
   const scopes = ["carrot.read", image ? "carrot.images" : "carrot.process"];
   return {
     ...spec,
-    readOnly: image,
+    readOnly: image || kind === "sourceSize",
     destructive: kind === "erase",
     idempotent: true,
-    openWorld: !image,
+    openWorld: !image && kind !== "sourceSize",
     requiredScopes: scopes,
     inputSchema: {
       type: "object",

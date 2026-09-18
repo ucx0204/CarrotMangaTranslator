@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { McpSourceSizeObservationSchema } from "../../shared/mcpSourceSize";
 import {
   McpExportPagesTargetSchema,
   McpExportZipTargetSchema,
@@ -66,6 +67,7 @@ export const mcpJobResultMetadataSchema = z.object({
   artifactExpired: z.boolean().optional(),
   observationExpired: z.boolean().optional(),
   blockOcr: McpBlockOcrObservationSchema.optional(),
+  sourceSize: McpSourceSizeObservationSchema.optional(),
   blockTranslation: McpBlockTranslationProposalSchema.optional(),
   proposalExpired: z.boolean().optional(),
   noSourceText: z.boolean().optional(),
@@ -82,6 +84,7 @@ const jobSchema = z
     kind: z.enum([
       "ocr",
       "blockOcr",
+      "sourceSize",
       "blockTranslation",
       "erase",
       "exportPng",
@@ -133,6 +136,10 @@ const journalSchema = z
  * a session proposal as usable after its review window has expired. */
 export function publicMcpJobResult(value: unknown, now: number) {
   const result = mcpJobResultMetadataSchema.safeParse(value).data;
+  if (result?.sourceSize && result.sourceSize.expiresAt <= now) {
+    const { sourceSize: _sourceSize, ...metadata } = result;
+    return { ...metadata, sourceSize: undefined, observationExpired: true };
+  }
   if (result?.contextResearch && result.contextResearch.expiresAt <= now)
     return { ...result, proposalExpired: true };
   return result;
@@ -142,11 +149,16 @@ export function persistedMcpJobResult(
   result: Record<string, unknown> | undefined,
 ) {
   if (result === undefined) return undefined;
-  const { blockOcr, blockTranslation, contextResearch, ...metadata } =
-    mcpJobResultMetadataSchema.parse(result);
+  const {
+    blockOcr,
+    sourceSize,
+    blockTranslation,
+    contextResearch,
+    ...metadata
+  } = mcpJobResultMetadataSchema.parse(result);
   return {
     ...metadata,
-    ...(blockOcr ? { observationExpired: true } : {}),
+    ...(blockOcr || sourceSize ? { observationExpired: true } : {}),
     ...(blockTranslation || contextResearch ? { proposalExpired: true } : {}),
     ...(contextResearch
       ? {
