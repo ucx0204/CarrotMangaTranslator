@@ -1,6 +1,8 @@
 # Bundle 3 connected selection checkpoint - 2026-09-18
 
-Baseline: `06b1a73c`. Continue only on `feat/mcp-app-bridge` in the existing
+Status: IMPLEMENTED AND REGISTERED; ALL AUTOMATIC GATES PASSED; LIVE DEFERRED.
+Baseline: `06b1a73c`. Verified full-check code: `10472c97`.
+Continue only on `feat/mcp-app-bridge` in the existing
 CarrotMangaTranslator-MCP-Review worktree. User/model/client acceptance is deferred
 until all roadmap bundles are implemented. This record supersedes the earlier
 observation-only selection checkpoint for the application/reference slice.
@@ -62,27 +64,45 @@ The native save may invalidate derived workflow status; this is block/order reco
 not an arbitrary whole-page metadata rollback. History is session-only with a
 30-minute idle lifetime. Permanent recovery remains bundle 7.
 
-## Automated verification at this checkpoint
+## Verified automatic results
 
-Code/registration baseline for the final run: `10472c97`.
-37 focused tests across seven files passed, including actual native persistence,
-source/translation-only preservation, discovery order, exact absence restoration,
-foreign ownership, changed unselected dependencies, empty observations, cancellation,
-partial commits, expiry, deleted context and real scoped OAuth/HTTP behavior.
-Renderer/Electron type checks, changed-file lint and architecture checks passed.
+Full repository check at `10472c97` completed successfully:
 
-The complete first coverage run had 7,771 passing tests, one missing-inventory
-registration test failure and 11 existing skips. Six actually measured new modules
-were subsequently registered, retaining all 1,595 inherited rows, provenance and
-ten deletions. The exact production coverage-floor checker then passed.
-See `mcp-selection-edit-coverage-20260918.md` for ratios, hashes and the distinction
-between the earlier partial MCP coverage run and the full measurement.
+| Check | Result |
+| --- | --- |
+| Repository stage graph | All 26 stages passed, every exitCode 0 |
+| Complete Vitest/V8 suite | 7,772 passed; zero failed; 11 pre-existing skips |
+| Focused selection and structured-output regressions | 37 tests across seven files passed |
+| Renderer, Electron and JavaScript types | Passed |
+| Lint, formatting, architecture, duplication, unused exports and mock boundaries | Passed |
+| Exact production coverage-floor gate | Passed |
+| Windows build | Passed |
+| Existing page-artwork parity, image protocol, renderer/preload bundle checks | Passed |
 
-The final `npm run check` is pending confirmation in this intermediate record.
-Do not claim all 26 gates or start bundle 4 until its actual exit/result is recorded.
-Log: `.tmp/mcp-selection-edit-full-check.log`.
+Canonical completion record: `.tmp/check-timings.json`, started at
+`2026-09-18T15:41:13.486Z`, completed at `2026-09-18T15:44:27.736Z`.
+The complete test results are `.tmp/check-results/vitest.json`; individual stage
+logs are in `.tmp/check-logs/`. The terminal wrapper log is
+`.tmp/mcp-selection-edit-full-check.log`.
+The test digest is
+`50f4ceea0055d0503f582c1e3a8b56c7bbbc52282326f026a132f820f75a9183`.
+The complete coverage digest is
+`2d5b12b24d0587395db79f15c0a3e6ec8477b53d81435e93581b4e8162738c21`.
 
-## Test boundaries and resume
+The first full measurement had one inventory-registration failure, which was
+resolved by registering the six actually measured new modules and updating the
+inventory count. All 1,595 inherited floor rows, provenance and ten deletions were
+retained; the manifest now has 1,601 records. No global coverage/architecture
+threshold was disabled or lowered. See `mcp-selection-edit-coverage-20260918.md`
+for exact initial metrics/hashes and the earlier MCP-only measurement limitations.
+
+## Test boundaries and next implementation
+
+The regressions cover actual native persistence, source/translation-only preservation,
+discovery order, exact optional-field restoration, foreign ownership, changed
+unselected dependencies, empty observations, cancellation, partial commits,
+expiry, deleted context and real scoped OAuth/HTTP behavior. A repeated action
+receipt does not reapply after undo. A later user edit blocks stale undo.
 
 External OCR/translation inference and native raster boundaries are substituted;
 actual library, source hashes, coordinate conversion, block creation, page/context
@@ -91,7 +111,7 @@ fixtures. These are not live model quality or user/client acceptance tests.
 No live app restart, user artwork/library/authentication change, model download,
 ChatGPT/Tailscale call, master merge or release was performed.
 
-After all automatic gates pass, mark bundle 3 implemented/live deferred and resume
-bundle 4: multi-block erasure, free/protected masks and localized correction/restore.
-Bundles 1 and 2 remain complete. Bundles 4-13 have not been implemented in this turn.
+Bundles 1, 2 and 3 are now implemented with automatic checks passed and live tests
+deferred. NEXT: bundle 4, multi-block erasure, free/protected masks and localized
+correction/restore. Bundles 4-13 were not implemented in this continuation.
 Detailed contract and architecture decisions: `mcp-selection-edit-boundaries-20260918.md`.
