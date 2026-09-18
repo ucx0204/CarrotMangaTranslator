@@ -13,15 +13,15 @@ Source summary SHA-256:
 Inherited manifest SHA-256:
 `92a409b3e66b0551afe4dec6cd45bfd611042bb8db9d9638d06b3ca1ba12a091`
 
-| New module | Lines | Statements | Functions | Branches |
-| --- | --- | --- | --- | --- |
-| `src/shared/mcpSelectionEditing.ts` | 9/9 | 9/9 | 0/0 | 0/0 |
-| `src/main/application/mcpSelectionEditProjection.ts` | 69/79 | 73/84 | 13/13 | 69/83 |
-| `src/main/application/mcpSelectionEditPolicy.ts` | 75/85 | 84/95 | 31/31 | 64/75 |
-| `src/main/application/mcpSelectionEditSnapshots.ts` | 61/64 | 70/73 | 16/16 | 73/78 |
-| `src/main/mcp/mcpSelectionEditAdapter.ts` | 33/35 | 38/40 | 11/11 | 20/22 |
-| `src/main/mcp/mcpSelectionEditSession.ts` | 20/20 | 20/20 | 10/10 | 0/0 |
-| Total | 267/292 | 294/321 | 81/81 | 226/258 |
+| New module                                           | Lines   | Statements | Functions | Branches |
+| ---------------------------------------------------- | ------- | ---------- | --------- | -------- |
+| `src/shared/mcpSelectionEditing.ts`                  | 9/9     | 9/9        | 0/0       | 0/0      |
+| `src/main/application/mcpSelectionEditProjection.ts` | 69/79   | 73/84      | 13/13     | 69/83    |
+| `src/main/application/mcpSelectionEditPolicy.ts`     | 75/85   | 84/95      | 31/31     | 64/75    |
+| `src/main/application/mcpSelectionEditSnapshots.ts`  | 61/64   | 70/73      | 16/16     | 73/78    |
+| `src/main/mcp/mcpSelectionEditAdapter.ts`            | 33/35   | 38/40      | 11/11     | 20/22    |
+| `src/main/mcp/mcpSelectionEditSession.ts`            | 20/20   | 20/20      | 10/10     | 0/0      |
+| Total                                                | 267/292 | 294/321    | 81/81     | 226/258  |
 
 These are exact new-module counts, not whole-repository coverage percentages.
 The zero-denominator schema counters follow the existing coverage metric policy.
