@@ -71,15 +71,15 @@ The existing global architecture limits remain 12 runtime imports / 25 consumers
 Only established public authorities and composition roots receive exact measured
 consumer ceilings for this implementation:
 
-| Authority | Ceiling | New direct consumers / reason |
-| --- | --- | --- |
-| shared/pageRevision | 57 | Image evidence and native publication/recovery |
-| shared/blockFingerprint | 43 | Mask binding and immutable page-field comparison |
-| application/mcpEditPolicy | 86 | Six image adapter boundaries share typed failures |
-| main/library | 56 | Evidence, publication and page-owned image composition |
-| main/inpainting | 16 imports | Reuse canonical protected-pixel restoration |
-| mcpOutputSchemas | 17 imports | Register the image-edit output contract family |
-| mcpPageOperationSession | 25 imports | Connect the image-edit session to real app composition |
+| Authority                 | Ceiling    | New direct consumers / reason                          |
+| ------------------------- | ---------- | ------------------------------------------------------ |
+| shared/pageRevision       | 57         | Image evidence and native publication/recovery         |
+| shared/blockFingerprint   | 43         | Mask binding and immutable page-field comparison       |
+| application/mcpEditPolicy | 86         | Six image adapter boundaries share typed failures      |
+| main/library              | 56         | Evidence, publication and page-owned image composition |
+| main/inpainting           | 16 imports | Reuse canonical protected-pixel restoration            |
+| mcpOutputSchemas          | 17 imports | Register the image-edit output contract family         |
+| mcpPageOperationSession   | 25 imports | Connect the image-edit session to real app composition |
 
 No hashing, raster geometry, revision algorithm or engine is copied to evade the
 budgets. Automated evidence and final completion status belong in the checkpoint,
