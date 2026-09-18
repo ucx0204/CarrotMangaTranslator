@@ -49,7 +49,12 @@ export function createMcpPageOperationSession(options: {
   const recovery = preferences.allowProcessing
     ? createMcpErasureRecoverySession(app, operations, editing.notifySaved)
     : undefined;
-  const auxiliary = createAuxiliarySessions(app, operations, editing, preferences);
+  const auxiliary = createAuxiliarySessions(
+    app,
+    operations,
+    editing,
+    preferences,
+  );
   const artifacts = new McpArtifactStore(options.origin);
   const exporter = createPageExporter(artifacts);
   const exports = createMcpExportBatchAdapter({
@@ -120,7 +125,10 @@ function createAuxiliarySessions(
     editing,
     Boolean(preferences.allowEditing && preferences.allowProcessing),
   );
-  const stop = () => { context.stop(); typography.stop(); };
+  const stop = () => {
+    context.stop();
+    typography.stop();
+  };
   return {
     tools: [...context.tools, ...typography.tools],
     stop,
