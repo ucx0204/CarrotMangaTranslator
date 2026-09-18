@@ -4,14 +4,17 @@ import { McpSourceRectPatchSchema } from "./mcpSourceRect";
 import { mcpTranslationBatchOutputs } from "./mcpTranslationBatch";
 
 const { chapterId, pageId, blockId, revision } = McpSourceRectPatchSchema.shape;
-const nativeGeometry = InpaintingRetouchRequestSchema.shape.geometry;
-const strokeGeometry = nativeGeometry.options[0].extend({
+const point = z.object({ x: z.number().finite(), y: z.number().finite() }).strict();
+const stroke = z.object({
   radiusPx: z.number().int().min(2).max(180),
-  points: nativeGeometry.options[0].shape.points.max(1200),
-});
+  points: z.array(point).min(1).max(1200),
+}).strict();
+// Native IPC uses Zod 3; the public JSON Schema uses Zod 4. Validate both contracts.
 const geometry = z.discriminatedUnion("kind", [
-  strokeGeometry, nativeGeometry.options[1], nativeGeometry.options[2],
-]);
+  stroke.extend({ kind: z.literal("stroke") }),
+  z.object({ kind: z.literal("rectangle"), start: point, end: point }).strict(),
+  z.object({ kind: z.literal("ellipse"), start: point, end: point }).strict(),
+]).refine((value) => InpaintingRetouchRequestSchema.shape.geometry.safeParse(value).success);
 const protectedAreas = z.array(geometry).max(50).default([]);
 const engine = z.enum(["flux-klein", "lama-manga", "aot-inpainting"]);
 const erasure = {
@@ -23,9 +26,9 @@ const command = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("erase-blocks"), ...erasure,
     blockIds: z.array(blockId).min(1).max(100) }).strict(),
   z.object({ kind: z.literal("erase-mask"), ...erasure,
-    strokes: z.array(strokeGeometry.omit({ kind: true })).min(1).max(200) }).strict(),
+    strokes: z.array(stroke).min(1).max(200) }).strict(),
   z.object({ kind: z.literal("paint"), geometry, protectedAreas,
-    color: InpaintingRetouchRequestSchema.shape.color.unwrap() }).strict(),
+    color: z.string().regex(/^#[a-f0-9]{6}$/i) }).strict(),
   z.object({ kind: z.literal("restore"), geometry, protectedAreas }).strict(),
 ]);
 export const McpImageEditPreviewSchema = z.object({
