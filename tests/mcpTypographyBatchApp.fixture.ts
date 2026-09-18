@@ -33,7 +33,7 @@ export async function typographyBatchAppFixture(mode: "font" | "size" | "font-an
   const operations = new McpOperationService((error) => errors.push(error));
   const editing = { assertWritable: vi.fn(async () => {}), notifySaved: vi.fn() };
   const session = createMcpTypographyBatchSession(f.app, operations, editing, true);
-  const analyze = async () => {
+  const analyze = async (principal = owner) => {
     const options = {
       chapterId: "chapter", mode, sourceLanguage: "ja", targetLanguage: "ko",
       allowOcr: mode !== "size", preserveManualFontSize: true,
@@ -45,11 +45,11 @@ export async function typographyBatchAppFixture(mode: "font" | "size" | "font-an
       allowAssetDownloads: mode !== "size", requestId: randomUUID(),
     };
     const receipt = await operations.start({
-      owner, kind: "typographyAnalysis", parameters: target, requestId: target.requestId,
+      owner: principal, kind: "typographyAnalysis", parameters: target, requestId: target.requestId,
       assertAuthorized: guard, execute: (context) => analysis.run(target, context),
     });
     await vi.waitFor(() => {
-      const status = operations.status(receipt.jobId, owner);
+      const status = operations.status(receipt.jobId, principal);
       if (status.error) throw new Error(JSON.stringify(status.error));
       if (status.status !== "completed") throw new Error("Analysis still pending");
     }, { timeout: 5000 });
