@@ -15,6 +15,7 @@ import {
   type McpTypographyPreflight,
 } from "../../shared/mcpTypographyRead";
 import { McpEditError } from "./mcpEditPolicy";
+import { mcpBatchMembership } from "./mcpPageBatchPolicy";
 
 export type McpFontCatalog = { snapshot: string; fonts: McpFontEntry[] };
 type Ports = {
@@ -99,6 +100,13 @@ function selectPages(
 ) {
   if (chapter.id !== request.chapterId)
     throw new McpEditError("not_found", "Chapter not found.");
+  if (
+    new Set(chapter.pages.map((page) => page.id)).size !== chapter.pages.length
+  )
+    throw new McpEditError(
+      "invalid_edit",
+      "Stored chapter page IDs are not unique.",
+    );
   const selected = new Set(
     request.pageIds ?? chapter.pages.map((page) => page.id),
   );
@@ -114,6 +122,17 @@ function selectPages(
   const pages = chapter.pages.filter((page) => selected.has(page.id));
   if (pages.length !== selected.size)
     throw new McpEditError("not_found", "A selected page is absent.");
+  if (
+    pages.some(
+      (page) =>
+        new Set(page.blocks.map((block) => block.id)).size !==
+        page.blocks.length,
+    )
+  )
+    throw new McpEditError(
+      "invalid_edit",
+      "Stored page block IDs are not unique.",
+    );
   if (pages.reduce((total, page) => total + page.blocks.length, 0) > 1000)
     throw new McpEditError(
       "invalid_edit",
@@ -124,9 +143,7 @@ function selectPages(
 
 function inventory(chapter: ChapterSnapshot, pages: readonly MangaPage[]) {
   return hashStableValue({
-    chapterId: chapter.id,
-    workId: chapter.workId,
-    order: chapter.pages.map((page) => page.id),
+    membership: mcpBatchMembership(chapter),
     pages: pages.map((page) => [page.id, createPageRevision(page)]),
   });
 }
@@ -200,7 +217,7 @@ function projectPreflight(
   return McpTypographyPreflightOutput.parse({
     chapterId: chapter.id,
     snapshot: hashStableValue({
-      request,
+      request: { ...request, pageIds: pages.map((page) => page.id) },
       inventory: inventory(chapter, pages),
       catalog: catalog.snapshot,
     }),

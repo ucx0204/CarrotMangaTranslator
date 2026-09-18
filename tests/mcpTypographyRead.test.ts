@@ -344,3 +344,31 @@ it("registers actual read-only tools with schemas, scope enforcement and strict 
   expect(plan.every((item) => item.type === "text")).toBe(true);
   expect(context.assertScopes).toHaveBeenCalledWith(["carrot.read"]);
 });
+
+it("binds raw pageOrder changes and normalizes equivalent page selections", async () => {
+  const f = fixture();
+  const implicit = await f.service.preflight(base, f.guard);
+  const explicit = await f.service.preflight(
+    { ...base, pageIds: ["page"] },
+    f.guard,
+  );
+  expect(explicit.snapshot).toBe(implicit.snapshot);
+  f.chapter.pageOrder = ["other", "page"];
+  expect((await f.service.preflight(base, f.guard)).snapshot).not.toBe(
+    implicit.snapshot,
+  );
+});
+
+it("refuses ambiguous stored page and block identifiers", async () => {
+  const f = fixture();
+  f.chapter.pages.push(structuredClone(f.chapter.pages[0]));
+  await expect(f.service.preflight(base, f.guard)).rejects.toMatchObject({
+    code: "invalid_edit",
+  });
+  f.chapter.pages.pop();
+  f.chapter.pages[0].blocks.push(structuredClone(f.chapter.pages[0].blocks[0]));
+  await expect(f.service.preflight(base, f.guard)).rejects.toMatchObject({
+    code: "invalid_edit",
+  });
+  expect(f.readCatalog).not.toHaveBeenCalled();
+});

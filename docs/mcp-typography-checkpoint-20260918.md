@@ -29,3 +29,22 @@ not yet verified for this unit.
 Independent model/raster analysis, analysis-result binding to revisions/catalog,
 selective application and exact source-size state undo/redo, native parity,
 coverage and full checks. Do not mark the full typography bundle complete yet.
+
+## Read-path follow-up
+
+The first unit was committed and pushed as `49c8f7fd`.
+Preflight now uses the existing batch-membership fingerprint (including raw
+pageOrder), normalizes equivalent selected page sets before fingerprinting,
+and rejects ambiguous stored page/block IDs. Added real HTTP tests for both
+read-only tools, structured output, invalid arguments, sanitized errors and
+revocation while font lookup is pending. Focused tests: 37/37 across four files;
+Electron type checking and changed-file ESLint pass.
+
+The analysis-result service write was rejected by the tool safety check; that
+file was not created and the blocked request was not retried through another
+route. Its separate unused input-contract draft was moved outside source to
+`.tmp/mcp-typography-analysis-contract-20260918.txt`. No analysis executor,
+application/undo integration, or live model validation is implemented yet.
+The full repository check currently reports architecture reference-budget
+increases caused by the added read paths. Coverage registration and native
+verification remain pending; this checkpoint is not full-bundle completion.
