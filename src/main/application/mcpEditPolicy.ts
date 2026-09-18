@@ -36,6 +36,10 @@ export function projectMcpBlocks(
     renderDirection: block.renderDirection,
     fontSizePx: block.fontSizePx,
     reviewStatus: block.reviewStatus,
+    ...(block.speakerId === undefined ? {} : { speakerId: block.speakerId }),
+    ...(block.glossaryEntryIds === undefined
+      ? {}
+      : { glossaryEntryIds: [...block.glossaryEntryIds] }),
     hasGeneratedLettering: Boolean(block.generatedLettering),
   }));
 }
