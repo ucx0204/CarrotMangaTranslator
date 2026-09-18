@@ -13,7 +13,7 @@ replace approved model assets, merge master or publish a release implicitly.
 | ----- | ------------------------------------------------------------------------------------ | --------------------------------------------------- |
 | 1     | C23 independent analysis; selective font/source-size application and exact undo/redo | Implemented; automatic checks passed; live deferred |
 | 2     | Bubble layout, advanced typography, reusable rules/presets                           | Implemented; automatic checks passed; live deferred |
-| 3     | Remaining region/multi-block OCR, translation and block references                   | Not started                                         |
+| 3     | Remaining region/multi-block OCR, translation and block references                   | In progress; selected observations connected        |
 | 4     | Multi-block erasure, free/protected masks, localized correction/restoration          | Not started                                         |
 | 5     | External image/mask upload, validation and layer incorporation                       | Not started                                         |
 | 6     | Independent sound-effect preparation, text, generation and recovery                  | Not started                                         |
@@ -98,3 +98,19 @@ composition, plus one test-lint finding and two exact architecture declarations.
 No new remotely callable application tools have been registered. Do not move to
 bundle 2 or request live tests yet. The authoritative details and automated
 results are in `mcp-typography-selective-checkpoint-20260918.md`.
+
+## Current bundle 3 continuation
+
+Current authority: `mcp-selection-checkpoint-20260918.md`, source `79bfec3b`.
+Selected saved-block/region OCR, text-only selected translation and owned paginated
+analysis are registered and pass 932 MCP tests. No page changes occur during
+analysis. Language/provider/context options are task-local and explicit permissions
+are required. Existing single-block functions remain compatible.
+
+Bundle 3 is not complete: analysis-bound selective apply, reviewed region append,
+block character/glossary references and exact recovery remain. Their projection
+write was refused; no unconnected apply contract is advertised. Do not start bundle
+4 or ask for an intermediate live test. The observation slice passed all 26
+repository gates at 79bfec3b: 7,746 tests passed, zero failed, 11 existing skips.
+The coverage-floor gate and Windows/native parity checks passed; exact evidence
+and limitations are in the current selection checkpoint.
