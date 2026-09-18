@@ -1,3 +1,4 @@
+import { mcpSelectionBatchOutputs } from "../../shared/mcpSelectionEditing";
 import { mcpSelectionAnalysisOutputs } from "../../shared/mcpSelectionAnalysis";
 import { mcpLetteringResourceOutputs } from "../../shared/mcpLetteringResources";
 import { mcpLetteringOutputs } from "../../shared/mcpLettering";
@@ -49,6 +50,8 @@ const block = z
     renderDirection: direction,
     fontSizePx: size,
     reviewStatus: z.enum(["draft", "needs_review", "reviewed"]).optional(),
+    speakerId: text.optional(),
+    glossaryEntryIds: z.array(text).optional(),
     hasGeneratedLettering: flag,
   })
   .strict();
@@ -112,6 +115,7 @@ const mcpJobReceiptOutput = z
 
 /** Public projections only. JSON Schema and runtime validation share these definitions. */
 export const mcpOutputSchemas: Record<string, z.ZodType> = {
+  ...mcpSelectionBatchOutputs,
   ...mcpTypographyBatchOutputs,
   ...mcpTypographyReadOutputs,
   ...mcpLetteringOutputs,
