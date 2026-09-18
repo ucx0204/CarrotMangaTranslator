@@ -190,3 +190,50 @@ it("denies missing processing authority and rejects unknown arguments before mod
     await f.close();
   }
 });
+
+it("retains every selected page and model lease until cancelled engine cleanup settles", async () => {
+  const f = await fixture();
+  const before = await readFile(f.chapterPath);
+  let finish!: () => void;
+  const barrier = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  f.prepare.mockImplementationOnce(async () => {
+    await barrier;
+    return () => ({
+      fontId: "jua",
+      fontWeight: 400,
+      italic: false,
+      groupId: "cancelled",
+      runtimeVersion: "c23.0",
+    });
+  });
+  try {
+    const response = await f.call(
+      "carrot_run_typography_analysis",
+      await f.request(),
+    );
+    const jobId = response.result.structuredContent.jobId;
+    await vi.waitFor(() => expect(f.prepare).toHaveBeenCalledOnce());
+    expect(f.app.jobs.all).toHaveLength(1);
+    expect(f.app.jobs.pageHandoffs.activities).toHaveLength(2);
+    const cancellation = await f.call("carrot_cancel_job", { jobId });
+    expect(cancellation.result.isError).toBe(false);
+    expect(
+      (await f.call("carrot_get_job", { jobId })).result.structuredContent
+        .status,
+    ).toBe("running");
+    expect(f.app.jobs.all).toHaveLength(1);
+    expect(f.app.jobs.pageHandoffs.activities).toHaveLength(2);
+    finish();
+    const result = await f.settle(jobId);
+    expect(result.status).toBe("cancelled");
+    expect(result.result).toBeUndefined();
+    expect(f.app.jobs.all).toEqual([]);
+    expect(f.app.jobs.pageHandoffs.activities).toEqual([]);
+    expect(await readFile(f.chapterPath)).toEqual(before);
+  } finally {
+    finish();
+    await f.close();
+  }
+});

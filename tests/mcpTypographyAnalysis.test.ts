@@ -216,3 +216,19 @@ it("preserves engine and storage failures rather than producing successful empty
   await expect(f.service.run(request, f.context)).rejects.toThrow("storage");
   expect(f.save).not.toHaveBeenCalled();
 });
+
+it("does not claim a size measurement stage when every size is manually protected", async () => {
+  const f = typographyAnalysisFixture();
+  for (const page of f.chapter.pages)
+    for (const block of page.blocks) block.fontSizeIntent = "manual";
+  const result = await f.service.run(await f.target(), f.context);
+  expect(result.performed).toEqual([
+    "hayai_source_verification",
+    "c23_font_selection",
+  ]);
+  expect(
+    result.typographyAnalysis.pages.every((page) =>
+      page.items.every((item) => item.estimate === null),
+    ),
+  ).toBe(true);
+});

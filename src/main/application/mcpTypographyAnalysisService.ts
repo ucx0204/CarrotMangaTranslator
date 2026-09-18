@@ -115,7 +115,15 @@ export class McpTypographyAnalysisService {
       status: "observed",
       chapterId: request.chapterId,
       engine: request.mode === "size" ? "app-source-raster" : "app-c23",
-      performed: prepared.requiredStages,
+      performed: prepared.requiredStages.filter((stage) =>
+        prepared.pages.some((page) =>
+          page.blocks.some((block) =>
+            stage === "source_size_measurement"
+              ? block.sizeEligible
+              : block.fontEligible,
+          ),
+        ),
+      ),
       pagesChanged: 0,
       needsReview: true,
       observationExpired: false,

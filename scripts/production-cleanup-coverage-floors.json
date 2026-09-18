@@ -17703,6 +17703,28 @@
         "pct": 100
       }
     },
+    "src/main/application/mcpTypographyAnalysisService.ts": {
+      "lines": {
+        "total": 56,
+        "covered": 56,
+        "pct": 100
+      },
+      "statements": {
+        "total": 63,
+        "covered": 63,
+        "pct": 100
+      },
+      "functions": {
+        "total": 20,
+        "covered": 20,
+        "pct": 100
+      },
+      "branches": {
+        "total": 30,
+        "covered": 30,
+        "pct": 100
+      }
+    },
     "src/main/application/mcpTypographyReadService.ts": {
       "lines": {
         "total": 64,
@@ -22103,6 +22125,28 @@
         "pct": 100
       }
     },
+    "src/main/mcp/mcpSourceTypographyItem.ts": {
+      "lines": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      },
+      "statements": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      },
+      "functions": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      }
+    },
     "src/main/mcp/mcpStructureTools.ts": {
       "lines": {
         "total": 21,
@@ -22277,6 +22321,94 @@
         "covered": 12,
         "total": 12,
         "pct": 100
+      }
+    },
+    "src/main/mcp/mcpTypographyAnalysisAdapter.ts": {
+      "lines": {
+        "total": 62,
+        "covered": 58,
+        "pct": 93.54
+      },
+      "statements": {
+        "total": 66,
+        "covered": 61,
+        "pct": 92.42
+      },
+      "functions": {
+        "total": 16,
+        "covered": 16,
+        "pct": 100
+      },
+      "branches": {
+        "total": 41,
+        "covered": 34,
+        "pct": 82.92
+      }
+    },
+    "src/main/mcp/mcpTypographyAnalysisSession.ts": {
+      "lines": {
+        "total": 16,
+        "covered": 15,
+        "pct": 93.75
+      },
+      "statements": {
+        "total": 18,
+        "covered": 17,
+        "pct": 94.44
+      },
+      "functions": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "branches": {
+        "total": 6,
+        "covered": 4,
+        "pct": 66.66
+      }
+    },
+    "src/main/mcp/mcpTypographyAnalysisTool.ts": {
+      "lines": {
+        "total": 12,
+        "covered": 12,
+        "pct": 100
+      },
+      "statements": {
+        "total": 13,
+        "covered": 13,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      }
+    },
+    "src/main/mcp/mcpTypographyFontRuntime.ts": {
+      "lines": {
+        "total": 24,
+        "covered": 20,
+        "pct": 83.33
+      },
+      "statements": {
+        "total": 27,
+        "covered": 22,
+        "pct": 81.48
+      },
+      "functions": {
+        "total": 7,
+        "covered": 5,
+        "pct": 71.42
+      },
+      "branches": {
+        "total": 10,
+        "covered": 8,
+        "pct": 80
       }
     },
     "src/main/mcp/mcpTypographyReadTools.ts": {
@@ -23069,6 +23201,28 @@
         "covered": 2,
         "total": 14,
         "pct": 14.28
+      }
+    },
+    "src/main/pipeline/fontChapterC18Lifecycle.ts": {
+      "lines": {
+        "total": 11,
+        "covered": 11,
+        "pct": 100
+      },
+      "statements": {
+        "total": 13,
+        "covered": 13,
+        "pct": 100
+      },
+      "functions": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "branches": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
       }
     },
     "src/main/pipeline/fontChapterC18Types.ts": {
@@ -33760,6 +33914,28 @@
       "branches": {
         "covered": 0,
         "total": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/mcpTypographyAnalysis.ts": {
+      "lines": {
+        "total": 9,
+        "covered": 9,
+        "pct": 100
+      },
+      "statements": {
+        "total": 9,
+        "covered": 9,
+        "pct": 100
+      },
+      "functions": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
         "pct": 100
       }
     },

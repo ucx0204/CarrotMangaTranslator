@@ -137,3 +137,38 @@ it("does not return a measurement after cancellation", async () => {
     await f.close();
   }
 });
+
+it("rejects malformed single-page executor requests before creating app jobs or page handoffs", async () => {
+  const { typographyAnalysisAppFixture } =
+    await import("./mcpTypographyAnalysisApp.fixture");
+  const f = await typographyAnalysisAppFixture();
+  const { createMcpSourceSizeExecutor } =
+    await import("../src/main/mcp/mcpSourceSizeAdapter");
+  const executor = createMcpSourceSizeExecutor(f.app);
+  const context = {
+    id: randomUUID(),
+    signal: new AbortController().signal,
+    progress: vi.fn(),
+    assertAuthorized: vi.fn(),
+  };
+  const before = await readFile(f.chapterPath);
+  try {
+    expect(() =>
+      executor(
+        {
+          chapterId: "chapter",
+          pageId: "page",
+          revision: "invalid",
+          requestId: randomUUID(),
+        },
+        context,
+      ),
+    ).toThrow();
+    expect(f.app.jobs.all).toEqual([]);
+    expect(f.app.jobs.pageHandoffs.activities).toEqual([]);
+    expect(f.handoffPages).toEqual([]);
+    expect(await readFile(f.chapterPath)).toEqual(before);
+  } finally {
+    await f.close();
+  }
+});

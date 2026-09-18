@@ -46,7 +46,11 @@ export async function typographyAnalysisAppFixture() {
   const bytes = PNG.sync.write(png);
   for (const page of chapter.pages) await writeFile(page.imagePath, bytes);
   const chapterPath = join(directory, "chapter.json");
-  await writeFile(chapterPath, JSON.stringify(chapter));
+  const stored = {
+    ...chapter,
+    pages: chapter.pages.map(({ dataUrl: _runtimeUrl, ...page }) => page),
+  };
+  await writeFile(chapterPath, JSON.stringify(stored));
   await writeFile(
     join(env.libraryDir, "index.json"),
     JSON.stringify({ workOrder: ["work"] }),
