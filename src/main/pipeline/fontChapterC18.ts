@@ -19,6 +19,7 @@ import type {
   FontChapterC18Style,
 } from "./fontChapterC18Types";
 import { logPipelineInfo } from "./pipelineLogger";
+import { withFontChapterC18Worker } from "./fontChapterC18Lifecycle";
 
 const resultSchema = z.object({
   version: z.literal("c23.0"),
@@ -87,7 +88,7 @@ async function prepareChapter(
   );
   signal.throwIfAborted();
   const worker = await launchFontChapterC18Worker(paths, options, assets);
-  try {
+  return withFontChapterC18Worker(worker, async () => {
     const { response } = worker.startRequest({ request }, signal);
     const result = await response;
     if (!result.ok)
@@ -102,9 +103,7 @@ async function prepareChapter(
       job,
     });
     return resolver;
-  } finally {
-    await worker.dispose();
-  }
+  });
 }
 
 function bindChoices(
