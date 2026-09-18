@@ -1,6 +1,27 @@
 # MCP typography implementation checkpoint - 2026-09-18
 
-## Latest continuation: selective application core
+## Current status: bundle 1 connected and automatically verified
+
+The current implementation and resume authority is
+`mcp-typography-connected-checkpoint-20260918.md`.
+At verified source `96cc3625`, production observation ownership, original-file
+and font-environment freshness checks, six selection/recovery tools, and exact
+apply/undo/redo are connected. All 26 repository gates passed, including 7,668
+passing tests, zero failures and 11 pre-existing skips. All 854 MCP tests passed.
+The earlier non-null assertion and architecture-count findings are resolved.
+
+Status: IMPLEMENTED / REGISTERED / AUTOMATIC CHECKS PASSED / LIVE TESTS DEFERRED.
+Next implementation is bundle 2: independent bubble layout, advanced typography,
+and reusable rules/presets. Bundles 2-13 are not completed. Live user/model/client
+acceptance remains deferred until the requested implementation sequence is built.
+
+## Preserved earlier checkpoints
+
+The following text records earlier work and its then-unfinished boundaries.
+Its blocked requests, missing registration and failed-check descriptions are
+historical; use the connected checkpoint above for current status.
+
+### Latest continuation: selective application core
 
 Current resume authority: `mcp-typography-selective-checkpoint-20260918.md`.
 The analysis function-length issue below is historical and was resolved in
@@ -20,9 +41,9 @@ current. Bundles 2-13 and all live acceptance remain deferred as instructed.
 
 ---
 
-## Historical independent-analysis checkpoint
+### Historical independent-analysis checkpoint
 
-## Current continuation: bundle 1 observations connected
+### Current continuation: bundle 1 observations connected
 
 The 1-13 order and deferred-live-test requirement are fixed in
 `mcp-remaining-roadmap-20260918.md`. Bundle 1 is IN PROGRESS. Bundles 2-13 have
@@ -54,7 +75,7 @@ retain both causes. App jobs, page handoffs and the existing journal are reused.
 Automatic fixtures substitute the C23 engine/native raster loader boundary, not
 the source-size math, library transactions, leases or HTTP authorization.
 
-## Remaining implementation and current caveats
+### Remaining implementation and current caveats
 
 Selective font/source-size application, omitted-field restoration, work-profile
 lock handling and exact Undo/Redo are NOT implemented. An application-adapter
@@ -67,7 +88,7 @@ The attempted refactor was also refused and was not applied. Do not disable or
 increase the rule or remove the behavior to claim success. Resume with that small
 function split, then the missing selective application/recovery work.
 
-## Current automatic verification
+### Current automatic verification
 
 The final full Vitest/V8 run exited 0: 7,623 passed, zero failed, 11 existing
 skips (914 test files passed, one existing file skipped). All 809 MCP tests in
@@ -107,12 +128,12 @@ until all bundles are implemented as explicitly requested by the user.
 
 ---
 
-## Historical checkpoint before this continuation (fbfe656c)
+### Historical checkpoint before this continuation (fbfe656c)
 
 The section below describes the previously verified source-size/read checkpoint,
 not the current connected analysis tool or current full-check status.
 
-### Historical status
+#### Historical status
 
 Font inventory, typography preparation and one-page source-size observation are
 implemented, registered and verified. This is a PARTIAL typography bundle:
@@ -123,7 +144,7 @@ Verified code: `af9dcbae` on `feat/mcp-app-bridge`, in the existing review workt
 No new branch, master merge, release, live application restart, user-library edit,
 credential change or model-asset replacement was performed.
 
-## Registered capabilities
+### Registered capabilities
 
 - `carrot_list_fonts`: reads actual app catalog/registry metadata, with search,
   pagination and a metadata snapshot. No legacy font migration, directory creation,
@@ -155,7 +176,7 @@ not a complete face inventory or per-string glyph-coverage guarantee. Missing or
 unsafe custom files follow the existing registry policy; uninspectable registered
 custom files are marked. No font binaries or local paths are exposed.
 
-## Observation, execution and restoration boundaries
+### Observation, execution and restoration boundaries
 
 Source measurement uses the existing app job and page ownership/handoff path.
 It validates strict opaque IDs, unique blocks, original-image geometry and the
@@ -175,7 +196,7 @@ stores source face/confidence/method separately and preserves source-match/manua
 intent; that application and exact-state undo/redo boundary is the next work.
 The current tool deliberately has no page mutation port.
 
-## Verification completed
+### Verification completed
 
 Final `node scripts/check.cjs` exited 0: all 26 repository gates passed, including
 types, formatting, lint, error handling, test boundaries, architecture, dead code,
@@ -219,7 +240,7 @@ Local logs and evidence:
 .tmp/mcp-typography-read-coverage-evidence.json
 ```
 
-## Saved units and next implementation
+### Saved units and next implementation
 
 `49c8f7fd` and `1a9dc101` preserved the earlier read-only implementation.
 This continuation added `b5a10c31` native read verification, `f1afb8d1` read coverage,

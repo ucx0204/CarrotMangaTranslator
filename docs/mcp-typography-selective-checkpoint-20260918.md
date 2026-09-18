@@ -1,11 +1,32 @@
 # MCP selective typography implementation checkpoint - 2026-09-18
 
+## Current status: bundle 1 connected and automatically verified
+
+The current implementation and resume authority is
+`mcp-typography-connected-checkpoint-20260918.md`.
+At verified source `96cc3625`, production observation ownership, original-file
+and font-environment freshness checks, six selection/recovery tools, and exact
+apply/undo/redo are connected. All 26 repository gates passed, including 7,668
+passing tests, zero failures and 11 pre-existing skips. All 854 MCP tests passed.
+The earlier non-null assertion and architecture-count findings are resolved.
+
+Status: IMPLEMENTED / REGISTERED / AUTOMATIC CHECKS PASSED / LIVE TESTS DEFERRED.
+Next implementation is bundle 2: independent bubble layout, advanced typography,
+and reusable rules/presets. Bundles 2-13 are not completed. Live user/model/client
+acceptance remains deferred until the requested implementation sequence is built.
+
+## Preserved earlier checkpoints
+
+The following text records earlier work and its then-unfinished boundaries.
+Its blocked requests, missing registration and failed-check descriptions are
+historical; use the connected checkpoint above for current status.
+
 Continue only in the existing review worktree on `feat/mcp-app-bridge`.
 Bundle 1 remains in progress. Bundles 2-13 are not started. Live/model/client
 acceptance remains deferred until the requested implementation sequence is built.
 This checkpoint does NOT register remotely callable typography application tools.
 
-## Implemented internal behavior
+### Implemented internal behavior
 
 The previous analysis-service function-length finding was fixed without changing
 stage semantics, verified and published as `7ac32e96`.
@@ -29,7 +50,7 @@ Typography commits share the existing native page edit transaction. The internal
 snapshot validator rejects text, source/display geometry, images and unrequested
 fields. Undo restores the exact prior state, including absence of optional fields.
 
-## Not connected / blocked requests
+### Not connected / blocked requests
 
 The source-file freshness adapter write was refused by the tool safety checker.
 The combined request also included exporting the shared context-lease adapter;
@@ -48,7 +69,7 @@ fingerprint/error consumer counts (33 versus 32 and 62 versus 61). No rule or
 coverage floor has been disabled or lowered. The old production function-length
 finding is resolved, not merely suppressed.
 
-## Automatic verification scope
+### Automatic verification scope
 
 Core/selective lifecycle plus existing format/text batch regressions passed:
 77 tests in 10 files. This includes exact apply/undo/redo, partial commits,
@@ -69,7 +90,7 @@ The full Vitest/V8 result and new-module coverage registration follow below once
 that run completes. Current known static findings above remain, so this is not a
 full-check success claim.
 
-## Resume order
+### Resume order
 
 1. Resolve the recorded single test-lint finding and exact architecture counts.
 2. Finish the production source/catalog/profile validation and owned-observation
@@ -80,7 +101,7 @@ full-check success claim.
 5. Keep live acceptance deferred. No user app restart, artwork/library/auth change,
    actual C23 execution, Tailscale client call or download test was performed.
 
-## Final observed checks for this continuation
+### Final observed checks for this continuation
 
 The complete Vitest/V8 rerun finished with exit code 0, followed by the production
 coverage-floor checker with exit code 0. The first run's inventory-only failure
