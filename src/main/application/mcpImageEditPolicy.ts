@@ -12,7 +12,7 @@ import {
 } from "./mcpPageBatchPolicy";
 
 export type McpImageFileEvidence = { path: string; sha256: string };
-export type McpImageEditEvidence = {
+type McpImageEditEvidence = {
   files: McpImageFileEvidence[];
   mask: McpImageEditChangeView["mask"];
 };
