@@ -43,7 +43,8 @@ it.each(["session", "authorization"])(
       if (!authorized) throw new Error("revoked");
     };
     try {
-      if (!prepare) throw new Error("Typography fixture preparation is missing");
+      if (!prepare)
+        throw new Error("Typography fixture preparation is missing");
       f.prepare.mockImplementationOnce(async (...args) => {
         const result = await prepare(...args);
         if (kind === "session") f.lifetime.abort();
