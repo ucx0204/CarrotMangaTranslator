@@ -40,8 +40,10 @@ export function createMcpSelectionEditSession(
     edits,
     operations,
     analyses,
-    () => inspectStoredPublicSettings(app.appPaths, (record) =>
-      normalizeBlockFormatDefaults(asRecord(record.blockFormatDefaults), {})),
+    () =>
+      inspectStoredPublicSettings(app.appPaths, (record) =>
+        normalizeBlockFormatDefaults(asRecord(record.blockFormatDefaults), {}),
+      ),
   );
   const service = new McpPageBatchService(
     adapter.ports,
@@ -97,7 +99,8 @@ function selectionEditTools(
         write: true,
         background: true,
         description: `${direction.toUpperCase()} an owned reviewed selection plan with a fresh action requestId. Exact retries return historical receipts without reapplying. Poll carrot_get_selection_batch. Native page commits run sequentially and stop on conflict/failure/cancellation, preserving recorded earlier saves. Apply/redo recheck every analysis dependency, original hash, context and fixed evidence expiry. Undo restores exact selected blocks and optional reference fields and removes only the owned appended blocks, including the original reading-order absence; no expired model observation is needed. Later user edits conflict. No model rerun, implicit OCR/erasure/formatting, files or rendering. Cancel never automatically rolls back saved pages.`,
-        execute: async (args, owner, guard) => service.start(owner, args, direction, guard),
+        execute: async (args, owner, guard) =>
+          service.start(owner, args, direction, guard),
       }),
     );
   }
