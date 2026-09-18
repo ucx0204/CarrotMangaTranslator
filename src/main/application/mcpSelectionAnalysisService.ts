@@ -19,7 +19,7 @@ export type McpSelectionBinding = {
   membership: string;
   pages: { pageId: string; revision: string; sourceHash?: string }[];
 };
-export type McpSelectionAnalysis = {
+type McpSelectionAnalysis = {
   analysisId: string;
   owner: string;
   expiresAt: number;
@@ -44,6 +44,7 @@ const TTL = 30 * 60_000;
  * No save function or model scheduling authority is introduced here. */
 export class McpSelectionAnalysisService {
   private readonly records = new Map<string, McpSelectionAnalysis>();
+  private stopped = false;
   constructor(
     private readonly ports: Ports,
     private readonly now = Date.now,
@@ -55,6 +56,7 @@ export class McpSelectionAnalysisService {
     context: McpOperationContext,
   ) {
     context.assertAuthorized();
+    this.assertRunning();
     this.prune();
     if (this.records.size >= 16)
       throw new McpEditError(
@@ -93,6 +95,8 @@ export class McpSelectionAnalysisService {
       ...result,
       items,
     };
+    this.assertRunning();
+    context.signal.throwIfAborted();
     this.records.set(context.id, record);
     return {
       kind: "selection-analysis",
@@ -132,6 +136,7 @@ export class McpSelectionAnalysisService {
   }
   require(owner: string, id: string, guard: () => void): McpSelectionAnalysis {
     guard();
+    this.assertRunning();
     this.prune();
     const entry = this.records.get(id);
     if (!entry || entry.owner !== owner)
@@ -142,7 +147,15 @@ export class McpSelectionAnalysisService {
     return structuredClone(entry);
   }
   close() {
+    this.stopped = true;
     this.records.clear();
+  }
+  private assertRunning() {
+    if (this.stopped)
+      throw new McpEditError(
+        "not_found",
+        "Selection analysis session has closed.",
+      );
   }
   private prune() {
     for (const [id, entry] of this.records)

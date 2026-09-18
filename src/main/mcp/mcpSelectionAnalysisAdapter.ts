@@ -27,6 +27,82 @@ export function createMcpSelectionAnalysisAdapter(
   app: InpaintingJobContext,
   runtime: Runtime = {},
 ) {
+  const analyses = createAnalysisService(app, runtime);
+  return {
+    analyses,
+    run: async (
+      owner: string,
+      input: McpSelectionInput,
+      operation: McpOperationContext,
+    ) => {
+      operation.assertAuthorized();
+      const settings = await getAppSettings(app.appPaths);
+      assertPermissions(input, settings.modelProvider);
+      operation.assertAuthorized();
+      return withExecutionSettings(settings, () =>
+        runMcpAppJob(
+          app,
+          operation,
+          "gemma-analysis",
+          async (context) => {
+            const saved = await readWorkContextForEdit(input.chapterId);
+            validateMcpSelection(saved, input);
+            context.assertAuthorized();
+            reserveJobChapter(
+              app.jobs,
+              context.id,
+              saved.chapter,
+              input.pages.map((page) => page.pageId),
+            );
+            for (const page of input.pages) {
+              await acquireJobPage(
+                app.jobs,
+                context.id,
+                input.chapterId,
+                page.pageId,
+                openChapter,
+              );
+              context.assertAuthorized();
+            }
+            return withExecutionSettings(settings, () =>
+              analyses.run(owner, input, context),
+            );
+          },
+          {
+            resources:
+              !("expectedEngine" in input) || settings.modelProvider === "gemma"
+                ? [{ kind: "model-runtime", scope: "*", access: "write" }]
+                : [],
+          },
+        ),
+      );
+    },
+  };
+}
+function assertPermissions(input: McpSelectionInput, provider: string) {
+  if (!("expectedEngine" in input)) {
+    if (!input.allowAssetDownloads)
+      throw new McpEditError(
+        "access_denied",
+        "Selected native OCR requires explicit app-managed asset permission. Installed-only preparation is not exposed.",
+      );
+  } else {
+    if (provider !== input.expectedEngine)
+      throw new McpEditError(
+        "revision_conflict",
+        "Configured translation provider changed. No alternate engine was started.",
+      );
+    if (
+      provider === "gemma" ? !input.allowAssetDownloads : !input.allowExternal
+    )
+      throw new McpEditError(
+        "access_denied",
+        "This selection lacks permission for its configured local assets or external text processing.",
+      );
+  }
+}
+
+function createAnalysisService(app: InpaintingJobContext, runtime: Runtime) {
   const analyses = new McpSelectionAnalysisService({
     read: readWorkContextForEdit,
     verify: verifyMcpSelectionEvidence,
@@ -64,74 +140,5 @@ export function createMcpSelectionAnalysisAdapter(
       return { items, binding };
     },
   });
-  return {
-    analyses,
-    run: async (
-      owner: string,
-      input: McpSelectionInput,
-      operation: McpOperationContext,
-    ) => {
-      operation.assertAuthorized();
-      const settings = await getAppSettings(app.appPaths);
-      assertPermissions(input, settings.modelProvider);
-      operation.assertAuthorized();
-      return withExecutionSettings(settings, () =>
-        runMcpAppJob(
-          app,
-          operation,
-          "gemma-analysis",
-          async (context) => {
-            const saved = await readWorkContextForEdit(input.chapterId);
-            validateMcpSelection(saved, input);
-            context.assertAuthorized();
-            reserveJobChapter(
-              app.jobs,
-              context.id,
-              saved.chapter,
-              input.pages.map((page) => page.pageId),
-            );
-            for (const page of input.pages) {
-              await acquireJobPage(
-                app.jobs,
-                context.id,
-                input.chapterId,
-                page.pageId,
-                openChapter,
-              );
-              context.assertAuthorized();
-            }
-            return analyses.run(owner, input, context);
-          },
-          {
-            resources:
-              !("expectedEngine" in input) || settings.modelProvider === "gemma"
-                ? [{ kind: "model-runtime", scope: "*", access: "write" }]
-                : [],
-          },
-        ),
-      );
-    },
-  };
-}
-function assertPermissions(input: McpSelectionInput, provider: string) {
-  if (!("expectedEngine" in input)) {
-    if (!input.allowAssetDownloads)
-      throw new McpEditError(
-        "access_denied",
-        "Selected native OCR requires explicit app-managed asset permission. Installed-only preparation is not exposed.",
-      );
-  } else {
-    if (provider !== input.expectedEngine)
-      throw new McpEditError(
-        "revision_conflict",
-        "Configured translation provider changed. No alternate engine was started.",
-      );
-    if (
-      provider === "gemma" ? !input.allowAssetDownloads : !input.allowExternal
-    )
-      throw new McpEditError(
-        "access_denied",
-        "This selection lacks permission for its configured local assets or external text processing.",
-      );
-  }
+  return analyses;
 }

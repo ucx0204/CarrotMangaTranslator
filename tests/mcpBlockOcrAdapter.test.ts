@@ -1,3 +1,4 @@
+import { nativePng } from "./mcpNativePng.fixture";
 import { randomUUID, createHash } from "node:crypto";
 import { readFile, writeFile, access } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -7,19 +8,6 @@ import type { recognizeMcpBlock } from "../src/main/mcp/mcpBlockOcrAdapter";
 import { recoveryLibrary } from "./mcpErasureRecovery.fixture";
 
 type Runtime = NonNullable<Parameters<typeof recognizeMcpBlock>[5]>;
-function nativePng(bytes: Buffer) {
-  const png = PNG.sync.read(bytes);
-  return {
-    isEmpty: () => false,
-    getSize: () => ({ width: png.width, height: png.height }),
-    toPNG: () => PNG.sync.write(png),
-    crop: (rect: { x: number; y: number; width: number; height: number }) => {
-      const target = new PNG({ width: rect.width, height: rect.height });
-      PNG.bitblt(png, target, rect.x, rect.y, rect.width, rect.height, 0, 0);
-      return nativePng(PNG.sync.write(target));
-    },
-  };
-}
 async function fixture() {
   const nativeImage = {
     createFromPath: () => ({ getSize: () => ({ width: 1000, height: 1600 }) }),
@@ -304,6 +292,24 @@ it("composes the actual block OCR executor under app page/model ownership withou
     expect(f.app.jobs.gate.activities).toEqual([]);
   } finally {
     stop();
+    await f.close();
+  }
+});
+
+it("still releases the OCR runtime and temporary crop if progress reporting fails", async () => {
+  const f = await fixture();
+  f.operation.progress.mockImplementation((value) => {
+    if (value.phase === "releasing_model") throw new Error("progress failed");
+  });
+  try {
+    await expect(f.run()).rejects.toThrow("progress failed");
+    expect(f.runtime.collect).toHaveBeenCalledOnce();
+    expect(f.runtime.release).toHaveBeenCalledOnce();
+    const file = vi.mocked(f.runtime.collect).mock.calls[0][0].imagePath;
+    await expect(access(dirname(file))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  } finally {
     await f.close();
   }
 });

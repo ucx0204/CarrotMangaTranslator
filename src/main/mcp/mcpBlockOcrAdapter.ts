@@ -65,7 +65,11 @@ export async function recognizeMcpBlock(
   } catch (error) {
     failures.push(error);
   }
-  operation.progress({ phase: "releasing_model" });
+  try {
+    operation.progress({ phase: "releasing_model" });
+  } catch (error) {
+    failures.push(error);
+  }
   try {
     await runtime.release("mcp-block-ocr-finished");
   } catch (error) {

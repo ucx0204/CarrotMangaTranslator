@@ -1,4 +1,8 @@
-import { McpSelectionOcrSchema, McpSelectionTranslationSchema, McpSelectionAnalysisReferenceSchema } from "../../shared/mcpSelectionAnalysis";
+import {
+  McpSelectionOcrSchema,
+  McpSelectionTranslationSchema,
+  McpSelectionAnalysisReferenceSchema,
+} from "../../shared/mcpSelectionAnalysis";
 import {
   McpLetteringPrepareSchema,
   McpLetteringPlanReferenceSchema,
@@ -231,8 +235,10 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
 }
 
 function validJobTarget(record: McpStoredJob): boolean {
-  if (record.kind === "selectionOcr") return McpSelectionOcrSchema.safeParse(record.parameters).success;
-  if (record.kind === "selectionTranslation") return McpSelectionTranslationSchema.safeParse(record.parameters).success;
+  if (record.kind === "selectionOcr")
+    return McpSelectionOcrSchema.safeParse(record.parameters).success;
+  if (record.kind === "selectionTranslation")
+    return McpSelectionTranslationSchema.safeParse(record.parameters).success;
   if (record.kind === "letteringPrepare")
     return McpLetteringPrepareSchema.safeParse(record.parameters).success;
   if (record.kind === "typographyAnalysis")

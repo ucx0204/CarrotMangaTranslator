@@ -6,8 +6,8 @@ import { mcpAppEnvironment } from "./mcpAppEnvironment.fixture";
 import { editingChapter } from "./mcpEditing.fixture";
 import type { FontChapterC18Port } from "../src/main/pipeline/fontChapterC18Types";
 
-export async function typographyAnalysisAppFixture() {
-  const env = await mcpAppEnvironment();
+export async function typographyAnalysisAppFixture(nativeImage?: unknown) {
+  const env = await mcpAppEnvironment(nativeImage);
   const directory = join(
     env.libraryDir,
     "works",

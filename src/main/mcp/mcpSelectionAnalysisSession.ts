@@ -17,47 +17,7 @@ export function createMcpSelectionAnalysisSession(
 ) {
   const lifetime = new AbortController();
   const adapter = createMcpSelectionAnalysisAdapter(app, runtime);
-  const schemas = {
-    selectionOcr: McpSelectionOcrSchema,
-    selectionTranslation: McpSelectionTranslationSchema,
-  };
-  const start = (kind: keyof typeof schemas) => ({
-    ...createMcpBatchTool({
-      name:
-        kind === "selectionOcr"
-          ? "carrot_run_selection_ocr"
-          : "carrot_run_selection_translation",
-      schema: schemas[kind],
-      scopes: ["carrot.read", "carrot.process"],
-      write: false,
-      background: true,
-      description: description(kind),
-      execute: async (value, owner, guard) => {
-        const input = schemas[kind].parse(value);
-        return operations.start({
-          owner,
-          kind,
-          requestId: input.requestId,
-          parameters: input,
-          assertAuthorized: guard,
-          execute: (operation) => {
-            const signal = AbortSignal.any([operation.signal, lifetime.signal]);
-            return adapter.run(owner, input, {
-              ...operation,
-              signal,
-              assertAuthorized: () => {
-                signal.throwIfAborted();
-                operation.assertAuthorized();
-              },
-            });
-          },
-        });
-      },
-    }),
-    readOnly: false,
-    destructive: false,
-    openWorld: true,
-  });
+  const start = createStarter(operations, adapter, lifetime);
   return {
     tools: [
       ...(enabled
@@ -102,4 +62,53 @@ function description(kind: "selectionOcr" | "selectionTranslation") {
         common
     : "Translate only selected saved source strings through the existing text-only app model boundary. Exactly one model request per eligible block, sequentially; this is not a joint chapter translation. No OCR or image input. expectedEngine must match the configured provider. Gemma requires allowAssetDownloads=true; Codex/hosted HTTPS API requires allowExternal=true. Local compatible HTTP servers are not supported by this boundary. Existing nonempty translations are preserved unless preserveExistingTranslations=false is explicit; there is no invented manual/automatic translation flag. Generated and empty-source blocks are excluded. Optional sourceLanguage/targetLanguage/contextMode are task-local. Saved memory is read, never rewritten." +
         common;
+}
+
+function createStarter(
+  operations: McpOperationService,
+  adapter: ReturnType<typeof createMcpSelectionAnalysisAdapter>,
+  lifetime: AbortController,
+) {
+  const schemas = {
+    selectionOcr: McpSelectionOcrSchema,
+    selectionTranslation: McpSelectionTranslationSchema,
+  };
+  const start = (kind: keyof typeof schemas) => ({
+    ...createMcpBatchTool({
+      name:
+        kind === "selectionOcr"
+          ? "carrot_run_selection_ocr"
+          : "carrot_run_selection_translation",
+      schema: schemas[kind],
+      scopes: ["carrot.read", "carrot.process"],
+      write: false,
+      background: true,
+      description: description(kind),
+      execute: async (value, owner, guard) => {
+        const input = schemas[kind].parse(value);
+        return operations.start({
+          owner,
+          kind,
+          requestId: input.requestId,
+          parameters: input,
+          assertAuthorized: guard,
+          execute: (operation) => {
+            const signal = AbortSignal.any([operation.signal, lifetime.signal]);
+            return adapter.run(owner, input, {
+              ...operation,
+              signal,
+              assertAuthorized: () => {
+                signal.throwIfAborted();
+                operation.assertAuthorized();
+              },
+            });
+          },
+        });
+      },
+    }),
+    readOnly: false,
+    destructive: false,
+    openWorld: true,
+  });
+  return start;
 }

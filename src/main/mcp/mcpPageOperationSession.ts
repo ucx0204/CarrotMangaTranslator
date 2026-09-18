@@ -133,7 +133,11 @@ function createAuxiliarySessions(
     editing,
     Boolean(preferences.allowEditing && preferences.allowProcessing),
   );
-  const selection = createMcpSelectionAnalysisSession(app, operations, Boolean(preferences.allowProcessing));
+  const selection = createMcpSelectionAnalysisSession(
+    app,
+    operations,
+    Boolean(preferences.allowProcessing),
+  );
   const stop = () => {
     context.stop();
     typography.stop();
@@ -141,7 +145,12 @@ function createAuxiliarySessions(
     selection.stop();
   };
   return {
-    tools: [...context.tools, ...typography.tools, ...lettering.tools, ...selection.tools],
+    tools: [
+      ...context.tools,
+      ...typography.tools,
+      ...lettering.tools,
+      ...selection.tools,
+    ],
     stop,
     close: async () => {
       stop();
