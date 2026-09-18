@@ -96,7 +96,8 @@ function resolveBlockFormatDirection(
 
 function resolveTextAlign(
   value: unknown,
-  fallback: BlockFormatDefaults["textAlign"]): BlockFormatDefaults["textAlign"] {
+  fallback: BlockFormatDefaults["textAlign"],
+): BlockFormatDefaults["textAlign"] {
   return value === "left" || value === "center" || value === "right"
     ? value
     : fallback;
