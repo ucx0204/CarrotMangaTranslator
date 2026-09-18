@@ -20,9 +20,15 @@ export function createMcpSelectionAnalysisSession(
   const lifetime = new AbortController();
   const adapter = createMcpSelectionAnalysisAdapter(app, runtime);
   const start = createStarter(operations, adapter, lifetime);
-  const edits = enabled && editing
-    ? createMcpSelectionEditSession(app, operations, adapter.analyses, editing)
-    : undefined;
+  const edits =
+    enabled && editing
+      ? createMcpSelectionEditSession(
+          app,
+          operations,
+          adapter.analyses,
+          editing,
+        )
+      : undefined;
   return {
     tools: [
       ...(edits?.tools ?? []),
@@ -53,7 +59,10 @@ export function createMcpSelectionAnalysisSession(
         },
       }),
     ],
-    stop: () => { lifetime.abort(); edits?.stop(); },
+    stop: () => {
+      lifetime.abort();
+      edits?.stop();
+    },
     close: async () => {
       lifetime.abort();
       await edits?.close();
