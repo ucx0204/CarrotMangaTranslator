@@ -10,12 +10,12 @@ model lifetime, batch adapter, prepare tool, session and two transport contracts
 
 New-module totals only (not whole-repository coverage):
 
-| Metric | Covered | Total |
-| --- | --- | --- |
-| Lines | 320 | 343 |
-| Statements | 347 | 375 |
-| Functions | 104 | 106 |
-| Branches | 196 | 228 |
+| Metric     | Covered | Total |
+| ---------- | ------- | ----- |
+| Lines      | 320     | 343   |
+| Statements | 347     | 375   |
+| Functions  | 104     | 106   |
+| Branches   | 196     | 228   |
 
 All 1,572 inherited floor records, provenance and deletion entries were retained.
 Only 11 measured new rows were added. The introduced-file inventory changes from
