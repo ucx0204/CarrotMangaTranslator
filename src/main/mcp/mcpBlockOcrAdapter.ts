@@ -40,6 +40,10 @@ export async function recognizeMcpBlock(
   cropRect: PixelRect,
   operation: McpOperationContext,
   runtime: Runtime = runtimePort,
+  overrides: {
+    sourceLanguage?: string;
+    ocrInputKind?: "page" | "known-block-crop";
+  } = {},
 ) {
   operation.assertAuthorized();
   const settings = await getAppSettings(app.appPaths);
@@ -52,12 +56,10 @@ export async function recognizeMcpBlock(
   try {
     evidence = await readCrop(app, page, cropRect, operation, {
       directory,
-      options: buildBaseOptions(
-        operation.id,
-        directory,
-        settings,
-        app.appPaths,
-      ),
+      options: {
+        ...buildBaseOptions(operation.id, directory, settings, app.appPaths),
+        ...overrides,
+      },
       runtime,
     });
   } catch (error) {
@@ -127,7 +129,7 @@ async function readCrop(
     outputDir: join(input.directory, "ocr"),
     label: "mcp-block-ocr",
     skipOcrBboxHints: false,
-    ocrInputKind: "known-block-crop" as const,
+    ocrInputKind: input.options.ocrInputKind ?? "known-block-crop",
     abortSignal: operation.signal,
     onProgress: () =>
       operation.progress({ phase: "ocr_running", completed: 0, total: 1 }),

@@ -115,6 +115,8 @@ export class McpOperationService {
         "exportZip",
         "typographyAnalysis",
         "letteringPrepare",
+        "selectionOcr",
+        "selectionTranslation",
       ].includes(entry.kind)
     )
       throw new McpEditError(

@@ -1,3 +1,4 @@
+import { createMcpSelectionAnalysisSession } from "./mcpSelectionAnalysisSession";
 import { createMcpLetteringSession } from "./mcpLetteringSession";
 import { createMcpSourceSizeExecutor } from "./mcpSourceSizeAdapter";
 import { createMcpTypographyAnalysisSession } from "./mcpTypographyAnalysisSession";
@@ -132,16 +133,19 @@ function createAuxiliarySessions(
     editing,
     Boolean(preferences.allowEditing && preferences.allowProcessing),
   );
+  const selection = createMcpSelectionAnalysisSession(app, operations, Boolean(preferences.allowProcessing));
   const stop = () => {
     context.stop();
     typography.stop();
     lettering.stop();
+    selection.stop();
   };
   return {
-    tools: [...context.tools, ...typography.tools, ...lettering.tools],
+    tools: [...context.tools, ...typography.tools, ...lettering.tools, ...selection.tools],
     stop,
     close: async () => {
       stop();
+      await selection.close();
       await lettering.close();
       await typography.close();
       await context.close();

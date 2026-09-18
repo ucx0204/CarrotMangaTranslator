@@ -1,3 +1,4 @@
+import { mcpSelectionAnalysisOutputs } from "../../shared/mcpSelectionAnalysis";
 import { mcpLetteringResourceOutputs } from "../../shared/mcpLetteringResources";
 import { mcpLetteringOutputs } from "../../shared/mcpLettering";
 import { mcpTypographyBatchOutputs } from "../../shared/mcpTypographyBatch";
@@ -114,6 +115,7 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
   ...mcpTypographyBatchOutputs,
   ...mcpTypographyReadOutputs,
   ...mcpLetteringOutputs,
+  ...mcpSelectionAnalysisOutputs,
   ...mcpLetteringResourceOutputs,
   ...mcpReviewOutputSchemas,
   ...mcpStructureOutputs,
@@ -318,6 +320,8 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
   carrot_run_page_source_size: mcpJobReceiptOutput,
   carrot_run_typography_analysis: mcpJobReceiptOutput,
   carrot_prepare_lettering_batch: mcpJobReceiptOutput,
+  carrot_run_selection_ocr: mcpJobReceiptOutput,
+  carrot_run_selection_translation: mcpJobReceiptOutput,
   carrot_cancel_job: mcpJobReceiptOutput,
   carrot_export_page_png: mcpJobReceiptOutput,
   carrot_export_pages_png: mcpJobReceiptOutput,

@@ -1,3 +1,4 @@
+import { McpSelectionOcrSchema, McpSelectionTranslationSchema, McpSelectionAnalysisReferenceSchema } from "../../shared/mcpSelectionAnalysis";
 import {
   McpLetteringPrepareSchema,
   McpLetteringPlanReferenceSchema,
@@ -44,6 +45,8 @@ export const mcpPersistedTargetSchema = z.union([
   McpExportZipTargetSchema,
   McpTypographyAnalysisTargetSchema,
   McpLetteringPrepareSchema,
+  McpSelectionOcrSchema,
+  McpSelectionTranslationSchema,
 ]);
 
 export const mcpJobResultMetadataSchema = z.object({
@@ -80,6 +83,7 @@ export const mcpJobResultMetadataSchema = z.object({
   sourceSize: McpSourceSizeObservationSchema.optional(),
   typographyAnalysis: McpTypographyAnalysisObservationSchema.optional(),
   letteringPlan: McpLetteringPlanReferenceSchema.optional(),
+  selectionAnalysis: McpSelectionAnalysisReferenceSchema.optional(),
   blockTranslation: McpBlockTranslationProposalSchema.optional(),
   proposalExpired: z.boolean().optional(),
   noSourceText: z.boolean().optional(),
@@ -99,6 +103,8 @@ const jobSchema = z
       "sourceSize",
       "typographyAnalysis",
       "letteringPrepare",
+      "selectionOcr",
+      "selectionTranslation",
       "blockTranslation",
       "erase",
       "exportPng",
@@ -157,6 +163,10 @@ export function publicMcpJobResult(value: unknown, now: number) {
     const { typographyAnalysis: _analysis, ...metadata } = result;
     return { ...metadata, observationExpired: true };
   }
+  if (result.selectionAnalysis && result.selectionAnalysis.expiresAt <= now) {
+    const { selectionAnalysis: _selection, ...metadata } = result;
+    return { ...metadata, observationExpired: true };
+  }
   if (result.letteringPlan && result.letteringPlan.expiresAt <= now) {
     const { letteringPlan: _plan, ...metadata } = result;
     return { ...metadata, proposalExpired: true };
@@ -176,13 +186,14 @@ export function persistedMcpJobResult(
     sourceSize,
     typographyAnalysis,
     letteringPlan,
+    selectionAnalysis,
     blockTranslation,
     contextResearch,
     ...metadata
   } = mcpJobResultMetadataSchema.parse(result);
   return {
     ...metadata,
-    ...(blockOcr || sourceSize || typographyAnalysis
+    ...(blockOcr || sourceSize || typographyAnalysis || selectionAnalysis
       ? { observationExpired: true }
       : {}),
     ...(blockTranslation || contextResearch || letteringPlan
@@ -220,6 +231,8 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
 }
 
 function validJobTarget(record: McpStoredJob): boolean {
+  if (record.kind === "selectionOcr") return McpSelectionOcrSchema.safeParse(record.parameters).success;
+  if (record.kind === "selectionTranslation") return McpSelectionTranslationSchema.safeParse(record.parameters).success;
   if (record.kind === "letteringPrepare")
     return McpLetteringPrepareSchema.safeParse(record.parameters).success;
   if (record.kind === "typographyAnalysis")
