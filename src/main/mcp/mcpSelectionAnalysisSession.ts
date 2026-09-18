@@ -8,18 +8,24 @@ import type { McpOperationService } from "../application/mcpOperationService";
 import { McpEditError } from "../application/mcpEditPolicy";
 import { createMcpBatchTool } from "./mcpBatchTool";
 import { createMcpSelectionAnalysisAdapter } from "./mcpSelectionAnalysisAdapter";
+import { createMcpSelectionEditSession } from "./mcpSelectionEditSession";
 
 export function createMcpSelectionAnalysisSession(
   app: InpaintingJobContext,
   operations: McpOperationService,
   enabled: boolean,
   runtime?: Parameters<typeof createMcpSelectionAnalysisAdapter>[1],
+  editing?: Parameters<typeof createMcpSelectionEditSession>[3],
 ) {
   const lifetime = new AbortController();
   const adapter = createMcpSelectionAnalysisAdapter(app, runtime);
   const start = createStarter(operations, adapter, lifetime);
+  const edits = enabled && editing
+    ? createMcpSelectionEditSession(app, operations, adapter.analyses, editing)
+    : undefined;
   return {
     tools: [
+      ...(edits?.tools ?? []),
       ...(enabled
         ? [start("selectionOcr"), start("selectionTranslation")]
         : []),
@@ -29,7 +35,7 @@ export function createMcpSelectionAnalysisSession(
         scopes: ["carrot.read"],
         write: false,
         description:
-          "Read an owned completed selected OCR/translation analysis, at most 10 items per page. Poll carrot_get_job first, then use result.selectionAnalysis.analysisId. Evidence expires 30 minutes after completion or at server restart. Includes exact target versions, exclusions, OCR subregions and overlap IDs, or individual translation proposals. Never runs models or saves edits. Current text may have changed: existing edit/create tools require a fresh page revision and an explicit reviewed result. This slice has no analysis-bound automatic apply or new block-reference editor.",
+          "Read an owned completed selected OCR/translation analysis, at most 10 items per page. Poll carrot_get_job first, then use result.selectionAnalysis.analysisId. Evidence expires 30 minutes after completion or at server restart. Includes exact target versions, exclusions, OCR subregions and overlap IDs, or individual translation proposals. Never runs models or saves edits. Select reviewed item IDs with carrot_preview_selection_batch for analysis-bound application; do not substitute fresh revisions to force stale evidence.",
         execute: async (value, owner, guard) => {
           const input = McpSelectionAnalysisGetSchema.parse(value);
           guard();
@@ -47,9 +53,10 @@ export function createMcpSelectionAnalysisSession(
         },
       }),
     ],
-    stop: () => lifetime.abort(),
+    stop: () => { lifetime.abort(); edits?.stop(); },
     close: async () => {
       lifetime.abort();
+      await edits?.close();
       adapter.analyses.close();
     },
   };
