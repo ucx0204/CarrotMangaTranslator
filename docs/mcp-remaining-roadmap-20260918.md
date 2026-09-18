@@ -12,7 +12,7 @@ replace approved model assets, merge master or publish a release implicitly.
 | Order | Remaining bundle                                                                     | Status                                              |
 | ----- | ------------------------------------------------------------------------------------ | --------------------------------------------------- |
 | 1     | C23 independent analysis; selective font/source-size application and exact undo/redo | Implemented; automatic checks passed; live deferred |
-| 2     | Bubble layout, advanced typography, reusable rules/presets                           | Not started                                         |
+| 2     | Bubble layout, advanced typography, reusable rules/presets                           | In progress; layout/style slice implemented         |
 | 3     | Remaining region/multi-block OCR, translation and block references                   | Not started                                         |
 | 4     | Multi-block erasure, free/protected masks, localized correction/restoration          | Not started                                         |
 | 5     | External image/mask upload, validation and layer incorporation                       | Not started                                         |
@@ -29,7 +29,28 @@ Live C23 quality, model cleanup, actual originals, PNG/ZIP attachment reception,
 download byte/hash checks, restart/reconnection and end-to-end client acceptance
 belong to the final integrated live-test queue, not intermediate completion claims.
 
-## Current bundle 1 completion and next implementation
+## Current bundle 2 continuation
+
+Current authority: `mcp-lettering-checkpoint-20260918.md`, based on `c3b9d1a1`.
+Native geometry detection, model-free natural wrapping, advanced effects and
+transforms, literal/conditional rich-text styling, and exact batch apply/undo/redo
+are source-registered. Preparation never saves artwork; its six tools reuse the
+existing job, page/context ownership, transaction and history implementations.
+
+Saved preset/rule/sequence/block-library lookup remains unimplemented after a tool
+write was refused. It is not advertised; inline validated native style-rule drafts
+are supported instead. Stronger all-selected-page forward validation and the
+recorded two complexity/seven architecture findings also remain. No checks were
+weakened and bundle 2 is not complete. Do not start bundle 3 yet.
+
+The source and focused regression checkpoint is `1aa7e6c0`; measured coverage,
+manual-layout and receipt/retry follow-up is `2db68450`. All 880 MCP tests in 118
+files pass. Full Vitest/V8 finished with 7,694 passed, zero failed and 11 existing
+skips; the coverage-floor checker and Windows build exited 0. The two lint and
+seven architecture findings remain, so this is not all-gates success. Exact
+results and resume tasks are in the lettering checkpoint. Live acceptance stays deferred.
+
+## Verified bundle 1 completion
 
 Bundle 1 is implemented and its six selection/recovery tools are registered.
 All 26 repository gates passed at source `96cc3625`: 7,668 passing tests,
@@ -38,8 +59,8 @@ blocked source validation, owned-observation binding and static findings are
 resolved. See `mcp-typography-connected-checkpoint-20260918.md` for exact scope,
 coverage provenance, limitations and verification evidence.
 
-Next: bundle 2, independent bubble layout, advanced typography and reusable
-rules/presets. Do not repeat bundle 1 or require an intermediate live test.
+Continue bundle 2 at the current checkpoint above. Do not repeat bundle 1 or
+require an intermediate live test.
 Session-only recovery is not durable undo; bundle 7 remains separate.
 
 ## Historical bundle 1 checkpoints
@@ -68,7 +89,7 @@ separate implemented capability, not a claim that application/recovery is comple
 Current automatic verification and published checkpoints are recorded in
 `mcp-typography-checkpoint-20260918.md`; final live acceptance remains deferred.
 
-## Latest continuation after bdad659f
+## Historical continuation after bdad659f
 
 The old analysis function-length issue is resolved (`7ac32e96`). The internal
 selective application/recovery core is implemented (`4decdbcd`), with shared
