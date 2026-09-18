@@ -16,7 +16,7 @@ import type { createMcpSelectionAnalysisSession } from "../src/main/mcp/mcpSelec
 type Runtime = NonNullable<
   Parameters<typeof createMcpSelectionAnalysisSession>[3]
 >;
-export async function selectionAppFixture() {
+export async function selectionAppFixture(enableEditing = false) {
   const f = await typographyAnalysisAppFixture({
     createFromBuffer: nativePng,
     createFromPath: () => ({ getSize: () => ({ width: 100, height: 100 }) }),
@@ -112,11 +112,13 @@ export async function selectionAppFixture() {
         ),
     },
   };
+  const editing = { assertWritable: vi.fn(async () => {}), notifySaved: vi.fn() };
   const session = createMcpSelectionAnalysisSession(
     f.app,
     operations,
     true,
     runtime,
+    enableEditing ? editing : undefined,
   );
   const tools = [...session.tools, ...createMcpOperationTools(operations, {})];
   const owner = "selection-owner";
@@ -207,6 +209,7 @@ export async function selectionAppFixture() {
     operations,
     persistence,
     session,
+    editing,
     runtime,
     tools,
     owner,
