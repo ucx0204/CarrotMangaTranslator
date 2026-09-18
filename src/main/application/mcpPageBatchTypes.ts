@@ -49,7 +49,7 @@ export type BatchPolicy<
   plan: (
     saved: McpContextSnapshot,
     input: I,
-    access: { owner: string; guard: () => void },
+    access: { owner: string; guard: () => void; signal?: AbortSignal },
   ) => P | Promise<P>;
   request: (
     page: BatchPage<C>,

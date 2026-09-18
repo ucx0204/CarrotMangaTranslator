@@ -287,7 +287,8 @@ export class McpPageEditService {
       applyMcpTypographySnapshots,
     );
   }
-  private async commitSnapshotBatch<R extends Target>(
+  /** Internal calculated snapshots only; transport never accepts this callback or raw blocks. */
+  async commitSnapshotBatch<R extends Target>(
     request: R,
     membership: string,
     authorize: () => void,

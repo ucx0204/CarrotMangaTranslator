@@ -107,7 +107,12 @@ export class McpPageBatchService<
       );
     return prior;
   }
-  async preview(owner: string, value: unknown, guard: () => void) {
+  async preview(
+    owner: string,
+    value: unknown,
+    guard: () => void,
+    signal?: AbortSignal,
+  ) {
     this.check(owner, guard);
     const input = this.policy.parse(value);
     this.prune();
@@ -116,7 +121,7 @@ export class McpPageBatchService<
     this.check(owner, guard);
     const prior = this.priorPreview(owner, input, signature);
     if (prior) return this.summary(prior, saved);
-    const plan = await this.policy.plan(saved, input, { owner, guard });
+    const plan = await this.policy.plan(saved, input, { owner, guard, signal });
     this.check(owner, guard);
     this.prune();
     const raced = this.priorPreview(owner, input, signature);

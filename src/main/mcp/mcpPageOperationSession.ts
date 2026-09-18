@@ -1,3 +1,4 @@
+import { createMcpLetteringSession } from "./mcpLetteringSession";
 import { createMcpSourceSizeExecutor } from "./mcpSourceSizeAdapter";
 import { createMcpTypographyAnalysisSession } from "./mcpTypographyAnalysisSession";
 import { createMcpTypographyBatchSession } from "./mcpTypographyBatchSession";
@@ -125,15 +126,23 @@ function createAuxiliarySessions(
     editing,
     Boolean(preferences.allowEditing && preferences.allowProcessing),
   );
+  const lettering = createMcpLetteringSession(
+    app,
+    operations,
+    editing,
+    Boolean(preferences.allowEditing && preferences.allowProcessing),
+  );
   const stop = () => {
     context.stop();
     typography.stop();
+    lettering.stop();
   };
   return {
-    tools: [...context.tools, ...typography.tools],
+    tools: [...context.tools, ...typography.tools, ...lettering.tools],
     stop,
     close: async () => {
       stop();
+      await lettering.close();
       await typography.close();
       await context.close();
     },

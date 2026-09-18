@@ -1,3 +1,7 @@
+import {
+  McpLetteringPrepareSchema,
+  McpLetteringPlanReferenceSchema,
+} from "../../shared/mcpLettering";
 import { z } from "zod/v4";
 import {
   McpTypographyAnalysisTargetSchema,
@@ -39,6 +43,7 @@ export const mcpPersistedTargetSchema = z.union([
   McpExportPagesTargetSchema,
   McpExportZipTargetSchema,
   McpTypographyAnalysisTargetSchema,
+  McpLetteringPrepareSchema,
 ]);
 
 export const mcpJobResultMetadataSchema = z.object({
@@ -74,6 +79,7 @@ export const mcpJobResultMetadataSchema = z.object({
   blockOcr: McpBlockOcrObservationSchema.optional(),
   sourceSize: McpSourceSizeObservationSchema.optional(),
   typographyAnalysis: McpTypographyAnalysisObservationSchema.optional(),
+  letteringPlan: McpLetteringPlanReferenceSchema.optional(),
   blockTranslation: McpBlockTranslationProposalSchema.optional(),
   proposalExpired: z.boolean().optional(),
   noSourceText: z.boolean().optional(),
@@ -92,6 +98,7 @@ const jobSchema = z
       "blockOcr",
       "sourceSize",
       "typographyAnalysis",
+      "letteringPrepare",
       "blockTranslation",
       "erase",
       "exportPng",
@@ -154,6 +161,10 @@ export function publicMcpJobResult(value: unknown, now: number) {
     const { typographyAnalysis: _analysis, ...metadata } = result;
     return { ...metadata, observationExpired: true };
   }
+  if (result?.letteringPlan && result.letteringPlan.expiresAt <= now) {
+    const { letteringPlan: _plan, ...metadata } = result;
+    return { ...metadata, proposalExpired: true };
+  }
   if (result?.contextResearch && result.contextResearch.expiresAt <= now)
     return { ...result, proposalExpired: true };
   return result;
@@ -167,6 +178,7 @@ export function persistedMcpJobResult(
     blockOcr,
     sourceSize,
     typographyAnalysis,
+    letteringPlan,
     blockTranslation,
     contextResearch,
     ...metadata
@@ -176,7 +188,9 @@ export function persistedMcpJobResult(
     ...(blockOcr || sourceSize || typographyAnalysis
       ? { observationExpired: true }
       : {}),
-    ...(blockTranslation || contextResearch ? { proposalExpired: true } : {}),
+    ...(blockTranslation || contextResearch || letteringPlan
+      ? { proposalExpired: true }
+      : {}),
     ...(contextResearch
       ? {
           queryCount: contextResearch.queryCount,
@@ -209,6 +223,8 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
 }
 
 function validJobTarget(record: McpStoredJob): boolean {
+  if (record.kind === "letteringPrepare")
+    return McpLetteringPrepareSchema.safeParse(record.parameters).success;
   if (record.kind === "typographyAnalysis")
     return McpTypographyAnalysisTargetSchema.safeParse(record.parameters)
       .success;

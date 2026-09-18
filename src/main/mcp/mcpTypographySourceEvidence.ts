@@ -40,7 +40,7 @@ export async function verifyMcpTypographySourceEvidence(
         "revision_conflict",
         "Original dimensions changed.",
       );
-    const hash = await originalHash(page.imagePath, guard);
+    const hash = await hashMcpOriginalImage(page.imagePath, guard);
     guard();
     if (hash !== inspected.sourceImageSha256)
       throw new McpEditError(
@@ -91,7 +91,10 @@ function assertFresh(
     );
 }
 
-async function originalHash(path: string, guard: () => void): Promise<string> {
+export async function hashMcpOriginalImage(
+  path: string,
+  guard: () => void,
+): Promise<string> {
   const hash = createHash("sha256");
   let bytes = 0;
   // Iteration closes the stream on a guard, size-limit or filesystem failure.
