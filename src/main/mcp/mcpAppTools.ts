@@ -1,3 +1,6 @@
+import { McpTypographyReadService } from "../application/mcpTypographyReadService";
+import { createMcpTypographyReadTools } from "./mcpTypographyReadTools";
+import { readMcpFontCatalog } from "./mcpFontCatalogAdapter";
 import { createMcpTranslationBatchTools } from "./mcpTranslationBatchTools";
 import { createMcpFormatBatchTools } from "./mcpFormatBatchTools";
 import {
@@ -44,6 +47,7 @@ export function createMcpAppTools(options: {
     notifySaved: options.notifySaved,
   });
   const extensions = [
+    ...typographyReadTools(),
     ...(options.additionalTools ?? []),
     ...createMcpTranslationBatchTools(
       createMcpTranslationBatchPorts(edits),
@@ -104,4 +108,13 @@ export function createMcpAppTools(options: {
         ? ["carrot.read", "carrot.images"]
         : (tool.requiredScopes ?? ["carrot.read"]),
   }));
+}
+
+function typographyReadTools(): McpTool[] {
+  return createMcpTypographyReadTools(
+    new McpTypographyReadService({
+      openChapter,
+      readCatalog: readMcpFontCatalog,
+    }),
+  );
 }
