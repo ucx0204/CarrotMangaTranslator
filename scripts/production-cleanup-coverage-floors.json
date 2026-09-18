@@ -22433,6 +22433,50 @@
         "pct": 88.88
       }
     },
+    "src/main/mcp/mcpTypographyBatchAdapter.ts": {
+      "lines": {
+        "total": 33,
+        "covered": 32,
+        "pct": 96.96
+      },
+      "statements": {
+        "total": 37,
+        "covered": 36,
+        "pct": 97.29
+      },
+      "functions": {
+        "total": 10,
+        "covered": 10,
+        "pct": 100
+      },
+      "branches": {
+        "total": 9,
+        "covered": 8,
+        "pct": 88.88
+      }
+    },
+    "src/main/mcp/mcpTypographyBatchSession.ts": {
+      "lines": {
+        "total": 19,
+        "covered": 18,
+        "pct": 94.73
+      },
+      "statements": {
+        "total": 19,
+        "covered": 18,
+        "pct": 94.73
+      },
+      "functions": {
+        "total": 9,
+        "covered": 8,
+        "pct": 88.88
+      },
+      "branches": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      }
+    },
     "src/main/mcp/mcpTypographyFontRuntime.ts": {
       "lines": {
         "total": 24,
@@ -22475,6 +22519,28 @@
         "total": 0,
         "covered": 0,
         "pct": 100
+      }
+    },
+    "src/main/mcp/mcpTypographySourceEvidence.ts": {
+      "lines": {
+        "total": 44,
+        "covered": 43,
+        "pct": 97.72
+      },
+      "statements": {
+        "total": 45,
+        "covered": 43,
+        "pct": 95.55
+      },
+      "functions": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "branches": {
+        "total": 17,
+        "covered": 15,
+        "pct": 88.23
       }
     },
     "src/main/mcp/mcpWorkContextTool.ts": {
