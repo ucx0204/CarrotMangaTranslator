@@ -1,4 +1,9 @@
-# Bundle 2 lettering coverage - 2026-09-18
+# Historical bundle 2 slice coverage - 2026-09-18
+
+Current completion and measured new resource-module coverage are recorded in
+`mcp-lettering-connected-checkpoint-20260918.md`. This earlier evidence retains
+the original eleven-module measurement; its pending findings are historical and
+were resolved before all 26 gates passed at `55199412`.
 
 This measurement covers the independent layout/advanced-style slice, not complete
 saved-resource integration or real-model/client acceptance.

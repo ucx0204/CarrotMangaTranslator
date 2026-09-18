@@ -78,8 +78,8 @@ suites). Renderer typecheck, lint and architecture checks passed. Five new modul
 were measured: 107/110 lines, 113/116 statements, 36/36 functions and 56/61 branches.
 All 1,583 inherited coverage records, provenance and deletion entries were retained;
 only five actual measured rows were added. Inventory: 753 baseline, 835 introduced,
-10 unchanged deleted files. Full repository acceptance is recorded below after the
-current full check completes; these focused results alone are not an all-gates claim.
+10 unchanged deleted files. Full repository acceptance below passed after these focused checks; the scoped
+coverage percentages describe only the five new modules, not the entire repository.
 
 Only temporary fixture libraries/settings are used. Native source hashes, preset
 projection, conditional evaluation, transactions, page handoffs and OAuth/HTTP are
@@ -94,6 +94,49 @@ query/reuse, guarded application and exact session Undo/Redo. It does not expose
 arbitrary global-settings writes or library-template insertion. Durable history
 is still bundle 7; history here remains bounded and session-only.
 
-After all automatic gates pass, the next implementation is bundle 3: remaining
+All automatic gates have passed. The next implementation is bundle 3: remaining
 region/multi-block OCR, selective translation and block references. Do not repeat
 bundle 1 or request intermediate live-model/client acceptance.
+
+## Final repository acceptance
+
+Verified source checkpoint: `55199412` (functional integration `b46e2daa`, measured
+coverage registration `1f0e0919`). The subsequent documentation commit does not
+change production/test code. `node scripts/check.cjs` exited 0 with ALL 26 stages
+passing: all three type checks, formatting, lint, architecture, maintainability,
+error handling, mock boundaries, duplicate/re-export/generated checks, exact
+coverage floors, Windows build, existing page-artwork parity and image-protocol
+smoke, plus renderer/preload bundle boundaries.
+
+Full Vitest/V8: 7,717 passed, zero failed, 11 pre-existing skips.
+Within it, 903 MCP tests across 123 files passed. The separate scoped measurement
+also included settings-pair regression tests, totaling 908 tests / 125 files.
+Existing coverage rows were not lowered. The old two complexity and seven
+architecture findings are resolved. An initially unused resource-command type
+was removed rather than exempted from the unused-export check.
+
+The remote auto-format commit was preserved during rebase. Its two overlapping
+files were compared with the tested implementation and retained byte-for-byte.
+No force push, new branch, master merge or release was used.
+
+Evidence in the review worktree:
+`.tmp/mcp-lettering-resources-full-check.log`
+`.tmp/check-results/vitest.json`
+`.tmp/check-timings.json`
+`.tmp/mcp-lettering-resources-scoped.log`
+`.tmp/mcp-lettering-resources-coverage/coverage-summary.json`
+`.tmp/mcp-lettering-resources-coverage-evidence.json`
+
+## Feature-to-implementation map
+
+| Capability                        | Existing/connected authority                                           | Automatic verification                                                                           |
+| --------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Independent geometry and wrapping | Existing Koharu runner / natural text layout                           | Model-free wrap, manual geometry, cleanup and cancellation fixtures                              |
+| Advanced and inline styles        | Existing conditional evaluator / native transform contracts            | Visible text, exact optional fields, protected size and undo/redo                                |
+| Saved resource discovery          | Native preset, YAML rule/sequence and block-library stores             | Read-only OAuth, pagination, versioning, malformed data and private-template projection          |
+| Read-only preset metadata         | Serialized settings-pair read-only option / public snapshot projection | No migration/decryption/repair, corrupt generation rejection, unchanged legacy loading           |
+| Resource application              | Existing lettering plan / native style group appliers                  | Group selection, enabled order, mid-batch change, deletion and exact recovery                    |
+| Forward page freshness            | Existing page revision/context/dependency leases                       | Non-current selected-page edit prevents first save; acknowledged partial results remain undoable |
+
+Bundle 2 is IMPLEMENTED, REGISTERED and AUTOMATICALLY VERIFIED. Live user/model/
+client testing is still deferred. Bundles 3-13 are not implemented by this change.

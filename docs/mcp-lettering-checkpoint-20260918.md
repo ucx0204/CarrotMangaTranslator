@@ -1,4 +1,20 @@
-# Bundle 2: independent lettering - 2026-09-18
+# Bundle 2 lettering implementation checkpoint - 2026-09-18
+
+## Current status: complete implementation, live acceptance deferred
+
+The current authority is `mcp-lettering-connected-checkpoint-20260918.md`.
+Saved preset/rule/sequence/block-style query and reuse, all-selected-page forward
+freshness, and the previously recorded static findings are now resolved.
+Source checkpoint `55199412` passed all 26 repository gates: 7,717 tests passed,
+zero failed, 11 existing skips; all 903 MCP tests across 123 files passed.
+
+The next implementation is bundle 3, not a repeat of bundle 2. Live-model, real
+user artwork and client/download acceptance remain deferred until bundles 1-13
+are implemented, as requested. Do not treat the older blockers below as current.
+
+---
+
+## Historical partial checkpoint (ed938aeb)
 
 Baseline: `c3b9d1a1` on `feat/mcp-app-bridge`, existing review worktree only.
 Bundle 1 is implemented and automatically verified; do not repeat it.
