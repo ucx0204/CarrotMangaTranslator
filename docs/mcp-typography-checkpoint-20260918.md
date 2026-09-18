@@ -1,6 +1,96 @@
-# MCP independent typography checkpoint — 2026-09-18
+# MCP independent typography checkpoint - 2026-09-18
 
-## Current status
+## Current continuation: bundle 1 observations connected
+
+The 1-13 order and deferred-live-test requirement are fixed in
+`mcp-remaining-roadmap-20260918.md`. Bundle 1 is IN PROGRESS. Bundles 2-13 have
+not started. Never count font observation as style application.
+
+Published this continuation: `c2e42e16` roadmap, `c9e494e1` C23 cleanup fence,
+`4f396dcd` independent C23/multi-page source-size observation implementation, and
+`f2a26596` final automatic-test, cancellation/stage-reporting and coverage checkpoint.
+The existing font list, typography preflight and single-page source measurement
+remain. `carrot_run_typography_analysis` is registered in app composition and the
+strict output contract (60 registered output schemas).
+
+Its explicit scope contains 1-50 ordered pages, at most 1,000 saved blocks,
+current revisions and preflight/catalog snapshots. Size-only mode never invokes
+OCR/models/downloads. Font modes use the existing C23 Japanese-to-Korean port
+and require explicit OCR and app-managed asset-download permission. Installed-only
+C23 preparation is not exposed yet. No translation, erasure, rendering, font
+application, page save or file attachment is performed by this observation tool.
+
+Raw font observations are NOT approved style changes. Manual profile locks must
+still be checked at the later application boundary. Source face pixels are NOT
+nominal fontSizePx. Observations bind original hashes, chapter/context identity,
+profile/catalog/runtime descriptors and expire after 30 minutes or restart.
+Only receipts survive; status never silently reruns an expired analysis.
+
+Canonical C23 inference/assets are unchanged. Shared model cleanup must settle
+before completion or new model admission; combined inference/cleanup failures
+retain both causes. App jobs, page handoffs and the existing journal are reused.
+Automatic fixtures substitute the C23 engine/native raster loader boundary, not
+the source-size math, library transactions, leases or HTTP authorization.
+
+## Remaining implementation and current caveats
+
+Selective font/source-size application, omitted-field restoration, work-profile
+lock handling and exact Undo/Redo are NOT implemented. An application-adapter
+write was refused by the tool safety checker; no application helper was installed
+and no alternative route was used for that rejected request.
+
+One lint finding remains: McpTypographyAnalysisService.run has 86 nonblank code
+lines against the existing limit of 80 after truthful performed-stage reporting.
+The attempted refactor was also refused and was not applied. Do not disable or
+increase the rule or remove the behavior to claim success. Resume with that small
+function split, then the missing selective application/recovery work.
+
+## Current automatic verification
+
+The final full Vitest/V8 run exited 0: 7,623 passed, zero failed, 11 existing
+skips (914 test files passed, one existing file skipped). All 809 MCP tests in
+109 files passed. The earlier scoped new-module measurement passed 818 tests
+across 112 files, including the C23 lifecycle/pipeline/application regressions.
+
+The production coverage gate passed: 753 baseline and 813 introduced records,
+10 unchanged deletions. All 1,558 inherited records and original provenance were
+compared directly with fbfe656c and retained unchanged. Eight measured new rows
+were added. A one-page executor rejection regression preserves the original
+source-size adapter coverage floor after shared geometry projection extraction.
+
+Renderer, Electron and JavaScript type checks passed, architecture and formatting
+checks passed, and the normal Windows build exited 0. This is NOT an all-26-gates pass: the
+function-length lint finding described above remains. No lint/coverage rule was
+weakened. New actual-model/native/client acceptance was not run.
+
+The initial full test pass found the new fixture incorrectly persisting a runtime
+`dataUrl` field; the fixture was corrected to match the existing strict stored
+schema. Production storage validation was not changed. Cancellation keeps the
+actual app job and all selected-page leases until the external engine settles.
+
+Logs:
+`.tmp/mcp-typography-analysis-final-tests.json`
+`.tmp/mcp-typography-analysis-final-coverage.log`
+`.tmp/mcp-typography-analysis-final-floors.log`
+`.tmp/mcp-typography-analysis-build.log`
+`.tmp/mcp-typography-analysis-full-lint.log`
+
+See `mcp-typography-analysis-coverage-20260918.md` and
+`mcp-typography-analysis-boundaries-20260918.md` for exact scope and limitations.
+
+No live app restart, user-library/original/auth change, real C23 inference,
+model asset replacement, Tailscale/ChatGPT call, file-delivery retest, new branch,
+master merge or release is part of this continuation. Live acceptance is deferred
+until all bundles are implemented as explicitly requested by the user.
+
+---
+
+## Historical checkpoint before this continuation (fbfe656c)
+
+The section below describes the previously verified source-size/read checkpoint,
+not the current connected analysis tool or current full-check status.
+
+### Historical status
 
 Font inventory, typography preparation and one-page source-size observation are
 implemented, registered and verified. This is a PARTIAL typography bundle:

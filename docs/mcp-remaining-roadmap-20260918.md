@@ -28,3 +28,26 @@ replace approved model assets, merge master or publish a release implicitly.
 Live C23 quality, model cleanup, actual originals, PNG/ZIP attachment reception,
 download byte/hash checks, restart/reconnection and end-to-end client acceptance
 belong to the final integrated live-test queue, not intermediate completion claims.
+
+## Bundle 1 checkpoint
+
+The observation half is now connected: `carrot_run_typography_analysis` uses
+existing C23 analysis or multi-page raster measurement, with explicit permissions,
+ordered input snapshots, actual page ownership, expiring job evidence and model
+cleanup fencing. No style application is implied by the returned font choices.
+
+Do not start bundle 2 yet. The exact remaining order inside bundle 1 is:
+
+1. Resolve the recorded 86-versus-80 function-length lint finding without changing
+   the behavior or weakening the rule; the attempted refactor was not applied.
+2. Finish analysis-bound selective font/source-size application using the canonical
+   app rules, including manual profile locks and exact omitted-field restoration.
+3. Connect inspect/apply/undo/redo with the existing page transaction and recovery
+   paths, refusing later page/catalog/context conflicts and duplicate reapplication.
+4. Finish automatic gates and update the feature-to-service/tool coverage map.
+
+An application-adapter write and a later small lint refactor were refused by the
+tool checker. Neither was retried by a different route. Source observation is a
+separate implemented capability, not a claim that application/recovery is complete.
+Current automatic verification and published checkpoints are recorded in
+`mcp-typography-checkpoint-20260918.md`; final live acceptance remains deferred.
