@@ -137,6 +137,8 @@ function createAuxiliarySessions(
     app,
     operations,
     Boolean(preferences.allowProcessing),
+    undefined,
+    preferences.allowEditing ? editing : undefined,
   );
   const stop = () => {
     context.stop();
