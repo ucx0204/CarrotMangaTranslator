@@ -104,7 +104,11 @@ export class McpLetteringResourceService {
     guard: () => void,
   ) {
     await this.require(
-      McpLetteringResourceReferenceSchema.parse(reference),
+      McpLetteringResourceReferenceSchema.parse({
+        resourceKind: reference.resourceKind,
+        id: reference.id,
+        snapshot: reference.snapshot,
+      }),
       guard,
     );
   }

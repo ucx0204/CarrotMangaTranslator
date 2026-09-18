@@ -1,3 +1,4 @@
+import { McpLetteringResourceCommandSchema } from "./mcpLetteringResources";
 import { z } from "zod/v4";
 import { McpFormatBatchPreviewSchema } from "./mcpFormatBatch";
 import {
@@ -14,6 +15,7 @@ import {
 import type { TranslationBlock } from "./textTypes";
 
 const McpLetteringCommandSchema = z.discriminatedUnion("kind", [
+  McpLetteringResourceCommandSchema,
   z
     .object({
       kind: z.literal("format"),

@@ -38,18 +38,26 @@ let settingsCommitTail: Promise<void> = Promise.resolve();
 export function loadCommittedSettingsPairFiles<T>(
   paths: AppPaths,
   validate: (files: SettingsPairFiles) => T | Promise<T>,
+  options: { readOnly?: boolean } = {},
 ): Promise<T | null> {
   return runSettingsPairOperation(() =>
-    loadCommittedSettingsPairFilesNow(paths, validate),
+    loadCommittedSettingsPairFilesNow(
+      paths,
+      validate,
+      options.readOnly === true,
+    ),
   );
 }
 
 async function loadCommittedSettingsPairFilesNow<T>(
   paths: AppPaths,
   validate: (files: SettingsPairFiles) => T | Promise<T>,
+  readOnly: boolean,
 ): Promise<T | null> {
   const pointer = await readSettingsCommitPointer(paths);
   if (!pointer) return null;
+  // Metadata inspection verifies the authoritative pair but never repairs or rolls back.
+  if (readOnly) return validate(await readCommittedPairFiles(paths, pointer));
 
   try {
     return await loadAndRepairPair(paths, pointer, validate);

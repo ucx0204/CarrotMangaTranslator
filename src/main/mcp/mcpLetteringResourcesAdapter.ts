@@ -1,5 +1,6 @@
 import type { AppPaths } from "../appPaths";
-import { getAppSettings } from "../settingsStore";
+import { inspectStoredPublicSettings } from "../settingsPublicSnapshot";
+import { normalizeBlockStylePresets } from "../../shared/blockStylePresets";
 import { ConditionalBatchSchemeStore } from "../conditionalBatchSchemeStore";
 import { BlockLibraryStore } from "../blockLibraryStore";
 import {
@@ -27,16 +28,18 @@ export function createMcpLetteringResources(paths: AppPaths) {
   const blocks = new BlockLibraryStore(paths.dataRoot);
   return new McpLetteringResourceService(async (kind) => {
     if (kind === "preset")
-      return (await getAppSettings(paths)).blockStylePresets.map((entry) => ({
-        id: entry.id,
-        name: entry.name,
-        groupIds: [...entry.groupIds],
-        format: normalizePresetFormat(entry.format, entry.groupIds),
-        advanced: {},
-        schemes: [],
-        dependencies: [],
-        unsupportedReasons: [],
-      }));
+      return inspectStoredPublicSettings(paths, (record) =>
+        normalizeBlockStylePresets(record.blockStylePresets).map((entry) => ({
+          id: entry.id,
+          name: entry.name,
+          groupIds: [...entry.groupIds],
+          format: normalizePresetFormat(entry.format, entry.groupIds),
+          advanced: {},
+          schemes: [],
+          dependencies: [],
+          unsupportedReasons: [],
+        })),
+      );
     if (kind === "block-style")
       return (await blocks.list()).entries.map(blockStyle);
     const snapshot = await rules.list();

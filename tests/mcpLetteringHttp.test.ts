@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { expect, it, vi } from "vitest";
 import { letteringAppFixture } from "./mcpLetteringApp.fixture";
 import { createMcpTestGrant } from "./mcpOAuthGrant.fixture";
@@ -183,6 +183,99 @@ it("rejects insufficient scopes, unknown fields, forged plans and revoked connec
       ).status,
     ).toBe(401);
     expect(await readFile(f.chapterPath)).toEqual(before);
+  } finally {
+    await f.close();
+  }
+});
+
+it("discovers saved resources with read-only OAuth and uses the same pinned recipe for guarded application", async () => {
+  const f = await fixture();
+  try {
+    const { createBlockStylePreset } =
+      await import("../src/shared/blockStylePresets");
+    const chapter = await f.library.openChapter("chapter");
+    const preset = createBlockStylePreset({
+      id: "http-preset",
+      name: "Saved color",
+      groupIds: ["color"],
+      block: { ...chapter.pages[0].blocks[0], textColor: "#123456" },
+    });
+    await writeFile(
+      f.app.appPaths.settingsPath,
+      JSON.stringify({
+        blockStylePresets: [preset],
+        api: { apiKey: "PRIVATE_FIXTURE_SECRET" },
+      }),
+    );
+    const originalSettings = await readFile(f.app.appPaths.settingsPath);
+    const listed = (
+      await f.call(
+        "carrot_list_lettering_resources",
+        { resourceKind: "preset" },
+        f.read,
+      )
+    ).body.result;
+    expect(listed.isError).toBe(false);
+    expect(JSON.parse(listed.content[0].text)).toEqual(
+      listed.structuredContent,
+    );
+    const entry = listed.structuredContent.resources[0];
+    const reference = {
+      resourceKind: entry.resourceKind,
+      id: entry.id,
+      snapshot: entry.snapshot,
+    };
+    const detail = (
+      await f.call("carrot_get_lettering_resource", reference, f.read)
+    ).body.result;
+    expect(detail.isError).toBe(false);
+    expect(JSON.parse(detail.structuredContent.formatJson)).toEqual({
+      textColor: "#123456",
+    });
+    expect(JSON.stringify([listed, detail])).not.toMatch(
+      /PRIVATE_|settingsPath|secretGeneration|dataUrl/,
+    );
+    expect(
+      (
+        await f.call(
+          "carrot_get_lettering_resource",
+          { ...reference, path: "private" },
+          f.read,
+        )
+      ).body.error.code,
+    ).toBe(-32602);
+    const input = await f.request({ kind: "resource", ...reference });
+    expect(
+      (await f.call("carrot_prepare_lettering_batch", input, f.read)).body.error
+        .code,
+    ).toBe(-32602);
+    const receipt = (await f.call("carrot_prepare_lettering_batch", input)).body
+      .result.structuredContent;
+    const job = await f.settleJob(receipt.jobId, f.principal);
+    const id = job.result?.letteringPlan?.batchId;
+    if (!id) throw new Error(JSON.stringify(job));
+    for (const direction of ["apply", "undo"]) {
+      expect(
+        (
+          await f.call(`carrot_${direction}_lettering_batch`, {
+            batchId: id,
+            requestId: randomUUID(),
+          })
+        ).body.result.isError,
+      ).toBe(false);
+      expect((await f.wait(id)).status).toBe("completed");
+    }
+    expect(
+      (await f.library.openChapter("chapter")).pages.map((page) => page.blocks),
+    ).toEqual(chapter.pages.map((page) => page.blocks));
+    expect(await readFile(f.app.appPaths.settingsPath)).toEqual(
+      originalSettings,
+    );
+    f.provider.revokeConnection(f.principal);
+    expect(
+      (await f.call("carrot_get_lettering_resource", reference)).status,
+    ).toBe(401);
+    expect(f.runPage).not.toHaveBeenCalled();
   } finally {
     await f.close();
   }

@@ -46,13 +46,15 @@ async function call(t: McpTool) {
   };
 }
 it("publishes real 2020-12 output schemas for every existing tool, cached from runtime contracts", () => {
-  expect(Object.keys(mcpOutputSchemas)).toHaveLength(72);
+  expect(Object.keys(mcpOutputSchemas)).toHaveLength(74);
   expect(Object.keys(mcpOutputSchemas)).toEqual(
     expect.arrayContaining([
       "carrot_list_fonts",
       "carrot_run_page_source_size",
       "carrot_run_typography_analysis",
       "carrot_prepare_lettering_batch",
+      "carrot_list_lettering_resources",
+      "carrot_get_lettering_resource",
       "carrot_get_lettering_batch",
       "carrot_apply_lettering_batch",
       "carrot_undo_lettering_batch",

@@ -5,6 +5,7 @@ import type { LetteringPreparation } from "../application/mcpLetteringPolicy";
 import {
   projectMcpLetteringPage,
   letteringSchemeIssues,
+  type McpLetteringRecipe,
 } from "../application/mcpLetteringProjection";
 import { McpEditError } from "../application/mcpEditPolicy";
 import {
@@ -17,7 +18,9 @@ import type { MangaPage } from "../../shared/libraryTypes";
 
 type Saved = Parameters<LetteringPreparation>[0];
 type Access = Parameters<LetteringPreparation>[2];
-export function resolveMcpLetteringRecipe(input: McpLetteringPrepare) {
+export function resolveMcpLetteringRecipe(
+  input: McpLetteringPrepare,
+): McpLetteringRecipe {
   if (input.command.kind !== "rule") return { schemes: [] };
   const scheme = parseMcpLetteringRule(input.command.schemeJson);
   if (letteringSchemeIssues(scheme).length)

@@ -97,9 +97,9 @@ it("expires references and strips all session history on durable receipt writes"
   });
 });
 
-it("does not advertise an unimplemented resource command or accept invalid native rule JSON", () => {
+it("advertises strict resource references and refuses invalid native rule JSON", () => {
   const schema = z.toJSONSchema(McpLetteringPrepareSchema);
-  expect(JSON.stringify(schema)).not.toContain("resourceKind");
+  expect(JSON.stringify(schema)).toContain("resourceKind");
   expect(() => parseMcpLetteringRule("not JSON")).toThrow();
   expect(() => parseMcpLetteringRule("[]")).toThrow();
   expect(() =>

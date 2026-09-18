@@ -1,3 +1,4 @@
+import { createMcpLetteringResources } from "./mcpLetteringResourcesAdapter";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
 import type { McpPageEditService } from "../application/mcpPageEditService";
 import {
@@ -17,10 +18,12 @@ import {
 export function createMcpLetteringAdapter(
   app: InpaintingJobContext,
   edits: McpPageEditService,
-  runtime?: Parameters<typeof createMcpLetteringPreparation>[1],
+  runtime?: Parameters<typeof createMcpLetteringPreparation>[2],
 ) {
+  const resources = createMcpLetteringResources(app.appPaths);
   return {
-    prepare: createMcpLetteringPreparation(app, runtime),
+    resources,
+    prepare: createMcpLetteringPreparation(app, resources, runtime),
     ports: createMcpPageBatchPorts<LetteringSnapshotRequest>(
       (request, membership, guard, committed, scope) =>
         edits.commitSnapshotBatch(
@@ -28,7 +31,8 @@ export function createMcpLetteringAdapter(
           membership,
           guard,
           committed,
-          (run) => scope(() => withForwardLettering(request, guard, run)),
+          (run) =>
+            scope(() => withForwardLettering(request, guard, run, resources)),
           applyMcpLetteringSnapshots,
         ),
     ),
@@ -38,10 +42,11 @@ async function withForwardLettering<T>(
   request: LetteringSnapshotRequest,
   guard: () => void,
   run: () => Promise<T>,
+  resources: ReturnType<typeof createMcpLetteringResources>,
 ): Promise<T> {
   guard();
   if (request.direction === "undo") return run();
-  const resources: AppActivityResource[] = [
+  const leases: AppActivityResource[] = [
     {
       kind: "library-structure",
       scope: `chapter:${request.chapterId}`,
@@ -54,7 +59,7 @@ async function withForwardLettering<T>(
     })),
   ];
   const release = await withLibraryRead(async () =>
-    retainLibrarySnapshot(resources, []),
+    retainLibrarySnapshot(leases, []),
   );
   try {
     guard();
@@ -66,6 +71,8 @@ async function withForwardLettering<T>(
       guard,
     );
     assertMcpLetteringBinding(request.binding, current.binding);
+    if (request.command.kind === "resource")
+      await resources.assertCurrent(request.command, guard);
     guard();
     return await run();
   } finally {

@@ -1,3 +1,4 @@
+import { createMcpLetteringResourceTools } from "./mcpLetteringResourceTools";
 import {
   McpTranslationBatchGetSchema,
   McpTranslationBatchActionSchema,
@@ -26,25 +27,33 @@ export function createMcpLetteringSession(
   runtime?: Parameters<typeof createMcpLetteringAdapter>[2],
 ) {
   const lifetime = new AbortController();
-  const batches = createService(app, editing, lifetime.signal, runtime);
+  const { batches, resources } = createService(
+    app,
+    editing,
+    lifetime.signal,
+    runtime,
+  );
   return {
-    tools: enabled
-      ? [
-          createMcpLetteringPrepareTool(
-            app,
-            operations,
-            (owner, input, context) =>
-              batches.preview(
-                owner,
-                input,
-                context.assertAuthorized,
-                context.signal,
-              ),
-            lifetime.signal,
-          ),
-          ...letteringTools(batches),
-        ]
-      : [],
+    tools: [
+      ...createMcpLetteringResourceTools(resources),
+      ...(enabled
+        ? [
+            createMcpLetteringPrepareTool(
+              app,
+              operations,
+              (owner, input, context) =>
+                batches.preview(
+                  owner,
+                  input,
+                  context.assertAuthorized,
+                  context.signal,
+                ),
+              lifetime.signal,
+            ),
+            ...letteringTools(batches),
+          ]
+        : []),
+    ],
     stop: () => lifetime.abort(),
     close: async () => {
       lifetime.abort();
@@ -71,9 +80,9 @@ function createService(
     Date.now,
     lifetime,
   );
-  return batches;
+  return { batches, resources: adapter.resources };
 }
-type Batches = ReturnType<typeof createService>;
+type Batches = ReturnType<typeof createService>["batches"];
 function letteringTools(batches: Batches) {
   const tools = [
     createMcpBatchTool({
@@ -94,7 +103,7 @@ function letteringTools(batches: Batches) {
         scopes,
         write: true,
         background: true,
-        description: `${direction} an owned lettering plan with a new action requestId. Poll carrot_get_lettering_batch. Existing native transactions run sequentially and stop on the first failure/conflict/cancellation; committed pages remain explicit. Every save rechecks its target revision, chapter membership and context. Geometry also rechecks selected source/cleaned-image dependencies; styling rechecks the font catalog. Undo restores exact optional state without requiring models, old images or installed fonts; it cannot overwrite later user edits. No OCR, translation, erasure, rendering or downloads.`,
+        description: `${direction} an owned lettering plan with a new action requestId. Poll carrot_get_lettering_batch. Existing native transactions run sequentially and stop on the first failure/conflict/cancellation; committed pages remain explicit. Forward saves recheck every selected page revision, chapter membership and context. Geometry also rechecks selected source/cleaned-image dependencies; styling rechecks the font catalog. Saved-resource plans additionally recheck their resource and enabled sequence definitions. Undo restores exact optional state without requiring models, old images or installed fonts; it cannot overwrite later user edits. No OCR, translation, erasure, rendering or downloads.`,
         execute: async (args, owner, guard) =>
           batches.start(owner, args, direction, guard),
       }),

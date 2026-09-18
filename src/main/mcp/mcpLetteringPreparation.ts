@@ -1,3 +1,4 @@
+import type { McpLetteringResourceService } from "../application/mcpLetteringResourceService";
 import { hashStableValue } from "../../shared/blockFingerprint";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
 import type { LetteringPreparation } from "../application/mcpLetteringPolicy";
@@ -23,6 +24,7 @@ type Runtime = {
 };
 export function createMcpLetteringPreparation(
   app: InpaintingJobContext,
+  resources: McpLetteringResourceService,
   runtime: Runtime = {
     create: createProductionBubbleLayoutRunner,
     dispose: disposeCachedKoharuLayoutSessions,
@@ -40,7 +42,10 @@ export function createMcpLetteringPreparation(
         "invalid_edit",
         "Native geometry detection may install approved Koharu assets. Explicit allowAssetDownloads=true is required.",
       );
-    const recipe = resolveMcpLetteringRecipe(input);
+    const recipe =
+      input.command.kind === "resource"
+        ? await resources.resolve(input.command, access.guard)
+        : resolveMcpLetteringRecipe(input);
     const before = await captureMcpLetteringBinding(saved, input, access.guard);
     const runner = geometry
       ? await createRunner(app, runtime, access.guard)
@@ -75,6 +80,8 @@ export function createMcpLetteringPreparation(
       access.guard,
     );
     assertMcpLetteringBinding(before.binding, after.binding);
+    if (input.command.kind === "resource")
+      await resources.assertCurrent(input.command, access.guard);
     return { ...result, binding: before.binding };
   };
 }

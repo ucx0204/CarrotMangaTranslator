@@ -1,3 +1,4 @@
+import { mcpLetteringResourceOutputs } from "../../shared/mcpLetteringResources";
 import { mcpLetteringOutputs } from "../../shared/mcpLettering";
 import { mcpTypographyBatchOutputs } from "../../shared/mcpTypographyBatch";
 import { mcpTypographyReadOutputs } from "../../shared/mcpTypographyRead";
@@ -113,6 +114,7 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
   ...mcpTypographyBatchOutputs,
   ...mcpTypographyReadOutputs,
   ...mcpLetteringOutputs,
+  ...mcpLetteringResourceOutputs,
   ...mcpReviewOutputSchemas,
   ...mcpStructureOutputs,
   ...mcpTranslationBatchOutputs,
