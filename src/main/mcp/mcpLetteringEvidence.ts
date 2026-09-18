@@ -16,6 +16,9 @@ export async function captureMcpLetteringBinding(
   guard: () => void,
 ) {
   guard();
+  // Every selected page is a dependency, including model-free styling and wrapping.
+  // On forward saves these revisions come from the plan's acknowledged commits.
+  for (const target of input.pages) requireBatchPage(saved.chapter, target);
   const catalog =
     input.command.kind === "layout" ? null : await readMcpFontCatalog();
   guard();
