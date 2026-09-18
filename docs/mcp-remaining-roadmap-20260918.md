@@ -51,3 +51,14 @@ tool checker. Neither was retried by a different route. Source observation is a
 separate implemented capability, not a claim that application/recovery is complete.
 Current automatic verification and published checkpoints are recorded in
 `mcp-typography-checkpoint-20260918.md`; final live acceptance remains deferred.
+
+## Latest continuation after bdad659f
+
+The old analysis function-length issue is resolved (`7ac32e96`). The internal
+selective application/recovery core is implemented (`4decdbcd`), with shared
+batch lifecycle/transactions and canonical font/source-size appliers. The remaining
+bundle-1 work is now production evidence validation/owned-job lookup and MCP tool
+composition, plus one test-lint finding and two exact architecture declarations.
+No new remotely callable application tools have been registered. Do not move to
+bundle 2 or request live tests yet. The authoritative details and automated
+results are in `mcp-typography-selective-checkpoint-20260918.md`.

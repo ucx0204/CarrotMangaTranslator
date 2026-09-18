@@ -1,4 +1,26 @@
-# MCP independent typography checkpoint - 2026-09-18
+# MCP typography implementation checkpoint - 2026-09-18
+
+## Latest continuation: selective application core
+
+Current resume authority: `mcp-typography-selective-checkpoint-20260918.md`.
+The analysis function-length issue below is historical and was resolved in
+`7ac32e96`. The internal selective font/source-size projection, guarded snapshot
+mutation and exact batch undo/redo core were published as `4decdbcd`.
+
+Bundle 1 is still IN PROGRESS. Original-file/catalog/profile freshness and owned
+observation lookup must be connected before registering remote application tools.
+No new application tool has been exposed. One new test-lint finding and two
+architecture consumer declarations remain after a tool request was refused.
+Do not copy the synthetic validation callback from fixtures into production.
+
+The latest automated results, coverage measurements and exact next tasks are in
+the selective checkpoint and `mcp-typography-selective-coverage-20260918.md`.
+Do not treat the older test counts or older unresolved production lint below as
+current. Bundles 2-13 and all live acceptance remain deferred as instructed.
+
+---
+
+## Historical independent-analysis checkpoint
 
 ## Current continuation: bundle 1 observations connected
 
