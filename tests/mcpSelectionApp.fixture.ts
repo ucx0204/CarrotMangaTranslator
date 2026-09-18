@@ -112,7 +112,10 @@ export async function selectionAppFixture(enableEditing = false) {
         ),
     },
   };
-  const editing = { assertWritable: vi.fn(async () => {}), notifySaved: vi.fn() };
+  const editing = {
+    assertWritable: vi.fn(async () => {}),
+    notifySaved: vi.fn(),
+  };
   const session = createMcpSelectionAnalysisSession(
     f.app,
     operations,

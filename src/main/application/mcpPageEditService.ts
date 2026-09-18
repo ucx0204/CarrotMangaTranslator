@@ -146,15 +146,13 @@ export class McpPageEditService {
       },
     );
     const selected = new Set(request.edits.map((edit) => edit.blockId));
+    const blocks = result.page.blocks.filter((block) => selected.has(block.id));
     return {
       status: result.status,
       revision: createPageRevision(result.page),
       ...result.data,
       blocks: projectMcpBlocks(
-        {
-          ...result.page,
-          blocks: result.page.blocks.filter((block) => selected.has(block.id)),
-        },
+        { ...result.page, blocks },
         0,
         request.edits.length,
       ),

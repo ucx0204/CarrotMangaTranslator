@@ -46,7 +46,7 @@ async function call(t: McpTool) {
   };
 }
 it("publishes real 2020-12 output schemas for every existing tool, cached from runtime contracts", () => {
-  expect(Object.keys(mcpOutputSchemas)).toHaveLength(77);
+  expect(Object.keys(mcpOutputSchemas)).toHaveLength(83);
   expect(Object.keys(mcpOutputSchemas)).toEqual(
     expect.arrayContaining([
       "carrot_list_fonts",
@@ -55,6 +55,12 @@ it("publishes real 2020-12 output schemas for every existing tool, cached from r
       "carrot_run_selection_ocr",
       "carrot_run_selection_translation",
       "carrot_get_selection_analysis",
+      "carrot_preview_selection_batch",
+      "carrot_get_selection_batch",
+      "carrot_apply_selection_batch",
+      "carrot_undo_selection_batch",
+      "carrot_redo_selection_batch",
+      "carrot_cancel_selection_batch",
       "carrot_prepare_lettering_batch",
       "carrot_list_lettering_resources",
       "carrot_get_lettering_resource",

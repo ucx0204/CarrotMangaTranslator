@@ -121,7 +121,7 @@ it("requires overlap approval and an existing reading-order anchor before saving
       "completed",
     );
     const page = (await f.snapshot()).pages[0];
-    expect(resolvePageBlockOrder(page).slice(0, 2)).toEqual([
+    expect(resolvePageBlockOrder(page).slice(-2)).toEqual([
       "a",
       (await f.inspect(plan.batchId)).changes[0].blockId,
     ]);
