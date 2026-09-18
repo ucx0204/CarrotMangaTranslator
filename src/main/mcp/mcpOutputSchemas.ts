@@ -1,3 +1,4 @@
+import { mcpTypographyBatchOutputs } from "../../shared/mcpTypographyBatch";
 import { mcpTypographyReadOutputs } from "../../shared/mcpTypographyRead";
 import { mcpFormatBatchOutputs } from "../../shared/mcpFormatBatch";
 import { mcpTranslationBatchOutputs } from "../../shared/mcpTranslationBatch";
@@ -108,6 +109,7 @@ const mcpJobReceiptOutput = z
 
 /** Public projections only. JSON Schema and runtime validation share these definitions. */
 export const mcpOutputSchemas: Record<string, z.ZodType> = {
+  ...mcpTypographyBatchOutputs,
   ...mcpTypographyReadOutputs,
   ...mcpReviewOutputSchemas,
   ...mcpStructureOutputs,
