@@ -37,18 +37,19 @@ it.each(["session", "authorization"])(
   "does not publish an async plan after %s is revoked",
   async (kind) => {
     const f = typographyBatchFixture();
-    const prepare = f.prepare.getMockImplementation()!;
+    const prepare = f.prepare.getMockImplementation();
     let authorized = true;
     const guard = () => {
       if (!authorized) throw new Error("revoked");
     };
-    f.prepare.mockImplementationOnce(async (...args) => {
-      const result = await prepare(...args);
-      if (kind === "session") f.lifetime.abort();
-      else authorized = false;
-      return result;
-    });
     try {
+      if (!prepare) throw new Error("Typography fixture preparation is missing");
+      f.prepare.mockImplementationOnce(async (...args) => {
+        const result = await prepare(...args);
+        if (kind === "session") f.lifetime.abort();
+        else authorized = false;
+        return result;
+      });
       await expect(
         f.service.preview(f.owner, f.request(), guard),
       ).rejects.toThrow();
