@@ -64,7 +64,7 @@ export async function typographyBatchAppFixture(mode: "font" | "size" | "font-an
       })),
     };
   };
-  const invoke = async (name: string, args: object, caller = auth) => {
+  const invoke = async (name: string, args: Record<string, unknown>, caller = auth) => {
     const tool = session.tools.find((item) => item.name === name);
     if (!tool) throw new Error(`Missing tool: ${name}`);
     const content = await tool.invoke(args, caller);
@@ -80,7 +80,7 @@ export async function typographyBatchAppFixture(mode: "font" | "size" | "font-an
   };
   return {
     ...f, operations, session, editing, errors, owner, auth, guard, analyze, invoke, inspect, done,
-    action: (batchId: string, direction: "apply" | "undo" | "redo", requestId = randomUUID()) =>
+    action: (batchId: string, direction: string, requestId = randomUUID()) =>
       invoke(`carrot_${direction}_typography_batch`, { batchId, requestId }),
     close: async () => { await session.close(); await operations.close(); await f.close(); },
   };
