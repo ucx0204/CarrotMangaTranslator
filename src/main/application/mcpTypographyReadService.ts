@@ -12,6 +12,7 @@ import {
   McpTypographyPreflightInput,
   McpTypographyPreflightOutput,
   type McpFontEntry,
+  type McpTypographyAnalysisTool,
   type McpTypographyPreflight,
 } from "../../shared/mcpTypographyRead";
 import { McpEditError } from "./mcpEditPolicy";
@@ -22,6 +23,7 @@ type Ports = {
   openChapter: (id: string) => Promise<ChapterSnapshot>;
   readCatalog: () => Promise<McpFontCatalog>;
   sourceSizeToolAvailable?: boolean;
+  analysisToolAvailable?: boolean;
 };
 
 /** Read-only preparation. A saved input inventory is not an execution reservation. */
@@ -89,12 +91,14 @@ export class McpTypographyReadService {
       pages,
       request,
       catalog,
-      Boolean(
-        this.ports.sourceSizeToolAvailable &&
+      this.ports.sourceSizeToolAvailable &&
         request.mode === "size" &&
         request.preserveManualFontSize &&
-        pages.length === 1,
-      ),
+        pages.length === 1
+        ? "carrot_run_page_source_size"
+        : this.ports.analysisToolAvailable
+          ? "carrot_run_typography_analysis"
+          : null,
     );
   }
 }
@@ -200,7 +204,7 @@ function projectPreflight(
   pages: MangaPage[],
   request: McpTypographyPreflight,
   catalog: McpFontCatalog,
-  analysisToolAvailable: boolean,
+  analysisTool: McpTypographyAnalysisTool,
 ) {
   const selected = pages.map((page) => ({
     pageId: page.id,
@@ -245,8 +249,8 @@ function projectPreflight(
         : [],
     requiresOcr,
     executionReserved: false,
-    analysisToolAvailable,
-    analysisTool: analysisToolAvailable ? "carrot_run_page_source_size" : null,
+    analysisToolAvailable: analysisTool !== null,
+    analysisTool,
     pages: selected,
     counts: {
       pages: pages.length,

@@ -1,4 +1,8 @@
 import { z } from "zod/v4";
+import {
+  McpTypographyAnalysisTargetSchema,
+  McpTypographyAnalysisObservationSchema,
+} from "../../shared/mcpTypographyAnalysis";
 import { McpSourceSizeObservationSchema } from "../../shared/mcpSourceSize";
 import {
   McpExportPagesTargetSchema,
@@ -34,6 +38,7 @@ export const mcpPersistedTargetSchema = z.union([
   McpContextResearchTargetSchema,
   McpExportPagesTargetSchema,
   McpExportZipTargetSchema,
+  McpTypographyAnalysisTargetSchema,
 ]);
 
 export const mcpJobResultMetadataSchema = z.object({
@@ -68,6 +73,7 @@ export const mcpJobResultMetadataSchema = z.object({
   observationExpired: z.boolean().optional(),
   blockOcr: McpBlockOcrObservationSchema.optional(),
   sourceSize: McpSourceSizeObservationSchema.optional(),
+  typographyAnalysis: McpTypographyAnalysisObservationSchema.optional(),
   blockTranslation: McpBlockTranslationProposalSchema.optional(),
   proposalExpired: z.boolean().optional(),
   noSourceText: z.boolean().optional(),
@@ -85,6 +91,7 @@ const jobSchema = z
       "ocr",
       "blockOcr",
       "sourceSize",
+      "typographyAnalysis",
       "blockTranslation",
       "erase",
       "exportPng",
@@ -140,6 +147,13 @@ export function publicMcpJobResult(value: unknown, now: number) {
     const { sourceSize: _sourceSize, ...metadata } = result;
     return { ...metadata, sourceSize: undefined, observationExpired: true };
   }
+  if (
+    result?.typographyAnalysis &&
+    result.typographyAnalysis.expiresAt <= now
+  ) {
+    const { typographyAnalysis: _analysis, ...metadata } = result;
+    return { ...metadata, observationExpired: true };
+  }
   if (result?.contextResearch && result.contextResearch.expiresAt <= now)
     return { ...result, proposalExpired: true };
   return result;
@@ -152,13 +166,16 @@ export function persistedMcpJobResult(
   const {
     blockOcr,
     sourceSize,
+    typographyAnalysis,
     blockTranslation,
     contextResearch,
     ...metadata
   } = mcpJobResultMetadataSchema.parse(result);
   return {
     ...metadata,
-    ...(blockOcr || sourceSize ? { observationExpired: true } : {}),
+    ...(blockOcr || sourceSize || typographyAnalysis
+      ? { observationExpired: true }
+      : {}),
     ...(blockTranslation || contextResearch ? { proposalExpired: true } : {}),
     ...(contextResearch
       ? {
@@ -192,6 +209,9 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
 }
 
 function validJobTarget(record: McpStoredJob): boolean {
+  if (record.kind === "typographyAnalysis")
+    return McpTypographyAnalysisTargetSchema.safeParse(record.parameters)
+      .success;
   if (record.kind === "exportPages")
     return McpExportPagesTargetSchema.safeParse(record.parameters).success;
   if (record.kind === "exportZip")

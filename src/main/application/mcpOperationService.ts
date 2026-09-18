@@ -108,10 +108,17 @@ export class McpOperationService {
         "invalid_edit",
         "Only failed, cancelled or interrupted jobs can be retried.",
       );
-    if (["contextResearch", "exportPages", "exportZip"].includes(entry.kind))
+    if (
+      [
+        "contextResearch",
+        "exportPages",
+        "exportZip",
+        "typographyAnalysis",
+      ].includes(entry.kind)
+    )
       throw new McpEditError(
         "invalid_edit",
-        "Read current context or export outcomes and issue a new explicit request; single-page retry does not apply to research or export batches.",
+        "Read current context, typography preflight or export outcomes and issue a new explicit request; single-page retry does not apply to these jobs.",
       );
     const target = mcpJobTargetSchema.parse(entry.parameters);
     if (target.revision !== revision)

@@ -1,11 +1,10 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { normalizeBboxTo1000 } from "../../shared/geometry";
+import { mcpSourceTypographyItem } from "./mcpSourceTypographyItem";
 import { McpSourceSizeTargetSchema } from "../../shared/mcpSourceSize";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
-import type { OverlayItem } from "../pipeline/types";
 import { estimatePageSourceFontSizes } from "../pipeline/sourceFontSizeEstimator";
 import { McpSourceSizeService } from "../application/mcpSourceSizeService";
 import { McpEditError } from "../application/mcpEditPolicy";
@@ -30,19 +29,8 @@ export async function measureMcpSourceSizes(
       .digest("hex");
   const sourceImageSha256 = await digest();
   context.assertAuthorized();
-  const items = blocks.map(
-    (block, index): OverlayItem => ({
-      id: index + 1,
-      type: block.type,
-      textRole: "ordinary",
-      fontRole: block.fontRole,
-      bbox: normalizeBboxTo1000(block.bbox, page, block.bboxSpace),
-      jp: block.sourceText,
-      ko: block.translatedText,
-      sourceText: block.sourceText,
-      translatedText: block.translatedText,
-      direction: block.sourceDirection,
-    }),
+  const items = blocks.map((block, index) =>
+    mcpSourceTypographyItem(page, block, index),
   );
   const estimates = await estimatePageSourceFontSizes({
     enabled: true,

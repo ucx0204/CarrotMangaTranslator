@@ -76,7 +76,9 @@ export const McpTypographyPreflightOutput = z
     requiresOcr: z.boolean(),
     executionReserved: z.literal(false),
     analysisToolAvailable: z.boolean(),
-    analysisTool: z.literal("carrot_run_page_source_size").nullable(),
+    analysisTool: z
+      .enum(["carrot_run_page_source_size", "carrot_run_typography_analysis"])
+      .nullable(),
     pages: z
       .array(
         z
@@ -101,6 +103,9 @@ export const McpTypographyPreflightOutput = z
     notes: z.array(z.string()),
   })
   .strict();
+export type McpTypographyAnalysisTool = z.infer<
+  typeof McpTypographyPreflightOutput
+>["analysisTool"];
 export type McpFontEntry = z.infer<typeof McpFontEntrySchema>;
 export type McpTypographyPreflight = z.infer<
   typeof McpTypographyPreflightInput

@@ -1,4 +1,5 @@
 import { createMcpSourceSizeExecutor } from "./mcpSourceSizeAdapter";
+import { createMcpTypographyAnalysisSession } from "./mcpTypographyAnalysisSession";
 import { createMcpExportBatchAdapter } from "./mcpExportBatchAdapter";
 import { createMcpContextSession } from "./mcpContextSession";
 import { createMcpBlockTranslationExecutor } from "./mcpBlockTranslationSession";
@@ -58,14 +59,7 @@ export function createMcpPageOperationSession(options: {
     allowImages: preferences.allowImages,
     reportError: options.reportError,
   });
-  const reader = new McpReadingService({
-    openChapter,
-    savePageBlocks,
-    assertWritable: editing.assertClean,
-    notifySaved: editing.notifySaved,
-    defaults: async () =>
-      (await getAppSettings(app.appPaths)).blockFormatDefaults,
-  });
+  const reader = createPageReader(app, editing);
   const executors: Parameters<typeof createMcpOperationTools>[1] = {
     exportPng: preferences.allowImages ? exports.exportPage : undefined,
     ocr: preferences.allowProcessing
@@ -87,6 +81,11 @@ export function createMcpPageOperationSession(options: {
   return {
     tools: [
       ...exports.tools,
+      ...createMcpTypographyAnalysisSession(
+        app,
+        operations,
+        Boolean(preferences.allowProcessing),
+      ),
       ...contextSession.tools,
       ...(recovery?.tools ?? []),
       ...createMcpOperationTools(
@@ -169,5 +168,16 @@ function createPageExporter(artifacts: McpArtifactStore) {
           "Rendered image transfer is blocked by redaction review.",
         );
     },
+  });
+}
+
+function createPageReader(app: InpaintingJobContext, editing: Editing) {
+  return new McpReadingService({
+    openChapter,
+    savePageBlocks,
+    assertWritable: editing.assertClean,
+    notifySaved: editing.notifySaved,
+    defaults: async () =>
+      (await getAppSettings(app.appPaths)).blockFormatDefaults,
   });
 }

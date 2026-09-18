@@ -115,6 +115,9 @@ function typographyReadTools(operations: readonly McpTool[]): McpTool[] {
     new McpTypographyReadService({
       openChapter,
       readCatalog: readMcpFontCatalog,
+      analysisToolAvailable: operations.some(
+        (tool) => tool.name === "carrot_run_typography_analysis",
+      ),
       sourceSizeToolAvailable: operations.some(
         (tool) => tool.name === "carrot_run_page_source_size",
       ),
