@@ -26,13 +26,36 @@ export async function verifyMcpTypographySourceEvidence(
   const observation = McpTypographyAnalysisObservationSchema.parse(value);
   assertFresh(observation, now);
   assertTypographyEvidence(saved, observation, dependencies);
+  await verifyEnvironment(saved, observation, guard);
+  for (const inspected of observation.pages) {
+    guard();
+    const page = saved.chapter.pages.find((item) => item.id === inspected.pageId);
+    if (!page) throw new McpEditError("not_found", "Analyzed page is missing.");
+    const dimensions = await probePageExportSourceImage(page.imagePath);
+    guard();
+    if (dimensions.width !== page.width || dimensions.height !== page.height)
+      throw new McpEditError("revision_conflict", "Original dimensions changed.");
+    const hash = await originalHash(page.imagePath, guard);
+    guard();
+    if (hash !== inspected.sourceImageSha256)
+      throw new McpEditError("revision_conflict", "Analyzed original bytes changed.");
+  }
+  const environment = await verifyEnvironment(saved, observation, guard);
+  guard();
+  assertFresh(observation, now);
+  return environment;
+}
+
+async function verifyEnvironment(
+  saved: McpContextSnapshot,
+  observation: McpTypographyAnalysisObservation,
+  guard: () => void,
+) {
+  guard();
   const catalog = await readMcpFontCatalog();
   guard();
   if (catalog.snapshot !== observation.catalogSnapshot)
-    throw new McpEditError(
-      "revision_conflict",
-      "Typography font catalog changed.",
-    );
+    throw new McpEditError("revision_conflict", "Typography font catalog changed.");
   const environment = await readMcpTypographyFontEnvironment({
     saved,
     request: { mode: observation.mode },
@@ -43,36 +66,10 @@ export async function verifyMcpTypographySourceEvidence(
       "revision_conflict",
       "Typography profile, candidate pool or runtime identity changed.",
     );
-  for (const inspected of observation.pages) {
-    guard();
-    const page = saved.chapter.pages.find(
-      (item) => item.id === inspected.pageId,
-    );
-    if (!page) throw new McpEditError("not_found", "Analyzed page is missing.");
-    const dimensions = await probePageExportSourceImage(page.imagePath);
-    guard();
-    if (dimensions.width !== page.width || dimensions.height !== page.height)
-      throw new McpEditError(
-        "revision_conflict",
-        "Original dimensions changed.",
-      );
-    const hash = await originalHash(page.imagePath, guard);
-    guard();
-    if (hash !== inspected.sourceImageSha256)
-      throw new McpEditError(
-        "revision_conflict",
-        "Analyzed original bytes changed.",
-      );
-  }
-  guard();
-  assertFresh(observation, now);
   return environment;
 }
 
-function assertFresh(
-  observation: McpTypographyAnalysisObservation,
-  now: () => number,
-) {
+function assertFresh(observation: McpTypographyAnalysisObservation, now: () => number) {
   if (observation.expiresAt <= now())
     throw new McpEditError(
       "not_found",
@@ -84,16 +81,11 @@ async function originalHash(path: string, guard: () => void): Promise<string> {
   const hash = createHash("sha256");
   let bytes = 0;
   // Iteration closes the stream on a guard, size-limit or filesystem failure.
-  for await (const chunk of createReadStream(path, {
-    highWaterMark: 1024 * 1024,
-  })) {
+  for await (const chunk of createReadStream(path, { highWaterMark: 1024 * 1024 })) {
     guard();
     bytes += chunk.length;
     if (bytes > MAX_PAGE_EXPORT_ORIGINAL_IMAGE_BYTES)
-      throw new McpEditError(
-        "invalid_edit",
-        "Typography source exceeds the app image budget.",
-      );
+      throw new McpEditError("invalid_edit", "Typography source exceeds the app image budget.");
     hash.update(chunk);
   }
   guard();
