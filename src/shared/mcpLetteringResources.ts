@@ -22,9 +22,6 @@ export const McpLetteringResourceCommandSchema =
 export type McpLetteringResourceReference = z.infer<
   typeof McpLetteringResourceReferenceSchema
 >;
-export type McpLetteringResourceCommand = z.infer<
-  typeof McpLetteringResourceCommandSchema
->;
 export const McpLetteringResourceListSchema = z
   .object({
     resourceKind: kind,
