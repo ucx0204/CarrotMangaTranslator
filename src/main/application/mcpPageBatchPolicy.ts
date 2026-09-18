@@ -66,3 +66,14 @@ export function requireBatchPage(chapter: ChapterSnapshot, target: Target) {
     );
   return page;
 }
+
+export function assertMcpBatchMembership(
+  chapter: ChapterSnapshot,
+  membership: string,
+) {
+  if (mcpBatchMembership(chapter) !== membership)
+    throw new McpEditError(
+      "revision_conflict",
+      "Chapter membership/order changed during batch editing.",
+    );
+}

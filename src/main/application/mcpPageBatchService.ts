@@ -21,12 +21,16 @@ import {
 import type { McpContextSnapshot } from "./mcpContextEditPolicy";
 import { McpEditError } from "./mcpEditPolicy";
 
-type Entry<I extends BatchTarget, C extends BatchChange> = {
+type Entry<
+  I extends BatchTarget,
+  C extends BatchChange,
+  P extends BatchPlan<C> = BatchPlan<C>,
+> = {
   id: string;
   owner: string;
   input: I;
   signature: string;
-  plan: BatchPlan<C>;
+  plan: P;
   bytes: number;
   expires: number;
   busy: boolean;
@@ -45,13 +49,14 @@ export class McpPageBatchService<
   C extends BatchChange,
   R,
   V,
+  P extends BatchPlan<C> = BatchPlan<C>,
 > {
-  private readonly entries = new Map<string, Entry<I, C>>();
+  private readonly entries = new Map<string, Entry<I, C, P>>();
   private readonly tasks = new Set<Promise<void>>();
   private stopped = false;
   constructor(
     private readonly ports: BatchPorts<R>,
-    private readonly policy: BatchPolicy<I, C, R, V>,
+    private readonly policy: BatchPolicy<I, C, R, V, P>,
     private readonly now = Date.now,
     lifetime?: AbortSignal,
   ) {
@@ -111,7 +116,11 @@ export class McpPageBatchService<
     this.check(owner, guard);
     const prior = this.priorPreview(owner, input, signature);
     if (prior) return this.summary(prior, saved);
-    const plan = this.policy.plan(saved, input);
+    const plan = await this.policy.plan(saved, input, { owner, guard });
+    this.check(owner, guard);
+    this.prune();
+    const raced = this.priorPreview(owner, input, signature);
+    if (raced) return this.summary(raced, saved);
     const bytes =
       Buffer.byteLength(JSON.stringify(plan)) + Buffer.byteLength(signature);
     const occupied = [...this.entries.values()].reduce(
@@ -127,7 +136,7 @@ export class McpPageBatchService<
         "editor_busy",
         "Bounded session history is full or this plan is too large. Split the explicit target list; nothing was saved.",
       );
-    const entry: Entry<I, C> = {
+    const entry: Entry<I, C, P> = {
       id: randomUUID(),
       owner,
       input,
@@ -163,7 +172,7 @@ export class McpPageBatchService<
       ),
     };
   }
-  private summary(entry: Entry<I, C>, saved?: McpContextSnapshot) {
+  private summary(entry: Entry<I, C, P>, saved?: McpContextSnapshot) {
     const changed = saved
       ? new Set(
           entry.plan.pages
@@ -277,7 +286,7 @@ export class McpPageBatchService<
     return { ...receipt };
   }
   private async execute(
-    entry: Entry<I, C>,
+    entry: Entry<I, C, P>,
     run: BatchTextRun,
     guard: () => void,
   ) {
@@ -326,11 +335,11 @@ export class McpPageBatchService<
   }
 }
 
-function batchAvailability<I extends BatchTarget, C extends BatchChange>(
-  entry: Entry<I, C>,
-  changed: Set<string>,
-  contextChanged: boolean,
-) {
+function batchAvailability<
+  I extends BatchTarget,
+  C extends BatchChange,
+  P extends BatchPlan<C>,
+>(entry: Entry<I, C, P>, changed: Set<string>, contextChanged: boolean) {
   const eligible = (state: string) =>
     entry.plan.pages.some(
       (page) => page.state === state && !changed.has(page.pageId),

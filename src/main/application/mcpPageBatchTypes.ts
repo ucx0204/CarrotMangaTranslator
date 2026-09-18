@@ -38,13 +38,24 @@ export type BatchPorts<R> = {
   commit: BatchCommit<R>;
   reportError: (error: unknown) => void;
 };
-export type BatchPolicy<I extends BatchTarget, C extends BatchChange, R, V> = {
+export type BatchPolicy<
+  I extends BatchTarget,
+  C extends BatchChange,
+  R,
+  V,
+  P extends BatchPlan<C> = BatchPlan<C>,
+> = {
   parse: (value: unknown) => I;
-  plan: (saved: McpContextSnapshot, input: I) => BatchPlan<C>;
+  plan: (
+    saved: McpContextSnapshot,
+    input: I,
+    access: { owner: string; guard: () => void },
+  ) => P | Promise<P>;
   request: (
     page: BatchPage<C>,
     input: I,
     direction: McpTranslationBatchDirection,
+    plan: P,
   ) => R;
   project: (change: C) => V;
   inspectTool: string;

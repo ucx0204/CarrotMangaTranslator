@@ -1,8 +1,12 @@
 import {
+  applyMcpTypographySnapshots,
+  type TypographySnapshotRequest,
+} from "./mcpTypographyBatchPolicy";
+import {
   applyMcpFormatSnapshots,
   type FormatSnapshotRequest,
 } from "./mcpFormatBatchPolicy";
-import { mcpBatchMembership } from "./mcpPageBatchPolicy";
+import { assertMcpBatchMembership } from "./mcpPageBatchPolicy";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
 import type {
@@ -227,11 +231,7 @@ export class McpPageEditService {
       authorize,
       (chapter, page) => {
         assertCurrentRevision(page, request.revision);
-        if (mcpBatchMembership(chapter) !== membership)
-          throw new McpEditError(
-            "revision_conflict",
-            "Chapter membership/order changed during batch editing.",
-          );
+        assertMcpBatchMembership(chapter, membership);
         const ids = new Set(request.edits.map((edit) => edit.blockId));
         if (
           page.blocks.some(
@@ -254,25 +254,54 @@ export class McpPageEditService {
       scope,
     );
   }
-  /** Restores the exact optional typography state, not merely visible scalar defaults. */
-  async commitFormatBatch(
+  /** Exact optional state is restored through the same native page transaction. */
+  commitFormatBatch(
     request: FormatSnapshotRequest,
     membership: string,
     authorize: () => void,
     onCommitted: (page: MangaPage) => void,
     scope: <T>(run: () => Promise<T>) => Promise<T>,
   ): Promise<void> {
+    return this.commitSnapshotBatch(
+      request,
+      membership,
+      authorize,
+      onCommitted,
+      scope,
+      applyMcpFormatSnapshots,
+    );
+  }
+  commitTypographyBatch(
+    request: TypographySnapshotRequest,
+    membership: string,
+    authorize: () => void,
+    onCommitted: (page: MangaPage) => void,
+    scope: <T>(run: () => Promise<T>) => Promise<T>,
+  ): Promise<void> {
+    return this.commitSnapshotBatch(
+      request,
+      membership,
+      authorize,
+      onCommitted,
+      scope,
+      applyMcpTypographySnapshots,
+    );
+  }
+  private async commitSnapshotBatch<R extends Target>(
+    request: R,
+    membership: string,
+    authorize: () => void,
+    onCommitted: (page: MangaPage) => void,
+    scope: <T>(run: () => Promise<T>) => Promise<T>,
+    apply: (page: MangaPage, request: R) => TranslationBlock[],
+  ): Promise<void> {
     await this.mutate(
       request,
       authorize,
       (chapter, page) => {
         assertCurrentRevision(page, request.revision);
-        if (mcpBatchMembership(chapter) !== membership)
-          throw new McpEditError(
-            "revision_conflict",
-            "Chapter membership/order changed during batch editing.",
-          );
-        const blocks = applyMcpFormatSnapshots(page, request);
+        assertMcpBatchMembership(chapter, membership);
+        const blocks = apply(page, request);
         return {
           blocks,
           blockOrder: page.blockOrder,

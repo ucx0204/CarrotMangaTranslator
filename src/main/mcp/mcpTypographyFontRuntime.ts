@@ -20,11 +20,16 @@ type Input = Parameters<
   ConstructorParameters<typeof McpTypographyAnalysisService>[0]["analyze"]
 >[0];
 
-export async function readMcpTypographyFontEnvironment(input: Input) {
+export async function readMcpTypographyFontEnvironment(input: {
+  request: { mode: string };
+  saved: { workId: string };
+}) {
   if (input.request.mode === "size")
     return {
       snapshot: hashStableValue("raster-core-v1"),
       fontIds: new Set<string>(),
+      profile: null,
+      candidates: [],
     };
   const profile = await readWorkTypographyProfile(input.saved.workId);
   const candidates = loadBuiltInFontMatchingCandidates(
@@ -35,6 +40,8 @@ export async function readMcpTypographyFontEnvironment(input: Input) {
   const { manifest } = resolveFontChapterRuntimeManifest();
   return {
     snapshot: hashStableValue({ profile, candidates, manifest }),
+    profile,
+    candidates,
     fontIds: new Set(candidates.map((font) => font.fontId)),
   };
 }

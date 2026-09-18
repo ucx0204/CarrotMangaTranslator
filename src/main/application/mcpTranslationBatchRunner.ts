@@ -25,14 +25,15 @@ export async function runMcpPageBatch<
   I extends BatchTarget,
   C extends BatchChange,
   R,
+  P extends BatchPlan<C>,
 >(
-  plan: BatchPlan<C>,
+  plan: P,
   target: I,
   run: BatchTextRun,
   commit: BatchCommit<R>,
   guard: () => void,
   touch: () => void,
-  makeRequest: BatchPolicy<I, C, R, unknown>["request"],
+  makeRequest: BatchPolicy<I, C, R, unknown, P>["request"],
 ): Promise<void> {
   const required = { apply: "pending", undo: "applied", redo: "undone" }[
     run.direction
@@ -47,7 +48,7 @@ export async function runMcpPageBatch<
     try {
       guard();
       await commit(
-        makeRequest(page, target, run.direction),
+        makeRequest(page, target, run.direction, plan),
         {
           workId: plan.workId,
           membership: plan.membership,
