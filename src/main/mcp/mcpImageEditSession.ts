@@ -56,8 +56,9 @@ export function createMcpImageEditSession(
     tools: [
       ...imageEditTools(service),
       ...(allowImages
-        ? createMcpImageEditReadTools((owner, args, guard) =>
-            service.inspect(owner, args, guard),
+        ? createMcpImageEditReadTools(
+            (owner, args, guard) => service.inspect(owner, args, guard),
+            lifetime.signal,
           )
         : []),
     ],

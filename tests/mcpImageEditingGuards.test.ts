@@ -42,7 +42,7 @@ it("rejects malformed, duplicate, missing, excluded and generated targets withou
           ? true
           : {
               version: 1,
-              dataUrl: "fixture",
+              dataUrl: `data:image/png;base64,${f.bytes.toString("base64")}`,
               sourceText: "x",
               translatedText: "y",
             };
@@ -141,7 +141,7 @@ it.each(["page", "image", "context"] as const)(
         const context = await f.library.readWorkContextForEdit("chapter");
         await f.library.saveWorkStyleGuide({
           ...context.styleGuide,
-          rules: { ...context.styleGuide.rules, defaultTone: "formal" },
+          rules: { ...context.styleGuide.rules, defaultTone: "literal" },
         });
       }
       const before = await readFile(f.chapterPath);

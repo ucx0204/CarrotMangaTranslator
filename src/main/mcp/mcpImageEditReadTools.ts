@@ -28,7 +28,14 @@ type Inspect = (
 }>;
 const scopes = ["carrot.read", "carrot.images"];
 
-export function createMcpImageEditReadTools(inspect: Inspect) {
+export function createMcpImageEditReadTools(
+  inspect: Inspect,
+  lifetime: AbortSignal,
+) {
+  const checked = (guard: () => void) => () => {
+    lifetime.throwIfAborted();
+    guard();
+  };
   return [
     createMcpBatchTool({
       name: "carrot_get_image_edit_mask",
@@ -38,7 +45,7 @@ export function createMcpImageEditReadTools(inspect: Inspect) {
       description:
         "Read the actual reviewed image-edit mask BEFORE applying it. White=editable, blue=protected, black=unchanged. Returns a reduced PNG (at most 1600 pixels on its long edge), original dimensions and exact pixel counts; small features may not be visible at reduced resolution. A changed original, cleaned image, mask or page requires a new plan. No model, page save, source-image pixels or output file. Image permission and redaction policy apply.",
       execute: (args, owner, guard) =>
-        readMaskPreview(inspect, args, owner, guard),
+        readMaskPreview(inspect, args, owner, checked(guard)),
       formatResult: ({ imageData, ...metadata }) => [
         ...textContent(metadata),
         { type: "image", data: imageData, mimeType: "image/png" },
@@ -51,7 +58,7 @@ export function createMcpImageEditReadTools(inspect: Inspect) {
       write: false,
       description:
         "Sample one exact original-pixel coordinate from the original or current cleaned page using the native color sampler. No arbitrary path, silent fallback from missing cleaned image, model or mutation. Rechecks page/image versions and image-transfer/redaction permission before returning the RGB hex color. It does not sample rendered translation overlays.",
-      execute: (args, owner, guard) => readColorSample(args, guard),
+      execute: (args, owner, guard) => readColorSample(args, checked(guard)),
     }),
   ];
 }

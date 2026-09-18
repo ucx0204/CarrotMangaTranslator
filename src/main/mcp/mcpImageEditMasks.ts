@@ -4,7 +4,11 @@ import type { InpaintingRetouchGeometry } from "../../shared/inpaintingTypes";
 import type { McpImageEditCommand } from "../../shared/mcpImageEditing";
 import { McpEditError } from "../application/mcpEditPolicy";
 import { buildPatternPageMask } from "../inpainting/patternPageMask";
-import { bboxToPixelRect, mergeMaskIntoPage } from "../inpainting/maskGeometry";
+import {
+  bboxToPixelRect,
+  mergeMaskIntoPage,
+  hasUsableBbox,
+} from "../inpainting/maskGeometry";
 import {
   applyRetouchEllipse,
   applyRetouchRectangle,
@@ -20,16 +24,7 @@ export function buildMcpImageEditMasks(
   sourceBitmap: Buffer,
   signal?: AbortSignal,
 ) {
-  // Native erasure masks consume normalized-1000 boxes. Convert explicit pixel
-  // sources at this adapter boundary without changing saved block geometry.
-  page = {
-    ...page,
-    blocks: page.blocks.map((block) => ({
-      ...block,
-      bbox: normalizeBboxTo1000(block.bbox, page, block.bboxSpace),
-      bboxSpace: "normalized_1000" as const,
-    })),
-  };
+  page = normalizedMaskPage(page, command);
   const geometries =
     command.kind === "erase-mask"
       ? command.strokes.map((stroke) => ({
@@ -41,7 +36,6 @@ export function buildMcpImageEditMasks(
         : [];
   const protections = [...command.protectedAreas];
   if (command.kind === "erase-blocks") {
-    validateBlockSelection(page, command.blockIds);
     protections.push(...unselectedBlockGeometry(page, command.blockIds));
   }
   validateGeometryWork(page, [...geometries, ...protections]);
@@ -221,4 +215,38 @@ function rasterizeGeometry(
 }
 function countPixels(mask: Uint8Array) {
   return mask.reduce((total, value) => total + (value ? 1 : 0), 0);
+}
+
+function normalizedMaskPage(
+  page: MangaPage,
+  command: McpImageEditCommand,
+): MangaPage {
+  if (command.kind !== "erase-blocks") return page;
+  validateBlockSelection(page, command.blockIds);
+  if (page.blocks.some((block) => !hasUsableBbox(block.bbox)))
+    throw new McpEditError(
+      "invalid_edit",
+      "Source geometry is invalid; unselected areas cannot be safely protected.",
+    );
+  const normalized = {
+    ...page,
+    blocks: page.blocks.map((block) => ({
+      ...block,
+      bbox: normalizeBboxTo1000(block.bbox, page, block.bboxSpace),
+      bboxSpace: "normalized_1000" as const,
+    })),
+  };
+  const selected = new Set(command.blockIds);
+  const work = normalized.blocks
+    .filter((block) => selected.has(block.id))
+    .reduce((total, block) => {
+      const rect = bboxToPixelRect(block.bbox, normalized);
+      return total + rect.w * rect.h;
+    }, 0);
+  if (work > 64_000_000)
+    throw new McpEditError(
+      "invalid_edit",
+      "Selected source boxes exceed the native mask-work budget. Split the block selection.",
+    );
+  return normalized;
 }
