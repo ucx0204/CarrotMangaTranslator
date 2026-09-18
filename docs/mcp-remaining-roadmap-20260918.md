@@ -9,21 +9,21 @@ Automatic unit/integration, type, lint, architecture, coverage and build checks
 remain enabled. Do not restart the live app, modify user artwork/credentials,
 replace approved model assets, merge master or publish a release implicitly.
 
-| Order | Remaining bundle | Status |
-| --- | --- | --- |
-| 1 | C23 independent analysis; selective font/source-size application and exact undo/redo | Implemented; automatic checks passed; live deferred |
-| 2 | Bubble layout, advanced typography, reusable rules/presets | Implemented; automatic checks passed; live deferred |
-| 3 | Region/multi-block OCR, selected translation, reviewed append and block references | Implemented; automatic checks passed; live deferred |
-| 4 | Multi-block erasure, free/protected masks, localized correction/restoration | NEXT; not started |
-| 5 | External image/mask upload, validation and layer incorporation | Not started |
-| 6 | Independent sound-effect preparation, text, generation and recovery | Not started |
-| 7 | Durable undo and retained output assets | Not started |
-| 8 | Model-grouped sequential jobs, chapter batches and explicit resume | Not started |
-| 9 | Context merge/replacement, reference migration and multi-work research | Not started |
-| 10 | File/web import and library organization | Not started |
-| 11 | Extra export/exchange formats and attachment/delivery diagnostics | Not started |
-| 12 | Composite workflows and bounded automated review | Not started |
-| 13 | Client compatibility, diagnostics, installation and UI/UX | Not started |
+| Order | Remaining bundle                                                                     | Status                                              |
+| ----- | ------------------------------------------------------------------------------------ | --------------------------------------------------- |
+| 1     | C23 independent analysis; selective font/source-size application and exact undo/redo | Implemented; automatic checks passed; live deferred |
+| 2     | Bubble layout, advanced typography, reusable rules/presets                           | Implemented; automatic checks passed; live deferred |
+| 3     | Region/multi-block OCR, selected translation, reviewed append and block references   | Implemented; automatic checks passed; live deferred |
+| 4     | Multi-block erasure, free/protected masks, localized correction/restoration          | NEXT; not started                                   |
+| 5     | External image/mask upload, validation and layer incorporation                       | Not started                                         |
+| 6     | Independent sound-effect preparation, text, generation and recovery                  | Not started                                         |
+| 7     | Durable undo and retained output assets                                              | Not started                                         |
+| 8     | Model-grouped sequential jobs, chapter batches and explicit resume                   | Not started                                         |
+| 9     | Context merge/replacement, reference migration and multi-work research               | Not started                                         |
+| 10    | File/web import and library organization                                             | Not started                                         |
+| 11    | Extra export/exchange formats and attachment/delivery diagnostics                    | Not started                                         |
+| 12    | Composite workflows and bounded automated review                                     | Not started                                         |
+| 13    | Client compatibility, diagnostics, installation and UI/UX                            | Not started                                         |
 
 Live C23 quality, model cleanup, actual originals, PNG/ZIP attachment reception,
 download byte/hash checks, restart/reconnection and end-to-end client acceptance

@@ -68,16 +68,16 @@ not an arbitrary whole-page metadata rollback. History is session-only with a
 
 Full repository check at `10472c97` completed successfully:
 
-| Check | Result |
-| --- | --- |
-| Repository stage graph | All 26 stages passed, every exitCode 0 |
-| Complete Vitest/V8 suite | 7,772 passed; zero failed; 11 pre-existing skips |
-| Focused selection and structured-output regressions | 37 tests across seven files passed |
-| Renderer, Electron and JavaScript types | Passed |
-| Lint, formatting, architecture, duplication, unused exports and mock boundaries | Passed |
-| Exact production coverage-floor gate | Passed |
-| Windows build | Passed |
-| Existing page-artwork parity, image protocol, renderer/preload bundle checks | Passed |
+| Check                                                                           | Result                                           |
+| ------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Repository stage graph                                                          | All 26 stages passed, every exitCode 0           |
+| Complete Vitest/V8 suite                                                        | 7,772 passed; zero failed; 11 pre-existing skips |
+| Focused selection and structured-output regressions                             | 37 tests across seven files passed               |
+| Renderer, Electron and JavaScript types                                         | Passed                                           |
+| Lint, formatting, architecture, duplication, unused exports and mock boundaries | Passed                                           |
+| Exact production coverage-floor gate                                            | Passed                                           |
+| Windows build                                                                   | Passed                                           |
+| Existing page-artwork parity, image protocol, renderer/preload bundle checks    | Passed                                           |
 
 Canonical completion record: `.tmp/check-timings.json`, started at
 `2026-09-18T15:41:13.486Z`, completed at `2026-09-18T15:44:27.736Z`.
