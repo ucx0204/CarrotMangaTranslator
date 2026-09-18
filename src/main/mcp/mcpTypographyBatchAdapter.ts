@@ -1,5 +1,8 @@
 import type { AppActivityResource } from "../../shared/appActivityTypes";
-import { McpTypographyAnalysisObservationSchema } from "../../shared/mcpTypographyAnalysis";
+import {
+  McpTypographyAnalysisObservationSchema,
+  McpTypographyAnalysisTargetSchema,
+} from "../../shared/mcpTypographyAnalysis";
 import type { McpPageEditService } from "../application/mcpPageEditService";
 import type { McpOperationService } from "../application/mcpOperationService";
 import {
@@ -25,10 +28,12 @@ export function createMcpTypographyBatchAdapter(
       await operations.ready();
       access.guard();
       const job = operations.status(input.analysisJobId, access.owner);
+      const target = McpTypographyAnalysisTargetSchema.safeParse(job.target);
       if (
         job.kind !== "typographyAnalysis" ||
         job.status !== "completed" ||
-        job.target?.chapterId !== input.chapterId ||
+        !target.success ||
+        target.data.chapterId !== input.chapterId ||
         !job.result?.typographyAnalysis
       )
         throw new McpEditError(
@@ -89,7 +94,11 @@ async function withForwardEvidence<T>(
   // The shared page transaction still checks current revision, membership and authority.
   if (request.direction === "undo") return run();
   const resources: AppActivityResource[] = [
-    { kind: "library-structure", scope: `chapter:${request.chapterId}`, access: "read" },
+    {
+      kind: "library-structure",
+      scope: `chapter:${request.chapterId}`,
+      access: "read",
+    },
     ...request.dependencies.map((page) => ({
       kind: "page-content" as const,
       scope: `${request.chapterId}/${page.pageId}`,
@@ -97,7 +106,9 @@ async function withForwardEvidence<T>(
     })),
   ];
   // This nonwaiting lease is acquired AFTER native page handoff, never in reverse order.
-  const release = await withLibraryRead(async () => retainLibrarySnapshot(resources, []));
+  const release = await withLibraryRead(async () =>
+    retainLibrarySnapshot(resources, []),
+  );
   try {
     guard();
     const saved = await readWorkContextForEdit(request.chapterId);
