@@ -115,15 +115,7 @@ export class McpTypographyAnalysisService {
       status: "observed",
       chapterId: request.chapterId,
       engine: request.mode === "size" ? "app-source-raster" : "app-c23",
-      performed: prepared.requiredStages.filter((stage) =>
-        prepared.pages.some((page) =>
-          page.blocks.some((block) =>
-            stage === "source_size_measurement"
-              ? block.sizeEligible
-              : block.fontEligible,
-          ),
-        ),
-      ),
+      performed: analysisStages(prepared),
       pagesChanged: 0,
       needsReview: true,
       observationExpired: false,
@@ -245,4 +237,18 @@ function consistentEvidence(
 ) {
   if (!eligible) return evidence === null && reason === expectedExclusion;
   return evidence === null ? Boolean(reason) : reason === null;
+}
+
+function analysisStages(
+  prepared: Awaited<ReturnType<McpTypographyReadService["preflight"]>>,
+) {
+  return prepared.requiredStages.filter((stage) =>
+    prepared.pages.some((page) =>
+      page.blocks.some((block) =>
+        stage === "source_size_measurement"
+          ? block.sizeEligible
+          : block.fontEligible,
+      ),
+    ),
+  );
 }
