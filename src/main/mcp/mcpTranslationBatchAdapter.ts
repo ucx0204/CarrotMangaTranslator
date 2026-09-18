@@ -10,7 +10,7 @@ import type { BatchCommit, BatchPorts } from "../application/mcpPageBatchTypes";
 
 type Scope = <T>(run: () => Promise<T>) => Promise<T>;
 export function createMcpTranslationBatchPorts(edits: McpPageEditService) {
-  return createBatchPorts<McpTranslationPatch>(
+  return createMcpPageBatchPorts<McpTranslationPatch>(
     (request, membership, guard, onCommitted, scope) =>
       edits.commitTranslationBatch(
         request,
@@ -22,14 +22,14 @@ export function createMcpTranslationBatchPorts(edits: McpPageEditService) {
   );
 }
 export function createMcpFormatBatchPorts(edits: McpPageEditService) {
-  return createBatchPorts<FormatSnapshotRequest>(
+  return createMcpPageBatchPorts<FormatSnapshotRequest>(
     (request, membership, guard, onCommitted, scope) =>
       edits.commitFormatBatch(request, membership, guard, onCommitted, scope),
   );
 }
 /** Context is acquired after page handoff. Existing nonwaiting read lease preserves
  * the page owner; shared here to keep format/text deadlock and authorization rules identical. */
-function createBatchPorts<R extends { chapterId: string }>(
+export function createMcpPageBatchPorts<R extends { chapterId: string }>(
   save: (
     request: R,
     membership: string,
