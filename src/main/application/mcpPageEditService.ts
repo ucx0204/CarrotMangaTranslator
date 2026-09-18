@@ -294,7 +294,7 @@ export class McpPageEditService {
     authorize: () => void,
     onCommitted: (page: MangaPage) => void,
     scope: <T>(run: () => Promise<T>) => Promise<T>,
-    apply: (page: MangaPage, request: R) => TranslationBlock[],
+    apply: (page: MangaPage, request: R) => TranslationBlock[] | Pick<MangaPage, "blocks" | "blockOrder">,
   ): Promise<void> {
     await this.mutate(
       request,
@@ -302,11 +302,13 @@ export class McpPageEditService {
       (chapter, page) => {
         assertCurrentRevision(page, request.revision);
         assertMcpBatchMembership(chapter, membership);
-        const blocks = apply(page, request);
+        const projected = apply(page, request);
+        const snapshot = Array.isArray(projected)
+          ? { blocks: projected, blockOrder: page.blockOrder } : projected;
         return {
-          blocks,
-          blockOrder: page.blockOrder,
-          changed: hashStableValue(blocks) !== hashStableValue(page.blocks),
+          ...snapshot,
+          changed: hashStableValue(snapshot.blocks) !== hashStableValue(page.blocks) ||
+            hashStableValue(snapshot.blockOrder ?? null) !== hashStableValue(page.blockOrder ?? null),
           result: null,
         };
       },
