@@ -225,3 +225,33 @@ it("bounds raster size, body-sized chunks and rejects arbitrary file fields", ()
         throw new Error("noncanonical");
     }).toThrow();
 });
+
+it("rejects incomplete, animated, repeated-header and overflowing PNG containers before decoding", () => {
+  const f = fixture();
+  const end = f.bytes.subarray(f.bytes.length - 12);
+  const withoutEnd = f.bytes.subarray(0, f.bytes.length - 12);
+  expect(() => decodeMcpUploadPng(withoutEnd, f.input)).toThrow(
+    "complete 8-bit PNG",
+  );
+  const animation = Buffer.alloc(12);
+  animation.write("acTL", 4, "ascii");
+  expect(() =>
+    decodeMcpUploadPng(Buffer.concat([withoutEnd, animation, end]), f.input),
+  ).toThrow("Animated PNG");
+  const header = f.bytes.subarray(8, 33);
+  expect(() =>
+    decodeMcpUploadPng(
+      Buffer.concat([f.bytes.subarray(0, 33), header, f.bytes.subarray(33)]),
+      f.input,
+    ),
+  ).toThrow("complete 8-bit PNG");
+  const oversized = Buffer.from(f.bytes);
+  oversized.writeUInt32BE(0xffffffff, 33);
+  expect(() => decodeMcpUploadPng(oversized, f.input)).toThrow(
+    "complete 8-bit PNG",
+  );
+  const missingData = Buffer.concat([f.bytes.subarray(0, 33), end]);
+  expect(() => decodeMcpUploadPng(missingData, f.input)).toThrow(
+    "complete 8-bit PNG",
+  );
+});
