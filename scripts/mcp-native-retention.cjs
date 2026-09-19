@@ -182,4 +182,4 @@ async function waitOutput(client, jobId) {
   }
   throw new Error("Native retained export did not finish");
 }
-module.exports = { checkNativeRetention };
+module.exports = { checkNativeRetention, retainedClient };

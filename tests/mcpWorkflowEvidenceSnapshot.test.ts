@@ -76,7 +76,7 @@ it("does not publish a prepared plan when chapter order changes while hashing it
     await duringSourceRead(
       f,
       (chapter) => {
-        chapter.pages.reverse();
+        chapter.pageOrder = [...chapter.pageOrder].reverse();
       },
       async () => {
         await expect(f.prepare([{ kind: "export-png" }])).rejects.toThrow(
