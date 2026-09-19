@@ -116,8 +116,13 @@ export class McpRetentionStorage {
     if (workflowOwner) {
       if (entry.kind !== "workflow" || entry.owner !== workflowOwner.expected)
         throw new McpEditError("revision_conflict", "Workflow owner changed.");
-      const next = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).parse(workflowOwner.next);
-      z.object({ owner: z.literal(next) }).passthrough().parse(value);
+      const next = z
+        .string()
+        .regex(/^[A-Za-z0-9_-]{1,128}$/)
+        .parse(workflowOwner.next);
+      z.object({ owner: z.literal(next) })
+        .passthrough()
+        .parse(value);
       entry.owner = next;
       // The previous connection's prepare request is not a new owner's admission.
       entry.requestId = null;
