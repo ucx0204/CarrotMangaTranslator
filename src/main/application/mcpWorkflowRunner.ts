@@ -9,6 +9,11 @@ import {
 } from "./mcpWorkflowPolicy";
 
 export type McpWorkflowRuntime = {
+  group?: (
+    stage: McpWorkflowStep["stage"],
+    controller: AbortController,
+    execute: () => Promise<boolean>,
+  ) => Promise<boolean>;
   verify: (
     record: McpWorkflowRecord,
     changedPage?: number,
@@ -69,19 +74,19 @@ export async function runMcpWorkflow(
     const runtime = await port.open(record, guard);
     await reconcileWorkflowAttempt(port, record, runtime, retryFailed);
     await runtime.verify(record);
-    for (const step of record.steps) {
-      if (step.status === "completed") continue;
+    for (const [stageIndex, stage] of record.input.stages.entries()) {
+      const pending = record.steps.filter(
+        (step) => step.stageIndex === stageIndex && step.status !== "completed",
+      );
+      if (!pending.length) continue;
       guard();
-      if (active.pause) {
-        record.status = "paused";
-        break;
-      }
-      if (step.stage === "await-external") {
-        step.status = "waiting_external";
-        record.status = "waiting_external";
-        break;
-      }
-      if (!(await runStep(port, active, runtime, step, guard))) return;
+      const execute = () =>
+        runStageSteps(port, active, runtime, pending, guard);
+      const finished = runtime.group
+        ? await runtime.group(stage.kind, active.controller, execute)
+        : await execute();
+      if (!finished) return;
+      if (record.status !== "running") break;
     }
     if (record.steps.every((step) => step.status === "completed"))
       record.status = "completed";
@@ -92,6 +97,28 @@ export async function runMcpWorkflow(
     await persistWorkflow(port, record);
     port.reportError(error);
   }
+}
+async function runStageSteps(
+  port: McpWorkflowRunnerPort,
+  active: McpWorkflowActive,
+  runtime: McpWorkflowRuntime,
+  steps: McpWorkflowStep[],
+  guard: () => void,
+) {
+  for (const step of steps) {
+    guard();
+    if (active.pause) {
+      active.record.status = "paused";
+      return true;
+    }
+    if (step.stage === "await-external") {
+      step.status = "waiting_external";
+      active.record.status = "waiting_external";
+      return true;
+    }
+    if (!(await runStep(port, active, runtime, step, guard))) return false;
+  }
+  return true;
 }
 async function runStep(
   port: McpWorkflowRunnerPort,

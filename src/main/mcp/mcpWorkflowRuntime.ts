@@ -1,3 +1,5 @@
+import { withModelWorkload } from "../runtimeSupport/modelWorkload";
+import type { McpWorkflowRuntime } from "../application/mcpWorkflowRunner";
 import type { AppSettings } from "../../shared/settingsTypes";
 import type { McpWorkflowPrepare } from "../../shared/mcpWorkflow";
 import type {
@@ -83,7 +85,22 @@ export function createMcpWorkflowRuntime(options: Options) {
             guard,
           ),
         );
+      const group: NonNullable<McpWorkflowRuntime["group"]> = (
+        stage,
+        controller,
+        execute,
+      ) => {
+        if (stage !== "translate" && stage !== "erase") return execute();
+        return options.app.jobs.runModelGroup(controller, () =>
+          withModelWorkload(
+            stage === "translate" ? "translation" : "inpainting",
+            controller.signal,
+            execute,
+          ),
+        );
+      };
       return {
+        group,
         verify: (current: McpWorkflowRecord, changedPage?: number) =>
           verifyWorkflowPages(current, guard, changedPage),
         cost: async (current: McpWorkflowRecord, step: McpWorkflowStep) => {
