@@ -1,5 +1,8 @@
 # Bundle 8: ordered chapter workflows and explicit resume
 
+Current continuation: `mcp-workflow-continuation-20260919.md` supersedes this
+historical checkpoint's remaining-work list. Bundle 8 remains in progress.
+
 Status: CORE IMPLEMENTED AND REGISTERED; BUNDLE 8 REMAINS IN PROGRESS.
 Starting verified bundle-seven checkpoint: `e30735ef`.
 Use only `feat/mcp-app-bridge` and the existing MCP-Review worktree.

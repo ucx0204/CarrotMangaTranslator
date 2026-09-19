@@ -29,23 +29,22 @@ Live C23 quality, model cleanup, actual originals, PNG/ZIP attachment reception,
 download byte/hash checks, restart/reconnection and end-to-end client acceptance
 belong to the final integrated live-test queue, not intermediate completion claims.
 
-## Current authority: bundle 8 connected core, still in progress
+## Current authority: bundle 8 continuation, still in progress
 
-See `mcp-workflow-checkpoint-20260919.md` and its boundary/coverage documents.
-Nine tools connect fixed targets, stage-major sequential execution, durable
-checkpoints, explicit pause/cancel/resume, native receipt reconciliation and
-external-result waiting. Existing jobs, page ownership and encrypted retention
-are reused. No executable job is automatically resumed after reconstruction.
+See `mcp-workflow-continuation-20260919.md` for the exact current source and next work.
+The nine core tools remain connected. Translation and erasure now have a native
+stage-group connection, but its current behavior has not been reverified. OCR keeps
+its existing per-page native pipeline. The workflow-only owner/index storage
+primitive has four passing isolated native tests and all three type projects pass.
 
-The core passed a complete 26-gate check, followed by a reproduced/fixed 50-page
-external acknowledgement-capacity regression. The checkpoint records the final
-rerun status; do not infer completion from old logs or the presence of tool names.
+Bundle 8 is NOT complete. Two function-length and two architecture-budget errors
+remain. The existing two-party handoff service/tool definitions still need repository,
+settled-admission, session and output registration. The dedicated native workflow
+scenario exists, but earlier success is not verification of this new source tree.
+No full-gate or live acceptance success is claimed for the current checkpoint.
 
-Bundle 8 is NOT complete: same-model group residency, authorized cross-connection
-handoff and its dedicated extra real-Electron workflow scenario remain. Current
-children still use their existing model acquisition/release lifecycle. Same-owner
-new-chat resume is available; an unrelated connection cannot take over.
-Continue bundle 8, not 9. Do not redo bundles 1-7 or request intermediate live tests.
+Continue bundle 8, not 9. Keep completed steps, existing permissions, native cleanup
+and retained page/output ownership. Do not redo bundles 1-7 or ask for live tests.
 
 ## Verified bundle 7 completion
 
