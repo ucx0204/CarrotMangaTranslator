@@ -1,3 +1,4 @@
+import { withModelWorkload } from "../src/main/runtimeSupport/modelWorkload";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppPaths } from "../src/main/appPaths";
 import type { InpaintingEngine } from "../src/main/inpainting/inpaintingEngine";
@@ -28,6 +29,36 @@ describe("selected inpainting model routing", () => {
     disposeFlux.mockResolvedValue(false);
     disposeKoharu.mockResolvedValue(false);
   });
+
+  it.each(["flux-klein", "lama-manga", "aot-inpainting"] as const)(
+    "retains one native %s lease across sequential children and disposes once at group exit",
+    async (model) => {
+      const native = makeLease(model);
+      const acquire = model === "flux-klein" ? acquireFlux : acquireKoharu;
+      const dispose = model === "flux-klein" ? disposeFlux : disposeKoharu;
+      acquire.mockResolvedValue(native);
+      await withModelWorkload(
+        "inpainting",
+        new AbortController().signal,
+        async () => {
+          for (let page = 0; page < 3; page++) {
+            const child = await acquireInpaintingEngine(
+              { appPaths, model },
+              dependencies,
+            );
+            expect(child.engine).toBe(native.engine);
+            await child.release();
+            expect(native.release).not.toHaveBeenCalled();
+            expect(dispose).not.toHaveBeenCalled();
+          }
+        },
+      );
+      expect(acquire).toHaveBeenCalledTimes(1);
+      expect(native.release).toHaveBeenCalledTimes(1);
+      expect(dispose).toHaveBeenCalledTimes(1);
+      expect(dispose).toHaveBeenCalledWith("workload-complete");
+    },
+  );
 
   it("uses only Flux when Flux is selected", async () => {
     const fluxLease = makeLease("flux-klein");

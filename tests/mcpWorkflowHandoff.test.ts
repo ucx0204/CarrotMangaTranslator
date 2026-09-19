@@ -248,3 +248,46 @@ it("expires pending consent without extending durable workflow retention", async
     clock.mockRestore();
   }
 });
+
+it("keeps fallback scope validation and missing-identity rejection on real registered handoff tools", async () => {
+  const f = await workflowHandoffFixture();
+  const { authorizeMcpWorkflow } =
+    await import("../src/main/mcp/mcpWorkflowAuthorization");
+  const { McpWorkflowRecordSchema } =
+    await import("../src/main/application/mcpWorkflowPolicy");
+  try {
+    const plan = await f.prepare([{ kind: "export-png" }]);
+    const record = McpWorkflowRecordSchema.parse(
+      await f.storage.record(plan.id),
+    );
+    const context = {
+      principalId: f.owner,
+      assertAuthorized: vi.fn(),
+      assertScopes: vi.fn(),
+    };
+    authorizeMcpWorkflow(context, record);
+    expect(context.assertAuthorized).toHaveBeenCalledTimes(1);
+    expect(context.assertScopes).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        "carrot.images",
+        "carrot.edit",
+        "carrot.process",
+      ]),
+    );
+    expect(() =>
+      authorizeMcpWorkflow(
+        { principalId: f.owner, assertAuthorized: vi.fn() },
+        record,
+      ),
+    ).toThrow("Scope verification");
+    const tool = f
+      .current()
+      .tools.find((item) => item.name === "carrot_accept_workflow_handoff");
+    if (!tool) throw new Error("Missing registered acceptance tool");
+    await expect(tool.invoke({})).rejects.toThrow(
+      "approved receiving connection",
+    );
+  } finally {
+    await f.close();
+  }
+});
