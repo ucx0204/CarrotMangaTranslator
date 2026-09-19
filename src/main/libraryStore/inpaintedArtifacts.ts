@@ -1,10 +1,22 @@
 import { resolve, join } from "node:path";
 import { isLibraryArtifactRetained } from "./libraryArtifactRetention";
 import { isPathInside, isSupportedImagePath } from "./storage";
-import { isRecoveredImageArtifact, removeManagedImageCandidate } from "./recoveredImageArtifacts";
+import {
+  isRecoveredImageArtifact,
+  removeManagedImageCandidate,
+} from "./recoveredImageArtifacts";
 
-type ImageReferences = { imagePath?: string; inpaintedImagePath?: string; inpaintMaskPath?: string };
-const referencedPaths = (pages: readonly ImageReferences[]) => pages.flatMap(page => [page.imagePath, page.inpaintedImagePath, page.inpaintMaskPath]);
+type ImageReferences = {
+  imagePath?: string;
+  inpaintedImagePath?: string;
+  inpaintMaskPath?: string;
+};
+const referencedPaths = (pages: readonly ImageReferences[]) =>
+  pages.flatMap((page) => [
+    page.imagePath,
+    page.inpaintedImagePath,
+    page.inpaintMaskPath,
+  ]);
 
 export function inpaintedPathChanged(
   previousPath: string,
@@ -24,7 +36,9 @@ export function isUnreferencedPageMask(
 ): boolean {
   return (
     isManagedArtifact(chapterDir, "mask", maskPath) &&
-    !referencedPaths(pages).some(path => path && !inpaintedPathChanged(maskPath, path))
+    !referencedPaths(pages).some(
+      (path) => path && !inpaintedPathChanged(maskPath, path),
+    )
   );
 }
 

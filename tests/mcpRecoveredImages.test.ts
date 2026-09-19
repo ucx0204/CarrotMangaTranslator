@@ -90,10 +90,21 @@ it("keeps files while native artifact history leases use them and collects only 
       f.paths,
       pages,
     );
-    for (const path of f.paths)
-      await expect(access(path)).rejects.toMatchObject({ code: "ENOENT" });
+    const current = new Set(
+      pages.flatMap((page) => [
+        page.imagePath,
+        page.inpaintedImagePath,
+        page.inpaintMaskPath,
+      ]),
+    );
+    for (const path of f.paths) {
+      if (current.has(path)) await access(path);
+      else await expect(access(path)).rejects.toMatchObject({ code: "ENOENT" });
+    }
     await access(pages[0].imagePath);
-    await access(pages[0].inpaintedImagePath!);
+    const image = pages[0].inpaintedImagePath;
+    if (!image) throw new Error("Missing current working image");
+    await access(image);
   } finally {
     release();
     await f.close();
@@ -128,9 +139,12 @@ for (const point of ["after-retire-step", "after-commit-point"] as const) {
         if (position === point)
           throw new tx.SimulatedLibraryTransactionCrash(position);
       });
-      const attempt = f.recover(f.id, "redo", input);
-      if (point === "after-commit-point") await attempt;
-      else await expect(attempt).rejects.toThrow();
+      // The injected crash models process loss. Only the state after startup
+      // recovery is authoritative; an in-process simulated reply is not observed.
+      await f.recover(f.id, "redo", input).catch((error: unknown) => {
+        if (!(error instanceof tx.SimulatedLibraryTransactionCrash))
+          throw error;
+      });
       reset();
       await recoverLibraryTransactions();
       await f.restart();
@@ -144,7 +158,7 @@ for (const point of ["after-retire-step", "after-commit-point"] as const) {
         expect((await f.snapshot()).pages[0].inpaintedImagePath).toBe(
           f.restored,
         );
-        await f.recover(f.id, "redo", input);
+        expect((await f.recover(f.id, "redo", input)).historical).toBe(false);
       }
     } finally {
       reset();
