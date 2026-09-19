@@ -1,11 +1,16 @@
 import { expect, it, vi } from "vitest";
 import { workflowFixture } from "./mcpWorkflow.fixture";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
-import { withModelWorkload, acquireModelWorkload } from "../src/main/runtimeSupport/modelWorkload";
+import {
+  withModelWorkload,
+  acquireModelWorkload,
+} from "../src/main/runtimeSupport/modelWorkload";
 
 function deferred() {
   let resolve!: () => void;
-  const promise = new Promise<void>((done) => { resolve = done; });
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
   return { promise, resolve };
 }
 
@@ -26,13 +31,19 @@ it("uses one endpoint for sequential workflow pages and disposes before renderin
     expect(f.dispose).toHaveBeenCalledTimes(1);
     expect(f.render).toHaveBeenCalledTimes(2);
     expect(f.app.jobs.all).toEqual([]);
-  } finally { await f.close(); }
+  } finally {
+    await f.close();
+  }
 });
 
 it("keeps workflow status and native exclusion active until physical group cleanup settles", async () => {
   const f = await workflowFixture();
-  const disposing = deferred(), finish = deferred();
-  f.dispose.mockImplementation(async () => { disposing.resolve(); await finish.promise; });
+  const disposing = deferred(),
+    finish = deferred();
+  f.dispose.mockImplementation(async () => {
+    disposing.resolve();
+    await finish.promise;
+  });
   try {
     const plan = await f.prepare();
     await f.run(plan.id);
@@ -40,36 +51,63 @@ it("keeps workflow status and native exclusion active until physical group clean
     expect((await f.get(plan.id)).status).toBe("running");
     expect(f.app.jobs.hasActive).toBe(true);
     expect(f.render).not.toHaveBeenCalled();
-    expect(() => f.app.jobs.start({ id: "foreign-model", kind: "gemma-analysis", abortController: new AbortController(), resources: [{ kind: "model-runtime", scope: "*", access: "write" }] })).toThrow();
+    expect(() =>
+      f.app.jobs.start({
+        id: "foreign-model",
+        kind: "gemma-analysis",
+        abortController: new AbortController(),
+        resources: [{ kind: "model-runtime", scope: "*", access: "write" }],
+      }),
+    ).toThrow();
     finish.resolve();
     expect((await f.done(plan.id)).status).toBe("completed");
     expect(f.start).toHaveBeenCalledTimes(1);
-  } finally { finish.resolve(); await f.close(); }
+  } finally {
+    finish.resolve();
+    await f.close();
+  }
 });
 
 it("does not start the following stage when group disposal fails", async () => {
   const f = await workflowFixture();
   try {
-    f.dispose.mockRejectedValueOnce(new Error("external endpoint cleanup failed"));
+    f.dispose.mockRejectedValueOnce(
+      new Error("external endpoint cleanup failed"),
+    );
     const plan = await f.prepare();
     await f.run(plan.id);
     expect((await f.done(plan.id)).status).toBe("failed");
     expect(f.render).not.toHaveBeenCalled();
     expect(f.request).toHaveBeenCalledTimes(2);
     expect(f.app.jobs.all).toEqual([]);
-  } finally { await f.close(); }
+  } finally {
+    await f.close();
+  }
 });
 
 it("preserves native model exclusion between children while keeping child identities separate", async () => {
   const jobs = new ActiveJobStore();
-  const entered = deferred(), finish = deferred();
+  const entered = deferred(),
+    finish = deferred();
   const controller = new AbortController();
   const run = jobs.runModelGroup(controller, async () => {
     for (const id of ["one", "two"]) {
-      jobs.start({ id, kind: "gemma-analysis", abortController: new AbortController(), resources: [{ kind: "model-runtime", scope: "*", access: "write" }] });
+      jobs.start({
+        id,
+        kind: "gemma-analysis",
+        abortController: new AbortController(),
+        resources: [{ kind: "model-runtime", scope: "*", access: "write" }],
+      });
       expect(jobs.activityOwnerFor(id)).not.toBe(id);
       expect(jobs.get(id)?.id).toBe(id);
-      expect(() => jobs.start({ id: "overlap", kind: "gemma-analysis", abortController: new AbortController(), resources: [] })).toThrow("sequentially");
+      expect(() =>
+        jobs.start({
+          id: "overlap",
+          kind: "gemma-analysis",
+          abortController: new AbortController(),
+          resources: [],
+        }),
+      ).toThrow("sequentially");
       jobs.clearIfCurrent(id);
     }
     entered.resolve();
@@ -78,48 +116,110 @@ it("preserves native model exclusion between children while keeping child identi
   try {
     await entered.promise;
     expect(jobs.all).toHaveLength(1);
-    expect(() => jobs.start({ id: "outside", kind: "gemma-analysis", abortController: new AbortController(), resources: [{ kind: "model-runtime", scope: "*", access: "write" }] })).toThrow();
-  } finally { finish.resolve(); await run; }
+    expect(() =>
+      jobs.start({
+        id: "outside",
+        kind: "gemma-analysis",
+        abortController: new AbortController(),
+        resources: [{ kind: "model-runtime", scope: "*", access: "write" }],
+      }),
+    ).toThrow();
+  } finally {
+    finish.resolve();
+    await run;
+  }
   expect(jobs.all).toEqual([]);
 });
 
 it("binds duplicate child releases to their own borrow and never releases a later borrower", async () => {
   const dispose = vi.fn(async () => {});
-  const create = vi.fn(async () => ({ value: { model: "native" }, release: dispose }));
-  await withModelWorkload("inpainting", new AbortController().signal, async () => {
-    const first = await acquireModelWorkload("inpainting", "fixed", undefined, create);
-    await expect(acquireModelWorkload("inpainting", "fixed", undefined, create)).rejects.toThrow("borrower");
-    await first.release();
-    const second = await acquireModelWorkload("inpainting", "fixed", undefined, create);
-    expect(second.value).toBe(first.value);
-    await first.release();
-    await expect(acquireModelWorkload("inpainting", "fixed", undefined, create)).rejects.toThrow("borrower");
-    await second.release();
-    await expect(acquireModelWorkload("inpainting", "different", undefined, create)).rejects.toThrow("configuration");
-    expect(dispose).not.toHaveBeenCalled();
-  });
+  const create = vi.fn(async () => ({
+    value: { model: "native" },
+    release: dispose,
+  }));
+  await withModelWorkload(
+    "inpainting",
+    new AbortController().signal,
+    async () => {
+      const first = await acquireModelWorkload(
+        "inpainting",
+        "fixed",
+        undefined,
+        create,
+      );
+      await expect(
+        acquireModelWorkload("inpainting", "fixed", undefined, create),
+      ).rejects.toThrow("borrower");
+      await first.release();
+      const second = await acquireModelWorkload(
+        "inpainting",
+        "fixed",
+        undefined,
+        create,
+      );
+      expect(second.value).toBe(first.value);
+      await first.release();
+      await expect(
+        acquireModelWorkload("inpainting", "fixed", undefined, create),
+      ).rejects.toThrow("borrower");
+      await second.release();
+      await expect(
+        acquireModelWorkload("inpainting", "different", undefined, create),
+      ).rejects.toThrow("configuration");
+      expect(dispose).not.toHaveBeenCalled();
+    },
+  );
   expect(create).toHaveBeenCalledTimes(1);
   expect(dispose).toHaveBeenCalledTimes(1);
 });
 
 it("preserves work and cleanup errors and disposes resources acquired during cancellation", async () => {
-  const gate = deferred(), started = deferred();
+  const gate = deferred(),
+    started = deferred();
   const controller = new AbortController();
   const disposal = vi.fn(async () => {});
-  const running = withModelWorkload("translation", controller.signal, async () => {
-    await acquireModelWorkload("translation", "fixed", controller.signal, async () => {
-      started.resolve(); await gate.promise;
-      return { value: {}, release: disposal };
-    });
-  });
+  const running = withModelWorkload(
+    "translation",
+    controller.signal,
+    async () => {
+      await acquireModelWorkload(
+        "translation",
+        "fixed",
+        controller.signal,
+        async () => {
+          started.resolve();
+          await gate.promise;
+          return { value: {}, release: disposal };
+        },
+      );
+    },
+  );
   const checked = expect(running).rejects.toThrow();
   await started.promise;
-  controller.abort(); gate.resolve();
+  controller.abort();
+  gate.resolve();
   await checked;
   expect(disposal).toHaveBeenCalledTimes(1);
-  await expect(withModelWorkload("translation", new AbortController().signal, async () => {
-    const borrowed = await acquireModelWorkload("translation", "fixed", undefined, async () => ({ value: {}, release: async () => { throw new Error("cleanup"); } }));
-    await borrowed.release();
-    throw new Error("work");
-  })).rejects.toMatchObject({ errors: [expect.objectContaining({ message: "work" }), expect.objectContaining({ message: "cleanup" })] });
+  await expect(
+    withModelWorkload("translation", new AbortController().signal, async () => {
+      const borrowed = await acquireModelWorkload(
+        "translation",
+        "fixed",
+        undefined,
+        async () => ({
+          value: {},
+          release: async () => {
+            throw new Error("cleanup");
+          },
+        }),
+      );
+      await borrowed.release();
+      throw new Error("work");
+    }),
+  ).rejects.toMatchObject({
+    errors: [
+      expect.objectContaining({ message: "work" }),
+      expect.objectContaining({ message: "cleanup" }),
+    ],
+  });
 });
