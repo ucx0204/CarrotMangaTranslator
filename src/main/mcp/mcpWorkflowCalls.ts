@@ -18,6 +18,11 @@ export type McpWorkflowSelectionWait = (
     result: string;
   }[];
 }>;
+export type McpWorkflowSelectionRelease = (
+  owner: string,
+  id: string,
+  requestId: string,
+) => void;
 /** No caller-selected tool name or raw command crosses the workflow transport contract. */
 export class McpWorkflowCalls {
   constructor(
@@ -26,6 +31,7 @@ export class McpWorkflowCalls {
     private readonly owner: string,
     private readonly guard: () => void,
     readonly waitSelection?: McpWorkflowSelectionWait,
+    readonly releaseSelection?: McpWorkflowSelectionRelease,
   ) {}
   async call(name: string, args: Record<string, unknown>): Promise<unknown> {
     this.guard();
@@ -77,6 +83,8 @@ export class McpWorkflowCalls {
       signal,
     );
     this.guard();
+    if (completed.status === "completed")
+      this.releaseSelection?.(this.owner, batchId, requestId);
     return completed;
   }
   async job(

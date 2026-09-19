@@ -31,6 +31,7 @@ export function createMcpSelectionAnalysisSession(
       : undefined;
   return {
     waitForEdit: edits?.waitForAction,
+    releaseEdit: edits?.releaseCompletedAction,
     tools: [
       ...(edits?.tools ?? []),
       ...(enabled

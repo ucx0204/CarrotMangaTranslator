@@ -4,7 +4,10 @@ import type { McpOperationService } from "../application/mcpOperationService";
 import { McpWorkflowService } from "../application/mcpWorkflowService";
 import type { McpRetentionStorage } from "./mcpRetentionStorage";
 import type { McpTool } from "./mcpReadTools";
-import type { McpWorkflowSelectionWait } from "./mcpWorkflowCalls";
+import type {
+  McpWorkflowSelectionWait,
+  McpWorkflowSelectionRelease,
+} from "./mcpWorkflowCalls";
 import { McpWorkflowRepository } from "./mcpWorkflowRepository";
 import { createMcpWorkflowRuntime } from "./mcpWorkflowRuntime";
 import { createMcpWorkflowTools } from "./mcpWorkflowTools";
@@ -16,6 +19,7 @@ export function createMcpWorkflowSession(options: {
   tools: readonly McpTool[];
   preferences: McpPreferences;
   waitSelection?: McpWorkflowSelectionWait;
+  releaseSelection?: McpWorkflowSelectionRelease;
   reportError: (error: unknown) => void;
 }) {
   const runtime = createMcpWorkflowRuntime(options);

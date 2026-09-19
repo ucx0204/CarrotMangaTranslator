@@ -121,9 +121,13 @@ const status = z.enum([
 const step = z
   .object({
     index: count,
-    stage: stage.options[0].shape.kind.or(
-      z.enum(["translate", "erase", "export-png", "await-external"]),
-    ),
+    stage: z.enum([
+      "ocr",
+      "translate",
+      "erase",
+      "export-png",
+      "await-external",
+    ]),
     chapterId: target.shape.chapterId,
     pageId: target.shape.pageId,
     status: z.enum([
@@ -138,6 +142,7 @@ const step = z
     outputId: z.uuid().nullable(),
     changeId: z.uuid().nullable(),
     errorCode: z.string().max(128).nullable(),
+    outcome: z.string().max(128).nullable(),
   })
   .strict();
 const summary = z
@@ -169,7 +174,6 @@ const view = summary
     steps: z.array(step).max(250),
   })
   .strict();
-export type McpWorkflowView = z.infer<typeof view>;
 export const mcpWorkflowOutputs = {
   carrot_prepare_workflow: view,
   carrot_get_workflow: view,

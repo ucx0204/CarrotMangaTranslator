@@ -108,6 +108,7 @@ export function createMcpPageOperationSession(options: PageSessionOptions) {
         preferences,
         tools: nativeTools.map((tool) => retained?.wrap(tool) ?? tool),
         waitSelection: auxiliary.waitSelection,
+        releaseSelection: auxiliary.releaseSelection,
         reportError: options.reportError,
       })
     : undefined;
@@ -193,6 +194,7 @@ function createAuxiliarySessions(
   };
   return {
     waitSelection: selection.waitForEdit,
+    releaseSelection: selection.releaseEdit,
     tools: [
       ...soundEffects.tools,
       ...context.tools,

@@ -214,8 +214,9 @@ export class McpWorkflowService {
       else active.controller.abort();
       return this.view(active.record);
     }
-    if (record.status !== "completed") {
-      record.status = direction === "pause" ? "paused" : "cancelled";
+    const status = direction === "pause" ? "paused" : "cancelled";
+    if (record.status !== "completed" && record.status !== status) {
+      record.status = status;
       await persistWorkflow(this.runner, record);
     }
     return this.view(record);
@@ -265,6 +266,7 @@ export class McpWorkflowService {
     remember(record, input.requestId, fingerprint);
     record.pages[step.pageIndex] = page;
     step.status = "completed";
+    step.outcome = "saved_external_page_acknowledged";
     record.status = "paused";
     await persistWorkflow(this.runner, record);
     return this.view(record);

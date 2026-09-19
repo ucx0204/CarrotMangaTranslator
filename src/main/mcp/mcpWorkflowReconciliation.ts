@@ -53,7 +53,10 @@ export async function reconcileNativeWorkflow(
       : reconcileChange(storage, record.owner, entry.id, expected, page),
   );
   guard();
-  return { page, outcome };
+  return {
+    page,
+    outcome: { ...outcome, outcome: "reconciled_native_receipt" },
+  };
 }
 
 async function reconcileOutput(

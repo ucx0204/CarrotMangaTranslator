@@ -50,7 +50,11 @@ export async function translateWorkflowPage(
   const target = record.pages[step.pageIndex];
   const { page } = await readWorkflowPage(target, guard);
   const blocks = workflowTranslationBlocks(page, stage);
-  if (!blocks.length) return { revision: target.revision };
+  if (!blocks.length)
+    return {
+      revision: target.revision,
+      outcome: "existing_translations_or_empty_sources_preserved",
+    };
   const { kind: _kind, ...options } = stage;
   const analysis = await calls.job(
     "carrot_run_selection_translation",
@@ -73,7 +77,8 @@ export async function translateWorkflowPage(
   const analysisId = analysis.selectionAnalysis?.analysisId;
   if (!analysisId) throw new Error("Selection analysis reference is missing.");
   const edits = await collectTranslationEdits(calls, analysisId);
-  if (!edits.length) return { revision: target.revision };
+  if (!edits.length)
+    return { revision: target.revision, outcome: "no_translation_changes" };
   const preview = mcpSelectionBatchOutputs.carrot_preview_selection_batch.parse(
     await calls.call("carrot_preview_selection_batch", {
       chapterId: target.chapterId,

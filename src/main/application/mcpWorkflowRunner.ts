@@ -155,7 +155,7 @@ async function runStep(
     return false;
   }
 }
-export async function reconcileWorkflowAttempt(
+async function reconcileWorkflowAttempt(
   port: Pick<McpWorkflowRunnerPort, "save">,
   record: McpWorkflowRecord,
   runtime: McpWorkflowRuntime,
@@ -190,5 +190,6 @@ function completeStep(
   step.outputId = outcome.outputId ?? null;
   step.changeId = outcome.changeId ?? null;
   step.errorCode = null;
+  step.outcome = outcome.outcome ?? "native_stage_completed";
   record.lastError = null;
 }

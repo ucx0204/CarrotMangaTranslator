@@ -322,6 +322,23 @@ export class McpPageBatchService<
       signal.removeEventListener("abort", cancel);
     }
   }
+  /** Release only a workflow-owned completed child plan after its native save/receipt.
+   * User-created plans are not passed here and retain their normal undo lifetime. */
+  releaseCompletedAction(owner: string, id: string, requestId: string) {
+    const entry = this.entries.get(id);
+    if (
+      !entry ||
+      entry.owner !== owner ||
+      entry.busy ||
+      entry.run?.requestId !== requestId ||
+      entry.run.status !== "completed"
+    )
+      throw new McpEditError(
+        "editor_busy",
+        "Only an owned completed child action may be released.",
+      );
+    this.entries.delete(id);
+  }
   private async execute(
     entry: Entry<I, C, P>,
     run: BatchTextRun,

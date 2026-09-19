@@ -16,6 +16,7 @@ import type { McpTool } from "./mcpReadTools";
 import {
   McpWorkflowCalls,
   type McpWorkflowSelectionWait,
+  type McpWorkflowSelectionRelease,
 } from "./mcpWorkflowCalls";
 import {
   prepareWorkflowPages,
@@ -35,6 +36,7 @@ type Options = {
   storage: McpRetentionStorage;
   tools: readonly McpTool[];
   waitSelection?: McpWorkflowSelectionWait;
+  releaseSelection?: McpWorkflowSelectionRelease;
 };
 export function createMcpWorkflowRuntime(options: Options) {
   return {
@@ -60,6 +62,7 @@ export function createMcpWorkflowRuntime(options: Options) {
         record.owner,
         guard,
         options.waitSelection,
+        options.releaseSelection,
       );
       const reconcile = (current: McpWorkflowRecord, step: McpWorkflowStep) =>
         reconcileNativeWorkflow(options.storage, current, step, guard);
@@ -135,7 +138,13 @@ async function executeStage(
         (block) => !block.inpaintExcluded && !block.generatedLettering,
       ))
   )
-    return { revision: target.revision };
+    return {
+      revision: target.revision,
+      outcome:
+        step.stage === "ocr"
+          ? "existing_blocks_preserved"
+          : "no_eligible_erasure_blocks",
+    };
   const names = {
     ocr: "carrot_run_page_ocr",
     erase: "carrot_run_page_erasure",
