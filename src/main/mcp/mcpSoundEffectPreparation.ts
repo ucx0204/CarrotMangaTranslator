@@ -1,24 +1,16 @@
-import { hashStableValue } from "../../shared/blockFingerprint";
+import { prepareSoundEffectCommand } from "./mcpSoundEffectCommands";
 import { captureSoundEffectPage } from "../../shared/soundEffectPageSnapshot";
 import type { AppPaths } from "../appPaths";
 import type { SoundEffectPreparation } from "../application/mcpSoundEffectPolicy";
-import { editSoundEffectBlocks } from "../application/mcpSoundEffectBlocks";
 import { readWorkContextForEdit } from "../library";
 import { assertContextTarget } from "../application/mcpContextEditPolicy";
 import { McpEditError } from "../application/mcpEditPolicy";
-import { resolveCompletionAfterBlockMutation } from "../libraryStore/translationCompletionInvalidation";
 import {
   captureMcpImageFiles,
   verifyMcpImageFiles,
   readMcpImageEditPage,
 } from "./mcpImageEditEvidence";
 import {
-  projectSoundEffectReview,
-  materializeSoundEffects,
-} from "./mcpSoundEffectEdits";
-import { readMcpSoundEffectSettings } from "./mcpSoundEffectSettings";
-import {
-  generateMcpSoundEffects,
   SoundEffectCleanupError,
   type SoundEffectGenerationRuntime,
 } from "./mcpSoundEffectGeneration";
@@ -59,9 +51,9 @@ export function createMcpSoundEffectPreparation(
         );
       access.guard();
     };
-    let result: Awaited<ReturnType<typeof prepareCommand>>;
+    let result: Awaited<ReturnType<typeof prepareSoundEffectCommand>>;
     try {
-      result = await prepareCommand(
+      result = await prepareSoundEffectCommand(
         page,
         input,
         access,
@@ -97,61 +89,18 @@ export function createMcpSoundEffectPreparation(
       files,
       changes,
       generationCalls,
-      failedItems: exclusions.length,
+      failedItems: generationFailures(exclusions),
     };
   };
 }
 
-async function prepareCommand(
-  page: Parameters<SoundEffectPreparation>[0],
-  input: Parameters<SoundEffectPreparation>[1],
-  access: Parameters<SoundEffectPreparation>[2],
-  paths: AppPaths,
-  verify: () => Promise<void>,
-  runtime?: SoundEffectGenerationRuntime,
-) {
-  let next = page;
-  let generationCalls = 0;
-  let exclusions: ReturnType<typeof soundEffectChanges> = [];
-  switch (input.command.kind) {
-    case "review":
-      next = projectSoundEffectReview(page, input);
-      break;
-    case "materialize":
-      next = materializeSoundEffects(
-        page,
-        input,
-        (await readMcpSoundEffectSettings(paths)).defaults,
-      );
-      break;
-    case "text":
-    case "image-state": {
-      next = editSoundEffectBlocks(page, input);
-      if (hashStableValue(next.blocks) !== hashStableValue(page.blocks))
-        next = {
-          ...next,
-          translationCompletion: resolveCompletionAfterBlockMutation(
-            page.translationCompletion,
-            page.blocks,
-            next.blocks,
-          ),
-        };
-      break;
-    }
-    case "generate": {
-      const result = await generateMcpSoundEffects({
-        page,
-        input,
-        paths,
-        signal: access.signal ?? new AbortController().signal,
-        guard: verify,
-        runtime,
-      });
-      next = result.page;
-      generationCalls = result.generationCalls;
-      exclusions = result.exclusions;
-      break;
-    }
-  }
-  return { next, generationCalls, exclusions };
+function generationFailures(items: ReturnType<typeof soundEffectChanges>) {
+  const protectedReasons = new Set([
+    "image_generation_blocked",
+    "approved_text_required",
+    "existing_image_requires_explicit_replacement",
+  ]);
+  return items.filter(
+    (item) => !protectedReasons.has(item.excludedReason ?? ""),
+  ).length;
 }

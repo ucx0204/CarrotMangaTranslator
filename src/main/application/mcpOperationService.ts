@@ -115,6 +115,7 @@ export class McpOperationService {
         "exportZip",
         "typographyAnalysis",
         "letteringPrepare",
+        "soundEffectPrepare",
         "selectionOcr",
         "selectionTranslation",
       ].includes(entry.kind)

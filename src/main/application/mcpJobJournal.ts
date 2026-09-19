@@ -1,4 +1,8 @@
 import {
+  McpSoundEffectPrepareSchema,
+  McpSoundEffectPlanReferenceSchema,
+} from "../../shared/mcpSoundEffects";
+import {
   McpSelectionOcrSchema,
   McpSelectionTranslationSchema,
   McpSelectionAnalysisReferenceSchema,
@@ -51,6 +55,7 @@ export const mcpPersistedTargetSchema = z.union([
   McpLetteringPrepareSchema,
   McpSelectionOcrSchema,
   McpSelectionTranslationSchema,
+  McpSoundEffectPrepareSchema,
 ]);
 
 export const mcpJobResultMetadataSchema = z.object({
@@ -87,6 +92,7 @@ export const mcpJobResultMetadataSchema = z.object({
   sourceSize: McpSourceSizeObservationSchema.optional(),
   typographyAnalysis: McpTypographyAnalysisObservationSchema.optional(),
   letteringPlan: McpLetteringPlanReferenceSchema.optional(),
+  soundEffectPlan: McpSoundEffectPlanReferenceSchema.optional(),
   selectionAnalysis: McpSelectionAnalysisReferenceSchema.optional(),
   blockTranslation: McpBlockTranslationProposalSchema.optional(),
   proposalExpired: z.boolean().optional(),
@@ -107,6 +113,7 @@ const jobSchema = z
       "sourceSize",
       "typographyAnalysis",
       "letteringPrepare",
+      "soundEffectPrepare",
       "selectionOcr",
       "selectionTranslation",
       "blockTranslation",
@@ -156,7 +163,10 @@ const journalSchema = z
   .strict();
 
 /** Dynamic availability is computed on reads; expired proposals are never advertised as usable. */
-export function publicMcpJobResult(value: unknown, now: number) {
+export function publicMcpJobResult(
+  value: unknown,
+  now: number,
+): z.infer<typeof mcpJobResultMetadataSchema> | undefined {
   const result = mcpJobResultMetadataSchema.safeParse(value).data;
   if (!result) return undefined;
   if (result.sourceSize && result.sourceSize.expiresAt <= now) {
@@ -171,10 +181,8 @@ export function publicMcpJobResult(value: unknown, now: number) {
     const { selectionAnalysis: _selection, ...metadata } = result;
     return { ...metadata, observationExpired: true };
   }
-  if (result.letteringPlan && result.letteringPlan.expiresAt <= now) {
-    const { letteringPlan: _plan, ...metadata } = result;
-    return { ...metadata, proposalExpired: true };
-  }
+  const plan = expiredPlanResult(result, now);
+  if (plan) return plan;
   if (result.contextResearch && result.contextResearch.expiresAt <= now)
     return { ...result, proposalExpired: true };
   return result;
@@ -190,6 +198,7 @@ export function persistedMcpJobResult(
     sourceSize,
     typographyAnalysis,
     letteringPlan,
+    soundEffectPlan,
     selectionAnalysis,
     blockTranslation,
     contextResearch,
@@ -200,7 +209,7 @@ export function persistedMcpJobResult(
     ...(blockOcr || sourceSize || typographyAnalysis || selectionAnalysis
       ? { observationExpired: true }
       : {}),
-    ...(blockTranslation || contextResearch || letteringPlan
+    ...(blockTranslation || contextResearch || letteringPlan || soundEffectPlan
       ? { proposalExpired: true }
       : {}),
     ...(contextResearch
@@ -235,6 +244,8 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
 }
 
 function validJobTarget(record: McpStoredJob): boolean {
+  if (record.kind === "soundEffectPrepare")
+    return McpSoundEffectPrepareSchema.safeParse(record.parameters).success;
   if (record.kind === "selectionOcr")
     return McpSelectionOcrSchema.safeParse(record.parameters).success;
   if (record.kind === "selectionTranslation")
@@ -264,4 +275,19 @@ function validPageTarget(record: McpStoredJob): boolean {
       target.blockId === undefined) &&
     (record.kind === "blockTranslation" || target.contextMode === undefined)
   );
+}
+
+function expiredPlanResult(
+  result: z.infer<typeof mcpJobResultMetadataSchema>,
+  now: number,
+) {
+  if (result.soundEffectPlan && result.soundEffectPlan.expiresAt <= now) {
+    const { soundEffectPlan: _sound, ...metadata } = result;
+    return { ...metadata, proposalExpired: true };
+  }
+  if (result.letteringPlan && result.letteringPlan.expiresAt <= now) {
+    const { letteringPlan: _lettering, ...metadata } = result;
+    return { ...metadata, proposalExpired: true };
+  }
+  return undefined;
 }

@@ -1,4 +1,4 @@
-import { createMcpSoundEffectReadTool } from "./mcpSoundEffectReadTool";
+import { createMcpSoundEffectSession } from "./mcpSoundEffectSession";
 import { createMcpExternalImageSession } from "./mcpExternalImageSession";
 import { createMcpImageEditSession } from "./mcpImageEditSession";
 import { createMcpSelectionAnalysisSession } from "./mcpSelectionAnalysisSession";
@@ -155,7 +155,15 @@ function createAuxiliarySessions(
     Boolean(preferences.allowEditing && preferences.allowProcessing),
     Boolean(preferences.allowImages),
   );
+  const soundEffects = createMcpSoundEffectSession(
+    app,
+    operations,
+    editing,
+    Boolean(preferences.allowEditing && preferences.allowProcessing),
+    Boolean(preferences.allowImages),
+  );
   const stop = () => {
+    soundEffects.stop();
     externalImages.stop();
     images.stop();
     context.stop();
@@ -165,7 +173,7 @@ function createAuxiliarySessions(
   };
   return {
     tools: [
-      createMcpSoundEffectReadTool(app.appPaths),
+      ...soundEffects.tools,
       ...context.tools,
       ...typography.tools,
       ...lettering.tools,
@@ -176,6 +184,7 @@ function createAuxiliarySessions(
     stop,
     close: async () => {
       stop();
+      await soundEffects.close();
       await externalImages.close();
       await images.close();
       await selection.close();

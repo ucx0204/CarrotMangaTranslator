@@ -183,7 +183,7 @@ export const mcpSoundEffectOutputs = {
     .strict(),
   carrot_get_sound_effect_batch:
     mcpTranslationBatchOutputs.carrot_get_translation_batch
-      .extend({ changes: z.array(change).max(25) })
+      .extend({ changes: z.array(change).max(100) })
       .strict(),
   carrot_apply_sound_effect_batch:
     mcpTranslationBatchOutputs.carrot_apply_translation_batch,

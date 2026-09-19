@@ -1,4 +1,4 @@
-import { nativeImage } from "electron";
+import { reduceMcpCandidatePng } from "./mcpCandidatePng";
 import { randomUUID } from "node:crypto";
 import {
   McpExternalImageGetPreviewSchema,
@@ -34,7 +34,7 @@ export function createMcpExternalImageReadTool(
     scopes: ["carrot.read", "carrot.images"],
     write: false,
     description:
-      "Inspect an owned external candidate BEFORE applying it. A background preview is the composited background only; a lettering preview is the masked transparent ASSET, not the final transformed page. No file/page save, model or renderer pipeline. Long edge at most 1600px and 4 MiB. Original/image/context binding, upload readiness/expiry, image permission and redaction are rechecked. Background publication is not connected yet.",
+      "Inspect an owned external candidate BEFORE applying it. A background preview is the composited background only; a lettering preview is the masked transparent ASSET, not the final transformed page. No file/page save, model or renderer pipeline. Long edge at most 1600px and 4 MiB. Original/image/context binding, upload readiness/expiry, image permission and redaction are rechecked. Background application is a separate explicit action.",
     execute: async (value, owner, guard) => {
       const args = McpExternalImageGetPreviewSchema.parse(value);
       const check = () => {
@@ -76,7 +76,7 @@ export function createMcpExternalImageReadTool(
               "revision_conflict",
               "External candidate changed since review.",
             );
-          const png = reducedCandidate(prepared.pixels.bytes);
+          const png = reduceMcpCandidatePng(prepared.pixels.bytes);
           await readMcpImageEditPage(input, check);
           await imageAccess(check);
           assets.guard();
@@ -89,8 +89,6 @@ export function createMcpExternalImageReadTool(
               input.command.kind === "lettering"
                 ? ("lettering-asset" as const)
                 : ("background-candidate" as const),
-            width: prepared.pixels.width,
-            height: prepared.pixels.height,
             snapshot: change.stats.snapshot,
             ...png,
           };
@@ -111,22 +109,4 @@ async function imageAccess(guard: () => void) {
       "External candidate transfer is blocked by image redaction review.",
     );
   guard();
-}
-function reducedCandidate(bytes: Buffer) {
-  const image = nativeImage.createFromBuffer(bytes),
-    size = image.getSize();
-  if (image.isEmpty())
-    throw new McpEditError(
-      "invalid_edit",
-      "Candidate image cannot be decoded.",
-    );
-  const scale = Math.min(1, 1600 / Math.max(size.width, size.height));
-  const previewWidth = Math.max(1, Math.round(size.width * scale));
-  const previewHeight = Math.max(1, Math.round(size.height * scale));
-  const data = image
-    .resize({ width: previewWidth, height: previewHeight, quality: "best" })
-    .toPNG();
-  if (data.length > 4 * 1024 * 1024)
-    throw new McpEditError("invalid_edit", "Candidate preview exceeds 4 MiB.");
-  return { previewWidth, previewHeight, imageData: data.toString("base64") };
 }

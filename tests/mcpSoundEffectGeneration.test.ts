@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { expect, it, vi } from "vitest";
+import { expect, it } from "vitest";
 import { soundEffectFixture } from "./mcpSoundEffect.fixture";
 import { captureSoundEffectPage } from "../src/shared/soundEffectPageSnapshot";
 import type { McpSoundEffectPrepare } from "../src/shared/mcpSoundEffects";
@@ -164,6 +164,7 @@ it("waits for the active call and cleanup on cancellation without saving or publ
     await started;
     f.lifetime.abort();
     expect(f.dispose).not.toHaveBeenCalled();
+    if (!release) throw new Error("Expected a pending model transport");
     release();
     await assertion;
     expect(f.dispose).toHaveBeenCalledTimes(1);

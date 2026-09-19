@@ -54,6 +54,7 @@ export async function soundEffectFixture() {
       ReturnType<SoundEffectGenerationRuntime["startClient"]>
     >["runEphemeralTurn"]
   >(async () => ({
+    itemId: randomUUID(),
     threadId: randomUUID(),
     turnId: randomUUID(),
     text: JSON.stringify({ result: generatedPng().toString("base64") }),
