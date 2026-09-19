@@ -1,3 +1,4 @@
+import { createMcpSoundEffectReadTool } from "./mcpSoundEffectReadTool";
 import { createMcpExternalImageSession } from "./mcpExternalImageSession";
 import { createMcpImageEditSession } from "./mcpImageEditSession";
 import { createMcpSelectionAnalysisSession } from "./mcpSelectionAnalysisSession";
@@ -164,6 +165,7 @@ function createAuxiliarySessions(
   };
   return {
     tools: [
+      createMcpSoundEffectReadTool(app.appPaths),
       ...context.tools,
       ...typography.tools,
       ...lettering.tools,

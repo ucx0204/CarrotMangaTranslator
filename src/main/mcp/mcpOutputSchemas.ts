@@ -1,3 +1,4 @@
+import { mcpSoundEffectOutputs } from "../../shared/mcpSoundEffects";
 import { mcpSelectionBatchOutputs } from "../../shared/mcpSelectionEditing";
 import { mcpImageUploadOutputs } from "../../shared/mcpImageUploads";
 import { mcpExternalImageOutputs } from "../../shared/mcpExternalImages";
@@ -118,6 +119,7 @@ const mcpJobReceiptOutput = z
 
 /** Public projections only. JSON Schema and runtime validation share these definitions. */
 export const mcpOutputSchemas: Record<string, z.ZodType> = {
+  carrot_get_sound_effects: mcpSoundEffectOutputs.carrot_get_sound_effects,
   ...mcpSelectionBatchOutputs,
   ...mcpTypographyBatchOutputs,
   ...mcpTypographyReadOutputs,

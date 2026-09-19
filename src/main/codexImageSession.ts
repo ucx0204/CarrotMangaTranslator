@@ -9,7 +9,9 @@ import { CODEX_IMAGE_MODELS } from "../shared/codexSettings";
 /** Image jobs have their own model and effort, independent of text translation. */
 export async function startCodexImageSession(
   paths: AppPaths,
-  settings: AppSettings,
+  settings: {
+    codex: Pick<AppSettings["codex"], "imageModel" | "imageReasoningEffort">;
+  },
   directory: string,
   signal: AbortSignal,
   capability: "image-generation" | "isolated" = "image-generation",

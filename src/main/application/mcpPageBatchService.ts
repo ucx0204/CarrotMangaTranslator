@@ -177,6 +177,10 @@ export class McpPageBatchService<
       ),
     };
   }
+  /** Internal copied plan for bounded artifact inspection; never exposed as a transport object. */
+  readOwnedPlan(owner: string, id: string, guard: () => void): P {
+    return structuredClone(this.owned(owner, id, guard).plan);
+  }
   private summary(entry: Entry<I, C, P>, saved?: McpContextSnapshot) {
     const changed = saved
       ? new Set(

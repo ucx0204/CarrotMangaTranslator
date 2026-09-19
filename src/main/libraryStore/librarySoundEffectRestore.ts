@@ -29,7 +29,7 @@ export function createRestoreSoundEffectReviewMutation(runtime: {
       const target = targets.get(page.id);
       if (!target) return page;
       targets.delete(page.id);
-      return restorePage(page, target, now);
+      return restoreSoundEffectReviewPage(page, target, now);
     });
     if (targets.size > 0)
       throw new Error("효과음 검토 페이지를 찾지 못했습니다.");
@@ -43,7 +43,7 @@ export function createRestoreSoundEffectReviewMutation(runtime: {
   };
 }
 
-function restorePage(
+export function restoreSoundEffectReviewPage(
   page: ChapterFile["pages"][number],
   target: RestoreSoundEffectReviewRequest["pages"][number],
   now: string,
