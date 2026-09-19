@@ -52,7 +52,11 @@ export function createMcpWorkflowRuntime(options: Options) {
       guard();
       return { pages, settings: workflowSettingsFingerprint(settings) };
     },
-    open: async (record: McpWorkflowRecord, guard: () => void) => {
+    open: async (
+      record: McpWorkflowRecord,
+      guard: () => void,
+      readContext?: Parameters<typeof verifyWorkflowPages>[3],
+    ) => {
       guard();
       const settings = await getAppSettings(options.app.appPaths);
       validateWorkflowSettings(record.input, settings);
@@ -88,16 +92,9 @@ export function createMcpWorkflowRuntime(options: Options) {
       return {
         group: createWorkflowModelGroup(options.app.jobs),
         verify: (current: McpWorkflowRecord, changedPage?: number) =>
-          verifyWorkflowPages(current, guard, changedPage),
-        cost: async (current: McpWorkflowRecord, step: McpWorkflowStep) => {
-          const stage = current.input.stages[step.stageIndex];
-          if (stage.kind !== "translate") return 0;
-          const { page } = await readWorkflowPage(
-            current.pages[step.pageIndex],
-            guard,
-          );
-          return workflowTranslationBlocks(page, stage).length;
-        },
+          verifyWorkflowPages(current, guard, changedPage, readContext),
+        cost: (current: McpWorkflowRecord, step: McpWorkflowStep) =>
+          countWorkflowTranslations(current, step, guard),
         reconcile,
         execute: async (
           current: McpWorkflowRecord,
@@ -120,6 +117,16 @@ export function createMcpWorkflowRuntime(options: Options) {
       };
     },
   };
+}
+async function countWorkflowTranslations(
+  record: McpWorkflowRecord,
+  step: McpWorkflowStep,
+  guard: () => void,
+) {
+  const stage = record.input.stages[step.stageIndex];
+  if (stage.kind !== "translate") return 0;
+  const { page } = await readWorkflowPage(record.pages[step.pageIndex], guard);
+  return workflowTranslationBlocks(page, stage).length;
 }
 function createWorkflowModelGroup(
   jobs: InpaintingJobContext["jobs"],
