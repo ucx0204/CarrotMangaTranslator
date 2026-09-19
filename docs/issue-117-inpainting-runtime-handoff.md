@@ -76,3 +76,17 @@ checks installation without pretending to execute an AMD GPU.
 No release assets/tags have been overwritten and no app version changed.
 Rollback this change as a source-and-binary unit; restoring the old executable
 alone would fail the new packaging guard and reintroduce the sm_89-only target.
+
+## Coverage-scope extension
+
+The full suite identified three newly touched existing files and two new files
+that needed registration in the repository coverage inventory. All pre-existing
+floor records are preserved byte-for-byte as values; no threshold was reduced.
+Only the five previously untracked records were added from measured Windows
+coverage. The ZLUDA runtime and manifest records are at 100% on all metrics.
+
+The registration snapshot is `.tmp/production-cleanup-coverage-accepted-node26.json`, SHA-256
+`6afdbd581b9dea0c321b8fbaad3493de351d9c62c28231ed41994f4c8c8a0516`. The snapshot came from the full
+suite before the remaining Koharu cache fixture marker was corrected; it is
+measurement provenance, not a claim that that run was entirely successful.
+The shallow checkout also needed its existing coverage base commit fetched.

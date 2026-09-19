@@ -6,8 +6,8 @@
     "coverageProvider": "vitest-v8-json-summary",
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
-    "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node22.json",
-    "introducedArtifactSha256": "cde57ff3d4ae28e8cbae3d9deeca3802d1bbf078f1db4267f50be3ab50867927",
+    "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
+    "introducedArtifactSha256": "6afdbd581b9dea0c321b8fbaad3493de351d9c62c28231ed41994f4c8c8a0516",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -1069,6 +1069,28 @@
         "pct": 50
       }
     },
+    "src/main/inpainting/fluxAssets/zludaRuntime.ts": {
+      "lines": {
+        "covered": 21,
+        "total": 33,
+        "pct": 63.63
+      },
+      "statements": {
+        "covered": 21,
+        "total": 33,
+        "pct": 63.63
+      },
+      "functions": {
+        "covered": 4,
+        "total": 5,
+        "pct": 80
+      },
+      "branches": {
+        "covered": 6,
+        "total": 10,
+        "pct": 60
+      }
+    },
     "src/main/inpainting/fluxCompositeConstraint.ts": {
       "lines": {
         "covered": 8,
@@ -1487,6 +1509,28 @@
         "pct": 100
       }
     },
+    "src/main/inpainting/koharuAssets.ts": {
+      "lines": {
+        "covered": 28,
+        "total": 54,
+        "pct": 51.85
+      },
+      "statements": {
+        "covered": 28,
+        "total": 54,
+        "pct": 51.85
+      },
+      "functions": {
+        "covered": 4,
+        "total": 8,
+        "pct": 50
+      },
+      "branches": {
+        "covered": 9,
+        "total": 25,
+        "pct": 36
+      }
+    },
     "src/main/inpainting/koharuEngine.ts": {
       "lines": {
         "covered": 0,
@@ -1507,6 +1551,28 @@
         "covered": 0,
         "total": 7,
         "pct": 0
+      }
+    },
+    "src/main/inpainting/koharuEnginePool.ts": {
+      "lines": {
+        "covered": 19,
+        "total": 65,
+        "pct": 29.23
+      },
+      "statements": {
+        "covered": 19,
+        "total": 67,
+        "pct": 28.35
+      },
+      "functions": {
+        "covered": 2,
+        "total": 12,
+        "pct": 16.66
+      },
+      "branches": {
+        "covered": 16,
+        "total": 32,
+        "pct": 50
       }
     },
     "src/main/inpainting/koharuEngineRunner.ts": {
@@ -18229,6 +18295,50 @@
         "total": 78,
         "covered": 59,
         "pct": 75.64
+      }
+    },
+    "src/main/inpainting/koharuZludaManifest.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/koharuZludaRuntime.ts": {
+      "lines": {
+        "covered": 25,
+        "total": 25,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
       }
     },
     "src/main/inpainting/pageMaskComposite.ts": {
