@@ -3,7 +3,10 @@ import {
   type McpRetentionCodec,
 } from "./mcpRetentionStorage";
 import { createMcpRetentionSession } from "./mcpRetentionSession";
-import { createRetainedOutputPublisher } from "./mcpRetainedOutputs";
+import {
+  createRetainedOutputPublisher,
+  bindRetainedOutputSource,
+} from "./mcpRetainedOutputs";
 import { createMcpSoundEffectSession } from "./mcpSoundEffectSession";
 import { createMcpExternalImageSession } from "./mcpExternalImageSession";
 import { createMcpImageEditSession } from "./mcpImageEditSession";
@@ -249,6 +252,7 @@ function createPageExporter(artifacts: McpArtifactStore) {
   return new McpPageExportService({
     openChapter,
     render: renderMcpPagePng,
+    bindSource: bindRetainedOutputSource,
     store: artifacts.put.bind(artifacts),
     assertImageAccess: async () => {
       if ((await readImageRedactionState()).enabled)

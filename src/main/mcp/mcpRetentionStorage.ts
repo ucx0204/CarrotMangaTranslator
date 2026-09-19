@@ -1,5 +1,5 @@
-import { join } from "node:path";
-import { mkdir, lstat, readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { mkdir, lstat, readFile, readdir } from "node:fs/promises";
 import { z } from "zod";
 import { getLibraryRoot } from "../library";
 import type { LibraryTransaction } from "../libraryStore/libraryTransaction";
@@ -47,10 +47,20 @@ export class McpRetentionStorage {
     return path;
   }
   async index(): Promise<RetentionIndex> {
-    const value = await this.read(await this.path(), true);
-    return value === null
-      ? { version: 1, entries: [] }
-      : RetentionIndexSchema.parse(value);
+    const path = await this.path();
+    const value = await this.read(path, true);
+    if (value !== null) return RetentionIndexSchema.parse(value);
+    const entries = await readdir(dirname(path)).catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return [];
+        throw error;
+      },
+    );
+    if (entries.length)
+      throw new Error(
+        "Retained index is missing but recovery records remain; refusing to replace history.",
+      );
+    return { version: 1, entries: [] };
   }
   async owned(owner: string, id: string, kind?: RetentionEntry["kind"]) {
     const index = await this.index();
@@ -97,6 +107,8 @@ export class McpRetentionStorage {
       throw new Error("Invalid retained record file.");
     const sealed = await this.codec.seal(value);
     const bytes = Buffer.byteLength(JSON.stringify(sealed, null, 2)) + 1;
+    if (bytes > 8 * 1024 * 1024)
+      throw new Error("Retained metadata exceeds 8 MiB.");
     const index = await this.index();
     const entry = index.entries.find((item) => item.id === id);
     if (!entry) throw new Error("Retained record has no index entry.");
@@ -138,30 +150,20 @@ export class McpRetentionStorage {
     await this.path(id);
     await transaction.retireDirectory(
       join(getLibraryRoot(), ".mcp-retained", id),
+      { required: false },
     );
   }
   private async read(path: string, missing: boolean): Promise<unknown | null> {
-    try {
-      const info = await lstat(path);
-      if (
-        !info.isFile() ||
-        info.isSymbolicLink() ||
-        info.size > 8 * 1024 * 1024
-      )
-        throw new Error("Invalid or oversized retained metadata.");
-      const text = await readFile(path, "utf8");
-      if (Buffer.byteLength(text) > 8 * 1024 * 1024)
-        throw new Error("Retained metadata grew while reading.");
-      return await this.codec.open(JSON.parse(text));
-    } catch (error) {
-      if (
-        missing &&
-        error instanceof Error &&
-        "code" in error &&
-        error.code === "ENOENT"
-      )
-        return null;
+    const info = await lstat(path).catch((error: NodeJS.ErrnoException) => {
+      if (missing && error.code === "ENOENT") return null;
       throw error;
-    }
+    });
+    if (info === null) return null;
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 8 * 1024 * 1024)
+      throw new Error("Invalid or oversized retained metadata.");
+    const text = await readFile(path, "utf8");
+    if (Buffer.byteLength(text) > 8 * 1024 * 1024)
+      throw new Error("Retained metadata grew while reading.");
+    return this.codec.open(JSON.parse(text));
   }
 }

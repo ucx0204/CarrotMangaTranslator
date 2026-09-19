@@ -10,6 +10,7 @@ import {
 } from "./mcpRecoveryInspection";
 import { readRetainedOutput, checkOutputPages } from "./mcpRetainedOutputs";
 import type { RetentionEntry } from "./mcpRetentionRecords";
+import { inspectRetainedFile } from "./mcpRetentionEvidence";
 
 /** Read/discard the bounded durable catalog without restoring pages or executing models. */
 export class McpRetentionCatalog {
@@ -102,6 +103,14 @@ export class McpRetentionCatalog {
         id,
       );
       await checkOutputPages(record, true);
+      const payload = await inspectRetainedFile(
+        await this.storage.path(id, record.sha256),
+      );
+      if (payload.sha256 !== record.sha256 || payload.bytes !== record.bytes)
+        throw new McpEditError(
+          "revision_conflict",
+          "Retained output bytes changed.",
+        );
       const redacted = (await readImageRedactionState()).enabled;
       check();
       return {

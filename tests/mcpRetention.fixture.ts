@@ -161,6 +161,7 @@ export async function retentionFixture() {
   return {
     ...f,
     codec,
+    encryption,
     secure,
     storage: new McpRetentionStorage(codec),
     errors,

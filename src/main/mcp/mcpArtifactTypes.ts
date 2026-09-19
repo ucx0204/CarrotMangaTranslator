@@ -2,6 +2,7 @@ export type McpArtifactBinding = {
   chapterId: string;
   pageId: string;
   revision: string;
+  sourceFingerprint?: string;
 };
 export type McpArtifactRetention = (
   artifact: {

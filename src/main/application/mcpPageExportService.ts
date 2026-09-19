@@ -19,9 +19,13 @@ type Ports = {
   store: (
     bytes: Buffer,
     assertAccess: () => Promise<void>,
-    target?: Target,
+    target?: Target & { sourceFingerprint?: string },
   ) => Promise<Artifact>;
   assertImageAccess: () => Promise<void>;
+  bindSource?: (page: MangaPage) => Promise<{
+    fingerprint: string;
+    verify: () => Promise<void>;
+  }>;
 };
 /** Export reads an immutable page version and never starts OCR, erasure or translation. */
 export class McpPageExportService {
@@ -33,6 +37,9 @@ export class McpPageExportService {
   ) {
     const authorize =
       retainedAccess ?? (async () => context.assertAuthorized());
+    context.assertAuthorized();
+    const page = await this.load(target);
+    const source = await this.ports.bindSource?.(page);
     const assertAccess = async () => {
       await authorize();
       await this.ports.assertImageAccess();
@@ -42,16 +49,19 @@ export class McpPageExportService {
           "revision_conflict",
           "Page changed. Export its current revision instead.",
         );
+      await source?.verify();
       await authorize();
     };
     context.assertAuthorized();
     await assertAccess();
     context.progress({ phase: "rendering" });
-    const page = await this.load(target);
     const bytes = await this.ports.render(page, context.signal);
     context.assertAuthorized();
     await assertAccess();
-    const artifact = await this.ports.store(bytes, assertAccess, target);
+    const artifact = await this.ports.store(bytes, assertAccess, {
+      ...target,
+      ...(source ? { sourceFingerprint: source.fingerprint } : {}),
+    });
     context.assertAuthorized();
     context.progress({ phase: "done", completed: 1, total: 1 });
     return {

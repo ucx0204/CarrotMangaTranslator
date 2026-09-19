@@ -1,13 +1,9 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { readMcpArtifactChunks } from "./mcpArtifactStream";
 import {
-  mkdtemp,
-  readFile,
-  lstat,
-  open,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+  readMcpArtifactChunks,
+  readMcpArtifactBuffer,
+} from "./mcpArtifactStream";
+import { mkdtemp, lstat, open, rm, writeFile } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -129,20 +125,7 @@ export class McpArtifactStore {
 
   async read(secret: string) {
     const entry = await this.lookup(secret);
-    entry.leases++;
-    try {
-      const bytes = await readFile(entry.file).catch(
-        (error: NodeJS.ErrnoException) => {
-          if (error.code === "ENOENT") throw unavailable();
-          throw error;
-        },
-      );
-      await this.check(entry);
-      if (bytes.length !== entry.size) throw unavailable();
-      return bytes;
-    } finally {
-      entry.leases--;
-    }
+    return readMcpArtifactBuffer(entry, () => this.check(entry));
   }
 
   async open(secret: string, name: string) {
@@ -311,6 +294,7 @@ export class McpArtifactStore {
       mimeType: "image/png" | "application/zip";
       bytes: number;
       sha256: string;
+      bindings?: McpArtifactBinding[];
     },
     assertAccess: () => Promise<void>,
     verifyOpen: () => Promise<void>,
@@ -333,14 +317,22 @@ export class McpArtifactStore {
       assertAccess,
       verifyOpen,
       borrowed: true,
-      bindings: [],
+      bindings: metadata.bindings ?? [],
     };
-    await this.check(entry);
-    this.entries.set(digest(secret), entry);
+    // Reserve before any further await so simultaneous issues cannot oversubscribe.
     this.bytes += entry.size;
+    try {
+      await this.check(entry);
+      this.entries.set(digest(secret), entry);
+    } catch (error) {
+      this.bytes -= entry.size;
+      throw error;
+    }
     return {
       url: `${this.origin}/mcp-artifacts/${secret}/${name}`,
-      ...metadata,
+      mimeType: metadata.mimeType,
+      bytes: metadata.bytes,
+      sha256: metadata.sha256,
       expiresAt: entry.expiresAt,
       access:
         "fresh-single-file-link; expires on stop, revocation, page/source/redaction change or retained expiry",

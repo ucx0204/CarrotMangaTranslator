@@ -10,7 +10,11 @@ const token = (url: string) => new URL(url).pathname.split("/")[2];
 /** Deterministic renderer boundary; native retention, ZIP, encryption and tools are real. */
 async function outputFixture() {
   const f = await retentionFixture();
-  const publish = async (zip = false, supplied?: Buffer) => {
+  const publish = async (
+    zip = false,
+    supplied?: Buffer,
+    duringRender?: () => Promise<void>,
+  ) => {
     const page = (await f.snapshot()).pages[0];
     const bytes = supplied ?? (await readFile(page.imagePath));
     const artifacts = f.operations().artifacts;
@@ -24,11 +28,33 @@ async function outputFixture() {
       readOnly: false,
       requiredScopes: ["carrot.read", "carrot.images"],
       invoke: async () => {
-        const png = await artifacts.put(bytes, async () => {}, {
-          chapterId: "chapter",
-          pageId: page.id,
-          revision: createPageRevision(page),
+        const { McpPageExportService } =
+          await import("../src/main/application/mcpPageExportService");
+        const { bindRetainedOutputSource } =
+          await import("../src/main/mcp/mcpRetainedOutputs");
+        const exporter = new McpPageExportService({
+          openChapter: f.library.openChapter,
+          render: async () => {
+            await duringRender?.();
+            return bytes;
+          },
+          store: artifacts.put.bind(artifacts),
+          bindSource: bindRetainedOutputSource,
+          assertImageAccess: async () => {},
         });
+        const png = await exporter.export(
+          {
+            chapterId: "chapter",
+            pageId: page.id,
+            revision: createPageRevision(page),
+          },
+          {
+            id: randomUUID(),
+            signal: new AbortController().signal,
+            assertAuthorized: () => {},
+            progress: () => {},
+          },
+        );
         output = zip
           ? await artifacts.zip(
               [{ url: png.url, filename: "001.png" }],
@@ -159,6 +185,23 @@ it("rejects changed source bytes and page content before reissuing a historical 
     await expect(f.issue(output.id)).rejects.toThrow();
     expect((await f.list("outputs")).items[0].id).toBe(output.id);
   } finally {
+    await f.close();
+  }
+});
+
+it("refuses source replacement during rendering before publishing output bytes or recording a misleading binding", async () => {
+  const f = await outputFixture();
+  const page = (await f.snapshot()).pages[0];
+  const original = await readFile(page.imagePath);
+  try {
+    const altered = Buffer.from(original);
+    altered[altered.length - 1] ^= 1;
+    await expect(
+      f.publish(false, original, () => writeFile(page.imagePath, altered)),
+    ).rejects.toThrow();
+    expect((await f.list("outputs")).total).toBe(0);
+  } finally {
+    await writeFile(page.imagePath, original);
     await f.close();
   }
 });

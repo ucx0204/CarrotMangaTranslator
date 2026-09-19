@@ -59,6 +59,8 @@ const APPROVED_REEXPORT_BOUNDARIES = new Map([
       "./library/libraryReadFacade",
       "./library/libraryShareFacade",
       "./library/librarySoundEffectFacade",
+      // Atomic durable page/assets/receipt recovery; see mcp-retention-boundaries.
+      "./library/libraryRecoveryFacade",
       "./libraryStore/libraryCleanup",
       "./libraryStore/libraryFiles",
       "./libraryStore/libraryPaths",

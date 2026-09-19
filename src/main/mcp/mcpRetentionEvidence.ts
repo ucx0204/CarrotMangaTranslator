@@ -101,3 +101,41 @@ export async function verifyRetainedFiles(files: RetainedFile[]) {
       );
   }
 }
+
+/** Hash once at opening, then check native file identity on each streamed chunk. */
+export async function watchRetainedFiles(files: RetainedFile[]) {
+  const watched: Array<{ path: string; stamp: string }> = [];
+  for (const file of files) {
+    const before = await lstat(file.path);
+    const actual = await inspectRetainedFile(file.path);
+    const after = await lstat(file.path);
+    if (
+      actual.sha256 !== file.sha256 ||
+      actual.bytes !== file.bytes ||
+      fileStamp(before) !== fileStamp(after)
+    )
+      throw new McpEditError(
+        "revision_conflict",
+        "Retained file changed before transfer.",
+      );
+    watched.push({ path: file.path, stamp: fileStamp(after) });
+  }
+  return async () => {
+    for (const file of watched) {
+      await assertPathWithinRootWithoutSymlinks(getLibraryRoot(), file.path);
+      const stat = await lstat(file.path);
+      if (
+        !stat.isFile() ||
+        stat.isSymbolicLink() ||
+        fileStamp(stat) !== file.stamp
+      )
+        throw new McpEditError(
+          "revision_conflict",
+          "Retained source or output changed during transfer.",
+        );
+    }
+  };
+}
+function fileStamp(stat: Awaited<ReturnType<typeof lstat>>) {
+  return [stat.dev, stat.ino, stat.size, stat.mtimeMs, stat.ctimeMs].join(":");
+}

@@ -71,23 +71,7 @@ export function createRecoveryApplication(
         operation,
         "mcp-edit",
         async (context) => {
-          for (const chapterId of new Set(
-            record.pages.map((item) => item.chapterId),
-          )) {
-            const chapter = await openChapter(chapterId);
-            const ids = record.pages
-              .filter((item) => item.chapterId === chapterId)
-              .map((item) => item.after.page.id);
-            reserveJobChapter(app.jobs, context.id, chapter, ids);
-            for (const pageId of ids)
-              await acquireJobPage(
-                app.jobs,
-                context.id,
-                chapterId,
-                pageId,
-                openChapter,
-              );
-          }
+          await acquireRecoveryPages(app, record, context);
           return applyOwned(
             storage,
             record,
@@ -319,4 +303,29 @@ async function recoverImageField(
   if (actual.sha256 !== file.sha256 || actual.bytes !== file.bytes)
     throw new Error("Retained image bytes changed.");
   return { path, copy: { field, source, sha256: file.sha256 } };
+}
+
+async function acquireRecoveryPages(
+  app: InpaintingJobContext,
+  record: RetainedChange,
+  context: { id: string; assertAuthorized: () => void },
+) {
+  for (const chapterId of new Set(record.pages.map((item) => item.chapterId))) {
+    const chapter = await openChapter(chapterId);
+    context.assertAuthorized();
+    const ids = record.pages
+      .filter((item) => item.chapterId === chapterId)
+      .map((item) => item.after.page.id);
+    reserveJobChapter(app.jobs, context.id, chapter, ids);
+    for (const pageId of ids) {
+      await acquireJobPage(
+        app.jobs,
+        context.id,
+        chapterId,
+        pageId,
+        openChapter,
+      );
+      context.assertAuthorized();
+    }
+  }
 }

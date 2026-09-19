@@ -5,6 +5,7 @@ const { checkNativeExportBatch } = require("./mcp-native-export-batch.cjs");
 const { checkNativeFormatBatch } = require("./mcp-native-format-batch.cjs");
 const { checkNativeImageEdit } = require("./mcp-native-image-edit.cjs");
 const { checkNativeExternalImage } = require("./mcp-native-external-image.cjs");
+const { checkNativeRetention } = require("./mcp-native-retention.cjs");
 const { checkNativeSoundEffects } = require("./mcp-native-sound-effects.cjs");
 const { checkNativeTextBatch } = require("./mcp-native-text-batch.cjs");
 const { checkNativeContext } = require("./mcp-native-context.cjs");
@@ -236,6 +237,7 @@ async function checkNativePageGoal(root) {
     await checkNativeImageEdit(root, invoke, batchChapterId);
     await checkNativeExternalImage(root, invoke, batchChapterId);
     await checkNativeSoundEffects(root, invoke, batchChapterId);
+    await checkNativeRetention(root, app, editing, batchChapterId);
     await checkNativeExportBatch(
       root,
       invoke,

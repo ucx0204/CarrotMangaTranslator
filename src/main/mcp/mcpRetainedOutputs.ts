@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { hashStableValue } from "../../shared/blockFingerprint";
 import { join } from "node:path";
 import { withLibraryMutation, withLibraryRead } from "../library/lock";
 import {
@@ -24,8 +25,8 @@ import type { McpArtifactStore } from "./mcpArtifactStore";
 import { currentRetentionInvocation } from "./mcpRecoveryCapture";
 import {
   captureRetainedPage,
-  inspectRetainedFile,
   verifyRetainedFiles,
+  watchRetainedFiles,
 } from "./mcpRetentionEvidence";
 
 export function createRetainedOutputPublisher(
@@ -106,10 +107,21 @@ async function captureOutputTargets(bindings: McpArtifactBinding[]) {
         "revision_conflict",
         "Output page changed before its bytes were retained.",
       );
+    const files = (await captureRetainedPage(page)).files;
+    if (
+      target.sourceFingerprint &&
+      target.sourceFingerprint !== hashStableValue(files)
+    )
+      throw new McpEditError(
+        "revision_conflict",
+        "Original image evidence changed since rendering.",
+      );
     targets.push({
-      ...target,
+      chapterId: target.chapterId,
+      pageId: target.pageId,
+      revision: target.revision,
       workId: chapter.workId,
-      files: (await captureRetainedPage(page)).files,
+      files,
     });
   }
   return targets;
@@ -167,6 +179,7 @@ export async function issueRetainedOutput(
     readRetainedOutput(storage, owner, id),
   );
   const file = await storage.path(id, record.sha256);
+  let verifyFiles: (() => Promise<void>) | undefined;
   const access = async (hashes = false) => {
     guard();
     if ((await readImageRedactionState()).enabled)
@@ -178,16 +191,30 @@ export async function issueRetainedOutput(
       await storage.owned(owner, id, "output");
       await checkOutputPages(record, hashes);
       if (hashes) {
-        const actual = await inspectRetainedFile(file);
-        if (actual.sha256 !== record.sha256 || actual.bytes !== record.bytes)
-          throw new Error("Retained output bytes changed.");
+        verifyFiles = await watchRetainedFiles([
+          ...record.targets.flatMap((target) => target.files),
+          {
+            path: file,
+            sha256: record.sha256,
+            bytes: record.bytes,
+            asset: record.sha256,
+          },
+        ]);
       }
+      await verifyFiles?.();
     });
     guard();
   };
   const link = await artifacts.issueRetained(
     file,
-    record,
+    {
+      ...record,
+      bindings: record.targets.map(({ chapterId, pageId, revision }) => ({
+        chapterId,
+        pageId,
+        revision,
+      })),
+    },
     () => access(),
     () => access(true),
   );
@@ -199,5 +226,16 @@ export async function issueRetainedOutput(
     mimeType: link.mimeType,
     expiresAt: link.expiresAt,
     access: link.access,
+  };
+}
+
+/** Bind the actual file evidence BEFORE rendering; native storage rechecks it before publication. */
+export async function bindRetainedOutputSource(
+  page: Parameters<typeof captureRetainedPage>[0],
+) {
+  const { files } = await captureRetainedPage(page);
+  return {
+    fingerprint: hashStableValue(files),
+    verify: () => verifyRetainedFiles(files),
   };
 }

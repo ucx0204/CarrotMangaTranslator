@@ -59,7 +59,7 @@ export function wrapRetainedTool(
       const invocation = {
         owner: context.principalId,
         operation: tool.name,
-        requestId: typeof args.requestId === "string" ? args.requestId : null,
+        requestId: typeof args?.requestId === "string" ? args.requestId : null,
         assertAuthorized: () => {
           if (context.assertJobAuthorized)
             context.assertJobAuthorized(tool.requiredScopes);
