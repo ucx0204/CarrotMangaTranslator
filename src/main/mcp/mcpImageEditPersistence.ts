@@ -14,6 +14,12 @@ import {
   verifyMcpImageFiles,
 } from "./mcpImageEditEvidence";
 
+// Internal publication consumes evidence and native recovery, not an engine command.
+// The transport-facing planners still own strict command validation and authorization.
+type ImagePublicationRequest = Omit<McpImageEditRequest, "change"> & {
+  change: Pick<McpImageEditRequest["change"], "evidence" | "recovery" | "outcome">;
+};
+
 export type McpImageHistory = Pick<
   InpaintingRevisionStore,
   | "beginTransaction"
@@ -27,7 +33,7 @@ export type McpImageHistory = Pick<
 
 export async function publishMcpImageEdit(options: {
   history: McpImageHistory;
-  request: McpImageEditRequest;
+  request: ImagePublicationRequest;
   before: MangaPage;
   product: McpImageProduct;
   mask: Uint8Array;
@@ -108,7 +114,7 @@ export async function publishMcpImageEdit(options: {
 
 export async function replayMcpImageEdit(
   history: McpImageHistory,
-  request: McpImageEditRequest,
+  request: ImagePublicationRequest,
   guard: () => void,
   committed: (revision: PageRevision) => Promise<void>,
 ) {
@@ -242,7 +248,7 @@ async function verifyPixelBoundary(
 
 function recordImageHistory(
   history: McpImageHistory,
-  request: McpImageEditRequest,
+  request: ImagePublicationRequest,
   before: MangaPage,
   after: MangaPage,
 ) {
@@ -265,7 +271,7 @@ function recordImageHistory(
 }
 
 function recordOutcome(
-  request: McpImageEditRequest,
+  request: ImagePublicationRequest,
   product: McpImageProduct,
   changedPixels: number,
 ) {
