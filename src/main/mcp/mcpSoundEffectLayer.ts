@@ -33,8 +33,14 @@ export async function generateSoundEffectLayer(
     bboxSpace: "normalized_1000" as const,
     renderBboxSpace: "normalized_1000" as const,
   };
+  const {
+    soundEffectReview: _review,
+    blockOrder: _order,
+    ...sourcePage
+  } = page;
   const target = {
-    ...page,
+    ...sourcePage,
+    blockOrder: [block.id],
     imagePath: await prepareExternalImageFile(page.imagePath),
     blocks: [normalized],
   };

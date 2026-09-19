@@ -15,6 +15,11 @@ class Image {
     if (!this.png) return Buffer.alloc(0);
     return PNG.sync.write(this.png);
   }
+  toDataURL() {
+    return this.png
+      ? `data:image/png;base64,${this.toPNG().toString("base64")}`
+      : "";
+  }
   toBitmap() {
     if (!this.png) return Buffer.alloc(0);
     return swapped(this.png.data);
