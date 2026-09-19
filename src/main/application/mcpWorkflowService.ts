@@ -49,6 +49,7 @@ type Port = Omit<McpWorkflowRunnerPort, "save"> & {
 export class McpWorkflowService {
   private active?: McpWorkflowActive;
   private starting = false;
+  private admission: Promise<void> = Promise.resolve();
   private stopped = false;
   private readonly runner: McpWorkflowRunnerPort;
   constructor(private readonly port: Port) {
@@ -136,6 +137,10 @@ export class McpWorkflowService {
         "Another workflow admission is pending.",
       );
     this.starting = true;
+    let admitted!: () => void;
+    this.admission = new Promise<void>((resolve) => {
+      admitted = resolve;
+    });
     try {
       const record = await this.port.repository.load(owner, input.id);
       authorize(record);
@@ -190,6 +195,7 @@ export class McpWorkflowService {
       return this.view(record);
     } finally {
       this.starting = false;
+      admitted();
     }
   }
   async control(
@@ -279,6 +285,7 @@ export class McpWorkflowService {
   }
   async close() {
     this.stop();
+    await this.admission;
     await this.active?.done;
   }
   private view(record: McpWorkflowRecord) {

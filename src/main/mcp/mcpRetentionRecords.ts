@@ -43,7 +43,7 @@ const entry = z
   .object({
     id: z.string().uuid(),
     owner: id,
-    kind: z.enum(["change", "output"]),
+    kind: z.enum(["change", "output", "workflow"]),
     operation: z.string().min(1).max(128),
     requestId: z.string().max(128).nullable(),
     createdAt: count,

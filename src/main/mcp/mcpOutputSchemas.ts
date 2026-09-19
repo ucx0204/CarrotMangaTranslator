@@ -1,3 +1,4 @@
+import { mcpWorkflowOutputs } from "../../shared/mcpWorkflow";
 import { mcpRetentionOutputs } from "../../shared/mcpRetention";
 import { mcpSoundEffectOutputs } from "../../shared/mcpSoundEffects";
 import { mcpSelectionBatchOutputs } from "../../shared/mcpSelectionEditing";
@@ -121,6 +122,7 @@ const mcpJobReceiptOutput = z
 
 /** Public projections only. JSON Schema and runtime validation share these definitions. */
 export const mcpOutputSchemas: Record<string, z.ZodType> = {
+  ...mcpWorkflowOutputs,
   ...mcpRetentionOutputs,
   ...mcpSoundEffectOutputs,
   carrot_prepare_sound_effect_batch: mcpJobReceiptOutput,

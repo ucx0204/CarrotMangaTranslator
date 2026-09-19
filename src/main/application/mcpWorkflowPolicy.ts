@@ -116,8 +116,11 @@ export function workflowView(
     id: record.id,
     version: record.version,
     reason: record.input.reason,
-    status:
-      record.status === "running" && !active ? "interrupted" : record.status,
+    status: active
+      ? "running"
+      : record.status === "running"
+        ? "interrupted"
+        : record.status,
     createdAt: record.createdAt,
     expiresAt: record.expiresAt,
     pageCount: record.pages.length,

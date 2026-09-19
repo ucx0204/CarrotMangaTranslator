@@ -2,6 +2,7 @@ import { hashStableValue } from "../../shared/blockFingerprint";
 import { McpEditError } from "../application/mcpEditPolicy";
 import type {
   McpWorkflowRecord,
+  McpWorkflowOutcome,
   McpWorkflowStep,
 } from "../application/mcpWorkflowPolicy";
 import { withLibraryRead } from "../library/lock";
@@ -46,56 +47,67 @@ export async function reconcileNativeWorkflow(
   const entry = candidates[0];
   const { evidence: page } = await readWorkflowPage(expected, guard);
   assertWorkflowIdentity(expected, page);
-  const outcome = await withLibraryRead(async () => {
-    if (step.stage === "export-png") {
-      const { record: output } = await readRetainedOutput(
-        storage,
-        record.owner,
-        entry.id,
-      );
-      if (
-        output.targets.length !== 1 ||
-        output.targets[0].pageId !== expected.pageId ||
-        output.targets[0].chapterId !== expected.chapterId ||
-        output.targets[0].revision !== expected.revision ||
-        hashStableValue(page) !== hashStableValue(expected)
-      )
-        throw new McpEditError(
-          "revision_conflict",
-          "Historical output does not match this workflow attempt.",
-        );
-      await checkOutputPages(output, true);
-      const bytes = await inspectRetainedFile(
-        await storage.path(entry.id, output.sha256),
-      );
-      if (bytes.sha256 !== output.sha256 || bytes.bytes !== output.bytes)
-        throw new McpEditError(
-          "revision_conflict",
-          "Retained workflow output bytes changed.",
-        );
-      return { revision: page.revision, outputId: entry.id };
-    }
-    const { record: change } = await readRetainedChange(
-      storage,
-      record.owner,
-      entry.id,
-    );
-    const saved = change.pages[0];
-    if (
-      change.pages.length !== 1 ||
-      saved.chapterId !== expected.chapterId ||
-      saved.before.page.id !== expected.pageId ||
-      saved.before.fingerprint !== expected.fingerprint ||
-      saved.after.fingerprint !== page.fingerprint ||
-      saved.contextRevision !== expected.contextRevision ||
-      saved.membership !== expected.membership
-    )
-      throw new McpEditError(
-        "revision_conflict",
-        "Current content conflicts with the saved workflow step.",
-      );
-    return { revision: page.revision, changeId: entry.id };
-  });
+  const outcome = await withLibraryRead<McpWorkflowOutcome>(() =>
+    step.stage === "export-png"
+      ? reconcileOutput(storage, record.owner, entry.id, expected, page)
+      : reconcileChange(storage, record.owner, entry.id, expected, page),
+  );
   guard();
   return { page, outcome };
+}
+
+async function reconcileOutput(
+  storage: McpRetentionStorage,
+  owner: string,
+  id: string,
+  expected: McpWorkflowRecord["pages"][number],
+  page: McpWorkflowRecord["pages"][number],
+) {
+  const { record: output } = await readRetainedOutput(storage, owner, id);
+  if (
+    output.targets.length !== 1 ||
+    output.targets[0].pageId !== expected.pageId ||
+    output.targets[0].chapterId !== expected.chapterId ||
+    output.targets[0].revision !== expected.revision ||
+    hashStableValue(page) !== hashStableValue(expected)
+  )
+    throw new McpEditError(
+      "revision_conflict",
+      "Historical output does not match this workflow attempt.",
+    );
+  await checkOutputPages(output, true);
+  const bytes = await inspectRetainedFile(
+    await storage.path(id, output.sha256),
+  );
+  if (bytes.sha256 !== output.sha256 || bytes.bytes !== output.bytes)
+    throw new McpEditError(
+      "revision_conflict",
+      "Retained workflow output bytes changed.",
+    );
+  return { revision: page.revision, outputId: id };
+}
+
+async function reconcileChange(
+  storage: McpRetentionStorage,
+  owner: string,
+  id: string,
+  expected: McpWorkflowRecord["pages"][number],
+  page: McpWorkflowRecord["pages"][number],
+) {
+  const { record: change } = await readRetainedChange(storage, owner, id);
+  const saved = change.pages[0];
+  if (
+    change.pages.length !== 1 ||
+    saved.chapterId !== expected.chapterId ||
+    saved.before.page.id !== expected.pageId ||
+    saved.before.fingerprint !== expected.fingerprint ||
+    saved.after.fingerprint !== page.fingerprint ||
+    saved.contextRevision !== expected.contextRevision ||
+    saved.membership !== expected.membership
+  )
+    throw new McpEditError(
+      "revision_conflict",
+      "Current content conflicts with the saved workflow step.",
+    );
+  return { revision: page.revision, changeId: id };
 }

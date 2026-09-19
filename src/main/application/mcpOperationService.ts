@@ -1,3 +1,4 @@
+import { snapshotMcpEntries } from "./mcpOperationSnapshot";
 import { randomUUID } from "node:crypto";
 import { mcpOperationFile, mcpExportSource } from "./mcpOperationOutputs";
 import { hashStableValue } from "../../shared/blockFingerprint";
@@ -6,7 +7,6 @@ import {
   MCP_JOB_CAPACITY,
   MCP_JOB_RETENTION_MS,
   parseMcpJobJournal,
-  persistedMcpJobResult,
   publicMcpJobResult,
   mcpJobTargetSchema,
   mcpPersistedTargetSchema,
@@ -71,6 +71,24 @@ export class McpOperationService {
       () => undefined,
     );
     return task;
+  }
+  /** Internal owned completion lease. Cancellation waits for native cleanup; no new work is admitted here. */
+  async waitForCompletion(id: string, owner: string, signal: AbortSignal) {
+    const entry = this.get(id, owner);
+    const cancel = () => {
+      if (!entry.settled) {
+        entry.cancellationRequested = true;
+        entry.controller.abort();
+      }
+    };
+    signal.addEventListener("abort", cancel, { once: true });
+    if (signal.aborted) cancel();
+    try {
+      await entry.done;
+      return this.project(entry);
+    } finally {
+      signal.removeEventListener("abort", cancel);
+    }
   }
   status(id: string, owner: string) {
     return this.project(this.get(id, owner));
@@ -337,7 +355,7 @@ export class McpOperationService {
     const persistence = this.persistence;
     if (!persistence) return;
     try {
-      const snapshot = snapshotEntries(this.entries.values());
+      const snapshot = snapshotMcpEntries(this.entries.values());
       const writing = this.writes.then(() => {
         if (this.fault) throw this.fault;
         return persistence.save(snapshot);
@@ -385,24 +403,4 @@ function restoreEntry(record: McpStoredJob, now: number): RecordEntry {
     settled: true,
     done: Promise.resolve(),
   };
-}
-
-function snapshotEntries(entries: Iterable<RecordEntry>) {
-  const records = [...entries].map((entry) => ({
-    id: entry.id,
-    owner: entry.owner,
-    requestId: entry.requestId,
-    fingerprint: entry.fingerprint,
-    kind: entry.kind,
-    parameters: entry.parameters,
-    status: entry.status,
-    progress: entry.progress,
-    result: persistedMcpJobResult(entry.result),
-    error: entry.error,
-    startedAt: entry.startedAt,
-    finishedAt: entry.finishedAt,
-    cancellationRequested:
-      entry.cancellationRequested || entry.controller.signal.aborted,
-  }));
-  return { version: 1, records: parseMcpJobJournal({ version: 1, records }) };
 }

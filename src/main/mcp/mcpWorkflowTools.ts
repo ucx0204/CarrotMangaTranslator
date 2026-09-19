@@ -20,28 +20,7 @@ export function createMcpWorkflowTools(
   service: McpWorkflowService,
   enabled: boolean,
 ) {
-  const tools = [
-    createMcpBatchTool({
-      name: "carrot_get_workflow",
-      schema: McpWorkflowGetSchema,
-      scopes: readScopes,
-      write: false,
-      description:
-        "Inspect an owned persistent fixed-target workflow, page/stage outcomes, native job/change/output IDs, pause/cancel state and exact version. Metadata only, no images or raw page content. Restart never runs it automatically. Completed steps are not repeated; unknown interrupted attempts require reconciliation or explicit retry. Saved context is read, not regenerated.",
-      execute: (args, owner, guard) =>
-        service.get(owner, McpWorkflowGetSchema.parse(args).id, guard),
-    }),
-    createMcpBatchTool({
-      name: "carrot_list_workflows",
-      schema: McpWorkflowListSchema,
-      scopes: readScopes,
-      write: false,
-      description:
-        "List this connection's unexpired workflow plans in the existing seven-day encrypted retention catalog. Paginate with the returned snapshot. No execution, handoff to another OAuth identity, page changes or file links.",
-      execute: (args, owner, guard) =>
-        service.list(owner, McpWorkflowListSchema.parse(args), guard),
-    }),
-  ];
+  const tools = readWorkflowTools(service);
   if (!enabled) return tools;
   tools.push(
     createMcpBatchTool({
@@ -148,4 +127,29 @@ function runTool(name: string, service: McpWorkflowService): McpTool {
       );
     },
   };
+}
+
+function readWorkflowTools(service: McpWorkflowService) {
+  return [
+    createMcpBatchTool({
+      name: "carrot_get_workflow",
+      schema: McpWorkflowGetSchema,
+      scopes: readScopes,
+      write: false,
+      description:
+        "Inspect an owned persistent fixed-target workflow, page/stage outcomes, native job/change/output IDs, pause/cancel state and exact version. Metadata only, no images or raw page content. Restart never runs it automatically. Completed steps are not repeated; unknown interrupted attempts require reconciliation or explicit retry. Saved context is read, not regenerated.",
+      execute: (args, owner, guard) =>
+        service.get(owner, McpWorkflowGetSchema.parse(args).id, guard),
+    }),
+    createMcpBatchTool({
+      name: "carrot_list_workflows",
+      schema: McpWorkflowListSchema,
+      scopes: readScopes,
+      write: false,
+      description:
+        "List this connection's unexpired workflow plans in the existing seven-day encrypted retention catalog. Paginate with the returned snapshot. No execution, handoff to another OAuth identity, page changes or file links.",
+      execute: (args, owner, guard) =>
+        service.list(owner, McpWorkflowListSchema.parse(args), guard),
+    }),
+  ];
 }

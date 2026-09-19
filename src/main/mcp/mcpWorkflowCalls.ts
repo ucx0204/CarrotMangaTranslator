@@ -47,6 +47,38 @@ export class McpWorkflowCalls {
     this.guard();
     return result.structuredContent;
   }
+  async applySelection(
+    batchId: string,
+    requestId: string,
+    signal: AbortSignal,
+  ) {
+    const tool = this.tools.find(
+      (tool) => tool.name === "carrot_apply_selection_batch",
+    );
+    if (!tool || !this.waitSelection)
+      throw new McpEditError(
+        "invalid_edit",
+        "Native selection completion is unavailable.",
+      );
+    this.guard();
+    await tool.invoke(
+      { batchId, requestId },
+      {
+        principalId: this.owner,
+        assertAuthorized: this.guard,
+        assertJobAuthorized: this.guard,
+        assertScopes: this.guard,
+      },
+    );
+    const completed = await this.waitSelection(
+      this.owner,
+      batchId,
+      requestId,
+      signal,
+    );
+    this.guard();
+    return completed;
+  }
   async job(
     name: string,
     args: Record<string, unknown>,

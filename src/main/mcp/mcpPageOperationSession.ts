@@ -1,3 +1,4 @@
+import { createMcpWorkflowSession } from "./mcpWorkflowSession";
 import {
   McpRetentionStorage,
   type McpRetentionCodec,
@@ -71,7 +72,7 @@ export function createMcpPageOperationSession(options: PageSessionOptions) {
     editing,
     preferences,
   );
-  const { artifacts, retained } = createRetainedOutputs(options);
+  const { artifacts, retained, storage } = createRetainedOutputs(options);
   const exporter = createPageExporter(artifacts);
   const exports = createMcpExportBatchAdapter({
     app,
@@ -83,23 +84,35 @@ export function createMcpPageOperationSession(options: PageSessionOptions) {
   });
   const reader = createPageReader(app, editing);
   const executors = createPageExecutors(options, reader, recovery, exports);
-  return {
-    tools: [
-      ...(retained?.tools ?? []),
-      ...exports.tools,
-      ...createMcpTypographyAnalysisSession(
+  const nativeTools = [
+    ...(retained?.tools ?? []),
+    ...exports.tools,
+    ...createMcpTypographyAnalysisSession(
+      app,
+      operations,
+      Boolean(preferences.allowProcessing),
+    ),
+    ...auxiliary.tools,
+    ...(recovery?.tools ?? []),
+    ...createMcpOperationTools(
+      operations,
+      executors,
+      artifacts.assertAvailable.bind(artifacts),
+    ),
+  ];
+  const workflow = storage
+    ? createMcpWorkflowSession({
         app,
         operations,
-        Boolean(preferences.allowProcessing),
-      ),
-      ...auxiliary.tools,
-      ...(recovery?.tools ?? []),
-      ...createMcpOperationTools(
-        operations,
-        executors,
-        artifacts.assertAvailable.bind(artifacts),
-      ),
-    ],
+        storage,
+        preferences,
+        tools: nativeTools.map((tool) => retained?.wrap(tool) ?? tool),
+        waitSelection: auxiliary.waitSelection,
+        reportError: options.reportError,
+      })
+    : undefined;
+  return {
+    tools: [...(workflow?.tools ?? []), ...nativeTools],
     artifacts,
     wrapTool: retained?.wrap,
     ready: async () => {
@@ -107,6 +120,7 @@ export function createMcpPageOperationSession(options: PageSessionOptions) {
       await retained?.ready();
     },
     stop: () => {
+      workflow?.stop();
       retained?.stop();
       auxiliary.stop();
       recovery?.stop();
@@ -114,6 +128,8 @@ export function createMcpPageOperationSession(options: PageSessionOptions) {
       artifacts.stop();
     },
     close: async () => {
+      workflow?.stop();
+      await workflow?.close();
       retained?.stop();
       await retained?.close();
       await closePageSession(operations, artifacts, recovery, auxiliary);
@@ -176,6 +192,7 @@ function createAuxiliarySessions(
     selection.stop();
   };
   return {
+    waitSelection: selection.waitForEdit,
     tools: [
       ...soundEffects.tools,
       ...context.tools,
@@ -295,7 +312,7 @@ function createRetainedOutputs(options: PageSessionOptions) {
         preferences.allowImages,
       )
     : undefined;
-  return { artifacts, retained };
+  return { artifacts, retained, storage };
 }
 function createPageExecutors(
   options: PageSessionOptions,

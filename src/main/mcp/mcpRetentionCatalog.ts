@@ -138,6 +138,11 @@ export class McpRetentionCatalog {
           "not_found",
           "Retained record is not owned by this connection.",
         );
+      if (index.entries.find((item) => item.id === id)?.kind === "workflow")
+        throw new McpEditError(
+          "invalid_edit",
+          "Use carrot_discard_workflow after native work settles.",
+        );
       await runLibraryTransaction(
         "mcp-discard-retained",
         async (transaction) => {

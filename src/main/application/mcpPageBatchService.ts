@@ -36,6 +36,7 @@ type Entry<
   busy: boolean;
   applyStarted: boolean;
   run?: BatchTextRun;
+  done?: Promise<void>;
   receipts: Map<
     string,
     { signature: string; value: McpTranslationBatchReceipt }
@@ -288,11 +289,38 @@ export class McpPageBatchService<
     entry.busy = true;
     if (direction === "apply") entry.applyStarted = true;
     const task = this.execute(entry, run, guard);
+    entry.done = task;
     this.tasks.add(task);
     void task.finally(() => {
       this.tasks.delete(task);
     });
     return { ...receipt };
+  }
+  /** Internal completion handle for an already admitted owned action, never a transport bypass. */
+  async waitForAction(
+    owner: string,
+    id: string,
+    requestId: string,
+    signal: AbortSignal,
+  ) {
+    const entry = this.entries.get(id);
+    if (!entry || entry.owner !== owner || entry.run?.requestId !== requestId)
+      throw new McpEditError(
+        "not_found",
+        "Owned active batch action not found.",
+      );
+    const run = entry.run;
+    const cancel = () => {
+      if (entry.busy && entry.run === run) run.controller.abort();
+    };
+    signal.addEventListener("abort", cancel, { once: true });
+    if (signal.aborted) cancel();
+    try {
+      await entry.done;
+      return this.summary(entry);
+    } finally {
+      signal.removeEventListener("abort", cancel);
+    }
   }
   private async execute(
     entry: Entry<I, C, P>,

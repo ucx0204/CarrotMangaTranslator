@@ -53,6 +53,7 @@ export function createMcpSelectionEditSession(
   );
   return {
     tools: selectionEditTools(service),
+    waitForAction: service.waitForAction.bind(service),
     stop: () => lifetime.abort(),
     close: async () => {
       lifetime.abort();
