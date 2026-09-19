@@ -48,11 +48,20 @@ async function checkNativeWorkflow(root, app, editing, chapterId) {
       ],
     });
     assert.equal(plan.status, "prepared");
+    await client.call("run_workflow", {
+      id: plan.id,
+      version: plan.version,
+      requestId: randomUUID(),
+    });
+    assert.equal(
+      (await waitWorkflow(client, plan.id)).status,
+      "waiting_external",
+    );
     await client.close();
     client = await retainedClient(root, app, editing);
     assert.equal(
       (await client.call("get_workflow", { id: plan.id })).status,
-      "prepared",
+      "waiting_external",
     );
     for (const page of chapter.pages)
       await acknowledgeSavedPage(client, plan.id, chapterId, page.id);
@@ -113,11 +122,12 @@ async function checkNativeWorkflow(root, app, editing, chapterId) {
 /** @param {Client} client @param {string} id @param {string} chapterId @param {string} pageId */
 async function acknowledgeSavedPage(client, id, chapterId, pageId) {
   const view = await client.call("get_workflow", { id });
-  await client.call("run_workflow", {
-    id,
-    version: view.version,
-    requestId: randomUUID(),
-  });
+  if (view.status !== "waiting_external")
+    await client.call("run_workflow", {
+      id,
+      version: view.version,
+      requestId: randomUUID(),
+    });
   const waiting = await waitWorkflow(client, id);
   assert.equal(waiting.status, "waiting_external");
   const page = waiting.pages.find(
