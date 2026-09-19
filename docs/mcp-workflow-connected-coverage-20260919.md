@@ -16,13 +16,13 @@ receive their exact first measured ratios below. The inventory is now 1,682 rows
 No inherited floor, provenance hash, deletion record or global threshold changed.
 Bundle eight as a whole adds 18 source modules over bundle seven's 1,664 rows.
 
-| Module | Lines | Statements | Functions | Branches |
-| --- | --- | --- | --- | --- |
+| Module                                              | Lines          | Statements     | Functions    | Branches       |
+| --------------------------------------------------- | -------------- | -------------- | ------------ | -------------- |
 | `src/main/application/mcpWorkflowHandoffService.ts` | 75/78 (96.15%) | 77/80 (96.25%) | 19/19 (100%) | 44/47 (93.61%) |
-| `src/main/mcp/mcpWorkflowAuthorization.ts` | 3/7 (42.85%) | 4/8 (50%) | 2/2 (100%) | 3/6 (50%) |
-| `src/main/mcp/mcpWorkflowHandoffTools.ts` | 17/18 (94.44%) | 18/20 (90%) | 8/8 (100%) | 4/6 (66.66%) |
-| `src/main/runtimeSupport/modelWorkload.ts` | 50/53 (94.33%) | 55/58 (94.82%) | 7/8 (87.5%) | 21/24 (87.5%) |
-| `src/shared/mcpWorkflowHandoff.ts` | 6/6 (100%) | 6/6 (100%) | 0/0 (100%) | 0/0 (100%) |
+| `src/main/mcp/mcpWorkflowAuthorization.ts`          | 3/7 (42.85%)   | 4/8 (50%)      | 2/2 (100%)   | 3/6 (50%)      |
+| `src/main/mcp/mcpWorkflowHandoffTools.ts`           | 17/18 (94.44%) | 18/20 (90%)    | 8/8 (100%)   | 4/6 (66.66%)   |
+| `src/main/runtimeSupport/modelWorkload.ts`          | 50/53 (94.33%) | 55/58 (94.82%) | 7/8 (87.5%)  | 21/24 (87.5%)  |
+| `src/shared/mcpWorkflowHandoff.ts`                  | 6/6 (100%)     | 6/6 (100%)     | 0/0 (100%)   | 0/0 (100%)     |
 
 Subsequent tests exercise missing-identity and legacy scope validation, current-child
 cancellation during resource creation, stale child cancellation isolation, native
