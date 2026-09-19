@@ -17483,6 +17483,28 @@
         "pct": 86.48
       }
     },
+    "src/main/application/mcpOperationSnapshot.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      }
+    },
     "src/main/application/mcpPageBatchPolicy.ts": {
       "lines": {
         "covered": 20,
@@ -18053,6 +18075,72 @@
         "covered": 8,
         "total": 8,
         "pct": 100
+      }
+    },
+    "src/main/application/mcpWorkflowPolicy.ts": {
+      "lines": {
+        "covered": 30,
+        "total": 32,
+        "pct": 93.75
+      },
+      "statements": {
+        "covered": 32,
+        "total": 34,
+        "pct": 94.11
+      },
+      "functions": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 40,
+        "total": 42,
+        "pct": 95.23
+      }
+    },
+    "src/main/application/mcpWorkflowRunner.ts": {
+      "lines": {
+        "covered": 82,
+        "total": 85,
+        "pct": 96.47
+      },
+      "statements": {
+        "covered": 86,
+        "total": 89,
+        "pct": 96.62
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 36,
+        "total": 40,
+        "pct": 90
+      }
+    },
+    "src/main/application/mcpWorkflowService.ts": {
+      "lines": {
+        "covered": 133,
+        "total": 141,
+        "pct": 94.32
+      },
+      "statements": {
+        "covered": 139,
+        "total": 147,
+        "pct": 94.55
+      },
+      "functions": {
+        "covered": 25,
+        "total": 25,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 65,
+        "total": 74,
+        "pct": 87.83
       }
     },
     "src/main/application/pageImageExportService.ts": {
@@ -24301,6 +24389,182 @@
         "covered": 9,
         "total": 10,
         "pct": 90
+      }
+    },
+    "src/main/mcp/mcpWorkflowCalls.ts": {
+      "lines": {
+        "covered": 39,
+        "total": 44,
+        "pct": 88.63
+      },
+      "statements": {
+        "covered": 42,
+        "total": 48,
+        "pct": 87.5
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 21,
+        "pct": 80.95
+      }
+    },
+    "src/main/mcp/mcpWorkflowEvidence.ts": {
+      "lines": {
+        "covered": 33,
+        "total": 38,
+        "pct": 86.84
+      },
+      "statements": {
+        "covered": 39,
+        "total": 44,
+        "pct": 88.63
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 16,
+        "total": 21,
+        "pct": 76.19
+      }
+    },
+    "src/main/mcp/mcpWorkflowReconciliation.ts": {
+      "lines": {
+        "covered": 26,
+        "total": 29,
+        "pct": 89.65
+      },
+      "statements": {
+        "covered": 29,
+        "total": 33,
+        "pct": 87.87
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 32,
+        "total": 36,
+        "pct": 88.88
+      }
+    },
+    "src/main/mcp/mcpWorkflowRepository.ts": {
+      "lines": {
+        "covered": 47,
+        "total": 53,
+        "pct": 88.67
+      },
+      "statements": {
+        "covered": 49,
+        "total": 55,
+        "pct": 89.09
+      },
+      "functions": {
+        "covered": 23,
+        "total": 23,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 24,
+        "total": 30,
+        "pct": 80
+      }
+    },
+    "src/main/mcp/mcpWorkflowRuntime.ts": {
+      "lines": {
+        "covered": 40,
+        "total": 44,
+        "pct": 90.9
+      },
+      "statements": {
+        "covered": 44,
+        "total": 48,
+        "pct": 91.66
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 26,
+        "total": 34,
+        "pct": 76.47
+      }
+    },
+    "src/main/mcp/mcpWorkflowSession.ts": {
+      "lines": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      }
+    },
+    "src/main/mcp/mcpWorkflowTools.ts": {
+      "lines": {
+        "covered": 27,
+        "total": 32,
+        "pct": 84.37
+      },
+      "statements": {
+        "covered": 28,
+        "total": 35,
+        "pct": 80
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 8,
+        "total": 14,
+        "pct": 57.14
+      }
+    },
+    "src/main/mcp/mcpWorkflowTranslation.ts": {
+      "lines": {
+        "covered": 34,
+        "total": 38,
+        "pct": 89.47
+      },
+      "statements": {
+        "covered": 35,
+        "total": 40,
+        "pct": 87.5
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 27,
+        "pct": 81.48
       }
     },
     "src/main/mcpDesktopRuntime.ts": {
@@ -36070,6 +36334,28 @@
       "branches": {
         "total": 0,
         "covered": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/mcpWorkflow.ts": {
+      "lines": {
+        "covered": 27,
+        "total": 27,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 28,
+        "total": 28,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 8,
+        "total": 8,
         "pct": 100
       }
     },
