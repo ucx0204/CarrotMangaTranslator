@@ -24,7 +24,10 @@ import {
   verifyWorkflowPages,
   workflowSettingsFingerprint,
 } from "./mcpWorkflowEvidence";
-import { reconcileNativeWorkflow } from "./mcpWorkflowReconciliation";
+import {
+  reconcileNativeWorkflow,
+  workflowErasureCompleted,
+} from "./mcpWorkflowReconciliation";
 import {
   translateWorkflowPage,
   workflowTranslationBlocks,
@@ -64,8 +67,22 @@ export function createMcpWorkflowRuntime(options: Options) {
         options.waitSelection,
         options.releaseSelection,
       );
-      const reconcile = (current: McpWorkflowRecord, step: McpWorkflowStep) =>
-        reconcileNativeWorkflow(options.storage, current, step, guard);
+      const reconcile = async (
+        current: McpWorkflowRecord,
+        step: McpWorkflowStep,
+      ) =>
+        reconcileNativeWorkflow(
+          options.storage,
+          current,
+          step,
+          guard,
+          await workflowErasureCompleted(
+            options.operations,
+            current,
+            step,
+            guard,
+          ),
+        );
       return {
         verify: (current: McpWorkflowRecord, changedPage?: number) =>
           verifyWorkflowPages(current, guard, changedPage),
