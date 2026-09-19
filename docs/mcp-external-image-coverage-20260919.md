@@ -34,13 +34,13 @@ claim a new limit-exhaustion regression was executed.
 Global runtime-import and direct-consumer ceilings remain 12 and 25. Exact measured
 exceptions were added only to existing public authorities/composition roots:
 
-| Authority | Count | Reason |
-| --- | --- | --- |
-| shared/blockFingerprint | 47 consumers | Four direct upload/candidate/snapshot consumers reuse canonical hashing |
-| application/mcpEditPolicy | 96 consumers | Ten new external-input boundaries reuse typed errors |
-| main/library | 58 consumers | Native upload reservation and lettering persistence composition |
-| mcpOutputSchemas | 19 runtime imports | Two strict contract families registered directly |
-| mcpPageOperationSession | 26 runtime imports | One external-image session lifecycle connection |
+| Authority                 | Count              | Reason                                                                  |
+| ------------------------- | ------------------ | ----------------------------------------------------------------------- |
+| shared/blockFingerprint   | 47 consumers       | Four direct upload/candidate/snapshot consumers reuse canonical hashing |
+| application/mcpEditPolicy | 96 consumers       | Ten new external-input boundaries reuse typed errors                    |
+| main/library              | 58 consumers       | Native upload reservation and lettering persistence composition         |
+| mcpOutputSchemas          | 19 runtime imports | Two strict contract families registered directly                        |
+| mcpPageOperationSession   | 26 runtime imports | One external-image session lifecycle connection                         |
 
 The architecture budget and unused-export checks passed after exact declaration
 and removal of two unused exports. Existing image-persistence implementation is
