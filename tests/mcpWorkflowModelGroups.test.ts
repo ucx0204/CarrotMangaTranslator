@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { expect, it, vi } from "vitest";
 import { workflowFixture } from "./mcpWorkflow.fixture";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
@@ -223,4 +224,61 @@ it("preserves work and cleanup errors and disposes resources acquired during can
       expect.objectContaining({ message: "cleanup" }),
     ],
   });
+});
+
+it("awaits native group cleanup and refuses escaped ownership after group completion", async () => {
+  const diagnostics = { info: vi.fn(), error: vi.fn() };
+  const jobs = new ActiveJobStore(diagnostics);
+  const entered = deferred(),
+    finish = deferred();
+  const controller = new AbortController();
+  let late: (() => void) | undefined;
+  const run = jobs.runModelGroup(controller, async () => {
+    await expect(
+      jobs.runModelGroup(new AbortController(), async () => {}),
+    ).rejects.toThrow("Nested");
+    late = AsyncLocalStorage.bind(() =>
+      jobs.start({
+        id: "late-child",
+        kind: "gemma-analysis",
+        abortController: new AbortController(),
+        resources: [],
+      }),
+    );
+    entered.resolve();
+    await finish.promise;
+    expect(() =>
+      jobs.start({
+        id: "cancelled-child",
+        kind: "gemma-analysis",
+        abortController: new AbortController(),
+        resources: [],
+      }),
+    ).toThrow();
+  });
+  await entered.promise;
+  const parent = jobs.all[0];
+  if (!parent) throw new Error("Missing native workload parent");
+  controller.abort();
+  let settled = false;
+  const cleanup = jobs
+    .runCleanup(parent, "isolated group shutdown")
+    .then(() => {
+      settled = true;
+    });
+  try {
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(jobs.hasActive).toBe(true);
+  } finally {
+    finish.resolve();
+    await run;
+    await cleanup;
+  }
+  expect(settled).toBe(true);
+  expect(diagnostics.info).toHaveBeenCalledTimes(1);
+  expect(diagnostics.error).not.toHaveBeenCalled();
+  expect(jobs.all).toEqual([]);
+  if (!late) throw new Error("Missing escaped callback");
+  expect(late).toThrow("no longer active");
 });
