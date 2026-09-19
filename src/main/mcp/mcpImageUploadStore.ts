@@ -125,6 +125,11 @@ export class McpImageUploadStore {
           "invalid_edit",
           "Chunks must append at receivedBytes without gaps, overlaps or excess data.",
         );
+      if (entry.chunks.size >= 4096)
+        throw new McpEditError(
+          "invalid_edit",
+          "Upload exceeds 4096 distinct chunks. Use larger chunks for a new upload; existing bytes were not changed.",
+        );
       await appendImageUploadFile(pathOf(entry), entry.received, bytes);
       entry.chunks.set(input.offset, { bytes: bytes.length, digest });
       entry.received += bytes.length;
@@ -228,17 +233,27 @@ export class McpImageUploadStore {
     this.reserved = 0;
   }
   private async create(entry: Entry, guard: () => void) {
+    let created = false;
     this.directory ??= mkdtemp(join(tmpdir(), "carrot-mcp-input-"));
     try {
       entry.path = join(await this.directory, `${entry.id}.png`);
       this.checkEntry(entry, guard);
       await writeFile(entry.path, Buffer.alloc(0), { flag: "wx", mode: 0o600 });
+      created = true;
       this.checkEntry(entry, guard);
       return view(entry);
     } catch (error) {
-      if (entry.path) await rm(entry.path, { force: true });
       this.entries.delete(entry.id);
       this.reserved -= entry.input.bytes;
+      try {
+        if (created && entry.path) await rm(entry.path, { force: true });
+      } catch (cleanup) {
+        throw new AggregateError(
+          [error, cleanup],
+          "Upload reservation and owned-file cleanup failed.",
+          { cause: cleanup },
+        );
+      }
       throw error;
     } finally {
       entry.busy = false;
