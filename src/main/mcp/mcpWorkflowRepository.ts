@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { hashStableValue } from "../../shared/blockFingerprint";
 import type { McpWorkflowPrepare } from "../../shared/mcpWorkflow";
+import type { McpWorkflowHandoffAccept } from "../../shared/mcpWorkflowHandoff";
+import {
+  assertWorkflowHandoffReady,
+  workflowHandoffFingerprint,
+} from "../application/mcpWorkflowHandoffService";
 import { McpEditError } from "../application/mcpEditPolicy";
 import {
   McpWorkflowRecordSchema,
@@ -144,6 +149,56 @@ export class McpWorkflowRepository {
       await runLibraryTransaction("mcp-workflow-checkpoint", (transaction) =>
         this.storage.stageRecord(transaction, parsed.id, parsed),
       );
+    });
+  }
+  /** Called only after live two-party acceptance under settled session admission. */
+  async transfer(
+    record: McpWorkflowRecord,
+    recipient: string,
+    input: McpWorkflowHandoffAccept,
+    guard: () => void,
+    verify: () => Promise<void>,
+  ): Promise<McpWorkflowRecord> {
+    return withLibraryMutation(async () => {
+      guard();
+      const current = await this.read(record.owner, record.id);
+      assertWorkflowVersion(current, record.version);
+      assertWorkflowVersion(current, input.version);
+      assertWorkflowHandoffReady(current);
+      if (input.id !== current.id || recipient === current.owner)
+        throw new McpEditError("invalid_edit", "Invalid workflow recipient or target.");
+      await verify();
+      const next = McpWorkflowRecordSchema.parse({
+        ...current,
+        owner: recipient,
+        version: current.version + 1,
+        status: current.status === "waiting_external" ? "waiting_external" : "paused",
+        lastError: null,
+        requests: [{
+          requestId: input.requestId,
+          fingerprint: workflowHandoffFingerprint(recipient, input),
+        }],
+        steps: current.steps.map((step) => ({
+          ...step,
+          attemptId: null,
+          jobId: null,
+          changeId: null,
+          outputId: null,
+        })),
+      });
+      await runLibraryTransaction(
+        "mcp-workflow-handoff",
+        async (transaction) => {
+          await this.storage.stageRecord(transaction, next.id, next, {
+            expected: current.owner,
+            next: recipient,
+          });
+          transaction.beforePublish(verify);
+        },
+        undefined,
+        guard,
+      );
+      return next;
     });
   }
   async list(owner: string) {
