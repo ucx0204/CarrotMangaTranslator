@@ -107,12 +107,10 @@ it("does not broaden selected-page conflict checks to an unrelated page", async 
       chapters: [
         {
           chapterId: "chapter",
-          pages: chapter.pages
-            .slice(0, 2)
-            .map((page) => ({
-              pageId: page.id,
-              revision: createPageRevision(page),
-            })),
+          pages: chapter.pages.slice(0, 2).map((page) => ({
+            pageId: page.id,
+            revision: createPageRevision(page),
+          })),
         },
       ],
     });
