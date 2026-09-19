@@ -1,7 +1,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { PNG } from "pngjs";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { externalImageFixture, externalPng } from "./mcpExternalImage.fixture";
 import { createMcpTestGrant } from "./mcpOAuthGrant.fixture";
 
@@ -30,6 +30,7 @@ async function httpFixture() {
     provider,
     "carrot.read carrot.edit carrot.process carrot.images",
   );
+  const errors: unknown[] = [];
   const server = await startMcpHttpServer({
     config: { port: 0, token: "t".repeat(43), publicOrigin: origin },
     tools: f.external.tools,
@@ -38,7 +39,7 @@ async function httpFixture() {
       session: auth,
       pairing: new McpPairingBroker(provider, secret),
     }),
-    reportError: (error) => f.errors.push(error),
+    reportError: (error) => errors.push(error),
   });
   const request = async (name: string, args: object, token = full) =>
     fetch(server.url, {
@@ -59,6 +60,7 @@ async function httpFixture() {
     (await request(name, args, token)).json();
   return {
     ...f,
+    errors,
     call,
     request,
     full,
@@ -145,6 +147,101 @@ it("denies unexpected path/URL fields and unapproved image transfer without savi
     expect(masked.error.message).toBe("Unknown tool");
     expect(await readFile(f.chapterPath)).toEqual(original);
     expect(f.acquireEngine).not.toHaveBeenCalled();
+  } finally {
+    await f.close();
+  }
+});
+
+async function uploadOverHttp(f: Awaited<ReturnType<typeof httpFixture>>) {
+  const png = externalPng();
+  for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
+  const bytes = PNG.sync.write(png);
+  const input = {
+    ...(await f.binding()),
+    requestId: randomUUID(),
+    purpose: "image",
+    mimeType: "image/png",
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    width: png.width,
+    height: png.height,
+  };
+  const begin = await f.call("carrot_begin_image_upload", input);
+  expect(begin.result.isError).toBe(false);
+  const uploadId = begin.result.structuredContent.uploadId;
+  expect(
+    (
+      await f.call("carrot_write_image_upload", {
+        uploadId,
+        offset: 0,
+        data: bytes.toString("base64"),
+      })
+    ).result.isError,
+  ).toBe(false);
+  expect(
+    (await f.call("carrot_finish_image_upload", { uploadId })).result
+      .structuredContent.status,
+  ).toBe("ready");
+  return uploadId;
+}
+
+it("applies and exactly recovers a received background through real scoped HTTP", async () => {
+  const f = await httpFixture();
+  try {
+    const before = (await f.snapshot()).pages[0];
+    const uploadId = await uploadOverHttp(f);
+    const preview = await f.call("carrot_preview_external_image", {
+      ...(await f.binding()),
+      requestId: randomUUID(),
+      reason: "HTTP background review",
+      command: {
+        kind: "patch-background",
+        imageUploadId: uploadId,
+        rect: { x: 10, y: 10, w: 8, h: 6 },
+      },
+    });
+    expect(preview.result.isError).toBe(false);
+    const batchId = preview.result.structuredContent.batchId;
+    expect(
+      (
+        await f.call(
+          "carrot_apply_external_image",
+          { batchId, requestId: randomUUID() },
+          f.read,
+        )
+      ).error.message,
+    ).toBe("Unknown tool");
+    expect(
+      (await f.call("carrot_get_external_image", { batchId }, f.other)).result
+        .structuredContent.error,
+    ).toBe("not_found");
+    for (const direction of ["apply", "undo", "redo", "undo"]) {
+      expect(
+        (
+          await f.call(`carrot_${direction}_external_image`, {
+            batchId,
+            requestId: randomUUID(),
+          })
+        ).result.isError,
+      ).toBe(false);
+      await vi.waitFor(
+        async () => {
+          const result = await f.call("carrot_get_external_image", { batchId });
+          expect(result.result.structuredContent.status).not.toBe("running");
+          expect(result.result.structuredContent.status).toBe("completed");
+          expect(JSON.stringify(result)).not.toMatch(
+            /imagePath|dataUrl|transactionId/,
+          );
+        },
+        { timeout: 10000 },
+      );
+    }
+    expect((await f.snapshot()).pages[0].blocks).toEqual(before.blocks);
+    expect((await f.snapshot()).pages[0].inpaintedImagePath).toBe(
+      before.inpaintedImagePath,
+    );
+    expect(f.acquireEngine).not.toHaveBeenCalled();
+    expect(f.errors).toEqual([]);
   } finally {
     await f.close();
   }

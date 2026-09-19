@@ -49,6 +49,7 @@ export async function appendImageUploadFile(
       throw new AggregateError(
         [error, cleanup],
         "Upload chunk write and rollback failed.",
+        { cause: cleanup },
       );
     }
     throw error;

@@ -120,7 +120,7 @@ it("keeps an acknowledged native image save undoable when UI notification fails"
       throw new Error("fixture notification failed");
     });
     const result = (await f.action(plan.batchId, "apply")).result;
-    expect(result.status).toBe("failed");
+    expect(result.status).toBe("partial");
     expect(result.canUndo).toBe(true);
     expect((await f.snapshot()).pages[0].inpaintedImagePath).not.toBe(
       before.inpaintedImagePath,
@@ -208,16 +208,21 @@ it("cancels at native handoff without publishing and only releases this session'
       (await f.action(plan.batchId, "apply", requestId)).result.status,
     ).toBe("cancelled");
     expect(await readFile(f.chapterPath)).toEqual(before);
-    expect((await f.action(plan.batchId, "apply")).result.status).toBe(
+    await expect(f.action(plan.batchId, "apply")).rejects.toThrow(
+      "No eligible pages",
+    );
+    const fresh = await f.preview(plan.request.command);
+    expect((await f.action(fresh.batchId, "apply")).result.status).toBe(
       "completed",
     );
     const after = (await f.snapshot()).pages[0];
-    const bytes = await readFile(after.inpaintedImagePath!);
+    if (!after.inpaintedImagePath) throw new Error("Missing saved background");
+    const bytes = await readFile(after.inpaintedImagePath);
     const releaseHistory = vi.spyOn(f.history, "releaseTransactions");
     await f.external.close();
     expect(releaseHistory).toHaveBeenCalledTimes(1);
     expect(releaseHistory.mock.calls[0][0]).toHaveLength(1);
-    expect(await readFile(after.inpaintedImagePath!)).toEqual(bytes);
+    expect(await readFile(after.inpaintedImagePath)).toEqual(bytes);
   } finally {
     release?.();
     await f.close();

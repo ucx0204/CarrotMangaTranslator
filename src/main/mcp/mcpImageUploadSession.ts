@@ -29,22 +29,8 @@ export function createMcpImageUploadSession(lifetime: AbortSignal) {
       write: true,
       description:
         "Reserve one owned, page/version/context-bound PNG upload (32 MiB/file, 128 MiB and 32 files/session, fixed 30-minute expiry). Send actual file bytes using write_image_upload chunks, then finish_image_upload. Declared SHA-256 is NOT verified until ready. Only complete 8-bit nonanimated PNG is supported. Binary masks must be opaque black/white. No URL/path/file-reference fetching, inference, downloads, settings changes or page edits. Client must support delivering bytes; a filename is not an upload.",
-      execute: async (value, owner, guard) => {
-        const input = McpImageUploadBeginSchema.parse(value),
-          check = checked(guard);
-        const saved = await readWorkContextForEdit(input.chapterId);
-        check();
-        if (mcpContextRevision(saved) !== input.contextRevision)
-          throw new McpEditError(
-            "revision_conflict",
-            "Work context changed before upload reservation.",
-          );
-        const page = await readMcpImageEditPage(input, check);
-        const files = await captureMcpImageFiles(page, check);
-        await readMcpImageEditPage(input, check);
-        await verifyMcpImageFiles(files, check);
-        return store.begin(owner, input, files, check);
-      },
+      execute: (value, owner, guard) =>
+        reserveUpload(store, value, owner, checked(guard)),
     }),
     createMcpBatchTool({
       name: "carrot_write_image_upload",
@@ -99,4 +85,25 @@ export function createMcpImageUploadSession(lifetime: AbortSignal) {
     }),
   ].map((tool) => ({ ...tool, destructive: false }));
   return { store, tools, stop: () => store.stop(), close: () => store.close() };
+}
+
+async function reserveUpload(
+  store: McpImageUploadStore,
+  value: unknown,
+  owner: string,
+  check: () => void,
+) {
+  const input = McpImageUploadBeginSchema.parse(value);
+  const saved = await readWorkContextForEdit(input.chapterId);
+  check();
+  if (mcpContextRevision(saved) !== input.contextRevision)
+    throw new McpEditError(
+      "revision_conflict",
+      "Work context changed before upload reservation.",
+    );
+  const page = await readMcpImageEditPage(input, check);
+  const files = await captureMcpImageFiles(page, check);
+  await readMcpImageEditPage(input, check);
+  await verifyMcpImageFiles(files, check);
+  return store.begin(owner, input, files, check);
 }

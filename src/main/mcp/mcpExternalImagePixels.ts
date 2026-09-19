@@ -20,25 +20,40 @@ export async function composeMcpExternalImage(
     purpose: "image",
   }).png;
   const mask = effectiveMask(assets);
-  if (command.kind === "lettering") {
-    for (let i = 0; i < mask.selected.length; i++)
-      if (!mask.selected[i]) image.data.fill(0, i * 4, i * 4 + 4);
-    const bytes = PNG.sync.write(image);
-    if (bytes.length > 2 * 1024 * 1024)
-      throw new McpEditError(
-        "invalid_edit",
-        "Lettering PNG exceeds the 2 MiB per-layer limit; no resizing was performed.",
-      );
-    return {
-      bytes,
-      mask: mask.selected,
-      width: assets.width,
-      height: assets.height,
-      selectedPixels: count(mask.selected),
-      protectedPixels: count(mask.protected),
-      changedPixels: 0,
-    };
-  }
+  return command.kind === "lettering"
+    ? composeLettering(image, assets, mask)
+    : composeBackground(page, command, assets, mask, image.data);
+}
+function composeLettering(
+  image: ReturnType<typeof decodeMcpUploadPng>["png"],
+  assets: ExternalImageAssets,
+  mask: ReturnType<typeof effectiveMask>,
+) {
+  for (let i = 0; i < mask.selected.length; i++)
+    if (!mask.selected[i]) image.data.fill(0, i * 4, i * 4 + 4);
+  const bytes = PNG.sync.write(image);
+  if (bytes.length > 2 * 1024 * 1024)
+    throw new McpEditError(
+      "invalid_edit",
+      "Lettering PNG exceeds the 2 MiB per-layer limit; no resizing was performed.",
+    );
+  return {
+    bytes,
+    mask: mask.selected,
+    width: assets.width,
+    height: assets.height,
+    selectedPixels: count(mask.selected),
+    protectedPixels: count(mask.protected),
+    changedPixels: 0,
+  };
+}
+async function composeBackground(
+  page: MangaPage,
+  command: Exclude<Command, { kind: "lettering" }>,
+  assets: ExternalImageAssets,
+  mask: ReturnType<typeof effectiveMask>,
+  imageData: Buffer,
+) {
   const rect =
     command.kind === "patch-background"
       ? command.rect
@@ -62,28 +77,30 @@ export async function composeMcpExternalImage(
       "invalid_edit",
       "Native image dimensions do not match the reviewed page.",
     );
+  const size = incoming.getSize();
+  if (
+    size.width !== assets.width ||
+    size.height !== assets.height ||
+    incoming.toBitmap().length !== imageData.length
+  )
+    throw new McpEditError(
+      "invalid_edit",
+      "Native uploaded PNG dimensions differ from the validated image.",
+    );
   const pixels = incoming.toBitmap(),
     pageMask = new Uint8Array(page.width * page.height);
   const hidden = new Uint8Array(pageMask.length).fill(1);
-  let changedPixels = 0;
-  for (let y = 0; y < rect.h; y++) {
-    for (let x = 0; x < rect.w; x++) {
-      const source = y * rect.w + x,
-        target = (y + rect.y) * page.width + x + rect.x;
-      if (!mask.selected[source]) continue;
-      if (image.data[source * 4 + 3] !== 255)
-        throw new McpEditError(
-          "invalid_edit",
-          "Selected background pixels must be opaque. Transparent lettering belongs in a lettering layer.",
-        );
-      pageMask[target] = 1;
-      hidden[target] = 0;
-      const value = pixels.subarray(source * 4, source * 4 + 4);
-      if (!before.subarray(target * 4, target * 4 + 4).equals(value))
-        changedPixels++;
-      value.copy(after, target * 4);
-    }
-  }
+  const changedPixels = applyPatchPixels({
+    rect,
+    imageData,
+    pixels,
+    mask: mask.selected,
+    before,
+    after,
+    pageMask,
+    hidden,
+    width: page.width,
+  });
   restoreHiddenPixels(before, after, hidden);
   assets.guard();
   return {
@@ -122,4 +139,48 @@ function effectiveMask(assets: ExternalImageAssets) {
 }
 function count(mask: Uint8Array) {
   return mask.reduce((total, value) => total + value, 0);
+}
+
+function applyPatchPixels(input: {
+  rect: { x: number; y: number; w: number; h: number };
+  imageData: Buffer;
+  pixels: Buffer;
+  mask: Uint8Array;
+  before: Buffer;
+  after: Buffer;
+  pageMask: Uint8Array;
+  hidden: Uint8Array;
+  width: number;
+}) {
+  const {
+    rect,
+    imageData,
+    pixels,
+    mask,
+    before,
+    after,
+    pageMask,
+    hidden,
+    width,
+  } = input;
+  let changedPixels = 0;
+  for (let y = 0; y < rect.h; y++) {
+    for (let x = 0; x < rect.w; x++) {
+      const source = y * rect.w + x,
+        target = (y + rect.y) * width + x + rect.x;
+      if (!mask[source]) continue;
+      if (imageData[source * 4 + 3] !== 255)
+        throw new McpEditError(
+          "invalid_edit",
+          "Selected background pixels must be opaque. Transparent lettering belongs in a lettering layer.",
+        );
+      pageMask[target] = 1;
+      hidden[target] = 0;
+      const value = pixels.subarray(source * 4, source * 4 + 4);
+      if (!before.subarray(target * 4, target * 4 + 4).equals(value))
+        changedPixels++;
+      value.copy(after, target * 4);
+    }
+  }
+  return changedPixels;
 }
