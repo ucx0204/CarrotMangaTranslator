@@ -4,16 +4,23 @@ import { expect, it } from "vitest";
 import { retentionFixture } from "./mcpRetention.fixture";
 import { capturePageRecovery } from "../src/shared/pageRecoverySnapshot";
 
-for (const point of ["after-publish-step", "after-replace-step", "before-commit-point", "after-commit-point"] as const) {
+for (const point of [
+  "after-publish-step",
+  "after-replace-step",
+  "before-commit-point",
+  "after-commit-point",
+] as const) {
   it(`keeps native page content and encrypted recovery together through ${point}`, async () => {
     const f = await retentionFixture();
     const tx = await import("../src/main/libraryStore/libraryTransaction");
-    const recovery = await import("../src/main/libraryStore/libraryTransactionRecovery");
+    const recovery =
+      await import("../src/main/libraryStore/libraryTransactionRecovery");
     let restore = () => {};
     try {
       const before = capturePageRecovery((await f.snapshot()).pages[0]);
       restore = tx.setLibraryTransactionCrashInjectorForTests((position) => {
-        if (position === point) throw new tx.SimulatedLibraryTransactionCrash(position);
+        if (position === point)
+          throw new tx.SimulatedLibraryTransactionCrash(position);
       });
       await expect(f.edit("native crash checkpoint")).rejects.toThrow();
       restore();
@@ -22,14 +29,20 @@ for (const point of ["after-publish-step", "after-replace-step", "before-commit-
       const entries = await f.list();
       if (point === "after-commit-point") {
         expect(entries.total).toBe(1);
-        expect((await f.snapshot()).pages[0].blocks[0].translatedText).toBe("native crash checkpoint");
+        expect((await f.snapshot()).pages[0].blocks[0].translatedText).toBe(
+          "native crash checkpoint",
+        );
         await f.recover(entries.items[0].id, "undo");
       } else {
         expect(entries.total).toBe(0);
       }
-      expect(capturePageRecovery((await f.snapshot()).pages[0])).toEqual(before);
+      expect(capturePageRecovery((await f.snapshot()).pages[0])).toEqual(
+        before,
+      );
       for (const phase of ["active", "committed"]) {
-        expect(await readdir(join(f.env.libraryDir, ".transactions", phase))).toEqual([]);
+        expect(
+          await readdir(join(f.env.libraryDir, ".transactions", phase)),
+        ).toEqual([]);
       }
     } finally {
       restore();
@@ -41,7 +54,8 @@ for (const point of ["after-publish-step", "after-replace-step", "before-commit-
 it("preserves the durable action receipt after a committed undo loses its reply", async () => {
   const f = await retentionFixture();
   const tx = await import("../src/main/libraryStore/libraryTransaction");
-  const recovery = await import("../src/main/libraryStore/libraryTransactionRecovery");
+  const recovery =
+    await import("../src/main/libraryStore/libraryTransactionRecovery");
   let restore = () => {};
   try {
     const before = capturePageRecovery((await f.snapshot()).pages[0]);
@@ -49,7 +63,8 @@ it("preserves the durable action receipt after a committed undo loses its reply"
     const id = (await f.list()).items[0].id;
     const action = await f.actionInput(id);
     restore = tx.setLibraryTransactionCrashInjectorForTests((point) => {
-      if (point === "after-commit-point") throw new tx.SimulatedLibraryTransactionCrash(point);
+      if (point === "after-commit-point")
+        throw new tx.SimulatedLibraryTransactionCrash(point);
     });
     expect((await f.recover(id, "undo", action)).status).toBe("saved");
     restore();
@@ -57,7 +72,9 @@ it("preserves the durable action receipt after a committed undo loses its reply"
     await f.restart();
     expect((await f.recover(id, "undo", action)).historical).toBe(true);
     expect(capturePageRecovery((await f.snapshot()).pages[0])).toEqual(before);
-    await expect(f.recover(id, "redo", action)).rejects.toThrow("different action");
+    await expect(f.recover(id, "redo", action)).rejects.toThrow(
+      "different action",
+    );
     expect((await f.list()).total).toBe(1);
   } finally {
     restore();
@@ -90,10 +107,21 @@ it("requires every exact page/review revision and leaves state untouched on malf
     const id = (await f.list()).items[0].id;
     const request = await f.actionInput(id);
     const before = await readFile(f.chapterPath);
-    for (const pages of [[], [...request.pages, ...request.pages], request.pages.map((page) => ({ ...page, reviewRevision: "page-v1:0000000000000000" }))]) {
-      await expect(f.invoke("carrot_undo_change", { ...request, pages })).rejects.toThrow();
+    for (const pages of [
+      [],
+      [...request.pages, ...request.pages],
+      request.pages.map((page) => ({
+        ...page,
+        reviewRevision: "page-v1:0000000000000000",
+      })),
+    ]) {
+      await expect(
+        f.invoke("carrot_undo_change", { ...request, pages }),
+      ).rejects.toThrow();
     }
-    await expect(f.invoke("carrot_undo_change", { ...request, snapshot: {} })).rejects.toThrow();
+    await expect(
+      f.invoke("carrot_undo_change", { ...request, snapshot: {} }),
+    ).rejects.toThrow();
     expect(await readFile(f.chapterPath)).toEqual(before);
     await f.recover(id, "undo");
   } finally {

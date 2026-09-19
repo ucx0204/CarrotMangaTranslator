@@ -50,7 +50,8 @@ async function outputFixture() {
     );
   const issue = async (id: string, caller = f.auth()) =>
     mcpRetentionOutputs.carrot_get_output_file.parse(
-      (await f.invoke("carrot_get_output_file", { id }, caller)).structuredContent,
+      (await f.invoke("carrot_get_output_file", { id }, caller))
+        .structuredContent,
     );
   return { ...f, publish, inspectOutput: inspect, issue };
 }
@@ -66,11 +67,16 @@ it("retains identical PNG and native ZIP bytes after session closure and issues 
     expect((await f.list("outputs")).total).toBe(3);
     await f.restart();
     await expect(old.read(token(png.url))).rejects.toThrow();
-    for (const [output, expected] of [[png, png.bytes], [zip, archive]] as const) {
+    for (const [output, expected] of [
+      [png, png.bytes],
+      [zip, archive],
+    ] as const) {
       expect((await f.inspectOutput(output.id)).canDownload).toBe(true);
       const issued = await f.issue(output.id);
       expect(issued.url).not.toBe(output.url);
-      expect(await f.operations().artifacts.read(token(issued.url))).toEqual(expected);
+      expect(await f.operations().artifacts.read(token(issued.url))).toEqual(
+        expected,
+      );
       expect(JSON.stringify(issued)).not.toContain(f.env.root);
     }
     expect(await readFile(f.chapterPath)).toEqual(original);
@@ -108,13 +114,29 @@ it("scopes inspection, issue and discard to the owner and never removes original
     const output = await f.publish();
     const before = await readFile(f.chapterPath);
     const foreign = f.auth("unrelated-connection");
-    for (const name of ["carrot_get_output", "carrot_get_output_file", "carrot_discard_retained"]) {
-      await expect(f.invoke(name, name.includes("discard") ? { id: output.id, confirm: true } : { id: output.id }, foreign)).rejects.toThrow();
+    for (const name of [
+      "carrot_get_output",
+      "carrot_get_output_file",
+      "carrot_discard_retained",
+    ]) {
+      await expect(
+        f.invoke(
+          name,
+          name.includes("discard")
+            ? { id: output.id, confirm: true }
+            : { id: output.id },
+          foreign,
+        ),
+      ).rejects.toThrow();
     }
     const file = await f.issue(output.id);
-    await expect(f.invoke("carrot_discard_retained", { id: output.id, confirm: false })).rejects.toThrow();
+    await expect(
+      f.invoke("carrot_discard_retained", { id: output.id, confirm: false }),
+    ).rejects.toThrow();
     await f.invoke("carrot_discard_retained", { id: output.id, confirm: true });
-    await expect(f.operations().artifacts.read(token(file.url))).rejects.toThrow();
+    await expect(
+      f.operations().artifacts.read(token(file.url)),
+    ).rejects.toThrow();
     expect(await readFile(f.chapterPath)).toEqual(before);
     const page = (await f.snapshot()).pages[0];
     expect(await readFile(page.imagePath)).toEqual(output.bytes);
