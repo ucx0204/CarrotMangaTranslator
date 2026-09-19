@@ -118,7 +118,7 @@ describe("shared Flux/Koharu CUDA cuFFT dependency", () => {
     expect(markerAfter).toBe(markerBefore);
   });
 
-  it.each([undefined, ""])(
+  it.each([undefined, "", "directory"])(
     "starts repairing missing/empty cuFFT (%j) without losing the old cache on failure",
     async (cufftContents) => {
       const runtimeDir = await createRuntimeRoot();
@@ -187,7 +187,9 @@ async function writeRuntimeCache(
       await writeFile(join(cudaDir, fileName), "runtime");
     }
   }
-  if (cufftContents !== undefined) {
+  if (cufftContents === "directory") {
+    await mkdir(join(cudaDir, CUFFT_FILE));
+  } else if (cufftContents !== undefined) {
     await writeFile(join(cudaDir, CUFFT_FILE), cufftContents);
   }
   await writeFile(

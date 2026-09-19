@@ -48,6 +48,11 @@ function createWindowsThinDistributionPlan(options) {
   commands.push(
     {
       command: options.nodeCommand,
+      args: ["scripts/prepare-koharu-cuda-runner.cjs", "--check"],
+      env: {},
+    },
+    {
+      command: options.nodeCommand,
       args: ["scripts/prepare-import-source-runner.cjs"],
       env: {},
     },

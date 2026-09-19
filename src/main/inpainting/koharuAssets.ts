@@ -1,3 +1,4 @@
+import { ensureKoharuZludaRuntime } from "./koharuZludaRuntime";
 import { mkdir } from "node:fs/promises";
 import { basename, delimiter, join } from "node:path";
 import type {
@@ -173,6 +174,11 @@ export async function ensureKoharuWorkerLaunch(
   } else if (options.backend === "zluda-native") {
     cudaRuntimeDir = await ensureFluxZludaSupportRuntime(options);
     zludaRuntimeRoot = join(options.runtimeDir, "koharu-zluda");
+    await ensureKoharuZludaRuntime({
+      runtimeRoot: zludaRuntimeRoot,
+      signal: options.signal,
+      onProgress: options.onProgress,
+    });
     args.push(
       "--require-zluda",
       "--zluda-runtime-root",

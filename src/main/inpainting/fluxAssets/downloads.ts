@@ -213,7 +213,7 @@ function asJsonRecord(value: unknown): Record<string, unknown> {
 export async function extractSelectedZipEntries(
   archivePath: string,
   outputDir: string,
-  shouldExtract: (fileName: string) => boolean,
+  shouldExtract: (fileName: string, relativePath: string) => boolean,
   signal?: AbortSignal,
   replaceOutputDir = false,
   finalOutputDir?: string,
@@ -221,7 +221,7 @@ export async function extractSelectedZipEntries(
   await loadRuntimeZipModule().extractSelectedZipEntries(
     archivePath,
     outputDir,
-    (fileName) => shouldExtract(fileName),
+    shouldExtract,
     { abortSignal: signal, finalOutputDir, replaceOutputDir },
   );
 }

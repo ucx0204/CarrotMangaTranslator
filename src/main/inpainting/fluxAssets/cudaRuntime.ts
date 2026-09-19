@@ -1,4 +1,4 @@
-import { statSync } from "node:fs";
+import { lstatSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -223,8 +223,9 @@ async function isCurrentFluxCudaRuntime(cudaDir: string): Promise<boolean> {
   try {
     const marker = JSON.parse(
       await readFile(runtimeMarkerPath(cudaDir), "utf8"),
-    ) as { cudnnManifest?: string };
+    ) as { cudaManifest?: string; cudnnManifest?: string };
     return (
+      marker?.cudaManifest === CUDA_REDIST_MANIFEST_URL &&
       marker?.cudnnManifest === CUDNN_REDIST_MANIFEST_URL &&
       (await hasFluxCudaRuntimeFiles(cudaDir))
     );
@@ -236,7 +237,8 @@ async function isCurrentFluxCudaRuntime(cudaDir: string): Promise<boolean> {
 async function hasFluxCudaRuntimeFiles(cudaDir: string): Promise<boolean> {
   return [...FLUX_CUDA_DLLS, ...FLUX_CUDNN_DLLS].every((fileName) => {
     try {
-      return statSync(join(cudaDir, fileName)).size > 0;
+      const info = lstatSync(join(cudaDir, fileName));
+      return info.isFile() && info.size > 0;
     } catch (_error) {
       return false;
     }

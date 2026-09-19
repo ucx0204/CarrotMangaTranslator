@@ -145,7 +145,7 @@ function writeCachedFluxCudaRuntime(runtimeDir: string): string {
   }
   writeFileSync(
     join(cudaDir, FLUX_CUDA_RUNTIME_MARKER),
-    `${JSON.stringify({ cudnnManifest: CUDNN_REDIST_MANIFEST_URL })}\n`,
+    `${JSON.stringify({ cudaManifest: CUDA_REDIST_MANIFEST_URL, cudnnManifest: CUDNN_REDIST_MANIFEST_URL })}\n`,
   );
   return cudaDir;
 }
@@ -1045,6 +1045,11 @@ describeWindows("Flux worker runtime helpers", () => {
           MGT_FLUX_KLEIN_COMPUTE_CAPS: "75,80,86,89,90,120",
           MGT_FORCE_REBUILD_FLUX_RUNNER: "1",
         },
+      },
+      {
+        command: "C:\\node\\node.exe",
+        args: ["scripts/prepare-koharu-cuda-runner.cjs", "--check"],
+        env: {},
       },
       {
         command: "C:\\node\\node.exe",

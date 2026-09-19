@@ -79,7 +79,9 @@
     "qa:page-artwork-parity:from-build": "node scripts/run-page-artwork-pixel-parity.cjs",
     "qa:page-artwork-parity:hardware": "npm run compile:electron && node scripts/run-page-artwork-pixel-parity.cjs --hardware",
     "verify:hf-assets": "node scripts/verify-hf-assets.cjs",
-    "perf:gemma-economy": "npm run build && node scripts/run-gemma-economy-benchmark.cjs"
+    "perf:gemma-economy": "npm run build && node scripts/run-gemma-economy-benchmark.cjs",
+    "build:koharu-cuda-runner": "node scripts/prepare-koharu-cuda-runner.cjs",
+    "check:koharu-cuda-runner": "node scripts/prepare-koharu-cuda-runner.cjs --check"
   },
   "dependencies": {
     "@openai/codex": "0.154.0",
