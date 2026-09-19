@@ -148,7 +148,12 @@ function createAuxiliarySessions(
     Boolean(preferences.allowEditing && preferences.allowProcessing),
     Boolean(preferences.allowImages),
   );
-  const externalImages = createMcpExternalImageSession(app, editing, Boolean(preferences.allowEditing && preferences.allowProcessing), Boolean(preferences.allowImages));
+  const externalImages = createMcpExternalImageSession(
+    app,
+    editing,
+    Boolean(preferences.allowEditing && preferences.allowProcessing),
+    Boolean(preferences.allowImages),
+  );
   const stop = () => {
     externalImages.stop();
     images.stop();
