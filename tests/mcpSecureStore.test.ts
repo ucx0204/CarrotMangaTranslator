@@ -254,3 +254,42 @@ it("refuses symlinked job journal reads and writes without touching their target
   await assert.rejects(store.writeJobJournal({ version: 1, records: [] }));
   assert.equal(await readFile(external, "utf8"), "preserve");
 });
+
+it("binds retained metadata to this profile and refuses tampering and unavailable encryption", async () => {
+  const directory = await root(),
+    encryption = codec();
+  const store = new McpSecureStore(directory, encryption);
+  const retained = {
+    text: "private retained page",
+    dataUrl: "data:image/png;base64,abc",
+  };
+  const sealed = await store.retentionCodec().seal(retained);
+  assert.equal(JSON.stringify(sealed).includes(retained.text), false);
+  assert.deepEqual(
+    await new McpSecureStore(directory, encryption)
+      .retentionCodec()
+      .open(sealed),
+    retained,
+  );
+  await assert.rejects(
+    new McpSecureStore(await root(), encryption).retentionCodec().open(sealed),
+    /another profile/,
+  );
+  await assert.rejects(store.retentionCodec().open({ encrypted: "corrupt" }));
+  const unavailable = new McpSecureStore(directory, {
+    ...encryption,
+    available: () => false,
+  });
+  await assert.rejects(
+    unavailable.retentionCodec().seal(retained),
+    /unavailable/,
+  );
+  await assert.rejects(
+    unavailable.retentionCodec().open(sealed),
+    /unavailable/,
+  );
+  await assert.rejects(
+    store.retentionCodec().seal({ text: "x".repeat(7 * 1024 * 1024) }),
+    /capacity/,
+  );
+});

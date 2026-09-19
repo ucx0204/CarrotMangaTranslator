@@ -99,6 +99,44 @@ export class McpSecureStore {
     const encrypted = this.encryption.encrypt(JSON.stringify(value));
     await this.write("jobs.enc", Buffer.from(encrypted.toString("base64")));
   }
+  retentionCodec() {
+    return {
+      seal: async (payload: unknown): Promise<unknown> => {
+        if (!this.encryption.available())
+          throw new Error("OS-backed MCP encryption is unavailable.");
+        const text = JSON.stringify({
+          domain: "carrot-retention-v1",
+          profile: (await this.identity()).dataProfileId,
+          payload,
+        });
+        if (Buffer.byteLength(text) > 6 * 1024 * 1024)
+          throw new Error("MCP retained metadata exceeds its capacity.");
+        return { encrypted: this.encryption.encrypt(text).toString("base64") };
+      },
+      open: async (envelope: unknown): Promise<unknown> => {
+        if (!this.encryption.available())
+          throw new Error("OS-backed MCP encryption is unavailable.");
+        const { encrypted } = z
+          .object({ encrypted: z.string().max(8 * 1024 * 1024) })
+          .strict()
+          .parse(envelope);
+        const decoded = JSON.parse(
+          this.encryption.decrypt(Buffer.from(encrypted, "base64")),
+        );
+        const value = z
+          .object({
+            domain: z.literal("carrot-retention-v1"),
+            profile: z.string(),
+            payload: z.unknown(),
+          })
+          .strict()
+          .parse(decoded);
+        if (value.profile !== (await this.identity()).dataProfileId)
+          throw new Error("MCP retained data belongs to another profile.");
+        return value.payload;
+      },
+    };
+  }
   async saveAuthorization(oauth: McpOAuthSnapshot): Promise<void> {
     const current = await this.load();
     const checked = parseMcpOAuthSnapshot(

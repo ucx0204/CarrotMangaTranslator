@@ -1,3 +1,4 @@
+import { stageLibraryChapterHistory } from "./libraryChapterHistory";
 import {
   ChapterStoryMemorySchema,
   LibraryChapterFileSchema,
@@ -62,6 +63,7 @@ export async function stageChapterFile(
     getChapterFilePath(chapter.workId, chapter.id),
     checked,
   );
+  await stageLibraryChapterHistory(transaction, checked);
 }
 
 export async function stageStyleGuideFile(
