@@ -351,13 +351,13 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
     'For textRole "sound", translate as compact natural effect lettering instead of an explanatory sentence.',
     "ko must faithfully translate the complete jp without losing the opening phrase, modifiers, negation, names, numbers, honorifics, register, modality, or final predicate.",
     "ko must be one plain continuous line with natural target-language spaces. The renderer performs visual wrapping.",
-    `Every ko value must be written only in ${profile.targetName}; never copy untranslated ${profile.sourceName} script from jp.`,
+    `Write each ko value in natural ${profile.targetName}, using normal spelling and notation.`,
     ...(profile.isDefaultJapaneseToKorean
       ? [
-          "For Korean output, Japanese kana, kanji, iteration marks, and Japanese prolonged-sound marks are forbidden. Translate or transliterate them into natural Hangul.",
+          "Use normal Korean notation, including Latin letters and Arabic numerals where conventional (Aランク → A랭크, 1856年 → 1856년). Translate Japanese words, but do not phonetically spell out such labels or numbers in Hangul.",
         ]
       : []),
-    "Do not include source text, coordinates, explanations, markdown, or uncertainty notes in ko.",
+    "Do not append the original sentence, coordinates, explanations, markdown, or uncertainty notes in ko.",
     "Before returning, verify that each blockId appears exactly once and that ko translates only that block's supplied jp.",
     options.collectPageContext
       ? 'The top-level JSON object must contain the translation array under the exact key "items"; only "items" and "pageContext" are permitted at the top level. Never rename "items" to "blocks", "translations", "results", or any other key.'
@@ -410,8 +410,8 @@ function buildFixedBlockTranslationSystemPrompt(options = {}) {
     ? 'Return one JSON object whose translation array is named exactly "items" and whose only other permitted top-level key is "pageContext"; never return a top-level "blocks" key.'
     : 'Return exactly one JSON object shaped {"items":[...]}; never return a top-level "blocks", "translations", or "results" key.';
   return isHayaiLockedRegionMode(options)
-    ? `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator. Every supplied block is an immutable ordinary-text slot; correct its Hayai reading from the visible bbox, never merge or move slots, return textRole ordinary, write ko only in ${profile.targetName}, and output only ${outputKeys} as valid JSON. ${envelope}`
-    : `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator and visual text-role classifier. Source strings, geometry, and grouping are immutable; classify each visible fixed block, write ko only in ${profile.targetName} without untranslated source script, and output only ${outputKeys} as valid JSON. ${envelope}`;
+    ? `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator. Every supplied block is an immutable ordinary-text slot; correct its Hayai reading from the visible bbox, never merge or move slots, return textRole ordinary, write ko in natural ${profile.targetName}, and output only ${outputKeys} as valid JSON. ${envelope}`
+    : `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator and visual text-role classifier. Source strings, geometry, and grouping are immutable; classify each visible fixed block, write ko in natural ${profile.targetName}, and output only ${outputKeys} as valid JSON. ${envelope}`;
 }
 
 /** @param {FixedBlockOptions} options */

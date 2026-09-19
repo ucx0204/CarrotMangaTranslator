@@ -1096,7 +1096,7 @@ describe("fixed-block translation contract", () => {
       'Use textRole "sound" only for standalone printed sound effects',
     );
     expect(prompt).toContain(
-      "Japanese kana, kanji, iteration marks, and Japanese prolonged-sound marks are forbidden",
+      "including Latin letters and Arabic numerals where conventional (Aランク → A랭크, 1856年 → 1856년)",
     );
     expect(prompt).toContain("fixedBlocks=");
     const payload = JSON.parse(
