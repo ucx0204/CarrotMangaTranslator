@@ -37,12 +37,34 @@ export function workflowSettingsFingerprint(settings: AppSettings) {
     ctx: settings.ctx,
   });
 }
+type WorkflowChapter = Awaited<ReturnType<typeof readWorkflowChapter>>;
+async function readWorkflowChapter(chapterId: string, guard: () => void) {
+  guard();
+  const saved = await readWorkContextForEdit(chapterId);
+  guard();
+  return {
+    saved,
+    contextRevision: mcpContextRevision(saved),
+    membership: mcpBatchMembership(saved.chapter),
+  };
+}
 export async function readWorkflowPage(
   target: { chapterId: string; pageId: string },
   guard: () => void,
 ) {
+  return inspectWorkflowPage(
+    target,
+    guard,
+    await readWorkflowChapter(target.chapterId, guard),
+  );
+}
+async function inspectWorkflowPage(
+  target: { chapterId: string; pageId: string },
+  guard: () => void,
+  chapter: WorkflowChapter,
+) {
   guard();
-  const saved = await readWorkContextForEdit(target.chapterId);
+  const { saved } = chapter;
   const page = saved.chapter.pages.find((page) => page.id === target.pageId);
   if (
     !page ||
@@ -64,8 +86,8 @@ export async function readWorkflowPage(
     workId: saved.workId,
     revision: createPageRevision(page),
     reviewRevision: createSoundEffectReviewPageRevision(page),
-    contextRevision: mcpContextRevision(saved),
-    membership: mcpBatchMembership(saved.chapter),
+    contextRevision: chapter.contextRevision,
+    membership: chapter.membership,
     fingerprint: state.fingerprint,
     sourceFingerprint: hashStableValue([
       page.imagePath,
@@ -82,7 +104,8 @@ export async function prepareWorkflowPages(
 ) {
   const pages: McpWorkflowPage[] = [];
   for (const chapter of input.chapters) {
-    const saved = await readWorkContextForEdit(chapter.chapterId);
+    const binding = await readWorkflowChapter(chapter.chapterId, guard);
+    const { saved } = binding;
     const selected = new Set(chapter.pages.map((page) => page.pageId));
     const ordered = saved.chapter.pages.filter((page) => selected.has(page.id));
     if (ordered.length !== selected.size)
@@ -92,9 +115,10 @@ export async function prepareWorkflowPages(
       );
     for (const page of ordered) {
       const requested = chapter.pages.find((entry) => entry.pageId === page.id);
-      const { evidence } = await readWorkflowPage(
+      const { evidence } = await inspectWorkflowPage(
         { chapterId: chapter.chapterId, pageId: page.id },
         guard,
+        binding,
       );
       if (evidence.revision !== requested?.revision)
         throw new McpEditError(
@@ -103,6 +127,7 @@ export async function prepareWorkflowPages(
         );
       pages.push(evidence);
     }
+    await assertWorkflowChapterUnchanged(binding, [...selected], guard);
   }
   return pages;
 }
@@ -128,8 +153,14 @@ export async function verifyWorkflowPages(
   changedPage?: number,
 ) {
   let changed: McpWorkflowPage | undefined;
+  const chapters = new Map<string, WorkflowChapter>();
   for (const [index, before] of record.pages.entries()) {
-    const { evidence } = await readWorkflowPage(before, guard);
+    let chapter = chapters.get(before.chapterId);
+    if (!chapter) {
+      chapter = await readWorkflowChapter(before.chapterId, guard);
+      chapters.set(before.chapterId, chapter);
+    }
+    const { evidence } = await inspectWorkflowPage(before, guard, chapter);
     assertWorkflowIdentity(before, evidence);
     if (index === changedPage) changed = evidence;
     else if (hashStableValue(before) !== hashStableValue(evidence))
@@ -138,6 +169,43 @@ export async function verifyWorkflowPages(
         "A fixed workflow page changed outside this step. Prepare a new explicit plan.",
       );
   }
+  for (const [chapterId, chapter] of chapters) {
+    const selected = record.pages
+      .filter((page) => page.chapterId === chapterId)
+      .map((page) => page.pageId);
+    await assertWorkflowChapterUnchanged(chapter, selected, guard);
+  }
   guard();
   return changed;
+}
+/** One fresh chapter read brackets each evidence pass; no cache survives a pass.
+ * Selected pages, membership and context are checked again after source hashing. */
+async function assertWorkflowChapterUnchanged(
+  before: WorkflowChapter,
+  selected: string[],
+  guard: () => void,
+) {
+  const after = await readWorkflowChapter(before.saved.chapter.id, guard);
+  const stable =
+    before.contextRevision === after.contextRevision &&
+    before.membership === after.membership;
+  if (
+    !stable ||
+    selected.some((id) => {
+      const a = before.saved.chapter.pages.find((page) => page.id === id);
+      const b = after.saved.chapter.pages.find((page) => page.id === id);
+      return (
+        !a ||
+        !b ||
+        createPageRevision(a) !== createPageRevision(b) ||
+        createSoundEffectReviewPageRevision(a) !==
+          createSoundEffectReviewPageRevision(b)
+      );
+    })
+  )
+    throw new McpEditError(
+      "revision_conflict",
+      "Workflow chapter changed while source evidence was being verified.",
+    );
+  guard();
 }
