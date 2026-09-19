@@ -100,6 +100,7 @@ export class McpRetentionStorage {
     transaction: LibraryTransaction,
     id: string,
     value: unknown,
+    workflowOwner?: { expected: string; next: string },
   ) {
     const path = await this.path(id);
     const old = await lstat(path);
@@ -112,6 +113,15 @@ export class McpRetentionStorage {
     const index = await this.index();
     const entry = index.entries.find((item) => item.id === id);
     if (!entry) throw new Error("Retained record has no index entry.");
+    if (workflowOwner) {
+      if (entry.kind !== "workflow" || entry.owner !== workflowOwner.expected)
+        throw new McpEditError("revision_conflict", "Workflow owner changed.");
+      const next = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).parse(workflowOwner.next);
+      z.object({ owner: z.literal(next) }).passthrough().parse(value);
+      entry.owner = next;
+      // The previous connection's prepare request is not a new owner's admission.
+      entry.requestId = null;
+    }
     entry.bytes += bytes - old.size;
     await transaction.stageJsonReplacement(path, sealed);
     await this.stageIndex(transaction, index);
