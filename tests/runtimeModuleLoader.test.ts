@@ -89,16 +89,21 @@ describe("runtime module boundary", () => {
     ]);
   });
 
-  it("keeps computed require calls inside the validated runtime boundary", () => {
-    const mainRoot = join(__dirname, "..", "src", "main");
-    const dynamicRequireFiles = listTypeScriptFiles(mainRoot).filter((file) =>
-      containsComputedRequire(file),
-    );
+  // The repository-wide AST scan can exceed 15s with coverage on hosted Windows.
+  it(
+    "keeps computed require calls inside the validated runtime boundary",
+    { timeout: 60_000 },
+    () => {
+      const mainRoot = join(__dirname, "..", "src", "main");
+      const dynamicRequireFiles = listTypeScriptFiles(mainRoot).filter((file) =>
+        containsComputedRequire(file),
+      );
 
-    expect(
-      dynamicRequireFiles.map((file) => file.replaceAll("\\", "/")),
-    ).toEqual([expect.stringMatching(/src\/main\/runtimeModuleLoader\.ts$/)]);
-  });
+      expect(
+        dynamicRequireFiles.map((file) => file.replaceAll("\\", "/")),
+      ).toEqual([expect.stringMatching(/src\/main\/runtimeModuleLoader\.ts$/)]);
+    },
+  );
 });
 
 function listTypeScriptFiles(directory: string): string[] {
