@@ -122,7 +122,7 @@ async function collectTranslationEdits(
         }),
       );
     for (const item of view.items)
-      if (!item.excludedReason && item.translation)
+      if (!item.excludedReason && item.translation?.differs)
         edits.push({
           kind: "translation",
           itemId: item.itemId,
