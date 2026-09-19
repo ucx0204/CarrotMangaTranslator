@@ -166,18 +166,24 @@ export class McpWorkflowRepository {
       assertWorkflowVersion(current, input.version);
       assertWorkflowHandoffReady(current);
       if (input.id !== current.id || recipient === current.owner)
-        throw new McpEditError("invalid_edit", "Invalid workflow recipient or target.");
+        throw new McpEditError(
+          "invalid_edit",
+          "Invalid workflow recipient or target.",
+        );
       await verify();
       const next = McpWorkflowRecordSchema.parse({
         ...current,
         owner: recipient,
         version: current.version + 1,
-        status: current.status === "waiting_external" ? "waiting_external" : "paused",
+        status:
+          current.status === "waiting_external" ? "waiting_external" : "paused",
         lastError: null,
-        requests: [{
-          requestId: input.requestId,
-          fingerprint: workflowHandoffFingerprint(recipient, input),
-        }],
+        requests: [
+          {
+            requestId: input.requestId,
+            fingerprint: workflowHandoffFingerprint(recipient, input),
+          },
+        ],
         steps: current.steps.map((step) => ({
           ...step,
           attemptId: null,
