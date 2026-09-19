@@ -51,9 +51,10 @@ export async function commitPageRecoveryUnlocked(
   guard();
   await verify();
   const chapters = await readRecoveryChapters(updates);
-  const previous = new Map(
-    [...chapters].map(([id, chapter]) => [id, structuredClone(chapter.pages)]),
-  );
+  const previous = [...chapters.values()].map((chapter) => ({
+    chapter,
+    pages: chapter.pages,
+  }));
   return runLibraryTransaction(
     "mcp-durable-page-recovery",
     async (transaction) => {
@@ -71,13 +72,12 @@ export async function commitPageRecoveryUnlocked(
             : page,
         );
       }
-      for (const chapter of chapters.values()) {
-        const before = previous.get(chapter.id);
-        if (!before) throw new Error("Missing prior recovery chapter.");
+      // Decide retirement against the complete final chapter, including shared images.
+      for (const { chapter, pages } of previous) {
         await retireReplacedRecoveryImages(
           transaction,
           dirname(getChapterFilePath(chapter.workId, chapter.id)),
-          before,
+          pages,
           chapter.pages,
         );
       }

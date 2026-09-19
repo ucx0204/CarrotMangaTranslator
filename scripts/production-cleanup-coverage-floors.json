@@ -20981,6 +20981,28 @@
         "pct": 73.33
       }
     },
+    "src/main/libraryStore/recoveredImageArtifacts.ts": {
+      "lines": {
+        "covered": 36,
+        "total": 38,
+        "pct": 94.73
+      },
+      "statements": {
+        "covered": 37,
+        "total": 39,
+        "pct": 94.87
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 26,
+        "total": 31,
+        "pct": 83.87
+      }
+    },
     "src/main/libraryStore/translationCheckpointStore.ts": {
       "lines": {
         "covered": 81,
