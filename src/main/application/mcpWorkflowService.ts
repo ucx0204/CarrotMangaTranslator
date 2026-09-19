@@ -1,3 +1,4 @@
+import { MCP_WORKFLOW_ACTION_CAPACITY } from "../../shared/mcpWorkflow";
 import type {
   McpWorkflowPrepare,
   McpWorkflowRun,
@@ -350,7 +351,7 @@ function remember(
   requestId: string,
   fingerprint: string,
 ) {
-  if (record.requests.length >= 64)
+  if (record.requests.length >= MCP_WORKFLOW_ACTION_CAPACITY)
     throw new McpEditError(
       "invalid_edit",
       "Workflow action receipt limit reached. Prepare a new explicit remaining-target plan.",

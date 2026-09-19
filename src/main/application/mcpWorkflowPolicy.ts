@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import {
+  MCP_WORKFLOW_ACTION_CAPACITY,
   McpWorkflowPrepareSchema,
   mcpWorkflowOutputs,
 } from "../../shared/mcpWorkflow";
@@ -45,7 +46,7 @@ const recordShape = z
     translationRequestsReserved: z.number().int().nonnegative().max(5000),
     requests: z
       .array(z.object({ requestId: z.uuid(), fingerprint: hash }).strict())
-      .max(64),
+      .max(MCP_WORKFLOW_ACTION_CAPACITY),
   })
   .strict();
 export const McpWorkflowRecordSchema = recordShape.superRefine((value, ctx) => {

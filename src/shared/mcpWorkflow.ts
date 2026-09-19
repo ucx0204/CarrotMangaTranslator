@@ -5,6 +5,9 @@ import {
   McpRetentionListSchema,
 } from "./mcpRetention";
 
+// Fifty external pages require 50 acknowledgements plus 51 run/resume receipts.
+export const MCP_WORKFLOW_ACTION_CAPACITY = 128;
+
 const target = McpRecoveryActionSchema.shape.pages.element;
 const count = z.number().int().nonnegative();
 const translation = McpSelectionTranslationSchema.omit({
