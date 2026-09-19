@@ -38,10 +38,10 @@ Measured source: `5b217715`. The resumed full suite passed 7,828 tests with one
 inventory-registration failure for the two new background modules and 11 existing
 skips. That measurement supplied these new floors:
 
-| Module | Lines | Statements | Functions | Branches |
-| --- | --- | --- | --- | --- |
-| mcpExternalImageArtifact.ts | 23/27 | 23/28 | 2/2 | 6/11 |
-| mcpExternalImageBackground.ts | 32/35 | 33/36 | 13/13 | 10/13 |
+| Module                        | Lines | Statements | Functions | Branches |
+| ----------------------------- | ----- | ---------- | --------- | -------- |
+| mcpExternalImageArtifact.ts   | 23/27 | 23/28      | 2/2       | 6/11     |
+| mcpExternalImageBackground.ts | 32/35 | 33/36      | 13/13     | 10/13    |
 
 Coverage-summary SHA-256:
 `a2e7340b2b6e41b43a156b98441c5c3ad5d282af352a596704d2c0c3991ce5d9`.
@@ -65,13 +65,13 @@ Final complete-suite/floor/build results belong in the connected checkpoint.
 Global runtime-import and direct-consumer ceilings remain 12 and 25. Exact measured
 exceptions are limited to existing public authorities and composition roots:
 
-| Authority | Current count | Reason |
-| --- | --- | --- |
-| shared/blockFingerprint | 47 consumers | Canonical upload/candidate/snapshot fingerprints |
-| application/mcpEditPolicy | 98 consumers | Typed external-input, staging and publication failures |
-| main/library | 59 consumers | Native upload, lettering and background composition |
-| mcpOutputSchemas | 19 runtime imports | Two strict contract families registered directly |
-| mcpPageOperationSession | 26 runtime imports | One external-image session lifecycle connection |
+| Authority                 | Current count      | Reason                                                 |
+| ------------------------- | ------------------ | ------------------------------------------------------ |
+| shared/blockFingerprint   | 47 consumers       | Canonical upload/candidate/snapshot fingerprints       |
+| application/mcpEditPolicy | 98 consumers       | Typed external-input, staging and publication failures |
+| main/library              | 59 consumers       | Native upload, lettering and background composition    |
+| mcpOutputSchemas          | 19 runtime imports | Two strict contract families registered directly       |
+| mcpPageOperationSession   | 26 runtime imports | One external-image session lifecycle connection        |
 
 The shared image publication request is narrowed to its actual consumed evidence,
 recovery and outcome fields. Runtime image authorization, revision/hash/pixel checks,
