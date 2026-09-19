@@ -13,16 +13,22 @@ class ModelWorkload {
   private closed = false;
   private returned: Promise<void> = Promise.resolve();
   private returnLease: () => void = () => {};
+  private readonly controller = new AbortController();
+  private readonly detachParent: () => void;
   constructor(
     readonly kind: Kind,
-    readonly signal: AbortSignal,
-  ) {}
+    signal: AbortSignal,
+  ) {
+    this.detachParent = followAbort(signal, this.controller);
+  }
 
   async acquire<T>(
     identity: string,
+    childSignal: AbortSignal | undefined,
     create: (signal: AbortSignal) => Promise<Lease<T>>,
   ): Promise<Lease<T>> {
-    this.signal.throwIfAborted();
+    this.controller.signal.throwIfAborted();
+    childSignal?.throwIfAborted();
     if (this.closed || this.borrowed)
       throw new Error(
         "A model workload is closed or already has an active native borrower.",
@@ -36,21 +42,25 @@ class ModelWorkload {
     this.returned = new Promise<void>((resolve) => {
       this.returnLease = resolve;
     });
+    // A timeout/cancel belongs to this borrower, never a later page's lease.
+    const detachChild = followAbort(childSignal, this.controller);
     try {
-      this.entry ??= create(this.signal);
+      this.entry ??= create(this.controller.signal);
       const entry = await this.entry;
-      this.signal.throwIfAborted();
+      this.controller.signal.throwIfAborted();
       let released = false;
       return {
         value: entry.value as T,
         release: async () => {
           if (released) return;
           released = true;
+          detachChild();
           this.borrowed = false;
           this.returnLease();
         },
       };
     } catch (error) {
+      detachChild();
       this.borrowed = false;
       this.returnLease();
       throw error;
@@ -59,12 +69,23 @@ class ModelWorkload {
 
   async close() {
     this.closed = true;
-    await this.returned;
-    if (!this.entry) return;
-    const entry = await this.entry;
-    // Physical disposal is still awaited and uses the established failure barrier.
-    await entry.release();
+    try {
+      await this.returned;
+      if (!this.entry) return;
+      const entry = await this.entry;
+      // Physical disposal is still awaited and uses the established failure barrier.
+      await entry.release();
+    } finally {
+      this.detachParent();
+    }
   }
+}
+
+function followAbort(source: AbortSignal | undefined, target: AbortController) {
+  const abort = () => target.abort(source?.reason);
+  if (source?.aborted) abort();
+  else source?.addEventListener("abort", abort, { once: true });
+  return () => source?.removeEventListener("abort", abort);
 }
 
 /** The surrounding native activity group owns exclusivity until this cleanup settles. */
@@ -108,5 +129,5 @@ export function acquireModelWorkload<T>(
   if (!workload) return create(signal);
   if (workload.kind !== kind)
     throw new Error("Unexpected model kind inside the native workload.");
-  return workload.acquire(identity, create);
+  return workload.acquire(identity, signal, create);
 }
