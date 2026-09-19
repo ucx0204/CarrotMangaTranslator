@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { expect, it, vi } from "vitest";
 import {
   acquireModelWorkload,
@@ -125,4 +126,25 @@ it("preserves the original ungrouped lease and caller signal", async () => {
   expect(create).toHaveBeenCalledWith(child.signal);
   expect(release).not.toHaveBeenCalled();
   await native.release();
+});
+
+it("rejects nested workloads, the wrong model kind and escaped acquisition after closure", async () => {
+  const create = vi.fn(async () => ({ value: {}, release: async () => {} }));
+  let late: (() => Promise<unknown>) | undefined;
+  await withModelWorkload("translation", new AbortController().signal, async () => {
+    await expect(withModelWorkload("translation", new AbortController().signal, async () => {})).rejects.toThrow("Nested");
+    expect(() => acquireModelWorkload("inpainting", "wrong", undefined, create)).toThrow("Unexpected model kind");
+    late = AsyncLocalStorage.bind(() => acquireModelWorkload("translation", "late", undefined, create));
+  });
+  if (!late) throw new Error("Missing captured model-workload callback");
+  await expect(late()).rejects.toThrow("closed");
+  expect(create).not.toHaveBeenCalled();
+});
+
+it("propagates an already aborted parent without admitting a native child", async () => {
+  const create = vi.fn(async () => ({ value: {}, release: async () => {} }));
+  await expect(withModelWorkload("translation", AbortSignal.abort(), async () => {
+    await acquireModelWorkload("translation", "never-started", undefined, create);
+  })).rejects.toMatchObject({ name: "AbortError" });
+  expect(create).not.toHaveBeenCalled();
 });
