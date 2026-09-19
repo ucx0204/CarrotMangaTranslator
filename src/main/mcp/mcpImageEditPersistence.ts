@@ -17,7 +17,10 @@ import {
 // Internal publication consumes evidence and native recovery, not an engine command.
 // The transport-facing planners still own strict command validation and authorization.
 type ImagePublicationRequest = Omit<McpImageEditRequest, "change"> & {
-  change: Pick<McpImageEditRequest["change"], "evidence" | "recovery" | "outcome">;
+  change: Pick<
+    McpImageEditRequest["change"],
+    "evidence" | "recovery" | "outcome"
+  >;
 };
 
 export type McpImageHistory = Pick<

@@ -3,7 +3,10 @@ import { dirname } from "node:path";
 import { nativeImage } from "electron";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { McpEditError } from "../application/mcpEditPolicy";
-import { loadPageImage, resolveInpaintedImagePath } from "../inpainting/imageIO";
+import {
+  loadPageImage,
+  resolveInpaintedImagePath,
+} from "../inpainting/imageIO";
 import { persistRetouchDifferenceMask } from "../inpainting/inpaintMaskArtifact";
 import { removeArtifactAfterFailure } from "../artifactCleanup";
 import { discardMcpImageProduct } from "./mcpImageEditPersistence";
@@ -19,8 +22,15 @@ export async function stageMcpExternalBackground(
   const output = nativeImage.createFromBuffer(bytes);
   for (const image of [original, output]) {
     const size = image.getSize();
-    if (image.isEmpty() || size.width !== page.width || size.height !== page.height)
-      throw new McpEditError("revision_conflict", "External background dimensions changed before staging.");
+    if (
+      image.isEmpty() ||
+      size.width !== page.width ||
+      size.height !== page.height
+    )
+      throw new McpEditError(
+        "revision_conflict",
+        "External background dimensions changed before staging.",
+      );
   }
   guard();
   const path = resolveInpaintedImagePath(page.imagePath, "external");
@@ -39,9 +49,14 @@ export async function stageMcpExternalBackground(
       ...next,
       inpaintMaskPath: mask.path,
       maskProvenance: mask.provenance,
-      ...(page.translationCompletion ? {
-        translationCompletion: { workflow: page.translationCompletion.workflow, status: "pending" as const },
-      } : {}),
+      ...(page.translationCompletion
+        ? {
+            translationCompletion: {
+              workflow: page.translationCompletion.workflow,
+              status: "pending" as const,
+            },
+          }
+        : {}),
       updatedAt: new Date().toISOString(),
     };
     guard();
@@ -65,7 +80,11 @@ async function writeNewImage(path: string, bytes: Buffer) {
     await handle.close();
   } catch (error) {
     failure = failure
-      ? new AggregateError([failure, error], "External image write and close failed.", { cause: error })
+      ? new AggregateError(
+          [failure, error],
+          "External image write and close failed.",
+          { cause: error },
+        )
       : error;
   }
   if (failure) return removeArtifactAfterFailure(path, failure);

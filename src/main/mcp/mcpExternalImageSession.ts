@@ -56,7 +56,18 @@ export function createMcpExternalImageSession(
     close: async () => {
       stop();
       await service.close();
-      await uploads.close();
+      const cleanup = await Promise.allSettled([
+        adapter.close(),
+        uploads.close(),
+      ]);
+      const failures = cleanup.flatMap((result) =>
+        result.status === "rejected" ? [result.reason] : [],
+      );
+      if (failures.length)
+        throw new AggregateError(
+          failures,
+          "External image session cleanup failed.",
+        );
     },
   };
 }
@@ -76,7 +87,7 @@ function externalTools(service: Service): McpTool[] {
       scopes,
       write: false,
       description:
-        "Review validated owned PNG uploads bound to one current saved page/context. LETTERING may be applied to one existing block via native generatedLettering (2 MiB normalized PNG and existing bounded history); preserves source/translation/geometry and native decorations unless explicitly cleared. Existing layers require replaceExisting=true. Binary masks select and protected masks subtract. BACKGROUND replacement/patch candidates are preview-only in this checkpoint: canApply=false; native background publication is not connected. Patch dimensions exactly match rect, selected background pixels must be opaque. No automatic resizing, erasure, OCR, translation, model, settings change or save.",
+        "Review validated owned PNG uploads bound to one current saved page/context. LETTERING may be applied to one existing block via native generatedLettering (2 MiB normalized PNG and existing bounded history); preserves source/translation/geometry and native decorations unless explicitly cleared. Existing layers require replaceExisting=true. Binary masks select and protected masks subtract. BACKGROUND replacement and exact-size patches use native image publication and recovery; selected/protected pixels are verified before saving. Patch dimensions exactly match rect, selected background pixels must be opaque. No automatic resizing, erasure, OCR, translation, model, settings change or save.",
       execute: (args, owner, guard) => service.preview(owner, args, guard),
     }),
     createMcpBatchTool({
@@ -85,7 +96,7 @@ function externalTools(service: Service): McpTool[] {
       scopes: ["carrot.read"],
       write: false,
       description:
-        "Inspect an owned external image plan, exclusions, exact selected/protected pixel counts and asynchronous action results without images or file paths. Background candidates explicitly exclude application. Poll until terminal; changes are not model-quality claims. Session history only, 30-minute idle expiry.",
+        "Inspect an owned external image plan, exclusions, exact selected/protected pixel counts and asynchronous action results without images or file paths. Background candidates preserve all unselected/protected pixels; changed counts do not prove removal or visual quality. Poll until terminal; changes are not model-quality claims. Session history only, 30-minute idle expiry.",
       execute: (args, owner, guard) => service.inspect(owner, args, guard),
     }),
   ];
@@ -97,7 +108,7 @@ function externalTools(service: Service): McpTool[] {
         scopes,
         write: true,
         background: true,
-        description: `${direction.toUpperCase()} only the owned reviewed LETTERING layer with a new action requestId. No models or background-image publication. Apply checks upload content/readiness/expiry and current page/source/context again under native ownership. Undo/redo use retained exact block snapshots, not another upload or inference; later edits conflict. Prior action IDs never reapply. Native save is recorded before UI notification. Poll carrot_get_external_image; cancellation is not rollback. History is session-only and bounded.`,
+        description: `${direction.toUpperCase()} only the owned reviewed background or LETTERING layer with a new action requestId. No model or erasure calls. Apply checks upload content/readiness/expiry and current page/source/context again under native ownership. Undo/redo use retained native images/masks or exact block snapshots, not another upload or inference; later edits conflict. Prior action IDs never reapply. Native save is recorded before UI notification. Poll carrot_get_external_image; cancellation is not rollback. History is session-only and bounded; at most 64 external background edits are retained until session close.`,
         execute: async (args, owner, guard) =>
           service.start(owner, args, direction, guard),
       }),
@@ -109,7 +120,7 @@ function externalTools(service: Service): McpTool[] {
       scopes,
       write: true,
       description:
-        "Cancel only the active external lettering action requestId. Wait for terminal status. A previously committed change remains saved and requires explicit undo; an old cancellation cannot stop a later action.",
+        "Cancel only the active external image action requestId. Wait for terminal status. A previously committed change remains saved and requires explicit undo; an old cancellation cannot stop a later action.",
       execute: async (args, owner, guard) => service.cancel(owner, args, guard),
     }),
   );

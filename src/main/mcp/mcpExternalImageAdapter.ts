@@ -13,6 +13,7 @@ import { verifyMcpImageFiles } from "./mcpImageEditEvidence";
 import type { McpImageUploadStore } from "./mcpImageUploadStore";
 import { withExternalImageAssets } from "./mcpExternalImageAssets";
 import { prepareMcpExternalImage } from "./mcpExternalImagePreparation";
+import { createMcpExternalBackgroundAdapter } from "./mcpExternalImageBackground";
 
 export function createMcpExternalImageAdapter(
   app: InpaintingJobContext,
@@ -23,6 +24,12 @@ export function createMcpExternalImageAdapter(
   uploads: McpImageUploadStore,
   lifetime: AbortSignal,
 ) {
+  const background = createMcpExternalBackgroundAdapter(
+    app,
+    editing,
+    uploads,
+    lifetime,
+  );
   const edits = new McpPageEditService({
     openChapter,
     savePageBlocks,
@@ -32,22 +39,13 @@ export function createMcpExternalImageAdapter(
   const planning: ExternalImagePlanning = (page, input, owner, guard) =>
     withExternalImageAssets(uploads, owner, input, guard, async (assets) => {
       const { change } = await prepareMcpExternalImage(page, input, assets);
-      if (input.command.kind !== "lettering") {
-        change.changed = false;
-        change.excludedReason = "background_application_not_connected";
-        change.warnings.push(
-          "background_preview_only_no_apply_or_image_history_claim",
-        );
-      }
+      if (input.command.kind !== "lettering") background.assertAvailable();
       return change;
     });
   const ports = createMcpPageBatchPorts<ExternalImageRequest>(
     (request, membership, guard, committed, scope) => {
       if (request.input.command.kind !== "lettering")
-        throw new McpEditError(
-          "invalid_edit",
-          "Background candidates can be inspected, but background publication is not connected yet.",
-        );
+        return background.save(request, membership, guard, committed, scope);
       let evidenceGuard = guard;
       const authorize = () => evidenceGuard();
       return edits.commitSnapshotBatch(
@@ -89,5 +87,5 @@ export function createMcpExternalImageAdapter(
       );
     },
   );
-  return { planning, ports };
+  return { planning, ports, close: background.close };
 }

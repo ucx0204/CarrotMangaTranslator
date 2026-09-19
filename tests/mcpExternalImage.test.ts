@@ -88,7 +88,7 @@ it("uses explicit binary and protected masks for layer alpha without inferring b
     await f.close();
   }
 });
-it("returns exact protected patch previews but never claims unfinished background publication", async () => {
+it("previews exact protected patch pixels without saving and applies that same candidate", async () => {
   const f = await externalImageFixture();
   try {
     const before = await readFile(f.chapterPath),
@@ -107,11 +107,10 @@ it("returns exact protected patch previews but never claims unfinished backgroun
       protectedMaskUploadId: mask.uploadId,
       rect: { x: 10, y: 10, w: 8, h: 6 },
     });
-    expect(plan.canApply).toBe(false);
-    const view = await f.inspect(plan.batchId);
-    expect(view.changes[0].excludedReason).toBe(
-      "background_application_not_connected",
-    );
+    expect(plan.canApply).toBe(true);
+    expect(
+      (await f.inspect(plan.batchId)).changes[0].excludedReason,
+    ).toBeNull();
     const preview = await f.invoke("carrot_get_external_image_preview", {
       batchId: plan.batchId,
     });
@@ -133,10 +132,15 @@ it("returns exact protected patch previews but never claims unfinished backgroun
             : source.data.subarray(at, at + 4),
         );
       }
-    await expect(f.action(plan.batchId, "apply")).rejects.toThrow(
-      "No eligible pages",
-    );
     expect(await readFile(f.chapterPath)).toEqual(before);
+    expect((await f.action(plan.batchId, "apply")).result.status).toBe(
+      "completed",
+    );
+    const after = (await f.snapshot()).pages[0];
+    expect((await f.pixels(after.inpaintedImagePath)).data).toEqual(
+      candidate.data,
+    );
+    expect(after.blocks).toEqual(page.blocks);
   } finally {
     await f.close();
   }
