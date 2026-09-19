@@ -21597,6 +21597,28 @@
         "pct": 75
       }
     },
+    "src/main/mcp/mcpExternalImageArtifact.ts": {
+      "lines": {
+        "total": 27,
+        "covered": 23,
+        "pct": 85.18
+      },
+      "statements": {
+        "total": 28,
+        "covered": 23,
+        "pct": 82.14
+      },
+      "functions": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "branches": {
+        "total": 11,
+        "covered": 6,
+        "pct": 54.54
+      }
+    },
     "src/main/mcp/mcpExternalImageAssets.ts": {
       "lines": {
         "total": 18,
@@ -21617,6 +21639,28 @@
         "total": 22,
         "covered": 20,
         "pct": 90.9
+      }
+    },
+    "src/main/mcp/mcpExternalImageBackground.ts": {
+      "lines": {
+        "total": 35,
+        "covered": 32,
+        "pct": 91.42
+      },
+      "statements": {
+        "total": 36,
+        "covered": 33,
+        "pct": 91.66
+      },
+      "functions": {
+        "total": 13,
+        "covered": 13,
+        "pct": 100
+      },
+      "branches": {
+        "total": 13,
+        "covered": 10,
+        "pct": 76.92
       }
     },
     "src/main/mcp/mcpExternalImagePixels.ts": {
