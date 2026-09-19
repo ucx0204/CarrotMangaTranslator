@@ -44,9 +44,11 @@ Context is read, not regenerated. Previous-page story memory is not synthesized.
 Each admitted attempt and child job ID is checkpointed. Completed steps are skipped.
 Same request IDs replay their prior admission instead of starting new work. Lost
 post-save workflow checkpoints can be reconciled against exact owned native change
-or output receipts. Erasure receipts alone do not prove full completion: an uncertain
-erasure which saved content remains review-required instead of being reexecuted or
-silently treated as success. Explicit retry also requires matching saved pre-state.
+or output receipts. Erasure additionally requires the exact persisted native job
+completion receipt, matching owner/target/request, zero unfinished blocks and
+successful cleanup. An uncertain erasure which saved content remains review-required
+instead of being reexecuted or silently treated as success. Explicit retry also
+requires matching saved pre-state.
 
 Pause lets the current child settle, then starts no next step. Cancel signals only
 the owned child and remains running until native cleanup settles. Active status,
@@ -69,7 +71,7 @@ history is separate and remains available after child-plan release.
 
 Plans share seven-day retention, 256 catalog entries and 1 GiB with retained changes
 and outputs. Native metadata/envelope and output limits still apply. A plan has at
-most 250 page/stage steps, 64 action receipts, 500 admitted page attempts and 5,000
+most 250 page/stage steps, 128 action receipts, 500 admitted page attempts and 5,000
 reserved block translation requests. Defaults are 200 attempts and 100 translation
 requests. These counters are not token or monetary estimates. Capacity errors stop
 new work rather than evicting another owner, silently truncating targets or resizing.
@@ -83,8 +85,10 @@ A translation page is limited to 100 eligible blocks. Existing child timeouts ap
   it does not claim one model load for the whole group or suppress cleanup hooks.
 - Explicit authorized cross-connection handoff, without treating knowledge of a
   workflow ID as authority. Same-connection new-chat resume is already supported.
-- Complete additional native workflow acceptance and the final automatic coverage
-  inventory. Record actual terminal results in the checkpoint before claiming gates.
+- Complete the additional workflow-specific real-Electron acceptance. Existing
+  native regression passed, but the attempted additional script write was not
+  executed. The coverage inventory now includes all 13 measured new modules; final
+  automatic results and exact commits belong in the checkpoint.
 
 General import/research/typography/SFX/ZIP composition remains in later planned
 bundles; those independent tools are not silently included in this five-stage core.
