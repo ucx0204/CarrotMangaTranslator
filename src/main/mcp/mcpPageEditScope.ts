@@ -3,6 +3,7 @@ import type { AppActivityResource } from "../../shared/appActivityTypes";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
 import { openChapter } from "../library";
 import { runMcpAppJob } from "./mcpAppJob";
+import { withMcpAuthorization } from "./mcpAuthorizationScope";
 
 type Target = { chapterId: string; pageId: string };
 
@@ -14,46 +15,25 @@ export function createMcpPageEditScope(
   lifetime?: AbortSignal,
   resources: readonly AppActivityResource[] = [],
 ) {
-  return async function run<T>(
+  return function run<T>(
     target: Target,
     authorize: () => void,
     execute: (assertAuthorized: () => void, signal: AbortSignal) => Promise<T>,
   ): Promise<T> {
-    authorize();
-    const controller = new AbortController();
-    const signal = lifetime
-      ? AbortSignal.any([controller.signal, lifetime])
-      : controller.signal;
-    const assertAuthorized = () => {
-      signal.throwIfAborted();
-      authorize();
-    };
-    const monitor = setInterval(() => {
-      try {
-        assertAuthorized();
-      } catch (error) {
-        controller.abort(error);
-      }
-    }, 250);
-    monitor.unref();
-    try {
-      return await runMcpAppJob(
-        app,
-        {
-          id: randomUUID(),
-          signal,
-          assertAuthorized,
-          progress: () => {},
-        },
-        "mcp-edit",
-        async (context) => {
-          context.assertAuthorized();
-          return execute(context.assertAuthorized, context.signal);
-        },
-        { resources, page: { ...target, readChapter } },
-      );
-    } finally {
-      clearInterval(monitor);
-    }
+    return withMcpAuthorization(
+      authorize,
+      lifetime,
+      (assertAuthorized, signal) =>
+        runMcpAppJob(
+          app,
+          { id: randomUUID(), signal, assertAuthorized, progress: () => {} },
+          "mcp-edit",
+          async (context) => {
+            context.assertAuthorized();
+            return execute(context.assertAuthorized, context.signal);
+          },
+          { resources, page: { ...target, readChapter } },
+        ),
+    );
   };
 }

@@ -31,14 +31,14 @@ export const RetainedFileSchema = z
   })
   .strict();
 export type RetainedFile = z.infer<typeof RetainedFileSchema>;
-const state = z
+export const RetainedPageStateSchema = z
   .object({
     page,
     files: z.array(RetainedFileSchema).min(1).max(3),
     fingerprint: z.string().regex(/^[a-f0-9]{16}$/),
   })
   .strict();
-export type RetainedPageState = z.infer<typeof state>;
+export type RetainedPageState = z.infer<typeof RetainedPageStateSchema>;
 const entry = z
   .object({
     id: z.string().uuid(),
@@ -91,8 +91,9 @@ export const RetainedChangeSchema = z
             workId: id,
             chapterId: id,
             membership: z.string(),
-            before: state,
-            after: state,
+            contextRevision: z.string().regex(/^[a-f0-9]{16}$/),
+            before: RetainedPageStateSchema,
+            after: RetainedPageStateSchema,
           })
           .strict(),
       )

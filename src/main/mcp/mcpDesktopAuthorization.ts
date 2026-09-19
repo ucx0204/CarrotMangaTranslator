@@ -48,6 +48,7 @@ export class McpDesktopAuthorization {
     const pairing = new McpPairingBroker(provider, secret);
     return {
       identity: await this.store.identity(),
+      retentionCodec: this.store.retentionCodec(),
       jobPersistence: {
         load: () => this.store.readJobJournal(),
         save: (value: unknown) => this.store.writeJobJournal(value),

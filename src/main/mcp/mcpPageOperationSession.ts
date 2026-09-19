@@ -1,3 +1,9 @@
+import {
+  McpRetentionStorage,
+  type McpRetentionCodec,
+} from "./mcpRetentionStorage";
+import { createMcpRetentionSession } from "./mcpRetentionSession";
+import { createRetainedOutputPublisher } from "./mcpRetainedOutputs";
 import { createMcpSoundEffectSession } from "./mcpSoundEffectSession";
 import { createMcpExternalImageSession } from "./mcpExternalImageSession";
 import { createMcpImageEditSession } from "./mcpImageEditSession";
@@ -37,14 +43,16 @@ type Editing = {
 };
 /** All heavy work joins the app's existing exclusive job store; only receipts and
  * exported temporary files belong to this MCP connection session. */
-export function createMcpPageOperationSession(options: {
+type PageSessionOptions = {
   origin: string;
   jobPersistence?: McpJobPersistence;
+  retentionCodec?: McpRetentionCodec;
   preferences: McpPreferences;
   app: InpaintingJobContext;
   editing: Editing;
   reportError: (error: unknown) => void;
-}) {
+};
+export function createMcpPageOperationSession(options: PageSessionOptions) {
   const { app, editing, preferences } = options;
   const operations = new McpOperationService(
     options.reportError,
@@ -60,7 +68,7 @@ export function createMcpPageOperationSession(options: {
     editing,
     preferences,
   );
-  const artifacts = new McpArtifactStore(options.origin);
+  const { artifacts, retained } = createRetainedOutputs(options);
   const exporter = createPageExporter(artifacts);
   const exports = createMcpExportBatchAdapter({
     app,
@@ -71,26 +79,10 @@ export function createMcpPageOperationSession(options: {
     reportError: options.reportError,
   });
   const reader = createPageReader(app, editing);
-  const executors: Parameters<typeof createMcpOperationTools>[1] = {
-    exportPng: preferences.allowImages ? exports.exportPage : undefined,
-    ocr: preferences.allowProcessing
-      ? createOcrExecutor(app, reader)
-      : undefined,
-    sourceSize: preferences.allowProcessing
-      ? createMcpSourceSizeExecutor(app)
-      : undefined,
-    blockOcr: preferences.allowProcessing
-      ? createMcpBlockOcrExecutor(app)
-      : undefined,
-    blockTranslation: preferences.allowProcessing
-      ? createMcpBlockTranslationExecutor(app)
-      : undefined,
-    erase: preferences.allowProcessing
-      ? createErasureExecutor(app, editing, recovery)
-      : undefined,
-  };
+  const executors = createPageExecutors(options, reader, recovery, exports);
   return {
     tools: [
+      ...(retained?.tools ?? []),
       ...exports.tools,
       ...createMcpTypographyAnalysisSession(
         app,
@@ -106,14 +98,23 @@ export function createMcpPageOperationSession(options: {
       ),
     ],
     artifacts,
-    ready: () => operations.ready(),
+    wrapTool: retained?.wrap,
+    ready: async () => {
+      await operations.ready();
+      await retained?.ready();
+    },
     stop: () => {
+      retained?.stop();
       auxiliary.stop();
       recovery?.stop();
       operations.stop();
       artifacts.stop();
     },
-    close: () => closePageSession(operations, artifacts, recovery, auxiliary),
+    close: async () => {
+      retained?.stop();
+      await retained?.close();
+      await closePageSession(operations, artifacts, recovery, auxiliary);
+    },
   };
 }
 
@@ -268,4 +269,53 @@ function createPageReader(app: InpaintingJobContext, editing: Editing) {
     defaults: async () =>
       (await getAppSettings(app.appPaths)).blockFormatDefaults,
   });
+}
+
+function createRetainedOutputs(options: PageSessionOptions) {
+  const { app, editing, preferences } = options;
+  const storage = options.retentionCodec
+    ? new McpRetentionStorage(options.retentionCodec)
+    : undefined;
+  const artifacts = new McpArtifactStore(
+    options.origin,
+    Date.now,
+    storage ? createRetainedOutputPublisher(storage) : undefined,
+  );
+  const retained = storage
+    ? createMcpRetentionSession(
+        storage,
+        artifacts,
+        app,
+        editing,
+        Boolean(preferences.allowEditing && preferences.allowProcessing),
+        preferences.allowImages,
+      )
+    : undefined;
+  return { artifacts, retained };
+}
+function createPageExecutors(
+  options: PageSessionOptions,
+  reader: McpReadingService,
+  recovery: ReturnType<typeof createMcpErasureRecoverySession>,
+  exports: ReturnType<typeof createMcpExportBatchAdapter>,
+): Parameters<typeof createMcpOperationTools>[1] {
+  const { app, editing, preferences } = options;
+  return {
+    exportPng: preferences.allowImages ? exports.exportPage : undefined,
+    ocr: preferences.allowProcessing
+      ? createOcrExecutor(app, reader)
+      : undefined,
+    sourceSize: preferences.allowProcessing
+      ? createMcpSourceSizeExecutor(app)
+      : undefined,
+    blockOcr: preferences.allowProcessing
+      ? createMcpBlockOcrExecutor(app)
+      : undefined,
+    blockTranslation: preferences.allowProcessing
+      ? createMcpBlockTranslationExecutor(app)
+      : undefined,
+    erase: preferences.allowProcessing
+      ? createErasureExecutor(app, editing, recovery)
+      : undefined,
+  };
 }

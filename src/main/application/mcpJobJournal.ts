@@ -60,6 +60,7 @@ export const mcpPersistedTargetSchema = z.union([
 
 export const mcpJobResultMetadataSchema = z.object({
   exportPages: McpExportPagesMetadataSchema.optional(),
+  retainedOutputId: z.string().uuid().optional(),
   sourceJobId: z.string().uuid().optional(),
   partialOutput: z.boolean().optional(),
   pageCount: count.optional(),

@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { readMcpArtifactChunks } from "./mcpArtifactStream";
 import {
   mkdtemp,
   readFile,
@@ -12,20 +12,18 @@ import { Readable } from "node:stream";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { McpEditError } from "../application/mcpEditPolicy";
-import { writeMcpArtifactZip } from "./mcpArtifactZip";
+import {
+  writeMcpArtifactZip,
+  assertMcpZipSelection,
+  mcpZipBudget,
+} from "./mcpArtifactZip";
 
-type Artifact = {
-  file: string;
-  name: "page.png" | "pages.zip";
-  mimeType: "image/png" | "application/zip";
-  sha256: string;
-  expiresAt: number;
-  size: number;
-  leases: number;
-  assertAccess: () => Promise<void>;
-};
+import type {
+  McpArtifactBinding,
+  McpArtifactRetention,
+  McpArtifactEntry as Artifact,
+} from "./mcpArtifactTypes";
 const MAX_FILE_BYTES = 64 * 1024 * 1024;
-const MAX_ZIP_BYTES = 128 * 1024 * 1024;
 const MAX_SESSION_BYTES = 256 * 1024 * 1024;
 const LIFETIME_MS = 10 * 60_000;
 
@@ -41,9 +39,14 @@ export class McpArtifactStore {
   constructor(
     private readonly origin: string,
     private readonly now: () => number = Date.now,
+    private readonly retain?: McpArtifactRetention,
   ) {}
 
-  async put(bytes: Buffer, assertAccess: () => Promise<void>) {
+  async put(
+    bytes: Buffer,
+    assertAccess: () => Promise<void>,
+    target?: McpArtifactBinding,
+  ) {
     if (!bytes.length || bytes.length > MAX_FILE_BYTES)
       throw new McpEditError(
         "invalid_edit",
@@ -60,6 +63,7 @@ export class McpArtifactStore {
           sha256: createHash("sha256").update(bytes).digest("hex"),
         };
       },
+      target ? [target] : [],
     );
     return { ...result, mimeType: "image/png" as const };
   }
@@ -72,15 +76,7 @@ export class McpArtifactStore {
   ) {
     signal.throwIfAborted();
     await assertAccess();
-    if (
-      !files.length ||
-      files.length > 50 ||
-      new Set(files.map((item) => item.filename)).size !== files.length
-    )
-      throw new McpEditError(
-        "invalid_edit",
-        "A ZIP requires 1 to 50 distinctly named PNG outputs.",
-      );
+    assertMcpZipSelection(files);
     const sources: {
       file: string;
       size: number;
@@ -111,15 +107,7 @@ export class McpArtifactStore {
         for (const entry of leased) await entry.assertAccess();
         await assertAccess();
       };
-      const budget =
-        sources.reduce((sum, item) => sum + item.size, 0) +
-        Buffer.byteLength(JSON.stringify(manifest)) +
-        1024 * 1024;
-      if (budget > MAX_ZIP_BYTES)
-        throw new McpEditError(
-          "invalid_edit",
-          "ZIP exceeds the 128 MiB output budget. Select fewer pages; resolution is never reduced.",
-        );
+      const budget = mcpZipBudget(sources, manifest);
       return await this.create(
         budget,
         "pages.zip",
@@ -132,6 +120,7 @@ export class McpArtifactStore {
             assertAccess: assertArchiveAccess,
             signal: AbortSignal.any([signal, this.lifetime.signal]),
           }),
+        leased.flatMap((entry) => entry.bindings),
       );
     } finally {
       for (const entry of leased) entry.leases--;
@@ -171,7 +160,14 @@ export class McpArtifactStore {
       mimeType: entry.mimeType,
       filename:
         entry.name === "page.png" ? "carrot-page.png" : "carrot-pages.zip",
-      stream: () => Readable.from(this.chunks(entry)),
+      stream: () =>
+        Readable.from(
+          readMcpArtifactChunks(
+            entry,
+            () => this.check(entry),
+            this.lifetime.signal,
+          ),
+        ),
     };
   }
   async assertAvailable(url: string): Promise<void> {
@@ -201,26 +197,11 @@ export class McpArtifactStore {
     this.bytes = 0;
   }
 
-  private async *chunks(entry: Artifact) {
-    entry.leases++;
-    const input = createReadStream(entry.file, {
-      highWaterMark: 1024 * 1024,
-      signal: this.lifetime.signal,
-    });
-    try {
-      for await (const chunk of input) {
-        await this.check(entry);
-        yield chunk;
-      }
-      await this.check(entry);
-    } finally {
-      input.destroy();
-      entry.leases--;
-    }
-  }
   private async lookup(secret: string) {
     const entry = this.entries.get(digest(secret));
     if (!entry) throw unavailable();
+    await this.check(entry);
+    await entry.verifyOpen?.();
     await this.check(entry);
     return entry;
   }
@@ -255,6 +236,7 @@ export class McpArtifactStore {
     name: Artifact["name"],
     assertAccess: Artifact["assertAccess"],
     writer: (file: string) => Promise<{ bytes: number; sha256: string }>,
+    bindings: McpArtifactBinding[] = [],
   ) {
     await assertAccess();
     await this.prune();
@@ -272,12 +254,15 @@ export class McpArtifactStore {
       name,
       assertAccess,
       writer,
-    );
+    ).then((entry) => this.retainCreated(entry, bindings, digest(secret)));
     this.writes.add(task);
     try {
       const entry = await task;
       this.bytes += entry.size - reserved;
       return {
+        ...(entry.retainedOutputId
+          ? { retainedOutputId: entry.retainedOutputId }
+          : {}),
         url: `${this.origin}/mcp-artifacts/${secret}/${name}`,
         mimeType: entry.mimeType,
         bytes: entry.size,
@@ -293,6 +278,74 @@ export class McpArtifactStore {
       this.writes.delete(task);
     }
   }
+  private async retainCreated(
+    entry: Artifact,
+    bindings: McpArtifactBinding[],
+    key: string,
+  ) {
+    entry.bindings = bindings;
+    if (!this.retain || !bindings.length) return entry;
+    try {
+      entry.retainedOutputId = await this.retain(entry, () =>
+        this.check(entry),
+      );
+      await this.check(entry);
+      return entry;
+    } catch (error) {
+      this.entries.delete(key);
+      try {
+        await rm(entry.file, { force: true });
+      } catch (cleanup) {
+        throw new AggregateError(
+          [error, cleanup],
+          "Output retention and cleanup failed.",
+          { cause: cleanup },
+        );
+      }
+      throw error;
+    }
+  }
+  async issueRetained(
+    file: string,
+    metadata: {
+      mimeType: "image/png" | "application/zip";
+      bytes: number;
+      sha256: string;
+    },
+    assertAccess: () => Promise<void>,
+    verifyOpen: () => Promise<void>,
+  ) {
+    await assertAccess();
+    await verifyOpen();
+    await this.prune();
+    if (this.closed || this.bytes + metadata.bytes > MAX_SESSION_BYTES)
+      throw unavailable();
+    const secret = randomBytes(32).toString("base64url");
+    const name = metadata.mimeType === "image/png" ? "page.png" : "pages.zip";
+    const entry: Artifact = {
+      file,
+      name,
+      mimeType: metadata.mimeType,
+      sha256: metadata.sha256,
+      size: metadata.bytes,
+      expiresAt: this.now() + LIFETIME_MS,
+      leases: 0,
+      assertAccess,
+      verifyOpen,
+      borrowed: true,
+      bindings: [],
+    };
+    await this.check(entry);
+    this.entries.set(digest(secret), entry);
+    this.bytes += entry.size;
+    return {
+      url: `${this.origin}/mcp-artifacts/${secret}/${name}`,
+      ...metadata,
+      expiresAt: entry.expiresAt,
+      access:
+        "fresh-single-file-link; expires on stop, revocation, page/source/redaction change or retained expiry",
+    };
+  }
   private prune(): Promise<void> {
     // Concurrent admissions must share both successful and failed cleanup.
     this.pruning ??= this.removeExpired().finally(() => {
@@ -303,7 +356,7 @@ export class McpArtifactStore {
   private async removeExpired(): Promise<void> {
     for (const [key, entry] of this.entries) {
       if (entry.expiresAt > this.now() || entry.leases) continue;
-      await rm(entry.file, { force: true });
+      if (!entry.borrowed) await rm(entry.file, { force: true });
       this.entries.delete(key);
       this.bytes -= entry.size;
     }
@@ -325,6 +378,7 @@ export class McpArtifactStore {
       const entry: Artifact = {
         file,
         name,
+        bindings: [],
         mimeType: name === "page.png" ? "image/png" : "application/zip",
         size: result.bytes,
         sha256: result.sha256,

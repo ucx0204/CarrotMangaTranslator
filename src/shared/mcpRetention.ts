@@ -7,7 +7,14 @@ const target = z
   .object({ chapterId: id, pageId: id, revision, reviewRevision: revision })
   .strict();
 export const McpRetentionListSchema = z
-  .object({ offset: count.default(0), limit: count.min(1).max(25).default(25) })
+  .object({
+    offset: count.default(0),
+    limit: count.min(1).max(25).default(25),
+    snapshot: z
+      .string()
+      .regex(/^[a-f0-9]{16}$/)
+      .optional(),
+  })
   .strict();
 export const McpRetainedGetSchema = z.object({ id: z.uuid() }).strict();
 export const McpRecoveryActionSchema = z
@@ -29,7 +36,7 @@ const descriptor = z
     requestId: z.string().max(128).nullable(),
     createdAt: count,
     expiresAt: count,
-    bytes: count,
+    storageBytes: count,
     pageCount: count,
     mimeType: z.enum(["image/png", "application/zip"]).nullable(),
     sha256: z
@@ -41,6 +48,7 @@ const descriptor = z
   .strict();
 const window = z
   .object({
+    snapshot: z.string().regex(/^[a-f0-9]{16}$/),
     total: count,
     offset: count,
     limit: count,
@@ -58,6 +66,7 @@ const receipt = z
     direction: z.enum(["undo", "redo"]),
     status: z.enum(["saved", "already_applied"]),
     historical: z.boolean(),
+    warnings: z.array(z.string()),
     pages: z.array(target).max(50),
   })
   .strict();
@@ -84,6 +93,7 @@ export const mcpRetentionOutputs = {
   carrot_redo_change: receipt,
   carrot_get_output: descriptor
     .extend({
+      bytes: count,
       pages: z.array(target.omit({ reviewRevision: true })).max(50),
       canDownload: z.boolean(),
       warnings: z.array(z.string()),

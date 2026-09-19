@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
+import { mcpTestEncryption as codec } from "./mcpEncryption.fixture";
 import {
   mkdtemp,
   readFile,
@@ -27,33 +27,7 @@ afterEach(async () => {
   for (const value of roots.splice(0))
     await rm(value, { recursive: true, force: true });
 });
-function codec() {
-  const key = randomBytes(32);
-  return {
-    available: () => true,
-    encrypt: (text: string) => {
-      const iv = randomBytes(12);
-      const cipher = createCipheriv("aes-256-gcm", key, iv);
-      const payload = Buffer.concat([
-        cipher.update(text, "utf8"),
-        cipher.final(),
-      ]);
-      return Buffer.concat([iv, cipher.getAuthTag(), payload]);
-    },
-    decrypt: (bytes: Buffer) => {
-      const decipher = createDecipheriv(
-        "aes-256-gcm",
-        key,
-        bytes.subarray(0, 12),
-      );
-      decipher.setAuthTag(bytes.subarray(12, 28));
-      return Buffer.concat([
-        decipher.update(bytes.subarray(28)),
-        decipher.final(),
-      ]).toString("utf8");
-    },
-  };
-}
+
 it("writes encrypted credentials atomically and restores the same identity with a fresh store", async () => {
   const directory = await root();
   const encryption = codec();

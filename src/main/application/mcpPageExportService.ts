@@ -5,6 +5,7 @@ import { McpEditError } from "./mcpEditPolicy";
 
 type Target = { chapterId: string; pageId: string; revision: string };
 type Artifact = {
+  retainedOutputId?: string;
   url: string;
   mimeType: "image/png";
   bytes: number;
@@ -18,6 +19,7 @@ type Ports = {
   store: (
     bytes: Buffer,
     assertAccess: () => Promise<void>,
+    target?: Target,
   ) => Promise<Artifact>;
   assertImageAccess: () => Promise<void>;
 };
@@ -49,7 +51,7 @@ export class McpPageExportService {
     const bytes = await this.ports.render(page, context.signal);
     context.assertAuthorized();
     await assertAccess();
-    const artifact = await this.ports.store(bytes, assertAccess);
+    const artifact = await this.ports.store(bytes, assertAccess, target);
     context.assertAuthorized();
     context.progress({ phase: "done", completed: 1, total: 1 });
     return {

@@ -91,10 +91,18 @@ export class McpRetentionStorage {
     id: string,
     value: unknown,
   ) {
-    await transaction.stageJsonReplacement(
-      await this.path(id),
-      await this.codec.seal(value),
-    );
+    const path = await this.path(id);
+    const old = await lstat(path);
+    if (!old.isFile() || old.isSymbolicLink())
+      throw new Error("Invalid retained record file.");
+    const sealed = await this.codec.seal(value);
+    const bytes = Buffer.byteLength(JSON.stringify(sealed, null, 2)) + 1;
+    const index = await this.index();
+    const entry = index.entries.find((item) => item.id === id);
+    if (!entry) throw new Error("Retained record has no index entry.");
+    entry.bytes += bytes - old.size;
+    await transaction.stageJsonReplacement(path, sealed);
+    await this.stageIndex(transaction, index);
   }
   async create(transaction: LibraryTransaction, id: string) {
     const base = join(getLibraryRoot(), ".mcp-retained");
@@ -104,7 +112,7 @@ export class McpRetentionStorage {
   }
   async writeRecord(directory: string, value: unknown): Promise<number> {
     const sealed = await this.codec.seal(value);
-    const bytes = Buffer.byteLength(JSON.stringify(sealed));
+    const bytes = Buffer.byteLength(JSON.stringify(sealed, null, 2)) + 1;
     if (bytes > 8 * 1024 * 1024)
       throw new Error("Retained metadata exceeds 8 MiB.");
     await writeDurableJsonFile(join(directory, "record.json"), sealed);

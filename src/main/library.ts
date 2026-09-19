@@ -1,3 +1,4 @@
+export { commitPageRecovery } from "./library/libraryRecoveryFacade";
 export { assertLibraryImagePath } from "./libraryStore/libraryFiles";
 export { getLibraryRoot } from "./libraryStore/libraryPaths";
 export { libraryMutationCoordinator } from "./libraryStore/libraryMutationCoordinator";

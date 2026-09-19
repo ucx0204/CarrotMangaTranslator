@@ -167,6 +167,7 @@ async function openPageServer(
   const pageOperations = createMcpPageOperationSession({
     origin,
     jobPersistence: auth.jobPersistence,
+    retentionCodec: auth.retentionCodec,
     preferences: options.preferences,
     app: options.editing.processing(),
     editing: editor,
@@ -185,6 +186,7 @@ async function openPageServer(
           scope.signal,
         ),
         preferences: options.preferences,
+        wrapTool: pageOperations.wrapTool,
         lifetime: scope.signal,
         additionalTools: [
           ...pageOperations.tools,

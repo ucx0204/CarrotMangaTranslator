@@ -1,3 +1,4 @@
+import { mcpRetentionOutputs } from "../../shared/mcpRetention";
 import { mcpSoundEffectOutputs } from "../../shared/mcpSoundEffects";
 import { mcpSelectionBatchOutputs } from "../../shared/mcpSelectionEditing";
 import { mcpImageUploadOutputs } from "../../shared/mcpImageUploads";
@@ -80,6 +81,7 @@ const image = z
   .strict();
 
 const artifact = {
+  retainedOutputId: text.uuid().optional(),
   jobId: text.uuid(),
   url: text.url(),
   bytes: count,
@@ -119,6 +121,7 @@ const mcpJobReceiptOutput = z
 
 /** Public projections only. JSON Schema and runtime validation share these definitions. */
 export const mcpOutputSchemas: Record<string, z.ZodType> = {
+  ...mcpRetentionOutputs,
   ...mcpSoundEffectOutputs,
   carrot_prepare_sound_effect_batch: mcpJobReceiptOutput,
   carrot_generate_sound_effects: mcpJobReceiptOutput,

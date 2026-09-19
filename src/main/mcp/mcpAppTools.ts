@@ -34,6 +34,7 @@ import { renderMcpPagePreview } from "./mcpPreviewImage";
 export function createMcpAppTools(options: {
   preferences: McpPreferences;
   additionalTools?: McpTool[];
+  wrapTool?: (tool: McpTool) => McpTool;
   withPageEdit?: McpPageEditScope;
   lifetime?: AbortSignal;
   assertWritable: (chapterId: string, pageId: string) => Promise<void>;
@@ -101,13 +102,7 @@ export function createMcpAppTools(options: {
       lifetime: options.lifetime,
     },
     extensions,
-  ).map((tool) => ({
-    ...tool,
-    requiredScopes:
-      tool.name === "carrot_get_page_preview"
-        ? ["carrot.read", "carrot.images"]
-        : (tool.requiredScopes ?? ["carrot.read"]),
-  }));
+  ).map((tool) => configureMcpTool(tool, options.wrapTool));
 }
 
 function typographyReadTools(operations: readonly McpTool[]): McpTool[] {
@@ -123,4 +118,18 @@ function typographyReadTools(operations: readonly McpTool[]): McpTool[] {
       ),
     }),
   );
+}
+
+function configureMcpTool(
+  tool: McpTool,
+  wrap?: (tool: McpTool) => McpTool,
+): McpTool {
+  const scoped: McpTool = {
+    ...tool,
+    requiredScopes:
+      tool.name === "carrot_get_page_preview"
+        ? ["carrot.read", "carrot.images"]
+        : (tool.requiredScopes ?? ["carrot.read"]),
+  };
+  return wrap ? wrap(scoped) : scoped;
 }
