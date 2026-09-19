@@ -89,7 +89,11 @@ export function createMcpWorkflowRuntime(options: Options) {
             executeStage(current, step, calls, signal, onJob, guard),
           );
           const recovered = await reconcileNativeWorkflow(
-            options.storage, current, step, guard, true,
+            options.storage,
+            current,
+            step,
+            guard,
+            true,
           );
           return recovered?.outcome ?? outcome;
         },
