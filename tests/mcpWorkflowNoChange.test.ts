@@ -15,15 +15,28 @@ it("finishes identical translation proposals without an ineligible native apply 
     await f.run(plan.id);
     const result = await f.done(plan.id);
     expect(result.status, JSON.stringify(f.errors)).toBe("completed");
-    expect(result.steps.filter((step) => step.stage === "translate").every(
-      (step) => step.outcome === "no_translation_changes" && step.changeId === null,
-    )).toBe(true);
-    expect(f.request).toHaveBeenCalledTimes(chapter.pages.reduce(
-      (count: number, page: { blocks: unknown[] }) => count + page.blocks.length, 0,
-    ));
+    expect(
+      result.steps
+        .filter((step) => step.stage === "translate")
+        .every(
+          (step) =>
+            step.outcome === "no_translation_changes" && step.changeId === null,
+        ),
+    ).toBe(true);
+    expect(f.request).toHaveBeenCalledTimes(
+      chapter.pages.reduce(
+        (count: number, page: { blocks: unknown[] }) =>
+          count + page.blocks.length,
+        0,
+      ),
+    );
     expect(f.render).toHaveBeenCalledTimes(chapter.pages.length);
     expect(await readFile(f.chapterPath)).toEqual(before);
-    expect((await f.storage.index()).entries.some((entry) => entry.kind === "change")).toBe(false);
+    expect(
+      (await f.storage.index()).entries.some(
+        (entry) => entry.kind === "change",
+      ),
+    ).toBe(false);
   } finally {
     await f.close();
   }
