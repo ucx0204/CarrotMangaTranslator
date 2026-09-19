@@ -3,7 +3,7 @@ import { McpSourceRectPatchSchema } from "./mcpSourceRect";
 
 const { chapterId, pageId, revision } = McpSourceRectPatchSchema.shape;
 export const MCP_UPLOAD_CHUNK_BYTES = 32 * 1024;
-export const MCP_UPLOAD_FILE_BYTES = 32 * 1024 * 1024;
+const MCP_UPLOAD_FILE_BYTES = 32 * 1024 * 1024;
 export const MCP_UPLOAD_SESSION_BYTES = 128 * 1024 * 1024;
 export const MCP_UPLOAD_LIFETIME_MS = 30 * 60_000;
 export const McpImageUploadBeginSchema = z
@@ -34,7 +34,6 @@ export const McpImageUploadChunkSchema = McpImageUploadGetSchema.extend({
     .max(Math.ceil(MCP_UPLOAD_CHUNK_BYTES / 3) * 4)
     .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/),
 }).strict();
-export type McpImageUploadChunk = z.infer<typeof McpImageUploadChunkSchema>;
 const receipt = z
   .object({
     uploadId: z.uuid(),
