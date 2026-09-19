@@ -13,80 +13,185 @@ async function retainedHttpFixture() {
   const { McpOAuthHttp } = await import("../src/main/mcp/mcpOAuthHttp");
   const { McpPairingBroker } = await import("../src/main/mcp/mcpPairingBroker");
   const { startMcpHttpServer } = await import("../src/main/mcp/mcpHttpServer");
-  const { McpOperationService } = await import("../src/main/application/mcpOperationService");
-  const { McpPageExportService } = await import("../src/main/application/mcpPageExportService");
-  const { createMcpOperationTools } = await import("../src/main/mcp/mcpOperationTools");
-  const { bindRetainedOutputSource } = await import("../src/main/mcp/mcpRetainedOutputs");
-  const origin = "https://retained-http.test", secret = "s".repeat(43);
-  const provider = new McpOAuthProvider(origin, secret, Date.now, { allowEdits: true, allowProcessing: true, allowImages: true });
+  const { McpOperationService } =
+    await import("../src/main/application/mcpOperationService");
+  const { McpPageExportService } =
+    await import("../src/main/application/mcpPageExportService");
+  const { createMcpOperationTools } =
+    await import("../src/main/mcp/mcpOperationTools");
+  const { bindRetainedOutputSource } =
+    await import("../src/main/mcp/mcpRetainedOutputs");
+  const origin = "https://retained-http.test",
+    secret = "s".repeat(43);
+  const provider = new McpOAuthProvider(origin, secret, Date.now, {
+    allowEdits: true,
+    allowProcessing: true,
+    allowImages: true,
+  });
   const auth = new McpOAuthSession(provider, { save: async () => {} });
   const grant = createMcpTestGrant(origin, secret);
   const scope = "carrot.read carrot.edit carrot.process carrot.images";
-  const full = grant(provider, scope), other = grant(provider, scope), read = grant(provider, "carrot.read");
+  const full = grant(provider, scope),
+    other = grant(provider, scope),
+    read = grant(provider, "carrot.read");
   const errors: unknown[] = [];
   const png = await readFile((await f.snapshot()).pages[0].imagePath);
   const render = vi.fn(async () => png);
   const start = async () => {
-    const artifacts = f.operations().artifacts, wrap = f.operations().wrapTool;
+    const artifacts = f.operations().artifacts,
+      wrap = f.operations().wrapTool;
     if (!wrap) throw new Error("Missing retention wrapper");
-    const manager = new McpOperationService(error => errors.push(error));
-    const exporter = new McpPageExportService({ openChapter: f.library.openChapter, render,
-      store: artifacts.put.bind(artifacts), bindSource: bindRetainedOutputSource, assertImageAccess: async () => {} });
-    const jobs = createMcpOperationTools(manager, { exportPng: (input, context) => exporter.export(input, context) }).map(wrap);
-    const names = new Set(jobs.map(tool => tool.name));
+    const manager = new McpOperationService((error) => errors.push(error));
+    const exporter = new McpPageExportService({
+      openChapter: f.library.openChapter,
+      render,
+      store: artifacts.put.bind(artifacts),
+      bindSource: bindRetainedOutputSource,
+      assertImageAccess: async () => {},
+    });
+    const jobs = createMcpOperationTools(manager, {
+      exportPng: (input, context) => exporter.export(input, context),
+    }).map(wrap);
+    const names = new Set(jobs.map((tool) => tool.name));
     const server = await startMcpHttpServer({
       config: { port: 0, token: "t".repeat(43), publicOrigin: origin },
-      tools: [...f.tools().filter(tool => !names.has(tool.name)), ...jobs], artifacts,
+      tools: [...f.tools().filter((tool) => !names.has(tool.name)), ...jobs],
+      artifacts,
       enforceScopes: true,
-      oauthHttp: new McpOAuthHttp(origin, secret, { session: auth, pairing: new McpPairingBroker(provider, secret) }),
-      reportError: error => errors.push(error),
+      oauthHttp: new McpOAuthHttp(origin, secret, {
+        session: auth,
+        pairing: new McpPairingBroker(provider, secret),
+      }),
+      reportError: (error) => errors.push(error),
     });
     return { server, manager };
   };
   let running = await start();
-  const stop = async () => { await running.server.close(); await running.manager.close(); };
-  const call = async (name: string, args: object, token = full) => (await fetch(running.server.url, {
-    method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),
-  })).json();
-  const download = (url: string, method = "GET") => fetch(new URL(new URL(url).pathname, running.server.url), { method });
-  return { ...f, call, download, read, full, other, render, png, errors,
-    restart: async () => { await stop(); await f.restart(); running = await start(); },
-    close: async () => { await stop(); await f.close(); } };
+  const stop = async () => {
+    await running.server.close();
+    await running.manager.close();
+  };
+  const call = async (name: string, args: object, token = full) =>
+    (
+      await fetch(running.server.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name, arguments: args },
+        }),
+      })
+    ).json();
+  const download = (url: string, method = "GET") =>
+    fetch(new URL(new URL(url).pathname, running.server.url), { method });
+  return {
+    ...f,
+    call,
+    download,
+    read,
+    full,
+    other,
+    render,
+    png,
+    errors,
+    restart: async () => {
+      await stop();
+      await f.restart();
+      running = await start();
+    },
+    close: async () => {
+      await stop();
+      await f.close();
+    },
+  };
 }
 
 it("restores an owned page change after a new MCP session and keeps read-only/foreign callers out of mutation", async () => {
   const f = await retainedHttpFixture();
   try {
     const page = (await f.snapshot()).pages[0];
-    const saved = await f.call("carrot_update_page_blocks", { chapterId: "chapter", pageId: page.id, revision: createPageRevision(page), edits: [{ blockId: page.blocks[0].id, fields: { translatedText: "retained HTTP edit" } }] });
+    const saved = await f.call("carrot_update_page_blocks", {
+      chapterId: "chapter",
+      pageId: page.id,
+      revision: createPageRevision(page),
+      edits: [
+        {
+          blockId: page.blocks[0].id,
+          fields: { translatedText: "retained HTTP edit" },
+        },
+      ],
+    });
     expect(saved.result.isError).toBe(false);
     const listed = await f.call("carrot_list_changes", {});
-    const id = mcpRetentionOutputs.carrot_list_changes.parse(listed.result.structuredContent).items[0].id;
+    const id = mcpRetentionOutputs.carrot_list_changes.parse(
+      listed.result.structuredContent,
+    ).items[0].id;
     await f.restart();
     const read = await f.call("carrot_get_change", { id });
-    const change = mcpRetentionOutputs.carrot_get_change.parse(read.result.structuredContent);
+    const change = mcpRetentionOutputs.carrot_get_change.parse(
+      read.result.structuredContent,
+    );
     expect(change.canUndo).toBe(true);
     expect(read.result.content).toHaveLength(1);
-    expect(JSON.stringify(read)).not.toMatch(/imagePath|dataUrl|inpaintedImagePath|retained HTTP edit/);
-    const request = { id, requestId: randomUUID(), pages: change.pages.map(({ chapterId, pageId, revision, reviewRevision }) => ({ chapterId, pageId, revision, reviewRevision })) };
-    expect((await f.call("carrot_undo_change", request, f.read)).error.message).toBe("Unknown tool");
-    expect((await f.call("carrot_get_change", { id }, f.other)).result.structuredContent.error).toBe("not_found");
-    expect((await f.call("carrot_get_change", { id, snapshot: {} })).error.code).toBe(-32602);
-    expect((await f.call("carrot_undo_change", request)).result.structuredContent.status).toBe("saved");
+    expect(JSON.stringify(read)).not.toMatch(
+      /imagePath|dataUrl|inpaintedImagePath|retained HTTP edit/,
+    );
+    const request = {
+      id,
+      requestId: randomUUID(),
+      pages: change.pages.map(
+        ({ chapterId, pageId, revision, reviewRevision }) => ({
+          chapterId,
+          pageId,
+          revision,
+          reviewRevision,
+        }),
+      ),
+    };
+    expect(
+      (await f.call("carrot_undo_change", request, f.read)).error.message,
+    ).toBe("Unknown tool");
+    expect(
+      (await f.call("carrot_get_change", { id }, f.other)).result
+        .structuredContent.error,
+    ).toBe("not_found");
+    expect(
+      (await f.call("carrot_get_change", { id, snapshot: {} })).error.code,
+    ).toBe(-32602);
+    expect(
+      (await f.call("carrot_undo_change", request)).result.structuredContent
+        .status,
+    ).toBe("saved");
     await f.restart();
-    expect((await f.call("carrot_undo_change", request)).result.structuredContent.historical).toBe(true);
+    expect(
+      (await f.call("carrot_undo_change", request)).result.structuredContent
+        .historical,
+    ).toBe(true);
     expect((await f.snapshot()).pages[0].blocks).toEqual(page.blocks);
     expect(f.render).not.toHaveBeenCalled();
     expect(f.errors).toEqual([]);
-  } finally { await f.close(); }
+  } finally {
+    await f.close();
+  }
 });
 
 it("reissues identical retained bytes over HEAD/GET after restart without granting read-only callers image access", async () => {
   const f = await retainedHttpFixture();
   try {
-    const page = (await f.snapshot()).pages[0], before = await readFile(f.chapterPath);
-    const request = { chapterId: "chapter", pageId: page.id, revision: createPageRevision(page), requestId: randomUUID() };
+    const page = (await f.snapshot()).pages[0],
+      before = await readFile(f.chapterPath);
+    const request = {
+      chapterId: "chapter",
+      pageId: page.id,
+      revision: createPageRevision(page),
+      requestId: randomUUID(),
+    };
     const receipt = await f.call("carrot_export_page_png", request);
     expect(receipt.result.isError).toBe(false);
     const jobId = receipt.result.structuredContent.jobId;
@@ -97,13 +202,24 @@ it("reissues identical retained bytes over HEAD/GET after restart without granti
       id = job.result.structuredContent.result.retainedOutputId;
       expect(id).toBeTruthy();
     });
-    const issued = mcpRetentionOutputs.carrot_get_output_file.parse((await f.call("carrot_get_output_file", { id })).result.structuredContent);
-    expect(Buffer.from(await (await f.download(issued.url)).arrayBuffer())).toEqual(f.png);
+    const issued = mcpRetentionOutputs.carrot_get_output_file.parse(
+      (await f.call("carrot_get_output_file", { id })).result.structuredContent,
+    );
+    expect(
+      Buffer.from(await (await f.download(issued.url)).arrayBuffer()),
+    ).toEqual(f.png);
     await f.restart();
     expect((await f.download(issued.url)).status).toBe(404);
-    expect((await f.call("carrot_get_output_file", { id }, f.read)).error.message).toBe("Unknown tool");
-    expect((await f.call("carrot_get_output", { id }, f.other)).result.structuredContent.error).toBe("not_found");
-    const next = mcpRetentionOutputs.carrot_get_output_file.parse((await f.call("carrot_get_output_file", { id })).result.structuredContent);
+    expect(
+      (await f.call("carrot_get_output_file", { id }, f.read)).error.message,
+    ).toBe("Unknown tool");
+    expect(
+      (await f.call("carrot_get_output", { id }, f.other)).result
+        .structuredContent.error,
+    ).toBe("not_found");
+    const next = mcpRetentionOutputs.carrot_get_output_file.parse(
+      (await f.call("carrot_get_output_file", { id })).result.structuredContent,
+    );
     expect(next.url).not.toBe(issued.url);
     const head = await f.download(next.url, "HEAD");
     expect(head.status).toBe(200);
@@ -111,10 +227,18 @@ it("reissues identical retained bytes over HEAD/GET after restart without granti
     const data = Buffer.from(await (await f.download(next.url)).arrayBuffer());
     expect(createHash("sha256").update(data).digest("hex")).toBe(next.sha256);
     expect(f.render).toHaveBeenCalledTimes(1);
-    expect((await f.call("carrot_discard_retained", { id, confirm: false })).error.code).toBe(-32602);
-    expect((await f.call("carrot_discard_retained", { id, confirm: true })).result.isError).toBe(false);
+    expect(
+      (await f.call("carrot_discard_retained", { id, confirm: false })).error
+        .code,
+    ).toBe(-32602);
+    expect(
+      (await f.call("carrot_discard_retained", { id, confirm: true })).result
+        .isError,
+    ).toBe(false);
     expect((await f.download(next.url)).status).toBe(404);
     expect(await readFile(f.chapterPath)).toEqual(before);
     expect(f.errors).toEqual([]);
-  } finally { await f.close(); }
+  } finally {
+    await f.close();
+  }
 });
