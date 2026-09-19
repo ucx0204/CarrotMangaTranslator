@@ -43,7 +43,12 @@ export function wrapRetainedTool(
   tool: McpTool,
 ): McpTool {
   if (
-    tool.readOnly !== false ||
+    (tool.readOnly !== false &&
+      ![
+        "carrot_export_page_png",
+        "carrot_export_pages_png",
+        "carrot_create_export_zip",
+      ].includes(tool.name)) ||
     [
       "carrot_undo_change",
       "carrot_redo_change",
@@ -67,8 +72,10 @@ export function wrapRetainedTool(
         },
       };
       const pending = new WeakMap<LibraryTransaction, Staged[]>();
-      return invocations.run(invocation, () =>
-        withLibraryChapterHistory(
+      return invocations.run(invocation, () => {
+        // Exports retain ownership, not page-write authority or change snapshots.
+        if (tool.readOnly !== false) return tool.invoke(args, context);
+        return withLibraryChapterHistory(
           async (transaction, chapter) => {
             let stages = pending.get(transaction);
             if (!stages) {
@@ -87,8 +94,8 @@ export function wrapRetainedTool(
               });
           },
           () => tool.invoke(args, context),
-        ),
-      );
+        );
+      });
     },
   };
 }

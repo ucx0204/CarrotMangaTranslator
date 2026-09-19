@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile, rm } from "node:fs/promises";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { retentionFixture } from "./mcpRetention.fixture";
 import { createPageRevision } from "../src/shared/pageRevision";
 import { mcpRetentionOutputs } from "../src/shared/mcpRetention";
@@ -202,6 +202,65 @@ it("refuses source replacement during rendering before publishing output bytes o
     expect((await f.list("outputs")).total).toBe(0);
   } finally {
     await writeFile(page.imagePath, original);
+    await f.close();
+  }
+});
+
+it("keeps the initiating owner through the real read-only export tool and asynchronous job admission", async () => {
+  const f = await retentionFixture();
+  const { McpOperationService } =
+    await import("../src/main/application/mcpOperationService");
+  const { createMcpOperationTools } =
+    await import("../src/main/mcp/mcpOperationTools");
+  const { McpPageExportService } =
+    await import("../src/main/application/mcpPageExportService");
+  const { bindRetainedOutputSource } =
+    await import("../src/main/mcp/mcpRetainedOutputs");
+  const errors: unknown[] = [];
+  const manager = new McpOperationService((error) => errors.push(error));
+  try {
+    const page = (await f.snapshot()).pages[0];
+    const bytes = await readFile(page.imagePath);
+    const render = vi.fn(async () => bytes);
+    const exporter = new McpPageExportService({
+      openChapter: f.library.openChapter,
+      render,
+      store: f.operations().artifacts.put.bind(f.operations().artifacts),
+      assertImageAccess: async () => {},
+      bindSource: bindRetainedOutputSource,
+    });
+    const tool = createMcpOperationTools(manager, {
+      exportPng: (target, context) => exporter.export(target, context),
+    }).find((candidate) => candidate.name === "carrot_export_page_png");
+    const wrap = f.operations().wrapTool;
+    if (!tool || !wrap) throw new Error("Missing connected export tool");
+    expect(tool.readOnly).toBe(true);
+    expect(tool.requiredScopes).toEqual(["carrot.read", "carrot.images"]);
+    const wrapped = wrap(tool);
+    const request = {
+      chapterId: "chapter",
+      pageId: page.id,
+      revision: createPageRevision(page),
+      requestId: randomUUID(),
+    };
+    const parts = await wrapped.invoke(request, f.auth());
+    if (parts[0]?.type !== "text") throw new Error("Expected a job receipt");
+    const id = JSON.parse(parts[0].text).jobId as string;
+    await vi.waitFor(() =>
+      expect(manager.status(id, f.owner).status).not.toBe("running"),
+    );
+    expect(manager.status(id, f.owner)).toMatchObject({
+      status: "completed",
+      result: { retainedOutputId: expect.any(String) },
+    });
+    expect(render).toHaveBeenCalledTimes(1);
+    await wrapped.invoke(request, f.auth());
+    expect(render).toHaveBeenCalledTimes(1);
+    expect((await f.list("outputs")).total).toBe(1);
+    expect((await f.list("changes")).total).toBe(0);
+    expect(errors).toEqual([]);
+  } finally {
+    await manager.close();
     await f.close();
   }
 });
