@@ -15,8 +15,8 @@ replace approved model assets, merge master or publish a release implicitly.
 | 2     | Bubble layout, advanced typography, reusable rules/presets                           | Implemented; automatic checks passed; live deferred |
 | 3     | Region/multi-block OCR, selected translation, reviewed append and block references   | Implemented; automatic checks passed; live deferred |
 | 4     | Multi-block erasure, free/protected masks, localized correction/restoration          | Implemented; automatic checks passed; live deferred |
-| 5     | External image/mask upload, validation and layer incorporation                       | NEXT; not started                                   |
-| 6     | Independent sound-effect preparation, text, generation and recovery                  | Not started                                         |
+| 5     | External image/mask upload, validation and layer incorporation                       | Implemented; automatic checks passed; live deferred |
+| 6     | Independent sound-effect preparation, text, generation and recovery                  | NEXT; not started                                   |
 | 7     | Durable undo and retained output assets                                              | Not started                                         |
 | 8     | Model-grouped sequential jobs, chapter batches and explicit resume                   | Not started                                         |
 | 9     | Context merge/replacement, reference migration and multi-work research               | Not started                                         |
@@ -29,7 +29,30 @@ Live C23 quality, model cleanup, actual originals, PNG/ZIP attachment reception,
 download byte/hash checks, restart/reconnection and end-to-end client acceptance
 belong to the final integrated live-test queue, not intermediate completion claims.
 
-## Current authority: verified bundle 4 completion
+## Current authority: verified bundle 5 completion
+
+See `mcp-external-image-checkpoint-20260919.md`, verified source `0af0ba95`.
+Twelve tools connect actual bounded PNG receipt, content/dimension/hash validation,
+owned candidate review, native full background replacement or exact-size patches,
+existing-block generated lettering and exact native undo/redo. Masks and explicit
+protection preserve unselected current pixels. No model, erasure, OCR, translation,
+URL fetch or arbitrary PC path is implicit. Only actual bytes are accepted; a chat
+host's file handle or claimed filename is not a received image.
+
+All 26 repository gates passed: 7,833 tests passed, zero failed, 11 existing skips.
+All 1,019 MCP cases across 145 files passed. Fifteen measured modules were added
+across this bundle while preserving all 1,610 inherited floors/provenance/deletions.
+The additional isolated real-Electron uploaded-PNG/background/lettering/history
+checks also passed with the explicit completion marker and exit code 0. Current
+ChatGPT attachment reception, public Tailscale delivery and model quality remain
+in the final live-test queue, not implied by these isolated tests.
+
+NEXT: bundle 6, independent sound-effect preparation, text, image generation and
+recovery. Reuse bundle-five validated image/mask incorporation. Do not redo 1-5
+or request an intermediate live test. Use the same branch/worktree and small commits.
+Durable recovery remains bundle 7; multi-page orchestration remains bundle 8.
+
+## Verified bundle 4 completion
 
 See `mcp-image-edit-checkpoint-20260919.md`, verified code `32d76f3f`.
 Eight image-edit tools are connected: native multi-block/freehand erasure,
@@ -47,10 +70,8 @@ The extra isolated real-Electron mask/protected-RGBA/color/restore/history smoke
 also passed with its terminal marker and exit code 0. Actual model quality,
 user artwork and live ChatGPT/Tailscale delivery remain untested by this run.
 
-NEXT: bundle 5, external image/mask upload, validation and layer incorporation.
-Do not redo bundles 1-4 or request intermediate live acceptance. Keep this branch,
-worktree and frequent commits. Durable recovery remains bundle 7, chapter-wide
-orchestration is bundle 8, and live file-delivery acceptance stays in the final queue.
+Bundle 4 remains complete. Continue from the current bundle-five checkpoint above.
+Durable recovery, chapter orchestration and live file acceptance remain separate.
 
 ## Verified bundle 3 completion
 
@@ -71,7 +92,7 @@ page-artwork parity and image-protocol/bundle checks all passed. Six measured
 modules were added while preserving all 1,595 inherited coverage rows/provenance.
 The connected checkpoint records exact evidence, stage timestamps and limitations.
 
-Bundle 3 remains completed. Continue from the current bundle-four checkpoint
+Bundle 3 remains completed. Continue from the current checkpoint
 above, not from its historical next-step recommendation. Permanent recovery
 remains bundle 7.
 

@@ -91,19 +91,19 @@ durable recovery remains bundle 7, and chapter orchestration remains bundle 8.
 
 The full repository check at `0af0ba95` completed successfully:
 
-| Check | Result |
-| --- | --- |
-| Repository stage graph | All 26 stages passed, every exit code 0 |
-| Complete Vitest/V8 suite | 7,833 passed; zero failed; 11 pre-existing skips |
-| MCP cases in complete suite | 1,019 passed across 145 files; zero failed |
-| Background/layer/HTTP/image/output focused suite | 39 passed across seven files |
-| Additional PNG/decoder/cleanup focused suite | 10 passed across two files |
-| Renderer, Electron and JavaScript types | Passed |
-| Lint, formatting, architecture, duplicates, unused exports, mock boundaries | Passed |
-| Exact production coverage-floor gate | Passed |
-| Windows build | Passed |
-| Existing page-artwork parity, image protocol, renderer/preload checks | Passed |
-| Extra isolated real-Electron external image smoke | Passed; terminal marker and exit code 0 |
+| Check                                                                       | Result                                           |
+| --------------------------------------------------------------------------- | ------------------------------------------------ |
+| Repository stage graph                                                      | All 26 stages passed, every exit code 0          |
+| Complete Vitest/V8 suite                                                    | 7,833 passed; zero failed; 11 pre-existing skips |
+| MCP cases in complete suite                                                 | 1,019 passed across 145 files; zero failed       |
+| Background/layer/HTTP/image/output focused suite                            | 39 passed across seven files                     |
+| Additional PNG/decoder/cleanup focused suite                                | 10 passed across two files                       |
+| Renderer, Electron and JavaScript types                                     | Passed                                           |
+| Lint, formatting, architecture, duplicates, unused exports, mock boundaries | Passed                                           |
+| Exact production coverage-floor gate                                        | Passed                                           |
+| Windows build                                                               | Passed                                           |
+| Existing page-artwork parity, image protocol, renderer/preload checks       | Passed                                           |
+| Extra isolated real-Electron external image smoke                           | Passed; terminal marker and exit code 0          |
 
 Canonical full-check record: `.tmp/check-timings.json`, started at
 `2026-09-19T03:48:33.498Z`, completed at `2026-09-19T03:51:57.408Z`.
