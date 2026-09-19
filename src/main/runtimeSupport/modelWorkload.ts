@@ -1,5 +1,4 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { releaseModelResource } from "./modelCleanupBarrier";
 
 type Kind = "translation" | "inpainting";
 type Lease<T> = { value: T; release: () => Promise<void> };
@@ -14,19 +13,31 @@ class ModelWorkload {
   private closed = false;
   private returned: Promise<void> = Promise.resolve();
   private returnLease: () => void = () => {};
-  constructor(readonly kind: Kind, readonly signal: AbortSignal) {}
+  constructor(
+    readonly kind: Kind,
+    readonly signal: AbortSignal,
+  ) {}
 
-  async acquire<T>(identity: string, create: (signal: AbortSignal) => Promise<Lease<T>>): Promise<Lease<T>> {
+  async acquire<T>(
+    identity: string,
+    create: (signal: AbortSignal) => Promise<Lease<T>>,
+  ): Promise<Lease<T>> {
     this.signal.throwIfAborted();
     if (this.closed || this.borrowed)
-      throw new Error("A model workload is closed or already has an active native borrower.");
+      throw new Error(
+        "A model workload is closed or already has an active native borrower.",
+      );
     if (this.identity !== undefined && this.identity !== identity)
-      throw new Error("A model workload cannot silently switch resource configuration.");
+      throw new Error(
+        "A model workload cannot silently switch resource configuration.",
+      );
     this.identity = identity;
     this.borrowed = true;
-    this.returned = new Promise<void>((resolve) => { this.returnLease = resolve; });
-    this.entry ??= create(this.signal);
+    this.returned = new Promise<void>((resolve) => {
+      this.returnLease = resolve;
+    });
     try {
+      this.entry ??= create(this.signal);
       const entry = await this.entry;
       this.signal.throwIfAborted();
       let released = false;
@@ -52,13 +63,18 @@ class ModelWorkload {
     if (!this.entry) return;
     const entry = await this.entry;
     // Physical disposal is still awaited and uses the established failure barrier.
-    await releaseModelResource(entry, entry.release);
+    await entry.release();
   }
 }
 
 /** The surrounding native activity group owns exclusivity until this cleanup settles. */
-export async function withModelWorkload<T>(kind: Kind, signal: AbortSignal, run: () => Promise<T>): Promise<T> {
-  if (current.getStore()) throw new Error("Nested model workloads are not supported.");
+export async function withModelWorkload<T>(
+  kind: Kind,
+  signal: AbortSignal,
+  run: () => Promise<T>,
+): Promise<T> {
+  if (current.getStore())
+    throw new Error("Nested model workloads are not supported.");
   const workload = new ModelWorkload(kind, signal);
   const failures: unknown[] = [];
   let result: T | undefined;
@@ -74,7 +90,10 @@ export async function withModelWorkload<T>(kind: Kind, signal: AbortSignal, run:
   }
   if (failures.length === 1) throw failures[0];
   if (failures.length > 1)
-    throw new AggregateError(failures, "Model workload and physical cleanup did not complete.");
+    throw new AggregateError(
+      failures,
+      "Model workload and physical cleanup did not complete.",
+    );
   return result as T;
 }
 
@@ -87,6 +106,7 @@ export function acquireModelWorkload<T>(
 ): Promise<Lease<T>> {
   const workload = current.getStore();
   if (!workload) return create(signal);
-  if (workload.kind !== kind) throw new Error("Unexpected model kind inside the native workload.");
+  if (workload.kind !== kind)
+    throw new Error("Unexpected model kind inside the native workload.");
   return workload.acquire(identity, create);
 }

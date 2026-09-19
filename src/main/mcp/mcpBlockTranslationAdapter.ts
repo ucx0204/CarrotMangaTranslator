@@ -1,3 +1,4 @@
+import { acquireModelWorkload } from "../runtimeSupport/modelWorkload";
 import { mkdir } from "node:fs/promises";
 import { basename } from "node:path";
 import type { TranslationOptions } from "../appSettings";
@@ -45,7 +46,11 @@ export async function translateMcpBlock(
   await mkdir(options.outputDir, { recursive: true });
   operation.assertAuthorized();
   operation.progress({ phase: "translation_preparing" });
-  const session = await runtime.start(options);
+  const session = await acquireBlockEndpoint(
+    runtime,
+    options,
+    operation.signal,
+  );
   let translatedText: string | undefined;
   const failures: unknown[] = [];
   try {
@@ -68,9 +73,7 @@ export async function translateMcpBlock(
   } catch (error) {
     failures.push(error);
   }
-  failures.push(
-    ...(await finishTranslationSession(session, options, operation)),
-  );
+  failures.push(...(await finishTranslationSession(session, operation)));
   if (failures.length === 1) throw failures[0];
   if (failures.length > 1)
     throw new AggregateError(
@@ -100,6 +103,29 @@ export async function translateMcpBlock(
     contextRevision: reference.revision,
     contextPruned: reference.pruned,
   };
+}
+
+async function acquireBlockEndpoint(
+  runtime: Runtime,
+  options: TranslationOptions,
+  signal: AbortSignal,
+) {
+  const borrowed = await acquireModelWorkload(
+    "translation",
+    JSON.stringify([options.modelProvider, modelName(options)]),
+    signal,
+    async (signal) => {
+      const value = await runtime.start({ ...options, abortSignal: signal });
+      return {
+        value,
+        release: () =>
+          options.modelProvider === "gemma"
+            ? releaseModelResource(value, () => value.dispose())
+            : value.dispose(),
+      };
+    },
+  );
+  return { handle: borrowed.value.handle, dispose: borrowed.release };
 }
 
 function translationPrompts(
@@ -158,16 +184,12 @@ function modelName(options: TranslationOptions): string {
 
 async function finishTranslationSession(
   session: Awaited<ReturnType<Runtime["start"]>>,
-  options: TranslationOptions,
   operation: McpOperationContext,
 ): Promise<unknown[]> {
   const failures: unknown[] = [];
   for (const finish of [
     () => operation.progress({ phase: "releasing_model" }),
-    () =>
-      options.modelProvider === "gemma"
-        ? releaseModelResource(session, () => session.dispose())
-        : session.dispose(),
+    () => session.dispose(),
   ]) {
     try {
       await finish();

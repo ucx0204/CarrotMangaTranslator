@@ -27,7 +27,7 @@ it("uses one endpoint for sequential workflow pages and disposes before renderin
     const done = await f.done(plan.id);
     expect(done.status, JSON.stringify(f.errors)).toBe("completed");
     expect(f.start).toHaveBeenCalledTimes(1);
-    expect(f.request).toHaveBeenCalledTimes(2);
+    expect(f.request).toHaveBeenCalledTimes(4);
     expect(f.dispose).toHaveBeenCalledTimes(1);
     expect(f.render).toHaveBeenCalledTimes(2);
     expect(f.app.jobs.all).toEqual([]);
@@ -64,6 +64,7 @@ it("keeps workflow status and native exclusion active until physical group clean
     expect(f.start).toHaveBeenCalledTimes(1);
   } finally {
     finish.resolve();
+    f.app.jobs.clearIfCurrent("foreign-model");
     await f.close();
   }
 });
@@ -78,7 +79,7 @@ it("does not start the following stage when group disposal fails", async () => {
     await f.run(plan.id);
     expect((await f.done(plan.id)).status).toBe("failed");
     expect(f.render).not.toHaveBeenCalled();
-    expect(f.request).toHaveBeenCalledTimes(2);
+    expect(f.request).toHaveBeenCalledTimes(4);
     expect(f.app.jobs.all).toEqual([]);
   } finally {
     await f.close();

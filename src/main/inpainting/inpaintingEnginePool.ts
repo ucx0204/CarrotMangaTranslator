@@ -1,3 +1,4 @@
+import { acquireModelWorkload } from "../runtimeSupport/modelWorkload";
 import type { AppPaths } from "../appPaths";
 import { totalmem } from "node:os";
 import type {
@@ -56,6 +57,31 @@ export async function acquireInpaintingEngine(
     onProgress?: (progress: InpaintingRuntimeProgress) => void;
   },
   dependencies: InpaintingEnginePoolDependencies = defaultDependencies,
+): Promise<InpaintingEngineLease> {
+  const { signal, onProgress: _progress, ...identity } = options;
+  const lease = await acquireModelWorkload(
+    "inpainting",
+    JSON.stringify(identity),
+    signal,
+    async (groupSignal) => {
+      const value = await acquireNativeEngine(
+        { ...options, signal: groupSignal },
+        dependencies,
+      );
+      return {
+        value: value.engine,
+        release: async () => {
+          await value.release();
+        },
+      };
+    },
+  );
+  return { engine: lease.value, release: lease.release };
+}
+
+async function acquireNativeEngine(
+  options: Parameters<typeof acquireInpaintingEngine>[0],
+  dependencies: InpaintingEnginePoolDependencies,
 ): Promise<InpaintingEngineLease> {
   assertModelCleanupComplete();
   options.signal?.throwIfAborted();
