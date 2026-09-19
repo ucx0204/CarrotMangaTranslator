@@ -85,22 +85,8 @@ export function createMcpWorkflowRuntime(options: Options) {
             guard,
           ),
         );
-      const group: NonNullable<McpWorkflowRuntime["group"]> = (
-        stage,
-        controller,
-        execute,
-      ) => {
-        if (stage !== "translate" && stage !== "erase") return execute();
-        return options.app.jobs.runModelGroup(controller, () =>
-          withModelWorkload(
-            stage === "translate" ? "translation" : "inpainting",
-            controller.signal,
-            execute,
-          ),
-        );
-      };
       return {
-        group,
+        group: createWorkflowModelGroup(options.app.jobs),
         verify: (current: McpWorkflowRecord, changedPage?: number) =>
           verifyWorkflowPages(current, guard, changedPage),
         cost: async (current: McpWorkflowRecord, step: McpWorkflowStep) => {
@@ -133,6 +119,20 @@ export function createMcpWorkflowRuntime(options: Options) {
         },
       };
     },
+  };
+}
+function createWorkflowModelGroup(
+  jobs: InpaintingJobContext["jobs"],
+): NonNullable<McpWorkflowRuntime["group"]> {
+  return (stage, controller, execute) => {
+    if (stage !== "translate" && stage !== "erase") return execute();
+    return jobs.runModelGroup(controller, () =>
+      withModelWorkload(
+        stage === "translate" ? "translation" : "inpainting",
+        controller.signal,
+        execute,
+      ),
+    );
   };
 }
 function validateWorkflowSettings(
