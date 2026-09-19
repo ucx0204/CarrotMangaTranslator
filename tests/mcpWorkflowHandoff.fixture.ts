@@ -27,9 +27,10 @@ export async function workflowHandoffFixture() {
       requestId: randomUUID(),
       targetConnectionId,
     };
-    const receipt = mcpWorkflowHandoffOutputs.carrot_offer_workflow_handoff.parse(
-      await f.invoke("carrot_offer_workflow_handoff", input, caller),
-    );
+    const receipt =
+      mcpWorkflowHandoffOutputs.carrot_offer_workflow_handoff.parse(
+        await f.invoke("carrot_offer_workflow_handoff", input, caller),
+      );
     const acceptance: McpWorkflowHandoffAccept = {
       id,
       offerId: receipt.offerId,
