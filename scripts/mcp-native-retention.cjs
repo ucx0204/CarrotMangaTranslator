@@ -124,8 +124,12 @@ async function checkNativeRetention(root, app, editing, chapterId) {
       revision: createPageRevision(await read()),
       requestId: randomUUID(),
     });
-    const output = await waitOutput(client, exported.jobId);
-    assert.ok(output.retainedOutputId, "Native export must retain its file");
+    const result = await waitOutput(client, exported.jobId);
+    assert.ok(result.retainedOutputId, "Native export must retain its file");
+    const output = {
+      ...result,
+      ...(await client.call("get_job_file", { jobId: exported.jobId })),
+    };
     const bytes = await client.artifacts.read(
       new URL(output.url).pathname.split("/")[2],
     );
