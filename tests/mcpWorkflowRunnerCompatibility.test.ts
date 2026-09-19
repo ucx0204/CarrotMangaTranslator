@@ -1,15 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { expect, it, vi } from "vitest";
 import { workflowFixture } from "./mcpWorkflow.fixture";
-import { McpWorkflowRecordSchema } from "../src/main/application/mcpWorkflowPolicy";
-import {
-  runMcpWorkflow,
-  type McpWorkflowRuntime,
-} from "../src/main/application/mcpWorkflowRunner";
-import { McpWorkflowRepository } from "../src/main/mcp/mcpWorkflowRepository";
+import type { McpWorkflowRuntime } from "../src/main/application/mcpWorkflowRunner";
 
 it("preserves external waiting for a runtime port without a model-group boundary", async () => {
   const f = await workflowFixture();
+  const { McpWorkflowRecordSchema } =
+    await import("../src/main/application/mcpWorkflowPolicy");
+  const { McpWorkflowRepository } =
+    await import("../src/main/mcp/mcpWorkflowRepository");
+  const { runMcpWorkflow } =
+    await import("../src/main/application/mcpWorkflowRunner");
   try {
     const before = await readFile(f.chapterPath);
     const plan = await f.prepare([
