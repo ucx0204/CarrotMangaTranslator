@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 const { assertPortableKoharuPtx, koharuCudaBuildEnv } =
   require("../scripts/prepare-koharu-cuda-runner.cjs") as {
@@ -8,6 +10,16 @@ const { assertPortableKoharuPtx, koharuCudaBuildEnv } =
     ) => NodeJS.ProcessEnv;
   };
 describe("portable Koharu CUDA build", () => {
+  it("checks the actual committed Windows artifact, not just synthetic PTX", () => {
+    const path = join(
+      __dirname,
+      "..",
+      "tools",
+      "mgt-koharu-inpaint-runner",
+      "mgt-koharu-inpaint-runner.exe",
+    );
+    expect(() => assertPortableKoharuPtx(readFileSync(path))).not.toThrow();
+  });
   it.each(["75", "86", "89", "120"])(
     "does not inherit build-host target %s",
     (hostTarget) => {

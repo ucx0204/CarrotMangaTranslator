@@ -62,7 +62,7 @@ checks installation without pretending to execute an AMD GPU.
 
 ## Validation on 2026-09-19
 
-- Focused Vitest: 9 files, 100 tests passed, including existing Flux/Metal and
+- Focused Vitest: 10 files, 101 tests passed, including existing Flux/Metal and
   device-routing tests as well as the new runtime/build regression cases.
 - Native `cargo test --release --locked`: 11 tests passed, including both new
   native bootstrap tests.
