@@ -26,7 +26,12 @@ export function createMcpWorkflowSession(options: {
     now: options.storage.now,
   });
   return {
-    tools: createMcpWorkflowTools(service, Boolean(options.preferences.allowEditing && options.preferences.allowProcessing)),
+    tools: createMcpWorkflowTools(
+      service,
+      Boolean(
+        options.preferences.allowEditing && options.preferences.allowProcessing,
+      ),
+    ),
     stop: () => service.stop(),
     close: () => service.close(),
   };
