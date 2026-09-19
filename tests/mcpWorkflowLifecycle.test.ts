@@ -6,21 +6,36 @@ import { workflowFixture } from "./mcpWorkflow.fixture";
 it("holds cancellation until native model cleanup and retries only after explicit permission", async () => {
   const f = await workflowFixture();
   let release!: () => void;
+  let finishRequest: () => void = () => {};
   const cleanup = new Promise<void>((resolve) => {
     release = resolve;
   });
   try {
     const before = await readFile(f.chapterPath);
+    const requestGate = new Promise<void>((resolve) => {
+      finishRequest = resolve;
+    });
+    f.request.mockImplementationOnce(async () => {
+      await requestGate;
+      throw new Error("Cancelled deterministic model request");
+    });
     f.dispose.mockImplementationOnce(async () => {
       await cleanup;
     });
     const plan = await f.prepare();
     await f.run(plan.id);
-    await vi.waitFor(() => expect(f.dispose).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(f.request).toHaveBeenCalledTimes(1), {
+      timeout: 10000,
+    });
     expect(
       await f.invoke("carrot_cancel_workflow", { id: plan.id }),
     ).toMatchObject({ status: "running", cancellationRequested: true });
     await expect(f.run(plan.id)).rejects.toThrow("already running");
+    expect((await f.get(plan.id)).status).toBe("running");
+    finishRequest();
+    await vi.waitFor(() => expect(f.dispose).toHaveBeenCalledTimes(1), {
+      timeout: 10000,
+    });
     expect((await f.get(plan.id)).status).toBe("running");
     expect(await readFile(f.chapterPath)).toEqual(before);
     release();
@@ -42,6 +57,7 @@ it("holds cancellation until native model cleanup and retries only after explici
     );
     expect(f.render).toHaveBeenCalledTimes(2);
   } finally {
+    finishRequest();
     release();
     await f.close();
   }

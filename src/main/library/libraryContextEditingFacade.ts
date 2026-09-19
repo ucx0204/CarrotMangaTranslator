@@ -19,7 +19,8 @@ import {
 } from "./lock";
 
 /** Unlike the display projection, editing retains unrelated/orphaned memory rows. */
-async function loadSnapshot(chapterId: string) {
+/** Native transaction callers must already hold the library read/write boundary. */
+export async function readWorkContextEditSnapshotUnlocked(chapterId: string) {
   const context = await resolveWorkContextForChapter(chapterId);
   return {
     ...context,
@@ -29,14 +30,16 @@ async function loadSnapshot(chapterId: string) {
 }
 
 export function readWorkContextForEdit(chapterId: string) {
-  return withLibraryRead(() => loadSnapshot(chapterId));
+  return withLibraryRead(() => readWorkContextEditSnapshotUnlocked(chapterId));
 }
 
 /** The caller's policy runs INSIDE the normal library write queue. Both context
  * files share the existing publication/rollback protocol, including auth recheck. */
 export function commitWorkContextEdit<T>(
   chapterId: string,
-  transform: (current: Awaited<ReturnType<typeof loadSnapshot>>) => {
+  transform: (
+    current: Awaited<ReturnType<typeof readWorkContextEditSnapshotUnlocked>>,
+  ) => {
     styleGuide?: WorkStyleGuide;
     storyMemory?: ChapterStoryMemory;
     result: T;
@@ -45,7 +48,7 @@ export function commitWorkContextEdit<T>(
 ): Promise<T> {
   return withLibraryMutation(async () => {
     assertAuthorized();
-    const current = await loadSnapshot(chapterId);
+    const current = await readWorkContextEditSnapshotUnlocked(chapterId);
     assertLibraryActivityAccess([
       { kind: "work-context", scope: current.workId, access: "write" },
     ]);

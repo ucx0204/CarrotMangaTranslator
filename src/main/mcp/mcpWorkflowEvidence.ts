@@ -38,9 +38,13 @@ export function workflowSettingsFingerprint(settings: AppSettings) {
   });
 }
 type WorkflowChapter = Awaited<ReturnType<typeof readWorkflowChapter>>;
-async function readWorkflowChapter(chapterId: string, guard: () => void) {
+async function readWorkflowChapter(
+  chapterId: string,
+  guard: () => void,
+  readContext = readWorkContextForEdit,
+) {
   guard();
-  const saved = await readWorkContextForEdit(chapterId);
+  const saved = await readContext(chapterId);
   guard();
   return {
     saved,
@@ -151,13 +155,14 @@ export async function verifyWorkflowPages(
   record: McpWorkflowRecord,
   guard: () => void,
   changedPage?: number,
+  readContext = readWorkContextForEdit,
 ) {
   let changed: McpWorkflowPage | undefined;
   const chapters = new Map<string, WorkflowChapter>();
   for (const [index, before] of record.pages.entries()) {
     let chapter = chapters.get(before.chapterId);
     if (!chapter) {
-      chapter = await readWorkflowChapter(before.chapterId, guard);
+      chapter = await readWorkflowChapter(before.chapterId, guard, readContext);
       chapters.set(before.chapterId, chapter);
     }
     const { evidence } = await inspectWorkflowPage(before, guard, chapter);
@@ -173,7 +178,7 @@ export async function verifyWorkflowPages(
     const selected = record.pages
       .filter((page) => page.chapterId === chapterId)
       .map((page) => page.pageId);
-    await assertWorkflowChapterUnchanged(chapter, selected, guard);
+    await assertWorkflowChapterUnchanged(chapter, selected, guard, readContext);
   }
   guard();
   return changed;
@@ -184,8 +189,13 @@ async function assertWorkflowChapterUnchanged(
   before: WorkflowChapter,
   selected: string[],
   guard: () => void,
+  readContext = readWorkContextForEdit,
 ) {
-  const after = await readWorkflowChapter(before.saved.chapter.id, guard);
+  const after = await readWorkflowChapter(
+    before.saved.chapter.id,
+    guard,
+    readContext,
+  );
   const stable =
     before.contextRevision === after.contextRevision &&
     before.membership === after.membership;
