@@ -17,8 +17,8 @@ replace approved model assets, merge master or publish a release implicitly.
 | 4     | Multi-block erasure, free/protected masks, localized correction/restoration          | Implemented; automatic checks passed; live deferred |
 | 5     | External image/mask upload, validation and layer incorporation                       | Implemented; automatic checks passed; live deferred |
 | 6     | Independent sound-effect preparation, text, generation and recovery                  | Implemented; automatic checks passed; live deferred |
-| 7     | Durable undo and retained output assets                                              | NEXT; not started                                   |
-| 8     | Model-grouped sequential jobs, chapter batches and explicit resume                   | Not started                                         |
+| 7     | Durable undo and retained output assets                                              | Implemented; automatic checks passed; live deferred |
+| 8     | Model-grouped sequential jobs, chapter batches and explicit resume                   | NEXT; not started                                   |
 | 9     | Context merge/replacement, reference migration and multi-work research               | Not started                                         |
 | 10    | File/web import and library organization                                             | Not started                                         |
 | 11    | Extra export/exchange formats and attachment/delivery diagnostics                    | Not started                                         |
@@ -29,7 +29,33 @@ Live C23 quality, model cleanup, actual originals, PNG/ZIP attachment reception,
 download byte/hash checks, restart/reconnection and end-to-end client acceptance
 belong to the final integrated live-test queue, not intermediate completion claims.
 
-## Current authority: verified bundle 6 completion
+## Current authority: verified bundle 7 completion
+
+See `mcp-retention-checkpoint-20260919.md`, verified source `09a99b16`.
+Eight tools connect restart-persistent native page-change records, exact undo/redo,
+retained PNG/ZIP inspection, fresh short-lived file links and explicit owned discard.
+Page data, private image copies and encrypted records share the native commit point.
+Repeated requests do not execute models or repeat saved actions. Current/leased
+images are preserved; only replaced native working copies are retired. No arbitrary
+paths, raw snapshots or retrospective UI-history capture are exposed.
+
+All 26 gates passed: 7,893 tests passed, zero failed, 11 existing skips; 1,077 MCP
+cases across 159 files. Scoped HTTP and the additional real-Electron OS-encrypted
+session-reconstruction/PNG-reissue check passed, with final markers and exit code 0.
+All 1,643 inherited floors and provenance remain unchanged; 20 new modules plus one
+newly tracked existing file bring the inventory to 1,664 records.
+
+Seven days / 256 entries / 1 GiB bounds the private catalog, not all artwork or
+unlimited permanent storage. Old analysis/batch plans do not become executable
+again. Same-profile/owner, page/source, permission and redaction checks remain.
+The running user app, artwork, authentication and model assets were not modified.
+Live app/model/client acceptance stays deferred until all bundles are implemented.
+
+NEXT: bundle 8, model-grouped sequential jobs, chapter batches and explicit resume.
+Reuse existing jobs, model ownership and retained data; do not introduce another
+GPU queue or redo completed bundles 1-7. Context migration remains bundle 9.
+
+## Verified bundle 6 completion
 
 See `mcp-sound-effect-checkpoint-20260919.md`, verified source `d5db3901`.
 Nine tools connect stored candidate inspection, native include/exclude/restore/manual
@@ -48,10 +74,8 @@ also passed with its completion marker and exit code 0. Generation fixtures use
 native foreground processing but substitute Codex transport and external Electron
 image calls; no live model quality or user/client acceptance is claimed.
 
-NEXT: bundle 7, durable undo and retained output assets. Do not redo bundles 1-6
-or request intermediate live tests. Keep the same branch/worktree and frequent
-commits. Chapter orchestration remains bundle 8 and live delivery acceptance stays
-in the final integrated queue.
+Bundle 6 remains completed. Follow the current bundle-seven checkpoint above,
+not its historical next-step recommendation.
 
 ## Verified bundle 5 completion
 
@@ -71,7 +95,7 @@ checks also passed with the explicit completion marker and exit code 0. Current
 ChatGPT attachment reception, public Tailscale delivery and model quality remain
 in the final live-test queue, not implied by these isolated tests.
 
-Bundle 5 remains completed. Continue from the current bundle-six checkpoint above,
+Bundle 5 remains completed. Continue from the current authority at the top,
 not its historical next-step recommendation. Permanent recovery remains bundle 7.
 
 ## Verified bundle 4 completion

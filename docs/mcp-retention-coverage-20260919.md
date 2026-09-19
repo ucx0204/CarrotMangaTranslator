@@ -34,6 +34,42 @@ fabricated or replaced. No existing threshold is reduced.
 | `src/shared/mcpRetention.ts`                       | 12/12 (100%)    | 12/12 (100%)     | 0/0 (100%)     | 0/0 (100%)     |
 | `src/shared/pageRecoverySnapshot.ts`               | 7/7 (100%)      | 8/8 (100%)       | 4/4 (100%)     | 0/0 (100%)     |
 
-The first complete run had one inventory-mismatch test failure, not a failing
-retention behavior. Run the exact floor gate and complete suite after registration.
-Final results belong in the checkpoint; this file records the initial measurement.
+The preceding table preserves the initial measured registration. It is not a reset
+of inherited thresholds. Final verification and cleanup-module provenance follow.
+
+## Resumed cleanup registration and final verification
+
+Initial cleanup measurement source: `c68b28747b8a23826ed47351af8ebd3c6c0e4e79`.
+Report SHA-256: `a3d581f56a75c28f20c12426182fef83a04af8686b2541dad586808ea3cb4af4`.
+
+The resumed work adds only this measured module, preserving all 1,663 previous
+records, their provenance fields and deletion records.
+
+| Module                                             | Lines          | Statements     | Functions  | Branches       |
+| -------------------------------------------------- | -------------- | -------------- | ---------- | -------------- |
+| `src/main/libraryStore/recoveredImageArtifacts.ts` | 36/38 (94.73%) | 37/39 (94.87%) | 8/8 (100%) | 26/31 (83.87%) |
+
+Across bundle 7, all 1,643 inherited records remain unchanged. Twenty new modules
+and one previously existing file newly tracked yield 1,664 records (754 existing +
+910 introduced); ten recorded deletions are unchanged.
+
+Final verification source: `09a99b16cddaf380e2f2f3c07466da9b8a0d7caa`. All 26 gates
+passed: 7,893 tests passed, zero failed, 11 existing skips; 1,077 MCP tests across
+159 files. Artifact error-path tests restore the original PNG/ZIP floors without
+reducing them. The native recovery code retains whole-chapter final-reference
+validation without a redundant deep-copy lookup.
+
+These final measurements are evidence, not replacements for existing floors:
+
+| Module                                             | Lines            | Statements       | Functions    | Branches       |
+| -------------------------------------------------- | ---------------- | ---------------- | ------------ | -------------- |
+| `src/main/libraryStore/libraryPageRecovery.ts`     | 61/64 (95.31%)   | 64/70 (91.42%)   | 12/12 (100%) | 29/38 (76.31%) |
+| `src/main/libraryStore/recoveredImageArtifacts.ts` | 38/38 (100%)     | 39/39 (100%)     | 8/8 (100%)   | 29/31 (93.54%) |
+| `src/main/libraryStore/inpaintedArtifacts.ts`      | 42/42 (100%)     | 45/45 (100%)     | 13/13 (100%) | 35/36 (97.22%) |
+| `src/main/mcp/mcpArtifactStore.ts`                 | 156/157 (99.36%) | 172/176 (97.72%) | 31/31 (100%) | 71/75 (94.66%) |
+| `src/main/mcp/mcpArtifactZip.ts`                   | 21/21 (100%)     | 23/23 (100%)     | 6/6 (100%)   | 7/7 (100%)     |
+
+Final coverage SHA-256: `0060a41207eaf9a2f1b925cfbfe887ee416c562c431d60eef1565682999eeb71`.
+Evidence: `.tmp/mcp-retention-cleanup-coverage-evidence.json`,
+`.tmp/mcp-retention-final-evidence.json` and
+`.tmp/mcp-retention-final-coverage-summary.json`.

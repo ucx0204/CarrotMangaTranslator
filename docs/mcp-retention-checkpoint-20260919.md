@@ -1,16 +1,17 @@
 # Bundle 7: durable page recovery and retained output assets
 
-Status: CORE IMPLEMENTED AND REGISTERED; BUNDLE 7 REMAINS IN PROGRESS.
-Starting point: `7c3563d4`. Current production/test code: `60788857`.
-Only `feat/mcp-app-bridge` and the existing MCP-Review worktree are used.
-Do not restart the live app, alter user artwork/authentication/model assets,
-merge master, release, or start bundle 8. All live acceptance remains deferred.
+Status: IMPLEMENTED AND REGISTERED; ALL AUTOMATIC GATES PASSED; LIVE DEFERRED.
+Starting point: `7c3563d4`. Verified production/test code: `09a99b16`.
+Continue only on `feat/mcp-app-bridge` in the existing MCP-Review worktree.
+Bundles 1-7 are implemented and automatically verified. The live app was not
+restarted; user artwork, authentication and model assets were not changed.
+No master merge, release, live model call or public Tailscale test was performed.
 
 ## Connected scope
 
-Eight tools join actual app composition when the native encrypted retention codec
-is supplied. Production desktop composition supplies it; existing compatibility
-fixtures may deliberately omit it. The complete output inventory is 120 schemas.
+Eight tools are registered in the real desktop composition and strict output
+schemas. The desktop supplies the existing OS-encrypted retention codec; older
+compatibility fixtures may explicitly omit it. There are 120 output schemas.
 
 - `carrot_list_changes`
 - `carrot_get_change`
@@ -21,93 +22,134 @@ fixtures may deliberately omit it. The complete output inventory is 120 schemas.
 - `carrot_get_output_file`
 - `carrot_discard_retained`
 
-Actual MCP page-content saves participate in the existing library transaction.
-Before/after blocks, order, SFX review, completion content, generated layers and
-original/cleaned/mask evidence are bound to the initiating connection. Page data,
-image copies, encrypted record and index publish together at the native commit
-point. No raw snapshots or arbitrary local paths are accepted from the transport.
-Native crash rollback and commit recovery protect the combined state.
+New MCP page-content saves join the existing native library transaction. Before/after
+blocks, reading order, typography and generated layers, sound-effect review,
+completion content, backgrounds, masks and provenance are retained as applicable.
+Page publication, private image copies, encrypted record and index share one commit
+point. The initiating connection owns the record. No raw snapshot or arbitrary PC
+path is accepted from remote callers. Ordinary UI saves are not silently enrolled,
+and earlier session-only history is not retroactively reconstructed.
 
-Undo/redo uses native page handoff, activity ownership and atomic publication of
-restored content plus action receipts. Subsequent user edits and changed source,
-review or chapter membership conflict. Undo can survive context changes; redo
-still requires context agreement. Exact request replay returns its old receipt
-without reapplying changes. Optional-field absence and generated image content
-are preserved. Executable model observations and work queues are not restored.
-Cross-work context migration remains bundle 9 and job resume remains bundle 8.
+After restart, use the retained change ID rather than an expired session batch ID.
+Undo/redo uses normal native handoff, activity/page ownership, original-content
+checks and atomic publication of restored state plus a durable action receipt.
+Exact optional-property absence is restored. Later edits, source/review changes
+and chapter membership/order changes conflict. Undo may recover after a context
+change; redo additionally requires context agreement. Replaying a completed action
+request, including after a lost reply and reconstruction, returns its historical
+receipt without another save or model call.
 
-Native PNG/ZIP bytes are retained separately from ten-minute session links. New
-links require current ownership, permission/redaction and page/source checks.
-Original evidence is captured before rendering and rechecked during retention.
-Output inspection checks actual retained file hashes, not just metadata. Opening
-and streaming recheck file identity and authorization; reissue does not render.
-Old links are never revived after a session restart. Changed pages make old output
-unavailable instead of silently generating replacement bytes.
+## Retained outputs and authorization
 
-## Bounds
+PNG and native ZIP bytes are copied into the retained store independently of the
+short-lived download link. The source is bound before rendering and revalidated at
+publication. Metadata inspection verifies the retained content hash, not just the
+index. `carrot_get_output_file` issues a new ten-minute capability only after current
+owner, same-profile, page/source, image permission, redaction and byte-integrity checks.
+The old link does not revive after restart. Reissue does not render, run models,
+resize or regenerate a replacement file. A changed page makes its old output
+unavailable rather than silently changing the output content.
 
-Seven-day durable records, 256 entries / 1 GiB private catalog, 128 MiB individual
-files. Native change records hold at most 50 pages / 4 MiB page metadata and 32
-action receipts. Existing PNG/ZIP and encrypted-envelope limits still apply.
-Expiry denies access immediately; subsequent retained writes prune indexed expired
-copies. Capacity/encryption/corruption failures reject new publication rather than
-silently losing history. Missing index with surviving records fails closed.
-Explicit discard removes only that store-owned record/copies, not restored pages.
+Read-only PNG/page-batch/ZIP export tools now preserve the initiating owner through
+asynchronous job admission. This fixes the native failure found in the interrupted
+run. They remain read-only with their existing image scopes: no page-write authority
+or page-history participant is added to exports. Polling remains metadata-only.
+Revocation, redaction, explicit discard and session shutdown invalidate access.
+A newly created unrelated OAuth connection cannot inherit another connection's data.
 
-These are restart-persistent, bounded records, not unlimited permanent archival.
-Recovered working image files are independent of the private catalog quota.
+## Working-image cleanup and storage bounds
 
-## Verification already completed
+Restored working images are independent of private retained copies, so discarding a
+history record cannot break the saved page. Replaced `.mcp-recovered-UUID` images are
+now retired with the next recovery publication, in the same native transaction.
+Retirement is computed against the complete final chapter and only exact replaced
+candidate paths. Originals, any current page reference and active native history
+leases are preserved. If an owned directory contains an unrelated file, only the
+known unused image files are retired. No chapter-wide or library-wide deletion scan
+is performed. Normal native history release recognizes the same exact recovered
+filenames; empty directories are removed without recursive cleanup. Symlink paths
+are rejected and unexpected cleanup failures are reported, not treated as success.
 
-The focused native-storage suites pass for exact text/image recovery across session
-reconstruction, upload disposal followed by generated-layer recovery, foreign owners,
-malformed requests, source mutation, corrupt/missing metadata, expiry/capacity,
-revocation after encrypted staging and post-save notification failures.
+Retention is seven days from creation, 256 records and 1 GiB of private catalog
+storage. Individual files are limited to 128 MiB. One native change can cover at
+most 50 pages / 4 MiB page metadata, with at most 32 retained recovery action receipts.
+Existing PNG/ZIP and encrypted-envelope limits still apply. Metadata is OS-encrypted;
+image/mask/output copies are private managed files checked by content hashes.
 
-Native transaction crash tests cover after-publish-step, after-replace-step,
-before-commit-point and after-commit-point. Committed recovery survives a lost
-reply and remains idempotent after startup transaction recovery. PNG and real ZIP
-bytes survive session disposal and are reissued byte-identically without rendering.
-A source mutation during the renderer boundary refuses retained publication.
+Expiry denies use immediately; the next retained write prunes only indexed expired
+record directories. Explicit discard removes only the selected owned record and
+its private copies. Capacity, encryption, missing-index and corruption errors refuse
+publication rather than silently dropping active history. These are bounded,
+restart-persistent records, not unlimited permanent archives or a total-library
+1 GiB quota. Current working files and ordinary app history are separate.
 
-The first full Vitest/V8 run at `6634f57f` had 7,876 passing cases, one inventory
-registration failure and 11 existing skips. All static stages passed. Nineteen new
-module records and one newly tracked existing file have since been registered from
-that measurement; all 1,643 inherited rows/provenance/deletions remain unchanged.
-The new existing file has 100% for every metric, not an invented old measurement.
-The separate 27-case coverage inventory suite passed after registration.
+Executable analysis plans, running-job state, automatic multi-page resumption,
+work-context migration and cross-connection takeover are not restored by this bundle.
+Those remain in the later workflow/context/client bundles.
 
-## Remaining work and exact resume point
+## Final automatic verification
 
-The exact coverage gate still fails on inherited output modules:
+The complete repository check at `09a99b16` passed all 26 gates, exit code 0.
 
-- mcpArtifactStore.ts lines: 148/157 (94.26%), required 60/62 (96.77%).
-- mcpArtifactZip.ts lines: 20/21 (95.23%), required 100%.
-- mcpArtifactZip.ts statements: 22/23 (95.65%), required 100%.
-- mcpArtifactZip.ts branches: 6/7 (85.71%), required 100%.
+| Check                                                                   | Result                                         |
+| ----------------------------------------------------------------------- | ---------------------------------------------- |
+| Complete Vitest/V8 suite                                                | 7,893 passed; zero failures; 11 existing skips |
+| MCP cases in that suite                                                 | 1,077 passed across 159 files                  |
+| Renderer, Electron and JavaScript type projects                         | Passed                                         |
+| Lint, format, architecture, duplicates, unused code and mock boundaries | Passed                                         |
+| Exact coverage-floor and inventory checks                               | Passed                                         |
+| Windows app build                                                       | Passed                                         |
+| Existing artwork parity, image protocol and renderer/preload checks     | Passed                                         |
+| Additional real Electron retention check                                | Passed; required markers and exit code 0       |
 
-A request adding behavioral tests for retention-publication failure/cleanup failure,
-borrowed-file admission rejection and oversized ZIP budgeting was not executed by
-the tool. It did not modify tests/mcpArtifactRetention.test.ts. Do not lower floors
-or remove validation to turn this into a passing gate.
+The added scoped HTTP tests use actual OAuth authorization, native edits and
+persistent records. They cover reconnection using restored authorization, owned
+undo, exact replay, foreign/read-only denial, malformed snapshot input, new file
+links, HEAD/GET size/hash equality, explicit discard, redaction and persisted grant
+revocation. Only their external renderer is substituted with deterministic PNG bytes.
 
-Two other requests were not executed: the separate scoped OAuth/HTTP extension test
-file and a managed-directory/candidate-cleanup extension for restored working images.
-The latter matters because unused `.mcp-recovered-*` working copies can accumulate
-after repeated undo/redo and are outside the 1 GiB private catalog quota. Do not
-claim a complete cleanup lifecycle or delete current user images as a workaround.
+Storage tests use actual isolated native transactions and authenticated test
+metadata encryption. They cover missing/corrupt metadata and files, expiry/capacity,
+source mutation, image retention after upload disposal, page/receipt crash recovery,
+post-commit notification failure, repeated image undo/redo, leased/current files,
+unrelated files, symlink denial and cleanup failures. Injected process-loss tests
+judge the durable state after startup transaction recovery, not an artificial
+in-process reply from a simulated crash.
 
-The full rerun `.tmp/mcp-retention-full-check4.log`, independent Windows build
-`.tmp/mcp-retention-build.log`, and isolated native Electron run
-`.tmp/mcp-retention-native-20260919.log` are in progress at this checkpoint. Read the
-terminal statuses before claiming success. The native script uses port 38557,
-Tailscale disabled, actual OS encryption/renderer/transactions and a reconstructed
-MCP session, not real models or user artwork. Require both its retention-specific
-PASS marker and `PASS MCP native smoke finished`, plus exit code zero.
+The interrupted native export-owner failure is fixed and covered by a real
+read-only export-tool/job regression. Missing artifact error-path tests now exercise
+publication/cleanup failures, borrowed-file admission/expiry and oversized ZIP
+budgeting. The old PNG/ZIP floors pass without lowering them. All 1,643 inherited
+coverage records, provenance and ten deletion records are unchanged. This bundle
+adds 20 new modules plus one newly tracked existing file (100% initial floor), for
+1,664 records. The final cleanup registration also preserves all 1,663 records
+already present at the interrupted checkpoint. See the coverage provenance document.
 
-Next: finish the above verification, retain exact evidence, complete missing error
-path tests and recovered-working-image cleanup, then close bundle 7. Do not advance
-the roadmap to bundle 8 while these items remain unresolved.
+## Native run and preserved evidence
 
-Details: `mcp-retention-boundaries-20260919.md` and
-`mcp-retention-coverage-20260919.md`.
+Ran `node node_modules/electron/cli.js scripts/mcp-electron-smoke.cjs` with
+`CARROT_MCP_SMOKE_PORT=38557` and `CARROT_MCP_SMOKE_TAILSCALE=0`.
+The additional test uses actual Electron, OS encryption, production tool composition,
+native transactions and the app renderer in an isolated library. It creates a
+change, closes/reconstructs the MCP session, restores it with undo/redo, renders a
+real PNG, reconstructs again and reissues byte-identical stored output without
+rerendering. Original bytes and saved content are preserved. Both markers were read:
+
+`PASS native OS-encrypted durable edit -> reconstructed session undo/redo -> actual PNG -> retained byte-identical reissue without rerender`
+
+`PASS MCP native smoke finished`
+
+The process exited with code 0. This is not a live-user app restart, actual model
+quality assessment, chat attachment reception or public Tailscale acceptance.
+Those tests remain deferred until all implementation bundles are complete.
+
+Evidence: `.tmp/mcp-retention-final-evidence.json`,
+`.tmp/mcp-retention-final-check-timings.json`, `.tmp/mcp-retention-final-vitest.json`,
+`.tmp/mcp-retention-final-coverage-summary.json`, `.tmp/mcp-retention-full-check6.log`,
+`.tmp/mcp-retention-native-final-20260919.log` and `.tmp/check-logs/`.
+Final check times: `2026-09-19T08:22:32.336Z` to `2026-09-19T08:25:42.052Z`.
+
+NEXT: bundle 8, model-grouped sequential jobs, chapter batches and explicit resume.
+Reuse this durable content/output store and the existing app job/model ownership.
+Do not create another GPU scheduler, revive model plans or redo bundles 1-7.
+Keep frequent commits in this branch and defer live acceptance as instructed.
