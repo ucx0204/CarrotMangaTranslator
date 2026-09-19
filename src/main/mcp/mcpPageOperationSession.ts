@@ -1,3 +1,4 @@
+import { createMcpExternalImageSession } from "./mcpExternalImageSession";
 import { createMcpImageEditSession } from "./mcpImageEditSession";
 import { createMcpSelectionAnalysisSession } from "./mcpSelectionAnalysisSession";
 import { createMcpLetteringSession } from "./mcpLetteringSession";
@@ -147,7 +148,9 @@ function createAuxiliarySessions(
     Boolean(preferences.allowEditing && preferences.allowProcessing),
     Boolean(preferences.allowImages),
   );
+  const externalImages = createMcpExternalImageSession(app, editing, Boolean(preferences.allowEditing && preferences.allowProcessing), Boolean(preferences.allowImages));
   const stop = () => {
+    externalImages.stop();
     images.stop();
     context.stop();
     typography.stop();
@@ -161,10 +164,12 @@ function createAuxiliarySessions(
       ...lettering.tools,
       ...selection.tools,
       ...images.tools,
+      ...externalImages.tools,
     ],
     stop,
     close: async () => {
       stop();
+      await externalImages.close();
       await images.close();
       await selection.close();
       await lettering.close();

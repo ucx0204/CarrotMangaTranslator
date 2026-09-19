@@ -32,7 +32,9 @@ export function createMcpExternalImageAdapter(
   const ports = createMcpPageBatchPorts<ExternalImageRequest>((request, membership, guard, committed, scope) => {
     if (request.input.command.kind !== "lettering")
       throw new McpEditError("invalid_edit", "Background candidates can be inspected, but background publication is not connected yet.");
-    return edits.commitSnapshotBatch(request, membership, guard, committed,
+    let evidenceGuard = guard;
+    const authorize = () => evidenceGuard();
+    return edits.commitSnapshotBatch(request, membership, authorize, committed,
       (run) => scope(async () => {
         await verifyMcpImageFiles(request.change.evidence.files, guard);
         if (request.direction !== "apply") return run();
@@ -41,7 +43,8 @@ export function createMcpExternalImageAdapter(
           const current = await prepareMcpExternalImage(page, request.input, assets);
           if (current.change.stats.snapshot !== request.change.stats.snapshot)
             throw new McpEditError("revision_conflict", "Reviewed external image changed before application.");
-          assets.guard();
+          evidenceGuard = assets.guard;
+          authorize();
           return run();
         });
       }), applyMcpExternalLettering);

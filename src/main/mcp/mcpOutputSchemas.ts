@@ -1,4 +1,6 @@
 import { mcpSelectionBatchOutputs } from "../../shared/mcpSelectionEditing";
+import { mcpImageUploadOutputs } from "../../shared/mcpImageUploads";
+import { mcpExternalImageOutputs } from "../../shared/mcpExternalImages";
 import { mcpImageEditOutputs } from "../../shared/mcpImageEditing";
 import { mcpSelectionAnalysisOutputs } from "../../shared/mcpSelectionAnalysis";
 import { mcpLetteringResourceOutputs } from "../../shared/mcpLetteringResources";
@@ -122,6 +124,8 @@ export const mcpOutputSchemas: Record<string, z.ZodType> = {
   ...mcpLetteringOutputs,
   ...mcpSelectionAnalysisOutputs,
   ...mcpImageEditOutputs,
+  ...mcpImageUploadOutputs,
+  ...mcpExternalImageOutputs,
   ...mcpLetteringResourceOutputs,
   ...mcpReviewOutputSchemas,
   ...mcpStructureOutputs,

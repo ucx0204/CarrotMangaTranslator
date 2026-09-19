@@ -25,7 +25,7 @@ export async function prepareMcpExternalImage(
       "Original, cleaned image or mask differs from upload reservation.",
     );
   const pixels = await composeMcpExternalImage(page, input.command, assets);
-  const blocks =
+  const blocks: Pick<ExternalImageChange, "beforeBlock" | "afterBlock"> =
     input.command.kind === "lettering"
       ? letteringTransition(page, input.command, pixels.bytes)
       : {};
