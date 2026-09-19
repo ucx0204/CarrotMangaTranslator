@@ -23,12 +23,17 @@ async function retainedHttpFixture() {
     await import("../src/main/mcp/mcpRetainedOutputs");
   const origin = "https://retained-http.test",
     secret = "s".repeat(43);
-  const provider = new McpOAuthProvider(origin, secret, Date.now, {
+  const options = {
+    persistent: true,
+    allowEdits: true,
+    allowProcessing: true,
+    allowImages: true,
+  };
+  let provider = new McpOAuthProvider(origin, secret, Date.now, {
     allowEdits: true,
     allowProcessing: true,
     allowImages: true,
   });
-  const auth = new McpOAuthSession(provider, { save: async () => {} });
   const grant = createMcpTestGrant(origin, secret);
   const scope = "carrot.read carrot.edit carrot.process carrot.images";
   const full = grant(provider, scope),
@@ -38,6 +43,7 @@ async function retainedHttpFixture() {
   const png = await readFile((await f.snapshot()).pages[0].imagePath);
   const render = vi.fn(async () => png);
   const start = async () => {
+    const auth = new McpOAuthSession(provider, { save: async () => {} });
     const artifacts = f.operations().artifacts,
       wrap = f.operations().wrapTool;
     if (!wrap) throw new Error("Missing retention wrapper");
@@ -100,9 +106,17 @@ async function retainedHttpFixture() {
     render,
     png,
     errors,
+    revoke: () => {
+      const id = provider.connectionIdFor(`Bearer ${full}`);
+      if (!id) throw new Error("Missing test connection");
+      provider.revokeConnection(id);
+    },
     restart: async () => {
+      const authorization = provider.snapshot();
       await stop();
       await f.restart();
+      provider = new McpOAuthProvider(origin, secret, Date.now, options);
+      provider.restore(authorization);
       running = await start();
     },
     close: async () => {
@@ -184,24 +198,8 @@ it("restores an owned page change after a new MCP session and keeps read-only/fo
 it("reissues identical retained bytes over HEAD/GET after restart without granting read-only callers image access", async () => {
   const f = await retainedHttpFixture();
   try {
-    const page = (await f.snapshot()).pages[0],
-      before = await readFile(f.chapterPath);
-    const request = {
-      chapterId: "chapter",
-      pageId: page.id,
-      revision: createPageRevision(page),
-      requestId: randomUUID(),
-    };
-    const receipt = await f.call("carrot_export_page_png", request);
-    expect(receipt.result.isError).toBe(false);
-    const jobId = receipt.result.structuredContent.jobId;
-    let id = "";
-    await vi.waitFor(async () => {
-      const job = await f.call("carrot_get_job", { jobId });
-      expect(job.result.structuredContent.status).toBe("completed");
-      id = job.result.structuredContent.result.retainedOutputId;
-      expect(id).toBeTruthy();
-    });
+    const before = await readFile(f.chapterPath);
+    const id = await exportOverHttp(f);
     const issued = mcpRetentionOutputs.carrot_get_output_file.parse(
       (await f.call("carrot_get_output_file", { id })).result.structuredContent,
     );
@@ -238,6 +236,59 @@ it("reissues identical retained bytes over HEAD/GET after restart without granti
     expect((await f.download(next.url)).status).toBe(404);
     expect(await readFile(f.chapterPath)).toEqual(before);
     expect(f.errors).toEqual([]);
+  } finally {
+    await f.close();
+  }
+});
+
+async function exportOverHttp(
+  f: Awaited<ReturnType<typeof retainedHttpFixture>>,
+) {
+  const page = (await f.snapshot()).pages[0];
+  const request = {
+    chapterId: "chapter",
+    pageId: page.id,
+    revision: createPageRevision(page),
+    requestId: randomUUID(),
+  };
+  const receipt = await f.call("carrot_export_page_png", request);
+  expect(receipt.result.isError).toBe(false);
+  const jobId = receipt.result.structuredContent.jobId;
+  let id = "";
+  await vi.waitFor(async () => {
+    const job = await f.call("carrot_get_job", { jobId });
+    expect(job.result.structuredContent.status).toBe("completed");
+    id = job.result.structuredContent.result.retainedOutputId;
+    expect(id).toBeTruthy();
+  });
+  return id;
+}
+
+it("blocks retained bytes after redaction or grant revocation without changing saved artwork", async () => {
+  const f = await retainedHttpFixture();
+  const { setImageRedactionEnabled } =
+    await import("../src/main/imageRedactionStore");
+  try {
+    const before = await readFile(f.chapterPath);
+    const id = await exportOverHttp(f);
+    const link = mcpRetentionOutputs.carrot_get_output_file.parse(
+      (await f.call("carrot_get_output_file", { id })).result.structuredContent,
+    );
+    await setImageRedactionEnabled(true, f.env.root);
+    expect((await f.download(link.url)).status).toBe(404);
+    expect(
+      (await f.call("carrot_get_output_file", { id })).result.isError,
+    ).toBe(true);
+    await setImageRedactionEnabled(false, f.env.root);
+    expect((await f.download(link.url)).status).toBe(200);
+    f.revoke();
+    expect((await f.download(link.url)).status).toBe(404);
+    await f.restart();
+    const rejected = await f.call("carrot_get_output_file", { id });
+    expect(rejected.result).toBeUndefined();
+    expect(rejected.error).toBeTruthy();
+    expect(await readFile(f.chapterPath)).toEqual(before);
+    expect(f.render).toHaveBeenCalledTimes(1);
   } finally {
     await f.close();
   }
