@@ -18,6 +18,7 @@ import {
 import { stageChapterFile, stageWorkFile } from "./libraryTransactionFiles";
 import { nextChapterUpdatedAt, resolveChapterStatus } from "./chapterRecords";
 import { hydrateChapter } from "./chapterSnapshots";
+import { retireReplacedRecoveryImages } from "./recoveredImageArtifacts";
 import {
   copyDurableBackup,
   assertPathWithinRootWithoutSymlinks,
@@ -50,6 +51,9 @@ export async function commitPageRecoveryUnlocked(
   guard();
   await verify();
   const chapters = await readRecoveryChapters(updates);
+  const previous = new Map(
+    [...chapters].map(([id, chapter]) => [id, structuredClone(chapter.pages)]),
+  );
   return runLibraryTransaction(
     "mcp-durable-page-recovery",
     async (transaction) => {
@@ -65,6 +69,16 @@ export async function commitPageRecoveryUnlocked(
           page.id === update.pageId
             ? restorePageRecovery(page, snapshot)
             : page,
+        );
+      }
+      for (const chapter of chapters.values()) {
+        const before = previous.get(chapter.id);
+        if (!before) throw new Error("Missing prior recovery chapter.");
+        await retireReplacedRecoveryImages(
+          transaction,
+          dirname(getChapterFilePath(chapter.workId, chapter.id)),
+          before,
+          chapter.pages,
         );
       }
       const saved = await stageRecoveryChapters(transaction, chapters, updates);
