@@ -48,6 +48,7 @@ const HIP_ROOT_CANDIDATES: &[&str] = &[
 const HIP_RUNTIME_DLLS: &[&str] = &["amdhip64_7.dll", "amdhip64_6.dll"];
 const CUDA_REQUIRED_DLLS: &[&str] = &[
     "cudart64_12.dll",
+    "cufft64_11.dll",
     "cublas64_12.dll",
     "cublasLt64_12.dll",
     "curand64_10.dll",
@@ -353,7 +354,10 @@ async fn prepare_zluda_runtime(cli: &Cli) -> Result<()> {
 
 fn install_zluda_runtime_if_needed(runtime_root: &Path) -> Result<()> {
     let install_dir = runtime_root.join("runtime").join("zluda");
-    if ZLUDA_DLLS.iter().all(|dll| install_dir.join(dll).exists()) {
+    if ZLUDA_DLLS
+        .iter()
+        .all(|dll| is_nonempty_regular_file(&install_dir.join(dll)))
+    {
         return Ok(());
     }
 
@@ -368,7 +372,7 @@ fn install_zluda_runtime_if_needed(runtime_root: &Path) -> Result<()> {
 
     let missing = ZLUDA_DLLS
         .iter()
-        .filter(|dll| !install_dir.join(dll).exists())
+        .filter(|dll| !is_nonempty_regular_file(&install_dir.join(dll)))
         .copied()
         .collect::<Vec<_>>();
     if !missing.is_empty() {
@@ -381,7 +385,7 @@ fn install_zluda_runtime_if_needed(runtime_root: &Path) -> Result<()> {
 }
 
 fn download_zluda_archive(archive_path: &Path) -> Result<()> {
-    if archive_path.exists() && archive_path.metadata()?.len() > 0 {
+    if is_nonempty_regular_file(archive_path) {
         return Ok(());
     }
     let url = format!("{ZLUDA_RELEASE_BASE_URL}/{ZLUDA_RELEASE_TAG}/{ZLUDA_ASSET_NAME}");
@@ -403,6 +407,15 @@ fn download_zluda_archive(archive_path: &Path) -> Result<()> {
     Ok(())
 }
 
+fn is_nonempty_regular_file(path: &Path) -> bool {
+    fs::symlink_metadata(path).is_ok_and(|info| info.is_file() && info.len() > 0)
+}
+
+fn selected_zluda_dll(entry_name: &str) -> Option<&str> {
+    let file_name = entry_name.strip_prefix("zluda/")?;
+    ZLUDA_DLLS.contains(&file_name).then_some(file_name)
+}
+
 fn extract_selected_zluda_dlls(archive_path: &Path, install_dir: &Path) -> Result<()> {
     let file = fs::File::open(archive_path)
         .with_context(|| format!("failed to open {}", archive_path.display()))?;
@@ -410,15 +423,9 @@ fn extract_selected_zluda_dlls(archive_path: &Path, install_dir: &Path) -> Resul
         .with_context(|| format!("failed to read {}", archive_path.display()))?;
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index)?;
-        let Some(file_name) = Path::new(entry.name())
-            .file_name()
-            .and_then(|name| name.to_str())
-        else {
+        let Some(file_name) = selected_zluda_dll(entry.name()) else {
             continue;
         };
-        if !ZLUDA_DLLS.contains(&file_name) {
-            continue;
-        }
         let destination = install_dir.join(file_name);
         let mut output = fs::File::create(&destination)
             .with_context(|| format!("failed to create {}", destination.display()))?;
@@ -459,7 +466,7 @@ fn prepare_cuda_runtime(cuda_runtime_dir: Option<&Path>) -> Result<()> {
     prepend_path(cuda_runtime_dir);
     let missing_required = CUDA_REQUIRED_DLLS
         .iter()
-        .filter(|dll| !cuda_runtime_dir.join(dll).exists())
+        .filter(|dll| !is_nonempty_regular_file(&cuda_runtime_dir.join(dll)))
         .copied()
         .collect::<Vec<_>>();
     if !missing_required.is_empty() {
@@ -1012,6 +1019,39 @@ mod tests {
         ) -> Result<AnimeTextDetection> {
             bail!("unexpected detect_text operation")
         }
+    }
+
+    #[test]
+    fn zluda_archive_selection_excludes_trace_and_unrelated_entries() {
+        for name in ZLUDA_DLLS {
+            assert_eq!(selected_zluda_dll(&format!("zluda/{name}")), Some(*name));
+            assert_eq!(selected_zluda_dll(&format!("zluda/trace/{name}")), None);
+            assert_eq!(selected_zluda_dll(name), None);
+        }
+        assert_eq!(selected_zluda_dll("zluda/../nvcuda.dll"), None);
+    }
+
+    #[test]
+    fn runtime_cache_requires_a_nonempty_regular_file() {
+        let root = std::env::temp_dir().join(format!(
+            "koharu-cache-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&root).unwrap();
+        let path = root.join("cufft64_12.dll");
+        assert!(!is_nonempty_regular_file(&path));
+        fs::create_dir(&path).unwrap();
+        assert!(!is_nonempty_regular_file(&path));
+        fs::remove_dir(&path).unwrap();
+        fs::write(&path, []).unwrap();
+        assert!(!is_nonempty_regular_file(&path));
+        fs::write(&path, b"runtime fixture").unwrap();
+        assert!(is_nonempty_regular_file(&path));
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

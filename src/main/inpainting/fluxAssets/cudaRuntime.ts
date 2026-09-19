@@ -1,4 +1,4 @@
-import { statSync } from "node:fs";
+import { lstatSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -95,8 +95,9 @@ async function resolveCudaRedistPackages(
     readNvidiaRedistPackage(cudaManifest, "libcublas", "windows-x86_64"),
     readNvidiaRedistPackage(cudaManifest, "cuda_cudart", "windows-x86_64"),
     readNvidiaRedistPackage(cudaManifest, "libcurand", "windows-x86_64"),
+    readNvidiaRedistPackage(cudaManifest, "libcufft", "windows-x86_64"),
   ].filter((entry): entry is NvidiaRedistPackage => Boolean(entry));
-  if (cudaPackages.length !== 3) {
+  if (cudaPackages.length !== 4) {
     throw new Error(
       "NVIDIA CUDA 12.9 런타임 목록에서 필요한 DLL 패키지를 찾지 못했습니다.",
     );
@@ -222,8 +223,9 @@ async function isCurrentFluxCudaRuntime(cudaDir: string): Promise<boolean> {
   try {
     const marker = JSON.parse(
       await readFile(runtimeMarkerPath(cudaDir), "utf8"),
-    ) as { cudnnManifest?: string };
+    ) as { cudaManifest?: string; cudnnManifest?: string };
     return (
+      marker?.cudaManifest === CUDA_REDIST_MANIFEST_URL &&
       marker?.cudnnManifest === CUDNN_REDIST_MANIFEST_URL &&
       (await hasFluxCudaRuntimeFiles(cudaDir))
     );
@@ -235,7 +237,8 @@ async function isCurrentFluxCudaRuntime(cudaDir: string): Promise<boolean> {
 async function hasFluxCudaRuntimeFiles(cudaDir: string): Promise<boolean> {
   return [...FLUX_CUDA_DLLS, ...FLUX_CUDNN_DLLS].every((fileName) => {
     try {
-      return statSync(join(cudaDir, fileName)).size > 0;
+      const info = lstatSync(join(cudaDir, fileName));
+      return info.isFile() && info.size > 0;
     } catch (_error) {
       return false;
     }

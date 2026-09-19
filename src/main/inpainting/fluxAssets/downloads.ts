@@ -65,6 +65,12 @@ const PINNED_NVIDIA_RUNTIME_ASSETS: Readonly<
         "d0411f0b8c07e90d0fb6e01bfa7a54c9cb80f2ddf67e4ded2d96a50e19aadad6",
       size: 67_904_600,
     }),
+  "libcufft/windows-x86_64/libcufft-windows-x86_64-11.4.0.6-archive.zip":
+    Object.freeze({
+      sha256:
+        "caed5da0d48de61eb0acc600fe29a07c8a850d219ccc0d447ce08786d4564114",
+      size: 198_394_513,
+    }),
   "cudnn/windows-x86_64/cudnn-windows-x86_64-9.21.0.82_cuda12-archive.zip":
     Object.freeze({
       sha256:
@@ -207,7 +213,7 @@ function asJsonRecord(value: unknown): Record<string, unknown> {
 export async function extractSelectedZipEntries(
   archivePath: string,
   outputDir: string,
-  shouldExtract: (fileName: string) => boolean,
+  shouldExtract: (fileName: string, relativePath: string) => boolean,
   signal?: AbortSignal,
   replaceOutputDir = false,
   finalOutputDir?: string,
@@ -215,7 +221,7 @@ export async function extractSelectedZipEntries(
   await loadRuntimeZipModule().extractSelectedZipEntries(
     archivePath,
     outputDir,
-    (fileName) => shouldExtract(fileName),
+    shouldExtract,
     { abortSignal: signal, finalOutputDir, replaceOutputDir },
   );
 }

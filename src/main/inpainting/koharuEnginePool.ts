@@ -200,6 +200,8 @@ async function disposeKoharuEngine(
 
 export async function resolveKoharuBackendCandidates(
   requested: KoharuInpaintingBackend,
+  detectGpu: typeof detectBestGpuInfo = detectBestGpuInfo,
+  platform: NodeJS.Platform = process.platform,
 ): Promise<ResolvedKoharuBackend[]> {
   if (requested === "cpu") {
     return ["cpu"];
@@ -214,11 +216,11 @@ export async function resolveKoharuBackendCandidates(
     return ["metal-native", "cpu"];
   }
 
-  if (process.platform === "darwin") {
+  if (platform === "darwin") {
     return ["metal-native", "cpu"];
   }
 
-  const gpu = await detectBestGpuInfo();
+  const gpu = await detectGpu();
   if (gpu?.vendor === "amd") {
     return ["zluda-native", "cpu"];
   }

@@ -12,6 +12,7 @@ import {
 } from "../src/main/inpainting/koharuAssets";
 import {
   CUDNN_REDIST_MANIFEST_URL,
+  CUDA_REDIST_MANIFEST_URL,
   FLUX_CUDA_DLLS,
   FLUX_CUDA_RUNTIME_DIR,
   FLUX_CUDA_RUNTIME_MARKER,
@@ -116,7 +117,7 @@ function writeCachedFluxCudaRuntime(runtimeDir: string): string {
   }
   writeFileSync(
     join(cudaDir, FLUX_CUDA_RUNTIME_MARKER),
-    `${JSON.stringify({ cudnnManifest: CUDNN_REDIST_MANIFEST_URL })}\n`,
+    `${JSON.stringify({ cudaManifest: CUDA_REDIST_MANIFEST_URL, cudnnManifest: CUDNN_REDIST_MANIFEST_URL })}\n`,
   );
   return cudaDir;
 }
