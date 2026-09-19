@@ -16,8 +16,8 @@ replace approved model assets, merge master or publish a release implicitly.
 | 3     | Region/multi-block OCR, selected translation, reviewed append and block references   | Implemented; automatic checks passed; live deferred |
 | 4     | Multi-block erasure, free/protected masks, localized correction/restoration          | Implemented; automatic checks passed; live deferred |
 | 5     | External image/mask upload, validation and layer incorporation                       | Implemented; automatic checks passed; live deferred |
-| 6     | Independent sound-effect preparation, text, generation and recovery                  | NEXT; not started                                   |
-| 7     | Durable undo and retained output assets                                              | Not started                                         |
+| 6     | Independent sound-effect preparation, text, generation and recovery                  | Implemented; automatic checks passed; live deferred |
+| 7     | Durable undo and retained output assets                                              | NEXT; not started                                   |
 | 8     | Model-grouped sequential jobs, chapter batches and explicit resume                   | Not started                                         |
 | 9     | Context merge/replacement, reference migration and multi-work research               | Not started                                         |
 | 10    | File/web import and library organization                                             | Not started                                         |
@@ -29,7 +29,31 @@ Live C23 quality, model cleanup, actual originals, PNG/ZIP attachment reception,
 download byte/hash checks, restart/reconnection and end-to-end client acceptance
 belong to the final integrated live-test queue, not intermediate completion claims.
 
-## Current authority: verified bundle 5 completion
+## Current authority: verified bundle 6 completion
+
+See `mcp-sound-effect-checkpoint-20260919.md`, verified source `d5db3901`.
+Nine tools connect stored candidate inspection, native include/exclude/restore/manual
+review, approved-text materialization, sound-only text/image-state edits, explicit
+native foreground image generation, guarded image inspection and exact recovery.
+Generation is a separate remote/account-consuming job requiring image permission,
+explicit consent and the exact configured supported controller. No automatic OCR,
+translation, erasure, C23, region replanning or rendering is implied. Those existing
+independent tools and bundle-five external image input remain reusable.
+
+All 26 repository gates passed: 7,851 tests passed, zero failed, 11 existing skips.
+All 1,037 MCP cases across 150 files passed. Eighteen measured modules were added
+while preserving all 1,625 inherited coverage records, provenance and deletions.
+The added model-free real-Electron candidate/text/materialization/recovery check
+also passed with its completion marker and exit code 0. Generation fixtures use
+native foreground processing but substitute Codex transport and external Electron
+image calls; no live model quality or user/client acceptance is claimed.
+
+NEXT: bundle 7, durable undo and retained output assets. Do not redo bundles 1-6
+or request intermediate live tests. Keep the same branch/worktree and frequent
+commits. Chapter orchestration remains bundle 8 and live delivery acceptance stays
+in the final integrated queue.
+
+## Verified bundle 5 completion
 
 See `mcp-external-image-checkpoint-20260919.md`, verified source `0af0ba95`.
 Twelve tools connect actual bounded PNG receipt, content/dimension/hash validation,
@@ -47,10 +71,8 @@ checks also passed with the explicit completion marker and exit code 0. Current
 ChatGPT attachment reception, public Tailscale delivery and model quality remain
 in the final live-test queue, not implied by these isolated tests.
 
-NEXT: bundle 6, independent sound-effect preparation, text, image generation and
-recovery. Reuse bundle-five validated image/mask incorporation. Do not redo 1-5
-or request an intermediate live test. Use the same branch/worktree and small commits.
-Durable recovery remains bundle 7; multi-page orchestration remains bundle 8.
+Bundle 5 remains completed. Continue from the current bundle-six checkpoint above,
+not its historical next-step recommendation. Permanent recovery remains bundle 7.
 
 ## Verified bundle 4 completion
 

@@ -84,19 +84,19 @@ most 1,600 pixels on the long edge and 4 MiB PNG. Recovery retains the shared
 
 The complete repository stage graph at `d5db3901` passed all 26 gates:
 
-| Check | Result |
-| --- | --- |
-| Complete Vitest/V8 suite | 7,851 passed; zero failures; 11 pre-existing skips |
-| MCP cases in the complete suite | 1,037 passed across 150 files |
-| Sound-effect/external-image/output focused suite | 29 passed across six files |
-| Additional durable sound-effect journal tests | Two passed |
-| Real scoped OAuth/HTTP | Read-only discovery, edit/process apply and undo passed; generation and image transfer denied without image scope |
-| Renderer, Electron and JavaScript type projects | Passed |
-| Lint, formatting, architecture, duplicate/unused code and mock boundaries | Passed |
-| Exact production coverage-floor gate | Passed |
-| Windows build | Passed |
-| Existing page-artwork parity, image protocol, renderer/preload boundaries | Passed |
-| Additional model-free native Electron sound-effect check | Passed; terminal completion marker and exit code 0 |
+| Check                                                                     | Result                                                                                                            |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Complete Vitest/V8 suite                                                  | 7,851 passed; zero failures; 11 pre-existing skips                                                                |
+| MCP cases in the complete suite                                           | 1,037 passed across 150 files                                                                                     |
+| Sound-effect/external-image/output focused suite                          | 29 passed across six files                                                                                        |
+| Additional durable sound-effect journal tests                             | Two passed                                                                                                        |
+| Real scoped OAuth/HTTP                                                    | Read-only discovery, edit/process apply and undo passed; generation and image transfer denied without image scope |
+| Renderer, Electron and JavaScript type projects                           | Passed                                                                                                            |
+| Lint, formatting, architecture, duplicate/unused code and mock boundaries | Passed                                                                                                            |
+| Exact production coverage-floor gate                                      | Passed                                                                                                            |
+| Windows build                                                             | Passed                                                                                                            |
+| Existing page-artwork parity, image protocol, renderer/preload boundaries | Passed                                                                                                            |
+| Additional model-free native Electron sound-effect check                  | Passed; terminal completion marker and exit code 0                                                                |
 
 The first full stage graph found three unused exports, removed without behavior
 changes. The initial complete coverage run found only the 18 new-module inventory
