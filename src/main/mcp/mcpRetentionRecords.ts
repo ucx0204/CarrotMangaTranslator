@@ -22,7 +22,7 @@ const page = LibraryChapterFileSchema.shape.pages.element.innerType().pick({
   inpaintMaskPath: true,
   maskProvenance: true,
 });
-export const RetainedFileSchema = z
+const RetainedFileSchema = z
   .object({
     path: z.string().min(1).max(4096),
     sha256: hash,
