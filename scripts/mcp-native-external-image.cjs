@@ -5,6 +5,7 @@ const { join } = require("node:path");
 const { setTimeout: pause } = require("node:timers/promises");
 const { nativeImage } = require("electron");
 
+/** @typedef {{chapterId: string, pageId: string, revision: string, contextRevision: string}} Binding */
 /** @typedef {(name: string, args: object) => Promise<Array<{text?: string}>>} Invoke */
 /** @param {Invoke} invoke */
 function externalClient(invoke) {
@@ -34,7 +35,7 @@ function externalClient(invoke) {
     }
     throw new Error("External image action did not finish");
   };
-  /** @param {object} binding @param {Buffer} bytes @param {string} purpose */
+  /** @param {Binding} binding @param {Buffer} bytes @param {string} purpose */
   const upload = async (binding, bytes, purpose) => {
     const size = nativeImage.createFromBuffer(bytes).getSize();
     const receipt = await call("begin_image_upload", {
@@ -121,7 +122,7 @@ async function checkNativeExternalImage(root, invoke, chapterId) {
   );
 }
 
-/** @param {ReturnType<typeof externalClient>} client @param {object} binding @param {Buffer} original */
+/** @param {ReturnType<typeof externalClient>} client @param {Binding} binding @param {Buffer} original */
 async function checkBackground(client, binding, original) {
   const imageUploadId = await client.upload(binding, patchPng(false), "image");
   const protectedMaskUploadId = await client.upload(
@@ -149,7 +150,8 @@ async function checkBackground(client, binding, original) {
   });
   const page = inspected.pages[0];
   const base = {
-    ...binding,
+    chapterId: binding.chapterId,
+    pageId: binding.pageId,
     revision: page.expectedRevision,
     image: "cleaned",
   };
