@@ -148,6 +148,8 @@ for (const point of ["after-replace-step", "after-commit-point"] as const) {
   it(`recovers both owners and the exact accepted receipt after native ${point}`, async () => {
     const f = await workflowHandoffFixture();
     const tx = await import("../src/main/libraryStore/libraryTransaction");
+    const { recoverLibraryTransactions } =
+      await import("../src/main/libraryStore/libraryTransactionRecovery");
     let reset = () => {};
     try {
       const plan = await f.prepare([{ kind: "export-png" }]);
@@ -165,7 +167,7 @@ for (const point of ["after-replace-step", "after-commit-point"] as const) {
       });
       expect(crashed).toBe(true);
       reset();
-      await tx.recoverLibraryTransactions();
+      await recoverLibraryTransactions();
       await f.restart();
       if (point === "after-commit-point") {
         await expect(f.get(plan.id)).rejects.toThrow();
