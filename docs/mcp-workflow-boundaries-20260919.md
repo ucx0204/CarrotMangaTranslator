@@ -1,96 +1,118 @@
-# Bundle 8: fixed-target sequential workflow boundaries
+# Bundle 8: ordered workflows, shared model lifetimes and explicit handoff
 
-Bundle 8 remains IN PROGRESS. The connected orchestration core is not the same
-as completion of the original model-residency and handoff plan. Preserve the one
-`feat/mcp-app-bridge` branch and existing MCP-Review worktree. Live-user, actual
-model and public Tailscale acceptance remain deferred until all bundles are built.
+Implementation and registration complete; all 26 automatic gates and the isolated
+Electron workflow check passed. Exact evidence is in the connected checkpoint. Use only `feat/mcp-app-bridge` and the existing MCP-Review worktree.
+No live application restart, user artwork changes or public-client acceptance are
+implied. Those tests remain deferred until all implementation bundles are built.
 
-## Implemented orchestration
+## Fixed targets and independent stages
 
-Nine registered tools prepare, inspect/list, explicitly run/resume, pause, cancel,
-acknowledge saved external results and discard an owned workflow. Preparation
-writes only an encrypted plan, never artwork and never starts a model or renderer.
+Nine core tools prepare, inspect/list, explicitly run/resume, pause, cancel,
+acknowledge saved external results and discard an owned plan. Preparation writes
+only an encrypted plan, never artwork, model output or a renderer result.
 
-A plan has 1-10 explicit chapters, at most 50 pages in total and 1-5 distinct stages:
-empty-page OCR, saved-source selected translation, native page erasure, PNG export,
-or external-result waiting. Chapter order is explicit; pages follow their saved
-chapter order. Page IDs are qualified by chapter. No discovered page is added later.
-Stages are executed in supplied order; every page in one stage settles before the
-next stage begins. There is no local-model parallelism and no arbitrary tool-name,
-IPC, path, raw snapshot, credential or code execution input.
+The five stage kinds are empty-page OCR, saved-source translation, native erasure,
+PNG export and external-result waiting. Stage order is explicit. All selected pages
+of one stage settle before the next stage; pages follow their saved chapter order.
+Chapter/page-qualified IDs prevent collisions. New pages never enter implicitly.
 
-OCR preserves nonempty pages. Translation preserves nonempty translations by default
-and uses the existing block reading order and selection-analysis/apply paths. An
-explicit retranslation can still yield identical text: such a result completes
-without an empty apply attempt or page rewrite. Generated image text is excluded.
-Erasure uses the existing local app job; a partial/cancelled/failed result, unfinished
-blocks or incomplete cleanup are not promoted to completed workflow steps. Saved
-partial content remains saved and requires inspection, not implicit undo or retry.
+OCR preserves existing blocks; translation preserves nonempty translations by
+default, uses native reading order, excludes generated-image text, and avoids a
+save for identical proposals. Erasure retains native masks, protection, history
+and partial outcomes. Partial/cancelled/failed work is not promoted to completion.
+General import/research/typography/SFX/ZIP composition remains a later bundle;
+existing independent tools remain available and are not implicitly executed here.
 
-## Ownership, checkpoints and reconstruction
+## Native model lifetime and cancellation
 
-The workflow uses the existing encrypted retention catalog and native transactions.
-It does not introduce another GPU scheduler, library, image store or OAuth identity.
-Only one workflow is active in the session. Multiple plans may be prepared, but this
-is not an automatic FIFO admission queue. Every native child uses existing app job,
-page ownership, cancellation, save and model-cleanup boundaries.
+Translation and erasure stages reuse `ActiveJobStore.runModelGroup` and the native
+`modelWorkload` lifetime. One fixed endpoint or erasure-engine lease is retained
+across sequential children and physically released once before switching stages.
+Native page ownership, execution settings and the cleanup failure barrier remain
+authoritative. No second GPU scheduler or transport-supplied activity owner exists.
 
-Targets bind page/review revisions, original bytes, chapter membership/order and
-saved context. Execution uses a captured settings snapshot. Only its fingerprint
-is persisted: after reconstruction, changed settings refuse resume; the user must
-restore settings or explicitly prepare a new plan for the remaining targets.
-Context is read, not regenerated. Previous-page story memory is not synthesized.
+The group keeps exclusive model activity between children and through physical
+cleanup. Each child keeps its own ID and completion lease. Duplicate releases cannot
+release a later borrow; overlapping, nested and escaped group ownership is rejected.
+Parent cancellation reaches the owned resource. Current-child cancellation/timeout
+also reaches resource preparation, while a returned child's late cancellation is
+detached and cannot abort a later page. Already-cancelled children acquire nothing.
+Physical cleanup is still awaited and work/cleanup errors are both retained.
 
-Each admitted attempt and child job ID is checkpointed. Completed steps are skipped.
-Same request IDs replay their prior admission instead of starting new work. Lost
-post-save workflow checkpoints can be reconciled against exact owned native change
-or output receipts. Erasure additionally requires the exact persisted native job
-completion receipt, matching owner/target/request, zero unfinished blocks and
-successful cleanup. An uncertain erasure which saved content remains review-required
-instead of being reexecuted or silently treated as success. Explicit retry also
-requires matching saved pre-state.
+OCR retains the existing native per-page pipeline and its internal model changes.
+This is not a claim that the entire OCR stage uses one persistent model session.
+Outside explicit native groups, original per-operation resource lifetimes remain.
 
-Pause lets the current child settle, then starts no next step. Cancel signals only
-the owned child and remains running until native cleanup settles. Active status,
-replay and control use the owned active record rather than waiting behind a library
-read lock held up by that child. Other owners are still rejected. Session shutdown
-waits for pending admission and native completion; reopening never auto-runs a plan.
+## Saved evidence and restart
 
-An external step waits for the host AI. The AI uses existing editing/upload tools
-and then acknowledges the exact current page/review revisions. Acknowledgement
-changes only the checkpoint and leaves the plan paused. The app never assumes the
-chat AI continues thinking after disconnection. A new chat using the same approved
-OAuth connection may resume; an unrelated connection cannot take over.
+Plans share the existing encrypted retention catalog and native transactions.
+Only one workflow runs per session. Several plans can be prepared, but they are
+not an automatically executed FIFO queue. Each attempt and admitted native job ID
+is checkpointed. Completed steps are skipped; exact requests replay admission.
 
-Completed internal selection child plans are released after their actual native
-save settles, so the 32-plan in-memory editor limit does not truncate long runs.
-Independent user-created plans retain their normal lifetime. Durable page-change
-history is separate and remains available after child-plan release.
+Targets bind page/review revisions, source bytes, chapter membership/order and
+saved context. Execution settings are fixed in memory, with only a fingerprint
+retained. Changed settings after reconstruction refuse resume instead of choosing
+a different provider. Credentials and executable model state are never serialized.
+Context is read, not regenerated or synthesized from an earlier page.
 
-## Limits
+Lost checkpoints reconcile only against exact owned native change/output receipts.
+Erasure also requires its exact completed native job receipt, zero unfinished
+blocks and successful cleanup. Inconclusive attempts require explicit review and
+retry permission; they are not silently rerun after disconnection.
+
+Pause lets the active child settle then stops. Cancel signals owned work and waits
+for cleanup; neither is undo. Active inspection/control never waits behind the
+library write lock needed by that child. Session shutdown drains admission and
+native completion. Restart never automatically starts a saved workflow.
+
+External stages wait for the host AI to use existing edit/upload tools, then
+acknowledge exact saved revisions. Acceptance changes only the plan and leaves it
+paused for explicit resume. The app never imagines the disconnected AI continuing.
+Completed internal selection plans are released without discarding independent
+user plans or durable change history.
+
+## Explicit two-party handoff
+
+Four additional tools expose this connection's non-secret handoff address, offer
+one settled plan to an explicitly addressed recipient, accept it, or revoke a
+pending offer. Knowing an address, workflow ID or offer ID grants no authority.
+Both connections must already be approved, and their current approvals are checked
+through publication. The receiver needs permission for every stage, including
+images for PNG export. Same-connection new-chat resume needs no handoff.
+
+Offers last at most ten minutes and are lost on MCP restart. Active/admitting,
+failed/uncertain attempts and completed workflows cannot be handed off. Run,
+settled controls, external acknowledgement, discard and handoff share one admission
+boundary. Revoking pending consent deliberately remains possible during staging.
+
+Acceptance revalidates settings and every selected page/source/context. Under the
+native write lock it reuses the canonical unlocked context snapshot, not a nested
+read lock or a weakened evidence check. The encrypted record and owner index are
+published in one native transaction, with another evidence/approval check before
+publication. Crash recovery restores both together. Exact accepted replay survives
+restart; pending offers do not.
+
+Only the plan changes owner. Completed steps, target order, budgets/counters and
+original expiry remain. Existing native job/change/output records stay with the
+old owner and their IDs are removed from the transferred plan. The receiver sees
+paused or external-waiting state and must explicitly resume. Neither transfer nor
+replay edits artwork, renders images or invokes models.
+
+## Limits and test interpretation
+
+At most ten chapters, fifty total pages, five distinct stages and 250 page/stage
+steps per plan. There are 128 action receipts, at most 500 page attempts and 5,000
+reserved translation requests; defaults remain 200 and 100. Translation has at most
+100 eligible blocks per page. Counters are not token or monetary cost estimates.
+Existing native timeouts, image/metadata limits and user permissions still apply.
 
 Plans share seven-day retention, 256 catalog entries and 1 GiB with retained changes
-and outputs. Native metadata/envelope and output limits still apply. A plan has at
-most 250 page/stage steps, 128 action receipts, 500 admitted page attempts and 5,000
-reserved block translation requests. Defaults are 200 attempts and 100 translation
-requests. These counters are not token or monetary estimates. Capacity errors stop
-new work rather than evicting another owner, silently truncating targets or resizing.
-A translation page is limited to 100 eligible blocks. Existing child timeouts apply.
+and outputs. Full capacity rejects new work rather than evicting unrelated history,
+truncating the target or changing image resolution. Discarding a plan is not undo.
 
-## Remaining original bundle-eight work
-
-- Hold one existing native model/resource lease across a same-model stage group,
-  with trusted child ownership and complete group cleanup before switching models.
-  Current code intentionally retains each existing child's load/release cycle;
-  it does not claim one model load for the whole group or suppress cleanup hooks.
-- Explicit authorized cross-connection handoff, without treating knowledge of a
-  workflow ID as authority. Same-connection new-chat resume is already supported.
-- Complete the additional workflow-specific real-Electron acceptance. Existing
-  native regression passed, but the attempted additional script write was not
-  executed. The coverage inventory now includes all 13 measured new modules; final
-  automatic results and exact commits belong in the checkpoint.
-
-General import/research/typography/SFX/ZIP composition remains in later planned
-bundles; those independent tools are not silently included in this five-stage core.
-No live app restart, model asset change, authentication reset or user artwork edit
-is part of this implementation work.
+Automated tests use isolated real native storage, snapshots, original hashes,
+OAuth/HTTP and crash recovery. Model/provider transport boundaries are deterministic
+substitutes. Separate real-Electron tests use OS encryption and actual PNG rendering
+with session reconstruction. Neither is live model-quality or chat/Tailscale
+acceptance. Exact verified commits, counts and log digests belong in the checkpoint.

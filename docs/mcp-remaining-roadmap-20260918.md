@@ -9,42 +9,56 @@ Automatic unit/integration, type, lint, architecture, coverage and build checks
 remain enabled. Do not restart the live app, modify user artwork/credentials,
 replace approved model assets, merge master or publish a release implicitly.
 
-| Order | Remaining bundle                                                                     | Status                                               |
-| ----- | ------------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| 1     | C23 independent analysis; selective font/source-size application and exact undo/redo | Implemented; automatic checks passed; live deferred  |
-| 2     | Bubble layout, advanced typography, reusable rules/presets                           | Implemented; automatic checks passed; live deferred  |
-| 3     | Region/multi-block OCR, selected translation, reviewed append and block references   | Implemented; automatic checks passed; live deferred  |
-| 4     | Multi-block erasure, free/protected masks, localized correction/restoration          | Implemented; automatic checks passed; live deferred  |
-| 5     | External image/mask upload, validation and layer incorporation                       | Implemented; automatic checks passed; live deferred  |
-| 6     | Independent sound-effect preparation, text, generation and recovery                  | Implemented; automatic checks passed; live deferred  |
-| 7     | Durable undo and retained output assets                                              | Implemented; automatic checks passed; live deferred  |
-| 8     | Model-grouped sequential jobs, chapter batches and explicit resume                   | IN PROGRESS; core connected; see workflow checkpoint |
-| 9     | Context merge/replacement, reference migration and multi-work research               | Not started                                          |
-| 10    | File/web import and library organization                                             | Not started                                          |
-| 11    | Extra export/exchange formats and attachment/delivery diagnostics                    | Not started                                          |
-| 12    | Composite workflows and bounded automated review                                     | Not started                                          |
-| 13    | Client compatibility, diagnostics, installation and UI/UX                            | Not started                                          |
+| Order | Remaining bundle                                                                     | Status                                              |
+| ----- | ------------------------------------------------------------------------------------ | --------------------------------------------------- |
+| 1     | C23 independent analysis; selective font/source-size application and exact undo/redo | Implemented; automatic checks passed; live deferred |
+| 2     | Bubble layout, advanced typography, reusable rules/presets                           | Implemented; automatic checks passed; live deferred |
+| 3     | Region/multi-block OCR, selected translation, reviewed append and block references   | Implemented; automatic checks passed; live deferred |
+| 4     | Multi-block erasure, free/protected masks, localized correction/restoration          | Implemented; automatic checks passed; live deferred |
+| 5     | External image/mask upload, validation and layer incorporation                       | Implemented; automatic checks passed; live deferred |
+| 6     | Independent sound-effect preparation, text, generation and recovery                  | Implemented; automatic checks passed; live deferred |
+| 7     | Durable undo and retained output assets                                              | Implemented; automatic checks passed; live deferred |
+| 8     | Model-grouped sequential jobs, chapter batches and explicit resume                   | Implemented; automatic checks passed; live deferred |
+| 9     | Context merge/replacement, reference migration and multi-work research               | NEXT; not started                                   |
+| 10    | File/web import and library organization                                             | Not started                                         |
+| 11    | Extra export/exchange formats and attachment/delivery diagnostics                    | Not started                                         |
+| 12    | Composite workflows and bounded automated review                                     | Not started                                         |
+| 13    | Client compatibility, diagnostics, installation and UI/UX                            | Not started                                         |
 
 Live C23 quality, model cleanup, actual originals, PNG/ZIP attachment reception,
 download byte/hash checks, restart/reconnection and end-to-end client acceptance
 belong to the final integrated live-test queue, not intermediate completion claims.
 
-## Current authority: bundle 8 continuation, still in progress
+## Current authority: verified bundle 8 completion
 
-See `mcp-workflow-continuation-20260919.md` for the exact current source and next work.
-The nine core tools remain connected. Translation and erasure now have a native
-stage-group connection, but its current behavior has not been reverified. OCR keeps
-its existing per-page native pipeline. The workflow-only owner/index storage
-primitive has four passing isolated native tests and all three type projects pass.
+See `mcp-workflow-connected-checkpoint-20260919.md`, verified source `ac01503f`.
+Thirteen tools connect fixed chapter/page plans, five explicit stage kinds,
+sequential translation/erasure model residency, durable checkpoints, pause/cancel,
+explicit resume, external-result acknowledgement and two-party settled handoff.
+Existing native jobs, ownership, settings, transactions and retained storage remain
+canonical. OCR keeps its existing per-page pipeline, not a single persistent OCR
+model. No arbitrary dispatcher or automatically resumed model work is introduced.
 
-Bundle 8 is NOT complete. Two function-length and two architecture-budget errors
-remain. The existing two-party handoff service/tool definitions still need repository,
-settled-admission, session and output registration. The dedicated native workflow
-scenario exists, but earlier success is not verification of this new source tree.
-No full-gate or live acceptance success is claimed for the current checkpoint.
+All 26 repository gates passed: 7,971 tests passed, zero failed, 11 existing skips.
+All 1,152 MCP cases across 181 files passed. The additional actual Electron workflow
+reconstruction/render/output-reissue scenario passed with required markers and
+exit code zero. Model/provider boundaries in other tests remain substitutes; no
+live model quality, user artwork or public-client acceptance is claimed.
 
-Continue bundle 8, not 9. Keep completed steps, existing permissions, native cleanup
-and retained page/output ownership. Do not redo bundles 1-7 or ask for live tests.
+Current-child cancellation and late stale-child abort isolation are verified.
+Handoff requires both current approvals, exact evidence/settings and settled
+admission. It atomically changes only plan ownership, not historical job/change/
+output ownership, and leaves the recipient paused for explicit resume. Crash,
+revocation, concurrent control and exact replay are covered by native and HTTP tests.
+
+All 1,677 inherited coverage records and provenance are preserved; five measured
+continuation modules bring the inventory to 1,682. Bundle eight adds eighteen
+modules over bundle seven. Original workflow checkpoints remain historical only.
+
+NEXT: bundle 9, context merge/replacement, reference migration and multi-work
+research. Do not redo bundles 1-8, create a second GPU scheduler or request live
+tests between bundles. Full import/research/typography/SFX/ZIP composition remains
+in the planned later bundles rather than hidden inside the five-stage core.
 
 ## Verified bundle 7 completion
 

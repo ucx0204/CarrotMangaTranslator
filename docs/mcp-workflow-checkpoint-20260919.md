@@ -1,5 +1,9 @@
 # Bundle 8: ordered chapter workflows and explicit resume
 
+Current authority: `mcp-workflow-connected-checkpoint-20260919.md`.
+The implementation/remaining-work statements below are historical checkpoints,
+not the current resume instructions.
+
 Current continuation: `mcp-workflow-continuation-20260919.md` supersedes this
 historical checkpoint's remaining-work list. Bundle 8 remains in progress.
 

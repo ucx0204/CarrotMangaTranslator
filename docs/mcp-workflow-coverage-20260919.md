@@ -1,5 +1,10 @@
 # Bundle 8 coverage provenance - 2026-09-19
 
+Continuation coverage and final inventory: `mcp-workflow-connected-coverage-20260919.md`.
+The original thirteen-module measurement below is retained; five further measured
+modules bring bundle eight to eighteen additions and the total inventory to 1,682.
+Final full-gate evidence is in `mcp-workflow-connected-checkpoint-20260919.md`.
+
 Initial complete Vitest/V8 measurement: `f7eb4fcec6ea30a37f14dc0825ff1a162233966c`.
 Report SHA-256: `2dd80d84dbd9c16fc93aa612657e20add19150d2a2461a281722b648ddcb5646`.
 

@@ -1,5 +1,9 @@
 # Bundle 8 continuation: connected model groups and owner storage
 
+Current authority: `mcp-workflow-connected-checkpoint-20260919.md`.
+The implementation/remaining-work statements below are historical checkpoints,
+not the current resume instructions.
+
 Status: IN PROGRESS. Do not mark bundle 8 complete or begin bundle 9.
 Current source/test checkpoint: `5cc0ae3a629fbd740747828c975047ce93e53412`.
 This continuation began at `00ec55fb`. Use only `feat/mcp-app-bridge` and the
