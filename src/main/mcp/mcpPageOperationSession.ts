@@ -116,10 +116,7 @@ export function createMcpPageOperationSession(options: PageSessionOptions) {
     tools: [...(workflow?.tools ?? []), ...nativeTools],
     artifacts,
     wrapTool: retained?.wrap,
-    ready: async () => {
-      await operations.ready();
-      await retained?.ready();
-    },
+    ready: () => readyPageSession(operations, retained),
     stop: () => {
       workflow?.stop();
       retained?.stop();
@@ -341,4 +338,12 @@ function createPageExecutors(
       ? createErasureExecutor(app, editing, recovery)
       : undefined,
   };
+}
+
+async function readyPageSession(
+  operations: McpOperationService,
+  retained: ReturnType<typeof createMcpRetentionSession> | undefined,
+) {
+  await operations.ready();
+  await retained?.ready();
 }

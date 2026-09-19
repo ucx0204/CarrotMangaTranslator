@@ -84,3 +84,32 @@ export async function runMcpPageBatch<
   }
   run.status = "completed";
 }
+
+export function describeBatchRun(run?: BatchTextRun) {
+  return {
+    status: run?.status ?? "proposed",
+    direction: run?.direction ?? null,
+    activeRequestId: run?.requestId ?? null,
+    cancellationRequested: run?.controller.signal.aborted ?? false,
+  };
+}
+
+export function batchAvailability<C extends BatchChange>(
+  entry: { busy: boolean; applyStarted: boolean; plan: BatchPlan<C> },
+  changed: Set<string>,
+  contextChanged: boolean,
+) {
+  const eligible = (state: string) =>
+    entry.plan.pages.some(
+      (page) => page.state === state && !changed.has(page.pageId),
+    );
+  return {
+    canApply:
+      !entry.busy &&
+      !entry.applyStarted &&
+      !contextChanged &&
+      eligible("pending"),
+    canUndo: !entry.busy && eligible("applied"),
+    canRedo: !entry.busy && !contextChanged && eligible("undone"),
+  };
+}

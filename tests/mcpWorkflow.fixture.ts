@@ -111,7 +111,6 @@ export async function workflowFixture() {
     const lifetime = new AbortController();
     const tools = createMcpAppTools({
       ...f.editing,
-      assertClean: f.editing.assertWritable,
       preferences,
       additionalTools: [...workflow.tools, ...native],
       lifetime: lifetime.signal,

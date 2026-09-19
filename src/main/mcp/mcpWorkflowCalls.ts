@@ -136,19 +136,20 @@ export class McpWorkflowCalls {
 function completeNativeResult(
   completed: Awaited<ReturnType<McpOperationService["waitForCompletion"]>>,
 ) {
+  if (completed.status !== "completed") throw incompleteNativeResult();
   const result = completed.result;
-  if (
-    completed.status !== "completed" ||
-    result?.cleanupFailed ||
-    result?.status === "partial" ||
-    result?.status === "failed" ||
-    result?.status === "cancelled" ||
-    (result?.blocksIncomplete ?? 0) > 0
-  )
-    throw new McpEditError(
-      "invalid_edit",
-      "Native workflow job was incomplete, failed, cancelled or requires cleanup. Inspect its recorded job and saved changes before creating an explicit remaining-target plan.",
-    );
   if (!result) throw new Error("Native job completed without result metadata.");
+  if (
+    result.cleanupFailed ||
+    ["partial", "failed", "cancelled"].includes(String(result.status)) ||
+    (result.blocksIncomplete ?? 0) > 0
+  )
+    throw incompleteNativeResult();
   return result;
+}
+function incompleteNativeResult() {
+  return new McpEditError(
+    "invalid_edit",
+    "Native workflow job was incomplete, failed, cancelled or requires cleanup. Inspect its recorded job and saved changes before creating an explicit remaining-target plan.",
+  );
 }

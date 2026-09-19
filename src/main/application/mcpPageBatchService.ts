@@ -16,6 +16,8 @@ import type {
 } from "./mcpPageBatchTypes";
 import {
   runMcpPageBatch,
+  describeBatchRun,
+  batchAvailability,
   type BatchTextRun,
 } from "./mcpTranslationBatchRunner";
 import type { McpContextSnapshot } from "./mcpContextEditPolicy";
@@ -387,33 +389,4 @@ export class McpPageBatchService<
     if (entry.busy) entry.run.controller.abort();
     return this.summary(entry);
   }
-}
-
-function batchAvailability<
-  I extends BatchTarget,
-  C extends BatchChange,
-  P extends BatchPlan<C>,
->(entry: Entry<I, C, P>, changed: Set<string>, contextChanged: boolean) {
-  const eligible = (state: string) =>
-    entry.plan.pages.some(
-      (page) => page.state === state && !changed.has(page.pageId),
-    );
-  return {
-    canApply:
-      !entry.busy &&
-      !entry.applyStarted &&
-      !contextChanged &&
-      eligible("pending"),
-    canUndo: !entry.busy && eligible("applied"),
-    canRedo: !entry.busy && !contextChanged && eligible("undone"),
-  };
-}
-
-function describeBatchRun(run?: BatchTextRun) {
-  return {
-    status: run?.status ?? "proposed",
-    direction: run?.direction ?? null,
-    activeRequestId: run?.requestId ?? null,
-    cancellationRequested: run?.controller.signal.aborted ?? false,
-  };
 }
