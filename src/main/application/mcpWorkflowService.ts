@@ -133,20 +133,10 @@ export class McpWorkflowService {
     input: McpWorkflowRun,
     authorize: (record: McpWorkflowRecord) => void,
   ) {
-    this.check();
-    if (this.starting)
-      throw new McpEditError(
-        "editor_busy",
-        "Another workflow admission is pending.",
-      );
+    this.assertAdmissionAvailable();
     const replay = this.activeRequest(owner, input, authorize);
     if (replay) return replay;
-    this.starting = true;
-    let admitted!: () => void;
-    this.admission = new Promise<void>((resolve) => {
-      admitted = resolve;
-    });
-    try {
+    return this.admit(async () => {
       const record = await this.port.repository.load(owner, input.id);
       authorize(record);
       this.check();
@@ -193,10 +183,7 @@ export class McpWorkflowService {
           if (this.active === active) this.active = undefined;
         });
       return this.view(record);
-    } finally {
-      this.starting = false;
-      admitted();
-    }
+    });
   }
   async control(
     owner: string,
@@ -206,22 +193,24 @@ export class McpWorkflowService {
   ) {
     guard();
     this.check();
-    // Native handoff may hold the library write lock. Do not put cancellation
-    // or active status behind a catalog read waiting for that same handoff.
+    // Active control must not wait behind a native save that needs cancellation.
     const active = this.ownedActive(owner, id);
     if (active) {
       if (direction === "pause") active.pause = true;
       else active.controller.abort();
       return this.view(active.record);
     }
-    const record = await this.port.repository.load(owner, id);
-    guard();
-    const status = direction === "pause" ? "paused" : "cancelled";
-    if (record.status !== "completed" && record.status !== status) {
-      record.status = status;
-      await persistWorkflow(this.runner, record);
-    }
-    return this.view(record);
+    return this.settled(async () => {
+      const record = await this.port.repository.load(owner, id);
+      guard();
+      this.check();
+      const status = direction === "pause" ? "paused" : "cancelled";
+      if (record.status !== "completed" && record.status !== status) {
+        record.status = status;
+        await persistWorkflow(this.runner, record);
+      }
+      return this.view(record);
+    });
   }
   async acceptExternal(
     owner: string,
@@ -230,11 +219,13 @@ export class McpWorkflowService {
   ) {
     guard();
     this.check();
-    if (this.active || this.starting)
-      throw new McpEditError(
-        "editor_busy",
-        "Wait for workflow cleanup before accepting external changes.",
-      );
+    return this.settled(() => this.acceptSavedExternal(owner, input, guard));
+  }
+  private async acceptSavedExternal(
+    owner: string,
+    input: McpWorkflowExternal,
+    guard: () => void,
+  ) {
     const record = await this.port.repository.load(owner, input.id);
     const fingerprint = hashStableValue(["external", input]);
     if (knownRequest(record, input.requestId, fingerprint))
@@ -276,12 +267,39 @@ export class McpWorkflowService {
   async discard(owner: string, id: string, guard: () => void) {
     guard();
     this.check();
-    if (this.starting || this.active?.record.id === id)
+    return this.settled(() => this.port.repository.discard(owner, id, guard));
+  }
+  /** Native composition only. Settled mutations and handoff share run admission;
+   * active cancellation and inspection deliberately stay outside this boundary. */
+  settled<T>(run: () => Promise<T>): Promise<T> {
+    if (this.active)
       throw new McpEditError(
         "editor_busy",
-        "Cancel and wait for native cleanup before discarding this plan.",
+        "Wait for workflow cleanup before changing settled workflow state.",
       );
-    return this.port.repository.discard(owner, id, guard);
+    return this.admit(run);
+  }
+  private assertAdmissionAvailable() {
+    this.check();
+    if (this.starting)
+      throw new McpEditError(
+        "editor_busy",
+        "Another workflow admission is pending.",
+      );
+  }
+  private async admit<T>(run: () => Promise<T>): Promise<T> {
+    this.assertAdmissionAvailable();
+    this.starting = true;
+    let admitted!: () => void;
+    this.admission = new Promise<void>((resolve) => {
+      admitted = resolve;
+    });
+    try {
+      return await run();
+    } finally {
+      this.starting = false;
+      admitted();
+    }
   }
   stop() {
     this.stopped = true;
