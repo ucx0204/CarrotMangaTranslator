@@ -231,6 +231,9 @@ export const FLUX_CUDA_DLLS = new Set([
   "cublas64_12.dll",
   "cublasLt64_12.dll",
   "cudart64_12.dll",
+  // Koharu LaMa shares this runtime and loads cuFFT on its first inference.
+  // Requiring it here also invalidates pre-cuFFT runtime caches.
+  "cufft64_11.dll",
   "curand64_10.dll",
 ]);
 

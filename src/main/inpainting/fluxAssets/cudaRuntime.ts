@@ -95,8 +95,9 @@ async function resolveCudaRedistPackages(
     readNvidiaRedistPackage(cudaManifest, "libcublas", "windows-x86_64"),
     readNvidiaRedistPackage(cudaManifest, "cuda_cudart", "windows-x86_64"),
     readNvidiaRedistPackage(cudaManifest, "libcurand", "windows-x86_64"),
+    readNvidiaRedistPackage(cudaManifest, "libcufft", "windows-x86_64"),
   ].filter((entry): entry is NvidiaRedistPackage => Boolean(entry));
-  if (cudaPackages.length !== 3) {
+  if (cudaPackages.length !== 4) {
     throw new Error(
       "NVIDIA CUDA 12.9 런타임 목록에서 필요한 DLL 패키지를 찾지 못했습니다.",
     );
