@@ -57,7 +57,7 @@ export function soundEffectItems(page: MangaPage): McpSoundEffectItem[] {
       .map((block) => soundEffectBlockState(page, block)),
   ];
 }
-export function soundEffectBlockState(
+function soundEffectBlockState(
   page: MangaPage,
   block: TranslationBlock,
 ): McpSoundEffectItem {

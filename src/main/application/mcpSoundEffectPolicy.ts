@@ -17,7 +17,7 @@ import type { MangaPage } from "../../shared/libraryTypes";
 import { createSoundEffectReviewPageRevision } from "../../shared/pageRevision";
 import { McpEditError } from "./mcpEditPolicy";
 
-export type PreparedSoundEffect = {
+type PreparedSoundEffect = {
   before: SoundEffectPageSnapshot;
   after: SoundEffectPageSnapshot;
   files: McpImageFileEvidence[];

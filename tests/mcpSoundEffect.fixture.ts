@@ -162,7 +162,7 @@ export async function soundEffectFixture() {
     },
   };
 }
-export function generatedPng() {
+function generatedPng() {
   const png = new PNG({ width: 30, height: 30 });
   for (let y = 0; y < 30; y++)
     for (let x = 0; x < 30; x++) {
