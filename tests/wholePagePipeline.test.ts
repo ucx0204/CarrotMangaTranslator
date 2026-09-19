@@ -226,7 +226,10 @@ describe("whole page pipeline", () => {
 
     await expect(
       runWholePagePipeline({
-        ...basePipelineOptions([makePage("page-a", "001.png")], events),
+        ...basePipelineOptions(
+          [makePage("page-a", "001.png"), makePage("page-b", "002.png")],
+          events,
+        ),
         onPageFailed,
       }),
     ).rejects.toBe(apiError);
@@ -662,6 +665,7 @@ describe("whole page pipeline", () => {
       "failed",
     ]);
     expect(result.pages[1]?.lastError).toBe("bad response");
+    expect(result.pageLocalFailureIds).toEqual([secondPage.id]);
     expect(onPageFailed).toHaveBeenCalledWith(
       expect.objectContaining({ id: secondPage.id, analysisStatus: "failed" }),
       "bad response",

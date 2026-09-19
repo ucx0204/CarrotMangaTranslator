@@ -351,9 +351,16 @@ function resolveAnalysisJobOutcome(
   context: AnalysisJobContext,
 ): RunAnalysisOutcome {
   if (
+    job.deferTerminalFailure &&
+    result.status === "failed" &&
+    result.failureGuidance
+  ) {
+    job.onDeferredFailureGuidance?.(result.failureGuidance);
+  }
+  if (
     !job.deferTerminalFailure ||
     result.status === "completed" ||
-    (result.failureScope === "page" && !result.failureGuidance)
+    result.failureScope === "page"
   ) {
     return resolveStartOutcome(
       result,
@@ -363,9 +370,6 @@ function resolveAnalysisJobOutcome(
     );
   }
   if (result.status === "cancelled") return "cancelled";
-  if (result.failureGuidance) {
-    job.onDeferredFailureGuidance?.(result.failureGuidance);
-  }
   if (result.error && !result.failureGuidance) throw new Error(result.error);
   if (result.error) console.error(result.error);
   return "failed";

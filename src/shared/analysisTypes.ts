@@ -58,8 +58,9 @@ export type StartAnalysisResult = {
   chapter?: ChapterSnapshot;
   warnings?: string[];
   error?: string;
+  /** Settings advice independent of whether queued work may continue. */
   failureGuidance?: JobFailureGuidance;
-  /** Persisted page-data failures; later queued chapters may still run. */
+  /** Persisted page failures; later queued chapters may run even with guidance. */
   failureScope?: "page";
 };
 

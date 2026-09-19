@@ -695,6 +695,12 @@ async function prepareTranslatedPages(
       options,
     );
     if (!entry) {
+      if (
+        options.filtered.completedPagesById.get(page.id)?.analysisStatus ===
+        "failed"
+      ) {
+        options.pageLocalFailureIds.add(page.id);
+      }
       options.onPageSettled?.(page.id, true);
       continue;
     }

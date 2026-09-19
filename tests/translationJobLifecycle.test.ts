@@ -70,8 +70,12 @@ describe("translation job lifecycle", () => {
       );
       expect(result.status).toBe("failed");
       expect(result.failureScope).toBe(
-        ["confirmed", "all-failed"].includes(scenario) ? "page" : undefined,
+        ["confirmed", "all-failed", "guidance"].includes(scenario)
+          ? "page"
+          : undefined,
       );
+      if (scenario === "guidance")
+        expect(result.failureGuidance).toBe("increase-context-length");
     },
   );
 

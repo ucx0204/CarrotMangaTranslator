@@ -483,8 +483,7 @@ function resolvePageFailureScope(
   persistedPages: ReadonlyMap<string, MangaPage>,
   result: PipelineResult,
 ): "page" | undefined {
-  if (result.failureGuidance || !result.pageLocalFailureIds?.length)
-    return undefined;
+  if (!result.pageLocalFailureIds?.length) return undefined;
   const skippedIds = new Set(result.pageLocalFailureIds);
   const resultPages = new Map(result.pages.map((page) => [page.id, page]));
   return incompletePages.every(({ id }) => {

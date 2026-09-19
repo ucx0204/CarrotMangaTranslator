@@ -174,9 +174,7 @@ export function resolveStartOutcome(
     return "cancelled";
   }
   reportStartFailure(result, setJobState, pushStatus, t);
-  return result.failureScope === "page" && !result.failureGuidance
-    ? "page-failed"
-    : "failed";
+  return result.failureScope === "page" ? "page-failed" : "failed";
 }
 function reportStartFailure(
   result: StartAnalysisResult,

@@ -90,6 +90,7 @@ describe("translation failure propagation", () => {
         .mockResolvedValueOnce({
           status: "failed",
           failureScope: "page",
+          failureGuidance: "increase-context-length",
           error: "page failed",
         })
         .mockResolvedValueOnce({ status: "completed" });
@@ -146,9 +147,15 @@ describe("translation failure propagation", () => {
     },
   );
 
-  it.each([false, true])(
-    "continues queued chapters after persisted page failures (all failed=%s)",
-    async (allFailed) => {
+  it.each([
+    [false, undefined],
+    [true, undefined],
+    [false, "increase-context-length"],
+    [true, "increase-max-output-tokens"],
+    [false, "increase-work-context-budget"],
+  ] as const)(
+    "continues queued chapters after persisted page failures (all failed=%s, guidance=%s)",
+    async (allFailed, failureGuidance) => {
       const options = makeOptions();
       const failed: ChapterSnapshot = {
         ...makeChapter(),
@@ -172,6 +179,7 @@ describe("translation failure propagation", () => {
         .mockResolvedValueOnce({
           status: "failed",
           failureScope: "page",
+          failureGuidance,
           chapter: failed,
           error: "1 page failed",
         })
@@ -196,7 +204,10 @@ describe("translation failure propagation", () => {
       ).toEqual(["chapter-1", "chapter-2", "chapter-3"]);
       expect(notificationMocks.success).not.toHaveBeenCalled();
       expect(options.setJobState).toHaveBeenLastCalledWith(
-        expect.objectContaining({ status: "failed" }),
+        expect.objectContaining({
+          status: "failed",
+          ...(failureGuidance ? { failureGuidance } : {}),
+        }),
       );
       expect(finishPageTimingSession).toHaveBeenCalledTimes(3);
     },
