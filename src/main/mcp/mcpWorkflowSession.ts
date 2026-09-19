@@ -1,3 +1,4 @@
+import { readWorkContextEditSnapshotUnlocked } from "../library/libraryContextEditingFacade";
 import type { McpPreferences } from "../../shared/mcpDesktopTypes";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
 import type { McpOperationService } from "../application/mcpOperationService";
@@ -33,9 +34,13 @@ export function createMcpWorkflowSession(options: {
     reportError: options.reportError,
     now: options.storage.now,
   });
-  const verify = async (record: McpWorkflowRecord, guard: () => void) => {
+  const verify = async (
+    record: McpWorkflowRecord,
+    guard: () => void,
+    readContext?: typeof readWorkContextEditSnapshotUnlocked,
+  ) => {
     guard();
-    const opened = await runtime.open(record, guard);
+    const opened = await runtime.open(record, guard, readContext);
     await opened.verify(record);
     guard();
   };
@@ -46,7 +51,7 @@ export function createMcpWorkflowSession(options: {
     verify,
     transfer: (record, recipient, input, guard) =>
       repository.transfer(record, recipient, input, guard, () =>
-        verify(record, guard),
+        verify(record, guard, readWorkContextEditSnapshotUnlocked),
       ),
   });
   const enabled = Boolean(
