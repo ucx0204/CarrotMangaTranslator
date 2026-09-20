@@ -176,6 +176,16 @@ export class LinkedWorkspaceSyncService {
         for (const id of ids) await this.disconnect(id);
       },
     });
+    const library = await this.dependencies.listLibrary();
+    const chapterOwners = new Map(
+      library.works.flatMap((work) =>
+        work.chapters.map((chapter) => [chapter.id, work.id] as const),
+      ),
+    );
+    for (const record of this.records.values()) {
+      if (chapterOwners.get(record.chapterId) !== record.workId)
+        await this.disconnect(record.id);
+    }
     await this.cleanupInterruptedWrites();
     await this.reconcilePersistedRecords();
     await this.persistQueue();
@@ -676,7 +686,8 @@ export class LinkedWorkspaceSyncService {
         attempts:
           options.immediate && (options.priority ?? 0) >= 60
             ? 0
-            : previous?.visualRevision === visualRevision
+            : previous?.visualRevision === visualRevision &&
+                previous.mirrorRevision === mirrorRevision
               ? previous.attempts
               : 0,
         nextRetryAt: options.immediate ? 0 : now + IDLE_DELAY_MS,
@@ -917,7 +928,7 @@ export class LinkedWorkspaceSyncService {
       (candidate) => candidate.id === item.pageId,
     );
     if (!page) throw new Error("동기화할 페이지를 찾지 못했습니다.");
-    assertExpectedRevision(page, item);
+    if (await this.refreshChangedItem(page, item)) return null;
     this.assertGeneration(generation);
     if (await this.persistLegacyMaskIfNeeded(chapter, page, generation)) {
       await this.queuePages(chapter.id, [page.id], {
@@ -950,7 +961,7 @@ export class LinkedWorkspaceSyncService {
         (candidate) => candidate.id === item.pageId,
       );
       if (!captured) throw new Error("동기화할 페이지를 찾지 못했습니다.");
-      assertExpectedRevision(captured, item);
+      if (await this.refreshChangedItem(captured, item)) return null;
       const pageSnapshot = structuredClone(captured);
       return {
         item,
@@ -1000,6 +1011,22 @@ export class LinkedWorkspaceSyncService {
       this.assertGeneration(generation),
     );
     return { ...prepared, content };
+  }
+
+  private async refreshChangedItem(
+    page: MangaPage,
+    item: LinkedSyncQueueItemV1,
+  ): Promise<boolean> {
+    if (
+      createPageVisualRevision(page) === item.visualRevision &&
+      createPageRevision(page) === item.mirrorRevision
+    )
+      return false;
+    if (this.isCurrentQueueItem(item))
+      await this.queuePages(item.chapterId, [item.pageId], {
+        priority: item.priority,
+      });
+    return true;
   }
 
   private async commitRenderedItem(
@@ -1582,6 +1609,8 @@ export class LinkedWorkspaceSyncService {
       for (const page of chapter.pages) {
         const visualRevision = createPageVisualRevision(page);
         const mirrorRevision = createPageRevision(page);
+        const key = queueKey(chapter.id, page.id);
+        const pending = this.queue.get(key);
         const artifacts = record.artifacts[page.id];
         const resultMissing = record.publishedRevisions[page.id]
           ? !(await publishedArtifactExists(record.rootPath, artifacts?.result))
@@ -1606,14 +1635,23 @@ export class LinkedWorkspaceSyncService {
             record.publishedRevisions[page.id] !== visualRevision) ||
           inpaintedStale ||
           maskStale ||
+          (Boolean(pending) &&
+            pending?.mirrorOnly !== true &&
+            record.publishedRevisions[page.id] !== visualRevision) ||
           (Boolean(record.publishedRevisions[page.id]) &&
             record.publishedRevisions[page.id] !== visualRevision);
         const mirrorStale =
           mirrorMissing ||
           record.publishedMirrorRevisions[page.id] !== mirrorRevision;
-        if (!visualStale && !mirrorStale) continue;
-        const key = queueKey(chapter.id, page.id);
-        if (this.queue.has(key)) continue;
+        if (!visualStale && !mirrorStale) {
+          this.queue.delete(key);
+          continue;
+        }
+        if (
+          pending?.visualRevision === visualRevision &&
+          pending.mirrorRevision === mirrorRevision
+        )
+          continue;
         this.queue.set(key, {
           connectionId: record.id,
           chapterId: chapter.id,
@@ -1653,6 +1691,13 @@ export class LinkedWorkspaceSyncService {
     const message = error instanceof Error ? error.message : String(error);
     this.lastErrors.set(item.connectionId, message);
     item.attempts += 1;
+    this.options.reportError("Linked workspace page sync failed", {
+      connectionId: item.connectionId,
+      chapterId: item.chapterId,
+      pageId: item.pageId,
+      attempt: item.attempts,
+      error,
+    });
     item.nextRetryAt =
       item.attempts >= RETRY_DELAYS_MS.length
         ? Number.MAX_SAFE_INTEGER
@@ -1916,18 +1961,6 @@ function unlinkedStatus(chapterId: string): LinkedWorkspaceStatus {
 
 function queueKey(chapterId: string, pageId: string): string {
   return `${chapterId}:${pageId}`;
-}
-
-function assertExpectedRevision(
-  page: MangaPage,
-  item: LinkedSyncQueueItemV1,
-): void {
-  if (
-    createPageVisualRevision(page) !== item.visualRevision ||
-    createPageRevision(page) !== item.mirrorRevision
-  ) {
-    throw new Error("대기열 등록 후 페이지가 변경되었습니다.");
-  }
 }
 
 function resolveOutputRelativePaths(
