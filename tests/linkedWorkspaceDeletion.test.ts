@@ -18,11 +18,44 @@ import { DEFAULT_RASTER_EXPORT_SETTINGS } from "../src/shared/linkedWorkspaceTyp
 import { fingerprintFile } from "../src/main/linkedWorkspace/linkedWorkspaceFiles";
 import {
   deleteLinkedWorkspaceFiles,
+  isTrustedDarwinSystemAlias,
   recoverLinkedWorkspaceDeletions,
 } from "../src/main/linkedWorkspace/linkedWorkspaceDeletion";
 import { buildLinkedMirrorFileName } from "../src/main/linkedWorkspace/linkedWorkspacePaths";
 
 const roots: string[] = [];
+
+it.each(["/var", "/tmp", "/etc"])(
+  "accepts only the exact root-owned Darwin system alias %s",
+  (path) => {
+    expect(
+      isTrustedDarwinSystemAlias(path, `/private${path}`, "darwin", 0),
+    ).toBe(true);
+    expect(isTrustedDarwinSystemAlias(path, "/elsewhere", "darwin", 0)).toBe(
+      false,
+    );
+    expect(
+      isTrustedDarwinSystemAlias(path, `/private${path}`, "darwin", 501),
+    ).toBe(false);
+    expect(
+      isTrustedDarwinSystemAlias(path, `/private${path}`, "win32", 0),
+    ).toBe(false);
+    expect(
+      isTrustedDarwinSystemAlias(path, `/private${path}`, "linux", 0),
+    ).toBe(false);
+  },
+);
+
+it("rejects user-defined aliases even on Darwin", () => {
+  expect(
+    isTrustedDarwinSystemAlias(
+      "/Users/shared",
+      "/private/Users/shared",
+      "darwin",
+      0,
+    ),
+  ).toBe(false);
+});
 afterEach(async () => {
   for (const root of roots.splice(0))
     await rm(root, { recursive: true, force: true });

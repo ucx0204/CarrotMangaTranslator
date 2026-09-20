@@ -3,6 +3,7 @@ import {
   lstat,
   mkdir,
   readFile,
+  realpath,
   readdir,
   rename,
   rmdir,
@@ -73,13 +74,36 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-/** Refuse junctions/symlinks in every component, including ancestors of custom roots. */
+/** Only root-owned macOS system aliases may precede an otherwise plain path. */
+export function isTrustedDarwinSystemAlias(
+  path: string,
+  canonicalPath: string,
+  platform: NodeJS.Platform,
+  ownerUid: number,
+): boolean {
+  return (
+    platform === "darwin" &&
+    ownerUid === 0 &&
+    ["/var", "/tmp", "/etc"].includes(path) &&
+    canonicalPath === `/private${path}`
+  );
+}
+
+/** Refuse user junctions/symlinks in every component, including custom-root ancestors. */
 async function assertPlainPath(path: string): Promise<void> {
   let current = resolve(path);
   while (true) {
     if (await exists(current)) {
       const entry = await lstat(current);
-      if (entry.isSymbolicLink())
+      if (
+        entry.isSymbolicLink() &&
+        !isTrustedDarwinSystemAlias(
+          current,
+          await realpath(current),
+          process.platform,
+          entry.uid,
+        )
+      )
         throw new Error(`연결된 경로는 자동 삭제할 수 없습니다: ${current}`);
     }
     const parent = dirname(current);
