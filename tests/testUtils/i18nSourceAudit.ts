@@ -28,6 +28,16 @@ export function auditTranslationSources(root: string): TranslationAudit {
     parsed.options,
   );
   const checker = program.getTypeChecker();
+  const typeNames = new Map<ts.Type, string>();
+  const typeName = (node: ts.Node): string => {
+    const type = checker.getTypeAtLocation(node);
+    let name = typeNames.get(type);
+    if (name === undefined) {
+      name = checker.typeToString(type);
+      typeNames.set(type, name);
+    }
+    return name;
+  };
   const audit: TranslationAudit = { uses: [], unresolved: [], calls: 0 };
   for (const source of program.getSourceFiles()) {
     const file = relative(root, source.fileName).replaceAll("\\", "/");
@@ -52,14 +62,15 @@ export function auditTranslationSources(root: string): TranslationAudit {
             name,
           ) ||
           (ts.isIdentifier(node.expression) &&
-            checker
-              .typeToString(checker.getTypeAtLocation(node.expression))
-              .startsWith("TFunction<"))
+            mayBeTranslationFunction(
+              checker.getTypeAtLocation(node.expression),
+            ) &&
+            typeName(node.expression).startsWith("TFunction<"))
         ) {
           const argument = node.arguments[name === "translate" ? 1 : 0];
           if (argument) {
             audit.calls++;
-            add(node, argument, callNamespace(node, checker));
+            add(node, argument, callNamespace(node, typeName));
           }
         }
       }
@@ -86,9 +97,17 @@ export function auditTranslationSources(root: string): TranslationAudit {
   return audit;
 }
 
+function mayBeTranslationFunction(type: ts.Type): boolean {
+  return (
+    type.aliasSymbol?.getName() === "TFunction" ||
+    type.getSymbol()?.getName() === "TFunction" ||
+    (type.isUnionOrIntersection() && type.types.some(mayBeTranslationFunction))
+  );
+}
+
 function callNamespace(
   node: ts.CallExpression,
-  checker: ts.TypeChecker,
+  typeName: (node: ts.Node) => string,
 ): string | undefined {
   const name = node.expression.getText();
   let namespace =
@@ -99,9 +118,7 @@ function callNamespace(
         : name === "rendererT"
           ? "renderer"
           : undefined;
-  namespace ??= checker
-    .typeToString(checker.getTypeAtLocation(node.expression))
-    .match(/TFunction<"(\w+)"/)?.[1];
+  namespace ??= typeName(node.expression).match(/TFunction<"(\w+)"/)?.[1];
   for (const argument of node.arguments) {
     if (!ts.isObjectLiteralExpression(argument)) continue;
     for (const property of argument.properties) {

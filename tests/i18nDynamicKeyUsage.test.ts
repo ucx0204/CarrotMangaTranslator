@@ -25,7 +25,9 @@ describe("dynamic and registered translation keys", () => {
   let audit: TranslationAudit;
   beforeAll(() => {
     audit = auditTranslationSources(process.cwd());
-  }, 60_000);
+    // Full-project compiler analysis took 84s under Windows CI coverage load.
+    // This is a completeness audit, not a 60s application latency contract.
+  }, 120_000);
   it.each(SUPPORTED_UI_LOCALES)(
     "resolves finite source expressions and option registries in %s",
     (locale) => {
