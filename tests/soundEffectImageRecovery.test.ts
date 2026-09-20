@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PNG } from "pngjs";
 import type { SoundEffectTranslationJobInput } from "../src/main/jobs/translationJobTypes";
 import type { SoundEffectImageRecoveryDependencies } from "../src/main/jobs/soundEffectImageRecoveryRunner";
@@ -11,6 +11,12 @@ import { makeBlock, makeChapter } from "./unifiedInpaintingUiFixtures";
 vi.mock("electron", () => ({ app: { isPackaged: false } }));
 const roots: string[] = [];
 const runId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+let currentFixture: Awaited<ReturnType<typeof fixture>>;
+// Cold transformation of the main-process module graph and isolated disk setup
+// are fixture work. Keep the recovery scenarios' existing 15s timeout separate.
+beforeEach(async () => {
+  currentFixture = await fixture();
+}, 30_000);
 afterEach(async () => {
   vi.resetModules();
   vi.doUnmock("../src/main/appPaths");
@@ -141,7 +147,7 @@ async function fixture() {
 }
 
 it("checkpoints a failed page, continues others, and reloads only unfinished images after restart", async () => {
-  const f = await fixture();
+  const f = currentFixture;
   f.editImages.mockImplementationOnce(async ({ page, onCheckpoint }) => {
     const erased = { ...page, inpaintedImagePath: f.generated };
     await onCheckpoint?.(erased, page.blocks[0].id);
@@ -193,7 +199,7 @@ it("checkpoints a failed page, continues others, and reloads only unfinished ima
 it.each(["cancel", "storage", "stale"])(
   "stops safely on %s without applying later pages",
   async (failure) => {
-    const f = await fixture();
+    const f = currentFixture;
     const before = await readFile(f.chapterPath, "utf8");
     if (failure === "stale")
       f.plan.pages[0].revision = "page-v1:0000000000000000";
@@ -217,7 +223,7 @@ it.each(["cancel", "storage", "stale"])(
 );
 
 it("recovers legacy approved blocks only after evidence of an attempted ImageGen call", async () => {
-  const f = await fixture();
+  const f = currentFixture;
   expect(await f.store.getSoundEffectImageRecovery(f.chapter.id)).toBeNull();
   const images = join(
     f.directory,
