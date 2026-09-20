@@ -319,7 +319,9 @@
         "keep-all": "By word",
         "keep-all-overflow": "By word + overflow protection"
       }
-    }
+    },
+    "blockScope": "{{count}} selected blocks · Base style",
+    "singleBlockScope": "Block defaults"
   },
   "transform": {
     "title": "Transform",
@@ -396,7 +398,8 @@
         "leftNarrow": "Narrow left",
         "rightNarrow": "Narrow right",
         "skewLeft": "Parallelogram left",
-        "skewRight": "Parallelogram right"
+        "skewRight": "Parallelogram right",
+        "identity": "No distortion"
       },
       "corners": {
         "topLeft": "Top left",
@@ -519,7 +522,10 @@
       "placeholder": "Enter translation",
       "codeAria": "Translation formatting code",
       "specialCharacters": "Symbols",
-      "insertSpecialCharacter": "Insert {{character}}"
+      "insertSpecialCharacter": "Insert {{character}}",
+      "scopeSelection": "Applies to selected text",
+      "scopeCaret": "Applies to text typed next",
+      "scopeCodeCaret": "Inserts style tags at the cursor"
     }
   },
   "formatBatch": {
@@ -1003,7 +1009,8 @@
     "moveItem": "Move {{name}}",
     "retranslate": "Retranslate",
     "retranslateItem": "Retranslate {{name}}",
-    "deleteItem": "Delete {{name}}"
+    "deleteItem": "Delete {{name}}",
+    "actionBlocked": "A running task is using this resource."
   },
   "status": {
     "title": "Status",
@@ -1106,6 +1113,10 @@
       "picker": {
         "label": "Pick color",
         "title": "Pick a canvas color"
+      },
+      "warp": {
+        "label": "Warp",
+        "title": "Warp text by moving grid points"
       }
     }
   },
@@ -1473,7 +1484,8 @@
         "place": "Place",
         "term": "Term",
         "honorific": "Honorific",
-        "other": "Other"
+        "other": "Other",
+        "sfx": "Sound effects"
       }
     },
     "characters": {
@@ -1908,7 +1920,7 @@
           "description": "Runs Flux through ZLUDA on AMD GPUs. Requires the AMD HIP SDK."
         },
         "cpu": {
-          "label": "CPU native (very slow)",
+          "label": "CPU",
           "description": "CPU-only native Flux without Python or Diffusers. This compatibility mode can take many minutes per page; LaMa or AOT is recommended for practical CPU inpainting."
         }
       },
@@ -2060,7 +2072,7 @@
       "model": "API model",
       "key": "API key",
       "keyPlaceholder": "Enter one API key per line",
-      "keyDescription": "Blank and duplicate keys are ignored. {{count}} keys are configured and kept in this PC's OS-encrypted storage.",
+      "keyDescription": "{{count}} API keys",
       "showKey": "Show API key",
       "hideKey": "Hide API key",
       "openKeyPage": "Open API key page",
@@ -2101,16 +2113,24 @@
       "openOllamaLibrary": "Open Ollama model library",
       "keyMaxAttempts": "Maximum attempts per key",
       "retryDelaySeconds": "Retry delay (seconds)",
-      "retryDescription": "After a retryable failure, the next line's key is used. The app cycles through every key before returning to the first and never exceeds this per-key limit for one request.",
+      "retryDescription": "On failure, retry with the next key.",
       "advanced": {
         "title": "Advanced API settings",
-        "description": "Optional. Empty values are not sent.",
+        "description": "Blank: provider default",
         "temperature": "Temperature",
         "topP": "Top P",
         "topK": "Top K",
         "reasoningEffort": "Reasoning effort",
         "extraBody": "Extra body JSON",
-        "customHeaders": "Custom headers JSON"
+        "customHeaders": "Custom headers JSON",
+        "help": {
+          "temperature": "Controls randomness. Higher values allow more varied wording.",
+          "topP": "Limits token candidates by cumulative probability.",
+          "topK": "Limits the number of highest-probability token candidates.",
+          "reasoningEffort": "Sets reasoning effort. Supported values depend on the provider and model.",
+          "extraBody": "A JSON object added to the request body. Use properties supported by your provider.",
+          "customHeaders": "Additional HTTP request headers as a JSON object."
+        }
       },
       "requestIntervalSeconds": "Minimum request interval (seconds)"
     },
@@ -2173,7 +2193,20 @@
       "downloadHipSdk": "Download AMD HIP SDK",
       "openLinkFailed": "Could not open the link. Check your default browser.",
       "resetGemmaHint": "Also resets local Gemma settings for translation and research.",
-      "resetFailed": "Could not load recommendations. Please try again."
+      "resetFailed": "Could not load recommendations. Please try again.",
+      "fluxRequirements": {
+        "cuda-native": "Requires NVIDIA GPU other than SM75",
+        "cuda-sm75-experimental": "RTX 20 / GTX 16 (SM75) only",
+        "zluda-native": "Requires AMD GPU",
+        "cpu-native": "No GPU needed · Slow",
+        "metal-native": "Requires Apple Silicon"
+      },
+      "ocrRequirements": {
+        "cuda": "Requires NVIDIA GPU",
+        "rocm-transformers": "Requires ROCm-compatible AMD GPU",
+        "cpu": "No GPU needed",
+        "unsupportedRocm": "Detected GPU does not support ROCm OCR"
+      }
     },
     "format": {
       "alignment": {
@@ -2307,7 +2340,11 @@
       "apiJsonObject": "The API JSON setting must be an object.",
       "customHeaderBlocked": "The {{name}} header cannot be overridden in Custom headers.",
       "customHeaderValue": "Custom header values may only be strings, numbers, or booleans.",
-      "apiKeyCount": "You can enter up to {{max}} API keys."
+      "apiKeyCount": "You can enter up to {{max}} API keys.",
+      "reviewField": "Check the value for {{field}}.",
+      "modelLocation": "Model file / repository",
+      "goToField": "Go to field",
+      "unchanged": "No settings changed"
     },
     "image": {
       "localErasure": "Default erasure",
@@ -2385,7 +2422,8 @@
         "work-share-import": "Shared file import",
         "work-share-export": "Shared file export",
         "model-test": "Model check",
-        "codex-auth": "ChatGPT account"
+        "codex-auth": "ChatGPT account",
+        "sound-effect-translation": "Sound effect translation"
       },
       "status": {
         "idle": "Idle",
@@ -2693,7 +2731,7 @@
   },
   "imageRedaction": {
     "enabled": "Redact outgoing images",
-    "description": "Hide sensitive exposed areas before sending an image. Your original stays unchanged.",
+    "description": "Only the copy sent is redacted. Originals are kept.",
     "title": "Review outgoing images",
     "confirm": "Confirm and continue",
     "pages": "Pages",
@@ -2818,7 +2856,7 @@
   },
   "soundEffectTextReview": {
     "title": "Review sound effect translations",
-    "hint": "Edit source text, translations, and image regions across pages. Confirm the batch to begin source erasure and image generation.",
+    "hint": "Confirming all pages starts text removal and image generation.",
     "generate": "Confirm all and generate",
     "pages": "Translated pages",
     "count": "{{count}} sound effects",

@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import type { CodexReasoningEffort } from "../../../../shared/settingsTypes";
 import {
@@ -64,10 +65,7 @@ export function InternetResearchSettingsPanel(
   const { t } = useTranslation("components");
   return (
     <div className="settings-panel-stack settings-research-panel">
-      <SettingsSection
-        title={t("settings.research.tavily.title")}
-        description={t("settings.research.tavily.description")}
-      >
+      <SettingsSection title={t("settings.research.tavily.title")}>
         <TavilyAccessFields
           apiKey={props.tavilyApiKey}
           maxCreditsPerRun={props.tavilyMaxCreditsPerRun}
@@ -121,7 +119,6 @@ function GemmaResearchSettings(
       <SettingsSection
         className="settings-provider-section"
         title={t("settings.options.providers.gemma.label")}
-        description={t("settings.options.providers.gemma.description")}
       >
         <GemmaSettingsFields
           {...props}
@@ -152,26 +149,31 @@ function GemmaResearchReasoningField(
   return (
     <div className="settings-field-stack">
       <span>{t("settings.research.gemma.reasoning")}</span>
-      <Select
-        ariaLabel={t("settings.research.gemma.reasoning")}
-        value={props.researchGemmaReasoningEffort}
-        disabled={props.controlsBusy}
-        options={RESEARCH_GEMMA_REASONING_EFFORTS.map((effort) => ({
-          value: effort,
-          label: t(`settings.options.reasoning.${effort}.label`),
-        }))}
-        onValueChange={(value) => {
-          props.clearTestState();
-          props.setResearchGemmaReasoningEffort(
-            value as ResearchGemmaReasoningEffort,
-          );
-        }}
-      />
-      <p className="muted-line modal-note">
-        {t(
+      <ControlTooltip
+        floating
+        content={t(
           `settings.options.reasoning.${props.researchGemmaReasoningEffort}.description`,
         )}
-      </p>
+      >
+        {(descriptionId) => (
+          <Select
+            ariaDescribedBy={descriptionId}
+            ariaLabel={t("settings.research.gemma.reasoning")}
+            value={props.researchGemmaReasoningEffort}
+            disabled={props.controlsBusy}
+            options={RESEARCH_GEMMA_REASONING_EFFORTS.map((effort) => ({
+              value: effort,
+              label: t(`settings.options.reasoning.${effort}.label`),
+            }))}
+            onValueChange={(value) => {
+              props.clearTestState();
+              props.setResearchGemmaReasoningEffort(
+                value as ResearchGemmaReasoningEffort,
+              );
+            }}
+          />
+        )}
+      </ControlTooltip>
     </div>
   );
 }
@@ -185,7 +187,6 @@ function ApiResearchSettings(
       <SettingsSection
         className="settings-provider-section"
         title={t("settings.options.providers.api.label")}
-        description={t("settings.options.providers.api.description")}
       >
         <ApiSettingsFields
           {...props}
@@ -214,10 +215,7 @@ function CodexResearchSettings(
   const { t } = useTranslation("components");
   return (
     <>
-      <SettingsSection
-        title={t("settings.research.codex.title")}
-        description={t("settings.research.codex.description")}
-      >
+      <SettingsSection title={t("settings.research.codex.title")}>
         <CodexSettingsFields
           clearTestState={props.clearTestState}
           codexModel={props.researchCodexModel}

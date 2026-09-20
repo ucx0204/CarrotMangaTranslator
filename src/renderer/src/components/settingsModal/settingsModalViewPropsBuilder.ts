@@ -1,3 +1,4 @@
+import { getSettingsSubmissionIssue } from "./settingsSubmissionIssue";
 import { settingsGateway } from "../../api/settingsGateway";
 import { applyRecommendedGemmaSettings } from "./applyRecommendedGemmaSettings";
 import type React from "react";
@@ -77,6 +78,7 @@ export function buildSettingsModalViewProps({
   return {
     activeTab,
     canSubmit,
+    submissionIssue: getSettingsSubmissionIssue(form.values, draft, t),
     controlsBusy,
     defaultsPreviewActive,
     generalPanelProps: buildGeneralPanelProps(controlsBusy, form),

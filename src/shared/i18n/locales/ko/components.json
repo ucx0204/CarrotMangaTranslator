@@ -319,7 +319,9 @@
         "keep-all": "단어 단위",
         "keep-all-overflow": "단어 단위+넘침 방지"
       }
-    }
+    },
+    "blockScope": "선택 블록 {{count}}개 · 기본 서식",
+    "singleBlockScope": "블록 기본 서식"
   },
   "transform": {
     "title": "변형",
@@ -396,7 +398,8 @@
         "leftNarrow": "왼쪽 좁게",
         "rightNarrow": "오른쪽 좁게",
         "skewLeft": "왼쪽 평행사변형",
-        "skewRight": "오른쪽 평행사변형"
+        "skewRight": "오른쪽 평행사변형",
+        "identity": "변형 없음"
       },
       "corners": {
         "topLeft": "좌상",
@@ -519,7 +522,10 @@
       "placeholder": "번역문을 입력하세요",
       "codeAria": "번역문 서식 코드",
       "specialCharacters": "기호",
-      "insertSpecialCharacter": "{{character}} 입력"
+      "insertSpecialCharacter": "{{character}} 입력",
+      "scopeSelection": "선택한 글자에 적용",
+      "scopeCaret": "이후 입력할 글자에 적용",
+      "scopeCodeCaret": "커서 위치에 서식 태그 삽입"
     }
   },
   "formatBatch": {
@@ -1003,7 +1009,8 @@
     "moveItem": "{{name}} 순서 이동",
     "retranslate": "재번역",
     "retranslateItem": "{{name}} 재번역",
-    "deleteItem": "{{name}} 삭제"
+    "deleteItem": "{{name}} 삭제",
+    "actionBlocked": "이 대상을 사용하는 작업이 진행 중입니다."
   },
   "status": {
     "title": "상태",
@@ -1106,6 +1113,10 @@
       "picker": {
         "label": "색 추출",
         "title": "캔버스에서 색 추출"
+      },
+      "warp": {
+        "label": "워프",
+        "title": "워프 변형 — 격자점을 움직여 글자 모양을 조정합니다"
       }
     }
   },
@@ -1473,7 +1484,8 @@
         "place": "장소",
         "term": "용어",
         "honorific": "호칭",
-        "other": "기타"
+        "other": "기타",
+        "sfx": "효과음"
       }
     },
     "characters": {
@@ -1908,7 +1920,7 @@
           "description": "AMD GPU에서 Flux 실행기를 ZLUDA로 실행합니다. AMD HIP SDK가 필요합니다."
         },
         "cpu": {
-          "label": "CPU 네이티브 (매우 느림)",
+          "label": "CPU",
           "description": "Python·Diffusers 없이 실행하는 CPU-only Flux 호환 모드입니다. 페이지당 수분 이상 걸릴 수 있어 실사용 CPU 인페인팅은 LaMa 또는 AOT를 권장합니다."
         }
       },
@@ -2060,7 +2072,7 @@
       "model": "API 모델",
       "key": "API 키",
       "keyPlaceholder": "한 줄에 API 키 하나씩 입력",
-      "keyDescription": "빈 줄과 중복 키는 무시합니다. 현재 {{count}}개가 설정되어 있으며 키는 이 PC의 OS 암호화 저장소에 보관됩니다.",
+      "keyDescription": "API 키 {{count}}개",
       "showKey": "API 키 표시",
       "hideKey": "API 키 숨기기",
       "openKeyPage": "API 키 발급 페이지 열기",
@@ -2101,16 +2113,24 @@
       "openOllamaLibrary": "Ollama 모델 라이브러리 열기",
       "keyMaxAttempts": "키별 최대 시도 횟수",
       "retryDelaySeconds": "재시도 대기 시간 (초)",
-      "retryDescription": "실패하면 다음 줄의 키로 순환합니다. 모든 키를 한 번씩 사용한 뒤 다시 첫 키로 돌아가며, 각 키는 요청당 설정한 횟수까지만 시도합니다.",
+      "retryDescription": "실패하면 다음 키로 재시도합니다.",
       "advanced": {
         "title": "고급 API 설정",
-        "description": "선택 사항입니다. 비워 두면 해당 값을 보내지 않습니다.",
+        "description": "빈칸: 공급자 기본값",
         "temperature": "Temperature",
         "topP": "Top P",
         "topK": "Top K",
         "reasoningEffort": "Reasoning effort",
         "extraBody": "Extra body JSON",
-        "customHeaders": "Custom headers JSON"
+        "customHeaders": "Custom headers JSON",
+        "help": {
+          "temperature": "응답의 무작위성입니다. 높을수록 다양한 표현을 사용합니다.",
+          "topP": "누적 확률을 기준으로 단어 후보를 제한합니다.",
+          "topK": "확률이 높은 순서로 사용할 단어 후보 수를 제한합니다.",
+          "reasoningEffort": "모델의 추론량을 지정합니다. 지원 여부와 허용 값은 공급자마다 다릅니다.",
+          "extraBody": "요청 본문에 추가할 JSON 객체입니다. 공급자가 지원하는 속성만 입력하세요.",
+          "customHeaders": "요청에 추가할 HTTP 헤더를 JSON 객체로 입력합니다."
+        }
       },
       "requestIntervalSeconds": "최소 호출 간격 (초)"
     },
@@ -2173,7 +2193,20 @@
       "downloadHipSdk": "AMD HIP SDK 다운로드",
       "openLinkFailed": "링크를 열지 못했습니다. 기본 브라우저를 확인해 주세요.",
       "resetGemmaHint": "번역·인터넷 조사의 Gemma 로컬 설정도 권장값으로 초기화합니다.",
-      "resetFailed": "권장 설정을 불러오지 못했습니다. 다시 시도해 주세요."
+      "resetFailed": "권장 설정을 불러오지 못했습니다. 다시 시도해 주세요.",
+      "fluxRequirements": {
+        "cuda-native": "SM75 이외의 NVIDIA GPU 필요",
+        "cuda-sm75-experimental": "RTX 20 / GTX 16 (SM75) 전용",
+        "zluda-native": "AMD GPU 필요",
+        "cpu-native": "GPU 없이 실행 · 느림",
+        "metal-native": "Apple Silicon 필요"
+      },
+      "ocrRequirements": {
+        "cuda": "NVIDIA GPU 필요",
+        "rocm-transformers": "ROCm 지원 AMD GPU 필요",
+        "cpu": "GPU 없이 실행",
+        "unsupportedRocm": "감지된 GPU는 ROCm OCR 미지원"
+      }
     },
     "format": {
       "alignment": {
@@ -2307,7 +2340,11 @@
       "apiJsonObject": "API JSON 설정은 객체 JSON이어야 합니다.",
       "customHeaderBlocked": "{{name}} 헤더는 Custom headers에서 덮어쓸 수 없습니다.",
       "customHeaderValue": "Custom headers 값은 문자열, 숫자, boolean만 허용됩니다.",
-      "apiKeyCount": "API 키는 최대 {{max}}개까지 입력할 수 있습니다."
+      "apiKeyCount": "API 키는 최대 {{max}}개까지 입력할 수 있습니다.",
+      "reviewField": "{{field}} 입력값을 확인해 주세요.",
+      "modelLocation": "모델 파일 / 저장소",
+      "goToField": "오류 위치로 이동",
+      "unchanged": "변경된 설정 없음"
     },
     "image": {
       "localErasure": "기본 원문 제거",
@@ -2385,7 +2422,8 @@
         "work-share-import": "공유 파일 가져오기",
         "work-share-export": "공유 파일 내보내기",
         "model-test": "모델 확인",
-        "codex-auth": "ChatGPT 계정"
+        "codex-auth": "ChatGPT 계정",
+        "sound-effect-translation": "효과음 번역"
       },
       "status": {
         "idle": "대기",
@@ -2693,7 +2731,7 @@
   },
   "imageRedaction": {
     "enabled": "전송 이미지 가리기",
-    "description": "노출이 있는 이미지에서 민감한 부위를 가린 뒤 전송할 수 있습니다. 원본에는 적용하지 않습니다.",
+    "description": "전송 사본만 가립니다. 원본은 유지됩니다.",
     "title": "전송 이미지 확인",
     "confirm": "확인 후 계속",
     "pages": "페이지",
@@ -2818,7 +2856,7 @@
   },
   "soundEffectTextReview": {
     "title": "효과음 번역문 확인",
-    "hint": "페이지를 오가며 오른쪽 목록의 원문·번역문과 이미지의 영역을 수정하세요. 모든 페이지를 확정하면 원문 제거와 이미지 생성을 시작합니다.",
+    "hint": "모든 페이지를 확정하면 원문 제거·이미지 생성을 시작합니다.",
     "generate": "전체 확정 후 생성",
     "pages": "번역된 페이지",
     "count": "{{count}}개 효과음",

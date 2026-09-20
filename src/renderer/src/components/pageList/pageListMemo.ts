@@ -7,6 +7,10 @@ export type SortablePageItemProps = {
   selected: boolean;
   disabled: boolean;
   locked: boolean;
+  removeDisabled: boolean;
+  translateDisabled: boolean;
+  position: number;
+  total: number;
   statusMode: PageStatusMode;
   observeThumbnail: ObservePageThumbnail;
   onSelect: (pageId: string) => void;
@@ -29,6 +33,8 @@ export function areSortablePageItemPropsEqual(
   next: SortablePageItemProps,
 ): boolean {
   return (
+    previous.position === next.position &&
+    previous.total === next.total &&
     arePageItemBindingsEqual(previous, next) &&
     arePageRowValuesEqual(previous.page, next.page)
   );
@@ -40,6 +46,8 @@ function arePageItemBindingsEqual(
 ): boolean {
   return (
     previous.disabled === next.disabled &&
+    previous.removeDisabled === next.removeDisabled &&
+    previous.translateDisabled === next.translateDisabled &&
     previous.locked === next.locked &&
     previous.observeThumbnail === next.observeThumbnail &&
     previous.onRemove === next.onRemove &&

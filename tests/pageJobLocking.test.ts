@@ -67,7 +67,38 @@ describe("page-scoped job locking", () => {
       chapterStructureLocked: true,
       editingLockedPageIds: new Set(["page-1"]),
       jobTargetPageIds: new Set(["page-1", "page-2"]),
+      removalLockedPageIds: new Set(["page-1", "page-2"]),
     });
+    const released = {
+      ...activities,
+      pages: activities.pages.map((entry) => ({
+        ...entry,
+        phase: "completed" as const,
+      })),
+    };
+    expect(
+      resolvePageActivityLocks({ ...base, activities: released })
+        .removalLockedPageIds,
+    ).toEqual(new Set(["page-1"]));
+    const structureOnly = {
+      ...released,
+      activities: [
+        {
+          ...activities.activities[0],
+          resources: [
+            {
+              kind: "library-structure" as const,
+              scope: "page:chapter-1/page-2",
+              access: "write" as const,
+            },
+          ],
+        },
+      ],
+    };
+    expect(
+      resolvePageActivityLocks({ ...base, activities: structureOnly })
+        .removalLockedPageIds,
+    ).toEqual(new Set(["page-2"]));
     const finishing = {
       ...activities,
       pages: [{ ...activities.pages[1], phase: "finishing-edits" as const }],

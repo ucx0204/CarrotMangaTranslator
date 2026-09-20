@@ -1,0 +1,20 @@
+.root {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: var(--sp-2);
+}
+
+.issue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  color: var(--danger-text);
+  font-size: var(--font-sm);
+}
+
+.issue span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

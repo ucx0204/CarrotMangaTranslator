@@ -69,7 +69,7 @@ describe("API provider connection fields", () => {
       </AppI18nProvider>,
     );
 
-    expect(screen.getByText(/3 keys are configured and kept/)).not.toBeNull();
+    expect(screen.getByText("3 API keys")).not.toBeNull();
   });
 
   it("keeps manual inputs while a template can fill verified model settings", async () => {

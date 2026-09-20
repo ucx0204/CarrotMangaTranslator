@@ -1,0 +1,27 @@
+.anchor {
+  display: grid;
+  min-width: 0;
+}
+.anchor:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+.bubble {
+  position: fixed;
+  z-index: var(--layer-portal-tooltip);
+  width: max-content;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  text-align: left;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}

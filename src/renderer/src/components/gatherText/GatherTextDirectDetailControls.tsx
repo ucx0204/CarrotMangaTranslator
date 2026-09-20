@@ -120,10 +120,7 @@ function AdvancedControls({
   const sliderConfigs = createAdvancedSliderConfigs(t);
   return (
     <section className="gather-direct-editor-section">
-      <DirectSectionHeading
-        title={t("gatherText.detailsSection")}
-        description={t("gatherText.detailsHint")}
-      />
+      <DirectSectionHeading title={t("gatherText.detailsSection")} />
       <div className="gather-direct-editor-slider-grid">
         <WordBreakControl {...{ disabled, model, patch, onChange }} />
         {numberConfigs.map((config) => (

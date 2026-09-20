@@ -33,6 +33,39 @@ afterEach(() => {
 });
 
 describe("style guide usage management", () => {
+  it("labels legacy SFX categories without offering them for new glossary entries", () => {
+    const guide = makeGuide();
+    guide.glossary[0].category = "sfx";
+    const onGuideChange = vi.fn();
+    const view = render(
+      <GlossaryTab
+        guide={guide}
+        onGuideChange={onGuideChange}
+        usage={makeUsage()}
+      />,
+    );
+    const legacy = screen.getByRole("combobox", { name: "Alpha 분류" });
+    expect(legacy.textContent).toBe("효과음");
+    fireEvent.click(legacy);
+    fireEvent.click(screen.getByRole("option", { name: "용어" }));
+    expect(onGuideChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        glossary: expect.arrayContaining([
+          expect.objectContaining({ id: "alpha", category: "term" }),
+        ]),
+      }),
+    );
+    view.rerender(
+      <GlossaryTab
+        guide={makeGuide()}
+        onGuideChange={onGuideChange}
+        usage={makeUsage()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("combobox", { name: "Alpha 분류" }));
+    expect(screen.queryByRole("option", { name: "효과음" })).toBeNull();
+  });
+
   it("sorts, filters, edits, and bulk-deletes glossary entries by stable ID", async () => {
     const guide = makeGuide();
     const onGuideChange = vi.fn();

@@ -37,12 +37,14 @@ export function PageListDragOverlay({
 }
 
 export function PageItemMenu({
-  disabled,
+  removeDisabled,
+  translateDisabled,
   onRemove,
   onRetranslate,
   pageName,
 }: {
-  disabled: boolean;
+  removeDisabled: boolean;
+  translateDisabled: boolean;
   onRemove: () => void;
   onRetranslate: () => void;
   pageName: string;
@@ -84,7 +86,8 @@ export function PageItemMenu({
             type="button"
             role="menuitem"
             onClick={() => runAction(onRetranslate)}
-            disabled={disabled}
+            disabled={translateDisabled}
+            title={translateDisabled ? t("pageList.actionBlocked") : undefined}
           >
             <RefreshIcon size={15} />
             <span>{t("pageList.retranslate")}</span>
@@ -94,7 +97,8 @@ export function PageItemMenu({
             role="menuitem"
             className="danger"
             onClick={() => runAction(onRemove)}
-            disabled={disabled}
+            disabled={removeDisabled}
+            title={removeDisabled ? t("pageList.actionBlocked") : undefined}
           >
             <CloseIcon size={15} />
             <span>{t("common.delete")}</span>
@@ -186,6 +190,29 @@ export function PageListThumbnail({
       ) : (
         <span className="page-thumbnail-skeleton" aria-hidden="true" />
       )}
+    </span>
+  );
+}
+
+export function PageListRowCopy({
+  page,
+  statusMode,
+  locked,
+}: {
+  page: MangaPage;
+  statusMode: PageStatusMode;
+  locked: boolean;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <span className="page-row-copy">
+      <strong>{page.name}</strong>
+      <span className="page-row-meta">
+        <PageStatus page={page} statusMode={statusMode} locked={locked} />
+        {page.blocks.length ? (
+          <span>{t("pageList.blockCount", { count: page.blocks.length })}</span>
+        ) : null}
+      </span>
     </span>
   );
 }

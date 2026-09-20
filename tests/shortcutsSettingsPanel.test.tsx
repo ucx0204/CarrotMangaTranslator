@@ -106,3 +106,31 @@ describe("shortcut wheel capture", () => {
     expect(within(binding).getByText("Wheel ↓")).not.toBeNull();
   });
 });
+
+it("clears and restores one shortcut without changing unrelated overrides", () => {
+  const onChange = vi.fn();
+  const { rerender } = render(
+    <ShortcutsSettingsPanel
+      overrides={{ "toggle-text-blocks": "alt+v", "zoom-in": "alt+wheelup" }}
+      onChange={onChange}
+    />,
+  );
+  const button = screen.getByRole("button", {
+    name: "블록 표시 전환 단축키 변경",
+  });
+  const row = button.closest(".shortcut-binding-row");
+  if (!(row instanceof HTMLElement)) throw new Error("Missing shortcut row");
+  fireEvent.click(within(row).getByRole("button", { name: "비우기" }));
+  expect(onChange).toHaveBeenLastCalledWith({
+    "toggle-text-blocks": "",
+    "zoom-in": "alt+wheelup",
+  });
+  rerender(
+    <ShortcutsSettingsPanel
+      overrides={{ "toggle-text-blocks": "", "zoom-in": "alt+wheelup" }}
+      onChange={onChange}
+    />,
+  );
+  fireEvent.click(within(row).getByRole("button", { name: "기본값" }));
+  expect(onChange).toHaveBeenLastCalledWith({ "zoom-in": "alt+wheelup" });
+});

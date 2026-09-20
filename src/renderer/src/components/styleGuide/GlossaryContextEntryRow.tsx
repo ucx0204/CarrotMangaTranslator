@@ -31,6 +31,8 @@ export function GlossaryContextEntryRow({
 }: ContextEntryTableRowProps<GlossaryEntry>): React.JSX.Element {
   const { t } = useTranslation("components");
   const entryName = entry.source || entry.target;
+  const categories: readonly GlossaryEntryCategory[] =
+    entry.category === "sfx" ? ["sfx", ...CATEGORY_IDS] : CATEGORY_IDS;
   return (
     <div className={`style-guide-row glossary${draft ? " is-draft" : ""}`}>
       {draft ? (
@@ -58,7 +60,7 @@ export function GlossaryContextEntryRow({
       <Select
         value={entry.category}
         ariaLabel={t("styleGuide.usage.categoryItem", { name: entryName })}
-        options={CATEGORY_IDS.map((id) => ({
+        options={categories.map((id) => ({
           value: id,
           label: t(`styleGuide.glossary.categories.${id}`),
         }))}

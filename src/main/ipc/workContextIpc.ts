@@ -48,6 +48,7 @@ import { getAppSettings } from "../settingsStore";
 import type { AppSettings } from "../../shared/settingsTypes";
 import type { AppActivityResource } from "../../shared/appActivityTypes";
 import { createJobLifetimeCleanupBoundary } from "../jobs/jobLifetimeCleanup";
+import { startWorkContextAnalysisWithOwnership } from "../jobs/workContextAnalysisOwnership";
 
 const workContextUsageRepository: WorkContextUsageRepository = {
   getChapterStoryMemory,
@@ -217,13 +218,20 @@ export async function runWorkContextAnalysisJob(
   context: WorkContextJobContext,
   request: AnalyzeWorkContextRequest,
   analyze: WorkContextAnalyzer = analyzeWorkContextWithAi,
+  repository: Parameters<typeof startWorkContextAnalysisWithOwnership>[4] = {
+    listLibrary,
+    openChapter,
+  },
 ): Promise<AnalyzeWorkContextResult> {
-  if (context.jobs.hasActive) {
-    throw new Error(tMain("jobs.active"));
-  }
   const id = `work-context-${randomUUID()}`;
   const abortController = new AbortController();
-  context.jobs.start({ id, kind: "gemma-analysis", abortController });
+  await startWorkContextAnalysisWithOwnership(
+    context.jobs,
+    id,
+    abortController,
+    request,
+    repository,
+  );
   const emit = (event: JobEvent): void =>
     emitJobEvent(context.jobs, context.getMainWindow(), event);
   emit({
@@ -235,7 +243,11 @@ export async function runWorkContextAnalysisJob(
     progressMode: "indeterminate",
   });
   try {
-    const result = await analyze(request, abortController.signal);
+    const result = await context.jobs.run(
+      id,
+      () => analyze(request, abortController.signal),
+      context.executionSettings,
+    );
     abortController.signal.throwIfAborted();
     emit({
       id,

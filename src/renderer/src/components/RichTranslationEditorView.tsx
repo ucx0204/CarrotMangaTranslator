@@ -8,9 +8,10 @@ import type {
 } from "./richTranslationEditorTypes";
 import type { RichTranslationVisualEditor } from "./useRichTranslationVisualEditor";
 import { Button } from "./ui/Button";
+import { SegmentedControl } from "./ui/SegmentedControl";
 import { Textarea } from "./ui/Field";
 import { IconButton } from "./ui/IconButton";
-import { CodeIcon, RestoreIcon, TypeStyleIcon } from "./ui/icons";
+import { RestoreIcon } from "./ui/icons";
 
 const SPECIAL_CHARACTERS = [
   "…",
@@ -39,6 +40,7 @@ type RichTranslationEditorViewProps = {
   onChange: (value: string) => void;
   onCodeSelect: React.ReactEventHandler<HTMLTextAreaElement>;
   plainText: string;
+  hasSelection: boolean;
   selectionValues: RichTranslationSelectionValues;
   setMode: (mode: RichTranslationEditorMode) => void;
   specialCharactersId: string;
@@ -61,6 +63,7 @@ export function RichTranslationEditorView({
   onChange,
   onCodeSelect,
   plainText,
+  hasSelection,
   selectionValues,
   setMode,
   specialCharactersId,
@@ -107,6 +110,7 @@ export function RichTranslationEditorView({
       <RichTranslationInlineStylePanel
         disabled={disabled}
         mode={mode}
+        hasSelection={hasSelection}
         values={selectionValues}
         onApplyStyle={applyInlineStyle}
       />
@@ -146,31 +150,24 @@ function RichTranslationModePicker({
   return (
     <div className="rich-editor-heading">
       <h3>{t("editor.translatedText")}</h3>
-      <div
-        className="rich-editor-mode-toggle"
-        aria-label={t("editor.richText.modeLabel", {
+      <SegmentedControl
+        ariaLabel={t("editor.richText.modeLabel", {
           defaultValue: "번역문 보기 방식",
         })}
-      >
-        <Button
-          size="sm"
-          variant="ghost"
-          aria-pressed={mode === "visual"}
-          iconLeft={<TypeStyleIcon size={13} />}
-          onClick={() => setMode("visual")}
-        >
-          {t("editor.richText.visualMode", { defaultValue: "편집" })}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          aria-pressed={mode === "code"}
-          iconLeft={<CodeIcon size={13} />}
-          onClick={() => setMode("code")}
-        >
-          {t("editor.richText.codeMode", { defaultValue: "코드" })}
-        </Button>
-      </div>
+        singleRow
+        value={mode}
+        onChange={setMode}
+        options={[
+          {
+            id: "visual",
+            label: t("editor.richText.visualMode", { defaultValue: "편집" }),
+          },
+          {
+            id: "code",
+            label: t("editor.richText.codeMode", { defaultValue: "코드" }),
+          },
+        ]}
+      />
     </div>
   );
 }

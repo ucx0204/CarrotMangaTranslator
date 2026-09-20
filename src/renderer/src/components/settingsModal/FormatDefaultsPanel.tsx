@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import {
   MAX_BUBBLE_LAYOUT_PADDING_RATIO,
@@ -188,22 +189,24 @@ function BubbleLayoutPaddingSection({
   const { t } = useTranslation("components");
   return (
     <section className="gather-direct-editor-section">
-      <DirectSectionHeading
-        title={t("settings.format.bubbleLayout.title")}
-        description={t("settings.format.bubbleLayout.description")}
-      />
-      <FieldSlider
-        className="format-defaults-bubble-padding-slider"
-        label={t("settings.format.bubbleLayout.padding")}
-        valueLabel={`${Math.round(value * 100)}%`}
-        min={MIN_BUBBLE_LAYOUT_PADDING_RATIO}
-        max={MAX_BUBBLE_LAYOUT_PADDING_RATIO}
-        step={0.01}
-        value={value}
-        onChange={(event) =>
-          onChange(Math.round(Number(event.target.value) * 100) / 100)
-        }
-      />
+      <DirectSectionHeading title={t("settings.format.bubbleLayout.title")} />
+      <ControlTooltip
+        floating
+        content={t("settings.format.bubbleLayout.description")}
+      >
+        <FieldSlider
+          className="format-defaults-bubble-padding-slider"
+          label={t("settings.format.bubbleLayout.padding")}
+          valueLabel={`${Math.round(value * 100)}%`}
+          min={MIN_BUBBLE_LAYOUT_PADDING_RATIO}
+          max={MAX_BUBBLE_LAYOUT_PADDING_RATIO}
+          step={0.01}
+          value={value}
+          onChange={(event) =>
+            onChange(Math.round(Number(event.target.value) * 100) / 100)
+          }
+        />
+      </ControlTooltip>
     </section>
   );
 }

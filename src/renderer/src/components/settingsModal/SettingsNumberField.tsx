@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { Field } from "../ui/Field";
 import { NumberField } from "../ui/NumberField";
 import { resolveStepPrecision } from "../ui/numberFieldValue";
@@ -8,6 +9,7 @@ export type SettingsNumberFieldProps = {
   ariaLabel: string;
   label?: React.ReactNode;
   hint?: React.ReactNode;
+  tooltip?: string;
   /**
    * The form keeps these as strings because an empty string is a meaningful
    * value ("use the provider default") for optional settings.
@@ -37,6 +39,7 @@ export function SettingsNumberField({
   ariaLabel,
   label,
   hint,
+  tooltip,
   value,
   onValueChange,
   min,
@@ -81,19 +84,23 @@ export function SettingsNumberField({
           : undefined
       }
     >
-      {optional ? (
-        <NumberField
-          {...shared}
-          allowEmpty
-          placeholder={""}
-          value={parsed}
-          onValueChange={commit}
-        />
+      {tooltip ? (
+        <ControlTooltip content={tooltip} floating>
+          {(descriptionId) => (
+            <SettingsNumberInput
+              optional={optional}
+              parsed={parsed}
+              commit={commit}
+              shared={{ ...shared, ariaDescribedBy: descriptionId }}
+            />
+          )}
+        </ControlTooltip>
       ) : (
-        <NumberField
-          {...shared}
-          value={parsed ?? min}
-          onValueChange={(next) => commit(next)}
+        <SettingsNumberInput
+          optional={optional}
+          parsed={parsed}
+          commit={commit}
+          shared={shared}
         />
       )}
     </Field>
@@ -104,4 +111,36 @@ function parseSettingsNumber(value: string): number | null {
   if (!value.trim()) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function SettingsNumberInput({
+  optional,
+  parsed,
+  commit,
+  shared,
+}: {
+  optional: boolean;
+  parsed: number | null;
+  commit: (value: number | null) => void;
+  shared: Omit<
+    React.ComponentProps<typeof NumberField>,
+    "value" | "onValueChange"
+  >;
+}): React.JSX.Element {
+  return optional ? (
+    <NumberField
+      {...shared}
+      allowEmpty
+      placeholder=""
+      value={parsed}
+      onValueChange={commit}
+    />
+  ) : (
+    <NumberField
+      {...shared}
+      allowEmpty={false}
+      value={parsed ?? shared.min}
+      onValueChange={commit}
+    />
+  );
 }

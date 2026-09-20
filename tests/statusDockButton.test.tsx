@@ -557,6 +557,24 @@ describe("status dock", () => {
     expect(list.children).toHaveLength(4);
   });
 
+  it("renders a persisted SFX completion without exposing a translation key", () => {
+    render(
+      <StatusJobHistory
+        entries={[
+          {
+            id: "sfx-saved",
+            source: "job",
+            kind: "sound-effect-translation",
+            status: "completed",
+            completedAt: 1,
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("효과음 번역 · 완료")).toBeTruthy();
+    expect(screen.getByRole("list").textContent).not.toContain("statusDock.");
+  });
+
   it("does not reserve recent-history space when there are no entries", () => {
     const view = render(<StatusJobHistory entries={[]} />);
 

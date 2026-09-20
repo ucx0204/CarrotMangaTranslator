@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { InpaintingModel } from "../../../../shared/settingsTypes";
@@ -20,9 +21,6 @@ export function InpaintingModelSettings(
   props: InpaintingModelSettingsProps,
 ): React.JSX.Element {
   const { t } = useTranslation("components");
-  const active = INPAINTING_MODEL_OPTIONS.find(
-    (option) => option.id === props.inpaintingModel,
-  );
   return (
     <div className="settings-field-stack">
       <span>{t("settings.hardware.inpaintingModel")}</span>
@@ -35,9 +33,6 @@ export function InpaintingModelSettings(
           <InpaintingModelButton key={option.id} option={option} {...props} />
         ))}
       </div>
-      <p className="muted-line modal-note">
-        {active ? t(active.descriptionKey) : null}
-      </p>
       <FluxMemoryWarning {...props} />
     </div>
   );
@@ -58,28 +53,30 @@ function InpaintingModelButton({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <button
-      type="button"
-      className={`settings-preset-button ${inpaintingModel === option.id ? "active" : ""}`}
-      disabled={controlsBusy}
-      aria-pressed={inpaintingModel === option.id}
-      onClick={() => {
-        if (
-          option.id === "flux-klein" &&
-          needsFluxOverride(usesAppleHardware, unifiedMemoryMb) &&
-          !allowUnsafeLowMemoryFlux
-        ) {
-          if (!confirmFluxRisk(t, unifiedMemoryMb)) return;
-          setAllowUnsafeLowMemoryFlux(true);
-        } else if (option.id !== "flux-klein") {
-          setAllowUnsafeLowMemoryFlux(false);
-        }
-        clearTestState();
-        setInpaintingModel(option.id);
-      }}
-    >
-      {t(option.labelKey)}
-    </button>
+    <ControlTooltip floating content={t(option.descriptionKey)}>
+      <button
+        type="button"
+        className={`settings-preset-button ${inpaintingModel === option.id ? "active" : ""}`}
+        disabled={controlsBusy}
+        aria-pressed={inpaintingModel === option.id}
+        onClick={() => {
+          if (
+            option.id === "flux-klein" &&
+            needsFluxOverride(usesAppleHardware, unifiedMemoryMb) &&
+            !allowUnsafeLowMemoryFlux
+          ) {
+            if (!confirmFluxRisk(t, unifiedMemoryMb)) return;
+            setAllowUnsafeLowMemoryFlux(true);
+          } else if (option.id !== "flux-klein") {
+            setAllowUnsafeLowMemoryFlux(false);
+          }
+          clearTestState();
+          setInpaintingModel(option.id);
+        }}
+      >
+        {t(option.labelKey)}
+      </button>
+    </ControlTooltip>
   );
 }
 

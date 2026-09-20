@@ -36,10 +36,12 @@
 
 .hint {
   font-size: var(--font-xs);
+  font-weight: 400;
+  line-height: 1.45;
   color: var(--text-muted);
 }
 
-.field input {
+.field input:not([data-ui-framed-input]) {
   font-size: var(--font-md);
   color: var(--text);
 }

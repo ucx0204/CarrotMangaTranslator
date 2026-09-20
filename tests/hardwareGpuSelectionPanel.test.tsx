@@ -28,6 +28,9 @@ describe("HardwareSettingsPanel GPU selection", () => {
 
     const selects = screen.getAllByRole<HTMLButtonElement>("combobox");
     expect(selects).toHaveLength(2);
+    expect(selects.every((select) => select.closest("details") === null)).toBe(
+      true,
+    );
     const graphicsSelect = selects.find((select) => select.value === "auto");
     const computeSelect = selects.find((select) => select.value === "");
     if (!graphicsSelect || !computeSelect) {

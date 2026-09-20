@@ -30,6 +30,8 @@ type AppSidebarProps = {
   libraryMutationBlocked?: boolean;
   pageStructureBlocked?: boolean;
   lockedPageIds?: ReadonlySet<string>;
+  removalLockedPageIds?: ReadonlySet<string>;
+  modelResourceBusy?: boolean;
   settingsBusy: boolean;
   settingsOpen: boolean;
   onOpenTranslationSource: () => void;
@@ -130,6 +132,8 @@ function LibrarySidebarContent(props: AppSidebarProps): React.JSX.Element {
           props.jobActive
         }
         lockedPageIds={props.lockedPageIds ?? EMPTY_PAGE_IDS}
+        removalLockedPageIds={props.removalLockedPageIds}
+        translationBlocked={props.modelResourceBusy}
         onSelect={actions.onSelectPage}
         onRetranslate={actions.onRetranslatePage}
         onRemove={actions.onRemovePage}

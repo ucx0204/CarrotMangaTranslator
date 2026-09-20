@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
 
@@ -81,20 +82,28 @@ function LocalMmprojFileField({
     <div className="settings-field-stack">
       <span>{t("settings.gemma.local.mmprojFile")}</span>
       <div className="settings-file-row">
-        <input
-          value={localMmprojPath}
-          disabled={controlsBusy}
-          onChange={(event) => {
-            clearTestState();
-            setLocalMmprojPath(event.target.value);
-          }}
-          placeholder={t("settings.gemma.local.mmprojPlaceholder")}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              submit();
-            }
-          }}
-        />
+        <ControlTooltip
+          floating
+          content={t("settings.gemma.local.mmprojDescription")}
+        >
+          {(descriptionId) => (
+            <input
+              aria-describedby={descriptionId}
+              value={localMmprojPath}
+              disabled={controlsBusy}
+              onChange={(event) => {
+                clearTestState();
+                setLocalMmprojPath(event.target.value);
+              }}
+              placeholder={t("settings.gemma.local.mmprojPlaceholder")}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  submit();
+                }
+              }}
+            />
+          )}
+        </ControlTooltip>
         <button
           type="button"
           onClick={() => void pickLocalMmprojFile()}
@@ -103,9 +112,6 @@ function LocalMmprojFileField({
           {t("settings.gemma.local.chooseFile")}
         </button>
       </div>
-      <p className="muted-line modal-note">
-        {t("settings.gemma.local.mmprojDescription")}
-      </p>
     </div>
   );
 }

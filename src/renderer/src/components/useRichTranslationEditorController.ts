@@ -49,6 +49,7 @@ export type RichTranslationEditorController = {
   insertSpecialCharacter: (character: string) => void;
   mode: RichTranslationEditorMode;
   plainText: string;
+  hasSelection: boolean;
   selectionValues: ReturnType<typeof resolveRichTranslationSelectionValues>;
   setMode: (mode: RichTranslationEditorMode) => void;
   specialCharacters: ReturnType<typeof useRichTranslationSpecialCharacters>;
@@ -106,6 +107,7 @@ export function useRichTranslationEditorController({
     }),
     mode,
     plainText: parsed.plainText,
+    hasSelection: state.selection.start !== state.selection.end,
     selectionValues: useSelectionValues(block, mode, parsed, state, value),
     setMode: useSetEditorMode(setModeState, state, specialCharacters.close),
     specialCharacters,

@@ -44,9 +44,6 @@ export function BlockBackgroundApplyModal({
         />
       }
     >
-      <p className="muted-line modal-note">
-        {t("editor.display.batchDescription")}
-      </p>
       <div className="format-apply-section">
         <div className="format-apply-section-head">
           <span>{t("formatBatch.scope")}</span>

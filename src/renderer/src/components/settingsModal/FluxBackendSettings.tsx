@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import type {
   FluxBackend,
@@ -37,9 +38,6 @@ export function FluxBackendSettings({
   usesAppleHardware,
 }: FluxBackendSettingsProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const activeFluxBackend = FLUX_BACKEND_OPTIONS.find(
-    (option) => option.id === fluxBackend,
-  );
   const visibleFluxBackends = resolveVisibleFluxBackends(usesAppleHardware);
   return (
     <div className="settings-field-stack">
@@ -50,31 +48,33 @@ export function FluxBackendSettings({
         aria-label={t("settings.hardware.fluxBackend")}
       >
         {visibleFluxBackends.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className={`settings-preset-button ${fluxBackend === option.id ? "active" : ""}`}
-            onClick={() => {
-              clearTestState();
-              setFluxBackend(option.id);
-            }}
-            disabled={controlsBusy || isFluxBackendOptionDisabled(option.id)}
-            aria-pressed={fluxBackend === option.id}
-          >
-            {t(option.labelKey)}
-          </button>
+          <div className="settings-field-stack" key={option.id}>
+            <ControlTooltip
+              floating
+              content={t(
+                isFluxBackendOptionDisabled(option.id)
+                  ? `settings.hardware.fluxRequirements.${option.id}`
+                  : option.descriptionKey,
+              )}
+            >
+              <button
+                type="button"
+                className={`settings-preset-button ${fluxBackend === option.id ? "active" : ""}`}
+                onClick={() => {
+                  clearTestState();
+                  setFluxBackend(option.id);
+                }}
+                disabled={
+                  controlsBusy || isFluxBackendOptionDisabled(option.id)
+                }
+                aria-pressed={fluxBackend === option.id}
+              >
+                {t(option.labelKey)}
+              </button>
+            </ControlTooltip>
+          </div>
         ))}
       </div>
-      {fluxBackend === "cuda-sm75-experimental" &&
-      inpaintingModel === "flux-klein" ? null : (
-        <p className="muted-line modal-note">
-          {inpaintingModel === "flux-klein"
-            ? activeFluxBackend
-              ? t(activeFluxBackend.descriptionKey)
-              : null
-            : t("settings.hardware.fluxOnlyNote")}
-        </p>
-      )}
       <Sm75FluxWarning
         fluxBackend={fluxBackend}
         inpaintingModel={inpaintingModel}

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { LibraryChapter, LibraryWork } from "../src/shared/libraryTypes";
@@ -22,6 +22,147 @@ describe("review CSV/TSV tables", () => {
         await rm(dir, { recursive: true, force: true });
       }
     }
+  });
+
+  it.each([30, 500])(
+    "imports %i pages with real storage and records write-lock occupancy",
+    async (count) => {
+      const rootDir = await createTempLibrary();
+      const library = await loadLibrary(rootDir);
+      await seedLibrary(rootDir, { completedBubbleWorkflow: true });
+      const chapter = makeStoredChapter(rootDir, {
+        completedBubbleWorkflow: true,
+      });
+      const template = chapter.pages[0];
+      chapter.pages = Array.from({ length: count }, (_, i) => ({
+        ...template,
+        id: "page-" + i,
+        blocks: Array.from({ length: 30 }, (_, j) => ({
+          ...firstBlock(),
+          id: "block-" + j,
+        })),
+      }));
+      chapter.pageOrder = chapter.pages.map((page) => page.id);
+      await writeJson(
+        join(
+          rootDir,
+          "works",
+          "work-1",
+          "chapters",
+          "chapter-a",
+          "chapter.json",
+        ),
+        chapter,
+      );
+      const rows = buildReviewRows({
+        ...chapter,
+        pages: chapter.pages.map((page) => ({ ...page, dataUrl: "" })),
+      });
+      rows.forEach((row, i) => {
+        row.translated_text = "새 번역 " + i;
+      });
+      rows.push({ ...rows[0], translated_text: "duplicate must not win" });
+      const content = serializeReviewRows(rows, "tsv");
+      const { withLibraryMutation } = await import("../src/main/library/lock");
+      const { applyReviewImportUnlocked } =
+        await import("../src/main/libraryStore/reviewImport");
+      let held = 0;
+      const started = performance.now();
+      const importing = withLibraryMutation(async () => {
+        const acquired = performance.now();
+        const result = await applyReviewImportUnlocked({
+          chapterId: chapter.id,
+          content,
+          format: "tsv",
+          requireSourceMatch: true,
+        });
+        held = performance.now() - acquired;
+        return result;
+      });
+      let waited = 0;
+      const following = withLibraryMutation(async () => {
+        waited = performance.now() - started;
+      });
+      const result = await importing;
+      await following;
+      process.stdout.write(
+        `review import: ${count} pages / ${count * 30} rows, hold ${held.toFixed(1)}ms, next write wait ${waited.toFixed(1)}ms\n`,
+      );
+      expect(result.updatedBlockCount).toBe(count * 30);
+      expect(result.skippedRowCount).toBe(1);
+      expect(
+        result.chapter.pages.every(
+          (page) => page.translationCompletion?.status === "pending",
+        ),
+      ).toBe(true);
+      expect(
+        result.chapter.pages
+          .flatMap((page) => page.blocks)
+          .every((block) => block.translatedText.startsWith("새 번역")),
+      ).toBe(true);
+      expect((await library.openChapter(chapter.id)).pages).toEqual(
+        result.chapter.pages,
+      );
+    },
+  );
+
+  it("does not publish a transaction when a review table makes no changes", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir, { completedBubbleWorkflow: true });
+    const chapter = await library.openChapter("chapter-a");
+    const path = join(
+      rootDir,
+      "works",
+      "work-1",
+      "chapters",
+      "chapter-a",
+      "chapter.json",
+    );
+    const before = await readFile(path, "utf8");
+    const result = await library.importReviewText({
+      chapterId: chapter.id,
+      content: serializeReviewRows(buildReviewRows(chapter), "csv"),
+      format: "csv",
+    });
+    expect(result.updatedBlockCount).toBe(0);
+    expect(result.warnings).toEqual([]);
+    expect(await readFile(path, "utf8")).toBe(before);
+    expect(result.chapter.pages[0].translationCompletion?.status).toBe(
+      "completed",
+    );
+  });
+
+  it("preserves completed layout for source and review metadata changes while leaving other pages intact", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir, {
+      completedBubbleWorkflow: true,
+      duplicateBlockIdsAcrossPages: true,
+    });
+    const chapter = await library.openChapter("chapter-a");
+    const rows = buildReviewRows(chapter).filter(
+      (row) => row.page_id === "page-a",
+    );
+    rows[0].source_text = "corrected OCR";
+    rows[0].review_note = "reviewed without moving text";
+    rows[0].review_status = "reviewed";
+    const result = await library.importReviewText({
+      chapterId: chapter.id,
+      content: serializeReviewRows(rows, "csv"),
+      format: "csv",
+      updateSourceText: true,
+      requireSourceMatch: false,
+    });
+    expect(result.updatedBlockCount).toBe(1);
+    expect(result.chapter.pages[0].translationCompletion).toEqual(
+      chapter.pages[0].translationCompletion,
+    );
+    expect(result.chapter.pages[1]).toEqual(chapter.pages[1]);
+    expect(result.chapter.pages[0].blocks[0]).toMatchObject({
+      sourceText: "corrected OCR",
+      reviewStatus: "reviewed",
+    });
   });
 
   it("round-trips CSV cells with commas, quotes, newlines, and BOM", () => {

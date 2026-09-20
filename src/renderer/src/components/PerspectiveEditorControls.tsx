@@ -198,8 +198,7 @@ function PerspectiveAdvancedFields({
     onApply({ ...perspective, corners });
   };
   return (
-    <details className="transform-advanced">
-      <summary>{t("transform.perspective.advanced")}</summary>
+    <div className="transform-advanced">
       <div className="transform-corner-grid">
         {perspective.corners.flatMap((point, index) =>
           (["x", "y"] as const).map((axis) => (
@@ -218,6 +217,6 @@ function PerspectiveAdvancedFields({
           )),
         )}
       </div>
-    </details>
+    </div>
   );
 }

@@ -256,6 +256,7 @@ function BubbleLayoutAction({
         fullWidth
         iconLeft={<IconWand size={17} stroke={2.1} />}
         onClick={onRun}
+        size="sm"
       >
         {t("inpainting.auto.bubbleLayoutShort")}
       </Button>
@@ -277,6 +278,7 @@ function AutomaticEraseActions({
       disabled={disabled}
       fullWidth
       onClick={() => onOpenScope("select")}
+      size="sm"
     >
       {t("inpainting.auto.eraseShort")}
     </Button>

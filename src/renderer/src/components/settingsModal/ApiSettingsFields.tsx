@@ -1,10 +1,12 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import type { ApiReasoningEffort } from "../../../../shared/settingsTypes";
 import { API_REASONING_OPTIONS } from "../settingsOptions";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
 import { ApiProviderConnectionFields } from "./ApiProviderConnectionFields";
 import { SettingsNumberField } from "./SettingsNumberField";
+import { Field } from "../ui/Field";
 import { Select } from "../ui/Select";
 
 export type ApiSettingsFieldsProps = Pick<
@@ -59,16 +61,11 @@ export function ApiSettingsFields(
 function ApiAdvancedRequestFields(
   props: ApiSettingsFieldsProps,
 ): React.JSX.Element {
-  const { t } = useTranslation("components");
   return (
-    <details className="settings-advanced">
-      <summary>{t("settings.api.advanced.title")}</summary>
-      <p className="muted-line modal-note">
-        {t("settings.api.advanced.description")}
-      </p>
+    <div className="settings-subsection-stack">
       <ApiScalarAdvancedFields {...props} />
       <ApiJsonAdvancedFields {...props} />
-    </details>
+    </div>
   );
 }
 
@@ -90,6 +87,7 @@ function ApiScalarAdvancedFields({
     <div className="settings-advanced-grid">
       <SettingsNumberField
         ariaLabel={t("settings.api.advanced.temperature")}
+        tooltip={t("settings.api.advanced.help.temperature")}
         optional
         min={0}
         max={2}
@@ -104,6 +102,7 @@ function ApiScalarAdvancedFields({
       />
       <SettingsNumberField
         ariaLabel={t("settings.api.advanced.topP")}
+        tooltip={t("settings.api.advanced.help.topP")}
         optional
         min={0}
         max={1}
@@ -118,6 +117,7 @@ function ApiScalarAdvancedFields({
       />
       <SettingsNumberField
         ariaLabel={t("settings.api.advanced.topK")}
+        tooltip={t("settings.api.advanced.help.topK")}
         optional
         min={1}
         max={1000}
@@ -153,22 +153,32 @@ function ApiReasoningEffortField({
 >): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <label>
-      {t("settings.api.advanced.reasoningEffort")}
-      <Select
-        ariaLabel={t("settings.api.advanced.reasoningEffort")}
-        value={apiReasoningEffort}
-        disabled={controlsBusy}
-        options={API_REASONING_OPTIONS.map((option) => ({
-          value: option.id,
-          label: t(option.labelKey),
-        }))}
-        onValueChange={(nextValue) => {
-          clearTestState();
-          setApiReasoningEffort(nextValue as ApiReasoningEffort | "");
-        }}
-      />
-    </label>
+    <Field
+      label={t("settings.api.advanced.reasoningEffort")}
+      density="comfortable"
+    >
+      <ControlTooltip
+        floating
+        content={t("settings.api.advanced.help.reasoningEffort")}
+      >
+        {(descriptionId) => (
+          <Select
+            ariaDescribedBy={descriptionId}
+            ariaLabel={t("settings.api.advanced.reasoningEffort")}
+            value={apiReasoningEffort}
+            disabled={controlsBusy}
+            options={API_REASONING_OPTIONS.map((option) => ({
+              value: option.id,
+              label: t(option.labelKey),
+            }))}
+            onValueChange={(nextValue) => {
+              clearTestState();
+              setApiReasoningEffort(nextValue as ApiReasoningEffort | "");
+            }}
+          />
+        )}
+      </ControlTooltip>
+    </Field>
   );
 }
 
@@ -185,33 +195,43 @@ function ApiJsonAdvancedFields({
     <>
       <label>
         {t("settings.api.advanced.extraBody")}
-        <textarea
-          className="settings-json-textarea"
-          value={apiExtraBodyJson}
-          disabled={controlsBusy}
-          onChange={(event) => {
-            clearTestState();
-            setApiExtraBodyJson(event.target.value);
-          }}
-          placeholder={
-            '{"provider":{"sort":"throughput"}}\n{"extra_body":{"google":{"thinking_config":{"thinking_level":"low"}}}}\n{"chat_template_kwargs":{"enable_thinking":false}}'
-          }
-          spellCheck={false}
-        />
+        <ControlTooltip
+          floating
+          content={t("settings.api.advanced.help.extraBody")}
+        >
+          <textarea
+            className="settings-json-textarea"
+            aria-label={t("settings.api.advanced.extraBody")}
+            value={apiExtraBodyJson}
+            disabled={controlsBusy}
+            onChange={(event) => {
+              clearTestState();
+              setApiExtraBodyJson(event.target.value);
+            }}
+            placeholder="{}"
+            spellCheck={false}
+          />
+        </ControlTooltip>
       </label>
       <label>
         {t("settings.api.advanced.customHeaders")}
-        <textarea
-          className="settings-json-textarea"
-          value={apiCustomHeadersJson}
-          disabled={controlsBusy}
-          onChange={(event) => {
-            clearTestState();
-            setApiCustomHeadersJson(event.target.value);
-          }}
-          placeholder='{"HTTP-Referer":"https://example.invalid","X-OpenRouter-Title":"Manga Translator"}'
-          spellCheck={false}
-        />
+        <ControlTooltip
+          floating
+          content={t("settings.api.advanced.help.customHeaders")}
+        >
+          <textarea
+            className="settings-json-textarea"
+            aria-label={t("settings.api.advanced.customHeaders")}
+            value={apiCustomHeadersJson}
+            disabled={controlsBusy}
+            onChange={(event) => {
+              clearTestState();
+              setApiCustomHeadersJson(event.target.value);
+            }}
+            placeholder="{}"
+            spellCheck={false}
+          />
+        </ControlTooltip>
       </label>
     </>
   );

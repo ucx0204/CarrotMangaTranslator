@@ -3181,6 +3181,28 @@
         "pct": 87.5
       }
     },
+    "src/main/libraryStore/reviewImport.ts": {
+      "lines": {
+        "total": 105,
+        "covered": 85,
+        "pct": 80.95
+      },
+      "statements": {
+        "total": 106,
+        "covered": 86,
+        "pct": 81.13
+      },
+      "functions": {
+        "total": 15,
+        "covered": 15,
+        "pct": 100
+      },
+      "branches": {
+        "total": 74,
+        "covered": 53,
+        "pct": 71.62
+      }
+    },
     "src/main/libraryStore/shareExportWorkflow.ts": {
       "lines": {
         "covered": 66,
@@ -9891,6 +9913,28 @@
         "pct": 92.3
       }
     },
+    "src/renderer/src/components/PerspectiveEditorControls.tsx": {
+      "lines": {
+        "covered": 33,
+        "total": 40,
+        "pct": 82.5
+      },
+      "functions": {
+        "covered": 15,
+        "total": 16,
+        "pct": 93.75
+      },
+      "statements": {
+        "covered": 34,
+        "total": 42,
+        "pct": 80.95
+      },
+      "branches": {
+        "covered": 24,
+        "total": 30,
+        "pct": 80
+      }
+    },
     "src/renderer/src/components/RenameModal.tsx": {
       "lines": {
         "covered": 0,
@@ -11035,6 +11079,28 @@
         "pct": 95.45
       }
     },
+    "src/renderer/src/components/pageList/usePageListState.ts": {
+      "lines": {
+        "covered": 15,
+        "total": 21,
+        "pct": 71.42
+      },
+      "statements": {
+        "covered": 18,
+        "total": 25,
+        "pct": 72
+      },
+      "functions": {
+        "covered": 6,
+        "total": 9,
+        "pct": 66.66
+      },
+      "branches": {
+        "covered": 4,
+        "total": 11,
+        "pct": 36.36
+      }
+    },
     "src/renderer/src/components/rightRailPanels.tsx": {
       "lines": {
         "covered": 10,
@@ -11343,6 +11409,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/components/settingsModal/GemmaLocalModelFields.tsx": {
+      "lines": {
+        "total": 15,
+        "covered": 0,
+        "pct": 0
+      },
+      "statements": {
+        "total": 15,
+        "covered": 0,
+        "pct": 0
+      },
+      "functions": {
+        "total": 9,
+        "covered": 0,
+        "pct": 0
+      },
+      "branches": {
+        "total": 4,
+        "covered": 0,
+        "pct": 0
+      }
+    },
     "src/renderer/src/components/settingsModal/GemmaMemorySummary.tsx": {
       "lines": {
         "covered": 1,
@@ -11497,6 +11585,28 @@
         "pct": 93.33
       }
     },
+    "src/renderer/src/components/settingsModal/InpaintingModelSettings.tsx": {
+      "lines": {
+        "total": 23,
+        "covered": 13,
+        "pct": 56.52
+      },
+      "statements": {
+        "total": 25,
+        "covered": 13,
+        "pct": 52
+      },
+      "functions": {
+        "total": 10,
+        "covered": 7,
+        "pct": 70
+      },
+      "branches": {
+        "total": 29,
+        "covered": 13,
+        "pct": 44.82
+      }
+    },
     "src/renderer/src/components/settingsModal/SettingsModalView.tsx": {
       "lines": {
         "covered": 9,
@@ -11561,6 +11671,28 @@
         "total": 22,
         "covered": 0,
         "pct": 0
+      }
+    },
+    "src/renderer/src/components/settingsModal/ShortcutsSettingsPanel.tsx": {
+      "lines": {
+        "total": 70,
+        "covered": 62,
+        "pct": 88.57
+      },
+      "statements": {
+        "total": 75,
+        "covered": 66,
+        "pct": 88
+      },
+      "functions": {
+        "total": 25,
+        "covered": 23,
+        "pct": 92
+      },
+      "branches": {
+        "total": 28,
+        "covered": 24,
+        "pct": 85.71
       }
     },
     "src/renderer/src/components/settingsModal/TestSettingsPanel.tsx": {
@@ -19551,6 +19683,28 @@
         "pct": 50
       }
     },
+    "src/main/jobs/workContextAnalysisOwnership.ts": {
+      "lines": {
+        "covered": 9,
+        "total": 10,
+        "pct": 90
+      },
+      "statements": {
+        "covered": 9,
+        "total": 11,
+        "pct": 81.81
+      },
+      "functions": {
+        "covered": 3,
+        "total": 5,
+        "pct": 60
+      },
+      "branches": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      }
+    },
     "src/main/library/librarySoundEffectFacade.ts": {
       "lines": {
         "total": 10,
@@ -26547,6 +26701,28 @@
         "pct": 41.66
       }
     },
+    "src/renderer/src/components/pageList/PageListHeader.tsx": {
+      "lines": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 11,
+        "total": 12,
+        "pct": 91.66
+      }
+    },
     "src/renderer/src/components/pageList/PageTimingDialog.tsx": {
       "lines": {
         "total": 20,
@@ -26589,6 +26765,28 @@
         "total": 2,
         "covered": 2,
         "pct": 100
+      }
+    },
+    "src/renderer/src/components/pageList/usePageListWindow.ts": {
+      "lines": {
+        "covered": 50,
+        "total": 52,
+        "pct": 96.15
+      },
+      "statements": {
+        "covered": 57,
+        "total": 61,
+        "pct": 93.44
+      },
+      "functions": {
+        "covered": 14,
+        "total": 15,
+        "pct": 93.33
+      },
+      "branches": {
+        "covered": 40,
+        "total": 46,
+        "pct": 86.95
       }
     },
     "src/renderer/src/components/pageThumbnails.ts": {
@@ -26877,6 +27075,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/components/settingsModal/SettingsModalFooter.tsx": {
+      "lines": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "statements": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "functions": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      },
+      "branches": {
+        "total": 8,
+        "covered": 8,
+        "pct": 100
+      }
+    },
     "src/renderer/src/components/settingsModal/SettingsNumberField.tsx": {
       "lines": {
         "total": 11,
@@ -27073,6 +27293,28 @@
         "total": 5,
         "covered": 5,
         "pct": 100
+      }
+    },
+    "src/renderer/src/components/settingsModal/settingsSubmissionIssue.ts": {
+      "lines": {
+        "total": 21,
+        "covered": 21,
+        "pct": 100
+      },
+      "statements": {
+        "total": 22,
+        "covered": 22,
+        "pct": 100
+      },
+      "functions": {
+        "total": 8,
+        "covered": 8,
+        "pct": 100
+      },
+      "branches": {
+        "total": 32,
+        "covered": 31,
+        "pct": 96.87
       }
     },
     "src/renderer/src/components/shareImport/shareImportInitialState.ts": {
@@ -27491,6 +27733,28 @@
         "total": 2,
         "covered": 2,
         "pct": 100
+      }
+    },
+    "src/renderer/src/components/ui/FloatingControlTooltip.tsx": {
+      "lines": {
+        "total": 28,
+        "covered": 28,
+        "pct": 100
+      },
+      "statements": {
+        "total": 33,
+        "covered": 33,
+        "pct": 100
+      },
+      "functions": {
+        "total": 8,
+        "covered": 8,
+        "pct": 100
+      },
+      "branches": {
+        "total": 16,
+        "covered": 14,
+        "pct": 87.5
       }
     },
     "src/renderer/src/components/ui/RadioMenu.tsx": {
@@ -28151,6 +28415,28 @@
         "total": 12,
         "covered": 9,
         "pct": 75
+      }
+    },
+    "src/renderer/src/hooks/appOperationEventScheduler.ts": {
+      "lines": {
+        "covered": 33,
+        "total": 35,
+        "pct": 94.28
+      },
+      "statements": {
+        "covered": 35,
+        "total": 39,
+        "pct": 89.74
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 23,
+        "total": 26,
+        "pct": 88.46
       }
     },
     "src/renderer/src/hooks/importShareActionTypes.ts": {

@@ -110,7 +110,6 @@ describe("dense transform editor", () => {
       }),
     });
 
-    fireEvent.click(screen.getByText("꼭짓점 좌표"));
     const topLeftX = screen.getByRole("spinbutton", { name: "좌상 X" });
     fireEvent.change(topLeftX, { target: { value: "100" } });
     fireEvent.keyDown(topLeftX, { key: "Enter" });

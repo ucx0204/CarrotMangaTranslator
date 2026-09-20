@@ -1,4 +1,5 @@
 import type { JobState } from "../../../../shared/jobTypes";
+import { useMemo } from "react";
 import type {
   ChapterSnapshot,
   MangaPage,
@@ -23,7 +24,7 @@ export function resolvePageActivityLocks({
   activeInputPages?: ReadonlySet<string>;
   currentChapter: ChapterSnapshot | null;
   selectedPage: MangaPage | null;
-  jobState: JobState;
+  jobState: Pick<JobState, "kind" | "targets">;
   progressState: {
     jobActive: boolean;
     pageLockActive: boolean;
@@ -47,6 +48,11 @@ export function resolvePageActivityLocks({
         );
   return {
     selectedPageEditLocked,
+    removalLockedPageIds: resolveRemovalLocks(
+      activities,
+      currentChapter,
+      progressState.jobTargetPageIds,
+    ),
     editingLockedPageIds:
       activities && currentChapter
         ? new Set(
@@ -82,6 +88,66 @@ export function resolvePageActivityLocks({
         )
       : progressState.jobTargetPageIds,
   };
+}
+
+function resolveRemovalLocks(
+  state: AppActivityState | null | undefined,
+  chapter: ChapterSnapshot | null,
+  fallback: ReadonlySet<string>,
+): ReadonlySet<string> {
+  if (!state || !chapter) return fallback;
+  return new Set(
+    chapter.pages
+      .filter(
+        (page) =>
+          isPageActivityLocked(state, chapter.id, page.id) ||
+          state.pages.some(
+            (entry) =>
+              entry.chapterId === chapter.id &&
+              entry.pageId === page.id &&
+              entry.phase !== "completed" &&
+              entry.phase !== "failed",
+          ) ||
+          state.activities.some((activity) =>
+            activityResourcesConflict(
+              [libraryStructureResource("page", `${chapter.id}/${page.id}`)],
+              activity.resources,
+            ),
+          ),
+      )
+      .map((page) => page.id),
+  );
+}
+
+export function usePageActivityLocks(
+  options: Parameters<typeof resolvePageActivityLocks>[0],
+) {
+  const { activities, activeInputPages, currentChapter, selectedPage } =
+    options;
+  const { kind, targets } = options.jobState;
+  const { jobActive, pageLockActive, jobTargetPageIds } = options.progressState;
+  return useMemo(
+    () =>
+      resolvePageActivityLocks({
+        activities,
+        activeInputPages,
+        currentChapter,
+        selectedPage,
+        jobState: { kind, targets },
+        progressState: { jobActive, pageLockActive, jobTargetPageIds },
+      }),
+    [
+      activities,
+      activeInputPages,
+      currentChapter,
+      selectedPage,
+      kind,
+      targets,
+      jobActive,
+      pageLockActive,
+      jobTargetPageIds,
+    ],
+  );
 }
 
 function isPageActivityLocked(

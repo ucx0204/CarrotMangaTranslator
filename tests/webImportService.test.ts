@@ -143,7 +143,9 @@ describe("WebImportApplicationService", () => {
     const prepareImport = vi.fn<WebImportSessionPort["prepareImport"]>(
       async (_sessionId, _selectedIds, _signal, onProgress) => {
         onProgress?.(0, 0);
+        expect(harness.operations.currentActivity?.progressCurrent).toBe(0);
         onProgress?.(1, 1);
+        expect(harness.operations.currentActivity?.progressCurrent).toBe(1);
         return { preview: importPreview(), cleanup };
       },
     );
@@ -178,13 +180,11 @@ describe("WebImportApplicationService", () => {
         progressCurrent: 0,
         progressTotal: 1,
       }),
-      expect.objectContaining({ status: "running", progressTotal: 1 }),
       expect.objectContaining({
-        status: "running",
+        status: "completed",
         progressCurrent: 1,
         progressTotal: 1,
       }),
-      expect.objectContaining({ status: "completed" }),
     ]);
   });
 

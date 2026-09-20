@@ -1,0 +1,13 @@
+.windowed {
+  --page-row-height: 74px;
+  row-gap: 10px;
+  overflow-anchor: none;
+}
+.windowed > [data-page-id] {
+  height: var(--page-row-height);
+  min-height: var(--page-row-height);
+  box-sizing: border-box;
+}
+.spacer {
+  pointer-events: none;
+}

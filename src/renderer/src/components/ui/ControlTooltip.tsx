@@ -1,7 +1,9 @@
 import React from "react";
+import { FloatingControlTooltip } from "./FloatingControlTooltip";
 
 type ControlTooltipProps = {
-  children: React.ReactNode;
+  children: React.ReactNode | ((descriptionId: string) => React.ReactNode);
+  floating?: boolean;
   className?: string;
   content: string;
   placement?: "bottom" | "left" | "right" | "top";
@@ -10,11 +12,18 @@ type ControlTooltipProps = {
 /** App-rendered tooltip for compact icon controls; never uses native title UI. */
 export function ControlTooltip({
   children,
+  floating = false,
   className,
   content,
   placement = "right",
 }: ControlTooltipProps): React.JSX.Element {
   const tooltipId = React.useId();
+  if (floating)
+    return (
+      <FloatingControlTooltip content={content} className={className}>
+        {children}
+      </FloatingControlTooltip>
+    );
   const control = React.isValidElement<{ "aria-describedby"?: string }>(
     children,
   )
@@ -31,7 +40,9 @@ export function ControlTooltip({
     >
       {control
         ? React.cloneElement(control, { "aria-describedby": describedBy })
-        : children}
+        : typeof children === "function"
+          ? children(tooltipId)
+          : children}
       <span className="control-tooltip-bubble" id={tooltipId} role="tooltip">
         {content}
       </span>

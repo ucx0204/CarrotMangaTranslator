@@ -34,5 +34,6 @@ describe("TranslationEngineSelector", () => {
     expect(screen.getByText("openai-codex")).toBeTruthy();
     expect(radios[1].getAttribute("aria-checked")).toBe("true");
     expect(radios[1].getAttribute("tabindex")).toBe("0");
+    expect(document.activeElement).toBe(radios[1]);
   });
 });

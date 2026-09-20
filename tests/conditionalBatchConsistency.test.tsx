@@ -516,8 +516,6 @@ describe("batch controls match their stored and applied values", () => {
           }}
         />,
       );
-      if (field === "glowOpacity")
-        fireEvent.click(screen.getByText("색상 · 외곽선 · 광선"));
       const filter = screen.getByRole("spinbutton", {
         name: "부분 서식 비교 값",
       }) as HTMLInputElement;

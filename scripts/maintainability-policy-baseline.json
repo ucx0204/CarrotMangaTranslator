@@ -651,7 +651,7 @@
       "numericZIndexes": 5
     },
     "src/renderer/src/styles/panels.css": {
-      "literalColors": 27,
+      "literalColors": 26,
       "numericZIndexes": 0
     },
     "src/renderer/src/styles/settings.css": {
@@ -659,7 +659,7 @@
       "numericZIndexes": 0
     },
     "src/renderer/src/styles/shell-workspace.css": {
-      "literalColors": 42,
+      "literalColors": 29,
       "numericZIndexes": 0
     },
     "src/renderer/src/styles/stage-overlay.css": {

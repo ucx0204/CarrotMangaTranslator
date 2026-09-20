@@ -43,8 +43,11 @@ export function usePageListState({
   );
   React.useEffect(() => {
     if (!selectedPageId) return;
-    pageItemRefs.current[selectedPageId]?.scrollIntoView({ block: "nearest" });
-  }, [selectedPageId]);
+    if (pages.length <= 100)
+      pageItemRefs.current[selectedPageId]?.scrollIntoView?.({
+        block: "nearest",
+      });
+  }, [selectedPageId, pages.length]);
   const handleDragStart = React.useCallback((event: DragStartEvent) => {
     setActivePageId(String(event.active.id));
   }, []);

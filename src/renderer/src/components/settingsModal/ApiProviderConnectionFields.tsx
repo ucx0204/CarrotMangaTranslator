@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import {
   MAX_API_KEY_MAX_ATTEMPTS,
@@ -86,26 +87,31 @@ function ProviderTemplateFields({
       <div className="settings-api-template">
         <label>
           {t("settings.api.providerTemplate")}
-          <Select
-            ariaLabel={t("settings.api.providerTemplate")}
-            value={connection.provider}
-            disabled={busy}
-            options={API_PROVIDER_PRESET_IDS.map((id) => ({
-              value: id,
-              label: t(PROVIDER_LABEL_KEYS[id]),
-            }))}
-            onValueChange={(nextValue) =>
-              connection.applyProvider(nextValue as ApiProviderPresetId)
-            }
-          />
+          <ControlTooltip
+            floating
+            content={t(
+              connection.provider === "custom"
+                ? "settings.api.providerHintCustom"
+                : "settings.api.providerHintVerified",
+            )}
+          >
+            {(descriptionId) => (
+              <Select
+                ariaDescribedBy={descriptionId}
+                ariaLabel={t("settings.api.providerTemplate")}
+                value={connection.provider}
+                disabled={busy}
+                options={API_PROVIDER_PRESET_IDS.map((id) => ({
+                  value: id,
+                  label: t(PROVIDER_LABEL_KEYS[id]),
+                }))}
+                onValueChange={(nextValue) =>
+                  connection.applyProvider(nextValue as ApiProviderPresetId)
+                }
+              />
+            )}
+          </ControlTooltip>
         </label>
-        <p className="muted-line modal-note">
-          {t(
-            connection.provider === "custom"
-              ? "settings.api.providerHintCustom"
-              : "settings.api.providerHintVerified",
-          )}
-        </p>
       </div>
       {connection.provider === "google-vertex" ? (
         <VertexFields connection={connection} controlsBusy={controlsBusy} />
@@ -295,6 +301,7 @@ function RetryFields({
       <div className="settings-advanced-grid">
         <SettingsNumberField
           ariaLabel={t("settings.api.keyMaxAttempts")}
+          tooltip={t("settings.api.retryDescription")}
           min={MIN_API_KEY_MAX_ATTEMPTS}
           max={MAX_API_KEY_MAX_ATTEMPTS}
           step={1}
@@ -307,6 +314,7 @@ function RetryFields({
         />
         <SettingsNumberField
           ariaLabel={t("settings.api.retryDelaySeconds")}
+          tooltip={t("settings.api.retryDescription")}
           min={MIN_API_RETRY_DELAY_SECONDS}
           max={MAX_API_RETRY_DELAY_SECONDS}
           step={0.5}
@@ -332,9 +340,6 @@ function RetryFields({
           }}
         />
       </div>
-      <p className="muted-line modal-note">
-        {t("settings.api.retryDescription")}
-      </p>
     </>
   );
 }

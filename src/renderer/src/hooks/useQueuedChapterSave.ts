@@ -140,7 +140,8 @@ async function runQueuedSaveIteration({
     markSaveSettled(refs, setDirty);
     return;
   }
-  if (pageIds.some((id) => !chapter.pages.some((page) => page.id === id))) {
+  const sourceById = new Map(chapter.pages.map((page) => [page.id, page]));
+  if (pageIds.some((id) => !sourceById.has(id))) {
     throw new Error(
       "저장할 페이지가 현재 화에 없습니다. 편집 내용을 확인한 뒤 다시 시도해 주세요.",
     );
@@ -155,7 +156,7 @@ async function runQueuedSaveIteration({
   });
   const latest = currentChapterRef.current;
   if (latest?.id !== chapter.id) return;
-  const sourceById = new Map(chapter.pages.map((page) => [page.id, page]));
+  const savedIds = new Set(pageIds);
   const savedById = new Map(saved.pages.map((page) => [page.id, page]));
   if (pageIds.some((id) => !savedById.has(id))) {
     throw new Error(
@@ -168,10 +169,11 @@ async function runQueuedSaveIteration({
       const source = sourceById.get(page.id);
       const result = savedById.get(page.id);
       if (
-        !pageIds.includes(page.id) ||
+        !savedIds.has(page.id) ||
         !source ||
         !result ||
-        createPageRevision(page) !== createPageRevision(source)
+        (page !== source &&
+          createPageRevision(page) !== createPageRevision(source))
       )
         return page;
       refs.dirtyPageIdsRef.current.delete(page.id);

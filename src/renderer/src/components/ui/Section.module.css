@@ -58,6 +58,10 @@
   min-width: 0;
 }
 
+.body[hidden] {
+  display: none;
+}
+
 .collapseButton {
   display: grid;
   grid-template-columns: var(--sp-8) minmax(0, 1fr);
@@ -71,6 +75,11 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.collapseButton:hover:not(:disabled) {
+  background: none;
+  color: var(--text);
 }
 
 .collapseButton:focus-visible {

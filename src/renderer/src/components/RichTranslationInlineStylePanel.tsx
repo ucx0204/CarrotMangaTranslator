@@ -10,6 +10,7 @@ import type {
 
 type RichTranslationInlineStylePanelProps = {
   disabled: boolean;
+  hasSelection: boolean;
   mode: RichTranslationEditorMode;
   values: RichTranslationSelectionValues;
   onApplyStyle: RichTranslationInlineStyleAction;
@@ -26,6 +27,18 @@ export function RichTranslationInlineStylePanel(
         defaultValue: "글자별 서식",
       })}
     >
+      <div className="rich-inline-scope">
+        <strong>{t("editor.richText.inlineStyle")}</strong>
+        <span>
+          {t(
+            props.hasSelection
+              ? "editor.richText.scopeSelection"
+              : props.mode === "code"
+                ? "editor.richText.scopeCodeCaret"
+                : "editor.richText.scopeCaret",
+          )}
+        </span>
+      </div>
       <RichTranslationInlineTypography {...props} />
       <RichTranslationInlineAppearance
         disabled={props.disabled}

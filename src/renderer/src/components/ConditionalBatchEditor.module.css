@@ -855,25 +855,13 @@
 
 .inlineStyleGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--sp-2) var(--sp-4);
 }
 
 .inlineStyleAdvanced {
+  padding-top: var(--sp-3);
   border-top: 1px solid var(--border-soft);
-}
-
-.inlineStyleAdvanced > summary {
-  padding: var(--sp-3) 0;
-  color: var(--text-dim);
-  font-size: var(--font-sm);
-  font-weight: 650;
-  cursor: pointer;
-  list-style-position: inside;
-}
-
-.inlineStyleAdvanced[open] > summary {
-  color: var(--text);
 }
 
 .existingStyleMatch {
@@ -928,15 +916,17 @@
 
 .patchField {
   display: grid;
+  grid-template-columns: minmax(0, 110px) minmax(0, 1fr);
   align-content: start;
+  align-items: center;
   gap: var(--sp-2);
-  padding: var(--sp-3);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
+  min-height: 36px;
+  word-break: keep-all;
 }
 
 .patchValue {
   display: grid;
+  min-width: 0;
   gap: var(--sp-2);
 }
 

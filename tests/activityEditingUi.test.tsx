@@ -5,10 +5,12 @@ import {
   cleanup,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
 } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { usePageActivityLocks } from "../src/renderer/src/app/session/jobTargetLocks";
 import { ChapterQuickControls } from "../src/renderer/src/components/ChapterQuickControls";
 import {
   PageListThumbnail,
@@ -166,4 +168,38 @@ it("keeps the page list mounted when its thumbnail bridge throws synchronously",
     expect(view.container.querySelector('[data-state="error"]')).not.toBeNull(),
   );
   expect(view.container.firstElementChild).not.toBeNull();
+});
+
+it("keeps page-lock collections stable across progress-only updates", () => {
+  const activities = { version: 1, activities: [], pages: [] };
+  const targets = new Set<string>();
+  const view = renderHook(
+    ({ progress }) => {
+      const jobState = {
+        kind: "gemma-analysis" as const,
+        progressCurrent: progress,
+      };
+      return usePageActivityLocks({
+        activities,
+        currentChapter: null,
+        selectedPage: null,
+        jobState,
+        progressState: {
+          jobActive: true,
+          pageLockActive: true,
+          jobTargetPageIds: targets,
+        },
+      });
+    },
+    { initialProps: { progress: 0 } },
+  );
+  const first = view.result.current;
+  view.rerender({ progress: 1000 });
+  expect(view.result.current).toBe(first);
+  expect(view.result.current.editingLockedPageIds).toBe(
+    first.editingLockedPageIds,
+  );
+  expect(view.result.current.removalLockedPageIds).toBe(
+    first.removalLockedPageIds,
+  );
 });

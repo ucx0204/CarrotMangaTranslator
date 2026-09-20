@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import styles from "./EditorTextEffectControls.module.css";
 import type {
   TextEffect,
   TextGlow,
@@ -34,12 +35,8 @@ export function EditorTextEffectGroup({
   mixedFields?: ReadonlySet<PanelFormatFieldKey>;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
 }): React.JSX.Element {
-  const { t } = useTranslation("components");
   return (
-    <div className="editor-group editor-text-effect-group">
-      <div className="editor-group-head">
-        <h3>{t("format.textEffect.title")}</h3>
-      </div>
+    <div className={`editor-group ${styles.group}`}>
       <TextEffectControls
         disabled={disabled}
         effect={block.textEffect}
@@ -73,7 +70,10 @@ function TextGlowControls({
     onChange({ ...value, ...patch });
   const label = t("format.textGlow.title", { defaultValue: "광선" });
   return (
-    <div className="text-effect-controls text-glow-controls">
+    <div
+      className={`text-effect-controls text-glow-controls ${styles.effect}`}
+      data-enabled={value.enabled}
+    >
       <div className="text-effect-control-head">
         <CheckboxField
           className="editor-appearance-toggle text-effect-enabled-toggle"
@@ -143,7 +143,10 @@ export function TextEffectControls({
   const update = (patch: Partial<TextEffect>): void =>
     onChange({ ...value, ...patch });
   return (
-    <div className="text-effect-controls">
+    <div
+      className={`text-effect-controls ${styles.effect}`}
+      data-enabled={value.enabled}
+    >
       <div className="text-effect-control-head">
         <CheckboxField
           className="editor-appearance-toggle text-effect-enabled-toggle"

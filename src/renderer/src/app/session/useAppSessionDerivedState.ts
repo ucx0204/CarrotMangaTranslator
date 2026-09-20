@@ -27,7 +27,7 @@ import {
   type NeighborImageTarget,
 } from "./appSessionSelectors";
 import {
-  resolvePageActivityLocks,
+  usePageActivityLocks,
   resolveLockedJobTargetPageIds,
 } from "./jobTargetLocks";
 
@@ -102,6 +102,14 @@ export function useAppSessionDerivedState({
     [regionSelection],
   );
 
+  const pageLocks = usePageActivityLocks({
+    activities,
+    activeInputPages,
+    currentChapter,
+    selectedPage: pageState.selectedPage,
+    jobState,
+    progressState,
+  });
   return {
     activities: activities ?? null,
     ...pageState,
@@ -110,14 +118,7 @@ export function useAppSessionDerivedState({
     clearPageImageCache: pageImages.clearPageImageCache,
     inpaintingToolActive: inpaintingTool !== "none",
     regionSelectionRect,
-    ...resolvePageActivityLocks({
-      activities,
-      activeInputPages,
-      currentChapter,
-      selectedPage: pageState.selectedPage,
-      jobState,
-      progressState,
-    }),
+    ...pageLocks,
     selectedPageImageDataUrl: pageImages.selectedPageImageDataUrl,
     selectedPageImageDataUrlPageId: pageImages.selectedPageImageDataUrlPageId,
     selectedPageOriginalImageDataUrl:

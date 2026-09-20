@@ -265,6 +265,8 @@ function createSidebarProps({
     pageStructureBlocked: derivedState.chapterStructureLocked,
     library: core.library,
     lockedPageIds: derivedState.editingLockedPageIds,
+    removalLockedPageIds: derivedState.removalLockedPageIds,
+    modelResourceBusy: derivedState.modelResourceBusy,
     onOpenBatchImport: commandRegistry.byId["open-batch"].run,
     onOpenChapter: (chapterId) => void libraryActions.openChapter(chapterId),
     onOpenLibraryFolder: commandRegistry.byId["open-library-folder"].run,

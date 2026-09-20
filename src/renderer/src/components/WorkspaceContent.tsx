@@ -167,17 +167,10 @@ function EmptyWorkspace({
     <Section
       bodyClassName="empty-content"
       className="empty-state"
-      description={t("workspace.empty.description")}
-      descriptionClassName="empty-description"
       headingLevel={2}
       title={t("workspace.empty.title")}
       titleClassName="empty-title"
     >
-      <EmptyWorkspaceSteps
-        commandLabels={commandLabels}
-        onOpenSettings={onOpenSettings}
-        onOpenTranslationSource={onOpenTranslationSource}
-      />
       <div className="empty-actions">
         <Button variant="primary" onClick={onOpenTranslationSource}>
           {resolveAppCommandLabel(
@@ -200,6 +193,13 @@ function EmptyWorkspace({
             t("workspace.empty.importSharedCopy"),
           )}
         </Button>
+        <Button variant="ghost" onClick={onOpenSettings}>
+          {resolveAppCommandLabel(
+            commandLabels,
+            "open-settings",
+            t("workspace.empty.openSettings"),
+          )}
+        </Button>
       </div>
       <p className="empty-hints">
         <kbd>←</kbd> <kbd>→</kbd> {t("workspace.empty.hints.pageNavigation")} ·{" "}
@@ -213,55 +213,5 @@ function EmptyWorkspace({
         {t("workspace.empty.hints.shortcuts")}
       </p>
     </Section>
-  );
-}
-
-function EmptyWorkspaceSteps({
-  commandLabels,
-  onOpenSettings,
-  onOpenTranslationSource,
-}: Pick<
-  AppWorkspaceProps,
-  "commandLabels" | "onOpenSettings" | "onOpenTranslationSource"
->): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <ol className="empty-steps">
-      <li>
-        <span className="empty-step-num">1</span>
-        <div className="empty-step-body">
-          <strong>{t("workspace.empty.steps.engine.title")}</strong>
-          <span>{t("workspace.empty.steps.engine.description")}</span>
-        </div>
-        <Button size="sm" onClick={onOpenSettings}>
-          {resolveAppCommandLabel(
-            commandLabels,
-            "open-settings",
-            t("workspace.empty.openSettings"),
-          )}
-        </Button>
-      </li>
-      <li>
-        <span className="empty-step-num">2</span>
-        <div className="empty-step-body">
-          <strong>{t("workspace.empty.steps.import.title")}</strong>
-          <span>{t("workspace.empty.steps.import.description")}</span>
-        </div>
-        <Button size="sm" onClick={onOpenTranslationSource}>
-          {resolveAppCommandLabel(
-            commandLabels,
-            "open-translate-source",
-            t("sidebar.translate"),
-          )}
-        </Button>
-      </li>
-      <li>
-        <span className="empty-step-num">3</span>
-        <div className="empty-step-body">
-          <strong>{t("workspace.empty.steps.edit.title")}</strong>
-          <span>{t("workspace.empty.steps.edit.description")}</span>
-        </div>
-      </li>
-    </ol>
   );
 }

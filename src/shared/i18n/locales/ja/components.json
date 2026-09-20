@@ -319,7 +319,9 @@
         "keep-all": "単語単位",
         "keep-all-overflow": "単語単位＋はみ出し防止"
       }
-    }
+    },
+    "blockScope": "選択ブロック {{count}} 個 · 基本書式",
+    "singleBlockScope": "ブロックの基本書式"
   },
   "transform": {
     "title": "変形",
@@ -396,7 +398,8 @@
         "leftNarrow": "左を狭く",
         "rightNarrow": "右を狭く",
         "skewLeft": "平行四辺形・左",
-        "skewRight": "平行四辺形・右"
+        "skewRight": "平行四辺形・右",
+        "identity": "変形なし"
       },
       "corners": {
         "topLeft": "左上",
@@ -519,7 +522,10 @@
       "placeholder": "翻訳文を入力",
       "codeAria": "翻訳文の書式コード",
       "specialCharacters": "記号",
-      "insertSpecialCharacter": "{{character}}を入力"
+      "insertSpecialCharacter": "{{character}}を入力",
+      "scopeSelection": "選択した文字に適用",
+      "scopeCaret": "これから入力する文字に適用",
+      "scopeCodeCaret": "カーソル位置に書式タグを挿入"
     }
   },
   "formatBatch": {
@@ -1003,7 +1009,8 @@
     "moveItem": "{{name}}を移動",
     "retranslate": "再翻訳",
     "retranslateItem": "{{name}}を再翻訳",
-    "deleteItem": "{{name}}を削除"
+    "deleteItem": "{{name}}を削除",
+    "actionBlocked": "この対象を使用する処理が実行中です。"
   },
   "status": {
     "title": "状態",
@@ -1106,6 +1113,10 @@
       "picker": {
         "label": "色を抽出",
         "title": "キャンバスから色を抽出"
+      },
+      "warp": {
+        "label": "ワープ",
+        "title": "格子点を動かして文字の形を調整します"
       }
     }
   },
@@ -1473,7 +1484,8 @@
         "place": "場所",
         "term": "用語",
         "honorific": "呼称",
-        "other": "その他"
+        "other": "その他",
+        "sfx": "効果音"
       }
     },
     "characters": {
@@ -1908,7 +1920,7 @@
           "description": "AMD GPUでFluxをZLUDA経由で実行します。AMD HIP SDKが必要です。"
         },
         "cpu": {
-          "label": "CPUネイティブ（非常に低速）",
+          "label": "CPU",
           "description": "PythonやDiffusersを使わないCPU専用Flux互換モードです。1ページに数分以上かかる場合があるため、実用的なCPU修復にはLaMaまたはAOTを推奨します。"
         }
       },
@@ -2060,7 +2072,7 @@
       "model": "APIモデル",
       "key": "APIキー",
       "keyPlaceholder": "1行にAPIキーを1つ入力",
-      "keyDescription": "空行と重複キーは無視します。現在{{count}}個が設定され、キーはこのPCのOS暗号化ストレージに保存されます。",
+      "keyDescription": "API キー {{count}} 個",
       "showKey": "APIキーを表示",
       "hideKey": "APIキーを隠す",
       "openKeyPage": "APIキー発行ページを開く",
@@ -2101,16 +2113,24 @@
       "openOllamaLibrary": "Ollama モデルライブラリを開く",
       "keyMaxAttempts": "キーごとの最大試行回数",
       "retryDelaySeconds": "再試行の待機時間（秒）",
-      "retryDescription": "再試行可能な失敗時は次の行のキーへ切り替えます。すべてのキーを順番に使ってから先頭へ戻り、1回のリクエストで各キーを設定回数以上は試しません。",
+      "retryDescription": "失敗時は次のキーで再試行します。",
       "advanced": {
         "title": "API詳細設定",
-        "description": "任意項目です。空欄の値は送信しません。",
+        "description": "空欄：提供元の既定値",
         "temperature": "Temperature",
         "topP": "Top P",
         "topK": "Top K",
         "reasoningEffort": "Reasoning effort",
         "extraBody": "Extra body JSON",
-        "customHeaders": "Custom headers JSON"
+        "customHeaders": "Custom headers JSON",
+        "help": {
+          "temperature": "出力のランダム性です。値が高いほど表現が多様になります。",
+          "topP": "累積確率で単語の候補を制限します。",
+          "topK": "確率の高い単語候補の数を制限します。",
+          "reasoningEffort": "推論量を指定します。対応する値はプロバイダーとモデルによって異なります。",
+          "extraBody": "リクエスト本文に追加するJSONオブジェクトです。対応する項目のみ指定してください。",
+          "customHeaders": "追加するHTTPヘッダーをJSONオブジェクトで指定します。"
+        }
       },
       "requestIntervalSeconds": "最小呼び出し間隔（秒）"
     },
@@ -2173,7 +2193,20 @@
       "downloadHipSdk": "AMD HIP SDKをダウンロード",
       "openLinkFailed": "リンクを開けませんでした。既定のブラウザーを確認してください。",
       "resetGemmaHint": "翻訳・調査用のローカル Gemma 設定も推奨値に戻します。",
-      "resetFailed": "推奨設定を読み込めませんでした。再試行してください。"
+      "resetFailed": "推奨設定を読み込めませんでした。再試行してください。",
+      "fluxRequirements": {
+        "cuda-native": "SM75 以外の NVIDIA GPU が必要",
+        "cuda-sm75-experimental": "RTX 20 / GTX 16 (SM75) 専用",
+        "zluda-native": "AMD GPU が必要",
+        "cpu-native": "GPU 不要 · 低速",
+        "metal-native": "Apple Silicon が必要"
+      },
+      "ocrRequirements": {
+        "cuda": "NVIDIA GPU が必要",
+        "rocm-transformers": "ROCm 対応 AMD GPU が必要",
+        "cpu": "GPU 不要",
+        "unsupportedRocm": "検出した GPU は ROCm OCR 非対応"
+      }
     },
     "format": {
       "alignment": {
@@ -2307,7 +2340,11 @@
       "apiJsonObject": "API JSON設定はオブジェクトである必要があります。",
       "customHeaderBlocked": "{{name}}ヘッダーはCustom headersで上書きできません。",
       "customHeaderValue": "Custom headerの値には文字列、数値、booleanのみ使用できます。",
-      "apiKeyCount": "APIキーは最大{{max}}個まで入力できます。"
+      "apiKeyCount": "APIキーは最大{{max}}個まで入力できます。",
+      "reviewField": "{{field}} の入力値を確認してください。",
+      "modelLocation": "モデルファイル / リポジトリ",
+      "goToField": "エラー箇所へ",
+      "unchanged": "設定の変更なし"
     },
     "image": {
       "localErasure": "標準の原文消去",
@@ -2385,7 +2422,8 @@
         "work-share-import": "共有ファイル読み込み",
         "work-share-export": "共有ファイル書き出し",
         "model-test": "モデル確認",
-        "codex-auth": "ChatGPTアカウント"
+        "codex-auth": "ChatGPTアカウント",
+        "sound-effect-translation": "効果音翻訳"
       },
       "status": {
         "idle": "待機",
@@ -2693,7 +2731,7 @@
   },
   "imageRedaction": {
     "enabled": "送信画像を隠す",
-    "description": "露出のある画像は、デリケートな部分を隠してから送信できます。原本は変更されません。",
+    "description": "送信するコピーのみ隠します。原本は保持されます。",
     "title": "送信画像の確認",
     "confirm": "確認して続ける",
     "pages": "ページ",
@@ -2818,7 +2856,7 @@
   },
   "soundEffectTextReview": {
     "title": "効果音の翻訳文を確認",
-    "hint": "ページを切り替え、右の一覧で原文・翻訳文と画像の領域を編集できます。全ページを確定すると原文削除と画像生成を開始します。",
+    "hint": "全ページを確定すると原文除去と画像生成を開始します。",
     "generate": "すべて確定して生成",
     "pages": "翻訳済みページ",
     "count": "効果音 {{count}}個",

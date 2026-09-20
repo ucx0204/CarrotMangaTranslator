@@ -25,6 +25,7 @@ import {
 } from "../src/shared/appActivityTypes";
 import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import { makePage } from "./helpers/wholePagePipelineHarness";
+import { startWorkContextAnalysisWithOwnership } from "../src/main/jobs/workContextAnalysisOwnership";
 
 let gate: AppActivityGate;
 let jobs: ActiveJobStore;
@@ -61,6 +62,52 @@ function start(id: string, resources: AppActivityResource[]) {
 }
 
 describe("activity ownership across concurrent work", () => {
+  it("scopes context analysis without admitting another model or conflicting input/context writes", async () => {
+    const repository = {
+      openChapter: async () =>
+        ({
+          id: "chapter",
+          workId: "work",
+          title: "Chapter",
+          sourceKind: "images",
+          status: "idle",
+          pageOrder: ["A"],
+          pages: [makePage("A", "A.png")],
+          createdAt: "2026-09-20",
+          updatedAt: "2026-09-20",
+        }) satisfies ChapterSnapshot,
+      listLibrary: async () => ({ workOrder: [], works: [] }),
+    };
+    await startWorkContextAnalysisWithOwnership(
+      jobs,
+      "analysis",
+      new AbortController(),
+      { chapterId: "chapter", scope: "chapter" },
+      repository,
+    );
+    expect(() => start("second-model", [model])).toThrow();
+    expect(() =>
+      start("input-write", [pageContentResource("chapter", "A")]),
+    ).toThrow();
+    expect(() =>
+      start("context-write", [
+        { kind: "work-context", scope: "work", access: "write" },
+      ]),
+    ).toThrow();
+    start("unrelated", [pageContentResource("other", "B")]);
+    await expect(
+      jobs.run("analysis", () =>
+        withLibraryMutation(async () => {
+          assertLibraryActivityAccess([
+            { kind: "work-context", scope: "work", access: "write" },
+          ]);
+        }),
+      ),
+    ).resolves.toBeUndefined();
+    jobs.clearIfCurrent("analysis");
+    expect(jobs.all.map((job) => job.id)).toEqual(["unrelated"]);
+    jobs.clearIfCurrent("unrelated");
+  });
   it("allows a queued job save without granting its page to an unrelated queued editor", async () => {
     const resource = pageContentResource("chapter", "A");
     start("sfx", [resource]);

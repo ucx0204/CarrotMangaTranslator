@@ -222,45 +222,10 @@
 
 .rich-editor-heading h3 {
   margin: 0;
-  color: var(--text-muted);
-  font-size: var(--font-xs);
+  color: var(--text-head);
+  font-size: var(--font-md);
   font-weight: 700;
-  letter-spacing: 0.04em;
   white-space: nowrap;
-}
-
-.rich-editor-mode-toggle {
-  display: inline-flex;
-  padding: 2px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-sm);
-  background: var(--bg-sunken);
-}
-
-.rich-editor-mode-toggle button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-height: 26px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: calc(var(--r-sm) - 2px);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.rich-editor-mode-toggle button:hover {
-  color: var(--text);
-}
-
-.rich-editor-mode-toggle button[aria-pressed="true"] {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent);
 }
 
 .rich-editor-toolbar {
@@ -269,31 +234,13 @@
 }
 
 .rich-special-character-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  padding: 0 7px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-sm);
-  background: var(--bg-elevated);
-  color: var(--text-dim);
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.rich-special-character-trigger:hover:not(:disabled),
 .rich-special-character-trigger[aria-expanded="true"] {
   border-color: color-mix(in srgb, var(--accent) 58%, var(--border-strong));
   background: var(--accent-soft);
   color: var(--accent-text);
-}
-
-.rich-special-character-trigger:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
 }
 
 .rich-special-character-panel {
@@ -396,6 +343,7 @@
 
 .rich-inline-style-panel {
   display: grid;
+  min-width: 0;
   padding-top: var(--sp-2);
   border-top: 1px solid var(--border-soft);
   gap: var(--sp-2);
@@ -414,7 +362,7 @@
   min-width: 0;
   gap: var(--field-gap);
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: var(--font-sm);
 }
 
 .rich-inline-number-field > span,
@@ -427,7 +375,7 @@
 
 .rich-inline-style-grid small {
   color: var(--accent-text);
-  font-size: 9px;
+  font-size: var(--font-xs);
   font-weight: 700;
 }
 
@@ -454,21 +402,10 @@
 }
 
 .rich-inline-effects {
-  border-top: 1px solid var(--border-soft);
-}
-
-.rich-inline-effects summary {
-  padding: 7px 0 2px;
-  color: var(--text-dim);
-  font-size: var(--font-xs);
-  font-weight: 700;
-  cursor: pointer;
-  list-style-position: inside;
-}
-
-.rich-inline-effects[open] {
   display: grid;
   gap: 7px;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border-soft);
 }
 
 .rich-inline-glow-row {
@@ -492,7 +429,7 @@
   font-size: 12px;
 }
 
-@container editor-panel (max-width: 360px) {
+@container editor-panel (max-width: 480px) {
   .rich-inline-font-field,
   .rich-inline-emphasis-tools {
     grid-column: 1 / -1;
@@ -551,7 +488,7 @@
 
 .editor-inline-toolbar > span {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--font-sm);
   font-weight: 650;
   white-space: nowrap;
 }
@@ -572,12 +509,6 @@
   color: var(--text-dim);
   font-size: var(--font-xs);
   font-weight: 650;
-}
-
-.editor-source-field-head > button {
-  min-height: 28px;
-  padding: 0 8px;
-  font-size: 10px;
 }
 
 .editor-panel.has-block .editor-source-field textarea {
@@ -663,11 +594,6 @@
   min-height: 42px;
   gap: var(--sp-2);
   padding: 4px 0;
-  border-top: 1px solid var(--border-soft);
-}
-
-.editor-appearance-row:first-child {
-  border-top: 0;
 }
 
 .editor-outline-property-row {
@@ -887,6 +813,11 @@
   font-family: Consolas, "SFMono-Regular", monospace;
   font-size: var(--font-xs);
   letter-spacing: 0.02em;
+}
+
+.color-picker-button:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 
 .color-hex-input:focus {
@@ -1122,4 +1053,13 @@
 
 .job-pill.cancelled {
   background: #454a54;
+}
+
+.rich-inline-scope {
+  display: grid;
+  gap: var(--sp-1);
+  font-size: var(--font-sm);
+}
+.rich-inline-scope span {
+  color: var(--text-muted);
 }

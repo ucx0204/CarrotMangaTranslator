@@ -212,7 +212,9 @@ describe("InternetResearchSettingsPanel", () => {
 
     fireEvent.click(screen.getByRole("combobox", { name: "추론 강도" }));
     fireEvent.click(screen.getByRole("option", { name: "높음" }));
-    expect(screen.getByText("더 많은 추론으로 품질을 높입니다.")).toBeTruthy();
+    expect(
+      screen.getByRole("combobox", { name: "추론 강도" }).textContent,
+    ).toContain("높음");
 
     fireEvent.click(screen.getByRole("radio", { name: /API/ }));
     expect(
@@ -243,7 +245,12 @@ describe("InternetResearchSettingsPanel", () => {
     expect(
       screen.getByRole("combobox", { name: "API 제공자 빠른 설정" }),
     ).toBeTruthy();
-    expect(screen.getByText("고급 API 설정")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("combobox", { name: "Reasoning effort" })
+        .closest("details"),
+    ).toBeNull();
+    expect(screen.getByLabelText("Extra body JSON")).toBeTruthy();
   });
 
   it("hides the Codex catalog before login and shows the server catalog after login", async () => {

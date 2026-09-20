@@ -29,10 +29,7 @@ export function TestSettingsPanel({
   return (
     <div className="settings-panel-stack">
       <UpdateSection />
-      <SettingsSection
-        title={t("settings.test.title")}
-        description={t("settings.test.description")}
-      >
+      <SettingsSection title={t("settings.test.title")}>
         <div className="settings-inline-actions">
           <button
             type="button"
@@ -91,10 +88,7 @@ function UpdateSection(): React.JSX.Element {
   }, []);
 
   return (
-    <SettingsSection
-      title={t("settings.update.title")}
-      description={t("settings.update.description")}
-    >
+    <SettingsSection title={t("settings.update.title")}>
       <p className="muted-line">
         {info
           ? t("settings.update.currentVersion", {

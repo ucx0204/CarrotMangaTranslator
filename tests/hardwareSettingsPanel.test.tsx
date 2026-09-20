@@ -82,9 +82,11 @@ describe("HardwareSettingsPanel", () => {
     expect(screen.getByText("AMD Radeon RX 7600M XT")).toBeTruthy();
     expect(screen.getByText("로컬 AI 연산 장치")).toBeTruthy();
     expect(screen.getByText("장치 1 (수동)")).toBeTruthy();
-    expect(
-      screen.getByText("권장값과 다른 고급 설정이 있습니다."),
-    ).toBeTruthy();
+    const apply = screen.getByRole("button", { name: "권장값 적용" });
+    fireEvent.focus(apply);
+    expect(screen.getByRole("tooltip").textContent).toContain(
+      "권장값과 다른 고급 설정이 있습니다.",
+    );
   });
 
   it("omits generic Flux runtime context notes outside Apple Silicon", () => {
@@ -458,11 +460,9 @@ describe("HardwareSettingsPanel", () => {
     rerender(
       <HardwareSettingsPanel {...props} ocrDevice="cpu" ocrPipeline="hayai" />,
     );
-    fireEvent.click(screen.getByText("OCR 실행 장치 고급 설정"));
     const deviceGroup = screen.getByRole("group", { name: "OCR 장치" });
     const cpuButton = within(deviceGroup).getByRole("button", { name: "CPU" });
     expect(cpuButton.getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByText(/CPU로 HayaiOCR를 실행합니다/)).toBeTruthy();
     fireEvent.click(cpuButton);
     expect(setOcrDevice).toHaveBeenCalledWith("cpu");
     expect(setOcrGpuBackend).not.toHaveBeenCalled();

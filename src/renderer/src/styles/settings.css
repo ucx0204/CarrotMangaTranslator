@@ -1,7 +1,7 @@
 .settings-layout {
   display: grid;
   grid-template-columns: 170px minmax(0, 1fr);
-  gap: var(--sp-7);
+  gap: var(--sp-4);
   align-items: start;
 }
 
@@ -74,17 +74,18 @@
   color: var(--text);
 }
 
-.settings-tab.active {
+.settings-tab.active,
+.settings-tab.active:hover:not(:disabled) {
   background: var(--accent-soft);
-  border-color: transparent;
+  border-color: var(--accent-bd);
   color: var(--accent-hi);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--accent);
+  box-shadow: none;
 }
 
 .settings-tabpanel {
   display: grid;
-  gap: var(--sp-6);
+  gap: var(--sp-3);
   min-width: 0;
 }
 
@@ -92,13 +93,13 @@
 .settings-llm-tabpanel {
   display: grid;
   min-width: 0;
-  gap: var(--sp-6);
+  gap: var(--sp-3);
 }
 
 .settings-llm-tabs {
   display: flex;
   gap: var(--sp-2);
-  padding: 0 0 var(--sp-4);
+  padding: 0 0 var(--sp-2);
   overflow-x: auto;
   border-bottom: 1px solid var(--border-soft);
 }
@@ -119,10 +120,12 @@
   color: var(--text);
 }
 
-.settings-llm-tabs button.active {
+.settings-llm-tabs button.active,
+.settings-llm-tabs button.active:hover:not(:disabled) {
   border-color: var(--accent-bd);
   background: var(--accent-soft);
   color: var(--accent-hi);
+  box-shadow: none;
   font-weight: 600;
 }
 
@@ -131,7 +134,8 @@
   gap: 8px;
 }
 
-.settings-field-stack > span {
+.settings-field-stack > span:not([data-control-tooltip]) {
+  font-size: var(--font-sm);
   color: var(--text);
 }
 
@@ -170,7 +174,8 @@
   gap: 8px;
 }
 
-.settings-mode-group > button {
+.settings-mode-group > button,
+.settings-mode-group > [data-control-tooltip] {
   flex: 1 1 0;
   min-width: 0;
 }
@@ -281,17 +286,6 @@
 
 .settings-api-status.error {
   color: var(--danger-text);
-}
-
-.settings-advanced {
-  display: grid;
-  gap: 12px;
-  padding: 10px 0 0;
-}
-
-.settings-advanced summary {
-  cursor: pointer;
-  color: var(--text);
 }
 
 .settings-advanced-grid {
@@ -487,31 +481,6 @@
   border-top: 1px solid var(--border-soft);
 }
 
-.hardware-recommendation-row > span {
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-}
-
-.hardware-recommendation-row > span.matches {
-  color: var(--success-text);
-}
-
-.hardware-recommendation-row > span.different {
-  color: var(--accent-hi);
-}
-
-.hardware-advanced-settings > .settings-section {
-  margin: 0 14px 14px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.hardware-advanced-settings > .settings-section .settings-section-header {
-  display: none;
-}
-
 .mac-alpha-memory-summary {
   display: grid;
   gap: 5px;
@@ -540,6 +509,9 @@
 }
 
 .hardware-runtime-warning {
+  min-width: 0;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   display: grid;
   gap: 4px;
   padding: 10px 12px;
@@ -691,7 +663,7 @@
   box-shadow: none;
 }
 
-.settings-panel-stack > .settings-section:last-child {
+.settings-section:last-child {
   padding-bottom: 0;
   border-bottom: 0;
 }
@@ -699,14 +671,6 @@
 .settings-section-header {
   display: grid;
   gap: 4px;
-}
-
-.settings-section-header h3 {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--font-lg);
-  font-weight: 750;
-  letter-spacing: -0.01em;
 }
 
 .settings-section-header p {
@@ -722,9 +686,13 @@
   min-width: 0;
 }
 
-.settings-section-body > label,
-.settings-section-body .settings-field-stack > label,
-.settings-subsection-body > label {
+:where(
+  .settings-section-body > label,
+  .settings-section-body .settings-field-stack > label,
+  .settings-subsection-body > label,
+  .settings-subsection-stack > label,
+  .settings-advanced-grid > label
+) {
   display: grid;
   gap: 6px;
   color: var(--text-dim);
@@ -742,27 +710,6 @@
   white-space: nowrap;
 }
 
-.settings-tabpanel
-  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not(
-    [data-ui-framed-input]
-  ),
-.settings-tabpanel [data-ui-select-trigger],
-.settings-tabpanel textarea {
-  border-color: color-mix(in srgb, var(--border-strong) 82%, transparent);
-  background: color-mix(in srgb, var(--bg-sunken) 88%, var(--bg-app));
-}
-
-.settings-tabpanel
-  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not(
-    [data-ui-framed-input]
-  ):focus,
-.settings-tabpanel [data-ui-select-trigger]:focus-visible,
-.settings-tabpanel textarea:focus {
-  border-color: var(--accent-bd);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
-  outline: none;
-}
-
 .settings-provider-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -775,11 +722,10 @@
 
 .settings-provider-card {
   display: grid;
-  align-content: start;
-  gap: 9px;
+  align-content: center;
   min-width: 0;
-  min-height: 104px;
-  padding: 13px;
+  min-height: 40px;
+  padding: 10px 12px;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
@@ -787,21 +733,23 @@
   text-align: left;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
-    background var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard);
+    background var(--motion-fast) var(--ease-standard);
 }
 
 .settings-provider-card:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--accent-bd) 72%, var(--border-strong));
   background: color-mix(in srgb, var(--accent-soft) 30%, var(--bg-sunken));
-  transform: translateY(-1px);
 }
 
 .settings-provider-card[data-selected="true"] {
   border-color: var(--accent-bd);
   background: color-mix(in srgb, var(--accent-soft) 56%, var(--bg-sunken));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow: none;
   color: var(--text);
+}
+
+.settings-provider-card::before {
+  display: none;
 }
 
 .settings-provider-card-head {
@@ -833,13 +781,6 @@
   border-color: var(--accent-hi);
   background: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-
-.settings-provider-card-description {
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-  font-weight: 450;
-  line-height: 1.42;
 }
 
 .settings-limit-stack {
@@ -924,6 +865,7 @@
 
 .settings-tabpanel .settings-preset-group {
   grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  align-items: start;
 }
 
 .settings-tabpanel .settings-ocr-quality-group {
@@ -944,7 +886,7 @@
 .settings-tabpanel .settings-preset-button.active {
   border-color: var(--accent-bd);
   background: color-mix(in srgb, var(--accent-soft) 58%, var(--bg-sunken));
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent) 72%, transparent);
+  box-shadow: none;
   color: var(--accent-hi);
 }
 
@@ -955,11 +897,18 @@
 
 .settings-subsection {
   display: grid;
-  gap: 10px;
-  padding: 13px;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bg-sunken) 62%, transparent);
+  gap: var(--sp-3);
+  padding: var(--sp-4) 0 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+.settings-subsection:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.settings-field-stack > .modal-note {
+  word-break: keep-all;
 }
 
 .settings-subsection h4 {
@@ -1000,55 +949,6 @@
 .settings-api-key-action button {
   border-color: var(--border-strong);
   background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
-}
-
-.settings-advanced {
-  gap: 13px;
-  padding: 0;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bg-sunken) 62%, transparent);
-  overflow: hidden;
-}
-
-.settings-advanced summary {
-  position: relative;
-  padding: 13px 40px 13px 14px;
-  color: var(--text);
-  font-size: var(--font-sm);
-  font-weight: 750;
-  list-style: none;
-}
-
-.settings-advanced summary::-webkit-details-marker {
-  display: none;
-}
-
-.settings-advanced summary::after {
-  content: "⌄";
-  position: absolute;
-  top: 50%;
-  right: 15px;
-  color: var(--text-muted);
-  transform: translateY(-52%);
-  transition: transform var(--motion-fast) var(--ease-standard);
-}
-
-.settings-advanced[open] summary {
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.settings-advanced[open] summary::after {
-  transform: translateY(-38%) rotate(180deg);
-}
-
-.settings-advanced > :not(summary) {
-  margin-right: 14px;
-  margin-left: 14px;
-}
-
-.settings-advanced > :last-child {
-  margin-bottom: 14px;
 }
 
 .settings-api-status,
@@ -1193,7 +1093,7 @@
     flex-direction: column;
   }
 
-  .hardware-recommendation-row > button {
+  .hardware-recommendation-row > [data-control-tooltip] {
     align-self: start;
   }
 }

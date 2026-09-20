@@ -7,6 +7,7 @@ import {
   isAppOperationActive,
 } from "../lib/appOperationPresentation";
 import { toastNotificationPort } from "../lib/notificationPort";
+import { createAppOperationEventScheduler } from "./appOperationEventScheduler";
 
 type UseAppOperationActivityOptions = {
   appendStatusLine: (
@@ -75,15 +76,7 @@ export function useAppOperationActivity({
   };
 }
 
-function useAppOperationSubscription({
-  activityRef,
-  activitiesRef,
-  appendStatusLine,
-  previousLineByIdRef,
-  setActivity,
-  setActivities,
-  t,
-}: UseAppOperationActivityOptions & {
+type AppOperationSubscriptionOptions = UseAppOperationActivityOptions & {
   activityRef: React.MutableRefObject<AppOperationActivityEvent | null>;
   activitiesRef: React.MutableRefObject<Map<string, AppOperationActivityEvent>>;
   previousLineByIdRef: React.MutableRefObject<Map<string, string>>;
@@ -94,7 +87,18 @@ function useAppOperationSubscription({
     React.SetStateAction<AppOperationActivityEvent[]>
   >;
   t: ReturnType<typeof useTranslation>["t"];
-}): void {
+};
+
+function useAppOperationSubscription({
+  activityRef,
+  activitiesRef,
+  appendStatusLine,
+  previousLineByIdRef,
+  setActivity,
+  setActivities,
+  t,
+}: AppOperationSubscriptionOptions): void {
+  const finishedIds = React.useRef(new Set<string>());
   React.useEffect(() => {
     let disposed = false;
     const applyEvent = (
@@ -128,21 +132,28 @@ function useAppOperationSubscription({
       }
     };
 
-    const unsubscribe = subscribeOperations((event) => applyEvent(event, true));
+    const events = createAppOperationEventScheduler(
+      applyEvent,
+      finishedIds.current,
+    );
+    const unsubscribe = subscribeOperations((event) =>
+      events.enqueue(event, true),
+    );
     void appGateway
       .getActiveAppOperation()
       .then((event) => {
-        if (event) applyEvent(event, false);
+        if (event) events.enqueue(event, false);
       })
       .catch((error) => console.warn("Could not hydrate app operation", error));
     void appGateway
       .getActiveAppOperations()
-      .then((events) => events.forEach((event) => applyEvent(event, false)))
+      .then((active) => active.forEach((event) => events.enqueue(event, false)))
       .catch((error) =>
         console.warn("Could not hydrate concurrent operations", error),
       );
     return () => {
       disposed = true;
+      events.dispose();
       unsubscribe();
     };
   }, [

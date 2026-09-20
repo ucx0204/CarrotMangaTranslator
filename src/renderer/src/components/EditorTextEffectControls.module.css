@@ -1,0 +1,15 @@
+.group {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.effect {
+  min-width: 0;
+}
+.effect[data-enabled="true"] {
+  grid-column: 1 / -1;
+}
+
+.group > .effect {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

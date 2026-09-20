@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import {
   evaluateGemmaUnifiedMemory,
@@ -50,22 +51,30 @@ function GemmaFitTargetField({
     <div className="settings-field-stack">
       <span>{t("settings.gemma.vramTuning.reserveLabel")}</span>
       <div className="gemma-fit-target-controls">
-        <label className="gemma-fit-target-input">
-          <input
-            type="number"
-            min={0}
-            max={MAX_FIT_TARGET_MB}
-            step={1}
-            inputMode="numeric"
-            value={gemmaFitTargetMb}
-            disabled={controlsBusy}
-            aria-label={t("settings.gemma.vramTuning.reserveInputAria")}
-            onChange={(event) =>
-              updateFitTarget(event.currentTarget.valueAsNumber)
-            }
-          />
-          <span aria-hidden="true">MiB</span>
-        </label>
+        <ControlTooltip
+          floating
+          content={t("settings.gemma.vramTuning.reserveDescription")}
+        >
+          {(descriptionId) => (
+            <label className="gemma-fit-target-input">
+              <input
+                type="number"
+                min={0}
+                max={MAX_FIT_TARGET_MB}
+                step={1}
+                inputMode="numeric"
+                aria-describedby={descriptionId}
+                value={gemmaFitTargetMb}
+                disabled={controlsBusy}
+                aria-label={t("settings.gemma.vramTuning.reserveInputAria")}
+                onChange={(event) =>
+                  updateFitTarget(event.currentTarget.valueAsNumber)
+                }
+              />
+              <span aria-hidden="true">MiB</span>
+            </label>
+          )}
+        </ControlTooltip>
         {FIT_TARGET_INCREMENT_MB.map((increment) => (
           <button
             key={increment}
@@ -85,9 +94,6 @@ function GemmaFitTargetField({
           </button>
         ))}
       </div>
-      <p className="muted-line modal-note">
-        {t("settings.gemma.vramTuning.reserveDescription")}
-      </p>
     </div>
   );
 }
@@ -107,38 +113,41 @@ function GemmaMmprojField({
         role="group"
         aria-label={t("settings.gemma.vramTuning.mmprojLabel")}
       >
-        <button
-          type="button"
-          className={`settings-preset-button ${gemmaMmprojOffload ? "active" : ""}`}
-          disabled={controlsBusy}
-          aria-pressed={gemmaMmprojOffload}
-          onClick={() => {
-            clearTestState();
-            setGemmaMmprojOffload(true);
-          }}
+        <ControlTooltip
+          floating
+          content={t("settings.gemma.vramTuning.mmprojGpuDescription")}
         >
-          {t("settings.gemma.vramTuning.mmprojGpu")}
-        </button>
-        <button
-          type="button"
-          className={`settings-preset-button ${gemmaMmprojOffload ? "" : "active"}`}
-          disabled={controlsBusy}
-          aria-pressed={!gemmaMmprojOffload}
-          onClick={() => {
-            clearTestState();
-            setGemmaMmprojOffload(false);
-          }}
+          <button
+            type="button"
+            className={`settings-preset-button ${gemmaMmprojOffload ? "active" : ""}`}
+            disabled={controlsBusy}
+            aria-pressed={gemmaMmprojOffload}
+            onClick={() => {
+              clearTestState();
+              setGemmaMmprojOffload(true);
+            }}
+          >
+            {t("settings.gemma.vramTuning.mmprojGpu")}
+          </button>
+        </ControlTooltip>
+        <ControlTooltip
+          floating
+          content={t("settings.gemma.vramTuning.mmprojCpuDescription")}
         >
-          {t("settings.gemma.vramTuning.mmprojCpu")}
-        </button>
+          <button
+            type="button"
+            className={`settings-preset-button ${gemmaMmprojOffload ? "" : "active"}`}
+            disabled={controlsBusy}
+            aria-pressed={!gemmaMmprojOffload}
+            onClick={() => {
+              clearTestState();
+              setGemmaMmprojOffload(false);
+            }}
+          >
+            {t("settings.gemma.vramTuning.mmprojCpu")}
+          </button>
+        </ControlTooltip>
       </div>
-      <p className="muted-line modal-note">
-        {t(
-          gemmaMmprojOffload
-            ? "settings.gemma.vramTuning.mmprojGpuDescription"
-            : "settings.gemma.vramTuning.mmprojCpuDescription",
-        )}
-      </p>
     </div>
   );
 }

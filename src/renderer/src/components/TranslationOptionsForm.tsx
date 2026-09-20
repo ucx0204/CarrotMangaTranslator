@@ -70,10 +70,10 @@ function AiFontSizeMatchingOptions(
   const { t } = useTranslation("components");
   return (
     <ToggleOptionRow
+      description={t("translationOptions.fontSizeAutoFitSummary")}
       label={t("translationOptions.fontSizeAutoFit")}
       pressed={props.aiFontSizeMatching}
       onChange={props.onAiFontSizeMatchingChange}
-      description={t("translationOptions.fontSizeAutoFitSummary")}
     />
   );
 }
@@ -139,10 +139,10 @@ function AutoFontMatchingOptions(
   const { t } = useTranslation("components");
   return (
     <ToggleOptionRow
+      description={t("translationOptions.autoFontMatchingSummary")}
       label={t("translationOptions.autoFontMatching")}
       pressed={props.autoFontMatching}
       onChange={props.onAutoFontMatchingChange}
-      description={t("translationOptions.autoFontMatchingSummary")}
     />
   );
 }

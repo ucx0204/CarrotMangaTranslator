@@ -13,24 +13,20 @@ import {
   PageListDragOverlay,
   PageItemMenu,
   PageListThumbnail,
-  PageStatus,
+  PageListRowCopy,
 } from "./pageList/PageListRowChrome";
-import {
-  type PageListFilter,
-  type PageStatusMode,
-} from "./pageList/pageListStatus";
-import { PageListFilterMenu } from "./pageList/PageListFilterMenu";
+import { type PageStatusMode } from "./pageList/pageListStatus";
+import { PageListHeader } from "./pageList/PageListHeader";
 import { usePageListState } from "./pageList/usePageListState";
-import { SidebarSectionCollapseButton } from "./SidebarSectionCollapseButton";
 import {
   areSortablePageItemPropsEqual,
   buildPageListClassName,
   type SortablePageItemProps,
 } from "./pageList/pageListMemo";
 import { usePageThumbnailObserver } from "./pageThumbnails";
-import { IconStopwatch } from "@tabler/icons-react";
-import { IconButton } from "./ui/IconButton";
 import { PageTimingDialogPortal } from "./pageList/PageTimingDialogPortal";
+import { usePageListWindow } from "./pageList/usePageListWindow";
+import windowStyles from "./pageList/PageListWindow.module.css";
 
 type PageListProps = {
   collapsed: boolean;
@@ -39,6 +35,8 @@ type PageListProps = {
   selectedPageId: string | null;
   jobActive: boolean;
   lockedPageIds?: ReadonlySet<string>;
+  removalLockedPageIds?: ReadonlySet<string>;
+  translationBlocked?: boolean;
   statusMode?: PageStatusMode;
   onSelect: (pageId: string) => void;
   onRetranslate: (pageId: string) => void;
@@ -54,6 +52,8 @@ function PageListView({
   selectedPageId,
   jobActive,
   lockedPageIds = new Set(),
+  removalLockedPageIds,
+  translationBlocked = jobActive,
   statusMode = "translation",
   onSelect,
   onRetranslate,
@@ -62,19 +62,7 @@ function PageListView({
   onToggleOtherPanel,
 }: PageListProps): React.JSX.Element {
   const [timingOpen, setTimingOpen] = React.useState(false);
-  const {
-    activePage,
-    activePageId,
-    filter,
-    handleDragEnd,
-    handleDragStart,
-    registerPageItemRef,
-    selectedPageHidden,
-    sensors,
-    setActivePageId,
-    setFilter,
-    visiblePages,
-  } = usePageListState({
+  const state = usePageListState({
     jobActive,
     onReorder,
     pages,
@@ -91,32 +79,34 @@ function PageListView({
       <PageListHeader
         collapsed={collapsed}
         otherPanelCollapsed={otherPanelCollapsed}
-        filter={filter}
+        filter={state.filter}
         pages={pages}
         statusMode={statusMode}
-        visibleCount={visiblePages.length}
-        onFilterChange={setFilter}
+        visibleCount={state.visiblePages.length}
+        onFilterChange={state.setFilter}
         onOpenTiming={() => setTimingOpen(true)}
         onToggleOtherPanel={onToggleOtherPanel}
       />
       <PageListContent
-        activePage={activePage}
-        activePageId={activePageId}
+        activePage={state.activePage}
+        activePageId={state.activePageId}
         allPageCount={pages.length}
         collapsed={collapsed}
         disabled={jobActive}
-        handleDragEnd={handleDragEnd}
-        handleDragStart={handleDragStart}
+        handleDragEnd={state.handleDragEnd}
+        handleDragStart={state.handleDragStart}
         lockedPageIds={lockedPageIds}
+        removalLockedPageIds={removalLockedPageIds}
+        translationBlocked={translationBlocked}
         onRemove={onRemove}
         onRetranslate={onRetranslate}
         onSelect={onSelect}
-        pages={visiblePages}
-        registerPageItemRef={registerPageItemRef}
-        selectedPageHidden={selectedPageHidden}
+        pages={state.visiblePages}
+        registerPageItemRef={state.registerPageItemRef}
+        selectedPageHidden={state.selectedPageHidden}
         selectedPageId={selectedPageId}
-        sensors={sensors}
-        setActivePageId={setActivePageId}
+        sensors={state.sensors}
+        setActivePageId={state.setActivePageId}
         statusMode={statusMode}
       />
       <PageTimingDialogPortal
@@ -159,94 +149,16 @@ function PageListContent({
   );
 }
 
-function PageListHeader({
-  collapsed,
-  otherPanelCollapsed,
-  filter,
-  onFilterChange,
-  onOpenTiming,
-  onToggleOtherPanel,
-  pages,
-  statusMode,
-  visibleCount,
-}: {
-  collapsed: boolean;
-  otherPanelCollapsed: boolean;
-  filter: PageListFilter;
-  onFilterChange: (filter: PageListFilter) => void;
-  onOpenTiming: () => void;
-  onToggleOtherPanel: () => void;
-  pages: MangaPage[];
-  statusMode: PageStatusMode;
-  visibleCount: number;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <div className="page-list-header">
-      <div className="panel-header page-list-title-row">
-        <h2>{t("common.pages")}</h2>
-        <div className="page-list-header-actions">
-          {pages.length ? (
-            <span className="page-list-visible-count">
-              {t("pageList.visibleCount", {
-                visible: visibleCount,
-                total: pages.length,
-              })}
-            </span>
-          ) : null}
-          {pages.length && !collapsed ? (
-            <PageListFilterMenu
-              filter={filter}
-              pages={pages}
-              statusMode={statusMode}
-              onChange={onFilterChange}
-            />
-          ) : null}
-          {pages.length && !collapsed ? (
-            <IconButton
-              size="sm"
-              label={t("pageList.timing.button")}
-              title={t("pageList.timing.button")}
-              onClick={onOpenTiming}
-            >
-              <IconStopwatch size={16} aria-hidden="true" />
-            </IconButton>
-          ) : null}
-          <SidebarSectionCollapseButton
-            collapsed={otherPanelCollapsed}
-            controls="sidebar-library-panel"
-            direction={otherPanelCollapsed ? "down" : "up"}
-            onToggle={onToggleOtherPanel}
-            sectionTitle={t("library.title")}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export const PageList = React.memo(PageListView);
 
-function PageSortableContent({
-  activePage,
-  activePageId,
-  allPageCount,
-  disabled,
-  lockedPageIds,
-  onRemove,
-  onRetranslate,
-  onSelect,
-  pages,
-  registerPageItemRef,
-  selectedPageId,
-  selectedPageHidden,
-  statusMode,
-}: {
+type PageSortableContentProps = {
   activePage: MangaPage | null;
   activePageId: string | null;
   allPageCount: number;
   disabled: boolean;
   lockedPageIds: ReadonlySet<string>;
+  removalLockedPageIds?: ReadonlySet<string>;
+  translationBlocked: boolean;
   onRemove: (pageId: string) => void;
   onRetranslate: (pageId: string) => void;
   onSelect: (pageId: string) => void;
@@ -255,49 +167,57 @@ function PageSortableContent({
   selectedPageId: string | null;
   selectedPageHidden: boolean;
   statusMode: PageStatusMode;
-}): React.JSX.Element {
+};
+
+function PageSortableContent(
+  props: PageSortableContentProps,
+): React.JSX.Element {
   // One observer for the whole scroll region instead of one per row.
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const itemIds = React.useMemo(
+    () => props.pages.map((page) => page.id),
+    [props.pages],
+  );
   const observeThumbnail = usePageThumbnailObserver(scrollRef, {
     rootMargin: "120px",
   });
+  const windowed = usePageListWindow(
+    scrollRef,
+    props.pages,
+    props.selectedPageId,
+    Boolean(props.activePageId),
+  );
   return (
     <>
-      <SortableContext
-        items={pages.map((page) => page.id)}
-        strategy={verticalListSortingStrategy}
-      >
+      <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div
           ref={scrollRef}
-          className={`page-list-scroll sortable-scroll ${activePageId ? "drag-active" : ""}`}
+          role="list"
+          onScroll={windowed.onScroll}
+          onFocusCapture={windowed.onFocusCapture}
+          onBlurCapture={windowed.onBlurCapture}
+          className={`page-list-scroll sortable-scroll ${windowed.enabled ? windowStyles.windowed : ""} ${props.activePageId ? "drag-active" : ""}`}
         >
-          {pages.length ? (
-            pages.map((page) => (
-              <SortablePageItem
-                key={page.id}
-                disabled={disabled}
-                onRemove={onRemove}
-                onRetranslate={onRetranslate}
-                onSelect={onSelect}
-                page={page}
-                locked={lockedPageIds.has(page.id)}
-                observeThumbnail={observeThumbnail}
-                registerRef={registerPageItemRef}
-                selected={page.id === selectedPageId}
-                statusMode={statusMode}
-              />
-            ))
+          {props.pages.length ? (
+            renderPageRows(windowed.rows, props, observeThumbnail)
           ) : (
-            <PageListEmptyNotice hasAnyPage={allPageCount > 0} />
+            <PageListEmptyNotice hasAnyPage={props.allPageCount > 0} />
           )}
+          {windowed.after > 0 ? (
+            <div
+              aria-hidden="true"
+              className={windowStyles.spacer}
+              style={{ height: windowed.after }}
+            />
+          ) : null}
         </div>
       </SortableContext>
-      {selectedPageHidden ? <PageListHiddenSelectionNotice /> : null}
+      {props.selectedPageHidden ? <PageListHiddenSelectionNotice /> : null}
       {createPortal(
         <PageListDragOverlay
-          activePage={activePage}
-          selectedPageId={selectedPageId}
-          statusMode={statusMode}
+          activePage={props.activePage}
+          selectedPageId={props.selectedPageId}
+          statusMode={props.statusMode}
         />,
         document.body,
       )}
@@ -327,18 +247,9 @@ function PageListHiddenSelectionNotice(): React.JSX.Element {
   );
 }
 
-const SortablePageItem = React.memo(function SortablePageItem({
-  page,
-  selected,
-  disabled,
-  locked,
-  statusMode,
-  observeThumbnail,
-  onSelect,
-  onRetranslate,
-  onRemove,
-  registerRef,
-}: SortablePageItemProps): React.JSX.Element {
+const SortablePageItem = React.memo(function SortablePageItem(
+  props: SortablePageItemProps,
+): React.JSX.Element {
   const { t } = useTranslation("components");
   const {
     attributes,
@@ -349,29 +260,33 @@ const SortablePageItem = React.memo(function SortablePageItem({
     transition,
     isDragging,
   } = useSortable({
-    id: page.id,
-    disabled,
+    id: props.page.id,
+    disabled: props.disabled,
     data: { type: "page" },
   });
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition,
   };
 
   return (
     <div
       ref={(element) => {
         setNodeRef(element);
-        registerRef(page.id, element);
+        props.registerRef(props.page.id, element);
       }}
-      className={`page-item sortable-item ${selected ? "active" : ""} ${isDragging ? "dragging" : ""}`}
+      className={`page-item sortable-item ${props.selected ? "active" : ""} ${isDragging ? "dragging" : ""}`}
+      data-page-id={props.page.id}
+      role="listitem"
+      aria-posinset={props.position}
+      aria-setsize={props.total}
       style={style}
     >
       <button
         ref={setActivatorNodeRef}
         className="drag-handle compact"
-        disabled={disabled}
-        aria-label={t("pageList.moveItem", { name: page.name })}
+        disabled={props.disabled}
+        aria-label={t("pageList.moveItem", { name: props.page.name })}
         title={t("common.dragToMove")}
         {...attributes}
         {...listeners}
@@ -380,31 +295,79 @@ const SortablePageItem = React.memo(function SortablePageItem({
       </button>
       <button
         className="page-select"
-        onClick={() => onSelect(page.id)}
-        title={page.name}
-        aria-current={selected ? "page" : undefined}
+        onClick={() => props.onSelect(props.page.id)}
+        title={props.page.name}
+        aria-current={props.selected ? "page" : undefined}
       >
-        <PageListThumbnail observeThumbnail={observeThumbnail} page={page} />
-        <span className="page-row-copy">
-          <strong>{page.name}</strong>
-          <span className="page-row-meta">
-            <PageStatus page={page} statusMode={statusMode} locked={locked} />
-            {page.blocks.length ? (
-              <span>
-                {t("pageList.blockCount", { count: page.blocks.length })}
-              </span>
-            ) : null}
-          </span>
-        </span>
+        <PageListThumbnail
+          observeThumbnail={props.observeThumbnail}
+          page={props.page}
+        />
+        <PageListRowCopy
+          page={props.page}
+          statusMode={props.statusMode}
+          locked={props.locked}
+        />
       </button>
-      {statusMode === "translation" ? (
+      {props.statusMode === "translation" ? (
         <PageItemMenu
-          disabled={disabled}
-          onRemove={() => onRemove(page.id)}
-          onRetranslate={() => onRetranslate(page.id)}
-          pageName={page.name}
+          removeDisabled={props.removeDisabled}
+          translateDisabled={props.translateDisabled}
+          onRemove={() => props.onRemove(props.page.id)}
+          onRetranslate={() => props.onRetranslate(props.page.id)}
+          pageName={props.page.name}
         />
       ) : null}
     </div>
   );
 }, areSortablePageItemPropsEqual);
+
+function renderPageRows(
+  rows: ReturnType<typeof usePageListWindow>["rows"],
+  {
+    disabled,
+    lockedPageIds,
+    removalLockedPageIds,
+    translationBlocked,
+    onRemove,
+    onRetranslate,
+    onSelect,
+    pages,
+    registerPageItemRef,
+    selectedPageId,
+    statusMode,
+  }: Omit<
+    PageSortableContentProps,
+    "activePage" | "activePageId" | "allPageCount" | "selectedPageHidden"
+  >,
+  observeThumbnail: SortablePageItemProps["observeThumbnail"],
+): React.ReactNode {
+  return rows.map(({ page, before, index }) => (
+    <React.Fragment key={page.id}>
+      {before > 0 ? (
+        <div
+          aria-hidden="true"
+          className={windowStyles.spacer}
+          style={{ height: before }}
+        />
+      ) : null}
+      <SortablePageItem
+        key={page.id}
+        position={index + 1}
+        total={pages.length}
+        disabled={disabled}
+        onRemove={onRemove}
+        onRetranslate={onRetranslate}
+        onSelect={onSelect}
+        page={page}
+        locked={lockedPageIds.has(page.id)}
+        removeDisabled={removalLockedPageIds?.has(page.id) ?? disabled}
+        translateDisabled={translationBlocked || lockedPageIds.has(page.id)}
+        observeThumbnail={observeThumbnail}
+        registerRef={registerPageItemRef}
+        selected={page.id === selectedPageId}
+        statusMode={statusMode}
+      />
+    </React.Fragment>
+  ));
+}

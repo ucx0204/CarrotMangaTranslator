@@ -22,10 +22,7 @@ export function EngineSettingsPanel(
       <SettingsSection title={t("settings.engine.provider.label")}>
         <TranslationEngineSelector {...props} />
       </SettingsSection>
-      <SettingsSection
-        title={t("settings.translation.title")}
-        description={t("settings.translation.description")}
-      >
+      <SettingsSection title={t("settings.translation.title")}>
         <TranslationLanguageFields {...props} />
       </SettingsSection>
       <ProviderAndLimitsSections {...props} />
@@ -41,25 +38,13 @@ function ProviderAndLimitsSections(
     (option) => option.id === props.modelProvider,
   );
   const title = activeProvider ? t(activeProvider.labelKey) : null;
-  const description = activeProvider
-    ? t(activeProvider.descriptionKey)
-    : undefined;
+
   if (props.modelProvider === "openai-codex") {
-    return (
-      <CodexProviderAndLimits
-        {...props}
-        title={title}
-        description={description}
-      />
-    );
+    return <CodexProviderAndLimits {...props} title={title} />;
   }
   return (
     <>
-      <SettingsSection
-        className="settings-provider-section"
-        title={title}
-        description={description}
-      >
+      <SettingsSection className="settings-provider-section" title={title}>
         <NonCodexProviderSettingsFields {...props} />
       </SettingsSection>
       <SettingsSection title={t("settings.engine.limits.title")}>
@@ -72,7 +57,6 @@ function ProviderAndLimitsSections(
 function CodexProviderAndLimits(
   props: EngineSettingsPanelProps & {
     title: React.ReactNode;
-    description?: React.ReactNode;
   },
 ): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -89,7 +73,6 @@ function CodexProviderAndLimits(
       <SettingsSection
         className="settings-provider-section"
         title={props.title}
-        description={props.description}
       >
         <CodexSettingsFields {...props} onAccountSnapshotChange={setAccount} />
       </SettingsSection>

@@ -74,10 +74,10 @@
 }
 
 .button[aria-checked="true"] {
-  border-color: color-mix(in srgb, var(--accent-bd) 70%, transparent);
-  background: color-mix(in srgb, var(--accent-soft) 78%, var(--control-bg));
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
   color: var(--accent-hi);
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent) 72%, transparent);
+  box-shadow: none;
 }
 
 /*
@@ -86,12 +86,9 @@
  */
 .button[aria-checked="true"]:hover:not(:disabled) {
   border-color: var(--accent-bd);
-  background: color-mix(
-    in srgb,
-    var(--accent-soft) 88%,
-    var(--control-bg-hover)
-  );
+  background: var(--accent-soft);
   color: var(--accent-hi);
+  box-shadow: none;
 }
 
 .badge {

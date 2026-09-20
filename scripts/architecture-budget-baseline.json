@@ -185,12 +185,12 @@
       "reason": "Translation job composition reserves chapter targets through the page ownership domain while retaining the original pipeline and lifetime boundaries."
     },
     "src/main/ipc/workContextIpc.ts": {
-      "maxRuntimeImports": 13,
-      "reason": "Context research snapshots execution settings and owns its cancellable job lifetime independently of unrelated editing and export tasks."
+      "maxRuntimeImports": 14,
+      "reason": "Context research snapshots execution settings and owns its cancellable job lifetime independently of unrelated editing and export tasks. Context analysis IPC composes an explicit resource ownership boundary before invoking the analyzer; the storage facade remains injected."
     },
     "src/renderer/src/hooks/useEventCallback.ts": {
-      "maxImportedBy": 29,
-      "reason": "Page handoff, mask completion, detached input completion and stale-image recovery read current session state through the established event callback primitive."
+      "maxImportedBy": 30,
+      "reason": "Page handoff, mask completion, detached input completion and stale-image recovery read current session state through the established event callback primitive. Windowed page-list measurement reuses the stable event callback contract so ResizeObserver remains subscribed across progress updates."
     },
     "src/renderer/src/app/session/useChapterSessionController.ts": {
       "maxRuntimeImports": 21,
@@ -199,6 +199,14 @@
     "src/main/library.ts": {
       "maxImportedBy": 27,
       "reason": "SFX recovery reads and writes through the locked library facade; no direct job imports from libraryStore."
+    },
+    "src/shared/appActivityTypes.ts": {
+      "maxImportedBy": 26,
+      "reason": " Context analysis reserves model, input chapter and shared context resources using the existing activity contract."
+    },
+    "src/renderer/src/components/ui/ControlTooltip.tsx": {
+      "maxImportedBy": 37,
+      "reason": "Settings and import controls reuse the shared tooltip for contextual help instead of duplicating per-feature hover/focus behavior."
     }
   }
 }

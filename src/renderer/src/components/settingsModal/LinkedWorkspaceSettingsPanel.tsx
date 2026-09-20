@@ -41,9 +41,6 @@ export function LinkedWorkspaceSettingsPanel({
     useLinkedWorkspaceSettingsOperations(refresh);
   return (
     <div className="linked-workspace-settings" aria-busy={loading}>
-      <p className="muted-line modal-note">
-        {t("settings.results.description")}
-      </p>
       <LinkedWorkspaceFolderRoles />
       <div className="linked-workspace-settings-toolbar">
         <label

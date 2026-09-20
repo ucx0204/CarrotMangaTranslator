@@ -137,23 +137,6 @@ export const EmphasisMarkIcon = createIcon(
   </>,
 );
 
-export const TypeStyleIcon = createIcon(
-  <>
-    <path d="M5 5h10" />
-    <path d="M10 5v14" />
-    <path d="M6.5 19h7" />
-    <path d="M16 11h3" />
-    <path d="M17.5 9.5v3" />
-  </>,
-);
-
-export const CodeIcon = createIcon(
-  <>
-    <path d="m9 7-5 5 5 5" />
-    <path d="m15 7 5 5-5 5" />
-  </>,
-);
-
 export const TextareaHeightIcon = createIcon(
   <>
     <path d="M6 7h12" />

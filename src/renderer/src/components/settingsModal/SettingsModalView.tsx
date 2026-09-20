@@ -2,9 +2,8 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { ModelProvider } from "../../../../shared/settingsTypes";
 import type { LibraryIndex } from "../../../../shared/libraryTypes";
-import { Button } from "../ui/Button";
+import { SettingsModalFooter } from "./SettingsModalFooter";
 import { Modal } from "../ui/Modal";
-import { ModalActionBar } from "../ui/ModalActionBar";
 import { EngineSettingsPanel } from "./EngineSettingsPanel";
 import { FormatDefaultsPanel } from "./FormatDefaultsPanel";
 import {
@@ -17,7 +16,7 @@ import { ShortcutsSettingsPanel } from "./ShortcutsSettingsPanel";
 import { TestSettingsPanel } from "./TestSettingsPanel";
 import { GeneralSettingsPanel } from "./GeneralSettingsPanel";
 import type { SettingsTabId } from "../settingsModalTypes";
-import { SETTINGS_TABS } from "../settingsModalTypes";
+import type { SettingsSubmissionIssue } from "./settingsSubmissionIssue";
 import { InfoIcon } from "../ui/icons";
 import { LinkedWorkspaceSettingsPanel } from "./LinkedWorkspaceSettingsPanel";
 import { InternetResearchSettingsPanel } from "./InternetResearchSettingsPanel";
@@ -27,6 +26,7 @@ import { ImageSettingsPanel } from "./ImageSettingsPanel";
 export type SettingsModalViewProps = {
   activeTab: SettingsTabId;
   canSubmit: boolean;
+  submissionIssue?: SettingsSubmissionIssue;
   controlsBusy: boolean;
   defaultsPreviewActive: boolean;
   generalPanelProps: React.ComponentProps<typeof GeneralSettingsPanel>;
@@ -61,6 +61,7 @@ export type SettingsModalViewProps = {
 export function SettingsModalView({
   activeTab,
   canSubmit,
+  submissionIssue,
   controlsBusy,
   defaultsPreviewActive,
   generalPanelProps,
@@ -80,6 +81,14 @@ export function SettingsModalView({
   testPanelProps,
   validationProps,
 }: SettingsModalViewProps): React.JSX.Element {
+  const [activeLlmTab, setActiveLlmTab] =
+    React.useState<LlmSettingsTab>("translation");
+  const navigation = { activeLlmTab, setActiveLlmTab };
+  const revealIssue = useRevealSettingsIssue(
+    submissionIssue,
+    setActiveTab,
+    setActiveLlmTab,
+  );
   const { t } = useTranslation("components");
   return (
     <Modal
@@ -92,6 +101,8 @@ export function SettingsModalView({
       footer={
         <SettingsModalFooter
           canSubmit={canSubmit}
+          submissionIssue={submissionIssue}
+          onRevealIssue={revealIssue}
           controlsBusy={controlsBusy}
           onCancel={onCancel}
           onOpenErrorReport={onOpenErrorReport}
@@ -102,18 +113,11 @@ export function SettingsModalView({
       }
     >
       <div className="settings-layout">
-        {defaultsPreviewActive ? (
-          <div className="settings-draft-notice" role="status">
-            <InfoIcon size={18} />
-            <div>
-              <strong>{t("settings.defaultsPreview.title")}</strong>
-              <span>{t("settings.defaultsPreview.description")}</span>
-            </div>
-          </div>
-        ) : null}
+        {defaultsPreviewActive ? <SettingsDefaultsNotice /> : null}
         <SettingsTabs activeTab={activeTab} onChange={setActiveTab} />
         <SettingsModalTabPanel
           activeTab={activeTab}
+          navigation={navigation}
           generalPanelProps={generalPanelProps}
           enginePanelProps={enginePanelProps}
           researchPanelProps={researchPanelProps}
@@ -130,68 +134,9 @@ export function SettingsModalView({
   );
 }
 
-function SettingsModalFooter({
-  canSubmit,
-  controlsBusy,
-  onCancel,
-  onOpenErrorReport,
-  onOpenLogFolder,
-  onReset,
-  submit,
-}: Pick<
-  SettingsModalViewProps,
-  | "canSubmit"
-  | "controlsBusy"
-  | "onCancel"
-  | "onOpenErrorReport"
-  | "onOpenLogFolder"
-  | "onReset"
-  | "submit"
->): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <ModalActionBar
-      leading={
-        <>
-          <Button
-            variant="ghost"
-            onClick={onOpenLogFolder}
-            disabled={controlsBusy}
-          >
-            {t("settings.footer.openLogs")}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={onOpenErrorReport}
-            disabled={controlsBusy}
-          >
-            {t("settings.footer.reportProblem")}
-          </Button>
-        </>
-      }
-      actions={
-        <>
-          <Button onClick={onReset} disabled={controlsBusy}>
-            {t("settings.footer.restoreDefaults")}
-          </Button>
-          <Button variant="ghost" onClick={onCancel} disabled={controlsBusy}>
-            {t("settings.footer.cancel")}
-          </Button>
-          <Button
-            variant="primary"
-            onClick={submit}
-            disabled={controlsBusy || !canSubmit}
-          >
-            {t("settings.footer.save")}
-          </Button>
-        </>
-      }
-    />
-  );
-}
-
 function SettingsModalTabPanel({
   activeTab,
+  navigation,
   generalPanelProps,
   enginePanelProps,
   researchPanelProps,
@@ -215,9 +160,7 @@ function SettingsModalTabPanel({
   | "shortcutsPanelProps"
   | "testPanelProps"
   | "validationProps"
->): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const activeTabOption = SETTINGS_TABS.find((tab) => tab.id === activeTab);
+> & { navigation: LlmNavigation }): React.JSX.Element {
   return (
     <div
       className={[
@@ -231,17 +174,14 @@ function SettingsModalTabPanel({
       id={`settings-panel-${activeTab}`}
       aria-labelledby={`settings-tab-${activeTab}`}
     >
-      <header className="settings-panel-header">
-        <h2>
-          {activeTab === "format"
-            ? formatPanelTitle
-            : activeTabOption
-              ? t(activeTabOption.labelKey)
-              : null}
-        </h2>
-      </header>
+      {activeTab === "format" ? (
+        <header className="settings-panel-header">
+          <h2>{formatPanelTitle}</h2>
+        </header>
+      ) : null}
       <SettingsModalTabContent
         activeTab={activeTab}
+        navigation={navigation}
         enginePanelProps={enginePanelProps}
         researchPanelProps={researchPanelProps}
         formatPanelProps={formatPanelProps}
@@ -268,10 +208,11 @@ type SettingsModalTabContentProps = Pick<
   | "shortcutsPanelProps"
   | "testPanelProps"
   | "validationProps"
->;
+> & { navigation: LlmNavigation };
 
 function SettingsModalTabContent({
   activeTab,
+  navigation,
   enginePanelProps,
   researchPanelProps,
   formatPanelProps,
@@ -295,6 +236,7 @@ function SettingsModalTabContent({
   if (activeTab !== "engine") return null;
   return (
     <LlmSettingsPanel
+      navigation={navigation}
       hardwarePanelProps={hardwarePanelProps}
       enginePanelProps={enginePanelProps}
       researchPanelProps={researchPanelProps}
@@ -305,7 +247,13 @@ function SettingsModalTabContent({
 
 type LlmSettingsTab = "translation" | "ocr" | "image" | "research" | "hardware";
 
+type LlmNavigation = {
+  activeLlmTab: LlmSettingsTab;
+  setActiveLlmTab: (tab: LlmSettingsTab) => void;
+};
+
 function LlmSettingsPanel({
+  navigation,
   hardwarePanelProps,
   enginePanelProps,
   researchPanelProps,
@@ -316,10 +264,9 @@ function LlmSettingsPanel({
   | "researchPanelProps"
   | "validationProps"
   | "hardwarePanelProps"
->): React.JSX.Element {
+> & { navigation: LlmNavigation }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const [activeLlmTab, setActiveLlmTab] =
-    React.useState<LlmSettingsTab>("translation");
+  const { activeLlmTab, setActiveLlmTab } = navigation;
   const items = (
     [
       ["translation", "settings.tabs.translation"],
@@ -368,6 +315,51 @@ function LlmSettingsPanel({
         ) : (
           <InternetResearchSettingsPanel {...researchPanelProps} />
         )}
+      </div>
+    </div>
+  );
+}
+
+function focusSettingsIssue(issue: SettingsSubmissionIssue): void {
+  const panel = document.getElementById(`settings-llm-panel-${issue.tab}`);
+  const controls = panel?.querySelectorAll<
+    HTMLInputElement | HTMLTextAreaElement
+  >("input, textarea, select, button");
+  const target = Array.from(controls ?? []).find(
+    (control) =>
+      control.getAttribute("aria-label") === issue.label ||
+      control.closest("label")?.textContent?.trim().startsWith(issue.label),
+  );
+  const focusTarget =
+    target ?? document.getElementById(`settings-llm-tab-${issue.tab}`);
+  focusTarget?.focus();
+  target?.scrollIntoView({ block: "center" });
+}
+
+function useRevealSettingsIssue(
+  issue: SettingsSubmissionIssue | undefined,
+  setActiveTab: SettingsModalViewProps["setActiveTab"],
+  setActiveLlmTab: LlmNavigation["setActiveLlmTab"],
+) {
+  const frame = React.useRef(0);
+  React.useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  return React.useCallback(() => {
+    if (!issue) return;
+    cancelAnimationFrame(frame.current);
+    setActiveTab("engine");
+    setActiveLlmTab(issue.tab);
+    frame.current = requestAnimationFrame(() => focusSettingsIssue(issue));
+  }, [issue, setActiveTab, setActiveLlmTab]);
+}
+
+function SettingsDefaultsNotice(): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="settings-draft-notice" role="status">
+      <InfoIcon size={18} />
+      <div>
+        <strong>{t("settings.defaultsPreview.title")}</strong>
+        <span>{t("settings.defaultsPreview.description")}</span>
       </div>
     </div>
   );

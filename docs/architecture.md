@@ -224,3 +224,30 @@ transaction 문맥이 섞이지 않는다. 실제 재현에서는 큐에 기다�
 이번에 처음 수정 범위에 들어온 `pageExportLifecycle.ts`의 보호 기준은 기존
 `.tmp/production-cleanup-coverage-baseline-node22.json`의 원래 측정값을 등록했다.
 역사 artifact, SHA-256, 다른 파일의 커버리지 기준은 변경하지 않았다.
+
+문맥 분석은 기존 활동 계약으로 모델·입력 chapter·공유 문맥을 함께 예약한 뒤 실행한다.
+IPC가 storage port를 주입하며 분석 알고리즘과 모델 독점은 유지한다. 이 직접 연결의
+파일별 import 상한은 workContextIpc 14, 활동 계약 fan-in 26이다. 페이지 목록의
+ResizeObserver는 기존 useEventCallback을 재사용하며 fan-in 30을 기록한다. 범용 상한과
+보호 커버리지 기준은 유지하고 CSS literal 기준은 실제 제거한 항목만 낮췄다.
+
+새 목록 window·header, 진행 이벤트 scheduler, 문맥 분석 소유권 모듈의 최초 커버리지는
+Windows 전체 실행 기록 .tmp/ui-responsiveness-coverage-20260920.json (SHA-256 3d887e67b10f1578f2294e7882b05caaeef228842b40e7b1025d740812fa97f9)에서 등록했다.
+usePageListState의 보호 기준은 기존 source artifact의 원래 값을 등록했으며
+이전 모듈의 기준과 역사 provenance는 변경하지 않았다.
+
+설정 저장 오류 요약은 기존 draft 검증 결과를 읽고 같은 SettingsModal 안에서
+해당 탭으로 이동한다. 별도의 저장 검증 권위나 selector는 추가하지 않았다.
+새 SettingsModalFooter/settingsSubmissionIssue의 최초 측정 출처는
+`.tmp/ui-followup-coverage/coverage-summary.json`이며 SHA-256은
+`669ad2554889b1c2b6f3eb52ee38311d46a217f61ae3da483419c037beadc49a`다.
+이는 focused 테스트의 파일별 최초 기록이며 전체 coverage 통과 기록은 아니다.
+기존 파일 floor는 원래 baseline에서 등록했고 기존 기준을 낮추지 않았다.
+
+설정·가져오기 도움말은 기존 ControlTooltip을 재사용하며, 스크롤 영역에서는
+선택적 FloatingControlTooltip이 기존 portal-tooltip layer에 표시한다. hover/focus,
+Esc, blur, scroll/resize 해제와 viewport 안쪽 배치를 검증한다. 재사용에 따른
+ControlTooltip의 파일별 fan-in은 37으로 기록하며 범용 상한은 유지한다.
+새 portal 구현의 최초 커버리지는 `.tmp/ui-tooltip-coverage/coverage-summary.json`
+(SHA-256 `4e7ab21464ffa447df020ab126db11ff27553731bee146209ade96abe2f95199`)의
+파일별 측정값이다. 기존 ControlTooltip의 100% 보호 기준은 유지한다.

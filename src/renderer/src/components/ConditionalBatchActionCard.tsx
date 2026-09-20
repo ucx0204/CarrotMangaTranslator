@@ -576,6 +576,7 @@ function StyleTextActionEditor({
         />
       ) : null}
       <ExistingStyleMatchEditor action={action} onChange={onChange} />
+      <h4>글꼴과 글자 모양</h4>
       <div className={styles.inlineStyleGrid}>
         <PatchBoolean
           label="굵게"
@@ -627,8 +628,8 @@ function StyleTextActionEditor({
           onChange={(widthScale) => updateStyle("widthScale", widthScale)}
         />
       </div>
-      <details className={styles.inlineStyleAdvanced}>
-        <summary>색상 · 외곽선 · 광선</summary>
+      <div className={styles.inlineStyleAdvanced}>
+        <h4>색과 효과</h4>
         <div className={styles.inlineStyleGrid}>
           <PatchColorValue
             label="글자색"
@@ -690,7 +691,7 @@ function StyleTextActionEditor({
             onChange={(glowOpacity) => updateStyle("glowOpacity", glowOpacity)}
           />
         </div>
-      </details>
+      </div>
       {action.scope === "pattern" ? (
         <div className={styles.actionToggles}>
           <CheckboxField
@@ -1118,6 +1119,7 @@ function PatchColorValue({
         <div className={styles.patchValue}>
           <ColorField
             label={label}
+            labelHidden
             disabled={value === null}
             value={typeof value === "string" ? value : "#000000"}
             onChange={onChange}

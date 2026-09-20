@@ -25,6 +25,56 @@ afterEach(() => {
 });
 
 describe("rich translation editor hook boundaries", () => {
+  it("reuses an unchanged caret style but observes style edits at the same offset", () => {
+    const { result } = renderHook(() => useRichTranslationEditorState("block"));
+    const root = document.createElement("div");
+    root.innerHTML =
+      '<span data-rich-text-run data-bold="false" data-italic="false">text</span>';
+    document.body.append(root);
+    const run = root.firstElementChild as HTMLElement;
+    const range = document.createRange();
+    range.setStart(run.firstChild as Text, 1);
+    range.collapse(true);
+    const selection = document.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    act(() => result.current.recordVisualSelection(root, { start: 1, end: 1 }));
+    const initialRun = result.current.caretRun;
+    act(() => result.current.recordVisualSelection(root, { start: 1, end: 1 }));
+    expect(result.current.caretRun).toBe(initialRun);
+    run.dataset.bold = "true";
+    act(() => result.current.recordVisualSelection(root, { start: 1, end: 1 }));
+    expect(result.current.caretRun?.bold).toBe(true);
+    run.dataset.color = "#112233";
+    act(() => result.current.recordVisualSelection(root, { start: 1, end: 1 }));
+    expect(result.current.caretRun?.color).toBe("#112233");
+    act(() => result.current.recordVisualSelection(root, { start: 0, end: 2 }));
+    expect(result.current.caretRun).toBeNull();
+    root.remove();
+  });
+  it("does not commit unchanged selections and still tracks a new range immediately", () => {
+    const committed = vi.fn();
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <React.Profiler id="selection" onRender={committed}>
+        {children}
+      </React.Profiler>
+    );
+    const { result } = renderHook(
+      () => useRichTranslationEditorState("block"),
+      { wrapper },
+    );
+    act(() => result.current.setSelection({ start: 1, end: 5 }));
+    committed.mockClear();
+    for (let i = 0; i < 100; i++)
+      act(() => result.current.setSelection({ start: 1, end: 5 }));
+    expect(committed).not.toHaveBeenCalled();
+    act(() => {
+      result.current.setSelection({ start: 2, end: 6 });
+      expect(result.current.selectionRef.current).toEqual({ start: 2, end: 6 });
+    });
+    expect(result.current.selection).toEqual({ start: 2, end: 6 });
+    expect(committed).toHaveBeenCalledOnce();
+  });
   it("saves the production IME fallback commit before acknowledging a page handoff", async () => {
     const acknowledge = vi.fn(async () => true);
     window.mangaApi = createTestMangaGatewayStub({

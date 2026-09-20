@@ -9,6 +9,46 @@ import { PageList } from "../src/renderer/src/components/PageList";
 afterEach(cleanup);
 
 describe("page list workflow status", () => {
+  it("keeps an unreserved page removable while chapter reordering and model execution stay locked", () => {
+    const onRemove = vi.fn();
+    render(
+      <PageList
+        collapsed={false}
+        otherPanelCollapsed={false}
+        pages={PAGES}
+        selectedPageId={null}
+        jobActive
+        translationBlocked
+        removalLockedPageIds={new Set(["running"])}
+        lockedPageIds={new Set(["running"])}
+        onSelect={vi.fn()}
+        onRetranslate={vi.fn()}
+        onRemove={onRemove}
+        onReorder={vi.fn()}
+        onToggleOtherPanel={vi.fn()}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "done.jpg 작업 더 보기" }),
+    );
+    expect(
+      (screen.getByRole("menuitem", { name: "재번역" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    const remove = screen.getByRole("menuitem", {
+      name: /삭제/,
+    }) as HTMLButtonElement;
+    expect(remove.disabled).toBe(false);
+    fireEvent.click(remove);
+    expect(onRemove).toHaveBeenCalledWith("done");
+    fireEvent.click(
+      screen.getByRole("button", { name: "running.jpg 작업 더 보기" }),
+    );
+    expect(
+      (screen.getByRole("menuitem", { name: /삭제/ }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
   it("distinguishes translation completion from full postprocess completion", () => {
     render(
       <PageList

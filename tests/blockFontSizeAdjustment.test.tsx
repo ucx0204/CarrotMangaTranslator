@@ -688,7 +688,7 @@ describe("selected block font-size adjustment", () => {
         .opacity,
     ).toBe("0.6");
 
-    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    fireEvent.click(screen.getByRole("radio", { name: "코드" }));
     expect(
       (
         screen.getByRole("textbox", {
@@ -813,7 +813,6 @@ describe("selected block font-size adjustment", () => {
       { target: { value: "#fff4cc" } },
     );
 
-    fireEvent.click(within(panel).getByText("외곽선 · 광선"));
     fireEvent.change(
       within(panel).getByRole("textbox", { name: "외곽선 HEX" }),
       { target: { value: "#ddeeff" } },
@@ -872,7 +871,7 @@ describe("selected block font-size adjustment", () => {
       </FontsTestProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    fireEvent.click(screen.getByRole("radio", { name: "코드" }));
     const code = screen.getByRole("textbox", {
       name: "번역문 서식 코드",
     }) as HTMLTextAreaElement;
@@ -903,7 +902,6 @@ describe("selected block font-size adjustment", () => {
       { target: { value: "#123456" } },
     );
     fireEvent.click(within(panel).getByRole("checkbox", { name: "글자 배경" }));
-    fireEvent.click(within(panel).getByText("외곽선 · 광선"));
     fireEvent.change(
       within(panel).getByRole("textbox", { name: "외곽선 HEX" }),
       { target: { value: "#abcdef" } },
@@ -945,7 +943,7 @@ describe("selected block font-size adjustment", () => {
       </FontsTestProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    fireEvent.click(screen.getByRole("radio", { name: "코드" }));
     const code = screen.getByRole("textbox", {
       name: "번역문 서식 코드",
     }) as HTMLTextAreaElement;
@@ -1024,7 +1022,7 @@ describe("selected block font-size adjustment", () => {
       "가나다라",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    fireEvent.click(screen.getByRole("radio", { name: "코드" }));
     expect(
       (
         screen.getByRole("textbox", {
@@ -1032,7 +1030,7 @@ describe("selected block font-size adjustment", () => {
         }) as HTMLTextAreaElement
       ).value,
     ).toBe("가[size=48]나다[/size]라");
-    fireEvent.click(screen.getByRole("button", { name: "편집" }));
+    fireEvent.click(screen.getByRole("radio", { name: "편집" }));
 
     const visual = screen.getByRole("textbox", { name: "번역문" });
     expect(visual.textContent).toBe("가나다라");
@@ -1337,7 +1335,7 @@ describe("selected block font-size adjustment", () => {
         />
       </FontsTestProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    fireEvent.click(screen.getByRole("radio", { name: "코드" }));
     const code = screen.getByRole("textbox", {
       name: "번역문 서식 코드",
     }) as HTMLTextAreaElement;
@@ -1369,7 +1367,7 @@ describe("selected block font-size adjustment", () => {
         />
       </FontsTestProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    fireEvent.click(screen.getByRole("radio", { name: "코드" }));
     const code = screen.getByRole("textbox", {
       name: "번역문 서식 코드",
     }) as HTMLTextAreaElement;
@@ -1900,7 +1898,7 @@ describe("selected block font-size adjustment", () => {
     });
 
     const formatGroup = screen
-      .getByRole("heading", { name: "서식" })
+      .getByRole("heading", { name: /블록.*기본 서식/ })
       .closest(".editor-group");
     fireEvent.click(
       within(formatGroup as HTMLElement).getByRole("button", {
@@ -2014,8 +2012,8 @@ describe("selected block font-size adjustment", () => {
       name: "블록 배경 투명도",
     });
     expect(textOpacity.closest(".editor-group")?.textContent).toContain("서식");
-    expect(backgroundOpacity.closest(".editor-group")?.textContent).toContain(
-      "편집 표시",
+    expect(backgroundOpacity.closest(".editor-group")).not.toBe(
+      textOpacity.closest(".editor-group"),
     );
     expect(
       screen.queryByText(

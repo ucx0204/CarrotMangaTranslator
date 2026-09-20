@@ -65,12 +65,10 @@
   width: 46px;
   height: 46px;
   padding: 6px;
-  border: 1px solid rgba(255, 118, 133, 0.78);
+  border: 1px solid var(--control-border);
   border-radius: 999px;
-  background: rgba(126, 24, 39, 0.96);
-  box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.42),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
@@ -79,22 +77,20 @@
 }
 
 .sound-effect-translation-launcher:hover:not(:disabled) {
-  border-color: #ff9ba7;
-  background: #a82339;
+  border-color: var(--accent-bd);
+  background: var(--control-bg-hover);
   transform: translateY(-1px);
 }
 
 .sound-effect-translation-launcher:focus-visible {
-  outline: 2px solid #ff9ba6;
+  outline: 2px solid var(--focus);
   outline-offset: 3px;
 }
 
 .sound-effect-translation-launcher.is-active {
-  border-color: #ff4f65;
-  background: #c3263b;
-  box-shadow:
-    0 0 0 3px rgba(255, 79, 101, 0.18),
-    0 8px 24px rgba(0, 0, 0, 0.38);
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-sm);
 }
 
 .sound-effect-translation-launcher:disabled {
@@ -109,7 +105,6 @@
   height: 34px;
   object-fit: contain;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
-  animation: sfx-logo-wiggle 5.2s ease-in-out infinite;
   transform-origin: center;
 }
 
@@ -120,42 +115,14 @@
   min-width: 19px;
   height: 19px;
   padding: 0 4px;
-  border: 2px solid #171920;
+  border: 2px solid var(--surface-rail);
   border-radius: 999px;
-  color: white;
-  background: #ef4058;
+  color: var(--accent-text);
+  background: var(--accent);
   font:
     800 9px/15px system-ui,
     sans-serif;
   font-variant-numeric: tabular-nums;
-}
-
-@keyframes sfx-logo-wiggle {
-  0%,
-  72%,
-  100% {
-    transform: translateX(0) rotate(0deg);
-  }
-
-  76% {
-    transform: translateX(-2px) rotate(-7deg);
-  }
-
-  80% {
-    transform: translateX(2px) rotate(7deg);
-  }
-
-  84% {
-    transform: translateX(-1px) rotate(-4deg);
-  }
-
-  88% {
-    transform: translateX(1px) rotate(3deg);
-  }
-
-  92% {
-    transform: translateX(0) rotate(0deg);
-  }
 }
 
 .library-panel.collapsed,
@@ -1103,5 +1070,36 @@
 @media (prefers-reduced-motion: reduce) {
   .library-drop-overlay {
     animation: none;
+  }
+}
+
+@media (max-height: 640px) {
+  .right-quick-rail {
+    gap: var(--sp-3);
+  }
+  .chapter-quick-group > .chapter-quick-control,
+  .chapter-quick-control > button,
+  .right-quick-bottom-frame .right-quick-bottom-group,
+  .right-quick-bottom-frame .workspace-view-dock,
+  .right-quick-bottom-frame .workspace-view-reveal-slot,
+  .right-quick-bottom-frame .workspace-view-reveal,
+  .right-quick-bottom-frame .workspace-view-reveal > button,
+  .right-quick-bottom-frame .workspace-original-opacity-dock,
+  .right-quick-bottom-frame .workspace-original-opacity-trigger,
+  .right-quick-bottom-frame .workspace-original-opacity-trigger > button,
+  .right-quick-bottom-frame .status-dock,
+  .right-quick-bottom-frame .status-dock-button,
+  .right-quick-rail-toggle,
+  .right-quick-rail-toggle > button {
+    height: 28px;
+    min-height: 28px;
+  }
+  .chapter-quick-group + .chapter-quick-group,
+  .right-quick-bottom-group + .right-quick-bottom-group {
+    margin-top: 4px;
+    padding-top: 4px;
+  }
+  .right-quick-bottom-group + .right-quick-bottom-group {
+    height: 32px;
   }
 }

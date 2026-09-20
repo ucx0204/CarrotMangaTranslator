@@ -139,7 +139,9 @@ describe("web import background IPC", () => {
     const prepareImport = vi.fn<WebImportSessionManager["prepareImport"]>(
       async (_sessionId, _selectedIds, _signal, onProgress) => {
         onProgress?.(0, 1);
+        expect(context.operations.currentActivity?.progressCurrent).toBe(0);
         onProgress?.(1, 1);
+        expect(context.operations.currentActivity?.progressCurrent).toBe(1);
         return {
           preview: {
             mode: "single",
@@ -190,19 +192,20 @@ describe("web import background IPC", () => {
     expect(preview.chapters[0]?.pages).toEqual([
       expect.objectContaining({ sourcePath: "web-import-staged://1" }),
     ]);
+    // A short preparation completes before the progress delivery interval.
+    // The terminal event must carry the latest counters without a stale replay.
     expect(activity).toEqual([
-      expect.objectContaining({ status: "running", phase: "web-preparing" }),
       expect.objectContaining({
         status: "running",
         phase: "web-preparing",
         progressCurrent: 0,
       }),
       expect.objectContaining({
-        status: "running",
+        status: "completed",
         phase: "web-preparing",
         progressCurrent: 1,
+        progressTotal: 1,
       }),
-      expect.objectContaining({ status: "completed", phase: "web-preparing" }),
     ]);
     expect(cleanup).not.toHaveBeenCalled();
     await expect(discardImportPreviewSession(preview.previewId)).resolves.toBe(

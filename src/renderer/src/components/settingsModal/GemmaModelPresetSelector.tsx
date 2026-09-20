@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import { MODEL_PRESETS, type ModelPresetId } from "../settingsOptions";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
@@ -104,11 +105,7 @@ export function GemmaModelPresetSelector(
             />
           ))}
         </div>
-        <p className="muted-line modal-note">
-          {props.selectedPreset === "custom"
-            ? t("settings.gemma.preset.customDescription")
-            : t(MODEL_PRESETS[props.selectedPreset].descriptionKey)}
-        </p>
+
         {props.usesAppleHardware && props.selectedPreset !== "custom" ? (
           <GemmaMemorySummary
             allowUnsafeUnifiedMemory={props.allowUnsafeUnifiedMemory}
@@ -175,16 +172,25 @@ function ModelPresetButton({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <button
-      type="button"
-      className={`settings-preset-button ${selectedPreset === presetId ? "active" : ""}`}
-      disabled={controlsBusy}
-      aria-pressed={selectedPreset === presetId}
-      onClick={() => selectPreset(presetId)}
+    <ControlTooltip
+      floating
+      content={
+        presetId === "custom"
+          ? t("settings.gemma.preset.customDescription")
+          : t(MODEL_PRESETS[presetId].descriptionKey)
+      }
     >
-      {presetId === "custom"
-        ? t("settings.gemma.preset.custom")
-        : t(MODEL_PRESETS[presetId].labelKey)}
-    </button>
+      <button
+        type="button"
+        className={`settings-preset-button ${selectedPreset === presetId ? "active" : ""}`}
+        disabled={controlsBusy}
+        aria-pressed={selectedPreset === presetId}
+        onClick={() => selectPreset(presetId)}
+      >
+        {presetId === "custom"
+          ? t("settings.gemma.preset.custom")
+          : t(MODEL_PRESETS[presetId].labelKey)}
+      </button>
+    </ControlTooltip>
   );
 }

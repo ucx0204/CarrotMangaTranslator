@@ -16,6 +16,7 @@ type NumberFieldVariant = "plain" | "scrubber" | "framed";
 
 type NumberFieldBaseProps = {
   ariaLabel: string;
+  ariaDescribedBy?: string;
   min: number;
   max: number;
   className?: string;
@@ -302,6 +303,7 @@ function NumberInput({ props, emit }: InternalProps): React.JSX.Element {
       type={useTextInput ? "text" : "number"}
       inputMode={inputMode}
       aria-label={ariaLabel}
+      aria-describedby={props.ariaDescribedBy}
       aria-invalid={invalid || undefined}
       min={min}
       max={max}

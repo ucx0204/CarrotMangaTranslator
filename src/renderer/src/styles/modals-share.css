@@ -499,37 +499,10 @@
   gap: var(--sp-3);
 }
 
-.source-choice-intro {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: 0 0 var(--sp-5);
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.source-choice-intro-icon {
-  display: grid;
-  flex: 0 0 auto;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border-radius: var(--r-md);
-  background: var(--accent-soft);
-  color: var(--accent-hi);
-}
-
-.source-choice-intro > div,
 .source-choice-copy {
   display: grid;
   min-width: 0;
   gap: var(--sp-1);
-}
-
-.source-choice-intro span:last-child,
-.source-choice-copy small {
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-  line-height: 1.45;
 }
 
 .source-choice {

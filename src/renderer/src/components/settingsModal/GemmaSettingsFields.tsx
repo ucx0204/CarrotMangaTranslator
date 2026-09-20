@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import {
   LLAMA_RUNTIME_PROFILE_OPTIONS,
@@ -78,9 +79,6 @@ function ModelSourceSelector({
   "clearTestState" | "controlsBusy" | "modelSource" | "setModelSource"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
-  const activeSource = MODEL_SOURCE_OPTIONS.find(
-    (option) => option.id === modelSource,
-  );
   return (
     <div className="settings-field-stack">
       <span>{t("settings.gemma.modelSource.label")}</span>
@@ -90,24 +88,27 @@ function ModelSourceSelector({
         aria-label={t("settings.gemma.modelSource.label")}
       >
         {MODEL_SOURCE_OPTIONS.map((option) => (
-          <button
+          <ControlTooltip
+            floating
+            content={t(option.descriptionKey)}
             key={option.id}
-            type="button"
-            className={`settings-preset-button ${modelSource === option.id ? "active" : ""}`}
-            onClick={() => {
-              clearTestState();
-              setModelSource(option.id);
-            }}
-            disabled={controlsBusy}
-            aria-pressed={modelSource === option.id}
           >
-            {t(option.labelKey)}
-          </button>
+            <button
+              key={option.id}
+              type="button"
+              className={`settings-preset-button ${modelSource === option.id ? "active" : ""}`}
+              onClick={() => {
+                clearTestState();
+                setModelSource(option.id);
+              }}
+              disabled={controlsBusy}
+              aria-pressed={modelSource === option.id}
+            >
+              {t(option.labelKey)}
+            </button>
+          </ControlTooltip>
         ))}
       </div>
-      <p className="muted-line modal-note">
-        {activeSource ? t(activeSource.descriptionKey) : null}
-      </p>
     </div>
   );
 }
@@ -237,9 +238,6 @@ function LlamaRuntimeSelector({
     (option) =>
       usesAppleHardware ? option.id === "metal" : option.id !== "metal",
   );
-  const activeRuntime = visibleRuntimeOptions.find(
-    (option) => option.id === llamaRuntimeProfile,
-  );
   return (
     <div className="settings-field-stack">
       <span>{t("settings.gemma.runtime.label")}</span>
@@ -249,24 +247,28 @@ function LlamaRuntimeSelector({
         aria-label={t("settings.gemma.runtime.label")}
       >
         {visibleRuntimeOptions.map((option) => (
-          <button
+          <ControlTooltip
+            floating
+            content={t(option.descriptionKey)}
             key={option.id}
-            type="button"
-            className={`settings-preset-button ${llamaRuntimeProfile === option.id ? "active" : ""}`}
-            onClick={() => {
-              clearTestState();
-              setLlamaRuntimeProfile(option.id);
-            }}
-            disabled={isLlamaRuntimeOptionDisabled(option.id)}
-            aria-pressed={llamaRuntimeProfile === option.id}
           >
-            {t(option.labelKey)}
-          </button>
+            <button
+              key={option.id}
+              type="button"
+              className={`settings-preset-button ${llamaRuntimeProfile === option.id ? "active" : ""}`}
+              onClick={() => {
+                clearTestState();
+                setLlamaRuntimeProfile(option.id);
+              }}
+              disabled={isLlamaRuntimeOptionDisabled(option.id)}
+              aria-pressed={llamaRuntimeProfile === option.id}
+            >
+              {t(option.labelKey)}
+            </button>
+          </ControlTooltip>
         ))}
       </div>
-      <p className="muted-line modal-note">
-        {activeRuntime ? t(activeRuntime.descriptionKey) : null}
-      </p>
+
       <LlamaRuntimeCompatibilityWarning
         detectedGpuName={detectedGpuName}
         llamaRuntimeProfile={llamaRuntimeProfile}

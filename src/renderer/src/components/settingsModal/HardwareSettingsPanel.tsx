@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import { OCR_DEVICE_OPTIONS, OCR_QUALITY_OPTIONS } from "../settingsOptions";
 import { SettingsSection } from "./SettingsSection";
@@ -6,27 +7,22 @@ import { GpuAssignmentSettings } from "./GpuAssignmentSettings";
 import { FluxBackendSettings } from "./FluxBackendSettings";
 import { HardwareStatusSummary } from "./HardwareStatusSummary";
 import type { HardwareSettingsPanelProps } from "./hardwareSettingsTypes";
-import { isHayaiOcrPipeline } from "../../../../shared/ocrEngines";
 
 export function HardwareSettingsPanel(
   props: HardwareSettingsPanelProps,
 ): React.JSX.Element {
-  const { t } = useTranslation("components");
   return (
     <div className="settings-panel-stack">
       <HardwareStatusSummary {...props} />
       {!props.usesAppleHardware ? (
-        <details className="settings-advanced hardware-advanced-settings">
-          <summary>{t("settings.hardware.gpuAdvanced")}</summary>
-          <GpuAssignmentSettings
-            clearTestState={props.clearTestState}
-            computeGpuIndex={props.computeGpuIndex}
-            controlsBusy={props.controlsBusy}
-            graphicsGpuPreference={props.graphicsGpuPreference}
-            setComputeGpuIndex={props.setComputeGpuIndex}
-            setGraphicsGpuPreference={props.setGraphicsGpuPreference}
-          />
-        </details>
+        <GpuAssignmentSettings
+          clearTestState={props.clearTestState}
+          computeGpuIndex={props.computeGpuIndex}
+          controlsBusy={props.controlsBusy}
+          graphicsGpuPreference={props.graphicsGpuPreference}
+          setComputeGpuIndex={props.setComputeGpuIndex}
+          setGraphicsGpuPreference={props.setGraphicsGpuPreference}
+        />
       ) : null}
     </div>
   );
@@ -72,22 +68,19 @@ export function OcrSettingsSection({
             usesNvidiaOcrContext={usesNvidiaOcrContext}
           />
         ) : null}
-        <details className="settings-advanced hardware-advanced-settings">
-          <summary>{t("settings.hardware.ocrAdvanced")}</summary>
-          <OcrDeviceSettings
-            clearTestState={clearTestState}
-            controlsBusy={controlsBusy}
-            ocrDevice={ocrDevice}
-            ocrGpuBackend={ocrGpuBackend}
-            ocrPipeline={ocrPipeline}
-            setOcrDevice={setOcrDevice}
-            setOcrGpuBackend={setOcrGpuBackend}
-            supportsOcrRocm={supportsOcrRocm}
-            usesAmdOcrContext={usesAmdOcrContext}
-            usesAppleHardware={usesAppleHardware}
-            usesNvidiaOcrContext={usesNvidiaOcrContext}
-          />
-        </details>
+        <OcrDeviceSettings
+          clearTestState={clearTestState}
+          controlsBusy={controlsBusy}
+          ocrDevice={ocrDevice}
+          ocrGpuBackend={ocrGpuBackend}
+          ocrPipeline={ocrPipeline}
+          setOcrDevice={setOcrDevice}
+          setOcrGpuBackend={setOcrGpuBackend}
+          supportsOcrRocm={supportsOcrRocm}
+          usesAmdOcrContext={usesAmdOcrContext}
+          usesAppleHardware={usesAppleHardware}
+          usesNvidiaOcrContext={usesNvidiaOcrContext}
+        />
       </div>
     </SettingsSection>
   );
@@ -112,24 +105,29 @@ function OcrPipelineSettings({
         aria-label={t("settings.hardware.ocrPipeline")}
       >
         {(["hayai", "paddle-legacy"] as const).map((pipeline) => (
-          <button
+          <ControlTooltip
+            floating
+            content={t(
+              `settings.hardware.ocrPipelines.${pipeline}.description`,
+            )}
             key={pipeline}
-            type="button"
-            className={`settings-preset-button ${ocrPipeline === pipeline ? "active" : ""}`}
-            disabled={controlsBusy}
-            aria-pressed={ocrPipeline === pipeline}
-            onClick={() => {
-              clearTestState();
-              setOcrPipeline(pipeline);
-            }}
           >
-            {t(`settings.hardware.ocrPipelines.${pipeline}.label`)}
-          </button>
+            <button
+              key={pipeline}
+              type="button"
+              className={`settings-preset-button ${ocrPipeline === pipeline ? "active" : ""}`}
+              disabled={controlsBusy}
+              aria-pressed={ocrPipeline === pipeline}
+              onClick={() => {
+                clearTestState();
+                setOcrPipeline(pipeline);
+              }}
+            >
+              {t(`settings.hardware.ocrPipelines.${pipeline}.label`)}
+            </button>
+          </ControlTooltip>
         ))}
       </div>
-      <p className="muted-line modal-note">
-        {t(`settings.hardware.ocrPipelines.${ocrPipeline}.description`)}
-      </p>
     </div>
   );
 }
@@ -146,27 +144,21 @@ export function InpaintingSettingsSection({
   detectedGpuName,
   supportsFluxZluda,
 }: HardwareSettingsPanelProps): React.JSX.Element {
-  const { t } = useTranslation("components");
   return (
-    <>
-      <div className="settings-subsection-stack">
-        <details className="settings-advanced hardware-advanced-settings">
-          <summary>{t("settings.hardware.inpaintingBackendAdvanced")}</summary>
-          <FluxBackendSettings
-            clearTestState={clearTestState}
-            controlsBusy={controlsBusy}
-            fluxBackend={fluxBackend}
-            inpaintingModel={inpaintingModel}
-            isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
-            setFluxBackend={setFluxBackend}
-            detectedGpuName={detectedGpuName}
-            supportsFluxZluda={supportsFluxZluda}
-            usesAmdHardware={usesAmdHardware}
-            usesAppleHardware={usesAppleHardware}
-          />
-        </details>
-      </div>
-    </>
+    <div className="settings-subsection-stack">
+      <FluxBackendSettings
+        clearTestState={clearTestState}
+        controlsBusy={controlsBusy}
+        fluxBackend={fluxBackend}
+        inpaintingModel={inpaintingModel}
+        isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
+        setFluxBackend={setFluxBackend}
+        detectedGpuName={detectedGpuName}
+        supportsFluxZluda={supportsFluxZluda}
+        usesAmdHardware={usesAmdHardware}
+        usesAppleHardware={usesAppleHardware}
+      />
+    </div>
   );
 }
 
@@ -195,9 +187,7 @@ function OcrQualitySettings({
   | "usesNvidiaOcrContext"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
-  const activeOption = OCR_QUALITY_OPTIONS.find(
-    (option) => option.id === ocrQualityMode,
-  );
+
   const visibleQualityOptions = OCR_QUALITY_OPTIONS.filter((option) => {
     if (
       option.id === "full" &&
@@ -216,49 +206,40 @@ function OcrQualitySettings({
         aria-label={t("settings.hardware.ocrQuality")}
       >
         {visibleQualityOptions.map((option) => (
-          <button
+          <ControlTooltip
+            floating
+            content={t(option.descriptionKey)}
             key={option.id}
-            type="button"
-            className={`settings-preset-button ${ocrQualityMode === option.id ? "active" : ""}`}
-            onClick={() => {
-              clearTestState();
-              if (option.id === "full") {
-                setOcrDevice("gpu");
-                if (usesAmdOcrContext) {
-                  setOcrGpuBackend("rocm-transformers");
-                } else if (usesNvidiaOcrContext) {
-                  setOcrGpuBackend("cuda");
-                }
-              }
-              setOcrQualityMode(option.id);
-            }}
-            disabled={controlsBusy}
-            aria-pressed={ocrQualityMode === option.id}
           >
-            {t(option.labelKey)}
-          </button>
+            <button
+              key={option.id}
+              type="button"
+              className={`settings-preset-button ${ocrQualityMode === option.id ? "active" : ""}`}
+              onClick={() => {
+                clearTestState();
+                if (option.id === "full") {
+                  setOcrDevice("gpu");
+                  if (usesAmdOcrContext) {
+                    setOcrGpuBackend("rocm-transformers");
+                  } else if (usesNvidiaOcrContext) {
+                    setOcrGpuBackend("cuda");
+                  }
+                }
+                setOcrQualityMode(option.id);
+              }}
+              disabled={controlsBusy}
+              aria-pressed={ocrQualityMode === option.id}
+            >
+              {t(option.labelKey)}
+            </button>
+          </ControlTooltip>
         ))}
       </div>
-      <p className="muted-line modal-note">
-        {activeOption ? t(activeOption.descriptionKey) : null}
-      </p>
     </div>
   );
 }
 
-function OcrDeviceSettings({
-  clearTestState,
-  controlsBusy,
-  ocrDevice,
-  ocrGpuBackend,
-  ocrPipeline,
-  setOcrDevice,
-  setOcrGpuBackend,
-  supportsOcrRocm,
-  usesAmdOcrContext,
-  usesAppleHardware,
-  usesNvidiaOcrContext,
-}: Pick<
+type OcrDeviceSettingsProps = Pick<
   HardwareSettingsPanelProps,
   | "clearTestState"
   | "controlsBusy"
@@ -271,20 +252,23 @@ function OcrDeviceSettings({
   | "usesAmdOcrContext"
   | "usesAppleHardware"
   | "usesNvidiaOcrContext"
->): React.JSX.Element {
+>;
+
+function OcrDeviceSettings({
+  clearTestState,
+  controlsBusy,
+  ocrDevice,
+  ocrGpuBackend,
+  setOcrDevice,
+  setOcrGpuBackend,
+  supportsOcrRocm,
+  usesAmdOcrContext,
+  usesAppleHardware,
+  usesNvidiaOcrContext,
+}: OcrDeviceSettingsProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const activeOcrOptionId = ocrDevice === "cpu" ? "cpu" : ocrGpuBackend;
-  const activeOcrOption = OCR_DEVICE_OPTIONS.find(
-    ({ id }) => id === activeOcrOptionId,
-  );
   const visibleOcrOptions = getVisibleOcrOptions(usesAppleHardware);
-  const ocrDescription = activeOcrOption
-    ? isHayaiOcrPipeline(ocrPipeline)
-      ? t(`settings.hardware.hayaiDevices.${activeOcrOptionId}`)
-      : usesAmdOcrContext && activeOcrOptionId === "rocm-transformers"
-        ? t("settings.hardware.amdOcrExperimental")
-        : t(activeOcrOption.descriptionKey)
-    : null;
   return (
     <div className="settings-field-stack">
       <span>{t("settings.hardware.ocrDevice")}</span>
@@ -293,32 +277,47 @@ function OcrDeviceSettings({
         role="group"
         aria-label={t("settings.hardware.ocrDevice")}
       >
-        {visibleOcrOptions.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className={`settings-preset-button ${activeOcrOptionId === option.id ? "active" : ""}`}
-            onClick={() => {
-              clearTestState();
-              setOcrDevice(option.device);
-              if (option.gpuBackend) {
-                setOcrGpuBackend(option.gpuBackend);
-              }
-            }}
-            disabled={isOcrOptionDisabled(
-              option.id,
-              controlsBusy,
-              usesAmdOcrContext,
-              usesNvidiaOcrContext,
-              supportsOcrRocm,
-            )}
-            aria-pressed={activeOcrOptionId === option.id}
-          >
-            {t(option.labelKey)}
-          </button>
-        ))}
+        {visibleOcrOptions.map((option) => {
+          const unsupported = isOcrOptionDisabled(
+            option.id,
+            false,
+            usesAmdOcrContext,
+            usesNvidiaOcrContext,
+            supportsOcrRocm,
+          );
+          return (
+            <div className="settings-field-stack" key={option.id}>
+              <ControlTooltip
+                floating
+                content={t(
+                  unsupported
+                    ? option.id === "rocm-transformers" &&
+                      supportsOcrRocm === false
+                      ? "settings.hardware.ocrRequirements.unsupportedRocm"
+                      : `settings.hardware.ocrRequirements.${option.id}`
+                    : option.descriptionKey,
+                )}
+              >
+                <button
+                  type="button"
+                  className={`settings-preset-button ${activeOcrOptionId === option.id ? "active" : ""}`}
+                  onClick={() => {
+                    clearTestState();
+                    setOcrDevice(option.device);
+                    if (option.gpuBackend) {
+                      setOcrGpuBackend(option.gpuBackend);
+                    }
+                  }}
+                  disabled={controlsBusy || unsupported}
+                  aria-pressed={activeOcrOptionId === option.id}
+                >
+                  {t(option.labelKey)}
+                </button>
+              </ControlTooltip>
+            </div>
+          );
+        })}
       </div>
-      <p className="muted-line modal-note">{ocrDescription}</p>
     </div>
   );
 }

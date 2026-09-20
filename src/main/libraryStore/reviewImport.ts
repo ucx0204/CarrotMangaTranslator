@@ -62,6 +62,7 @@ export async function applyReviewImportUnlocked(
   const saved = await saveChangedReviewPages({
     changedPageIds,
     chapter,
+    context,
   });
   return {
     chapter: saved,
@@ -110,7 +111,9 @@ function createImportContext(chapter: ChapterFile): ImportContext {
       const key = makeBlockKey(page.id, block.id);
       const target = { key, pageId: page.id, block };
       blockByScopedId.set(key, target);
-      blockById.set(block.id, [...(blockById.get(block.id) ?? []), target]);
+      const matches = blockById.get(block.id);
+      if (matches) matches.push(target);
+      else blockById.set(block.id, [target]);
     }
   }
   return {
@@ -188,7 +191,6 @@ function applyReviewRow({
   if (nextBlock === target.block) {
     return "unchanged";
   }
-  replaceBlock(chapter, target.pageId, blockId, nextBlock);
   target.block = nextBlock;
   changedPageIds.add(target.pageId);
   return "updated";
@@ -302,17 +304,30 @@ function isSameImportedBlock(
   );
 }
 
-function replaceBlock(
-  chapter: ChapterFile,
-  pageId: string,
-  blockId: string,
-  nextBlock: TranslationBlock,
-): void {
-  chapter.pages = chapter.pages.map((page) => {
-    if (page.id !== pageId) return page;
-    const blocks = page.blocks.map((block) =>
-      block.id === blockId ? nextBlock : block,
-    );
+async function saveChangedReviewPages({
+  changedPageIds,
+  chapter,
+  context,
+}: {
+  changedPageIds: Set<string>;
+  chapter: ChapterFile;
+  context: ImportContext;
+}): Promise<ChapterSnapshot> {
+  if (changedPageIds.size === 0) {
+    return hydrateChapter(chapter);
+  }
+  const now = new Date().toISOString();
+  const pages = chapter.pages.map((page) => {
+    if (!changedPageIds.has(page.id)) return page;
+    // Every accepted scoped block occurs once: duplicate rows are rejected
+    // above. Publish the final blocks and invalidate completion once per page.
+    const blocks = page.blocks.map((block) => {
+      const target = context.blockByScopedId.get(
+        makeBlockKey(page.id, block.id),
+      );
+      if (!target) throw new Error("Review import target disappeared.");
+      return target.block;
+    });
     return {
       ...page,
       blocks,
@@ -321,24 +336,9 @@ function replaceBlock(
         page.blocks,
         blocks,
       ),
+      updatedAt: now,
     };
   });
-}
-
-async function saveChangedReviewPages({
-  changedPageIds,
-  chapter,
-}: {
-  changedPageIds: Set<string>;
-  chapter: ChapterFile;
-}): Promise<ChapterSnapshot> {
-  if (changedPageIds.size === 0) {
-    return hydrateChapter(chapter);
-  }
-  const now = new Date().toISOString();
-  const pages = chapter.pages.map((page) =>
-    changedPageIds.has(page.id) ? { ...page, updatedAt: now } : page,
-  );
   const nextChapter: ChapterFile = {
     ...chapter,
     pages,

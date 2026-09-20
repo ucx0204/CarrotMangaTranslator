@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import {
   MODEL_PROVIDER_OPTIONS,
@@ -78,7 +79,8 @@ export function ModelProviderCards({
       visibleOptions.length;
     const nextProvider = visibleOptions[nextIndex].id;
     onProviderChange(nextProvider);
-    event.currentTarget.parentElement
+    event.currentTarget
+      .closest('[role="radiogroup"]')
       ?.querySelector<HTMLButtonElement>(`[data-provider-id="${nextProvider}"]`)
       ?.focus();
   };
@@ -90,28 +92,30 @@ export function ModelProviderCards({
       aria-label={ariaLabel}
     >
       {visibleOptions.map((option) => (
-        <SelectionSurface
+        <ControlTooltip
+          floating
           key={option.id}
-          as="button"
-          type="button"
-          role="radio"
-          className="settings-provider-card"
-          data-provider-id={option.id}
-          selected={selectedProvider === option.id}
-          tabIndex={selectedProvider === option.id ? 0 : -1}
-          onClick={() => onProviderChange(option.id)}
-          onKeyDown={(event) => moveProviderFocus(event, option.id)}
-          disabled={controlsBusy}
-          aria-checked={selectedProvider === option.id}
+          content={t(option.descriptionKey)}
         >
-          <span className="settings-provider-card-head">
-            <strong>{t(option.labelKey)}</strong>
-            <span className="settings-provider-marker" aria-hidden="true" />
-          </span>
-          <span className="settings-provider-card-description">
-            {t(option.descriptionKey)}
-          </span>
-        </SelectionSurface>
+          <SelectionSurface
+            as="button"
+            type="button"
+            role="radio"
+            className="settings-provider-card"
+            data-provider-id={option.id}
+            selected={selectedProvider === option.id}
+            tabIndex={selectedProvider === option.id ? 0 : -1}
+            onClick={() => onProviderChange(option.id)}
+            onKeyDown={(event) => moveProviderFocus(event, option.id)}
+            disabled={controlsBusy}
+            aria-checked={selectedProvider === option.id}
+          >
+            <span className="settings-provider-card-head">
+              <strong>{t(option.labelKey)}</strong>
+              <span className="settings-provider-marker" aria-hidden="true" />
+            </span>
+          </SelectionSurface>
+        </ControlTooltip>
       ))}
     </div>
   );
@@ -227,6 +231,11 @@ function MaxTokensField({
   return (
     <div className="settings-field-stack settings-limit-field">
       <SettingsNumberField
+        tooltip={t(
+          modelProvider === "gemma"
+            ? "settings.engine.maxTokens.gemmaDescription"
+            : "settings.engine.maxTokens.remoteDescription",
+        )}
         ariaLabel={t("settings.engine.maxTokens.label")}
         min={MIN_MAX_TOKENS}
         max={MAX_MAX_TOKENS}
@@ -239,13 +248,6 @@ function MaxTokensField({
           setMaxTokens(next);
         }}
       />
-      <p className="muted-line modal-note">
-        {t(
-          modelProvider === "gemma"
-            ? "settings.engine.maxTokens.gemmaDescription"
-            : "settings.engine.maxTokens.remoteDescription",
-        )}
-      </p>
     </div>
   );
 }
@@ -280,6 +282,7 @@ function ContextTokensField({
   return (
     <div className="settings-field-stack settings-limit-field">
       <SettingsNumberField
+        tooltip={t(`settings.engine.contextTokens.${contextCopy}Description`)}
         ariaLabel={t(`settings.engine.contextTokens.${contextCopy}Label`)}
         min={MIN_CONTEXT_TOKENS}
         step={1024}
@@ -291,9 +294,6 @@ function ContextTokensField({
           setContextTokens(next);
         }}
       />
-      <p className="muted-line modal-note">
-        {t(`settings.engine.contextTokens.${contextCopy}Description`)}
-      </p>
     </div>
   );
 }

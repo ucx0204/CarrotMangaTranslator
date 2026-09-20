@@ -1,4 +1,5 @@
 import React from "react";
+import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
 import type { InpaintingModel } from "../../../../shared/settingsTypes";
 import { OCR_DEVICE_OPTIONS } from "../settingsOptions";
@@ -130,14 +131,10 @@ function HardwareRecommendationAction({
   return (
     <>
       <div className="hardware-recommendation-row">
-        <span className={matches ? "matches" : "different"}>
-          {t(
-            matches
-              ? "settings.hardware.recommendedMatch"
-              : "settings.hardware.recommendedDifferent",
-          )}
-        </span>
-        <>
+        <ControlTooltip
+          floating
+          content={`${t(matches ? "settings.hardware.recommendedMatch" : "settings.hardware.recommendedDifferent")} ${t("settings.hardware.resetGemmaHint")}`}
+        >
           <Button
             size="sm"
             onClick={() => {
@@ -155,11 +152,8 @@ function HardwareRecommendationAction({
           >
             {t("settings.hardware.applyRecommended")}
           </Button>
-        </>
+        </ControlTooltip>
       </div>
-      <p className="muted-line modal-note">
-        {t("settings.hardware.resetGemmaHint")}
-      </p>
       {error && <p role="alert">{t("settings.hardware.resetFailed")}</p>}
     </>
   );

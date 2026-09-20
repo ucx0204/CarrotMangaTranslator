@@ -172,7 +172,6 @@
 }
 
 .current-page-actions button {
-  min-height: 34px;
   overflow: hidden;
   white-space: nowrap;
 }
@@ -181,11 +180,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.current-page-psd-export-action {
-  border-style: dashed;
-  color: var(--text-dim);
 }
 
 .current-page-action-tooltip {
@@ -306,7 +300,7 @@
   min-width: 0;
   min-height: 32px;
   padding: 4px var(--sp-2);
-  border: 0;
+  border: 1px solid transparent;
   border-radius: var(--r-sm);
   background: transparent;
   color: var(--text-muted);
@@ -321,9 +315,10 @@
 }
 
 .editor-panel-tabs button[aria-selected="true"] {
+  border-color: var(--accent-bd);
   background: var(--accent-soft);
-  color: var(--accent-text);
-  box-shadow: inset 0 0 0 1px var(--accent-bd);
+  color: var(--accent-hi);
+  box-shadow: none;
 }
 
 .editor-panel-tabs button:focus-visible {
@@ -683,16 +678,6 @@
   padding-top: var(--sp-1);
 }
 
-.transform-advanced summary {
-  color: var(--text-dim);
-  font-size: var(--font-xs);
-  cursor: pointer;
-}
-
-.transform-advanced[open] summary {
-  margin-bottom: var(--sp-2);
-}
-
 .transform-mini-segments {
   display: grid;
   grid-auto-flow: column;
@@ -740,10 +725,9 @@
 
 .editor-group-head h3 {
   margin: 0;
-  font-size: var(--font-xs);
+  font-size: var(--font-md);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
+  color: var(--text-head);
 }
 
 .background-opacity-scope {
@@ -755,13 +739,6 @@
   gap: var(--sp-1);
   font-size: var(--font-sm);
   color: var(--text-dim);
-}
-
-.editor-panel.has-block textarea,
-.editor-panel.has-block [data-ui-select-trigger],
-.editor-panel.has-block input {
-  font-size: var(--font-md);
-  color: #f5f0e8;
 }
 
 .editor-panel.has-block textarea {

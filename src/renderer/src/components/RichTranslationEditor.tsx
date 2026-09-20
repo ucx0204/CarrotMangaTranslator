@@ -36,6 +36,7 @@ export function RichTranslationEditor(
       onChange={props.onChange}
       onCodeSelect={controller.code.onSelect}
       plainText={controller.plainText}
+      hasSelection={controller.hasSelection}
       selectionValues={controller.selectionValues}
       setMode={controller.setMode}
       specialCharactersId={controller.specialCharacters.id}

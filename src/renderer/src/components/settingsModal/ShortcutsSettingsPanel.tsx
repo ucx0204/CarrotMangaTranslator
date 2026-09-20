@@ -30,7 +30,6 @@ export function ShortcutsSettingsPanel({
   overrides,
   onChange,
 }: ShortcutsSettingsPanelProps): React.JSX.Element {
-  const { t } = useTranslation("components");
   const { t: tRenderer } = useTranslation("renderer");
   const [capturingId, setCapturingId] = React.useState<ShortcutActionId | null>(
     null,
@@ -52,9 +51,6 @@ export function ShortcutsSettingsPanel({
 
   return (
     <div className="settings-field-stack">
-      <p className="muted-line modal-note">
-        {t("settings.shortcuts.description")}
-      </p>
       {conflict ? (
         <p className="shortcut-binding-conflict" role="alert">
           {conflict}

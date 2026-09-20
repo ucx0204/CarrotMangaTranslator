@@ -5,6 +5,7 @@ import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackground
 import { BlockBackgroundApplyModal } from "./BlockBackgroundApplyModal";
 import { Button } from "./ui/Button";
 import { FieldSlider } from "./ui/FieldSlider";
+import styles from "./BlockDisplayGroup.module.css";
 
 export function BlockDisplayGroup({
   block,
@@ -29,21 +30,9 @@ export function BlockDisplayGroup({
     ? t("gatherText.mixedValue")
     : `${Math.round(block.opacity * 100)}%`;
   return (
-    <div className="editor-group editor-display-group">
-      <div className="editor-group-head">
-        <h3>{t("editor.display.title")}</h3>
-        {onApply ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={disabled}
-            onClick={() => setBatchOpen(true)}
-          >
-            {t("editor.display.batchApply")}
-          </Button>
-        ) : null}
-      </div>
+    <div className={`editor-group ${styles.group}`}>
       <FieldSlider
+        layout="stacked"
         label={t("format.blockBackgroundOpacity")}
         valueLabel={opacityLabel}
         aria-valuetext={opacityLabel}
@@ -73,6 +62,16 @@ export function BlockDisplayGroup({
           onUpdate({ opacity: Number(event.target.value) });
         }}
       />
+      {onApply ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={disabled}
+          onClick={() => setBatchOpen(true)}
+        >
+          {t("editor.display.batchApply")}
+        </Button>
+      ) : null}
       {batchOpen && onApply ? (
         <BlockBackgroundApplyModal
           disableChapterApply={disableChapterApply}

@@ -59,6 +59,8 @@ export function useRichTranslationEditorState(
   const compositionEndPendingRef = React.useRef(false);
   const compositionCommitTimerRef = React.useRef<number | null>(null);
   const setSelection = React.useCallback((next: RichTextEditorSelection) => {
+    const current = selectionRef.current;
+    if (current.start === next.start && current.end === next.end) return;
     selectionRef.current = next;
     setSelectionState(next);
   }, []);
@@ -144,8 +146,10 @@ function useRecordVisualSelection({
         clearTypingStyle();
       }
       setSelection(next);
-      caretRunSetter(
-        next.start === next.end ? getRichTextEditorCaretRun(root) : null,
+      const nextRun =
+        next.start === next.end ? getRichTextEditorCaretRun(root) : null;
+      caretRunSetter((current) =>
+        sameCaretRun(current, nextRun) ? current : nextRun,
       );
     },
     [
@@ -157,6 +161,20 @@ function useRecordVisualSelection({
       typingOffsetRef,
       typingStyleRef,
     ],
+  );
+}
+
+function sameCaretRun(
+  current: TextStyleRun | null,
+  next: TextStyleRun | null,
+): boolean {
+  if (current === next) return true;
+  if (!current || !next) return false;
+  return (
+    Object.keys(current).length === Object.keys(next).length &&
+    Object.entries(current).every(([key, value]) =>
+      Object.is(value, next[key as keyof TextStyleRun]),
+    )
   );
 }
 

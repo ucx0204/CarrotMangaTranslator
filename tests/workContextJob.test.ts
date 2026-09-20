@@ -1,5 +1,6 @@
 import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import { describe, expect, it, vi } from "vitest";
+import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 
 vi.mock("electron", () => ({
   app: { isPackaged: false },
@@ -31,8 +32,24 @@ describe("work-context analysis job", () => {
       { jobs, getMainWindow: () => null },
       { chapterId: "chapter-1", scope: "chapter" },
       analyze,
+      {
+        openChapter: async () =>
+          ({
+            id: "chapter-1",
+            workId: "work-1",
+            title: "Chapter",
+            sourceKind: "images",
+            status: "idle",
+            pageOrder: [],
+            pages: [],
+            createdAt: "2026-09-20",
+            updatedAt: "2026-09-20",
+          }) satisfies ChapterSnapshot,
+        listLibrary: async () => ({ workOrder: [], works: [] }),
+      },
     );
 
+    await vi.waitFor(() => expect(receivedSignal).toBeDefined());
     expect(jobs.current?.kind).toBe("gemma-analysis");
     jobs.current?.abortController.abort();
 

@@ -1,6 +1,6 @@
 import React from "react";
+import { ControlTooltip } from "./ui/ControlTooltip";
 import {
-  IconFiles,
   IconFileTypePdf,
   IconFolderOpen,
   IconLink,
@@ -44,49 +44,40 @@ export function TranslateSourceModal({
         />
       }
     >
-      <div className="source-choice-intro">
-        <span className="source-choice-intro-icon" aria-hidden="true">
-          <IconFiles size={22} stroke={1.9} />
-        </span>
-        <div>
-          <strong>{t("translateSource.prompt")}</strong>
-          <span>{t("translateSource.supportedFormats")}</span>
-        </div>
-      </div>
       <div className="source-choice-grid">
         <SourceChoice
-          description={t("translateSource.imagesHint")}
           disabled={busy}
           icon={<IconPhoto size={23} stroke={1.8} />}
           label={t("translateSource.openImages")}
+          description={t("translateSource.imagesHint")}
           onClick={() => onSelect("images")}
         />
         <SourceChoice
-          description={t("translateSource.folderHint")}
           disabled={busy}
           icon={<IconFolderOpen size={22} stroke={1.8} />}
           label={t("translateSource.openFolder")}
+          description={t("translateSource.folderHint")}
           onClick={() => onSelect("folder")}
         />
         <SourceChoice
-          description={t("translateSource.archiveHint")}
           disabled={busy}
           icon={<IconZip size={22} stroke={1.8} />}
           label={t("translateSource.openArchive")}
+          description={t("translateSource.archiveHint")}
           onClick={() => onSelect("zip")}
         />
         <SourceChoice
-          description={t("translateSource.pdfHint")}
           disabled={busy}
           icon={<IconFileTypePdf size={22} stroke={1.8} />}
           label={t("translateSource.openPdf")}
+          description={t("translateSource.pdfHint")}
           onClick={() => onSelect("pdf")}
         />
         <SourceChoice
-          description={t("translateSource.webHint")}
           disabled={busy}
           icon={<IconLink size={22} stroke={1.8} />}
           label={t("translateSource.openWeb")}
+          description={t("translateSource.webHint")}
           onClick={() => onSelect("web")}
         />
       </div>
@@ -108,19 +99,20 @@ function SourceChoice({
   onClick: () => void;
 }): React.JSX.Element {
   return (
-    <button
-      type="button"
-      className="source-choice"
-      disabled={disabled}
-      onClick={onClick}
-    >
-      <span className="source-choice-icon" aria-hidden="true">
-        {icon}
-      </span>
-      <span className="source-choice-copy">
-        <strong>{label}</strong>
-        <small>{description}</small>
-      </span>
-    </button>
+    <ControlTooltip floating content={description}>
+      <button
+        type="button"
+        className="source-choice"
+        disabled={disabled}
+        onClick={onClick}
+      >
+        <span className="source-choice-icon" aria-hidden="true">
+          {icon}
+        </span>
+        <span className="source-choice-copy">
+          <strong>{label}</strong>
+        </span>
+      </button>
+    </ControlTooltip>
   );
 }

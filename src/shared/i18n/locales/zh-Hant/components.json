@@ -319,7 +319,9 @@
         "keep-all": "按詞語",
         "keep-all-overflow": "按詞語＋防溢出"
       }
-    }
+    },
+    "blockScope": "已選 {{count}} 個區塊 · 基本格式",
+    "singleBlockScope": "文字區塊預設格式"
   },
   "transform": {
     "title": "變形",
@@ -396,7 +398,8 @@
         "leftNarrow": "左側收窄",
         "rightNarrow": "右側收窄",
         "skewLeft": "左平行四邊形",
-        "skewRight": "右平行四邊形"
+        "skewRight": "右平行四邊形",
+        "identity": "無變形"
       },
       "corners": {
         "topLeft": "左上",
@@ -519,7 +522,10 @@
       "placeholder": "輸入譯文",
       "codeAria": "譯文格式程式碼",
       "specialCharacters": "符號",
-      "insertSpecialCharacter": "輸入{{character}}"
+      "insertSpecialCharacter": "輸入{{character}}",
+      "scopeSelection": "套用至選取文字",
+      "scopeCaret": "套用至接下來輸入的文字",
+      "scopeCodeCaret": "在游標處插入格式標籤"
     }
   },
   "formatBatch": {
@@ -1003,7 +1009,8 @@
     "moveItem": "移動{{name}}",
     "retranslate": "重新翻譯",
     "retranslateItem": "重新翻譯{{name}}",
-    "deleteItem": "刪除{{name}}"
+    "deleteItem": "刪除{{name}}",
+    "actionBlocked": "正在執行的工作正在使用此對象。"
   },
   "status": {
     "title": "狀態",
@@ -1106,6 +1113,10 @@
       "picker": {
         "label": "取色",
         "title": "從畫布取色"
+      },
+      "warp": {
+        "label": "網格變形",
+        "title": "移動網格點以調整文字形狀"
       }
     }
   },
@@ -1473,7 +1484,8 @@
         "place": "地點",
         "term": "術語",
         "honorific": "稱呼",
-        "other": "其他"
+        "other": "其他",
+        "sfx": "音效"
       }
     },
     "characters": {
@@ -1908,7 +1920,7 @@
           "description": "在 AMD GPU 上透過 ZLUDA 執行 Flux，需要 AMD HIP SDK。"
         },
         "cpu": {
-          "label": "CPU 原生（非常慢）",
+          "label": "CPU",
           "description": "不使用 Python 或 Diffusers 的純 CPU Flux 相容模式。每頁可能需要數分鐘以上；實用的 CPU 修補建議使用 LaMa 或 AOT。"
         }
       },
@@ -2060,7 +2072,7 @@
       "model": "API 模型",
       "key": "API金鑰",
       "keyPlaceholder": "每行輸入一個 API 金鑰",
-      "keyDescription": "空白行與重複金鑰會被忽略。目前已設定 {{count}} 個，金鑰會儲存在此電腦的作業系統加密儲存區。",
+      "keyDescription": "{{count}} 個 API 金鑰",
       "showKey": "顯示 API 金鑰",
       "hideKey": "隱藏 API 金鑰",
       "openKeyPage": "開啟 API 金鑰頁面",
@@ -2101,16 +2113,24 @@
       "openOllamaLibrary": "開啟 Ollama 模型庫",
       "keyMaxAttempts": "每個金鑰的最大嘗試次數",
       "retryDelaySeconds": "重試等待時間（秒）",
-      "retryDescription": "發生可重試失敗時會切換到下一行金鑰。應用程式會依序使用所有金鑰後再回到第一個，而且單次請求不會超過每個金鑰的設定次數。",
+      "retryDescription": "失敗時使用下一個金鑰重試。",
       "advanced": {
         "title": "進階 API 設定",
-        "description": "選填。留空的值不會傳送。",
+        "description": "留空：服務商預設值",
         "temperature": "Temperature",
         "topP": "Top P",
         "topK": "Top K",
         "reasoningEffort": "Reasoning effort",
         "extraBody": "Extra body JSON",
-        "customHeaders": "Custom headers JSON"
+        "customHeaders": "Custom headers JSON",
+        "help": {
+          "temperature": "控制輸出的隨機性。數值越高，措辭越多樣。",
+          "topP": "按累積機率限制候選詞。",
+          "topK": "限制機率最高的候選詞數量。",
+          "reasoningEffort": "設定推理強度。支援的值取決於服務商和模型。",
+          "extraBody": "加入請求本文的JSON物件。請僅填寫服務商支援的屬性。",
+          "customHeaders": "以JSON物件填寫附加的HTTP請求標頭。"
+        }
       },
       "requestIntervalSeconds": "最短呼叫間隔（秒）"
     },
@@ -2173,7 +2193,20 @@
       "downloadHipSdk": "下載AMD HIP SDK",
       "openLinkFailed": "無法開啟連結。請檢查預設瀏覽器。",
       "resetGemmaHint": "同時重設翻譯和研究的本機 Gemma 設定。",
-      "resetFailed": "無法載入建議設定，請重試。"
+      "resetFailed": "無法載入建議設定，請重試。",
+      "fluxRequirements": {
+        "cuda-native": "需要 SM75 以外的 NVIDIA GPU",
+        "cuda-sm75-experimental": "僅限 RTX 20 / GTX 16 (SM75)",
+        "zluda-native": "需要 AMD GPU",
+        "cpu-native": "無需 GPU · 較慢",
+        "metal-native": "需要 Apple Silicon"
+      },
+      "ocrRequirements": {
+        "cuda": "需要 NVIDIA GPU",
+        "rocm-transformers": "需要支援 ROCm 的 AMD GPU",
+        "cpu": "無需 GPU",
+        "unsupportedRocm": "偵測到的 GPU 不支援 ROCm OCR"
+      }
     },
     "format": {
       "alignment": {
@@ -2307,7 +2340,11 @@
       "apiJsonObject": "API JSON 設定必須是物件。",
       "customHeaderBlocked": "{{name}}標頭不能在 Custom headers 中覆寫。",
       "customHeaderValue": "Custom header 值只能是字串、數字或布林值。",
-      "apiKeyCount": "最多可輸入 {{max}} 個 API 金鑰。"
+      "apiKeyCount": "最多可輸入 {{max}} 個 API 金鑰。",
+      "reviewField": "請檢查 {{field}} 的輸入值。",
+      "modelLocation": "模型檔案 / 儲存庫",
+      "goToField": "前往錯誤位置",
+      "unchanged": "設定未變更"
     },
     "image": {
       "localErasure": "預設原文清除",
@@ -2385,7 +2422,8 @@
         "work-share-import": "共享檔案匯入",
         "work-share-export": "共享檔案匯出",
         "model-test": "模型檢查",
-        "codex-auth": "ChatGPT 帳戶"
+        "codex-auth": "ChatGPT 帳戶",
+        "sound-effect-translation": "音效翻譯"
       },
       "status": {
         "idle": "待命",
@@ -2693,7 +2731,7 @@
   },
   "imageRedaction": {
     "enabled": "遮蔽傳送的圖像",
-    "description": "傳送圖片前可遮蓋敏感裸露部位。原圖不會改變。",
+    "description": "僅遮蓋傳送的副本，保留原圖。",
     "title": "檢查傳送的圖像",
     "confirm": "確認並繼續",
     "pages": "頁面",
@@ -2818,7 +2856,7 @@
   },
   "soundEffectTextReview": {
     "title": "確認音效譯文",
-    "hint": "切換頁面，編輯右側清單中的原文、譯文與圖像區域。確認所有頁面後開始清除原文並生成圖像。",
+    "hint": "確認所有頁面後開始移除原文並產生影像。",
     "generate": "全部確認並生成",
     "pages": "已翻譯頁面",
     "count": "{{count}} 個音效",

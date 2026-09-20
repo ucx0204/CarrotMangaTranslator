@@ -22,10 +22,7 @@ export function ImageSettingsPanel({
         <InpaintingModelSettings {...hardware} />
         <InpaintingSettingsSection {...hardware} />
       </SettingsSection>
-      <SettingsSection
-        title={t("settings.image.codex")}
-        description={t("settings.image.description")}
-      >
+      <SettingsSection title={t("settings.image.codex")}>
         <CodexSettingsFields {...engine} imageOnly />
       </SettingsSection>
       <ImageRedactionSettings />

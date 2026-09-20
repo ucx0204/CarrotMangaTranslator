@@ -67,7 +67,14 @@ export function FormatEditorGroup({
   return (
     <div className="editor-group">
       <div className="editor-group-head">
-        <h3>{t("format.title")}</h3>
+        <h3>
+          {t(
+            selectedBlockCount > 1
+              ? "format.blockScope"
+              : "format.singleBlockScope",
+            { count: selectedBlockCount },
+          )}
+        </h3>
         {onApplyFormat ? (
           <Button
             size="sm"
@@ -307,42 +314,27 @@ function TextAlignButtons({
   const { t } = useTranslation("components");
   return (
     <div className="block-style-group">
-      <IconButton
-        size="sm"
-        label={t("format.align.left")}
-        title={t("format.align.left")}
-        aria-pressed={
-          !mixedFields.has("textAlign") && block.textAlign === "left"
-        }
-        disabled={disabled}
-        onClick={() => onUpdate({ textAlign: "left" })}
-      >
-        <AlignLeftIcon size={18} />
-      </IconButton>
-      <IconButton
-        size="sm"
-        label={t("format.align.center")}
-        title={t("format.align.center")}
-        aria-pressed={
-          !mixedFields.has("textAlign") && block.textAlign === "center"
-        }
-        disabled={disabled}
-        onClick={() => onUpdate({ textAlign: "center" })}
-      >
-        <AlignCenterIcon size={18} />
-      </IconButton>
-      <IconButton
-        size="sm"
-        label={t("format.align.right")}
-        title={t("format.align.right")}
-        aria-pressed={
-          !mixedFields.has("textAlign") && block.textAlign === "right"
-        }
-        disabled={disabled}
-        onClick={() => onUpdate({ textAlign: "right" })}
-      >
-        <AlignRightIcon size={18} />
-      </IconButton>
+      {(
+        [
+          ["left", AlignLeftIcon],
+          ["center", AlignCenterIcon],
+          ["right", AlignRightIcon],
+        ] as const
+      ).map(([alignment, Icon]) => (
+        <IconButton
+          key={alignment}
+          size="sm"
+          label={t(`format.align.${alignment}`)}
+          title={t(`format.align.${alignment}`)}
+          aria-pressed={
+            !mixedFields.has("textAlign") && block.textAlign === alignment
+          }
+          disabled={disabled}
+          onClick={() => onUpdate({ textAlign: alignment })}
+        >
+          <Icon size={18} />
+        </IconButton>
+      ))}
     </div>
   );
 }

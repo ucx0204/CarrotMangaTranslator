@@ -88,10 +88,7 @@ function InlineEffects(
 ): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <details className="rich-inline-effects">
-      <summary>
-        {t("editor.richText.effects", { defaultValue: "외곽선 · 광선" })}
-      </summary>
+    <div className="rich-inline-effects">
       <InlineOutlineControls
         disabled={props.disabled}
         enabled={props.values.outlineEnabled}
@@ -112,7 +109,7 @@ function InlineEffects(
       />
       <OuterOutlineControls {...props} />
       <InlineGlowControls {...props} />
-    </details>
+    </div>
   );
 }
 

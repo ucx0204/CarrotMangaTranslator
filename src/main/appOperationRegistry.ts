@@ -3,6 +3,7 @@ import { AppActivityGate } from "./appActivityGate";
 import type { AppActivityResource } from "../shared/appActivityTypes";
 import { isAbortErrorLike } from "./abortSignal";
 import { withLibraryActivityOwner } from "./library/lock";
+import { JOB_EVENT_DISPATCH_INTERVAL_MS } from "./jobs/jobEventDispatchQueue";
 import type {
   AppOperationActivityEvent,
   AppOperationKind,
@@ -60,6 +61,7 @@ type AppOperationEntry = {
   resolveCompletion: () => void;
   finished: boolean;
   activity: AppOperationActivityEvent | null;
+  progressTimer?: ReturnType<typeof setTimeout>;
 };
 
 type AppOperationActivityListener = (
@@ -218,12 +220,29 @@ export class AppOperationRegistry {
     ) {
       return;
     }
+    const previous = entry.activity;
     entry.activity = {
       ...entry.activity,
       ...update,
       updatedAt: Date.now(),
     };
-    this.emitActivity(entry);
+    // State stays authoritative immediately; only repetitive presentation is
+    // batched, using the same cadence as job progress IPC.
+    if (
+      previous.phase !== entry.activity.phase ||
+      previous.sourceKind !== entry.activity.sourceKind ||
+      previous.cancellable !== entry.activity.cancellable ||
+      previous.waitingForUser !== entry.activity.waitingForUser ||
+      previous.progressTotal !== entry.activity.progressTotal ||
+      previous.progressUnit !== entry.activity.progressUnit
+    ) {
+      this.emitActivity(entry);
+    } else if (entry.progressTimer === undefined) {
+      entry.progressTimer = setTimeout(
+        () => this.emitActivity(entry),
+        JOB_EVENT_DISPATCH_INTERVAL_MS,
+      );
+    }
   }
 
   private markCancelling(entry: AppOperationEntry): void {
@@ -282,6 +301,10 @@ export class AppOperationRegistry {
   }
 
   private emitActivity(entry: AppOperationEntry): void {
+    if (entry.progressTimer !== undefined) {
+      clearTimeout(entry.progressTimer);
+      entry.progressTimer = undefined;
+    }
     if (!entry.activity) {
       return;
     }

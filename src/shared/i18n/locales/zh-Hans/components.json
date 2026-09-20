@@ -319,7 +319,9 @@
         "keep-all": "按词语",
         "keep-all-overflow": "按词语＋防溢出"
       }
-    }
+    },
+    "blockScope": "已选 {{count}} 个区块 · 基本格式",
+    "singleBlockScope": "文本块默认格式"
   },
   "transform": {
     "title": "变形",
@@ -396,7 +398,8 @@
         "leftNarrow": "左侧收窄",
         "rightNarrow": "右侧收窄",
         "skewLeft": "左平行四边形",
-        "skewRight": "右平行四边形"
+        "skewRight": "右平行四边形",
+        "identity": "无变形"
       },
       "corners": {
         "topLeft": "左上",
@@ -519,7 +522,10 @@
       "placeholder": "输入译文",
       "codeAria": "译文格式代码",
       "specialCharacters": "符号",
-      "insertSpecialCharacter": "输入{{character}}"
+      "insertSpecialCharacter": "输入{{character}}",
+      "scopeSelection": "应用于选中文字",
+      "scopeCaret": "应用于接下来输入的文字",
+      "scopeCodeCaret": "在光标处插入格式标签"
     }
   },
   "formatBatch": {
@@ -1003,7 +1009,8 @@
     "moveItem": "移动{{name}}",
     "retranslate": "重新翻译",
     "retranslateItem": "重新翻译{{name}}",
-    "deleteItem": "删除{{name}}"
+    "deleteItem": "删除{{name}}",
+    "actionBlocked": "正在运行的任务正在使用此对象。"
   },
   "status": {
     "title": "状态",
@@ -1106,6 +1113,10 @@
       "picker": {
         "label": "取色",
         "title": "从画布取色"
+      },
+      "warp": {
+        "label": "网格变形",
+        "title": "移动网格点以调整文字形状"
       }
     }
   },
@@ -1473,7 +1484,8 @@
         "place": "地点",
         "term": "术语",
         "honorific": "称呼",
-        "other": "其他"
+        "other": "其他",
+        "sfx": "音效"
       }
     },
     "characters": {
@@ -1908,7 +1920,7 @@
           "description": "在AMD GPU上通过ZLUDA运行Flux，需要AMD HIP SDK。"
         },
         "cpu": {
-          "label": "CPU 原生（非常慢）",
+          "label": "CPU",
           "description": "不使用 Python 或 Diffusers 的纯 CPU Flux 兼容模式。每页可能需要数分钟以上；实际 CPU 修复建议使用 LaMa 或 AOT。"
         }
       },
@@ -2060,7 +2072,7 @@
       "model": "API模型",
       "key": "API密钥",
       "keyPlaceholder": "每行输入一个API密钥",
-      "keyDescription": "空行和重复密钥会被忽略。当前已配置{{count}}个，密钥会保存在此电脑的操作系统加密存储中。",
+      "keyDescription": "{{count}} 个 API 密钥",
       "showKey": "显示API密钥",
       "hideKey": "隐藏API密钥",
       "openKeyPage": "打开API密钥页面",
@@ -2101,16 +2113,24 @@
       "openOllamaLibrary": "打开 Ollama 模型库",
       "keyMaxAttempts": "每个密钥的最大尝试次数",
       "retryDelaySeconds": "重试等待时间（秒）",
-      "retryDescription": "发生可重试失败时会切换到下一行密钥。应用会依次使用所有密钥后再回到第一个，并且单次请求不会超过每个密钥的设置次数。",
+      "retryDescription": "失败时使用下一个密钥重试。",
       "advanced": {
         "title": "高级API设置",
-        "description": "可选。留空的值不会发送。",
+        "description": "留空：服务商默认值",
         "temperature": "Temperature",
         "topP": "Top P",
         "topK": "Top K",
         "reasoningEffort": "Reasoning effort",
         "extraBody": "Extra body JSON",
-        "customHeaders": "Custom headers JSON"
+        "customHeaders": "Custom headers JSON",
+        "help": {
+          "temperature": "控制输出的随机性。数值越高，措辞越多样。",
+          "topP": "按累积概率限制候选词。",
+          "topK": "限制概率最高的候选词数量。",
+          "reasoningEffort": "设置推理强度。支持的值取决于服务商和模型。",
+          "extraBody": "添加到请求正文的JSON对象。请仅填写服务商支持的属性。",
+          "customHeaders": "以JSON对象填写附加的HTTP请求头。"
+        }
       },
       "requestIntervalSeconds": "最短调用间隔（秒）"
     },
@@ -2173,7 +2193,20 @@
       "downloadHipSdk": "下载AMD HIP SDK",
       "openLinkFailed": "无法打开链接。请检查默认浏览器。",
       "resetGemmaHint": "同时重置翻译和研究的本地 Gemma 配置。",
-      "resetFailed": "无法加载推荐设置，请重试。"
+      "resetFailed": "无法加载推荐设置，请重试。",
+      "fluxRequirements": {
+        "cuda-native": "需要 SM75 以外的 NVIDIA GPU",
+        "cuda-sm75-experimental": "仅限 RTX 20 / GTX 16 (SM75)",
+        "zluda-native": "需要 AMD GPU",
+        "cpu-native": "无需 GPU · 较慢",
+        "metal-native": "需要 Apple Silicon"
+      },
+      "ocrRequirements": {
+        "cuda": "需要 NVIDIA GPU",
+        "rocm-transformers": "需要支持 ROCm 的 AMD GPU",
+        "cpu": "无需 GPU",
+        "unsupportedRocm": "检测到的 GPU 不支持 ROCm OCR"
+      }
     },
     "format": {
       "alignment": {
@@ -2307,7 +2340,11 @@
       "apiJsonObject": "API JSON设置必须是对象。",
       "customHeaderBlocked": "{{name}}标头不能在Custom headers中覆盖。",
       "customHeaderValue": "Custom header值只能是字符串、数字或布尔值。",
-      "apiKeyCount": "最多可输入{{max}}个API密钥。"
+      "apiKeyCount": "最多可输入{{max}}个API密钥。",
+      "reviewField": "请检查 {{field}} 的输入值。",
+      "modelLocation": "模型文件 / 仓库",
+      "goToField": "前往错误位置",
+      "unchanged": "设置未更改"
     },
     "image": {
       "localErasure": "默认原文擦除",
@@ -2385,7 +2422,8 @@
         "work-share-import": "共享文件导入",
         "work-share-export": "共享文件导出",
         "model-test": "模型检查",
-        "codex-auth": "ChatGPT 账户"
+        "codex-auth": "ChatGPT 账户",
+        "sound-effect-translation": "音效翻译"
       },
       "status": {
         "idle": "空闲",
@@ -2693,7 +2731,7 @@
   },
   "imageRedaction": {
     "enabled": "遮挡发送的图像",
-    "description": "发送图片前可遮盖敏感裸露部位。原图不会改变。",
+    "description": "仅遮盖发送的副本，保留原图。",
     "title": "检查发送的图像",
     "confirm": "确认并继续",
     "pages": "页面",
@@ -2818,7 +2856,7 @@
   },
   "soundEffectTextReview": {
     "title": "确认音效译文",
-    "hint": "切换页面，编辑右侧列表中的原文、译文和图像区域。确认所有页面后开始清除原文并生成图像。",
+    "hint": "确认所有页面后开始移除原文并生成图像。",
     "generate": "全部确认并生成",
     "pages": "已翻译页面",
     "count": "{{count}} 个音效",
