@@ -33,7 +33,8 @@ export function FormatBatchApplyModal({
   const [scope, setScope] = React.useState<FormatApplyScope>(
     selectionAvailable ? "selection" : "page",
   );
-  const canApply = groupIds.size > 0;
+  const canApply =
+    groupIds.size > 0 && !(scope === "chapter" && disableChapterApply);
 
   const handleApply = (): void => {
     if (!canApply) {

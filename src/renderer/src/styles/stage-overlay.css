@@ -43,7 +43,9 @@
 }
 
 .image-stage.retouch-shape-tool-enabled {
-  cursor: crosshair;
+  cursor:
+    url("../assets/cursors/contrast-crosshair.svg") 12 12,
+    crosshair;
 }
 
 .retouch-cursor {

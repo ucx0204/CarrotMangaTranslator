@@ -140,9 +140,16 @@ function assertVisibleRegions(page: MangaPage): void {
   if (
     page.blocks.some((block) => externalImageRegionIsHidden(page, block.bbox))
   )
-    throw new Error(
-      "가리기와 겹치는 효과음은 생성하지 않습니다. 영역을 제외하거나 가리기를 수정해 주세요.",
+    throw new CodexImageRedactionOverlapError();
+}
+
+export class CodexImageRedactionOverlapError extends Error {
+  constructor() {
+    super(
+      "가리기와 겹치는 효과음은 생성하지 않습니다. 가리기를 수정한 뒤 이미지 작업을 이어서 실행해 주세요.",
     );
+    this.name = "CodexImageRedactionOverlapError";
+  }
 }
 
 async function prepareImageReading(input: CodexImageEdit) {

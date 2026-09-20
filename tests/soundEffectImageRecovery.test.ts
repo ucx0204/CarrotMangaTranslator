@@ -196,6 +196,77 @@ it("checkpoints a failed page, continues others, and reloads only unfinished ima
   expect(await f.store.getSoundEffectImageRecovery(saved.id)).toBeNull();
 });
 
+it("holds redacted images without changing their pages, continues, and resumes after redaction review", async () => {
+  const f = currentFixture;
+  const { withApprovedImageRedactions } =
+    await import("../src/main/imageRedactionContext");
+  f.editImages.mockImplementationOnce((input) =>
+    withApprovedImageRedactions(
+      [
+        {
+          ...input.page,
+          fingerprint: "test",
+          strokes: [
+            {
+              shape: "rectangle",
+              size: 1,
+              points: [
+                { x: 0, y: 0 },
+                { x: input.page.width, y: input.page.height },
+              ],
+            },
+          ],
+        },
+      ],
+      () => f.images.editTranslatedPageWithCodex(input),
+    ),
+  );
+  const errors = await f.runner.runSoundEffectImageRecovery(
+    f.input,
+    f.plan,
+    f.dependencies,
+  );
+  expect(errors).toHaveLength(1);
+  expect(errors[0]).toContain("번역문 저장됨 · 이미지 보류");
+  expect(errors[0]).toContain("가리기를 수정한 뒤");
+  expect(f.editImages).toHaveBeenCalledTimes(2);
+  expect(f.plan.pages.map((page) => page.completed)).toEqual([false, true]);
+  const stored = await f.dependencies.openChapter(f.chapter.id);
+  expect(createPageRevision(stored.pages[0])).toBe(
+    createPageRevision(f.chapter.pages[0]),
+  );
+  const completedRevision = createPageRevision(stored.pages[1]);
+  expect(f.input.emit).toHaveBeenCalledWith(
+    expect.objectContaining({ phase: "page_done", detail: errors[0] }),
+  );
+  const reloaded = await f.store.loadSoundEffectImageRecovery(stored, runId);
+  if (!reloaded) throw new Error("Missing recovery plan");
+  expect(reloaded.pages[0].error).toContain("가리기");
+  f.editImages.mockClear();
+  f.editImages.mockImplementationOnce((input) =>
+    withApprovedImageRedactions(
+      [{ ...input.page, fingerprint: "test", strokes: [] }],
+      () =>
+        f.images.editTranslatedPageWithCodex({
+          ...input,
+          output: "text",
+          eraseOriginal: false,
+        }),
+    ),
+  );
+  expect(
+    await f.runner.runSoundEffectImageRecovery(
+      f.input,
+      reloaded,
+      f.dependencies,
+    ),
+  ).toEqual([]);
+  expect(f.editImages).toHaveBeenCalledOnce();
+  const finished = await f.dependencies.openChapter(f.chapter.id);
+  expect(createPageRevision(finished.pages[1])).toBe(completedRevision);
+  expect(await f.store.getSoundEffectImageRecovery(finished.id)).toBeNull();
+});
+
 it.each(["cancel", "storage", "stale"])(
   "stops safely on %s without applying later pages",
   async (failure) => {

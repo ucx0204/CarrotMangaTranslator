@@ -1,351 +1,445 @@
-<p align="center">
-  <img src="docs/images/00-carrot-logo.png" alt="Carrot Manga Translator logo" width="180">
-</p>
+<p align="center"><img src="docs/images/00-carrot-logo.png" alt="Carrot Manga Translator" width="140"></p>
 
 # Carrot Manga Translator
 
-<p align="center">
-  Manga import, OCR, AI translation, editing, inpainting, and PNG/layered PSD export for Windows and Apple Silicon macOS
-</p>
+A desktop app for **OCR → translation → text removal → lettering and review → export**. Bring your own manuscript and translate with local Gemma, Codex, or an OpenAI-compatible API.
 
-<p align="center">
-  <a href="README.md">한국어</a> ·
-  <strong>English</strong> ·
-  <a href="README.ja.md">日本語</a> ·
-  <a href="README.zh-Hans.md">简体中文</a> ·
-  <a href="README.zh-Hant.md">繁體中文</a>
-</p>
+[한국어](README.md) · **English** · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-Carrot Manga Translator is a manga production tool that finds dialogue and sound effects in images, creates translation blocks with AI, and lets you refine the wording and layout before exporting a finished PNG or layered PSD. The default translation direction is Japanese → Korean, but you can choose other source and target languages.
+**[Download v2.7.13](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.7.13)** · [Release notes](docs/release-notes/v2.7.13.md) · [Bugs and requests](https://github.com/ucx0204/CarrotMangaTranslator/issues)
 
-- Download the stable v2.7.11 release (Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- Current version information: [v2.7.11 release notes](docs/release-notes/v2.7.11.md)
-- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Architecture and quality rules: [docs/architecture.md](docs/architecture.md)
-- Project usage and public references: [docs/reputation.md](docs/reputation.md)
+[Getting started](#start) · [Edit text](#edit) · [SFX ImageGen](#sfx) · [Shortcuts](#shortcuts) · [Troubleshooting](#troubleshooting)
 
-## At a Glance
+Windows 10/11 · Apple Silicon macOS 14+ · [GPL-3.0-only](LICENSE)
 
-- Organize a single image, an image folder, a ZIP/CBZ or RAR/CBR archive, or a PDF by title and chapter.
-- Translate by combining Paddle OCR with a local `Gemma 4` model, `OpenAI Codex`, or an OpenAI-compatible `API`.
-- Use the app interface in Korean, Japanese, English, Simplified Chinese, or Traditional Chinese.
-- Choose from 48 presets for manga source and target languages, or enter a BCP 47 language code directly.
-- Edit each translation block's text, position, direction, font, color, outline, and spacing.
-- Apply glossaries, character speech styles, translation rules, and story memory to AI translations.
-- Remove original text with AOT, LaMa, or Flux, make touch-ups with brush tools, and export the result as a finished PNG or layered PSD.
-- Review text externally with TXT and CSV/TSV files, and share editable project data as `*.mgtshare` packages.
+![Manuscript, pages, and block editing](docs/images/readme-v2712/workspace.png)
 
-## Before You Install
+Keep dialogue as **editable text blocks**, and use **Codex ImageGen** to turn large sound effects into lettering that fits the artwork. [Before/after and workflow](#sfx)
 
-- Supported operating systems: Windows 10/11 x64 and Apple Silicon (M1 or newer) on macOS 14+. Intel Macs are not supported.
-- Required free space: In addition to the app itself, you may need several GB or more depending on the Gemma, OCR, and inpainting models you select.
-- Internet connection: Required for installation, the first model download, and Codex/API use. Local models can work offline after setup is complete.
-- Some CPU paths work without a GPU, but OCR, local translation, and Flux inpainting may be much slower.
+<a id="start"></a>
 
-The stable Apple Silicon build bundles arm64 FFmpeg, a Python runtime for Paddle OCR on the CPU, and Metal executables. Gemma, OCR, inpainting, and font matching assets are checksum-verified and downloaded on first use. The v2.7.11 macOS build is ad-hoc signed unless the release workflow is provided with Developer ID and notarization credentials, so Gatekeeper may require manual approval under System Settings → Privacy & Security on first launch. macOS data is stored under `~/Library/Application Support/manga-gemma-translator`.
+## Start by finishing one page
 
-## Quick Start
+1. **[Install](#install)**, then choose the source/target languages and engine in **Settings → AI → Translation**.
+2. Check **[OCR and image settings](#setup)** and run **Check/Update → OCR/model check**.
+3. Use **[Add source](#import)** to import images or a folder.
+4. Open the chapter and select one page in **[Translation settings](#translate)**. Start with **Translate only**.
+5. **[Correct OCR and translation](#edit)**, then use **[Remove original text](#erase)** and **Fit to balloon**.
+6. **[Export](#export)** the finished image. Once the settings work, process the remaining pages.
 
-1. From the [stable v2.7.11 release](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.7.11), download `CarrotMangaTranslator-Setup-v2.7.11.exe` for Windows or the arm64 DMG/ZIP for Apple Silicon. If macOS blocks the first launch, approve the app manually under System Settings → Privacy & Security.
-2. Check the interface language under `Settings → General`. On first launch, the app automatically selects a supported Windows language. If the Windows language is not supported, the app uses Korean.
-3. Under `Settings → Translation Engine`, choose the source language, target language, and engine.
-   - To process everything on your PC, choose `Gemma 4`.
-   - To sign in with your ChatGPT account through the embedded official Codex App Server, choose `OpenAI Codex`.
-   - To use an external server that accepts image input, choose `API`.
-4. Under `Settings → Hardware · OCR`, choose the OCR quality and device. Then go to `Install / Check` and run `Check OCR/Models`. The app automatically prepares the required files the first time.
-5. On the main screen, open `Translate`, select images, a folder, a ZIP/CBZ or RAR/CBR archive, or a PDF, and enter a title and chapter name.
-6. Select `Translate` on the chapter card, then choose the page range. `Untranslated only + Auto-create` is a good starting point. Enable `Second pass` if you want stronger contextual consistency.
-7. Review the generated blocks. If needed, use inpainting to remove the original text and touch up the image, then export selected pages as finished PNG files or layered PSD documents.
+### Jump to a task
 
-> The app interface language and the manga translation languages are independent. Changing the interface to English does not change your Japanese → Korean translation settings.
+| What you want to do                               | Go to                                                                           |
+| ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Install or change engines                         | [Installation](#install) · [AI, languages, hardware](#setup)                    |
+| Import chapters, archives, PDFs, or links         | [Library and import](#import)                                                   |
+| Choose pages, retranslate, recover failures       | [Translation](#translate)                                                       |
+| Navigate, select, compare with the original       | [Workspace](#workspace)                                                         |
+| Edit dialogue, size, wrapping, curves, or warp    | [Text and layout](#edit)                                                        |
+| Reuse fonts and formatting                        | [Fonts, presets, block library](#styles)                                        |
+| Clean leftovers, paint, restore the original      | [Removal and retouching](#erase)                                                |
+| Translate or generate sound effects               | [Sound effects](#sfx)                                                           |
+| Hide parts of images before sending               | [Image redaction](#redaction)                                                   |
+| Keep names, voices, and story context consistent  | [Terms, memory, research](#context)                                             |
+| Change names, sentences, or styles in bulk        | [Batch editing](#batch)                                                         |
+| Read dialogue or review in another app            | [Text view and review sheets](#review)                                          |
+| Export images/PSD, save automatically, share work | [Export](#export) · [Automatic saving](#autosave) · [Backup and sharing](#data) |
+| Find a command or fix a problem                   | [Shortcuts](#shortcuts) · [Troubleshooting](#troubleshooting)                   |
 
-## Screenshots
+<a id="install"></a>
 
-| Workspace and original image                                                                                                         | Translation range and second pass                                                                                      |
-| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| <img src="docs/images/example-workspace.png" alt="Main workspace with a title and page open" width="100%">                           | <img src="docs/images/example-translation-options.png" alt="Page range and translation option selection" width="100%"> |
-| **Translation progress and generated blocks**                                                                                        | **Automatic inpainting step**                                                                                          |
-| <img src="docs/images/example-translation-progress.png" alt="AI translation progress and generated translation blocks" width="100%"> | <img src="docs/images/example-inpainting.png" alt="Automatic inpainting step for removing original text" width="100%"> |
+## Installation
 
-## Features
+| Platform          | Download and setup                                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Windows 10/11     | Run the release's **Setup EXE** and choose a data folder.                                                                 |
+| Apple Silicon Mac | Download the **arm64 DMG or ZIP** and move the app to **Applications**. Requires macOS 14+. Intel Macs are not supported. |
 
-### Import and Library
+If the OS displays a warning, check that release's signing information and checksums. On Mac, first-launch approval is available under **System Settings → Privacy & Security**. [Signing policy](CODE_SIGNING_POLICY.md)
 
-- Supported image formats: PNG, JPG, JPEG, WEBP
-- Supported archive formats: ZIP, CBZ, RAR, CBR
-- Supported document format: PDF; each page is converted to PNG in order.
-- `Open Image` imports one image. `Open Folder` and `Open Archive` naturally sort multiple images and import them as one chapter.
-- `Batch Translate Title` displays subfolders and ZIP/CBZ/RAR/CBR files within a folder as possible chapters, then adds only the selected chapters at once.
-- Search and sort titles and chapters, rename or delete them, reorder chapters and pages by dragging, and delete individual pages.
-- WEBP files are normalized to PNG when they are added to the library. A single input file must not exceed 256 MB, and a decoded image must not exceed 120 MP.
+Models and runtimes download separately, so allow additional disk space. Initial setup needs internet access. Local Gemma, OCR, and inpainting can run locally once their files are ready; Codex, remote APIs, and web research need a connection.
 
-### Translation Range and Pipeline
+<a id="setup"></a>
 
-- Select chapters and pages directly from their thumbnails, or use `Select All`, `Untranslated Only`, and `Clear All`.
-- `Second pass` analyzes terminology, characters, and context again after the first pass, then retranslates the selected range. It can improve quality, but takes more time and increases API usage.
-- Choose an automatic analysis range from `Empty chapters only`, `Start over`, or `Current chapter only`.
-- `Auto-create` creates new blocks from OCR and AI results.
-- `Keep existing blocks` preserves manually adjusted regions and formatting, and only refills each region's OCR text and translation. Pages without blocks are processed with Auto-create.
-- Retranslate a page, cancel a task, or drag over part of a page to run `Region Translation`.
-- The app uses both Paddle OCR results and page images. OCR caches are separated by source language, and unnecessary AI calls are reduced when a Japanese page contains almost no evidence of Japanese text.
+## Languages and AI
 
-### Terminology, Characters, and Project Memory
+Set the **interface language** in **Settings → General** and the **source/translation languages** separately in **Settings → AI → Translation**.
 
-- Use `AI Auto-analysis` to create a glossary, character profiles, translation rules, and story memory.
-- Each glossary entry stores the source term, translation, category, aliases, and notes, and can be enabled or disabled individually.
-- Each character entry stores the source and translated names, a speech style such as polite or casual language, and custom speech instructions.
-- Translation rules can cover forms of address, sound effects, writing style, and title-specific cautions.
-- Story memory keeps track of events and context from earlier pages for later translations and second-pass translation.
-- The token budget at the bottom of the screen shows how much context is used by memory and how much room remains for translation responses.
+![Translation engine, languages, and Codex account](docs/images/readme-v2712/settings-translation.png)
 
-### Block Editing and Formatting
+| Engine          | Prepare                                 | Check after selecting                                                                                  |
+| --------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Local Gemma** | Model storage and RAM/VRAM              | Preset and runtime. Try a small preset suited to your device first.                                    |
+| **Codex**       | Sign in to ChatGPT inside the app       | Available models and reasoning effort. The bundled server requires no separate Codex CLI installation. |
+| **API**         | Base URL, model ID, and key if required | OpenAI compatibility and image input support. Compatible local servers also work.                      |
 
-- Use the Select tool to move and resize blocks, the Block tool to drag out a new region, and the Hand tool to move around a zoomed-in page.
-- Use `Ctrl+click` to select multiple blocks.
-- Edit the translation and OCR source text, horizontal or vertical writing, alignment, rotation, opacity, auto-fit, font size, line spacing, letter spacing, width scale, bold, italic, text color, outline, and outline thickness.
-- Apply `**bold**`, `*italic*`, and `***bold+italic***` markup to selected parts of a translation.
-- Set default formatting for new blocks, then batch-apply only the selected properties to multiple blocks, the current page, or the current chapter.
-- Use the editor in the right panel, in a movable floating panel inside the app, or in a separate Windows window.
-- Editing within the current chapter supports up to 100 undo and redo steps.
-- Zoom in, zoom out, return to actual size, preview the original, and toggle block and background visibility.
-- Use the `Ctrl+K` command palette and the `?` keyboard shortcut guide. Every shortcut can be changed in Settings.
+**The AI subtabs configure different jobs.** Changing the translation engine does not also change every OCR, removal, Codex image, and research setting.
 
-### Fonts
-
-In addition to the existing Korean fonts, the app includes six free fonts each for English, Japanese, Simplified Chinese, and Traditional Chinese. The font list always places `Default` at the top, followed by the font group for the current app language. The remaining groups retain the order Korean → English → Japanese → Simplified Chinese → Traditional Chinese, with only the current language group moved to the front. User-added fonts appear last.
-
-| Group               | Included fonts                                                                                 |
-| ------------------- | ---------------------------------------------------------------------------------------------- |
-| English             | Comic Neue, Kalam, Bangers, Luckiest Guy, Permanent Marker, Freckle Face                       |
-| Japanese            | Yusei Magic, Mochiy Pop One, Hachi Maru Pop, Dela Gothic One, Reggae One, DotGothic16          |
-| Simplified Chinese  | ZCOOL KuaiLe, ZCOOL QingKe HuangYou, ZCOOL XiaoWei, Ma Shan Zheng, Long Cang, Liu Jian Mao Cao |
-| Traditional Chinese | Huninn, Iansui, LXGW WenKai TC, LXGW Marker Gothic, ChenYuluoyan, Cubic 11                     |
-
-You can also add or remove other fonts with `+ Add TTF/OTF Font`. User fonts are copied to the `fonts/` directory in the data folder and used for on-screen previews and PNG/PSD exports. Font sources and licenses are documented in [third_party/fonts](third_party/fonts/README.md).
-
-### Text Overview and External Review
-
-- Collect `Translation + OCR`, `Translation only`, or `OCR only` text from the current page or the entire chapter in one view.
-- Move through search results in order, copy the text, or save it as a TXT file.
-- When you import a `Translation only` TXT file, block positions and OCR source text remain unchanged, and only translations are updated in line order.
-- CSV/TSV review sheets export the `block_id`, OCR source text, translation, review status, and notes.
-- Importing a review sheet applies only the translation, status, and notes for matching `block_id` values, and warns about missing or duplicate IDs and OCR mismatches.
-- Text within a page is sorted according to the reading direction of the source language.
-
-### Inpainting and Result Export
-
-- `AOT Minimal`: The lightest path, prioritizing the ability to run
-- `LaMa Efficient`: A lightweight original-text removal path optimized for manga
-- `Flux Full`: A path that prioritizes quality on complex backgrounds
-- Exclude individual translation blocks from inpainting, expand mask borders, and automatically process the current page or all remaining pages.
-- Use the mask brush to mark areas for removal, and use the color brush, color picker, and restore brush to fix small artifacts manually.
-- Touch-up work also supports undo and redo.
-- Export selected pages as finished PNG files or layered PSD documents. A PSD separates the original background, cleaned background, and each text block; complex vertical, curved, or perspective text stays pixel-accurate as a raster layer.
-
-### Sharing and Importing
-
-An `*.mgtshare` file is not a finished PNG or PSD. It is an editable project package that can be reopened in the app. It can include the original images, translation blocks, coordinates, formatting, and inpainting results for selected titles and chapters, but does not include settings, login information, models, or logs.
-
-When importing, you can create a new title or add or replace chapters in an existing title. Before applying the import, you can drag chapters into the desired order on the merge screen. Always confirm that you have distribution rights before sharing copyrighted original images.
-
-## Languages and Settings
-
-### App and Translation Languages
-
-| Type                        | Purpose                                             | Supported options                                                     |
-| --------------------------- | --------------------------------------------------- | --------------------------------------------------------------------- |
-| App language                | Buttons, menus, status messages, and error messages | 한국어, 日本語, English, 简体中文, 繁體中文                           |
-| Source and target languages | Language pair read and translated by OCR and AI     | 48 presets, or a directly entered BCP 47 code such as `eo` or `pt-BR` |
-
-The Settings window is divided into six tabs.
-
-- `General`: App interface language
-- `Translation Engine`: Language pair, Gemma/Codex/API, model, maximum output tokens, context length, and advanced API request values
-- `Hardware · OCR`: OCR quality and device, Gemma GPU runtime, and inpainting model and backend
-- `Text Formatting`: Default direction, alignment, font, size, spacing, color, and outline for new blocks
-- `Shortcuts`: Key combinations for viewing, translation, editing, inpainting, and global commands
-- `Install / Check`: OCR and model readiness checks, app version, update page, and log folder
-
-### Translation Engine Comparison
-
-| Engine       | Advantages                                                                                                      | What you need                                                                      |
-| ------------ | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Gemma 4      | Pages and the model are processed on your PC, with offline use available after setup                            | A GGUF model, a CUDA/ROCm/Vulkan runtime suitable for your PC, and enough RAM/VRAM |
-| OpenAI Codex | Uses the embedded official Codex App Server and an app-private ChatGPT sign-in; no API key is stored in the app | A ChatGPT account with Codex access and an internet connection                     |
-| API          | Connects to OpenAI-compatible vision models, local servers, NVIDIA NIM, Gemini-compatible endpoints, and more   | A Base URL, the name of an image-capable model, and an API key if required         |
-
-The `Speed (recommended)` model family is the default. The automatic size choice is:
-
-- Around 8 GB VRAM: `12B`
-- 16 GB VRAM or more, including 24 GB and larger cards: `26B`
-- `31B`: select it manually when you prefer it over the faster default
-- Specialized configurations: `Custom`
-
-OCR quality options are `Minimal`, `Efficient`, and `Full`. `Full` uses the PP-OCRv6 Transformers semantic pipeline and requires a supported GPU; on CPU, start with `Efficient`.
+| AI subtab        | Controls                                                                                                                |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Translation**  | Languages, Gemma/Codex/API, generation limits                                                                           |
+| **OCR**          | HayaiOCR/PaddleOCR and supported devices. Compare on the same page if detection or reading is poor.                     |
+| **Image**        | **AOT / LaMa / Flux** removal, supported backends, separate **Codex image model and reasoning effort**, image redaction |
+| **Web research** | Accounts/keys, search-result analysis model, usage limits                                                               |
+| **Hardware**     | App graphics GPU, local AI compute GPU, detected-device recommendations. Restart after saving a graphics GPU change.    |
 
 <details>
-<summary><strong>Setting Up the OpenAI Codex Engine</strong></summary>
+<summary>Advanced settings and more screenshots</summary>
 
-The Codex engine uses the official Codex App Server embedded in the app. Under `Settings → Translation Engine → Codex`, select `Sign in with ChatGPT` to authenticate in your system browser. Credentials are stored only in this app's private data directory. A system-installed Codex CLI and its `~/.codex` settings are not used, and you do not need to enter an OpenAI API key.
-
-Translations run in read-only ephemeral Codex threads that are deleted after completion. For a model that is not listed, enter its model ID under `Custom`.
-
-Official guides: [Codex App Server](https://learn.chatgpt.com/docs/app-server), [Codex authentication](https://learn.chatgpt.com/docs/auth)
+- **Gemma:** choose a Hugging Face model or local files. Preset memory labels are guidance; long pages, context size, and other applications also affect memory use. Match the runtime to your device. For OOM errors, try a smaller preset and context limit.
+- **API:** set Temperature, top_p, top_k, reasoning_effort, extra JSON, and custom headers only if your server supports them. Adjust request intervals, retries, and keys to the service's limits. Do not share screens showing keys.
+- **Generation limits:** maximum output tokens limit the response; the work-context budget limits reference information. Larger values do not automatically improve translation.
+- **Readiness:** save settings, then run **Check/Update → OCR/model check**. Update checking opens the releases page.
+- Screens: [General](docs/images/readme-v2712/settings-general.png) · [OCR](docs/images/readme-v2712/settings-ocr.png) · [Image](docs/images/readme-v2712/settings-image.png) · [Research](docs/images/readme-v2712/settings-research.png) · [Hardware](docs/images/readme-v2712/settings-hardware.png) · [Check/Update](docs/images/readme-v2712/settings-test.png)
 
 </details>
 
+<a id="import"></a>
+
+## Importing and the library
+
+The hierarchy is **Work → Chapter → Page → Block**. A work holds shared terms and characters; chapters hold pages; pages hold originals, translation blocks, and retouched images. A block is a piece of dialogue, narration, or a sound effect.
+
+Use **Add source**, check the preview order and exclusions, then create a work or add a chapter to an existing work. Use **Add multiple chapters** for several episodes at once. You can also drag files or folders into the app.
+
+![Source import choices](docs/images/readme-v2712/import.png)
+
+| Source                             | How to import                                                       |
+| ---------------------------------- | ------------------------------------------------------------------- |
+| PNG, JPEG, WebP                    | Select images or an image folder                                    |
+| ZIP, CBZ, RAR, CBR                 | Select an archive and review its images                             |
+| PDF                                | Import pages as images                                              |
+| Folder/archive containing chapters | Use multiple-chapter import and check chapter grouping/order        |
+| Web page                           | Load its image list, filter by size, and select the images you need |
+| `.mgtshare`                        | **Import work** restores an editing project. [Sharing](#data)       |
+
+Search the library for works/chapters and use the page list to check order and processing status. Review any rejected corrupt or unsupported files. If a website's login or access restrictions prevent import, use files you have prepared yourself.
+
+<a id="translate"></a>
+
+## Translate, resume, and retranslate
+
+Open a chapter and choose **Translation settings** or press `T`. Select chapters/pages within the work; **Untranslated only** narrows the selection to remaining work.
+
+![Page selection and translation, lettering, and removal options](docs/images/readme-v2712/translate.png)
+
+| Option                               | What it does                                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| **Quick single pass**                | Translates each page once using brief recent context.                                                                    |
+| **Cumulative context**               | Builds scene, terminology, and character memory for later pages. Choose detailed, balanced, or essential-term recording. |
+| **Auto-create blocks**               | Detects text regions again.                                                                                              |
+| **Keep existing blocks**             | Keeps regions and formatting while replacing text. Pages without blocks get new ones.                                    |
+| **Natural line breaks**              | Inserts breaks into the translation to suit the block. Check before enabling if you want to keep manual breaks.          |
+| **AI font sizing**                   | Estimates the original text size.                                                                                        |
+| **Automatic font matching**          | Applies a suitable **Korean font** to each block. This is separate from sizing.                                          |
+| **Translate only / Remove original** | Stops after translation or continues with text removal.                                                                  |
+| **Fit to balloon**                   | Fits translated text inside balloons after removal.                                                                      |
+| **Codex removal**                    | Uses Codex image processing where available. Check [Image settings](#setup) too.                                         |
+
+Save a useful combination as the default for future translations. `Shift+T` resumes remaining pages. Check progress and errors in task status, then select unfinished pages instead of unnecessarily repeating completed work.
+
+**Retranslation can replace manual edits and existing results, and is not part of workspace undo history.** Preserve edits with [Export work](#data) first. A page being processed is protected from editing; other unlocked pages remain editable. Commands affecting the entire chapter depend on that chapter's activity state.
+
+<a id="workspace"></a>
+
+## Finding your way around
+
+The left side holds the **library and pages**, the center shows the **manuscript**, and the right side holds **page blocks and the selected block editor**. Collapse panels to make room. Select text on the page or an item in the block list to edit it.
+
+| Action             | How                                                                                |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| Change page        | Thumbnails, `PageUp` / `PageDown`                                                  |
+| Pan                | Drag with the hand tool, `H` or `3`                                                |
+| Zoom               | `Ctrl+wheel` or zoom controls; fit page/width/height and actual size are available |
+| Compare original   | Toggle with `O`                                                                    |
+| Show translation   | `V` toggles blocks; `Shift+B` toggles editing backgrounds/borders                  |
+| Add a block        | Draw a region with `W` or `2`                                                      |
+| Select/move/resize | Selection tool `S` or `1`; drag the block or handles                               |
+| Multiple blocks    | Multi-select or `Ctrl+A` for the current page                                      |
+| Reading order      | List up/down buttons, `Ctrl+Alt+↑/↓`, or coordinate sorting                        |
+
+Selection highlights and editing borders are separate from the exported artwork. Check lettering both zoomed in and at full-page scale.
+
+<a id="edit"></a>
+
+## Editing dialogue and lettering
+
+### Text: check OCR before rewriting
+
+Select a block and compare source and translation in the **Text** tab. Correct misread names, numbers, or punctuation before translating the required region again. Role, speaker, review status, and notes also help later batch editing and review.
+
+![Editing a selected block](docs/images/readme-v2712/editor-text.png)
+
+Select part of a translation to apply bold, italic, font, size, color, opacity, background, outline, or glow to those characters. Without a selection, check whether formatting applies to newly typed text. **Code** view exposes the formatting representation. **Reset all formatting** removes inline formatting from the sentence.
+
+### Layout: fit the balloon
+
+| Adjustment                               | Purpose                                                                                                                       |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Position, size, rotation                 | Move and resize the block. Reset rotation with `Ctrl+Shift+T`.                                                                |
+| Horizontal/vertical, alignment, wrapping | Match the page and balloon. Distinguish explicit line breaks from automatic wrapping.                                         |
+| Balloon fit                              | Use the balloon's interior. Edit its shape with a polygon or grow/shrink brushes; removing the fit returns to the OCR region. |
+| Curve, perspective, warp                 | Fit curved or angled dialogue/SFX using on-page handles and previews.                                                         |
+
+### Format: appearance and spacing
+
+The **Format** tab controls font, size, bold, italic, alignment, color, outlines, glow, line spacing, character spacing, width, and opacity. If a few characters look different, inspect their inline formatting too.
+
+Use **Batch apply** to copy selected formatting groups to a selection, page, or chapter. Check the groups so that copying a color does not also replace sizes. [Layout](docs/images/readme-v2712/editor-layout.png) · [Format](docs/images/readme-v2712/editor-format.png)
+
+<a id="styles"></a>
+
+## Reusing fonts, styles, and blocks
+
+| Feature            | Stores                             | Where to use it                                                                                       |
+| ------------------ | ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Default format** | Defaults for new blocks            | Settings → Default format. Apply separately to change existing blocks.                                |
+| **Style presets**  | Chosen formatting groups           | Create from current style, name it, choose groups, pin to quick styles. Assign `Alt+1`–`Alt+0` slots. |
+| **Block library**  | Reusable text and block formatting | Block menu → Save to library. Search names/source/translation and insert into the current page.       |
+| **Font manager**   | Registered fonts and display order | Register TTF/OTF, favorite, hide, reorder, and choose a default font.                                 |
+
+Rename/group presets or overwrite them from the current style. Saved library blocks can also be edited. On another computer, register missing fonts or choose replacements. Automatic font matching runs during translation; it does not create reusable style presets.
+
+[Default format screen](docs/images/readme-v2712/settings-format.png)
+
+Save Codex ImageGen sound effects to the **block library**, including their image, mask, and font weight, for reuse on other pages. Copy selected text/image blocks between pages, chapters, and works with `Ctrl+C` / `Ctrl+V`.
+
+<a id="erase"></a>
+
+## Removing text and retouching
+
+Work through **automatic removal → leftover cleanup → original comparison**. Automatic removal uses source-text block regions to reconstruct the background. Mark text you want to keep as **Exclude from automatic removal** in the block menu.
+
+![Retouch tools and manuscript](docs/images/readme-v2712/retouch.png)
+
+| Tool                                  | Action                                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------------------------- |
+| **Automatic removal**, `I`            | Select pages and run the configured inpainting model; optionally fit balloons afterward |
+| **Mask**, `J`                         | Paint a removal region and apply it to reconstruct the background                       |
+| **Brush**, `B`                        | Paint the chosen color; useful for small marks on flat backgrounds                      |
+| **Rectangle**, `R`; **Ellipse**, `E`  | Cover a dragged shape with the chosen color                                             |
+| **Eraser**, `X`; **Rectangle eraser** | Restore **original-image pixels** in the region; these do not erase a removal mask      |
+| **Color picker**, `P`                 | Sample a paint color from the page                                                      |
+
+With the brush, rectangle, or ellipse, **`Alt+left-click` samples color**. `Alt+right-drag` adjusts the radius in drawing tools. Hold `Shift` while dragging a brush stroke to constrain it to a straight line. `Space` applies the mask when the active tool state allows it.
+
+Rectangle, ellipse, and rectangle-restore tools use a fixed black/white outlined crosshair visible on light and dark art. Undo a mistaken stroke; use an eraser when you need original pixels back. [Automatic removal screen](docs/images/readme-v2712/erase.png)
+
+<a id="sfx"></a>
+
+## Sound effects: review before processing
+
+A font change alone can lose the brushwork and impact of a large sound effect. **Codex ImageGen** can localize the image lettering while dialogue stays editable as text blocks.
+
+| Japanese original                                                                              | Korean dialogue + image lettering                                                                             |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| <img src="docs/images/readme-v2712/comparison-before.png" alt="Japanese original" width="430"> | <img src="docs/images/readme-v2712/comparison-after.png" alt="Korean dialogue + image lettering" width="430"> |
+
+The large `ドン` becomes a brush-lettered `쾅`. Dialogue blocks are positioned over the cleaned original text. This comparison uses artwork prepared with Codex’s built-in imagegen and the app’s production text renderer. [How the sample was made](docs/images/readme-v2712/README.md)
+
+HayaiOCR sound-effect candidates can be reviewed separately from dialogue. Open **Translate sound effects**, include/exclude candidates by page, reject drawings mistaken for text, and add or adjust missed regions.
+
+![Sound-effect candidates and translation mode](docs/images/readme-v2712/sfx.png)
+
+1. Check the recognized source and region.
+2. Choose editable **text** or **Codex image** output. Image output uses the separate Codex image settings.
+3. For images, review the translations first and **confirm all pages before generation**. Finalize the words before they become part of an image.
+4. Compare with the original. Edit text as regular blocks; use the provided image editing/restoration controls for generated lettering.
+
+Single-region translation keeps the original. Choose removal in the full SFX translation options. **Reset** restores deleted/excluded candidates while keeping region corrections and translations.
+
+When resuming image work, a page whose SFX overlaps a redaction **keeps its translated text and holds its image step**. Other pages continue. Adjust the redaction and resume to process unfinished images. [Redaction](#redaction)
+
+<a id="redaction"></a>
+
+## Redacting images before transmission
+
+Enable it in **Settings → AI → Image → Outgoing image redaction**. In supported AI image workflows, it masks the **copy being sent**, rather than painting the original file.
+
+Use page/chapter/work **Prepare redaction** commands to inspect and adjust regions. Review automatic detections yourself. Do not cover text you need translated or generated; adjust overlaps first. Redaction and source-text removal serve different purposes.
+
+Enabling image redaction does not automatically remove OCR text or work context from translation requests. Check the selected engine and [privacy policy](docs/privacy-policy.md) to understand what is sent.
+
+<a id="context"></a>
+
+## Consistent names, voices, and story memory
+
+Open **Terms/Memory** from the right-side tools to maintain shared information across a work's chapters.
+
+![Glossary and work context](docs/images/readme-v2712/context-glossary.png)
+
+| Tab                   | What to record                                                 | Example manuscript                                   |
+| --------------------- | -------------------------------------------------------------- | ---------------------------------------------------- |
+| **Glossary**          | Source/target spelling, aliases, category, note, enabled state | `侍従長 → 시종장` (head attendant)                   |
+| **Characters**        | Names, aliases, speaking style, character notes                | Seraphina gives cruel orders in calm, polite speech  |
+| **Translation rules** | Honorifics, SFX handling, default tone                         | Preserve honorifics; translate SFX                   |
+| **Story memory**      | Page summaries and visual context                              | Her execution orders over cold tea silence the court |
+
+Enter information manually or review an **AI Terms/Memory** analysis. You can also refine information accumulated during translation. Consolidate duplicate names/aliases and save. [Characters](docs/images/readme-v2712/context-characters.png) · [Rules](docs/images/readme-v2712/context-rules.png) · [Story](docs/images/readme-v2712/context-memory.png)
+
 <details>
-<summary><strong>OpenAI-Compatible APIs, NVIDIA NIM, and Gemini</strong></summary>
+<summary>Web research, proposal review, and context budget</summary>
 
-The API engine appends `/chat/completions` to the Base URL and sends the image with OCR hints. The selected model must support image input.
+**Web research** supplements context after you confirm the work title, engine, and scope. The research title is separate from the library title. Codex research and Tavily search followed by LLM analysis have different account/key requirements and limits; check **Settings → AI → Web research** first.
 
-- General OpenAI-compatible server: `https://server.example/v1`
-- NVIDIA NIM: `https://integrate.api.nvidia.com/v1`
-- Gemini OpenAI-compatible endpoint: `https://generativelanguage.googleapis.com/v1beta/openai`
-- Google Vertex AI: the quick setup builds the endpoint from a project and region.
-- For a local server such as LM Studio, you can leave the API key blank if authentication is not required.
+Compare proposed terms, characters, and rules with sources and existing entries, then apply only what you need. Search results may be wrong or refer to another work. For an original demo story without external references, enter the context yourself.
 
-Vertex AI supports either the existing manually entered OAuth access token or a service-account JSON file. With JSON authentication, the app fills the file's `project_id` and automatically obtains and refreshes short-lived access tokens. The JSON contents are never copied into app settings; only the selected local file path is stored.
-
-The service account needs the `Vertex AI User` role on the target project. Treat the JSON key as a private password: never share or commit it, and delete unused keys in Google Cloud. Google recommends keyless authentication such as ADC whenever it is practical: [Vertex AI quickstart](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/start/quickstart), [service-account key best practices](https://docs.cloud.google.com/iam/docs/best-practices-for-managing-service-account-keys)
-
-Find the model ID and key in your provider's interface. You can also set `Temperature`, `top_p`, `top_k`, `reasoning_effort`, additional request body JSON, and custom headers JSON. If the server rejects unrecognized values, clear the advanced values first and try again.
-
-You can also override values with environment variables:
-
-- Official OpenAI key: `OPENAI_API_KEY`
-- Compatible server: `MANGA_TRANSLATOR_API_BASE_URL`, `MANGA_TRANSLATOR_API_MODEL`, `MANGA_TRANSLATOR_API_KEY`
+Watch the context budget as the guide grows and prioritize useful information. If saving reports a conflict, inspect the other changes and reopen the latest version before applying yours. **Reset all terms/memory** deletes the work's glossary, characters, and story memory for every chapter; it is not a routine cleanup tool.
 
 </details>
 
+<a id="batch"></a>
+
+## Change text and formatting in bulk
+
+Open **Batch text editing** with `Ctrl+H`: **scope → conditions → actions → before/after preview → apply**. Test on the current page before expanding to the chapter.
+
+![Conditions, actions, and on-page before/after preview](docs/images/readme-v2712/batch.png)
+
+Filter by source/translation, role, speaker, review status, and other fields. Distinguish **all conditions** from **any condition**. **All balloons** targets every block in the selected scope. Arrange replacements, formatting/field changes, and inline emphasis in execution order.
+
+### Example: change only Seraphina's register
+
+1. Match **speaker = Seraphina** and translation containing `처형했습니다`, requiring both.
+2. Replace `처형했습니다` with the more formal `처형하였습니다`.
+3. Bold only the newly inserted `처형하였습니다`.
+4. Confirm that the attendant's dialogue stays unchanged, then apply.
+
+Speaker conditions require correctly assigned speakers. IDs differ between works; do not copy the demo ID blindly.
+
 <details>
-<summary><strong>NVIDIA and AMD Paths</strong></summary>
+<summary>Other uses and saved rules</summary>
 
-| Task       | NVIDIA                                       | AMD                        | User-selected alternative |
-| ---------- | -------------------------------------------- | -------------------------- | ------------------------- |
-| Gemma      | CUDA 12, dedicated runtime for RTX 50 series | ROCm or Vulkan             | A smaller model preset    |
-| Paddle OCR | NVIDIA CUDA                                  | AMD ROCm on supported GPUs | CPU Minimal/Efficient     |
-| Flux       | NVIDIA CUDA                                  | ZLUDA + AMD HIP SDK        | CPU                       |
-
-For AMD Gemma, the app automatically finds a ROCm target that matches your GPU and driver. If automatic detection is incorrect, advanced users can specify one as follows:
-
-```powershell
-$env:MANGA_TRANSLATOR_AMD_ROCM_TARGET = "gfx110X"
-```
-
-AMD ZLUDA inpainting requires the [AMD HIP SDK for Windows](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html). If GPU OCR fails, the app stops the job and displays the error. To continue on the CPU, explicitly change the OCR device to CPU in Settings; Gemma can still use the AMD GPU.
+- **Ellipses/spaces:** use the starter rule to replace `...` with `…` and collapse repeated spaces.
+- **SFX styling:** target the sound-effect role to change weight, size, or outlines.
+- **Review flags:** find empty translations or specific wording and update review status/notes.
+- **Regular expressions:** use when literal matching is insufficient; check case sensitivity and replace-all settings.
+- **Exclude results:** remove exceptions even when they match. Inspect on-page before/after previews and the included count.
+- **Reuse:** save named rules as YAML. Sequences run multiple rules in order; each step's output feeds the next.
+- **Conflicts:** blocks changed since preview are skipped instead of overwritten. Rebuild the preview from current data. The latest batch edit can be undone.
 
 </details>
 
-## Data Storage
+<a id="review"></a>
 
-User work and large runtimes are stored separately under the data folder you select during installation.
+## Reading and reviewing dialogue
 
-```text
-data/
-  settings.json
-  library/
-  logs/
-  fonts/
-  hf-cache/
-  llama.cpp/
-  ocr-runtime/
-  models/
-  tmp/
-  panel-window-bounds.json
-```
+Press `G` for **Text view**. Read OCR and translation together or show only one, search the chapter, and click page headings to return to the manuscript. Select blocks to apply only the formatting fields you change.
 
-- `library/` contains titles, chapters, pages, and block data.
-- `fonts/` contains TTF/OTF fonts that you add.
-- `hf-cache/`, `llama.cpp/`, `ocr-runtime/`, and `models/` contain downloaded models and runtimes.
-- `logs/` contains `app.log` for the current run and `previous.log` for the preceding run. Raw logs may contain local paths or project-related content, so do not publish them as-is.
-- When uninstalling the app, you can separately choose whether to delete project data and model/OCR caches.
+![Collected OCR and translations](docs/images/readme-v2712/gather.png)
 
-Back up the data folder or export important projects as `*.mgtshare` packages.
+| Exchange format        | Matching method                               | Keep in mind                                                                       |
+| ---------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Copy / TXT export      | Currently displayed text                      | Choose whether to include page headings                                            |
+| TXT import             | Line order from a **translation-only** export | Reordering can break correspondence; check warnings and counts                     |
+| CSV / TSV review sheet | `block_id`                                    | Updates translation, review status, and notes; leaves OCR unchanged. Preserve IDs. |
 
-## Frequently Asked Questions
+For spreadsheet review, review sheets preserve correspondence more reliably. Keep the original export and inspect unknown-ID, duplicate, or missing-entry warnings before importing changes.
 
-### First Launch and Translation Are Very Slow
+<a id="export"></a>
 
-The first launch includes time to download and verify model, Python, OCR, and inpainting runtimes. If the app is still slow after setup, try a smaller Gemma preset, `Efficient` CPU OCR, and AOT or LaMa inpainting first. It also helps to prevent games, browsers, and other GPU tasks from sharing VRAM during processing.
+## Export images and PSD
 
-### Codex Does Not Connect
+Choose chapters/pages in **Export results** or `Ctrl+E`. If preflight lists untranslated, failed, or incomplete postprocessing pages, return to them before exporting.
 
-Under `Settings → Translation Engine → Codex`, select `Sign in with ChatGPT`, complete browser authentication, and then run `Check OCR/Models`. No Codex CLI installation or separate terminal login is required. If it still fails, check the app log for an embedded Codex App Server startup error. An OCR setup failure can look like a Codex connection problem, so also check which step failed in the result log.
+![Export scope, format, and destination](docs/images/readme-v2712/export.png)
 
-### The API Returns 401, 403, or 404
+| Output                                | Options and purpose                                                                                                                                                                                |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Source format / PNG / JPEG / WebP** | Renders finished images. Choose JPEG/WebP quality and whether to preserve source filenames/subfolders.                                                                                             |
+| **Without text**                      | Saves the cleaned background without translated lettering; requires a removal result.                                                                                                              |
+| **Layered PSD**                       | Separates original, cleaned background, and block lettering. Supported text stays editable; complex vertical, curved, perspective, or inline-styled text may be rasterized to preserve appearance. |
 
-Check the API key, Base URL, and model ID. Usually, the Base URL should end at `/v1`, and the model must support image input. Clear advanced request values and JSON fields that your provider may not support, then try again.
+Choose a new timestamped folder or direct output to a selected folder. For name collisions, check **replace / skip / cancel**. Image export differs from [project sharing](#data); PSD is not a complete backup of app editing state either. [PSD screen](docs/images/readme-v2712/export-psd.png)
 
-### AMD GPU OCR Fails
+<a id="autosave"></a>
 
-ROCm on Windows is sensitive to the supported GPU and driver combination. You can switch only the OCR device to CPU while continuing to run Gemma translation on the AMD GPU. Also check the logs for simultaneous integrated-GPU detection, insufficient VRAM, and Windows TDR issues.
+## Automatically saving results
 
-### AMD ZLUDA Inpainting Fails
+Manage work/chapter connections and output formats in **Settings → Automatic result saving**. Use it to keep an external results folder updated as you edit. Check the linked destination and status; retry failed or pending items through the status controls.
 
-Check the AMD HIP SDK for Windows and `HIP_PATH`, then restart the app. To continue working immediately, switch the Flux backend to CPU or use the AOT/LaMa path.
+![Automatic result saving by work](docs/images/readme-v2712/settings-results.png)
 
-### OCR Fails on an RTX 50-Series GPU
+In the result folder, `result` holds finished images, `originals` recoverable sources, `inpainted` cleaned images, and `mask` removed regions. This is separate from saving the app's editing data. Check destinations before disabling or changing connections, and do not treat these folders as disposable caches.
 
-Check that you have the latest NVIDIA driver and the app's OCR runtime for the RTX 50 series. If GPU OCR continues to fail, switch only OCR to CPU `Efficient` and continue translating.
+<a id="data"></a>
 
-### The Font in the Export Differs from the Preview
+## Sharing, backup, and privacy
 
-Bundled fonts are included in both the preview and PNG/PSD output. If you deleted a user font file or opened the project on another PC, add that font again. Before exporting, also check the writing direction, auto-fit, weight, and batch-applied font settings.
+Use **Export work** to save selected works/chapters as `.mgtshare`. On another computer, **Import work** can create a work or add/replace chapters in an existing one. Check the final chapter list and order before applying.
 
-## Reporting an Issue
+| Included in work files                                                                        | Prepare separately                                                                                                    |
+| --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Manuscript images, blocks, reading order, formatting, inpainting results, and other work data | App settings, ChatGPT login/API keys, AI/OCR models and runtimes, logs. Also check required fonts on the destination. |
 
-The `Error Report` dialog opens when a translation or analysis task fails, or when the app encounters an unexpected error. To report a problem later, select `Report a Problem` from the `Ctrl+K` command palette.
+To preserve the whole environment, close the app and **back up the data folder**. `library` contains originals and editing data, not disposable cache. Distinguish it from settings, fonts, logs, and model caches; retain sources and outputs. The macOS default is `~/Library/Application Support/manga-gemma-translator`.
 
-Use the dialog to share a report through [GitHub Issues](https://github.com/ucx0204/CarrotMangaTranslator/issues):
+Remote engines may receive required images, text, and context. Logs may contain paths or manuscript excerpts; review them before sharing. Error reports are not uploaded automatically. [Privacy policy](docs/privacy-policy.md) · [Security policy](SECURITY.md)
 
-1. Describe what you were doing immediately before the error and review the generated Markdown preview.
-2. Exclude system information or sanitized error logs if you do not want to share them.
-3. Select `Create Issue on GitHub`. The app opens a prefilled issue in your system browser. If the report is too long for the URL, the diagnostic text is copied to the clipboard for you to paste into the issue body.
-4. Review the public issue again, then submit it yourself on GitHub.
+<a id="shortcuts"></a>
 
-The app never uploads an error report or submits a GitHub issue automatically. The shared diagnostic text masks values that may be sensitive, including API keys, authorization headers, home-directory paths, and project text, but automatic detection cannot be guaranteed to catch everything. Always review the preview.
+## Shortcuts and command search
 
-The raw `app.log` and `previous.log` files are more detailed than the shared diagnostic text and are not sanitized. If maintainers need a raw log for further investigation, use `Open Log Folder` and attach only a copy from which you have manually removed paths, tokens, and project content.
+Use **`Ctrl+K` to search commands** and **`?` for shortcut help**. Customize bindings, inspect conflicts, or restore defaults in **Settings → Shortcuts**. On macOS, `Cmd` also works for the `Ctrl` combinations below. Some tool shortcuts are suppressed while typing.
 
-## Development
+| Action                                        | Default keys                                                |
+| --------------------------------------------- | ----------------------------------------------------------- |
+| Settings / command palette / help             | `Ctrl+,` / `Ctrl+K` / `?`                                   |
+| Translation settings / resume remaining       | `T` / `Shift+T`                                             |
+| Text view / batch edit / export               | `G` / `Ctrl+H` / `Ctrl+E`                                   |
+| Previous/next page                            | `PageUp` / `PageDown` (`A` / `D` and arrows also available) |
+| Select / add block / pan                      | `S` or `1` / `W` or `2` / `H` or `3`                        |
+| Original / translation / editing borders      | `O` / `V` / `Shift+B`                                       |
+| Automatic removal / mask / brush              | `I` / `J` / `B`                                             |
+| Rectangle / ellipse / restore eraser / picker | `R` / `E` / `X` / `P`                                       |
+| Zoom / reset zoom                             | `Ctrl+wheel` / `Ctrl+0`                                     |
+| Undo / redo                                   | `Ctrl+Z` / `Ctrl+Shift+Z`                                   |
+| Select all blocks / duplicate / delete        | `Ctrl+A` / `Ctrl+D` / `Delete`                              |
+| Previous/next block                           | `Ctrl+Shift+Tab` / `Ctrl+Tab`                               |
+| Move reading order / coordinate sort          | `Ctrl+Alt+↑/↓` / `Ctrl+Shift+R`                             |
+| Style slots 1–10                              | `Alt+1`–`Alt+0`                                             |
 
-You need Windows, Node.js LTS, npm, and Git.
+[Command palette](docs/images/readme-v2712/palette.png) · [Shortcut settings](docs/images/readme-v2712/settings-shortcuts.png)
 
-```powershell
+<a id="troubleshooting"></a>
+
+## When something goes wrong
+
+| Symptom                       | First checks                                                                                             |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Translation will not start    | Page selection → languages/engine → login/key/model readiness → OCR/model check                          |
+| First run is slow             | Download/verification progress; compare one representative page after preparation                        |
+| OOM or GPU errors             | Try a smaller Gemma preset, recommended device settings, CPU OCR, and a lighter removal model separately |
+| OCR merges/splits incorrectly | Source language; compare HayaiOCR/PaddleOCR. Keep existing blocks when retranslating corrected regions.  |
+| Inconsistent names/voices     | Glossary, characters, cumulative context; speaker-filtered batch edits for existing translations         |
+| Text overflows or is tiny     | Region, direction, wrapping, size, width; also check inline formatting and balloon fit                   |
+| Removal damages artwork       | Undo/restore originals, exclude blocks or reduce masks, compare another model                            |
+| SFX image work is held        | Fix redaction overlap and resume image work                                                              |
+| Save or batch conflicts       | Reopen current data, compare changes, and reapply without overwriting other edits                        |
+| Codex connection fails        | In-app login/model list; bundled-server errors in logs                                                   |
+| API 401/403/404               | Key, URL, model, image support; remove unsupported advanced parameters                                   |
+| Export font differs           | Missing/registered fonts and PSD rasterization cases                                                     |
+
+If reproducible, review **Settings → Error report**, then [file an issue](https://github.com/ucx0204/CarrotMangaTranslator/issues) with app version, OS, engine, steps, and expected/actual results. Check keys, private paths, and manuscript content before sharing.
+
+<a id="development"></a>
+
+## Development, documentation, and license
+
+Install Node.js, npm, and Git, then:
+
+```sh
 npm install
 npm run dev
 ```
 
-Development mode uses `.tmp/electron-dev` as a separate userData/session folder. Run the complete check with:
+Run `npm run check` for checks, `npm run dist:win` for Windows packaging, and `npm run dist:mac` for Apple Silicon packaging. See `npm run qa:ui -- --help` for real UI captures.
 
-```powershell
-npm run check
-```
+- [Contributing](CONTRIBUTING.md) · [Architecture](docs/architecture.md) · [UI rules](docs/ui-design-rules.md)
+- [Project adoption](docs/reputation.md) · [Third-party notices](THIRD_PARTY_NOTICES.md) · [Bundled fonts](third_party/fonts/README.md)
+- Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+- App source is [GPL-3.0-only](LICENSE). Check separate distribution terms for fonts, models, and runtimes.
 
-Build the app and create the Windows installer with:
+This guide covers v2.7.13. Screenshots show real app components with demo data and Korean UI. The sample art and translations illustrate features, not model performance. [Capture and sample provenance](docs/images/readme-v2712/README.md)
 
-```powershell
-npm run build
-npm run dist:win
-```
-
-For process boundaries, the SSOT, error handling, and testing rules, see [Code Boundaries and Quality Rules](docs/architecture.md).
-
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
-
-**Status (28 July 2026):** The SignPath Foundation application is currently under review. Current Windows release artifacts are unsigned and are not covered by this code-signing policy.
-
-- [Full code signing policy](CODE_SIGNING_POLICY.md)
-- [Security policy](SECURITY.md)
-- [Privacy policy](docs/privacy-policy.md)
-
-## Demo Image Sources
-
-The manga shown in the README's four screenshots is based on the [`Haruko`](https://github.com/idpf/epub3-samples/tree/main/30/haruko-jpeg) sample from the [IDPF EPUB 3 Samples Project](https://github.com/idpf/epub3-samples). The original is licensed under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Carrot Manga Translator's Korean translation blocks and work status were added to the screenshots. These demo images are covered by CC BY-SA 3.0 separately from the app's source code.
-
-## License
-
-The app's source code is distributed under [GPL-3.0-only](LICENSE). Fonts, ffmpeg, JavaScript/Python packages, OCR and AI models, and their runtimes used with or downloaded by the app may have separate terms. Before redistributing, review [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the [bundled font notices](third_party/fonts/README.md).
+[Back to start](#start)

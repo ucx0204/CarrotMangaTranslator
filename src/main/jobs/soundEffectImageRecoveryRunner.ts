@@ -11,6 +11,7 @@ import {
 } from "../library";
 import {
   CodexImageEditError,
+  CodexImageRedactionOverlapError,
   editTranslatedPageWithCodex,
 } from "../codexImageEditing";
 import { ImageCheckpointError } from "../pipeline/imageJobFailure";
@@ -164,7 +165,7 @@ export async function runSoundEffectImageRecovery(
         completed: index + 1,
         total: pages.length,
       },
-      detail: target.error,
+      detail: error,
     });
   }
   return errors;
@@ -283,7 +284,10 @@ async function recoverPageImage(
     target.error = undefined;
   } catch (error) {
     input.abortController.signal.throwIfAborted();
-    if (error instanceof ImageCheckpointError) throw error;
+    if (error instanceof CodexImageRedactionOverlapError) {
+      target.error = error.message;
+      return `${current.name}: 번역문 저장됨 · 이미지 보류. ${target.error}`;
+    }
     if (!(error instanceof CodexImageEditError)) throw error;
     try {
       await checkpoint(error.page);

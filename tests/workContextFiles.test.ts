@@ -3,6 +3,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { LibraryChapter, LibraryWork } from "../src/shared/libraryTypes";
+import { applyWorkContextResearchOperations } from "../src/shared/workContextResearchProposal";
+import type { WorkContextResearchOperation } from "../src/shared/workContextResearchTypes";
 
 const tempDirs: string[] = [];
 
@@ -67,6 +69,61 @@ describe("work context files", () => {
       (await library.getChapterStoryMemory("chapter-a")).pages[0]?.summary,
     ).toBe(savedMemory.pages[0]?.summary);
   });
+
+  it.each([false, true])(
+    "saves a research draft with selected operations: %s, preserving real conflicts",
+    async (selected) => {
+      const rootDir = await createTempLibrary();
+      const library = await loadLibrary(rootDir);
+      await seedLibrary(rootDir);
+      const initial = await library.saveWorkStyleGuide(
+        await library.getWorkStyleGuide("work-1"),
+      );
+      const operation: WorkContextResearchOperation = {
+        id: "research-1",
+        entity: "glossary",
+        action: "add",
+        reason: "official spelling",
+        confidence: "high",
+        selectedByDefault: true,
+        evidence: { pageCount: 1, mentionCount: 1 },
+        sources: [],
+        after: {
+          id: "term-1",
+          source: "魔王",
+          target: "마왕",
+          category: "term",
+          enabled: true,
+          createdAt: initial.createdAt,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      };
+      const manualDraft = {
+        ...initial,
+        rules: { ...initial.rules, defaultTone: "literal" as const },
+      };
+      const draft = applyWorkContextResearchOperations(
+        manualDraft,
+        selected ? [operation] : [],
+      );
+      const saved = await library.saveWorkStyleGuide(draft, draft.updatedAt);
+      expect(await library.getWorkStyleGuide("work-1")).toEqual(saved);
+      expect(saved.rules.defaultTone).toBe("literal");
+      expect(saved.glossary).toEqual(selected ? [operation.after] : []);
+      expect(saved.updatedAt).not.toBe(initial.updatedAt);
+      const repeated = applyWorkContextResearchOperations(saved, []);
+      const latest = await library.saveWorkStyleGuide(
+        repeated,
+        repeated.updatedAt,
+      );
+      const staleDraft = applyWorkContextResearchOperations(saved, []);
+      await expect(
+        library.saveWorkStyleGuide(staleDraft, staleDraft.updatedAt),
+      ).rejects.toThrow("CONTEXT_SAVE_CONFLICT");
+      expect(await library.getWorkStyleGuide("work-1")).toEqual(latest);
+      expect(staleDraft).toEqual(saved);
+    },
+  );
 
   it("rejects stale manual context saves after an automatic update, including same-clock writes", async () => {
     const rootDir = await createTempLibrary();

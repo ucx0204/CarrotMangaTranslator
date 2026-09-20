@@ -38,6 +38,5 @@ export function applyWorkContextResearchOperations(
     ...guide,
     glossary,
     characters,
-    updatedAt: new Date().toISOString(),
   };
 }
