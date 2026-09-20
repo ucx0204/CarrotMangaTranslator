@@ -304,8 +304,14 @@ export type MangaApi = {
   ) => Promise<ImportReviewTextResult>;
   renameWork: (workId: string, title: string) => Promise<LibraryIndex>;
   renameChapter: (chapterId: string, title: string) => Promise<LibraryIndex>;
-  deleteWork: (workId: string) => Promise<LibraryIndex>;
-  deleteChapter: (chapterId: string) => Promise<LibraryIndex>;
+  deleteWork: (
+    workId: string,
+    removeCustomOutputs?: boolean,
+  ) => Promise<LibraryIndex>;
+  deleteChapter: (
+    chapterId: string,
+    removeCustomOutputs?: boolean,
+  ) => Promise<LibraryIndex>;
   reorderChapters: (
     workId: string,
     chapterIds: string[],

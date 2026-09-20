@@ -1,0 +1,25 @@
+.body {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.message {
+  color: var(--text-head);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.detail {
+  margin: 0;
+  color: var(--text-dim);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.option {
+  margin-block-start: var(--sp-1);
+  word-break: keep-all;
+}

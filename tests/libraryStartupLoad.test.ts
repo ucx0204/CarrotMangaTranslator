@@ -230,3 +230,31 @@ async function createLibraryFixture(
 function writeJson(path: string, payload: unknown): Promise<void> {
   return writeFile(path, `${JSON.stringify(payload)}\n`, "utf8");
 }
+
+it("opens a known owner without scanning other work files, and rejects stale ownership", async () => {
+  const fixture = await createLibraryFixture(3);
+  vi.doMock("../src/main/appPaths", () => ({
+    getAppPaths: () => ({ libraryDir: fixture.libraryDir }),
+  }));
+  const { openChapter } = await import("../src/main/library/libraryReadFacade");
+  const [chapterId, , otherChapterId] = fixture.chapterIds;
+  const [workId, otherWorkId] = fixture.workIds;
+  if (!chapterId || !otherChapterId || !workId || !otherWorkId)
+    throw new Error("Missing fixture ids");
+  // An unrelated corrupt work must not be read on a known-owner navigation path.
+  await writeFile(
+    join(fixture.libraryDir, "works", otherWorkId, "work.json"),
+    "invalid JSON",
+  );
+  await expect(openChapter(chapterId, workId)).resolves.toMatchObject({
+    id: chapterId,
+    workId,
+  });
+  await expect(openChapter(otherChapterId, workId)).rejects.toThrow(
+    "열려는 화를 찾지 못했습니다.",
+  );
+  await writeJson(join(fixture.libraryDir, "index.json"), { workOrder: [] });
+  await expect(openChapter(chapterId, workId)).rejects.toThrow(
+    "열려는 화를 찾지 못했습니다.",
+  );
+});

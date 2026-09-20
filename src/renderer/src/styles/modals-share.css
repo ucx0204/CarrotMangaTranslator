@@ -393,58 +393,6 @@
   user-select: none;
 }
 
-.confirm-title-row {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 12px;
-}
-
-.confirm-title-row h2 {
-  margin: 0;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.confirm-warning-icon {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  border: 1px solid #d49a5c;
-  background: rgba(111, 75, 39, 0.9);
-  color: #fff4d6;
-  font-size: 24px;
-  font-weight: 900;
-}
-
-.confirm-body {
-  padding: 12px;
-  border: 1px solid #303844;
-  border-radius: 10px;
-  background: #14171b;
-}
-
-.confirm-body strong {
-  color: #f5efe6;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.confirm-body p {
-  max-height: 180px;
-  margin: 8px 0 0;
-  overflow: auto;
-  color: #cfc7bb;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 .modal-section h3 {
   margin: 0;
 }

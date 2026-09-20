@@ -53,9 +53,17 @@ import { LinkedWorkspaceStore } from "./linkedWorkspaceStore";
 import { deriveLegacyInpaintMask } from "../inpainting/inpaintMaskArtifact";
 import { probeImageFile } from "../libraryStore/imageHeaderProbe";
 import { isInvalidImageHeaderError } from "../libraryStore/imageHeaderProbeInternal";
-import { withLibraryContentEdit } from "../library/lock";
-import { pageContentResource } from "../../shared/appActivityTypes";
+import {
+  withLibraryContentEdit,
+  withLibraryRead,
+  retainLibrarySnapshot,
+} from "../library/lock";
+import { libraryStructureResource } from "../../shared/appActivityTypes";
 import { outputPathResource } from "../outputPathActivity";
+import {
+  deleteLinkedWorkspaceFiles,
+  recoverLinkedWorkspaceDeletions,
+} from "./linkedWorkspaceDeletion";
 import { AppActivityBusyError } from "../appActivityGate";
 
 const IDLE_DELAY_MS = 3_000;
@@ -89,6 +97,7 @@ type DrainWaiter = {
 type PreparedLinkedSyncItem = {
   item: LinkedSyncQueueItemV1;
   page: MangaPage;
+  release: () => void;
   recordId: string;
   rootPath: string;
   output: null | {
@@ -126,6 +135,14 @@ export class LinkedWorkspaceSyncService {
   private metadataCommitTail: Promise<void> = Promise.resolve();
   private disposed = false;
   private generation = 0;
+  private publishedPages = new Map<string, MangaPage>();
+  private deletingChapters = new Set<string>();
+  private deletingWorks = new Set<string>();
+  private destinationChanges = new Set<{
+    workId: string;
+    chapterId: string;
+    promise: Promise<LinkedWorkspaceStatus>;
+  }>();
   private lastActivityAt = Date.now();
 
   constructor(options: ServiceOptions) {
@@ -147,6 +164,18 @@ export class LinkedWorkspaceSyncService {
         .filter((item) => this.records.has(item.connectionId))
         .map((item) => [queueKey(item.chapterId, item.pageId), item]),
     );
+    await recoverLinkedWorkspaceDeletions({
+      dataRoot: this.options.dataRoot,
+      chapterExists: async (ids) => {
+        const library = await this.dependencies.listLibrary();
+        return library.works.some((work) =>
+          work.chapters.some((chapter) => ids.includes(chapter.id)),
+        );
+      },
+      forgetRecords: async (ids) => {
+        for (const id of ids) await this.disconnect(id);
+      },
+    });
     await this.cleanupInterruptedWrites();
     await this.reconcilePersistedRecords();
     await this.persistQueue();
@@ -200,7 +229,24 @@ export class LinkedWorkspaceSyncService {
   async connect(
     request: ConnectLinkedWorkspaceRequest,
   ): Promise<LinkedWorkspaceStatus> {
-    const chapter = await this.dependencies.openChapter(request.chapterId);
+    return this.changeDestination(request, () =>
+      withLibraryContentEdit(
+        [
+          libraryStructureResource("work", request.workId, "read"),
+          libraryStructureResource("chapter", request.chapterId, "read"),
+        ],
+        () => this.connectDestination(request),
+      ),
+    );
+  }
+
+  private async connectDestination(
+    request: ConnectLinkedWorkspaceRequest,
+  ): Promise<LinkedWorkspaceStatus> {
+    const chapter = await this.dependencies.openChapter(
+      request.chapterId,
+      request.workId,
+    );
     if (chapter.workId !== request.workId) {
       throw new Error("선택한 작품과 화가 일치하지 않습니다.");
     }
@@ -214,7 +260,7 @@ export class LinkedWorkspaceSyncService {
     const current = this.findRecordByChapter(chapter.id);
     const sameRoot = current ? sameFilePath(current.rootPath, rootPath) : false;
     const pageRelativePaths = resolveOutputRelativePaths(chapter);
-    const { sourceFingerprints, sourceRelativePaths } =
+    const { sourceFingerprints, sourceRelativePaths, originalFingerprints } =
       await materializeRecoverySources({
         chapter,
         pageRelativePaths,
@@ -241,11 +287,13 @@ export class LinkedWorkspaceSyncService {
         ? (current?.publishedMirrorRevisions ?? {})
         : {},
       sourceFingerprints,
+      originalFingerprints,
       artifacts: sameRoot ? (current?.artifacts ?? {}) : {},
       createdAt: current?.createdAt ?? now,
       updatedAt: now,
     };
     this.reconcileResultRelativePaths(record, chapter);
+    this.invalidateRenders();
     this.reportActivity({ type: "pulse" });
     this.records.set(record.id, record);
     await this.store.replaceRecord(record);
@@ -266,6 +314,22 @@ export class LinkedWorkspaceSyncService {
   async update(
     request: UpdateLinkedWorkspaceRequest,
   ): Promise<LinkedWorkspaceStatus> {
+    const record = this.records.get(request.connectionId);
+    if (!record) throw new Error("자동 저장 설정을 찾지 못했습니다.");
+    return this.changeDestination(record, () =>
+      withLibraryContentEdit(
+        [
+          libraryStructureResource("work", record.workId, "read"),
+          libraryStructureResource("chapter", record.chapterId, "read"),
+        ],
+        () => this.updateDestination(request),
+      ),
+    );
+  }
+
+  private async updateDestination(
+    request: UpdateLinkedWorkspaceRequest,
+  ): Promise<LinkedWorkspaceStatus> {
     const current = this.records.get(request.connectionId);
     if (!current) throw new Error("자동 저장 설정을 찾지 못했습니다.");
     const outputChanged =
@@ -281,8 +345,12 @@ export class LinkedWorkspaceSyncService {
         : {}),
       updatedAt: new Date().toISOString(),
     };
-    const chapter = await this.dependencies.openChapter(record.chapterId);
+    const chapter = await this.dependencies.openChapter(
+      record.chapterId,
+      record.workId,
+    );
     this.reconcileResultRelativePaths(record, chapter);
+    this.invalidateRenders();
     this.reportActivity({ type: "pulse" });
     this.records.set(record.id, record);
     await this.store.replaceRecord(record);
@@ -332,6 +400,7 @@ export class LinkedWorkspaceSyncService {
   }
 
   async disconnect(connectionId: string): Promise<boolean> {
+    this.invalidateRenders();
     this.reportActivity({ type: "pulse" });
     const removed = await this.store.removeRecord(connectionId);
     if (!removed) return false;
@@ -344,6 +413,11 @@ export class LinkedWorkspaceSyncService {
     for (const [key, item] of this.queue) {
       if (item.connectionId === connectionId) this.queue.delete(key);
     }
+    if (record)
+      for (const key of this.publishedPages.keys()) {
+        if (key.startsWith(`${record.chapterId}:`))
+          this.publishedPages.delete(key);
+      }
     await this.persistQueue();
     if (record) this.resolveDrainWaiters(connectionId, { status: "cancelled" });
     this.emitStatuses();
@@ -352,6 +426,89 @@ export class LinkedWorkspaceSyncService {
 
   async countConflicts(rootPath: string): Promise<number> {
     return countLinkedWorkspaceConflicts(rootPath);
+  }
+
+  private assertNotDeleting(chapterId: string, workId?: string): void {
+    if (
+      this.deletingChapters.has(chapterId) ||
+      (workId && this.deletingWorks.has(workId))
+    )
+      throw new Error("이 화를 삭제 중입니다.");
+  }
+
+  private async changeDestination(
+    target: { workId: string; chapterId: string },
+    run: () => Promise<LinkedWorkspaceStatus>,
+  ): Promise<LinkedWorkspaceStatus> {
+    this.assertNotDeleting(target.chapterId, target.workId);
+    const change = {
+      workId: target.workId,
+      chapterId: target.chapterId,
+      promise: run(),
+    };
+    this.destinationChanges.add(change);
+    try {
+      return await change.promise;
+    } finally {
+      this.destinationChanges.delete(change);
+    }
+  }
+
+  async deleteLibraryTarget<T>(
+    target: { kind: "work" | "chapter"; id: string },
+    removeCustom: boolean,
+    deleteLibrary: () => Promise<T>,
+  ): Promise<T> {
+    const markers =
+      target.kind === "work" ? this.deletingWorks : this.deletingChapters;
+    if (markers.has(target.id)) throw new Error("이미 삭제 중인 대상입니다.");
+    markers.add(target.id);
+    let records: LinkedWorkspaceRecordV1[] = [];
+    try {
+      await Promise.allSettled(
+        [...this.destinationChanges]
+          .filter((change) =>
+            target.kind === "work"
+              ? change.workId === target.id
+              : change.chapterId === target.id,
+          )
+          .map((change) => change.promise),
+      );
+      records = [...this.records.values()].filter((record) =>
+        target.kind === "work"
+          ? record.workId === target.id
+          : record.chapterId === target.id,
+      );
+      for (const record of records) this.deletingChapters.add(record.chapterId);
+      this.invalidateRenders();
+      if (this.activeDrainPromise) await this.activeDrainPromise;
+      const resources = [
+        libraryStructureResource(target.kind, target.id),
+        ...records.map((record) =>
+          libraryStructureResource("chapter", record.chapterId),
+        ),
+        ...(await Promise.all(
+          records.map((record) => outputPathResource(record.rootPath, true)),
+        )),
+      ];
+      return await withLibraryContentEdit(resources, () =>
+        deleteLinkedWorkspaceFiles({
+          dataRoot: this.options.dataRoot,
+          records,
+          allRecords: [...this.records.values()],
+          removeCustom,
+          deleteLibrary,
+          forgetRecords: async (ids) => {
+            for (const id of ids) await this.disconnect(id);
+          },
+        }),
+      );
+    } finally {
+      markers.delete(target.id);
+      for (const record of records)
+        this.deletingChapters.delete(record.chapterId);
+      this.schedule(IDLE_DELAY_MS);
+    }
   }
 
   private async resolveManagedRoot(chapter: ChapterSnapshot): Promise<string> {
@@ -397,11 +554,13 @@ export class LinkedWorkspaceSyncService {
       this.activeInteractions.delete(request.interaction);
     }
     this.lastActivityAt = Date.now();
-    this.generation += 1;
-    if (this.running) {
-      this.cancelRenderSessions("Failed to cancel linked workspace render");
-    }
     this.schedule(IDLE_DELAY_MS);
+  }
+
+  private invalidateRenders(): void {
+    this.generation += 1;
+    if (this.running)
+      this.cancelRenderSessions("Failed to cancel linked workspace render");
   }
 
   async viewResults(
@@ -415,7 +574,10 @@ export class LinkedWorkspaceSyncService {
       };
     }
     if (!record.enabled) return this.openResultDirectory(record, 0);
-    const chapter = await this.dependencies.openChapter(request.chapterId);
+    const chapter = await this.dependencies.openChapter(
+      request.chapterId,
+      record.workId,
+    );
     await this.queuePages(chapter.id, chapter.pageOrder, {
       immediate: true,
       priority: 60,
@@ -462,7 +624,15 @@ export class LinkedWorkspaceSyncService {
   ): Promise<void> {
     const record = this.findRecordByChapter(chapterId);
     if (!record || !record.enabled) return;
-    const chapter = await this.dependencies.openChapter(chapterId);
+    const chapter = await this.dependencies.openChapter(
+      chapterId,
+      record.workId,
+    );
+    if (
+      this.deletingChapters.has(chapterId) ||
+      this.records.get(record.id) !== record
+    )
+      return;
     const requested = new Set(pageIds);
     const now = Date.now();
     let recordChanged = this.reconcileResultRelativePaths(record, chapter);
@@ -658,6 +828,8 @@ export class LinkedWorkspaceSyncService {
           const record = this.records.get(item.connectionId);
           return (
             record?.enabled === true &&
+            !this.deletingChapters.has(item.chapterId) &&
+            !this.deletingWorks.has(record.workId) &&
             item.attempts < RETRY_DELAYS_MS.length &&
             item.nextRetryAt <= now &&
             !this.activeQueueKeys.has(queueKey(item.chapterId, item.pageId)) &&
@@ -689,7 +861,12 @@ export class LinkedWorkspaceSyncService {
       if (!record) return;
       await withLibraryContentEdit(
         [
-          pageContentResource(item.chapterId, item.pageId),
+          libraryStructureResource("chapter", item.chapterId, "read"),
+          libraryStructureResource(
+            "page",
+            `${item.chapterId}/${item.pageId}`,
+            "read",
+          ),
           await outputPathResource(record.rootPath, true),
         ],
         async () => {
@@ -700,14 +877,18 @@ export class LinkedWorkspaceSyncService {
             this.lastErrors.delete(item.connectionId);
             return;
           }
-          const rendered = await this.renderPreparedItem(
-            prepared,
-            generation,
-            renderSlot,
-          );
-          await this.runSerializedMetadata(() =>
-            this.commitRenderedItem(rendered, generation),
-          );
+          try {
+            const rendered = await this.renderPreparedItem(
+              prepared,
+              generation,
+              renderSlot,
+            );
+            await this.runSerializedMetadata(() =>
+              this.commitRenderedItem(rendered, generation),
+            );
+          } finally {
+            prepared.release();
+          }
           this.lastErrors.delete(item.connectionId);
         },
       );
@@ -728,7 +909,10 @@ export class LinkedWorkspaceSyncService {
     if (!record) throw new Error("연결 정보가 사라졌습니다.");
     await this.assertSourceUnchanged(record, item.pageId);
     this.assertGeneration(generation);
-    const chapter = await this.dependencies.openChapter(item.chapterId);
+    const chapter = await this.dependencies.openChapter(
+      item.chapterId,
+      record.workId,
+    );
     const page = chapter.pages.find(
       (candidate) => candidate.id === item.pageId,
     );
@@ -757,21 +941,41 @@ export class LinkedWorkspaceSyncService {
     if (result && !resultRelativePath) {
       throw new Error("페이지의 결과 상대 경로가 없습니다.");
     }
-    return {
-      item,
-      page,
-      recordId: record.id,
-      rootPath: record.rootPath,
-      output:
-        result && resultRelativePath
-          ? {
-              ...result,
-              path: resolvePathInside(record.rootPath, resultRelativePath),
-              jpegQuality: record.output.jpegQuality,
-              webpQuality: record.output.webpQuality,
-            }
-          : null,
-    };
+    return withLibraryRead(async () => {
+      const latest = await this.dependencies.openChapter(
+        item.chapterId,
+        record.workId,
+      );
+      const captured = latest.pages.find(
+        (candidate) => candidate.id === item.pageId,
+      );
+      if (!captured) throw new Error("동기화할 페이지를 찾지 못했습니다.");
+      assertExpectedRevision(captured, item);
+      const pageSnapshot = structuredClone(captured);
+      return {
+        item,
+        page: pageSnapshot,
+        release: retainLibrarySnapshot(
+          [],
+          [
+            pageSnapshot.imagePath,
+            pageSnapshot.inpaintedImagePath,
+            pageSnapshot.inpaintMaskPath,
+          ].filter((path): path is string => Boolean(path)),
+        ),
+        recordId: record.id,
+        rootPath: record.rootPath,
+        output:
+          result && resultRelativePath
+            ? {
+                ...result,
+                path: resolvePathInside(record.rootPath, resultRelativePath),
+                jpegQuality: record.output.jpegQuality,
+                webpQuality: record.output.webpQuality,
+              }
+            : null,
+      };
+    });
   }
 
   private async renderPreparedItem(
@@ -792,16 +996,6 @@ export class LinkedWorkspaceSyncService {
           : {}),
     });
     this.assertGeneration(generation);
-    const latest = await this.dependencies.openChapter(prepared.item.chapterId);
-    const latestPage = latest.pages.find(
-      (candidate) => candidate.id === prepared.item.pageId,
-    );
-    if (
-      !latestPage ||
-      createPageVisualRevision(latestPage) !== prepared.item.visualRevision
-    ) {
-      throw new Error("렌더링 중 페이지가 변경되었습니다.");
-    }
     await writeBinaryFileAtomically(prepared.output.path, content, () =>
       this.assertGeneration(generation),
     );
@@ -813,7 +1007,6 @@ export class LinkedWorkspaceSyncService {
     generation: number,
   ): Promise<void> {
     const { item } = rendered;
-    if (!this.isCurrentQueueItem(item)) return;
     this.assertGeneration(generation);
     const record = this.records.get(rendered.recordId);
     if (!record) throw new Error("연결 정보가 사라졌습니다.");
@@ -825,11 +1018,7 @@ export class LinkedWorkspaceSyncService {
         "AbortError",
       );
     }
-    const latest = await this.dependencies.openChapter(item.chapterId);
-    const page = latest.pages.find((candidate) => candidate.id === item.pageId);
-    if (!page) throw new Error("동기화할 페이지를 찾지 못했습니다.");
-    assertExpectedRevision(page, item);
-    if (!this.isCurrentQueueItem(item)) return;
+    const page = rendered.page;
 
     if (rendered.output && rendered.content) {
       const previousResult = record.artifacts[page.id]?.result;
@@ -869,10 +1058,9 @@ export class LinkedWorkspaceSyncService {
     record.updatedAt = new Date().toISOString();
     this.records.set(record.id, record);
     await this.store.replaceRecord(record);
-    if (!this.isCurrentQueueItem(item)) return;
-
     const key = queueKey(item.chapterId, item.pageId);
-    this.queue.delete(key);
+    this.publishedPages.set(key, page);
+    if (this.isCurrentQueueItem(item)) this.queue.delete(key);
     try {
       if (!this.hasOtherPendingRootItem(record.rootPath, item)) {
         const published = await this.writeMirrorForRoot(
@@ -1099,11 +1287,14 @@ export class LinkedWorkspaceSyncService {
     record: LinkedWorkspaceRecordV1,
     notice: string,
   ): Promise<void> {
-    const chapter = await this.dependencies.openChapter(record.chapterId);
+    const chapter = await this.dependencies.openChapter(
+      record.chapterId,
+      record.workId,
+    );
     const rootPath = await this.resolveManagedRoot(chapter);
     await assertOrCreateDestinationDirectory(rootPath, "managed");
     const pageRelativePaths = resolveOutputRelativePaths(chapter);
-    const { sourceFingerprints, sourceRelativePaths } =
+    const { sourceFingerprints, sourceRelativePaths, originalFingerprints } =
       await materializeRecoverySources({
         chapter,
         pageRelativePaths,
@@ -1115,6 +1306,7 @@ export class LinkedWorkspaceSyncService {
     record.resultRelativePaths = undefined;
     record.sourceRelativePaths = sourceRelativePaths;
     record.sourceFingerprints = sourceFingerprints;
+    record.originalFingerprints = originalFingerprints;
     record.publishedRevisions = {};
     record.publishedMirrorRevisions = {};
     record.artifacts = {};
@@ -1211,7 +1403,18 @@ export class LinkedWorkspaceSyncService {
       library.works.map((work) => [work.id, work.title]),
     );
     for (const record of records) {
-      const chapter = await this.dependencies.openChapter(record.chapterId);
+      const current = await this.dependencies.openChapter(
+        record.chapterId,
+        record.workId,
+      );
+      const chapter = {
+        ...current,
+        pages: current.pages.map(
+          (page) =>
+            this.publishedPages.get(queueKey(record.chapterId, page.id)) ??
+            page,
+        ),
+      };
       for (const page of chapter.pages) {
         published.push({
           recordId: record.id,
@@ -1264,6 +1467,8 @@ export class LinkedWorkspaceSyncService {
       const record = this.records.get(item.recordId);
       if (!record) continue;
       record.publishedMirrorRevisions[item.pageId] = item.revision;
+      const key = queueKey(record.chapterId, item.pageId);
+      if (!this.queue.has(key)) this.publishedPages.delete(key);
       record.updatedAt = new Date().toISOString();
       changedRecords.add(record.id);
     }
@@ -1299,7 +1504,10 @@ export class LinkedWorkspaceSyncService {
     recordLoop: for (const record of this.records.values()) {
       let chapter: ChapterSnapshot;
       try {
-        chapter = await this.dependencies.openChapter(record.chapterId);
+        chapter = await this.dependencies.openChapter(
+          record.chapterId,
+          record.workId,
+        );
       } catch (error) {
         this.lastErrors.set(
           record.id,
@@ -1340,8 +1548,11 @@ export class LinkedWorkspaceSyncService {
           JSON.stringify(record.sourceRelativePaths ?? {}) !==
             JSON.stringify(recoverySources.sourceRelativePaths) ||
           JSON.stringify(record.sourceFingerprints) !==
-            JSON.stringify(recoverySources.sourceFingerprints)
+            JSON.stringify(recoverySources.sourceFingerprints) ||
+          JSON.stringify(record.originalFingerprints) !==
+            JSON.stringify(recoverySources.originalFingerprints)
         ) {
+          record.originalFingerprints = recoverySources.originalFingerprints;
           record.sourceRelativePaths = recoverySources.sourceRelativePaths;
           record.sourceFingerprints = recoverySources.sourceFingerprints;
           recordChanged = true;
@@ -1758,9 +1969,15 @@ async function materializeRecoverySources({
 }): Promise<{
   sourceFingerprints: LinkedWorkspaceRecordV1["sourceFingerprints"];
   sourceRelativePaths: Record<string, string>;
+  originalFingerprints: NonNullable<
+    LinkedWorkspaceRecordV1["originalFingerprints"]
+  >;
 }> {
   const sourceFingerprints: LinkedWorkspaceRecordV1["sourceFingerprints"] = {};
   const sourceRelativePaths: Record<string, string> = {};
+  const originalFingerprints: NonNullable<
+    LinkedWorkspaceRecordV1["originalFingerprints"]
+  > = {};
   const usedSourceRelativePaths = new Set<string>();
   for (const page of chapter.pages) {
     const outputRelativePath = pageRelativePaths[page.id];
@@ -1773,12 +1990,20 @@ async function materializeRecoverySources({
       usedSourceRelativePaths,
     );
     const targetPath = resolvePathInside(rootPath, sourceRelativePath);
-    const sourceFingerprint = await fingerprintFile(page.imagePath);
+    const cached = previousRecord?.originalFingerprints?.[page.id];
+    const sourceFingerprint = await fingerprintFile(
+      page.imagePath,
+      cached?.path === page.imagePath ? cached : undefined,
+    );
+    originalFingerprints[page.id] = {
+      ...sourceFingerprint,
+      path: page.imagePath,
+    };
     const previousRelativePath = previousRecord
       ? (previousRecord.sourceRelativePaths?.[page.id] ??
         previousRecord.pageRelativePaths[page.id])
       : undefined;
-    await materializeRecoverySourceFile({
+    sourceFingerprints[page.id] = await materializeRecoverySourceFile({
       page,
       previousExpectedFingerprint: previousRecord?.sourceFingerprints[page.id],
       previousPath: previousRelativePath
@@ -1788,9 +2013,8 @@ async function materializeRecoverySources({
       targetPath,
     });
     sourceRelativePaths[page.id] = sourceRelativePath;
-    sourceFingerprints[page.id] = await fingerprintFile(targetPath);
   }
-  return { sourceFingerprints, sourceRelativePaths };
+  return { sourceFingerprints, sourceRelativePaths, originalFingerprints };
 }
 
 async function materializeRecoverySourceFile({
@@ -1805,9 +2029,15 @@ async function materializeRecoverySourceFile({
   previousPath?: string;
   sourceFingerprint: LinkedWorkspaceRecordV1["sourceFingerprints"][string];
   targetPath: string;
-}): Promise<void> {
-  const targetFingerprint = await fingerprintFileIfPresent(targetPath);
-  if (targetFingerprint?.sha256 === sourceFingerprint.sha256) return;
+}): Promise<LinkedWorkspaceRecordV1["sourceFingerprints"][string]> {
+  const targetFingerprint = await fingerprintFileIfPresent(
+    targetPath,
+    previousPath && sameFilePath(previousPath, targetPath)
+      ? previousExpectedFingerprint
+      : undefined,
+  );
+  if (targetFingerprint?.sha256 === sourceFingerprint.sha256)
+    return targetFingerprint;
 
   const previousFingerprint = previousPath
     ? await fingerprintFileIfPresent(previousPath)
@@ -1849,9 +2079,10 @@ async function materializeRecoverySourceFile({
   ) {
     await mkdir(dirname(targetPath), { recursive: true });
     await rename(previousPath, targetPath);
-    return;
+    return fingerprintFile(targetPath);
   }
   await copyFileAtomically(page.imagePath, targetPath);
+  return fingerprintFile(targetPath);
 }
 
 async function resolveRecoveryImageExtension(
@@ -1964,9 +2195,10 @@ function makeUniqueRelativePath(preferred: string, used: Set<string>): string {
 
 async function fingerprintFileIfPresent(
   filePath: string,
+  previous?: LinkedWorkspaceRecordV1["sourceFingerprints"][string],
 ): Promise<Awaited<ReturnType<typeof fingerprintFile>> | null> {
   try {
-    return await fingerprintFile(filePath);
+    return await fingerprintFile(filePath, previous);
   } catch (error) {
     if (
       error instanceof Error &&

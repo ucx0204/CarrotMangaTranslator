@@ -45,7 +45,17 @@ export type LinkedWorkspaceRecordV1 = {
   publishedMirrorRevisions: Record<string, string>;
   sourceFingerprints: Record<
     string,
-    { size: number; mtimeMs: number; sha256: string }
+    { size: number; mtimeMs: number; ctimeMs?: number; sha256: string }
+  >;
+  originalFingerprints?: Record<
+    string,
+    {
+      path: string;
+      size: number;
+      mtimeMs: number;
+      ctimeMs?: number;
+      sha256: string;
+    }
   >;
   artifacts: Record<
     string,

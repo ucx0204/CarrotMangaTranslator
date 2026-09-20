@@ -61,8 +61,8 @@
       "reason": "Activity observers, handoff failures and durable image checkpoint failures use the shared diagnostic sink. Checkpoint wrappers preserve the underlying storage cause for recovery diagnostics."
     },
     "src/main/libraryStore/storage.ts": {
-      "maxImportedBy": 28,
-      "reason": "Durable SFX recovery sidecars use the existing atomic JSON writer and reader, with real filesystem recovery tests."
+      "maxImportedBy": 29,
+      "reason": "SFX sidecars and recoverable linked-output deletion journals reuse the atomic JSON and path contracts; real filesystem rollback/restart tests cover both."
     },
     "src/main/runtime/simple-page-ocr-bbox-pipeline.cjs": {
       "maxRuntimeImports": 20,
@@ -165,8 +165,8 @@
       "reason": "SFX job composition connects durable confirmed-text finalization, image recovery and existing translation/review ports; algorithms remain in their owning modules."
     },
     "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts": {
-      "maxRuntimeImports": 14,
-      "reason": "External synchronization acquires page ownership and the canonical output path lease around its existing render and publication flow."
+      "maxRuntimeImports": 15,
+      "reason": "Synchronization retains immutable page artifacts and canonical output leases, and composes the recoverable output-deletion adapter with library deletion."
     },
     "src/main/ipc/importPreviewIpc.ts": {
       "maxRuntimeImports": 14,

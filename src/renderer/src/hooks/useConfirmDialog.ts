@@ -4,6 +4,13 @@ export type ConfirmDialogState = {
   title: string;
   message: string;
   detail?: string;
+  option?: {
+    label: string;
+    confirmLabel?: string;
+    destructive?: boolean;
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+  };
 };
 
 export function useConfirmDialog(): {
@@ -12,6 +19,7 @@ export function useConfirmDialog(): {
     title: string,
     message: string,
     detail?: string,
+    option?: ConfirmDialogState["option"],
   ) => Promise<boolean>;
   resolveConfirmDialog: (confirmed: boolean) => void;
 } {
@@ -29,11 +37,16 @@ export function useConfirmDialog(): {
   }, []);
 
   const askConfirm = React.useCallback(
-    (title: string, message: string, detail?: string) => {
+    (
+      title: string,
+      message: string,
+      detail?: string,
+      option?: ConfirmDialogState["option"],
+    ) => {
       confirmResolverRef.current?.(false);
       return new Promise<boolean>((resolve) => {
         confirmResolverRef.current = resolve;
-        setConfirmDialog({ title, message, detail });
+        setConfirmDialog({ title, message, detail, option });
       });
     },
     [],

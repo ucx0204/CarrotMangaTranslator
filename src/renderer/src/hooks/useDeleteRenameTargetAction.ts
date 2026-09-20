@@ -21,15 +21,6 @@ type DeleteRenameTargetActionOptions = Pick<
   setRenameTarget: (target: RenameTarget | null) => void;
 };
 
-function buildDeleteDetail(
-  renameTarget: RenameTarget,
-  t: TFunction<"renderer">,
-): string {
-  return renameTarget.kind === "work"
-    ? t("library.delete.workDetail", { title: renameTarget.title })
-    : t("library.delete.chapterDetail", { title: renameTarget.title });
-}
-
 function deleteSuccessStatus(
   renameTarget: RenameTarget,
   t: TFunction<"renderer">,
@@ -66,11 +57,15 @@ function resolveDeleteContext(
 async function deleteLibraryRenameTarget(
   renameTarget: RenameTarget,
   setLibrary: DeleteRenameTargetActionOptions["setLibrary"],
+  removeCustomOutputs: boolean,
 ): Promise<void> {
   const nextLibrary =
     renameTarget.kind === "work"
-      ? await libraryGateway.deleteWork(renameTarget.id)
-      : await libraryGateway.deleteChapter(renameTarget.id);
+      ? await libraryGateway.deleteWork(renameTarget.id, removeCustomOutputs)
+      : await libraryGateway.deleteChapter(
+          renameTarget.id,
+          removeCustomOutputs,
+        );
   setLibrary(nextLibrary);
 }
 
@@ -85,6 +80,31 @@ function clearCurrentSelectionAfterDelete(
   ) {
     clearCurrentChapter();
   }
+}
+
+async function confirmDeletion(
+  askConfirm: DeleteRenameTargetActionOptions["askConfirm"],
+  target: RenameTarget,
+  t: TFunction<"renderer">,
+): Promise<boolean | null> {
+  let removeCustomOutputs = true;
+  const confirmed = await askConfirm(
+    target.kind === "work"
+      ? t("library.delete.workTitle")
+      : t("library.delete.chapterTitle"),
+    target.title,
+    t("library.delete.detail"),
+    {
+      label: t("library.delete.customOutputs"),
+      confirmLabel: t("library.delete.action"),
+      destructive: true,
+      checked: removeCustomOutputs,
+      onChange: (value) => {
+        removeCustomOutputs = value;
+      },
+    },
+  );
+  return confirmed ? removeCustomOutputs : null;
 }
 
 export function useDeleteRenameTargetAction({
@@ -113,23 +133,23 @@ export function useDeleteRenameTargetAction({
       currentWorkId,
       renameTarget,
     );
-    const confirmed = await askConfirm(
-      renameTarget.kind === "work"
-        ? t("library.delete.workTitle")
-        : t("library.delete.chapterTitle"),
-      t("library.delete.confirm"),
-      buildDeleteDetail(renameTarget, t),
+    const removeCustomOutputs = await confirmDeletion(
+      askConfirm,
+      renameTarget,
+      t,
     );
-    if (!confirmed) {
-      return;
-    }
+    if (removeCustomOutputs === null) return;
 
     setRenameBusy(true);
     try {
       if ((context.isCurrentChapter || context.isCurrentWork) && dirty) {
         await saveNow();
       }
-      await deleteLibraryRenameTarget(renameTarget, setLibrary);
+      await deleteLibraryRenameTarget(
+        renameTarget,
+        setLibrary,
+        removeCustomOutputs,
+      );
       clearCurrentSelectionAfterDelete(
         renameTarget,
         context,

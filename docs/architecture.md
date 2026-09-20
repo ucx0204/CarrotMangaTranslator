@@ -4,6 +4,14 @@
 
 ## 의존 방향
 
+자동 결과 동기화는 기존 library snapshot lease와 구조 읽기 예약으로 렌더 입력을
+보존한다. 페이지 내용 쓰기 예약은 렌더 전체에 걸지 않으며, 캡처 뒤의 편집은 다음
+동기화 항목으로 남긴다. 삭제는 같은 서비스에서 동기화를 취소·종료한 뒤
+`linkedWorkspaceDeletion` 파일 어댑터로 위임한다. 이 연결 때문에 동기화 서비스의
+직접 import 상한을 15, 기존 원자적 JSON 저장 함수의 소비 상한을 29로 기록한다.
+별도 잠금이나 JSON 저장 구현은 만들지 않는다. 변경 범위와 측정 근거는
+[`linked-workspace-responsiveness.md`](linked-workspace-responsiveness.md)에 남긴다.
+
 일괄 편집의 작업 편집기는 숫자 입력을 공용 `NumberField`로 바꾸고 기본 글꼴의
 식별자를 `blockFontCatalog`에서 직접 사용한다. 두 공개 계약을 재사용하기 위한
 `ConditionalBatchActionCard`의 직접 import 상한만 15로 기록한다. 단위를 변환하는

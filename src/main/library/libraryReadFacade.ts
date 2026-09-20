@@ -41,8 +41,13 @@ export function createListLibrary(
   };
 }
 
-export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {
-  return withLibraryNavigationRead(() => openChapterUnlocked(chapterId));
+export async function openChapter(
+  chapterId: string,
+  expectedWorkId?: string,
+): Promise<ChapterSnapshot> {
+  return withLibraryNavigationRead(() =>
+    openChapterUnlocked(chapterId, expectedWorkId),
+  );
 }
 
 export async function resolvePagesForRun(

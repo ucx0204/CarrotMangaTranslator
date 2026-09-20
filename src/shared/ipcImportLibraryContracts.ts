@@ -326,16 +326,16 @@ export const libraryIpcContracts = {
     args: z.tuple([stringArg, z.string().max(MAX_TITLE_LENGTH)]),
     result: LibraryIndexSchema,
   }),
-  deleteWork: defineIpcContract<[string], LibraryIndex>({
+  deleteWork: defineIpcContract<[string, boolean?], LibraryIndex>({
     apiKey: "deleteWork",
     channel: "library:delete-work",
-    args: z.tuple([stringArg]),
+    args: z.tuple([stringArg, z.boolean().optional()]),
     result: LibraryIndexSchema,
   }),
-  deleteChapter: defineIpcContract<[string], LibraryIndex>({
+  deleteChapter: defineIpcContract<[string, boolean?], LibraryIndex>({
     apiKey: "deleteChapter",
     channel: "library:delete-chapter",
-    args: z.tuple([stringArg]),
+    args: z.tuple([stringArg, z.boolean().optional()]),
     result: LibraryIndexSchema,
   }),
   reorderChapters: defineIpcContract<[string, string[]], LibraryIndex>({

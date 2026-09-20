@@ -46,10 +46,25 @@ const linkedWorkspaceRecordSchema = z
         .object({
           size: z.number().int().nonnegative(),
           mtimeMs: z.number().nonnegative(),
+          ctimeMs: z.number().nonnegative().optional(),
           sha256: z.string().regex(/^[0-9a-f]{64}$/),
         })
         .strict(),
     ),
+    originalFingerprints: z
+      .record(
+        z.string().uuid(),
+        z
+          .object({
+            path: z.string().min(1).max(4096),
+            size: z.number().int().nonnegative(),
+            mtimeMs: z.number().nonnegative(),
+            ctimeMs: z.number().nonnegative().optional(),
+            sha256: z.string().regex(/^[0-9a-f]{64}$/),
+          })
+          .strict(),
+      )
+      .optional(),
     artifacts: z.record(
       z.string().uuid(),
       z

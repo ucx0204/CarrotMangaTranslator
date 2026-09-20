@@ -1,3 +1,4 @@
+import { makeChapter } from "./fixtures/linkedWorkspace";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   mkdir,
@@ -41,10 +42,17 @@ vi.mock("electron", () => ({
   shell: { openPath: boundary.openPath },
 }));
 
+vi.mock("node:fs", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs")>();
+  return { ...original, createReadStream: vi.fn(original.createReadStream) };
+});
+
 import {
   LinkedWorkspaceSyncService,
   MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY,
 } from "../src/main/linkedWorkspace/linkedWorkspaceSyncService";
+
+import { buildLinkedMirrorFileName } from "../src/main/linkedWorkspace/linkedWorkspacePaths";
 
 const WORK_ID = "11111111-1111-4111-8111-111111111111";
 const CHAPTER_ID = "22222222-2222-4222-8222-222222222222";
@@ -753,7 +761,7 @@ describe("LinkedWorkspaceSyncService", () => {
     await service.dispose();
   });
 
-  it("cancels every active parallel renderer before publishing fresh output", async () => {
+  it("cancels every active parallel renderer when output settings change", async () => {
     vi.useRealTimers();
     boundary.chapter = makeChapter(MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY);
     boundary.library = makeLibrary();
@@ -784,7 +792,12 @@ describe("LinkedWorkspaceSyncService", () => {
     await vi.waitFor(() => {
       expect(staleStarted).toHaveLength(MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY);
     });
-    service.reportActivity({ type: "pulse" });
+    const connectionId = service.getStatus(CHAPTER_ID).connectionId;
+    if (!connectionId) throw new Error("Missing connection");
+    await service.update({
+      connectionId,
+      output: { ...DEFAULT_RASTER_EXPORT_SETTINGS, format: "png" },
+    });
     expect(
       boundary.sessions
         .slice(0, MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY)
@@ -867,38 +880,48 @@ describe("LinkedWorkspaceSyncService", () => {
     await service.dispose();
   });
 
-  it("discards a render interrupted by new activity and later publishes only fresh output", async () => {
+  it("publishes the captured version while retaining edits queued during rendering", async () => {
     const { root, service } = await makeConnectedService();
     await advanceAndDrain(service, 3_000);
-    const page = requirePage();
-    requireBlock(page).translatedText = "first visual";
-    await service.notifyPagesSaved(CHAPTER_ID, [PAGE_ID]);
-    await advanceAndDrain(service, 3_000);
-    expect(await readFile(join(root, "result", "001.png"), "utf8")).toBe(
-      "render-1",
-    );
-
-    const staleRender = deferred<Buffer>();
-    boundary.sessions[0]?.renderPage.mockImplementationOnce(
-      () => staleRender.promise,
-    );
-    requireBlock(page).translatedText = "second visual";
-    service.reportActivity({ type: "pulse" });
+    const rendering = deferred<Buffer>();
+    const started = deferred<void>();
+    boundary.createSession.mockImplementation(async () => {
+      const session = makeRenderSession(async () => {
+        started.resolve();
+        return rendering.promise;
+      });
+      boundary.sessions.push(session);
+      return session;
+    });
+    requireBlock(requirePage()).translatedText = "version A";
     await service.notifyPagesSaved(CHAPTER_ID, [PAGE_ID]);
     await vi.advanceTimersByTimeAsync(3_000);
-    await flushAsyncWork();
-    expect(boundary.createSession).toHaveBeenCalledTimes(1);
-
-    service.reportActivity({ type: "pulse" });
-    staleRender.resolve(Buffer.from("stale-output"));
-    await flushAsyncWork();
+    await started.promise;
+    service.reportActivity({ type: "start", interaction: "composition" });
+    requireBlock(requirePage()).translatedText = "version B";
+    await service.notifyPagesSaved(CHAPTER_ID, [PAGE_ID]);
+    expect(boundary.sessions[0]?.cancel).not.toHaveBeenCalled();
+    rendering.resolve(Buffer.from("version A pixels"));
+    await Reflect.get(service, "activeDrainPromise");
     expect(await readFile(join(root, "result", "001.png"), "utf8")).toBe(
-      "render-1",
+      "version A pixels",
     );
+    expect(service.getStatus(CHAPTER_ID).pendingCount).toBe(1);
+    const mirror = JSON.parse(
+      await readFile(join(root, buildLinkedMirrorFileName(root)), "utf8"),
+    );
+    expect(mirror.chapters[0].pages[0].blocks[0].translatedText).toBe(
+      "version A",
+    );
+    boundary.sessions[0]?.renderPage.mockResolvedValueOnce(
+      Buffer.from("version B pixels"),
+    );
+    service.reportActivity({ type: "end", interaction: "composition" });
     await advanceAndDrain(service, 3_000);
     expect(await readFile(join(root, "result", "001.png"), "utf8")).toBe(
-      "render-2",
+      "version B pixels",
     );
+    expect(service.getStatus(CHAPTER_ID).pendingCount).toBe(0);
     await service.dispose();
   });
 });
@@ -1011,57 +1034,6 @@ function requireBlock(page: MangaPage): TranslationBlock {
   return block;
 }
 
-function makeChapter(pageCount = 1): ChapterSnapshot {
-  const timestamp = "2026-08-24T00:00:00.000Z";
-  const pages = Array.from({ length: pageCount }, (_, index) => {
-    const pageNumber = index + 1;
-    const name = `${String(pageNumber).padStart(3, "0")}.png`;
-    const block = {
-      id: `block-${pageNumber}`,
-      bbox: { x: 100, y: 100, w: 300, h: 200 },
-      sourceText: "原文",
-      translatedText: "번역",
-      confidence: 0.9,
-      sourceDirection: "horizontal",
-      renderDirection: "horizontal",
-      fontSizePx: 24,
-      lineHeight: 1.2,
-      textAlign: "center",
-      textColor: "#111111",
-      outlineColor: "#ffffff",
-      outlineWidthScale: 1,
-      backgroundColor: "#ffffff",
-      opacity: 1,
-    } as TranslationBlock;
-    return {
-      id: pageNumber === 1 ? PAGE_ID : makePageId(pageNumber),
-      name,
-      imagePath: `C:/internal/${name}`,
-      sourceFileName: name,
-      sourceRelativePath: name,
-      dataUrl: "",
-      width: 1000,
-      height: 1500,
-      blocks: [block],
-      blockOrder: [block.id],
-      analysisStatus: "completed",
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    } satisfies MangaPage;
-  });
-  return {
-    id: CHAPTER_ID,
-    workId: WORK_ID,
-    title: "1화",
-    sourceKind: "folder",
-    status: "completed",
-    pageOrder: pages.map((page) => page.id),
-    pages,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-}
-
 function makeLibrary(): LibraryIndex {
   const chapter = boundary.chapter ?? makeChapter();
   return {
@@ -1089,10 +1061,6 @@ function makeLibrary(): LibraryIndex {
   };
 }
 
-function makePageId(pageNumber: number): string {
-  return `33333333-3333-4333-8333-${String(pageNumber).padStart(12, "0")}`;
-}
-
 async function makeTempDir(label: string): Promise<string> {
   const path = await mkdtemp(join(tmpdir(), `mgt-linked-${label}-`));
   tempDirs.push(path);
@@ -1106,3 +1074,170 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   });
   return { promise, resolve };
 }
+
+it("allows same-page saves while a retained automatic snapshot renders", async () => {
+  const { AppActivityGate } = await import("../src/main/appActivityGate");
+  const { libraryMutationCoordinator } =
+    await import("../src/main/libraryStore/libraryMutationCoordinator");
+  const { createSavePageBlocks } =
+    await import("../src/main/library/libraryMutationFacade");
+  const { withLibraryMutation } = await import("../src/main/library/lock");
+  libraryMutationCoordinator.configureActivityGate(new AppActivityGate());
+  const started = deferred<void>();
+  const rendering = deferred<Buffer>();
+  boundary.createSession.mockImplementation(async () => {
+    const session = makeRenderSession(async () => {
+      started.resolve();
+      return rendering.promise;
+    });
+    boundary.sessions.push(session);
+    return session;
+  });
+  const { service } = await makeConnectedService();
+  try {
+    requireBlock(requirePage()).translatedText = "snapshot A";
+    await service.notifyPagesSaved(CHAPTER_ID, [PAGE_ID]);
+    await vi.advanceTimersByTimeAsync(3_000);
+    await started.promise;
+    const diskSave = vi.fn(async () => requireChapter());
+    const save = createSavePageBlocks({
+      runMutation: withLibraryMutation,
+      savePageBlocks: diskSave,
+    });
+    await expect(
+      save({
+        chapterId: CHAPTER_ID,
+        pageId: PAGE_ID,
+        blocks: requirePage().blocks,
+      }),
+    ).resolves.toBeDefined();
+    service.reportActivity({ type: "pulse" });
+    expect(boundary.sessions[0]?.cancel).not.toHaveBeenCalled();
+    await expect(
+      save({
+        chapterId: CHAPTER_ID,
+        pageId: PAGE_ID,
+        blocks: requirePage().blocks,
+      }),
+    ).resolves.toBeDefined();
+    expect(diskSave).toHaveBeenCalledTimes(2);
+  } finally {
+    rendering.resolve(Buffer.from("snapshot A"));
+    await Reflect.get(service, "activeDrainPromise");
+    await service.dispose();
+    libraryMutationCoordinator.configureActivityGate(null);
+  }
+});
+
+it("reuses validated fingerprints after restart and rehashes changed originals", async () => {
+  vi.useRealTimers();
+  boundary.chapter = makeChapter(3);
+  boundary.library = makeLibrary();
+  const { dataRoot, root, service } = await makeConnectedService("managed");
+  await service.dispose();
+  const fs = await import("node:fs");
+  const reads = vi.spyOn(fs, "createReadStream");
+  reads.mockClear();
+  const restored = createService(dataRoot);
+  try {
+    await restored.initialize();
+    expect(reads).not.toHaveBeenCalled();
+  } finally {
+    await restored.dispose();
+    reads.mockRestore();
+  }
+  await writeFile(requirePage().imagePath, "changed internal source");
+  const changed = createService(dataRoot);
+  try {
+    await changed.initialize();
+    expect(await readFile(join(root, "originals", "001.png"), "utf8")).toBe(
+      "changed internal source",
+    );
+  } finally {
+    await changed.dispose();
+  }
+});
+
+it.each(["managed", "custom"] as const)(
+  "deletes %s generated output only within the requested scope",
+  async (destination) => {
+    vi.useRealTimers();
+    const { root, service } = await makeConnectedService(destination);
+    await service.viewResults({ chapterId: CHAPTER_ID });
+    await writeFile(join(root, "user-notes.txt"), "keep");
+    const deletion = vi.fn(async () => "deleted");
+    await expect(
+      service.deleteLibraryTarget(
+        { kind: "work", id: WORK_ID },
+        false,
+        deletion,
+      ),
+    ).resolves.toBe("deleted");
+    expect(deletion).toHaveBeenCalledTimes(1);
+    const results = await readdir(join(root, "result")).catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return [] as string[];
+        throw error;
+      },
+    );
+    expect(results.includes("001.png")).toBe(destination === "custom");
+    expect(await readFile(join(root, "user-notes.txt"), "utf8")).toBe("keep");
+    expect(service.getStatus(CHAPTER_ID).state).toBe("unlinked");
+    await service.notifyPagesSaved(CHAPTER_ID, [PAGE_ID]);
+    expect(service.getStatus(CHAPTER_ID).state).toBe("unlinked");
+    await service.dispose();
+  },
+);
+
+it("restores staged output and keeps its connection when library deletion fails", async () => {
+  vi.useRealTimers();
+  const { root, service } = await makeConnectedService("managed");
+  await service.viewResults({ chapterId: CHAPTER_ID });
+  const before = await readFile(join(root, "result", "001.png"));
+  await expect(
+    service.deleteLibraryTarget(
+      { kind: "chapter", id: CHAPTER_ID },
+      false,
+      async () => {
+        throw new Error("disk failure");
+      },
+    ),
+  ).rejects.toThrow("disk failure");
+  expect(await readFile(join(root, "result", "001.png"))).toEqual(before);
+  expect(service.getStatus(CHAPTER_ID).connectionId).toBeDefined();
+  await service.dispose();
+});
+
+it("waits for cancelled output rendering before deleting and cannot recreate its folder", async () => {
+  vi.useRealTimers();
+  const started = deferred<void>();
+  const rendering = deferred<Buffer>();
+  boundary.createSession.mockImplementation(async () => {
+    const session = makeRenderSession(async () => {
+      started.resolve();
+      return rendering.promise;
+    });
+    boundary.sessions.push(session);
+    return session;
+  });
+  const { root, service } = await makeConnectedService("managed");
+  const viewing = service.viewResults({ chapterId: CHAPTER_ID });
+  await started.promise;
+  const deleteLibrary = vi.fn(async () => true);
+  const deletion = service.deleteLibraryTarget(
+    { kind: "work", id: WORK_ID },
+    false,
+    deleteLibrary,
+  );
+  await vi.waitFor(() =>
+    expect(boundary.sessions[0]?.cancel).toHaveBeenCalled(),
+  );
+  expect(deleteLibrary).not.toHaveBeenCalled();
+  await service.notifyPagesSaved(CHAPTER_ID, [PAGE_ID]);
+  rendering.resolve(Buffer.from("late output"));
+  await expect(deletion).resolves.toBe(true);
+  await expect(viewing).resolves.toMatchObject({ status: "cancelled" });
+  await expect(readdir(root)).rejects.toMatchObject({ code: "ENOENT" });
+  expect(service.getStatus(CHAPTER_ID).state).toBe("unlinked");
+  await service.dispose();
+});

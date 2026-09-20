@@ -4,11 +4,13 @@ import type {
   LibraryIndex,
 } from "../../../shared/libraryTypes";
 import type { RenameTarget } from "../lib/libraryRenameTypes";
+import type { ConfirmDialogState } from "./useConfirmDialog";
 
 type AskConfirm = (
   title: string,
   message: string,
   detail?: string,
+  option?: ConfirmDialogState["option"],
 ) => Promise<boolean>;
 
 export type UseLibraryActionsOptions = {

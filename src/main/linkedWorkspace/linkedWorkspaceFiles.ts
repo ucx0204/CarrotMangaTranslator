@@ -13,15 +13,23 @@ import { writeJsonFile } from "../libraryStore/storage";
 export type FileFingerprint = {
   size: number;
   mtimeMs: number;
+  ctimeMs?: number;
   sha256: string;
 };
 
 export async function fingerprintFile(
   filePath: string,
+  previous?: FileFingerprint,
 ): Promise<FileFingerprint> {
   const metadata = await stat(filePath);
   if (!metadata.isFile())
     throw new Error("연결된 원본 이미지가 파일이 아닙니다.");
+  if (
+    previous?.ctimeMs === metadata.ctimeMs &&
+    previous.mtimeMs === metadata.mtimeMs &&
+    previous.size === metadata.size
+  )
+    return previous;
   const hash = createHash("sha256");
   const stream = createReadStream(filePath);
   stream.on("data", (chunk) => hash.update(chunk));
@@ -29,6 +37,7 @@ export async function fingerprintFile(
   return {
     size: metadata.size,
     mtimeMs: metadata.mtimeMs,
+    ctimeMs: metadata.ctimeMs,
     sha256: hash.digest("hex"),
   };
 }

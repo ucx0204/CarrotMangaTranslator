@@ -51,8 +51,18 @@ async function loadLibraryWorkSummary(
   return { ...work, chapters };
 }
 
-export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {
-  const locator = await findChapterLocation(chapterId);
+export async function openChapter(
+  chapterId: string,
+  expectedWorkId?: string,
+): Promise<ChapterSnapshot> {
+  const owner = expectedWorkId ? await readWorkFile(expectedWorkId) : null;
+  const index = expectedWorkId ? await readIndexFile() : null;
+  const locator = expectedWorkId
+    ? index?.workOrder.includes(expectedWorkId) &&
+      owner?.chapterOrder.includes(chapterId)
+      ? { workId: expectedWorkId, chapterId }
+      : null
+    : await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("열려는 화를 찾지 못했습니다.");
   }

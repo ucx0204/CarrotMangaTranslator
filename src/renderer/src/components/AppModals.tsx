@@ -307,6 +307,7 @@ function SystemModals({
           title={confirmDialog.title}
           message={confirmDialog.message}
           detail={confirmDialog.detail}
+          option={confirmDialog.option}
           onConfirm={() => onResolveConfirm(true)}
           onCancel={() => onResolveConfirm(false)}
         />

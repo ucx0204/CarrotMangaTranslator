@@ -140,27 +140,39 @@ function registerLibraryDeleteIpc(context: IpcContext): void {
   trustedHandleContract(
     context,
     libraryIpcContracts.deleteWork,
-    async (_event, workId: unknown) => {
+    async (_event, workId: unknown, removeCustomOutputs = false) => {
       assertLibraryStructureMutationAvailable(context);
       const request = parseIpcPayload(
         DeleteWorkRequestSchema,
         { workId },
         tMain("ipc.labels.workDelete"),
       );
-      return deleteWork(request.workId);
+      return context.linkedWorkspaceSync
+        ? context.linkedWorkspaceSync.deleteLibraryTarget(
+            { kind: "work", id: request.workId },
+            removeCustomOutputs,
+            () => deleteWork(request.workId),
+          )
+        : deleteWork(request.workId);
     },
   );
   trustedHandleContract(
     context,
     libraryIpcContracts.deleteChapter,
-    async (_event, chapterId: unknown) => {
+    async (_event, chapterId: unknown, removeCustomOutputs = false) => {
       assertLibraryStructureMutationAvailable(context);
       const request = parseIpcPayload(
         DeleteChapterRequestSchema,
         { chapterId },
         tMain("ipc.labels.chapterDelete"),
       );
-      return deleteChapter(request.chapterId);
+      return context.linkedWorkspaceSync
+        ? context.linkedWorkspaceSync.deleteLibraryTarget(
+            { kind: "chapter", id: request.chapterId },
+            removeCustomOutputs,
+            () => deleteChapter(request.chapterId),
+          )
+        : deleteChapter(request.chapterId);
     },
   );
   trustedHandleContract(
