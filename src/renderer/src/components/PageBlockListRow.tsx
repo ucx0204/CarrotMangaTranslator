@@ -247,14 +247,15 @@ function PageBlockTextFields({
         <span>{t("pageBlocks.translation")}</span>
         <textarea
           data-page-block-translation="true"
-          disabled={disabled}
+          readOnly={disabled}
           value={block.translatedText}
           placeholder={t("pageBlocks.translationPlaceholder")}
           onClick={(event) => event.stopPropagation()}
           onFocus={() => onSelect(block.id)}
-          onChange={(event) =>
-            onUpdate(block.id, { translatedText: event.target.value })
-          }
+          onChange={(event) => {
+            if (!disabled)
+              onUpdate(block.id, { translatedText: event.target.value });
+          }}
         />
       </label>
     </>

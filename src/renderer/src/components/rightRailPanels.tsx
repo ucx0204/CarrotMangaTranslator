@@ -1,5 +1,4 @@
 import React from "react";
-import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
@@ -103,7 +102,6 @@ export type UnifiedRightRailProps = {
 export function UnifiedRightRail(
   props: UnifiedRightRailProps,
 ): React.JSX.Element {
-  const { t: rendererT } = useTranslation("renderer");
   return (
     <>
       {props.currentChapter ? (
@@ -124,11 +122,6 @@ export function UnifiedRightRail(
           linkedWorkspaceViewBusy={props.linkedWorkspaceViewBusy ?? false}
           onViewLinkedResults={props.onViewLinkedResults ?? NOOP}
         />
-      ) : null}
-      {props.editorDisabled ? (
-        <p className="workspace-edit-lock-reason" role="status">
-          {rendererT("statusDock.pageBusy")}
-        </p>
       ) : null}
       <ContextualRightRailPanel {...props} />
     </>

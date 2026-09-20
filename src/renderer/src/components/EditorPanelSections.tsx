@@ -226,8 +226,10 @@ function SourceTextField({
         ref={refCallback}
         aria-label="OCR"
         value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
+        readOnly={disabled}
+        onChange={(event) => {
+          if (!disabled) onChange(event.target.value);
+        }}
       />
     </div>
   );

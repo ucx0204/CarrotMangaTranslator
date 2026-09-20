@@ -177,9 +177,10 @@ function useSelectedPageState({
       selectedPage ? (patternMaskStrokesByPage[selectedPage.id] ?? []) : [],
     [patternMaskStrokesByPage, selectedPage],
   );
-  const resolvedNeighborTargets = resolveNeighborImageTargets(
-    currentChapter?.pages,
-    selectedPage,
+  const pages = currentChapter?.pages;
+  const resolvedNeighborTargets = useMemo(
+    () => resolveNeighborImageTargets(pages, selectedPage),
+    [pages, selectedPage],
   );
   const neighborTargets = useStableNeighborTargets(resolvedNeighborTargets);
   const selectedBlock = useMemo(
@@ -198,9 +199,18 @@ function useSelectedPageState({
     [selectedBlockId, selectedBlockIds, selectedPage],
   );
 
+  const pageId = selectedPage?.id ?? null;
+  const blockCounts = useMemo(
+    () => countChapterBlocks(currentChapter, pageId),
+    [currentChapter, pageId],
+  );
+  const inpaintedPageCount = useMemo(
+    () => countInpaintedPages(currentChapter),
+    [currentChapter],
+  );
   return {
-    blockCounts: countChapterBlocks(currentChapter, selectedPage?.id ?? null),
-    inpaintedPageCount: countInpaintedPages(currentChapter),
+    blockCounts,
+    inpaintedPageCount,
     neighborTargets,
     patternMaskStrokes,
     selectedBlock,

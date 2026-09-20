@@ -139,7 +139,7 @@ function buildAppCommandRegistry(
     ...buildGlobalCommands(options),
     ...buildRedactionPreparationCommands(
       options.currentChapter,
-      options.jobActive,
+      false,
       options.redactionPreparation,
       options.componentText,
     ),
@@ -170,7 +170,7 @@ function buildTranslationCommands({
       label: t("commands.translate.label"),
       hint: t("commands.translate.hint"),
       keywords: t("commands.translate.keywords"),
-      paletteVisible,
+      paletteVisible: Boolean(currentChapter),
       run: openTranslateOptions,
     },
     "translate-region": {
@@ -200,8 +200,6 @@ function buildTranslationCommands({
 
 function buildInpaintingCommands({
   currentChapter,
-  jobActive,
-  aiUnavailable,
   runCurrentPageInpainting,
   t,
 }: LocalizedCommandOptions): Pick<
@@ -213,7 +211,7 @@ function buildInpaintingCommands({
       id: "run-current-page-inpainting",
       label: t("commands.autoInpainting.label"),
       keywords: t("commands.autoInpainting.keywords"),
-      paletteVisible: Boolean(currentChapter) && !jobActive && !aiUnavailable,
+      paletteVisible: Boolean(currentChapter),
       run: runCurrentPageInpainting,
     },
   };

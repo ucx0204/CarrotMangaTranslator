@@ -457,6 +457,8 @@
       "presets": {
         "archUp": "上アーチ",
         "archDown": "下アーチ",
+        "archLeft": "左アーチ",
+        "archRight": "右アーチ",
         "bulge": "膨張",
         "squeeze": "圧縮",
         "flag": "旗",

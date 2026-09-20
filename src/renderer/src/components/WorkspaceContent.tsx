@@ -35,9 +35,8 @@ export const WorkspaceContent = React.memo(function WorkspaceContent(
   return (
     <WorkspacePane
       letteringRetouch={props.letteringRetouch}
-      blockPointerDisabled={
-        props.jobActive || !isBlockEditingTool(props.stageTool)
-      }
+      blockPointerDisabled={!isBlockEditingTool(props.stageTool)}
+      blockEditingDisabled={props.jobActive}
       hideEditingOverlays={
         props.showingOriginalPeek ||
         props.selectedPageImagePageId !== props.selectedPage.id

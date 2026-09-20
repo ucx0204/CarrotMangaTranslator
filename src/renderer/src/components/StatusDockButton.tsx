@@ -14,13 +14,8 @@ import {
 import { IconButton } from "./ui/IconButton";
 import { usePopupController } from "./ui/usePopupController";
 import { StatusPopover, type StatusFailedPage } from "./StatusPopover";
-import {
-  clearStatusCenterHistory,
-  loadStatusCenterHistory,
-  saveStatusCenterHistory,
-  STATUS_CENTER_HISTORY_LIMIT,
-  type StatusCenterHistoryEntry,
-} from "../lib/statusCenterHistoryStore";
+import type { StatusCenterHistoryEntry } from "../lib/statusCenterHistoryStore";
+import { useStatusJobHistory } from "../hooks/useStatusJobHistory";
 import { OPEN_STATUS_CENTER_EVENT } from "../lib/statusCenterEvents";
 import type { StatusLogEntry } from "../hooks/useStatusLog";
 import { useStatusCenterTasks } from "../hooks/useStatusCenterTasks";
@@ -101,6 +96,7 @@ export function StatusDockButton({
     jobState,
     operationActivity,
     rendererT,
+    taskController.completed,
   );
   const resultActions = createStatusResultActions({
     onOpenExport,
@@ -273,83 +269,6 @@ function createStatusResultActions({
         }
       : undefined,
   };
-}
-
-function useStatusJobHistory(
-  jobState: JobState,
-  operationActivity: AppOperationActivityEvent | null,
-  rendererT: TFunction<"renderer">,
-): {
-  clear: () => void;
-  entries: StatusCenterHistoryEntry[];
-} {
-  const jobTerminalRef = React.useRef<string | null>(null);
-  const operationTerminalRef = React.useRef<string | null>(null);
-  const [entries, setEntries] = React.useState<StatusCenterHistoryEntry[]>(
-    loadStatusCenterHistory,
-  );
-  React.useEffect(() => {
-    if (!isTerminalJobStatus(jobState.status)) return;
-    const terminalKey = `${jobState.id}:${jobState.status}`;
-    if (jobTerminalRef.current === terminalKey) return;
-    jobTerminalRef.current = terminalKey;
-    setEntries((current) => prependHistory(current, toHistoryEntry(jobState)));
-  }, [jobState]);
-  React.useEffect(() => {
-    if (!operationActivity || isAppOperationActive(operationActivity)) return;
-    const terminalKey = `${operationActivity.id}:${operationActivity.updatedAt}`;
-    if (operationTerminalRef.current === terminalKey) return;
-    operationTerminalRef.current = terminalKey;
-    setEntries((current) => {
-      const next = current.filter((entry) => entry.id !== operationActivity.id);
-      const terminalEntry: StatusCenterHistoryEntry = {
-        id: operationActivity.id,
-        source: "operation",
-        kind: operationActivity.kind,
-        status: operationActivity.status,
-        completedAt: operationActivity.updatedAt,
-        ...(operationActivity.failureCode
-          ? { failureCode: operationActivity.failureCode }
-          : {}),
-        ...(operationActivity.phase ? { phase: operationActivity.phase } : {}),
-        ...(operationActivity.sourceKind
-          ? { sourceKind: operationActivity.sourceKind }
-          : {}),
-        progressText: formatAppOperationActivity(operationActivity, rendererT),
-      };
-      return [terminalEntry, ...next].slice(0, STATUS_CENTER_HISTORY_LIMIT);
-    });
-  }, [operationActivity, rendererT]);
-  React.useEffect(() => saveStatusCenterHistory(entries), [entries]);
-  return {
-    clear: React.useCallback(() => {
-      setEntries([]);
-      clearStatusCenterHistory();
-    }, []),
-    entries,
-  };
-}
-
-function toHistoryEntry(jobState: JobState): StatusCenterHistoryEntry {
-  return {
-    id: jobState.id,
-    source: "job",
-    kind: jobState.kind,
-    status: jobState.status,
-    completedAt: Date.now(),
-    progressText: jobState.progressText,
-    pageTotal: jobState.pageTotal ?? jobState.progressTotal,
-  };
-}
-
-function prependHistory(
-  current: StatusCenterHistoryEntry[],
-  entry: StatusCenterHistoryEntry,
-): StatusCenterHistoryEntry[] {
-  return [entry, ...current.filter((item) => item.id !== entry.id)].slice(
-    0,
-    STATUS_CENTER_HISTORY_LIMIT,
-  );
 }
 
 function useStatusDockController(latest: string | undefined) {

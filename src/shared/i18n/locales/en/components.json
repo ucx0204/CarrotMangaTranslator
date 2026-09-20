@@ -457,6 +457,8 @@
       "presets": {
         "archUp": "Arch up",
         "archDown": "Arch down",
+        "archLeft": "Arch left",
+        "archRight": "Arch right",
         "bulge": "Bulge",
         "squeeze": "Squeeze",
         "flag": "Flag",

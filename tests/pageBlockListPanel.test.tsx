@@ -1,7 +1,13 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PageBlockListPanel } from "../src/renderer/src/components/PageBlockListPanel";
 import type { MangaPage } from "../src/shared/libraryTypes";
@@ -16,6 +22,40 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("page block list", () => {
+  it("allows selecting and copying a locked page while rejecting text and ordering writes", () => {
+    const page = makePage();
+    const onUpdateBlock = vi.fn();
+    const onSelectBlock = vi.fn();
+    const onOpenEditor = vi.fn();
+    const view = render(
+      <PageBlockListPanel
+        disabled
+        page={page}
+        readingDirection="rtl"
+        selectedBlockId={page.blocks[0].id}
+        onSelectBlock={onSelectBlock}
+        onOpenEditor={onOpenEditor}
+        onUpdateBlock={onUpdateBlock}
+      />,
+    );
+    const input = view.container.querySelector<HTMLTextAreaElement>(
+      "[data-page-block-translation]",
+    );
+    if (!input) throw new Error("Missing translation input");
+    expect(input.disabled).toBe(false);
+    expect(input.readOnly).toBe(true);
+    input.focus();
+    input.select();
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionEnd).toBe(input.value.length);
+    fireEvent.change(input, { target: { value: "not allowed" } });
+    expect(onUpdateBlock).not.toHaveBeenCalled();
+    expect(onSelectBlock).toHaveBeenCalledWith(page.blocks[0].id);
+    const row = input.closest("article");
+    if (!row) throw new Error("Missing block row");
+    fireEvent.click(within(row).getByRole("button", { name: /상세/ }));
+    expect(onOpenEditor).toHaveBeenCalledWith(page.blocks[0].id);
+  });
   it.each([
     [
       "원문 판독 보류: 작은 효과음의 마지막 획이 불확실합니다.",

@@ -457,6 +457,8 @@
       "presets": {
         "archUp": "아치 위",
         "archDown": "아치 아래",
+        "archLeft": "아치 왼쪽",
+        "archRight": "아치 오른쪽",
         "bulge": "벌지",
         "squeeze": "압축",
         "flag": "깃발",

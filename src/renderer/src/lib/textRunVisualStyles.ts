@@ -1,4 +1,5 @@
 import type React from "react";
+import { getTextMeasureContext } from "./blockTextMeasurement";
 import type { TextStyleRun } from "../../../shared/richTextMarkup";
 import {
   resolveTextGlow,
@@ -56,7 +57,6 @@ export function resolveMainRunVisualStyle(
     paintOrder: "stroke fill",
     ...resolveTextEmphasisStyle(block, run, renderDirection),
     textShadow: resolveRunGlow(block, run, scale),
-    ...resolveWidthScaleStyle(run.widthScale),
   } as React.CSSProperties;
 }
 
@@ -175,10 +175,34 @@ function resolveTextEmphasisStyle(
   } as React.CSSProperties;
 }
 
-function resolveWidthScaleStyle(widthScale = 1): React.CSSProperties {
-  return widthScale === 1
-    ? {}
-    : { fontStretch: `${Math.round(widthScale * 1_000) / 10}%` };
+/** Reserve the same advance that layout measures, and scale the ink independently. */
+export function resolveRunWidthGeometry(
+  text: string,
+  widthScale: number,
+  font: { size: number; family: string; weight: number; italic: boolean },
+  direction: RenderTextDirection = "horizontal",
+  letterSpacing = 0,
+): { container: React.CSSProperties; glyph: React.CSSProperties } {
+  const context = getTextMeasureContext();
+  context.font = `${font.italic ? "italic " : ""}${font.weight} ${font.size}px ${font.family}`;
+  const width =
+    direction === "vertical" ? font.size : context.measureText(text).width;
+  return {
+    container: {
+      display: "inline-block",
+      width: `${width * widthScale}px`,
+      ...(direction === "horizontal" && letterSpacing !== 0
+        ? { marginRight: `${letterSpacing}px` }
+        : {}),
+    },
+    glyph: {
+      display: "inline-block",
+      transform: `scaleX(${widthScale})`,
+      transformOrigin: "left center",
+      whiteSpace: "pre",
+      letterSpacing: "normal",
+    },
+  };
 }
 
 export function resolveOuterRunVisualStyle(
@@ -200,16 +224,12 @@ export function resolveOuterRunVisualStyle(
     run.outerOutlineColor ??
     block.outerOutlineColor ??
     DEFAULT_OUTER_OUTLINE_COLOR;
-  const widthScale = run.widthScale ?? 1;
   return {
     color: "transparent",
     WebkitTextFillColor: "transparent",
     WebkitTextStrokeColor: color,
     WebkitTextStrokeWidth: `${(innerWidth + outerWidth) * 2}px`,
     paintOrder: "stroke fill",
-    ...(widthScale === 1
-      ? {}
-      : { fontStretch: `${Math.round(widthScale * 1_000) / 10}%` }),
   } as React.CSSProperties;
 }
 

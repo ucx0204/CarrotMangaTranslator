@@ -117,6 +117,7 @@ type ImageStageLayerSetProps = Omit<
 // eslint-disable-next-line max-lines-per-function
 function ImageStageLayerSet({
   blockPointerDisabled = false,
+  blockEditingDisabled = false,
   hideEditingOverlays = false,
   imageDataUrl,
   imageLoading = false,
@@ -161,6 +162,7 @@ function ImageStageLayerSet({
         <>
           <OverlayBlockLayer
             blockPointerDisabled={blockPointerDisabled}
+            blockEditingDisabled={blockEditingDisabled}
             imageDataUrl={imageDataUrl}
             interactionPreviewStore={interactionPreviewStore}
             onBlockPointerDown={onBlockPointerDown}
@@ -175,7 +177,7 @@ function ImageStageLayerSet({
             textLayoutStageSize={textLayoutStageSize}
           />
           <SoundEffectReviewStageLayer
-            disabled={blockPointerDisabled}
+            disabled={blockPointerDisabled || blockEditingDisabled}
             onDismissRegion={onDismissSoundEffectReviewRegion}
             onExit={onExitSoundEffectReview}
             onOpenBatch={onOpenSoundEffectTranslation}

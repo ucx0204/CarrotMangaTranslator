@@ -48,21 +48,30 @@ export function resolvePageActivityLocks({
         );
   return {
     selectedPageEditLocked,
-    removalLockedPageIds: resolveRemovalLocks(
-      activities,
-      currentChapter,
-      progressState.jobTargetPageIds,
-    ),
+    ...resolveChapterActivityLocks(activities, currentChapter, progressState),
+  };
+}
+
+function resolveChapterActivityLocks(
+  activities: AppActivityState | null | undefined,
+  chapter: ChapterSnapshot | null,
+  progress: { jobActive: boolean; jobTargetPageIds: ReadonlySet<string> },
+) {
+  const { finishing, reserved, targets } = collectChapterReservations(
+    activities,
+    chapter?.id,
+  );
+  const { editing, removal } = collectChapterWriteLocks(
+    activities,
+    chapter,
+    finishing,
+    reserved,
+  );
+  return {
+    removalLockedPageIds:
+      activities && chapter ? removal : progress.jobTargetPageIds,
     editingLockedPageIds:
-      activities && currentChapter
-        ? new Set(
-            currentChapter.pages
-              .filter((page) =>
-                isPageActivityLocked(activities, currentChapter.id, page.id),
-              )
-              .map((page) => page.id),
-          )
-        : progressState.jobTargetPageIds,
+      activities && chapter ? editing : progress.jobTargetPageIds,
     modelResourceBusy: activities
       ? activities.activities.some((activity) =>
           activityResourcesConflict(
@@ -70,53 +79,71 @@ export function resolvePageActivityLocks({
             activity.resources,
           ),
         )
-      : progressState.jobActive,
+      : progress.jobActive,
     chapterStructureLocked: Boolean(
-      currentChapter &&
+      chapter &&
       activities?.activities.some((activity) =>
         activityResourcesConflict(
-          [libraryStructureResource("chapter", currentChapter.id)],
+          [libraryStructureResource("chapter", chapter.id)],
           activity.resources,
         ),
       ),
     ),
-    jobTargetPageIds: activities
-      ? new Set(
-          activities.pages
-            .filter((page) => page.chapterId === currentChapter?.id)
-            .map((page) => page.pageId),
-        )
-      : progressState.jobTargetPageIds,
+    jobTargetPageIds: activities ? targets : progress.jobTargetPageIds,
   };
 }
 
-function resolveRemovalLocks(
-  state: AppActivityState | null | undefined,
+function collectChapterReservations(
+  activities: AppActivityState | null | undefined,
+  chapterId: string | undefined,
+) {
+  const finishing = new Set<string>();
+  const reserved = new Set<string>();
+  const targets = new Set<string>();
+  for (const page of activities?.pages ?? []) {
+    if (page.chapterId !== chapterId) continue;
+    targets.add(page.pageId);
+    if (page.phase === "finishing-edits") finishing.add(page.pageId);
+    if (page.phase !== "completed" && page.phase !== "failed")
+      reserved.add(page.pageId);
+  }
+  return { finishing, reserved, targets };
+}
+
+function collectChapterWriteLocks(
+  activities: AppActivityState | null | undefined,
   chapter: ChapterSnapshot | null,
-  fallback: ReadonlySet<string>,
-): ReadonlySet<string> {
-  if (!state || !chapter) return fallback;
-  return new Set(
-    chapter.pages
-      .filter(
-        (page) =>
-          isPageActivityLocked(state, chapter.id, page.id) ||
-          state.pages.some(
-            (entry) =>
-              entry.chapterId === chapter.id &&
-              entry.pageId === page.id &&
-              entry.phase !== "completed" &&
-              entry.phase !== "failed",
-          ) ||
-          state.activities.some((activity) =>
-            activityResourcesConflict(
-              [libraryStructureResource("page", `${chapter.id}/${page.id}`)],
-              activity.resources,
-            ),
+  finishing: ReadonlySet<string>,
+  reserved: ReadonlySet<string>,
+) {
+  const editing = new Set<string>();
+  const removal = new Set<string>();
+  if (activities && chapter) {
+    for (const page of chapter.pages) {
+      if (
+        finishing.has(page.id) ||
+        activities.activities.some((activity) =>
+          activityResourcesConflict(
+            [pageContentResource(chapter.id, page.id)],
+            activity.resources,
           ),
+        )
       )
-      .map((page) => page.id),
-  );
+        editing.add(page.id);
+      if (
+        editing.has(page.id) ||
+        reserved.has(page.id) ||
+        activities.activities.some((activity) =>
+          activityResourcesConflict(
+            [libraryStructureResource("page", `${chapter.id}/${page.id}`)],
+            activity.resources,
+          ),
+        )
+      )
+        removal.add(page.id);
+    }
+  }
+  return { editing, removal };
 }
 
 export function usePageActivityLocks(
@@ -126,27 +153,32 @@ export function usePageActivityLocks(
     options;
   const { kind, targets } = options.jobState;
   const { jobActive, pageLockActive, jobTargetPageIds } = options.progressState;
-  return useMemo(
+  const chapterLocks = useMemo(
     () =>
-      resolvePageActivityLocks({
-        activities,
-        activeInputPages,
-        currentChapter,
-        selectedPage,
-        jobState: { kind, targets },
-        progressState: { jobActive, pageLockActive, jobTargetPageIds },
+      resolveChapterActivityLocks(activities, currentChapter, {
+        jobActive,
+        jobTargetPageIds,
       }),
-    [
-      activities,
-      activeInputPages,
-      currentChapter,
-      selectedPage,
-      kind,
-      targets,
-      jobActive,
-      pageLockActive,
-      jobTargetPageIds,
-    ],
+    [activities, currentChapter, jobActive, jobTargetPageIds],
+  );
+  const selectedPageEditLocked =
+    activities && currentChapter && selectedPage
+      ? isPageActivityLocked(
+          activities,
+          currentChapter.id,
+          selectedPage.id,
+          activeInputPages,
+        )
+      : resolveSelectedPageEditLocked(
+          pageLockActive,
+          jobTargetPageIds,
+          selectedPage,
+          kind,
+          targets?.length ?? 0,
+        );
+  return useMemo(
+    () => ({ ...chapterLocks, selectedPageEditLocked }),
+    [chapterLocks, selectedPageEditLocked],
   );
 }
 

@@ -20,6 +20,46 @@ afterEach(() => {
 });
 
 describe("page image request coalescing", () => {
+  it("retains chapter counts during progress and updates them after page content changes", () => {
+    installImageGateway(vi.fn(async () => "image-url"));
+    const imageRef = React.createRef<HTMLImageElement>();
+    const initialChapter = makeChapter();
+    const view = renderHook(
+      ({ chapter, progress }) =>
+        useAppSessionDerivedState({
+          currentChapter: chapter,
+          imageRef,
+          inpaintingTool: "none",
+          jobFlowActive: false,
+          jobState: { ...IDLE_JOB, progressCurrent: progress },
+          patternMaskStrokesByPage: {},
+          peekOriginal: false,
+          regionSelection: null,
+          selectedBlockId: null,
+          selectedBlockIds: [],
+          selectedPageId: "page-2",
+        }),
+      { initialProps: { chapter: initialChapter, progress: 0 } },
+    );
+    const counts = view.result.current.blockCounts;
+    view.rerender({ chapter: initialChapter, progress: 100 });
+    expect(view.result.current.blockCounts).toBe(counts);
+    view.rerender({
+      chapter: {
+        ...initialChapter,
+        pages: initialChapter.pages.map((page) => ({
+          ...page,
+          inpaintedImagePath: "clean.png",
+        })),
+      },
+      progress: 100,
+    });
+    expect(view.result.current.inpaintedPageCount).toBe(
+      initialChapter.pages.length,
+    );
+    expect(view.result.current.blockCounts.pendingTotal).toBe(0);
+    expect(view.result.current.blockCounts).not.toBe(counts);
+  });
   it("deduplicates selected, original, and neighbor requests for one path", async () => {
     const imageRequest = deferred<string>();
     const getPageImageDataUrl = vi.fn(() => imageRequest.promise);

@@ -21,6 +21,38 @@ import type { TranslationBlock } from "../src/shared/textTypes";
 
 describe("mesh warp transforms", () => {
   it.each([3, 5] as const)(
+    "preserves the rotated arch geometry and persisted mesh at grid %s",
+    (gridSize) => {
+      const left = createWarpPreset("archLeft", gridSize);
+      const right = createWarpPreset("archRight", gridSize);
+      const up = createWarpPreset("archUp", gridSize);
+      const identity = createIdentityWarpPoints(gridSize);
+      const side = gridSize + 1;
+      identity.forEach((point, index) => {
+        const transpose = (index % side) * side + Math.floor(index / side);
+        expect(left.points[index].x).toBeCloseTo(up.points[transpose].y, 6);
+        expect(left.points[index].y).toBeCloseTo(point.y, 6);
+        expect(right.points[index].y).toBeCloseTo(point.y, 6);
+        // Each persisted coordinate rounds independently to six decimals.
+        expect(
+          Math.abs(left.points[index].x + right.points[index].x - 2 * point.x),
+        ).toBeLessThanOrEqual(0.000001);
+      });
+      expect(createWarpEvaluator(left).map({ x: 0.5, y: 0.5 }).x).toBeLessThan(
+        0.5,
+      );
+      expect(
+        createWarpEvaluator(right).map({ x: 0.5, y: 0.5 }).x,
+      ).toBeGreaterThan(0.5);
+      for (const warpTransform of [left, right]) {
+        const saved = JSON.parse(JSON.stringify(makeBlock({ warpTransform })));
+        expect(TranslationBlockSchema.parse(saved).warpTransform).toEqual(
+          warpTransform,
+        );
+      }
+    },
+  );
+  it.each([3, 5] as const)(
     "builds a valid identity %sx%s cell lattice",
     (gridSize) => {
       const transform = createIdentityWarpTransform(gridSize);

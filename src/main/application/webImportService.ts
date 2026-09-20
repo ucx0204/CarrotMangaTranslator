@@ -59,13 +59,19 @@ export class WebImportApplicationService {
     request: WebImportScanRequest,
     onProgress: (event: WebImportProgressEvent) => void,
   ): Promise<WebImportScanResponse> {
+    const id = `web-import-preview-${request.requestId}`;
+    if (this.options.operations.activities.some((entry) => entry.id === id)) {
+      return { status: "rejected", reason: "busy" };
+    }
     try {
       return await runManagedAppOperation(
         this.options.operations,
         {
-          id: `web-import-preview-${request.requestId}`,
+          id,
           kind: "web-import-preview",
           mutatesLibrary: false,
+          // Each scan owns its browser partition and temporary directory.
+          resources: [],
           presentation: {
             phase: "web-validating",
             cancellable: true,
@@ -122,6 +128,8 @@ export class WebImportApplicationService {
           id: `web-import-prepare-${this.options.createOperationId()}`,
           kind: "web-import-preview",
           mutatesLibrary: false,
+          // Session consumption is atomic in prepareImport; no library/model writes.
+          resources: [],
           presentation: {
             phase: "web-preparing",
             cancellable: true,

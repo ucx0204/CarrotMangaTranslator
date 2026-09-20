@@ -12,7 +12,14 @@ export function isWorkspaceJobActive(
   return derivedState.selectedPageEditLocked || workspaceHistory.busy;
 }
 
-export function isChapterMutationBlocked(model: AppSessionViewModel): boolean {
+export function isChapterMutationBlocked(model: {
+  core: Pick<AppSessionViewModel["core"], "currentChapter">;
+  derivedState: Pick<
+    AppSessionViewModel["derivedState"],
+    "activities" | "selectedPageEditLocked"
+  >;
+  workspaceHistory: Pick<AppSessionViewModel["workspaceHistory"], "busy">;
+}): boolean {
   if (model.workspaceHistory.busy) return true;
   const chapter = model.core.currentChapter;
   const state = model.derivedState.activities;

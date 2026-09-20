@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "6afdbd581b9dea0c321b8fbaad3493de351d9c62c28231ed41994f4c8c8a0516",
+    "introducedArtifactSha256": "2655d66e5ac7b37f8170664cf2c7c83386caed4d1848008e6449ee85e0721dfa",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -28967,6 +28967,28 @@
         "pct": 30
       }
     },
+    "src/renderer/src/hooks/useStatusJobHistory.ts": {
+      "lines": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 32,
+        "total": 32,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      }
+    },
     "src/renderer/src/hooks/useSubmitLibraryImportAction.ts": {
       "lines": {
         "total": 45,
@@ -29493,6 +29515,28 @@
         "total": 120,
         "covered": 95,
         "pct": 79.16
+      }
+    },
+    "src/renderer/src/lib/richTextEditorRunContent.ts": {
+      "lines": {
+        "covered": 33,
+        "total": 33,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 33,
+        "total": 33,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 15,
+        "total": 16,
+        "pct": 93.75
       }
     },
     "src/renderer/src/lib/shortcuts/shortcutBindingsContext.ts": {

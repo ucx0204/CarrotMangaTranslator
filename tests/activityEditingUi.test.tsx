@@ -19,11 +19,77 @@ import {
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { makePage } from "./unifiedInpaintingUiFixtures";
 import type { ObservePageThumbnail } from "../src/renderer/src/components/pageThumbnails";
+import type { ChapterSnapshot } from "../src/shared/libraryTypes";
+import type { AppActivityState } from "../src/shared/appActivityTypes";
 
 const visible: ObservePageThumbnail = (_element, load) => {
   load();
   return () => {};
 };
+
+it("reuses chapter locks across page navigation while finishing input remains page-specific", () => {
+  const pages = [makePage(), { ...makePage(), id: "other-page" }];
+  const chapter: ChapterSnapshot = {
+    id: "chapter",
+    workId: "work",
+    title: "QA",
+    sourceKind: "images",
+    status: "idle",
+    pageOrder: pages.map((page) => page.id),
+    pages,
+    createdAt: "",
+    updatedAt: "",
+  };
+  const activities: AppActivityState = {
+    version: 1,
+    activities: [],
+    pages: [
+      {
+        chapterId: chapter.id,
+        pageId: pages[0].id,
+        jobId: "job",
+        phase: "finishing-edits",
+      },
+    ],
+  };
+  const targets = new Set<string>();
+  const view = renderHook(
+    ({ pageIndex, typing, state }) =>
+      usePageActivityLocks({
+        activities: state,
+        currentChapter: chapter,
+        selectedPage: pages[pageIndex],
+        activeInputPages: new Set(typing ? [`chapter/${pages[0].id}`] : []),
+        jobState: { kind: "gemma-analysis" },
+        progressState: {
+          jobActive: true,
+          pageLockActive: true,
+          jobTargetPageIds: targets,
+        },
+      }),
+    { initialProps: { pageIndex: 0, typing: true, state: activities } },
+  );
+  const first = view.result.current;
+  expect(first.selectedPageEditLocked).toBe(false);
+  expect(first.editingLockedPageIds.has(pages[0].id)).toBe(true);
+  view.rerender({ pageIndex: 1, typing: false, state: activities });
+  expect(view.result.current.selectedPageEditLocked).toBe(false);
+  expect(view.result.current.removalLockedPageIds).toBe(
+    first.removalLockedPageIds,
+  );
+  expect(view.result.current.editingLockedPageIds).toBe(
+    first.editingLockedPageIds,
+  );
+  view.rerender({ pageIndex: 0, typing: false, state: activities });
+  expect(view.result.current.selectedPageEditLocked).toBe(true);
+  view.rerender({
+    pageIndex: 0,
+    typing: false,
+    state: { ...activities, version: 2, pages: [] },
+  });
+  expect(view.result.current.selectedPageEditLocked).toBe(false);
+  expect(view.result.current.removalLockedPageIds.size).toBe(0);
+});
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();

@@ -23,6 +23,27 @@ const PREVIEW_ID = "44444444-4444-4444-8444-444444444444";
 const OPERATION_ID = "55555555-5555-4555-8555-555555555555";
 
 describe("WebImportApplicationService", () => {
+  it("keeps undeclared exclusive activity and shutdown admission protected", async () => {
+    const scan = vi.fn(async () => readyResponse());
+    const harness = createHarness({ scan });
+    const exclusive = harness.activityGate.acquire({
+      id: "maintenance",
+      category: "operation",
+      kind: "maintenance",
+      mutatesLibrary: true,
+      blocksQuit: true,
+    });
+    await expect(harness.service.scan(scanRequest(), vi.fn())).resolves.toEqual(
+      { status: "rejected", reason: "busy" },
+    );
+    expect(scan).not.toHaveBeenCalled();
+    exclusive.release();
+    harness.activityGate.closeToNewActivities();
+    await expect(harness.service.scan(scanRequest(), vi.fn())).resolves.toEqual(
+      { status: "rejected", reason: "busy" },
+    );
+    expect(scan).not.toHaveBeenCalled();
+  });
   it("coordinates scan progress and preserves an empty ready result", async () => {
     const progress: WebImportProgressEvent = {
       requestId: REQUEST_ID,
@@ -92,25 +113,63 @@ describe("WebImportApplicationService", () => {
     ).resolves.toEqual({ status: "rejected", reason: "timed-out" });
   });
 
-  it("rejects a concurrent scan as busy while the first scan owns the gate", async () => {
-    let resolveFirst!: (response: WebImportScanResponse) => void;
+  it("admits independent scans during model work and rejects only a duplicate request", async () => {
+    const completions = new Map<
+      string,
+      (response: WebImportScanResponse) => void
+    >();
     const scan = vi.fn<WebImportSessionPort["scan"]>(
-      async () =>
+      async (request) =>
         new Promise<WebImportScanResponse>((resolve) => {
-          resolveFirst = resolve;
+          completions.set(request.requestId, resolve);
         }),
     );
     const harness = createHarness({ scan });
+    const resources = [
+      { kind: "model-runtime" as const, scope: "*", access: "write" as const },
+    ];
+    const model = harness.activityGate.acquire({
+      id: "model",
+      category: "job",
+      kind: "gemma-analysis",
+      mutatesLibrary: true,
+      blocksQuit: true,
+      resources,
+    });
     const first = harness.service.scan(scanRequest(), vi.fn());
     await vi.waitFor(() => expect(scan).toHaveBeenCalledOnce());
-
+    await expect(harness.service.scan(scanRequest(), vi.fn())).resolves.toEqual(
+      { status: "rejected", reason: "busy" },
+    );
+    const second = harness.service.scan(
+      scanRequest(SECOND_REQUEST_ID),
+      vi.fn(),
+    );
+    expect(scan).toHaveBeenCalledTimes(2);
+    expect(() => harness.activityGate.assertAvailable(resources)).toThrow(
+      /APP_ACTIVITY_BUSY/,
+    );
     await expect(
-      harness.service.scan(scanRequest(SECOND_REQUEST_ID), vi.fn()),
-    ).resolves.toEqual({ status: "rejected", reason: "busy" });
-    expect(scan).toHaveBeenCalledOnce();
-
-    resolveFirst(readyResponse());
+      harness.service.prepare({
+        sessionId: SESSION_ID,
+        selectedCandidateIds: [],
+      }),
+    ).resolves.toEqual(importPreviewSession());
+    const completeSecond = completions.get(SECOND_REQUEST_ID);
+    if (!completeSecond) throw new Error("Second scan was not admitted");
+    completeSecond(readyResponse());
+    await second;
+    expect(
+      harness.operations.activities.map((activity) => activity.id),
+    ).toEqual([`web-import-preview-${REQUEST_ID}`]);
+    const completeFirst = completions.get(REQUEST_ID);
+    if (!completeFirst) throw new Error("First scan was not admitted");
+    completeFirst(readyResponse());
     await expect(first).resolves.toEqual(readyResponse());
+    expect(
+      harness.activityGate.activities.map((activity) => activity.id),
+    ).toEqual(["model"]);
+    model.release();
   });
 
   it("keeps operation cancellation and terminal activity ordering", async () => {
@@ -265,6 +324,7 @@ function createHarness(options: HarnessOptions = {}) {
       (async (preview) => ({ ...preview, previewId: PREVIEW_ID })),
   };
   return {
+    activityGate,
     operations,
     sessions,
     previewSessions,

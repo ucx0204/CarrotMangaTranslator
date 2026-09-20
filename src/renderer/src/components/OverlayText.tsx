@@ -17,7 +17,10 @@ import {
   resolveMainRunVisualStyle,
   resolveOuterRunVisualStyle,
   resolveRunTextDecorationStyle,
+  resolveRunWidthGeometry,
 } from "../lib/textRunVisualStyles";
+import { segmentGraphemes } from "../lib/overlayTextSegmentation";
+import { segmentVerticalTextGraphemes } from "../lib/verticalTextSpacing";
 import {
   resolveOverlayTextContentStyle,
   resolveOverlayTextWrapStyle,
@@ -265,13 +268,7 @@ function renderTextRun(
         );
   if (!visualStyle) return null;
   visualStyle = textPlaneStyle(visualStyle, layer);
-  const baseStyle: React.CSSProperties = {
-    fontWeight: resolveFontWeight(run),
-    fontStyle: run.italic ? "italic" : "normal",
-    fontSize: `${run.renderedFontSizePx ?? fallback.fontSizePx}px`,
-    fontFamily: run.renderedFontFamily ?? fallback.fontFamily,
-    opacity: blockOpacityAtRoot ? 1 : (run.renderedOpacity ?? fallback.opacity),
-  };
+  const baseStyle = resolveTextRunBaseStyle(run, fallback, blockOpacityAtRoot);
   const content = (
     <TextWithVerticalSpacing
       bold={run.bold}
@@ -281,6 +278,17 @@ function renderTextRun(
   );
   const decorationStyle =
     layer === "main" ? resolveRunTextDecorationStyle(block, run) : null;
+  if ((run.widthScale ?? 1) !== 1) {
+    return renderWidthScaledRun(
+      run,
+      key,
+      renderDirection,
+      baseStyle,
+      visualStyle,
+      decorationStyle,
+      block.letterSpacing ?? 0,
+    );
+  }
   if (decorationStyle) {
     return (
       <span key={key} style={{ ...baseStyle, ...decorationStyle }}>
@@ -297,6 +305,68 @@ function renderTextRun(
       }}
     >
       {content}
+    </span>
+  );
+}
+
+function resolveTextRunBaseStyle(
+  run: BlockTextLine["runs"][number],
+  fallback: ReturnType<TextRunStyleResolver>,
+  blockOpacityAtRoot: boolean,
+): React.CSSProperties {
+  return {
+    fontWeight: resolveFontWeight(run),
+    fontStyle: run.italic ? "italic" : "normal",
+    fontSize: `${run.renderedFontSizePx ?? fallback.fontSizePx}px`,
+    fontFamily: run.renderedFontFamily ?? fallback.fontFamily,
+    opacity: blockOpacityAtRoot ? 1 : (run.renderedOpacity ?? fallback.opacity),
+  };
+}
+
+function renderWidthScaledRun(
+  run: BlockTextLine["runs"][number],
+  key: React.Key,
+  renderDirection: RenderTextDirection,
+  baseStyle: React.CSSProperties,
+  visualStyle: React.CSSProperties,
+  decorationStyle: React.CSSProperties | null,
+  letterSpacing: number,
+): React.JSX.Element {
+  const segments =
+    renderDirection === "vertical"
+      ? segmentVerticalTextGraphemes(run.text)
+      : segmentGraphemes(run.text);
+  return (
+    <span key={key} style={baseStyle}>
+      {segments.map((text, index) => {
+        if (text === "\n") return <br key={index} />;
+        const geometry = resolveRunWidthGeometry(
+          text,
+          run.widthScale ?? 1,
+          {
+            size: Number.parseFloat(String(baseStyle.fontSize)),
+            family: String(baseStyle.fontFamily),
+            weight: resolveFontWeight(run),
+            italic: run.italic,
+          },
+          renderDirection,
+          letterSpacing * Number.parseFloat(String(baseStyle.fontSize)),
+        );
+        return (
+          <span
+            key={index}
+            style={{ ...geometry.container, ...decorationStyle }}
+          >
+            <span style={{ ...visualStyle, ...geometry.glyph }}>
+              <TextWithVerticalSpacing
+                bold={run.bold}
+                direction={renderDirection}
+                text={text}
+              />
+            </span>
+          </span>
+        );
+      })}
     </span>
   );
 }

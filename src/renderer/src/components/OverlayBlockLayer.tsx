@@ -10,6 +10,7 @@ import type { ImageStageProps } from "./imageStageTypes";
 type OverlayBlockLayerProps = Pick<
   ImageStageProps,
   | "blockPointerDisabled"
+  | "blockEditingDisabled"
   | "imageDataUrl"
   | "interactionPreviewStore"
   | "onBlockPointerDown"
@@ -44,6 +45,7 @@ type OverlayBlockLayerViewProps = OverlayBlockLayerProps & {
 
 const OverlayBlockLayerView = React.memo(function OverlayBlockLayerView({
   blockPointerDisabled,
+  blockEditingDisabled,
   fontCatalog,
   fontCatalogReady,
   imageDataUrl,
@@ -99,6 +101,7 @@ const OverlayBlockLayerView = React.memo(function OverlayBlockLayerView({
           sourceFontFaceFallbackPx={sourceFontFaceFallbacks.get(block.id)}
           textLayoutStageSize={stableTextLayoutStageSize}
           pointerDisabled={!showTextBlocks || (blockPointerDisabled ?? false)}
+          editingDisabled={blockEditingDisabled}
           textVisible={showTextBlocks}
           interactionPreviewStore={interactionPreviewStore}
           transformMode={

@@ -6,6 +6,7 @@ import {
 import type { AppSessionViewModel } from "./appSessionViewModel";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 import { resolvePageSourceFontFaceFallbacks } from "../../lib/sourceFontSizeMatching";
+import { isChapterMutationBlocked } from "./workspaceActivity";
 
 export function buildPanelSyncState({
   blockEditingActions,
@@ -53,7 +54,11 @@ export function buildPanelSyncState({
       inpaintingBridge.contextValue.aiUnavailable,
     ),
     areaTranslateSelecting: Boolean(core.regionSelection?.active),
-    disableChapterApply: interactionBusy,
+    disableChapterApply: isChapterMutationBlocked({
+      core,
+      derivedState,
+      workspaceHistory,
+    }),
     letteringTool: uiState.letteringTool,
     editorDisabled:
       derivedState.selectedPageEditLocked || workspaceHistory.busy,

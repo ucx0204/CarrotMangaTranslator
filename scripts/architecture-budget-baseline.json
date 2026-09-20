@@ -24,6 +24,10 @@
     "src/renderer/src/components/ConditionalBatchActionCard.tsx": 13
   },
   "allow": {
+    "src/renderer/src/app/session/useTranslationController.ts": {
+      "maxRuntimeImports": 13,
+      "reason": "Session composition reuses the canonical chapter-resource conflict check for whole-chapter edits instead of duplicating lock policy."
+    },
     "src/renderer/src/components/ConditionalBatchActionCard.tsx": {
       "maxRuntimeImports": 15,
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."

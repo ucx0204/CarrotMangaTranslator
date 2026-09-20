@@ -4,6 +4,9 @@ import type { AppOperationActivityEvent } from "../../../shared/appOperationType
 import { appGateway } from "../api/appGateway";
 import { analysisGateway } from "../api/analysisGateway";
 import { isTerminalJobStatus } from "../../../shared/jobContracts";
+import { isAppOperationActive } from "../lib/appOperationPresentation";
+
+const RECENT_TASK_LIMIT = 60;
 
 export type StatusCenterTask = {
   id: string;
@@ -18,16 +21,21 @@ export function useStatusCenterTasks(
 ) {
   const [tasks, setTasks] = useState<StatusCenterTask[]>([]);
   const [selectedId, select] = useState<string | null>(null);
-  const versions = useRef(new Set<string>());
+  // Retain terminal IDs for this subscription, even after their display rows expire.
+  const versions = useRef(new Map<string, boolean>());
   useEffect(() => {
     let disposed = false;
     const update = (task: StatusCenterTask, live: boolean) => {
-      if (disposed || (!live && versions.current.has(task.id))) return;
-      if (live) versions.current.add(task.id);
+      if (
+        disposed ||
+        versions.current.get(task.id) === true ||
+        (!live && versions.current.has(task.id))
+      )
+        return;
+      if (live) versions.current.set(task.id, isFinishedTask(task));
       setTasks((current) => {
         const previous = current.find((entry) => entry.id === task.id);
-        if (previous?.job && isTerminalJobStatus(previous.job.status))
-          return current;
+        if (previous && isFinishedTask(previous)) return current;
         if (
           previous?.operation &&
           task.operation &&
@@ -35,13 +43,18 @@ export function useStatusCenterTasks(
         )
           return current;
         const rest = current.filter((entry) => entry.id !== task.id);
-        const next = previous
-          ? current.map((entry) => (entry.id === task.id ? task : entry))
-          : [...rest, task];
-        const retained = next.slice(-60);
+        const next =
+          previous && !isFinishedTask(task)
+            ? current.map((entry) => (entry.id === task.id ? task : entry))
+            : [...rest, task];
+        // Finished rows must never evict a still-running task.
+        const finished = next.filter(isFinishedTask).slice(-RECENT_TASK_LIMIT);
+        const retained = next.filter(
+          (entry) => !isFinishedTask(entry) || finished.includes(entry),
+        );
         const ids = new Set(retained.map((entry) => entry.id));
-        for (const id of versions.current)
-          if (!ids.has(id)) versions.current.delete(id);
+        for (const [id, finished] of versions.current)
+          if (!finished && !ids.has(id)) versions.current.delete(id);
         return retained;
       });
     };
@@ -72,8 +85,15 @@ export function useStatusCenterTasks(
   }, []);
   return {
     ...resolveStatusCenterSelection(tasks, selectedId, foreground, operation),
+    completed: tasks.filter(isFinishedTask),
     select,
   };
+}
+
+function isFinishedTask(task: StatusCenterTask): boolean {
+  return task.job
+    ? isTerminalJobStatus(task.job.status)
+    : Boolean(task.operation && !isAppOperationActive(task.operation));
 }
 
 function resolveStatusCenterSelection(
@@ -82,7 +102,10 @@ function resolveStatusCenterSelection(
   foreground: JobState,
   operation?: AppOperationActivityEvent | null,
 ) {
-  const fallback = { id: foreground.id, job: foreground };
+  const fallback = tasks.find((task) => task.id === foreground.id) ?? {
+    id: foreground.id,
+    job: foreground,
+  };
   const visible = tasks.filter(
     (task) =>
       task.id === selectedId ||
@@ -93,14 +116,15 @@ function resolveStatusCenterSelection(
   );
   if (
     !visible.some((task) => task.id === foreground.id) &&
-    foreground.status !== "idle"
+    foreground.status !== "idle" &&
+    !isFinishedTask(fallback)
   )
     visible.unshift(fallback);
   if (
     operation &&
     (operation.id === selectedId ||
       ["running", "cancelling"].includes(operation.status)) &&
-    !visible.some((task) => task.id === operation.id)
+    !tasks.some((task) => task.id === operation.id)
   )
     visible.push({ id: operation.id, operation });
   const selected =

@@ -24,6 +24,36 @@ beforeEach(() => {
 });
 
 describe("chapter display commands", () => {
+  it("keeps preparation and viewing commands available while model execution is occupied", () => {
+    const options = {
+      ...makeCommandOptions(),
+      jobActive: true,
+      aiUnavailable: true,
+      redactionPreparation: { currentPageId: null, open: vi.fn() },
+    };
+    const { result } = renderHook(() => useAppCommands(options));
+    for (const id of [
+      "open-translate-options",
+      "run-current-page-inpainting",
+      "prepare-redaction-work",
+      "gather-text",
+      "open-batch",
+      "open-share-export",
+    ] as const) {
+      expect(result.current.byId[id].paletteVisible).toBe(true);
+    }
+    expect(result.current.byId["translate-all"].paletteVisible).toBe(false);
+    act(() => result.current.run("open-translate-options"));
+    act(() => result.current.run("run-current-page-inpainting"));
+    act(() => result.current.run("prepare-redaction-work"));
+    expect(options.openTranslateOptions).toHaveBeenCalledOnce();
+    expect(options.runCurrentPageInpainting).toHaveBeenCalledOnce();
+    expect(options.redactionPreparation.open).toHaveBeenCalledWith({
+      kind: "work",
+      workId: options.currentChapter.workId,
+    });
+    expect(options.runAnalysis).not.toHaveBeenCalled();
+  });
   it("exposes both display toggles and runs their real command callbacks", () => {
     const toggleBlockChrome = vi.fn();
     const toggleTextBlocks = vi.fn();

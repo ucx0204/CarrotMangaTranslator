@@ -47,6 +47,18 @@ export function useRichTranslationVisualRenderer(
   React.useLayoutEffect(() => {
     synchronizeVisualEditor(args, visualRef.current, cacheRef);
   }, [args, cacheRef, visualRef]);
+  React.useEffect(() => {
+    const fonts = visualRef.current?.ownerDocument.fonts;
+    if (!fonts) return;
+    const refreshWidths = (): void => {
+      if (!args.runs.some((run) => (run.widthScale ?? 1) !== 1)) return;
+      // A newly loaded face can change advance widths without changing markup.
+      cacheRef.current.options = null;
+      synchronizeVisualEditor(args, visualRef.current, cacheRef);
+    };
+    fonts.addEventListener("loadingdone", refreshWidths);
+    return () => fonts.removeEventListener("loadingdone", refreshWidths);
+  }, [args]);
   return { cacheRef, visualRef };
 }
 

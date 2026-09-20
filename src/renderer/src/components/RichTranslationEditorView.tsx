@@ -308,6 +308,7 @@ function VisualTranslationInput({
       className="rich-editor-surface"
       data-rich-translated-input=""
       contentEditable={!disabled}
+      tabIndex={0}
       suppressContentEditableWarning
       role="textbox"
       aria-label={t("editor.translatedText")}
@@ -317,13 +318,21 @@ function VisualTranslationInput({
       data-placeholder={t("editor.richText.placeholder", {
         defaultValue: "번역문을 입력하세요",
       })}
-      onInput={() => visual.commitInput()}
-      onBeforeInput={visual.onBeforeInput}
+      onInput={() => {
+        if (!disabled) visual.commitInput();
+      }}
+      onBeforeInput={(event) => {
+        if (disabled) event.preventDefault();
+        else visual.onBeforeInput();
+      }}
       onCompositionStart={visual.onCompositionStart}
       onCompositionEnd={visual.onCompositionEnd}
       onKeyUp={visual.updateSelection}
       onPointerUp={visual.updateSelection}
-      onPaste={visual.onPaste}
+      onPaste={(event) => {
+        if (disabled) event.preventDefault();
+        else visual.onPaste(event);
+      }}
     />
   );
 }
@@ -356,9 +365,11 @@ function CodeTranslationInput({
         defaultValue: "번역문 서식 코드",
       })}
       value={value}
-      disabled={disabled}
+      readOnly={disabled}
       spellCheck={false}
-      onChange={(event) => onChange(event.target.value)}
+      onChange={(event) => {
+        if (!disabled) onChange(event.target.value);
+      }}
       onSelect={onSelect}
     />
   );

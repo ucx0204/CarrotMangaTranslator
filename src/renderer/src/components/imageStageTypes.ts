@@ -29,6 +29,7 @@ export type ImageStageProps = {
   selectedSoundEffectReviewRegionId?: string | null;
   hideEditingOverlays?: boolean;
   blockPointerDisabled?: boolean;
+  blockEditingDisabled?: boolean;
   retouchCursor?: {
     radiusPx: number;
     mode:

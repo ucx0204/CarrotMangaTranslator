@@ -64,6 +64,46 @@ function expectCurveFormattingArtifacts(
 }
 
 describe("page artwork renderer parity", () => {
+  it.each(["horizontal", "vertical"] as const)(
+    "keeps inline width geometry identical on ink and both outline planes: %s",
+    (renderDirection) => {
+      const block = makeBlock("width", {
+        translatedText: "앞[width=1.5]가A\n[/width]뒤",
+        renderDirection,
+        autoFitText: false,
+        outerOutlineWidthPx: 2,
+        letterSpacing: 0.1,
+      });
+      const { container } = render(
+        <PageArtwork
+          fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+          imageSrc="source.png"
+          page={{
+            id: "page",
+            name: "page",
+            width: 1000,
+            height: 1400,
+            blocks: [block],
+          }}
+          visualSize={{ width: 1000, height: 1400 }}
+        />,
+      );
+      const widths = ["main", "outline", "outer"].map((layer) => {
+        const glyphs = container.querySelectorAll<HTMLElement>(
+          `.overlay-text-${layer} [style*="scaleX(1.5)"]`,
+        );
+        expect(glyphs).toHaveLength(2);
+        return [...glyphs].map((glyph) => glyph.parentElement?.style.width);
+      });
+      expect(widths[1]).toEqual(widths[0]);
+      expect(widths[2]).toEqual(widths[0]);
+      if (renderDirection === "horizontal")
+        expect(widths[0]).toEqual(["16.5px", "16.5px"]);
+      expect(container.querySelector(".overlay-text-main")?.textContent).toBe(
+        "앞가A뒤",
+      );
+    },
+  );
   it("shows a sexual refusal only on the affected editor box and omits it from exported artwork", () => {
     const blocked = makeBlock("blocked", {
       imageGenerationBlocked: "sexual",

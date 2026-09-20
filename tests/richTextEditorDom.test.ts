@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TextStyleRun } from "../src/shared/richTextMarkup";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import {
@@ -44,10 +44,56 @@ const decoratedBlock = {
 } satisfies TranslationBlock;
 
 afterEach(() => {
+  vi.restoreAllMocks();
   document.body.replaceChildren();
 });
 
+beforeEach(() => {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    font: "",
+    measureText: (text: string) => ({ width: Array.from(text).length * 10 }),
+  } as CanvasRenderingContext2D);
+});
+
 describe("rich text editor DOM", () => {
+  it("renders scaled plain runs without block appearance metadata", () => {
+    const root = makeRoot();
+    const runs = [{ text: "가", bold: false, italic: false, widthScale: 0.5 }];
+    renderRichTextEditorRuns(root, runs, options);
+    expect(extractRichTextEditorRuns(root)).toEqual(runs);
+    expect(
+      root.querySelector<HTMLElement>("[data-rich-text-glyph]")?.style
+        .transform,
+    ).toBe("scaleX(0.5)");
+  });
+  it.each([0.5, 1.5, 2])(
+    "scales glyph ink and occupied width while preserving selection and markup: %s",
+    (widthScale) => {
+      const root = makeRoot();
+      const runs = [
+        { text: "가A\n나", bold: false, italic: false, widthScale },
+      ];
+      renderRichTextEditorRuns(root, runs, {
+        ...options,
+        block: decoratedBlock,
+      });
+      const glyphs = root.querySelectorAll<HTMLElement>(
+        "[data-rich-text-glyph]",
+      );
+      expect(glyphs).toHaveLength(3);
+      for (const glyph of glyphs) {
+        expect(glyph.style.transform).toBe(`scaleX(${widthScale})`);
+        expect(glyph.parentElement?.style.width).toBe(`${10 * widthScale}px`);
+      }
+      expect(extractRichTextEditorRuns(root)).toEqual(runs);
+      restoreRichTextEditorSelection(root, { start: 0, end: 2 });
+      expect(document.getSelection()?.toString()).toBe("가A");
+      expect(getRichTextEditorSelection(root)).toEqual({ start: 0, end: 2 });
+      restoreRichTextEditorSelection(root, { start: 3, end: 4 });
+      expect(document.getSelection()?.toString()).toBe("나");
+      expect(getRichTextEditorSelection(root)).toEqual({ start: 3, end: 4 });
+    },
+  );
   it.each(["#000000", "#ffffff", "#a32727"])(
     "keeps unoutlined %s ink readable without persisting an editor backdrop",
     (color) => {

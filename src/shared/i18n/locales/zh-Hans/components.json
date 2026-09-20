@@ -457,6 +457,8 @@
       "presets": {
         "archUp": "向上拱形",
         "archDown": "向下拱形",
+        "archLeft": "向左拱形",
+        "archRight": "向右拱形",
         "bulge": "膨胀",
         "squeeze": "压缩",
         "flag": "旗帜",

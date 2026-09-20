@@ -16,6 +16,8 @@ const VALIDATION_SAMPLES_PER_CELL = 4;
 export const WARP_PRESET_NAMES = [
   "archUp",
   "archDown",
+  "archLeft",
+  "archRight",
   "bulge",
   "squeeze",
   "flag",
@@ -229,6 +231,10 @@ function applyPreset(name: WarpPresetName, point: Point): Point {
       return { x: point.x, y: point.y - 0.22 * horizontalEnvelope };
     case "archDown":
       return { x: point.x, y: point.y + 0.22 * horizontalEnvelope };
+    case "archLeft":
+      return { x: point.x - 0.22 * verticalEnvelope, y: point.y };
+    case "archRight":
+      return { x: point.x + 0.22 * verticalEnvelope, y: point.y };
     case "bulge": {
       const scale = 1 + 0.24 * horizontalEnvelope * verticalEnvelope;
       return { x: 0.5 + centeredX * scale, y: 0.5 + centeredY * scale };

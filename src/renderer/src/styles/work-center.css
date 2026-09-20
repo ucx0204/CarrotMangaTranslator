@@ -257,7 +257,15 @@
   overflow-wrap: anywhere;
 }
 
+.status-task-handoff {
+  display: grid;
+  gap: var(--sp-2);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+}
+
 .status-task-handoff p {
+  margin: 0;
   overflow-wrap: anywhere;
 }
 

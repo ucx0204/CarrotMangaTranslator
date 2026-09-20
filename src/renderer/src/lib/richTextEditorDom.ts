@@ -3,10 +3,7 @@ import {
   type TextStyleRun,
 } from "../../../shared/richTextMarkup";
 import type { TranslationBlock } from "../../../shared/textTypes";
-import {
-  resolveEditorRunVisualStyle,
-  resolveRunTextDecorationStyle,
-} from "./textRunVisualStyles";
+import { appendRichTextRunContent } from "./richTextEditorRunContent";
 
 const RUN_ATTRIBUTE = "data-rich-text-run";
 const SELECTION_ATTRIBUTE = "data-rich-text-selection";
@@ -349,26 +346,7 @@ function createRunSpan(
   );
   span.style.fontStyle = options.baseItalic || run.italic ? "italic" : "normal";
   span.style.opacity = String(run.opacity ?? options.baseOpacity);
-  if (options.block) {
-    const visualStyle = resolveEditorRunVisualStyle(
-      options.block,
-      run,
-      16,
-      options.block.renderDirection,
-    );
-    const decorationStyle = resolveRunTextDecorationStyle(options.block, run);
-    if (decorationStyle) {
-      Object.assign(span.style, decorationStyle);
-      const glyph = root.ownerDocument.createElement("span");
-      glyph.dataset.richTextGlyph = "";
-      Object.assign(glyph.style, visualStyle);
-      glyph.append(root.ownerDocument.createTextNode(text));
-      span.append(glyph);
-      return span;
-    }
-    Object.assign(span.style, visualStyle);
-  }
-  span.append(root.ownerDocument.createTextNode(text));
+  appendRichTextRunContent(span, run, options.block, text);
   return span;
 }
 

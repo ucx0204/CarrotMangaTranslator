@@ -177,7 +177,10 @@ async function runQueuedSaveIteration({
       )
         return page;
       refs.dirtyPageIdsRef.current.delete(page.id);
-      return { ...result, processingTiming: page.processingTiming };
+      return {
+        ...result,
+        processingTiming: page.processingTiming,
+      };
     }),
   };
   currentChapterRef.current = next;

@@ -18,13 +18,140 @@ import {
 } from "../src/renderer/src/hooks/usePageEditHandoff";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import type { AppActivityState } from "../src/shared/appActivityTypes";
+import { RichTranslationEditor } from "../src/renderer/src/components/RichTranslationEditor";
+import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
+import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
+import { makeBlock } from "./helpers/workspacePointerFixtures";
+import { restoreRichTextEditorSelection } from "../src/renderer/src/lib/richTextEditorDom";
+
+function EditorFixture(props: {
+  value: string;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <FontsContext.Provider
+      value={{
+        busy: false,
+        catalog: DEFAULT_BLOCK_FONT_CATALOG,
+        baseOptions: [],
+        options: [],
+        registerFont: async () => undefined,
+        removeFont: async () => undefined,
+        savePreferences: async () => undefined,
+      }}
+    >
+      <RichTranslationEditor
+        block={makeBlock()}
+        editorRootRef={React.createRef()}
+        heightRefCallback={() => undefined}
+        {...props}
+        disabled={props.disabled ?? false}
+      />
+    </FontsContext.Provider>
+  );
+}
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("rich translation editor hook boundaries", () => {
+  it("refreshes scaled glyph advances after font loading without changing text or selection", () => {
+    const fontsDescriptor = Object.getOwnPropertyDescriptor(document, "fonts");
+    const fonts = new EventTarget();
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: fonts,
+    });
+    let advance = 10;
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      font: "",
+      measureText: (text: string) => ({
+        width: advance * Array.from(text).length,
+      }),
+    } as CanvasRenderingContext2D);
+    try {
+      const onChange = vi.fn();
+      const view = render(
+        <EditorFixture value="[width=2]가나[/width]" onChange={onChange} />,
+      );
+      const visual = view.getByRole("textbox", { name: "번역문" });
+      const width = () =>
+        (
+          visual.querySelector("[data-rich-text-glyph]")
+            ?.parentElement as HTMLElement
+        ).style.width;
+      expect(width()).toBe("20px");
+      visual.focus();
+      restoreRichTextEditorSelection(visual, { start: 0, end: 1 });
+      advance = 20;
+      act(() => {
+        fonts.dispatchEvent(new Event("loadingdone"));
+      });
+      expect(width()).toBe("40px");
+      expect(document.getSelection()?.toString()).toBe("가");
+      expect(onChange).not.toHaveBeenCalled();
+      view.rerender(<EditorFixture value="plain" onChange={onChange} />);
+      const firstChild = visual.firstChild;
+      act(() => {
+        fonts.dispatchEvent(new Event("loadingdone"));
+      });
+      expect(visual.firstChild).toBe(firstChild);
+      view.unmount();
+      expect(() => fonts.dispatchEvent(new Event("loadingdone"))).not.toThrow();
+    } finally {
+      if (fontsDescriptor)
+        Object.defineProperty(document, "fonts", fontsDescriptor);
+      else Reflect.deleteProperty(document, "fonts");
+    }
+  });
+  it.each([false, true])(
+    "preserves focus and copy while enforcing the visual/code write lock: %s",
+    (disabled) => {
+      const onChange = vi.fn();
+      const view = render(
+        <EditorFixture value="base" disabled={disabled} onChange={onChange} />,
+      );
+      const visual = view.getByRole("textbox", { name: "번역문" });
+      visual.focus();
+      expect(document.activeElement).toBe(visual);
+      expect(visual.getAttribute("contenteditable")).toBe(String(!disabled));
+      expect(
+        fireEvent.keyPress(visual, {
+          key: " ",
+          charCode: 32,
+          keyCode: 32,
+          which: 32,
+        }),
+      ).toBe(!disabled);
+      visual.textContent = "changed";
+      fireEvent.input(visual);
+      if (disabled) expect(onChange).not.toHaveBeenCalled();
+      else expect(onChange).toHaveBeenLastCalledWith("changed");
+      onChange.mockClear();
+      fireEvent.paste(visual, { clipboardData: { getData: () => "paste" } });
+      if (disabled) expect(onChange).not.toHaveBeenCalled();
+      else expect(onChange).toHaveBeenCalled();
+      fireEvent.click(view.getByRole("radio", { name: "코드" }));
+      const code = view.getByRole("textbox", {
+        name: "번역문 서식 코드",
+      }) as HTMLTextAreaElement;
+      code.focus();
+      code.select();
+      expect(document.activeElement).toBe(code);
+      expect(code.selectionEnd).toBe(code.value.length);
+      expect(code.readOnly).toBe(disabled);
+      expect(code.disabled).toBe(false);
+      onChange.mockClear();
+      fireEvent.change(code, { target: { value: "new code" } });
+      if (disabled) expect(onChange).not.toHaveBeenCalled();
+      else expect(onChange).toHaveBeenLastCalledWith("new code");
+    },
+  );
   it("reuses an unchanged caret style but observes style edits at the same offset", () => {
     const { result } = renderHook(() => useRichTranslationEditorState("block"));
     const root = document.createElement("div");

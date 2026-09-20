@@ -58,3 +58,55 @@
 ## 전체 반응성 경로 추가 실측
 
 페이지 목록 스크롤, main 관리 작업 진행 IPC, 저장 응답 병합, 검수표 가져오기의 반복 계산을 추가로 줄였다. 변경 전후 측정값과 확대·블록 편집·잠금 검증의 실제 범위는 [최적화 측정 기록](optimization-measurements-2026-09-20.md)에 정리했다. 모델 동시 실행 금지와 transaction·revision 경계는 유지했다. 특히 검수표는 잠금을 풀지 않고 내부의 행별 전체 페이지 복사를 제거했다.
+
+## 작업 병행과 잠금 후속 검증
+
+정적 디자인 검사와 빈 화면 캡처로 작업 중 사용성을 판정하지 않는다. 명령의 진입점, 실제 대상, renderer 차단, main 자원 예약, 저장·취소 경계를 함께 확인하고, 다음 상태를 회귀 기준으로 삼는다.
+
+| 조작                       | 허용하는 범위                          | 유지하는 보호                                          | 근거                                                                    |
+| -------------------------- | -------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------- |
+| A 모델 작업 중 B 편집·저장 | 관련 없는 페이지 내용                  | A 쓰기·revision·저장 인계                              | `activityConcurrency`, `pageJobLocking`, `workspacePointerInteractions` |
+| A 내용 확인·복사·블록 선택 | 잠긴 페이지의 조회                     | 텍스트 변경·변형 핸들                                  | `pageBlockListPanel`, `inpaintingWorkspaceUx`                           |
+| 다른 화 전체 서식 적용     | 그 화의 모든 페이지가 충돌하지 않을 때 | 같은 화의 처리 페이지·편집 인계·이력 복원              | `workspaceActivity`                                                     |
+| 웹 원본 검색·다운로드 준비 | 독립 브라우저 세션·임시 파일           | 같은 request ID 중복, 세션 단일 소비, 최종 보관함 반영 | `webImportService`, `webImportIpc`                                      |
+| 내보내기와 다른 작업 병행  | 별도 대상·출력 경로                    | 읽는 스냅샷과 동일 출력 경로                           | 기존 활동 gate와 `activityConcurrency`                                  |
+| 번역·인페인팅 옵션 열기    | 옵션 조회·준비                         | 실제 모델 실행 자원 독점                               | `appCommands`                                                           |
+| 작업센터 선택·완료·취소    | 각 작업 ID별 상태                      | 다른 작업 소유권과 모델 직렬 실행                      | `statusCenterConcurrency`, `statusDockButton`                           |
+
+웹 원본 검색·준비가 자원을 선언하지 않아 전체 gate를 독점하던 경로를 수정했다. 기존 AppActivityGate와 AppOperationRegistry를 사용하며 별도 스케줄러는 만들지 않았다. 모델 런타임, 같은 페이지 내용, 구조 예약, 문맥, 내보내기 경로의 충돌 규칙은 완화하지 않았다. 자원이 미선언된 경로도 계속 보수적으로 차단한다.
+
+작업센터는 완료 기록이 실행 중 행을 밀어내지 않게 하고, 배경 작업의 완료도 기록한다. 늦은 진행 이벤트와 이전 foreground props가 종료 상태를 되돌리지 못하게 한다. 화면에서 오래된 기록을 비워도 해당 구독 동안에는 종료 ID를 기억한다. 개별 취소는 기존 ID별 취소 경로를 유지한다.
+
+일괄 서식의 UI와 실행 경계가 같은 chapter 충돌 검사를 사용한다. 페이지 목록·OCR·번역 코드의 읽기 잠금은 disabled 대신 readonly를 사용해 포커스와 복사를 허용한다. 캔버스의 선택 차단과 수정 차단을 분리했다. 상시 페이지 잠금 배너는 제거했으며 저장 인계 실패는 작업센터에서 재시도 조작과 함께 표시한다.
+
+검증 화면은 격리 데이터와 실제 PageList, OverlayBlockLayer, UnifiedRightRail, StatusDockButton을 조합했다. 1440×900, 1240×760에서 페이지 선택·포커스·편집 핸들을 확인했고, 작업센터의 여러 작업·취소·저장 실패는 200% 확대도 확인했다. QA 조합의 200% 전체 편집기 레이아웃이나 실제 AI 추론 완주까지 검증했다는 뜻은 아니다. 임시 진입점은 제거하고 이번 캡처와 썸네일 갤러리는 `.tmp/activity-followup-qa/`에 보존한다. 변경 TSX의 Impeccable detector 결과는 `.tmp/activity-impeccable.json`의 0건이며 행동 검증을 대신하지 않는다.
+
+## 글자별 장평 수정
+
+글자별 장평은 저장 문자열에 반영됐지만 `font-stretch`로 표시해 너비 변형을 제공하지 않는 글꼴에서는 효과가 없었다. 이 속성은 글자를 기하학적으로 늘리는 기능이 아니라 글꼴의 너비별 face를 선택한다([MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/font-stretch)).
+
+기존 장평 값·파서·줄바꿈 측정은 유지하고, 장평이 적용된 글자의 표시 폭과 실제 배치 폭을 함께 맞췄다. 편집기와 페이지 artwork의 잉크·안쪽/바깥쪽 외곽선에 같은 기하 계산을 사용한다. 100% 문장은 기존 렌더 경로를 유지한다. 기존 DOM 렌더/추출·선택 복원 테스트를 유지한 채 글자 내용 렌더를 `richTextEditorRunContent.ts`로 분리했다. 줄바꿈은 텍스트 노드로 보존해 한글 입력과 줄바꿈 뒤 caret offset 계약을 유지한다.
+
+실제 Chromium에서 production RichTranslationEditor의 장평 입력으로 앞 두 글자에 50%, 150%, 200%를 적용했다. 저장한 run 값과 `getBoundingClientRect()`/원래 폭의 비율이 각각 일치했고, 차지하는 폭과 그려진 폭의 차이는 1px 이내였다. 같은 문장의 100/50/150/200% PageArtwork 비교를 1440×900, 1240×760에서 확인했다. 가로·세로 artwork의 세 외곽선/잉크 층 일치와 DOM round-trip·선택 복원을 포함한 focused 4파일 88개 테스트가 통과했다. 원본 캡처와 재현 엔트리 사본은 위 QA 폴더에 남긴다.
+
+새 작업 기록 hook과 글자 내용 renderer만 측정된 coverage floor에 추가했다. 기존 파일의 coverage 기준은 낮추지 않았다. 전체 검사 결과는 `.tmp/activity-and-width-check.log` 및 후속 최종 로그로 확인한다.
+
+글꼴의 비동기 로드 완료 시 장평 글자의 실제 배치 폭도 다시 측정한다. 폰트 로드 전후의 측정 폭을 바꾸는 production 편집기 테스트에서 선택 범위와 저장 문자열이 유지되는 것을 검증했다. 한글 조합 중에는 기존 DOM 동기화 보호를 유지한다.
+
+## 좌우 아치 워프 프리셋
+
+워프에 `archLeft`, `archRight`를 추가했다. 기존 위·아래 아치의 강도 0.22를 세로 위치의 envelope에 적용해 x축으로 휘게 한다. 저장은 기존 version 1의 격자 점 좌표를 사용하며 파일 형식은 바뀌지 않는다. 5개 언어의 프리셋 이름과 타입세팅 프롬프트의 허용 이름도 맞췄다.
+
+기존 격자 검증·역변환 검사에 새 프리셋을 포함하고, 3×3/5×5의 방향·전치 대칭·좌표 정밀도·저장 복원과 production Select의 선택을 검증했다. focused 2파일 47개 테스트 통과. 실제 TransformEditorGroup과 PageArtwork로 1440×900, 1240×760 화면을 캡처해 프리셋 목록과 좌우 결과를 확인했다. `warp-wide-final.png`, `warp-narrow-final.png`를 같은 갤러리에 보존했다.
+
+최종 `npm run check`는 178.95초에 통과했다 (`.tmp/activity-width-warp-final-check.log`). 6,982개 테스트 통과, 4개 skip. 기존 coverage floor, typecheck, lint, 실제 build, page artwork parity, image protocol smoke를 모두 통과했다. 실제 AI 추론을 새로 완주한 검증은 포함하지 않는다. 임시 renderer QA 진입점은 정리했고 캡처와 갤러리는 보존했다.
+
+## 전체 앱 후속 확인
+
+장시간 모델 작업은 실행하지 말라는 사용자 요청을 반영했다. 잠금 중첩 순회를 제거하고 선택 페이지 이동·진행 갱신에 따른 잠금 집합과 파생 값 재생성을 줄였다. 실제 App의 30/500페이지, 제어된 진행 이벤트, B 페이지 편집·자동 저장을 배포용 profiling 빌드로 확인했다. 수치와 검증 한계는 [추가 측정 기록](optimization-measurements-2026-09-20.md#전체-앱-후속-측정)에 남겼다.
+
+720×450 CSS viewport에서 패널이 떠 있는 형태로 바뀌면 grid 자동 배치 때문에 캔버스가 52px 열로 밀리는 결함을 발견했다. 좌·중앙·우 열을 명시해 수정하고 넓은/좁은 화면 및 좌측·양쪽 패널을 펼친 확대 화면을 확인했다. 기존 좁은 화면의 패널 겹침과 열기/닫기는 유지한다. `.tmp/responsiveness-final/index.html`에 수정 전후 원본과 썸네일을 보존했다.
+
+후속 최종 `npm run check`: **292.14초 통과, 6,984개 테스트 통과·4개 skip**. 타입·lint·기존 coverage floor·build·page artwork parity·image protocol smoke·bundle 경계 모두 통과했다 (`.tmp/responsiveness-final/check-confirmed.log`). 새 잠금/파생 값 회귀를 포함한 focused 6파일 32개 테스트와 변경 파일 Impeccable detect도 통과했다. 임시 QA 소스와 벤치마크 테스트는 제거했다. 브라우저 프로세스는 종료했으며, 임시 브라우저 프로필 디렉터리 삭제는 자동 승인 정책에서 차단되어 남겼다. 사용자 보관함과 출력물은 건드리지 않았다.
+
+v2.7.12 커밋·릴리스 요청을 받은 뒤 위 두 QA 폴더의 PNG와 갤러리 35개를 커밋 직전에 정리했다. 측정 JSON·재현 소스·검사 로그는 보존했다. 버전을 올린 뒤 전체 검사와 고정 Hugging Face 자산 36개 검증을 다시 통과했다. Windows·macOS 패키지와 설치/실행 검증은 정식 릴리스 워크플로에서 수행한다.

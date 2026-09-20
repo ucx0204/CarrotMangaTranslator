@@ -38,6 +38,7 @@ type OverlayBlockProps = {
   interactionPreviewStore: WorkspaceInteractionPreviewStore;
   textVisible?: boolean;
   pointerDisabled?: boolean;
+  editingDisabled?: boolean;
   transformMode?: BlockTransformMode;
   onPointerDown: (event: React.PointerEvent) => void;
   onResizePointerDown: (event: React.PointerEvent) => void;
@@ -146,7 +147,7 @@ function resolveDisplayText(
 function resolveSelectedMode(
   props: OverlayBlockProps,
 ): BlockTransformMode | undefined {
-  if (props.shapeEditMode) return undefined;
+  if (props.shapeEditMode || props.editingDisabled) return undefined;
   return props.transformMode ?? (props.selected ? "select" : undefined);
 }
 

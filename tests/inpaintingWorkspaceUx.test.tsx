@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { OverlayBlock } from "../src/renderer/src/components/OverlayBlock";
 import { OverlayBlockLayer } from "../src/renderer/src/components/OverlayBlockLayer";
@@ -14,6 +14,33 @@ import type { TranslationBlock } from "../src/shared/textTypes";
 afterEach(() => cleanup());
 
 describe("automatic erase exclusion", () => {
+  it("keeps a locked block selectable without exposing mutation handles", () => {
+    const block = makeBlock(false);
+    const onBlockPointerDown = vi.fn();
+    const { container } = renderWithFonts(
+      <OverlayBlockLayer
+        blockPointerDisabled={false}
+        blockEditingDisabled
+        imageDataUrl="data:image/png;base64,abc"
+        interactionPreviewStore={createWorkspaceInteractionPreviewStore()}
+        onBlockPointerDown={onBlockPointerDown}
+        page={makePage([block])}
+        selectedBlockId={block.id}
+        selectedBlockIds={[block.id]}
+        showBlockChrome
+        showTextBlocks
+        stageTool="select"
+        stageSize={{ width: 500, height: 800 }}
+        textLayoutStageSize={{ width: 500, height: 800 }}
+      />,
+    );
+    const overlay = container.querySelector(".overlay-block");
+    if (!overlay) throw new Error("Missing block overlay");
+    fireEvent.pointerDown(overlay);
+    expect(onBlockPointerDown).toHaveBeenCalled();
+    expect(container.querySelector("[data-transform-handle]")).toBeNull();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
   it("always marks an excluded block on the canvas", () => {
     const { container } = renderWithFonts(
       <OverlayBlock

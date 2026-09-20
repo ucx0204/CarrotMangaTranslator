@@ -21,6 +21,25 @@ import type { TranslationBlock } from "../src/shared/textTypes";
 afterEach(() => cleanup());
 
 describe("dense transform editor", () => {
+  it.each([
+    ["아치 왼쪽", "archLeft"],
+    ["아치 오른쪽", "archRight"],
+  ] as const)(
+    "applies %s from the existing preset control",
+    (label, preset) => {
+      const onUpdate = vi.fn();
+      renderEditor({
+        mode: "warp",
+        onUpdate,
+        block: makeBlock({ warpTransform: createIdentityWarpTransform(5) }),
+      });
+      fireEvent.click(screen.getByRole("combobox", { name: "프리셋" }));
+      fireEvent.click(screen.getByRole("option", { name: label }));
+      expect(onUpdate).toHaveBeenLastCalledWith({
+        warpTransform: createWarpPreset(preset, 5),
+      });
+    },
+  );
   it("shows one mode at a time and delegates mode changes", () => {
     const onSelectMode = vi.fn();
     renderEditor({ mode: "select", onSelectMode });

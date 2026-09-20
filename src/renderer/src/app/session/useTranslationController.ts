@@ -8,6 +8,7 @@ import {
   type UseTranslationActionsOptions,
 } from "../../hooks/useTranslationActions";
 import type { ChapterSessionController } from "./useChapterSessionController";
+import { isChapterMutationBlocked } from "./workspaceActivity";
 import { useAppSessionWorkspaceHistory } from "./useAppSessionWorkspaceHistory";
 import { useFonts } from "../../fonts/useFonts";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -65,8 +66,7 @@ export function useTranslationController(
     availableFontIds,
     blockStylePresets: chapter.settingsDialog.settings?.blockStylePresets,
     currentChapter: chapter.core.currentChapter,
-    jobActive:
-      chapter.derivedState.selectedPageEditLocked || workspaceHistory.busy,
+    jobActive: isChapterMutationBlocked({ ...chapter, workspaceHistory }),
     pushStatus: chapter.statusLog.pushStatus,
     readingDirection: resolveReadingDirection(
       chapter.core.library.works.find(
