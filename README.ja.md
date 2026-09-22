@@ -6,7 +6,7 @@
 
 [한국어](README.md) · [English](README.en.md) · **日本語** · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**[v2.7.13 ダウンロード](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.7.13)** · [更新内容](docs/release-notes/v2.7.13.md) · [不具合・要望](https://github.com/ucx0204/CarrotMangaTranslator/issues)
+**[v2.7.14 ダウンロード](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.7.14)** · [更新内容](docs/release-notes/v2.7.14.md) · [不具合・要望](https://github.com/ucx0204/CarrotMangaTranslator/issues)
 
 [はじめに](#start) · [文字編集](#edit) · [効果音 ImageGen](#sfx) · [ショートカット](#shortcuts) · [困ったとき](#troubleshooting)
 
@@ -440,6 +440,6 @@ npm run dev
 - Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
 - ソースは[GPL-3.0-only](LICENSE)です。フォント・モデル・ランタイムは個別の配布条件を確認してください。
 
-本文はv2.7.13を基準にしています。画面は実際のアプリ部品に例示データを入れた韓国語UIです。原稿と訳文は機能説明用で、モデルの性能比較資料ではありません。[キャプチャと原稿の出典](docs/images/readme-v2712/README.md)
+本文はv2.7.14を基準にしています。画面は実際のアプリ部品に例示データを入れた韓国語UIです。原稿と訳文は機能説明用で、モデルの性能比較資料ではありません。[キャプチャと原稿の出典](docs/images/readme-v2712/README.md)
 
 [先頭へ](#start)

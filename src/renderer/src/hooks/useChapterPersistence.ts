@@ -234,6 +234,11 @@ function useServerVersionSyncActions(
 
   const syncSavedPageVersion = useCallback(
     (chapter: ChapterSnapshot, pageId: string) => {
+      // A late job/save response must not take ownership of another chapter's
+      // baseline, or the next render would rebase dirty pages from local drafts.
+      if (serverVersionChapterIdRef.current !== chapter.id) {
+        return;
+      }
       const savedPage = chapter.pages.find(
         (candidate) => candidate.id === pageId,
       );
@@ -245,7 +250,6 @@ function useServerVersionSyncActions(
         };
         pageVersionRef.current.set(savedPage, version);
         serverVersionByPageIdRef.current.set(pageId, version);
-        serverVersionChapterIdRef.current = chapter.id;
       }
     },
     [pageVersionRef, serverVersionByPageIdRef, serverVersionChapterIdRef],

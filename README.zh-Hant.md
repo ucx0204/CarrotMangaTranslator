@@ -6,7 +6,7 @@
 
 [한국어](README.md) · [English](README.en.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · **繁體中文**
 
-**[下載 v2.7.13](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.7.13)** · [更新說明](docs/release-notes/v2.7.13.md) · [問題與建議](https://github.com/ucx0204/CarrotMangaTranslator/issues)
+**[下載 v2.7.14](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.7.14)** · [更新說明](docs/release-notes/v2.7.14.md) · [問題與建議](https://github.com/ucx0204/CarrotMangaTranslator/issues)
 
 [快速入門](#start) · [編輯文字](#edit) · [音效 ImageGen](#sfx) · [快捷鍵](#shortcuts) · [常見問題](#troubleshooting)
 
@@ -440,6 +440,6 @@ npm run dev
 - Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
 - 應用程式原始碼採用 [GPL-3.0-only](LICENSE)。字型、模型和執行環境請分別核對分發條件。
 
-本文以 v2.7.13 為準。截圖使用真實應用元件、範例資料和韓語介面。範例原稿與譯文用於說明功能，不是模型效能對比資料。[截圖與素材來源](docs/images/readme-v2712/README.md)
+本文以 v2.7.14 為準。截圖使用真實應用元件、範例資料和韓語介面。範例原稿與譯文用於說明功能，不是模型效能對比資料。[截圖與素材來源](docs/images/readme-v2712/README.md)
 
 [返回開始](#start)

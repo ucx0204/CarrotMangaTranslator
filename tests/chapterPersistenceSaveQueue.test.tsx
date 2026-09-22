@@ -6,8 +6,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { SavePagesBlocksRequest } from "../src/shared/shareTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import {
+  hashStableValue,
+  hashTranslationBlocks,
+} from "../src/shared/blockFingerprint";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { useChapterPersistence } from "../src/renderer/src/hooks/useChapterPersistence";
+import {
+  createSavePagesBlocksMutation,
+  type SavePagesBlocksMutationRuntime,
+} from "../src/main/libraryStore/libraryPageBlockMutations";
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -44,6 +52,88 @@ afterEach(() => {
 });
 
 describe("chapter persistence save queue", () => {
+  it.each(["other-page", "page-1"])(
+    "keeps the current draft baseline when a different chapter acknowledges %s",
+    async (completedPageId) => {
+      const initial = makeChapter("base", "2026-01-01T00:00:00.000Z");
+      initial.pages[0].blockOrder = ["block-1"];
+      const { api } = renderHarness(undefined, initial);
+      act(() => api.current.updateText("unsaved local edit"));
+
+      const completed = makeChapter(
+        "background result",
+        "2026-01-01T00:00:02.000Z",
+      );
+      completed.id = "background-chapter";
+      completed.pages[0].id = completedPageId;
+      act(() => {
+        api.current
+          .getPersistence()
+          .syncSavedPageVersion(completed, completedPageId);
+        api.current.refreshSameChapter();
+      });
+
+      const commitChapterAndWork = vi
+        .fn<SavePagesBlocksMutationRuntime["commitChapterAndWork"]>()
+        .mockResolvedValue(undefined);
+      const logWarning = vi.fn();
+      savePagesBlocksMock.mockImplementation(
+        createSavePagesBlocksMutation({
+          findChapterLocation: async () => ({
+            workId: initial.workId,
+            chapterId: initial.id,
+          }),
+          readChapterFile: async () => initial,
+          now: () => "2026-01-01T00:00:03.000Z",
+          commitChapterAndWork,
+          logWarning,
+        }),
+      );
+      await act(async () => api.current.saveNow());
+
+      expect(savePagesBlocksMock.mock.calls[0][0]).toMatchObject({
+        chapterId: initial.id,
+        pages: [
+          {
+            pageId: "page-1",
+            baseUpdatedAt: initial.pages[0].updatedAt,
+            baseBlocksHash: hashTranslationBlocks(initial.pages[0].blocks),
+            baseBlockOrderHash: hashStableValue(initial.pages[0].blockOrder),
+            blocks: [{ translatedText: "unsaved local edit" }],
+          },
+        ],
+      });
+      expect(logWarning).not.toHaveBeenCalled();
+      expect(commitChapterAndWork).toHaveBeenCalledOnce();
+      expect(api.current.getChapter()?.pages[0].blocks[0].translatedText).toBe(
+        "unsaved local edit",
+      );
+      expect(api.current.getDirty()).toBe(false);
+    },
+  );
+
+  it("accepts a current-chapter acknowledgement while preserving newer local edits", async () => {
+    const { api } = renderHarness();
+    act(() => api.current.updateText("local edit after translation"));
+    const completed = makeChapter(
+      "translated result",
+      "2026-01-01T00:00:02.000Z",
+    );
+    act(() => {
+      api.current.getPersistence().syncSavedPageVersion(completed, "page-1");
+      api.current.refreshSameChapter();
+    });
+    savePagesBlocksMock.mockResolvedValue(
+      makeChapter("local edit after translation", "2026-01-01T00:00:03.000Z"),
+    );
+    await act(async () => api.current.saveNow());
+    expect(savePagesBlocksMock.mock.calls[0][0].pages[0]).toMatchObject({
+      baseUpdatedAt: completed.pages[0].updatedAt,
+      baseBlocksHash: hashTranslationBlocks(completed.pages[0].blocks),
+      blocks: [{ translatedText: "local edit after translation" }],
+    });
+  });
+
   it("reports a missing dirty page instead of retrying forever", async () => {
     const { api } = renderHarness();
     act(() => api.current.getPersistence().markDirty("removed-page"));
@@ -671,6 +761,7 @@ function updateChapterTexts(
       return text !== undefined
         ? {
             ...page,
+            updatedAt: new Date().toISOString(),
             blocks: page.blocks.map((block) => ({
               ...block,
               translatedText: text,
