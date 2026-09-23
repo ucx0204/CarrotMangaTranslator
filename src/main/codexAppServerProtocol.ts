@@ -31,6 +31,7 @@ export type CodexAppServerTurnRequest = {
   instructions: string;
   input: CodexAppServerTurnInput[];
   cwd: string;
+  imageGenerationSize?: string;
   outputSchema?: JsonRecord;
   contextWindowTokens?: number;
   signal?: AbortSignal;
@@ -49,6 +50,7 @@ export type CodexAppServerPreviewTool = {
 };
 
 export type CodexAppServerTurnResult = {
+  requestedImageGenerationModel?: string;
   /** Client-owned image asset root; never supplied by the model. */
   imageDirectory?: string;
   text: string;

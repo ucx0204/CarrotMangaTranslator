@@ -2032,6 +2032,11 @@
         "logoutFailed": "Codex sign-out failed."
       },
       "imageReasoning": "Image generation reasoning effort",
+      "imageGenerationModel": "Image model",
+      "imageGenerationAuto": "Codex default",
+      "imageGenerationAutoHint": "Uses the built-in Codex image tool.",
+      "imageGenerationFlareHint": "For fast image generation and editing.",
+      "imageGenerationSunburstHint": "For precise image editing.",
       "imageModelWarning": "Image tasks may not work correctly with this model. Astra is strongly recommended.",
       "modelUnavailable": "The selected model is missing from the account catalog. Your selection is preserved. Sign in again or choose an available model."
     },
@@ -2352,6 +2357,25 @@
       "localErasure": "Default erasure",
       "codex": "Codex image tools",
       "description": "Erase text and generate sound effects independently of the translation engine. Astra is strongly recommended."
+    },
+    "backup": {
+      "title": "Backup and transfer",
+      "description": "Move your workspace to another computer with one ZIP file.",
+      "includes": "Includes library originals and edits, settings, custom fonts, presets and redaction drafts.",
+      "excludes": "Credentials, models, runtime tools and external folders are excluded. Sign in and download the required models on the new computer.",
+      "counts": "{{works}} works · {{pages}} pages",
+      "dirty": "Save or discard your settings changes before transferring your environment.",
+      "export": "Export backup",
+      "import": "Import backup",
+      "recover": "Restore previous environment",
+      "confirmTitle": "Confirm environment restore",
+      "confirmDescription": "Your current environment will be preserved at the location below before replacement. The app will restart. Reconnect external folders and custom models afterward.",
+      "apply": "Preserve current environment and restore",
+      "close": "Close",
+      "progress": "Processing your environment. Editing is paused until this finishes.",
+      "cancel": "Cancel operation",
+      "saved": "Backup saved: {{path}}",
+      "restored": "Environment restored. Check API keys, account sign-in, external folders and custom model paths. Reconfigure custom API headers and extra request bodies."
     }
   },
   "pageBlocks": {
@@ -2423,6 +2447,8 @@
         "web-import-preview": "Web import",
         "work-share-import": "Shared file import",
         "work-share-export": "Shared file export",
+        "environment-backup": "Environment backup",
+        "environment-restore": "Environment restore",
         "model-test": "Model check",
         "codex-auth": "ChatGPT account",
         "sound-effect-translation": "Sound effect translation"

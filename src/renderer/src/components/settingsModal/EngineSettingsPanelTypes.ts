@@ -1,3 +1,4 @@
+import type { CodexImageGenerationModel } from "../../../../shared/codexSettings";
 import type React from "react";
 import type {
   ApiReasoningEffort,
@@ -33,6 +34,10 @@ export type EngineSettingsPanelProps = {
   codexReasoningEffort: CodexReasoningEffort;
   codexImageReasoningEffort?: CodexReasoningEffort;
   codexImageModel?: string;
+  codexImageGenerationModel?: CodexImageGenerationModel;
+  setCodexImageGenerationModel?: React.Dispatch<
+    React.SetStateAction<CodexImageGenerationModel>
+  >;
   setCodexImageModel?: React.Dispatch<React.SetStateAction<string>>;
   setCodexImageReasoningEffort?: React.Dispatch<
     React.SetStateAction<CodexReasoningEffort>

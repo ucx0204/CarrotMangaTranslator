@@ -34,6 +34,7 @@ import type { BBox, TranslationBlock } from "../src/shared/textTypes";
 import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import { BubbleLayoutContextBar } from "../src/renderer/src/components/BubbleLayoutContextBar";
 import { ImageStage } from "../src/renderer/src/components/ImageStage";
+import { Modal } from "../src/renderer/src/components/ui/Modal";
 import {
   FontsContext,
   type FontsContextValue,
@@ -737,6 +738,22 @@ describe("workspace pointer interactions", () => {
 
     expect(api.current.getRegionSelection()).toBeNull();
     expect(api.current.statuses).toContain("영역 번역 선택을 취소했습니다.");
+  });
+
+  it("keeps a region selection when Escape belongs to an overlaid modal", () => {
+    const api = renderHarness();
+    act(() => api.current.startRegionTranslationSelection());
+    const before = api.current.getRegionSelection();
+    expect(before).not.toBeNull();
+    const onClose = vi.fn();
+    const view = render(
+      <Modal title="Settings" onClose={onClose}>
+        <p>Settings</p>
+      </Modal>,
+    );
+    fireEvent.keyDown(view.getByRole("dialog"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(api.current.getRegionSelection()).toEqual(before);
   });
 
   it("does not arm region translation until the selected page image is ready", () => {

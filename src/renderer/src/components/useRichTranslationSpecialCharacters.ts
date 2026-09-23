@@ -34,7 +34,15 @@ function useDismissSpecialCharacters(
       if (!editorRootRef.current?.contains(event.target as Node)) close();
     };
     const closeOnEscape = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") close();
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        !editorRootRef.current?.contains(event.target as Node)
+      )
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      close();
     };
     document.addEventListener("pointerdown", closeOutside);
     document.addEventListener("keydown", closeOnEscape);

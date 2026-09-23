@@ -39,6 +39,8 @@ describe("private workspace repository policy", () => {
   it.each([
     "results/work/chapter/originals/01.webp",
     "library/work.json",
+    ".environment-backup/recovery/private/library/page.png",
+    "migration-ui.json",
     "logs/app.log",
     ".settings-pairs/generation/settings.json",
     "codex/auth.json",

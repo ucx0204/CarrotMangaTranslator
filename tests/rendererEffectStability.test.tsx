@@ -12,6 +12,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import { useSettingsFormState } from "../src/renderer/src/components/settingsModal/useSettingsFormState";
 import { Modal } from "../src/renderer/src/components/ui/Modal";
+import { Select } from "../src/renderer/src/components/ui/Select";
+import { useContextRailExpansion } from "../src/renderer/src/components/useContextRailExpansion";
 
 afterEach(() => {
   cleanup();
@@ -19,6 +21,46 @@ afterEach(() => {
 });
 
 describe("renderer effect dependency stability", () => {
+  it("keeps the background context rail expanded when closing a modal", () => {
+    const { result } = renderHook(() => useContextRailExpansion("chapter-1"));
+    act(() => result.current.toggleContextExpanded());
+    const onClose = vi.fn();
+    const view = render(
+      <Modal title="Settings" onClose={onClose}>
+        <p>Settings</p>
+      </Modal>,
+    );
+    fireEvent.keyDown(view.getByRole("dialog"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(result.current.contextExpanded).toBe(true);
+    view.unmount();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(result.current.contextExpanded).toBe(false);
+  });
+  it("closes an open Select before its enclosing modal", () => {
+    const onClose = vi.fn();
+    const view = render(
+      <Modal title="Options" onClose={onClose}>
+        <Select
+          ariaLabel="Quality"
+          value="first"
+          options={[
+            { value: "first", label: "First" },
+            { value: "last", label: "Last" },
+          ]}
+          onValueChange={vi.fn()}
+        />
+      </Modal>,
+    );
+    const select = view.getByRole("combobox");
+    fireEvent.click(select);
+    fireEvent.keyDown(select, { key: "Escape" });
+    expect(select.getAttribute("aria-expanded")).toBe("false");
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(select, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it("opens on the dialog surface instead of highlighting the close action", () => {
     const view = render(
       <Modal title="Edit" onClose={() => undefined}>

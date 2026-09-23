@@ -25,6 +25,10 @@ function resolveAppOperationKindLabel(
   activity: AppOperationActivityPresentation,
   t: TFunction<"renderer">,
 ): string {
+  if (activity.kind === "environment-backup")
+    return t("statusDock.operation.kind.environmentBackup");
+  if (activity.kind === "environment-restore")
+    return t("statusDock.operation.kind.environmentRestore");
   if (activity.kind === "library-import-preview") {
     return t("statusDock.operation.kind.importPreview", {
       source: activity.sourceKind

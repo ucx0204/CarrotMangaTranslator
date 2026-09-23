@@ -2032,6 +2032,11 @@
         "logoutFailed": "Codex 로그아웃에 실패했습니다."
       },
       "imageReasoning": "이미지 생성 추론 강도",
+      "imageGenerationModel": "이미지 모델",
+      "imageGenerationAuto": "Codex 기본",
+      "imageGenerationAutoHint": "Codex 내장 이미지 도구를 사용합니다.",
+      "imageGenerationFlareHint": "빠른 이미지 생성과 편집에 적합합니다.",
+      "imageGenerationSunburstHint": "정밀한 이미지 편집에 적합합니다.",
       "imageModelWarning": "이미지 작업이 제대로 동작하지 않을 수 있습니다. Astra 사용을 강력히 권장합니다.",
       "modelUnavailable": "선택한 모델이 현재 계정 목록에 없습니다. 선택값은 유지됩니다. 다시 로그인하거나 사용할 모델을 직접 선택해 주세요."
     },
@@ -2352,6 +2357,25 @@
       "localErasure": "기본 원문 제거",
       "codex": "Codex 이미지 도구",
       "description": "번역 엔진과 별도로 원문 제거와 효과음 이미지에 사용합니다. Astra 사용을 강력히 권장합니다."
+    },
+    "backup": {
+      "title": "백업 및 이관",
+      "description": "ZIP 파일 하나로 다른 컴퓨터에 작업 환경을 옮깁니다.",
+      "includes": "보관함 원본·편집 데이터, 설정, 사용자 폰트, 프리셋과 가리기 초안을 포함합니다.",
+      "excludes": "인증 정보, 모델, 실행 도구와 외부 폴더의 파일은 제외합니다. 새 컴퓨터에서 로그인하고 필요한 모델을 다시 받아 주세요.",
+      "counts": "작품 {{works}}개 · 페이지 {{pages}}개",
+      "dirty": "변경한 설정을 먼저 저장하거나 취소한 뒤 이관을 시작해 주세요.",
+      "export": "백업 내보내기",
+      "import": "백업 가져오기",
+      "recover": "이전 환경으로 되돌리기",
+      "confirmTitle": "환경 복원 확인",
+      "confirmDescription": "현재 환경을 아래 위치에 보존한 뒤 교체하고 앱을 다시 시작합니다. 외부 폴더와 사용자 지정 모델은 다시 연결해야 합니다.",
+      "apply": "기존 환경 보존 후 복원",
+      "close": "닫기",
+      "progress": "작업 환경을 처리하고 있습니다. 완료될 때까지 편집이 잠시 중지됩니다.",
+      "cancel": "작업 취소",
+      "saved": "백업을 저장했습니다: {{path}}",
+      "restored": "환경을 복원했습니다. API 키·계정 로그인, 외부 폴더 연결과 사용자 지정 모델 경로를 확인해 주세요. API의 사용자 지정 헤더와 추가 요청 본문도 다시 설정해 주세요."
     }
   },
   "pageBlocks": {
@@ -2423,6 +2447,8 @@
         "web-import-preview": "웹 가져오기",
         "work-share-import": "공유 파일 가져오기",
         "work-share-export": "공유 파일 내보내기",
+        "environment-backup": "환경 백업",
+        "environment-restore": "환경 복원",
         "model-test": "모델 확인",
         "codex-auth": "ChatGPT 계정",
         "sound-effect-translation": "효과음 번역"

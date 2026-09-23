@@ -393,7 +393,11 @@ function useEscapePointerCancellation(
   });
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") {
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        document.querySelector('[role="dialog"][aria-modal="true"]')
+      ) {
         return;
       }
       cancelPointerInteraction();

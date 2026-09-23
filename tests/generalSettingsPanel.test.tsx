@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { GeneralSettingsPanel } from "../src/renderer/src/components/settingsModal/GeneralSettingsPanel";
 import { appI18n } from "../src/renderer/src/appI18n";
 import {
@@ -10,6 +11,9 @@ import {
 } from "./testUtils/customSelect";
 
 afterEach(() => cleanup());
+beforeEach(() => {
+  window.mangaApi = createTestMangaGatewayStub();
+});
 
 describe("GeneralSettingsPanel", () => {
   it("lists every supported language by its native name", () => {

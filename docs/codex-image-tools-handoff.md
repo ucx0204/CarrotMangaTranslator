@@ -122,8 +122,8 @@ native 문맥 좌표 이동, 겹친 이웃 판독의 제외, 원본 마스크 �
 
 - 전체 작업 위임 UI와 제품 실행 분기를 제거했다. 일반 번역 엔진이 OCR·번역·용어/스토리 문맥·폰트 처리를 담당하고, Codex는 선택한 원문 제거/효과음 이미지만 후처리한다. 이전 프리셋 저장 데이터는 보존한다.
 - 설정은 AI 안의 번역/OCR/이미지/인터넷 조사/하드웨어로 묶었다. 하드웨어 권장값은 번역과 인터넷 조사 양쪽 Gemma 로컬 자원 설정도 초기화하며 다른 엔진·API 키·편집 중인 무관한 설정은 유지한다.
-- 이미지 작업 모델은 텍스트 모델과 독립된 `codex.imageModel`, 추론은 `imageReasoningEffort`로 저장한다. 기존 설치 기본값은 Astra/low. 추가 선택은 GPT-5.6 Sol이다. 사용자 요청으로 Terra/Luna xhigh를 별도 실험했지만 판독·배치 실패가 남아 제품 선택기로 승격하지 않았다. 계정이 연결되지 않아도 기능은 비활성 상태로 보인다.
-- [OpenAI Codex 이미지 문서](https://learn.chatgpt.com/codex/image-generation)는 내장 생성 모델을 GPT Image 2로 명시한다. Astra 전용 상위 이미지 모델이라는 근거는 없다. 요청 해석과 도구 지시를 담당하는 추론 모델 차이가 이미지 결과에 미치는 영향은 별도이며 동등 품질을 측정했다고 주장하지 않는다.
+- 이미지 작업 모델은 텍스트 모델과 독립된 `codex.imageModel`, 추론은 `imageReasoningEffort`로 저장한다. 기존 설치 기본값은 Astra/low. 계정 카탈로그의 GPT-5.6 이상 계열을 선택할 수 있으며 GPT-5.6 계열에는 기존 이미지 작업 경고를 표시한다. GPT-5.5 이하는 제외한다. Terra/Luna의 과거 실험에서 확인한 판독·배치 실패 때문에 GPT-5.6 경고는 유지한다. 계정이 연결되지 않아도 기능은 비활성 상태로 보인다.
+- 당시 [OpenAI Codex 이미지 문서](https://learn.chatgpt.com/codex/image-generation)는 내장 생성 모델을 GPT Image 2로 명시했다. 이후 Images 2.5 지원 발표는 아래 후속 확인을 참고한다. Astra 전용 상위 이미지 모델이라는 근거는 없다. 요청 해석과 도구 지시를 담당하는 추론 모델 차이가 이미지 결과에 미치는 영향은 별도이며 동등 품질을 측정했다고 주장하지 않는다.
 - 사용자 가리기는 기본 OFF, 수동 사각형/원형 붓/사각 붓만 제공한다. 설정의 마지막 항목이다. 원본은 보존하고 전송 사본의 가려진 픽셀을 불투명 흰색으로 치환한다. 페이지·영역·보조 문맥 이미지에 같은 검토와 crop 좌표 계약을 적용한다. 가리기와 겹치는 생성 영역은 처리하지 않는다. 저장 오류/취소/변경된 원본은 전송 전에 중단한다.
 - 미리보기 모달은 화면을 넓게 사용하고 왼쪽 이력, 중앙 확대/이동 이미지, 번역 목록을 제공한다. 작업 센터에는 최신 이미지 하나가 남는다. 이미지 실패/부분 완료에서도 이미 끝난 원문 제거와 텍스트는 보존한다.
 - 일반/곡선 식자는 모든 외곽선을 먼저 그리고 전체 글자 잉크를 마지막에 그린다. 아래 줄의 외곽선이 위 줄 잉크를 덮지 않는다.
@@ -163,3 +163,23 @@ Codex 영역 제거에서는 선택 경계를 허용 범위로 전달하고 모�
 이미지 도구 설명은 Astra를 강력 권장한다. Astra 이외 이미지 모델을 선택하면 공용 경고 상자를 표시하며, 로그아웃해 컨트롤이 비활성화돼도 선택값과 안내를 유지한다. 일반 번역 엔진 선택에는 이 경고를 표시하지 않는다. Astra로 다시 선택하면 경고가 사라진다. 제품 모델 목록은 Astra/Sol을 유지하고 Luna/Terra는 연구 기록으로만 남긴다.
 
 실제 SettingsModal을 가져온 격리 QA에서 Astra/Sol을 1600×980, 1240×760으로 확인했다. 공용 컨트롤 너비를 유지하고 경고는 전체 행을 차지한다. 바깥 스크롤·텍스트 잘림·버튼 겹침은 없으며 작은 창에서는 기존 모달 본문만 스크롤한다. 모델 전환·로그아웃/로그인 회귀를 포함한 Codex 설정 테스트 19개가 통과했다. 사용자 앱은 재시작하거나 다시 로드하지 않았다.
+
+## 2026-09-24 모델 선택 확대와 Images 2.5 확인
+
+위 Astra/Sol 제한을 계정 카탈로그의 GPT-5.6 이상 모델로 확대했다. GPT-5.6 계열에만 기존 경고를 유지하며, 저장·IPC·실행에서도 같은 허용 조건을 사용한다. 실제 production component를 1600×980, 1240×760에서 확인했다.
+
+[OpenAI의 9월 8일 발표](https://openai.com/index/introducing-chatgpt-images-2-5/)는 Images 2.5 지원 대상에 Codex를 명시한다. 이전 안내 문서의 `gpt-image-2` 표기만으로 Codex가 2.5를 지원하지 않거나 별도 API 결제가 필수라고 결론 내리지 않는다.
+
+[Codex #43965](https://github.com/openai/codex/issues/43965)는 내장 도구의 모델 선택·실제 모델 반환 필드 부재를 보고한다. [#45452](https://github.com/openai/codex/issues/45452)는 2.5 Flare/Sunburst를 명시한 API 결과에도 C2PA `softwareAgent.version`이 `2.0`으로 기록됨을 비교하므로, 이 값은 실제 모델 버전의 검증 근거로 사용하지 않는다.
+
+[codex-sub-imagen](https://github.com/the-jey/codex-sub-imagen/blob/main/extensions/index.ts)의 Codex 로그인/Responses 요청 계약을 참고해 실제 이미지 모델 선택을 추가했다. `codex.imageGenerationModel`은 `gpt-image-2.5-flare`(기본), `gpt-image-2.5-sunburst`, `auto`(Codex 기본)를 저장한다. 기존 `codex.imageModel`은 작업을 지시하는 Codex 모델이며 별도로 유지한다.
+
+2.5 선택은 `codexImageResponses.ts`에서 `https://chatgpt.com/backend-api/codex/responses`의 이미지 도구 `model`에 전달한다. 기존 App Server가 계정을 확인·갱신하고 main 프로세스만 로그인 파일을 읽는다. 별도 API 키는 필요 없다. `auto`와 이미지 생성 없는 계획 단계는 기존 내장 도구를 사용한다. 0.156.1 내장 도구의 고정 `gpt-image-2` 값을 바이너리 수정이나 가상 설정으로 바꾸지 않는다. 이 ChatGPT 백엔드 계약은 공개 API의 호환성 보장이 없으므로 향후 변경 시 요청 오류를 그대로 표시하며 다른 모델로 자동 전환하지 않는다.
+
+원본 가리기 승인, 입력 이미지 순서, 크기 계산, 합성·정렬·마스크 알고리즘은 유지한다. 기존 계산 크기는 도구의 `size`로 전달한다. 세션 종료·작업 취소는 HTTP 스트림도 취소한다. 응답은 완료 이벤트뿐 아니라 `response.output_item.done`의 이미지도 수집하며, 완료 뒤 실패·거부 이벤트가 오면 성공으로 처리하지 않는다. 생성 결과는 기존 이미지 결과 계약으로 변환한다.
+
+이 PC의 기존 Codex 로그인으로 production transport를 실행해 Flare의 파란 원 생성과 Sunburst의 빨간 원 편집을 각각 한 번 성공했고 PNG를 직접 확인했다. 요청에 지정한 모델 ID와 성공 응답을 검증한 것이며 서버 내부 가중치를 독립적으로 증명했다고 주장하지 않는다. 증거는 `.tmp/codex-image-25-smoke/`의 두 PNG와 JSON이다. 이 시험은 라이브러리 페이지를 수정하지 않았다.
+
+실제 설정 컴포넌트에서 모델 선택·로그아웃 상태를 회귀 테스트하고 1600×980, 1240×760, 620×380 화면을 확인했다. 캡처는 `C:/tmp/codex-image-25-{wide,narrow,zoom}-20260924.png`에 보존한다. 임시 QA 엔트리는 제거했다.
+
+최종 focused 테스트 106개, build, 타입 검사, lint, architecture, 중복 검사와 CSS 검사는 통과했다. 전체 검사에는 같은 워크스페이스에서 병행 개발 중인 environment backup의 번역 키·테스트·정책·coverage inventory 오류가 남아 있으므로 전체 green으로 보고하지 않는다. 로그는 `.tmp/codex-image-25-{check-final,build,validation}.log`, focused 결과는 `.tmp/codex-image-25-focused-final.json`이다. 새 transport 두 파일의 coverage floor만 Windows 실측값으로 등록했으며 기존 floor는 내리지 않았다. 근거는 `.tmp/codex-image-25-coverage-20260924.json` (SHA-256 `d45808115d5121119c1df65822ba71202bf10f119f0561a54c87581c6a641ac0`)이다.

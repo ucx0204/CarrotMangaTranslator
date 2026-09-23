@@ -2032,6 +2032,11 @@
         "logoutFailed": "Codex 登出失敗。"
       },
       "imageReasoning": "圖像生成推理強度",
+      "imageGenerationModel": "圖像模型",
+      "imageGenerationAuto": "Codex 預設",
+      "imageGenerationAutoHint": "使用 Codex 內建圖像工具。",
+      "imageGenerationFlareHint": "適合快速產生與編輯圖像。",
+      "imageGenerationSunburstHint": "適合精細編輯圖像。",
       "imageModelWarning": "此模型可能無法正確完成圖像作業。強烈建議使用 Astra。",
       "modelUnavailable": "目前帳戶清單中沒有所選模型。已保留您的選擇。請重新登入或選擇可用模型。"
     },
@@ -2352,6 +2357,25 @@
       "localErasure": "預設原文清除",
       "codex": "Codex 圖像工具",
       "description": "獨立於翻譯引擎，用於清除原文及產生音效圖像。強烈建議使用 Astra。"
+    },
+    "backup": {
+      "title": "備份與移轉",
+      "description": "使用一個 ZIP 檔案將工作環境移轉到另一台電腦。",
+      "includes": "包含資料庫原圖與編輯資料、設定、自訂字型、預設和遮蓋草稿。",
+      "excludes": "不包含憑證、模型、執行工具及外部資料夾。請在新電腦登入並重新下載所需模型。",
+      "counts": "{{works}} 部作品 · {{pages}} 頁",
+      "dirty": "請先儲存或取消設定變更，再開始移轉。",
+      "export": "匯出備份",
+      "import": "匯入備份",
+      "recover": "還原先前的環境",
+      "confirmTitle": "確認還原環境",
+      "confirmDescription": "目前環境將保留在以下位置，然後取代並重新啟動應用程式。請重新連接外部資料夾與自訂模型。",
+      "apply": "保留目前環境並還原",
+      "close": "關閉",
+      "progress": "正在處理工作環境。完成前將暫停編輯。",
+      "cancel": "取消操作",
+      "saved": "備份已儲存：{{path}}",
+      "restored": "環境已還原。請檢查 API 金鑰、登入、外部資料夾、自訂模型路徑，並重新設定 API 自訂標頭與附加請求本文。"
     }
   },
   "pageBlocks": {
@@ -2423,6 +2447,8 @@
         "web-import-preview": "網頁匯入",
         "work-share-import": "共享檔案匯入",
         "work-share-export": "共享檔案匯出",
+        "environment-backup": "環境備份",
+        "environment-restore": "環境還原",
         "model-test": "模型檢查",
         "codex-auth": "ChatGPT 帳戶",
         "sound-effect-translation": "音效翻譯"

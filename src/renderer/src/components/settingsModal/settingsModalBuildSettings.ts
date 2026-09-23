@@ -72,6 +72,7 @@ export function buildSettingsFromDraft({
     codexReasoningEffort: values.codexReasoningEffort,
     codexImageReasoningEffort: values.codexImageReasoningEffort,
     codexImageModel: values.codexImageModel,
+    codexImageGenerationModel: values.codexImageGenerationModel,
     ...buildInternetResearchFields(draft, values),
     apiBaseUrl: draft.normalizedApiBaseUrl ?? initialSettings.api.baseUrl,
     apiProvider: values.apiProvider,

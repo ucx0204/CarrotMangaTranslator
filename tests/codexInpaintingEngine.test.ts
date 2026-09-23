@@ -327,9 +327,18 @@ afterEach(async () => {
     await rm(dir, { recursive: true, force: true });
 });
 
-it.each([undefined, "max"] as const)(
-  "routes image effort independently of text effort (%s)",
-  async (imageEffort) => {
+it.each([
+  ["gpt-6-astra", undefined],
+  ["gpt-6-astra", "max"],
+  ["gpt-6-sol", "low"],
+  ["gpt-6-luna", "max"],
+  ["gpt-5.6-sol", "low"],
+  ["gpt-5.6-terra", "high"],
+  ["gpt-5.6-luna", "max"],
+  ["gpt-5.5", "low"],
+] as const)(
+  "enforces image model %s and independent effort %s",
+  async (imageModel, imageEffort) => {
     const fixture = await setup();
     const dispose = vi.fn(async () => {});
     // App Server is the external image-generation boundary; raster composition remains real.
@@ -343,7 +352,7 @@ it.each([undefined, "max"] as const)(
       }),
       listModels: async () => [
         {
-          id: "gpt-6-astra",
+          id: imageModel,
           displayName: "GPT-6-Astra",
           hidden: false,
           isDefault: true,
@@ -362,14 +371,25 @@ it.each([undefined, "max"] as const)(
       ...settings.codex,
       model: "gpt-6-astra",
       reasoningEffort: "high",
+      imageModel,
       imageReasoningEffort: imageEffort,
+      imageGenerationModel: "auto",
     };
     const signal = new AbortController().signal;
-    const lease = await acquireCodexInpaintingEngine(
+    const acquisition = acquireCodexInpaintingEngine(
       { dataRoot: fixture.directory } as AppPaths,
       settings,
       signal,
     );
+    if (imageModel === "gpt-5.5") {
+      await expect(acquisition).rejects.toThrow(
+        "선택한 Codex 이미지 작업 모델을 지원하지 않습니다.",
+      );
+      expect(fixture.turn).not.toHaveBeenCalled();
+      expect(dispose).toHaveBeenCalledOnce();
+      return;
+    }
+    const lease = await acquisition;
     await lease.engine.inpaint(
       fixture.bitmap,
       192,
@@ -383,7 +403,7 @@ it.each([undefined, "max"] as const)(
     );
     expect(fixture.turn).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "gpt-6-astra",
+        model: imageModel,
         effort: imageEffort ?? "low",
       }),
     );

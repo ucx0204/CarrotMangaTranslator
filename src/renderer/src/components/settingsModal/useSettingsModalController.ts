@@ -72,6 +72,7 @@ export function useSettingsModalController({
   });
   const formatPanelTitle = resolveFormatPanelTitle(state, t);
   return buildSettingsModalViewProps({
+    isDirty: state.isDirty,
     activeTab: state.activeTab,
     canSubmit: submission.canSubmit,
     controlsBusy: state.controlsBusy,

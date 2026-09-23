@@ -1,3 +1,4 @@
+import type { CodexImageGenerationModel } from "../../../shared/codexSettings";
 import type {
   AppSettings,
   ApiReasoningEffort,
@@ -60,6 +61,7 @@ type BuildSettingsFromFormInput = {
   codexReasoningEffort: CodexReasoningEffort;
   codexImageReasoningEffort: CodexReasoningEffort;
   codexImageModel?: string;
+  codexImageGenerationModel?: CodexImageGenerationModel;
   researchTavilyAnalysisProvider: TavilyAnalysisProvider;
   researchGemmaPreset: ResearchGemmaPreset;
   researchGemmaReasoningEffort: ResearchGemmaReasoningEffort;
@@ -131,6 +133,8 @@ export function buildSettingsFromForm(
       reasoningEffort: input.codexReasoningEffort,
       imageReasoningEffort: input.codexImageReasoningEffort,
       imageModel: input.codexImageModel ?? "gpt-6-astra",
+      imageGenerationModel:
+        input.codexImageGenerationModel ?? "gpt-image-2.5-flare",
     },
     internetResearch: {
       tavilyAnalysisProvider: input.researchTavilyAnalysisProvider,

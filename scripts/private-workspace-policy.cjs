@@ -6,6 +6,7 @@ const FORBIDDEN_ROOT_DIRECTORIES = Object.freeze([
   ".pytest_cache",
   ".ruff_cache",
   ".settings-pairs",
+  ".environment-backup",
   "codex",
   "cache",
   "external-image-copies",
@@ -26,6 +27,7 @@ const FORBIDDEN_ROOT_FILES = Object.freeze([
   "panel-window-bounds.json",
   "recent-dialog-paths.json",
   "settings.commit.json",
+  "migration-ui.json",
   "settings.json",
   "settings.secrets.json",
 ]);

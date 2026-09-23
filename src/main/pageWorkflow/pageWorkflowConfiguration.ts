@@ -38,6 +38,7 @@ export function workflowConfigurationKeys(
     erase: hashStableValue([
       settings.inpainting,
       settings.codex.imageModel,
+      settings.codex.imageGenerationModel,
       settings.codex.imageReasoningEffort,
     ]),
     layout: hashStableValue([settings.translation?.targetLanguage]),

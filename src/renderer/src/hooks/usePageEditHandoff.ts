@@ -98,9 +98,21 @@ export function usePageInputActivity(
 export function usePageEditHandoff(
   state: AppActivityState | null,
   savePage: (chapterId: string, pageId: string) => Promise<void>,
+  current?: { chapterId: string; pageIds: string[] },
 ): void {
   const pending = useRef(new Set<string>());
   const flush = useEventCallback(savePage);
+  const flushEnvironment = useEventCallback(async () => {
+    if (!current) return;
+    for (const pageId of current.pageIds) {
+      await pendingPageEdits.flushEditors(current.chapterId, pageId);
+      await flush(current.chapterId, pageId);
+    }
+  });
+  useEffect(
+    () => pendingPageEdits.registerEnvironmentFlusher(flushEnvironment),
+    [flushEnvironment],
+  );
   useEffect(() => {
     const activeRequests = new Set(state?.pages.map((page) => page.requestId));
     for (const id of pending.current)

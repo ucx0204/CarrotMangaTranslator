@@ -1,7 +1,7 @@
 import type { CodexAccountSnapshot } from "./codexAccountTypes";
 import type { AppSettings } from "./settingsTypes";
 import { CODEX_TYPESETTING_MODEL } from "./codexTypesettingDefaults";
-import { CODEX_IMAGE_MODELS } from "./codexSettings";
+import { isCodexImageModel } from "./codexSettings";
 
 export function canUseCodexImages(
   settings: Pick<AppSettings, "modelProvider" | "codex"> | null,
@@ -25,11 +25,7 @@ function codexImageAvailability(
   if (!settings || !account) return "checking";
   if (!account.authenticated || account.accountKind !== "chatgpt")
     return "disconnected";
-  if (
-    !CODEX_IMAGE_MODELS.some(
-      (id) => id === (settings.codex.imageModel ?? CODEX_TYPESETTING_MODEL),
-    )
-  )
+  if (!isCodexImageModel(settings.codex.imageModel ?? CODEX_TYPESETTING_MODEL))
     return "model-unavailable";
   const model = account.models.find(
     (item) =>

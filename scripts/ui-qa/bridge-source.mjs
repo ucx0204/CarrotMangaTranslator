@@ -88,13 +88,19 @@ const bridgeTemplate = `(() => {
       isDefault: false,
     },
   ];
+  codexModels.push(...["gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra"].map((id) => ({
+    ...codexModels[0],
+    id,
+    displayName: id.replace("gpt", "GPT"),
+    isDefault: false,
+  })));
   const signedInCodexAccount = {
     authenticated: true,
     accountKind: "chatgpt",
     email: "reader@example.com",
     planType: "plus",
     requiresOpenaiAuth: true,
-    appServerVersion: "0.154.0",
+    appServerVersion: "0.156.1",
     models: codexModels,
   };
   let codexAccount = signedInCodexAccount;
@@ -106,6 +112,13 @@ const bridgeTemplate = `(() => {
     sequences: conditionalBatchSequences,
   });
   const implementations = {
+    getEnvironmentRestoreReceipt: async () => null,
+    previewEnvironmentBackup: async () => ({ id: "11111111-1111-4111-8111-111111111111", createdAt: "2026-09-24T10:30:00.000Z", appVersion: "2.8.0", works: 12, pages: 842, bytes: 900000000, recoveryPath: "D:/CarrotData/.environment-backup/recovery/11111111-1111-4111-8111-111111111111", connections: ["E:/Manga/Originals"] }),
+    discardEnvironmentBackup: async () => null,
+    exportEnvironmentBackup: async () => "D:/Backups/Carrot-backup.zip",
+    restoreEnvironmentBackup: async () => null,
+    recoverEnvironmentBackup: async () => null,
+    getEnvironmentBackupStatus: async () => ({ summary: { works: 12, pages: 842, bytes: 900000000 }, recoveries: [], restored: null }),
     getAppActivities: async () => ({ version: 0, activities: [], pages: [] }),
     getActiveJobs: async () => [],
     getSoundEffectImageRecovery: async () => null,

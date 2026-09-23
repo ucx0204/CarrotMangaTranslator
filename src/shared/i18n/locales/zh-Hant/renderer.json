@@ -533,7 +533,9 @@
         "shareExport": "建立共享檔案",
         "modelTest": "檢查模型與執行環境",
         "codexAuth": "連接 ChatGPT 帳戶",
-        "background": "背景工作"
+        "background": "背景工作",
+        "environmentBackup": "匯出備份",
+        "environmentRestore": "匯入備份"
       },
       "source": {
         "files": "檔案",

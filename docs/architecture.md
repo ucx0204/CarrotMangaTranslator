@@ -259,3 +259,14 @@ ControlTooltip의 파일별 fan-in은 37으로 기록하며 범용 상한은 유
 새 portal 구현의 최초 커버리지는 `.tmp/ui-tooltip-coverage/coverage-summary.json`
 (SHA-256 `4e7ab21464ffa447df020ab126db11ff27553731bee146209ade96abe2f95199`)의
 파일별 측정값이다. 기존 ControlTooltip의 100% 보호 기준은 유지한다.
+
+## 작업 환경 백업
+
+환경 이관은 application service가 내보내기·사전 검사·복원 순서를 소유하고,
+파일 및 Electron adapter가 효과를 실행한다. 기존 mutation suspension과 activity gate를
+재사용하며 새 보관함 잠금은 만들지 않는다. IPC의 진행 중 저장도 배출한 뒤 스냅샷을 만든다.
+체크포인트의 유효한 input revision만 기존 createPageRevision으로 재결합하며
+원래 stale인 체크포인트를 유효하게 승격하지 않는다. 알고리즘은 이동하지 않는다.
+원자적 JSON 저장 소비 상한 33, pageRevision 35, library facade 33,
+IPC 등록 import 25, trusted IPC 소비 27은 이 기능의 직접 재사용에 한해 기록한다.
+환경 왕복 및 교체 단계별 복구 테스트가 저장 동작을 고정한다.

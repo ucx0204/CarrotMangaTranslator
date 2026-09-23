@@ -8,7 +8,12 @@ export function useContextRailExpansion(chapterId: string | undefined) {
   React.useEffect(() => {
     if (!contextExpanded) return;
     const closeOnEscape = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        document.querySelector('[role="dialog"][aria-modal="true"]')
+      )
+        return;
       setContextExpanded(false);
       toggleRef.current?.focus();
     };

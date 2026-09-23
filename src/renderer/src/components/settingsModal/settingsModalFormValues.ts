@@ -1,3 +1,4 @@
+import type { CodexImageGenerationModel } from "../../../../shared/codexSettings";
 import type {
   ApiReasoningEffort,
   AppSettings,
@@ -70,6 +71,7 @@ export type SettingsFormValues = {
   codexReasoningEffort: CodexReasoningEffort;
   codexImageReasoningEffort: CodexReasoningEffort;
   codexImageModel: string;
+  codexImageGenerationModel: CodexImageGenerationModel;
   researchTavilyAnalysisProvider: TavilyAnalysisProvider;
   researchGemmaPreset: ResearchGemmaPreset;
   researchGemmaReasoningEffort: ResearchGemmaReasoningEffort;
@@ -216,6 +218,7 @@ function resolveModelFormValues(
   | "codexReasoningEffort"
   | "codexImageReasoningEffort"
   | "codexImageModel"
+  | "codexImageGenerationModel"
 > {
   return {
     modelSource: settings.gemma.modelSource,
@@ -235,6 +238,8 @@ function resolveModelFormValues(
     codexModel: settings.codex.model,
     codexImageReasoningEffort: settings.codex.imageReasoningEffort ?? "low",
     codexImageModel: settings.codex.imageModel ?? "gpt-6-astra",
+    codexImageGenerationModel:
+      settings.codex.imageGenerationModel ?? "gpt-image-2.5-flare",
     codexReasoningEffort: resolveCodexReasoningEffortForModel(
       settings.codex.model,
       settings.codex.reasoningEffort,

@@ -1,5 +1,15 @@
 /** Tracks durable editor work separately from gestures, so handoff cannot overtake a brush IPC. */
 class PageEditBarrier {
+  private environmentFlushers = new Set<() => Promise<void>>();
+  registerEnvironmentFlusher(flush: () => Promise<void>): () => void {
+    this.environmentFlushers.add(flush);
+    return () => {
+      this.environmentFlushers.delete(flush);
+    };
+  }
+  async flushEnvironment(): Promise<void> {
+    await Promise.all([...this.environmentFlushers].map((flush) => flush()));
+  }
   private readonly counts = new Map<string, number>();
   private readonly failures = new Map<string, unknown>();
   private readonly listeners = new Set<() => void>();

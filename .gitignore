@@ -86,3 +86,7 @@ recent-dialog-paths.json
 /cache/font-chapter-assets/
 /image-redactions.json
 /external-image-copies/
+
+# Private environment backups and restore UI receipt
+/.environment-backup/
+/migration-ui.json

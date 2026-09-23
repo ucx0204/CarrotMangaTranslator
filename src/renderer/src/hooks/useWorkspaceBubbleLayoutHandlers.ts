@@ -397,7 +397,8 @@ function useBubbleLayoutKeyboardShortcuts({
   useEffect(() => {
     if (!active) return;
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (isTextEntryTarget(event.target)) return;
+      if (event.defaultPrevented || isTextEntryTarget(event.target)) return;
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
       if (event.key === "Enter") {
         event.preventDefault();
         applyBubbleLayoutDraft();

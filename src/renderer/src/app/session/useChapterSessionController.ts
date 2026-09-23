@@ -84,7 +84,16 @@ export function useChapterSessionController() {
     statusLog,
     uiState,
   });
-  usePageEditHandoff(activities, runtime.persistence.savePageNow);
+  usePageEditHandoff(
+    activities,
+    runtime.persistence.savePageNow,
+    core.currentChapter
+      ? {
+          chapterId: core.currentChapter.id,
+          pageIds: core.currentChapter.pages.map((page) => page.id),
+        }
+      : undefined,
+  );
 
   return {
     ...modalController,

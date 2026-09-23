@@ -533,7 +533,9 @@
         "shareExport": "Create shared file",
         "modelTest": "Check model and runtime",
         "codexAuth": "Connect ChatGPT account",
-        "background": "Background task"
+        "background": "Background task",
+        "environmentBackup": "Export backup",
+        "environmentRestore": "Import backup"
       },
       "source": {
         "files": "file",

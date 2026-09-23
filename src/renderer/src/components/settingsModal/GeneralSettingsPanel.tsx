@@ -1,3 +1,4 @@
+import { EnvironmentBackupSection } from "./EnvironmentBackupSection";
 import React from "react";
 import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
@@ -15,6 +16,8 @@ export type GeneralSettingsPanelProps = {
   locale: UiLocale;
   wheelZoomSensitivityPercent: WheelZoomSensitivityPercent;
   disabled: boolean;
+  backupDisabled?: boolean;
+  dirty?: boolean;
   onLocaleChange: (locale: UiLocale) => void;
   onWheelZoomSensitivityPercentChange: (
     value: WheelZoomSensitivityPercent,
@@ -25,6 +28,8 @@ export function GeneralSettingsPanel({
   locale,
   wheelZoomSensitivityPercent,
   disabled,
+  backupDisabled,
+  dirty,
   onLocaleChange,
   onWheelZoomSensitivityPercentChange,
 }: GeneralSettingsPanelProps): React.JSX.Element {
@@ -74,6 +79,10 @@ export function GeneralSettingsPanel({
           />
         </ControlTooltip>
       </SettingsSection>
+      <EnvironmentBackupSection
+        disabled={disabled || Boolean(backupDisabled)}
+        dirty={dirty}
+      />
     </div>
   );
 }

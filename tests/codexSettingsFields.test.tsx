@@ -1,3 +1,4 @@
+import type { CodexImageGenerationModel } from "../src/shared/codexSettings";
 // @vitest-environment jsdom
 
 import React from "react";
@@ -91,6 +92,72 @@ afterEach(() => {
 });
 
 describe("CodexSettingsFields", () => {
+  it("offers all GPT-5.6+ image controllers and warns only for GPT-5.6", async () => {
+    const models = [
+      "gpt-6-astra",
+      "gpt-6-sol",
+      "gpt-6-luna",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+    ];
+    accountGateway.get.mockResolvedValue({
+      ...signedInAccount,
+      models: [
+        catalog[1],
+        ...models.map((id) => ({ ...catalog[0], id, displayName: id })),
+      ],
+    });
+    render(
+      <Harness initialModel="gpt-5.6-sol" initialEffort="high" imageOnly />,
+    );
+    await screen.findByText("reader@example.com");
+    expect(customSelectOptionValues("Codex 모델")).toEqual(models);
+    for (const id of models) {
+      chooseCustomSelectOption("Codex 모델", id);
+      expect(screen.getByTestId("image-model").textContent).toBe(id);
+      expect(Boolean(screen.queryByText(/이미지 작업이 제대로 동작하지/))).toBe(
+        id.startsWith("gpt-5.6-"),
+      );
+      expect(screen.getByTestId("selected-model").textContent).toBe(
+        "gpt-5.6-sol",
+      );
+      expect(screen.getByTestId("selected-effort").textContent).toBe("high");
+    }
+  });
+  it("selects the image backend independently and preserves it after logout", async () => {
+    render(
+      <Harness initialModel="gpt-5.6-sol" initialEffort="high" imageOnly />,
+    );
+    await screen.findByText("reader@example.com");
+    expect(customSelectOptionValues("이미지 모델")).toEqual([
+      "auto",
+      "gpt-image-2.5-flare",
+      "gpt-image-2.5-sunburst",
+    ]);
+    for (const [label, value] of [
+      ["GPT Image 2.5 Sunburst", "gpt-image-2.5-sunburst"],
+      ["Codex 기본", "auto"],
+      ["GPT Image 2.5 Flare", "gpt-image-2.5-flare"],
+    ]) {
+      chooseCustomSelectOption("이미지 모델", label);
+      expect(screen.getByTestId("generation-model").textContent).toBe(value);
+      expect(screen.getByTestId("image-model").textContent).toBe("gpt-6-astra");
+      expect(screen.getByTestId("selected-model").textContent).toBe(
+        "gpt-5.6-sol",
+      );
+    }
+    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
+    await screen.findByText("로그인되지 않음");
+    expect(
+      screen
+        .getByRole("combobox", { name: "이미지 모델" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    expect(screen.getByTestId("generation-model").textContent).toBe(
+      "gpt-image-2.5-flare",
+    );
+  });
   it("keeps Astra image effort independent and starts at low", async () => {
     accountGateway.get.mockResolvedValue({
       ...signedInAccount,
@@ -453,6 +520,8 @@ function Harness({
 }): React.JSX.Element {
   const [model, setModel] = React.useState(initialModel);
   const [effort, setEffort] = React.useState(initialEffort);
+  const [generationModel, setGenerationModel] =
+    React.useState<CodexImageGenerationModel>("gpt-image-2.5-flare");
   const [imageModel, setImageModel] = React.useState("gpt-6-astra");
   const [imageEffort, setImageEffort] =
     React.useState<CodexReasoningEffort>("low");
@@ -465,12 +534,15 @@ function Harness({
         codexReasoningEffort={effort}
         codexImageReasoningEffort={imageEffort}
         codexImageModel={imageModel}
+        codexImageGenerationModel={generationModel}
+        setCodexImageGenerationModel={setGenerationModel}
         setCodexImageModel={setImageModel}
         setCodexImageReasoningEffort={setImageEffort}
         controlsBusy={busy}
         setCodexModel={setModel}
         setCodexReasoningEffort={setEffort}
       />
+      <output data-testid="generation-model">{generationModel}</output>
       <output data-testid="image-effort">{imageEffort}</output>
       <output data-testid="image-model">{imageModel}</output>
       <output data-testid="selected-model">{model}</output>

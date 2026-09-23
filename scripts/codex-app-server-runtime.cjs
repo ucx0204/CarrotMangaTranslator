@@ -1,7 +1,7 @@
 const { existsSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 
-const CODEX_APP_SERVER_VERSION = "0.154.0";
+const CODEX_APP_SERVER_VERSION = "0.156.1";
 // Match the application's RPC budget; callers also allow both requests and cleanup.
 const CODEX_APP_SERVER_SMOKE_RPC_TIMEOUT_MS = 30_000;
 const CODEX_APP_SERVER_SMOKE_TIMEOUT_MS =

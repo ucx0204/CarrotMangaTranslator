@@ -1,3 +1,4 @@
+import { registerEnvironmentBackupIpc } from "./environmentBackupIpc";
 import type { IpcContext } from "./context";
 import { registerPageWorkflowIpc } from "./pageWorkflowIpc";
 import { disposeImportPreviewSessions } from "./importPreviewSessionStore";
@@ -70,6 +71,7 @@ export function createImportRuntimeResources({
 }
 
 export function registerIpc(context: IpcContext): void {
+  registerEnvironmentBackupIpc(context);
   registerPageWorkflowIpc(context);
   registerAppOperationIpc(context);
   registerBlockLibraryIpc(context);

@@ -1,3 +1,4 @@
+import { restoreBackupPreferences } from "./lib/environmentBackupPreferences";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -32,6 +33,13 @@ async function bootstrapRenderer(root: HTMLElement): Promise<void> {
   await initializeAppI18n(locale);
   const errorReportWindow = window.location.hash === "#error-report";
   const panelId = parsePanelRoute(window.location.hash);
+  if (!errorReportWindow && !panelId) {
+    try {
+      await restoreBackupPreferences();
+    } catch (error) {
+      console.error("Could not load restored UI preferences", error);
+    }
+  }
   createRoot(root).render(
     <React.StrictMode>
       <AppI18nProvider>

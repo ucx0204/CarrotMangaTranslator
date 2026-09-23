@@ -61,9 +61,8 @@ export function useSoundEffectTranslationModalState(
     jobActive: input.jobActive,
     onRestore: input.onRestore,
   });
-  useDeleteSelectedRegionOnKeyboard({
+  const onKeyDown = useDeleteSelectedRegionOnKeyboard({
     jobActive: input.jobActive || resetReview.busy,
-    onClose: input.onClose,
     selectedRegion,
     setDraftPages,
     setSelectedRegion,
@@ -105,6 +104,7 @@ export function useSoundEffectTranslationModalState(
     autoFontMatching,
     includedCount,
     inpaintAfterTranslation,
+    onKeyDown,
     resetReview,
     saveDefaults,
     setAutoFontMatching,
@@ -147,20 +147,19 @@ function useSoundEffectDraft(chapter: ChapterSnapshot) {
 
 function useDeleteSelectedRegionOnKeyboard({
   jobActive,
-  onClose,
   selectedRegion,
   setDraftPages,
   setSelectedRegion,
 }: {
   jobActive: boolean;
-  onClose: () => void;
   selectedRegion: SelectedSoundEffectDraftRegion;
   setDraftPages: React.Dispatch<React.SetStateAction<SoundEffectDraftPage[]>>;
   setSelectedRegion: (selection: SelectedSoundEffectDraftRegion) => void;
-}): void {
-  React.useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (jobActive) return;
+}): React.KeyboardEventHandler<HTMLDivElement> {
+  return React.useCallback(
+    (event) => {
+      if (jobActive || event.defaultPrevented || event.nativeEvent.isComposing)
+        return;
       const deletesSelection =
         event.key === "Escape" ||
         event.key === "Delete" ||
@@ -169,15 +168,9 @@ function useDeleteSelectedRegionOnKeyboard({
       if (event.key !== "Escape" && isEditableKeyboardTarget(event.target)) {
         return;
       }
-      if (!selectedRegion) {
-        if (event.key !== "Escape") return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        onClose();
-        return;
-      }
+      if (!selectedRegion) return;
       event.preventDefault();
-      event.stopImmediatePropagation();
+      event.stopPropagation();
       setDraftPages((current) =>
         updateDraftRegion(
           current,
@@ -187,10 +180,9 @@ function useDeleteSelectedRegionOnKeyboard({
         ),
       );
       setSelectedRegion(null);
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [jobActive, onClose, selectedRegion, setDraftPages, setSelectedRegion]);
+    },
+    [jobActive, selectedRegion, setDraftPages, setSelectedRegion],
+  );
 }
 
 function isEditableKeyboardTarget(target: EventTarget | null): boolean {

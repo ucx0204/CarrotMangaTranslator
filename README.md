@@ -6,7 +6,7 @@
 
 **한국어** · [English](README.en.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**[v2.8.0 다운로드](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.8.0)** · [변경 사항](docs/release-notes/v2.8.0.md) · [오류·제안](https://github.com/ucx0204/CarrotMangaTranslator/issues)
+**[v2.8.1 다운로드](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.8.1)** · [변경 사항](docs/release-notes/v2.8.1.md) · [오류·제안](https://github.com/ucx0204/CarrotMangaTranslator/issues)
 
 [처음 시작](#start) · [텍스트 편집](#edit) · [효과음 ImageGen](#sfx) · [단축키](#shortcuts) · [문제 해결](#troubleshooting)
 
@@ -396,6 +396,12 @@ HayaiOCR이 찾은 효과음 후보는 대사와 별도로 검토할 수 있습�
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | 원고 이미지, 블록·읽기 순서·서식, 인페인팅 결과 등 작업 데이터 | 앱 설정, ChatGPT 로그인·API 키, AI/OCR 모델·런타임, 로그. 필요한 폰트도 사용 환경에서 확인 |
 
+**설정 → 일반 → 백업 및 이관**에서 작업 환경을 ZIP 하나로 내보내고 새 PC에서 가져올 수 있습니다. 보관함 원본·편집 데이터·재개용 체크포인트, 설정, 추가 폰트, 프리셋과 가리기 초안을 포함합니다. 가져오기는 먼저 검증한 뒤 기존 환경을 보존하고 앱을 재시작해 교체합니다. 같은 화면에서 이전 환경으로 되돌릴 수 있으며, 복구용 환경은 자동 삭제하지 않습니다.
+
+API 키·로그인 세션·서비스 계정 파일, API 사용자 지정 헤더와 추가 요청 본문, 모델·실행 도구·로그·캐시는 백업하지 않습니다. 복원 후 인증과 PC별 모델·GPU 설정을 확인하세요. 외부 연결 폴더와 별도 출력 파일은 따로 옮긴 뒤 다시 연결해야 하며, 동기화 대기열은 이관하지 않습니다. 백업에는 개인 원본과 번역이 포함되며 암호화된 공유 파일이 아닙니다.
+
+수동으로는 앱을 종료하고 `library` 전체를 새 설치가 사용하는 실제 데이터 폴더에 복사하면 보관함 이미지 경로를 보정해 읽습니다. 이것만으로 설정·폰트까지 이관되지는 않습니다. API 키는 OS에 묶인 암호화 저장소를 사용하므로 설정 관련 파일을 그대로 복사해도 다른 PC에서 인증을 복원할 수 있다고 보장하지 않습니다.
+
 전체 환경을 보관하려면 앱을 닫은 뒤 **데이터 폴더를 백업**하세요. `library`는 작품 원본과 편집 데이터이므로 삭제할 캐시가 아닙니다. 설정·폰트·로그·모델 캐시와 구분하고, 원본과 출력물을 따로 보존하세요. macOS 기본 데이터 위치는 `~/Library/Application Support/manga-gemma-translator`입니다.
 
 외부 엔진은 요청에 필요한 이미지·텍스트·문맥을 해당 서비스로 보낼 수 있습니다. 로그에도 경로나 원고 내용 일부가 포함될 수 있으므로 공유 전 확인하세요. 오류 보고서는 자동 업로드되지 않습니다. [개인정보 안내](docs/privacy-policy.md) · [보안 정책](SECURITY.md)
@@ -464,6 +470,6 @@ npm run dev
 - Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
 - 앱 소스는 [GPL-3.0-only](LICENSE)입니다. 폰트·모델·런타임 등은 각각의 배포 조건을 확인하세요.
 
-이 문서는 v2.8.0를 기준으로 합니다. 화면은 실제 앱 컴포넌트에 예제 데이터를 넣어 캡처했습니다. 예제 원고·번역은 기능 설명용이며 모델 성능 비교 자료가 아닙니다. [캡처와 예제 출처](docs/images/readme-v2712/README.md)
+이 문서는 v2.8.1를 기준으로 합니다. 화면은 실제 앱 컴포넌트에 예제 데이터를 넣어 캡처했습니다. 예제 원고·번역은 기능 설명용이며 모델 성능 비교 자료가 아닙니다. [캡처와 예제 출처](docs/images/readme-v2712/README.md)
 
 [처음으로](#start)

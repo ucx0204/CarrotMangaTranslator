@@ -1,0 +1,42 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  font-size: var(--font-sm);
+  font-weight: 400;
+  line-height: 1.48;
+}
+.content p {
+  margin: 0;
+  line-height: inherit;
+}
+.muted {
+  color: var(--text-muted);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-block: var(--sp-4);
+  border-block: 1px solid var(--border-soft);
+}
+.path {
+  overflow-wrap: anywhere;
+}
+.confirm strong {
+  font-size: inherit;
+  font-weight: 600;
+}
+.recovery {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}

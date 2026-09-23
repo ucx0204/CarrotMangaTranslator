@@ -147,6 +147,27 @@ import type {
 } from "./conditionalBatchExchangeTypes";
 
 export type MangaApi = {
+  discardEnvironmentBackup: (id: string) => Promise<null>;
+  getEnvironmentRestoreReceipt: () => Promise<
+    import("./environmentBackup").BackupStatus["restored"]
+  >;
+  getEnvironmentBackupStatus: () => Promise<
+    import("./environmentBackup").BackupStatus
+  >;
+  exportEnvironmentBackup: (
+    ui: import("./environmentBackup").BackupUiPreferences,
+  ) => Promise<string | null>;
+  previewEnvironmentBackup: () => Promise<
+    import("./environmentBackup").BackupPreview | null
+  >;
+  restoreEnvironmentBackup: (
+    id: string,
+    ui: import("./environmentBackup").BackupUiPreferences,
+  ) => Promise<null>;
+  recoverEnvironmentBackup: (
+    id: string,
+    ui: import("./environmentBackup").BackupUiPreferences,
+  ) => Promise<null>;
   preflightPageWorkflow: (
     request: import("./pageWorkflowTypes").PageWorkflowRequest,
   ) => Promise<import("./pageWorkflowTypes").PageWorkflowPreflight>;

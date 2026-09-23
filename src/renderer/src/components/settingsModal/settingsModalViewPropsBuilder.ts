@@ -17,6 +17,7 @@ import type { SettingsRuntimeGuards } from "./useSettingsRuntimeGuards";
 import type { useSettingsTestState } from "./useSettingsTestState";
 
 type SettingsModalViewPropsInput = {
+  isDirty?: boolean;
   activeTab: SettingsTabId;
   canSubmit: boolean;
   controlsBusy: boolean;
@@ -43,6 +44,7 @@ type SettingsModalViewPropsInput = {
 };
 
 export function buildSettingsModalViewProps({
+  isDirty,
   activeTab,
   canSubmit,
   controlsBusy,
@@ -81,7 +83,7 @@ export function buildSettingsModalViewProps({
     submissionIssue: getSettingsSubmissionIssue(form.values, draft, t),
     controlsBusy,
     defaultsPreviewActive,
-    generalPanelProps: buildGeneralPanelProps(controlsBusy, form),
+    generalPanelProps: generalProps(controlsBusy, form, isDirty, jobActive),
     enginePanelProps,
     researchPanelProps: buildResearchPanelProps({
       controlsBusy,
@@ -121,11 +123,15 @@ export function buildSettingsModalViewProps({
   };
 }
 
-function buildGeneralPanelProps(
+function generalProps(
   controlsBusy: boolean,
   form: ReturnType<typeof useSettingsFormState>,
+  dirty = false,
+  backupDisabled = false,
 ): SettingsModalViewProps["generalPanelProps"] {
   return {
+    dirty,
+    backupDisabled,
     disabled: controlsBusy,
     locale: form.values.uiLocale,
     wheelZoomSensitivityPercent: form.values.wheelZoomSensitivityPercent,

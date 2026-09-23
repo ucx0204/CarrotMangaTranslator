@@ -1,3 +1,4 @@
+import { trackEnvironmentAccess } from "../environmentBackup/access";
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import type { IpcContract } from "../../shared/ipcContracts";
 import { isAllowedMainWindowNavigation } from "../mainWindow";
@@ -48,7 +49,7 @@ function trustedHandle(
     channel,
     async (event: IpcMainInvokeEvent, ...args: unknown[]) => {
       assertTrustedIpcSender(event, context, runtime);
-      return listener(event, ...args);
+      return trackEnvironmentAccess(channel, () => listener(event, ...args));
     },
   );
 }
@@ -91,7 +92,9 @@ export function registeredRendererHandleContract<
     async (event: IpcMainInvokeEvent, ...args: unknown[]) => {
       assertRegisteredRendererIpcSender(event, context, runtime);
       const parsedArgs = contract.args.parse(args) as TArgs;
-      const result = await listener(event, ...parsedArgs);
+      const result = await trackEnvironmentAccess(contract.channel, () =>
+        listener(event, ...parsedArgs),
+      );
       return contract.result.parse(result) as TResult;
     },
   );

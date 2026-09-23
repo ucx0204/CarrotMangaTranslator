@@ -19,6 +19,7 @@ import {
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import type { AppActivityState } from "../src/shared/appActivityTypes";
 import { RichTranslationEditor } from "../src/renderer/src/components/RichTranslationEditor";
+import { Modal } from "../src/renderer/src/components/ui/Modal";
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 import { makeBlock } from "./helpers/workspacePointerFixtures";
@@ -60,6 +61,22 @@ afterEach(() => {
 });
 
 describe("rich translation editor hook boundaries", () => {
+  it("closes special characters before the enclosing editor modal", () => {
+    const onClose = vi.fn();
+    const view = render(
+      <Modal title="Edit block" onClose={onClose}>
+        <EditorFixture value="Translation" onChange={vi.fn()} />
+      </Modal>,
+    );
+    const trigger = view.getByRole("button", { name: /기호|특수문자/ });
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
   it("refreshes scaled glyph advances after font loading without changing text or selection", () => {
     const fontsDescriptor = Object.getOwnPropertyDescriptor(document, "fonts");
     const fonts = new EventTarget();

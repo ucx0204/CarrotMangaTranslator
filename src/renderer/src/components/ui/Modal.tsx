@@ -43,6 +43,7 @@ type ModalAccessibleName =
 export type ModalProps = ModalAccessibleName & {
   /** Called by the close button, Esc, and backdrop click (when enabled). Omit to hide the close button. */
   onClose?: () => void;
+  onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>;
   /** Called once the card's entrance animation has fully completed. */
   onEntered?: () => void;
   /**
@@ -173,7 +174,11 @@ function ModalCard({
       {...resolveModalAccessibleName(title, props.ariaLabel, titleId)}
       tabIndex={-1}
       onAnimationEnd={handleCardAnimationEnd}
-      onKeyDown={handleCardKeyDown}
+      onKeyDown={(event) => {
+        if (!isTopModal(modalId)) return;
+        props.onKeyDown?.(event);
+        if (!event.defaultPrevented) handleCardKeyDown(event);
+      }}
       onMouseDown={(event) => event.stopPropagation()}
     >
       {showHeader ? (
@@ -263,7 +268,13 @@ function useModalEscapeClose({
       return;
     }
     const handle = (event: KeyboardEvent): void => {
-      if (event.key === "Escape" && isTopModal(modalId)) {
+      if (
+        event.key === "Escape" &&
+        !event.defaultPrevented &&
+        isTopModal(modalId)
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
         requestClose();
       }
     };

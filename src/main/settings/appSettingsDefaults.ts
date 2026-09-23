@@ -208,6 +208,7 @@ function resolveDefaultCodexSettings(
   return {
     imageReasoningEffort: "low",
     imageModel: "gpt-6-astra",
+    imageGenerationModel: "gpt-image-2.5-flare",
     model: resolveNonEmptyString(
       env.MANGA_TRANSLATOR_CODEX_MODEL,
       DEFAULT_CODEX_MODEL,

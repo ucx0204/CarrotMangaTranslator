@@ -533,7 +533,9 @@
         "shareExport": "共有ファイルを作成",
         "modelTest": "モデルとランタイムを確認",
         "codexAuth": "ChatGPTアカウント接続",
-        "background": "バックグラウンド処理"
+        "background": "バックグラウンド処理",
+        "environmentBackup": "バックアップを書き出す",
+        "environmentRestore": "バックアップを読み込む"
       },
       "source": {
         "files": "ファイル",

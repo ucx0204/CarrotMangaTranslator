@@ -1,3 +1,4 @@
+import { recoverEnvironmentRestore } from "./environmentBackup/transaction";
 import { app, dialog } from "electron";
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -73,6 +74,14 @@ function bootstrap(): void {
     return;
   }
 
+  try {
+    recoverEnvironmentRestore(guard.dataRoot);
+  } catch (error) {
+    reportEarlyStartupFailure("Environment recovery", String(error));
+    releaseBootstrapLocks();
+    app.exit(2);
+    return;
+  }
   configureGraphicsGpu(guard.dataRoot);
   installBootstrapErrorListeners();
   writeBootstrapLog("bootstrap:start", {

@@ -89,9 +89,9 @@ export function SoundEffectTranslationModal({
     <PagePickerModalShell
       title={t("soundEffectReview.modalTitle")}
       width="min(1480px, 100%)"
-      closeOnEsc={false}
       onClose={onClose}
-      closeDisabled={busy}
+      onKeyDown={state.onKeyDown}
+      closeDisabled={state.resetReview.busy}
       bodyClassName={styles.modalBody}
       footerActions={
         <SoundEffectTranslationActions

@@ -1,5 +1,9 @@
 import type { AppSettings } from "../../shared/settingsTypes";
-import { CODEX_IMAGE_MODELS } from "../../shared/codexSettings";
+import {
+  isCodexImageModel,
+  CODEX_IMAGE_GENERATION_MODELS,
+} from "../../shared/codexSettings";
+import { CODEX_TYPESETTING_MODEL } from "../../shared/codexTypesettingDefaults";
 import {
   resolveCodexReasoningEffort,
   resolveNonEmptyString,
@@ -9,10 +13,15 @@ export function normalizeCodexSettings(
   codex: Record<string, unknown> | null,
   defaults: AppSettings,
 ): AppSettings["codex"] {
+  const imageModel = codex?.imageModel;
   return {
-    imageModel:
-      CODEX_IMAGE_MODELS.find((model) => model === codex?.imageModel) ??
-      CODEX_IMAGE_MODELS[0],
+    imageGenerationModel:
+      CODEX_IMAGE_GENERATION_MODELS.find(
+        (model) => model === codex?.imageGenerationModel,
+      ) ?? "gpt-image-2.5-flare",
+    imageModel: isCodexImageModel(imageModel)
+      ? imageModel
+      : CODEX_TYPESETTING_MODEL,
     imageReasoningEffort: resolveCodexReasoningEffort(
       codex?.imageReasoningEffort,
       "low",

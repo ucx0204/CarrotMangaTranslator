@@ -2032,6 +2032,11 @@
         "logoutFailed": "Codexからのログアウトに失敗しました。"
       },
       "imageReasoning": "画像生成の推論強度",
+      "imageGenerationModel": "画像モデル",
+      "imageGenerationAuto": "Codex の既定",
+      "imageGenerationAutoHint": "Codex 内蔵の画像ツールを使用します。",
+      "imageGenerationFlareHint": "高速な画像生成と編集に適しています。",
+      "imageGenerationSunburstHint": "精密な画像編集に適しています。",
       "imageModelWarning": "このモデルでは画像処理が正しく動作しない場合があります。Astraの使用を強く推奨します。",
       "modelUnavailable": "選択したモデルが現在のアカウント一覧にありません。選択は維持されます。再ログインするか、利用可能なモデルを選択してください。"
     },
@@ -2352,6 +2357,25 @@
       "localErasure": "標準の原文消去",
       "codex": "Codex 画像ツール",
       "description": "翻訳エンジンとは別に、原文消去と効果音画像に使用します。Astraの使用を強く推奨します。"
+    },
+    "backup": {
+      "title": "バックアップと移行",
+      "description": "ZIPファイル1つで別のパソコンに作業環境を移します。",
+      "includes": "ライブラリの原本と編集データ、設定、追加フォント、プリセット、マスクの下書きを含みます。",
+      "excludes": "認証情報、モデル、実行ツール、外部フォルダーは含みません。移行先でログインし、必要なモデルを再取得してください。",
+      "counts": "作品 {{works}}件 · ページ {{pages}}枚",
+      "dirty": "変更した設定を保存または取り消してから移行してください。",
+      "export": "バックアップを書き出す",
+      "import": "バックアップを読み込む",
+      "recover": "以前の環境に戻す",
+      "confirmTitle": "環境の復元を確認",
+      "confirmDescription": "現在の環境を以下の場所に保存してから置き換え、アプリを再起動します。外部フォルダーとカスタムモデルを再接続してください。",
+      "apply": "現在の環境を保存して復元",
+      "close": "閉じる",
+      "progress": "作業環境を処理中です。完了するまで編集を一時停止します。",
+      "cancel": "処理をキャンセル",
+      "saved": "バックアップを保存しました: {{path}}",
+      "restored": "環境を復元しました。APIキー、ログイン、外部フォルダー、カスタムモデルのパスを確認してください。APIのカスタムヘッダーと追加リクエスト本文も再設定してください。"
     }
   },
   "pageBlocks": {
@@ -2423,6 +2447,8 @@
         "web-import-preview": "Web読み込み",
         "work-share-import": "共有ファイル読み込み",
         "work-share-export": "共有ファイル書き出し",
+        "environment-backup": "環境のバックアップ",
+        "environment-restore": "環境の復元",
         "model-test": "モデル確認",
         "codex-auth": "ChatGPTアカウント",
         "sound-effect-translation": "効果音翻訳"

@@ -37,14 +37,19 @@ export const SoundEffectReviewLayer = React.memo(
     React.useEffect(() => {
       if (!visible) return;
       const handleKeyDown = (event: KeyboardEvent): void => {
-        if (event.key !== "Escape") return;
+        if (
+          event.key !== "Escape" ||
+          event.defaultPrevented ||
+          document.querySelector('[role="dialog"][aria-modal="true"]')
+        )
+          return;
         event.preventDefault();
         event.stopImmediatePropagation();
         if (selectedRegionId) onSelectRegion(null);
         else onExit();
       };
-      window.addEventListener("keydown", handleKeyDown, true);
-      return () => window.removeEventListener("keydown", handleKeyDown, true);
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
     }, [onExit, onSelectRegion, selectedRegionId, visible]);
     if (!visible || regions.length === 0) return null;
     const selected =

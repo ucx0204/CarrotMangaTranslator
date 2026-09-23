@@ -22,6 +22,12 @@ function createMissingBridgeError(methodName?: string): Error {
 }
 
 const activityTestDefaults: Partial<MangaApi> = {
+  getEnvironmentRestoreReceipt: async () => null,
+  getEnvironmentBackupStatus: async () => ({
+    summary: { works: 0, pages: 0, bytes: 0 },
+    recoveries: [],
+    restored: null,
+  }),
   onJobEvent: () => () => undefined,
   onAppOperationActivity: () => () => undefined,
   onAppActivities: () => () => undefined,

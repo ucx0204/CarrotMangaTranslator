@@ -135,6 +135,7 @@ describeWindows("app settings helpers: model providers", () => {
       gemma: defaults.gemma,
       codex: {
         imageModel: "gpt-6-astra",
+        imageGenerationModel: "gpt-image-2.5-flare",
         imageReasoningEffort: "low",
         model: "gpt-5.6-sol",
         reasoningEffort: "ultra",

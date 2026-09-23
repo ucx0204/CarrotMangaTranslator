@@ -1,3 +1,4 @@
+import type { CodexImageGenerationModel } from "./codexSettings";
 import type {
   FluxBackend,
   InpaintingModel,
@@ -108,6 +109,7 @@ type GemmaSettings = {
 };
 
 type CodexSettings = {
+  imageGenerationModel?: CodexImageGenerationModel;
   imageModel?: string;
   imageReasoningEffort?: CodexReasoningEffort;
   model: string;

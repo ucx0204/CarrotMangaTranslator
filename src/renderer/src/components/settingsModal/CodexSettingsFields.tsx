@@ -1,3 +1,4 @@
+import type { CodexImageGenerationModel } from "../../../../shared/codexSettings";
 import React from "react";
 import { CODEX_TYPESETTING_MODEL } from "../../../../shared/codexTypesettingDefaults";
 import { useTranslation } from "react-i18next";
@@ -6,7 +7,10 @@ import type {
   CodexAccountSnapshot,
 } from "../../../../shared/codexAccountTypes";
 import type { CodexReasoningEffort } from "../../../../shared/codexSettings";
-import { CODEX_IMAGE_MODELS } from "../../../../shared/codexSettings";
+import {
+  isCodexImageModel,
+  CODEX_IMAGE_GENERATION_MODELS,
+} from "../../../../shared/codexSettings";
 import { CODEX_REASONING_OPTIONS } from "../settingsOptions";
 import { Field } from "../ui/Field";
 import { InlineMessage } from "../ui/InlineMessage";
@@ -20,6 +24,10 @@ export type CodexSettingsFieldsProps = {
   codexReasoningEffort: CodexReasoningEffort;
   codexImageReasoningEffort?: CodexReasoningEffort;
   codexImageModel?: string;
+  codexImageGenerationModel?: CodexImageGenerationModel;
+  setCodexImageGenerationModel?: React.Dispatch<
+    React.SetStateAction<CodexImageGenerationModel>
+  >;
   setCodexImageModel?: React.Dispatch<React.SetStateAction<string>>;
   setCodexImageReasoningEffort?: React.Dispatch<
     React.SetStateAction<CodexReasoningEffort>
@@ -50,6 +58,7 @@ export function CodexSettingsFields(
   const models = account?.models ?? [];
   const authenticated = account?.authenticated === true;
   const imageModel = props.codexImageModel ?? CODEX_TYPESETTING_MODEL;
+  const imageControlsBusy = props.controlsBusy || !authenticated;
   useCatalogSelectionRepair(props, account);
 
   return (
@@ -61,6 +70,10 @@ export function CodexSettingsFields(
       {props.imageOnly ? (
         <>
           <div className="codex-catalog-fields">
+            <ImageGenerationModelField
+              {...props}
+              controlsBusy={imageControlsBusy}
+            />
             <Field
               as="div"
               className="codex-catalog-row"
@@ -71,14 +84,8 @@ export function CodexSettingsFields(
               <Select
                 ariaLabel={t("settings.codex.model")}
                 value={imageModel}
-                disabled={props.controlsBusy || !authenticated}
-                options={CODEX_IMAGE_MODELS.map((id) => ({
-                  value: id,
-                  label:
-                    models.find((model) => model.id === id)?.displayName ??
-                    (id === "gpt-6-astra" ? "GPT-6 Astra" : "GPT-5.6 Sol"),
-                  disabled: !models.some((model) => model.id === id),
-                }))}
+                disabled={imageControlsBusy}
+                options={imageModelOptions(models, imageModel)}
                 onValueChange={(id) => {
                   props.clearTestState();
                   props.setCodexImageModel?.(id);
@@ -89,14 +96,13 @@ export function CodexSettingsFields(
               {...props}
               models={models}
               controlsBusy={
-                props.controlsBusy ||
-                !authenticated ||
+                imageControlsBusy ||
                 !models.some((model) => model.id === imageModel)
               }
               image
             />
           </div>
-          {imageModel !== CODEX_TYPESETTING_MODEL && (
+          {/^gpt-5\.6(?:-|$)/.test(imageModel) && (
             <InlineMessage
               variant="warning"
               title={t("settings.codex.imageModelWarning")}
@@ -108,6 +114,69 @@ export function CodexSettingsFields(
       ) : null}
     </>
   );
+}
+
+function ImageGenerationModelField(props: CodexSettingsFieldsProps) {
+  const { t } = useTranslation("components");
+  return (
+    <Field
+      as="div"
+      className="codex-catalog-row"
+      density="comfortable"
+      variant="row"
+      label={t("settings.codex.imageGenerationModel")}
+    >
+      <Select
+        ariaLabel={t("settings.codex.imageGenerationModel")}
+        value={props.codexImageGenerationModel ?? "gpt-image-2.5-flare"}
+        disabled={props.controlsBusy}
+        options={CODEX_IMAGE_GENERATION_MODELS.map((value) => ({
+          value,
+          label:
+            value === "auto"
+              ? t("settings.codex.imageGenerationAuto")
+              : value === "gpt-image-2.5-flare"
+                ? "GPT Image 2.5 Flare"
+                : "GPT Image 2.5 Sunburst",
+          tooltip:
+            value === "auto"
+              ? t("settings.codex.imageGenerationAutoHint")
+              : value === "gpt-image-2.5-flare"
+                ? t("settings.codex.imageGenerationFlareHint")
+                : t("settings.codex.imageGenerationSunburstHint"),
+        }))}
+        onValueChange={(value) => {
+          const model = CODEX_IMAGE_GENERATION_MODELS.find(
+            (item) => item === value,
+          );
+          if (model) {
+            props.clearTestState();
+            props.setCodexImageGenerationModel?.(model);
+          }
+        }}
+      />
+    </Field>
+  );
+}
+
+function imageModelOptions(
+  models: readonly CodexAccountModel[],
+  selected: string,
+) {
+  const options = models
+    .filter((model) => isCodexImageModel(model.id))
+    .map((model) => ({
+      value: model.id,
+      label: model.displayName,
+      disabled: false,
+    }));
+  if (!options.some((option) => option.value === selected))
+    options.unshift({
+      value: selected,
+      label: selected === CODEX_TYPESETTING_MODEL ? "GPT-6 Astra" : selected,
+      disabled: true,
+    });
+  return options;
 }
 
 function CodexTextCatalogFields(

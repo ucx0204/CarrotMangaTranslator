@@ -33,8 +33,8 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 34,
-      "reason": "Image recovery checkpoints, finalization, retouch, history and pipeline handoff use the canonical page revision without copying its algorithm. Workflow stage commits reuse the existing optimistic page revision contract."
+      "maxImportedBy": 35,
+      "reason": "Image recovery checkpoints, finalization, retouch, history and pipeline handoff use the canonical page revision without copying its algorithm. Workflow stage commits reuse the existing optimistic page revision contract. Environment relocation rebinds valid checkpoints with the canonical revision; archive roundtrip tests seal parity."
     },
     "src/renderer/src/api/libraryGateway.ts": {
       "maxImportedBy": 28,
@@ -53,16 +53,16 @@
       "reason": "Electron main composition root"
     },
     "src/main/ipc/registerIpc.ts": {
-      "maxRuntimeImports": 24,
-      "reason": "IPC composition root Register the isolated Hayai workflow IPC domain at the existing composition root."
+      "maxRuntimeImports": 25,
+      "reason": "IPC composition root Register the isolated Hayai workflow IPC domain at the existing composition root. Register the environment backup IPC domain at the composition root."
     },
     "src/main/logger.ts": {
       "maxImportedBy": 35,
       "reason": "Activity observers, handoff failures and durable image checkpoint failures use the shared diagnostic sink. Checkpoint wrappers preserve the underlying storage cause for recovery diagnostics."
     },
     "src/main/libraryStore/storage.ts": {
-      "maxImportedBy": 30,
-      "reason": "SFX sidecars and recoverable linked-output deletion journals reuse the atomic JSON and path contracts; real filesystem rollback/restart tests cover both. Workflow run manifests reuse atomic JSON publication."
+      "maxImportedBy": 33,
+      "reason": "SFX sidecars and recoverable linked-output deletion journals reuse the atomic JSON and path contracts; real filesystem rollback/restart tests cover both. Workflow run manifests reuse atomic JSON publication. Backup staging and draft relocation reuse atomic JSON writes."
     },
     "src/main/runtime/simple-page-ocr-bbox-pipeline.cjs": {
       "maxRuntimeImports": 20,
@@ -202,8 +202,8 @@
       "reason": "The session composition root connects activity, input completion and persistence. It reads the authoritative chapter through the library gateway after an unavailable old image and merges it without losing dirty edits."
     },
     "src/main/library.ts": {
-      "maxImportedBy": 32,
-      "reason": "SFX recovery reads and writes through the locked library facade; no direct job imports from libraryStore. Hayai stage adapters and jobs reuse the locked library facade for content and context."
+      "maxImportedBy": 33,
+      "reason": "SFX recovery reads and writes through the locked library facade; no direct job imports from libraryStore. Hayai stage adapters and jobs reuse the locked library facade for content and context. Environment backup uses the existing library mutation suspension instead of a separate library lock."
     },
     "src/shared/appActivityTypes.ts": {
       "maxImportedBy": 26,
@@ -222,8 +222,8 @@
       "reason": " Expose one guarded atomic workflow stage mutation, including its receipt and context."
     },
     "src/main/ipc/trustedIpc.ts": {
-      "maxImportedBy": 26,
-      "reason": " Hayai workflow preflight, execution and resume use the trusted IPC boundary."
+      "maxImportedBy": 27,
+      "reason": " Hayai workflow preflight, execution and resume use the trusted IPC boundary. Environment backup uses the existing trusted sender and schema validation boundary."
     },
     "src/renderer/src/components/PageArtwork.tsx": {
       "maxRuntimeImports": 13,

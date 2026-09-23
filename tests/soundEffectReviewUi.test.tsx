@@ -27,6 +27,7 @@ import { AppSidebar } from "../src/renderer/src/components/AppSidebar";
 import { ImageStage } from "../src/renderer/src/components/ImageStage";
 import { SoundEffectTranslationLauncher } from "../src/renderer/src/components/SoundEffectTranslationLauncher";
 import { SoundEffectTranslationModal } from "../src/renderer/src/components/SoundEffectTranslationModal";
+import { Modal } from "../src/renderer/src/components/ui/Modal";
 import { useSoundEffectTranslationModalState } from "../src/renderer/src/components/useSoundEffectTranslationModalState";
 import {
   FontsContext,
@@ -62,6 +63,100 @@ afterAll(() => {
 });
 
 describe("sound-effect review UI", () => {
+  it.each(["close", "cancel", "Escape"])(
+    "allows %s while translation is running without starting or editing it",
+    (action) => {
+      const onClose = vi.fn();
+      const onStart = vi.fn();
+      render(
+        <SoundEffectTranslationModal
+          chapter={makeChapter()}
+          jobActive
+          onClose={onClose}
+          onStart={onStart}
+        />,
+      );
+      const start = screen.getByRole("button", {
+        name: "선택한 효과음 3개 번역",
+      });
+      expect(start).toHaveProperty("disabled", true);
+      fireEvent.click(start);
+      if (action === "Escape")
+        fireEvent.keyDown(screen.getByRole("dialog"), { key: action });
+      else
+        fireEvent.click(
+          screen.getByRole("button", {
+            name: action === "close" ? "닫기" : "취소",
+          }),
+        );
+      expect(onClose).toHaveBeenCalledOnce();
+      expect(onStart).not.toHaveBeenCalled();
+      expect(screen.getByText("후보 3개 중 3개 포함")).toBeTruthy();
+    },
+  );
+
+  it("does not delete a candidate or steal Escape from an overlaid dialog", () => {
+    const onClose = vi.fn();
+    const onOverlayClose = vi.fn();
+    const view = (overlay: boolean) => (
+      <>
+        <SoundEffectTranslationModal
+          chapter={makeChapter()}
+          jobActive={false}
+          onClose={onClose}
+          onStart={vi.fn()}
+        />
+        {overlay && (
+          <Modal title="Overlay" onClose={onOverlayClose}>
+            <p>Review</p>
+          </Modal>
+        )}
+      </>
+    );
+    const { rerender } = render(view(false));
+    fireEvent.click(
+      screen.getByRole("button", { name: "효과음 후보 1, 포함: ドン" }),
+    );
+    rerender(view(true));
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Overlay" }), {
+      key: "Delete",
+    });
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Overlay" }), {
+      key: "Escape",
+    });
+    expect(onOverlayClose).toHaveBeenCalledOnce();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText("후보 3개 중 3개 포함")).toBeTruthy();
+  });
+
+  it("lets a modal own Escape above the workspace review layer", () => {
+    const page = makeReviewPage("page-1", "001.png", ["FX-left"]);
+    const onExit = vi.fn();
+    const onSelect = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <FontsContext.Provider value={FONTS_CONTEXT}>
+        <ImageStage
+          {...makeImageStageProps(page)}
+          showSoundEffectReview
+          selectedSoundEffectReviewRegionId="FX-left"
+          onSelectSoundEffectReviewRegion={onSelect}
+          onExitSoundEffectReview={onExit}
+          onDismissSoundEffectReviewRegion={vi.fn()}
+          onOpenSoundEffectTranslation={vi.fn()}
+          onTranslateSoundEffectReviewRegion={vi.fn()}
+        />
+        <Modal title="Overlay" onClose={onClose}>
+          <p>Settings</p>
+        </Modal>
+      </FontsContext.Provider>,
+    );
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onExit).not.toHaveBeenCalled();
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it("keeps the generated SFX launcher outside the sidebar and chapter-scoped", () => {
     const onOpen = vi.fn();
     const { container, rerender } = render(
@@ -543,7 +638,7 @@ describe("sound-effect review UI", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "효과음 후보 1, 포함: ドン" }),
     );
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(screen.queryByRole("button", { name: /ドン/ })).toBeNull();
     fireEvent.click(
       screen.getByRole("button", { name: "선택한 효과음 2개 번역" }),
@@ -577,7 +672,7 @@ describe("sound-effect review UI", () => {
       fireEvent.click(
         screen.getByRole("button", { name: "효과음 후보 1, 포함: ドン" }),
       );
-      fireEvent.keyDown(window, { key });
+      fireEvent.keyDown(screen.getByRole("dialog"), { key });
 
       expect(screen.queryByRole("button", { name: /ドン/ })).toBeNull();
       fireEvent.click(
@@ -595,47 +690,27 @@ describe("sound-effect review UI", () => {
     },
   );
 
-  it("handles inactive, unrelated, empty-selection, and editable keyboard paths", () => {
+  it("keeps editing blocked during a job but lets Escape close a selected review", () => {
     const onClose = vi.fn();
     const onStart = vi.fn();
-    const { result, rerender } = renderHook(
-      ({ jobActive }: { jobActive: boolean }) =>
-        useSoundEffectTranslationModalState({
-          chapter: makeChapter(),
-          jobActive,
-          autoFontMatchingDefault: false,
-          inpaintAfterTranslationDefault: false,
-          onClose,
-          onStart,
-        }),
-      { initialProps: { jobActive: true } },
+    const view = (jobActive: boolean) => (
+      <SoundEffectTranslationModal
+        chapter={makeChapter()}
+        jobActive={jobActive}
+        onClose={onClose}
+        onStart={onStart}
+      />
     );
-
-    act(() => result.current.start());
-    fireEvent.keyDown(window, { key: "Delete" });
-    expect(onStart).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
-
-    rerender({ jobActive: false });
-    fireEvent.keyDown(window, { key: "Enter" });
-    fireEvent.keyDown(window, { key: "Delete" });
-    expect(onClose).not.toHaveBeenCalled();
-
-    const editableTargets = [
-      document.createElement("input"),
-      document.createElement("textarea"),
-      document.createElement("select"),
-      document.createElement("div"),
-    ];
-    editableTargets[3].contentEditable = "true";
-    editableTargets.forEach((target) => {
-      document.body.append(target);
-      fireEvent.keyDown(target, { key: "Delete" });
-      target.remove();
-    });
-
-    fireEvent.keyDown(window, { key: "Escape" });
+    const { rerender } = render(view(false));
+    fireEvent.click(
+      screen.getByRole("button", { name: "효과음 후보 1, 포함: ドン" }),
+    );
+    rerender(view(true));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Delete" });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
+    expect(onStart).not.toHaveBeenCalled();
+    expect(screen.getByText("후보 3개 중 3개 포함")).toBeTruthy();
   });
 
   it("keeps the launcher useful after every candidate is resolved", () => {

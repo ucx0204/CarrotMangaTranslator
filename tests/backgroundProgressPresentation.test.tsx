@@ -186,6 +186,8 @@ describe("background progress presentation", () => {
       ],
       ["work-share-import", "statusDock.operation.kind.shareImport"],
       ["work-share-export", "statusDock.operation.kind.shareExport"],
+      ["environment-backup", "statusDock.operation.kind.environmentBackup"],
+      ["environment-restore", "statusDock.operation.kind.environmentRestore"],
       ["model-test", "statusDock.operation.kind.modelTest"],
       ["codex-auth", "statusDock.operation.kind.codexAuth"],
     ];

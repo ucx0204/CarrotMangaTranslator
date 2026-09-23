@@ -111,6 +111,10 @@ function useSettingsFormSetters(
       ),
       setCodexModel: createFormFieldDispatch(setValues, "codexModel"),
       setCodexImageModel: createFormFieldDispatch(setValues, "codexImageModel"),
+      setCodexImageGenerationModel: createFormFieldDispatch(
+        setValues,
+        "codexImageGenerationModel",
+      ),
       setCodexReasoningEffort: createFormFieldDispatch(
         setValues,
         "codexReasoningEffort",

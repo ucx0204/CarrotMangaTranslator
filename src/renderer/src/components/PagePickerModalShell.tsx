@@ -12,6 +12,7 @@ export function PagePickerModalShell({
   footerActions,
   footerLeading,
   onClose,
+  onKeyDown,
   size = "lg",
   title,
   width,
@@ -24,6 +25,7 @@ export function PagePickerModalShell({
   footerActions: React.ReactNode;
   footerLeading?: React.ReactNode;
   onClose: () => void;
+  onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>;
   size?: "md" | "lg" | "xl";
   title: React.ReactNode;
   width?: string;
@@ -34,6 +36,7 @@ export function PagePickerModalShell({
       size={size}
       fillHeight
       onClose={onClose}
+      onKeyDown={onKeyDown}
       closeDisabled={closeDisabled}
       closeOnEsc={closeOnEsc}
       width={width}

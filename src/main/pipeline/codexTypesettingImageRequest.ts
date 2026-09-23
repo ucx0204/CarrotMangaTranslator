@@ -44,6 +44,9 @@ export async function generateImage(
       model,
       effort: "low",
       cwd: directory,
+      imageGenerationSize: metadata.requestedSize
+        ? `${metadata.requestedSize.width}x${metadata.requestedSize.height}`
+        : undefined,
       signal,
       instructions:
         "Generate exactly one requested image using the built-in imagegen tool.",
