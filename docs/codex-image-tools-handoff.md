@@ -183,3 +183,9 @@ Codex 영역 제거에서는 선택 경계를 허용 범위로 전달하고 모�
 실제 설정 컴포넌트에서 모델 선택·로그아웃 상태를 회귀 테스트하고 1600×980, 1240×760, 620×380 화면을 확인했다. 캡처는 `C:/tmp/codex-image-25-{wide,narrow,zoom}-20260924.png`에 보존한다. 임시 QA 엔트리는 제거했다.
 
 최종 focused 테스트 106개, build, 타입 검사, lint, architecture, 중복 검사와 CSS 검사는 통과했다. 전체 검사에는 같은 워크스페이스에서 병행 개발 중인 environment backup의 번역 키·테스트·정책·coverage inventory 오류가 남아 있으므로 전체 green으로 보고하지 않는다. 로그는 `.tmp/codex-image-25-{check-final,build,validation}.log`, focused 결과는 `.tmp/codex-image-25-focused-final.json`이다. 새 transport 두 파일의 coverage floor만 Windows 실측값으로 등록했으며 기존 floor는 내리지 않았다. 근거는 `.tmp/codex-image-25-coverage-20260924.json` (SHA-256 `d45808115d5121119c1df65822ba71202bf10f119f0561a54c87581c6a641ac0`)이다.
+
+## v2.8.1 Windows 패키지 검증
+
+첫 Release 실행 `35900223024`는 전체 검사와 모델 자산 검증을 통과했지만 패키지 파일 수 `370 > 331`에서 게시 전에 중단됐다. npm에 고정된 Windows Codex 0.154.0/0.156.1 배포 inventory를 대조한 결과 기존 6개 파일은 유지되고 `codex-resources/voice/`의 런타임·manifest·라이선스 39개만 추가됐다. 공식 native layout 보존 계약에 따라 해당 파일을 유지하고 `verify-packaged-runtime.cjs`의 정확한 파일 수 상한을 370으로 갱신했다. 앱 음성 기능을 추가한 것은 아니다. 1450 MiB 용량 상한과 외부 폰트 runtime 제외 규칙은 유지한다.
+
+수정 후 로컬 `npm run dist:win`은 370개 파일·1262.1 MiB로 통과했다. 패키지의 Codex App Server, ONNX Web/native(CPU·DirectML·font proxy), Electron main module graph, WebP, PDF/RAR 실행 검증과 NSIS 경로 검증(401 entries, 최장 79자)이 성공했다. 패키지 설정 테스트 21개도 통과했다. 근거는 `.tmp/release-v281-package-local.log`, `.tmp/release-v281-package-test.log`, `.tmp/codex-v281-inventory/diff.json`이다.

@@ -146,8 +146,11 @@ const allowedElectronLocales = new Set([
 // structured-completion transport leaves. C23 adds its 13 pinned algorithm
 // scripts, and API request pacing adds one transport leaf. v2.6.3 adds
 // font-chapter-c18/hayai-pool.py for the reusable CPU OCR pool. Keep the
-// resulting 331-file thin payload ceiling exact so unrelated growth fails closed.
-const MAX_PACKAGED_FILES = 331;
+// resulting thin payload ceiling exact so unrelated growth fails closed.
+// Codex 0.156.1 adds 39 official voice runtime/license files (6 -> 45 files)
+// below resources/c. Preserve the upstream native layout; no app voice feature
+// is enabled. The audited Windows payload therefore grows from 331 to 370.
+const MAX_PACKAGED_FILES = 370;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the
