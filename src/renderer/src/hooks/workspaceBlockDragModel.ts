@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import {
   isValidPerspectiveTransform,
   isValidWarpTransform,
@@ -315,7 +316,7 @@ export function applyBlockMoveDelta(
   delta: { x: number; y: number },
 ): TranslationBlock {
   const pageSize = { width: page.width, height: page.height };
-  const displayText = block.translatedText || block.sourceText || "...";
+  const displayText = resolveBlockDisplayText(block) || "...";
   const target = resolveEditableBlockBbox(block, pageSize, displayText).bbox;
   return applyMovedEditableBlockBbox(
     block,
@@ -337,7 +338,7 @@ export function applyBlockDragResolution(
   const patched = resolution.patch ? { ...block, ...resolution.patch } : block;
   if (!resolution.bbox) return patched;
   const pageSize = { width: page.width, height: page.height };
-  const displayText = patched.translatedText || patched.sourceText || "...";
+  const displayText = resolveBlockDisplayText(patched) || "...";
   return resolution.mode === "move"
     ? applyMovedEditableBlockBbox(
         patched,

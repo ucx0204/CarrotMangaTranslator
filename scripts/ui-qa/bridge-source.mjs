@@ -164,6 +164,11 @@ const bridgeTemplate = `(() => {
     }),
     getUiLocale: async () => "ko",
     listConditionalBatchSchemes: async () => conditionalBatchSnapshot(),
+    preflightPageWorkflow: async (request) => ({
+      issues: [],
+      pageCount: request.selection.reduce((count, selection) => count + selection.pageIds.length, 0),
+      counts: request.plan.stages.map((stage) => ({ stage, process: request.selection.reduce((count, selection) => count + selection.pageIds.length, 0), preserve: 0, empty: 0 })),
+    }),
     openConditionalBatchYamlFile: async () => null,
     loginCodexAccount: async () => {
       codexAccount = signedInCodexAccount;

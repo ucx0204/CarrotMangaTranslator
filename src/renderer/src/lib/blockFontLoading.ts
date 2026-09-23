@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import { resolveFontWeight } from "../../../shared/blockFontWeight";
 import {
   DEFAULT_BLOCK_FONT_ID,
@@ -151,7 +152,7 @@ function collectBlockFontLoadRequests(
 ): BlockFontLoadRequest[] {
   const requests = new Map<string, BlockFontLoadRequest>();
   for (const block of blocks) {
-    const displayText = block.translatedText || block.sourceText;
+    const displayText = resolveBlockDisplayText(block);
     if (!displayText.trim()) continue;
     const { runs } = parseRichText(
       displayText,

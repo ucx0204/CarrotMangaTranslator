@@ -10,6 +10,7 @@ import { Button } from "./ui/Button";
 import { IconButton } from "./ui/IconButton";
 
 type PageBlockListRowProps = {
+  issues?: string[];
   block: TranslationBlock;
   disabled: boolean;
   expanded: boolean;
@@ -27,6 +28,7 @@ type PageBlockListRowProps = {
 };
 
 export function PageBlockListRow({
+  issues,
   block,
   disabled,
   expanded,
@@ -59,6 +61,11 @@ export function PageBlockListRow({
         onMoveLater={onMoveLater}
         onOpenEditor={onOpenEditor}
       />
+      {!!issues?.length && (
+        <p className="page-block-review-note">
+          자동 검수: {issues.join(" · ")}
+        </p>
+      )}
       {expanded && block.reviewStatus === "needs_review" && block.reviewNote ? (
         <p className="page-block-review-note">
           {reviewNoteMessage(block.reviewNote)}

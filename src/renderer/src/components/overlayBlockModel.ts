@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import type React from "react";
 import {
   matrix3dToCss,
@@ -66,7 +67,10 @@ export function resolveOverlayBlockRenderModel({
   const displayText =
     preparedDisplayText !== undefined
       ? preparedDisplayText
-      : block.translatedText || block.sourceText || (showChrome ? "..." : "");
+      : resolveBlockDisplayText(block) ||
+        (showChrome && block.textDisplayMode !== "translation-only"
+          ? "..."
+          : "");
   const layout =
     preparedLayout ??
     resolveBlockTextLayout(

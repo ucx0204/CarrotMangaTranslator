@@ -22,6 +22,9 @@ type TranslationEndpointSession = {
 };
 
 export type TranslationRuntimePort = {
+  collectPreparedHayaiHints?: (
+    options: TranslationOptions,
+  ) => Promise<OcrBboxResult>;
   isModelCached: (options: TranslationOptions) => boolean;
   startEndpointSession: (
     options: TranslationOptions,
@@ -125,6 +128,16 @@ export function createTranslationRuntimePort({
       await groupingEvidence.releaseIdleResources("translation-model-start");
       await releaseInpaintingBeforeGemma(gpuMemory, options);
       return startModelEndpointSession(runtime, options, logPipelineWarning);
+    },
+    collectPreparedHayaiHints: async (options) => {
+      if (
+        !isHayaiOcrPipeline(options.ocrPipeline) ||
+        !options.ocrBboxRegionsPath
+      )
+        throw new Error("HayaiOCR 고정 영역 입력이 필요합니다.");
+      await releaseGpuBeforeOcr(gpuMemory, [options]);
+      await hayaiRegionPrepass.releaseDetectorResources("prepared-hayai-ocr");
+      return runtime.simplePage.collectOcrBboxHints(options);
     },
     collectOcrHints: (options) =>
       collectOcrHints({

@@ -1,4 +1,5 @@
 import React from "react";
+import { installWorkflowRuleRenderer } from "./workflowRules";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { PageArtwork } from "../components/PageArtwork";
@@ -44,6 +45,7 @@ async function startPageExport(): Promise<void> {
     data.fontLibrary.customFonts,
     data.fontLibrary.preferences,
   );
+  installWorkflowRuleRenderer(catalog);
   const [, fontReport] = await Promise.all([
     decodeExportImage(data.imageSrc, data.sourceSize),
     loadBlockFonts(document, data.page.blocks, catalog),

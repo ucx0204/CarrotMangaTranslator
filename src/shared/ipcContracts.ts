@@ -1,4 +1,5 @@
 import type { IpcContract, IpcEventContract } from "./ipcContractCore";
+import { pageWorkflowIpcContracts } from "./ipcPageWorkflowContracts";
 import {
   importShareIpcContracts,
   libraryIpcContracts,
@@ -50,6 +51,7 @@ export {
 };
 
 export const ipcInvokeContracts = {
+  ...pageWorkflowIpcContracts,
   ...appOperationIpcContracts,
   ...blockLibraryIpcContracts,
   ...conditionalBatchIpcContracts,

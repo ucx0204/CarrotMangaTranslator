@@ -44,6 +44,7 @@ const astraAccount: CodexAccountSnapshot = {
 function astraSettings() {
   const settings = resolveDefaultAppSettings({});
   settings.modelProvider = "openai-codex";
+  settings.ocr.pipeline = "paddle-legacy";
   settings.codex = {
     ...settings.codex,
     model: "gpt-6-astra",

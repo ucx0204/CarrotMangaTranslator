@@ -1,0 +1,12 @@
+.pageWorkHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-3);
+}
+.pageWorkHeader > :first-child {
+  flex: 1;
+  min-width: 0;
+}

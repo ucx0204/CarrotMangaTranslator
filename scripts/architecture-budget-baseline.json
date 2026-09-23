@@ -33,12 +33,12 @@
       "reason": "Batch action composition uses the shared NumberField instead of raw numeric inputs and the canonical default font ID instead of an invalid empty value; no alias wrappers or duplicated controls."
     },
     "src/shared/pageRevision.ts": {
-      "maxImportedBy": 33,
-      "reason": "Image recovery checkpoints, finalization, retouch, history and pipeline handoff use the canonical page revision without copying its algorithm."
+      "maxImportedBy": 34,
+      "reason": "Image recovery checkpoints, finalization, retouch, history and pipeline handoff use the canonical page revision without copying its algorithm. Workflow stage commits reuse the existing optimistic page revision contract."
     },
     "src/renderer/src/api/libraryGateway.ts": {
-      "maxImportedBy": 27,
-      "reason": "SFX restore and the chapter session's stale-image recovery read through the existing typed library gateway. Image recovery merges the authoritative snapshot through dirty-page preservation."
+      "maxImportedBy": 28,
+      "reason": "SFX restore and the chapter session's stale-image recovery read through the existing typed library gateway. Image recovery merges the authoritative snapshot through dirty-page preservation. The workflow page selector reads other chapters through the existing library gateway."
     },
     "src/shared/ipcSettingsSchemas.ts": {
       "maxRuntimeImports": 14,
@@ -53,16 +53,16 @@
       "reason": "Electron main composition root"
     },
     "src/main/ipc/registerIpc.ts": {
-      "maxRuntimeImports": 23,
-      "reason": "IPC composition root"
+      "maxRuntimeImports": 24,
+      "reason": "IPC composition root Register the isolated Hayai workflow IPC domain at the existing composition root."
     },
     "src/main/logger.ts": {
       "maxImportedBy": 35,
       "reason": "Activity observers, handoff failures and durable image checkpoint failures use the shared diagnostic sink. Checkpoint wrappers preserve the underlying storage cause for recovery diagnostics."
     },
     "src/main/libraryStore/storage.ts": {
-      "maxImportedBy": 29,
-      "reason": "SFX sidecars and recoverable linked-output deletion journals reuse the atomic JSON and path contracts; real filesystem rollback/restart tests cover both."
+      "maxImportedBy": 30,
+      "reason": "SFX sidecars and recoverable linked-output deletion journals reuse the atomic JSON and path contracts; real filesystem rollback/restart tests cover both. Workflow run manifests reuse atomic JSON publication."
     },
     "src/main/runtime/simple-page-ocr-bbox-pipeline.cjs": {
       "maxRuntimeImports": 20,
@@ -137,7 +137,8 @@
       "reason": "Shared popup behavior authority; broad reuse is intentional"
     },
     "src/renderer/src/lib/errorPresentation.ts": {
-      "maxImportedBy": 27
+      "maxImportedBy": 28,
+      "reason": " Workflow actions reuse existing error presentation."
     },
     "src/shared/geometry.ts": {
       "maxImportedBy": 35,
@@ -148,9 +149,9 @@
       "reason": "Merged direct consumers include Codex treatment serialization, image lettering prompts, blind readback and literal font specimens, plus master's conditionalBatchTypography rich-run scaling. Preserve both features on the canonical grammar without duplication or alias gateways; parser/serializer ownership remains unchanged."
     },
     "src/shared/ipcSchemaPrimitives.ts": {
-      "maxRuntimeImports": 15,
+      "maxRuntimeImports": 16,
       "maxImportedBy": 27,
-      "reason": "Shared IPC schema primitive authority. Clipboard payload validation and paste capacity checks use the existing block schema and page block limit directly, with malformed-payload and atomic-overflow tests."
+      "reason": "Shared IPC schema primitive authority. Clipboard payload validation and paste capacity checks use the existing block schema and page block limit directly, with malformed-payload and atomic-overflow tests. Validate optional Hayai workflow block metadata with its bounded shared schema."
     },
     "src/shared/translationLanguages.ts": {
       "maxImportedBy": 30,
@@ -201,8 +202,8 @@
       "reason": "The session composition root connects activity, input completion and persistence. It reads the authoritative chapter through the library gateway after an unavailable old image and merges it without losing dirty edits."
     },
     "src/main/library.ts": {
-      "maxImportedBy": 27,
-      "reason": "SFX recovery reads and writes through the locked library facade; no direct job imports from libraryStore."
+      "maxImportedBy": 32,
+      "reason": "SFX recovery reads and writes through the locked library facade; no direct job imports from libraryStore. Hayai stage adapters and jobs reuse the locked library facade for content and context."
     },
     "src/shared/appActivityTypes.ts": {
       "maxImportedBy": 26,
@@ -211,6 +212,22 @@
     "src/renderer/src/components/ui/ControlTooltip.tsx": {
       "maxImportedBy": 37,
       "reason": "Settings and import controls reuse the shared tooltip for contextual help instead of duplicating per-feature hover/focus behavior."
+    },
+    "src/main/libraryStore/libraryFiles.ts": {
+      "maxImportedBy": 26,
+      "reason": " The atomic workflow stage mutation reads authoritative chapter and work files."
+    },
+    "src/main/library/libraryMutationFacade.ts": {
+      "maxRuntimeImports": 13,
+      "reason": " Expose one guarded atomic workflow stage mutation, including its receipt and context."
+    },
+    "src/main/ipc/trustedIpc.ts": {
+      "maxImportedBy": 26,
+      "reason": " Hayai workflow preflight, execution and resume use the trusted IPC boundary."
+    },
+    "src/renderer/src/components/PageArtwork.tsx": {
+      "maxRuntimeImports": 13,
+      "reason": " Prepared blank blocks share a single display-text contract across canvas and exports."
     }
   }
 }

@@ -1,3 +1,4 @@
+import { WorkflowBlockMetadataSchema } from "./pageWorkflowBlockMetadata";
 import { z } from "zod";
 import { coerceOpenAiCompatibleBaseUrl } from "./apiSettings";
 import {
@@ -309,6 +310,8 @@ export const TranslationBlockObjectSchema = z
     bboxSpace: z.enum(["normalized_1000", "pixels"]).optional(),
     renderBboxSpace: z.enum(["normalized_1000", "pixels"]).optional(),
     bubbleLayout: BubbleLayoutSchema.optional(),
+    textDisplayMode: z.literal("translation-only").optional(),
+    workflowOrigin: WorkflowBlockMetadataSchema.optional(),
     sourceText: boundedText,
     translatedText: boundedText,
     imageGenerationBlocked: z.literal("sexual").optional(),

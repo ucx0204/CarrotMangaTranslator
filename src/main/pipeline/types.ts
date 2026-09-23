@@ -24,6 +24,8 @@ import type { PageProcessingTimingCollector } from "./pageProcessingTiming";
 import type { PreparedTranslationCheckpoint } from "./preparedTranslationCheckpointContract";
 
 export type PipelineOptions = {
+  /** Already committed Hayai source input, supplied only by the staged workflow. */
+  preparedOcrHints?: ReadonlyMap<string, OcrBboxResult>;
   confirmRegionReading?: (
     reading: import("../../shared/codexTypesettingTypes").CodexPageReading,
   ) => Promise<import("../../shared/codexTypesettingTypes").CodexPageReading>;

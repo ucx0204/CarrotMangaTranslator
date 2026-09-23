@@ -64,6 +64,58 @@ function expectCurveFormattingArtifacts(
 }
 
 describe("page artwork renderer parity", () => {
+  it("keeps prepared empty blocks selectable with no source or background in exported artwork", () => {
+    const block = makeBlock("prepared", {
+      sourceText: "원문은 출력하지 않음",
+      translatedText: "",
+      textDisplayMode: "translation-only",
+      textBackgroundEnabled: true,
+    });
+    const pageSize = { width: 1000, height: 1400 };
+    const editor = render(
+      withFonts(
+        <OverlayBlock
+          block={block}
+          pageSize={pageSize}
+          stageSize={pageSize}
+          selected
+          showChrome
+          textLayoutStageSize={pageSize}
+          interactionPreviewStore={createWorkspaceInteractionPreviewStore()}
+          onPointerDown={() => {}}
+          onResizePointerDown={() => {}}
+        />,
+      ),
+    );
+    expect(editor.container.textContent).not.toContain(block.sourceText);
+    expect(
+      editor.container.querySelector("[data-layout-evidence]"),
+    ).not.toBeNull();
+    const exported = render(
+      <PageArtwork
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        imageSrc="source.png"
+        page={{ ...pageSize, id: "page", name: "page", blocks: [block] }}
+        visualSize={pageSize}
+      />,
+    );
+    expect(exported.container.textContent).not.toContain(block.sourceText);
+    expect(exported.container.querySelector(".overlay-text-main")).toBeNull();
+    const legacy = render(
+      <PageArtwork
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        imageSrc="source.png"
+        page={{
+          ...pageSize,
+          id: "page",
+          name: "page",
+          blocks: [{ ...block, textDisplayMode: undefined }],
+        }}
+        visualSize={pageSize}
+      />,
+    );
+    expect(legacy.container.textContent).toContain(block.sourceText);
+  });
   it.each(["horizontal", "vertical"] as const)(
     "keeps inline width geometry identical on ink and both outline planes: %s",
     (renderDirection) => {

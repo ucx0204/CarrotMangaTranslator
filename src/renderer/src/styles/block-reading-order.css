@@ -145,7 +145,7 @@
 
 .page-block-source-text {
   color: var(--text-dim);
-  font-size: var(--font-sm);
+  font-size: var(--page-block-reading-size, 15px);
   line-height: 1.45;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -160,10 +160,8 @@
 }
 
 .page-block-list-row.expanded .page-block-source-text {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  display: block;
+  overflow: visible;
 }
 
 .page-block-list-row.expanded > .page-block-source-field,
@@ -239,7 +237,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--text-dim);
-  font-size: var(--font-sm);
+  font-size: var(--page-block-reading-size, 15px);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -250,7 +248,7 @@
   padding: 8px 9px;
   resize: vertical;
   color: var(--text-head);
-  font-size: var(--font-sm);
+  font-size: var(--page-block-reading-size, 15px);
   line-height: 1.45;
 }
 

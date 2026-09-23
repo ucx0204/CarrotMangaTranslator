@@ -41,6 +41,8 @@ export function FloatingControlTooltip({
         onFocusCapture={open}
         onBlurCapture={close}
         onPointerDown={close}
+        onClickCapture={close}
+        onKeyDownCapture={close}
       >
         {control}
       </span>
@@ -68,6 +70,7 @@ function useFloatingTooltipPosition(content: string) {
   const [position, setPosition] = React.useState({ left: 0, top: 0 });
   const close = React.useCallback(() => setAnchor(null), []);
   const open = () => {
+    if (trigger.current?.querySelector('[aria-expanded="true"]')) return;
     if (trigger.current) setAnchor(trigger.current.getBoundingClientRect());
   };
   React.useLayoutEffect(() => {

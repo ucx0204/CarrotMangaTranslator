@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import { normalizeFontWeightPatch } from "../../../shared/blockFontWeight";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -181,7 +182,7 @@ function constrainPatchedVisualTransform(
   const editableBbox = resolveEditableBlockBbox(
     next,
     pageSize,
-    next.translatedText || next.sourceText || "...",
+    resolveBlockDisplayText(next) || "...",
   ).bbox;
   const constrainedBbox = constrainEditableRenderBbox(next, editableBbox);
   if (areBboxesEqual(editableBbox, constrainedBbox)) return next;

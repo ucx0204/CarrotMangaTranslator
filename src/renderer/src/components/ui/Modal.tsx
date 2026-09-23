@@ -61,6 +61,8 @@ export type ModalProps = ModalAccessibleName & {
   size?: ModalSize;
   /** Explicit CSS width for the dialog card; overrides `size`. */
   width?: string;
+  /** Animate from the previous card width when replacing a dialog view. Requires width. */
+  resizeFromWidth?: string;
   /**
    * Caps the card height, e.g. `"900px"`. The viewport bound is always applied
    * on top of it, so callers must not restate a `calc(100vh - …)` expression.
@@ -104,6 +106,7 @@ export function Modal(props: ModalProps): React.JSX.Element {
     <div
       className={[
         styles.backdrop,
+        props.resizeFromWidth ? styles.backdropImmediate : "",
         props.elevation === "blocking" ? styles.backdropBlocking : "",
       ]
         .filter(Boolean)
@@ -153,13 +156,18 @@ function ModalCard({
       ref={cardRef}
       className={[
         styles.card,
+        props.resizeFromWidth ? styles.cardResize : "",
         styles[size],
         props.fillHeight ? styles.cardFillHeight : "",
         cardClassName ?? "",
       ]
         .filter(Boolean)
         .join(" ")}
-      style={resolveCardStyle(props.width, props.maxHeight)}
+      style={resolveCardStyle(
+        props.width,
+        props.maxHeight,
+        props.resizeFromWidth,
+      )}
       role="dialog"
       aria-modal="true"
       {...resolveModalAccessibleName(title, props.ariaLabel, titleId)}
@@ -218,10 +226,12 @@ function bodyLayoutClass(layout: ModalBodyLayout): string {
 function resolveCardStyle(
   width: string | undefined,
   maxHeight: string | undefined,
+  resizeFromWidth: string | undefined,
 ): React.CSSProperties | undefined {
   if (!width && !maxHeight) return undefined;
   return {
-    ...(width ? { width } : {}),
+    ...(width ? { width, "--modal-resize-to": width } : {}),
+    ...(resizeFromWidth ? { "--modal-resize-from": resizeFromWidth } : {}),
     ...(maxHeight ? { "--modal-cap": maxHeight } : {}),
   } as React.CSSProperties;
 }

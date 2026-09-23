@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "./blockDisplayText";
 import { z } from "zod";
 import {
   MAX_BLOCKS_PER_PAGE,
@@ -47,7 +48,7 @@ export function serializeBlockClipboard(
     pageSize: { width: pageSize.width, height: pageSize.height },
     blocks: blocks.map((block) => {
       const text = parseRichText(
-        block.translatedText || block.sourceText || "...",
+        resolveBlockDisplayText(block) || "...",
         Boolean(block.bold),
         Boolean(block.italic),
       ).plainText;

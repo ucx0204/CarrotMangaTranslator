@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import {
@@ -99,7 +100,7 @@ export function nudgeBlockByImagePixels(
     width: Math.max(1, page.width),
     height: Math.max(1, page.height),
   };
-  const displayText = block.translatedText || block.sourceText || "...";
+  const displayText = resolveBlockDisplayText(block) || "...";
   const target = resolveEditableBlockBbox(block, pageSize, displayText);
   const deltaX = (deltaPx.x / pageSize.width) * 1000;
   const deltaY = (deltaPx.y / pageSize.height) * 1000;

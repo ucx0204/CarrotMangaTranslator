@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import React from "react";
 import { IconEraserOff } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -141,7 +142,10 @@ function resolveDisplayText(
   block: TranslationBlock,
   showChrome: boolean,
 ): string {
-  return block.translatedText || block.sourceText || (showChrome ? "..." : "");
+  return (
+    resolveBlockDisplayText(block) ||
+    (showChrome && block.textDisplayMode !== "translation-only" ? "..." : "")
+  );
 }
 
 function resolveSelectedMode(

@@ -6,7 +6,7 @@ A desktop app for **OCR → translation → text removal → lettering and revie
 
 [한국어](README.md) · **English** · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**[Download v2.7.14](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.7.14)** · [Release notes](docs/release-notes/v2.7.14.md) · [Bugs and requests](https://github.com/ucx0204/CarrotMangaTranslator/issues)
+**[Download v2.8.0](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.8.0)** · [Release notes](docs/release-notes/v2.8.0.md) · [Bugs and requests](https://github.com/ucx0204/CarrotMangaTranslator/issues)
 
 [Getting started](#start) · [Edit text](#edit) · [SFX ImageGen](#sfx) · [Shortcuts](#shortcuts) · [Troubleshooting](#troubleshooting)
 
@@ -440,6 +440,6 @@ Run `npm run check` for checks, `npm run dist:win` for Windows packaging, and `n
 - Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
 - App source is [GPL-3.0-only](LICENSE). Check separate distribution terms for fonts, models, and runtimes.
 
-This guide covers v2.7.14. Screenshots show real app components with demo data and Korean UI. The sample art and translations illustrate features, not model performance. [Capture and sample provenance](docs/images/readme-v2712/README.md)
+This guide covers v2.8.0. Screenshots show real app components with demo data and Korean UI. The sample art and translations illustrate features, not model performance. [Capture and sample provenance](docs/images/readme-v2712/README.md)
 
 [Back to start](#start)

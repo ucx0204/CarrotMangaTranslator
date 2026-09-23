@@ -5,6 +5,10 @@ import { rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { MangaPage } from "../shared/libraryTypes";
+import type {
+  PageWorkflowRuleRenderRequest,
+  PageWorkflowRuleRenderResult,
+} from "../shared/pageWorkflowTypes";
 import {
   pageExportLayoutEvidenceSchema,
   type PageExportLayoutEvidence,
@@ -61,6 +65,9 @@ const STRICT_SAFE_PNG_CAPTURE_OPTIONS = {
 // Public operations belong to the created session even when passed as callbacks
 // or destructured by consumers (for example the PSD text-layer renderer).
 export type PageExportRenderSession = {
+  applyWorkflowRules?: (
+    request: PageWorkflowRuleRenderRequest,
+  ) => Promise<PageWorkflowRuleRenderResult>;
   renderPage: (
     this: void,
     page: MangaPage,
@@ -112,6 +119,31 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
   private active = false;
   private closed = false;
   private lastRenderFailure: { error: unknown } | null = null;
+
+  readonly applyWorkflowRules = async (
+    request: PageWorkflowRuleRenderRequest,
+  ): Promise<PageWorkflowRuleRenderResult> => {
+    if (this.closed || this.active)
+      throw new Error("일괄 편집 렌더러가 준비되지 않았습니다.");
+    this.active = true;
+    this.lastRenderFailure = null;
+    try {
+      return await withAbortableTimeout(
+        () =>
+          this.tempOwner.owner.win.webContents.executeJavaScript(
+            `window.applyWorkflowRules(${JSON.stringify(request)})`,
+          ),
+        60_000,
+        "일괄 편집 계측 시간이 초과되었습니다.",
+        this.cancellation.signal,
+      );
+    } catch (error) {
+      this.lastRenderFailure = { error };
+      throw error;
+    } finally {
+      this.finishActiveRender();
+    }
+  };
 
   constructor(
     private readonly options: PageExportRenderOptions,
@@ -165,6 +197,16 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
     closeExportResources(this.tempOwner, this.lastRenderFailure);
   };
 
+  private finishActiveRender(): void {
+    this.active = false;
+    if (!this.closed) return;
+    try {
+      this.tempOwner.release();
+    } catch (error) {
+      throwPageExportCleanupError(this.lastRenderFailure, [error]);
+    }
+  }
+
   private async render(
     page: MangaPage,
     transparentBackground: boolean,
@@ -189,14 +231,7 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
       this.lastRenderFailure = { error };
       throw error;
     } finally {
-      this.active = false;
-      if (this.closed) {
-        try {
-          this.tempOwner.release();
-        } catch (error) {
-          throwPageExportCleanupError(this.lastRenderFailure, [error]);
-        }
-      }
+      this.finishActiveRender();
     }
   }
 }

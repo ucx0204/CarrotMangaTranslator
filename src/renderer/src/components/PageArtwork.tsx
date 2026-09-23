@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import React from "react";
 import {
   GeneratedLetteringImage,
@@ -44,17 +45,20 @@ export const ArtworkBlock = React.memo(function ArtworkBlock({
   onPointerDown,
   warpPreview = false,
 }: ArtworkBlockProps): React.JSX.Element {
-  const content = block.imageGenerationBlocked ? null : (
-    <>
-      <TextBackgroundLayer block={block} />
-      <ArtworkBlockText
-        block={block}
-        fontCatalog={fontCatalog}
-        model={model}
-        warpPreview={warpPreview}
-      />
-    </>
-  );
+  const content =
+    block.imageGenerationBlocked ||
+    (block.textDisplayMode === "translation-only" &&
+      !block.translatedText.trim()) ? null : (
+      <>
+        <TextBackgroundLayer block={block} />
+        <ArtworkBlockText
+          block={block}
+          fontCatalog={fontCatalog}
+          model={model}
+          warpPreview={warpPreview}
+        />
+      </>
+    );
   return (
     <div
       className={model.outerClassName}
@@ -243,7 +247,7 @@ function PageArtworkBlock({
   sourceFontFaceFallbackPx?: number;
   visualSize: ViewportSize;
 }): React.JSX.Element {
-  const displayText = block.translatedText || block.sourceText;
+  const displayText = resolveBlockDisplayText(block);
   const layout = useArtworkBlockLayout({
     block,
     displayText,

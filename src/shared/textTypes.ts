@@ -1,3 +1,4 @@
+import type { WorkflowBlockMetadata } from "./pageWorkflowBlockMetadata";
 import type { BubbleLayout } from "./bubbleLayout";
 import type { FontMatchingSemanticRole } from "./fontMatchingProfileTypes";
 
@@ -80,6 +81,9 @@ export type CurveLayout = {
 };
 
 export type TranslationBlock = {
+  /** Prepared Hayai blocks render only target text, including when it is empty. */
+  textDisplayMode?: "translation-only";
+  workflowOrigin?: WorkflowBlockMetadata;
   id: string;
   type: BlockType;
   /** Source OCR/inpainting geometry, always confined to the page. */

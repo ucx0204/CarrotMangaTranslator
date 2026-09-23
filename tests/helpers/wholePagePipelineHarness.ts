@@ -121,6 +121,7 @@ export async function loadPipeline({
     },
   } satisfies WholePagePipelineDependencies;
   return {
+    dependencies,
     runWholePagePipeline: (
       options: Parameters<typeof runWithDependencies>[0],
     ) => runWithDependencies(options, dependencies),

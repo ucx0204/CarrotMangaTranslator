@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import React from "react";
 import { parseRichText } from "../../../shared/richTextMarkup";
 import type { TranslationBlock } from "../../../shared/textTypes";
@@ -257,5 +258,8 @@ function nearlyEqual(left: number, right: number): boolean {
 }
 
 function resolveDisplayText(block: TranslationBlock): string {
-  return block.translatedText || block.sourceText || "...";
+  return (
+    resolveBlockDisplayText(block) ||
+    (block.textDisplayMode === "translation-only" ? "" : "...")
+  );
 }

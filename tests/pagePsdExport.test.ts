@@ -11,6 +11,33 @@ import type { TranslationBlock } from "../src/shared/textTypes";
 import { createIdentityWarpTransform } from "../src/shared/blockTransforms";
 
 describe("layered PSD export", () => {
+  it("does not add editable source text for an empty prepared block", () => {
+    const page = makePage();
+    const block = {
+      ...makeBlock(),
+      translatedText: "",
+      textDisplayMode: "translation-only" as const,
+    };
+    expect(resolveEditablePsdText(block, page)).toBeNull();
+    const background = makePng(4, 3, [255, 255, 255, 255]);
+    const output = buildPagePsd({
+      page: { ...page, blocks: [block] },
+      compositePng: background,
+      originalBackgroundPng: background,
+      textLayers: [{ block, png: makePng(4, 3, [0, 0, 0, 0]) }],
+    });
+    const psd = readPsd(output, {
+      skipCompositeImageData: true,
+      skipLayerImageData: true,
+      skipThumbnail: true,
+    });
+    expect(psd.children).toHaveLength(1);
+    expect(psd.children?.[0].text).toBeUndefined();
+    expect(
+      resolveEditablePsdText({ ...block, textDisplayMode: undefined }, page)
+        ?.text,
+    ).toBe(block.sourceText);
+  });
   it.each(["active", "disabled", "stale"])(
     "round-trips %s generated lettering without mislabeling the visible layer",
     (state) => {

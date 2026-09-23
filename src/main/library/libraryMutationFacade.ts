@@ -1,3 +1,4 @@
+import { savePageWorkflowResultUnlocked } from "../libraryStore/pageWorkflowMutations";
 import type {
   ChapterSnapshot,
   LibraryIndex,
@@ -119,6 +120,18 @@ export function createSavePagesBlocks(runtime: SavePagesBlocksRuntime) {
 export const savePagesBlocks = createSavePagesBlocks(
   productionSavePagesBlocksRuntime,
 );
+
+export async function savePageWorkflowResult(
+  chapterId: string,
+  before: MangaPage,
+  after: MangaPage,
+  context?: import("../application/pageWorkflowContextCommit").PageWorkflowContextCommit,
+): Promise<void> {
+  await guardedMutation([pageContentResource(chapterId, before.id)], () =>
+    savePageWorkflowResultUnlocked(chapterId, before, after, context),
+  );
+  notifyLinkedWorkspacePagesSaved(chapterId, [before.id]);
+}
 
 export async function appendAnalyzedPageBlocks(
   chapterId: string,

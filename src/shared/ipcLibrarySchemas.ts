@@ -1,3 +1,4 @@
+import { PageWorkflowReceiptSchema } from "./pageWorkflowReceipt";
 import { z } from "zod";
 import {
   MAX_BLOCKS_PER_PAGE,
@@ -180,6 +181,10 @@ const PageRecordPathShape = {
 };
 
 const PageRecordContentShape = {
+  pageWorkflow: PageWorkflowReceiptSchema.optional(),
+  erasedWorkflowRegions: z
+    .record(z.string().max(200), z.string().max(100))
+    .optional(),
   width: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
   height: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
   blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),

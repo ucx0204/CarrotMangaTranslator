@@ -277,6 +277,8 @@ function resolveDefaultUiSettings(
     bubbleLayoutWorkflowDefault: true,
     codexErasureDefault: false,
     wheelZoomSensitivityPercent: 1,
+    hayaiTranslationUi: "workflow",
+    blockReadingSize: 15,
   };
 }
 

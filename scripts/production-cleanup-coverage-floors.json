@@ -14577,6 +14577,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/lib/blockKeyboardNudge.ts": {
+      "lines": {
+        "covered": 39,
+        "total": 40,
+        "pct": 97.5
+      },
+      "statements": {
+        "covered": 40,
+        "total": 41,
+        "pct": 97.56
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 19,
+        "total": 23,
+        "pct": 82.6
+      }
+    },
     "src/renderer/src/lib/blockTextMeasurement.ts": {
       "lines": {
         "covered": 29,
@@ -17087,6 +17109,94 @@
         "pct": 100
       }
     },
+    "src/main/application/pageWorkflowContextCommit.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/application/pageWorkflowPartialFailure.ts": {
+      "lines": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/application/pageWorkflowReceipts.ts": {
+      "lines": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 21,
+        "total": 24,
+        "pct": 87.5
+      }
+    },
+    "src/main/application/pageWorkflowService.ts": {
+      "lines": {
+        "covered": 53,
+        "total": 53,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 58,
+        "total": 59,
+        "pct": 98.3
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 23,
+        "total": 28,
+        "pct": 82.14
+      }
+    },
     "src/main/application/redactionConfirmationPages.ts": {
       "lines": {
         "covered": 4,
@@ -19023,6 +19133,28 @@
         "pct": 0
       }
     },
+    "src/main/ipc/pageWorkflowIpc.ts": {
+      "lines": {
+        "covered": 3,
+        "total": 15,
+        "pct": 20
+      },
+      "statements": {
+        "covered": 3,
+        "total": 15,
+        "pct": 20
+      },
+      "functions": {
+        "covered": 1,
+        "total": 5,
+        "pct": 20
+      },
+      "branches": {
+        "covered": 0,
+        "total": 8,
+        "pct": 0
+      }
+    },
     "src/main/ipc/redactionWorkspaceOwners.ts": {
       "lines": {
         "covered": 18,
@@ -19285,6 +19417,28 @@
         "total": 47,
         "covered": 37,
         "pct": 78.72
+      }
+    },
+    "src/main/jobs/pageWorkflowJob.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 40,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 43,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 14,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 20,
+        "pct": 0
       }
     },
     "src/main/jobs/regionTranslationArtwork.ts": {
@@ -19903,6 +20057,28 @@
         "pct": 73.33
       }
     },
+    "src/main/libraryStore/pageWorkflowMutations.ts": {
+      "lines": {
+        "covered": 19,
+        "total": 26,
+        "pct": 73.07
+      },
+      "statements": {
+        "covered": 20,
+        "total": 28,
+        "pct": 71.42
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 13,
+        "total": 24,
+        "pct": 54.16
+      }
+    },
     "src/main/libraryStore/translationCheckpointStore.ts": {
       "lines": {
         "covered": 81,
@@ -20143,6 +20319,248 @@
         "covered": 33,
         "total": 54,
         "pct": 61.11
+      }
+    },
+    "src/main/pageWorkflow/pageWorkflowConfiguration.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 2,
+        "total": 4,
+        "pct": 50
+      }
+    },
+    "src/main/pageWorkflow/pageWorkflowImages.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 31,
+        "pct": 25.8
+      },
+      "statements": {
+        "covered": 8,
+        "total": 33,
+        "pct": 24.24
+      },
+      "functions": {
+        "covered": 3,
+        "total": 10,
+        "pct": 30
+      },
+      "branches": {
+        "covered": 6,
+        "total": 37,
+        "pct": 16.21
+      }
+    },
+    "src/main/pageWorkflow/pageWorkflowOcr.ts": {
+      "lines": {
+        "covered": 25,
+        "total": 32,
+        "pct": 78.12
+      },
+      "statements": {
+        "covered": 29,
+        "total": 37,
+        "pct": 78.37
+      },
+      "functions": {
+        "covered": 8,
+        "total": 12,
+        "pct": 66.66
+      },
+      "branches": {
+        "covered": 12,
+        "total": 17,
+        "pct": 70.58
+      }
+    },
+    "src/main/pageWorkflow/pageWorkflowRuleExecution.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 23,
+        "pct": 4.34
+      },
+      "statements": {
+        "covered": 1,
+        "total": 29,
+        "pct": 3.44
+      },
+      "functions": {
+        "covered": 0,
+        "total": 6,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 18,
+        "pct": 0
+      }
+    },
+    "src/main/pageWorkflow/pageWorkflowRuntime.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 33,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 39,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 11,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 26,
+        "pct": 0
+      }
+    },
+    "src/main/pageWorkflow/pageWorkflowRuntimeTypes.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/pageWorkflow/pageWorkflowTranslation.ts": {
+      "lines": {
+        "covered": 19,
+        "total": 22,
+        "pct": 86.36
+      },
+      "statements": {
+        "covered": 21,
+        "total": 26,
+        "pct": 80.76
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 15,
+        "total": 25,
+        "pct": 60
+      }
+    },
+    "src/main/pageWorkflow/pageWorkflowTypography.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 22,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 23,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 5,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 13,
+        "pct": 0
+      }
+    },
+    "src/main/pageWorkflow/pageWorkflowTypographyInput.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 18,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 19,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 9,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 2,
+        "pct": 0
+      }
+    },
+    "src/main/pageWorkflow/pageWorkflowTypographyMerge.ts": {
+      "lines": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 14,
+        "total": 15,
+        "pct": 93.33
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 12,
+        "total": 19,
+        "pct": 63.15
+      }
+    },
+    "src/main/pageWorkflowRunStore.ts": {
+      "lines": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
       }
     },
     "src/main/pipeline/automaticFontMatchingExpression.ts": {
@@ -23533,6 +23951,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/api/pageWorkflowGateway.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/renderer/src/app/session/createConditionalBatchEditorProps.ts": {
       "lines": {
         "covered": 16,
@@ -23838,6 +24278,28 @@
       "branches": {
         "total": 2,
         "covered": 2,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/components/ChapterPickerHeader.tsx": {
+      "lines": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 6,
         "pct": 100
       }
     },
@@ -24763,6 +25225,94 @@
         "covered": 29,
         "total": 32,
         "pct": 90.62
+      }
+    },
+    "src/renderer/src/components/PageWorkflowModal.tsx": {
+      "lines": {
+        "covered": 17,
+        "total": 21,
+        "pct": 80.95
+      },
+      "statements": {
+        "covered": 17,
+        "total": 21,
+        "pct": 80.95
+      },
+      "functions": {
+        "covered": 4,
+        "total": 5,
+        "pct": 80
+      },
+      "branches": {
+        "covered": 19,
+        "total": 22,
+        "pct": 86.36
+      }
+    },
+    "src/renderer/src/components/PageWorkflowOptions.tsx": {
+      "lines": {
+        "covered": 10,
+        "total": 17,
+        "pct": 58.82
+      },
+      "statements": {
+        "covered": 12,
+        "total": 19,
+        "pct": 63.15
+      },
+      "functions": {
+        "covered": 7,
+        "total": 12,
+        "pct": 58.33
+      },
+      "branches": {
+        "covered": 9,
+        "total": 14,
+        "pct": 64.28
+      }
+    },
+    "src/renderer/src/components/PageWorkflowStages.tsx": {
+      "lines": {
+        "covered": 15,
+        "total": 30,
+        "pct": 50
+      },
+      "statements": {
+        "covered": 16,
+        "total": 31,
+        "pct": 51.61
+      },
+      "functions": {
+        "covered": 6,
+        "total": 17,
+        "pct": 35.29
+      },
+      "branches": {
+        "covered": 25,
+        "total": 34,
+        "pct": 73.52
+      }
+    },
+    "src/renderer/src/components/PageWorkflowSummary.tsx": {
+      "lines": {
+        "covered": 4,
+        "total": 10,
+        "pct": 40
+      },
+      "statements": {
+        "covered": 4,
+        "total": 10,
+        "pct": 40
+      },
+      "functions": {
+        "covered": 3,
+        "total": 9,
+        "pct": 33.33
+      },
+      "branches": {
+        "covered": 10,
+        "total": 19,
+        "pct": 52.63
       }
     },
     "src/renderer/src/components/PresetRowActions.tsx": {
@@ -26855,6 +27405,28 @@
         "pct": 82.5
       }
     },
+    "src/renderer/src/components/pageWorkflowModalState.ts": {
+      "lines": {
+        "covered": 50,
+        "total": 54,
+        "pct": 92.59
+      },
+      "statements": {
+        "covered": 53,
+        "total": 59,
+        "pct": 89.83
+      },
+      "functions": {
+        "covered": 18,
+        "total": 20,
+        "pct": 90
+      },
+      "branches": {
+        "covered": 15,
+        "total": 26,
+        "pct": 57.69
+      }
+    },
     "src/renderer/src/components/richTranslationCodeFormatting.ts": {
       "lines": {
         "total": 46,
@@ -27755,6 +28327,28 @@
         "total": 22,
         "covered": 15,
         "pct": 68.18
+      }
+    },
+    "src/renderer/src/components/translationOptionsModalTypes.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/renderer/src/components/ui/FavoriteToggleButton.tsx": {
@@ -28967,6 +29561,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/hooks/useRunPageWorkflow.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 29,
+        "pct": 6.89
+      },
+      "statements": {
+        "covered": 2,
+        "total": 30,
+        "pct": 6.66
+      },
+      "functions": {
+        "covered": 1,
+        "total": 6,
+        "pct": 16.66
+      },
+      "branches": {
+        "covered": 0,
+        "total": 14,
+        "pct": 0
+      }
+    },
     "src/renderer/src/hooks/useSoundEffectTextReview.ts": {
       "lines": {
         "covered": 32,
@@ -29869,6 +30485,28 @@
         "pct": 67.56
       }
     },
+    "src/renderer/src/pageExport/workflowRules.ts": {
+      "lines": {
+        "covered": 16,
+        "total": 18,
+        "pct": 88.88
+      },
+      "statements": {
+        "covered": 16,
+        "total": 18,
+        "pct": 88.88
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 8,
+        "pct": 75
+      }
+    },
     "src/renderer/src/panels/usePanelEditHandoff.ts": {
       "lines": {
         "total": 48,
@@ -29999,6 +30637,28 @@
         "covered": 4,
         "total": 6,
         "pct": 66.66
+      }
+    },
+    "src/shared/blockDisplayText.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
       }
     },
     "src/shared/blockFontPunctuationFallback.ts": {
@@ -31035,6 +31695,28 @@
         "pct": 100
       }
     },
+    "src/shared/ipcPageWorkflowContracts.ts": {
+      "lines": {
+        "covered": 6,
+        "total": 7,
+        "pct": 85.71
+      },
+      "statements": {
+        "covered": 6,
+        "total": 7,
+        "pct": 85.71
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 3,
+        "total": 4,
+        "pct": 75
+      }
+    },
     "src/shared/ipcSchemaValidation.ts": {
       "lines": {
         "total": 19,
@@ -31102,6 +31784,28 @@
       }
     },
     "src/shared/ipcTranslationReviewContracts.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/ipcUiSettingsSchema.ts": {
       "lines": {
         "covered": 1,
         "total": 1,
@@ -31231,6 +31935,160 @@
         "covered": 0,
         "total": 0,
         "pct": 100
+      }
+    },
+    "src/shared/pageWorkflowBlockMetadata.ts": {
+      "lines": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/pageWorkflowPolicy.ts": {
+      "lines": {
+        "covered": 65,
+        "total": 76,
+        "pct": 85.52
+      },
+      "statements": {
+        "covered": 75,
+        "total": 87,
+        "pct": 86.2
+      },
+      "functions": {
+        "covered": 21,
+        "total": 25,
+        "pct": 84
+      },
+      "branches": {
+        "covered": 75,
+        "total": 96,
+        "pct": 78.12
+      }
+    },
+    "src/shared/pageWorkflowReceipt.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/pageWorkflowRules.ts": {
+      "lines": {
+        "covered": 31,
+        "total": 34,
+        "pct": 91.17
+      },
+      "statements": {
+        "covered": 36,
+        "total": 44,
+        "pct": 81.81
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 28,
+        "pct": 60.71
+      }
+    },
+    "src/shared/pageWorkflowSettings.ts": {
+      "lines": {
+        "covered": 12,
+        "total": 14,
+        "pct": 85.71
+      },
+      "statements": {
+        "covered": 13,
+        "total": 17,
+        "pct": 76.47
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 27,
+        "total": 37,
+        "pct": 72.97
+      }
+    },
+    "src/shared/pageWorkflowStages.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/pageWorkflowTypes.ts": {
+      "lines": {
+        "covered": 10,
+        "total": 11,
+        "pct": 90.9
+      },
+      "statements": {
+        "covered": 10,
+        "total": 11,
+        "pct": 90.9
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 5,
+        "total": 6,
+        "pct": 83.33
       }
     },
     "src/shared/readableTextBox.ts": {

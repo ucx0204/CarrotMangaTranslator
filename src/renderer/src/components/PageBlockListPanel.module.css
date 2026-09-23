@@ -1,0 +1,13 @@
+.readingSize {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.readingSize > span {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  white-space: nowrap;
+}
+.readingSize > :last-child {
+  width: 72px;
+}

@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import type { PointerEvent } from "react";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
@@ -39,7 +40,7 @@ export function startBlockDrag({
   pointerRect: PointerRect;
 }): ActiveBlockDrag {
   const pageSize = { width: page.width, height: page.height };
-  const displayText = block.translatedText || block.sourceText || "...";
+  const displayText = resolveBlockDisplayText(block) || "...";
   const target = resolveEditableBlockBbox(block, pageSize, displayText);
   return {
     drag: {

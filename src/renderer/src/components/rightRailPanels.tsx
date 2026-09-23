@@ -18,6 +18,8 @@ import type { AppOperationActivityEvent } from "../../../shared/appOperationType
 import type { StatusLogEntry } from "../hooks/useStatusLog";
 
 export type UnifiedRightRailProps = {
+  blockReadingSize?: number;
+  onBlockReadingSizeChange?: (size: number) => void;
   aiUnavailable?: boolean;
   codexErasureAvailable?: boolean;
   codexErasureBusy?: boolean;
@@ -161,6 +163,8 @@ function ContextualRightRailPanel(
   if (props.selectedPage) {
     return (
       <PageBlockListPanel
+        readingSize={props.blockReadingSize}
+        onReadingSizeChange={props.onBlockReadingSizeChange}
         disabled={props.editorDisabled}
         page={props.selectedPage}
         readingDirection={props.blockReadingDirection}

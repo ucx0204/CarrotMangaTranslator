@@ -1,4 +1,5 @@
 import { useRegionTranslationDialog } from "./useRegionTranslationDialog";
+import { useRunPageWorkflow } from "./useRunPageWorkflow";
 import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -60,6 +61,7 @@ export function useTranslationActionsImpl(
   notificationPort: NotificationPort,
 ): TranslationActions {
   const flowActiveRef = useRef(false);
+  const runPageWorkflow = useRunPageWorkflow(options, notificationPort);
   const executeAnalysisJob = useExecuteAnalysisJob(options, notificationPort);
   const rawRunTranslationFlow = useRunTranslationFlowAction({
     ...options,
@@ -96,6 +98,7 @@ export function useTranslationActionsImpl(
   );
 
   return {
+    runPageWorkflow,
     runAnalysis,
     runTranslationFlow,
     translateSelectedRegion: region.open,

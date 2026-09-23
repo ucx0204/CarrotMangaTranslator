@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../shared/blockDisplayText";
 import {
   writePsdBuffer,
   type Layer,
@@ -89,7 +90,7 @@ function buildTextLayers(
         `PSD text layer capture is fully opaque for block ${input.block.id} on ${page.name}.`,
       );
     }
-    const displayText = input.block.translatedText || input.block.sourceText;
+    const displayText = resolveBlockDisplayText(input.block);
     const text = resolveEditablePsdText(input.block, page, displayText);
     return [
       {
@@ -106,7 +107,7 @@ function buildTextLayers(
 export function resolveEditablePsdText(
   block: TranslationBlock,
   page: Pick<MangaPage, "width" | "height">,
-  displayText = block.translatedText || block.sourceText,
+  displayText = resolveBlockDisplayText(block),
 ): LayerTextData | null {
   if (!supportsEditablePsdText(block, displayText)) return null;
   const bbox = resolveBlockRenderBbox(block, page);

@@ -147,6 +147,15 @@ import type {
 } from "./conditionalBatchExchangeTypes";
 
 export type MangaApi = {
+  preflightPageWorkflow: (
+    request: import("./pageWorkflowTypes").PageWorkflowRequest,
+  ) => Promise<import("./pageWorkflowTypes").PageWorkflowPreflight>;
+  startPageWorkflow: (
+    request: import("./pageWorkflowTypes").PageWorkflowRequest,
+  ) => Promise<import("./pageWorkflowTypes").PageWorkflowResult>;
+  getPageWorkflowRun: (
+    runId: string,
+  ) => Promise<import("./pageWorkflowTypes").PageWorkflowRequest>;
   restoreSoundEffectReview: (
     request: import("./analysisTypes").RestoreSoundEffectReviewRequest,
   ) => Promise<ChapterSnapshot>;

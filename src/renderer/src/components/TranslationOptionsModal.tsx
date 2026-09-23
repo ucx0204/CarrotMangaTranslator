@@ -1,13 +1,14 @@
+import type {
+  TranslationOptionsModalProps,
+  TranslationModalPresentation,
+} from "./translationOptionsModalTypes";
 import React from "react";
+import { SegmentedControl } from "./ui/SegmentedControl";
+import { PageWorkflowModal } from "./PageWorkflowModal";
 import { TranslationOptionsForm } from "./TranslationOptionsForm";
 import { useTranslation } from "react-i18next";
-import type {
-  ChapterSnapshot,
-  LibraryIndex,
-} from "../../../shared/libraryTypes";
-import type { AppSettings, UiSettings } from "../../../shared/settingsTypes";
+import type { UiSettings } from "../../../shared/settingsTypes";
 import type { TranslationFlowOptions } from "../hooks/useTranslationActions";
-import type { TranslationOptionsInitialScope } from "../lib/translationSelection";
 import { Modal } from "./ui/Modal";
 import { ConfirmModal } from "./ConfirmModal";
 import { handoffActiveModalToWorkCenter } from "../lib/modalWorkCenterHandoff";
@@ -31,21 +32,62 @@ type TranslationDefaultsPatch = Pick<
   | "codexErasureDefault"
 >;
 
-type TranslationOptionsModalProps = {
-  settings?: AppSettings | null;
-  chapter: ChapterSnapshot;
-  currentPageId?: string | null;
-  initialScope?: TranslationOptionsInitialScope;
-  library: LibraryIndex;
-  uiSettings: UiSettings | undefined;
-  sourceLanguage?: string;
-  targetLanguage?: string;
-  onStart: (options: TranslationFlowOptions) => void;
-  onPersistDefaults: (patch: TranslationDefaultsPatch) => void;
-  onClose: () => void;
-};
+export function TranslationOptionsModal(
+  props: TranslationOptionsModalProps,
+): React.JSX.Element {
+  return props.settings?.ocr.pipeline === "hayai" ? (
+    <HayaiTranslationOptionsModal {...props} />
+  ) : (
+    <LegacyTranslationOptionsModal {...props} />
+  );
+}
 
-export function TranslationOptionsModal({
+function HayaiTranslationOptionsModal(props: TranslationOptionsModalProps) {
+  const [mode, setMode] = React.useState(
+    props.uiSettings?.hayaiTranslationUi ?? "workflow",
+  );
+  const [resizeFromWidth, setResizeFromWidth] = React.useState<string>();
+  const switcherRef = React.useRef<HTMLDivElement>(null);
+  const switchMode = (next: typeof mode) => {
+    if (next === mode) return;
+    const dialog = switcherRef.current?.closest('[role="dialog"]');
+    setResizeFromWidth(`${dialog?.getBoundingClientRect().width ?? 880}px`);
+    setMode(next);
+    props.onPersistDefaults({ hayaiTranslationUi: next });
+  };
+  React.useEffect(() => {
+    if (resizeFromWidth)
+      switcherRef.current
+        ?.querySelector<HTMLElement>('[aria-checked="true"]')
+        ?.focus();
+  }, [mode, resizeFromWidth]);
+  const presentation = {
+    resizeFromWidth,
+    headerExtra: (
+      <div ref={switcherRef}>
+        <SegmentedControl
+          ariaLabel="Hayai 작업 화면"
+          singleRow
+          value={mode}
+          onChange={switchMode}
+          options={[
+            { id: "classic", label: "기존 버전" },
+            { id: "workflow", label: "새 버전" },
+          ]}
+        />
+      </div>
+    ),
+  };
+  return mode === "workflow" ? (
+    <PageWorkflowModal {...props} {...presentation} />
+  ) : (
+    <LegacyTranslationOptionsModal {...props} {...presentation} />
+  );
+}
+
+function LegacyTranslationOptionsModal({
+  headerExtra,
+  resizeFromWidth,
   settings,
   chapter,
   currentPageId,
@@ -56,7 +98,8 @@ export function TranslationOptionsModal({
   targetLanguage,
   onClose,
   ...startCallbacks
-}: TranslationOptionsModalProps): React.JSX.Element {
+}: TranslationOptionsModalProps &
+  TranslationModalPresentation): React.JSX.Element {
   const { t } = useTranslation("components");
   const state = useTranslationOptionsModalState(
     chapter,
@@ -78,6 +121,9 @@ export function TranslationOptionsModal({
       <Modal
         title={t("translationOptions.title")}
         size="lg"
+        width="min(880px, 100%)"
+        headerExtra={headerExtra}
+        resizeFromWidth={resizeFromWidth}
         onClose={onClose}
         fillHeight
         cardClassName="translation-options-modal page-picker-fill-modal"

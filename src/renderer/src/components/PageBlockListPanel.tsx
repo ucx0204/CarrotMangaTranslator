@@ -1,3 +1,4 @@
+import styles from "./PageBlockListPanel.module.css";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { MangaPage } from "../../../shared/libraryTypes";
@@ -8,8 +9,11 @@ import {
 } from "../../../shared/blockReadingOrder";
 import { PageBlockListRow } from "./PageBlockListRow";
 import { Button } from "./ui/Button";
+import { NumberField } from "./ui/NumberField";
 
 type PageBlockListPanelProps = {
+  readingSize?: number;
+  onReadingSizeChange?: (size: number) => void;
   disabled: boolean;
   page: MangaPage;
   readingDirection: BlockReadingDirection;
@@ -27,6 +31,8 @@ type PageBlockListPanelProps = {
 };
 
 export function PageBlockListPanel({
+  readingSize = 15,
+  onReadingSizeChange,
   disabled,
   page,
   readingDirection,
@@ -52,7 +58,14 @@ export function PageBlockListPanel({
   useScrollSelectedBlockIntoView(scrollRef, selectedBlockId);
 
   return (
-    <section className="page-block-list-panel">
+    <section
+      className="page-block-list-panel"
+      style={
+        {
+          "--page-block-reading-size": `${readingSize}px`,
+        } as React.CSSProperties
+      }
+    >
       <PageBlockListHeader
         blockCount={view.orderedBlocks.length}
         disabled={disabled}
@@ -61,6 +74,8 @@ export function PageBlockListPanel({
         selectedCount={view.selectedBlockIds.length}
         onReviewOnlyChange={view.setReviewOnly}
         onSortReadingOrder={onSortReadingOrder}
+        readingSize={readingSize}
+        onReadingSizeChange={onReadingSizeChange}
       />
       <div className="page-block-list-scroll" ref={scrollRef}>
         {view.visibleBlocks.length > 0 ? (
@@ -70,6 +85,7 @@ export function PageBlockListPanel({
               <PageBlockListRow
                 key={block.id}
                 block={block}
+                issues={workflowFindingRules(page, block.id)}
                 disabled={disabled}
                 expanded={block.id === selectedBlockId}
                 index={readingIndex}
@@ -130,10 +146,16 @@ function usePageBlockListView({
     [selectedBlockIds],
   );
   const needsReviewCount = orderedBlocks.filter(
-    (block) => block.reviewStatus === "needs_review",
+    (block) =>
+      block.reviewStatus === "needs_review" ||
+      page.pageWorkflow?.findings.some((f) => f.blockId === block.id),
   ).length;
   const visibleBlocks = reviewOnly
-    ? orderedBlocks.filter((block) => block.reviewStatus === "needs_review")
+    ? orderedBlocks.filter(
+        (block) =>
+          block.reviewStatus === "needs_review" ||
+          page.pageWorkflow?.findings.some((f) => f.blockId === block.id),
+      )
     : orderedBlocks;
   const selectBlock = usePageBlockListSelection({
     onChangeSelection: onChangeSelection ?? NOOP_SELECTION_CHANGE,
@@ -248,6 +270,8 @@ const NOOP_MOVE_BLOCK = (): void => undefined;
 const NOOP_SELECTION_CHANGE = (): void => undefined;
 
 function PageBlockListHeader({
+  readingSize,
+  onReadingSizeChange,
   blockCount,
   disabled,
   needsReviewCount,
@@ -257,6 +281,8 @@ function PageBlockListHeader({
   onSortReadingOrder,
 }: {
   blockCount: number;
+  readingSize: number;
+  onReadingSizeChange?: (size: number) => void;
   disabled: boolean;
   needsReviewCount: number;
   reviewOnly: boolean;
@@ -288,6 +314,19 @@ function PageBlockListHeader({
       </div>
       {blockCount > 0 ? (
         <div className="page-block-list-header-actions">
+          <div className={styles.readingSize}>
+            <span>읽기 크기</span>
+            <NumberField
+              ariaLabel="원문·번역문 읽기 크기"
+              value={readingSize}
+              onValueChange={onReadingSizeChange ?? NOOP}
+              min={12}
+              max={24}
+              step={1}
+              unit="px"
+              variant="framed"
+            />
+          </div>
           <Button
             aria-pressed={reviewOnly}
             onClick={() => onReviewOnlyChange(!reviewOnly)}
@@ -309,4 +348,10 @@ function PageBlockListHeader({
       ) : null}
     </header>
   );
+}
+
+function workflowFindingRules(page: MangaPage, blockId: string) {
+  return page.pageWorkflow?.findings
+    .filter((finding) => finding.blockId === blockId)
+    .map((finding) => finding.rule);
 }

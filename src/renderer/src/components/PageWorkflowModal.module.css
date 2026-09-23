@@ -1,0 +1,269 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.engine,
+.toolbarLabel,
+.stageHint {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+.toolbar {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-6);
+  padding: var(--sp-6) var(--sp-8);
+  flex: 0 0 auto;
+}
+.presets {
+  flex: 1;
+  min-width: 0;
+}
+.presetBar,
+.presetSave {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.presetSelect {
+  flex: 1;
+  min-width: 0;
+  max-width: 320px;
+}
+.presetSave {
+  margin-top: var(--sp-3);
+}
+.presetSave > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: var(--sp-8);
+  min-height: 0;
+  flex: 1;
+  padding: 0 var(--sp-8) var(--sp-6);
+  overflow: hidden;
+}
+.selection,
+.tasks {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.selection {
+  padding-right: var(--sp-6);
+  border-right: 1px solid var(--border-soft);
+}
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 40px;
+  flex: 0 0 auto;
+}
+.sectionHeading h3 {
+  margin: 0;
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+.sectionHeading > span {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+.sectionHeading > :last-child {
+  margin-left: auto;
+}
+.selectionToggle {
+  display: none;
+}
+.selectionContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.stages {
+  overflow: auto;
+  min-height: 0;
+}
+.stage {
+  border-bottom: 1px solid var(--border-soft);
+}
+.stage:last-child {
+  border-bottom: 0;
+}
+.stageRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  padding: var(--sp-1) 0;
+}
+.stageNumber {
+  width: 20px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.stageControl {
+  flex: 1;
+  min-width: 0;
+}
+.stageCheck {
+  min-height: 32px;
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+.stage[data-enabled="false"] .stageCheck {
+  color: var(--text-muted);
+}
+.stageSettings {
+  color: var(--text-dim);
+  max-width: 44%;
+}
+.stageHint {
+  padding-inline: var(--sp-3);
+}
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-3) var(--sp-3) var(--sp-6) 28px;
+}
+.inlineOptions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-5) var(--sp-6);
+}
+.inlineOptions:empty {
+  display: none;
+}
+.inlineOptions > [data-ui-select] {
+  min-width: 120px;
+}
+.summary {
+  border-top: 1px solid var(--border-soft);
+  padding: var(--sp-5) var(--sp-8);
+  flex: 0 0 auto;
+  max-height: 28vh;
+  overflow: auto;
+}
+.summaryHeading {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3) var(--sp-6);
+  flex-wrap: wrap;
+}
+.summaryHeading strong {
+  font-size: var(--font-md);
+}
+.summaryHeading > span {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+.summaryHeading > :last-child {
+  margin-left: auto;
+}
+.summary p {
+  margin: var(--sp-3) 0;
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.summary .error {
+  color: var(--danger-text);
+}
+.footer {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+.footer > :first-child {
+  margin-right: auto;
+}
+.counts {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--sp-3);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+}
+.counts th,
+.counts td {
+  padding: var(--sp-1) var(--sp-3);
+  text-align: right;
+}
+.counts th:first-child {
+  text-align: left;
+}
+.counts tbody th {
+  font-weight: normal;
+}
+@media (max-width: 900px) {
+  .toolbar {
+    padding: var(--sp-5) var(--sp-6);
+  }
+  .columns {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    padding: 0 var(--sp-6) var(--sp-5);
+    overflow: auto;
+  }
+  .selection {
+    padding: 0;
+    border: 0;
+    flex-shrink: 0;
+  }
+  .selectionToggle {
+    display: inline-flex;
+  }
+  .selectionContent {
+    display: none;
+    flex: none;
+  }
+  .selection[data-expanded="true"] .selectionContent {
+    display: flex;
+    max-height: 240px;
+  }
+  .tasks {
+    flex-shrink: 0;
+  }
+  .stages {
+    overflow: visible;
+  }
+  .summary {
+    padding: var(--sp-3) var(--sp-6);
+  }
+}
+@media (max-width: 480px) {
+  .stageRow {
+    flex-wrap: wrap;
+  }
+  .stageSettings {
+    max-width: none;
+    margin-left: 28px;
+  }
+  .stageControl {
+    flex-basis: calc(100% - 28px);
+  }
+  .presetBar {
+    flex-wrap: wrap;
+  }
+  .presetSelect {
+    min-width: 140px;
+  }
+}

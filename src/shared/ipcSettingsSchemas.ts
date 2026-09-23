@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { codexTypesettingPreferencesSchema } from "./codexTypesettingSchemas";
+import { UiSettingsSchema } from "./ipcUiSettingsSchema";
 import {
   AmdRocmTargetSchema,
   FluxBackendSchema,
@@ -17,7 +17,6 @@ import {
 } from "./ipcSchemaPrimitives";
 import { MAX_LANGUAGE_CODE_LENGTH } from "./translationLanguages";
 import { CODEX_REASONING_EFFORTS, CODEX_IMAGE_MODELS } from "./codexSettings";
-import { SUPPORTED_UI_LOCALES } from "./uiLocales";
 import { TEXT_WORD_BREAK_VALUES } from "./textWrapping";
 import {
   MAX_BUBBLE_LAYOUT_PADDING_RATIO,
@@ -270,32 +269,7 @@ export const AppSettingsSchema = z
       ).optional(),
     }).strict(),
     ocr: OcrSettingsSchema,
-    ui: z
-      .object({
-        locale: z.enum(SUPPORTED_UI_LOCALES).optional(),
-        inpaintingGuideHidden: z.boolean().optional(),
-        translationWorkflowDefault: z
-          .enum(["standard", "cumulative"])
-          .optional(),
-        cumulativeContextDetailDefault: z
-          .enum(["detailed", "balanced", "essential"])
-          .optional(),
-        blockModeDefault: z.enum(["auto", "keep"]).optional(),
-        codexTypesettingPreferences:
-          codexTypesettingPreferencesSchema.optional(),
-        naturalTextLayoutDefault: z.boolean().optional(),
-        autoFontMatchingDefault: z.boolean().optional(),
-        aiFontSizeMatchingDefault: z.boolean().optional(),
-        fontSizeAutoFitDefault: z.boolean().optional(),
-        sfxAutoFontMatchingDefault: z.boolean().optional(),
-        sfxInpaintAfterTranslationDefault: z.boolean().optional(),
-        eraseOriginalWorkflowDefault: z.boolean().optional(),
-        bubbleLayoutWorkflowDefault: z.boolean().optional(),
-        codexErasureDefault: z.boolean().optional(),
-        wheelZoomSensitivityPercent: z.number().int().min(1).max(10).optional(),
-      })
-      .strict()
-      .optional(),
+    ui: UiSettingsSchema,
     inpainting: z
       .object({
         model: InpaintingModelSchema.optional(),

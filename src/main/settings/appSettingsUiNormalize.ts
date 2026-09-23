@@ -4,6 +4,7 @@ import type {
 } from "../../shared/settingsTypes";
 import { codexTypesettingPreferencesSchema } from "../../shared/codexTypesettingSchemas";
 import { normalizeUiLocale } from "../../shared/uiLocales";
+import { normalizePageWorkflowUi } from "../../shared/pageWorkflowSettings";
 import { resolveBoolean } from "./appSettingsResolvers";
 
 export function normalizeUiSettings(
@@ -27,6 +28,7 @@ export function normalizeUiSettings(
     base.cumulativeContextDetailDefault,
   );
   return {
+    ...normalizePageWorkflowUi(data),
     ...resolveCodexTypesettingPreferences(data.codexTypesettingPreferences),
     locale: normalizeUiLocale(data.locale, base.locale),
     inpaintingGuideHidden: resolveBoolean(

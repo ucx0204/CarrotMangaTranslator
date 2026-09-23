@@ -566,8 +566,9 @@ async function prepareWholePageRun(
     (message, details) => dependencies.diagnostics.warn(message, details),
   );
   const modelPages = pages.filter((page) => !reusableCheckpoints.has(page.id));
-  const ocrHintsByPageId =
-    options.acquirePage && blockMode === "keep"
+  const ocrHintsByPageId = options.preparedOcrHints
+    ? new Map(options.preparedOcrHints)
+    : options.acquirePage && blockMode === "keep"
       ? new Map<string, OcrBboxResult>()
       : await measureSharedProcessingStage(timing, "ocr", () =>
           preparePageOcrHints({

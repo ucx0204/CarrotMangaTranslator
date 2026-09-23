@@ -1,4 +1,5 @@
 import React from "react";
+import { ChapterPickerHeader } from "./ChapterPickerHeader";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type {
@@ -19,10 +20,10 @@ import {
   type ChapterSelectionMap,
   type TranslationResumeContext,
 } from "../lib/translationSelection";
-import { Button } from "./ui/Button";
 import { WorkPagePicker, type ChapterPagesLookup } from "./WorkPagePicker";
 
 type ChapterPagePickerProps = {
+  pageWork?: boolean;
   work: LibraryWorkSummary;
   currentChapter: ChapterSnapshot;
   currentPageId?: string | null;
@@ -41,11 +42,13 @@ export function ChapterPagePicker(
 
   return (
     <WorkPagePicker
+      showTranslatedStatus={!props.pageWork}
       work={work}
       currentChapter={currentChapter}
       currentPageId={currentPageId}
       header={
         <ChapterPickerHeader
+          pageWork={props.pageWork}
           workTitle={work.title}
           onSelectAll={actions.selectAll}
           onSelectPending={actions.selectPending}
@@ -67,17 +70,23 @@ export function ChapterPagePicker(
         pageRunIntent(selection.get(chapter.id), page, resumeContext)
       }
       getPageSelectionTooltip={(chapter, page) =>
-        resolveResumeTooltip(
-          pageRunIntent(selection.get(chapter.id), page, resumeContext),
-          page,
-          t,
-        )
+        props.pageWork
+          ? page.name
+          : resolveResumeTooltip(
+              pageRunIntent(selection.get(chapter.id), page, resumeContext),
+              page,
+              t,
+            )
       }
       getChapterSummary={(chapter, pages) =>
-        resolveChapterSummary(chapter, pages, resumeContext, t)
+        props.pageWork
+          ? `${pages?.length ?? chapter.pageCount}p`
+          : resolveChapterSummary(chapter, pages, resumeContext, t)
       }
       renderSelectionSummary={(getPages) =>
-        summarizeSelection(work, selection, getPages, resumeContext, t)
+        props.pageWork
+          ? null
+          : summarizeSelection(work, selection, getPages, resumeContext, t)
       }
       onToggleChapter={actions.toggleChapter}
       onTogglePage={actions.togglePage}
@@ -173,41 +182,6 @@ function createWorkSelection(
       const next = make(chapter);
       return next ? [[chapter.id, next] as const] : [];
     }),
-  );
-}
-
-function ChapterPickerHeader({
-  workTitle,
-  onSelectAll,
-  onSelectPending,
-  onClear,
-}: {
-  workTitle: string;
-  onSelectAll: () => void;
-  onSelectPending: () => void;
-  onClear: () => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <div className="translate-picker-head">
-      <div className="translate-picker-heading">
-        <div className="translate-picker-worktitle">{workTitle}</div>
-        <div className="translate-picker-subtitle">
-          {t("chapterPicker.prompt")}
-        </div>
-      </div>
-      <div className="translate-picker-actions">
-        <Button variant="ghost" size="sm" onClick={onSelectAll}>
-          {t("common.selectAll")}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onSelectPending}>
-          {t("chapterPicker.untranslatedOnly")}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onClear}>
-          {t("common.clearAll")}
-        </Button>
-      </div>
-    </div>
   );
 }
 

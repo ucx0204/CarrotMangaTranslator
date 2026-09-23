@@ -53,6 +53,8 @@ export type FontLibrarySnapshot = {
 };
 
 export type MangaPage = {
+  pageWorkflow?: import("./pageWorkflowReceipt").PageWorkflowReceipt;
+  erasedWorkflowRegions?: Record<string, string>;
   typesettingMethod?: "codex";
   id: string;
   name: string;

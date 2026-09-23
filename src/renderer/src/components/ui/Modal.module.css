@@ -50,6 +50,24 @@
     animation: modal-card-enter var(--motion-overlay) var(--ease-enter) both;
   }
 
+  .backdropImmediate {
+    animation: none;
+  }
+
+  .cardResize {
+    animation: modal-card-resize var(--motion-overlay) var(--ease-enter)
+      backwards;
+  }
+
+  @keyframes modal-card-resize {
+    from {
+      width: var(--modal-resize-from);
+    }
+    to {
+      width: var(--modal-resize-to);
+    }
+  }
+
   /* Programmatic dialog focus is for keyboard entry, not a visual selection. */
   .card:focus {
     outline: none;
@@ -230,7 +248,12 @@
       animation-duration: var(--motion-fast);
     }
 
-    .card {
+    .backdropImmediate,
+    .cardResize {
+      animation: none;
+    }
+
+    .card:not(.cardResize) {
       animation-name: modal-card-enter-reduced;
       animation-duration: var(--motion-fast);
     }

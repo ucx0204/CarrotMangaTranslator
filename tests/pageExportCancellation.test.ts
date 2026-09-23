@@ -134,6 +134,45 @@ function makePage(): MangaPage {
   };
 }
 
+it("cancels rule measurement and releases its renderer directory", async () => {
+  const session = await makeSession();
+  await session.renderPage(makePage());
+  stalled = "rule-measurement";
+  windows[0].webContents.executeJavaScript.mockImplementation(() =>
+    reply(stalled, size),
+  );
+  if (!session.applyWorkflowRules) throw new Error("Rule renderer missing");
+  const page = makePage();
+  let failure: unknown;
+  const running = session
+    .applyWorkflowRules({
+      chapter: {
+        id: "chapter",
+        workId: "work",
+        title: "Test",
+        sourceKind: "images",
+        status: "idle",
+        pageOrder: [page.id],
+        pages: [page],
+        createdAt: page.createdAt,
+        updatedAt: page.updatedAt,
+      },
+      pageId: page.id,
+      schemes: [],
+      glossary: [],
+      inspect: true,
+    })
+    .catch((error: unknown) => {
+      failure = error;
+    });
+  await vi.waitFor(() => expect(seen.has(stalled)).toBe(true));
+  session.cancel?.();
+  await running;
+  expect(failure).toMatchObject({ name: "AbortError" });
+  expect(existsSync(dirname(windows[0].loadedPath))).toBe(false);
+  expect(windows[0].destroy).toHaveBeenCalledOnce();
+});
+
 it.each([
   "image-probe",
   "image-decode",

@@ -26,6 +26,7 @@ export {
   reorderPages,
   savePageBlocks,
   savePagesBlocks,
+  savePageWorkflowResult,
   saveTranslationCheckpoint,
   setPageInpaintingResult,
   updatePageAfterAnalysis,

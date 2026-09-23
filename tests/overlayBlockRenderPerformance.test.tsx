@@ -55,6 +55,31 @@ afterAll(() => {
 });
 
 describe("overlay block render isolation", () => {
+  it("keeps prepared empty blocks selectable without painting source or measuring placeholders during movement", () => {
+    const store = createWorkspaceInteractionPreviewStore();
+    const block = {
+      ...makeBlock("moving", "", 100),
+      sourceText: "手動翻訳用の原文",
+      textDisplayMode: "translation-only" as const,
+    };
+    const view = renderLayer(makePage([block]), store);
+    expect(
+      view.container.querySelector(".overlay-block.selected"),
+    ).not.toBeNull();
+    expect(view.container.textContent).not.toContain(block.sourceText);
+    expect(view.container.textContent).not.toContain("...");
+    measureText.mockClear();
+    act(() =>
+      store.set({
+        blockPreview: {
+          blockId: block.id,
+          block: { ...block, bbox: { ...block.bbox, x: 120 } },
+        },
+      }),
+    );
+    expect(measureText).not.toHaveBeenCalled();
+  });
+
   it("does not paint or measure fallback text before requested fonts settle", async () => {
     const originalFonts = Object.getOwnPropertyDescriptor(document, "fonts");
     let resolveLoad: ((faces: FontFace[]) => void) | null = null;

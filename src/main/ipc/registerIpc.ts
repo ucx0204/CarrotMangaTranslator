@@ -1,4 +1,5 @@
 import type { IpcContext } from "./context";
+import { registerPageWorkflowIpc } from "./pageWorkflowIpc";
 import { disposeImportPreviewSessions } from "./importPreviewSessionStore";
 import { registerErrorReportIpc } from "./errorReportIpc";
 import { registerExternalLinksIpc } from "./externalLinksIpc";
@@ -69,6 +70,7 @@ export function createImportRuntimeResources({
 }
 
 export function registerIpc(context: IpcContext): void {
+  registerPageWorkflowIpc(context);
   registerAppOperationIpc(context);
   registerBlockLibraryIpc(context);
   registerConditionalBatchIpc(context);

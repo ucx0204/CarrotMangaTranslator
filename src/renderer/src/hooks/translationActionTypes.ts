@@ -79,6 +79,9 @@ export type UseTranslationActionsOptions = {
 };
 
 export type TranslationActions = {
+  runPageWorkflow: (
+    request: import("../../../shared/pageWorkflowTypes").PageWorkflowRequest,
+  ) => Promise<void>;
   regionTranslationDialog?:
     | import("../lib/regionTranslationOptions").RegionTranslationDialog
     | null;

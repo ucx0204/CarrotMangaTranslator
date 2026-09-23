@@ -170,6 +170,11 @@ type OcrSettings = {
 };
 
 export type UiSettings = {
+  hayaiTranslationUi?: "classic" | "workflow";
+  pageWorkflowDefault?: import("./pageWorkflowTypes").PageWorkflowPlan;
+  pageWorkflowPresets?: import("./pageWorkflowTypes").PageWorkflowPreset[];
+  pageWorkflowFavoritePresetIds?: string[];
+  blockReadingSize?: number;
   codexTypesettingPreferences?: import("./codexTypesettingTypes").CodexTypesettingPreferences;
   /** Application interface language. Independent from the manga translation pair. */
   locale?: UiLocale;

@@ -6,7 +6,7 @@
 
 **한국어** · [English](README.en.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**[v2.7.14 다운로드](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.7.14)** · [변경 사항](docs/release-notes/v2.7.14.md) · [오류·제안](https://github.com/ucx0204/CarrotMangaTranslator/issues)
+**[v2.8.0 다운로드](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.8.0)** · [변경 사항](docs/release-notes/v2.8.0.md) · [오류·제안](https://github.com/ucx0204/CarrotMangaTranslator/issues)
 
 [처음 시작](#start) · [텍스트 편집](#edit) · [효과음 ImageGen](#sfx) · [단축키](#shortcuts) · [문제 해결](#troubleshooting)
 
@@ -139,6 +139,30 @@ Windows 10/11 · Apple Silicon macOS 14+ · [GPL-3.0-only](LICENSE)
 자주 쓰는 조합은 **다음 번역의 기본값으로 저장**합니다. `Shift+T`는 남은 페이지를 이어서 번역합니다. 진행 상황과 실패 사유는 작업 상태에서 확인하고, 완료된 페이지를 무조건 다시 번역하기보다 남은 대상을 선택하세요.
 
 **재번역은 수동 수정과 기존 결과를 바꿀 수 있으며, 작업 공간의 실행 취소로 되돌리는 작업이 아닙니다.** 보존할 편집본은 먼저 [작업 내보내기](#data)로 저장하세요. 작업 중인 페이지의 수정은 제한되지만, 잠기지 않은 다른 페이지는 편집할 수 있습니다. 현재 화 전체를 바꾸는 명령은 그 화의 작업 상태에 따라 제한됩니다.
+
+### HayaiOCR 페이지 작업
+
+HayaiOCR에서는 오른쪽 위 **기존 버전 / 새 버전**으로 화면을 전환합니다. 마지막 선택을 기억하며, 전환할 때 창의 가로 폭이 자연스럽게 바뀝니다. 기존 버전은 익숙한 번역 설정과 실행 방식을 제공합니다.
+
+![HayaiOCR 새 버전: 대상 페이지와 실행 순서](docs/images/hayai-page-workflow/overview.png)
+
+_실제 페이지 작업 컴포넌트를 자체 QA 도구로 캡처한 화면입니다. 썸네일은 예시 이미지입니다._
+
+새 버전에서는 **대상 페이지 → 프리셋·작업 선택 → 작업 시작** 순서로 진행합니다. 작업 이름과 세부 옵션에 마우스를 올리면 설명을 볼 수 있습니다.
+
+| 프리셋      | 실행 내용                                          |
+| ----------- | -------------------------------------------------- |
+| 전체 처리   | 검출 → OCR → 번역 → 자동 서식 → 제거 → 배치 → 검수 |
+| 손번역 준비 | 검출 → OCR → 제거                                  |
+| 원문 제거만 | 검출 → 제거                                        |
+| 번역만      | 저장된 원문으로 번역 → 검수                        |
+| 식자 마무리 | 자동 서식 → 제거 → 배치 → 검수                     |
+
+- 기본적으로 기존 결과를 보존하고 빈 항목만 채웁니다. 다시 처리할 항목은 해당 단계 옵션에서 고릅니다.
+- **손번역 준비** 후 원문을 교정하고 **번역만**을 실행하면 교정한 원문을 사용합니다.
+- 일괄 편집은 원문·번역문·최종 서식 단계에서 규칙을 선택해 적용합니다.
+- 프리셋 목록의 별로 즐겨찾기를 지정합니다. 저장한 프리셋을 수정한 뒤 **변경 저장**으로 덮어쓰거나 **새로 저장**으로 복사합니다. 삭제는 목록의 휴지통을 사용합니다.
+- 중단된 작업은 상단의 이어하기 선택으로 재개합니다.
 
 <a id="workspace"></a>
 
@@ -440,6 +464,6 @@ npm run dev
 - Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
 - 앱 소스는 [GPL-3.0-only](LICENSE)입니다. 폰트·모델·런타임 등은 각각의 배포 조건을 확인하세요.
 
-이 문서는 v2.7.14를 기준으로 합니다. 화면은 실제 앱 컴포넌트에 예제 데이터를 넣어 캡처했습니다. 예제 원고·번역은 기능 설명용이며 모델 성능 비교 자료가 아닙니다. [캡처와 예제 출처](docs/images/readme-v2712/README.md)
+이 문서는 v2.8.0를 기준으로 합니다. 화면은 실제 앱 컴포넌트에 예제 데이터를 넣어 캡처했습니다. 예제 원고·번역은 기능 설명용이며 모델 성능 비교 자료가 아닙니다. [캡처와 예제 출처](docs/images/readme-v2712/README.md)
 
 [처음으로](#start)

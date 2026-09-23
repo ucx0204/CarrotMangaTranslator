@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFontCatalog } from "./fonts";
@@ -124,7 +125,7 @@ export function resolveBlockFontSizeAtNaturalPageScale(
   fontCatalog: BlockFontCatalog,
   sourceFontFaceFallbackPx?: number,
 ): number {
-  const displayText = block.translatedText || block.sourceText || "...";
+  const displayText = resolveBlockDisplayText(block) || "...";
   return resolveBlockTextLayout(
     block,
     displayText,

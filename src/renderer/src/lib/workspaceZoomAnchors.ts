@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import { resolveTransformedBlockBounds } from "../../../shared/editableRenderGeometry";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { BBox, TranslationBlock } from "../../../shared/textTypes";
@@ -40,7 +41,7 @@ function resolveZoomBlockBounds(
   block: TranslationBlock,
   page: Pick<MangaPage, "width" | "height">,
 ): BBox {
-  const text = block.translatedText || block.sourceText || "...";
+  const text = resolveBlockDisplayText(block) || "...";
   const rect = resolveBlockRectPx(block, page, NORMALIZED_STAGE_SIZE, text);
   return resolveTransformedBlockBounds(block, {
     x: rect.left,

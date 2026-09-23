@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "../../../shared/blockDisplayText";
 import type {
   BBox,
   CurveLayout,
@@ -31,7 +32,7 @@ export function resolveTransformBbox(
   return resolveEditableBlockBbox(
     block,
     pageSize,
-    block.translatedText || block.sourceText || "...",
+    resolveBlockDisplayText(block) || "...",
   ).bbox;
 }
 
@@ -197,7 +198,7 @@ export function resolveCurveConstraint(
   block: TranslationBlock,
 ): "vertical" | "multiline" | null {
   if (block.renderDirection === "vertical") return "vertical";
-  const text = block.translatedText || block.sourceText || "";
+  const text = resolveBlockDisplayText(block) || "";
   return /[\r\n]/.test(text) ? "multiline" : null;
 }
 
@@ -242,7 +243,7 @@ function resolveCurveLengthEstimate(
 } {
   const path = scaleCurvePath(curve, bbox, pageSize);
   const pathLength = quadraticLength(path);
-  const text = [...(block.translatedText || block.sourceText || "")].length;
+  const text = [...(resolveBlockDisplayText(block) || "")].length;
   const spacing = (block.letterSpacing ?? 0) * block.fontSizePx;
   const glyphAdvance =
     block.fontSizePx * 0.9 * resolveFontWidthScale(block.fontWidthScale);

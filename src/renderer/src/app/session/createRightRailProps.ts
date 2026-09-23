@@ -89,7 +89,8 @@ type RightRailViewModel = {
     "saveNow" | "saveStatus"
   >;
   retranslatePage: AppSessionViewModel["retranslatePage"];
-  settingsDialog: Pick<AppSessionViewModel["settingsDialog"], "settings">;
+  settingsDialog: Pick<AppSessionViewModel["settingsDialog"], "settings"> &
+    Partial<Pick<AppSessionViewModel["settingsDialog"], "saveSettingsQuietly">>;
   statusLog: Pick<
     AppSessionViewModel["statusLog"],
     "clearStatusLines" | "statusEntries" | "statusLines"
@@ -138,6 +139,15 @@ export function createRightRailProps(
     ...createRightRailActions(model),
     ...resolveLinkedWorkspaceProps(model),
     blockReadingDirection: resolveRightRailReadingDirection(model),
+    blockReadingSize: model.settingsDialog.settings?.ui?.blockReadingSize ?? 15,
+    onBlockReadingSizeChange: (size) => {
+      const settings = model.settingsDialog.settings;
+      if (settings)
+        void model.settingsDialog.saveSettingsQuietly?.({
+          ...settings,
+          ui: { ...settings.ui, blockReadingSize: size },
+        });
+    },
     brushColor: inpainting.brushColor,
     brushRadius: inpainting.brushRadius,
     canRedo: workspaceHistory.canRedo,

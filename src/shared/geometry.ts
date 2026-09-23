@@ -1,3 +1,4 @@
+import { resolveBlockDisplayText } from "./blockDisplayText";
 import type { BBox, Point, TranslationBlock } from "./textTypes";
 import type { ChapterSnapshot } from "./libraryTypes";
 import {
@@ -232,7 +233,7 @@ export function resolveBlockSelectionBounds(
   block: TranslationBlock,
   pageSize: PageSize,
 ): BBox {
-  const text = block.translatedText || block.sourceText || "...";
+  const text = resolveBlockDisplayText(block) || "...";
   const target = resolveEditableBlockBbox(block, pageSize, text);
   return resolveTransformedBlockBounds(block, target.bbox);
 }
@@ -241,7 +242,7 @@ export function resolveBlockSelectionBoundary(
   block: TranslationBlock,
   pageSize: PageSize,
 ): Point[] {
-  const text = block.translatedText || block.sourceText || "...";
+  const text = resolveBlockDisplayText(block) || "...";
   const target = resolveEditableBlockBbox(block, pageSize, text);
   return resolveTransformedBlockBoundary(block, target.bbox);
 }
@@ -306,7 +307,7 @@ export function resolveSharedEditableBlockMoveDelta(
       resolveEditableBlockBbox(
         block,
         pageSize,
-        block.translatedText || block.sourceText || "...",
+        resolveBlockDisplayText(block) || "...",
       ).bbox,
     ),
   );
@@ -326,7 +327,7 @@ export function offsetBlockBboxes(
   const target = resolveEditableBlockBbox(
     block,
     pageSize,
-    block.translatedText || block.sourceText || "...",
+    resolveBlockDisplayText(block) || "...",
   );
   const delta = clampTranslationToVisibleBboxes(
     [resolveTransformedBlockBounds(block, target.bbox)],
