@@ -615,7 +615,13 @@ describe("beginner conditional batch editor", () => {
       expect(gatewayMocks.listSchemes).toHaveBeenCalledOnce(),
     );
     fireEvent.click(screen.getByRole("button", { name: "직접 규칙 생성" }));
-    fireEvent.click(screen.getByLabelText("규칙 편집"));
+    // The list request can have started before its loading lock is released.
+    // Wait for the editor to accept input before opening its name field.
+    const editButton = screen.getByRole<HTMLButtonElement>("button", {
+      name: "규칙 편집",
+    });
+    await waitFor(() => expect(editButton.disabled).toBe(false));
+    fireEvent.click(editButton);
     fireEvent.change(screen.getByLabelText("규칙 이름"), {
       target: { value: "닫기 확인 대상" },
     });
