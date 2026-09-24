@@ -16,6 +16,8 @@ export type LiveChapterMergeResult = {
 };
 
 export type LiveChapterMergeOptions = {
+  /** A committed metadata notification may restore older timestamps through Undo. */
+  preferLiveMetadata?: boolean;
   /**
    * 라이브 챕터에만 존재하는 새 블록(예: 영역 번역 결과)을 dirty로 보존된
    * 로컬 페이지에도 덧붙인다. 지정하지 않으면 dirty 페이지의 블록은 로컬
@@ -68,7 +70,10 @@ export function mergeLiveChapterPreservingDirtyPages(
   const localPages = new Map(localChapter.pages.map((page) => [page.id, page]));
   const livePages = new Map(liveChapter.pages.map((page) => [page.id, page]));
   const newestChapter =
-    localChapter.updatedAt > liveChapter.updatedAt ? localChapter : liveChapter;
+    !options.preferLiveMetadata &&
+    localChapter.updatedAt > liveChapter.updatedAt
+      ? localChapter
+      : liveChapter;
   const preservedDirtyPageIds: string[] = [];
 
   return {

@@ -12,7 +12,7 @@ import {
   gatherText,
   type GatherScope,
   type TranslatedTextImportUpdate,
-} from "../../lib/gatherText";
+} from "../../../../shared/gatherText";
 import { gatherTextGateway } from "./gatherTextGateway";
 
 type TxtImportOptions = {

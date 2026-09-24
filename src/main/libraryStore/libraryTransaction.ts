@@ -44,15 +44,23 @@ import {
   writeDurableJsonFile,
 } from "./libraryTransactionStorage";
 
-const TRANSACTION_OWNER_MARKER = ".mgt-transaction-owner.json";
+export const TRANSACTION_OWNER_MARKER = ".mgt-transaction-owner.json";
 const transactionContext = new AsyncLocalStorage<boolean>();
 
 export type LibraryTransaction = {
   beforePublish(operation: () => Promise<void>): void;
-  stageJsonReplacement(targetPath: string, payload: unknown): Promise<void>;
+  stageJsonReplacement(
+    targetPath: string,
+    payload: unknown,
+    observeStaged?: (sha256: string) => void,
+  ): Promise<void>;
+  /** Native-only exact bytes; same replace-file journal, hashes and recovery as JSON. */
+  stageBytesReplacement(targetPath: string, bytes: Uint8Array): Promise<void>;
   createPublishedDirectory(finalDirectory: string): Promise<{
     stagingDirectory: string;
     finalDirectory: string;
+    /** Reuses journal-bound validation; valid only while this staging exists. */
+    verifyOwnership(): Promise<{ directory: string; marker: string }>;
   }>;
   retireFile(
     targetPath: string,
@@ -104,6 +112,7 @@ export async function runLibraryTransaction<T>(
   publish: <TResult>(operation: () => Promise<TResult>) => Promise<TResult> = (
     operation,
   ) => operation(),
+  assertCanCommit?: () => void,
 ): Promise<T> {
   if (transactionContext.getStore()) {
     throw new Error("중첩된 보관함 transaction은 허용되지 않습니다.");
@@ -125,7 +134,7 @@ export async function runLibraryTransaction<T>(
         try {
           for (const prepare of state.beforePublish) await prepare();
           await sealLibraryTransaction(state);
-          await commitLibraryTransaction(state);
+          await commitLibraryTransaction(state, assertCanCommit);
           return value;
         } catch (error) {
           publicationFailed = true;
@@ -249,8 +258,15 @@ function createTransactionApi(state: TransactionState): LibraryTransaction {
       assertStagingOpen(state);
       state.beforePublish.push(operation);
     },
-    stageJsonReplacement: (targetPath, payload) =>
-      stageJsonReplacement(state, targetPath, payload),
+    stageJsonReplacement: (targetPath, payload, observeStaged) =>
+      stageFileReplacement(
+        state,
+        targetPath,
+        () => serializeTransactionJson(payload),
+        observeStaged,
+      ),
+    stageBytesReplacement: (targetPath, bytes) =>
+      stageFileReplacement(state, targetPath, () => Buffer.from(bytes)),
     createPublishedDirectory: (finalDirectory) =>
       createPublishedDirectory(state, finalDirectory),
     retireFile: (targetPath, options) =>
@@ -265,10 +281,11 @@ function createTransactionApi(state: TransactionState): LibraryTransaction {
   };
 }
 
-async function stageJsonReplacement(
+async function stageFileReplacement(
   state: TransactionState,
   targetPath: string,
-  payload: unknown,
+  content: () => Buffer,
+  observeStaged?: (sha256: string) => void,
 ): Promise<void> {
   assertStagingOpen(state);
   const target = toLibraryRelativePath(state.libraryRoot, targetPath);
@@ -281,19 +298,7 @@ async function stageJsonReplacement(
     allowMissingTarget: true,
   });
 
-  let serialized: string;
-  try {
-    const value = JSON.stringify(payload, null, 2);
-    if (value === undefined) {
-      throw new Error("JSON payload is undefined.");
-    }
-    serialized = `${value}\n`;
-  } catch (error) {
-    throw new Error("transaction JSON payload를 직렬화하지 못했습니다.", {
-      cause: error,
-    });
-  }
-  const bytes = Buffer.from(serialized, "utf8");
+  const bytes = content();
   const sequence = formatStepSequence(state.journal.steps.length + 1);
   const staged = `staged/${sequence}.json`;
   const stagedPath = resolveTransactionRelativePath(
@@ -338,12 +343,14 @@ async function stageJsonReplacement(
     };
   }
   await appendJournalStep(state, step);
+  // Expose the existing journal-bound digest after durable staging; commit still verifies it.
+  observeStaged?.(stagedSha256);
 }
 
 async function createPublishedDirectory(
   state: TransactionState,
   finalDirectory: string,
-): Promise<{ stagingDirectory: string; finalDirectory: string }> {
+): ReturnType<LibraryTransaction["createPublishedDirectory"]> {
   assertStagingOpen(state);
   const target = toLibraryRelativePath(state.libraryRoot, finalDirectory);
   assertNoTargetOverlap(
@@ -389,7 +396,18 @@ async function createPublishedDirectory(
     ownerMarker,
   };
   await appendJournalStep(state, step);
-  return { stagingDirectory, finalDirectory: resolvedFinal };
+  return {
+    stagingDirectory,
+    finalDirectory: resolvedFinal,
+    verifyOwnership: async () => {
+      await assertPathWithinRootWithoutSymlinks(
+        state.libraryRoot,
+        stagingDirectory,
+      );
+      await assertValidOwnerMarker(state, step, stagingDirectory);
+      return { directory: stagingDirectory, marker: TRANSACTION_OWNER_MARKER };
+    },
+  };
 }
 
 async function stageRetirePath(
@@ -473,11 +491,13 @@ async function sealLibraryTransaction(state: TransactionState): Promise<void> {
 
 async function commitLibraryTransaction(
   state: TransactionState,
+  assertCanCommit?: () => void,
 ): Promise<void> {
   if (!state.journal.sealed || state.phase !== "active") {
     throw new Error("sealed active transaction만 commit할 수 있습니다.");
   }
   await withLibraryPublicationWrite(async () => {
+    assertCanCommit?.();
     for (const step of state.journal.steps) {
       if (step.kind === "publish-directory") {
         await applyPublishDirectoryStep(state, step);
@@ -497,6 +517,7 @@ async function commitLibraryTransaction(
       }
     }
     await maybeInjectCrash("before-commit-point");
+    assertCanCommit?.();
     const committedRoot = join(
       state.libraryRoot,
       ".transactions",
@@ -962,4 +983,20 @@ export function isLibraryTransactionDirectoryName(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value,
   );
+}
+
+function serializeTransactionJson(payload: unknown): Buffer {
+  let serialized: string;
+  try {
+    const value = JSON.stringify(payload, null, 2);
+    if (value === undefined) {
+      throw new Error("JSON payload is undefined.");
+    }
+    serialized = `${value}\n`;
+  } catch (error) {
+    throw new Error("transaction JSON payload를 직렬화하지 못했습니다.", {
+      cause: error,
+    });
+  }
+  return Buffer.from(serialized, "utf8");
 }

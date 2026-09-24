@@ -1633,6 +1633,7 @@
     "tabs": {
       "ariaLabel": "설정 영역",
       "llmAriaLabel": "AI",
+      "mcp": "AI 연결 / MCP",
       "general": "일반",
       "engine": "AI",
       "translation": "번역",
@@ -2440,6 +2441,7 @@
       "failureCode": "실패 코드: {{code}}",
       "kind": {
         "gemma-analysis": "번역",
+        "mcp-edit": "MCP 편집",
         "internet-research": "인터넷 조사",
         "inpainting": "지우기·인페인팅",
         "page-export": "내보내기",

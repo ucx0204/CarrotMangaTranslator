@@ -1,4 +1,5 @@
 import { nativeImage } from "electron";
+import { restoreHiddenPixels } from "../imageRedactionPixels";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { InpaintingMaskStroke } from "../../shared/inpaintingTypes";
@@ -32,6 +33,8 @@ import {
 
 type DrawnPatternOptions = {
   strokes: InpaintingMaskStroke[];
+  /** Trusted internal, reviewed binary mask. Not an IPC/file-upload contract. */
+  preparedMask?: Uint8Array;
   signal?: AbortSignal;
   decodeFallback?: ImageDecodeFallback;
   inpaintingEngine?: InpaintingEngine;
@@ -58,14 +61,22 @@ export async function inpaintDrawnPatternPage(
   options: DrawnPatternOptions,
 ): Promise<PatternPageInpaintingResult> {
   const strokes = sanitizeMaskStrokes(options.strokes, page.width, page.height);
-  if (strokes.length === 0) return { page, blocksErased: 0 };
+  if (strokes.length === 0 && !options.preparedMask)
+    return { page, blocksErased: 0 };
+  if (strokes.length && options.preparedMask)
+    throw new Error("Choose native strokes or one prepared mask, not both.");
 
   const input = await loadDrawnPatternInput(page, strokes, options);
   if (input.components.length === 0) return { page, blocksErased: 0 };
 
   const engine = requireInpaintingEngine(options.inpaintingEngine);
   const beforeBitmap = Buffer.from(input.bitmap);
+  const boundary = options.preparedMask
+    ? Uint8Array.from(input.pageMask, (value) => (value ? 0 : 1))
+    : undefined;
   await runDrawnPatternInpainting(input, engine, options, page.imagePath);
+  // Padding/context may guide inference, but cannot authorize extra final pixels.
+  restoreHiddenPixels(beforeBitmap, input.bitmap, boundary);
   const blocksErased = countChangedComponents(beforeBitmap, input);
   const blocksIncomplete = input.components.length - blocksErased;
   if (blocksErased === 0) {
@@ -104,7 +115,9 @@ async function loadDrawnPatternInput(
       tMain("inpainting.errors.bitmapCreate", { page: page.name }),
     );
   }
-  const pageMask = buildMaskFromStrokes(strokes, width, height);
+  const pageMask = options.preparedMask
+    ? checkedPreparedMask(options.preparedMask, page, width, height)
+    : buildMaskFromStrokes(strokes, width, height);
   return {
     assetPath,
     bitmap,
@@ -113,6 +126,24 @@ async function loadDrawnPatternInput(
     pageMask,
     width,
   };
+}
+
+function checkedPreparedMask(
+  mask: Uint8Array,
+  page: MangaPage,
+  width: number,
+  height: number,
+): Uint8Array {
+  if (
+    width !== page.width ||
+    height !== page.height ||
+    mask.length !== width * height ||
+    mask.some((value) => value !== 0 && value !== 1)
+  )
+    throw new Error(
+      "Prepared mask must match the exact page dimensions and contain only binary pixels.",
+    );
+  return new Uint8Array(mask);
 }
 
 function resolveDrawnMaskComponents(

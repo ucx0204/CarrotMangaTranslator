@@ -5,6 +5,7 @@ import type {
   PageExportSelectionRequest,
 } from "../../shared/pageImageExportTypes";
 import { basename, dirname, extname, join } from "node:path";
+import { resolveSourceImageFormat } from "../../shared/sourceImageFormat";
 import type { PageImageExportFormat } from "../../shared/pageImageExportTypes";
 import {
   MAX_PAGE_EXPORT_ORIGINAL_IMAGE_BYTES,
@@ -608,12 +609,9 @@ function resolveManualPageOutputPath({
   preserveSourceNames: boolean;
 }): string {
   const sourceName = page.sourceFileName ?? page.name;
-  const sourceExtension = extname(sourceName).toLowerCase();
   const extension =
     outputFormat === "source"
-      ? [".png", ".jpg", ".jpeg", ".webp"].includes(sourceExtension)
-        ? sourceExtension
-        : ".png"
+      ? `.${resolveSourceImageFormat(extname(sourceName)).extension}`
       : outputFormat === "jpeg"
         ? ".jpg"
         : `.${outputFormat}`;
@@ -648,16 +646,10 @@ function resolveManualCaptureOptions(
   jpegQuality: number,
   webpQuality: number,
 ) {
-  const sourceExtension = extname(
-    page.sourceFileName ?? page.name,
-  ).toLowerCase();
   const format =
     outputFormat === "source"
-      ? sourceExtension === ".jpg" || sourceExtension === ".jpeg"
-        ? "jpeg"
-        : sourceExtension === ".webp"
-          ? "webp"
-          : "png"
+      ? resolveSourceImageFormat(extname(page.sourceFileName ?? page.name))
+          .format
       : outputFormat;
   return {
     format,

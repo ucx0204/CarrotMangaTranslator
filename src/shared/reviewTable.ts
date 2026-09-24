@@ -23,9 +23,11 @@ const BOM = "\uFEFF";
 export function buildReviewRows(
   chapter: ChapterSnapshot,
   direction: "ltr" | "rtl" = "rtl",
+  pageIds?: ReadonlySet<string>,
 ): ReviewRow[] {
   const rows: ReviewRow[] = [];
   for (const [pageIndex, page] of chapter.pages.entries()) {
+    if (pageIds && !pageIds.has(page.id)) continue;
     const orderedBlocks = resolvePageBlocksForReading(page, direction);
     for (const [blockIndex, block] of orderedBlocks.entries()) {
       rows.push({
@@ -66,6 +68,14 @@ export function parseReviewTable(
   content: string,
   format: "csv" | "tsv" | "auto",
 ): ReviewRow[] {
+  return parseReviewDocument(content, format).rows;
+}
+
+/** Canonical parsed columns are exposed so explicit import surfaces can report unsupported fields. */
+export function parseReviewDocument(
+  content: string,
+  format: "csv" | "tsv" | "auto",
+): { rows: ReviewRow[]; ignoredColumns: string[]; duplicateColumns: string[] } {
   const normalizedContent = stripBom(content);
   const delimiter =
     format === "auto"
@@ -73,14 +83,14 @@ export function parseReviewTable(
       : resolveDelimiter(format);
   const records = parseDelimitedRecords(normalizedContent, delimiter);
   if (records.length === 0) {
-    return [];
+    return { rows: [], ignoredColumns: [], duplicateColumns: [] };
   }
 
   const header = records[0]?.map((cell) => cell.trim()) ?? [];
   assertRequiredColumns(header);
   const columnIndex = new Map(header.map((column, index) => [column, index]));
 
-  return records.slice(1).flatMap((record) => {
+  const rows = records.slice(1).flatMap((record) => {
     if (record.every((cell) => cell.trim() === "")) {
       return [];
     }
@@ -92,6 +102,15 @@ export function parseReviewTable(
     );
     return [row as ReviewRow];
   });
+  return {
+    rows,
+    ignoredColumns: header.filter(
+      (name) => !REVIEW_COLUMNS.some((column) => column === name),
+    ),
+    duplicateColumns: header.filter(
+      (name, index) => header.indexOf(name) !== index,
+    ),
+  };
 }
 
 function escapeDelimitedCell(value: string, delimiter: string): string {

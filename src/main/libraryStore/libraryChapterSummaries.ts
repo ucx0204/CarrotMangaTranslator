@@ -22,6 +22,7 @@ const LibraryChapterSummarySourceSchema = LibraryChapterFileSchema.pick({
   workId: true,
   title: true,
   sourceKind: true,
+  importSource: true,
   status: true,
   pageOrder: true,
   createdAt: true,

@@ -1,6 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { type GatherField, type GatheredPage } from "../../lib/gatherText";
+import {
+  type GatherField,
+  type GatheredPage,
+} from "../../../../shared/gatherText";
 import { buildMatchOffsets, matchOffsetKey } from "../../lib/gatherTextSearch";
 import type { GatherTextSearch } from "../../hooks/useGatherTextSearch";
 import type { BlockRef } from "../../lib/gatherTextFormat";

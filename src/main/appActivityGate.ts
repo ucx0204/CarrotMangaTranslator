@@ -1,3 +1,4 @@
+import { assertModelCleanupComplete } from "./runtimeSupport/modelCleanupBarrier";
 import {
   activityResourcesConflict,
   activityConflictReason,
@@ -101,6 +102,7 @@ export class AppActivityGate {
     resources: readonly AppActivityResource[],
     ownerId?: string,
   ): void {
+    assertModelCleanupComplete(resources);
     if (this.permanentlyClosed || this.suspensionTokens.size > 0)
       throw new AppActivityClosedError();
     const conflict = this.findConflict(resources, ownerId);
@@ -165,6 +167,7 @@ export class AppActivityGate {
   acquire(
     input: Omit<AppActivityDescriptor, "startedAt"> & { startedAt?: number },
   ): AppActivityLease {
+    assertModelCleanupComplete(input.resources);
     if (this.permanentlyClosed || this.suspensionTokens.size > 0) {
       throw new AppActivityClosedError();
     }
@@ -182,6 +185,7 @@ export class AppActivityGate {
       descriptor: { ...descriptor },
       updateResources: (resources) => {
         if (released) throw new Error("Activity lease is already released.");
+        assertModelCleanupComplete(resources);
         const conflict = this.findConflict(
           resources,
           descriptor.ownerId ?? descriptor.id,

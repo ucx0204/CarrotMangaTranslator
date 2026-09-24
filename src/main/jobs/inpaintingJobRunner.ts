@@ -87,10 +87,10 @@ export async function runInpaintingPagesJob({
 }): Promise<StartInpaintingResult> {
   const target = resolveInpaintingTarget(request);
   assertRequestedBlockExists(targets, target);
-  const totalTargetBlocks = countTargetBlocks(
-    targets.map(({ page }) => page),
-    state,
-    target,
+  const totalTargetBlocks = targets.reduce(
+    (count, { page }) =>
+      count + countInpaintingPageTargets(page, state, target),
+    0,
   );
   emitInpaintingStarting(id, emit, targets.length, totalTargetBlocks, target);
   const result = await processInpaintingPages({
@@ -159,7 +159,7 @@ export async function handleInpaintingJobError({
   context: InpaintingJobContext;
   runtime: InpaintingJobRuntime;
 }): Promise<StartInpaintingResult> {
-  const lastEvent = getLastJobEvent(context, id);
+  const lastEvent = context.jobs.get(id)?.lastEvent;
   if (isAbortError(error) || abortController.signal.aborted) {
     const refreshed = await refreshInpaintingRequestChapters(
       request,
@@ -248,17 +248,6 @@ function resolveInpaintingTarget(
   };
 }
 
-function countTargetBlocks(
-  pages: MangaPage[],
-  state: InpaintingJobState,
-  target: InpaintingTarget,
-): number {
-  return pages.reduce(
-    (count, page) => count + countInpaintingPageTargets(page, state, target),
-    0,
-  );
-}
-
 async function processInpaintingPages(
   options: ProcessInpaintingPagesOptions,
 ): Promise<ProcessInpaintingPagesResult> {
@@ -273,26 +262,14 @@ async function processInpaintingPages(
     target,
     runtime,
   } = options;
+  if (context.retainPageOwnership)
+    for (const targetPage of targets)
+      await acquireInpaintingTarget(options, targetPage);
   const timing = await prepareInpaintingPageRuntime(options);
 
   for (const [pageIndex, targetPage] of targets.entries()) {
-    if (context.jobs.get(id)?.resources) {
-      targetPage.page = await acquireJobPage(
-        context.jobs,
-        id,
-        targetPage.chapterId,
-        targetPage.page.id,
-        runtime.openChapter,
-      );
-      state.targetSnapshots = state.targetSnapshots.map((snapshot) =>
-        snapshot.chapterId === targetPage.chapterId &&
-        snapshot.pageId === targetPage.page.id
-          ? createPageJobTargetSnapshot(targetPage.chapterId, targetPage.page)
-          : snapshot,
-      );
-      assertRequestedBlockExists([targetPage], target);
-      assertInpaintingCompletionWorkflow(targetPage.page, state);
-    }
+    if (!context.retainPageOwnership)
+      await acquireInpaintingTarget(options, targetPage);
     const result = await processInpaintingPage({
       continueOnNoChanges: request.mode === "selection-pattern",
       abortController,
@@ -314,7 +291,13 @@ async function processInpaintingPages(
       runtime,
       state,
     });
-    releaseJobPage(context.jobs, id, targetPage.chapterId, targetPage.page.id);
+    if (!context.retainPageOwnership)
+      releaseJobPage(
+        context.jobs,
+        id,
+        targetPage.chapterId,
+        targetPage.page.id,
+      );
   }
 
   return {
@@ -324,6 +307,29 @@ async function processInpaintingPages(
     blocksErased: state.blocksErased,
     blocksIncomplete: state.blocksIncomplete,
   };
+}
+
+async function acquireInpaintingTarget(
+  options: ProcessInpaintingPagesOptions,
+  targetPage: InpaintingJobPage,
+): Promise<void> {
+  const { context, id, runtime, state, target } = options;
+  if (!context.jobs.get(id)?.resources) return;
+  targetPage.page = await acquireJobPage(
+    context.jobs,
+    id,
+    targetPage.chapterId,
+    targetPage.page.id,
+    runtime.openChapter,
+  );
+  state.targetSnapshots = state.targetSnapshots.map((snapshot) =>
+    snapshot.chapterId === targetPage.chapterId &&
+    snapshot.pageId === targetPage.page.id
+      ? createPageJobTargetSnapshot(targetPage.chapterId, targetPage.page)
+      : snapshot,
+  );
+  assertRequestedBlockExists([targetPage], target);
+  assertInpaintingCompletionWorkflow(targetPage.page, state);
 }
 
 async function prepareInpaintingPageRuntime({
@@ -399,11 +405,4 @@ async function prepareInpaintingPageRuntime({
       }),
   );
   return timing;
-}
-
-function getLastJobEvent(
-  context: InpaintingJobContext,
-  id: string,
-): JobEvent | undefined {
-  return context.jobs.get(id)?.lastEvent;
 }

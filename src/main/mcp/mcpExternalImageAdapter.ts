@@ -1,0 +1,91 @@
+import { McpPageEditService } from "../application/mcpPageEditService";
+import {
+  applyMcpExternalLettering,
+  type ExternalImagePlanning,
+  type ExternalImageRequest,
+} from "../application/mcpExternalImagePolicy";
+import { McpEditError } from "../application/mcpEditPolicy";
+import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
+import { openChapter, savePageBlocks } from "../library";
+import { createMcpPageEditScope } from "./mcpPageEditScope";
+import { createMcpPageBatchPorts } from "./mcpTranslationBatchAdapter";
+import { verifyMcpImageFiles } from "./mcpImageEditEvidence";
+import type { McpImageUploadStore } from "./mcpImageUploadStore";
+import { withExternalImageAssets } from "./mcpExternalImageAssets";
+import { prepareMcpExternalImage } from "./mcpExternalImagePreparation";
+import { createMcpExternalBackgroundAdapter } from "./mcpExternalImageBackground";
+
+export function createMcpExternalImageAdapter(
+  app: InpaintingJobContext,
+  editing: {
+    assertWritable: (chapterId: string, pageId: string) => Promise<void>;
+    notifySaved: (chapterId: string, pageId: string) => void;
+  },
+  uploads: McpImageUploadStore,
+  lifetime: AbortSignal,
+) {
+  const background = createMcpExternalBackgroundAdapter(
+    app,
+    editing,
+    uploads,
+    lifetime,
+  );
+  const edits = new McpPageEditService({
+    openChapter,
+    savePageBlocks,
+    ...editing,
+    withPageEdit: createMcpPageEditScope(app, openChapter, lifetime),
+  });
+  const planning: ExternalImagePlanning = (page, input, owner, guard) =>
+    withExternalImageAssets(uploads, owner, input, guard, async (assets) => {
+      const { change } = await prepareMcpExternalImage(page, input, assets);
+      if (input.command.kind !== "lettering") background.assertAvailable();
+      return change;
+    });
+  const ports = createMcpPageBatchPorts<ExternalImageRequest>(
+    (request, membership, guard, committed, scope) => {
+      if (request.input.command.kind !== "lettering")
+        return background.save(request, membership, guard, committed, scope);
+      let evidenceGuard = guard;
+      const authorize = () => evidenceGuard();
+      return edits.commitSnapshotBatch(
+        request,
+        membership,
+        authorize,
+        committed,
+        (run) =>
+          scope(async () => {
+            await verifyMcpImageFiles(request.change.evidence.files, guard);
+            if (request.direction !== "apply") return run();
+            return withExternalImageAssets(
+              uploads,
+              request.owner,
+              request.input,
+              guard,
+              async (assets) => {
+                const page = await edits.readStructurePage(request);
+                const current = await prepareMcpExternalImage(
+                  page,
+                  request.input,
+                  assets,
+                );
+                if (
+                  current.change.stats.snapshot !==
+                  request.change.stats.snapshot
+                )
+                  throw new McpEditError(
+                    "revision_conflict",
+                    "Reviewed external image changed before application.",
+                  );
+                evidenceGuard = assets.guard;
+                authorize();
+                return run();
+              },
+            );
+          }),
+        applyMcpExternalLettering,
+      );
+    },
+  );
+  return { planning, ports, close: background.close };
+}

@@ -1,0 +1,2241 @@
+{
+  "schemaVersion": 1,
+  "source": "4827bb8b9138e35cbabf525ad96277d3c9f25dc6",
+  "previousSource": "78c5f9456bf88cd81ae6df77a72abcfd4fb779c8",
+  "measurementKind": "full-vitest-v8-measurement-and-native-dependency-cruise",
+  "canonicalAcceptance": false,
+  "sourceUnchanged": true,
+  "sourceFiles": 4499,
+  "toolchain": {
+    "node": "26.7.0",
+    "v8": "14.6.202.34-node.28",
+    "vitest": "4.1.9",
+    "coverageV8": "4.1.9"
+  },
+  "coverageSha256": "7e052cdcf0956e50315fbfada7c2d110142c378d4e68886646a6652417325715",
+  "fullRun": {
+    "exitCode": 1,
+    "counts": {
+      "numTotalTests": 8869,
+      "numPassedTests": 8856,
+      "numFailedTests": 2,
+      "numPendingTests": 11
+    },
+    "testFiles": 1176,
+    "elapsedSeconds": 322.422,
+    "buildRun": false,
+    "fullCheck": false
+  },
+  "originalFloorProvenance": {
+    "baseCommit": "01768a05a2e74666c1fd38f2b22e4efb1cf9822b",
+    "baselinePlatform": "win32",
+    "coverageProvider": "vitest-v8-json-summary",
+    "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
+    "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
+    "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node22.json",
+    "introducedArtifactSha256": "cde57ff3d4ae28e8cbae3d9deeca3802d1bbf078f1db4267f50be3ab50867927",
+    "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
+    "vitestVersion": "4.1.9",
+    "coverageV8Version": "4.1.9"
+  },
+  "unrelatedInheritedRowsPreserved": 1802,
+  "move": {
+    "from": "src/renderer/src/lib/gatherText.ts",
+    "to": "src/shared/gatherText.ts",
+    "inheritedFloor": {
+      "lines": {
+        "covered": 134,
+        "total": 158,
+        "pct": 84.81
+      },
+      "statements": {
+        "covered": 137,
+        "total": 163,
+        "pct": 84.04
+      },
+      "functions": {
+        "covered": 28,
+        "total": 34,
+        "pct": 82.35
+      },
+      "branches": {
+        "covered": 66,
+        "total": 102,
+        "pct": 64.7
+      }
+    },
+    "actual": {
+      "lines": {
+        "total": 164,
+        "covered": 149,
+        "pct": 90.85
+      },
+      "statements": {
+        "total": 170,
+        "covered": 155,
+        "pct": 91.17
+      },
+      "functions": {
+        "total": 37,
+        "covered": 37,
+        "pct": 100
+      },
+      "branches": {
+        "total": 107,
+        "covered": 82,
+        "pct": 76.63
+      }
+    },
+    "regressions": [],
+    "oldSourceGitBlob": "c1e71e3c44c581885c2c9bff947f568c87774b5e",
+    "newSourceGitBlob": "fc5af900115491b8c7fa434b1bd5ddaac55bb39c",
+    "implementationChange": "Only two import paths changed; serializer and gathering implementation bodies are identical."
+  },
+  "newRegistrations": [
+    {
+      "path": "src/main/libraryStore/reviewImport.ts",
+      "classification": "existing",
+      "measured": {
+        "lines": {
+          "total": 34,
+          "covered": 30,
+          "pct": 88.23
+        },
+        "statements": {
+          "total": 37,
+          "covered": 33,
+          "pct": 89.18
+        },
+        "functions": {
+          "total": 8,
+          "covered": 8,
+          "pct": 100
+        },
+        "branches": {
+          "total": 19,
+          "covered": 15,
+          "pct": 78.94
+        }
+      }
+    },
+    {
+      "path": "src/renderer/src/app/session/applyTranslatedTextUpdates.ts",
+      "classification": "existing",
+      "measured": {
+        "lines": {
+          "total": 12,
+          "covered": 0,
+          "pct": 0
+        },
+        "statements": {
+          "total": 12,
+          "covered": 0,
+          "pct": 0
+        },
+        "functions": {
+          "total": 4,
+          "covered": 0,
+          "pct": 0
+        },
+        "branches": {
+          "total": 6,
+          "covered": 0,
+          "pct": 0
+        }
+      }
+    },
+    {
+      "path": "src/renderer/src/components/gatherText/useGatherTextFileActions.ts",
+      "classification": "existing",
+      "measured": {
+        "lines": {
+          "total": 35,
+          "covered": 9,
+          "pct": 25.71
+        },
+        "statements": {
+          "total": 38,
+          "covered": 9,
+          "pct": 23.68
+        },
+        "functions": {
+          "total": 6,
+          "covered": 3,
+          "pct": 50
+        },
+        "branches": {
+          "total": 24,
+          "covered": 4,
+          "pct": 16.66
+        }
+      }
+    },
+    {
+      "path": "src/renderer/src/components/gatherText/useReviewTextActions.ts",
+      "classification": "existing",
+      "measured": {
+        "lines": {
+          "total": 25,
+          "covered": 14,
+          "pct": 56
+        },
+        "statements": {
+          "total": 26,
+          "covered": 14,
+          "pct": 53.84
+        },
+        "functions": {
+          "total": 3,
+          "covered": 2,
+          "pct": 66.66
+        },
+        "branches": {
+          "total": 12,
+          "covered": 5,
+          "pct": 41.66
+        }
+      }
+    },
+    {
+      "path": "src/renderer/src/hooks/useGatherTextSearch.ts",
+      "classification": "existing",
+      "measured": {
+        "lines": {
+          "total": 16,
+          "covered": 10,
+          "pct": 62.5
+        },
+        "statements": {
+          "total": 17,
+          "covered": 11,
+          "pct": 64.7
+        },
+        "functions": {
+          "total": 6,
+          "covered": 4,
+          "pct": 66.66
+        },
+        "branches": {
+          "total": 8,
+          "covered": 1,
+          "pct": 12.5
+        }
+      }
+    },
+    {
+      "path": "src/renderer/src/lib/gatherTextSearch.ts",
+      "classification": "existing",
+      "measured": {
+        "lines": {
+          "total": 43,
+          "covered": 43,
+          "pct": 100
+        },
+        "statements": {
+          "total": 44,
+          "covered": 44,
+          "pct": 100
+        },
+        "functions": {
+          "total": 8,
+          "covered": 8,
+          "pct": 100
+        },
+        "branches": {
+          "total": 18,
+          "covered": 17,
+          "pct": 94.44
+        }
+      }
+    },
+    {
+      "path": "src/shared/reviewTable.ts",
+      "classification": "existing",
+      "measured": {
+        "lines": {
+          "total": 75,
+          "covered": 71,
+          "pct": 94.66
+        },
+        "statements": {
+          "total": 81,
+          "covered": 77,
+          "pct": 95.06
+        },
+        "functions": {
+          "total": 25,
+          "covered": 25,
+          "pct": 100
+        },
+        "branches": {
+          "total": 68,
+          "covered": 60,
+          "pct": 88.23
+        }
+      }
+    },
+    {
+      "path": "src/main/application/mcpContextExchangePolicy.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 77,
+          "covered": 72,
+          "pct": 93.5
+        },
+        "statements": {
+          "total": 77,
+          "covered": 72,
+          "pct": 93.5
+        },
+        "functions": {
+          "total": 18,
+          "covered": 18,
+          "pct": 100
+        },
+        "branches": {
+          "total": 70,
+          "covered": 61,
+          "pct": 87.14
+        }
+      }
+    },
+    {
+      "path": "src/main/application/mcpExchangeJobPolicy.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 50,
+          "covered": 49,
+          "pct": 98
+        },
+        "statements": {
+          "total": 56,
+          "covered": 54,
+          "pct": 96.42
+        },
+        "functions": {
+          "total": 10,
+          "covered": 10,
+          "pct": 100
+        },
+        "branches": {
+          "total": 54,
+          "covered": 52,
+          "pct": 96.29
+        }
+      }
+    },
+    {
+      "path": "src/main/application/mcpOperationState.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 5,
+          "covered": 5,
+          "pct": 100
+        },
+        "statements": {
+          "total": 5,
+          "covered": 5,
+          "pct": 100
+        },
+        "functions": {
+          "total": 1,
+          "covered": 1,
+          "pct": 100
+        },
+        "branches": {
+          "total": 14,
+          "covered": 14,
+          "pct": 100
+        }
+      }
+    },
+    {
+      "path": "src/main/application/mcpOutputDeliveryPolicy.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 20,
+          "covered": 20,
+          "pct": 100
+        },
+        "statements": {
+          "total": 24,
+          "covered": 21,
+          "pct": 87.5
+        },
+        "functions": {
+          "total": 5,
+          "covered": 5,
+          "pct": 100
+        },
+        "branches": {
+          "total": 21,
+          "covered": 17,
+          "pct": 80.95
+        }
+      }
+    },
+    {
+      "path": "src/main/application/mcpReviewImportPolicy.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 53,
+          "covered": 49,
+          "pct": 92.45
+        },
+        "statements": {
+          "total": 55,
+          "covered": 51,
+          "pct": 92.72
+        },
+        "functions": {
+          "total": 16,
+          "covered": 16,
+          "pct": 100
+        },
+        "branches": {
+          "total": 45,
+          "covered": 41,
+          "pct": 91.11
+        }
+      }
+    },
+    {
+      "path": "src/main/application/mcpTextExportService.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 22,
+          "covered": 5,
+          "pct": 22.72
+        },
+        "statements": {
+          "total": 22,
+          "covered": 5,
+          "pct": 22.72
+        },
+        "functions": {
+          "total": 5,
+          "covered": 2,
+          "pct": 40
+        },
+        "branches": {
+          "total": 4,
+          "covered": 0,
+          "pct": 0
+        }
+      }
+    },
+    {
+      "path": "src/main/application/mcpTextImportPolicy.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 88,
+          "covered": 80,
+          "pct": 90.9
+        },
+        "statements": {
+          "total": 96,
+          "covered": 88,
+          "pct": 91.66
+        },
+        "functions": {
+          "total": 45,
+          "covered": 44,
+          "pct": 97.77
+        },
+        "branches": {
+          "total": 32,
+          "covered": 24,
+          "pct": 75
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpAuxiliarySessions.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 20,
+          "covered": 20,
+          "pct": 100
+        },
+        "statements": {
+          "total": 22,
+          "covered": 22,
+          "pct": 100
+        },
+        "functions": {
+          "total": 6,
+          "covered": 6,
+          "pct": 100
+        },
+        "branches": {
+          "total": 24,
+          "covered": 24,
+          "pct": 100
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpContextExchangeApplication.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 37,
+          "covered": 35,
+          "pct": 94.59
+        },
+        "statements": {
+          "total": 38,
+          "covered": 36,
+          "pct": 94.73
+        },
+        "functions": {
+          "total": 10,
+          "covered": 10,
+          "pct": 100
+        },
+        "branches": {
+          "total": 9,
+          "covered": 5,
+          "pct": 55.55
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpContextExchangeSource.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 43,
+          "covered": 42,
+          "pct": 97.67
+        },
+        "statements": {
+          "total": 44,
+          "covered": 43,
+          "pct": 97.72
+        },
+        "functions": {
+          "total": 14,
+          "covered": 14,
+          "pct": 100
+        },
+        "branches": {
+          "total": 31,
+          "covered": 30,
+          "pct": 96.77
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpContextExchangeTools.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 27,
+          "covered": 26,
+          "pct": 96.29
+        },
+        "statements": {
+          "total": 28,
+          "covered": 27,
+          "pct": 96.42
+        },
+        "functions": {
+          "total": 12,
+          "covered": 11,
+          "pct": 91.66
+        },
+        "branches": {
+          "total": 4,
+          "covered": 4,
+          "pct": 100
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpExchangeSession.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 14,
+          "covered": 14,
+          "pct": 100
+        },
+        "statements": {
+          "total": 14,
+          "covered": 14,
+          "pct": 100
+        },
+        "functions": {
+          "total": 5,
+          "covered": 5,
+          "pct": 100
+        },
+        "branches": {
+          "total": 0,
+          "covered": 0,
+          "pct": 100
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpExchangeSources.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 1,
+          "covered": 1,
+          "pct": 100
+        },
+        "statements": {
+          "total": 1,
+          "covered": 1,
+          "pct": 100
+        },
+        "functions": {
+          "total": 1,
+          "covered": 1,
+          "pct": 100
+        },
+        "branches": {
+          "total": 2,
+          "covered": 2,
+          "pct": 100
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpExchangeUpload.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 25,
+          "covered": 22,
+          "pct": 88
+        },
+        "statements": {
+          "total": 25,
+          "covered": 22,
+          "pct": 88
+        },
+        "functions": {
+          "total": 3,
+          "covered": 3,
+          "pct": 100
+        },
+        "branches": {
+          "total": 12,
+          "covered": 9,
+          "pct": 75
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpJobFileTool.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 31,
+          "covered": 31,
+          "pct": 100
+        },
+        "statements": {
+          "total": 33,
+          "covered": 33,
+          "pct": 100
+        },
+        "functions": {
+          "total": 4,
+          "covered": 4,
+          "pct": 100
+        },
+        "branches": {
+          "total": 20,
+          "covered": 20,
+          "pct": 100
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpOutputDeliveryAdapter.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 56,
+          "covered": 48,
+          "pct": 85.71
+        },
+        "statements": {
+          "total": 60,
+          "covered": 49,
+          "pct": 81.66
+        },
+        "functions": {
+          "total": 8,
+          "covered": 8,
+          "pct": 100
+        },
+        "branches": {
+          "total": 38,
+          "covered": 24,
+          "pct": 63.15
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpOutputDeliveryHttp.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 30,
+          "covered": 24,
+          "pct": 80
+        },
+        "statements": {
+          "total": 32,
+          "covered": 25,
+          "pct": 78.12
+        },
+        "functions": {
+          "total": 9,
+          "covered": 8,
+          "pct": 88.88
+        },
+        "branches": {
+          "total": 10,
+          "covered": 7,
+          "pct": 70
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpOutputDeliveryObserver.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 105,
+          "covered": 105,
+          "pct": 100
+        },
+        "statements": {
+          "total": 109,
+          "covered": 108,
+          "pct": 99.08
+        },
+        "functions": {
+          "total": 26,
+          "covered": 23,
+          "pct": 88.46
+        },
+        "branches": {
+          "total": 73,
+          "covered": 68,
+          "pct": 93.15
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpOutputDeliveryTools.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 2,
+          "covered": 2,
+          "pct": 100
+        },
+        "statements": {
+          "total": 2,
+          "covered": 2,
+          "pct": 100
+        },
+        "functions": {
+          "total": 2,
+          "covered": 2,
+          "pct": 100
+        },
+        "branches": {
+          "total": 0,
+          "covered": 0,
+          "pct": 100
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpRetentionDiagnostics.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 54,
+          "covered": 48,
+          "pct": 88.88
+        },
+        "statements": {
+          "total": 56,
+          "covered": 49,
+          "pct": 87.5
+        },
+        "functions": {
+          "total": 6,
+          "covered": 6,
+          "pct": 100
+        },
+        "branches": {
+          "total": 36,
+          "covered": 27,
+          "pct": 75
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpTextExchangeTools.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 16,
+          "covered": 11,
+          "pct": 68.75
+        },
+        "statements": {
+          "total": 16,
+          "covered": 11,
+          "pct": 68.75
+        },
+        "functions": {
+          "total": 11,
+          "covered": 7,
+          "pct": 63.63
+        },
+        "branches": {
+          "total": 2,
+          "covered": 2,
+          "pct": 100
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpTextExportSource.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 52,
+          "covered": 49,
+          "pct": 94.23
+        },
+        "statements": {
+          "total": 55,
+          "covered": 52,
+          "pct": 94.54
+        },
+        "functions": {
+          "total": 20,
+          "covered": 20,
+          "pct": 100
+        },
+        "branches": {
+          "total": 30,
+          "covered": 26,
+          "pct": 86.66
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpTextImportApplication.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 50,
+          "covered": 49,
+          "pct": 98
+        },
+        "statements": {
+          "total": 51,
+          "covered": 50,
+          "pct": 98.03
+        },
+        "functions": {
+          "total": 16,
+          "covered": 16,
+          "pct": 100
+        },
+        "branches": {
+          "total": 14,
+          "covered": 11,
+          "pct": 78.57
+        }
+      }
+    },
+    {
+      "path": "src/main/mcp/mcpTextImportSource.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 17,
+          "covered": 15,
+          "pct": 88.23
+        },
+        "statements": {
+          "total": 17,
+          "covered": 15,
+          "pct": 88.23
+        },
+        "functions": {
+          "total": 4,
+          "covered": 4,
+          "pct": 100
+        },
+        "branches": {
+          "total": 6,
+          "covered": 4,
+          "pct": 66.66
+        }
+      }
+    },
+    {
+      "path": "src/shared/gatherText.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 164,
+          "covered": 149,
+          "pct": 90.85
+        },
+        "statements": {
+          "total": 170,
+          "covered": 155,
+          "pct": 91.17
+        },
+        "functions": {
+          "total": 37,
+          "covered": 37,
+          "pct": 100
+        },
+        "branches": {
+          "total": 107,
+          "covered": 82,
+          "pct": 76.63
+        }
+      }
+    },
+    {
+      "path": "src/shared/mcpContextExchange.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 27,
+          "covered": 26,
+          "pct": 96.29
+        },
+        "statements": {
+          "total": 27,
+          "covered": 26,
+          "pct": 96.29
+        },
+        "functions": {
+          "total": 6,
+          "covered": 6,
+          "pct": 100
+        },
+        "branches": {
+          "total": 12,
+          "covered": 11,
+          "pct": 91.66
+        }
+      }
+    },
+    {
+      "path": "src/shared/mcpContextExchangePayload.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 26,
+          "covered": 26,
+          "pct": 100
+        },
+        "statements": {
+          "total": 27,
+          "covered": 26,
+          "pct": 96.29
+        },
+        "functions": {
+          "total": 6,
+          "covered": 6,
+          "pct": 100
+        },
+        "branches": {
+          "total": 19,
+          "covered": 18,
+          "pct": 94.73
+        }
+      }
+    },
+    {
+      "path": "src/shared/mcpExchangeFiles.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 15,
+          "covered": 15,
+          "pct": 100
+        },
+        "statements": {
+          "total": 16,
+          "covered": 16,
+          "pct": 100
+        },
+        "functions": {
+          "total": 4,
+          "covered": 4,
+          "pct": 100
+        },
+        "branches": {
+          "total": 4,
+          "covered": 4,
+          "pct": 100
+        }
+      }
+    },
+    {
+      "path": "src/shared/mcpOutputDelivery.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 14,
+          "covered": 14,
+          "pct": 100
+        },
+        "statements": {
+          "total": 14,
+          "covered": 14,
+          "pct": 100
+        },
+        "functions": {
+          "total": 0,
+          "covered": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 0,
+          "covered": 0,
+          "pct": 100
+        }
+      }
+    },
+    {
+      "path": "src/shared/mcpTextExchange.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 16,
+          "covered": 16,
+          "pct": 100
+        },
+        "statements": {
+          "total": 16,
+          "covered": 16,
+          "pct": 100
+        },
+        "functions": {
+          "total": 1,
+          "covered": 1,
+          "pct": 100
+        },
+        "branches": {
+          "total": 3,
+          "covered": 3,
+          "pct": 100
+        }
+      }
+    },
+    {
+      "path": "src/shared/reviewImportPlan.ts",
+      "classification": "added",
+      "measured": {
+        "lines": {
+          "total": 77,
+          "covered": 77,
+          "pct": 100
+        },
+        "statements": {
+          "total": 80,
+          "covered": 80,
+          "pct": 100
+        },
+        "functions": {
+          "total": 15,
+          "covered": 15,
+          "pct": 100
+        },
+        "branches": {
+          "total": 64,
+          "covered": 63,
+          "pct": 98.43
+        }
+      }
+    }
+  ],
+  "measuredScopeCounts": {
+    "existing": 763,
+    "added": 1077,
+    "deleted": 11
+  },
+  "inheritedFloorsUnchangedIncludingKnownGaps": [
+    {
+      "path": "src/main/mcp/mcpRetainedOutputs.ts",
+      "metric": "functions",
+      "measured": {
+        "covered": 26,
+        "total": 27
+      },
+      "floor": {
+        "covered": 21,
+        "total": 21
+      }
+    },
+    {
+      "path": "src/shared/mcpOutputFormats.ts",
+      "metrics": ["lines", "statements", "branches"],
+      "status": "Inherited floors retained; focused TXT/TSV and callback coverage verification pending."
+    }
+  ],
+  "architecture": {
+    "ruleErrorsAtMeasurement": 1,
+    "cycleFix": "The measured type-only AuxiliarySessions/PageOperationSession cycle is corrected separately through directly imported PageSessionTypes. This document does not claim that later source has been measured.",
+    "exactBudgetChanges": [
+      {
+        "path": "src/shared/translationLanguages.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 33,
+        "measured": 34,
+        "runtimeDependencies": ["src/shared/translationLanguageDefaults.ts"],
+        "consumers": [
+          "src/main/settings/appSettingsDefaults.ts",
+          "src/main/settings/appSettingsNormalize.ts",
+          "src/main/settings/translationOptions.ts",
+          "src/shared/mcpSelectionAnalysis.ts",
+          "src/shared/ipcLibrarySchemas.ts",
+          "src/main/application/mcpTypographyReadService.ts",
+          "src/shared/ipcSettingsSchemas.ts",
+          "src/main/ipc/reviewTextIpc.ts",
+          "src/main/pipeline/fontChapterC18.ts",
+          "src/main/pipeline/fontMatchingInferenceWorkerClient.ts",
+          "src/main/pipeline/fontMatchingPagePixelInference.ts",
+          "src/main/pipeline/noText.ts",
+          "src/main/pipeline/overlayItemReferences.ts",
+          "src/main/wholePagePipeline.ts",
+          "src/main/pipeline/keepBlocksOcr.ts",
+          "src/main/pipeline/ocrHintsCache.ts",
+          "src/main/pipeline/wholePageInputHandoff.ts",
+          "src/main/workContextAnalysis.ts",
+          "src/main/workContextAnalysisPrompt.ts",
+          "src/main/workContextSequentialAnalysis.ts",
+          "src/main/workContextResearch.ts",
+          "src/main/workContextResearchGemma.ts",
+          "src/main/workContextResearchEvidence.ts",
+          "src/main/workContextResearchPrompt.ts",
+          "src/main/mcp/mcpTextExportSource.ts",
+          "src/main/mcp/mcpBlockTranslationAdapter.ts",
+          "src/renderer/src/components/settingsModal/TranslationLanguageFields.tsx",
+          "src/renderer/src/components/settingsFormBuilder.ts",
+          "src/renderer/src/components/settingsModal/settingsModalFormUtils.ts",
+          "src/renderer/src/components/settingsModal/settingsModalFormValues.ts",
+          "src/renderer/src/app/session/createGatherTextProps.ts",
+          "src/renderer/src/app/session/createRightRailProps.ts",
+          "src/renderer/src/app/session/useAppSessionShortcuts.ts",
+          "src/renderer/src/app/session/useTranslationController.ts"
+        ]
+      },
+      {
+        "path": "src/main/logger.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 47,
+        "measured": 48,
+        "runtimeDependencies": [
+          "src/main/appPaths.ts",
+          "src/main/errorReportRedaction.ts",
+          "src/main/loggerRuntime.ts"
+        ],
+        "consumers": [
+          "src/main/appActivityGate.ts",
+          "src/main/jobs/activeJob.ts",
+          "src/main/jobs/pageEditHandoffs.ts",
+          "src/main/index.ts",
+          "src/main/mainWindow.ts",
+          "src/main/imageProtocol.ts",
+          "src/main/customFonts.ts",
+          "src/main/libraryStore/libraryLogger.ts",
+          "src/main/codexAppServerEndpoint.ts",
+          "src/main/codexAppServerImageFailure.ts",
+          "src/main/safeCleanup.ts",
+          "src/main/inpainting/inpaintingRuntimeLogger.ts",
+          "src/main/regionCrop.ts",
+          "src/main/stateStoreDiagnostics.ts",
+          "src/main/settingsStore.ts",
+          "src/main/jobs/inpaintingJobRuntime.ts",
+          "src/main/bubbleLayout/bubbleLayoutFacade.ts",
+          "src/main/bubbleLayout/session.ts",
+          "src/main/pipeline/codexTypesettingImageRequest.ts",
+          "src/main/jobs/jobEvents.ts",
+          "src/main/ipc/logsIpc.ts",
+          "src/main/jobs/pageImageExportPorts.ts",
+          "src/main/ipc/settingsModelTestIpc.ts",
+          "src/main/ipc/settingsModelTestProgress.ts",
+          "src/main/pipeline/imageJobFailure.ts",
+          "src/main/pipeline/wholePagePipelinePorts.ts",
+          "src/main/pipeline/pipelineLogger.ts",
+          "src/main/textDetection/animeTextLogger.ts",
+          "src/main/pipeline/translationAttemptLogging.ts",
+          "src/main/pipeline/fontMatchingRuntimeAssets.ts",
+          "src/main/jobs/translationJobRunners.ts",
+          "src/main/previousChapterContext.ts",
+          "src/main/jobs/translationRegionJobRunner.ts",
+          "src/main/workContextAnalysis.ts",
+          "src/main/workContextSequentialAnalysis.ts",
+          "src/main/mcp/mcpFontCatalogAdapter.ts",
+          "src/main/mcp/mcpTranslationBatchAdapter.ts",
+          "src/main/mcp/mcpResearchBatchSession.ts",
+          "src/main/mcp/mcpContextMigrationScope.ts",
+          "src/main/mcp/mcpTextImportApplication.ts",
+          "src/main/mcp/mcpTypographyFontRuntime.ts",
+          "src/main/mcp/mcpChapterDeletionApplication.ts",
+          "src/main/mcp/mcpChapterMoveApplication.ts",
+          "src/main/mcp/mcpLibraryOrganizationApplication.ts",
+          "src/main/mcp/mcpPageDeletionApplication.ts",
+          "src/main/mcp/mcpWorkDeletionApplication.ts",
+          "src/main/mcp/mcpSoundEffectGeneration.ts",
+          "src/main/mcp/mcpRecoveryApplication.ts"
+        ]
+      },
+      {
+        "path": "src/main/library/lock.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 46,
+        "measured": 48,
+        "runtimeDependencies": [
+          "src/shared/appActivityTypes.ts",
+          "src/main/libraryStore/libraryArtifactRetention.ts",
+          "src/main/libraryStore/libraryMutationCoordinator.ts",
+          "src/main/libraryStore/libraryPublicationLock.ts",
+          "src/main/libraryStore/mutex.ts"
+        ],
+        "consumers": [
+          "src/main/appOperationRegistry.ts",
+          "src/main/jobs/activeJob.ts",
+          "src/main/library/libraryContextEditingFacade.ts",
+          "src/main/library/libraryContextFacade.ts",
+          "src/main/library/libraryImportFacade.ts",
+          "src/main/library/libraryMutationFacade.ts",
+          "src/main/library/libraryReadFacade.ts",
+          "src/main/library/libraryRecoveryFacade.ts",
+          "src/main/library/libraryShareFacade.ts",
+          "src/main/library/librarySoundEffectFacade.ts",
+          "src/main/inpainting/inpaintingRevisionStore.ts",
+          "src/main/inpainting/inpaintingRevisionRepository.ts",
+          "src/main/inpainting/inpaintingSinglePageHistory.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+          "src/main/ipc/inpaintingIpc.ts",
+          "src/main/jobs/jobPageOwnership.ts",
+          "src/main/jobs/pageImageExportJobRunner.ts",
+          "src/main/mcp/mcpTranslationBatchAdapter.ts",
+          "src/main/mcp/mcpContextEditScope.ts",
+          "src/main/mcp/mcpResearchBatchRepository.ts",
+          "src/main/mcp/mcpResearchBatchRuntime.ts",
+          "src/main/mcp/mcpResearchProposalRepository.ts",
+          "src/main/mcp/mcpResearchProposalApplication.ts",
+          "src/main/mcp/mcpContextMigrationApplication.ts",
+          "src/main/library/libraryContextMigrationFacade.ts",
+          "src/main/mcp/mcpRetentionCatalog.ts",
+          "src/main/mcp/mcpRetainedOutputs.ts",
+          "src/main/mcp/mcpContextExchangeSource.ts",
+          "src/main/mcp/mcpTextExportSource.ts",
+          "src/main/mcp/mcpWorkFileExportSource.ts",
+          "src/main/mcp/mcpLetteringAdapter.ts",
+          "src/main/mcp/mcpChapterDiscoveryRepository.ts",
+          "src/main/mcp/mcpImportBatchRepository.ts",
+          "src/main/mcp/mcpLibraryImportRepository.ts",
+          "src/main/mcp/mcpWorkFileImports.ts",
+          "src/main/mcp/mcpWorkFileAppend.ts",
+          "src/main/mcp/mcpChapterDeletionApplication.ts",
+          "src/main/mcp/mcpChapterMoveApplication.ts",
+          "src/main/mcp/mcpLibraryOrganizationApplication.ts",
+          "src/main/mcp/mcpPageDeletionApplication.ts",
+          "src/main/mcp/mcpWorkDeletionApplication.ts",
+          "src/main/mcp/mcpSelectionEditAdapter.ts",
+          "src/main/mcp/mcpSoundEffectPrepareTools.ts",
+          "src/main/mcp/mcpTypographyBatchAdapter.ts",
+          "src/main/mcp/mcpRetentionSession.ts",
+          "src/main/mcp/mcpRecoveryApplication.ts",
+          "src/main/mcp/mcpWorkflowRepository.ts",
+          "src/main/mcp/mcpWorkflowReconciliation.ts"
+        ]
+      },
+      {
+        "path": "src/shared/pageRevision.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 70,
+        "measured": 71,
+        "runtimeDependencies": [
+          "src/shared/blockFingerprint.ts",
+          "src/shared/generatedLettering.ts"
+        ],
+        "consumers": [
+          "src/main/application/mcpBlockOcrService.ts",
+          "src/main/application/mcpBlockTranslationService.ts",
+          "src/main/application/mcpChapterTextSearch.ts",
+          "src/main/application/mcpContextEditPolicy.ts",
+          "src/main/application/mcpContextReferenceService.ts",
+          "src/main/application/mcpExportSelection.ts",
+          "src/main/application/mcpPageExportService.ts",
+          "src/main/application/mcpPageBatchPolicy.ts",
+          "src/main/application/mcpMemoryRefreshPolicy.ts",
+          "src/main/application/mcpOcrService.ts",
+          "src/main/application/mcpPageBatchService.ts",
+          "src/main/application/mcpTranslationBatchRunner.ts",
+          "src/main/application/mcpPageEditService.ts",
+          "src/main/application/mcpPageImageService.ts",
+          "src/main/application/mcpReadingService.ts",
+          "src/main/application/mcpReviewService.ts",
+          "src/main/application/mcpSelectionEditProjection.ts",
+          "src/main/application/mcpSoundEffectPolicy.ts",
+          "src/main/application/mcpSourceSizeService.ts",
+          "src/main/application/mcpStructureService.ts",
+          "src/main/application/mcpTypographyAnalysisService.ts",
+          "src/main/application/mcpTypographyReadService.ts",
+          "src/main/libraryStore/translationCheckpointStore.ts",
+          "src/main/libraryStore/libraryAnalysisMutations.ts",
+          "src/main/libraryStore/libraryInpaintingMutations.ts",
+          "src/main/libraryStore/libraryMutations.ts",
+          "src/main/libraryStore/libraryPageBlockMutations.ts",
+          "src/main/libraryStore/libraryPageRecovery.ts",
+          "src/main/libraryStore/librarySoundEffectMutations.ts",
+          "src/main/libraryStore/librarySoundEffectRestore.ts",
+          "src/main/libraryStore/librarySoundEffectSnapshot.ts",
+          "src/main/inpainting/inpaintingRevisionPreparation.ts",
+          "src/main/inpainting/inpaintingSinglePageHistory.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+          "src/main/ipc/inpaintingIpc.ts",
+          "src/main/jobs/inpaintingJobs.ts",
+          "src/main/jobs/inpaintingJobRunner.ts",
+          "src/main/jobs/inpaintingJobHistory.ts",
+          "src/main/jobs/pageImageExportSelection.ts",
+          "src/main/soundEffectImageRecoveryStore.ts",
+          "src/main/jobs/soundEffectTranslationTargets.ts",
+          "src/main/jobs/soundEffectImageFinalization.ts",
+          "src/main/jobs/soundEffectImageRecoveryRunner.ts",
+          "src/main/jobs/soundEffectTranslationPreparation.ts",
+          "src/main/jobs/translationJobRunners.ts",
+          "src/main/pipeline/wholePageCheckpointFlow.ts",
+          "src/main/pipeline/preparedTranslationCheckpoint.ts",
+          "src/main/jobs/translationRegionJobRunner.ts",
+          "src/main/jobs/translationRegionCompletion.ts",
+          "src/main/jobs/translationRegionHistory.ts",
+          "src/main/mcp/mcpRecoveryInspection.ts",
+          "src/main/mcp/mcpRetainedOutputs.ts",
+          "src/main/mcp/mcpTextExportSource.ts",
+          "src/main/mcp/mcpWorkFileExportSource.ts",
+          "src/main/mcp/mcpImageEditPersistence.ts",
+          "src/main/mcp/mcpImageEditEvidence.ts",
+          "src/main/mcp/mcpSoundEffectPreparation.ts",
+          "src/main/mcp/mcpSoundEffectEdits.ts",
+          "src/main/mcp/mcpSoundEffectReadTool.ts",
+          "src/main/mcp/mcpErasureAdapter.ts",
+          "src/main/mcp/mcpRecoveryApplication.ts",
+          "src/main/mcp/mcpWorkflowEvidence.ts",
+          "src/renderer/src/lib/translationSelection.ts",
+          "src/renderer/src/hooks/useTranslateSelectedRegionAction.ts",
+          "src/renderer/src/hooks/useTranslateSoundEffectsAction.ts",
+          "src/renderer/src/components/soundEffectReviewRestoreDraft.ts",
+          "src/renderer/src/components/soundEffectTranslationDraft.ts",
+          "src/renderer/src/hooks/useQueuedChapterSave.ts",
+          "src/renderer/src/app/session/createSoundEffectReviewViewProps.ts",
+          "src/renderer/src/hooks/inpaintingRetouchActions.ts",
+          "src/renderer/src/hooks/inpaintingRetouchHelpers.ts"
+        ]
+      },
+      {
+        "path": "src/shared/blockFingerprint.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 120,
+        "measured": 128,
+        "runtimeDependencies": [],
+        "consumers": [
+          "src/shared/pageRevision.ts",
+          "src/main/application/mcpBlockEditPolicy.ts",
+          "src/main/application/mcpOperationService.ts",
+          "src/main/application/mcpJobJournal.ts",
+          "src/shared/mcpContextEditing.ts",
+          "src/main/application/mcpExchangeJobPolicy.ts",
+          "src/main/application/mcpOperationOutputs.ts",
+          "src/main/application/mcpBlockTranslationService.ts",
+          "src/main/application/mcpChapterDeletionState.ts",
+          "src/main/application/mcpChapterMoveReferences.ts",
+          "src/main/application/mcpChapterMoveState.ts",
+          "src/main/application/mcpChapterTextSearch.ts",
+          "src/main/application/mcpContextEditPolicy.ts",
+          "src/main/application/mcpContextCatalogMigration.ts",
+          "src/main/application/mcpContextExchangePolicy.ts",
+          "src/shared/mcpContextExchangePayload.ts",
+          "src/main/application/mcpContextMigrationPolicy.ts",
+          "src/main/application/mcpContextReferenceService.ts",
+          "src/main/application/mcpContextProposalPolicy.ts",
+          "src/main/application/mcpContextMigrationRecoveryPolicy.ts",
+          "src/main/application/mcpContextProposalService.ts",
+          "src/main/application/mcpContextResearchPolicy.ts",
+          "src/main/application/mcpErasureRecoveryService.ts",
+          "src/main/application/mcpExportSelection.ts",
+          "src/main/application/mcpExternalImagePolicy.ts",
+          "src/main/application/mcpPageBatchPolicy.ts",
+          "src/main/application/mcpFormatBatchPolicy.ts",
+          "src/main/application/mcpImportBatchState.ts",
+          "src/main/application/mcpImportBatchService.ts",
+          "src/main/application/mcpLetteringPolicy.ts",
+          "src/main/application/mcpLetteringProjection.ts",
+          "src/main/application/mcpLetteringResourceService.ts",
+          "src/main/application/mcpLibraryImportService.ts",
+          "src/main/application/mcpLibraryOrganizationState.ts",
+          "src/main/application/mcpMemoryRefreshPolicy.ts",
+          "src/shared/pageMemoryEvidence.ts",
+          "src/main/application/mcpPageDeletionState.ts",
+          "src/main/application/mcpPageEditService.ts",
+          "src/main/application/mcpTypographyBatchPolicy.ts",
+          "src/main/application/mcpReadingPolicy.ts",
+          "src/main/application/mcpReadingService.ts",
+          "src/main/application/mcpResearchBatchPolicy.ts",
+          "src/main/application/mcpResearchBatchService.ts",
+          "src/main/application/mcpReviewService.ts",
+          "src/main/application/mcpSelectionEditPolicy.ts",
+          "src/main/application/mcpSelectionEditProjection.ts",
+          "src/main/application/mcpSelectionEditSnapshots.ts",
+          "src/main/application/mcpSoundEffectPolicy.ts",
+          "src/main/application/mcpStructureService.ts",
+          "src/main/application/mcpTextExportService.ts",
+          "src/main/application/mcpTypographyAnalysisService.ts",
+          "src/main/application/mcpTypographyReadService.ts",
+          "src/main/application/mcpWorkDeletionState.ts",
+          "src/main/application/mcpWorkflowHandoffService.ts",
+          "src/main/application/mcpWorkflowPolicy.ts",
+          "src/main/application/mcpWorkflowService.ts",
+          "src/main/libraryStore/libraryOrganization.ts",
+          "src/main/libraryStore/libraryPageOrdering.ts",
+          "src/main/libraryStore/libraryPageDeletion.ts",
+          "src/main/libraryStore/libraryPageBlockMutations.ts",
+          "src/main/libraryStore/shareAppendWorkflow.ts",
+          "src/main/libraryStore/librarySoundEffectSnapshot.ts",
+          "src/main/mcp/mcpFontCatalogAdapter.ts",
+          "src/main/mcp/mcpResearchBatchRepository.ts",
+          "src/main/mcp/mcpResearchBatchRuntime.ts",
+          "src/main/mcp/mcpResearchProposalRepository.ts",
+          "src/main/mcp/mcpResearchProposalApplication.ts",
+          "src/main/libraryStore/workContextMigration.ts",
+          "src/main/mcp/mcpContextMigrationRepository.ts",
+          "src/main/mcp/mcpRetentionCatalog.ts",
+          "src/main/mcp/mcpRecoveryInspection.ts",
+          "src/main/mcp/mcpRetentionEvidence.ts",
+          "src/main/mcp/mcpRetainedOutputs.ts",
+          "src/main/mcp/mcpContextExchangeSource.ts",
+          "src/main/mcp/mcpTextExportSource.ts",
+          "src/main/mcp/mcpRecoveryCapture.ts",
+          "src/main/mcp/mcpWorkFileExportSource.ts",
+          "src/main/mcp/mcpUploadStore.ts",
+          "src/main/mcp/mcpTextImportApplication.ts",
+          "src/main/mcp/mcpExternalImageAssets.ts",
+          "src/main/mcp/mcpImageEditPersistence.ts",
+          "src/main/mcp/mcpImageEditEvidence.ts",
+          "src/main/mcp/mcpTypographyFontRuntime.ts",
+          "src/main/mcp/mcpExternalImagePreparation.ts",
+          "src/main/mcp/mcpLetteringEvidence.ts",
+          "src/main/mcp/mcpLetteringPreparation.ts",
+          "src/main/mcp/mcpChapterDiscoveryRepository.ts",
+          "src/main/mcp/mcpImportBatchRepository.ts",
+          "src/main/mcp/mcpLibraryImportRepository.ts",
+          "src/main/mcp/mcpImportDuplicateInspection.ts",
+          "src/main/mcp/mcpLibraryImportStaging.ts",
+          "src/main/mcp/mcpWorkFileImports.ts",
+          "src/main/mcp/mcpWorkFileAppend.ts",
+          "src/main/mcp/mcpWorkFileSource.ts",
+          "src/main/mcp/mcpChapterDeletionApplication.ts",
+          "src/main/mcp/mcpChapterDeletionRepository.ts",
+          "src/main/mcp/mcpChapterMoveApplication.ts",
+          "src/main/mcp/mcpChapterMoveFiles.ts",
+          "src/main/mcp/mcpChapterMovePreparation.ts",
+          "src/main/mcp/mcpChapterMoveSnapshot.ts",
+          "src/main/mcp/mcpChapterMoveRepository.ts",
+          "src/main/mcp/mcpLibraryOrganizationApplication.ts",
+          "src/main/mcp/mcpLibraryOrganizationRepository.ts",
+          "src/main/mcp/mcpPageDeletionApplication.ts",
+          "src/main/mcp/mcpDeletionRecoveryGuard.ts",
+          "src/main/mcp/mcpPageDeletionEvidence.ts",
+          "src/main/mcp/mcpPageDeletionRepository.ts",
+          "src/main/mcp/mcpPageDeletionRestoration.ts",
+          "src/main/mcp/mcpWorkDeletionApplication.ts",
+          "src/main/mcp/mcpWorkDeletionEvidence.ts",
+          "src/main/mcp/mcpWorkDeletionRepository.ts",
+          "src/main/mcp/mcpBlockTranslationContext.ts",
+          "src/main/mcp/mcpSoundEffectAdapter.ts",
+          "src/main/mcp/mcpSoundEffectImageTool.ts",
+          "src/main/mcp/mcpSoundEffectCommands.ts",
+          "src/main/mcp/mcpSoundEffectLayer.ts",
+          "src/main/mcp/mcpSoundEffectState.ts",
+          "src/main/mcp/mcpRecoveryApplication.ts",
+          "src/main/mcp/mcpWorkflowRepository.ts",
+          "src/main/mcp/mcpWorkflowEvidence.ts",
+          "src/main/mcp/mcpWorkflowReconciliation.ts",
+          "src/renderer/src/hooks/translationActionHooks.ts",
+          "src/renderer/src/lib/chapterSync.ts",
+          "src/renderer/src/lib/workspaceHistory.ts",
+          "src/renderer/src/hooks/useChapterPersistence.ts",
+          "src/renderer/src/hooks/chapterPersistencePayload.ts",
+          "src/renderer/src/hooks/useChapterPersistenceActions.ts",
+          "src/renderer/src/hooks/useDrawnPatternInpaintingAction.ts"
+        ]
+      },
+      {
+        "path": "src/main/application/mcpEditPolicy.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 187,
+        "measured": 203,
+        "runtimeDependencies": ["src/shared/mcpBlockEditing.ts"],
+        "consumers": [
+          "src/main/application/mcpBlockEditPolicy.ts",
+          "src/main/application/mcpBlockOcrService.ts",
+          "src/main/application/mcpOperationService.ts",
+          "src/main/application/mcpOperationOutputs.ts",
+          "src/main/application/mcpBlockTranslationService.ts",
+          "src/main/application/mcpChapterDeletionState.ts",
+          "src/main/application/mcpChapterMoveState.ts",
+          "src/main/application/mcpChapterTextSearch.ts",
+          "src/main/application/mcpContextEditPolicy.ts",
+          "src/main/application/mcpContextCatalogMigration.ts",
+          "src/main/application/mcpContextExchangePolicy.ts",
+          "src/main/application/mcpContextMigrationPolicy.ts",
+          "src/main/application/mcpContextReferenceService.ts",
+          "src/main/application/mcpContextProposalPolicy.ts",
+          "src/main/application/mcpContextMigrationRecoveryPolicy.ts",
+          "src/main/application/mcpContextProposalService.ts",
+          "src/main/application/mcpContextResearchPolicy.ts",
+          "src/main/application/mcpContextResearchService.ts",
+          "src/main/application/mcpEditorGuard.ts",
+          "src/main/application/mcpErasureRecoveryService.ts",
+          "src/main/application/mcpExportBatchService.ts",
+          "src/main/application/mcpExportSelection.ts",
+          "src/main/application/mcpPageExportService.ts",
+          "src/main/application/mcpExternalImagePolicy.ts",
+          "src/main/application/mcpPageBatchPolicy.ts",
+          "src/main/application/mcpFormatBatchPolicy.ts",
+          "src/main/application/mcpImportBatchRunner.ts",
+          "src/main/application/mcpImportBatchService.ts",
+          "src/main/application/mcpImportSelection.ts",
+          "src/main/application/mcpLetteringPolicy.ts",
+          "src/main/application/mcpLetteringProjection.ts",
+          "src/main/application/mcpLetteringResourceService.ts",
+          "src/main/application/mcpLibraryImportService.ts",
+          "src/main/application/mcpLibraryOrganizationState.ts",
+          "src/main/application/mcpMemoryRefreshPolicy.ts",
+          "src/main/application/mcpOcrReadingPolicy.ts",
+          "src/main/application/mcpOcrService.ts",
+          "src/main/application/mcpOutputDeliveryPolicy.ts",
+          "src/main/application/mcpPageBatchService.ts",
+          "src/main/application/mcpTranslationBatchRunner.ts",
+          "src/main/application/mcpPageEditService.ts",
+          "src/main/application/mcpSourceRectPolicy.ts",
+          "src/main/application/mcpTypographyBatchPolicy.ts",
+          "src/main/application/mcpPageImageService.ts",
+          "src/main/application/mcpReadingPolicy.ts",
+          "src/main/application/mcpReadingService.ts",
+          "src/main/application/mcpResearchBatchPolicy.ts",
+          "src/main/application/mcpResearchBatchRunner.ts",
+          "src/main/application/mcpResearchBatchService.ts",
+          "src/main/application/mcpResearchProposalPolicy.ts",
+          "src/main/application/mcpReviewImportPolicy.ts",
+          "src/main/application/mcpReviewService.ts",
+          "src/main/application/mcpSelectionAnalysisService.ts",
+          "src/main/application/mcpSelectionEditPolicy.ts",
+          "src/main/application/mcpSelectionEditProjection.ts",
+          "src/main/application/mcpSelectionEditSnapshots.ts",
+          "src/main/application/mcpSoundEffectBlocks.ts",
+          "src/main/application/mcpSoundEffectPolicy.ts",
+          "src/main/application/mcpSourceSizeService.ts",
+          "src/main/application/mcpStructurePolicy.ts",
+          "src/main/application/mcpStructureService.ts",
+          "src/main/application/mcpTextExportService.ts",
+          "src/main/application/mcpTextImportPolicy.ts",
+          "src/main/application/mcpTranslationBatchPolicy.ts",
+          "src/main/application/mcpTypographyAnalysisService.ts",
+          "src/main/application/mcpTypographyReadService.ts",
+          "src/main/application/mcpWorkDeletionState.ts",
+          "src/main/application/mcpWorkFileExportService.ts",
+          "src/main/application/mcpWorkflowHandoffService.ts",
+          "src/main/application/mcpWorkflowPolicy.ts",
+          "src/main/application/mcpWorkflowRunner.ts",
+          "src/main/application/mcpWorkflowService.ts",
+          "src/main/mcpDesktopRuntime.ts",
+          "src/main/mcp/mcpBatchTool.ts",
+          "src/main/mcp/mcpTranslationBatchAdapter.ts",
+          "src/main/mcp/mcpPageImageAdapter.ts",
+          "src/main/mcp/mcpPsdExport.ts",
+          "src/main/mcp/mcpStructureTools.ts",
+          "src/main/mcp/mcpHttpServer.ts",
+          "src/main/mcp/mcpArtifactStore.ts",
+          "src/main/mcp/mcpArtifactFiles.ts",
+          "src/main/mcp/mcpArtifactStream.ts",
+          "src/main/mcp/mcpArtifactZip.ts",
+          "src/main/mcp/mcpProtocol.ts",
+          "src/main/mcp/mcpToolResult.ts",
+          "src/main/mcp/mcpAppJob.ts",
+          "src/main/mcp/mcpPageOperationSession.ts",
+          "src/main/mcp/mcpContextResearchAdapter.ts",
+          "src/main/mcp/mcpBlockTranslationOptions.ts",
+          "src/main/mcp/mcpContextResearchTool.ts",
+          "src/main/mcp/mcpContextTools.ts",
+          "src/main/mcp/mcpResearchBatchSession.ts",
+          "src/main/mcp/mcpResearchBatchRepository.ts",
+          "src/main/mcp/mcpRetentionStorage.ts",
+          "src/main/mcp/mcpResearchBatchRuntime.ts",
+          "src/main/mcp/mcpResearchProposalRepository.ts",
+          "src/main/mcp/mcpResearchProposalApplication.ts",
+          "src/main/mcp/mcpContextMigrationRecoveryEvidence.ts",
+          "src/main/mcp/mcpContextMigrationRepository.ts",
+          "src/main/mcp/mcpRetentionCatalog.ts",
+          "src/main/mcp/mcpRecoveryInspection.ts",
+          "src/main/mcp/mcpRetentionEvidence.ts",
+          "src/main/mcp/mcpRetainedOutputs.ts",
+          "src/main/mcp/mcpContextExchangeSource.ts",
+          "src/main/mcp/mcpTextExportSource.ts",
+          "src/main/mcp/mcpRecoveryCapture.ts",
+          "src/main/mcp/mcpWorkFileExportSource.ts",
+          "src/main/mcp/mcpRetentionDiagnostics.ts",
+          "src/main/mcp/mcpContextExchangeApplication.ts",
+          "src/main/mcp/mcpExchangeUpload.ts",
+          "src/main/mcp/mcpImageUploadFiles.ts",
+          "src/main/mcp/mcpUploadStore.ts",
+          "src/main/mcp/mcpContextExchangeTools.ts",
+          "src/main/mcp/mcpTextImportApplication.ts",
+          "src/main/mcp/mcpTextImportSource.ts",
+          "src/main/mcp/mcpExternalImageAdapter.ts",
+          "src/main/mcp/mcpExternalImageAssets.ts",
+          "src/main/mcp/mcpImageUploadPng.ts",
+          "src/main/mcp/mcpExternalImageBackground.ts",
+          "src/main/mcp/mcpExternalImageArtifact.ts",
+          "src/main/mcp/mcpImageEditPersistence.ts",
+          "src/main/mcp/mcpImageEditEvidence.ts",
+          "src/main/mcp/mcpImageEditMasks.ts",
+          "src/main/mcp/mcpTypographySourceEvidence.ts",
+          "src/main/mcp/mcpTypographyFontRuntime.ts",
+          "src/main/mcp/mcpImageEditExecution.ts",
+          "src/main/mcp/mcpExternalImagePreparation.ts",
+          "src/main/mcp/mcpExternalImagePixels.ts",
+          "src/main/mcp/mcpExternalImageReadTool.ts",
+          "src/main/mcp/mcpCandidatePng.ts",
+          "src/main/mcp/mcpImageUploadSession.ts",
+          "src/main/mcp/mcpImageEditAdapter.ts",
+          "src/main/mcp/mcpImageEditReadTools.ts",
+          "src/main/mcp/mcpLetteringEvidence.ts",
+          "src/main/mcp/mcpLetteringPreparation.ts",
+          "src/main/mcp/mcpLetteringPagePreparation.ts",
+          "src/main/mcp/mcpLetteringLayout.ts",
+          "src/main/mcp/mcpLibraryImportSession.ts",
+          "src/main/mcp/mcpChapterDiscoveryRepository.ts",
+          "src/main/mcp/mcpImportBatchTools.ts",
+          "src/main/mcp/mcpImportBatchRepository.ts",
+          "src/main/mcp/mcpLibraryImportRepository.ts",
+          "src/main/mcp/mcpImportDuplicateInspection.ts",
+          "src/main/mcp/mcpLibraryImportSources.ts",
+          "src/main/mcp/mcpLibraryImportStaging.ts",
+          "src/main/mcp/mcpImportSourceEvidence.ts",
+          "src/main/mcp/mcpWorkFileImports.ts",
+          "src/main/mcp/mcpWorkFileAppend.ts",
+          "src/main/mcp/mcpWorkFileSource.ts",
+          "src/main/mcp/mcpChapterDeletionApplication.ts",
+          "src/main/mcp/mcpChapterDeletionRepository.ts",
+          "src/main/mcp/mcpChapterMoveApplication.ts",
+          "src/main/mcp/mcpChapterMovePreparation.ts",
+          "src/main/mcp/mcpChapterMoveSnapshot.ts",
+          "src/main/mcp/mcpChapterMoveRepository.ts",
+          "src/main/mcp/mcpLibraryOrganizationApplication.ts",
+          "src/main/mcp/mcpLibraryOrganizationRepository.ts",
+          "src/main/mcp/mcpPageDeletionApplication.ts",
+          "src/main/mcp/mcpDeletionRecoveryGuard.ts",
+          "src/main/mcp/mcpPageDeletionEvidence.ts",
+          "src/main/mcp/mcpPageDeletionRepository.ts",
+          "src/main/mcp/mcpWorkDeletionApplication.ts",
+          "src/main/mcp/mcpWorkDeletionEvidence.ts",
+          "src/main/mcp/mcpWorkDeletionRepository.ts",
+          "src/main/mcp/mcpSelectionAnalysisSession.ts",
+          "src/main/mcp/mcpSelectionAnalysisAdapter.ts",
+          "src/main/mcp/mcpSelectionEvidence.ts",
+          "src/main/mcp/mcpBlockOcrAdapter.ts",
+          "src/main/mcp/mcpSelectionTranslation.ts",
+          "src/main/mcp/mcpBlockTranslationAdapter.ts",
+          "src/main/mcp/mcpBlockTranslationContext.ts",
+          "src/main/mcp/mcpSelectionEditAdapter.ts",
+          "src/main/mcp/mcpSoundEffectAdapter.ts",
+          "src/main/mcp/mcpSoundEffectImageTool.ts",
+          "src/main/mcp/mcpSoundEffectPreparation.ts",
+          "src/main/mcp/mcpSoundEffectEdits.ts",
+          "src/main/mcp/mcpSoundEffectGeneration.ts",
+          "src/main/mcp/mcpSoundEffectLayer.ts",
+          "src/main/mcp/mcpSoundEffectReadTool.ts",
+          "src/main/mcp/mcpTypographyBatchAdapter.ts",
+          "src/main/mcp/mcpErasureAdapter.ts",
+          "src/main/mcp/mcpOperationTools.ts",
+          "src/main/mcp/mcpJobFileTool.ts",
+          "src/main/mcp/mcpJobRecoveryTools.ts",
+          "src/main/mcp/mcpErasureRecoveryTools.ts",
+          "src/main/mcp/mcpExportBatchTools.ts",
+          "src/main/mcp/mcpOutputDeliveryAdapter.ts",
+          "src/main/mcp/mcpRecoveryApplication.ts",
+          "src/main/mcp/mcpRetentionTools.ts",
+          "src/main/mcp/mcpSourceSizeAdapter.ts",
+          "src/main/mcp/mcpTypographyAnalysisSession.ts",
+          "src/main/mcp/mcpTypographyAnalysisAdapter.ts",
+          "src/main/mcp/mcpTypographyAnalysisTool.ts",
+          "src/main/mcp/mcpWorkFileExportAdapter.ts",
+          "src/main/mcp/mcpWorkflowCalls.ts",
+          "src/main/mcp/mcpWorkflowHandoffTools.ts",
+          "src/main/mcp/mcpWorkflowAuthorization.ts",
+          "src/main/mcp/mcpWorkflowRepository.ts",
+          "src/main/mcp/mcpWorkflowRuntime.ts",
+          "src/main/mcp/mcpWorkflowEvidence.ts",
+          "src/main/mcp/mcpWorkflowReconciliation.ts",
+          "src/main/mcp/mcpWorkflowTranslation.ts",
+          "src/main/mcp/mcpWorkflowTools.ts"
+        ]
+      },
+      {
+        "path": "src/main/application/mcpJobJournal.ts",
+        "metric": "runtimeImports",
+        "previous": 18,
+        "measured": 19,
+        "runtimeDependencies": [
+          "src/shared/blockFingerprint.ts",
+          "src/shared/mcpBlockOcr.ts",
+          "src/shared/mcpBlockTranslation.ts",
+          "src/shared/mcpChapterDiscovery.ts",
+          "src/shared/mcpContextEditing.ts",
+          "src/shared/mcpExportBatch.ts",
+          "src/shared/mcpFileUploads.ts",
+          "src/shared/mcpImportBatch.ts",
+          "src/shared/mcpImportPublication.ts",
+          "src/shared/mcpLettering.ts",
+          "src/shared/mcpLibraryImport.ts",
+          "src/shared/mcpSelectionAnalysis.ts",
+          "src/shared/mcpSoundEffects.ts",
+          "src/shared/mcpSourceSize.ts",
+          "src/shared/mcpTypographyAnalysis.ts",
+          "src/shared/mcpWorkFileExport.ts",
+          "src/shared/mcpWorkFileImport.ts",
+          "src/main/application/mcpExchangeJobPolicy.ts",
+          "src/main/application/mcpJobReferencePolicy.ts"
+        ],
+        "consumers": [
+          "src/main/application/mcpOperationService.ts",
+          "src/main/application/mcpOperationOutputs.ts",
+          "src/main/application/mcpOperationSnapshot.ts",
+          "src/main/mcp/mcpJobOutputSchema.ts",
+          "src/main/mcp/mcpWorkflowReconciliation.ts"
+        ]
+      },
+      {
+        "path": "src/shared/mcpContextEditing.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 28,
+        "measured": 30,
+        "runtimeDependencies": [
+          "src/shared/blockFingerprint.ts",
+          "src/shared/ipcWorkContextSchemas.ts"
+        ],
+        "consumers": [
+          "src/main/application/mcpJobJournal.ts",
+          "src/shared/mcpContextExchange.ts",
+          "src/shared/mcpContextMigration.ts",
+          "src/main/application/mcpJobReferencePolicy.ts",
+          "src/main/application/mcpChapterTextSearch.ts",
+          "src/main/application/mcpContextEditPolicy.ts",
+          "src/main/application/mcpContextExchangePolicy.ts",
+          "src/main/application/mcpContextReferenceService.ts",
+          "src/main/application/mcpContextProposalPolicy.ts",
+          "src/main/application/mcpContextMigrationRecoveryPolicy.ts",
+          "src/main/application/mcpContextProposalService.ts",
+          "src/main/application/mcpResearchProposalState.ts",
+          "src/main/application/mcpContextResearchPolicy.ts",
+          "src/main/application/mcpContextResearchService.ts",
+          "src/main/application/mcpPageBatchPolicy.ts",
+          "src/main/application/mcpPageBatchService.ts",
+          "src/main/application/mcpTypographyBatchPolicy.ts",
+          "src/shared/mcpResearchBatch.ts",
+          "src/main/application/mcpTypographyAnalysisService.ts",
+          "src/main/application/mcpWorkContextService.ts",
+          "src/main/mcp/mcpOutputSchemas.ts",
+          "src/main/mcp/mcpTranslationBatchAdapter.ts",
+          "src/main/mcp/mcpContextResearchTool.ts",
+          "src/main/mcp/mcpContextTools.ts",
+          "src/main/mcp/mcpResearchBatchRuntime.ts",
+          "src/main/mcp/mcpResearchProposalRepository.ts",
+          "src/main/mcp/mcpRetainedContext.ts",
+          "src/main/mcp/mcpImageUploadSession.ts",
+          "src/main/mcp/mcpSoundEffectReadTool.ts",
+          "src/main/mcp/mcpWorkflowEvidence.ts"
+        ]
+      },
+      {
+        "path": "src/main/application/mcpPageBatchPolicy.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 26,
+        "measured": 27,
+        "runtimeDependencies": [
+          "src/shared/blockFingerprint.ts",
+          "src/shared/mcpContextEditing.ts",
+          "src/shared/pageRevision.ts",
+          "src/main/application/mcpEditPolicy.ts"
+        ],
+        "consumers": [
+          "src/main/application/mcpExternalImagePolicy.ts",
+          "src/main/application/mcpImageEditPolicy.ts",
+          "src/main/application/mcpFormatBatchPolicy.ts",
+          "src/main/application/mcpLetteringPolicy.ts",
+          "src/main/application/mcpPageEditService.ts",
+          "src/main/application/mcpTypographyBatchPolicy.ts",
+          "src/main/application/mcpSelectionAnalysisService.ts",
+          "src/main/application/mcpSelectionEditPolicy.ts",
+          "src/main/application/mcpSoundEffectPolicy.ts",
+          "src/main/application/mcpSourceSizeService.ts",
+          "src/main/application/mcpTextImportPolicy.ts",
+          "src/main/application/mcpTranslationBatchPolicy.ts",
+          "src/main/application/mcpTypographyAnalysisService.ts",
+          "src/main/application/mcpTypographyReadService.ts",
+          "src/main/mcp/mcpRecoveryInspection.ts",
+          "src/main/mcp/mcpRecoveryCapture.ts",
+          "src/main/mcp/mcpExternalImageBackground.ts",
+          "src/main/mcp/mcpImageEditAdapter.ts",
+          "src/main/mcp/mcpLetteringEvidence.ts",
+          "src/main/mcp/mcpLetteringPreparation.ts",
+          "src/main/mcp/mcpLetteringPrepareTool.ts",
+          "src/main/mcp/mcpSelectionEvidence.ts",
+          "src/main/mcp/mcpSelectionOcr.ts",
+          "src/main/mcp/mcpSelectionTranslation.ts",
+          "src/main/mcp/mcpSoundEffectAdapter.ts",
+          "src/main/mcp/mcpTypographyAnalysisSession.ts",
+          "src/main/mcp/mcpWorkflowEvidence.ts"
+        ]
+      },
+      {
+        "path": "src/main/library.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 69,
+        "measured": 70,
+        "runtimeDependencies": [
+          "src/main/library/libraryContextEditingFacade.ts",
+          "src/main/library/libraryContextFacade.ts",
+          "src/main/library/libraryImportFacade.ts",
+          "src/main/library/libraryMutationFacade.ts",
+          "src/main/library/libraryReadFacade.ts",
+          "src/main/library/libraryRecoveryFacade.ts",
+          "src/main/library/libraryShareFacade.ts",
+          "src/main/library/librarySoundEffectFacade.ts",
+          "src/main/libraryStore/legacyShareTrashRecovery.ts",
+          "src/main/libraryStore/libraryFiles.ts",
+          "src/main/libraryStore/libraryMutationCoordinator.ts",
+          "src/main/libraryStore/libraryPaths.ts",
+          "src/main/libraryStore/libraryTransactionRecovery.ts",
+          "src/main/libraryStore/workTypographyProfileFiles.ts"
+        ],
+        "consumers": [
+          "src/main/index.ts",
+          "src/main/imageProtocol.ts",
+          "src/main/ipc/importShareIpc.ts",
+          "src/main/ipc/importPreviewService.ts",
+          "src/main/ipc/inpaintingIpc.ts",
+          "src/main/jobs/inpaintingJobRuntime.ts",
+          "src/main/jobs/pageTimingSessionManager.ts",
+          "src/main/ipc/libraryIpc.ts",
+          "src/main/ipc/reviewTextIpc.ts",
+          "src/main/jobs/translationJobs.ts",
+          "src/main/jobs/soundEffectTranslationJobRunner.ts",
+          "src/main/pipeline/wholePagePipelinePorts.ts",
+          "src/main/pipeline/pageContextPersistence.ts",
+          "src/main/soundEffectImageRecoveryStore.ts",
+          "src/main/jobs/soundEffectImageRecoveryRunner.ts",
+          "src/main/jobs/soundEffectTargetedInpainting.ts",
+          "src/main/jobs/soundEffectTranslationPage.ts",
+          "src/main/jobs/translationJobRunners.ts",
+          "src/main/previousChapterContext.ts",
+          "src/main/jobs/translationRegionJobRunner.ts",
+          "src/main/jobs/translationRegionCompletion.ts",
+          "src/main/ipc/workContextIpc.ts",
+          "src/main/workContextAnalysis.ts",
+          "src/main/workContextMissingScope.ts",
+          "src/main/workContextSequentialAnalysis.ts",
+          "src/main/workContextResearch.ts",
+          "src/main/macPackageSmoke.ts",
+          "src/main/mcp/mcpAppTools.ts",
+          "src/main/mcp/mcpTranslationBatchAdapter.ts",
+          "src/main/mcp/mcpPageEditScope.ts",
+          "src/main/mcp/mcpPageOperationSession.ts",
+          "src/main/mcp/mcpContextSession.ts",
+          "src/main/mcp/mcpContextResearchAdapter.ts",
+          "src/main/mcp/mcpRetentionStorage.ts",
+          "src/main/mcp/mcpContextMigrationScope.ts",
+          "src/main/mcp/mcpRetentionEvidence.ts",
+          "src/main/mcp/mcpExchangeSession.ts",
+          "src/main/mcp/mcpExternalImageAdapter.ts",
+          "src/main/mcp/mcpExternalImageBackground.ts",
+          "src/main/mcp/mcpImageEditPersistence.ts",
+          "src/main/mcp/mcpImageEditEvidence.ts",
+          "src/main/mcp/mcpTypographyFontRuntime.ts",
+          "src/main/mcp/mcpImageUploadSession.ts",
+          "src/main/mcp/mcpImageEditAdapter.ts",
+          "src/main/mcp/mcpLetteringSession.ts",
+          "src/main/mcp/mcpLetteringAdapter.ts",
+          "src/main/mcp/mcpLetteringPreparation.ts",
+          "src/main/mcp/mcpLetteringPrepareTool.ts",
+          "src/main/mcp/mcpChapterDeletionFiles.ts",
+          "src/main/mcp/mcpSelectionAnalysisAdapter.ts",
+          "src/main/mcp/mcpSelectionEvidence.ts",
+          "src/main/mcp/mcpBlockOcrAdapter.ts",
+          "src/main/mcp/mcpSelectionTranslation.ts",
+          "src/main/mcp/mcpBlockTranslationContext.ts",
+          "src/main/mcp/mcpSelectionEditSession.ts",
+          "src/main/mcp/mcpSoundEffectAdapter.ts",
+          "src/main/mcp/mcpSoundEffectPreparation.ts",
+          "src/main/mcp/mcpSoundEffectPrepareTools.ts",
+          "src/main/mcp/mcpSoundEffectReadTool.ts",
+          "src/main/mcp/mcpTypographyBatchSession.ts",
+          "src/main/mcp/mcpTypographyBatchAdapter.ts",
+          "src/main/mcp/mcpBlockOcrSession.ts",
+          "src/main/mcp/mcpBlockTranslationSession.ts",
+          "src/main/mcp/mcpExportBatchAdapter.ts",
+          "src/main/mcp/mcpOcrAdapter.ts",
+          "src/main/mcp/mcpRecoveryApplication.ts",
+          "src/main/mcp/mcpSourceSizeAdapter.ts",
+          "src/main/mcp/mcpTypographyAnalysisSession.ts",
+          "src/main/mcp/mcpWorkflowEvidence.ts",
+          "src/main/mcpRuntime.ts"
+        ]
+      },
+      {
+        "path": "src/main/libraryStore/libraryFiles.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 44,
+        "measured": 46,
+        "runtimeDependencies": [
+          "src/shared/ipcSchemas.ts",
+          "src/main/libraryStore/chapterImageRelocation.ts",
+          "src/main/libraryStore/libraryJsonValidation.ts",
+          "src/main/libraryStore/libraryPaths.ts",
+          "src/main/libraryStore/libraryStoreIds.ts",
+          "src/main/libraryStore/localization.ts",
+          "src/main/libraryStore/storage.ts",
+          "src/main/libraryStore/titles.ts"
+        ],
+        "consumers": [
+          "src/main/library.ts",
+          "src/main/library/libraryContextEditingFacade.ts",
+          "src/main/libraryStore/libraryAccess.ts",
+          "src/main/libraryStore/translationCheckpointStore.ts",
+          "src/main/libraryStore/libraryTransactionFiles.ts",
+          "src/main/libraryStore/workContextFiles.ts",
+          "src/main/libraryStore/reviewImport.ts",
+          "src/main/libraryStore/importWorkflow.ts",
+          "src/main/library/libraryMutationFacade.ts",
+          "src/main/libraryStore/libraryAnalysisMutations.ts",
+          "src/main/libraryStore/libraryCleanup.ts",
+          "src/main/libraryStore/libraryInpaintingMutations.ts",
+          "src/main/libraryStore/libraryMutations.ts",
+          "src/main/libraryStore/libraryChapterDeletion.ts",
+          "src/main/libraryStore/libraryOrganization.ts",
+          "src/main/libraryStore/libraryPageDeletion.ts",
+          "src/main/libraryStore/libraryWorkDeletion.ts",
+          "src/main/libraryStore/libraryPageBlockMutations.ts",
+          "src/main/libraryStore/libraryTimingMutations.ts",
+          "src/main/library/libraryReadFacade.ts",
+          "src/main/libraryStore/libraryPageRecovery.ts",
+          "src/main/library/libraryShareFacade.ts",
+          "src/main/libraryStore/shareExportWorkflow.ts",
+          "src/main/libraryStore/shareWorkflow.ts",
+          "src/main/libraryStore/shareAppendWorkflow.ts",
+          "src/main/libraryStore/shareImportMaterialize.ts",
+          "src/main/libraryStore/shareImportExistingWorkflow.ts",
+          "src/main/libraryStore/librarySoundEffectMutations.ts",
+          "src/main/libraryStore/librarySoundEffectSnapshot.ts",
+          "src/main/libraryStore/legacyShareTrashRecovery.ts",
+          "src/main/libraryStore/workTypographyProfileFiles.ts",
+          "src/main/inpainting/inpaintingRevisionHelpers.ts",
+          "src/main/inpainting/inpaintingRevisionRepository.ts",
+          "src/main/libraryStore/workContextMigration.ts",
+          "src/main/mcp/mcpRecoveryInspection.ts",
+          "src/main/mcp/mcpRetainedOutputs.ts",
+          "src/main/mcp/mcpContextExchangeSource.ts",
+          "src/main/mcp/mcpTextExportSource.ts",
+          "src/main/mcp/mcpRecoveryCapture.ts",
+          "src/main/mcp/mcpLibraryImportRepository.ts",
+          "src/main/mcp/mcpImportDuplicateInspection.ts",
+          "src/main/mcp/mcpChapterDeletionRepository.ts",
+          "src/main/mcp/mcpChapterMoveContent.ts",
+          "src/main/mcp/mcpChapterMovePreparation.ts",
+          "src/main/mcp/mcpChapterMoveSnapshot.ts",
+          "src/main/mcp/mcpWorkDeletionEvidence.ts"
+        ]
+      },
+      {
+        "path": "src/main/settingsStore.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 26,
+        "measured": 27,
+        "runtimeDependencies": [
+          "src/shared/apiProviderPresets.ts",
+          "src/main/appPaths.ts",
+          "src/main/appSettings.ts",
+          "src/main/gpuInfo.ts",
+          "src/main/logger.ts",
+          "src/main/settings/appSettingsGenerationLimitMigration.ts",
+          "src/main/settings/executionSettings.ts",
+          "src/main/settings/fluxZludaSupport.ts",
+          "src/main/settings/ocrRocmSupport.ts",
+          "src/main/settings/settingsMutationQueue.ts",
+          "src/main/settings/settingsRecovery.ts",
+          "src/main/settingsSecretStore.ts"
+        ],
+        "consumers": [
+          "src/main/errorReport.ts",
+          "src/main/ipc/inpaintingIpc.ts",
+          "src/main/jobs/imageRedactionReview.ts",
+          "src/main/jobs/inpaintingJobRuntime.ts",
+          "src/main/ipc/reviewTextIpc.ts",
+          "src/main/ipc/settingsIpc.ts",
+          "src/main/settings/codexPreferencesStore.ts",
+          "src/main/ipc/translationJobIpc.ts",
+          "src/main/codexImageEditing.ts",
+          "src/main/pipeline/wholePagePipelinePorts.ts",
+          "src/main/jobs/soundEffectTargetedInpainting.ts",
+          "src/main/jobs/regionTranslationArtwork.ts",
+          "src/main/ipc/workContextIpc.ts",
+          "src/main/workContextAnalysis.ts",
+          "src/main/workContextResearch.ts",
+          "src/main/mcp/mcpAppTools.ts",
+          "src/main/mcp/mcpPageOperationSession.ts",
+          "src/main/mcp/mcpContextResearchAdapter.ts",
+          "src/main/mcp/mcpResearchBatchRuntime.ts",
+          "src/main/mcp/mcpTextExportSource.ts",
+          "src/main/mcp/mcpTypographyFontRuntime.ts",
+          "src/main/mcp/mcpLetteringPreparation.ts",
+          "src/main/mcp/mcpSelectionAnalysisAdapter.ts",
+          "src/main/mcp/mcpBlockOcrAdapter.ts",
+          "src/main/mcp/mcpBlockTranslationSession.ts",
+          "src/main/mcp/mcpOcrAdapter.ts",
+          "src/main/mcp/mcpWorkflowRuntime.ts"
+        ]
+      },
+      {
+        "path": "src/main/mcp/mcpBatchTool.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 37,
+        "measured": 40,
+        "runtimeDependencies": [
+          "src/main/application/mcpEditPolicy.ts",
+          "src/main/mcp/mcpArguments.ts",
+          "src/main/mcp/mcpReadTools.ts"
+        ],
+        "consumers": [
+          "src/main/mcp/mcpContextReferenceTools.ts",
+          "src/main/mcp/mcpFormatBatchTools.ts",
+          "src/main/mcp/mcpTranslationBatchTools.ts",
+          "src/main/mcp/mcpTypographyReadTools.ts",
+          "src/main/mcp/mcpContextSession.ts",
+          "src/main/mcp/mcpResearchBatchSession.ts",
+          "src/main/mcp/mcpContextExchangeTools.ts",
+          "src/main/mcp/mcpTextExchangeTools.ts",
+          "src/main/mcp/mcpExternalImageSession.ts",
+          "src/main/mcp/mcpExternalImageReadTool.ts",
+          "src/main/mcp/mcpImageUploadSession.ts",
+          "src/main/mcp/mcpImageEditSession.ts",
+          "src/main/mcp/mcpImageEditReadTools.ts",
+          "src/main/mcp/mcpLetteringSession.ts",
+          "src/main/mcp/mcpLetteringPrepareTool.ts",
+          "src/main/mcp/mcpLetteringResourceTools.ts",
+          "src/main/mcp/mcpLibraryImportSession.ts",
+          "src/main/mcp/mcpChapterDiscoveryTools.ts",
+          "src/main/mcp/mcpFileUploadTools.ts",
+          "src/main/mcp/mcpImportBatchTools.ts",
+          "src/main/mcp/mcpWorkFileTools.ts",
+          "src/main/mcp/mcpLibraryOrganizationSession.ts",
+          "src/main/mcp/mcpChapterDeletionTools.ts",
+          "src/main/mcp/mcpChapterMoveTools.ts",
+          "src/main/mcp/mcpPageDeletionTools.ts",
+          "src/main/mcp/mcpWorkDeletionTools.ts",
+          "src/main/mcp/mcpSelectionAnalysisSession.ts",
+          "src/main/mcp/mcpSelectionEditSession.ts",
+          "src/main/mcp/mcpSoundEffectSession.ts",
+          "src/main/mcp/mcpSoundEffectImageTool.ts",
+          "src/main/mcp/mcpSoundEffectPrepareTools.ts",
+          "src/main/mcp/mcpSoundEffectReadTool.ts",
+          "src/main/mcp/mcpTypographyBatchSession.ts",
+          "src/main/mcp/mcpOutputDeliveryTools.ts",
+          "src/main/mcp/mcpContextMigrationSession.ts",
+          "src/main/mcp/mcpMemoryRefreshTools.ts",
+          "src/main/mcp/mcpRetentionTools.ts",
+          "src/main/mcp/mcpWorkFileExportAdapter.ts",
+          "src/main/mcp/mcpWorkflowHandoffTools.ts",
+          "src/main/mcp/mcpWorkflowTools.ts"
+        ]
+      },
+      {
+        "path": "src/main/mcp/mcpReadTools.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 26,
+        "measured": 27,
+        "runtimeDependencies": [
+          "src/main/mcp/mcpArguments.ts",
+          "src/main/mcp/mcpOutputSchemas.ts"
+        ],
+        "consumers": [
+          "src/main/mcp/mcpBatchTool.ts",
+          "src/main/mcp/mcpPageImageTools.ts",
+          "src/main/mcp/mcpReadingTool.ts",
+          "src/main/mcp/mcpReviewTools.ts",
+          "src/main/mcp/mcpToolSet.ts",
+          "src/main/mcp/mcpPageEditTools.ts",
+          "src/main/mcp/mcpBlockEditingTools.ts",
+          "src/main/mcp/mcpStructureTools.ts",
+          "src/main/mcp/mcpPagePreviewTool.ts",
+          "src/main/mcp/mcpWorkContextTool.ts",
+          "src/main/mcp/mcpProtocol.ts",
+          "src/main/mcp/mcpContextResearchTool.ts",
+          "src/main/mcp/mcpContextTools.ts",
+          "src/main/mcp/mcpExternalImageReadTool.ts",
+          "src/main/mcp/mcpImageEditReadTools.ts",
+          "src/main/mcp/mcpLibraryImportSession.ts",
+          "src/main/mcp/mcpSoundEffectImageTool.ts",
+          "src/main/mcp/mcpOperationTools.ts",
+          "src/main/mcp/mcpJobFileTool.ts",
+          "src/main/mcp/mcpJobRecoveryTools.ts",
+          "src/main/mcp/mcpErasureRecoveryTools.ts",
+          "src/main/mcp/mcpExportBatchTools.ts",
+          "src/main/mcp/mcpTypographyAnalysisTool.ts",
+          "src/main/mcp/mcpWorkFileExportAdapter.ts",
+          "src/main/mcp/mcpWorkflowHandoffTools.ts",
+          "src/main/mcp/mcpWorkflowTools.ts",
+          "src/main/mcp/mcpServerInfoTool.ts"
+        ]
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSchemas.ts",
+        "metric": "runtimeImports",
+        "previous": 39,
+        "measured": 42,
+        "runtimeDependencies": [
+          "src/shared/mcpBlockEditing.ts",
+          "src/shared/mcpBlockStructure.ts",
+          "src/shared/mcpChapterDeletion.ts",
+          "src/shared/mcpChapterDiscovery.ts",
+          "src/shared/mcpChapterMove.ts",
+          "src/shared/mcpContextEditing.ts",
+          "src/shared/mcpContextExchange.ts",
+          "src/shared/mcpContextMigration.ts",
+          "src/shared/mcpContextReferences.ts",
+          "src/shared/mcpErasureRecoverySchemas.ts",
+          "src/shared/mcpExportBatch.ts",
+          "src/shared/mcpExternalImages.ts",
+          "src/shared/mcpFileUploads.ts",
+          "src/shared/mcpFormatBatch.ts",
+          "src/shared/mcpImageEditing.ts",
+          "src/shared/mcpImageUploads.ts",
+          "src/shared/mcpImportBatch.ts",
+          "src/shared/mcpImportDuplicates.ts",
+          "src/shared/mcpLettering.ts",
+          "src/shared/mcpLetteringResources.ts",
+          "src/shared/mcpLibraryImport.ts",
+          "src/shared/mcpLibraryOrganization.ts",
+          "src/shared/mcpMemoryRefresh.ts",
+          "src/shared/mcpOutputDelivery.ts",
+          "src/shared/mcpPageDeletion.ts",
+          "src/shared/mcpResearchBatch.ts",
+          "src/shared/mcpRetention.ts",
+          "src/shared/mcpReviewSchemas.ts",
+          "src/shared/mcpSelectionAnalysis.ts",
+          "src/shared/mcpSelectionEditing.ts",
+          "src/shared/mcpSoundEffects.ts",
+          "src/shared/mcpSourceRect.ts",
+          "src/shared/mcpTextExchange.ts",
+          "src/shared/mcpTranslationBatch.ts",
+          "src/shared/mcpTypographyBatch.ts",
+          "src/shared/mcpTypographyRead.ts",
+          "src/shared/mcpWorkDeletion.ts",
+          "src/shared/mcpWorkFileExport.ts",
+          "src/shared/mcpWorkFileImport.ts",
+          "src/shared/mcpWorkflow.ts",
+          "src/shared/mcpWorkflowHandoff.ts",
+          "src/main/mcp/mcpJobOutputSchema.ts"
+        ],
+        "consumers": [
+          "src/main/mcp/mcpReadTools.ts",
+          "src/main/mcp/mcpToolResult.ts"
+        ]
+      },
+      {
+        "path": "src/main/mcp/mcpRetainedOutputs.ts",
+        "metric": "runtimeImports",
+        "previous": 13,
+        "measured": 15,
+        "runtimeDependencies": [
+          "src/shared/blockFingerprint.ts",
+          "src/shared/mcpOutputFormats.ts",
+          "src/shared/pageRevision.ts",
+          "src/main/application/mcpEditPolicy.ts",
+          "src/main/imageRedactionStore.ts",
+          "src/main/library/lock.ts",
+          "src/main/libraryStore/libraryFiles.ts",
+          "src/main/libraryStore/libraryTransaction.ts",
+          "src/main/libraryStore/libraryTransactionStorage.ts",
+          "src/main/mcp/mcpExchangeSources.ts",
+          "src/main/mcp/mcpRecoveryCapture.ts",
+          "src/main/mcp/mcpRetentionEvidence.ts",
+          "src/main/mcp/mcpRetentionRecords.ts",
+          "src/main/mcp/mcpSourceExport.ts",
+          "src/main/mcp/mcpWorkFileExportSource.ts"
+        ],
+        "consumers": [
+          "src/main/mcp/mcpPageOperationSession.ts",
+          "src/main/mcp/mcpRetentionCatalog.ts",
+          "src/main/mcp/mcpRetentionDiagnostics.ts",
+          "src/main/mcp/mcpRetentionSession.ts",
+          "src/main/mcp/mcpWorkflowReconciliation.ts"
+        ]
+      },
+      {
+        "path": "src/main/mcp/mcpTextExportSource.ts",
+        "metric": "runtimeImports",
+        "previous": 12,
+        "measured": 13,
+        "runtimeDependencies": [
+          "src/shared/blockFingerprint.ts",
+          "src/shared/blockReadingOrder.ts",
+          "src/shared/gatherText.ts",
+          "src/shared/mcpExchangeFiles.ts",
+          "src/shared/mcpTextExchange.ts",
+          "src/shared/pageRevision.ts",
+          "src/shared/reviewTable.ts",
+          "src/shared/translationLanguages.ts",
+          "src/main/application/mcpEditPolicy.ts",
+          "src/main/library/lock.ts",
+          "src/main/libraryStore/chapterSnapshots.ts",
+          "src/main/libraryStore/libraryFiles.ts",
+          "src/main/settingsStore.ts"
+        ],
+        "consumers": [
+          "src/main/mcp/mcpExchangeSources.ts",
+          "src/main/mcp/mcpTextExchangeTools.ts",
+          "src/main/mcp/mcpTextImportApplication.ts"
+        ]
+      }
+    ],
+    "globalAndLegacyBudgetsUnchanged": true
+  },
+  "pending": "Subsequent output-sync changes and PageSessionTypes require their own actual inventory, V8 and architecture measurements; no later ratios are inferred from this checkpoint."
+}

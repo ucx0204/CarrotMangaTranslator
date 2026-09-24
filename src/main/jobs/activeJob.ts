@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { randomUUID } from "node:crypto";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { AppActivityResource } from "../../shared/appActivityTypes";
 import {
@@ -34,8 +36,12 @@ export class ActiveJobStore {
   readonly pageHandoffs = new PageEditHandoffs();
   private readonly entries = new Map<
     string,
-    { job: ActiveJob; lease: AppActivityLease }
+    { job: ActiveJob; lease: AppActivityLease; ownerId: string }
   >();
+  private readonly group = new AsyncLocalStorage<{
+    id: string;
+    closed: boolean;
+  }>();
   private readonly cleanupPromises = new WeakMap<ActiveJob, Promise<void>>();
 
   constructor(
@@ -62,9 +68,43 @@ export class ActiveJobStore {
   }
 
   run<T>(id: string, run: () => T, settings?: AppSettings): T {
-    return withLibraryActivityOwner(id, () =>
+    return withLibraryActivityOwner(this.activityOwnerFor(id), () =>
       withExecutionSettings(settings, run),
     );
+  }
+
+  activityOwnerFor(id: string): string {
+    return this.entries.get(id)?.ownerId ?? id;
+  }
+
+  /** Only trusted composition may group sequential children; no transport owner override exists. */
+  async runModelGroup<T>(
+    controller: AbortController,
+    execute: () => Promise<T>,
+  ): Promise<T> {
+    if (this.group.getStore())
+      throw new Error("Nested native model groups are not supported.");
+    controller.signal.throwIfAborted();
+    const id = randomUUID();
+    let finish!: () => void;
+    const completion = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    this.start({
+      id,
+      kind: "gemma-analysis",
+      abortController: controller,
+      resources: [{ kind: "model-runtime", scope: "*", access: "write" }],
+      cleanup: () => completion,
+    });
+    const group = { id, closed: false };
+    try {
+      return await this.group.run(group, execute);
+    } finally {
+      group.closed = true;
+      this.clearIfCurrent(id);
+      finish();
+    }
   }
 
   updateResources(id: string, resources: readonly AppActivityResource[]): void {
@@ -81,10 +121,12 @@ export class ActiveJobStore {
   start(job: ActiveJob): void {
     if (this.entries.has(job.id)) throw new Error("Job id is already active.");
 
+    const ownerId = this.activeGroupOwner() ?? job.id;
     let lease: AppActivityLease;
     try {
       lease = this.activityGate.acquire({
         id: job.id,
+        ownerId,
         category: "job",
         kind: job.kind,
         mutatesLibrary: job.kind !== "page-export",
@@ -101,7 +143,23 @@ export class ActiveJobStore {
       throw error;
     }
 
-    this.entries.set(job.id, { job, lease });
+    this.entries.set(job.id, { job, lease, ownerId });
+  }
+
+  private activeGroupOwner(): string | undefined {
+    const group = this.group.getStore();
+    if (group && (group.closed || !this.entries.has(group.id)))
+      throw new Error("Native model group is no longer active.");
+    if (
+      group &&
+      [...this.entries.values()].some(
+        (entry) => entry.ownerId === group.id && entry.job.id !== group.id,
+      )
+    )
+      throw new Error("Native model group children must execute sequentially.");
+    if (group)
+      this.entries.get(group.id)?.job.abortController.signal.throwIfAborted();
+    return group?.id;
   }
 
   updateLastEvent(jobId: string, event: JobEvent): void {

@@ -1,3 +1,7 @@
+import {
+  ModelCleanupError,
+  releaseModelResource,
+} from "../runtimeSupport/modelCleanupBarrier";
 import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import { detectBestGpuInfo } from "../gpuInfo";
@@ -96,6 +100,7 @@ export async function acquireKoharuInpaintingEngine(
         release: lease.release,
       };
     } catch (error) {
+      if (error instanceof ModelCleanupError) throw error;
       errors.push(
         `${backend}: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -105,20 +110,8 @@ export async function acquireKoharuInpaintingEngine(
         backend,
         candidates[candidateIndex + 1] ?? null,
         error,
+        options.onProgress,
       );
-      const fallbackBackend = candidates[candidateIndex + 1] ?? null;
-      if (backend === "metal-native" && fallbackBackend === "cpu") {
-        options.onProgress?.({
-          progressText: tMain("inpainting.runtime.metalFallback"),
-          detail: tMain("inpainting.runtime.metalFallbackDetail", {
-            model: options.model,
-          }),
-          progressMode: "log-only",
-          installLogLine: tMain("inpainting.runtime.metalFallbackLog", {
-            model: options.model,
-          }),
-        });
-      }
     }
   }
 
@@ -146,12 +139,8 @@ async function prepareKoharuEngineCandidate(
     return engine;
   } catch (error) {
     if (engine) {
-      await engine.dispose().catch((disposeError) => {
-        logInpaintingRuntimeError("Failed to dispose failed Koharu engine", {
-          backend,
-          disposeError,
-        });
-      });
+      const failedEngine = engine;
+      await releaseModelResource(failedEngine, () => failedEngine.dispose());
     }
     throw error;
   }
@@ -185,7 +174,7 @@ async function disposeKoharuEngine(
   reason: string,
 ): Promise<void> {
   try {
-    await engine.dispose();
+    await releaseModelResource(engine, () => engine.dispose());
     logInpaintingRuntimeInfo("Koharu inpainting engine disposed", { reason });
   } catch (error) {
     logInpaintingRuntimeError(
@@ -195,6 +184,7 @@ async function disposeKoharuEngine(
         error,
       },
     );
+    throw error;
   }
 }
 
@@ -248,6 +238,7 @@ function logKoharuBackendFailure(
   backend: ResolvedKoharuBackend,
   fallbackBackend: ResolvedKoharuBackend | null,
   error: unknown,
+  onProgress: AcquireKoharuEngineOptions["onProgress"],
 ): void {
   logInpaintingRuntimeWarn("Koharu inpainting backend failed", {
     model,
@@ -256,6 +247,14 @@ function logKoharuBackendFailure(
     fallbackBackend,
     error,
   });
+  if (backend === "metal-native" && fallbackBackend === "cpu") {
+    onProgress?.({
+      progressText: tMain("inpainting.runtime.metalFallback"),
+      detail: tMain("inpainting.runtime.metalFallbackDetail", { model }),
+      progressMode: "log-only",
+      installLogLine: tMain("inpainting.runtime.metalFallbackLog", { model }),
+    });
+  }
 }
 
 async function smokeTestKoharuEngine(

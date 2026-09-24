@@ -5,7 +5,7 @@ import {
   gatherText,
   type GatherField,
   type GatherScope,
-} from "../../lib/gatherText";
+} from "../../../../shared/gatherText";
 import { useGatherTextSearch } from "../../hooks/useGatherTextSearch";
 import type { GatherTextModalProps } from "./gatherTextTypes";
 import {

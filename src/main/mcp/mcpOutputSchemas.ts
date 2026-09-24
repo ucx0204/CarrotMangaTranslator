@@ -1,0 +1,370 @@
+import { mcpWorkFileOutputs } from "../../shared/mcpWorkFileImport";
+import { mcpCompositeWorkflowOutputs } from "../../shared/mcpCompositeWorkflowOutputs";
+import { mcpTextExchangeOutputs } from "../../shared/mcpTextExchange";
+import { mcpContextExchangeOutputs } from "../../shared/mcpContextExchange";
+import { mcpOutputDeliveryOutputs } from "../../shared/mcpOutputDelivery";
+import { mcpOutputSyncOutputs } from "../../shared/mcpOutputSync";
+import { mcpFileUploadOutputs } from "../../shared/mcpFileUploads";
+import { mcpPageDeletionOutputs } from "../../shared/mcpPageDeletion";
+import { mcpWorkDeletionOutputs } from "../../shared/mcpWorkDeletion";
+import { mcpChapterMoveOutputs } from "../../shared/mcpChapterMove";
+import { mcpChapterDeletionOutputs } from "../../shared/mcpChapterDeletion";
+import { mcpLibraryOrganizationOutputs } from "../../shared/mcpLibraryOrganization";
+import { mcpImportDuplicateOutputs } from "../../shared/mcpImportDuplicates";
+import { mcpImportBatchOutputs } from "../../shared/mcpImportBatch";
+import { mcpChapterDiscoveryOutputs } from "../../shared/mcpChapterDiscovery";
+import { mcpLibraryImportOutputs } from "../../shared/mcpLibraryImport";
+import { mcpResearchBatchOutputs } from "../../shared/mcpResearchBatch";
+import { mcpMemoryRefreshOutputs } from "../../shared/mcpMemoryRefresh";
+import { mcpContextMigrationOutputs } from "../../shared/mcpContextMigration";
+import { mcpContextReferenceOutputs } from "../../shared/mcpContextReferences";
+import { mcpWorkflowHandoffOutputs } from "../../shared/mcpWorkflowHandoff";
+import { mcpWorkflowOutputs } from "../../shared/mcpWorkflow";
+import { mcpRetentionOutputs } from "../../shared/mcpRetention";
+import { mcpSoundEffectOutputs } from "../../shared/mcpSoundEffects";
+import { mcpSelectionBatchOutputs } from "../../shared/mcpSelectionEditing";
+import { mcpImageUploadOutputs } from "../../shared/mcpImageUploads";
+import { mcpExternalImageOutputs } from "../../shared/mcpExternalImages";
+import { mcpImageEditOutputs } from "../../shared/mcpImageEditing";
+import { mcpSelectionAnalysisOutputs } from "../../shared/mcpSelectionAnalysis";
+import { mcpLetteringResourceOutputs } from "../../shared/mcpLetteringResources";
+import { mcpLetteringOutputs } from "../../shared/mcpLettering";
+import { mcpTypographyBatchOutputs } from "../../shared/mcpTypographyBatch";
+import { mcpTypographyReadOutputs } from "../../shared/mcpTypographyRead";
+import { mcpFormatBatchOutputs } from "../../shared/mcpFormatBatch";
+import { mcpTranslationBatchOutputs } from "../../shared/mcpTranslationBatch";
+import { mcpStructureOutputs } from "../../shared/mcpBlockStructure";
+import { mcpErasureRecoveryOutputs } from "../../shared/mcpErasureRecoverySchemas";
+import { McpExportPreflightOutput } from "../../shared/mcpExportBatch";
+import { z } from "zod/v4";
+import { mcpContextOutputSchemas } from "../../shared/mcpContextEditing";
+import { mcpJobReceiptOutput, mcpJobFileOutput } from "./mcpJobOutputSchema";
+import { McpWorkFileExportReviewSchema } from "../../shared/mcpWorkFileExport";
+import { mcpReviewOutputSchemas } from "../../shared/mcpReviewSchemas";
+import { McpEditableFieldsSchema } from "../../shared/mcpBlockEditing";
+import { McpSourceRectResultSchema } from "../../shared/mcpSourceRect";
+
+const text = z.string();
+const count = z.number().int().nonnegative();
+const size = z.number().positive();
+const flag = z.boolean();
+const revision = text.regex(/^page-v1:[a-f0-9]{16}$/);
+const window = {
+  total: count,
+  offset: count,
+  limit: count,
+  nextOffset: count.nullable(),
+};
+const target = { chapterId: text, pageId: text, revision };
+const rect = z
+  .object({ x: z.number(), y: z.number(), w: size, h: size })
+  .strict();
+const direction = z.enum(["horizontal", "vertical"]);
+const block = z
+  .object({
+    id: text,
+    fields: McpEditableFieldsSchema.optional(),
+    sourceText: text,
+    translatedText: text,
+    bbox: rect,
+    bboxSpace: z.enum(["pixels", "normalized_1000"]).optional(),
+    renderBbox: rect.optional(),
+    renderBboxSpace: z.enum(["pixels", "normalized_1000"]).optional(),
+    textRole: z.enum(["ordinary", "sound"]).optional(),
+    sourceDirection: direction,
+    renderDirection: direction,
+    fontSizePx: size,
+    reviewStatus: z.enum(["draft", "needs_review", "reviewed"]).optional(),
+    speakerId: text.optional(),
+    glossaryEntryIds: z.array(text).optional(),
+    hasGeneratedLettering: flag,
+  })
+  .strict();
+const image = z
+  .object({
+    ...target,
+    kind: z.enum(["source-crop", "rendered-page"]),
+    sourceWidth: size,
+    sourceHeight: size,
+    width: size,
+    height: size,
+    crop: rect.nullable(),
+    pixelMapping: z
+      .object({
+        originX: z.number(),
+        originY: z.number(),
+        scaleX: size,
+        scaleY: size,
+      })
+      .strict(),
+  })
+  .strict();
+/** Public projections only. JSON Schema and runtime validation share these definitions. */
+export const mcpOutputSchemas: Record<string, z.ZodType> = {
+  ...mcpCompositeWorkflowOutputs,
+  ...mcpTextExchangeOutputs,
+  ...mcpContextExchangeOutputs,
+  ...mcpOutputDeliveryOutputs,
+  ...mcpOutputSyncOutputs,
+  carrot_sync_output: mcpJobReceiptOutput,
+  carrot_export_text_file: mcpJobReceiptOutput,
+  carrot_export_context_json: mcpJobReceiptOutput,
+  carrot_apply_text_file_import: mcpJobReceiptOutput,
+  ...mcpChapterDiscoveryOutputs,
+  carrot_discover_chapters: mcpJobReceiptOutput,
+  carrot_scan_discovered_chapter: mcpJobReceiptOutput,
+  ...mcpLibraryImportOutputs,
+  ...mcpLibraryOrganizationOutputs,
+  ...mcpChapterDeletionOutputs,
+  ...mcpChapterMoveOutputs,
+  ...mcpWorkDeletionOutputs,
+  ...mcpPageDeletionOutputs,
+  ...mcpImportDuplicateOutputs,
+  ...mcpImportBatchOutputs,
+  carrot_run_import_batch: mcpJobReceiptOutput,
+  carrot_import_batch_chapters: mcpJobReceiptOutput,
+  carrot_choose_import_files: mcpJobReceiptOutput,
+  carrot_scan_import_url: mcpJobReceiptOutput,
+  carrot_import_chapters: mcpJobReceiptOutput,
+  ...mcpResearchBatchOutputs,
+  ...mcpMemoryRefreshOutputs,
+  ...mcpContextMigrationOutputs,
+  ...mcpContextReferenceOutputs,
+  ...mcpWorkflowOutputs,
+  ...mcpWorkflowHandoffOutputs,
+  ...mcpRetentionOutputs,
+  ...mcpSoundEffectOutputs,
+  carrot_prepare_sound_effect_batch: mcpJobReceiptOutput,
+  carrot_generate_sound_effects: mcpJobReceiptOutput,
+  ...mcpSelectionBatchOutputs,
+  ...mcpTypographyBatchOutputs,
+  ...mcpTypographyReadOutputs,
+  ...mcpLetteringOutputs,
+  ...mcpSelectionAnalysisOutputs,
+  ...mcpImageEditOutputs,
+  ...mcpImageUploadOutputs,
+  ...mcpFileUploadOutputs,
+  ...mcpWorkFileOutputs,
+  carrot_import_work_file: mcpJobReceiptOutput,
+  carrot_prepare_uploaded_import: mcpJobReceiptOutput,
+  ...mcpExternalImageOutputs,
+  ...mcpLetteringResourceOutputs,
+  ...mcpReviewOutputSchemas,
+  ...mcpStructureOutputs,
+  ...mcpTranslationBatchOutputs,
+  ...mcpFormatBatchOutputs,
+  ...mcpContextOutputSchemas,
+  ...mcpErasureRecoveryOutputs,
+  carrot_preflight_pages_export: McpExportPreflightOutput,
+  carrot_update_block_source_rect: McpSourceRectResultSchema,
+  carrot_get_server_info: z
+    .object({
+      serverId: text.regex(/^[a-f0-9]{64}$/),
+      dataProfileId: text.regex(/^[a-f0-9]{64}$/),
+      runtimeId: text.uuid(),
+      startedAt: count,
+      appVersion: text,
+      resource: text.url(),
+      mode: z.enum(["development", "installed"]),
+      serverVersion: text,
+      protocolVersion: text,
+      authorizationStorage: text,
+      dataScope: text,
+      autoTransferAuthorization: z.literal(false),
+    })
+    .strict(),
+  carrot_get_capabilities: z
+    .object({
+      mode: text,
+      features: z.array(text),
+      editing: flag,
+      translation: flag,
+      ocr: flag,
+      erasure: flag,
+      pngExport: flag,
+      imageTransfer: flag,
+      imageRedaction: text,
+      sampling: flag,
+      oauth: flag,
+    })
+    .strict(),
+  carrot_list_works: z
+    .object({
+      ...window,
+      works: z.array(
+        z
+          .object({
+            id: text,
+            title: text,
+            chapterCount: count,
+            updatedAt: text,
+          })
+          .strict(),
+      ),
+    })
+    .strict(),
+  carrot_list_chapters: z
+    .object({
+      ...window,
+      workId: text,
+      chapters: z.array(
+        z
+          .object({
+            id: text,
+            title: text,
+            status: text,
+            pageCount: count,
+            updatedAt: text,
+          })
+          .strict(),
+      ),
+    })
+    .strict(),
+  carrot_get_chapter: z
+    .object({
+      ...window,
+      id: text,
+      workId: text,
+      title: text,
+      status: text,
+      updatedAt: text,
+      pages: z.array(
+        z
+          .object({
+            id: text,
+            name: text,
+            width: size,
+            height: size,
+            analysisStatus: text,
+            blockCount: count,
+            updatedAt: text,
+          })
+          .strict(),
+      ),
+    })
+    .strict(),
+  carrot_get_page_blocks: z
+    .object({
+      ...target,
+      ...window,
+      width: size,
+      height: size,
+      blockOrder: z.array(text).optional(),
+      effectiveBlockOrder: z.array(text).optional(),
+      blocks: z.array(block),
+    })
+    .strict(),
+  carrot_get_page_preview: z
+    .object({
+      pageId: text,
+      updatedAt: text,
+      sourceWidth: size,
+      sourceHeight: size,
+      previewWidth: size,
+      previewHeight: size,
+    })
+    .strict(),
+  carrot_get_page_crop: image,
+  carrot_render_page_preview: image,
+  carrot_get_work_context: z
+    .object({
+      ...window,
+      chapterId: text,
+      workId: text,
+      workTitle: text,
+      revision: text,
+      section: z.enum(["overview", "glossary", "characters", "memory"]),
+      rules: z
+        .object({ honorifics: text, sfxMode: text, defaultTone: text })
+        .strict(),
+      counts: z
+        .object({ glossary: count, characters: count, memory: count })
+        .strict(),
+      entries: z.array(z.record(text, z.unknown())),
+      note: text,
+    })
+    .strict(),
+  carrot_create_page_blocks: z
+    .object({
+      status: z.enum(["saved", "already_applied"]),
+      revision,
+      blockIds: z.array(text),
+    })
+    .strict(),
+  carrot_update_page_blocks: z
+    .object({
+      status: z.enum(["saved", "already_applied"]),
+      revision,
+      changedBlockIds: z.array(text),
+      blocks: z.array(block),
+      warnings: z.array(text),
+    })
+    .strict(),
+  carrot_set_page_reading_order: z
+    .object({
+      status: z.enum(["saved", "already_applied"]),
+      revision,
+      changed: flag,
+      blockOrder: z.array(text),
+      previousBlockOrder: z.array(text),
+    })
+    .strict(),
+  carrot_update_translations: z
+    .object({
+      status: z.enum(["saved", "already_applied"]),
+      revision,
+      changed: count,
+      previousTranslations: z.array(
+        z.object({ blockId: text, translatedText: text }).strict(),
+      ),
+    })
+    .strict(),
+  carrot_list_jobs: z
+    .object({ ...window, jobs: z.array(mcpJobReceiptOutput) })
+    .strict(),
+  carrot_retry_job: mcpJobReceiptOutput,
+  carrot_get_job_file: mcpJobFileOutput,
+  carrot_get_job: mcpJobReceiptOutput,
+  carrot_run_page_source_size: mcpJobReceiptOutput,
+  carrot_run_typography_analysis: mcpJobReceiptOutput,
+  carrot_prepare_lettering_batch: mcpJobReceiptOutput,
+  carrot_run_selection_ocr: mcpJobReceiptOutput,
+  carrot_run_selection_translation: mcpJobReceiptOutput,
+  carrot_cancel_job: mcpJobReceiptOutput,
+  carrot_export_page_png: mcpJobReceiptOutput,
+  carrot_export_pages_png: mcpJobReceiptOutput,
+  carrot_export_pages_images: mcpJobReceiptOutput,
+  carrot_export_pages_psd: mcpJobReceiptOutput,
+  carrot_preflight_work_file_export: McpWorkFileExportReviewSchema,
+  carrot_export_work_file: mcpJobReceiptOutput,
+  carrot_create_export_zip: mcpJobReceiptOutput,
+  carrot_run_page_ocr: mcpJobReceiptOutput,
+  carrot_run_block_ocr: mcpJobReceiptOutput,
+  carrot_run_block_translation: mcpJobReceiptOutput,
+  carrot_run_context_research: mcpJobReceiptOutput,
+  carrot_run_page_erasure: mcpJobReceiptOutput,
+};
+const errorSchema = z
+  .object({
+    error: z.string(),
+    message: z.string(),
+    retryable: z.boolean(),
+    nextAction: z.string(),
+  })
+  .strict();
+const schemas = new Map<string, Record<string, unknown>>();
+export function mcpToolOutputSchema(
+  name: string,
+): Record<string, unknown> | undefined {
+  const schema = mcpOutputSchemas[name];
+  if (!schema) return undefined;
+  let result = schemas.get(name);
+  if (!result) {
+    result = {
+      ...z.toJSONSchema(z.union([schema, errorSchema])),
+      type: "object",
+    };
+    schemas.set(name, result);
+  }
+  return result;
+}

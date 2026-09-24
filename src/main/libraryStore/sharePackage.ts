@@ -330,6 +330,9 @@ function validateShareChapter(
     throw new Error(tMain("share.errors.invalidChapterInfo"));
   }
   const pageIds = new Set(chapter.pages.map((page) => page.id));
+  if (pageIds.size !== chapter.pages.length) {
+    throw new Error(tMain("share.errors.invalidChapterInfo"));
+  }
   for (const pageId of chapter.pageOrder) {
     if (!pageIds.has(pageId)) {
       throw new Error(tMain("share.errors.invalidPageOrder"));

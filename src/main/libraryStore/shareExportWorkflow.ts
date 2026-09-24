@@ -34,6 +34,12 @@ import {
 } from "./zipSafety";
 import { stripInternalPageArtifacts } from "./translationCheckpointStore";
 import { libraryStructureResource } from "../../shared/appActivityTypes";
+import type { ShareArchiveLimits } from "./shareArchiveLimits";
+
+export type WorkShareExportFileRequest = WorkShareExportRequest & {
+  outputPath: string;
+  limits?: ShareArchiveLimits;
+};
 
 export type WorkShareExportReaderPort = {
   loadWork: typeof ensureExistingWork;
@@ -42,7 +48,7 @@ export type WorkShareExportReaderPort = {
 };
 
 type WorkShareExportOperation = (
-  request: WorkShareExportRequest & { outputPath: string },
+  request: WorkShareExportFileRequest,
   signal?: AbortSignal,
 ) => Promise<WorkShareExportResult>;
 
@@ -66,7 +72,7 @@ export function createWorkShareExporter(
 }
 
 export async function exportWorkShareToFile(
-  request: WorkShareExportRequest & { outputPath: string },
+  request: WorkShareExportFileRequest,
   signal?: AbortSignal,
   readers: WorkShareExportReaderPort = productionReaders,
 ): Promise<WorkShareExportResult> {
@@ -117,7 +123,7 @@ export async function captureWorkShareSnapshot(
 
 async function exportWorkShareWithReaders(
   readers: WorkShareExportReaderPort,
-  request: WorkShareExportRequest & { outputPath: string },
+  request: WorkShareExportFileRequest,
   signal?: AbortSignal,
 ): Promise<WorkShareExportResult> {
   throwIfAborted(signal);
@@ -148,6 +154,7 @@ async function exportWorkShareWithReaders(
       outputPath: request.outputPath,
       archiveDate: exportedAt,
       signal,
+      limits: request.limits,
     },
     async (archive) => {
       await archive.addJson("manifest.json", manifest);

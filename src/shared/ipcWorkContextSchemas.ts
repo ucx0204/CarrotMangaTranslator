@@ -105,6 +105,17 @@ export const ChapterStoryMemorySchema = z
             pageId: storeId,
             pageName: z.string().max(260),
             pageIndex: z.number().int().min(0).max(MAX_PAGES_PER_REQUEST),
+            textEvidence: z
+              .object({
+                version: z.literal(1),
+                method: z.enum(["native-excerpt", "reviewed-page-text"]),
+                sourceFingerprint: z.string().regex(/^[a-f0-9]{16}$/),
+                translationFingerprint: z.string().regex(/^[a-f0-9]{16}$/),
+                contextFingerprint: z.string().regex(/^[a-f0-9]{16}$/),
+                summaryFingerprint: z.string().regex(/^[a-f0-9]{16}$/),
+              })
+              .strict()
+              .optional(),
             sourceDigest: z.string().max(2000),
             translatedDigest: z.string().max(2000),
             summary: z.string().max(1200),

@@ -62,41 +62,68 @@ export async function withLibraryContentEdit<T>(
   operation: () => Promise<T>,
   waitSignal?: AbortSignal,
 ): Promise<T> {
-  const pending = libraryMutationCoordinator.begin();
-  try {
-    const id = randomUUID();
-    const descriptor = {
-      id,
-      category: "operation" as const,
-      kind: "page-edit",
-      resources: [
-        ...resources,
-        ...resources
-          .filter((resource) => resource.kind === "page-content")
-          .map((resource) =>
-            libraryStructureResource(
-              "chapter",
-              resource.scope.split("/")[0],
-              "read",
-            ),
+  return runLibraryContentEdit(resources, operation, waitSignal);
+}
+
+/** Trusted nested native work shares only the owner established by this module.
+ * Transport callers cannot supply or replace an activity owner. */
+export async function withLibraryOwnedContentEdit<T>(
+  resources: readonly AppActivityResource[],
+  operation: () => Promise<T>,
+  waitSignal?: AbortSignal,
+): Promise<T> {
+  return runLibraryContentEdit(
+    resources,
+    operation,
+    waitSignal,
+    activityOwner.getStore(),
+  );
+}
+
+async function runLibraryContentEdit<T>(
+  resources: readonly AppActivityResource[],
+  operation: () => Promise<T>,
+  waitSignal?: AbortSignal,
+  ownerId?: string,
+): Promise<T> {
+  const id = randomUUID();
+  const descriptor = {
+    id,
+    ownerId,
+    category: "operation" as const,
+    kind: "page-edit",
+    resources: [
+      ...resources,
+      ...resources
+        .filter((resource) => resource.kind === "page-content")
+        .map((resource) =>
+          libraryStructureResource(
+            "chapter",
+            resource.scope.split("/")[0],
+            "read",
           ),
-      ],
-      mutatesLibrary: true,
-      blocksQuit: true,
-    };
-    const activity = waitSignal
-      ? await libraryMutationCoordinator.acquireActivityWhenAvailable(
-          descriptor,
-          waitSignal,
-        )
-      : libraryMutationCoordinator.acquireActivity(descriptor);
+        ),
+    ],
+    mutatesLibrary: true,
+    blocksQuit: true,
+  };
+  const activity = waitSignal
+    ? await libraryMutationCoordinator.acquireActivityWhenAvailable(
+        descriptor,
+        waitSignal,
+      )
+    : libraryMutationCoordinator.acquireActivity(descriptor);
+  try {
+    // A queued edit cannot count as a mutation while backup holds its activity
+    // and waits for admitted writes to drain. Recheck intake after acquisition.
+    const pending = libraryMutationCoordinator.begin();
     try {
-      return await withLibraryActivityOwner(id, operation);
+      return await withLibraryActivityOwner(ownerId ?? id, operation);
     } finally {
-      activity?.release();
+      pending.finish();
     }
   } finally {
-    pending.finish();
+    activity?.release();
   }
 }
 

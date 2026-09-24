@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { sortBlocksForReading } from "../src/shared/blockReadingOrder";
 import { resolveAdjacentBlockId } from "../src/renderer/src/lib/blockNavigation";
-import { gatherText } from "../src/renderer/src/lib/gatherText";
+import { gatherText } from "../src/shared/gatherText";
 import { buildReviewRows } from "../src/shared/reviewTable";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 

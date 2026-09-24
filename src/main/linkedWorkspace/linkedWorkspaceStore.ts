@@ -12,7 +12,12 @@ import {
   LINKED_WORKSPACE_SCHEMA_VERSION,
 } from "../../shared/linkedWorkspaceTypes";
 import { RasterExportSettingsSchema } from "../../shared/linkedWorkspaceSchemas";
-import { readJsonFile, writeJsonFile } from "../libraryStore/storage";
+import {
+  readJsonFile,
+  writeJsonFile,
+  type AtomicFilePublication,
+} from "../libraryStore/storage";
+import { hashStableValue } from "../../shared/blockFingerprint";
 
 const visualRevisionSchema = z.custom<PageVisualRevision>(
   (value) =>
@@ -177,6 +182,37 @@ export class LinkedWorkspaceStore {
     }));
   }
 
+  /** Called only by the initialized service owner, under its metadata tail. */
+  async replaceReviewedRecords(
+    expected: LinkedWorkspaceRecordV1[],
+    records: LinkedWorkspaceRecordV1[],
+    publication: AtomicFilePublication,
+  ): Promise<void> {
+    const ids = new Set(expected.map((record) => record.id));
+    if (
+      ids.size !== expected.length ||
+      records.length !== expected.length ||
+      records.some((record) => !ids.has(record.id))
+    )
+      throw new Error("Reviewed registry selection changed.");
+    await this.mutateRegistry((registry) => {
+      for (const record of expected) {
+        const current = registry.records.find((item) => item.id === record.id);
+        if (!current || hashStableValue(current) !== hashStableValue(record))
+          throw new Error("Reviewed registry changed.");
+      }
+      const replacements = new Map(
+        records.map((record) => [record.id, record]),
+      );
+      return {
+        ...registry,
+        records: registry.records.map(
+          (record) => replacements.get(record.id) ?? record,
+        ),
+      };
+    }, publication);
+  }
+
   async removeRecord(connectionId: string): Promise<boolean> {
     let removed = false;
     await this.mutateRegistry((registry) => {
@@ -211,11 +247,12 @@ export class LinkedWorkspaceStore {
     mutation: (
       registry: LinkedWorkspaceRegistryV1,
     ) => LinkedWorkspaceRegistryV1,
+    publication?: AtomicFilePublication,
   ): Promise<void> {
     await this.runExclusive(async () => {
       const current = await this.readRegistry();
       const next = registrySchema.parse(mutation(current));
-      await writeJsonFile(this.registryPath, next);
+      await writeJsonFile(this.registryPath, next, undefined, publication);
     });
   }
 

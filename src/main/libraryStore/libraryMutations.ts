@@ -1,6 +1,19 @@
-/* eslint-disable max-lines -- multi-file library mutation ordering stays co-located for transaction auditability */
-import type { Dirent } from "node:fs";
-import { readdir } from "node:fs/promises";
+import {
+  preparePageDeletionUnlocked,
+  stagePageDeletionUnlocked,
+} from "./libraryPageDeletion";
+import {
+  prepareWorkDeletionUnlocked,
+  stageWorkDeletionUnlocked,
+} from "./libraryWorkDeletion";
+import {
+  prepareLibraryOrganizationUnlocked,
+  commitLibraryOrganizationUnlocked,
+} from "./libraryOrganization";
+import {
+  prepareChapterDeletionUnlocked,
+  stageChapterDeletionUnlocked,
+} from "./libraryChapterDeletion";
 import { join } from "node:path";
 import type {
   ChapterSnapshot,
@@ -11,21 +24,12 @@ import type {
 import { createPageRevision } from "../../shared/pageRevision";
 import type { PageRevision } from "../../shared/pageRevisionTypes";
 import { hydrateChapter } from "./chapterSnapshots";
-import {
-  nextChapterUpdatedAt,
-  reorderIds,
-  reorderRecords,
-  resolveChapterStatus,
-} from "./chapterRecords";
+import { nextChapterUpdatedAt, resolveChapterStatus } from "./chapterRecords";
 import { listLibrary } from "./libraryAccess";
 import {
   findChapterLocation,
-  getDefaultWorkTitle,
-  makeUniqueChapterTitle,
   readChapterFile,
-  readIndexFile,
   readWorkFile,
-  writeWorkFile,
   type ChapterFile,
   type WorkFile,
 } from "./libraryFiles";
@@ -34,19 +38,8 @@ import {
   runLibraryTransaction,
   type LibraryTransaction,
 } from "./libraryTransaction";
-import {
-  stageChapterFile,
-  stageIndexFile,
-  stageStoryMemoryFile,
-  stageWorkFile,
-} from "./libraryTransactionFiles";
-import { sanitizeTitle } from "./titles";
-import {
-  readChapterStoryMemory,
-  resolveReconciledStoryMemory,
-} from "./workContextFiles";
+import { stageChapterFile, stageWorkFile } from "./libraryTransactionFiles";
 import { resolveManagedCheckpointDirectory } from "./translationCheckpointStore";
-import { isUnreferencedPageMask } from "./inpaintedArtifacts";
 
 export type PageAnalysisUpdate = {
   expectedRevision?: PageRevision;
@@ -63,14 +56,14 @@ export async function renameWorkUnlocked(
   workId: string,
   title: string,
 ): Promise<LibraryIndex> {
-  const work = await readWorkFile(workId);
-  if (!work) {
-    throw new Error("작품을 찾지 못했습니다.");
-  }
-  work.title = sanitizeTitle(title, getDefaultWorkTitle());
-  work.updatedAt = new Date().toISOString();
-  await writeWorkFile(work);
-  return listLibrary();
+  await commitLibraryOrganizationUnlocked(
+    await prepareLibraryOrganizationUnlocked({
+      kind: "rename-work",
+      workId,
+      title,
+    }),
+  );
+  return listLibraryAfterCommittedMutation();
 }
 
 export async function renameChapterUnlocked(
@@ -78,42 +71,24 @@ export async function renameChapterUnlocked(
   title: string,
 ): Promise<LibraryIndex> {
   const locator = await findChapterLocation(chapterId);
-  if (!locator) {
-    throw new Error("화를 찾지 못했습니다.");
-  }
-  const chapter = await readChapterFile(locator.workId, locator.chapterId);
-  if (!chapter) {
-    throw new Error("화를 찾지 못했습니다.");
-  }
-  chapter.title = await makeUniqueChapterTitle(
-    locator.workId,
-    sanitizeTitle(title, "제목없음"),
-    chapter.id,
+  if (!locator) throw new Error("화를 찾지 못했습니다.");
+  await commitLibraryOrganizationUnlocked(
+    await prepareLibraryOrganizationUnlocked({
+      kind: "rename-chapter",
+      workId: locator.workId,
+      chapterId,
+      title,
+    }),
   );
-  chapter.updatedAt = nextChapterUpdatedAt(chapter);
-  await runLibraryTransaction("rename-chapter", async (transaction) => {
-    await stageChapterAndTouchedWork(transaction, chapter, chapter.updatedAt);
-  });
   return listLibraryAfterCommittedMutation();
 }
 
 export async function deleteWorkUnlocked(
   workId: string,
 ): Promise<LibraryIndex> {
-  const work = await readWorkFile(workId);
-  if (!work) {
-    throw new Error("작품을 찾지 못했습니다.");
-  }
-  const index = await readIndexFile();
-  const nextIndex = {
-    workOrder: index.workOrder.filter((id) => id !== workId),
-  };
-
+  const change = await prepareWorkDeletionUnlocked(workId);
   await runLibraryTransaction("delete-work", async (transaction) => {
-    await stageIndexFile(transaction, nextIndex);
-    await transaction.retireDirectory(join(getWorksRoot(), workId), {
-      required: true,
-    });
+    await stageWorkDeletionUnlocked(transaction, workId, change.after);
   });
   return listLibraryAfterCommittedMutation();
 }
@@ -125,26 +100,12 @@ export async function deleteChapterUnlocked(
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
   }
-  const work = await readWorkFile(locator.workId);
-  if (!work) {
-    throw new Error("작품을 찾지 못했습니다.");
-  }
-  const chapter = await readChapterFile(locator.workId, locator.chapterId);
-  if (!chapter) {
-    throw new Error("화를 찾지 못했습니다.");
-  }
-
-  const nextWork: WorkFile = {
-    ...work,
-    chapterOrder: work.chapterOrder.filter((id) => id !== chapter.id),
-    updatedAt: new Date().toISOString(),
-  };
+  const change = await prepareChapterDeletionUnlocked(
+    locator.workId,
+    locator.chapterId,
+  );
   await runLibraryTransaction("delete-chapter", async (transaction) => {
-    await stageWorkFile(transaction, nextWork);
-    await transaction.retireDirectory(
-      join(getWorksRoot(), locator.workId, "chapters", locator.chapterId),
-      { required: true },
-    );
+    await stageChapterDeletionUnlocked(transaction, change.after, chapterId);
   });
   return listLibraryAfterCommittedMutation();
 }
@@ -153,14 +114,14 @@ export async function reorderChaptersUnlocked(
   workId: string,
   chapterIds: string[],
 ): Promise<LibraryIndex> {
-  const work = await readWorkFile(workId);
-  if (!work) {
-    throw new Error("작품을 찾지 못했습니다.");
-  }
-  work.chapterOrder = reorderIds(work.chapterOrder, chapterIds);
-  work.updatedAt = new Date().toISOString();
-  await writeWorkFile(work);
-  return listLibrary();
+  await commitLibraryOrganizationUnlocked(
+    await prepareLibraryOrganizationUnlocked({
+      kind: "reorder-chapters",
+      workId,
+      chapterIds,
+    }),
+  );
+  return listLibraryAfterCommittedMutation();
 }
 
 export async function reorderPagesUnlocked(
@@ -171,32 +132,15 @@ export async function reorderPagesUnlocked(
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
   }
-  const chapter = await readChapterFile(locator.workId, locator.chapterId);
-  if (!chapter) {
-    throw new Error("화를 찾지 못했습니다.");
-  }
-  const work = await requireWork(locator.workId);
-  const currentMemory = await readChapterStoryMemory(chapter.id);
-  const now = nextChapterUpdatedAt(chapter);
-  chapter.pageOrder = reorderIds(chapter.pageOrder, pageIds);
-  chapter.pages = reorderRecords(chapter.pages, chapter.pageOrder);
-  chapter.updatedAt = now;
-  chapter.status = resolveChapterStatus(chapter.pages);
-  const nextMemory = resolveReconciledStoryMemory(
-    currentMemory,
-    chapter.pages,
-    now,
-  );
-  const nextWork = { ...work, updatedAt: now };
-  const snapshot = hydrateChapter(chapter);
-
-  await runLibraryTransaction("reorder-pages", async (transaction) => {
-    await stageChapterFile(transaction, chapter);
-    if (nextMemory !== currentMemory) {
-      await stageStoryMemoryFile(transaction, nextMemory);
-    }
-    await stageWorkFile(transaction, nextWork);
+  const change = await prepareLibraryOrganizationUnlocked({
+    kind: "reorder-pages",
+    workId: locator.workId,
+    chapterId,
+    pageIds,
   });
+  if (!change.after.chapter) throw new Error("Missing prepared chapter.");
+  const snapshot = hydrateChapter(change.after.chapter);
+  await commitLibraryOrganizationUnlocked(change);
   return snapshot;
 }
 
@@ -205,73 +149,18 @@ export async function deletePageUnlocked(
   pageId: string,
 ): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
-  if (!locator) {
-    throw new Error("화를 찾지 못했습니다.");
-  }
-  const chapter = await readChapterFile(locator.workId, locator.chapterId);
-  if (!chapter) {
-    throw new Error("화를 찾지 못했습니다.");
-  }
-
-  const target = chapter.pages.find((page) => page.id === pageId);
-  if (!target) {
-    return hydrateChapter(chapter);
-  }
-  const work = await requireWork(locator.workId);
-  const currentMemory = await readChapterStoryMemory(chapter.id);
-  const artifactDirectories = await collectPageArtifactDirectories(
+  if (!locator) throw new Error("화를 찾지 못했습니다.");
+  const prepared = await preparePageDeletionUnlocked(
     locator.workId,
-    locator.chapterId,
+    chapterId,
     pageId,
   );
-  if (target.translationCheckpoint) {
-    artifactDirectories.push(
-      resolveManagedCheckpointDirectory(
-        join(getWorksRoot(), locator.workId, "chapters", locator.chapterId),
-        target.translationCheckpoint,
-      ),
-    );
-  }
-  const now = nextChapterUpdatedAt(chapter);
-  chapter.pageOrder = chapter.pageOrder.filter((id) => id !== pageId);
-  chapter.pages = chapter.pages.filter((page) => page.id !== pageId);
-  chapter.updatedAt = now;
-  chapter.status = resolveChapterStatus(chapter.pages);
-  const nextMemory = resolveReconciledStoryMemory(
-    currentMemory,
-    chapter.pages,
-    now,
+  const change = prepared.change;
+  if (!change) return hydrateChapter(prepared.chapter);
+  const snapshot = hydrateChapter(change.after.chapter);
+  await runLibraryTransaction("delete-page", (transaction) =>
+    stagePageDeletionUnlocked(transaction, change),
   );
-  const nextWork = { ...work, updatedAt: now };
-  const snapshot = hydrateChapter(chapter);
-
-  await runLibraryTransaction("delete-page", async (transaction) => {
-    await stageChapterFile(transaction, chapter);
-    if (nextMemory !== currentMemory) {
-      await stageStoryMemoryFile(transaction, nextMemory);
-    }
-    await stageWorkFile(transaction, nextWork);
-    await transaction.retireFile(target.imagePath, { required: false });
-    if (target.inpaintedImagePath) {
-      await transaction.retireFile(target.inpaintedImagePath, {
-        required: false,
-      });
-    }
-    const maskPath = target.inpaintMaskPath;
-    if (
-      maskPath &&
-      isUnreferencedPageMask(
-        join(getWorksRoot(), locator.workId, "chapters", locator.chapterId),
-        maskPath,
-        chapter.pages,
-      )
-    ) {
-      await transaction.retireFile(maskPath, { required: false });
-    }
-    for (const artifactDirectory of artifactDirectories) {
-      await transaction.retireDirectory(artifactDirectory, { required: false });
-    }
-  });
   return snapshot;
 }
 
@@ -493,26 +382,6 @@ async function requireWork(workId: string): Promise<WorkFile> {
   return work;
 }
 
-async function collectPageArtifactDirectories(
-  workId: string,
-  chapterId: string,
-  pageId: string,
-): Promise<string[]> {
-  const runsRoot = join(getWorksRoot(), workId, "chapters", chapterId, "runs");
-  let runs: Dirent<string>[];
-  try {
-    runs = await readdir(runsRoot, { withFileTypes: true });
-  } catch (error) {
-    if (isErrnoCode(error, "ENOENT")) {
-      return [];
-    }
-    throw error;
-  }
-  return runs
-    .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
-    .map((entry) => join(runsRoot, entry.name, "pages", pageId));
-}
-
 async function listLibraryAfterCommittedMutation(): Promise<LibraryIndex> {
   try {
     return await listLibrary();
@@ -524,13 +393,4 @@ async function listLibraryAfterCommittedMutation(): Promise<LibraryIndex> {
     wrapped.mutationCommitted = true;
     throw wrapped;
   }
-}
-
-function isErrnoCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === code
-  );
 }

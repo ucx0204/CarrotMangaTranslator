@@ -48,7 +48,9 @@ export function withAbortableTimeout<T>(
     }),
     timeoutMs,
     message,
-    signal,
+    // Observe the same signal handed to the decoder, including our deadline.
+    // A listener keeps composite cancellation materialized before cleanup/GC.
+    operationSignal,
   ).catch((error: unknown) => {
     controller.abort(error);
     throw error;

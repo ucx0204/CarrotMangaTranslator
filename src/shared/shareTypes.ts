@@ -1,11 +1,14 @@
+import type { PageRevision } from "./pageRevisionTypes";
 import type { ChapterSnapshot } from "./libraryTypes";
 import type { TranslationBlock } from "./textTypes";
 
 export type SavePageBlocksRequest = {
   chapterId: string;
   pageId: string;
+  expectedRevision?: PageRevision;
   baseUpdatedAt?: string;
   baseBlocksHash?: string;
+  /** Optional compare-and-set for independently edited reading order. */
   baseBlockOrderHash?: string;
   dirtyVersion?: number;
   saveReason?: "autosave" | "manual";
@@ -15,8 +18,10 @@ export type SavePageBlocksRequest = {
 
 export type SavePageBlocksUpdate = {
   pageId: string;
+  expectedRevision?: PageRevision;
   baseUpdatedAt?: string;
   baseBlocksHash?: string;
+  /** Optional compare-and-set for independently edited reading order. */
   baseBlockOrderHash?: string;
   blocks: TranslationBlock[];
   blockOrder?: string[];
@@ -91,6 +96,11 @@ export type WorkShareImportFromPackageRequest = {
       }
     | {
         mode: "existing";
+        workId: string;
+      }
+    | {
+        /** Native guarded append, never the UI's chapter-list replacement. */
+        mode: "append";
         workId: string;
       };
   entries: WorkShareImportEntry[];

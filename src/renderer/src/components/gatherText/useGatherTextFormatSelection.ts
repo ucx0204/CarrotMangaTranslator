@@ -6,7 +6,7 @@ import {
   isGatherTextDirectFormatPatchEmpty,
   type GatherTextDirectFormatModel,
 } from "../../lib/gatherTextDirectFormatModel";
-import type { GatheredPage } from "../../lib/gatherText";
+import type { GatheredPage } from "../../../../shared/gatherText";
 import {
   blockRefKey,
   findBlockByRef,

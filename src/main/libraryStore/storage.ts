@@ -10,6 +10,15 @@ import {
   relative,
 } from "node:path";
 
+/** Optional publication hooks; existing callers retain their original writer. */
+export type AtomicFilePublication = {
+  signal?: AbortSignal;
+  beforePrepare?: (temporaryPath: string, targetPath: string) => Promise<void>;
+  prepared?: (temporaryPath: string, targetPath: string) => Promise<void>;
+  beforeAttempt?: () => Promise<void>;
+  committed?: () => Promise<void>;
+};
+
 const TRANSIENT_RENAME_ERROR_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
 const RENAME_MAX_ATTEMPTS = 12;
 const RENAME_INITIAL_DELAY_MS = 25;
@@ -32,28 +41,47 @@ export async function writeJsonFile(
   path: string,
   payload: unknown,
   beforeCommit?: () => void,
+  publication?: AtomicFilePublication,
 ): Promise<void> {
   await writeTextFileAtomically(
     path,
-    `${JSON.stringify(payload, null, 2)}\n`,
+    serializeJsonFile(payload),
     beforeCommit,
+    publication,
   );
+}
+
+export function serializeJsonFile(payload: unknown): string {
+  return `${JSON.stringify(payload, null, 2)}\n`;
 }
 
 export async function writeTextFileAtomically(
   path: string,
   contents: string,
   beforeCommit?: () => void,
+  publication?: AtomicFilePublication,
 ): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
+  const hooks = publication ?? {};
   const tmpPath = join(
     dirname(path),
     `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`,
   );
+  throwIfAborted(hooks.signal);
+  await hooks.beforePrepare?.(tmpPath, path);
+  await mkdir(dirname(path), { recursive: true });
   try {
+    await hooks.beforePrepare?.(tmpPath, path);
+    throwIfAborted(hooks.signal);
     await writeFile(tmpPath, contents, "utf8");
+    await hooks.prepared?.(tmpPath, path);
     beforeCommit?.();
-    await renameWithTransientRetry(tmpPath, path);
+    await renameWithTransientRetry(
+      tmpPath,
+      path,
+      hooks.signal,
+      hooks.beforeAttempt,
+    );
+    await hooks.committed?.();
   } catch (error) {
     try {
       await unlinkIfExists(tmpPath);
@@ -72,9 +100,12 @@ export async function renameWithTransientRetry(
   sourcePath: string,
   destPath: string,
   signal?: AbortSignal,
+  beforeAttempt?: () => Promise<void>,
 ): Promise<void> {
   let delayMs = RENAME_INITIAL_DELAY_MS;
   for (let attempt = 1; attempt <= RENAME_MAX_ATTEMPTS; attempt += 1) {
+    throwIfAborted(signal);
+    await beforeAttempt?.();
     throwIfAborted(signal);
     try {
       await rename(sourcePath, destPath);

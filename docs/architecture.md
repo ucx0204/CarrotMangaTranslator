@@ -283,3 +283,54 @@ Electron·Vite에서 재실행 전후 같은 URL의 화면 로드를 확인했�
 새 appRelaunch의 최초 커버리지는 `.tmp/dev-relaunch-coverage/coverage-summary.json`
 (SHA-256 `49dad6fa98a7b15c936b93d1094a6b1b7f6796583315a1f7c91e13d6ef17b1da`)의 파일별 측정값이며
 기존 모듈의 기준과 역사 provenance는 변경하지 않았다.
+
+## MCP structure editing boundaries
+
+Single-page structural plans reuse the existing page edit handoff, atomic blocks/order
+transaction and renderer. Four measured direct-consumer ceilings are recorded: pageRevision
+46, ipcSchemaPrimitives 28, geometry 40 and mcpEditPolicy 41. The extra consumers are
+mcpStructurePolicy (capacity, geometry and typed errors), mcpStructureService (revision
+and typed errors), and mcpStructureTools (typed boundary errors). Global ceilings,
+revision/coordinate algorithms, existing coverage floors and authorization are unchanged.
+The structure policy/service/lifecycle/HTTP suites cover preservation, stale revisions,
+request-ID races, expiration, authorization and atomic persistence; native structure
+checks exercise split/merge/delete with actual rendered-pixel restoration.
+
+## MCP format batches
+
+Format and text batches share the same page-batch lifecycle, fixed-target runner,
+context read scope and authorized tool boundary. The existing field editor remains
+responsible for font intent, weights and normalized display geometry. Only selected
+app-calculated format snapshots can be committed; source/translation text, source
+geometry, images and references are checked as immutable. Undo restores optional
+field absence as well as values. Excluded generated image payloads are not retained.
+
+Measured direct-consumer ceilings: blockFingerprint 27, mcpEditPolicy 49 and the
+mcpAppTools composition root 17 imports. Global ceilings and protected algorithms
+are unchanged. Existing text batch tests characterize the shared lifecycle; format
+policy/HTTP/native tests verify exact restoration, partial failure and rendering.
+
+## 2026-09-24 master 통합 측정
+
+MCP 변경과 master의 페이지 워크플로·환경 백업·출력 삭제를 합친 트리에서 dependency-cruiser로 2,584개 모듈과 12,249개 의존성을 측정했고 의존 방향 위반은 없었다. 공용 해시·revision·잠금·저장 권위와 기존 IPC 구성 지점을 함께 사용하는 직접 의존성만 아래 실측 상한으로 합쳤다. 전역 상한은 runtime imports 12, runtime consumers 25를 유지하며, 기존 예외는 별도 알고리즘이나 우회 wrapper를 추가하지 않고 양쪽 사유를 보존한다.
+
+| 모듈                                                     | 측정 종류         | 통합 상한 |
+| -------------------------------------------------------- | ----------------- | --------: |
+| `src/main/abortSignal.ts`                                | runtime consumers |        28 |
+| `src/main/ipc/registerIpc.ts`                            | runtime imports   |        26 |
+| `src/main/ipc/trustedIpc.ts`                             | runtime consumers |        28 |
+| `src/main/library.ts`                                    | runtime consumers |        80 |
+| `src/main/library/lock.ts`                               | runtime consumers |        53 |
+| `src/main/libraryStore/libraryFiles.ts`                  | runtime consumers |        48 |
+| `src/main/libraryStore/libraryTransaction.ts`            | runtime consumers |        34 |
+| `src/main/libraryStore/libraryTransactionFiles.ts`       | runtime consumers |        27 |
+| `src/main/libraryStore/storage.ts`                       | runtime consumers |        38 |
+| `src/main/linkedWorkspace/linkedWorkspaceSyncService.ts` | runtime imports   |        18 |
+| `src/main/settingsStore.ts`                              | runtime consumers |        30 |
+| `src/renderer/src/api/libraryGateway.ts`                 | runtime consumers |        29 |
+| `src/shared/appActivityTypes.ts`                         | runtime consumers |        38 |
+| `src/shared/blockFingerprint.ts`                         | runtime consumers |       149 |
+| `src/shared/ipcContracts.ts`                             | runtime imports   |        13 |
+| `src/shared/pageRevision.ts`                             | runtime consumers |        83 |
+
+커버리지 inventory는 기존 776개·추가 1,244개·삭제 11개로 실제 통합 diff와 일치한다. 양쪽에서 같은 파일의 수치가 달라진 경우 정확한 covered/total 비율이 높은 기준을 유지했고, renderer `gatherText.ts`의 삭제는 기존에 기록된 shared 이동으로 처리했다. 이동한 shared 파일의 네 metric 기준 모두 master의 이전 renderer 기준보다 높다. provenance의 node26 artifact와 SHA-256은 master의 단독 갱신을 보존하며, 통합 자체를 새 커버리지 측정으로 간주하지 않는다.

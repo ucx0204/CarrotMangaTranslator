@@ -1,0 +1,82 @@
+name: MCP context reference verification
+
+on:
+  push:
+    branches:
+      - feat/mcp-app-bridge
+    paths:
+      - .github/workflows/mcp-context-reference.yml
+      - src/main/application/mcpContext*.ts
+      - src/main/library/libraryContextEditingFacade.ts
+      - src/main/mcp/mcpContext*.ts
+      - src/main/mcp/mcpAppTools.ts
+      - src/main/mcp/mcpOutputSchemas.ts
+      - src/shared/mcpContext*.ts
+      - tests/mcpContext*.ts
+      - tests/mcpStructuredOutputs.test.ts
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-context-reference-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  context-references:
+    if: github.repository == 'ucx0204/CarrotMangaTranslator'
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install existing dependencies
+        run: npm ci
+      - name: Record tested source
+        run: |
+          mkdir -p .tmp/mcp-context-reference
+          git rev-parse HEAD > .tmp/mcp-context-reference/source-sha.txt
+          git archive --format=tar --output=.tmp/mcp-context-reference/source.tar HEAD 'src/main/application/mcpContext*.ts' 'src/main/mcp/mcpContext*.ts' src/main/mcp/mcpOutputSchemas.ts src/main/library/libraryContextEditingFacade.ts 'src/shared/mcpContext*.ts' 'tests/mcpContext*.ts' tests/mcpStructuredOutputs.test.ts
+      - name: Work-wide references migration previews and output contracts
+        run: |
+          set +e
+          node node_modules/vitest/vitest.mjs run tests/mcpContextReferences.test.ts tests/mcpContextReferenceApp.test.ts tests/mcpContextReferenceLimits.test.ts tests/mcpContextMigration.test.ts tests/mcpStructuredOutputs.test.ts --reporter=default --reporter=json --outputFile=.tmp/mcp-context-reference/vitest.json --coverage --coverage.reporter=json-summary --coverage.reportsDirectory=.tmp/mcp-context-reference/coverage --coverage.include=src/main/application/mcpContextReferenceService.ts --coverage.include=src/main/application/mcpContextCatalogMigration.ts --coverage.include=src/main/application/mcpContextMigrationPreviewService.ts --coverage.include=src/main/mcp/mcpContextReferenceTools.ts --coverage.include=src/shared/mcpContextReferences.ts --coverage.include=src/shared/mcpContextMigration.ts --coverage.include=src/main/library/libraryContextEditingFacade.ts 2>&1 | tee .tmp/mcp-context-reference/tests.log
+          result=${PIPESTATUS[0]}
+          set -e
+          echo "$result" > .tmp/mcp-context-reference/tests.exit
+          exit "$result"
+      - name: Existing renderer and Electron type projects
+        if: ${{ !cancelled() }}
+        run: |
+          failed=0
+          for gate in typecheck typecheck:electron; do
+            log=".tmp/mcp-context-reference/${gate//:/-}.log"
+            if ! npm run "$gate" > "$log" 2>&1; then failed=1; fi
+            cat "$log"
+          done
+          exit "$failed"
+      - name: Changed-source lint
+        if: ${{ !cancelled() }}
+        run: |
+          node node_modules/eslint/bin/eslint.js 'src/main/application/mcpContext*.ts' src/main/library/libraryContextEditingFacade.ts 'src/main/mcp/mcpContext*.ts' 'src/shared/mcpContext*.ts' 'tests/mcpContext*.ts' --max-warnings 0 2>&1 | tee .tmp/mcp-context-reference/lint.log
+      - name: Existing application build
+        if: ${{ !cancelled() }}
+        run: npm run build 2>&1 | tee .tmp/mcp-context-reference/build.log
+      - name: Preserve exact results even when a test fails
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mcp-context-reference-verification
+          path: .tmp/mcp-context-reference/
+          retention-days: 7
+          if-no-files-found: error

@@ -1,6 +1,22 @@
 import { resolve, join } from "node:path";
 import { isLibraryArtifactRetained } from "./libraryArtifactRetention";
-import { isPathInside, isSupportedImagePath, unlinkIfExists } from "./storage";
+import { isPathInside, isSupportedImagePath } from "./storage";
+import {
+  isRecoveredImageArtifact,
+  removeManagedImageCandidate,
+} from "./recoveredImageArtifacts";
+
+type ImageReferences = {
+  imagePath?: string;
+  inpaintedImagePath?: string;
+  inpaintMaskPath?: string;
+};
+const referencedPaths = (pages: readonly ImageReferences[]) =>
+  pages.flatMap((page) => [
+    page.imagePath,
+    page.inpaintedImagePath,
+    page.inpaintMaskPath,
+  ]);
 
 export function inpaintedPathChanged(
   previousPath: string,
@@ -16,14 +32,12 @@ export function inpaintedPathChanged(
 export function isUnreferencedPageMask(
   chapterDir: string,
   maskPath: string,
-  pages: readonly { inpaintMaskPath?: string }[],
+  pages: readonly ImageReferences[],
 ): boolean {
   return (
     isManagedArtifact(chapterDir, "mask", maskPath) &&
-    !pages.some(
-      (page) =>
-        page.inpaintMaskPath &&
-        !inpaintedPathChanged(maskPath, page.inpaintMaskPath),
+    !referencedPaths(pages).some(
+      (path) => path && !inpaintedPathChanged(maskPath, path),
     )
   );
 }
@@ -31,7 +45,7 @@ export function isUnreferencedPageMask(
 export async function removeUnreferencedInpaintedArtifacts(
   chapterDir: string,
   candidatePaths: string[],
-  pages: Array<{ inpaintedImagePath?: string }>,
+  pages: ImageReferences[],
   retainedArtifactPaths: string[] = [],
 ): Promise<void> {
   if (candidatePaths.length === 0) {
@@ -39,8 +53,7 @@ export async function removeUnreferencedInpaintedArtifacts(
   }
 
   const retainedPaths = new Set(
-    pages
-      .map((page) => page.inpaintedImagePath)
+    referencedPaths(pages)
       .filter((path): path is string => Boolean(path))
       .map(normalizePathForReference),
   );
@@ -63,21 +76,21 @@ export async function removeUnreferencedInpaintedArtifacts(
     if (!isManagedInpaintedArtifact(chapterDir, candidatePath)) {
       continue;
     }
-    await unlinkIfExists(resolve(candidatePath));
+    await removeManagedImageCandidate(chapterDir, candidatePath);
   }
 }
 
 export async function removeUnreferencedInpaintMaskArtifacts(
   chapterDir: string,
   candidatePaths: string[],
-  pages: Array<{ inpaintMaskPath?: string }>,
+  pages: ImageReferences[],
   retainedArtifactPaths: string[] = [],
 ): Promise<void> {
   await removeUnreferencedManagedArtifacts({
     chapterDir,
     directoryName: "mask",
     candidatePaths,
-    pagePaths: pages.map((page) => page.inpaintMaskPath),
+    pagePaths: referencedPaths(pages),
     retainedArtifactPaths,
   });
 }
@@ -118,7 +131,7 @@ async function removeUnreferencedManagedArtifacts({
     }
     seenCandidates.add(normalizedCandidate);
     if (!isManagedArtifact(chapterDir, directoryName, candidatePath)) continue;
-    await unlinkIfExists(resolve(candidatePath));
+    await removeManagedImageCandidate(chapterDir, candidatePath);
   }
 }
 
@@ -126,13 +139,7 @@ function isManagedInpaintedArtifact(
   chapterDir: string,
   imagePath: string,
 ): boolean {
-  const inpaintedDir = resolve(join(chapterDir, "inpainted"));
-  const resolvedImagePath = resolve(imagePath);
-  return (
-    resolvedImagePath !== inpaintedDir &&
-    isPathInside(inpaintedDir, resolvedImagePath) &&
-    isSupportedImagePath(resolvedImagePath)
-  );
+  return isManagedArtifact(chapterDir, "inpainted", imagePath);
 }
 
 function isManagedArtifact(
@@ -143,9 +150,10 @@ function isManagedArtifact(
   const artifactDir = resolve(join(chapterDir, directoryName));
   const resolvedImagePath = resolve(imagePath);
   return (
-    resolvedImagePath !== artifactDir &&
-    isPathInside(artifactDir, resolvedImagePath) &&
-    isSupportedImagePath(resolvedImagePath)
+    (resolvedImagePath !== artifactDir &&
+      isPathInside(artifactDir, resolvedImagePath) &&
+      isSupportedImagePath(resolvedImagePath)) ||
+    isRecoveredImageArtifact(chapterDir, directoryName, imagePath)
   );
 }
 

@@ -16,10 +16,13 @@ import {
   isPathInside,
   renameWithTransientRetry,
   unlinkIfExists,
+  type AtomicFilePublication,
 } from "../libraryStore/storage";
-import type { RasterExportFormat } from "../../shared/linkedWorkspaceTypes";
-
-const SUPPORTED_SOURCE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+import type {
+  LinkedWorkspaceRecordV1,
+  RasterExportFormat,
+} from "../../shared/linkedWorkspaceTypes";
+import { resolveSourceImageFormat } from "../../shared/sourceImageFormat";
 
 export function normalizeLinkedRelativePath(value: string): string {
   if (
@@ -66,18 +69,12 @@ export function resolveLinkedResultPath({
   format: RasterExportFormat;
 }): { path: string; captureFormat: "png" | "jpeg" | "webp" } {
   const source = normalizeLinkedRelativePath(sourceRelativePath);
-  const sourceExtension = extname(source).toLowerCase();
-  const captureFormat =
-    format === "source"
-      ? sourceExtension === ".jpg" || sourceExtension === ".jpeg"
-        ? "jpeg"
-        : sourceExtension === ".webp"
-          ? "webp"
-          : "png"
-      : format;
+  const sourceExtension = extname(source);
+  const sourceFormat = resolveSourceImageFormat(sourceExtension);
+  const captureFormat = format === "source" ? sourceFormat.format : format;
   const extension =
-    format === "source" && SUPPORTED_SOURCE_EXTENSIONS.has(sourceExtension)
-      ? sourceExtension
+    format === "source"
+      ? `.${sourceFormat.extension}`
       : captureFormat === "jpeg"
         ? ".jpg"
         : `.${captureFormat}`;
@@ -124,53 +121,67 @@ export async function writeBinaryFileAtomically(
   targetPath: string,
   content: Buffer,
   beforeCommit?: () => void,
+  publication?: AtomicFilePublication,
 ): Promise<void> {
-  await mkdir(dirname(targetPath), { recursive: true });
-  const temporaryPath = join(
-    dirname(targetPath),
-    `.${basename(targetPath)}.${process.pid}.${randomUUID()}.tmp`,
+  await publishLinkedFileAtomically(
+    targetPath,
+    (temporaryPath) => writeFile(temporaryPath, content),
+    "자동 저장 폴더의 파일 저장과 임시 파일 정리에 모두 실패했습니다.",
+    beforeCommit,
+    publication,
   );
-  try {
-    await writeFile(temporaryPath, content);
-    beforeCommit?.();
-    await renameWithTransientRetry(temporaryPath, targetPath);
-  } catch (error) {
-    try {
-      await unlinkIfExists(temporaryPath);
-    } catch (cleanupError) {
-      throw new AggregateError(
-        [error, cleanupError],
-        "자동 저장 폴더의 파일 저장과 임시 파일 정리에 모두 실패했습니다.",
-        { cause: cleanupError },
-      );
-    }
-    throw error;
-  }
 }
 
 export async function copyFileAtomically(
   sourcePath: string,
   targetPath: string,
   beforeCommit?: () => void,
+  publication?: AtomicFilePublication,
 ): Promise<void> {
-  await mkdir(dirname(targetPath), { recursive: true });
+  await publishLinkedFileAtomically(
+    targetPath,
+    (temporaryPath) => copyFile(sourcePath, temporaryPath),
+    "자동 저장 폴더의 파일 복사와 임시 파일 정리에 모두 실패했습니다.",
+    beforeCommit,
+    publication,
+  );
+}
+
+async function publishLinkedFileAtomically(
+  targetPath: string,
+  prepareTemporary: (temporaryPath: string) => Promise<void>,
+  cleanupFailureMessage: string,
+  beforeCommit?: () => void,
+  publication?: AtomicFilePublication,
+): Promise<void> {
+  const hooks = publication ?? {};
   const temporaryPath = join(
     dirname(targetPath),
     `.${basename(targetPath)}.${process.pid}.${randomUUID()}.tmp`,
   );
+  hooks.signal?.throwIfAborted();
+  await hooks.beforePrepare?.(temporaryPath, targetPath);
+  await mkdir(dirname(targetPath), { recursive: true });
   try {
-    await copyFile(sourcePath, temporaryPath);
+    await hooks.beforePrepare?.(temporaryPath, targetPath);
+    hooks.signal?.throwIfAborted();
+    await prepareTemporary(temporaryPath);
+    await hooks.prepared?.(temporaryPath, targetPath);
     beforeCommit?.();
-    await renameWithTransientRetry(temporaryPath, targetPath);
+    await renameWithTransientRetry(
+      temporaryPath,
+      targetPath,
+      hooks.signal,
+      hooks.beforeAttempt,
+    );
+    await hooks.committed?.();
   } catch (error) {
     try {
       await unlinkIfExists(temporaryPath);
     } catch (cleanupError) {
-      throw new AggregateError(
-        [error, cleanupError],
-        "자동 저장 폴더의 파일 복사와 임시 파일 정리에 모두 실패했습니다.",
-        { cause: cleanupError },
-      );
+      throw new AggregateError([error, cleanupError], cleanupFailureMessage, {
+        cause: cleanupError,
+      });
     }
     throw error;
   }
@@ -232,5 +243,28 @@ function isMissingPathError(error: unknown): boolean {
     error instanceof Error &&
     "code" in error &&
     (error as NodeJS.ErrnoException).code === "ENOENT"
+  );
+}
+
+export function hasStemCollision(
+  record: LinkedWorkspaceRecordV1,
+  pageId: string,
+  sourceRelativePath: string,
+): boolean {
+  const normalized =
+    normalizeLinkedRelativePath(sourceRelativePath).toLowerCase();
+  const stem = normalized.slice(
+    0,
+    normalized.length - extname(normalized).length,
+  );
+  return Object.entries(record.pageRelativePaths).some(
+    ([candidateId, path]) => {
+      if (candidateId === pageId) return false;
+      const candidate = normalizeLinkedRelativePath(path).toLowerCase();
+      return (
+        candidate.slice(0, candidate.length - extname(candidate).length) ===
+        stem
+      );
+    },
   );
 }

@@ -13,6 +13,11 @@ import {
 } from "../abortSignal";
 import { renameWithTransientRetry } from "./storage";
 import {
+  createShareArchiveOutputLimiter,
+  validateShareArchiveLimits,
+  type ShareArchiveLimits,
+} from "./shareArchiveLimits";
+import {
   createZipEntryBudgetTracker,
   MAX_SHARE_JSON_BYTES,
   normalizeShareRelativePath,
@@ -110,6 +115,7 @@ class SequentialShareZipWriter implements StreamingShareArchiveWriter {
       tempPath: string;
       archiveDate: Date;
       signal?: AbortSignal;
+      limits?: ShareArchiveLimits;
       runtime: ShareStreamingZipRuntime;
     },
   ) {
@@ -128,9 +134,15 @@ class SequentialShareZipWriter implements StreamingShareArchiveWriter {
     });
 
     const zipOutput = this.zipFile.outputStream as Readable;
-    this.outputPipeline = options.signal
-      ? pipeline(zipOutput, this.outputStream, { signal: options.signal })
-      : pipeline(zipOutput, this.outputStream);
+    const pipelineOptions = options.signal ? { signal: options.signal } : {};
+    this.outputPipeline = options.limits
+      ? pipeline(
+          zipOutput,
+          createShareArchiveOutputLimiter(options.limits.maxOutputBytes),
+          this.outputStream,
+          pipelineOptions,
+        )
+      : pipeline(zipOutput, this.outputStream, pipelineOptions);
     void this.outputPipeline.catch((error: unknown) => {
       this.recordFatal(toError(error));
     });
@@ -348,6 +360,15 @@ class SequentialShareZipWriter implements StreamingShareArchiveWriter {
     }
     this.archivePaths.add(safePath);
     this.budget.addEntry(size, safePath);
+    const limits = this.options.limits;
+    if (
+      limits &&
+      (this.budget.entryCount > limits.maxEntries ||
+        this.budget.totalUncompressedBytes > limits.maxUncompressedBytes)
+    )
+      throw new Error(
+        "Share archive exceeds its entry or expanded byte limit.",
+      );
     return safePath;
   }
 
@@ -384,10 +405,13 @@ export async function writeAtomicStreamingShareArchive<TResult>(
     outputPath: string;
     archiveDate: Date;
     signal?: AbortSignal;
+    limits?: ShareArchiveLimits;
   },
   writeEntries: (writer: StreamingShareArchiveWriter) => Promise<TResult>,
   runtime: ShareStreamingZipRuntime = productionRuntime,
 ): Promise<TResult> {
+  const limits = options.limits ? { ...options.limits } : undefined;
+  validateShareArchiveLimits(limits);
   throwIfAborted(options.signal);
   await runtime.mkdir(dirname(options.outputPath), { recursive: true });
   throwIfAborted(options.signal);
@@ -400,6 +424,7 @@ export async function writeAtomicStreamingShareArchive<TResult>(
       tempPath,
       archiveDate: options.archiveDate,
       signal: options.signal,
+      limits,
       runtime,
     });
     const result = await writeEntries(writer);

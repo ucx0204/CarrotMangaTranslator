@@ -82,12 +82,6 @@ describe("bubble-aware inpainting postprocess", () => {
     gpuSettings.ocr.device = "gpu";
     gpuSettings.ocr.gpuBackend = undefined;
     runtime.getSettings = vi.fn(async () => gpuSettings);
-    const disposalError = new Error("layout session release failed");
-    const disposeBubbleLayoutSessions = runtime.disposeBubbleLayoutSessions;
-    if (!disposeBubbleLayoutSessions) {
-      throw new Error("expected layout session disposer");
-    }
-    vi.mocked(disposeBubbleLayoutSessions).mockRejectedValueOnce(disposalError);
     const { startInpaintingJob } =
       await import("../src/main/jobs/inpaintingJobs");
 
@@ -106,10 +100,7 @@ describe("bubble-aware inpainting postprocess", () => {
 
     expect(result.status).toBe("completed");
     expect(runtime.disposeBubbleLayoutSessions).toHaveBeenCalledTimes(1);
-    expect(runtime.logError).toHaveBeenCalledWith(
-      "Failed to release KoharuLayout sessions after job",
-      { error: disposalError },
-    );
+    expect(runtime.logError).not.toHaveBeenCalled();
     expect(createBubbleLayoutRunner).toHaveBeenCalledTimes(1);
     expect(createBubbleLayoutRunner).toHaveBeenCalledWith(
       expect.objectContaining({

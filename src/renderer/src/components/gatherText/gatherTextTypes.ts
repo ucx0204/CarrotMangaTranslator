@@ -4,7 +4,7 @@ import type {
 } from "../../../../shared/libraryTypes";
 import type { BlockStylePreset } from "../../../../shared/blockStylePresets";
 import type { GatherDirectFormatRequest } from "../../lib/gatherTextFormat";
-import type { TranslatedTextImportUpdate } from "../../lib/gatherText";
+import type { TranslatedTextImportUpdate } from "../../../../shared/gatherText";
 
 export type GatherTextModalProps = {
   blockStylePresets?: readonly BlockStylePreset[];

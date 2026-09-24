@@ -32,6 +32,7 @@ import type {
 } from "../pageExport";
 import {
   buildLinkedMirrorFileName,
+  hasStemCollision,
   cleanupLinkedWorkspaceTemporaryFiles,
   copyFileAtomically,
   normalizeLinkedRelativePath,
@@ -50,6 +51,10 @@ import {
   writeLinkedWorkspaceMirror,
 } from "./linkedWorkspaceFiles";
 import { LinkedWorkspaceStore } from "./linkedWorkspaceStore";
+import { buildLinkedMirrorChapter } from "./linkedWorkspaceMirror";
+import { createReviewedLinkedOutputPort } from "./linkedWorkspaceReviewedOutput";
+import { assertReviewedRecords } from "./linkedWorkspaceReviewedOutputInput";
+import type { ReviewedLinkedOutputPort } from "./linkedWorkspaceReviewedOutputTypes";
 import { deriveLegacyInpaintMask } from "../inpainting/inpaintMaskArtifact";
 import { probeImageFile } from "../libraryStore/imageHeaderProbe";
 import { isInvalidImageHeaderError } from "../libraryStore/imageHeaderProbeInternal";
@@ -113,6 +118,8 @@ type RenderedLinkedSyncItem = PreparedLinkedSyncItem & {
 };
 
 export class LinkedWorkspaceSyncService {
+  readonly reviewedOutput: ReviewedLinkedOutputPort;
+  private initialized = false;
   private readonly store: LinkedWorkspaceStore;
   private readonly options: ServiceOptions;
   private readonly dependencies: ServiceDependencies;
@@ -149,6 +156,43 @@ export class LinkedWorkspaceSyncService {
     this.options = options;
     this.dependencies = options.dependencies;
     this.store = new LinkedWorkspaceStore(options.dataRoot);
+    this.reviewedOutput = createReviewedLinkedOutputPort({
+      dataRoot: options.dataRoot,
+      appVersion: () => app.getVersion(),
+      available: () => this.initialized && !this.disposed,
+      reportError: options.reportError,
+      records: () => structuredClone([...this.records.values()]),
+      storedRecords: async () => (await this.store.readRegistry()).records,
+      allocate: (record, chapter) => {
+        const copy = structuredClone(record);
+        this.reconcileResultRelativePaths(copy, chapter);
+        return copy;
+      },
+      listLibrary: this.dependencies.listLibrary,
+      openChapter: this.dependencies.openChapter,
+      createRenderer: () =>
+        this.dependencies.createPageExportRenderSession({
+          dataRoot: options.dataRoot,
+          decodeFallback: options.decodeImage,
+          lowPriority: true,
+        }),
+      commit: (expected, records, publication) =>
+        this.runSerializedMetadata(async () => {
+          const ids = new Set(expected.map((record) => record.id));
+          assertReviewedRecords(
+            expected,
+            [...this.records.values()].filter((record) => ids.has(record.id)),
+          );
+          await this.store.replaceReviewedRecords(expected, records, {
+            ...publication,
+            committed: async () => {
+              for (const record of records)
+                this.records.set(record.id, structuredClone(record));
+              await publication.committed?.();
+            },
+          });
+        }),
+    });
   }
 
   async initialize(): Promise<void> {
@@ -191,6 +235,7 @@ export class LinkedWorkspaceSyncService {
     await this.persistQueue();
     this.emitStatuses();
     this.schedule(IDLE_DELAY_MS);
+    this.initialized = true;
   }
 
   getStatus(chapterId: string): LinkedWorkspaceStatus {
@@ -1449,33 +1494,13 @@ export class LinkedWorkspaceSyncService {
           revision: createPageRevision(page),
         });
       }
-      chapters.push({
-        id: chapter.id,
-        workId: chapter.workId,
-        workTitle: workTitles.get(chapter.workId) ?? basename(rootPath),
-        title: chapter.title,
-        output: record.output,
-        pages: chapter.pages.map((page) => ({
-          id: page.id,
-          name: page.name,
-          width: page.width,
-          height: page.height,
-          blocks: page.blocks,
-          blockOrder: page.blockOrder,
-          translationCompletion: page.translationCompletion,
-          maskProvenance: page.maskProvenance,
-          sourceRelativePath:
-            this.sourceRelativePath(record, page.id) ??
-            this.pageRelativePath(record, page),
-          source: sourceArtifactFromRecord(
-            record,
-            page.id,
-            this.sourceRelativePath(record, page.id) ??
-              this.pageRelativePath(record, page),
-          ),
-          ...toMirrorArtifacts(record.artifacts[page.id]),
-        })),
-      });
+      chapters.push(
+        buildLinkedMirrorChapter(
+          record,
+          chapter,
+          workTitles.get(chapter.workId) ?? basename(rootPath),
+        ),
+      );
     }
     await writeLinkedWorkspaceMirror({
       rootPath,
@@ -2256,29 +2281,6 @@ function safeResultPathSegment(value: string, fallback: string): string {
     : safe;
 }
 
-function hasStemCollision(
-  record: LinkedWorkspaceRecordV1,
-  pageId: string,
-  sourceRelativePath: string,
-): boolean {
-  const normalized =
-    normalizeLinkedRelativePath(sourceRelativePath).toLowerCase();
-  const stem = normalized.slice(
-    0,
-    normalized.length - extname(normalized).length,
-  );
-  return Object.entries(record.pageRelativePaths).some(
-    ([candidateId, path]) => {
-      if (candidateId === pageId) return false;
-      const candidate = normalizeLinkedRelativePath(path).toLowerCase();
-      return (
-        candidate.slice(0, candidate.length - extname(candidate).length) ===
-        stem
-      );
-    },
-  );
-}
-
 function artifactFromBuffer(
   rootPath: string,
   filePath: string,
@@ -2347,35 +2349,6 @@ async function removeReplacedArtifact(
   }
   assertCurrent();
   await unlinkIfExists(resolvePathInside(rootPath, previous.path));
-}
-
-function toMirrorArtifacts(
-  artifacts: LinkedWorkspaceRecordV1["artifacts"][string] | undefined,
-): {
-  result?: LinkedMirrorArtifact;
-  inpainted?: LinkedMirrorArtifact;
-  mask?: LinkedMirrorArtifact;
-} {
-  if (!artifacts) return {};
-  return {
-    ...(artifacts.result
-      ? { result: stripLocalArtifact(artifacts.result) }
-      : {}),
-    ...(artifacts.inpainted
-      ? { inpainted: stripLocalArtifact(artifacts.inpainted) }
-      : {}),
-    ...(artifacts.mask ? { mask: stripLocalArtifact(artifacts.mask) } : {}),
-  };
-}
-
-function stripLocalArtifact(
-  artifact: LinkedMirrorArtifact & { sourcePath?: string },
-): LinkedMirrorArtifact {
-  return {
-    path: artifact.path,
-    bytes: artifact.bytes,
-    sha256: artifact.sha256,
-  };
 }
 
 function sameFilePath(left: string, right: string): boolean {
@@ -2511,20 +2484,4 @@ async function waitForSettled(
     }),
   ]);
   if (timeout) clearTimeout(timeout);
-}
-
-function sourceArtifactFromRecord(
-  record: LinkedWorkspaceRecordV1,
-  pageId: string,
-  sourceRelativePath: string,
-): LinkedMirrorArtifact {
-  const fingerprint = record.sourceFingerprints[pageId];
-  if (!fingerprint) {
-    throw new Error("복구 미러에 기록할 원본 이미지 해시가 없습니다.");
-  }
-  return {
-    path: sourceRelativePath,
-    bytes: fingerprint.size,
-    sha256: fingerprint.sha256,
-  };
 }

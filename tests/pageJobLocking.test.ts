@@ -237,3 +237,64 @@ function makePage(
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
 }
+
+it("uses the shared activity state to lock only the MCP edit target, including after data save", () => {
+  const pages = [
+    makePage("page-1", "completed"),
+    makePage("page-2", "completed"),
+  ];
+  const chapter = makeChapter(pages);
+  const activity = {
+    id: "mcp",
+    category: "job" as const,
+    kind: "mcp-edit",
+    startedAt: 1,
+    blocksQuit: true,
+    mutatesLibrary: true,
+    resources: [
+      {
+        kind: "page-content" as const,
+        scope: "chapter-1/page-1",
+        access: "write" as const,
+      },
+    ],
+  };
+  const activities = {
+    version: 1,
+    activities: [activity],
+    pages: [
+      {
+        jobId: "mcp",
+        chapterId: chapter.id,
+        pageId: pages[0].id,
+        phase: "processing" as const,
+      },
+    ],
+  };
+  const props = {
+    currentChapter: chapter,
+    selectedPage: pages[0],
+    jobState: makeJob("mcp-edit", pages),
+    activities,
+    progressState: {
+      jobActive: true,
+      pageLockActive: true,
+      jobTargetPageIds: new Set(["page-1"]),
+    },
+  };
+  expect(resolvePageActivityLocks(props)).toMatchObject({
+    selectedPageEditLocked: true,
+    modelResourceBusy: false,
+    editingLockedPageIds: new Set(["page-1"]),
+  });
+  expect(
+    resolvePageActivityLocks({ ...props, selectedPage: pages[1] })
+      .selectedPageEditLocked,
+  ).toBe(false);
+  expect(
+    resolvePageActivityLocks({
+      ...props,
+      activities: { version: 2, activities: [], pages: [] },
+    }).selectedPageEditLocked,
+  ).toBe(false);
+});

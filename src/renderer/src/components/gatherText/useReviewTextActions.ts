@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot } from "../../../../shared/libraryTypes";
 import type { ReviewExportFormat } from "../../../../shared/reviewTypes";
-import { decodeImportedTextContent } from "../../lib/gatherText";
+import { decodeImportedTextContent } from "../../../../shared/gatherText";
 import { toast } from "../../lib/toastStore";
 import { gatherTextGateway } from "./gatherTextGateway";
 

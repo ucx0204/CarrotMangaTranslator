@@ -1,6 +1,5 @@
 import { throwIfAborted } from "../abortSignal";
 import type {
-  WorkShareExportRequest,
   WorkShareExportResult,
   WorkShareImportFromPackageRequest,
   WorkShareImportResult,
@@ -12,6 +11,7 @@ import {
 import {
   captureWorkShareSnapshot,
   exportWorkShareToFile as exportWorkShareToFileUnlocked,
+  type WorkShareExportFileRequest,
 } from "../libraryStore/shareExportWorkflow";
 import {
   withLibraryContentEdit,
@@ -42,7 +42,7 @@ const productionWorkShareExportRuntime: WorkShareExportRuntime = {
 
 export function createWorkShareExport(runtime: WorkShareExportRuntime) {
   return async (
-    request: WorkShareExportRequest & { outputPath: string },
+    request: WorkShareExportFileRequest,
     signal?: AbortSignal,
   ): Promise<WorkShareExportResult> => {
     const capture = runtime.capture;
@@ -73,16 +73,18 @@ export const exportWorkShareToFile = createWorkShareExport(
 export async function importWorkShare(
   request: WorkShareImportFromPackageRequest,
   signal?: AbortSignal,
+  publication?: Parameters<typeof importWorkShareUnlocked>[4],
+  runtime?: Parameters<typeof importWorkShareUnlocked>[2],
 ): Promise<WorkShareImportResult> {
   const pending = libraryMutationCoordinator.begin();
   try {
     return await importWorkShareUnlocked(
       request,
       signal,
-      undefined,
+      runtime,
       (publish) =>
         withLibraryContentEdit(
-          request.target.mode === "existing"
+          request.target.mode !== "new"
             ? [libraryStructureResource("work", request.target.workId)]
             : [],
           async () => {
@@ -115,6 +117,7 @@ export async function importWorkShare(
           },
           signal ?? new AbortController().signal,
         ),
+      publication,
     );
   } finally {
     pending.finish();

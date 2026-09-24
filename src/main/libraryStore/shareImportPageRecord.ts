@@ -1,3 +1,4 @@
+import { resolvePageBlockOrder } from "../../shared/blockReadingOrder";
 import type { LibraryPageRecord } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
 import {
@@ -74,6 +75,13 @@ export function buildMaterializedSharedPage({
     width,
     height,
     blocks,
+    blockOrder:
+      packagePage.blockOrder === undefined
+        ? undefined
+        : // The canonical resolver returns only source block IDs, all mapped above.
+          resolvePageBlockOrder(packagePage).map(
+            (id) => blockIdMap.get(id) as string,
+          ),
     translationCompletion,
     createdAt: now,
     updatedAt: now,

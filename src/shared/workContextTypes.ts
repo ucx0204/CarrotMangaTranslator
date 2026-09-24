@@ -62,10 +62,21 @@ export type WorkStyleGuide = {
   updatedAt: string;
 };
 
+type PageMemoryTextEvidence = {
+  version: 1;
+  method: "native-excerpt" | "reviewed-page-text";
+  sourceFingerprint: string;
+  translationFingerprint: string;
+  contextFingerprint: string;
+  summaryFingerprint: string;
+};
+
 export type PageStoryMemory = {
   pageId: string;
   pageName: string;
   pageIndex: number;
+  /** Present only when the current text summary was explicitly rebuilt/reviewed. */
+  textEvidence?: PageMemoryTextEvidence;
   sourceDigest: string;
   translatedDigest: string;
   summary: string;

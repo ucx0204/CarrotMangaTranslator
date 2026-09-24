@@ -1,0 +1,3021 @@
+{
+  "schemaVersion": 1,
+  "source": "e5af35ea6336fc3fd99018d0be8e827f3db13b29",
+  "previousMeasuredSource": "4827bb8b9138e35cbabf525ad96277d3c9f25dc6",
+  "measurementKind": "full-vitest-v8-measurement-and-native-dependency-cruise",
+  "canonicalAcceptance": false,
+  "sourceUnchanged": true,
+  "sourceFiles": 4554,
+  "status": "Measured gate registration candidate; known inherited coverage gaps and full-suite failures remain pending.",
+  "priorCheckpointEvidence": "docs/mcp-exchange-gates-20260923.json",
+  "priorCheckpointEvidenceSha256": "6dbab88be2222587d0849a870eec7cdb2f448f9226926572ba626bd70087207f",
+  "toolchain": {
+    "node": "26.7.0",
+    "v8": "14.6.202.34-node.28",
+    "vitest": "4.1.9",
+    "coverageV8": "4.1.9"
+  },
+  "coverageSha256": "2e7c732ef30e3bd3603d5353cb9f59d55a3c38d20655ccb3456c5b75baac6f46",
+  "fullRun": {
+    "source": "e5af35ea6336fc3fd99018d0be8e827f3db13b29",
+    "sourceAfter": "e5af35ea6336fc3fd99018d0be8e827f3db13b29",
+    "sourceFiles": 4554,
+    "sourceUnchanged": true,
+    "kind": "full-vitest-v8-measurement",
+    "fullCheck": false,
+    "buildRun": false,
+    "exitCode": 1,
+    "workers": 8,
+    "command": [
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "--reporter=default",
+      "--reporter=json",
+      "--outputFile.json=C:\\Users\\sam40\\Downloads\\CarrotMangaTranslator-MCP-Review\\.tmp\\mcp-output-sync-e5af35ea-20260923-full-vitest.json",
+      "--coverage",
+      "--coverage.reportsDirectory=C:\\Users\\sam40\\Downloads\\CarrotMangaTranslator-MCP-Review\\.tmp\\mcp-output-sync-e5af35ea-20260923-full-coverage"
+    ],
+    "selected": [],
+    "testFiles": 1192,
+    "counts": {
+      "numTotalTests": 8966,
+      "numPassedTests": 8951,
+      "numFailedTests": 3,
+      "numPendingTests": 12
+    },
+    "newTestFiles": 18,
+    "newTestCounts": {
+      "passed": 108,
+      "failed": 0,
+      "pending": 0
+    },
+    "failedTests": [
+      {
+        "name": "atomically migrates multiple chapters and orphan memories, then restores exact references after restart",
+        "failures": [
+          "Error: STACK_TRACE_ERROR\n    at task (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/tests/mcpContextMigrationApp.test.ts:8:1\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at VitestModuleEvaluator._runInlinedModule (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vitest/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1259:59)\n    at VitestModuleRunner.cachedRequest (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1166:73)\n    at VitestModuleRunner.import (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1120:10)"
+        ]
+      },
+      {
+        "name": "researches fixed works sequentially, retains independent reviews and replays across restart without another model call",
+        "failures": [
+          "Error: STACK_TRACE_ERROR\n    at task (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/tests/mcpResearchBatch.test.ts:6:1\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at VitestModuleEvaluator._runInlinedModule (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vitest/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1259:59)\n    at VitestModuleRunner.cachedRequest (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1166:73)\n    at VitestModuleRunner.import (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1120:10)"
+        ]
+      },
+      {
+        "name": "production cleanup coverage floor gate tracks every coverage-eligible source touched since cleanup start",
+        "failures": [
+          "Error: Coverage floor source file is missing: src/renderer/src/lib/gatherText.ts\n    at assertSourceFile (C:\\Users\\sam40\\Downloads\\CarrotMangaTranslator-MCP-Review\\scripts\\check-production-cleanup-coverage.cjs:673:11)\n    at parseCoverageFloorMap (C:\\Users\\sam40\\Downloads\\CarrotMangaTranslator-MCP-Review\\scripts\\check-production-cleanup-coverage.cjs:204:5)\n    at Object.loadCoverageManifest (C:\\Users\\sam40\\Downloads\\CarrotMangaTranslator-MCP-Review\\scripts\\check-production-cleanup-coverage.cjs:158:18)\n    at C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/tests/productionCleanupCoverageGate.test.ts:495:27\n    at file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20"
+        ]
+      }
+    ],
+    "coverageAvailable": true,
+    "coverageSha256": "2e7c732ef30e3bd3603d5353cb9f59d55a3c38d20655ccb3456c5b75baac6f46",
+    "startedAt": "2026-09-23T15:38:13.864357+00:00",
+    "completedAt": "2026-09-23T15:44:59.288079+00:00",
+    "elapsedSeconds": 405.422
+  },
+  "fullSuiteFailureDetail": {
+    "source": "e5af35ea6336fc3fd99018d0be8e827f3db13b29",
+    "counts": {
+      "numTotalTestSuites": 2061,
+      "numPassedTestSuites": 2056,
+      "numFailedTestSuites": 5,
+      "numPendingTestSuites": 0,
+      "numTotalTests": 8966,
+      "numPassedTests": 8951,
+      "numFailedTests": 3,
+      "numPendingTests": 12,
+      "numTodoTests": 0
+    },
+    "success": false,
+    "unsuccessfulSuites": [
+      {
+        "name": "C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/tests/mcpContextMigrationApp.test.ts",
+        "status": "failed",
+        "message": "",
+        "assertions": [
+          {
+            "name": "atomically migrates multiple chapters and orphan memories, then restores exact references after restart",
+            "status": "failed",
+            "failureMessages": [
+              "Error: STACK_TRACE_ERROR\n    at task (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/tests/mcpContextMigrationApp.test.ts:8:1\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at VitestModuleEvaluator._runInlinedModule (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vitest/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1259:59)\n    at VitestModuleRunner.cachedRequest (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1166:73)\n    at VitestModuleRunner.import (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1120:10)"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/tests/mcpResearchBatch.test.ts",
+        "status": "failed",
+        "message": "",
+        "assertions": [
+          {
+            "name": "researches fixed works sequentially, retains independent reviews and replays across restart without another model call",
+            "status": "failed",
+            "failureMessages": [
+              "Error: STACK_TRACE_ERROR\n    at task (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/tests/mcpResearchBatch.test.ts:6:1\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at VitestModuleEvaluator._runInlinedModule (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vitest/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1259:59)\n    at VitestModuleRunner.cachedRequest (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1166:73)\n    at VitestModuleRunner.import (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/vite/dist/node/module-runner.js:1120:10)"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/tests/mcpWorkDeletionStaging.test.ts",
+        "status": "failed",
+        "message": "Hook timed out in 10000ms.\nIf this is a long-running hook, pass a timeout value as the last argument or configure it globally with \"hookTimeout\".",
+        "assertions": [
+          {
+            "name": "can revalidate an exactly full reviewed work after native restoration adds its ownership marker",
+            "status": "skipped",
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/tests/productionCleanupCoverageGate.test.ts",
+        "status": "failed",
+        "message": "",
+        "assertions": [
+          {
+            "name": "production cleanup coverage floor gate tracks every coverage-eligible source touched since cleanup start",
+            "status": "failed",
+            "failureMessages": [
+              "Error: Coverage floor source file is missing: src/renderer/src/lib/gatherText.ts\n    at assertSourceFile (C:\\Users\\sam40\\Downloads\\CarrotMangaTranslator-MCP-Review\\scripts\\check-production-cleanup-coverage.cjs:673:11)\n    at parseCoverageFloorMap (C:\\Users\\sam40\\Downloads\\CarrotMangaTranslator-MCP-Review\\scripts\\check-production-cleanup-coverage.cjs:204:5)\n    at Object.loadCoverageManifest (C:\\Users\\sam40\\Downloads\\CarrotMangaTranslator-MCP-Review\\scripts\\check-production-cleanup-coverage.cjs:158:18)\n    at C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/tests/productionCleanupCoverageGate.test.ts:495:27\n    at file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///C:/Users/sam40/Downloads/CarrotMangaTranslator-MCP-Review/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "authority": "Unmodified check-production-cleanup-coverage.cjs using native metric-owner and exact-ratio policy.",
+    "originalFloorProvenance": {
+      "baseCommit": "01768a05a2e74666c1fd38f2b22e4efb1cf9822b",
+      "baselinePlatform": "win32",
+      "coverageProvider": "vitest-v8-json-summary",
+      "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
+      "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
+      "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node22.json",
+      "introducedArtifactSha256": "cde57ff3d4ae28e8cbae3d9deeca3802d1bbf078f1db4267f50be3ab50867927",
+      "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
+      "vitestVersion": "4.1.9",
+      "coverageV8Version": "4.1.9"
+    },
+    "unrelatedInheritedRowsPreserved": 1802,
+    "exchangeSeedRegistrationsPreserved": 38,
+    "additionalMeasuredRegistrations": [
+      {
+        "path": "src/main/application/mcpOutputSyncJobPolicy.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 21,
+            "total": 21,
+            "pct": 100
+          },
+          "statements": {
+            "covered": 23,
+            "total": 25,
+            "pct": 92
+          },
+          "functions": {
+            "covered": 6,
+            "total": 6,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 31,
+            "total": 33,
+            "pct": 93.93
+          }
+        }
+      },
+      {
+        "path": "src/main/application/mcpOutputSyncPolicy.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 54,
+            "total": 59,
+            "pct": 91.52
+          },
+          "statements": {
+            "covered": 58,
+            "total": 66,
+            "pct": 87.87
+          },
+          "functions": {
+            "covered": 18,
+            "total": 18,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 46,
+            "total": 54,
+            "pct": 85.18
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceMirror.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 10,
+            "total": 12,
+            "pct": 83.33
+          },
+          "statements": {
+            "covered": 11,
+            "total": 13,
+            "pct": 84.61
+          },
+          "functions": {
+            "covered": 5,
+            "total": 5,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 11,
+            "total": 14,
+            "pct": 78.57
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutput.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 32,
+            "total": 36,
+            "pct": 88.88
+          },
+          "statements": {
+            "covered": 33,
+            "total": 38,
+            "pct": 86.84
+          },
+          "functions": {
+            "covered": 11,
+            "total": 11,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 11,
+            "total": 22,
+            "pct": 50
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputEvidence.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 61,
+            "total": 71,
+            "pct": 85.91
+          },
+          "statements": {
+            "covered": 66,
+            "total": 77,
+            "pct": 85.71
+          },
+          "functions": {
+            "covered": 15,
+            "total": 15,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 58,
+            "total": 69,
+            "pct": 84.05
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 77,
+            "total": 79,
+            "pct": 97.46
+          },
+          "statements": {
+            "covered": 84,
+            "total": 92,
+            "pct": 91.3
+          },
+          "functions": {
+            "covered": 18,
+            "total": 18,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 33,
+            "total": 42,
+            "pct": 78.57
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputFiles.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 49,
+            "total": 66,
+            "pct": 74.24
+          },
+          "statements": {
+            "covered": 51,
+            "total": 70,
+            "pct": 72.85
+          },
+          "functions": {
+            "covered": 11,
+            "total": 14,
+            "pct": 78.57
+          },
+          "branches": {
+            "covered": 60,
+            "total": 80,
+            "pct": 75
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputHooks.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 27,
+            "total": 27,
+            "pct": 100
+          },
+          "statements": {
+            "covered": 28,
+            "total": 32,
+            "pct": 87.5
+          },
+          "functions": {
+            "covered": 7,
+            "total": 7,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 16,
+            "total": 20,
+            "pct": 80
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 61,
+            "total": 67,
+            "pct": 91.04
+          },
+          "statements": {
+            "covered": 66,
+            "total": 72,
+            "pct": 91.66
+          },
+          "functions": {
+            "covered": 30,
+            "total": 30,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 29,
+            "total": 37,
+            "pct": 78.37
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInspection.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 68,
+            "total": 82,
+            "pct": 82.92
+          },
+          "statements": {
+            "covered": 70,
+            "total": 87,
+            "pct": 80.45
+          },
+          "functions": {
+            "covered": 14,
+            "total": 14,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 78,
+            "total": 97,
+            "pct": 80.41
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInternal.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          },
+          "statements": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          },
+          "functions": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 57,
+            "total": 62,
+            "pct": 91.93
+          },
+          "statements": {
+            "covered": 63,
+            "total": 71,
+            "pct": 88.73
+          },
+          "functions": {
+            "covered": 22,
+            "total": 22,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 28,
+            "total": 39,
+            "pct": 71.79
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPublish.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 77,
+            "total": 88,
+            "pct": 87.5
+          },
+          "statements": {
+            "covered": 82,
+            "total": 98,
+            "pct": 83.67
+          },
+          "functions": {
+            "covered": 24,
+            "total": 26,
+            "pct": 92.3
+          },
+          "branches": {
+            "covered": 48,
+            "total": 65,
+            "pct": 73.84
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputSources.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 51,
+            "total": 53,
+            "pct": 96.22
+          },
+          "statements": {
+            "covered": 54,
+            "total": 61,
+            "pct": 88.52
+          },
+          "functions": {
+            "covered": 13,
+            "total": 13,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 22,
+            "total": 30,
+            "pct": 73.33
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputTypes.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 4,
+            "total": 4,
+            "pct": 100
+          },
+          "statements": {
+            "covered": 4,
+            "total": 4,
+            "pct": 100
+          },
+          "functions": {
+            "covered": 1,
+            "total": 1,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          }
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputVerify.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 18,
+            "total": 20,
+            "pct": 90
+          },
+          "statements": {
+            "covered": 20,
+            "total": 22,
+            "pct": 90.9
+          },
+          "functions": {
+            "covered": 3,
+            "total": 3,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 15,
+            "total": 17,
+            "pct": 88.23
+          }
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSyncAuthority.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 23,
+            "total": 24,
+            "pct": 95.83
+          },
+          "statements": {
+            "covered": 24,
+            "total": 25,
+            "pct": 96
+          },
+          "functions": {
+            "covered": 5,
+            "total": 5,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 16,
+            "total": 19,
+            "pct": 84.21
+          }
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSyncExecution.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 30,
+            "total": 41,
+            "pct": 73.17
+          },
+          "statements": {
+            "covered": 30,
+            "total": 41,
+            "pct": 73.17
+          },
+          "functions": {
+            "covered": 8,
+            "total": 9,
+            "pct": 88.88
+          },
+          "branches": {
+            "covered": 8,
+            "total": 16,
+            "pct": 50
+          }
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSyncHistory.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 9,
+            "total": 11,
+            "pct": 81.81
+          },
+          "statements": {
+            "covered": 9,
+            "total": 11,
+            "pct": 81.81
+          },
+          "functions": {
+            "covered": 1,
+            "total": 1,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 9,
+            "total": 11,
+            "pct": 81.81
+          }
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSyncInspection.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 10,
+            "total": 10,
+            "pct": 100
+          },
+          "statements": {
+            "covered": 10,
+            "total": 10,
+            "pct": 100
+          },
+          "functions": {
+            "covered": 4,
+            "total": 4,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 2,
+            "total": 4,
+            "pct": 50
+          }
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSyncOwnership.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 13,
+            "total": 14,
+            "pct": 92.85
+          },
+          "statements": {
+            "covered": 13,
+            "total": 14,
+            "pct": 92.85
+          },
+          "functions": {
+            "covered": 1,
+            "total": 1,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 3,
+            "total": 4,
+            "pct": 75
+          }
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSyncRepository.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 101,
+            "total": 108,
+            "pct": 93.51
+          },
+          "statements": {
+            "covered": 109,
+            "total": 117,
+            "pct": 93.16
+          },
+          "functions": {
+            "covered": 44,
+            "total": 44,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 43,
+            "total": 51,
+            "pct": 84.31
+          }
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSyncSession.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 12,
+            "total": 12,
+            "pct": 100
+          },
+          "statements": {
+            "covered": 13,
+            "total": 13,
+            "pct": 100
+          },
+          "functions": {
+            "covered": 7,
+            "total": 7,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          }
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSyncTools.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 42,
+            "total": 47,
+            "pct": 89.36
+          },
+          "statements": {
+            "covered": 43,
+            "total": 50,
+            "pct": 86
+          },
+          "functions": {
+            "covered": 14,
+            "total": 14,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 23,
+            "total": 30,
+            "pct": 76.66
+          }
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSyncTypes.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          },
+          "statements": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          },
+          "functions": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          }
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpPageSessionTypes.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          },
+          "statements": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          },
+          "functions": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          }
+        }
+      },
+      {
+        "path": "src/shared/mcpOutputSync.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 31,
+            "total": 31,
+            "pct": 100
+          },
+          "statements": {
+            "covered": 31,
+            "total": 31,
+            "pct": 100
+          },
+          "functions": {
+            "covered": 6,
+            "total": 6,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 3,
+            "total": 6,
+            "pct": 50
+          }
+        }
+      },
+      {
+        "path": "src/shared/mcpOutputSyncJob.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 3,
+            "total": 3,
+            "pct": 100
+          },
+          "statements": {
+            "covered": 3,
+            "total": 3,
+            "pct": 100
+          },
+          "functions": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          },
+          "branches": {
+            "covered": 0,
+            "total": 0,
+            "pct": 100
+          }
+        }
+      },
+      {
+        "path": "src/shared/mcpOutputSyncPublication.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 6,
+            "total": 7,
+            "pct": 85.71
+          },
+          "statements": {
+            "covered": 8,
+            "total": 9,
+            "pct": 88.88
+          },
+          "functions": {
+            "covered": 5,
+            "total": 6,
+            "pct": 83.33
+          },
+          "branches": {
+            "covered": 9,
+            "total": 12,
+            "pct": 75
+          }
+        }
+      },
+      {
+        "path": "src/shared/mcpOutputSyncState.ts",
+        "classification": "added",
+        "measured": {
+          "lines": {
+            "covered": 79,
+            "total": 81,
+            "pct": 97.53
+          },
+          "statements": {
+            "covered": 88,
+            "total": 94,
+            "pct": 93.61
+          },
+          "functions": {
+            "covered": 40,
+            "total": 42,
+            "pct": 95.23
+          },
+          "branches": {
+            "covered": 118,
+            "total": 136,
+            "pct": 86.76
+          }
+        }
+      }
+    ],
+    "combinedMeasuredRegistrationCount": 68,
+    "measuredScopeCounts": {
+      "existing": 763,
+      "added": 1107,
+      "deleted": 11
+    },
+    "deletedSourceInventory": [
+      "src/main/nativeDynamicImport.ts",
+      "src/main/openaiOauthEndpoint.ts",
+      "src/renderer/src/components/AutomaticFontMatchNotice.tsx",
+      "src/renderer/src/components/FontSizeNumberInput.tsx",
+      "src/renderer/src/components/InstallProgressOverlay.tsx",
+      "src/renderer/src/components/SearchReplaceModal.tsx",
+      "src/renderer/src/components/StageActiveToolBadge.tsx",
+      "src/renderer/src/components/usePinnedInstallLog.ts",
+      "src/renderer/src/lib/automaticFontMatchProvenance.ts",
+      "src/renderer/src/lib/gatherText.ts",
+      "src/renderer/src/lib/searchReplace.ts"
+    ],
+    "gatherTextMoveCurrentMeasurement": {
+      "from": "src/renderer/src/lib/gatherText.ts",
+      "to": "src/shared/gatherText.ts",
+      "inheritedFloor": {
+        "lines": {
+          "covered": 134,
+          "total": 158,
+          "pct": 84.81
+        },
+        "statements": {
+          "covered": 137,
+          "total": 163,
+          "pct": 84.04
+        },
+        "functions": {
+          "covered": 28,
+          "total": 34,
+          "pct": 82.35
+        },
+        "branches": {
+          "covered": 66,
+          "total": 102,
+          "pct": 64.7
+        }
+      },
+      "actual": {
+        "lines": {
+          "covered": 149,
+          "total": 164,
+          "pct": 90.85
+        },
+        "statements": {
+          "covered": 155,
+          "total": 170,
+          "pct": 91.17
+        },
+        "functions": {
+          "covered": 37,
+          "total": 37,
+          "pct": 100
+        },
+        "branches": {
+          "covered": 82,
+          "total": 107,
+          "pct": 76.63
+        }
+      },
+      "regressions": []
+    },
+    "nativeSeedComparisonPolicy": {
+      "authority": "informational; unchanged canonical checker decides pass/fail",
+      "comparedFloors": true,
+      "baselinePlatform": "win32",
+      "actualPlatform": "win32",
+      "zeroTotalBaseline": "100%; actual must cover every measured item",
+      "excludedFiles": [
+        {
+          "path": "src/renderer/src/components/imageRedaction/ManualRedactionWorkspace.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionActionsMenu.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionBatchActions.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionBatchDialog.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionCanvas.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionExitDialog.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionIconButton.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionMaskCanvas.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionNativePreview.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionPageFilter.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionPageGrid.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionPageReviewBar.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionPresetsDialog.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionShortcutDialog.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionThumbnail.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionTools.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionWorkspaceBody.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionWorkspaceDialogs.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionWorkspaceFooter.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/RedactionWorkspaceHeader.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useManualRedactionWorkspace.ts",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useRedactionCanvasImage.tsx",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useRedactionGestures.ts",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useRedactionGridWindow.ts",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useRedactionImageReadiness.ts",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useRedactionKeyboard.ts",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useRedactionMaskWindow.ts",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useRedactionPreview.ts",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useRedactionShortcutLabels.ts",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useRedactionViewport.ts",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useRedactionWorkspace.ts",
+          "reason": "canonical-smoke-only-ui"
+        },
+        {
+          "path": "src/renderer/src/components/imageRedaction/useRedactionWorkspaceActions.ts",
+          "reason": "canonical-smoke-only-ui"
+        }
+      ],
+      "redirectedMetrics": [
+        {
+          "path": "src/main/imageRedactionWorkspaceSessions.ts",
+          "metric": "branches",
+          "metricOwner": "src/main/application/redactionWorkspaceService.ts",
+          "measured": {
+            "covered": 49,
+            "total": 55,
+            "pct": 89.09
+          }
+        }
+      ]
+    },
+    "remainingInheritedRegressions": [
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceStore.ts",
+        "metric": "lines",
+        "metricOwner": "src/main/linkedWorkspace/linkedWorkspaceStore.ts",
+        "measured": {
+          "covered": 48,
+          "total": 50,
+          "pct": 96
+        },
+        "floor": {
+          "total": 37,
+          "covered": 36,
+          "pct": 97.29
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceStore.ts",
+        "metric": "statements",
+        "metricOwner": "src/main/linkedWorkspace/linkedWorkspaceStore.ts",
+        "measured": {
+          "covered": 51,
+          "total": 53,
+          "pct": 96.22
+        },
+        "floor": {
+          "total": 38,
+          "covered": 37,
+          "pct": 97.36
+        }
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceStore.ts",
+        "metric": "branches",
+        "metricOwner": "src/main/linkedWorkspace/linkedWorkspaceStore.ts",
+        "measured": {
+          "covered": 13,
+          "total": 17,
+          "pct": 76.47
+        },
+        "floor": {
+          "total": 6,
+          "covered": 5,
+          "pct": 83.33
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpRetentionRecords.ts",
+        "metric": "lines",
+        "metricOwner": "src/main/mcp/mcpRetentionRecords.ts",
+        "measured": {
+          "covered": 49,
+          "total": 50,
+          "pct": 98
+        },
+        "floor": {
+          "covered": 18,
+          "total": 18,
+          "pct": 100
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpRetentionRecords.ts",
+        "metric": "statements",
+        "metricOwner": "src/main/mcp/mcpRetentionRecords.ts",
+        "measured": {
+          "covered": 52,
+          "total": 53,
+          "pct": 98.11
+        },
+        "floor": {
+          "covered": 19,
+          "total": 19,
+          "pct": 100
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpRetentionRecords.ts",
+        "metric": "branches",
+        "metricOwner": "src/main/mcp/mcpRetentionRecords.ts",
+        "measured": {
+          "covered": 51,
+          "total": 52,
+          "pct": 98.07
+        },
+        "floor": {
+          "covered": 0,
+          "total": 0,
+          "pct": 100
+        }
+      },
+      {
+        "path": "src/main/mcp/mcpRetentionStorage.ts",
+        "metric": "functions",
+        "metricOwner": "src/main/mcp/mcpRetentionStorage.ts",
+        "measured": {
+          "covered": 24,
+          "total": 25,
+          "pct": 96
+        },
+        "floor": {
+          "covered": 19,
+          "total": 19,
+          "pct": 100
+        }
+      }
+    ],
+    "canonicalCoverageAuditFailure": "Error: Production cleanup coverage floors regressed:\n- src/main/linkedWorkspace/linkedWorkspaceStore.ts lines: 96% (48/50) below exact baseline 97.29% (36/37)\n- src/main/linkedWorkspace/linkedWorkspaceStore.ts statements: 96.22% (51/53) below exact baseline 97.36% (37/38)\n- src/main/linkedWorkspace/linkedWorkspaceStore.ts branches: 76.47% (13/17) below exact baseline 83.33% (5/6)\n- src/main/mcp/mcpRetentionRecords.ts lines: 98% (49/50) below exact baseline 100% (18/18)\n- src/main/mcp/mcpRetentionRecords.ts statements: 98.11% (52/53) below exact baseline 100% (19/19)\n- src/main/mcp/mcpRetentionRecords.ts branches: 98.07% (51/52) below exact baseline 100% (0/0)\n- src/main/mcp/mcpRetentionStorage.ts functions: 96% (24/25) below exact baseline 100% (19/19)",
+    "canonicalCoverageAuditPassed": false,
+    "globalMeasuredCoverage": {
+      "lines": {
+        "total": 95250,
+        "covered": 82218,
+        "skipped": 0,
+        "pct": 86.31
+      },
+      "statements": {
+        "total": 103143,
+        "covered": 87782,
+        "skipped": 0,
+        "pct": 85.1
+      },
+      "functions": {
+        "total": 26673,
+        "covered": 23280,
+        "skipped": 0,
+        "pct": 87.27
+      },
+      "branches": {
+        "total": 71763,
+        "covered": 56080,
+        "skipped": 0,
+        "pct": 78.14
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "priorKnownGaps": {
+      "paths": [
+        "src/main/mcp/mcpRetainedOutputs.ts",
+        "src/shared/mcpOutputFormats.ts"
+      ],
+      "status": "The e5 canonical coverage audit reports no regression for these preserved rows. Their floors were not changed."
+    },
+    "pendingGapTests": {
+      "files": [
+        "tests/linkedWorkspaceReviewedStore.test.ts",
+        "tests/mcpOutputSyncRetentionContracts.test.ts",
+        "tests/mcpOutputSyncRetentionPruning.test.ts"
+      ],
+      "cases": 12,
+      "status": "Candidate test files passed Prettier, ESLint and the actual TypeScript overlay; no runtime or coverage improvement is claimed until native execution."
+    }
+  },
+  "architecture": {
+    "reportSha256": "9f1f277b02a18f5c4db3ffb98c994da576ddc3a8acd8c24ba58eec83cdf51f6f",
+    "previousReportSha256": "1bb9ce964af411c621f8269ee942d55b6c5d369bf9311b96e24885d91b5194c4",
+    "canonicalCheckerSha256": "d95dd4696c80e9cf9798f2b712fc0ad0ea90be5da680433fdf5738b5b853f913",
+    "seedBudgetSha256": "f35817037b422c70ec8d1da66693ddf5611899080f9307167abd44485a65f9c5",
+    "modulesCruised": 2437,
+    "dependenciesCruised": 11367,
+    "ruleErrors": 0,
+    "ruleViolations": [],
+    "committedBudgetViolations": [
+      "src/shared/translationLanguages.ts: runtimeImportedBy 34 exceeds budget 33",
+      "src/shared/appActivityTypes.ts: runtimeImportedBy 37 exceeds budget 36",
+      "src/main/logger.ts: runtimeImportedBy 48 exceeds budget 47",
+      "src/main/libraryStore/storage.ts: runtimeImportedBy 33 exceeds budget 31",
+      "src/main/library/lock.ts: runtimeImportedBy 51 exceeds budget 46",
+      "src/shared/pageRevision.ts: runtimeImportedBy 74 exceeds budget 70",
+      "src/shared/blockFingerprint.ts: runtimeImportedBy 137 exceeds budget 120",
+      "src/main/application/mcpEditPolicy.ts: runtimeImportedBy 210 exceeds budget 187",
+      "src/main/application/mcpJobJournal.ts: runtimeImports 22 exceeds budget 18",
+      "src/shared/mcpContextEditing.ts: runtimeImportedBy 30 exceeds budget 28",
+      "src/main/application/mcpPageBatchPolicy.ts: runtimeImportedBy 27 exceeds budget 26",
+      "src/main/library.ts: runtimeImportedBy 71 exceeds budget 69",
+      "src/main/libraryStore/libraryFiles.ts: runtimeImportedBy 46 exceeds budget 44",
+      "src/main/libraryStore/libraryTransaction.ts: runtimeImportedBy 32 exceeds budget 31",
+      "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts: runtimeImports 17 exceeds budget 14",
+      "src/main/settingsStore.ts: runtimeImportedBy 27 exceeds budget 26",
+      "src/main/mcp/mcpBatchTool.ts: runtimeImportedBy 40 exceeds budget 37",
+      "src/main/mcp/mcpReadTools.ts: runtimeImportedBy 28 exceeds budget 26",
+      "src/main/mcp/mcpOutputSchemas.ts: runtimeImports 43 exceeds budget 39",
+      "src/main/mcp/mcpRetainedOutputs.ts: runtimeImports 15 exceeds budget 13",
+      "src/main/mcp/mcpTextExportSource.ts: runtimeImports 13 exceeds budget 12"
+    ],
+    "reviewedSeedBudgetViolations": [
+      "src/shared/appActivityTypes.ts: runtimeImportedBy 37 exceeds budget 36",
+      "src/main/libraryStore/storage.ts: runtimeImportedBy 33 exceeds budget 31",
+      "src/main/library/lock.ts: runtimeImportedBy 51 exceeds budget 48",
+      "src/shared/pageRevision.ts: runtimeImportedBy 74 exceeds budget 71",
+      "src/shared/blockFingerprint.ts: runtimeImportedBy 137 exceeds budget 128",
+      "src/main/application/mcpEditPolicy.ts: runtimeImportedBy 210 exceeds budget 203",
+      "src/main/application/mcpJobJournal.ts: runtimeImports 22 exceeds budget 19",
+      "src/main/library.ts: runtimeImportedBy 71 exceeds budget 70",
+      "src/main/libraryStore/libraryTransaction.ts: runtimeImportedBy 32 exceeds budget 31",
+      "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts: runtimeImports 17 exceeds budget 14",
+      "src/main/mcp/mcpReadTools.ts: runtimeImportedBy 28 exceeds budget 27",
+      "src/main/mcp/mcpOutputSchemas.ts: runtimeImports 43 exceeds budget 42"
+    ],
+    "exactIncrementalBudgetChanges": [
+      {
+        "path": "src/shared/appActivityTypes.ts",
+        "metric": "runtimeImportedBy",
+        "previousSeedCeiling": 36,
+        "measured": 37,
+        "reasonAdded": "Reviewed output execution adds one direct pageContentResource consumer for every page in the shared mirror scope. It acquires the native activity lease before rendering and publication; the existing resource vocabulary remains authoritative. The exact measured consumer ceiling is 37.",
+        "runtimeDependencies": [],
+        "consumers": [
+          "src/main/appActivityGate.ts",
+          "src/main/library/lock.ts",
+          "src/shared/mangaApi.ts",
+          "src/main/library/libraryContextFacade.ts",
+          "src/main/library/libraryImportFacade.ts",
+          "src/main/library/libraryMutationFacade.ts",
+          "src/main/library/libraryRecoveryFacade.ts",
+          "src/main/library/libraryShareFacade.ts",
+          "src/main/libraryStore/shareExportWorkflow.ts",
+          "src/main/library/librarySoundEffectFacade.ts",
+          "src/main/inpainting/inpaintingRevisionStore.ts",
+          "src/main/inpainting/inpaintingSinglePageHistory.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+          "src/main/ipc/inpaintingIpc.ts",
+          "src/main/jobs/inpaintingJobs.ts",
+          "src/main/jobs/jobPageOwnership.ts",
+          "src/main/jobs/jobActivityResources.ts",
+          "src/main/jobs/translationJobs.ts",
+          "src/main/jobs/soundEffectImageRecoveryRunner.ts",
+          "src/main/mcp/mcpContextEditScope.ts",
+          "src/main/mcp/mcpContextResearchAdapter.ts",
+          "src/main/library/libraryContextMigrationFacade.ts",
+          "src/main/mcp/mcpContextMigrationScope.ts",
+          "src/main/mcp/mcpChapterDeletionApplication.ts",
+          "src/main/mcp/mcpChapterMoveApplication.ts",
+          "src/main/mcp/mcpLibraryOrganizationApplication.ts",
+          "src/main/mcp/mcpPageDeletionApplication.ts",
+          "src/main/mcp/mcpWorkDeletionApplication.ts",
+          "src/renderer/src/components/SoundEffectImageRecoveryAction.tsx",
+          "src/renderer/src/hooks/usePageEditHandoff.ts",
+          "src/renderer/src/app/session/jobTargetLocks.ts",
+          "src/renderer/src/app/session/createAppSessionViewProps.ts",
+          "src/renderer/src/app/session/workspaceActivity.ts",
+          "src/renderer/src/app/session/useInpaintingController.ts",
+          "src/renderer/src/app/session/useTranslationController.ts",
+          "src/renderer/src/app/session/useAppSessionWorkspaceHistory.ts"
+        ],
+        "addedDependencies": [],
+        "removedDependencies": [],
+        "addedConsumers": [
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts"
+        ],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+            "to": "src/shared/appActivityTypes.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["pageContentResource"],
+            "importLine": 2,
+            "statement": "import { pageContentResource } from \"../../shared/appActivityTypes\";",
+            "purpose": "Declare canonical page-content activity resources for every page in the full mirror scope before native execution.",
+            "sourceGitBlob": "9b4f75e08010443fedb2f9b23f349135f9fa4f1b",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      },
+      {
+        "path": "src/main/libraryStore/storage.ts",
+        "metric": "runtimeImportedBy",
+        "previousSeedCeiling": 31,
+        "measured": 33,
+        "reasonAdded": "Reviewed output publication directly uses unlinkIfExists for explicitly reviewed removals, and planning directly uses serializeJsonFile to bound the same JSON bytes emitted by the native writer. These two consumers keep file removal and serialization in their existing storage authority. The exact measured consumer ceiling is 33.",
+        "runtimeDependencies": ["src/main/abortSignal.ts"],
+        "consumers": [
+          "src/main/appMaintenance.ts",
+          "src/main/blockLibraryStore.ts",
+          "src/main/libraryStore/libraryChapterSummaries.ts",
+          "src/main/libraryStore/libraryFiles.ts",
+          "src/main/libraryStore/chapterImageRelocation.ts",
+          "src/main/libraryStore/libraryTransactionPaths.ts",
+          "src/main/libraryStore/libraryTransactionStorage.ts",
+          "src/main/libraryStore/workContextFiles.ts",
+          "src/main/libraryStore/importImages.ts",
+          "src/main/libraryStore/importSources.ts",
+          "src/main/libraryStore/importWorkflow.ts",
+          "src/main/libraryStore/importPageMaterialize.ts",
+          "src/main/libraryStore/inpaintedArtifacts.ts",
+          "src/main/libraryStore/recoveredImageArtifacts.ts",
+          "src/main/libraryStore/libraryPageOrdering.ts",
+          "src/main/libraryStore/libraryPageDeletion.ts",
+          "src/main/libraryStore/shareExportWorkflow.ts",
+          "src/main/libraryStore/sharePackage.ts",
+          "src/main/libraryStore/shareStreamingZip.ts",
+          "src/main/libraryStore/shareWorkflow.ts",
+          "src/main/libraryStore/shareImportMaterialize.ts",
+          "src/main/libraryStore/workTypographyProfileFiles.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceFiles.ts",
+          "src/main/linkedWorkspace/linkedWorkspacePaths.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPublish.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceStore.ts",
+          "src/main/conditionalBatchSchemeStore.ts",
+          "src/main/settingsPairStorage.ts",
+          "src/main/library/libraryImportDrop.ts",
+          "src/main/imageRedactionWorkspaceObjects.ts",
+          "src/main/soundEffectImageRecoveryStore.ts"
+        ],
+        "addedDependencies": [],
+        "removedDependencies": [],
+        "addedConsumers": [
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPublish.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts"
+        ],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPublish.ts",
+            "to": "src/main/libraryStore/storage.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["unlinkIfExists"],
+            "importLine": 6,
+            "statement": "import {\n  unlinkIfExists,\n  type AtomicFilePublication,\n} from \"../libraryStore/storage\";",
+            "purpose": "Remove only the verified, explicitly planned output file through canonical unlinkIfExists.",
+            "sourceGitBlob": "0af51cfa4e3cf054ab4108f7fe24d4a4794292ea",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPublish.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts",
+            "to": "src/main/libraryStore/storage.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["serializeJsonFile"],
+            "importLine": 8,
+            "statement": "import { serializeJsonFile } from \"../libraryStore/storage\";",
+            "purpose": "Measure mirror size using exactly the native JSON writer serialization, including indentation and trailing newline.",
+            "sourceGitBlob": "47197ac844f219ecfdb0fee92c0fb1380dfce245",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      },
+      {
+        "path": "src/main/library/lock.ts",
+        "metric": "runtimeImportedBy",
+        "previousSeedCeiling": 48,
+        "measured": 51,
+        "reasonAdded": "Reviewed native execution shares the trusted active content owner through withLibraryOwnedContentEdit; reviewed input reads a coherent source snapshot through withLibraryRead; the output-sync repository uses the existing read, mutation and artifact-cleanup locks for receipt admission and settlement. These three direct consumers give an exact measured ceiling of 51 without a separate lock or caller-supplied owner.",
+        "runtimeDependencies": [
+          "src/shared/appActivityTypes.ts",
+          "src/main/libraryStore/libraryArtifactRetention.ts",
+          "src/main/libraryStore/libraryMutationCoordinator.ts",
+          "src/main/libraryStore/libraryPublicationLock.ts",
+          "src/main/libraryStore/mutex.ts"
+        ],
+        "consumers": [
+          "src/main/appOperationRegistry.ts",
+          "src/main/jobs/activeJob.ts",
+          "src/main/library/libraryContextEditingFacade.ts",
+          "src/main/library/libraryContextFacade.ts",
+          "src/main/library/libraryImportFacade.ts",
+          "src/main/library/libraryMutationFacade.ts",
+          "src/main/library/libraryReadFacade.ts",
+          "src/main/library/libraryRecoveryFacade.ts",
+          "src/main/library/libraryShareFacade.ts",
+          "src/main/library/librarySoundEffectFacade.ts",
+          "src/main/inpainting/inpaintingRevisionStore.ts",
+          "src/main/inpainting/inpaintingRevisionRepository.ts",
+          "src/main/inpainting/inpaintingSinglePageHistory.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+          "src/main/ipc/inpaintingIpc.ts",
+          "src/main/jobs/jobPageOwnership.ts",
+          "src/main/jobs/pageImageExportJobRunner.ts",
+          "src/main/mcp/mcpTranslationBatchAdapter.ts",
+          "src/main/mcp/mcpContextEditScope.ts",
+          "src/main/mcp/mcpResearchBatchRepository.ts",
+          "src/main/mcp/mcpResearchBatchRuntime.ts",
+          "src/main/mcp/mcpResearchProposalRepository.ts",
+          "src/main/mcp/mcpResearchProposalApplication.ts",
+          "src/main/mcp/mcpContextMigrationApplication.ts",
+          "src/main/library/libraryContextMigrationFacade.ts",
+          "src/main/mcp/mcpRetentionCatalog.ts",
+          "src/main/mcp/mcpRetainedOutputs.ts",
+          "src/main/mcp/mcpContextExchangeSource.ts",
+          "src/main/mcp/mcpTextExportSource.ts",
+          "src/main/mcp/mcpWorkFileExportSource.ts",
+          "src/main/mcp/mcpLetteringAdapter.ts",
+          "src/main/mcp/mcpChapterDiscoveryRepository.ts",
+          "src/main/mcp/mcpImportBatchRepository.ts",
+          "src/main/mcp/mcpLibraryImportRepository.ts",
+          "src/main/mcp/mcpWorkFileImports.ts",
+          "src/main/mcp/mcpWorkFileAppend.ts",
+          "src/main/mcp/mcpChapterDeletionApplication.ts",
+          "src/main/mcp/mcpChapterMoveApplication.ts",
+          "src/main/mcp/mcpLibraryOrganizationApplication.ts",
+          "src/main/mcp/mcpPageDeletionApplication.ts",
+          "src/main/mcp/mcpWorkDeletionApplication.ts",
+          "src/main/mcp/mcpOutputSyncRepository.ts",
+          "src/main/mcp/mcpRetentionSession.ts",
+          "src/main/mcp/mcpRecoveryApplication.ts",
+          "src/main/mcp/mcpSelectionEditAdapter.ts",
+          "src/main/mcp/mcpSoundEffectPrepareTools.ts",
+          "src/main/mcp/mcpTypographyBatchAdapter.ts",
+          "src/main/mcp/mcpWorkflowRepository.ts",
+          "src/main/mcp/mcpWorkflowReconciliation.ts"
+        ],
+        "addedDependencies": [],
+        "removedDependencies": [],
+        "addedConsumers": [
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+          "src/main/mcp/mcpOutputSyncRepository.ts"
+        ],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+            "to": "src/main/library/lock.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["withLibraryOwnedContentEdit"],
+            "importLine": 1,
+            "statement": "import { withLibraryOwnedContentEdit } from \"../library/lock\";",
+            "purpose": "Acquire native content ownership with only the current trusted AsyncLocalStorage owner reused.",
+            "sourceGitBlob": "9b4f75e08010443fedb2f9b23f349135f9fa4f1b",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+            "to": "src/main/library/lock.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["withLibraryRead"],
+            "importLine": 9,
+            "statement": "import { withLibraryRead } from \"../library/lock\";",
+            "purpose": "Read library membership and all shared-root chapters under a coherent native read lock.",
+            "sourceGitBlob": "85ae14df12763ee37fe74d723b6abe2c83e6c4e3",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/mcp/mcpOutputSyncRepository.ts",
+            "to": "src/main/library/lock.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": [
+              "withLibraryRead",
+              "withLibraryMutation",
+              "withLibraryArtifactCleanup"
+            ],
+            "importLine": 27,
+            "statement": "import {\n  withLibraryRead,\n  withLibraryMutation,\n  withLibraryArtifactCleanup,\n} from \"../library/lock\";",
+            "purpose": "Use read locks for history, mutation locks and guards for new admission, and artifact-cleanup locking for already-admitted effect settlement.",
+            "sourceGitBlob": "92aafa880501484ab8ea99bb9473b9c1cddfca09",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSyncRepository.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      },
+      {
+        "path": "src/shared/pageRevision.ts",
+        "metric": "runtimeImportedBy",
+        "previousSeedCeiling": 71,
+        "measured": 74,
+        "reasonAdded": "Reviewed input and planning directly compute canonical content and visual revisions, and reviewed execution records those revisions after native file and mirror publication. These three direct consumers reuse the unchanged revision implementation. The exact measured consumer ceiling is 74.",
+        "runtimeDependencies": [
+          "src/shared/blockFingerprint.ts",
+          "src/shared/generatedLettering.ts"
+        ],
+        "consumers": [
+          "src/main/application/mcpBlockOcrService.ts",
+          "src/main/application/mcpBlockTranslationService.ts",
+          "src/main/application/mcpChapterTextSearch.ts",
+          "src/main/application/mcpContextEditPolicy.ts",
+          "src/main/application/mcpContextReferenceService.ts",
+          "src/main/application/mcpExportSelection.ts",
+          "src/main/application/mcpPageExportService.ts",
+          "src/main/application/mcpPageBatchPolicy.ts",
+          "src/main/application/mcpMemoryRefreshPolicy.ts",
+          "src/main/application/mcpOcrService.ts",
+          "src/main/application/mcpPageBatchService.ts",
+          "src/main/application/mcpTranslationBatchRunner.ts",
+          "src/main/application/mcpPageEditService.ts",
+          "src/main/application/mcpPageImageService.ts",
+          "src/main/application/mcpReadingService.ts",
+          "src/main/application/mcpReviewService.ts",
+          "src/main/application/mcpSelectionEditProjection.ts",
+          "src/main/application/mcpSoundEffectPolicy.ts",
+          "src/main/application/mcpSourceSizeService.ts",
+          "src/main/application/mcpStructureService.ts",
+          "src/main/application/mcpTypographyAnalysisService.ts",
+          "src/main/application/mcpTypographyReadService.ts",
+          "src/main/libraryStore/translationCheckpointStore.ts",
+          "src/main/libraryStore/libraryAnalysisMutations.ts",
+          "src/main/libraryStore/libraryInpaintingMutations.ts",
+          "src/main/libraryStore/libraryMutations.ts",
+          "src/main/libraryStore/libraryPageBlockMutations.ts",
+          "src/main/libraryStore/libraryPageRecovery.ts",
+          "src/main/libraryStore/librarySoundEffectMutations.ts",
+          "src/main/libraryStore/librarySoundEffectRestore.ts",
+          "src/main/libraryStore/librarySoundEffectSnapshot.ts",
+          "src/main/inpainting/inpaintingRevisionPreparation.ts",
+          "src/main/inpainting/inpaintingSinglePageHistory.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts",
+          "src/main/ipc/inpaintingIpc.ts",
+          "src/main/jobs/inpaintingJobs.ts",
+          "src/main/jobs/inpaintingJobRunner.ts",
+          "src/main/jobs/inpaintingJobHistory.ts",
+          "src/main/jobs/pageImageExportSelection.ts",
+          "src/main/soundEffectImageRecoveryStore.ts",
+          "src/main/jobs/soundEffectTranslationTargets.ts",
+          "src/main/jobs/soundEffectImageFinalization.ts",
+          "src/main/jobs/soundEffectImageRecoveryRunner.ts",
+          "src/main/jobs/soundEffectTranslationPreparation.ts",
+          "src/main/jobs/translationJobRunners.ts",
+          "src/main/pipeline/wholePageCheckpointFlow.ts",
+          "src/main/pipeline/preparedTranslationCheckpoint.ts",
+          "src/main/jobs/translationRegionJobRunner.ts",
+          "src/main/jobs/translationRegionCompletion.ts",
+          "src/main/jobs/translationRegionHistory.ts",
+          "src/main/mcp/mcpRecoveryInspection.ts",
+          "src/main/mcp/mcpRetainedOutputs.ts",
+          "src/main/mcp/mcpTextExportSource.ts",
+          "src/main/mcp/mcpWorkFileExportSource.ts",
+          "src/main/mcp/mcpImageEditPersistence.ts",
+          "src/main/mcp/mcpImageEditEvidence.ts",
+          "src/main/mcp/mcpRecoveryApplication.ts",
+          "src/main/mcp/mcpSoundEffectPreparation.ts",
+          "src/main/mcp/mcpSoundEffectEdits.ts",
+          "src/main/mcp/mcpSoundEffectReadTool.ts",
+          "src/main/mcp/mcpErasureAdapter.ts",
+          "src/main/mcp/mcpWorkflowEvidence.ts",
+          "src/renderer/src/lib/translationSelection.ts",
+          "src/renderer/src/hooks/useTranslateSelectedRegionAction.ts",
+          "src/renderer/src/hooks/useTranslateSoundEffectsAction.ts",
+          "src/renderer/src/components/soundEffectReviewRestoreDraft.ts",
+          "src/renderer/src/components/soundEffectTranslationDraft.ts",
+          "src/renderer/src/hooks/useQueuedChapterSave.ts",
+          "src/renderer/src/app/session/createSoundEffectReviewViewProps.ts",
+          "src/renderer/src/hooks/inpaintingRetouchActions.ts",
+          "src/renderer/src/hooks/inpaintingRetouchHelpers.ts"
+        ],
+        "addedDependencies": [],
+        "removedDependencies": [],
+        "addedConsumers": [
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts"
+        ],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+            "to": "src/shared/pageRevision.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["createPageRevision", "createPageVisualRevision"],
+            "importLine": 4,
+            "statement": "import {\n  createPageRevision,\n  createPageVisualRevision,\n} from \"../../shared/pageRevision\";",
+            "purpose": "Record canonical visual revisions after page publication and content revisions after mirror publication.",
+            "sourceGitBlob": "9b4f75e08010443fedb2f9b23f349135f9fa4f1b",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceReviewedOutputExecute.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+            "to": "src/shared/pageRevision.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["createPageRevision", "createPageVisualRevision"],
+            "importLine": 3,
+            "statement": "import {\n  createPageRevision,\n  createPageVisualRevision,\n} from \"../../shared/pageRevision\";",
+            "purpose": "Bind saved page content and visual state into the source selection snapshot.",
+            "sourceGitBlob": "85ae14df12763ee37fe74d723b6abe2c83e6c4e3",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts",
+            "to": "src/shared/pageRevision.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["createPageRevision", "createPageVisualRevision"],
+            "importLine": 2,
+            "statement": "import {\n  createPageRevision,\n  createPageVisualRevision,\n} from \"../../shared/pageRevision\";",
+            "purpose": "Expose canonical content and visual revisions in the reviewed page list.",
+            "sourceGitBlob": "47197ac844f219ecfdb0fee92c0fb1380dfce245",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      },
+      {
+        "path": "src/shared/blockFingerprint.ts",
+        "metric": "runtimeImportedBy",
+        "previousSeedCeiling": 128,
+        "measured": 137,
+        "reasonAdded": "Output-sync job, request and retained-state validation; reviewed native root, input and plan evidence; registry comparison; mirror-page ownership; and retained job history add nine direct hashStableValue consumers. They bind existing request, review, destination, registry and page-order values using the unchanged canonical hash implementation. The exact measured consumer ceiling is 137.",
+        "runtimeDependencies": [],
+        "consumers": [
+          "src/shared/pageRevision.ts",
+          "src/main/application/mcpBlockEditPolicy.ts",
+          "src/main/application/mcpOperationService.ts",
+          "src/main/application/mcpJobJournal.ts",
+          "src/shared/mcpContextEditing.ts",
+          "src/main/application/mcpExchangeJobPolicy.ts",
+          "src/main/application/mcpOutputSyncJobPolicy.ts",
+          "src/main/application/mcpOperationOutputs.ts",
+          "src/main/application/mcpBlockTranslationService.ts",
+          "src/main/application/mcpChapterDeletionState.ts",
+          "src/main/application/mcpChapterMoveReferences.ts",
+          "src/main/application/mcpChapterMoveState.ts",
+          "src/main/application/mcpChapterTextSearch.ts",
+          "src/main/application/mcpContextEditPolicy.ts",
+          "src/main/application/mcpContextCatalogMigration.ts",
+          "src/main/application/mcpContextExchangePolicy.ts",
+          "src/shared/mcpContextExchangePayload.ts",
+          "src/main/application/mcpContextMigrationPolicy.ts",
+          "src/main/application/mcpContextReferenceService.ts",
+          "src/main/application/mcpContextProposalPolicy.ts",
+          "src/main/application/mcpContextMigrationRecoveryPolicy.ts",
+          "src/main/application/mcpContextProposalService.ts",
+          "src/main/application/mcpContextResearchPolicy.ts",
+          "src/main/application/mcpErasureRecoveryService.ts",
+          "src/main/application/mcpExportSelection.ts",
+          "src/main/application/mcpExternalImagePolicy.ts",
+          "src/main/application/mcpPageBatchPolicy.ts",
+          "src/main/application/mcpFormatBatchPolicy.ts",
+          "src/main/application/mcpImportBatchState.ts",
+          "src/main/application/mcpImportBatchService.ts",
+          "src/main/application/mcpLetteringPolicy.ts",
+          "src/main/application/mcpLetteringProjection.ts",
+          "src/main/application/mcpLetteringResourceService.ts",
+          "src/main/application/mcpLibraryImportService.ts",
+          "src/main/application/mcpLibraryOrganizationState.ts",
+          "src/main/application/mcpMemoryRefreshPolicy.ts",
+          "src/shared/pageMemoryEvidence.ts",
+          "src/main/application/mcpOutputSyncPolicy.ts",
+          "src/shared/mcpOutputSyncState.ts",
+          "src/main/application/mcpPageDeletionState.ts",
+          "src/main/application/mcpPageEditService.ts",
+          "src/main/application/mcpTypographyBatchPolicy.ts",
+          "src/main/application/mcpReadingPolicy.ts",
+          "src/main/application/mcpReadingService.ts",
+          "src/main/application/mcpResearchBatchPolicy.ts",
+          "src/main/application/mcpResearchBatchService.ts",
+          "src/main/application/mcpReviewService.ts",
+          "src/main/application/mcpSelectionEditPolicy.ts",
+          "src/main/application/mcpSelectionEditProjection.ts",
+          "src/main/application/mcpSelectionEditSnapshots.ts",
+          "src/main/application/mcpSoundEffectPolicy.ts",
+          "src/main/application/mcpStructureService.ts",
+          "src/main/application/mcpTextExportService.ts",
+          "src/main/application/mcpTypographyAnalysisService.ts",
+          "src/main/application/mcpTypographyReadService.ts",
+          "src/main/application/mcpWorkDeletionState.ts",
+          "src/main/application/mcpWorkflowHandoffService.ts",
+          "src/main/application/mcpWorkflowPolicy.ts",
+          "src/main/application/mcpWorkflowService.ts",
+          "src/main/libraryStore/libraryOrganization.ts",
+          "src/main/libraryStore/libraryPageOrdering.ts",
+          "src/main/libraryStore/libraryPageDeletion.ts",
+          "src/main/libraryStore/libraryPageBlockMutations.ts",
+          "src/main/libraryStore/shareAppendWorkflow.ts",
+          "src/main/libraryStore/librarySoundEffectSnapshot.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputEvidence.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceStore.ts",
+          "src/main/mcp/mcpFontCatalogAdapter.ts",
+          "src/main/mcp/mcpResearchBatchRepository.ts",
+          "src/main/mcp/mcpResearchBatchRuntime.ts",
+          "src/main/mcp/mcpResearchProposalRepository.ts",
+          "src/main/mcp/mcpResearchProposalApplication.ts",
+          "src/main/libraryStore/workContextMigration.ts",
+          "src/main/mcp/mcpContextMigrationRepository.ts",
+          "src/main/mcp/mcpRetentionCatalog.ts",
+          "src/main/mcp/mcpRecoveryInspection.ts",
+          "src/main/mcp/mcpRetentionEvidence.ts",
+          "src/main/mcp/mcpRetainedOutputs.ts",
+          "src/main/mcp/mcpContextExchangeSource.ts",
+          "src/main/mcp/mcpTextExportSource.ts",
+          "src/main/mcp/mcpRecoveryCapture.ts",
+          "src/main/mcp/mcpWorkFileExportSource.ts",
+          "src/main/mcp/mcpUploadStore.ts",
+          "src/main/mcp/mcpTextImportApplication.ts",
+          "src/main/mcp/mcpExternalImageAssets.ts",
+          "src/main/mcp/mcpImageEditPersistence.ts",
+          "src/main/mcp/mcpImageEditEvidence.ts",
+          "src/main/mcp/mcpTypographyFontRuntime.ts",
+          "src/main/mcp/mcpExternalImagePreparation.ts",
+          "src/main/mcp/mcpLetteringEvidence.ts",
+          "src/main/mcp/mcpLetteringPreparation.ts",
+          "src/main/mcp/mcpChapterDiscoveryRepository.ts",
+          "src/main/mcp/mcpImportBatchRepository.ts",
+          "src/main/mcp/mcpLibraryImportRepository.ts",
+          "src/main/mcp/mcpImportDuplicateInspection.ts",
+          "src/main/mcp/mcpLibraryImportStaging.ts",
+          "src/main/mcp/mcpWorkFileImports.ts",
+          "src/main/mcp/mcpWorkFileAppend.ts",
+          "src/main/mcp/mcpWorkFileSource.ts",
+          "src/main/mcp/mcpChapterDeletionApplication.ts",
+          "src/main/mcp/mcpChapterDeletionRepository.ts",
+          "src/main/mcp/mcpChapterMoveApplication.ts",
+          "src/main/mcp/mcpChapterMoveFiles.ts",
+          "src/main/mcp/mcpChapterMovePreparation.ts",
+          "src/main/mcp/mcpChapterMoveSnapshot.ts",
+          "src/main/mcp/mcpChapterMoveRepository.ts",
+          "src/main/mcp/mcpLibraryOrganizationApplication.ts",
+          "src/main/mcp/mcpLibraryOrganizationRepository.ts",
+          "src/main/mcp/mcpPageDeletionApplication.ts",
+          "src/main/mcp/mcpDeletionRecoveryGuard.ts",
+          "src/main/mcp/mcpPageDeletionEvidence.ts",
+          "src/main/mcp/mcpPageDeletionRepository.ts",
+          "src/main/mcp/mcpPageDeletionRestoration.ts",
+          "src/main/mcp/mcpWorkDeletionApplication.ts",
+          "src/main/mcp/mcpWorkDeletionEvidence.ts",
+          "src/main/mcp/mcpWorkDeletionRepository.ts",
+          "src/main/mcp/mcpOutputSyncOwnership.ts",
+          "src/main/mcp/mcpOutputSyncHistory.ts",
+          "src/main/mcp/mcpRecoveryApplication.ts",
+          "src/main/mcp/mcpBlockTranslationContext.ts",
+          "src/main/mcp/mcpSoundEffectAdapter.ts",
+          "src/main/mcp/mcpSoundEffectImageTool.ts",
+          "src/main/mcp/mcpSoundEffectCommands.ts",
+          "src/main/mcp/mcpSoundEffectLayer.ts",
+          "src/main/mcp/mcpSoundEffectState.ts",
+          "src/main/mcp/mcpWorkflowRepository.ts",
+          "src/main/mcp/mcpWorkflowEvidence.ts",
+          "src/main/mcp/mcpWorkflowReconciliation.ts",
+          "src/renderer/src/hooks/translationActionHooks.ts",
+          "src/renderer/src/lib/chapterSync.ts",
+          "src/renderer/src/lib/workspaceHistory.ts",
+          "src/renderer/src/hooks/useChapterPersistence.ts",
+          "src/renderer/src/hooks/chapterPersistencePayload.ts",
+          "src/renderer/src/hooks/useChapterPersistenceActions.ts",
+          "src/renderer/src/hooks/useDrawnPatternInpaintingAction.ts"
+        ],
+        "addedDependencies": [],
+        "removedDependencies": [],
+        "addedConsumers": [
+          "src/main/application/mcpOutputSyncJobPolicy.ts",
+          "src/main/application/mcpOutputSyncPolicy.ts",
+          "src/shared/mcpOutputSyncState.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputEvidence.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceStore.ts",
+          "src/main/mcp/mcpOutputSyncOwnership.ts",
+          "src/main/mcp/mcpOutputSyncHistory.ts"
+        ],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/application/mcpOutputSyncJobPolicy.ts",
+            "to": "src/shared/blockFingerprint.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["hashStableValue"],
+            "importLine": 1,
+            "statement": "import { hashStableValue } from \"../../shared/blockFingerprint\";",
+            "purpose": "Bind the exact reviewed request to the retained job reference and verify target identity.",
+            "sourceGitBlob": "0bb1fe22fa5bbc48b2d11d90e7149cb12cf7315f",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/application/mcpOutputSyncJobPolicy.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/application/mcpOutputSyncPolicy.ts",
+            "to": "src/shared/blockFingerprint.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["hashStableValue"],
+            "importLine": 1,
+            "statement": "import { hashStableValue } from \"../../shared/blockFingerprint\";",
+            "purpose": "Create request/review hashes and reject request-ID reuse with changed reviewed input.",
+            "sourceGitBlob": "0e16f4a9eddeefbdd9ef2456930ffeaef8433838",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/application/mcpOutputSyncPolicy.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/shared/mcpOutputSyncState.ts",
+            "to": "src/shared/blockFingerprint.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["hashStableValue"],
+            "importLine": 2,
+            "statement": "import { hashStableValue } from \"./blockFingerprint\";",
+            "purpose": "Validate persisted request and review bindings with the canonical hash.",
+            "sourceGitBlob": "87d78f94bdf62a958f66651e67d7b512ffca75c4",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/shared/mcpOutputSyncState.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputEvidence.ts",
+            "to": "src/shared/blockFingerprint.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["hashStableValue"],
+            "importLine": 4,
+            "statement": "import { hashStableValue } from \"../../shared/blockFingerprint\";",
+            "purpose": "Fingerprint canonical destination root identity from resolved path and native file identity metadata.",
+            "sourceGitBlob": "ad3a8f65f6360c47264c93439839a056789816b9",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceReviewedOutputEvidence.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+            "to": "src/shared/blockFingerprint.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["hashStableValue"],
+            "importLine": 2,
+            "statement": "import { hashStableValue } from \"../../shared/blockFingerprint\";",
+            "purpose": "Bind destination records, chapter membership, canonical selection and record-equality rechecks.",
+            "sourceGitBlob": "85ae14df12763ee37fe74d723b6abe2c83e6c4e3",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts",
+            "to": "src/shared/blockFingerprint.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["hashStableValue"],
+            "importLine": 1,
+            "statement": "import { hashStableValue } from \"../../shared/blockFingerprint\";",
+            "purpose": "Bind saved sources, target digests, registry records and planned files; recheck captured records before exposing the plan.",
+            "sourceGitBlob": "47197ac844f219ecfdb0fee92c0fb1380dfce245",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceReviewedOutputPlan.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceStore.ts",
+            "to": "src/shared/blockFingerprint.ts",
+            "change": "added",
+            "sourceStatusSince4827": "M",
+            "symbols": ["hashStableValue"],
+            "importLine": 20,
+            "statement": "import { hashStableValue } from \"../../shared/blockFingerprint\";",
+            "purpose": "Compare the persisted registry record against the expected record inside the serialized mutation.",
+            "sourceGitBlob": "e02d560158550192a701132f43d333958510dfc6",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceStore.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/mcp/mcpOutputSyncOwnership.ts",
+            "to": "src/shared/blockFingerprint.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["hashStableValue"],
+            "importLine": 1,
+            "statement": "import { hashStableValue } from \"../../shared/blockFingerprint\";",
+            "purpose": "Verify the reviewed page order before reserving native chapter/page ownership.",
+            "sourceGitBlob": "55b2e9d0acb4f49bfd6941ddf4e01ce4ae1a97ab",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSyncOwnership.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/mcp/mcpOutputSyncHistory.ts",
+            "to": "src/shared/blockFingerprint.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["hashStableValue"],
+            "importLine": 1,
+            "statement": "import { hashStableValue } from \"../../shared/blockFingerprint\";",
+            "purpose": "Require retained job target identity to match the exact original reviewed request.",
+            "sourceGitBlob": "80080d47963f4770c2721132169fbeb8f62996f6",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSyncHistory.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      },
+      {
+        "path": "src/main/application/mcpEditPolicy.ts",
+        "metric": "runtimeImportedBy",
+        "previousSeedCeiling": 203,
+        "measured": 210,
+        "reasonAdded": "The two output-sync policies and the repository, authorization, execution, ownership and history adapters directly use McpEditError for invalid requests, unavailable receipts, denied access and revision conflicts. These seven consumers reuse the unchanged error contract and preserve native causes at the adapter boundary. The exact measured consumer ceiling is 210.",
+        "runtimeDependencies": ["src/shared/mcpBlockEditing.ts"],
+        "consumers": [
+          "src/main/application/mcpBlockEditPolicy.ts",
+          "src/main/application/mcpBlockOcrService.ts",
+          "src/main/application/mcpOperationService.ts",
+          "src/main/application/mcpOutputSyncJobPolicy.ts",
+          "src/main/application/mcpOperationOutputs.ts",
+          "src/main/application/mcpBlockTranslationService.ts",
+          "src/main/application/mcpChapterDeletionState.ts",
+          "src/main/application/mcpChapterMoveState.ts",
+          "src/main/application/mcpChapterTextSearch.ts",
+          "src/main/application/mcpContextEditPolicy.ts",
+          "src/main/application/mcpContextCatalogMigration.ts",
+          "src/main/application/mcpContextExchangePolicy.ts",
+          "src/main/application/mcpContextMigrationPolicy.ts",
+          "src/main/application/mcpContextReferenceService.ts",
+          "src/main/application/mcpContextProposalPolicy.ts",
+          "src/main/application/mcpContextMigrationRecoveryPolicy.ts",
+          "src/main/application/mcpContextProposalService.ts",
+          "src/main/application/mcpContextResearchPolicy.ts",
+          "src/main/application/mcpContextResearchService.ts",
+          "src/main/application/mcpEditorGuard.ts",
+          "src/main/application/mcpErasureRecoveryService.ts",
+          "src/main/application/mcpExportBatchService.ts",
+          "src/main/application/mcpExportSelection.ts",
+          "src/main/application/mcpPageExportService.ts",
+          "src/main/application/mcpExternalImagePolicy.ts",
+          "src/main/application/mcpPageBatchPolicy.ts",
+          "src/main/application/mcpFormatBatchPolicy.ts",
+          "src/main/application/mcpImportBatchRunner.ts",
+          "src/main/application/mcpImportBatchService.ts",
+          "src/main/application/mcpImportSelection.ts",
+          "src/main/application/mcpLetteringPolicy.ts",
+          "src/main/application/mcpLetteringProjection.ts",
+          "src/main/application/mcpLetteringResourceService.ts",
+          "src/main/application/mcpLibraryImportService.ts",
+          "src/main/application/mcpLibraryOrganizationState.ts",
+          "src/main/application/mcpMemoryRefreshPolicy.ts",
+          "src/main/application/mcpOcrReadingPolicy.ts",
+          "src/main/application/mcpOcrService.ts",
+          "src/main/application/mcpOutputDeliveryPolicy.ts",
+          "src/main/application/mcpOutputSyncPolicy.ts",
+          "src/main/application/mcpPageBatchService.ts",
+          "src/main/application/mcpTranslationBatchRunner.ts",
+          "src/main/application/mcpPageEditService.ts",
+          "src/main/application/mcpSourceRectPolicy.ts",
+          "src/main/application/mcpTypographyBatchPolicy.ts",
+          "src/main/application/mcpPageImageService.ts",
+          "src/main/application/mcpReadingPolicy.ts",
+          "src/main/application/mcpReadingService.ts",
+          "src/main/application/mcpResearchBatchPolicy.ts",
+          "src/main/application/mcpResearchBatchRunner.ts",
+          "src/main/application/mcpResearchBatchService.ts",
+          "src/main/application/mcpResearchProposalPolicy.ts",
+          "src/main/application/mcpReviewImportPolicy.ts",
+          "src/main/application/mcpReviewService.ts",
+          "src/main/application/mcpSelectionAnalysisService.ts",
+          "src/main/application/mcpSelectionEditPolicy.ts",
+          "src/main/application/mcpSelectionEditProjection.ts",
+          "src/main/application/mcpSelectionEditSnapshots.ts",
+          "src/main/application/mcpSoundEffectBlocks.ts",
+          "src/main/application/mcpSoundEffectPolicy.ts",
+          "src/main/application/mcpSourceSizeService.ts",
+          "src/main/application/mcpStructurePolicy.ts",
+          "src/main/application/mcpStructureService.ts",
+          "src/main/application/mcpTextExportService.ts",
+          "src/main/application/mcpTextImportPolicy.ts",
+          "src/main/application/mcpTranslationBatchPolicy.ts",
+          "src/main/application/mcpTypographyAnalysisService.ts",
+          "src/main/application/mcpTypographyReadService.ts",
+          "src/main/application/mcpWorkDeletionState.ts",
+          "src/main/application/mcpWorkFileExportService.ts",
+          "src/main/application/mcpWorkflowHandoffService.ts",
+          "src/main/application/mcpWorkflowPolicy.ts",
+          "src/main/application/mcpWorkflowRunner.ts",
+          "src/main/application/mcpWorkflowService.ts",
+          "src/main/mcpDesktopRuntime.ts",
+          "src/main/mcp/mcpBatchTool.ts",
+          "src/main/mcp/mcpTranslationBatchAdapter.ts",
+          "src/main/mcp/mcpPageImageAdapter.ts",
+          "src/main/mcp/mcpPsdExport.ts",
+          "src/main/mcp/mcpStructureTools.ts",
+          "src/main/mcp/mcpHttpServer.ts",
+          "src/main/mcp/mcpArtifactStore.ts",
+          "src/main/mcp/mcpArtifactFiles.ts",
+          "src/main/mcp/mcpArtifactStream.ts",
+          "src/main/mcp/mcpArtifactZip.ts",
+          "src/main/mcp/mcpProtocol.ts",
+          "src/main/mcp/mcpToolResult.ts",
+          "src/main/mcp/mcpAppJob.ts",
+          "src/main/mcp/mcpPageOperationSession.ts",
+          "src/main/mcp/mcpContextResearchAdapter.ts",
+          "src/main/mcp/mcpBlockTranslationOptions.ts",
+          "src/main/mcp/mcpContextResearchTool.ts",
+          "src/main/mcp/mcpContextTools.ts",
+          "src/main/mcp/mcpResearchBatchSession.ts",
+          "src/main/mcp/mcpResearchBatchRepository.ts",
+          "src/main/mcp/mcpRetentionStorage.ts",
+          "src/main/mcp/mcpResearchBatchRuntime.ts",
+          "src/main/mcp/mcpResearchProposalRepository.ts",
+          "src/main/mcp/mcpResearchProposalApplication.ts",
+          "src/main/mcp/mcpContextMigrationRecoveryEvidence.ts",
+          "src/main/mcp/mcpContextMigrationRepository.ts",
+          "src/main/mcp/mcpRetentionCatalog.ts",
+          "src/main/mcp/mcpRecoveryInspection.ts",
+          "src/main/mcp/mcpRetentionEvidence.ts",
+          "src/main/mcp/mcpRetainedOutputs.ts",
+          "src/main/mcp/mcpContextExchangeSource.ts",
+          "src/main/mcp/mcpTextExportSource.ts",
+          "src/main/mcp/mcpRecoveryCapture.ts",
+          "src/main/mcp/mcpWorkFileExportSource.ts",
+          "src/main/mcp/mcpRetentionDiagnostics.ts",
+          "src/main/mcp/mcpContextExchangeApplication.ts",
+          "src/main/mcp/mcpExchangeUpload.ts",
+          "src/main/mcp/mcpImageUploadFiles.ts",
+          "src/main/mcp/mcpUploadStore.ts",
+          "src/main/mcp/mcpContextExchangeTools.ts",
+          "src/main/mcp/mcpTextImportApplication.ts",
+          "src/main/mcp/mcpTextImportSource.ts",
+          "src/main/mcp/mcpExternalImageAdapter.ts",
+          "src/main/mcp/mcpExternalImageAssets.ts",
+          "src/main/mcp/mcpImageUploadPng.ts",
+          "src/main/mcp/mcpExternalImageBackground.ts",
+          "src/main/mcp/mcpExternalImageArtifact.ts",
+          "src/main/mcp/mcpImageEditPersistence.ts",
+          "src/main/mcp/mcpImageEditEvidence.ts",
+          "src/main/mcp/mcpImageEditMasks.ts",
+          "src/main/mcp/mcpTypographySourceEvidence.ts",
+          "src/main/mcp/mcpTypographyFontRuntime.ts",
+          "src/main/mcp/mcpImageEditExecution.ts",
+          "src/main/mcp/mcpExternalImagePreparation.ts",
+          "src/main/mcp/mcpExternalImagePixels.ts",
+          "src/main/mcp/mcpExternalImageReadTool.ts",
+          "src/main/mcp/mcpCandidatePng.ts",
+          "src/main/mcp/mcpImageUploadSession.ts",
+          "src/main/mcp/mcpImageEditAdapter.ts",
+          "src/main/mcp/mcpImageEditReadTools.ts",
+          "src/main/mcp/mcpLetteringEvidence.ts",
+          "src/main/mcp/mcpLetteringPreparation.ts",
+          "src/main/mcp/mcpLetteringPagePreparation.ts",
+          "src/main/mcp/mcpLetteringLayout.ts",
+          "src/main/mcp/mcpLibraryImportSession.ts",
+          "src/main/mcp/mcpChapterDiscoveryRepository.ts",
+          "src/main/mcp/mcpImportBatchTools.ts",
+          "src/main/mcp/mcpImportBatchRepository.ts",
+          "src/main/mcp/mcpLibraryImportRepository.ts",
+          "src/main/mcp/mcpImportDuplicateInspection.ts",
+          "src/main/mcp/mcpLibraryImportSources.ts",
+          "src/main/mcp/mcpLibraryImportStaging.ts",
+          "src/main/mcp/mcpImportSourceEvidence.ts",
+          "src/main/mcp/mcpWorkFileImports.ts",
+          "src/main/mcp/mcpWorkFileAppend.ts",
+          "src/main/mcp/mcpWorkFileSource.ts",
+          "src/main/mcp/mcpChapterDeletionApplication.ts",
+          "src/main/mcp/mcpChapterDeletionRepository.ts",
+          "src/main/mcp/mcpChapterMoveApplication.ts",
+          "src/main/mcp/mcpChapterMovePreparation.ts",
+          "src/main/mcp/mcpChapterMoveSnapshot.ts",
+          "src/main/mcp/mcpChapterMoveRepository.ts",
+          "src/main/mcp/mcpLibraryOrganizationApplication.ts",
+          "src/main/mcp/mcpLibraryOrganizationRepository.ts",
+          "src/main/mcp/mcpPageDeletionApplication.ts",
+          "src/main/mcp/mcpDeletionRecoveryGuard.ts",
+          "src/main/mcp/mcpPageDeletionEvidence.ts",
+          "src/main/mcp/mcpPageDeletionRepository.ts",
+          "src/main/mcp/mcpWorkDeletionApplication.ts",
+          "src/main/mcp/mcpWorkDeletionEvidence.ts",
+          "src/main/mcp/mcpWorkDeletionRepository.ts",
+          "src/main/mcp/mcpOutputSyncRepository.ts",
+          "src/main/mcp/mcpOutputSyncAuthority.ts",
+          "src/main/mcp/mcpOutputSyncExecution.ts",
+          "src/main/mcp/mcpOutputSyncOwnership.ts",
+          "src/main/mcp/mcpOutputSyncHistory.ts",
+          "src/main/mcp/mcpRecoveryApplication.ts",
+          "src/main/mcp/mcpRetentionTools.ts",
+          "src/main/mcp/mcpSelectionAnalysisSession.ts",
+          "src/main/mcp/mcpSelectionAnalysisAdapter.ts",
+          "src/main/mcp/mcpSelectionEvidence.ts",
+          "src/main/mcp/mcpBlockOcrAdapter.ts",
+          "src/main/mcp/mcpSelectionTranslation.ts",
+          "src/main/mcp/mcpBlockTranslationAdapter.ts",
+          "src/main/mcp/mcpBlockTranslationContext.ts",
+          "src/main/mcp/mcpSelectionEditAdapter.ts",
+          "src/main/mcp/mcpSoundEffectAdapter.ts",
+          "src/main/mcp/mcpSoundEffectImageTool.ts",
+          "src/main/mcp/mcpSoundEffectPreparation.ts",
+          "src/main/mcp/mcpSoundEffectEdits.ts",
+          "src/main/mcp/mcpSoundEffectGeneration.ts",
+          "src/main/mcp/mcpSoundEffectLayer.ts",
+          "src/main/mcp/mcpSoundEffectReadTool.ts",
+          "src/main/mcp/mcpTypographyBatchAdapter.ts",
+          "src/main/mcp/mcpErasureAdapter.ts",
+          "src/main/mcp/mcpOperationTools.ts",
+          "src/main/mcp/mcpJobFileTool.ts",
+          "src/main/mcp/mcpJobRecoveryTools.ts",
+          "src/main/mcp/mcpErasureRecoveryTools.ts",
+          "src/main/mcp/mcpExportBatchTools.ts",
+          "src/main/mcp/mcpOutputDeliveryAdapter.ts",
+          "src/main/mcp/mcpSourceSizeAdapter.ts",
+          "src/main/mcp/mcpTypographyAnalysisSession.ts",
+          "src/main/mcp/mcpTypographyAnalysisAdapter.ts",
+          "src/main/mcp/mcpTypographyAnalysisTool.ts",
+          "src/main/mcp/mcpWorkFileExportAdapter.ts",
+          "src/main/mcp/mcpWorkflowCalls.ts",
+          "src/main/mcp/mcpWorkflowHandoffTools.ts",
+          "src/main/mcp/mcpWorkflowAuthorization.ts",
+          "src/main/mcp/mcpWorkflowRepository.ts",
+          "src/main/mcp/mcpWorkflowRuntime.ts",
+          "src/main/mcp/mcpWorkflowEvidence.ts",
+          "src/main/mcp/mcpWorkflowReconciliation.ts",
+          "src/main/mcp/mcpWorkflowTranslation.ts",
+          "src/main/mcp/mcpWorkflowTools.ts"
+        ],
+        "addedDependencies": [],
+        "removedDependencies": [],
+        "addedConsumers": [
+          "src/main/application/mcpOutputSyncJobPolicy.ts",
+          "src/main/application/mcpOutputSyncPolicy.ts",
+          "src/main/mcp/mcpOutputSyncRepository.ts",
+          "src/main/mcp/mcpOutputSyncAuthority.ts",
+          "src/main/mcp/mcpOutputSyncExecution.ts",
+          "src/main/mcp/mcpOutputSyncOwnership.ts",
+          "src/main/mcp/mcpOutputSyncHistory.ts"
+        ],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/application/mcpOutputSyncJobPolicy.ts",
+            "to": "src/main/application/mcpEditPolicy.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["McpEditError"],
+            "importLine": 12,
+            "statement": "import { McpEditError } from \"./mcpEditPolicy\";",
+            "purpose": "Reject a receipt/job/request mismatch through the existing invalid_edit error.",
+            "sourceGitBlob": "0bb1fe22fa5bbc48b2d11d90e7149cb12cf7315f",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/application/mcpOutputSyncJobPolicy.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/application/mcpOutputSyncPolicy.ts",
+            "to": "src/main/application/mcpEditPolicy.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["McpEditError"],
+            "importLine": 22,
+            "statement": "import { McpEditError } from \"./mcpEditPolicy\";",
+            "purpose": "Reject invalid requests, replayed or mismatched admissions and inconsistent settlement through the existing invalid_edit error.",
+            "sourceGitBlob": "0e16f4a9eddeefbdd9ef2456930ffeaef8433838",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/application/mcpOutputSyncPolicy.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/mcp/mcpOutputSyncRepository.ts",
+            "to": "src/main/application/mcpEditPolicy.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["McpEditError"],
+            "importLine": 26,
+            "statement": "import { McpEditError } from \"../application/mcpEditPolicy\";",
+            "purpose": "Report unavailable, expired or foreign owned receipts through the canonical not_found contract.",
+            "sourceGitBlob": "92aafa880501484ab8ea99bb9473b9c1cddfca09",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSyncRepository.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/mcp/mcpOutputSyncAuthority.ts",
+            "to": "src/main/application/mcpEditPolicy.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["McpEditError"],
+            "importLine": 2,
+            "statement": "import { McpEditError } from \"../application/mcpEditPolicy\";",
+            "purpose": "Enforce caller scopes and image permissions and translate native destination/revision failures while preserving causes.",
+            "sourceGitBlob": "0cf52a43dd67cd445f6b5037ef1dbe253c568c25",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSyncAuthority.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/mcp/mcpOutputSyncExecution.ts",
+            "to": "src/main/application/mcpEditPolicy.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["McpEditError"],
+            "importLine": 8,
+            "statement": "import { McpEditError } from \"../application/mcpEditPolicy\";",
+            "purpose": "Refuse execution of an already-retained receipt by a new job through invalid_edit.",
+            "sourceGitBlob": "ec99253845a58d81852329879c6ff9790810d523",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSyncExecution.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/mcp/mcpOutputSyncOwnership.ts",
+            "to": "src/main/application/mcpEditPolicy.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["McpEditError"],
+            "importLine": 4,
+            "statement": "import { McpEditError } from \"../application/mcpEditPolicy\";",
+            "purpose": "Report reviewed mirror-scope changes through revision_conflict before publication.",
+            "sourceGitBlob": "55b2e9d0acb4f49bfd6941ddf4e01ce4ae1a97ab",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSyncOwnership.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/mcp/mcpOutputSyncHistory.ts",
+            "to": "src/main/application/mcpEditPolicy.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["McpEditError"],
+            "importLine": 8,
+            "statement": "import { McpEditError } from \"../application/mcpEditPolicy\";",
+            "purpose": "Reject contradictory history and distinguish only canonical not_found when projecting a retained receipt.",
+            "sourceGitBlob": "80080d47963f4770c2721132169fbeb8f62996f6",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSyncHistory.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      },
+      {
+        "path": "src/main/application/mcpJobJournal.ts",
+        "metric": "runtimeImports",
+        "previousSeedCeiling": 19,
+        "measured": 22,
+        "reasonAdded": "The job journal directly imports McpSyncOutputSchema, McpOutputSyncJobReferenceSchema and validMcpOutputSyncJobResult to validate the reviewed target, durable receipt reference and result metadata. These three imports keep output-sync history validation in the existing journal and pure policy boundary. The exact measured runtime-import ceiling is 22.",
+        "runtimeDependencies": [
+          "src/shared/blockFingerprint.ts",
+          "src/shared/mcpBlockOcr.ts",
+          "src/shared/mcpBlockTranslation.ts",
+          "src/shared/mcpChapterDiscovery.ts",
+          "src/shared/mcpContextEditing.ts",
+          "src/shared/mcpExportBatch.ts",
+          "src/shared/mcpFileUploads.ts",
+          "src/shared/mcpImportBatch.ts",
+          "src/shared/mcpImportPublication.ts",
+          "src/shared/mcpLettering.ts",
+          "src/shared/mcpLibraryImport.ts",
+          "src/shared/mcpOutputSync.ts",
+          "src/shared/mcpOutputSyncJob.ts",
+          "src/shared/mcpSelectionAnalysis.ts",
+          "src/shared/mcpSoundEffects.ts",
+          "src/shared/mcpSourceSize.ts",
+          "src/shared/mcpTypographyAnalysis.ts",
+          "src/shared/mcpWorkFileExport.ts",
+          "src/shared/mcpWorkFileImport.ts",
+          "src/main/application/mcpExchangeJobPolicy.ts",
+          "src/main/application/mcpJobReferencePolicy.ts",
+          "src/main/application/mcpOutputSyncJobPolicy.ts"
+        ],
+        "consumers": [
+          "src/main/application/mcpOperationService.ts",
+          "src/main/application/mcpOperationOutputs.ts",
+          "src/main/application/mcpOperationSnapshot.ts",
+          "src/main/mcp/mcpJobOutputSchema.ts",
+          "src/main/mcp/mcpWorkflowReconciliation.ts"
+        ],
+        "addedDependencies": [
+          "src/shared/mcpOutputSync.ts",
+          "src/shared/mcpOutputSyncJob.ts",
+          "src/main/application/mcpOutputSyncJobPolicy.ts"
+        ],
+        "removedDependencies": [],
+        "addedConsumers": [],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/application/mcpJobJournal.ts",
+            "to": "src/shared/mcpOutputSync.ts",
+            "change": "added",
+            "sourceStatusSince4827": "M",
+            "symbols": ["McpSyncOutputSchema"],
+            "importLine": 63,
+            "statement": "import { McpSyncOutputSchema } from \"../../shared/mcpOutputSync\";",
+            "purpose": "Validate the outputSync job target and stored request with the public reviewed request schema.",
+            "sourceGitBlob": "e40f7ab816cc1b6d9ea9f8b7900ead153d290ae8",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/application/mcpJobJournal.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/application/mcpJobJournal.ts",
+            "to": "src/shared/mcpOutputSyncJob.ts",
+            "change": "added",
+            "sourceStatusSince4827": "M",
+            "symbols": ["McpOutputSyncJobReferenceSchema"],
+            "importLine": 64,
+            "statement": "import { McpOutputSyncJobReferenceSchema } from \"../../shared/mcpOutputSyncJob\";",
+            "purpose": "Validate the persisted output-sync receipt reference in result metadata.",
+            "sourceGitBlob": "e40f7ab816cc1b6d9ea9f8b7900ead153d290ae8",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/application/mcpJobJournal.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/application/mcpJobJournal.ts",
+            "to": "src/main/application/mcpOutputSyncJobPolicy.ts",
+            "change": "added",
+            "sourceStatusSince4827": "M",
+            "symbols": ["validMcpOutputSyncJobResult"],
+            "importLine": 65,
+            "statement": "import { validMcpOutputSyncJobResult } from \"./mcpOutputSyncJobPolicy\";",
+            "purpose": "Reject invalid or cross-kind output-sync result metadata using the pure policy.",
+            "sourceGitBlob": "e40f7ab816cc1b6d9ea9f8b7900ead153d290ae8",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/application/mcpJobJournal.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      },
+      {
+        "path": "src/main/library.ts",
+        "metric": "runtimeImportedBy",
+        "previousSeedCeiling": 70,
+        "measured": 71,
+        "reasonAdded": "Output-sync page ownership adds one direct openChapter consumer to validate the complete reviewed mirror scope and supply the established page-handoff reader. Saved chapters continue through the public library facade. The exact measured consumer ceiling is 71.",
+        "runtimeDependencies": [
+          "src/main/library/libraryContextEditingFacade.ts",
+          "src/main/library/libraryContextFacade.ts",
+          "src/main/library/libraryImportFacade.ts",
+          "src/main/library/libraryMutationFacade.ts",
+          "src/main/library/libraryReadFacade.ts",
+          "src/main/library/libraryRecoveryFacade.ts",
+          "src/main/library/libraryShareFacade.ts",
+          "src/main/library/librarySoundEffectFacade.ts",
+          "src/main/libraryStore/legacyShareTrashRecovery.ts",
+          "src/main/libraryStore/libraryFiles.ts",
+          "src/main/libraryStore/libraryMutationCoordinator.ts",
+          "src/main/libraryStore/libraryPaths.ts",
+          "src/main/libraryStore/libraryTransactionRecovery.ts",
+          "src/main/libraryStore/workTypographyProfileFiles.ts"
+        ],
+        "consumers": [
+          "src/main/index.ts",
+          "src/main/imageProtocol.ts",
+          "src/main/ipc/importShareIpc.ts",
+          "src/main/ipc/importPreviewService.ts",
+          "src/main/ipc/inpaintingIpc.ts",
+          "src/main/jobs/inpaintingJobRuntime.ts",
+          "src/main/jobs/pageTimingSessionManager.ts",
+          "src/main/ipc/libraryIpc.ts",
+          "src/main/ipc/reviewTextIpc.ts",
+          "src/main/jobs/translationJobs.ts",
+          "src/main/jobs/soundEffectTranslationJobRunner.ts",
+          "src/main/pipeline/wholePagePipelinePorts.ts",
+          "src/main/pipeline/pageContextPersistence.ts",
+          "src/main/soundEffectImageRecoveryStore.ts",
+          "src/main/jobs/soundEffectImageRecoveryRunner.ts",
+          "src/main/jobs/soundEffectTargetedInpainting.ts",
+          "src/main/jobs/soundEffectTranslationPage.ts",
+          "src/main/jobs/translationJobRunners.ts",
+          "src/main/previousChapterContext.ts",
+          "src/main/jobs/translationRegionJobRunner.ts",
+          "src/main/jobs/translationRegionCompletion.ts",
+          "src/main/ipc/workContextIpc.ts",
+          "src/main/workContextAnalysis.ts",
+          "src/main/workContextMissingScope.ts",
+          "src/main/workContextSequentialAnalysis.ts",
+          "src/main/workContextResearch.ts",
+          "src/main/macPackageSmoke.ts",
+          "src/main/mcp/mcpAppTools.ts",
+          "src/main/mcp/mcpTranslationBatchAdapter.ts",
+          "src/main/mcp/mcpPageEditScope.ts",
+          "src/main/mcp/mcpPageOperationSession.ts",
+          "src/main/mcp/mcpContextSession.ts",
+          "src/main/mcp/mcpContextResearchAdapter.ts",
+          "src/main/mcp/mcpRetentionStorage.ts",
+          "src/main/mcp/mcpContextMigrationScope.ts",
+          "src/main/mcp/mcpRetentionEvidence.ts",
+          "src/main/mcp/mcpExchangeSession.ts",
+          "src/main/mcp/mcpExternalImageAdapter.ts",
+          "src/main/mcp/mcpExternalImageBackground.ts",
+          "src/main/mcp/mcpImageEditPersistence.ts",
+          "src/main/mcp/mcpImageEditEvidence.ts",
+          "src/main/mcp/mcpTypographyFontRuntime.ts",
+          "src/main/mcp/mcpImageUploadSession.ts",
+          "src/main/mcp/mcpImageEditAdapter.ts",
+          "src/main/mcp/mcpLetteringSession.ts",
+          "src/main/mcp/mcpLetteringAdapter.ts",
+          "src/main/mcp/mcpLetteringPreparation.ts",
+          "src/main/mcp/mcpLetteringPrepareTool.ts",
+          "src/main/mcp/mcpChapterDeletionFiles.ts",
+          "src/main/mcp/mcpOutputSyncOwnership.ts",
+          "src/main/mcp/mcpRecoveryApplication.ts",
+          "src/main/mcp/mcpSelectionAnalysisAdapter.ts",
+          "src/main/mcp/mcpSelectionEvidence.ts",
+          "src/main/mcp/mcpBlockOcrAdapter.ts",
+          "src/main/mcp/mcpSelectionTranslation.ts",
+          "src/main/mcp/mcpBlockTranslationContext.ts",
+          "src/main/mcp/mcpSelectionEditSession.ts",
+          "src/main/mcp/mcpSoundEffectAdapter.ts",
+          "src/main/mcp/mcpSoundEffectPreparation.ts",
+          "src/main/mcp/mcpSoundEffectPrepareTools.ts",
+          "src/main/mcp/mcpSoundEffectReadTool.ts",
+          "src/main/mcp/mcpTypographyBatchSession.ts",
+          "src/main/mcp/mcpTypographyBatchAdapter.ts",
+          "src/main/mcp/mcpBlockOcrSession.ts",
+          "src/main/mcp/mcpBlockTranslationSession.ts",
+          "src/main/mcp/mcpExportBatchAdapter.ts",
+          "src/main/mcp/mcpOcrAdapter.ts",
+          "src/main/mcp/mcpSourceSizeAdapter.ts",
+          "src/main/mcp/mcpTypographyAnalysisSession.ts",
+          "src/main/mcp/mcpWorkflowEvidence.ts",
+          "src/main/mcpRuntime.ts"
+        ],
+        "addedDependencies": [],
+        "removedDependencies": [],
+        "addedConsumers": ["src/main/mcp/mcpOutputSyncOwnership.ts"],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/mcp/mcpOutputSyncOwnership.ts",
+            "to": "src/main/library.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["openChapter"],
+            "importLine": 5,
+            "statement": "import { openChapter } from \"../library\";",
+            "purpose": "Read saved chapters through openChapter and pass that same facade function to native page ownership acquisition.",
+            "sourceGitBlob": "55b2e9d0acb4f49bfd6941ddf4e01ce4ae1a97ab",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSyncOwnership.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      },
+      {
+        "path": "src/main/libraryStore/libraryTransaction.ts",
+        "metric": "runtimeImportedBy",
+        "previousSeedCeiling": 31,
+        "measured": 32,
+        "reasonAdded": "The output-sync receipt repository adds one direct runLibraryTransaction consumer for encrypted receipt admission and post-effect settlement. It stages retained records and the index through the existing transaction, with publication guards on new admissions; external output paths never become repository filesystem inputs. The exact measured consumer ceiling is 32.",
+        "runtimeDependencies": [
+          "src/main/libraryStore/libraryLogger.ts",
+          "src/main/libraryStore/libraryMutationCoordinator.ts",
+          "src/main/libraryStore/libraryPaths.ts",
+          "src/main/libraryStore/libraryPublicationLock.ts",
+          "src/main/libraryStore/libraryTransactionPaths.ts",
+          "src/main/libraryStore/libraryTransactionSchema.ts",
+          "src/main/libraryStore/libraryTransactionStorage.ts"
+        ],
+        "consumers": [
+          "src/main/library/libraryContextEditingFacade.ts",
+          "src/main/libraryStore/translationCheckpointStore.ts",
+          "src/main/libraryStore/workContextFiles.ts",
+          "src/main/libraryStore/reviewImport.ts",
+          "src/main/libraryStore/importWorkflow.ts",
+          "src/main/libraryStore/libraryAnalysisMutations.ts",
+          "src/main/libraryStore/libraryInpaintingMutations.ts",
+          "src/main/libraryStore/libraryMutations.ts",
+          "src/main/libraryStore/libraryOrganization.ts",
+          "src/main/libraryStore/libraryPageBlockMutations.ts",
+          "src/main/libraryStore/libraryTimingMutations.ts",
+          "src/main/libraryStore/libraryPageRecovery.ts",
+          "src/main/libraryStore/shareWorkflow.ts",
+          "src/main/libraryStore/shareAppendWorkflow.ts",
+          "src/main/libraryStore/shareImportExistingWorkflow.ts",
+          "src/main/libraryStore/librarySoundEffectMutations.ts",
+          "src/main/libraryStore/librarySoundEffectSnapshot.ts",
+          "src/main/libraryStore/libraryTransactionRecovery.ts",
+          "src/main/mcp/mcpResearchBatchRepository.ts",
+          "src/main/mcp/mcpResearchProposalRepository.ts",
+          "src/main/library/libraryContextMigrationFacade.ts",
+          "src/main/mcp/mcpRetentionCatalog.ts",
+          "src/main/mcp/mcpRetainedOutputs.ts",
+          "src/main/mcp/mcpChapterDiscoveryRepository.ts",
+          "src/main/mcp/mcpImportBatchRepository.ts",
+          "src/main/mcp/mcpChapterDeletionApplication.ts",
+          "src/main/mcp/mcpChapterDeletionFiles.ts",
+          "src/main/mcp/mcpChapterMoveApplication.ts",
+          "src/main/mcp/mcpPageDeletionApplication.ts",
+          "src/main/mcp/mcpWorkDeletionApplication.ts",
+          "src/main/mcp/mcpOutputSyncRepository.ts",
+          "src/main/mcp/mcpWorkflowRepository.ts"
+        ],
+        "addedDependencies": [],
+        "removedDependencies": [],
+        "addedConsumers": ["src/main/mcp/mcpOutputSyncRepository.ts"],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/mcp/mcpOutputSyncRepository.ts",
+            "to": "src/main/libraryStore/libraryTransaction.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["runLibraryTransaction"],
+            "importLine": 32,
+            "statement": "import {\n  runLibraryTransaction,\n  type LibraryTransaction,\n} from \"../libraryStore/libraryTransaction\";",
+            "purpose": "Publish encrypted retained receipts and index updates through the existing native journal; settle only already-issued effect capabilities.",
+            "sourceGitBlob": "92aafa880501484ab8ea99bb9473b9c1cddfca09",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSyncRepository.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+        "metric": "runtimeImports",
+        "previousSeedCeiling": 14,
+        "measured": 17,
+        "reasonAdded": "The initialized native service directly composes the guarded reviewed-output port, reuses the shared native mirror projection, and checks expected registry records before its serialized commit. The three added imports are linkedWorkspaceReviewedOutput, linkedWorkspaceMirror and linkedWorkspaceReviewedOutputInput. The existing service and store retain registry ownership; the exact measured runtime-import ceiling is 17.",
+        "runtimeDependencies": [
+          "src/shared/appActivityTypes.ts",
+          "src/shared/ipcEventContracts.ts",
+          "src/shared/pageRevision.ts",
+          "src/main/appActivityGate.ts",
+          "src/main/artifactCleanup.ts",
+          "src/main/inpainting/inpaintMaskArtifact.ts",
+          "src/main/library/lock.ts",
+          "src/main/libraryStore/imageHeaderProbe.ts",
+          "src/main/libraryStore/imageHeaderProbeInternal.ts",
+          "src/main/libraryStore/storage.ts",
+          "src/main/outputPathActivity.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceFiles.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceMirror.ts",
+          "src/main/linkedWorkspace/linkedWorkspacePaths.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutput.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceStore.ts"
+        ],
+        "consumers": ["src/main/linkedWorkspace/linkedWorkspaceRuntime.ts"],
+        "addedDependencies": [
+          "src/main/linkedWorkspace/linkedWorkspaceMirror.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutput.ts",
+          "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts"
+        ],
+        "removedDependencies": [],
+        "addedConsumers": [],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+            "to": "src/main/linkedWorkspace/linkedWorkspaceMirror.ts",
+            "change": "added",
+            "sourceStatusSince4827": "M",
+            "symbols": ["buildLinkedMirrorChapter"],
+            "importLine": 54,
+            "statement": "import { buildLinkedMirrorChapter } from \"./linkedWorkspaceMirror\";",
+            "purpose": "Share the native mirror field and artifact projection with reviewed output instead of duplicating the shape.",
+            "sourceGitBlob": "6692b0021386a5b814fc1f4aaaa0d9d1179add52",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+            "to": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutput.ts",
+            "change": "added",
+            "sourceStatusSince4827": "M",
+            "symbols": ["createReviewedLinkedOutputPort"],
+            "importLine": 55,
+            "statement": "import { createReviewedLinkedOutputPort } from \"./linkedWorkspaceReviewedOutput\";",
+            "purpose": "Compose the owned reviewed-output API that recomputes and verifies selection, destination and source snapshots before execution.",
+            "sourceGitBlob": "6692b0021386a5b814fc1f4aaaa0d9d1179add52",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+            "reviewStatus": "supported-by-source-review"
+          },
+          {
+            "from": "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+            "to": "src/main/linkedWorkspace/linkedWorkspaceReviewedOutputInput.ts",
+            "change": "added",
+            "sourceStatusSince4827": "M",
+            "symbols": ["assertReviewedRecords"],
+            "importLine": 56,
+            "statement": "import { assertReviewedRecords } from \"./linkedWorkspaceReviewedOutputInput\";",
+            "purpose": "Check expected in-memory registry records before the original serialized service/store commit.",
+            "sourceGitBlob": "6692b0021386a5b814fc1f4aaaa0d9d1179add52",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      },
+      {
+        "path": "src/main/mcp/mcpReadTools.ts",
+        "metric": "runtimeImportedBy",
+        "previousSeedCeiling": 27,
+        "measured": 28,
+        "reasonAdded": "The output-sync tool family adds one direct textContent consumer for the established MCP response envelope after input and authorization checks. The type-only McpTool import does not contribute to this runtime count. The exact measured consumer ceiling is 28.",
+        "runtimeDependencies": [
+          "src/main/mcp/mcpArguments.ts",
+          "src/main/mcp/mcpOutputSchemas.ts"
+        ],
+        "consumers": [
+          "src/main/mcp/mcpBatchTool.ts",
+          "src/main/mcp/mcpPageImageTools.ts",
+          "src/main/mcp/mcpReadingTool.ts",
+          "src/main/mcp/mcpReviewTools.ts",
+          "src/main/mcp/mcpToolSet.ts",
+          "src/main/mcp/mcpPageEditTools.ts",
+          "src/main/mcp/mcpBlockEditingTools.ts",
+          "src/main/mcp/mcpStructureTools.ts",
+          "src/main/mcp/mcpPagePreviewTool.ts",
+          "src/main/mcp/mcpWorkContextTool.ts",
+          "src/main/mcp/mcpProtocol.ts",
+          "src/main/mcp/mcpContextResearchTool.ts",
+          "src/main/mcp/mcpContextTools.ts",
+          "src/main/mcp/mcpExternalImageReadTool.ts",
+          "src/main/mcp/mcpImageEditReadTools.ts",
+          "src/main/mcp/mcpLibraryImportSession.ts",
+          "src/main/mcp/mcpOutputSyncTools.ts",
+          "src/main/mcp/mcpSoundEffectImageTool.ts",
+          "src/main/mcp/mcpOperationTools.ts",
+          "src/main/mcp/mcpJobFileTool.ts",
+          "src/main/mcp/mcpJobRecoveryTools.ts",
+          "src/main/mcp/mcpErasureRecoveryTools.ts",
+          "src/main/mcp/mcpExportBatchTools.ts",
+          "src/main/mcp/mcpTypographyAnalysisTool.ts",
+          "src/main/mcp/mcpWorkFileExportAdapter.ts",
+          "src/main/mcp/mcpWorkflowHandoffTools.ts",
+          "src/main/mcp/mcpWorkflowTools.ts",
+          "src/main/mcp/mcpServerInfoTool.ts"
+        ],
+        "addedDependencies": [],
+        "removedDependencies": [],
+        "addedConsumers": ["src/main/mcp/mcpOutputSyncTools.ts"],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/mcp/mcpOutputSyncTools.ts",
+            "to": "src/main/mcp/mcpReadTools.ts",
+            "change": "added",
+            "sourceStatusSince4827": "A",
+            "symbols": ["textContent"],
+            "importLine": 14,
+            "statement": "import { textContent, type McpTool } from \"./mcpReadTools\";",
+            "purpose": "Return the standard MCP text/structured-content envelope for guarded output-sync tool results.",
+            "sourceGitBlob": "8239526b26d3c847c0da2b8ded057edb7bf0d13a",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSyncTools.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSchemas.ts",
+        "metric": "runtimeImports",
+        "previousSeedCeiling": 42,
+        "measured": 43,
+        "reasonAdded": "The existing public output composition imports mcpOutputSyncOutputs directly to register strict destination, preflight and retained-receipt outputs, while carrot_sync_output uses the existing job-receipt schema. This adds one runtime import and gives an exact measured ceiling of 43.",
+        "runtimeDependencies": [
+          "src/shared/mcpBlockEditing.ts",
+          "src/shared/mcpBlockStructure.ts",
+          "src/shared/mcpChapterDeletion.ts",
+          "src/shared/mcpChapterDiscovery.ts",
+          "src/shared/mcpChapterMove.ts",
+          "src/shared/mcpContextEditing.ts",
+          "src/shared/mcpContextExchange.ts",
+          "src/shared/mcpContextMigration.ts",
+          "src/shared/mcpContextReferences.ts",
+          "src/shared/mcpErasureRecoverySchemas.ts",
+          "src/shared/mcpExportBatch.ts",
+          "src/shared/mcpExternalImages.ts",
+          "src/shared/mcpFileUploads.ts",
+          "src/shared/mcpFormatBatch.ts",
+          "src/shared/mcpImageEditing.ts",
+          "src/shared/mcpImageUploads.ts",
+          "src/shared/mcpImportBatch.ts",
+          "src/shared/mcpImportDuplicates.ts",
+          "src/shared/mcpLettering.ts",
+          "src/shared/mcpLetteringResources.ts",
+          "src/shared/mcpLibraryImport.ts",
+          "src/shared/mcpLibraryOrganization.ts",
+          "src/shared/mcpMemoryRefresh.ts",
+          "src/shared/mcpOutputDelivery.ts",
+          "src/shared/mcpOutputSync.ts",
+          "src/shared/mcpPageDeletion.ts",
+          "src/shared/mcpResearchBatch.ts",
+          "src/shared/mcpRetention.ts",
+          "src/shared/mcpReviewSchemas.ts",
+          "src/shared/mcpSelectionAnalysis.ts",
+          "src/shared/mcpSelectionEditing.ts",
+          "src/shared/mcpSoundEffects.ts",
+          "src/shared/mcpSourceRect.ts",
+          "src/shared/mcpTextExchange.ts",
+          "src/shared/mcpTranslationBatch.ts",
+          "src/shared/mcpTypographyBatch.ts",
+          "src/shared/mcpTypographyRead.ts",
+          "src/shared/mcpWorkDeletion.ts",
+          "src/shared/mcpWorkFileExport.ts",
+          "src/shared/mcpWorkFileImport.ts",
+          "src/shared/mcpWorkflow.ts",
+          "src/shared/mcpWorkflowHandoff.ts",
+          "src/main/mcp/mcpJobOutputSchema.ts"
+        ],
+        "consumers": [
+          "src/main/mcp/mcpReadTools.ts",
+          "src/main/mcp/mcpToolResult.ts"
+        ],
+        "addedDependencies": ["src/shared/mcpOutputSync.ts"],
+        "removedDependencies": [],
+        "addedConsumers": [],
+        "removedConsumers": [],
+        "reviewedEdges": [
+          {
+            "from": "src/main/mcp/mcpOutputSchemas.ts",
+            "to": "src/shared/mcpOutputSync.ts",
+            "change": "added",
+            "sourceStatusSince4827": "M",
+            "symbols": ["mcpOutputSyncOutputs"],
+            "importLine": 5,
+            "statement": "import { mcpOutputSyncOutputs } from \"../../shared/mcpOutputSync\";",
+            "purpose": "Register the strict native output-sync contract family at the existing public output composition root.",
+            "sourceGitBlob": "8710486a991d1dfdde43d734affba00ba8719044",
+            "url": "https://github.com/ucx0204/CarrotMangaTranslator/blob/e5af35ea6336fc3fd99018d0be8e827f3db13b29/src/main/mcp/mcpOutputSchemas.ts",
+            "reviewStatus": "supported-by-source-review"
+          }
+        ]
+      }
+    ],
+    "combinedExactBudgetChangesFromCommittedBaseline": [
+      {
+        "path": "src/main/application/mcpEditPolicy.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 187,
+        "measured": 210
+      },
+      {
+        "path": "src/main/library.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 69,
+        "measured": 71
+      },
+      {
+        "path": "src/main/libraryStore/storage.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 31,
+        "measured": 33
+      },
+      {
+        "path": "src/main/linkedWorkspace/linkedWorkspaceSyncService.ts",
+        "metric": "runtimeImports",
+        "previous": 14,
+        "measured": 17
+      },
+      {
+        "path": "src/main/logger.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 47,
+        "measured": 48
+      },
+      {
+        "path": "src/main/mcp/mcpOutputSchemas.ts",
+        "metric": "runtimeImports",
+        "previous": 39,
+        "measured": 43
+      },
+      {
+        "path": "src/shared/appActivityTypes.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 36,
+        "measured": 37
+      },
+      {
+        "path": "src/shared/blockFingerprint.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 120,
+        "measured": 137
+      },
+      {
+        "path": "src/shared/pageRevision.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 70,
+        "measured": 74
+      },
+      {
+        "path": "src/shared/translationLanguages.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 33,
+        "measured": 34
+      },
+      {
+        "path": "src/main/libraryStore/libraryFiles.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 44,
+        "measured": 46
+      },
+      {
+        "path": "src/main/library/lock.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 46,
+        "measured": 51
+      },
+      {
+        "path": "src/main/application/mcpPageBatchPolicy.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 26,
+        "measured": 27
+      },
+      {
+        "path": "src/shared/mcpContextEditing.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 28,
+        "measured": 30
+      },
+      {
+        "path": "src/main/settingsStore.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 26,
+        "measured": 27
+      },
+      {
+        "path": "src/main/mcp/mcpBatchTool.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 37,
+        "measured": 40
+      },
+      {
+        "path": "src/main/application/mcpJobJournal.ts",
+        "metric": "runtimeImports",
+        "previous": 18,
+        "measured": 22
+      },
+      {
+        "path": "src/main/libraryStore/libraryTransaction.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 31,
+        "measured": 32
+      },
+      {
+        "path": "src/main/mcp/mcpReadTools.ts",
+        "metric": "runtimeImportedBy",
+        "previous": 26,
+        "measured": 28
+      },
+      {
+        "path": "src/main/mcp/mcpRetainedOutputs.ts",
+        "metric": "runtimeImports",
+        "previous": 13,
+        "measured": 15
+      },
+      {
+        "path": "src/main/mcp/mcpTextExportSource.ts",
+        "metric": "runtimeImports",
+        "previous": 12,
+        "measured": 13
+      }
+    ],
+    "globalAndLegacyBudgetsUnchanged": true,
+    "allPriorReasonsPreservedAsExactPrefixes": true,
+    "noticesUnchanged": [
+      "src/main/ipc/importPreviewIpc.ts: runtimeImports 13 is below intentional exception 14; consider lowering the ceiling.",
+      "src/main/mcp/mcpPageOperationSession.ts: runtimeImports 29 is below intentional exception 34; consider lowering the ceiling."
+    ],
+    "candidateCanonicalBudgetCheck": {
+      "source": "e5af35ea6336fc3fd99018d0be8e827f3db13b29",
+      "sourceUnchanged": true,
+      "sourceFiles": 4554,
+      "kind": "canonical-budget-evaluation-against-existing-native-report",
+      "collectorRun": false,
+      "vitestRun": false,
+      "candidateBudgetSha256": "5d54934974e41272e62853c64a55b5c0450dcb3e6d12188bcb37d64d2d7974aa",
+      "canonicalCheckerSha256": "d95dd4696c80e9cf9798f2b712fc0ad0ea90be5da680433fdf5738b5b853f913",
+      "reportSha256": "9f1f277b02a18f5c4db3ffb98c994da576ddc3a8acd8c24ba58eec83cdf51f6f",
+      "canonicalCoverageCandidateSha256": "70c79ca6c0d762a2adff198d8a1b04e7a1932ab653cbbe50379d3ed2e41151ab",
+      "ruleErrors": 0,
+      "ruleViolations": [],
+      "violations": [],
+      "notices": [
+        "src/main/ipc/importPreviewIpc.ts: runtimeImports 13 is below intentional exception 14; consider lowering the ceiling.",
+        "src/main/mcp/mcpPageOperationSession.ts: runtimeImports 29 is below intentional exception 34; consider lowering the ceiling."
+      ]
+    },
+    "cycleStatus": "No dependency cycle or layer error is present in the actual e5 dependency collection after the direct PageSessionTypes extraction."
+  },
+  "pendingAcceptance": [
+    "Publish and execute the three meaningful gap tests without changing any preserved floor, timeout, worker, skip or gate rule.",
+    "Resolve the actual first-case and staging-hook failures; this measurement is not canonical acceptance.",
+    "Repeat native architecture collection and canonical budget evaluation if any later source change affects dependencies.",
+    "After all combined source changes, rerun complete native V8 coverage and canonical check/build/Electron acceptance on the final exact commit."
+  ]
+}

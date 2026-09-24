@@ -1,3 +1,4 @@
+import { mcpIpcContracts } from "./ipcMcpContracts";
 import { environmentBackupIpcContracts } from "./ipcEnvironmentBackupContracts";
 import type { IpcContract, IpcEventContract } from "./ipcContractCore";
 import { pageWorkflowIpcContracts } from "./ipcPageWorkflowContracts";
@@ -52,6 +53,7 @@ export {
 };
 
 export const ipcInvokeContracts = {
+  ...mcpIpcContracts,
   ...environmentBackupIpcContracts,
   ...pageWorkflowIpcContracts,
   ...appOperationIpcContracts,

@@ -6,6 +6,7 @@ const JOB_KIND_VALUES = [
   "internet-research",
   "inpainting",
   "page-export",
+  "mcp-edit",
 ] as const;
 export type JobKind = (typeof JOB_KIND_VALUES)[number];
 export const JobKindSchema = z.enum(JOB_KIND_VALUES);

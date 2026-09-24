@@ -89,6 +89,26 @@ describe("runtime module boundary", () => {
     ]);
   });
 
+  it("preserves computed require detection across source spellings", () => {
+    const cases = [
+      ["require(modulePath)", true],
+      [String.raw`\u0072equire(modulePath)`, true],
+      [String.raw`re\u0071uire(modulePath)`, true],
+      [String.raw`requ\u{69}re(modulePath)`, true],
+      ["require?.(modulePath)", true],
+      ['require("literal")', false],
+      ["// require(modulePath)\nconst value = 1;", false],
+      ['const value = "require(modulePath)";', false],
+      ["loader.require(modulePath)", false],
+      ['import value from "module";', false],
+    ] as const;
+
+    for (const [text, expected] of cases)
+      expect(containsComputedRequire("boundary-case.ts", text), text).toBe(
+        expected,
+      );
+  });
+
   // The repository-wide AST scan can exceed 15s with coverage on hosted Windows.
   it(
     "keeps computed require calls inside the validated runtime boundary",
@@ -116,12 +136,18 @@ function listTypeScriptFiles(directory: string): string[] {
   });
 }
 
-function containsComputedRequire(file: string): boolean {
+function containsComputedRequire(
+  file: string,
+  text = readFileSync(file, "utf8"),
+): boolean {
+  // An identifier spelling require is literal ASCII or contains a Unicode escape.
+  // Retain AST parsing for either spelling, including escapes in otherwise unrelated text.
+  if (!text.includes("require") && !text.includes("\\")) return false;
   const source = ts.createSourceFile(
     file,
-    readFileSync(file, "utf8"),
+    text,
     ts.ScriptTarget.Latest,
-    true,
+    false,
     ts.ScriptKind.TS,
   );
   let found = false;

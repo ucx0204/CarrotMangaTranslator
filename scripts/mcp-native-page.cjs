@@ -1,0 +1,528 @@
+const {
+  checkNativeTypographyRead,
+} = require("./mcp-native-typography-read.cjs");
+const { checkNativeExportBatch } = require("./mcp-native-export-batch.cjs");
+const { checkNativeFormatBatch } = require("./mcp-native-format-batch.cjs");
+const { checkNativeImageEdit } = require("./mcp-native-image-edit.cjs");
+const { checkNativeExternalImage } = require("./mcp-native-external-image.cjs");
+const { checkNativeRetention } = require("./mcp-native-retention.cjs");
+const { checkNativeWorkflow } = require("./mcp-native-workflow.cjs");
+const {
+  checkNativeContextMigration,
+} = require("./mcp-native-context-migration.cjs");
+const { checkNativeSoundEffects } = require("./mcp-native-sound-effects.cjs");
+const { checkNativeTextBatch } = require("./mcp-native-text-batch.cjs");
+const { checkNativeContext } = require("./mcp-native-context.cjs");
+const { checkNativeStructure } = require("./mcp-native-structure.cjs");
+const { checkNativeBlockOcr } = require("./mcp-native-block-ocr.cjs");
+const {
+  checkNativeBlockTranslation,
+} = require("./mcp-native-block-translation.cjs");
+const { checkNativeSourceRect } = require("./mcp-native-source-rect.cjs");
+const {
+  checkNativeErasureRecovery,
+} = require("./mcp-native-erasure-recovery.cjs");
+const { checkNativeAdversarial } = require("./mcp-native-adversarial.cjs");
+const assert = require("node:assert/strict");
+const { checkNativeSourceSize } = require("./mcp-native-source-size.cjs");
+const { checkNativeReview } = require("./mcp-native-review.cjs");
+const {
+  jobPersistence,
+  checkNativeJobHistory,
+} = require("./mcp-native-job-history.cjs");
+const { createHash, randomUUID } = require("node:crypto");
+const { readFile, writeFile } = require("node:fs/promises");
+const { join } = require("node:path");
+const { setTimeout: delay } = require("node:timers/promises");
+const { nativeImage } = require("electron");
+
+/** @param {string} root @param {string} name */
+function load(root, name) {
+  return require(join(root, "out", name));
+}
+/** @param {string} root */
+async function seedPage(root) {
+  const bitmap = Buffer.alloc(400 * 600 * 4, 255);
+  for (const [left, top, width, height] of [
+    [65, 75, 18, 55],
+    [100, 75, 18, 55],
+    [300, 500, 20, 20],
+  ])
+    for (let y = top; y < top + height; y++)
+      for (let x = left; x < left + width; x++)
+        bitmap.fill(0, (y * 400 + x) * 4, (y * 400 + x) * 4 + 3);
+  const sourcePath = join(root, "page-goal-original.png");
+  await writeFile(
+    sourcePath,
+    nativeImage.createFromBitmap(bitmap, { width: 400, height: 600 }).toPNG(),
+  );
+  const library = load(root, "main/library.js");
+  const imported = await library.createImport({
+    preview: {
+      mode: "single",
+      sourceKind: "images",
+      suggestedWorkTitle: "Page goal fixture",
+      chapters: [
+        {
+          draftId: "page",
+          title: "Page goal",
+          sourceKind: "images",
+          pages: [{ name: "page.png", sourcePath, sourceKind: "file" }],
+        },
+      ],
+    },
+    target: { mode: "new", title: "Page goal fixture" },
+    selections: [{ draftId: "page", title: "Page goal", enabled: true }],
+  });
+  return library.openChapter(imported.chapterIds[0]);
+}
+/** @param {Buffer} png @param {number} x @param {number} y */
+function pixel(png, x, y) {
+  const image = nativeImage.createFromBuffer(png);
+  return [
+    ...image
+      .toBitmap()
+      .subarray(
+        (y * image.getSize().width + x) * 4,
+        (y * image.getSize().width + x) * 4 + 3,
+      ),
+  ];
+}
+/** Deterministic inference boundary only: real app mask construction, compositing,
+ * revision checks, image history and renderer still execute. No model is downloaded.
+ * @param {Buffer} bitmap @param {number} width @param {number} height @param {Uint8Array} mask */
+async function syntheticInference(bitmap, width, height, mask) {
+  assert.equal(mask.length, width * height);
+  for (let index = 0; index < mask.length; index++)
+    if (mask[index]) bitmap.fill(255, index * 4, index * 4 + 4);
+}
+/** @param {(name: string, args: object) => Promise<Array<{text: string}>>} invoke
+ * @param {string} chapterId @param {string} pageId @param {string} revision */
+async function seedEditableBlocks(invoke, chapterId, pageId, revision) {
+  const created = await invoke("carrot_create_page_blocks", {
+    chapterId,
+    pageId,
+    revision,
+    requestId: randomUUID(),
+    blocks: [
+      {
+        key: "dialogue",
+        sourceText: "source",
+        translatedText: "Hello MCP",
+        sourceRect: { x: 40, y: 50, w: 130, h: 115 },
+      },
+      {
+        key: "untouched-marker",
+        sourceText: "keep source",
+        translatedText: "Keep",
+        sourceRect: { x: 295, y: 495, w: 30, h: 30 },
+        renderRect: { x: 200, y: 400, w: 80, h: 40 },
+      },
+    ],
+  });
+  assert.equal(JSON.parse(created[0].text).status, "saved");
+}
+/** @param {string} root */
+async function checkNativePageGoal(root) {
+  const library = load(root, "main/library.js");
+  const { getAppPaths } = load(root, "main/appPaths.js");
+  const { createPageRevision } = load(root, "shared/pageRevision.js");
+  const { ActiveJobStore } = load(root, "main/jobs/activeJob.js");
+  const { InpaintingRevisionStore } = load(
+    root,
+    "main/inpainting/inpaintingRevisionStore.js",
+  );
+  const { createMcpAppTools } = load(root, "main/mcp/mcpAppTools.js");
+  const { createMcpPageOperationSession } = load(
+    root,
+    "main/mcp/mcpPageOperationSession.js",
+  );
+  const redaction = load(root, "main/imageRedactionStore.js");
+  await redaction.setImageRedactionEnabled(false, root);
+  load(root, "main/imageProtocol.js").registerImageProtocolHandler();
+  const chapter = await seedPage(root);
+  const page = chapter.pages[0];
+  const original = await readFile(page.imagePath);
+  const app = {
+    appPaths: getAppPaths(),
+    jobs: new ActiveJobStore(),
+    getMainWindow: () => null,
+    decodeImage: async () => null,
+    inpaintingRevisionStore: new InpaintingRevisionStore(),
+  };
+  const stopHandoffs = acknowledgeFixtureHandoffs(app.jobs.pageHandoffs);
+  const { createMcpPageEditScope } = load(root, "main/mcp/mcpPageEditScope.js");
+  const editing = {
+    assertWritable: async () => {},
+    assertClean: async () => {},
+    notifySaved: () => {},
+  };
+  let allowed = true;
+  const context = {
+    assertAuthorized: () => {
+      assert.equal(allowed, true, "revoked");
+    },
+    assertScopes: (/** @type {string[]} */ scopes) =>
+      assertFixtureScopes(allowed, scopes),
+    assertJobAuthorized: (/** @type {readonly string[]} */ scopes = []) =>
+      assertFixtureScopes(allowed, [...scopes]),
+    principalId: "native-fixture",
+  };
+  const preferences = {
+    allowImages: true,
+    allowEditing: true,
+    allowProcessing: true,
+    autoStart: false,
+  };
+  const session = createMcpPageOperationSession({
+    origin: "https://carrot-native.example",
+    jobPersistence: jobPersistence(root),
+    preferences,
+    app,
+    editing,
+    reportError: (/** @type {unknown} */ error) => console.error(error),
+  });
+  await session.ready();
+  const tools = createMcpAppTools({
+    ...editing,
+    withPageEdit: createMcpPageEditScope(app, library.openChapter),
+    preferences,
+    additionalTools: session.tools,
+  });
+  /** @param {string} name @param {object} args */
+  const invoke = async (name, args) => {
+    const tool = tools.find(
+      (/** @type {{name: string}} */ item) => item.name === name,
+    );
+    assert.ok(tool, name);
+    return tool.invoke(args, context);
+  };
+  try {
+    await checkNativeReview(root, chapter.id, page.id, 0);
+    await seedEditableBlocks(
+      invoke,
+      chapter.id,
+      page.id,
+      createPageRevision(page),
+    );
+    const translated = await checkTargetedEditing(
+      root,
+      invoke,
+      chapter.id,
+      page.id,
+    );
+    await checkNativeTypographyRead(root, invoke, chapter.id, page.id);
+    await checkNativeSourceSize(root, invoke, page.imagePath);
+    await checkErasure(
+      root,
+      app,
+      editing,
+      chapter.id,
+      translated,
+      translated.blocks[0].id,
+    );
+    await checkNativeAdversarial(root, tools, chapter.id, page.id);
+    const erased = (await library.openChapter(chapter.id)).pages[0];
+    assert.deepEqual(erased.blocks, translated.blocks);
+    assert.deepEqual(await readFile(page.imagePath), original);
+    const clean = await readFile(erased.inpaintedImagePath);
+    assert.deepEqual(pixel(clean, 73, 95), [255, 255, 255]);
+    assert.deepEqual(pixel(clean, 305, 505), [0, 0, 0]);
+    await checkNativeBlockOcr(root, app, invoke, chapter.id, page.id);
+    await checkNativeBlockTranslation(root, app, invoke, chapter.id, page.id);
+    await checkNativeContext(root, invoke, chapter.id, page.id);
+    await checkNativeStructure(root, invoke, chapter.id, page.id);
+    const batchChapterId = await checkNativeTextBatch(
+      root,
+      invoke,
+      page.imagePath,
+    );
+    await checkNativeFormatBatch(root, invoke, batchChapterId);
+    await checkNativeImageEdit(root, invoke, batchChapterId);
+    await checkNativeExternalImage(root, invoke, batchChapterId);
+    await checkNativeSoundEffects(root, invoke, batchChapterId);
+    await checkNativeRetention(root, app, editing, batchChapterId);
+    await checkNativeWorkflow(root, app, editing, batchChapterId);
+    await checkNativeContextMigration(root, app, editing, batchChapterId);
+    await checkNativeExportBatch(
+      root,
+      invoke,
+      batchChapterId,
+      session.artifacts,
+    );
+    await checkNativeReadback(invoke, chapter.id, page.id, original, clean);
+    await checkNativeReview(root, chapter.id, page.id, 2);
+    const started = await invoke("carrot_export_page_png", {
+      chapterId: chapter.id,
+      pageId: page.id,
+      revision: createPageRevision(erased),
+      requestId: randomUUID(),
+    });
+    const jobId = JSON.parse(started[0].text).jobId;
+    const result = await waitForOutput(invoke, jobId);
+    const bytes = await session.artifacts.read(
+      new URL(result.url).pathname.split("/")[2],
+    );
+    assertPageOutput(bytes, result, clean);
+    assert.equal(JSON.stringify(result).includes(root), false);
+    allowed = false;
+    await assert.rejects(() => invoke("carrot_get_job_file", { jobId }));
+    await assert.rejects(() =>
+      session.artifacts.read(new URL(result.url).pathname.split("/")[2]),
+    );
+    await session.close();
+    await checkNativeJobHistory(root, jobId, result.url);
+    console.log(
+      "PASS native external blocks -> app masks/local-engine boundary -> real renderer -> original-resolution PNG -> revoked link",
+    );
+  } finally {
+    await session.close();
+    stopHandoffs();
+  }
+}
+/** @param {(name: string, args: object) => Promise<Array<{text?: string, data?: string}>>} invoke
+ * @param {string} chapterId @param {string} pageId @param {Buffer} original @param {Buffer} clean */
+async function checkNativeReadback(invoke, chapterId, pageId, original, clean) {
+  const crop = await invoke("carrot_get_page_crop", {
+    chapterId,
+    pageId,
+    rect: { x: 50, y: 60, w: 100, h: 100 },
+  });
+  assert.ok(crop[0].text);
+  assert.ok(crop[1].data);
+  const metadata = JSON.parse(crop[0].text);
+  assert.equal(metadata.kind, "source-crop");
+  assert.deepEqual(metadata.pixelMapping, {
+    originX: 50,
+    originY: 60,
+    scaleX: 1,
+    scaleY: 1,
+  });
+  const raster = nativeImage.createFromBuffer(
+    Buffer.from(crop[1].data, "base64"),
+  );
+  assert.deepEqual(raster.getSize(), { width: 100, height: 100 });
+  assert.deepEqual(
+    raster.toBitmap(),
+    nativeImage
+      .createFromBuffer(original)
+      .crop({
+        x: 50,
+        y: 60,
+        width: 100,
+        height: 100,
+      })
+      .toBitmap(),
+    "Reading crops must retain original text after erasure",
+  );
+  const preview = await invoke("carrot_render_page_preview", {
+    chapterId,
+    pageId,
+  });
+  assert.ok(preview[0].text);
+  assert.ok(preview[1].data);
+  const rendered = nativeImage.createFromBuffer(
+    Buffer.from(preview[1].data, "base64"),
+  );
+  assert.equal(JSON.parse(preview[0].text).kind, "rendered-page");
+  assert.deepEqual(rendered.getSize(), { width: 400, height: 600 });
+  assert.notDeepEqual(
+    rendered.toBitmap(),
+    nativeImage.createFromBuffer(clean).toBitmap(),
+  );
+  const context = await invoke("carrot_get_work_context", {
+    chapterId,
+    section: "overview",
+  });
+  assert.ok(context[0].text);
+  const overview = JSON.parse(context[0].text);
+  assert.equal(overview.chapterId, chapterId);
+  assert.equal(overview.workTitle, "Page goal fixture");
+  console.log(
+    "PASS native source crop, coordinate mapping, saved context and rendered lettering preview",
+  );
+}
+/** @param {string} root @param {(name: string, args: object) => Promise<Array<{text: string}>>} invoke
+ * @param {string} chapterId @param {string} pageId */
+async function checkTargetedEditing(root, invoke, chapterId, pageId) {
+  const library = load(root, "main/library.js");
+  const { createPageRevision } = load(root, "shared/pageRevision.js");
+  const before = (await library.openChapter(chapterId)).pages[0];
+  assert.equal(before.blocks.length, 2);
+  const request = {
+    chapterId,
+    pageId,
+    revision: createPageRevision(before),
+    edits: [
+      {
+        blockId: before.blocks[0].id,
+        fields: {
+          translatedText: "Hello MCP",
+          fontSizePx: 32,
+          textColor: "#102233",
+          reviewStatus: "reviewed",
+        },
+        renderRect: { x: 50, y: 50, w: 140, h: 115 },
+      },
+    ],
+  };
+  const result = JSON.parse(
+    (await invoke("carrot_update_page_blocks", request))[0].text,
+  );
+  assert.equal(result.status, "saved");
+  assert.deepEqual(result.changedBlockIds, [before.blocks[0].id]);
+  assert.equal(
+    JSON.parse((await invoke("carrot_update_page_blocks", request))[0].text)
+      .status,
+    "already_applied",
+  );
+  const edited = (await library.openChapter(chapterId)).pages[0];
+  assert.deepEqual(edited.blocks[0].bbox, before.blocks[0].bbox);
+  assert.deepEqual(edited.blocks[1], before.blocks[1]);
+  assert.equal(edited.blocks[0].fontSizePx, 32);
+  assert.equal(edited.blocks[0].autoFitText, false);
+  const order = [edited.blocks[1].id, edited.blocks[0].id];
+  const reordered = JSON.parse(
+    (
+      await invoke("carrot_set_page_reading_order", {
+        chapterId,
+        pageId,
+        revision: createPageRevision(edited),
+        blockIds: order,
+      })
+    )[0].text,
+  );
+  assert.equal(reordered.status, "saved");
+  const saved = (await library.openChapter(chapterId)).pages[0];
+  assert.deepEqual(saved.blockOrder, order);
+  assert.deepEqual(saved.blocks, edited.blocks);
+  console.log(
+    "PASS native existing-block text/style/placement and independent reading order persisted with original geometry intact",
+  );
+  await checkNativeSourceRect(root, invoke, chapterId, pageId);
+  return saved;
+}
+/** @param {string} root @param {Parameters<typeof checkNativeErasureRecovery>[1]} app @param {Parameters<typeof checkNativeErasureRecovery>[2]} editing @param {string} chapterId @param {{id: string}} page @param {string} blockId */
+async function checkErasure(root, app, editing, chapterId, page, blockId) {
+  const { productionInpaintingJobRuntime } = load(
+    root,
+    "main/jobs/inpaintingJobRuntime.js",
+  );
+  const { createPageRevision } = load(root, "shared/pageRevision.js");
+  const runtime = {
+    ...productionInpaintingJobRuntime,
+    acquireEngine: async () => ({
+      engine: {
+        model: "flux-klein",
+        backend: "synthetic-test",
+        runtimePath: "synthetic",
+        runRootDir: root,
+        inpaint: syntheticInference,
+        dispose: async () => {},
+      },
+      release: () => {},
+    }),
+  };
+  const result = await checkNativeErasureRecovery(
+    root,
+    app,
+    editing,
+    {
+      chapterId,
+      pageId: page.id,
+      blockId,
+      revision: createPageRevision(page),
+      requestId: randomUUID(),
+    },
+    runtime,
+  );
+  assert.equal(result.status, "completed");
+  assert.equal(result.blockId, blockId);
+  assert.equal(result.blocksErased, 1);
+  console.log(
+    "PASS native selected-block erasure preserves the other source region and all block text",
+  );
+}
+/** @param {(name: string, args: object) => Promise<Array<{text: string, type?: string, uri?: string}>>} invoke @param {string} jobId */
+async function waitForOutput(invoke, jobId) {
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    const content = await invoke("carrot_get_job", { jobId });
+    const receipt = JSON.parse(content[0].text);
+    if (receipt.status !== "running") {
+      assert.equal(receipt.status, "completed", JSON.stringify(receipt));
+      for (let repeat = 0; repeat < 3; repeat++) {
+        const status = await invoke("carrot_get_job", { jobId });
+        assert.equal(status.length, 1);
+        assert.doesNotMatch(
+          JSON.stringify(status),
+          /resource_link|mcp-artifacts|"url"|"uri"/,
+        );
+      }
+      const link = await invoke("carrot_get_job_file", { jobId });
+      assert.equal(link.length, 1);
+      assert.equal(link[0].type, "text");
+      const output = await invoke("carrot_get_job_file", {
+        jobId,
+        includeAttachment: true,
+      });
+      assert.deepEqual(JSON.parse(link[0].text), JSON.parse(output[0].text));
+      assert.equal(output.length, 2);
+      const artifact = JSON.parse(output[0].text);
+      assert.equal(output[1].type, "resource_link");
+      assert.equal(output[1].uri, artifact.url);
+      assert.equal(artifact.sha256, receipt.result.sha256);
+      const statusAfterFile = await invoke("carrot_get_job", { jobId });
+      assert.equal(statusAfterFile.length, 1);
+      assert.doesNotMatch(
+        JSON.stringify(statusAfterFile),
+        /resource_link|mcp-artifacts|"url"|"uri"/,
+      );
+      console.log(
+        "PASS native repeated job polling stays metadata-only before and after explicit file retrieval",
+      );
+      return artifact;
+    }
+    await delay(100);
+  }
+  throw new Error("Page export did not finish within the native test deadline");
+}
+/** @param {Buffer} bytes @param {{bytes: number, sha256: string}} result @param {Buffer} clean */
+function assertPageOutput(bytes, result, clean) {
+  assert.equal(bytes.length, result.bytes);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), result.sha256);
+  assert.deepEqual(nativeImage.createFromBuffer(bytes).getSize(), {
+    width: 400,
+    height: 600,
+  });
+  assert.deepEqual(pixel(bytes, 305, 505), [0, 0, 0]);
+  assert.notDeepEqual(
+    nativeImage.createFromBuffer(bytes).toBitmap(),
+    nativeImage.createFromBuffer(clean).toBitmap(),
+    "The renderer must actually add translated lettering",
+  );
+}
+/** @param {boolean} allowed @param {string[]} scopes */
+function assertFixtureScopes(allowed, scopes) {
+  assert.equal(allowed, true, "revoked");
+  const approved = [
+    "carrot.read",
+    "carrot.images",
+    "carrot.edit",
+    "carrot.process",
+  ];
+  assert.ok(
+    scopes.every((scope) => approved.includes(scope)),
+    "Unapproved fixture scope",
+  );
+}
+/** Only this isolated synthetic fixture acknowledges a renderer handoff.
+ * @param {import("../src/main/jobs/activeJob").ActiveJobStore["pageHandoffs"]} handoffs */
+function acknowledgeFixtureHandoffs(handoffs) {
+  return handoffs.subscribe(() => {
+    for (const handoff of handoffs.activities)
+      if (handoff.phase === "finishing-edits" && handoff.requestId)
+        handoffs.respond({ requestId: handoff.requestId });
+  });
+}
+module.exports = { checkNativePageGoal };

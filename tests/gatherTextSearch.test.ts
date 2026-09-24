@@ -6,7 +6,7 @@ import {
   splitHighlightSegments,
   visibleLines,
 } from "../src/renderer/src/lib/gatherTextSearch";
-import type { GatheredPage } from "../src/renderer/src/lib/gatherText";
+import type { GatheredPage } from "../src/shared/gatherText";
 
 const pages: GatheredPage[] = [
   {

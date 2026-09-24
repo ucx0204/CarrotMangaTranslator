@@ -1633,6 +1633,7 @@
     "tabs": {
       "ariaLabel": "Settings sections",
       "llmAriaLabel": "AI",
+      "mcp": "AI connections / MCP",
       "general": "General",
       "engine": "AI",
       "translation": "Translation",
@@ -2440,6 +2441,7 @@
       "failureCode": "Failure code: {{code}}",
       "kind": {
         "gemma-analysis": "Translation",
+        "mcp-edit": "MCP editing",
         "internet-research": "Internet research",
         "inpainting": "Erase and inpaint",
         "page-export": "Export",
