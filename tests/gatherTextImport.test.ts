@@ -4,7 +4,7 @@ import {
   decodeImportedTextContent,
   formatGatheredText,
   type GatheredPage,
-} from "../src/renderer/src/lib/gatherText";
+} from "../src/shared/gatherText";
 
 const pages: GatheredPage[] = [
   {

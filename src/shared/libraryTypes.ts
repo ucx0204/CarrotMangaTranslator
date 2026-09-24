@@ -1,3 +1,4 @@
+import type { ImportSourceIdentity } from "./importSourceIdentity";
 import type { TranslationBlock } from "./textTypes";
 import type { PageProcessingTiming } from "./pageProcessingTiming";
 import type {
@@ -96,6 +97,8 @@ export type MangaPage = {
 export type LibraryPageRecord = Omit<MangaPage, "dataUrl">;
 
 export type LibraryChapter = {
+  /** Historical selected input only; never current artwork integrity. */
+  importSource?: ImportSourceIdentity;
   id: string;
   workId: string;
   title: string;

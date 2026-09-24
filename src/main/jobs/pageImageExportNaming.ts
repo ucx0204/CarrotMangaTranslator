@@ -1,4 +1,5 @@
 import { basename, extname } from "node:path";
+import { resolveSourceImageFormat } from "../../shared/sourceImageFormat";
 
 export function formatPageImageExportOrder(index: number): string {
   return String(index + 1).padStart(3, "0");
@@ -30,17 +31,19 @@ export function buildPageImageExportRelativePath({
   chapterTitle,
   pageIndex,
   pageName,
+  sourceFileName,
   outputFormat = "source",
 }: {
   chapterIndex: number;
   chapterTitle: string;
   pageIndex: number;
   pageName: string;
+  sourceFileName?: string;
   outputFormat?: "source" | "png" | "jpeg" | "webp" | "psd";
 }): string {
   const extension =
     outputFormat === "source"
-      ? resolveSourceOutputExtension(pageName)
+      ? resolveSourceImageFormat(extname(sourceFileName ?? pageName)).extension
       : outputFormat === "jpeg"
         ? "jpg"
         : outputFormat;
@@ -50,11 +53,4 @@ export function buildPageImageExportRelativePath({
   )}\\${formatPageImageExportOrder(pageIndex)}-${sanitizeOutputBaseName(
     pageName,
   )}.${extension}`;
-}
-
-function resolveSourceOutputExtension(pageName: string): string {
-  const extension = extname(pageName).toLowerCase();
-  if (extension === ".jpg" || extension === ".jpeg") return extension.slice(1);
-  if (extension === ".webp") return "webp";
-  return "png";
 }

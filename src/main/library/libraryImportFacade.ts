@@ -44,6 +44,7 @@ export type LibraryImportService = {
   createImport: (
     request: CreateImportFromPreviewRequest,
     signal?: AbortSignal,
+    publication?: Parameters<typeof createImportFromPreviewUnlocked>[4],
   ) => Promise<CreateImportResult>;
   previewFolder: typeof previewFolder;
   previewImages: typeof previewImages;
@@ -63,7 +64,7 @@ export function createLibraryImportService(
   runtime: LibraryImportRuntime,
 ): LibraryImportService {
   return {
-    createImport: async (request, signal) => {
+    createImport: async (request, signal, publication) => {
       const pending = libraryMutationCoordinator.begin();
       try {
         return await createImportFromPreviewUnlocked(
@@ -82,6 +83,7 @@ export function createLibraryImportService(
                 }),
               signal ?? new AbortController().signal,
             ),
+          publication,
         );
       } finally {
         pending.finish();

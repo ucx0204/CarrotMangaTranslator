@@ -6,6 +6,7 @@ const APP_RUNTIME_MODULE_FILES = {
   ocrBatch: "simple-page-ocr-bbox-pipeline.cjs",
   animeTextRelations: "semantic-ocr/anime-text-review-relations.cjs",
   apiKeyRetry: "transport/api-key-retry.cjs",
+  workContextPrompt: "prompts/work-context.cjs",
   downloadUtils: "simple-page-download-utils.cjs",
   directoryPublisher: "runtime-directory-publish.cjs",
   logitBias: "simple-page-logit-bias.cjs",

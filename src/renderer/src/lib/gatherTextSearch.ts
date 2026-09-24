@@ -1,4 +1,8 @@
-import type { GatherField, GatheredBlock, GatheredPage } from "./gatherText";
+import type {
+  GatherField,
+  GatheredBlock,
+  GatheredPage,
+} from "../../../shared/gatherText";
 
 export type HighlightSegment = { text: string; match: boolean };
 

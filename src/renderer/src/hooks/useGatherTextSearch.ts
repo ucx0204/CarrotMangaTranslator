@@ -1,5 +1,5 @@
 import React from "react";
-import type { GatherField, GatheredPage } from "../lib/gatherText";
+import type { GatherField, GatheredPage } from "../../../shared/gatherText";
 import { countMatches } from "../lib/gatherTextSearch";
 
 export type GatherTextSearch = {

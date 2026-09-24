@@ -1,4 +1,5 @@
 /* eslint-disable max-lines-per-function -- whole-work share staging and publication stay in one auditable transaction assembly */
+import type { ImportImageRuntime } from "./importImageRuntime";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -22,6 +23,12 @@ import { getWorksRoot } from "./libraryPaths";
 import { runLibraryTransaction } from "./libraryTransaction";
 import { stageIndexFile } from "./libraryTransactionFiles";
 import { importWorkShareIntoExistingWork } from "./shareImportExistingWorkflow";
+import { appendWorkShare } from "./shareAppendWorkflow";
+import type { ShareImportPublication } from "./shareImportPublication";
+import {
+  observeNativeImportedGuide,
+  observeNativeImportedWork,
+} from "./importPublicationMetadata";
 import { materializeSharedChapter } from "./shareImportMaterialize";
 import {
   assertPackageOnlyEntries,
@@ -34,6 +41,7 @@ import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
 
 export type ShareWorkflowRuntime = {
   openPackage: typeof openSharePackageSession;
+  image?: ImportImageRuntime;
 };
 
 const productionShareWorkflowRuntime: ShareWorkflowRuntime = {
@@ -79,8 +87,16 @@ export async function importWorkShareUnlocked(
   signal?: AbortSignal,
   runtime: ShareWorkflowRuntime = productionShareWorkflowRuntime,
   publish?: Parameters<typeof runLibraryTransaction>[2],
+  publication?: ShareImportPublication,
 ): Promise<WorkShareImportResult> {
   throwIfAborted(signal);
+  publication?.assertCanCommit();
+  if (publication && request.target.mode === "existing")
+    throw new Error(
+      "Guarded work-file publication currently creates a new work only.",
+    );
+  if (request.target.mode === "append" && !publication)
+    throw new Error("Share append requires reviewed publication guards.");
   const session = await runtime.openPackage(request.packagePath, { signal });
 
   try {
@@ -88,9 +104,24 @@ export async function importWorkShareUnlocked(
     if (request.entries.length === 0) {
       throw new Error(tMain("share.errors.noChapters"));
     }
-
+    if (request.target.mode === "append" && publication)
+      return await appendWorkShare(
+        session,
+        request,
+        publication,
+        publish,
+        runtime.image,
+        signal,
+      );
     if (request.target.mode === "new") {
-      return await importWorkShareAsNewWork(session, request, signal, publish);
+      return await importWorkShareAsNewWork(
+        session,
+        request,
+        signal,
+        publish,
+        publication,
+        runtime.image,
+      );
     }
 
     return await importWorkShareIntoExistingWork(
@@ -109,6 +140,8 @@ async function importWorkShareAsNewWork(
   request: WorkShareImportFromPackageRequest,
   signal?: AbortSignal,
   publish?: Parameters<typeof runLibraryTransaction>[2],
+  publication?: ShareImportPublication,
+  imageRuntime?: ImportImageRuntime,
 ): Promise<WorkShareImportResult> {
   if (request.target.mode !== "new") {
     throw new Error(tMain("share.errors.notNewWorkRequest"));
@@ -168,9 +201,13 @@ async function importWorkShareAsNewWork(
           entries: session.entries,
           archiveReader: session.archiveReader,
           requestedTitle: title,
+          imageRuntime,
           signal,
           writeChapterDirectory,
           publishedChapterDirectory,
+          observePage: publication?.observePage,
+          observeMetadata: publication?.observeMetadata,
+          sourceChapterId: entry.packageChapterId,
         });
         createdChapters.push(chapter);
       }
@@ -201,6 +238,20 @@ async function importWorkShareAsNewWork(
           styleGuide,
         );
       }
+      if (publication?.observeMetadata) {
+        await observeNativeImportedWork({
+          workId: work.id,
+          directory: published.stagingDirectory,
+          observe: publication.observeMetadata,
+          signal,
+        });
+        await observeNativeImportedGuide({
+          workId: work.id,
+          directory: published.stagingDirectory,
+          observe: publication.observeMetadata,
+          signal,
+        });
+      }
       transaction.beforePublish(async () => {
         throwIfAborted(signal);
         const index = await readIndexFile();
@@ -214,12 +265,16 @@ async function importWorkShareAsNewWork(
       if (!openedChapter) {
         throw new Error(tMain("share.errors.importedChapterOpen"));
       }
-      return {
+      const result = {
         workId: work.id,
         chapterIds,
         openedChapter: hydrateChapter(openedChapter),
       };
+      if (publication)
+        transaction.beforePublish(() => publication.stage(transaction, result));
+      return result;
     },
     publish,
+    publication?.assertCanCommit,
   );
 }

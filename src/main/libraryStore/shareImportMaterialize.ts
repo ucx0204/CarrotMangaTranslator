@@ -29,6 +29,14 @@ import { tMain } from "./localization";
 import { buildMaterializedSharedChapter } from "./shareImportChapterRecord";
 import { buildMaterializedSharedPage } from "./shareImportPageRecord";
 import {
+  nativeImportDigest,
+  observeNativeImportedPage,
+  type NativeImportPageObservation,
+  type NativeImportPageObserver,
+  type NativeImportMetadataObserver,
+} from "./importPublicationEvidence";
+import { observeNativeImportedChapter } from "./importPublicationMetadata";
+import {
   resolveSharedInpaintedOutputPath,
   resolveSharedPageOutputPath,
 } from "./shareImportImagePaths";
@@ -62,6 +70,9 @@ export async function materializeSharedChapter({
   chapterId = randomUUID(),
   writeChapterDirectory,
   publishedChapterDirectory,
+  observePage,
+  observeMetadata,
+  sourceChapterId = packageChapter.id,
 }: {
   workId: string;
   packageChapter: ChapterFile;
@@ -76,19 +87,19 @@ export async function materializeSharedChapter({
   chapterId?: string;
   writeChapterDirectory?: string;
   publishedChapterDirectory?: string;
+  observePage?: NativeImportPageObserver;
+  observeMetadata?: NativeImportMetadataObserver;
+  sourceChapterId?: string;
 }): Promise<ChapterFile> {
   const now = new Date().toISOString();
-  const defaultChapterDir = join(worksRoot, workId, "chapters", chapterId);
-  const writeChapterDir = writeChapterDirectory ?? defaultChapterDir;
-  const publishedChapterDir = publishedChapterDirectory ?? defaultChapterDir;
-  if (
-    (writeChapterDirectory === undefined) !==
-    (publishedChapterDirectory === undefined)
-  ) {
-    throw new Error(
-      "공유 import staging/published chapter 경로를 함께 지정해야 합니다.",
+  const { writeChapterDir, publishedChapterDir } =
+    resolveSharedChapterDirectories(
+      worksRoot,
+      workId,
+      chapterId,
+      writeChapterDirectory,
+      publishedChapterDirectory,
     );
-  }
   const pagesDir = join(writeChapterDir, "pages");
   const publishedPagesDir = join(publishedChapterDir, "pages");
   const inpaintedDir = join(writeChapterDir, "inpainted");
@@ -108,6 +119,15 @@ export async function materializeSharedChapter({
       now,
       imageRuntime,
       signal,
+      observation: observePage
+        ? {
+            observe: observePage,
+            kind: "work-file",
+            workId,
+            chapterId,
+            sourceChapterId,
+          }
+        : undefined,
     });
     const chapter = buildMaterializedSharedChapter({
       packageChapter,
@@ -126,6 +146,14 @@ export async function materializeSharedChapter({
     } else {
       await writeChapter(chapter);
     }
+    if (observeMetadata)
+      await observeNativeImportedChapter({
+        workId,
+        chapterId,
+        directory: writeChapterDir,
+        observe: observeMetadata,
+        signal,
+      });
     throwIfAborted(signal);
     return chapter;
   } catch (error) {
@@ -134,6 +162,27 @@ export async function materializeSharedChapter({
     }
     throw error;
   }
+}
+
+function resolveSharedChapterDirectories(
+  worksRoot: string,
+  workId: string,
+  chapterId: string,
+  writeChapterDirectory?: string,
+  publishedChapterDirectory?: string,
+) {
+  const defaultChapterDir = join(worksRoot, workId, "chapters", chapterId);
+  const writeChapterDir = writeChapterDirectory ?? defaultChapterDir;
+  const publishedChapterDir = publishedChapterDirectory ?? defaultChapterDir;
+  if (
+    (writeChapterDirectory === undefined) !==
+    (publishedChapterDirectory === undefined)
+  ) {
+    throw new Error(
+      "공유 import staging/published chapter 경로를 함께 지정해야 합니다.",
+    );
+  }
+  return { writeChapterDir, publishedChapterDir };
 }
 
 async function materializeSharedPages({
@@ -147,6 +196,7 @@ async function materializeSharedPages({
   now,
   imageRuntime,
   signal,
+  observation,
 }: {
   packageChapter: ChapterFile;
   entries: ReadonlyMap<string, ZipEntryLike>;
@@ -158,6 +208,7 @@ async function materializeSharedPages({
   now: string;
   imageRuntime: ImportImageRuntime;
   signal?: AbortSignal;
+  observation?: NativeImportPageObservation;
 }): Promise<LibraryPageRecord[]> {
   const pages: LibraryPageRecord[] = [];
   for (const [index, packagePage] of reorderRecords(
@@ -178,6 +229,7 @@ async function materializeSharedPages({
         now,
         imageRuntime,
         signal,
+        observation,
       }),
     );
     throwIfAborted(signal);
@@ -197,6 +249,7 @@ async function materializeSharedPage({
   now,
   imageRuntime,
   signal,
+  observation,
 }: {
   entries: ReadonlyMap<string, ZipEntryLike>;
   archiveReader: ShareArchiveReader;
@@ -209,6 +262,7 @@ async function materializeSharedPage({
   now: string;
   imageRuntime: ImportImageRuntime;
   signal?: AbortSignal;
+  observation?: NativeImportPageObservation;
 }): Promise<LibraryPageRecord> {
   throwIfAborted(signal);
   const packageImagePath = normalizeShareRelativePath(
@@ -264,7 +318,7 @@ async function materializeSharedPage({
     signal,
   });
   throwIfAborted(signal);
-  return buildMaterializedSharedPage({
+  const page = buildMaterializedSharedPage({
     packagePage,
     pageId,
     imagePath: publishedOutputPath,
@@ -273,6 +327,23 @@ async function materializeSharedPage({
     height: originalMetadata.height,
     now,
   });
+  if (observation)
+    await observeNativeImportedPage({
+      observation,
+      page,
+      pageIndex: index,
+      sourcePageId: packagePage.id,
+      source: {
+        ...(await nativeImportDigest(originalPrepared.sourceBytes, signal)),
+        format: originalPrepared.metadata.format,
+      },
+      sourceValue: originalPrepared.sourceBytes,
+      inpaintedPath: inpainted?.path,
+      originalPath: outputPath,
+      originalFormat: originalMetadata.format,
+      signal,
+    });
+  return page;
 }
 
 async function materializeSharedInpaintedImage({

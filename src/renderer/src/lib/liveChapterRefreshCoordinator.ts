@@ -1,6 +1,8 @@
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 
 export type LiveChapterRefreshPort = {
+  /** Metadata restoration must not apply reads superseded by a newer notification. */
+  discardSuperseded?: boolean;
   getCurrentChapterId: () => string | undefined;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
   openChapter: (chapterId: string) => Promise<ChapterSnapshot>;
@@ -29,7 +31,11 @@ export function createLiveChapterRefreshCoordinator(
     state.trailingRequested = false;
     try {
       const chapter = await port.openChapter(chapterId);
-      if (!disposed && port.getCurrentChapterId() === chapter.id) {
+      if (
+        !disposed &&
+        port.getCurrentChapterId() === chapter.id &&
+        !(port.discardSuperseded && state.trailingRequested)
+      ) {
         port.mergeLiveChapter(chapter);
       }
     } catch (error) {

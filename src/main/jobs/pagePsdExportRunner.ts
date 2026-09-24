@@ -28,6 +28,13 @@ type WritePagePsdExportOptions = {
   totalPages: number;
 };
 
+type RenderPagePsdOptions = {
+  page: MangaPage;
+  renderSession: PageExportRenderSession;
+  omitText: boolean;
+  check: () => void;
+};
+
 export async function writePagePsdExport({
   abortController,
   completedPages,
@@ -39,28 +46,45 @@ export async function writePagePsdExport({
   throwIfAborted,
   totalPages,
 }: WritePagePsdExportOptions): Promise<void> {
+  const psd = await renderPagePsdExport({
+    page,
+    renderSession,
+    omitText,
+    check: () => throwIfAborted(abortController, completedPages, totalPages),
+  });
+  await (dependencies.runtime.writePsd ?? dependencies.runtime.writePng)(
+    outputPath,
+    psd,
+  );
+  throwIfAborted(abortController, completedPages + 1, totalPages);
+}
+
+/** One canonical layer capture/assembly for desktop files and managed outputs. */
+export async function renderPagePsdExport({
+  page,
+  renderSession,
+  omitText,
+  check,
+}: RenderPagePsdOptions): Promise<Buffer> {
   const pageWithoutText = { ...page, blocks: [] };
   const compositePng = await renderSession.renderPage(
     omitText ? pageWithoutText : page,
     PSD_CAPTURE_OPTIONS,
   );
-  throwIfAborted(abortController, completedPages, totalPages);
+  check();
   const originalBackgroundPng = await renderSession.renderPage(
     { ...pageWithoutText, inpaintedImagePath: undefined },
     PSD_CAPTURE_OPTIONS,
   );
-  throwIfAborted(abortController, completedPages, totalPages);
+  check();
   const cleanedBackgroundPng = page.inpaintedImagePath
     ? await renderSession.renderPage(pageWithoutText, PSD_CAPTURE_OPTIONS)
     : undefined;
   const textLayers = await renderPsdTextLayers({
-    abortController,
-    completedPages,
-    omitText,
     page,
     renderSession,
-    throwIfAborted,
-    totalPages,
+    omitText,
+    check,
   });
   const psd = buildPagePsd({
     page,
@@ -69,32 +93,18 @@ export async function writePagePsdExport({
     cleanedBackgroundPng,
     textLayers,
   });
-  throwIfAborted(abortController, completedPages, totalPages);
-  await (dependencies.runtime.writePsd ?? dependencies.runtime.writePng)(
-    outputPath,
-    psd,
-  );
-  throwIfAborted(abortController, completedPages + 1, totalPages);
+  check();
+  return psd;
 }
 
 async function renderPsdTextLayers({
-  abortController,
-  completedPages,
   omitText,
   page,
   renderSession,
-  throwIfAborted,
-  totalPages,
-}: Pick<
-  WritePagePsdExportOptions,
-  | "abortController"
-  | "completedPages"
-  | "omitText"
-  | "page"
-  | "renderSession"
-  | "throwIfAborted"
-  | "totalPages"
->): Promise<Array<{ block: MangaPage["blocks"][number]; png: Buffer }>> {
+  check,
+}: RenderPagePsdOptions): Promise<
+  Array<{ block: MangaPage["blocks"][number]; png: Buffer }>
+> {
   if (omitText) return [];
   const renderTransparentPage = renderSession.renderTransparentPage;
   if (!renderTransparentPage) {
@@ -105,7 +115,7 @@ async function renderPsdTextLayers({
     png: Buffer;
   }> = [];
   for (const block of page.blocks) {
-    throwIfAborted(abortController, completedPages, totalPages);
+    check();
     textLayers.push({
       block,
       png: await renderTransparentPage(
@@ -114,6 +124,6 @@ async function renderPsdTextLayers({
       ),
     });
   }
-  throwIfAborted(abortController, completedPages, totalPages);
+  check();
   return textLayers;
 }

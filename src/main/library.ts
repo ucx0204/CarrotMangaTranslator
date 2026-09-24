@@ -1,3 +1,4 @@
+export { commitPageRecovery } from "./library/libraryRecoveryFacade";
 export { assertLibraryImagePath } from "./libraryStore/libraryFiles";
 export { getLibraryRoot } from "./libraryStore/libraryPaths";
 export { libraryMutationCoordinator } from "./libraryStore/libraryMutationCoordinator";
@@ -35,6 +36,7 @@ export {
   updatePagesAfterInpainting,
 } from "./library/libraryMutationFacade";
 export {
+  commitSoundEffectSnapshot,
   appendResolvedSoundEffectBlocks,
   dismissSoundEffectReviewRegion,
   prepareSoundEffectTranslation,
@@ -72,6 +74,10 @@ export {
   saveWorkResearchTitle,
   saveWorkStyleGuide,
 } from "./library/libraryContextFacade";
+export {
+  readWorkContextForEdit,
+  commitWorkContextEdit,
+} from "./library/libraryContextEditingFacade";
 export {
   readWorkTypographyProfile,
   writeWorkTypographyProfile,

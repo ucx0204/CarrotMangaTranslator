@@ -96,6 +96,9 @@ jobs:
             check-${{ runner.os }}-node24-v1-${{ hashFiles('package-lock.json', 'scripts/run-prettier.cjs', 'scripts/dev-build-cache.cjs', 'scripts/build.cjs') }}-
 
       - name: Run checks
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          MGT_VITEST_MAX_WORKERS: "1"
         run: npm run check
 
       - name: Test Flux Metal runtime

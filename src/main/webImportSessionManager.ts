@@ -1,4 +1,4 @@
-/* eslint-disable max-lines, max-lines-per-function -- scan resource ownership and teardown stay co-located for lifecycle auditability */
+/* eslint-disable max-lines -- scan resource ownership and teardown stay co-located for lifecycle auditability */
 import {
   BrowserWindow,
   session as electronSession,
@@ -17,6 +17,11 @@ import {
   type WebImportScanResponse,
   type WebImportScanResult,
 } from "../shared/webImportTypes";
+import {
+  WebChapterDiscoveryRequestSchema,
+  type WebChapterDiscoveryRequest,
+} from "../shared/webChapterDiscovery";
+import { discoverChapterLinks } from "./webChapterDiscovery";
 import { throwIfAborted } from "./abortSignal";
 import {
   downloadDiscoveredWebImages,
@@ -35,7 +40,6 @@ import {
 
 const WEB_IMPORT_SESSION_TTL_MS = 30 * 60 * 1_000;
 const MAX_WEB_IMPORT_SESSIONS = 20;
-
 type WebImportSession = {
   id: string;
   directory: string;
@@ -44,7 +48,6 @@ type WebImportSession = {
   candidates: StagedWebImportCandidate[];
   createdAt: number;
 };
-
 type ActiveWebImportScan = {
   requestId: string;
   abortController: AbortController;
@@ -52,28 +55,22 @@ type ActiveWebImportScan = {
   directory: string | null;
   downloadPromise?: Promise<unknown>;
 };
-
 export type PreparedWebImport = {
   preview: ImportPreviewResult;
   cleanup: () => Promise<void>;
 };
-
 export type WebImportSessionManagerOptions = {
   dataRoot: string;
   createWindow?: typeof createSecureWebImportWindow;
   createSession?: (partition: string) => Session;
   reportError?: (message: string, detail?: unknown) => void;
 };
-
 export type WebImportHostResolver = {
   resolveHost: (
     hostname: string,
     options: { cacheUsage: "allowed" },
   ) => Promise<{
-    endpoints: Array<{
-      address: string;
-      family: "ipv4" | "ipv6" | "unspec";
-    }>;
+    endpoints: Array<{ address: string; family: "ipv4" | "ipv6" | "unspec" }>;
   }>;
 };
 
@@ -99,17 +96,64 @@ export class WebImportSessionManager {
         electronSession.fromPartition(partition, { cache: false }));
     this.reportError = options.reportError ?? (() => undefined);
   }
-
   async initialize(): Promise<void> {
     await rm(this.root, { recursive: true, force: true });
     await mkdir(this.root, { recursive: true });
   }
-
-  async scan(
+  scan(
     request: WebImportScanRequest,
     signal: AbortSignal,
     onProgress: (event: WebImportProgressEvent) => void,
   ): Promise<WebImportScanResponse> {
+    return this.scanPage(request, signal, (active) =>
+      this.runScan(request, active, onProgress),
+    );
+  }
+  /** Link inspection uses the SAME browser policy/lifetime, not the image downloader. */
+  discoverChapters(
+    request: WebChapterDiscoveryRequest,
+    signal: AbortSignal,
+    onProgress: (event: WebImportProgressEvent) => void,
+  ) {
+    const input = WebChapterDiscoveryRequestSchema.parse(request);
+    return this.scanPage(input, signal, async (active) => {
+      const page = await this.openPage(input, active, onProgress);
+      const currentUrl = await waitForWebImportStep(
+        assertPublicWebImportUrl(
+          page.window.webContents.getURL(),
+          page.dnsLookup,
+        ),
+        page.deadlineAt,
+        active.abortController.signal,
+      );
+      emitProgress(onProgress, input.requestId, "discovering", 0, 1);
+      const result = await waitForWebImportStep(
+        discoverChapterLinks(
+          page.window.webContents.mainFrame,
+          currentUrl,
+          input,
+        ),
+        page.deadlineAt,
+        active.abortController.signal,
+      );
+      throwIfAborted(active.abortController.signal);
+      if (page.window.webContents.getURL() !== currentUrl.href)
+        throw new WebImportUrlError("page-unavailable");
+      emitProgress(onProgress, input.requestId, "discovering", 1, 1);
+      return { status: "ready" as const, result };
+    });
+  }
+  private async scanPage<T>(
+    request: WebImportScanRequest,
+    signal: AbortSignal,
+    run: (
+      active: ActiveWebImportScan,
+    ) => Promise<{ status: "ready"; result: T }>,
+  ): Promise<
+    | { status: "ready"; result: T }
+    | Extract<WebImportScanResponse, { status: "rejected" }>
+  > {
+    if (signal.aborted) return { status: "rejected", reason: "cancelled" };
     await this.pruneExpired();
     await this.cancelScan(request.requestId);
     const active: ActiveWebImportScan = {
@@ -126,60 +170,49 @@ export class WebImportSessionManager {
     const onOperationAbort = (): void =>
       active.abortController.abort(signal.reason);
     signal.addEventListener("abort", onOperationAbort, { once: true });
+    if (signal.aborted) onOperationAbort();
     try {
-      return await this.runScan(request, active, onProgress);
+      throwIfAborted(active.abortController.signal);
+      return await run(active);
     } catch (error) {
       if (
         error instanceof WebImportDeadlineError ||
         active.abortController.signal.reason instanceof WebImportDeadlineError
-      ) {
+      )
         return { status: "rejected", reason: "timed-out" };
-      }
-      if (active.abortController.signal.aborted || signal.aborted) {
+      if (active.abortController.signal.aborted || signal.aborted)
         return { status: "rejected", reason: "cancelled" };
-      }
-      if (error instanceof WebImportUrlError) {
+      if (error instanceof WebImportUrlError)
         return { status: "rejected", reason: error.reason };
-      }
-      if (error instanceof WebImportDeadlineError) {
-        return { status: "rejected", reason: "timed-out" };
-      }
       this.reportError("Web image import scan failed", error);
       return { status: "rejected", reason: "page-unavailable" };
     } finally {
       clearTimeout(deadlineTimer);
       signal.removeEventListener("abort", onOperationAbort);
-      this.activeScans.delete(request.requestId);
+      if (this.activeScans.get(request.requestId) === active)
+        this.activeScans.delete(request.requestId);
       destroyWindow(active.window);
-      if (active.directory) {
+      if (active.directory)
         await rm(active.directory, { recursive: true, force: true });
-      }
     }
   }
-
   async cancelScan(requestId: string): Promise<boolean> {
     const active = this.activeScans.get(requestId);
-    if (!active) {
-      return false;
-    }
+    if (!active) return false;
     active.abortController.abort(
       new DOMException("Web import scan cancelled", "AbortError"),
     );
     destroyWindow(active.window);
     return true;
   }
-
   async discardSession(sessionId: string): Promise<boolean> {
     const session = this.sessions.get(sessionId);
-    if (!session) {
-      return false;
-    }
+    if (!session) return false;
     this.sessions.delete(sessionId);
     this.clearSessionExpiry(sessionId);
     await rm(session.directory, { recursive: true, force: true });
     return true;
   }
-
   async prepareImport(
     sessionId: string,
     selectedCandidateIds: readonly string[],
@@ -189,15 +222,13 @@ export class WebImportSessionManager {
     throwIfAborted(signal);
     await this.pruneExpired();
     const session = this.sessions.get(sessionId);
-    if (!session) {
+    if (!session)
       throw new Error(
         "웹 이미지 미리보기가 만료되었습니다. 다시 불러와 주세요.",
       );
-    }
     const requested = new Set(selectedCandidateIds);
-    if (requested.size !== selectedCandidateIds.length) {
+    if (requested.size !== selectedCandidateIds.length)
       throw new Error("선택한 이미지 목록에 중복 항목이 있습니다.");
-    }
     const selected = session.candidates.filter((candidate) =>
       requested.has(candidate.id),
     );
@@ -205,9 +236,8 @@ export class WebImportSessionManager {
       selected.length === 0 ||
       selected.length !== requested.size ||
       selected.length > MAX_PAGES_PER_REQUEST
-    ) {
+    )
       throw new Error("가져올 이미지 선택을 확인해 주세요.");
-    }
     const total = session.candidates.length;
     onProgress?.(0, total);
     for (const [index] of session.candidates.entries()) {
@@ -230,20 +260,16 @@ export class WebImportSessionManager {
       },
     };
   }
-
   resolvePreviewFile(sessionId: string, candidateId: string): string | null {
     const session = this.sessions.get(sessionId);
     const candidate = session?.candidates.find(
       (item) => item.id === candidateId,
     );
-    if (!session || !candidate) {
-      return null;
-    }
+    if (!session || !candidate) return null;
     const resolved = resolve(candidate.filePath);
     const root = `${resolve(session.directory)}${process.platform === "win32" ? "\\" : "/"}`;
     return resolved.startsWith(root) ? resolved : null;
   }
-
   async dispose(): Promise<void> {
     for (const active of this.activeScans.values()) {
       active.abortController.abort(
@@ -260,12 +286,12 @@ export class WebImportSessionManager {
     this.expiryTimers.clear();
     await rm(this.root, { recursive: true, force: true });
   }
-
-  private async runScan(
+  /** Canonical native page loading, DNS/redirect checks, scrolling and progress. */
+  private async openPage(
     request: WebImportScanRequest,
     active: ActiveWebImportScan,
     onProgress: (event: WebImportProgressEvent) => void,
-  ): Promise<WebImportScanResponse> {
+  ) {
     const signal = active.abortController.signal;
     const deadlineAt = Date.now() + WEB_IMPORT_SCAN_TIMEOUT_MS;
     await mkdir(this.root, { recursive: true });
@@ -277,7 +303,6 @@ export class WebImportSessionManager {
     );
     throwIfAborted(signal);
     emitProgress(onProgress, request.requestId, "validating", 1, 1);
-
     const sessionId = randomUUID();
     const directory = join(this.root, sessionId);
     await mkdir(directory, { recursive: false });
@@ -311,6 +336,31 @@ export class WebImportSessionManager {
     throwIfDeadlineExceeded(deadlineAt);
     throwIfAborted(signal);
     emitProgress(onProgress, request.requestId, "scrolling", 1, 1);
+    return {
+      sessionId,
+      directory,
+      window,
+      finalUrl,
+      deadlineAt,
+      scanSession,
+      dnsLookup,
+    };
+  }
+  private async runScan(
+    request: WebImportScanRequest,
+    active: ActiveWebImportScan,
+    onProgress: (event: WebImportProgressEvent) => void,
+  ): Promise<{ status: "ready"; result: WebImportScanResult }> {
+    const {
+      sessionId,
+      directory,
+      window,
+      finalUrl,
+      deadlineAt,
+      scanSession,
+      dnsLookup,
+    } = await this.openPage(request, active, onProgress);
+    const signal = active.abortController.signal;
     emitProgress(onProgress, request.requestId, "discovering", 0, 1);
     const discovery = await waitForWebImportStep(
       discoverWebImages(window.webContents.mainFrame),
@@ -368,7 +418,6 @@ export class WebImportSessionManager {
     };
     return { status: "ready", result };
   }
-
   private pruneExpired(): Promise<void> {
     const run = async (): Promise<void> => {
       const expired: WebImportSession[] = [];
@@ -400,7 +449,6 @@ export class WebImportSessionManager {
     );
     return next;
   }
-
   private scheduleSessionExpiry(session: WebImportSession): void {
     this.clearSessionExpiry(session.id);
     const timer = setTimeout(() => {
@@ -412,7 +460,6 @@ export class WebImportSessionManager {
     timer.unref();
     this.expiryTimers.set(session.id, timer);
   }
-
   private clearSessionExpiry(sessionId: string): void {
     const timer = this.expiryTimers.get(sessionId);
     if (timer) clearTimeout(timer);
@@ -449,7 +496,6 @@ export function createPreparedWebImportPreview({
     ],
   };
 }
-
 export function createSecureWebImportWindow(
   scanSession: Session,
 ): BrowserWindow {
@@ -472,9 +518,7 @@ export function createSecureWebImportWindow(
   );
   window.webContents.on("will-navigate", (event, url) => {
     void isAllowedWebImportRequest(url).then((allowed) => {
-      if (!allowed && !window.isDestroyed()) {
-        window.webContents.stop();
-      }
+      if (!allowed && !window.isDestroyed()) window.webContents.stop();
     });
   });
   window.webContents.on("will-prevent-unload", (event) =>
@@ -482,7 +526,6 @@ export function createSecureWebImportWindow(
   );
   return window;
 }
-
 function configureWebImportSession(
   scanSession: Session,
   signal: AbortSignal,
@@ -503,7 +546,6 @@ function configureWebImportSession(
       .catch(() => callback({ cancel: true }));
   });
 }
-
 async function loadWebImportPage({
   deadlineAt,
   dnsLookup,
@@ -524,7 +566,6 @@ async function loadWebImportPage({
     signal,
   );
 }
-
 export function createSessionDnsLookup(
   scanSession: WebImportHostResolver,
 ): WebImportDnsLookup {
@@ -549,7 +590,6 @@ export function createSessionDnsLookup(
     return pending;
   };
 }
-
 async function waitForWebImportStep<T>(
   operation: Promise<T>,
   deadlineAt: number,
@@ -557,9 +597,7 @@ async function waitForWebImportStep<T>(
 ): Promise<T> {
   throwIfAborted(signal);
   const remaining = deadlineAt - Date.now();
-  if (remaining <= 0) {
-    throw new WebImportDeadlineError();
-  }
+  if (remaining <= 0) throw new WebImportDeadlineError();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let onAbort: (() => void) | undefined;
   const guard = new Promise<never>((_resolve, reject) => {
@@ -579,13 +617,9 @@ async function waitForWebImportStep<T>(
     if (onAbort) signal.removeEventListener("abort", onAbort);
   }
 }
-
 function throwIfDeadlineExceeded(deadlineAt: number): void {
-  if (Date.now() >= deadlineAt) {
-    throw new WebImportDeadlineError();
-  }
+  if (Date.now() >= deadlineAt) throw new WebImportDeadlineError();
 }
-
 function toPublicCandidate(
   sessionId: string,
 ): (candidate: StagedWebImportCandidate) => WebImportCandidate {
@@ -601,7 +635,6 @@ function toPublicCandidate(
     pageIndex: candidate.pageIndex,
   });
 }
-
 function emitProgress(
   onProgress: (event: WebImportProgressEvent) => void,
   requestId: string,
@@ -611,22 +644,16 @@ function emitProgress(
 ): void {
   onProgress({ requestId, stage, completed, total });
 }
-
 function sanitizePageTitle(title: string): string {
   return title
     .replace(/[\u0000-\u001f\u007f]/g, " ")
     .trim()
     .slice(0, 240);
 }
-
 function destroyWindow(window: BrowserWindow | null): void {
-  if (window && !window.isDestroyed()) {
-    window.destroy();
-  }
+  if (window && !window.isDestroyed()) window.destroy();
 }
-
 class WebImportDeadlineError extends Error {}
-
 export function isWebImportDeadlineError(error: unknown): boolean {
   return error instanceof WebImportDeadlineError;
 }

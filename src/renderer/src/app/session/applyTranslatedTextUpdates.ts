@@ -1,5 +1,5 @@
 import type { UpdateCurrentChapter } from "../../hooks/useCurrentChapterUpdater";
-import type { TranslatedTextImportUpdate } from "../../lib/gatherText";
+import type { TranslatedTextImportUpdate } from "../../../../shared/gatherText";
 import { appI18n } from "../../appI18n";
 
 /** Applies the txt-imported translations page by page as one undoable step. */

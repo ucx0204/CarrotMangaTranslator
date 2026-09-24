@@ -1,5 +1,11 @@
 /* eslint-disable max-lines -- transaction history, rollback, and artifact retention share one serialized state owner */
 import { randomUUID } from "node:crypto";
+import {
+  inspectSinglePageHistory,
+  applySinglePageHistory,
+  type SinglePageHistoryTarget,
+  type SinglePageHistoryGuard,
+} from "./inpaintingSinglePageHistory";
 import { pageContentResource } from "../../shared/appActivityTypes";
 import { assertLibraryActivityAccess } from "../library/lock";
 import { retainLibraryArtifacts } from "../libraryStore/libraryArtifactRetention";
@@ -206,6 +212,43 @@ export class InpaintingRevisionStore {
       }
     }
     return [...paths];
+  }
+
+  /** Advisory inspection is serialized with native replay and history release. */
+  async inspectSinglePageTransaction(
+    transactionId: string,
+    target: SinglePageHistoryTarget,
+  ) {
+    return this.runTransactionOperation(() =>
+      this.repository.runMutation(() =>
+        inspectSinglePageHistory(
+          this.repository,
+          this.transactions.get(transactionId)?.changes ?? [],
+          target,
+        ),
+      ),
+    );
+  }
+
+  /** Only a trusted in-process adapter supplies the commit guard. */
+  async applySinglePageTransaction(
+    transactionId: string,
+    direction: "undo" | "redo",
+    guard: SinglePageHistoryGuard,
+  ) {
+    return this.runTransactionOperation(() =>
+      this.repository.runMutation(() => {
+        guard.assertCanCommit();
+        const transaction = this.requireTransaction(transactionId);
+        return applySinglePageHistory(
+          this.repository,
+          transaction.changes,
+          direction,
+          guard,
+          this.getRetainedArtifactPaths(guard.chapterId),
+        );
+      }),
+    );
   }
 
   async applyTransaction(

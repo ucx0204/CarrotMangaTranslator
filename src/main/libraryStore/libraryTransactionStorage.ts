@@ -175,9 +175,46 @@ export async function restoreBackupAtomically(
   }
 }
 
-export async function sha256File(path: string): Promise<string> {
+export async function sha256File(
+  path: string,
+  maxBytes?: number,
+): Promise<string> {
+  if (maxBytes !== undefined) return boundedFileSha256(path, maxBytes);
   const bytes = await readFile(path);
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+async function boundedFileSha256(
+  path: string,
+  maxBytes: number,
+): Promise<string> {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 0)
+    throw new Error("File hash byte limit is invalid.");
+  const handle = await open(path, "r");
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile()) throw new Error("File hash requires an ordinary file.");
+    if (stat.size > maxBytes)
+      throw new Error("File hash exceeds its byte limit.");
+    const hash = createHash("sha256");
+    const buffer = Buffer.alloc(Math.min(64 * 1024, maxBytes + 1));
+    let total = 0;
+    for (;;) {
+      const { bytesRead } = await handle.read(
+        buffer,
+        0,
+        Math.min(buffer.length, maxBytes - total + 1),
+        null,
+      );
+      if (!bytesRead) return hash.digest("hex");
+      total += bytesRead;
+      if (total > maxBytes)
+        throw new Error("File hash exceeds its byte limit.");
+      hash.update(buffer.subarray(0, bytesRead));
+    }
+  } finally {
+    await handle.close();
+  }
 }
 
 export function sha256Bytes(bytes: Uint8Array): string {

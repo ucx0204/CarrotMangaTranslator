@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type { GatherField, GatherScope } from "../../lib/gatherText";
+import type { GatherField, GatherScope } from "../../../../shared/gatherText";
 import { Button } from "../ui/Button";
 import { SegmentedControl } from "../ui/SegmentedControl";
 

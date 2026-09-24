@@ -1,3 +1,4 @@
+import type { ImportSourceIdentity } from "./importSourceIdentity";
 import type { ChapterSnapshot, ImportSourceKind } from "./libraryTypes";
 import type { LinkedWorkspaceImportOptions } from "./linkedWorkspaceTypes";
 
@@ -13,6 +14,8 @@ export type ImportPageDraft = {
 };
 
 export type ImportChapterDraft = {
+  /** Historical selected input only; never current artwork integrity. */
+  importSource?: ImportSourceIdentity;
   draftId: string;
   title: string;
   sourceKind: ImportSourceKind;

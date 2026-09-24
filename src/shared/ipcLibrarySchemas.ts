@@ -1,3 +1,4 @@
+import { ImportSourceIdentitySchema } from "./importSourceIdentity";
 import { PageWorkflowReceiptSchema } from "./pageWorkflowReceipt";
 import { z } from "zod";
 import {
@@ -229,6 +230,7 @@ export const LibraryChapterFileSchema = z
     workId: storeId,
     title,
     sourceKind: ImportSourceKindSchema,
+    importSource: ImportSourceIdentitySchema.optional(),
     status: ChapterStatusSchema,
     pageOrder: z.array(storeId).max(MAX_PAGES_PER_REQUEST),
     pages: z.array(LibraryPageRecordSchema).max(MAX_PAGES_PER_REQUEST),
@@ -260,6 +262,7 @@ export const ChapterSnapshotSchema = z
     workId: uuid,
     title,
     sourceKind: ImportSourceKindSchema,
+    importSource: ImportSourceIdentitySchema.optional(),
     status: ChapterStatusSchema,
     pageOrder: z.array(uuid).max(MAX_PAGES_PER_REQUEST),
     pages: z.array(MangaPageSchema).max(MAX_PAGES_PER_REQUEST),
@@ -338,6 +341,11 @@ export const ImageDataUrlRequestSchema = z
 const SavePageBlocksUpdateSchema = z
   .object({
     pageId: uuid,
+    expectedRevision: z
+      .string()
+      .regex(/^page-v1:[a-f0-9]{16}$/)
+      .transform((value) => value as PageRevision)
+      .optional(),
     baseUpdatedAt: z.string().max(80).optional(),
     baseBlocksHash: z.string().min(1).max(80).optional(),
     baseBlockOrderHash: z.string().min(1).max(80).optional(),

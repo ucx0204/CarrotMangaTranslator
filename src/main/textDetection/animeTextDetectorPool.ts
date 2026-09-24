@@ -1,3 +1,4 @@
+import { releaseModelResource } from "../runtimeSupport/modelCleanupBarrier";
 import { AbortableExclusiveGate } from "../runtimeSupport/abortableExclusiveGate";
 import { LeasedIdleResourcePool } from "../runtimeSupport/leasedIdleResource";
 import { prepareAnimeTextWorkerLaunch } from "./animeTextAssets";
@@ -49,13 +50,14 @@ async function disposeWorker(
   reason: string,
 ): Promise<void> {
   try {
-    await worker.dispose();
+    await releaseModelResource(worker, () => worker.dispose());
     logAnimeTextInfo("anime-text-yolo worker disposed", { reason });
   } catch (error) {
     logAnimeTextError("Failed to dispose anime-text-yolo worker", {
       reason,
       error,
     });
+    throw error;
   }
 }
 

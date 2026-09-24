@@ -62,6 +62,8 @@ function createExclusiveOperation(
     let releaseMutations: (() => void) | undefined;
     let sealed = false;
     try {
+      // Previously admitted IPC may still need to enter its native save.
+      // Drain it before suspending new mutations.
       releaseAccess = await suspendEnvironmentAccess();
       const suspension = libraryMutationCoordinator.suspendNewMutations();
       releaseMutations = () => suspension.release();

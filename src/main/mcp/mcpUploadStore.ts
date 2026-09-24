@@ -1,0 +1,315 @@
+import { randomUUID } from "node:crypto";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { hashStableValue } from "../../shared/blockFingerprint";
+import {
+  MCP_UPLOAD_CHUNK_BYTES,
+  MCP_UPLOAD_LIFETIME_MS,
+} from "../../shared/mcpImageUploads";
+import { McpEditError } from "../application/mcpEditPolicy";
+import {
+  imageUploadDigest,
+  appendImageUploadFile,
+} from "./mcpImageUploadFiles";
+
+type UploadPolicy<I, R, V> = {
+  parse: (value: unknown) => I;
+  chunk: (value: unknown) => { uploadId: string; offset: number; data: string };
+  filename: (input: I, id: string) => string;
+  maxFiles: number;
+  maxBytes: number;
+  capacityMessage: string;
+  validate: (input: I, path: string, guard: () => void) => Promise<R>;
+  project: (entry: {
+    id: string;
+    input: I;
+    received: number;
+    expiresAt: number;
+    ready?: R;
+  }) => V;
+};
+type UploadInput = { requestId: string; bytes: number; sha256: string };
+type Entry<I, E, R> = {
+  id: string;
+  owner: string;
+  input: I;
+  files: E;
+  expiresAt: number;
+  path?: string;
+  received: number;
+  busy: boolean;
+  leases: number;
+  ready?: R;
+  chunks: Map<number, { bytes: number; digest: string }>;
+};
+/** Receiving bytes is not permission to edit a page. No caller paths or URLs. */
+export class McpUploadStore<I extends UploadInput, E, R extends object, V> {
+  private readonly entries = new Map<string, Entry<I, E, R>>();
+  private readonly requests = new Map<
+    string,
+    { fingerprint: string; id: string }
+  >();
+  private readonly tasks = new Set<Promise<unknown>>();
+  private directory?: Promise<string>;
+  private reserved = 0;
+  private closed = false;
+  constructor(
+    private readonly policy: UploadPolicy<I, R, V>,
+    private readonly now: () => number = Date.now,
+  ) {}
+
+  begin(owner: string, value: unknown, files: E, guard: () => void) {
+    const input = this.policy.parse(value);
+    this.check(guard);
+    const key = `${owner}:${input.requestId}`,
+      fingerprint = hashStableValue(input);
+    const previous = this.requests.get(key);
+    if (previous) {
+      if (previous.fingerprint !== fingerprint)
+        throw new McpEditError(
+          "invalid_edit",
+          "Upload requestId already describes different input.",
+        );
+      return Promise.resolve(this.inspect(owner, previous.id, guard));
+    }
+    if (
+      this.requests.size >= 256 ||
+      this.entries.size >= this.policy.maxFiles ||
+      this.reserved + input.bytes > this.policy.maxBytes
+    )
+      throw new McpEditError("editor_busy", this.policy.capacityMessage);
+    const entry: Entry<I, E, R> = {
+      id: randomUUID(),
+      owner,
+      input,
+      files: structuredClone(files),
+      expiresAt: this.now() + MCP_UPLOAD_LIFETIME_MS,
+      received: 0,
+      busy: true,
+      leases: 0,
+      chunks: new Map(),
+    };
+    this.entries.set(entry.id, entry);
+    this.requests.set(key, { fingerprint, id: entry.id });
+    this.reserved += input.bytes;
+    return this.track(this.create(entry, guard));
+  }
+  inspect(owner: string, id: string, guard: () => void) {
+    return this.policy.project(this.require(owner, id, guard));
+  }
+  chunk(owner: string, value: unknown, guard: () => void) {
+    const input = this.policy.chunk(value);
+    return this.exclusive(owner, input.uploadId, guard, async (entry) => {
+      const bytes = Buffer.from(input.data, "base64");
+      if (
+        !bytes.length ||
+        bytes.length > MCP_UPLOAD_CHUNK_BYTES ||
+        bytes.toString("base64") !== input.data
+      )
+        throw new McpEditError(
+          "invalid_edit",
+          "Expected canonical base64 for at most 32 KiB of actual file bytes.",
+        );
+      const digest = imageUploadDigest(bytes),
+        prior = entry.chunks.get(input.offset);
+      if (prior) {
+        if (prior.bytes !== bytes.length || prior.digest !== digest)
+          throw new McpEditError(
+            "invalid_edit",
+            "A repeated chunk must contain exactly the original bytes.",
+          );
+        return this.policy.project(entry);
+      }
+      if (
+        entry.ready ||
+        input.offset !== entry.received ||
+        entry.received + bytes.length > entry.input.bytes
+      )
+        throw new McpEditError(
+          "invalid_edit",
+          "Chunks must append at receivedBytes without gaps, overlaps or excess data.",
+        );
+      if (entry.chunks.size >= 4096)
+        throw new McpEditError(
+          "invalid_edit",
+          "Upload exceeds 4096 distinct chunks. Use larger chunks for a new upload; existing bytes were not changed.",
+        );
+      await appendImageUploadFile(pathOf(entry), entry.received, bytes);
+      entry.chunks.set(input.offset, { bytes: bytes.length, digest });
+      entry.received += bytes.length;
+      this.checkEntry(entry, guard);
+      return this.policy.project(entry);
+    });
+  }
+  finish(owner: string, id: string, guard: () => void) {
+    return this.exclusive(owner, id, guard, async (entry) => {
+      if (entry.received !== entry.input.bytes)
+        throw new McpEditError(
+          "invalid_edit",
+          "Upload is incomplete. Resume at receivedBytes before validation.",
+        );
+      const ready = await this.policy.validate(entry.input, pathOf(entry), () =>
+        this.checkEntry(entry, guard),
+      );
+      this.checkEntry(entry, guard);
+      entry.ready = ready;
+      return this.policy.project(entry);
+    });
+  }
+  /** Holds the upload against deletion through the actual consuming transaction. */
+  withFile<T>(
+    owner: string,
+    id: string,
+    guard: () => void,
+    consume: (asset: {
+      input: I;
+      files: E;
+      path: string;
+      expiresAt: number;
+      guard: () => void;
+    }) => Promise<T>,
+  ): Promise<T> {
+    const entry = this.require(owner, id, guard);
+    if (!entry.ready || entry.busy) throw unavailable();
+    entry.leases++;
+    const checked = () => this.checkEntry(entry, guard);
+    const task = (async () => {
+      try {
+        checked();
+        return await consume({
+          input: structuredClone(entry.input),
+          files: structuredClone(entry.files),
+          path: pathOf(entry),
+          expiresAt: entry.expiresAt,
+          guard: checked,
+        });
+      } finally {
+        entry.leases--;
+      }
+    })();
+    return this.track(task);
+  }
+  discard(owner: string, id: string, guard: () => void) {
+    this.check(guard);
+    const entry = this.entries.get(id);
+    if (!entry || entry.owner !== owner) throw unavailable();
+    if (entry.busy || entry.leases)
+      throw new McpEditError(
+        "editor_busy",
+        "Upload is in use; no file was removed.",
+      );
+    entry.busy = true;
+    return this.track(
+      (async () => {
+        try {
+          if (entry.path) await rm(entry.path, { force: true });
+          this.entries.delete(id);
+          this.reserved -= entry.input.bytes;
+          this.check(guard);
+          return { uploadId: id, discarded: true as const };
+        } finally {
+          entry.busy = false;
+        }
+      })(),
+    );
+  }
+  stop() {
+    this.closed = true;
+  }
+  async close() {
+    this.stop();
+    await Promise.allSettled([...this.tasks]);
+    if (this.directory)
+      await rm(await this.directory, { recursive: true, force: true });
+    this.entries.clear();
+    this.requests.clear();
+    this.reserved = 0;
+  }
+  private async create(entry: Entry<I, E, R>, guard: () => void) {
+    let created = false;
+    this.directory ??= mkdtemp(join(tmpdir(), "carrot-mcp-input-"));
+    try {
+      entry.path = join(
+        await this.directory,
+        this.policy.filename(entry.input, entry.id),
+      );
+      this.checkEntry(entry, guard);
+      await writeFile(entry.path, Buffer.alloc(0), { flag: "wx", mode: 0o600 });
+      created = true;
+      this.checkEntry(entry, guard);
+      return this.policy.project(entry);
+    } catch (error) {
+      this.entries.delete(entry.id);
+      this.reserved -= entry.input.bytes;
+      try {
+        if (created && entry.path) await rm(entry.path, { force: true });
+      } catch (cleanup) {
+        throw new AggregateError(
+          [error, cleanup],
+          "Upload reservation and owned-file cleanup failed.",
+          { cause: cleanup },
+        );
+      }
+      throw error;
+    } finally {
+      entry.busy = false;
+    }
+  }
+  private exclusive<T>(
+    owner: string,
+    id: string,
+    guard: () => void,
+    run: (entry: Entry<I, E, R>) => Promise<T>,
+  ) {
+    const entry = this.require(owner, id, guard);
+    if (entry.busy || entry.leases)
+      throw new McpEditError(
+        "editor_busy",
+        "Upload has another active operation.",
+      );
+    entry.busy = true;
+    return this.track(
+      (async () => {
+        try {
+          return await run(entry);
+        } finally {
+          entry.busy = false;
+        }
+      })(),
+    );
+  }
+  private require(owner: string, id: string, guard: () => void) {
+    this.check(guard);
+    const entry = this.entries.get(id);
+    if (!entry || entry.owner !== owner) throw unavailable();
+    this.checkEntry(entry, guard);
+    return entry;
+  }
+  private checkEntry(entry: Entry<I, E, R>, guard: () => void) {
+    this.check(guard);
+    if (entry.expiresAt <= this.now()) throw unavailable();
+  }
+  private check(guard: () => void) {
+    guard();
+    if (this.closed) throw unavailable();
+  }
+  private async track<T>(task: Promise<T>) {
+    this.tasks.add(task);
+    try {
+      return await task;
+    } finally {
+      this.tasks.delete(task);
+    }
+  }
+}
+function pathOf(entry: { path?: string }) {
+  if (!entry.path) throw unavailable();
+  return entry.path;
+}
+function unavailable() {
+  return new McpEditError(
+    "not_found",
+    "Owned image upload or incoming file is unavailable, incomplete, expired or closed. No page was modified.",
+  );
+}

@@ -331,6 +331,7 @@ async function disposeBubbleLayoutSessions(
     runtime.logError("Failed to release KoharuLayout sessions after job", {
       error,
     });
+    throw error;
   }
 }
 

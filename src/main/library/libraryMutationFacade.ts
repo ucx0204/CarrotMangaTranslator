@@ -73,12 +73,15 @@ function guardedMutation<T>(
 }
 
 export function createSavePageBlocks(runtime: SavePageBlocksRuntime) {
-  return async (request: SavePageBlocksRequest): Promise<ChapterSnapshot> => {
+  return async (
+    request: SavePageBlocksRequest,
+    assertCanCommit?: () => void,
+  ): Promise<ChapterSnapshot> => {
     const chapter = await runtime.runMutation(() => {
       assertLibraryActivityAccess([
         pageContentResource(request.chapterId, request.pageId),
       ]);
-      return runtime.savePageBlocks(request);
+      return runtime.savePageBlocks(request, assertCanCommit);
     });
     notifyLinkedWorkspacePagesSaved(request.chapterId, [request.pageId]);
     return chapter;
@@ -287,10 +290,17 @@ export async function updatePagesAfterInpainting(
   chapterId: string,
   pages: MangaPage[],
   cleanupOptions?: InpaintingArtifactCleanupOptions,
+  assertCanCommit?: () => void,
 ): Promise<ChapterSnapshot> {
   const chapter = await guardedMutation(
     pages.map((page) => pageContentResource(chapterId, page.id)),
-    () => updatePagesAfterInpaintingUnlocked(chapterId, pages, cleanupOptions),
+    () =>
+      updatePagesAfterInpaintingUnlocked(
+        chapterId,
+        pages,
+        cleanupOptions,
+        assertCanCommit,
+      ),
   );
   notifyLinkedWorkspacePagesSaved(
     chapterId,

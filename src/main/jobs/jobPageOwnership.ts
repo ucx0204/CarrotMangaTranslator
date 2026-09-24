@@ -39,7 +39,11 @@ export async function acquireJobPage(
   await jobs.pageHandoffs.request(jobId, chapterId, pageId, signal);
   const resource = pageContentResource(chapterId, pageId);
   while (true) {
-    await jobs.gate.waitForAvailable([resource], jobId, signal);
+    await jobs.gate.waitForAvailable(
+      [resource],
+      jobs.activityOwnerFor(jobId),
+      signal,
+    );
     signal.throwIfAborted();
     try {
       return await withLibraryMutation(async () => {

@@ -8,7 +8,10 @@ import {
   buildLinkedMirrorFileName,
   resolvePathInside,
 } from "./linkedWorkspacePaths";
-import { writeJsonFile } from "../libraryStore/storage";
+import {
+  writeJsonFile,
+  type AtomicFilePublication,
+} from "../libraryStore/storage";
 
 export type FileFingerprint = {
   size: number;
@@ -19,11 +22,21 @@ export type FileFingerprint = {
 
 export async function fingerprintFile(
   filePath: string,
-  previous?: FileFingerprint,
+  previousOrMaximumBytes: FileFingerprint | number = Number.MAX_SAFE_INTEGER,
 ): Promise<FileFingerprint> {
+  const previous =
+    typeof previousOrMaximumBytes === "number"
+      ? undefined
+      : previousOrMaximumBytes;
+  const maximumBytes =
+    typeof previousOrMaximumBytes === "number"
+      ? previousOrMaximumBytes
+      : Number.MAX_SAFE_INTEGER;
   const metadata = await stat(filePath);
   if (!metadata.isFile())
     throw new Error("연결된 원본 이미지가 파일이 아닙니다.");
+  if (metadata.size > maximumBytes)
+    throw new RangeError("Linked file exceeds the fingerprint byte limit.");
   if (
     previous?.ctimeMs === metadata.ctimeMs &&
     previous.mtimeMs === metadata.mtimeMs &&
@@ -32,10 +45,20 @@ export async function fingerprintFile(
     return previous;
   const hash = createHash("sha256");
   const stream = createReadStream(filePath);
-  stream.on("data", (chunk) => hash.update(chunk));
+  let bytes = 0;
+  stream.on("data", (chunk: Buffer) => {
+    bytes += chunk.byteLength;
+    if (bytes > maximumBytes) {
+      stream.destroy(
+        new RangeError("Linked file exceeds the fingerprint byte limit."),
+      );
+      return;
+    }
+    hash.update(chunk);
+  });
   await once(stream, "end");
   return {
-    size: metadata.size,
+    size: bytes,
     mtimeMs: metadata.mtimeMs,
     ctimeMs: metadata.ctimeMs,
     sha256: hash.digest("hex"),
@@ -124,22 +147,32 @@ export async function writeLinkedWorkspaceMirror({
   appVersion,
   chapters,
   beforeCommit,
+  publication,
 }: {
   rootPath: string;
   appVersion: string;
   chapters: LinkedMirrorChapter[];
   beforeCommit?: () => void;
+  publication?: AtomicFilePublication;
 }): Promise<void> {
   await writeJsonFile(
     resolvePathInside(rootPath, buildLinkedMirrorFileName(rootPath)),
-    {
-      schemaVersion: 1,
-      appVersion,
-      updatedAt: new Date().toISOString(),
-      chapters,
-    },
+    createLinkedWorkspaceMirrorPayload(appVersion, chapters),
     beforeCommit,
+    publication,
   );
+}
+
+export function createLinkedWorkspaceMirrorPayload(
+  appVersion: string,
+  chapters: LinkedMirrorChapter[],
+) {
+  return {
+    schemaVersion: 1,
+    appVersion,
+    updatedAt: new Date().toISOString(),
+    chapters,
+  };
 }
 
 function isMissingFileError(error: unknown): boolean {

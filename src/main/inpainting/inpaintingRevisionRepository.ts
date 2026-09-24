@@ -38,6 +38,7 @@ export type InpaintingRevisionRepository = {
     chapterId: string,
     pages: MangaPage[],
     cleanupOptions: InpaintingArtifactCleanupOptions,
+    assertCanCommit?: () => void,
   ) => Promise<ChapterSnapshot>;
   cleanupReleasedArtifacts: (
     request: RevisionArtifactCleanupRequest,

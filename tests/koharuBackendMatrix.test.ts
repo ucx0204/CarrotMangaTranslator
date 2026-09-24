@@ -1,5 +1,13 @@
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { resolveKoharuBackendCandidates } from "../src/main/inpainting/koharuEnginePool";
+import type { AppPaths } from "../src/main/appPaths";
+import {
+  acquireKoharuInpaintingEngine,
+  disposeCachedKoharuInpaintingEngine,
+  resolveKoharuBackendCandidates,
+} from "../src/main/inpainting/koharuEnginePool";
 import { buildKoharuWorkerEnv } from "../src/main/inpainting/koharuWorker";
 import type { DetectedGpuInfo } from "../src/main/gpuInfoTypes";
 import type { KoharuInpaintingBackend } from "../src/shared/inpaintingSettingsTypes";
@@ -26,6 +34,60 @@ const devices: Array<
 ];
 
 describe("Koharu backend contracts across GPU vendors and generations", () => {
+  it("rejects cancelled acquisition before downloading or starting a worker and leaves no cached engine", async () => {
+    const root = await mkdtemp(join(tmpdir(), "koharu-cancelled-acquisition-"));
+    const appPaths: AppPaths = {
+      isPackaged: false,
+      repoRoot: root,
+      executableDir: root,
+      resourcesDir: root,
+      dataRoot: root,
+      settingsPath: join(root, "settings.json"),
+      libraryDir: join(root, "library"),
+      fontsDir: join(root, "fonts"),
+      logsDir: join(root, "logs"),
+      logFile: join(root, "logs", "app.log"),
+      runtimeDir: join(root, "runtime"),
+      toolsDir: join(root, "tools"),
+      ocrRuntimeDir: join(root, "ocr"),
+      llamaRuntimeDir: join(root, "llama"),
+      llamaServerPath: join(root, "llama", "server"),
+    };
+    vi.stubEnv("MANGA_TRANSLATOR_LOG_PATH", appPaths.logFile);
+    const controller = new AbortController();
+    controller.abort(new Error("Koharu acquisition cancelled before startup"));
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("Unexpected network request"));
+    try {
+      await expect(
+        acquireKoharuInpaintingEngine({
+          appPaths,
+          model: "lama-manga",
+          backend: "cpu",
+          signal: controller.signal,
+        }),
+      ).rejects.toThrow("Koharu acquisition cancelled before startup");
+      expect(fetch).not.toHaveBeenCalled();
+      await expect(
+        readdir(join(root, "models", "inpainting", "lama-manga")),
+      ).resolves.toEqual([]);
+      await expect(readdir(appPaths.runtimeDir)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      await expect(
+        disposeCachedKoharuInpaintingEngine("cancelled-acquisition-test"),
+      ).resolves.toBe(false);
+    } finally {
+      fetch.mockRestore();
+      vi.unstubAllEnvs();
+      await disposeCachedKoharuInpaintingEngine(
+        "cancelled-acquisition-cleanup",
+      );
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   // These are code-level routing tests, not hardware inference claims.
   it.each(devices)(
     "routes %s without model-name-specific workarounds",

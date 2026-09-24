@@ -11,6 +11,11 @@ import {
 } from "./imageHeaderProbe";
 import type { ImportImageRuntime } from "./importImageRuntime";
 import {
+  nativeImportDigest,
+  observeNativeImportedPage,
+  type NativeImportPageObservation,
+} from "./importPublicationEvidence";
+import {
   assertImportImageFileBudget,
   convertValidatedWebpImportImage,
   validateStoredImportImage,
@@ -48,21 +53,23 @@ export async function materializePageRecord(
   zipReaderCache: Map<string, ZipArchiveReader>,
   imageRuntime: ImportImageRuntime,
   signal?: AbortSignal,
+  observation?: NativeImportPageObservation,
 ): Promise<LibraryPageRecord> {
   const pageId = randomUUID();
-  const resolvedTarget: ImportPageMaterializationTarget =
-    typeof target === "string"
-      ? {
-          writePagesDirectory: target,
-          publishedPagesDirectory: target,
-        }
-      : target;
+  const resolvedTarget = resolveMaterializationTarget(target);
   throwIfAborted(signal);
   const preparedImage = await prepareImportedPageImage(
     pageDraft,
     zipReaderCache,
     signal,
   );
+  const sourceValue =
+    preparedImage.kind === "zip-entry"
+      ? preparedImage.sourceBytes
+      : pageDraft.sourcePath;
+  const source = observation
+    ? await nativeImportDigest(sourceValue, signal)
+    : undefined;
   throwIfAborted(signal);
   const targetExt = resolveImportOutputExt(
     preparedImage.sourceExt,
@@ -94,28 +101,63 @@ export async function materializePageRecord(
       signal,
     );
     throwIfAborted(signal);
-    const now = new Date().toISOString();
-    return {
-      id: pageId,
-      name: pageDraft.name,
-      imagePath: publishedPath,
-      ...(pageDraft.sourceFileName
-        ? { sourceFileName: pageDraft.sourceFileName }
-        : {}),
-      ...(pageDraft.sourceRelativePath
-        ? { sourceRelativePath: pageDraft.sourceRelativePath }
-        : {}),
-      width: finalMetadata.width,
-      height: finalMetadata.height,
-      blocks: [],
-      analysisStatus: "idle",
-      createdAt: now,
-      updatedAt: now,
-    };
+    const page = buildImportedPageRecord(
+      pageDraft,
+      pageId,
+      publishedPath,
+      finalMetadata,
+    );
+    if (observation && source) {
+      await observeNativeImportedPage({
+        observation,
+        page,
+        pageIndex: index,
+        source: { ...source, format: preparedImage.metadata.format },
+        sourceValue,
+        originalPath: outputPath,
+        originalFormat: finalMetadata.format,
+        signal,
+      });
+    }
+    return page;
   } catch (error) {
     await unlinkIfExists(outputPath);
     throw error;
   }
+}
+
+function resolveMaterializationTarget(
+  target: ImportPageMaterializationTarget | string,
+): ImportPageMaterializationTarget {
+  return typeof target === "string"
+    ? { writePagesDirectory: target, publishedPagesDirectory: target }
+    : target;
+}
+
+function buildImportedPageRecord(
+  pageDraft: ImportPageDraft,
+  pageId: string,
+  publishedPath: string,
+  metadata: ImageHeaderMetadata,
+): LibraryPageRecord {
+  const now = new Date().toISOString();
+  return {
+    id: pageId,
+    name: pageDraft.name,
+    imagePath: publishedPath,
+    ...(pageDraft.sourceFileName
+      ? { sourceFileName: pageDraft.sourceFileName }
+      : {}),
+    ...(pageDraft.sourceRelativePath
+      ? { sourceRelativePath: pageDraft.sourceRelativePath }
+      : {}),
+    width: metadata.width,
+    height: metadata.height,
+    blocks: [],
+    analysisStatus: "idle",
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
 async function writeImportedPageImage(

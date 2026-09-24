@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- import staging and publication sequencing stay co-located for transaction auditability */
 import { randomUUID } from "node:crypto";
+import { ImportSourceIdentitySchema } from "../../shared/importSourceIdentity";
 import { mkdir } from "node:fs/promises";
 import { basename, extname, join, relative } from "node:path";
 import { throwIfAborted } from "../abortSignal";
@@ -21,6 +22,17 @@ import {
   normalizeImportPageName,
 } from "./importImages";
 import { materializePageRecord } from "./importPageMaterialize";
+import type {
+  NativeImportPageObservation,
+  NativeImportPageObserver,
+  NativeImportMetadataObserver,
+} from "./importPublicationEvidence";
+import {
+  observeNativeImportedChapter,
+  observeNativeImportedGuide,
+  observeNativeImportedWork,
+  nativeImportedWorkObserver,
+} from "./importPublicationMetadata";
 import {
   listImageEntriesInZip,
   listImageFiles,
@@ -59,23 +71,14 @@ export async function previewImages(
     sourceKind: "file" as const,
     sourcePath: filePath,
   }));
-
   return {
     mode: "single",
     sourceKind: "images",
     suggestedWorkTitle: tMain("import.defaultWorkTitle"),
-    chapters: [
-      {
-        draftId: randomUUID(),
-        title,
-        sourceKind: "images",
-        pages,
-      },
-    ],
+    chapters: [{ draftId: randomUUID(), title, sourceKind: "images", pages }],
     ...excludedPreviewPages(title, inspected.excludedFilePaths),
   };
 }
-
 export async function previewFolder(
   folderPath: string,
 ): Promise<ImportPreviewResult> {
@@ -105,7 +108,6 @@ export async function previewFolder(
     ...excludedPreviewPages(title, inspected.excludedFilePaths),
   };
 }
-
 export async function previewZip(
   zipPath: string,
 ): Promise<ImportPreviewResult> {
@@ -115,7 +117,6 @@ export async function previewZip(
     sourcePath: zipPath,
     zipEntryName: entry.entryName,
   }));
-
   return {
     mode: "single",
     sourceKind: "zip",
@@ -130,7 +131,6 @@ export async function previewZip(
     ],
   };
 }
-
 export async function previewZipFolder(
   folderPath: string,
 ): Promise<ImportPreviewResult> {
@@ -194,7 +194,6 @@ export async function previewZipFolder(
     (item) => item.excludedPages,
   );
   assertBatchPreviewUsable(chapters, excludedPages);
-
   return {
     mode: "batch",
     sourceKind: "zip-folder",
@@ -203,7 +202,6 @@ export async function previewZipFolder(
     ...(excludedPages.length > 0 ? { excludedPages } : {}),
   };
 }
-
 function assertBatchPreviewUsable(
   chapters: ImportChapterDraft[],
   excludedPages: ImportPreviewExcludedPage[],
@@ -217,7 +215,6 @@ function assertBatchPreviewUsable(
     );
   }
 }
-
 function excludedPreviewPages(
   chapterTitle: string,
   filePaths: string[],
@@ -225,7 +222,6 @@ function excludedPreviewPages(
   const excludedPages = buildExcludedPreviewPages(chapterTitle, filePaths);
   return excludedPages.length > 0 ? { excludedPages } : {};
 }
-
 function buildExcludedPreviewPages(
   chapterTitle: string,
   filePaths: string[],
@@ -236,7 +232,6 @@ function buildExcludedPreviewPages(
     reason: "invalid-image-header" as const,
   }));
 }
-
 function assertUsableInspectedImages(
   inspection: Awaited<ReturnType<typeof inspectImportImageFiles>>,
 ): void {
@@ -255,6 +250,15 @@ export async function createImportFromPreviewUnlocked(
   imageRuntime: ImportImageRuntime,
   signal?: AbortSignal,
   publish?: Parameters<typeof runLibraryTransaction>[2],
+  publication?: {
+    assertCanCommit: () => void;
+    observePage?: NativeImportPageObserver;
+    observeMetadata?: NativeImportMetadataObserver;
+    stage: (
+      transaction: LibraryTransaction,
+      result: CreateImportResult,
+    ) => Promise<void>;
+  },
 ): Promise<CreateImportResult> {
   const selectedDraftIds = new Set(
     request.selections
@@ -267,39 +271,51 @@ export async function createImportFromPreviewUnlocked(
   if (selectedDrafts.length === 0) {
     throw new Error(tMain("import.errors.noChapterToCreate"));
   }
-
   throwIfAborted(signal);
+  publication?.assertCanCommit();
   return runLibraryTransaction(
     "import",
     async (transaction) => {
       throwIfAborted(signal);
-      return request.target.mode === "new"
-        ? importIntoNewWork(
-            transaction,
-            request,
-            selectedDrafts,
-            imageRuntime,
-            signal,
-          )
-        : importIntoExistingWork(
-            transaction,
-            request.target.workId,
-            request,
-            selectedDrafts,
-            imageRuntime,
-            signal,
-          );
+      const result =
+        request.target.mode === "new"
+          ? await importIntoNewWork(
+              transaction,
+              request,
+              selectedDrafts,
+              imageRuntime,
+              signal,
+              publication?.observePage,
+              publication?.observeMetadata,
+            )
+          : await importIntoExistingWork(
+              transaction,
+              request.target.workId,
+              request,
+              selectedDrafts,
+              imageRuntime,
+              signal,
+              publication?.observePage,
+              publication?.observeMetadata,
+            );
+      // Native composition only: receipt staging joins the same locked publication.
+      // No public import payload accepts callbacks, paths or serialized receipts.
+      if (publication)
+        transaction.beforePublish(() => publication.stage(transaction, result));
+      return result;
     },
     publish,
+    publication?.assertCanCommit,
   );
 }
-
 async function importIntoNewWork(
   transaction: LibraryTransaction,
   request: CreateImportFromPreviewRequest,
   selectedDrafts: ImportChapterDraft[],
   imageRuntime: ImportImageRuntime,
   signal?: AbortSignal,
+  observePage?: NativeImportPageObserver,
+  observeMetadata?: NativeImportMetadataObserver,
 ): Promise<CreateImportResult> {
   if (request.target.mode !== "new") {
     throw new Error("새 작품 import target이 아닙니다.");
@@ -311,13 +327,14 @@ async function importIntoNewWork(
   const published =
     await transaction.createPublishedDirectory(finalWorkDirectory);
   throwIfAborted(signal);
-
   const createdChapters = await materializeSelectedDrafts({
     workId: target.id,
     selectedDrafts,
     requestSelections: request.selections,
     imageRuntime,
     signal,
+    observePage,
+    observeMetadata,
     usedTitles: new Set<string>(),
     prepareChapterDirectories: async (chapterId) => {
       const writeChapterDirectory = join(
@@ -337,16 +354,12 @@ async function importIntoNewWork(
   if (createdChapters.length === 0) {
     throw new Error(tMain("import.errors.noChapterToCreate"));
   }
-
-  const now = new Date().toISOString();
-  const nextWork: WorkFile = {
-    ...target,
-    chapterOrder: createdChapters.map((chapter) => chapter.id),
-    updatedAt: now,
-  };
-  await writeJsonFile(
-    join(published.stagingDirectory, "work.json"),
-    validateWorkFile(nextWork.id, nextWork),
+  await writeImportedWorkMetadata(
+    target,
+    createdChapters,
+    published.stagingDirectory,
+    observeMetadata,
+    signal,
   );
   transaction.beforePublish(async () => {
     throwIfAborted(signal);
@@ -356,7 +369,6 @@ async function importIntoNewWork(
     });
   });
   throwIfAborted(signal);
-
   const openedChapter = createdChapters[0];
   if (!openedChapter) {
     throw new Error(tMain("import.errors.createdChapterOpen"));
@@ -368,6 +380,39 @@ async function importIntoNewWork(
   };
 }
 
+async function writeImportedWorkMetadata(
+  target: WorkFile,
+  chapters: LibraryChapter[],
+  directory: string,
+  observeMetadata?: NativeImportMetadataObserver,
+  signal?: AbortSignal,
+) {
+  const now = new Date().toISOString();
+  const nextWork: WorkFile = {
+    ...target,
+    chapterOrder: chapters.map((chapter) => chapter.id),
+    updatedAt: now,
+  };
+  await writeJsonFile(
+    join(directory, "work.json"),
+    validateWorkFile(nextWork.id, nextWork),
+  );
+  if (observeMetadata) {
+    await observeNativeImportedWork({
+      workId: target.id,
+      directory,
+      observe: observeMetadata,
+      signal,
+    });
+    await observeNativeImportedGuide({
+      workId: target.id,
+      directory,
+      observe: observeMetadata,
+      signal,
+    });
+  }
+}
+
 async function importIntoExistingWork(
   transaction: LibraryTransaction,
   workId: string,
@@ -375,6 +420,8 @@ async function importIntoExistingWork(
   selectedDrafts: ImportChapterDraft[],
   imageRuntime: ImportImageRuntime,
   signal?: AbortSignal,
+  observePage?: NativeImportPageObserver,
+  observeMetadata?: NativeImportMetadataObserver,
 ): Promise<CreateImportResult> {
   await ensureExistingWork(workId);
   const usedTitles = await collectUsedChapterTitles(workId);
@@ -385,6 +432,8 @@ async function importIntoExistingWork(
     requestSelections: request.selections,
     imageRuntime,
     signal,
+    observePage,
+    observeMetadata,
     usedTitles,
     prepareChapterDirectories: async (chapterId) => {
       const finalDirectory = join(
@@ -404,21 +453,30 @@ async function importIntoExistingWork(
   if (createdChapters.length === 0) {
     throw new Error(tMain("import.errors.noChapterToCreate"));
   }
-
   transaction.beforePublish(async () => {
     throwIfAborted(signal);
     const target = await ensureExistingWork(workId);
-    await stageWorkFile(transaction, {
-      ...target,
-      chapterOrder: [
-        ...target.chapterOrder,
-        ...createdChapters.map((chapter) => chapter.id),
-      ],
-      updatedAt: new Date().toISOString(),
-    });
+    await stageWorkFile(
+      transaction,
+      {
+        ...target,
+        chapterOrder: [
+          ...target.chapterOrder,
+          ...createdChapters.map((chapter) => chapter.id),
+        ],
+        updatedAt: new Date().toISOString(),
+      },
+      nativeImportedWorkObserver(workId, observeMetadata, signal),
+    );
+    if (observeMetadata)
+      await observeNativeImportedGuide({
+        workId,
+        directory: join(getWorksRoot(), workId),
+        observe: observeMetadata,
+        signal,
+      });
   });
   throwIfAborted(signal);
-
   const openedChapter = createdChapters[0];
   if (!openedChapter) {
     throw new Error(tMain("import.errors.createdChapterOpen"));
@@ -429,18 +487,18 @@ async function importIntoExistingWork(
     openedChapter: hydrateChapter(openedChapter),
   };
 }
-
 type ChapterDirectoryTarget = {
   writeChapterDirectory: string;
   publishedChapterDirectory: string;
 };
-
 async function materializeSelectedDrafts({
   workId,
   selectedDrafts,
   requestSelections,
   imageRuntime,
   signal,
+  observePage,
+  observeMetadata,
   usedTitles,
   prepareChapterDirectories,
 }: {
@@ -449,6 +507,8 @@ async function materializeSelectedDrafts({
   requestSelections: CreateImportFromPreviewRequest["selections"];
   imageRuntime: ImportImageRuntime;
   signal?: AbortSignal;
+  observePage?: NativeImportPageObserver;
+  observeMetadata?: NativeImportMetadataObserver;
   usedTitles: Set<string>;
   prepareChapterDirectories: (
     chapterId: string,
@@ -483,6 +543,16 @@ async function materializeSelectedDrafts({
           zipReaderCache,
           imageRuntime,
           signal,
+          observation: observePage
+            ? {
+                observe: observePage,
+                kind: "image",
+                workId,
+                chapterId,
+                sourceChapterId: draft.draftId,
+              }
+            : undefined,
+          observeMetadata,
         }),
       );
     }
@@ -493,7 +563,6 @@ async function materializeSelectedDrafts({
     }
   }
 }
-
 async function materializeChapterFromDraft({
   workId,
   chapterId,
@@ -503,6 +572,8 @@ async function materializeChapterFromDraft({
   zipReaderCache,
   imageRuntime,
   signal,
+  observation,
+  observeMetadata,
 }: {
   workId: string;
   chapterId: string;
@@ -512,6 +583,8 @@ async function materializeChapterFromDraft({
   zipReaderCache: Map<string, ZipArchiveReader>;
   imageRuntime: ImportImageRuntime;
   signal?: AbortSignal;
+  observation?: NativeImportPageObservation;
+  observeMetadata?: NativeImportMetadataObserver;
 }): Promise<LibraryChapter> {
   throwIfAborted(signal);
   const now = new Date().toISOString();
@@ -525,7 +598,6 @@ async function materializeChapterFromDraft({
     "pages",
   );
   await mkdir(writePagesDirectory, { recursive: true });
-
   const pages: LibraryPageRecord[] = [];
   for (const [index, pageDraft] of draft.pages.entries()) {
     throwIfAborted(signal);
@@ -537,25 +609,55 @@ async function materializeChapterFromDraft({
         zipReaderCache,
         imageRuntime,
         signal,
+        observation,
       ),
     );
   }
-
+  if (draft.importSource && draft.importSource.pageCount !== pages.length)
+    throw new Error(
+      "Import source identity does not match the selected page count.",
+    );
   const chapter: LibraryChapter = {
     id: chapterId,
     workId,
     title,
     sourceKind: draft.sourceKind,
+    ...(draft.importSource
+      ? { importSource: ImportSourceIdentitySchema.parse(draft.importSource) }
+      : {}),
     status: resolveChapterStatus(pages),
     pageOrder: pages.map((page) => page.id),
     pages,
     createdAt: now,
     updatedAt: now,
   };
-  throwIfAborted(signal);
-  await writeJsonFile(
-    join(directories.writeChapterDirectory, "chapter.json"),
-    validateChapterFilePaths(workId, chapterId, chapter),
+  await writeImportedChapterMetadata(
+    chapter,
+    directories.writeChapterDirectory,
+    observeMetadata,
+    signal,
   );
   return chapter;
+}
+
+async function writeImportedChapterMetadata(
+  chapter: LibraryChapter,
+  directory: string,
+  observeMetadata?: NativeImportMetadataObserver,
+  signal?: AbortSignal,
+) {
+  const { workId, id: chapterId } = chapter;
+  throwIfAborted(signal);
+  await writeJsonFile(
+    join(directory, "chapter.json"),
+    validateChapterFilePaths(workId, chapterId, chapter),
+  );
+  if (observeMetadata)
+    await observeNativeImportedChapter({
+      workId,
+      chapterId,
+      directory,
+      observe: observeMetadata,
+      signal,
+    });
 }

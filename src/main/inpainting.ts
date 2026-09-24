@@ -1,4 +1,5 @@
 import { nativeImage } from "electron";
+import { restoreHiddenPixels } from "./imageRedactionPixels";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { clamp } from "../shared/geometry";
@@ -140,6 +141,7 @@ export async function applyInpaintingRetouch(
     mode: "paint" | "restore";
     geometry: InpaintingRetouchGeometry;
     color?: string;
+    protectedMask?: Uint8Array;
     decodeFallback?: ImageDecodeFallback;
   },
 ): Promise<MangaPage> {
@@ -160,7 +162,8 @@ export async function applyInpaintingRetouch(
     throw new Error(tMain("inpainting.errors.imageSizeMismatch"));
   }
 
-  const bitmap = Buffer.from(baseImage.toBitmap());
+  const beforeBitmap = copyRetouchBitmap(baseImage, options.protectedMask);
+  const bitmap = Buffer.from(beforeBitmap);
   const originalBitmap = Buffer.from(originalImage.toBitmap());
   const changed = applyRetouchGeometry(
     bitmap,
@@ -170,6 +173,7 @@ export async function applyInpaintingRetouch(
     options,
   );
   if (!changed) return page;
+  restoreHiddenPixels(beforeBitmap, bitmap, options.protectedMask);
 
   const outputImage = nativeImage.createFromBitmap(bitmap, {
     width: size.width,
@@ -302,4 +306,14 @@ export async function sampleImageColor(
   const px = clamp(Math.round(x), 0, Math.max(0, size.width - 1));
   const py = clamp(Math.round(y), 0, Math.max(0, size.height - 1));
   return rgbToHex(readRgb(bitmap, size.width, px, py));
+}
+
+function copyRetouchBitmap(
+  image: Electron.NativeImage,
+  protectedMask?: Uint8Array,
+): Buffer {
+  const size = image.getSize();
+  if (protectedMask && protectedMask.length !== size.width * size.height)
+    throw new Error("Protected retouch mask must match the image dimensions.");
+  return Buffer.from(image.toBitmap());
 }

@@ -4,7 +4,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
-import type { GatheredPage } from "../src/renderer/src/lib/gatherText";
+import type { GatheredPage } from "../src/shared/gatherText";
 import { useGatherTextFormatSelection } from "../src/renderer/src/components/gatherText/useGatherTextFormatSelection";
 
 const TS = "2026-01-01T00:00:00.000Z";

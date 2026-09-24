@@ -1,3 +1,4 @@
+import { commitSoundEffectSnapshotUnlocked } from "../libraryStore/librarySoundEffectSnapshot";
 import type {
   PrepareSoundEffectTranslationRequest,
   PrepareSoundEffectTranslationResult,
@@ -84,4 +85,19 @@ export async function prepareSoundEffectTranslation(
     request.pages.map((page) => page.pageId),
   );
   return result;
+}
+
+/** Existing library transaction/notifications with commit acknowledgment before UI callbacks. */
+export async function commitSoundEffectSnapshot(
+  ...args: Parameters<typeof commitSoundEffectSnapshotUnlocked>
+) {
+  const [target] = args;
+  const chapter = await withLibraryMutation(() => {
+    assertLibraryActivityAccess([
+      pageContentResource(target.chapterId, target.pageId),
+    ]);
+    return commitSoundEffectSnapshotUnlocked(...args);
+  });
+  notifyLinkedWorkspacePagesSaved(target.chapterId, [target.pageId]);
+  return chapter;
 }

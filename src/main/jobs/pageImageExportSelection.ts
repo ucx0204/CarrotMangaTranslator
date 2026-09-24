@@ -94,6 +94,7 @@ export async function preflightPageImageExport(
       chapterTitle: firstChapter.chapter.title,
       pageIndex: firstPage.pageIndex,
       pageName: firstPage.page.name,
+      sourceFileName: firstPage.page.sourceFileName,
       outputFormat: request.outputFormat ?? "source",
     }),
     outputPolicy:

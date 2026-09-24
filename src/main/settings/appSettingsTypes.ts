@@ -173,6 +173,8 @@ export type TranslationOptions = {
   ocrBboxHintsPath?: string;
   /** App-generated, immutable dialogue/effect rectangles for HayaiOCR. */
   ocrBboxRegionsPath?: string;
+  /** Internal input identity: a validated saved-block crop must not be redetected as a page. */
+  ocrInputKind?: "page" | "known-block-crop";
   ocrBboxHints?: unknown;
   ocrBboxResult?: {
     hints?: unknown[];

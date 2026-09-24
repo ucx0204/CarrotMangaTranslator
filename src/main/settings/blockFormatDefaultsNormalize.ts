@@ -22,7 +22,7 @@ import {
 
 export function normalizeBlockFormatDefaults(
   raw: Record<string, unknown> | null,
-  defaults: AppSettings,
+  defaults: Pick<AppSettings, "blockFormatDefaults">,
 ): NonNullable<AppSettings["blockFormatDefaults"]> {
   const base = defaults.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS;
   const data = raw ?? {};
