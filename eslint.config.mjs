@@ -13,6 +13,8 @@ export default tseslint.config(
       ".tmp/**",
       "tmp/**",
       "library/**",
+      ".environment-backup/**",
+      "manual-redaction-drafts/**",
       "logs/**",
       "models/**",
       "ocr-runtime/**",

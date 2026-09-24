@@ -108,6 +108,10 @@
       "publicPrimitive": true,
       "reason": "Shared modal primitive; broad reuse is intentional"
     },
+    "src/renderer/src/components/ui/ModalActionBar.tsx": {
+      "maxImportedBy": 26,
+      "reason": "Backup restore confirmation reuses the shared pinned modal actions so the commit button stays visible while long connection lists scroll."
+    },
     "src/renderer/src/components/ui/NumberField.tsx": {
       "publicPrimitive": true,
       "reason": "Shared numeric field primitive; broad reuse is intentional"

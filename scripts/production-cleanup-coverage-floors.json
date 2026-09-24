@@ -16823,6 +16823,28 @@
     }
   },
   "introducedFloors": {
+    "src/main/appRelaunch.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      }
+    },
     "src/main/application/codexTypesettingBackground.ts": {
       "lines": {
         "covered": 38,

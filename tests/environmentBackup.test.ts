@@ -254,12 +254,29 @@ describe("environment backup", () => {
       },
     );
     const archive = join(out, "backup.zip");
+    const exportProgress = vi.fn();
     await new EnvironmentBackupStore(paths(source), "2.8.0").export(
       archive,
       { "library-sort": "title:asc" },
       signal(),
-      progress,
+      exportProgress,
     );
+    expect([
+      ...new Set(exportProgress.mock.calls.map((call) => call[2])),
+    ]).toEqual(["backup-copying", "backup-verifying", "backup-compressing"]);
+    for (const phase of [
+      "backup-copying",
+      "backup-verifying",
+      "backup-compressing",
+    ]) {
+      const calls = exportProgress.mock.calls.filter(
+        (call) => call[2] === phase,
+      );
+      expect(calls[0][0]).toBe(0);
+      const last = calls[calls.length - 1];
+      expect(last[0]).toBe(last[1]);
+      expect(last[1]).toBeGreaterThan(0);
+    }
     const inspectRoot = await temp();
     const manifest = await extractBackupArchive({
       archive,

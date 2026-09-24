@@ -93,9 +93,9 @@ def main() -> int:
         })
         try:
             payload = process_page(
-                image_path=Path(item["image"]),
-                region_path=Path(item["regions"]),
-                output_path=Path(item["output"]),
+                image_path=runtime_path(item["image"]),
+                region_path=runtime_path(item["regions"]),
+                output_path=runtime_path(item["output"]),
                 model=model,
                 tokenizer=tokenizer,
                 processor=processor,
@@ -123,7 +123,7 @@ def main() -> int:
 
 def read_batch_items(args: argparse.Namespace) -> list[dict[str, str]]:
     if args.batch:
-        payload = read_json(Path(args.batch))
+        payload = read_json(runtime_path(args.batch))
         raw_items = payload.get("items") if isinstance(payload, dict) else None
         if not isinstance(raw_items, list) or not raw_items:
             raise RuntimeError("Hayai batch manifest contains no items.")
@@ -604,11 +604,24 @@ def emit_progress(path: str | None, payload: Mapping[str, Any]) -> None:
     print(line, flush=True)
     if not path:
         return
-    target = Path(path)
+    target = runtime_path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     with target.open("a", encoding="utf-8") as handle:
         handle.write(line + "\n")
         handle.flush()
+
+
+def runtime_path(value: str) -> Path:
+    """Read Node-created long paths even when Windows long paths are disabled."""
+    if os.name != "nt":
+        return Path(value)
+    absolute = os.path.abspath(value)
+    # Directory creation reserves room for an 8.3 name below MAX_PATH too.
+    if len(absolute) < 248 or absolute.startswith("\\\\?\\"):
+        return Path(value)
+    if absolute.startswith("\\\\"):
+        return Path("\\\\?\\UNC\\" + absolute[2:])
+    return Path("\\\\?\\" + absolute)
 
 
 def read_json(path: Path) -> dict[str, Any]:

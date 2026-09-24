@@ -5,6 +5,7 @@ import { EnvironmentBackupService } from "../application/environmentBackupServic
 import type { EnvironmentBackupPorts } from "../application/environmentBackupService";
 import { libraryMutationCoordinator } from "../library";
 import { isAbortErrorLike } from "../abortSignal";
+import { prepareAppRelaunch } from "../appRelaunch";
 import { EnvironmentBackupStore } from "./store";
 import { suspendEnvironmentAccess } from "./access";
 
@@ -35,8 +36,8 @@ export function createEnvironmentBackupService(
     preview: (...args) => store.preview(...args),
     prepareRecovery: (...args) => store.prepareRecovery(...args),
     schedule: (...args) => store.schedule(...args),
-    restart: () => {
-      app.relaunch();
+    restart: async () => {
+      await prepareAppRelaunch();
       setImmediate(() => app.quit());
     },
   });
@@ -52,9 +53,9 @@ function createExclusiveOperation(
       mutatesLibrary: true,
       presentation: {
         phase:
-          kind === "environment-backup" ? "share-packaging" : "share-reading",
+          kind === "environment-backup" ? "backup-copying" : "share-reading",
         cancellable: true,
-        progressUnit: kind === "environment-backup" ? "items" : "bytes",
+        progressUnit: "bytes",
       },
     });
     let releaseAccess: (() => void) | undefined;
@@ -67,8 +68,9 @@ function createExclusiveOperation(
       await libraryMutationCoordinator.waitForIdle();
       const result = await action(
         lease.signal,
-        (current, total) =>
+        (current, total, phase) =>
           lease.updateActivity({
+            ...(phase ? { phase } : {}),
             progressCurrent: current,
             progressTotal: total,
           }),

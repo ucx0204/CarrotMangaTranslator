@@ -1,8 +1,11 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { SettingsSection } from "./SettingsSection";
 import { Button } from "../ui/Button";
 import { ProgressBar } from "../ui/ProgressBar";
+import { Modal } from "../ui/Modal";
+import { ModalActionBar, ModalActionButtons } from "../ui/ModalActionBar";
 import { useEnvironmentBackup } from "./useEnvironmentBackup";
 import styles from "./EnvironmentBackupSection.module.css";
 
@@ -30,6 +33,7 @@ export function EnvironmentBackupView({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const blocked = disabled || dirty || model.busy;
+  const confirming = Boolean(model.preview || model.recoveryId);
   return (
     <SettingsSection
       title={t("settings.backup.title")}
@@ -43,10 +47,7 @@ export function EnvironmentBackupView({
         )}
         {dirty && <p role="status">{t("settings.backup.dirty")}</p>}
         <div className={styles.actions}>
-          <Button
-            disabled={blocked || !model.status}
-            onClick={() => void model.exportBackup()}
-          >
+          <Button disabled={blocked} onClick={() => void model.exportBackup()}>
             {t("settings.backup.export")}
           </Button>
           <Button disabled={blocked} onClick={() => void model.inspectBackup()}>
@@ -69,11 +70,15 @@ export function EnvironmentBackupView({
           </div>
         ))}
         <BackupConfirmation model={model} blocked={blocked} />
-        <BackupProgress model={model} />
-        {model.error && (
-          <p role="alert" className={styles.path}>
-            {model.error}
-          </p>
+        {!confirming && (
+          <>
+            <BackupProgress model={model} />
+            {model.error && (
+              <p role="alert" className={styles.path}>
+                {model.error}
+              </p>
+            )}
+          </>
         )}
         {model.savedPath && (
           <p role="status" className={styles.path}>
@@ -98,19 +103,48 @@ function BackupConfirmation({
   );
   const preview = model.preview;
   if (!preview && !recovery) return null;
-  return (
-    <div
-      className={styles.confirm}
-      role="group"
-      aria-label={t("settings.backup.confirmTitle")}
+  return createPortal(
+    <Modal
+      title={t("settings.backup.confirmTitle")}
+      onClose={model.dismiss}
+      closeDisabled={model.busy}
+      bodyClassName={styles.content}
+      footer={
+        <div className={styles.content}>
+          <BackupProgress model={model} />
+          {model.error && (
+            <p role="alert" className={styles.path}>
+              {model.error}
+            </p>
+          )}
+          <ModalActionBar
+            actions={
+              <ModalActionButtons
+                cancel={{
+                  label: t("settings.backup.close"),
+                  onClick: model.dismiss,
+                  disabled: model.busy,
+                }}
+                confirm={{
+                  label: t("settings.backup.apply"),
+                  onClick: () => void model.apply(),
+                  disabled: blocked,
+                }}
+              />
+            }
+          />
+        </div>
+      }
     >
-      <strong>{t("settings.backup.confirmTitle")}</strong>
       {preview && (
-        <p>
-          {new Date(preview.createdAt).toLocaleString()} · v{preview.appVersion}{" "}
-          · {t("settings.backup.counts", preview)} ·{" "}
-          {(preview.bytes / 1024 ** 2).toFixed(1)} MB
-        </p>
+        <>
+          <p>{t("settings.backup.ready")}</p>
+          <strong>{t("settings.backup.counts", preview)}</strong>
+          <p className={styles.muted}>
+            {new Date(preview.createdAt).toLocaleString()} · v
+            {preview.appVersion} · {(preview.bytes / 1024 ** 2).toFixed(1)} MB
+          </p>
+        </>
       )}
       <p>{t("settings.backup.confirmDescription")}</p>
       <p className={styles.path}>{preview?.recoveryPath ?? recovery?.path}</p>
@@ -119,19 +153,8 @@ function BackupConfirmation({
           {connection}
         </p>
       ))}
-      <div className={styles.actions}>
-        <Button
-          variant="primary"
-          disabled={blocked}
-          onClick={() => void model.apply()}
-        >
-          {t("settings.backup.apply")}
-        </Button>
-        <Button disabled={model.busy} onClick={model.dismiss}>
-          {t("settings.backup.close")}
-        </Button>
-      </div>
-    </div>
+    </Modal>,
+    document.body,
   );
 }
 function BackupProgress({

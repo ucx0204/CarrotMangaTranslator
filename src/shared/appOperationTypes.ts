@@ -25,6 +25,9 @@ export const APP_OPERATION_STATUSES = [
 export type AppOperationStatus = (typeof APP_OPERATION_STATUSES)[number];
 
 export const APP_OPERATION_PHASES = [
+  "backup-copying",
+  "backup-verifying",
+  "backup-compressing",
   "import-source-reading",
   "import-source-converting",
   "import-source-validating",

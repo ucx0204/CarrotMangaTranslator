@@ -67,10 +67,13 @@ export async function copyBackupFile(
   source: string,
   target: string,
   signal: AbortSignal,
+  progress?: (bytes: number) => void,
 ): Promise<void> {
   await mkdir(dirname(target), { recursive: true });
+  const sourceStream = createReadStream(source);
+  sourceStream.on("data", (chunk: Buffer) => progress?.(chunk.length));
   await pipeline(
-    createReadStream(source),
+    sourceStream,
     createWriteStream(target, { flags: "wx", mode: 0o600 }),
     { signal },
   );
@@ -79,12 +82,14 @@ export async function hashBackupFile(
   root: string,
   path: string,
   signal: AbortSignal,
+  progress?: (bytes: number) => void,
 ): Promise<BackupInventoryEntry> {
   const hash = createHash("sha256");
   let size = 0;
   for await (const chunk of createReadStream(join(root, path), { signal })) {
     hash.update(chunk);
     size += chunk.length;
+    progress?.(chunk.length);
   }
   return { path, size, sha256: hash.digest("hex") };
 }

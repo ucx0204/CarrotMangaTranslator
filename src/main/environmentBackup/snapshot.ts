@@ -2,7 +2,10 @@ import { validateBackupUserStores } from "./validate";
 import { lstat, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
-import type { BackupUiPreferences } from "../../shared/environmentBackup";
+import type {
+  BackupProgress,
+  BackupUiPreferences,
+} from "../../shared/environmentBackup";
 import { writeJsonFile } from "../libraryStore/storage";
 import {
   BACKUP_SOURCE_NAMES,
@@ -26,6 +29,7 @@ export async function copyCategories(
   target: string,
   names: readonly string[],
   signal: AbortSignal,
+  progress?: BackupProgress,
 ): Promise<void> {
   const files: string[] = [];
   for (const name of names) {
@@ -43,9 +47,19 @@ export async function copyCategories(
   if (bytes > MAX_BACKUP_BYTES)
     throw new Error("Environment exceeds the supported backup size.");
   await assertFreeSpace(target, bytes * 2);
+  let current = 0;
+  progress?.(current, bytes, "backup-copying");
   for (const path of files) {
     signal.throwIfAborted();
-    await copyBackupFile(join(source, path), join(target, path), signal);
+    await copyBackupFile(
+      join(source, path),
+      join(target, path),
+      signal,
+      (size) => {
+        current += size;
+        progress?.(current, bytes, "backup-copying");
+      },
+    );
   }
 }
 
@@ -65,11 +79,18 @@ export async function captureEnvironment(
     appVersion: string;
     ui: BackupUiPreferences;
     signal: AbortSignal;
-    progress: (current: number, total: number) => void;
+    progress: BackupProgress;
   },
 ): Promise<{ root: string; manifest: BackupManifest }> {
   const { paths, signal, progress } = options;
-  await copyCategories(paths.dataRoot, root, BACKUP_SOURCE_NAMES, signal);
+  await copyCategories(
+    paths.dataRoot,
+    root,
+    BACKUP_SOURCE_NAMES,
+    signal,
+    progress,
+  );
+  progress(0, 0, "backup-verifying");
   await writeJsonFile(
     join(root, "portable-settings.json"),
     await exportPortableSettings(paths),
@@ -79,9 +100,17 @@ export async function captureEnvironment(
   await validateBackupUserStores(root);
   const files = await regularFiles(root);
   const inventory = [];
+  let total = 0,
+    current = 0;
+  for (const path of files) total += (await lstat(join(root, path))).size;
+  progress(current, total, "backup-verifying");
   for (const path of files) {
-    inventory.push(await hashBackupFile(root, path, signal));
-    progress(inventory.length, files.length);
+    inventory.push(
+      await hashBackupFile(root, path, signal, (size) => {
+        current += size;
+        progress(current, total, "backup-verifying");
+      }),
+    );
   }
   const manifest = backupManifestSchema.parse({
     format: "carrot-environment-backup",

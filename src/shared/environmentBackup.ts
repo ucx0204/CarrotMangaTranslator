@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+export type BackupProgress = (
+  current: number,
+  total: number,
+  phase?: "backup-copying" | "backup-verifying" | "backup-compressing",
+) => void;
+
 export const BACKUP_UI_KEYS = [
   "library-sort",
   "editor.activeTab.v1",

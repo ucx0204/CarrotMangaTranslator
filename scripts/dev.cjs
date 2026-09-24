@@ -21,7 +21,10 @@ const {
   createRuntimeAssetsCacheStep,
   runCachedBuildStep,
 } = require("./dev-build-cache.cjs");
-const { createDevChildLifecycle } = require("./dev-child-lifecycle.cjs");
+const {
+  createDevChildLifecycle,
+  watchDevRelaunch,
+} = require("./dev-child-lifecycle.cjs");
 
 const root = join(__dirname, "..");
 const DEFAULT_RENDERER_PORT = 5173;
@@ -310,16 +313,25 @@ function spawnChild(label, command, args, env = {}) {
   log(`starting ${label}`);
   const child = spawn(command, args, {
     cwd: root,
-    stdio: "inherit",
+    stdio:
+      label === "electron"
+        ? ["inherit", "inherit", "inherit", "ipc"]
+        : "inherit",
     shell: false,
     env: mergedEnv,
   });
   children.push(child);
+  const requestedRelaunch = watchDevRelaunch(child);
   child.on("exit", (code, signal) => {
+    children.splice(children.indexOf(child), 1);
     log(
       `${label} exited${code === null ? "" : ` code=${code}`}${signal ? ` signal=${signal}` : ""}`,
     );
     if (devChildLifecycle.isShuttingDown()) {
+      return;
+    }
+    if (label === "electron" && requestedRelaunch(code, signal)) {
+      spawnChild(label, command, args, env);
       return;
     }
     requestShutdown(code ?? 1, child);
@@ -450,6 +462,7 @@ process.on("exit", releaseDevLock);
   spawnChild("electron", electronExe, ["."], {
     ELECTRON_RENDERER_URL: rendererUrl,
     ELECTRON_RUN_AS_NODE: undefined,
+    MGT_DEV_SUPERVISED_RELAUNCH: "1",
     MANGA_TRANSLATOR_DEV_USER_DATA: join(devStorageRoot, "user-data"),
     MANGA_TRANSLATOR_DEV_SESSION_DATA: devSessionData,
   });

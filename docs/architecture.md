@@ -270,3 +270,16 @@ ControlTooltip의 파일별 fan-in은 37으로 기록하며 범용 상한은 유
 원자적 JSON 저장 소비 상한 33, pageRevision 35, library facade 33,
 IPC 등록 import 25, trusted IPC 소비 27은 이 기능의 직접 재사용에 한해 기록한다.
 환경 왕복 및 교체 단계별 복구 테스트가 저장 동작을 고정한다.
+
+백업 검사 결과는 공용 Modal로 즉시 표시하고 복원·닫기 버튼은 ModalActionBar에
+고정한다. 긴 연결 경로 목록이 실행 버튼을 밀어내지 않도록 공용 primitive를
+재사용하며 이 직접 소비에 한해 ModalActionBar의 fan-in 상한은 26으로 기록한다.
+보관함 요약은 안내용이므로 내보내기 버튼의 활성화 조건에 포함하지 않는다.
+
+개발 모드의 백업 복원 재시작은 Electron의 IPC로 기존 dev 실행 관리자에 요청한다.
+관리자는 정상 종료한 Electron만 교체하고 Vite와 개발 인스턴스 잠금은 유지한다.
+설치판과 감독되지 않는 실행은 기존 Electron relaunch 경로를 사용한다. 실제 격리된
+Electron·Vite에서 재실행 전후 같은 URL의 화면 로드를 확인했다.
+새 appRelaunch의 최초 커버리지는 `.tmp/dev-relaunch-coverage/coverage-summary.json`
+(SHA-256 `49dad6fa98a7b15c936b93d1094a6b1b7f6796583315a1f7c91e13d6ef17b1da`)의 파일별 측정값이며
+기존 모듈의 기준과 역사 provenance는 변경하지 않았다.

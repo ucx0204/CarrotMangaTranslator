@@ -69,8 +69,30 @@ Var MgtExistingDataRootNotice
     Call MgtResolveInitialDataRoot
   ${EndIf}
   Call MgtWriteDataRootPointer
+  Call MgtEnableLongPaths
   DetailPrint "설치 설정을 마무리했습니다."
 !macroend
+
+Function MgtEnableLongPaths
+  ; Setup is already elevated. Do not elevate the installed app or undo this
+  ; machine-wide setting on uninstall; other applications may depend on it.
+  Push $0
+  ClearErrors
+  ReadRegDWORD $0 HKLM "SYSTEM\CurrentControlSet\Control\FileSystem" "LongPathsEnabled"
+  ${If} $0 != 1
+    ClearErrors
+    WriteRegDWORD HKLM "SYSTEM\CurrentControlSet\Control\FileSystem" "LongPathsEnabled" 1
+    ${If} ${Errors}
+      DetailPrint "Windows 긴 경로 지원 설정을 변경하지 못했습니다. OCR은 자체 긴 경로 처리를 사용합니다."
+      ClearErrors
+    ${Else}
+      DetailPrint "Windows 긴 경로 지원을 활성화했습니다. 이미 실행 중인 프로그램에는 재시작 후 적용됩니다."
+    ${EndIf}
+  ${Else}
+    DetailPrint "Windows 긴 경로 지원이 이미 활성화되어 있습니다."
+  ${EndIf}
+  Pop $0
+FunctionEnd
 
 Function MgtValidateInstallDirectory
   StrLen $0 $INSTDIR

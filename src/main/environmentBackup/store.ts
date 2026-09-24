@@ -6,6 +6,7 @@ import type { AppPaths } from "../appPaths";
 import {
   backupStatusSchema,
   type BackupPreview,
+  type BackupProgress,
   type BackupStatus,
   type BackupUiPreferences,
 } from "../../shared/environmentBackup";
@@ -29,7 +30,6 @@ import {
   scheduleEnvironmentRestore,
 } from "./transaction";
 
-type Progress = (current: number, total: number) => void;
 export class EnvironmentBackupStore {
   constructor(
     private readonly paths: AppPaths,
@@ -92,7 +92,7 @@ export class EnvironmentBackupStore {
     target: string,
     ui: BackupUiPreferences,
     signal: AbortSignal,
-    progress: Progress,
+    progress: BackupProgress,
   ): Promise<void> {
     if (
       resolve(target).startsWith(
@@ -109,7 +109,13 @@ export class EnvironmentBackupStore {
         signal,
         progress,
       });
-      await writeBackupArchive(root, target, snapshot.manifest, signal);
+      await writeBackupArchive(
+        root,
+        target,
+        snapshot.manifest,
+        signal,
+        progress,
+      );
     } finally {
       await this.removeStage(root);
     }
@@ -117,7 +123,7 @@ export class EnvironmentBackupStore {
   async preview(
     archive: string,
     signal: AbortSignal,
-    progress: Progress,
+    progress: BackupProgress,
   ): Promise<BackupPreview> {
     const id = randomUUID(),
       root = createBackupStage(this.paths.dataRoot, id);

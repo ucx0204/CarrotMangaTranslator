@@ -1,4 +1,11 @@
-import { mkdtemp, rm, mkdir, writeFile, readFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  rm,
+  mkdir,
+  writeFile,
+  readFile,
+  readdir,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
@@ -58,7 +65,7 @@ describe("backup safety", () => {
   it("rejects checksum damage without accepting any restored environment", async () => {
     const { root, manifest, archive } = await archiveFixture();
     manifest.files[0].sha256 = "a".repeat(64);
-    await writeBackupArchive(root, archive, manifest, signal());
+    await writeBackupArchive(root, archive, manifest, signal(), progress);
     const target = await temp();
     await expect(
       extractBackupArchive({
@@ -72,7 +79,7 @@ describe("backup safety", () => {
   it("rejects unsupported manifest versions", async () => {
     const { root, manifest, archive } = await archiveFixture();
     Object.assign(manifest, { version: 200 });
-    await writeBackupArchive(root, archive, manifest, signal());
+    await writeBackupArchive(root, archive, manifest, signal(), progress);
     await expect(
       extractBackupArchive({
         root: await temp(),
@@ -90,7 +97,26 @@ describe("backup safety", () => {
     const file = await hashBackupFile(root, "fonts/test.ttf", signal());
     manifest.files.push(file);
     manifest.summary.bytes += file.size;
-    await writeBackupArchive(root, archive, manifest, signal());
+    const updates: number[] = [];
+    await writeBackupArchive(
+      root,
+      archive,
+      manifest,
+      signal(),
+      (current, total, phase) => {
+        expect(phase).toBe("backup-compressing");
+        expect(total).toBe(manifest.summary.bytes);
+        updates.push(current);
+      },
+    );
+    expect(updates[0]).toBe(0);
+    expect(updates.at(-1)).toBe(manifest.summary.bytes);
+    expect(
+      updates.some(
+        (current) => current > 2 && current < manifest.summary.bytes,
+      ),
+    ).toBe(true);
+    expect(updates).toEqual([...updates].sort((a, b) => a - b));
     expect(
       (await readFile(archive)).includes(Buffer.from([0x50, 0x4b, 0x06, 0x06])),
     ).toBe(true);
@@ -107,6 +133,32 @@ describe("backup safety", () => {
         .digest("hex"),
     ).toBe(file.sha256);
   });
+  it("cancels while compressing a large file, keeps the old destination and removes partial output", async () => {
+    const { root, manifest, archive } = await archiveFixture();
+    const bytes = Buffer.alloc(4 * 1024 ** 2, 47);
+    await mkdir(join(root, "fonts"));
+    await writeFile(join(root, "fonts/test.ttf"), bytes);
+    const file = await hashBackupFile(root, "fonts/test.ttf", signal());
+    manifest.files.push(file);
+    manifest.summary.bytes += file.size;
+    await writeFile(archive, "existing backup");
+    const controller = new AbortController();
+    await expect(
+      writeBackupArchive(
+        root,
+        archive,
+        manifest,
+        controller.signal,
+        (current) => {
+          if (current > 2) controller.abort();
+        },
+      ),
+    ).rejects.toThrow();
+    expect(await readFile(archive, "utf8")).toBe("existing backup");
+    expect(
+      (await readdir(root)).some((name) => name.endsWith(".partial")),
+    ).toBe(false);
+  });
   it("fails the disk-space preflight", async () => {
     disk.available = 100;
     await expect(assertFreeSpace(await temp(), 1000)).rejects.toThrow(
@@ -118,7 +170,7 @@ describe("backup safety", () => {
     const controller = new AbortController();
     controller.abort();
     await expect(
-      writeBackupArchive(root, archive, manifest, controller.signal),
+      writeBackupArchive(root, archive, manifest, controller.signal, progress),
     ).rejects.toThrow();
     await expect(readFile(archive)).rejects.toMatchObject({ code: "ENOENT" });
   });

@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import React from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EnvironmentBackupView } from "../src/renderer/src/components/settingsModal/EnvironmentBackupSection";
 import type { useEnvironmentBackup } from "../src/renderer/src/components/settingsModal/useEnvironmentBackup";
@@ -28,6 +34,19 @@ function model(): ReturnType<typeof useEnvironmentBackup> {
   };
 }
 describe("environment backup UI", () => {
+  it("allows export while the informational library summary is still loading", () => {
+    const state = model();
+    state.status = null;
+    render(
+      <EnvironmentBackupView model={state} disabled={false} dirty={false} />,
+    );
+    const button = screen.getByRole("button", {
+      name: "백업 내보내기",
+    }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    fireEvent.click(button);
+    expect(state.exportBackup).toHaveBeenCalledOnce();
+  });
   it("requires saved settings before export or restore", () => {
     const state = model();
     render(<EnvironmentBackupView model={state} disabled={false} dirty />);
@@ -42,6 +61,11 @@ describe("environment backup UI", () => {
   });
   it("shows the validated backup and waits for explicit restore confirmation", () => {
     const state = model();
+    const view = render(
+      <EnvironmentBackupView model={state} disabled={false} dirty={false} />,
+    );
+    const trigger = screen.getByRole("button", { name: "백업 가져오기" });
+    trigger.focus();
     state.preview = {
       id: "11111111-1111-4111-8111-111111111111",
       createdAt: "2026-09-24T00:00:00.000Z",
@@ -52,15 +76,50 @@ describe("environment backup UI", () => {
       recoveryPath: "D:/data/recovery",
       connections: ["E:/originals"],
     };
-    render(
+    view.rerender(
       <EnvironmentBackupView model={state} disabled={false} dirty={false} />,
     );
     expect(state.apply).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", { name: "환경 복원 확인" });
+    expect(view.container.contains(dialog)).toBe(false);
+    expect(document.activeElement).toBe(dialog);
+    expect(
+      within(dialog).getByText(/아직 현재 보관함에는 적용되지 않았습니다/),
+    ).toBeTruthy();
     expect(screen.getByText("D:/data/recovery")).toBeTruthy();
     fireEvent.click(
-      screen.getByRole("button", { name: "기존 환경 보존 후 복원" }),
+      within(dialog).getByRole("button", { name: "복원하고 앱 다시 시작" }),
     );
     expect(state.apply).toHaveBeenCalledOnce();
+    state.busy = true;
+    view.rerender(
+      <EnvironmentBackupView model={state} disabled={false} dirty={false} />,
+    );
+    expect(within(dialog).getByRole("progressbar")).toBeTruthy();
+    expect(
+      (
+        within(dialog).getByRole("button", {
+          name: "복원하고 앱 다시 시작",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(state.dismiss).not.toHaveBeenCalled();
+    state.busy = false;
+    state.error = "Restore failed";
+    view.rerender(
+      <EnvironmentBackupView model={state} disabled={false} dirty={false} />,
+    );
+    expect(within(dialog).getByRole("alert").textContent).toBe(
+      "Restore failed",
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(state.dismiss).toHaveBeenCalledOnce();
+    state.preview = null;
+    view.rerender(
+      <EnvironmentBackupView model={state} disabled={false} dirty={false} />,
+    );
+    expect(document.activeElement).toBe(trigger);
   });
   it("announces failures and exposes cancellable progress", () => {
     const state = model();

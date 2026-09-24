@@ -19,19 +19,8 @@
   flex-wrap: wrap;
   gap: var(--sp-2);
 }
-.confirm {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding-block: var(--sp-4);
-  border-block: 1px solid var(--border-soft);
-}
 .path {
   overflow-wrap: anywhere;
-}
-.confirm strong {
-  font-size: inherit;
-  font-weight: 600;
 }
 .recovery {
   display: flex;

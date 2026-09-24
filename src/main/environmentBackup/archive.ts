@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { createWriteStream } from "node:fs";
-import { mkdir, rename, unlink } from "node:fs/promises";
+import { createReadStream, createWriteStream, type ReadStream } from "node:fs";
+import { lstat, mkdir, rename, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import * as yazl from "yazl";
 import * as yauzl from "yauzl";
+import type { BackupProgress } from "../../shared/environmentBackup";
 import { assertFreeSpace, verifyBackupStream } from "./files";
 import {
   assertBackupPayloadPath,
@@ -21,12 +22,16 @@ export async function writeBackupArchive(
   target: string,
   manifest: BackupManifest,
   signal: AbortSignal,
+  progress: BackupProgress,
 ): Promise<void> {
   const manifestBytes = Buffer.from(JSON.stringify(manifest));
   if (manifestBytes.length > MAX_BACKUP_JSON_BYTES)
     throw new Error("Backup manifest is too large.");
   await assertFreeSpace(dirname(target), manifest.summary.bytes);
   const temporary = `${target}.${randomUUID()}.partial`;
+  let current = 0;
+  let input: ReadStream | undefined;
+  let inputClosed: Promise<void> | undefined;
   const zip = new yazl.ZipFile();
   const output = createWriteStream(temporary, { flags: "wx", mode: 0o600 });
   zip.on("error", (error) => output.destroy(error));
@@ -35,10 +40,31 @@ export async function writeBackupArchive(
     (error: unknown) => ({ ok: false as const, error }),
   );
   try {
+    progress(0, manifest.summary.bytes, "backup-compressing");
     zip.addBuffer(manifestBytes, "manifest.json");
     for (const entry of manifest.files) {
       signal.throwIfAborted();
-      zip.addFile(join(root, entry.path), entry.path);
+      const source = join(root, entry.path);
+      const info = await lstat(source);
+      zip.addReadStreamLazy(
+        entry.path,
+        {
+          size: entry.size,
+          mtime: info.mtime,
+          mode: info.mode,
+        },
+        (callback) => {
+          const stream = createReadStream(source, { signal });
+          input = stream;
+          inputClosed = new Promise((resolve) => stream.once("close", resolve));
+          stream.on("error", (error) => output.destroy(error));
+          stream.on("data", (chunk: Buffer) => {
+            current += chunk.length;
+            progress(current, manifest.summary.bytes, "backup-compressing");
+          });
+          callback(null, stream);
+        },
+      );
     }
     zip.end({
       forceZip64Format: true,
@@ -49,6 +75,8 @@ export async function writeBackupArchive(
     signal.throwIfAborted();
     await rename(temporary, target);
   } catch (error) {
+    input?.destroy();
+    await inputClosed;
     output.destroy();
     await completion;
     await unlink(temporary).catch((cleanupError: NodeJS.ErrnoException) => {

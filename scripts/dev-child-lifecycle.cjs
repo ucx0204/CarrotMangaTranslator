@@ -96,6 +96,23 @@ function isChildRunning(child) {
 }
 
 /**
+ * Only an explicit request followed by a clean exit may replace Electron.
+ * @param {import("node:events").EventEmitter} child
+ * @returns {(code: number | null, signal: NodeJS.Signals | null) => boolean}
+ */
+function watchDevRelaunch(child) {
+  let requested = false;
+  child.on("message", (message) => {
+    if (message?.type === "mgt:dev-relaunch") requested = true;
+  });
+  return (code, signal) => {
+    const relaunch = requested && code === 0 && signal === null;
+    requested = false;
+    return relaunch;
+  };
+}
+
+/**
  * @param {ManagedChild} child
  * @param {NodeJS.Signals | undefined} signal
  * @param {(message: string) => void} log
@@ -149,4 +166,5 @@ function formatError(error) {
 module.exports = {
   createDevChildLifecycle,
   isChildRunning,
+  watchDevRelaunch,
 };

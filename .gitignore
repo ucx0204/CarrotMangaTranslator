@@ -90,3 +90,5 @@ recent-dialog-paths.json
 # Private environment backups and restore UI receipt
 /.environment-backup/
 /migration-ui.json
+/manual-redaction-drafts/
+/manual-redaction-workspaces.json

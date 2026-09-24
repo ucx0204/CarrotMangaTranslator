@@ -52,6 +52,23 @@ describe("Windows installer permission policy", () => {
     expect(installer).not.toContain("!macro customFinishPage");
   });
 
+  it("enables long paths during elevated installation without reverting them on removal", () => {
+    const install = section(installer, "!macro customInstall", "!macroend");
+    const enable = section(
+      installer,
+      "Function MgtEnableLongPaths",
+      "FunctionEnd",
+    );
+    expect(install).toContain("Call MgtEnableLongPaths");
+    expect(enable).toContain(
+      'WriteRegDWORD HKLM "SYSTEM\\CurrentControlSet\\Control\\FileSystem" "LongPathsEnabled" 1',
+    );
+    expect(enable).toContain("${If} $0 != 1");
+    expect(enable).toContain("${If} ${Errors}");
+    expect(enable).not.toMatch(/Abort|SetErrorLevel|SetRebootFlag/);
+    expect(removal).not.toContain("LongPathsEnabled");
+  });
+
   it("validates new directories lexically before creating or writing them", () => {
     const preflight = section(
       installer,

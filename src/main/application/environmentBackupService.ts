@@ -1,5 +1,6 @@
 import type {
   BackupPreview,
+  BackupProgress,
   BackupStatus,
   BackupUiPreferences,
 } from "../../shared/environmentBackup";
@@ -14,7 +15,7 @@ export type EnvironmentBackupPorts = {
     kind: "environment-backup" | "environment-restore",
     action: (
       signal: AbortSignal,
-      progress: (current: number, total: number) => void,
+      progress: BackupProgress,
       seal: () => void,
     ) => Promise<T>,
   ) => Promise<T>;
@@ -22,7 +23,7 @@ export type EnvironmentBackupPorts = {
     target: string,
     ui: BackupUiPreferences,
     signal: AbortSignal,
-    progress: (current: number, total: number) => void,
+    progress: BackupProgress,
   ) => Promise<void>;
   preview: (
     archive: string,
@@ -31,7 +32,7 @@ export type EnvironmentBackupPorts = {
   ) => Promise<BackupPreview>;
   prepareRecovery: (id: string, signal: AbortSignal) => Promise<string>;
   schedule: (id: string, ui: BackupUiPreferences) => Promise<void>;
-  restart: () => void;
+  restart: () => void | Promise<void>;
 };
 
 export class EnvironmentBackupService {
@@ -91,7 +92,7 @@ export class EnvironmentBackupService {
         signal.throwIfAborted();
         seal();
         await this.ports.schedule(prepared, ui);
-        this.ports.restart();
+        await this.ports.restart();
       },
     );
   }

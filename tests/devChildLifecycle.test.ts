@@ -18,8 +18,11 @@ type DevChildLifecycle = {
   ) => Promise<void>;
 };
 
-const { createDevChildLifecycle } =
+const { createDevChildLifecycle, watchDevRelaunch } =
   require("../scripts/dev-child-lifecycle.cjs") as {
+    watchDevRelaunch: (
+      child: EventEmitter,
+    ) => (code: number | null, signal: NodeJS.Signals | null) => boolean;
     createDevChildLifecycle: (options: {
       children: ManagedChild[];
       exit: (code: number) => void;
@@ -58,6 +61,20 @@ class FakeChild extends EventEmitter {
 }
 
 describe("development child lifecycle", () => {
+  it("relaunches only on an explicit request and a clean exit, once", () => {
+    const child = new EventEmitter();
+    const consume = watchDevRelaunch(child);
+    child.emit("message", null);
+    child.emit("message", { type: "unrelated" });
+    expect(consume(0, null)).toBe(false);
+    child.emit("message", { type: "mgt:dev-relaunch" });
+    expect(consume(0, null)).toBe(true);
+    expect(consume(0, null)).toBe(false);
+    child.emit("message", { type: "mgt:dev-relaunch" });
+    expect(consume(1, null)).toBe(false);
+    child.emit("message", { type: "mgt:dev-relaunch" });
+    expect(consume(null, "SIGTERM")).toBe(false);
+  });
   it("keeps the parent alive until every development child exits", async () => {
     const first = new FakeChild(101);
     const second = new FakeChild(102);
