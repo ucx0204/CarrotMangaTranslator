@@ -153,6 +153,7 @@ async function executeWorkflowPage(
   const before = current.pages.find((page) => page.id === pageId);
   if (!before) throw new Error("작업 대상 페이지가 사라졌습니다.");
   const receipt = workflowReceipt(input, before);
+  port.progress(stage, before);
   if (
     workflowStageComplete(
       receipt,
@@ -166,7 +167,6 @@ async function executeWorkflowPage(
   }
   let after: MangaPage;
   try {
-    port.progress(stage, before);
     after = await port.execute(stage, current, before);
     input.signal.throwIfAborted();
   } catch (error) {

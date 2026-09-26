@@ -15,6 +15,27 @@ const overlayTools = require("../src/main/runtime/overlay-parser.cjs") as Pick<
 >;
 
 describe("fixed-block fallback review projection", () => {
+  it.each([
+    "",
+    '<page-context>{"visualSummary":',
+    '<page-context>{"visualSummary":{},"glossary":[],"characters":[]}</page-context>',
+    'broken overlay<page-context>{"visualSummary":"장면","glossary":[],"characters":[]}</page-context>',
+  ])(
+    "does not accept malformed responses as omitted translations: %s",
+    (outputText) => {
+      expect(() =>
+        parsePageResponse({
+          runtime: overlayTools as TranslationRuntimePort,
+          result: { outputText, rawResponse: {}, requestBody: {} },
+          page: makePage(),
+          pageOptions: {
+            keepBlocksMode: true,
+            collectPageContext: true,
+          } as TranslationOptions,
+        }),
+      ).toThrow();
+    },
+  );
   it("marks only the degraded fixed block as needing review", () => {
     const items = [
       overlayItem(1, [1], "왼쪽"),

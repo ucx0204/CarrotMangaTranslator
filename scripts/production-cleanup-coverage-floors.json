@@ -19947,6 +19947,28 @@
         "pct": 0
       }
     },
+    "src/main/jobs/pageWorkflowProgress.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 1,
+        "total": 2,
+        "pct": 50
+      }
+    },
     "src/main/jobs/regionTranslationArtwork.ts": {
       "lines": {
         "covered": 11,

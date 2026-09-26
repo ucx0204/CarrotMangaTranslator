@@ -123,18 +123,22 @@ export function parsePageResponse({
   warnings: string[];
 } {
   const extracted = extractPageContextResponse(result.outputText);
-  const parsedItems = isJapaneseCumulativeNoTextRequest(
-    pageOptions,
-    result.requestBody,
-  )
-    ? []
-    : parseOverlayItems(
-        runtime,
-        result,
-        page,
-        pageOptions,
-        extracted.overlayText,
-      );
+  const contextOnlyKeepBlocks =
+    pageOptions.keepBlocksMode &&
+    pageOptions.collectPageContext &&
+    extracted.status === "parsed" &&
+    !extracted.overlayText.trim();
+  const parsedItems =
+    contextOnlyKeepBlocks ||
+    isJapaneseCumulativeNoTextRequest(pageOptions, result.requestBody)
+      ? []
+      : parseOverlayItems(
+          runtime,
+          result,
+          page,
+          pageOptions,
+          extracted.overlayText,
+        );
   return {
     items: markFixedBlockFallbacksForReview(parsedItems, result.requestBody),
     pageContext: extracted.pageContext,

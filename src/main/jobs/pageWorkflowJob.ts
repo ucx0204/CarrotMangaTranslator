@@ -2,7 +2,7 @@ import type {
   PageWorkflowRequest,
   PageWorkflowResult,
 } from "../../shared/pageWorkflowTypes";
-import { PAGE_WORKFLOW_STAGE_LABELS } from "../../shared/pageWorkflowStages";
+import { createPageWorkflowProgress } from "./pageWorkflowProgress";
 import { preflightPageWorkflow } from "../../shared/pageWorkflowPolicy";
 import { executePageWorkflow } from "../application/pageWorkflowService";
 import { getRunPaths, openChapter } from "../library";
@@ -100,6 +100,8 @@ async function runWorkflowJob({
   preflight: ReturnType<typeof preflightPageWorkflow>;
 }) {
   const dependencies = workflowDependencies(context.appPaths, settings);
+  const total = preflight.pageCount * run.request.plan.stages.length;
+  const progress = createPageWorkflowProgress(run.id, total, emit);
   const runtime = createPageWorkflowRuntime({
     runId: run.id,
     ...run.request,
@@ -107,7 +109,7 @@ async function runWorkflowJob({
     settings,
     paths: context.appPaths,
     signal: abortController.signal,
-    emit,
+    emit: progress.emit,
     dependencies,
     runPaths: (chapterId) => getRunPaths(chapterId, run.id),
     decodeImage: context.decodeImage,
@@ -123,8 +125,6 @@ async function runWorkflowJob({
           ?.pageIds ?? [],
         [{ kind: "work-context", scope: chapter.workId, access: "write" }],
       );
-    let current = 0;
-    const total = preflight.pageCount * run.request.plan.stages.length;
     const result = await executePageWorkflow(
       {
         runId: run.id,
@@ -140,16 +140,7 @@ async function runWorkflowJob({
         releasePage: (chapterId, pageId) =>
           releaseJobPage(context.jobs, run.id, chapterId, pageId),
         isFatal: isNonRetriableRuntimeError,
-        progress: (stage, page) =>
-          emit({
-            id: run.id,
-            kind: "gemma-analysis",
-            status: "running",
-            phase: "model_requesting",
-            progressText: `${PAGE_WORKFLOW_STAGE_LABELS[stage]} · ${page.name}`,
-            progressCurrent: current++,
-            progressTotal: total,
-          }),
+        progress: progress.begin,
       },
     );
     emitWorkflowCompletion(emit, run.id, result, total);

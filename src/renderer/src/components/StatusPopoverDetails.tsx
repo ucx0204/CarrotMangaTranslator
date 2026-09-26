@@ -102,14 +102,6 @@ function willRenderRunJobFeedback(
   if (["failed", "partial", "completed"].includes(jobState.status)) {
     return true;
   }
-  if (
-    !jobState.codexProgress &&
-    progressSnapshot?.mode === "determinate" &&
-    (progressSnapshot.current >= progressSnapshot.total ||
-      progressSnapshot.ratio >= 1)
-  ) {
-    return false;
-  }
   return showProgressBar && progressSnapshot !== null;
 }
 

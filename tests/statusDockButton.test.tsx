@@ -37,6 +37,41 @@ afterEach(() => {
 });
 
 describe("status dock", () => {
+  it.each(["model_requesting", "page_retry", "finalizing"] as const)(
+    "keeps request details and cancellation visible at 1/1 during %s",
+    (phase) => {
+      const cancel = vi.fn();
+      render(
+        <StatusDockButton
+          jobState={makeJobState({
+            status: "running",
+            kind: "gemma-analysis",
+            phase,
+            progressText: "OpenAI Codex 번역 요청 중",
+            detail: "gpt-6-astra, thinking low",
+            progressCurrent: 1,
+            progressTotal: 1,
+          })}
+          progressSnapshot={{
+            mode: "determinate",
+            current: 1,
+            total: 1,
+            ratio: 1,
+          }}
+          showProgressBar={true}
+          statusLines={[]}
+          onCancelJob={cancel}
+          onClear={vi.fn()}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+      expect(screen.getByRole("progressbar")).not.toBeNull();
+      expect(screen.getByText("gpt-6-astra, thinking low")).not.toBeNull();
+      expect(document.querySelector(".job-pill")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "현재 작업 취소" }));
+      expect(cancel).toHaveBeenCalledTimes(1);
+    },
+  );
   it("distinguishes partial SFX from failed import and keeps sound controls open when clicked", async () => {
     const props = {
       progressSnapshot: null,
@@ -322,7 +357,7 @@ describe("status dock", () => {
     expect(onCancelJob).toHaveBeenCalledOnce();
   });
 
-  it("does not render a stale full progress bar before an active job settles", () => {
+  it("retains progress details until an active job actually settles", () => {
     render(
       <StatusDockButton
         jobState={makeJobState({
@@ -344,8 +379,9 @@ describe("status dock", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
     const center = screen.getByRole("region", { name: "작업 센터" });
-    expect(center.querySelector(".job-pill")?.textContent).toBe("마무리 중");
-    expect(within(center).queryByRole("progressbar")).toBeNull();
+    expect(center.querySelector(".job-pill")).toBeNull();
+    expect(within(center).getByText("마무리 중")).not.toBeNull();
+    expect(within(center).getByRole("progressbar")).not.toBeNull();
   });
 
   it("keeps the chosen concurrent task across updates and cancels or retries only that task", async () => {

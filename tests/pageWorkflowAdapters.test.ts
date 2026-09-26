@@ -438,30 +438,39 @@ describe("independent Hayai workflow adapters", () => {
     },
   );
 
-  it("completes a previously failed page when the remaining punctuation has no translation", async () => {
-    const f = await fixture();
-    f.context.plan = {
-      ...createPageWorkflowPlan(["translate"]),
-      cumulative: false,
-    };
-    f.page.analysisStatus = "failed";
-    f.page.lastError = "1개 블록의 번역문이 비어 있습니다.";
-    f.page.blocks[0].sourceText = "・・・・・・";
-    const response = successTranslationResult();
-    response.outputText = JSON.stringify({ items: [] });
-    vi.mocked(f.dependencies.runtime.requestTranslation).mockResolvedValue(
-      response,
-    );
-    const result = await translateWorkflowPage(
-      f.context,
-      makeChapter(f.page),
-      f.page,
-      async () => ({ ...makeEmptyWorkContext(), workTitle: "Test" }),
-    );
-    expect(result.analysisStatus).toBe("completed");
-    expect(result.lastError).toBeUndefined();
-    expect(result.blocks).toEqual([]);
-  });
+  it.each([
+    JSON.stringify({ items: [] }),
+    '<page-context>{"visualSummary":"인물들이 대치한다.","glossary":[],"characters":[]}</page-context>',
+  ])(
+    "completes a previously failed punctuation-only page without retrying: %s",
+    async (outputText) => {
+      const f = await fixture();
+      f.context.plan = {
+        ...createPageWorkflowPlan(["translate"]),
+        cumulative: true,
+      };
+      f.page.analysisStatus = "failed";
+      f.page.lastError = "1개 블록의 번역문이 비어 있습니다.";
+      f.page.blocks[0].sourceText = "・・・・・・";
+      const response = successTranslationResult();
+      response.outputText = outputText;
+      vi.mocked(f.dependencies.runtime.requestTranslation).mockResolvedValue(
+        response,
+      );
+      const result = await translateWorkflowPage(
+        f.context,
+        makeChapter(f.page),
+        f.page,
+        async () => ({ ...makeEmptyWorkContext(), workTitle: "Test" }),
+      );
+      expect(result.analysisStatus).toBe("completed");
+      expect(result.lastError).toBeUndefined();
+      expect(result.blocks).toEqual([]);
+      expect(f.dependencies.runtime.requestTranslation).toHaveBeenCalledTimes(
+        1,
+      );
+    },
+  );
 
   it("ignores retired retry targets in older development receipts", async () => {
     const f = await fixture();
