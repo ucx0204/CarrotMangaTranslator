@@ -53,7 +53,7 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
   if (!prepared) {
     return [];
   }
-  if (isHayaiOcrPipeline(options)) {
+  if (isHayaiOcrPipeline(options) && !options.keepBlocksMode) {
     return buildHayaiRegionSectionLines(prepared);
   }
   const policy = buildOcrHintPolicy(options, prepared.maxCandidateId);
@@ -249,7 +249,9 @@ function buildOcrBboxSectionLines(prepared, policy) {
     "If a candidate is a handwritten note or diagram label, preserve all readable words, but translate ko compactly for horizontal Korean reading rather than copying the Japanese vertical line breaks.",
     "For every accepted candidate, output type nonsolid and set textRole to ordinary or sound.",
     "If a candidate is a sweat drop, texture, decoration, panel trim, or other non-text mark, skip it instead of inventing text.",
-    "For candidate SFX, confidence is below 1.00 by default. Use confidence 1.00 only when the complete effect text is clearly read and the Korean sound choice is clearly right; otherwise use confidence below 1.00 so the app drops it.",
+    policy.keepBlocksMode
+      ? "Translate readable SFX in the supplied fixed candidates with an honest confidence, including values below 1.00. Never add a new candidate or invent unreadable text."
+      : "For candidate SFX, confidence is below 1.00 by default. Use confidence 1.00 only when the complete effect text is clearly read and the Korean sound choice is clearly right; otherwise use confidence below 1.00 so the app drops it.",
     policy.candidateChangeLine,
     "Do not merge two separate speech bubbles into one record, even when the sentence continues across them. Separate balloon lobes, stacked bubbles, captions, UI rows, and unrelated nearby text stay separate.",
     "If two candidates are stacked or touching speech bubbles rather than columns inside one container, output two separate dialogue records with their original ids.",

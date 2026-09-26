@@ -342,7 +342,8 @@ async function prepareTranslatedPageResult({
     },
   );
   const soundFiltered = filterRejectedOrUncertainSoundItems(validated.items, {
-    dropUncertainSound: !pageOptions.regionCropMode,
+    dropUncertainSound:
+      !pageOptions.regionCropMode && !pageOptions.keepBlocksMode,
   });
   const fontInferenceItems = attachFontMatchingFixedBlockCandidateMembership(
     soundFiltered.items,

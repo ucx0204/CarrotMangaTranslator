@@ -125,7 +125,7 @@ function buildStrictRefineSection(options = {}) {
       "Decide textRole from the visible glyphs and container: text inside a speech bubble, caption, note, or sign is ordinary even when short or vertical.",
       "Never invent onomatopoeia or mood words. If a candidate rectangle contains no readable Japanese glyphs, omit that id instead of guessing from the artwork, darkness, or scene mood.",
       "When a candidate includes an ocrText hint, treat it as the primary reading evidence: verify it against Image 1 and translate that text.",
-      "For real sound-effect lettering, use confidence 1.00 only when the reading and Korean sound choice are certain; otherwise output confidence below 1.00 so the app drops it.",
+      "Translate readable sound-effect lettering inside every supplied block with an honest confidence. Confidence below 1.00 is allowed for fixed blocks; do not omit a readable block merely because the sound choice is not certain.",
       "Story memory can contain earlier machine-translation mistakes. Use it only for continuity and pronouns; never copy a story-memory term or wording that conflicts with Image 1, glossary entries, or the visible source text.",
     ];
   }

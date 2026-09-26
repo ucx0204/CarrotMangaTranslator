@@ -34,7 +34,9 @@ function buildSystemPrompt(options = {}) {
     "Render ordinary speech/caption/label Korean horizontally by default; source Japanese vertical direction is not a reason to make Korean vertical.",
     "For SFX records, output bare Korean effect lettering only; do not wrap it in parentheses/brackets/quotes or turn it into a stage direction.",
     "For SFX records, choose compact Korean effect lettering that fits the scene and rhythm. Do not mechanically transliterate Japanese kana, and do not force ambient sounds into dialogue words or action descriptions.",
-    "For SFX records, confidence is below 1.00 by default. Use confidence 1.00 only when the complete sound effect is unquestionably real Japanese text, fully read, and clearly translated into a fitting Korean sound; otherwise use confidence below 1.00 so the app drops it.",
+    options.keepBlocksMode
+      ? "For SFX inside supplied fixed blocks, return the visible source and its translation with an honest confidence. Confidence below 1.00 does not discard a fixed-block translation; do not omit readable lettering merely because confidence is not perfect."
+      : "For SFX records, confidence is below 1.00 by default. Use confidence 1.00 only when the complete sound effect is unquestionably real Japanese text, fully read, and clearly translated into a fitting Korean sound; otherwise use confidence below 1.00 so the app drops it.",
   ];
 
   if (options.strictRefineMode) {

@@ -14,7 +14,10 @@ import {
   successTranslationResult,
   translationWithPageContext,
 } from "./helpers/wholePageTranslationResults";
-import { PreparedTranslationCheckpointValidationError } from "../src/main/pipeline/preparedTranslationCheckpoint";
+import {
+  PreparedTranslationCheckpointValidationError,
+  resolveCheckpointCompatibility,
+} from "../src/main/pipeline/preparedTranslationCheckpoint";
 import {
   approvePreparedTranslationCheckpoint,
   requireTranslationEndpoint,
@@ -27,6 +30,33 @@ afterEach(async () => {
 });
 
 describe("whole page translation checkpoints", () => {
+  it("does not reuse a kept-block checkpoint that discarded sound translations", async () => {
+    const page = makePage("page-a", "001.png");
+    let checkpoint: PreparedTranslationCheckpoint | undefined;
+    const pipeline = await loadPipeline();
+    await pipeline.runWholePagePipeline({
+      ...basePipelineOptions([page], []),
+      onPagePrepared: async (value) => {
+        checkpoint = value;
+        return true;
+      },
+    });
+    if (!checkpoint || checkpoint.prepared.kind !== "translated")
+      throw new Error("Expected translated checkpoint");
+    checkpoint.blockMode = "keep";
+    checkpoint.prepared.soundDroppedCount = 1;
+    expect(
+      resolveCheckpointCompatibility({ checkpoint, page, blockMode: "keep" }),
+    ).toEqual({
+      reusable: false,
+      reason: "kept-sound-translations-dropped",
+    });
+    checkpoint.prepared.soundDroppedCount = 0;
+    expect(
+      resolveCheckpointCompatibility({ checkpoint, page, blockMode: "keep" }),
+    ).toEqual({ reusable: true });
+  });
+
   it("propagates unexpected checkpoint preparation errors without marking a page skipped", async () => {
     type Options = Parameters<typeof approvePreparedTranslationCheckpoint>[0];
     const error = new Error("timing data unavailable");

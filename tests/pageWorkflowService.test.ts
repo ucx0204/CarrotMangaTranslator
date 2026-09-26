@@ -89,7 +89,7 @@ describe("Hayai page workflow commits", () => {
     ]);
     expect(h.port.releasePage).toHaveBeenCalledTimes(2);
   });
-  it("continues independent erasure when translation fails and skips dependent text stages", async () => {
+  it("holds erasure when translation fails in the same workflow", async () => {
     const h = harness(
       ["translate", "typography", "erase", "layout"],
       async (stage, _chapter, page) => {
@@ -100,8 +100,48 @@ describe("Hayai page workflow commits", () => {
     expect((await executePageWorkflow(h.input, h.port)).status).toBe("partial");
     expect(
       vi.mocked(h.port.execute).mock.calls.map(([stage]) => stage),
-    ).toEqual(["translate", "erase"]);
+    ).toEqual(["translate"]);
+    expect(h.page().inpaintedImagePath).not.toBe("clean.png");
+  });
+
+  it("still allows standalone erasure without a translation", async () => {
+    const h = harness(["erase"], async (_stage, _chapter, page) => ({
+      ...page,
+      inpaintedImagePath: "clean.png",
+    }));
+    h.edit({
+      blocks: h
+        .page()
+        .blocks.map((block) => ({ ...block, translatedText: "" })),
+    });
+    expect((await executePageWorkflow(h.input, h.port)).status).toBe(
+      "completed",
+    );
     expect(h.page().inpaintedImagePath).toBe("clean.png");
+  });
+
+  it("retries a previously completed translation receipt with an empty slot", async () => {
+    const h = harness(["translate"]);
+    h.edit({
+      blocks: h.page().blocks.map((block) => ({
+        ...block,
+        sourceText: "はぁ",
+        translatedText: "",
+      })),
+    });
+    await executePageWorkflow(h.input, h.port);
+    vi.mocked(h.port.execute).mockImplementation(
+      async (_stage, _chapter, page) => ({
+        ...page,
+        blocks: page.blocks.map((block) => ({
+          ...block,
+          translatedText: "하아",
+        })),
+      }),
+    );
+    await executePageWorkflow(h.input, h.port);
+    expect(h.port.execute).toHaveBeenCalledTimes(2);
+    expect(h.page().blocks[0].translatedText).toBe("하아");
   });
 
   it("preserves confirmed no-text detection across a new run", async () => {

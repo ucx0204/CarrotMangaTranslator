@@ -128,9 +128,14 @@ function hasFailedDependency(
 ) {
   return issues.some((issue) => {
     if (issue.pageId !== pageId) return false;
-    // Erasure needs geometry and exclusion settings, never OCR or translation.
+    // Standalone erasure is independent; a combined run must not erase after
+    // its translation stage failed or left untranslated slots.
     if (stage === "erase")
-      return issue.stage === "detect" || issue.stage === "format-rules";
+      return (
+        issue.stage === "detect" ||
+        issue.stage === "translate" ||
+        issue.stage === "format-rules"
+      );
     // Text review does not depend on a successfully generated clean background.
     if (stage === "review" && issue.stage === "erase") return false;
     return true;

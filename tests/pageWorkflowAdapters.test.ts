@@ -1,3 +1,4 @@
+import { PageWorkflowPartialFailure } from "../src/main/application/pageWorkflowPartialFailure";
 import { hashStableValue } from "../src/shared/blockFingerprint";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFile } from "node:fs/promises";
@@ -199,12 +200,50 @@ describe("independent Hayai workflow adapters", () => {
   });
 
   it.each([
+    { source: "ドキドキ…", translation: "두근두근…" },
+    { source: "はぁ", translation: "하아" },
+  ])(
+    "preserves the reported 0.99-confidence translation: $source",
+    async ({ source, translation }) => {
+      const f = await fixture();
+      f.context.plan = {
+        ...createPageWorkflowPlan(["translate"]),
+        cumulative: false,
+      };
+      f.page.blocks[0].sourceText = source;
+      const response = successTranslationResult();
+      const payload = JSON.parse(response.outputText);
+      Object.assign(payload.items[0], {
+        jp: source,
+        ko: translation,
+        textRole: "sound",
+        confidence: 0.99,
+      });
+      response.outputText = JSON.stringify(payload);
+      vi.mocked(f.dependencies.runtime.requestTranslation).mockResolvedValue(
+        response,
+      );
+      const result = await translateWorkflowPage(
+        f.context,
+        makeChapter(f.page),
+        f.page,
+        async () => ({ ...makeEmptyWorkContext(), workTitle: "Test" }),
+      );
+      expect(result.blocks[0]).toMatchObject({
+        ...f.page.blocks[0],
+        translatedText: translation,
+      });
+      expect(result.analysisStatus).toBe("completed");
+    },
+  );
+
+  it.each([
     { overwrite: false, filterSound: false },
     { overwrite: true, filterSound: false },
     { overwrite: false, filterSound: true },
     { overwrite: true, filterSound: true },
   ])(
-    "preserves legacy excluded-block behavior and completes following stages (%j)",
+    "retains fixed-slot sounds and resumes omitted empty translations (%j)",
     async ({ overwrite, filterSound }) => {
       const f = await fixture();
       f.context.plan = {
@@ -245,7 +284,7 @@ describe("independent Hayai workflow adapters", () => {
                   jp: block.sourceText,
                   ko: `번역 ${index + 1}`,
                   direction: "horizontal",
-                  confidence: index === 7 ? 0.5 : 0.99,
+                  confidence: 0.99,
                 },
               ],
         ),
@@ -304,55 +343,71 @@ describe("independent Hayai workflow adapters", () => {
         selection: [{ chapterId: chapter.id, pageIds: [f.page.id] }],
       };
       const result = await executePageWorkflow(execution, port);
-      expect(result.status).toBe("completed");
-      expect(result.issues).toEqual([]);
+      const missing = !overwrite && !filterSound;
+      expect(result.status).toBe(missing ? "partial" : "completed");
+      expect(result.issues).toHaveLength(missing ? 1 : 0);
       const saved = chapter.pages[0];
-      expect(
-        saved.blocks.filter((block) =>
-          block.translatedText.startsWith("번역 "),
-        ),
-      ).toHaveLength(8);
-      expect(saved.blocks[7].translatedText).toBe(
-        overwrite ? "이전 번역 8" : "",
-      );
-      expect(saved.analysisStatus).toBe("completed");
-      expect(saved.lastError).toBeUndefined();
       expect(saved.blocks.map((block) => block.translatedText)).toEqual(
         legacy.pages[0].blocks.map((block) => block.translatedText),
       );
-      expect(saved.pageWorkflow?.steps.translate?.status).toBe("completed");
-      expect(saved.inpaintedImagePath).toBe("saved-clean.png");
+      expect(saved.blocks[7].translatedText).toBe(
+        filterSound ? "번역 8" : overwrite ? "이전 번역 8" : "",
+      );
+      expect(saved.analysisStatus).toBe(missing ? "failed" : "completed");
+      expect(saved.pageWorkflow?.steps.translate?.status).toBe(
+        missing ? "failed" : "completed",
+      );
+      expect(saved.inpaintedImagePath).toBe(
+        missing ? "existing-clean.png" : "saved-clean.png",
+      );
       expect(f.context.emit).not.toHaveBeenCalledWith(
         expect.objectContaining({ phase: "page_done" }),
       );
       expect(request).toHaveBeenCalledTimes(1);
+      expect(
+        vi.mocked(port.execute).mock.calls.map(([stage]) => stage),
+      ).toEqual(
+        missing
+          ? ["translate"]
+          : ["translate", "typography", "erase", "layout", "review"],
+      );
+      if (missing) {
+        response.outputText = JSON.stringify({
+          items: [
+            {
+              id: 1,
+              type: "nonsolid",
+              textRole: "sound",
+              x1: 720,
+              y1: 100,
+              x2: 790,
+              y2: 200,
+              jp: "ぴ",
+              ko: "번역 8",
+              direction: "horizontal",
+              confidence: 0.99,
+            },
+          ],
+        });
+      }
       expect((await executePageWorkflow(execution, port)).status).toBe(
         "completed",
       );
-      expect(request).toHaveBeenCalledTimes(1);
-      expect(chapter.pages[0].blocks[7].translatedText).toBe(
-        overwrite ? "이전 번역 8" : "",
-      );
+      expect(request).toHaveBeenCalledTimes(missing ? 2 : 1);
+      if (missing)
+        expect(request.mock.calls[1][1].ocrBboxHints).toHaveLength(1);
       for (const [index, block] of chapter.pages[0].blocks.entries()) {
         expect(block).toMatchObject({
           ...JSON.parse(JSON.stringify(f.page.blocks[index])),
           translatedText:
-            index === 7
-              ? overwrite
-                ? "이전 번역 8"
-                : ""
-              : `번역 ${index + 1}`,
+            index === 7 && overwrite && !filterSound
+              ? "이전 번역 8"
+              : "번역 " + (index + 1),
         });
       }
       expect(chapter.pages[0].analysisStatus).toBe("completed");
       expect(chapter.pages[0].lastError).toBeUndefined();
-      expect(
-        chapter.pages[0].pageWorkflow?.steps.translate?.retryBlockIds,
-      ).toBeUndefined();
       expect(chapter.pages[0].inpaintedImagePath).toBe("saved-clean.png");
-      expect(
-        vi.mocked(port.execute).mock.calls.map(([stage]) => stage),
-      ).toEqual(["translate", "typography", "erase", "layout", "review"]);
     },
   );
 
@@ -377,18 +432,20 @@ describe("independent Hayai workflow adapters", () => {
         translatedText: "수동 번역",
       },
     );
-    const result = await translateWorkflowPage(
+    const error = await translateWorkflowPage(
       f.context,
       makeChapter(f.page),
       f.page,
       async () => ({ ...makeEmptyWorkContext(), workTitle: "Test" }),
-    );
-    expect(result.analysisStatus).toBe("completed");
-    expect(
-      result.blocks.map(
-        (block: { translatedText: string }) => block.translatedText,
-      ),
-    ).toEqual(["안녕", "", "수동 번역"]);
+    ).catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(PageWorkflowPartialFailure);
+    if (!(error instanceof PageWorkflowPartialFailure)) throw error;
+    expect(error.message).toContain("1개 블록의 번역문이 비어 있습니다");
+    expect(error.page.blocks.map((block) => block.translatedText)).toEqual([
+      "안녕",
+      "",
+      "수동 번역",
+    ]);
     expect(f.page.blocks[0].translatedText).toBe("");
   });
 

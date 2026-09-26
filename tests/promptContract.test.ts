@@ -184,6 +184,38 @@ function expectRenderingRoleRules(text: string): void {
 }
 
 describe("prompt contracts", () => {
+  it.each(["hayai", "paddle-legacy"])(
+    "translates readable fixed-slot SFX below perfect confidence with %s",
+    (ocrPipeline) => {
+      const options = {
+        ...createPromptContractOptions(),
+        ocrPipeline,
+        strictRefineMode: true,
+        keepBlocksMode: true,
+        ocrBboxHints: [
+          { id: 1, x1: 100, y1: 100, x2: 150, y2: 200, ocrText: "はぁ" },
+        ],
+      };
+      const prompt = getOverlayPrompt(options, createPromptContractVariants());
+      const system = promptRuntime.buildSystemPrompt(options);
+      expect(system).toContain(
+        "Confidence below 1.00 does not discard a fixed-block translation",
+      );
+      expect(system).not.toContain("so the app drops it");
+      expect(prompt).toContain(
+        "Confidence below 1.00 is allowed for fixed blocks",
+      );
+      expect(prompt).toContain(
+        "Translate readable SFX in the supplied fixed candidates",
+      );
+      expect(prompt).not.toContain("so the app drops it");
+      expect(prompt).not.toContain(
+        "Do not classify any supplied candidate as sound",
+      );
+      expect(prompt).toContain("Never output a new id");
+    },
+  );
+
   it("builds the canonical overlay prompt with tight Japanese glyph bbox rules", () => {
     const options = createPromptContractOptions();
     const imageVariants = createPromptContractVariants();

@@ -6085,6 +6085,50 @@
         "pct": 85.55
       }
     },
+    "src/main/runtime/prompts/system-prompt.cjs": {
+      "lines": {
+        "covered": 11,
+        "total": 12,
+        "pct": 91.66
+      },
+      "statements": {
+        "covered": 11,
+        "total": 12,
+        "pct": 91.66
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 8,
+        "total": 11,
+        "pct": 72.72
+      }
+    },
+    "src/main/runtime/prompts/task-sections.cjs": {
+      "lines": {
+        "covered": 26,
+        "total": 33,
+        "pct": 78.78
+      },
+      "statements": {
+        "covered": 26,
+        "total": 33,
+        "pct": 78.78
+      },
+      "functions": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      },
+      "branches": {
+        "covered": 29,
+        "total": 41,
+        "pct": 70.73
+      }
+    },
     "src/main/runtime/prompts/work-context.cjs": {
       "lines": {
         "covered": 52,
@@ -6897,6 +6941,28 @@
         "covered": 65,
         "total": 89,
         "pct": 73.03
+      }
+    },
+    "src/main/runtime/simple-page-prompts.cjs": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/main/runtime/simple-page-request-builders.cjs": {

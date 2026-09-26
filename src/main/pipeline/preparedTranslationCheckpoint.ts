@@ -61,6 +61,13 @@ export function resolveCheckpointCompatibility({
   if (!checkpoint.soundEffectReviewPreserved) {
     return { reusable: false, reason: "sound-effect-review-not-preserved" };
   }
+  if (
+    checkpoint.blockMode === "keep" &&
+    checkpoint.prepared.kind === "translated" &&
+    checkpoint.prepared.soundDroppedCount > 0
+  ) {
+    return { reusable: false, reason: "kept-sound-translations-dropped" };
+  }
   return { reusable: true };
 }
 

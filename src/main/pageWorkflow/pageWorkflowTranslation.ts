@@ -3,6 +3,7 @@ import { workflowTargetBlocks } from "../../shared/pageWorkflowPolicy";
 import { runWholePagePipeline } from "../wholePagePipeline";
 import { resolveWorkContextForChapter } from "../library";
 import { buildKeepBlocksOcrResult } from "../pipeline/keepBlocksResult";
+import { PageWorkflowPartialFailure } from "../application/pageWorkflowPartialFailure";
 import type { PageWorkflowRuntimeContext } from "./pageWorkflowRuntimeTypes";
 
 export async function translateWorkflowPage(
@@ -15,8 +16,7 @@ export async function translateWorkflowPage(
   const blocks = workflowTargetBlocks(page, "translate", context.plan);
   if (!blocks.length)
     return { ...page, analysisStatus: "completed", lastError: undefined };
-  // Use the existing kept-block contract: accepted output updates its slot;
-  // omitted or filtered output preserves that slot for optional review.
+  // Keep successful slots, but do not complete a workflow with empty translations.
   const input = { ...page, blocks };
   const workContext = await readContext(chapter.id);
   const result = await runWholePagePipeline(
@@ -69,7 +69,16 @@ export async function translateWorkflowPage(
       translated?.lastError ??
         (result.warnings.join("\n") || "번역 결과를 받지 못했습니다."),
     );
-  return mergeWorkflowTranslations(page, blocks, translated);
+  const merged = mergeWorkflowTranslations(page, blocks, translated);
+  const missing = merged.blocks.filter(
+    (block) => block.sourceText.trim() && !block.translatedText.trim(),
+  );
+  if (missing.length)
+    throw new PageWorkflowPartialFailure(
+      `${missing.length}개 블록의 번역문이 비어 있습니다. 번역된 블록은 저장했습니다. 누락된 번역을 확인한 뒤 이어서 실행하세요.`,
+      merged,
+    );
+  return merged;
 }
 
 function mergeWorkflowTranslations(
