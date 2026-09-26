@@ -517,6 +517,17 @@ function buildEmptyItemsResult(
       warnings: [],
     };
   }
+  if (pageOptions.keepBlocksMode && page.blocks.length > 0) {
+    return {
+      kind: "completed",
+      ...buildKeepBlocksCompletedPage({
+        page,
+        items: [],
+        previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
+        soundDroppedCount: 0,
+      }),
+    };
+  }
   const bboxError = new Error(
     tMain("translation.errors.bboxMissing", { page: page.name }),
   );

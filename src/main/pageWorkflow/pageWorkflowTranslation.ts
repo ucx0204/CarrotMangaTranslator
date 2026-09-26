@@ -3,7 +3,6 @@ import { workflowTargetBlocks } from "../../shared/pageWorkflowPolicy";
 import { runWholePagePipeline } from "../wholePagePipeline";
 import { resolveWorkContextForChapter } from "../library";
 import { buildKeepBlocksOcrResult } from "../pipeline/keepBlocksResult";
-import { PageWorkflowPartialFailure } from "../application/pageWorkflowPartialFailure";
 import type { PageWorkflowRuntimeContext } from "./pageWorkflowRuntimeTypes";
 
 export async function translateWorkflowPage(
@@ -16,7 +15,7 @@ export async function translateWorkflowPage(
   const blocks = workflowTargetBlocks(page, "translate", context.plan);
   if (!blocks.length)
     return { ...page, analysisStatus: "completed", lastError: undefined };
-  // Keep successful slots, but do not complete a workflow with empty translations.
+  // Remove empty targets before typography, erasure, layout, and review.
   const input = { ...page, blocks };
   const workContext = await readContext(chapter.id);
   const result = await runWholePagePipeline(
@@ -69,16 +68,7 @@ export async function translateWorkflowPage(
       translated?.lastError ??
         (result.warnings.join("\n") || "번역 결과를 받지 못했습니다."),
     );
-  const merged = mergeWorkflowTranslations(page, blocks, translated);
-  const missing = merged.blocks.filter(
-    (block) => block.sourceText.trim() && !block.translatedText.trim(),
-  );
-  if (missing.length)
-    throw new PageWorkflowPartialFailure(
-      `${missing.length}개 블록의 번역문이 비어 있습니다. 번역된 블록은 저장했습니다. 누락된 번역을 확인한 뒤 이어서 실행하세요.`,
-      merged,
-    );
-  return merged;
+  return mergeWorkflowTranslations(page, blocks, translated);
 }
 
 function mergeWorkflowTranslations(
@@ -92,23 +82,28 @@ function mergeWorkflowTranslations(
       .filter((block) => targetIds.has(block.id) && block.translatedText.trim())
       .map((block) => [block.id, block]),
   );
+  const blocks = page.blocks.flatMap((block) => {
+    const output = outputs.get(block.id);
+    if (targetIds.has(block.id) && !output && !block.translatedText.trim())
+      return [];
+    return output
+      ? {
+          ...block,
+          translatedText: output.translatedText,
+          fontRole: block.fontRole ?? output.fontRole,
+          fontRoleConfidence:
+            block.fontRoleConfidence ?? output.fontRoleConfidence,
+          visualClusterId: block.visualClusterId ?? output.visualClusterId,
+        }
+      : block;
+  });
+  const keptIds = new Set(blocks.map((block) => block.id));
   return {
     ...page,
     analysisStatus: "completed",
     lastError: undefined,
-    blocks: page.blocks.map((block) => {
-      const output = outputs.get(block.id);
-      return output
-        ? {
-            ...block,
-            translatedText: output.translatedText,
-            fontRole: block.fontRole ?? output.fontRole,
-            fontRoleConfidence:
-              block.fontRoleConfidence ?? output.fontRoleConfidence,
-            visualClusterId: block.visualClusterId ?? output.visualClusterId,
-          }
-        : block;
-    }),
+    blocks,
+    blockOrder: page.blockOrder?.filter((id) => keptIds.has(id)),
   };
 }
 

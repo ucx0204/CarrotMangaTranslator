@@ -129,7 +129,7 @@ function hasFailedDependency(
   return issues.some((issue) => {
     if (issue.pageId !== pageId) return false;
     // Standalone erasure is independent; a combined run must not erase after
-    // its translation stage failed or left untranslated slots.
+    // its translation request failed.
     if (stage === "erase")
       return (
         issue.stage === "detect" ||

@@ -120,7 +120,7 @@ describe("Hayai page workflow commits", () => {
     expect(h.page().inpaintedImagePath).toBe("clean.png");
   });
 
-  it("retries a previously completed translation receipt with an empty slot", async () => {
+  it("does not repeat completed translations solely for an empty slot", async () => {
     const h = harness(["translate"]);
     h.edit({
       blocks: h.page().blocks.map((block) => ({
@@ -140,8 +140,8 @@ describe("Hayai page workflow commits", () => {
       }),
     );
     await executePageWorkflow(h.input, h.port);
-    expect(h.port.execute).toHaveBeenCalledTimes(2);
-    expect(h.page().blocks[0].translatedText).toBe("하아");
+    expect(h.port.execute).toHaveBeenCalledTimes(1);
+    expect(h.page().blocks[0].translatedText).toBe("");
   });
 
   it("preserves confirmed no-text detection across a new run", async () => {

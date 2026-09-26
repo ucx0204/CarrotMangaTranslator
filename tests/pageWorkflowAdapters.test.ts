@@ -1,4 +1,3 @@
-import { PageWorkflowPartialFailure } from "../src/main/application/pageWorkflowPartialFailure";
 import { hashStableValue } from "../src/shared/blockFingerprint";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFile } from "node:fs/promises";
@@ -243,7 +242,7 @@ describe("independent Hayai workflow adapters", () => {
     { overwrite: false, filterSound: true },
     { overwrite: true, filterSound: true },
   ])(
-    "retains fixed-slot sounds and resumes omitted empty translations (%j)",
+    "retains fixed-slot sounds and completes downstream stages with omitted translations (%j)",
     async ({ overwrite, filterSound }) => {
       const f = await fixture();
       f.context.plan = {
@@ -267,6 +266,7 @@ describe("independent Hayai workflow adapters", () => {
         bbox: { x: 20 + index * 100, y: 100, w: 70, h: 100 },
         fontSizePx: 39,
       }));
+      f.page.blockOrder = f.page.blocks.map((block) => block.id).reverse();
       const response = successTranslationResult();
       response.outputText = JSON.stringify({
         items: f.page.blocks.flatMap((block, index) =>
@@ -344,64 +344,51 @@ describe("independent Hayai workflow adapters", () => {
       };
       const result = await executePageWorkflow(execution, port);
       const missing = !overwrite && !filterSound;
-      expect(result.status).toBe(missing ? "partial" : "completed");
-      expect(result.issues).toHaveLength(missing ? 1 : 0);
+      expect(result.status).toBe("completed");
+      expect(result.issues).toEqual([]);
       const saved = chapter.pages[0];
       expect(saved.blocks.map((block) => block.translatedText)).toEqual(
-        legacy.pages[0].blocks.map((block) => block.translatedText),
+        legacy.pages[0].blocks
+          .filter((block) => block.translatedText.trim())
+          .map((block) => block.translatedText),
       );
-      expect(saved.blocks[7].translatedText).toBe(
-        filterSound ? "번역 8" : overwrite ? "이전 번역 8" : "",
+      expect(
+        saved.blocks.find((block) => block.id === "block-8")?.translatedText,
+      ).toBe(filterSound ? "번역 8" : overwrite ? "이전 번역 8" : undefined);
+      expect(saved.blockOrder).toEqual(
+        f.page.blockOrder.filter((id) => !missing || id !== "block-8"),
       );
-      expect(saved.analysisStatus).toBe(missing ? "failed" : "completed");
-      expect(saved.pageWorkflow?.steps.translate?.status).toBe(
-        missing ? "failed" : "completed",
-      );
-      expect(saved.inpaintedImagePath).toBe(
-        missing ? "existing-clean.png" : "saved-clean.png",
-      );
+      expect(saved.analysisStatus).toBe("completed");
+      expect(saved.pageWorkflow?.steps.translate?.status).toBe("completed");
+      expect(saved.inpaintedImagePath).toBe("saved-clean.png");
       expect(f.context.emit).not.toHaveBeenCalledWith(
         expect.objectContaining({ phase: "page_done" }),
       );
       expect(request).toHaveBeenCalledTimes(1);
       expect(
         vi.mocked(port.execute).mock.calls.map(([stage]) => stage),
-      ).toEqual(
-        missing
-          ? ["translate"]
-          : ["translate", "typography", "erase", "layout", "review"],
-      );
+      ).toEqual(["translate", "typography", "erase", "layout", "review"]);
       if (missing) {
-        response.outputText = JSON.stringify({
-          items: [
-            {
-              id: 1,
-              type: "nonsolid",
-              textRole: "sound",
-              x1: 720,
-              y1: 100,
-              x2: 790,
-              y2: 200,
-              jp: "ぴ",
-              ko: "번역 8",
-              direction: "horizontal",
-              confidence: 0.99,
-            },
-          ],
-        });
+        for (const [stage, , input] of vi.mocked(port.execute).mock.calls) {
+          if (stage !== "translate")
+            expect(input.blocks.map((block) => block.id)).not.toContain(
+              "block-8",
+            );
+        }
       }
       expect((await executePageWorkflow(execution, port)).status).toBe(
         "completed",
       );
-      expect(request).toHaveBeenCalledTimes(missing ? 2 : 1);
-      if (missing)
-        expect(request.mock.calls[1][1].ocrBboxHints).toHaveLength(1);
-      for (const [index, block] of chapter.pages[0].blocks.entries()) {
+      expect(request).toHaveBeenCalledTimes(1);
+      for (const block of chapter.pages[0].blocks) {
+        const index = f.page.blocks.findIndex((input) => input.id === block.id);
         expect(block).toMatchObject({
           ...JSON.parse(JSON.stringify(f.page.blocks[index])),
           translatedText:
-            index === 7 && overwrite && !filterSound
-              ? "이전 번역 8"
+            index === 7 && !filterSound
+              ? overwrite
+                ? "이전 번역 8"
+                : ""
               : "번역 " + (index + 1),
         });
       }
@@ -411,42 +398,69 @@ describe("independent Hayai workflow adapters", () => {
     },
   );
 
-  it("retains saved translations and leaves omitted blocks available for review", async () => {
+  it.each(["・・・・・・", "?", "!?", "ミミ", "本"])(
+    "excludes omitted %s blocks while preserving translated and manual blocks",
+    async (sourceText) => {
+      const f = await fixture();
+      f.context.plan = {
+        ...createPageWorkflowPlan(["translate"]),
+        cumulative: false,
+      };
+      f.page.blocks[0].sourceText = "原文";
+      f.page.blocks.push(
+        {
+          ...f.page.blocks[0],
+          id: "missing",
+          sourceText,
+          bbox: { x: 700, y: 700, w: 50, h: 50 },
+        },
+        {
+          ...f.page.blocks[0],
+          id: "manual",
+          sourceText: "保存",
+          translatedText: "수동 번역",
+        },
+      );
+      const result = await translateWorkflowPage(
+        f.context,
+        makeChapter(f.page),
+        f.page,
+        async () => ({ ...makeEmptyWorkContext(), workTitle: "Test" }),
+      );
+      expect(result.analysisStatus).toBe("completed");
+      expect(result.lastError).toBeUndefined();
+      expect(result.blocks.map((block) => block.translatedText)).toEqual([
+        "안녕",
+        "수동 번역",
+      ]);
+      expect(result.blocks.map((block) => block.id)).not.toContain("missing");
+      expect(f.page.blocks[0].translatedText).toBe("");
+    },
+  );
+
+  it("completes a previously failed page when the remaining punctuation has no translation", async () => {
     const f = await fixture();
     f.context.plan = {
       ...createPageWorkflowPlan(["translate"]),
       cumulative: false,
     };
-    f.page.blocks[0].sourceText = "原文";
-    f.page.blocks.push(
-      {
-        ...f.page.blocks[0],
-        id: "missing",
-        sourceText: "ぴ",
-        bbox: { x: 700, y: 700, w: 50, h: 50 },
-      },
-      {
-        ...f.page.blocks[0],
-        id: "manual",
-        sourceText: "保存",
-        translatedText: "수동 번역",
-      },
+    f.page.analysisStatus = "failed";
+    f.page.lastError = "1개 블록의 번역문이 비어 있습니다.";
+    f.page.blocks[0].sourceText = "・・・・・・";
+    const response = successTranslationResult();
+    response.outputText = JSON.stringify({ items: [] });
+    vi.mocked(f.dependencies.runtime.requestTranslation).mockResolvedValue(
+      response,
     );
-    const error = await translateWorkflowPage(
+    const result = await translateWorkflowPage(
       f.context,
       makeChapter(f.page),
       f.page,
       async () => ({ ...makeEmptyWorkContext(), workTitle: "Test" }),
-    ).catch((error: unknown) => error);
-    expect(error).toBeInstanceOf(PageWorkflowPartialFailure);
-    if (!(error instanceof PageWorkflowPartialFailure)) throw error;
-    expect(error.message).toContain("1개 블록의 번역문이 비어 있습니다");
-    expect(error.page.blocks.map((block) => block.translatedText)).toEqual([
-      "안녕",
-      "",
-      "수동 번역",
-    ]);
-    expect(f.page.blocks[0].translatedText).toBe("");
+    );
+    expect(result.analysisStatus).toBe("completed");
+    expect(result.lastError).toBeUndefined();
+    expect(result.blocks).toEqual([]);
   });
 
   it("ignores retired retry targets in older development receipts", async () => {

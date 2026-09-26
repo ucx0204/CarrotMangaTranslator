@@ -31,13 +31,6 @@ export function workflowStageComplete(
   stage: PageWorkflowStage,
   configurationKey?: string,
 ): boolean {
-  if (
-    stage === "translate" &&
-    page.blocks.some(
-      (block) => block.sourceText.trim() && !block.translatedText.trim(),
-    )
-  )
-    return false;
   const step = receipt.steps[stage];
   return Boolean(
     step &&

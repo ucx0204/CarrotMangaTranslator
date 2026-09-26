@@ -6,7 +6,7 @@
 
 **한국어** · [English](README.en.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**[v2.8.3 다운로드](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.8.3)** · [변경 사항](docs/release-notes/v2.8.3.md) · [오류·제안](https://github.com/ucx0204/CarrotMangaTranslator/issues)
+**[v2.8.4 다운로드](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v2.8.4)** · [변경 사항](docs/release-notes/v2.8.4.md) · [오류·제안](https://github.com/ucx0204/CarrotMangaTranslator/issues)
 
 [처음 시작](#start) · [텍스트 편집](#edit) · [효과음 ImageGen](#sfx) · [단축키](#shortcuts) · [문제 해결](#troubleshooting)
 
@@ -470,6 +470,6 @@ npm run dev
 - Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
 - 앱 소스는 [GPL-3.0-only](LICENSE)입니다. 폰트·모델·런타임 등은 각각의 배포 조건을 확인하세요.
 
-이 문서는 v2.8.3를 기준으로 합니다. 화면은 실제 앱 컴포넌트에 예제 데이터를 넣어 캡처했습니다. 예제 원고·번역은 기능 설명용이며 모델 성능 비교 자료가 아닙니다. [캡처와 예제 출처](docs/images/readme-v2712/README.md)
+이 문서는 v2.8.4를 기준으로 합니다. 화면은 실제 앱 컴포넌트에 예제 데이터를 넣어 캡처했습니다. 예제 원고·번역은 기능 설명용이며 모델 성능 비교 자료가 아닙니다. [캡처와 예제 출처](docs/images/readme-v2712/README.md)
 
 [처음으로](#start)
