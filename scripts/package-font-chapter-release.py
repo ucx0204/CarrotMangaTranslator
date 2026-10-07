@@ -55,7 +55,7 @@ def licenses(source, manifest, roots):
     return result
 
 
-def mac_dependencies(wheels):
+def wheel_dependencies(wheels):
     files = {}
     receipts = []
     for wheel in sorted(wheels.glob('*.whl')):
@@ -115,6 +115,8 @@ def main():
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--license-root', type=Path, required=True)
     parser.add_argument('--mac-wheels', type=Path, required=True)
+    parser.add_argument('--windows-wheels', type=Path)
+    parser.add_argument('--asset-root', default='models/fc23-r2')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--tag', required=True)
     args = parser.parse_args()
@@ -135,16 +137,16 @@ def main():
     license_rows = [record(k, v) for k, v in sorted(license_data.items())]
     common = {r['path']: source_bytes(args.source, r) for r in current['files'] if r['path'] != 'python-inventory.json'}
     common.update(license_data)
-    descriptor = {'tag': args.tag, 'assetRoot': 'models/fc23-r2',
+    descriptor = {'tag': args.tag, 'assetRoot': args.asset_root,
                   'licenseFiles': license_rows, 'platforms': {}}
     inventories = {}
     for platform in ('win32-x64', 'darwin-arm64'):
-        if platform == 'win32-x64':
+        if platform == 'win32-x64' and args.windows_wheels is None:
             rows = read(args.source / 'python-inventory.json')['files']
             deps = {r['path']: source_bytes(args.source, r) for r in rows}
         else:
-            deps, wheels = mac_dependencies(args.mac_wheels)
-            (args.output / 'mac-wheels.json').write_bytes(encoded(wheels))
+            deps, wheels = wheel_dependencies(args.windows_wheels if platform == 'win32-x64' else args.mac_wheels)
+            (args.output / ('windows-wheels.json' if platform == 'win32-x64' else 'mac-wheels.json')).write_bytes(encoded(wheels))
         deps = {name: data for name, data in deps.items() if runtime_dependency(name)}
         inventory_data = encoded({'files': [record(k, v) for k, v in sorted(deps.items())]})
         inventory = record('python-inventory.json', inventory_data)

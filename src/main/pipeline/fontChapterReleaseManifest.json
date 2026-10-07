@@ -1,6 +1,6 @@
 {
-  "tag": "font-chapter-c23-20260909-r2",
-  "assetRoot": "models/fc23-r2",
+  "tag": "font-chapter-c23-20261008-r3",
+  "assetRoot": "models/fc23-r3",
   "licenseFiles": [
     {
       "path": "artifacts/manga-font-glyphvoice-ofl-source-pack-v2/upstream/google-fonts/aoboshione/OFL.txt",
@@ -352,20 +352,20 @@
     "win32-x64": {
       "archive": {
         "path": "font-chapter-c23-win32-x64.zip",
-        "bytes": 492932823,
-        "sha256": "302b6ab214ea4cadac864eaeb42cbb30c44ca30377434b2327fd0fa7fd9be360"
+        "bytes": 481525298,
+        "sha256": "7fb80e4d35f8533ff327f50b079d741145e2d749f43f42c4b34b821db954796c"
       },
       "pythonInventory": {
         "path": "python-inventory.json",
-        "bytes": 364475,
-        "sha256": "6f1b97543c45dbb7d8ff411341162fb3a0b07b49b6c071d3e6e80f2ba1a41e3e"
+        "bytes": 387856,
+        "sha256": "f50065fc07706bf71af3f297e55dcbf93e2fc7b534b6c44f08c9c774b2ce21d0"
       }
     },
     "darwin-arm64": {
       "archive": {
         "path": "font-chapter-c23-darwin-arm64.zip",
-        "bytes": 495965035,
-        "sha256": "9ec3074edda5410f3311cb470c0ee819da16255840ca8966feb282c59fa64eba"
+        "bytes": 495965142,
+        "sha256": "be50e5c4224384b6d5bb66440590cd073d2e53cb522a50c19083681e6a38fd63"
       },
       "pythonInventory": {
         "path": "python-inventory.json",

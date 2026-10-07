@@ -6,7 +6,7 @@
 
 **한국어** · [English](README.en.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**[v3.2.2 다운로드](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v3.2.2)** · [릴리스 노트](docs/release-notes/v3.2.2.md) · [오류·제안](https://github.com/ucx0204/CarrotMangaTranslator/issues)
+**[v3.2.3 다운로드](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v3.2.3)** · [릴리스 노트](docs/release-notes/v3.2.3.md) · [오류·제안](https://github.com/ucx0204/CarrotMangaTranslator/issues)
 
 Windows 10/11 · Apple Silicon macOS 14+ · [GPL-3.0-only](LICENSE)
 

@@ -50,7 +50,7 @@ describe("approved C23 runtime binding", () => {
     );
     for (const resolved of [windows, mac]) {
       expect(resolved.manifest.files.slice(0, trained.length)).toEqual(trained);
-      expect(resolved.url).toContain("/font-chapter-c23-20260909-r2/");
+      expect(resolved.url).toContain("/font-chapter-c23-20261008-r3/");
       expect(resolved.archive.bytes).toBeGreaterThan(1_000_000);
       expect(resolved.manifest.assetDirectory).not.toBe(
         manifest.assetDirectory,

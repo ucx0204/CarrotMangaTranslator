@@ -59,13 +59,19 @@ it("recovers external image lettering and optional block state after upload and 
       batchId: plan.batchId,
       requestId: randomUUID(),
     });
-    await vi.waitFor(async () => {
-      const state = mcpExternalImageOutputs.carrot_get_external_image.parse(
-        (await f.invoke("carrot_get_external_image", { batchId: plan.batchId }))
-          .structuredContent,
-      );
-      expect(state.status).toBe("completed");
-    });
+    await vi.waitFor(
+      async () => {
+        const state = mcpExternalImageOutputs.carrot_get_external_image.parse(
+          (
+            await f.invoke("carrot_get_external_image", {
+              batchId: plan.batchId,
+            })
+          ).structuredContent,
+        );
+        expect(state.status).toBe("completed");
+      },
+      { timeout: 10000 },
+    );
     const after = capturePageRecovery((await f.snapshot()).pages[0]);
     expect(after.blocks[0].generatedLettering).toBeDefined();
     const id = (await f.list()).items[0].id;

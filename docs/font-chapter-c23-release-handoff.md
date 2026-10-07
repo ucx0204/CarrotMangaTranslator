@@ -1,5 +1,44 @@
 # C23 공개 런타임 배포
 
+## v3.2.3: Windows Python 3.14 호환성
+
+현재 소비 태그는 [font-chapter-c23-20261008-r3](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/font-chapter-c23-20261008-r3),
+캐시 루트는 `models/fc23-r3`다. 아래 r2 기록은 이전 배포의 근거로 보존한다.
+
+| 플랫폼        |   ZIP bytes | SHA-256                                                            |
+| ------------- | ----------: | ------------------------------------------------------------------ |
+| Windows x64   | 481,525,298 | `7fb80e4d35f8533ff327f50b079d741145e2d749f43f42c4b34b821db954796c` |
+| Apple Silicon | 495,965,142 | `be50e5c4224384b6d5bb66440590cd073d2e53cb522a50c19083681e6a38fd63` |
+
+Windows Hayai가 관리하는 CPython 3.14.8에 r2의 CPython 3.12 전용 NumPy를
+주입하면 `_multiarray_umath` import가 실패한다. 설치된 3.12/3.14 인터프리터에
+같은 r2 의존 경로를 넣어 3.12의 성공과 3.14의 실패를 직접 확인했다.
+이는 [#141](https://github.com/ucx0204/CarrotMangaTranslator/issues/141)의 오류와 일치한다.
+
+r3 Windows는 NumPy 2.5.3, SciPy 1.18.1, ONNX Runtime 1.30.0의 CPython 3.14 wheel,
+fonttools 4.51.0의 pure-Python wheel을 사용한다. OpenCV headless 4.11.0.86,
+coloredlogs 15.0.1, flatbuffers 25.2.10, humanfriendly 10.0은 유지한다.
+macOS 의존성은 r2와 동일하다. 승인된 모델·참조 글꼴·런타임 알고리즘 bytes는
+그대로이며 macOS ZIP의 차이는 새 cache root와 현재 adapter ownership binding이다.
+
+생산기는 `--windows-wheels`와 `--asset-root`를 받아 새 디렉터리에만 패키징한다.
+원본 `font-chapter-c18/c23-v1`은 원래 ownership으로 읽기 검증했고 재봉인하지 않았다.
+기존 6개 자산에 `windows-wheels.json`을 더한 7개를 순차 게시했다. 서버의 이름·개수·크기와
+새 빈 디렉터리에 재다운로드한 7개 SHA-256을 게시 전 inventory와 대조했다.
+재다운로드한 ZIP도 실제 앱 extractor로 풀어 Windows 2,235개, macOS 2,020개 파일과
+ownership을 검증했다. 소비 manifest는 이 검증 후 변경했다.
+
+실제 앱 downloader의 빈 data root 원격 설치와 설치본의 Python 3.14.8로 네이티브 import,
+동결 전처리 및 두 ONNX 모델의 수치 parity를 통과했다. 기준 JSON과 허용 오차는 변경하지 않았다.
+로컬 근거는 `.tmp/font-c23-323-publication-inventory.json`, `.tmp/font-c23-323-server.json`,
+`.tmp/font-c23-323-remote-install/font-runtime-smoke.json`이다.
+릴리스에 첨부된 `release-manifest.json`, `archive-inventories.json`, `producer-binding.json`,
+두 wheel receipt가 재현 가능한 공개 근거다.
+
+문제가 생기면 자동 폰트 맞춤을 끄거나 Python 3.12와 호환되는 검증된 구버전 앱으로 롤백한다.
+Python 3.14를 유지한 채 r2 URL만 복구하면 원래 오류가 다시 발생한다.
+r2/r3 태그와 자산, 원본 생산 팩, 사용자 보관함·원본·출력은 삭제하거나 덮어쓰지 않는다.
+
 ## 배포 계약
 
 - 자산 프리릴리스: `font-chapter-c23-20260909-r2`.

@@ -8158,6 +8158,28 @@
         "pct": 89.15
       }
     },
+    "src/main/runtimeSupport/processTreeTermination.ts": {
+      "lines": {
+        "total": 142,
+        "covered": 75,
+        "pct": 52.81
+      },
+      "statements": {
+        "total": 146,
+        "covered": 77,
+        "pct": 52.73
+      },
+      "functions": {
+        "total": 35,
+        "covered": 22,
+        "pct": 62.85
+      },
+      "branches": {
+        "total": 80,
+        "covered": 40,
+        "pct": 50
+      }
+    },
     "src/main/runtimeSupport/runtimeDirectoryPublish.ts": {
       "lines": {
         "covered": 23,

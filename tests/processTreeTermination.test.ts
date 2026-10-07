@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   existsSync,
   mkdtempSync,
@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ChildProcess, spawn } from "node:child_process";
 import {
   JSON_WORKER_SHUTDOWN_GRACE_MS,
   JsonLinesWorkerClient,
@@ -15,8 +16,14 @@ import {
 import {
   PROCESS_TREE_FORCE_EXIT_TIMEOUT_MS,
   PROCESS_TREE_POLL_INTERVAL_MS,
+  forceTerminateChildProcessTree,
   shouldSpawnInOwnProcessGroup,
 } from "../src/main/runtimeSupport/processTreeTermination";
+
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return { ...actual, spawn: vi.fn(actual.spawn) };
+});
 
 const parentScript = join(__dirname, "fixtures", "jsonWorkerTreeParent.cjs");
 const grandchildScript = join(
@@ -26,6 +33,57 @@ const grandchildScript = join(
 );
 
 describe("process-tree termination", () => {
+  it.each([
+    { taskkillCode: 128, workerCode: 0, succeeds: true },
+    { taskkillCode: 128, workerCode: 1, succeeds: false },
+    { taskkillCode: 1, workerCode: 0, succeeds: false },
+    { taskkillCode: 128, workerCode: null, succeeds: false },
+  ])(
+    "accepts only the normal-exit race ($taskkillCode / $workerCode)",
+    async ({ taskkillCode, workerCode, succeeds }) => {
+      const platform = Object.getOwnPropertyDescriptor(process, "platform");
+      if (!platform) throw new Error("Missing process platform descriptor");
+      Object.defineProperty(process, "platform", { value: "win32" });
+      vi.stubEnv("SystemRoot", "C:\\Windows");
+      const child = new ChildProcess();
+      Reflect.set(child, "pid", 12345);
+      child.kill = vi.fn(() => {
+        Reflect.set(child, "exitCode", 1);
+        child.emit("exit", 1, null);
+        return true;
+      });
+      vi.mocked(spawn).mockImplementationOnce(() => {
+        const killer = new ChildProcess();
+        setImmediate(() => {
+          if (workerCode !== null) {
+            Reflect.set(child, "exitCode", workerCode);
+            child.emit("exit", workerCode, null);
+          }
+          Reflect.set(killer, "exitCode", taskkillCode);
+          killer.emit("close", taskkillCode, null);
+        });
+        return killer;
+      });
+      try {
+        const termination = forceTerminateChildProcessTree(child, {
+          timeoutMs: 100,
+        });
+        if (succeeds) {
+          await expect(termination).resolves.toMatchObject({
+            method: "windows-taskkill",
+          });
+          expect(child.kill).not.toHaveBeenCalled();
+        } else {
+          await expect(termination).rejects.toThrow(
+            "termination command exited with code",
+          );
+        }
+      } finally {
+        Object.defineProperty(process, "platform", platform);
+        vi.unstubAllEnvs();
+      }
+    },
+  );
   it("keeps the documented bounded lifecycle timings and process-group policy", () => {
     expect(JSON_WORKER_SHUTDOWN_GRACE_MS).toBe(1_500);
     expect(PROCESS_TREE_FORCE_EXIT_TIMEOUT_MS).toBe(3_000);

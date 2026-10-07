@@ -199,6 +199,16 @@ async function terminateWindowsProcessTree(
   }
 
   if (code !== 0) {
+    // The worker can finish its graceful shutdown after taskkill starts but
+    // before it opens the PID. Accept only a confirmed normal exit in that
+    // not-found race; access failures and abnormal worker exits still fail.
+    if (
+      code === 128 &&
+      (await waitForChildExit(child, remainingMs(deadline))) &&
+      child.exitCode === 0
+    ) {
+      return;
+    }
     tryDirectSigkill(child);
     await waitForChildExit(child, remainingMs(deadline));
     throw new Error(
