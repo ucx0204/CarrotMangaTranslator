@@ -67,7 +67,9 @@ npm run check -- --phase=merge
 
 The setup composite shares locked toolchain setup. Only the build job saves
 native/check caches; test runners restore native caches and still build and
-validate the import runner. Build and test checkouts fetch the current revision.
+validate the import runner. Build checkouts fetch the current revision. Test
+checkouts retain commit history with `blob:none` because the coverage scope
+regression test compares the current tree with its sealed historical baseline.
 The merge job retains full history with `blob:none` filtering because the cleanup
 coverage gate compares source paths against its historical baseline commit.
 

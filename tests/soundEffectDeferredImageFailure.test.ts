@@ -1,5 +1,5 @@
 import { CodexImageEditError } from "../src/main/codexImageEditing";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import { confirmSoundEffectTextReview } from "../src/main/application/soundEffectTextReview";
 import {
@@ -9,19 +9,24 @@ import {
 } from "../src/main/jobs/soundEffectTranslationJobRunner";
 import type { SoundEffectTranslationJobInput } from "../src/main/jobs/translationJobTypes";
 import { applyResolvedSoundEffectEntries } from "../src/main/libraryStore/librarySoundEffectMutations";
-import { createDefaultWholePagePipelineDependencies } from "../src/main/pipeline/wholePagePipelinePorts";
+import type { WholePagePipelineDependencies } from "../src/main/pipeline/wholePagePipelinePorts";
 import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import { resolveCodexTypesettingOptions } from "../src/shared/codexTypesettingDefaults";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import { createSoundEffectReviewPageRevision } from "../src/shared/pageRevision";
 import { builtIn } from "./helpers/automaticFontMatchingV2Fixtures";
-import { makeEmptyWorkContext } from "./helpers/wholePagePipelineHarness";
+import {
+  cleanupPipelineTempDirs,
+  loadPipeline,
+  makeEmptyWorkContext,
+} from "./helpers/wholePagePipelineHarness";
 import { makeChapter } from "./unifiedInpaintingUiFixtures";
 
 vi.mock("electron", () => ({ app: { isPackaged: false } }));
+afterEach(cleanupPipelineTempDirs);
 
 it("saves both pretranslated pages after the first deferred image failure and reports partial", async () => {
-  const f = fixture();
+  const f = await fixture();
   const error = await runSoundEffectTranslationJob(
     f.input,
     f.dependencies,
@@ -92,7 +97,7 @@ it.each([
 ] as const)(
   "preserves both completed translations exactly once when cancelled at $phase on $pageId",
   async (cancelAt) => {
-    const f = fixture(cancelAt);
+    const f = await fixture(cancelAt);
     const result = await runSoundEffectTranslationJob(
       f.input,
       f.dependencies,
@@ -155,7 +160,7 @@ it.each([
 ] as const)(
   "does not save unconfirmed translations when cancelled at $phase on $pageId",
   async (cancelAt) => {
-    const f = fixture(cancelAt);
+    const f = await fixture(cancelAt);
     await expect(
       runSoundEffectTranslationJob(f.input, f.dependencies),
     ).rejects.toThrow();
@@ -169,7 +174,7 @@ it.each([
 );
 
 it("finishes later pages when a refused region is retained as a local marker", async () => {
-  const f = fixture();
+  const f = await fixture();
   if (!f.dependencies.editImages) throw new Error("Missing image editor");
   vi.mocked(f.dependencies.editImages).mockImplementation(async ({ page }) => ({
     ...page,
@@ -191,7 +196,7 @@ type CancellationPoint = {
   pageId: string;
 };
 
-function fixture(cancelAt?: CancellationPoint) {
+async function fixture(cancelAt?: CancellationPoint) {
   let chapter = makeChapter();
   chapter.pages = [1, 2].map((index) => ({
     ...structuredClone(chapter.pages[0]),
@@ -219,7 +224,8 @@ function fixture(cancelAt?: CancellationPoint) {
   const imageFailure = new Error("first page lettering provider failed");
   const settings = resolveDefaultAppSettings({});
   settings.modelProvider = "gemma";
-  const pipeline = createDefaultWholePagePipelineDependencies();
+  const pipeline: WholePagePipelineDependencies = (await loadPipeline())
+    .dependencies;
   pipeline.settings.getAppSettings = async () => settings;
   pipeline.diagnostics = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   pipeline.runtime.isModelCached = () => true;
