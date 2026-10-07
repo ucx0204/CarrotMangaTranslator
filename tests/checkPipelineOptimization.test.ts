@@ -232,6 +232,7 @@ describe("distributed Check completeness", () => {
     expect(workflow.jobs["macos-arm64-tests"].env.MGT_VITEST_MAX_WORKERS).toBe(
       "1",
     );
+    expect(workflow.jobs["windows-tests"].env.MGT_VITEST_MAX_WORKERS).toBe("2");
   });
 });
 

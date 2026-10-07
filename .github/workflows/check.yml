@@ -46,6 +46,9 @@ jobs:
           retention-days: 7
   windows-tests:
     runs-on: windows-latest
+    env:
+      # Real persistence/recovery tests contend for disk with four local workers.
+      MGT_VITEST_MAX_WORKERS: "2"
     strategy:
       fail-fast: false
       matrix:

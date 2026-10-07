@@ -30,8 +30,14 @@ ownership을 검증했다. 소비 manifest는 이 검증 후 변경했다.
 
 실제 앱 downloader의 빈 data root 원격 설치와 설치본의 Python 3.14.8로 네이티브 import,
 동결 전처리 및 두 ONNX 모델의 수치 parity를 통과했다. 기준 JSON과 허용 오차는 변경하지 않았다.
+이어서 실제 `createFontChapterC18Port`와 CUDA 런타임으로 기존 screen 3개 화 각 10페이지를
+처리했다. 총 188개 선택의 폰트·굵기·italic·그룹·runtimeVersion이 2026-10-07에 보존한
+GPU 결과와 모두 같았다. 비교는 저장된 JSON 표현을 사용하며 결과가 없는 효과음 영역의
+`undefined` 필드는 기존 저장 계약처럼 생략한다. 기준 결과를 재기록하지 않았다.
+이는 기존 입력의 호환성 회귀 검증이며 새 품질 평가가 아니다.
 로컬 근거는 `.tmp/font-c23-323-publication-inventory.json`, `.tmp/font-c23-323-server.json`,
-`.tmp/font-c23-323-remote-install/font-runtime-smoke.json`이다.
+`.tmp/font-c23-323-remote-install/font-runtime-smoke.json`,
+`.tmp/font-c23-323-remote-install/chapter-parity.json`이다.
 릴리스에 첨부된 `release-manifest.json`, `archive-inventories.json`, `producer-binding.json`,
 두 wheel receipt가 재현 가능한 공개 근거다.
 

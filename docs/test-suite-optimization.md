@@ -43,7 +43,9 @@ revocation, cancellation, transaction failure and recovery tests remain intact.
 Check now runs four isolated test runners per OS in parallel with static checks,
 the application build, Electron smoke checks, and native CLI/runtime validation.
 Each macOS test runner still uses one Vitest worker and the existing 4 GiB heap
-limit. Windows retains its resource-aware worker limit. No test is selected by
+limit. Windows uses two workers per runner after four-worker CI runs exceeded
+the unchanged 32-action recovery and workflow completion deadlines. The four
+test runners still execute concurrently; local defaults are unchanged. No test is selected by
 changed paths; every discovered test file runs on both platforms, with only the
 existing platform skips.
 
