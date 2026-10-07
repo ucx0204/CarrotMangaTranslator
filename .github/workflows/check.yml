@@ -55,7 +55,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git/db
             tools/mgt-import-source-runner/target
-          key: native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-${{ hashFiles('tools/mgt-import-source-runner/src/**', 'tools/mgt-flux-klein-runner/src/**', 'tools/mgt-flux-klein-runner/build.rs', 'tools/runner-image-processing/src/**', 'tools/runner-runtime-policy/src/**') }}
+          key: native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-${{ hashFiles('tools/mgt-import-source-runner/src/**', 'tools/mgt-flux-klein-runner/src/**', 'tools/mgt-flux-klein-runner/build.rs', 'tools/mgt-flux-klein-runner/vendor/**', 'tools/mgt-flux-klein-runner/windows.manifest', 'tools/runner-image-processing/src/**', 'tools/runner-runtime-policy/src/**') }}
           restore-keys: |
             native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-
 
@@ -133,7 +133,7 @@ jobs:
             tools/mgt-flux-klein-runner/target
             tools/runner-image-processing/target
             tools/runner-runtime-policy/target
-          key: native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-${{ hashFiles('tools/mgt-import-source-runner/src/**', 'tools/mgt-flux-klein-runner/src/**', 'tools/mgt-flux-klein-runner/build.rs', 'tools/runner-image-processing/src/**', 'tools/runner-runtime-policy/src/**') }}
+          key: native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-${{ hashFiles('tools/mgt-import-source-runner/src/**', 'tools/mgt-flux-klein-runner/src/**', 'tools/mgt-flux-klein-runner/build.rs', 'tools/mgt-flux-klein-runner/vendor/**', 'tools/mgt-flux-klein-runner/windows.manifest', 'tools/runner-image-processing/src/**', 'tools/runner-runtime-policy/src/**') }}
           restore-keys: |
             native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-
 
