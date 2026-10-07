@@ -38,6 +38,52 @@ revocation, cancellation, transaction failure and recovery tests remain intact.
   push. PRs receive the full suite from Check. Both packaged installer smoke paths
   remain in UAC Acceptance.
 
+## GitHub test sharding
+
+Check now runs four isolated test runners per OS in parallel with static checks,
+the application build, Electron smoke checks, and native CLI/runtime validation.
+Each macOS test runner still uses one Vitest worker and the existing 4 GiB heap
+limit. Windows retains its resource-aware worker limit. No test is selected by
+changed paths; every discovered test file runs on both platforms, with only the
+existing platform skips.
+
+The existing required job names, `windows-check` and `macos-arm64-check`, are the
+final gates. They fail unless their build job and every test shard succeeded.
+Before Vitest merges the four blob reports, Check verifies their commit, platform,
+architecture and SHA-256, and compares their combined file inventory with a fresh
+`vitest list --filesOnly`. Missing, duplicate, stale and extra files are errors.
+The merged report is checked against the same inventory again. Coverage thresholds
+are deferred only in shard subprocesses; the merge enforces the unchanged global,
+per-file and production-cleanup coverage floors.
+
+`npm run check` and `npm run check:cold` still run all 27 gates locally. CI uses
+three explicit parts; passing one part is not a complete Check:
+
+```text
+npm run check -- --phase=build
+npm run check -- --phase=test --shard=1/4  (also 2/4, 3/4, 4/4)
+npm run check -- --phase=merge
+```
+
+The setup composite shares locked toolchain setup. Only the build job saves
+native/check caches; test runners restore native caches and still build and
+validate the import runner. Build and test checkouts fetch the current revision.
+The merge job retains full history with `blob:none` filtering because the cleanup
+coverage gate compares source paths against its historical baseline commit.
+
+Shard artifacts are scoped to the workflow run and OS. Rerunning a failed shard
+replaces its own artifact; unchanged successful shards remain usable at the same
+commit. Diagnostic artifacts retain the run attempt and shard number. Wall time
+must be measured from workflow start through the final gates, including queues,
+setup, transfers and merging; parallelism can increase total runner minutes.
+
+Local validation of the distributed path passed the build/static gates, all four
+test shards and the merged coverage gates: 1,329 files, 10,324 passing cases and
+nine existing skips. Ten added cases exercise the CI partition and missing/stale/
+duplicate shard guards in the existing check test file. No previous case changed
+status or disappeared (one existing case embeds a varying timestamp in its name).
+No per-file coverage metric decreased; two files recorded slightly higher coverage.
+
 ## Measurement
 
 The pre-change reference is successful Check run

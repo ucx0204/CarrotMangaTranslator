@@ -1,84 +1,38 @@
 name: Check
-
 on:
   push:
     branches:
       - master
       - main
-  pull_request:
-
+  pull_request: null
 permissions:
   contents: read
-
 concurrency:
   group: check-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
 jobs:
-  windows-check:
+  windows-build:
     runs-on: windows-latest
-
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Set up check toolchain
+        uses: ./.github/actions/check-setup
         with:
-          node-version-file: .node-version
-          cache: npm
-
-      - name: Set up npm
-        run: npm install --global npm@12.2.0
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.14.8"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Identify Rust toolchain
-        id: rust-toolchain
-        shell: bash
-        run: |
-          node -e 'const fs = require("node:fs"), cp = require("node:child_process"), crypto = require("node:crypto"); const hash = crypto.createHash("sha256").update(cp.execFileSync("rustc", ["-vV"])).update(JSON.stringify([process.env.ImageVersion, process.env.RUSTFLAGS, process.env.CARGO_BUILD_TARGET])).digest("hex"); fs.appendFileSync(process.env.GITHUB_OUTPUT, "key=" + hash + "\n");'
-
-      - name: Restore native build cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git/db
-            tools/mgt-import-source-runner/target
-          key: native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-${{ hashFiles('tools/mgt-import-source-runner/src/**', 'tools/mgt-flux-klein-runner/src/**', 'tools/mgt-flux-klein-runner/build.rs', 'tools/mgt-flux-klein-runner/vendor/**', 'tools/mgt-flux-klein-runner/windows.manifest', 'tools/runner-image-processing/src/**', 'tools/runner-runtime-policy/src/**') }}
-          restore-keys: |
-            native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-
-
-      - name: Restore check acceleration cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .tmp/check-cache
-          key: check-${{ runner.os }}-node26-npm12-v1-${{ hashFiles('package-lock.json', 'scripts/run-prettier.cjs', 'scripts/dev-build-cache.cjs', 'scripts/build.cjs') }}-${{ github.sha }}
-          restore-keys: |
-            check-${{ runner.os }}-node26-npm12-v1-${{ hashFiles('package-lock.json', 'scripts/run-prettier.cjs', 'scripts/dev-build-cache.cjs', 'scripts/build.cjs') }}-
-
-      - name: Run checks
-        run: npm run check
-
+          phase: build
+      - name: Run static, build and Electron checks
+        run: npm run check -- --phase=build
       - name: Validate published Windows CUDA, AMD and Vulkan command lines
         timeout-minutes: 30
         run: node scripts/verify-llama-runtime-cli.cjs
-
       - name: Preserve check diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: check-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: check-build-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             .tmp/check-timings.json
             .tmp/check-logs/
@@ -90,92 +44,244 @@ jobs:
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
-
-  macos-arm64-check:
-    runs-on: macos-26
-
+  windows-tests:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - 1
+          - 2
+          - 3
+          - 4
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
-
-      - name: Confirm Apple Silicon runner
-        shell: bash
-        run: test "$(uname -m)" = "arm64"
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Set up check toolchain
+        uses: ./.github/actions/check-setup
         with:
-          node-version-file: .node-version
-          cache: npm
-
-      - name: Set up npm
-        run: npm install --global npm@12.2.0
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Identify Rust toolchain
-        id: rust-toolchain
-        shell: bash
-        run: |
-          node -e 'const fs = require("node:fs"), cp = require("node:child_process"), crypto = require("node:crypto"); const hash = crypto.createHash("sha256").update(cp.execFileSync("rustc", ["-vV"])).update(JSON.stringify([process.env.ImageVersion, process.env.RUSTFLAGS, process.env.CARGO_BUILD_TARGET])).digest("hex"); fs.appendFileSync(process.env.GITHUB_OUTPUT, "key=" + hash + "\n");'
-
-      - name: Restore native build cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          phase: test
+      - name: Run test shard
+        run: npm run check -- --phase=test --shard=${{ matrix.shard }}/4
+      - name: Upload successful test shard
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git/db
-            tools/mgt-import-source-runner/target
-            tools/mgt-flux-klein-runner/target
-            tools/runner-image-processing/target
-            tools/runner-runtime-policy/target
-          key: native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-${{ hashFiles('tools/mgt-import-source-runner/src/**', 'tools/mgt-flux-klein-runner/src/**', 'tools/mgt-flux-klein-runner/build.rs', 'tools/mgt-flux-klein-runner/vendor/**', 'tools/mgt-flux-klein-runner/windows.manifest', 'tools/runner-image-processing/src/**', 'tools/runner-runtime-policy/src/**') }}
-          restore-keys: |
-            native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-
-
-      - name: Restore check acceleration cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .tmp/check-cache
-          key: check-${{ runner.os }}-node26-npm12-v1-${{ hashFiles('package-lock.json', 'scripts/run-prettier.cjs', 'scripts/dev-build-cache.cjs', 'scripts/build.cjs') }}-${{ github.sha }}
-          restore-keys: |
-            check-${{ runner.os }}-node26-npm12-v1-${{ hashFiles('package-lock.json', 'scripts/run-prettier.cjs', 'scripts/dev-build-cache.cjs', 'scripts/build.cjs') }}-
-
-      - name: Compile Electron for native runtime verification
-        run: npm run compile:electron
-
-      - name: Validate published Apple Silicon command lines and native loader
-        timeout-minutes: 15
-        run: node scripts/verify-llama-runtime-cli.cjs
-
-      - name: Run checks
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-          MGT_VITEST_MAX_WORKERS: "1"
-        run: npm run check
-
-      - name: Test Flux Metal runtime
-        run: npm run test:flux-metal
-
-      - name: Set up font runtime smoke Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-
-      - name: Verify published font runtime on Apple Silicon
-        run: |
-          python -m pip install torch==2.9.1 pillow==11.3.0
-          node node_modules/electron/cli.js scripts/smoke-font-chapter-runtime.cjs out .tmp/font-chapter-native-smoke out/app-runtime python tests/fixtures/font-chapter-native-reference.json
-
+          name: test-shard-${{ runner.os }}-${{ matrix.shard }}
+          path: .tmp/check-shards/
+          overwrite: true
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 2
       - name: Preserve check diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: check-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: check-test-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+          path: |
+            .tmp/check-timings.json
+            .tmp/check-logs/
+            .tmp/check-results/
+            coverage/coverage-summary.json
+            .tmp/llama-runtime-cli/report.json
+            .tmp/llama-runtime-cli/*-help.log
+            .tmp/llama-runtime-cli/probe-*.log
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+  windows-check:
+    runs-on: windows-latest
+    needs:
+      - windows-build
+      - windows-tests
+    if: always()
+    steps:
+      - name: Require every build and test shard to pass
+        shell: bash
+        env:
+          BUILD_RESULT: ${{ needs.windows-build.result }}
+          TEST_RESULT: ${{ needs.windows-tests.result }}
+        run: test "$BUILD_RESULT" = success && test "$TEST_RESULT" = success
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Set up check toolchain
+        uses: ./.github/actions/check-setup
+        with:
+          phase: merge
+      - name: Download all four test shards
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: test-shard-${{ runner.os }}-*
+          path: .tmp/check-shards
+          merge-multiple: true
+      - name: Merge full test coverage and enforce existing gates
+        run: npm run check -- --phase=merge
+      - name: Preserve check diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: check-merge-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .tmp/check-timings.json
+            .tmp/check-logs/
+            .tmp/check-results/
+            coverage/coverage-summary.json
+            .tmp/llama-runtime-cli/report.json
+            .tmp/llama-runtime-cli/*-help.log
+            .tmp/llama-runtime-cli/probe-*.log
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+  macos-arm64-build:
+    runs-on: macos-26
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      MGT_VITEST_MAX_WORKERS: "1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Confirm Apple Silicon runner
+        shell: bash
+        run: test "$(uname -m)" = "arm64"
+      - name: Set up check toolchain
+        uses: ./.github/actions/check-setup
+        with:
+          phase: build
+      - name: Run static, build and Electron checks
+        run: npm run check -- --phase=build
+      - name: Validate published Apple Silicon command lines and native loader
+        timeout-minutes: 15
+        run: node scripts/verify-llama-runtime-cli.cjs
+      - name: Test Flux Metal runtime
+        run: npm run test:flux-metal
+      - name: Set up font runtime smoke Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Verify published font runtime on Apple Silicon
+        run: |
+          python -m pip install torch==2.9.1 pillow==11.3.0
+          node node_modules/electron/cli.js scripts/smoke-font-chapter-runtime.cjs out .tmp/font-chapter-native-smoke out/app-runtime python tests/fixtures/font-chapter-native-reference.json
+      - name: Preserve check diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: check-build-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .tmp/check-timings.json
+            .tmp/check-logs/
+            .tmp/check-results/
+            coverage/coverage-summary.json
+            .tmp/llama-runtime-cli/report.json
+            .tmp/llama-runtime-cli/*-help.log
+            .tmp/llama-runtime-cli/probe-*.log
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+  macos-arm64-tests:
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - 1
+          - 2
+          - 3
+          - 4
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      MGT_VITEST_MAX_WORKERS: "1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Confirm Apple Silicon runner
+        shell: bash
+        run: test "$(uname -m)" = "arm64"
+      - name: Set up check toolchain
+        uses: ./.github/actions/check-setup
+        with:
+          phase: test
+      - name: Run test shard
+        run: npm run check -- --phase=test --shard=${{ matrix.shard }}/4
+      - name: Upload successful test shard
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-shard-${{ runner.os }}-${{ matrix.shard }}
+          path: .tmp/check-shards/
+          overwrite: true
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 2
+      - name: Preserve check diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: check-test-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+          path: |
+            .tmp/check-timings.json
+            .tmp/check-logs/
+            .tmp/check-results/
+            coverage/coverage-summary.json
+            .tmp/llama-runtime-cli/report.json
+            .tmp/llama-runtime-cli/*-help.log
+            .tmp/llama-runtime-cli/probe-*.log
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+  macos-arm64-check:
+    runs-on: macos-26
+    needs:
+      - macos-arm64-build
+      - macos-arm64-tests
+    if: always()
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      MGT_VITEST_MAX_WORKERS: "1"
+    steps:
+      - name: Require every build and test shard to pass
+        shell: bash
+        env:
+          BUILD_RESULT: ${{ needs.macos-arm64-build.result }}
+          TEST_RESULT: ${{ needs.macos-arm64-tests.result }}
+        run: test "$BUILD_RESULT" = success && test "$TEST_RESULT" = success
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Confirm Apple Silicon runner
+        shell: bash
+        run: test "$(uname -m)" = "arm64"
+      - name: Set up check toolchain
+        uses: ./.github/actions/check-setup
+        with:
+          phase: merge
+      - name: Download all four test shards
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: test-shard-${{ runner.os }}-*
+          path: .tmp/check-shards
+          merge-multiple: true
+      - name: Merge full test coverage and enforce existing gates
+        run: npm run check -- --phase=merge
+      - name: Preserve check diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: check-merge-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             .tmp/check-timings.json
             .tmp/check-logs/

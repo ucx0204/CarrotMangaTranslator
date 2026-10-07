@@ -169,29 +169,43 @@ function createPostBuildStages(buildId) {
   ];
 }
 
-/** @param {{ cold?: boolean }} [options] @returns {CheckStage[]} */
+/** @param {{ cold?: boolean; phase?: "all" | "build" | "test" | "merge"; shard?: string }} [options] @returns {CheckStage[]} */
 function createStages(options = {}) {
+  const phase = options.phase ?? "all";
   const privateWorkspace = nodeStage(
     "private-workspace",
     [join(__dirname, "check-private-workspace-files.cjs")],
     { executionClass: "exclusive" },
   );
-  const preflight = createPreflightStages(
+  const allPreflight = createPreflightStages(
     privateWorkspace.id,
     options.cold === true,
   );
+  const preflight =
+    phase === "merge"
+      ? []
+      : phase === "test"
+        ? allPreflight.filter((stage) => stage.id.startsWith("prepare-"))
+        : allPreflight;
   const testCoverage = nodeStage(
     "test-coverage",
-    [
-      nodeBin("vitest", "vitest.mjs"),
-      "run",
-      "--coverage",
-      "--reporter=default",
-      "--reporter=json",
-      `--outputFile.json=${relative(root, vitestResultPath)}`,
-    ],
+    phase === "test" || phase === "merge"
+      ? [
+          join(__dirname, "check-test-shards.cjs"),
+          ...(phase === "test" ? ["run", options.shard ?? ""] : ["merge"]),
+        ]
+      : [
+          nodeBin("vitest", "vitest.mjs"),
+          "run",
+          "--coverage",
+          "--reporter=default",
+          "--reporter=json",
+          `--outputFile.json=${relative(root, vitestResultPath)}`,
+        ],
     {
-      dependsOn: preflight.map((stage) => stage.id),
+      dependsOn: preflight.length
+        ? preflight.map((stage) => stage.id)
+        : [privateWorkspace.id],
       executionClass: "exclusive",
     },
   );
@@ -207,13 +221,20 @@ function createStages(options = {}) {
       "--skip-typecheck",
       ...(options.cold ? [] : ["--reuse-verified-outputs"]),
     ],
-    { dependsOn: [coverageSeal.id], executionClass: "exclusive" },
+    {
+      dependsOn:
+        phase === "build"
+          ? preflight.map((stage) => stage.id)
+          : [coverageSeal.id],
+      executionClass: "exclusive",
+    },
   );
+  if (phase === "test") return [privateWorkspace, ...preflight, testCoverage];
+  if (phase === "merge") return [privateWorkspace, testCoverage, coverageSeal];
   return [
     privateWorkspace,
     ...preflight,
-    testCoverage,
-    coverageSeal,
+    ...(phase === "build" ? [] : [testCoverage, coverageSeal]),
     build,
     ...createPostBuildStages(build.id),
   ];
@@ -317,6 +338,9 @@ function printHelp() {
     );
   }
   console.log("\n--cold bypasses every reusable check acceleration cache.");
+  console.log(
+    "CI parts: --phase=build, --phase=test --shard=1/4, --phase=merge. All parts are required for a complete check.",
+  );
 }
 
 function clearStaleTestReports() {
@@ -363,16 +387,21 @@ async function main() {
   const parsed = parseArguments(process.argv.slice(2));
   if (parsed.help) return printHelp();
   clearStaleTestReports();
-  const stages = validateStages(createStages({ cold: parsed.cold }));
+  const stages = validateStages(createStages(parsed));
   const maxParallel = resolveCheckParallelism();
   const vitestWorkers = resolveVitestMaxWorkers();
   const startedAt = new Date().toISOString();
   const started = monotonicMilliseconds();
   console.log(
-    `[check] ${stages.length} gates, static parallelism=${maxParallel}, vitest workers=${vitestWorkers}${parsed.cold ? ", cold" : ""}`,
+    `[check] phase=${parsed.phase}, ${stages.length} gates, static parallelism=${maxParallel}, vitest workers=${vitestWorkers}${parsed.cold ? ", cold" : ""}`,
   );
+  /** @type {NodeJS.ProcessEnv} */
+  const env = { ...process.env, MGT_CHECK_COLD: parsed.cold ? "1" : "0" };
+  // Only the shard subprocess may defer thresholds. A caller's environment
+  // cannot accidentally defer them in a full check or the merge gate.
+  delete env.MGT_CHECK_SHARD;
   const results = await runStageGraph(stages, {
-    env: { ...process.env, MGT_CHECK_COLD: parsed.cold ? "1" : "0" },
+    env,
     maxParallel,
   });
   const totalMs = monotonicMilliseconds() - started;
@@ -386,7 +415,7 @@ async function main() {
     vitestWorkers,
     cold: parsed.cold,
   });
-  writeTimingReport(report);
+  writeTimingReport({ ...report, phase: parsed.phase, shard: parsed.shard });
   writeGitHubSummary(results, totalMs);
   console.log(`\n[check] ${report.status} in ${formatDuration(totalMs)}`);
   if (failed) process.exitCode = failed.exitCode || 1;
@@ -394,14 +423,27 @@ async function main() {
 
 /** @param {string[]} args */
 function parseArguments(args) {
-  if (args.length === 0) return { cold: false, help: false };
-  if (args.length === 1 && args[0] === "--cold") {
-    return { cold: true, help: false };
+  /** @type {{ cold: boolean; help: boolean; phase: "all" | "build" | "test" | "merge"; shard?: string }} */
+  const parsed = { cold: false, help: false, phase: "all" };
+  const seen = new Set();
+  for (const arg of args) {
+    const key = arg.split("=")[0];
+    if (seen.has(key)) throw new Error(`Duplicate check argument: ${key}`);
+    seen.add(key);
+    if (arg === "--cold") parsed.cold = true;
+    else if (arg === "--help") parsed.help = true;
+    else if (arg === "--phase=build") parsed.phase = "build";
+    else if (arg === "--phase=test") parsed.phase = "test";
+    else if (arg === "--phase=merge") parsed.phase = "merge";
+    else if (/^--shard=[1-4]\/4$/u.test(arg)) parsed.shard = arg.slice(8);
+    else throw new Error(`Unsupported check argument: ${arg}`);
   }
-  if (args.length === 1 && args[0] === "--help") {
-    return { cold: false, help: true };
+  if ((parsed.phase === "test") !== Boolean(parsed.shard)) {
+    throw new Error(
+      "--phase=test requires exactly one --shard=1/4 through 4/4; other phases cannot select a shard.",
+    );
   }
-  throw new Error(`Unsupported check arguments: ${args.join(" ")}`);
+  return parsed;
 }
 
 module.exports = {
@@ -409,6 +451,7 @@ module.exports = {
   createStages,
   formatDuration,
   nodeStage,
+  parseArguments,
   readStageMetadata,
   resolveCheckParallelism,
   runStage,

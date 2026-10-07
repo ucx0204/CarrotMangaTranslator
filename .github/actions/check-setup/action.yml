@@ -1,0 +1,67 @@
+name: Check toolchain
+description: Install the locked check toolchain and restore relevant acceleration caches.
+inputs:
+  phase:
+    description: build, test or merge
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version-file: .node-version
+        cache: npm
+    - name: Set up npm
+      run: npm install --global npm@12.2.0
+      shell: bash
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: 3.14.8
+      if: runner.os == 'Windows' && inputs.phase != 'merge'
+    - name: Install dependencies
+      run: npm ci
+      shell: bash
+    - name: Identify Rust toolchain
+      id: rust-toolchain
+      shell: bash
+      run: |
+        node -e 'const fs = require("node:fs"), cp = require("node:child_process"), crypto = require("node:crypto"); const hash = crypto.createHash("sha256").update(cp.execFileSync("rustc", ["-vV"])).update(JSON.stringify([process.env.ImageVersion, process.env.RUSTFLAGS, process.env.CARGO_BUILD_TARGET])).digest("hex"); fs.appendFileSync(process.env.GITHUB_OUTPUT, "key=" + hash + "\n");'
+      if: inputs.phase != 'merge'
+    - name: Restore native build cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git/db
+          tools/mgt-import-source-runner/target
+          tools/mgt-flux-klein-runner/target
+          tools/runner-image-processing/target
+          tools/runner-runtime-policy/target
+        key: native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-${{ hashFiles('tools/mgt-import-source-runner/src/**', 'tools/mgt-flux-klein-runner/src/**', 'tools/mgt-flux-klein-runner/build.rs', 'tools/mgt-flux-klein-runner/vendor/**', 'tools/mgt-flux-klein-runner/windows.manifest', 'tools/runner-image-processing/src/**', 'tools/runner-runtime-policy/src/**') }}
+        restore-keys: |
+          native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-
+      if: inputs.phase == 'build'
+    - name: Restore native build cache for tests
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git/db
+          tools/mgt-import-source-runner/target
+          tools/mgt-flux-klein-runner/target
+          tools/runner-image-processing/target
+          tools/runner-runtime-policy/target
+        key: native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-${{ hashFiles('tools/mgt-import-source-runner/src/**', 'tools/mgt-flux-klein-runner/src/**', 'tools/mgt-flux-klein-runner/build.rs', 'tools/mgt-flux-klein-runner/vendor/**', 'tools/mgt-flux-klein-runner/windows.manifest', 'tools/runner-image-processing/src/**', 'tools/runner-runtime-policy/src/**') }}
+        restore-keys: |
+          native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-
+      if: inputs.phase == 'test'
+    - name: Restore check acceleration cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .tmp/check-cache
+        key: check-${{ runner.os }}-node26-npm12-v1-${{ hashFiles('package-lock.json', 'scripts/run-prettier.cjs', 'scripts/dev-build-cache.cjs', 'scripts/build.cjs') }}-${{ github.sha }}
+        restore-keys: |
+          check-${{ runner.os }}-node26-npm12-v1-${{ hashFiles('package-lock.json', 'scripts/run-prettier.cjs', 'scripts/dev-build-cache.cjs', 'scripts/build.cjs') }}-
+      if: inputs.phase == 'build'

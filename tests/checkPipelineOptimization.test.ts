@@ -1,7 +1,8 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { parse as parseYaml } from "yaml";
 
 type Stage = {
   id: string;
@@ -28,7 +29,12 @@ type StageResult = {
 
 type CheckModule = {
   calculateCriticalPathMs(stages: Stage[], results: StageResult[]): number;
-  createStages(options?: { cold?: boolean }): Stage[];
+  createStages(options?: {
+    cold?: boolean;
+    phase?: "all" | "build" | "test" | "merge";
+    shard?: string;
+  }): Stage[];
+  parseArguments(args: string[]): { phase: string; shard?: string };
   nodeStage(
     id: string,
     args: string[],
@@ -74,6 +80,160 @@ type CompileElectronModule = {
 const check = require("../scripts/check.cjs") as CheckModule;
 const compileElectron =
   require("../scripts/compile-electron.cjs") as CompileElectronModule;
+
+type ShardReceipt = {
+  index: number;
+  count: number;
+  commit: string;
+  platform: string;
+  arch: string;
+  blobSha256: string;
+  files: string[];
+};
+const { validateShardReceipts } =
+  require("../scripts/check-test-shards.cjs") as {
+    validateShardReceipts(
+      receipts: ShardReceipt[],
+      files: string[],
+      binding: { commit: string; platform: string; arch: string },
+    ): number;
+  };
+
+describe("distributed Check completeness", () => {
+  it("partitions the full gate inventory while keeping build typechecks and merged coverage mandatory", () => {
+    const build = check.validateStages(check.createStages({ phase: "build" }));
+    const test = check.validateStages(
+      check.createStages({ phase: "test", shard: "1/4" }),
+    );
+    const merge = check.validateStages(check.createStages({ phase: "merge" }));
+    const ids = (stages: Stage[]) => stages.map((stage) => stage.id);
+    expect([...new Set(ids([...build, ...test, ...merge]))].sort()).toEqual(
+      ids(check.createStages()).sort(),
+    );
+    expect(build.find((stage) => stage.id === "build")?.dependsOn).toEqual(
+      expect.arrayContaining([
+        "typecheck",
+        "typecheck-electron",
+        "typecheck-js",
+      ]),
+    );
+    expect(ids(test)).toEqual([
+      "private-workspace",
+      "prepare-electron",
+      "prepare-ffmpeg",
+      "prepare-import-source-runner",
+      "test-coverage",
+    ]);
+    expect(
+      merge.find((stage) => stage.id === "production-cleanup-coverage")
+        ?.dependsOn,
+    ).toEqual(["test-coverage"]);
+    expect(merge.find((stage) => stage.id === "test-coverage")?.args).toEqual(
+      expect.arrayContaining(["merge"]),
+    );
+    for (const args of [
+      ["--phase=test"],
+      ["--shard=1/4"],
+      ["--phase=test", "--shard=0/4"],
+      ["--phase=test", "--shard=1/3"],
+      ["--phase=merge", "--shard=1/4"],
+    ]) {
+      expect(() => check.parseArguments(args)).toThrow();
+    }
+    expect(check.parseArguments(["--phase=test", "--shard=4/4"])).toMatchObject(
+      { phase: "test", shard: "4/4" },
+    );
+  });
+
+  const binding = { commit: "candidate-sha", platform: "win32", arch: "x64" };
+  const receipts = (): ShardReceipt[] =>
+    [1, 2, 3, 4].map((index) => ({
+      index,
+      count: 4,
+      ...binding,
+      blobSha256: "a".repeat(64),
+      files: [`tests/${index}.test.ts`],
+    }));
+  const inventory = [1, 2, 3, 4].map((index) => `tests/${index}.test.ts`);
+
+  it("accepts all files exactly once in any receipt order", () => {
+    expect(
+      validateShardReceipts(receipts().reverse(), inventory, binding),
+    ).toBe(4);
+  });
+
+  it.each([
+    ["missing shard", (rows: ShardReceipt[]) => rows.pop()],
+    [
+      "duplicate shard",
+      (rows: ShardReceipt[]) => {
+        rows[3].index = 1;
+      },
+    ],
+    [
+      "duplicate file",
+      (rows: ShardReceipt[]) => {
+        rows[3].files = rows[0].files;
+      },
+    ],
+    [
+      "missing/new file",
+      (rows: ShardReceipt[]) => {
+        rows[3].files = ["tests/extra.test.ts"];
+      },
+    ],
+    [
+      "stale commit",
+      (rows: ShardReceipt[]) => {
+        rows[3].commit = "older-sha";
+      },
+    ],
+    [
+      "wrong platform",
+      (rows: ShardReceipt[]) => {
+        rows[3].platform = "darwin";
+      },
+    ],
+    [
+      "wrong architecture",
+      (rows: ShardReceipt[]) => {
+        rows[3].arch = "arm64";
+      },
+    ],
+  ] as const)(
+    "rejects %s instead of passing an incomplete check",
+    (_name, mutate) => {
+      const rows = receipts();
+      mutate(rows);
+      expect(() => validateShardReceipts(rows, inventory, binding)).toThrow();
+    },
+  );
+
+  it("keeps the existing required job names gated on both build and all four test runners", () => {
+    const workflow = parseYaml(
+      readFileSync(join(process.cwd(), ".github/workflows/check.yml"), "utf8"),
+    );
+    for (const prefix of ["windows", "macos-arm64"]) {
+      const gate = workflow.jobs[`${prefix}-check`];
+      expect(gate.needs).toEqual([`${prefix}-build`, `${prefix}-tests`]);
+      expect(gate.if).toBe("always()");
+      expect(gate.steps[0].env).toEqual({
+        BUILD_RESULT: `\${{ needs.${prefix}-build.result }}`,
+        TEST_RESULT: `\${{ needs.${prefix}-tests.result }}`,
+      });
+      expect(gate.steps[0].run).toContain(
+        'test "$BUILD_RESULT" = success && test "$TEST_RESULT" = success',
+      );
+      const tests = workflow.jobs[`${prefix}-tests`];
+      expect(tests.strategy.matrix.shard).toEqual([1, 2, 3, 4]);
+      expect(tests.strategy["fail-fast"]).toBe(false);
+      expect(tests.needs).toBeUndefined();
+    }
+    expect(workflow.jobs["macos-arm64-tests"].env.MGT_VITEST_MAX_WORKERS).toBe(
+      "1",
+    );
+  });
+});
 
 describe("check DAG", () => {
   it("keeps all 27 gates and their production ordering constraints", () => {
