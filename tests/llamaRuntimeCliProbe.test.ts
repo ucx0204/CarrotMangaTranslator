@@ -1,10 +1,11 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const {
   runRuntimeCliProbe,
+  createRuntimeCliProbe,
 } = require("../scripts/llama-runtime-cli-probe.cjs");
 const roots: string[] = [];
 
@@ -20,6 +21,28 @@ function logPath() {
 }
 
 describe("native CLI probe diagnostics", () => {
+  it("reuses only identical successful invocations and preserves per-case evidence", () => {
+    const spawn = vi.fn(() => ({ status: 0, output: "parser ready" }));
+    const run = createRuntimeCliProbe(spawn);
+    const first = logPath(),
+      reused = logPath();
+    run("server", ["--help"], { env: { A: "1", B: "2" }, logPath: first });
+    run("server", ["--help"], { env: { B: "2", A: "1" }, logPath: reused });
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(readFileSync(reused, "utf8")).toContain(JSON.stringify(first));
+    expect(readFileSync(reused, "utf8")).toContain("parser ready");
+    for (const [server, args, env, timeoutMs] of [
+      ["other", ["--help"], { A: "1", B: "2" }, undefined],
+      ["server", ["--version"], { A: "1", B: "2" }, undefined],
+      ["server", ["--help"], { A: "3", B: "2" }, undefined],
+      ["server", ["--help"], { A: "1", B: "2" }, 50],
+    ] as const)
+      run(server, args, { env, timeoutMs, logPath: logPath() });
+    expect(spawn).toHaveBeenCalledTimes(5);
+    spawn.mockReturnValue({ status: 9, output: "rejected" });
+    for (let i = 0; i < 2; i++) run("bad", [], { env: {}, logPath: logPath() });
+    expect(spawn).toHaveBeenCalledTimes(7);
+  });
   it("retains stdout and stderr from a completed native command", () => {
     const file = logPath();
     const result = runRuntimeCliProbe(

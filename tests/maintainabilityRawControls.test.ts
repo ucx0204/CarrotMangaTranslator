@@ -2,8 +2,9 @@ import { createRequire } from "node:module";
 import { expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
-const { countRawControls, countCssPolicyLiterals } =
+const { countRawControls, countCssPolicyLiterals, hasNativeSelectTag } =
   require("../scripts/check-maintainability-policy.cjs") as {
+    hasNativeSelectTag(path: string, source: string): boolean;
     countRawControls(source: string): Record<string, number>;
     countCssPolicyLiterals(source: string): { numericZIndexes: number };
   };
@@ -24,4 +25,23 @@ it("does not count stacking-token definitions as literal z-index properties", ()
       ":root { --menu-z-index: 30; } .menu { z-index: 30; }",
     ).numericZIndexes,
   ).toBe(1);
+});
+
+it("rejects all native select tags throughout renderer TS and TSX, including primitives", () => {
+  for (const file of [
+    "features/Editor.tsx",
+    "components/ui/Select.tsx",
+    "example.ts",
+  ])
+    for (const tag of ["select", "option", "optgroup", "datalist"])
+      expect(hasNativeSelectTag(`src/renderer/src/${file}`, `<${tag} />`)).toBe(
+        true,
+      );
+  expect(
+    hasNativeSelectTag(
+      "src/renderer/src/components/ui/Select.tsx",
+      "<Select />",
+    ),
+  ).toBe(false);
+  expect(hasNativeSelectTag("src/main/example.ts", "<select />")).toBe(false);
 });

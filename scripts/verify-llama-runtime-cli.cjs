@@ -4,7 +4,8 @@
 const assert = require("node:assert/strict");
 const { mkdirSync, writeFileSync } = require("node:fs");
 const { join, resolve, basename } = require("node:path");
-const { runRuntimeCliProbe } = require("./llama-runtime-cli-probe.cjs");
+const { createRuntimeCliProbe } = require("./llama-runtime-cli-probe.cjs");
+const runRuntimeCliProbe = createRuntimeCliProbe();
 const {
   getDefaultGemmaPresetForVramMode,
   getLegacyGemmaPresetForVramMode,

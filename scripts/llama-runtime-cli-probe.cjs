@@ -43,4 +43,31 @@ function runRuntimeCliProbe(serverPath, args, options) {
   return { status: result.status, output };
 }
 
-module.exports = { runRuntimeCliProbe };
+/** Reuse only successful identical probes within one verification run.
+ * @param {typeof runRuntimeCliProbe} [probe]
+ */
+function createRuntimeCliProbe(probe = runRuntimeCliProbe) {
+  /** @type {Map<string, {result: ReturnType<typeof runRuntimeCliProbe>; logPath: string}>} */
+  const completed = new Map();
+  /** @type {typeof runRuntimeCliProbe} */
+  return (serverPath, args, options) => {
+    const env = Object.entries(options.env)
+      .filter(([, value]) => value !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right));
+    const key = JSON.stringify([serverPath, args, env, options.timeoutMs]);
+    const previous = completed.get(key);
+    if (previous) {
+      writeFileSync(
+        options.logPath,
+        `${JSON.stringify({ reusedFrom: previous.logPath })}\n${previous.result.output}`,
+      );
+      return { ...previous.result };
+    }
+    const result = probe(serverPath, args, options);
+    if (result.status === 0)
+      completed.set(key, { result: { ...result }, logPath: options.logPath });
+    return result;
+  };
+}
+
+module.exports = { runRuntimeCliProbe, createRuntimeCliProbe };

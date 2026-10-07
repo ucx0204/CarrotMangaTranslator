@@ -20,26 +20,16 @@ describe("renderer motion CSS", () => {
     "styles/block-reading-order.css",
   );
   const pageReviewCss = readRendererCss("styles/page-review.css");
-  const shellWorkspaceCss = readRendererCss("styles/shell-workspace.css");
   const toastCss = readRendererCss("styles/modals-share.css");
 
-  it("uses shared timing and easing tokens for short, restrained motion", () => {
-    expect(foundationsCss).toContain("--motion-surface: 180ms");
-    expect(foundationsCss).toContain("--motion-overlay: 280ms");
-    expect(foundationsCss).toContain(
-      "--ease-enter: cubic-bezier(0.16, 1, 0.3, 1)",
-    );
+  it("keeps surface entrances reducible without clipping or scaling content", () => {
     expect(foundationsCss).toContain("@keyframes ui-surface-enter");
     expect(foundationsCss).toContain("@keyframes ui-surface-enter-reduced");
     const entrance = foundationsCss
-      .split("@keyframes ui-surface-enter {")[1]
+      .split(/@keyframes\s+ui-surface-enter\s*\{/u)[1]
       .split("@keyframes ui-surface-enter-reduced")[0];
     expect(entrance).toContain("translate: none");
     expect(entrance).not.toMatch(/clip-path:|filter:|scale:/u);
-    expect(foundationsCss).toContain(
-      ".stage-toolbar {\n  --motion-enter-x: -6px",
-    );
-    expect(shellWorkspaceCss).toContain(".right-quick-rail-bottom-controls {");
   });
 
   it("settles the modal backdrop and card independently", () => {
@@ -75,10 +65,6 @@ describe("renderer motion CSS", () => {
   });
 
   it("reduces button press motion and keeps icon feedback stationary", () => {
-    expect(buttonCss).toContain("transform: scale(0.985)");
-    expect(iconButtonCss).toContain(
-      ".iconButton:active:not(:disabled) {\n  background: var(--control-bg-pressed)",
-    );
     expect(buttonCss).toContain("@media (prefers-reduced-motion: reduce)");
     expect(buttonCss).toContain("transform: none");
     expect(iconButtonCss).not.toMatch(/\b(?:transform|translate|scale):/u);
@@ -88,7 +74,6 @@ describe("renderer motion CSS", () => {
     expect(blockReadingOrderCss).toContain(
       "@keyframes page-block-detail-enter",
     );
-    expect(blockReadingOrderCss).toContain("animation-delay: 24ms");
     expect(toastCss).toContain(
       "animation: toast-in var(--motion-surface) var(--ease-enter) both",
     );

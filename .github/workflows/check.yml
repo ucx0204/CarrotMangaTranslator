@@ -42,6 +42,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Identify Rust toolchain
+        id: rust-toolchain
+        shell: bash
+        run: |
+          node -e 'const fs = require("node:fs"), cp = require("node:child_process"), crypto = require("node:crypto"); const hash = crypto.createHash("sha256").update(cp.execFileSync("rustc", ["-vV"])).update(JSON.stringify([process.env.ImageVersion, process.env.RUSTFLAGS, process.env.CARGO_BUILD_TARGET])).digest("hex"); fs.appendFileSync(process.env.GITHUB_OUTPUT, "key=" + hash + "\n");'
+
+      - name: Restore native build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git/db
+            tools/mgt-import-source-runner/target
+          key: native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-${{ hashFiles('tools/mgt-import-source-runner/src/**', 'tools/mgt-flux-klein-runner/src/**', 'tools/mgt-flux-klein-runner/build.rs', 'tools/runner-image-processing/src/**', 'tools/runner-runtime-policy/src/**') }}
+          restore-keys: |
+            native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-
+
       - name: Restore check acceleration cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -99,6 +116,26 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Identify Rust toolchain
+        id: rust-toolchain
+        shell: bash
+        run: |
+          node -e 'const fs = require("node:fs"), cp = require("node:child_process"), crypto = require("node:crypto"); const hash = crypto.createHash("sha256").update(cp.execFileSync("rustc", ["-vV"])).update(JSON.stringify([process.env.ImageVersion, process.env.RUSTFLAGS, process.env.CARGO_BUILD_TARGET])).digest("hex"); fs.appendFileSync(process.env.GITHUB_OUTPUT, "key=" + hash + "\n");'
+
+      - name: Restore native build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git/db
+            tools/mgt-import-source-runner/target
+            tools/mgt-flux-klein-runner/target
+            tools/runner-image-processing/target
+            tools/runner-runtime-policy/target
+          key: native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-${{ hashFiles('tools/mgt-import-source-runner/src/**', 'tools/mgt-flux-klein-runner/src/**', 'tools/mgt-flux-klein-runner/build.rs', 'tools/runner-image-processing/src/**', 'tools/runner-runtime-policy/src/**') }}
+          restore-keys: |
+            native-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.key }}-v1-${{ hashFiles('tools/**/Cargo.lock', 'tools/**/Cargo.toml', 'scripts/prepare-import-source-runner.cjs', 'scripts/test-flux-metal.cjs', 'scripts/native-bindgen-env.cjs') }}-
 
       - name: Restore check acceleration cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

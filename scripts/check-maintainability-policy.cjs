@@ -180,13 +180,13 @@ function inspectRawFeatureControls(projectPath, extension, source, snapshot) {
  * @param {string} projectPath
  * @param {{ module: string; resolved: string }} styleImport
  * @param {PolicySnapshot} snapshot
- * @param {string[]} forbiddenGlobalStyleImports
+ * @param {string[]} forbiddenRendererPatterns
  */
 function inspectStyleImport(
   projectPath,
   styleImport,
   snapshot,
-  forbiddenGlobalStyleImports,
+  forbiddenRendererPatterns,
 ) {
   if (styleImport.module.endsWith(".module.css")) {
     const importsPrimitiveStyle = styleImport.resolved.startsWith(
@@ -200,7 +200,7 @@ function inspectStyleImport(
 
   const allowed = allowedGlobalStyleImports.get(projectPath) ?? [];
   if (allowed.includes(styleImport.resolved)) return;
-  forbiddenGlobalStyleImports.push(
+  forbiddenRendererPatterns.push(
     `${projectPath} imports global stylesheet ${styleImport.resolved}`,
   );
 }
@@ -210,26 +210,30 @@ function inspectStyleImport(
  * @param {string} projectPath
  * @param {string} extension
  * @param {PolicySnapshot} snapshot
- * @param {string[]} forbiddenGlobalStyleImports
+ * @param {string[]} forbiddenRendererPatterns
  */
 function inspectScriptFile(
   path,
   projectPath,
   extension,
   snapshot,
-  forbiddenGlobalStyleImports,
+  forbiddenRendererPatterns,
 ) {
   const source = readFileSync(path, "utf8");
   const disable = readFileWideLintDisable(source);
   if (disable) snapshot.fileWideLintDisables[projectPath] = disable;
   if (!path.startsWith(rendererRoot)) return;
+  if (hasNativeSelectTag(projectPath, source))
+    forbiddenRendererPatterns.push(
+      `${projectPath} contains a native select element`,
+    );
   inspectRawFeatureControls(projectPath, extension, source, snapshot);
   for (const styleImport of readStyleImports(path, source)) {
     inspectStyleImport(
       projectPath,
       styleImport,
       snapshot,
-      forbiddenGlobalStyleImports,
+      forbiddenRendererPatterns,
     );
   }
 }
@@ -241,6 +245,15 @@ function inspectRendererCssFile(path, projectPath, snapshot) {
   if (hasCounts(counts)) snapshot.rendererCssLiterals[projectPath] = counts;
 }
 
+/** @param {string} projectPath @param {string} source */
+function hasNativeSelectTag(projectPath, source) {
+  return (
+    projectPath.startsWith("src/renderer/src/") &&
+    /\.tsx?$/u.test(projectPath) &&
+    /<\s*(?:select|option|optgroup|datalist)\b/u.test(source)
+  );
+}
+
 function collectPolicySnapshot() {
   /** @type {PolicySnapshot} */
   const snapshot = {
@@ -250,7 +263,7 @@ function collectPolicySnapshot() {
     crossPrimitiveStyleImports: {},
   };
   /** @type {string[]} */
-  const forbiddenGlobalStyleImports = [];
+  const forbiddenRendererPatterns = [];
 
   for (const path of walkFiles(sourceRoot)) {
     const projectPath = toProjectPath(path);
@@ -262,7 +275,7 @@ function collectPolicySnapshot() {
         projectPath,
         extension,
         snapshot,
-        forbiddenGlobalStyleImports,
+        forbiddenRendererPatterns,
       );
     if (extension === ".css" && path.startsWith(rendererRoot))
       inspectRendererCssFile(path, projectPath, snapshot);
@@ -271,7 +284,7 @@ function collectPolicySnapshot() {
   for (const imports of Object.values(snapshot.crossPrimitiveStyleImports)) {
     imports.sort();
   }
-  return { forbiddenGlobalStyleImports, snapshot: sortRecord(snapshot) };
+  return { forbiddenRendererPatterns, snapshot: sortRecord(snapshot) };
 }
 
 /** @template T @param {T} value @returns {T} */
@@ -318,11 +331,11 @@ function sumNestedCounts(record) {
   );
 }
 
-/** @param {PolicySnapshot} snapshot @param {string[]} forbiddenGlobalStyleImports */
-function updateBaseline(snapshot, forbiddenGlobalStyleImports) {
-  if (forbiddenGlobalStyleImports.length > 0) {
+/** @param {PolicySnapshot} snapshot @param {string[]} forbiddenRendererPatterns */
+function updateBaseline(snapshot, forbiddenRendererPatterns) {
+  if (forbiddenRendererPatterns.length > 0) {
     process.stderr.write(
-      `Refusing to update the policy baseline while forbidden global CSS imports exist:\n${forbiddenGlobalStyleImports.map((item) => `- ${item}`).join("\n")}\n`,
+      `Refusing to update the policy baseline while forbidden renderer patterns exist:\n${forbiddenRendererPatterns.map((item) => `- ${item}`).join("\n")}\n`,
     );
     return false;
   }
@@ -333,9 +346,9 @@ function updateBaseline(snapshot, forbiddenGlobalStyleImports) {
 }
 
 function runPolicyCheck() {
-  const { forbiddenGlobalStyleImports, snapshot } = collectPolicySnapshot();
+  const { forbiddenRendererPatterns, snapshot } = collectPolicySnapshot();
   if (process.argv.slice(2).includes("--update-baseline")) {
-    return updateBaseline(snapshot, forbiddenGlobalStyleImports);
+    return updateBaseline(snapshot, forbiddenRendererPatterns);
   }
   if (!existsSync(baselinePath)) {
     process.stderr.write(
@@ -347,7 +360,7 @@ function runPolicyCheck() {
   const baseline = /** @type {PolicySnapshot} */ (
     JSON.parse(readFileSync(baselinePath, "utf8"))
   );
-  const violations = [...forbiddenGlobalStyleImports];
+  const violations = [...forbiddenRendererPatterns];
   /** @type {(keyof PolicySnapshot)[]} */
   const sections = [
     "fileWideLintDisables",
@@ -383,6 +396,7 @@ module.exports = {
   collectPolicySnapshot,
   countCssPolicyLiterals,
   countRawControls,
+  hasNativeSelectTag,
   readFileWideLintDisable,
   runPolicyCheck,
 };

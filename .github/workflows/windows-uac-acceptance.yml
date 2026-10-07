@@ -29,6 +29,8 @@ concurrency:
 
 jobs:
   full-check:
+    # Pull requests already run the same full suite in Check.
+    if: github.event_name == 'push'
     runs-on: windows-latest
     timeout-minutes: 45
     steps:

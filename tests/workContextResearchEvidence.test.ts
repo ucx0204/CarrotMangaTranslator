@@ -26,13 +26,9 @@ describe("work-context research evidence normalization", () => {
         excerpt:
           "星空を旅する魔法使いの主人公エドワード・エルリックを紹介。エドワード・エルリックは旅する魔法使い。",
       };
-      const searches = [
-        {
-          query: `${input.workTitle} キャラクター`,
-          credits: 1,
-          results: [{ ...source, content: source.excerpt, score: 0.9 }],
-        },
-      ];
+      const searches = searchEvidence(`${input.workTitle} キャラクター`, [
+        { ...source, content: source.excerpt, score: 0.9 },
+      ]);
       const result = enrichResearchResultFromEvidence(
         {
           operations: [
@@ -136,26 +132,20 @@ describe("work-context research evidence normalization", () => {
     input.workTitle = "Tomodachi ga Hoshikatta no de Akuma wo Fukkatsu";
     const title = "トモダチがほしかったので悪魔を復活させましたわ！";
     const decorated = `↓${title}`;
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" original title`, [
       {
-        query: `"${input.workTitle}" original title`,
-        credits: 1,
-        results: [
-          {
-            title: decorated,
-            url: "https://catalog-a.example/title/friends",
-            content: title,
-            score: 0.9,
-          },
-          {
-            title: `${title} | 作品ページ`,
-            url: "https://catalog-b.example/work/friends",
-            content: title,
-            score: 0.85,
-          },
-        ],
+        title: decorated,
+        url: "https://catalog-a.example/title/friends",
+        content: title,
+        score: 0.9,
       },
-    ];
+      {
+        title: `${title} | 作品ページ`,
+        url: "https://catalog-b.example/work/friends",
+        content: title,
+        score: 0.85,
+      },
+    ]);
     const result = enrichResearchResultFromEvidence(
       {
         operations: [
@@ -264,32 +254,26 @@ describe("work-context research evidence normalization", () => {
 
   it("recovers a title only when independent hosts corroborate it", () => {
     const title = "汎用的な日本語作品タイトル";
-    const searches = [
+    const searches = searchEvidence("creator pair", [
       {
-        query: "creator pair",
-        credits: 1,
-        results: [
-          {
-            title: `${title} / 作者A 作者B`,
-            url: "https://publisher.example/comic/123",
-            content: "作品紹介",
-            score: 0.61,
-          },
-          {
-            title: `${title} | 公式配信`,
-            url: "https://reader.example/work/456",
-            content: "作品紹介",
-            score: 0.58,
-          },
-          {
-            title: "作者Aのプロフィール",
-            url: "https://social.example/author-a",
-            content: "プロフィール",
-            score: 0.95,
-          },
-        ],
+        title: `${title} / 作者A 作者B`,
+        url: "https://publisher.example/comic/123",
+        content: "作品紹介",
+        score: 0.61,
       },
-    ];
+      {
+        title: `${title} | 公式配信`,
+        url: "https://reader.example/work/456",
+        content: "作品紹介",
+        score: 0.58,
+      },
+      {
+        title: "作者Aのプロフィール",
+        url: "https://social.example/author-a",
+        content: "プロフィール",
+        score: 0.95,
+      },
+    ]);
 
     expect(extractCorroboratedEvidenceTitles(searches)).toContain(title);
     expect(
@@ -301,26 +285,22 @@ describe("work-context research evidence normalization", () => {
       ]),
     ).toEqual([]);
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "truncated title",
-          credits: 1,
-          results: [
-            {
-              title: `${title.slice(0, 10)} ... | Site A`,
-              url: "https://a.example/work/1",
-              content: "作品紹介",
-              score: 0.9,
-            },
-            {
-              title: `${title.slice(0, 10)} ... | Site B`,
-              url: "https://b.example/work/2",
-              content: "作品紹介",
-              score: 0.9,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("truncated title", [
+          {
+            title: `${title.slice(0, 10)} ... | Site A`,
+            url: "https://a.example/work/1",
+            content: "作品紹介",
+            score: 0.9,
+          },
+          {
+            title: `${title.slice(0, 10)} ... | Site B`,
+            url: "https://b.example/work/2",
+            content: "作品紹介",
+            score: 0.9,
+          },
+        ]),
+      ),
     ).toEqual([]);
   });
 
@@ -328,52 +308,42 @@ describe("work-context research evidence normalization", () => {
     const title =
       "ただの村人の僕が、三百年前の暴君皇子に転生してしまいました ～前世の知識で暗殺フラグを回避して、穏やかに生き残ります！～";
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "roman title official",
-          credits: 1,
-          results: [
-            {
-              title: "Romanized database entry",
-              url: "https://catalog-a.example/manga/1",
-              content: `Native\n${title}`,
-              score: 0.9,
-            },
-            {
-              title: "Another romanized entry",
-              url: "https://catalog-b.example/title/2",
-              content: `Japanese script\n${title}`,
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("roman title official", [
+          {
+            title: "Romanized database entry",
+            url: "https://catalog-a.example/manga/1",
+            content: `Native\n${title}`,
+            score: 0.9,
+          },
+          {
+            title: "Another romanized entry",
+            url: "https://catalog-b.example/title/2",
+            content: `Japanese script\n${title}`,
+            score: 0.85,
+          },
+        ]),
+      ),
     ).toContain(title);
   });
 
   it("strips a creator prefix wrapped around a quoted work title", () => {
     const title =
       "28歳OL、悪役王子を始めました～不自由な異世界を改革します！～";
-    const searches = [
+    const searches = searchEvidence("distinctive characters and creator", [
       {
-        query: "distinctive characters and creator",
-        credits: 1,
-        results: [
-          {
-            title: "新刊コミックニュース",
-            url: "https://news.example/articles/28-ol",
-            content: `六格レンチ「${title}」1巻が発売された。`,
-            score: 0.9,
-          },
-          {
-            title: `${title} | 書店`,
-            url: "https://store.example/books/28-ol",
-            content: "作品紹介",
-            score: 0.85,
-          },
-        ],
+        title: "新刊コミックニュース",
+        url: "https://news.example/articles/28-ol",
+        content: `六格レンチ「${title}」1巻が発売された。`,
+        score: 0.9,
       },
-    ];
+      {
+        title: `${title} | 書店`,
+        url: "https://store.example/books/28-ol",
+        content: "作品紹介",
+        score: 0.85,
+      },
+    ]);
 
     expect(extractCorroboratedEvidenceTitles(searches)).toContain(title);
     expect(
@@ -386,26 +356,20 @@ describe("work-context research evidence normalization", () => {
       "28歳OL、悪役王子を始めました～不自由な異世界を改革します！～";
     const synopsis =
       "なんとか汚名を返上すべく、世のため人のため、必死に奔走する織羽。最低の嫌われ者に転生してしまったシゴデキOLの、新しい人生が始まる!? 異世界【革命】ファンタジー、開幕!!";
-    const searches = [
+    const searches = searchEvidence("romanized title recovery", [
       {
-        query: "romanized title recovery",
-        credits: 1,
-        results: [
-          {
-            title: `28歳OL、悪役王子を始めました（1） 〜不自由な異世界を改革します！〜 | 書店A`,
-            url: "https://store-a.example/book/28-ol",
-            content: `# ${title} ${title}\n# ${synopsis}`,
-            score: 0.9,
-          },
-          {
-            title: `【最新刊】${title} - 書店B`,
-            url: "https://store-b.example/books/28-ol",
-            content: `${title}\n${synopsis}`,
-            score: 0.85,
-          },
-        ],
+        title: `28歳OL、悪役王子を始めました（1） 〜不自由な異世界を改革します！〜 | 書店A`,
+        url: "https://store-a.example/book/28-ol",
+        content: `# ${title} ${title}\n# ${synopsis}`,
+        score: 0.9,
       },
-    ];
+      {
+        title: `【最新刊】${title} - 書店B`,
+        url: "https://store-b.example/books/28-ol",
+        content: `${title}\n${synopsis}`,
+        score: 0.85,
+      },
+    ]);
 
     const recovered = extractCorroboratedEvidenceTitles(searches);
     expect(recovered).toContain(title);
@@ -447,19 +411,13 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence(`"${input.workTitle}" original title`, [
         {
-          query: `"${input.workTitle}" original title`,
-          credits: 1,
-          results: [
-            {
-              ...source,
-              content: "作品紹介",
-              score: 0.9,
-            },
-          ],
+          ...source,
+          content: "作品紹介",
+          score: 0.9,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<{ source?: string }> };
 
@@ -469,48 +427,40 @@ describe("work-context research evidence normalization", () => {
   it("removes a trailing volume and publisher decoration from a recovered title", () => {
     const title = "異世界に放置ゲー理論を持ち込んだら世界最強になれる説";
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "native title",
-          credits: 1,
-          results: [
-            {
-              title: `${title}1 (一二三書房)`,
-              url: "https://publisher-a.example/book/1",
-              content: "作品紹介",
-              score: 0.9,
-            },
-            {
-              title: `${title} - ニコニコ漫画`,
-              url: "https://publisher-b.example/work/1",
-              content: "作品紹介",
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("native title", [
+          {
+            title: `${title}1 (一二三書房)`,
+            url: "https://publisher-a.example/book/1",
+            content: "作品紹介",
+            score: 0.9,
+          },
+          {
+            title: `${title} - ニコニコ漫画`,
+            url: "https://publisher-b.example/work/1",
+            content: "作品紹介",
+            score: 0.85,
+          },
+        ]),
+      ),
     ).toContain(title);
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "imprint title",
-          credits: 1,
-          results: [
-            {
-              title: `${title}(1) (Kラノベブックス)`,
-              url: "https://catalog-a.example/books/1",
-              content: "作品紹介",
-              score: 0.9,
-            },
-            {
-              title: `${title}（１）（コミックス）`,
-              url: "https://catalog-b.example/title/2",
-              content: "作品紹介",
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("imprint title", [
+          {
+            title: `${title}(1) (Kラノベブックス)`,
+            url: "https://catalog-a.example/books/1",
+            content: "作品紹介",
+            score: 0.9,
+          },
+          {
+            title: `${title}（１）（コミックス）`,
+            url: "https://catalog-b.example/title/2",
+            content: "作品紹介",
+            score: 0.85,
+          },
+        ]),
+      ),
     ).toContain(title);
   });
 
@@ -520,26 +470,20 @@ describe("work-context research evidence normalization", () => {
     input.workTitle =
       "Isekai ni Houchi Game Riron wo Mochikondara Sekai Saikyou ni Nareru Setsu";
     input.selection.text = 'B1: source="放置ゲーシステム" | target=""';
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 原題 日本語 公式`, [
       {
-        query: `"${input.workTitle}" 原題 日本語 公式`,
-        credits: 1,
-        results: [
-          {
-            title: `放置ゲー理論開始 - ${title}（杯 雪乃） - 小説投稿サイト`,
-            url: "https://novel-a.example/works/1",
-            content: `${title}。放置ゲーシステムを異世界に持ち込む。`,
-            score: 0.9,
-          },
-          {
-            title: `${title}（杯 雪乃） - 作品ページ`,
-            url: "https://novel-b.example/title/2",
-            content: `${title}。放置ゲーシステム。`,
-            score: 0.85,
-          },
-        ],
+        title: `放置ゲー理論開始 - ${title}（杯 雪乃） - 小説投稿サイト`,
+        url: "https://novel-a.example/works/1",
+        content: `${title}。放置ゲーシステムを異世界に持ち込む。`,
+        score: 0.9,
       },
-    ];
+      {
+        title: `${title}（杯 雪乃） - 作品ページ`,
+        url: "https://novel-b.example/title/2",
+        content: `${title}。放置ゲーシステム。`,
+        score: 0.85,
+      },
+    ]);
 
     expect(extractTrustedEvidenceTitles(searches, input)).toContain(title);
     expect(
@@ -557,20 +501,17 @@ describe("work-context research evidence normalization", () => {
       title: "新作の正式題名 | 公式設定",
       url: "https://publisher.example/work/new",
     };
-    const searches = [
-      {
-        query: '"新作の正式題名" 設定 用語 世界観 能力 アイテム',
-        credits: 1,
-        results: [
-          {
-            ...source,
-            content:
-              "固有スキル「星鍵」。武器名：黎明杖。種族名：月狼族。職業名：鍵師。階級名：白金級。システム名：魂刻印。",
-            score: 0.99,
-          },
-        ],
-      },
-    ];
+    const searches = searchEvidence(
+      '"新作の正式題名" 設定 用語 世界観 能力 アイテム',
+      [
+        {
+          ...source,
+          content:
+            "固有スキル「星鍵」。武器名：黎明杖。種族名：月狼族。職業名：鍵師。階級名：白金級。システム名：魂刻印。",
+          score: 0.99,
+        },
+      ],
+    );
 
     expect(
       selectCriticalEvidenceTranslationCandidates([], searches, input),
@@ -632,19 +573,13 @@ describe("work-context research evidence normalization", () => {
       title: decorated,
       url: "https://novel.example/works/idle-game",
     };
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 原題 日本語 公式`, [
       {
-        query: `"${input.workTitle}" 原題 日本語 公式`,
-        credits: 1,
-        results: [
-          {
-            ...source,
-            content: `${title}。放置ゲーシステムを確立する。`,
-            score: 0.9,
-          },
-        ],
+        ...source,
+        content: `${title}。放置ゲーシステムを確立する。`,
+        score: 0.9,
       },
-    ];
+    ]);
     const operation = {
       entity: "glossary",
       action: "add",
@@ -670,26 +605,20 @@ describe("work-context research evidence normalization", () => {
   it("removes a trailing electronic-edition badge and review-page decoration", () => {
     const title =
       "クズレス・オブリージュ 18禁ゲー世界のクズ悪役に転生してしまった俺は、原作知識の力でどうしてもモブ人生をつかみ取りたい";
-    const searches = [
+    const searches = searchEvidence("native title", [
       {
-        query: "native title",
-        credits: 1,
-        results: [
-          {
-            title: `${title}【電子特別版】のレビュー`,
-            url: "https://store-a.example/book/1",
-            content: "作品紹介",
-            score: 0.9,
-          },
-          {
-            title: `${title.replace("オブリージュ ", "オブリージュ６ ")}【電子限定特典付き】 （角川スニーカー文庫） アバタロー , kodamazon`,
-            url: "https://store-b.example/book/1",
-            content: "作品紹介",
-            score: 0.85,
-          },
-        ],
+        title: `${title}【電子特別版】のレビュー`,
+        url: "https://store-a.example/book/1",
+        content: "作品紹介",
+        score: 0.9,
       },
-    ];
+      {
+        title: `${title.replace("オブリージュ ", "オブリージュ６ ")}【電子限定特典付き】 （角川スニーカー文庫） アバタロー , kodamazon`,
+        url: "https://store-b.example/book/1",
+        content: "作品紹介",
+        score: 0.85,
+      },
+    ]);
     expect(extractCorroboratedEvidenceTitles(searches)).toContain(title);
     expect(extractTrustedEvidenceTitles(searches, makeInput())).toContain(
       title,
@@ -702,74 +631,62 @@ describe("work-context research evidence normalization", () => {
   it("removes Japanese review and spoiler suffixes from recovered titles", () => {
     const title = "最弱貴族に転生したので悪役たちを集めてみた";
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "review title",
-          credits: 1,
-          results: [
-            {
-              title: `${title}の考察・ネタバレ・感想`,
-              url: "https://review-a.example/work/1",
-              content: "作品紹介",
-              score: 0.9,
-            },
-            {
-              title: `${title}のネタバレ・感想`,
-              url: "https://review-b.example/title/2",
-              content: "作品紹介",
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("review title", [
+          {
+            title: `${title}の考察・ネタバレ・感想`,
+            url: "https://review-a.example/work/1",
+            content: "作品紹介",
+            score: 0.9,
+          },
+          {
+            title: `${title}のネタバレ・感想`,
+            url: "https://review-b.example/title/2",
+            content: "作品紹介",
+            score: 0.85,
+          },
+        ]),
+      ),
     ).toContain(title);
   });
 
   it("removes bundled-volume and ebook edition labels from recovered titles", () => {
     const title = "最弱貴族に転生したので悪役たちを集めてみた";
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "ebook title",
-          credits: 1,
-          results: [
-            {
-              title: `${title} (全5巻) Kindle版`,
-              url: "https://store-a.example/books/1",
-              content: "作品紹介",
-              score: 0.9,
-            },
-            {
-              title: `${title}（全5巻）電子書籍版`,
-              url: "https://store-b.example/title/2",
-              content: "作品紹介",
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("ebook title", [
+          {
+            title: `${title} (全5巻) Kindle版`,
+            url: "https://store-a.example/books/1",
+            content: "作品紹介",
+            score: 0.9,
+          },
+          {
+            title: `${title}（全5巻）電子書籍版`,
+            url: "https://store-b.example/title/2",
+            content: "作品紹介",
+            score: 0.85,
+          },
+        ]),
+      ),
     ).toContain(title);
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "numbered title",
-          credits: 1,
-          results: [
-            {
-              title: `${title}（５）`,
-              url: "https://reader-a.example/books/1",
-              content: "作品紹介",
-              score: 0.9,
-            },
-            {
-              title: `${title} (5)`,
-              url: "https://reader-b.example/title/2",
-              content: "作品紹介",
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("numbered title", [
+          {
+            title: `${title}（５）`,
+            url: "https://reader-a.example/books/1",
+            content: "作品紹介",
+            score: 0.9,
+          },
+          {
+            title: `${title} (5)`,
+            url: "https://reader-b.example/title/2",
+            content: "作品紹介",
+            score: 0.85,
+          },
+        ]),
+      ),
     ).toContain(title);
   });
 
@@ -781,20 +698,14 @@ describe("work-context research evidence normalization", () => {
     input.selection.text =
       'B1: source="原作: 空野進 / 作画: sorani" | target=""\n' +
       'B2: source="最弱貴族アデル" | target=""';
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 原題 公式`, [
       {
-        query: `"${input.workTitle}" 原題 公式`,
-        credits: 1,
-        results: [
-          {
-            title: `${title}（空野進）`,
-            url: "https://publisher.example/books/1",
-            content: "最弱貴族アデルの物語。",
-            score: 0.9,
-          },
-        ],
+        title: `${title}（空野進）`,
+        url: "https://publisher.example/books/1",
+        content: "最弱貴族アデルの物語。",
+        score: 0.9,
       },
-    ];
+    ]);
 
     expect(extractTrustedEvidenceTitles(searches, input)).toContain(title);
     expect(extractTrustedEvidenceTitles(searches, input)).not.toContain(
@@ -805,26 +716,22 @@ describe("work-context research evidence normalization", () => {
   it("removes multilingual store volume suffixes from recovered titles", () => {
     const title = "最弱貴族に転生したので悪役たちを集めてみた";
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "international store title",
-          credits: 1,
-          results: [
-            {
-              title: `${title}(5), 5. cilt`,
-              url: "https://store-tr.example/books/1",
-              content: "作品紹介",
-              score: 0.9,
-            },
-            {
-              title: `${title} (5), Vol. 5`,
-              url: "https://store-en.example/title/2",
-              content: "作品紹介",
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("international store title", [
+          {
+            title: `${title}(5), 5. cilt`,
+            url: "https://store-tr.example/books/1",
+            content: "作品紹介",
+            score: 0.9,
+          },
+          {
+            title: `${title} (5), Vol. 5`,
+            url: "https://store-en.example/title/2",
+            content: "作品紹介",
+            score: 0.85,
+          },
+        ]),
+      ),
     ).toContain(title);
   });
 
@@ -836,32 +743,26 @@ describe("work-context research evidence normalization", () => {
     const shortTitle = "クズレス・オブリージュ";
     const fullTitle =
       "クズレス・オブリージュ 18禁ゲー世界のクズ悪役に転生してしまった俺は、原作知識の力でどうしてもモブ人生をつかみ取りたい";
-    const searches = [
+    const searches = searchEvidence('"KUZULESSE OBLIGE" 原題 日本語 公式', [
       {
-        query: '"KUZULESSE OBLIGE" 原題 日本語 公式',
-        credits: 1,
-        results: [
-          {
-            title: `${fullTitle} | 出版社公式`,
-            url: "https://publisher.example/work/1",
-            content: `${shortTitle}。クズ悪役としてモブ人生を目指す。`,
-            score: 0.9,
-          },
-          {
-            title: `${fullTitle} | 公式配信`,
-            url: "https://reader.example/work/1",
-            content: `${shortTitle}。クズ悪役としてモブ人生を目指す。`,
-            score: 0.85,
-          },
-          {
-            title: shortTitle,
-            url: "https://catalog.example/work/1",
-            content: `${fullTitle}。`,
-            score: 0.95,
-          },
-        ],
+        title: `${fullTitle} | 出版社公式`,
+        url: "https://publisher.example/work/1",
+        content: `${shortTitle}。クズ悪役としてモブ人生を目指す。`,
+        score: 0.9,
       },
-    ];
+      {
+        title: `${fullTitle} | 公式配信`,
+        url: "https://reader.example/work/1",
+        content: `${shortTitle}。クズ悪役としてモブ人生を目指す。`,
+        score: 0.85,
+      },
+      {
+        title: shortTitle,
+        url: "https://catalog.example/work/1",
+        content: `${fullTitle}。`,
+        score: 0.95,
+      },
+    ]);
 
     expect(
       selectCriticalEvidenceTranslationCandidates([], searches, input),
@@ -885,17 +786,14 @@ describe("work-context research evidence normalization", () => {
         url: "https://reader.example/work/1",
       },
     ];
-    const searches = [
-      {
-        query: '"KUZULESSE OBLIGE" 原題 日本語 公式',
-        credits: 1,
-        results: sources.map((source, index) => ({
-          ...source,
-          content: `${title}。クズ悪役としてモブ人生を目指す。`,
-          score: 0.9 - index * 0.05,
-        })),
-      },
-    ];
+    const searches = searchEvidence(
+      '"KUZULESSE OBLIGE" 原題 日本語 公式',
+      sources.map((source, index) => ({
+        ...source,
+        content: `${title}。クズ悪役としてモブ人生を目指す。`,
+        score: 0.9 - index * 0.05,
+      })),
+    );
     const result = enrichResearchResultFromEvidence(
       {
         operations: [
@@ -932,78 +830,66 @@ describe("work-context research evidence normalization", () => {
 
   it("rejects creator-credit fragments as recovered titles", () => {
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "native title",
-          credits: 1,
-          results: [
-            {
-              title: "+ イラスト：kodamazon",
-              url: "https://publisher.example/work/1",
-              content: "作品紹介",
-              score: 0.9,
-            },
-            {
-              title: "+ イラスト：kodamazon",
-              url: "https://reader.example/work/1",
-              content: "作品紹介",
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("native title", [
+          {
+            title: "+ イラスト：kodamazon",
+            url: "https://publisher.example/work/1",
+            content: "作品紹介",
+            score: 0.9,
+          },
+          {
+            title: "+ イラスト：kodamazon",
+            url: "https://reader.example/work/1",
+            content: "作品紹介",
+            score: 0.85,
+          },
+        ]),
+      ),
     ).toEqual([]);
   });
 
   it("removes a trailing web-edition reader label from a recovered title", () => {
     const title = "スライムマスターちゃんのVRMMO";
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "native title",
-          credits: 1,
-          results: [
-            {
-              title: `${title} - WEB読み`,
-              url: "https://publisher.example/ebook/1",
-              content: "作品紹介",
-              score: 0.9,
-            },
-            {
-              title: `${title} - WEB連載`,
-              url: "https://reader.example/work/1",
-              content: "作品紹介",
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("native title", [
+          {
+            title: `${title} - WEB読み`,
+            url: "https://publisher.example/ebook/1",
+            content: "作品紹介",
+            score: 0.9,
+          },
+          {
+            title: `${title} - WEB連載`,
+            url: "https://reader.example/work/1",
+            content: "作品紹介",
+            score: 0.85,
+          },
+        ]),
+      ),
     ).toContain(title);
   });
 
   it("removes a trailing product volume number from a recovered title", () => {
     const title = "スライムマスターちゃんのVRMMO";
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "native title",
-          credits: 1,
-          results: [
-            {
-              title: `${title}1`,
-              url: "https://store.example/book/1",
-              content: "作品紹介",
-              score: 0.9,
-            },
-            {
-              title: `${title} 第1巻`,
-              url: "https://publisher.example/work/1",
-              content: "作品紹介",
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("native title", [
+          {
+            title: `${title}1`,
+            url: "https://store.example/book/1",
+            content: "作品紹介",
+            score: 0.9,
+          },
+          {
+            title: `${title} 第1巻`,
+            url: "https://publisher.example/work/1",
+            content: "作品紹介",
+            score: 0.85,
+          },
+        ]),
+      ),
     ).toContain(title);
   });
 
@@ -1015,32 +901,26 @@ describe("work-context research evidence normalization", () => {
       'B1: source="皇子ルドルフが未来を変える。" | target=""';
     const title =
       "ただの村人の僕が、三百年前の暴君皇子に転生してしまいました ～前世の知識で暗殺フラグを回避して、穏やかに生き残ります！～";
-    const searches = [
+    const searches = searchEvidence('"Tada no Murabito no Boku" 登場人物', [
       {
-        query: '"Tada no Murabito no Boku" 登場人物',
-        credits: 1,
-        results: [
-          {
-            title: "Romanized database entry",
-            url: "https://catalog-a.example/manga/1",
-            content: `【11/25書籍第１巻発売！】${title}（サンボン）\n主人公ルドルフは未来を変える。\n登場人物\nコミックライド\nコミックライド`,
-            score: 0.9,
-          },
-          {
-            title: "Another romanized entry",
-            url: "https://catalog-b.example/title/2",
-            content: `コミックグロウルの${title}`,
-            score: 0.85,
-          },
-          {
-            title: "Store search result",
-            url: "https://catalog-c.example/book/3",
-            content: `3. ${title.replaceAll("～", "~")}2 (MFブックス)`,
-            score: 0.8,
-          },
-        ],
+        title: "Romanized database entry",
+        url: "https://catalog-a.example/manga/1",
+        content: `【11/25書籍第１巻発売！】${title}（サンボン）\n主人公ルドルフは未来を変える。\n登場人物\nコミックライド\nコミックライド`,
+        score: 0.9,
       },
-    ];
+      {
+        title: "Another romanized entry",
+        url: "https://catalog-b.example/title/2",
+        content: `コミックグロウルの${title}`,
+        score: 0.85,
+      },
+      {
+        title: "Store search result",
+        url: "https://catalog-c.example/book/3",
+        content: `3. ${title.replaceAll("～", "~")}2 (MFブックス)`,
+        score: 0.8,
+      },
+    ]);
     const rawSource = {
       title: "Romanized database entry",
       url: "https://catalog-a.example/manga/1",
@@ -1210,21 +1090,15 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence("official", [
         {
-          query: "official",
-          credits: 1,
-          results: [
-            {
-              title: "作品公式ページ",
-              url: "https://example.test/official",
-              content:
-                "バグスキル【開錠】で最強最速ダンジョン攻略。開錠（アンロック）。登場人物ラヴィ。",
-              score: 0.99,
-            },
-          ],
+          title: "作品公式ページ",
+          url: "https://example.test/official",
+          content:
+            "バグスキル【開錠】で最強最速ダンジョン攻略。開錠（アンロック）。登場人物ラヴィ。",
+          score: 0.99,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -1266,20 +1140,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence('"作品名" 登場人物', [
         {
-          query: '"作品名" 登場人物',
-          credits: 1,
-          results: [
-            {
-              title: "CHARACTER | 作品名",
-              url: "https://anime.example/chara/",
-              content: "イングリス・ユークス。天恵武姫（ハイラル・メナス）。",
-              score: 0.9,
-            },
-          ],
+          title: "CHARACTER | 作品名",
+          url: "https://anime.example/chara/",
+          content: "イングリス・ユークス。天恵武姫（ハイラル・メナス）。",
+          score: 0.9,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -1313,21 +1181,15 @@ describe("work-context research evidence normalization", () => {
     const input = makeInput();
     const result = enrichResearchResultFromEvidence(
       { operations: [], warnings: [] },
-      [
+      searchEvidence("official", [
         {
-          query: "official",
-          credits: 1,
-          results: [
-            {
-              title: "作品公式ページ",
-              url: "https://example.test/official",
-              content:
-                "バグスキル【開錠】で最強最速ダンジョン攻略の公式作品ページです。",
-              score: 0.99,
-            },
-          ],
+          title: "作品公式ページ",
+          url: "https://example.test/official",
+          content:
+            "バグスキル【開錠】で最強最速ダンジョン攻略の公式作品ページです。",
+          score: 0.99,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -1340,21 +1202,15 @@ describe("work-context research evidence normalization", () => {
       '\nB2: source="開錠" | ko="해제"\nB3: source="五大迷宮" | ko="5대 미궁"';
     const result = enrichResearchResultFromEvidence(
       { operations: [], warnings: [] },
-      [
+      searchEvidence("official critical terms", [
         {
-          query: "official critical terms",
-          credits: 1,
-          results: [
-            {
-              title: "作品公式ページ",
-              url: "https://example.test/official",
-              content:
-                "バグスキル【開錠】で最強最速ダンジョン攻略。開錠（アンロック）で五大迷宮を攻略する。",
-              score: 0.99,
-            },
-          ],
+          title: "作品公式ページ",
+          url: "https://example.test/official",
+          content:
+            "バグスキル【開錠】で最強最速ダンジョン攻略。開錠（アンロック）で五大迷宮を攻略する。",
+          score: 0.99,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -1394,20 +1250,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence("official title", [
         {
-          query: "official title",
-          credits: 1,
-          results: [
-            {
-              title: "バグスキル【開錠】で最強最速ダンジョン攻略 - カドコミ",
-              url: "https://comic-walker.com/detail/KC_008745_S",
-              content: "公式作品ページ",
-              score: 0.99,
-            },
-          ],
+          title: "バグスキル【開錠】で最強最速ダンジョン攻略 - カドコミ",
+          url: "https://comic-walker.com/detail/KC_008745_S",
+          content: "公式作品ページ",
+          score: 0.99,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -1435,21 +1285,15 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence("official title", [
         {
-          query: "official title",
-          credits: 1,
-          results: [
-            {
-              title:
-                "悪役令嬢の父親に転生したので、妻と娘を溺愛します | 出版社作品ページ",
-              url: "https://publisher.example/products/123",
-              content: "カリス・フォールと家族の物語。",
-              score: 0.9,
-            },
-          ],
+          title:
+            "悪役令嬢の父親に転生したので、妻と娘を溺愛します | 出版社作品ページ",
+          url: "https://publisher.example/products/123",
+          content: "カリス・フォールと家族の物語。",
+          score: 0.9,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -1481,20 +1325,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence('"転生悪女の黒歴史" 公式', [
         {
-          query: '"転生悪女の黒歴史" 公式',
-          credits: 1,
-          results: [
-            {
-              title: "転生悪女の黒歴史｜LaLa [月刊ララ]【白泉社】](",
-              url: "https://publisher.example/work/1",
-              content: "転生悪女の黒歴史の公式作品ページ。",
-              score: 0.95,
-            },
-          ],
+          title: "転生悪女の黒歴史｜LaLa [月刊ララ]【白泉社】](",
+          url: "https://publisher.example/work/1",
+          content: "転生悪女の黒歴史の公式作品ページ。",
+          score: 0.95,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -1528,20 +1366,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence('"転生悪女の黒歴史" 登場人物', [
         {
-          query: '"転生悪女の黒歴史" 登場人物',
-          credits: 1,
-          results: [
-            {
-              title: "転生悪女の黒歴史 公式",
-              url: "https://publisher.example/character/iana",
-              content: "イアナ・マグノリア。原作: 冬夏アキハル。",
-              score: 0.9,
-            },
-          ],
+          title: "転生悪女の黒歴史 公式",
+          url: "https://publisher.example/character/iana",
+          content: "イアナ・マグノリア。原作: 冬夏アキハル。",
+          score: 0.9,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -1572,20 +1404,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence('"汎用作品名" 登場人物', [
         {
-          query: '"汎用作品名" 登場人物',
-          credits: 1,
-          results: [
-            {
-              title: "作品キャラクター",
-              url: "https://publisher.example/character/",
-              content: "ジャンル: ロマンス。",
-              score: 0.9,
-            },
-          ],
+          title: "作品キャラクター",
+          url: "https://publisher.example/character/",
+          content: "ジャンル: ロマンス。",
+          score: 0.9,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -1597,20 +1423,14 @@ describe("work-context research evidence normalization", () => {
     input.workTitle = "転生悪女の黒歴史";
     input.selection.text =
       'B1: source="佐藤コノハには「黒歴史」がある。" | target=""';
-    const searches = [
+    const searches = searchEvidence('"転生悪女の黒歴史" 公式', [
       {
-        query: '"転生悪女の黒歴史" 公式',
-        credits: 1,
-        results: [
-          {
-            title: "転生悪女の黒歴史 | 公式作品ページ",
-            url: "https://publisher.example/work/1",
-            content: "佐藤コノハには『黒歴史』がある。",
-            score: 0.95,
-          },
-        ],
+        title: "転生悪女の黒歴史 | 公式作品ページ",
+        url: "https://publisher.example/work/1",
+        content: "佐藤コノハには『黒歴史』がある。",
+        score: 0.95,
       },
-    ];
+    ]);
     const candidates = selectCriticalEvidenceTranslationCandidates(
       [],
       searches,
@@ -1649,20 +1469,17 @@ describe("work-context research evidence normalization", () => {
     input.workTitle = "死神騎士は運命の婚約者を離さない";
     input.selection.text =
       'B1: source="キズモノ令嬢になったエメリーンは、英雄・ランスロットとの婚約を命じられた。" | target=""';
-    const searches = [
-      {
-        query: '"死神騎士は運命の婚約者を離さない" 登場人物',
-        credits: 1,
-        results: [
-          {
-            title: "死神騎士は運命の婚約者を離さない | 公式",
-            url: "https://publisher.example/work/1",
-            content: "キズモノ令嬢エメリーンと英雄・ランスロットの婚約を描く。",
-            score: 0.95,
-          },
-        ],
-      },
-    ];
+    const searches = searchEvidence(
+      '"死神騎士は運命の婚約者を離さない" 登場人物',
+      [
+        {
+          title: "死神騎士は運命の婚約者を離さない | 公式",
+          url: "https://publisher.example/work/1",
+          content: "キズモノ令嬢エメリーンと英雄・ランスロットの婚約を描く。",
+          score: 0.95,
+        },
+      ],
+    );
     const candidates = selectCriticalEvidenceTranslationCandidates(
       [],
       searches,
@@ -1705,27 +1522,21 @@ describe("work-context research evidence normalization", () => {
       'B1: source="Alternative Name: クズレス・オブリージュ" | target=""';
     const fullTitle =
       "クズレス・オブリージュ～18禁ゲー世界のクズ悪役に転生してしまった俺は、原作知識の力でどうしてもモブ人生をつかみ取りたい～";
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 登場人物`, [
       {
-        query: `"${input.workTitle}" 登場人物`,
-        credits: 1,
-        results: [
-          {
-            title: `${fullTitle} | 出版社公式`,
-            url: "https://publisher.example/series/kuzulesse",
-            content:
-              "アバタロー(原作)。史上最悪のクズ悪役と名高い嫌われキャラ、ウルトスだった。",
-            score: 0.95,
-          },
-          {
-            title: `${fullTitle} | 公式配信`,
-            url: "https://reader.example/detail/kuzulesse",
-            content: "主人公ウルトスはモブ人生を望んでいる。",
-            score: 0.9,
-          },
-        ],
+        title: `${fullTitle} | 出版社公式`,
+        url: "https://publisher.example/series/kuzulesse",
+        content:
+          "アバタロー(原作)。史上最悪のクズ悪役と名高い嫌われキャラ、ウルトスだった。",
+        score: 0.95,
       },
-    ];
+      {
+        title: `${fullTitle} | 公式配信`,
+        url: "https://reader.example/detail/kuzulesse",
+        content: "主人公ウルトスはモブ人生を望んでいる。",
+        score: 0.9,
+      },
+    ]);
     const sources = searches[0]?.results.map(({ title, url }) => ({
       title,
       url,
@@ -1850,21 +1661,15 @@ describe("work-context research evidence normalization", () => {
       'B1: source="OLの天川織羽は異世界に転生した。身体の元の持ち主、オリバーは悪役王子だった。" | target=""';
     const title = "28歳OL、悪役王子を始めました";
     input.workTitle = title;
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" "天川織羽"`, [
       {
-        query: `"${input.workTitle}" "天川織羽"`,
-        credits: 1,
-        results: [
-          {
-            title: `${title} | 公式作品ページ`,
-            url: "https://publisher.example/work/28-ol",
-            content:
-              "OLの天川織羽が転生した身体の元の持ち主、オリバーは悪役王子だった。",
-            score: 0.95,
-          },
-        ],
+        title: `${title} | 公式作品ページ`,
+        url: "https://publisher.example/work/28-ol",
+        content:
+          "OLの天川織羽が転生した身体の元の持ち主、オリバーは悪役王子だった。",
+        score: 0.95,
       },
-    ];
+    ]);
     const candidates = selectCriticalEvidenceTranslationCandidates(
       [],
       searches,
@@ -1900,20 +1705,14 @@ describe("work-context research evidence normalization", () => {
     const input = makeInput();
     input.workTitle = "汎用作品名";
     input.selection.text = 'B1: source="メイド・アネット" | target=""';
-    const searches = [
+    const searches = searchEvidence('"汎用作品名" 登場人物', [
       {
-        query: '"汎用作品名" 登場人物',
-        credits: 1,
-        results: [
-          {
-            title: "汎用作品名 公式",
-            url: "https://publisher.example/work/1",
-            content: "メイド・アネットは箒を武器に戦う。",
-            score: 0.95,
-          },
-        ],
+        title: "汎用作品名 公式",
+        url: "https://publisher.example/work/1",
+        content: "メイド・アネットは箒を武器に戦う。",
+        score: 0.95,
       },
-    ];
+    ]);
     const result = enrichResearchResultFromEvidence(
       {
         operations: [
@@ -1972,20 +1771,14 @@ describe("work-context research evidence normalization", () => {
       title: `${input.workTitle} | 公式配信`,
       url: "https://reader.example/detail/slime-master",
     };
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 登場人物`, [
       {
-        query: `"${input.workTitle}" 登場人物`,
-        credits: 1,
-        results: [
-          {
-            ...source,
-            content:
-              "高校2年生の主人公は、最弱モンスター・スライムをパートナーにして、ライムちゃんと自分のペースで新感覚VRMMOを遊ぶ。",
-            score: 0.95,
-          },
-        ],
+        ...source,
+        content:
+          "高校2年生の主人公は、最弱モンスター・スライムをパートナーにして、ライムちゃんと自分のペースで新感覚VRMMOを遊ぶ。",
+        score: 0.95,
       },
-    ];
+    ]);
     const glossary = (term: string, target: string) => ({
       entity: "glossary",
       action: "add",
@@ -2072,20 +1865,14 @@ describe("work-context research evidence normalization", () => {
       title: `${input.workTitle} | 公式作品ページ`,
       url: "https://publisher.example/work/idle-game",
     };
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 設定 用語`, [
       {
-        query: `"${input.workTitle}" 設定 用語`,
-        credits: 1,
-        results: [
-          {
-            ...source,
-            content:
-              "放置ゲーシステムと五大魔境。魔石、お袋、三大欲求。闇狼はモッフモフ。悪役キャラ。コングランプリ受賞作品。§ スメラギ家。",
-            score: 0.9,
-          },
-        ],
+        ...source,
+        content:
+          "放置ゲーシステムと五大魔境。魔石、お袋、三大欲求。闇狼はモッフモフ。悪役キャラ。コングランプリ受賞作品。§ スメラギ家。",
+        score: 0.9,
       },
-    ];
+    ]);
     const glossary = (term: string, target: string) => ({
       entity: "glossary",
       action: "add",
@@ -2158,19 +1945,13 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence(`"${input.workTitle}" 登場人物`, [
         {
-          query: `"${input.workTitle}" 登場人物`,
-          credits: 1,
-          results: [
-            {
-              ...source,
-              content: "主人公のミモザは勇者の青年とパーティーに出会う。",
-              score: 0.95,
-            },
-          ],
+          ...source,
+          content: "主人公のミモザは勇者の青年とパーティーに出会う。",
+          score: 0.95,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<{ sourceNames?: string[] }> };
 
@@ -2221,17 +2002,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
-        {
-          query: `"${input.workTitle}" 登場人物`,
-          credits: 1,
-          results: sources.map((source, index) => ({
-            ...source,
-            content: `${originalTitle}。主人公メリアが錬金術を使う。`,
-            score: 0.95 - index * 0.05,
-          })),
-        },
-      ],
+      searchEvidence(
+        `"${input.workTitle}" 登場人物`,
+        sources.map((source, index) => ({
+          ...source,
+          content: `${originalTitle}。主人公メリアが錬金術を使う。`,
+          score: 0.95 - index * 0.05,
+        })),
+      ),
       input,
     ) as { operations: Array<{ sourceNames?: string[] }> };
 
@@ -2264,19 +2042,13 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence(`"${input.workTitle}" 登場人物`, [
         {
-          query: `"${input.workTitle}" 登場人物`,
-          credits: 1,
-          results: [
-            {
-              ...evidence,
-              content: "登場人物 サラナ・キンジェ。領地で商売を始める。",
-              score: 0.95,
-            },
-          ],
+          ...evidence,
+          content: "登場人物 サラナ・キンジェ。領地で商売を始める。",
+          score: 0.95,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<{ sourceNames?: string[] }> };
 
@@ -2315,17 +2087,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
-        {
-          query: `"${input.workTitle}" 設定 用語`,
-          credits: 1,
-          results: sources.map((source, index) => ({
-            ...source,
-            content: "主人公はスローライフを目指す。",
-            score: 0.95 - index * 0.05,
-          })),
-        },
-      ],
+      searchEvidence(
+        `"${input.workTitle}" 設定 用語`,
+        sources.map((source, index) => ({
+          ...source,
+          content: "主人公はスローライフを目指す。",
+          score: 0.95 - index * 0.05,
+        })),
+      ),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -2342,19 +2111,13 @@ describe("work-context research evidence normalization", () => {
       title: `${input.workTitle} | 出版社公式`,
       url: "https://publisher.example/work/moonlit-alchemist",
     };
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" "YASOU Teien"`, [
       {
-        query: `"${input.workTitle}" "YASOU Teien"`,
-        credits: 1,
-        results: [
-          {
-            ...evidence,
-            content: `著者: YASOU Teien（夜想庭園）。${input.workTitle}。`,
-            score: 0.95,
-          },
-        ],
+        ...evidence,
+        content: `著者: YASOU Teien（夜想庭園）。${input.workTitle}。`,
+        score: 0.95,
       },
-    ];
+    ]);
     const result = enrichResearchResultFromEvidence(
       {
         operations: [
@@ -2386,20 +2149,14 @@ describe("work-context research evidence normalization", () => {
       title: `${input.workTitle} | 公式作品ページ`,
       url: "https://publisher.example/work/escape",
     };
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 設定 用語`, [
       {
-        query: `"${input.workTitle}" 設定 用語`,
-        credits: 1,
-        results: [
-          {
-            ...evidence,
-            content:
-              "破滅エンド間違いを避ける物語。作中では「破滅エンド」と呼ばれる。",
-            score: 0.95,
-          },
-        ],
+        ...evidence,
+        content:
+          "破滅エンド間違いを避ける物語。作中では「破滅エンド」と呼ばれる。",
+        score: 0.95,
       },
-    ];
+    ]);
     const operation = (source: string, target: string) => ({
       entity: "glossary",
       action: "add",
@@ -2436,20 +2193,14 @@ describe("work-context research evidence normalization", () => {
       title: `${input.workTitle} | 公式作品ページ`,
       url: "https://publisher.example/work/idle-game",
     };
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" あらすじ`, [
       {
-        query: `"${input.workTitle}" あらすじ`,
-        credits: 1,
-        results: [
-          {
-            ...source,
-            content:
-              "プログラマーは異世界でジークという子供に転生した。放置ゲー理論で最強を目指す。",
-            score: 0.95,
-          },
-        ],
+        ...source,
+        content:
+          "プログラマーは異世界でジークという子供に転生した。放置ゲー理論で最強を目指す。",
+        score: 0.95,
       },
-    ];
+    ]);
     const character = (name: string, targetName: string) => ({
       entity: "character",
       action: "add",
@@ -2486,20 +2237,14 @@ describe("work-context research evidence normalization", () => {
       title: `${input.workTitle} | 作品情報`,
       url: "https://publisher.example/work/weak-noble",
     };
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 作品情報`, [
       {
-        query: `"${input.workTitle}" 作品情報`,
-        credits: 1,
-        results: [
-          {
-            ...source,
-            content:
-              "掲載誌は月刊少年シリウス。イラスト：ファルまろ。バリ立という一般表現。",
-            score: 0.95,
-          },
-        ],
+        ...source,
+        content:
+          "掲載誌は月刊少年シリウス。イラスト：ファルまろ。バリ立という一般表現。",
+        score: 0.95,
       },
-    ];
+    ]);
     const result = enrichResearchResultFromEvidence(
       {
         operations: [
@@ -2536,48 +2281,40 @@ describe("work-context research evidence normalization", () => {
   it("does not treat a dangling-bracket prose sentence as a work title", () => {
     const sentence = "Monster・Evolve・Online】、通称【MEO】を手に入れた。";
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "work title",
-          credits: 1,
-          results: [
-            {
-              title: "Roman title A",
-              url: "https://a.example/work/1",
-              content: `# ${sentence}`,
-              score: 0.9,
-            },
-            {
-              title: "Roman title B",
-              url: "https://b.example/work/2",
-              content: `# ${sentence}`,
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("work title", [
+          {
+            title: "Roman title A",
+            url: "https://a.example/work/1",
+            content: `# ${sentence}`,
+            score: 0.9,
+          },
+          {
+            title: "Roman title B",
+            url: "https://b.example/work/2",
+            content: `# ${sentence}`,
+            score: 0.85,
+          },
+        ]),
+      ),
     ).not.toContain(sentence);
     expect(
-      extractCorroboratedEvidenceTitles([
-        {
-          query: "work title",
-          credits: 1,
-          results: [
-            {
-              title: "Official A",
-              url: "https://a.example/work/1",
-              content: "# 異世界×放置ゲー=最強!?",
-              score: 0.9,
-            },
-            {
-              title: "Official B",
-              url: "https://b.example/work/2",
-              content: "# 異世界×放置ゲー=最強!?",
-              score: 0.85,
-            },
-          ],
-        },
-      ]),
+      extractCorroboratedEvidenceTitles(
+        searchEvidence("work title", [
+          {
+            title: "Official A",
+            url: "https://a.example/work/1",
+            content: "# 異世界×放置ゲー=最強!?",
+            score: 0.9,
+          },
+          {
+            title: "Official B",
+            url: "https://b.example/work/2",
+            content: "# 異世界×放置ゲー=最強!?",
+            score: 0.85,
+          },
+        ]),
+      ),
     ).not.toContain("異世界×放置ゲー=最強!?");
   });
 
@@ -2596,17 +2333,14 @@ describe("work-context research evidence normalization", () => {
       title: `${title} | 公式配信`,
       url: "https://reader.example/work/1",
     };
-    const searches = [
-      {
-        query: `"${title}" 登場人物 キャラクター`,
-        credits: 1,
-        results: [sourceA, sourceB].map((source, index) => ({
-          ...source,
-          content: `${title}。主人公ウルトス。スカッと爽快。ヒーローウルトスが活躍。作品トークも掲載。`,
-          score: 0.9 - index * 0.05,
-        })),
-      },
-    ];
+    const searches = searchEvidence(
+      `"${title}" 登場人物 キャラクター`,
+      [sourceA, sourceB].map((source, index) => ({
+        ...source,
+        content: `${title}。主人公ウルトス。スカッと爽快。ヒーローウルトスが活躍。作品トークも掲載。`,
+        score: 0.9 - index * 0.05,
+      })),
+    );
     const character = (
       name: string,
       target: string,
@@ -2667,19 +2401,13 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence(`"${input.workTitle}" 登場人物`, [
         {
-          query: `"${input.workTitle}" 登場人物`,
-          credits: 1,
-          results: [
-            {
-              ...source,
-              content: "主人公ハルクは旅に出る。",
-              score: 0.95,
-            },
-          ],
+          ...source,
+          content: "主人公ハルクは旅に出る。",
+          score: 0.95,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -2710,17 +2438,14 @@ describe("work-context research evidence normalization", () => {
       "最弱スキルから成長する物語。",
       "第二王女セレナ、妻サーシャ、イケオジ公爵は一切興味を示さない。",
     ].join("\n");
-    const searches = [
-      {
-        query: `"${input.workTitle}" 登場人物 キャラクター`,
-        credits: 1,
-        results: [sourceA, sourceB].map((source, index) => ({
-          ...source,
-          content,
-          score: 0.9 - index * 0.05,
-        })),
-      },
-    ];
+    const searches = searchEvidence(
+      `"${input.workTitle}" 登場人物 キャラクター`,
+      [sourceA, sourceB].map((source, index) => ({
+        ...source,
+        content,
+        score: 0.9 - index * 0.05,
+      })),
+    );
     const character = (name: string, target: string) => ({
       entity: "character",
       action: "add",
@@ -2834,19 +2559,13 @@ describe("work-context research evidence normalization", () => {
       title: `${input.workTitle} | 公式配信`,
       url: "https://publisher.example/work/1",
     };
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 用語`, [
       {
-        query: `"${input.workTitle}" 用語`,
-        credits: 1,
-        results: [
-          {
-            ...source,
-            content: "Monster・Evolve・Online、通称MEO。",
-            score: 0.9,
-          },
-        ],
+        ...source,
+        content: "Monster・Evolve・Online、通称MEO。",
+        score: 0.9,
       },
-    ];
+    ]);
     const glossary = (term: string, target: string) => ({
       entity: "glossary",
       action: "add",
@@ -2900,19 +2619,13 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence('"正しい作品名" 登場人物', [
         {
-          query: '"正しい作品名" 登場人物',
-          credits: 1,
-          results: [
-            {
-              ...unrelatedSource,
-              content: "関連作品: 正しい作品名。別作品の主人公エース。",
-              score: 0.8,
-            },
-          ],
+          ...unrelatedSource,
+          content: "関連作品: 正しい作品名。別作品の主人公エース。",
+          score: 0.8,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -2973,26 +2686,19 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence(`"${input.workTitle}" 登場人物`, [
         {
-          query: `"${input.workTitle}" 登場人物`,
-          credits: 1,
-          results: [
-            {
-              ...correctSource,
-              content:
-                "元聖女候補セルビアは、最強の剣士ハルクと出会う。ピッコマで配信。読書メーターでも紹介。第1話 一覧。",
-              score: 0.9,
-            },
-            {
-              ...unrelatedSource,
-              content:
-                "別作品の主人公アリシア。金色の獅子。試し読み 女は働くな。",
-              score: 0.98,
-            },
-          ],
+          ...correctSource,
+          content:
+            "元聖女候補セルビアは、最強の剣士ハルクと出会う。ピッコマで配信。読書メーターでも紹介。第1話 一覧。",
+          score: 0.9,
         },
-      ],
+        {
+          ...unrelatedSource,
+          content: "別作品の主人公アリシア。金色の獅子。試し読み 女は働くな。",
+          score: 0.98,
+        },
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -3050,20 +2756,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence('"汎用作品名" 公式', [
         {
-          query: '"汎用作品名" 公式',
-          credits: 1,
-          results: [
-            {
-              title: "汎用作品名 公式",
-              url: "https://publisher.example/work/1",
-              content: "美少女メイド・アネットが戦う。不肖リエラも登場する。",
-              score: 0.95,
-            },
-          ],
+          title: "汎用作品名 公式",
+          url: "https://publisher.example/work/1",
+          content: "美少女メイド・アネットが戦う。不肖リエラも登場する。",
+          score: 0.95,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -3103,19 +2803,13 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence(`"${input.workTitle}" 登場人物`, [
         {
-          query: `"${input.workTitle}" 登場人物`,
-          credits: 1,
-          results: [
-            {
-              ...source,
-              content: "最弱貴族アデルは悪役たちを集める。",
-              score: 0.9,
-            },
-          ],
+          ...source,
+          content: "最弱貴族アデルは悪役たちを集める。",
+          score: 0.9,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -3131,27 +2825,21 @@ describe("work-context research evidence normalization", () => {
     const input = makeInput();
     input.workTitle = "死神騎士は運命の婚約者を離さない";
     input.selection.text = 'B1: source="死神騎士" | target=""';
-    const searches = [
+    const searches = searchEvidence('"死神騎士は運命の婚約者を離さない" 公式', [
       {
-        query: '"死神騎士は運命の婚約者を離さない" 公式',
-        credits: 1,
-        results: [
-          {
-            title: "死神騎士は運命の婚約者を離さない | 公式",
-            url: "https://publisher.example/work/1",
-            content:
-              "君じゃなきゃダメだ。死神騎士とエメリーンの物語。\n関連小説\n姉の身代わりで嫁いだ残りカス令嬢。",
-            score: 0.95,
-          },
-          {
-            title: "別作品のページ",
-            url: "https://reader.example/work/2",
-            content: "関連作品\n残りカス令嬢の物語。",
-            score: 0.7,
-          },
-        ],
+        title: "死神騎士は運命の婚約者を離さない | 公式",
+        url: "https://publisher.example/work/1",
+        content:
+          "君じゃなきゃダメだ。死神騎士とエメリーンの物語。\n関連小説\n姉の身代わりで嫁いだ残りカス令嬢。",
+        score: 0.95,
       },
-    ];
+      {
+        title: "別作品のページ",
+        url: "https://reader.example/work/2",
+        content: "関連作品\n残りカス令嬢の物語。",
+        score: 0.7,
+      },
+    ]);
     const result = enrichResearchResultFromEvidence(
       {
         operations: [
@@ -3215,21 +2903,15 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence('"汎用作品名" 登場人物', [
         {
-          query: '"汎用作品名" 登場人物',
-          credits: 1,
-          results: [
-            {
-              title: "汎用作品名 公式",
-              url: "https://publisher.example/work/1",
-              content:
-                "歴代最強の剣聖・アーノイック。本名はアーノイック・ブルシュトローム。",
-              score: 0.95,
-            },
-          ],
+          title: "汎用作品名 公式",
+          url: "https://publisher.example/work/1",
+          content:
+            "歴代最強の剣聖・アーノイック。本名はアーノイック・ブルシュトローム。",
+          score: 0.95,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -3337,20 +3019,14 @@ describe("work-context research evidence normalization", () => {
     const input = makeInput();
     input.workTitle = "作品名";
     input.selection.text = 'B1: source="ロッド" | ko="로드"';
-    const searches = [
+    const searches = searchEvidence('"作品名" 登場人物', [
       {
-        query: '"作品名" 登場人物',
-        credits: 1,
-        results: [
-          {
-            title: "作品名 作品紹介",
-            url: "https://publisher.example/work/1",
-            content: "少年ロッドは迷宮神ラヴィと出会う。",
-            score: 0.9,
-          },
-        ],
+        title: "作品名 作品紹介",
+        url: "https://publisher.example/work/1",
+        content: "少年ロッドは迷宮神ラヴィと出会う。",
+        score: 0.9,
       },
-    ];
+    ]);
 
     const candidates = selectCriticalEvidenceTranslationCandidates(
       [],
@@ -3382,21 +3058,18 @@ describe("work-context research evidence normalization", () => {
     const input = makeInput();
     input.workTitle = "転生悪女の黒歴史";
     input.selection.text = 'B1: source="黒歴史" | ko="흑역사"';
-    const searches = [
-      {
-        query: '"転生悪女の黒歴史" 登場人物 キャラクター',
-        credits: 1,
-        results: [
-          {
-            title: "TVアニメ『転生悪女の黒歴史』公式サイト",
-            url: "https://anime.example/",
-            content:
-              "主人公『コノハ・マグノリア』が活躍する。稀代の悪女『イアナ・マグノリア』に転生してしまう。",
-            score: 0.95,
-          },
-        ],
-      },
-    ];
+    const searches = searchEvidence(
+      '"転生悪女の黒歴史" 登場人物 キャラクター',
+      [
+        {
+          title: "TVアニメ『転生悪女の黒歴史』公式サイト",
+          url: "https://anime.example/",
+          content:
+            "主人公『コノハ・マグノリア』が活躍する。稀代の悪女『イアナ・マグノリア』に転生してしまう。",
+          score: 0.95,
+        },
+      ],
+    );
 
     expect(
       selectCriticalEvidenceTranslationCandidates([], searches, input),
@@ -3409,20 +3082,14 @@ describe("work-context research evidence normalization", () => {
     const input = makeInput();
     input.workTitle = "作品名";
     input.selection.text = 'B1: source="ロッド" | ko="로드"';
-    const searches = [
+    const searches = searchEvidence('"作品名" 登場人物', [
       {
-        query: '"作品名" 登場人物',
-        credits: 1,
-        results: [
-          {
-            title: "作品名 作品公式ページ",
-            url: "https://publisher.example/series/1",
-            content: "登場人物\nラヴィ\n[迷宮を作った神]",
-            score: 0.9,
-          },
-        ],
+        title: "作品名 作品公式ページ",
+        url: "https://publisher.example/series/1",
+        content: "登場人物\nラヴィ\n[迷宮を作った神]",
+        score: 0.9,
       },
-    ];
+    ]);
 
     const candidates = selectCriticalEvidenceTranslationCandidates(
       [],
@@ -3469,20 +3136,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence('"転生悪女の黒歴史" 公式', [
         {
-          query: '"転生悪女の黒歴史" 公式',
-          credits: 1,
-          results: [
-            {
-              title: "公式キャラクター | 転生悪女の黒歴史",
-              url: "https://anime.example/character/iana-magnolia",
-              content: "イアナ・マグノリア",
-              score: 0.95,
-            },
-          ],
+          title: "公式キャラクター | 転生悪女の黒歴史",
+          url: "https://anime.example/character/iana-magnolia",
+          content: "イアナ・マグノリア",
+          score: 0.95,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -3518,21 +3179,15 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence("official", [
         {
-          query: "official",
-          credits: 1,
-          results: [
-            {
-              title: "作品公式ページ",
-              url: "https://publisher.example/work/1",
-              content:
-                "バグスキル【開錠】で最強最速ダンジョン攻略。開錠（アンロック）。",
-              score: 0.9,
-            },
-          ],
+          title: "作品公式ページ",
+          url: "https://publisher.example/work/1",
+          content:
+            "バグスキル【開錠】で最強最速ダンジョン攻略。開錠（アンロック）。",
+          score: 0.9,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -3578,20 +3233,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence('"作品名" 登場人物', [
         {
-          query: '"作品名" 登場人物',
-          credits: 1,
-          results: [
-            {
-              title: "CHARACTER | 作品名",
-              url: "https://anime.example/chara/",
-              content: "主人公 イングリス・ユークス",
-              score: 0.9,
-            },
-          ],
+          title: "CHARACTER | 作品名",
+          url: "https://anime.example/chara/",
+          content: "主人公 イングリス・ユークス",
+          score: 0.9,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -3605,152 +3254,105 @@ describe("work-context research evidence normalization", () => {
     });
   });
 
-  it("repairs a one-character typo in a full name from its official short alias", () => {
-    const input = makeInput();
-    input.workTitle = "転生悪女の黒歴史";
-    input.selection.text = 'B1: source="イアナ" | ko="이아나"';
-    const result = enrichResearchResultFromEvidence(
-      {
-        operations: [
-          {
-            entity: "character",
-            action: "add",
-            sourceNames: ["イアヤ・マグノリア", "イアナ"],
-            targetName: "이아나 마그놀리아",
-            displayName: "이아나 마그놀리아",
-            aliases: [],
-            sources: [
-              {
-                title: "公式キャラクター",
-                url: "https://anime.example/character/iana",
-              },
-            ],
-          },
-        ],
-        warnings: [],
+  it.each([
+    {
+      name: "repairs a one-character typo in a full name from its official short alias",
+      workTitle: "転生悪女の黒歴史",
+      selection: 'B1: source="イアナ" | ko="이아나"',
+      sourceNames: ["イアヤ・マグノリア", "イアナ"],
+      targetName: "이아나 마그놀리아",
+      source: {
+        title: "公式キャラクター",
+        url: "https://anime.example/character/iana",
       },
-      [
+      query: '"転生悪女の黒歴史" 登場人物 キャラクター',
+      results: [
         {
-          query: '"転生悪女の黒歴史" 登場人物 キャラクター',
-          credits: 1,
-          results: [
-            {
-              title: "公式キャラクター | 転生悪女の黒歴史",
-              url: "https://anime.example/character/iana",
-              content: "主人公 イアナ・マグノリア。稀代の悪女。",
-              score: 0.95,
-            },
-          ],
+          title: "公式キャラクター | 転生悪女の黒歴史",
+          url: "https://anime.example/character/iana",
+          content: "主人公 イアナ・マグノリア。稀代の悪女。",
+          score: 0.95,
         },
       ],
-      input,
-    ) as { operations: Array<Record<string, unknown>> };
-
-    expect(result.operations).toContainEqual(
-      expect.objectContaining({
+      expected: {
         sourceNames: ["イアナ・マグノリア", "イアナ"],
         aliases: ["イアヤ・マグノリア"],
-      }),
-    );
-  });
-
-  it("repairs an adjacent duplicated Korean mora in a complete katakana name", () => {
-    const input = makeInput();
-    input.workTitle = "転生悪女の黒歴史";
-    input.selection.text = 'B1: source="コノハ" | ko="코노하"';
-    const result = enrichResearchResultFromEvidence(
-      {
-        operations: [
-          {
-            entity: "character",
-            action: "add",
-            sourceNames: ["コノハ・マグノリア"],
-            targetName: "코코하 마그놀리아",
-            displayName: "코코하 마그놀리아",
-            aliases: [],
-            sources: [
-              {
-                title: "公式キャラクター",
-                url: "https://anime.example/character/konoha",
-              },
-            ],
-          },
-        ],
-        warnings: [],
       },
-      [
+    },
+    {
+      name: "repairs an adjacent duplicated Korean mora in a complete katakana name",
+      workTitle: "転生悪女の黒歴史",
+      selection: 'B1: source="コノハ" | ko="코노하"',
+      sourceNames: ["コノハ・マグノリア"],
+      targetName: "코코하 마그놀리아",
+      source: {
+        title: "公式キャラクター",
+        url: "https://anime.example/character/konoha",
+      },
+      query: '"転生悪女の黒歴史" 登場人物 キャラクター',
+      results: [
         {
-          query: '"転生悪女の黒歴史" 登場人物 キャラクター',
-          credits: 1,
-          results: [
-            {
-              title: "公式キャラクター | 転生悪女の黒歴史",
-              url: "https://anime.example/character/konoha",
-              content: "主人公『コノハ・マグノリア』。イアナの妹。",
-              score: 0.95,
-            },
-          ],
+          title: "公式キャラクター | 転生悪女の黒歴史",
+          url: "https://anime.example/character/konoha",
+          content: "主人公『コノハ・マグノリア』。イアナの妹。",
+          score: 0.95,
         },
       ],
-      input,
-    ) as { operations: Array<Record<string, unknown>> };
-
-    expect(result.operations).toContainEqual(
-      expect.objectContaining({
+      expected: {
         sourceNames: ["コノハ・マグノリア"],
         targetName: "코노하 마그놀리아",
         displayName: "코노하 마그놀리아",
-      }),
-    );
-  });
-
-  it("removes an unsupported final consonant from a simple katakana name", () => {
+      },
+    },
+    {
+      name: "removes an unsupported final consonant from a simple katakana name",
+      workTitle: "作品名",
+      selection: 'B1: source="ロザレナ" | ko="로자레나"',
+      sourceNames: ["ロザレナ"],
+      targetName: "로잘레나",
+      source: {
+        title: "作品名 公式",
+        url: "https://publisher.example/work/1",
+      },
+      query: '"作品名" 登場人物',
+      results: [
+        {
+          title: "作品名 公式",
+          url: "https://publisher.example/work/1",
+          content: "登場人物ロザレナ。",
+          score: 0.95,
+        },
+      ],
+      expected: {
+        sourceNames: ["ロザレナ"],
+        targetName: "로자레나",
+        displayName: "로자레나",
+      },
+    },
+  ])("$name", (testCase) => {
     const input = makeInput();
-    input.workTitle = "作品名";
-    input.selection.text = 'B1: source="ロザレナ" | ko="로자레나"';
+    input.workTitle = testCase.workTitle;
+    input.selection.text = testCase.selection;
     const result = enrichResearchResultFromEvidence(
       {
         operations: [
           {
             entity: "character",
             action: "add",
-            sourceNames: ["ロザレナ"],
-            targetName: "로잘레나",
-            displayName: "로잘레나",
+            sourceNames: testCase.sourceNames,
+            targetName: testCase.targetName,
+            displayName: testCase.targetName,
             aliases: [],
-            sources: [
-              {
-                title: "作品名 公式",
-                url: "https://publisher.example/work/1",
-              },
-            ],
+            sources: [testCase.source],
           },
         ],
         warnings: [],
       },
-      [
-        {
-          query: '"作品名" 登場人物',
-          credits: 1,
-          results: [
-            {
-              title: "作品名 公式",
-              url: "https://publisher.example/work/1",
-              content: "登場人物ロザレナ。",
-              score: 0.95,
-            },
-          ],
-        },
-      ],
+      searchEvidence(testCase.query, testCase.results),
       input,
     ) as { operations: Array<Record<string, unknown>> };
-
     expect(result.operations).toContainEqual(
-      expect.objectContaining({
-        sourceNames: ["ロザレナ"],
-        targetName: "로자레나",
-        displayName: "로자레나",
-      }),
+      expect.objectContaining(testCase.expected),
     );
   });
 
@@ -3777,20 +3379,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence(`"${input.workTitle}" "ハイラル・メナス"`, [
         {
-          query: `"${input.workTitle}" "ハイラル・メナス"`,
-          credits: 1,
-          results: [
-            {
-              title: `${input.workTitle} | 公式記事`,
-              url: "https://publisher.example/article/1",
-              content: "天恵武姫（ハイラル・メナス）",
-              score: 0.9,
-            },
-          ],
+          title: `${input.workTitle} | 公式記事`,
+          url: "https://publisher.example/article/1",
+          content: "天恵武姫（ハイラル・メナス）",
+          score: 0.9,
         },
-      ],
+      ]),
       input,
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -3822,20 +3418,14 @@ describe("work-context research evidence normalization", () => {
         ],
         warnings: [],
       },
-      [
+      searchEvidence("local candidate collision", [
         {
-          query: "local candidate collision",
-          credits: 1,
-          results: [
-            {
-              title: "무관한 질문",
-              url: "https://questions.example/item/1",
-              content: "アナハイム・エレクトロニクスについての質問。",
-              score: 0.9,
-            },
-          ],
+          title: "무관한 질문",
+          url: "https://questions.example/item/1",
+          content: "アナハイム・エレクトロニクスについての質問。",
+          score: 0.9,
         },
-      ],
+      ]),
       makeInput(),
     ) as { operations: Array<Record<string, unknown>> };
 
@@ -3849,26 +3439,20 @@ describe("work-context research evidence normalization", () => {
     const title = "汎用的な日本語作品タイトル";
     input.workTitle = title;
     const term = "アストランティア警備保障";
-    const searches = [
+    const searches = searchEvidence(`"${title}" 設定 用語`, [
       {
-        query: `"${title}" 設定 用語`,
-        credits: 1,
-        results: [
-          {
-            title: `${title} | 百科事典`,
-            url: "https://dictionary.example/a/entry",
-            content: `${title} ${term}`,
-            score: 0.8,
-          },
-          {
-            title,
-            url: "https://x.com/example/status/1",
-            content: `${title} ${term}`,
-            score: 0.7,
-          },
-        ],
+        title: `${title} | 百科事典`,
+        url: "https://dictionary.example/a/entry",
+        content: `${title} ${term}`,
+        score: 0.8,
       },
-    ];
+      {
+        title,
+        url: "https://x.com/example/status/1",
+        content: `${title} ${term}`,
+        score: 0.7,
+      },
+    ]);
     const result = enrichResearchResultFromEvidence(
       {
         operations: [
@@ -3909,20 +3493,14 @@ describe("work-context research evidence normalization", () => {
         url: "https://publisher.example/work/nomy",
       },
     ];
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 用語`, [
       {
-        query: `"${input.workTitle}" 用語`,
-        credits: 1,
-        results: [
-          {
-            ...sources[0],
-            content:
-              "魔導細工師ノーミィはハーフドワーフの少女。ドワーフ村を追放され、魔王城でクラフト生活を始める。魔族のホワイトも登場する。",
-            score: 0.9,
-          },
-        ],
+        ...sources[0],
+        content:
+          "魔導細工師ノーミィはハーフドワーフの少女。ドワーフ村を追放され、魔王城でクラフト生活を始める。魔族のホワイトも登場する。",
+        score: 0.9,
       },
-    ];
+    ]);
     const operation = (source: string, target: string) => ({
       entity: "glossary",
       action: "add",
@@ -3980,20 +3558,14 @@ describe("work-context research evidence normalization", () => {
       title: `${input.workTitle} | 公式`,
       url: "https://publisher.example/work/houchi-game",
     };
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 設定 用語`, [
       {
-        query: `"${input.workTitle}" 設定 用語`,
-        credits: 1,
-        results: [
-          {
-            ...evidence,
-            content:
-              "異世界に転生したおっさんこと主人公ジークが、天輪:四重奏を使い、放置ゲームを放置ゲーシステムとして確立する。",
-            score: 0.9,
-          },
-        ],
+        ...evidence,
+        content:
+          "異世界に転生したおっさんこと主人公ジークが、天輪:四重奏を使い、放置ゲームを放置ゲーシステムとして確立する。",
+        score: 0.9,
       },
-    ];
+    ]);
     const result = enrichResearchResultFromEvidence(
       {
         operations: [
@@ -4100,26 +3672,23 @@ describe("work-context research evidence normalization", () => {
       'B1: source="皇子ルドルフが未来を変える。" | target=""\n' +
       'B2: source="原作: Sanbon / 作画: Tasuke" | target=""';
     const title = "ただの村人の僕が、三百年前の暴君皇子に転生してしまいました";
-    const searches = [
-      {
-        query: '"Tada no Murabito no Boku" 原題 日本語 公式',
-        credits: 1,
-        results: [
-          {
-            title: `${title} | 出版社公式`,
-            url: "https://publisher.example/products/123",
-            content: "皇子ルドルフが暗殺の未来を変える物語。",
-            score: 0.9,
-          },
-          {
-            title: `${title} | 公式配信`,
-            url: "https://reader.example/works/456",
-            content: "主人公ルドルフを描く作品。",
-            score: 0.85,
-          },
-        ],
-      },
-    ];
+    const searches = searchEvidence(
+      '"Tada no Murabito no Boku" 原題 日本語 公式',
+      [
+        {
+          title: `${title} | 出版社公式`,
+          url: "https://publisher.example/products/123",
+          content: "皇子ルドルフが暗殺の未来を変える物語。",
+          score: 0.9,
+        },
+        {
+          title: `${title} | 公式配信`,
+          url: "https://reader.example/works/456",
+          content: "主人公ルドルフを描く作品。",
+          score: 0.85,
+        },
+      ],
+    );
     const initialOperations = [
       {
         entity: "glossary",
@@ -4254,19 +3823,13 @@ describe("work-context research evidence normalization", () => {
       title: `${title} | 公式作品ページ`,
       url: "https://publisher.example/work/star-cycle",
     };
-    const searches = [
+    const searches = searchEvidence(`"${title}" 用語`, [
       {
-        query: `"${title}" 用語`,
-        credits: 1,
-        results: [
-          {
-            ...evidence,
-            content: `作品紹介：${title}。秘術師が「星環術」を使う。`,
-            score: 0.9,
-          },
-        ],
+        ...evidence,
+        content: `作品紹介：${title}。秘術師が「星環術」を使う。`,
+        score: 0.9,
       },
-    ];
+    ]);
     const operation = (source: string, target: string) => ({
       entity: "glossary",
       action: "add",
@@ -4305,19 +3868,13 @@ describe("work-context research evidence normalization", () => {
       title: `${input.workTitle} | 公式作品ページ`,
       url: "https://publisher.example/work/moonlit-workshop",
     };
-    const searches = [
+    const searches = searchEvidence(`"${input.workTitle}" 登場人物`, [
       {
-        query: `"${input.workTitle}" 登場人物`,
-        credits: 1,
-        results: [
-          {
-            ...evidence,
-            content: "主人公の相棒、ルミナちゃんが工房に加わる。",
-            score: 0.9,
-          },
-        ],
+        ...evidence,
+        content: "主人公の相棒、ルミナちゃんが工房に加わる。",
+        score: 0.9,
       },
-    ];
+    ]);
     const result = enrichResearchResultFromEvidence(
       {
         operations: [
@@ -4355,26 +3912,20 @@ describe("work-context research evidence normalization", () => {
     const decorated = `${title}（星雲ノベル）`;
     input.workTitle = "Romanized Folder Title";
     input.selection.text = `B1: source="${title}" | target="은하의 재단사는 왕도를 여행한다"`;
-    const searches = [
+    const searches = searchEvidence("native title", [
       {
-        query: "native title",
-        credits: 1,
-        results: [
-          {
-            title: decorated,
-            url: "https://store.example/book/1",
-            content: `${decorated} 作品紹介`,
-            score: 0.9,
-          },
-          {
-            title: `${title} | 公式作品ページ`,
-            url: "https://publisher.example/work/1",
-            content: `${title} 作品紹介`,
-            score: 0.9,
-          },
-        ],
+        title: decorated,
+        url: "https://store.example/book/1",
+        content: `${decorated} 作品紹介`,
+        score: 0.9,
       },
-    ];
+      {
+        title: `${title} | 公式作品ページ`,
+        url: "https://publisher.example/work/1",
+        content: `${title} 作品紹介`,
+        score: 0.9,
+      },
+    ]);
     const result = enrichResearchResultFromEvidence(
       {
         operations: [
@@ -4436,4 +3987,13 @@ function makeInput(): WorkContextResearchPromptInput {
       },
     },
   };
+}
+
+function searchEvidence(
+  query: string,
+  results: Parameters<
+    typeof enrichResearchResultFromEvidence
+  >[1][number]["results"],
+) {
+  return [{ query, credits: 1, results }];
 }
