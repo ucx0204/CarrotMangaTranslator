@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: windows-latest
     env:
-      MGT_VITEST_MAX_WORKERS: "2"
+      MGT_VITEST_MAX_WORKERS: "1"
     permissions:
       contents: read
     outputs:

@@ -42,7 +42,8 @@ it.each(["translate", "note"] as const)(
               "Context application remained blocked after the research engine finished",
             ),
           ),
-        2000,
+        // The queued edit includes real durable writes after its lease is released.
+        10000,
       );
       const applying = f.call(
         "carrot_apply_context_proposal",

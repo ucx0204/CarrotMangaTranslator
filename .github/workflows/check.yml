@@ -47,8 +47,8 @@ jobs:
   windows-tests:
     runs-on: windows-latest
     env:
-      # Real persistence/recovery tests contend for disk with four local workers.
-      MGT_VITEST_MAX_WORKERS: "2"
+      # Durable file transactions contend for the hosted runner's disk.
+      MGT_VITEST_MAX_WORKERS: "1"
     strategy:
       fail-fast: false
       matrix:

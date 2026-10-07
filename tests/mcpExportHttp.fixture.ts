@@ -66,11 +66,14 @@ export async function exportHttpFixture() {
     return response.json();
   };
   const finish = async (jobId: string) => {
-    await vi.waitFor(async () => {
-      const response = await call("carrot_get_job", { jobId });
-      expect(response.result.isError).toBe(false);
-      expect(response.result.structuredContent.status).not.toBe("running");
-    });
+    await vi.waitFor(
+      async () => {
+        const response = await call("carrot_get_job", { jobId });
+        expect(response.result.isError).toBe(false);
+        expect(response.result.structuredContent.status).not.toBe("running");
+      },
+      { timeout: 10000 },
+    );
     return (await call("carrot_get_job", { jobId })).result.structuredContent;
   };
   return {

@@ -34,7 +34,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      MGT_VITEST_MAX_WORKERS: "2"
+      MGT_VITEST_MAX_WORKERS: "1"
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
