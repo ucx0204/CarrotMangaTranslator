@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { app } from "electron";
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
-import { createReadStream, readFileSync, realpathSync } from "node:fs";
+import {
+  createReadStream,
+  readFileSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
 import { mkdtemp, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
@@ -64,13 +69,20 @@ async function run() {
     await download.download(release, new AbortController().signal, () => {});
     await download.install(release);
     const cachedDmg = realpathSync(join(root, "app-updates", version, name));
+    const cachedIdentity = statSync(cachedDmg);
     const deadline = Date.now() + 90000;
     let images = [];
     while (Date.now() < deadline) {
       images = mountedImages();
       mounted = images.find((entry) => {
         try {
-          return realpathSync(entry["image-path"]) === cachedDmg;
+          // APFS/hdiutil can return decomposed Korean names even after realpath.
+          // Compare the file itself, rather than the path's Unicode spelling.
+          const identity = statSync(entry["image-path"]);
+          return (
+            identity.dev === cachedIdentity.dev &&
+            identity.ino === cachedIdentity.ino
+          );
         } catch (error) {
           if (error.code === "ENOENT") return false;
           throw error;
@@ -81,7 +93,11 @@ async function run() {
     }
     assert.ok(
       mounted,
-      `shell.openPath must mount ${cachedDmg}; observed images: ${JSON.stringify(images)}`,
+      `shell.openPath must mount ${cachedDmg}; observed images: ${JSON.stringify(images.map((entry) => entry["image-path"]))}`,
+    );
+    assert.ok(
+      mounted["system-entities"].some((entry) => entry["mount-point"]),
+      "The downloaded DMG must have a mounted volume",
     );
     await writeFile(
       "dist/mac-update-verification.json",

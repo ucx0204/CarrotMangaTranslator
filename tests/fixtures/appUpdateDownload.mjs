@@ -105,7 +105,8 @@ app
       const child = new EventEmitter();
       child.unref = () => {};
       launchCalls++;
-      queueMicrotask(() => child.emit("exit", 1223));
+      // The bundled elevate.exe returns 1 when the user declines UAC.
+      queueMicrotask(() => child.emit("exit", 1));
       return child;
     };
     try {

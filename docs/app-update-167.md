@@ -67,6 +67,14 @@ The macOS workflow runs `tests/fixtures/appUpdateMac.mjs` against the real built
 
 Local Windows Sandbox was diagnosed from Application event 1023: `WindowsSandboxRemoteSession.exe` cannot load its bundled `hostfxr.dll` (`0x80070005`, `0x80008082`). The host application installation and operating-system permissions were not modified to bypass this. Real interactive UAC cancellation still requires a working isolated Windows desktop.
 
+### Native acceptance follow-up (2026-10-31)
+
+Windows verification run [41136579244](https://github.com/ucx0204/CarrotMangaTranslator/actions/runs/41136579244) passed real v3.7.7 → v3.8.0 installation/restart and unchanged original/output/model fixture hashes under a custom Korean data path. Its `windows-update-verification-v3.8.0` artifact contains the evidence; this was verification-only, not a published release.
+
+The user also declined a real UAC prompt from an isolated, harmless NSIS fixture whose only instruction is `Quit`. The production download/install service and bundled `elevate.exe` returned an install error with exit code 1 and did not request application quit. No actual installer or user data was modified. The local evidence is `.tmp/release-v3.8.0/uac-real-result.json`; fixture SHA-256: `315f50baf293fe457c54ed4dbef0f1c7b5649f37a12fd0515d6588518826f321`. The regression fixture now uses the observed helper exit code instead of Windows error 1223.
+
+macOS run [41144499971](https://github.com/ucx0204/CarrotMangaTranslator/actions/runs/41144499971) built and verified the package, downloaded and verified the real DMG, and mounted it at `/Volumes/CarrotMangaTranslator 3.8.0-arm64`. Its final assertion nevertheless failed: `hdiutil` reported the Korean cache path in decomposed Unicode while Node retained composed characters, even after `realpath`. The fixture now compares device/inode identity and requires a mounted volume. A successful rerun and the normal publication workflows remain required; the failed run is not treated as a green release gate.
+
 ## References
 
 - [electron-builder auto-update contract](https://www.electron.build/v26/docs/features/auto-update/)
