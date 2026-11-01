@@ -1,18 +1,10 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { waitForMountedVolume } from "./fixtures/appUpdateMacMount";
 
 type Image = {
   "image-path": string;
   "system-entities": { "mount-point"?: string; "dev-entry"?: string }[];
 };
-const { waitForMountedVolume } =
-  require("./fixtures/appUpdateMacMount.cjs") as {
-    waitForMountedVolume(options: {
-      readImages: () => Image[];
-      matchesImage: (image: Image) => boolean;
-      timeoutMs?: number;
-      intervalMs?: number;
-    }): Promise<Image>;
-  };
 
 afterEach(() => vi.useRealTimers());
 

@@ -28,7 +28,7 @@ load.extensions[".ts"] = (module, filename) => {
   module._compile(compiled.outputText, filename);
 };
 const { AppUpdateDownload } = load("../../src/main/appUpdateDownload.ts");
-const { waitForMountedVolume } = load("./appUpdateMacMount.cjs");
+const { waitForMountedVolume } = load("./appUpdateMacMount.ts");
 const root = await mkdtemp(join(tmpdir(), "carrot-update-한글-"));
 app.setPath("userData", root);
 app.disableHardwareAcceleration();

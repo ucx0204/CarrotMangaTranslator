@@ -1,28 +1,22 @@
-/**
- * @typedef {{
- *   "image-path": string,
- *   "system-entities"?: Array<{"mount-point"?: string, "dev-entry"?: string}>
- * }} MountedImage
- */
+type MountedImage = {
+  "image-path": string;
+  "system-entities"?: { "mount-point"?: string; "dev-entry"?: string }[];
+};
 
-/**
- * DiskImageMounter can register an image before its volume is ready.
- * Keep polling until the matching image exposes a mounted volume.
- * @param {{
- *   readImages: () => MountedImage[],
- *   matchesImage: (image: MountedImage) => boolean,
- *   timeoutMs?: number,
- *   intervalMs?: number
- * }} options
- */
-async function waitForMountedVolume({
+// DiskImageMounter registers the image before its volume is ready.
+export async function waitForMountedVolume({
   readImages,
   matchesImage,
   timeoutMs = 90_000,
   intervalMs = 500,
-}) {
+}: {
+  readImages: () => MountedImage[];
+  matchesImage: (image: MountedImage) => boolean;
+  timeoutMs?: number;
+  intervalMs?: number;
+}): Promise<MountedImage> {
   const deadline = Date.now() + timeoutMs;
-  let images = [];
+  let images: MountedImage[] = [];
   while (Date.now() < deadline) {
     images = readImages();
     const mounted = images.find(
@@ -37,5 +31,3 @@ async function waitForMountedVolume({
     `The downloaded DMG did not expose a mounted volume; observed images: ${JSON.stringify(images)}`,
   );
 }
-
-module.exports = { waitForMountedVolume };
