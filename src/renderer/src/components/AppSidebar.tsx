@@ -29,6 +29,7 @@ import {
 } from "../lib/appCommandTypes";
 import { useContextRailExpansion } from "./useContextRailExpansion";
 import {
+  measureLibrarySplitPercent,
   useSidebarPanelLayout,
   type SidebarPanelLayout,
 } from "./useSidebarPanelLayout";
@@ -221,6 +222,7 @@ function SidebarSplitHandle({
       }
       valueMin={0}
       valueMax={100}
+      measureValue={measureLibrarySplitPercent}
       onResizeStart={layout.onSplitResizeStart}
       onResize={layout.onSplitResize}
       onResizeEnd={layout.onSplitResizeEnd}

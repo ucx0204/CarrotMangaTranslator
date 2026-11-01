@@ -40,6 +40,12 @@
   --info: var(--palette-info-500);
   --info-bd: var(--palette-info-500);
   --focus: var(--accent-bd);
+  /*
+   * How far a focus ring reaches outside its control: the 2px outline drawn
+   * 1px outside, rounded up. Clipping panels and scroll owners keep this much
+   * room at their edges so the ring is never cut.
+   */
+  --focus-ring-reach: 4px;
   --warn: var(--palette-warning-300);
   --favorite: var(--palette-accent-300);
   --success: var(--palette-success-500);
@@ -229,6 +235,18 @@
   box-sizing: border-box;
   scrollbar-color: var(--scroll-thumb) transparent;
   scrollbar-width: thin;
+}
+
+/*
+ * Tab autoscroll and scrollIntoView stop at the control's border box, which
+ * left the outline outside it hidden under the scroller's edge. A wrapper that
+ * draws the ring for a smaller focused child (`:focus-within`) adds the gap
+ * between the two as `--focus-ring-host-inset`.
+ */
+:where(a[href], button, input, select, textarea, summary, [tabindex]) {
+  scroll-margin: calc(
+    var(--focus-ring-reach) + var(--focus-ring-host-inset, 0px)
+  );
 }
 
 .visually-hidden {

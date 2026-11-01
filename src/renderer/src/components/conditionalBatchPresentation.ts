@@ -134,8 +134,7 @@ export function resolveConditionalBatchNumberPresentation(
     unit:
       scale === 100
         ? "%"
-        : (number?.unit ??
-          (field === "lineHeight" || field === "outlineWidthScale" ? "×" : "")),
+        : (number?.unit ?? (field === "outlineWidthScale" ? "×" : "")),
     toStoredValue: (next: number) => cleanNumber(next / scale),
   };
 }
@@ -172,6 +171,7 @@ function cleanNumber(value: number): number {
 }
 
 const PERCENT_VALUE_FIELDS = new Set<ConditionalBatchField>([
+  "lineHeight",
   "fontWidthScale",
   "textOpacity",
   "textEffectOpacity",

@@ -128,10 +128,14 @@ function createNumberDraftHandlers({
       event.currentTarget.blur();
       delete event.currentTarget.dataset.skipNumberBlur;
     } else if (event.key === "Escape") {
-      event.currentTarget.dataset.skipNumberBlur = "true";
+      /*
+       * Escape cancels the draft and keeps the caret in the field; blurring
+       * here dropped focus to <body>. With nothing to cancel the key passes
+       * through, so a second Escape still closes the surrounding dialog.
+       */
+      if (draft === (options.mixed ? "" : format(options.value))) return;
       restore();
-      event.currentTarget.blur();
-      delete event.currentTarget.dataset.skipNumberBlur;
+      event.preventDefault();
       event.stopPropagation();
     }
   };

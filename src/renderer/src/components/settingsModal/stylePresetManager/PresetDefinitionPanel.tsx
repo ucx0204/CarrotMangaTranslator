@@ -244,7 +244,8 @@ const FORMAT_VALUE_RESOLVERS: Record<
   direction: ({ format, t }) =>
     t(`format.direction.${format.renderDirection ?? "horizontal"}`),
   emphasis: resolveEmphasisValue,
-  lineSpacing: ({ format }) => (format.lineHeight ?? 1.18).toFixed(2),
+  lineSpacing: ({ format }) =>
+    `${Math.round((format.lineHeight ?? 1.18) * 100)}%`,
   letterSpacing: ({ format }) => (format.letterSpacing ?? 0).toFixed(2),
   fontWidth: ({ format }) =>
     `${Math.round((format.fontWidthScale ?? 1) * 100)}%`,

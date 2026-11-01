@@ -1,5 +1,9 @@
 import { beforeAll, expect, it } from "vitest";
-import { summarizeAction } from "../src/renderer/src/components/conditionalBatchPresentation";
+import {
+  formatConditionalBatchDisplayValue,
+  resolveConditionalBatchNumberPresentation,
+  summarizeAction,
+} from "../src/renderer/src/components/conditionalBatchPresentation";
 import type { ConditionalBatchReplaceTextActionV2 } from "../src/shared/conditionalBatchRules";
 
 import { initializeAppI18n } from "../src/renderer/src/appI18n";
@@ -48,4 +52,14 @@ it("distinguishes advanced regex replacement and first-match-only behavior", () 
       allOccurrences: false,
     }),
   ).toBe("고급 패턴을(를) 고급 치환(으)로 첫 번째만 바꾸기");
+});
+
+it("shows line height as a percentage like every other format surface", () => {
+  const presentation = resolveConditionalBatchNumberPresentation(
+    "lineHeight",
+    1.18,
+  );
+  expect(presentation).toMatchObject({ value: 118, step: 1, unit: "%" });
+  expect(presentation.toStoredValue(135)).toBe(1.35);
+  expect(formatConditionalBatchDisplayValue("lineHeight", 1.2)).toBe("120%");
 });

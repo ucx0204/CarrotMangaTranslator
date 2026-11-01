@@ -17,6 +17,12 @@ export type ResizeHandleProps = {
   valueMin?: number;
   valueMax?: number;
   valueText?: string;
+  /**
+   * Reads the current value from layout while `valueNow` is unset, i.e. while
+   * the panes keep their default CSS sizes. Without it a separator in the
+   * default state would expose a range but no current position.
+   */
+  measureValue?: (handle: HTMLElement) => number | null;
   /** Snapshots the sizes the following offsets are measured from. */
   onResizeStart: (handle: HTMLElement) => void;
   /** Pointer or keyboard offset from the start, in CSS px along the drag axis. */
@@ -39,6 +45,7 @@ export function ResizeHandle({
   valueMin,
   valueMax,
   valueText,
+  measureValue,
   onResizeStart,
   onResize,
   onResizeEnd,
@@ -48,6 +55,9 @@ export function ResizeHandle({
     null,
   );
   const [dragging, setDragging] = React.useState(false);
+  const { handleRef, measured, remeasure } = useMeasuredValue(
+    valueNow === undefined ? measureValue : undefined,
+  );
   const axis = (event: { clientX: number; clientY: number }): number =>
     orientation === "vertical" ? event.clientX : event.clientY;
 
@@ -59,26 +69,14 @@ export function ResizeHandle({
     onResizeEnd();
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
-    const [back, forward] =
-      orientation === "vertical"
-        ? ["ArrowLeft", "ArrowRight"]
-        : ["ArrowUp", "ArrowDown"];
-    if (event.key !== back && event.key !== forward) return;
-    event.preventDefault();
-    const step = event.shiftKey ? KEYBOARD_LARGE_STEP_PX : KEYBOARD_STEP_PX;
-    onResizeStart(event.currentTarget);
-    onResize(event.key === forward ? step : -step);
-    onResizeEnd();
-  };
-
   return (
     <div
+      ref={handleRef}
       role="separator"
       tabIndex={0}
       aria-label={label}
       aria-orientation={orientation}
-      aria-valuenow={valueNow}
+      aria-valuenow={valueNow ?? measured ?? undefined}
       aria-valuemin={valueMin}
       aria-valuemax={valueMax}
       aria-valuetext={valueText}
@@ -106,7 +104,70 @@ export function ResizeHandle({
       onPointerCancel={finish}
       onLostPointerCapture={finish}
       onDoubleClick={onReset}
-      onKeyDown={handleKeyDown}
+      onFocus={remeasure}
+      onKeyDown={(event) =>
+        stepWithKeyboard(event, orientation, {
+          onResizeStart,
+          onResize,
+          onResizeEnd,
+        })
+      }
     />
   );
+}
+
+function stepWithKeyboard(
+  event: React.KeyboardEvent<HTMLDivElement>,
+  orientation: ResizeHandleProps["orientation"],
+  handlers: Pick<
+    ResizeHandleProps,
+    "onResizeStart" | "onResize" | "onResizeEnd"
+  >,
+): void {
+  const [back, forward] =
+    orientation === "vertical"
+      ? ["ArrowLeft", "ArrowRight"]
+      : ["ArrowUp", "ArrowDown"];
+  if (event.key !== back && event.key !== forward) return;
+  event.preventDefault();
+  const step = event.shiftKey ? KEYBOARD_LARGE_STEP_PX : KEYBOARD_STEP_PX;
+  handlers.onResizeStart(event.currentTarget);
+  handlers.onResize(event.key === forward ? step : -step);
+  handlers.onResizeEnd();
+}
+
+function useMeasuredValue(
+  measureValue: ((handle: HTMLElement) => number | null) | undefined,
+): {
+  handleRef: React.RefObject<HTMLDivElement | null>;
+  measured: number | null;
+  remeasure: () => void;
+} {
+  const handleRef = React.useRef<HTMLDivElement | null>(null);
+  const [measured, setMeasured] = React.useState<number | null>(null);
+  const remeasure = React.useCallback(() => {
+    const handle = handleRef.current;
+    if (!measureValue || !handle) return;
+    const next = measureValue(handle);
+    setMeasured(next === null ? null : Math.round(next));
+  }, [measureValue]);
+  React.useLayoutEffect(() => {
+    if (!measureValue) {
+      setMeasured(null);
+      return;
+    }
+    remeasure();
+    const container = handleRef.current?.parentElement;
+    const observer =
+      container && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(remeasure)
+        : null;
+    if (container) observer?.observe(container);
+    window.addEventListener("resize", remeasure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", remeasure);
+    };
+  }, [measureValue, remeasure]);
+  return { handleRef, measured, remeasure };
 }

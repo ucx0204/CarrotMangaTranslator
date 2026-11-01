@@ -255,6 +255,11 @@
     auto;
 }
 
+.gather-direct-preview-stage:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
 .gather-direct-preview-stage[data-compact="true"] {
   height: 92px;
   min-height: 92px;

@@ -341,11 +341,25 @@ describe("page editor dialog", () => {
         { target: { value } },
       );
     expect(screen.getAllByText("출력 이름이 겹칩니다.")).toHaveLength(2);
+    // Each invalid field is described by its own row's message.
+    for (const index of [1, 2, 3]) {
+      const field = screen.getByRole("textbox", { name: `바꿀 이름 ${index}` });
+      const message = document.getElementById(
+        field.getAttribute("aria-describedby") ?? "",
+      );
+      if (index === 3) expect(message?.textContent).toBeTruthy();
+      else expect(message?.textContent).toBe("출력 이름이 겹칩니다.");
+    }
     expect(
       screen
         .getByRole("textbox", { name: "바꿀 이름 4" })
         .getAttribute("aria-invalid"),
     ).toBe("false");
+    expect(
+      screen
+        .getByRole("textbox", { name: "바꿀 이름 4" })
+        .hasAttribute("aria-describedby"),
+    ).toBe(false);
   });
   it("prevents invalid names and asks before discarding", () => {
     const props = mount();

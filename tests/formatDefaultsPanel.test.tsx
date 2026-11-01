@@ -31,6 +31,10 @@ describe("FormatDefaultsPanel", () => {
     const { container } = renderPanel();
 
     expect(container.querySelector(".gather-direct-preview")).toBeTruthy();
+    const preview = screen.getByRole("region", { name: "적용 미리보기" });
+    expect(preview.tabIndex).toBe(0);
+    preview.focus();
+    expect(document.activeElement).toBe(preview);
     expect(
       container.querySelectorAll(
         ".format-defaults-editor-controls > .gather-direct-editor-section",
@@ -137,11 +141,13 @@ describe("FormatDefaultsPanel", () => {
       name: "장평",
     }) as HTMLInputElement;
 
+    // Shown as a percentage like the block editor; stored as a ratio.
     expect([lineHeight.min, lineHeight.max, lineHeight.step]).toEqual([
-      "0.1",
       "10",
-      "0.01",
+      "1000",
+      "1",
     ]);
+    expect(lineHeight.value).toBe("118");
     expect([letterSpacing.min, letterSpacing.max, letterSpacing.step]).toEqual([
       "-1",
       "5",
@@ -153,9 +159,12 @@ describe("FormatDefaultsPanel", () => {
       "1",
     ]);
 
-    fireEvent.change(lineHeight, { target: { value: "10" } });
+    fireEvent.change(lineHeight, { target: { value: "1000" } });
     fireEvent.keyDown(lineHeight, { key: "Enter" });
     expect(onChange).toHaveBeenLastCalledWith({ lineHeight: 10 });
+    fireEvent.change(lineHeight, { target: { value: "135" } });
+    fireEvent.keyDown(lineHeight, { key: "Enter" });
+    expect(onChange).toHaveBeenLastCalledWith({ lineHeight: 1.35 });
 
     fireEvent.change(letterSpacing, { target: { value: "-1" } });
     fireEvent.blur(letterSpacing);

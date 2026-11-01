@@ -92,8 +92,9 @@ describe("GatherTextDirectFormatModal", () => {
     const selection = makeSelection();
     renderModal(selection);
 
+    // Entered as a percentage, applied as the stored ratio.
     const input = screen.getByRole("spinbutton", { name: "줄 간격" });
-    fireEvent.change(input, { target: { value: "2.35" } });
+    fireEvent.change(input, { target: { value: "235" } });
     fireEvent.keyDown(input, { key: "Enter" });
     fireEvent.click(screen.getByRole("button", { name: "적용" }));
 

@@ -1047,6 +1047,7 @@
     "newWorkTitle": "新しい作品のタイトル",
     "existingWork": "既存の作品",
     "chaptersToImport": "取り込む話",
+    "chapterTitleInput": "取り込む話のタイトル {{index}}（{{title}}）",
     "moveItem": "{{title}}を移動",
     "deleteItem": "{{title}}を削除",
     "addToFinal": "{{title}}を最終リストに追加",

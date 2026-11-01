@@ -1047,6 +1047,7 @@
     "newWorkTitle": "新作品标题",
     "existingWork": "现有作品",
     "chaptersToImport": "要导入的章节",
+    "chapterTitleInput": "要导入的章节标题 {{index}}（{{title}}）",
     "moveItem": "移动{{title}}",
     "deleteItem": "删除{{title}}",
     "addToFinal": "将{{title}}添加到最终列表",

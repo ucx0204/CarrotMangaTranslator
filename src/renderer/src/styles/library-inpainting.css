@@ -228,33 +228,20 @@
   height: 6px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: var(--text-muted);
+  background: currentColor;
 }
 
 .page-row-status.completed {
-  color: var(--success);
-}
-
-.page-row-status.completed .page-row-status-dot {
-  background: var(--success);
+  color: var(--success-text);
 }
 
 .page-row-status.translation-complete,
 .page-row-status.running {
-  color: var(--warn);
-}
-
-.page-row-status.translation-complete .page-row-status-dot,
-.page-row-status.running .page-row-status-dot {
-  background: var(--warn);
+  color: var(--warning-text);
 }
 
 .page-row-status.failed {
-  color: var(--danger);
-}
-
-.page-row-status.failed .page-row-status-dot {
-  background: var(--danger);
+  color: var(--danger-text);
 }
 
 .page-actions-menu {

@@ -82,16 +82,25 @@
 .selectionToggle {
   display: none;
 }
+/*
+ * Both scrollers clip at their padding box and their first row and trailing
+ * buttons sit on that edge. The gutter, cancelled by the negative margin,
+ * keeps those focus rings whole without moving any content.
+ */
 .selectionContent {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  margin: calc(var(--focus-ring-reach) * -1);
+  padding: var(--focus-ring-reach);
   overflow: auto;
 }
 .stages {
-  overflow: auto;
   min-height: 0;
+  margin: calc(var(--focus-ring-reach) * -1);
+  padding: var(--focus-ring-reach);
+  overflow: auto;
 }
 .stage {
   border-bottom: 1px solid var(--border-soft);

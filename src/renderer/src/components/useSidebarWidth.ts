@@ -31,10 +31,7 @@ export function useSidebarWidth(
   const onResizeStart = React.useCallback(() => {
     const shell = resizerRef.current?.parentElement;
     if (!shell) return;
-    const [sidebarTrack = 0, , rightTrack = 0] = window
-      .getComputedStyle(shell)
-      .gridTemplateColumns.split(" ")
-      .map((track) => Number.parseFloat(track) || 0);
+    const [sidebarTrack = 0, , rightTrack = 0] = readShellTracks(shell);
     const roomMax = shell.clientWidth - rightTrack - MIN_WORKSPACE_WIDTH_PX;
     startRef.current = {
       // Repeated arrow keys land while the grid track is still animating, so
@@ -88,4 +85,18 @@ export function useSidebarWidth(
   }, [resizerRef, resizing]);
 
   return { width, resizing, onResizeStart, onResize, onResizeEnd, reset };
+}
+
+function readShellTracks(shell: Element): number[] {
+  return window
+    .getComputedStyle(shell)
+    .gridTemplateColumns.split(" ")
+    .map((track) => Number.parseFloat(track) || 0);
+}
+
+/** The rendered left-rail width, for the separator's default-width state. */
+export function measureSidebarWidth(handle: HTMLElement): number | null {
+  const shell = handle.closest(".sidebar-width-resizer")?.parentElement;
+  const [sidebarTrack] = shell ? readShellTracks(shell) : [];
+  return sidebarTrack ? sidebarTrack : null;
 }

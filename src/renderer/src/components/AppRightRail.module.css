@@ -52,7 +52,8 @@
 .chatBody {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: clip;
+  overflow-clip-margin: var(--focus-ring-reach);
 }
 .editor {
   display: contents;

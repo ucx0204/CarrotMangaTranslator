@@ -1,4 +1,6 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
+import { findAdjacentFocusable } from "./focusOrder";
 import styles from "./NumberField.module.css";
 import { useNumberFieldDraft } from "./numberFieldDraft";
 import { useNumberScrub, type NumberScrubControl } from "./numberFieldScrub";
@@ -39,7 +41,10 @@ type NumberFieldBaseProps = {
   inputClassName?: string;
   /** Disable only the text input, leaving the scrub buttons usable. */
   inputDisabled?: boolean;
-  /** Scrubber only: accessible labels for the step buttons. */
+  /**
+   * Scrubber only: accessible labels for the step buttons. They default to
+   * the localized "decrease/increase {ariaLabel}" so the two never share a name.
+   */
   decreaseLabel?: string;
   increaseLabel?: string;
   /** Scrubber only: block drag-scrubbing but keep the step buttons. */
@@ -105,16 +110,20 @@ function innerInputClassName(props: NumberFieldProps): string {
 /** The value box shared by both framed variants: input plus the inline unit. */
 function NumberFieldShell({
   emit,
+  framed = false,
   inputProps,
   unit,
 }: {
   emit: (value: number | null) => void;
+  framed?: boolean;
   inputProps: NumberFieldProps;
   unit: string | undefined;
 }): React.JSX.Element {
   return (
     <span
-      className={styles.inputShell}
+      className={[styles.inputShell, framed && unit ? styles.withUnit : ""]
+        .filter(Boolean)
+        .join(" ")}
       data-ui-number-input-zone=""
       onPointerDown={(event) => {
         const input =
@@ -124,6 +133,16 @@ function NumberFieldShell({
         input.focus();
       }}
     >
+      {framed && unit ? (
+        /*
+         * An invisible twin of the unit on the left keeps the value centred in
+         * the field while the input itself stops short of the real unit, so a
+         * long draft scrolls inside the input instead of running under it.
+         */
+        <span className={styles.unitBalance} aria-hidden="true">
+          {unit}
+        </span>
+      ) : null}
       <NumberInput props={inputProps} emit={emit} />
       {unit ? (
         <span className={styles.unit} aria-hidden="true">
@@ -139,6 +158,7 @@ function FramedNumberField({ props, emit }: InternalProps): React.JSX.Element {
     <div className={shellClassName(props, styles.framed)}>
       <NumberFieldShell
         emit={emit}
+        framed
         unit={props.unit}
         inputProps={{ ...props, className: innerInputClassName(props) }}
       />
@@ -168,6 +188,7 @@ function ScrubberNumberField({
   props,
   emit,
 }: InternalProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const step = props.step ?? 1;
   const precision = props.precision ?? resolveStepPrecision(step);
   const control = useNumberScrub({
@@ -182,19 +203,34 @@ function ScrubberNumberField({
     step,
     value: props.value ?? props.min,
   });
+  const decreaseDisabled = isStepDisabled(props, control, -1);
+  const increaseDisabled = isStepDisabled(props, control, 1);
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const { onActivate, onBlur } = useStepBoundFocusRescue(
+    rootRef,
+    decreaseDisabled,
+    increaseDisabled,
+  );
   return (
     <div
+      ref={rootRef}
       className={shellClassName(props, styles.scrubber)}
       data-scrubbable-number-field=""
+      onBlur={onBlur}
     >
       <ScrubStepButton
         control={control}
         direction={-1}
-        disabled={isStepDisabled(props, control, -1)}
-        label={props.decreaseLabel ?? props.ariaLabel}
+        disabled={decreaseDisabled}
+        label={
+          props.decreaseLabel ??
+          t("format.decreaseValue", { label: props.ariaLabel })
+        }
+        onActivate={onActivate}
       />
       <NumberFieldShell
         emit={emit}
+        framed
         unit={props.unit}
         inputProps={{
           ...props,
@@ -209,11 +245,73 @@ function ScrubberNumberField({
       <ScrubStepButton
         control={control}
         direction={1}
-        disabled={isStepDisabled(props, control, 1)}
-        label={props.increaseLabel ?? props.ariaLabel}
+        disabled={increaseDisabled}
+        label={
+          props.increaseLabel ??
+          t("format.increaseValue", { label: props.ariaLabel })
+        }
+        onActivate={onActivate}
       />
     </div>
   );
+}
+
+type PendingStepFocus = { direction: -1 | 1; via: "tab" | "click" };
+
+/**
+ * A step button turns disabled once the value reaches its bound. When that
+ * button holds focus (Tab from the input committed the maximum and landed on
+ * "+", or a click on "+" reached it) the browser drops focus to <body>.
+ * Keep it where the user was heading: past the button after Tab, back in the
+ * value after a click.
+ */
+function useStepBoundFocusRescue(
+  rootRef: React.RefObject<HTMLDivElement | null>,
+  decreaseDisabled: boolean,
+  increaseDisabled: boolean,
+): {
+  onActivate: (direction: -1 | 1) => void;
+  onBlur: React.FocusEventHandler<HTMLDivElement>;
+} {
+  const pendingRef = React.useRef<PendingStepFocus | null>(null);
+  React.useLayoutEffect(() => {
+    const pending = pendingRef.current;
+    const root = rootRef.current;
+    if (!pending || !root) return;
+    const nowDisabled =
+      pending.direction < 0 ? decreaseDisabled : increaseDisabled;
+    if (!nowDisabled) return;
+    pendingRef.current = null;
+    const button = root.querySelector<HTMLElement>(
+      `[data-step-direction="${pending.direction}"]`,
+    );
+    const active = document.activeElement;
+    if (!button || (active !== button && active !== document.body)) return;
+    const target =
+      pending.via === "click"
+        ? root.querySelector<HTMLInputElement>("input:not(:disabled)")
+        : findAdjacentFocusable(button, pending.direction);
+    target?.focus();
+  }, [decreaseDisabled, increaseDisabled, rootRef]);
+  const onActivate = React.useCallback((direction: -1 | 1) => {
+    pendingRef.current = { direction, via: "click" };
+  }, []);
+  const onBlur = React.useCallback(
+    (event: React.FocusEvent<HTMLDivElement>) => {
+      const next = event.relatedTarget;
+      const direction =
+        next instanceof HTMLElement && event.currentTarget.contains(next)
+          ? Number(next.dataset.stepDirection)
+          : Number.NaN;
+      pendingRef.current =
+        event.target instanceof HTMLInputElement &&
+        (direction === -1 || direction === 1)
+          ? { direction, via: "tab" }
+          : null;
+    },
+    [],
+  );
+  return { onActivate, onBlur };
 }
 
 /** A step button is inert at the matching bound, but stays live mid-scrub. */
@@ -234,11 +332,13 @@ function ScrubStepButton({
   direction,
   disabled,
   label,
+  onActivate,
 }: {
   control: NumberScrubControl;
   direction: -1 | 1;
   disabled: boolean;
   label: string;
+  onActivate: (direction: -1 | 1) => void;
 }): React.JSX.Element {
   return (
     <button
@@ -247,8 +347,12 @@ function ScrubStepButton({
       aria-label={label}
       title={label}
       disabled={disabled}
+      data-step-direction={direction}
       {...control.pointerHandlers}
-      onClick={(event) => control.onClick(event, direction)}
+      onClick={(event) => {
+        onActivate(direction);
+        control.onClick(event, direction);
+      }}
     >
       <span aria-hidden="true">{direction < 0 ? "−" : "+"}</span>
     </button>

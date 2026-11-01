@@ -4,7 +4,7 @@ import { IconRestore } from "@tabler/icons-react";
 import { SIDEBAR_WIDTH_RANGE } from "../lib/workspacePreferences";
 import { IconButton } from "./ui/IconButton";
 import { ResizeHandle } from "./ui/ResizeHandle";
-import { useSidebarWidth } from "./useSidebarWidth";
+import { measureSidebarWidth, useSidebarWidth } from "./useSidebarWidth";
 
 /** Keeps the reset chip clear of the window's top and bottom edges. */
 const RESET_EDGE_INSET_PX = 20;
@@ -51,6 +51,7 @@ export function SidebarWidthResizer(): React.JSX.Element {
         label={t("sidebar.resizeWidth")}
         title={t("sidebar.resizeWidthHint")}
         valueNow={control.width ?? undefined}
+        measureValue={measureSidebarWidth}
         valueMin={SIDEBAR_WIDTH_RANGE.min}
         valueMax={SIDEBAR_WIDTH_RANGE.max}
         onResizeStart={control.onResizeStart}

@@ -205,7 +205,9 @@ function createAdvancedNumberConfigs(
       min: MIN_LINE_HEIGHT,
       max: MAX_LINE_HEIGHT,
       step: LINE_HEIGHT_STEP,
-      precision: 2,
+      precision: 0,
+      unit: "%",
+      displayScale: 100,
     },
     {
       field: "letterSpacing",

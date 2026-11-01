@@ -181,13 +181,14 @@ export function FormatDefaultsFineTuningSection({
         <PresetGroupControl availability={presetGroups} groupId="lineSpacing">
           <FormatNumberControl
             label={t("format.lineHeight")}
-            min={MIN_LINE_HEIGHT}
-            max={MAX_LINE_HEIGHT}
-            step={LINE_HEIGHT_STEP}
-            precision={2}
-            value={value.lineHeight}
+            min={MIN_LINE_HEIGHT * 100}
+            max={MAX_LINE_HEIGHT * 100}
+            step={LINE_HEIGHT_STEP * 100}
+            precision={0}
+            unit="%"
+            value={Math.round(value.lineHeight * 100)}
             onChange={(lineHeight) =>
-              onChange({ lineHeight: round2(lineHeight) })
+              onChange({ lineHeight: round2(lineHeight / 100) })
             }
           />
         </PresetGroupControl>

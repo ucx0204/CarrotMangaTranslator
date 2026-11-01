@@ -674,11 +674,14 @@ describe("unified right rail", () => {
     const hiddenRail = document.querySelector(".right-rail");
     expect(hiddenRail?.classList.contains("is-hidden")).toBe(true);
     expect(hiddenRail?.getAttribute("aria-hidden")).toBe("true");
+    // Faded out only visually; inert keeps its tabs out of the Tab order.
+    expect(hiddenRail?.hasAttribute("inert")).toBe(true);
 
     view.rerender(<AppRightRail {...makeRightRailProps()} />);
     const openRail = document.querySelector(".right-rail");
     expect(openRail?.classList.contains("is-open")).toBe(true);
     expect(openRail?.hasAttribute("aria-hidden")).toBe(false);
+    expect(openRail?.hasAttribute("inert")).toBe(false);
 
     fireEvent.click(
       screen.getByRole("button", { name: "검수·편집 패널 펼치기" }),

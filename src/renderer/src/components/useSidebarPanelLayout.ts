@@ -56,18 +56,7 @@ export function useSidebarPanelLayout(): SidebarPanelLayout {
 
   // The separator sits between the library panel and the page list.
   const onSplitResizeStart = React.useCallback((handle: HTMLElement) => {
-    const library = handle.previousElementSibling;
-    const pages = handle.nextElementSibling;
-    if (!library || !pages) return;
-    const libraryHeight = library.getBoundingClientRect().height;
-    const total = libraryHeight + pages.getBoundingClientRect().height;
-    const libraryPadding = blockChrome(library);
-    startRef.current = {
-      growable: total - libraryPadding - blockChrome(pages),
-      libraryHeight,
-      libraryPadding,
-      total,
-    };
+    startRef.current = measureSplit(handle);
   }, []);
 
   const onSplitResize = React.useCallback(
@@ -107,6 +96,29 @@ export function useSidebarPanelLayout(): SidebarPanelLayout {
     onSplitResizeEnd,
     resetSplit,
   };
+}
+
+function measureSplit(handle: HTMLElement): SplitStart | null {
+  const library = handle.previousElementSibling;
+  const pages = handle.nextElementSibling;
+  if (!library || !pages) return null;
+  const libraryHeight = library.getBoundingClientRect().height;
+  const total = libraryHeight + pages.getBoundingClientRect().height;
+  const libraryPadding = blockChrome(library);
+  return {
+    growable: total - libraryPadding - blockChrome(pages),
+    libraryHeight,
+    libraryPadding,
+    total,
+  };
+}
+
+/** The library's rendered share in percent, for the default-split state. */
+export function measureLibrarySplitPercent(handle: HTMLElement): number | null {
+  const split = measureSplit(handle);
+  if (!split || split.growable <= 0) return null;
+  const share = (split.libraryHeight - split.libraryPadding) / split.growable;
+  return Math.max(0, Math.min(100, share * 100));
 }
 
 /** Vertical padding and border, which flex-grow shares do not divide. */

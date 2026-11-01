@@ -202,7 +202,8 @@ function PageSortableContent(
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div
           ref={scrollRef}
-          role="list"
+          // Only a populated list is a list; the empty notice is a plain note.
+          role={props.pages.length ? "list" : undefined}
           onScroll={windowed.onScroll}
           onFocusCapture={windowed.onFocusCapture}
           onBlurCapture={windowed.onBlurCapture}

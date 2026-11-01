@@ -4,7 +4,9 @@
   min-width: 0;
   min-height: 0;
   height: 100%;
-  overflow: hidden;
+  /* The composer spans the full width: let its focus ring reach the rail's padding. */
+  overflow: clip;
+  overflow-clip-margin: var(--focus-ring-reach);
   color: var(--text);
 }
 /* Conversation picker and actions share one header row. */
@@ -20,6 +22,8 @@
 .transcript {
   flex: 1;
   min-height: 0;
+  margin-inline: calc(var(--focus-ring-reach) * -1);
+  padding-inline: var(--focus-ring-reach);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;

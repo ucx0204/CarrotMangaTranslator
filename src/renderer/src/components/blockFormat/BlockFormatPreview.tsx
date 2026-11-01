@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../../shared/textTypes";
 import type { TextEffect } from "../../../../shared/textTypes";
 import { resolveTextEffectFilter } from "../../../../shared/textEffect";
@@ -72,18 +73,21 @@ export function BlockFormatPreview({
   );
 }
 
+type BlockFormatPreviewStageProps = {
+  autoFitLabel: string;
+  compact?: boolean;
+  previewText: string;
+  values: BlockFormatPreviewValues;
+};
+
 export function BlockFormatPreviewStage({
   autoFitLabel,
   compact = false,
   previewText,
   values,
-}: {
-  autoFitLabel: string;
-  compact?: boolean;
-  previewText: string;
-  values: BlockFormatPreviewValues;
-}): React.JSX.Element {
+}: BlockFormatPreviewStageProps): React.JSX.Element {
   const { catalog } = useFonts();
+  const { t } = useTranslation("components");
   const outlineWidthPx = resolveEffectiveTextOutlineWidthPx(
     values,
     values.fontSizePx,
@@ -92,6 +96,9 @@ export function BlockFormatPreviewStage({
   return (
     <div
       className="gather-direct-preview-stage"
+      role={compact ? undefined : "region"}
+      aria-label={compact ? undefined : t("gatherText.previewTitle")}
+      tabIndex={compact ? undefined : 0}
       data-compact={compact}
       data-direction={values.renderDirection}
     >

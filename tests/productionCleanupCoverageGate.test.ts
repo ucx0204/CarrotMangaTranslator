@@ -614,7 +614,8 @@ describe("production cleanup coverage floor gate", () => {
     // Retention rotation adds the shared policy and paged encrypted catalog owners.
     // Issue 166 adds three relocation owners and one action, removing the unused folder legend.
     // Issue 167 adds sixteen updater domain, IPC and production UI owners.
-    expect(scope.added).toHaveLength(1617);
+    // UI focus continuity adds the shared focus-order owner (Modal trap, NumberField).
+    expect(scope.added).toHaveLength(1618);
     expect(scope.deleted).toHaveLength(12);
   });
 });

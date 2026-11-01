@@ -644,6 +644,8 @@
 }
 
 .color-picker-button {
+  /* Its ring surrounds an 18px swatch and a text-height HEX input. */
+  --focus-ring-host-inset: 10px;
   position: relative;
   min-width: 0;
   min-height: var(--ctl-h);

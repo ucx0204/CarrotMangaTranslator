@@ -1047,6 +1047,7 @@
     "newWorkTitle": "New work title",
     "existingWork": "Existing work",
     "chaptersToImport": "Chapters to import",
+    "chapterTitleInput": "Imported chapter title {{index}} ({{title}})",
     "moveItem": "Move {{title}}",
     "deleteItem": "Delete {{title}}",
     "addToFinal": "Add {{title}} to the final list",

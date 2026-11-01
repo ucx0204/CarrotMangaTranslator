@@ -140,6 +140,7 @@ function PageNameCell({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const parts = pageNameParts(page.name);
+  const errorId = React.useId();
   return (
     <>
       <div
@@ -152,6 +153,7 @@ function PageNameCell({
           data-ui-framed-input=""
           aria-label={`${t("pageEditor.newName")} ${index + 1}`}
           aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
           value={name}
           disabled={disabled}
           onChange={(e) => edit(page.id, e.target.value)}
@@ -161,7 +163,7 @@ function PageNameCell({
         <span className={styles.extension}>{parts.extension}</span>
       </div>
       {error ? (
-        <span className={styles.rowError}>
+        <span id={errorId} className={styles.rowError}>
           {t(`pageEditor.errors.${error}`, {
             defaultValue: t("pageEditor.errors.invalid"),
           })}

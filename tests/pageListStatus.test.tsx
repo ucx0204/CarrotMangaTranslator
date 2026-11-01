@@ -29,6 +29,8 @@ describe("page list workflow status", () => {
     fireEvent.click(screen.getByRole("button", { name: "페이지 추가" }));
     expect(onAddPages).toHaveBeenCalledOnce();
     expect(screen.queryByRole("button", { name: "페이지 편집" })).toBeNull();
+    // The empty notice is not a list without items.
+    expect(screen.queryByRole("list")).toBeNull();
     view.rerender(<PageList {...props} pages={PAGES} />);
     fireEvent.click(screen.getByRole("button", { name: "페이지 편집" }));
     expect(onEditPages).toHaveBeenCalledOnce();
@@ -41,6 +43,7 @@ describe("page list workflow status", () => {
         jobActive
       />,
     );
+    expect(screen.getByRole("list")).toBeTruthy();
     const button = screen.getByRole("button", { name: "화에 페이지 추가" });
     expect(button).toHaveProperty("disabled", true);
     fireEvent.click(button);

@@ -156,16 +156,43 @@
   opacity: 1;
 }
 
-/* Subordinate to the value: smaller and dimmer, so the number reads first. */
+/*
+ * Subordinate to the value through its smaller size and the secondary text
+ * token. A translucent mix of that token fell below 4.5:1 on the sunken field.
+ */
 .unit {
   position: absolute;
   top: 50%;
   right: var(--sp-1);
-  color: color-mix(in srgb, var(--text-muted) 72%, transparent);
+  color: var(--text-muted);
   font-size: var(--font-2xs);
   line-height: 1;
   pointer-events: none;
   transform: translateY(-50%);
+}
+
+/*
+ * Framed fields lay the unit out beside the input instead of over it, with an
+ * invisible twin on the left so the value stays centred. Shell padding (2px)
+ * plus the margin keeps the unit at the same 4px inset as before.
+ */
+.withUnit .unit,
+.unitBalance {
+  position: static;
+  flex: 0 0 auto;
+  font-size: var(--font-2xs);
+  line-height: 1;
+  pointer-events: none;
+  transform: none;
+}
+
+.withUnit .unit {
+  margin: 0 calc(var(--sp-1) - 2px) 0 2px;
+}
+
+.unitBalance {
+  margin: 0 2px 0 calc(var(--sp-1) - 2px);
+  visibility: hidden;
 }
 
 /*

@@ -42,7 +42,7 @@ export function ShareImportNewWorkSection({
         </div>
       </div>
       <div className="draft-list">
-        {preview.chapters.map((chapter) => {
+        {preview.chapters.map((chapter, index) => {
           const selection = newSelections.find(
             (item) => item.packageChapterId === chapter.packageChapterId,
           );
@@ -53,8 +53,10 @@ export function ShareImportNewWorkSection({
             <ShareImportNewWorkItem
               key={chapter.packageChapterId}
               busy={busy}
+              index={index}
               packageChapterId={chapter.packageChapterId}
               pageCount={chapter.pageCount}
+              sourceTitle={chapter.title}
               selection={selection}
               setNewSelections={setNewSelections}
             />
@@ -67,15 +69,19 @@ export function ShareImportNewWorkSection({
 
 function ShareImportNewWorkItem({
   busy,
+  index,
   packageChapterId,
   pageCount,
   selection,
   setNewSelections,
+  sourceTitle,
 }: {
   busy: boolean;
+  index: number;
   packageChapterId: string;
   pageCount: number;
   selection: NewSelection;
+  sourceTitle: string;
   setNewSelections: React.Dispatch<React.SetStateAction<NewSelection[]>>;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -99,6 +105,10 @@ function ShareImportNewWorkItem({
         }}
       />
       <Input
+        aria-label={t("shareImport.chapterTitleInput", {
+          index: index + 1,
+          title: sourceTitle,
+        })}
         value={selection.title}
         disabled={busy || !selection.enabled}
         onChange={(event) => {

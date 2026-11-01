@@ -46066,6 +46066,28 @@
         "pct": 78.78
       }
     },
+    "src/renderer/src/components/ui/focusOrder.ts": {
+      "lines": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      }
+    },
     "src/renderer/src/components/ui/numberFieldDraft.ts": {
       "lines": {
         "total": 59,

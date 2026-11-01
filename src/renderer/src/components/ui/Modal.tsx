@@ -3,20 +3,12 @@ import { useTranslation } from "react-i18next";
 import styles from "./Modal.module.css";
 import { IconButton } from "./IconButton";
 import { CloseIcon } from "./icons";
-
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+import { getFocusable } from "./focusOrder";
 
 const modalStack: symbol[] = [];
 
 function isTopModal(id: symbol): boolean {
   return modalStack.at(-1) === id;
-}
-
-function getFocusable(container: HTMLElement): HTMLElement[] {
-  return Array.from(
-    container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-  ).filter((element) => element.offsetParent !== null);
 }
 
 type ModalSize = "sm" | "md" | "lg" | "xl";
@@ -344,7 +336,7 @@ function useModalFocusTrap(
       if (!card) {
         return;
       }
-      trapTabFocus(event, getFocusable(card));
+      trapTabFocus(event, card, getFocusable(card));
     },
     [cardRef, modalId],
   );
@@ -352,6 +344,7 @@ function useModalFocusTrap(
 
 function trapTabFocus(
   event: React.KeyboardEvent<HTMLDivElement>,
+  card: HTMLElement,
   focusable: HTMLElement[],
 ): void {
   if (focusable.length === 0) {
@@ -361,7 +354,15 @@ function trapTabFocus(
   const first = focusable[0];
   const last = focusable[focusable.length - 1];
   const active = document.activeElement;
-  if (event.shiftKey && active === first) {
+  /*
+   * The dialog opens with the card itself focused. The card precedes every
+   * control in DOM order, so the browser's own Shift+Tab from it leaves the
+   * dialog for the page behind. Route both directions into the dialog.
+   */
+  if (active === card) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  } else if (event.shiftKey && active === first) {
     event.preventDefault();
     last.focus();
   } else if (!event.shiftKey && active === last) {

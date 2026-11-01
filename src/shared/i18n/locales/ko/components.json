@@ -1047,6 +1047,7 @@
     "newWorkTitle": "새 작품 제목",
     "existingWork": "기존 작품",
     "chaptersToImport": "가져올 화",
+    "chapterTitleInput": "가져올 화 제목 {{index}} ({{title}})",
     "moveItem": "{{title}} 순서 이동",
     "deleteItem": "{{title}} 삭제",
     "addToFinal": "{{title}} 최종 목록에 추가",

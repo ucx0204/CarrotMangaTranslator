@@ -35,6 +35,7 @@ export function AppRightRail(props: AppRightRailProps): React.JSX.Element {
     React.useState<HTMLDivElement | null>(null);
   const { contextExpanded, toggleContextExpanded, toggleRef } =
     useContextRailExpansion(props.currentChapter?.id);
+  const railRef = useHiddenRailFocusReturn(panelOpen);
 
   const toggleLabel = t(
     contextExpanded ? "runPanel.hideInspector" : "runPanel.showInspector",
@@ -44,8 +45,12 @@ export function AppRightRail(props: AppRightRailProps): React.JSX.Element {
     : IconLayoutSidebarRightExpand;
   return (
     <aside
+      ref={railRef}
       className={rightRailClasses(panelOpen, contextExpanded, props.chatOpen)}
       aria-hidden={panelOpen ? undefined : true}
+      // The hidden rail is only faded out for its slide transition; inert
+      // keeps its controls out of the Tab order as well.
+      inert={!panelOpen}
     >
       {panelOpen && !props.chatOpen ? (
         <IconButton
@@ -148,6 +153,68 @@ function RightRailHeader({
         hidden={!props.chatOpen}
       />
     </div>
+  );
+}
+
+/**
+ * Keeps focus on a visible control across the rail's show/hide transition.
+ * The library's "translate in chat" button unmounts as chat opens, and hiding
+ * the rail makes it inert; either way focus would fall to <body>. Opening
+ * moves stranded focus to the rail's selected tab; hiding returns it to the
+ * control that opened the rail, or to its re-mounted equivalent.
+ */
+function useHiddenRailFocusReturn(
+  open: boolean,
+): React.RefObject<HTMLElement | null> {
+  const railRef = React.useRef<HTMLElement | null>(null);
+  const lastOutsideRef = React.useRef<HTMLElement | null>(null);
+  const openerRef = React.useRef<HTMLElement | null>(null);
+  React.useEffect(() => {
+    const track = (event: FocusEvent): void => {
+      const target = event.target as HTMLElement;
+      if (!railRef.current?.contains(target)) lastOutsideRef.current = target;
+    };
+    document.addEventListener("focusin", track);
+    return () => document.removeEventListener("focusin", track);
+  }, []);
+  React.useLayoutEffect(() => {
+    const rail = railRef.current;
+    const active = document.activeElement;
+    const stranded =
+      active === document.body || Boolean(rail?.contains(active));
+    if (open) {
+      openerRef.current = stranded
+        ? lastOutsideRef.current
+        : (active as HTMLElement | null);
+      if (stranded) focusSelectedTabIfOpenerGone(rail, openerRef.current);
+      return;
+    }
+    const opener = openerRef.current;
+    openerRef.current = null;
+    if (stranded && opener) resolveConnected(opener)?.focus();
+  }, [open]);
+  return railRef;
+}
+
+function focusSelectedTabIfOpenerGone(
+  rail: HTMLElement | null,
+  opener: HTMLElement | null,
+): void {
+  if (!opener || opener.isConnected) return;
+  rail
+    ?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')
+    ?.focus({ preventScroll: true });
+}
+
+/** The element itself, or the control that replaced it after a re-mount. */
+function resolveConnected(element: HTMLElement): HTMLElement | null {
+  if (element.isConnected) return element;
+  const label = element.getAttribute("aria-label");
+  return (
+    Array.from(
+      document.querySelectorAll<HTMLElement>(`${element.tagName}[aria-label]`),
+    ).find((candidate) => candidate.getAttribute("aria-label") === label) ??
+    null
   );
 }
 

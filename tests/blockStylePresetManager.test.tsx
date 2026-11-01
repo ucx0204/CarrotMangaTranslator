@@ -85,11 +85,12 @@ describe("block style preset manager", () => {
     expect(
       container.querySelectorAll(".style-preset-library-preview"),
     ).toHaveLength(0);
-    expect(
-      container.querySelector(
-        '.gather-direct-preview-stage[data-compact="true"]',
-      ),
-    ).not.toBeNull();
+    const compactPreview = container.querySelector<HTMLElement>(
+      '.gather-direct-preview-stage[data-compact="true"]',
+    );
+    expect(compactPreview).not.toBeNull();
+    expect(compactPreview?.hasAttribute("tabindex")).toBe(false);
+    expect(compactPreview?.hasAttribute("role")).toBe(false);
     expect(container.querySelectorAll(".style-preset-property")).toHaveLength(
       ALL_BLOCK_FORMAT_GROUP_IDS.length,
     );

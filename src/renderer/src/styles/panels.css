@@ -223,7 +223,9 @@
   align-content: stretch;
   flex: 0 1 auto;
   max-height: 100%;
-  overflow: hidden;
+  /* Clip, but let edge controls' focus rings show in the rail's padding. */
+  overflow: clip;
+  overflow-clip-margin: var(--focus-ring-reach);
 }
 
 .editor-panel-sticky {
@@ -235,7 +237,14 @@
 
 .editor-panel-body {
   min-height: 0;
-  padding-right: var(--sp-1);
+  /*
+   * A scroller clips at its padding box. The left gutter, cancelled by the
+   * negative margin so the content keeps its alignment, holds the focus ring
+   * of controls flush with the panel's left edge; the bottom gutter lets the
+   * last row's ring scroll into view.
+   */
+  margin-left: calc(var(--focus-ring-reach) * -1);
+  padding: 0 var(--sp-1) var(--focus-ring-reach) var(--focus-ring-reach);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -998,12 +1007,21 @@
 .library-scroll,
 .page-list-scroll,
 .status-log-scroll {
+  --scroll-focus-gutter: var(--focus-ring-reach);
   min-height: 0;
   overflow: auto;
   display: grid;
   align-content: start;
   gap: 10px;
+  /* Same focus-ring gutter as the editor body; content alignment unchanged. */
+  margin-left: calc(var(--scroll-focus-gutter) * -1);
   padding-right: 4px;
+  padding-left: var(--scroll-focus-gutter);
+}
+
+/* Work titles hang one step left of their chapters (LibraryTree). */
+.library-scroll {
+  --scroll-focus-gutter: calc(var(--focus-ring-reach) + var(--sp-1));
 }
 
 /* The rail is already the surface: a work is a heading plus its chapters,
